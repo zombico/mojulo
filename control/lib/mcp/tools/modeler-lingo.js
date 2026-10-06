@@ -294,6 +294,20 @@ const LEXICON = [
     dcc: 'For reliefs, hems, multi-flange parts and a tool library, a sheet-metal CAD workbench (FreeCAD SheetMetal, Onshape, SolidWorks); bring the part home with `bind_mesh_render`.',
   },
   {
+    id: 'strength-check',
+    terms: ['will it hold', 'strong enough', 'safety factor', 'factor of safety', 'stress analysis', 'load test', 'rigidity', 'stiffness', 'deflection', 'how much does it bend', 'weak spot', 'weak point', 'fea', 'finite element', 'structural analysis', 'load rating', 'beam calculation', 'buckling'],
+    concept: 'How far a part bends under the work it does, how far it is from breaking, and how much to trust that answer.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'measure_solid', when: "a `strength` spec: the material, the print's build direction, and one check per element (cantilever, lever, shaft, strut, bolt, gear) with its load. The real section is cut from the mesh and run through the textbook formula. It returns a margin, a confidence grade and the safety factor that grade calls for, plus the weak spot. A sensor, not a guarantee.", args: { ref: '<sk_ref>', strength: { material: 'petg', build: 'z+', checks: [{ element: 'cantilever', root: { at: [5, 0, 5], normal: [1, 0, 0] }, load: { at: [75, 0, 10], mass: 5 } }] } } },
+    ],
+    then: [
+      { tool: 'update_sketch', when: 'store the spec on the row (`/strength`): the reading reproduces, and the World points at the weak spot (rings pulse there; the arrow and label stay still).', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/strength', value: '<spec>' }] } },
+    ],
+    ceiling: 'Textbook formulas on measured sections (beams, shafts, struts, bolts, Lewis gear teeth) with typical material values and estimated stress raisers. No general 3D stress field, no fatigue life, creep rate or temperature curve, and no contact or joint analysis beyond the bolt check.',
+    dcc: 'For a full stress field, fatigue or contact: an FEA tool (FreeCAD FEM, CalculiX, Ansys, SolidWorks Simulation) on the exported STL or the CAD original. Then test the real part.',
+  },
+  {
     id: 'baking',
     terms: ['bake', 'baking', 'normal map', 'normal bake', 'ao bake', 'ambient occlusion', 'high to low', 'high-to-low', 'cage bake', 'curvature map'],
     concept: 'Transferring detail/lighting from a high-poly (or scene) onto maps for a low-poly.',

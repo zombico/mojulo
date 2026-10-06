@@ -67,6 +67,7 @@ import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeW
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
+import { strengthSpecErrors } from '@/lib/graph/strength/index';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -474,6 +475,12 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
     if (readout !== 'full' && existingSketch?.manifest?.kind === 'workbench') {
       prevWorkbenchStats = await previousStats(ref, existingSketch.manifest);
     }
+  }
+  // The rigidity sensor's stored spec (`strength`) is shape-checked on the way in, so measure_solid never meets
+  // a malformed one later. Geometry is not needed for this; the reading itself runs in measure_solid.
+  if (manifest.strength !== undefined) {
+    const errs = strengthSpecErrors(manifest.strength);
+    if (errs.length) throw new Error(`strength refused:\n - ${errs.join('\n - ')}`);
   }
   // The scad kind pays planScad's gates on an edit as at mint (the fence, the parts contract,
   // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this

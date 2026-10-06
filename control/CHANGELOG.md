@@ -12,6 +12,47 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Rigidity sensor
+
+- `measure_solid` now takes a `strength` spec. It reads how far a part bends under the work it does, how far it is
+  from breaking, and how much to trust that answer. It is a sensor, not a guarantee: every reading names its
+  assumptions and never says "safe".
+- **Material table.** A new mechanical table (`lib/graph/strength/materials.js`) covers FDM, powder and resin
+  prints, stock metals, plastics and clear wood. Each entry has typical stiffness and strength, spread, creep and
+  service temperature, all stamped "check the supplier datasheet".
+  - For prints, strength across the layers falls off by Hankinson's formula.
+  - For wood, strength across the grain falls off the same way.
+  - An undeclared build direction takes the worst case.
+- **Measured sections.** The real cross-section is cut from the mesh and integrated exactly: area, centroid,
+  principal second moments, holes. Works for every solid kind.
+- **Element checks**, each tested against a textbook answer and an overload control that flips the reading:
+  - cantilever: bending, shear and deflection by Castigliano, so a varying section is exact. Swept from the root to
+    the load, so the weak spot is found, not assumed.
+  - lever: the effort comes from machina's lever.
+  - shaft: torsion and twist.
+  - strut: Euler or Johnson buckling.
+  - bolt: ISO stress area, thread stripping, heat-set pull-out.
+  - gear: Lewis tooth bending.
+- **Stress raisers.** Steps in section and holes are found with an estimated Kt, on the face where the step sits.
+  Kt is applied for brittle materials and repeated loads. For a ductile part under a static load it is reported
+  but not applied.
+- **Each reading reports:**
+  - the margin: the safety factor of the weakest mode
+  - rigidity against a limit
+  - a confidence grade: the weakest of material, idealization, load, duty and environment, each with its reason
+  - the safety factor that grade calls for (Pugsley-style; × 1.25 for brittle materials)
+  - a verdict and one plain line
+- **Stored on the row.** The spec can live on the row as `strength` (shape-checked at `update_sketch`), so the
+  reading reproduces.
+- **Weak-spot pointer.** The World draws a pointer at the weak spot: rings that ripple out from the point, with an
+  arrow and a label. Only the rings animate; the part, the arrow and the label stay still. This is a new opt-in
+  `marks` channel, which any row can also author directly. It is not a face, so no mesh export carries it. A row
+  without `marks` or `strength` is byte-identical.
+- **Card and routing.** The scad card has a "Will it hold?" section, and `translate_modeler_lingo` has a
+  `strength-check` entry (PARTIAL; FEA, fatigue and creep are handed off).
+- machina's quantities gain stress, area and second-moment units.
+- The `tools/list` pin moves 269,300 → 269,600 bytes for the new property.
+
 ### Industrial gen study
 
 A study of the parts people most often ask a CAD tool for, minted as an agent writes them first. Most of them

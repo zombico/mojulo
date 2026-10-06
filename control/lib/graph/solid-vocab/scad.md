@@ -5,7 +5,7 @@
   "family": "object",
   "entry": "mint_solid",
   "summary": "Mint a hard-edged object by writing OpenSCAD: `source` is the recipe, meshed in-process by OpenSCAD with exact booleans (a bore has a sharp lip), `color()` is the tint, `parts` name the render groups a hinge can swing, and the object rides the measured studio, every export leg, and the print path at true size.",
-  "when": "Reach for this on 'write it in OpenSCAD / a .scad / CSG / a machined or hard-edged part / a bracket, enclosure, flange, case, bezel, plate with holes / a bolt, nut, thread, tapped hole, countersink, nut trap, heat-set insert / a spur, helical, rack, ring, planetary, bevel or worm gear / a GT2 pulley / a molded housing with draft and bosses / a propeller or blade from NACA sections / a NEMA motor mount, a bearing seat, a keyway, a circlip groove, an O-ring gland, a Raspberry Pi or Arduino standoff pattern, VESA, T-slot, Gridfinity / an enclosure whose lid fits / sheet metal and its flat pattern / a DXF for the laser / exact boolean cuts with a sharp edge / difference() / hull() / a parametric mechanical part / I already have OpenSCAD code'. Organic, blended, sculpted or noisy forms stay on the workbench's fields."
+  "when": "Reach for this on 'write it in OpenSCAD / a .scad / CSG / a machined or hard-edged part / a bracket, enclosure, flange, case, bezel, plate with holes / a bolt, nut, thread, tapped hole, countersink, nut trap, heat-set insert / a spur, helical, rack, ring, planetary, bevel or worm gear / a GT2 pulley / a molded housing with draft and bosses / a propeller or blade from NACA sections / a NEMA motor mount, a bearing seat, a keyway, a circlip groove, an O-ring gland, a Raspberry Pi or Arduino standoff pattern, VESA, T-slot, Gridfinity / an enclosure whose lid fits / sheet metal and its flat pattern / a DXF for the laser / will this bracket hold, how much does it bend, a safety factor, the weak spot / exact boolean cuts with a sharp edge / difference() / hull() / a parametric mechanical part / I already have OpenSCAD code'. Organic, blended, sculpted or noisy forms stay on the workbench's fields."
 }
 ---
 
@@ -82,6 +82,42 @@ mint_solid({ kind: 'scad', title: 'M5 clamp block', spec: { source: `
 ` }})
 ```
 
+## Will it hold? — the rigidity sensor
+
+`measure_solid({ ref, strength })` reads a part against the material it is made from and the work it has to do: how far it bends, how far it is from breaking, how much to trust that, and where the weak spot is. Store the spec on the row (`update_sketch` `/strength`) and the reading reproduces, and the World points at the weak spot: rings pulse there, while the part, the arrow and the label stay still (`show: false` keeps it off). **It is a sensor, not a guarantee**: textbook formulas on the measured shape, with typical material values.
+
+```
+strength: {
+  material: 'pla' | 'petg' | 'abs' | 'asa' | 'pa-cf' | 'pa12' | 'resin' | 'tough-resin' | 'al-6061' | 's235' | 'steel-1045'
+          | 'ss-304' | 'brass' | 'acrylic' | 'pc' | 'oak' | 'pine' | 'plywood' | { E, strength, … } (MPa),
+  build?: 'z+' | [x, y, z],     // the print's build direction; omit and the across-layer worst case is used
+  grain?: [x, y, z],            // wood
+  temperature?: °C, calibrated?: true, show?: false,
+  checks: [ … one per element, each with kind?: 'static'|'repeated'|'impact', sustained?, certainty?: 'measured'|'estimated'|'guess', label? ]
+}
+```
+
+Points are in the model's units (mm here), forces in N (`force: [fx, fy, fz]`, `{ value, unit: 'kgf'|'lbf'|… , dir }`, or `mass: kg` hanging straight down), torques in N·m.
+
+- `{ element: 'cantilever', root: { at, normal }, load: { at, force|mass } }`: the normal points from the fixed root toward the load. Cuts are swept from root to load, so the weak spot is found, not assumed. Reports bending, shear and tip deflection (limit span ÷ 250, or `limit: { deflection_mm }`).
+- `{ element: 'lever', fulcrum: { at }, load: { at, force }, effort: { at, dir? } }`: the effort comes from machina's lever; both arms are checked.
+- `{ element: 'shaft', axis: { at, dir }, length, torque }`: torsion and twist (limit 1° over 20 diameters). A keyway or flat is read off the section.
+- `{ element: 'strut', from, to, force, ends: 'pinned'|'fixed-free'|'fixed-pinned'|'fixed-fixed' }`: compression and Euler/Johnson buckling about the weakest axis.
+- `{ element: 'bolt', size: 'M2'…'M24', grade?: '8.8'|…, tension?, shear?, into?: material, engaged_mm?, insert?: true, at? }`: ISO stress area, thread stripping in the host, heat-set pull-out.
+- `{ element: 'gear', module, teeth, face, torque, rpm?, axis?, at? }`: Lewis tooth bending.
+
+**What comes back.** Each reading has:
+- **Margin:** the safety factor of the weakest mode.
+- **Rigidity:** how much it bends or twists, against a limit.
+- **Confidence:** high / medium / low / very low. It is the weakest of material, idealization, load, duty and environment, each with its reason.
+- **Required factor:** the safety factor that confidence calls for (1.5 / 2 / 3 / 4, × 1.25 for brittle materials).
+- **Verdict:** one of "predicted to fail", "below", "meets" or "meets with room to spare".
+- **Line:** one plain sentence summarising all of the above.
+
+Stress raisers (a step in section, a hole) are found and named with an estimated Kt. Kt counts for brittle materials and repeated loads. For a ductile part under a static load it is reported but not applied, because local yielding shares the load. Inside corners on a print are never sharper than the nozzle leaves them (≈ 0.2 mm).
+
+It does not cover general 3D stress (FEA), fatigue life, creep rates or temperature curves. It also does not cover joints you did not ask about: check the screws as a `bolt`.
+
 ## What this kind does not do
 
-No `include`/`use` libraries (BOSL2 and MCAD stay out; the `mj_*` library above is the vendored allowlist). No `text()`: this OpenSCAD build has no fonts, so glyphs render as nothing (the mint warns) — letter a part with a workbench `reliefs` entry or the carved-solid kind. No B-rep and no STEP: the mesh is the deliverable, and a fit is checked by intersecting the parts (an empty intersection is a clearance), not by GD&T, which stays a CAD tool's (`translate_modeler_lingo` → `precision cad`). No label wraps, no skins, no `material` shelf (the shading is a plain tint; pick the finish in the DCC). OpenSCAD's `$t` does not animate. Absent the WASM package (a lean install), the mint refuses with the install line and existing rows still read.
+No `include`/`use` libraries (BOSL2 and MCAD stay out; the `mj_*` library above is the vendored allowlist). No `text()`: this OpenSCAD build has no fonts, so glyphs render as nothing (the mint warns) — letter a part with a workbench `reliefs` entry or the carved-solid kind. No B-rep and no STEP: the mesh is the deliverable, and a fit is checked by intersecting the parts (an empty intersection is a clearance), not by GD&T, which stays a CAD tool's (`translate_modeler_lingo` → `precision cad`). No label wraps, no skins, no `material` shelf (the shading is a plain tint; pick the finish in the DCC; the mechanical material is the `strength` spec's). OpenSCAD's `$t` does not animate. Absent the WASM package (a lean install), the mint refuses with the install line and existing rows still read.
