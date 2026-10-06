@@ -36,7 +36,8 @@ species builds byte-identically.
   until the muzzle reaches the grass, a short-necked grazer's shoulders lowering when it cannot; the face turned back
   along the flank; nothing on land through the ground. A legless body is laid out as a coil, or a coil with the front
   third raised in an S. Standing, dozing on a cocked hind leg, lying folded, the sphinx, the curl, perching on one
-  leg, sitting down over the feet, sitting up, rearing, the coil, hovering and swimming on are posed; a strategy whose words are not yet
+  leg, sitting down over the feet, sitting up, rearing, lying on the side, the crouch, the coil, hovering and swimming on are
+  posed; a strategy whose words are not yet
   posed says which (`posable`).
 - **Sitting up and rearing.** The trunk pitches up about the hips; sitting, its lowest point (the rump and the tail's
   root) comes down onto the ground and the hind feet lie flat out in front, knees up; rearing, the hips ride on the
@@ -44,6 +45,11 @@ species builds byte-identically.
   the hands up to the mouth to eat. The neck takes back most of the pitch and the face is aimed by the head word. A
   raccoon, a squirrel, a bear, a panda and a chimpanzee relax sitting up and eat from their hands; a raccoon, a bear
   and a chimpanzee rear to look.
+- **Lying on the side, the crouch, and the meal.** Lying on the side, the trunk rolls onto its left flank and settles
+  on the ground (by its trunk line, or its hips and shoulders where those sit lower), the legs lying loose out to the
+  side; a head lowered on a rolled body bends about the world's horizontal, not the body's own. A crouch sinks the
+  hips on planted feet, the front a little lower. A lying predator gnaws the meal between its paws, a pig or a bear
+  roots, a raptor or a theropod tears upward from food pinned underfoot.
 - **Repertoires.** `repertoire(id, behavior)` lists every way an animal does a behavior, its own first: a raccoon
   relaxes sitting up or curled, a bear sitting up or sprawled. The catch-alls (lying folded, standing at ease) are
   left out when anything more its own qualifies. `resolveBehavior`, `poseBehavior` and `behaviorFrames` take

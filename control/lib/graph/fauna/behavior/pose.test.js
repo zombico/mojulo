@@ -106,6 +106,34 @@ describe('behavior pose: the principles read on the bodies', () => {
     }
   });
 
+  it('lying on the side: the trunk rolled onto its left flank and down, the legs out to the right', () => {
+    for (const id of ['lion', 'pig', 'brownBear']) {
+      const c = prepare(id), f = poseBehavior(id, 'sleep', 0);   // side-sleep
+      const hip = (k) => f.bones[c.limbs[k][0]].head;
+      expect(hip('RH')[2] - hip('LH')[2], `${id} right hip over left`).toBeGreaterThan(0.5 * Math.abs(c.byId[c.limbs.RH[0]].head[0]));
+      expect(f.bones.spine1.head[2], `${id} down`).toBeLessThan(c.girth);
+      for (const k of ['RF', 'RH']) expect(f.bones[c.limbs[k].at(-1)].tail[0], `${id} ${k} out to the side`).toBeGreaterThan(hip('RH')[0]);
+    }
+  });
+
+  it('a crouch sinks the hips on planted feet', () => {
+    for (const id of ['houseCat', 'wolf', 'rabbit']) {
+      const c = prepare(id), f = poseBehavior(id, 'alert', 0);   // fix, freeze
+      const rest = c.byId[c.limbs.RH[0]].head[2];
+      expect(f.bones[c.limbs.RH[0]].head[2], id).toBeLessThan(0.8 * rest);
+      const foot = c.limbs.RH.at(-1);
+      expect(Math.abs(f.bones[foot].tail[1] - c.byId[foot].tail[1]), `${id} foot planted`).toBeLessThan(1e-6);
+    }
+  });
+
+  it('gnawing: a lying predator works the meal between its paws, the head moving', () => {
+    const fr = behaviorFrames('wolf', 'eat', 8), h = prepare('wolf').h;
+    expect(posable('wolf', 'eat').strategy).toBe('gnaw');
+    expect(Math.min(...fr.map((f) => tip(f)[2]))).toBeLessThan(0.15 * h);
+    const xs = fr.map((f) => tip(f)[0]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.005);
+  });
+
   it('a variant poses another way from the repertoire', () => {
     const curl = poseBehavior('raccoon', 'relax', 0, { variant: 'curl' }), sit = poseBehavior('raccoon', 'relax', 0);
     expect(curl.bones.head.head[2]).toBeLessThan(sit.bones.head.head[2] / 2);

@@ -24,7 +24,7 @@ import { speciesPlan, SPECIES } from '../species.js';
 import { locomotionFor } from '../locomotion/index.js';
 import { poseGait, prepare as prepareGait } from '../gait.js';
 import { limbsOf, hangLimb, blockStart } from '../limb.js';
-import { sub, add, mul, norm, unit, I3, mm, mv, rotX, rotY, rotZ, between } from '../vec.js';
+import { sub, add, mul, norm, unit, I3, mm, mv, rotX, rotY, rotZ, axisAngle, between } from '../vec.js';
 import { resolveBehavior } from './index.js';
 import { capabilitiesOf } from './capabilities.js';
 
@@ -34,10 +34,10 @@ const transpose = (A) => [0, 1, 2].map((i) => [A[0][i], A[1][i], A[2][i]]);
 
 /** The words this module poses. A strategy is posable when its support, head, tail and loop words are all here. */
 export const POSED = Object.freeze({
-  support: ['stand', 'upright', 'balance', 'cocked', 'sit', 'rear', 'sternal', 'sphinx', 'curl', 'perch', 'sit_bird', 'coil', 'coil-strike', 'hover', 'cruise'],
+  support: ['stand', 'upright', 'balance', 'cocked', 'sit', 'rear', 'side', 'crouch', 'sternal', 'sphinx', 'curl', 'perch', 'sit_bird', 'coil', 'coil-strike', 'hover', 'cruise'],
   head: ['level', 'low', 'high', 'ground', 'reach', 'on-paws', 'on-flank', 'tucked', 'sunk', 'fixed', 'forward', 'inside', 'to-hands'],
   tail: ['rest', 'wrap', 'flag', 'twitch', 'level', 'scull', 'none', 'rattle', 'prop'],
-  loop: ['breathe', 'chew', 'crop', 'strip', 'peck', 'scan', 'stare', 'tongue', 'fins', 'swim', 'snap', 'sway', 'nibble'],
+  loop: ['breathe', 'chew', 'crop', 'strip', 'peck', 'scan', 'stare', 'tongue', 'fins', 'swim', 'snap', 'sway', 'nibble', 'gnaw', 'root', 'tear', 'gape'],
 });
 
 /** The words of resolved strategy `r` this module cannot pose yet (empty: posable). */
@@ -136,7 +136,7 @@ export function poseStrategy(ctx, r, t) {
   fk();
 
   // the head and neck never go through the ground: a lying body lifts its head just clear
-  clearHead(ctx, local, fk, H, W);
+  clearHead(ctx, local, fk, H, W, body);
 
   // the legs: each foot block placed by the support, the leg hung to it; a knee that would go into the ground swings
   // out and up onto it instead (a lying animal's stifle and elbow lie on the ground beside the body)
@@ -152,9 +152,10 @@ export function poseStrategy(ctx, r, t) {
     const bend = place.bend || (body.lying ? mv(Wp, [0.5 * side, fore ? -1 : 1, 0.2]) : undefined);
     hangLimb(bones, H[bones[0].id], place.top, place.R, W, H, bend);
     // a knee still in the ground swings out to the side, then up only as far as it must
-    for (const lift of [0.3, 0.8, 1.5]) {
+    // (out and up in the body's frame; on a body rolled onto its side that can point down, so last of all, world up)
+    for (const bendTry of [0.3, 0.8, 1.5].map((lift) => mv(Wp, [side, fore ? -0.3 : 0.3, lift])).concat([[0, fore ? -0.3 : 0.3, 1]])) {
       if (!(k0 > 1 && H[bones[1].id][2] < 0.005 * h)) break;
-      hangLimb(bones, H[bones[0].id], place.top, place.R, W, H, mv(Wp, [side, fore ? -0.3 : 0.3, lift]));
+      hangLimb(bones, H[bones[0].id], place.top, place.R, W, H, bendTry);
     }
     blockOf[bones[k0 - 1]?.id] = bones[k0];
   }
@@ -228,9 +229,48 @@ function support(ctx, word, r) {
     case 'rear': if (capabilitiesOf(ctx.id).support === 'two') return { R: I3, pivot, T: [0, 0, 0], feet: planted };
     // fallthrough
     case 'sit': return upright(ctx, word, r) || { R: I3, pivot, T: [0, 0, 0], feet: planted };
+    case 'side': return side(ctx, pivot);
+    case 'crouch': {
+      // the trunk sinks on its planted feet, the front a little lower (the eyes on the ground ahead), the legs flexing
+      const hipZ = ctx.limbs.RH ? byId[ctx.limbs.RH[0]].head[2] : h;
+      return { R: rotX(-6 * DEG), pivot: [0, pivot[1], 0], T: [0, 0, -CROUCH * hipZ], feet: planted };
+    }
     case 'hover': return { R: I3, pivot, T: [0, 0, 0], feet: () => null };
     default: throw new Error(`behavior pose: support '${word}' is not posed`);
   }
+}
+
+const CROUCH = 0.35;   // a crouch sinks the hips by this share of their standing height
+const ROLL = 80 * DEG; // lying on the side: the trunk rolled this far onto its left flank (not quite flat: the hips stay a little propped)
+
+/**
+ * Lying on the side: the trunk rolled onto its left flank about its own line and settled until it rests on the ground
+ * at half its thickness. The legs lie loose, out to the side as the roll carries them, drawn a fifth of the way in
+ * toward their roots (relaxed joints), each knee bending in its own plane as the body carries it, nothing below ground.
+ */
+function side(ctx, pivot0) {
+  const { spine, girth, limbs, byId } = ctx;
+  const R = rotY(-ROLL), z0 = spine[0].head[2], pivot = [0, pivot0[1], z0];
+  // settled until the trunk line rests at half its thickness, or higher if a girdle (the hips, the shoulders) would
+  // sink below a quarter of it (a body whose trunk is not all on its spine)
+  const roots = [...spine.flatMap((b) => [b.head, b.tail]), ...Object.values(limbs).map((c) => byId[c[0]].head)];
+  const low = Math.min(...roots.map((q) => add(pivot, mv(R, sub(q, pivot)))[2]));
+  const T = [0, 0, Math.max(0.5 * girth - z0, 0.25 * girth - low)];
+  const carried = (q) => add(add(pivot, mv(R, sub(q, pivot))), T);
+  return {
+    R, pivot, T, lying: true,
+    feet: (key, bones, H) => {
+      const k0 = blockStart(bones), top = bones[k0].head, root = H[bones[0].id];
+      const at = add(root, mul(sub(carried(top), root), 0.8));
+      const below = (id) => ctx.S.bones.filter((x) => x.parent === id).flatMap((x) => [x, ...below(x.id)]);
+      const foot = k0 > 0 ? below(bones[k0 - 1].id) : bones.slice(k0);
+      const lowest = Math.min(...foot.flatMap((b) => [mv(R, sub(b.head, top))[2], mv(R, sub(b.tail, top))[2]]));
+      if (at[2] + lowest < 0.005) at[2] = 0.005 - lowest;
+      // the knee's rest bend, carried by the roll
+      const k = bones[0], line = unit(sub(bones[1].tail, k.head)), kv = sub(k.tail, k.head);
+      return { top: at, R, bend: mv(R, sub(kv, mul(line, kv[0] * line[0] + kv[1] * line[1] + kv[2] * line[2]))) };
+    },
+  };
 }
 
 /** A foot block where it stands at rest. */
@@ -376,6 +416,9 @@ function headTurns(ctx, r, body, turn) {
   }
 }
 
+/** The world's horizontal side-to-side axis in the body's own frame: what a neck bends about to lower the head. */
+const pitchAxis = (body) => unit(mv(transpose(body.R), [1, 0, 0]));
+
 /** Turn the head (in its neck's frame) so the face points along world direction `want`. */
 function aimHead(ctx, local, fk, W, want) {
   const { byId, neck } = ctx;
@@ -401,11 +444,15 @@ function solveHeadToGround(ctx, r, local, fk, H, W, how, body) {
   const shoulder = limbs.RF ? byId[limbs.RF[0]].head[2] : h;
   const target = how === 'low' ? 0.5 * shoulder : (how === 'ground' ? 0.01 : 0.03) * h;
   // the face's pitch in the world (from the horizontal, on its own heading): down at the grass, hanging, or level
-  const face = { ground: -80, low: -65 }[how] ?? -5;
+  // a lying head rests: `ground` is the chin on the ground, not the face turned down to crop
+  const face = how === 'ground' && body.lying ? -5 : ({ ground: -80, low: -65 }[how] ?? -5);
+  // the neck bends down about the world's horizontal axis, read in the body's frame (a body rolled onto its side
+  // lowers its head by turning the neck sideways in its own frame)
+  const axis = pitchAxis(body);
   const neckEnd = neck.length ? neck[neck.length - 1].id : byId.head.parent;
   const r0 = unit(sub(byId.head.tail, byId.head.head));
   const set = (a) => {
-    for (const b of neck) local[b.id] = mm(base[b.id], rotX(-a / Math.max(1, neck.length)));
+    for (const b of neck) local[b.id] = mm(base[b.id], axisAngle(axis, -a / Math.max(1, neck.length)));
     local.head = base.head; fk();
     const d = mv(W.head, r0), flat = Math.hypot(d[0], d[1]) || 1, f = face * DEG;
     const want = [d[0] / flat * Math.cos(f), d[1] / flat * Math.cos(f), Math.sin(f)];
@@ -424,7 +471,7 @@ function solveHeadToGround(ctx, r, local, fk, H, W, how, body) {
     }
     set(best); return false;
   };
-  if (neckSolve() || how !== 'ground' || !limbs.RH) return;
+  if (neckSolve() || how !== 'ground' || body.lying || !limbs.RH) return;   // a lying head stays as near as it gets
   // the shoulders come down: pitch the trunk about the hind feet (at most 20°) until the neck reaches
   const hip = byId[limbs.RH[0]].head, pivot = [0, hip[1], 0], R0 = body.R;
   const pitch = (p) => { body.R = mm(rotX(-p), R0); body.pivot = pivot; };
@@ -438,14 +485,15 @@ function solveHeadToGround(ctx, r, local, fk, H, W, how, body) {
  * The head and neck never go through the ground: the neck pitches up (shared over its bones, on top of its turn) just
  * until no neck or head point is in it; a head too long for that (a pterosaur's crest and beak) then pitches up itself.
  */
-function clearHead(ctx, local, fk, H, W) {
+function clearHead(ctx, local, fk, H, W, body) {
   const { neck, byId } = ctx;
   const ids = [...neck.map((b) => b.id), 'head'].filter((x) => byId[x]);
   const lowest = () => Math.min(...ids.map((x) => Math.min(H[x][2], add(H[x], mv(W[x], sub(byId[x].tail, byId[x].head)))[2])));
   if (lowest() >= 0) return;
   const lift = (bones, share) => {
     const base = Object.fromEntries(bones.map((x) => [x, local[x] || I3]));
-    const set = (a) => { for (const x of bones) local[x] = mm(rotX(a * share), base[x]); fk(); };
+    const axis = pitchAxis(body);
+    const set = (a) => { for (const x of bones) local[x] = mm(axisAngle(axis, a * share), base[x]); fk(); };
     let lo = 0, hi = 90 * DEG; set(hi); if (lowest() < 0) return false;
     for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; set(mid); if (lowest() < 0) lo = mid; else hi = mid; }
     set(hi); return true;
@@ -500,6 +548,13 @@ function loopTurns(ctx, r, t, turn) {
     case 'tongue': turn('head', rotX(1.5 * DEG * Math.max(0, Math.sin(4 * TAU * t)))); break;
     case 'snap': turn('head', rotX(-10 * DEG * Math.max(0, Math.sin(TAU * t)) ** 4)); break;
     case 'nibble': turn('head', rotX(5 * DEG * Math.sin(2 * TAU * t))); break;   // the hands follow the mouth
+    // working the meal with the cheek teeth: the head tilts to one side and tugs back, then the other
+    case 'gnaw': turn('head', mm(rotY(12 * DEG * Math.sin(TAU * t)), rotX(6 * DEG * Math.max(0, Math.sin(2 * TAU * t))))); break;
+    // the snout pushes forward and down through the soil, then lifts and shakes it off
+    case 'root': turn('head', mm(rotX(-8 * DEG * Math.sin(TAU * t)), rotZ(5 * DEG * Math.sin(3 * TAU * t)))); break;
+    // a sharp pull upward and back from the food pinned below, then down again
+    case 'tear': { const k = Math.max(0, Math.sin(TAU * t)) ** 2; neck.forEach((b) => turn(b.id, rotX(25 * DEG * k / Math.max(1, neck.length)))); turn('head', rotX(15 * DEG * k)); break; }
+    // gape: the mouth held open while swimming on (no jaw bone yet: the swim carries it)
     case 'sway': if (neck.length) turn(neck[0].id, rotZ(7 * DEG * s)); break;
     case 'fins': for (const b of ctx.S.bones) if (/^(pectoral|pelvic|flipper)[RL]$/.test(b.id)) turn(b.id, rotY((b.id.endsWith('L') ? -1 : 1) * 10 * DEG * Math.sin(TAU * (t + (/pelvic/.test(b.id) ? 0.25 : 0))))); break;
     default: break;   // stare: no motion; swim: the cruise
