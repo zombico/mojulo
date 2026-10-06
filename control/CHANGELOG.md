@@ -12,6 +12,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Industrial gen study
+
+A study of the parts people most often ask a CAD tool for, minted as an agent writes them first. Most of them
+mint, but the hard ones fail without saying so: threads no nut fits, gears and pulleys that only look right, text that
+renders blank, and hand-made helices and lofts that break apart. The `scad` kind gains the vendored, pinned library its
+card promised, and both silent failures now warn. A source that calls no `mj_` name is byte-identical.
+
+- **The mechanical library.** A source that calls any `mj_` module or function gets mojulo's own OpenSCAD library
+  prepended (`lib/graph/scad/mech-lib.js`), stamped `mechlib: <version>` in the ledger. It covers:
+  - ISO metric coarse fasteners M2–M24 (`mj_bolt` with hex, socket, button or countersunk heads, `mj_nut`,
+    `mj_washer`).
+  - Real helical threads (`mj_thread`, `mj_tapped_hole`, `mj_trapezoid_thread`). The ISO 68-1 profile is swept on a
+    sheared grid, so the part is a closed manifold and an `mj_nut` turns onto an `mj_bolt`.
+  - Holes that print true: `mj_hole` circumscribes the polygon and adds a named fit. Also counterbores, countersinks,
+    nut traps and slots, and heat-set pilots.
+  - Involute gears: spur, helical and herringbone (`mj_spur_gear`), `mj_rack`, `mj_ring_gear`, and `mj_planetary`,
+    which phases the planets and refuses a set that cannot assemble. A meshing pair sits at `mj_gear_center`.
+  - Bevel gears and worms, which are approximations and labelled as such.
+  - GT2 pulleys.
+  - Exact fillets and chamfers, edge by edge.
+  - Molded shells with draft, bosses and ribs.
+  - NACA sections lofted into blades.
+- **Silent failures are said.** Two cases now warn: a `text()` call (this OpenSCAD build has no fonts, so glyphs render
+  as nothing), and a `polyhedron()` that OpenSCAD's kernel takes apart as non-manifold.
+- **The routes say so.** The `scad` card has a library section. `translate_modeler_lingo` `precision cad` and
+  `chamfer` now route threads, gears, fits and exact chamfers to the library. STEP, GD&T and constraint solving stay
+  a CAD tool's.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

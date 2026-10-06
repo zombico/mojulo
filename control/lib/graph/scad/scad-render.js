@@ -42,6 +42,7 @@ import { ensureExactKernel } from '../polygonizer/field-exact.js';
 import { manifestWantsExact } from '../polygonizer/field-exact-reach.js';
 import { facesToPolyhedron } from '../scene/scene-scad.js';
 import { optionalHelperHint } from '../../version/distribution.js';
+import { MECH_LIB_SOURCE, MECH_LIB_VERSION, usesMechLib } from './mech-lib.js';
 
 export const SCAD_KIND = 'scad';
 export const MAX_SOURCE_BYTES = 64 * 1024;
@@ -150,6 +151,15 @@ export function fieldPrelude(fields) {
   if (preludeCache.size >= 16) preludeCache.delete(preludeCache.keys().next().value);
   preludeCache.set(key, text);
   return text;
+}
+
+/**
+ * The mechanical library (mech-lib.js) for a source that calls an `mj_` module or function, or ''
+ * — so a source without one is the same program text, the same memo key, the same bytes.
+ */
+export function mechPrelude(source, parts) {
+  const bare = stripComments([source, ...(parts && typeof parts === 'object' ? Object.values(parts) : [])].join('\n'));
+  return usesMechLib(bare) ? `${MECH_LIB_SOURCE}\n` : '';
 }
 
 // ─── the WASM ─────────────────────────────────────────────────────────────────────
@@ -389,7 +399,7 @@ export async function renderScadParts(manifest) {
   const source = manifest.source;
   const fn = Number.isFinite(manifest.fn) ? manifest.fn : undefined;
   const parts = manifest.parts && typeof manifest.parts === 'object' ? manifest.parts : null;
-  const prelude = fieldPrelude(manifest.fields);
+  const prelude = `${mechPrelude(source, parts)}${fieldPrelude(manifest.fields)}`;
   if (!parts) {
     const r = await renderProgram(source, null, { fn, group: DEFAULT_GROUP, prelude });
     if (r.skipped) return r;
@@ -464,6 +474,9 @@ export async function planScad(manifest = {}) {
       warnings.push(`part '${p.name}' is an open shell — ${closure.holes.length} hole${closure.holes.length === 1 ? '' : 's'}, widest ≈${round1(closure.holes[0].diameter)} ${units} across. Manifold output is closed by construction, so this is an OpenSCAD warning worth reading (a 2D object at top level, a non-manifold polyhedron()).`);
     }
     for (const l of p.log) if (/WARNING|ERROR/i.test(l) && !/Status:\s*NoError/i.test(l)) log.push(`${p.name}: ${l}`);
+    // two OpenSCAD warnings that still write a file, so the mint succeeds with geometry missing
+    if (p.log.some((l) => /Can't get font|Fontconfig error/i.test(l))) warnings.push(`part '${p.name}': text() rendered NOTHING — this OpenSCAD build carries no fonts, so every glyph is dropped while the rest of the part renders. Raise or engrave lettering as a workbench \`reliefs\` entry or the carved-solid kind, or draw it as polygons.`);
+    if (p.log.some((l) => /Manifold conversion failed/i.test(l))) warnings.push(`part '${p.name}': a polyhedron() is not a closed 2-manifold, so OpenSCAD's kernel took it apart or dropped it — the part rendered without it as written. Check face winding and shared edges, or use the library (mj_thread, mj_loft) for helices and lofts.`);
     return out;
   });
   const all = r.parts.flatMap((p) => p.records);
@@ -479,12 +492,13 @@ export async function planScad(manifest = {}) {
     for (const m of manifest.movers) if (m && typeof m.group === 'string' && !names.has(m.group)) warnings.push(`movers: group '${m.group}' names no part — the parts are ${[...names].join(', ')}.`);
   }
   const closed = parts.every((p) => !p.open);
-  const ledger = { recipe_bytes: recipeBytes, wall_ms: Math.round(performance.now() - t0), faces: all.length, closed, openscad: await openscadVersion(), backend: SCAD_BACKEND };
+  const mechlib = mechPrelude(manifest.source, manifest.parts) ? { mechlib: MECH_LIB_VERSION } : {};
+  const ledger = { recipe_bytes: recipeBytes, wall_ms: Math.round(performance.now() - t0), faces: all.length, closed, openscad: await openscadVersion(), backend: SCAD_BACKEND, ...mechlib };
   return { stats: { parts, faces: all.length, units, size, ledger, ...(log.length ? { log } : {}), ...(warnings.length ? { warnings } : {}) } };
 }
 
 /** The deterministic subset of the ledger stored on the manifest (no timings). */
 export function persistedScadLedger(ledger) {
   if (!ledger) return undefined;
-  return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed, openscad: ledger.openscad };
+  return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed, openscad: ledger.openscad, ...(ledger.mechlib ? { mechlib: ledger.mechlib } : {}) };
 }
