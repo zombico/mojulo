@@ -133,9 +133,8 @@ const DESCRIPTION_ALLOWLIST = {
   // kind (full-mission SI telemetry) and the description gained its one-line
   // column note. Shrink-only from here.
   measure_view: 1423,
-  meta_context_brief: 963,
   mint_catalyst: 850,
-  meta_context_commit: 2586,
+  meta_context_commit: 803,
   meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
@@ -294,7 +293,10 @@ const DESCRIPTION_ALLOWLIST = {
 // from 16,227 to 4,321 bytes. Each publication kind's layout guide left the schema for PUBLICATION_GUIDE in
 // cook.js, returned by sketch_stash({ target_kind }) for the one kind being published; the deprecated
 // `template` alias is still accepted but no longer listed. Shrink-only from here.
-const PAYLOAD_CEILING = 256_800;
+// RATCHETED DOWN 2026-10-06 (256_800 -> 251_600; measured 251,525) for the contextmap trim: meta_context_commit
+// 7,144 -> 3,283 bytes, meta_context_brief 1,700 -> 912, meta_context_analyze 1,413 -> 826. The chatbot-era
+// `artifact_materialization` type and the `bot` brief scope still work but are no longer listed.
+const PAYLOAD_CEILING = 251_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -26,6 +26,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   both. Each now has a stash recipe, and `photojournal` has a guide (it had none).
 - **Ratchet.** The flat `tools/list` pin drops from 268,900 to 256,800 bytes.
 
+### Contextmap trim
+
+The contextmap tools came from the chatbot era and still read like it. Their listings are shorter, and the 2.x
+parts no longer show. Nothing they accept or record changed.
+
+- `meta_context_commit` lists 3.3 KB instead of 7.1 KB: one line per type, with the app, connected-service and
+  trigger records first, since those are what the dashboard's Apps and Connected Services panes list.
+- `meta_context_brief` (1.7 KB to 0.9 KB) and `meta_context_analyze` (1.4 KB to 0.8 KB) are shorter too.
+- No longer listed, still accepted: the 2.x `artifact_materialization` commit, which answers with the chatbot
+  notice, and the `bot` brief scope, which reads a 2.x install's rows.
+- `gather` and `execute_plan` stop mentioning bots and deploys.
+- **Ratchet.** The flat `tools/list` pin drops from 256,800 to 251,600 bytes.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
