@@ -208,6 +208,8 @@ export function serpentMaker({ name, path, n = 80, girth, profile = [[0, 1], [1,
     ...snakeHead(H.skull, H0.croc),
     headScale: hs, muzzleW: H.muzzle[0], muzzleLen: H.muzzle[1], headRelative: 0.42, relBrow: true,
     eyeAt: head.eyeAt ?? (H0.croc ? [2.2, 2.3] : [2.4, 2.9]), eyeR: head.eyeR ?? 0.006, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 },
+    // opt-in: `head.eyeStyle: 'set'` (+ `head.eyeSet`) seats the eye into the skull (build.js, the set eye)
+    ...(head.eyeStyle ? { eyeStyle: head.eyeStyle, ...(head.eyeSet ? { eyeSet: head.eyeSet } : {}) } : {}),
     headOrnaments: [...(head.tongue === false ? [] : TONGUE.map((o) => ({ ...o, spine: o.spine.map((q) => q.map((v) => v * tk * hs / 0.42)), radii: o.radii.map((v) => v * tk * hs / 0.42) }))), ...(head.ornaments || [])],
     extraSegments: extra, markings: body.marks, colors,
   };

@@ -216,6 +216,8 @@ export const species = {
     jawCaps: { back: [0, 0.035, -0.03], tip: [0, 0.066, -0.031] },
     headScale: 1, nape: [0, -0.03, -0.03],
     eyeAt: [3.3, 1.7], eyeR: 0.022, orbit: { open: [1, 1] },
+    // the set eye (judged over the goggle discs, both orders): seated, wide open, a larger pupil
+    eyeStyle: 'set', eyeSet: { sink: 0.35, open: [0.85, 0.75], pupil: 32 },
     browStrip: [[3.05, 1.0], [3.1, 1.25], [3.15, 1.5], [3.2, 1.8], [3.25, 2.1]],
     nostrilAt: [4.3, 1.4], noseAt: [4.3, 1.4], noseR: [0.002, 0.002],
     ears: true, earAt: [1.7, 1.2], earSpine: [[0, 0, 0], [0.008, -0.006, 0.03], [0.018, -0.012, 0.062]],
@@ -514,6 +516,8 @@ export const species = {
     jawCaps: { back: [0, 0.0, -0.045], tip: [0, 0.083, -0.053] },
     browStrip: [[1.2, 1.9], [1.45, 1.9], [1.7, 1.95], [1.95, 2.05], [2.2, 2.2]],
     headScale: 1.5, eyeAt: [2.0, 2.2], eyeR: 0.011, nose: false,
+    // the set eye (judged over the bulging white domes, both orders): seated in the bare face patch
+    eyeStyle: 'set', eyeSet: { sink: 0.45, open: [0.75, 0.6] },
     bodyTiles: [],
     wings: { wing: featherWing({ arm: [0.17, 0.25, 0.17], secLen: 0.36, primLen: 0.4, primReach: 0.08, slotFrom: 0.8, slotBy: 0.2 }), pitch: 36,
       palette: { WingBone: '#cf1f27', FlightA: '#2a50b0', FlightB: '#2446a0', FlightC: '#3058b8', FlightUnder: '#c8a02a',

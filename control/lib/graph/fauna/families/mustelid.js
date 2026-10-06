@@ -99,6 +99,7 @@ export const species = {
   // thick tail tapering from a broad flattened base (~40% of total length) · dark brown, paler throat · 0.25 m at the
   // shoulder (ADW / Smithsonian: total length 0.89–1.30 m, tail 0.30–0.50 m, 5–14 kg; shoulder ~0.25 m).
   riverOtter: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'mustelid', name: 'a North American river otter', scale: 1,
   },
 };

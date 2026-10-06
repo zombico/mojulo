@@ -110,7 +110,7 @@ export const species = {
     neckRA: [0.06, 0.055], neckRB: [0.045, 0.04], neckRMid: [0.05, 0.045],
     ...snakeHead([1.05, 0.8]),
     headScale: 0.42, muzzleW: 1.0, muzzleLen: 0.9,
-    eyeAt: [2.4, 2.9], eyeR: 0.005, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 }, headOrnaments: SNAKE_TONGUE,
+    eyeAt: [2.4, 2.9], eyeR: 0.005, eyeStyle: 'set', orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 }, headOrnaments: SNAKE_TONGUE,
     extraSegments: [
       { name: 'coils', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: null, up: true, stations: loftOf(PY_BODY),
         caps: { back: [0, -0.04, 0.08], tip: [PY_BODY.at(-1)[0], PY_BODY.at(-1)[1] - 0.03, 0.01] } },
@@ -123,7 +123,7 @@ export const species = {
   // typically 3.18–4 m, record 5.85 m; it can rear about a third of its length).
   kingCobra: serpentMaker({ name: 'a king cobra', girth: [0.042, 0.036], profile: [[0, 0.8], [0.25, 1], [0.7, 1], [0.9, 0.55], [1, 0.1]],
     path: { kind: 'raised', height: 0.92, ground: [[0.2, -0.78], [0.3, -1.05], [0.12, -1.32], [-0.18, -1.5], [-0.32, -1.78], [-0.15, -2.08], [0.15, -2.25], [0.3, -2.5], [0.25, -2.75]] },
-    hood: { width: 0.15, from: 0.04, peak: 0.2, to: 0.5 }, head: { shape: 'slender', scale: 0.26, eyeR: 0.0065 },
+    hood: { width: 0.15, from: 0.04, peak: 0.2, to: 0.5 }, head: { shape: 'slender', scale: 0.26, eyeR: 0.0065, eyeStyle: 'set' },
     pattern: [
       { on: 'body', kind: 'stripes', count: 26, run: [0.2, 0.96], width: 0.28, group: 'Band', color: '#c9c58e' },
       { on: 'body', kind: 'band', run: [0, 0.12], t: [0, 0.45], group: 'Throat', color: '#d8cf98' },
@@ -136,7 +136,7 @@ export const species = {
   rattlesnake: serpentMaker({ name: 'a western diamondback rattlesnake', n: 84, girth: [0.036, 0.03], profile: [[0, 0.45], [0.15, 0.9], [0.35, 1.05], [0.8, 0.9], [0.95, 0.45], [1, 0.32]],
     path: { kind: 'coil', height: 0.2, neck: [[-0.05, 0.16], [-0.02, 0.11], [-0.07, 0.05], [-0.1, 0.0]], centre: [0, -0.17], r: [0.07, 0.165], turns: 1.25,
       lift: [[-0.17, -0.12, 0.02], [-0.175, -0.1, 0.05]] },
-    head: { shape: 'viper', scale: 0.21, eyeR: 0.0065 }, tail: { kind: 'rattle', beads: 7 },
+    head: { shape: 'viper', scale: 0.21, eyeR: 0.0065, eyeStyle: 'set' }, tail: { kind: 'rattle', beads: 7 },
     pattern: [
       { on: 'body', kind: 'patch', grid: [24, 1], run: [0.12, 0.86], t: [0.62, 1], size: [0.6, 1], group: 'Diamond', color: '#4b3b2a' },
       { on: 'body', kind: 'band', run: [0.86, 1], group: 'TailWhite', color: '#e4ddcb' },
@@ -149,7 +149,7 @@ export const species = {
   greenMamba: serpentMaker({ name: 'a green mamba', girth: [0.02, 0.018], profile: [[0, 0.75], [0.2, 1], [0.7, 0.95], [0.9, 0.5], [1, 0.12]],
     path: { kind: 'pts', pts: [[0, -0.03, 0.24], [0, -0.1, 0.19], [0, -0.2, 0.1], [0, -0.32, 0.02], [0, -0.45, 0], [0.18, -0.62, 0], [0.22, -0.85, 0], [0.02, -1.05, 0],
       [-0.2, -1.22, 0], [-0.24, -1.45, 0], [-0.05, -1.65, 0], [0.15, -1.8, 0]] },
-    head: { shape: 'coffin', scale: 0.15, eyeR: 0.006 },
+    head: { shape: 'coffin', scale: 0.15, eyeR: 0.006, eyeStyle: 'set' },
     pattern: [{ on: 'body', kind: 'band', t: [0, 0.32], group: 'Belly' }],
     colors: { coat: '#3f9f35', sock: '#3f9f35', ash: '#7cbd45', ashAlt: '#6db03d', brow: '#2d7a28', belly: '#b9d65a', iris: '#8a9a2a', tip: '#2d7a28' } }),
   // SEA SERPENT (mythic). Thesis: NO legs · HUGE: a body ~40 m long and ~1.2 m thick, a swan neck rearing the head ~7 m
@@ -175,7 +175,7 @@ export const species = {
     name: 'a green anaconda', n: 110, girth: [0.15, 0.13], profile: [[0, 0.55], [0.12, 0.8], [0.3, 1], [0.7, 1], [0.88, 0.6], [1, 0.12]],
     path: { kind: 'coil', height: 0.04, neck: [[-0.35, 0.02], [-0.6, 0], [-0.9, 0]], centre: [0.15, -1.5], r: [0.42, 0.85], turns: 0.75,
       lift: [[1.35, -1.75, 0], [1.75, -1.4, 0], [2.15, -1.6, 0]] },
-    head: { shape: 'blunt', scale: 0.5, skull: [0.95, 0.72], muzzle: [0.9, 1.0], eyeR: 0.006, eyeAt: [2.2, 2.3] },
+    head: { shape: 'blunt', scale: 0.5, skull: [0.95, 0.72], muzzle: [0.9, 1.0], eyeR: 0.006, eyeAt: [2.2, 2.3], eyeStyle: 'set' },
     pattern: [
       { on: 'body', kind: 'patch', grid: [30, 2], run: [0.04, 0.95], t: [0.55, 1], size: [0.55, 0.7], group: 'Blotch', color: '#1d1f14' },
       { on: 'body', kind: 'band', run: [0, 1], t: [0, 0.28], group: 'Belly' },

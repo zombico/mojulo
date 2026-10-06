@@ -99,6 +99,7 @@ export const species = {
   // Animal Diversity Web / Smithsonian NMNH Castor canadensis accounts). Kept v4 2026-10-05 (judge A: v4 over the
   // critic-fixed v6, low; judge B: v6 over v1, medium — v4 and v6 differ only in hunch, hind feet, tail height).
   beaver: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'rodent', name: 'a North American beaver', scale: 1,
     muzzleW: 1.15, muzzleLen: 0.75,
     extraSegments: [

@@ -24,7 +24,8 @@ describe("mint_solid kind 'animal'", () => {
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', opts: { skullCfg: { length: 0.3 } } } })).rejects.toThrow(/ring plan/);
   });
 
-  it('mints every family worked species as a layered plan, deterministically', async () => {
+  // Walks the whole roster (~13 s alone); the default 30 s trips when it shares the machine with other files.
+  it('mints every family worked species as a layered plan, deterministically', { timeout: 180000 }, async () => {
     const { SPECIES, speciesPlan } = await import('@/lib/graph/fauna/species');
     const ids = Object.keys(SPECIES);
     expect(ids).toEqual(expect.arrayContaining(['wolf', 'lion', 'horse', 'buck', 'bull', 'brownBear', 'hippo', 'raccoon', 'kangaroo']));

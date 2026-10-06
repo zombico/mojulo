@@ -146,6 +146,7 @@ export const species = {
   // head · the long thin tail carried UP · 0.25 m at the shoulder (Sunquist & Sunquist 2002, Wild Cats of the World:
   // domestic cat shoulder height ~23-25 cm, head-body ~46 cm, tail ~30 cm).
   houseCat: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'feline', name: 'a house cat', scale: 0.27,
     colors: { coat: '#8a8178', sock: '#8a8178', ash: '#d8d2c8', ashAlt: '#c8c0b4', brow: '#4a443e', tip: '#3e3832', iris: '#b8a83a', nose: '#c08080' },
     joints: { neckBase: [0, 0.42, 0.80], neckTop: [0, 0.62, 0.94] },
@@ -220,6 +221,7 @@ export const species = {
     ];
     const ys = steps(-0.60, 0.38, 26);
     return {
+      eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
       family: 'feline', name: 'a cheetah', scale: 0.78, bulk: 1, legBulk: 0.8,
       colors: { coat: '#d4a75c', sock: '#d4a75c', ash: '#eee2c8', ashAlt: '#e0d2b2', brow: '#14100c', tip: '#14100c', mane: '#1d1712' },
       torso, torsoCaps: { back: [0, -0.70, Z], tip: [0, 0.50, Z - 0.02] },

@@ -122,6 +122,7 @@ export const species = {
   // the poll, swept back then tips forward · a short tail, a dark side stripe · 0.62 m at the withers (published
   // 0.55–0.82 m shoulder height; ADW / Kingdon). Authored at bovid units and scaled down.
   gazelle: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'bovid', name: "a Thomson's gazelle", scale: 0.5,
     colors: { coat: '#b47a44', sock: '#a87040', ash: '#b47a44', ashAlt: '#c08a52', brow: '#e8dcc4', horn: '#3a3028', snout: '#a87040', teeth: '#a87040', nose: '#3a2a1e' },
     joints: {
@@ -220,6 +221,7 @@ export const species = {
   // rising from the poll and sweeping BACK · ears out sideways · a short tail held UP · 0.70 m at the withers
   // (published domestic goat 0.6–0.85 m; ADW / FAO breed descriptions). Authored at bovid units and scaled down.
   goat: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'bovid', name: 'a domestic goat', scale: 0.5,
     colors: { coat: '#8a6644', sock: '#6a4c34', ash: '#9a7656', ashAlt: '#8e6c4c', snout: '#7a5a3c', brow: '#5a4028', horn: '#6a5a48', mane: '#4a3626', tip: '#8a6644', hoof: '#2a2420' },
     joints: {

@@ -99,6 +99,7 @@ export const species = {
   // a short cocked scut, white beneath · ~0.20 m to the top of the hunched back (published: head-body 34–50 cm, ear
   // 6.5–7.5 cm, hind foot 8.5–9.5 cm, 1.2–2.5 kg — Animal Diversity Web, Oryctolagus cuniculus).
   rabbit: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'leporid', name: 'a European rabbit', scale: 1, muzzleLen: 0.85,
   },
 };

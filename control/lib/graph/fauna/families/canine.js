@@ -133,6 +133,7 @@ export const species = {
   // the long bushy brush carried low and near-horizontal, white tip · 0.40 m at the shoulder (published 35–50 cm;
   // head-body 0.6–0.9 m, tail 0.3–0.55 m).
   fox: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'canine', name: 'a red fox', scale: 0.52,
     colors: { coat: '#b8602a', sock: '#2a201a', ash: '#efe6d8', ashAlt: '#e0d4c0', tip: '#f2ede4', brow: '#5a3218' },
     joints: {

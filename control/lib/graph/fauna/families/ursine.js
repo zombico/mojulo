@@ -111,6 +111,7 @@ export const species = {
   // neck, small round ears · NO visible tail · head-body ≈1.0 m, shoulder ≈0.37 m (published: length 0.8–1.3 m,
   // height ≈0.36 m). Tables in bear-size units, `scale` 0.4 brings it to true size.
   wombat: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'ursine', name: 'a common wombat', scale: 0.4,
     colors: { coat: '#6e6658', sock: '#4f483e', snout: '#6e6658', ash: '#6e6658', ashAlt: '#655d50', tip: '#4f483e' },
     joints: {
