@@ -11,6 +11,7 @@ import { factsFromManifest, summaryKeepsManifest } from '../../graph/sketch/sket
 import { packManifest, unpackManifest } from '../../graph/sketch/manifest-store.js';
 import { currentSpaceId } from '../../roles/scope.js';
 import { refExistsRefusal } from '../../errors/tool-refusal.js';
+import { getServerVersion } from '../../server-version.js';
 
 // Workshop-space scope (roles-pack.plan.md Phase 4). A delegate's handlers
 // run under their space (lib/roles/scope.js): creates stamp it, reads and
@@ -63,6 +64,10 @@ function rowToSketch(row) {
     folderRef: row.folder_ref || null,
     bucket: bucketOverride || classifyBucket(manifest),
     bucketOverride,
+    // The mojulo version that minted the recipe, and the one that last changed it
+    // (null: before 3.1, or never revised).
+    mintedVersion: row.minted_version ?? null,
+    revisedVersion: row.revised_version ?? null,
   };
 }
 
@@ -235,11 +240,11 @@ export const SketchRepository = {
     const derived = deriveSketchColumns(manifest);
     try {
       handle.prepare(
-        `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, kind, bucket_derived, workshop_space_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())`,
+        `INSERT INTO sketches (ref, title, manifest_json, folder_ref, bucket, kind, bucket_derived, workshop_space_id, minted_version, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch(), unixepoch())`,
       ).run(
         finalRef, title, JSON.stringify(packManifest(manifest)), folderRef || null, bucket || null,
-        derived.kind, derived.bucketDerived, currentSpaceId(),
+        derived.kind, derived.bucketDerived, currentSpaceId(), getServerVersion(),
       );
     } catch (err) {
       // One refusal for every mint: code + the ref + the revision tool to call
@@ -286,15 +291,18 @@ export const SketchRepository = {
     // A retitle or a recipe edit touches the artifact (it rises on the
     // dashboard); a folder move or a bucket pin is filing, and does not.
     const touched = title !== undefined || manifest !== undefined;
+    // Only a recipe edit moves revised_version: a retitle or a filing change
+    // leaves what renders exactly as the version that wrote it.
+    const revised = manifest !== undefined;
     handle.prepare(
       `UPDATE sketches
           SET title = ?, manifest_json = ?, folder_ref = ?, bucket = ?, kind = ?, bucket_derived = ?${
             touched ? ', updated_at = unixepoch()' : ''
-          }
+          }${revised ? ', revised_version = ?' : ''}
         WHERE ref = ?${scope.sql}`,
     ).run(
       nextTitle, JSON.stringify(packManifest(nextManifest)), nextFolderRef, nextBucket,
-      derived.kind, derived.bucketDerived, ref, ...scope.params,
+      derived.kind, derived.bucketDerived, ...(revised ? [getServerVersion()] : []), ref, ...scope.params,
     );
     return this.getByRef(ref);
   },
