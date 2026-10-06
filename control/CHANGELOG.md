@@ -39,6 +39,25 @@ never wired into a tool, a kind or a route. They are gone with their tests, and 
   built on both bases (`anime-head.deep.test.js`, `anime-looks.deep.test.js`), about 160 of the suite's
   file-seconds. The law tests stay in `anime-head.test.js` and `anime-looks.test.js`.
 
+### Pack menu
+
+Opening a pack (`pack_x({})`) returned every member's full description and input schema, and those manuals were
+about 85% of what came back: opening `pack_stash` to call `gather` also read the 16 KB `cook` manual. A pack now
+opens to a menu, and a member's manual is read when the agent picks it. Dispatch is unchanged.
+
+- **The menu.** The pack's orientation, one line per member, and the full manual inline for light members (800 B
+  or less). A heavy member's line ends with its manual's size and how to read it, so the cost is visible before
+  it is paid.
+- **`manual`.** `pack_x({ manual: 'cook' })` returns that member's manual alone (the same description and schema
+  the pack used to inline); a list returns several. A member homed in another pack, a spine tool, an unknown
+  name and a member the Claude plugin profile hides answer as dispatch does.
+- **Errors point at the manual.** A member's error through a pack ends with where its manual is. Structured
+  refusals (a JSON body with a code and the next action) are passed through untouched.
+- **The listing did not grow.** The pack input schema is repeated in every pack entry; its `tool` and `args`
+  wording was shortened to pay for `manual`.
+- **CLI.** `mojulo <pack_id> --manual <name>[,<name>]` reads manuals from a shell; `mojulo <pack_id>` opens the
+  menu.
+
 ### create_sketch diet
 
 `create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
