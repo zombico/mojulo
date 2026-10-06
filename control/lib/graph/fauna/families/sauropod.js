@@ -74,6 +74,7 @@ export const species = {
   // DIPLODOCUS (Diplodocus carnegii). Thesis: a long LOW body, the hips the highest point (forelegs shorter than the
   // hind) · columnar legs · a very long neck carried near LEVEL · a tiny long low head · an extremely long tail
   // tapering to a WHIP · ~26 m long, ~3.5–4 m at the hip (Carnegie Museum CM 84 / Hatcher 1901; Paul 2016: ~24–26 m).
+  // kept v2 (upgrade pass 2026-10-06: v8 = legs x1.5, deeper trunk, headScale 1.3 + neckRB cut, muzzleLen 0.9 lost both orders to v2 60/60 and to v1 65/58; judges prefer the long low head)
   diplodocus: {
     family: 'sauropod', name: 'a diplodocus', scale: 1,
     joints: {

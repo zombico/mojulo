@@ -113,15 +113,23 @@ export const species = {
   // Size: ~12 m long, hip (acetabulum) ~3.9 m, back over the hips ~4.4 m (Hutchinson et al. 2011, PLoS ONE 6:
   // e26037, "A computational analysis of limb and body dimensions in Tyrannosaurus rex"; Persons et al. 2020,
   // Anat. Rec. 303: 656, "Scotty": ~13 m). Gate: withers (top of the trunk) 4.4 m ±10%.
-  tRex: { // kept v3 (judges: v3 over v2 60%/60%, v3 over v1 60%/60%, both orders)
-    family: 'theropod', name: 'a Tyrannosaurus rex' },
+  tRex: { // kept v6 (blind judges, both orders: v6 over v3 60%/60%, v6 over v1 65%/60%)
+    family: 'theropod', name: 'a Tyrannosaurus rex',
+    // the drumstick thigh (the caudofemoralis bulk) and a tail as deep as the hips at its root
+    legs: family.legs.map((l) => l[0] === 'thighR' ? ['thighR', 'hip', 'knee', [1.1, 1.4], [0.5, 0.58], 'Coat', [0.4, 0.4], [0.62, 0.8]] : l),
+    torso: [{ at: [0, -0.9, 3.9], r: [0.62, 0.7] }, ...family.torso.slice(1)],
+    extraSegments: [tailLoft(
+      [[-0.9, 3.9, [0.64, 0.72]], [-1.9, 3.92, [0.56, 0.66]], [-3.1, 3.85, [0.36, 0.47]], [-4.4, 3.72, [0.19, 0.26]], [-5.7, 3.55, [0.1, 0.14]], [-6.8, 3.4, [0.04, 0.06]]],
+      { back: [0, -0.6, 3.9], tip: [0, -7.1, 3.37] })],
+    // the eye forward on the skull where the snout steps in, so it faces forward over the snout (binocular)
+    eyeAt: [2.05, 1.5] },
   // VELOCIRAPTOR MONGOLIENSIS. Thesis: a TURKEY-SIZED, lightly built biped, the spine level and the tail a long
   // straight STIFF rod (ossified rods) held off the ground · a LONG LOW SNOUT, slightly concave on top, with a
   // fine tooth row · FEATHERED (quill knobs on the ulna, Turner et al. 2007, Science 317: 1721): a feather fringe on
   // the long folded arms, a ruff on the neck · the raised SICKLE CLAW on toe II held off the ground, the foot
   // walking on toes III–IV. Size: ~2.0 m long, ~0.5 m at the hip, 15–20 kg (Paul 2016, The Princeton Field Guide to
   // Dinosaurs, 2nd ed.: 2.07 m / 15 kg). Gate: withers (top of the trunk over the hips) 0.58 m ±10%. Authored at size.
-  velociraptor: {   // kept v1 (judges split v2/v1 55%/55%: tie → fewer changes)
+  velociraptor: {   // kept v4 (blind judges, both orders: v4 over v1 55%/60%; v1 was the kept version)
     family: 'theropod', name: 'a Velociraptor', scale: 1,
     colors: { coat: '#7a5a3a', sock: '#5a4634', ash: '#d8c7a4', ashAlt: '#b89f78', belly: '#e0d2b4', brow: '#3e2c1e', tip: '#2e2218',
       iris: '#d8a630', sclera: '#d8a630', mane: '#4a3624', hoof: '#1e1914' },
@@ -132,7 +140,7 @@ export const species = {
       hip: [0.065, 0.0, 0.50], knee: [0.08, 0.13, 0.29], ankle: [0.075, -0.04, 0.115], foot: [0.07, 0.015, 0.025],
       toeF: [0.07, 0.10, 0.013], toeO: [0.095, 0.09, 0.013], toeB: [0.05, 0.0, 0.04],
       // toe II raised: up and forward off the ground, the sickle claw hooked down in front of it
-      toeI: [0.045, 0.06, 0.06], sickle: [0.042, 0.10, 0.075], clawI: [0.04, 0.115, 0.042],
+      toeI: [0.045, 0.06, 0.06], sickle: [0.042, 0.11, 0.105], clawI: [0.038, 0.16, 0.03],
       clawF: [0.07, 0.125, 0.004], clawO: [0.10, 0.11, 0.004], clawB: [0.048, -0.01, 0.025],
     },
     torso: [
@@ -158,8 +166,8 @@ export const species = {
       ['toeBR', 'foot', 'toeB', 0.006, 0.004, 'Sock', [0.3, 0.3]],
       ['clawFR', 'toeF', 'clawF', 0.007, 0.002, 'Hoof', [0.3, 0.3]],
       ['clawOR', 'toeO', 'clawO', 0.007, 0.002, 'Hoof', [0.3, 0.3]],
-      ['sickleR', 'toeI', 'sickle', 0.009, 0.007, 'Hoof', [0.3, 0.3]],
-      ['clawIR', 'sickle', 'clawI', 0.007, 0.0015, 'Hoof', [0.3, 0.3]],
+      ['sickleR', 'toeI', 'sickle', 0.013, 0.012, 'Hoof', [0.3, 0.3]],
+      ['clawIR', 'sickle', 'clawI', 0.016, 0.002, 'Hoof', [0.3, 0.3]],
       ['clawBR', 'toeB', 'clawB', 0.004, 0.0015, 'Hoof', [0.3, 0.3]],
     ],
     craniumRows: [
@@ -173,11 +181,11 @@ export const species = {
     ],
     craniumCaps: { back: [0, -0.18, 0.005], tip: [0, 0.295, -0.01] },
     jawRows: [
-      ['st0', -0.10, { gum: -0.055, gumR: [0.05, -0.055], jaw: [0.052, -0.075], bottom: -0.085 }],
-      ['st1', 0.0, { gum: -0.052, gumR: [0.04, -0.052], jaw: [0.042, -0.07], bottom: -0.078 }],
-      ['st2', 0.10, { gum: -0.047, gumR: [0.03, -0.047], jaw: [0.031, -0.062], bottom: -0.067 }],
-      ['st3', 0.20, { gum: -0.043, gumR: [0.023, -0.043], jaw: [0.024, -0.056], bottom: -0.06 }],
-      ['st4', 0.27, { gum: -0.039, gumR: [0.016, -0.039], jaw: [0.017, -0.05], bottom: -0.053 }],
+      ['st0', -0.10, { gum: -0.055, gumR: [0.039, -0.055], jaw: [0.041, -0.075], bottom: -0.085 }],
+      ['st1', 0.0, { gum: -0.052, gumR: [0.03, -0.052], jaw: [0.032, -0.07], bottom: -0.078 }],
+      ['st2', 0.10, { gum: -0.047, gumR: [0.022, -0.047], jaw: [0.023, -0.062], bottom: -0.067 }],
+      ['st3', 0.20, { gum: -0.043, gumR: [0.017, -0.043], jaw: [0.018, -0.056], bottom: -0.06 }],
+      ['st4', 0.27, { gum: -0.039, gumR: [0.012, -0.039], jaw: [0.013, -0.05], bottom: -0.053 }],
     ],
     jawCaps: { back: [0, -0.13, -0.07], tip: [0, 0.285, -0.045] },
     headScale: 0.55, headPitch: -4, eyeAt: [1.5, 1.8], eyeR: 0.03,
@@ -187,7 +195,7 @@ export const species = {
       { back: [0, -0.06, 0.51], tip: [0, -1.4, 0.556] })],
     // the feathers: a fringe of long tiles trailing off the folded arm, a ruff down the neck, a fan at the tail's end
     bodyTiles: [
-      { id: 'armFringe', parts: ['foreArmR', 'upperArmR'], s: [0.2, 1.4], t: [0, 6], grid: [5, 3], brick: true, sides: 3, coverage: 1.4, inset: 0.9, height: 0.05, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.2, jitter: 0.2, group: ['Mane', 'Coat'] },
+      { id: 'armFringe', parts: ['foreArmR', 'upperArmR'], s: [0.2, 1.4], t: [0, 6], grid: [5, 3], brick: true, sides: 3, coverage: 1.9, inset: 0.9, height: 0.12, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.2, jitter: 0.2, group: ['Mane', 'Coat'] },
       { id: 'ruff', parts: ['neck'], s: [0.1, 1.3], t: [0, 6], grid: [7, 4], brick: true, sides: 3, coverage: 1.4, inset: 0.9, height: 0.03, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.3, jitter: 0.3, group: ['Coat', 'Mane'] },
     ],
     markings: [{ on: 'torso', kind: 'belly', from: 0.6, group: 'Belly' }, { on: 'torso', kind: 'stripes', count: 6, width: 0.4, t: [0, 0.45], group: 'Mane' }],
