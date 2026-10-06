@@ -80,7 +80,6 @@ const DESCRIPTION_ALLOWLIST = {
   // keep" batch growth (drapes channel + detail dial on manji trees, the
   // skin-projection seam pointers, the sketch_polygomer parts grammar).
   // Shrink-only from these snapshots.
-  create_sketch: 4366,
   // mint_solid re-pinned 2026-09-26 (871 -> 915, hero-tune): the `via` clause names the hero door
   // ("hero — a human by cast word + proportion tune"), the one phrase a host needs to find the
   // tune from tools/list; the tune's vocabulary itself is taught in layered.md, off-payload.
@@ -290,7 +289,14 @@ const DESCRIPTION_ALLOWLIST = {
 // `score: { mood, seed?, game?, role? }` (the mood and role enums, one sentence each in the description and the
 // property). The description itself shrank to stay under its 1150 allowlist (dropped a stale "new work" line).
 // Re-pinned 2026-10-06 (268_800 -> 268_900) for loop points: export_beats' `loop` property (one sentence).
-const PAYLOAD_CEILING = 268_900;
+// RATCHETED DOWN 2026-10-06 (268_400 -> 254_600; measured 254,516) for the create_sketch diet: its listing
+// went from 15,532 to 1,690 bytes. The diagram / marks / routing manual moved to the sketch_vocab cards
+// `mark-primitives`, `construction-marks` and `edge-notation`. `bucket` and `preloadMetadata` are still
+// accepted but no longer listed, and the description fits the 700-char ceiling (its allowlist entry is gone).
+// Pinned just above actual so the next feature re-pins consciously. Shrink-only from here.
+// Merged into the release candidate 2026-10-06 (268_900 -> 255_100; measured 255,009): the diet above plus
+// the field score and loop points already on the candidate.
+const PAYLOAD_CEILING = 255_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
@@ -367,7 +373,8 @@ describe('the sketch tools list schemas that admit what their handlers take', ()
     expect(accepts(manifest, { kind: 'workbench', lathes: [{ id: 'cup', profile: [[0, 0], [0.04, 0], [0.04, 0.1]] }] })).toBe(true);
     expect(accepts(manifest, { title: 'Flow', viewBox: { width: 400, height: 200 }, stations: [] })).toBe(true);
     const { createSketchHandler } = await import('./sketches.js');
-    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'process', label: 'A' }] } })).rejects.toThrow(/manifest\.viewBox is required/);
+    // a PLACED station still needs a viewBox (an unplaced flow is auto-placed and gets one fitted)
+    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'mcp_tool', label: 'A', x: 0, y: 0, w: 100, h: 40 }] } })).rejects.toThrow(/manifest\.viewBox is required/);
   });
   it('the description keeps its iterate-in-place guidance beside the stroke pointer', async () => {
     const d = (await listedTools()).find((t) => t.name === 'update_sketch').description;

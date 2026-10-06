@@ -85,6 +85,22 @@ function inlineCssVars(markup, surface = 'dark', vars = null) {
   });
 }
 
+function backgroundOf(surface, vars) {
+  const base = surface === 'light' ? { ...CSS_VAR_RESOLUTIONS, ...LIGHT_SURFACE_OVERRIDES } : CSS_VAR_RESOLUTIONS;
+  return (vars && vars['--background']) || base['--background'];
+}
+
+// A full-bleed rect in the surface colour, first child of the root <svg> (so it paints
+// under everything), sized to the viewBox. A transparent surface paints nothing.
+function withBackdrop(svg, color) {
+  if (!color || color === 'transparent') return svg;
+  const open = svg.match(/^<svg\b[^>]*>/);
+  const vb = open && open[0].match(/viewBox="([-\d.]+)[ ,]+([-\d.]+)[ ,]+([-\d.]+)[ ,]+([-\d.]+)"/);
+  if (!vb) return svg;
+  const [, x, y, w, h] = vb;
+  return `${open[0]}<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}"></rect>${svg.slice(open[0].length)}`;
+}
+
 /**
  * Render a sketch manifest to a self-contained SVG string.
  *
@@ -99,9 +115,14 @@ function inlineCssVars(markup, surface = 'dark', vars = null) {
  * @param {Object<string,string>} [opts.vars] — per-theme CSS-var overrides
  *   (from a presentation theme) merged over the surface base; re-tints ink +
  *   accent for the characterful themes (paper/blueprint/sepia/…).
+ * @param {boolean} [opts.backdrop=false] — paint the surface's own `--background`
+ *   behind the drawing. For a file that leaves the dashboard (the SVG download, an
+ *   `<img>` on a host page): a transparent SVG lands on the viewer's default white,
+ *   where the dark surface's pale ink reads at ~1.4:1. Callers that composite onto
+ *   their own backdrop (decks, outcome pages, world textures) leave it off.
  * @returns {Promise<string>}
  */
-export async function renderSketchToSvg(manifest, { technical = false, includeXmlDecl = true, surface = 'dark', vars = null } = {}) {
+export async function renderSketchToSvg(manifest, { technical = false, includeXmlDecl = true, surface = 'dark', vars = null, backdrop = false } = {}) {
   if (!manifest || typeof manifest !== 'object') {
     throw new Error('renderSketchToSvg requires a sketch manifest');
   }
@@ -114,7 +135,8 @@ export async function renderSketchToSvg(manifest, { technical = false, includeXm
     /^<svg\b/,
     '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"',
   );
-  const resolved = inlineCssVars(withXmlns, surface, vars);
+  let resolved = inlineCssVars(withXmlns, surface, vars);
+  if (backdrop) resolved = withBackdrop(resolved, backgroundOf(surface, vars));
   if (!includeXmlDecl) return resolved;
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n${resolved}\n`;
 }

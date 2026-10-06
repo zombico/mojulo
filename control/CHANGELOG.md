@@ -12,6 +12,61 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### create_sketch diet
+
+`create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
+lists routing only (1.7 KB), and the manual is read on demand from cards. Nothing it accepts or stores changed.
+
+- **A lean listing.** The description names the kinds (`floorplan`, `store` / `mall` / `restaurant`, `historic`,
+  the painted kinds), the recipe door, hand-built marks and stations, and the world-recipe restore. It points
+  plain flows and charts at `mint_diagram` and says to read the card before minting. `manifest` is an open object.
+  `bucket` and `preloadMetadata` are still accepted but no longer listed, and `preload` lost its nested schema.
+- **New sketch_vocab cards.** `mark-primitives` covers the 2D marks, style fields and station kinds.
+  `construction-marks` covers blob, sphere, egg, cylinder, the volume cup, form, solid, partition, array, the
+  presets, sticker shading, gesture placement and one-point perspective. Defaults are read from the expander, and
+  every example mints. `edge-notation` gains `via` / `curvature` routing.
+- **A lean result.** The `preload` echo names each prior (`ref`, `title`, and `as` / `note` / `metadata`) and no
+  longer re-sends its whole manifest. With up to eight priors, that was up to eight full manifests riding back into
+  the agent's context for nothing, since the agent composed against them before the call.
+- **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
+  description allowlist because it fits the 700-character ceiling.
+
+### Diagram auto layout
+
+A flow chart no longer needs a coordinate. Name the boxes and the arrows; the kernel places them. This was the
+biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station needed a hand-picked x, y, w and h.
+
+- **Auto-placed stations.** When no station carries a position (no `x`/`y`, `cell` or `lane`), `lowerDiagramKinds`
+  lays them out (`expandAutoLayout`, `lib/diagram-core.js`):
+  - **Ranks:** longest path along the edges. A cycle's back edge is set aside in declaration order.
+  - **Order:** barycenter sweeps within each rank.
+  - **Box size:** fitted to the label, sublabel and items. A station's own `w`/`h` win.
+  - **viewBox:** fitted when absent. A given one only grows.
+  - **Direction:** `layout: { direction: 'LR' | 'TB' }`.
+
+  It is deterministic, and the stored manifest holds the resolved coordinates. A manifest that places any station
+  never reaches the pass, so every existing row is byte-identical. Both mint doors share it, and the binding holds.
+- **Edges routed around boxes.** In an auto-placed diagram, an edge whose path or label pill would cross a box is
+  routed on the clear side:
+  - Rank-skipping edges, back edges, and a second edge between the same pair all count.
+  - Lanes on the same side stack outward, and ties go to the emptier side.
+  - An edge with its own `via` or `curvature` is left alone.
+- **`edges[].channel`.** A new optional number pins a `via` edge's lane (x for left/right, y for top/bottom), so
+  the lane can clear a wider box between the endpoints. Absent, nothing moves.
+- **Readable without adjustment.** A contrast pass over diagram ink, measured on the app floor, the dark export
+  and the light surface:
+  - **SVG download and inline view:** the dark export was transparent, so opened directly or in a host page's
+    `<img>` its pale ink sat on white at about 1.4:1. The route now paints the surface colour behind the drawing
+    (`renderSketchToSvg({ backdrop: true })`). Decks, outcome pages and world textures, which composite onto
+    their own backdrop, are unchanged.
+  - **Station outlines:** all clear 3:1 on every surface. `input` was a 1.3:1 hairline, `filesystem` fell to 1.7
+    on light, and `db_row` sat at 2.6–3.0; they now use the surface-aware `--text-muted` / `--entity-purple` inks.
+    The `/graph` legend matches.
+  - **Station sublabels:** move from `--text-muted` (about 4.0:1 at 10px) to `--text-secondary` (8:1 or more).
+- **`mint_diagram`.** The listing says boxes are auto-placed when their positions are left out, and its arrowhead
+  list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
+  form first; `edge-notation` gains `channel`.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

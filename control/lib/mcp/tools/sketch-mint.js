@@ -30,6 +30,7 @@ import {
   expandGridLayout,
   expandBoundaries,
   lowerDiagramKinds,
+  expandAutoLayout,
   STATION_KINDS,
   EDGE_VIA_VALUES,
   MARK_KINDS,
@@ -571,7 +572,10 @@ export async function createSketchHandler(input) {
   // labeled-array form, the response mirrors the array shape under the same
   // key and `preloadMetadata` is folded into the first entry's note slot
   // (only for the unlabeled single-string form does the top-level metadata
-  // make sense).
+  // make sense). The echo names each prior and never carries its manifest: the
+  // agent composed against it before this call, so the body would only ride the
+  // context back for nothing (up to PRELOAD_MAX_ITEMS whole manifests). Same
+  // shape as the polygonizer handoff's echo.
   const priors = resolvePreloads(preload);
   let result;
   if (isWorldRecipe(manifest)) {
@@ -587,14 +591,12 @@ export async function createSketchHandler(input) {
       result.preload = {
         ref: only.ref,
         title: only.title,
-        manifest: only.manifest,
         metadata: preloadMetadata ?? null,
       };
     } else {
       result.preload = priors.map((p) => ({
         ref: p.ref,
         title: p.title,
-        manifest: p.manifest,
         as: p.as,
         note: p.note,
       }));
@@ -883,7 +885,8 @@ export async function updateSketchHandler(input) {
   } else if (manifest !== undefined) {
     let expanded;
     try {
-      expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(manifest)));
+      // a revised flow with no station positions is auto-placed, as at mint (a no-op otherwise)
+      expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(expandAutoLayout(manifest))));
     } catch (err) {
       throw new Error(`Rendrant expansion error: ${err.message}`);
     }

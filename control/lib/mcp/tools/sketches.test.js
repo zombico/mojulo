@@ -293,6 +293,7 @@ describe('create_sketch preload affordance', () => {
     expect(next.preload.ref).toBe('preload_source_1');
     expect(next.preload.title).toBe('Prior scene');
     expect(next.preload.metadata).toEqual({ carry: 'same input + store, swap middle' });
+    expect(next.preload).not.toHaveProperty('manifest');
     // Stored manifest is the new one — preload is advisory, never blended.
     const stored = SketchRepository.getByRef('preload_dest_1');
     expect(stored.manifest.title).toBe('Next');
@@ -363,7 +364,7 @@ describe('create_sketch labeled-array preload affordance', () => {
       as: 'character',
       note: 'the fox',
     });
-    expect(next.preload[0].manifest).toBeTruthy();
+    expect(next.preload[0]).not.toHaveProperty('manifest');   // named, never re-sent
     expect(next.preload[1]).toMatchObject({
       ref: 'preload_set',
       title: 'Setting',
