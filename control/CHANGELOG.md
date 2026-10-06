@@ -42,6 +42,9 @@ scratch last: the cluster every new object draws from. Every existing kind build
     shape (`code`, `label`, `count`, `tool`, …). After a frames mint it is the frame's own hardware report, not the
     plan's estimate.
   - **Manual:** `get_solid_vocab({ id: 'fabricate' })`.
+  - **On the scad ladder:** a scad row that cuts a standard part's interface (a bearing seat, a heat-set pilot, a
+    nut trap, a NEMA face …) and has no plan beside it opens `next` with `{ add: 'fabricate', tool:
+    'fabricate_solid' }`. The cutters are read off the inventory, so there is one list.
 - **Kept apart from the assembler.** The assembler places finished workbench parts in a scene; `fabricate_solid` says
   which real hardware does a job. The routing cards contrast the two, and the assembler, handed a scad row, now says
   that a scad object assembles inside its own source (`parts`, `mechanism`, the plan's `bom`) instead of only that

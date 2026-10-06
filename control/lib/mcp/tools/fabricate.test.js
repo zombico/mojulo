@@ -81,6 +81,7 @@ describe('fabricate_solid', () => {
     expect(r.ok).toBe(true);
     expect(r.stats.fabrication.bom.map((b) => b.part)).toEqual(['radial-bearing', 'socket-bolt']);
     expect(r.stats.fabrication.unplaced).toEqual(['mj_counterbore', 'mj_heatset_hole']);
+    expect(r.next.some((s) => s.add === 'fabricate'), 'a fabricated row is not sent back to fabricate').toBe(false);
     const m = SketchRepository.getByRef('sk_fab_block').manifest;
     expect(m.kind).toBe('scad');
     expect(m.fabricate).toMatchObject({ executor: 'scad', needs: NEEDS });
