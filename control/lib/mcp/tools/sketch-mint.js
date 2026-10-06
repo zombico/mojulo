@@ -58,6 +58,7 @@ import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polyg
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext } from '@/lib/mcp/tools/building-next';
+import { scadNext } from '@/lib/mcp/tools/scad-next';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
@@ -951,8 +952,8 @@ export async function updateSketchHandler(input) {
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
   const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
-  // A building's next steps (mint_building's ladder), from the recipe as stored. Never stored.
-  const next = nextManifest !== undefined ? buildingNext(nextManifest) : undefined;
+  // The next steps of a ladder (a building's, a scad part's), from the recipe as stored. Never stored.
+  const next = nextManifest !== undefined ? (buildingNext(nextManifest) ?? scadNext(nextManifest)) : undefined;
   return {
     ok: true,
     ref: updated.ref,

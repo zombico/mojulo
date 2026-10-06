@@ -316,7 +316,9 @@ const DESCRIPTION_ALLOWLIST = {
 // mint_solid's free-form spec and the scad card.
 // Merged with the industrial study 2026-10-06 (238_700 -> 239_300; measured 238,593 -> 239,264): export_model's dxf/svg
 // leg and measure_solid's `strength` and `motion` properties.
-const PAYLOAD_CEILING = 239_300;
+// Re-pinned 2026-10-06 (239_300 -> 239_400; measured 239,264 -> 239,327) for the scad ladder: get_solid_vocab's
+// `section` property and one sentence on the sections menu. The six sections themselves are off-payload.
+const PAYLOAD_CEILING = 239_400;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
