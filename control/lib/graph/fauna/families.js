@@ -25,9 +25,16 @@ import * as chiropteran from './families/chiropteran.js';
 import * as primate from './families/primate.js';
 import * as chondrichthyan from './families/chondrichthyan.js';
 import * as teleost from './families/teleost.js';
+import * as theropod from './families/theropod.js';
+import * as ceratopsian from './families/ceratopsian.js';
+import * as hadrosaur from './families/hadrosaur.js';
+import * as sauropod from './families/sauropod.js';
+import * as thyreophoran from './families/thyreophoran.js';
+import * as pterosaur from './families/pterosaur.js';
+import * as plesiosaur from './families/plesiosaur.js';
 
 // a family module exports `family: null` until it is built; it then joins the roster with its species
-const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cervid, bovid, ursine, pachyderm, procyonid, macropod, rodent, mustelid, monotreme, avian, crocodilian, testudine, leporid, suid, giraffid, primate, squamate, anuran, chiropteran, chondrichthyan, teleost }).filter(([, m]) => m.family));
+const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cervid, bovid, ursine, pachyderm, procyonid, macropod, rodent, mustelid, monotreme, avian, crocodilian, testudine, leporid, suid, giraffid, primate, squamate, anuran, chiropteran, chondrichthyan, teleost, theropod, ceratopsian, hadrosaur, sauropod, thyreophoran, pterosaur, plesiosaur }).filter(([, m]) => m.family));
 
 export const FAMILIES = Object.freeze(Object.fromEntries(Object.entries(MODULES).map(([k, m]) => [k, m.family])));
 /** Every species of every family, keyed by id, each tagged with its family. */
