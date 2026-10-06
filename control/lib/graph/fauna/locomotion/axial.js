@@ -15,7 +15,7 @@ const SWIMMER = { flex: 0, lateral: 1, wave: 'travelling', roll: 0, yaw: 0.1, he
 export const FAMILIES = {
   squamate: {
     // the snakes are the family's default; the monitor lizard overrides to the sprawling rig
-    spine: { trunk: 12, neck: 1, tail: 3 },
+    spine: { trunk: 20, neck: 1, tail: 4 },   // a snake needs many to wave: two wavelengths over the body
     gaits: {
       slither: { pattern: 'lateralUndulation' },
       concertina: { pattern: 'concertina' },

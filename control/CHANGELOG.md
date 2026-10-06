@@ -497,6 +497,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - a binding for every plan part: torso, neck and tail stations ride the bones of their own region, a leg
     stripe rides its leg, other decorations ride the body.
   It is not wired into minting yet.
+- A gait solver (`lib/graph/fauna/gait.js`) poses a species' skeleton through one stride of any of its gaits, in
+  place on a treadmill:
+  - feet plant at their phase offset for the gait's duty factor and swing forward between; the upper leg solves
+    two-link to the foot block, the foot rolls over its ground contact at the ends of the stance and the girdle
+    glides (the shoulder blade on the ribs) where the leg cannot reach;
+  - the body dips with the stance legs and, in a flight phase, rises on a ballistic arc timed by the speed its
+    stride implies (stride/h ≈ 2.3·Fr^0.3);
+  - the spine flexes once a stride in gallops, bounds and hops, bends sideways as a standing wave in the
+    sprawlers, and travels as a serpenoid wave in snakes and fish (the coiled snake straightened first);
+  - fins and flippers stroke, heads hold level or nod, tails trail or counter-swing and drag on the ground.
+  Wing beats wait for the wing bones. `scripts/fauna-gait-strip.mjs <species> <gait>` draws the stride as a
+  stick GIF (side view over top view) for the eyes gate; a machine gate checks every gait of every species
+  poses rigid bones and that planted feet stay down for their duty factor.
+- The snakes' spine count rises to 20 trunk and 4 tail bones: two body waves need them.
 
 ### Environmental sound
 

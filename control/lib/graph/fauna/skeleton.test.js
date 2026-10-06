@@ -64,8 +64,8 @@ describe('fauna skeleton', () => {
   });
 
   it('carves a tail only from an all-axis body', () => {
-    expect(count(faunaSkeleton('salmon'), 'tail')).toBe(2);
-    expect(count(faunaSkeleton('snake'), 'tail')).toBe(3);
+    expect(count(faunaSkeleton('salmon'), 'tail')).toBe(locomotionFor('teleost', 'salmon').spine.tail);
+    expect(count(faunaSkeleton('snake'), 'tail')).toBe(locomotionFor('squamate', 'snake').spine.tail);
     expect(count(faunaSkeleton('wombat'), 'tail')).toBe(0);   // no tail part, a four-legged body: no tail bones
   });
 

@@ -8,7 +8,7 @@
  *  - NECK  `neck0..` from neckBase to neckTop, or along the neck lofts where a family has them (camel, plesiosaur);
  *  - TAIL  `tail0..` from the rump back, over the tail parts; an all-axis body with no tail part (fish, snakes)
  *    carves its tail from the rear quarter of the trunk, any other animal without one has no tail bones;
- *  - HEAD  `head`, from neckTop forward along the head's own length, pitched as worn.
+ *  - HEAD  `head`, from neckTop along the skull's back → tip line, pitched as worn.
  * Bone counts are the family's fixed spine counts (./locomotion/); `spine0` is the root.
  *
  * LIMBS come from the family's leg rows: one bone per row, joint to joint, parented by the joint chain; a limb's root
@@ -106,7 +106,9 @@ export function faunaSkeleton(id) {
   const neckBase = J.neckBase;
   let trunk = chain(axisParts(TRUNK), J, neckBase).reverse();
   const tailParts = axisParts(TAIL);
-  let tailLine = tailParts.length ? chain(tailParts, J, trunk[0]) : [];
+  // tails are authored root → tip, part after part (an elephant's hanging tip sits nearer the rump than its root, so
+  // nearest-end chaining would start it at the tip)
+  let tailLine = tailParts.flatMap((p) => centres(p, J));
   let nTail = L.spine.tail;
   if (!tailParts.length && nTail > 0 && L.rig === 'axial') {
     // no tail part: carve the tail from the trunk's rear quarter
@@ -129,12 +131,13 @@ export function faunaSkeleton(id) {
   const tail = split(tailLine, nTail, 'tail');
   tail.forEach((b, k) => bones.push({ ...b, parent: k ? `tail${k - 1}` : 'spine0' }));
 
-  // HEAD: from neckTop, along the worn head's length, pitched as worn
+  // HEAD: from neckTop along the skull's own back → tip line (the 1005 heads slope it in their rows), scaled, then
+  // turned by the worn pitch (+ raises the nose)
   const H = plan.heads?.[0];
   const cap = H?.plan?.parts?.cranium?.caps;
-  const headLen = cap ? (cap.tip[1] - cap.back[1]) * (H.plan.units?.scale || 1) : 0.25 * dist(trunk[0], trunk[trunk.length - 1]);
-  const pitch = ((H?.pitch || 0) * Math.PI) / 180;
-  bones.push({ id: 'head', parent: neck.length ? neck[neck.length - 1].id : lastSpine, head: J.neckTop, tail: add(J.neckTop, [0, headLen * Math.cos(pitch), headLen * Math.sin(pitch)]) });
+  const skull = cap ? mul(sub(cap.tip, cap.back), H.plan.units?.scale || 1) : [0, 0.25 * dist(trunk[0], trunk[trunk.length - 1]), 0];
+  const pitch = ((H?.pitch || 0) * Math.PI) / 180, c = Math.cos(pitch), s = Math.sin(pitch);
+  bones.push({ id: 'head', parent: neck.length ? neck[neck.length - 1].id : lastSpine, head: J.neckTop, tail: add(J.neckTop, [skull[0], skull[1] * c - skull[2] * s, skull[1] * s + skull[2] * c]) });
 
   const axial = bones.slice();
   const nearestAxial = (q) => axial.reduce((b, c) => (segDist(q, c.head, c.tail) < segDist(q, b.head, b.tail) ? c : b));
