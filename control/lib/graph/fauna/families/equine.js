@@ -192,4 +192,56 @@ export const species = {
       earSpine: [[0, 0, -0.01], [0, 0, 0.015], [0, 0, 0.035], [0, 0, 0.05], [0, 0, 0.06]], earR: [0.022, 0.022, 0.016, 0.006], earH: 0.6,
     };
   })(),
+  // PLAINS ZEBRA (Equus quagga) — THESIS: a horse made STOCKY: a rounder deep barrel on shorter, thicker legs, one
+  // hoof per leg · a thick neck with a short STIFF UPRIGHT MANE (no forelock fall) · a long head, dark muzzle, larger
+  // rounded ears · a thin tail with a dark tuft · the black-and-white STRIPES, vertical hoops on trunk and neck,
+  // horizontal on the legs (no markings channel: the stripes are thin black band lofts / segments just proud of the
+  // coat) · 1.33 m at the withers (published 1.27–1.40 m shoulder height, Estes 1991 "The Behavior Guide to African
+  // Mammals"). Authored at horse units, scaled 0.85.
+  zebra: (() => {
+    const BULK = 1.08, LEG = 1.35, J = family.joints;
+    const lerp = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+    // the trunk's ring radius at y (linear between the family stations), times the bulk, a hair proud
+    const T = family.torso, rAt = (y) => { for (let i = 1; i < T.length; i++) if (y <= T[i].at[1]) { const t = (y - T[i - 1].at[1]) / (T[i].at[1] - T[i - 1].at[1]); return T[i - 1].r.map((r, c) => (r + (T[i].r[c] - r) * t) * BULK * 1.05); } return T[T.length - 1].r; };
+    const hoops = [-0.62, -0.48, -0.34, -0.20, -0.06, 0.08, 0.22, 0.36, 0.50].map((y, i) => ({ name: `stripe${i}`, kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
+      stations: [{ at: [0, y - 0.022, 1.22], r: rAt(y - 0.022) }, { at: [0, y + 0.022, 1.22], r: rAt(y + 0.022) }], caps: { back: [0, y - 0.03, 1.22], tip: [0, y + 0.03, 1.22] } }));
+    // leg bands: short segments on joints laid along each leg (mirrored by name)
+    const bandJ = {}, bands = [];
+    const legBand = (key, a, b, ts, r) => ts.forEach((t, i) => { const c = lerp(J[a], J[b], t), d = J[b].map((x, k) => (x - J[a][k]) * 0.025);
+      bandJ[`${key}${i}AR`] = c.map((x, k) => x - d[k]); bandJ[`${key}${i}BR`] = c.map((x, k) => x + d[k]);
+      bands.push({ name: `${key}${i}R`, kind: 'segment', from: `${key}${i}AR`, to: `${key}${i}BR`, rA: r(t), rB: r(t), slots: 'ring12', group: 'Mane', mirror: 'name', over: [0.05, 0.05] }); });
+    legBand('foreArmBand', 'elbow', 'carpus', [0.3, 0.55, 0.8], (t) => (0.10 + (0.055 - 0.10) * t) * LEG * 1.12);
+    legBand('foreCanBand', 'carpus', 'foreFetlock', [0.25, 0.6], () => 0.05 * LEG * 1.12);
+    legBand('gaskinBand', 'stifle', 'hock', [0.35, 0.6, 0.85], (t) => (0.10 + (0.06 - 0.10) * t) * LEG * 1.12);
+    legBand('hindCanBand', 'hock', 'hindFetlock', [0.25, 0.6], () => 0.055 * LEG * 1.12);
+    // neck hoops: short midline segments along the neck chord
+    const neckJ = {}, neckBands = [0.25, 0.45, 0.65, 0.85].map((t, i) => { const c = lerp(J.neckBase, J.neckTop, t), d = J.neckTop.map((x, k) => (x - J.neckBase[k]) * 0.02);
+      neckJ[`neckBand${i}A`] = c.map((x, k) => x - d[k]); neckJ[`neckBand${i}B`] = c.map((x, k) => x + d[k]);
+      const r = [0.17, 0.32].map((a, k) => (a + ([0.075, 0.10][k] - a) * t) * 1.1 * 1.08);
+      return { name: `neckBand${i}`, kind: 'segment', from: `neckBand${i}A`, to: `neckBand${i}B`, rA: r, rB: r, slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.05, 0.05] }; });
+    return {
+      family: 'equine', name: 'a plains zebra', scale: 0.85, bulk: BULK, legBulk: LEG, headScale: 0.88,
+      colors: { coat: '#e9e5dc', sock: '#e2ddd2', ash: '#dcd6ca', ashAlt: '#cfc8ba', mane: '#1b1817', snout: '#e9e5dc', tip: '#1b1817', hoof: '#26221f', brow: '#2a2523' },
+      joints: { ...bandJ, ...neckJ },
+      neckRA: [0.18, 0.33], neckRB: [0.085, 0.11], neckRMid: [0.13, 0.22],
+      earR: [0.045, 0.048, 0.036, 0.014], earH: 1.15,
+      // the dark muzzle: only the last skull band
+      craniumBandGroups: { 'st5-st6': ['Brow', 'Brow', 'Brow', 'Brow', 'Brow', 'Palate'] },
+      extraSegments: [
+        // a thin tail to the hocks, a dark tuft at its end (no horse's long hair)
+        { name: 'dock', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
+          { at: [0, -0.82, 1.44], r: [0.045, 0.045] }, { at: [0, -0.92, 1.36], r: [0.04, 0.04] }, { at: [0, -0.96, 1.05], r: [0.035, 0.035] },
+        ], caps: { back: [0, -0.78, 1.46], tip: [0, -0.965, 1.00] } },
+        { name: 'tailHair', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', stations: [
+          { at: [0, -0.96, 1.08], r: [0.04, 0.045] }, { at: [0, -0.97, 0.88], r: [0.065, 0.075] }, { at: [0, -0.97, 0.70], r: [0.04, 0.05] },
+        ], caps: { back: [0, -0.96, 1.12], tip: [0, -0.97, 0.64] } },
+        // the stiff upright mane: a taller, even crest standing straight up off the neck, withers to poll
+        { name: 'mane', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', stations: [
+          { at: [0, 0.26, 1.64], r: [0.025, 0.05] }, { at: [0, 0.46, 1.82], r: [0.03, 0.075] },
+          { at: [0, 0.64, 1.95], r: [0.03, 0.075] }, { at: [0, 0.80, 2.04], r: [0.025, 0.06] },
+        ], caps: { back: [0, 0.18, 1.62], tip: [0, 0.88, 2.16] } },
+        ...hoops, ...neckBands, ...bands,
+      ],
+    };
+  })(),
 };

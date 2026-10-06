@@ -85,9 +85,15 @@ export { tube };
  * authored at the family's size and grown by `scale`) is ONE layer-2 part pinned to a small hidden core segment at
  * the root joint `at` (an x > 0 joint, mirrored by name), every vertex an offset in that pin's frame. Adds the
  * segment `wingCoreR` (+ its mirror), the include `wings` and the wing palette; returns the plan. */
-export function wearWings(plan, { wing, at = 'wingRoot', fold = 1, scale = 1, core = 0.04, palette = {} }) {
+export function wearWings(plan, { wing, at = 'wingRoot', fold = 1, scale = 1, core = 0.04, coreFit = false, pitch, palette = {} }) {
   const J = plan.joints[at]; if (!J) throw new Error(`wings: no joint '${at}'`);
-  const k = scale, r = core * k, tipJ = `${at}Tip`;
+  // `pitch` (opt-in, degrees about x, + raises the front): the FOLDED wing plane tilted with an upright trunk
+  if (pitch !== undefined) { const c = Math.cos(rad(pitch)), s = Math.sin(rad(pitch)), rx = ([x, y, z]) => [x, y * c - z * s, y * s + z * c];
+    wing = { ...wing, frame: { ...wing.frame, folded: { S: rx(wing.frame.folded.S), C: rx(wing.frame.folded.C) } } }; }
+  // `coreFit` (opt-in): the hidden core grows with the wing (arm length against the 0.69 m griffon arm), so a small
+  // wing's core stays hidden inside the body
+  const fit = coreFit ? wing.arm.reduce((s, b) => s + b.len, 0) / 0.69 : 1;
+  const k = scale, r = core * k * fit, tipJ = `${at}Tip`;
   plan.joints[tipJ] = [J[0], J[1] + 2 * r, J[2]];
   const seg = { name: 'wingCoreR', kind: 'segment', from: at, to: tipJ, rA: r, rB: r, slots: 'ring8', group: 'Coat', mirror: 'name' };
   plan.segments.push(seg);

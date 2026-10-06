@@ -109,4 +109,49 @@ export const species = {
         bandGroups: { ...band(7), 'st0-st1': Array(6).fill('Coat') }, caps: { back: [0, -0.31, 0.12], tip: [0, -0.775, 0.02] }, capGroups: { back: 'Coat', tip: 'Tip' } },
     ],
   },
+  // EASTERN GREY SQUIRREL (Sciurus carolinensis). Thesis: a slim light trunk on all fours, back arched (rump high),
+  // longer slimmer legs than the beaver, long hind feet · a round head with a short muzzle, big dark eyes and small
+  // rounded upright ears · ONE signature: the big BUSHY tail rising from the rump in an S-curve up over the back ·
+  // grey above, pale below · ~0.12 m to the top of the arched back on all fours (published: head-body 23–30 cm,
+  // tail 19–25 cm, 400–600 g — Animal Diversity Web, Sciurus carolinensis; standing height scaled from those).
+  // Authored in the family's beaver-size units, `scale` 0.36 brings it to size.
+  squirrel: {
+    family: 'rodent', name: 'an eastern grey squirrel', scale: 0.36,
+    colors: { coat: '#85837d', sock: '#76736c', ash: '#b9b5ab', ashAlt: '#a9a59b', ears: '#8a8680', belly: '#e6e2d8',
+      mane: '#8f8b84', tip: '#cfcac0', snout: '#8a877f', teeth: '#d9b46a', brow: '#5e5a54', mouth: '#5e5a54' },
+    joints: {
+      neckBase: [0, 0.17, 0.26], neckTop: [0, 0.25, 0.34],
+      shoulder: [0.075, 0.12, 0.21], elbow: [0.085, 0.07, 0.12], carpus: [0.08, 0.13, 0.04], forePaw: [0.08, 0.135, 0.012], foreToe: [0.08, 0.18, 0.008],
+      hip: [0.08, -0.25, 0.25], stifle: [0.11, -0.10, 0.15], hock: [0.10, -0.29, 0.05], hindPaw: [0.10, -0.275, 0.012], hindToe: [0.10, -0.08, 0.008],
+    },
+    torso: [
+      { at: [0, -0.39, 0.23], r: [0.05, 0.06] },
+      { at: [0, -0.31, 0.23], r: [0.11, 0.125] },
+      { at: [0, -0.18, 0.23], r: [0.12, 0.125] },
+      { at: [0, -0.05, 0.23], r: [0.10, 0.10] },
+      { at: [0, 0.07, 0.23], r: [0.08, 0.075] },
+      { at: [0, 0.16, 0.23], r: [0.065, 0.06] },
+    ],
+    torsoCaps: { back: [0, -0.43, 0.23], tip: [0, 0.21, 0.23] },
+    neckRA: [0.07, 0.07], neckRB: [0.065, 0.065], neckRMid: [0.068, 0.068],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.035, 0.045], [0.022, 0.024], 'Coat', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.022, 0.024], [0.016, 0.017], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.016, 0.015, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.02, 0.01], [0.02, 0.007], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.06, 0.075], [0.035, 0.038], 'Coat', [0.2, 0.5], [0.05, 0.06]],
+      ['shinR', 'stifle', 'hock', [0.03, 0.033], [0.018, 0.02], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.018, 0.016, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.018, 0.012], [0.02, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    headScale: 0.6, muzzleLen: 0.55, muzzleW: 1.1,
+    headRelative: 0.52, eyeAt: [2.3, 2.2], eyeR: 0.03, nose: false, headOrnaments: [], headPitch: 8,
+    earAt: [1.2, 1.5], earH: 0.5, earR: [0.046, 0.048, 0.04, 0.024],
+    extraSegments: [
+      // the bushy tail: out of the rump, back and up, over the back, its tip curling back (an S)
+      { name: 'tailBush', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
+        stations: lofted([[0, -0.42, 0.24, 0.045], [0, -0.54, 0.30, 0.10], [0, -0.62, 0.43, 0.145], [0, -0.58, 0.60, 0.16], [0, -0.48, 0.73, 0.15], [0, -0.42, 0.84, 0.12], [0, -0.47, 0.93, 0.07]]),
+        caps: { back: [0, -0.40, 0.23], tip: [0, -0.50, 0.97] } },
+    ],
+  },
 };

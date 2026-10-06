@@ -177,4 +177,64 @@ export const species = {
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.06, -0.06, 0.06], [0.14, -0.16, 0.07], [0.22, -0.21, -0.03], [0.28, -0.15, -0.16], [0.30, -0.03, -0.21], [0.30, 0.07, -0.13], [0.28, 0.10, -0.03]], radii: [0.09, 0.082, 0.072, 0.06, 0.046, 0.032, 0.016], m: 8, group: 'Horn' },
     ],
   },
+
+  // DOMESTIC SHEEP (Ovis aries, a Suffolk-type woolly ewe) — Thesis: a BULKY rounded fleece body (wide, deep, the
+  // wool hanging low) set on THIN dark legs, small cloven hooves · a short neck carried forward · a smallish hornless
+  // head with a DARK face and dark sideways ears, the wool capping the poll · a short woolly tail · 0.75 m at the
+  // withers (published Suffolk ewe ~0.7–0.8 m; breed-society standards / Oklahoma State Breeds of Livestock).
+  sheep: {
+    family: 'bovid', name: 'a domestic sheep', scale: 0.5,
+    colors: { coat: '#e6dcc4', belly: '#e6dcc4', sock: '#242020', ash: '#2a2422', ashAlt: '#2a2422', snout: '#2a2422', brow: '#1e1a18', ears: '#2a2422', hoof: '#141210', nose: '#141210', tip: '#e6dcc4', teeth: '#2a2422' },
+    joints: { neckBase: [0, 0.62, 1.10], neckTop: [0, 0.98, 1.26] },
+    torso: [
+      { at: [0, -1.05, 1.0], r: [0.33, 0.36] },
+      { at: [0, -0.90, 1.0], r: [0.44, 0.46] },
+      { at: [0, -0.50, 1.0], r: [0.48, 0.50] },
+      { at: [0, -0.10, 1.0], r: [0.49, 0.50] },
+      { at: [0, 0.30, 1.0], r: [0.46, 0.49] },
+      { at: [0, 0.62, 1.0], r: [0.38, 0.44] },
+    ],
+    torsoCaps: { back: [0, -1.14, 1.02], tip: [0, 0.80, 0.98] },
+    neckRA: [0.30, 0.36], neckRB: [0.17, 0.20], neckRMid: [0.24, 0.28],
+    legBulk: 0.55, headScale: 1.0, muzzleW: 0.72, muzzleLen: 1.0, earH: 0.85, noseR: [0.03, 0.02],
+    // the face and the lower head dark, the wool cap (the skull's back) cream
+    craniumBandGroups: Object.fromEntries(['st0-st1', 'st1-st2', 'st2-st3', 'st3-st4', 'st4-st5', 'st5-st6'].map((b, i) => [b, [i ? 'Snout' : 'Skull', i ? 'Snout' : 'Skull', 'Snout', 'Cheek', 'Jowl', 'Palate']])),
+    tail: [[0, -1.08, 1.25, 0.075], [0, -1.15, 1.10, 0.065], [0, -1.17, 0.95, 0.05]],
+    tip: null,
+    extraSegments: [],
+  },
+
+  // DOMESTIC GOAT (Capra hircus) — Thesis: a SLIM, narrow, angular body (the hip bones and spine showing) on longer
+  // lean legs, small cloven hooves · a neck carried up · a narrow straight face with a chin BEARD · scimitar HORNS
+  // rising from the poll and sweeping BACK · ears out sideways · a short tail held UP · 0.70 m at the withers
+  // (published domestic goat 0.6–0.85 m; ADW / FAO breed descriptions). Authored at bovid units and scaled down.
+  goat: {
+    family: 'bovid', name: 'a domestic goat', scale: 0.5,
+    colors: { coat: '#8a6644', sock: '#6a4c34', ash: '#9a7656', ashAlt: '#8e6c4c', snout: '#7a5a3c', brow: '#5a4028', horn: '#6a5a48', mane: '#4a3626', tip: '#8a6644', hoof: '#2a2420' },
+    joints: {
+      neckBase: [0, 0.46, 1.18], neckTop: [0, 0.82, 1.56],
+      shoulder: [0.17, 0.42, 1.04], elbow: [0.18, 0.34, 0.72], carpus: [0.17, 0.38, 0.40], fetlock: [0.17, 0.41, 0.15],
+      foreHoof: [0.17, 0.44, 0.07], foreToeO: [0.195, 0.53, 0.03], foreToeI: [0.145, 0.53, 0.03],
+      hip: [0.16, -0.72, 1.10], stifle: [0.18, -0.50, 0.76], hock: [0.15, -0.84, 0.48], hindFetlock: [0.15, -0.78, 0.15],
+      hindHoof: [0.15, -0.75, 0.07], hindToeO: [0.175, -0.66, 0.03], hindToeI: [0.125, -0.66, 0.03],
+    },
+    torso: [
+      { at: [0, -0.95, 1.06], r: [0.16, 0.24] },
+      { at: [0, -0.82, 1.06], r: [0.22, 0.30] },
+      { at: [0, -0.50, 1.06], r: [0.23, 0.33] },
+      { at: [0, -0.10, 1.06], r: [0.25, 0.36] },
+      { at: [0, 0.28, 1.06], r: [0.23, 0.35] },
+      { at: [0, 0.55, 1.06], r: [0.18, 0.30] },
+    ],
+    torsoCaps: { back: [0, -1.02, 1.10], tip: [0, 0.68, 1.02] },
+    neckRA: [0.17, 0.24], neckRB: [0.11, 0.14], neckRMid: [0.13, 0.17],
+    legBulk: 0.62, headScale: 0.7, muzzleW: 0.62, muzzleLen: 1.3, earH: 0.65, earR: [0.025, 0.032, 0.026, 0.008], noseR: [0.03, 0.02],
+    tail: [[0, -0.98, 1.28, 0.04], [0, -1.02, 1.40, 0.035], [0, -1.03, 1.52, 0.022]],
+    tip: null,
+    extraSegments: [],
+    headOrnaments: [
+      { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.04, -0.06, 0.10], [0.06, -0.10, 0.20], [0.08, -0.18, 0.28], [0.10, -0.28, 0.31], [0.11, -0.37, 0.29]], radii: [0.032, 0.028, 0.022, 0.014, 0.004], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'beard', at: [3.5, 3.0], space: 'head', spine: [[0.004, 0.13, -0.36], [0.004, 0.13, -0.43], [0.004, 0.12, -0.50]], radii: [0.022, 0.018, 0.004], m: 8, group: 'Mane' },
+    ],
+  },
 };

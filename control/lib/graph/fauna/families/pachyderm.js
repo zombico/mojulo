@@ -162,4 +162,83 @@ export const species = {
       name: `${leg}Hoof${i}R`, kind: 'segment', from: `${leg}Hoof${i}BaseR`, to: `${leg}Hoof${i}TipR`, rA: 0.065, rB: 0.05, slots: 'ring12', group: 'Hoof', mirror: 'name', over: [0.3, 0.3],
     }))),
   },
+
+  // AFRICAN BUSH ELEPHANT (Loxodonta africana). Thesis: a short deep trunk HIGH on long straight COLUMNAR legs
+  // (belly ~1.3 m up), round padded feet with nail nubs · the back highest at the shoulder, sloping to the rump · a
+  // huge tall-domed head on almost no neck · HUGE FAN EARS hanging over the shoulders · the TRUNK hanging to near the
+  // ground, TUSKS curving forward out of the lip · a thin tail with a tuft to the hocks · 3.2 m at the shoulder
+  // (adult bull mean, Larramendi 2016 "Shoulder height, body mass and shape of proboscideans": 3.20 m). Authored at
+  // hippo units (1.6 m) and scaled 2.0.
+  elephant: (() => {
+    const fore = [0.31, 0.73], hind = [0.30, -0.80];
+    const nails = Object.fromEntries([['fore', ...fore], ['hind', ...hind]].flatMap(([leg, x, y]) => [-0.09, -0.03, 0.03, 0.09].flatMap((dx, i) => [
+      [`${leg}Nail${i}BaseR`, [x + dx * 1.3, y + 0.10 - Math.abs(dx) * 0.4, 0.06]], [`${leg}Nail${i}TipR`, [x + dx * 1.45, y + 0.15 - Math.abs(dx) * 0.4, 0.05]]])));
+    return {
+      family: 'pachyderm', name: 'an African bush elephant', scale: 2.0,
+      colors: { coat: '#7c7674', sock: '#6f6967', ash: '#857e7b', ashAlt: '#787170', mouth: '#5e4e4e', horn: '#e6dcc2', hoof: '#cfc6b0' },
+      joints: {
+        neckBase: [0, 0.85, 1.30], neckTop: [0, 1.05, 1.38],
+        shoulder: [0.30, 0.66, 1.15], elbow: [0.32, 0.70, 0.70], carpus: [0.31, 0.72, 0.24], forePaw: [fore[0], fore[1], 0.12], foreToe: [fore[0], fore[1] + 0.10, 0.10],
+        hip: [0.28, -0.76, 1.10], stifle: [0.31, -0.68, 0.66], hock: [0.30, -0.80, 0.24], hindPaw: [hind[0], hind[1], 0.12], hindToe: [hind[0], hind[1] + 0.10, 0.10],
+        ...nails,
+      },
+      // the back highest over the shoulder, falling to the rump (torsoUp: stations at different heights)
+      torsoUp: true,
+      torso: [
+        { at: [0, -0.95, 0.98], r: [0.36, 0.34] },
+        { at: [0, -0.78, 1.01], r: [0.48, 0.44] },
+        { at: [0, -0.35, 1.10], r: [0.54, 0.49], top: 0.02 },
+        { at: [0, 0.15, 1.13], r: [0.55, 0.50], top: 0.05 },
+        { at: [0, 0.55, 1.16], r: [0.50, 0.47], top: 0.12 },
+        { at: [0, 0.85, 1.18], r: [0.40, 0.40], top: 0.06 },
+      ],
+      torsoCaps: { back: [0, -1.07, 1.03], tip: [0, 0.97, 1.22] },
+      neckRA: [0.40, 0.42], neckRB: [0.30, 0.34], neckRMid: [0.36, 0.38],
+      legs: [
+        ['upperArmR', 'shoulder', 'elbow', [0.17, 0.20], [0.14, 0.15], 'Coat', [0.6, 0.5], [0.17, 0.19]],
+        ['foreArmR', 'elbow', 'carpus', [0.14, 0.15], [0.13, 0.13], 'Coat', [0.5, 0.4]],
+        ['pasternR', 'carpus', 'forePaw', 0.13, 0.15, 'Sock', [0.4, 0.4]],
+        ['forePawR', 'forePaw', 'foreToe', [0.16, 0.08], [0.15, 0.07], 'Sock', [0.6, 0.4]],
+        ['thighR', 'hip', 'stifle', [0.19, 0.24], [0.15, 0.16], 'Coat', [0.2, 0.5], [0.18, 0.21]],
+        ['shinR', 'stifle', 'hock', [0.14, 0.15], [0.13, 0.13], 'Coat', [0.5, 0.4]],
+        ['metaR', 'hock', 'hindPaw', 0.13, 0.15, 'Sock', [0.4, 0.4]],
+        ['hindPawR', 'hindPaw', 'hindToe', [0.16, 0.08], [0.15, 0.07], 'Sock', [0.6, 0.4]],
+      ],
+      tail: [[0, -1.08, 1.30, 0.035], [0, -1.15, 1.05, 0.03], [0, -1.16, 0.72, 0.025]],
+      tip: [[0, -1.16, 0.76, 0.025], [0, -1.16, 0.64, 0.04], [0, -1.16, 0.56, 0.02]],
+      tipCaps: { back: [0, -1.16, 0.80], tip: [0, -1.16, 0.53] },
+      // a tall domed skull, a near-vertical forehead, the face narrowing down into the trunk
+      craniumRows: [
+        ['st0', -0.24, 0.20, [0.10, 0.18], [0.20, 0.10], [0.24, -0.02], [0.21, -0.16], [0.13, -0.24], -0.26],
+        ['st1', -0.10, 0.33, [0.13, 0.30], [0.23, 0.17], [0.26, 0.0], [0.22, -0.16], [0.14, -0.25], -0.27],
+        ['st2', 0.04, 0.35, [0.13, 0.32], [0.22, 0.18], [0.24, 0.0], [0.20, -0.17], [0.13, -0.25], -0.27],
+        ['st3', 0.15, 0.30, [0.12, 0.27], [0.19, 0.14], [0.20, -0.02], [0.17, -0.17], [0.11, -0.24], -0.26],
+        ['st4', 0.23, 0.18, [0.10, 0.16], [0.16, 0.08], [0.17, -0.04], [0.14, -0.16], [0.10, -0.22], -0.24],
+        ['st5', 0.29, 0.06, [0.09, 0.05], [0.13, 0.0], [0.14, -0.06], [0.12, -0.14], [0.09, -0.20], -0.22],
+        ['st6', 0.32, -0.04, [0.07, -0.04], [0.10, -0.07], [0.11, -0.10], [0.10, -0.15], [0.07, -0.19], -0.20],
+      ],
+      craniumCaps: { back: [0, -0.30, 0.02], tip: [0, 0.34, -0.12] },
+      muzzleFrom: 3,
+      jawRows: [
+        ['st0', -0.16, { gum: -0.25, gumR: [0.11, -0.25], jaw: [0.12, -0.31], bottom: -0.33 }],
+        ['st1', -0.02, { gum: -0.25, gumR: [0.10, -0.25], jaw: [0.11, -0.31], bottom: -0.33 }],
+        ['st2', 0.08, { gum: -0.24, gumR: [0.08, -0.24], jaw: [0.08, -0.29], bottom: -0.31 }],
+        ['st3', 0.14, { gum: -0.23, gumR: [0.06, -0.23], jaw: [0.06, -0.27], bottom: -0.29 }],
+        ['st4', 0.19, { gum: -0.22, gumR: [0.04, -0.22], jaw: [0.04, -0.25], bottom: -0.26 }],
+      ],
+      jawCaps: { back: [0, -0.22, -0.28], tip: [0, 0.22, -0.24] },
+      headScale: 1, nape: [0, -0.25, 0.0],
+      eyeAt: [2.6, 2.4], eyeR: 0.025, nose: false, nostrilAt: [6.0, 0.5],
+      // the ears, the trunk and the tusks are head ornaments (head units, +y front, +z up)
+      ears: false,
+      headOrnaments: [
+        { kind: 'sweep', name: 'fanEar', at: [1.0, 2.0], space: 'head', spine: [[0.23, -0.10, 0.17], [0.40, -0.34, 0.20], [0.56, -0.46, -0.08], [0.60, -0.46, -0.42], [0.57, -0.36, -0.68]], radii: [0.08, 0.40, 0.48, 0.38, 0.10], m: 8, squash: [1, 0.12], group: 'Ears' },
+        { kind: 'sweep', name: 'trunk', at: [6.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.24, 0.0], [0, 0.34, -0.22], [0, 0.38, -0.55], [0, 0.38, -0.85], [0, 0.37, -1.10], [0, 0.41, -1.24]], radii: [0.14, 0.12, 0.095, 0.075, 0.06, 0.045], m: 10, group: 'Skull' },
+        { kind: 'sweep', name: 'tusk', at: [4.5, 4.5], space: 'head', spine: [[0.10, 0.20, -0.22], [0.13, 0.32, -0.38], [0.14, 0.45, -0.45], [0.13, 0.56, -0.42]], radii: [0.05, 0.045, 0.035, 0.012], m: 8, group: 'Horn' },
+      ],
+      extraSegments: [['fore'], ['hind']].flatMap(([leg]) => [0, 1, 2, 3].map((i) => ({
+        name: `${leg}Nail${i}R`, kind: 'segment', from: `${leg}Nail${i}BaseR`, to: `${leg}Nail${i}TipR`, rA: 0.045, rB: 0.035, slots: 'ring12', group: 'Hoof', mirror: 'name', over: [0.3, 0.3],
+      }))),
+    };
+  })(),
 };

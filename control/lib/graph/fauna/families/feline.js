@@ -120,4 +120,20 @@ export const species = {
     tipCaps: { back: [0, -1.09, 0.155], tip: [0, -1.30, 0.30] },
     headScale: 1.15, muzzleW: 1.15, muzzleLen: 0.68, earH: 0.95, bulk: 1.2, legBulk: 1.15,
   },
+  // DOMESTIC CAT, shorthair (Felis catus). Thesis: small, compact supple trunk, level back, fine legs · digitigrade
+  // small round paws · a LARGE round head for the body, short muzzle · UPRIGHT TRIANGULAR pointed ears, big for the
+  // head · the long thin tail carried UP · 0.25 m at the shoulder (Sunquist & Sunquist 2002, Wild Cats of the World:
+  // domestic cat shoulder height ~23-25 cm, head-body ~46 cm, tail ~30 cm).
+  houseCat: {
+    family: 'feline', name: 'a house cat', scale: 0.27,
+    colors: { coat: '#8a8178', sock: '#8a8178', ash: '#d8d2c8', ashAlt: '#c8c0b4', brow: '#4a443e', tip: '#3e3832', iris: '#b8a83a', nose: '#c08080' },
+    joints: { neckBase: [0, 0.42, 0.80], neckTop: [0, 0.62, 0.94] },
+    tail: [[0, -0.64, 0.76, 0.045], [0, -0.74, 0.86, 0.042], [0, -0.80, 1.02, 0.04], [0, -0.82, 1.20, 0.038], [0, -0.80, 1.36, 0.036], [0, -0.74, 1.48, 0.034]],
+    tip: [[0, -0.745, 1.475, 0.034], [0, -0.69, 1.53, 0.03], [0, -0.63, 1.55, 0.022]],
+    tipCaps: { back: [0, -0.77, 1.45], tip: [0, -0.60, 1.555] },
+    headScale: 2.3, muzzleW: 1.0, muzzleLen: 0.6, noseR: [0.012, 0.01],
+    earAt: [1.2, 1.6], earSpine: [[0, 0, -0.012], [0, 0, 0.015], [0, 0, 0.04], [0, 0, 0.065], [0, 0, 0.09]],
+    earR: [0.046, 0.04, 0.025, 0.005], earSquash: [1, 0.35], earH: 0.78,
+    bulk: 1.1, legBulk: 1.05, tailBush: 0.85,
+  },
 };

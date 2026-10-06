@@ -38,4 +38,11 @@ describe('wing op', () => {
     const p = speciesPlan('vulture'); const inc = p.include.find((x) => x.name === 'wings');
     expect(Object.keys(inc.parts)).toEqual(['wingR', 'wingL']); expect(inc.parts.wingR.pin.parent).toBe('wingCoreR');
   });
+  it('opt-in wing knobs: default factors change nothing; pitch rotates the folded frame; coreFit grows the core with the arm', () => {
+    expect(JSON.stringify(featherWing({ tertialLen: 1, tertialWidth: 1, boneR: 1 }))).toBe(JSON.stringify(featherWing()));
+    const w = featherWing({ tertialLen: 0.5, tertialWidth: 0.5, boneR: 0.5 }), d = featherWing();
+    expect(w.rays[0].len).toBeCloseTo(d.rays[0].len * 0.5); expect(w.rays[0].width).toBeCloseTo(d.rays[0].width * 0.5); expect(w.arm[0].r[0]).toBeCloseTo(d.arm[0].r[0] * 0.5);
+    const owl = speciesPlan('greatHornedOwl'), core = owl.segments.find((g) => g.name === 'wingCoreR');
+    expect(core.rA).toBeCloseTo(0.04 * 0.31 / 0.69, 6);
+  });
 });

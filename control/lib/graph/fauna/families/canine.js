@@ -92,6 +92,42 @@ export const species = {
     earH: 0.72, earR: [0.052, 0.05, 0.036, 0.02],
     bulk: 1.1, legBulk: 1.35, tailBush: 1.35,
   },
+  // DOMESTIC DOG, Labrador-type (Canis familiaris). Thesis: sturdy, deep broad chest, level back, moderate legs
+  // (digitigrade, round paws) · a BROAD skull with a clear STOP, a broad blunt muzzle, DROP ears hanging by the cheeks ·
+  // the thick tapering "otter" tail carried level, no brush · head carried high and friendly · 0.58 m at the withers
+  // (AKC Labrador Retriever standard: 22.5-24.5 in / 57-62 cm males, 21.5-23.5 in females).
+  dog: {
+    family: 'canine', name: 'a domestic dog', scale: 0.56,
+    colors: { coat: '#c9a066', sock: '#c29a62', ash: '#d9bd8c', ashAlt: '#ceb07c', brow: '#a07a48', tip: '#c9a066', iris: '#5a3a1e' },
+    joints: { neckBase: [0, 0.38, 0.88], neckTop: [0, 0.66, 1.02], hip: [0.10, -0.38, 0.84], stifle: [0.145, -0.22, 0.55] },
+    torso: [
+      { at: [0, -0.54, 0.80], r: [0.12, 0.11] },
+      { at: [0, -0.40, 0.80], r: [0.155, 0.15] },
+      { at: [0, -0.20, 0.80], r: [0.13, 0.12] },
+      { at: [0, 0.02, 0.80], r: [0.15, 0.18] },
+      { at: [0, 0.24, 0.80], r: [0.165, 0.235] },
+      { at: [0, 0.40, 0.80], r: [0.145, 0.21] },
+    ],
+    neckRA: [0.16, 0.19], neckRB: [0.11, 0.12], neckRMid: [0.13, 0.15],
+    tail: [[0, -0.52, 0.84, 0.12], [0, -0.66, 0.80, 0.10], [0, -0.80, 0.74, 0.075], [0, -0.92, 0.67, 0.055], [0, -1.01, 0.60, 0.038]],
+    tip: [[0, -1.00, 0.605, 0.038], [0, -1.06, 0.565, 0.025], [0, -1.10, 0.54, 0.012]],
+    tipCaps: { back: [0, -0.99, 0.61], tip: [0, -1.12, 0.53] },
+    craniumRows: [
+      ['st0', -0.15, 0.05, [0.035, 0.048], [0.07, 0.02], [0.075, -0.02], [0.06, -0.05], [0.04, -0.065], -0.07],
+      ['st1', -0.09, 0.10, [0.03, 0.098], [0.085, 0.06], [0.10, -0.01], [0.085, -0.05], [0.055, -0.075], -0.08],
+      ['st2', -0.02, 0.105, [0.045, 0.10], [0.09, 0.05], [0.105, -0.005], [0.09, -0.05], [0.055, -0.075], -0.08],
+      ['st3', 0.04, 0.045, [0.02, 0.044], [0.055, 0.02], [0.065, -0.02], [0.06, -0.05], [0.045, -0.07], -0.072],
+      ['st4', 0.10, 0.035, [0.024, 0.033], [0.045, 0.01], [0.05, -0.022], [0.048, -0.05], [0.04, -0.066], -0.066],
+      ['st5', 0.16, 0.03, [0.022, 0.027], [0.038, 0.005], [0.042, -0.024], [0.04, -0.05], [0.034, -0.062], -0.062],
+      ['st6', 0.20, 0.022, [0.016, 0.02], [0.028, 0.0], [0.032, -0.026], [0.03, -0.048], [0.026, -0.058], -0.058],
+    ],
+    craniumCaps: { back: [0, -0.18, 0.01], tip: [0, 0.215, -0.02] },
+    headScale: 1.6, muzzleW: 1.3, muzzleLen: 0.8,
+    // drop ears: a short rise off the skull, then folded out and hanging down beside the cheek
+    earAt: [1.1, 2.0], earSpine: [[0, 0, -0.012], [0, -0.04, 0.02], [0, -0.075, -0.01], [0, -0.085, -0.07], [0, -0.08, -0.14]],
+    earR: [0.05, 0.07, 0.07, 0.05], earSquash: [1, 0.25], earH: 1,
+    bulk: 1.2, legBulk: 1.6, tailBush: 1,
+  },
   // RED FOX (Vulpes vulpes) — the canine family's second species. Thesis: small, slender, long low trunk on short
   // fine legs (digitigrade, black socks) · a light head with a narrow pointed muzzle and LARGE pointed erect ears ·
   // the long bushy brush carried low and near-horizontal, white tip · 0.40 m at the shoulder (published 35–50 cm;

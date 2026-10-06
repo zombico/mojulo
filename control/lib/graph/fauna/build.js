@@ -59,7 +59,7 @@ export function buildFauna(params) {
     slots: ['top', 'crownR', 'browR', 'cheekR', 'jowlR', 'lipR', 'palate', 'lipL', 'jowlL', 'cheekL', 'browL', 'crownL'],
     rows: P.craniumRows.map(row),
     caps: clone(P.craniumCaps), group: 'Skull',
-    capGroups: { back: 'Skull', tip: 'Snout' },
+    capGroups: { back: C.skull ? 'SkullBack' : 'Skull', tip: 'Snout' },
   };
   cranium.bandGroups = Object.fromEntries(cranium.rows.slice(1).map(([id], i) => {
     const m = i + 1 > muzzleAt; return [`${cranium.rows[i][0]}-${id}`, [m ? 'Snout' : 'Skull', m ? 'Snout' : 'Skull', m ? 'Snout' : 'Skull', 'Cheek', 'Jowl', 'Palate']];
@@ -122,10 +122,12 @@ export function buildFauna(params) {
     ],
     palette: {
       Skull: C.coat, Snout: C.snout || C.coat, Cheek: C.ash, Jowl: C.ash, Jaw: C.ash, Palate: C.mouth,
-      Brow: C.brow, Pad: C.coat, Lids: C.coat, LidRim: C.ink, Ears: C.ears || C.coat, EarInner: C.ash, Fur: C.ash, FurAlt: C.ashAlt,
-      NosePad: C.nose, Teeth: C.teeth, Nostrils: C.ink, Folds: C.coat, Wrinkles: C.coat, Whiskers: C.ash, Mouth: C.mouth, Web: C.ash, Tongue: '#b0506a',
+      Brow: C.brow, Pad: C.pad || C.coat, Lids: C.lids || C.coat, LidRim: C.ink, Ears: C.ears || C.coat, EarInner: C.ash, Fur: C.ash, FurAlt: C.ashAlt,
+      NosePad: C.nose, Teeth: C.teeth, Nostrils: C.ink, Folds: C.folds || C.coat, Wrinkles: C.coat, Whiskers: C.ash, Mouth: C.mouth, Web: C.ash, Tongue: '#b0506a',
       Sclera: C.sclera, Iris: C.iris, Limbus: C.iris, Pupil: C.ink, Catchlight: '#ffffff', LidShadow: C.sclera,
       Horn: C.horn || '#d8cdb4', Mane: C.mane || C.coat,
+      // opt-in head overrides: `colors.skull` (the back cap of the skull), `headPalette` (any head group)
+      ...(C.skull ? { SkullBack: C.skull } : {}), ...clone(P.headPalette || {}),
     },
   };
 

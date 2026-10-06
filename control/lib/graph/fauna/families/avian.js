@@ -10,9 +10,9 @@ const hash = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(
  * hand (the outer ones emarginated into slots), greater and lesser covert rows over them, seeded tones. The
  * defaults are a broad soaring wing of ~2.5 m span (griffon); a second bird passes its own numbers. */
 export function featherWing({ arm = [0.2, 0.29, 0.2], tertials = 3, secondaries = 16, primaries = 10, secLen = 0.44, primLen = 0.5, primReach = 0.16,
-  slotFrom = 0.35, slotBy = 0.55, width = 0.085 } = {}) {
+  slotFrom = 0.35, slotBy = 0.55, width = 0.085, tertialLen = 1, tertialWidth = 1, boneR = 1 } = {}) {
   const rays = []; const add1 = (o) => rays.push(o);
-  for (let k = 0; k < tertials; k++) add1({ kind: 'tertial', bone: 0, at: 0.55 + 0.2 * k, angle: 100, foldAngle: 5, len: 0.3 + 0.03 * k, width: 0.1, layer: 0.012 - 0.002 * k, group: 'Flight' });
+  for (let k = 0; k < tertials; k++) add1({ kind: 'tertial', bone: 0, at: 0.55 + 0.2 * k, angle: 100, foldAngle: 5, len: (0.3 + 0.03 * k) * tertialLen, width: 0.1 * tertialWidth, layer: 0.012 - 0.002 * k, group: 'Flight' });
   const S = secondaries - 1;
   for (let k = 0; k < secondaries; k++) add1({ kind: 'secondary', bone: 1, at: 0.03 + 0.97 * k / S, angle: 98 - 3 * (k / S), foldAngle: 176, len: secLen + 0.03 * Math.sin(Math.PI * k / S), width, layer: 0.004 * (S - k) / S, group: 'Flight' });
   for (let k = 0; k < primaries; k++) { const t = k / (primaries - 1); add1({ kind: 'primary', bone: 2, at: 0.1 + 0.9 * t, angle: lerp(95, 8, t ** 0.9), foldAngle: 4, len: primLen + primReach * Math.sin(Math.PI * Math.min(1, t * 1.15)), width: lerp(width, width * 0.82, t), layer: 0.006 + 0.004 * t,
@@ -23,7 +23,7 @@ export function featherWing({ arm = [0.2, 0.29, 0.2], tertials = 3, secondaries 
     CovertLesser: { tones: ['LesserA', 'LesserB', 'LesserC'], under: 'CovertUnder', tipGroup: 'LesserTip', tipFrom: 0.8 } };
   rays.forEach((r, i) => { const T = TONES[r.group]; const k = (i + (hash(`${r.kind}${i}`) % 5 === 0 ? 1 : 0)) % 2 + (hash(`t${r.kind}${i}`) % 7 === 0 ? 1 : 0); Object.assign(r, { tone: T.tones[k], under: T.under, ...(T.tipGroup ? { tipGroup: T.tipGroup, tipFrom: T.tipFrom } : {}) }); });
   return { girdle: 'torso', boneGroup: 'WingBone', surface: 'vanes',
-    arm: [{ id: 'humerus', len: arm[0], spread: 8, folded: -80, r: [0.035, 0.03] }, { id: 'ulna', len: arm[1], spread: -6, folded: 168, r: [0.03, 0.025] }, { id: 'hand', len: arm[2], spread: -6, folded: -165, r: [0.025, 0.015] }],
+    arm: [{ id: 'humerus', len: arm[0], spread: 8, folded: -80, r: [0.035 * boneR, 0.03 * boneR] }, { id: 'ulna', len: arm[1], spread: -6, folded: 168, r: [0.03 * boneR, 0.025 * boneR] }, { id: 'hand', len: arm[2], spread: -6, folded: -165, r: [0.025 * boneR, 0.015 * boneR] }],
     rays, frame: { spread: { S: [1, 0, 0.14], C: [0, 1, 0] }, folded: { S: [0.2, 0, -1], C: [0, 1, 0] } } };
 }
 
@@ -112,7 +112,9 @@ export const species = {
   // neck rising from a cream RUFF · a heavy HOOKED bill · grey scaly tarsi, three toes forward with blunt talons ·
   // sandy-brown coverts, dark flight feathers. ~1.0 m standing (published length 93–122 cm, span 2.3–2.8 m;
   // Wikipedia / BirdLife); hunched: head top ~0.95 m, top of the back ~0.8 m. `wings.fold` 0 spreads them (span ~2.5 m).
-  vulture: { family: 'avian', name: 'a griffon vulture', scale: 1.15 },
+  vulture: { family: 'avian', name: 'a griffon vulture', scale: 1.15,
+    // the bare head's colour (the family's `ears` band) on the eyelids, brow pad, folds and the back cap of the skull
+    colors: { lids: '#d6cfc3', skull: '#d6cfc3', pad: '#d6cfc3', folds: '#d6cfc3' } },
 
   // BALD EAGLE (Haliaeetus leucocephalus). Thesis: an UPRIGHT perched raptor, trunk tilted ~40°, long broad dark wings
   // folded down the sides to the tail · a WHITE head on a short thick white neck with a heavy brow over a pale eye ·
@@ -122,21 +124,22 @@ export const species = {
   baldEagle: {
     family: 'avian', name: 'a bald eagle', torsoUp: true, scale: 0.885,
     colors: { coat: '#3a2a1d', sock: '#e2b32c', ash: '#e3b12a', ashAlt: '#f1efe8', belly: '#f3f1ea', ears: '#f3f1ea', snout: '#e8b425',
-      brow: '#f3f1ea', iris: '#e9d36a', sclera: '#e9d36a', nose: '#e8b425', tip: '#f3f1ea', mane: '#f3f1ea', hoof: '#151210' },
-    joints: { neckBase: [0, 0.13, 0.70], neckTop: [0, 0.17, 0.84], wingRoot: [0.13, 0.08, 0.68],
+      brow: '#f3f1ea', iris: '#e9d36a', sclera: '#e9d36a', nose: '#e8b425', tip: '#f3f1ea', mane: '#f3f1ea', hoof: '#151210',
+      lids: '#f3f1ea', skull: '#f3f1ea', pad: '#f3f1ea', folds: '#f3f1ea' },
+    joints: { neckBase: [0, 0.15, 0.70], neckTop: [0, 0.19, 0.84], wingRoot: [0.13, 0.09, 0.67],
       hip: [0.09, -0.06, 0.40], knee: [0.11, 0.05, 0.24], ankle: [0.10, 0.04, 0.07] },
     torso: [
-      { at: [0, -0.24, 0.36], r: [0.09, 0.07] },
-      { at: [0, -0.15, 0.44], r: [0.15, 0.13] },
-      { at: [0, -0.04, 0.53], r: [0.19, 0.16] },
+      { at: [0, -0.30, 0.37], r: [0.09, 0.07] },
+      { at: [0, -0.19, 0.45], r: [0.15, 0.13] },
+      { at: [0, -0.06, 0.54], r: [0.19, 0.16] },
       { at: [0, 0.06, 0.62], r: [0.18, 0.16] },
-      { at: [0, 0.13, 0.69], r: [0.11, 0.11] },
+      { at: [0, 0.15, 0.69], r: [0.11, 0.11] },
     ],
-    torsoCaps: { back: [0, -0.29, 0.32], tip: [0, 0.17, 0.73] },
+    torsoCaps: { back: [0, -0.35, 0.33], tip: [0, 0.19, 0.73] },
     neckRA: [0.1, 0.1], neckRB: [0.06, 0.06], neckRMid: [0.07, 0.07],
-    tail: [[0, -0.25, 0.34, [0.08, 0.035]], [0, -0.31, 0.26, [0.11, 0.03]], [0, -0.36, 0.19, [0.12, 0.025]]],
-    tip: [[0, -0.35, 0.2, [0.13, 0.03]], [0, -0.41, 0.11, [0.16, 0.026]], [0, -0.45, 0.05, [0.13, 0.015]]],
-    tipCaps: { back: [0, -0.33, 0.23], tip: [0, -0.465, 0.03] },
+    tail: [[0, -0.31, 0.35, [0.08, 0.045]], [0, -0.38, 0.27, [0.11, 0.04]], [0, -0.43, 0.20, [0.12, 0.035]]],
+    tip: [[0, -0.42, 0.21, [0.13, 0.04]], [0, -0.48, 0.12, [0.16, 0.035]], [0, -0.52, 0.06, [0.13, 0.02]]],
+    tipCaps: { back: [0, -0.40, 0.24], tip: [0, -0.535, 0.04] },
     legs: [
       ['thighR', 'hip', 'knee', [0.09, 0.1], [0.065, 0.065], 'Coat', [0.4, 0.4]],
       ['tarsusR', 'knee', 'ankle', 0.03, 0.028, 'Sock', [0.4, 0.4]],
@@ -166,8 +169,7 @@ export const species = {
       { id: 'ruff', parts: ['neck'], s: [0.1, 1.2], t: [0, 6], grid: [8, 4], brick: true, sides: 3, coverage: 1.5, inset: 0.9, height: 0.05, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.3, jitter: 0.3, group: ['Belly', 'Mane'] },
     ],
     // the folded wing plane pitched 40° nose-up with the trunk, so the folded wing runs down the back to the tail
-    wings: { wing: { ...featherWing({ arm: [0.17, 0.25, 0.17], secLen: 0.38, primLen: 0.42, primReach: 0.13 }),
-      frame: { spread: { S: [1, 0, 0.14], C: [0, 1, 0] }, folded: { S: [0.2, 0.643, -0.766], C: [0, 0.766, 0.643] } } },
+    wings: { wing: featherWing({ arm: [0.17, 0.25, 0.17], secLen: 0.38, primLen: 0.4, primReach: 0.06 }), pitch: 36,
       palette: { WingBone: '#3a2a1d', FlightA: '#231a13', FlightB: '#2c2118', FlightC: '#35281d', FlightUnder: '#3e3128',
         CovertA: '#3d2c1f', CovertB: '#46332a', CovertC: '#352619', CovertTip: '#4a3626', CovertUnder: '#3e3128',
         LesserA: '#4a3725', LesserB: '#523d2a', LesserC: '#433121', LesserTip: '#4e3a28' } },
@@ -181,7 +183,10 @@ export const species = {
   greatHornedOwl: {
     family: 'avian', name: 'a great horned owl', torsoUp: true, scale: 1,
     colors: { coat: '#6e5c47', sock: '#c8b89a', ash: '#c47f45', ashAlt: '#d9cfbd', belly: '#e8e2d4', ears: '#5a4a3a', snout: '#3b3734',
-      brow: '#ece6da', iris: '#f5c518', sclera: '#f5c518', nose: '#3b3734', tip: '#6e5c47', hoof: '#1e1a17', mane: '#e8e2d4' },
+      brow: '#ece6da', iris: '#f5c518', sclera: '#f5c518', nose: '#3b3734', tip: '#6e5c47', hoof: '#1e1a17', mane: '#e8e2d4',
+      lids: '#f5c518', pad: '#c47f45' },
+    // the eye a big yellow disc: yellow lids, the lid rim the facial disc's rufous (not a dark goggle ring)
+    headPalette: { LidRim: '#c47f45' },
     joints: { neckBase: [0, 0.0, 0.36], neckTop: [0, 0.015, 0.40], wingRoot: [0.08, -0.02, 0.37],
       hip: [0.06, -0.04, 0.17], knee: [0.07, 0.03, 0.10], ankle: [0.065, 0.03, 0.035],
       toeF: [0.065, 0.10, 0.012], toeI: [0.035, 0.085, 0.012], toeO: [0.1, 0.075, 0.012], toeB: [0.065, -0.015, 0.012],
@@ -236,11 +241,10 @@ export const species = {
     ears: true, earAt: [1.7, 1.2], earSpine: [[0, 0, 0], [0.008, -0.006, 0.03], [0.018, -0.012, 0.062]],
     earR: [0.011, 0.009, 0.005, 0.0015], earSquash: [1, 0.45],
     bodyTiles: [],
-    // a small rounded wing (bones and tertials thinned to its size, a small hidden core), folded plane pitched 60°
-    wings: { core: 0.015, wing: ((w) => ({ ...w, arm: w.arm.map((b) => ({ ...b, r: b.r.map((r) => r * 0.5) })),
-      rays: w.rays.map((r) => (r.kind === 'tertial' ? { ...r, len: r.len * 0.45, width: r.width * 0.5 } : r)),
-      frame: { spread: { S: [1, 0, 0.14], C: [0, 1, 0] }, folded: { S: [0.2, 0.866, -0.5], C: [0, 0.5, 0.866] } } }))(
-      featherWing({ arm: [0.09, 0.13, 0.09], secondaries: 14, secLen: 0.19, primLen: 0.2, primReach: 0.06, slotFrom: 0.6, slotBy: 0.3, width: 0.05 })),
+    // a small rounded wing (bones and tertials thinned to its size, its hidden core fitted to it), folded plane pitched 60°
+    wings: { coreFit: true, pitch: 60,
+      wing: featherWing({ arm: [0.09, 0.13, 0.09], secondaries: 14, secLen: 0.19, primLen: 0.2, primReach: 0.06, slotFrom: 0.6, slotBy: 0.3, width: 0.05,
+        tertialLen: 0.45, tertialWidth: 0.5, boneR: 0.5 }),
       palette: { WingBone: '#6e5c47', FlightA: '#5b4a38', FlightB: '#6a5743', FlightC: '#4e3f30', FlightUnder: '#c2b49a',
         CovertA: '#7a6650', CovertB: '#86715a', CovertC: '#6b5845', CovertTip: '#c9b99c', CovertUnder: '#c2b49a',
         LesserA: '#7d6a55', LesserB: '#8a765f', LesserC: '#6f5c48', LesserTip: '#b9a98d' } },
