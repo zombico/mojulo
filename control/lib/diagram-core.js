@@ -1034,18 +1034,9 @@ export function expandSwimlanes(manifest) {
   const laneTop = 50, laneH = 110;
   const cols = stations.map((s) => (isFiniteNumber(s.col) ? Math.floor(s.col) : 0));
   const maxCol = cols.length ? Math.max(...cols) : 0;
-  const width = marginX + maxCol * colStep + stationW + 40;
-  const height = laneTop + lanes.length * laneH + 20;
 
   const MUTED = 'var(--text-muted)';
   const INK = 'var(--text-primary)';
-
-  const bands = [];
-  lanes.forEach((l, i) => {
-    const y = laneTop + i * laneH;
-    bands.push({ kind: 'rect', x: 0, y, w: width, h: laneH, z: -1, fill: i % 2 ? 'rgba(99,102,120,0.10)' : 'rgba(99,102,120,0.04)', stroke: 'rgba(99,102,120,0.35)', strokeWidth: 1 });
-    bands.push({ kind: 'text', x: 12, y: y + 20, value: l.label, size: 12, anchor: 'start', weight: 600, color: INK, z: -1 });
-  });
 
   const nextStations = stations.map((s, i) => {
     if (s.lane === undefined) return s;
@@ -1059,6 +1050,19 @@ export function expandSwimlanes(manifest) {
       w: isFiniteNumber(s.w) ? s.w : stationW,
       h: isFiniteNumber(s.h) ? s.h : stationH,
     };
+  });
+
+  // The lanes span the column grid, grown to hold any station placed past it
+  // (explicit x/y, or a w wider than the column) so the viewBox never clips one.
+  const placed = nextStations.filter((s) => s && isFiniteNumber(s.x) && isFiniteNumber(s.y));
+  const width = Math.max(marginX + maxCol * colStep + stationW + 40, ...placed.map((s) => s.x + (isFiniteNumber(s.w) ? s.w : stationW) + 40));
+  const height = Math.max(laneTop + lanes.length * laneH + 20, ...placed.map((s) => s.y + (isFiniteNumber(s.h) ? s.h : stationH) + 20));
+
+  const bands = [];
+  lanes.forEach((l, i) => {
+    const y = laneTop + i * laneH;
+    bands.push({ kind: 'rect', x: 0, y, w: width, h: laneH, z: -1, fill: i % 2 ? 'rgba(99,102,120,0.10)' : 'rgba(99,102,120,0.04)', stroke: 'rgba(99,102,120,0.35)', strokeWidth: 1 });
+    bands.push({ kind: 'text', x: 12, y: y + 20, value: l.label, size: 12, anchor: 'start', weight: 600, color: INK, z: -1 });
   });
 
   const existing = Array.isArray(manifest.marks) ? manifest.marks : [];
@@ -1348,9 +1352,33 @@ export function expandAutoLayout(manifest) {
 // The single diagram-kind lowering pass both mint paths run before grid
 // expansion. Each step no-ops unless its trigger is present; auto layout runs
 // last (a lane or any placed station opts out of it). Kept in ONE place so
-// mint_diagram and create_sketch can't drift.
-export function lowerDiagramKinds(manifest) {
-  return expandAutoLayout(expandSwimlanes(expandGantt(expandSequence(manifest))));
+// mint_diagram and create_sketch can't drift. `skip` names steps to pass over
+// (an update re-sending a stored row skips what loweredDiagramKinds finds).
+export function lowerDiagramKinds(manifest, { skip } = {}) {
+  let m = manifest;
+  if (!skip?.has('sequence')) m = expandSequence(m);
+  if (!skip?.has('gantt')) m = expandGantt(m);
+  if (!skip?.has('lanes')) m = expandSwimlanes(m);
+  return expandAutoLayout(m);
+}
+
+// Which lowerings a manifest already carries the output of. The lowerings keep
+// their trigger (kind / lanes[] / boundaries[]) and prepend marks, so they are
+// not idempotent: a stored row re-entering the pipeline (update_sketch with a
+// patch, or a fetched manifest sent back) would stack a second copy. Each is
+// recognised by the label text it paints: a sequence's actor headers, a gantt's
+// task labels, a lane's band label, a boundary's dashed box. Edits to an
+// already-lowered spec therefore don't redraw — re-send the bare spec for that.
+export function loweredDiagramKinds(manifest) {
+  const found = new Set();
+  if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.marks)) return found;
+  const texts = (pred) => new Set(manifest.marks.filter((k) => k && k.kind === 'text' && pred(k)).map((k) => k.value));
+  const labelled = (items, painted) => Array.isArray(items) && items.some((it) => it && typeof it.label === 'string' && painted.has(it.label));
+  if (manifest.kind === 'sequence' && labelled(manifest.actors, texts((k) => k.weight === 600 && k.anchor === 'middle'))) found.add('sequence');
+  if (manifest.kind === 'gantt' && labelled(manifest.tasks, texts((k) => k.anchor === 'start' && k.z === undefined))) found.add('gantt');
+  if (labelled(manifest.lanes, texts((k) => k.z === -1))) found.add('lanes');
+  if (Array.isArray(manifest.boundaries) && manifest.marks.some((k) => k && k.kind === 'rect' && k.z === -2 && k.rx === 12)) found.add('boundaries');
+  return found;
 }
 
 

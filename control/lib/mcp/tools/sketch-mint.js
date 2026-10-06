@@ -30,7 +30,7 @@ import {
   expandGridLayout,
   expandBoundaries,
   lowerDiagramKinds,
-  expandAutoLayout,
+  loweredDiagramKinds,
   STATION_KINDS,
   EDGE_VIA_VALUES,
   MARK_KINDS,
@@ -253,6 +253,32 @@ function validateSketchIdentity({ title, ref, folderRef, bucket }) {
 }
 
 /**
+ * The diagram half of the sketch pipeline, shared by mintSketch and update_sketch so
+ * the two can't drift: lower the diagram kinds (sequence / gantt / swimlanes / auto
+ * layout — the SAME kernel lowering mint_diagram runs), resolve grid `cell`
+ * placements to concrete x/y/w/h, wrap boundaries, then Rendrant. A lowering whose
+ * marks the manifest already carries (a stored row sent back, or patched) is skipped
+ * rather than stacked twice.
+ */
+function expandDiagramManifest(manifest) {
+  const skip = loweredDiagramKinds(manifest);
+  let working;
+  try {
+    working = lowerDiagramKinds(manifest, { skip });
+  } catch (err) {
+    throw new Error(`Invalid manifest: ${err.message} — manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`);
+  }
+  try {
+    // expandBoundaries runs after grid resolution (it wraps stations by their
+    // resolved coords) and before Rendrant (boundary marks are inert to it).
+    const gridded = expandGridLayout(working);
+    return expandNeoRembrandt(withConstellationGrid(skip.has('boundaries') ? gridded : expandBoundaries(gridded)));
+  } catch (err) {
+    throw new Error(`Rendrant expansion error: ${err.message}`);
+  }
+}
+
+/**
  * Validate + persist a sketch, returning { ok, ref, url }. Shared by the
  * create_sketch MCP tool AND the plan-mode / research-mode auto-mint path
  * (which derives a manifest deterministically, then persists it here). Keeping
@@ -317,24 +343,7 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   } catch (err) {
     throw new Error(`Recipe lowering error: ${err.message}`);
   }
-  // Lower the diagram kinds (sequence / gantt / swimlanes) to plain marks before
-  // grid/Rendrant expansion. Each step no-ops unless its trigger is present. This
-  // is the SAME kernel lowering mint_diagram runs, so both stay bound.
-  try {
-    working = lowerDiagramKinds(working);
-  } catch (err) {
-    throw new Error(`Invalid manifest: ${err.message} — manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`);
-  }
-  // Resolve any grid `cell` placements to concrete x/y/w/h before validating
-  // and storing, so the renderer only ever sees absolute coords.
-  let expanded;
-  try {
-    // expandBoundaries runs after grid resolution (it wraps stations by their
-    // resolved coords) and before Rendrant (boundary marks are inert to it).
-    expanded = expandNeoRembrandt(withConstellationGrid(expandBoundaries(expandGridLayout(working))));
-  } catch (err) {
-    throw new Error(`Rendrant expansion error: ${err.message}`);
-  }
+  const expanded = expandDiagramManifest(working);
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
   // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
   // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,
@@ -883,13 +892,8 @@ export async function updateSketchHandler(input) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
       await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
   } else if (manifest !== undefined) {
-    let expanded;
-    try {
-      // a revised flow with no station positions is auto-placed, as at mint (a no-op otherwise)
-      expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(expandAutoLayout(manifest))));
-    } catch (err) {
-      throw new Error(`Rendrant expansion error: ${err.message}`);
-    }
+    // the same diagram lowering as at mint: sequence / gantt / lanes / boundaries, auto layout
+    const expanded = expandDiagramManifest(manifest);
     let finalized = expanded;
     try {
       const { quality: _grade, ...improved } = improveFloorplanManifest(expanded);   // auto-improve floorplans, grade not stored; no-op otherwise

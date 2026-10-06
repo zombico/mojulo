@@ -19,7 +19,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { lowerDiagramKinds, expandGridLayout, expandBoundaries, validateDiagramManifest } from '@/lib/diagram-core';
+import { lowerDiagramKinds, loweredDiagramKinds, expandGridLayout, expandBoundaries, validateDiagramManifest } from '@/lib/diagram-core';
 
 /**
  * Validate + persist a core diagram manifest. Mirrors the diagram path of
@@ -71,7 +71,11 @@ export function mintDiagram({ title, manifest, ref, folderRef } = {}) {
   // concrete coords). Both steps are the SAME kernel pre-expansion create_sketch
   // delegates to.
   // expandBoundaries runs LAST — it wraps stations by their RESOLVED coords.
-  const finalized = expandBoundaries(expandGridLayout(lowerDiagramKinds(manifest)));
+  // A lowering whose marks the manifest already carries (a stored row re-minted)
+  // is skipped, as in create_sketch, rather than stacked twice.
+  const skip = loweredDiagramKinds(manifest);
+  const gridded = expandGridLayout(lowerDiagramKinds(manifest, { skip }));
+  const finalized = skip.has('boundaries') ? gridded : expandBoundaries(gridded);
   const { ok, errors } = validateDiagramManifest(finalized);
   if (!ok) {
     throw new Error(`Invalid manifest:\n - ${errors.join('\n - ')}`);

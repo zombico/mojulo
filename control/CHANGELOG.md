@@ -94,6 +94,29 @@ biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station
   list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
   form first; `edge-notation` gains `channel`.
 
+### update_sketch diagram lowering
+
+`update_sketch` with a replacement diagram manifest skipped the diagram-kind lowering that `create_sketch` and
+`mint_diagram` run. A `kind: 'sequence'` or `kind: 'gantt'` spec failed validation, and a `lanes[]` or
+`boundaries[]` manifest was stored without its bands or boxes.
+
+- **One pipeline.** `create_sketch` and `update_sketch` now share one helper in `sketch-mint.js`. It runs
+  `lowerDiagramKinds` (sequence, gantt, swimlanes, auto layout), then grid cells, `expandBoundaries` and
+  Rendrant. An update stores what a mint of the same manifest stores. A lowering error on update now reads
+  `Invalid manifest: … manifest manual`, as at mint, instead of `Rendrant expansion error`.
+- **No double lowering.** The lowerings keep their trigger (`kind`, `lanes`, `boundaries`) and prepend marks,
+  so running them again on a stored row stacked a second copy of every mark. Swimlanes also shrank the viewBox,
+  because the first pass drops `col`. `loweredDiagramKinds` (`lib/diagram-core.js`) recognises a lowering
+  already present by the label text it paints, and that step is skipped. A stored row sent back whole or as a
+  patch, or re-minted as a copy through `create_sketch` or `mint_diagram`, is stored unchanged. The binding test
+  pins that both mint paths render a re-minted row the same way. As before, editing the spec of an already-lowered row
+  (a message, a task, a lane) does not redraw it. Send the bare spec to redraw it.
+- **Lanes with placed stations: intended change.** A `lanes[]` manifest whose stations all carry explicit
+  `x`/`y` used to pass `update_sketch` with no lane bands. It now gets them, as `create_sketch` always gave
+  it. Mint also sized those bands from `col` alone and overwrote the viewBox with that width, which clipped a
+  station placed past it. The bands and viewBox now grow to hold every placed station. Laned stations on the
+  column grid never reach past it, so their output is byte-identical.
+
 ### cook diet
 
 `cook` listed every publication kind's layout manual in `tools/list`: 16.2 KB, the heaviest tool. It now lists

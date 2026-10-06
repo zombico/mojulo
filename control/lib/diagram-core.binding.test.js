@@ -180,6 +180,20 @@ describe('diagram-core binding — mint_diagram ≡ create_sketch for diagram ki
       .toThrow(/creative-pack feature/);
   });
 
+  // A stored row re-minted (a copy) already carries its lowered marks: every
+  // door skips that lowering instead of stacking a second copy of the marks.
+  for (const [name, manifest] of [['sequence', SEQUENCE], ['gantt', GANTT], ['swimlane', SWIMLANE], ['boundary', BOUNDARY]]) {
+    it(`${name}: a re-minted stored row is stored unchanged via both paths`, async () => {
+      const lowered = SketchRepository.getByRef(mintDiagram({ title: manifest.title, manifest, ref: `rk_${name}` }).ref).manifest;
+      const k = SketchRepository.getByRef(mintDiagram({ title: manifest.title, manifest: lowered, ref: `rk2_${name}` }).ref);
+      const c = SketchRepository.getByRef((await createSketchHandler({ title: manifest.title, manifest: lowered, ref: `rc2_${name}` })).ref);
+      expect(k.manifest).toEqual(lowered);
+      const ksvg = (await renderStoredSketchSvg(k)).split('rk2_' + name).join('REF');
+      const csvg = (await renderStoredSketchSvg(c)).split('rc2_' + name).join('REF');
+      expect(csvg).toBe(ksvg);
+    });
+  }
+
   it('mint_diagram rejects a non-diagram (world) manifest by shape', () => {
     expect(() => mintDiagram({ title: 'town', manifest: { kind: 'floorplan', seed: 7 } }))
       .toThrow(/Invalid manifest/);
