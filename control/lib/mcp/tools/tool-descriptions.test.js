@@ -306,7 +306,17 @@ const DESCRIPTION_ALLOWLIST = {
 // the cook diet and the contextmap trim together.
 // Merged with the building ladder 2026-10-06 (237_700 -> 238_700; measured 237,662 -> 238,593): mint_building's
 // entry, less the house redirects it let create_sketch, mint_solid and compose_world drop.
-const PAYLOAD_CEILING = 238_700;
+// Re-pinned 2026-10-06 (268_900 -> 269_300; measured 269,246) for the industrial study's drawing leg: export_model's
+// 'dxf' / 'svg' formats (two enum values and one sentence) and the `slice_z` / `part` properties that cut a scad row
+// into a flat drawing. The mechanical library itself is off-payload (the scad card).
+// Re-pinned 2026-10-06 (269_300 -> 269_600; measured 269,450) for the rigidity sensor: measure_solid's `strength`
+// property (one sentence). The material table, the element checks and the reading live off-payload (the scad card).
+// Re-pinned 2026-10-06 (-> 269_600 held; measured 269,543) on merging the rigidity sensor with industrial motion:
+// measure_solid's `motion` boolean (one short property line) joins `strength`. The `mechanism` contract rides
+// mint_solid's free-form spec and the scad card.
+// Merged with the industrial study 2026-10-06 (238_700 -> 239_300; measured 238,593 -> 239,264): export_model's dxf/svg
+// leg and measure_solid's `strength` and `motion` properties.
+const PAYLOAD_CEILING = 239_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

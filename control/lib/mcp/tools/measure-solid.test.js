@@ -12,6 +12,7 @@ process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(path.join(os.tmpdir(), 'mojulo-mea
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { measureSolidHandler } from './measure-solid.js';
 import { exportModelHandler } from './sketch-model-export.js';
+import { loadOpenscad } from '@/lib/graph/scad/scad-render';
 
 const CYLINDER = { axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 6 }, profile: [{ t: 0, radius: 2 }, { t: 1, radius: 2 }] };
 
@@ -108,4 +109,20 @@ describe('measure_solid on a layered solid', () => {
     const quiet = await measureSolidHandler({ ref: 'ms_layered', volume: false, exposure: false });
     expect(quiet.exposure).toBeUndefined(); expect(quiet.parts.find((p) => p.id === 'spurR').exposure).toBeUndefined(); expect(quiet.warnings).toBeUndefined();
   });
+  it('motion: a scad mechanism is measured on request — the cycle numbers, the sweep, a collision as a warning', async () => {
+    if (await loadOpenscad() == null) return;   // the optional WASM: nothing to sweep with
+    const source = 'module base() translate([-5,-5,0]) cube([60,10,2]); module arm() translate([0,-2,3]) cube([30,4,3]); module post() translate([24,6,0]) cube([4,4,10]);';
+    const mechanism = { joints: { arm: { type: 'revolute', center: [0, 0, 0], axis: [0, 0, 1] } }, drive: { part: 'arm', to: 120, torque: 1 }, loads: [], steps: 12 };
+    SketchRepository.create({ ref: 'ms_motion', title: 'swing arm', manifest: { kind: 'scad', units: 'mm', source, parts: { base: 'base();', arm: 'arm();', post: 'post();' }, mechanism } });
+    const m = await measureSolidHandler({ ref: 'ms_motion', volume: false, motion: true });
+    expect(m.motion.drive).toEqual(expect.objectContaining({ part: 'arm', mode: 'swing' }));
+    expect(m.motion.joints.arm.range).toEqual([0, 120]);
+    const hit = m.motion.collisions.pairs.find((p) => p.clear === false);
+    expect([hit.a, hit.b]).toEqual(['arm', 'post']);   // the arm swings into the post
+    expect(m.warnings.some((w) => /'arm' and 'post' collide/.test(w))).toBe(true);
+    const plain = await measureSolidHandler({ ref: 'ms_motion', volume: false });
+    expect(plain.motion).toBeUndefined();
+    const none = await measureSolidHandler({ ref: 'ms_cyl', volume: false, motion: true });
+    expect(none.motion.skipped).toBe(true);
+  }, 120000);
 });

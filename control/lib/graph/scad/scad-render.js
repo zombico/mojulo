@@ -42,6 +42,9 @@ import { ensureExactKernel } from '../polygonizer/field-exact.js';
 import { manifestWantsExact } from '../polygonizer/field-exact-reach.js';
 import { facesToPolyhedron } from '../scene/scene-scad.js';
 import { optionalHelperHint } from '../../version/distribution.js';
+import { MECH_LIB_SOURCE, MECH_LIB_VERSION, usesMechLib } from './mech-lib.js';
+import { validateMechanism, solveMechanism, mechanismReport, sweepCollisions, DEFAULT_STEPS } from './mechanism.js';
+import { validateDynamics, wantsDynamics, analyseDynamics } from './dynamics.js';
 
 export const SCAD_KIND = 'scad';
 export const MAX_SOURCE_BYTES = 64 * 1024;
@@ -150,6 +153,15 @@ export function fieldPrelude(fields) {
   if (preludeCache.size >= 16) preludeCache.delete(preludeCache.keys().next().value);
   preludeCache.set(key, text);
   return text;
+}
+
+/**
+ * The mechanical library (mech-lib.js) for a source that calls an `mj_` module or function, or ''
+ * — so a source without one is the same program text, the same memo key, the same bytes.
+ */
+export function mechPrelude(source, parts) {
+  const bare = stripComments([source, ...(parts && typeof parts === 'object' ? Object.values(parts) : [])].join('\n'));
+  return usesMechLib(bare) ? `${MECH_LIB_SOURCE}\n` : '';
 }
 
 // ─── the WASM ─────────────────────────────────────────────────────────────────────
@@ -389,7 +401,7 @@ export async function renderScadParts(manifest) {
   const source = manifest.source;
   const fn = Number.isFinite(manifest.fn) ? manifest.fn : undefined;
   const parts = manifest.parts && typeof manifest.parts === 'object' ? manifest.parts : null;
-  const prelude = fieldPrelude(manifest.fields);
+  const prelude = `${mechPrelude(source, parts)}${fieldPrelude(manifest.fields)}`;
   if (!parts) {
     const r = await renderProgram(source, null, { fn, group: DEFAULT_GROUP, prelude });
     if (r.skipped) return r;
@@ -409,6 +421,66 @@ export async function renderScadParts(manifest) {
     out.push({ name, statement, ...r });
   }
   return { parts: out };
+}
+
+// ─── 2D: DXF / SVG for a laser, a CNC router, a waterjet ───────────────────────────────────────
+//
+// A flat part leaves mojulo as a drawing, not a mesh. Three readings of one scad row, all OpenSCAD's own
+// 2D export (exact, in the recipe's units): a program whose top level is 2D (an `mj_sheet_flat`, a
+// `square()` with holes) exports AS WRITTEN; `slice_z` cuts the solid at that height
+// (`projection(cut = true)`, a plate's holes at true size); otherwise the solid's outline seen from above
+// (`projection()`). `part` picks one of the manifest's `parts`. The source is wrapped as a module so its
+// own top-level assignments stay its own.
+export const SCAD_2D_FORMATS = ['dxf', 'svg'];
+
+async function renderScad2dOnce(program, format) {
+  const mod = await loadOpenscad();
+  if (!mod) return { skipped: true, reason: openscadInstallLine() };
+  const log = [];
+  const o = await mod.createOpenSCAD({ print: (x) => log.push(String(x)), printErr: (x) => log.push(String(x)) });
+  const inst = o.getInstance();
+  inst.FS.writeFile('/recipe.scad', program);
+  let code = 0;
+  try { code = inst.callMain(['/recipe.scad', `--backend=${SCAD_BACKEND}`, '-o', `/out.${format}`]); } catch (e) { code = -1; log.push(`runtime: ${e && e.message ? e.message : e}`); }
+  let out = null;
+  try { out = Buffer.from(inst.FS.readFile(`/out.${format}`)); } catch (_) { out = null; }
+  return { out, log, code };
+}
+
+/** A `scad` manifest → `{ bytes, format, mode, entities, size }` as a 2D drawing. Throws on a refusal. */
+export async function renderScad2d(manifest, { format = 'dxf', slice_z: sliceZ, part } = {}) {
+  if (!SCAD_2D_FORMATS.includes(format)) throw new Error(`2D format must be one of ${SCAD_2D_FORMATS.join(', ')}`);
+  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts)];
+  if (errors.length) throw new Error(`Invalid scad recipe:\n- ${errors.join('\n- ')}`);
+  const parts = manifest.parts && typeof manifest.parts === 'object' ? manifest.parts : null;
+  if (part != null && (!parts || !(part in parts))) throw new Error(`\`part\` '${part}' is not one of this row's parts (${parts ? Object.keys(parts).join(', ') : 'it has none'})`);
+  if (parts && part == null) throw new Error(`This row has parts (${Object.keys(parts).join(', ')}); name one with \`part\` — a drawing is one flat part.`);
+  const prelude = `${mechPrelude(manifest.source, parts)}${fieldPrelude(manifest.fields)}`;
+  const fn = Number.isFinite(manifest.fn) ? `$fn = ${Math.round(manifest.fn)};\n` : '';
+  const body = part != null ? `${manifest.source}\n${parts[part]}\n` : manifest.source;
+  const wrapped = (op) => `${prelude}${fn}module mj__drawing_body() {\n${body}\n}\n${op}\n`;
+  const attempts = Number.isFinite(sliceZ)
+    ? [['slice', wrapped(`projection(cut = true) translate([0, 0, ${-sliceZ}]) mj__drawing_body();`)]]
+    : [['as-written', wrapped('mj__drawing_body();')], ['outline', wrapped('projection() mj__drawing_body();')]];
+  let last = null;
+  for (const [mode, program] of attempts) {
+    const r = await renderScad2dOnce(program, format);
+    if (r.skipped) throw new Error(r.reason);
+    const hard = r.log.filter((l) => /\bERROR\b|runtime:/.test(l));
+    // a slice plane that misses the part leaves an empty cut, which OpenSCAD reports as 'not a 2D object'
+    const empty = r.log.some((l) => /top level object is empty/i.test(l)) || (mode === 'slice' && r.log.some((l) => /not a 2D object/i.test(l)));
+    if (r.out && r.out.length && !hard.length && !empty) {
+      const text = r.out.toString('utf8');
+      // OpenSCAD writes every outline of an SVG into one <path>: count its subpaths (each opens with M)
+      const entities = format === 'dxf' ? (text.match(/^\s*(LWPOLYLINE|POLYLINE|LINE)\s*$/gm) || []).length : (text.match(/(^|\s)M\s/gm) || []).length;
+      const vb = format === 'svg' ? text.match(/viewBox="([-\d.\s]+)"/) : null;
+      const size = vb ? (([, , w, h]) => ({ w: Math.round(w * 100) / 100, d: Math.round(h * 100) / 100 }))(vb[1].trim().split(/\s+/).map(Number)) : undefined;
+      return { bytes: r.out, format, mode, entities, ...(size ? { size } : {}), units: manifest.units || DEFAULT_UNITS, ...(prelude && mechPrelude(manifest.source, parts) ? { mechlib: MECH_LIB_VERSION } : {}) };
+    }
+    last = { mode, hard, empty, log: r.log };
+  }
+  if (last.empty) throw new Error(Number.isFinite(sliceZ) ? `Nothing to draw at slice_z = ${sliceZ}: the plane misses the part (its lowest z is the floor; try a height inside it).` : 'The program makes nothing to draw.');
+  throw new Error(`OpenSCAD could not draw the part (${last.mode}):\n- ${(last.hard.length ? last.hard : last.log).slice(0, 8).join('\n- ')}`);
 }
 
 /** The World face list for a manifest under a light (what /world, /scene and every export read). */
@@ -438,7 +510,8 @@ export async function planScad(manifest = {}) {
   const t0 = performance.now();
   // an embedded `fields` entry with `exact: true` bakes through Manifold (async to load, sync to bake)
   if (manifestWantsExact(manifest)) await ensureExactKernel();
-  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts), ...validateScadFields(manifest.fields)];
+  const partNames = manifest.parts && typeof manifest.parts === 'object' && !Array.isArray(manifest.parts) ? Object.keys(manifest.parts) : null;
+  const errors = [...validateScadSource(manifest.source), ...validateScadParts(manifest.parts), ...validateScadFields(manifest.fields), ...validateMechanism(manifest.mechanism, partNames), ...validateDynamics(manifest.mechanism, partNames)];
   if (!errors.length && Array.isArray(manifest.fields)) {
     for (const f of manifest.fields) {
       const a = auditManifold(fieldToFaces(f, {}));
@@ -464,6 +537,9 @@ export async function planScad(manifest = {}) {
       warnings.push(`part '${p.name}' is an open shell — ${closure.holes.length} hole${closure.holes.length === 1 ? '' : 's'}, widest ≈${round1(closure.holes[0].diameter)} ${units} across. Manifold output is closed by construction, so this is an OpenSCAD warning worth reading (a 2D object at top level, a non-manifold polyhedron()).`);
     }
     for (const l of p.log) if (/WARNING|ERROR/i.test(l) && !/Status:\s*NoError/i.test(l)) log.push(`${p.name}: ${l}`);
+    // two OpenSCAD warnings that still write a file, so the mint succeeds with geometry missing
+    if (p.log.some((l) => /Can't get font|Fontconfig error/i.test(l))) warnings.push(`part '${p.name}': text() rendered NOTHING — this OpenSCAD build carries no fonts, so every glyph is dropped while the rest of the part renders. Raise or engrave lettering as a workbench \`reliefs\` entry or the carved-solid kind, or draw it as polygons.`);
+    if (p.log.some((l) => /Manifold conversion failed/i.test(l))) warnings.push(`part '${p.name}': a polyhedron() is not a closed 2-manifold, so OpenSCAD's kernel took it apart or dropped it — the part rendered without it as written. Check face winding and shared edges, or use the library (mj_thread, mj_loft) for helices and lofts.`);
     return out;
   });
   const all = r.parts.flatMap((p) => p.records);
@@ -478,13 +554,81 @@ export async function planScad(manifest = {}) {
     const names = new Set(r.parts.map((p) => p.name));
     for (const m of manifest.movers) if (m && typeof m.group === 'string' && !names.has(m.group)) warnings.push(`movers: group '${m.group}' names no part — the parts are ${[...names].join(', ')}.`);
   }
+  // a mechanism is solved here, so a part nothing drives or a link that cannot close is said at mint
+  let mechanism;
+  if (manifest.mechanism) {
+    const solved = solveMechanism(manifest.mechanism, { bounds: partBounds(r.parts), units });
+    const moving = Object.keys(manifest.mechanism.joints).length + (manifest.mechanism.couplings || []).filter((c) => c.type === 'link' && c.rod).length;
+    mechanism = { drive: manifest.mechanism.drive.part, moving, samples: solved.samples.length, ...(solved.lock ? { lock: solved.lock } : {}) };
+    if (solved.lock) warnings.push(`mechanism: locks at drive ${solved.lock.drive}${solved.lock.unit} — ${solved.lock.reason}. The World plays the cycle up to there.`);
+    if (Array.isArray(manifest.movers) && manifest.movers.some((m) => manifest.mechanism.joints[m?.group])) warnings.push('movers: a hand-written mover names a part the mechanism also moves — the two fight; drop the mover.');
+  }
   const closed = parts.every((p) => !p.open);
-  const ledger = { recipe_bytes: recipeBytes, wall_ms: Math.round(performance.now() - t0), faces: all.length, closed, openscad: await openscadVersion(), backend: SCAD_BACKEND };
-  return { stats: { parts, faces: all.length, units, size, ledger, ...(log.length ? { log } : {}), ...(warnings.length ? { warnings } : {}) } };
+  const mechlib = mechPrelude(manifest.source, manifest.parts) ? { mechlib: MECH_LIB_VERSION } : {};
+  const ledger = { recipe_bytes: recipeBytes, wall_ms: Math.round(performance.now() - t0), faces: all.length, closed, openscad: await openscadVersion(), backend: SCAD_BACKEND, ...mechlib };
+  return { stats: { parts, faces: all.length, units, size, ledger, ...(mechanism ? { mechanism } : {}), ...(log.length ? { log } : {}), ...(warnings.length ? { warnings } : {}) } };
+}
+
+/** Each rendered part's axis-aligned bounds in the authored pose, `{ <name>: { min, max } }`. */
+export function partBounds(renderedParts) {
+  const out = {};
+  for (const p of renderedParts) { const b = boundsOf(p.records); if (b) out[p.name] = { min: b.min, max: b.max }; }
+  return out;
+}
+
+// the volume and centre of an OFF mesh (closed, as Manifold writes it): the divergence theorem over a fan per face
+function offVolume(geom) {
+  let v = 0; const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of geom.vertices) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], p[i]); hi[i] = Math.max(hi[i], p[i]); }
+  for (const f of geom.faces) {
+    const a = geom.vertices[f.idx[0]];
+    for (let k = 1; k + 1 < f.idx.length; k++) {
+      const b = geom.vertices[f.idx[k]], c = geom.vertices[f.idx[k + 1]];
+      v += (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6;
+    }
+  }
+  return { volume: Math.abs(v), centre: geom.vertices.length ? [0, 1, 2].map((i) => (lo[i] + hi[i]) / 2) : null };
+}
+
+/**
+ * measure_solid's `motion` leg for a scad row with a `mechanism`: the solved cycle's numbers (mechanismReport) and
+ * every pair of parts intersected across it (sweepCollisions), each intersection rendered by OpenSCAD exactly as
+ * the fits are checked. Returns null for a row with no mechanism.
+ */
+export async function measureScadMotion(manifest, { steps } = {}) {
+  if (!manifest?.mechanism || !manifest.parts) return null;
+  const r = await renderScadParts(manifest);
+  if (r.skipped) return { skipped: true, reason: r.reason };
+  const units = typeof manifest.units === 'string' ? manifest.units : DEFAULT_UNITS;
+  const bounds = partBounds(r.parts);
+  const solved = solveMechanism(manifest.mechanism, { bounds, units });
+  const report = mechanismReport(solved);
+  const fn = Number.isFinite(manifest.fn) ? manifest.fn : undefined;
+  const prelude = `${mechPrelude(manifest.source, manifest.parts)}${fieldPrelude(manifest.fields)}`;
+  const render = async (body) => {
+    const out = await renderScadOff(`${prelude}${manifest.source}\n${body}\n`, { fn });
+    if (out.skipped) throw new Error(out.reason);
+    if (out.empty || !out.off) return { empty: true, volume: 0 };
+    return { empty: false, ...offVolume(parseOff(out.off)) };
+  };
+  const t0 = performance.now();
+  const collisions = await sweepCollisions(solved, {
+    partNames: Object.keys(manifest.parts), statements: manifest.parts, bounds,
+    steps: steps ?? manifest.mechanism.steps ?? DEFAULT_STEPS, ignore: manifest.mechanism.ignore || [], render,
+  });
+  // weight, inertia, friction and the parts' strength under the cycle's loads — only when the mechanism names a
+  // material, bodies, friction, a start-up, a motor or a duty (absent all of them the report is unchanged)
+  let dynamics;
+  if (wantsDynamics(manifest.mechanism)) {
+    const partTris = Object.fromEntries(r.parts.map((p) => [p.name, p.records.map((x) => x.corners)]));
+    const mmPer = { mm: 1, cm: 10, m: 1000, in: 25.4 }[units] ?? 1;
+    dynamics = analyseDynamics(solved, report, { partTris, scale: mmPer, build: manifest.strength?.build ?? null });
+  }
+  return { ...report, ...(dynamics ? { dynamics } : {}), collisions: { ...collisions, ms: Math.round(performance.now() - t0) } };
 }
 
 /** The deterministic subset of the ledger stored on the manifest (no timings). */
 export function persistedScadLedger(ledger) {
   if (!ledger) return undefined;
-  return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed, openscad: ledger.openscad };
+  return { recipe_bytes: ledger.recipe_bytes, faces: ledger.faces, closed: ledger.closed, openscad: ledger.openscad, ...(ledger.mechlib ? { mechlib: ledger.mechlib } : {}) };
 }

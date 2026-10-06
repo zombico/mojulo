@@ -261,6 +261,12 @@ export const EMIT_FIXTURES = [
     { verb: 'ward', cc: [3, 0, 0], color: [1, 0.5, 0.2], rate: 1, size: 0.6 },
     { verb: 'beacon', cc: [-3, 0, 0], color: [0.27, 0.77, 0.41], rate: 1, size: 0.6 },
   ] }],
+  // marks: the strength sensor's animated pointer (rings, arrow, label) at a world point. The part never moves;
+  // absent marks ⇒ byte-identical (every other fixture omits it, unchanged).
+  ['marks', { faces: [floor()], marks: [
+    { at: [2, 2, 0], dir: [0, 0, 1], size: 0.3, color: '#e5484d', label: 'shelf bracket: bending, SF 0.51 (low confidence)' },
+    { at: [1, 3, 0], dir: [0.6, 0, 0.8], size: 0.3, color: '#3fb950', period: 2 },
+  ] }],
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],
   ['ao', { faces: [quad('#8899aa', { group: 'shell:leftWall', normal: [1, 0, 0] }), floor()], ao: true }],

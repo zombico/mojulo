@@ -191,6 +191,196 @@ parts no longer show. Nothing they accept or record changed.
 - `gather` and `execute_plan` stop mentioning bots and deploys.
 - **Ratchet.** The flat `tools/list` pin drops from 256,800 to 251,600 bytes.
 
+### Rigidity sensor
+
+- `measure_solid` now takes a `strength` spec. It reads how far a part bends under the work it does, how far it is
+  from breaking, and how much to trust that answer. It is a sensor, not a guarantee: every reading names its
+  assumptions and never says "safe".
+- **Material table.** A new mechanical table (`lib/graph/strength/materials.js`) covers FDM, powder and resin
+  prints, stock metals, plastics and clear wood. Each entry has typical stiffness and strength, spread, creep and
+  service temperature, all stamped "check the supplier datasheet".
+  - For prints, strength across the layers falls off by Hankinson's formula.
+  - For wood, strength across the grain falls off the same way.
+  - An undeclared build direction takes the worst case.
+- **Measured sections.** The real cross-section is cut from the mesh and integrated exactly: area, centroid,
+  principal second moments, holes. Works for every solid kind.
+- **Element checks**, each tested against a textbook answer and an overload control that flips the reading:
+  - cantilever: bending, shear and deflection by Castigliano, so a varying section is exact. Swept from the root to
+    the load, so the weak spot is found, not assumed.
+  - lever: the effort comes from machina's lever.
+  - shaft: torsion and twist.
+  - strut: Euler or Johnson buckling.
+  - bolt: ISO stress area, thread stripping, heat-set pull-out.
+  - gear: Lewis tooth bending.
+- **Stress raisers.** Steps in section and holes are found with an estimated Kt, on the face where the step sits.
+  Kt is applied for brittle materials and repeated loads. For a ductile part under a static load it is reported
+  but not applied.
+- **Each reading reports:**
+  - the margin: the safety factor of the weakest mode
+  - rigidity against a limit
+  - a confidence grade: the weakest of material, idealization, load, duty and environment, each with its reason
+  - the safety factor that grade calls for (Pugsley-style; × 1.25 for brittle materials)
+  - a verdict and one plain line
+- **Stored on the row.** The spec can live on the row as `strength` (shape-checked at `update_sketch`), so the
+  reading reproduces.
+- **Weak-spot pointer.** The World draws a pointer at the weak spot: rings that ripple out from the point, with an
+  arrow and a label. Only the rings animate; the part, the arrow and the label stay still. This is a new opt-in
+  `marks` channel, which any row can also author directly. It is not a face, so no mesh export carries it. A row
+  without `marks` or `strength` is byte-identical.
+- **Card and routing.** The scad card has a "Will it hold?" section, and `translate_modeler_lingo` has a
+  `strength-check` entry (PARTIAL; FEA, fatigue and creep are handed off).
+- machina's quantities gain stress, area and second-moment units.
+- **Ratchet.** With the drawing leg and `motion`, the flat `tools/list` pin rises by 671 bytes on the release
+  candidate (238,593 to 239,264; pin 239,300). The packs-mode listing is unchanged.
+
+### Industrial gen study
+
+A study of the parts people most often ask a CAD tool for, minted as an agent writes them first. Most of them
+mint, but the hard ones fail without saying so: threads no nut fits, gears and pulleys that only look right, text that
+renders blank, and hand-made helices and lofts that break apart. The `scad` kind gains the vendored, pinned library its
+card promised, and both silent failures now warn. A source that calls no `mj_` name is byte-identical.
+
+- **The mechanical library.** A source that calls any `mj_` module or function gets mojulo's own OpenSCAD library
+  prepended (`lib/graph/scad/mech-lib.js`), stamped `mechlib: <version>` in the ledger. It covers:
+  - ISO metric coarse fasteners M2–M24 (`mj_bolt` with hex, socket, button or countersunk heads, `mj_nut`,
+    `mj_washer`).
+  - Real helical threads (`mj_thread`, `mj_tapped_hole`, `mj_trapezoid_thread`). The ISO 68-1 profile is swept on a
+    sheared grid, so the part is a closed manifold and an `mj_nut` turns onto an `mj_bolt`.
+  - Holes that print true: `mj_hole` circumscribes the polygon and adds a named fit. Also counterbores, countersinks,
+    nut traps and slots, and heat-set pilots.
+  - Involute gears: spur, helical and herringbone (`mj_spur_gear`), `mj_rack`, `mj_ring_gear`, and `mj_planetary`,
+    which phases the planets and refuses a set that cannot assemble. A meshing pair sits at `mj_gear_center`.
+  - Bevel gears and worms, which are approximations and labelled as such.
+  - GT2 pulleys.
+  - Exact fillets and chamfers, edge by edge.
+  - Molded shells with draft, bosses and ribs.
+  - NACA sections lofted into blades.
+- **Standards.** Library v2 adds the dimensions agents get wrong from memory. Every table is from the published
+  standard and the card says to check the supplier's sheet:
+  - NEMA 11/14/17/23 motor mounts, with a stand-in motor.
+  - Bearing seats for 623–6204, 688 and LM8/10/12UU.
+  - DIN 6885 keyways, DIN 471/472 circlip grooves, and D-flat motor bores.
+  - O-ring glands for face, piston and rod.
+  - Raspberry Pi and Arduino standoff patterns, VESA patterns, T-slot extrusion, and Gridfinity bins.
+- **Composition.** Parts are placed by how they meet. `mj_gear_meshed` puts a gear in mesh at any angle, and
+  `mj_bolt_and_nut` threads the nut on in phase. `mj_enclosure` derives the base, the lid lip, the screw posts and
+  the countersinks from one set of numbers. A top-level `$mj_fit_add` shifts every fit for a printer. Each fit is
+  tested both ways: clean in place, and colliding when nudged.
+- **Outputs.**
+  - `mj_sheet` folds a chain of flanges. `mj_sheet_flat` unrolls it by bend allowance.
+  - `export_model` gains `format: 'dxf' | 'svg'` for scad rows: a 2D program as written, a `slice_z` cut, or the
+    outline, with `part` for a row that has several.
+  - `mj_fit_coupon` prints a pin and a hole for every fit.
+  - `translate_modeler_lingo` gains a `sheet metal` entry.
+- **Silent failures are said.** Two cases now warn: a `text()` call (this OpenSCAD build has no fonts, so glyphs render
+  as nothing), and a `polyhedron()` that OpenSCAD's kernel takes apart as non-manifold.
+- **The routes say so.** The `scad` card has a library section. `translate_modeler_lingo` `precision cad` and
+  `chamfer` now route threads, gears, fits and exact chamfers to the library. STEP, GD&T and constraint solving stay
+  a CAD tool's.
+
+### Industrial motion
+
+A scad row with `parts` can declare how those parts move. The World plays the mechanism, and `measure_solid` checks
+it for collisions across the cycle and reports torque, speed and force. Stress and strength are not modelled. A
+manifest without `mechanism` is byte-identical.
+
+- **Joints and couplings.** A `mechanism` block names a revolute or prismatic joint for each moving part (`on` rides
+  another part, as a planet rides its carrier). The couplings that tie the joints together are gears, ring gears,
+  belts, racks, screws, plain ratios, and rigid links between two pins.
+- **One driver, everything else solved.** The authored pose is the rest pose. Each step of the drive's cycle is
+  solved by Newton with continuation from the step before. The degrees of freedom are counted, so a part nothing
+  drives is named rather than left still. A linkage that cannot close, at a dead point or failing Grashof, is reported
+  at the drive value where it locks.
+- **The World plays it.** The solved cycle becomes the mover channel's own `turn`, `path` and `pose` tables, derived
+  at scene time and never stored.
+- **`measure_solid({ ref, motion: true })`.**
+  - Every joint's range, ratio to the driver, and peak speed.
+  - Every pair of parts intersected across the cycle, with the steps where they collide and by how much.
+  - Torque and force by virtual work, through stated efficiencies. A lead screw's efficiency comes from its lead
+    angle, and the report says whether it self-locks.
+  - Against a stated drive torque, a margin at the worst point of the cycle.
+- **A gear train chains.** `mj_gear_meshed` gains `phase`, the previous gear's own turn, so a third gear meshes
+  against a second that was itself turned into mesh (mech library v3). A sweep of a three-gear train found the gap.
+- **The routes say so.** The `scad` card has a mechanisms section. `translate_modeler_lingo` gains a
+  `mechanism-motion` entry: kinematics, linkages, gear trains and interference checks route to `mechanism`, and
+  dynamics, contact forces and stress hand off to a multibody or FEA tool.
+
+### Industrial dynamics
+
+A mechanism with a material now carries real weight, inertia and friction, and the loads it computes go to the
+rigidity sensor. The motion report then reads the whole machine's strength, not one part's. Without the new fields
+the output is byte-identical.
+
+- **Mass from the mesh.** Each part's volume, centre of mass and inertia tensor are computed exactly from its closed
+  mesh, then multiplied by the material's density and an optional print fill share. A stated `mass` overrides it.
+- **Dynamics by energy.** The drive effort through the cycle includes:
+  - the inertia of every moving body at the drive speed
+  - gravity on every rising part
+  - a start-up term for a stated `spinup` time
+  - the speed fluctuation under a mean torque, with the flywheel inertia that holds 5 %
+  - the shaking force on the frame
+- **Joint forces and friction.** For a tree-shaped mechanism, mojulo computes the force through every gear mesh, rod,
+  screw and pin from the power downstream of it. Pin friction (μ·R·r) and slide friction (μ·N) are added to the drive,
+  and a plastic bushing's PV is checked against a typical limit.
+- **Into strength.** With a material, every rod is checked as a pinned strut and every gear by Lewis, each at its peak
+  load, and the worst part is named.
+- **Flags.** Load cycles over a stated duty, a self-locking screw holding a load on a material that creeps, unbalance,
+  a NEMA motor's typical torque against the peak and start-up effort, and back-driving.
+
+### Tensile view
+
+The rigidity sensor reads tension and draws the curve every materials course draws. A materials and structures study
+probed 32 everyday problems. Three of them were wrong with no warning, and this theme fixes the two in the sensor's
+own checks.
+
+- **`tie` element.** It checks a member in tension: a strap, a hanger, a rod that pulls, a test bar. It reads the
+  peak over the swept sections, which includes the net section at a hole with its axial Kt and the bending an
+  off-centre pull adds. It also gives the stretch ∫F/EA and the strain. A stretch limit is optional.
+- **Struts are pushes only.** A strut with a negative force used to lose its sign and read as compression: a pulled
+  bar came back as "buckling, predicted to fail". It is now refused and pointed at `tie`. A cantilever whose load runs
+  straight along it says it is a tie or a strut.
+- **A hollow section is not a hole.** The hole Kt now applies only where a section's topology changes (a cross-hole,
+  or a cavity ending). It used to apply all along a tube or a hollow print, which doubled the stress in brittle
+  materials and under repeated loads. Readings of such parts change. The ligaments either side of a hole no longer
+  count as separate pieces.
+- **The tensile view.** Every reading carries the material's idealised stress–strain curve in the stressed direction:
+  brittle to the break; ductile elastic, then yield, then hardening to the ultimate where it is tabled. Across a
+  print's layers the curve is brittle. On it sit:
+  - the working point (the governing stress as a tensile equivalent, with its strain and zone)
+  - the stress this confidence allows
+  - the capacity mode, buckling or stripping, when one governs
+- **The World draws it.** A row with a stored spec gets a static chart panel beside the weak spot. Only the rings
+  move, as before. Marks without a chart emit the same bytes as before.
+- **The table.** Metals and polycarbonate gain `ultimate`, and bolt grades gain their elongation. These are new
+  fields, so existing readings are unchanged.
+- **Coupon calibration.** `mj_tensile_coupon(t, upright)` (mech library v4) prints the ISO 527-2 1A dogbone. The
+  strength spec's `coupon: { break_n, build }` turns a pulled coupon into the in-plane strength (flat) or the layer
+  factor (upright). The reading is then marked calibrated and records what was measured.
+- **Mechanisms.** A rod that pulls is now also checked as a tie at its peak tension.
+
+### Prints as printed
+
+The rigidity sensor reads a print's cross-section the way the slicer lays it down. It used to read every print as
+solid and ignore a declared infill, which overstated a typical part's strength about 2× with no warning.
+
+- **`print: { walls, line_mm, top_bottom, layer_mm, infill, pattern }`** on the strength spec, or on one check.
+  Absent, or at 100 % infill, the reading is exactly as before.
+- **The printed section.** Each cut is filled on a grid aligned with the build. The walls are a sideways offset and
+  the skins a vertical one; in a cut that lies along a layer the walls are an even offset. What is left is the infill
+  core. The section becomes the composite ("transformed") section: the exact solid values minus the core's lost
+  stiffness. Beams, levers, ties, struts (buckling on the printed I) and shafts all read it.
+- **Infill by pattern and direction.** Gibson–Ashby scaling, labelled typical ±50 %:
+  - prism walls that run with the stress carry ρ
+  - a bending-dominated lattice carries ρ²
+  - triangles and lines across the build carry ρ/3 and ρ/4
+  `infill_E` and `infill_strength` from your own test replace the table.
+- **The core is advisory.** At low density its cells crack before the walls do. The reading notes it, but the
+  walls set the margin.
+- **Confidence names the section** ("2 walls and 0.8 mm skins around a 20 % grid core …"). It drops to low when
+  the core carries more than a quarter of the stiffness and the infill was not measured.
+- **Checked.** A declared 0 % print reads the same as an explicit 0.8 mm shell mesh (79.0 MPa). The study's PLA bar
+  at 2 walls and 20 % grid reads 74.5 MPa against 35.9 solid.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
