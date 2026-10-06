@@ -13,8 +13,31 @@ import { getSolidVocabCatalog } from '@/lib/graph/solid-vocab/loader';
 beforeEach(() => { closeDb(); });
 
 describe("mint_solid kind 'animal'", () => {
+  it('mints a ring-plan species through the layered plan door', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Grey wolf', ref: 'an_wolf_plan', spec: { species: 'wolf' } });
+    expect(res.ok).toBe(true);
+    expect(res.species).toBe('wolf');
+    const m = SketchRepository.getByRef('an_wolf_plan').manifest;
+    expect(m.kind).toBe('layered');
+    expect(m.plan.schema).toBe('layered-plan-v1');   // the plan is stored beside the recipe
+    expect(m.provenance.plan_audit.source).toBe('agent');
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', opts: { skullCfg: { length: 0.3 } } } })).rejects.toThrow(/ring plan/);
+  });
+
+  it('mints every family worked species as a layered plan, deterministically', async () => {
+    const { SPECIES, speciesPlan } = await import('@/lib/graph/fauna/species');
+    const ids = Object.keys(SPECIES);
+    expect(ids).toEqual(expect.arrayContaining(['wolf', 'lion', 'horse', 'buck', 'bull', 'brownBear', 'hippo', 'raccoon', 'kangaroo']));
+    for (const id of ids) {
+      expect(JSON.stringify(speciesPlan(id))).toBe(JSON.stringify(speciesPlan(id)));   // recipes, not renders
+      const res = await mintSolidHandler({ kind: 'animal', title: id, ref: `an_fauna_${id}`, spec: { species: id } });
+      expect(res.ok).toBe(true);
+      expect(SketchRepository.getByRef(`an_fauna_${id}`).manifest.kind).toBe('layered');
+    }
+  });
+
   it('mints a species as a recipe and renders it through the stored-sketch dispatch', async () => {
-    const res = await mintSolidHandler({ kind: 'animal', title: 'Grey wolf', ref: 'an_wolf1', spec: { species: 'wolf', view: 'lateral' } });
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Red fox', ref: 'an_wolf1', spec: { species: 'fox', view: 'lateral' } });
     expect(res.ok).toBe(true);
     expect(res.ref).toBe('an_wolf1');
     expect(res.stance).toBe('quadruped');
@@ -22,7 +45,7 @@ describe("mint_solid kind 'animal'", () => {
     const stored = SketchRepository.getByRef('an_wolf1');
     expect(stored.manifest.kind).toBe('animal');
     expect(stored.manifest.archetype).toBe('canine');   // the species RESOLVES at mint time
-    expect(stored.manifest.species).toBe('wolf');
+    expect(stored.manifest.species).toBe('fox');
     expect(stored.manifest.view).toBe('lateral');
     expect(classifyBucket(stored.manifest)).toBe('illustration');
 
@@ -33,7 +56,7 @@ describe("mint_solid kind 'animal'", () => {
   });
 
   it('merges caller opts one level deep over the species recipe', async () => {
-    const res = await mintSolidHandler({ kind: 'animal', title: 'Long-faced wolf', spec: { species: 'wolf', opts: { skullCfg: { length: 0.3 } } } });
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Long-faced fox', spec: { species: 'fox', opts: { skullCfg: { length: 0.3 } } } });
     const m = SketchRepository.getByRef(res.ref).manifest;
     expect(m.opts.skullCfg.length).toBe(0.3);       // the one knob retuned
     expect(m.opts.skullCfg.width).toBeDefined();    // …the rest of the species' skull survives

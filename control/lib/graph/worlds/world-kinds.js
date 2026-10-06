@@ -564,8 +564,9 @@ export const WORLD_KINDS = {
       // face reads as one form and the body as muscle instead of facets; the rig pack shades its corners from the same
       // weld on the rest mesh. Standing, the parts riding the head bone are shaded in the head's own frame (their rest
       // normals, as the character light does and as the pack carries them), so a tilted head keeps the shading it has at
-      // rest. Any other layered row, and a flat (unshaded) export, keeps one shade per face.
-      const smooth = !character && m.hero && m.hero.head !== 'anime' && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
+      // rest. Any other layered row keeps one shade per face unless it opts in with `smooth: true` (a creature, a
+      // sculpted animal); a flat (unshaded) export always does.
+      const smooth = !character && ((m.hero && m.hero.head !== 'anime') || m.smooth === true) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
       // fields win. It rides the payload's own `toon` (world-scene keeps a resolver's toon over the manifest's).

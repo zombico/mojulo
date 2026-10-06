@@ -31,9 +31,11 @@ import { renderAnimalToSvg, ANIMAL_VIEWS } from '@/lib/graph/polygonizer/figure-
 import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
+import { SPECIES as FAUNA, speciesPlan } from '@/lib/graph/fauna/species';
+import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
-const SPECIES = Object.keys(ZOO_BUILDS);
+const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(ZOO_BUILDS)])];
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
 // cfg block — so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of
@@ -85,6 +87,20 @@ export async function createAnimalHandler(input) {
   }
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
+  }
+
+  // A species rebuilt as a ring plan mints through the layered plan door: watertight, dialled, and
+  // stored as `kind: 'layered'` with the plan beside the recipe, so `/plan/...` patches retune it.
+  // An explicit `archetype` keeps the hand-tuned figure body instead.
+  if (species && FAUNA[species] && !archetype) {
+    if (opts !== undefined && opts !== null) {
+      throw new Error(`\`opts\` are figure-body knobs; '${species}' is a ring plan now — mint it, then tune with update_sketch on '/plan/...' or '/dials/<name>'`);
+    }
+    const res = await createLayeredPlanHandler({
+      title, plan: speciesPlan(species), plan_audit: { source: 'agent' },
+      ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
+    });
+    return { ...res, species, stance: 'quadruped' };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is
