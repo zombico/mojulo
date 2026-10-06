@@ -1,0 +1,25 @@
+{
+  "entry": "mint_solid",
+  "kind": "figure",
+  "title": "plaza orator",
+  "spec": {
+    "proto": { "sex": "male", "stockiness": 1.05 },
+    "pose": {
+      "spine": { "sagittal": -0.15, "axial": -0.2 },
+      "pelvis": -6,
+      "shoulders": 8,
+      "shL": { "pitch": 125, "yaw": 30 },
+      "elbowL": 15,
+      "wristL": { "flex": -15 },
+      "fingersL": 25,
+      "shR": { "pitch": 10, "yaw": -5 },
+      "elbowR": 10,
+      "hipR": { "pitch": -3 },
+      "kneeL": 12,
+      "head": { "yaw": 8, "pitch": -8 }
+    },
+    "garment": ["tee", "trousers"],
+    "view": "three-quarter",
+    "setup": "studio-grey"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "entry": "create_beats",
+  "kind": "beats-ambient",
+  "title": "Midnight library",
+  "params": {
+    "bpm": 72,
+    "swing": 0.08,
+    "seed": 20260826,
+    "progression": [
+      { "chord": ["D3", "F3", "A3", "C4", "E4"], "root": "D2" },
+      { "chord": ["Bb2", "D3", "F3", "A3"], "root": "Bb1" },
+      { "chord": ["G2", "Bb2", "D3", "F3"], "root": "G1" },
+      { "chord": ["A2", "D3", "E3", "G3"], "root": "A1" }
+    ],
+    "channels": [
+      { "name": "piano", "role": "harmony", "instrument": "piano", "level": -3,
+        "chain": [{ "type": "reverb", "decay": 5, "wet": 0.35 }] },
+      { "name": "pad", "role": "harmony", "patch": "pad", "level": -12, "tone": 0.55,
+        "chain": [{ "type": "reverb", "decay": 9, "wet": 0.5 }] },
+      { "name": "bass", "role": "roots", "patch": "bassMono", "level": -7, "tone": 0.7 },
+      { "name": "bells", "role": "melody", "patch": "fmBell", "level": -9,
+        "sequence": { "table": ["D5", "F5", "G5", "A5", "C6"], "gate": 0.35 },
+        "chain": [{ "type": "pingpong", "time": 0.6, "feedback": 0.3, "mix": 0.3 },
+                  { "type": "reverb", "decay": 7, "wet": 0.45 }] }
+    ]
+  }
+}

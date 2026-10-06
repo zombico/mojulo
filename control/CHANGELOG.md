@@ -89,6 +89,23 @@ byte-identical. Being built on this branch; the sphinx comes next.
   each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
   carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
 
+### Recipe book
+
+- **The recipe book ships with mojulo.** The catalog that lived in the separate `mojulo-recipe-book`
+  repo now lives at `control/book/` and is in the npm package, so every install has it with no setup,
+  including an agent box (the Claude app and web, ChatGPT's Work box), where nothing can be cloned
+  beside the package and the old attached book never loaded. It comes in at the book's 0.8.0: study
+  objects, math, worlds, loops, solids, shots and the wardrobe (garments, outfits, footwear), and the
+  `aurora` and `foucault-pendulum` view kinds. Named outfits such as `business-suit` now resolve on
+  every install.
+- Precedence is unchanged in spirit and gains one tier at the bottom: core kinds, then your cookbook,
+  then an attached clone, then the bundled book. `MOJULO_BUNDLED_BOOK=off` leaves it unattached.
+- **Deprecated:** `MOJULO_RECIPE_BOOK` and the separate `mojulo-recipe-book` repo. A clone you
+  already point at still loads, ahead of the bundled book, and warns at boot; it is removed no earlier
+  than 4.0. Book entries are now contributed to `control/book/` in this repo (see CONTRIBUTING.md).
+- `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
+  `npm test` checks the bundled book as well.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,

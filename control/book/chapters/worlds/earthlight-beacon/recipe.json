@@ -1,0 +1,36 @@
+{
+  "entry": "compose_world",
+  "base": "planetary",
+  "title": "Earthlight beacon",
+  "overrides": {
+    "seed": 5,
+    "audio": {
+      "soundtrack": {
+        "kind": "beats-ambient",
+        "title": "Orbital beacon",
+        "bpm": 84,
+        "swing": 0.1,
+        "seed": 11011,
+        "progression": [
+          { "chord": ["A2", "C3", "E3", "G3", "B3"], "root": "A1" },
+          { "chord": ["F2", "A2", "C3", "E3"], "root": "F1" },
+          { "chord": ["D3", "F3", "A3", "C4"], "root": "D2" },
+          { "chord": ["E3", "G#3", "B3", "D4"], "root": "E1" }
+        ],
+        "channels": [
+          { "name": "pads", "role": "harmony", "patch": "pad", "level": -4,
+            "chain": [{ "type": "chorus" }, { "type": "reverb", "decay": 8, "wet": 0.5 }] },
+          { "name": "bass", "role": "roots", "patch": "bassMono", "level": -5 },
+          { "name": "beacon", "role": "melody", "patch": "chipLead", "level": -9, "tone": 0.75,
+            "sequence": { "table": ["A4", "C5", "D5", "E5", "G5", "A5"], "gate": 0.45 },
+            "chain": [{ "type": "pingpong", "time": 0.5, "feedback": 0.4, "mix": 0.35 },
+                      { "type": "reverb", "decay": 6, "wet": 0.4 }] },
+          { "name": "kick", "role": "pulse", "patch": "kick", "note": "C1", "level": -6,
+            "steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0] },
+          { "name": "hats", "role": "pulse", "patch": "hat", "note": "C5", "level": -12, "dropout": 0.2,
+            "steps": [0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0.3] }
+        ]
+      }
+    }
+  }
+}

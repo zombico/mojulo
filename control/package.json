@@ -57,6 +57,10 @@
     "LICENSE",
     "NOTICE",
     "lib/**",
+    "book/README.md",
+    "book/manifest.json",
+    "book/chapters/**",
+    "!book/**/*.test.js",
     "!lib/embedder/models/**",
     "!lib/**/*.test.js",
     "!lib/**/__snapshots__/**",
@@ -105,6 +109,7 @@
     "pack:ui": "cd ui-package && npm pack --pack-destination ..",
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "test": "vitest run",
+    "test:book": "node --test 'book/**/*.test.js' && node book/tools/validate.js",
     "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },
   "dependencies": {
