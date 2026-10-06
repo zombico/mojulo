@@ -65,7 +65,7 @@ function rowToSketch(row) {
     bucket: bucketOverride || classifyBucket(manifest),
     bucketOverride,
     // The mojulo version that minted the recipe, and the one that last changed it
-    // (null: before 3.1, or never revised).
+    // (null: before 3.0.1, or never revised).
     mintedVersion: row.minted_version ?? null,
     revisedVersion: row.revised_version ?? null,
   };

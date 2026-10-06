@@ -1,4 +1,4 @@
-// The recipe book bundled at control/book (3.1): every install carries it, an agent box included,
+// The recipe book bundled at control/book (3.0.1): every install carries it, an agent box included,
 // with no clone and no env var. vitest.setup.js turns it off for the rest of the suite; these cases
 // turn it back on. The validator gate is the one the standalone book repo ran over itself.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

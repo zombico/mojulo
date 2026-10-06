@@ -56,7 +56,7 @@ export const SketchRevisionRepository = {
   // Append the next revision for `ref` (rev 1 when none exist). Returns the written row.
   // `patch` (optional): the ops that turned THIS manifest into the next one.
   // The archived manifest is the row's HEAD before the overwrite, so its version is the one that
-  // wrote that head: the row's revised_version, else its minted_version (null before 3.1).
+  // wrote that head: the row's revised_version, else its minted_version (null before 3.0.1).
   append({ ref, manifest, note, patch }) {
     const db = getDb();
     const head = db.prepare('SELECT MAX(rev) AS rev FROM sketch_revisions WHERE ref = ?').get(ref);

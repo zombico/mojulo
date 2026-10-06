@@ -1177,11 +1177,11 @@ function migrateSketchColumns(db) {
   migrateSketchDerivedColumns(db, have);
 }
 
-// The mojulo version that wrote each recipe (3.1). `minted_version` is the
+// The mojulo version that wrote each recipe (3.0.1). `minted_version` is the
 // version that minted the row and never moves; `revised_version` is the
 // version that last changed its manifest (NULL until the first edit). Each
 // revision row carries the version that wrote ITS manifest. A row written
-// before 3.1 stays NULL: it was made by 3.0 or earlier, and which one is not
+// before 3.0.1 stays NULL: it was made by 3.0.0 or earlier, and which one is not
 // known, so nothing is guessed. Stamped by the repositories from then on.
 function migrateRecipeVersionColumns(db) {
   const have = (table) => new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));

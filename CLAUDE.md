@@ -45,7 +45,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   [docs/bicycles.md](docs/bicycles.md), [docs/responsibility-model.md](docs/responsibility-model.md).
 - **Recipes are starters.** Iterate in place with `update_sketch` / `edit_solid`; don't re-mint.
 - **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2
-  builder in [control/book/](control/book/), not a core addition. The book ships bundled (3.1); the
+  builder in [control/book/](control/book/), not a core addition. The book ships bundled (3.0.1); the
   separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated (they cannot load in an agent box).
 - **Single operator, loopback only.** No user identity by default; the roles pack is operator-owned
   delegation, not multi-tenancy. Do not add tenant isolation, tunnels, or public exposure. The MCP route is

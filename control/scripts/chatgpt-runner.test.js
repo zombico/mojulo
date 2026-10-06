@@ -105,7 +105,7 @@ describe('ChatGPT Work runner', () => {
     expect(() => checkpoint(opts)).toThrow(/EEXIST/);
     const restoreOpts = options(dir, 'restore', ['--capsule', out]);
     expect(readCapsule(restoreOpts)).toEqual({ title: 'City', ref: 'sk_resume', manifest });
-    expect(() => readCapsule({ ...restoreOpts, version: '3.0.1' })).toThrow(/needs Mojulo 3.0.0/);
+    expect(() => readCapsule({ ...restoreOpts, version: '9.9.9' })).toThrow(`needs Mojulo ${DEFAULT_VERSION}`);
     const edited = JSON.parse(fs.readFileSync(out));
     edited.restore.manifest.seed = 99;
     fs.writeFileSync(out, JSON.stringify(edited));

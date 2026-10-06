@@ -117,6 +117,7 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - **Deprecated:** `MOJULO_RECIPE_BOOK` and the separate `mojulo-recipe-book` repo. A clone you
   already point at still loads, ahead of the bundled book, and warns at boot; it is removed no earlier
   than 4.0. Book entries are now contributed to `control/book/` in this repo (see CONTRIBUTING.md).
+- The ChatGPT Work-box runner installs 3.0.1 by default, so a Work box gets the bundled book.
 - `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
   `npm test` checks the bundled book as well.
 
