@@ -12,6 +12,8 @@
  *   strength the failure stress the check compares against (MPa), on the `basis` named:
  *              'yield' for ductile metals and plastics, 'ultimate' for brittle ones,
  *              'mor' (modulus of rupture, bending) for clear wood
+ *   ultimate the tensile (ultimate) strength, MPa, where the table's `strength` is a yield. Only the tensile
+ *            view's curve reads it (hardening from yield to ultimate); no check judges against it.
  *   elong    elongation at break (%). Below 5 % the material is treated as brittle: stress raisers count
  *            even under a static load, and it fails without warning.
  *   cov      coefficient of variation of strength (spread ÷ mean). Feeds the material-certainty grade.
@@ -40,28 +42,29 @@ export const MATERIALS = Object.freeze({
   resin:    M('resin',    { label: 'Standard resin (SLA)', family: 'resin', E: 2500,  strength: 55,  basis: 'ultimate', elong: 5,   density: 1.15, nu: 0.38, cov: 0.12, serviceC: 50,  creep: true,  layer: 0.95 }),
   'tough-resin': M('tough-resin', { label: 'Tough resin (SLA)', family: 'resin', E: 1600, strength: 45, basis: 'yield', elong: 25, density: 1.15, nu: 0.38, cov: 0.12, serviceC: 50, creep: true, layer: 0.95 }),
   // ── stock metals ──
-  'al-6061': M('al-6061', { label: 'Aluminium 6061-T6',  family: 'metal',   E: 68900, strength: 276, basis: 'yield',    elong: 12,  density: 2.70, nu: 0.33, cov: 0.05, serviceC: 150, creep: false, layer: 1 }),
-  s235:     M('s235',     { label: 'Mild steel S235',    family: 'metal',   E: 210000, strength: 235, basis: 'yield',   elong: 26,  density: 7.85, nu: 0.30, cov: 0.06, serviceC: 300, creep: false, layer: 1 }),
-  'steel-1045': M('steel-1045', { label: 'Steel 1045 (hot rolled)', family: 'metal', E: 205000, strength: 310, basis: 'yield', elong: 16, density: 7.85, nu: 0.29, cov: 0.06, serviceC: 300, creep: false, layer: 1 }),
-  'ss-304': M('ss-304',   { label: 'Stainless 304',      family: 'metal',   E: 193000, strength: 215, basis: 'yield',   elong: 40,  density: 8.00, nu: 0.29, cov: 0.06, serviceC: 400, creep: false, layer: 1 }),
-  brass:    M('brass',    { label: 'Brass C360 (half hard)', family: 'metal', E: 97000, strength: 310, basis: 'yield',  elong: 20,  density: 8.50, nu: 0.31, cov: 0.07, serviceC: 150, creep: false, layer: 1 }),
+  'al-6061': M('al-6061', { label: 'Aluminium 6061-T6',  family: 'metal',   E: 68900, strength: 276, ultimate: 310, basis: 'yield', elong: 12,  density: 2.70, nu: 0.33, cov: 0.05, serviceC: 150, creep: false, layer: 1 }),
+  s235:     M('s235',     { label: 'Mild steel S235',    family: 'metal',   E: 210000, strength: 235, ultimate: 360, basis: 'yield',  elong: 26,  density: 7.85, nu: 0.30, cov: 0.06, serviceC: 300, creep: false, layer: 1 }),
+  'steel-1045': M('steel-1045', { label: 'Steel 1045 (hot rolled)', family: 'metal', E: 205000, strength: 310, ultimate: 565, basis: 'yield', elong: 16, density: 7.85, nu: 0.29, cov: 0.06, serviceC: 300, creep: false, layer: 1 }),
+  'ss-304': M('ss-304',   { label: 'Stainless 304',      family: 'metal',   E: 193000, strength: 215, ultimate: 505, basis: 'yield',  elong: 40,  density: 8.00, nu: 0.29, cov: 0.06, serviceC: 400, creep: false, layer: 1 }),
+  brass:    M('brass',    { label: 'Brass C360 (half hard)', family: 'metal', E: 97000, strength: 310, ultimate: 385, basis: 'yield', elong: 20,  density: 8.50, nu: 0.31, cov: 0.07, serviceC: 150, creep: false, layer: 1 }),
   // ── stock plastics ──
   acrylic:  M('acrylic',  { label: 'Acrylic (cast PMMA)', family: 'polymer', E: 3200, strength: 70,  basis: 'ultimate', elong: 4,   density: 1.19, nu: 0.37, cov: 0.10, serviceC: 80,  creep: true,  layer: 1 }),
-  pc:       M('pc',       { label: 'Polycarbonate',      family: 'polymer', E: 2350,  strength: 62,  basis: 'yield',    elong: 100, density: 1.20, nu: 0.37, cov: 0.08, serviceC: 125, creep: true,  layer: 1 }),
+  pc:       M('pc',       { label: 'Polycarbonate',      family: 'polymer', E: 2350,  strength: 62,  ultimate: 65, basis: 'yield',  elong: 100, density: 1.20, nu: 0.37, cov: 0.08, serviceC: 125, creep: true,  layer: 1 }),
   // ── clear wood at 12 % moisture (USDA Wood Handbook). Along the grain; `grain` is across it. ──
   oak:      M('oak',      { label: 'Red oak',            family: 'wood',    E: 12500, strength: 99,  basis: 'mor',      elong: 1,   density: 0.63, nu: 0.35, cov: 0.16, serviceC: 65,  creep: true,  layer: 1, grain: { E: 960, strength: 5.5 } }),
   pine:     M('pine',     { label: 'White pine',         family: 'wood',    E: 8500,  strength: 59,  basis: 'mor',      elong: 1,   density: 0.35, nu: 0.35, cov: 0.16, serviceC: 65,  creep: true,  layer: 1, grain: { E: 450, strength: 2.1 } }),
   plywood:  M('plywood',  { label: 'Birch plywood',      family: 'wood',    E: 9000,  strength: 60,  basis: 'mor',      elong: 1,   density: 0.68, nu: 0.30, cov: 0.15, serviceC: 65,  creep: true,  layer: 1 }),
 });
 
-// Bolt property classes (ISO 898-1 / ISO 3506): yield (or 0.2 % proof) and tensile strength, MPa.
+// Bolt property classes (ISO 898-1 / ISO 3506): yield (or 0.2 % proof) and tensile strength, MPa, and the minimum
+// elongation after fracture, % (A2-70 typical).
 export const BOLT_GRADES = Object.freeze({
-  '4.6':   { yield: 240,  ultimate: 400 },
-  '5.8':   { yield: 400,  ultimate: 500 },
-  '8.8':   { yield: 640,  ultimate: 800 },
-  '10.9':  { yield: 940,  ultimate: 1040 },
-  '12.9':  { yield: 1100, ultimate: 1220 },
-  'A2-70': { yield: 450,  ultimate: 700 },
+  '4.6':   { yield: 240,  ultimate: 400,  elong: 22 },
+  '5.8':   { yield: 400,  ultimate: 500,  elong: 10 },
+  '8.8':   { yield: 640,  ultimate: 800,  elong: 12 },
+  '10.9':  { yield: 940,  ultimate: 1040, elong: 9 },
+  '12.9':  { yield: 1100, ultimate: 1220, elong: 8 },
+  'A2-70': { yield: 450,  ultimate: 700,  elong: 20 },
 });
 
 export const PRINTED_FAMILIES = new Set(['fdm', 'powder', 'resin']);

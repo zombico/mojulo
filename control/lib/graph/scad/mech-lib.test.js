@@ -168,6 +168,13 @@ describe('mech-lib v2 — outputs (skipped when the WASM is not installed)', () 
     await expect(renderScad2d(plate, { format: 'svg', slice_z: 50 })).rejects.toThrow(/plane misses the part/);
     await expect(renderScad2d({ source: 'module a() cube(5);', parts: { a: 'a();' } }, { format: 'svg' })).rejects.toThrow(/name one with `part`/);
   });
+  wasm('the tensile coupon is the ISO 527-2 1A dogbone, lying or standing', async () => {
+    const flat = await planScad({ source: 'mj_tensile_coupon();' });
+    expect(flat.stats.ledger.closed).toBe(true);
+    expect(flat.stats.size).toEqual(expect.objectContaining({ w: 170, d: 20, h: 4 }));
+    const up = await planScad({ source: 'mj_tensile_coupon(upright = true);' });
+    expect(up.stats.size.h).toBe(170);
+  });
   wasm('the fit coupon renders a hole and a pin for every fit', async () => {
     const { stats } = await planScad({ source: 'mj_fit_coupon(8);' });
     expect(stats.ledger.closed).toBe(true);

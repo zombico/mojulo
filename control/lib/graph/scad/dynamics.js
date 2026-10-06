@@ -13,7 +13,7 @@
  *     a TREE: a looped train (planets sharing a sun) splits its power by stiffness, which a rigid model cannot say.
  *   - FRICTION from those reactions: a pin turns against μ·R·r, a slide against μ·N (first order: friction from the
  *     frictionless reactions).
- *   - STRENGTH: each rod as a pinned strut at its peak compression, each gear by Lewis at its peak torque, through the
+ *   - STRENGTH: each rod as a pinned strut at its peak compression and a tie at its peak pull, each gear by Lewis at its peak torque, through the
  *     rigidity sensor's own checks and confidence.
  *
  * Rigid bodies throughout: no deflection, no natural frequencies, no impacts at clearances. Pure but for the soup
@@ -527,6 +527,8 @@ function strengthFeed(model, forces, bodies, partTris, { scale, build, rpm }) {
       const f = forces.rodForce[c.rod] || [];
       const comp = Math.max(0, ...f.filter(Number.isFinite));
       if (comp > 1e-6) checks.push({ part: c.rod, material: bodies[c.rod].material.id, check: { element: 'strut', label: `rod '${c.rod}'`, from: c.pa, to: c.pb, force: comp, ends: 'pinned', kind, certainty: 'estimated' } });
+      const pull = Math.max(0, ...f.filter(Number.isFinite).map((v) => -v));
+      if (pull > 1e-6) checks.push({ part: c.rod, material: bodies[c.rod].material.id, check: { element: 'tie', label: `rod '${c.rod}' in tension`, from: c.pa, to: c.pb, force: pull, kind, certainty: 'estimated' } });
     }
     if (c.type === 'gear') {
       const A = model.joints[c.a], B = model.joints[c.b];

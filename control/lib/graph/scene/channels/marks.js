@@ -3,18 +3,25 @@ import { safeJson } from '../emit-util.js';
 // In-page MARKS channel: a pointer at a world point — the strength sensor's weak spot, or any authored mark.
 // Only the rings animate: two rings ripple out from the point (billboarded, drawn through the solid). The part,
 // the arrow (in from outside along `dir`) and the label at its tail stay still; the label only follows the
-// camera so it stays pinned to the arrow. Each mark = { at:[x,y,z], dir:[x,y,z] (unit, outward), size, color:'#rrggbb', label? }, in the
+// camera so it stays pinned to the arrow. Each mark = { at:[x,y,z], dir:[x,y,z] (unit, outward), size, color:'#rrggbb', label?, chart? }, in the
 // scene's own units. Everything is a function of `t` (no clock, no dice), so ?t= stills and bakes are
-// deterministic. Assigns the module-scoped `stepMarks`. Absent marks ⇒ this block is not emitted
+// deterministic. A mark's `chart` (the strength sensor's tensile view, an SVG string) is drawn in a static corner
+// panel; with no chart the panel code is not emitted. Assigns the module-scoped `stepMarks`. Absent marks ⇒ this block is not emitted
 // (byte-identical). Nothing here is a face, so no mesh export (GLB, STL, 3MF, USD) ever carries it.
 export function marksChannelScript(marks) {
+  const charts = marks.some((m) => m.chart);
   return `
 // --- marks channel (an animated pointer; the part stays still) ---
 {
   const __mkList = ${safeJson(marks)};
   const __mkLayer = document.createElement('div');
   __mkLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden';
-  wrap.appendChild(__mkLayer);
+  wrap.appendChild(__mkLayer);${charts ? `
+  // the tensile view: each weak spot's stress–strain chart, static in a corner (no motion but the rings')
+  const __mkPanel = document.createElement('div');
+  __mkPanel.style.cssText = 'position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-height:calc(100% - 20px);overflow:hidden';
+  for (const m of __mkList) if (m.chart) { const c = document.createElement('div'); c.innerHTML = m.chart; c.firstChild.style.cssText = 'display:block;width:min(300px,42vw);height:auto;border:1px solid ' + m.color + ';border-radius:8px'; __mkPanel.appendChild(c); }
+  __mkLayer.appendChild(__mkPanel);` : ''}
   const __mkV = new THREE.Vector3();
   const __mk = __mkList.map((m) => {
     const col = new THREE.Color(m.color);
@@ -58,7 +65,7 @@ export function marksChannelScript(marks) {
       }
     }
   };
-  window.__mojMarks = { count: __mk.length };
+  window.__mojMarks = { count: __mk.length${charts ? ', charts: __mkPanel.childElementCount' : ''} };
 }`;
 }
 
@@ -71,5 +78,6 @@ export function normalizeMarks(list) {
     at: m.at, dir: m.dir, size: m.size, color: hex.test(m.color) ? m.color : '#f5a524',
     ...(typeof m.label === 'string' && m.label ? { label: m.label.slice(0, 160) } : {}),
     ...(Number.isFinite(m.period) && m.period > 0.2 ? { period: m.period } : {}),
+    ...(typeof m.chart === 'string' && m.chart.startsWith('<svg') && m.chart.length <= 16000 && !/<script|\son\w+=/i.test(m.chart) ? { chart: m.chart } : {}),
   }));
 }

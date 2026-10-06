@@ -141,9 +141,15 @@ function beamSweep(soup, { origin, normal, P, F, material, build, stations = 48 
   for (let i = 0; i < stations; i++) out.push(station(add(origin, mul(n, i === 0 ? dx * 0.1 : (i + 0.5) * dx))));
   const live = out.filter((s) => !s.empty);
   const depth = live.length ? Math.max(...live.map((s) => s.depth)) : 0;
-  // holes in a section
-  for (const s of live) if (s.props.holes > 0) {
-    const k = Math.abs(s.sigmaBend) >= Math.abs(s.N / s.props.area) ? HOLE_KT.bending : HOLE_KT.axial;
+  // holes: a stress raiser only where the section's topology changes within one depth — a cavity starting or
+  // ending, or a cross-hole splitting the section into ligaments. A tube, or a hollow print, that runs straight
+  // through has an inner loop at every station and no raiser from it.
+  const topo = (s) => (s.empty ? 'gap' : `${s.props.outer}/${s.props.holes}`);
+  const reach = Math.max(depth, dx) * 1.01;
+  const holeAt = (s) => (s.props.holes > 0 || s.props.outer > 1) && out.some((t) => t !== s && Math.abs(t.x - s.x) <= reach && topo(t) !== topo(s));
+  const holeKt = (s) => (Math.abs(s.sigmaBend) >= Math.abs(s.N / s.props.area) ? HOLE_KT.bending : HOLE_KT.axial);
+  for (const s of live) if (holeAt(s)) {
+    const k = holeKt(s);
     s.kt = Math.max(s.kt, k); s.ktSide = { plus: Math.max(s.ktSide.plus, k), minus: Math.max(s.ktSide.minus, k) }; s.raisers.push({ kind: 'hole', kt: k });
   }
   // shoulders: a fine area profile from one depth behind the root to the load finds every step in section, the
@@ -159,14 +165,14 @@ function beamSweep(soup, { origin, normal, P, F, material, build, stations = 48 
     const faces = stepFaces(soup, s, add(origin, mul(n, t.xBig)), n, bendDir);
     s.kt = k; s.ktSide = { plus: faces.plus ? k : 1, minus: faces.minus ? k : 1 };
     s.raisers.push({ kind: 'shoulder', kt: r2(k), fillet_mm: r2(r), ...(t.sharp ? { sharp: true } : {}), ...(faces.plus !== faces.minus ? { face: faces.plus ? 'plus' : 'minus' } : {}) });
-    if (s.props.holes > 0) { s.kt = Math.max(s.kt, HOLE_KT.bending); s.ktSide = { plus: Math.max(s.ktSide.plus, HOLE_KT.bending), minus: Math.max(s.ktSide.minus, HOLE_KT.bending) }; s.raisers.push({ kind: 'hole', kt: HOLE_KT.bending }); }
+    if (holeAt(s)) { const kh = holeKt(s); s.kt = Math.max(s.kt, kh); s.ktSide = { plus: Math.max(s.ktSide.plus, kh), minus: Math.max(s.ktSide.minus, kh) }; s.raisers.push({ kind: 'hole', kt: kh }); }
     s.extra = true; extra.push(s);
   }
   let deflection = 0;
   for (const s of out) if (!s.empty) deflection += s.energy * dx;
   deflection /= Fm || 1;
   const gaps = out.filter((s) => s.empty).length;
-  return { stations: [...out, ...extra], L, dx, allow, deflection, gaps, n, depth };
+  return { stations: [...out, ...extra], L, dx, allow, deflection, gaps, n, depth, bendDir };
 }
 
 // The section's extent along the bending direction (the depth beam theory means), or its widest extent when
@@ -268,7 +274,8 @@ function idealizationFacts(sw) {
   const depth = Math.max(...live.map((s) => s.depth));
   const areas = live.map((s) => s.props.area);
   const vary = Math.max(...areas) / Math.min(...areas);
-  const pieces = Math.max(...live.map((s) => s.props.outer));
+  // the ligaments either side of a hole act together; only pieces that run apart count
+  const pieces = Math.max(...live.map((s) => (s.raisers?.some((r) => r.kind === 'hole') ? 1 : s.props.outer)));
   return { slenderness: r2(sw.L / depth), varies: r2(vary), gaps: sw.gaps, pieces, open: live.some((s) => s.props.open > 0) };
 }
 
@@ -291,6 +298,7 @@ export function cantilever(soup, spec, ctx) {
       'fixed rigidly at the root plane (a real wall or clamp gives a little, so the tip moves more)',
       'one point load; shear stress taken as 1.5 × average (exact for a rectangle)',
       ...(weak.side === 'compression' ? ['the weak spot is on the compression side; strength in compression is taken equal to tension (conservative for most plastics, not for wood)'] : []),
+      ...(sw.bendDir ? [] : ['the load runs straight along the member, so this is not a cantilever: check a pull as a tie (it reads the stretch as a strain) and a push as a strut (it adds buckling)']),
     ],
     not_covered: ['the fixing itself (screws, wall plugs) — check it as a bolt', 'local buckling of thin flanges', 'fatigue life'],
   };
@@ -401,7 +409,8 @@ const END_K = { 'pinned': 1, 'fixed-free': 2, 'fixed-pinned': 0.7, 'fixed-fixed'
 export function strut(soup, spec, ctx) {
   const A0 = vec3(spec.from, 'from'), B0 = vec3(spec.to, 'to');
   const Lmm = len(sub(B0, A0)); const n = unit(sub(B0, A0));
-  const Fn = Number.isFinite(+spec.force) ? Math.abs(+spec.force) : len(resolveForce(spec, 'strut'));
+  if (Number.isFinite(+spec.force) && +spec.force < 0) throw new Error('strength: a strut carries a push; a negative force pulls — check a pull with element \'tie\' (a bar in tension cannot buckle)');
+  const Fn = Number.isFinite(+spec.force) ? +spec.force : len(resolveForce(spec, 'strut'));
   const K = END_K[spec.ends || 'pinned'];
   if (K == null) throw new Error(`strength: strut.ends must be one of ${Object.keys(END_K).join(', ')}`);
   const demand = LOAD_KINDS[spec.kind || 'static'];
@@ -432,6 +441,38 @@ export function strut(soup, spec, ctx) {
     facts: { slenderness: r2(Lmm / (2 * weak.props.rmax)), varies: 1, gaps, pieces: weak.props.outer, open: false, direction: allow.factor, stressAxis: n },
     assumptions: [`ends ${spec.ends || 'pinned'} (K = ${K})`, 'the load runs straight down the axis; any offset adds bending and lowers the buckling load'],
     not_covered: ['local buckling of thin walls', 'the joints at each end'],
+  };
+}
+
+// ── tie: a member in tension. The beam sweep with the pull along the member: each station carries N = F and the
+// bending an off-centre pull adds, holes and shoulders take the axial Kt, and Castigliano's deflection along F is
+// the stretch, ∫F/EA dx (exact for a section that varies). ──
+export function tie(soup, spec, ctx) {
+  const A0 = vec3(spec.from, 'from'), B0 = vec3(spec.to, 'to');
+  const Fn = Number.isFinite(+spec.force) ? +spec.force : len(resolveForce(spec, 'tie'));
+  if (!(Fn > 0)) throw new Error(Fn < 0 ? 'strength: a tie carries a pull; a negative force pushes — check a push with element \'strut\' (it adds buckling)' : 'strength: tie needs force (N, the pull)');
+  const n = unit(sub(B0, A0));
+  const demand = LOAD_KINDS[spec.kind || 'static'];
+  const sw = beamSweep(soup, { origin: A0, normal: n, P: B0, F: mul(n, Fn), material: ctx.material, build: ctx.build });
+  if (sw.stations.every((s) => s.empty)) throw new Error('strength: no section found between from and to — the line misses the part');
+  const { modes: m, weak } = sweepModes(sw, { material: ctx.material, kind: spec.kind, demand, label: spec.label || 'tie' });
+  const tension = { ...m[0], mode: 'tension' };
+  weak.mode = 'tension';
+  const stretch = sw.deflection * demand;
+  const strain = tension.stress_mpa / sw.allow.E;
+  const modes = [tension];
+  if (Number.isFinite(spec.limit?.elongation_mm)) modes.push({ mode: 'elongation', deflection_mm: r3(stretch), limit_mm: r3(spec.limit.elongation_mm), utilization: r3(stretch / spec.limit.elongation_mm), rigidity: true, basis: 'your limit' });
+  const ecc = sw.stations.some((s) => !s.empty && Math.abs(s.sigmaBend) > 0.05 * Math.abs(s.N / s.props.area));
+  return {
+    element: 'tie', length_mm: r2(sw.L), load_n: r2(Fn), modes, weak_spot: weak,
+    elongation_mm: r3(stretch), strain_pct: r3(strain * 100),
+    facts: { ...idealizationFacts(sw), direction: sw.allow.factor, stressAxis: sw.n },
+    assumptions: [
+      'the pull acts along the line from → to, through the ends of the member',
+      ...(ecc ? ['the line runs off the sections\' centroids, so the off-centre pull adds bending (included)'] : []),
+      `stretch ∫F/EA over the swept sections${Number.isFinite(spec.limit?.elongation_mm) ? '' : ' (no limit given: reported, not judged)'}`,
+    ],
+    not_covered: ['the grips or pins that apply the pull (bearing and tear-out at a pin hole)', 'necking past yield', 'fatigue life'],
   };
 }
 
@@ -532,4 +573,4 @@ export function gear(_soup, spec, ctx) {
   };
 }
 
-export const ELEMENTS = { cantilever, lever, shaft, strut, bolt, gear };
+export const ELEMENTS = { cantilever, lever, shaft, strut, tie, bolt, gear };

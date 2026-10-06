@@ -20,12 +20,12 @@
  * one) swept on a sheared grid, so the flanks are exact planes between rows and the seam closes.
  */
 
-export const MECH_LIB_VERSION = 3;
+export const MECH_LIB_VERSION = 4;
 
 /** Does a (comment-stripped) source call the library? An identifier starting `mj_` is the trigger. */
 export const usesMechLib = (bare) => /(^|[^A-Za-z0-9_])mj_[A-Za-z0-9_]/.test(String(bare));
 
-export const MECH_LIB_SOURCE = String.raw`// ── mojulo mechanical library v3 (prepended by mojulo; call mj_* — edit your source, not this) ──
+export const MECH_LIB_SOURCE = String.raw`// ── mojulo mechanical library v4 (prepended by mojulo; call mj_* — edit your source, not this) ──
 // ISO metric coarse: [name, d, pitch, hex AF (ISO 4032/4017), hex head k, nut m, socket dk, socket k,
 //   hex key, countersunk dk (ISO 10642), clearance close/normal/loose (ISO 273), heat-set hole]
 MJ_ISO = [
@@ -564,6 +564,19 @@ module mj_fit_coupon(d = 8, h = 5) {
     for (i = [0 : 4]) { translate([s * i + s / 2, s / 2, h]) mj_hole(d, h + 1, fits[i]);
       for (n = [0 : i]) translate([s * i + 2 + n * 1.6, -0.01, h - 1]) cube([0.8, 1.2, 1.1]); } }
   for (i = [0 : 4]) translate([s * i + s / 2, s * 1.8, 0]) { cylinder(d = d, h = h * 2, $fn = 64); for (n = [0 : i]) translate([-d / 2 - 2, -d / 2 + n * 1.6, 0]) cube([2.01, 0.8, 1]); }
+}
+// A tensile coupon: the ISO 527-2 type 1A dogbone (170 long, 20 wide grips, a 10 × t gauge 80 long, R24
+// shoulders). Pull it to break and give the peak load to the strength sensor as coupon: { break_n, build } —
+// flat (lying, pulled along its layers) sets the in-plane strength, upright (standing, pulled across them) the
+// layer factor. Print it with the same settings as the part. Lying on z = 0 along x; upright stands on its end.
+module mj_tensile_coupon(t = 4, upright = false) {
+  L = 170; b1 = 20; b2 = 10; l1 = 80; r = 24; d = (b1 - b2) / 2; x0 = (L - l1) / 2; x1 = x0 + l1;
+  w = sqrt(r * r - (r - d) * (r - d));
+  module mj_tc_notch() { union() { translate([x0, b1 - d]) square([l1, d + 1]);
+    intersection() { translate([x0 - w, b1 - d]) square([w, d + 1]); translate([x0, b1 - d + r]) circle(r, $fn = 180); }
+    intersection() { translate([x1, b1 - d]) square([w, d + 1]); translate([x1, b1 - d + r]) circle(r, $fn = 180); } } }
+  module mj_tc_bar() linear_extrude(t) difference() { square([L, b1]); mj_tc_notch(); translate([0, b1]) mirror([0, 1]) mj_tc_notch(); }
+  if (upright) translate([0, 0, L]) rotate([0, 90, 0]) mj_tc_bar(); else mj_tc_bar();
 }
 // ── end of the mojulo mechanical library ──
 `;

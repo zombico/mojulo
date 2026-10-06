@@ -147,6 +147,37 @@ the output is byte-identical.
 - **Flags.** Load cycles over a stated duty, a self-locking screw holding a load on a material that creeps, unbalance,
   a NEMA motor's typical torque against the peak and start-up effort, and back-driving.
 
+### Tensile view
+
+The rigidity sensor reads tension and draws the curve every materials course draws. A materials and structures study
+probed 32 everyday problems. Three of them were wrong with no warning, and this theme fixes the two in the sensor's
+own checks.
+
+- **`tie` element.** It checks a member in tension: a strap, a hanger, a rod that pulls, a test bar. It reads the
+  peak over the swept sections, which includes the net section at a hole with its axial Kt and the bending an
+  off-centre pull adds. It also gives the stretch ∫F/EA and the strain. A stretch limit is optional.
+- **Struts are pushes only.** A strut with a negative force used to lose its sign and read as compression: a pulled
+  bar came back as "buckling, predicted to fail". It is now refused and pointed at `tie`. A cantilever whose load runs
+  straight along it says it is a tie or a strut.
+- **A hollow section is not a hole.** The hole Kt now applies only where a section's topology changes (a cross-hole,
+  or a cavity ending). It used to apply all along a tube or a hollow print, which doubled the stress in brittle
+  materials and under repeated loads. Readings of such parts change. The ligaments either side of a hole no longer
+  count as separate pieces.
+- **The tensile view.** Every reading carries the material's idealised stress–strain curve in the stressed direction:
+  brittle to the break; ductile elastic, then yield, then hardening to the ultimate where it is tabled. Across a
+  print's layers the curve is brittle. On it sit:
+  - the working point (the governing stress as a tensile equivalent, with its strain and zone)
+  - the stress this confidence allows
+  - the capacity mode, buckling or stripping, when one governs
+- **The World draws it.** A row with a stored spec gets a static chart panel beside the weak spot. Only the rings
+  move, as before. Marks without a chart emit the same bytes as before.
+- **The table.** Metals and polycarbonate gain `ultimate`, and bolt grades gain their elongation. These are new
+  fields, so existing readings are unchanged.
+- **Coupon calibration.** `mj_tensile_coupon(t, upright)` (mech library v4) prints the ISO 527-2 1A dogbone. The
+  strength spec's `coupon: { break_n, build }` turns a pulled coupon into the in-plane strength (flat) or the layer
+  factor (upright). The reading is then marked calibrated and records what was measured.
+- **Mechanisms.** A rod that pulls is now also checked as a tie at its peak tension.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

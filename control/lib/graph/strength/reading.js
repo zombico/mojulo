@@ -14,6 +14,7 @@
  * without warning, need 1.25 × that.
  */
 
+import { tensileView } from './tensile.js';
 import { isBrittle, isPrinted } from './materials.js';
 
 export const GRADES = ['very low', 'low', 'medium', 'high'];
@@ -107,6 +108,7 @@ export function readCheck(check, spec, ctx) {
   const line = `${what}: weakest mode ${worst.mode}, safety factor ${sf} against ${m.basis === 'mor' ? 'rupture' : m.basis}`
     + `${rigLine ? `; ${rigLine}` : ''}. Confidence ${conf.grade}${why ? ` (${why})` : ''}; this confidence calls for ${conf.required_sf}. `
     + `Reading: ${verdict}.`;
+  const tensile = tensileView(check, spec, ctx, conf);
   return {
     ...check,
     margin: { worst_mode: worst.mode, sf, utilization: worst.utilization },
@@ -114,5 +116,6 @@ export function readCheck(check, spec, ctx) {
     confidence: conf,
     verdict,
     line,
+    ...(tensile ? { tensile } : {}),
   };
 }

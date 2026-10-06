@@ -34,7 +34,7 @@ export function worldMarks(payload, manifest, { mmPerUnit = 1000 } = {}) {
     try {
       const mmSoup = mmPerUnit === 1 ? soup : printSoup(payload, { scale: mmPerUnit });
       const { marks } = strengthReading(mmSoup, manifest.strength, { scale: mmPerUnit });
-      for (const m of marks) out.push({ at: m.at, dir: outward(m.at), size, color: m.color, label: m.label });
+      for (const m of marks) out.push({ at: m.at, dir: outward(m.at), size, color: m.color, label: m.label, ...(m.chart ? { chart: m.chart } : {}) });
     } catch { /* an unreadable spec draws no pointer; measure_solid reports why */ }
   }
   return out;
