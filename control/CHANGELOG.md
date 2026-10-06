@@ -12,6 +12,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fabricator
+
+A fabrication need is said once, by the job a part does, and resolved from the shelf of standard parts first and from
+scratch last: the cluster every new object draws from. Data and resolver only: nothing is built or posed, no tool
+reaches it yet, and every existing kind builds byte-identically.
+
+- **Function words** (`fasten`, `thread`, `locate`, `hinge`, `slide`, `spin`, `drive`, `transmit`, `retain`, `seal`,
+  `catch`, `mount`, `enclose`, `store`, `frame`) resolve to a strategy: parts taken by a route (buy, fit the standard
+  interface into your part, print the standard part) or, last, a mint. Capabilities are measured from the need's
+  numbers (host material, load, cycles, access, shaft, axes, the host it mounts to); intent tags are a closed set
+  (`serviceable`, `tool-free`, `print-only`, `waterproof` …), each read by some strategy. `resolve`, `repertoire` and
+  `coverage` in `lib/graph/fabricator/`.
+- **The inventory** names families, not sizes: sizes are read from the construction hardware codes and the
+  mechanical library's own tables, so there is one copy of every bearing bore and motor bolt square.
+- **Provenance gates the route.** Standards, commodity parts, openly licensed systems (kept with their licence) and
+  mojulo's own designs may be bought, fitted and printed. Another owner's product or system is reference-only: bought,
+  or fitted by the interface its owner publishes, named only to say what fits, never reproduced. A refused strategy
+  is reported, and the resolver moves on (a three-prong camera mount resolves to a bought adapter).
+- **Coverage:** of the probe needs, three quarters resolve from the shelf; the rest name the gap they wait for.
+
 ### Test cull
 
 The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
