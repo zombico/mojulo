@@ -90,7 +90,7 @@ export function historicOptions(m = {}) {
   if (m.statues !== undefined) {
     const errs = validateStatues(m.statues); if (errs.length) throw new Error(`historic: ${errs.join('; ')}`);
     if (scene !== 'city') throw new Error(`historic: statues stand on a city's statue slots; the '${scene}' scene has none`);
-    if (m.statues.length) opts.statues = m.statues;
+    if (m.statues === 'carved' || m.statues.length) opts.statues = m.statues;
   }
   return { scene, opts };
 }

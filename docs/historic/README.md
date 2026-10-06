@@ -137,7 +137,10 @@ city's sun (`historic/statues.js`). The entry card's `STATUES` line lists the sl
 one, build the stand-in with `figure()` inside a `mark()`, or as a statue asset's slot. An equestrian stand-in (a
 `horseman()`, Pompeii's `pp-equestrian`) takes a mounted statue (`stand: 'mounted'`), facing as its horse did. An entry
 may name a library form instead of a stored statue (`form: 'sphinx'`, `control/lib/graph/statue/forms.js`): Giza's
-`gz-sphinx:0` takes the carved sphinx. A new form is a ring plan in `polygonizer/` and a row in `STATUE_FORMS`.
+`gz-sphinx:0` takes the carved sphinx, Thebes's sphinx rows the criosphinx, Sumer's guardians the bull. A new form
+is a ring plan in `polygonizer/` and a row in `STATUE_FORMS`. `statues: "carved"` carves every slot at once
+(`carvedEntries`: a slot asset's own form or build, a horseman on an equestrian slot only, else the culture's card in
+`CARVED_CARD`); a new culture with slots adds its card there.
 A stand-in inside an instanced template (a `place()`d building's repeated part) cannot come down yet.
 
 ## Segments: new parts of the world

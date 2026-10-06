@@ -74,6 +74,17 @@ byte-identical. Being built on this branch; the sphinx comes next.
   material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
   `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
   block stand-in, limestone by default. Giza's entry card says so.
+- **The criosphinx and the bull.** Two more ring plans built the same way. The criosphinx is Amun's ram-headed sphinx
+  of Karnak's avenue: a domed ram's skull with horns coiled round the ears, the headcloth over the shoulders, a small
+  king between the paws (`criosphinxPlan()`, sandstone). The bull is Sumer's copper guardian: a deep barrel, the
+  shoulder hump, the head forward, horns out and up (`bullPlan()`, bronze gone green). Thebes's sphinx rows and Sumer's
+  guardian pair are slots, one figure per pedestal or plinth, and take them as `form: 'criosphinx'` and `form: 'bull'`.
+- **`statues: "carved"`.** One word on a historic city carves every slot with its period's statue: a slot's own form
+  (the sphinxes, the bulls), the seated granite king on the Theban colossi, a bronze horseman on an equestrian slot
+  and nowhere else, and the culture's card everywhere else (Roman at the Forum and Pompeii, Hellenistic at Lindos,
+  Sumerian worshippers), men and women, marble and bronze, decided by each slot's own dice so the city carves the same
+  each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
+  carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
 
 ### Historic city
 

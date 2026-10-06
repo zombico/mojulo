@@ -133,3 +133,52 @@ export function sphinxPlan({ preset = 'male', scale = 1, palette = {} } = {}) {
     palette: { ...head.palette, ...P },
   };
 }
+
+// ── THE CRIOSPHINX: Amun's ram-headed sphinx of Karnak's avenue ────────────────────────────────────────────────────
+// THESIS  a lion lying on its belly, chunkier than Giza's and its head larger · a RAM's head (a domed skull, the long
+//         nose sloping down to a rounded muzzle, the horns coiled down round the ears, the ears drooping out) · the
+//         headcloth falling over the shoulders, its lappets on the chest · a small close-wrapped king standing between
+//         the paws, under the chin · about 5 m long, 2.7 m to the crown, as the avenue's stand-ins record.
+// Drawn in metres off the paws' front (`ya`, backward) and mirrored by name; the frame as the sphinx's.
+
+/** the groups' colours (sandstone, a darker horn, the headcloth's blue lappets) */
+export const CRIOSPHINX_PALETTE = Object.freeze({ Lion: '#c7a77a', Horn: '#a98d66', Nemes: '#c2a273', Lappet: '#46679a', King: '#b89a6e' });
+/** an avenue sphinx's length, the paws' front to the rump (m): `ya` runs from 0 there */
+const CRIO_L = 5.0;
+const CRIO = {
+  body: [[0, 4.95, 0.62, 0.55, 0.55], [0, 4.1, 0.7, 0.74, 0.7], [0, 3.0, 0.62, 0.6, 0.62], [0, 2.0, 0.66, 0.62, 0.66], [0, 1.45, 0.78, 0.68, 0.78], [0, 0.9, 0.75, 0.55, 0.72], [0, 0.55, 0.6, 0.38, 0.5]],
+  fall: [[0, 1.3, 1.25, 0.62, 0.5], [0, 1.05, 1.72, 0.56, 0.46], [0, 0.9, 2.02, 0.38, 0.34]],   // the headcloth over the shoulders
+  head: [[0, 1.28, 2.36, 0.29, 0.31], [0, 0.98, 2.42, 0.31, 0.3], [0, 0.58, 2.22, 0.2, 0.25], [0, 0.24, 1.96, 0.15, 0.17], [0, 0.08, 1.8, 0.12, 0.12]],
+  horn: [[0.17, 1.02, 2.62, 0.12, 0.12], [0.35, 1.24, 2.5, 0.115, 0.115], [0.44, 1.2, 2.16, 0.1, 0.1], [0.42, 0.86, 1.98, 0.085, 0.085], [0.39, 0.7, 2.17, 0.065, 0.065], [0.36, 0.8, 2.3, 0.04, 0.04]],
+  ear: [[0.29, 0.86, 2.16, 0.04, 0.08], [0.5, 0.86, 2.1, 0.03, 0.05]],
+  lappet: [[0.36, 0.8, 2.12, 0.11, 0.05], [0.35, 0.76, 1.7, 0.11, 0.05], [0.33, 0.74, 1.26, 0.1, 0.045]],
+  foreleg: [[0.42, 1.4, 0.32, 0.2, 0.3], [0.42, 0.7, 0.24, 0.19, 0.22], [0.42, 0.18, 0.15, 0.22, 0.14]],
+  hindleg: [[0.62, 4.1, 0.5, 0.18, 0.36], [0.66, 3.45, 0.18, 0.16, 0.16], [0.66, 3.15, 0.12, 0.15, 0.12]],
+  tail: [[0.3, 4.95, 0.35, 0.07, 0.07], [0.6, 4.72, 0.12, 0.065, 0.06], [0.72, 4.1, 0.07, 0.055, 0.05], [0.73, 3.2, 0.07, 0.05, 0.045], [0.72, 2.5, 0.07, 0.045, 0.04]],
+  king: [[0, 0.26, 0.0, 0.2, 0.18], [0, 0.26, 0.08, 0.2, 0.18], [0, 0.26, 0.11, 0.15, 0.13], [0, 0.26, 0.6, 0.14, 0.12], [0, 0.26, 0.9, 0.16, 0.12], [0, 0.26, 1.0, 0.1, 0.09], [0, 0.26, 1.1, 0.095, 0.095], [0, 0.26, 1.22, 0.06, 0.06]],
+};
+
+/** The criosphinx ring plan. */
+export function criosphinxPlan({ scale = 1, palette = {} } = {}) {
+  const P = { ...CRIOSPHINX_PALETTE, ...palette }, k = scale;
+  const st = (rows) => rows.map(([x, ya, z, a, b]) => ({ at: [r4(x * k), r4((CRIO_L / 2 - ya) * k), r4(z * k)], r: [r4(a * k), r4(b * k)] }));
+  const loft = (name, rows, group, { slots = 'ring8', mirror = 'plane', e = 2.2 } = {}) => ({ name, kind: 'loft', stations: st(rows), slots, e, frame: 'keep', group, tint: P[group], mirror });
+  return {
+    schema: 'layered-plan-v1',
+    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a ram-headed sphinx of Karnak's avenue, ${CRIO_L * scale} m long, facing +y` },
+    joints: {},
+    segments: [
+      loft('body', CRIO.body, 'Lion', { slots: 'ring12' }),
+      loft('fall', CRIO.fall, 'Nemes', { slots: 'ring10' }),
+      loft('head', CRIO.head, 'Lion', { slots: 'ring10' }),
+      loft('hornR', CRIO.horn, 'Horn', { mirror: 'name', slots: 'ring6' }),
+      loft('earR', CRIO.ear, 'Lion', { mirror: 'name', slots: 'ring6', e: 2.4 }),
+      loft('lappetR', CRIO.lappet, 'Lappet', { mirror: 'name', e: 2.6 }),
+      loft('forelegR', CRIO.foreleg, 'Lion', { mirror: 'name' }),
+      loft('hindlegR', CRIO.hindleg, 'Lion', { mirror: 'name' }),
+      loft('tail', CRIO.tail, 'Lion', { mirror: null, slots: 'ring6' }),
+      loft('king', CRIO.king, 'King', { slots: 'ring8' }),
+    ],
+    palette: P,
+  };
+}

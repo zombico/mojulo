@@ -13,7 +13,7 @@ import { resolveWorldScene } from '@/lib/graph/worlds/world-scene.js';
 import { heroRecord, expandLayeredManifest } from '@/lib/mcp/tools/layered.js';
 import { planHistoricCity, METRES_PER_UNIT } from './historic-city.js';
 import { historicOptions, assembleHistoricKindScene } from './historic-kind.js';
-import { validateStatues, statueSlots, standStatues, fitStatueFaces, statueTurn, lightInto } from './statues.js';
+import { validateStatues, statueSlots, standStatues, fitStatueFaces, statueTurn, lightInto, carvedEntries } from './statues.js';
 
 const forum = planHistoricCity({ culture: 'forum', seed: 1 });
 
@@ -52,6 +52,30 @@ describe('the slots', () => {
     expect(F.dir).toBeCloseTo(Math.PI / 2, 9); expect(F.h).toBeCloseTo(20.2, 6); expect(F.z0).toBe(0);
     expect(new Set(F.idx.map((i) => plan.boxes[i].kind))).toEqual(new Set(['sphinx', 'nemes', 'sphinx-face', 'sphinx-eye', 'sphinx-mouth', 'uraeus']));
   });
+  it("Thebes's avenue stands a criosphinx on each pedestal, Sumer's guardians a bull on each plinth", () => {
+    const th = planHistoricCity({ culture: 'thebes', seed: 1 }), T = statueSlots(th)['eg-sphinx-row:0'];
+    expect(T.figures.length).toBeGreaterThan(5);
+    for (const F of T.figures) { expect(F.z0).toBeCloseTo(1, 6); expect(F.h).toBeCloseTo(2.72, 6); expect(F.idx.some((i) => th.boxes[i].kind === 'sphinx-king')).toBe(true); }
+    expect(new Set(T.figures.map((F) => F.idx.join())).size).toBe(T.figures.length);   // no mass in two figures
+    const su = planHistoricCity({ culture: 'sumer', seed: 1 }), G = statueSlots(su)['guardians:0'];
+    expect(G.figures).toHaveLength(2); expect(G.figures.every((F) => F.idx.every((i) => su.boxes[i].kind !== 'plinth'))).toBe(true);
+  });
+  it("'carved' carves every slot its period's statue, the horse on an equestrian slot alone, the same each time", () => {
+    const S = statueSlots(forum), E = carvedEntries(S, 'forum');
+    expect(E.length).toBe(Object.values(S).reduce((n, s) => n + s.figures.length, 0));
+    for (const e of E) {
+      const F = S[e.at].figures[e.figure];
+      expect(e.hero.statue.stand === 'mounted').toBe(!!F.equestrian);
+      if (!F.equestrian) expect(e.hero.statue.style).toBe('roman');
+    }
+    expect(JSON.stringify(carvedEntries(S, 'forum'))).toBe(JSON.stringify(E));
+    expect(new Set(E.filter((e) => !S[e.at].figures[e.figure].equestrian).map((e) => e.hero.cast)).size).toBe(2);   // men and women
+    const th = carvedEntries(statueSlots(planHistoricCity({ culture: 'thebes', seed: 1 })), 'thebes');
+    expect(th.filter((e) => e.form === 'criosphinx').length).toBeGreaterThan(10); expect(th.filter((e) => e.hero?.statue.stand === 'seated')).toHaveLength(2);
+    expect(validateStatues('carved')).toEqual([]);
+    expect(validateStatues([{ at: 'x', hero: { cast: 'male' } }]).join()).toMatch(/hero: a hero spec carved as a statue/);
+    expect(validateStatues([{ at: 'x', hero: { statue: 'roman' }, ref: 'a' }]).join()).toMatch(/one of ref, form or hero/);
+  });
   it('a votive row stands one figure per plinth, numbered along the row, the eyes with their figure', () => {
     const plan = planHistoricCity({ culture: 'sumer', seed: 1 }), S = statueSlots(plan)['votive-row:0'];
     const n = plan.boxes.filter((m) => m.asset === 'votive-row' && m.kind === 'statue-plinth').length;
@@ -70,7 +94,7 @@ describe('the slots', () => {
 
 describe('refusals', () => {
   it('the entries\' form, by name', () => {
-    expect(validateStatues('x').join()).toMatch(/a list of \{ ref, at/);
+    expect(validateStatues('x').join()).toMatch(/'carved' \(every slot its period's statue\), or a list of \{ ref \| form \| hero, at/);
     expect(validateStatues([{ at: 'ficus' }]).join()).toMatch(/ref: a stored sketch/);
     expect(validateStatues([{ ref: 'a', at: 'ficus', figure: -1 }]).join()).toMatch(/figure: which figure/);
     expect(validateStatues([{ ref: 'a', at: 'ficus', height: 99 }]).join()).toMatch(/height: the figure's height/);
@@ -151,6 +175,14 @@ describe('the World resolves a stored statue onto its slot', () => {
     expect(lo).toBeCloseTo(F.z0 * s, 6); expect(hi - lo).toBeCloseTo(F.h * s, 6);
     expect(fig.every((f) => f.pbr && f.pbr[0] === 0)).toBe(true);
   });
+  it("'carved' resolves in the World: every slot a statue, the stand-ins gone, the city's own the same", async () => {
+    const plain = (await resolveWorldScene({ ref: 'w', title: 'sumer', manifest: { kind: 'historic', culture: 'sumer' } })).payload;
+    const { payload: p } = await resolveWorldScene({ ref: 'w', title: 'sumer', manifest: { kind: 'historic', culture: 'sumer', statues: 'carved' } });
+    const n = Object.values(statueSlots(planHistoricCity({ culture: 'sumer', seed: 1 }))).reduce((k, s) => k + s.figures.length, 0);
+    expect(new Set(p.faces.map((f) => f.group).filter((g) => g?.startsWith('statue:'))).size).toBe(n);
+    expect(p.faces.filter((f) => f.group?.startsWith('statue:guardians')).every((f) => f.pbr?.[0] === 1)).toBe(true);   // the copper bulls
+    expect(plain.faces.some((f) => f.group?.startsWith('statue:'))).toBe(false);
+  }, 120000);
   it('an unknown ref refuses by name', async () => {
     await expect(resolveWorldScene({ ref: 'w', title: 'f', manifest: { kind: 'historic', culture: 'forum', statues: [{ ref: 'sk_nope', at: 'ficus' }] } })).rejects.toThrow(/statue on 'ficus': ref 'sk_nope' is not a stored sketch/);
   });

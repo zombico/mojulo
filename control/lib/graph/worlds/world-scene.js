@@ -232,11 +232,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { statueWords } = await import('@/lib/graph/statue/expand.js');
     const baked = new Map();   // one resolve per statue and turn
     for (const rec of list) {
-      const key = `${rec.ref ?? `form:${rec.form}:${rec.material ?? ''}`}|${rec.dir}`;
+      const key = `${rec.ref ?? (rec.hero ? `hero:${JSON.stringify(rec.hero)}` : `form:${rec.form}:${rec.material ?? ''}`)}|${rec.dir}`;
       if (!baked.has(key) && rec.form) {   // a library form (statue/forms.js): no store
         const { statueFormManifest } = await import('@/lib/graph/statue/forms.js');
         const inner = await resolveWorldScene({ ref: `form-${rec.form}`, title: rec.form, manifest: statueFormManifest(rec.form, { material: rec.material }) }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
         if (rec.equestrian) throw new Error(`statue on '${rec.at}': an equestrian slot takes a mounted statue, not the ${rec.form}`);
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      if (!baked.has(key) && rec.hero) {   // an inline hero statue (statues: 'carved', or an entry's `hero`): no store
+        const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero) });
+        const mounted = statueWords(manifest.hero.statue).stand === 'mounted';
+        if (!!rec.equestrian !== mounted) throw new Error(`statue on '${rec.at}': ${rec.equestrian ? 'an equestrian slot takes a mounted statue (statue.stand \'mounted\')' : 'a mounted statue stands on an equestrian slot'}`);
+        const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
         baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
       }
       if (!baked.has(key)) {
