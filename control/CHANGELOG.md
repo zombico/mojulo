@@ -89,6 +89,20 @@ byte-identical. Being built on this branch; the sphinx comes next.
   each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
   carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
 
+### Recipe versions
+
+- **Every recipe records the mojulo version that wrote it.** A mint stores the version that minted
+  it; an edit to the recipe (`update_sketch`, `edit_solid` and the other in-place revisions) stores the
+  version that last changed it. A retitle, a folder move or a gallery pin leaves it alone, since what
+  renders is unchanged. Each archived revision of a solid and each beats revision carries the version
+  that wrote that manifest.
+- `export_model` answers with `versions: { minted, revised, rendered }`, so an export says which
+  mojulo made the recipe and which one rendered it. To reproduce an export exactly as the recipe's own
+  version drew it, render it under that version (`npx -y mojulo@<version>`) in a separate
+  `MOJULO_HOME`.
+- Recipes written before this release read `null`: they were made by 3.0 or earlier, and which one is
+  not recorded, so nothing is guessed. The columns are added on first start; nothing else changes.
+
 ### Recipe book
 
 - **The recipe book ships with mojulo.** The catalog that lived in the separate `mojulo-recipe-book`

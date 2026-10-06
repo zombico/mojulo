@@ -12,6 +12,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { getServerVersion } from '@/lib/server-version';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
@@ -673,7 +674,25 @@ export function resolvePrintScale({ payload, profile, units, scaleInput = null, 
   return { scale, scaleNote };
 }
 
+// Which mojulo wrote the recipe and which one rendered this export (3.1). `minted` / `revised` are
+// null for a recipe written before 3.1; `rendered` is always this install. A differing `rendered`
+// is the cue that the export may not match one made at the recipe's own version — re-render under
+// `npx -y mojulo@<minted or revised>` to reproduce it exactly.
+export function recipeVersions(sketch) {
+  return {
+    minted: sketch?.mintedVersion ?? null,
+    revised: sketch?.revisedVersion ?? null,
+    rendered: getServerVersion(),
+  };
+}
+
 export async function exportModelHandler(input, context = {}) {
+  const result = await exportModel(input, context);
+  if (!result || typeof result !== 'object' || result.ok !== true || typeof input?.ref !== 'string') return result;
+  return { ...result, versions: recipeVersions(SketchRepository.getByRef(input.ref)) };
+}
+
+async function exportModel(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
