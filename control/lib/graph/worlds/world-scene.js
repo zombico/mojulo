@@ -943,6 +943,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // generic, opt-in MARKS: a pointer at a world point — authored `marks`, and the rigidity sensor's weak spots when
+  // the row stores a `strength` spec (`strength.show: false` keeps them off). Only its rings pulse; the part, the
+  // arrow and the label stay still. It is not a face, so no mesh export carries it. Absent both ⇒ payload untouched.
+  if (payload && ((Array.isArray(manifest.marks) && manifest.marks.length) || (manifest.strength && typeof manifest.strength === 'object' && manifest.strength.show !== false))) {
+    const { worldMarks } = await import('@/lib/graph/strength/world-marks');
+    const marks = worldMarks(payload, manifest, { mmPerUnit: (payload.metersPerUnit ?? 1) * 1000 });
+    if (marks.length) payload.marks = marks;
+  }
+
   return { payload, kind };
 }
 

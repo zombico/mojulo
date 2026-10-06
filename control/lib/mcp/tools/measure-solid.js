@@ -29,13 +29,14 @@ import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisor
 import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
 import { measureScadMotion } from '@/lib/graph/scad/scad-render';
+import { strengthReading } from '@/lib/graph/strength/index';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export async function measureSolidHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('measure_solid requires { ref }');
-  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false } = input;
+  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false, strength: strengthInput = null } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) throw new Error('`scale` must be a positive number if provided');
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) throw new Error('`target_mm` must be a positive number if provided');
@@ -135,6 +136,10 @@ export async function measureSolidHandler(input) {
   const soup = printSoup(payload, { scale });
   const measure = soup ? measurePrintability({ positions: soup, printer }) : null;
   const advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm, printer, measure });
+  // the rigidity sensor: the material and the work the part has to do, read against the same mm soup. Passed in,
+  // or stored on the row as `strength` (update_sketch) so the reading reproduces. Absent → no key at all.
+  const strengthSpec = strengthInput ?? sketch.manifest.strength ?? null;
+  const strength = strengthSpec && soup ? strengthReading(soup, strengthSpec, { scale }) : null;
   const closureLine = closure.audited
     ? (closure.closed ? 'closed' : `${closure.holes} open rim${closure.holes === 1 ? '' : 's'}, widest ≈${closure.widest}${units ? ` ${units}` : ' world units'}`)
     : `not audited (${closure.reason})`;
@@ -163,10 +168,12 @@ export async function measureSolidHandler(input) {
     print_measure: measure,
     print_advisories: advisories,
     ...(warnings && warnings.length ? { warnings } : {}),
+    ...(strength ? { strength } : {}),
     note: `${probe.bounds.size.map(r3).join(' × ')}${units ? ` ${units}` : ' world units'} → prints ${sizeMm.join(' × ')} mm at ×${r3(scale)} (${scaleNote}). Closure: ${closureLine}. `
       + (vol.applied ? `Volume ${vol.volume_mm3} mm³ (Manifold union of ${vol.unioned} shell${vol.unioned === 1 ? '' : 's'}, genus ${vol.genus}). ` : `Volume not measured: ${vol.reason}. `)
       + `${measureLine(measure)[0].toUpperCase()}${measureLine(measure).slice(1)}. `
       + (advisories.length ? `Print advisories (${advisories.length}): ${advisories.map((a) => `${a.kind} — ${a.detail}`).join('; ')}.` : 'Print advisories: none.')
+      + (strength ? ` Strength (a sensor, not a guarantee): ${strength.line}` : '')
       + ' Advisory throughout — export_model({ ref, format: \'stl\' }) ships the same numbers beside the file.',
   };
 }
@@ -188,6 +195,7 @@ export function registerMeasureSolidTool() {
         volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
         exposure: { type: 'boolean', description: 'layered: per-detail exposure ledger (default true).' },
         motion: { type: 'boolean', description: 'scad mechanism: cycle numbers + collision sweep.' },
+        strength: { type: 'object', description: 'Rigidity sensor: { material, build?, checks:[{ element, … }] } → margin, confidence, weak spot. Defaults to the row\'s stored `strength`. get_solid_vocab scad.' },
       },
       required: ['ref'],
     },
