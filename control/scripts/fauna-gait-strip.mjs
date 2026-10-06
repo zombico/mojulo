@@ -36,7 +36,9 @@ for (const p of poses) for (const b of Object.values(p.bones)) for (const q of [
 }
 const pad = 0.12 * (y1 - y0), W = 640, s = (W - 40) / (y1 - y0 + 2 * pad);
 // a swimmer floats: frame its body, not the ground under it
-const swims = poses.every((p) => p.ground === 0) && z0 > pad, base = swims ? z0 - pad : 0;
+// a body afloat (a behavior frame's `water`) is framed down to its feet, the surface drawn where the ground would be
+const afloat = poses.some((p) => p.water !== undefined);
+const swims = !afloat && poses.every((p) => p.ground === 0) && z0 > pad, base = swims || afloat ? Math.min(0, z0) - pad : 0;
 const sideH = (z1 - base + pad) * s + 30, topH = (2 * x1 + pad) * s + 20, H = Math.round(sideH + topH + 30);
 const sx = (y) => 20 + (y - y0 + pad) * s;
 const side = (q) => [sx(q[1]), sideH - (q[2] - base) * s];
@@ -61,7 +63,7 @@ const svg = (p, i) => {
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 <rect width="${W}" height="${H}" fill="#fbfaf7"/>
-${swims ? '' : `<line x1="12" y1="${sideH}" x2="${W - 12}" y2="${sideH}" stroke="#868e96" stroke-width="1.5"/>${ticks.join('')}`}
+${afloat ? `<line x1="12" y1="${(sideH + base * s).toFixed(1)}" x2="${W - 12}" y2="${(sideH + base * s).toFixed(1)}" stroke="#4dabf7" stroke-width="1.5"/>` : swims ? '' : `<line x1="12" y1="${sideH}" x2="${W - 12}" y2="${sideH}" stroke="#868e96" stroke-width="1.5"/>${ticks.join('')}`}
 <line x1="12" y1="${sideH + 20}" x2="${W - 12}" y2="${sideH + 20}" stroke="#e9ecef" stroke-width="1"/>
 ${lines.join('\n')}
 <text x="14" y="${H - 10}" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#495057">${id} · ${label}  —  side (top), from above (bottom)   ${i + 1}/${poses.length}</text>

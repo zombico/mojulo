@@ -36,11 +36,11 @@ describe('behavior pose: every posable behavior is a real pose', () => {
         for (const f of behaviorFrames(id, b, 3)) for (const [bid, q] of Object.entries(f.bones)) {
           expect([...q.head, ...q.tail].every(Number.isFinite), `${id}.${b}.${bid}`).toBe(true);
           expect(Math.abs(len(q) - len(rest[bid])), `${id}.${b}.${bid} keeps its length`).toBeLessThan(1e-6);
-          if (!swims) expect(Math.min(q.head[2], q.tail[2]), `${id}.${b}.${bid} above ground`).toBeGreaterThan(-0.01);
+          if (!swims && f.water === undefined) expect(Math.min(q.head[2], q.tail[2]), `${id}.${b}.${bid} above ground`).toBeGreaterThan(-0.01);
         }
       }
     }
-    expect(n).toBeGreaterThan(200);
+    expect(n).toBeGreaterThan(290);
   }, 120_000);
 
   it('deterministic', () => {
@@ -132,6 +132,34 @@ describe('behavior pose: the principles read on the bodies', () => {
     expect(Math.min(...fr.map((f) => tip(f)[2]))).toBeLessThan(0.15 * h);
     const xs = fr.map((f) => tip(f)[0]);
     expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.005);
+  });
+
+  it('belly-flat: the trunk on the ground, the feet out wide, the elbows and knees up', () => {
+    for (const id of ['crocodile', 'monitorLizard', 'tortoise']) {
+      const c = prepare(id), f = poseBehavior(id, 'relax', 0);   // bask
+      const s0 = c.spine[0].id;
+      expect(f.bones[s0].head[2], `${id} down`).toBeLessThan(c.byId[s0].head[2] - 0.8 * c.belly);
+      for (const k of ['RF', 'RH', 'LF', 'LH']) {
+        const ch = c.limbs[k], root = f.bones[ch[0]].head, foot = f.bones[ch.at(-1)].tail;
+        expect(Math.abs(foot[0] - root[0]), `${id} ${k} out wide`).toBeGreaterThan(0.3 * len(c.byId[ch[0]]));
+        expect(f.bones[ch[1]].head[2], `${id} ${k} knee up`).toBeGreaterThan(0.005 * c.h);
+      }
+    }
+  });
+
+  it('afloat: the water at the frame\'s surface, the back awash, the head clear; an otter eats on its back', () => {
+    for (const [id, b] of [['hippo', 'relax'], ['beaver', 'relax'], ['riverOtter', 'relax'], ['mallard', 'relax'], ['mallard', 'sleep']]) {
+      const c = prepare(id), f = poseBehavior(id, b, 0);
+      expect(f.water, id).toBe(0);
+      const sp = c.spine.map((x) => f.bones[x.id].head[2]);
+      expect(Math.max(...sp), `${id} trunk in the water`).toBeLessThan(0.5 * c.girth);
+      expect(Math.min(...sp), `${id} trunk afloat`).toBeGreaterThan(-c.girth);
+      expect(Math.max(f.bones.head.head[2], f.bones.head.tail[2]), `${id} head clear`).toBeGreaterThan(0);
+    }
+    const c = prepare('riverOtter'), f = poseBehavior('riverOtter', 'eat', 0);   // float-eat
+    expect(f.bones[c.limbs.RH[0]].head[0], 'rolled onto its back').toBeLessThan(0);
+    const m = tip(f), hand = f.bones[c.limbs.RF[2]].head, arm = c.limbs.RF.slice(0, 2).reduce((s, x) => s + len(c.byId[x]), 0);
+    expect(Math.hypot(hand[0] - m[0], hand[1] - m[1], hand[2] - m[2]), 'food at the mouth').toBeLessThan(0.6 * arm);
   });
 
   it('a variant poses another way from the repertoire', () => {

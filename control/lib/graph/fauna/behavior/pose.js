@@ -34,7 +34,7 @@ const transpose = (A) => [0, 1, 2].map((i) => [A[0][i], A[1][i], A[2][i]]);
 
 /** The words this module poses. A strategy is posable when its support, head, tail and loop words are all here. */
 export const POSED = Object.freeze({
-  support: ['stand', 'upright', 'balance', 'cocked', 'sit', 'rear', 'side', 'crouch', 'sternal', 'sphinx', 'curl', 'perch', 'sit_bird', 'coil', 'coil-strike', 'hover', 'cruise'],
+  support: ['stand', 'upright', 'balance', 'cocked', 'sit', 'rear', 'side', 'crouch', 'sternal', 'sphinx', 'curl', 'belly-flat', 'perch', 'sit_bird', 'float', 'coil', 'coil-strike', 'hover', 'cruise'],
   head: ['level', 'low', 'high', 'ground', 'reach', 'on-paws', 'on-flank', 'tucked', 'sunk', 'fixed', 'forward', 'inside', 'to-hands'],
   tail: ['rest', 'wrap', 'flag', 'twitch', 'level', 'scull', 'none', 'rattle', 'prop'],
   loop: ['breathe', 'chew', 'crop', 'strip', 'peck', 'scan', 'stare', 'tongue', 'fins', 'swim', 'snap', 'sway', 'nibble', 'gnaw', 'root', 'tear', 'gape'],
@@ -137,6 +137,8 @@ export function poseStrategy(ctx, r, t) {
 
   // the head and neck never go through the ground: a lying body lifts its head just clear
   clearHead(ctx, local, fk, H, W, body);
+  // afloat, a head lifted clear of the water is carried level again
+  if (body.water !== undefined && r.head === 'level') aimHead(ctx, local, fk, W, [0, 1, 0]);
 
   // the legs: each foot block placed by the support, the leg hung to it; a knee that would go into the ground swings
   // out and up onto it instead (a lying animal's stifle and elbow lie on the ground beside the body)
@@ -174,14 +176,15 @@ export function poseStrategy(ctx, r, t) {
     H[b.id] = add(H[p.id], mv(W[p.id], sub(b.head, p.head)));
   }
   clearWings(ctx, W, H);
-  groundTail(ctx, W, H);
-  return frame(S, W, H);
+  if (body.water !== undefined) surfaceTail(ctx, W, H); else groundTail(ctx, W, H);
+  return frame(S, W, H, body.water);
 }
 
-const frame = (S, W, H) => {
+/** A frame as the gait gives one; a floating body's says where the water's surface is (`water`: z, the ground gone). */
+const frame = (S, W, H, water) => {
   const bones = {};
   for (const b of S.bones) bones[b.id] = { head: H[b.id], tail: add(H[b.id], mv(W[b.id], sub(b.tail, b.head))), m: W[b.id] };
-  return { bones, ground: 0 };
+  return water === undefined ? { bones, ground: 0 } : { bones, ground: 0, water };
 };
 
 /** The product of the neck's own local turns down to neck bone `id` (what a limb hung on it inherits from the neck). */
@@ -217,6 +220,8 @@ function support(ctx, word, r) {
       const T = [0, 0, -lie];
       return { R: word === 'curl' ? rotY(-12 * DEG) : I3, pivot, T, lying: true, feet: (key, bones, H, W) => folded(ctx, word, key, bones, H, W) };
     }
+    case 'belly-flat': return { R: I3, pivot, T: [0, 0, -lie], lying: true, feet: (key, bones, H, W) => sprawled(ctx, key, bones, H, W) };
+    case 'float': return float(ctx, r, pivot);
     case 'sit_bird': {
       return { R: I3, pivot, T: [0, 0, -lie], lying: true, feet: (key, bones, H, W) => folded(ctx, 'sit_bird', key, bones, H, W) };
     }
@@ -269,6 +274,54 @@ function side(ctx, pivot0) {
       // the knee's rest bend, carried by the roll
       const k = bones[0], line = unit(sub(bones[1].tail, k.head)), kv = sub(k.tail, k.head);
       return { top: at, R, bend: mv(R, sub(kv, mul(line, kv[0] * line[0] + kv[1] * line[1] + kv[2] * line[2]))) };
+    },
+  };
+}
+
+/**
+ * Belly-flat: the trunk down on the ground (a crocodile, a monitor, a tortoise on its plastron) and the legs sprawled out
+ * to the sides, each foot flat on the ground well out from its girdle, the elbows and knees up and out: the forefeet
+ * turned forward, the hind feet lying back along the flank. In the frame of the trunk bone the leg hangs on.
+ */
+function sprawled(ctx, key, bones, H, W) {
+  const k0 = blockStart(bones), root = bones[0], parent = ctx.byId[root.parent];
+  const L = bones.slice(0, Math.max(1, k0)).reduce((m, b) => m + norm(sub(b.tail, b.head)), 0);
+  const fore = key.endsWith('F'), side = key.startsWith('R') ? 1 : -1;
+  const at = [root.head[0] + side * 0.7 * L, root.head[1] + (fore ? 0.35 : -0.25) * L, 0];
+  const dir = fore ? [0.35 * side, 1, -0.05] : [0.45 * side, -1, -0.05];
+  const Wp = W[parent.id], Hp = H[parent.id];
+  return { ...groundBlock(ctx, bones, H, add(Hp, mv(Wp, sub(at, parent.head))), mv(Wp, dir)), bend: mv(Wp, [side, fore ? -0.2 : 0.2, 0.7]) };
+}
+
+const SINK = { feathered: 0.4, furred: 0.85, back: 0.6 };   // the share of the trunk's depth under the water
+
+/**
+ * Floating at the surface (the water's surface at z = 0, reported as the frame's `water`): the trunk level, sunk by its
+ * buoyancy (a bird rides high on its feathers, a mammal floats with only its back awash), the head and neck held clear
+ * of the water (../clearHead, the surface as its ground), the legs hanging slack beneath. Eating (`to-hands`), the body
+ * floats on its back instead, the neck raised to look along its chest and the forefeet holding the food up at the mouth,
+ * the hind feet up at the surface.
+ */
+function float(ctx, r, pivot0) {
+  const { byId, belly, girth, limbs } = ctx;
+  const back = r.head === 'to-hands', sink = back ? SINK.back : capabilitiesOf(ctx.id).wings ? SINK.feathered : SINK.furred;
+  const pivot = [0, pivot0[1], belly + girth / 2];
+  // sunk by its buoyancy, but no lower than keeps its head (carried level, as it stands) at the surface
+  const head = Math.min(byId.head.head[2], byId.head.tail[2]);
+  const R = back ? rotY(Math.PI) : I3, T = [0, 0, back ? -(belly + sink * girth) : Math.max(-(belly + sink * girth), -head)];
+  const L = (bones, k0) => bones.slice(0, k0).reduce((m, b) => m + norm(sub(b.tail, b.head)), 0);
+  return {
+    R, pivot, T, water: 0, onBack: back,
+    feet: (key, bones, H, W) => {
+      const k0 = blockStart(bones), root = H[bones[0].id], La = L(bones, Math.max(1, k0)), fore = key.endsWith('F');
+      const sgn = Math.sign(root[0]) || 1, blockDir = unit(sub(bones[bones.length - 1].tail, bones[k0].head));
+      if (back && fore) {
+        const muzzle = add(H.head, mv(W.head, sub(byId.head.tail, byId.head.head)));
+        return { top: add(muzzle, [0.12 * sgn * La, -0.35 * La, -0.2 * La]), R: between(blockDir, unit([-0.3 * sgn, 0.5, 0.6])), bend: [0.6 * sgn, -0.4, -0.6] };
+      }
+      if (back) return { top: [root[0] * 1.3, root[1] + 0.55 * La, Math.max(root[2] + 0.1 * La, 0)], R: between(blockDir, unit([0.1 * sgn, 1, 0.35])), bend: [0.4 * sgn, 0.3, 1] };
+      // hanging slack in the water, a little back of straight down, the joints easy
+      return { top: add(root, [0.1 * sgn * La, (fore ? 0.05 : -0.2) * La, -0.85 * La]), R: between(blockDir, unit([0, -0.5, -1])) };
     },
   };
 }
@@ -403,6 +456,13 @@ function headTurns(ctx, r, body, turn) {
     const face = { level: 0, forward: 0, fixed: -5, high: 18, reach: 35, low: -40, ground: -70, 'to-hands': -40 }[w];
     if (face !== undefined) { each(() => rotX(-0.75 * body.upright / n)); body.facePitch = face * DEG; return; }
   }
+  // floating on the back, the neck lifts out of the water (it hangs down once the body rolls) and the face looks along
+  // the chest at what the forefeet hold
+  if (body.onBack) {
+    const up = neck.length ? unit(sub(ctx.byId.head.head, neck[0].head)) : [0, 1, 0], rest = Math.atan2(up[2], up[1]);
+    const ax = pitchAxis(body); each(() => axisAngle(ax, (2 * rest + 35 * DEG) / n));
+    body.face = [0, -0.45, 0.9]; return;
+  }
   if (w === 'low') { body.solveHead = 'low'; return; }
   if (NECK_PITCH[w]) { const [p, hp] = NECK_PITCH[w]; each(() => rotX(p / n)); turn('head', rotX(hp)); return; }
   if (w === 'ground' || w === 'on-paws') { body.solveHead = w; return; }
@@ -487,14 +547,15 @@ function solveHeadToGround(ctx, r, local, fk, H, W, how, body) {
  */
 function clearHead(ctx, local, fk, H, W, body) {
   const { neck, byId } = ctx;
-  const ids = [...neck.map((b) => b.id), 'head'].filter((x) => byId[x]);
+  // afloat, the neck may be under the water and only the head is held at the surface
+  const ids = (body.water !== undefined ? ['head'] : [...neck.map((b) => b.id), 'head']).filter((x) => byId[x]);
   const lowest = () => Math.min(...ids.map((x) => Math.min(H[x][2], add(H[x], mv(W[x], sub(byId[x].tail, byId[x].head)))[2])));
   if (lowest() >= 0) return;
   const lift = (bones, share) => {
     const base = Object.fromEntries(bones.map((x) => [x, local[x] || I3]));
     const axis = pitchAxis(body);
     const set = (a) => { for (const x of bones) local[x] = mm(axisAngle(axis, a * share), base[x]); fk(); };
-    let lo = 0, hi = 90 * DEG; set(hi); if (lowest() < 0) return false;
+    let lo = 0, hi = 90 * DEG; set(hi); if (lowest() < 0) { set(0); return false; }
     for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; set(mid); if (lowest() < 0) lo = mid; else hi = mid; }
     set(hi); return true;
   };
@@ -572,6 +633,19 @@ function groundTail(ctx, W, H) {
     if (H[b.id][2] + d[2] >= 0) continue;
     const dz = Math.max(-l, -Math.max(0, H[b.id][2])), flat = Math.hypot(d[0], d[1]) || 1, k = Math.sqrt(l * l - dz * dz) / flat;
     W[b.id] = between(unit(rr), unit([d[0] * k, d[1] * k, dz]));
+  }
+}
+
+// afloat, the tail lies out on the surface behind (a beaver's paddle, an otter's tail), on its own heading, rising to it
+// from a root under the water no steeper than 30°
+function surfaceTail(ctx, W, H) {
+  const { byId, tail } = ctx;
+  for (const b of tail) {
+    const p = byId[b.parent];
+    if (/^tail\d+$/.test(p.id)) H[b.id] = add(H[p.id], mv(W[p.id], sub(p.tail, p.head)));
+    const rr = sub(b.tail, b.head), l = norm(rr), d = mv(W[b.id], rr), flat = Math.hypot(d[0], d[1]);
+    const z = Math.max(-0.5 * l, Math.min(0.5 * l, -H[b.id][2])), k = Math.sqrt(l * l - z * z) / (flat || 1);
+    W[b.id] = between(unit(rr), flat > 1e-9 ? unit([d[0] * k, d[1] * k, z]) : [0, -1, 0]);
   }
 }
 
