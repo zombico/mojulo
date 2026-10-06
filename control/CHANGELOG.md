@@ -12,6 +12,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fauna behavior
+
+What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one
+word: a sheep lies with its legs folded under and chews the cud, a horse dozes on its feet with a hind hoof cocked, a
+cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. Data and resolver only: no
+behavior is posed yet, no tool changed, and every species builds byte-identically.
+
+- **Behaviors.** `relax`, `alert`, `eat` and `sleep`, each a loop or a hold, in `lib/graph/fauna/behavior/`.
+- **Strategies.** Each behavior's ways of doing it, written in mechanism words a solver poses (what holds the body
+  up, where the head goes, what the tail does, the small motion that loops), tried most specific first and ending on
+  a fallback any body can do.
+- **Capabilities from the bones.** Four legs or two, wings, fins, legs that fold, a neck that reaches the ground, a
+  tail long enough to wrap, a supple back: measured from the skeleton, never authored.
+- **Tags for habits.** A closed vocabulary of the habits the bones cannot tell (`ruminant`, `dozes-standing`,
+  `perches`, `hoods`, …), set per family with species overrides. Every tag must be read by some strategy.
+- **Every animal resolves.** `resolveBehavior(id, behavior)` names the strategy and why (the capabilities and tags
+  it matched, and each more specific strategy it passed over); `behaviorTable()` gives every species at once.
+
 ### Pack menu
 
 Opening a pack (`pack_x({})`) returned every member's full description and input schema, and those manuals were
