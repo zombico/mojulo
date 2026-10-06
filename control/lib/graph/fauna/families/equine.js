@@ -5,15 +5,38 @@
 // the head is authored level (rows in metres, +y to the muzzle) and then sheared nose-down: every z drops by
 // `slope` metres per metre of y, so the long face hangs from the poll as a horse carries it
 const SLOPE = 0.9, DEPTH = 1.3;   // DEPTH: the face's depth before the shear (the shear thins it)
-const dz = (y) => -SLOPE * y;
-const sheared = (rows) => rows.map(([id, y, top, ...sides]) => {
-  const palate = sides.pop();
-  return [id, y, top * DEPTH + dz(y), ...sides.map(([x, z]) => [x, z * DEPTH + dz(y)]), palate * DEPTH + dz(y)];
-});
-const shearedJaw = (rows) => rows.map(([id, y, s]) => [id, y, {
-  gum: s.gum * DEPTH + dz(y), gumR: [s.gumR[0], s.gumR[1] * DEPTH + dz(y)], jaw: [s.jaw[0], s.jaw[1] * DEPTH + dz(y)], bottom: s.bottom * DEPTH + dz(y),
-}]);
-const pt = ([x, y, z]) => [x, y, z * DEPTH + dz(y)];
+const shear = (slope, depth) => {
+  const dz = (y) => -slope * y;
+  return {
+    rows: (rows) => rows.map(([id, y, top, ...sides]) => {
+      const palate = sides.pop();
+      return [id, y, top * depth + dz(y), ...sides.map(([x, z]) => [x, z * depth + dz(y)]), palate * depth + dz(y)];
+    }),
+    jaw: (rows) => rows.map(([id, y, s]) => [id, y, {
+      gum: s.gum * depth + dz(y), gumR: [s.gumR[0], s.gumR[1] * depth + dz(y)], jaw: [s.jaw[0], s.jaw[1] * depth + dz(y)], bottom: s.bottom * depth + dz(y),
+    }]),
+    pt: ([x, y, z]) => [x, y, z * depth + dz(y)],
+  };
+};
+const { rows: sheared, jaw: shearedJaw, pt } = shear(SLOPE, DEPTH);
+
+// the level skull and jaw rows, shared by every species (each shears them to its own head carriage)
+const SKULL = [
+    ['st0', -0.12, 0.06, [0.04, 0.055], [0.08, 0.02], [0.09, -0.06], [0.09, -0.16], [0.06, -0.20], -0.21],
+    ['st1', -0.04, 0.08, [0.04, 0.075], [0.095, 0.035], [0.10, -0.05], [0.095, -0.15], [0.06, -0.20], -0.21],
+    ['st2', 0.06, 0.07, [0.04, 0.065], [0.08, 0.03], [0.085, -0.04], [0.07, -0.12], [0.045, -0.16], -0.17],
+    ['st3', 0.18, 0.05, [0.035, 0.045], [0.06, 0.015], [0.065, -0.04], [0.055, -0.09], [0.04, -0.12], -0.125],
+    ['st4', 0.30, 0.035, [0.03, 0.03], [0.05, 0.0], [0.055, -0.04], [0.05, -0.08], [0.04, -0.105], -0.11],
+    ['st5', 0.40, 0.03, [0.03, 0.025], [0.055, -0.005], [0.06, -0.04], [0.055, -0.075], [0.045, -0.095], -0.10],
+    ['st6', 0.47, 0.02, [0.03, 0.015], [0.05, -0.01], [0.055, -0.04], [0.05, -0.07], [0.04, -0.09], -0.095],
+  ];
+const JAW = [
+    ['st0', -0.06, { gum: -0.20, gumR: [0.06, -0.20], jaw: [0.085, -0.29], bottom: -0.32 }],
+    ['st1', 0.06, { gum: -0.165, gumR: [0.05, -0.165], jaw: [0.06, -0.23], bottom: -0.25 }],
+    ['st2', 0.20, { gum: -0.12, gumR: [0.035, -0.12], jaw: [0.04, -0.17], bottom: -0.18 }],
+    ['st3', 0.34, { gum: -0.10, gumR: [0.03, -0.10], jaw: [0.035, -0.15], bottom: -0.16 }],
+    ['st4', 0.46, { gum: -0.088, gumR: [0.03, -0.088], jaw: [0.035, -0.14], bottom: -0.15 }],
+  ];
 
 export const family = {
   family: 'equine',
@@ -69,24 +92,10 @@ export const family = {
   ],
   // skull rows (metres, level, then sheared): [id, y, top, crown, brow, cheek, jowl, lip, palate]; the deep round
   // jowl at the back, a long straight face, the muzzle at the end
-  craniumRows: sheared([
-    ['st0', -0.12, 0.06, [0.04, 0.055], [0.08, 0.02], [0.09, -0.06], [0.09, -0.16], [0.06, -0.20], -0.21],
-    ['st1', -0.04, 0.08, [0.04, 0.075], [0.095, 0.035], [0.10, -0.05], [0.095, -0.15], [0.06, -0.20], -0.21],
-    ['st2', 0.06, 0.07, [0.04, 0.065], [0.08, 0.03], [0.085, -0.04], [0.07, -0.12], [0.045, -0.16], -0.17],
-    ['st3', 0.18, 0.05, [0.035, 0.045], [0.06, 0.015], [0.065, -0.04], [0.055, -0.09], [0.04, -0.12], -0.125],
-    ['st4', 0.30, 0.035, [0.03, 0.03], [0.05, 0.0], [0.055, -0.04], [0.05, -0.08], [0.04, -0.105], -0.11],
-    ['st5', 0.40, 0.03, [0.03, 0.025], [0.055, -0.005], [0.06, -0.04], [0.055, -0.075], [0.045, -0.095], -0.10],
-    ['st6', 0.47, 0.02, [0.03, 0.015], [0.05, -0.01], [0.055, -0.04], [0.05, -0.07], [0.04, -0.09], -0.095],
-  ]),
+  craniumRows: sheared(SKULL),
   craniumCaps: { back: pt([0, -0.16, -0.06]), tip: pt([0, 0.505, -0.045]) },
   muzzleFrom: 3,
-  jawRows: shearedJaw([
-    ['st0', -0.06, { gum: -0.20, gumR: [0.06, -0.20], jaw: [0.085, -0.29], bottom: -0.32 }],
-    ['st1', 0.06, { gum: -0.165, gumR: [0.05, -0.165], jaw: [0.06, -0.23], bottom: -0.25 }],
-    ['st2', 0.20, { gum: -0.12, gumR: [0.035, -0.12], jaw: [0.04, -0.17], bottom: -0.18 }],
-    ['st3', 0.34, { gum: -0.10, gumR: [0.03, -0.10], jaw: [0.035, -0.15], bottom: -0.16 }],
-    ['st4', 0.46, { gum: -0.088, gumR: [0.03, -0.088], jaw: [0.035, -0.14], bottom: -0.15 }],
-  ]),
+  jawRows: shearedJaw(JAW),
   jawCaps: { back: pt([0, -0.10, -0.24]), tip: pt([0, 0.48, -0.10]) },
   skinControls: {
     browRaise: { amp: 0.01, map: [['st1.brow', 0.8, [0, 0, 1]], ['st2.brow', 0.6, [0, 0, 1]]] },
@@ -116,4 +125,71 @@ export const species = {
   horse: {
     family: 'equine', name: 'a riding horse', scale: 1, legBulk: 1.2,
   },
+  // DROMEDARY (Camelus dromedarius) — THESIS: a short deep trunk set HIGH on very long thin legs (the belly at ~1.2 m),
+  // ONE tall hump over the mid-back · broad flat padded two-toed feet, no hooves; straight forelegs with a high elbow,
+  // hind thigh standing free of the body, hock low · a long U-curved neck hung forward and down from the chest, rising
+  // to a short blunt level-carried head with small ears · a short thin tufted tail · sandy coat · withers (top of the
+  // trunk, NOT the hump) 1.86 m: published shoulder height 1.8–2.0 m (hump top ~2.1 m).
+  camel: (() => {
+    const H = shear(0.15, 1.15);
+    // a shallow jaw: no horse's deep round jowl
+    const jaw = JAW.map(([id, y, j]) => [id, y, { ...j, jaw: [j.jaw[0], j.jaw[1] * 0.8], bottom: j.bottom * 0.75 }]);
+    return {
+      family: 'equine', name: 'a dromedary camel', scale: 1, legBulk: 1, headScale: 0.75,
+      colors: { coat: '#c29a68', sock: '#b48a5a', ash: '#c8a272', ashAlt: '#b08656', mane: '#9a7650', hoof: '#7a6450', snout: '#a8845c', tip: '#7a5a3c' },
+      joints: {
+        neckBase: [0, 1.30, 1.80], neckTop: [0, 1.36, 2.04],
+        shoulder: [0.19, 0.50, 1.52], elbow: [0.20, 0.44, 1.16], carpus: [0.15, 0.48, 0.64], foreFetlock: [0.15, 0.50, 0.18], foreCoronet: [0.15, 0.56, 0.08], foreHoof: [0.15, 0.66, 0.035],
+        hip: [0.17, -0.58, 1.50], stifle: [0.23, -0.36, 1.04], hock: [0.15, -0.70, 0.66], hindFetlock: [0.15, -0.64, 0.18], hindCoronet: [0.15, -0.58, 0.08], hindHoof: [0.15, -0.48, 0.035],
+      },
+      torso: [
+        { at: [0, -0.80, 1.50], r: [0.17, 0.22] },
+        { at: [0, -0.58, 1.50], r: [0.24, 0.30] },
+        { at: [0, -0.25, 1.50], r: [0.29, 0.34] },
+        { at: [0, 0.10, 1.50], r: [0.30, 0.36] },
+        { at: [0, 0.40, 1.50], r: [0.26, 0.35] },
+        { at: [0, 0.62, 1.50], r: [0.19, 0.28] },
+      ],
+      torsoCaps: { back: [0, -0.90, 1.54], tip: [0, 0.74, 1.46] },
+      neckRA: [0.08, 0.10], neckRB: [0.07, 0.085], neckRMid: [0.075, 0.09],
+      legs: [
+        ['upperArmR', 'shoulder', 'elbow', [0.09, 0.14], [0.07, 0.08], 'Coat', [0.6, 0.5], [0.09, 0.11]],
+        ['foreArmR', 'elbow', 'carpus', [0.06, 0.07], [0.045, 0.05], 'Coat', [0.5, 0.4]],
+        ['foreCannonR', 'carpus', 'foreFetlock', [0.04, 0.045], [0.035, 0.04], 'Coat', [0.4, 0.4]],
+        ['forePasternR', 'foreFetlock', 'foreCoronet', [0.045, 0.045], [0.05, 0.05], 'Sock', [0.4, 0.4]],
+        ['foreHoofR', 'foreCoronet', 'foreHoof', [0.08, 0.05], [0.12, 0.03], 'Hoof', [0.3, 0.3]],
+        ['thighR', 'hip', 'stifle', [0.11, 0.18], [0.08, 0.09], 'Coat', [0.2, 0.5], [0.11, 0.15]],
+        ['gaskinR', 'stifle', 'hock', [0.065, 0.075], [0.045, 0.05], 'Coat', [0.5, 0.4]],
+        ['hindCannonR', 'hock', 'hindFetlock', [0.04, 0.045], [0.035, 0.04], 'Coat', [0.4, 0.4]],
+        ['hindPasternR', 'hindFetlock', 'hindCoronet', [0.045, 0.045], [0.05, 0.05], 'Sock', [0.4, 0.4]],
+        ['hindHoofR', 'hindCoronet', 'hindHoof', [0.08, 0.05], [0.12, 0.03], 'Hoof', [0.3, 0.3]],
+      ],
+      extraSegments: [
+        // the ONE hump: a level loft riding the mid-back, its top at ~2.1 m
+        { name: 'hump', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
+          { at: [0, -0.48, 1.80], r: [0.12, 0.05] }, { at: [0, -0.28, 1.80], r: [0.21, 0.22] }, { at: [0, -0.06, 1.80], r: [0.24, 0.34] },
+          { at: [0, 0.18, 1.80], r: [0.21, 0.24] }, { at: [0, 0.40, 1.80], r: [0.12, 0.06] },
+        ], caps: { back: [0, -0.56, 1.80], tip: [0, 0.48, 1.80] } },
+        // the long neck: forward and DOWN from the chest, then up to the head (a U)
+        { name: 'neckDown', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
+          { at: [0, 0.58, 1.62], r: [0.15, 0.20] }, { at: [0, 0.84, 1.46], r: [0.11, 0.14] }, { at: [0, 1.06, 1.38], r: [0.09, 0.11] },
+        ], caps: { back: [0, 0.48, 1.68], tip: [0, 1.13, 1.36] } },
+        { name: 'neckUp', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
+          { at: [0, 1.02, 1.36], r: [0.09, 0.11] }, { at: [0, 1.22, 1.52], r: [0.085, 0.10] }, { at: [0, 1.32, 1.84], r: [0.08, 0.095] },
+        ], caps: { back: [0, 0.96, 1.32], tip: [0, 1.34, 1.90] } },
+        // a short thin tail to the hock, a dark tuft at the end
+        { name: 'dock', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
+          { at: [0, -0.84, 1.64], r: [0.04, 0.04] }, { at: [0, -0.93, 1.50], r: [0.035, 0.035] }, { at: [0, -0.96, 1.20], r: [0.03, 0.03] },
+        ], caps: { back: [0, -0.80, 1.68], tip: [0, -0.965, 1.14] } },
+        { name: 'tailHair', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', stations: [
+          { at: [0, -0.96, 1.18], r: [0.035, 0.04] }, { at: [0, -0.97, 1.04], r: [0.045, 0.05] }, { at: [0, -0.97, 0.94], r: [0.03, 0.035] },
+        ], caps: { back: [0, -0.96, 1.22], tip: [0, -0.97, 0.90] } },
+      ],
+      craniumRows: H.rows(SKULL), craniumCaps: { back: H.pt([0, -0.16, -0.06]), tip: H.pt([0, 0.505, -0.045]) },
+      jawRows: H.jaw(jaw), jawCaps: { back: H.pt([0, -0.10, -0.24]), tip: H.pt([0, 0.48, -0.10]) },
+      nape: H.pt([0, -0.13, -0.02]),
+      // small rounded ears
+      earSpine: [[0, 0, -0.01], [0, 0, 0.015], [0, 0, 0.035], [0, 0, 0.05], [0, 0, 0.06]], earR: [0.022, 0.022, 0.016, 0.006], earH: 0.6,
+    };
+  })(),
 };

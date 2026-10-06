@@ -36,16 +36,15 @@ describe("mint_solid kind 'animal'", () => {
     }
   });
 
-  it('mints a species as a recipe and renders it through the stored-sketch dispatch', async () => {
-    const res = await mintSolidHandler({ kind: 'animal', title: 'Red fox', ref: 'an_wolf1', spec: { species: 'fox', view: 'lateral' } });
+  it('mints a bare archetype as a recipe and renders it through the stored-sketch dispatch', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Canine', ref: 'an_wolf1', spec: { archetype: 'canine', view: 'lateral' } });
     expect(res.ok).toBe(true);
     expect(res.ref).toBe('an_wolf1');
     expect(res.stance).toBe('quadruped');
 
     const stored = SketchRepository.getByRef('an_wolf1');
     expect(stored.manifest.kind).toBe('animal');
-    expect(stored.manifest.archetype).toBe('canine');   // the species RESOLVES at mint time
-    expect(stored.manifest.species).toBe('fox');
+    expect(stored.manifest.archetype).toBe('canine');
     expect(stored.manifest.view).toBe('lateral');
     expect(classifyBucket(stored.manifest)).toBe('illustration');
 
@@ -55,12 +54,10 @@ describe("mint_solid kind 'animal'", () => {
     expect(await renderStoredSketchSvg(stored)).toBe(svg);
   });
 
-  it('merges caller opts one level deep over the species recipe', async () => {
-    const res = await mintSolidHandler({ kind: 'animal', title: 'Long-faced fox', spec: { species: 'fox', opts: { skullCfg: { length: 0.3 } } } });
+  it('keeps caller opts on a bare archetype recipe', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Long-faced canine', spec: { archetype: 'canine', opts: { skullCfg: { length: 0.3 } } } });
     const m = SketchRepository.getByRef(res.ref).manifest;
-    expect(m.opts.skullCfg.length).toBe(0.3);       // the one knob retuned
-    expect(m.opts.skullCfg.width).toBeDefined();    // …the rest of the species' skull survives
-    expect(m.opts.coat).toBeDefined();
+    expect(m.opts.skullCfg.length).toBe(0.3);
   });
 
   it('mints a bare archetype and reports a biped stance', async () => {

@@ -95,4 +95,41 @@ export const species = {
     family: 'ursine', name: 'a brown bear', scale: 1,
     headScale: 1.3, muzzleW: 1.25, muzzleLen: 0.65, legBulk: 1.2,
   },
+  // COMMON WOMBAT (Vombatus ursinus) — Thesis: a LOW BARREL body as broad as it is deep, the back near level, the belly
+  // a hand off the ground · very short stout legs on plantigrade feet · a broad, flat-topped, blunt head on almost no
+  // neck, small round ears · NO visible tail · head-body ≈1.0 m, shoulder ≈0.37 m (published: length 0.8–1.3 m,
+  // height ≈0.36 m). Tables in bear-size units, `scale` 0.4 brings it to true size.
+  wombat: {
+    family: 'ursine', name: 'a common wombat', scale: 0.4,
+    colors: { coat: '#6e6658', sock: '#4f483e', snout: '#6e6658', ash: '#6e6658', ashAlt: '#655d50', tip: '#4f483e' },
+    joints: {
+      neckBase: [0, 0.62, 0.58], neckTop: [0, 0.81, 0.56],
+      shoulder: [0.27, 0.44, 0.45], elbow: [0.31, 0.47, 0.25], carpus: [0.31, 0.50, 0.10], forePaw: [0.31, 0.52, 0.068], foreToe: [0.31, 0.69, 0.05],
+      hip: [0.27, -0.77, 0.45], stifle: [0.31, -0.70, 0.25], hock: [0.31, -0.83, 0.10], hindPaw: [0.31, -0.81, 0.068], hindToe: [0.31, -0.63, 0.05],
+    },
+    torso: [
+      { at: [0, -0.97, 0.55], r: [0.32, 0.33] },
+      { at: [0, -0.83, 0.55], r: [0.38, 0.36] },
+      { at: [0, -0.53, 0.55], r: [0.42, 0.40] },
+      { at: [0, -0.09, 0.55], r: [0.43, 0.40] },
+      { at: [0, 0.31, 0.55], r: [0.40, 0.38] },
+      { at: [0, 0.62, 0.55], r: [0.32, 0.32] },
+    ],
+    torsoCaps: { back: [0, -1.03, 0.50], tip: [0, 0.72, 0.54] },
+    extraSegments: [],
+    neckRA: [0.27, 0.28], neckRB: [0.24, 0.24], neckRMid: [0.26, 0.26],
+    tail: null,
+    headScale: 1.7, muzzleW: 1.8, muzzleLen: 0.22, legBulk: 1.3,
+    earR: [0.022, 0.025, 0.022, 0.012], earH: 0.5, earAt: [1.2, 2.2], noseR: [0.05, 0.034],
+    // a flat crown: the cranium top barely above the brow, broad cheeks
+    craniumRows: [
+      ['st0', -0.16, 0.06, [0.07, 0.06], [0.12, 0.02], [0.13, -0.03], [0.11, -0.08], [0.06, -0.10], -0.11],
+      ['st1', -0.08, 0.095, [0.09, 0.09], [0.15, 0.05], [0.17, 0.0], [0.14, -0.07], [0.07, -0.10], -0.11],
+      ['st2', 0.0, 0.09, [0.085, 0.085], [0.14, 0.05], [0.165, -0.01], [0.13, -0.07], [0.07, -0.10], -0.10],
+      ['st3', 0.06, 0.07, [0.06, 0.066], [0.10, 0.04], [0.11, -0.01], [0.10, -0.06], [0.06, -0.085], -0.09],
+      ['st4', 0.13, 0.06, [0.05, 0.057], [0.075, 0.03], [0.08, -0.01], [0.075, -0.05], [0.05, -0.075], -0.08],
+      ['st5', 0.20, 0.05, [0.04, 0.047], [0.06, 0.02], [0.062, -0.01], [0.058, -0.045], [0.04, -0.065], -0.07],
+      ['st6', 0.25, 0.04, [0.03, 0.037], [0.045, 0.015], [0.048, -0.01], [0.045, -0.04], [0.03, -0.055], -0.06],
+    ],
+  },
 };

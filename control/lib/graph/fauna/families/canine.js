@@ -92,4 +92,33 @@ export const species = {
     earH: 0.72, earR: [0.052, 0.05, 0.036, 0.02],
     bulk: 1.1, legBulk: 1.35, tailBush: 1.35,
   },
+  // RED FOX (Vulpes vulpes) — the canine family's second species. Thesis: small, slender, long low trunk on short
+  // fine legs (digitigrade, black socks) · a light head with a narrow pointed muzzle and LARGE pointed erect ears ·
+  // the long bushy brush carried low and near-horizontal, white tip · 0.40 m at the shoulder (published 35–50 cm;
+  // head-body 0.6–0.9 m, tail 0.3–0.55 m).
+  fox: {
+    family: 'canine', name: 'a red fox', scale: 0.52,
+    colors: { coat: '#b8602a', sock: '#2a201a', ash: '#efe6d8', ashAlt: '#e0d4c0', tip: '#f2ede4', brow: '#5a3218' },
+    joints: {
+      neckBase: [0, 0.38, 0.66], neckTop: [0, 0.64, 0.80],
+      shoulder: [0.12, 0.34, 0.60], elbow: [0.13, 0.28, 0.36], carpus: [0.12, 0.33, 0.12], forePaw: [0.12, 0.35, 0.04], foreToe: [0.12, 0.44, 0.03],
+      hip: [0.09, -0.38, 0.60], stifle: [0.125, -0.24, 0.38], hock: [0.12, -0.45, 0.17], hindPaw: [0.12, -0.41, 0.04], hindToe: [0.12, -0.32, 0.03],
+    },
+    torso: [
+      { at: [0, -0.54, 0.60], r: [0.10, 0.09] },
+      { at: [0, -0.40, 0.60], r: [0.13, 0.12] },
+      { at: [0, -0.20, 0.60], r: [0.10, 0.085] },
+      { at: [0, 0.02, 0.60], r: [0.12, 0.13] },
+      { at: [0, 0.24, 0.60], r: [0.13, 0.16] },
+      { at: [0, 0.40, 0.60], r: [0.12, 0.15] },
+    ],
+    torsoCaps: { back: [0, -0.62, 0.60], tip: [0, 0.50, 0.58] },
+    neckRA: [0.11, 0.14], neckRB: [0.08, 0.09], neckRMid: [0.09, 0.11],
+    tail: [[0, -0.52, 0.64, 0.055], [0, -0.68, 0.60, 0.10], [0, -0.84, 0.54, 0.13], [0, -0.99, 0.49, 0.13], [0, -1.10, 0.46, 0.10]],
+    tip: [[0, -1.09, 0.465, 0.09], [0, -1.16, 0.45, 0.065], [0, -1.21, 0.44, 0.03]],
+    tipCaps: { back: [0, -1.06, 0.47], tip: [0, -1.24, 0.435] },
+    headScale: 1.25, muzzleW: 0.78, muzzleLen: 1.15,
+    earH: 0.85, earR: [0.05, 0.046, 0.028, 0.008],
+    bulk: 0.9, legBulk: 0.8, tailBush: 1.2,
+  },
 };

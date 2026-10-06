@@ -114,4 +114,44 @@ export const species = {
       palette: { Skull: '#8b857c', FacePlanes: '#e9e5dc', Muzzle: '#e9e5dc', EyeMask: '#1d1a17', Eyes: '#0f0d0b', Nose: '#141110', Ears: '#8b857c', EarInset: '#e9e5dc' },
     },
   },
+  // RED PANDA (Ailurus fulgens) — second species. Thesis: a long low body with a near-level back · short thick
+  // plantigrade legs, dark (black-brown) legs and belly · a round broad face with a SHORT muzzle and big pointed
+  // triangular ears, white face and ear rims · the long thick RINGED tail (~body length) · rusty-red coat · 0.25 m at
+  // the shoulder (published head-body 51–64 cm, tail 28–48 cm, shoulder ~25 cm). Normal ring-plan head (no headMesh).
+  redPanda: {
+    family: 'procyonid', name: 'a red panda', scale: 0.77, headMesh: null,
+    colors: { coat: '#a8421c', sock: '#2a1712', ash: '#efe6da', ashAlt: '#d9cbb8', brow: '#7a2e14', mane: '#b5532a', tip: '#6e2a12', ears: '#a8421c', snout: '#efe6da', belly: '#2a1712' },
+    torso: [
+      { at: [0, -0.27, 0.205], r: [0.06, 0.06] },
+      { at: [0, -0.21, 0.205], r: [0.10, 0.115] },
+      { at: [0, -0.13, 0.205], r: [0.112, 0.12] },
+      { at: [0, -0.03, 0.205], r: [0.11, 0.105] },
+      { at: [0, 0.07, 0.205], r: [0.095, 0.085] },
+      { at: [0, 0.15, 0.205], r: [0.07, 0.065] },
+    ],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.04, 0.055], [0.03, 0.032], 'Sock', [0.6, 0.5], [0.037, 0.044]],
+      ['foreArmR', 'elbow', 'carpus', [0.03, 0.032], [0.023, 0.024], 'Sock', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.023, 0.022, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.03, 0.013], [0.036, 0.009], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.06, 0.08], [0.035, 0.038], 'Coat', [0.2, 0.5], [0.05, 0.062]],
+      ['shinR', 'stifle', 'hock', [0.034, 0.038], [0.024, 0.026], 'Sock', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.024, 0.022, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.028, 0.014], [0.03, 0.009], 'Sock', [0.5, 0.4]],
+    ],
+    // big pointed triangular ears: broad base tapering to a point, taller than the raccoon's
+    earSpine: [[0, 0, -0.012], [0, 0, 0.03], [0, 0, 0.08], [0, 0, 0.13], [0, 0, 0.19]],
+    earR: [0.05, 0.044, 0.03, 0.012], earSquash: [1, 0.4], earH: 0.42, earAt: [3.5, 2.05], legBulk: 1.2,
+    // white face: pale cheeks and muzzle, rusty tear-stripe under the eye (Brow = rust-dark)
+    craniumBandGroups: {
+      'st4-st5': ['Skull', 'Skull', 'Cheek', 'Cheek', 'Cheek', 'Palate'],
+      'st5-st6': ['Skull', 'Cheek', 'Brow', 'Cheek', 'Cheek', 'Palate'],
+      'st6-st7': ['Snout', 'Snout', 'Snout', 'Cheek', 'Jowl', 'Palate'],
+    },
+    extraSegments: [
+      { name: 'tailRinged', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
+        stations: [[0, -0.25, 0.25, 0.04], [0, -0.31, 0.24, 0.058], [0, -0.38, 0.22, 0.066], [0, -0.45, 0.19, 0.068], [0, -0.52, 0.16, 0.066], [0, -0.58, 0.13, 0.062], [0, -0.64, 0.105, 0.056], [0, -0.69, 0.085, 0.046], [0, -0.73, 0.07, 0.034]].map(([x, y, z, r]) => ({ at: [x, y, z], r })),
+        bandGroups: band(8), caps: { back: [0, -0.22, 0.252], tip: [0, -0.75, 0.064] }, capGroups: { back: 'Mane', tip: 'Tip' } },
+    ],
+  },
 };

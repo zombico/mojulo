@@ -108,4 +108,13 @@ export const species = {
       tine('antlerTine3', 5, [0.11, 0.17, 0.29], 0.008),
     ],
   },
+  // WHITE-TAILED DOE (Odocoileus virginianus, adult female) — the buck's female. Thesis: the same light barrel on
+  // long thin legs, high hocks, cloven hooves, but SMALLER and ANTLERLESS · a slimmer neck carried up, the narrow head
+  // with large ears out to the side the only thing on the crown · diagnostic: no antlers + smaller frame (vs buck),
+  // big ears and white throat/tail (vs goat/antelope) · tan coat · 0.80 m at the withers (published 0.7–0.9 m adult
+  // female shoulder height; ADW / Smithsonian figures).
+  deer: {
+    family: 'cervid', name: 'a white-tailed doe', scale: 0.86,
+    neckRA: [0.085, 0.125], neckRB: [0.055, 0.072], neckRMid: [0.066, 0.088],
+  },
 };

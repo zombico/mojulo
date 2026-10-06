@@ -90,6 +90,11 @@ export const family = {
   scale: 1,
 };
 
+// the rhino's head is carried low, nose down: its skull rows drop toward the muzzle (z -= dip * (y - y0))
+const dip = (k, y0) => ([id, y, ...v]) => [id, y, ...v.map((q) => (Array.isArray(q) ? [q[0], q[1] - k * (y - y0)] : q - k * (y - y0)))];
+const dipJaw = (k, y0) => ([id, y, sl]) => [id, y, Object.fromEntries(Object.entries(sl).map(([n, q]) => [n, Array.isArray(q) ? [q[0], q[1] - k * (y - y0)] : q - k * (y - y0)]))];
+const RHINO_DIP = 0.25;
+
 export const species = {
   // COMMON HIPPOPOTAMUS (Hippopotamus amphibius). Thesis: an enormous barrel slung low (belly ~0.45 m up) on very
   // short columnar legs with round four-toed feet · a huge boxy head with a broad square muzzle, eyes, tiny ears and
@@ -97,5 +102,66 @@ export const species = {
   // Eltringham 1999 / IUCN: 3.3–4.0 m long, 1.4–1.6 m shoulder).
   hippo: {
     family: 'pachyderm', name: 'a common hippopotamus', scale: 1,
+  },
+
+  // WHITE RHINOCEROS (Ceratotherium simum). Thesis: a long barrel on longer columnar legs than the hippo (belly ~0.6 m
+  // up) with round three-toed feet · a muscular SHOULDER HUMP · a long low-carried head (muzzle near the ground) with
+  // a dished profile, a broad square lip, tube ears on top at the back · TWO NASAL HORNS, a long front, a short rear ·
+  // a thin tail · body ~3.8 m, 1.75 m at the shoulder (adult male figures, Owen-Smith 1988 / IUCN: 3.7–4.0 m long,
+  // 1.7–1.85 m shoulder).
+  rhino: {
+    family: 'pachyderm', name: 'a white rhinoceros', scale: 1,
+    colors: { coat: '#7d7577', sock: '#716a6c', ash: '#857c7c', ashAlt: '#7a7272', mouth: '#5e4e4e' },
+    joints: {
+      neckBase: [0, 0.92, 1.22], neckTop: [0, 1.46, 0.98],
+      shoulder: [0.36, 0.80, 1.05], elbow: [0.40, 0.86, 0.58], carpus: [0.37, 0.92, 0.24], forePaw: [0.37, 0.94, 0.13], foreToe: [0.37, 1.04, 0.10],
+      hip: [0.34, -0.92, 1.10], stifle: [0.40, -0.75, 0.62], hock: [0.37, -0.98, 0.28], hindPaw: [0.37, -0.94, 0.13], hindToe: [0.37, -0.84, 0.10],
+      ...Object.fromEntries([['fore', 0.97, 1.07], ['hind', -0.89, -0.79]].flatMap(([leg, y0, y1]) => [-0.085, 0, 0.085].flatMap((dx, i) => [
+        [`${leg}Hoof${i}BaseR`, [0.37 + dx, y0, 0.065]], [`${leg}Hoof${i}TipR`, [0.37 + dx * 1.3, y1 - Math.abs(dx) * 0.3, 0.05]]]))),
+    },
+    torso: [
+      { at: [0, -1.30, 1.15], r: [0.42, 0.45] },
+      { at: [0, -1.05, 1.15], r: [0.58, 0.56] },
+      { at: [0, -0.55, 1.15], r: [0.62, 0.55] },
+      { at: [0, 0.05, 1.15], r: [0.64, 0.56] },
+      { at: [0, 0.55, 1.15], r: [0.60, 0.74] },
+      { at: [0, 0.95, 1.15], r: [0.50, 0.62] },
+    ],
+    torsoCaps: { back: [0, -1.46, 1.19], tip: [0, 1.12, 1.19] },
+    tail: [[0, -1.40, 1.45, 0.05], [0, -1.50, 1.30, 0.045], [0, -1.53, 1.10, 0.04]],
+    tip: [[0, -1.53, 1.13, 0.04], [0, -1.535, 1.02, 0.05], [0, -1.54, 0.95, 0.03]],
+    tipCaps: { back: [0, -1.53, 1.16], tip: [0, -1.54, 0.92] },
+    // a long head, the occiput high at the back, a dished face, a broad square lip
+    craniumRows: [
+      ['st0', -0.40, 0.20, [0.08, 0.18], [0.14, 0.10], [0.17, -0.02], [0.15, -0.13], [0.10, -0.18], -0.19],
+      ['st1', -0.22, 0.14, [0.10, 0.12], [0.17, 0.06], [0.19, -0.04], [0.17, -0.15], [0.11, -0.20], -0.21],
+      ['st2', -0.02, 0.05, [0.08, 0.045], [0.14, 0.02], [0.16, -0.05], [0.15, -0.15], [0.10, -0.19], -0.20],
+      ['st3', 0.18, 0.08, [0.07, 0.065], [0.12, 0.02], [0.14, -0.05], [0.14, -0.14], [0.10, -0.18], -0.19],
+      ['st4', 0.36, 0.07, [0.07, 0.055], [0.12, 0.01], [0.14, -0.05], [0.14, -0.14], [0.11, -0.17], -0.18],
+      ['st5', 0.50, 0.03, [0.07, 0.02], [0.14, -0.02], [0.17, -0.07], [0.17, -0.14], [0.14, -0.17], -0.17],
+      ['st6', 0.58, -0.02, [0.06, -0.03], [0.13, -0.05], [0.16, -0.09], [0.16, -0.14], [0.13, -0.16], -0.16],
+    ].map(dip(RHINO_DIP, -0.40)),
+    craniumCaps: { back: [0, -0.46, 0.04], tip: [0, 0.62, -0.10 - RHINO_DIP * 1.02] },
+    muzzleFrom: 4,
+    jawRows: [
+      ['st0', -0.30, { gum: -0.19, gumR: [0.13, -0.19], jaw: [0.15, -0.26], bottom: -0.29 }],
+      ['st1', -0.05, { gum: -0.19, gumR: [0.13, -0.19], jaw: [0.15, -0.26], bottom: -0.29 }],
+      ['st2', 0.20, { gum: -0.18, gumR: [0.12, -0.18], jaw: [0.13, -0.24], bottom: -0.26 }],
+      ['st3', 0.42, { gum: -0.17, gumR: [0.14, -0.17], jaw: [0.15, -0.22], bottom: -0.24 }],
+      ['st4', 0.56, { gum: -0.16, gumR: [0.13, -0.16], jaw: [0.14, -0.20], bottom: -0.21 }],
+    ].map(dipJaw(RHINO_DIP, -0.40)),
+    jawCaps: { back: [0, -0.36, -0.24 - RHINO_DIP * 0.04], tip: [0, 0.60, -0.18 - RHINO_DIP * 1.0] },
+    headScale: 1.2, nape: [0, -0.30, -0.02],
+    eyeAt: [1.3, 2.6], nostrilAt: [5.6, 2.5], noseAt: [5.8, 2.4], noseR: [0.02, 0.015],
+    // tube ears: tall, near-round in section, up off the back of the crown
+    earAt: [0.5, 1.3], earSpine: [[0, 0, -0.01], [0, 0, 0.06], [0, 0, 0.13], [0, 0, 0.19]], earR: [0.055, 0.06, 0.045], earSquash: [1, 0.8], earH: 1.5,
+    headOrnaments: [
+      { kind: 'sweep', name: 'hornFront', at: [4.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.42, -0.17], [0, 0.46, -0.02], [0, 0.46, 0.13], [0, 0.42, 0.28], [0, 0.36, 0.38]], radii: [0.08, 0.065, 0.045, 0.025, 0.006], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'hornRear', at: [3.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.18, -0.08], [0, 0.19, 0.01], [0, 0.17, 0.09]], radii: [0.065, 0.045, 0.01], m: 8, group: 'Horn' },
+    ],
+    // three toes per foot: broad nail-tipped nubs round the front of each pad
+    extraSegments: [['fore'], ['hind']].flatMap(([leg]) => [0, 1, 2].map((i) => ({
+      name: `${leg}Hoof${i}R`, kind: 'segment', from: `${leg}Hoof${i}BaseR`, to: `${leg}Hoof${i}TipR`, rA: 0.065, rB: 0.05, slots: 'ring12', group: 'Hoof', mirror: 'name', over: [0.3, 0.3],
+    }))),
   },
 };

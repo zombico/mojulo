@@ -93,4 +93,20 @@ export const species = {
     ],
     headScale: 1.55, muzzleW: 1.25, muzzleLen: 0.65, earH: 1.3, bulk: 1.38, legBulk: 1.5,
   },
+  // COUGAR / PUMA, adult (Puma concolor). Thesis: long lithe trunk, small tuck-up, rump set HIGHER than the shoulders
+  // on long hind legs · digitigrade, round paws · small round head, short muzzle, small round ears, NO mane · the long
+  // thick tail, nearly body-length, carried low in a J (hangs, then hooks up) · plain tawny coat · 0.70 m at the
+  // shoulder (60-90 cm, Nowell & Jackson 1996, Wild Cats: Status Survey, IUCN).
+  cougar: {
+    family: 'feline', name: 'a cougar', scale: 0.74,
+    colors: { coat: '#b5875a', sock: '#a87c52', tip: '#3a2a1e' },
+    joints: { hip: [0.13, -0.46, 0.76], stifle: [0.16, -0.26, 0.47], hock: [0.15, -0.60, 0.25], rumpA: [0, -0.62, 0.74], rumpB: [0, -0.30, 0.72] },
+    extraSegments: [
+      { name: 'rump', kind: 'segment', from: 'rumpA', to: 'rumpB', rA: [0.11, 0.10], rB: [0.13, 0.14], rMid: [0.145, 0.15], slots: 'ring12', over: [0.3, 0.4], group: 'Coat', mirror: 'plane' },
+    ],
+    tail: [[0, -0.64, 0.74, 0.062], [0, -0.76, 0.64, 0.06], [0, -0.86, 0.48, 0.058], [0, -0.94, 0.32, 0.056], [0, -1.02, 0.21, 0.053], [0, -1.12, 0.16, 0.05]],
+    tip: [[0, -1.11, 0.16, 0.05], [0, -1.20, 0.19, 0.048], [0, -1.27, 0.26, 0.038]],
+    tipCaps: { back: [0, -1.09, 0.155], tip: [0, -1.30, 0.30] },
+    headScale: 1.15, muzzleW: 1.15, muzzleLen: 0.68, earH: 0.95, bulk: 1.2, legBulk: 1.15,
+  },
 };

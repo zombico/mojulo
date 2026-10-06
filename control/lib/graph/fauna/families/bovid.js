@@ -116,4 +116,65 @@ export const species = {
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.10, -0.10, 0.11], [0.20, -0.10, 0.12], [0.28, -0.07, 0.13], [0.33, 0.0, 0.15], [0.34, 0.07, 0.18]], radii: [0.045, 0.038, 0.03, 0.02, 0.008], m: 8, group: 'Horn' },
     ],
   },
+
+  // THOMSON'S GAZELLE (Eudorcas thomsonii) — Thesis: a small light barrel on very long thin legs, high hocks, small
+  // cloven hooves · a slender neck carried up, a small narrow head · ONE signature: lyrate ringed horns rising from
+  // the poll, swept back then tips forward · a short tail, a dark side stripe · 0.62 m at the withers (published
+  // 0.55–0.82 m shoulder height; ADW / Kingdon). Authored at bovid units and scaled down.
+  gazelle: {
+    family: 'bovid', name: "a Thomson's gazelle", scale: 0.5,
+    colors: { coat: '#b47a44', sock: '#a87040', ash: '#b47a44', ashAlt: '#c08a52', brow: '#e8dcc4', horn: '#3a3028', snout: '#a87040', teeth: '#a87040', nose: '#3a2a1e' },
+    joints: {
+      neckBase: [0, 0.42, 1.12], neckTop: [0, 0.74, 1.56],
+      shoulder: [0.13, 0.36, 1.02], elbow: [0.14, 0.30, 0.72], carpus: [0.13, 0.34, 0.38], fetlock: [0.13, 0.36, 0.12],
+      foreHoof: [0.13, 0.38, 0.05], foreToeO: [0.15, 0.45, 0.02], foreToeI: [0.11, 0.45, 0.02],
+      hip: [0.12, -0.56, 1.08], stifle: [0.14, -0.38, 0.78], hock: [0.12, -0.70, 0.46], hindFetlock: [0.11, -0.66, 0.12],
+      hindHoof: [0.11, -0.64, 0.05], hindToeO: [0.13, -0.57, 0.02], hindToeI: [0.09, -0.57, 0.02],
+    },
+    torso: [
+      { at: [0, -0.74, 1.04], r: [0.13, 0.15] },
+      { at: [0, -0.62, 1.04], r: [0.18, 0.20] },
+      { at: [0, -0.35, 1.04], r: [0.20, 0.21] },
+      { at: [0, 0.0, 1.04], r: [0.20, 0.22] },
+      { at: [0, 0.28, 1.04], r: [0.19, 0.22] },
+      { at: [0, 0.48, 1.04], r: [0.15, 0.19] },
+    ],
+    torsoCaps: { back: [0, -0.80, 1.06], tip: [0, 0.58, 1.0] },
+    neckRA: [0.10, 0.14], neckRB: [0.065, 0.08], neckRMid: [0.075, 0.10],
+    legBulk: 0.42,
+    tail: [[0, -0.76, 1.14, 0.035], [0, -0.80, 1.05, 0.03], [0, -0.81, 0.96, 0.025]],
+    tip: [[0, -0.81, 0.97, 0.03], [0, -0.815, 0.90, 0.035], [0, -0.815, 0.86, 0.02]],
+    tipCaps: { back: [0, -0.81, 0.99], tip: [0, -0.815, 0.84] },
+    extraSegments: [],
+    headScale: 0.62, muzzleW: 0.55, muzzleLen: 1.15, earH: 0.6, earR: [0.025, 0.035, 0.03, 0.012], earSquash: [1, 0.35], noseR: [0.03, 0.02], eyeR: 0.022,
+    headOrnaments: [
+      { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.02, -0.04, 0.10], [0.06, -0.12, 0.22], [0.09, -0.20, 0.34], [0.10, -0.20, 0.46], [0.08, -0.12, 0.56], [0.07, -0.06, 0.60]], radii: [0.022, 0.019, 0.016, 0.012, 0.008, 0.004], m: 8, group: 'Horn' },
+    ],
+  },
+  // BIGHORN RAM (Ovis canadensis) — Thesis: a stocky deep barrel on short sturdy legs, cloven hooves · a thick neck,
+  // a Roman-nosed (convex) face · ONE signature: massive horns curling back, down and forward round the ear in a
+  // spiral · a short tail, a pale rump and muzzle · 0.95 m at the withers (published 0.9–1.05 m ram shoulder height;
+  // ADW / NPS). Authored at bovid units and scaled down.
+  ram: {
+    family: 'bovid', name: 'a bighorn ram', scale: 0.65,
+    colors: { coat: '#6e5238', sock: '#5e4630', ash: '#7a5c40', ashAlt: '#74563a', horn: '#a8946c', tip: '#6e5238' },
+    legBulk: 1.15, bulk: 1.0, headScale: 1.0, muzzleW: 0.8, muzzleLen: 0.8,
+    joints: { neckBase: [0, 0.52, 1.12], neckTop: [0, 1.0, 1.42] },
+    craniumRows: sloped([
+      ['st0', -0.14, 0.10, [0.10, 0.10], [0.13, 0.04], [0.12, -0.04], [0.10, -0.12], [0.06, -0.16], -0.17],
+      ['st1', -0.06, 0.13, [0.115, 0.12], [0.14, 0.06], [0.13, -0.04], [0.10, -0.14], [0.06, -0.18], -0.19],
+      ['st2', 0.02, 0.12, [0.085, 0.11], [0.12, 0.03], [0.11, -0.07], [0.09, -0.17], [0.06, -0.21], -0.22],
+      ['st3', 0.09, 0.08, [0.065, 0.065], [0.09, -0.02], [0.09, -0.10], [0.08, -0.19], [0.055, -0.23], -0.24],
+      ['st4', 0.15, 0.04, [0.065, 0.02], [0.085, -0.07], [0.085, -0.14], [0.075, -0.22], [0.055, -0.26], -0.27],
+      ['st5', 0.20, -0.01, [0.065, -0.03], [0.08, -0.11], [0.08, -0.18], [0.07, -0.25], [0.055, -0.28], -0.29],
+      ['st6', 0.23, -0.07, [0.055, -0.08], [0.07, -0.14], [0.07, -0.21], [0.065, -0.27], [0.05, -0.295], -0.30],
+    ]),
+    tail: [[0, -0.98, 1.30, 0.06], [0, -1.04, 1.20, 0.05], [0, -1.06, 1.10, 0.04]],
+    tip: [[0, -1.06, 1.11, 0.045], [0, -1.065, 1.04, 0.05], [0, -1.065, 1.0, 0.03]],
+    tipCaps: { back: [0, -1.06, 1.13], tip: [0, -1.065, 0.98] },
+    extraSegments: [],
+    headOrnaments: [
+      { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.06, -0.06, 0.06], [0.14, -0.16, 0.07], [0.22, -0.21, -0.03], [0.28, -0.15, -0.16], [0.30, -0.03, -0.21], [0.30, 0.07, -0.13], [0.28, 0.10, -0.03]], radii: [0.09, 0.082, 0.072, 0.06, 0.046, 0.032, 0.016], m: 8, group: 'Horn' },
+    ],
+  },
 };
