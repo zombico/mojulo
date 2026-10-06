@@ -883,7 +883,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // A kind may name its own defaults first (`desc.audio(manifest) → audio spec`: the historic kind's
   // `soundtrack: 'default'` is its culture's period music); a kind without one reads the manifest's as written.
   if (payload && sketch.manifest.audio && typeof sketch.manifest.audio === 'object') {
-    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time });
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
 

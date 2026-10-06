@@ -15,6 +15,7 @@
  *   cue=id   — beats-sfx: which cue (default: the only one)
  *   variant=N — beats-sfx: a per-hit variation of the cue (0/absent = the cue itself)
  *   tail=S   — seconds of ring-out appended (default 2)
+ *   loop=1   — one seamless pass to the bar line, tail folded onto the head, smpl loop chunk
  */
 
 import { NextResponse } from 'next/server';
@@ -55,6 +56,7 @@ export async function GET(request, { params }) {
         cue: searchParams.get('cue') || undefined,
         variant: intParam(searchParams, 'variant'),
         tail: tailRaw === null ? undefined : Number(tailRaw),
+        ...(searchParams.get('loop') === null ? {} : { loop: searchParams.get('loop') === '1' }),
       });
     } catch (err) {
       return NextResponse.json({ error: err.message }, { status: 422 });

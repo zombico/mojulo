@@ -4,7 +4,8 @@
  * composeVolumeFog: called from resolveWorldScene, additive, absent ⇒ untouched.
  *
  *   manifest.audio = {
- *     soundtrack?: <inline beats-ambient|beats-composition recipe> | { beatsRef },
+ *     soundtrack?: <inline beats-ambient|beats-composition recipe> | { beatsRef }
+ *                  | 'field:<mood>' | { score: { mood, seed?, game?, role? } }   (a generated field cue, field-cue.js)
  *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } },
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
@@ -40,6 +41,7 @@ import { emitBeatsKernel } from './beats-kernel.js';
 import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
+import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
 const DEFAULT_FOOTSTEPS = {
@@ -109,7 +111,8 @@ function resolveBeatsRef(beatsRef, expectKinds) {
 /**
  * resolveWorldAudio(audioSpec, ctx) → payload.audio | null
  * ctx carries the manifest's declarative lighting mood ({ time }) so wind
- * defaults follow the scene (night reads quieter and darker).
+ * defaults follow the scene (night reads quieter and darker), and the world's
+ * `ref`, the seed of a field soundtrack that names none.
  */
 export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (!audioSpec || typeof audioSpec !== 'object') return null;
@@ -117,7 +120,13 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
 
   if (audioSpec.soundtrack) {
     let recipe = audioSpec.soundtrack;
-    if (recipe.beatsRef) {
+    // a generated field cue: the stored seed, else the world's own ref (unique per world, stable per render).
+    const field = parseFieldSpec(recipe);
+    if (field) {
+      recipe = normalizeBeatsManifest(fieldCue(field, { fallbackSeed: ctx.ref ? seedOfRef(ctx.ref) : 0 }));
+    } else if (typeof recipe === 'string') {
+      throw new Error(`audio.soundtrack '${recipe}' — use 'field:<mood>', an inline beats recipe or { beatsRef }`);
+    } else if (recipe.beatsRef) {
       recipe = resolveBeatsRef(recipe.beatsRef, ['beats-ambient', 'beats-composition', 'beats-pattern']);
     } else {
       const { ok, errors } = validateBeatsManifest(recipe);

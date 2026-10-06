@@ -121,6 +121,80 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
   `npm test` checks the bundled book as well.
 
+### MIDI orchestra
+
+- **In progress.** The robot band learns styles from studied masters, written as manuals an agent reads
+  before composing, not as presets. The first is **robot rock**: the 16-bit action-game sound of a rock band
+  played by machines. The card `beats-robot-rock` (via `get_beats_vocab` or `semantic_search`) covers:
+  - one fixed band and one room for a whole game, with each stage choosing only what is wet;
+  - a riff-and-bass engine, with the bass answering the lead;
+  - an intensity ladder from stage select to final boss, with a form for each scenario: stage, boss,
+    fortress, select, victory;
+  - an element (water, fire, ice, machine) signalled inside the groove rather than by swapping the band;
+  - an 8-voice discipline.
+- Every manual is white label: it names traits, never a franchise or composer.
+- The second style manual, **field orchestra**, covers the 32-bit strategy-RPG score: an orchestra written for a
+  few voices that still reads as orchestral. The card `beats-field-orchestra` covers:
+  - an energy ladder (idyllic, adventurous, processional, battle), with a form and a mix for each step;
+  - layers that enter one at a time;
+  - one shared hall, with the sustained sections wet and the percussion dry;
+  - the orchestra played as a band;
+  - loops that never close V–i;
+  - instrument families as dramatic tags.
+- New authoring vocabulary. All of it is opt-in; recipes without it expand and render byte-identical:
+  - rhythms `dotted`, `dotted-quarter` and the 6/8 `lilt`;
+  - voicings `pedal`, `pedal-5` and `drone` (the key's tonic, fifth or open fifth held under any chart);
+  - grooves `march`, `processional` and `travel`;
+  - snare-rudiment fills `paradiddle`, `drag`, `five-stroke` and `long-roll`;
+  - woodwind and timpani band roles;
+  - bands `orchestra-pastoral`, `orchestra-field`, `orchestra-processional` and `orchestra-battle`.
+- Harmony gains:
+  - the Phrygian bII as the danger chord;
+  - the tonic pedal;
+  - loop-seam cadences;
+  - the tonic flip;
+  - the Aeolian march;
+  - modes ranked by tension;
+  - key shifts by a third or a fifth between sections.
+- The worked set, `lib/graph/beats/field-moods.js`: idyllic `plains`, `desert`, `village` and `forest`; adventurous
+  `highlands`, `expedition` and `wayfarer`. Each row carries an `energy`. Not yet wired to a world or a tool.
+  Machine gates in `field-moods.test.js` hold each energy to its budget:
+  - one colour alone at the opening;
+  - parts and leads per bar;
+  - no V–i at the seam;
+  - a dynamics ceiling;
+  - adventurous moods keep moving.
+- Never the same score twice. `lib/graph/beats/field-score.js` generates field cues from these principles:
+  - `scoreIdentity(gameSeed)` rolls a game's identity: home key, a palette flavour (orchestral, folk, chamber,
+    synth-era, silk-road) with its instruments per role from the shelf, one hall, and a motif rhythm.
+  - `fieldScore(mood, { seed, identity })` rolls a cue inside the mood: mode, tempo, meter, a progression from
+    the mood's harmony family, new melodies, the arrangement order and the gear change.
+  - Same seeds give the same music; new seeds give a different score. Over 60 seeds per mood every melody
+    differs, every key appears, and all 420 recipes are distinct. Cues sharing an identity keep its tonic,
+    palette, hall and motif.
+  - `field-gates.js`: the principles as an advisory check over any beats composition, run on every generated
+    seed and on the hand-written takes. The village take keeps its flute counterline as a recorded exception.
+  - The card tells an agent composing by hand to use a fresh seed and a game identity.
+- A field score is now one call away, and mojulo suggests one:
+  - a world takes `audio: { soundtrack: 'field:plains' }` (or `{ score: { mood, seed, game } }`) and plays a
+    generated field cue. `compose_world` stores a fresh seed, so every world sounds different until you keep one;
+  - `create_beats({ kind: 'beats-composition', title, score: { mood } })` mints a field cue with fresh seeds and
+    says how to keep a whole game in one identity (`game`);
+  - a world composed without music gets a suggested mood and the exact `audio` line in the reply.
+- Loop points. A render with `loop` (`export_beats { loop: true }`, `beats.wav?loop=1`, or the recipe's
+  `export.loop`) is exactly one pass, cut at the next bar line. The ring-out is folded back onto the start, the way
+  a live loop carries it, and a `smpl` loop chunk marks the loop for samplers and game engines. The Godot pack
+  renders every music bed this way, so a level or menu loops without the old gap of silence. Off by default;
+  renders without it are byte-identical.
+- More than fields. The same generator now writes the rest of a game's non-battle music, each mood a set of
+  leanings inside the same principles:
+  - towns and interiors: `town`, `tavern` (folk instruments in any game), `shop`, `chapel`;
+  - `night`;
+  - `ceremony`, a stately procession with a brass lead (a new `processional` energy in the gates);
+  - story cues: `prayer`, `sorrow`, `tension` (before a fight, not the fight), `betrayal`, `triumph`.
+  Every mood carries its role (field, travel, town, interior, story), and the suggestion knows the new places.
+  The existing moods are unchanged, note for note.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
