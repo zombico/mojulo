@@ -12,6 +12,33 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Test cull
+
+The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
+never wired into a tool, a kind or a route. They are gone with their tests, and a quick critical tier joins the full run.
+
+- **Removed, with their tests:** the aircraft fuselage wrap-net (and its spike, which wrote review SVGs into the
+  removed `lite-template/` tree on every run), the box-vehicle face-net and its cards and variants (plus a second
+  spike writer), the civic-glyph city composer, the figure landmark slots, the houseplant, the manga-cel,
+  imperfect-cel and field-cel renderers with their shared cell geometry, the terrain region plan, the wave-drape
+  fitter, the face-material role selector, the pixelizer prerender seam, the mega-boy flipbook spike and the
+  beats diff exhibit. None was reachable from `app/`, `bin/`, the MCP registry or a package script.
+- **Kept on purpose:** the removal guards (chatbot carve-out, moved notices, pack boundaries), the deprecated
+  `MOJULO_RECIPE_BOOK` loader tests (it still loads until 4.0), and the proof worlds the game runtime's tests use
+  as fixtures.
+- **The `wardrobe-construction` card** described the drape fit as a function call no tool exposes. It now states
+  the principle.
+- **`npm run test:critical`** (`vitest.critical.config.js`): the MCP surface and its pins, the plugin profile, the
+  guards, the database, versions, auth, the bundled book, scripts, the dashboard and every characterization pin,
+  without the geometry-heavy suites. About 2,400 tests in two minutes against the full run's eight; CI still runs
+  `npm test`.
+- **A deep tier for exhaustive sweeps.** `*.deep.test.js` files are left out of `npm test` and run with
+  `npm run test:deep` (CI runs it after `npm test`). `npm run test:deep:changed` runs only the sweeps whose imports
+  touch an uncommitted change, so editing a city kernel runs none and editing `anime-head.js`, `anime-sculpt.js` or
+  `station-loft.js` runs the anime ones. First in: the anime head's range-end and named-cut sweeps and every look
+  built on both bases (`anime-head.deep.test.js`, `anime-looks.deep.test.js`), about 160 of the suite's
+  file-seconds. The law tests stay in `anime-head.test.js` and `anime-looks.test.js`.
+
 ### create_sketch diet
 
 `create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
