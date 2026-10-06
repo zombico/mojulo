@@ -488,6 +488,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Where scientists disagree, the entry takes the more visual reading and says so beside the value.
 - Each species' encyclopedia entry lists its gaits (`MOVES`). No plan changes: every species builds
   byte-identically.
+- Every species gets a bone tree (`lib/graph/fauna/skeleton.js`), derived from the plan it already builds:
+  - spine, neck and tail bones laid along the body's own centreline, in the family's fixed counts, and a
+    head bone pitched as worn; a camel's or plesiosaur's lofted neck is followed along its curve;
+  - one bone per leg row, chained joint to joint; the main chain of each shoulder and hip limb carries a role
+    (`fore.humerus` … `hind.metatarsus`), the shared animal profile a gait solver or a clip library maps by;
+  - paired fins as their own bones; snakes and fish carve their tail from the rear of the body;
+  - a binding for every plan part: torso, neck and tail stations ride the bones of their own region, a leg
+    stripe rides its leg, other decorations ride the body.
+  It is not wired into minting yet.
 
 ### Environmental sound
 
