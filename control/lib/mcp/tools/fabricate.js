@@ -24,7 +24,13 @@ const nextFor = (plan) => {
   if (plan.executors.includes('frames')) how.push('`frames`: a workbench frames entry (members as boxes), writing each planned `joints` row as a frame joint between the two members it joins; the frame places and counts the fittings');
   if (plan.executors.includes('scad')) how.push('`source`: an OpenSCAD program with each planned `cuts` call translated to the face it enters (cutters run from z = 0 down) and each printed part its own `parts` entry');
   if (!how.length) how.push('`source` or `frames` for the body; every planned part is bought and fitted by hand');
-  return `Call fabricate_solid again with the same needs and ${how.join('; or ')}. One executor per row: mint the other's needs as their own row. The bom is what to buy; carry the notices with the object.`;
+  const notes = [];
+  const grips = plan.needs.filter((n) => n.assumes).map((n) => `${n.id} ${n.assumes.grip} mm`);
+  if (grips.length) notes.push(`Bolt lengths assume a grip (mm of material under the head) of ${grips.join(', ')}: pass \`grip\` on a need when yours differs, and plan again.`);
+  if (plan.overlaps.length) notes.push(`Counted twice: ${plan.overlaps.map((o) => o.why).join('; ')}.`);
+  if (plan.suggestions.length) notes.push(`Also needed, and not in your needs: ${plan.suggestions.map((s) => `{ function: '${s.function}'${s.through ? `, through: '${s.through}'` : ''}${s.rim ? `, rim: [${s.rim.join(', ')}]` : ''}${s.shaftD ? `, shaftD: ${s.shaftD}` : ''} } (${s.why})`).join('; ')}. Add them and plan again, or say why not.`);
+  notes.push('Each cut says `where` it goes.');
+  return `Call fabricate_solid again with the same needs and ${how.join('; or ')}. One executor per row: mint the other's needs as their own row. The bom is what to buy; carry the notices with the object. ${notes.join(' ')}`;
 };
 
 export async function fabricateSolidHandler(input) {
@@ -49,17 +55,20 @@ export async function fabricateSolidHandler(input) {
     if (unplaced.length) warnings.push(`fabricate: the source never calls ${unplaced.join(', ')} — the plan's cut for it is not placed`);
     fabrication = { version: plan.version, executor, bom: plan.bom.map((l) => ({ ...l, from: 'plan' })), unplaced };
   } else {
-    out = await createWorkbenchHandler({ ...knobs, title, ref, folder_ref: folderRef, frames, fabricate });
+    // The frames say their unit; a row that does not declare its own takes it, so the size readout is not cm by default.
+    const units = knobs.units ?? (new Set(frames.map((f) => f && f.unit)).size === 1 && typeof frames[0]?.unit === 'string' ? frames[0].unit : undefined);
+    out = await createWorkbenchHandler({ ...knobs, ...(units ? { units } : {}), title, ref, folder_ref: folderRef, frames, fabricate });
     const unplaced = unplacedJoints(plan, out.stats.frames);
     if (unplaced.length) warnings.push(`fabricate: no frame joint of type ${unplaced.join(', ')} was made — the plan's joint for it is not placed`);
     fabrication = { version: plan.version, executor, bom: mintedBom(plan, out.stats.frames), unplaced };
   }
+  if (plan.overlaps.length) warnings.push(`fabricate: counted twice — ${plan.overlaps.map((o) => o.why).join('; ')}`);
   if (elsewhere.length) warnings.push(`fabricate: ${elsewhere.join(', ')} ${elsewhere.length === 1 ? 'is' : 'are'} planned for the other executor — mint ${elsewhere.length === 1 ? 'it' : 'them'} as ${elsewhere.length === 1 ? 'its' : 'their'} own row`);
   return {
     ...out,
     stats: {
       ...out.stats,
-      fabrication: { ...fabrication, notices: plan.notices, gaps: plan.gaps, elsewhere },
+      fabrication: { ...fabrication, notices: plan.notices, gaps: plan.gaps, elsewhere, overlaps: plan.overlaps, suggestions: plan.suggestions },
       ...(warnings.length ? { warnings: [...(out.stats.warnings || []), ...warnings] } : {}),
     },
   };

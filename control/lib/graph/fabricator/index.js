@@ -61,6 +61,27 @@ function bolt(style, ctx, { nut = true, engage = 0 } = {}) {
   return `${size}x${length}-${style}`;
 }
 const woodInsertSize = (ctx) => ({ M8: 'M8', M10: 'M10' }[sizeOf(ctx)] || 'M6');
+/** Four heat-set inserts and four screws of `size` (a string, or a function of the context) for a board's standoffs. */
+const boardScrews = (size) => {
+  const sz = (c) => (typeof size === 'function' ? size(c) : size);
+  return [{ part: 'heat-set-insert', route: 'buy', label: (c) => `${sz(c)} heat-set insert`, qty: 4 },
+    { part: 'socket-bolt', route: 'buy', code: (c) => (sz(c) === 'M3' ? 'M3x6-socket' : null), label: (c) => (sz(c) === 'M3' ? null : `${sz(c)}×6 socket head cap screw`), qty: 4 }];
+};
+/** mj_enclosure's own lid fastening: four M3 heat-set posts and four countersunk screws through the lid. */
+const lidScrews = () => [{ part: 'heat-set-insert', route: 'buy', label: () => 'M3 heat-set insert', qty: 4 }, { part: 'csk-bolt', route: 'buy', code: () => 'M3x8-csk', qty: 4 }];
+/** O-ring cord for a rectangular rim: the cross-section by size, the length the rim's perimeter plus a margin. */
+const rimOf = ({ need }) => (Array.isArray(need.rim) ? need.rim : [100, 70]);
+const cordCs = (c) => { const [w, d] = rimOf(c); return 2 * (w + d) <= 400 ? 2.62 : 3.53; };
+const cordLength = (c) => { const [w, d] = rimOf(c); return Math.ceil((2 * (w + d) * 1.1) / 10) * 10; };
+/** The jobs a sealed box still needs: its rim seal sized to the box, a cable entry, a breather. */
+function sealSuggestions({ need }) {
+  const [w, d] = need.inner || [80, 50];
+  return [{ function: 'seal', rim: [w + 8, d + 8], why: 'the lid seals on a rectangular rim' },
+    { function: 'seal', through: 'cable', why: 'a cable into a sealed box needs a gland' },
+    { function: 'seal', through: 'vent', why: 'a sealed box outdoors needs a breather against condensation' }];
+}
+/** A threaded hole's depth: the bolt's 2d of engagement plus 2 mm so its tip never bottoms out before it clamps. */
+const insertDepth = (ctx) => 2 * dOf(sizeOf(ctx)) + 2;
 const heatsetSize = (ctx) => (ISO_SIZES[sizeOf(ctx)]?.heatset > 0 ? sizeOf(ctx) : null);
 
 /** The ball bearing on the shaft ⌀ (or linear bushing for the rod): the slimmest for a light load, else the heaviest. */
@@ -77,13 +98,15 @@ const pinD = ({ caps }) => ({ light: 3, medium: 4, heavy: 6 }[caps.load]);
 
 // ── the strategies ──
 // `{ id, line, needs?: { <capability>: [values] }, when?: [tag], unless?: [tag], uses?: [use], kit?: [mj module],
-//    principle? }`; a use is `{ part, route, code?(ctx), call?(ctx), qty? }`: an inventory row taken by a route, with
+//    principle?, joint?, covers?, suggest?(ctx) }`; a use is `{ part, route, code?(ctx), call?(ctx), label?(ctx), qty? }`: an inventory row taken by a route, with
 // the hardware code or library call it resolves to (null = no stock size, so the strategy does not qualify). A
 // strategy with no uses mints: `kit` names the library modules a from-scratch design starts from, `principle` the
 // rule it follows. The last strategy of every function is a mint with no needs and no tags. `joint` (wood strategies)
 // is the furniture-frame joint that carries the strategy out: a workbench `frames` entry's joint code
 // (../construction/furniture-joints.js) places and counts those fittings itself, so the fabricator decides and the
-// frame executes.
+// frame executes. `covers` names the other jobs a strategy's own parts already do (an enclosure carries its lid
+// screws), so a plan that also lists those jobs is told it is counting them twice; `suggest` names the needs a
+// strategy implies but does not do itself (a bearing implies something retains the shaft).
 const mint = (fn, kit = [], principle = 'size it to the load and print orientation, and check it with the rigidity sensor') =>
   ({ id: `mint-${fn}`, line: 'design it from scratch as a solid', kit, principle });
 
@@ -94,7 +117,7 @@ export const STRATEGIES = Object.freeze({
     { id: 'snap-fit', line: 'a cantilever hook that springs over a lip: no tools, nothing bought', needs: { host: ['printed'], load: ['light'] }, when: ['tool-free', 'print-only'],
       kit: ['mj_edge_chamfer', 'mj_fit'], principle: 'a hook whose root strain stays under 2 % at full deflection, printed with the hook along the layers' },
     { id: 'thumb-screw', line: 'a knurled thumb screw into a heat-set insert, turned by hand', needs: { host: ['printed'], load: ['light', 'medium'] }, when: ['tool-free'], unless: ['print-only'],
-      uses: [{ part: 'thumb-screw', route: 'buy', code: null }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M4", 8)' }] },
+      uses: [{ part: 'thumb-screw', route: 'buy', code: null }, { part: 'heat-set-insert', route: 'buy', label: () => 'M4 heat-set insert' }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M4", 10)' }] },
     { id: 'thumb-screw-wood', line: 'a knurled thumb screw into a wood insert, turned by hand', needs: { host: ['wood'] }, when: ['tool-free'], unless: ['print-only'],
       uses: [{ part: 'thumb-screw', route: 'buy', code: null }, { part: 'wood-insert', route: 'buy', code: () => 'insert-M6' }] },
     { id: 'cam-lock', joint: { type: 'cam-lock' }, line: 'a cam in one panel pulls a bolt in the other, hidden, with dowels to locate', needs: { host: ['wood'] }, when: ['flat-pack'], unless: ['tool-free'],
@@ -104,11 +127,11 @@ export const STRATEGIES = Object.freeze({
     { id: 'insert-bolt', joint: { type: 'insert-bolt' }, line: 'a socket bolt into a threaded insert, for a joint opened again and again', needs: { host: ['wood'], cycles: ['many'] }, unless: ['tool-free'],
       uses: [{ part: 'wood-insert', route: 'buy', code: (c) => `insert-${woodInsertSize(c)}` }, { part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', { ...c, need: { ...c.need, size: woodInsertSize(c) } }, { nut: false, engage: 12 }) }] },
     { id: 'heatset-bolt', line: 'a socket bolt into a heat-set insert, for a printed joint opened again and again', needs: { host: ['printed'], cycles: ['many'] }, unless: ['print-only', 'tool-free'],
-      uses: [{ part: 'heat-set-insert', route: 'fit', call: (c) => heatsetSize(c) && `mj_heatset_hole("${heatsetSize(c)}", ${2 * dOf(sizeOf(c))})` }, { part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: 2 * dOf(sizeOf(c)) }) }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_counterbore("${sizeOf(c)}", ${gripOf(c)})` }] },
+      uses: [{ part: 'heat-set-insert', route: 'buy', label: (c) => `${sizeOf(c)} heat-set insert` }, { part: 'heat-set-insert', route: 'fit', call: (c) => heatsetSize(c) && `mj_heatset_hole("${heatsetSize(c)}", ${insertDepth(c)})` }, { part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: 2 * dOf(sizeOf(c)) }) }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_counterbore("${sizeOf(c)}", ${gripOf(c)})` }] },
     { id: 'nut-trap', line: 'a socket bolt into a nut captured in a printed hex pocket', needs: { host: ['printed'], access: ['both'] }, unless: ['print-only', 'tool-free'],
       uses: [{ part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c) }, { part: 'hex-nut', route: 'buy', code: (c) => `nut-${sizeOf(c)}` }, { part: 'hex-nut', route: 'fit', call: (c) => `mj_nut_trap("${sizeOf(c)}")` }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_clearance_hole("${sizeOf(c)}", ${gripOf(c)})` }] },
     { id: 'tapped', line: 'a socket bolt into a thread tapped in the print, for a joint seldom opened', needs: { host: ['printed'], load: ['light'], cycles: ['few'] }, unless: ['print-only', 'tool-free'],
-      uses: [{ part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: 2 * dOf(sizeOf(c)) }) }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_tapped_hole("${sizeOf(c)}", ${2 * dOf(sizeOf(c))})` }] },
+      uses: [{ part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: 2 * dOf(sizeOf(c)) }) }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_tapped_hole("${sizeOf(c)}", ${insertDepth(c)})` }] },
     { id: 'wood-screw', joint: { type: 'screwed' }, line: 'chipboard screws, piloted', needs: { host: ['wood'], cycles: ['few'] }, unless: ['tool-free'],
       uses: [{ part: 'wood-screw', route: 'buy', code: ({ caps }) => (caps.load === 'heavy' ? 'wood-5x50' : 'wood-4x30') }] },
     { id: 'rivet-nut', line: 'a rivet nut set from one side of the sheet, a socket bolt into it', needs: { host: ['sheet'] }, unless: ['print-only', 'tool-free'],
@@ -121,7 +144,7 @@ export const STRATEGIES = Object.freeze({
   ],
   thread: [
     { id: 'heat-set', line: 'a brass insert melted into a printed pilot', needs: { host: ['printed'] }, unless: ['print-only'],
-      uses: [{ part: 'heat-set-insert', route: 'fit', call: (c) => heatsetSize(c) && `mj_heatset_hole("${heatsetSize(c)}", ${2 * dOf(sizeOf(c))})` }] },
+      uses: [{ part: 'heat-set-insert', route: 'buy', label: (c) => `${sizeOf(c)} heat-set insert` }, { part: 'heat-set-insert', route: 'fit', call: (c) => heatsetSize(c) && `mj_heatset_hole("${heatsetSize(c)}", ${insertDepth(c)})` }] },
     { id: 'nut-trap', line: 'a nut dropped into a printed hex pocket', needs: { host: ['printed'] }, unless: ['print-only'],
       uses: [{ part: 'hex-nut', route: 'buy', code: (c) => `nut-${sizeOf(c)}` }, { part: 'hex-nut', route: 'fit', call: (c) => `mj_nut_trap("${sizeOf(c)}")` }] },
     { id: 'printed-thread', line: 'an ISO thread printed into the part itself', needs: { host: ['printed'] },
@@ -134,7 +157,7 @@ export const STRATEGIES = Object.freeze({
   ],
   locate: [
     { id: 'dowel-pin', line: 'two hardened pins pressed into one part, slip-fit holes in the other', needs: { host: ['printed', 'metal'] }, when: ['precise'], unless: ['print-only'],
-      uses: [{ part: 'dowel-pin', route: 'buy', code: null, qty: 2 }, { part: 'dowel-pin', route: 'fit', call: (c) => `mj_hole(${pinD(c)}, ${3 * pinD(c)}, "press")` }, { part: 'dowel-pin', route: 'fit', call: (c) => `mj_hole(${pinD(c)}, ${3 * pinD(c)}, "slip")` }] },
+      uses: [{ part: 'dowel-pin', route: 'buy', code: null, qty: 2 }, { part: 'dowel-pin', route: 'fit', call: (c) => `mj_hole(${pinD(c)}, ${3 * pinD(c)}, "press")`, qty: 2 }, { part: 'dowel-pin', route: 'fit', call: (c) => `mj_hole(${pinD(c)}, ${3 * pinD(c)}, "slip")`, qty: 2 }] },
     { id: 'shelf-pin', joint: { type: 'shelf-pin' }, line: 'pins in a row of holes, so a shelf can be moved', needs: { host: ['wood'] }, when: ['serviceable'],
       uses: [{ part: 'shelf-pin', route: 'buy', code: () => 'shelf-pin-5', qty: 4 }] },
     { id: 'wood-dowel', joint: { type: 'dowel' }, line: 'fluted dowels, glued or dry', needs: { host: ['wood'] },
@@ -164,14 +187,15 @@ export const STRATEGIES = Object.freeze({
     { id: 'wheel-carriage', line: 'a wheel plate riding the extrusion\'s slots', needs: { host: ['extrusion'] },
       uses: [{ part: 'wheel-carriage', route: 'buy', code: null }, { part: 't-slot-extrusion', route: 'buy', code: null }] },
     { id: 'linear-bushing', line: 'linear ball bushings on hardened rods', needs: { linear: ['stock'] }, unless: ['print-only'],
-      uses: [{ part: 'linear-bearing', route: 'buy', code: ({ need }) => bearingFor(need.shaftD, true), qty: 2 }, { part: 'linear-rod', route: 'buy', code: null, qty: 2 }, { part: 'linear-bearing', route: 'fit', call: ({ need }) => bearingFor(need.shaftD, true) && `mj_bearing_seat("${bearingFor(need.shaftD, true)}")` }] },
+      uses: [{ part: 'linear-bearing', route: 'buy', code: ({ need }) => bearingFor(need.shaftD, true), qty: 2 }, { part: 'linear-rod', route: 'buy', code: null, qty: 2 }, { part: 'linear-bearing', route: 'fit', call: ({ need }) => bearingFor(need.shaftD, true) && `mj_bearing_seat("${bearingFor(need.shaftD, true)}")`, qty: 2 }] },
     { id: 'printed-dovetail', line: 'a printed dovetail on a running fit', needs: { host: ['printed'], load: ['light'] },
       kit: ['mj_fit', 'mj_fit_coupon'], principle: 'a 60° dovetail with a running clearance taken from a coupon, printed with the rail along the layers' },
     mint('slide'),
   ],
   spin: [
     { id: 'ball-bearing', line: 'a sealed ball bearing pressed into a seat, the shaft through its bore', needs: { bearing: ['stock'] }, unless: ['print-only'],
-      uses: [{ part: 'radial-bearing', route: 'buy', code: ({ need, caps }) => bearingFor(need.shaftD, false, caps.load), qty: 2 }, { part: 'radial-bearing', route: 'fit', call: ({ need, caps }) => bearingFor(need.shaftD, false, caps.load) && `mj_bearing_seat("${bearingFor(need.shaftD, false, caps.load)}")` }] },
+      suggest: ({ need }) => [{ function: 'retain', shaftD: need.shaftD, why: 'something keeps the shaft from walking out of its bearings' }],
+      uses: [{ part: 'radial-bearing', route: 'buy', code: ({ need, caps }) => bearingFor(need.shaftD, false, caps.load), qty: 2 }, { part: 'radial-bearing', route: 'fit', call: ({ need, caps }) => bearingFor(need.shaftD, false, caps.load) && `mj_bearing_seat("${bearingFor(need.shaftD, false, caps.load)}")`, qty: 2 }] },
     { id: 'printed-bushing', line: 'a printed sleeve on a running fit', needs: { load: ['light'] },
       kit: ['mj_hole', 'mj_fit'], principle: 'a sleeve at least 1.5 × the shaft ⌀ long, a running clearance, a lubricated steel shaft' },
     mint('spin', ['mj_hole', 'mj_bearing_seat']),
@@ -210,12 +234,18 @@ export const STRATEGIES = Object.freeze({
     { id: 'd-flat', line: 'a D-flat on the shaft, a D bore in the hub', needs: { shaft: ['small', 'mid'] },
       uses: [{ part: 'd-shaft', route: 'fit', call: ({ need }) => `mj_d_bore(${need.shaftD})` }] },
     { id: 'set-screw', line: 'a set screw into the shaft through the hub', needs: { shaft: ['small', 'mid', 'large'] }, unless: ['print-only'],
-      uses: [{ part: 'set-screw', route: 'buy', code: null }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M3", 5)' }] },
+      uses: [{ part: 'set-screw', route: 'buy', code: null }, { part: 'heat-set-insert', route: 'buy', label: () => 'M3 heat-set insert' }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M3", 8)' }] },
     mint('retain', ['mj_d_bore', 'mj_circlip_groove']),
   ],
   seal: [
-    { id: 'o-ring', line: 'an O-ring in a groove, squeezed a quarter', needs: { host: ['printed', 'metal'] }, unless: ['print-only'],
-      uses: [{ part: 'o-ring', route: 'buy', code: null }, { part: 'o-ring', route: 'fit', call: ({ need }) => `mj_oring_groove(${need.sealD ?? 40}, ${oringCs(need.sealD ?? 40)})` }] },
+    { id: 'cable-gland', line: 'a cable gland through the wall, its lock nut inside', needs: { through: ['cable'] },
+      uses: [{ part: 'cable-gland', route: 'buy', code: null }, { part: 'cable-gland', route: 'fit', call: ({ need }) => `mj_hole(12, ${need.wall ?? 4}, "slip")` }] },
+    { id: 'breather-vent', line: 'a membrane vent so a sealed box breathes without letting water in (no condensation)', needs: { through: ['vent'] },
+      uses: [{ part: 'breather-vent', route: 'buy', code: null }, { part: 'breather-vent', route: 'fit', call: ({ need }) => `mj_hole(12, ${need.wall ?? 4}, "slip")` }] },
+    { id: 'cord-seal', line: 'O-ring cord in a groove that follows a rectangular rim, squeezed a quarter', needs: { rim: ['rect'] }, unless: ['print-only'],
+      uses: [{ part: 'o-ring-cord', route: 'buy', label: (c) => `O-ring cord ⌀${cordCs(c)} mm, ${cordLength(c)} mm (the rim plus a 10 % margin)` }, { part: 'o-ring-cord', route: 'fit', call: (c) => `mj_oring_gland(${cordCs(c)})` }] },
+    { id: 'o-ring', line: 'an O-ring in a round groove, squeezed a quarter', needs: { host: ['printed', 'metal'], rim: ['round'] }, unless: ['print-only'],
+      uses: [{ part: 'o-ring', route: 'buy', label: ({ need }) => `O-ring, ${need.sealD ?? 40} mm inside ⌀ × ${oringCs(need.sealD ?? 40)} mm cross-section` }, { part: 'o-ring', route: 'fit', call: ({ need }) => `mj_oring_groove(${need.sealD ?? 40}, ${oringCs(need.sealD ?? 40)})` }] },
     { id: 'gasket-tape', line: 'closed-cell foam tape on a flange', needs: { host: ['sheet', 'wood', 'extrusion'] },
       uses: [{ part: 'gasket-tape', route: 'buy', code: null }] },
     mint('seal', ['mj_molded_shell'], 'a labyrinth lip and a drip edge: keeps splashes out, never immersion'),
@@ -232,10 +262,10 @@ export const STRATEGIES = Object.freeze({
       uses: [{ part: 'vesa-pattern', route: 'fit', call: ({ need }) => `mj_vesa(${need.vesa ?? 100}, 5)` }, { part: 'socket-bolt', route: 'buy', code: ({ need }) => ((need.vesa ?? 100) === 200 ? 'M6x12-socket' : 'M4x10-socket'), qty: 4 }] },
     { id: 't-slot', line: 'T-nuts in the extrusion\'s slot, socket bolts through the part', needs: { to: ['t-slot'] },
       uses: [{ part: 't-nut', route: 'buy', code: null, qty: 2 }, { part: 'socket-bolt', route: 'buy', code: () => 'M5x10-socket', qty: 2 }, { part: 'socket-bolt', route: 'fit', call: () => 'mj_counterbore("M5", 5)' }] },
-    { id: 'rpi', line: 'standoffs on the board\'s published hole pattern', needs: { to: ['board'], board: ['rpi'] },
-      uses: [{ part: 'board-raspberry-pi', route: 'fit', call: ({ need }) => `mj_board_standoffs("${need.board}", 5, insert = true)` }] },
-    { id: 'arduino', line: 'standoffs on the board\'s published hole pattern', needs: { to: ['board'], board: ['arduino'] },
-      uses: [{ part: 'board-arduino', route: 'fit', call: ({ need }) => `mj_board_standoffs("${need.board}", 5, insert = true)` }] },
+    { id: 'rpi', line: 'standoffs on the board\'s published hole pattern, the board screwed into heat-set inserts', needs: { to: ['board'], board: ['rpi'] },
+      uses: [{ part: 'board-raspberry-pi', route: 'fit', call: ({ need }) => `mj_board_standoffs("${need.board}", 5, insert = true)` }, ...boardScrews('M2.5')] },
+    { id: 'arduino', line: 'standoffs on the board\'s published hole pattern, the board screwed into heat-set inserts', needs: { to: ['board'], board: ['arduino'] },
+      uses: [{ part: 'board-arduino', route: 'fit', call: ({ need }) => `mj_board_standoffs("${need.board}", 5, insert = true)` }, ...boardScrews('M3')] },
     { id: 'camera', line: 'a 1/4-20 thread for a tripod or camera', needs: { to: ['camera'] },
       uses: [{ part: 'tripod-thread', route: 'buy', code: null }] },
     { id: 'action-cam-print', line: 'the three-prong mount printed into the part', needs: { to: ['action-cam'] },
@@ -250,26 +280,40 @@ export const STRATEGIES = Object.freeze({
       uses: [{ part: 'pegboard', route: 'buy', code: null }, { part: 'wood-screw', route: 'buy', code: () => 'wood-3.5x16', qty: 2 }] },
     { id: 'grid', line: 'a Gridfinity base under the part', needs: { to: ['grid'] },
       uses: [{ part: 'gridfinity', route: 'print', call: () => 'mj_gridfinity_bin(1, 1, 3, magnets = true)' }] },
+    { id: 'anti-tip', line: 'an anti-tip kit: the furniture fixed to the wall with its own plugs and screws', needs: { to: ['wall'], host: ['wood'] },
+      uses: [{ part: 'anti-tip-kit', route: 'buy', code: null }] },
     { id: 'wall', line: 'angle brackets screwed to the wall and the part', needs: { to: ['wall'] },
       uses: [{ part: 'angle-bracket', route: 'buy', code: ({ caps }) => (caps.load === 'heavy' ? 'bracket-L60' : 'bracket-L40'), qty: 2 }, { part: 'wood-screw', route: 'buy', code: () => 'wood-4x30', qty: 4 }] },
     mint('mount', ['mj_clearance_hole', 'mj_boss'], 'measure the host, then a keyhole slot, clamp or bracket to it'),
   ],
   enclose: [
-    { id: 'sealed-shell', line: 'a molded shell with an O-ring lid and screw bosses', when: ['waterproof'], unless: ['print-only'],
-      uses: [{ part: 'o-ring', route: 'buy', code: null }, { part: 'o-ring', route: 'fit', call: ({ need }) => `mj_oring_groove(${need.sealD ?? 80}, ${oringCs(need.sealD ?? 80)})` }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M3", 6)', qty: 4 }],
-      kit: ['mj_molded_shell', 'mj_boss'] },
-    { id: 'board-box', line: 'the parametric box, standoffs on the board\'s holes', needs: { board: ['rpi', 'arduino'], host: ['printed'] },
-      uses: [{ part: 'enclosure', route: 'print', call: ({ need }) => `mj_enclosure([${(need.inner || [90, 62, 30]).join(', ')}], board = "${need.board}")` }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M3", 6)', qty: 4 }] },
-    { id: 'project-box', line: 'the parametric box with a screwed lid', needs: { host: ['printed'] },
-      uses: [{ part: 'enclosure', route: 'print', call: ({ need }) => `mj_enclosure([${(need.inner || [80, 50, 30]).join(', ')}])` }] },
+    // A sealed box is the box: the seal, the cable entry and the breather are their own jobs, SUGGESTED as needs so
+    // each is counted once (a plan that lists them already gets no suggestion).
+    { id: 'sealed-board-box', line: 'the parametric box with a sealed lid, standoffs on the board\'s holes', needs: { board: ['rpi', 'arduino'], host: ['printed'] }, when: ['waterproof'],
+      covers: ['fasten', 'mount'], suggest: sealSuggestions,
+      uses: [{ part: 'enclosure', route: 'print', call: ({ need }) => `mj_enclosure([${(need.inner || [90, 62, 30]).join(', ')}], wall = 4, board = "${need.board}")` }, ...lidScrews(),
+        ...boardScrews(({ caps }) => (caps.board === 'rpi' ? 'M2.5' : 'M3'))] },
+    { id: 'sealed-box', line: 'the parametric box with a sealed lid', needs: { host: ['printed'] }, when: ['waterproof'],
+      covers: ['fasten'], suggest: sealSuggestions,
+      uses: [{ part: 'enclosure', route: 'print', call: ({ need }) => `mj_enclosure([${(need.inner || [80, 50, 30]).join(', ')}], wall = 4)` }, ...lidScrews()] },
+    { id: 'board-box', line: 'the parametric box, standoffs on the board\'s holes; its lid screws into heat-set posts', needs: { board: ['rpi', 'arduino'], host: ['printed'] },
+      covers: ['fasten', 'mount'],
+      uses: [{ part: 'enclosure', route: 'print', call: ({ need }) => `mj_enclosure([${(need.inner || [90, 62, 30]).join(', ')}], board = "${need.board}")` }, ...lidScrews(),
+        ...boardScrews(({ caps }) => (caps.board === 'rpi' ? 'M2.5' : 'M3'))] },
+    { id: 'project-box', line: 'the parametric box; its lid screws into heat-set posts', needs: { host: ['printed'] },
+      covers: ['fasten'],
+      uses: [{ part: 'enclosure', route: 'print', call: ({ need }) => `mj_enclosure([${(need.inner || [80, 50, 30]).join(', ')}])` }, ...lidScrews()] },
     { id: 'sheet-box', line: 'a folded sheet box', needs: { host: ['sheet'] },
       kit: ['mj_sheet', 'mj_sheet_flat'], principle: 'bend allowance from the material\'s K factor; flat pattern exported for the brake' },
+    { id: 'grooved-back', joint: { type: 'groove' }, line: 'panels on fittings, a back or bottom captured in grooves', needs: { host: ['wood'] } },
     mint('enclose', ['mj_molded_shell', 'mj_boss', 'mj_rib']),
   ],
   store: [
     { id: 'gridfinity', line: 'Gridfinity bins on a 42 mm grid', needs: { host: ['printed'] },
       uses: [{ part: 'gridfinity', route: 'print', call: ({ need }) => `mj_gridfinity_bin(${need.ux ?? 1}, ${need.uy ?? 1}, ${need.uz ?? 3})` }] },
-    { id: 'pegboard', line: 'hooks and holders on pegboard', needs: { host: ['wood'] },
+    { id: 'shelves', joint: { type: 'shelf-pin' }, line: 'shelves on pins in rows of holes, moved by hand', needs: { host: ['wood'] },
+      uses: [{ part: 'shelf-pin', route: 'buy', code: () => 'shelf-pin-5', qty: 4 }] },
+    { id: 'pegboard', line: 'hooks and holders on pegboard', needs: { to: ['pegboard'] },
       uses: [{ part: 'pegboard', route: 'buy', code: null }] },
     mint('store', ['mj_rounded_box']),
   ],
@@ -301,8 +345,9 @@ function lower(s, ctx) {
     if (!gate.ok) return { parts, refused: gate.why };
     const code = u.code ? u.code(ctx) : null;
     const call = u.call ? u.call(ctx) : null;
-    if ((u.code && !code) || (u.call && !call)) return { parts, refused: `${row.id}: no stock size for this need` };
-    parts.push({ part: row.id, label: row.label, route: u.route, provenance: row.provenance, standard: row.standard || null,
+    const label = u.label ? u.label(ctx) : null;
+    if ((u.code && !code && !label) || (u.call && !call)) return { parts, refused: `${row.id}: no stock size for this need` };
+    parts.push({ part: row.id, label: label || row.label, route: u.route, provenance: row.provenance, standard: row.standard || null,
       code, call, buy: u.route === 'buy' ? row.buy || null : null, qty: u.qty ?? 1 });
   }
   return { parts, refused: null };
@@ -332,11 +377,11 @@ function walk(need) {
 }
 
 /** 'buy', 'fit', 'print' joined by '+'; a part-less strategy is a `principle` (a known from-scratch recipe) or the `mint`. */
-const routeOf = (s, parts) => (parts.length ? [...new Set(parts.map((p) => p.route))].join('+') : /^mint-/.test(s.id) ? 'mint' : 'principle');
+const routeOf = (s, parts) => (parts.length ? [...new Set(parts.map((p) => p.route))].join('+') : s.joint ? 'joint' : /^mint-/.test(s.id) ? 'mint' : 'principle');
 
 function present(need, { s, parts }, caps, tags) {
   const notices = [...new Set(parts.flatMap((p) => noticesOf(INVENTORY[p.part])))];
-  return { function: need.function, strategy: s.id, line: s.line, route: routeOf(s, parts), parts, joint: s.joint || null, kit: s.kit || [],
+  return { function: need.function, strategy: s.id, line: s.line, route: routeOf(s, parts), parts, joint: s.joint || null, covers: s.covers || [], suggest: s.suggest ? s.suggest({ need }) : [], kit: s.kit || [],
     principle: s.principle || null, why: whyOf(s, caps, tags), notices };
 }
 
@@ -371,11 +416,11 @@ export const PROBES = Object.freeze([
   ...each('drive', [{}, { loadN: 300 }, { loadN: 2000 }]),
   ...each('transmit', CAPABILITIES.axes.values.flatMap((axes) => [{ axes }, { axes, span: 120 }, { axes, loadN: 300 }])),
   ...each('retain', [3, 5, 8, 12, 20, 30].flatMap((shaftD) => [{ shaftD }, { shaftD, loadN: 2000 }])),
-  ...each('seal', HOSTS.map((host) => ({ host }))),
+  ...each('seal', [...HOSTS.map((host) => ({ host })), { rim: [120, 80] }, { through: 'cable' }, { through: 'vent' }]),
   ...each('catch', HOSTS.map((host) => ({ host }))),
   ...each('mount', [...CAPABILITIES.to.values.map((to) => ({ to })), { to: 'board', board: 'rpi4' }, { to: 'board', board: 'arduino-uno' }, { to: 'board', board: 'esp32-devkit' }, { to: 'vesa', vesa: 200 }]),
   ...each('enclose', [...HOSTS.map((host) => ({ host })), { board: 'rpi5' }, { board: 'arduino-mega' }]),
-  ...each('store', HOSTS.map((host) => ({ host }))),
+  ...each('store', [...HOSTS.map((host) => ({ host })), { to: 'pegboard' }]),
   ...each('frame', HOSTS.flatMap((host) => [{ host }, { host, loadN: 2000 }])),
 ].flatMap((p) => [p, ...Object.keys(TAGS).map((t) => ({ ...p, tags: [t] }))]));
 

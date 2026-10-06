@@ -42,6 +42,16 @@ scratch last: the cluster every new object draws from. Every existing kind build
     shape (`code`, `label`, `count`, `tool`, …). After a frames mint it is the frame's own hardware report, not the
     plan's estimate.
   - **Manual:** `get_solid_vocab({ id: 'fabricate' })`.
+  - **Tightened by three agent trials** (a spool holder, a waterproof Raspberry Pi box, a flat-pack bookcase):
+    - A part that is seated is bought: heat-set inserts were cut for and never listed, and a board's standoffs bought
+      no screws. A test holds every strategy that fits a seat to buy as many as it seats.
+    - Counts and depths agree: two bearings get two seats. A threaded hole runs 2 mm past the bolt tip. A fastening
+      need says the grip its bolt length assumed.
+    - Every cut says `where` it goes.
+    - One job per need: a sealed box is the box. Its rim seal (O-ring cord sized to the rim), cable gland and
+      breather are suggested as their own needs, and a need another one already covers is reported as an overlap.
+    - Furniture in wood reads as furniture: shelves are shelf pins, a back is a groove joint, the wall fixing is an
+      anti-tip kit, and a frame-placed fitting is left for the frame to count. A frames row takes the frames' unit.
   - **On the scad ladder:** a scad row that cuts a standard part's interface (a bearing seat, a heat-set pilot, a
     nut trap, a NEMA face …) and has no plan beside it opens `next` with `{ add: 'fabricate', tool:
     'fabricate_solid' }`. The cutters are read off the inventory, so there is one list.

@@ -65,6 +65,7 @@ describe('fabricate_solid', () => {
     const m = SketchRepository.getByRef('sk_fab_cabinet').manifest;
     expect(m.kind).toBe('workbench');
     expect(m.fabricate).toMatchObject({ executor: 'frames', host: 'wood', plan: { version: expect.stringMatching(/^fabricator-v/) } });
+    expect(m.units, 'the frames\' unit is the row\'s when it declares none').toBe('mm');
   });
 
   it('a frame without the planned joint is warned about, not refused', async () => {
@@ -79,7 +80,7 @@ describe('fabricate_solid', () => {
     const source = 'difference() { cube([40, 40, 10]); translate([20, 20, 10]) mj_bearing_seat("688"); }';
     const r = await fabricateSolidHandler({ host: 'printed', needs: NEEDS, source, title: 'axle block', ref: 'sk_fab_block' });
     expect(r.ok).toBe(true);
-    expect(r.stats.fabrication.bom.map((b) => b.part)).toEqual(['radial-bearing', 'socket-bolt']);
+    expect(r.stats.fabrication.bom.map((b) => b.part)).toEqual(['heat-set-insert', 'radial-bearing', 'socket-bolt']);
     expect(r.stats.fabrication.unplaced).toEqual(['mj_counterbore', 'mj_heatset_hole']);
     expect(r.next.some((s) => s.add === 'fabricate'), 'a fabricated row is not sent back to fabricate').toBe(false);
     const m = SketchRepository.getByRef('sk_fab_block').manifest;

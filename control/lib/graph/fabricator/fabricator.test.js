@@ -39,7 +39,7 @@ describe('fabricator: the vocabulary', () => {
           expect(['buy', 'fit', 'print'], `${fn}.${s.id} route`).toContain(u.route);
         }
         for (const m of s.kit || []) expect(hasMech(m), `${fn}.${s.id} kit ${m}`).toBe(true);
-        if (!s.uses) expect(s.principle, `${fn}.${s.id}: a part-less strategy states its principle`).toBeTruthy();
+        if (!s.uses && !s.joint) expect(s.principle, `${fn}.${s.id}: a part-less strategy states its principle`).toBeTruthy();
         if (s.joint) {
           expect(FURNITURE_JOINTS, `${fn}.${s.id}: joint ${s.joint.type} is a furniture joint`).toContain(s.joint.type);
           expect(s.needs?.host, `${fn}.${s.id}: a frame joint is a wood strategy`).toEqual(['wood']);
@@ -48,6 +48,17 @@ describe('fabricator: the vocabulary', () => {
       const last = list[list.length - 1];
       expect(last.id, fn).toBe(`mint-${fn}`);
       expect(!last.needs && !last.when && !last.unless && !last.uses, `${fn}: last strategy is not a bare mint`).toBe(true);
+    }
+  });
+
+  it('a strategy that cuts a seat for a part buys that part, as many as it seats (the trials\' missing inserts)', () => {
+    for (const { fn, s } of all) {
+      const uses = s.uses || [];
+      for (const id of new Set(uses.filter((u) => u.route === 'fit' && INVENTORY[u.part].seat).map((u) => u.part))) {
+        const bought = uses.filter((u) => u.part === id && u.route === 'buy').reduce((n, u) => n + (u.qty ?? 1), 0);
+        expect(bought, `${fn}.${s.id} fits ${id} but never buys it`).toBeGreaterThan(0);
+        for (const u of uses.filter((x) => x.part === id && x.route === 'fit')) expect(u.qty ?? 1, `${fn}.${s.id}: ${id} seats ${u.qty ?? 1}, buys ${bought}`).toBe(bought);
+      }
     }
   });
 
@@ -111,7 +122,7 @@ describe('fabricator: every need resolves', () => {
   it('the shelf first: a printed joint opened often takes heat-set inserts, a 608 carries an 8 mm shaft', () => {
     const j = resolve({ function: 'fasten', host: 'printed', tags: ['serviceable'] });
     expect(j.strategy).toBe('heatset-bolt');
-    expect(j.parts.map((p) => p.code || p.call)).toEqual(['mj_heatset_hole("M3", 6)', 'M3x16-socket', 'mj_counterbore("M3", 10)']);
+    expect(j.parts.map((p) => p.code || p.call || p.label)).toEqual(['M3 heat-set insert', 'mj_heatset_hole("M3", 8)', 'M3x16-socket', 'mj_counterbore("M3", 10)']);
     const b = resolve({ function: 'spin', shaftD: 8 });
     expect(b.strategy).toBe('ball-bearing');
     expect(b.parts[0].code).toBe('688');

@@ -9,7 +9,7 @@
 }
 ---
 
-Say what each part of the object has to DO, and the fabricator solves it from the shelf of standard parts first and from scratch last. A lid opened often gets heat-set inserts and socket bolts. An 8 mm shaft gets a pair of bearings in pressed seats. A board gets standoffs on its published hole pattern. A flat-pack carcass gets cam locks and dowels. This is the cluster idea: one shelf every object draws from, so a design pulls a 608 instead of minting a bearing.
+Say what each part of the object has to DO, and the fabricator solves it from the shelf of standard parts first and from scratch last. A lid opened often gets heat-set inserts and socket bolts. An 8 mm shaft gets a pair of ball bearings in pressed seats, sized to the shaft and the load (a slim 688 when light, a 608 when heavier). A board gets standoffs on its published hole pattern. A flat-pack carcass gets cam locks and dowels. This is the cluster idea: one shelf every object draws from, so a design pulls a stock bearing instead of minting one.
 
 The fabricator DECIDES, and the kind that owns the material's joinery EXECUTES it:
 
@@ -32,10 +32,13 @@ fabricate_solid({ host: 'printed', needs: [
    - `needs`: per need, its `executor`, `strategy`, `route` and `why`.
    - `executors`: which ones the plan uses.
    - `bom`: what to buy.
-   - `cuts`: the scad calls by need.
+   - `cuts`: the scad calls by need, each with `where` (which part takes it, from which face).
    - `joints`: the frame joint types by need, with counts.
    - `kit` and `principles`: for anything designed from scratch.
    - `notices`, `refused`, `gaps`.
+   - `overlaps`: a job one need's parts already do, listed again as another need (a box carries its own lid screws). Drop one, so nothing is bought twice.
+   - `suggestions`: jobs the plan implies and your needs leave out. A bearing implies something retains the shaft. A sealed box implies its rim seal, a cable gland and a breather vent. Add them and plan again, or say why not.
+   - A fastening need's `assumes.grip`: the mm of material under the head its bolt length was cut to. Pass `grip` when yours differs.
    - `next`: says what to write.
 2. **`needs` plus one body** mints the row.
    - With `source` (an OpenSCAD program, plus `parts`, `movers`, `mechanism`, `units` or `fn` beside it) it mints a scad row. With `frames` (workbench frame entries) it mints a workbench row.
@@ -53,6 +56,8 @@ One line shape, the same as the furniture report's and the instruction manual's 
 - `code` is a construction-hardware code when the part has one (`M3x16-socket`, `cam-15`, `hinge-35`), a bearing designation (`608`), or null.
 - `buy` is the generic name to search the supply chain for, never a brand.
 - `from` is `'frames'` when the minted frame's own hardware report counted the line, or `'plan'` when it is the fabricator's.
+- Before a frames mint, a fitting a frame joint places has `count: null` and `perJoint`. The frame decides how many go along each contact, and its report counts them.
+- A fitted part is bought too: an insert's pilot comes with the insert on the list, as many as there are pilots.
 - After a frames mint, cook `instruction_manual` on the row and its inventory page draws the same fittings at 1:1.
 
 ## Need fields
@@ -65,7 +70,9 @@ One line shape, the same as the furniture report's and the instruction manual's 
 - `access` — `'both'` or `'one'` (only one face reachable).
 - `shaftD` (mm), `axes` (`parallel` | `crossed` | `intersecting` | `linear`), `span` (mm between shafts).
 - `to` (`vesa` | `t-slot` | `board` | `wall` | `camera` | `action-cam` | `pegboard` | `brick` | `grid`) and `board` (`rpi3` | `rpi4` | `rpi5` | `rpi-zero` | `arduino-uno` | `arduino-mega`).
-- `sealD`, `depth` (a drawer's), `size` (an M-size override) and `grip` (mm of material a bolt passes).
+- `sealD` (a round seal's inside ⌀), `rim: [w, d]` (a rectangular rim in mm: O-ring cord in a groove that follows it), `through: 'cable' | 'vent'` (a cable gland or a breather through a sealed wall), `wall` (its thickness in mm).
+- `inner: [x, y, z]` (a box's inside size in mm), `depth` (a drawer's), `size` (an M-size override) and `grip` (mm of material a bolt passes).
+- **Furniture in wood:** shelves are `store` (shelf pins), carcass corners `fasten` (cam locks with `flat-pack`), a back or bottom in grooves `enclose`, a door `hinge` (with `hidden` for cup hinges), a drawer `slide`, the anti-tip fixing `mount` with `to: 'wall'`.
 - `host`, `loadN`, `cycles`, `access` and `tags` may also sit at the top as defaults for every need.
 
 **Tags:** `serviceable`, `tool-free`, `flat-pack`, `hidden`, `waterproof`, `print-only`, `precise`, `quiet`, `high-ratio`.

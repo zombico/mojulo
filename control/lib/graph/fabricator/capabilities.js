@@ -17,6 +17,8 @@ export const CAPABILITIES = Object.freeze({
   span:    { values: ['near', 'far'], line: 'centre distance up to 60 mm, or more' },
   to:      { values: ['none', 'vesa', 't-slot', 'board', 'wall', 'camera', 'action-cam', 'pegboard', 'brick', 'grid'], line: 'the standard host it mounts to' },
   board:   { values: ['none', 'rpi', 'arduino', 'other'], line: 'the circuit board it carries or mounts, by hole pattern' },
+  rim:     { values: ['round', 'rect'], line: 'the joint a seal follows: round (`sealD`, default) or a rectangular rim (`rim: [w, d]` mm)' },
+  through: { values: ['none', 'cable', 'vent'], line: 'what passes through a sealed wall: nothing, a cable, or air (a breather)' },
 });
 
 const near = (d, list) => list.some((v) => Math.abs(v - d) < 0.01);
@@ -40,5 +42,7 @@ export function capabilitiesOf(need, tags = new Set()) {
     span: (need.span ?? 0) > 60 ? 'far' : 'near',
     to: need.to || 'none',
     board: board === 'other' || board === 'none' || BOARDS.includes(need.board) ? board : 'other',
+    rim: Array.isArray(need.rim) && need.rim.length === 2 ? 'rect' : 'round',
+    through: need.through === 'cable' || need.through === 'vent' ? need.through : 'none',
   };
 }
