@@ -110,7 +110,7 @@ the literal events.
     late. `double: false` opts a part out, and `double: { offset, pan }` works
     on any pitched part.
 
-A recipe book attached to the install may carry whole songs in these styles:
+The recipe book (or your cookbook) may carry whole songs in these styles:
 `semantic_search({ kinds: ['beats_vocab'], query })` finds them, and the card's
 `recipe` is `{ kind, params }` to pass to `create_beats` and then revise.
 

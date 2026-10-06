@@ -1,0 +1,166 @@
+{
+  "id": "sandal",
+  "color": {
+    "cloth": "#6b4a33"
+  },
+  "under": false,
+  "ease_cm": 0.5,
+  "pieces": [
+    {
+      "id": "sole",
+      "fit": "pattern",
+      "chart": "footL",
+      "mirror": "soleR",
+      "ease_cm": 1.4,
+      "outline": [
+        [
+          -2.48,
+          0
+        ],
+        [
+          2.48,
+          0
+        ],
+        [
+          4,
+          6.15
+        ],
+        [
+          3.88,
+          12.71
+        ],
+        [
+          2.88,
+          20.5
+        ],
+        [
+          -2.88,
+          20.5
+        ],
+        [
+          -3.88,
+          12.71
+        ],
+        [
+          -4,
+          6.15
+        ]
+      ],
+      "anchor": {
+        "piece": [
+          0,
+          20.5
+        ],
+        "chart": {
+          "u": 0.5,
+          "v": 0.14
+        }
+      }
+    },
+    {
+      "id": "toeStrap",
+      "fit": "pattern",
+      "chart": "footL",
+      "mirror": "toeStrapR",
+      "ease_cm": 0.5,
+      "outline": [
+        [
+          -7.5,
+          0
+        ],
+        [
+          7.5,
+          0
+        ],
+        [
+          7.5,
+          3.2
+        ],
+        [
+          -7.5,
+          3.2
+        ]
+      ],
+      "anchor": {
+        "piece": [
+          0,
+          1.6
+        ],
+        "chart": {
+          "u": "cf",
+          "v": "ball"
+        }
+      }
+    },
+    {
+      "id": "instepStrap",
+      "fit": "pattern",
+      "chart": "footL",
+      "mirror": "instepStrapR",
+      "ease_cm": 0.5,
+      "outline": [
+        [
+          -8.5,
+          0
+        ],
+        [
+          8.5,
+          0
+        ],
+        [
+          8.5,
+          3.6
+        ],
+        [
+          -8.5,
+          3.6
+        ]
+      ],
+      "anchor": {
+        "piece": [
+          0,
+          1.8
+        ],
+        "chart": {
+          "u": "cf",
+          "v": "instep"
+        }
+      }
+    },
+    {
+      "id": "ankleStrap",
+      "fit": "pattern",
+      "chart": "legL",
+      "mirror": "ankleStrapR",
+      "ease_cm": 0.6,
+      "outline": [
+        [
+          -12,
+          0
+        ],
+        [
+          12,
+          0
+        ],
+        [
+          12,
+          2.6
+        ],
+        [
+          -12,
+          2.6
+        ]
+      ],
+      "anchor": {
+        "piece": [
+          0,
+          1.3
+        ],
+        "chart": {
+          "u": "cf",
+          "v": "ankle"
+        }
+      }
+    }
+  ]
+}

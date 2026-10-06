@@ -1,0 +1,24 @@
+{
+  "fit": "regular",
+  "layers": [
+    {
+      "garment": "a-line-skirt",
+      "dials": {
+        "length": "midi",
+        "flare_cm": 8
+      },
+      "cloth": "#6b5636"
+    },
+    {
+      "garment": "shift-dress",
+      "dials": {
+        "hem": "waist",
+        "sleeveL": {
+          "length": "three-quarter"
+        }
+      },
+      "cloth": "#d9d4c7"
+    },
+    "loafer"
+  ]
+}

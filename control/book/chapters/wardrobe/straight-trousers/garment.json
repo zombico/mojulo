@@ -1,0 +1,89 @@
+{
+  "id": "straightTrousers",
+  "color": {
+    "cloth": "#3a4250"
+  },
+  "ease_cm": 1.5,
+  "pieces": [
+    {
+      "id": "front",
+      "fit": "pattern",
+      "sloper": "trouser-front",
+      "dials": {
+        "length": "ankle"
+      },
+      "mirror": "frontR"
+    },
+    {
+      "id": "back",
+      "fit": "pattern",
+      "sloper": "trouser-back",
+      "dials": {
+        "length": "ankle"
+      },
+      "mirror": "backR"
+    }
+  ],
+  "seams": [
+    {
+      "a": {
+        "piece": "front",
+        "edge": "inseam"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "inseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "outseam"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "outseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontR",
+        "edge": "inseam"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "inseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontR",
+        "edge": "outseam"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "outseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "cf"
+      },
+      "b": {
+        "piece": "frontR",
+        "edge": "cf"
+      }
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "cb"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "cb"
+      }
+    }
+  ]
+}

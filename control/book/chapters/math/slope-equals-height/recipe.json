@@ -1,0 +1,6 @@
+{
+  "entry": "create_view",
+  "kind": "derivative",
+  "title": "The curve that is its own slope",
+  "params": { "scenario": "exp", "at": 1 }
+}

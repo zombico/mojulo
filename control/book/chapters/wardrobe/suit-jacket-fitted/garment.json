@@ -1,0 +1,176 @@
+{
+  "id": "suitJacketFitted",
+  "color": {
+    "cloth": "#23262f"
+  },
+  "ease_cm": 0.75,
+  "pieces": [
+    {
+      "id": "front",
+      "fit": "pattern",
+      "sloper": "bodice-front",
+      "dials": {
+        "hem": "hip",
+        "ease_bust_cm": 4,
+        "ease_waist_cm": 2,
+        "ease_hip_cm": 4,
+        "neck": "v",
+        "neck_drop_cm": 22,
+        "overlap_cm": 3,
+        "split": "cf"
+      },
+      "mirror": "frontL"
+    },
+    {
+      "id": "back",
+      "fit": "pattern",
+      "sloper": "bodice-back",
+      "dials": {
+        "hem": "hip",
+        "ease_bust_cm": 4,
+        "ease_waist_cm": 2,
+        "ease_hip_cm": 4,
+        "neck": "v",
+        "neck_drop_cm": 22,
+        "overlap_cm": 3
+      }
+    },
+    {
+      "id": "sleeveL",
+      "fit": "pattern",
+      "sloper": "sleeve",
+      "dials": {
+        "length": "long",
+        "ease_cm": 3,
+        "hem": "hip",
+        "ease_bust_cm": 4,
+        "ease_waist_cm": 2,
+        "ease_hip_cm": 4,
+        "neck": "v",
+        "neck_drop_cm": 22,
+        "overlap_cm": 3,
+        "ease_wrist_cm": 3
+      },
+      "mirror": "sleeveR"
+    }
+  ],
+  "seams": [
+    {
+      "a": {
+        "piece": "front",
+        "edge": "shoulderR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "shoulderL"
+      },
+      "over": true
+    },
+    {
+      "a": {
+        "piece": "frontL",
+        "edge": "shoulderR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "shoulderR"
+      },
+      "over": true
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "sideR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "sideL"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontL",
+        "edge": "sideR"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "sideR"
+      }
+    },
+    {
+      "a": {
+        "piece": "sleeveL",
+        "edge": "underarmR"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "underarmL"
+      }
+    },
+    {
+      "a": {
+        "piece": "sleeveR",
+        "edge": "underarmR"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "underarmL"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "capFront"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "armholeL"
+      },
+      "b": {
+        "piece": "sleeveR",
+        "edge": "capBack"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "frontL",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "capFront"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "armholeR"
+      },
+      "b": {
+        "piece": "sleeveL",
+        "edge": "capBack"
+      },
+      "ease_to": "a"
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "cf"
+      },
+      "b": {
+        "piece": "frontL",
+        "edge": "cf"
+      },
+      "from": 0.55
+    }
+  ]
+}

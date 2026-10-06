@@ -1,0 +1,27 @@
+{
+  "entry": "create_beats",
+  "kind": "beats-ambient",
+  "title": "Sunrise terrace",
+  "params": {
+    "bpm": 88,
+    "swing": 0.14,
+    "seed": 7160,
+    "progression": [
+      { "chord": ["F3", "A3", "C4", "E4"], "root": "F2" },
+      { "chord": ["Bb2", "D3", "F3", "A3"], "root": "Bb1" },
+      { "chord": ["C3", "E3", "G3", "D4"], "root": "C2" },
+      { "chord": ["D3", "F3", "A3", "C4"], "root": "D2" }
+    ],
+    "channels": [
+      { "name": "rhodes", "role": "harmony", "instrument": "rhodes", "level": -3,
+        "chain": [{ "type": "chorus" }, { "type": "reverb", "decay": 4, "wet": 0.3 }] },
+      { "name": "bass", "role": "roots", "patch": "bassMono", "level": -6 },
+      { "name": "guitar", "role": "melody", "instrument": "nylon-guitar", "level": -5,
+        "sequence": { "table": ["F4", "G4", "A4", "C5", "D5", "F5"], "gate": 0.55 },
+        "chain": [{ "type": "delay", "time": 0.42, "feedback": 0.25, "mix": 0.2 },
+                  { "type": "reverb", "decay": 4, "wet": 0.3 }] },
+      { "name": "hats", "role": "pulse", "patch": "hat", "note": "C5", "level": -10, "dropout": 0.25,
+        "steps": [0, 0, 0.7, 0, 0, 0.4, 0.7, 0, 0, 0, 0.7, 0.3, 0, 0.4, 0.7, 0] }
+    ]
+  }
+}
