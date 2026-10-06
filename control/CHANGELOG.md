@@ -575,6 +575,76 @@ byte-identical. Being built on this branch; the sphinx comes next.
   mood until it has its own, and a new mood is a row in `MOODS`.
 - Each entry gains a SOUND line and a starter with its period music.
 
+### Historic miniatures
+
+- **Spike.** A historic city can stand its people about for scale and flavour: add `"people": true` (or
+  `{ "density": 0–1, "citizens": false, "hands": false }`) to a `historic` manifest with the `city` scene, and
+  the World page fills in two groups (`lib/graph/historic/miniatures.js`). Static figures only: no motion, no
+  paths.
+  - Citizens stand alone, in pairs or in households on the lanes, the open ground and the plan's square. They
+    are thicker on a main street than in a back alley.
+  - Field hands work in gangs on the flat ground outside the wall: stooped over the crop, at the hoe, or
+    carrying.
+- Each figure is the fractal city's pedestrian at a new `mini` level of detail, under 300 quads. Nobody is bare:
+  every garment covers the torso and hangs a skirt of cloth to its hem (`cut`: knee, shin or ankle).
+  - The skirt is fitted to the posed figure. Its top is the trunk's own waist, so it tilts when the figure bends;
+    each ring below wraps the hips and legs at its height, so a stride or a bent knee pushes the cloth out
+    instead of poking through. The legs under it are not drawn.
+  - Sleeves carry the shirt down the forearm, and `legs` give trousers.
+  - Colour is the culture's palette over the body's regions and the skirt.
+  - Dress per culture: Roman tunic, toga and stola; Greek chiton, himation and peplos; the Egyptian linen tunic over
+    a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
+    jacket over hemp trousers.
+  - New work poses: `stoop`, `hoe`, `carry`.
+- Beasts of burden (`lib/graph/historic/beasts.js`), on unless `beasts: false`:
+  - In the fields, plough teams: two oxen abreast under a yoke at the neck, the ploughman behind.
+  - On the open streets, pack donkeys and mules with panniers, and horses, each led by a driver at its head.
+  - Each culture works its own herd: oxen and donkeys from Sumer to Egypt, mules among the Greeks and Romans,
+    horses and oxen for Qin.
+  - Each beast was designed with the creature creator (`mint_solid` kind `animal`, iterated with `update_sketch`)
+    and is carried as the recipe that sketch stores. The ox is the bull gelded to a heavier draught body, short
+    horns and a pale coat; the donkey and the mule are new, from the horse; the horse and the camel are the
+    species. The camel is drawn by no culture here, since it came after these periods.
+  - `lib/graph/figures/beast-asset.js` bakes a recipe low-poly (about 400 faces against about 9,000). It uses the
+    animal kind's overlap body, keeps the coat and its pale belly, and drops the eye and nose dots.
+  - Beasts come after the people on their own seeded stream, so turning them off moves no one. Each needs footing
+    under all four hooves, clear of the people.
+- The people and the beasts are shaded smooth (`lib/graph/figures/smooth-corners.js`). Each corner takes the
+  normal averaged over the faces that share it in its own part (a limb, the trunk, the skirt), and the World page
+  shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
+  the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
+  as `smooth`, off by default, so the fractal city's people are unchanged.
+- The region, the farm and the works take `people` too (`lib/graph/historic/crews.js`). Their kits build every
+  tool and building at rest and say who belongs there, and this places them.
+  - Hitching: every yoke with a pole run back from it gets its team, two abreast, necks at the yoke, facing away
+    from the pole. The yoke and the pole's front end lift from the ground to the necks. Oxen draw the plough, the
+    culture's pack animal the cart, oxen or (in Sumer, as its kit says) donkeys the threshing sledge, and horses
+    the chariot. The ploughman stands behind the stilts; any other driver at the head.
+  - Crews: each workshop and farm building names its workers in `CREWS` (reapers bent along the barley's cut edge,
+    diggers in the clay pit, moulders on the brick field, smiths, potters, the haulers ahead of a stone sledge,
+    scribes in the shade). They stand in the slot's own frame, at its working front, inside it or ahead of it,
+    each in a pose for the work. Byres, stables and grain packs get their beasts.
+  - The region's town has its citizens on the town's own claim grid, where the region set it down. Its strip
+    fields have field hands and plough teams, and its estates and quarters their crews.
+  - Outside a town, a figure stands on the scene's own ground heights, so the clay pit's diggers stand on its
+    floor.
+  - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
+    out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
+- The city takes the same crews. Its work places name their people too: priests and worshippers at the altars
+  and before the temples, women with jars at the wells and fountains, shopkeepers at Pompeii's shop fronts with
+  customers in the street, potters at the kilns, bakers and craftsmen in Giza's bakeries and workshops, quarrymen,
+  porters on the quays, boatmen aboard, traffic and a pack animal at the gates, and traders and their beasts in
+  the Qin market. A crew can now stand before a slot facing into it (`before`), work up on a quay's top or a
+  ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
+  guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
+  layout has no slots, has none yet.
+- A figure stands on a kerb or a step and refuses a spot taken by anything taller.
+- Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
+- Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
+  and seated poses (the scribes stand). Pompeii
+  with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
+  it has no people.
+
 ### Historic Rome
 
 - **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is

@@ -29,6 +29,7 @@ import { placeAsset, skinFor } from './assets/kit.js';
 import { toScene, groundsToScene, emitHistoric, METRES_PER_UNIT, SCENE_LIGHT } from './historic-city.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { scaleHex } from '../polygonizer/vexar.js';
+import { sceneFolk } from './crews.js';
 
 function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -308,7 +309,10 @@ const UNIT_SCALE = { aerial: 22, yard: 48, threshing: 48, field: 48, plough: 48,
 
 /** Plan → a CSS 3D scene with an aerial camera and the eye-level views, the asked-for view first. */
 export function assembleFarmsteadScene(opts = {}) {
-  const plan = planFarmstead(opts);
+  const plan0 = planFarmstead(opts);
+  // `people` (the World's alone, ./crews.js): the work's people and beasts, the yokes lifted onto the teams' necks
+  const folk = opts.world && opts.people ? sceneFolk(plan0, opts.people, 1 / METRES_PER_UNIT, opts.seed ?? 1, { teams: false }) : null;
+  const plan = folk ? { ...plan0, boxes: folk.boxes } : plan0;
   const view = plan.views[opts.view] ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT, us = UNIT_SCALE[view];
   const { boxes, faces } = toScene(plan.boxes, s, us);
@@ -323,8 +327,9 @@ export function assembleFarmsteadScene(opts = {}) {
   for (const [name, v] of Object.entries(plan.views)) cameras.push({ name, worldFraming: { cameraPosition: v.eye.map((q) => q * s), lookAt: v.at.map((q) => q * s), horizontalFov: 74, pictureCenter: [560, 390] } });
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
+  if (folk) for (const f of folk.faces) faces.push(f);
   const scene = assembleBoxCityScene({ boxes, grounds: G.grounds, faces, cameras, title: `mojulo historic farmstead · ${plan.stats.culture} · ${plan.stats.season}`, bg: '#d9cdb4', light: SCENE_LIGHT, unitScale: us });
-  return { ...scene, stats: plan.stats };
+  return { ...scene, stats: folk ? { ...plan.stats, people: folk.stats } : plan.stats };
 }
 
 export function renderFarmsteadToHtml(opts = {}) {

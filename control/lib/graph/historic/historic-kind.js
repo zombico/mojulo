@@ -1,7 +1,12 @@
 /**
  * historic-kind — the `historic` world kind: a culture at its period, minted from a manifest.
  *
- *   { kind: 'historic', culture: 'thebes', scene: 'city' | 'region' | 'farm' | 'works', seed?, season?, view? }
+ *   { kind: 'historic', culture: 'thebes', scene: 'city' | 'region' | 'farm' | 'works', seed?, season?, view?, people? }
+ *
+ * `people` (any scene): its people and beasts, static figures for scale — true, or { density 0–1, citizens: false,
+ * hands: false, beasts: false, crews: false }. The town's citizens, field hands and beasts of burden (./miniatures.js,
+ * ./beasts.js); in the farm, the works and the region, the crews at each tool and workshop and the teams at each
+ * yoke (./crews.js).
  *
  * The scenes are the builders that already exist (the town, the town in its land, a farmstead, the works),
  * each taken to the World page as the town is (`assembleHistoricWorld`): the faces' tiles resolved into the
@@ -38,17 +43,17 @@ export const HISTORIC_SCENES = {
   region: {
     get cultures() { return Object.keys(REGION_CULTURES).filter((c) => HISTORIC_CULTURES[c]); },
     plan: (o) => planRegion(o),
-    world: (o) => toWorld(assembleRegionScene(o), o.culture),
+    world: (o) => toWorld(assembleRegionScene({ ...o, world: true }), o.culture),
   },
   farm: {
     get cultures() { return having(FARM_CULTURES); },
     plan: (o) => planFarmstead({ ...o, culture: landOf(o.culture) }),
-    world: (o) => toWorld(assembleFarmsteadScene({ ...o, culture: landOf(o.culture) }), o.culture),
+    world: (o) => toWorld(assembleFarmsteadScene({ ...o, culture: landOf(o.culture), world: true }), o.culture),
   },
   works: {
     get cultures() { return having(WORKS_CULTURES); },
     plan: (o) => planWorks({ ...o, culture: landOf(o.culture) }),
-    world: (o) => toWorld(assembleWorksScene({ ...o, culture: landOf(o.culture) }), o.culture),
+    world: (o) => toWorld(assembleWorksScene({ ...o, culture: landOf(o.culture), world: true }), o.culture),
   },
 };
 
@@ -80,6 +85,12 @@ export function historicOptions(m = {}) {
     const seasons = SEASONS[scene] ? SEASONS[scene](culture) : [];
     if (!seasons.includes(m.season)) throw new Error(`historic: ${culture} ${scene} has no season '${m.season}'${seasons.length ? ` — one of ${list(seasons)}` : ' (it has no seasons)'}`);
     opts.season = m.season;
+  }
+  if (m.people !== undefined && m.people !== false) {
+    const p = m.people;
+    if (p !== true && (typeof p !== 'object' || p === null || Array.isArray(p))) throw new Error('historic: people is true or { density, citizens, hands, beasts, crews }');
+    if (typeof p === 'object' && p.density !== undefined && !(Number.isFinite(p.density) && p.density >= 0 && p.density <= 1)) throw new Error('historic: people.density is a number from 0 to 1');
+    opts.people = p;
   }
   if (m.view !== undefined) {
     const views = historicViews({ scene, ...opts });
