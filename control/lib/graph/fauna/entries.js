@@ -7,20 +7,23 @@
  * Three cards per need, so the agent reads only as deep as the ask:
  *  - the INDEX (`animals`): every animal by the name people say, and the asked-for ones not built yet;
  *  - a HUB per family (`animal/feline`): its species, and its WANTED rows with the built species that stands in;
- *  - an ENTRY per species (`animal/houseCat`): subject, size, stance, basis, the STARTER spec to mint, its kin.
+ *  - an ENTRY per species (`animal/houseCat`): subject, size, stance, how it moves, basis, the STARTER spec, its kin.
  *
- * A ROSTER is `{ id, species, about, wanted, familyOf, stanceOf, spec }`: `species` by id (each with a `name`),
- * `about` by id (`{ common, aliases, sci, size, source }`), `wanted` by id (`{ family, near, aliases, note }`),
- * `spec(id)` the `animal` kind spec that mints it. Add a roster to ROSTERS and its animals join the cards, the name
- * resolver (`resolveAnimalName`) and the contract test (entries.test.js). Counts are computed here, never typed.
+ * A ROSTER is `{ id, species, about, wanted, familyOf, stanceOf, spec, movesOf? }`: `species` by id (each with a
+ * `name`), `about` by id (`{ common, aliases, sci, size, source }`), `wanted` by id (`{ family, near, aliases, note }`),
+ * `spec(id)` the `animal` kind spec that mints it, `movesOf(id)` its locomotion (`{ gaits, note }`, ./locomotion/).
+ * Add a roster to ROSTERS and its animals join the cards, the name resolver (`resolveAnimalName`) and the contract
+ * test (entries.test.js). Counts are computed here, never typed.
  */
 import { SPECIES, stanceOf } from './species.js';
 import { FAMILY_ABOUT, FAMILY_WANTED } from './families.js';
+import { locomotionFor } from './locomotion/index.js';
 
 /** The rosters the encyclopedia reads. */
 export const ROSTERS = [
   { id: 'fauna', species: SPECIES, about: FAMILY_ABOUT, wanted: FAMILY_WANTED,
-    familyOf: (id) => SPECIES[id].family, stanceOf, spec: (id) => ({ species: id }) },
+    familyOf: (id) => SPECIES[id].family, stanceOf, spec: (id) => ({ species: id }),
+    movesOf: (id) => locomotionFor(SPECIES[id].family, id) },
 ];
 
 /** The bytes a species entry's body may take: an infobox and a starter, never a manual. */
@@ -90,6 +93,12 @@ export function resolveAnimalName(word) {
 const label = (a) => a.about?.common || bare(a.roster.species[a.id].name) || words(a.id);
 const starterText = (R, id) => `{ "kind": "animal", "spec": ${JSON.stringify(R.spec(id))} }`;
 
+/** The MOVES rows: the gaits in plain words, slowest first, and how the animal moves them. */
+function movesLines(R, id) {
+  const M = R.movesOf?.(id); if (!M) return [];
+  return [`MOVES    ${Object.keys(M.gaits).join(', ')}`, ...(M.note ? [`         ${M.note}`] : [])];
+}
+
 /** One species' entry card. */
 export function speciesCard(R, id) {
   const S = R.species[id], A = R.about[id] || {}, family = R.familyOf(id);
@@ -102,6 +111,7 @@ export function speciesCard(R, id) {
     `ALSO     ${dedupe([A.common, ...(A.aliases || [])].filter((w) => w && w !== A.common)).join(', ') || '—'}`,
     `SIZE     ${A.size || 'not recorded'} (true scale, metres)`,
     `STANCE   ${R.stanceOf(id) || '—'}`,
+    ...movesLines(R, id),
     `BASIS    ${A.source ? `the size from ${A.source}; the build is fit to it (closed, attached, size gates).` : 'no source recorded.'} How it reads is the operator's eyes gate.`,
     '',
     'STARTER  (copy it, give it a title, mint it)',

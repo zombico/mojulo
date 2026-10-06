@@ -473,6 +473,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Fix: an upgraded install now indexes new solid-vocab cards too. The shipped-card check used to look at
   view-vocab and routing cards only.
 
+### Animal locomotion studies
+
+- **In progress.** Every animal gets the way it moves, written down by the biomechanics of its family, so it
+  can later be animated by the leg-step and spine mechanics of its kind.
+- The roster sorts into nine shared rigs (`lib/graph/fauna/locomotion/`): running toe-walkers, hoofed,
+  flat-footed, pillar-legged, sprawling, hoppers, two-legged, wing-walkers, and whole-body wave (snakes and
+  fish). Each rig file holds its families' entries:
+  - the gaits, named in plain words (walk, trot, gallop, hop, slither, swim, …), each pointing at a footfall
+    pattern or body wave with its duty factor, stride length per hip height and speed band (Froude number);
+  - the spine bone counts, fixed per family;
+  - how the spine, girdles, head and tail move with the stride;
+  - species overrides where a family holds very different movers (snakes and the monitor lizard; the manta).
+- Where scientists disagree, the entry takes the more visual reading and says so beside the value.
+- Each species' encyclopedia entry lists its gaits (`MOVES`). No plan changes: every species builds
+  byte-identically.
+
 ### Environmental sound
 
 - **In progress.** A historic world can carry its period's music: add `"audio": { "soundtrack": "default" }`
