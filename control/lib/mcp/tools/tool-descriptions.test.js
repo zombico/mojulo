@@ -289,7 +289,8 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-05 (268_400 -> 268_800; measured 268,759) for the field score: create_beats takes
 // `score: { mood, seed?, game?, role? }` (the mood and role enums, one sentence each in the description and the
 // property). The description itself shrank to stay under its 1150 allowlist (dropped a stale "new work" line).
-const PAYLOAD_CEILING = 268_800;
+// Re-pinned 2026-10-06 (268_800 -> 268_900) for loop points: export_beats' `loop` property (one sentence).
+const PAYLOAD_CEILING = 268_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

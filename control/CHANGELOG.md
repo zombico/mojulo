@@ -72,6 +72,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `create_beats({ kind: 'beats-composition', title, score: { mood } })` mints a field cue with fresh seeds and
     says how to keep a whole game in one identity (`game`);
   - a world composed without music gets a suggested mood and the exact `audio` line in the reply.
+- Loop points. A render with `loop` (`export_beats { loop: true }`, `beats.wav?loop=1`, or the recipe's
+  `export.loop`) is exactly one pass, cut at the next bar line. The ring-out is folded back onto the start, the way
+  a live loop carries it, and a `smpl` loop chunk marks the loop for samplers and game engines. The Godot pack
+  renders every music bed this way, so a level or menu loops without the old gap of silence. Off by default;
+  renders without it are byte-identical.
 
 ### Historic city
 

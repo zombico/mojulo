@@ -161,7 +161,7 @@ export async function exportBeatsHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_beats requires { ref }');
   }
-  const { ref, format = 'wav', bars, loops, cue, tail, write = true } = input;
+  const { ref, format = 'wav', bars, loops, cue, tail, loop, write = true } = input;
   if (!ref || typeof ref !== 'string') {
     throw new Error('`ref` is required (string)');
   }
@@ -218,13 +218,14 @@ export async function exportBeatsHandler(input) {
     return result;
   }
 
-  const rendered = await renderBeatsOffline(sketch.manifest, { bars, loops, cue, tail });
+  const rendered = await renderBeatsOffline(sketch.manifest, { bars, loops, cue, tail, loop });
 
   const query = [];
   if (bars !== undefined) query.push(`bars=${bars}`);
   if (loops !== undefined) query.push(`loops=${loops}`);
   if (rendered.meta.cue) query.push(`cue=${encodeURIComponent(rendered.meta.cue)}`);
   if (tail !== undefined) query.push(`tail=${tail}`);
+  if (loop !== undefined) query.push(`loop=${loop ? 1 : 0}`);
   const url = `/api/sketches/${encodeURIComponent(ref)}/beats.wav${query.length ? `?${query.join('&')}` : ''}`;
 
   const result = {
@@ -645,6 +646,7 @@ export function registerBeatsTools() {
         loops: { type: 'integer', minimum: 1, description: 'beats-pattern only: pattern repetitions (default 2).' },
         cue: { type: 'string', description: 'beats-sfx only: which cue to render (default: the only cue).' },
         tail: { type: 'number', minimum: 0, maximum: 30, description: 'Seconds of reverb/ring-out appended after the last event (default 2).' },
+        loop: { type: 'boolean', description: 'wav: one seamless pass to the bar line (tail folded on, smpl loop chunk).' },
         write: {
           type: 'boolean',
           default: true,
