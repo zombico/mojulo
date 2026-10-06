@@ -6,6 +6,7 @@
 //   node scripts/fauna-gait-strip.mjs <species> <gait|behavior> [outDir] [--frames 24] [--fps 12] [--strides 2]
 //   node scripts/fauna-gait-strip.mjs wolf trot /tmp/strips
 //   node scripts/fauna-gait-strip.mjs sheep relax /tmp/strips
+//   node scripts/fauna-gait-strip.mjs raccoon relax /tmp/strips --variant curl   (another way from its repertoire)
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { gaitFrames } from '../lib/graph/fauna/gait.js';
@@ -17,12 +18,13 @@ import { encodeGif } from '../lib/motion/encode-gif.js';
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? Number(args.splice(i, 2)[1]) : d; };
 const frames = opt('frames', 24), fps = opt('fps', 12), strides = opt('strides', 2);
+const vi = args.indexOf('--variant'), variant = vi >= 0 ? args.splice(vi, 2)[1] : undefined;
 const [id, gait, outDir = '.'] = args;
 if (!id || !gait) { console.error('usage: fauna-gait-strip.mjs <species> <gait> [outDir] [--frames n] [--fps n] [--strides n]'); process.exit(1); }
 
 const isBehavior = Boolean(BEHAVIORS[gait]);
-const poses = isBehavior ? behaviorFrames(id, gait, frames) : gaitFrames(id, gait, frames);
-const label = isBehavior ? `${gait} → ${resolveBehavior(id, gait).strategy}` : gait;
+const poses = isBehavior ? behaviorFrames(id, gait, frames, { variant }) : gaitFrames(id, gait, frames);
+const label = isBehavior ? `${gait} → ${resolveBehavior(id, gait, { variant }).strategy}` : gait;
 const parentOf = Object.fromEntries(faunaSkeleton(id).bones.map((b) => [b.id, b.parent]));
 const ink = (bid) => (/^(spine|neck|tail)\d+$|^head$/.test(bid) ? '#2b2b2b' : bid.endsWith('L') ? '#1c7ed6' : '#e8590c');
 const width = (bid) => (/^(spine|neck|tail)\d+$|^head$/.test(bid) ? 3.2 : 2.4);

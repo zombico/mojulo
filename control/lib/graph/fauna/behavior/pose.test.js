@@ -83,6 +83,34 @@ describe('behavior pose: the principles read on the bodies', () => {
     expect(hood.bones.head.head[2]).toBeGreaterThan(5 * prepare('kingCobra').girth);
   });
 
+  it('sitting up: the rump on the ground, the trunk up, the hind feet flat in front; rearing stands tall', () => {
+    for (const id of ['raccoon', 'squirrel', 'brownBear', 'chimpanzee', 'giantPanda']) {
+      const c = prepare(id), f = poseBehavior(id, 'relax', 0);   // sit-up
+      const sp = c.spine.map((b) => f.bones[b.id]), rump = Math.min(...sp.map((b) => b.head[2]), ...c.tail.slice(0, 1).map((b) => f.bones[b.id].head[2]));   // the tail's root is the rump too
+      expect(rump, `${id} rump down`).toBeLessThan(0.03 * c.h);
+      const a = sp[0].head, z = sp.at(-1).tail;
+      expect(Math.atan2(z[2] - a[2], z[1] - a[1]), `${id} trunk up`).toBeGreaterThan(0.8);
+      expect(Math.max(...c.limbs.RH.map((b) => f.bones[b].tail[2])) > 0, `${id}`).toBe(true);
+    }
+    const c = prepare('raccoon'), rear = poseBehavior('raccoon', 'alert', 0);
+    expect(rear.bones.head.head[2]).toBeGreaterThan(1.5 * c.h);
+  });
+
+  it('eating from the hands: the hands come up to the mouth', () => {
+    for (const id of ['raccoon', 'giantPanda', 'chimpanzee']) {
+      const c = prepare(id), f = poseBehavior(id, 'eat', 0), m = tip(f);
+      for (const k of ['RF', 'LF']) {
+        const hand = f.bones[c.limbs[k][2]].head, arm = c.limbs[k].slice(0, 2).reduce((s, b) => s + len(c.byId[b]), 0);
+        expect(Math.hypot(hand[0] - m[0], hand[1] - m[1], hand[2] - m[2]), `${id} ${k}`).toBeLessThan(0.6 * arm);
+      }
+    }
+  });
+
+  it('a variant poses another way from the repertoire', () => {
+    const curl = poseBehavior('raccoon', 'relax', 0, { variant: 'curl' }), sit = poseBehavior('raccoon', 'relax', 0);
+    expect(curl.bones.head.head[2]).toBeLessThan(sit.bones.head.head[2] / 2);
+  });
+
   it('swimming on is the species\' own swim', () => {
     expect(posable('greatWhiteShark', 'relax').strategy).toBe('cruise');
     expect(behaviorFrames('greatWhiteShark', 'relax', 4).length).toBe(4);

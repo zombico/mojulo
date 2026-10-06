@@ -36,9 +36,20 @@ species builds byte-identically.
   until the muzzle reaches the grass, a short-necked grazer's shoulders lowering when it cannot; the face turned back
   along the flank; nothing on land through the ground. A legless body is laid out as a coil, or a coil with the front
   third raised in an S. Standing, dozing on a cocked hind leg, lying folded, the sphinx, the curl, perching on one
-  leg, sitting down over the feet, the coil, hovering and swimming on are posed; a strategy whose words are not yet
+  leg, sitting down over the feet, sitting up, rearing, the coil, hovering and swimming on are posed; a strategy whose words are not yet
   posed says which (`posable`).
-- **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to.
+- **Sitting up and rearing.** The trunk pitches up about the hips; sitting, its lowest point (the rump and the tail's
+  root) comes down onto the ground and the hind feet lie flat out in front, knees up; rearing, the hips ride on the
+  near-straight hind legs. The forelegs hang free (resting on the ground where they reach it, a chimpanzee's), or bring
+  the hands up to the mouth to eat. The neck takes back most of the pitch and the face is aimed by the head word. A
+  raccoon, a squirrel, a bear, a panda and a chimpanzee relax sitting up and eat from their hands; a raccoon, a bear
+  and a chimpanzee rear to look.
+- **Repertoires.** `repertoire(id, behavior)` lists every way an animal does a behavior, its own first: a raccoon
+  relaxes sitting up or curled, a bear sitting up or sprawled. The catch-alls (lying folded, standing at ease) are
+  left out when anything more its own qualifies. `resolveBehavior`, `poseBehavior` and `behaviorFrames` take
+  `{ variant }` to pick another from the repertoire.
+- **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to;
+  `--variant curl` draws another way from the repertoire.
 - **Shared solver pieces.** The leg chain and its two-link solve (`fauna/limb.js`) and the vector kit (`fauna/vec.js`)
   moved out of the gait solver so both solvers use them; every gait poses byte-identically.
 

@@ -69,12 +69,12 @@ export const FAMILY_TAGS = Object.freeze({
   suid:       { tags: ['roots', 'lies-on-side'] },
   pachyderm:  { tags: ['grazer'], species: {
     elephant: { add: ['browser', 'dozes-standing'], drop: ['grazer'] }, hippo: { add: ['floats'] } } },
-  ursine:     { tags: ['rears-to-look', 'lies-on-side'], species: {
-    giantPanda: { add: ['handles-food', 'sits-upright'], drop: ['rears-to-look'] },
+  ursine:     { tags: ['rears-to-look', 'lies-on-side', 'sits-upright'], species: {   // a bear sits back on its rump
+    giantPanda: { add: ['handles-food'], drop: ['rears-to-look'] },
     brownBear: { add: ['roots'] },   // digs roots, bulbs and burrowing rodents
     polarBear: { add: ['predator'] },
-    wombat: { add: ['grazer'], drop: ['rears-to-look', 'lies-on-side'] } } },
-  procyonid:  { tags: ['handles-food', 'curls'], species: { raccoon: { add: ['rears-to-look'] } } },
+    wombat: { add: ['grazer'], drop: ['rears-to-look', 'lies-on-side', 'sits-upright'] } } },
+  procyonid:  { tags: ['handles-food', 'curls'], species: { raccoon: { add: ['rears-to-look', 'sits-upright'] } } },
   macropod:   { tags: ['grazer', 'prey', 'rears-to-look', 'lies-on-side'] },
   rodent:     { tags: ['handles-food', 'sits-upright', 'prey'], species: { beaver: { add: ['browser', 'floats'] }, squirrel: { add: ['curls'] } } },
   mustelid:   { tags: ['predator', 'handles-food', 'floats', 'curls'] },   // the otter eats floating on its back

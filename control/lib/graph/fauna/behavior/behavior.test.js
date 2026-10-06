@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BEHAVIORS, STRATEGIES, SUPPORT, HEAD, TAIL, LOOP, CAPABILITIES, TAGS, resolveBehavior, behaviorTable, capabilitiesOf, tagsOf } from './index.js';
+import { BEHAVIORS, STRATEGIES, SUPPORT, HEAD, TAIL, LOOP, CAPABILITIES, TAGS, resolveBehavior, behaviorTable, capabilitiesOf, tagsOf, repertoire } from './index.js';
 import { FAMILY_TAGS } from './tags.js';
 import { FAMILIES, FAMILY_SPECIES } from '../families.js';
 import { speciesPlan } from '../species.js';
@@ -89,6 +89,20 @@ describe('behavior: every animal resolves', () => {
     // the curl needs a tail to wrap: a fox curls, a bear with the same habit could not
     expect(resolveBehavior('fox', 'sleep').strategy).toBe('curl-sleep');
     expect(capabilitiesOf('brownBear').wrapTail).toBe(false);
+  });
+
+  it('a repertoire: every way an animal does it, its own first, the catch-alls only when nothing else fits', () => {
+    expect(repertoire('raccoon', 'relax').map((r) => r.strategy)).toEqual(['sit-up', 'curl']);
+    expect(repertoire('squirrel', 'relax').map((r) => r.strategy)).toEqual(['sit-up', 'curl']);
+    expect(repertoire('brownBear', 'relax')[0].strategy).toBe('sit-up');
+    expect(repertoire('rabbit', 'relax').map((r) => r.strategy)).toEqual(['lie']);   // nothing its own: the default
+    for (const id of ids) for (const b of Object.keys(BEHAVIORS)) {
+      const R = repertoire(id, b);
+      expect(R.length, `${id}.${b}`).toBeGreaterThan(0);
+      expect(R[0].strategy, `${id}.${b}: the default leads`).toBe(resolveBehavior(id, b).strategy);
+    }
+    expect(resolveBehavior('raccoon', 'relax', { variant: 'curl' }).strategy).toBe('curl');
+    expect(() => resolveBehavior('raccoon', 'relax', { variant: 'perch' })).toThrow(/sit-up, curl/);
   });
 
   it('the table is every species resolved', () => {

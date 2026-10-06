@@ -111,9 +111,11 @@ export const LOOP = Object.freeze({
 
 /**
  * The strategies, per behavior, tried in this order. A strategy is
- * `{ id, line, needs?: { <capability>: value | [values] }, when?: [tag], unless?: [tag], support, head, tail, loop }`:
- * it qualifies when every `needs` holds, at least one `when` tag is present (if it has any), and no `unless` tag is.
- * The last strategy of every behavior has no needs and no tags: the fallback any body can do.
+ * `{ id, line, needs?: { <capability>: value | [values] }, when?: [tag], unless?: [tag], general?, support, head, tail,
+ * loop }`: it qualifies when every `needs` holds, at least one `when` tag is present (if it has any), and no `unless`
+ * tag is. The last strategy of every behavior has no needs and no tags: the fallback any body can do. `general` marks
+ * a catch-all (lying folded, standing at ease): it stays out of a species' repertoire when anything more its own
+ * qualifies.
  */
 const LEGS = ['four', 'two'];
 export const STRATEGIES = Object.freeze({
@@ -135,8 +137,8 @@ export const STRATEGIES = Object.freeze({
     { id: 'sprawl', needs: { support: 'four', foldsLegs: true }, when: ['lies-on-side'], support: 'side', head: 'on-paws', tail: 'rest', loop: 'breathe', line: 'sprawls on its side' },
     { id: 'sphinx', needs: { support: 'four', foldsLegs: true, supple: true }, when: ['predator'], support: 'sphinx', head: 'level', tail: 'rest', loop: 'breathe', line: 'lies on its chest, forelegs out, head up' },
     { id: 'balance', needs: { support: 'two', wrapTail: true }, support: 'balance', head: 'level', tail: 'level', loop: 'breathe', line: 'stands at rest, the tail balancing the head' },
-    { id: 'lie', needs: { support: 'four', foldsLegs: true }, support: 'sternal', head: 'level', tail: 'rest', loop: 'breathe', line: 'lies with its legs folded under' },
-    { id: 'stand', support: 'stand', head: 'level', tail: 'rest', loop: 'breathe', line: 'stands at ease' },
+    { id: 'lie', general: true, needs: { support: 'four', foldsLegs: true }, support: 'sternal', head: 'level', tail: 'rest', loop: 'breathe', line: 'lies with its legs folded under' },
+    { id: 'stand', general: true, support: 'stand', head: 'level', tail: 'rest', loop: 'breathe', line: 'stands at ease' },
   ],
   alert: [
     { id: 'stall', needs: { swimmer: true }, support: 'hover', head: 'forward', tail: 'scull', loop: 'fins', line: 'stops dead in the water, fins out' },
@@ -152,7 +154,7 @@ export const STRATEGIES = Object.freeze({
     { id: 'fix', needs: { support: 'four' }, when: ['predator'], support: 'crouch', head: 'fixed', tail: 'twitch', loop: 'stare', line: 'drops low, eyes locked, the tail tip twitching' },
     { id: 'bird-watch', needs: { support: 'two', wings: true }, support: 'upright', head: 'high', tail: 'rest', loop: 'scan', line: 'stretches tall and turns its head in jerks' },
     { id: 'biped-watch', needs: { support: 'two', wrapTail: true }, support: 'balance', head: 'high', tail: 'level', loop: 'scan', line: 'straightens up, head high, tail level' },
-    { id: 'watch', support: 'stand', head: 'high', tail: 'rest', loop: 'scan', line: 'lifts its head and looks about' },
+    { id: 'watch', general: true, support: 'stand', head: 'high', tail: 'rest', loop: 'scan', line: 'lifts its head and looks about' },
   ],
   eat: [
     { id: 'filter', needs: { swimmer: true }, when: ['filter'], support: 'cruise', head: 'forward', tail: 'scull', loop: 'gape', line: 'swims mouth wide, straining the water' },
@@ -171,8 +173,8 @@ export const STRATEGIES = Object.freeze({
     { id: 'splay-graze', needs: { support: 'four' }, when: ['grazer'], support: 'splay', head: 'ground', tail: 'rest', loop: 'crop', line: 'splays its forelegs to get down to the grass' },
     { id: 'crouch-graze', needs: { support: 'two' }, when: ['grazer'], support: 'tripod', head: 'ground', tail: 'prop', loop: 'crop', line: 'leans forward on its arms and tail to graze' },
     { id: 'gnaw', needs: { support: 'four', foldsLegs: true, supple: true }, when: ['predator'], unless: ['basks'], support: 'sphinx', head: 'on-paws', tail: 'rest', loop: 'gnaw', line: 'lies with the meal between its forepaws and gnaws' },
-    { id: 'snap-up', needs: { support: 'four' }, support: 'belly-flat', head: 'forward', tail: 'rest', loop: 'snap', line: 'lunges and snaps up a mouthful' },
-    { id: 'feed', support: 'stand', head: 'ground', tail: 'rest', loop: 'snap', line: 'lowers its head and feeds' },
+    { id: 'snap-up', general: true, needs: { support: 'four' }, support: 'belly-flat', head: 'forward', tail: 'rest', loop: 'snap', line: 'lunges and snaps up a mouthful' },
+    { id: 'feed', general: true, support: 'stand', head: 'ground', tail: 'rest', loop: 'snap', line: 'lowers its head and feeds' },
   ],
   sleep: [
     { id: 'roost-sleep', needs: { support: 'wingwalk' }, when: ['roosts-hanging'], support: 'hang', head: 'inside', tail: 'none', loop: 'breathe', line: 'hangs wrapped in its wings' },
@@ -189,8 +191,8 @@ export const STRATEGIES = Object.freeze({
     { id: 'side-sleep', needs: { support: LEGS }, when: ['lies-on-side'], support: 'side', head: 'ground', tail: 'rest', loop: 'breathe', line: 'sleeps flat out on its side' },
     { id: 'bask-sleep', needs: { support: 'four' }, when: ['basks'], support: 'belly-flat', head: 'ground', tail: 'rest', loop: 'breathe', line: 'sleeps belly-flat, chin on the ground' },
     { id: 'biped-sleep', needs: { support: 'two', wrapTail: true }, support: 'sit_bird', head: 'ground', tail: 'rest', loop: 'breathe', line: 'settles down over its legs, chin to the ground' },
-    { id: 'fold-sleep', needs: { support: 'four', foldsLegs: true }, support: 'sternal', head: 'on-paws', tail: 'rest', loop: 'breathe', line: 'lies folded, chin on its paws' },
-    { id: 'rest', support: 'stand', head: 'low', tail: 'rest', loop: 'breathe', line: 'stands still, eyes closed' },
+    { id: 'fold-sleep', general: true, needs: { support: 'four', foldsLegs: true }, support: 'sternal', head: 'on-paws', tail: 'rest', loop: 'breathe', line: 'lies folded, chin on its paws' },
+    { id: 'rest', general: true, support: 'stand', head: 'low', tail: 'rest', loop: 'breathe', line: 'stands still, eyes closed' },
   ],
 });
 
@@ -204,25 +206,46 @@ export function disqualifies(s, C, T) {
   return null;
 }
 
-/**
- * Resolve `behavior` for species `id`: `{ behavior, strategy, line, support, head, tail, loop, clip, why }`. `why`
- * names the capabilities and tags the winning strategy matched, and `passed` the more specific strategies it skipped
- * and the reason each was skipped.
- */
-export function resolveBehavior(id, behavior) {
+const shape = (behavior, B, st, T, passed) => ({
+  behavior, strategy: st.id, line: st.line, support: st.support, head: st.head, tail: st.tail, loop: st.loop, clip: B.clip,
+  why: { needs: st.needs || {}, tags: (st.when || []).filter((t) => T.includes(t)), passed },
+});
+
+function qualifying(id, behavior) {
   const s = SPECIES[id]; if (!s) throw new Error(`behavior: unknown species '${id}'`);
   const B = BEHAVIORS[behavior]; if (!B) throw new Error(`behavior: unknown behavior '${behavior}' (have ${Object.keys(BEHAVIORS).join(', ')})`);
   const C = capabilitiesOf(id), T = tagsOf(s.family, id) || [];
-  const passed = [];
+  const passed = [], ok = [];
   for (const st of STRATEGIES[behavior]) {
     const no = disqualifies(st, C, T);
-    if (no) { passed.push({ strategy: st.id, because: no }); continue; }
-    return {
-      behavior, strategy: st.id, line: st.line, support: st.support, head: st.head, tail: st.tail, loop: st.loop, clip: B.clip,
-      why: { needs: st.needs || {}, tags: (st.when || []).filter((t) => T.includes(t)), passed },
-    };
+    if (no) passed.push({ strategy: st.id, because: no });
+    else ok.push(shape(behavior, B, st, T, [...passed]));
   }
-  throw new Error(`behavior: '${behavior}' has no fallback strategy`);   // unreachable while the vocabulary test holds
+  return ok;
+}
+
+/**
+ * Resolve `behavior` for species `id`: `{ behavior, strategy, line, support, head, tail, loop, clip, why }`. `why`
+ * names the capabilities and tags the winning strategy matched, and `passed` the more specific strategies it skipped
+ * and the reason each was skipped. `variant` picks another strategy the species qualifies for (one of its
+ * `repertoire`, or a general one) instead of the first.
+ */
+export function resolveBehavior(id, behavior, { variant } = {}) {
+  const ok = qualifying(id, behavior);
+  if (!variant) return ok[0];
+  const r = ok.find((x) => x.strategy === variant);
+  if (!r) throw new Error(`behavior: ${id} has no '${variant}' way to ${behavior} (it can: ${ok.map((x) => x.strategy).join(', ')})`);
+  return r;
+}
+
+/**
+ * Every way species `id` does `behavior`, its own first: the strategies it qualifies for, in order, the catch-alls left
+ * out when anything more its own qualifies. The first is the default (`resolveBehavior`); the rest are variants (a
+ * raccoon relaxes sitting up, or curled).
+ */
+export function repertoire(id, behavior) {
+  const ok = qualifying(id, behavior), own = ok.filter((r) => !STRATEGIES[behavior].find((s) => s.id === r.strategy).general);
+  return own.length ? own : ok.slice(0, 1);
 }
 
 /** Every species × every behavior: `{ <id>: { <behavior>: <strategy id> } }` — the table a review reads. */

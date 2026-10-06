@@ -26,6 +26,7 @@ import { poseGait, prepare as prepareGait } from '../gait.js';
 import { limbsOf, hangLimb, blockStart } from '../limb.js';
 import { sub, add, mul, norm, unit, I3, mm, mv, rotX, rotY, rotZ, between } from '../vec.js';
 import { resolveBehavior } from './index.js';
+import { capabilitiesOf } from './capabilities.js';
 
 const TAU = 2 * Math.PI, DEG = Math.PI / 180;
 const AXIS = /^(spine|neck|tail)\d+$|^head$/;
@@ -33,10 +34,10 @@ const transpose = (A) => [0, 1, 2].map((i) => [A[0][i], A[1][i], A[2][i]]);
 
 /** The words this module poses. A strategy is posable when its support, head, tail and loop words are all here. */
 export const POSED = Object.freeze({
-  support: ['stand', 'upright', 'cocked', 'sternal', 'sphinx', 'curl', 'perch', 'sit_bird', 'coil', 'coil-strike', 'hover', 'cruise'],
-  head: ['level', 'low', 'high', 'ground', 'reach', 'on-paws', 'on-flank', 'tucked', 'sunk', 'fixed', 'forward', 'inside'],
-  tail: ['rest', 'wrap', 'flag', 'twitch', 'level', 'scull', 'none', 'rattle'],
-  loop: ['breathe', 'chew', 'crop', 'strip', 'peck', 'scan', 'stare', 'tongue', 'fins', 'swim', 'snap', 'sway'],
+  support: ['stand', 'upright', 'balance', 'cocked', 'sit', 'rear', 'sternal', 'sphinx', 'curl', 'perch', 'sit_bird', 'coil', 'coil-strike', 'hover', 'cruise'],
+  head: ['level', 'low', 'high', 'ground', 'reach', 'on-paws', 'on-flank', 'tucked', 'sunk', 'fixed', 'forward', 'inside', 'to-hands'],
+  tail: ['rest', 'wrap', 'flag', 'twitch', 'level', 'scull', 'none', 'rattle', 'prop'],
+  loop: ['breathe', 'chew', 'crop', 'strip', 'peck', 'scan', 'stare', 'tongue', 'fins', 'swim', 'snap', 'sway', 'nibble'],
 });
 
 /** The words of resolved strategy `r` this module cannot pose yet (empty: posable). */
@@ -44,9 +45,9 @@ export function unposed(r) {
   return ['support', 'head', 'tail', 'loop'].filter((k) => !POSED[k].includes(r[k])).map((k) => `${k} '${r[k]}'`);
 }
 
-/** Whether species `id` can be posed doing `behavior`, and if not, which words are missing. */
-export function posable(id, behavior) {
-  const r = resolveBehavior(id, behavior), missing = unposed(r);
+/** Whether species `id` can be posed doing `behavior` (or its `variant`), and if not, which words are missing. */
+export function posable(id, behavior, { variant } = {}) {
+  const r = resolveBehavior(id, behavior, { variant }), missing = unposed(r);
   return { ok: !missing.length, strategy: r.strategy, missing };
 }
 
@@ -82,18 +83,18 @@ function trunkRings(id, S) {
   return { belly: Number.isFinite(belly) ? Math.max(0, belly) : 0, girth: girth || 0.1 };
 }
 
-/** Pose species `id` doing `behavior` at loop phase t. */
-export function poseBehavior(id, behavior, t = 0, ctx = prepare(id)) {
-  const r = resolveBehavior(id, behavior);
+/** Pose species `id` doing `behavior` at loop phase t; `variant` picks another way from its repertoire. */
+export function poseBehavior(id, behavior, t = 0, { variant, ctx = prepare(id) } = {}) {
+  const r = resolveBehavior(id, behavior, { variant });
   const missing = unposed(r);
   if (missing.length) throw new Error(`behavior pose: ${id} ${behavior} → '${r.strategy}' is not posed yet (${missing.join(', ')})`);
   return poseStrategy(ctx, r, t);
 }
 
 /** n evenly spaced poses of one loop (a hold breathes through it). */
-export function behaviorFrames(id, behavior, n = 24) {
+export function behaviorFrames(id, behavior, n = 24, { variant } = {}) {
   const ctx = prepare(id);
-  return Array.from({ length: n }, (_, i) => poseBehavior(id, behavior, i / n, ctx));
+  return Array.from({ length: n }, (_, i) => poseBehavior(id, behavior, i / n, { variant, ctx }));
 }
 
 /** Pose a resolved strategy `r` (`{ support, head, tail, loop }`) at phase t. */
@@ -104,7 +105,7 @@ export function poseStrategy(ctx, r, t) {
   const { S, byId, limbs, spine, neck, tail, h } = ctx;
   const local = {};
   const turn = (id, R) => { local[id] = mm(local[id] || I3, R); };
-  const body = support(ctx, r.support);
+  const body = support(ctx, r.support, r);
 
   // the trunk's own bend (a curl), then head, tail and loop, as local turns
   if (r.support === 'curl') for (const b of spine.slice(1)) turn(b.id, rotZ(CURL.spine / Math.max(1, spine.length - 1)));
@@ -129,6 +130,7 @@ export function poseStrategy(ctx, r, t) {
   // a head that goes to a height is solved there: the neck bends down until the muzzle reaches it
   if (body.solveHead) solveHeadToGround(ctx, r, local, fk, H, W, body.solveHead, body);
   if (body.face) aimHead(ctx, local, fk, W, body.face);
+  if (body.facePitch !== undefined) aimHead(ctx, local, fk, W, [0, Math.cos(body.facePitch), Math.sin(body.facePitch)]);
   // the loop rides over the solved pose
   loopTurns(ctx, r, t, turn);
   fk();
@@ -147,7 +149,8 @@ export function poseStrategy(ctx, r, t) {
     // a lying leg bends as lying legs do, the elbow back along the body and the knee forward, a little out
     const side = key.startsWith('R') ? 1 : -1, fore = key.endsWith('F'), k0 = blockStart(bones);
     const Wp = W[byId[bones[0].id].parent];
-    hangLimb(bones, H[bones[0].id], place.top, place.R, W, H, body.lying ? mv(Wp, [0.5 * side, fore ? -1 : 1, 0.2]) : undefined);
+    const bend = place.bend || (body.lying ? mv(Wp, [0.5 * side, fore ? -1 : 1, 0.2]) : undefined);
+    hangLimb(bones, H[bones[0].id], place.top, place.R, W, H, bend);
     // a knee still in the ground swings out to the side, then up only as far as it must
     for (const lift of [0.3, 0.8, 1.5]) {
       if (!(k0 > 1 && H[bones[1].id][2] < 0.005 * h)) break;
@@ -194,7 +197,7 @@ const CURL = { spine: 95 * DEG, neck: 75 * DEG, head: 25 * DEG, tail: -200 * DEG
  * A support: the trunk's rigid move (`R` about `pivot`, then `T`) and where each foot block goes (`feet(key, bones, H, W)`
  * → `{ top, R }` or null to leave the leg as the trunk carries it).
  */
-function support(ctx, word) {
+function support(ctx, word, r) {
   const { byId, spine, h, belly } = ctx;
   const ys = spine.map((b) => b.head[1]);
   const pivot = [0, ys.reduce((m, y) => m + y, 0) / ys.length, 0];
@@ -203,7 +206,7 @@ function support(ctx, word) {
   switch (word) {
     // standing where it stood; `upright` is the same for a body built upright (a penguin, a bird drawn up tall: its
     // height comes from the head word)
-    case 'stand': case 'upright': return { R: I3, pivot, T: [0, 0, 0], feet: planted };
+    case 'stand': case 'upright': case 'balance': return { R: I3, pivot, T: [0, 0, 0], feet: planted };
     case 'cocked': {
       // the hip drops on the resting side; that hind hoof rests on its toe, the fetlock flexed, a little forward
       const drop = 0.03 * h;
@@ -221,6 +224,10 @@ function support(ctx, word) {
       const foot = ctx.limbs.RH ? byId[ctx.limbs.RH[0]].head[0] : 0;
       return { R: I3, pivot, T: [foot * 0.8, 0, -0.06 * h], feet: (key, bones, H, W) => (key === 'LH' ? tucked(ctx, bones, H, W) : planted(key, bones)) };
     }
+    // a body that already stands on two legs rears by standing (a kangaroo, a theropod: no trunk to pitch up)
+    case 'rear': if (capabilitiesOf(ctx.id).support === 'two') return { R: I3, pivot, T: [0, 0, 0], feet: planted };
+    // fallthrough
+    case 'sit': return upright(ctx, word, r) || { R: I3, pivot, T: [0, 0, 0], feet: planted };
     case 'hover': return { R: I3, pivot, T: [0, 0, 0], feet: () => null };
     default: throw new Error(`behavior pose: support '${word}' is not posed`);
   }
@@ -268,17 +275,73 @@ function folded(ctx, word, key, bones, H, W) {
   else { at = [root.head[0] * 1.25 + side * 0.15 * lb, root.head[1] - 0.2 * (l1 + l2), 0]; dir = [-0.25 * side, 1, -0.1]; }
   // into the world through the trunk bone the leg hangs on, then down onto the ground
   const Wp = W[parent.id], Hp = H[parent.id];
-  const world = add(Hp, mv(Wp, sub(at, parent.head)));
-  const R = between(unit(sub(tip, top)), unit(mv(Wp, dir)));
-  // the whole foot rests on the ground: the block and the toes that ride with it (everything below the bone above it)
+  return groundBlock(ctx, bones, H, add(Hp, mv(Wp, sub(at, parent.head))), mv(Wp, dir));
+}
+
+/**
+ * A foot block laid on the ground at world point `at` (its x, y), lying along world direction `dir`: the whole foot
+ * rests on the ground (the block and the toes that ride with it, everything below the bone above it), and the leg
+ * folds no tighter than its two bones allow (closer in than |l1 − l2| the block slides out along the ground).
+ */
+function groundBlock(ctx, bones, H, at, dir) {
+  const k0 = blockStart(bones), top = bones[k0].head, tip = bones[bones.length - 1].tail, root = bones[0];
+  const l1 = norm(sub(root.tail, root.head)), l2 = k0 > 1 ? norm(sub(bones[1].tail, bones[1].head)) : 0;
+  const R = between(unit(sub(tip, top)), unit(dir));
   const below = (id) => ctx.S.bones.filter((x) => x.parent === id).flatMap((x) => [x, ...below(x.id)]);
   const foot = k0 > 0 ? below(bones[k0 - 1].id) : bones.slice(k0);
   const lowest = Math.min(...foot.flatMap((b) => [mv(R, sub(b.head, top))[2], mv(R, sub(b.tail, top))[2]]));
-  const spot = [world[0], world[1], Math.max(0, -lowest) + 0.005];
-  // a leg folds no tighter than its two bones allow: closer in than |l1 − l2| the block slides out along the ground
+  const spot = [at[0], at[1], Math.max(0, -lowest) + 0.005];
   const root0 = H[root.id], near = k0 > 1 ? Math.abs(l1 - l2) * 1.03 : 0, away = unit([spot[0] - root0[0], spot[1] - root0[1], 0]);
   for (let i = 0; i < 40 && norm(sub(spot, root0)) < near; i++) { spot[0] += away[0] * 0.05 * near; spot[1] += away[1] * 0.05 * near; }
   return { top: spot, R };
+}
+
+/** The angle of the trunk from the horizontal at rest (rump to shoulders), and the hind legs' reach (thigh + shank). */
+function trunkAngle(ctx) {
+  const { spine } = ctx, a = spine[0].head, b = spine[spine.length - 1].tail;
+  return Math.atan2(b[2] - a[2], b[1] - a[1]);
+}
+
+const SIT = 60 * DEG, REAR = 78 * DEG;
+
+/**
+ * Upright on the hind legs: the trunk pitched up about the hips until it stands at SIT (60°) or REAR (78°) from the
+ * horizontal. Sitting, the rump comes down to the ground and the hind feet lie flat out in front, the knees up; rearing,
+ * the hips ride on the near-straight hind legs, the feet flat under them. The forelegs hang free in front of the chest,
+ * or bring the hands up to the mouth (`to-hands`). The neck takes back most of the pitch and the face is aimed by the
+ * head word (./headTurns). Needs hind legs; a body without them stands.
+ */
+function upright(ctx, word, r) {
+  const { byId, limbs } = ctx;
+  if (!limbs.RH) return null;
+  const hipB = byId[limbs.RH[0]], hip = hipB.head, legs = limbs.RH.slice(0, 2).map((x) => byId[x]);
+  const L = legs.reduce((m, b) => m + norm(sub(b.tail, b.head)), 0);
+  const p = (word === 'sit' ? SIT : REAR) - trunkAngle(ctx), R = rotX(p), pivot = [0, hip[1], hip[2]];
+  // sitting, the trunk comes down until its lowest point (the rump, once pitched up) rests on the ground; rearing, the
+  // hips ride on the near-straight hind legs
+  const rump = [...ctx.spine.flatMap((b) => [b.head, b.tail]), ...ctx.tail.slice(0, 1).map((b) => b.head)];   // the tail's root is the rump too
+  const low = Math.min(...rump.map((q) => add(pivot, mv(R, sub(q, pivot)))[2]));
+  const dz = word === 'sit' ? 0.005 * ctx.h - low : 0.9 * L - hip[2];
+  return {
+    R, pivot, T: [0, 0, dz], upright: p,
+    feet: (key, bones, H, W) => {
+      const side = key.startsWith('R') ? 1 : -1, root = H[bones[0].id];
+      const k0 = blockStart(bones), La = bones.slice(0, k0).reduce((m, b) => m + norm(sub(b.tail, b.head)), 0);
+      if (key.endsWith('H')) {
+        const out = word === 'sit' ? 0.5 * L : 0.1 * L;
+        return { ...groundBlock(ctx, bones, H, [root[0] * 1.3, root[1] + out, 0], [0.12 * side, 1, 0]), bend: [0.4 * side, 1, word === 'sit' ? 0.8 : 0.1] };
+      }
+      // the forelegs, off the ground: hanging in front of the chest, or the hands up at the mouth
+      if (r.head === 'to-hands') {
+        const muzzle = add(H.head, mv(W.head, sub(byId.head.tail, byId.head.head)));
+        return { top: add(muzzle, [0.08 * side * La, -0.15 * La, -0.3 * La]), R: between(unit(sub(bones[bones.length - 1].tail, bones[k0].head)), unit([-0.3 * side, 0.3, 1])), bend: [0.3 * side, -1, -0.6] };
+      }
+      // hanging, unless the hand reaches the ground (a chimpanzee's long arms): then it rests on it
+      const hang = add(root, [0.05 * side * La, 0.3 * La, -0.8 * La]), lb = norm(sub(bones[bones.length - 1].tail, bones[k0].head));
+      if (hang[2] - lb < 0.01 * ctx.h) return { ...groundBlock(ctx, bones, H, hang, [0.1 * side, 1, -0.1]), bend: [0.3 * side, -1, -0.4] };
+      return { top: hang, R: between(unit(sub(bones[bones.length - 1].tail, bones[k0].head)), unit([0, 0.35, -1])), bend: [0.3 * side, -1, -0.4] };
+    },
+  };
 }
 
 // ── HEAD ────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -294,6 +357,12 @@ function headTurns(ctx, r, body, turn) {
   const each = (a) => (neck.length ? neck.forEach((b) => turn(b.id, a(b))) : null);
   // a curled body's neck carries on the curl, whatever the head then does
   if (r.support === 'curl') { each(() => rotZ(CURL.neck / n)); turn('head', rotZ(CURL.head)); }
+  // an upright trunk carries its head as a standing one does: the neck takes back most of the trunk's pitch and the
+  // face is aimed level (or as the word says), not wherever the pitched trunk would point it
+  if (body.upright !== undefined) {
+    const face = { level: 0, forward: 0, fixed: -5, high: 18, reach: 35, low: -40, ground: -70, 'to-hands': -40 }[w];
+    if (face !== undefined) { each(() => rotX(-0.75 * body.upright / n)); body.facePitch = face * DEG; return; }
+  }
   if (w === 'low') { body.solveHead = 'low'; return; }
   if (NECK_PITCH[w]) { const [p, hp] = NECK_PITCH[w]; each(() => rotX(p / n)); turn('head', rotX(hp)); return; }
   if (w === 'ground' || w === 'on-paws') { body.solveHead = w; return; }
@@ -430,6 +499,7 @@ function loopTurns(ctx, r, t, turn) {
     case 'scan': { const steps = [0, 28, 28, -24, -24, 0], u = t * steps.length, i = Math.floor(u), f = Math.min(1, (u - i) * 3), a = steps[i % steps.length] + (steps[(i + 1) % steps.length] - steps[i % steps.length]) * (f * f * (3 - 2 * f)); turn('head', rotZ(a * DEG)); break; }
     case 'tongue': turn('head', rotX(1.5 * DEG * Math.max(0, Math.sin(4 * TAU * t)))); break;
     case 'snap': turn('head', rotX(-10 * DEG * Math.max(0, Math.sin(TAU * t)) ** 4)); break;
+    case 'nibble': turn('head', rotX(5 * DEG * Math.sin(2 * TAU * t))); break;   // the hands follow the mouth
     case 'sway': if (neck.length) turn(neck[0].id, rotZ(7 * DEG * s)); break;
     case 'fins': for (const b of ctx.S.bones) if (/^(pectoral|pelvic|flipper)[RL]$/.test(b.id)) turn(b.id, rotY((b.id.endsWith('L') ? -1 : 1) * 10 * DEG * Math.sin(TAU * (t + (/pelvic/.test(b.id) ? 0.25 : 0))))); break;
     default: break;   // stare: no motion; swim: the cruise
