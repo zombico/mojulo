@@ -110,6 +110,8 @@
     "ui:sync": "node scripts/stage-ui-package.mjs --sync",
     "test": "vitest run",
     "test:critical": "vitest run --config vitest.critical.config.js",
+    "test:deep": "vitest run --config vitest.deep.config.js",
+    "test:deep:changed": "vitest run --config vitest.deep.config.js --passWithNoTests --changed",
     "test:book": "node --test 'book/**/*.test.js' && node book/tools/validate.js",
     "smoke:tarball": "node scripts/smoke-cold-install.mjs"
   },

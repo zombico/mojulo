@@ -44,6 +44,10 @@ jobs:
         working-directory: control
         run: npm test
 
+      - name: Deep sweeps (*.deep.test.js)
+        working-directory: control
+        run: npm run test:deep
+
       - name: Test the bundled recipe book
         working-directory: control
         run: npm run test:book

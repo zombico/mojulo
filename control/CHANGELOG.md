@@ -32,6 +32,12 @@ never wired into a tool, a kind or a route. They are gone with their tests, and 
   guards, the database, versions, auth, the bundled book, scripts, the dashboard and every characterization pin,
   without the geometry-heavy suites. About 2,400 tests in two minutes against the full run's eight; CI still runs
   `npm test`.
+- **A deep tier for exhaustive sweeps.** `*.deep.test.js` files are left out of `npm test` and run with
+  `npm run test:deep` (CI runs it after `npm test`). `npm run test:deep:changed` runs only the sweeps whose imports
+  touch an uncommitted change, so editing a city kernel runs none and editing `anime-head.js`, `anime-sculpt.js` or
+  `station-loft.js` runs the anime ones. First in: the anime head's range-end and named-cut sweeps and every look
+  built on both bases (`anime-head.deep.test.js`, `anime-looks.deep.test.js`), about 160 of the suite's
+  file-seconds. The law tests stay in `anime-head.test.js` and `anime-looks.test.js`.
 
 ### create_sketch diet
 
