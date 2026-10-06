@@ -54,6 +54,41 @@ export function caudalLobe(name, [py, pz], { span, angle, chord, thick = 0.05, d
     { back: [0, py + 0.07, pz - dir * 0.04] });
 }
 
+/** HEAD ANATOMY from fractions of head length (see `eye` / `mouth` in cartilageFish): the skull rows' y as build.js
+ * places them (rows from the muzzle row on pulled toward it by `snout.len`), the eye's station address, the lower jaw
+ * cut back to the mouth's arc and the crescent as skull band groups (faces per band: 0–2 the back, 3 cheek–jowl,
+ * 4 jowl–lip, 5 lip–palate = the underside). */
+function headAnatomy(o, sn) {
+  if (!o.eye && !o.mouth) return {};
+  const Lm = sn.len ?? 1, y0 = SKULL[3][1], fwd = (y) => (y <= y0 ? y : y0 + (y - y0) * Lm), back = (y) => (y <= y0 ? y : y0 + (y - y0) / Lm);
+  const ys = SKULL.map(([, y]) => fwd(y)), tipY = fwd(sn.tip ?? 0.26), L = tipY - ys[0], yAt = (f) => tipY - f * L;
+  const sAt = (y) => { for (let i = 1; i < ys.length; i++) if (y <= ys[i]) return i - 1 + (y - ys[i - 1]) / (ys[i] - ys[i - 1]); return ys.length - 1; };
+  const r3 = (v) => Math.round(v * 1000) / 1000, out = {};
+  const eyeF = o.eye?.at ?? 0.45;
+  if (o.eye) out.eyeAt = [r3(sAt(yAt(eyeF))), o.eye.t ?? 2.2];
+  if (o.mouth) {
+    const m = o.mouth, yF = yAt(m.front), yC = yAt(eyeF + (m.corner ?? 0)), band = (y) => Math.min(ys.length - 2, Math.floor(sAt(y)));
+    const bF = band(yF), bC = band(yC), side = m.gape === 2 ? [3, 4] : [4];
+    out.bands = {};
+    for (let b = bC; b <= bF; b++) {
+      const g = [b < 3 ? 'Skull' : 'Snout', b < 3 ? 'Skull' : 'Snout', b < 3 ? 'Skull' : 'Snout', 'Cheek', 'Jowl', 'Palate'];
+      if (b === bC) for (const k of side) g[k] = 'Mouth';
+      if (b > bC || b === bF) { g[5] = 'Mouth'; if (b > bC) g[4] = 'Cheek'; }   // ahead of the corner: the flank stays back-coloured
+      out.bands[`${SKULL[b][0]}-${SKULL[b + 1][0]}`] = g;
+    }
+    // the overhanging snout ahead of the arc: its flank takes the back colour down to the underside (no lip line)
+    for (let b = bF + 1; b < ys.length - 1; b++) out.bands[`${SKULL[b][0]}-${SKULL[b + 1][0]}`] = ['Snout', 'Snout', 'Snout', 'Cheek', 'Cheek', 'Jowl'];
+    // the lower jaw: out to the arc's back edge (the band holding the corner), lifted `recess` under the skull
+    const cut = back(ys[bC + 1]), up = m.recess ?? 0, lift = (s) => ({ gum: s.gum + up, gumR: [s.gumR[0], s.gumR[1] + up], jaw: [s.jaw[0] * 0.92, s.jaw[1] + up], bottom: s.bottom + up });
+    // (all five rows kept, their stations pulled back so the last lands on the arc: the head's web needs them)
+    const y0j = JAW[0][1], k = (cut - y0j) / (JAW.at(-1)[1] - y0j);
+    out.jaw = JAW.map(([i, y, sl]) => [i, r3(y0j + (y - y0j) * k), lift(sl)]);
+    const end = JAW.at(-1)[2];
+    out.jawTip = [0, r3(cut + 0.012), r3(end.gum + up + 0.004)];
+  }
+  return out;
+}
+
 /**
  * THE CARTILAGINOUS-FISH MAKER (species-free): every number of a shark or ray from a handful of size / shape knobs, in
  * metres at the authored size (the species' `scale` then fits its published length). Returns the parameters build.js
@@ -70,6 +105,14 @@ export function caudalLobe(name, [py, pz], { span, angle, chord, thick = 0.05, d
  *              rows out to the tip (a ray: huge pectorals as a disc); `pelvic` the small sickle form
  *   gills      count of painted slits (0 for none: a ray's are underneath)
  *   pattern    { back, belly, from } countershading colours (+ `extra` colours)
+ *   eye        { at, t } (opt-in) the eye's place as a FRACTION OF HEAD LENGTH back from the snout tip (`at`; the head
+ *              runs tip → the skull's back row), `t` its height around the ring (2 = the brow slot, 3 = the cheek)
+ *   mouth      (opt-in) an UNDERSLUNG crescent: `front` the midline of the arc as a fraction of head length back from the
+ *              tip (so the snout OVERHANGS it by that much), `corner` how far behind the eye the corners sit (a fraction
+ *              of head length; 0 = directly below the eye), `gape` 1 | 2 skull faces the corner climbs up the side (a
+ *              wider gape), `recess` metres the lower jaw sits up under the skull. The lower jaw ends at the arc, the
+ *              crescent is painted on the skull's underside (group Mouth, `mouthColor`); no `mouth` keeps a terminal
+ *              jaw out to the tip (a ray).
  */
 export function cartilageFish(o) {
   const C = o.C ?? 1.0, prof = o.profile, top = (y) => { for (let i = 1; i < prof.length; i++) if (y <= prof[i][0]) { const [a, , ha] = prof[i - 1], [b, , hb] = prof[i]; return ha + (hb - ha) * (y - a) / (b - a); } return prof.at(-1)[2]; };
@@ -99,16 +142,18 @@ export function cartilageFish(o) {
   if (o.gills) marks.push({ on: 'neck', kind: 'stripes', group: 'Gill', color: '#2c3034', count: o.gills, width: 0.3, run: [0.0, 0.75], t: [0.35, 0.62] });
   else marks.push({ on: 'neck', kind: 'band', group: 'Gill', color: '#2c3034', run: [0, 0], t: [0, 0] });   // the eye-tip colour group, no slits
   const sn = o.snout, back = pat.back || '#6f7880', belly = pat.belly || '#eceae4';
+  const head = headAnatomy(o, sn);
   return {
     joints, legs, extraSegments: extra, levelLegs: false,
     torso: prof.map(([y, w, h]) => ({ at: [0, y, C], r: [w, h] })),
     torsoCaps: { back: [0, prof[0][0] - 0.1, C], tip: [0, prof.at(-1)[0] + 0.1, C] },
     neckRA: o.neck.rA, neckRB: o.neck.rB, neckRMid: o.neck.rA.map((v, i) => (v + o.neck.rB[i]) / 2 + 0.01),
-    craniumRows: flat(SKULL, sn.kx ?? 1, sn.kz ?? 0.95), jawRows: flatJaw(JAW, sn.kx ?? 1, sn.kz ?? 0.95),
-    craniumCaps: { back: [0, -0.18, 0.0], tip: [0, sn.tip ?? 0.26, -0.02] }, jawCaps: { back: [0, -0.1, -0.05], tip: [0, 0.215, -0.045] },
-    headScale: sn.scale, muzzleLen: sn.len, muzzleW: sn.w, eyeR: o.eyeR ?? 0.03, eyeAt: o.eyeAt ?? [2.6, 2.2],
+    craniumRows: flat(SKULL, sn.kx ?? 1, sn.kz ?? 0.95), jawRows: flatJaw(head.jaw || JAW, sn.kx ?? 1, sn.kz ?? 0.95),
+    craniumCaps: { back: [0, -0.18, 0.0], tip: [0, sn.tip ?? 0.26, -0.02] }, jawCaps: { back: [0, -0.1, -0.05], tip: head.jawTip || [0, 0.215, -0.045] },
+    headScale: sn.scale, muzzleLen: sn.len, muzzleW: sn.w, eyeR: o.eyeR ?? 0.03, eyeAt: head.eyeAt || o.eyeAt || [2.6, 2.2],
+    ...(head.bands ? { craniumBandGroups: head.bands } : {}),
     colors: { coat: back, sock: back, brow: back, tip: back, hoof: back, ash: belly, ashAlt: belly, belly, ...(pat.extra || {}) },
-    headPalette: { Cheek: back, ...(o.head === 'disc' ? { Jowl: back } : {}) },
+    headPalette: { Cheek: back, ...(o.head === 'disc' ? { Jowl: back } : {}), ...(head.bands ? { Mouth: o.mouthColor || '#1c1f22' } : {}) },
     markDensity: { torso: 2, neck: o.gills ? 10 : 2 }, markings: marks,
   };
 }
@@ -123,6 +168,9 @@ const GREAT_WHITE = {
   pectoral: { root: [0.30, 0.80, -0.30], span: 0.85, sweep: 0.60, drop: 0.40, chord: 0.34, tipChord: 0.09 },
   pelvic: { root: [0.16, -0.95, -0.25], span: 0.20, sweep: 0.27, drop: 0.13, chord: 0.12 },
   gills: 5, pattern: { back: '#6f7880', belly: '#eceae4', from: 0.6 },
+  // the head: the eye well forward (~40% of the head back from the snout tip), the mouth an underslung crescent under
+  // the overhanging cone, its corners just behind and below the eye
+  eye: { at: 0.40, t: 2.2 }, mouth: { front: 0.30, corner: 0.04, gape: 1, recess: 0.005 },
 };
 export const family = {
   family: 'chondrichthyan', pose: 'swim',
@@ -133,7 +181,9 @@ export const family = {
   nostrilAt: [5.4, 2.6], noseAt: [5.8, 0.0001], noseR: [0.001, 0.001], webCranium: [1.7, 3.3, 4.97], nose: false,
   ears: false, earAt: [1.2, 1.5], earSpine: [[0, 0, 0], [0, 0, 0.01]], earR: [0.01, 0.01], earSquash: [1, 1], earH: 1,
   headOrnaments: [], headTiles: [], bodyTiles: [], scale: 1,
-  ...cartilageFish(GREAT_WHITE),
+  // the family default carries the great white's BODY only: the head anatomy (eye / mouth) rides each species entry, since
+  // a species' parameter objects merge one level deep over the family's (a ray must not inherit a shark's mouth bands)
+  ...cartilageFish({ ...GREAT_WHITE, eye: undefined, mouth: undefined }),
 };
 // a species: its own body from the maker (its colours over the family's eye / mouth colours)
 const make = (o) => { const p = cartilageFish(o); return { ...p, colors: p.colors }; };
@@ -144,7 +194,7 @@ export const species = {
   // a CRESCENT tail, upper lobe a little longer · long sickle pectorals · five gill slits · sharp countershading,
   // slate-grey back over a white belly · ~4.5 m total length (Wikipedia / Florida Museum: adult females 4.5–5 m,
   // males 3.4–4 m).
-  greatWhiteShark: { family: 'chondrichthyan', name: 'a great white shark', scale: 0.9 },
+  greatWhiteShark: { family: 'chondrichthyan', name: 'a great white shark', scale: 0.9, ...make(GREAT_WHITE) },
   // GREAT HAMMERHEAD (Sphyrna mokarran). Thesis: the CEPHALOFOIL — a flat, wide, near-straight-fronted blade across
   // the head (~25% of body length) with the eyes at its tips · a slimmer torpedo than the white · a very TALL,
   // sickle-curved first dorsal · a long upper caudal lobe with a short lower lobe · grey-bronze back, pale belly ·
@@ -153,7 +203,10 @@ export const species = {
     family: 'chondrichthyan', name: 'a great hammerhead', scale: 0.74,
     ...make({ ...GREAT_WHITE, head: 'hammer',
       profile: [[-1.65, 0.15, 0.13], [-1.20, 0.25, 0.30], [-0.50, 0.42, 0.57], [0.20, 0.47, 0.63], [0.85, 0.41, 0.52], [1.20, 0.33, 0.36]].map(([y, w, h]) => [y, w * 0.8, h * 0.8]),
-      snout: { len: 0.15, w: 1.2, scale: 1.9, kz: 0.7 }, neck: { ...GREAT_WHITE.neck, rA: [0.29, 0.32], rB: [0.23, 0.23] }, eyeR: 0.012,
+      snout: { len: 0.15, w: 1.2, scale: 1.9, kz: 0.7 }, neck: { ...GREAT_WHITE.neck, rA: [0.29, 0.32], rB: [0.23, 0.23] },
+      // the eyes are the cephalofoil tips (hhEye): the skull's own eye shrinks out of sight; the mouth an underslung
+      // crescent under the head's centre, behind the blade
+      eyeR: 0.002, eye: { at: 0.04, t: 2.2 }, mouth: { front: 0.22, corner: 0.38, gape: 1, recess: 0.005 },
       cephalofoil: { span: 0.66, chord: 0.26, y: 2.0 },
       dorsal: { at: 0.40, base: 0.72, height: 0.86, sweep: 0.66, thick: 0.04 },
       caudal: { upper: { span: 1.15, angle: 34, chord: 0.16, thick: 0.05 }, lower: { ratio: 0.5, angle: 52, chord: 0.14 } },
