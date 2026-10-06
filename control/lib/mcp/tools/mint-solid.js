@@ -219,8 +219,27 @@ export async function editSolidHandler(input) {
   }
 }
 
+// A card with sections opens at its base plus a menu; `section` reads one, or a list reads several.
+function sectionedRead(id, card, section) {
+  const { base, sections, ...rest } = card;
+  const menu = Object.entries(sections).map(([name, s]) => ({ name, title: s.title, summary: s.summary, bytes: Buffer.byteLength(s.body, 'utf8') }));
+  if (section === undefined) {
+    return { ok: true, card: { ...rest, body: base, sections: menu, read: `get_solid_vocab({ id: '${id}', section: '<name>' }), or a list of names` }, _telemetrySignal: { id_requested: true, found: true } };
+  }
+  const names = Array.isArray(section) ? section : [section];
+  if (!names.length || names.some((n) => typeof n !== 'string')) throw new Error('get_solid_vocab: `section` is a section name or a list of them.');
+  const unknown = names.filter((n) => !sections[n]);
+  if (unknown.length) throw new Error(`get_solid_vocab: card '${id}' has no section ${unknown.map((n) => `'${n}'`).join(', ')}. Its sections: ${Object.keys(sections).join(', ')}.`);
+  return {
+    ok: true,
+    id,
+    sections: names.map((n) => ({ name: n, title: sections[n].title, body: sections[n].body })),
+    _telemetrySignal: { id_requested: true, found: true },
+  };
+}
+
 export async function getSolidVocabHandler(input) {
-  const { id, family } = input && typeof input === 'object' ? input : {};
+  const { id, family, section } = input && typeof input === 'object' ? input : {};
   const catalog = getSolidVocabCatalog();
   // The Claude plugin profile does not serve the manual of an op it leaves out (skin), and serves the
   // kept cards without their lines about the skin seam, a dreamed reference or the prompt door
@@ -234,6 +253,8 @@ export async function getSolidVocabHandler(input) {
         `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].filter(served).join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
+    if (card.sections) return sectionedRead(id, card, section);
+    if (section !== undefined) throw new Error(`get_solid_vocab: card '${id}' has no sections; read it whole without \`section\`.`);
     return { ok: true, card: profiledCard('solid_vocab', card), _telemetrySignal: { id_requested: true, found: true } };
   }
   let cards = [...catalog.values()].filter((c) => served(c.id)).map((c) => profiledCard('solid_vocab', c));
@@ -319,16 +340,17 @@ export function registerMintSolidTools() {
   registerTool({
     name: 'get_solid_vocab',
     description:
-      'Read a solid-vocab card in full — the depiction prose + routing phrases + parameter manual '
+      'Read a solid-vocab card — the depiction prose + routing phrases + parameter manual '
       + 'for one `mint_solid` kind or `edit_solid` op. Pass `id` for one card; omit for the index '
       + 'rows { id, name, family, entry, summary, when } (optional `family` filter: figure / '
       + "creature / object / structure / vehicle / edit). Discover cards by intent via "
-      + "semantic_search({ kinds: ['solid_vocab'] }); this reader returns the full body. Read-only.",
+      + "semantic_search({ kinds: ['solid_vocab'] }). A long card opens to a `sections` menu. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string', description: 'Card id (= the mint_solid kind or edit_solid op).' },
         family: { type: 'string', enum: ['figure', 'creature', 'object', 'structure', 'vehicle', 'edit'], description: 'Optional list filter.' },
+        section: { description: 'With `id`: a section name, or a list.' },
       },
       required: [],
     },

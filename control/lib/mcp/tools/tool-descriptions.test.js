@@ -316,10 +316,12 @@ const DESCRIPTION_ALLOWLIST = {
 // mint_solid's free-form spec and the scad card.
 // Merged with the industrial study 2026-10-06 (238_700 -> 239_300; measured 238,593 -> 239,264): export_model's dxf/svg
 // leg and measure_solid's `strength` and `motion` properties.
-// Re-pinned 2026-10-06 (239_300 -> 240_500; measured 240,455) for fabricate_solid (1006-fabricator): one new tool,
+// Re-pinned 2026-10-06 (239_300 -> 239_400; measured 239,264 -> 239,327) for the scad ladder: get_solid_vocab's
+// `section` property and one sentence on the sections menu. The six sections themselves are off-payload.
+// Re-pinned 2026-10-06 (239_400 -> 240_600; measured 240,518 with the scad ladder merged) for fabricate_solid (1006-fabricator): one new tool,
 // ~1,200 bytes with its schema cut to routing grade and its annotation title. The job words, need fields, inventory and provenance rule are
 // off-payload (the `fabricate` solid-vocab card and the fabricate-parts routing card).
-const PAYLOAD_CEILING = 240_500;
+const PAYLOAD_CEILING = 240_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

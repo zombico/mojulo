@@ -26,7 +26,7 @@ Why this kind exists beside the workbench: OpenSCAD's booleans are EXACT. A `dif
 - `fields` — an array of workbench `fields` entries (the workbench card's vocabulary: terms, blends, strokes, noise, expressions, warps), each with an `id`. The source reaches one as **`mojulo_field("<id>")`**: a module mojulo prepends to the program, holding that field baked as a `polyhedron()` by the same kernel the workbench uses. Cut it, union it, hull it — the CSG around it is exact, the organic part inside it is mojulo's. Edit the field entry (`/fields/0/terms/…`), never the numbers.
 - `facing`, `viewBox`, `grid: false`, `movers` — exactly as on the workbench card (a hinge is `{ group: '<part>', turn: { center, axis, absolute: true }, states: [0, -3.1416], key: 'f' }`). `$t` is NOT the mover: OpenSCAD's animation variable is ignored; the World's mover channel is the one animation contract.
 
-Returns `{ ok, ref, worldUrl, sceneUrl, url, stats }`. `stats.parts[]` gives each part's faces, colour count, size and base/top z; `stats.log` carries OpenSCAD's own WARNING lines; `stats.warnings` flags a floating object, an open shell, or a mover naming no part; `stats.ledger.openscad` is the version that meshed it.
+Returns `{ ok, ref, worldUrl, sceneUrl, url, stats, next }`. `next` (here and from `update_sketch`) names the steps open from the recipe as stored, each with the section of this card that teaches it. `stats.parts[]` gives each part's faces, colour count, size and base/top z; `stats.log` carries OpenSCAD's own WARNING lines; `stats.warnings` flags a floating object, an open shell, or a mover naming no part; `stats.ledger.openscad` is the version that meshed it.
 
 ## Idioms worth knowing
 
@@ -59,6 +59,7 @@ mint_solid({ kind: 'scad', title: 'foldable block-in', spec: {
 
 A source that calls any `mj_` module or function gets mojulo's own pinned library prepended (the ledger says `mechlib: <version>`); a source that calls none is untouched. Write the call, not the geometry: threads, involutes and ISO tables are where a hand-written first attempt goes quietly wrong. All mm, axis z, base on z = 0. **Cutters** (`*_hole`, `mj_countersink`, `mj_counterbore`, `mj_nut_trap`, `mj_nut_slot`) run from z = 0 DOWN by `depth` — translate one to the face it enters.
 
+<!-- section: mechlib | Parts | ISO bolts, nuts and threads, holes that print true with their fits, involute gears, GT2 pulleys, molded-part edges, lofts and NACA blades -->
 - **Fasteners (ISO coarse M2–M24).** `mj_bolt(size, length, head = "hex"|"socket"|"button"|"countersunk", thread = 0)` stands head-down as it prints. `mj_nut(size, thin)`, `mj_washer(size)`. `mj_thread(size, length, chamfer, left, starts)` is a bare ISO 68-1 thread; `mj_tapped_hole(size, depth, clearance = 0.15)` cuts the internal one. The threads are real helices: an `mj_nut` turns onto an `mj_bolt`. Tables: `mj_iso(size)`, `mj_iso_d`, `mj_iso_pitch`, `mj_clearance(size, "close"|"normal"|"loose")` (ISO 273).
 - **Holes that print true.** `mj_hole(d, depth, fit = "press"|"tight"|"slip"|"running"|"loose")` circumscribes its polygon (OpenSCAD's circles are inscribed, so a plain `cylinder` bore prints undersize) and adds `mj_fit(fit)` to the diameter (FDM defaults; SLA wants about half). `mj_clearance_hole`, `mj_counterbore`, `mj_countersink` (ISO 10642 heads), `mj_nut_trap(size, depth, through)`, `mj_nut_slot(size, slot)`, `mj_heatset_hole(size, depth)` (M2–M8; check the insert's datasheet).
 - **Gears (involute, metric module, 20°).** `mj_spur_gear(mod, teeth, thickness, bore, pa, helix, herringbone, backlash = 0.1)`; a meshing pair sits at `mj_gear_center(mod, z1, z2)` with the second turned `180/z2` (helical pairs take opposite `helix`). `mj_rack(mod, teeth, thickness, height)` (pitch line at `height`), `mj_ring_gear(mod, teeth, thickness, od)` at `mj_ring_center`. `mj_planetary(mod, sun, planet, n, thickness, …, parts = "all"|"sun"|"planets"|"ring")` assembles and phases the set, and refuses one that cannot assemble (`(sun + ring) % n != 0`). `mj_bevel_gear(mod, teeth, face, cone_deg)` and `mj_worm(mod, length, pd, starts)` (mesh it with a helical gear at `helix = mj_worm_lead_angle(…)`) are APPROXIMATIONS: they print and turn, they are not a spherical involute or a hobbed wheel.
@@ -66,9 +67,14 @@ A source that calls any `mj_` module or function gets mojulo's own pinned librar
 - **Edges and molded parts.** `mj_rounded_box(size, r)` (every edge), `mj_rounded_plate([l, w, h], r)` (vertical edges), `mj_chamfer_box(size, c)`; `mj_fillet(l, r)` ADDS an inside fillet along +x; `mj_edge_round(l, r)` / `mj_edge_chamfer(l, c)` SUBTRACT from an outside edge on the x axis. `mj_molded_shell(L, W, H, wall, r, draft)` is a drafted, open-topped shell (centred on the origin); `mj_boss(od, hole, h, draft)` and `mj_rib(l, h, t)` stand inside it.
 - **Lofts and blades.** `mj_loft(sections)` closes a solid through rings of `[x,y,z]` (same count and winding each). `mj_naca4(m, p, t, chord, n)` is a NACA 4-digit section; `mj_blade([[r, chord, twist, [m,p,t]], …])` lofts one along +x — rotate copies around a hub for a propeller or a fan.
 
+<!-- /section -->
+<!-- section: standards | Standards and composition | NEMA mounts, bearings, keyways, circlips, O-rings, board and VESA patterns, T-slot and Gridfinity; gears placed in mesh, a bolt with its nut, an enclosure whose lid fits, and `$mj_fit_add` -->
 - **Standards** (from the published tables; check the supplier's sheet before production). Motors: `mj_nema_mount(11|14|17|23, depth)` cuts the pilot and screw pattern, `mj_nema_motor(n, length)` is a stand-in, `mj_nema(n)` the table. Bearings (623–6204, 688, LM8/10/12UU): `mj_bearing_seat(code, fit = "press", shoulder, through)`, `mj_bearing(code)`. Shafts: `mj_keyway_shaft(d, length)` / `mj_keyway_hub(d, length)` (DIN 6885 A), `mj_circlip_groove(d, z, "shaft"|"bore")` (DIN 471 / 472), `mj_d_bore(d, depth, flat)`. Seals: `mj_oring_groove(d, cs, "face"|"piston"|"rod")` by the 25 %-squeeze rule. Boards: `mj_board_standoffs("rpi3"|"rpi4"|"rpi5"|"rpi-zero"|"arduino-uno"|"arduino-mega", h, insert)` with the board's lower-left corner at the origin; `mj_board_holes(name)`. `mj_vesa(75|100|200, depth)`. `mj_tslot(20|30|40, length)` (the slot opening and core are standard; the inner slot is generic). `mj_gridfinity_bin(ux, uy, uz, magnets)` (the base profile to spec; no stacking lip yet).
 - **Composition: parts placed by how they meet, not by coordinates.** `mj_gear_meshed(mod, z1, z2, angle) mj_spur_gear(mod, z2, …);` puts gear 2 round gear 1 at any angle, turned into mesh; a train chains with `phase` — the gear before's own turn, `mj_gear_mesh_turn(z0, z1, angle0)`. `mj_bolt_and_nut(size, length, nut_z)` threads the nut on in phase. `mj_enclosure(inner, wall, floor, r, screw, lid_t, lip, fit, part = "base"|"lid"|"both"|"assembled", board)` derives the base, the lid's alignment lip, the screw posts (heat-set or tapped) and the lid's countersinks from one set of numbers; `mj_enclosure_posts(inner, screw)` gives the post positions to cut against. A top-level `$mj_fit_add = 0.1;` shifts every fit in the program for this printer.
+<!-- /section -->
+<!-- section: outputs | Outputs | sheet metal and its flat pattern, a DXF or SVG for the laser, the fit coupon and the tensile coupon -->
 - **Outputs.** `mj_sheet(t, r, w, [[length, bend°], …], k = 0.44)` is a bent part (+ bends up, − down); `mj_sheet_flat(…, bend_lines)` is its flat pattern by bend allowance, and `mj_sheet_flat_length(…)` the number. Export a flat pattern or a plate with `export_model { format: 'dxf' | 'svg' }`: a 2D program draws as written, `slice_z` cuts the solid at a height, otherwise its outline; `part` picks one of `parts`. `mj_fit_coupon(d)` prints a pin and a hole for each fit, marked by notches (1 = press … 5 = loose): print it once and set `$mj_fit_add` from what fits. `mj_tensile_coupon(t = 4, upright = false)` is the ISO 527-2 1A dogbone: pull it to break and give the peak load to the strength spec's `coupon`.
+<!-- /section -->
 - **Check a fit by intersection.** `intersection() { part_a(); part_b(); }` minted alone is refused as "makes no geometry" when the two share no volume — that refusal IS the clearance. Nudge one part by the clearance you expect and mint again: it should then collide.
 
 ```
@@ -82,12 +88,13 @@ mint_solid({ kind: 'scad', title: 'M5 clamp block', spec: { source: `
 ` }})
 ```
 
-## Fabricate — standard parts for what each part must do
+## Fabricate
 
-The fabricate manual (`get_solid_vocab({ id: 'fabricate' })`) turns needs into a plan. Each need says what a part must do, such as fasten, spin or seal. The plan gives the parts to buy and the `mj_*` cuts above that take them. When the fabricator mints a scad row, the plan is stored beside the source as `fabricate`.
+Which standard parts a design needs, and what to buy: `get_solid_vocab({ id: 'fabricate' })`. A fabricated row stores its plan as `fabricate`.
 
 ## Mechanisms — `mechanism`
 
+<!-- section: mechanism | The mechanism contract | joints, couplings (gear, ring, belt, rack, screw, ratio, link), the drive and its loads; the motion report and its collision sweep -->
 Name how the `parts` move and mojulo solves the rest. The World plays the cycle, and `measure_solid({ ref, motion: true })` sweeps it for collisions and reports the speeds, the torque and the forces. **The authored pose is the rest pose:** every joint is at 0 there, a link's length is measured off it, and gears are authored in mesh (`mj_gear_meshed`).
 
 ```
@@ -116,6 +123,8 @@ mechanism: {
   - Every pair of parts intersected across the cycle, listing the steps that collide, the overlap volume and its position. A bounding-box miss costs no render. A clear pair costs one. Threads are slow, so lower `steps`.
 - **Stated assumptions:** parts are rigid with no deflection, and loads oppose the motion. Default efficiencies are gear 0.98, ring 0.97, belt 0.96, rack 0.95 and ratio 0.9; pins are frictionless unless sized (below). A worm or bevel pair is a `ratio` with its own `efficiency`.
 
+<!-- /section -->
+<!-- section: dynamics | Weight, inertia, friction and strength | name a material and the motion report counts mass, start-up, friction, joint forces, motor sizing and wear, and checks each rod and gear for strength -->
 **Weight, inertia, friction and strength.** Name a material and the motion report gains a `dynamics` block. Absent every field below, it is unchanged.
 
 ```
@@ -145,9 +154,11 @@ mechanism: { …,
 - **Strength:** every rod is checked as a pinned strut at its peak compression and as a tie at its peak pull, and every gear by Lewis at its peak torque, by the rigidity sensor (a repeated load for a loop). The worst part is named. `strength.build` on the row sets the print direction.
 - **Flags:** load cycles over `duty.hours`; back-driving (the mechanism drives the motor); a self-locking screw holding a `sustained` load on a material that creeps; unbalance of a turning part; a motor whose usable torque (half its typical holding torque) is below the peak or start-up effort; a bushing over its PV.
 - **Not covered:** deflection inside the mechanism, natural frequencies, impacts at clearances, fatigue life, heat. A rod's mass is lumped to its pins for its force, and friction is first order.
+<!-- /section -->
 
 ## Will it hold? — the rigidity sensor
 
+<!-- section: strength | The rigidity sensor | `measure_solid({ ref, strength })` and the stored spec: material, build direction, print walls and infill, coupons, the seven elements, and the margin, confidence, verdict and tensile view that come back -->
 `measure_solid({ ref, strength })` reads a part against the material it is made from and the work it has to do: how far it bends, how far it is from breaking, how much to trust that, and where the weak spot is. Store the spec on the row (`update_sketch` `/strength`) and the reading reproduces, and the World points at the weak spot: rings pulse there, while the part, the arrow and the label stay still (`show: false` keeps it off). **It is a sensor, not a guarantee**: textbook formulas on the measured shape, with typical material values.
 
 ```
@@ -188,6 +199,7 @@ Points are in the model's units (mm here), forces in N (`force: [fx, fy, fz]`, `
 Stress raisers (a step in section, a hole) are found and named with an estimated Kt. A hole is where the section changes (a cross-hole, the end of a cavity), so a tube or a hollow print that runs straight through takes none. Kt counts for brittle materials and repeated loads. For a ductile part under a static load it is reported but not applied, because local yielding shares the load. Inside corners on a print are never sharper than the nozzle leaves them (≈ 0.2 mm).
 
 It does not cover general 3D stress (FEA), fatigue life, creep rates or temperature curves. It also does not cover joints you did not ask about: check the screws as a `bolt`.
+<!-- /section -->
 
 ## What this kind does not do
 

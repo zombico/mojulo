@@ -14,6 +14,7 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planScad, persistedScadLedger, DEFAULT_UNITS } from '@/lib/graph/scad/scad-render';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
+import { scadNext } from '@/lib/mcp/tools/scad-next';
 
 export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, fabricate, ref, folderRef } = {}) {
   if (typeof source !== 'string') {
@@ -51,6 +52,7 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
     sceneUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/scene`,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     stats,
+    next: scadNext(manifest),
   };
 }
 

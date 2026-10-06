@@ -47,6 +47,21 @@ scratch last: the cluster every new object draws from. Every existing kind build
   that a scad object assembles inside its own source (`parts`, `mechanism`, the plan's `bom`) instead of only that
   it is not a workbench.
 
+### Scad ladder
+
+- **The scad card opens to its first step.** `get_solid_vocab({ id: 'scad' })` returns the part itself (spec,
+  idioms, the worked example, what the kind does not do) and a menu of the deeper steps with their sizes: the
+  mechanical library, standards and composition, outputs, mechanisms, dynamics, and the rigidity sensor.
+  `get_solid_vocab({ id: 'scad', section: 'mechanism' })` reads one; a list reads several. The text moved and was not
+  rewritten; search and the embeddings still index the whole card.
+- **Any solid card can do this.** A card marks a section in its body, and a card without marks reads as before.
+- **`next` on scad rows.** `mint_solid` kind scad and `update_sketch` on a scad row return the steps open from the
+  recipe as stored, each with the section that teaches it: a mechanism for a part list, dynamics for a mechanism,
+  the motion and strength readings, a print as printed and its coupon, a DXF for sheet metal, and the print
+  package. It is computed, never stored, and names a step without predicting its result.
+- **Ratchet.** `get_solid_vocab`'s `section` property moves the flat `tools/list` pin by 63 bytes (239,264 to
+  239,327; pin 239,400). The card a plain part reads drops from 26.3 KB to 9.6 KB.
+
 ### Test cull
 
 The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
