@@ -69,7 +69,7 @@ function boltMaterial(spec, m) {
  * material (a table-driven capacity check with nothing to place).
  */
 export function tensileView(check, spec, ctx, conf) {
-  const stressModes = check.modes.filter((x) => !x.rigidity && Number.isFinite(x.stress_mpa) && Number.isFinite(x.allow_mpa) && x.allow_mpa > 0);
+  const stressModes = check.modes.filter((x) => !x.rigidity && !x.advisory && Number.isFinite(x.stress_mpa) && Number.isFinite(x.allow_mpa) && x.allow_mpa > 0);
   if (!stressModes.length) return null;
   const top = stressModes.reduce((a, b) => (b.utilization > a.utilization ? b : a));
   let mat = check.material_override || ctx.material, f = check.facts?.direction || null;
@@ -85,7 +85,7 @@ export function tensileView(check, spec, ctx, conf) {
   const plateau = !curve.brittle && curve.ultimate_mpa <= yieldS && seq >= yieldS - 1e-9;
   const strain = zone.startsWith('past the break') || plateau ? null : strainAt(curve, Math.min(seq, curve.ultimate_mpa));
   const allowed = sDir / conf.required_sf;
-  const governing = check.modes.filter((x) => !x.rigidity).reduce((a, b) => (b.utilization > a.utilization ? b : a));
+  const governing = check.modes.filter((x) => !x.rigidity && !x.advisory).reduce((a, b) => (b.utilization > a.utilization ? b : a));
   const capacity = !stressModes.includes(governing) ? governing.mode : null;
   const label = mat.label;
   const line = `Tensile view: ${r2(seq)} MPa (${top.mode}${/torsion|shear/.test(top.mode) ? ', von Mises equivalent' : ''})`

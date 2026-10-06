@@ -178,6 +178,29 @@ own checks.
   factor (upright). The reading is then marked calibrated and records what was measured.
 - **Mechanisms.** A rod that pulls is now also checked as a tie at its peak tension.
 
+### Prints as printed
+
+The rigidity sensor reads a print's cross-section the way the slicer lays it down. It used to read every print as
+solid and ignore a declared infill, which overstated a typical part's strength about 2× with no warning.
+
+- **`print: { walls, line_mm, top_bottom, layer_mm, infill, pattern }`** on the strength spec, or on one check.
+  Absent, or at 100 % infill, the reading is exactly as before.
+- **The printed section.** Each cut is filled on a grid aligned with the build. The walls are a sideways offset and
+  the skins a vertical one; in a cut that lies along a layer the walls are an even offset. What is left is the infill
+  core. The section becomes the composite ("transformed") section: the exact solid values minus the core's lost
+  stiffness. Beams, levers, ties, struts (buckling on the printed I) and shafts all read it.
+- **Infill by pattern and direction.** Gibson–Ashby scaling, labelled typical ±50 %:
+  - prism walls that run with the stress carry ρ
+  - a bending-dominated lattice carries ρ²
+  - triangles and lines across the build carry ρ/3 and ρ/4
+  `infill_E` and `infill_strength` from your own test replace the table.
+- **The core is advisory.** At low density its cells crack before the walls do. The reading notes it, but the
+  walls set the margin.
+- **Confidence names the section** ("2 walls and 0.8 mm skins around a 20 % grid core …"). It drops to low when
+  the core carries more than a quarter of the stiffness and the infill was not measured.
+- **Checked.** A declared 0 % print reads the same as an explicit 0.8 mm shell mesh (79.0 MPa). The study's PLA bar
+  at 2 walls and 20 % grid reads 74.5 MPa against 35.9 solid.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

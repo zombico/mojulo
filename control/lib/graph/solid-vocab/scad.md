@@ -153,6 +153,8 @@ strength: {
   build?: 'z+' | [x, y, z],     // the print's build direction; omit and the across-layer worst case is used
   grain?: [x, y, z],            // wood
   temperature?: °C, calibrated?: true, show?: false,
+  print?: { walls = 2, line_mm = 0.45, top_bottom = 4, layer_mm = 0.2, infill = 0.2, pattern = 'grid' | 'lines' | 'triangles' | 'honeycomb' | 'cubic' | 'gyroid', infill_E?, infill_strength? },
+                                // as sliced; absent = solid; a check may carry its own
   coupon?: { break_n, build?: 'flat' | 'upright' } | [ … ],   // your pulled mj_tensile_coupon: flat sets the strength, upright the layer factor
   checks: [ … one per element, each with kind?: 'static'|'repeated'|'impact', sustained?, certainty?: 'measured'|'estimated'|'guess', label? ]
 }
@@ -176,6 +178,7 @@ Points are in the model's units (mm here), forces in N (`force: [fx, fy, fz]`, `
 - **Verdict:** one of "predicted to fail", "below", "meets" or "meets with room to spare".
 - **Line:** one plain sentence summarising all of the above.
 - **Tensile view:** the material's stress–strain curve, idealised from the table (brittle: straight to the break; ductile: elastic, then yield, hardening to the ultimate where it is tabled), in the stressed direction (across a print's layers it is brittle). The working point sits on it: the governing stress as a tensile equivalent, its strain, and its zone (elastic / past yield / past the break), with the stress this confidence allows. A stored spec draws it in a static World panel beside the weak spot.
+- **Printed section:** with `print`, each cut is split into what the slicer lays down. The walls (across the build) and skins (along it) are at full strength; the infill core is at a share set by its density and pattern (Gibson–Ashby: walls that run with the stress carry ρ; a bending-dominated lattice carries ρ²; typical, ±50 %). Beams, levers, ties, struts (buckling on the printed I) and shafts (an estimate) all read it. A typical 2-wall, 20 % print bends about twice as much as solid. The core gets an advisory check: at low density its cells crack first, while the walls still carry the part. `infill_E` / `infill_strength` from your own test replace the table and lift the confidence penalty.
 - **Calibration:** with `coupon`, the material block records what your pulled coupons measured, and the reading counts as calibrated.
 
 Stress raisers (a step in section, a hole) are found and named with an estimated Kt. A hole is where the section changes (a cross-hole, the end of a cavity), so a tube or a hollow print that runs straight through takes none. Kt counts for brittle materials and repeated loads. For a ductile part under a static load it is reported but not applied, because local yielding shares the load. Inside corners on a print are never sharper than the nozzle leaves them (≈ 0.2 mm).

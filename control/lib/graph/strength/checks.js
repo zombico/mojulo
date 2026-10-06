@@ -18,6 +18,7 @@
 import { qty, toUnit, weight } from '../machina/quantities.js';
 import { lever as machinaLever } from '../machina/machines.js';
 import { measureSection, liftPoint, toPlane, unit } from './section.js';
+import { printedSection, infillFactors, printSummary } from './printed.js';
 import { directionFactor, isBrittle, isPrinted, shearModulus, BOLT_GRADES, resolveMaterial } from './materials.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -69,6 +70,15 @@ export function shoulderKt(rOverD, DOverd) {
 }
 export const HOLE_KT = { bending: 2.0, axial: 2.5 };
 
+// A section as printed (walls, skins, infill core) when the check has a print, else the solid one. Shoulder and
+// step detection keep the geometric area; everything that carries stress reads this.
+function cutSection(soup, o, n, print, build) {
+  const m = measureSection(soup, o, n);
+  if (!print || m.props.empty) return m;
+  const props = printedSection(m.slice, m.props, print, build, infillFactors(print, unit(n), build));
+  return { slice: m.slice, props, centroid3: liftPoint(m.slice, props.centroid) };
+}
+
 function allowable(material, stressDir, build) {
   const f = directionFactor(material, stressDir, build);
   return { strength: material.strength * f.strength, E: material.E * f.E, factor: f };
@@ -96,7 +106,7 @@ function sectionStress(p, N, Mu, Mv, side2 = null) {
   }
   const top = !sides.minus.at || Math.abs(sides.plus.peak) >= Math.abs(sides.minus.peak) ? sides.plus : sides.minus;
   const bendEnergy = a * a * p.Ivv + 2 * a * b * p.Iuv + b * b * p.Iuu;   // ∫σ_b² dA
-  return { peak: top.peak, at: top.at, s0, peakBend: top.bend, bendEnergy, sides };
+  return { peak: top.peak, at: top.at, s0, a, b, peakBend: top.bend, bendEnergy, sides };
 }
 
 /**
@@ -106,7 +116,7 @@ function sectionStress(p, N, Mu, Mv, side2 = null) {
  * deflection along F by Castigliano (δ = (1/F) ∫ [∫σ²/E dA + N²/EA + T²/GJ] dx), which stays exact for a
  * section that varies along the span.
  */
-function beamSweep(soup, { origin, normal, P, F, material, build, stations = 48 }) {
+function beamSweep(soup, { origin, normal, P, F, material, build, print = null, stations = 48 }) {
   // a printed inside corner is never sharper than the nozzle leaves it (≈ 0.2 mm for a 0.4 mm nozzle)
   const minFillet = isPrinted(material) ? 0.2 : 0;
   const n = unit(normal);
@@ -118,7 +128,7 @@ function beamSweep(soup, { origin, normal, P, F, material, build, stations = 48 
   const Fperp = sub(F, mul(n, dot(F, n)));
   const bendDir = len(Fperp) > 1e-9 * Math.max(Fm, 1) ? unit(Fperp) : null;
   const station = (o) => {
-    const { slice, props, centroid3 } = measureSection(soup, o, n);
+    const { slice, props, centroid3 } = cutSection(soup, o, n, print, build);
     const x = dot(sub(o, origin), n);
     if (props.empty) return { x, o, empty: true };
     const M = cross(sub(P, centroid3), F);
@@ -126,11 +136,14 @@ function beamSweep(soup, { origin, normal, P, F, material, build, stations = 48 
     const N = dot(F, n);
     const side2 = bendDir ? toPlane(slice, bendDir).slice(0, 2) : null;
     const S = sectionStress(props, N, Mp[0], Mp[1], side2);
+    // a printed core's own extreme fibres, at kE of the strain
+    let coreSigma = 0;
+    if (props.printed?.coreVerts?.length) for (const [x, y] of props.printed.coreVerts) coreSigma = Math.max(coreSigma, Math.abs(S.s0 + S.a * (x - props.centroid[0]) + S.b * (y - props.centroid[1])) * props.printed.kE);
     const T = Mp[2];
     const tauV = 1.5 * len(Fperp) / props.area;            // rectangle's peak; a stated estimate for other shapes
     const tauT = Math.abs(T) * props.rmax / props.J0;      // exact for round sections only
     return {
-      x, o, slice, props, centroid3, N, M: len(M), T, sigma: S.peak, sigmaBend: S.peakBend, at: S.at, sides: S.sides, kt: 1, ktSide: { plus: 1, minus: 1 }, raisers: [],
+      x, o, slice, props, centroid3, N, M: len(M), T, coreSigma, sigma: S.peak, sigmaBend: S.peakBend, at: S.at, sides: S.sides, kt: 1, ktSide: { plus: 1, minus: 1 }, raisers: [],
       depth: depthAlong(slice, props, bendDir),
       tauV, tauT, energy: S.bendEnergy / allow.E + (N * N) / (allow.E * props.area) + (T * T) / (G * props.J0),
     };
@@ -256,6 +269,12 @@ function sweepModes(sw, { material, kind, demand, label }) {
     { mode: 'bending', stress_mpa: r2(worst.peak), allow_mpa: r2(sw.allow.strength), utilization: r3(worst.u), sf: r2(1 / worst.u), at_mm_from_root: r2(worst.s.x) },
     { mode: 'shear', stress_mpa: r2(shear), allow_mpa: r2(shearAllow), utilization: r3(shear / shearAllow), sf: r2(shearAllow / shear) },
   ];
+  const core = Math.max(0, ...sw.stations.filter((t) => !t.empty).map((t) => t.coreSigma || 0)) * demand;
+  const ks = sw.stations.find((t) => t.props?.printed)?.props.printed.ks;
+  // the core's cells crack before the shell does at low density (a foam's failure strain is ≈ 0.3/√ρ of the solid's);
+  // the shell still carries the part, a little less stiffly, so this advises and does not set the margin
+  if (core > 0 && ks > 0) modes.push({ mode: 'infill core', stress_mpa: r2(core), allow_mpa: r2(ks * sw.allow.strength), utilization: r3(core / (ks * sw.allow.strength)), sf: r2((ks * sw.allow.strength) / core), advisory: true,
+    note: core > ks * sw.allow.strength ? 'the infill starts to crack at this load; the walls still carry it, and the part then bends about as a shell with no infill' : 'the infill holds at this load' });
   const s = worst.s;
   // a stress raiser within one depth of the weak spot belongs to it, applied or not
   const near = sw.stations.filter((t) => !t.empty && t.raisers?.length && Math.abs(t.x - s.x) <= Math.max(sw.depth, sw.dx));
@@ -265,8 +284,17 @@ function sweepModes(sw, { material, kind, demand, label }) {
     at: liftPoint(s.slice, worst.at).map(r2), section_center: s.centroid3.map(r2), normal: sw.n.map(r3),
     section_mm2: r2(s.props.area), mode: 'bending', side: worst.tension ? 'tension' : 'compression', utilization: r3(worst.u), label,
     ...(raisers.length ? { raisers, kt: r2(kt), kt_applied: useKt } : {}),
+    ...(s.props.printed ? { print: printSummary(s.props.printed) } : {}),
   };
   return { modes, weak, worst };
+}
+
+// The most core-dependent printed section among the stations, for the confidence grade.
+function printedFact(propsList) {
+  const ps = propsList.filter((p) => p?.printed);
+  if (!ps.length) return {};
+  const top = ps.reduce((a, b) => (b.printed.core_share > a.printed.core_share ? b : a));
+  return { printed: printSummary(top.printed) };
 }
 
 function idealizationFacts(sw) {
@@ -276,7 +304,7 @@ function idealizationFacts(sw) {
   const vary = Math.max(...areas) / Math.min(...areas);
   // the ligaments either side of a hole act together; only pieces that run apart count
   const pieces = Math.max(...live.map((s) => (s.raisers?.some((r) => r.kind === 'hole') ? 1 : s.props.outer)));
-  return { slenderness: r2(sw.L / depth), varies: r2(vary), gaps: sw.gaps, pieces, open: live.some((s) => s.props.open > 0) };
+  return { slenderness: r2(sw.L / depth), varies: r2(vary), gaps: sw.gaps, pieces, open: live.some((s) => s.props.open > 0), ...printedFact(live.map((s) => s.props)) };
 }
 
 // ── cantilever ──
@@ -285,7 +313,7 @@ export function cantilever(soup, spec, ctx) {
   const P = vec3(spec.load?.at, 'load.at');
   const F = resolveForce(spec.load, 'load');
   const demand = LOAD_KINDS[spec.kind || 'static'];
-  const sw = beamSweep(soup, { origin, normal, P, F, material: ctx.material, build: ctx.build });
+  const sw = beamSweep(soup, { origin, normal, P, F, material: ctx.material, build: ctx.build, print: ctx.print });
   if (sw.stations.every((s) => s.empty)) throw new Error('strength: no section found between the root and the load — the root plane or the normal misses the part');
   const { modes, weak } = sweepModes(sw, { material: ctx.material, kind: spec.kind, demand, label: spec.label || 'cantilever' });
   const delta = sw.deflection * demand;
@@ -322,7 +350,7 @@ export function lever(soup, spec, ctx) {
   let best = null; const armOut = [];
   for (const arm of arms) {
     const n = unit(sub(arm.P, fulcrum));
-    const sw = beamSweep(soup, { origin: fulcrum, normal: n, P: arm.P, F: arm.F, material: ctx.material, build: ctx.build });
+    const sw = beamSweep(soup, { origin: fulcrum, normal: n, P: arm.P, F: arm.F, material: ctx.material, build: ctx.build, print: ctx.print });
     if (sw.stations.every((s) => s.empty)) throw new Error(`strength: the ${arm.name} has no section between the fulcrum and its end`);
     const m = sweepModes(sw, { material: ctx.material, kind: spec.kind, demand, label: `lever ${arm.name}` });
     armOut.push({ arm: arm.name, ...m, sw });
@@ -356,9 +384,9 @@ export function shaft(soup, spec, ctx) {
   let worst = null, twist = 0, gaps = 0;
   for (let i = 0; i < k; i++) {
     const o = add(origin, mul(n, (i + 0.5) * dx));
-    const { slice, props } = measureSection(soup, o, n);
+    const { slice, props } = cutSection(soup, o, n, ctx.print, ctx.build);
     if (props.empty) { gaps++; continue; }
-    const round = props.holes <= 1 && props.area / (Math.PI * props.rmax * props.rmax) > (props.holes ? 0 : 0.97);
+    const round = props.holes <= 1 && (props.solidArea ?? props.area) / (Math.PI * props.rmax * props.rmax) > (props.holes ? 0 : 0.97);
     const notch = !round && concaveOuter(slice.loops);
     const kt = round ? 1 : notch ? 3.0 : 1.5;
     const tau = Math.abs(T) * props.rmax / props.J0;
@@ -379,7 +407,7 @@ export function shaft(soup, spec, ctx) {
   return {
     element: 'shaft', torque_nm: r2(T / 1000), length_mm: r2(Lmm), modes,
     weak_spot: { at: at.map(r2), section_center: liftPoint(worst.slice, worst.props.centroid).map(r2), normal: n.map(r3), section_mm2: r2(worst.props.area), mode: 'torsion', utilization: r3(worst.u), label: spec.label || 'shaft', ...(worst.kt > 1 ? { raisers: [{ kind: worst.notch ? 'keyway or notch' : 'flat', kt: worst.kt }], kt: worst.kt, kt_applied: worst.useKt } : {}) },
-    facts: { slenderness: r2(Lmm / d), varies: 1, gaps, pieces: 1, open: false, nonRound: !worst.round, direction: allow.factor, stressAxis: diag },
+    facts: { slenderness: r2(Lmm / d), varies: 1, gaps, pieces: 1, open: false, nonRound: !worst.round, direction: allow.factor, stressAxis: diag, ...printedFact([worst.props]) },
     assumptions: ['pure torsion between the two ends', worst.round ? 'round section: τ = T·r/J is exact' : 'non-round section: τ = T·r/J with the polar moment is an estimate'],
     not_covered: ['bending from belt or gear side loads (add them as a cantilever)', 'the hub, key and set screw', 'fatigue life'],
   };
@@ -418,7 +446,7 @@ export function strut(soup, spec, ctx) {
   const k = 32; let minI = Infinity, minA = Infinity, weak = null, gaps = 0;
   for (let i = 0; i < k; i++) {
     const o = add(A0, mul(n, (i + 0.5) * (Lmm / k)));
-    const { slice, props } = measureSection(soup, o, n);
+    const { slice, props } = cutSection(soup, o, n, ctx.print, ctx.build);
     if (props.empty) { gaps++; continue; }
     if (props.I2 < minI) { minI = props.I2; weak = { slice, props, x: (i + 0.5) * (Lmm / k) }; }
     minA = Math.min(minA, props.area);
@@ -438,7 +466,7 @@ export function strut(soup, spec, ctx) {
   return {
     element: 'strut', length_mm: r2(Lmm), load_n: r2(Fn), modes,
     weak_spot: { at: liftPoint(weak.slice, weak.props.centroid).map(r2), section_center: liftPoint(weak.slice, weak.props.centroid).map(r2), normal: n.map(r3), section_mm2: r2(weak.props.area), mode: modes[1].utilization > modes[0].utilization ? 'buckling' : 'compression', utilization: r3(Math.max(modes[0].utilization, modes[1].utilization)), label: spec.label || 'strut' },
-    facts: { slenderness: r2(Lmm / (2 * weak.props.rmax)), varies: 1, gaps, pieces: weak.props.outer, open: false, direction: allow.factor, stressAxis: n },
+    facts: { slenderness: r2(Lmm / (2 * weak.props.rmax)), varies: 1, gaps, pieces: weak.props.outer, open: false, direction: allow.factor, stressAxis: n, ...printedFact([weak.props]) },
     assumptions: [`ends ${spec.ends || 'pinned'} (K = ${K})`, 'the load runs straight down the axis; any offset adds bending and lowers the buckling load'],
     not_covered: ['local buckling of thin walls', 'the joints at each end'],
   };
@@ -453,14 +481,14 @@ export function tie(soup, spec, ctx) {
   if (!(Fn > 0)) throw new Error(Fn < 0 ? 'strength: a tie carries a pull; a negative force pushes — check a push with element \'strut\' (it adds buckling)' : 'strength: tie needs force (N, the pull)');
   const n = unit(sub(B0, A0));
   const demand = LOAD_KINDS[spec.kind || 'static'];
-  const sw = beamSweep(soup, { origin: A0, normal: n, P: B0, F: mul(n, Fn), material: ctx.material, build: ctx.build });
+  const sw = beamSweep(soup, { origin: A0, normal: n, P: B0, F: mul(n, Fn), material: ctx.material, build: ctx.build, print: ctx.print });
   if (sw.stations.every((s) => s.empty)) throw new Error('strength: no section found between from and to — the line misses the part');
   const { modes: m, weak } = sweepModes(sw, { material: ctx.material, kind: spec.kind, demand, label: spec.label || 'tie' });
   const tension = { ...m[0], mode: 'tension' };
   weak.mode = 'tension';
   const stretch = sw.deflection * demand;
   const strain = tension.stress_mpa / sw.allow.E;
-  const modes = [tension];
+  const modes = [tension, ...m.filter((x) => x.mode === 'infill core')];
   if (Number.isFinite(spec.limit?.elongation_mm)) modes.push({ mode: 'elongation', deflection_mm: r3(stretch), limit_mm: r3(spec.limit.elongation_mm), utilization: r3(stretch / spec.limit.elongation_mm), rigidity: true, basis: 'your limit' });
   const ecc = sw.stations.some((s) => !s.empty && Math.abs(s.sigmaBend) > 0.05 * Math.abs(s.N / s.props.area));
   return {

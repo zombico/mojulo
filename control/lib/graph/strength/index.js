@@ -8,6 +8,8 @@
  *     build?: 'z+' | [x, y, z],                    // print build direction; absent → worst case, confidence drops
  *     grain?: [x, y, z],                           // wood: the grain axis
  *     calibrated?: true,                           // the material's numbers came from your own tests
+ *     print?: { walls, line_mm, top_bottom, layer_mm, infill, pattern, infill_E?, infill_strength? },   // as sliced;
+ *                                                  // absent = solid. A check may carry its own `print`.
  *     coupon?: { break_n, build?: 'flat' | 'upright', section_mm2? } | [...],   // pulled mj_tensile_coupon results:
  *                                                  // flat sets the in-plane strength, upright the layer factor
  *     temperature?: °C,
@@ -24,6 +26,7 @@ import { ELEMENTS } from './checks.js';
 import { readCheck } from './reading.js';
 import { unit } from './section.js';
 import { tensileSvg } from './tensile.js';
+import { printErrors, resolvePrint } from './printed.js';
 
 const AXES = { 'x+': [1, 0, 0], 'x-': [-1, 0, 0], 'y+': [0, 1, 0], 'y-': [0, -1, 0], 'z+': [0, 0, 1], 'z-': [0, 0, -1] };
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -71,6 +74,7 @@ export function strengthSpecErrors(spec) {
   if (!spec || typeof spec !== 'object') return ['strength must be an object { material, checks: [...] }'];
   try { resolveMaterial(spec.material); } catch (e) { errs.push(e.message.replace(/^strength: /, '')); }
   if (spec.build != null && !AXES[spec.build] && !(Array.isArray(spec.build) && spec.build.length === 3)) errs.push(`build must be one of ${Object.keys(AXES).join(', ')} or [x, y, z]`);
+  errs.push(...printErrors(spec.print));
   couponList(spec.coupon).forEach((c, i) => {
     if (!(+c?.break_n > 0)) errs.push(`coupon[${i}].break_n must be the peak pull in N`);
     if (c?.build != null && !['flat', 'upright'].includes(c.build)) errs.push(`coupon[${i}].build must be flat or upright`);
@@ -81,6 +85,7 @@ export function strengthSpecErrors(spec) {
     if (!ELEMENTS[c?.element]) errs.push(`checks[${i}].element must be one of ${Object.keys(ELEMENTS).join(', ')}`);
     if (c?.kind && !['static', 'repeated', 'impact'].includes(c.kind)) errs.push(`checks[${i}].kind must be static, repeated or impact`);
     if (c?.certainty && !['measured', 'estimated', 'guess'].includes(c.certainty)) errs.push(`checks[${i}].certainty must be measured, estimated or guess`);
+    errs.push(...printErrors(c?.print, `checks[${i}].print`));
   });
   return errs;
 }
@@ -97,8 +102,9 @@ export function strengthReading(soup, spec, { scale = 1 } = {}) {
   const ctx = { material: spec.grain ? { ...material, grainDir: unit(spec.grain.map(Number)) } : material, build, temperature: spec.temperature, calibrated: !!spec.calibrated || couponList(spec.coupon).length > 0 };
   const readings = spec.checks.map((c, i) => {
     try {
-      const check = ELEMENTS[c.element](soup, scaled(c, scale), ctx);
-      return readCheck(check, c, ctx);
+      const cx = { ...ctx, print: resolvePrint(c.print ?? spec.print) };
+      const check = ELEMENTS[c.element](soup, scaled(c, scale), cx);
+      return readCheck(check, c, cx);
     } catch (e) {
       return { element: c.element, label: c.label || null, error: e.message.replace(/^strength: /, ''), index: i };
     }

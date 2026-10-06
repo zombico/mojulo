@@ -15,6 +15,7 @@
  */
 
 import { tensileView } from './tensile.js';
+import { printLine } from './printed.js';
 import { isBrittle, isPrinted } from './materials.js';
 
 export const GRADES = ['very low', 'low', 'medium', 'high'];
@@ -51,6 +52,10 @@ export function gradeConfidence(check, spec, ctx) {
     if (f.slenderness < 2) { ideal = minGrade(ideal, 'low'); reasons.push(`idealization: stubby (length ${f.slenderness}× depth): beam formulas misjudge shear and the root`); }
     else if (f.slenderness < 4) { ideal = minGrade(ideal, 'medium'); reasons.push(`idealization: short (length ${f.slenderness}× depth): beam formulas are approximate`); }
     if (f.pieces > 1) { ideal = minGrade(ideal, 'medium'); reasons.push('idealization: the section is more than one piece; they are assumed to act together'); }
+  }
+  if (f.printed) {
+    ideal = minGrade(ideal, f.printed.own || f.printed.core_share <= 0.25 ? 'medium' : 'low');
+    reasons.push(`idealization: ${printLine(f.printed)}`);
   }
   if (f.nonRound) { ideal = minGrade(ideal, 'low'); reasons.push('idealization: torsion of a non-round section is estimated'); }
   if (check.weak_spot?.raisers?.length) {
@@ -93,7 +98,7 @@ export function verdictFor(sf, required) {
 /** The full reading for one check: margin (worst strength mode), rigidity, confidence, verdict and the line. */
 export function readCheck(check, spec, ctx) {
   const conf = gradeConfidence(check, spec, ctx);
-  const strengthModes = check.modes.filter((x) => !x.rigidity);
+  const strengthModes = check.modes.filter((x) => !x.rigidity && !x.advisory);
   const rigidModes = check.modes.filter((x) => x.rigidity);
   const worst = strengthModes.reduce((a, b) => (b.utilization > a.utilization ? b : a));
   const sf = r2(1 / worst.utilization);
@@ -104,10 +109,12 @@ export function readCheck(check, spec, ctx) {
   const rigLine = rigid.map((x) => x.mode === 'twist'
     ? `twists ${x.twist_deg}° (limit ${x.limit_deg}°, ${x.basis})`
     : `bends ${x.deflection_mm} mm (limit ${x.limit_mm} mm, ${x.basis})`).join('; ');
+  const advice = check.modes.filter((x) => x.advisory && x.utilization > 1).map((x) => `${x.mode}: ${x.note}`);
   const why = conf.reasons.filter((r) => !r.startsWith('load: estimated')).slice(0, 3).map((r) => r.replace(/^[a-z]+: /, '')).join('; ');
   const line = `${what}: weakest mode ${worst.mode}, safety factor ${sf} against ${m.basis === 'mor' ? 'rupture' : m.basis}`
     + `${rigLine ? `; ${rigLine}` : ''}. Confidence ${conf.grade}${why ? ` (${why})` : ''}; this confidence calls for ${conf.required_sf}. `
-    + `Reading: ${verdict}.`;
+    + `Reading: ${verdict}.`
+    + (advice.length ? ` Note — ${advice.join('; ')}.` : '');
   const tensile = tensileView(check, spec, ctx, conf);
   return {
     ...check,
