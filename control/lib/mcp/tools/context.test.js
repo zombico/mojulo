@@ -506,6 +506,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'mint_solid', 'edit_solid', 'get_solid_vocab',
     // measure_solid (continuous-guardrails.plan.md G2) — the object drawer's read-back sibling
     'measure_solid',
+    // fabricate_solid (1006-fabricator) — needs → standard parts, executed by scad or a workbench frame
+    'fabricate_solid',
     'reference_protocol', 'capture_reference',
     'get_image_render_packet', 'bind_character_sheet', 'bind_image_render', 'request_image_render',
     'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',

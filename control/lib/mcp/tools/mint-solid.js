@@ -44,7 +44,6 @@ import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler, createCodeSolidHandler, createEquipmentHandler } from '@/lib/mcp/tools/workbench';
 import { createScadHandler } from '@/lib/mcp/tools/scad';
-import { fabricateScadHandler } from '@/lib/mcp/tools/fabricate';
 import { createLayeredHandler, createLayeredPlanHandler, createLayeredHeroHandler } from '@/lib/mcp/tools/layered';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
@@ -95,9 +94,7 @@ export const SOLID_KINDS = {
   'equipment': { family: 'object', handler: createEquipmentHandler },
   // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
   // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
-  // The fabricate door: `spec.needs` names what each part must DO (fasten, spin, seal, mount …); the fabricator
-  // resolves them to standard parts first and hands back the plan, then mints the source with the plan frozen beside it.
-  'scad': { family: 'object', handler: createScadHandler, via: { fabricate: fabricateScadHandler } },
+  'scad': { family: 'object', handler: createScadHandler },
   // A solid born layered (stations × slots, pinned details, dials): the recipe is stored and lowers to
   // the workbench studio on every read, so a dial patch reshapes it in place. Stores kind:'layered'.
   'layered': {
@@ -272,7 +269,7 @@ export function registerMintSolidTools() {
       properties: {
         kind: { type: 'string', enum: KIND_LIST, description: 'Which solid. Parameter manual: get_solid_vocab({ id: kind }).' },
         spec: { type: 'object', description: `The kind's own knobs (see its solid-vocab card). Validated by the kind's mint; a failed mint returns the card pointer.` },
-        via: { type: 'string', description: `Authoring door. manji-tree: 'ir' (default, full manifest) | 'parts' | 'prompt' (NL: sends spec.prompt to an external LLM API with the user's key; spec.provider required, nothing is picked for you) | 'packet' (NL, key-free two-call handshake). layered: 'plan' (a ring plan in spec.plan) | 'hero' (a human: spec { cast: 'male' | 'female', register, tune: percentages of the cast — 'athletic', { shoulders: 1.1, legs: 1.08 } }). scad: 'fabricate' (spec.needs: jobs → standard parts; no source → the plan, then source → the mint).` },
+        via: { type: 'string', description: `Authoring door. manji-tree: 'ir' (default, full manifest) | 'parts' | 'prompt' (NL: sends spec.prompt to an external LLM API with the user's key; spec.provider required, nothing is picked for you) | 'packet' (NL, key-free two-call handshake). layered: 'plan' (a ring plan in spec.plan) | 'hero' (a human: spec { cast: 'male' | 'female', register, tune: percentages of the cast — 'athletic', { shoulders: 1.1, legs: 1.08 } }).` },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },

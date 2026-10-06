@@ -80,7 +80,10 @@ const pinD = ({ caps }) => ({ light: 3, medium: 4, heavy: 6 }[caps.load]);
 //    principle? }`; a use is `{ part, route, code?(ctx), call?(ctx), qty? }`: an inventory row taken by a route, with
 // the hardware code or library call it resolves to (null = no stock size, so the strategy does not qualify). A
 // strategy with no uses mints: `kit` names the library modules a from-scratch design starts from, `principle` the
-// rule it follows. The last strategy of every function is a mint with no needs and no tags.
+// rule it follows. The last strategy of every function is a mint with no needs and no tags. `joint` (wood strategies)
+// is the furniture-frame joint that carries the strategy out: a workbench `frames` entry's joint code
+// (../construction/furniture-joints.js) places and counts those fittings itself, so the fabricator decides and the
+// frame executes.
 const mint = (fn, kit = [], principle = 'size it to the load and print orientation, and check it with the rigidity sensor') =>
   ({ id: `mint-${fn}`, line: 'design it from scratch as a solid', kit, principle });
 
@@ -94,11 +97,11 @@ export const STRATEGIES = Object.freeze({
       uses: [{ part: 'thumb-screw', route: 'buy', code: null }, { part: 'heat-set-insert', route: 'fit', call: () => 'mj_heatset_hole("M4", 8)' }] },
     { id: 'thumb-screw-wood', line: 'a knurled thumb screw into a wood insert, turned by hand', needs: { host: ['wood'] }, when: ['tool-free'], unless: ['print-only'],
       uses: [{ part: 'thumb-screw', route: 'buy', code: null }, { part: 'wood-insert', route: 'buy', code: () => 'insert-M6' }] },
-    { id: 'cam-lock', line: 'a cam in one panel pulls a bolt in the other, hidden, with dowels to locate', needs: { host: ['wood'] }, when: ['flat-pack'], unless: ['tool-free'],
+    { id: 'cam-lock', joint: { type: 'cam-lock' }, line: 'a cam in one panel pulls a bolt in the other, hidden, with dowels to locate', needs: { host: ['wood'] }, when: ['flat-pack'], unless: ['tool-free'],
       uses: [{ part: 'cam-lock', route: 'buy', code: () => 'cam-15' }, { part: 'cam-lock', route: 'buy', code: () => 'cam-bolt-15' }, { part: 'wood-dowel', route: 'buy', code: () => 'dowel-8x35', qty: 2 }] },
-    { id: 'confirmat', line: 'a one-piece connector screw through face into edge', needs: { host: ['wood'] }, when: ['flat-pack'], unless: ['tool-free'],
+    { id: 'confirmat', joint: { type: 'confirmat' }, line: 'a one-piece connector screw through face into edge', needs: { host: ['wood'] }, when: ['flat-pack'], unless: ['tool-free'],
       uses: [{ part: 'confirmat', route: 'buy', code: () => 'confirmat-7x50' }] },
-    { id: 'insert-bolt', line: 'a socket bolt into a threaded insert, for a joint opened again and again', needs: { host: ['wood'], cycles: ['many'] }, unless: ['tool-free'],
+    { id: 'insert-bolt', joint: { type: 'insert-bolt' }, line: 'a socket bolt into a threaded insert, for a joint opened again and again', needs: { host: ['wood'], cycles: ['many'] }, unless: ['tool-free'],
       uses: [{ part: 'wood-insert', route: 'buy', code: (c) => `insert-${woodInsertSize(c)}` }, { part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', { ...c, need: { ...c.need, size: woodInsertSize(c) } }, { nut: false, engage: 12 }) }] },
     { id: 'heatset-bolt', line: 'a socket bolt into a heat-set insert, for a printed joint opened again and again', needs: { host: ['printed'], cycles: ['many'] }, unless: ['print-only', 'tool-free'],
       uses: [{ part: 'heat-set-insert', route: 'fit', call: (c) => heatsetSize(c) && `mj_heatset_hole("${heatsetSize(c)}", ${2 * dOf(sizeOf(c))})` }, { part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: 2 * dOf(sizeOf(c)) }) }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_counterbore("${sizeOf(c)}", ${gripOf(c)})` }] },
@@ -106,7 +109,7 @@ export const STRATEGIES = Object.freeze({
       uses: [{ part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c) }, { part: 'hex-nut', route: 'buy', code: (c) => `nut-${sizeOf(c)}` }, { part: 'hex-nut', route: 'fit', call: (c) => `mj_nut_trap("${sizeOf(c)}")` }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_clearance_hole("${sizeOf(c)}", ${gripOf(c)})` }] },
     { id: 'tapped', line: 'a socket bolt into a thread tapped in the print, for a joint seldom opened', needs: { host: ['printed'], load: ['light'], cycles: ['few'] }, unless: ['print-only', 'tool-free'],
       uses: [{ part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: 2 * dOf(sizeOf(c)) }) }, { part: 'socket-bolt', route: 'fit', call: (c) => `mj_tapped_hole("${sizeOf(c)}", ${2 * dOf(sizeOf(c))})` }] },
-    { id: 'wood-screw', line: 'chipboard screws, piloted', needs: { host: ['wood'], cycles: ['few'] }, unless: ['tool-free'],
+    { id: 'wood-screw', joint: { type: 'screwed' }, line: 'chipboard screws, piloted', needs: { host: ['wood'], cycles: ['few'] }, unless: ['tool-free'],
       uses: [{ part: 'wood-screw', route: 'buy', code: ({ caps }) => (caps.load === 'heavy' ? 'wood-5x50' : 'wood-4x30') }] },
     { id: 'rivet-nut', line: 'a rivet nut set from one side of the sheet, a socket bolt into it', needs: { host: ['sheet'] }, unless: ['print-only', 'tool-free'],
       uses: [{ part: 'rivet-nut', route: 'buy', code: null }, { part: 'socket-bolt', route: 'buy', code: (c) => bolt('socket', c, { nut: false, engage: dOf(sizeOf(c)) }) }] },
@@ -132,16 +135,16 @@ export const STRATEGIES = Object.freeze({
   locate: [
     { id: 'dowel-pin', line: 'two hardened pins pressed into one part, slip-fit holes in the other', needs: { host: ['printed', 'metal'] }, when: ['precise'], unless: ['print-only'],
       uses: [{ part: 'dowel-pin', route: 'buy', code: null, qty: 2 }, { part: 'dowel-pin', route: 'fit', call: (c) => `mj_hole(${pinD(c)}, ${3 * pinD(c)}, "press")` }, { part: 'dowel-pin', route: 'fit', call: (c) => `mj_hole(${pinD(c)}, ${3 * pinD(c)}, "slip")` }] },
-    { id: 'shelf-pin', line: 'pins in a row of holes, so a shelf can be moved', needs: { host: ['wood'] }, when: ['serviceable'],
+    { id: 'shelf-pin', joint: { type: 'shelf-pin' }, line: 'pins in a row of holes, so a shelf can be moved', needs: { host: ['wood'] }, when: ['serviceable'],
       uses: [{ part: 'shelf-pin', route: 'buy', code: () => 'shelf-pin-5', qty: 4 }] },
-    { id: 'wood-dowel', line: 'fluted dowels, glued or dry', needs: { host: ['wood'] },
+    { id: 'wood-dowel', joint: { type: 'dowel' }, line: 'fluted dowels, glued or dry', needs: { host: ['wood'] },
       uses: [{ part: 'wood-dowel', route: 'buy', code: () => 'dowel-8x35', qty: 2 }] },
     { id: 'pin-socket', line: 'a printed pin on one part into a slip-fit socket on the other', needs: { host: ['printed'] },
       kit: ['mj_hole', 'mj_fit', 'mj_fit_coupon'], principle: 'a chamfered pin with the fit taken from a printed coupon' },
     mint('locate', ['mj_hole', 'mj_fit']),
   ],
   hinge: [
-    { id: 'concealed-cup', line: 'a ⌀35 cup hinge bored into the door, hidden when closed', needs: { host: ['wood'] }, when: ['hidden'],
+    { id: 'concealed-cup', joint: { type: 'hinge' }, line: 'a ⌀35 cup hinge bored into the door, hidden when closed', needs: { host: ['wood'] }, when: ['hidden'],
       uses: [{ part: 'concealed-hinge', route: 'buy', code: () => 'hinge-35', qty: 2 }] },
     { id: 'butt-hinge', line: 'a pair of butt hinges screwed to the leaf and frame', needs: { host: ['wood', 'metal'] }, unless: ['print-only'],
       uses: [{ part: 'butt-hinge', route: 'buy', code: null, qty: 2 }] },
@@ -156,7 +159,7 @@ export const STRATEGIES = Object.freeze({
     mint('hinge'),
   ],
   slide: [
-    { id: 'drawer-slide', line: 'a pair of ball-bearing slides screwed to carcass and drawer', needs: { host: ['wood'] },
+    { id: 'drawer-slide', joint: { type: 'slide' }, line: 'a pair of ball-bearing slides screwed to carcass and drawer', needs: { host: ['wood'] },
       uses: [{ part: 'drawer-slide', route: 'buy', code: ({ need }) => { const L = [...SLIDES].reverse().find((s) => s <= (need.depth ?? 450)); return L ? `slide-${L}` : null; } }] },
     { id: 'wheel-carriage', line: 'a wheel plate riding the extrusion\'s slots', needs: { host: ['extrusion'] },
       uses: [{ part: 'wheel-carriage', route: 'buy', code: null }, { part: 't-slot-extrusion', route: 'buy', code: null }] },
@@ -333,7 +336,7 @@ const routeOf = (s, parts) => (parts.length ? [...new Set(parts.map((p) => p.rou
 
 function present(need, { s, parts }, caps, tags) {
   const notices = [...new Set(parts.flatMap((p) => noticesOf(INVENTORY[p.part])))];
-  return { function: need.function, strategy: s.id, line: s.line, route: routeOf(s, parts), parts, kit: s.kit || [],
+  return { function: need.function, strategy: s.id, line: s.line, route: routeOf(s, parts), parts, joint: s.joint || null, kit: s.kit || [],
     principle: s.principle || null, why: whyOf(s, caps, tags), notices };
 }
 

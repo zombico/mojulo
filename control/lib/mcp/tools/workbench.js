@@ -50,7 +50,7 @@ function checkedEvents(ev) {
   return ev;
 }
 
-export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folderRef } = {}) {
+export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, fabricate, ref, folderRef } = {}) {
   // Relative composition: an `assembly` declares parts by size + how they connect; lower it to
   // absolute monomers and merge with any explicit arrays (e.g. an assembled body + a hand-placed sweep).
   let baseLathes = Array.isArray(lathes) ? lathes : [];
@@ -112,6 +112,8 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     // (its targets' `lit` / `dark`, HUD banners) has its HUD rows and style checked here, the rest where it runs
     ...(crystalLight != null ? { crystalLight: checkedCrystalLight(crystalLight) } : {}),
     ...(events && typeof events === 'object' && !Array.isArray(events) ? { events: checkedEvents(events) } : {}),
+    // fabricate_solid: the needs and the plan they resolved to, frozen beside the frames (./fabricate.js)
+    ...(fabricate !== undefined ? { fabricate } : {}),
     ...(title ? { title } : {}),
   };
 
@@ -181,9 +183,9 @@ export async function createWorkbenchHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_workbench requires a recipe object with a `lathes` array');
   }
-  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folder_ref: folderRef } = input;
+  const { title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, fabricate, ref, folder_ref: folderRef } = input;
   await ensureExactKernel(); // an `exact: true` field or cut, or a frame's joints, need Manifold loaded before the sync lowering
-  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, ref, folderRef });
+  return mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, drapes, reliefs, shells, frames, assembly, cuts, program, build, units, viewBox, facing, toon, grid, movers, crystalLight, events, fabricate, ref, folderRef });
 }
 
 export function registerWorkbenchTools() {

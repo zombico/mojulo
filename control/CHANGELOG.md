@@ -30,13 +30,19 @@ scratch last: the cluster every new object draws from. Every existing kind build
   or fitted by the interface its owner publishes, named only to say what fits, never reproduced. A refused strategy
   is reported, and the resolver moves on (a three-prong camera mount resolves to a bought adapter).
 - **Coverage:** of the probe needs, three quarters resolve from the shelf; the rest name the gap they wait for.
-- **The fabricate door:** `mint_solid({ kind: 'scad', via: 'fabricate', spec: { needs } })`. Without a `source` it
-  mints nothing and hands back the plan: the strategy per need and why, one bill of materials summed across needs,
-  the `mj_*` cuts to place, the notices. With the `source` it mints an ordinary scad row with the plan frozen beside
-  it as `fabricate`, and `stats.fabrication.unplaced` names any planned cut the source never calls (advisory). No new
-  tool: one clause in `mint_solid`'s `via` schema, the scad card's "Fabricate" section and a `fabricate-parts` routing
-  card.
-- **Kept apart from the assembler.** The assembler places finished workbench parts in a scene; the fabricator says
+- **`fabricate_solid`:** the fabricator decides and the kind that owns the material's joinery executes. A wood need
+  whose strategy is a furniture joint (cam-lock, confirmat, insert-bolt, screwed, dowel, shelf-pin, hinge, slide) is
+  planned as that joint for a workbench `frames` entry, whose joint code places and counts the fittings. A need solved
+  by `mj_*` cuts or printed parts is planned for an OpenSCAD `source`. With `needs` alone the tool mints nothing and
+  hands back the plan: each need's executor, strategy and why, the bill of materials, the cuts and the joints. With
+  the `source` or the `frames` it mints the row with the plan frozen beside it as `fabricate`.
+  - **Advisory checks:** planned cuts or joint types the body never makes, and needs planned for the other executor,
+    are warned about. None is refused.
+  - **One shopping-list shape:** the bill of materials uses the furniture report's and the instruction manual's line
+    shape (`code`, `label`, `count`, `tool`, …). After a frames mint it is the frame's own hardware report, not the
+    plan's estimate.
+  - **Manual:** `get_solid_vocab({ id: 'fabricate' })`.
+- **Kept apart from the assembler.** The assembler places finished workbench parts in a scene; `fabricate_solid` says
   which real hardware does a job. The routing cards contrast the two, and the assembler, handed a scad row, now says
   that a scad object assembles inside its own source (`parts`, `mechanism`, the plan's `bom`) instead of only that
   it is not a workbench.

@@ -584,6 +584,7 @@ async function registerAllTools() {
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
   const { registerMeasureSolidTool } = await import('@/lib/mcp/tools/measure-solid');
+  const { registerFabricateTools } = await import('@/lib/mcp/tools/fabricate');
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
@@ -761,6 +762,9 @@ async function registerAllTools() {
   // measure_solid — read a number back off a solid (cad-aid C1 / continuous-guardrails G2):
   // export_model's probe, closure audit, scale seam, and Manifold volume, without the file.
   registerMeasureSolidTool();
+  // fabricate_solid — a physical object by what its parts must DO, solved from standard parts first and carried out
+  // by the kind that owns the joinery (a scad source, or a workbench frame for wood). lib/graph/fabricator/.
+  registerFabricateTools();
   // create_cover — a publication COVER (illustration + title + subtext + metadata
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png

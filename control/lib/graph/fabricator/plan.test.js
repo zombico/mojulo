@@ -18,9 +18,9 @@ describe('fabricator plan', () => {
     expect(p.version).toBe(FABRICATOR_VERSION);
     expect(p.needs.map((n) => [n.id, n.strategy])).toEqual([['lid', 'heatset-bolt'], ['axle', 'ball-bearing'], ['gasket', 'o-ring'], ['pi', 'rpi']]);
     const bolt = p.bom.find((b) => b.part === 'socket-bolt');
-    expect(bolt).toMatchObject({ code: 'M3x16-socket', qty: 4, standard: 'ISO 4762', for: ['lid'] });
-    expect(p.bom.find((b) => b.part === 'radial-bearing')).toMatchObject({ code: '608', qty: 2 });
-    expect(p.cuts.filter((c) => c.need === 'lid').map((c) => c.qty)).toEqual([4, 4]);
+    expect(bolt).toMatchObject({ code: 'M3x16-socket', count: 4, tool: '2.5 mm hex key', standard: 'ISO 4762', for: ['lid'] });
+    expect(p.bom.find((b) => b.part === 'radial-bearing')).toMatchObject({ code: '608', count: 2 });
+    expect(p.cuts.filter((c) => c.need === 'lid').map((c) => c.count)).toEqual([4, 4]);
   });
 
   it('spec-level host and tags sit under each need; a need\'s own value wins', () => {

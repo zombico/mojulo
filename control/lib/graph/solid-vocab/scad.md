@@ -5,7 +5,7 @@
   "family": "object",
   "entry": "mint_solid",
   "summary": "Mint a hard-edged object by writing OpenSCAD: `source` is the recipe, meshed in-process by OpenSCAD with exact booleans (a bore has a sharp lip), `color()` is the tint, `parts` name the render groups a hinge can swing, and the object rides the measured studio, every export leg, and the print path at true size.",
-  "when": "Reach for this on 'write it in OpenSCAD / a .scad / CSG / a machined or hard-edged part / a bracket, enclosure, flange, case, bezel, plate with holes / a bolt, nut, thread, tapped hole, countersink, nut trap, heat-set insert / a spur, helical, rack, ring, planetary, bevel or worm gear / a GT2 pulley / a molded housing with draft and bosses / a propeller or blade from NACA sections / a NEMA motor mount, a bearing seat, a keyway, a circlip groove, an O-ring gland, a Raspberry Pi or Arduino standoff pattern, VESA, T-slot, Gridfinity / an enclosure whose lid fits / which screws, bearings or seals should this use, what do I buy, solve it from standard parts (via fabricate) / sheet metal and its flat pattern / a DXF for the laser / will this bracket hold, how much does it bend, a safety factor, the weak spot / exact boolean cuts with a sharp edge / difference() / hull() / a parametric mechanical part / I already have OpenSCAD code'. Organic, blended, sculpted or noisy forms stay on the workbench's fields."
+  "when": "Reach for this on 'write it in OpenSCAD / a .scad / CSG / a machined or hard-edged part / a bracket, enclosure, flange, case, bezel, plate with holes / a bolt, nut, thread, tapped hole, countersink, nut trap, heat-set insert / a spur, helical, rack, ring, planetary, bevel or worm gear / a GT2 pulley / a molded housing with draft and bosses / a propeller or blade from NACA sections / a NEMA motor mount, a bearing seat, a keyway, a circlip groove, an O-ring gland, a Raspberry Pi or Arduino standoff pattern, VESA, T-slot, Gridfinity / an enclosure whose lid fits / sheet metal and its flat pattern / a DXF for the laser / will this bracket hold, how much does it bend, a safety factor, the weak spot / exact boolean cuts with a sharp edge / difference() / hull() / a parametric mechanical part / I already have OpenSCAD code'. Organic, blended, sculpted or noisy forms stay on the workbench's fields."
 }
 ---
 
@@ -82,29 +82,9 @@ mint_solid({ kind: 'scad', title: 'M5 clamp block', spec: { source: `
 ` }})
 ```
 
-## Fabricate — `via: 'fabricate'`, from what parts must do to standard parts
+## Fabricate — standard parts for what each part must do
 
-Say what each part of the object has to DO, and the fabricator solves it from the shelf of standard parts first and from scratch last: a lid opened often gets heat-set inserts and socket bolts, an 8 mm shaft gets a pair of bearings in pressed seats, a board gets standoffs on its published hole pattern. It is the cluster idea: one shelf every object draws from, so a design pulls a 608 instead of minting a bearing.
-
-```
-mint_solid({ kind: 'scad', via: 'fabricate', spec: {
-  host: 'printed',                                   // shared defaults: host, loadN, cycles, access, tags
-  needs: [
-    { id: 'lid',   function: 'fasten', tags: ['serviceable'], count: 4 },
-    { id: 'axle',  function: 'spin', shaftD: 8, loadN: 300 },
-    { id: 'seal',  function: 'seal', sealD: 70 },
-    { id: 'board', function: 'mount', to: 'board', board: 'rpi4' },
-  ],
-}})
-```
-
-- **Two calls.** Without `source` nothing is minted: you get `fabrication` with `needs` (the strategy per need, its route and `why`), `bom` (what to buy: the generic part name, the standard it follows, the hardware code, the quantity), `cuts` (the `mj_*` calls to place, by need), `kit` and `principles` (for anything designed from scratch), `notices`, `refused` and `gaps`. Write the source with the cuts in it and call again with the same `needs` and the `source` (plus any scad knob: `parts`, `movers`, `mechanism`). That mints an ordinary scad row with the plan frozen beside it as `fabricate`. `stats.fabrication.unplaced` lists any plan module the source never calls. It is a warning, not a refusal.
-- **Jobs:** `fasten`, `thread`, `locate`, `hinge`, `slide`, `spin`, `drive`, `transmit`, `retain`, `seal`, `catch`, `mount`, `enclose`, `store`, `frame`.
-- **Need fields:** `host` is `printed`, `wood`, `metal`, `sheet` or `extrusion`. The others are `loadN` (N), `cycles`, `access` (`'both'` | `'one'`), `shaftD` (mm) and `axes` (`parallel` | `crossed` | `intersecting` | `linear`). Then `span` (mm), `to` (`vesa` | `t-slot` | `board` | `wall` | `camera` | `action-cam` | `pegboard` | `brick` | `grid`), `board`, `sealD`, `depth`, `size` and `grip`.
-- **Tags:** `serviceable`, `tool-free`, `flat-pack`, `hidden`, `waterproof`, `print-only`, `precise`, `quiet`, `high-ratio`.
-- **Provenance.** Standards, generic commodity parts, openly licensed systems and mojulo's own designs may be bought, fitted and printed. Open systems keep their licence. Another owner's product or system is different: a branded board, an action-camera mount, a toy brick, a branded pegboard or a camera plate. It is bought, or fitted by the interface its owner publishes, and named only to say what fits. It is never printed. A refused route is listed in `refused` and the next strategy is taken. Carry the `notices` with the object.
-- **Frozen, like the assembler's sources.** The plan is stamped with the fabricator version. Editing `/source` keeps it, and it is not re-solved. For new needs, run the door again.
-- **Not this:** placing finished visual parts together by position is the `assembler` kind. The fabricator says which bolt, bearing or hinge does a job, and the `assembler` places workbench parts in a scene. They never share a row. The assembler takes workbench parts only, so a multi-part fabricated object stays one scad row with `parts` (and a `mechanism` for what moves).
+The fabricate manual (`get_solid_vocab({ id: 'fabricate' })`) turns needs into a plan. Each need says what a part must do, such as fasten, spin or seal. The plan gives the parts to buy and the `mj_*` cuts above that take them. When the fabricator mints a scad row, the plan is stored beside the source as `fabricate`.
 
 ## Mechanisms — `mechanism`
 

@@ -55,7 +55,7 @@ function freezeSource(source, index) {
     if (!sketch || !sketch.manifest) throw new Error(`Item ${index}: source ref '${source.ref}' not found.`);
     if (sketch.manifest.kind === 'scad') {
       // The fabricate door mints scad rows, and "assemble" is the word people reach for next: say where a scad object assembles.
-      throw new Error(`Item ${index}: source ref '${source.ref}' is a scad row — the assembler composes workbench parts only. A scad object assembles inside its own source: each piece a \`parts\` entry, what moves a \`mechanism\`, its bought parts the \`fabricate\` plan's \`bom\` (update_sketch on '${source.ref}').`);
+      throw new Error(`Item ${index}: source ref '${source.ref}' is a scad row — the assembler composes workbench parts only. A scad object assembles inside its own source: each piece a \`parts\` entry, what moves a \`mechanism\`, its bought parts the \`fabricate\` plan's \`bom\` (update_sketch on '${source.ref}', or fabricate_solid for new needs).`);
     }
     if (sketch.manifest.kind !== 'workbench') throw new Error(`Item ${index}: source ref '${source.ref}' is a '${sketch.manifest.kind}', not a workbench — the assembler composes workbench parts.`);
     const frozen = monomersOf(sketch.manifest);

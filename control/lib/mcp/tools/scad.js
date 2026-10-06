@@ -8,7 +8,7 @@
  * `movers` hinge can swing one; `color()` is the tint. Edit in place with `update_sketch`
  * (`/source`, `/parts/<name>`, `/movers`); `export_model format:'scad'` returns the source. A
  * `mechanism` (joints, couplings, one drive) is solved at mint; the World plays it, measure_solid sweeps it.
- * `via: 'fabricate'` (./fabricate.js) resolves the object's needs to standard parts first.
+ * `fabricate_solid` (./fabricate.js) mints here with its plan as `fabricate` when its executor is scad.
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -31,7 +31,7 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
     ...(grid === false ? { grid: false } : {}),
     ...(Array.isArray(movers) && movers.length ? { movers } : {}),
     ...(mechanism !== undefined ? { mechanism } : {}),
-    // via 'fabricate': the needs and the plan they resolved to, frozen beside the source (lib/mcp/tools/fabricate.js).
+    // fabricate_solid: the needs and the plan they resolved to, frozen beside the source (./fabricate.js).
     ...(fabricate !== undefined ? { fabricate } : {}),
     ...(title ? { title } : {}),
   };

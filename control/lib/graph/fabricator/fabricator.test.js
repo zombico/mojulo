@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { FUNCTIONS, STRATEGIES, CAPABILITIES, TAGS, INVENTORY, PROVENANCE, ROUTES, PROBES, resolve, repertoire, coverage, permits } from './index.js';
 import { BEARINGS, ISO_SIZES, NEMA, BOARDS, hasMech } from './mech-tables.js';
 import { hardwarePart } from '../construction/hardware.js';
+import { FURNITURE_JOINTS } from '../construction/furniture-joints.js';
 
 // The fabricator contract: one word per job a part does, resolved for every need from the shelf first, from scratch last,
 // and never past what a part's provenance allows.
@@ -39,6 +40,10 @@ describe('fabricator: the vocabulary', () => {
         }
         for (const m of s.kit || []) expect(hasMech(m), `${fn}.${s.id} kit ${m}`).toBe(true);
         if (!s.uses) expect(s.principle, `${fn}.${s.id}: a part-less strategy states its principle`).toBeTruthy();
+        if (s.joint) {
+          expect(FURNITURE_JOINTS, `${fn}.${s.id}: joint ${s.joint.type} is a furniture joint`).toContain(s.joint.type);
+          expect(s.needs?.host, `${fn}.${s.id}: a frame joint is a wood strategy`).toEqual(['wood']);
+        }
       }
       const last = list[list.length - 1];
       expect(last.id, fn).toBe(`mint-${fn}`);
