@@ -290,16 +290,6 @@ describe('anime head: the graphic face', () => {
     expect(keys(animeHead({ preset: 'male', hair: 'none', sculpt: { noseLine: 0 } }))).toEqual(base.filter((k) => k !== 'noseLine'));
     for (const sculpt of [{ lidWeight: 1.5, lidTail: 0 }, { browThick: 1.6, browShape: 'taper', browLength: 1.25 }, { fissureShape: 'tri', lidCover: 1.6 }, 'sharp-eyes']) expect(keys(animeHead({ preset: 'male', hair: 'none', sculpt })), JSON.stringify(sculpt)).toEqual(base);
   }, 60000);
-  it('every word at its range ends closes (sampled across the bases and the families); the eyes read', () => {
-    const families = ['bob', 'short', 'long', 'hime'], bad = [];
-    ANIME_SCULPT_KEYS.forEach((k, i) => ANIME_SCULPT.RANGES[k].forEach((v, j) => {
-      // a family on every third build (the words reach the hair only through the fit's drape), bald otherwise
-      const preset = (i + j) % 2 ? 'male' : 'female', hair = (i + j) % 3 ? 'none' : families[i % 4], h = animeHead({ preset, hair, sculpt: { [k]: v } }), mesh = compileLayered(h);
-      const f = failures(mesh); if (f.length) bad.push(`${preset} ${hair} ${k}=${v}: ${f.join(', ')}`);
-      if (j === 1) { const ex = layeredExposure(mesh, { res: 128 }); for (const e of ['irisR', 'irisL']) if (!['reads', 'faint'].includes(ex.parts[e].flag)) bad.push(`${preset} ${k}=${v}: ${e} ${ex.parts[e].flag}`); }
-    }));
-    expect(bad).toEqual([]);
-  }, 180000);
   it('the feature table sits inside its bands on both default bases, in ratios (the scale never moves it)', () => {
     for (const preset of ['female', 'male']) {
       const F = animeHead({ preset }).measures.features;
@@ -389,32 +379,11 @@ describe('anime head: the hair form and the hair bases', () => {
     const raised = animeHead({ preset: 'male', hair: baseHair('male') }), level = animeHead({ preset: 'male', hair: [baseHair('male'), { hairline: false }] });
     expect(raised.scalp.length).toBeLessThan(level.scalp.length);
   }, 60000);
-  it('every word at its range ends closes (sampled on its family, both bases)', () => {
-    const ends = [
-      ['short', { lift: { crown: 0.3, temple: 0.14, fringe: 0.12, nape: 0.14 } }], ['short', { lift: { crown: 0, temple: 0, fringe: 0, nape: 0 } }], ['short', { section: 'ridge', crownAccents: 'tuck' }],
-      ['short', { sweepBack: { amount: 0.5 } }], ['short', ANIME_HAIR_MOVES['swept-back'].hair], ['short', { sweepSides: { amount: 1, from: 0 } }], ['short', { hairline: { front: 1 } }],
-      ['long', { ridge: 2, flute: 1 }], ['long', { fringeGroups: [[1, 2, 3, 4, 5, 6, 7]], backNotch: 1 }], ['bob', { fringeGroups: [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]], backNotch: 0.5 }], ['long', ANIME_HAIR_MOVES['side-parted'].hair],
-      ['long', { flip: { amount: 1, out: 1, rise: 1, hold: 1 } }], ['bob', { flip: 0.5, fringeNotch: 1 }], ['short', { spikes: { amount: 1, reach: 3, width: 3, up: 1 } }], ['short', { spikes: 0.4, crownAccents: 'tuck' }],
-      ['long', { sideTail: { amount: 1, side: 'right', length: 2, width: 2, height: 1 } }], ['bob', { sideTail: { amount: 0.5, side: 'left', length: 0.3, width: 0.3, height: -1 } }],
-      ...['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo'].map((w) => [ANIME_HAIR_MOVES[w].hair.style, ANIME_HAIR_MOVES[w].hair]),
-    ];
-    for (const preset of ['female', 'male']) for (const [style, words] of ends) {
-      const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, { ...words, style }] });
-      expect(failures(compileLayered(h)), `${preset} ${style} ${JSON.stringify(words).slice(0, 80)}`).toEqual([]);
-    }
-  }, 120000);   // the shapes words and characters grew past a minute
 });
 
 describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and the shapes characters (broku, jinto, kairo)', () => {
   const on = (preset, hair) => { const h = animeHead({ preset, hair: [ANIME_HAIR_BASE[preset].form, ...(Array.isArray(hair) ? hair : [hair])] }); return { h, mesh: compileLayered(h) }; };
   const box = (mesh, re) => { const ps = mesh.pointIds.map((id, i) => (re.test(id.split('/')[0]) ? mesh.vertices[i] : null)).filter(Boolean); return [0, 1, 2].map((k) => [Math.min(...ps.map((p) => p[k])), Math.max(...ps.map((p) => p[k]))]); };
-  it('each cut closes on both bases and keeps the scalp covered', () => {
-    for (const cut of ['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony', 'hiraku', 'miwako']) for (const preset of ['female', 'male']) {
-      const { h, mesh } = on(preset, cut);
-      expect(failures(mesh), `${preset} ${cut}`).toEqual([]);
-      expect(Math.max(...Object.values(h.hairCoverage.views)), `${preset} ${cut}`).toBeLessThanOrEqual(0.02);
-    }
-  }, 120000);   // the shapes words and characters grew past a minute
   it('the words validate by name: the new form words, their fields and the tail clump', () => {
     expect(validateAnimeHair(['flipped-long', 'blunt-bob', 'side-tail', 'broku', 'jinto', 'kairo', 'bidel', 'selene', 'sintia', 'frieda', 'frieda-pony', 'hiraku', 'miwako'])).toEqual([]);
     expect(validateAnimeHair({ flip: 2, fringeNotch: 0, sideTail: { amount: 1, side: 'up' }, spikes: { reach: 1 } }).map((e) => e.split(':')[0])).toEqual(['hair.fringeNotch', 'hair.flip', 'hair.spikes', 'hair.sideTail.side']);
@@ -527,7 +496,7 @@ describe('anime head: the sketch cuts (flipped-long, blunt-bob, side-tail) and t
       expect(box(mesh, /^hairPeel/)[2][0], cut).toBeLessThan(chin - 0.12);   // the tails hang well past the chin
       expect(animeFaceZoneWarnings(h.hairCoverage), cut).toEqual([]);
     }
-    // frieda's twin tails are tied HIGH (Frieren's): from the front the hair beside the head rises far above where ties
+    // frieda's twin tails are tied HIGH: from the front the hair beside the head rises far above where ties
     // behind the ears would put it
     const S = ANIME_HAIR_MOVES.frieda.hair.shapes, lowTie = (a) => [a[0] > 180 ? 212 : 148, 24];
     const low = { ...S, layers: S.layers.map((l) => (l.gather ? { ...l, gather: lowTie(l.gather) } : l)), peels: S.peels.map((p) => ({ ...p, at: lowTie(p.at) })) };

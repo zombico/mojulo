@@ -23,6 +23,8 @@ import {
   forgePublicationsHandler,
   archiveCookHandler,
   sketchStashHandler,
+  PUBLICATION_GUIDE,
+  _internals,
 } from './cook.js';
 
 let tmpRoot;
@@ -734,6 +736,21 @@ function tinyManifestForLibrary(label) {
 }
 
 describe('sketch_stash — vibe-to-items scaffold', () => {
+  it('every publication kind cook takes has a guide and a stash recipe, site and photojournal included', async () => {
+    const kinds = [..._internals.PUBLICATION_KINDS];
+    expect(Object.keys(PUBLICATION_GUIDE).sort()).toEqual([...kinds].sort());
+    for (const kind of kinds) {
+      const r = await sketchStashHandler({ intent: `a ${kind}`, target_kind: kind });
+      expect(r.target_kind).toBe(kind);
+      expect(r.guide).toBe(PUBLICATION_GUIDE[kind]);
+      expect(typeof r.guide === 'string' && r.guide.length > 40).toBe(true);
+    }
+    const site = await sketchStashHandler({ intent: 'a bakery website', target_kind: 'site' });
+    expect(site.notes.join(' ')).toMatch(/style\.preset/);
+    const pj = await sketchStashHandler({ intent: 'a week in Lisbon', target_kind: 'photojournal' });
+    expect(pj.suggested_steps.some((step) => step.includes("type: 'image'"))).toBe(true);
+  });
+
   it('returns a picture_book proposal with chapter drawers + sketch slots', async () => {
     const r = await sketchStashHandler({
       intent: 'A children\'s book about a fox who learns to share',

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { motionSpec } from '@/lib/mcp/tools/animal';
+import { motionSpec, createAnimalHandler } from '@/lib/mcp/tools/animal';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { planLayered } from '@/lib/mcp/tools/layered';
 import { speciesPlan } from '@/lib/graph/fauna/species';
 import { withMotion } from '@/lib/graph/fauna/rig';
@@ -33,5 +35,18 @@ describe('animal motion', () => {
   it('a still species carries no rig', () => {
     const plan = speciesPlan('horse');
     expect(planLayered({ kind: 'layered', plan, recipe: expandPlan(plan) }).stats.layered.rig).toBeUndefined();
+  });
+
+  it('a species carved: its layered manifest carries the statue, the World carves it on a base; never with motion', async () => {
+    await expect(createAnimalHandler({ title: 't', species: 'wolf', statue: true, motion: 'trot' })).rejects.toThrow(/statue stands still/);
+    await expect(createAnimalHandler({ title: 't', species: 'wolf', statue: 'lion' })).rejects.toThrow(/carved as sculpture/);
+    const plan = speciesPlan('wolf'), recipe = expandPlan(plan);
+    const plain = { kind: 'layered', recipe, plan, dials: resolveLayeredDials(recipe.dials || {}, {}), units: 'm' };
+    const faces = async (m) => (await resolveWorldScene({ ref: 'w', title: 'w', manifest: m })).payload.faces.filter((f) => !f.studio);
+    const a = await faces(plain), b = await faces({ ...plain, statue: { type: 'statue', material: 'bronze' } });
+    expect(a.some((f) => f.group === 'base' || f.pbr)).toBe(false);   // absent: the wolf as it was
+    const base = b.filter((f) => f.group === 'base'), body = b.filter((f) => f.group !== 'base');
+    expect(base.length).toBeGreaterThan(0);
+    expect(body.every((f) => f.pbr && f.pbr[0] === 1)).toBe(true);   // every face the bronze
   });
 });

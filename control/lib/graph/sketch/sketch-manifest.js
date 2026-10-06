@@ -55,6 +55,7 @@ export {
   expandSequence,
   expandGantt,
   expandSwimlanes,
+  expandAutoLayout,
   expandBoundaries,
   lowerDiagramKinds,
 } from '@/lib/diagram-core';

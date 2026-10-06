@@ -39,6 +39,7 @@ import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
 import { fish } from '@/lib/graph/fauna/makers/fish';
 import { serpent } from '@/lib/graph/fauna/makers/serpent';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
+import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
 // The MAKER door: a species-free body maker (fauna/makers/) called with params, merged over its family's table.
@@ -89,7 +90,7 @@ function mergeOpts(base, over) {
 
 export async function createAnimalHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('the animal kind requires { title }');
-  const { archetype, view, elev, crop, background, ref, folder_ref: folderRef, maker } = input;
+  const { archetype, view, elev, crop, background, statue, ref, folder_ref: folderRef, maker } = input;
   let { species } = input;
   let { params } = input;
   const title = input.title;
@@ -103,6 +104,14 @@ export async function createAnimalHandler(input) {
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
   }
+  // STATUE (opt-in, statue/creature.js): every door carries it — the figure body in its manifest, a ring plan (species
+  // or maker) on its layered manifest, where the layered resolve carves it. A statue stands still: no motion with it.
+  const statueErrs = validateCreatureStatue(statue);
+  if (statueErrs.length) throw new Error(`animal: ${statueErrs.join('; ')}`);
+  const carved = statue !== undefined ? { statue } : {};
+  if (carved.statue && input.motion !== undefined && input.motion !== null && input.motion !== false) {
+    throw new Error('a statue stands still: pass `statue` or `motion`, not both');
+  }
   if (input.motion !== undefined && input.motion !== null && input.motion !== false && (maker || archetype)) {
     throw new Error('`motion` animates a `species` (its skeleton and gaits); a maker body or an archetype has none yet');
   }
@@ -111,7 +120,7 @@ export async function createAnimalHandler(input) {
     if (typeof params === 'string' && /^\s*[{[]/.test(params)) { try { params = JSON.parse(params); } catch { /* rejected below */ } }
     const plan = makerPlan(maker, params);
     const res = await createLayeredPlanHandler({
-      title, plan, plan_audit: { source: 'agent' },
+      title, plan, plan_audit: { source: 'agent' }, ...carved,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
     return { ...res, maker, stance: maker === 'fish' ? 'swim' : 'legless' };
@@ -160,7 +169,7 @@ export async function createAnimalHandler(input) {
     // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
     const motion = motionSpec(species, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys) : speciesPlan(species), plan_audit: { source: 'agent' },
+      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
     return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits } } : {}) };
@@ -183,6 +192,7 @@ export async function createAnimalHandler(input) {
     ...(elev !== undefined && elev !== null ? { elev } : {}),
     ...(crop ? { crop } : {}),
     ...(background !== undefined ? { background } : {}),
+    ...(statue !== undefined ? { statue } : {}),
     title,
   };
 

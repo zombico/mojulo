@@ -36,6 +36,7 @@
  */
 
 // ── sources ──────────────────────────────────────────────────────────────────────────────────────────
+import { GREEK_DRESS } from './dress-greek.js';
 const S = {
   wikiLindos: { author: 'Wikipedia', title: 'Lindos', year: 2026, url: 'https://en.wikipedia.org/wiki/Lindos', via: 'read; secondary to the works it cites' },
   wikiTemple: { author: 'Wikipedia', title: 'Temple of Athena Lindia (citing Strabo 14.2.10–11, Pindar Ol. 7, Philostratus Imagines 2.27)', year: 2026, url: 'https://en.wikipedia.org/wiki/Temple_of_Athena_Lindia', via: 'read; secondary to the works it cites' },
@@ -450,5 +451,5 @@ const FORMS = [
   },
 ];
 
-export const LINDOS_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS];
+export const LINDOS_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS, ...GREEK_DRESS];
 export const LINDOS_SOURCES = S;

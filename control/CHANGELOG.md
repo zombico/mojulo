@@ -12,6 +12,298 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Test cull
+
+The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
+never wired into a tool, a kind or a route. They are gone with their tests, and a quick critical tier joins the full run.
+
+- **Removed, with their tests:** the aircraft fuselage wrap-net (and its spike, which wrote review SVGs into the
+  removed `lite-template/` tree on every run), the box-vehicle face-net and its cards and variants (plus a second
+  spike writer), the civic-glyph city composer, the figure landmark slots, the houseplant, the manga-cel,
+  imperfect-cel and field-cel renderers with their shared cell geometry, the terrain region plan, the wave-drape
+  fitter, the face-material role selector, the pixelizer prerender seam, the mega-boy flipbook spike and the
+  beats diff exhibit. None was reachable from `app/`, `bin/`, the MCP registry or a package script.
+- **Kept on purpose:** the removal guards (chatbot carve-out, moved notices, pack boundaries), the deprecated
+  `MOJULO_RECIPE_BOOK` loader tests (it still loads until 4.0), and the proof worlds the game runtime's tests use
+  as fixtures.
+- **The `wardrobe-construction` card** described the drape fit as a function call no tool exposes. It now states
+  the principle.
+- **`npm run test:critical`** (`vitest.critical.config.js`): the MCP surface and its pins, the plugin profile, the
+  guards, the database, versions, auth, the bundled book, scripts, the dashboard and every characterization pin,
+  without the geometry-heavy suites. About 2,400 tests in two minutes against the full run's eight; CI still runs
+  `npm test`.
+- **A deep tier for exhaustive sweeps.** `*.deep.test.js` files are left out of `npm test` and run with
+  `npm run test:deep` (CI runs it after `npm test`). `npm run test:deep:changed` runs only the sweeps whose imports
+  touch an uncommitted change, so editing a city kernel runs none and editing `anime-head.js`, `anime-sculpt.js` or
+  `station-loft.js` runs the anime ones. First in: the anime head's range-end and named-cut sweeps and every look
+  built on both bases (`anime-head.deep.test.js`, `anime-looks.deep.test.js`), about 160 of the suite's
+  file-seconds. The law tests stay in `anime-head.test.js` and `anime-looks.test.js`.
+
+### create_sketch diet
+
+`create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
+lists routing only (1.7 KB), and the manual is read on demand from cards. Nothing it accepts or stores changed.
+
+- **A lean listing.** The description names the kinds (`floorplan`, `store` / `mall` / `restaurant`, `historic`,
+  the painted kinds), the recipe door, hand-built marks and stations, and the world-recipe restore. It points
+  plain flows and charts at `mint_diagram` and says to read the card before minting. `manifest` is an open object.
+  `bucket` and `preloadMetadata` are still accepted but no longer listed, and `preload` lost its nested schema.
+- **New sketch_vocab cards.** `mark-primitives` covers the 2D marks, style fields and station kinds.
+  `construction-marks` covers blob, sphere, egg, cylinder, the volume cup, form, solid, partition, array, the
+  presets, sticker shading, gesture placement and one-point perspective. Defaults are read from the expander, and
+  every example mints. `edge-notation` gains `via` / `curvature` routing.
+- **A lean result.** The `preload` echo names each prior (`ref`, `title`, and `as` / `note` / `metadata`) and no
+  longer re-sends its whole manifest. With up to eight priors, that was up to eight full manifests riding back into
+  the agent's context for nothing, since the agent composed against them before the call.
+- **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
+  description allowlist because it fits the 700-character ceiling.
+
+### Diagram auto layout
+
+A flow chart no longer needs a coordinate. Name the boxes and the arrows; the kernel places them. This was the
+biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station needed a hand-picked x, y, w and h.
+
+- **Auto-placed stations.** When no station carries a position (no `x`/`y`, `cell` or `lane`), `lowerDiagramKinds`
+  lays them out (`expandAutoLayout`, `lib/diagram-core.js`):
+  - **Ranks:** longest path along the edges. A cycle's back edge is set aside in declaration order.
+  - **Order:** barycenter sweeps within each rank.
+  - **Box size:** fitted to the label, sublabel and items. A station's own `w`/`h` win.
+  - **viewBox:** fitted when absent. A given one only grows.
+  - **Direction:** `layout: { direction: 'LR' | 'TB' }`.
+
+  It is deterministic, and the stored manifest holds the resolved coordinates. A manifest that places any station
+  never reaches the pass, so every existing row is byte-identical. Both mint doors share it, and the binding holds.
+- **Edges routed around boxes.** In an auto-placed diagram, an edge whose path or label pill would cross a box is
+  routed on the clear side:
+  - Rank-skipping edges, back edges, and a second edge between the same pair all count.
+  - Lanes on the same side stack outward, and ties go to the emptier side.
+  - An edge with its own `via` or `curvature` is left alone.
+- **`edges[].channel`.** A new optional number pins a `via` edge's lane (x for left/right, y for top/bottom), so
+  the lane can clear a wider box between the endpoints. Absent, nothing moves.
+- **Readable without adjustment.** A contrast pass over diagram ink, measured on the app floor, the dark export
+  and the light surface:
+  - **SVG download and inline view:** the dark export was transparent, so opened directly or in a host page's
+    `<img>` its pale ink sat on white at about 1.4:1. The route now paints the surface colour behind the drawing
+    (`renderSketchToSvg({ backdrop: true })`). Decks, outcome pages and world textures, which composite onto
+    their own backdrop, are unchanged.
+  - **Station outlines:** all clear 3:1 on every surface. `input` was a 1.3:1 hairline, `filesystem` fell to 1.7
+    on light, and `db_row` sat at 2.6–3.0; they now use the surface-aware `--text-muted` / `--entity-purple` inks.
+    The `/graph` legend matches.
+  - **Station sublabels:** move from `--text-muted` (about 4.0:1 at 10px) to `--text-secondary` (8:1 or more).
+- **`mint_diagram`.** The listing says boxes are auto-placed when their positions are left out, and its arrowhead
+  list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
+  form first; `edge-notation` gains `channel`.
+
+### cook diet
+
+`cook` listed every publication kind's layout manual in `tools/list`: 16.2 KB, the heaviest tool. It now lists
+4.3 KB, and each kind's guide is read for the one kind being published. What cook accepts and makes is unchanged.
+
+- **A lean listing.** The description keeps the three steps (cleave, aim, nucleate) and the authoring model, names
+  the kinds, and says to call `sketch_stash({ intent, target_kind })` before any kind but essay. The deprecated
+  `template` alias is still accepted but no longer listed.
+- **Each kind's guide.** `sketch_stash` answers with `guide`: the kind's layout (how items, drawers and metadata map
+  onto it) and the least content that renders well, word for word what cook's listing used to carry.
+- **Two kinds that could not be scaffolded now can.** `sketch_stash` listed `site` and `photojournal` but refused
+  both. Each now has a stash recipe, and `photojournal` has a guide (it had none).
+- **Ratchet.** The flat `tools/list` pin drops from 268,900 to 256,800 bytes.
+
+### Contextmap trim
+
+The contextmap tools came from the chatbot era and still read like it. Their listings are shorter, and the 2.x
+parts no longer show. Nothing they accept or record changed.
+
+- `meta_context_commit` lists 3.3 KB instead of 7.1 KB: one line per type, with the app, connected-service and
+  trigger records first, since those are what the dashboard's Apps and Connected Services panes list.
+- `meta_context_brief` (1.7 KB to 0.9 KB) and `meta_context_analyze` (1.4 KB to 0.8 KB) are shorter too.
+- No longer listed, still accepted: the 2.x `artifact_materialization` commit, which answers with the chatbot
+  notice, and the `bot` brief scope, which reads a 2.x install's rows.
+- `gather` and `execute_plan` stop mentioning bots and deploys.
+- **Ratchet.** The flat `tools/list` pin drops from 256,800 to 251,600 bytes.
+
+### Statue maker
+
+The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
+bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
+byte-identical. Being built on this branch; the sphinx comes next.
+
+- **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
+  (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
+  `archaic`, `classical`, `hellenistic`, `roman`, `roman-bust`, `egyptian`, `renaissance`. A card's stand, stillness and
+  drapery (an outfit card per silhouette) sit beneath the hero's own words; its hair is set at mint.
+- **Carved.** One material over every group: blank eyes, carved hair, the bare body's zones skin. `marble`,
+  `limestone`, `sandstone`, `granite`, `basalt`, `bronze` (its patina by `wear`, from brown to verdigris), `gilt`, and
+  `painted`: reconstructed polychromy over the card's stone, which the readout always calls conjecture.
+- **Cut.** `crop`: `full`, `bust` (below the chest, through the upper arms), `herm`, `torso` (no head or arms, the
+  thighs cut). `lose`: whole parts with what they carry (`forearmR` takes the hand), each closed in its own cap. No
+  fracture surfaces yet.
+- **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
+  from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
+- **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
+  rest) tags its faces (`spec` and `pbr`; a metal surface's `metal`), so a bronze statue exports metallic, in its
+  patina's colour, to GLB and Godot. Absent, byte-identical.
+- **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
+  'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
+  derived work carries ("inspired by …").
+- **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
+  on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
+  Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes, `pp-equestrian:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
+  slots. Absent, the city is byte-identical.
+- **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
+  clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
+  under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
+  carved worshipper can stand among the others.
+- **Seated statues.** `stand: 'seated'` on a statue build (or a card) sits the figure on a block throne built with its
+  base: the thighs level, the shins hanging, the hands flat on the knees. A long skirt is cut at the knee, since a drape
+  over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
+  cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
+  throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
+- **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
+  the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
+  length of its body. Absent, every animal is byte-identical.
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material. The rider sits on the saddle
+  found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
+  equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
+  (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
+  mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
+- **A horse in the library.** A horse ring plan for the layered kind, built with the creature-from-plan loop: a barrel
+  body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
+  stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
+  `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting (and a run along a flank from
+  collapsing); absent, every loft is unchanged.
+- **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
+  proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
+  landmark head (no hair, no beard) in a nemes with the uraeus. The nemes is a striped wrap, not a cap: its opening
+  tilted so the brow band crosses the forehead and the face looks out of it, its stripes radiating back over the crown;
+  behind the face it folds out each side like a cobra's hood, the wings flaring past the shoulders, striped across, and
+  the lappets hang striped down a breast that is broad and flat, as a man's chest, set back under the face. Carved, the stripes are grooves: a palette group named `…Groove` takes the
+  stone a shade darker. The criosphinx's headcloth is striped the same way. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  `docs/examples/ring-plans/sphinx.plan.json`.
+- **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
+  material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
+  `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
+  block stand-in, limestone by default. Giza's entry card says so.
+- **The criosphinx and the bull.** Two more ring plans built the same way. The criosphinx is Amun's ram-headed sphinx
+  of Karnak's avenue: a domed ram's skull with horns coiled round the ears, the headcloth over the shoulders, a small
+  king between the paws (`criosphinxPlan()`, sandstone). The bull is Sumer's copper guardian: a deep barrel, the
+  shoulder hump, the head forward, horns out and up (`bullPlan()`, bronze gone green). Thebes's sphinx rows and Sumer's
+  guardian pair are slots, one figure per pedestal or plinth, and take them as `form: 'criosphinx'` and `form: 'bull'`.
+- **`statues: "carved"`.** One word on a historic city carves every slot with its period's statue: a slot's own form
+  (the sphinxes, the bulls), the seated granite king on the Theban colossi, a bronze horseman on an equestrian slot
+  and nowhere else, and the culture's card everywhere else (Roman at the Forum and Pompeii, Hellenistic at Lindos,
+  Sumerian worshippers), men and women, marble and bronze, decided by each slot's own dice so the city carves the same
+  each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
+  carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
+
+### Recipe versions
+
+- **Every recipe records the mojulo version that wrote it.** A mint stores the version that minted
+  it; an edit to the recipe (`update_sketch`, `edit_solid` and the other in-place revisions) stores the
+  version that last changed it. A retitle, a folder move or a gallery pin leaves it alone, since what
+  renders is unchanged. Each archived revision of a solid and each beats revision carries the version
+  that wrote that manifest.
+- `export_model` answers with `versions: { minted, revised, rendered }`, so an export says which
+  mojulo made the recipe and which one rendered it. To reproduce an export exactly as the recipe's own
+  version drew it, render it under that version (`npx -y mojulo@<version>`) in a separate
+  `MOJULO_HOME`.
+- Recipes written before this release read `null`: they were made by 3.0 or earlier, and which one is
+  not recorded, so nothing is guessed. The columns are added on first start; nothing else changes.
+
+### Recipe book
+
+- **The recipe book ships with mojulo.** The catalog that lived in the separate `mojulo-recipe-book`
+  repo now lives at `control/book/` and is in the npm package, so every install has it with no setup,
+  including an agent box (the Claude app and web, ChatGPT's Work box), where nothing can be cloned
+  beside the package and the old attached book never loaded. It comes in at the book's 0.8.0: study
+  objects, math, worlds, loops, solids, shots and the wardrobe (garments, outfits, footwear), and the
+  `aurora` and `foucault-pendulum` view kinds. Named outfits such as `business-suit` now resolve on
+  every install.
+- Precedence is unchanged in spirit and gains one tier at the bottom: core kinds, then your cookbook,
+  then an attached clone, then the bundled book. `MOJULO_BUNDLED_BOOK=off` leaves it unattached.
+- **Deprecated:** `MOJULO_RECIPE_BOOK` and the separate `mojulo-recipe-book` repo. A clone you
+  already point at still loads, ahead of the bundled book, and warns at boot; it is removed no earlier
+  than 4.0. Book entries are now contributed to `control/book/` in this repo (see CONTRIBUTING.md).
+- The ChatGPT Work-box runner installs 3.0.1 by default, so a Work box gets the bundled book.
+- `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
+  `npm test` checks the bundled book as well.
+
+### MIDI orchestra
+
+- **In progress.** The robot band learns styles from studied masters, written as manuals an agent reads
+  before composing, not as presets. The first is **robot rock**: the 16-bit action-game sound of a rock band
+  played by machines. The card `beats-robot-rock` (via `get_beats_vocab` or `semantic_search`) covers:
+  - one fixed band and one room for a whole game, with each stage choosing only what is wet;
+  - a riff-and-bass engine, with the bass answering the lead;
+  - an intensity ladder from stage select to final boss, with a form for each scenario: stage, boss,
+    fortress, select, victory;
+  - an element (water, fire, ice, machine) signalled inside the groove rather than by swapping the band;
+  - an 8-voice discipline.
+- Every manual is white label: it names traits, never a franchise or composer.
+- The second style manual, **field orchestra**, covers the 32-bit strategy-RPG score: an orchestra written for a
+  few voices that still reads as orchestral. The card `beats-field-orchestra` covers:
+  - an energy ladder (idyllic, adventurous, processional, battle), with a form and a mix for each step;
+  - layers that enter one at a time;
+  - one shared hall, with the sustained sections wet and the percussion dry;
+  - the orchestra played as a band;
+  - loops that never close V–i;
+  - instrument families as dramatic tags.
+- New authoring vocabulary. All of it is opt-in; recipes without it expand and render byte-identical:
+  - rhythms `dotted`, `dotted-quarter` and the 6/8 `lilt`;
+  - voicings `pedal`, `pedal-5` and `drone` (the key's tonic, fifth or open fifth held under any chart);
+  - grooves `march`, `processional` and `travel`;
+  - snare-rudiment fills `paradiddle`, `drag`, `five-stroke` and `long-roll`;
+  - woodwind and timpani band roles;
+  - bands `orchestra-pastoral`, `orchestra-field`, `orchestra-processional` and `orchestra-battle`.
+- Harmony gains:
+  - the Phrygian bII as the danger chord;
+  - the tonic pedal;
+  - loop-seam cadences;
+  - the tonic flip;
+  - the Aeolian march;
+  - modes ranked by tension;
+  - key shifts by a third or a fifth between sections.
+- The worked set, `lib/graph/beats/field-moods.js`: idyllic `plains`, `desert`, `village` and `forest`; adventurous
+  `highlands`, `expedition` and `wayfarer`. Each row carries an `energy`. Not yet wired to a world or a tool.
+  Machine gates in `field-moods.test.js` hold each energy to its budget:
+  - one colour alone at the opening;
+  - parts and leads per bar;
+  - no V–i at the seam;
+  - a dynamics ceiling;
+  - adventurous moods keep moving.
+- Never the same score twice. `lib/graph/beats/field-score.js` generates field cues from these principles:
+  - `scoreIdentity(gameSeed)` rolls a game's identity: home key, a palette flavour (orchestral, folk, chamber,
+    synth-era, silk-road) with its instruments per role from the shelf, one hall, and a motif rhythm.
+  - `fieldScore(mood, { seed, identity })` rolls a cue inside the mood: mode, tempo, meter, a progression from
+    the mood's harmony family, new melodies, the arrangement order and the gear change.
+  - Same seeds give the same music; new seeds give a different score. Over 60 seeds per mood every melody
+    differs, every key appears, and all 420 recipes are distinct. Cues sharing an identity keep its tonic,
+    palette, hall and motif.
+  - `field-gates.js`: the principles as an advisory check over any beats composition, run on every generated
+    seed and on the hand-written takes. The village take keeps its flute counterline as a recorded exception.
+  - The card tells an agent composing by hand to use a fresh seed and a game identity.
+- A field score is now one call away, and mojulo suggests one:
+  - a world takes `audio: { soundtrack: 'field:plains' }` (or `{ score: { mood, seed, game } }`) and plays a
+    generated field cue. `compose_world` stores a fresh seed, so every world sounds different until you keep one;
+  - `create_beats({ kind: 'beats-composition', title, score: { mood } })` mints a field cue with fresh seeds and
+    says how to keep a whole game in one identity (`game`);
+  - a world composed without music gets a suggested mood and the exact `audio` line in the reply.
+- Loop points. A render with `loop` (`export_beats { loop: true }`, `beats.wav?loop=1`, or the recipe's
+  `export.loop`) is exactly one pass, cut at the next bar line. The ring-out is folded back onto the start, the way
+  a live loop carries it, and a `smpl` loop chunk marks the loop for samplers and game engines. The Godot pack
+  renders every music bed this way, so a level or menu loops without the old gap of silence. Off by default;
+  renders without it are byte-identical.
+- More than fields. The same generator now writes the rest of a game's non-battle music, each mood a set of
+  leanings inside the same principles:
+  - towns and interiors: `town`, `tavern` (folk instruments in any game), `shop`, `chapel`;
+  - `night`;
+  - `ceremony`, a stately procession with a brass lead (a new `processional` energy in the gates);
+  - story cues: `prayer`, `sorrow`, `tension` (before a fight, not the fight), `betrayal`, `triumph`.
+  Every mood carries its role (field, travel, town, interior, story), and the suggestion knows the new places.
+  The existing moods are unchanged, note for note.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
@@ -596,6 +888,125 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - A culture names its mood on its card (`soundtrack`). A culture scaffolded from another plays its parent's
   mood until it has its own, and a new mood is a row in `MOODS`.
 - Each entry gains a SOUND line and a starter with its period music.
+
+### Historic miniatures
+
+- **Spike.** A historic city can stand its people about for scale and flavour: add `"people": true` (or
+  `{ "density": 0–1, "citizens": false, "hands": false }`) to a `historic` manifest with the `city` scene, and
+  the World page fills in two groups (`lib/graph/historic/miniatures.js`). Static figures only: no motion, no
+  paths.
+  - Citizens stand alone, in pairs or in households on the lanes, the open ground and the plan's square. They
+    are thicker on a main street than in a back alley.
+  - Field hands work in gangs on the flat ground outside the wall: stooped over the crop, at the hoe, or
+    carrying.
+- Each figure is the fractal city's pedestrian at a new `mini` level of detail, under 300 quads. Nobody is bare:
+  every garment covers the torso and hangs a skirt of cloth to its hem (`cut`: knee, shin or ankle).
+  - The skirt is fitted to the posed figure. Its top is the trunk's own waist, so it tilts when the figure bends;
+    each ring below wraps the hips and legs at its height, so a stride or a bent knee pushes the cloth out
+    instead of poking through. The legs under it are not drawn.
+  - Sleeves carry the shirt down the forearm, and `legs` give trousers.
+  - Colour is the culture's palette over the body's regions and the skirt.
+  - Dress per culture: Roman tunic, toga and stola; Greek chiton, himation and peplos; the Egyptian linen tunic over
+    a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
+    jacket over hemp trousers.
+  - New work poses: `stoop`, `hoe`, `carry`.
+- Beasts of burden (`lib/graph/historic/beasts.js`), on unless `beasts: false`:
+  - In the fields, plough teams: two oxen abreast under a yoke at the neck, the ploughman behind.
+  - On the open streets, pack donkeys and mules with panniers, and horses, each led by a driver at its head.
+  - Each culture works its own herd: oxen and donkeys from Sumer to Egypt, mules among the Greeks and Romans,
+    horses and oxen for Qin.
+  - Each beast was designed with the creature creator (`mint_solid` kind `animal`, iterated with `update_sketch`)
+    and is carried as the recipe that sketch stores. The ox is the bull gelded to a heavier draught body, short
+    horns and a pale coat; the donkey and the mule are new, from the horse; the horse and the camel are the
+    species. The camel is drawn by no culture here, since it came after these periods.
+  - `lib/graph/figures/beast-asset.js` bakes a recipe low-poly (about 400 faces against about 9,000). It uses the
+    animal kind's overlap body, keeps the coat and its pale belly, and drops the eye and nose dots.
+  - Beasts come after the people on their own seeded stream, so turning them off moves no one. Each needs footing
+    under all four hooves, clear of the people.
+- The people and the beasts are shaded smooth (`lib/graph/figures/smooth-corners.js`). Each corner takes the
+  normal averaged over the faces that share it in its own part (a limb, the trunk, the skirt), and the World page
+  shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
+  the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
+  as `smooth`, off by default, so the fractal city's people are unchanged.
+- The region, the farm and the works take `people` too (`lib/graph/historic/crews.js`). Their kits build every
+  tool and building at rest and say who belongs there, and this places them.
+  - Hitching: every yoke with a pole run back from it gets its team, two abreast, necks at the yoke, facing away
+    from the pole. The yoke and the pole's front end lift from the ground to the necks. Oxen draw the plough, the
+    culture's pack animal the cart, oxen or (in Sumer, as its kit says) donkeys the threshing sledge, and horses
+    the chariot. The ploughman stands behind the stilts; any other driver at the head.
+  - Crews: each workshop and farm building names its workers in `CREWS` (reapers bent along the barley's cut edge,
+    diggers in the clay pit, moulders on the brick field, smiths, potters, the haulers ahead of a stone sledge,
+    scribes in the shade). They stand in the slot's own frame, at its working front, inside it or ahead of it,
+    each in a pose for the work. Byres, stables and grain packs get their beasts.
+  - The region's town has its citizens on the town's own claim grid, where the region set it down. Its strip
+    fields have field hands and plough teams, and its estates and quarters their crews.
+  - Outside a town, a figure stands on the scene's own ground heights, so the clay pit's diggers stand on its
+    floor.
+  - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
+    out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
+- The city takes the same crews. Its work places name their people too: priests and worshippers at the altars
+  and before the temples, women with jars at the wells and fountains, shopkeepers at Pompeii's shop fronts with
+  customers in the street, potters at the kilns, bakers and craftsmen in Giza's bakeries and workshops, quarrymen,
+  porters on the quays, boatmen aboard, traffic and a pack animal at the gates, and traders and their beasts in
+  the Qin market. A crew can now stand before a slot facing into it (`before`), work up on a quay's top or a
+  ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
+  guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
+  layout has no slots, has none yet.
+- Dress changes with the era. Clothing is now part of each culture's record, as dated and cited `dress` entries
+  next to its materials and building types (`lib/graph/historic/dress.js`). Each entry is one garment: who wore
+  it (the man or the woman of the street, or the labourer), its span, its hem, sleeves or trousers, and a few
+  colourways. The people wear what was in use at the culture's year, and `people.year` asks for another year:
+  the buildings stay as they are, and the people dress as that year's people did.
+  - A culture with nothing recorded for a year dresses as the culture it draws its dress from (the new `dress`
+    part of a lineage relation): the Forum from Pompeii, the polis from Lindos, Thebes before the New Kingdom
+    from Giza, and Pompeii, before its Roman entries begin, from the Greek tradition.
+  - `checkRecord` checks a dress entry like any other: its wearer, its hem, its colours, and that every look
+    covers the torso.
+- Cloaks and headwear. The miniature can wear a cloak, hung from a collar over the shoulders, the trunk and the
+  upper arms to the hip or the knee, with the forearms coming out under it. It can also wear one of three head
+  coverings: a `cap`, a broad-brimmed hat (`brim`), or a `veil` that falls past the chin onto the shoulders and
+  leaves the face open. Each is fitted to the posed figure the way the skirt is, in its own colour, and the
+  figure is unchanged without one (`lib/graph/figures/pedestrian-asset.js`). The record now dresses people in:
+  - the Roman paenula, on labourers from the early Empire and on citizens from the 3rd century;
+  - the Roman palla, and the Greek himation, drawn over the head;
+  - the Greek chlamys, from the 5th to the 3rd century, and the petasos on labourers;
+  - the Sumerian sheepskin over the kaunakes;
+  - the fur cap of the Zhao horsemen's dress, and the Qin commoner's black headcloth from 221 BCE.
+- A figure stands on a kerb or a step and refuses a spot taken by anything taller.
+- Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
+- Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
+  and seated poses (the scribes stand). Pompeii
+  with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
+  it has no people.
+
+### Pompeii's land
+
+- Pompeii gets a farm scene (`scene: 'farm'`), and a works scene is next. Both draw on a new cited record of
+  its land and workshops (`lib/graph/historic/record/pompeii-land.js`), spread into Pompeii's record.
+  - The record covers:
+    - the villas of Boscoreale: Villa Regina's 18 dolia (about 10,000 litres) and the Pisanella's olive mill;
+    - the lever press of the Villa of the Mysteries;
+    - the vineyard inside the walls;
+    - the bakeries with their donkey mills, the fullery, the fish-sauce works, the tannery, the dyers, the
+      potters, a building site and a smithy;
+    - the carts and the stable of Civita Giuliana.
+
+    Each entry is cited, with its confidence and its disputes. What was working at the eruption but has no
+    recorded building date is held from 79, not back-dated.
+  - The farm is a villa rustica at the vintage, its one season. It is a new `villa` layout beside the flood-plain
+    farm, which stays as it was.
+    - The villa stands round its court, facing a country road rutted at its cart's gauge, with the dolia sunk in
+      the court.
+    - The press room and the olive mill stand behind it, the stable beside it, and the threshing terrace and a
+      barn with its pergola to the east.
+    - The vineyard lies in blocks of staked rows over the north, with an olive grove and a reaped field.
+    - A cart waits at the gate for the grapes, its pole down to the yoke.
+  - Its nine pieces (`lib/graph/historic/assets/pompeii-land.js`) are placeholders, `designed: false`, massed to
+    the record's numbers where it gives them and to stated conjecture where it does not.
+  - With `people`, pickers work the vine rows, treaders and pressmen the press room, two men the olive mill, and
+    the household the court. Horses stand in the stable, and the cart's pair is hitched with its carter.
+  - The farm's aerial view can be aimed by its plan (`aerialAt`). Sumer's and Egypt's farm and works scenes are
+    byte-identical.
 
 ### Historic Rome
 
@@ -1438,16 +1849,16 @@ needed on the anime head. Being built on this branch.
 - **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
   that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
   — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
-  (carrots, after Toriyama), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
-  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
+  (carrots, classic shonen spikes), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas in a short tomboy cut. Shaped hair never cuts through the body: the hero's
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
-  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, a side-swept swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades. A layer's `flick` hooks
   a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
-  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+  into a TIE and ends it there, so `frieda` wears twin tails and `frieda-pony` one ponytail.
 - **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
-  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
-  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` is a bowl bob, `miwako` a
+  neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
   (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
 - **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
   ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining

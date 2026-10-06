@@ -1061,6 +1061,29 @@ export async function listCooksHandler(input, _ctx) {
 // approval. No DB writes, no LLM call. Encodes the same "ideal content
 // shape" rules `recommend_kind` uses, but inverted: from kind → structure
 // rather than from items → kind.
+// Each publication kind's layout guide: its shape, how stash items map onto it, and the least content
+// that renders well. cook's listing names the kinds only; sketch_stash({ target_kind }) returns the
+// kind's guide with its stash recipe, so the agent reads it for the one kind it is publishing.
+export const PUBLICATION_GUIDE = {
+  essay: "scroll · letter · 1col, report_md is the whole body, optional visuals[]. Min:  a non-empty report_md (the agent owns the body). Visuals optional.",
+  picture_book: "paginated · book · 1col, sketch items → pages (one whole-stash slice). Min:  ≥3 sketch items each with a body_md caption. Drawers become chapters.",
+  slide_deck: "paginated · slide (16:9), sketch/svg/markdown/text items → mixed slides, drawers → section dividers. Min:  5–15 items of mixed types (sketch/svg for visual slides; markdown/text for content slides). Drawers welcome.",
+  flyer: "single page · letter · hero+headline+body+CTA, first sketch → hero, markdown → headline+body, link → CTA. Min:  1 sketch (hero) + 1 markdown (h1 = headline; body = pitch) + 1–3 link items as CTAs. ≤5 items total.",
+  brief: "single page · letter · 2col, report_md = executive summary, markdown → points, sketch → sidebar figures, text → callouts. Min:  2–5 markdown items (each a point with h1 + body). report_md = executive summary. Optional 1–2 sketches in the sidebar.",
+  resume: "single page · letter · opinionated 2col, markdown → sections (drawer 'sidebar'/'skills'/'education' routes to sidebar; 'identity' drawer drives the header). Min:  an `identity` drawer with 1 markdown item (h1 = name; line 2 = tagline; rest = summary). 1–2 sidebar drawers (skills/education) + 2–4 main markdown sections (experience/projects/publications).",
+  newsletter: "scroll · letter · hero_rail, markdown → article cards, text → pull quotes, link → 'in case you missed it' section, first sketch → hero. Min:  2–4 markdown items (articles, each with h1 + body) + 0–2 text items (pull quotes) + 2–5 link items. Optional 1 hero sketch. report_md = masthead lede.",
+  field_guide: "paginated · book · 1col, sketch+markdown → specimen entries, drawers → sections. Book-viewer supported. Min:  3–12 sketch items each paired with a body_md caption (h1 = label; rest = description). Drawers = categorical sections. report_md = foreword.",
+  pamphlet: "paginated · tri-fold (front + content panels + back), markdown → panel sections, sketch → panel illustrations. Book-viewer supported. Min:  exactly 4 markdown items (one per content panel; h1 = panel title) for a true tri-fold. 3–6 acceptable. report_md = front-cover blurb.",
+  textbook: "scroll · book · 1col, drawers → numbered chapters, markdown → sections, sketch → numbered figures (Fig. N.M), text → key-term callouts. Auto TOC. Min:  3+ drawers as chapters, 2–6 markdown sections per chapter, optional 1–4 sketches per chapter as figures, optional text items as callouts. report_md = preface.",
+  novel: "scroll · book · 1col, fiction prose — short story, novella, or novel. Drawers → Roman-numeral chapters, markdown → prose scenes (✦ ✦ ✦ between scenes), text → epigraphs/pull-quotes, first sketch → chapter frontispiece. Min:  ≥1 markdown scene. Short or long — a single-chapter short story and a multi-chapter novella both render well; drawers are optional (add them only when there are chapters). report_md = front-matter (dedication/epigraph).",
+  visual_guide: "paginated · book · 1col, drawers → numbered chapters with intro pages, sketches → full plate pages (Plate N.M), markdown → chapter intros + interstitials, text → quote spreads. Min:  ≥1 sketch, 3–4 drawers as chapters, 1 markdown chapter-intro per chapter, 2–6 plates per chapter. report_md = inside-cover blurb. Default aspect 4/3.",
+  comic: "paginated · format-driven · sketch-per-page comic with fidelity dial (nemu → breakdown → pencils → inks). Format: american-comic (default), sunday-strip, manga-tankobon (R→L), webtoon (vertical scroll). Sibling of picture_book; one whole-stash slice. Per-page metadata.comic.{spread, fidelity, role} carries through to the viewer. Collaboration surface: the dial flips presentation without re-cooking. Min:  ≥3 sketch items (each ideally a panel-recipe-authored page). Drawers become chapters. report_md = cover blurb. Pages with metadata.comic.spread='left' then 'right' render side-by-side.",
+  instruction_manual: "paginated · portrait booklet · per-page: a dominant exploded-diagram band + a numbered multi-column step + a fine-print band. markdown → numbered steps (h1 = step title; body = instructions; trailing `> blockquote` = fine print), the sketch gathered right after a step → that step's diagram, drawers → numbered Parts, text → step notes. Author diagrams with create_sketch using the `assembly-line-art` vocab card (exploded isometric line art). Min:  4–16 markdown steps each followed by a sketch diagram. Drawers = Parts. report_md = cover overview. Default aspect '7 / 10'.",
+  lesson_plan: "scroll · TWO faces in one folder: index.html (teacher plan) + handout.html (printable learner copy), cross-linked. Reserved drawers route to pedagogical sections (objectives, references, activities, assessment, materials, extensions, teacher_notes); unknown drawers fall through to generic sections; root items lead as Overview. markdown → steps/objectives/checks (h1 = title), link → reference cards, sketch → inline figures, text → callouts. metadata.audience (teacher | learner | both, drawer-defaulted) decides which face an item lands on; metadata.lesson.{timing,teacher_note,answer} render on the teacher face only (the answer key is stripped from the handout — structured field or a trailing `> **Answer:** …` blockquote). Set publication.style.learner_band (lower_primary…professional, default secondary) to tune the handout’s type scale + scaffolding — presentation only, not prose. v1 is single-band.",
+  photojournal: "scroll · photo journal · 1col, image items → full-width photographs with their body_md as the caption; the FIRST image is lifted out as the cover photo; markdown → prose interludes between photos; drawers → section breaks. Prints one photo per sheet with all chrome stripped. Min: ≥3 image items (gather type 'image' with a media_ref), each with a body_md caption. report_md = cover blurb.",
+  site: "NAVIGATIONAL · multi-page static WEBSITE (personal / marketing / business brochure sites). ONE whole-stash slice becomes a folder of cross-linked pages with a shared sticky nav + footer, fully responsive (desktop and mobile, CSS-only mobile menu), and PORTABLE (relative links only — deploys to Netlify/Pages/S3 or opens from file://). drawer = page (root items = the home page); item order = section order. markdown -> prose sections (h1 = section heading), text -> callouts, link -> link cards, sketch/svg/image -> figures. metadata.role routes an item to a slot: hero (headline+lede band; home defaults to aim+report_md), cta (link -> hero button), feature/service (-> responsive card grid), footer (-> site footer). Pick the look with publication.style.preset, one of: personal | marketing | business (default) | minimal — a full palette+type token block; publication.style.accent still overrides just the accent. Presentation only, never rewrites prose. metadata.site.name/tagline + metadata.seo.description feed the title and OG tags.",
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STASH_RECIPES = {
@@ -1305,6 +1328,36 @@ const STASH_RECIPES = {
       'aim becomes the lesson title; report_md becomes the overview blurb on both faces.',
     ],
   },
+  photojournal: {
+    drawers: [],
+    items: [
+      { type: 'image', role: 'cover', repeat: '1', hint: 'The first image is the cover photo. gather type:image with a media_ref; body_md = its caption.' },
+      { type: 'image', role: 'photo', repeat: '3+', hint: 'One photograph per entry; body_md = the caption.' },
+      { type: 'markdown', role: 'interlude', repeat: '0–3', hint: 'Prose between photos.' },
+    ],
+    notes: [
+      'Drawers are optional; each one starts a new section of the journal.',
+      'aim becomes the title; report_md the cover blurb.',
+    ],
+  },
+  site: {
+    drawers: [
+      { name: 'about', role: 'page', hint: 'Each drawer is one page (its name is the page title and the file slug). Root items are the home page.' },
+      { name: 'contact', role: 'page', hint: 'Another page; add or rename pages as the site needs.' },
+    ],
+    items: [
+      { type: 'markdown', role: 'hero', repeat: '0–1', hint: "Home hero: metadata.role 'hero' (h1 = headline, body = lede). Without one, aim and report_md fill it." },
+      { type: 'link', role: 'cta', repeat: '0–2', hint: "metadata.role 'cta': a button in the hero." },
+      { type: 'markdown', role: 'feature', repeat: '2–6', hint: "metadata.role 'feature' or 'service': consecutive ones form a card grid." },
+      { type: 'markdown', role: 'section', drawer: 'about', repeat: '1–4 per page', hint: 'Ordinary sections, h1 = section heading, in item order.' },
+      { type: 'markdown', role: 'footer', repeat: '0–1', hint: "metadata.role 'footer': the site footer." },
+    ],
+    notes: [
+      'One whole-stash slice. Every link is relative, so the folder deploys to any static host or opens from file://.',
+      'publication.style.preset picks the look: personal | marketing | business (default) | minimal. publication.style.accent overrides just the accent.',
+      'metadata.site.name / tagline and metadata.seo.description feed the title and the share tags.',
+    ],
+  },
 };
 
 export async function sketchStashHandler(input, _ctx) {
@@ -1349,6 +1402,8 @@ export async function sketchStashHandler(input, _ctx) {
       steps.push(`gather({ stash_ref, type: 'text', body: '…' })  // ${item.hint}`);
     } else if (item.type === 'link') {
       steps.push(`gather({ stash_ref, type: 'link', source_url: 'https://…', title: '…' })  // ${item.hint}`);
+    } else if (item.type === 'image') {
+      steps.push(`gather({ stash_ref, type: 'image', media_ref: '…', body_md: '…' })  // ${item.hint}`);
     }
   }
   steps.push(`cook({ slices: [{ stash_ref }], aim: ${JSON.stringify(trimmedIntent)}, publication: { kind: ${JSON.stringify(kind)} } })  // materializes the outcome at /outcomes/<cook_ref>/`);
@@ -1356,6 +1411,7 @@ export async function sketchStashHandler(input, _ctx) {
   return {
     intent: trimmedIntent,
     target_kind: kind,
+    guide: PUBLICATION_GUIDE[kind],
     proposed: {
       title: stashTitle,
       drawers: recipe.drawers.map((d) => ({ ...d })),
@@ -1412,16 +1468,12 @@ export function registerCookTools() {
   registerTool(withPluginProfile({
     name: 'cook',
     description:
-      "Ring 9 — the COOK verb: the nucleation collider on cleaved stash slices.\n\n" +
-      "THE BINDING VOW: a Cook aims its nucleation arrow at ONE target — one singular `aim`. \"What open questions remain?\" is ONE aim; the body can enumerate, but the OUTCOME is the singular framing. If you find yourself wanting to nucleate two outcomes, that is two cooks. Refuse to compound them.\n\n" +
-      "THREE REQUIREMENTS (the discipline this tool enforces in shape; the brief teaches in spirit):\n" +
-      "  1. CLEAVE slices of context from Stash(es). A slice is a deliberate cut — { stash_ref, item_ids? } — not 'everything I happen to have'. item_ids omitted means whole-stash (use lazily). Multiple slices, including across stashes, are the superposition.\n" +
-      "  2. AIM with a dismantling question — interrogative, pattern-seeking ('what unifies these?', 'where do these disagree?', 'what hidden structure?'). Not exploratory ('tell me about X' — that's gathering, the Stash's job).\n" +
-      "  3. NUCLEATE one new artifact — the agent authors report_md, focusing all attention on the singular aim. The slices are RECOMBINATOR material, not citation material: they flavor the prose without appearing in it as quotes.\n\n" +
-      "AUTHORING MODEL: the AGENT authors report_md (and visuals); cook only materializes the folder. No server-side LLM call.\n\n" +
-      "COOK STOPS AT COOK. There is no cook outlet to plan mode — a cook is a first-class deliberation node, and other rings read it. If a cook outcome later reads as tractable work, plan mode itself can be seeded from it via `forge_plan({ source: { kind: 'cook', cook_ref } })`; the cook's aim becomes the seeded plan goal. That handoff is a plan-side decision made later, not a cook outlet — most cooks never become plans, which is correct.\n\n" +
-      "PUBLISHER: the materialization shape is a `publication: { kind }` — `essay` (long-form agent-authored doc, default), `picture_book` (paginated sketch-per-page book; one whole-stash slice), `slide_deck` (16:9 paginated deck), `comic` (sketch-per-page comic with format + fidelity dial: nemu → breakdown → pencils → inks; one whole-stash slice; collaboration surface, not just a final-output renderer), `lesson_plan` (teacher tool — one stash renders TWO faces into one folder: a teacher plan and a printable, band-tuned student handout; drawers carry the lesson anatomy; metadata.audience routes items between faces), or the other catalog entries (flyer/brief/resume/newsletter/field_guide/pamphlet/textbook/novel/visual_guide). Cook is the verb; the OUTCOME is a publication of a chosen kind. The legacy `template:` arg is accepted as a soft alias for one release (`'standard'` → `'essay'`).\n\n" +
-      "Returns { cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }. The static index.html is self-contained.",
+      "Ring 9 — COOK: publish cleaved stash slices as ONE outcome around ONE question. You author `report_md` (and any `visuals`); cook only materializes the folder (report.md + a self-contained index.html). No server-side LLM call.\n\n" +
+      "  1. CLEAVE — `slices`: deliberate cuts { stash_ref, item_ids? }; several, across stashes, is fine.\n" +
+      "  2. AIM — one interrogative, pattern-seeking question ('what unifies these?'). Two outcomes are two cooks.\n" +
+      "  3. NUCLEATE — the slices flavor the prose; they are not quoted or cited.\n\n" +
+      "`publication: { kind }` picks the outcome's shape (default `essay`). Before any other kind, call `sketch_stash({ intent, target_kind })`: it returns that kind's layout guide (how items, drawers and metadata map onto pages, and the least content that renders well) with a stash recipe. `recommend_kind` picks a kind for a stash you already have.\n\n" +
+      "A cook is a deliberation node other rings read; `forge_plan({ source: { kind: 'cook', cook_ref } })` can seed a plan from one later. Returns { cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1435,107 +1487,63 @@ export function registerCookTools() {
             },
             required: ['stash_ref'],
           },
-          description: "Cleaved slices of context (≥1). Each: { stash_ref, item_ids? }. Omit item_ids for a whole-stash slice (lazy default). Multiple slices = superposition. Per the cleave requirement, prefer to enumerate item_ids when you've actually chosen — 'whole stash' should be the exception, not the default.",
+          description: 'Cleaved slices (≥1): { stash_ref, item_ids? }. Omitting item_ids takes the whole stash; prefer naming the items you chose.',
         },
         aim: {
           type: 'string',
-          description: "The singular dismantling question Cook nucleates around. ONE target per cook (the binding vow). Interrogative, pattern-seeking, not open-ended. If multiple aims are in play, cook them separately.",
+          description: 'The one question the outcome answers (the title on paginated kinds).',
         },
         report_md: {
           type: 'string',
-          description: 'The agent-authored nucleation, markdown. Cook materializes this verbatim as report.md and renders it through the static template into index.html. The aim should be the report\'s singular target — the body can have sections/lists/tables but never multiple outcomes. Slices are recombinator material; do not cite them as sources.',
+          description: "Your markdown, written verbatim as report.md: the whole body for an essay, a summary, lede or cover blurb for other kinds (the kind's guide says which).",
         },
         additional_context: {
           type: 'array',
           items: { type: 'object' },
-          description: 'Optional: MCP tool results the agent looped in (e.g. meta_context_brief output, semantic_search hits, get_catalyst result). Stored on the cook row for lineage; not embedded into report.md.',
+          description: 'Optional tool results you looped in (semantic_search hits, a catalyst), kept on the cook row for lineage, not in the report.',
         },
         suggested_lens: {
           type: 'string',
           enum: ['spike', 'segment_expansion', 'vertical_reinforcement', 'collider'],
-          description: 'Optional: which plan-mode lens the agent thinks fits if this becomes work. Surfaced in the outcome header; carried through to plan mode if the cook is later seeded into forge_plan via source.',
+          description: 'Optional plan-mode lens if this becomes work; carried into forge_plan.',
         },
         visuals: {
           type: 'array',
           items: { type: 'object' },
-          description: "Optional visuals to inline into the outcome (essay kind only). Each entry: { filename (safe name ending .svg or .png), type ('svg'|'png'), body (svg source) OR data_base64 (png bytes), caption? }. SVGs inlined into index.html; PNGs written as files and <img>-referenced. Not accepted by publication.kind='picture_book' — each page's illustration comes from a sketch item's sketch_ref instead.",
+          description: "Essay only: { filename (.svg or .png), type ('svg'|'png'), body (svg source) or data_base64 (png), caption? }. SVGs inline; PNGs are written as files.",
         },
         publication: {
           type: 'object',
-          description: "Publication kind to materialize. Defaults to { kind: 'essay' } (agent-authored long-form doc). Use { kind: 'picture_book' } to render a stash as a sequential illustrated book — one sketch-typed stash item per page (drawers become chapters), body_md on each sketch becomes the page caption, `aim` becomes the cover title, `report_md` becomes the (optional) cover blurb. picture_book takes EXACTLY one whole-stash slice and ignores `visuals`.",
+          description: "The outcome's shape. Default { kind: 'essay' }. Each kind's guide: sketch_stash({ intent, target_kind }).",
           properties: {
             kind: {
               type: 'string',
               enum: ['essay', 'picture_book', 'slide_deck', 'flyer', 'brief', 'resume', 'newsletter', 'field_guide', 'pamphlet', 'textbook', 'novel', 'visual_guide', 'comic', 'instruction_manual', 'lesson_plan', 'photojournal', 'site'],
-              description:
-                "The publication kind. Each entry: shape · resolver · `min:` content shape to look good. If unsure, call `recommend_kind` first.\n" +
-                "  · `essay`        — scroll · letter · 1col, report_md is the whole body, optional visuals[].\n" +
-                "                      min: a non-empty report_md (the agent owns the body). Visuals optional.\n" +
-                "  · `picture_book` — paginated · book · 1col, sketch items → pages (one whole-stash slice).\n" +
-                "                      min: ≥3 sketch items each with a body_md caption. Drawers become chapters.\n" +
-                "  · `slide_deck`   — paginated · slide (16:9), sketch/svg/markdown/text items → mixed slides, drawers → section dividers.\n" +
-                "                      min: 5–15 items of mixed types (sketch/svg for visual slides; markdown/text for content slides). Drawers welcome.\n" +
-                "  · `flyer`        — single page · letter · hero+headline+body+CTA, first sketch → hero, markdown → headline+body, link → CTA.\n" +
-                "                      min: 1 sketch (hero) + 1 markdown (h1 = headline; body = pitch) + 1–3 link items as CTAs. ≤5 items total.\n" +
-                "  · `brief`        — single page · letter · 2col, report_md = executive summary, markdown → points, sketch → sidebar figures, text → callouts.\n" +
-                "                      min: 2–5 markdown items (each a point with h1 + body). report_md = executive summary. Optional 1–2 sketches in the sidebar.\n" +
-                "  · `resume`       — single page · letter · opinionated 2col, markdown → sections (drawer 'sidebar'/'skills'/'education' routes to sidebar; 'identity' drawer drives the header).\n" +
-                "                      min: an `identity` drawer with 1 markdown item (h1 = name; line 2 = tagline; rest = summary). 1–2 sidebar drawers (skills/education) + 2–4 main markdown sections (experience/projects/publications).\n" +
-                "  · `newsletter`   — scroll · letter · hero_rail, markdown → article cards, text → pull quotes, link → 'in case you missed it' section, first sketch → hero.\n" +
-                "                      min: 2–4 markdown items (articles, each with h1 + body) + 0–2 text items (pull quotes) + 2–5 link items. Optional 1 hero sketch. report_md = masthead lede.\n" +
-                "  · `field_guide`  — paginated · book · 1col, sketch+markdown → specimen entries, drawers → sections. Book-viewer supported.\n" +
-                "                      min: 3–12 sketch items each paired with a body_md caption (h1 = label; rest = description). Drawers = categorical sections. report_md = foreword.\n" +
-                "  · `pamphlet`     — paginated · tri-fold (front + content panels + back), markdown → panel sections, sketch → panel illustrations. Book-viewer supported.\n" +
-                "                      min: exactly 4 markdown items (one per content panel; h1 = panel title) for a true tri-fold. 3–6 acceptable. report_md = front-cover blurb.\n" +
-                "  · `textbook`     — scroll · book · 1col, drawers → numbered chapters, markdown → sections, sketch → numbered figures (Fig. N.M), text → key-term callouts. Auto TOC.\n" +
-                "                      min: 3+ drawers as chapters, 2–6 markdown sections per chapter, optional 1–4 sketches per chapter as figures, optional text items as callouts. report_md = preface.\n" +
-                "  · `novel`        — scroll · book · 1col, fiction prose — short story, novella, or novel. Drawers → Roman-numeral chapters, markdown → prose scenes (✦ ✦ ✦ between scenes), text → epigraphs/pull-quotes, first sketch → chapter frontispiece.\n" +
-                "                      min: ≥1 markdown scene. Short or long — a single-chapter short story and a multi-chapter novella both render well; drawers are optional (add them only when there are chapters). report_md = front-matter (dedication/epigraph).\n" +
-                "  · `visual_guide` — paginated · book · 1col, drawers → numbered chapters with intro pages, sketches → full plate pages (Plate N.M), markdown → chapter intros + interstitials, text → quote spreads.\n" +
-                "                      min: ≥1 sketch, 3–4 drawers as chapters, 1 markdown chapter-intro per chapter, 2–6 plates per chapter. report_md = inside-cover blurb. Default aspect 4/3.\n" +
-                "  · `comic`        — paginated · format-driven · sketch-per-page comic with fidelity dial (nemu → breakdown → pencils → inks). Format: american-comic (default), sunday-strip, manga-tankobon (R→L), webtoon (vertical scroll). Sibling of picture_book; one whole-stash slice. Per-page metadata.comic.{spread, fidelity, role} carries through to the viewer. Collaboration surface: the dial flips presentation without re-cooking.\n" +
-                "                      min: ≥3 sketch items (each ideally a panel-recipe-authored page). Drawers become chapters. report_md = cover blurb. Pages with metadata.comic.spread='left' then 'right' render side-by-side.\n" +
-                "  · `instruction_manual` — paginated · portrait booklet · per-page: a dominant exploded-diagram band + a numbered multi-column step + a fine-print band. markdown → numbered steps (h1 = step title; body = instructions; trailing `> blockquote` = fine print), the sketch gathered right after a step → that step's diagram, drawers → numbered Parts, text → step notes. Author diagrams with create_sketch using the `assembly-line-art` vocab card (exploded isometric line art).\n" +
-                "                      min: 4–16 markdown steps each followed by a sketch diagram. Drawers = Parts. report_md = cover overview. Default aspect '7 / 10'.\n" +
-                "  · `lesson_plan` — scroll · TWO faces in one folder: index.html (teacher plan) + handout.html (printable learner copy), cross-linked. Reserved drawers route to pedagogical sections (objectives, references, activities, assessment, materials, extensions, teacher_notes); unknown drawers fall through to generic sections; root items lead as Overview. markdown → steps/objectives/checks (h1 = title), link → reference cards, sketch → inline figures, text → callouts. metadata.audience (teacher | learner | both, drawer-defaulted) decides which face an item lands on; metadata.lesson.{timing,teacher_note,answer} render on the teacher face only (the answer key is stripped from the handout — structured field or a trailing `> **Answer:** …` blockquote). Set publication.style.learner_band (lower_primary…professional, default secondary) to tune the handout’s type scale + scaffolding — presentation only, not prose. v1 is single-band." +
-                "  · `site`        — NAVIGATIONAL · multi-page static WEBSITE (personal / marketing / business brochure sites). ONE whole-stash slice becomes a folder of cross-linked pages with a shared sticky nav + footer, fully responsive (desktop and mobile, CSS-only mobile menu), and PORTABLE (relative links only — deploys to Netlify/Pages/S3 or opens from file://). drawer = page (root items = the home page); item order = section order. markdown -> prose sections (h1 = section heading), text -> callouts, link -> link cards, sketch/svg/image -> figures. metadata.role routes an item to a slot: hero (headline+lede band; home defaults to aim+report_md), cta (link -> hero button), feature/service (-> responsive card grid), footer (-> site footer). Pick the look with publication.style.preset, one of: personal | marketing | business (default) | minimal — a full palette+type token block; publication.style.accent still overrides just the accent. Presentation only, never rewrites prose. metadata.site.name/tagline + metadata.seo.description feed the title and OG tags.",
             },
             viewer_aspect: {
               type: 'string',
-              description: "Optional aspect ratio for the book-viewer page frame on paginated kinds. Format: '<num> / <num>' (e.g. '16 / 9' for a standard slide deck, '7 / 10' for a portrait book, '1 / 1' for square). Defaults: picture_book = '10 / 7', slide_deck = '16 / 9'. Ignored for essay (scroll mode has no aspect).",
+              description: "Paginated kinds: the page frame, '<num> / <num>' (e.g. '16 / 9', '7 / 10').",
             },
             format: {
               type: 'string',
               enum: ['american-comic', 'sunday-strip', 'manga-tankobon', 'webtoon'],
-              description: "Comic-only. Format preset resolving to (pagination, reading_direction, aspect). Defaults to 'american-comic'. 'manga-tankobon' is R→L; 'webtoon' is vertical-scroll (no page breaks). NOTE: cook PUBLISHES existing sketches as pages — it does not draw them. To CREATE AI-painted comic/manga pages first, mint `sequential-art` sketches via create_sketch (style presets, page recipes, character sheets) and drive the external image worker via `get_image_render_packet`; then gather those pages into the stash this cook publishes.",
+              description: "Comic only (default 'american-comic'; manga reads R→L, webtoon scrolls). Cook publishes existing sketches as pages; it does not draw them. To CREATE AI-painted comic/manga pages first, mint `sequential-art` sketches via create_sketch (style presets, page recipes, character sheets) and drive the external image worker via `get_image_render_packet`; then gather those pages into the stash this cook publishes.",
             },
             fidelity: {
               type: 'string',
               enum: ['nemu', 'breakdown', 'pencils', 'inks'],
-              description: "Comic-only. Initial render stage. 'nemu' (ネーム, default) is the roughest — panel guides, eye-line arrows, balloon placeholders. 'breakdown' / 'pencils' / 'inks' progressively polish. The viewer ships a dial; this just sets the entry stage. Per-page override: metadata.comic.fidelity on the stash item.",
+              description: "Comic only: the stage the viewer opens on (default 'nemu'; the viewer has a dial).",
             },
             style: {
               type: 'object',
-              description: `Optional style overrides. \`accent\` (named color or 3/6-digit hex) overrides the kind's default accent (callouts, links, dividers, hero backgrounds); named: red, orange, amber, green, emerald, teal, sky, blue, indigo, violet, purple, pink, rose, slate, zinc, black. \`theme\` (essay + slide_deck only) sets the WHOLE page palette from a named presentation theme so chrome AND embedded visuals stay coherent — a published deck need not default to a light page wrapping dark slides. For slide_deck it also re-tints the embedded sketch ink/backdrop to match. One of: ${PRESENTATION_THEME_NAMES.join(', ')} (default unset = the kind's built-in light palette). \`accent\` still applies on top of a theme.`,
+              description: "Presentation only. `accent`: a named color or hex. `theme` (essay, slide_deck): the whole page palette. `preset` (site) and `learner_band` (lesson_plan): see the kind's guide.",
               properties: {
-                accent: {
-                  type: 'string',
-                  description: "Accent color override. Named ('teal', 'rose', 'amber', …) or hex ('#1d4ed8', '#fff').",
-                },
-                theme: {
-                  type: 'string',
-                  enum: PRESENTATION_THEME_NAMES,
-                  description: "Named presentation theme (essay + slide_deck only) — sets the full page palette + embedded-sketch surface so the artifact isn't a light page wrapping dark visuals. dark | midnight | light | paper | blueprint | sepia | high-contrast.",
-                },
+                accent: { type: 'string' },
+                theme: { type: 'string', enum: PRESENTATION_THEME_NAMES },
               },
             },
           },
           required: ['kind'],
-        },
-        template: {
-          type: 'string',
-          enum: ['standard', 'picture_book'],
-          description: "DEPRECATED — use `publication: { kind }` instead. Soft alias kept for one release: 'standard' maps to publication.kind='essay'; 'picture_book' maps to publication.kind='picture_book'. Passing both `publication` and `template` is an error.",
         },
       },
       required: ['slices', 'aim'],
@@ -1584,10 +1592,10 @@ export function registerCookTools() {
   registerTool({
     name: 'sketch_stash',
     description:
-      "Ring 9 — vibe-to-items scaffold: given a free-form intent + optional target publication kind, return a PROPOSED stash structure (drawers + item slots) plus a step-by-step script the agent can execute (mint_stash → mint_drawer → create_sketch/gather → cook).\n\n" +
-      "Companion to `sketch_plan`. Use this BEFORE gathering when the operator's request is vague and you want to confirm shape before producing content. No DB writes; no LLM call. The kind catalog's per-kind ideal-content-shape rules are inverted here (kind → structure rather than items → kind).\n\n" +
-      "Without `target_kind`, returns an essay-shaped default and recommends calling `recommend_kind` after gathering to validate the chosen kind matches the actual material. With `target_kind`, returns the canonical recipe for that kind.\n\n" +
-      "Returns { intent, target_kind, proposed: { title, drawers, items }, suggested_steps: [string], notes: [string], next_actions: [string] }. The agent can execute suggested_steps verbatim or amend them in response to operator feedback.",
+      "Ring 9 — vibe-to-items scaffold: from a free-form intent and an optional target publication kind, PROPOSE a stash structure (drawers + item slots) and a step-by-step script (mint_stash → mint_drawer → create_sketch/gather → cook).\n\n" +
+      "Companion to `sketch_plan`. Use it BEFORE gathering, to confirm shape when the request is vague, and before cooking any kind but essay, for that kind's guide. No DB writes; no LLM call.\n\n" +
+      "Without `target_kind`, returns an essay-shaped default; call `recommend_kind` after gathering to check the kind fits the material.\n\n" +
+      "Returns { intent, target_kind, guide, proposed: { title, drawers, items }, suggested_steps: [string], notes: [string], next_actions: [string] }. `guide` is the kind's layout guide: how items, drawers and metadata map onto it, and the least content that renders well.",
     inputSchema: {
       type: 'object',
       properties: {

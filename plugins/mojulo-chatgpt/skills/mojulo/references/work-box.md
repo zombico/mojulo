@@ -24,7 +24,7 @@ It must match `--version`; no global install or PATH mutation is needed.
 Otherwise install the pinned package in `.mojulo-chatgpt/runtime`:
 
 ```sh
-node "$runner" install --workspace "$workspace" --version 3.0.0
+node "$runner" install --workspace "$workspace" --version 3.0.1
 ```
 
 This runs npm, downloads dependencies, and runs their native install scripts. It
@@ -33,7 +33,7 @@ For development use the supplied **branch tarball**, because a registry package 
 the same version does not contain unreleased branch changes:
 
 ```sh
-node "$runner" install --workspace "$workspace" --version 3.0.0 --tarball "$tarball"
+node "$runner" install --workspace "$workspace" --version 3.0.1 --tarball "$tarball"
 ```
 
 The runner records the tarball SHA-256. A repeated install of the same source reuses

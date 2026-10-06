@@ -104,7 +104,7 @@ export function registerDiagramTools() {
   registerTool({
     name: 'mint_diagram',
     description:
-      "Mint a flow-chart, data-chart, or standard diagram → a /sketches/<ref> url. Kernel diagram maker (no creative pack). Manifest: { title, viewBox:{width,height}, + stations[]+edges[] (boxes+arrows) and/or marks[] (rect/circle/wedge/line/text/…) }. Edges { from,to,label?,head?,tail?,dashed? }: head/tail typed markers (arrow/triangle-open/diamond[-filled]/crowsfoot-one|many/dot/none), from===to self-loops. Higher-level kinds auto-lower to marks: kind:'sequence' {actors,messages}, kind:'gantt' {scale,tasks}, lanes[] (swimlanes), boundaries[] (containment), station.divider (ERD). Vocab: semantic_search({kinds:['sketch_vocab']}). Returns {ok,ref,url}. (Illustration/worlds/beats → create_sketch.)",
+      "Mint a flow chart, data chart or standard diagram → { ok, ref, url }. Kernel diagram maker (no creative pack). Flow: stations[] { id, kind, label, items? } + edges[] { from, to, label? }; leave out x/y/w/h and viewBox and the boxes are auto-placed in ranks (layout: { direction: 'LR' | 'TB' }), arrows routed around boxes. Charts: marks[] (rect/circle/wedge/line/text/…) in a viewBox { width, height }. Kinds that lower to marks: kind 'sequence' {actors,messages}, kind 'gantt' {scale,tasks}, lanes[], boundaries[]. Typed arrowheads, self-loops, ERD: card edge-notation. Vocab: semantic_search({kinds:['sketch_vocab']}). Illustration / worlds → create_sketch.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -112,7 +112,7 @@ export function registerDiagramTools() {
         manifest: {
           type: 'object',
           description:
-            'Diagram manifest. Required: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. edges[] and grid are optional. Recipe/world/beats/constellation manifests are not accepted here.',
+            'Diagram manifest: title, stations[] (flow) and/or marks[] (charts). viewBox { width, height } is required unless every station is auto-placed. edges[], grid and layout are optional. Recipe/world/beats/constellation manifests are not accepted here.',
         },
         ref: {
           type: 'string',

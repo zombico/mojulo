@@ -23,7 +23,7 @@ export const KINDS = {
   contemporary: 'the same culture at the same time, elsewhere',
   variant: 'a generic or sibling version',
 };
-export const PARTS = ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'];
+export const PARTS = ['palette', 'skins', 'patterns', 'assets', 'layout', 'record', 'dress'];
 
 /**
  * Which record entries a relation carries. A tradition travels as its materials and methods; particular buildings
@@ -94,6 +94,8 @@ export function drawable(culture) {
     if (parts.has('patterns')) out.patterns = [...(S.patterns || [])];
     if (parts.has('assets')) out.assets = Object.entries(S.assets || {}).map(([id, a]) => ({ id, read: a.read || '' }));
     if (parts.has('layout')) out.layout = S.layout || 'ring-canal';
+    // `dress`: the garments its people wore at this year, which the new culture's people wear where its own record has none
+    if (parts.has('dress') && S.record && year !== null) out.dress = inUseAt(S.record.entries, year, 'dress').map((e) => ({ id: e.id, name: e.name, wearer: e.wearer, confidence: e.confidence }));
     if (parts.has('record') && S.record && year !== null) {
       const inUse = (RECORD_KINDS[r.kind] || ['material', 'method']).flatMap((k) => inUseAt(S.record.entries, year, k));
       out.record = { id: S.record.id, inUse: inUse.map((e) => ({ id: e.id, name: e.name, kind: e.kind, confidence: e.confidence, where: (e.attested && e.attested.where) || [] })) };
@@ -115,6 +117,7 @@ export function briefText(culture) {
     if (r.skins) out.push(`- Wall skins: ${r.skins.join(', ')}`);
     if (r.palette) out.push(`- Palette roles: ${r.palette.join(', ')}`);
     if (r.assets) out.push(`- Assets: ${r.assets.map((a) => a.id).join(', ')}`);
+    if (r.dress) out.push(`- Dress at c. ${fmtYear(r.year)}: ${r.dress.length ? r.dress.map((e) => `${e.name} (${e.wearer})`).join(', ') : 'none recorded then'}`);
     if (r.record) {
       out.push(`- Its record (${r.record.id}) in use at c. ${fmtYear(r.year)}: ${r.record.inUse.length} entries, PARALLELS to verify for this culture, never its basis:`);
       for (const e of r.record.inUse) out.push(`  - ${e.name} [${e.kind}, ${e.confidence}]${e.where.length ? ` — ${e.where.join(', ')}` : ''}`);

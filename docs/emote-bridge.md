@@ -22,7 +22,7 @@ in) does not exist. That half is the spike's real subject.
 | Piece | Where | Notes |
 |---|---|---|
 | Joint graph (17 nodes) | [figure-vajra.js](../control/lib/graph/polygonizer/figure-vajra.js) `FIGURE_NODES`, `STAND` | Z-up, +Y front, +X figure-right. STAND units: ×1.8 → metres on the hero. |
-| Rest pose | `STAND` + `buildRig` (6° knee, 12° elbow flex) | A relaxed **A-pose**. A T-pose exists only as the landmark vocabulary in [figure-landmarks.js](../control/lib/graph/polygonizer/figure-landmarks.js). |
+| Rest pose | `STAND` + `buildRig` (6° knee, 12° elbow flex) | A relaxed **A-pose**. |
 | Posing API | [figure-posing.js](../control/lib/graph/polygonizer/figure-posing.js) `resolvePose` → `articulate(dof)` | Per-joint world-axis Euler steps (yaw → pitch → hinge → roll), degrees, clamped by `LIMITS`. |
 | Pose words | same | Limb aim (`'forward'`, `{x,y,z}`, IK via `aimSwivel`), bend words (`slight`…`full`), spine words (`curl arch lean sideBend twist`). |
 | Emotes | [figure-emotes.js](../control/lib/graph/polygonizer/figure-emotes.js) `EMOTES` | `nod headshake bow shrug cheer point clap think`. Keyframed raw dof plus a `performance` layer. `intensity` sets exaggerate. MCP: `emote_figure`. |

@@ -16,7 +16,7 @@ describe('the historic world kind', () => {
   it('offers a city for every culture, and the land, farm and works only where a culture has them', () => {
     expect(HISTORIC_SCENES.city.cultures).toEqual(Object.keys(HISTORIC_CULTURES));
     expect(HISTORIC_SCENES.region.cultures).toEqual(Object.keys(REGION_CULTURES));
-    expect(HISTORIC_SCENES.farm.cultures.sort()).toEqual(['sumer', 'thebes']);
+    expect(HISTORIC_SCENES.farm.cultures.sort()).toEqual(['pompeii', 'sumer', 'thebes']);   // Pompeii's villa: its farm before its works
     expect(HISTORIC_SCENES.works.cultures.sort()).toEqual(['sumer', 'thebes']);
   });
 

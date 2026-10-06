@@ -1,0 +1,14 @@
+{
+  "fit": "relaxed",
+  "layers": [
+    {
+      "garment": "straight-trousers",
+      "cloth": "#3a4250"
+    },
+    {
+      "garment": "peplum-tunic",
+      "cloth": "#a8384a"
+    },
+    "sandal"
+  ]
+}

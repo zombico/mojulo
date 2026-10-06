@@ -223,7 +223,7 @@ export function historicSoundtrack(culture, seed = 1) {
  */
 export function historicAudio(m = {}) {
   const a = m.audio;
-  if (!a || typeof a !== 'object' || typeof a.soundtrack !== 'string') return a;
-  if (a.soundtrack !== 'default') throw new Error(`historic: audio.soundtrack '${a.soundtrack}' — use 'default' (the culture's period music), an inline beats recipe or { beatsRef }`);
+  if (!a || typeof a !== 'object' || typeof a.soundtrack !== 'string' || a.soundtrack.startsWith('field:')) return a;
+  if (a.soundtrack !== 'default') throw new Error(`historic: audio.soundtrack '${a.soundtrack}' — use 'default' (the culture's period music), 'field:<mood>', an inline beats recipe or { beatsRef }`);
   return { ...a, soundtrack: historicSoundtrack(m.culture, Number.isInteger(m.seed) ? m.seed : 1) };
 }

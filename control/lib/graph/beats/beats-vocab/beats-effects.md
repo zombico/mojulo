@@ -91,7 +91,7 @@ hairpins and articulation shapes.
     over a whole album. It is the authentic-era choice for the energy styles;
     the recipe-book songs use `bright-90s`.
   - An explicit `export.normalize` still wins.
-- **`band: 'anime-rock' | 'trance-pop' | 'country' | 'blues' | 'soloist' | 'nylon'`.**
+- **`band: 'anime-rock' | 'trance-pop' | 'country' | 'blues' | 'soloist' | 'nylon' | 'orchestra-battle' | 'orchestra-processional' | 'orchestra-pastoral' | 'orchestra-field'`.**
   A mix template (see `beats-composition`).
   - `country`: dry and close (a small room, low sends); rhythm guitars
     doubled wide, the lead and the fiddle off-centre.
@@ -100,5 +100,14 @@ hairpins and articulation shapes.
   - `soloist`: a plate; the lead centred and up front, the rhythm guitars
     doubled wide and low.
   - `nylon`: a hall-like room; nothing doubled (a guitar duo, palmas, a violin).
+  - `orchestra-battle`: one medium hall. Strings, brass and woodwinds wet;
+    timpani, percussion and the bass dry, so the hall stays clear when the
+    writing is dense. Nothing doubled.
+  - `orchestra-processional`: the same seating in a longer, wetter hall.
+  - `orchestra-pastoral`: a soft, wide hall for open country. The woodwind
+    lead forward and fairly dry, the strings a quiet distant pad, the
+    percussion and brass well back.
+  - `orchestra-field`: between pastoral and battle. The brass closer, the
+    strings a moving middle, the percussion light and dry, one medium hall.
   - The part with a `solo` takes the lead role in any band, whatever its
     patch.

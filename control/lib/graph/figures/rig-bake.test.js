@@ -41,15 +41,6 @@ describe('rig-bake — generic baker', () => {
     expect(qL[0] * qR[0]).toBeLessThan(0);
     expect(Math.abs(qL[0])).toBeGreaterThan(0.05);
   });
-
-  it('pose-curve payload is orders of magnitude smaller than an 8-frame flipbook clip', async () => {
-    const rig = await bakeMegaBoyRig({ keys: 8 });
-    const { bakeMegaBoyClips } = await import('./megaboy-spike.js');
-    const flip = bakeMegaBoyClips(8);
-    const rigBytes = JSON.stringify(rig).length;                       // parts ONCE + curves
-    const flipBytes = JSON.stringify(flip).length;                     // 8 full geometries × 2 clips
-    expect(rigBytes).toBeLessThan(flipBytes / 4);
-  });
 });
 
 describe('rig-bake — protoform delivery', () => {

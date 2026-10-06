@@ -1,0 +1,40 @@
+{
+  "id": "kneeBoot",
+  "color": {
+    "cloth": "#2b2018"
+  },
+  "ease_cm": 0.6,
+  "pieces": [
+    {
+      "id": "sole",
+      "fit": "pattern",
+      "sloper": "shoe-sole",
+      "dials": {
+        "thickness_cm": 1.6,
+        "margin_cm": 0.6
+      },
+      "mirror": "soleR"
+    },
+    {
+      "id": "upper",
+      "fit": "pattern",
+      "sloper": "shoe-upper",
+      "dials": {
+        "throat_blend": 0.06,
+        "throat": 0.4,
+        "collar_cm": 6.5
+      },
+      "mirror": "upperR"
+    },
+    {
+      "id": "shaft",
+      "fit": "pattern",
+      "sloper": "boot-shaft",
+      "dials": {
+        "height": "knee",
+        "ease_cm": 3
+      },
+      "mirror": "shaftR"
+    }
+  ]
+}

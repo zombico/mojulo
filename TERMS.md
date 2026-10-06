@@ -65,7 +65,13 @@ This means:
 - **You are responsible for what it does.** If an app you scaffolded misbehaves, a printed part fails, or an artifact violates a regulation where you use it, that is your artifact. The maintainer did not make it; you and your agent did.
 - **You are responsible for what it processes.** Data that flows through apps or services you built with mojulo runs on infrastructure you chose. The maintainer does not see it. Any obligations you have to the people whose data passes through (notice, consent, retention limits, deletion requests) are yours.
 
-## 6. No warranty, no fitness for purpose
+## 6. Where the defaults come from
+
+mojulo's capabilities come from the maintainer's own study of game development, research drawn from interviews, and personal study of art direction and of how game systems are made, translated into mojulo's systems with Claude's help. They are implemented as original code. mojulo does not decompile, extract or redistribute assets from games or other works, and its repository and packages contain no such assets. Files you bring in yourself, such as animation clips, reference images or meshes, stay under their own licences, and complying with those licences is your responsibility.
+
+The built-in defaults are deliberately a starting point. A distinctive result takes iteration by you and your agent. If you use mojulo to recreate a specific character, setting or design that someone else owns, clearing that use is yours to do, as with any other tool (see section 3).
+
+## 7. No warranty, no fitness for purpose
 
 The Apache 2.0 license already disclaims warranty and liability. Restating in plain language:
 
@@ -76,13 +82,13 @@ The Apache 2.0 license already disclaims warranty and liability. Restating in pl
 
 If mojulo is unsuitable for your purposes, the remedy is to stop using it.
 
-## 7. Limitation of liability
+## 8. Limitation of liability
 
 To the maximum extent permitted by law, the maintainer is not liable for any direct, indirect, incidental, consequential, special, exemplary, or punitive damages arising out of your use of mojulo. This includes loss of data, loss of revenue, loss of reputation, regulatory penalties, claims by third parties (including users of apps, games, or objects you built and people whose data they processed), and costs of substitute software or services.
 
 If a court finds this limitation unenforceable in your jurisdiction, the maintainer's aggregate liability is capped at the amount you paid for mojulo, which is zero.
 
-## 8. Indemnification
+## 9. Indemnification
 
 You agree to indemnify and hold harmless the maintainer from any claim, demand, loss, or expense (including reasonable legal fees) arising out of:
 
@@ -91,19 +97,19 @@ You agree to indemnify and hold harmless the maintainer from any claim, demand, 
 - Any data you fed into mojulo or that flowed through artifacts you built with it.
 - Any claim by a user of an artifact you built or deployed with mojulo.
 
-## 9. Changes to mojulo
+## 10. Changes to mojulo
 
 The maintainer may change, remove, or rename any feature of mojulo at any time, with no obligation to preserve compatibility, migrate state, or notify you. Pin the version you depend on. The roadmap is not a commitment.
 
-## 10. Changes to these terms
+## 11. Changes to these terms
 
 These terms may be updated. The version that applies to your use of mojulo is the version in the source tree of the release you installed. There is no separate ToS server you check against; the document in the repository at the tag you pulled is the document that governs.
 
-## 11. Governing law
+## 12. Governing law
 
 These terms are governed by and interpreted under the laws of the Province of Ontario and the federal laws of Canada applicable therein, without reference to conflict-of-laws rules. Nothing in this document waives mandatory consumer-protection rights you have under the laws of your own jurisdiction.
 
-## 12. Severability
+## 13. Severability
 
 If any provision of these terms is held unenforceable, the remaining provisions remain in effect. The unenforceable provision is interpreted narrowly to give effect to the maximum extent permitted.
 

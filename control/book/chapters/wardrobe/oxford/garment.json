@@ -1,0 +1,30 @@
+{
+  "id": "oxford",
+  "color": {
+    "cloth": "#22201e"
+  },
+  "ease_cm": 0.6,
+  "pieces": [
+    {
+      "id": "sole",
+      "fit": "pattern",
+      "sloper": "shoe-sole",
+      "dials": {
+        "thickness_cm": 1.2,
+        "margin_cm": 0.35
+      },
+      "mirror": "soleR"
+    },
+    {
+      "id": "upper",
+      "fit": "pattern",
+      "sloper": "shoe-upper",
+      "dials": {
+        "throat_blend": 0.06,
+        "throat": 0.42,
+        "collar_cm": 3.6
+      },
+      "mirror": "upperR"
+    }
+  ]
+}

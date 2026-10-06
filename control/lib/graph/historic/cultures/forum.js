@@ -19,7 +19,7 @@ export const FORUM = {
   // history (../lineage.js): the orders from the Greek world; Pompeii is the same moment in a country town
   draws: [
     { from: 'lindos', kind: 'inherits', parts: ['patterns'], note: 'the Hellenistic orders and the colonnade' },
-    { from: 'pompeii', kind: 'contemporary', parts: ['skins', 'patterns', 'record'], note: 'the same summer of 79 CE, in a Campanian town' },
+    { from: 'pompeii', kind: 'contemporary', parts: ['skins', 'patterns', 'record', 'dress'], note: 'the same summer of 79 CE, in a Campanian town; its people dressed as Pompeii\'s' },
   ],
   aliases: ['roman forum', 'imperial rome', 'senate house', 'curia', 'temple of saturn', 'vestal'],   // what people call it (search)
   soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'

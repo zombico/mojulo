@@ -21,13 +21,22 @@
 import { buildPosedFigure } from '../polygonizer/figure-render.js';
 import { makeLight, shadeHex, dot3, sub3, centroid } from '../polygonizer/vexar.js';
 import { SM, mathKey } from '../../util/math-scope.js';
+import { smoothCorners } from './smooth-corners.js';
 
 // figure-render world transform (matches cyclist-asset.js / figure-render.js).
 const PROTO_SCALE = 12, S = 1.95;
 // render-units → fractal-city units. An adult (~1.85 render-units tall) → ~0.62 units.
 const FIG_UNIT = 0.335;
 const FIG_LIGHT = makeLight({ direction: [0.42, -0.5, -0.76], ambient: 0.40, diffuse: 0.76 }); // == figure-render LIGHT
-const FIG_MAX_RINGS = 5, FIG_MAX_SAMPLES = 7;   // LOD: ~140 quads vs ~50k (invisible at ~40px)
+const FIG_MAX_RINGS = 5, FIG_MAX_SAMPLES = 7;   // LOD: ~1.8k quads vs ~50k (invisible at ~40px)
+// named LODs: `city` is the fractal city's (the default, unchanged); `mini` is the historic miniatures' (~280 quads), a
+// figure a few metres off in a town of hundreds: at most `rings` × `samples` quads a stack (`cap`: the stride rounds
+// up, so a long stack never runs over), the leg one ring more so the knee still bends, and the small patches over the
+// joints and the chest (`skip`) left out — the trunk and the limbs close over where they were
+export const LODS = {
+  city: { rings: FIG_MAX_RINGS, samples: FIG_MAX_SAMPLES },
+  mini: { rings: 3, samples: 5, cap: true, legRings: 4, skip: /^(clavicle|pec|scapula|scapBun|dantien|elbowCap|hipCap|coreSide|deltoid|groin|glute)/ },
+};
 
 // ── archetypes (proto configs) ────────────────────────────────────────────────────
 // The child leans on `headScale` (bigger cranium = fewer "heads tall" = younger) plus a
@@ -46,6 +55,11 @@ export const POSES = {
   idleR:   { kneeL: 6, kneeR: 6, elbowL: 10, elbowR: 16, spine: { lateral: -0.10, axial: -0.04 }, hipR: { roll: 4 }, head: { yaw: 10 } },
   strollL: { elbowL: 20, elbowR: 16, shL: { pitch: 16 }, shR: { pitch: -14 }, hipL: { pitch: 20 }, hipR: { pitch: -14 }, kneeL: 8, kneeR: 30, ankleL: 6, ankleR: -12, spine: { axial: 0.12, sagittal: 0.06 }, head: { yaw: 6 } },
   strollR: { elbowL: 16, elbowR: 20, shL: { pitch: -14 }, shR: { pitch: 16 }, hipL: { pitch: -14 }, hipR: { pitch: 20 }, kneeL: 30, kneeR: 8, ankleL: -12, ankleR: 6, spine: { axial: -0.12, sagittal: 0.06 }, head: { yaw: -6 } },
+  // work poses (the historic miniatures' field hands; the city never draws them): bent over the crop with both hands
+  // low (reaping, weeding), leaning into a hoe or mattock, and walking with a load hoisted on the right shoulder
+  stoop: { hinge: 55, kneeL: 22, kneeR: 30, elbowL: 20, elbowR: 30, shL: { pitch: 40 }, shR: { pitch: 55 }, head: { yaw: 6 } },
+  hoe: { hinge: 28, kneeL: 12, kneeR: 18, elbowL: 40, elbowR: 30, shL: { pitch: 55 }, shR: { pitch: 45 }, hipL: { pitch: 14 }, hipR: { pitch: -6 } },
+  carry: { elbowL: 16, elbowR: 150, shL: { pitch: -10 }, shR: { pitch: 150 }, hipL: { pitch: 16 }, hipR: { pitch: -12 }, kneeL: 8, kneeR: 24, spine: { lateral: 0.1 } },
 };
 export const IDLE_POSES = ['idleL', 'idleR'];
 export const STROLL_POSES = ['strollL', 'strollR'];
@@ -78,15 +92,153 @@ const newell = (pts) => {
   for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
   const l = SM.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
 };
-const stride = (n, max) => Math.max(1, Math.floor(n / max));
+const strideFloor = (n, max) => Math.max(1, Math.floor(n / max));
+
+// ── cuts: a skirt of cloth from the waist to a hem (a tunic, a kilt, a robe, a stola) ──────────────────────────────
+// `hem` is how far down the leg it falls (0 the hip, 1 the ankle), `flare` how much wider the hem stands than the
+// hips. The skirt is fitted to the POSED figure. Its top is the trunk's own cross-section at the waist (`WAIST` up the
+// trunk from the pelvis), so it tilts as the trunk does when the figure bends. Each ring below is the support of the
+// hips and legs at its height round one centre (the widest the body reaches in each of `SIDES` directions, plus the
+// cloth's ease), never narrowing on the way down, so the cloth hangs from the hips and a striding leg or a bent knee
+// pushes it out instead of poking through. The legs and pelvis under it are not drawn.
+export const CUTS = {
+  knee:  { hem: 0.5, flare: 0.08, levels: 3 },
+  shin:  { hem: 0.74, flare: 0.14, levels: 4 },
+  ankle: { hem: 0.94, flare: 0.18, levels: 4 },
+};
+const SIDES = 10, EASE = 0.03, WAIST = 0.2;
+const PELVIS = /^(leg|diaper|glute|hipCap|groin)/;
+function skirtFaces(stacks, V, cut) {
+  const legs = stacks.filter((st) => /^leg[LR]$/.test(st.id)), trunk = stacks.find((st) => st.id === 'trunk');
+  if (!legs.length || !trunk) return null;
+  const dirs = Array.from({ length: SIDES }, (_, i) => { const a = (i / SIDES) * 2 * Math.PI; return [SM.cos(a), SM.sin(a)]; });
+  const hem = Math.max(0.06, legs.reduce((a, st) => a + V(st.rings[Math.round(cut.hem * (st.rings.length - 1))].center)[2], 0) / legs.length);
+  // the waist: the trunk's ring a little above the pelvis, its point furthest out in each direction, eased
+  const wr = trunk.rings[Math.round(WAIST * (trunk.rings.length - 1))], wc = V(wr.center), wpts = wr.polyline.map(V);
+  const top = dirs.map(([dx, dy]) => {
+    let best = wpts[0], m = -Infinity;
+    for (const p of wpts) { const d = (p[0] - wc[0]) * dx + (p[1] - wc[1]) * dy; if (d > m) { m = d; best = p; } }
+    return [best[0] + dx * EASE, best[1] + dy * EASE, best[2]];
+  });
+  const waistZ = Math.min(...top.map((p) => p[2]));
+  // the hips and legs between the waist and a hand below the hem: the body the cloth hangs over, round one centre
+  const pts = [];
+  for (const st of stacks) if (PELVIS.test(st.id)) for (const rg of st.rings) for (const q of rg.polyline) { const p = V(q); if (p[2] >= hem - 0.08 && p[2] <= waistZ) pts.push(p); }
+  if (!pts.length) return null;
+  const c = [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length];
+  let reach = top.map((p, i) => (p[0] - c[0]) * dirs[i][0] + (p[1] - c[1]) * dirs[i][1]);
+  const rings = [top], n = cut.levels, band = Math.max(0.1, (waistZ - hem) / (n - 1) / 2 + 0.02);
+  for (let k = 1; k < n; k++) {
+    const t = k / (n - 1), z = waistZ + (hem - waistZ) * t, near = pts.filter((p) => Math.abs(p[2] - z) <= band), use = near.length ? near : pts;
+    reach = dirs.map(([dx, dy], i) => { let m = reach[i]; for (const p of use) { const d = (p[0] - c[0]) * dx + (p[1] - c[1]) * dy + EASE; if (d > m) m = d; } return m; });
+    rings.push(dirs.map(([dx, dy], i) => { const r = reach[i] * (1 + cut.flare * t); return [c[0] + dx * r, c[1] + dy * r, z]; }));
+  }
+  const out = [];
+  for (let k = 0; k + 1 < n; k++) {
+    const A = rings[k], B = rings[k + 1], axis = [c[0], c[1], (A[0][2] + B[0][2]) / 2];
+    for (let i = 0; i < SIDES; i++) {
+      const j = (i + 1) % SIDES, wpts = [A[i], A[j], B[j], B[i]];
+      let nrm = newell(wpts);
+      if (dot3(nrm, sub3(centroid(wpts), axis)) < 0) nrm = [-nrm[0], -nrm[1], -nrm[2]];
+      out.push({ corners: wpts, region: 'shirt', part: 'skirt', normal: nrm, group: 'skirt' });
+    }
+  }
+  return { faces: out, hem };
+}
+
+// ── wraps: a cloak from the shoulders, a covering for the head ─────────────────────────────────────────────────────
+// Fitted the skirt's way: horizontal rings round one centre, each the support of the body at its height plus the
+// cloth's ease, never narrowing on the way down. A CLOAK hangs from a collar round the neck over the shoulders, the
+// trunk and the upper arms (the forearms come out under it) to the hip or the knee (over a skirt, it clears the skirt).
+// HEADWEAR: a `cap` (a crown over the head above the brow: the Qin headcloth, a fur cap), a `brim` (the crown and a
+// broad brim at the brow: the petasos) or a `veil` (the crown, down past the chin and out onto the shoulders, open
+// at the face: the palla or the himation drawn over the head).
+export const CLOAKS = { hip: { levels: 3, flare: 0.06 }, knee: { levels: 4, flare: 0.12 } };
+export const HEADWEAR = ['cap', 'brim', 'veil'];
+const CLOAK_BODY = /^(trunk|upperArm|deltoid|scapBun|shoulderYoke|coreSide|pec|scapula|clavicle)/;
+const DIRS = Array.from({ length: SIDES }, (_, i) => { const a = (i / SIDES) * 2 * Math.PI; return [SM.cos(a), SM.sin(a)]; });
+const pointsOf = (stacks, re, V) => { const out = []; for (const st of stacks) if (re.test(st.id)) for (const rg of st.rings) for (const q of rg.polyline) out.push(V(q)); return out; };
+const centreOf = (pts) => [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length];
+// the widest the points in a band about z reach from c in each direction, plus ease (never under `floor`)
+const reachAt = (pts, c, z, band, ease, floor = null) => DIRS.map(([dx, dy], i) => {
+  let m = floor ? floor[i] : 0;
+  for (const p of pts) if (Math.abs(p[2] - z) <= band) { const d = (p[0] - c[0]) * dx + (p[1] - c[1]) * dy + ease; if (d > m) m = d; }
+  return m;
+});
+const ringAt = (c, reach, z, k = 1) => DIRS.map(([dx, dy], i) => [c[0] + dx * reach[i] * k, c[1] + dy * reach[i] * k, z]);
+// quads between successive rings, outward from the axis; `open(i, k)` leaves a side out (the veil's face)
+function bandFaces(rings, c, part, open = null) {
+  const out = [];
+  for (let k = 0; k + 1 < rings.length; k++) {
+    const A = rings[k], B = rings[k + 1], axis = [c[0], c[1], (A[0][2] + B[0][2]) / 2];
+    for (let i = 0; i < SIDES; i++) {
+      if (open && open(i, k)) continue;
+      const j = (i + 1) % SIDES, w = [A[i], A[j], B[j], B[i]];
+      let nrm = newell(w);
+      if (dot3(nrm, sub3(centroid(w), axis)) < 0) nrm = [-nrm[0], -nrm[1], -nrm[2]];
+      out.push({ corners: w, region: 'shirt', part, normal: nrm, group: part });
+    }
+  }
+  return out;
+}
+const capFace = (ring, part) => ({ corners: ring.slice().reverse(), region: 'shirt', part, normal: [0, 0, 1], group: part });
+
+function cloakFaces(stacks, V, to, skirt) {
+  const neck = stacks.find((st) => st.id === 'neck'), trunk = stacks.find((st) => st.id === 'trunk'), legs = stacks.filter((st) => /^leg[LR]$/.test(st.id));
+  if (!neck || !trunk) return [];
+  const C = CLOAKS[to] || CLOAKS.hip, body = pointsOf(stacks, CLOAK_BODY, V);
+  const shoulderZ = Math.max(...pointsOf(stacks, /^(shoulderYoke|upperArm)/, V).map((p) => p[2]));
+  const sh = body.filter((p) => p[2] >= shoulderZ - 0.12), c = centreOf(sh);
+  const hemZ = to === 'knee' && legs.length ? legs.reduce((a, st) => a + V(st.rings[Math.round(0.5 * (st.rings.length - 1))].center)[2], 0) / legs.length
+    : V(trunk.rings[Math.round(WAIST * (trunk.rings.length - 1))].center)[2];
+  // below the waist it clears the hips and legs, and a skirt's own cloth
+  const below = to === 'knee' ? [...pointsOf(stacks, /^(leg|diaper|glute|hipCap|groin)/, V), ...(skirt ? skirt.faces.flatMap((f) => f.corners) : [])] : [];
+  const pts = [...body, ...below];
+  const collar = ringAt(c, reachAt(pointsOf(stacks, /^neck$/, V), c, shoulderZ, 0.08, 0.035), shoulderZ + 0.02);
+  let reach = reachAt(sh, c, shoulderZ - 0.06, 0.07, 0.035);
+  const rings = [collar, ringAt(c, reach, shoulderZ - 0.06)], n = C.levels, band = Math.max(0.1, (shoulderZ - 0.06 - hemZ) / (n - 1) / 2 + 0.02);
+  for (let k = 1; k < n; k++) {
+    const t = k / (n - 1), z = shoulderZ - 0.06 + (hemZ - shoulderZ + 0.06) * t;
+    reach = reachAt(pts, c, z, band, 0.04, reach);
+    rings.push(ringAt(c, reach, z, 1 + C.flare * t));
+  }
+  return bandFaces(rings, c, 'cloak');
+}
+
+function headwearFaces(stacks, V, kind) {
+  const head = pointsOf(stacks, /^headEgg/, V);
+  if (!head.length || !HEADWEAR.includes(kind)) return [];
+  const c = centreOf(head), zs = head.map((p) => p[2]), top = Math.max(...zs), chin = Math.min(...zs), brow = chin + 0.58 * (top - chin);
+  const E = kind === 'veil' ? 0.03 : 0.018;
+  const rBrow = reachAt(head, c, brow, 0.03, E), rCrown = reachAt(head, c, brow + (top - brow) * 0.55, 0.03, E);
+  const apex = ringAt(c, rCrown, top + E, 0.38), crown = ringAt(c, rCrown, brow + (top - brow) * 0.55), browRing = ringAt(c, rBrow, brow);
+  if (kind === 'cap') return [...bandFaces([apex, crown, browRing], c, 'headwear'), capFace(apex, 'headwear')];
+  if (kind === 'brim') {
+    const out = [...bandFaces([apex, crown, browRing], c, 'headwear'), capFace(apex, 'headwear')];
+    // the brim: an annulus out from the brow, drooping a little, its upper face lit as a roof
+    const outer = ringAt(c, rBrow, brow - 0.03, 2.1);
+    for (let i = 0; i < SIDES; i++) { const j = (i + 1) % SIDES; out.push({ corners: [browRing[i], browRing[j], outer[j], outer[i]], region: 'shirt', part: 'headwear', normal: [0, 0, 1], group: 'brim' }); }
+    return out;
+  }
+  // veil: past the chin and out onto the shoulders, open at the face (the front, +x) from the brow to the chin
+  const shoulders = pointsOf(stacks, /^(shoulderYoke|upperArm|trunk|clavicle|scapBun)/, V), shZ = Math.max(...pointsOf(stacks, /^(shoulderYoke|upperArm)/, V).map((p) => p[2]));
+  const rChin = reachAt(head, c, chin + 0.04, 0.05, E, rBrow.map((r) => r * 0.9));
+  const rDrape = reachAt(shoulders, c, shZ - 0.08, 0.08, 0.04, rChin);
+  const rings = [apex, crown, browRing, ringAt(c, rChin, chin), ringAt(c, rDrape, shZ - 0.08)];
+  const front = (i) => { const a = ((i + 0.5) / SIDES) * 2 * Math.PI; return SM.cos(a) > 0.45; };
+  return [...bandFaces(rings, c, 'headwear', (i, k) => k === 2 && front(i)), capFace(apex, 'headwear')];
+}
 
 // ── geometry bake (memoized per archetype+pose) ─────────────────────────────────────
 // Re-mesh the posed protoform at LOD from its ring-stacks, in render units rotated so
 // the FRONT is +x (figure front is +y; (x,y)→(y,-x) is a −90° turn), centred on x/y,
 // feet at z=0. Stores {corners, region, normal} — colour is deferred to the instance.
 const _geomCache = new Map();
-function bakeGeometry(archetypeKey, poseKey) {
-  const key = `${archetypeKey}:${poseKey}${mathKey()}`;
+function bakeGeometry(archetypeKey, poseKey, lod = 'city', cutKey = null, cloak = null, headwear = null) {
+  const key = `${archetypeKey}:${poseKey}:${lod}:${cutKey}${cloak || headwear ? `:${cloak}:${headwear}` : ''}${mathKey()}`;
+  const cut = cutKey ? CUTS[cutKey] : null;
+  const L = LODS[lod] || LODS.city;
+  const stride = L.cap ? (n, max) => Math.max(1, Math.ceil(n / max)) : strideFloor;
   const hit = _geomCache.get(key);
   if (hit) return hit;
   const proto = ARCHETYPES[archetypeKey] || ARCHETYPES.adultM;
@@ -101,17 +253,23 @@ function bakeGeometry(archetypeKey, poseKey) {
   // collect faces, then re-centre on the x/y bbox so a heading rotation spins in place.
   const raw = [];
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const skirt = cut ? skirtFaces(stacks, V, cut) : null;
   for (const st of stacks) {
-    const rings = st.rings; if (rings.length < 2) continue;
-    const region = regionOf(st.id);
-    const rs = stride(rings.length - 1, FIG_MAX_RINGS);
+    const rings = st.rings; if (rings.length < 2 || (L.skip && L.skip.test(st.id))) continue;
+    if (skirt && /^(diaper|glute|groin|hipCap)/.test(st.id)) continue;   // under the skirt
+    const region = regionOf(st.id), leg = st.id.startsWith('leg'), forearm = st.id.startsWith('forearm');
+    const rs = stride(rings.length - 1, leg && L.legRings ? L.legRings : L.rings);
     const idx = [];
     for (let i = 0; i < rings.length; i += rs) idx.push(i);
     if (idx[idx.length - 1] !== rings.length - 1) idx.push(rings.length - 1);
     for (let k = 0; k < idx.length - 1; k++) {
       const ra = rings[idx[k]], rb = rings[idx[k + 1]];
       const a = ra.polyline, b = rb.polyline, m = Math.min(a.length, b.length); if (m < 2) continue;
-      const ss = stride(m - 1, FIG_MAX_SAMPLES);
+      const ss = stride(m - 1, L.samples);
+      // a leg's rings run hip → ankle: its upper half is the thigh (a tunic's hem covers it), the lower the shin
+      // (and a forearm its own part, so a long sleeve can cover it)
+      const part = leg ? (idx[k] < (rings.length - 1) / 2 ? 'thigh' : 'shin') : forearm ? 'forearm' : null;
+      if (skirt && leg && V(rb.center)[2] > skirt.hem + 0.05) continue;   // a leg quad wholly under the skirt
       const c0 = ra.center, c1 = rb.center;
       const cw = V({ x: (c0.x + c1.x) / 2, y: (c0.y + c1.y) / 2, z: (c0.z + c1.z) / 2 });
       for (let j = 0; j + 1 < m; j += ss) {
@@ -120,14 +278,21 @@ function bakeGeometry(archetypeKey, poseKey) {
         let n = newell(wpts); const cen = centroid(wpts);
         if (dot3(n, sub3(cen, cw)) < 0) n = [-n[0], -n[1], -n[2]];
         for (const [x, y] of wpts) { if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y; }
-        raw.push({ corners: wpts, region, normal: n });
+        raw.push({ corners: wpts, region, part, normal: n, group: st.id });
       }
     }
   }
+  if (skirt) for (const f of skirt.faces) { for (const [x, y] of f.corners) { if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y; } raw.push(f); }
+  // the wraps go over the finished figure; the bbox (the spin centre) stays the body's, so a cloak does not move it
+  if (cloak) raw.push(...cloakFaces(stacks, V, cloak, skirt));
+  if (headwear) raw.push(...headwearFaces(stacks, V, headwear));
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-  const baked = raw.map((f) => ({
+  const vn = smoothCorners(raw);   // the corner normals, for a `smooth` instance
+  const baked = raw.map((f, i) => ({
     region: f.region,
+    part: f.part,
     normal: f.normal,
+    vn: vn[i],
     corners: f.corners.map(([x, y, z]) => [x - cx, y - cy, z]),   // centre x/y, feet already at z≈0
   }));
   _geomCache.set(key, baked);
@@ -141,16 +306,23 @@ function bakeGeometry(archetypeKey, poseKey) {
  * cyclist uses; imperceptible at city scale.
  * @returns {Array<{corners:number[][], fill:string, doubleSided:boolean}>}
  */
-export function pedestrianFaces({ cx = 0, cy = 0, heading = 0, scale = 1, archetype = 'adultM', pose = 'idleL', palette = PALETTES[0] } = {}) {
-  const baked = bakeGeometry(archetype, pose);
+export function pedestrianFaces({ cx = 0, cy = 0, heading = 0, scale = 1, archetype = 'adultM', pose = 'idleL', palette = PALETTES[0], lod = 'city', cut = null, smooth = false, cloak = null, headwear = null } = {}) {
+  const baked = bakeGeometry(archetype, pose, lod, cut, cloak, headwear);
   const u = FIG_UNIT * scale;
   const ct = SM.cos(heading), st = SM.sin(heading);
-  return baked.map((f) => ({
-    fill: shadeHex(palette[f.region] || palette.shirt, f.normal, FIG_LIGHT),
+  return baked.map((f) => {
+    // a palette may dress the thigh and shin apart, the forearm (a long sleeve), the skirt of a `cut`, a `cloak` and the
+    // `headwear`; one that does not dresses the leg as `pants`, the forearm as skin and the rest as the shirt
+    const hex = (f.part && palette[f.part]) || palette[f.region] || palette.shirt;
+    return {
+    fill: shadeHex(hex, f.normal, FIG_LIGHT),
+    // `smooth`: each corner shaded by its averaged normal (./smooth-corners.js), so the form reads rounded, not faceted
+    ...(smooth ? { cornerFills: f.vn.map((n) => shadeHex(hex, n, FIG_LIGHT)) } : {}),
     doubleSided: true,
     corners: f.corners.map(([x, y, z]) => {
       const px = x * u, py = y * u;
       return [cx + px * ct - py * st, cy + px * st + py * ct, z * u];
     }),
-  }));
+    };
+  });
 }

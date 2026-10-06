@@ -23,7 +23,7 @@ export const THEBES = {
   region: 'egypt',
   land: 'egypt',                  // its farm and works: New Kingdom Egypt's (../farmstead.js, ../workshops.js)
   // history (../lineage.js): the Egyptian building tradition a millennium on from Giza's
-  draws: [{ from: 'giza', kind: 'continues', parts: ['patterns', 'skins', 'record'], note: 'the same land and building tradition, a millennium later' }],
+  draws: [{ from: 'giza', kind: 'continues', parts: ['patterns', 'skins', 'record', 'dress'], note: 'the same land and building tradition, a millennium later (and its dress, before the New Kingdom\'s)' }],
   aliases: ['waset', 'luxor', 'karnak', 'ramesside', 'ramesses', 'pharaoh', 'temple of amun'],   // what people call it (search)
   soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)

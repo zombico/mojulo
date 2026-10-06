@@ -126,6 +126,23 @@ names render at eye level unless the scale table in `historic-city.js` says othe
 `historic-region.js`; `farm` and `works` for a culture whose card names a `land` in `farmstead.js` /
 `workshops.js` (none for a scaffolded culture until its own). A new scene is a row in `HISTORIC_SCENES`.
 
+## Statues on a city's slots
+
+A city's statue slots are the places its layout already set a statue: a Forum monument built with the forum asset's
+`figure()` (its masses carry `building: <id>`), or a statue asset's slot (`ln-statue`, `pp-statue`, Sumer's `votive-row`: one figure
+per plinth; Thebes's `eg-colossus`: a seated king, his throne coming down with him), addressed `<asset>:<n>`. A `historic` manifest's `statues: [{ ref, at, figure?, height? }]` stands a stored statue (a hero carved
+with `/hero/statue`, `lib/graph/statue/`) on a slot in the World: the stand-in figure's masses come down, its base
+stays, and the World resolver fits the statue's own faces there at the stand-in's height and facing, baked under the
+city's sun (`historic/statues.js`). The entry card's `STATUES` line lists the slots. For a new culture's statues to take
+one, build the stand-in with `figure()` inside a `mark()`, or as a statue asset's slot. An equestrian stand-in (a
+`horseman()`, Pompeii's `pp-equestrian`) takes a mounted statue (`stand: 'mounted'`), facing as its horse did. An entry
+may name a library form instead of a stored statue (`form: 'sphinx'`, `control/lib/graph/statue/forms.js`): Giza's
+`gz-sphinx:0` takes the carved sphinx, Thebes's sphinx rows the criosphinx, Sumer's guardians the bull. A new form
+is a ring plan in `polygonizer/` and a row in `STATUE_FORMS`. `statues: "carved"` carves every slot at once
+(`carvedEntries`: a slot asset's own form or build, a horseman on an equestrian slot only, else the culture's card in
+`CARVED_CARD`); a new culture with slots adds its card there.
+A stand-in inside an instanced template (a `place()`d building's repeated part) cannot come down yet.
+
 ## Segments: new parts of the world
 
 A region (the Indus, Mesoamerica, medieval Europe, the steppe …) is a row in `regions.js`: its label and search

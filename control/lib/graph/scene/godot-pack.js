@@ -282,7 +282,8 @@ async function renderBeats(beatsRef, log) {
   const beats = SketchRepository.getByRef(beatsRef);
   if (!beats) throw new Error(`beats ref '${beatsRef}' not found`);
   if (!beatsRender) ({ renderBeatsOffline: beatsRender } = await import('@/lib/graph/beats/beats-render'));
-  const rendered = await beatsRender(beats.manifest, {});
+  // music beds loop in the engine: one seamless pass to the bar line, with a smpl loop chunk (an sfx is a one-shot).
+  const rendered = await beatsRender(beats.manifest, beats.manifest.kind === 'beats-sfx' ? {} : { loop: true });
   log(`beats '${beatsRef}' rendered — ${rendered.wav.length} bytes`);
   return rendered.wav;
 }

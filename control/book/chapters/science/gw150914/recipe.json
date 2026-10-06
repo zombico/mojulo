@@ -1,0 +1,6 @@
+{
+  "entry": "create_view",
+  "kind": "gravity-wave",
+  "params": { "scenario": "merger", "amplitude": 1.4 },
+  "title": "GW150914 — the first detection"
+}
