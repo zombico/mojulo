@@ -90,6 +90,7 @@ export const species = {
   // about half the total length).
   monitorLizard: {
     // kept v4 (blind judges: A v4 over post-critic v5 55%; B v5 over v1 65%)
+    // 1006 upgrade: v8 (higher trunk, longer narrower neck, 3 toes, deeper skull, longer tongue) vs v4 SPLIT (v4 won order1 65%, v8 won order2 60%) → tie, v4 kept
     family: 'squamate', name: 'a Komodo dragon', scale: 1, legBulk: 1.2, headOrnaments: TONGUE,
   },
   // BURMESE PYTHON (Python bivittatus), the snake. Thesis: NO legs · a long, thick, heavy body laid on the ground in an
@@ -157,6 +158,7 @@ export const species = {
   // finned dorsal FRILL of upright blades along the neck and humps · a long DRAGON-LIKE head (~2 m) with swept-back horns
   // and jaw frills · dark sea-green, pale belly, red frill. Intended scale: after Olaus Magnus's (1555) "200 ft" sea
   // serpent, brought down to ~40 m so the humps read at gameplay camera (no published figure exists).
+  // kept v3; 1006 upgrade v6 (eye +30%, horns back 25°/×0.8, hump gap 1.3, centred belly band) lost both orders to v3 (70%, 70%: the shorter horns lose the horned-head read)
   seaSerpent: serpentMaker({ name: 'a sea serpent', n: 120, girth: [0.6, 0.6], up: [1, 0, 0], profile: [[0, 0.62], [0.12, 0.85], [0.3, 1], [0.6, 0.85], [0.85, 0.5], [1, 0.12]],
     path: { kind: 'arches', height: 6.4, neck: [[-1.2, 5.7], [-1.7, 4.4], [-1.6, 3.0], [-1.2, 1.6], [-1.4, 0.35], [-2.4, 0]], start: -3.0, humps: [[3.6, 5], [3.0, 4.6], [2.3, 4]], run: 3.1 },
     crest: { every: 3, above: 1.4, to: 104 },

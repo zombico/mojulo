@@ -124,6 +124,7 @@ export const species = {
   // from just behind the head to the tail, joined round a small rounded tail tip to a continuous anal fin · a blunt
   // head with a large terminal mouth, small eye high and forward, no visible gill cover (a small round gill opening) ·
   // uniform dark olive-green · ~1.8 m total length (Wikipedia / FishBase: commonly 1.8 m, up to 2.5 m).
+  // kept v1; 1006 upgrade v4 (gaping jaw, blunter snout, low even fins, flatter body) vs v1 SPLIT (v4 80% order1, v1 70% order2) → tie, v1 kept
   morayEel: fish({
     skeleton: 'bony', name: 'a green moray eel', length: 1.8, Z: 0.5,
     body: [[-0.37, 0.008, 0.018], [-0.3, 0.014, 0.026], [-0.18, 0.019, 0.03], [-0.04, 0.022, 0.032], [0.08, 0.024, 0.032], [0.18, 0.024, 0.03], [0.24, 0.022, 0.027]],
