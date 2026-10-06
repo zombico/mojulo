@@ -69,8 +69,6 @@ const PROFILE_ADAPTER_EDITS = {
         '3. **Two motion systems.** `forge_motion` is deterministic (turntable, traversal that can prove a level). Native video (`image_to_video` / `reference_to_video`) is cinema. Do not substitute one for the other.',
         '3. **Motion is deterministic.** `forge_motion` renders turntables and traversals that can prove a level.',
       ],
-      // The image-render pack is not in this build.
-      ['The heavy ones (connected services, stash, image render, game,', 'The heavy ones (connected services, stash, game,'],
     ],
   },
 };

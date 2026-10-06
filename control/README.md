@@ -105,7 +105,8 @@ npx mojulo packs                      # pack ids with their recognizers
 npx mojulo help export_model          # full description + input schema
 npx mojulo call version               # invoke any tool
 npx mojulo call export_model --json '{"ref":"sk_…","format":"3mf"}'
-npx mojulo pack_object                # open a pack: orientation + member manual
+npx mojulo pack_object                # open a pack: orientation + member menu
+npx mojulo pack_object --manual mint_solid   # one member's manual
 ```
 
 Arguments can be inline JSON (`--json '{…}'`, `@file.json`, or `-` for
