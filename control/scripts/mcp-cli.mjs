@@ -33,7 +33,8 @@ export const USAGE = `Usage:
   mojulo packs                 list pack ids with their recognizers
   mojulo help <tool|pack>      full description + input schema
   mojulo call <tool> [args]    invoke a tool
-  mojulo <pack_id>             open a pack (orientation + member manual)
+  mojulo <pack_id>             open a pack (orientation + member menu)
+  mojulo <pack_id> --manual <name>[,<name>]   read members' manuals
   mojulo <pack_id> <tool> [args]   invoke a member through its pack
   mojulo script <name> [args]  run a shipped worker script from the package root
                                (bake-world-gi | blender-bake | export-blender; needs Blender)
@@ -120,12 +121,17 @@ export function parseArgv(argv) {
       return { command: 'call', name, ...parsed };
     }
     default: {
-      // `mojulo pack_audio [create_beats --seed 7]` — pack unveil / dispatch
+      // `mojulo pack_audio [create_beats --seed 7 | --manual create_beats]` — pack unveil / manual / dispatch
       // sugar. The pack_ prefix is a reserved word on the bin (see the
       // allowlist in mcp-stdio.mjs).
       if (command?.startsWith('pack_')) {
         const [name, ...tokens] = rest;
         if (name === undefined) return { command: 'pack', pack: command, name: null };
+        if (name === '--manual') {
+          const names = (tokens[0] || '').split(',').map((t) => t.trim()).filter(Boolean);
+          if (names.length === 0 || tokens.length !== 1) return { error: '--manual takes one argument: a member name or a comma-separated list' };
+          return { command: 'pack', pack: command, name: null, manual: names };
+        }
         if (name.startsWith('--')) return { error: `pack dispatch needs a tool name before flags` };
         const parsed = parseCallFlags(tokens);
         if (parsed.error) return parsed;
@@ -460,8 +466,11 @@ export async function runCli(argv, io = {}) {
         err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, parsed.name)}`);
         return 2;
       }
+      if (parsed.manual) {
+        return invoke({ name: parsed.pack, args: { manual: parsed.manual.length === 1 ? parsed.manual[0] : parsed.manual }, timeoutMs: null, quiet: false });
+      }
       if (parsed.name === null) {
-        // Bare pack → unveil: orientation body + member manual.
+        // Bare pack → unveil: orientation body + member menu.
         return invoke({ name: parsed.pack, args: {}, timeoutMs: null, quiet: false });
       }
       let args;

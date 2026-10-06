@@ -105,7 +105,7 @@ export function serverInstructions(env = process.env) {
 // through their pack); this teaches the one new mechanic.
 export const PACKS_INSTRUCTIONS_ADDENDUM = `
 
-**Tool packs are ON for this session.** tools/list carries a small spine plus one tool per PACK (\`pack_*\`) — a result-shaped bundle whose description says what it makes. Match the ask to a pack and call it with NO arguments to open it: you get its orientation plus a member manual (names, descriptions, input schemas). Then run members THROUGH the pack: \`pack_audio({ tool: 'create_beats', args: { … } })\`. Any tool named anywhere (the entries above, forward_context rows, drawers, catalysts) is called the same way via its home pack; spine tools are called directly. Packs are additive — open what the session needs, no more.`;
+**Tool packs are ON for this session.** tools/list carries a small spine plus one tool per PACK (\`pack_*\`) — a result-shaped bundle whose description says what it makes. Match the ask to a pack and call it with NO arguments to open it: you get its orientation plus a menu of members, small ones with their manual inline; read a larger member's manual with \`pack_x({ manual: '<name>' })\` before calling it. Then run members THROUGH the pack: \`pack_audio({ tool: 'create_beats', args: { … } })\`. Any tool named anywhere (the entries above, forward_context rows, drawers, catalysts) is called the same way via its home pack; spine tools are called directly. Packs are additive — open what the session needs, no more.`;
 
 // Appended for `mojulo orient` — the CLI's stand-in for `initialize`. A shell
 // caller (`npx mojulo call …` in an agent's box) never sends `initialize`, so
