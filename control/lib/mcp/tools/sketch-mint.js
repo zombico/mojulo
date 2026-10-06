@@ -571,7 +571,10 @@ export async function createSketchHandler(input) {
   // labeled-array form, the response mirrors the array shape under the same
   // key and `preloadMetadata` is folded into the first entry's note slot
   // (only for the unlabeled single-string form does the top-level metadata
-  // make sense).
+  // make sense). The echo names each prior and never carries its manifest: the
+  // agent composed against it before this call, so the body would only ride the
+  // context back for nothing (up to PRELOAD_MAX_ITEMS whole manifests). Same
+  // shape as the polygonizer handoff's echo.
   const priors = resolvePreloads(preload);
   let result;
   if (isWorldRecipe(manifest)) {
@@ -587,14 +590,12 @@ export async function createSketchHandler(input) {
       result.preload = {
         ref: only.ref,
         title: only.title,
-        manifest: only.manifest,
         metadata: preloadMetadata ?? null,
       };
     } else {
       result.preload = priors.map((p) => ({
         ref: p.ref,
         title: p.title,
-        manifest: p.manifest,
         as: p.as,
         note: p.note,
       }));

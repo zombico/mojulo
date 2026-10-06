@@ -25,6 +25,9 @@ lists routing only (1.7 KB), and the manual is read on demand from cards. Nothin
   `construction-marks` covers blob, sphere, egg, cylinder, the volume cup, form, solid, partition, array, the
   presets, sticker shading, gesture placement and one-point perspective. Defaults are read from the expander, and
   every example mints. `edge-notation` gains `via` / `curvature` routing.
+- **A lean result.** The `preload` echo names each prior (`ref`, `title`, and `as` / `note` / `metadata`) and no
+  longer re-sends its whole manifest. With up to eight priors, that was up to eight full manifests riding back into
+  the agent's context for nothing, since the agent composed against them before the call.
 - **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
   description allowlist because it fits the 700-character ceiling.
 
