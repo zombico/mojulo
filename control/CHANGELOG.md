@@ -67,6 +67,33 @@ biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station
   list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
   form first; `edge-notation` gains `channel`.
 
+### cook diet
+
+`cook` listed every publication kind's layout manual in `tools/list`: 16.2 KB, the heaviest tool. It now lists
+4.3 KB, and each kind's guide is read for the one kind being published. What cook accepts and makes is unchanged.
+
+- **A lean listing.** The description keeps the three steps (cleave, aim, nucleate) and the authoring model, names
+  the kinds, and says to call `sketch_stash({ intent, target_kind })` before any kind but essay. The deprecated
+  `template` alias is still accepted but no longer listed.
+- **Each kind's guide.** `sketch_stash` answers with `guide`: the kind's layout (how items, drawers and metadata map
+  onto it) and the least content that renders well, word for word what cook's listing used to carry.
+- **Two kinds that could not be scaffolded now can.** `sketch_stash` listed `site` and `photojournal` but refused
+  both. Each now has a stash recipe, and `photojournal` has a guide (it had none).
+- **Ratchet.** The flat `tools/list` pin drops from 268,900 to 256,800 bytes.
+
+### Contextmap trim
+
+The contextmap tools came from the chatbot era and still read like it. Their listings are shorter, and the 2.x
+parts no longer show. Nothing they accept or record changed.
+
+- `meta_context_commit` lists 3.3 KB instead of 7.1 KB: one line per type, with the app, connected-service and
+  trigger records first, since those are what the dashboard's Apps and Connected Services panes list.
+- `meta_context_brief` (1.7 KB to 0.9 KB) and `meta_context_analyze` (1.4 KB to 0.8 KB) are shorter too.
+- No longer listed, still accepted: the 2.x `artifact_materialization` commit, which answers with the chatbot
+  notice, and the `bot` brief scope, which reads a 2.x install's rows.
+- `gather` and `execute_plan` stop mentioning bots and deploys.
+- **Ratchet.** The flat `tools/list` pin drops from 256,800 to 251,600 bytes.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

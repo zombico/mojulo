@@ -60,7 +60,7 @@ const DESCRIPTION_ALLOWLIST = {
   // fireball, grass fire) to `overrides.fire` over the older carved-solid `flame` and sketch fire; the manual is
   // the 'Fire' section of the dungeon and terrain cards, off-payload.
   compose_world: 1998,
-  cook: 2756,
+  cook: 1093,
   // create_beats / create_figure / export_beats / get_image_render_packet
   // re-pinned 2026-07-13 to bless visualization-layer branch growth measured
   // at the Mojulo Voice landing (figure garment/setup dials, beats export
@@ -132,9 +132,8 @@ const DESCRIPTION_ALLOWLIST = {
   // kind (full-mission SI telemetry) and the description gained its one-line
   // column note. Shrink-only from here.
   measure_view: 1423,
-  meta_context_brief: 963,
   mint_catalyst: 850,
-  meta_context_commit: 2586,
+  meta_context_commit: 803,
   meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
@@ -147,7 +146,7 @@ const DESCRIPTION_ALLOWLIST = {
   semantic_search: 2049,
   sketch_plan: 774,
   sketch_research: 712,
-  sketch_stash: 1016,
+  sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
   synthesize_abstract: 1420,
@@ -296,7 +295,16 @@ const DESCRIPTION_ALLOWLIST = {
 // Pinned just above actual so the next feature re-pins consciously. Shrink-only from here.
 // Merged into the release candidate 2026-10-06 (268_900 -> 255_100; measured 255,009): the diet above plus
 // the field score and loop points already on the candidate.
-const PAYLOAD_CEILING = 255_100;
+// RATCHETED DOWN 2026-10-06 (268_900 -> 256_800; measured 256,767) for the cook diet: cook's listing went
+// from 16,227 to 4,321 bytes. Each publication kind's layout guide left the schema for PUBLICATION_GUIDE in
+// cook.js, returned by sketch_stash({ target_kind }) for the one kind being published; the deprecated
+// `template` alias is still accepted but no longer listed. Shrink-only from here.
+// RATCHETED DOWN 2026-10-06 (256_800 -> 251_600; measured 251,525) for the contextmap trim: meta_context_commit
+// 7,144 -> 3,283 bytes, meta_context_brief 1,700 -> 912, meta_context_analyze 1,413 -> 826. The chatbot-era
+// `artifact_materialization` type and the `bot` brief scope still work but are no longer listed.
+// Merged into the release candidate 2026-10-06 (255_100 -> 237_700; measured 237,662): the create_sketch diet,
+// the cook diet and the contextmap trim together.
+const PAYLOAD_CEILING = 237_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
