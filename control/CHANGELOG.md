@@ -466,6 +466,33 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   mood until it has its own, and a new mood is a row in `MOODS`.
 - Each entry gains a SOUND line and a starter with its period music.
 
+### Historic miniatures
+
+- **Spike.** A historic city can stand its people about for scale and flavour: add `"people": true` (or
+  `{ "density": 0–1, "citizens": false, "hands": false }`) to a `historic` manifest with the `city` scene, and
+  the World page fills in two groups (`lib/graph/historic/miniatures.js`). Static figures only: no motion, no
+  paths.
+  - Citizens stand alone, in pairs or in households on the lanes, the open ground and the plan's square. They
+    are thicker on a main street than in a back alley.
+  - Field hands work in gangs on the flat ground outside the wall: stooped over the crop, at the hoe, or
+    carrying.
+- Each figure is the fractal city's pedestrian at a new `mini` level of detail, under 300 quads. Nobody is bare:
+  every garment covers the torso and hangs a skirt of cloth to its hem (`cut`: knee, shin or ankle).
+  - The skirt is fitted to the posed figure. Its top is the trunk's own waist, so it tilts when the figure bends;
+    each ring below wraps the hips and legs at its height, so a stride or a bent knee pushes the cloth out
+    instead of poking through. The legs under it are not drawn.
+  - Sleeves carry the shirt down the forearm, and `legs` give trousers.
+  - Colour is the culture's palette over the body's regions and the skirt.
+  - Dress per culture: Roman tunic, toga and stola; Greek chiton, himation and peplos; the Egyptian linen tunic over
+    a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
+    jacket over hemp trousers.
+  - New work poses: `stoop`, `hoe`, `carry`.
+- A figure stands on a kerb or a step and refuses a spot taken by anything taller.
+- Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
+- Not yet: people in the `region`, `farm` and `works` scenes, beasts of burden, and instanced drawing. Pompeii
+  with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
+  it has no people.
+
 ### Historic Rome
 
 - **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is

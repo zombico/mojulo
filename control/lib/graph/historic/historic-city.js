@@ -32,6 +32,7 @@ import { emitThreeWorld } from '../scene/scene-three.js';
 import { collectFaceTextures } from '../landscape/surface-textures.js';
 import { deriveSky } from '../polygonizer/painted-landscape.js';
 import { resolveFire, firePageChannel } from '../fire/fire.js';
+import { miniatureFaces } from './miniatures.js';
 
 export { HISTORIC_CULTURES };   // the registry: ./cultures/index.js
 export const METRES_PER_UNIT = 3.66;              // the city scenes' unit (a storey ≈ 0.85 u)
@@ -543,6 +544,9 @@ export function assembleHistoricCityScene(opts = {}) {
   const { shade, sky } = historicLight(plan, opts);
   const G = groundsToScene(plan.grounds, s, US, true, shade, world), grounds = G.grounds;
   faces.unshift(...G.faces);
+  // `people` (the World's alone): the town's citizens and field hands, stood over the finished plan (./miniatures.js)
+  const folk = world && opts.people ? miniatureFaces(plan, opts.people, s, opts.seed ?? 1) : null;
+  if (folk) for (const f of folk.faces) faces.push(f);
   const W = plan.frame.w * s, Dd = plan.frame.d * s, pc = plan.stats.precinct;
   const pcx = (pc.x + pc.w / 2) * s, pcy = (pc.y + pc.d / 2) * s;
   const cameras = [
@@ -563,7 +567,8 @@ export function assembleHistoricCityScene(opts = {}) {
     if (T.boxes.length) throw new Error(`repeat '${r.key}': a template is built of solids only`);
     return { group: r.key, template: T.faces, transforms: r.transforms.map((t) => ({ pos: t.pos.map((v) => v * s) })) };
   }) : null;
-  return { ...scene, stats: plan.stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}), ...(repeats ? { repeats } : {}) };
+  const stats = folk ? { ...plan.stats, people: { citizens: folk.citizens, hands: folk.hands } } : plan.stats;
+  return { ...scene, stats, ...(shade ? { shade } : {}), ...(fireSources ? { fireSources } : {}), ...(skirt ? { skirt } : {}), ...(repeats ? { repeats } : {}) };
 }
 /** A mass moved by `[dx, dy, dz]` (an instance's stand-in put in place). */
 function liftMass(m, [dx, dy, dz]) {

@@ -1,7 +1,10 @@
 /**
  * historic-kind — the `historic` world kind: a culture at its period, minted from a manifest.
  *
- *   { kind: 'historic', culture: 'thebes', scene: 'city' | 'region' | 'farm' | 'works', seed?, season?, view? }
+ *   { kind: 'historic', culture: 'thebes', scene: 'city' | 'region' | 'farm' | 'works', seed?, season?, view?, people? }
+ *
+ * `people` (the city only): its citizens and field hands, static figures for scale (./miniatures.js) — true, or
+ * { density 0–1, citizens: false, hands: false }.
  *
  * The scenes are the builders that already exist (the town, the town in its land, a farmstead, the works),
  * each taken to the World page as the town is (`assembleHistoricWorld`): the faces' tiles resolved into the
@@ -79,6 +82,13 @@ export function historicOptions(m = {}) {
     const seasons = SEASONS[scene] ? SEASONS[scene](culture) : [];
     if (!seasons.includes(m.season)) throw new Error(`historic: ${culture} ${scene} has no season '${m.season}'${seasons.length ? ` — one of ${list(seasons)}` : ' (it has no seasons)'}`);
     opts.season = m.season;
+  }
+  if (m.people !== undefined && m.people !== false) {
+    if (scene !== 'city') throw new Error(`historic: people stand in the 'city' scene only (not '${scene}')`);
+    const p = m.people;
+    if (p !== true && (typeof p !== 'object' || p === null || Array.isArray(p))) throw new Error('historic: people is true or { density, citizens, hands }');
+    if (typeof p === 'object' && p.density !== undefined && !(Number.isFinite(p.density) && p.density >= 0 && p.density <= 1)) throw new Error('historic: people.density is a number from 0 to 1');
+    opts.people = p;
   }
   if (m.view !== undefined) {
     const views = historicViews({ scene, ...opts });
