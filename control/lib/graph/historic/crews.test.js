@@ -14,6 +14,7 @@ import { GIZA_ASSETS } from './assets/giza.js';
 import { LINDOS_ASSETS } from './assets/lindos.js';
 import { POMPEII_ASSETS } from './assets/pompeii.js';
 import { QIN_ASSETS } from './assets/qin.js';
+import { POMPEII_FARM_ASSETS } from './assets/pompeii-land.js';
 import { METRES_PER_UNIT, planHistoricCity } from './historic-city.js';
 
 const s = 1 / METRES_PER_UNIT;
@@ -21,7 +22,7 @@ const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
 
 describe('historic crews: the people and beasts at the farm\'s and the works\' work', () => {
   it('names only assets the kits build', () => {
-    const ids = new Set([SUMER_FARM_ASSETS, EGYPT_FARM_ASSETS, SUMER_WORKS_ASSETS, EGYPT_WORKS_ASSETS, SUMER_ASSETS, EGYPT_ASSETS, GIZA_ASSETS, LINDOS_ASSETS, POMPEII_ASSETS, QIN_ASSETS].flatMap((k) => Object.keys(k)));
+    const ids = new Set([SUMER_FARM_ASSETS, EGYPT_FARM_ASSETS, SUMER_WORKS_ASSETS, EGYPT_WORKS_ASSETS, SUMER_ASSETS, EGYPT_ASSETS, GIZA_ASSETS, LINDOS_ASSETS, POMPEII_ASSETS, QIN_ASSETS, POMPEII_FARM_ASSETS].flatMap((k) => Object.keys(k)));
     for (const id of Object.keys(CREWS)) expect(ids.has(id), id).toBe(true);
   });
 

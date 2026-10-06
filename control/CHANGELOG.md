@@ -712,12 +712,61 @@ byte-identical. Being built on this branch; the sphinx comes next.
   ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
   guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
   layout has no slots, has none yet.
+- Dress changes with the era. Clothing is now part of each culture's record, as dated and cited `dress` entries
+  next to its materials and building types (`lib/graph/historic/dress.js`). Each entry is one garment: who wore
+  it (the man or the woman of the street, or the labourer), its span, its hem, sleeves or trousers, and a few
+  colourways. The people wear what was in use at the culture's year, and `people.year` asks for another year:
+  the buildings stay as they are, and the people dress as that year's people did.
+  - A culture with nothing recorded for a year dresses as the culture it draws its dress from (the new `dress`
+    part of a lineage relation): the Forum from Pompeii, the polis from Lindos, Thebes before the New Kingdom
+    from Giza, and Pompeii, before its Roman entries begin, from the Greek tradition.
+  - `checkRecord` checks a dress entry like any other: its wearer, its hem, its colours, and that every look
+    covers the torso.
+- Cloaks and headwear. The miniature can wear a cloak, hung from a collar over the shoulders, the trunk and the
+  upper arms to the hip or the knee, with the forearms coming out under it. It can also wear one of three head
+  coverings: a `cap`, a broad-brimmed hat (`brim`), or a `veil` that falls past the chin onto the shoulders and
+  leaves the face open. Each is fitted to the posed figure the way the skirt is, in its own colour, and the
+  figure is unchanged without one (`lib/graph/figures/pedestrian-asset.js`). The record now dresses people in:
+  - the Roman paenula, on labourers from the early Empire and on citizens from the 3rd century;
+  - the Roman palla, and the Greek himation, drawn over the head;
+  - the Greek chlamys, from the 5th to the 3rd century, and the petasos on labourers;
+  - the Sumerian sheepskin over the kaunakes;
+  - the fur cap of the Zhao horsemen's dress, and the Qin commoner's black headcloth from 221 BCE.
 - A figure stands on a kerb or a step and refuses a spot taken by anything taller.
 - Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
 - Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
   and seated poses (the scribes stand). Pompeii
   with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
   it has no people.
+
+### Pompeii's land
+
+- Pompeii gets a farm scene (`scene: 'farm'`), and a works scene is next. Both draw on a new cited record of
+  its land and workshops (`lib/graph/historic/record/pompeii-land.js`), spread into Pompeii's record.
+  - The record covers:
+    - the villas of Boscoreale: Villa Regina's 18 dolia (about 10,000 litres) and the Pisanella's olive mill;
+    - the lever press of the Villa of the Mysteries;
+    - the vineyard inside the walls;
+    - the bakeries with their donkey mills, the fullery, the fish-sauce works, the tannery, the dyers, the
+      potters, a building site and a smithy;
+    - the carts and the stable of Civita Giuliana.
+
+    Each entry is cited, with its confidence and its disputes. What was working at the eruption but has no
+    recorded building date is held from 79, not back-dated.
+  - The farm is a villa rustica at the vintage, its one season. It is a new `villa` layout beside the flood-plain
+    farm, which stays as it was.
+    - The villa stands round its court, facing a country road rutted at its cart's gauge, with the dolia sunk in
+      the court.
+    - The press room and the olive mill stand behind it, the stable beside it, and the threshing terrace and a
+      barn with its pergola to the east.
+    - The vineyard lies in blocks of staked rows over the north, with an olive grove and a reaped field.
+    - A cart waits at the gate for the grapes, its pole down to the yoke.
+  - Its nine pieces (`lib/graph/historic/assets/pompeii-land.js`) are placeholders, `designed: false`, massed to
+    the record's numbers where it gives them and to stated conjecture where it does not.
+  - With `people`, pickers work the vine rows, treaders and pressmen the press room, two men the olive mill, and
+    the household the court. Horses stand in the stable, and the cart's pair is hitched with its carter.
+  - The farm's aerial view can be aimed by its plan (`aerialAt`). Sumer's and Egypt's farm and works scenes are
+    byte-identical.
 
 ### Historic Rome
 

@@ -79,6 +79,15 @@ export const CREWS = {
   'eg-boatyard': [crew(2, 3, ['hoe', 'stoop'], 'inside')],
   'eg-stone-barge': [crew(1, 2, ['carry', 'idleL'], 'inside')],
   'eg-glass-works': [crew(1, 2, ['stoop'], 'inside')],
+  // Pompeii's farm at the vintage (./assets/pompeii-land.js)
+  'pl-villa': [crew(2, 3, STAND, 'inside', { dress: 'man', women: true })],
+  'pl-vine-block': [crew(3, 6, ['stoop', 'stoop', 'carry'], 'inside', { women: true, per: 600 })],
+  'pl-cella-vinaria': [crew(1, 2, ['stoop', 'carry'], 'inside')],
+  'pl-press-room': [crew(2, 4, ['strollL', 'strollR', 'hoe', 'carry'], 'inside')],
+  'pl-trapetum': [crew(2, 2, ['hoe'], 'inside')],
+  'pl-threshing-terrace': [crew(1, 2, ['hoe', 'carry'], 'inside')],
+  'pl-barn': [crew(1, 2, ['carry', ...STAND], 'before', { women: true })],
+  'pl-stable': [crew(1, 1, STAND, 'before'), { beast: 'horse', n: 2, where: 'inside' }],
   // the city: Sumer (and the pieces Thebes borrows from its art kit)
   'white-temple': [crew(1, 2, STAND, 'before', { dress: 'man' })],
   altar: [crew(1, 1, ['idleL'], 'before', { dress: 'man' }), crew(1, 3, STAND, 'before', { dress: 'man', women: true })],
@@ -228,7 +237,7 @@ export function crewFaces(plan, people, s, seed = 1, kit = folkKit(plan, s)) {
       }
     }
   }
-  return { faces: out.faces, boxes, stats: { citizens: out.citizens, hands: out.hands, crew: out.crew, beasts: out.beasts, drivers: out.drivers }, herd: out.herd };
+  return { faces: out.faces, boxes, stats: { citizens: out.citizens, hands: out.hands, crew: out.crew, beasts: out.beasts, drivers: out.drivers, ...(out.dress ? { dress: out.dress } : {}) }, herd: out.herd };
 }
 
 /**
@@ -238,7 +247,7 @@ export function crewFaces(plan, people, s, seed = 1, kit = folkKit(plan, s)) {
  */
 export function sceneFolk(plan, people, s, seed = 1, { teams = true } = {}) {
   if (!people) return null;
-  const kit = folkKit(plan, s, plan.grid ? plan.grid.cell : 3);
+  const kit = folkKit(plan, s, plan.grid ? plan.grid.cell : 3, peopleOptions(people).year);
   miniatureFaces(plan, people, s, seed, { teams, kit });
   return crewFaces(plan, people, s, seed, kit);
 }
