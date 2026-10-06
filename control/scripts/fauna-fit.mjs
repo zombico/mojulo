@@ -69,15 +69,19 @@ const sizeMiss = Object.entries(targets).filter(([k, t]) => !(Math.abs(measured[
 // the host's SURFACE (its triangles sampled on a barycentric grid), not its sparse ring vertices: a correctly seated
 // ear base sits on a face between them, centimetres from the nearest vertex
 const partVerts = (name) => Object.values(mesh.parts[name]?.points || {});
-const hostSamples = (name) => { const P = mesh.parts[name]; const out = []; const N = 8;
+// the grid is FINER on a long triangle (a giraffe's neck band is ~0.6 m): N grows with the triangle's longest edge so
+// samples sit at most ~4 mm apart (8 at least, as before, so a short triangle samples as it always did)
+const hostSamples = (name) => { const P = mesh.parts[name]; const out = [];
   for (const tri of Object.values(P?.faces || {})) { const [A, B, C] = tri.map((id) => P.points[id]);
+    const edge = Math.max(...[[A, B], [B, C], [C, A]].map(([p, q]) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))), N = Math.max(8, Math.min(200, Math.ceil(edge / 0.004)));
     for (let i = 0; i <= N; i++) for (let j = 0; i + j <= N; j++) { const u = i / N, v = j / N, w = 1 - u - v; out.push([0, 1, 2].map((c) => A[c] * w + B[c] * u + C[c] * v)); } }
   return out; };
-const attachGap = {};
+const attachGap = {}; const hostCache = {};
 // catchlights float just proud of the eye by design
 const detached = Object.entries(mesh.parts).filter(([n, p]) => p.pin?.parent && !/^catch/.test(n)).filter(([name, p]) => {
-  const host = hostSamples(p.pin.parent); let d = Infinity;
-  for (const a of partVerts(name)) for (const b of host) d = Math.min(d, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]));
+  const V = partVerts(name), lo = [0, 1, 2].map((c) => Math.min(...V.map((v) => v[c])) - 0.05), hi = [0, 1, 2].map((c) => Math.max(...V.map((v) => v[c])) + 0.05);
+  const host = (hostCache[p.pin.parent] ??= hostSamples(p.pin.parent)).filter((b) => b.every((x, c) => x >= lo[c] && x <= hi[c])); let d = Infinity;
+  for (const a of V) for (const b of host) d = Math.min(d, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]));
   attachGap[name] = r3(d);
   return d > 0.012;
 }).map(([n]) => n);

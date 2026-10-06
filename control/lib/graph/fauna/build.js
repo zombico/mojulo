@@ -8,7 +8,7 @@
 // Frame: metres, +z up, +y front, x = 0 the mirror plane, feet on z = 0. Tables are authored at the family's size
 // and `scale` shrinks or grows the whole animal about the ground point.
 
-import { expandPlan, segmentPart, loftPart, SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
+import { expandPlan, segmentPart, loftPart, SLOT_FAMILIES, shapeId } from '../polygonizer/station-loft-plan.js';
 import { compileLayered, pinFrame } from '../polygonizer/station-loft.js';
 import { surfaceLocalOffset } from '../polygonizer/surface-pin.js';
 import { wearWings } from './wing.js';
@@ -29,6 +29,7 @@ export function mergeParams(base, over) {
 
 export function buildFauna(params) {
   const P = clone(params);
+  if (P.legScale) scaleLegs(P);   // opt-in: longer / shorter legs under the same trunk (see scaleLegs)
   const C = P.colors;
   const joints = clone(P.joints);
 
@@ -38,7 +39,7 @@ export function buildFauna(params) {
   const torso = { name: 'torso', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: clone(P.torso), caps: clone(P.torsoCaps) };
   const neck = { name: 'neck', kind: 'segment', from: 'neckBase', to: 'neckTop', rA: P.neckRA, rB: P.neckRB, rMid: P.neckRMid, slots: 'ring12', over: [0.3, 0.4], group: P.neckGroup || 'Coat', mirror: 'plane' };
   const loft = (name, pts, group, caps) => ({ name, kind: 'loft', slots: 'ring12', group, mirror: 'plane', stations: pts.map(([x, y, z, r]) => ({ at: [x, y, z], r })), ...(caps ? { caps } : {}) });
-  const tail = P.tail ? loft('tail', P.tail, 'Coat') : null;
+  const tail = P.tail ? loft('tail', P.tail, P.tailGroup || 'Coat') : null;   // `tailGroup`: the tail's group (default Coat)
   const tailTip = P.tail && P.tip ? loft('tailTip', P.tip, 'Tip', clone(P.tipCaps)) : null;
   // a leg row: [name, from, to, rA, rB, group, over?, rMid?] — mirrored by name (…R → …L)
   // an optional 9th entry { up: [x, y, z] } gives the row a STABLE ring frame (see stableRings): a flat paw lies flat
@@ -51,6 +52,8 @@ export function buildFauna(params) {
   for (const st of torso.stations) st.r = mul(st.r, P.bulk ?? 1);
   for (const g of legs) for (const f of ['rA', 'rB', 'rMid']) if (g[f] !== undefined) g[f] = mul(g[f], P.legBulk ?? 1);
   for (const g of [tail, tailTip]) if (g) for (const st of g.stations) st.r = mul(st.r, P.tailBush ?? 1);
+  // MARKINGS (opt-in): finer rings on the marked parts first (`markDensity`), the paint itself after the plan is made
+  if (P.markDensity) densify([torso, neck, ...(tail ? [tail] : []), ...(tailTip ? [tailTip] : []), ...legs, ...extra], P.markDensity, joints, legUp, P.levelLegs);
 
   // ── the HEAD as plan data (layered-head-v1) in its own frame (+y front, +z up); its nape sits on neckTop ──
   const row = ([id, y, top, crown, brow, cheek, jowl, lip, palate]) => [id, y, { top, crown, brow, cheek, jowl, lip, palate }];
@@ -82,12 +85,22 @@ export function buildFauna(params) {
   // scale ÷ reference), so a small head keeps the same proportions (they are metres otherwise)
   const hk = P.headRelative ? (P.headScale * (P.scale ?? 1)) / (P.headRelative === true ? 1 : P.headRelative) : 1;
   const hs = (v) => (P.headRelative ? (Array.isArray(v) ? v.map(hs) : v * hk) : v);
+  // THE EAR-SPINE FRAME ('local' space, the pin's frame at `earAt` on the cranium; right side, the left mirrors):
+  //   x = the pin face's tangent edge, ALONG THE STATIONS toward the muzzle (+s, head front);
+  //   y = normal × tangent, ACROSS THE RING toward the top slot (t decreasing: up and over toward the crown midline);
+  //   z = the skin's outward normal at the address.
+  // So [0, 0, h] stands the ear straight out of the skin, −y lays it down the skull side, +x tips it forward.
+  // `earDrop` (opt-in; true = 100, or degrees): a DROP EAR — the spine past its first two points (the root stays
+  // standing) is turned about local x from +z toward −y, so the ear lies along the side of the skull and hangs.
+  const drop = P.earDrop ? ((P.earDrop === true ? 100 : P.earDrop) * Math.PI) / 180 : 0;
+  const lay = (sp) => (drop ? sp.map((p, i) => { if (i < 2) return p; const [x, y, z] = p, z0 = sp[1][2], c = dmath.cos(drop), s = dmath.sin(drop);
+    return [x, y * c - (z - z0) * s, z0 + y * s + (z - z0) * c]; }) : sp);
   const earSpine = P.earSpine.map(([x, y, z]) => hs([x, y, z * (P.earH ?? 1)]));
   const earR = hs(P.earR);
   const ears = P.ears === false ? [] : [
     // ears: sweeps along the crown's normal (pin-local z), flattened front to back; the inner ear just in front
-    { kind: 'sweep', name: 'ear', at: P.earAt, space: 'local', spine: earSpine, radii: earR, m: 8, squash: P.earSquash, group: 'Ears' },
-    { kind: 'sweep', name: 'earInner', at: P.earAt, space: 'local', spine: earSpine.map(([x, y, z], i) => [x + hs(0.012), y, i ? z - hs(0.014) : z + hs(0.012)]), radii: earR.map((r) => r * 0.6), m: 8, squash: P.earSquash, group: 'EarInner' },
+    { kind: 'sweep', name: 'ear', at: P.earAt, space: 'local', spine: lay(earSpine), radii: earR, m: 8, squash: P.earSquash, group: 'Ears' },
+    { kind: 'sweep', name: 'earInner', at: P.earAt, space: 'local', spine: lay(earSpine.map(([x, y, z], i) => [x + hs(0.012), y, i ? z - hs(0.014) : z + hs(0.012)])), radii: earR.map((r) => r * 0.6), m: 8, squash: P.earSquash, group: 'EarInner' },
   ];
   const head = {
     schema: 'layered-head-v1', name: P.name || 'fauna',
@@ -107,7 +120,8 @@ export function buildFauna(params) {
       eye: { at: P.eyeAt, R: hs(P.eyeR ?? 0.022) },
       orbit: P.headRelative ? { open: [0.45, 0.32], ...Object.fromEntries(Object.entries({ reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) }).map(([k, v]) => [k, k === 'open' ? v : hs(v)])) }
         : { open: [0.45, 0.32], reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) },
-      brow: { strip: P.browStrip, w: 0.012, h: 0.009, taper: [0.55, 0.9, 1, 0.9, 0.6], facing: 'down' },
+      // `relBrow` (opt-in, with headRelative): the brow strip's width and height scale with the head as the eye does
+      brow: { strip: P.browStrip, w: P.relBrow ? hs(0.012) : 0.012, h: P.relBrow ? hs(0.009) : 0.009, taper: [0.55, 0.9, 1, 0.9, 0.6], facing: 'down' },
       // `nose: false` drops the nose pad; the head format requires the nostril region, so it shrinks out of sight
       nostril: { at: P.nostrilAt, r: P.nose === false ? 0.0002 : hs(0.007), squash: [1.3, 1], slide: 0.4 },
       fold: { strip: clone(P.foldStrip) },
@@ -142,12 +156,14 @@ export function buildFauna(params) {
   const tiles = clone(P.bodyTiles || []);
   if (tiles.length) plan.body = { tiles };
   if ((P.adorn || []).length) plan.adorn = clone(P.adorn);
+  if ((P.markings || []).length) markPlan(plan, P.markings, P.legs.map((r) => r[0]));
 
   // the whole animal scaled about the ground point (feet stay on z = 0): joints, ring radii, loft stations and caps, the head
   const k = P.scale ?? 1, sv = (v) => v.map((x) => x * k);
   for (const j of Object.keys(joints)) joints[j] = sv(joints[j]);
   for (const g of plan.segments) {
     for (const f of ['rA', 'rB', 'rMid']) if (g[f] !== undefined) g[f] = mul(g[f], k);
+    for (const sh of g.shape || []) sh.r = mul(sh.r, k);
     for (const st of g.stations || []) { st.at = sv(st.at); st.r = mul(st.r, k); }
     if (g.caps) for (const c of Object.keys(g.caps)) g.caps[c] = sv(g.caps[c]);
   }
@@ -159,7 +175,7 @@ export function buildFauna(params) {
     if (g.kind === 'segment' && legs.includes(g)) { let up = legUp.get(g.name);
       if (!up && P.levelLegs) { const d = joints[g.to].map((x, c) => x - joints[g.from][c]); if (Math.abs(d[2]) < 0.5 * Math.hypot(...d)) up = [0, 0, 1]; }
       if (up) plan.segments[i] = stableRings(g, up, joints); }
-    else if (g.kind === 'loft' && g.up && extra.includes(g)) plan.segments[i] = stableRings(g, g.up === true ? [0, 0, 1] : g.up); }
+    else if ((g.kind === 'loft' || g.kind === 'segment') && g.up && extra.includes(g)) plan.segments[i] = stableRings(g, g.up === true ? [0, 0, 1] : g.up, joints); }
   if (P.headRelative || P.orbitFallback) seatOrbit(plan, head);
   if (P.headMesh) wearHeadMesh(plan, { pitch: P.headPitch, ...P.headMesh });
   if (P.wings) wearWings(plan, { scale: k, ...P.wings });   // opt-in: feathered or membrane wings (wing.js), worn at a root joint
@@ -193,7 +209,7 @@ function stableRings(g, up, J) {
     stations = g.stations.map((s, i) => ({ id: `st${i}`, points: ring(s.at, dirAt(i), s.r) }));
     caps = loftPart(g.stations, g.caps, slots, e).caps;
   }
-  const { from: _f, to: _t, rA: _a, rB: _b, rMid: _m, over: _o, mid: _d, up: _u, e: _e, ...rest } = g;
+  const { from: _f, to: _t, rA: _a, rB: _b, rMid: _m, over: _o, mid: _d, up: _u, e: _e, shape: _s, ...rest } = g;
   return { ...rest, kind: 'rings', stations, caps, mirror: g.mirror === 'name' ? 'name' : null };
 }
 
@@ -251,6 +267,9 @@ function uprightTorso(torso) {
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   const slots = ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'];
   const C = torso.stations.map((st) => st.at), n = C.length, e = 2;
+  // a densified trunk (markDensity) carries shaping stations at fractional u between its own st<k>
+  const shaped = torso.stations.some((st) => st.u !== undefined); let own = 0;
+  for (const st of torso.stations) if (shaped && st.u === undefined) st.u = own++; else if (st.u === undefined) own++;
   const stations = torso.stations.map((st, i) => {
     const d = unit(sub(C[Math.min(i + 1, n - 1)], C[Math.max(i - 1, 0)]));
     const f = unit(sub([0, 0, 1], mulv(d, d[2]))); let s = cross(f, d); if (s[0] < 0) s = mulv(s, -1);
@@ -260,10 +279,115 @@ function uprightTorso(torso) {
       const p = add(st.at, add(mulv(f, rf * pw(c)), mulv(s, rs * pw(dmath.sin(t)))));
       points[sl] = add(p, [0, 0, (st.top || 0) * Math.max(0, c)]); });
     for (let k = slots.length / 2 + 1; k < slots.length; k++) { const q = points[slots[slots.length - k]]; points[slots[k]] = [-q[0] + 0, q[1], q[2]]; }   // the left half: the right's exact mirror
-    return { id: `st${i}`, points };
+    return { id: st.u === undefined || Number.isInteger(st.u) ? `st${st.u ?? i}` : shapeId(st.u), ...(shaped ? { u: st.u ?? i } : {}), points };
   });
   const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r), S = torso.stations;
   const caps = torso.caps || { back: add(C[0], mulv(unit(sub(C[0], C[1])), 0.45 * rad(S[0].r))), tip: add(C[n - 1], mulv(unit(sub(C[n - 1], C[n - 2])), 0.45 * rad(S[n - 1].r))) };
   for (const k of Object.keys(torso)) delete torso[k];
   Object.assign(torso, { name: 'torso', kind: 'rings', slots: 'ring12', group: 'Coat', mirror: null, stations, caps });
+}
+
+/** LEG SCALE (opt-in: `legScale: s` or `{ fore, hind }`): the legs lengthen (or shorten) by that factor while the
+ * trunk keeps its size. The whole body above the legs (every non-leg joint, the trunk's stations and caps, the tail, the
+ * extra lofts) rises by the mean of the two legs' growth at their tops (shoulder / hip height × (s − 1)); each leg chain
+ * is then stretched in z about the ground so its top meets the raised trunk. Feet stay on z = 0. Lengths only: radii,
+ * x and y are kept. A leg joint is fore or hind by which of `shoulder` / `hip` its y is nearer. */
+function scaleLegs(P) {
+  const ls = typeof P.legScale === 'number' ? { fore: P.legScale, hind: P.legScale } : { fore: 1, hind: 1, ...P.legScale };
+  const J = P.joints, legJ = new Set(P.legs.flatMap((r) => [r[1], r[2]]));
+  const sy = J.shoulder?.[1] ?? 0.5, hy = J.hip?.[1] ?? -0.5, isFore = (n) => Math.abs(J[n][1] - sy) <= Math.abs(J[n][1] - hy);
+  const top = (fore) => Math.max(...[...legJ].filter((n) => isFore(n) === fore).map((n) => J[n][2]));
+  const tf = top(true), th = top(false), dz = (tf * (ls.fore - 1) + th * (ls.hind - 1)) / 2;
+  const up = (p) => [p[0], p[1], p[2] + dz];
+  for (const n of Object.keys(J)) if (legJ.has(n)) { const T = isFore(n) ? tf : th; J[n] = [J[n][0], J[n][1], J[n][2] * (T + dz) / T]; } else J[n] = up(J[n]);
+  for (const st of P.torso) st.at = up(st.at);
+  if (P.torsoCaps) for (const c of Object.keys(P.torsoCaps)) P.torsoCaps[c] = up(P.torsoCaps[c]);
+  for (const key of ['tail', 'tip']) if (P[key]) P[key] = P[key].map(([x, y, z, r]) => [x, y, z + dz, r]);
+  if (P.tipCaps) for (const c of Object.keys(P.tipCaps)) P.tipCaps[c] = up(P.tipCaps[c]);
+  for (const g of P.extraSegments || []) { for (const st of g.stations || []) st.at = up(st.at); if (g.caps) for (const c of Object.keys(g.caps)) g.caps[c] = up(g.caps[c]); }
+}
+
+/** MARK DENSITY (opt-in: `markDensity: { <part name>: n }`, `legs` for every leg row, `default` for any other): each
+ * band of a named part is split into n by SHAPING rings interpolated between its own (a loft's fractional-u stations, a
+ * segment's `shape` rings), so markings have rings to land on. Every existing address keeps its meaning (st<k> stays at
+ * u = k). A leg on a stable ring frame (an `up` row or levelLegs) is left as is. */
+function densify(parts, D, joints, legUp, levelLegs) {
+  const lerpR = (a, b, f) => (Array.isArray(a) || Array.isArray(b) ? [0, 1].map((i) => { const A = Array.isArray(a) ? a[i] : a, B = Array.isArray(b) ? b[i] : b; return A + (B - A) * f; }) : a + (b - a) * f);
+  for (const g of parts) {
+    const isLeg = g.kind === 'segment' && g.mirror === 'name' && /R$/.test(g.name) && !g.shape;
+    const n = D[g.name] ?? D[g.name.replace(/R$/, '')] ?? (isLeg ? D.legs : undefined) ?? D.default;
+    if (!(n >= 2)) continue;
+    if (g.kind === 'loft') {
+      if (g.stations.some((s) => s.u !== undefined)) continue;
+      const out = [];
+      g.stations.forEach((s, i) => { out.push(s); const b = g.stations[i + 1]; if (!b) return;
+        for (let j = 1; j < n; j++) { const f = j / n; out.push({ at: s.at.map((x, c) => x + (b.at[c] - x) * f), r: lerpR(s.r, b.r, f), u: i + f, ...(s.top !== undefined || b.top !== undefined ? { top: (s.top || 0) + ((b.top || 0) - (s.top || 0)) * f } : {}) }); } });
+      g.stations = out;
+    } else if (g.kind === 'segment') {
+      if (legUp.has(g.name) || g.up) continue;
+      if (levelLegs) { const d = joints[g.to].map((x, c) => x - joints[g.from][c]); if (Math.abs(d[2]) < 0.5 * Math.hypot(...d)) continue; }
+      const A = joints[g.from], B = joints[g.to], L = Math.hypot(...B.map((x, c) => x - A[c])), rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
+      const over = g.over ?? [0.6, 0.6], mid = g.mid ?? 0.5, rM = g.rMid ?? lerpR(g.rA, g.rB, 0.5);
+      const T = [[-over[0] * rad(g.rA), g.rA], [mid * L, rM], [L + over[1] * rad(g.rB), g.rB]], shape = [];
+      for (let i = 0; i < 2; i++) for (let j = 1; j < n; j++) { const f = j / n; shape.push({ at: (T[i][0] + (T[i + 1][0] - T[i][0]) * f) / L, r: lerpR(T[i][1], T[i + 1][1], f) }); }
+      g.shape = shape;
+    }
+  }
+}
+
+/** MARKINGS (opt-in: `markings: [...]`): colour regions painted on the body's OWN faces — no geometry, so closure and
+ * every pin are untouched. Each entry becomes `paint` (station-loft-plan.js → body-paint.js) on the expanded rings:
+ *   { on, kind, group, color?, run?: [a, b], t?: [a, b], only?, …kind params }
+ *   on    a part name, a list, 'legs' (every leg row), 'foreLegs' / 'hindLegs' (rows before / from the first whose name
+ *         starts 'thigh' or 'hip'), or a leg base name (both sides); `run` is the share of the part's length (0 its first
+ *         ring, 1 its last: a trunk's rump → chest, a neck's base → poll, a leg's top → foot), `t` the share around the
+ *         ring half (0 the ring's front slot → 1 its back: on a level trunk and the neck, 0 the spine → 1 the belly /
+ *         throat; on a leg, 0 its front → 1 its back), both sides alike (the paint is mirror-symmetric).
+ *   kind  'band'    one region: run × t (both default whole)
+ *         'belly'   t from `from` (default 0.6) to 1 along run
+ *         'stripes' `count` bands across run, each `width` (share of the period, default 0.5), `slant` (run per unit t:
+ *                   a stripe leaning back as it runs down the flank; a chevron with `chevron: true` over the rump), `t`
+ *         'patch'   a `grid` [along, around] of patches over run × t, each `size` (share of its cell, default 0.7),
+ *                   `brick` (every other row offset half a cell), `jitter` (share of a cell, deterministic)
+ *         'spots'   `count` patches of `size` [along, around] at deterministic places (seed `seed`)
+ *   caps  ['back' | 'tip']: the part's end cap takes the group too (a pale rump disc)
+ * `color` adds the group to the body palette. A marking narrower than a band paints the band holding its middle, so a
+ * fine pattern wants `markDensity` on that part (finer rings, opt-in). */
+function markPlan(plan, marks, legNames) {
+  const legBase = legNames.map((n) => n.replace(/R$/, ''));
+  const hindAt = legBase.findIndex((n) => /^(thigh|hip)/.test(n));
+  const target = (on) => (Array.isArray(on) ? on.flatMap(target) : on === 'legs' ? legBase : on === 'foreLegs' ? legBase.slice(0, hindAt < 0 ? legBase.length : hindAt)
+    : on === 'hindLegs' ? (hindAt < 0 ? [] : legBase.slice(hindAt)) : [on]);
+  const clip = ([a, b]) => [Math.max(0, Math.min(1, a)), Math.max(0, Math.min(1, b))];
+  const r4 = (x) => Math.round(x * 1e4) / 1e4, win = (w) => clip(w).map(r4);
+  const hash = (i, seed) => { const x = dmath.sin((i + 1) * 12.9898 + (seed || 0) * 78.233) * 43758.5453; return x - Math.floor(x); };
+  const paint = [];
+  for (const M of marks) {
+    const part = target(M.on), base = { part: part.length === 1 ? part[0] : part, group: M.group, ...(M.only ? { only: M.only } : {}) };
+    const R = M.run ?? [0, 1], Tw = M.t ?? [0, 1], push = (run, t) => { const w = win(run), tt = win(t); if (w[1] > w[0] && tt[1] > tt[0]) paint.push({ ...base, run: w, t: tt }); };
+    if (M.kind === 'band') push(R, Tw);
+    else if (M.kind === 'belly') push(R, [M.from ?? 0.6, 1]);
+    else if (M.kind === 'stripes') {
+      const n = M.count ?? 8, per = (R[1] - R[0]) / n, w = per * (M.width ?? 0.5), sl = M.slant ?? 0, rows = sl ? (M.rows ?? 6) : 1;
+      for (let i = 0; i < n; i++) for (let k = 0; k < rows; k++) {
+        const t0 = Tw[0] + (Tw[1] - Tw[0]) * k / rows, t1 = Tw[0] + (Tw[1] - Tw[0]) * (k + 1) / rows, tm = (t0 + t1) / 2;
+        const lean = M.chevron ? sl * Math.abs(tm - 0.5) * 2 : sl * tm, c = R[0] + per * (i + 0.5) + lean;
+        push([c - w / 2, c + w / 2], [t0, t1]);
+      }
+    } else if (M.kind === 'patch') {
+      const [na, nt] = M.grid ?? [6, 3], ca = (R[1] - R[0]) / na, ct = (Tw[1] - Tw[0]) / nt, sz = M.size ?? 0.7, sa = Array.isArray(sz) ? sz[0] : sz, st = Array.isArray(sz) ? sz[1] : sz;
+      for (let j = 0; j < nt; j++) for (let i = 0; i < na + (M.brick ? 1 : 0); i++) {
+        const off = M.brick && j % 2 ? -0.5 : 0, jit = (M.jitter ?? 0) * (hash(i * 31 + j, M.seed) - 0.5);
+        const a = R[0] + ca * (i + 0.5 + off + jit), t = Tw[0] + ct * (j + 0.5);
+        push([a - ca * sa / 2, a + ca * sa / 2], [t - ct * st / 2, t + ct * st / 2]);
+      }
+    } else if (M.kind === 'spots') {
+      const [sa, st] = M.size ?? [0.08, 0.15];
+      for (let i = 0; i < (M.count ?? 12); i++) { const a = R[0] + (R[1] - R[0]) * hash(2 * i, M.seed), t = Tw[0] + (Tw[1] - Tw[0]) * hash(2 * i + 1, M.seed); push([a - sa / 2, a + sa / 2], [t - st / 2, t + st / 2]); }
+    } else throw new Error(`fauna markings: kind '${M.kind}' is not band / belly / stripes / patch / spots`);
+    // `caps: ['back' | 'tip']`: the part's end cap(s) take the group too (paint alone leaves a cap to its end band)
+    for (const c of M.caps || []) for (const n of part) { const g = plan.segments.find((x) => x.name === n || x.name === `${n}R`); if (g) g.capGroups = { ...(g.capGroups || {}), [c]: M.group }; }
+    if (M.color) plan.palette[M.group] = M.color;
+  }
+  plan.paint = [...(plan.paint || []), ...paint];
 }

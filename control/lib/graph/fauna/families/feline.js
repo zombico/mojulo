@@ -79,6 +79,27 @@ export const family = {
   scale: 1,
 };
 
+// ── coat patterns as data (no markings channel): a COAT SHELL is a loft a hair proud of the trunk, its bands
+// grouped per slot (`bandGroups`, six right-half bands from the back line down to the belly), so stripes / spots /
+// a pale belly are band colours on the trunk's own outline. `pick(i, j)` names the group of band i (back→front),
+// slot j (0 back line … 5 belly).
+const coatShell = (name, torso, { bulk = 1, proud = 1.035, ys, pick, z }) => {
+  const rAt = (y) => { const T = torso; if (y <= T[0].at[1]) return T[0].r; for (let i = 1; i < T.length; i++) if (y <= T[i].at[1]) { const t = (y - T[i - 1].at[1]) / (T[i].at[1] - T[i - 1].at[1]); return T[i - 1].r.map((r, c) => r + (T[i].r[c] - r) * t); } return T[T.length - 1].r; };
+  const zc = z ?? torso[0].at[2];
+  return { name, kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
+    stations: ys.map((y) => ({ at: [0, y, zc], r: rAt(y).map((r) => r * bulk * proud) })),
+    bandGroups: Object.fromEntries(ys.slice(1).map((_, i) => [`st${i}-st${i + 1}`, Array.from({ length: 6 }, (_, j) => pick(i, j))])),
+    caps: { back: [0, ys[0] - 0.02, zc], tip: [0, ys[ys.length - 1] + 0.02, zc] }, capGroups: { back: 'Coat', tip: 'Coat' } };
+};
+// a sparse, irregular spot field (deterministic): band i, slot j dark when the hash falls under `d`
+const spotty = (d, seed = 0) => (i, j) => (j >= 5 ? 'Belly' : ((i * 7 + j * 13 + seed) * 37) % 100 < d * 100 ? 'Mane' : 'Coat');
+const steps = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+// a tail as a loft with dark rings (bandGroups), the tip cap dark
+const ringedTail = (pts, ringFrom, caps) => ({ name: 'tailRinged', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
+  stations: pts.map(([x, y, z, r]) => ({ at: [x, y, z], r })),
+  bandGroups: Object.fromEntries(pts.slice(1).map((_, i) => [`st${i}-st${i + 1}`, Array(6).fill(i >= ringFrom && (i - ringFrom) % 2 === 1 ? 'Mane' : 'Coat')])),
+  caps, capGroups: { back: 'Coat', tip: 'Mane' }, up: [0, 1, 1] });   // a stable ring frame: no twist as it hangs and hooks
+
 // the species of this family: each the numbers over the family's tables that make it that animal
 export const species = {
   // AFRICAN LION, adult male (Panthera leo). Thesis: long low supple trunk behind heavy forequarters, level back ·
@@ -136,4 +157,90 @@ export const species = {
     earR: [0.046, 0.04, 0.025, 0.005], earSquash: [1, 0.35], earH: 0.78,
     bulk: 1.1, legBulk: 1.05, tailBush: 0.85,
   },
+  // BENGAL TIGER, adult male (Panthera tigris tigris). Thesis: the lion's long low supple trunk but LONGER and with
+  // no mane, a level back, heavy forequarters · digitigrade, big round paws · a big round head with white cheek ruffs,
+  // short broad muzzle, small round ears · THE STRIPES: dark vertical bars on an orange coat over a white belly, and a
+  // dark-ringed tail · ≈1.0 m at the shoulder (0.9–1.1 m, Mazák 1981, Mammalian Species 152 "Panthera tigris").
+  tiger: (() => {
+    const BULK = 1.35;
+    // stripes: alternate dark bars on the back and flanks, the lowest slot (belly) pale throughout
+    const ys = steps(-0.62, 0.38, 20);
+    return {
+      family: 'feline', name: 'a Bengal tiger', scale: 1.03, bulk: BULK, legBulk: 1.45,
+      colors: { coat: '#c8752c', sock: '#c8752c', ash: '#ece4d4', ashAlt: '#e0d6c2', brow: '#1d1612', tip: '#1d1612', mane: '#1d1612' },
+      tail: null, tip: null,
+      extraSegments: [
+        coatShell('stripes', family.torso, { bulk: BULK, ys, pick: (i, j) => (j >= 5 ? 'Belly' : j >= 4 ? (i % 3 === 1 ? 'Mane' : 'Belly') : i % 3 === 1 ? 'Mane' : 'Coat') }),
+        ringedTail([[0, -0.64, 0.76, 0.055], [0, -0.74, 0.70, 0.05], [0, -0.80, 0.56, 0.045], [0, -0.85, 0.42, 0.042], [0, -0.88, 0.32, 0.04], [0, -0.92, 0.24, 0.038], [0, -0.98, 0.18, 0.036], [0, -1.05, 0.17, 0.034], [0, -1.11, 0.20, 0.03]], 1,
+          { back: [0, -0.60, 0.79], tip: [0, -1.14, 0.22] }),
+      ],
+      headScale: 1.6, muzzleW: 1.3, muzzleLen: 0.6, earH: 1.0,
+    };
+  })(),
+  // LEOPARD, adult (Panthera pardus). Thesis: a long LOW lithe trunk on SHORT stout legs (lower-slung than a lion or
+  // cheetah), level back · digitigrade, broad round paws · a broad head, short muzzle, small round ears · THE ROSETTES:
+  // dark spots all over a golden coat, a pale belly · a long tail carried low with an up-turned end · ≈0.65 m at the
+  // shoulder (0.45–0.80 m, Nowell & Jackson 1996, Wild Cats: Status Survey and Conservation Action Plan, IUCN).
+  leopard: (() => {
+    const BULK = 1.2, Z = 0.62;
+    const torso = family.torso.map((s) => ({ ...s, at: [0, s.at[1], Z] }));
+    const ys = steps(-0.62, 0.38, 22);
+    return {
+      family: 'feline', name: 'a leopard', scale: 0.72, bulk: BULK, legBulk: 1.2,
+      colors: { coat: '#c9a050', sock: '#c9a050', ash: '#ece0c4', ashAlt: '#dccfae', brow: '#2a1f15', tip: '#1f1810', mane: '#2a1f15' },
+      torso, torsoCaps: { back: [0, -0.72, Z], tip: [0, 0.50, Z - 0.02] },
+      joints: {
+        neckBase: [0, 0.42, 0.70], neckTop: [0, 0.64, 0.80],
+        shoulder: [0.16, 0.36, 0.64], elbow: [0.17, 0.28, 0.37], carpus: [0.15, 0.33, 0.12], hip: [0.13, -0.46, 0.62], stifle: [0.16, -0.28, 0.38], hock: [0.15, -0.57, 0.19],
+      },
+      tail: null, tip: null,
+      extraSegments: [
+        // spots: a checker of dark and gold patches on the back and flanks, the belly pale
+        coatShell('rosettes', torso, { bulk: BULK, ys, pick: spotty(0.24, 3) }),
+        ringedTail([[0, -0.64, 0.66, 0.05], [0, -0.76, 0.56, 0.047], [0, -0.86, 0.42, 0.045], [0, -0.94, 0.28, 0.043], [0, -1.02, 0.18, 0.04], [0, -1.12, 0.14, 0.038], [0, -1.20, 0.17, 0.035], [0, -1.26, 0.24, 0.03]], 3,
+          { back: [0, -0.60, 0.69], tip: [0, -1.29, 0.28] }),
+      ],
+      headScale: 1.35, muzzleW: 1.15, muzzleLen: 0.65, earH: 0.95,
+    };
+  })(),
+  // CHEETAH, adult (Acinonyx jubatus). Thesis: a SLIM sprinter: a DEEP narrow chest over a wasp-waisted tuck-up, a
+  // slightly arched back, very LONG thin legs · digitigrade, narrow paws · a SMALL round head on a long neck, short
+  // muzzle, small ears set low · THE TEAR MARKS (black lines from the inner eye down to the mouth corners), solid dark
+  // spots, a long tail ringed dark toward the end · ≈0.80 m at the shoulder (0.70–0.90 m, Krausman & Morales 2005,
+  // Mammalian Species 771 "Acinonyx jubatus").
+  cheetah: (() => {
+    const Z = 0.84;
+    const torso = [
+      { at: [0, -0.62, Z], r: [0.085, 0.085] },
+      { at: [0, -0.48, Z], r: [0.11, 0.11] },
+      { at: [0, -0.24, Z], r: [0.07, 0.07] },
+      { at: [0, 0.02, Z], r: [0.11, 0.16] },
+      { at: [0, 0.24, Z], r: [0.12, 0.19] },
+      { at: [0, 0.40, Z], r: [0.11, 0.16] },
+    ];
+    const ys = steps(-0.60, 0.38, 26);
+    return {
+      family: 'feline', name: 'a cheetah', scale: 0.78, bulk: 1, legBulk: 0.8,
+      colors: { coat: '#d4a75c', sock: '#d4a75c', ash: '#eee2c8', ashAlt: '#e0d2b2', brow: '#14100c', tip: '#14100c', mane: '#1d1712' },
+      torso, torsoCaps: { back: [0, -0.70, Z], tip: [0, 0.50, Z - 0.02] },
+      joints: {
+        neckBase: [0, 0.40, 0.90], neckTop: [0, 0.64, 1.00],
+        shoulder: [0.12, 0.34, 0.86], elbow: [0.13, 0.28, 0.52], carpus: [0.12, 0.33, 0.14], forePaw: [0.12, 0.35, 0.06], foreToe: [0.12, 0.45, 0.05],
+        hip: [0.10, -0.46, 0.86], stifle: [0.13, -0.26, 0.54], hock: [0.12, -0.58, 0.24], hindPaw: [0.12, -0.53, 0.06], hindToe: [0.12, -0.43, 0.05],
+      },
+      neckRA: [0.11, 0.15], neckRB: [0.075, 0.085], neckRMid: [0.09, 0.11],
+      tail: null, tip: null,
+      extraSegments: [
+        coatShell('spots', torso, { ys, pick: spotty(0.3, 5) }),
+        ringedTail([[0, -0.60, 0.88, 0.04], [0, -0.74, 0.78, 0.038], [0, -0.80, 0.60, 0.036], [0, -0.86, 0.44, 0.034], [0, -0.90, 0.32, 0.032], [0, -0.95, 0.22, 0.031], [0, -1.02, 0.17, 0.03], [0, -1.09, 0.17, 0.03], [0, -1.15, 0.20, 0.03], [0, -1.20, 0.25, 0.028]], 4,
+          { back: [0, -0.56, 0.90], tip: [0, -1.23, 0.29] }),
+      ],
+      // the TEAR MARKS: the brow-cheek and cheek-jowl slots dark from the eye band down to the muzzle
+      craniumBandGroups: {
+        'st3-st4': ['Snout', 'Snout', 'Brow', 'Cheek', 'Jowl', 'Palate'],
+        'st4-st5': ['Snout', 'Snout', 'Snout', 'Brow', 'Jowl', 'Palate'],
+      },
+      headScale: 0.9, muzzleW: 1.05, muzzleLen: 0.6, earH: 0.75, earR: [0.034, 0.036, 0.03, 0.018],
+    };
+  })(),
 };

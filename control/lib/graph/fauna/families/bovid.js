@@ -146,6 +146,13 @@ export const species = {
     tip: [[0, -0.81, 0.97, 0.03], [0, -0.815, 0.90, 0.035], [0, -0.815, 0.86, 0.02]],
     tipCaps: { back: [0, -0.81, 0.99], tip: [0, -0.815, 0.84] },
     extraSegments: [],
+    // the coat pattern (markings channel, painted on the trunk's own faces): the black flank stripe low along the
+    // side, the white belly below it
+    markDensity: { torso: 2 },
+    markings: [
+      { on: 'torso', kind: 'band', run: [0.12, 0.92], t: [0.5, 0.64], group: 'Stripe', color: '#2a1e16' },
+      { on: 'torso', kind: 'belly', from: 0.64, group: 'Belly', color: '#efe8da' },
+    ],
     headScale: 0.62, muzzleW: 0.55, muzzleLen: 1.15, earH: 0.6, earR: [0.025, 0.035, 0.03, 0.012], earSquash: [1, 0.35], noseR: [0.03, 0.02], eyeR: 0.022,
     headOrnaments: [
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.02, -0.04, 0.10], [0.06, -0.12, 0.22], [0.09, -0.20, 0.34], [0.10, -0.20, 0.46], [0.08, -0.12, 0.56], [0.07, -0.06, 0.60]], radii: [0.022, 0.019, 0.016, 0.012, 0.008, 0.004], m: 8, group: 'Horn' },
@@ -173,6 +180,10 @@ export const species = {
     tip: [[0, -1.06, 1.11, 0.045], [0, -1.065, 1.04, 0.05], [0, -1.065, 1.0, 0.03]],
     tipCaps: { back: [0, -1.06, 1.13], tip: [0, -1.065, 0.98] },
     extraSegments: [],
+    // the pale RUMP PATCH round the tail (markings channel): the trunk's rear disc and its last band, the tail too
+    tailGroup: 'Rump',
+    markDensity: { torso: 2 },
+    markings: [{ on: 'torso', kind: 'band', run: [0, 0.1], t: [0.15, 1], caps: ['back'], group: 'Rump', color: '#e6dcc6' }],
     headOrnaments: [
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.06, -0.06, 0.06], [0.14, -0.16, 0.07], [0.22, -0.21, -0.03], [0.28, -0.15, -0.16], [0.30, -0.03, -0.21], [0.30, 0.07, -0.13], [0.28, 0.10, -0.03]], radii: [0.09, 0.082, 0.072, 0.06, 0.046, 0.032, 0.016], m: 8, group: 'Horn' },
     ],
@@ -236,5 +247,87 @@ export const species = {
       { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.04, -0.06, 0.10], [0.06, -0.10, 0.20], [0.08, -0.18, 0.28], [0.10, -0.28, 0.31], [0.11, -0.37, 0.29]], radii: [0.032, 0.028, 0.022, 0.014, 0.004], m: 8, group: 'Horn' },
       { kind: 'sweep', name: 'beard', at: [3.5, 3.0], space: 'head', spine: [[0.004, 0.13, -0.36], [0.004, 0.13, -0.43], [0.004, 0.12, -0.50]], radii: [0.022, 0.018, 0.004], m: 8, group: 'Mane' },
     ],
+  },
+
+  // AMERICAN BISON (Bison bison, bull) — Thesis: a front-heavy wedge: a MASSIVE shoulder hump high over the forelegs,
+  // the back line falling steeply to a small narrow rump, on short legs, cloven hooves · the huge head carried LOW,
+  // below the back line, broad-faced with a beard · ONE/TWO signatures: the hump, and the SHAGGY dark forequarters
+  // (cape, neck, upper forelegs) against a shorter-haired lighter hind half · short black horns curving up and in ·
+  // 1.80 m at the withers (published bull shoulder height 1.67–1.86 m; NPS Yellowstone / ADW).
+  bison: {
+    family: 'bovid', name: 'an American bison', scale: 1,
+    colors: { coat: '#6a4a30', sock: '#3a2818', ash: '#3e2a1c', ashAlt: '#3a2618', snout: '#2e2016', brow: '#22180f', mane: '#33231a', horn: '#1e1814', tip: '#33231a', hoof: '#1a1612' },
+    joints: {
+      neckBase: [0, 0.62, 1.10], neckTop: [0, 0.98, 0.86],
+      dewlapA: [0, 0.80, 0.70], dewlapB: [0, 1.02, 0.66],
+    },
+    torsoUp: true,
+    torso: [
+      { at: [0, -0.95, 1.0], r: [0.22, 0.26] },
+      { at: [0, -0.82, 1.0], r: [0.30, 0.34], top: 0.02 },
+      { at: [0, -0.45, 1.0], r: [0.35, 0.38], top: 0.10 },
+      { at: [0, -0.05, 1.0], r: [0.40, 0.42], top: 0.24 },
+      { at: [0, 0.30, 1.0], r: [0.42, 0.45], top: 0.36 },
+      { at: [0, 0.62, 1.0], r: [0.36, 0.42], top: 0.22 },
+    ],
+    torsoCaps: { back: [0, -1.02, 1.04], tip: [0, 0.80, 1.0] },
+    neckRA: [0.32, 0.40], neckRB: [0.26, 0.30], neckRMid: [0.29, 0.36],
+    legBulk: 1.35, headScale: 1.25, muzzleW: 1.15, muzzleLen: 0.75, headPitch: -20,
+    earR: [0.03, 0.045, 0.04, 0.02], earH: 0.6,
+    tail: [[0, -0.96, 1.20, 0.04], [0, -1.02, 1.10, 0.03], [0, -1.04, 0.90, 0.022]],
+    tip: [[0, -1.04, 0.92, 0.03], [0, -1.045, 0.80, 0.05], [0, -1.045, 0.70, 0.025]],
+    tipCaps: { back: [0, -1.04, 0.95], tip: [0, -1.045, 0.67] },
+    // the shaggy forequarters: a dark wool cape over the hump, shoulders and neck, and woolly upper forelegs
+    extraSegments: [
+      { name: 'cape', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', up: true,
+        stations: [{ at: [0, -0.15, 1.12], r: [0.41, 0.40] }, { at: [0, 0.20, 1.20], r: [0.46, 0.56] }, { at: [0, 0.55, 1.12], r: [0.42, 0.52] }, { at: [0, 0.85, 0.98], r: [0.34, 0.40] }],
+        caps: { back: [0, -0.25, 1.12], tip: [0, 0.95, 0.94] } },
+      { name: 'chapsR', kind: 'segment', from: 'shoulder', to: 'carpus', rA: [0.20, 0.24], rB: [0.10, 0.12], rMid: [0.17, 0.20], slots: 'ring12', group: 'Mane', mirror: 'name', over: [0.3, 0.2] },
+      { name: 'dewlap', kind: 'segment', from: 'dewlapA', to: 'dewlapB', rA: [0.08, 0.14], rB: [0.05, 0.08], rMid: [0.07, 0.16], slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.3, 0.3] },
+    ],
+    headOrnaments: [
+      { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.10, -0.08, 0.10], [0.17, -0.08, 0.12], [0.21, -0.06, 0.17], [0.20, -0.03, 0.22]], radii: [0.04, 0.032, 0.02, 0.006], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'beard', at: [3.5, 3.0], space: 'head', spine: [[0.004, 0.10, -0.30], [0.004, 0.08, -0.42], [0.004, 0.05, -0.52]], radii: [0.06, 0.05, 0.015], m: 8, group: 'Mane' },
+    ],
+  },
+
+  // HOLSTEIN DAIRY COW (Bos taurus, Holstein-Friesian) — Thesis: a big ANGULAR wedge-shaped frame: a level back,
+  // the hip bones (hooks) and pin bones jutting at the rump, a lean neck, little flesh over the ribs, on long clean
+  // legs, cloven hooves · a polled lean head · ONE/TWO signatures: the large UDDER with four teats between the hind
+  // legs, and the black-and-white coat (no markings channel in build.js: the coat is black with white belly, legs,
+  // face blaze and tail switch, not patches) · 1.45 m at the withers (published mature Holstein cow ~1.45–1.50 m;
+  // Holstein Association USA / Oklahoma State Breeds of Livestock).
+  dairyCow: {
+    family: 'bovid', name: 'a Holstein dairy cow', scale: 1,
+    colors: { coat: '#1a1818', sock: '#f2efe8', ash: '#1a1818', ashAlt: '#222020', snout: '#f2efe8', brow: '#111010', belly: '#f2efe8', tip: '#f2efe8', hoof: '#3a3430', nose: '#c89a94', mane: '#e8b0a8' },
+    joints: {
+      neckBase: [0, 0.55, 1.14], neckTop: [0, 1.02, 1.24],
+      hookR: [0.24, -0.62, 1.40], hookR2: [0.27, -0.62, 1.36], pinR: [0.09, -1.02, 1.30], pinR2: [0.10, -1.08, 1.27],
+      udderA: [0, -0.62, 0.78], udderB: [0, -0.60, 0.56],
+      teatR: [0.07, -0.53, 0.56], teatTipR: [0.075, -0.53, 0.47], teatBR: [0.07, -0.70, 0.56], teatBTipR: [0.075, -0.70, 0.47],
+    },
+    torso: [
+      { at: [0, -1.02, 1.06], r: [0.22, 0.28] },
+      { at: [0, -0.85, 1.06], r: [0.30, 0.34] },
+      { at: [0, -0.50, 1.04], r: [0.34, 0.38] },
+      { at: [0, -0.10, 1.04], r: [0.38, 0.40] },
+      { at: [0, 0.30, 1.04], r: [0.33, 0.40] },
+      { at: [0, 0.62, 1.04], r: [0.25, 0.36] },
+    ],
+    torsoCaps: { back: [0, -1.10, 1.10], tip: [0, 0.78, 1.0] },
+    neckRA: [0.20, 0.30], neckRB: [0.15, 0.20], neckRMid: [0.16, 0.24],
+    legBulk: 1.0, headScale: 0.95, muzzleW: 1.0, muzzleLen: 0.95,
+    // the face white (a blaze down the front of the face), the poll and cheeks black
+    craniumBandGroups: Object.fromEntries(['st2-st3', 'st3-st4', 'st4-st5', 'st5-st6'].map((b) => [b, ['Snout', 'Snout', 'Skull', 'Cheek', 'Jowl', 'Palate']])),
+    extraSegments: [
+      // hooks and pins: the hip bones jutting at the rump corners (angular dairy frame)
+      { name: 'hookBoneR', kind: 'segment', from: 'hookR', to: 'hookR2', rA: 0.07, rB: 0.06, slots: 'ring12', group: 'Coat', mirror: 'name', over: [0.5, 0.5] },
+      { name: 'pinBoneR', kind: 'segment', from: 'pinR', to: 'pinR2', rA: 0.05, rB: 0.04, slots: 'ring12', group: 'Coat', mirror: 'name', over: [0.5, 0.5] },
+      // the udder: a big rounded bag between the hind legs, four teats below
+      { name: 'udder', kind: 'segment', from: 'udderA', to: 'udderB', rA: [0.16, 0.20], rB: [0.15, 0.17], rMid: [0.19, 0.22], slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.3, 0.5] },
+      { name: 'teatR', kind: 'segment', from: 'teatR', to: 'teatTipR', rA: 0.022, rB: 0.016, slots: 'ring12', group: 'Mane', mirror: 'name', over: [0.3, 0.4] },
+      { name: 'teatBR', kind: 'segment', from: 'teatBR', to: 'teatBTipR', rA: 0.022, rB: 0.016, slots: 'ring12', group: 'Mane', mirror: 'name', over: [0.3, 0.4] },
+    ],
+    headOrnaments: [],
   },
 };

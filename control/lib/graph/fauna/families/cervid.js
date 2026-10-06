@@ -117,4 +117,43 @@ export const species = {
     family: 'cervid', name: 'a white-tailed doe', scale: 0.86,
     neckRA: [0.085, 0.125], neckRB: [0.055, 0.072], neckRMid: [0.066, 0.088],
   },
+  // MOOSE (Alces alces, bull) — Thesis: a short deep trunk HUMPED high over the shoulders and sloping to a lower
+  // rump, on VERY long legs, cloven hooves · a short thick neck carrying a long heavy head LOW, the muzzle a bulbous
+  // overhanging bell-nose · ONE/TWO signatures: broad flat PALMATE antlers out sideways, and the dewlap ("bell")
+  // hanging from the throat · dark brown, pale lower legs · 1.90 m at the withers (published bull shoulder height
+  // 1.8–2.1 m; ADW / Alaska Dept. of Fish & Game). Authored at buck units and scaled up.
+  moose: {
+    family: 'cervid', name: 'a bull moose', scale: 2.0,
+    colors: { coat: '#3e2e22', sock: '#9c8a74', ash: '#4a382a', ashAlt: '#45342a', belly: '#3a2a20', brow: '#2a1e16', tip: '#3e2e22', horn: '#b8a07a', nose: '#1e1612' },
+    joints: {
+      neckBase: [0, 0.32, 0.86], neckTop: [0, 0.50, 0.90],
+      throatA: [0, 0.44, 0.80], throatB: [0, 0.50, 0.84],
+      shoulder: [0.10, 0.30, 0.78], elbow: [0.105, 0.25, 0.56], carpus: [0.095, 0.29, 0.30], foreFetlock: [0.09, 0.30, 0.085], foreCoronet: [0.09, 0.33, 0.035], foreToe: [0.09, 0.38, 0.012],
+      hip: [0.085, -0.36, 0.76], stifle: [0.105, -0.22, 0.56], hock: [0.095, -0.44, 0.40], hindFetlock: [0.09, -0.415, 0.085], hindCoronet: [0.09, -0.39, 0.035], hindToe: [0.09, -0.34, 0.012],
+      bellA: [0, 0.55, 0.86], bellB: [0, 0.57, 0.64],
+    },
+    // short trunk, deep in front; `top` lifts the back over the shoulders (the hump) and lets the rump fall
+    torso: [
+      { at: [0, -0.52, 0.74], r: [0.08, 0.09] },
+      { at: [0, -0.40, 0.74], r: [0.115, 0.15] },
+      { at: [0, -0.20, 0.74], r: [0.12, 0.155], top: 0.01 },
+      { at: [0, 0.04, 0.74], r: [0.13, 0.18], top: 0.05 },
+      { at: [0, 0.22, 0.74], r: [0.13, 0.20], top: 0.08 },
+      { at: [0, 0.36, 0.74], r: [0.11, 0.16], top: 0.04 },
+    ],
+    torsoCaps: { back: [0, -0.58, 0.76], tip: [0, 0.44, 0.75] },
+    neckRA: [0.11, 0.16], neckRB: [0.08, 0.10], neckRMid: [0.09, 0.13],
+    tail: [[0, -0.55, 0.80, 0.02], [0, -0.58, 0.78, 0.025], [0, -0.60, 0.74, 0.02]],
+    tip: null,
+    headScale: 1.4, muzzleW: 2.3, muzzleLen: 1.0, headPitch: -25, earH: 0.9, noseR: [0.03, 0.022],
+    extraSegments: [
+      // the bell: a hanging flap of skin and hair under the throat
+      { name: 'bell', kind: 'segment', from: 'bellA', to: 'bellB', rA: [0.012, 0.03], rB: [0.008, 0.015], rMid: [0.012, 0.03], slots: 'ring12', group: 'Coat', mirror: 'plane', over: [0.3, 0.3] },
+    ],
+    headOrnaments: [
+      // a short beam straight out sideways from the poll, then a broad flat palm (a flattened sweep) fanning back and up
+      { kind: 'sweep', name: 'antlerBeam', at: [1.0, 1.0], space: 'head', spine: [[0, 0, -0.005], [0.06, -0.01, 0.05], [0.12, -0.02, 0.08]], radii: [0.022, 0.02, 0.018], m: 6, group: 'Horn' },
+      { kind: 'sweep', name: 'antlerPalm', at: [1.0, 1.0], space: 'head', spine: [[0, 0, -0.005], [0.06, -0.01, 0.05], [0.13, -0.02, 0.09], [0.22, -0.04, 0.12], [0.31, -0.04, 0.15], [0.37, -0.03, 0.19]], radii: [0.02, 0.02, 0.06, 0.09, 0.08, 0.04], squash: [0.2, 1], m: 8, group: 'Horn' },
+    ],
+  },
 };

@@ -249,4 +249,295 @@ export const species = {
         CovertA: '#7a6650', CovertB: '#86715a', CovertC: '#6b5845', CovertTip: '#c9b99c', CovertUnder: '#c2b49a',
         LesserA: '#7d6a55', LesserB: '#8a765f', LesserC: '#6f5c48', LesserTip: '#b9a98d' } },
   },
+
+  // CHICKEN, a brown laying HEN (Gallus gallus domesticus). Thesis: a PLUMP egg-shaped body tilted a little nose-up on
+  // short bare YELLOW legs, four toes (three forward), blunt claws · a small head with a short conical yellow bill ·
+  // a red serrated COMB on the crown and two red WATTLES under the bill, red bare face · an UPRIGHT, laterally flat
+  // tail fan rising behind · short wings folded flat on the sides · red-brown plumage. Size: a standard hen (e.g.
+  // Rhode Island Red, ~2.9 kg) stands ~40 cm to the top of the comb (poultry breed standards; Wikipedia "Chicken"
+  // gives cock 3–4 kg, hen ~2.5 kg); height target 0.40 m. Authored at size.
+  chicken: {
+    family: 'avian', name: 'a chicken (hen)', torsoUp: true, scale: 1,
+    colors: { coat: '#8a4a24', sock: '#e0b23a', ash: '#a85f30', ashAlt: '#9a5428', belly: '#8a4a24', ears: '#c8302a', snout: '#e0b23a',
+      brow: '#8a4a24', iris: '#d98a1e', sclera: '#d98a1e', nose: '#e0b23a', tip: '#5e3018', hoof: '#c9a14a', mane: '#a85f30',
+      lids: '#c8302a', pad: '#c8302a', folds: '#c8302a' },
+    headPalette: { Comb: '#c8202a', LidRim: '#c8302a' },
+    joints: { neckBase: [0, 0.09, 0.29], neckTop: [0, 0.11, 0.36], wingRoot: [0.08, 0.04, 0.27],
+      hip: [0.05, -0.02, 0.17], knee: [0.06, 0.04, 0.11], ankle: [0.05, 0.0, 0.025],
+      toeF: [0.05, 0.075, 0.008], toeI: [0.02, 0.06, 0.008], toeO: [0.085, 0.055, 0.008], toeB: [0.05, -0.035, 0.008],
+      clawF: [0.05, 0.09, 0.003], clawI: [0.013, 0.072, 0.003], clawO: [0.095, 0.066, 0.003], clawB: [0.05, -0.048, 0.003] },
+    torso: [
+      { at: [0, -0.15, 0.22], r: [0.06, 0.05] },
+      { at: [0, -0.10, 0.225], r: [0.11, 0.10] },
+      { at: [0, -0.02, 0.235], r: [0.125, 0.12] },
+      { at: [0, 0.06, 0.255], r: [0.11, 0.11] },
+      { at: [0, 0.10, 0.285], r: [0.07, 0.07] },
+    ],
+    torsoCaps: { back: [0, -0.18, 0.22], tip: [0, 0.12, 0.31] },
+    neckRA: [0.06, 0.06], neckRB: [0.028, 0.028], neckRMid: [0.037, 0.037], neckGroup: 'Coat',
+    tail: [[0, -0.15, 0.26, [0.018, 0.06]], [0, -0.17, 0.31, [0.015, 0.075]], [0, -0.18, 0.37, [0.012, 0.08]]],
+    tip: [[0, -0.178, 0.365, [0.012, 0.08]], [0, -0.183, 0.40, [0.01, 0.065]], [0, -0.185, 0.43, [0.006, 0.04]]],
+    tipCaps: { back: [0, -0.175, 0.35], tip: [0, -0.186, 0.44] },
+    legs: [
+      ['thighR', 'hip', 'knee', [0.04, 0.045], [0.03, 0.03], 'Coat', [0.4, 0.4]],
+      ['tarsusR', 'knee', 'ankle', 0.012, 0.011, 'Sock', [0.4, 0.4]],
+      ['toeFR', 'ankle', 'toeF', 0.008, 0.006, 'Sock', [0.4, 0.4]],
+      ['toeIR', 'ankle', 'toeI', 0.007, 0.006, 'Sock', [0.4, 0.4]],
+      ['toeOR', 'ankle', 'toeO', 0.007, 0.006, 'Sock', [0.4, 0.4]],
+      ['toeBR', 'ankle', 'toeB', 0.007, 0.006, 'Sock', [0.4, 0.4]],
+      ['clawFR', 'toeF', 'clawF', 0.005, 0.002, 'Hoof', [0.3, 0.3]],
+      ['clawIR', 'toeI', 'clawI', 0.005, 0.002, 'Hoof', [0.3, 0.3]],
+      ['clawOR', 'toeO', 'clawO', 0.005, 0.002, 'Hoof', [0.3, 0.3]],
+      ['clawBR', 'toeB', 'clawB', 0.005, 0.002, 'Hoof', [0.3, 0.3]],
+    ],
+    // a small skull (st0–st3), a SHORT CONICAL bill (st3–st6), no hook
+    craniumRows: [
+      ['st0', -0.05, 0.03, [0.015, 0.028], [0.03, 0.012], [0.032, -0.006], [0.026, -0.02], [0.018, -0.027], -0.03],
+      ['st1', -0.02, 0.04, [0.02, 0.038], [0.035, 0.018], [0.037, -0.003], [0.03, -0.019], [0.02, -0.027], -0.029],
+      ['st2', 0.01, 0.036, [0.018, 0.034], [0.032, 0.014], [0.033, -0.005], [0.027, -0.018], [0.018, -0.025], -0.027],
+      ['st3', 0.035, 0.022, [0.012, 0.02], [0.018, 0.008], [0.019, -0.006], [0.016, -0.015], [0.012, -0.02], -0.022],
+      ['st4', 0.055, 0.012, [0.007, 0.011], [0.011, 0.003], [0.011, -0.007], [0.009, -0.013], [0.007, -0.017], -0.018],
+      ['st5', 0.072, 0.003, [0.004, 0.002], [0.006, -0.003], [0.006, -0.009], [0.005, -0.013], [0.004, -0.015], -0.016],
+      ['st6', 0.083, -0.006, [0.002, -0.007], [0.003, -0.009], [0.003, -0.012], [0.002, -0.014], [0.002, -0.015], -0.016],
+    ],
+    craniumCaps: { back: [0, -0.065, 0.0], tip: [0, 0.088, -0.012] },
+    craniumBandGroups: { 'st0-st1': band('Skull'), 'st1-st2': ['Skull', 'Skull', 'Ears', 'Ears', 'Ears', 'Ears'], 'st2-st3': ['Skull', 'Skull', 'Ears', 'Ears', 'Ears', 'Ears'] },
+    jawRows: [
+      ['st0', 0.03, { gum: -0.022, gumR: [0.012, -0.022], jaw: [0.012, -0.027], bottom: -0.03 }],
+      ['st1', 0.05, { gum: -0.018, gumR: [0.008, -0.018], jaw: [0.008, -0.022], bottom: -0.024 }],
+      ['st2', 0.065, { gum: -0.016, gumR: [0.005, -0.016], jaw: [0.005, -0.019], bottom: -0.02 }],
+      ['st3', 0.076, { gum: -0.015, gumR: [0.003, -0.015], jaw: [0.003, -0.017], bottom: -0.018 }],
+    ],
+    jawCaps: { back: [0, 0.02, -0.025], tip: [0, 0.08, -0.016] },
+    headScale: 0.6, eyeAt: [2.3, 2.3], eyeR: 0.01,
+    // the COMB: three flat lobes standing on the crown midline; the WATTLES: two lobes hanging under the bill base
+    headOrnaments: [
+      ...[[0.6, 0.018], [1.4, 0.024], [2.2, 0.021], [2.9, 0.014]].map(([r, h], i) => ({ kind: 'sweep', name: `comb${i}`, at: [r, 0], space: 'local',
+        spine: [[0, 0, -0.004], [0, 0, h * 0.6], [0, 0, h]], radii: [0.009, 0.008, 0.005, 0.001], m: 8, squash: [0.3, 1], group: 'Comb' })),
+      { kind: 'sweep', name: 'wattle', at: [3.1, 5.5], space: 'local', spine: [[0, 0, -0.004], [0, 0.004, 0.015], [0, 0.002, 0.026]], radii: [0.008, 0.011, 0.009, 0.002], m: 8, squash: [0.5, 1], group: 'Comb' },
+    ],
+    bodyTiles: [],
+    wings: { coreFit: true, pitch: 15,
+      wing: featherWing({ arm: [0.07, 0.1, 0.07], secondaries: 12, secLen: 0.14, primLen: 0.15, primReach: 0.03, slotFrom: 0.9, slotBy: 0.1, width: 0.04,
+        tertialLen: 0.35, tertialWidth: 0.4, boneR: 0.4 }),
+      palette: { WingBone: '#8a4a24', FlightA: '#6e3a1c', FlightB: '#7a4220', FlightC: '#5e3018', FlightUnder: '#a06a40',
+        CovertA: '#9a5428', CovertB: '#a85f30', CovertC: '#8a4a24', CovertTip: '#9a5428', CovertUnder: '#a06a40',
+        LesserA: '#a85f30', LesserB: '#b06838', LesserC: '#9a5428', LesserTip: '#a85f30' } },
+  },
+  // MALLARD drake (Anas platyrhynchos). Thesis: a LOW, LEVEL boat-shaped body on very short legs set far back · bare
+  // ORANGE WEBBED feet, three front toes joined by the web · a rounded GLOSSY GREEN head on a short neck · a FLAT,
+  // BROAD, spatulate YELLOW bill as long as the skull · a short upcurled tail · wings folded along the back · grey
+  // body. Size: published length 50–65 cm, span 81–98 cm (Wikipedia, "Mallard"); standing, head top ~0.30 m (height
+  // target). Authored at size.
+  mallard: {
+    family: 'avian', name: 'a mallard (drake)', scale: 1,
+    colors: { coat: '#9c9a94', sock: '#e8842a', ash: '#1f5a3a', ashAlt: '#1f5a3a', belly: '#b9b6ae', ears: '#1f5a3a', snout: '#d8be3a',
+      brow: '#1f5a3a', iris: '#3a2412', sclera: '#3a2412', nose: '#d8be3a', tip: '#1a1a1a', hoof: '#c86a20', mane: '#1f5a3a',
+      lids: '#1f5a3a', pad: '#1f5a3a', folds: '#1f5a3a', skull: '#1f5a3a' },
+    headPalette: { Skull: '#1f5a3a', Jaw: '#d8be3a', LidRim: '#1f5a3a' },
+    joints: { neckBase: [0, 0.12, 0.18], neckTop: [0, 0.145, 0.245], wingRoot: [0.07, 0.08, 0.20],
+      hip: [0.05, -0.04, 0.10], knee: [0.06, 0.0, 0.07], ankle: [0.05, -0.01, 0.02],
+      toeF: [0.05, 0.065, 0.005], toeI: [0.015, 0.05, 0.005], toeO: [0.09, 0.045, 0.005], toeB: [0.05, -0.025, 0.01],
+      clawF: [0.05, 0.072, 0.003], clawI: [0.01, 0.056, 0.003], clawO: [0.096, 0.051, 0.003], clawB: [0.05, -0.03, 0.008] },
+    torso: [
+      { at: [0, -0.20, 0.15], r: [0.06, 0.05] },
+      { at: [0, -0.12, 0.15], r: [0.10, 0.08] },
+      { at: [0, -0.02, 0.15], r: [0.11, 0.09] },
+      { at: [0, 0.08, 0.15], r: [0.10, 0.085] },
+      { at: [0, 0.14, 0.15], r: [0.07, 0.07] },
+    ],
+    torsoCaps: { back: [0, -0.25, 0.16], tip: [0, 0.18, 0.16] },
+    neckRA: [0.045, 0.045], neckRB: [0.028, 0.028], neckRMid: [0.031, 0.031], neckGroup: 'Mane',
+    tail: [[0, -0.22, 0.17, [0.05, 0.02]], [0, -0.27, 0.18, [0.045, 0.015]], [0, -0.30, 0.19, [0.035, 0.01]]],
+    tip: [[0, -0.295, 0.19, [0.02, 0.01]], [0, -0.30, 0.21, [0.012, 0.008]], [0, -0.29, 0.225, [0.006, 0.005]]],
+    tipCaps: { back: [0, -0.29, 0.185], tip: [0, -0.285, 0.23] },
+    legs: [
+      ['thighR', 'hip', 'knee', [0.03, 0.035], [0.022, 0.022], 'Coat', [0.4, 0.4]],
+      ['tarsusR', 'knee', 'ankle', 0.01, 0.009, 'Sock', [0.4, 0.4]],
+      ['toeFR', 'ankle', 'toeF', 0.006, 0.005, 'Sock', [0.4, 0.4]],
+      ['toeIR', 'ankle', 'toeI', 0.005, 0.004, 'Sock', [0.4, 0.4]],
+      ['toeOR', 'ankle', 'toeO', 0.005, 0.004, 'Sock', [0.4, 0.4]],
+      ['toeBR', 'ankle', 'toeB', 0.004, 0.003, 'Sock', [0.4, 0.4]],
+      // the WEB: a flat paddle (stable ring frame, thin vertically) from the ankle fanning out to the front toes
+      ['paddleR', 'ankle', 'toeF', [0.008, 0.002], [0.04, 0.002], 'Sock', [0.2, 0.1], null, { up: [0, 0, 1] }],
+      ['clawFR', 'toeF', 'clawF', 0.004, 0.002, 'Hoof', [0.3, 0.3]],
+      ['clawIR', 'toeI', 'clawI', 0.004, 0.002, 'Hoof', [0.3, 0.3]],
+      ['clawOR', 'toeO', 'clawO', 0.004, 0.002, 'Hoof', [0.3, 0.3]],
+      ['clawBR', 'toeB', 'clawB', 0.003, 0.002, 'Hoof', [0.3, 0.3]],
+    ],
+    // a rounded skull (st0–st2) and a FLAT, BROAD bill (st3–st6): wide at the sides, thin top to bottom, spatulate tip
+    craniumRows: [
+      ['st0', -0.03, 0.025, [0.015, 0.024], [0.024, 0.012], [0.026, -0.004], [0.02, -0.016], [0.012, -0.022], -0.024],
+      ['st1', -0.005, 0.03, [0.018, 0.028], [0.026, 0.014], [0.027, -0.004], [0.021, -0.016], [0.013, -0.021], -0.023],
+      ['st2', 0.02, 0.026, [0.016, 0.024], [0.023, 0.011], [0.024, -0.005], [0.019, -0.014], [0.012, -0.018], -0.02],
+      ['st3', 0.035, 0.012, [0.0144, 0.011], [0.0204, 0.004], [0.0204, -0.004], [0.018, -0.008], [0.0144, -0.01], -0.011],
+      ['st4', 0.055, 0.006, [0.0144, 0.005], [0.0192, 0.001], [0.0192, -0.003], [0.0168, -0.006], [0.0132, -0.008], -0.008],
+      ['st5', 0.075, 0.002, [0.0156, 0.001], [0.0204, -0.002], [0.0204, -0.005], [0.018, -0.007], [0.0144, -0.008], -0.008],
+      ['st6', 0.088, -0.001, [0.0144, -0.002], [0.018, -0.004], [0.018, -0.006], [0.0156, -0.007], [0.0132, -0.008], -0.008],
+    ],
+    craniumCaps: { back: [0, -0.042, 0.0], tip: [0, 0.091, -0.004] },
+    jawRows: [
+      ['st0', 0.03, { gum: -0.011, gumR: [0.014, -0.011], jaw: [0.013, -0.014], bottom: -0.016 }],
+      ['st1', 0.055, { gum: -0.008, gumR: [0.014, -0.008], jaw: [0.013, -0.011], bottom: -0.012 }],
+      ['st2', 0.075, { gum: -0.008, gumR: [0.013, -0.008], jaw: [0.012, -0.01], bottom: -0.011 }],
+      ['st3', 0.086, { gum: -0.008, gumR: [0.009, -0.008], jaw: [0.008, -0.009], bottom: -0.01 }],
+    ],
+    jawCaps: { back: [0, 0.02, -0.014], tip: [0, 0.09, -0.009] },
+    headScale: 1, nape: [0, -0.03, -0.01], eyeAt: [1.8, 2.3], eyeR: 0.005,
+    browStrip: [[1.0, 1.95], [1.25, 1.95], [1.5, 2.0], [1.75, 2.1], [2.0, 2.25]],
+    nostrilAt: [3.6, 1.2], noseAt: [3.6, 1.2], noseR: [0.002, 0.002],
+    bodyTiles: [],
+    wings: { coreFit: true, pitch: 4,
+      wing: featherWing({ arm: [0.08, 0.12, 0.08], secondaries: 12, secLen: 0.15, primLen: 0.17, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1, width: 0.04,
+        tertialLen: 0.4, tertialWidth: 0.45, boneR: 0.4 }),
+      palette: { WingBone: '#7d776c', FlightA: '#6a6359', FlightB: '#5e584f', FlightC: '#746d62', FlightUnder: '#c9c6bf',
+        CovertA: '#8a847a', CovertB: '#948e84', CovertC: '#7d776c', CovertTip: '#3a4fa0', CovertUnder: '#c9c6bf',
+        LesserA: '#8f897f', LesserB: '#99938a', LesserC: '#857f75', LesserTip: '#8f897f' } },
+  },
+  // EMPEROR PENGUIN (Aptenodytes forsteri). Thesis: a TALL UPRIGHT torpedo standing on its heels, no visible legs, short
+  // black feet flat on the ice and a stiff short tail touching behind · stiff narrow FLIPPERS hanging at the sides in
+  // place of feathered wings · BLACK back, head and flippers, WHITE front, a YELLOW-ORANGE ear patch on each side of
+  // the neck · a long slim slightly decurved bill with an orange lower plate. Size: published standing height
+  // 100–122 cm, ~1.15 m typical (Wikipedia, "Emperor penguin"); height target 1.10 m. Authored at ~1.0 and scaled.
+  emperorPenguin: {
+    family: 'avian', name: 'an emperor penguin', torsoUp: true, scale: 1.12,
+    colors: { coat: '#f2f0ea', sock: '#1a1a1c', ash: '#141416', ashAlt: '#141416', belly: '#141416', ears: '#141416', snout: '#1a1a1c',
+      brow: '#141416', iris: '#2a1a12', sclera: '#2a1a12', nose: '#1a1a1c', tip: '#141416', hoof: '#0e0e10', mane: '#141416',
+      lids: '#141416', pad: '#141416', folds: '#141416', skull: '#141416' },
+    headPalette: { Skull: '#141416', Jaw: '#e8823a', LidRim: '#141416', Patch: '#f2b830' },
+    joints: { neckBase: [0, 0.02, 0.80], neckTop: [0, 0.06, 0.90], wingRoot: [0.15, 0.0, 0.66],
+      flipperRoot: [0.17, -0.01, 0.68], flipperTip: [0.215, -0.04, 0.30],
+      hip: [0.08, -0.02, 0.12], knee: [0.09, 0.03, 0.05], ankle: [0.08, 0.04, 0.018],
+      toeF: [0.08, 0.13, 0.008], toeI: [0.05, 0.12, 0.008], toeO: [0.11, 0.11, 0.008], toeB: [0.08, 0.0, 0.008],
+      clawF: [0.08, 0.145, 0.004], clawI: [0.045, 0.133, 0.004], clawO: [0.12, 0.122, 0.004], clawB: [0.08, -0.01, 0.004] },
+    torso: [
+      { at: [0, -0.05, 0.10], r: [0.12, 0.10] },
+      { at: [0, -0.03, 0.28], r: [0.22, 0.19] },
+      { at: [0, -0.01, 0.48], r: [0.19, 0.17] },
+      { at: [0, 0.01, 0.66], r: [0.15, 0.13] },
+      { at: [0, 0.03, 0.80], r: [0.10, 0.09] },
+    ],
+    torsoCaps: { back: [0, -0.07, 0.04], tip: [0, 0.04, 0.86] },
+    neckRA: [0.1, 0.09], neckRB: [0.06, 0.06], neckRMid: [0.075, 0.075], neckGroup: 'Mane',
+    tail: [[0, -0.14, 0.14, [0.06, 0.02]], [0, -0.19, 0.08, [0.05, 0.015]], [0, -0.22, 0.03, [0.035, 0.01]]],
+    tip: [[0, -0.215, 0.035, [0.03, 0.01]], [0, -0.23, 0.015, [0.02, 0.008]], [0, -0.235, 0.008, [0.01, 0.005]]],
+    tipCaps: { back: [0, -0.21, 0.04], tip: [0, -0.238, 0.005] },
+    legs: [
+      ['thighR', 'hip', 'knee', [0.045, 0.05], [0.035, 0.035], 'Sock', [0.4, 0.4]],
+      ['tarsusR', 'knee', 'ankle', 0.025, 0.022, 'Sock', [0.4, 0.4]],
+      ['toeFR', 'ankle', 'toeF', 0.016, 0.01, 'Sock', [0.4, 0.4]],
+      ['toeIR', 'ankle', 'toeI', 0.014, 0.009, 'Sock', [0.4, 0.4]],
+      ['toeOR', 'ankle', 'toeO', 0.014, 0.009, 'Sock', [0.4, 0.4]],
+      ['toeBR', 'ankle', 'toeB', 0.012, 0.008, 'Sock', [0.4, 0.4]],
+      ['clawFR', 'toeF', 'clawF', 0.008, 0.003, 'Hoof', [0.3, 0.3]],
+      ['clawIR', 'toeI', 'clawI', 0.007, 0.003, 'Hoof', [0.3, 0.3]],
+      ['clawOR', 'toeO', 'clawO', 0.007, 0.003, 'Hoof', [0.3, 0.3]],
+      ['clawBR', 'toeB', 'clawB', 0.006, 0.003, 'Hoof', [0.3, 0.3]],
+    ],
+    // a smooth rounded skull (st0–st2) and a LONG SLIM bill (st3–st6) curving down a little at the tip
+    craniumRows: [
+      ['st0', -0.05, 0.04, [0.03, 0.038], [0.045, 0.018], [0.047, -0.005], [0.04, -0.025], [0.025, -0.035], -0.038],
+      ['st1', -0.015, 0.045, [0.032, 0.042], [0.048, 0.02], [0.05, -0.005], [0.042, -0.026], [0.026, -0.036], -0.039],
+      ['st2', 0.02, 0.035, [0.026, 0.033], [0.038, 0.015], [0.04, -0.006], [0.034, -0.022], [0.022, -0.03], -0.032],
+      ['st3', 0.05, 0.016, [0.012, 0.015], [0.016, 0.006], [0.017, -0.004], [0.015, -0.01], [0.011, -0.014], -0.016],
+      ['st4', 0.08, 0.008, [0.008, 0.007], [0.01, 0.002], [0.01, -0.004], [0.009, -0.008], [0.007, -0.01], -0.011],
+      ['st5', 0.11, 0.0, [0.005, -0.001], [0.006, -0.004], [0.006, -0.008], [0.005, -0.01], [0.004, -0.012], -0.012],
+      ['st6', 0.13, -0.01, [0.003, -0.011], [0.004, -0.013], [0.004, -0.015], [0.003, -0.016], [0.002, -0.017], -0.017],
+    ],
+    craniumCaps: { back: [0, -0.068, 0.0], tip: [0, 0.136, -0.016] },
+    craniumBandGroups: { 'st0-st1': band('Skull'), 'st1-st2': band('Skull'), 'st2-st3': band('Skull') },
+    jawRows: [
+      ['st0', 0.05, { gum: -0.016, gumR: [0.013, -0.016], jaw: [0.012, -0.021], bottom: -0.024 }],
+      ['st1', 0.08, { gum: -0.012, gumR: [0.009, -0.012], jaw: [0.008, -0.016], bottom: -0.018 }],
+      ['st2', 0.11, { gum: -0.013, gumR: [0.005, -0.013], jaw: [0.005, -0.016], bottom: -0.017 }],
+      ['st3', 0.128, { gum: -0.016, gumR: [0.003, -0.016], jaw: [0.003, -0.018], bottom: -0.019 }],
+    ],
+    jawCaps: { back: [0, 0.035, -0.022], tip: [0, 0.133, -0.018] },
+    headScale: 1.15, nape: [0, -0.04, -0.02], eyeAt: [1.6, 2.3], eyeR: 0.008,
+    nostrilAt: [3.6, 1.2], noseAt: [3.6, 1.2], noseR: [0.002, 0.002],
+    // the yellow EAR PATCH: a flat comma behind the cheek on each side of the head
+    headOrnaments: [{ kind: 'sweep', name: 'earPatch', at: [0.5, 3.4], space: 'local', spine: [[0, 0, -0.006], [0, -0.012, -0.004], [0, -0.03, -0.04], [0, -0.04, -0.07]],
+      radii: [0.04, 0.045, 0.035, 0.02, 0.006], m: 8, squash: [1, 0.3], group: 'Patch' }],
+    bodyTiles: [],
+    // NO feathered wings: stiff flat FLIPPERS (thin across, broad fore-aft) hang from the shoulders; the black MANTLE
+    // is a second trunk loft set back a little, so the back and sides are black and the front stays white
+    wings: null,
+    extraSegments: [
+      { name: 'flipperR', kind: 'segment', from: 'flipperRoot', to: 'flipperTip', rA: [0.018, 0.055], rB: [0.008, 0.02], rMid: [0.02, 0.06], slots: 'ring12', over: [0.3, 0.4], group: 'Mane', mirror: 'name' },
+      { name: 'mantle', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', stations: [
+        { at: [0, -0.08, 0.12], r: [0.125, 0.10] }, { at: [0, -0.06, 0.28], r: [0.225, 0.18] }, { at: [0, -0.04, 0.48], r: [0.195, 0.16] },
+        { at: [0, -0.02, 0.66], r: [0.155, 0.125] }, { at: [0, 0.0, 0.80], r: [0.105, 0.085] }],
+        caps: { back: [0, -0.09, 0.06], tip: [0, 0.01, 0.86] } },
+    ],
+  },
+  // SCARLET MACAW (Ara macao). Thesis: an upright perched parrot, trunk tilted ~40° like the eagle's · a BIG HEAD with a
+  // huge deep strongly HOOKED pale upper bill over a black lower bill, a bare WHITE face round a pale eye · a very
+  // LONG POINTED TAIL (over half the length) sloping back to the ground · ZYGODACTYL feet, two toes forward and two
+  // back, on short grey tarsi · scarlet body, wings with a YELLOW covert band and BLUE flight feathers. Size: published
+  // length 81–96 cm, more than half of it tail (Wikipedia, "Scarlet macaw"); perched upright the head top stands
+  // ~0.40 m (height target). Authored on the eagle's tables and scaled.
+  macaw: {
+    family: 'avian', name: 'a scarlet macaw', torsoUp: true, scale: 0.45,
+    colors: { coat: '#cf1f27', sock: '#8a8580', ash: '#cf1f27', ashAlt: '#cf1f27', belly: '#cf1f27', ears: '#cf1f27', snout: '#ece2c8',
+      brow: '#cf1f27', iris: '#2a2018', sclera: '#e8e0c8', nose: '#ece2c8', tip: '#2a50b0', hoof: '#2a2624', mane: '#cf1f27',
+      lids: '#f2eee6', pad: '#f2eee6', folds: '#f2eee6', skull: '#cf1f27' },
+    headPalette: { Jaw: '#1e1a18', Face: '#f2eee6', LidRim: '#3a3330' },
+    joints: { neckBase: [0, 0.15, 0.68], neckTop: [0, 0.19, 0.78], wingRoot: [0.13, 0.09, 0.67],
+      hip: [0.09, -0.04, 0.36], knee: [0.11, 0.07, 0.16], ankle: [0.10, 0.04, 0.05],
+      // ZYGODACTYL: toes 2 and 3 forward (toeF, toeI), toes 1 and 4 back (toeB, toeO)
+      toeF: [0.07, 0.17, 0.02], toeI: [0.13, 0.15, 0.02], toeO: [0.13, -0.07, 0.02], toeB: [0.07, -0.08, 0.02],
+      clawF: [0.065, 0.21, 0.006], clawI: [0.14, 0.19, 0.006], clawO: [0.14, -0.11, 0.006], clawB: [0.065, -0.12, 0.006] },
+    torso: [
+      { at: [0, -0.30, 0.37], r: [0.09, 0.07] },
+      { at: [0, -0.19, 0.45], r: [0.15, 0.13] },
+      { at: [0, -0.06, 0.54], r: [0.18, 0.16] },
+      { at: [0, 0.06, 0.62], r: [0.17, 0.16] },
+      { at: [0, 0.15, 0.69], r: [0.11, 0.11] },
+    ],
+    torsoCaps: { back: [0, -0.35, 0.33], tip: [0, 0.19, 0.73] },
+    neckRA: [0.1, 0.1], neckRB: [0.07, 0.07], neckRMid: [0.08, 0.08],
+    // the LONG POINTED TAIL: flat (wide across, thin up-down), sloping from the rump back to the ground, blue at the tip
+    tail: [[0, -0.31, 0.35, [0.08, 0.03]], [0, -0.55, 0.24, [0.075, 0.025]], [0, -0.80, 0.13, [0.055, 0.02]]],
+    tip: [[0, -0.78, 0.14, [0.05, 0.018]], [0, -1.0, 0.06, [0.032, 0.012]], [0, -1.15, 0.02, [0.014, 0.006]]],
+    tipCaps: { back: [0, -0.76, 0.15], tip: [0, -1.2, 0.012] },
+    legs: [
+      ['thighR', 'hip', 'knee', [0.08, 0.09], [0.06, 0.06], 'Coat', [0.4, 0.4]],
+      ['tarsusR', 'knee', 'ankle', 0.035, 0.032, 'Sock', [0.4, 0.4]],
+      ['toeFR', 'ankle', 'toeF', 0.026, 0.018, 'Sock', [0.4, 0.4]],
+      ['toeIR', 'ankle', 'toeI', 0.024, 0.017, 'Sock', [0.4, 0.4]],
+      ['toeOR', 'ankle', 'toeO', 0.024, 0.017, 'Sock', [0.4, 0.4]],
+      ['toeBR', 'ankle', 'toeB', 0.024, 0.017, 'Sock', [0.4, 0.4]],
+      ['clawFR', 'toeF', 'clawF', 0.015, 0.005, 'Hoof', [0.3, 0.3]],
+      ['clawIR', 'toeI', 'clawI', 0.014, 0.005, 'Hoof', [0.3, 0.3]],
+      ['clawOR', 'toeO', 'clawO', 0.014, 0.005, 'Hoof', [0.3, 0.3]],
+      ['clawBR', 'toeB', 'clawB', 0.015, 0.005, 'Hoof', [0.3, 0.3]],
+    ],
+    // a tall rounded skull (st0–st2) and a HUGE deep bill (st3–st6) whose culmen arches down into a long hook
+    craniumRows: [
+      ['st0', -0.05, 0.036, [0.022, 0.034], [0.038, 0.014], [0.04, -0.008], [0.034, -0.026], [0.024, -0.034], -0.037],
+      ['st1', -0.02, 0.048, [0.026, 0.045], [0.044, 0.022], [0.046, -0.004], [0.04, -0.024], [0.028, -0.034], -0.036],
+      ['st2', 0.01, 0.05, [0.025, 0.047], [0.042, 0.024], [0.043, -0.006], [0.036, -0.026], [0.026, -0.036], -0.038],
+      ['st3', 0.04, 0.045, [0.02, 0.043], [0.03, 0.022], [0.03, -0.01], [0.026, -0.03], [0.02, -0.04], -0.042],
+      ['st4', 0.065, 0.042, [0.016, 0.04], [0.022, 0.018], [0.022, -0.012], [0.019, -0.032], [0.014, -0.042], -0.045],
+      ['st5', 0.085, 0.03, [0.012, 0.028], [0.016, 0.01], [0.016, -0.018], [0.013, -0.038], [0.01, -0.05], -0.054],
+      ['st6', 0.097, 0.01, [0.007, 0.006], [0.009, -0.012], [0.009, -0.035], [0.007, -0.055], [0.005, -0.065], -0.07],
+    ],
+    craniumCaps: { back: [0, -0.062, 0.0], tip: [0, 0.098, -0.082] },
+    // the bare WHITE face patch round the eye (cheek slots of st1–st3); the crown stays scarlet
+    craniumBandGroups: { 'st0-st1': band('Ears'), 'st1-st2': ['Ears', 'Ears', 'Face', 'Face', 'Face', 'Face'], 'st2-st3': ['Ears', 'Ears', 'Face', 'Face', 'Face', 'Face'] },
+    jawRows: [
+      ['st0', 0.02, { gum: -0.035, gumR: [0.024, -0.035], jaw: [0.024, -0.05], bottom: -0.058 }],
+      ['st1', 0.045, { gum: -0.04, gumR: [0.02, -0.04], jaw: [0.02, -0.055], bottom: -0.062 }],
+      ['st2', 0.065, { gum: -0.045, gumR: [0.014, -0.045], jaw: [0.014, -0.056], bottom: -0.06 }],
+      ['st3', 0.078, { gum: -0.05, gumR: [0.008, -0.05], jaw: [0.008, -0.055], bottom: -0.057 }],
+    ],
+    jawCaps: { back: [0, 0.0, -0.045], tip: [0, 0.083, -0.053] },
+    browStrip: [[1.2, 1.9], [1.45, 1.9], [1.7, 1.95], [1.95, 2.05], [2.2, 2.2]],
+    headScale: 1.5, eyeAt: [2.0, 2.2], eyeR: 0.011, nose: false,
+    bodyTiles: [],
+    wings: { wing: featherWing({ arm: [0.17, 0.25, 0.17], secLen: 0.36, primLen: 0.4, primReach: 0.08, slotFrom: 0.8, slotBy: 0.2 }), pitch: 36,
+      palette: { WingBone: '#cf1f27', FlightA: '#2a50b0', FlightB: '#2446a0', FlightC: '#3058b8', FlightUnder: '#c8a02a',
+        CovertA: '#f2c230', CovertB: '#eab828', CovertC: '#f2c230', CovertTip: '#3a8a40', CovertUnder: '#c8a02a',
+        LesserA: '#cf1f27', LesserB: '#c41c24', LesserC: '#d42630', LesserTip: '#cf1f27' } },
+  },
 };

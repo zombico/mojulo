@@ -86,6 +86,17 @@ export const family = {
   scale: 1,
 };
 
+// a COAT SHELL (no markings channel): a loft a hair proud of the trunk whose bands carry their own groups
+// (`bandGroups`, six right-half bands from the back line down to the belly) — a coat pattern on the trunk's outline
+const coatShell = (name, torso, { bulk = 1, proud = 1.03, ys, pick }) => {
+  const T = torso, zc = T[0].at[2];
+  const rAt = (y) => { if (y <= T[0].at[1]) return T[0].r; for (let i = 1; i < T.length; i++) if (y <= T[i].at[1]) { const t = (y - T[i - 1].at[1]) / (T[i].at[1] - T[i - 1].at[1]); return T[i - 1].r.map((r, c) => r + (T[i].r[c] - r) * t); } return T[T.length - 1].r; };
+  return { name, kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
+    stations: ys.map((y) => ({ at: [0, y, zc], r: rAt(y).map((r) => r * bulk * proud) })),
+    bandGroups: Object.fromEntries(ys.slice(1).map((_, i) => [`st${i}-st${i + 1}`, Array.from({ length: 6 }, (_, j) => pick(i, j))])),
+    caps: { back: [0, ys[0] - 0.02, zc], tip: [0, ys[ys.length - 1] + 0.02, zc] }, capGroups: { back: 'Coat', tip: 'Coat' } };
+};
+
 export const species = {
   // BROWN BEAR (Ursus arctos) — the ursine family's worked species. Thesis: a massive barrel body, the shoulder HUMP
   // the highest point with the rump lower · thick columnar legs on plantigrade feet (soles flat, heels down) · a big
@@ -132,4 +143,56 @@ export const species = {
       ['st6', 0.25, 0.04, [0.03, 0.037], [0.045, 0.015], [0.048, -0.01], [0.045, -0.04], [0.03, -0.055], -0.06],
     ],
   },
+  // POLAR BEAR, adult male (Ursus maritimus). Thesis: a LONG body with NO shoulder hump, the back level to the
+  // rump (the rump as high as the shoulders) · plantigrade, very big broad paws · a LONG NECK and a SMALL, narrow,
+  // long head with a straight (Roman) profile, tiny ears · the all-white coat, black nose · ≈1.3 m at the shoulder
+  // (on all fours 1.3–1.6 m for males, DeMaster & Stirling 1981, Mammalian Species 145 "Ursus maritimus").
+  polarBear: {
+    family: 'ursine', name: 'a polar bear', scale: 1.22,
+    colors: { coat: '#ebe5d3', sock: '#e2dac4', ash: '#e6dfcb', ashAlt: '#dcd4bd', snout: '#ebe5d3', brow: '#cfc6ae', tip: '#e2dac4', iris: '#2a1d14', nose: '#121010' },
+    joints: {
+      neckBase: [0, 0.40, 0.84], neckTop: [0, 0.96, 0.82],
+      hip: [0.17, -0.74, 0.79], stifle: [0.19, -0.66, 0.45], hock: [0.18, -0.76, 0.125], hindPaw: [0.18, -0.73, 0.085], hindToe: [0.18, -0.48, 0.068],
+      carpus: [0.20, 0.28, 0.135], forePaw: [0.20, 0.31, 0.085], foreToe: [0.20, 0.56, 0.068],
+    },
+    // long and level: the trunk stretched back, the rump as tall as the chest, no hump
+    torso: [
+      { at: [0, -0.98, 0.76], r: [0.19, 0.17] },
+      { at: [0, -0.80, 0.76], r: [0.26, 0.26] },
+      { at: [0, -0.46, 0.76], r: [0.27, 0.27] },
+      { at: [0, -0.10, 0.76], r: [0.28, 0.28] },
+      { at: [0, 0.18, 0.76], r: [0.26, 0.29] },
+      { at: [0, 0.40, 0.76], r: [0.21, 0.26] },
+    ],
+    torsoCaps: { back: [0, -1.08, 0.74], tip: [0, 0.52, 0.76] },
+    extraSegments: [],
+    neckRA: [0.20, 0.25], neckRB: [0.12, 0.13], neckRMid: [0.15, 0.17],
+    tail: [[0, -1.02, 0.80, 0.04], [0, -1.07, 0.76, 0.035], [0, -1.09, 0.71, 0.02]],
+    headScale: 0.92, muzzleW: 0.88, muzzleLen: 1.15, legBulk: 1.2, earH: 0.6, earR: [0.035, 0.04, 0.035, 0.02],
+  },
+  // GIANT PANDA, adult (Ailuropoda melanoleuca). Thesis: a stocky barrel bear, the back level, a mild shoulder rise ·
+  // plantigrade, short thick legs · a LARGE ROUND head with a short muzzle and round cheeks · THE PATTERN: white body,
+  // BLACK legs, a black band over the shoulders joining the forelegs, black round ears and black eye patches ·
+  // ≈0.70 m at the shoulder (0.6–0.8 m, head-body 1.2–1.8 m, Chorn & Hoffmann 1978, Mammalian Species 110).
+  giantPanda: (() => {
+    const T = family.torso;
+    // the shoulder band: the bands over the forequarters dark top to belly
+    const ys = [-0.10, 0.02, 0.14, 0.26, 0.40];
+    return {
+      family: 'ursine', name: 'a giant panda', scale: 0.68,
+      colors: { coat: '#ece8dc', sock: '#1b1918', ash: '#ece8dc', ashAlt: '#e2ddcf', snout: '#ece8dc', brow: '#1b1918', tip: '#ece8dc', mane: '#1b1918', ears: '#1b1918', lids: '#1b1918', iris: '#2a1d14', nose: '#121010' },
+      extraSegments: [
+        coatShell('shoulderBand', T, { ys, pick: (i) => (i >= 1 ? 'Mane' : 'Coat') }),
+        { ...family.extraSegments[0], group: 'Mane' },
+      ],
+      // the legs black to the shoulder and hip
+      legs: family.legs.map((r) => [r[0], r[1], r[2], r[3], r[4], 'Sock', ...r.slice(6)]),
+      // the eye patches: the bands around the eye (between rows st2 and st3) dark from the brow to the cheek
+      craniumBandGroups: {
+        'st2-st3': ['Skull', 'Skull', 'Brow', 'Brow', 'Jowl', 'Palate'],
+        'st3-st4': ['Skull', 'Snout', 'Brow', 'Cheek', 'Jowl', 'Palate'],
+      },
+      headScale: 1.9, muzzleW: 1.1, muzzleLen: 0.4, legBulk: 1.3, bulk: 1.05, earH: 1.1, earR: [0.05, 0.056, 0.05, 0.03],
+    };
+  })(),
 };

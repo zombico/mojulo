@@ -62,8 +62,7 @@ export const family = {
   // the patches: raised tiles over the trunk, the pale coat showing between them
   bodyTiles: [
     { id: 'trunk', parts: ['torso'], s: [0.5, 4.6], t: [0.4, 5.6], grid: [7, 4], height: 0.01, inset: 0.18, group: ['FurAlt'], sides: 6, brick: true, wobble: 0.25 },
-    // (neck patches grow too, but the fit gate's attach check samples the long 3-station neck too coarsely and
-    // flags them ~0.015 m off: left out until the builder can refine the neck — see the report)
+    { id: 'neck', parts: ['neck'], s: [0.3, 1.8], t: [0.4, 5.6], grid: [6, 3], height: 0.008, inset: 0.18, group: ['FurAlt'], sides: 6, brick: true, wobble: 0.25 },
   ],
   scale: 1,
 };
