@@ -45,7 +45,7 @@ export function decodeRevisionNote(raw) {
 function rowToRevision(row, { withManifest = false } = {}) {
   if (!row) return null;
   const { note, patch } = decodeRevisionNote(row.note);
-  const out = { rev: row.rev, note, ...(patch ? { patch } : {}), createdAt: row.created_at };
+  const out = { rev: row.rev, note, ...(patch ? { patch } : {}), version: row.version ?? null, createdAt: row.created_at };
   if (withManifest) {
     try { out.manifest = JSON.parse(row.manifest_json); } catch { out.manifest = null; }
   }
@@ -55,14 +55,17 @@ function rowToRevision(row, { withManifest = false } = {}) {
 export const SketchRevisionRepository = {
   // Append the next revision for `ref` (rev 1 when none exist). Returns the written row.
   // `patch` (optional): the ops that turned THIS manifest into the next one.
+  // The archived manifest is the row's HEAD before the overwrite, so its version is the one that
+  // wrote that head: the row's revised_version, else its minted_version (null before 3.0.1).
   append({ ref, manifest, note, patch }) {
     const db = getDb();
     const head = db.prepare('SELECT MAX(rev) AS rev FROM sketch_revisions WHERE ref = ?').get(ref);
     const rev = (head && head.rev ? head.rev : 0) + 1;
+    const wrote = db.prepare('SELECT COALESCE(revised_version, minted_version) AS version FROM sketches WHERE ref = ?').get(ref);
     db.prepare(
-      `INSERT INTO sketch_revisions (ref, rev, manifest_json, note, created_at)
-       VALUES (?, ?, ?, ?, unixepoch())`,
-    ).run(ref, rev, JSON.stringify(manifest), encodeRevisionNote({ note, patch }));
+      `INSERT INTO sketch_revisions (ref, rev, manifest_json, note, version, created_at)
+       VALUES (?, ?, ?, ?, ?, unixepoch())`,
+    ).run(ref, rev, JSON.stringify(manifest), encodeRevisionNote({ note, patch }), wrote?.version ?? null);
     return this.get(ref, rev);
   },
 

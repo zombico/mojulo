@@ -1,0 +1,95 @@
+{
+  "id": "suitTrousers",
+  "color": {
+    "cloth": "#23262f"
+  },
+  "ease_cm": 1,
+  "pieces": [
+    {
+      "id": "front",
+      "fit": "pattern",
+      "sloper": "trouser-front",
+      "dials": {
+        "length": "ankle",
+        "ease_cm": 6,
+        "ease_hem_cm": 14,
+        "ease_waist_cm": 2
+      },
+      "mirror": "frontR"
+    },
+    {
+      "id": "back",
+      "fit": "pattern",
+      "sloper": "trouser-back",
+      "dials": {
+        "length": "ankle",
+        "ease_cm": 6,
+        "ease_hem_cm": 14,
+        "ease_waist_cm": 2
+      },
+      "mirror": "backR"
+    }
+  ],
+  "seams": [
+    {
+      "a": {
+        "piece": "front",
+        "edge": "inseam"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "inseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "outseam"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "outseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontR",
+        "edge": "inseam"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "inseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontR",
+        "edge": "outseam"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "outseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "cf"
+      },
+      "b": {
+        "piece": "frontR",
+        "edge": "cf"
+      }
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "cb"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "cb"
+      }
+    }
+  ]
+}

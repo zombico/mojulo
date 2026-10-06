@@ -1,0 +1,644 @@
+{
+ "schema": "layered-plan-v1",
+ "frame": {
+  "up": "+z",
+  "front": "+y",
+  "note": "1 unit = 1 m; a light riding horse, 1.6 m at the withers, hooves on z = 0, facing +y"
+ },
+ "joints": {
+  "shoulder": [
+   0.15,
+   0.6,
+   1.08
+  ],
+  "elbow": [
+   0.16,
+   0.46,
+   0.92
+  ],
+  "knee": [
+   0.16,
+   0.5,
+   0.5
+  ],
+  "fetlock": [
+   0.16,
+   0.5,
+   0.18
+  ],
+  "coronet": [
+   0.16,
+   0.56,
+   0.08
+  ],
+  "toe": [
+   0.16,
+   0.6,
+   0.03
+  ],
+  "hip": [
+   0.17,
+   -0.58,
+   1.22
+  ],
+  "stifle": [
+   0.19,
+   -0.42,
+   0.96
+  ],
+  "hock": [
+   0.17,
+   -0.66,
+   0.58
+  ],
+  "hFetlock": [
+   0.16,
+   -0.64,
+   0.18
+  ],
+  "hCoronet": [
+   0.16,
+   -0.59,
+   0.08
+  ],
+  "hToe": [
+   0.16,
+   -0.55,
+   0.03
+  ],
+  "earBase": [
+   0.06,
+   1.1,
+   2.1
+  ],
+  "earTip": [
+   0.075,
+   1.12,
+   2.27
+  ],
+  "tail0": [
+   0,
+   -0.86,
+   1.46
+  ],
+  "tail1": [
+   0,
+   -0.97,
+   1.24
+  ],
+  "tail2": [
+   0,
+   -1,
+   0.92
+  ],
+  "tail3": [
+   0,
+   -0.98,
+   0.62
+  ]
+ },
+ "segments": [
+  {
+   "name": "barrel",
+   "kind": "loft",
+   "stations": [
+    {
+     "at": [
+      0,
+      -0.84,
+      1.27
+     ],
+     "r": [
+      0.17,
+      0.21
+     ]
+    },
+    {
+     "at": [
+      0,
+      -0.66,
+      1.29
+     ],
+     "r": [
+      0.29,
+      0.29
+     ]
+    },
+    {
+     "at": [
+      0,
+      -0.4,
+      1.25
+     ],
+     "r": [
+      0.3,
+      0.3
+     ]
+    },
+    {
+     "at": [
+      0,
+      -0.1,
+      1.21
+     ],
+     "r": [
+      0.31,
+      0.29
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.2,
+      1.2
+     ],
+     "r": [
+      0.3,
+      0.32
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.46,
+      1.25
+     ],
+     "r": [
+      0.25,
+      0.35
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.7,
+      1.21
+     ],
+     "r": [
+      0.2,
+      0.23
+     ]
+    }
+   ],
+   "slots": "ring12",
+   "e": 2.2,
+   "frame": "keep",
+   "group": "Body",
+   "tint": "#7a4d2e",
+   "mirror": "plane"
+  },
+  {
+   "name": "neck",
+   "kind": "loft",
+   "stations": [
+    {
+     "at": [
+      0,
+      0.52,
+      1.36
+     ],
+     "r": [
+      0.19,
+      0.3
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.74,
+      1.58
+     ],
+     "r": [
+      0.14,
+      0.23
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.92,
+      1.8
+     ],
+     "r": [
+      0.11,
+      0.17
+     ]
+    },
+    {
+     "at": [
+      0,
+      1.04,
+      1.97
+     ],
+     "r": [
+      0.095,
+      0.13
+     ]
+    }
+   ],
+   "slots": "ring10",
+   "e": 2.2,
+   "frame": "keep",
+   "group": "Neck",
+   "tint": "#7a4d2e",
+   "mirror": "plane"
+  },
+  {
+   "name": "crest",
+   "kind": "loft",
+   "stations": [
+    {
+     "at": [
+      0,
+      0.3376,
+      1.5424
+     ],
+     "r": [
+      0.0608,
+      0.07
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.5936,
+      1.7131
+     ],
+     "r": [
+      0.0448,
+      0.0633
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.8041,
+      1.8891
+     ],
+     "r": [
+      0.0352,
+      0.0567
+     ]
+    },
+    {
+     "at": [
+      0,
+      0.9487,
+      2.0345
+     ],
+     "r": [
+      0.0304,
+      0.05
+     ]
+    }
+   ],
+   "slots": "ring8",
+   "e": 2.6,
+   "frame": "keep",
+   "group": "Mane",
+   "tint": "#1f1712",
+   "mirror": "plane"
+  },
+  {
+   "name": "head",
+   "kind": "loft",
+   "stations": [
+    {
+     "at": [
+      0,
+      1.08,
+      2.05
+     ],
+     "r": [
+      0.1,
+      0.12
+     ]
+    },
+    {
+     "at": [
+      0,
+      1.16,
+      1.96
+     ],
+     "r": [
+      0.115,
+      0.15
+     ]
+    },
+    {
+     "at": [
+      0,
+      1.29,
+      1.82
+     ],
+     "r": [
+      0.085,
+      0.12
+     ]
+    },
+    {
+     "at": [
+      0,
+      1.41,
+      1.69
+     ],
+     "r": [
+      0.07,
+      0.1
+     ]
+    },
+    {
+     "at": [
+      0,
+      1.5,
+      1.6
+     ],
+     "r": [
+      0.07,
+      0.085
+     ]
+    }
+   ],
+   "slots": "ring8",
+   "e": 2.2,
+   "frame": "keep",
+   "group": "Head",
+   "tint": "#74482b",
+   "mirror": "plane"
+  },
+  {
+   "name": "tail",
+   "kind": "chain",
+   "joints": [
+    "tail0",
+    "tail1",
+    "tail2",
+    "tail3"
+   ],
+   "r": [
+    0.06,
+    0.075,
+    0.08,
+    0.05
+   ],
+   "over": {
+    "first": 0.6,
+    "last": 0.5,
+    "inner": 0.6
+   },
+   "group": "Tail",
+   "tint": "#1f1712",
+   "mirror": "plane"
+  },
+  {
+   "name": "upperArmR",
+   "kind": "segment",
+   "from": "shoulder",
+   "to": "elbow",
+   "rA": [
+    0.1,
+    0.13
+   ],
+   "rB": [
+    0.09,
+    0.11
+   ],
+   "e": 2.1,
+   "over": [
+    0.15,
+    0.45
+   ],
+   "group": "Legs",
+   "tint": "#6e4528",
+   "mirror": "name"
+  },
+  {
+   "name": "foreArmR",
+   "kind": "segment",
+   "from": "elbow",
+   "to": "knee",
+   "rA": [
+    0.085,
+    0.1
+   ],
+   "rB": [
+    0.055,
+    0.065
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Legs",
+   "tint": "#6e4528",
+   "mirror": "name"
+  },
+  {
+   "name": "foreCannonR",
+   "kind": "segment",
+   "from": "knee",
+   "to": "fetlock",
+   "rA": [
+    0.045,
+    0.055
+   ],
+   "rB": [
+    0.048,
+    0.058
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Points",
+   "tint": "#2a1d15",
+   "mirror": "name"
+  },
+  {
+   "name": "forePasternR",
+   "kind": "segment",
+   "from": "fetlock",
+   "to": "coronet",
+   "rA": [
+    0.046,
+    0.05
+   ],
+   "rB": [
+    0.055,
+    0.06
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Points",
+   "tint": "#2a1d15",
+   "mirror": "name"
+  },
+  {
+   "name": "foreHoofR",
+   "kind": "segment",
+   "from": "coronet",
+   "to": "toe",
+   "rA": [
+    0.06,
+    0.065
+   ],
+   "rB": [
+    0.075,
+    0.08
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Hooves",
+   "tint": "#2a2420",
+   "mirror": "name"
+  },
+  {
+   "name": "thighR",
+   "kind": "segment",
+   "from": "hip",
+   "to": "stifle",
+   "rA": [
+    0.15,
+    0.25
+   ],
+   "rB": [
+    0.11,
+    0.14
+   ],
+   "e": 2.1,
+   "over": [
+    0.15,
+    0.45
+   ],
+   "group": "Legs",
+   "tint": "#6e4528",
+   "mirror": "name"
+  },
+  {
+   "name": "gaskinR",
+   "kind": "segment",
+   "from": "stifle",
+   "to": "hock",
+   "rA": [
+    0.1,
+    0.14
+   ],
+   "rB": [
+    0.055,
+    0.08
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Legs",
+   "tint": "#6e4528",
+   "mirror": "name"
+  },
+  {
+   "name": "hindCannonR",
+   "kind": "segment",
+   "from": "hock",
+   "to": "hFetlock",
+   "rA": [
+    0.045,
+    0.06
+   ],
+   "rB": [
+    0.048,
+    0.058
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Points",
+   "tint": "#2a1d15",
+   "mirror": "name"
+  },
+  {
+   "name": "hindPasternR",
+   "kind": "segment",
+   "from": "hFetlock",
+   "to": "hCoronet",
+   "rA": [
+    0.046,
+    0.05
+   ],
+   "rB": [
+    0.055,
+    0.06
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Points",
+   "tint": "#2a1d15",
+   "mirror": "name"
+  },
+  {
+   "name": "hindHoofR",
+   "kind": "segment",
+   "from": "hCoronet",
+   "to": "hToe",
+   "rA": [
+    0.06,
+    0.065
+   ],
+   "rB": [
+    0.075,
+    0.08
+   ],
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Hooves",
+   "tint": "#2a2420",
+   "mirror": "name"
+  },
+  {
+   "name": "earR",
+   "kind": "segment",
+   "from": "earBase",
+   "to": "earTip",
+   "rA": [
+    0.03,
+    0.022
+   ],
+   "rB": 0.008,
+   "e": 2.1,
+   "over": [
+    0.55,
+    0.45
+   ],
+   "group": "Ears",
+   "tint": "#5a3a22",
+   "mirror": "name"
+  }
+ ],
+ "palette": {
+  "Body": "#7a4d2e",
+  "Neck": "#7a4d2e",
+  "Head": "#74482b",
+  "Mane": "#1f1712",
+  "Tail": "#1f1712",
+  "Legs": "#6e4528",
+  "Points": "#2a1d15",
+  "Hooves": "#2a2420",
+  "Ears": "#5a3a22"
+ }
+}

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-export const DEFAULT_VERSION = '3.0.0';
+export const DEFAULT_VERSION = '3.0.1';
 const USAGE = `runner.mjs status|install|exec|checkpoint|restore --workspace <absolute-dir>
   [--version <exact-version>] [--package-root <existing-mojulo-package>]
   install: [--tarball <local.tgz>] (otherwise installs mojulo@<version> from npm)

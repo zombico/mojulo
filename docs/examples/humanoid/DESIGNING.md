@@ -272,15 +272,15 @@ in the style's family.
 |---|---|---|---|
 | CARROT | points AND mass: the only family that holds a spiky design alone (short and wide reads as mass, long as a spike) | a CUT CONICAL CARROT: round, its square-cut base sunk into the mass, never pinched or draped | `length`, `base`, `sink`, `curve` (0 a cone, toward 1 a thorn), `bend` |
 | BANANA | locks: broad tapered locks that TILE the head from a smooth crown and part into points at their ends (the operator's sketch) | a flat crescent widest a third of the way out, laid along the mass | `length`, `width`, `flat`, `bend`, `sprout` |
-| PEEL | sheets: a LAYERED BANANA PEEL, a few of them laid one over another (the young-Bieber / farm-boy-Skywalker swoop) | a leaf: a narrow stem, widest where it leaves the head, a pointed tip; thin, its edges cupped to the scalp | `length`, `width`, `flat`, `cup`, `bend`, `sprout` |
+| PEEL | sheets: a LAYERED BANANA PEEL, a few of them laid one over another (the side-swept farm-boy swoop) | a leaf: a narrow stem, widest where it leaves the head, a pointed tip; thin, its edges cupped to the scalp | `length`, `width`, `flat`, `cup`, `bend`, `sprout` |
 | PEPPER | strands: a CHILI, the thin version of the banana's tiling; the weight is how many are layered and how thin and long | a small shoulder at the stem, a slender taper to its point | `length`, `width`, `bend`, `sprout` |
 
 ONE FAMILY PER DESIGN. The operator's experiment (Broku's carrot layout rebuilt as bananas and as bellied peppers at
 three length and width settings): length variation inside one family does make hierarchy, but each family has a range
 of jobs — a stretched pepper becomes a carrot, a short wide banana goes to mush. So a design picks the family that
-fits the style and varies length, width and count inside it. The characters: `broku` (carrots, after Toriyama),
+fits the style and varies length, width and count inside it. The characters: `broku` (carrots, classic shonen spikes),
 `jinto` (bananas: comma hair over a soft two-block), `jingo` (his cousin: bananas, few and rounded, for a long face),
-`kairo` (chili peppers: a wolf cut), and the first heroine, `bidel` (bananas: Videl's short cut).
+`kairo` (chili peppers: a wolf cut), and the first heroine, `bidel` (bananas: a short tomboy cut).
 
 A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name the real cut first, then build it.
 
@@ -318,7 +318,7 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   are handed to the head, and a lock that meets them drapes over them (the push carries on down the lock, so it never
   kinks back in). Hair lies close on the neck and stands off the collar and shoulders. A long cut then shows where it
   really falls: Kairo's nape was shortened to end at the collar instead of pouring over his shoulders.
-- **Bidel, the principles on a heroine.** Not Broku's spikes on a girl: Videl's short cut (Toriyama), built as Jingo is,
+- **Bidel, the principles on a heroine.** Not Broku's spikes on a girl: a short tomboy cut, built as Jingo is,
   from cap bananas, with the volume and the hem cut for her. A rounded crown, jagged bangs cut to the brow with the
   EYES CLEAR, the temples swept down over the ears, the sides at the lobe, a short choppy nape of points. What she
   taught: with the whorl behind the crown, every cap lock rooted ABOVE the whorl's elevation walks FORWARD over the dome
@@ -339,7 +339,7 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   long and its left short, and swirled to her right (`swirl: -25` on the back sends it right) so the mass below the chin
   sits right; her left side short (0.7) behind the ear. A first pass with a symmetric back hemmed both sides at the same
   height: the asymmetry was only in the face. Her `veil: 0.9`: the swoop veils her right eye.
-- **Sintia, flower petals (Cynthia the guiding light).** After the operator's petal sketch: a FEW big peels, wide
+- **Sintia, flower petals (elegance the guiding light).** After the operator's petal sketch: a FEW big peels, wide
   through the middle, each end hooking OUT to a point (`flick`, −1 … 1: out from the head, or under it below 0; the hem
   held). The one exception to "bend one way": a petal's end may turn. Elegance is few large shapes, not many strands.
   A first Sintia went to the waist with a two-petal swoop over one eye, and read as hair laid all over the body with a
@@ -349,16 +349,16 @@ A HAIRSTYLIST'S PASS made the last two current rather than generic shonen: name 
   part (two curtains alone meet in a pointed arch). Flicks gentle on the sides and back (a strong one hooks out sideways
   where a petal meets the shoulder: a flap). The page draws no outline between hair pieces, so same-coloured petals part
   only by their SHADE: give a pale blonde a deeper gold shade tone.
-- **Frieda, gathered hair (Frieren, the ice princess).** A tail is two things: the hair GATHERED into a tie and the
+- **Frieda, gathered hair (the elfin mage).** A tail is two things: the hair GATHERED into a tie and the
   tail falling from it. `gather: [az°, el°]` on a layer walks each cap lock over the scalp toward the tie instead of
   away from the whorl, sleek all the way, and ends it there (no free fall); the tail is a few long peels placed at the
   tie (`peels`), aimed nearly straight down with a little bow off it — aimed back, a tail juts out at 45° and reads as a
-  handle; fanned wide, the peels hang like wings outside the arms. Frieren's ties sit HIGH on the back of the head, so
+  handle; fanned wide, the peels hang like wings outside the arms. Her ties sit HIGH on the back of the head, so
   from the front each tail's top is level with the top of the head: there the tail leans a little out to clear the head
   and a little back to fall behind the shoulders. One layer per tie: twin tails are two layers, each half of the head to its own side's tie. What stays loose
   is the face: split bangs off a centre part cut at the brow, and two narrow ribbon sidelocks before the ears (wide,
   they taper to spikes). A pale silver wants a cool blue shade tone to part the peels.
-- **Hiraku and Miwako, blunt cuts (Hirako Shinji, Miwa Kasumi).** The shape is two lines at right angles: a flat bang
+- **Hiraku and Miwako, blunt cuts.** The shape is two lines at right angles: a flat bang
   and straight sides. Three words make it: `hem` cuts a layer's locks on a LEVEL line (construction units below the front
   hairline: about 0.35–0.4 is the brow, 1.4 the chin, 1.7 just above the collar), `fringeHem` cuts the locks leaving over
   the face on their own line (else a crown lock falling forward hangs to the jaw over the face), and `blunt` keeps each
@@ -399,16 +399,16 @@ everything. The principles, one line each:
 - **The black blob test.** Fill the head black: it reads at 64 px from the front, the side and the back.
 
 Cross-referenced recipes (how each hero decomposes; under the one-family rule a design keeps the family that carries
-most of it — Goku, Crono and the Dragon Quest III hero carrots, Natsu and the Dragon Quest XI hero bananas):
+most of it — the spiky martial artist, the headband hero and the circlet hero carrots, the fire brawler and the tied-back hero bananas):
 
 | Hero | Peppers | Bananas | Carrots | Clamp |
 |---|---|---|---|---|
-| Goku (Toriyama; `broku` is its carrots-only design) | crown up and back, two sides, back to a nape point, two over the ears | four heavy bangs (the long one off centre), two sideburns | seven thorns, swept 30–60° back in profile: one hero, one long level spike, a court | none |
-| Crono (Chrono Trigger) | one tall teardrop above the band, leaning back | two short bangs over the band; the band's tails | five or six up and back from a whorl behind the band | headband |
-| Natsu (Fairy Tail) | a modest crown | five jagged bangs to the brow, flicks at the ears | ten to fourteen short, stubby ones out and down, a flat hierarchy | none |
-| Dragon Quest III hero | the back, into three nape points | — | three short over the circlet, five or six up and back above it | circlet |
-| Dragon Quest VIII hero | the bandana itself (cloth) | three or four bangs, temple locks, a short nape flap; the knot's tails | — | bandana |
-| Dragon Quest XI hero | one smooth mass | curtain bangs, locks to the jaw, the back gathered into a low tail | only at the strand tips | tie |
+| The spiky martial artist (`broku` is its carrots-only design) | crown up and back, two sides, back to a nape point, two over the ears | four heavy bangs (the long one off centre), two sideburns | seven thorns, swept 30–60° back in profile: one hero, one long level spike, a court | none |
+| The headband hero | one tall teardrop above the band, leaning back | two short bangs over the band; the band's tails | five or six up and back from a whorl behind the band | headband |
+| The fire brawler | a modest crown | five jagged bangs to the brow, flicks at the ears | ten to fourteen short, stubby ones out and down, a flat hierarchy | none |
+| The circlet hero | the back, into three nape points | — | three short over the circlet, five or six up and back above it | circlet |
+| The bandana hero | the bandana itself (cloth) | three or four bangs, temple locks, a short nape flap; the knot's tails | — | bandana |
+| The tied-back hero | one smooth mass | curtain bangs, locks to the jaw, the back gathered into a low tail | only at the strand tips | tie |
 
 ## Score it
 

@@ -1,0 +1,11 @@
+{
+  "entry": "forge_motion",
+  "shot": {
+    "motion": "push_in",
+    "params": { "end_scale": 0.55 },
+    "frames": 36,
+    "fps": 12,
+    "loop": false
+  },
+  "subject": { "sketch_ref": "<your manji-tree sketch ref>" }
+}

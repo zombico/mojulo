@@ -30,6 +30,7 @@ import { palm } from './patterns.js';
 import { placeAsset, skinFor } from './assets/kit.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { scaleHex } from '../polygonizer/vexar.js';
+import { sceneFolk } from './crews.js';
 
 function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -302,6 +303,9 @@ export function planRegion({ seed = 1, culture = 'sumer', season = 'harvest', fr
 
   return {
     boxes, grounds: all, views, slots, frame: { w: W, d: D }, town: T,
+    // the town's own ground, for the people (./crews.js): its claim grid where the region set it down, its heights
+    townFolk: { grid: { ...town.grid, origin: [ox, oy] }, hAt: town.hAt ? (x, y) => (x >= ox && y >= oy && x < ox + town.frame.w && y < oy + town.frame.d ? town.hAt(x - ox, y - oy) : null) : null,
+      square: town.stats.square ? shifted(town.stats.square, ox, oy) : null },
     stats: { culture, season, town: town.stats, slots: slots.length, farms, gardens: gardens.length, assets: [...new Set(slots.map((q) => q.asset))], zones: { quarter: quarterRect, harbour: { x: hb[0], w: hb[1] - hb[0] }, marsh } },
   };
 }
@@ -536,6 +540,9 @@ function planNileRegion({ seed, culture, season, frame }, R) {
 
   return {
     boxes, grounds: all, views, slots, frame: { w: W, d: D }, town: T, focus: [town.focus[0] + ox, town.focus[1] + oy],
+    // the town's own ground, for the people (./crews.js): its claim grid where the region set it down, its heights
+    townFolk: { grid: { ...town.grid, origin: [ox, oy] }, hAt: town.hAt ? (x, y) => (x >= ox && y >= oy && x < ox + town.frame.w && y < oy + town.frame.d ? town.hAt(x - ox, y - oy) : null) : null,
+      square: town.stats.square ? shifted(town.stats.square, ox, oy) : null },
     // from the south-east, high enough that the river's near corner stays in the picture
     aerial: { eye: [W * 0.58, D * 1.34, Math.max(W, D) * 0.74], at: [W * 0.44, D * 0.42, 0] },
     stats: { culture, season, town: town.stats, slots: slots.length, farms, gardens, assets: [...new Set(slots.map((q) => q.asset))], zones: { works: worksZone, harbour: harbourZone, marsh, quay: wq, boatyard: yard } },
@@ -554,7 +561,12 @@ const UNIT_SCALE = { aerial: 14, 'quarter-air': 22, 'harbour-air': 22 };
 
 /** Plan → a CSS 3D scene: the whole land from the air, and eye-level views in it, the asked-for view first. */
 export function assembleRegionScene(opts = {}) {
-  const plan = planRegion(opts);
+  const plan0 = planRegion(opts);
+  // `people` (the World's alone, ./crews.js): the town's citizens on its own grid, the field hands and plough teams in
+  // the strips, the estates' and the works' crews, the yokes lifted onto the teams' necks
+  const TF = plan0.townFolk;
+  const folk = opts.world && opts.people ? sceneFolk({ ...plan0, grid: TF.grid, hAt: TF.hAt, stats: { ...plan0.stats, square: TF.square } }, opts.people, 1 / METRES_PER_UNIT, opts.seed ?? 1) : null;
+  const plan = folk ? { ...plan0, boxes: folk.boxes } : plan0;
   const view = plan.views[opts.view] ? opts.view : 'aerial';
   const s = 1 / METRES_PER_UNIT, us = UNIT_SCALE[view] || 40, v = plan.views[view];
   // the small things (jars, baskets, tools, fence posts) are a pixel from the air: from the whole-land
@@ -596,8 +608,9 @@ export function assembleRegionScene(opts = {}) {
   const first = cameras.findIndex((c) => c.name === view);
   if (first > 0) cameras.unshift(...cameras.splice(first, 1));
   if (view !== 'aerial') cameras.splice(1);   // a page culled to one view carries only that camera
+  if (folk) for (const f of folk.faces) faces.push(f);
   const scene = assembleBoxCityScene({ boxes, grounds: G.grounds, faces, cameras, title: `mojulo historic region · ${plan.stats.culture} · ${plan.stats.season}`, bg: '#d9cdb4', light: SCENE_LIGHT, unitScale: us });
-  return { ...scene, stats: plan.stats };
+  return { ...scene, stats: folk ? { ...plan.stats, people: folk.stats } : plan.stats };
 }
 
 export function renderRegionToHtml(opts = {}) {

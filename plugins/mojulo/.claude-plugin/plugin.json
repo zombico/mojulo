@@ -2,7 +2,7 @@
   "name": "mojulo",
   "displayName": "Mojulo",
   "description": "A 3D compiler for Claude Code: build objects, walkable worlds and games by conversation as small recipes on your machine, exported to STL/3MF, glTF, HTML or Godot. No account, no external telemetry.",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": {
     "name": "Franz Ombico",
     "url": "https://mojulo.ai"
@@ -14,7 +14,7 @@
   "mcpServers": {
     "mojulo": {
       "command": "npx",
-      "args": ["-y", "mojulo@3.0.0"],
+      "args": ["-y", "mojulo@3.0.1"],
       "env": {
         "MOJULO_DISTRIBUTION": "claude-plugin"
       }

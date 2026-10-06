@@ -16,6 +16,7 @@
 import { shadeHex, DEFAULT_LIGHT } from './vexar.js';
 import { auditLayered } from './station-loft.js';
 import { seatPanels, clipCells } from './seat-panels.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import * as dmath from '../../util/dmath.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -46,11 +47,16 @@ export function swimCells(corners, pan) {
  * shades SMOOTHLY: each face also carries `cornerFills`, the same key at its corners (a triangle's as `[a, b, c, c]`,
  * the face payload's per-corner form; a swimsuit cell's corners by their weights in the face), blended across the face
  * by the World page and the GLB; its `fill` stays the face-normal shade for every reader of one colour per face. An
- * emissive face has none. Absent ⇒ byte-identical. */
+ * emissive face has none. Absent ⇒ byte-identical.
+ * `recipe.surfaces` (group → a shelf material or a metal surface, `'*'` every other group; a statue's, statue/expand.js)
+ * tags each face with its material's channel keys (`spec` / `pbr`, a metal's `metal`) for the World page and the
+ * exporters (polygonizer/materials.js tagFacesWithMaterial); the fill stays the palette's. Absent ⇒ byte-identical. */
 export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null } = {}) {
   const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
   const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
   const faces = [], panels = seatPanels(rest);
+  const surfaces = recipe.surfaces && typeof recipe.surfaces === 'object' ? Object.fromEntries(Object.entries(recipe.surfaces).map(([g, m]) => [g, resolveMaterial(m)])) : null;
+  const groupOf = [];   // each face's palette group, for its surface
   mesh.faces.forEach((tri, i) => {
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];
     const hex = palette[g] || part?.tint || FALLBACK;
@@ -67,13 +73,14 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
       const hexes = [hex, palette.Swim || hex], fills = hexes.map((h) => shadeHex(h, outNormal, light));
       for (const c of cut) {
         const h = hexes[c.inside ? 1 : 0], cf = cn ? c.w.map((w) => at(h, w)) : null;
-        faces.push({ corners: c.corners, fill: fills[c.inside ? 1 : 0], ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal });
+        faces.push({ corners: c.corners, fill: fills[c.inside ? 1 : 0], ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(c.inside ? 'Swim' : g);
       }
       return;
     }
     const cf = cn ? cn.map((n) => shadeHex(hex, n, light)) : null;
-    faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal });
+    faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(g);
   });
+  if (surfaces) faces.forEach((f, k) => { const m = surfaces[groupOf[k]] ?? surfaces['*']; if (m && !glows.has(groupOf[k])) tagFacesWithMaterial([f], m); });
   return faces;
 }
 

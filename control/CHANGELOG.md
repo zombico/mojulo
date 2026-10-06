@@ -12,6 +12,115 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Statue maker
+
+The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
+bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
+byte-identical. Being built on this branch; the sphinx comes next.
+
+- **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
+  (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
+  `archaic`, `classical`, `hellenistic`, `roman`, `roman-bust`, `egyptian`, `renaissance`. A card's stand, stillness and
+  drapery (an outfit card per silhouette) sit beneath the hero's own words; its hair is set at mint.
+- **Carved.** One material over every group: blank eyes, carved hair, the bare body's zones skin. `marble`,
+  `limestone`, `sandstone`, `granite`, `basalt`, `bronze` (its patina by `wear`, from brown to verdigris), `gilt`, and
+  `painted`: reconstructed polychromy over the card's stone, which the readout always calls conjecture.
+- **Cut.** `crop`: `full`, `bust` (below the chest, through the upper arms), `herm`, `torso` (no head or arms, the
+  thighs cut). `lose`: whole parts with what they carry (`forearmR` takes the hand), each closed in its own cap. No
+  fracture surfaces yet.
+- **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
+  from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
+- **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
+  rest) tags its faces (`spec` and `pbr`; a metal surface's `metal`), so a bronze statue exports metallic, in its
+  patina's colour, to GLB and Godot. Absent, byte-identical.
+- **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
+  'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
+  derived work carries ("inspired by …").
+- **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
+  on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
+  Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes, `pp-equestrian:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
+  slots. Absent, the city is byte-identical.
+- **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
+  clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
+  under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
+  carved worshipper can stand among the others.
+- **Seated statues.** `stand: 'seated'` on a statue build (or a card) sits the figure on a block throne built with its
+  base: the thighs level, the shins hanging, the hands flat on the knees. A long skirt is cut at the knee, since a drape
+  over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
+  cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
+  throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
+- **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
+  the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
+  length of its body. Absent, every animal is byte-identical.
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material. The rider sits on the saddle
+  found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
+  equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
+  (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
+  mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
+- **A horse in the library.** A horse ring plan for the layered kind, built with the creature-from-plan loop: a barrel
+  body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
+  stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
+  `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting (and a run along a flank from
+  collapsing); absent, every loft is unchanged.
+- **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
+  proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
+  landmark head (no hair, no beard) in a nemes with the uraeus. The nemes is a striped wrap, not a cap: its opening
+  tilted so the brow band crosses the forehead and the face looks out of it, its stripes radiating back over the crown;
+  behind the face it folds out each side like a cobra's hood, the wings flaring past the shoulders, striped across, and
+  the lappets hang striped down a breast that is broad and flat, as a man's chest, set back under the face. Carved, the stripes are grooves: a palette group named `…Groove` takes the
+  stone a shade darker. The criosphinx's headcloth is striped the same way. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  `docs/examples/ring-plans/sphinx.plan.json`.
+- **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
+  material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
+  `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
+  block stand-in, limestone by default. Giza's entry card says so.
+- **The criosphinx and the bull.** Two more ring plans built the same way. The criosphinx is Amun's ram-headed sphinx
+  of Karnak's avenue: a domed ram's skull with horns coiled round the ears, the headcloth over the shoulders, a small
+  king between the paws (`criosphinxPlan()`, sandstone). The bull is Sumer's copper guardian: a deep barrel, the
+  shoulder hump, the head forward, horns out and up (`bullPlan()`, bronze gone green). Thebes's sphinx rows and Sumer's
+  guardian pair are slots, one figure per pedestal or plinth, and take them as `form: 'criosphinx'` and `form: 'bull'`.
+- **`statues: "carved"`.** One word on a historic city carves every slot with its period's statue: a slot's own form
+  (the sphinxes, the bulls), the seated granite king on the Theban colossi, a bronze horseman on an equestrian slot
+  and nowhere else, and the culture's card everywhere else (Roman at the Forum and Pompeii, Hellenistic at Lindos,
+  Sumerian worshippers), men and women, marble and bronze, decided by each slot's own dice so the city carves the same
+  each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
+  carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
+
+### Recipe versions
+
+- **Every recipe records the mojulo version that wrote it.** A mint stores the version that minted
+  it; an edit to the recipe (`update_sketch`, `edit_solid` and the other in-place revisions) stores the
+  version that last changed it. A retitle, a folder move or a gallery pin leaves it alone, since what
+  renders is unchanged. Each archived revision of a solid and each beats revision carries the version
+  that wrote that manifest.
+- `export_model` answers with `versions: { minted, revised, rendered }`, so an export says which
+  mojulo made the recipe and which one rendered it. To reproduce an export exactly as the recipe's own
+  version drew it, render it under that version (`npx -y mojulo@<version>`) in a separate
+  `MOJULO_HOME`.
+- Recipes written before this release read `null`: they were made by 3.0 or earlier, and which one is
+  not recorded, so nothing is guessed. The columns are added on first start; nothing else changes.
+
+### Recipe book
+
+- **The recipe book ships with mojulo.** The catalog that lived in the separate `mojulo-recipe-book`
+  repo now lives at `control/book/` and is in the npm package, so every install has it with no setup,
+  including an agent box (the Claude app and web, ChatGPT's Work box), where nothing can be cloned
+  beside the package and the old attached book never loaded. It comes in at the book's 0.8.0: study
+  objects, math, worlds, loops, solids, shots and the wardrobe (garments, outfits, footwear), and the
+  `aurora` and `foucault-pendulum` view kinds. Named outfits such as `business-suit` now resolve on
+  every install.
+- Precedence is unchanged in spirit and gains one tier at the bottom: core kinds, then your cookbook,
+  then an attached clone, then the bundled book. `MOJULO_BUNDLED_BOOK=off` leaves it unattached.
+- **Deprecated:** `MOJULO_RECIPE_BOOK` and the separate `mojulo-recipe-book` repo. A clone you
+  already point at still loads, ahead of the bundled book, and warns at boot; it is removed no earlier
+  than 4.0. Book entries are now contributed to `control/book/` in this repo (see CONTRIBUTING.md).
+- The ChatGPT Work-box runner installs 3.0.1 by default, so a Work box gets the bundled book.
+- `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
+  `npm test` checks the bundled book as well.
+
 ### MIDI orchestra
 
 - **In progress.** The robot band learns styles from studied masters, written as manuals an agent reads
@@ -539,6 +648,76 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - A culture names its mood on its card (`soundtrack`). A culture scaffolded from another plays its parent's
   mood until it has its own, and a new mood is a row in `MOODS`.
 - Each entry gains a SOUND line and a starter with its period music.
+
+### Historic miniatures
+
+- **Spike.** A historic city can stand its people about for scale and flavour: add `"people": true` (or
+  `{ "density": 0–1, "citizens": false, "hands": false }`) to a `historic` manifest with the `city` scene, and
+  the World page fills in two groups (`lib/graph/historic/miniatures.js`). Static figures only: no motion, no
+  paths.
+  - Citizens stand alone, in pairs or in households on the lanes, the open ground and the plan's square. They
+    are thicker on a main street than in a back alley.
+  - Field hands work in gangs on the flat ground outside the wall: stooped over the crop, at the hoe, or
+    carrying.
+- Each figure is the fractal city's pedestrian at a new `mini` level of detail, under 300 quads. Nobody is bare:
+  every garment covers the torso and hangs a skirt of cloth to its hem (`cut`: knee, shin or ankle).
+  - The skirt is fitted to the posed figure. Its top is the trunk's own waist, so it tilts when the figure bends;
+    each ring below wraps the hips and legs at its height, so a stride or a bent knee pushes the cloth out
+    instead of poking through. The legs under it are not drawn.
+  - Sleeves carry the shirt down the forearm, and `legs` give trousers.
+  - Colour is the culture's palette over the body's regions and the skirt.
+  - Dress per culture: Roman tunic, toga and stola; Greek chiton, himation and peplos; the Egyptian linen tunic over
+    a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
+    jacket over hemp trousers.
+  - New work poses: `stoop`, `hoe`, `carry`.
+- Beasts of burden (`lib/graph/historic/beasts.js`), on unless `beasts: false`:
+  - In the fields, plough teams: two oxen abreast under a yoke at the neck, the ploughman behind.
+  - On the open streets, pack donkeys and mules with panniers, and horses, each led by a driver at its head.
+  - Each culture works its own herd: oxen and donkeys from Sumer to Egypt, mules among the Greeks and Romans,
+    horses and oxen for Qin.
+  - Each beast was designed with the creature creator (`mint_solid` kind `animal`, iterated with `update_sketch`)
+    and is carried as the recipe that sketch stores. The ox is the bull gelded to a heavier draught body, short
+    horns and a pale coat; the donkey and the mule are new, from the horse; the horse and the camel are the
+    species. The camel is drawn by no culture here, since it came after these periods.
+  - `lib/graph/figures/beast-asset.js` bakes a recipe low-poly (about 400 faces against about 9,000). It uses the
+    animal kind's overlap body, keeps the coat and its pale belly, and drops the eye and nose dots.
+  - Beasts come after the people on their own seeded stream, so turning them off moves no one. Each needs footing
+    under all four hooves, clear of the people.
+- The people and the beasts are shaded smooth (`lib/graph/figures/smooth-corners.js`). Each corner takes the
+  normal averaged over the faces that share it in its own part (a limb, the trunk, the skirt), and the World page
+  shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
+  the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
+  as `smooth`, off by default, so the fractal city's people are unchanged.
+- The region, the farm and the works take `people` too (`lib/graph/historic/crews.js`). Their kits build every
+  tool and building at rest and say who belongs there, and this places them.
+  - Hitching: every yoke with a pole run back from it gets its team, two abreast, necks at the yoke, facing away
+    from the pole. The yoke and the pole's front end lift from the ground to the necks. Oxen draw the plough, the
+    culture's pack animal the cart, oxen or (in Sumer, as its kit says) donkeys the threshing sledge, and horses
+    the chariot. The ploughman stands behind the stilts; any other driver at the head.
+  - Crews: each workshop and farm building names its workers in `CREWS` (reapers bent along the barley's cut edge,
+    diggers in the clay pit, moulders on the brick field, smiths, potters, the haulers ahead of a stone sledge,
+    scribes in the shade). They stand in the slot's own frame, at its working front, inside it or ahead of it,
+    each in a pose for the work. Byres, stables and grain packs get their beasts.
+  - The region's town has its citizens on the town's own claim grid, where the region set it down. Its strip
+    fields have field hands and plough teams, and its estates and quarters their crews.
+  - Outside a town, a figure stands on the scene's own ground heights, so the clay pit's diggers stand on its
+    floor.
+  - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
+    out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
+- The city takes the same crews. Its work places name their people too: priests and worshippers at the altars
+  and before the temples, women with jars at the wells and fountains, shopkeepers at Pompeii's shop fronts with
+  customers in the street, potters at the kilns, bakers and craftsmen in Giza's bakeries and workshops, quarrymen,
+  porters on the quays, boatmen aboard, traffic and a pack animal at the gates, and traders and their beasts in
+  the Qin market. A crew can now stand before a slot facing into it (`before`), work up on a quay's top or a
+  ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
+  guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
+  layout has no slots, has none yet.
+- A figure stands on a kerb or a step and refuses a spot taken by anything taller.
+- Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
+- Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
+  and seated poses (the scribes stand). Pompeii
+  with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
+  it has no people.
 
 ### Historic Rome
 
@@ -1381,16 +1560,16 @@ needed on the anime head. Being built on this branch.
 - **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
   that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
   — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
-  (carrots, after Toriyama), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
-  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
+  (carrots, classic shonen spikes), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas in a short tomboy cut. Shaped hair never cuts through the body: the hero's
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
-  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, a side-swept swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades. A layer's `flick` hooks
   a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
-  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+  into a TIE and ends it there, so `frieda` wears twin tails and `frieda-pony` one ponytail.
 - **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
-  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
-  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` is a bowl bob, `miwako` a
+  neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
   (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
 - **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
   ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
