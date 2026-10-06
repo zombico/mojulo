@@ -61,6 +61,9 @@ export const family = {
   headOrnaments: [],
 };
 
+// the triceratops face: every row ahead of the eye pulled back toward it (a short face)
+const snout = (y) => (y <= -0.22 ? y : -0.22 + (y + 0.22) * 0.68);
+
 export const species = {
   // TRICERATOPS (Triceratops horridus). Thesis: a heavy barrel on stout columnar legs (hips higher than shoulders),
   // a long thick tapering tail · a HUGE head carried low: a solid bony FRILL rising back over the neck, two long
@@ -68,13 +71,22 @@ export const species = {
   // (Scannella & Horner 2010 growth series; adult size per Paul 2016 Princeton Field Guide: 8–9 m, hip ~3 m).
   triceratops: {
     family: 'ceratopsian', name: 'a Triceratops', scale: 1.6,
+    // a BIGGER skull (about a third of the body with the frill) and a SHORT DEEP face: the snout rows pulled back
+    // toward the eyes (muzzleLen) and dropped deeper below, the beak compact and hooked
+    headScale: 2.25,
+    craniumRows: family.craniumRows.map(([id, y, top, ...r], i) => (i < 2 ? [id, y, top, ...r]
+      : [id, snout(y), top, ...r.slice(0, 5).map(([x, z]) => [x * 1.12, z < -0.04 ? z * 1.22 : z]), r[5] * 1.22])),
+    craniumCaps: { back: family.craniumCaps.back, tip: [0, snout(family.craniumCaps.tip[1]), family.craniumCaps.tip[2] * 1.22] },
+    jawRows: family.jawRows.map(([id, y, j], i) => (i < 2 ? [id, y, j]
+      : [id, snout(y), { gum: j.gum * 1.12, gumR: [j.gumR[0] * 1.12, j.gumR[1] * 1.12], jaw: [j.jaw[0] * 1.12, j.jaw[1] * 1.12], bottom: j.bottom * 1.12 }])),
+    jawCaps: { back: family.jawCaps.back, tip: [0, snout(family.jawCaps.tip[1]), family.jawCaps.tip[2] * 1.12] },
     headOrnaments: [
       // the frill: a broad flat plate rising back and up off the back of the skull, solid (no fenestrae)
-      { kind: 'sweep', name: 'frill', at: [0.3, 0.0001], side: 'R', space: 'head', spine: [[0, -0.28, 0.14], [0, -0.44, 0.24], [0, -0.60, 0.38], [0, -0.73, 0.52], [0, -0.80, 0.61]], radii: [0.14, 0.90, 1.25, 1.20, 0.70], m: 10, squash: [1, 0.14], group: 'Skull' },
+      { kind: 'sweep', name: 'frill', at: [0.3, 0.0001], side: 'R', space: 'head', spine: [[0, -0.28, 0.16], [0, -0.44, 0.24], [0, -0.60, 0.38], [0, -0.73, 0.52], [0, -0.80, 0.61]], radii: [0.14, 0.90, 1.25, 1.20, 0.70], m: 10, squash: [1, 0.14], group: 'Skull' },
       // two long brow horns over the eyes, swept up then forward
-      { kind: 'sweep', name: 'browHorn', at: [1.2, 1.6], space: 'head', spine: [[0.09, -0.16, 0.10], [0.11, -0.10, 0.26], [0.12, 0.02, 0.40], [0.12, 0.17, 0.50], [0.11, 0.32, 0.54]], radii: [0.075, 0.06, 0.045, 0.025, 0.006], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'browHorn', at: [1.2, 1.6], space: 'head', spine: [[0.09, -0.16, 0.1], [0.106, -0.113, 0.225], [0.113, -0.02, 0.334], [0.113, 0.097, 0.412], [0.106, 0.214, 0.443]], radii: [0.075, 0.06, 0.045, 0.025, 0.006], m: 8, group: 'Horn' },
       // a short nose horn over the nostrils
-      { kind: 'sweep', name: 'noseHorn', at: [4.5, 0.0001], side: 'R', space: 'head', spine: [[0, 0.43, 0.06], [0, 0.46, 0.17], [0, 0.49, 0.26]], radii: [0.05, 0.035, 0.008], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'noseHorn', at: [4.5, 0.0001], side: 'R', space: 'head', spine: [[0, 0.20, 0.07], [0, 0.22, 0.17], [0, 0.25, 0.25]], radii: [0.05, 0.035, 0.008], m: 8, group: 'Horn' },
     ],
   },
 };
