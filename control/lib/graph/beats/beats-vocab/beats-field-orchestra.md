@@ -85,6 +85,22 @@ to game, or every game sounds alike.
   between, rests), which instrument enters first, the gear-change interval.
 - The set below is one roll each, a worked example, not a template.
 
+**Calling it.** You don't have to roll the dice by hand. The generator takes
+a mood (plains, desert, village, forest, highlands, expedition, wayfarer):
+- A world: `audio: { soundtrack: 'field:plains' }`. `compose_world` stores
+  a fresh `seed` in the recipe (as `{ score: { mood, seed } }`): keep it to
+  keep the tune, delete it to reroll.
+- A stored cue: `create_beats({ title, score: { mood } })`. It returns the
+  `seed` and `game` it rolled.
+- A whole game: pass that one `game` to every cue and every world's
+  `score`. The tunes differ; the key, palette, hall and motif stay.
+- `role` records the cue's job: field, travel, town, interior or story.
+  Battle is not a field role.
+
+When `compose_world` mints a world with no music, its reply carries a
+`music` suggestion: the mood that fits the place, why, and the `audio` line
+to add. Offer it; the operator decides.
+
 ## A set, worked
 
 Seven field cues, each a short `beats-composition` loop:

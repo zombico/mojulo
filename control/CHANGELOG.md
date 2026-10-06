@@ -66,6 +66,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `field-gates.js`: the principles as an advisory check over any beats composition, run on every generated
     seed and on the hand-written takes. The village take keeps its flute counterline as a recorded exception.
   - The card tells an agent composing by hand to use a fresh seed and a game identity.
+- A field score is now one call away, and mojulo suggests one:
+  - a world takes `audio: { soundtrack: 'field:plains' }` (or `{ score: { mood, seed, game } }`) and plays a
+    generated field cue. `compose_world` stores a fresh seed, so every world sounds different until you keep one;
+  - `create_beats({ kind: 'beats-composition', title, score: { mood } })` mints a field cue with fresh seeds and
+    says how to keep a whole game in one identity (`game`);
+  - a world composed without music gets a suggested mood and the exact `audio` line in the reply.
 
 ### Historic city
 

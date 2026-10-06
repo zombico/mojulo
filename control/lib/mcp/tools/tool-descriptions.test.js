@@ -286,7 +286,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-05 (268_200 -> 268_400; measured 268,358) merging 1005-figure-consolidation into the release
 // candidate: export_model's `rest` property (the emote bridge's T-pose mold, 'authored' | 'tpose', one sentence) is
 // the growth. Each figure branch was inside its own 267_588 pin; only the sum crossed this one.
-const PAYLOAD_CEILING = 268_400;
+// Re-pinned 2026-10-05 (268_400 -> 268_800; measured 268,759) for the field score: create_beats takes
+// `score: { mood, seed?, game?, role? }` (the mood and role enums, one sentence each in the description and the
+// property). The description itself shrank to stay under its 1150 allowlist (dropped a stale "new work" line).
+const PAYLOAD_CEILING = 268_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

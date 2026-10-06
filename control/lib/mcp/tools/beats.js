@@ -28,6 +28,8 @@ import { expandBeatsManifest } from '@/lib/graph/beats/beats-authoring';
 import { renderBeatsMidi } from '@/lib/graph/beats/beats-midi';
 import { diffBeatsManifests } from '@/lib/graph/beats/beats-diff';
 import { getBeatsVocabCatalog } from '@/lib/graph/beats/beats-vocab/loader';
+import { parseFieldSpec, mintFieldSpec, fieldCue, FIELD_ROLES } from '@/lib/graph/beats/field-cue';
+import { SCORE_MOODS } from '@/lib/graph/beats/field-score';
 import { exportsBaseDir } from './exports-dir';
 
 // Fetch a sketch row and insist it's a beats artifact — the shared entrance
@@ -87,7 +89,8 @@ export async function createBeatsHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error('create_beats requires an object: { kind, title, params }');
   }
-  const { kind, title, params, ref, folder_ref: folderRef } = input;
+  const { kind, title, params, ref, folder_ref: folderRef, score } = input;
+  if (score !== undefined) return mintFieldScore({ kind, title, params, ref, folderRef, score });
   if (!BEATS_KINDS.includes(kind)) {
     throw new Error(
       `create_beats: unknown kind '${kind}'. Known kinds: ${BEATS_KINDS.join(', ')}. ` +
@@ -103,6 +106,32 @@ export async function createBeatsHandler(input) {
     // Error-as-drawer: a failed mint points at the kind's parameter manual.
     throw new Error(`${err.message} — parameter manual: get_beats_vocab({ id: '${kind}' }).`);
   }
+}
+
+// create_beats({ score }): a generated field cue. Missing seeds are rolled fresh (seed always; game too, so the
+// reply hands back the identity to share). The recipe is stored with its `score` provenance beside it.
+function mintFieldScore({ kind, title, params, ref, folderRef, score }) {
+  const manual = "get_beats_vocab({ id: 'beats-field-orchestra' })";
+  if (kind !== undefined && kind !== 'beats-composition') throw new Error(`create_beats: score writes a beats-composition (got kind '${kind}') — ${manual}`);
+  if (params !== undefined) throw new Error('create_beats: pass score OR params, not both (score generates the recipe; edit it afterwards with update_beats)');
+  let parsed;
+  try {
+    parsed = parseFieldSpec(score && typeof score === 'object' ? { score } : score);
+  } catch (err) {
+    throw new Error(`create_beats: ${err.message} — ${manual}`);
+  }
+  if (!parsed) throw new Error(`create_beats: score must be { mood, seed?, game?, role? } (moods: ${Object.keys(SCORE_MOODS).join(', ')}) — ${manual}`);
+  const spec = mintFieldSpec(parsed, { game: true });
+  const recipe = fieldCue(spec);
+  const { kind: _k, title: _t, ...body } = recipe;
+  const minted = mintBeats({ kind: 'beats-composition', title: title || `${spec.mood} field`, params: { ...body, score: spec }, ref, folderRef });
+  return {
+    ...minted,
+    score: spec,
+    energy: SCORE_MOODS[spec.mood].energy,
+    next: `keep this game's sound: pass score.game = ${spec.game} to every cue of the game (and to its worlds' `
+      + "audio.soundtrack score). A new seed gives a new tune in the same identity; omit both for a whole new score.",
+  };
 }
 
 export async function getBeatsVocabHandler(input) {
@@ -449,18 +478,19 @@ export function registerBeatsTools() {
     name: 'create_beats',
     description:
       'Mint a MUSICAL artifact — synthesized WebAudio from a tiny deterministic recipe, played at its '
-      + '/beats/<ref> studio (no media bytes stored; every sound is computed at play time). One tool, four '
+      + '/beats/<ref> studio. One tool, four '
       + 'kinds: `beats-ambient` (a seeded generative music loop — tempo/key/progression/channels; the '
       + 'world-soundtrack primitive), `beats-composition` (an explicit note-event score — a specific '
       + 'melody/jingle/fanfare, no dice), `beats-pattern` (a step-sequencer groove loop — tracks × '
       + 'sixteenth velocity masks with note contours; drum machine / house / garage / techno beats), '
       + '`beats-sfx` (named foley cues: sweep/flutter/burst/thump/grain/ring/tone — pickups, lasers, '
-      + 'impacts, beams). New work: grand-piano, -2 sections, drum-kit, pan + room. Pick '
+      + 'impacts, beams). Pick '
       + '`kind`; the kind\'s own recipe goes in `params` — find a kind by intent via '
       + "semantic_search({ kinds: ['beats_vocab'] }) and read its parameter manual via "
-      + 'get_beats_vocab({ id: \'<kind>\' }) before passing params. Wire into a world via the world '
-      + 'manifest\'s `audio` channel ({ soundtrack: { beatsRef } }, sfx cues on bus events). Reach for '
-      + '"give this world music", "compose a tune", "make a pickup/laser/charge sound".',
+      + 'get_beats_vocab({ id: \'<kind>\' }) before passing params. Or pass `score: { mood }` instead to GENERATE a '
+      + 'field cue (fresh seeds; share `game` for one identity). Wire into a world via its `audio` channel '
+      + '({ soundtrack: { beatsRef } | \'field:<mood>\' }, sfx cues on bus events). Reach for '
+      + '"give this world music", "score this level", "compose a tune", "make a pickup/laser/charge sound".',
     inputSchema: {
       type: 'object',
       properties: {
@@ -469,8 +499,19 @@ export function registerBeatsTools() {
         params: { type: 'object', description: "The kind's own recipe (see its beats-vocab card). Validated by the mint; a failed mint returns the card pointer." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
+        score: {
+          type: 'object',
+          description: 'A generated field cue instead of params; seed (tune) and game (identity) rolled fresh if omitted.',
+          properties: {
+            mood: { type: 'string', enum: Object.keys(SCORE_MOODS) },
+            seed: { type: 'integer' },
+            game: { type: 'integer' },
+            role: { type: 'string', enum: FIELD_ROLES },
+          },
+          required: ['mood'],
+        },
       },
-      required: ['kind', 'title', 'params'],
+      required: ['title'],
     },
     handler: createBeatsHandler,
   });
