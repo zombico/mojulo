@@ -20,9 +20,10 @@ export const FAMILIES = {
       gallop: { pattern: 'bound', duty: 0.3, stride: 2.4, fr: [0.4, 3] },
       swim:   { pattern: 'tailDrive', limbsTucked: true },
     },
-    axial: { flex: 0.2, lateral: 0.5, wave: 'standing', roll: 0.1, yaw: 0.35, head: 'steady', tail: 'trail' },
+    // the heavy tail swings against the legs' stride on land (its caudofemoralis also pulls the hind leg back)
+    axial: { flex: 0.2, lateral: 0.5, wave: 'standing', roll: 0.1, yaw: 0.35, head: 'steady', tail: 'counter' },
     note: 'belly-crawls with the legs sprawled, or lifts into the high walk; bursts into a bounding gallop; swims by sweeping the tail, legs tucked back',
-    source: 'Zug 1974 (crocodilian galloping); Reilly & Elias 1998 (alligator sprawling and high walk)',
+    source: 'Zug 1974 (crocodilian galloping); Reilly & Elias 1998 (alligator sprawling and high walk); Gatesy 1990 (the caudofemoralis)',
   },
   monotreme: {
     spine: { trunk: 3, neck: 1, tail: 2 },

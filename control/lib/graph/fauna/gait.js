@@ -16,11 +16,13 @@
  *  - STROKES: the pattern's limb group beats about its roots: fins and flippers flap (hind half a beat behind),
  *    paddles and kicks sweep fore and aft. WINGS are rebuilt at each instant's fold (spread on the downstroke, half
  *    folded coming up) and rolled about the body's long axis; soaring holds them spread.
- *  - HEAD steady (held level), nod (twice a stride); TAIL trails the hips with a lag, or counters them, and drags
- *    on the ground rather than sinking through it.
+ *  - HEAD steady (held level), nod (twice a stride).
+ *  - TAIL: the snakes' travelling wave run down the tail from the pelvis, its root answering the spin the swinging
+ *    legs give the body (TAILS: a stiff counterweight, a loose trailing tail); a planted tail props; the ground lays a
+ *    tail along it rather than through it.
  */
 import { faunaSkeleton } from './skeleton.js';
-import { locomotionFor, PATTERNS } from './locomotion/index.js';
+import { locomotionFor, PATTERNS, TAILS } from './locomotion/index.js';
 import { SPECIES, speciesParams, speciesPlan } from './species.js';
 import { buildWing } from './wing.js';
 
@@ -29,6 +31,9 @@ const AXIS = /^(spine|neck|tail)\d+$|^head$/;
 const ASYMMETRIC = new Set(['transverseGallop', 'rotaryGallop', 'halfBound', 'bound', 'pronk', 'saltation', 'bipedHop', 'canter']);
 const MAX_FLEX = 50 * Math.PI / 180;      // whole-trunk arc at flex 1 (a cheetah)
 const MAX_LATERAL = 40 * Math.PI / 180;   // whole-trunk sideways arc at lateral 1 (a sprawler)
+const TAIL_YAW = 22 * Math.PI / 180;      // a counterweight tail's root swing, side to side, at the legs' full spin
+const TAIL_PITCH = 18 * Math.PI / 180;    // … and up and down
+const PROP = 35 * Math.PI / 180;          // how far a propping tail presses its root down (the ground lays the rest)
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -48,6 +53,20 @@ const rotX = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0],
 const rotY = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; };
 const rotZ = (a) => { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; };
 const axisAngle = (k, a) => { const [x, y, z] = k, c = Math.cos(a), s = Math.sin(a), C = 1 - c; return [[c + x * x * C, x * y * C - z * s, x * z * C + y * s], [y * x * C + z * s, c + y * y * C, y * z * C - x * s], [z * x * C - y * s, z * y * C + x * s, c + z * z * C]]; };
+/**
+ * A TRAVELLING WAVE along a chain (the serpenoid): the heading at arc fraction u ∈ [0, 1] and phase t is
+ * `amp · env(u) · s(t − lag·u)` — the signal `s` leaves the root and reaches the tip `lag` of a stride later. A snake
+ * or a fish runs it over the whole body (s a sine); a tail runs it from the pelvis, s the spin the legs give the body.
+ */
+const travelling = (amp, s, lag, env) => (u, t) => amp * env(u) * s(t - lag * u);
+
+/** A foot's fore-aft place through one stride (+ forward), at phase u of its own cycle: back along the ground for
+ * `duty`, then forward through the air. */
+const footDy = (u, duty, excursion) => {
+  if (u < duty) return excursion * (0.5 - u / duty);
+  const v = (u - duty) / (1 - duty); return excursion * (ease(v) - 0.5);
+};
+
 /** The smallest rotation taking unit a onto unit b. */
 const between = (a, b) => { const c = cross(a, b), s = norm(c), d = dot(a, b); if (s < 1e-9) return d > 0 ? I3 : axisAngle(unit(cross(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0])), Math.PI); return axisAngle(mul(c, 1 / s), Math.atan2(s, d)); };
 
@@ -81,7 +100,8 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
 
   // SPINE: flexion and sideways bend spread over the trunk, centred so mid-back stays level
   const trunk = S.bones.filter((b) => /^spine\d+$/.test(b.id)), n = trunk.length;
-  const flexWave = asym ? Math.cos(TAU * (t - 0.05)) : 0.25 * Math.cos(2 * TAU * t);
+  const flexWaveAt = (x) => (asym ? Math.cos(TAU * (x - 0.05)) : 0.25 * Math.cos(2 * TAU * x));
+  const flexWave = flexWaveAt(t);
   const flex = (A.flex || 0) * MAX_FLEX * flexWave;
   const lat = A.wave === 'standing' ? (A.lateral || 0) * MAX_LATERAL * Math.sin(TAU * t) : 0;
   trunk.forEach((b, k) => {
@@ -105,8 +125,8 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
     const th0 = Math.min(0.9, TAU * waves * amp);
     // even along the body when the whole body waves (from 0); otherwise rising from `from` to the tail
     const env = (u) => (from <= 0 ? 1 : u < from ? 0 : Math.min(1, 0.3 + 0.7 * (u - from) / Math.max(1e-6, 1 - from)));
-    const theta = [];
-    for (let i = 1; i < pts.length; i++) { const u = (arc[i - 1] + arc[i]) / 2 / Ltot; theta.push(th0 * env(u) * Math.sin(TAU * (waves * u - t))); }
+    const theta = [], wave = travelling(th0, (x) => -Math.sin(TAU * x), waves, env);   // = th0·env·sin(2π(waves·u − t))
+    for (let i = 1; i < pts.length; i++) { const u = (arc[i - 1] + arc[i]) / 2 / Ltot; theta.push(wave(u, t)); }
     let mean = 0; for (let i = 1; i < pts.length; i++) mean += theta[i - 1] * (arc[i] - arc[i - 1]); mean /= Ltot;
     const R = P.plane === 'vertical' ? rotX : rotZ;
     const q = [pts[0]];
@@ -120,15 +140,46 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
     });
   }
 
-  // TAIL: a lagging wave (trail) or the hips' counter-swing (counter)
-  if (P.kind !== 'wave') {
-    const tailBones = S.bones.filter((b) => /^tail\d+$/.test(b.id)), tailN = Math.max(1, tailBones.length);
+  // TAIL: a short body wave hung off the pelvis — the travelling wave of the snakes and fish, run down the tail. Its
+  // root answers the SPIN the swinging legs give the body: each foot's fore-aft travel, signed by its side, sums to the
+  // yaw (the diagonal pairs of a trot cancel; a pace, a biped's stride swing the hips), and unsigned to the pitch (a hop
+  // or a bound swings both legs at once); a counterweight also answers the back's flexion, a loose tail the body's
+  // heave. TAILS says how: a counterweight swings stiffly against the spin, a loose tail follows late and whips at the
+  // tip. A pattern that plants the tail (the kangaroo's slow walk) presses it down onto the ground through that foot's
+  // stance. The ground lays a tail along it rather than through it (below).
+  const stride = (g.stride || 0) * h, duty = g.duty ?? 0.5, excursion = stride * duty;
+  const TM = TAILS[A.tail] || TAILS.none;
+  const tailBones = S.bones.filter((b) => /^tail\d+$/.test(b.id));
+  if (P.kind !== 'wave' && tailBones.length && TM.gain && !(A.tail === 'drive' && P.kind !== 'feet')) {   // a driving tail rests while fins row
+    const feet = P.kind === 'feet' ? Object.entries(P.feet).filter(([fk]) => limbs[footKey(fk)] && !(g.hindOnly && fk.endsWith('F'))) : [];
+    const half = (excursion / 2) * feet.length;
+    const counterweight = A.tail === 'counter' || A.tail === 'prop';
+    const heave = (x) => (P.kind === 'stroke' ? Math.sin(TAU * x) : -Math.cos((asym ? 1 : 2) * TAU * x));
+    const spin = (x) => {
+      let yaw = 0, pitch = 0;
+      for (const [fk, off] of feet) { const dy = footDy(frac(x - off), duty, excursion); yaw += (footKey(fk)[0] === 'R' ? 1 : -1) * dy; pitch += dy; }
+      if (half > 0) { yaw /= half; pitch /= half; }
+      return { yaw, pitch: pitch + (counterweight ? -0.6 * (A.flex || 0) * flexWaveAt(x) : 0.5 * heave(x)) };
+    };
+    // right legs forward spin the body to the left, so the tail swings its tip left (−x); legs forward pitch the nose
+    // down, so the tail swings its tip up
+    // a heavier tail cancels the same spin with a smaller swing (its inertia grows with mass × length²): the swing
+    // shrinks as the tail outgrows the hip height (a T. rex's or a sauropod's sweeps a few degrees, a cat's freely)
+    const reach = tailBones.reduce((sum, b) => sum + norm(sub(b.tail, b.head)), 0) / h, heavy = 1 / Math.max(1, reach);
+    const env = (u) => 1 + (TM.whip || 0) * u;
+    const yawAt = travelling(TM.gain * heavy * TAIL_YAW, (x) => -spin(x).yaw, TM.lag || 0, env);
+    const pitchAt = travelling(TM.gain * heavy * TAIL_PITCH, (x) => spin(x).pitch, TM.lag || 0, env);
+    const n = tailBones.length; let y0 = 0, p0 = 0;
     tailBones.forEach((b, k) => {
-      const lag = Math.sin(TAU * ((asym ? 1 : 2) * t - 0.12 * (k + 1)));
-      const a = (A.tail === 'counter' ? 24 : A.tail === 'trail' ? 16 : 0) * Math.PI / 180 / tailN;   // the whole tail's swing, shared
-      // a counterweight swings against the body's pitch in a bounding gait (kangaroo), against the hips' yaw in a stride
-      local[b.id] = A.tail === 'counter' && asym ? rotX(a * Math.cos(TAU * t)) : mm(rotZ(A.tail === 'counter' ? -a * Math.sin(TAU * t) : 0), rotX(a * lag));
+      const u = n > 1 ? k / (n - 1) : 0, y = yawAt(u, t), pp = pitchAt(u, t);
+      local[b.id] = mm(rotZ(y - y0), rotX(-(pp - p0)));   // each bone turns by the heading's step (rotX(−a) lifts a tail's tip)
+      y0 = y; p0 = pp;
     });
+  }
+  // a planted tail (a fifth foot): pressed down through its stance, eased in and out
+  if (P.kind === 'feet' && P.feet.tail !== undefined && tailBones.length) {
+    const u = frac(t - P.feet.tail), w = u < duty ? Math.sin(Math.PI * u / duty) : 0;
+    local[tailBones[0].id] = mm(rotX(PROP * w), local[tailBones[0].id] || I3);
   }
 
   // STROKES: the pattern's limb group beats about its roots. Wings, pectoral wings and flippers flap (a roll about
@@ -159,7 +210,6 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
   // the body: a small dip with the stance legs, and in a flight phase (no foot down) a ballistic arc, its height from
   // the stride time: the speed that stride implies (Alexander & Jayes 1983: stride/h ≈ 2.3·Fr^0.3, v = √(Fr·g·h)),
   // the stride lasting stride ÷ v
-  const stride = (g.stride || 0) * h, duty = g.duty ?? 0.5, excursion = stride * duty;
   let bob = 0;
   if (P.kind === 'feet') {
     const feet = Object.entries(P.feet).filter(([fk]) => limbs[footKey(fk)] && !(g.hindOnly && fk.endsWith('F')));
@@ -194,9 +244,8 @@ export function poseGait(id, gaitWord, t, ctx = prepare(id)) {
       const chain = limbs[footKey(fk)]; if (!chain || chain.length < 2 || (g.hindOnly && fk.endsWith('F'))) continue;
       const bones = chain.map((c) => byId[c]);
       const u = frac(t - off), restFoot = bones[bones.length - 1].tail;
-      let dy, dz = 0, curl = 0;
-      if (u < duty) dy = excursion * (0.5 - u / duty);
-      else { const v = (u - duty) / (1 - duty); dy = excursion * (ease(v) - 0.5); dz = Math.max(0, bob) + h * (asym ? 0.12 : 0.1) * Math.sin(Math.PI * v); curl = Math.sin(Math.PI * v); }
+      const dy = footDy(u, duty, excursion); let dz = 0, curl = 0;
+      if (u >= duty) { const v = (u - duty) / (1 - duty); dz = Math.max(0, bob) + h * (asym ? 0.12 : 0.1) * Math.sin(Math.PI * v); curl = Math.sin(Math.PI * v); }
       const foot = add(restFoot, [0, dy, dz]);
       // the foot block: bones from the third on (or the last alone in a two-bone limb), rigid at rest, curled in swing
       const k0 = Math.min(2, bones.length - 1);

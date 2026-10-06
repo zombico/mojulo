@@ -130,16 +130,19 @@ export function buildFauna(params) {
         : { open: [0.45, 0.32], reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) },
       // `relBrow` (opt-in, with headRelative): the brow strip's width and height scale with the head as the eye does
       brow: { strip: P.browStrip, w: P.relBrow ? hs(0.012) : 0.012, h: P.relBrow ? hs(0.009) : 0.009, taper: [0.55, 0.9, 1, 0.9, 0.6], facing: 'down' },
-      // `nose: false` drops the nose pad; the head format requires the nostril region, so it shrinks out of sight
-      nostril: { at: P.nostrilAt, r: P.nose === false ? 0.0002 : hs(0.007), squash: [1.3, 1], slide: 0.4 },
+      // `nose: false` drops the nose pad; the head format requires the nostril region, so it shrinks out of sight.
+      // `nostrilR` (m) and `nostrilSquash` (opt-in): a bigger or longer nostril (a horse's open comma), default 0.007, [1.3, 1]
+      nostril: { at: P.nostrilAt, r: P.nose === false ? 0.0002 : hs(P.nostrilR ?? 0.007), squash: clone(P.nostrilSquash ?? [1.3, 1]), slide: 0.4 },
       fold: { strip: clone(P.foldStrip) },
-      web: { cranium: P.webCranium, jaw: [0.35, 1.7, 0.97] },
+      // the mouth corner's web: `webCranium` [s0, s1, t] on the skull, `webJaw` (opt-in) the matching run on the jaw
+      web: { cranium: P.webCranium, jaw: clone(P.webJaw ?? [0.35, 1.7, 0.97]) },
       tiles: clone(P.headTiles || []),
     },
     landmarks: { nape: clone(P.nape) },
     ornaments: [
       ...ears,
-      ...(P.nose === false ? [] : [{ kind: 'sweep', name: 'nose', at: P.noseAt, side: 'R', space: 'local', spine: hs([[0, 0, -0.008], [0, 0, 0.006], [0, 0, 0.012]]), radii: hs(P.noseR), m: 8, squash: [1.35, 1], group: 'NosePad' }]),
+      // `nosePad: false` (opt-in): no pad ornament, the nostrils kept (a horse's soft muzzle has no bare nose)
+      ...(P.nose === false || P.nosePad === false ? [] : [{ kind: 'sweep', name: 'nose', at: P.noseAt, side: 'R', space: 'local', spine: hs([[0, 0, -0.008], [0, 0, 0.006], [0, 0, 0.012]]), radii: hs(P.noseR), m: 8, squash: [1.35, 1], group: 'NosePad' }]),
       ...clone(P.headOrnaments || []),
     ],
     palette: {

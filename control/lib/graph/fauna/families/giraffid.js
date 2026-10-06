@@ -4,10 +4,10 @@
 // thin tail with a dark tuft · a patched coat (grown body tiles). Worked species: the giraffe. Authored in metres at
 // the giraffe's own size. The head and its skin controls start from the equine head (a long wedge face), which this
 // family re-proportions; everything else is the giraffid's own. See ../build.js for every field.
-import { family as equine } from './equine.js';
+import { family as equine, CLASSIC_HEAD } from './equine.js';
 
 export const family = {
-  ...equine,
+  ...equine, ...CLASSIC_HEAD,   // the classic sheared equine head (the horse's own is rebuilt level and pitched)
   family: 'giraffid',
   colors: {
     coat: '#e2c89a', sock: '#e6d4b0', ash: '#d8b884', ashAlt: '#8a5428', brow: '#5a3a20', iris: '#2a1a10',

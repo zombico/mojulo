@@ -17,8 +17,8 @@
  *           (Alexander & Jayes 1983), so one table drives a fox and an elephant. Wave gaits carry wave numbers.
  *  - axial  how the body rides the stride: `flex` (up-and-down spine flexion, 0..1), `lateral` (sideways bend,
  *           0..1), `wave` ('none' | 'standing' | 'travelling'), `roll` / `yaw` (girdle rotation, 0..1), `head`
- *           ('steady' | 'nod' | 'thrust' | 'sway' | 'reach'), `tail` ('none' | 'still' | 'trail' | 'counter' |
- *           'prop' | 'drive').
+ *           ('steady' | 'nod' | 'thrust' | 'sway' | 'reach'), `tail` (a TAILS word: 'none' | 'still' | 'trail' |
+ *           'counter' | 'prop' | 'drive').
  *  - species `{ <id>: { gaits?, axial?, spine?, note? } }`: merged over the family; a gait set to null is removed.
  *
  * Numbers are textbook approximations that make an animal read right, not measured data. Where scientists disagree,
@@ -58,6 +58,27 @@ export const GAITS = Object.freeze({
   swim:       'swims',
   fly:        'flies by flapping',
   glide:      'soars or glides on still wings',
+});
+
+/**
+ * What a tail DOES, in plain words (the card's TAIL line), and the mechanics the gait solver reads for it. A tail is a
+ * short body wave hung off the pelvis (the serpenoid of the snakes and fish, run down the tail): its root is driven by
+ * the spin the legs give the body, and that motion travels to the tip.
+ *  - `gain`  how much of the legs' spin the tail answers (1: a counterweight that cancels it; 0: held still);
+ *  - `lag`   the fraction of a stride the motion takes to reach the tip (a stiff lever ~0, a loose tail ~0.3);
+ *  - `whip`  how much the swing grows toward the tip (a stiff lever ~0.2, a loose tail ~1).
+ * A tail balances by angular momentum: swinging legs spin the body, and a tail swung the other way cancels the spin
+ * (Libby et al. 2012, lizards; Patel et al. 2016, cheetahs; Alexander & Vernon 1975, kangaroos; Persons & Currie
+ * 2011, theropods). The diagonal pairs of a trot cancel each other, so a trotting tail rides calm; a pace, a biped's
+ * stride and a walk swing the hips side to side; a hop and a bound pitch the body, so the tail swings up and down.
+ */
+export const TAILS = Object.freeze({
+  none:    { line: null, gain: 0 },
+  still:   { line: 'held still (too short or stiff to swing)', gain: 0 },
+  trail:   { line: 'trails loose, swinging late, the tip whipping', gain: 0.35, lag: 0.3, whip: 1.2 },
+  counter: { line: 'a counterweight: swings against the legs to cancel the body\'s spin', gain: 1, lag: 0.06, whip: 0.2 },
+  prop:    { line: 'a fifth leg: planted to vault the body, a counterweight in the hop', gain: 1, lag: 0.06, whip: 0.2 },
+  drive:   { line: 'drives the swim; trails on land', gain: 0.35, lag: 0.3, whip: 1.2 },
 });
 
 const q = (LH, LF, RH, RF) => ({ LH, LF, RH, RF });

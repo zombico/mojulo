@@ -41,6 +41,28 @@ describe('fauna gaits', () => {
     }
   });
 
+  it('a tail balances by what the legs do: calm in a trot, swaying against a stride, swinging against a hop', () => {
+    const sweep = (id, g, axis) => { const ctx = prepare(id), tip = ctx.S.bones.filter((b) => /^tail\d+$/.test(b.id)).at(-1).id;
+      const v = Array.from({ length: N }, (_, i) => poseGait(id, g, i / N, ctx).bones[tip].tail[axis]); return Math.max(...v) - Math.min(...v); };
+    expect(sweep('wolf', 'trot', 0)).toBeLessThan(1e-6);            // the diagonal pairs cancel: no side-to-side spin
+    expect(sweep('tRex', 'walk', 0)).toBeGreaterThan(0.3);          // a biped's stride swings the hips: the tail sways
+    expect(sweep('kangaroo', 'hop', 2)).toBeGreaterThan(sweep('kangaroo', 'hop', 0) + 0.1);   // a hop pitches: up and down
+    // the tail swings against the rump it hangs from (a counterweight)
+    const ctx = prepare('cheetah'), root = ctx.S.bones.find((b) => b.id === 'tail0'), rump = root.parent;
+    const pitch = (p) => Math.atan2(p.tail[2] - p.head[2], Math.hypot(p.tail[0] - p.head[0], p.tail[1] - p.head[1]));
+    const F = Array.from({ length: N }, (_, i) => poseGait('cheetah', 'gallop', i / N, ctx));
+    const a = F.map((f) => pitch(f.bones[rump])), b = F.map((f) => pitch(f.bones.tail0));
+    const ma = a.reduce((s, x) => s + x) / N, mb = b.reduce((s, x) => s + x) / N;
+    expect(a.reduce((s, x, i) => s + (x - ma) * (b[i] - mb), 0)).toBeLessThan(0);
+  });
+
+  it('a propping tail is planted while its foot is down (the kangaroo\'s slow walk)', () => {
+    const ctx = prepare('kangaroo'), duty = ctx.L.gaits.crawl.duty, tails = ctx.S.bones.filter((b) => /^tail\d+$/.test(b.id));
+    const low = (t) => Math.min(...tails.map((b) => poseGait('kangaroo', 'crawl', t, ctx).bones[b.id].tail[2]));
+    expect(low(duty / 2)).toBeLessThan(0.01);                       // mid-stance: on the ground
+    expect(low(duty + (1 - duty) / 2)).toBeGreaterThan(low(duty / 2));
+  });
+
   it('is deterministic', () => {
     for (const [id, g] of [['cheetah', 'gallop'], ['snake', 'slither'], ['kangaroo', 'hop'], ['salmon', 'swim']]) {
       expect(JSON.stringify(gaitFrames(id, g, 6))).toBe(JSON.stringify(gaitFrames(id, g, 6)));

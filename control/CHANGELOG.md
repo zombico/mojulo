@@ -529,6 +529,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     duration. The World page previews the clips, the skinned GLB carries them (`export_model { clips: '_all',
     skinned: true }`), and the Godot pack plays the first.
   - The worn wing still rides its root bone rigidly; weighting its surface from wing.js's own bindings is next.
+- The equine trunk is shaped in its mammal regions instead of one even barrel: a rounded buttock, broad quarters
+  over the hip, the loin and flank tucked in and up (the belly line climbs to the stifle), the rib barrel deepening to
+  the girth behind the elbow, the withers, and a narrow breast. It sits on the stable ring frame (`torsoUp`) so the
+  centres can rise and fall. The horse and zebra change (the zebra's stripe hoops now follow the trunk's height as
+  well as its radius); the camel keeps its own level trunk and builds byte-identically.
+- The horse and zebra heads are rebuilt level at true size and pitched nose-down (`headPitch`), instead of sheared
+  (the shear stretched the skull along its slope to ~0.9 m, half again a horse's, and slanted every feature). Now
+  ~0.59 m poll to lips (published 0.55–0.65 m): a broad flat forehead with the eyes set on the sides at its widest,
+  seated and lidded (the set eye); a nasal line narrowing to ~0.10 m mid-face; a soft muzzle flaring at large open
+  nostrils with no bare nose pad; a round jowl curving up into a thin under-jaw, chin and lower lip; the mouth line
+  only over the last quarter (behind the corner the jaw covers the seam). The zebra's head grows to ~0.52 m.
+  Three opt-in builder fields carry it, each zero bytes when absent: `nostrilR` / `nostrilSquash`, `nosePad: false`,
+  `webJaw` (the jaw end of the mouth-corner web). The camel and the giraffe (whose head starts from the equine one,
+  now exported as `CLASSIC_HEAD`) build byte-identically.
+- Tails balance the body instead of swinging as decoration. A tail is the snakes' and fish's travelling wave run
+  from the pelvis (one helper, `travelling`, now drives both; every snake and fish wave is bit-for-bit unchanged): its
+  root answers the spin the swinging legs give the body, each foot's fore-aft travel signed by its side for the yaw
+  and summed for the pitch, so a trot's diagonal pairs cancel and the tail rides calm, a biped's stride or a pace sways
+  it, and a hop or bound swings it up and down. The plain tail words (`TAILS` in the locomotion data) carry the
+  mechanics: a `counter`weight swings stiffly against the spin, a `trail`ing tail follows late with a whipping tip, a
+  `prop` is planted as a fifth leg (the kangaroo's slow walk presses it to the ground with the forelegs), `drive`
+  trails on land and rests while fins row. A heavy tail answers with a smaller swing (it shrinks as the tail outgrows
+  the hip height). The kangaroo's tail is now `prop` and the crocodile's `counter`; every species card carries a
+  `TAIL` line saying what the tail does.
 
 ### Environmental sound
 

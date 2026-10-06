@@ -2,9 +2,9 @@
 // crest, a long wedge head carried nose-down, medium upright ears, a long hair tail from the dock. Worked species: the
 // domestic riding horse. Authored at the horse's own size in metres (1 hand = 0.1016 m). See ../build.js for every field.
 
-// the head is authored level (rows in metres, +y to the muzzle) and then sheared nose-down: every z drops by
-// `slope` metres per metre of y, so the long face hangs from the poll as a horse carries it
-const SLOPE = 0.9, DEPTH = 1.3;   // DEPTH: the face's depth before the shear (the shear thins it)
+// the camel's (and the classic) head is authored level (rows in metres, +y to the muzzle) and then sheared nose-down: every z drops by
+// `slope` metres per metre of y (the horse and zebra are authored level at true size and PITCHED instead: a shear
+// stretches the skull along its slope and slants every feature)
 const shear = (slope, depth) => {
   const dz = (y) => -slope * y;
   return {
@@ -18,9 +18,8 @@ const shear = (slope, depth) => {
     pt: ([x, y, z]) => [x, y, z * depth + dz(y)],
   };
 };
-const { rows: sheared, jaw: shearedJaw, pt } = shear(SLOPE, DEPTH);
 
-// the level skull and jaw rows, shared by every species (each shears them to its own head carriage)
+// the camel's level skull and jaw rows (sheared to its own carriage)
 const SKULL = [
     ['st0', -0.12, 0.06, [0.04, 0.055], [0.08, 0.02], [0.09, -0.06], [0.09, -0.16], [0.06, -0.20], -0.21],
     ['st1', -0.04, 0.08, [0.04, 0.075], [0.095, 0.035], [0.10, -0.05], [0.095, -0.15], [0.06, -0.20], -0.21],
@@ -37,6 +36,59 @@ const JAW = [
     ['st3', 0.34, { gum: -0.10, gumR: [0.03, -0.10], jaw: [0.035, -0.15], bottom: -0.16 }],
     ['st4', 0.46, { gum: -0.088, gumR: [0.03, -0.088], jaw: [0.035, -0.14], bottom: -0.15 }],
   ];
+// THE CLASSIC EQUINE FACE: the family's addresses and muzzle before the horse head was rebuilt, kept so the camel and
+// the giraffe (whose head starts from it) build as they did
+const CLASSIC_FACE = {
+  muzzleFrom: 3, muzzleW: 1.25, eyeAt: [1.2, 2.3], eyeR: 0.022,
+  browStrip: [[0.8, 1.9], [1.0, 1.9], [1.2, 1.95], [1.4, 2.0], [1.6, 2.1]],
+  foldStrip: [[5.6, 2.4], [5.4, 2.9], [5.2, 3.4], [5.0, 3.8], [4.8, 4.2]],
+  nostrilAt: [5.6, 2.0], webCranium: [1.7, 3.3, 4.97], earAt: [0.4, 1.3],
+  // the classic orbit eye (any eyeStyle but 'set'), no pitch, the small nostrils and pad, the mid-head mouth web
+  eyeStyle: 'orbit', headPitch: 0, nostrilR: 0.007, nostrilSquash: [1.3, 1], nosePad: true, webJaw: [0.35, 1.7, 0.97],
+  // the builder's own band groups for the bands the horse recolours (muzzle from row 3)
+  craniumBandGroups: Object.fromEntries(['st0-st1', 'st1-st2', 'st2-st3', 'st3-st4'].map((b, i) => [b, [...Array(3).fill(i < 3 ? 'Skull' : 'Snout'), 'Cheek', 'Jowl', 'Palate']])),
+  skinControls: {
+    browRaise: { amp: 0.01, map: [['st1.brow', 0.8, [0, 0, 1]], ['st2.brow', 0.6, [0, 0, 1]]] },
+    browFurrow: { amp: 0.012, map: [['st2.brow', 1, [-0.3, 0.2, -1]], ['st1.brow', 0.4, [0, 0, -1]]] },
+    sneer: { amp: 0.012, map: [['st5.jowl', 1, [0.2, 0, 1]], ['st5.lip', 0.8, [0.2, 0, 1]], ['st6.jowl', 0.5, [0.2, 0, 1]]] },
+    cheekBunch: { amp: 0.01, map: [['st3.cheek', 1, [0.5, 0, 0.8]], ['st2.cheek', 0.6, [0.5, 0, 0.8]]] },
+    cornerRetract: { amp: 0.015, map: [['st5.lip', 0.8, [0.1, -1, 0.3]], ['st6.lip', 0.5, [0.1, -1, 0.3]]] },
+  },
+};
+
+// the classic head itself: SKULL and JAW sheared 0.9 m per m nose-down, the face 1.3× deep (the giraffid's start)
+export const CLASSIC_HEAD = (() => { const H = shear(0.9, 1.3); return { ...CLASSIC_FACE,
+  craniumRows: H.rows(SKULL), craniumCaps: { back: H.pt([0, -0.16, -0.06]), tip: H.pt([0, 0.505, -0.045]) },
+  jawRows: H.jaw(JAW), jawCaps: { back: H.pt([0, -0.10, -0.24]), tip: H.pt([0, 0.48, -0.10]) },
+  headScale: 1, nape: H.pt([0, -0.13, -0.02]) }; })();
+
+// THE HORSE HEAD, level and at true size (metres, +y to the muzzle, +z up; ~0.60 m poll to lips, published riding
+// horse head length 0.55–0.65 m), carried nose-down by the head's `pitch`. Skull rows: [id, y, top, crown, brow,
+// cheek, jowl, lip, palate]. The broad flat FOREHEAD between eyes set on the sides at the widest point (~0.21 m across
+// the orbits) · the long straight NASAL line narrowing to ~0.10 m mid-face · the soft MUZZLE flaring a little at the
+// nostrils · the mouth line only over the last quarter (the mouth corner ~0.13 m behind the lips).
+const EQUUS_SKULL = [
+  ['st0', -0.12, 0.055, [0.04, 0.05], [0.075, 0.02], [0.085, -0.03], [0.085, -0.07], [0.075, -0.085], -0.09],
+  ['st1', -0.02, 0.07, [0.05, 0.065], [0.10, 0.025], [0.098, -0.03], [0.09, -0.065], [0.08, -0.08], -0.09],
+  ['st2', 0.08, 0.065, [0.045, 0.06], [0.08, 0.02], [0.088, -0.035], [0.075, -0.07], [0.065, -0.085], -0.09],
+  ['st3', 0.18, 0.055, [0.035, 0.05], [0.06, 0.015], [0.065, -0.03], [0.058, -0.065], [0.048, -0.082], -0.085],
+  ['st4', 0.28, 0.045, [0.03, 0.04], [0.05, 0.01], [0.054, -0.025], [0.05, -0.058], [0.042, -0.076], -0.08],
+  ['st5', 0.37, 0.035, [0.03, 0.03], [0.055, 0.0], [0.062, -0.03], [0.058, -0.058], [0.048, -0.072], -0.075],
+  ['st6', 0.43, 0.02, [0.028, 0.016], [0.048, -0.01], [0.052, -0.035], [0.05, -0.058], [0.04, -0.07], -0.072],
+];
+// the jaw: the big ROUND JOWL (the cheek over the jaw's branches, deepest under the eye) whose front edge curves up
+// into the thin straight under-jaw, the chin groove, the chin, the lower lip. Behind the mouth corner its upper edge
+// stands just outside and above the skull's lip, so the seam is covered (no mouth line along the whole head).
+const EQUUS_JAW = [
+  ['st0', -0.10, { gum: -0.08, gumR: [0.088, -0.07], jaw: [0.095, -0.17], bottom: -0.20 }],
+  ['st1', 0.00, { gum: -0.085, gumR: [0.094, -0.072], jaw: [0.097, -0.19], bottom: -0.235 }],
+  ['st2', 0.12, { gum: -0.085, gumR: [0.078, -0.078], jaw: [0.062, -0.16], bottom: -0.185 }],
+  ['st3', 0.26, { gum: -0.08, gumR: [0.05, -0.078], jaw: [0.04, -0.12], bottom: -0.14 }],
+  ['st4', 0.35, { gum: -0.075, gumR: [0.042, -0.075], jaw: [0.04, -0.112], bottom: -0.13 }],
+  ['st5', 0.42, { gum: -0.07, gumR: [0.04, -0.07], jaw: [0.04, -0.10], bottom: -0.118 }],
+];
+// behind the mouth corner the skull's underside is cheek, not mouth: those bands' last slot takes the jowl's colour
+const COVERED = { group: 'Jowl', bands: ['st0-st1', 'st1-st2', 'st2-st3', 'st3-st4'] };
 
 export const family = {
   family: 'equine',
@@ -51,16 +103,21 @@ export const family = {
     shoulder: [0.17, 0.52, 1.22], elbow: [0.18, 0.40, 0.94], carpus: [0.16, 0.44, 0.52], foreFetlock: [0.16, 0.45, 0.20], foreCoronet: [0.16, 0.50, 0.12], foreHoof: [0.16, 0.54, 0.05],
     hip: [0.16, -0.56, 1.16], stifle: [0.19, -0.34, 0.90], hock: [0.15, -0.70, 0.58], hindFetlock: [0.15, -0.63, 0.20], hindCoronet: [0.15, -0.58, 0.12], hindHoof: [0.15, -0.54, 0.05],
   },
-  // a level trunk (centre z 1.22): croup and buttock behind, the deep barrel, the girth, the chest in front
+  // the trunk in its mammal regions, rump to breast (on the stable ring frame, so centres may rise and fall): the
+  // rounded buttock · the broad QUARTERS over the hip · the LOIN and FLANK tucked in and up (the belly line climbs to
+  // the stifle) · the rib BARREL deepening to the GIRTH just behind the elbow · the WITHERS over the shoulder ·
+  // the narrow breast between the forearms. Back line ~1.55 m, a touch higher at the withers than the croup.
+  torsoUp: true,
   torso: [
-    { at: [0, -0.80, 1.22], r: [0.19, 0.26] },
-    { at: [0, -0.56, 1.22], r: [0.27, 0.34] },
-    { at: [0, -0.22, 1.22], r: [0.30, 0.36] },
-    { at: [0, 0.14, 1.22], r: [0.30, 0.37] },
-    { at: [0, 0.44, 1.22], r: [0.25, 0.36] },
-    { at: [0, 0.66, 1.22], r: [0.18, 0.30] },
+    { at: [0, -0.84, 1.28], r: [0.18, 0.21] },
+    { at: [0, -0.62, 1.25], r: [0.28, 0.30] },
+    { at: [0, -0.36, 1.31], r: [0.215, 0.215] },
+    { at: [0, -0.08, 1.23], r: [0.28, 0.32] },
+    { at: [0, 0.18, 1.19], r: [0.295, 0.38] },
+    { at: [0, 0.44, 1.25], r: [0.245, 0.34] },
+    { at: [0, 0.66, 1.20], r: [0.16, 0.26] },
   ],
-  torsoCaps: { back: [0, -0.90, 1.26], tip: [0, 0.78, 1.16] },
+  torsoCaps: { back: [0, -0.94, 1.30], tip: [0, 0.78, 1.15] },
   neckRA: [0.17, 0.32], neckRB: [0.075, 0.10], neckRMid: [0.12, 0.21],
   // the tail is built in extraSegments (the hair must be Mane, and the builder's tail is Coat): no builder tail
   tail: null,
@@ -90,27 +147,30 @@ export const family = {
       { at: [0, 0.66, 1.96], r: [0.035, 0.08] }, { at: [0, 0.80, 2.04], r: [0.03, 0.06] },
     ], caps: { back: [0, 0.22, 1.60], tip: [0, 0.86, 2.08] } },
   ],
-  // skull rows (metres, level, then sheared): [id, y, top, crown, brow, cheek, jowl, lip, palate]; the deep round
-  // jowl at the back, a long straight face, the muzzle at the end
-  craniumRows: sheared(SKULL),
-  craniumCaps: { back: pt([0, -0.16, -0.06]), tip: pt([0, 0.505, -0.045]) },
-  muzzleFrom: 3,
-  jawRows: shearedJaw(JAW),
-  jawCaps: { back: pt([0, -0.10, -0.24]), tip: pt([0, 0.48, -0.10]) },
+  craniumRows: EQUUS_SKULL,
+  craniumCaps: { back: [0, -0.155, -0.01], tip: [0, 0.46, -0.03] },
+  muzzleFrom: 4, muzzleW: 1,
+  craniumBandGroups: Object.fromEntries(COVERED.bands.map((b) => [b, ['Skull', 'Skull', 'Skull', 'Cheek', 'Jowl', COVERED.group]])),
+  jawRows: EQUUS_JAW,
+  jawCaps: { back: [0, -0.15, -0.13], tip: [0, 0.455, -0.09] },
+  headPitch: -50,
   skinControls: {
     browRaise: { amp: 0.01, map: [['st1.brow', 0.8, [0, 0, 1]], ['st2.brow', 0.6, [0, 0, 1]]] },
-    browFurrow: { amp: 0.012, map: [['st2.brow', 1, [-0.3, 0.2, -1]], ['st1.brow', 0.4, [0, 0, -1]]] },
+    browFurrow: { amp: 0.012, map: [['st1.brow', 1, [-0.3, 0.2, -1]], ['st0.brow', 0.4, [0, 0, -1]]] },
     sneer: { amp: 0.012, map: [['st5.jowl', 1, [0.2, 0, 1]], ['st5.lip', 0.8, [0.2, 0, 1]], ['st6.jowl', 0.5, [0.2, 0, 1]]] },
-    cheekBunch: { amp: 0.01, map: [['st3.cheek', 1, [0.5, 0, 0.8]], ['st2.cheek', 0.6, [0.5, 0, 0.8]]] },
+    cheekBunch: { amp: 0.01, map: [['st2.cheek', 1, [0.5, 0, 0.8]], ['st1.cheek', 0.6, [0.5, 0, 0.8]]] },
     cornerRetract: { amp: 0.015, map: [['st5.lip', 0.8, [0.1, -1, 0.3]], ['st6.lip', 0.5, [0.1, -1, 0.3]]] },
   },
-  headScale: 1, muzzleW: 1.25, nape: pt([0, -0.13, -0.02]),
-  // eyes set high and far back on the side of the head; nostrils lateral on the muzzle; no dark nose pad
-  eyeAt: [1.2, 2.3], eyeR: 0.022, pupil: 'round', irisAngle: 40,
-  browStrip: [[0.8, 1.9], [1.0, 1.9], [1.2, 1.95], [1.4, 2.0], [1.6, 2.1]],
-  foldStrip: [[5.6, 2.4], [5.4, 2.9], [5.2, 3.4], [5.0, 3.8], [4.8, 4.2]],
-  nostrilAt: [5.6, 2.0], noseAt: [5.8, 0.0001], noseR: [0.012, 0.01], webCranium: [1.7, 3.3, 4.97],
-  earAt: [0.4, 1.3], earSpine: [[0, 0, -0.012], [0, 0, 0.03], [0, 0, 0.07], [0, 0, 0.11], [0, 0, 0.15]],
+  headScale: 1, nape: [0, -0.13, -0.03],
+  // big eyes set high on the sides at the widest point, just behind the orbit rim; large open comma nostrils on the
+  // front of the muzzle; no bare nose pad (a horse's muzzle is soft haired skin)
+  eyeAt: [1.1, 2.35], eyeR: 0.026, pupil: 'round', irisAngle: 40, eyeStyle: 'set', eyeSet: { sink: 0.5, open: [0.6, 0.45] },
+  browStrip: [[0.6, 1.95], [0.85, 1.9], [1.1, 1.9], [1.35, 1.95], [1.6, 2.05]],
+  foldStrip: [[5.5, 2.7], [5.3, 3.1], [5.1, 3.5], [4.9, 3.9], [4.7, 4.3]],
+  nostrilAt: [5.5, 2.3], nostrilR: 0.014, nostrilSquash: [1.5, 0.9], nosePad: false,
+  noseAt: [5.8, 0.0001], noseR: [0.012, 0.01],
+  webCranium: [4.6, 5.6, 4.97], webJaw: [3.8, 4.9, 0.97],
+  earAt: [0.4, 1.25], earSpine: [[0, 0, -0.012], [0, 0, 0.03], [0, 0, 0.07], [0, 0, 0.11], [0, 0, 0.15]],
   earR: [0.035, 0.036, 0.026, 0.01], earSquash: [1, 0.5], earH: 1,
   headTiles: [],
   bodyTiles: [],
@@ -135,7 +195,8 @@ export const species = {
     // a shallow jaw: no horse's deep round jowl
     const jaw = JAW.map(([id, y, j]) => [id, y, { ...j, jaw: [j.jaw[0], j.jaw[1] * 0.8], bottom: j.bottom * 0.75 }]);
     return {
-      family: 'equine', name: 'a dromedary camel', scale: 1, legBulk: 1, headScale: 0.75,
+      family: 'equine', name: 'a dromedary camel', scale: 1, legBulk: 1, headScale: 0.75, torsoUp: false,   // its own level trunk
+      ...CLASSIC_FACE,
       colors: { coat: '#c29a68', sock: '#b48a5a', ash: '#c8a272', ashAlt: '#b08656', mane: '#9a7650', hoof: '#7a6450', snout: '#a8845c', tip: '#7a5a3c' },
       joints: {
         neckBase: [0, 1.30, 1.80], neckTop: [0, 1.36, 2.04],
@@ -201,10 +262,13 @@ export const species = {
   zebra: (() => {
     const BULK = 1.08, LEG = 1.35, J = family.joints;
     const lerp = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
-    // the trunk's ring radius at y (linear between the family stations), times the bulk, a hair proud
-    const T = family.torso, rAt = (y) => { for (let i = 1; i < T.length; i++) if (y <= T[i].at[1]) { const t = (y - T[i - 1].at[1]) / (T[i].at[1] - T[i - 1].at[1]); return T[i - 1].r.map((r, c) => (r + (T[i].r[c] - r) * t) * BULK * 1.05); } return T[T.length - 1].r; };
-    const hoops = [-0.62, -0.48, -0.34, -0.20, -0.06, 0.08, 0.22, 0.36, 0.50].map((y, i) => ({ name: `stripe${i}`, kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
-      stations: [{ at: [0, y - 0.022, 1.22], r: rAt(y - 0.022) }, { at: [0, y + 0.022, 1.22], r: rAt(y + 0.022) }], caps: { back: [0, y - 0.03, 1.22], tip: [0, y + 0.03, 1.22] } }));
+    // the trunk's ring at y (centre height and radii linear between the family stations; radii times the bulk, a
+    // hair proud), so each hoop hugs the quarters, the flank tuck and the girth where it sits
+    const T = family.torso, ringAt = (y) => { for (let i = 1; i < T.length; i++) if (y <= T[i].at[1]) { const t = (y - T[i - 1].at[1]) / (T[i].at[1] - T[i - 1].at[1]);
+      return { z: T[i - 1].at[2] + (T[i].at[2] - T[i - 1].at[2]) * t, r: T[i - 1].r.map((r, c) => (r + (T[i].r[c] - r) * t) * BULK * 1.05) }; } return { z: T[T.length - 1].at[2], r: T[T.length - 1].r }; };
+    const hoops = [-0.62, -0.48, -0.34, -0.20, -0.06, 0.08, 0.22, 0.36, 0.50].map((y, i) => { const a = ringAt(y - 0.022), b = ringAt(y + 0.022), z = (a.z + b.z) / 2;
+      return { name: `stripe${i}`, kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', up: true,
+        stations: [{ at: [0, y - 0.022, a.z], r: a.r }, { at: [0, y + 0.022, b.z], r: b.r }], caps: { back: [0, y - 0.03, z], tip: [0, y + 0.03, z] } }; });
     // leg bands: short segments on joints laid along each leg (mirrored by name)
     const bandJ = {}, bands = [];
     const legBand = (key, a, b, ts, r) => ts.forEach((t, i) => { const c = lerp(J[a], J[b], t), d = J[b].map((x, k) => (x - J[a][k]) * 0.025);
@@ -220,7 +284,7 @@ export const species = {
       const r = [0.17, 0.32].map((a, k) => (a + ([0.075, 0.10][k] - a) * t) * 1.1 * 1.08);
       return { name: `neckBand${i}`, kind: 'segment', from: `neckBand${i}A`, to: `neckBand${i}B`, rA: r, rB: r, slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.05, 0.05] }; });
     return {
-      family: 'equine', name: 'a plains zebra', scale: 0.85, bulk: BULK, legBulk: LEG, headScale: 0.88,
+      family: 'equine', name: 'a plains zebra', scale: 0.85, bulk: BULK, legBulk: LEG, headScale: 1.04,   // a heavier head than the horse's (~0.52 m)
       colors: { coat: '#e9e5dc', sock: '#e2ddd2', ash: '#dcd6ca', ashAlt: '#cfc8ba', mane: '#1b1817', snout: '#e9e5dc', tip: '#1b1817', hoof: '#26221f', brow: '#2a2523' },
       joints: { ...bandJ, ...neckJ },
       neckRA: [0.18, 0.33], neckRB: [0.085, 0.11], neckRMid: [0.13, 0.22],

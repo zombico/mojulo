@@ -17,9 +17,10 @@ export const FAMILIES = {
       crawl: { pattern: 'pentapedal', duty: 0.7, stride: 0.8, fr: [0, 0.3] },
       hop:   { pattern: 'bipedHop', duty: 0.3, stride: 3.5, fr: [0.3, 10], hindOnly: true },
     },
-    axial: { flex: 0.2, lateral: 0, wave: 'none', roll: 0, yaw: 0, head: 'steady', tail: 'counter' },
+    // the tail a fifth leg in the crawl (planted with the forelegs while the hind pair swings), a counterweight in the hop
+    axial: { flex: 0.2, lateral: 0, wave: 'none', roll: 0, yaw: 0, head: 'steady', tail: 'prop' },
     note: 'creeps on all fours and the tail at grazing pace; hops on the hind legs, the tail swinging up and down to balance',
-    source: 'Dawson & Taylor 1973 (energetics of hopping); O\'Connor et al. 2014 (the tail as a fifth leg)',
+    source: 'Dawson & Taylor 1973 (energetics of hopping); Alexander & Vernon 1975 (the tail swinging against the legs); O\'Connor et al. 2014 (the tail as a fifth leg)',
   },
   leporid: {
     spine: { trunk: 4, neck: 1, tail: 1 },
