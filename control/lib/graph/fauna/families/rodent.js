@@ -103,8 +103,10 @@ export const species = {
     muzzleW: 1.15, muzzleLen: 0.75,
     extraSegments: [
       { name: 'tailPaddle', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
-        stations: lofted([[0, -0.34, 0.07, [0.055, 0.04]], [0, -0.42, 0.07, [0.05, 0.025]], [0, -0.48, 0.07, [0.072, 0.014]], [0, -0.55, 0.07, [0.085, 0.012]], [0, -0.62, 0.07, [0.088, 0.012]], [0, -0.68, 0.07, [0.082, 0.011]], [0, -0.73, 0.07, [0.062, 0.01]], [0, -0.76, 0.07, [0.03, 0.008]]]),
-        bandGroups: { ...band(7), 'st0-st1': Array(6).fill('Coat') }, caps: { back: [0, -0.31, 0.07], tip: [0, -0.775, 0.07] }, capGroups: { back: 'Coat', tip: 'Tip' } },
+        // up: a stable ring frame, so the tail drops from the rump and lies flat on the ground with no ring flip
+        up: true,
+        stations: lofted([[0, -0.34, 0.10, [0.055, 0.04]], [0, -0.42, 0.055, [0.05, 0.025]], [0, -0.48, 0.032, [0.08, 0.018]], [0, -0.55, 0.026, [0.098, 0.018]], [0, -0.62, 0.024, [0.104, 0.017]], [0, -0.68, 0.024, [0.098, 0.016]], [0, -0.73, 0.022, [0.075, 0.014]], [0, -0.76, 0.02, [0.035, 0.008]]]),
+        bandGroups: { ...band(7), 'st0-st1': Array(6).fill('Coat') }, caps: { back: [0, -0.31, 0.12], tip: [0, -0.775, 0.02] }, capGroups: { back: 'Coat', tip: 'Tip' } },
     ],
   },
 };

@@ -7,7 +7,7 @@
  * Usage (from control/):
  *   node scripts/fauna-fit.mjs --species wolf --compare lateral=ref/side.png,frontal=ref/front.png --out <dir>
  *   node scripts/fauna-fit.mjs --plan <plan.json> --targets '{"withers":0.8,"length":1.1}' --compare … --out <dir>
- *   options: --targets JSON of metres (withers = shoulder height, length = rump→snout tip), --tol 0.1 (fraction)
+ *   options: --targets JSON of metres (withers = top of the trunk, shoulder = trunk top at the shoulder station, length = rump→snout tip), --tol 0.1 (fraction)
  *            --el 10 --compare-res 256
  * Prints { ok, gates: { closed, grounded, size }, pass, compare: { <view>: { iou, aspect, centroid } }, score } and
  * writes compare-<view>.png sheets (reference | source | overlap) plus fit.json to --out. `score` is the mean iou.
@@ -54,7 +54,14 @@ const withers = trunk.length ? Math.max(...trunk.map((v) => v[2])) : J.withers?.
 const back = trunk.length ? Math.min(...trunk.map((v) => v[1])) : J.rump?.[1] ?? 0;
 const nose = Math.max(...(headPts.length ? headPts : mesh.vertices).map((v) => v[1]));
 // height: the top of the whole animal (a biped bird's published standing height; for a quadruped, its head)
-const measured = { withers: r3(withers), length: r3(nose - back), height: r3(Math.max(...mesh.vertices.map((v) => v[2]))), minZ: r3(minZ) };
+// shoulder: the top of the trunk AT the shoulder station (the front of the torso: trunk points within a tenth of the
+// trunk's length of the shoulder joint's y, else the front quarter) — withers is the trunk's highest point anywhere,
+// which on a hunched or rising back (beaver, otter) is the rump
+const front = trunk.length ? Math.max(...trunk.map((v) => v[1])) : 0, span = front - back;
+const atShoulder = J.shoulder ? trunk.filter((v) => Math.abs(v[1] - J.shoulder[1]) <= 0.1 * span) : [];
+const shoulderPts = atShoulder.length ? atShoulder : trunk.filter((v) => v[1] >= front - 0.25 * span);
+const shoulder = shoulderPts.length ? Math.max(...shoulderPts.map((v) => v[2])) : withers;
+const measured = { withers: r3(withers), shoulder: r3(shoulder), length: r3(nose - back), height: r3(Math.max(...mesh.vertices.map((v) => v[2]))), minZ: r3(minZ) };
 const targets = args.targets ? JSON.parse(args.targets) : {}; const tol = Number(args.tol);
 const sizeMiss = Object.entries(targets).filter(([k, t]) => !(Math.abs(measured[k] - t) <= tol * t)).map(([k, t]) => `${k} ${measured[k]} vs ${t}`);
 // attached: every pinned detail (ears, claws) still touches its host — a detail whose base stayed put while the host

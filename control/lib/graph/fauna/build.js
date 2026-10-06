@@ -8,7 +8,7 @@
 // Frame: metres, +z up, +y front, x = 0 the mirror plane, feet on z = 0. Tables are authored at the family's size
 // and `scale` shrinks or grows the whole animal about the ground point.
 
-import { expandPlan } from '../polygonizer/station-loft-plan.js';
+import { expandPlan, segmentPart, loftPart, SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
 import { compileLayered, pinFrame } from '../polygonizer/station-loft.js';
 import { surfaceLocalOffset } from '../polygonizer/surface-pin.js';
 import { wearWings } from './wing.js';
@@ -41,7 +41,10 @@ export function buildFauna(params) {
   const tail = P.tail ? loft('tail', P.tail, 'Coat') : null;
   const tailTip = P.tail && P.tip ? loft('tailTip', P.tip, 'Tip', clone(P.tipCaps)) : null;
   // a leg row: [name, from, to, rA, rB, group, over?, rMid?] — mirrored by name (…R → …L)
-  const legs = P.legs.map(([name, from, to, rA, rB, group, over, rMid]) => ({ name, kind: 'segment', from, to, rA, rB, slots: 'ring12', group, mirror: 'name', over: over || [0.5, 0.4], ...(rMid ? { rMid } : {}) }));
+  // an optional 9th entry { up: [x, y, z] } gives the row a STABLE ring frame (see stableRings): a flat paw lies flat
+  const legUp = new Map();
+  const legs = P.legs.map(([name, from, to, rA, rB, group, over, rMid, opt]) => { if (opt?.up) legUp.set(name, opt.up);
+    return { name, kind: 'segment', from, to, rA, rB, slots: 'ring12', group, mirror: 'name', over: over || [0.5, 0.4], ...(rMid ? { rMid } : {}) }; });
   const extra = clone(P.extraSegments || []);
 
   // the mass knobs: the trunk's rings, the legs' rings, the tail's rings
@@ -74,11 +77,17 @@ export function buildFauna(params) {
     jaw.rows = jaw.rows.map(([id, y, sl]) => (y <= y0 ? [id, y, sl] : [id, y0 + (y - y0) * Lm, widen(sl, 1 + (W - 1) * Math.min(1, (y - y0) / 0.12))]));
     jaw.caps.tip = [0, y0 + (jaw.caps.tip[1] - y0) * Lm, jaw.caps.tip[2]];
   }
-  const earSpine = P.earSpine.map(([x, y, z]) => [x, y, z * (P.earH ?? 1)]);
+  // HEAD-RELATIVE detail (opt-in: `headRelative: true` or a reference head scale, default 1): the eye, its orbit, the
+  // ears, the nose pad and the nostrils are authored at the reference head and scale with the head (headScale ×
+  // scale ÷ reference), so a small head keeps the same proportions (they are metres otherwise)
+  const hk = P.headRelative ? (P.headScale * (P.scale ?? 1)) / (P.headRelative === true ? 1 : P.headRelative) : 1;
+  const hs = (v) => (P.headRelative ? (Array.isArray(v) ? v.map(hs) : v * hk) : v);
+  const earSpine = P.earSpine.map(([x, y, z]) => hs([x, y, z * (P.earH ?? 1)]));
+  const earR = hs(P.earR);
   const ears = P.ears === false ? [] : [
     // ears: sweeps along the crown's normal (pin-local z), flattened front to back; the inner ear just in front
-    { kind: 'sweep', name: 'ear', at: P.earAt, space: 'local', spine: earSpine, radii: P.earR, m: 8, squash: P.earSquash, group: 'Ears' },
-    { kind: 'sweep', name: 'earInner', at: P.earAt, space: 'local', spine: earSpine.map(([x, y, z], i) => [x + 0.012, y, i ? z - 0.014 : z + 0.012]), radii: P.earR.map((r) => r * 0.6), m: 8, squash: P.earSquash, group: 'EarInner' },
+    { kind: 'sweep', name: 'ear', at: P.earAt, space: 'local', spine: earSpine, radii: earR, m: 8, squash: P.earSquash, group: 'Ears' },
+    { kind: 'sweep', name: 'earInner', at: P.earAt, space: 'local', spine: earSpine.map(([x, y, z], i) => [x + hs(0.012), y, i ? z - hs(0.014) : z + hs(0.012)]), radii: earR.map((r) => r * 0.6), m: 8, squash: P.earSquash, group: 'EarInner' },
   ];
   const head = {
     schema: 'layered-head-v1', name: P.name || 'fauna',
@@ -95,10 +104,12 @@ export function buildFauna(params) {
     skin: { slots: ['top', 'crownR', 'browR', 'cheekR', 'jowlR', 'lipR', 'palate'], radius: 0.05, controls: clone(P.skinControls) },
     eye: { mode: 'iris', pupil: P.pupil || 'round', irisAngle: P.irisAngle ?? 40, catchlight: true },
     regions: {
-      eye: { at: P.eyeAt, R: P.eyeR },
-      orbit: { open: [0.45, 0.32], reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) },
+      eye: { at: P.eyeAt, R: hs(P.eyeR ?? 0.022) },
+      orbit: P.headRelative ? { open: [0.45, 0.32], ...Object.fromEntries(Object.entries({ reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) }).map(([k, v]) => [k, k === 'open' ? v : hs(v)])) }
+        : { open: [0.45, 0.32], reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) },
       brow: { strip: P.browStrip, w: 0.012, h: 0.009, taper: [0.55, 0.9, 1, 0.9, 0.6], facing: 'down' },
-      nostril: { at: P.nostrilAt, r: 0.007, squash: [1.3, 1], slide: 0.4 },
+      // `nose: false` drops the nose pad; the head format requires the nostril region, so it shrinks out of sight
+      nostril: { at: P.nostrilAt, r: P.nose === false ? 0.0002 : hs(0.007), squash: [1.3, 1], slide: 0.4 },
       fold: { strip: clone(P.foldStrip) },
       web: { cranium: P.webCranium, jaw: [0.35, 1.7, 0.97] },
       tiles: clone(P.headTiles || []),
@@ -106,7 +117,7 @@ export function buildFauna(params) {
     landmarks: { nape: clone(P.nape) },
     ornaments: [
       ...ears,
-      { kind: 'sweep', name: 'nose', at: P.noseAt, side: 'R', space: 'local', spine: [[0, 0, -0.008], [0, 0, 0.006], [0, 0, 0.012]], radii: P.noseR, m: 8, squash: [1.35, 1], group: 'NosePad' },
+      ...(P.nose === false ? [] : [{ kind: 'sweep', name: 'nose', at: P.noseAt, side: 'R', space: 'local', spine: hs([[0, 0, -0.008], [0, 0, 0.006], [0, 0, 0.012]]), radii: hs(P.noseR), m: 8, squash: [1.35, 1], group: 'NosePad' }]),
       ...clone(P.headOrnaments || []),
     ],
     palette: {
@@ -140,9 +151,60 @@ export function buildFauna(params) {
   }
   head.units.scale *= k;
   if (P.torsoUp || P.torso.some((st) => st.top)) uprightTorso(torso);
+  // stable ring frames (opt-in): a leg row's { up }, `levelLegs: true` (+z for every near-level leg segment), an extra
+  // loft's `up` ([x, y, z] or true = +z)
+  for (let i = 0; i < plan.segments.length; i++) { const g = plan.segments[i];
+    if (g.kind === 'segment' && legs.includes(g)) { let up = legUp.get(g.name);
+      if (!up && P.levelLegs) { const d = joints[g.to].map((x, c) => x - joints[g.from][c]); if (Math.abs(d[2]) < 0.5 * Math.hypot(...d)) up = [0, 0, 1]; }
+      if (up) plan.segments[i] = stableRings(g, up, joints); }
+    else if (g.kind === 'loft' && g.up && extra.includes(g)) plan.segments[i] = stableRings(g, g.up === true ? [0, 0, 1] : g.up); }
+  if (P.headRelative || P.orbitFallback) seatOrbit(plan, head);
   if (P.headMesh) wearHeadMesh(plan, { pitch: P.headPitch, ...P.headMesh });
   if (P.wings) wearWings(plan, { scale: k, ...P.wings });   // opt-in: feathered or membrane wings (wing.js), worn at a root joint
   return plan;
+}
+
+/** A STABLE RING FRAME for a segment or loft (opt-in): its rings rebuilt as explicit points whose `front` slot is
+ * `up` projected off the local axis (ring12's front radius along it, the side radius across), never +y, which
+ * flips a near-level ring (a flat paw, a tail lying on the ground) on edge as the chord tips a little. Same
+ * stations, radii and caps as the segment / loft would get; a midline loft's left half is the right's mirror. */
+function stableRings(g, up, J) {
+  const sub = (a, b) => a.map((x, i) => x - b[i]), add = (a, b) => a.map((x, i) => x + b[i]), mulv = (a, m) => a.map((x) => x * m);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], unit = (a) => mulv(a, 1 / Math.sqrt(dot(a, a)));
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const slots = SLOT_FAMILIES[g.slots] || g.slots, n = slots.length, e = g.e ?? 2, U = unit(up);
+  const pw = (x) => (x < 0 ? -1 : 1) * dmath.pow(Math.abs(x), 2 / e);
+  const ring = (c, d, r) => { d = unit(d); let f = sub(U, mulv(d, dot(U, d))); if (dot(f, f) < 1e-12) f = sub([0, 1, 0], mulv(d, d[1])); f = unit(f);
+    let s = cross(f, d); if (s[0] < 0) s = mulv(s, -1); const [rs, rf] = Array.isArray(r) ? r : [r, r]; const pts = {};
+    for (let k = 0; k <= n / 2; k++) { const t = 2 * Math.PI * k / n, F = mulv(f, rf * pw(dmath.cos(t))), S = mulv(s, rs * pw(dmath.sin(t)));
+      pts[slots[k]] = add(c, add(F, S)); if (k && k < n / 2) pts[slots[n - k]] = g.mirror === 'plane' ? [-pts[slots[k]][0] + 0, pts[slots[k]][1], pts[slots[k]][2]] : add(c, sub(F, S)); }
+    return pts; };
+  let stations, caps;
+  if (g.kind === 'segment') {
+    const A = J[g.from], B = J[g.to], d = unit(sub(B, A)), L = Math.sqrt(dot(sub(B, A), sub(B, A))), rad = (r) => (Array.isArray(r) ? Math.max(...r) : r), R2 = (r) => (Array.isArray(r) ? r : [r, r]);
+    const over = g.over ?? [0.6, 0.6], mid = g.mid ?? 0.5;
+    const st = [[-over[0] * rad(g.rA), g.rA], [mid * L, g.rMid ?? R2(g.rA).map((x, i) => (x + R2(g.rB)[i]) / 2)], [L + over[1] * rad(g.rB), g.rB]];
+    stations = st.map(([t, r], i) => ({ id: `st${i}`, points: ring(add(A, mulv(d, t)), d, r) }));
+    caps = segmentPart(A, B, g.rA, g.rB, { slots, e, over, mid, ...(g.rMid ? { rMid: g.rMid } : {}) }).caps;
+  } else {
+    const C = g.stations.map((s) => s.at), m = C.length, dirAt = (i) => sub(C[Math.min(i + 1, m - 1)], C[Math.max(i - 1, 0)]);
+    stations = g.stations.map((s, i) => ({ id: `st${i}`, points: ring(s.at, dirAt(i), s.r) }));
+    caps = loftPart(g.stations, g.caps, slots, e).caps;
+  }
+  const { from: _f, to: _t, rA: _a, rB: _b, rMid: _m, over: _o, mid: _d, up: _u, e: _e, ...rest } = g;
+  return { ...rest, kind: 'rings', stations, caps, mirror: g.mirror === 'name' ? 'name' : null };
+}
+
+/** THE ORBIT FALLBACK (with `headRelative` or `orbitFallback`): a head whose eye sits too near the skull's edge
+ * makes the orbit's outer ring miss the skull ('projectOnto: no hit'); rather than throw, the orbit's reach halves
+ * (up to 4 times, then the eye shrinks too) until the head builds. A head that builds as authored is left alone. */
+function seatOrbit(plan, head) {
+  const reg = head.regions;
+  for (let tries = 0; tries < 8; tries++) {
+    try { expandPlan(plan); return; } catch (err) { if (!/projectOnto: no hit/.test(String(err?.message))) throw err; }
+    reg.orbit.reach = reg.orbit.reach.map((x) => x / 2);
+    if (tries >= 4) reg.eye.R *= 0.8;
+  }
 }
 
 /** A HEAD MESH worn natively: an authored polygon head (vertices, faces, groups in its own +y front, +z up frame)
