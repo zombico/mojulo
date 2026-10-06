@@ -47,6 +47,11 @@ describe('the slots', () => {
     const { boxes } = standStatues(plan, [{ ref: 'a', at: 'eg-colossus:0' }]);
     expect(boxes.some((m) => m.asset === 'eg-colossus' && m.kind === 'pedestal')).toBe(true);
   });
+  it("Giza's Great Sphinx is a slot, facing east down the causeway", () => {
+    const plan = planHistoricCity({ culture: 'giza', seed: 1 }), F = statueSlots(plan)['gz-sphinx:0'].figures[0];
+    expect(F.dir).toBeCloseTo(Math.PI / 2, 9); expect(F.h).toBeCloseTo(20.2, 6); expect(F.z0).toBe(0);
+    expect(new Set(F.idx.map((i) => plan.boxes[i].kind))).toEqual(new Set(['sphinx', 'nemes', 'sphinx-face', 'sphinx-eye', 'sphinx-mouth', 'uraeus']));
+  });
   it('a votive row stands one figure per plinth, numbered along the row, the eyes with their figure', () => {
     const plan = planHistoricCity({ culture: 'sumer', seed: 1 }), S = statueSlots(plan)['votive-row:0'];
     const n = plan.boxes.filter((m) => m.asset === 'votive-row' && m.kind === 'statue-plinth').length;
@@ -70,6 +75,11 @@ describe('refusals', () => {
     expect(validateStatues([{ ref: 'a', at: 'ficus', figure: -1 }]).join()).toMatch(/figure: which figure/);
     expect(validateStatues([{ ref: 'a', at: 'ficus', height: 99 }]).join()).toMatch(/height: the figure's height/);
     expect(validateStatues([{ ref: 'a', at: 'ficus', scale: 2 }]).join()).toMatch(/scale: not a field/);
+    expect(validateStatues([{ form: 'sphinx', at: 'gz-sphinx:0' }])).toEqual([]);
+    expect(validateStatues([{ form: 'griffin', at: 'x' }]).join()).toMatch(/form: one of sphinx/);
+    expect(validateStatues([{ form: 'sphinx', ref: 'a', at: 'x' }]).join()).toMatch(/a ref or a form, not both/);
+    expect(validateStatues([{ form: 'sphinx', at: 'x', material: 'painted' }]).join()).toMatch(/material: one of marble/);
+    expect(validateStatues([{ ref: 'a', at: 'x', material: 'granite' }]).join()).toMatch(/material: a form's/);
     expect(() => historicOptions({ culture: 'sumer', scene: 'region', statues: [{ ref: 'a', at: 'x' }] })).toThrow(/the 'region' scene has none/);
   });
   it('a slot the city lacks names those it has; a missing figure refuses; an equestrian slot records it', () => {
@@ -131,6 +141,15 @@ describe('the World resolves a stored statue onto its slot', () => {
     expect(lo).toBeCloseTo(S.z0 * s, 6); expect(hi - lo).toBeCloseTo(S.h * s, 6);
     await expect(world([{ ref: 'sk_statue_augustus', at: 'octavian-equestrian' }])).rejects.toThrow(/an equestrian slot \(a rider on a horse\) takes a mounted statue/);
     await expect(world([{ ref: 'sk_statue_rider', at: 'ficus' }])).rejects.toThrow(/is mounted \(horse and rider\); stand it on an equestrian slot/);
+  });
+  it("a library form needs no store: the sphinx lies in Giza's quarry at the stand-in's size, carved in limestone", async () => {
+    const { payload: p } = await resolveWorldScene({ ref: 'w', title: 'giza', manifest: { kind: 'historic', culture: 'giza', statues: [{ form: 'sphinx', at: 'gz-sphinx:0' }] } });
+    const F = statueSlots(planHistoricCity({ culture: 'giza', seed: 1 }))['gz-sphinx:0'].figures[0], s = 1 / METRES_PER_UNIT;
+    const fig = p.faces.filter((f) => f.group === 'statue:gz-sphinx:0:0');
+    expect(fig.length).toBeGreaterThan(1000);
+    let lo = Infinity, hi = -Infinity; for (const f of fig) for (const c of f.corners) { lo = Math.min(lo, c[2]); hi = Math.max(hi, c[2]); }
+    expect(lo).toBeCloseTo(F.z0 * s, 6); expect(hi - lo).toBeCloseTo(F.h * s, 6);
+    expect(fig.every((f) => f.pbr && f.pbr[0] === 0)).toBe(true);
   });
   it('an unknown ref refuses by name', async () => {
     await expect(resolveWorldScene({ ref: 'w', title: 'f', manifest: { kind: 'historic', culture: 'forum', statues: [{ ref: 'sk_nope', at: 'ficus' }] } })).rejects.toThrow(/statue on 'ficus': ref 'sk_nope' is not a stored sketch/);

@@ -43,7 +43,7 @@ import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
-import { creatureStatue, mountedStatue, riderSeat } from '@/lib/graph/statue/creature';
+import { creatureStatue, mountedStatue, riderSeat, validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { resolveMaterial, tagFacesWithMaterial } from '@/lib/graph/polygonizer/materials';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
@@ -601,6 +601,9 @@ export const WORLD_KINDS = {
       const lift = based?.lift ?? 0;
       if (lift) for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + lift) * 1e9) / 1e9]);
       if (based?.faces.length) faces.push(...based.faces);
+      // A CREATURE carved (statue/creature.js, opt-in `statue` on a plan that is not a hero: the creature designer's
+      // sphinx, horse, dragon): one material over every face, an oblong base under it. Absent ⇒ byte-identical.
+      if (!m.hero && m.statue) { const errs = validateCreatureStatue(m.statue); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); const carved = creatureStatue(faces, m.statue, { light }).faces; faces.length = 0; faces.push(...carved); }
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark

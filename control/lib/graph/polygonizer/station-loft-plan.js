@@ -86,8 +86,8 @@ const R2 = (r) => (Array.isArray(r) ? r : [r, r]);
 /** A superellipse ring perpendicular to axis `d` at centre `c`: `front` toward +y (or +z when d ∥ y), R toward +x.
  * r = [along R, along front]; e = 2 is an ellipse, more is boxier. The right half is generated and the left half is
  * its exact mirror in the ring's own front plane, so mirror-by-name holds inside the part. */
-export function ringPoints(c, d, r, slots, e = 2, ref = null) {
-  d = unit(d); let f = ringFront(d, ref);
+export function ringPoints(c, d, r, slots, e = 2, front = null) {   // `front`: the ring's front, already chosen (a keep loft's)
+  d = unit(d); let f = front ?? ringFront(d);
   let s = cross(f, d); if (Math.abs(s[0]) < 1e-9) fail('a ring whose axis runs along x has no R side'); if (s[0] < 0) s = mul(s, -1);
   const [rs, rf] = R2(r); const n = slots.length; const pts = {};
   const sg = (x) => (x < 0 ? -1 : 1); const pw = (x) => sg(x) * dmath.pow(Math.abs(x), 2 / e);
@@ -97,9 +97,11 @@ export function ringPoints(c, d, r, slots, e = 2, ref = null) {
 /** a ring's FRONT direction for axis `d`: +y off the axis, else +z (a ring whose axis runs along y). `ref` (a loft's
  * previous ring's front) keeps it from turning over: on a near-level run along y the front is +z or −z by the sign of a
  * station's small rise, so it would flip half a turn wherever the centre line turns from rising to falling and the tube
- * would twist through itself; with `ref` it keeps the side the last ring had. Absent `ref`, the old frame. */
-export function ringFront(d, ref = null) {   // `d` a unit axis
-  let f = sub([0, 1, 0], mul(d, dot([0, 1, 0], d))); if (len(f) < 1e-6) f = sub([0, 0, 1], mul(d, dot([0, 0, 1], d))); f = unit(f);
+ * would twist through itself; with `ref` it keeps the side the last ring had. `keep` (a `frame: 'keep'` loft) also takes
+ * +z for any run mostly along y, where +y off the axis is a short sideways sliver (a tail along a flank). Absent both,
+ * the old frame. */
+export function ringFront(d, ref = null, keep = false) {   // `d` a unit axis
+  let f = sub([0, 1, 0], mul(d, dot([0, 1, 0], d))); if (len(f) < 1e-6 || (keep && Math.abs(d[1]) > 0.7)) f = sub([0, 0, 1], mul(d, dot([0, 0, 1], d))); f = unit(f);
   if (ref && dot(f, ref) < 0) f = mul(f, -1);
   return f;
 }
@@ -155,7 +157,7 @@ export function loftPart(stations, caps, slots = SLOT_FAMILIES.limb6, e = 2, { k
   // `keep` (the loft's `frame: 'keep'`): each ring's front kept on the side of the last (ringFront); absent, each ring
   // takes its own (the frame every loft minted before had)
   let ref = null;
-  const sts = stations.map((s, i) => { const d = dirAt(i); if (keep) ref = ringFront(unit(d), ref); return { ...idOf(s), points: ringPoints(s.at, d, s.r, slots, s.e ?? e, keep ? ref : null) }; });
+  const sts = stations.map((s, i) => { const d = dirAt(i); if (keep) ref = ringFront(unit(d), ref, true); return { ...idOf(s), points: ringPoints(s.at, d, s.r, slots, s.e ?? e, keep ? ref : null) }; });
   const back = caps?.back ?? add(C[0], mul(dirAt(0), -0.45 * rad(stations[0].r))), tip = caps?.tip ?? add(C[n - 1], mul(dirAt(n - 1), 0.45 * rad(stations[n - 1].r)));
   return { slots, stations: sts, caps: { back, tip } };
 }

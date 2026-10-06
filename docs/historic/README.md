@@ -135,7 +135,9 @@ with `/hero/statue`, `lib/graph/statue/`) on a slot in the World: the stand-in f
 stays, and the World resolver fits the statue's own faces there at the stand-in's height and facing, baked under the
 city's sun (`historic/statues.js`). The entry card's `STATUES` line lists the slots. For a new culture's statues to take
 one, build the stand-in with `figure()` inside a `mark()`, or as a statue asset's slot. An equestrian stand-in (a
-`horseman()`, Pompeii's `pp-equestrian`) takes a mounted statue (`stand: 'mounted'`), facing as its horse did.
+`horseman()`, Pompeii's `pp-equestrian`) takes a mounted statue (`stand: 'mounted'`), facing as its horse did. An entry
+may name a library form instead of a stored statue (`form: 'sphinx'`, `control/lib/graph/statue/forms.js`): Giza's
+`gz-sphinx:0` takes the carved sphinx. A new form is a ring plan in `polygonizer/` and a row in `STATUE_FORMS`.
 A stand-in inside an instanced template (a `place()`d building's repeated part) cannot come down yet.
 
 ## Segments: new parts of the world

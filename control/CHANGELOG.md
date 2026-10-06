@@ -63,7 +63,17 @@ byte-identical. Being built on this branch; the sphinx comes next.
   body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
   stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
   `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
-  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting; absent, every loft is unchanged.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting (and a run along a flank from
+  collapsing); absent, every loft is unchanged.
+- **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
+  proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
+  landmark head (no hair, no beard) in a nemes (the cap, wings flaring to the shoulders, lappets on the chest, the
+  queue) with the uraeus. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  `docs/examples/ring-plans/sphinx.plan.json`.
+- **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
+  material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
+  `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
+  block stand-in, limestone by default. Giza's entry card says so.
 
 ### Historic city
 

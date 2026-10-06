@@ -232,7 +232,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { statueWords } = await import('@/lib/graph/statue/expand.js');
     const baked = new Map();   // one resolve per statue and turn
     for (const rec of list) {
-      const key = `${rec.ref}|${rec.dir}`;
+      const key = `${rec.ref ?? `form:${rec.form}:${rec.material ?? ''}`}|${rec.dir}`;
+      if (!baked.has(key) && rec.form) {   // a library form (statue/forms.js): no store
+        const { statueFormManifest } = await import('@/lib/graph/statue/forms.js');
+        const inner = await resolveWorldScene({ ref: `form-${rec.form}`, title: rec.form, manifest: statueFormManifest(rec.form, { material: rec.material }) }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        if (rec.equestrian) throw new Error(`statue on '${rec.at}': an equestrian slot takes a mounted statue, not the ${rec.form}`);
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
       if (!baked.has(key)) {
         const src = SketchRepository.getByRef(rec.ref);
         if (!src) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is not a stored sketch`);

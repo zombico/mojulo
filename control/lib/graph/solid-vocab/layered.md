@@ -699,7 +699,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   Absent, zero bytes.
 
 Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the HORSE, a light riding horse at 1.6 m, core as
-`polygonizer/horse-form.js` `horsePlan({ scale, palette })`; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
+`polygonizer/horse-form.js` `horsePlan({ scale, palette })`; the SPHINX, a recumbent lion wearing the landmark head in
+a nemes, `polygonizer/sphinx-form.js` `sphinxPlan({ preset, scale, palette })`; a plan that is not a hero takes `statue`
+(true or `{ type: 'statue', material, base, dials }`: carved in one material on an oblong base); the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
 `creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form
 (`docs/examples/ring-plans/hero.plan.mjs`, a cast word → the vajra rest joints, a `style` register, the `docs/examples/hero-head/` head worn as an include). Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts), `docs/examples/dragon-body/` (the

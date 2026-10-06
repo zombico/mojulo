@@ -4,7 +4,7 @@
 // A slot is a place the layout already set a statue: a Forum monument (`mark(id, …)`: its masses carry `building: id`,
 // each stand-in figure the forum asset's `figure()`: a robe and head turned as lathes, one arm a beam) or a statue asset's
 // slot (`ln-statue`, Pompeii's borrowed `pp-statue`: a base and a bronze; Sumer's `votive-row`: a bench of worshippers,
-// each on its plinth; Thebes's `eg-colossus`: a seated king, his throne coming down with him), addressed `<asset>:<n>`, its nth slot. A slot may stand several figures (the Sibyls stand three,
+// each on its plinth; Thebes's `eg-colossus`: a seated king, his throne coming down with him; Giza's `gz-sphinx`), addressed `<asset>:<n>`, its nth slot. A slot may stand several figures (the Sibyls stand three,
 // a votive row one per plinth): `figure` picks one, else every figure in it takes the statue.
 //
 // Standing a statue on a slot removes the stand-in figure's masses (its base stays) and records where the figure stood
@@ -14,8 +14,11 @@
 // entry's `height`, turned to face the same way. An equestrian slot (a Forum horseman, a Pompeii equestrian base; its
 // record says `equestrian`) takes a mounted statue (`stand: 'mounted'`, horse and rider) and no other; a mounted statue
 // takes no standing slot: the World resolver, which reads the stored statue, refuses either by name.
+// An entry names a stored statue (`ref`) or a library FORM (`form`: statue/forms.js, the creature designer's sphinx,
+// carved in the entry's `material` or the form's own stone), which the World resolves with no store.
 // Pure and deterministic.
 import * as dmath from '../../util/dmath.js';
+import { validateStatueForm } from '../statue/forms.js';
 
 /** the masses a stand-in figure is made of (its base's are 'base') */
 const FIGURE_KINDS = new Set(['statue', 'bronze']);
@@ -30,6 +33,8 @@ const STATUE_ASSET_KINDS = Object.freeze({
   'eg-colossus': { kinds: new Set(['statue', 'nemes', 'collar', 'crown', 'throne']), measure: new Set(['statue', 'nemes']) },
   // Pompeii's equestrian bases: a bronze horse and rider (an empty base has no slot); heading from the body to the neck
   'pp-equestrian': { kinds: FIGURE_KINDS, equestrian: true },
+  // Giza's Great Sphinx: the lion, its nemes, face, eyes, mouth and uraeus (its quarry stays)
+  'gz-sphinx': { kinds: new Set(['sphinx', 'nemes', 'sphinx-face', 'sphinx-eye', 'sphinx-mouth', 'uraeus']) },
 });
 /** a boxed horse's heading (`dir`): from its body (the widest box) toward its neck and head (the highest box broad enough
  * not to be the rider's arm) */
@@ -46,7 +51,7 @@ const STATUE_ASSETS = Object.freeze(Object.keys(STATUE_ASSET_KINDS));
 const ROW_GATHER = 0.5;
 /** a slot facing letter as the figure's `dir` */
 const FACING_DIR = Object.freeze({ n: 0, e: Math.PI / 2, s: Math.PI, w: -Math.PI / 2 });
-const ENTRY_FIELDS = ['ref', 'at', 'figure', 'height'];
+const ENTRY_FIELDS = ['ref', 'form', 'material', 'at', 'figure', 'height'];
 
 const centre = (m) => [m.x + m.w / 2, m.y + m.d / 2];
 const inRect = ([x, y], r) => x >= r.x - 1e-9 && x <= r.x + r.w + 1e-9 && y >= r.y - 1e-9 && y <= r.y + r.d + 1e-9;
@@ -59,7 +64,9 @@ export function validateStatues(list) {
   const errs = [];
   list.forEach((e, i) => {
     if (!e || typeof e !== 'object' || Array.isArray(e)) { errs.push(`statues[${i}]: { ref, at, figure?, height? }`); return; }
-    if (typeof e.ref !== 'string' || !e.ref) errs.push(`statues[${i}].ref: a stored sketch's ref (a hero carved with /hero/statue)`);
+    if (e.form !== undefined) { if (e.ref !== undefined) errs.push(`statues[${i}]: a ref or a form, not both`); errs.push(...validateStatueForm(e.form, e.material, `statues[${i}]`)); }
+    else if (typeof e.ref !== 'string' || !e.ref) errs.push(`statues[${i}].ref: a stored sketch's ref (a hero carved with /hero/statue), or form: a library form (sphinx)`);
+    else if (e.material !== undefined) errs.push(`statues[${i}].material: a form's (a stored statue carries its own)`);
     if (typeof e.at !== 'string' || !e.at) errs.push(`statues[${i}].at: a slot — a Forum monument's id, or '<asset>:<n>' (${STATUE_ASSETS.join(', ')})`);
     if (e.figure !== undefined && !(Number.isInteger(e.figure) && e.figure >= 0)) errs.push(`statues[${i}].figure: which figure of the slot (0, 1, …)`);
     if (e.height !== undefined && !(Number.isFinite(e.height) && e.height > 0.2 && e.height <= 40)) errs.push(`statues[${i}].height: the figure's height in metres (0.2–40)`);
@@ -137,7 +144,7 @@ export function standStatues(plan, statues, { culture } = {}) {
     for (const [k, F] of S.figures.entries()) {
       if (e.figure !== undefined && k !== e.figure) continue;
       F.idx.forEach((i) => drop.add(i));
-      statueRefs.push({ ref: e.ref, at: e.at, figure: k, pos: [F.c[0], F.c[1], F.z0], height: e.height ?? F.h, dir: F.dir, ...(F.equestrian ? { equestrian: true } : {}) });
+      statueRefs.push({ ...(e.form ? { form: e.form, ...(e.material ? { material: e.material } : {}) } : { ref: e.ref }), at: e.at, figure: k, pos: [F.c[0], F.c[1], F.z0], height: e.height ?? F.h, dir: F.dir, ...(F.equestrian ? { equestrian: true } : {}) });
     }
   }
   return { boxes: (plan.boxes || []).filter((_, i) => !drop.has(i)), statueRefs };

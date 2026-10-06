@@ -105,11 +105,13 @@ const SLOT_TEXT = new Map();
 function statueSlotText(id) {
   if (!SLOT_TEXT.has(id)) {
     const K = HISTORIC_CULTURES[id], S = K.layout && K.layout !== 'ring-canal' ? statueSlots(planHistoricCity({ culture: id, seed: 1 })) : {};
+    // a slot a library form fits (statue/forms.js) says so: the agent need mint nothing
+    const FORM_AT = { 'gz-sphinx': 'sphinx' };
     const named = Object.entries(S).filter(([k]) => !k.includes(':')).map(([k, v]) => `${k}${v.figures.some((f) => f.equestrian) ? ' (equestrian)' : v.figures.length > 1 ? ` (${v.figures.length})` : ''}`);
     // an asset's numbered slots as one range ('ln-statue:0–13'), or listed where the numbering has gaps (an empty base)
     const numbered = {}; for (const k of Object.keys(S).filter((q) => q.includes(':'))) { const [a, n] = k.split(':'); (numbered[a] ??= []).push(+n); }
     const eq = (a) => Object.entries(S).some(([k, v]) => k.startsWith(`${a}:`) && v.figures.some((f) => f.equestrian));
-    SLOT_TEXT.set(id, [...named, ...Object.entries(numbered).map(([a, ns]) => `${a}:${ns.length > 1 && Math.max(...ns) - Math.min(...ns) === ns.length - 1 ? `${Math.min(...ns)}–${Math.max(...ns)}` : ns.join(', ')}${eq(a) ? ' (equestrian)' : ''}`)].join(', '));
+    SLOT_TEXT.set(id, [...named, ...Object.entries(numbered).map(([a, ns]) => `${a}:${ns.length > 1 && Math.max(...ns) - Math.min(...ns) === ns.length - 1 ? `${Math.min(...ns)}–${Math.max(...ns)}` : ns.join(', ')}${eq(a) ? ' (equestrian)' : ''}${FORM_AT[a] ? ` (or "form": "${FORM_AT[a]}")` : ''}`)].join(', '));
   }
   return SLOT_TEXT.get(id);
 }
