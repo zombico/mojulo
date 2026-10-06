@@ -31,6 +31,32 @@ lists routing only (1.7 KB), and the manual is read on demand from cards. Nothin
 - **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
   description allowlist because it fits the 700-character ceiling.
 
+### Diagram auto layout
+
+A flow chart no longer needs a coordinate. Name the boxes and the arrows; the kernel places them. This was the
+biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station needed a hand-picked x, y, w and h.
+
+- **Auto-placed stations.** When no station carries a position (no `x`/`y`, `cell` or `lane`), `lowerDiagramKinds`
+  lays them out (`expandAutoLayout`, `lib/diagram-core.js`):
+  - **Ranks:** longest path along the edges. A cycle's back edge is set aside in declaration order.
+  - **Order:** barycenter sweeps within each rank.
+  - **Box size:** fitted to the label, sublabel and items. A station's own `w`/`h` win.
+  - **viewBox:** fitted when absent. A given one only grows.
+  - **Direction:** `layout: { direction: 'LR' | 'TB' }`.
+
+  It is deterministic, and the stored manifest holds the resolved coordinates. A manifest that places any station
+  never reaches the pass, so every existing row is byte-identical. Both mint doors share it, and the binding holds.
+- **Edges routed around boxes.** In an auto-placed diagram, an edge whose path or label pill would cross a box is
+  routed on the clear side:
+  - Rank-skipping edges, back edges, and a second edge between the same pair all count.
+  - Lanes on the same side stack outward, and ties go to the emptier side.
+  - An edge with its own `via` or `curvature` is left alone.
+- **`edges[].channel`.** A new optional number pins a `via` edge's lane (x for left/right, y for top/bottom), so
+  the lane can clear a wider box between the endpoints. Absent, nothing moves.
+- **`mint_diagram`.** The listing says boxes are auto-placed when their positions are left out, and its arrowhead
+  list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
+  form first; `edge-notation` gains `channel`.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

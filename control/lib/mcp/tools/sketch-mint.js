@@ -30,6 +30,7 @@ import {
   expandGridLayout,
   expandBoundaries,
   lowerDiagramKinds,
+  expandAutoLayout,
   STATION_KINDS,
   EDGE_VIA_VALUES,
   MARK_KINDS,
@@ -884,7 +885,8 @@ export async function updateSketchHandler(input) {
   } else if (manifest !== undefined) {
     let expanded;
     try {
-      expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(manifest)));
+      // a revised flow with no station positions is auto-placed, as at mint (a no-op otherwise)
+      expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(expandAutoLayout(manifest))));
     } catch (err) {
       throw new Error(`Rendrant expansion error: ${err.message}`);
     }

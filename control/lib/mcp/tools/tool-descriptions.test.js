@@ -367,7 +367,8 @@ describe('the sketch tools list schemas that admit what their handlers take', ()
     expect(accepts(manifest, { kind: 'workbench', lathes: [{ id: 'cup', profile: [[0, 0], [0.04, 0], [0.04, 0.1]] }] })).toBe(true);
     expect(accepts(manifest, { title: 'Flow', viewBox: { width: 400, height: 200 }, stations: [] })).toBe(true);
     const { createSketchHandler } = await import('./sketches.js');
-    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'process', label: 'A' }] } })).rejects.toThrow(/manifest\.viewBox is required/);
+    // a PLACED station still needs a viewBox (an unplaced flow is auto-placed and gets one fitted)
+    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'mcp_tool', label: 'A', x: 0, y: 0, w: 100, h: 40 }] } })).rejects.toThrow(/manifest\.viewBox is required/);
   });
   it('the description keeps its iterate-in-place guidance beside the stroke pointer', async () => {
     const d = (await listedTools()).find((t) => t.name === 'update_sketch').description;

@@ -33,6 +33,10 @@ endpoints.
   offset: > 1 swoops harder to clear territory near the straight line, < 1
   flattens toward straight (good for a short hop where a tight S looks awkward).
   Ignored when `via` is set.
+- **`channel`** (optional, with `via`) pins the lane itself: its x for
+  `left`/`right`, its y for `top`/`bottom`. Without it the lane sits just outside
+  the two endpoints, which can still cross a wider box in between. Auto-placed
+  diagrams set it for you (`mark-primitives`).
 
 ```json
 "edges": [
