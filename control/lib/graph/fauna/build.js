@@ -11,6 +11,8 @@
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { compileLayered, pinFrame } from '../polygonizer/station-loft.js';
 import { surfaceLocalOffset } from '../polygonizer/surface-pin.js';
+import { wearWings } from './wing.js';
+import * as dmath from '../../util/dmath.js';
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const mul = (r, m) => (Array.isArray(r) ? r.map((x) => x * m) : r * m);
@@ -120,7 +122,7 @@ export function buildFauna(params) {
     schema: 'layered-plan-v1',
     frame: { up: '+z', front: '+y', note: `1 unit = 1 m; ${P.name || 'an animal'}, feet on z = 0, facing +y; the head worn by its nape on neckTop` },
     joints, segments: [torso, neck, ...(tail ? [tail] : []), ...(tailTip ? [tailTip] : []), ...legs, ...extra],
-    heads: [{ name: 'head', plan: head, expression: 'neutral', on: 'neckTop' }],
+    heads: [{ name: 'head', plan: head, expression: 'neutral', on: 'neckTop', ...(P.headPitch ? { pitch: P.headPitch } : {}) }],
     dials: { head: { op: 'include', name: 'head' } },
     palette: { Coat: C.coat, Sock: C.sock, Ash: C.ash, Fur: C.ash, FurAlt: C.ashAlt, Tip: C.tip, Hoof: C.hoof || C.sock, Mane: C.mane || C.coat, Horn: C.horn || '#d8cdb4', Belly: C.belly || C.ash },
   };
@@ -137,7 +139,9 @@ export function buildFauna(params) {
     if (g.caps) for (const c of Object.keys(g.caps)) g.caps[c] = sv(g.caps[c]);
   }
   head.units.scale *= k;
-  if (P.headMesh) wearHeadMesh(plan, P.headMesh);
+  if (P.torsoUp || P.torso.some((st) => st.top)) uprightTorso(torso);
+  if (P.headMesh) wearHeadMesh(plan, { pitch: P.headPitch, ...P.headMesh });
+  if (P.wings) wearWings(plan, { scale: k, ...P.wings });   // opt-in: feathered or membrane wings (wing.js), worn at a root joint
   return plan;
 }
 
@@ -145,11 +149,13 @@ export function buildFauna(params) {
  * replaces the ring-built head. Its polygons are kept exactly: the mesh is scaled to `length` (metres, nape to nose)
  * and its anchor (the point `anchor` of the way from its back to its front, at mid height) seated on neckTop, then
  * worn as ONE layer-2 part pinned to a small hidden core loft, every vertex an offset in that pin's frame. */
-function wearHeadMesh(plan, { mesh, length, anchor = 0.25, lift = 0, palette = {} }) {
+function wearHeadMesh(plan, { mesh, length, anchor = 0.25, lift = 0, palette = {}, pitch = 0 }) {
   const V = mesh.vertices, axis = (a) => [Math.min(...V.map((v) => v[a])), Math.max(...V.map((v) => v[a]))];
   const [y0, y1] = axis(1), [z0, z1] = axis(2), k = length / (y1 - y0);
   const N = plan.joints.neckTop, at = [0, y0 + (y1 - y0) * anchor, (z0 + z1) / 2];
-  const world = V.map((v) => [v[0] * k, N[1] + (v[1] - at[1]) * k, N[2] + lift + (v[2] - at[2]) * k]);
+  // `pitch` (degrees about x through the anchor, + raises the nose) tilts the mesh as the ring head's `headPitch` does
+  const ca = dmath.cos(pitch * Math.PI / 180), sa = dmath.sin(pitch * Math.PI / 180);
+  const world = V.map((v) => { const y = (v[1] - at[1]) * k, z = (v[2] - at[2]) * k; return [v[0] * k, N[1] + y * ca - z * sa, N[2] + lift + y * sa + z * ca]; });
   // the core: a small level loft inside the head, the pin's parent (a detail part needs a layer-1 surface to ride)
   const r = 0.12 * length, cy = N[1], cz = N[2] + lift;
   plan.segments.push({ name: 'headCore', kind: 'loft', slots: 'ring12', group: 'Skull', mirror: 'plane',
@@ -168,4 +174,32 @@ function wearHeadMesh(plan, { mesh, length, anchor = 0.25, lift = 0, palette = {
   };
   plan.include = [...(plan.include || []), { name: 'headMesh', parts: { headMesh: part }, shift: [0, 0, 0] }];
   plan.palette = { ...(plan.palette || {}), ...palette };
+}
+
+/** THE BACK RISE (opt-in: `torsoUp: true`, or any torso station with `top`). The trunk becomes explicit rings built
+ * with a STABLE frame: every ring's `front` slot is world +z projected off the local axis (never +y, which flips
+ * between belly and back as the chord rises or falls), so stations may sit at different heights (a sloping back) with
+ * no twist. A station's `top` (m, after scale) then raises only the ring's upper half (weight cos of the slot angle
+ * from the top, 0 below the side), so the back line climbs toward the rump while the belly keeps its tuck. */
+function uprightTorso(torso) {
+  const sub = (a, b) => a.map((x, i) => x - b[i]), add = (a, b) => a.map((x, i) => x + b[i]), mulv = (a, m) => a.map((x) => x * m);
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], unit = (a) => mulv(a, 1 / Math.sqrt(dot(a, a)));
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const slots = ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'];
+  const C = torso.stations.map((st) => st.at), n = C.length, e = 2;
+  const stations = torso.stations.map((st, i) => {
+    const d = unit(sub(C[Math.min(i + 1, n - 1)], C[Math.max(i - 1, 0)]));
+    const f = unit(sub([0, 0, 1], mulv(d, d[2]))); let s = cross(f, d); if (s[0] < 0) s = mulv(s, -1);
+    const [rs, rf] = Array.isArray(st.r) ? st.r : [st.r, st.r], pw = (x) => (x < 0 ? -1 : 1) * dmath.pow(Math.abs(x), 2 / e);
+    const points = {};
+    slots.forEach((sl, k) => { const t = 2 * Math.PI * k / slots.length, c = dmath.cos(t);
+      const p = add(st.at, add(mulv(f, rf * pw(c)), mulv(s, rs * pw(dmath.sin(t)))));
+      points[sl] = add(p, [0, 0, (st.top || 0) * Math.max(0, c)]); });
+    for (let k = slots.length / 2 + 1; k < slots.length; k++) { const q = points[slots[slots.length - k]]; points[slots[k]] = [-q[0] + 0, q[1], q[2]]; }   // the left half: the right's exact mirror
+    return { id: `st${i}`, points };
+  });
+  const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r), S = torso.stations;
+  const caps = torso.caps || { back: add(C[0], mulv(unit(sub(C[0], C[1])), 0.45 * rad(S[0].r))), tip: add(C[n - 1], mulv(unit(sub(C[n - 1], C[n - 2])), 0.45 * rad(S[n - 1].r))) };
+  for (const k of Object.keys(torso)) delete torso[k];
+  Object.assign(torso, { name: 'torso', kind: 'rings', slots: 'ring12', group: 'Coat', mirror: null, stations, caps });
 }

@@ -90,10 +90,6 @@ export const family = {
   scale: 1,
 };
 
-// the rhino's head is carried low, nose down: its skull rows drop toward the muzzle (z -= dip * (y - y0))
-const dip = (k, y0) => ([id, y, ...v]) => [id, y, ...v.map((q) => (Array.isArray(q) ? [q[0], q[1] - k * (y - y0)] : q - k * (y - y0)))];
-const dipJaw = (k, y0) => ([id, y, sl]) => [id, y, Object.fromEntries(Object.entries(sl).map(([n, q]) => [n, Array.isArray(q) ? [q[0], q[1] - k * (y - y0)] : q - k * (y - y0)]))];
-const RHINO_DIP = 0.25;
 
 export const species = {
   // COMMON HIPPOPOTAMUS (Hippopotamus amphibius). Thesis: an enormous barrel slung low (belly ~0.45 m up) on very
@@ -140,8 +136,8 @@ export const species = {
       ['st4', 0.36, 0.07, [0.07, 0.055], [0.12, 0.01], [0.14, -0.05], [0.14, -0.14], [0.11, -0.17], -0.18],
       ['st5', 0.50, 0.03, [0.07, 0.02], [0.14, -0.02], [0.17, -0.07], [0.17, -0.14], [0.14, -0.17], -0.17],
       ['st6', 0.58, -0.02, [0.06, -0.03], [0.13, -0.05], [0.16, -0.09], [0.16, -0.14], [0.13, -0.16], -0.16],
-    ].map(dip(RHINO_DIP, -0.40)),
-    craniumCaps: { back: [0, -0.46, 0.04], tip: [0, 0.62, -0.10 - RHINO_DIP * 1.02] },
+    ],
+    craniumCaps: { back: [0, -0.46, 0.04], tip: [0, 0.62, -0.10] },
     muzzleFrom: 4,
     jawRows: [
       ['st0', -0.30, { gum: -0.19, gumR: [0.13, -0.19], jaw: [0.15, -0.26], bottom: -0.29 }],
@@ -149,15 +145,17 @@ export const species = {
       ['st2', 0.20, { gum: -0.18, gumR: [0.12, -0.18], jaw: [0.13, -0.24], bottom: -0.26 }],
       ['st3', 0.42, { gum: -0.17, gumR: [0.14, -0.17], jaw: [0.15, -0.22], bottom: -0.24 }],
       ['st4', 0.56, { gum: -0.16, gumR: [0.13, -0.16], jaw: [0.14, -0.20], bottom: -0.21 }],
-    ].map(dipJaw(RHINO_DIP, -0.40)),
-    jawCaps: { back: [0, -0.36, -0.24 - RHINO_DIP * 0.04], tip: [0, 0.60, -0.18 - RHINO_DIP * 1.0] },
+    ],
+    jawCaps: { back: [0, -0.36, -0.24], tip: [0, 0.60, -0.18] },
+    // the head carried low, nose down: the whole skull, jaw and all they carry turned about the nape
+    headPitch: -14,
     headScale: 1.2, nape: [0, -0.30, -0.02],
     eyeAt: [1.3, 2.6], nostrilAt: [5.6, 2.5], noseAt: [5.8, 2.4], noseR: [0.02, 0.015],
     // tube ears: tall, near-round in section, up off the back of the crown
     earAt: [0.5, 1.3], earSpine: [[0, 0, -0.01], [0, 0, 0.06], [0, 0, 0.13], [0, 0, 0.19]], earR: [0.055, 0.06, 0.045], earSquash: [1, 0.8], earH: 1.5,
     headOrnaments: [
-      { kind: 'sweep', name: 'hornFront', at: [4.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.42, -0.17], [0, 0.46, -0.02], [0, 0.46, 0.13], [0, 0.42, 0.28], [0, 0.36, 0.38]], radii: [0.08, 0.065, 0.045, 0.025, 0.006], m: 8, group: 'Horn' },
-      { kind: 'sweep', name: 'hornRear', at: [3.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.18, -0.08], [0, 0.19, 0.01], [0, 0.17, 0.09]], radii: [0.065, 0.045, 0.01], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'hornFront', at: [4.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.42, 0.035], [0, 0.46, 0.195], [0, 0.46, 0.345], [0, 0.42, 0.485], [0, 0.36, 0.57]], radii: [0.08, 0.065, 0.045, 0.025, 0.006], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'hornRear', at: [3.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.18, 0.065], [0, 0.19, 0.158], [0, 0.17, 0.233]], radii: [0.065, 0.045, 0.01], m: 8, group: 'Horn' },
     ],
     // three toes per foot: broad nail-tipped nubs round the front of each pad
     extraSegments: [['fore'], ['hind']].flatMap(([leg]) => [0, 1, 2].map((i) => ({

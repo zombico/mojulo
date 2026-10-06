@@ -53,7 +53,8 @@ const trunk = ptsOf(/^torso$/), headPts = ptsOf(/^(cranium|jaw|head)$/);
 const withers = trunk.length ? Math.max(...trunk.map((v) => v[2])) : J.withers?.[2] ?? NaN;
 const back = trunk.length ? Math.min(...trunk.map((v) => v[1])) : J.rump?.[1] ?? 0;
 const nose = Math.max(...(headPts.length ? headPts : mesh.vertices).map((v) => v[1]));
-const measured = { withers: r3(withers), length: r3(nose - back), minZ: r3(minZ) };
+// height: the top of the whole animal (a biped bird's published standing height; for a quadruped, its head)
+const measured = { withers: r3(withers), length: r3(nose - back), height: r3(Math.max(...mesh.vertices.map((v) => v[2]))), minZ: r3(minZ) };
 const targets = args.targets ? JSON.parse(args.targets) : {}; const tol = Number(args.tol);
 const sizeMiss = Object.entries(targets).filter(([k, t]) => !(Math.abs(measured[k] - t) <= tol * t)).map(([k, t]) => `${k} ${measured[k]} vs ${t}`);
 // attached: every pinned detail (ears, claws) still touches its host — a detail whose base stayed put while the host

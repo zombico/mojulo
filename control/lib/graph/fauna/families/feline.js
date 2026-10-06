@@ -100,11 +100,22 @@ export const species = {
   cougar: {
     family: 'feline', name: 'a cougar', scale: 0.74,
     colors: { coat: '#b5875a', sock: '#a87c52', tip: '#3a2a1e' },
-    joints: { hip: [0.13, -0.46, 0.76], stifle: [0.16, -0.26, 0.47], hock: [0.15, -0.60, 0.25], rumpA: [0, -0.62, 0.74], rumpB: [0, -0.30, 0.72] },
+    // the back rise: trunk centres climb from the shoulders to the rump on a stable ring frame, and the rump rings'
+    // upper halves lift further (`top`), so the back line runs uphill to the croup while the belly keeps its tuck
+    torso: [
+      { at: [0, -0.64, 0.79], r: [0.11, 0.10], top: 0.035 },
+      { at: [0, -0.48, 0.79], r: [0.15, 0.15], top: 0.045 },
+      { at: [0, -0.24, 0.75], r: [0.13, 0.155], top: 0.03 },
+      { at: [0, 0.02, 0.70], r: [0.15, 0.19] },
+      { at: [0, 0.24, 0.68], r: [0.165, 0.20] },
+      { at: [0, 0.40, 0.68], r: [0.15, 0.19] },
+    ],
+    torsoCaps: { back: [0, -0.72, 0.81], tip: [0, 0.50, 0.66] },
+    joints: { hip: [0.13, -0.46, 0.84], stifle: [0.16, -0.26, 0.47], hock: [0.15, -0.60, 0.25], rumpA: [0, -0.62, 0.82], rumpB: [0, -0.30, 0.79] },
     extraSegments: [
       { name: 'rump', kind: 'segment', from: 'rumpA', to: 'rumpB', rA: [0.11, 0.10], rB: [0.13, 0.14], rMid: [0.145, 0.15], slots: 'ring12', over: [0.3, 0.4], group: 'Coat', mirror: 'plane' },
     ],
-    tail: [[0, -0.64, 0.74, 0.062], [0, -0.76, 0.64, 0.06], [0, -0.86, 0.48, 0.058], [0, -0.94, 0.32, 0.056], [0, -1.02, 0.21, 0.053], [0, -1.12, 0.16, 0.05]],
+    tail: [[0, -0.64, 0.80, 0.062], [0, -0.76, 0.64, 0.06], [0, -0.86, 0.48, 0.058], [0, -0.94, 0.32, 0.056], [0, -1.02, 0.21, 0.053], [0, -1.12, 0.16, 0.05]],
     tip: [[0, -1.11, 0.16, 0.05], [0, -1.20, 0.19, 0.048], [0, -1.27, 0.26, 0.038]],
     tipCaps: { back: [0, -1.09, 0.155], tip: [0, -1.30, 0.30] },
     headScale: 1.15, muzzleW: 1.15, muzzleLen: 0.68, earH: 0.95, bulk: 1.2, legBulk: 1.15,

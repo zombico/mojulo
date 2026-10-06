@@ -24,7 +24,7 @@
  *       // and carries the pelvis with it, a limb that bends; caps default to a pinch beyond the end rings
  *   ],
  *   include?: [ { name, parts, dials?, creases?, palette?, shift: [x, y, z] } ],   // a baked layered fragment worn at a shift
- *   heads?: [ { name, plan, expression?, on: <joint> (its `nape` landmark sits there) | shift: [x, y, z], at?: <landmark>, bind? } ],
+ *   heads?: [ { name, plan, expression?, on: <joint> (its `nape` landmark sits there) | shift: [x, y, z], at?: <landmark>, pitch?: <deg about x at that landmark>, bind? } ],
  *     // a head as PLAN DATA (station-loft-head.js), expanded to an include; it exposes ANCHORS read from its own geometry
  *     // (`<part>.back|tip` caps, `<hinge dial>.pivot`, its landmarks) that rig joints name as `at: '<head>.<anchor>'`
  *   details?: [ { name, kind: 'claw', base, dir, length, radius, pin, group, tint, stretch?, mirror? } ],
@@ -188,6 +188,13 @@ function headInclude(h, plan) {
   if (h.on != null) { if (h.shift != null) fail(`head '${h.name}' gives both on and shift; give one`); const J = (plan.joints || {})[h.on]; if (!isVec(J)) fail(`head '${h.name}' attaches on joint '${h.on}', which the joint table lacks`);
     const lm = h.at || 'nape'; const p = head.landmarks[lm]; if (!p) fail(`head '${h.name}' attaches by its '${lm}' landmark, which its plan does not declare (have ${Object.keys(head.landmarks).join(', ') || 'none'})`); shift = sub(J, p).map(r6); }
   else if (isVec(h.shift)) shift = h.shift; else fail(`head '${h.name}' needs on: <joint> or shift: [x, y, z]`);
+  // PITCH (opt-in): the baked head turned `pitch` degrees about x through its attach landmark (+ lifts the nose, − drops
+  // it); its L1 rings and caps turn, every L2 part (eyes, ears, nose, horns) rides its pins, the landmarks turn with it
+  if (h.pitch) { if (!Number.isFinite(h.pitch)) fail(`head '${h.name}' pitch is degrees about x`);
+    const o = head.landmarks[h.at || 'nape'] || [0, 0, 0], a = h.pitch * Math.PI / 180, ca = dmath.cos(a), sa = dmath.sin(a);
+    const turn = (q) => { const y = q[1] - o[1], z = q[2] - o[2]; return [q[0], o[1] + y * ca - z * sa, o[2] + y * sa + z * ca].map(r6); };
+    for (const P of Object.values(baked.parts)) if (P.layer === 1) { for (const st of P.stations) for (const k of Object.keys(st.points)) st.points[k] = turn(st.points[k]); P.caps = { back: turn(P.caps.back), tip: turn(P.caps.tip) }; }
+    head = { ...head, landmarks: Object.fromEntries(Object.entries(head.landmarks).map(([k, q]) => [k, turn(q)])) }; }
   // ANCHORS, read from the head's own geometry after placement: caps, hinge pivots, landmarks
   const at = (p) => add(p, shift).map(r6); const anchors = {};
   for (const [n, P] of Object.entries(baked.parts)) if (P.layer === 1) { anchors[`${n}.back`] = at(P.caps.back); anchors[`${n}.tip`] = at(P.caps.tip); }

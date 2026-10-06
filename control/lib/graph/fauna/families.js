@@ -10,9 +10,13 @@ import * as ursine from './families/ursine.js';
 import * as pachyderm from './families/pachyderm.js';
 import * as procyonid from './families/procyonid.js';
 import * as macropod from './families/macropod.js';
+import * as mustelid from './families/mustelid.js';
+import * as monotreme from './families/monotreme.js';
+import * as rodent from './families/rodent.js';
+import * as avian from './families/avian.js';
 
 // a family module exports `family: null` until it is built; it then joins the roster with its species
-const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cervid, bovid, ursine, pachyderm, procyonid, macropod }).filter(([, m]) => m.family));
+const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cervid, bovid, ursine, pachyderm, procyonid, macropod, rodent, mustelid, monotreme, avian }).filter(([, m]) => m.family));
 
 export const FAMILIES = Object.freeze(Object.fromEntries(Object.entries(MODULES).map(([k, m]) => [k, m.family])));
 /** Every species of every family, keyed by id, each tagged with its family. */
