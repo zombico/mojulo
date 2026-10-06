@@ -12,6 +12,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Building ladder
+
+A house is one recipe that gains depth: a layout, then a dwelling (furnished, storeys), then its construction
+(framing, roof, drainage), then a BIM model. The surface taught all of it at once (one 23.6 KB card, read for any
+house) and spread it over three packs. Being built on this branch.
+
+- **`mint_building`.** One door for the house: it takes the floorplan manifest `create_sketch` takes, unchanged,
+  and stores the same row. `create_sketch` with `kind: 'floorplan'` still works.
+- **`next` in the result.** A minted or updated building names the steps it can take from here (furnishing,
+  storeys, framing, roof, drainage, the IFC export) and the card for each, computed from what the recipe already
+  has. `mint_building`, `create_sketch` and `update_sketch` all return it for a house. Never stored. The cards are
+  the `floor-plan` card for now.
+- **The door fills two fields.** `kind: 'floorplan'` and the manifest's `title` may be left out; each is added in
+  front only when absent, so a manifest `create_sketch` accepts is stored exactly as `create_sketch` stores it.
+- **A building form and pack.** `get_creative_toolset({ form: 'building' })` and `pack_building` (with
+  `update_sketch`, `get_sketch_vocab` and `export_model` shared in). The studio's HOUSE row and the `house`
+  routing card point at `mint_building`.
+- **Redirects removed.** `pack_diagram`, `pack_object`, `pack_world`, `create_sketch`, `mint_solid`,
+  `compose_world` and the world drawer no longer describe how to mint a house; they say it is `mint_building`.
+- **Ratchet.** One more pack and one more tool cost more than the redirects saved: the packs-mode listing pin
+  rises from 34,000 to 34,300 bytes (33,671 to 34,272) and the flat pin from 254,600 to 255,500 (254,495 to
+  255,424).
+
 ### create_sketch diet
 
 `create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now

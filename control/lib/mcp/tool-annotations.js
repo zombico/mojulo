@@ -180,6 +180,7 @@ export const TOOL_ANNOTATIONS = {
   export_model: ['Export a model file', ADDITIVE_IDEMPOTENT], // rewrites its own export files
   bind_mesh_render: ['Bind a refined mesh', ADDITIVE],
   mint_diagram: ['Mint a diagram', ADDITIVE],
+  mint_building: ['Mint a building', ADDITIVE],
   request_image_render: ['Queue an image render', ADDITIVE_IDEMPOTENT], // deduped per manifest hash
   pull_image_render: ['Claim an image render', ADDITIVE],
   submit_image_render: ['Submit an image render', ADDITIVE],

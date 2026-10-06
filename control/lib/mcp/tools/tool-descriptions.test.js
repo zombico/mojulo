@@ -290,7 +290,10 @@ const DESCRIPTION_ALLOWLIST = {
 // `mark-primitives`, `construction-marks` and `edge-notation`. `bucket` and `preloadMetadata` are still
 // accepted but no longer listed, and the description fits the 700-char ceiling (its allowlist entry is gone).
 // Pinned just above actual so the next feature re-pins consciously. Shrink-only from here.
-const PAYLOAD_CEILING = 254_600;
+// Re-pinned 2026-10-06 (254_600 -> 255_500; measured 254,495 -> 255,424) for mint_building, the building
+// ladder's door. The house redirects in create_sketch, mint_solid and compose_world went to pay for it;
+// the rest is one tool entry's fixed cost (description, schema, title and annotations).
+const PAYLOAD_CEILING = 255_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

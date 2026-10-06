@@ -48,7 +48,10 @@ import { join } from 'node:path';
 // Re-pinned 2026-09-28 (37_000 -> 34_000; measured 33,694) for the chatbot carve-out (3.0.0): the
 // three bot pack dispatchers left, and pack_runtime and pack_connected_services stopped naming the
 // chat_turn tools and chatbots. Shrink-only from here.
-const PACKS_PAYLOAD_CEILING = 34_000;
+// Re-pinned 2026-10-06 (34_000 -> 34_300; measured 33,671 -> 34,272) for pack_building, the building
+// ladder's pack. The house redirects in pack_diagram / pack_object / pack_world went to pay for it; the
+// remaining ~600 bytes are one pack entry's fixed cost.
+const PACKS_PAYLOAD_CEILING = 34_300;
 
 let server;
 let listTools;

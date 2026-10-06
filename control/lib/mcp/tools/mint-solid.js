@@ -257,7 +257,7 @@ export function registerMintSolidTools() {
       'Mint a 3D SOLID — a posed human figure, an ANIMAL, a part-graph creature/object, a measured object '
       + 'study, a `code` program returning one, an assembly, a carved metal wordmark/logo, a spinning solid, a '
       + 'bespoke INSTITUTIONAL building (edifice), or a vehicle-family instance. A house / apartment / one furnished '
-      + "room is NOT a solid: mint it with create_sketch, `manifest: { kind: 'floorplan', … }` (walkable, `storeys: N`). "
+      + "room is NOT a solid: mint_building. "
       + 'Served as an SVG still + orbitable World + `.glb`; a tiny deterministic '
       + 'recipe, regenerated on render. Pick `kind` from the enum; per-kind params go '
       + 'in `spec`; `via` picks an authoring door (manji-tree: ir/parts/prompt/packet; layered: '

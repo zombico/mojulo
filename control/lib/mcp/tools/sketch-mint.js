@@ -57,6 +57,7 @@ import {
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
+import { buildingNext } from '@/lib/mcp/tools/building-next';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
@@ -593,6 +594,9 @@ export async function createSketchHandler(input) {
     result = persistSketch({ title, manifest: nextManifest, ref, folderRef, bucket });
   } else {
     result = mintSketch({ title, manifest, ref, folderRef, bucket });
+    // A house minted here climbs the same ladder as through mint_building.
+    const next = buildingNext(manifest);
+    if (next) result.next = next;
   }
   if (priors) {
     if (!Array.isArray(preload)) {
@@ -940,11 +944,14 @@ export async function updateSketchHandler(input) {
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
   const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
+  // A building's next steps (mint_building's ladder), from the recipe as stored. Never stored.
+  const next = nextManifest !== undefined ? buildingNext(nextManifest) : undefined;
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
     ...(design ? { design } : {}),
+    ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),

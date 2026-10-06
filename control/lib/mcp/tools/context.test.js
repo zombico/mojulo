@@ -513,6 +513,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'request_mesh_render', 'pull_mesh_render', 'submit_mesh_render', 'accept_mesh_render', 'reject_mesh_render',
     'verify_machina',
     'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
+    'mint_building',
     'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
@@ -540,12 +541,12 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     expect([...homes.keys()].sort()).toEqual([...RING10_TOOLS].sort());
   });
 
-  it('no-arg returns the form map naming all 12 forms', async () => {
+  it('no-arg returns the form map naming all 13 forms', async () => {
     const { content } = await creativeToolsetHandler({});
     for (const form of CREATIVE_FORMS) {
       expect(content[0].text, `form map names ${form}`).toContain(`\`${form}\``);
     }
-    expect(CREATIVE_FORMS.length).toBe(12);
+    expect(CREATIVE_FORMS.length).toBe(13);
   });
 
   it('a valid form returns its title + body; an unknown form throws', async () => {
