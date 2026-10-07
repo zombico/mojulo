@@ -9,6 +9,8 @@ import {
   parseCallFlags,
   firstLine,
   coerceFlags,
+  packManualFlag,
+  cliInvocation,
   resolveCallArguments,
   runCli,
 } from './mcp-cli.mjs';
@@ -52,7 +54,14 @@ describe('parseArgv', () => {
       name: 'create_beats',
       json: '{}',
     });
-    expect(parseArgv(['pack_audio', '--json', '{}']).error).toMatch(/tool name before flags/);
+    // Flags straight after the pack id are the pack's own args (tool / args / manual).
+    expect(parseArgv(['pack_audio', '--json', '{"manual":["a","b"]}'])).toMatchObject({
+      command: 'pack', pack: 'pack_audio', name: null, packArgs: true, json: '{"manual":["a","b"]}', flags: [],
+    });
+    expect(parseArgv(['pack_audio', '--manual', 'a,b', '--quiet'])).toMatchObject({
+      command: 'pack', pack: 'pack_audio', name: null, packArgs: true, quiet: true, flags: [['manual', 'a,b']],
+    });
+    expect(parseArgv(['pack_audio', '--json']).error).toMatch(/requires a value/);
     expect(parseArgv(['pack_audio', '--manual', 'create_beats,export_beats'])).toEqual({
       command: 'pack', pack: 'pack_audio', name: null, manual: ['create_beats', 'export_beats'],
     });
@@ -146,6 +155,30 @@ describe('coerceFlags', () => {
   });
 });
 
+describe('packManualFlag', () => {
+  it('keeps the comma spelling for --manual and passes JSON literals through', () => {
+    expect(packManualFlag([['manual', 'a,b']])).toEqual([['manual', '["a","b"]']]);
+    expect(packManualFlag([['manual', 'a']])).toEqual([['manual', '"a"']]);
+    expect(packManualFlag([['manual', '["a"]']])).toEqual([['manual', '["a"]']]);
+    expect(packManualFlag([['tool', 'x,y']])).toEqual([['tool', 'x,y']]);
+  });
+});
+
+describe('cliInvocation', () => {
+  const npx = () => 'npx -y mojulo@9.9.9';
+  it('names the repo script in a checkout, npx under the npx cache, the bin otherwise', () => {
+    expect(cliInvocation({ argv1: '/repo/control/scripts/mcp-stdio.mjs', isSource: true, npx })).toBe('node scripts/mcp-stdio.mjs');
+    expect(cliInvocation({ argv1: 'C:\\repo\\control\\scripts\\mcp-stdio.mjs', isSource: true, npx })).toBe('node scripts/mcp-stdio.mjs');
+    expect(cliInvocation({ argv1: '/home/u/.npm/_npx/abc/node_modules/.bin/mojulo', npx })).toBe('npx -y mojulo@9.9.9');
+    expect(cliInvocation({ argv1: '/usr/local/bin/mojulo', env: { npm_command: 'exec' }, npx })).toBe('npx -y mojulo@9.9.9');
+    expect(cliInvocation({ argv1: '/usr/local/bin/mojulo', npx })).toBe('mojulo');
+    // A linked bin from a checkout is still the bin the caller typed.
+    expect(cliInvocation({ argv1: '/usr/local/bin/mojulo', isSource: true, npx })).toBe('mojulo');
+    // The script path outside a checkout (an npm bin shim) keeps the bin's name.
+    expect(cliInvocation({ argv1: '/lib/node_modules/mojulo/scripts/mcp-stdio.mjs', npx })).toBe('mojulo');
+  });
+});
+
 describe('firstLine', () => {
   it('takes the first line and truncates long ones', () => {
     expect(firstLine('one\ntwo')).toBe('one');
@@ -187,7 +220,8 @@ function capture(extra = {}) {
   const lines = { out: [], err: [] };
   return {
     lines,
-    io: { out: (l) => lines.out.push(l), err: (l) => lines.err.push(l), ...extra },
+    // `cmd` pins the invocation orient names: under `npx vitest` the live probe would say npx.
+    io: { out: (l) => lines.out.push(l), err: (l) => lines.err.push(l), cmd: 'mojulo', ...extra },
   };
 }
 
@@ -318,6 +352,20 @@ describe('runCli', () => {
     expect(lines.err).toEqual([]);
   });
 
+  it('orient and the tools footer name the invocation in use', async () => {
+    const cmd = 'node scripts/mcp-stdio.mjs';
+    const o = capture();
+    expect(await runCli(['orient'], { ...o.io, cmd })).toBe(0);
+    const text = o.lines.out.join('\n');
+    expect(text).toContain(`\`${cmd} call tool --json`);
+    expect(text).toContain(`\`${cmd} pack_x name --json`);
+    expect(text).toContain(`\`${cmd} pack_x --json '{"manual":["a","b"]}'\``);
+    expect(text).not.toMatch(/`mojulo (call|pack_x|help)/);
+    const t = capture();
+    expect(await runCli(['tools'], { ...t.io, cmd })).toBe(0);
+    expect(t.lines.out.at(-1)).toContain(`\`${cmd} orient\` first, then \`${cmd} call forward_context\``);
+  });
+
   it('pads columns on a TTY, tabs when piped', async () => {
     const tty = capture({ isTTY: true });
     expect(await runCli(['packs'], tty.io)).toBe(0);
@@ -407,6 +455,32 @@ describe('runCli', () => {
 
     const dispatch = capture();
     expect(await runCli(['pack_stash', 'list_cooks'], dispatch.io)).toBe(0);
+
+    // Pack-level args, as `pack_plan({ manual: … })` takes them over MCP: a string or a list via
+    // --json, the same bytes as the dedicated --manual form.
+    const one = capture();
+    expect(await runCli(['pack_plan', '--json', '{"manual":"forge_plan"}'], one.io)).toBe(0);
+    expect(one.lines.out).toEqual(manual.lines.out);
+    const list = capture();
+    expect(await runCli(['pack_plan', '--json', '{"manual":["forge_plan","get_plan"]}'], list.io)).toBe(0);
+    const listed = list.lines.out.join('\n');
+    expect(listed).toMatch(/### forge_plan/);
+    expect(listed).toMatch(/### get_plan/);
+    const commas = capture();
+    expect(await runCli(['pack_plan', '--manual', 'forge_plan,get_plan'], commas.io)).toBe(0);
+    expect(commas.lines.out).toEqual(list.lines.out);
+    // tool + args through --json is the same dispatch as the `pack_x <tool>` form.
+    const viaJson = capture();
+    expect(await runCli(['pack_stash', '--json', '{"tool":"list_cooks","args":{}}'], viaJson.io)).toBe(0);
+    expect(viaJson.lines.out).toEqual(dispatch.lines.out);
+    // An empty pack-level call is the unveil.
+    const empty = capture();
+    expect(await runCli(['pack_plan', '--json', '{}'], empty.io)).toBe(0);
+    expect(empty.lines.out).toEqual(unveil.lines.out);
+    // Flags are checked against the dispatcher's schema.
+    const bogus = capture();
+    expect(await runCli(['pack_plan', '--bogus', '1'], bogus.io)).toBe(2);
+    expect(bogus.lines.err[0]).toMatch(/schema properties: tool, args, manual/);
 
     // A tool that is not a dispatch target of this pack fails at the
     // dispatcher (tool-level error, not usage).

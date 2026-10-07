@@ -35,6 +35,8 @@ export const USAGE = `Usage:
   mojulo call <tool> [args]    invoke a tool
   mojulo <pack_id>             open a pack (orientation + member menu)
   mojulo <pack_id> --manual <name>[,<name>]   read members' manuals
+  mojulo <pack_id> --json <v>   call the pack with pack-level args, as the MCP call
+                               takes them ({"manual": …} or {"tool": …, "args": {…}})
   mojulo <pack_id> <tool> [args]   invoke a member through its pack
   mojulo script <name> [args]  run a shipped worker script from the package root
                                (bake-world-gi | blender-bake | export-blender; needs Blender)
@@ -127,12 +129,21 @@ export function parseArgv(argv) {
       if (command?.startsWith('pack_')) {
         const [name, ...tokens] = rest;
         if (name === undefined) return { command: 'pack', pack: command, name: null };
-        if (name === '--manual') {
+        // `--manual a,b` on its own is the dedicated form; with other flags beside it, it rides the
+        // pack-level form below (same comma spelling, see packManualFlag).
+        if (name === '--manual' && tokens.length <= 1) {
           const names = (tokens[0] || '').split(',').map((t) => t.trim()).filter(Boolean);
           if (names.length === 0 || tokens.length !== 1) return { error: '--manual takes one argument: a member name or a comma-separated list' };
           return { command: 'pack', pack: command, name: null, manual: names };
         }
-        if (name.startsWith('--')) return { error: `pack dispatch needs a tool name before flags` };
+        if (name.startsWith('--')) {
+          // `mojulo pack_x --json '{"manual":[…]}'` — flags straight after the pack id are the
+          // PACK's own arguments (tool / args / manual), the same object `pack_x({…})` takes over
+          // MCP. Coerced against the pack dispatcher's schema in runCli.
+          const parsed = parseCallFlags([name, ...tokens]);
+          if (parsed.error) return parsed;
+          return { command: 'pack', pack: command, name: null, packArgs: true, ...parsed };
+        }
         const parsed = parseCallFlags(tokens);
         if (parsed.error) return parsed;
         return { command: 'pack', pack: command, name, ...parsed };
@@ -194,6 +205,23 @@ export function coerceFlags(pairs, schema) {
 }
 
 /**
+ * `--manual` on the pack-level form keeps the comma-list spelling of the dedicated
+ * `--manual a,b` form; a JSON literal (`'["a","b"]'`, `'"a"'`) passes through as one. Pure.
+ */
+export function packManualFlag(pairs) {
+  return pairs.map(([key, raw]) => {
+    if (key !== 'manual' || typeof raw !== 'string') return [key, raw];
+    try {
+      JSON.parse(raw);
+      return [key, raw];
+    } catch {
+      const names = raw.split(',').map((t) => t.trim()).filter(Boolean);
+      return [key, JSON.stringify(names.length === 1 ? names[0] : names)];
+    }
+  });
+}
+
+/**
  * Resolve the `--json` value to an arguments object. `@path` reads a file,
  * `-` reads stdin, anything else parses inline; null (flag omitted) is {}.
  * Throws with a usage-worthy message on bad JSON or non-object payloads.
@@ -236,7 +264,24 @@ let rpcId = 0;
 // told to call forward_context by the initialize preamble; this footer is that
 // pointer for a caller that never sent initialize. stdout, like the
 // uninstalled note: an agent reading the listing must see it.
-const ORIENT_FOOTER = ['', 'new here? `mojulo orient` first, then `mojulo call forward_context` (the routing index)'];
+const orientFooter = (cmd) => ['', `new here? \`${cmd} orient\` first, then \`${cmd} call forward_context\` (the routing index)`];
+
+/**
+ * The command a shell caller should type to reach this CLI again, read from how this process was
+ * launched (`argv1` is process.argv[1], which keeps the bin's symlink name). Pure.
+ *   - the repo script itself (`node scripts/mcp-stdio.mjs …`) in a source checkout → that, run from control/
+ *   - the bin through npx (its copy under the npm cache's `_npx`, or npm_command=exec) → `npx -y mojulo@<version>`
+ *   - anything else (a global or project install's `mojulo` on PATH) → `mojulo`
+ */
+export function cliInvocation({ argv1 = '', env = {}, isSource = false, npx = () => 'npx -y mojulo' } = {}) {
+  const file = String(argv1).replace(/\\/g, '/');
+  if (file.endsWith('/mcp-stdio.mjs') || file === 'mcp-stdio.mjs') {
+    if (isSource) return 'node scripts/mcp-stdio.mjs';
+  } else if (file.includes('/_npx/') || env.npm_command === 'exec') {
+    return npx();
+  }
+  return 'mojulo';
+}
 
 // Capability that EXISTS but is not installed here. The iron wall is about
 // execution, not information hiding — the operator should know a gated pack
@@ -284,6 +329,17 @@ export async function runCli(argv, io = {}) {
   const out = io.out ?? ((line) => process.stdout.write(line + '\n'));
   const err = io.err ?? ((line) => process.stderr.write(line + '\n'));
   const isTTY = io.isTTY ?? Boolean(process.stdout.isTTY);
+  // How the caller reached us — orient and the tools footer name this, not a bin it may not have.
+  const cliCmd = async () => {
+    if (io.cmd) return io.cmd;
+    const dist = await import('@/lib/version/distribution');
+    return cliInvocation({
+      argv1: process.argv[1],
+      env: process.env,
+      isSource: dist.distribution() === 'source',
+      npx: () => dist.npxMojulo(''),
+    });
+  };
 
   const parsed = parseArgv(argv);
   if (parsed.error) {
@@ -354,18 +410,18 @@ export async function runCli(argv, io = {}) {
     return result.isError ? 1 : 0;
   };
 
-  const resolveArgs = async () => {
+  const resolveArgs = async (name = parsed.name, flags = parsed.flags) => {
     const base = await resolveCallArguments(parsed.json, {
       readFile: async (p) => (await import('node:fs/promises')).readFile(p, 'utf8'),
       readStdin: io.readStdin ?? readStdinText,
     });
-    const tool = server.getRegisteredTool(parsed.name);
+    const tool = server.getRegisteredTool(name);
     if (!tool) {
-      const e = new Error(unknownToolMessage(moved, packs, parsed.name, base?.tool));
+      const e = new Error(unknownToolMessage(moved, packs, name, base?.tool));
       e.usage = true;
       throw e;
     }
-    const coerced = coerceFlags(parsed.flags, profile.toolFace(tool).inputSchema);
+    const coerced = coerceFlags(flags, profile.toolFace(tool).inputSchema);
     if (coerced.error) {
       const e = new Error(coerced.error);
       e.usage = true;
@@ -384,7 +440,7 @@ export async function runCli(argv, io = {}) {
       out(
         server.serverInstructions() +
           server.PACKS_INSTRUCTIONS_ADDENDUM +
-          server.cliInstructionsAddendum({ hostIds: listHostProfiles().map((p) => p.id) })
+          server.cliInstructionsAddendum({ hostIds: listHostProfiles().map((p) => p.id), cmd: await cliCmd() })
       );
       return 0;
     }
@@ -419,7 +475,7 @@ export async function runCli(argv, io = {}) {
       ];
       for (const line of listRow(rows)) out(line);
       for (const line of uninstalledNote(packs, profile)) out(line);
-      for (const line of ORIENT_FOOTER) out(line);
+      for (const line of orientFooter(await cliCmd())) out(line);
       return 0;
     }
 
@@ -468,6 +524,18 @@ export async function runCli(argv, io = {}) {
       }
       if (parsed.manual) {
         return invoke({ name: parsed.pack, args: { manual: parsed.manual.length === 1 ? parsed.manual[0] : parsed.manual }, timeoutMs: null, quiet: false });
+      }
+      if (parsed.packArgs) {
+        // Pack-level args (`--json`, `--manual`, `--tool`, `--args`) go to the pack call as-is,
+        // coerced against the dispatcher's own schema — exactly what `pack_x({…})` sends over MCP.
+        let args;
+        try {
+          args = await resolveArgs(parsed.pack, packManualFlag(parsed.flags));
+        } catch (e) {
+          err(`mojulo: ${e.message}`);
+          return 2;
+        }
+        return invoke({ name: parsed.pack, args, timeoutMs: parsed.timeoutMs, quiet: parsed.quiet });
       }
       if (parsed.name === null) {
         // Bare pack → unveil: orientation body + member menu.
