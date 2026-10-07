@@ -45,6 +45,17 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   kind takes the air and sky only and its payload says so (`lookNote`), as does a sunless look on a world that places
   no lights. Absent `look`, nothing changes. This lands the look laws baked-light, vertex-density, shade-is-colour,
   depth-by-air and sky-is-a-place; value order, palette, pixel lock and the surface laws are next.
+- **A stage recipe paints its own tiles and sets its own proportions.** `tiles: { wall: { gen: 'stone-brick', stone,
+  mortar, rows, cols, bevel, … } }` per surface (generators `stone-brick`, `flagstone`, `rock`), and
+  `proportions: { column: { r, sides }, plinth: { h }, torch: { every }, … }`, each setting inside its rail
+  (`lib/graph/era/tile-specs.js`); anything outside is refused with its range. A tile family is named from its own
+  numbers and rebuilt from the recipe on every read, so it survives restarts and any number can be edited later with
+  `update_sketch`; the kit keeps its value band per surface but the recipe's colour is the hue. Each room kit offers only
+  the proportions it draws (`STAGE_KIT_PROPORTIONS`, measured: the plaza and the lab take `bay` only). A generated
+  `stage-rails` card lists every setting and range, and each kit card names its surfaces and parts.
+- **Two stage fixes.** `torch.every: 1` seated no torches (the seat rule was `k % every === 1`); it now seats one per
+  pilaster, with the kits' own spacing unchanged. A sunlit kit (the plaza) given a look with no sun threw a TypeError; it
+  now refuses with the looks that have one.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

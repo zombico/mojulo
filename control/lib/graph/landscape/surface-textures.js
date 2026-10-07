@@ -1057,6 +1057,8 @@ export const TEXTURE_FAMILIES = {
 
 /** The rock structural styles available to defineRockTile. */
 export const ROCK_STYLES = Object.keys(ROCK_DNA);
+/** A rock style's structural DNA (a copy), for a recipe's own rock tile spec. */
+export const rockDnaOf = (style) => ({ ...(ROCK_DNA[style] || ROCK_DNA.cave) });
 
 // Runtime-registered generators (e.g. custom stone-wall palettes minted via
 // defineStoneWallFamily). surfaceTexture() consults this after the built-in GENERATORS.
@@ -1102,6 +1104,25 @@ export function defineWoodPanelFamily(name, { early, late, ...opts } = {}) {
   if (!Array.isArray(early) || !Array.isArray(late)) throw new Error('defineWoodPanelFamily requires { early:[r,g,b], late:[r,g,b] }');
   const variants = woodPanelVariants(name, { early, late }, { ...WOOD_PANEL_DNA, ...opts });
   for (const [k, cfg] of variants) { RUNTIME_GEN[k] = () => woodPanelPng(cfg, { size: 256, seed: cfg.seed }); SURFACE_TILING[k] = 'repeat'; }
+  TEXTURE_FAMILIES[name] = variants.map(([k]) => k);
+  return TEXTURE_FAMILIES[name].slice();
+}
+
+/** The generators a recipe may name in a tile spec (era/tile-specs.js holds their rails). */
+const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng };
+const SPEC_VARIANT_SEEDS = [['a', 13], ['b', 47], ['c', 88], ['d', 124]];
+
+/**
+ * Register a family of four seeded variants from a recipe's own tile spec: `${name}-a..d`, each a 'repeat' tile. The
+ * spec travels in the recipe and the name is derived from it (tile-specs.js), so the family is rebuilt from the recipe
+ * on every read, never kept anywhere else. Idempotent: the same name with the same spec registers the same tiles.
+ */
+export function defineGeneratedFamily(name, gen, cfg) {
+  const make = SPEC_GENERATORS[gen];
+  if (!make) throw new Error(`defineGeneratedFamily: unknown generator '${gen}' (known: ${Object.keys(SPEC_GENERATORS).join(', ')})`);
+  const base = cfg.seed ?? 1;
+  const variants = SPEC_VARIANT_SEEDS.map(([suf, s]) => [`${name}-${suf}`, base * 1009 + s]);
+  for (const [k, seed] of variants) { if (!RUNTIME_GEN[k]) RUNTIME_GEN[k] = () => make({ ...cfg, seed }, { size: 256, seed }); SURFACE_TILING[k] = 'repeat'; }
   TEXTURE_FAMILIES[name] = variants.map(([k]) => k);
   return TEXTURE_FAMILIES[name].slice();
 }

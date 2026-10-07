@@ -13,9 +13,10 @@
  * No card names a game, a studio or a console: the reference cards keep that research record, and a card describes
  * what each look and kit offers so the agent can match an ask to it on its own.
  */
-import { STAGE_KITS } from './stage.js';
+import { STAGE_KITS, STAGE_KIT_PROPORTIONS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
 import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
+import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
@@ -59,6 +60,7 @@ const refFor = (kitId) => SIXTH_GEN_LOOK_IDS.find((l) => SIXTH_GEN_REFERENCES[SI
 const lookRef = (lookId) => SIXTH_GEN_REFERENCES[SIXTH_GEN_LOOKS[lookId]];
 const ERA = `the sixth console generation (around 2000 to 2006): seen at ${SIXTH_GEN.frame.width}×${SIXTH_GEN.frame.height}, world light baked into the vertices`;
 const isRooms = (kit) => ROOM_SHELLS.has(kit.shell);
+const kitIdOf = (kit) => Object.keys(STAGE_KITS).find((k) => STAGE_KITS[k] === kit);
 // the laws a kit's style card states (its own principles, its night's and its decay's), look layer first
 const kitLaws = (kit) => {
   const S = styleOf(kit);
@@ -75,7 +77,8 @@ function kitOptions(kit) {
   if (S.sway) out.push(`"wind": { … } (its hung cloth and leaves swing)`);
   if (S.fire) out.push(`"fire": true (braziers by the portal light the room)`);
   if (kit.shell === 'plaza' || kit.shell === 'lab') out.push(`"water": true`);
-  if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`);
+  if (isRooms(kit)) out.push(`"lights": "auto" | [{ "at": [x, y, z], … }]`, `"dirt": { "age", "damp", "soot", "traffic", "seed" }`, `"doors"`, `"items"`,
+    `"tiles": { ${Object.keys(kit.tiles).join(' | ')}: { "gen", … } }`, `"proportions": { ${(STAGE_KIT_PROPORTIONS[kitIdOf(kit)] || []).join(' | ')} } (ranges: card 'stage-rails')`);
   return out;
 }
 
@@ -182,7 +185,25 @@ export function lawsCard() {
   };
 }
 
-/** Every generated card: the hub, the laws, each kit, each look. */
+const railText = (r) => (r.rgb ? '[r, g, b]' : r.of ? r.of.join(' | ') : `${r.lo}–${r.hi}${r.int ? ' (integer)' : ''}`);
+
+/** The rails card: every setting a recipe may give a room kit's tiles and proportions, with its range. */
+export function railsCard() {
+  const lines = ['# Stage rails: tiles and proportions', '',
+    'A room kit\'s recipe may paint its own tiles and set its own proportions, inside these ranges; anything outside is refused with the range. The tiles are named from their numbers and rebuilt from the recipe on every read, so any number can be edited later.', '',
+    'TILES  "tiles": { <surface>: { "gen", …settings, "scale"? (metres per repeat, 0.25–8) } }'];
+  for (const [gen, R] of Object.entries(TILE_RAILS)) lines.push(`  ${gen} (needs ${R.required.join(', ')}): ${Object.entries(R.keys).map(([k, r]) => `${k} ${railText(r)}`).join('; ')}`);
+  lines.push('', 'PROPORTIONS  "proportions": { <part>: { <number> } }, only the parts the kit has');
+  for (const [part, r] of Object.entries(PROPORTION_RAILS)) lines.push(`  ${part}: ${r.lo !== undefined ? railText(r) : Object.entries(r).map(([k, rr]) => `${k} ${railText(rr)}`).join('; ')}`);
+  return {
+    id: 'stage-rails', name: 'Stage rails: tiles and proportions', family: 'world', entry: 'create_sketch', generated: true,
+    summary: 'The settings a stage recipe may give its own tiles (brick, flagstone, rock) and proportions (columns, plinths, bays, doors), each with its range.',
+    when: '"custom bricks", "stone colour", "brick pattern", "floor tiles", "column size", "thicker columns", "procedural texture", "vary the stonework"',
+    body: lines.join('\n'),
+  };
+}
+
+/** Every generated card: the hub, the laws, the rails, each kit, each look. */
 export function stageEntryCards() {
-  return [stageHubCard(), lawsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
+  return [stageHubCard(), lawsCard(), railsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
 }

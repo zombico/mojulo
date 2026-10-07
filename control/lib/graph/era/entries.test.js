@@ -10,7 +10,7 @@ const starterOf = (body) => JSON.parse(body.split('\n').find((l) => /^ {2}\{"kin
 describe('stage entries: generated kit and look cards', () => {
   it('gives the stage a hub, every kit a card and every reference a look', () => {
     const ids = stageEntryCards().map((c) => c.id);
-    expect(ids.slice(0, 2)).toEqual(['stage', 'sixth-gen-laws']);
+    expect(ids.slice(0, 3)).toEqual(['stage', 'sixth-gen-laws', 'stage-rails']);
     for (const k of Object.keys(STAGE_KITS)) expect(ids).toContain(`stage/${k}`);
     for (const l of SIXTH_GEN_LOOK_IDS) expect(ids).toContain(`look/${l}`);
     expect(Object.values(SIXTH_GEN_LOOKS).sort()).toEqual(Object.keys(SIXTH_GEN_REFERENCES).sort());
@@ -71,7 +71,7 @@ describe('stage entries: generated kit and look cards', () => {
   it('reads the reference ids and the old plaza kit id a recipe may already carry', () => {
     const room = [{ id: 'a', x: 0, y: 0, w: 8, d: 8, h: 5 }];
     for (const [look, ref] of Object.entries(SIXTH_GEN_LOOKS)) expect(planStage({ reference: ref, rooms: room }).refId).toBe(planStage({ reference: look, rooms: room }).refId);
-    expect(planStage({ kit: 'delfino-plaza', rooms: room }).kitId).toBe('island-plaza');
+    expect(planStage({ kit: 'delfino-plaza', reference: 'island-noon', rooms: room }).kitId).toBe('island-plaza');
     expect(() => planStage({ reference: 'nope', rooms: room })).toThrow(/known looks: gothic-night/);
   });
 });

@@ -22,6 +22,7 @@
  * Deterministic: a pure function of the recipe.
  */
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
+import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
 import { makeDirt, hash3 } from './dirt.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
@@ -167,11 +168,35 @@ STAGE_KITS['isekai-meadow'] = Object.freeze({ shell: 'isekai', style: 'isekai-me
 STAGE_KITS['isekai-bamboo'] = Object.freeze({ shell: 'isekai', style: 'isekai-bamboo' });
 STAGE_KITS['isekai-sakura'] = Object.freeze({ shell: 'isekai', style: 'isekai-sakura' });
 Object.freeze(STAGE_KITS);
+/** The proportions each room kit is built by (tile-specs.js PROPORTION_RAILS): a part it inherits but never draws (the
+ *  plaza's pilasters, the nave's ribs) is not offered. Measured, and kept honest by tile-specs.test.js. */
+export const STAGE_KIT_PROPORTIONS = Object.freeze({
+  'gothic-stone': ['bay', 'plinth', 'cornice', 'pilaster', 'rib', 'door', 'torch'],
+  'gothic-nave': ['bay', 'plinth', 'cornice', 'torch', 'column', 'arcade', 'vault'],
+  'island-plaza': ['bay'],
+  'research-lab': ['bay'],
+});
 /** Kit ids a recipe may still carry from before a kit was renamed: read as the kit it became. */
 export const STAGE_KIT_ALIASES = Object.freeze({ 'delfino-plaza': 'island-plaza' });
 /** A kit id (or an alias) → the kit's id; the id as given when it names neither, so the refusal can quote it. */
 export const resolveKitId = (id) => STAGE_KIT_ALIASES[id] || id;
 const VARIANTS = ['a', 'b', 'c', 'd'];
+
+/** The recipe's own tiles (`tiles: { wall: { gen, … } }`, tile-specs.js) over the kit's, surface by surface: each spec
+ *  becomes a four-variant family named from its numbers, laid where the kit laid its own. A dressing that paves its own
+ *  floor (the nave's runner and kerbs) keeps it. */
+function withRecipeTiles(kit, kitId, tiles) {
+  if (!tiles || typeof tiles !== 'object' || Array.isArray(tiles)) throw new Error('stage: tiles is { <surface>: { gen, … } }');
+  const out = { ...kit.tiles }, tint = { ...kit.tint };
+  for (const [part, spec] of Object.entries(tiles)) {
+    if (!kit.tiles[part]) throw new Error(`stage: tiles.${part}: kit '${kitId}' has no ${part} surface (surfaces: ${Object.keys(kit.tiles).join(', ')})`);
+    const n = normalizeTileSpec(spec, `stage: tiles.${part}`), { key, ...was } = kit.tiles[part];
+    out[part] = { ...was, family: tileFamilyOf(spec, `stage: tiles.${part}`), scale: n.scale ?? was.scale ?? 1 };
+    // the kit's tint sets the value band a surface lives in; the recipe's own colour is the hue, so keep the band, drop the cast
+    if (tint[part]) { const v = r5(tint[part].reduce((a, b) => a + b, 0) / 3); tint[part] = [v, v, v]; }
+  }
+  return { ...kit, tiles: out, tint };
+}
 
 // ── plan ─────────────────────────────────────────────────────────────────────
 const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
@@ -179,11 +204,16 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 export function planStage(m = {}) {
   const kitId = resolveKitId(m.kit || 'gothic-stone');
-  const kit = STAGE_KITS[kitId];
-  if (!kit) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
+  const kit0 = STAGE_KITS[kitId];
+  if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
+  const kitT = m.tiles ? withRecipeTiles(kit0, kitId, m.tiles) : kit0;
+  // the recipe's own proportions (tile-specs.js PROPORTION_RAILS) over the kit's: its columns, plinths, bays, doors
+  const kit = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   const refId = resolveLook(m.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
   if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
+  // a sunlit kit (the plaza) is lit by its look's key: a look with no sun has nothing to light it with
+  if (kit0.sun && !ref.light.key) throw new Error(`stage: kit '${kitId}' is lit by the sun; give it a look with one (${SIXTH_GEN_LOOK_IDS.filter((l) => SIXTH_GEN_REFERENCES[resolveLook(l)].light.key).join(', ')})`);
   if (!Array.isArray(m.rooms) || !m.rooms.length) throw new Error('stage: needs a non-empty `rooms` array ({ id, x, y, w, d, h })');
   const g = kit.grid, byId = new Map();
   const rooms = m.rooms.map((r, i) => {
@@ -320,7 +350,7 @@ export function buildStageGeometry(plan) {
       const u = lines[k];
       if (cuts.some(([c0, c1]) => u > c0 - kit.door.frame - col.r && u < c1 + kit.door.frame + col.r)) continue;
       engagedColumn(out, F, u, { ...col, z0: kit.plinth.h, top: h - kit.cornice.h, gutterDepth: kit.gutter.depth }, sf.trim);
-      if (k > 0 && k < n && (isPortal || k % kit.torch.every === 1)) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
+      if (k > 0 && k < n && (isPortal || (k - 1) % kit.torch.every === 0)) seats.push({ at: P(onWall(F, u, col.embed + col.r + kit.torch.out, kit.torch.z)), n: F.N });
       columns.push({ F, side, u, top: h - kit.cornice.h });
     }
   };
@@ -409,7 +439,7 @@ export function buildStageGeometry(plan) {
         const u = (F.len * k) / nBays, a = Math.max(0, u - pw / 2), b = Math.min(F.len, u + pw / 2);
         if (cuts.some(([c0, c1]) => b > c0 - kit.door.frame && a < c1 + kit.door.frame)) continue;
         wallBox(out, F, a, b, kit.plinth.h, h - kit.cornice.h, kit.pilaster.out, trim, cell);
-        if (k > 0 && k < nBays && k % kit.torch.every === 1) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
+        if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
     });
     // ribs across the short span at each bay (a nave's ribs ride its vault)
@@ -580,6 +610,7 @@ function splitCard(f, nu, nv) {
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
   const kit = STAGE_KITS[resolveKitId(manifest.kit)];
+  if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'isekai') return assembleIsekaiScene({ style: kit.style, ...manifest }, ctx);
