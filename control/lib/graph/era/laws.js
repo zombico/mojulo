@@ -23,6 +23,7 @@ import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 import { CRYPT } from './style/crypt.js';
+import { CATACOMB } from './style/catacomb.js';
 
 export const LAYERS = Object.freeze(['look', 'surface', 'composition', 'dressing']);
 
@@ -52,6 +53,7 @@ export const LAWS = Object.freeze({
   'clusters': { layer: 'composition', law: 'Things come in clusters with gaps, never an even scatter.' },
   'layered-depth': { layer: 'composition', law: 'Layers at every depth, revealed in rings out from the way.' },
   'by-cause': { layer: 'composition', law: 'Everything placed or messy has a cause it can be traced to.' },
+  'arches-and-rounds': { layer: 'composition', law: 'Curves break the grid: openings arched, ceilings vaulted, things turned round; a level is never only boxes (the voxel read).' },
   'repeat-adjacent': { layer: 'composition', law: 'Adjacent bare walls share a repeating design element.' },
   'accent-wall': { layer: 'composition', law: 'One accent wall breaks the repeat and carries the eye.' },
   'corner-things': { layer: 'composition', law: 'Things gather where floor meets wall: clusters in corners, singles at wall bases, off the way.' },
@@ -64,7 +66,9 @@ export const LAWS = Object.freeze({
 /** Each style card's principles, in order, as the laws they are instances of. */
 export const PRINCIPLE_LAWS = Object.freeze({
   crypt: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['distinct-radius'],
-    ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause']],
+    ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['arches-and-rounds', 'big-shapes']],
+  catacomb: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['arches-and-rounds', 'big-shapes'], ['repeat-adjacent'],
+    ['accent-wall', 'focus', 'kit-dressing'], ['blend-by-cause'], ['cutout-cards', 'by-cause', 'distinct-radius'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause']],
   'delfino-plaza': [['value-order', 'shade-is-colour'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards'], ['depth-by-air'], ['distinct-radius'], ['kit-dressing'], ['kit-dressing'], ['focus', 'kit-dressing'], ['kit-dressing'], ['sky-is-a-place']],
   'delfino-plaza/night': [['baked-light', 'shade-is-colour'], ['value-order', 'baked-light'], ['focus'], ['distinct-radius', 'by-cause'], ['sky-is-a-place']],
   'gothic-nave': [['value-order'], ['light-through'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['focus'], ['distinct-radius'], ['materials-by-layer'], ['materials-by-layer']],
@@ -80,7 +84,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */
 export function statedPrinciples() {
   const out = {};
-  for (const S of [CRYPT, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA]) {
+  for (const S of [CRYPT, CATACOMB, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA]) {
     out[S.id] = S.principles;
     if (S.night?.principles) out[`${S.id}/night`] = S.night.principles;
     if (S.decay?.principles) out[`${S.id}/decay`] = S.decay.principles;

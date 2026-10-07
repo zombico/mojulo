@@ -1123,7 +1123,7 @@ export function defineWoodPanelFamily(name, { early, late, ...opts } = {}) {
 }
 
 /** The generators a recipe may name in a tile spec (era/tile-specs.js holds their rails). */
-const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng };
+const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng, wood: woodPng };
 const SPEC_VARIANT_SEEDS = [['a', 13], ['b', 47], ['c', 88], ['d', 124]];
 
 /**

@@ -9,10 +9,11 @@
  * Every face carries a tint and a normal, so the stage bakes it with the room. A pure function of the plan.
  */
 import { hash3, walkLine } from './dirt.js';
-import { P, r5, panel, hexRgb } from './geom.js';
+import { P, r5, panel, hexRgb, lathe } from './geom.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
+import { tileFamilyOf } from './tile-specs.js';
 
-export const PROP_KINDS = Object.freeze(['crate', 'barrel', 'planks', 'stones', 'boulder', 'debris']);
+export const PROP_KINDS = Object.freeze(['crate', 'barrel', 'planks', 'amphora', 'bones', 'stones', 'boulder', 'debris']);
 
 const mix = (a, b, t) => a + (b - a) * t;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -20,8 +21,12 @@ const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
-const WOOD = { key: 'wood-oak', scale: 0.7, tint: [0.62, 0.55, 0.48], group: 'stage:prop' };
-const DARK_WOOD = { key: 'wood-walnut', scale: 0.7, tint: [0.7, 0.64, 0.58], group: 'stage:prop' };
+// the props' timber, by default: old, quiet, straight-grained boards (tile-specs.js `wood`), not a polished figure
+export const PROP_WOOD = Object.freeze({
+  light: { gen: 'wood', early: [118, 106, 92], late: [96, 85, 72], ringFreq: 10, ringWarp: 0.12, cathedral: 0.04, streakAmt: 0.12, mottle: 5 },
+  dark: { gen: 'wood', early: [86, 76, 66], late: [68, 59, 51], ringFreq: 9, ringWarp: 0.12, cathedral: 0.04, streakAmt: 0.14, mottle: 4 },
+});
+const woodSurf = (spec, tint) => ({ key: `${tileFamilyOf(spec, 'props.wood')}-a`, scale: 0.7, tint, group: 'stage:prop' });
 const IRON = [0.22, 0.21, 0.2];
 
 /** An oriented box: centre `c`, unit axes `A`, `B`, `C`, half sizes `h` — six panels. */
@@ -35,37 +40,57 @@ function obox(out, c, A, B, C, h, surf, cell = 0.5) {
   }
 }
 
-/** An upright n-sided prism (a barrel's staves) of radius r, from z0 to z1, with a cap. */
-function prism(out, [x, y], r, z0, z1, sides, surf, tint = null) {
-  const pt = (i, z) => P([x + r * Math.cos((i / sides) * 2 * Math.PI), y + r * Math.sin((i / sides) * 2 * Math.PI), z]);
-  for (let i = 0; i < sides; i++) {
-    const a = ((i + 0.5) / sides) * 2 * Math.PI, n = [Math.cos(a), Math.sin(a), 0].map(r5);
-    out.push({ corners: [pt(i, z0), pt(i + 1, z0), pt(i + 1, z1), pt(i, z1)], normal: n, outNormal: n, ...(surf ? { texture: surf.key, textureLit: true, uv: [[i / 2, 0], [(i + 1) / 2, 0], [(i + 1) / 2, (z1 - z0) / surf.scale], [i / 2, (z1 - z0) / surf.scale]].map((q) => q.map(r5)), tint: surf.tint } : { tint }), group: 'stage:prop' });
-  }
-  const cap = [...Array(sides).keys()].map((i) => pt(i, z1));
-  out.push({ corners: cap, normal: [0, 0, 1], outNormal: [0, 0, 1], ...(surf ? { tint: surf.tint.map((v) => v * 0.9) } : { tint }), group: 'stage:prop' });
-}
-
 const ITEMS = {
-  crate(out, p, N, U, s, i) {
+  crate(out, p, N, U, s, i, S) {
     const w = mix(0.55, 0.85, hash3(i, 1, 5101)), c = add(p, [0, 0, w / 2]);
-    obox(out, add(c, mul(N, w / 2)), N, U, [0, 0, 1], [w / 2, w / 2, w / 2], WOOD);
-    if (s > 0.5) { const w2 = w * 0.7; obox(out, add(add(c, mul(N, w / 2)), [0, 0, w / 2 + w2 / 2]), N, U, [0, 0, 1], [w2 / 2, w2 / 2, w2 / 2], DARK_WOOD); }
+    obox(out, add(c, mul(N, w / 2)), N, U, [0, 0, 1], [w / 2, w / 2, w / 2], S.wood);
+    if (s > 0.5) { const w2 = w * 0.7; obox(out, add(add(c, mul(N, w / 2)), [0, 0, w / 2 + w2 / 2]), N, U, [0, 0, 1], [w2 / 2, w2 / 2, w2 / 2], S.dark); }
   },
-  barrel(out, p, N, U, s, i) {
-    const r = 0.3, h = 0.86, c = add(p, mul(N, r + 0.02));
-    prism(out, [c[0], c[1]], r, 0, h, 8, DARK_WOOD);
-    for (const z of [0.18, h - 0.2]) prism(out, [c[0], c[1]], r + 0.012, z, z + 0.05, 8, null, IRON);
+  barrel(out, p, N, U, s, i, S) {
+    // turned, not boxed: staves bulging at the belly, iron hoops riding the curve, a lid
+    const r = 0.27, h = 0.86, c = add(p, mul(N, r + 0.06)), bulge = (z) => r + 0.05 * Math.sin((z / h) * Math.PI);
+    lathe(out, c, [[r, 0], [bulge(0.22), 0.22], [bulge(h / 2), h / 2], [bulge(h - 0.22), h - 0.22], [r, h], [0, h]], 10, S.dark, 'stage:prop');
+    for (const z of [0.12, h - 0.17]) lathe(out, c, [[bulge(z) + 0.012, z], [bulge(z + 0.05) + 0.012, z + 0.05]], 10, { key: null, scale: 1, tint: IRON }, 'stage:prop');
   },
-  planks(out, p, N, U, s, i) {
+  amphora(out, p, N, U, s, i) {
+    // two or three jars against the wall, one leaning: shoulders, a neck, a lip
+    const n = 2 + (hash3(i, 6, 5131) < 0.5 ? 1 : 0), clay = { key: null, scale: 1, tint: [0.62, 0.42, 0.3] };
+    for (let k = 0; k < n; k++) {
+      const sz = mix(0.85, 1.15, hash3(i, k, 5133)), c = add(add(p, mul(N, 0.26)), mul(U, (k - (n - 1) / 2) * 0.42));
+      lathe(out, c, [[0.05, 0], [0.15, 0.1], [0.2, 0.32], [0.15, 0.55], [0.06, 0.63], [0.07, 0.72], [0.045, 0.73], [0, 0.73]].map(([r, z]) => [r * sz, z * sz]), 8, clay, 'stage:prop');
+    }
+  },
+  bones(out, p, N, U, s, i) {
+    // a heap of long bones, crossed as they fell, and a skull or two on top
+    const bone = [0.86, 0.82, 0.72], c = add(p, mul(N, 0.45));
+    for (let k = 0; k < 7; k++) {
+      const a = hash3(i, k, 5141) * Math.PI, len = mix(0.32, 0.46, hash3(i, k, 5143)), A = [Math.cos(a), Math.sin(a), 0];
+      const at = add(c, [(hash3(i, k, 5145) - 0.5) * 0.5, (hash3(i, k, 5147) - 0.5) * 0.5, 0.025 + 0.03 * (k % 3)]);
+      obox(out, at, A, unit(cross([0, 0, 1], A)), [0, 0, 1], [len / 2, 0.022, 0.022], { key: null, scale: 1, tint: bone, group: 'stage:prop' }, 0.6);
+    }
+    skull(out, add(c, [0.05, 0, 0.08]), N, 0.1, bone);
+    if (s > 0.4) skull(out, add(add(c, mul(U, 0.25)), [0, 0, 0]), N, 0.09, bone);
+  },
+  planks(out, p, N, U, s, i, S) {
     const n = 2 + Math.floor(hash3(i, 3, 5103) * 2), len = mix(1.6, 2.1, hash3(i, 4, 5105));
     for (let k = 0; k < n; k++) {
       const base = add(add(p, mul(N, 0.55 + 0.05 * k)), mul(U, (k - (n - 1) / 2) * 0.27)), top = add(add(p, mul(N, 0.06)), add(mul(U, (k - (n - 1) / 2) * 0.27), [0, 0, len * 0.93]));
       const C = unit([top[0] - base[0], top[1] - base[1], top[2] - base[2]]), A = unit(cross(U, C)), mid = mul(add(base, top), 0.5);
-      obox(out, mid, A, U, C, [0.02, 0.11, Math.hypot(top[0] - base[0], top[1] - base[1], top[2] - base[2]) / 2], k % 2 ? DARK_WOOD : WOOD, 0.6);
+      obox(out, mid, A, U, C, [0.02, 0.11, Math.hypot(top[0] - base[0], top[1] - base[1], top[2] - base[2]) / 2], k % 2 ? S.dark : S.wood, 0.6);
     }
   },
 };
+
+/** A skull facing N: a lathed cranium and two dark sockets on its face. */
+export function skull(out, c, N, r, tint, group = 'stage:prop') {
+  // (lathe's profile heights are absolute: lift them to the skull's own z)
+  lathe(out, c, [[0, 0], [r * 0.62, r * 0.12], [r * 0.95, r * 0.75], [r * 0.9, r * 1.35], [r * 0.5, r * 1.75], [0, r * 1.85]].map(([a, z]) => [a, c[2] + z]), 6, { key: null, scale: 1, tint }, group);
+  const side = unit(cross([0, 0, 1], N)), face = add(c, mul(N, r * 0.93));
+  for (const sg of [-1, 1]) {
+    const o = add(add(face, mul(side, sg * r * 0.36)), [0, 0, r * 0.95]), a = mul(side, r * 0.17), b = [0, 0, r * 0.2];
+    out.push({ corners: [P(add(o, mul(a, -1))), P(add(o, a)), P(add(add(o, a), b)), P(add(add(o, mul(a, -1)), b))], normal: N.map(r5), outNormal: N.map(r5), tint: [0.12, 0.1, 0.09], group });
+  }
+}
 
 /** Where things gather in a room stage: corners (clusters), then wall bases between pilasters (singles). */
 function spots(plan, pilasters, keepClear) {
@@ -98,6 +123,7 @@ function spots(plan, pilasters, keepClear) {
 /** The props for a plan: `spec` { kinds, share, rock?, tone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room. */
 export function cornerThings(plan, pilasters, spec, keepClear = []) {
   const kinds = spec.kinds.filter((k) => PROP_KINDS.includes(k)), out = [], rocks = [];
+  const W = spec.wood || PROP_WOOD, S = { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]) };
   let prev = null;
   spots(plan, pilasters, keepClear).forEach((s, si) => {
     if (!s.corner && hash3(si, 0, 5111) > spec.share) return;
@@ -107,7 +133,7 @@ export function cornerThings(plan, pilasters, spec, keepClear = []) {
       if (kind === prev) kind = kinds[(kinds.indexOf(kind) + 1) % kinds.length];   // never two of a kind side by side
       prev = kind;
       const seed = si * 11 + ii;
-      if (ITEMS[kind]) { ITEMS[kind](out, it.p, it.N, it.U, s.corner ? hash3(seed, 2, 5115) : 0, seed); return; }
+      if (ITEMS[kind]) { ITEMS[kind](out, it.p, it.N, it.U, s.corner ? hash3(seed, 2, 5115) : 0, seed, S); return; }
       // the rock kinds: stones in a small heap, a boulder with stones at its foot, a scatter of debris
       const n = kind === 'stones' ? 5 : kind === 'boulder' ? 3 : 8;
       for (let k = 0; k < n; k++) {

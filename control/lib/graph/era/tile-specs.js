@@ -24,6 +24,11 @@ export const TILE_RAILS = Object.freeze({
   flagstone: { required: ['stone', 'mortar'], keys: {
     stone: RGB, mortar: RGB, gravel: RGB, cells: int(3, 8), mortarThick: num(0.02, 0.1), wobble: num(0, 4), vary: num(4, 40),
     grain: num(2, 24), lost: num(0, 0.2), cracked: num(0, 0.5), seed: int(1, 99999) } },
+  // plain-sawn boards: earlywood↔latewood rings (ringFreq/streakFreq integers keep the tile seamless); a low warp and
+  // cathedral with close early/late colours give quiet straight grain, high ones the wavy figure
+  wood: { required: ['early', 'late'], keys: {
+    early: RGB, late: RGB, ringFreq: int(2, 16), ringWarp: num(0, 1), ringSharp: num(0.3, 3), cathedral: num(0, 1), streakFreq: int(8, 96),
+    streakAmt: num(0, 0.4), mottle: num(0, 14), period: int(1, 6), seed: int(1, 99999) } },
   rock: { required: ['base'], keys: {
     style: { of: ROCK_STYLES }, base: RGB, amp: num(10, 120), crackFreq: num(2, 20), crackWidth: num(0.005, 0.1), crackDepth: num(0, 0.8),
     bands: int(0, 16), bandAmp: num(0, 30), speckle: num(0, 0.4), seed: int(1, 99999) } },
@@ -55,6 +60,9 @@ export function normalizeTileSpec(spec, at = 'tiles') {
   return { gen: spec.gen, params, ...(spec.scale !== undefined ? { scale: check(spec.scale, PLACEMENT.scale, `${at}.scale`) } : {}) };
 }
 
+// a wood spec's unset settings: quiet, straight, close-ringed grain (a recipe raises warp and cathedral for figure)
+const WOOD_DNA = { ringFreq: 9, ringWarp: 0.15, ringSharp: 1.4, cathedral: 0.06, streakFreq: 64, streakAmt: 0.1, mottle: 4, period: 3 };
+
 // FNV-1a over the normalized spec: the family's name is its numbers
 const hash = (s) => { let h = 0x811c9dc5; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
 
@@ -62,7 +70,7 @@ const hash = (s) => { let h = 0x811c9dc5; for (const c of s) { h ^= c.charCodeAt
 export function tileFamilyOf(spec, at) {
   const { gen, params } = normalizeTileSpec(spec, at);
   const name = `gen:${gen}-${hash(JSON.stringify([gen, params]))}`;
-  const cfg = gen === 'rock' ? { ...rockDnaOf(params.style), ...params } : params;
+  const cfg = gen === 'rock' ? { ...rockDnaOf(params.style), ...params } : gen === 'wood' ? { ...WOOD_DNA, ...params } : params;
   defineGeneratedFamily(name, gen, cfg);
   return name;
 }

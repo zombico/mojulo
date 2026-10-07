@@ -74,6 +74,15 @@ export function checkStageLaws(payload, { only = null } = {}) {
   add('accent-wall', accentPlanes.size === 1, accentPlanes.size === 1 ? 'one accent wall' : `${accentPlanes.size} accent walls`);
   const props = faces.filter((f) => f.group === 'stage:prop');
   add('corner-things', props.length > 0, props.length ? `${props.length} prop faces at the wall bases` : 'nothing where floor meets wall');
+  // round, not boxed: a vaulted ceiling (its faces lean off the vertical), arched trim (normals off every axis in the
+  // wall's plane), and a share of the built faces curved at all
+  const offAxis = (n) => [0, 1, 2].filter((k) => Math.abs(n[k]) > 0.02).length > 1;
+  const built = faces.filter((f) => !f.blend && f.normal && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && f.group !== 'stage:floor');
+  const vault = faces.filter((f) => f.group === 'stage:ceiling' && f.normal && Math.abs(f.normal[2]) < 0.97).length;
+  const archTrim = faces.filter((f) => f.group === 'stage:trim' && f.normal && offAxis(f.normal)).length;
+  const curved = built.filter((f) => offAxis(f.normal)).length / (built.length || 1);
+  add('arches-and-rounds', vault > 0 && archTrim > 0 && curved >= 0.08,
+    `${vault} vault faces, ${archTrim} arched trim faces, ${(curved * 100).toFixed(1)}% of the built faces curved (≥ 8%)`);
   const darkest = Math.min(...faces.filter((f) => f.cornerFills && !f.blend).flatMap((f) => f.cornerFills.map((h) => Math.max(...hex(h)))));
   add('shade-is-colour', darkest > 0.03, `darkest corner ${darkest.toFixed(3)}`);
   const kept = only ? out.filter((x) => only.includes(x.law)) : out;

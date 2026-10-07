@@ -15,7 +15,7 @@ describe('tile specs: the rails', () => {
     expect(() => normalizeTileSpec({ ...WALL, stone: [300, 0, 0] })).toThrow(/0–255/);
     expect(() => normalizeTileSpec({ ...WALL, shine: 1 })).toThrow(/not a stone-brick setting/);
     expect(() => normalizeTileSpec({ gen: 'stone-brick', stone: [1, 2, 3] })).toThrow(/mortar: required/);
-    expect(() => normalizeTileSpec({ gen: 'plasma' })).toThrow(/one of stone-brick, flagstone, rock/);
+    expect(() => normalizeTileSpec({ gen: 'plasma' })).toThrow(/one of stone-brick, flagstone, wood, rock/);
     expect(() => normalizeTileSpec({ gen: 'rock', base: [90, 90, 90], style: 'chalk' })).toThrow(/one of cave/);
   });
 
@@ -25,6 +25,22 @@ describe('tile specs: the rails', () => {
     expect(tileFamilyOf({ ...WALL, rows: 6 })).not.toBe(tileFamilyOf(WALL));
     expect(tileFamilyOf({ ...WALL, scale: 3 })).toBe(tileFamilyOf(WALL));   // placement is not painting
     for (const gen of Object.keys(TILE_RAILS)) expect(TILE_RAILS[gen].required.length).toBeGreaterThan(0);
+  });
+});
+
+describe('tile specs: wood', () => {
+  it('a wood spec takes quiet grain by default and paints a muted, low-contrast tile (the props\' timber)', async () => {
+    const { surfaceTexture } = await import('../landscape/surface-textures.js');
+    const { tileMean } = await import('./law-checks.js');
+    const { PROP_WOOD } = await import('./props.js');
+    const quiet = tileFamilyOf(PROP_WOOD.light), loud = tileFamilyOf({ ...PROP_WOOD.light, ringWarp: 0.9, cathedral: 0.9 });
+    expect(quiet).not.toBe(loud);
+    expect(surfaceTexture(`${quiet}-a`)).toMatch(/^data:image\/png;base64,/);
+    // muted: its mean sits well under the preset oak's, and its channels close together (a grey-brown, not an orange)
+    const m = tileMean(`${quiet}-a`), oak = tileMean('wood-oak');
+    expect(m.reduce((a, b) => a + b) / 3).toBeLessThan(oak.reduce((a, b) => a + b) / 3);
+    expect(m[0] - m[2]).toBeLessThan(oak[0] - oak[2]);
+    expect(() => normalizeTileSpec({ gen: 'wood', early: [1, 2, 3], late: [4, 5, 6], ringFreq: 2.5 })).toThrow(/integer/);
   });
 });
 

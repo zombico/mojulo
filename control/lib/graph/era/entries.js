@@ -32,7 +32,14 @@ const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab']);
 
 /** A recipe each kit is known to build (the shapes its own tests mint); an open-ground kit needs only its id. */
 const KIT_STARTERS = {
-  'gothic-stone': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }], links: [{ from: 'nave', to: 'gallery' }], fire: true },
+  // six rooms in a chain that turns back on itself: the walk ends at the tomb, beside where it began
+  'gothic-stone': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }, { id: 'passage', x: 22, y: 8, w: 10, d: 4, h: 4 },
+    { id: 'charnel', x: 32, y: 2, w: 10, d: 16, h: 6 }, { id: 'chapel', x: 26, y: 18, w: 16, d: 8, h: 5 }, { id: 'sepulchre', x: 14, y: 18, w: 12, d: 12, h: 7 }],
+  links: [{ from: 'nave', to: 'gallery' }, { from: 'gallery', to: 'passage' }, { from: 'passage', to: 'charnel' }, { from: 'charnel', to: 'chapel' }, { from: 'chapel', to: 'sepulchre' }], fire: true },
+  // long low galleries between small chambers, the last the ossuary chapel with the sarcophagus
+  catacomb: { rooms: [{ id: 'stair', x: 0, y: 0, w: 8, d: 8, h: 5 }, { id: 'gallery-a', x: 8, y: 2, w: 16, d: 4, h: 4 }, { id: 'cubiculum', x: 24, y: 0, w: 8, d: 8, h: 4.5 },
+    { id: 'gallery-b', x: 26, y: 8, w: 4, d: 14, h: 4 }, { id: 'crossing', x: 22, y: 22, w: 12, d: 10, h: 5 }, { id: 'ossuary', x: 10, y: 22, w: 12, d: 10, h: 5.5 }],
+  links: [{ from: 'stair', to: 'gallery-a' }, { from: 'gallery-a', to: 'cubiculum' }, { from: 'cubiculum', to: 'gallery-b' }, { from: 'gallery-b', to: 'crossing' }, { from: 'crossing', to: 'ossuary' }], fire: true },
   'gothic-nave': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 24, h: 13 }] },
   'island-plaza': { rooms: [{ id: 'plaza', x: 0, y: 0, w: 26, d: 22, h: 12, open: ['-y', '+x'] }] },
   'research-lab': { rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }] },
@@ -41,6 +48,7 @@ const KIT_STARTERS = {
 /** How people ask for each kit, in plain words: the search line leads with these. */
 const KIT_WORDS = {
   'gothic-stone': ['castle interior', 'torch-lit stone halls', 'stone dungeon rooms'],
+  catacomb: ['catacombs', 'ossuary', 'underground burial galleries'],
   'gothic-nave': ['cathedral', 'church nave', 'stained glass hall'],
   'island-plaza': ['sunny town square', 'mediterranean plaza', 'fountain square'],
   'research-lab': ['sci-fi lab', 'research base', 'industrial facility interior'],
@@ -89,7 +97,7 @@ function kitSummary(kitId, kit) {
   return `Grid rooms in dressed stone: plinth, cornice and pilasters on every wall, ribs across the ceiling, a torch on every other pilaster.`;
 }
 
-function starter(kitId) {
+export function starter(kitId) {
   const ref = refFor(kitId);
   return { kind: 'stage', ...(ref ? { reference: ref } : {}), kit: kitId, ...(KIT_STARTERS[kitId] || {}) };
 }

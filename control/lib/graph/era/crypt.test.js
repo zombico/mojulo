@@ -56,7 +56,8 @@ describe('the crypt: gothic-stone dressed as a burial vault', () => {
   it('principle 7 — every bare bay carries the same niche; the accent wall carries none', () => {
     const geom = buildStageGeometry(plan), tomb = cryptTomb(plan), tc = [tomb.corners.reduce((s, c) => s + c[0], 0) / 4, tomb.corners.reduce((s, c) => s + c[1], 0) / 4];
     const acc = accentWall(plan, geom.pilasters, tc), niches = cryptNiches(plan, geom.pilasters, acc).filter((f) => f.group === 'stage:niche');
-    const sizes = new Set(niches.map((f) => { const [a, b, , d] = f.corners; return [Math.hypot(b[0] - a[0], b[1] - a[1]), d[2] - a[2]].map((v) => v.toFixed(2)).join('x'); }));
+    // the niche's back below its head (the arched head's strips are narrower than any niche)
+    const sizes = new Set(niches.map((f) => { const [a, b, , d] = f.corners; return [Math.hypot(b[0] - a[0], b[1] - a[1]), d[2] - a[2]]; }).filter(([w]) => w > 0.6).map((v) => v.map((x) => x.toFixed(2)).join('x')));
     expect(niches.length).toBeGreaterThan(0);
     // no niche in a doorway: none within a door's span on its wall
     for (const l of plan.links) {
@@ -80,6 +81,21 @@ describe('the crypt: gothic-stone dressed as a burial vault', () => {
     expect(props.every((f) => Array.isArray(f.cornerFills) || typeof f.fill === 'string')).toBe(true);
     const tomb = cryptTomb(plan), xs = tomb.corners.map((c) => c[0]), ys = tomb.corners.map((c) => c[1]);
     for (const f of props) for (const c of f.corners) expect(c[0] > Math.min(...xs) && c[0] < Math.max(...xs) && c[1] > Math.min(...ys) && c[1] < Math.max(...ys)).toBe(false);
+  });
+
+  it('principle 10 — round, never boxed: arched doorways through the wall, a barrel vault on ribs, arched niches', () => {
+    const geom = buildStageGeometry(plan), [l] = plan.links, half = (l.hi - l.lo) / 2;
+    // the doorway's soffit curves: faces through the wall thickness whose height runs from the springing to the crown
+    const t = plan.kit.wall / 2, inWall = (c) => Math.abs((l.wall.endsWith('x') ? c[0] : c[1]) - l.at) <= t + 1e-6
+      && (l.wall.endsWith('x') ? c[1] : c[0]) >= l.lo - 1e-6 && (l.wall.endsWith('x') ? c[1] : c[0]) <= l.hi + 1e-6;
+    const soffit = geom.faces.filter((f) => f.group === 'stage:trim' && f.corners.every(inWall) && Math.min(...f.corners.map((c) => c[2])) >= l.top - half - 1e-6);
+    expect(Math.max(...soffit.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(l.top, 4);
+    expect(soffit.some((f) => Math.abs(f.normal[2]) < 0.9)).toBe(true);
+    // the vault rises over the room's height, and the flat lid is gone
+    const ceil = geom.faces.filter((f) => f.group === 'stage:ceiling');
+    expect(Math.max(...ceil.flatMap((f) => f.corners.map((c) => c[2])))).toBeGreaterThan(plan.rooms[0].h + 1);
+    expect(ceil.every((f) => f.normal[2] < 0.999)).toBe(true);
+    expect(scene.faces.some((f) => f.group === 'stage:niche' && f.corners.some((c, i, a) => c[2] !== a[0][2] && c[2] !== a[3][2]))).toBe(true);
   });
 
   it('real fire: the starter lights its torches through the fire channel', async () => {

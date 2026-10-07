@@ -27,10 +27,12 @@ import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
+import { roundArch, archInfill, archRing, archSoffit } from './arches.js';
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
 import { cryptDress } from './crypt.js';
 import { CRYPT } from './style/crypt.js';
+import { CATACOMB } from './style/catacomb.js';
 import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
@@ -97,6 +99,8 @@ function withGrime(kit, kitId, g, recipeWall) {
 /** The baked dirt at a grime: each cause scaled from its default, none past 1. */
 export const dirtAtGrime = (g) => ({ age: r5(Math.min(1, DIRT_DEFAULTS.age * g * 2)), damp: r5(Math.min(1, DIRT_DEFAULTS.damp * g * 2)), soot: r5(Math.min(1, DIRT_DEFAULTS.soot * g * 2)), traffic: r5(Math.min(1, DIRT_DEFAULTS.traffic * g * 2)) });
 
+// the round vocabulary a room kit opts into: round-headed doorways, a barrel vault (a semicircle, a segment past maxRise)
+export const ARCHED = Object.freeze({ door: { seg: 8 }, vault: { rise: 0.5, maxRise: 3, seg: 10 } });
 // the stone the nave and the plaza are cut from: gothic-stone's own numbers before its crypt dressing
 const GOTHIC_STONE_BASE = STAGE_KITS['gothic-stone'];
 // The CRYPT: gothic-stone dressed as a burial vault (style/crypt.js, era/crypt.js): a tomb chest on a dais at the end of
@@ -106,6 +110,8 @@ STAGE_KITS['gothic-stone'] = Object.freeze({
   ...GOTHIC_STONE_BASE,
   tiles: { ...GOTHIC_STONE_BASE.tiles, wall: { family: cryptWallFamily(CRYPT_GRIME), scale: 2 }, ceiling: { key: 'stucco', scale: 2 } },
   tint: { ...GOTHIC_STONE_BASE.tint, ceiling: [0.26, 0.25, 0.28] },
+  // round, not boxed (arches.js): doorways under a semicircular head, a barrel vault on ribs over every room
+  arch: ARCHED,
   dress: CRYPT,
 });
 // The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course
@@ -189,6 +195,30 @@ STAGE_KITS['research-lab'] = Object.freeze({
   },
   dress: RESEARCH_LAB,
 });
+// The CATACOMB: burial galleries cut into soft rock (style/catacomb.js, dressed by era/crypt.js like the crypt): the
+// gothic-stone shell's proportions pared down to carved piers, a low plinth and cornice, walls and vault one warm tufa,
+// the vault sooted darker, the floor worn flags in earth; round-headed passages and barrel vaults throughout.
+const TUFA = (base, seed, amp = 40) => tileFamilyOf({ gen: 'rock', style: 'cave', base, amp, crackFreq: 8, crackWidth: 0.03, crackDepth: 0.35, speckle: 0.12, seed });
+STAGE_KITS.catacomb = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  plinth: { h: 0.35, out: 0.1 },
+  cornice: { h: 0.25, out: 0.14 },
+  pilaster: { w: 0.6, out: 0.18 },
+  rib: { w: 0.5, drop: 0.22 },
+  door: { width: 2, height: 3.1, frame: 0.3, out: 0.1 },
+  tiles: {
+    wall: { family: TUFA([158, 136, 106], 31), scale: 2.2 },
+    floor: { family: tileFamilyOf({ gen: 'flagstone', stone: [138, 120, 98], mortar: [74, 60, 46], gravel: [96, 80, 62], cells: 4, mortarThick: 0.06, wobble: 2.5, vary: 26, grain: 14, lost: 0.16, cracked: 0.4, seed: 37 }), perBay: true },
+    ceiling: { family: TUFA([96, 84, 72], 43, 30), scale: 2.4 },
+    trim: { family: TUFA([176, 156, 126], 53, 28), scale: 1.6 },
+    gutter: { key: 'soil-mud', scale: 1.2 },
+  },
+  tint: { wall: [0.92, 0.88, 0.82], floor: [0.7, 0.64, 0.58], ceiling: [0.36, 0.33, 0.31], trim: [0.94, 0.9, 0.84], gutter: [0.78, 0.74, 0.7] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#7a6e60' },
+  torch: { ...GOTHIC_STONE_BASE.torch, z: 2.3 },
+  arch: ARCHED,
+  dress: CATACOMB,
+});
 // The TRAIL-VALLEY kit: no architecture — a trail, a cliff and trees built to a style card (nature.js).
 STAGE_KITS['trail-valley'] = Object.freeze({ shell: 'nature', style: 'nature-trail' });
 // The JUNGLE-TRAIL kit: the late sixth-gen jungle — grown giants, leaf cards, a canopy the light comes through (jungle.js).
@@ -204,6 +234,7 @@ Object.freeze(STAGE_KITS);
  *  plaza's pilasters, the nave's ribs) is not offered. Measured, and kept honest by tile-specs.test.js. */
 export const STAGE_KIT_PROPORTIONS = Object.freeze({
   'gothic-stone': ['bay', 'plinth', 'cornice', 'pilaster', 'rib', 'door', 'torch'],
+  catacomb: ['bay', 'plinth', 'cornice', 'pilaster', 'rib', 'door', 'torch'],
   'gothic-nave': ['bay', 'plinth', 'cornice', 'torch', 'column', 'arcade', 'vault'],
   'island-plaza': ['bay'],
   'research-lab': ['bay'],
@@ -418,6 +449,10 @@ export function buildStageGeometry(plan) {
       const alongY = d >= w, ends = (alongY ? ['-y', '+y'] : ['-x', '+x']).filter((e) => !r.open.includes(e));
       const cs = surf('ceiling', ri);
       naveVault(out, r, { ...kit.vault, bay: kit.bay, ends }, { ceiling: kit.dress ? { ...cs, ...kit.dress.vault } : cs, trim: surf('trim'), wall: surf('wall', ri * 4) });
+    } else if (kit.arch && kit.arch.vault) {
+      // a barrel vault on transverse ribs over the bay lines (arches.js): the ceiling curves, never a lid
+      const alongY = d >= w, ends = (alongY ? ['-y', '+y'] : ['-x', '+x']).filter((e) => !r.open.includes(e));
+      naveVault(out, r, { ...kit.arch.vault, round: true, bay: kit.bay, rib: kit.rib, ends }, { ceiling: surf('ceiling', ri), trim: surf('trim'), wall: surf('wall', ri * 4) });
     } else {
       const cs = surf('ceiling', ri);
       panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], cs, cs.cell);
@@ -440,6 +475,15 @@ export function buildStageGeometry(plan) {
       // door frames: two jambs + a head, standing a little proud
       for (const [a, b, top] of cuts) {
         const fw = kit.door.frame, fo = kit.door.out;
+        if (kit.arch && kit.arch.door) {
+          // a round head: the wall filled down to a semicircle, jambs to its springing, an archivolt round it
+          const half = (b - a) / 2, zs = top - half, seg = kit.arch.door.seg;
+          archInfill(out, F, roundArch(a, b, zs, half, seg), top, wallS);
+          wallBox(out, F, a - fw, a, 0, zs, fo, trim, cell);
+          wallBox(out, F, b, b + fw, 0, zs, fo, trim, cell);
+          archRing(out, F, a, b, zs, half, seg, fw, fo, trim);
+          continue;
+        }
         wallBox(out, F, a - fw, a, 0, top + fw, fo, trim, cell);
         wallBox(out, F, b, b + fw, 0, top + fw, fo, trim, cell);
         wallBox(out, F, a, b, top, top + fw, fo, trim, cell, true);
@@ -478,7 +522,7 @@ export function buildStageGeometry(plan) {
       }
     });
     // ribs across the short span at each bay (a nave's ribs ride its vault)
-    const alongX = w >= d, span = alongX ? w : d, nRib = nave ? 0 : Math.max(1, Math.round(span / kit.bay));
+    const alongX = w >= d, span = alongX ? w : d, nRib = nave || (kit.arch && kit.arch.vault) ? 0 : Math.max(1, Math.round(span / kit.bay));
     for (let k = 1; k < nRib; k++) {
       const c = (alongX ? r.x0 : r.y0) + (span * k) / nRib, half = kit.rib.w / 2;
       const mn = alongX ? [c - half, r.y0, h - kit.rib.drop] : [r.x0, c - half, h - kit.rib.drop];
@@ -492,11 +536,12 @@ export function buildStageGeometry(plan) {
     const alongX = l.wall.endsWith('y');   // a ±y wall runs along x; the passage crosses y
     const A = alongX ? [0, 1, 0] : [1, 0, 0], base = l.at - t;
     const pt = (u, c, z) => (alongX ? [u, c, z] : [c, u, z]);
-    const jn = alongX ? [1, 0, 0] : [0, 1, 0];
-    panel(out, pt(l.lo, base, 0), A, 2 * t, [0, 0, 1], l.top, jn, trim, cell);
-    panel(out, pt(l.hi, base, 0), A, 2 * t, [0, 0, 1], l.top, mul(jn, -1), trim, cell);
-    const S = alongX ? [1, 0, 0] : [0, 1, 0];
-    panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
+    const jn = alongX ? [1, 0, 0] : [0, 1, 0], S = alongX ? [1, 0, 0] : [0, 1, 0];
+    const half = (l.hi - l.lo) / 2, zs = kit.arch && kit.arch.door ? l.top - half : l.top;
+    panel(out, pt(l.lo, base, 0), A, 2 * t, [0, 0, 1], zs, jn, trim, cell);
+    panel(out, pt(l.hi, base, 0), A, 2 * t, [0, 0, 1], zs, mul(jn, -1), trim, cell);
+    if (kit.arch && kit.arch.door) archSoffit(out, (u, dd, z) => pt(u, base + dd, z), roundArch(l.lo, l.hi, zs, half, kit.arch.door.seg), 2 * t, trim, (n) => (alongX ? [n[0], 0, n[1]] : [0, n[0], n[1]]), S);
+    else panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
   return { faces: out, seats, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}) };
@@ -657,7 +702,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' ? cryptDress(plan, geom) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;

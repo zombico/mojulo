@@ -80,6 +80,22 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   damp, age, traffic) and the crypt's own wall wear together; the crypt stands at 0.5.
 - **Brick wears.** `stone-brick` tiles take `jointDepth` (recessed mortar, grime along the arrises), `grime` (streaks
   down from the bed joints) and `chips` (broken arrises), each 0–1; absent, every preset tile is byte-identical.
+- **Round, never boxed.** A new law, `arches-and-rounds`, is stated on the crypt's and the catacomb's cards and checked
+  (a vaulted ceiling, arched trim, at least 8% of the built faces curved). A room kit opts in with `arch`
+  (`lib/graph/era/arches.js`): doorways under a semicircular head with an archivolt and a curved soffit through the
+  wall, and a barrel vault on transverse ribs over every room (the nave's vault, struck round; a segment of a circle
+  past `maxRise`), cut so no face outgrows its light cell. The crypt takes it, with arched niches, turned barrels and a
+  coped tomb lid. The nave and the other kits are unchanged.
+- **Wood is a tile spec.** `gen: 'wood'` joins the tile generators (early and late colours, ring frequency, warp,
+  cathedral, streaks); unset settings give quiet straight grain. The props' crates, barrels and planks take a muted,
+  weathered grey-brown from it instead of the preset oak and walnut; a dressing can name its own (`props.wood`).
+- **The catacomb kit.** Burial galleries cut in soft rock (`style/catacomb.js`, dressed by `era/crypt.js` from its own
+  card): walls, piers and vault one generated tufa, the vault sooted darker, worn flags in earth; loculi in up to four
+  tiers in every bare bay, some sealed with a slab; an ossuary accent wall of bone ends with rows of skulls on ledges
+  behind a sarcophagus; amphorae, bone heaps, stones and debris at the wall bases. Passes 9 of 9.
+- **Both starters are six rooms.** The crypt's walk runs nave, gallery, passage, charnel, chapel and sepulchre, turning
+  back to end beside where it began; the catacomb's runs a stair, two galleries, a cubiculum, a crossing and the
+  ossuary. Both open under the stage page budget (`stage-budget.test.js`).
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

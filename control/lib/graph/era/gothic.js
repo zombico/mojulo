@@ -14,6 +14,7 @@
  * Every face is a textured quad (geom.js `quad`/`panel`), lit and dirtied by the stage like the rest of the shell.
  */
 import { add, mul, P, onWall, panel, quad, wallBox } from './geom.js';
+import { roundArch } from './arches.js';
 
 const Z = [0, 0, 1];
 const norm2 = (x, y) => { const l = Math.hypot(x, y) || 1; return [x / l, y / l]; };
@@ -125,11 +126,15 @@ export function engagedColumn(out, F, u, { r, embed, sides, z0, top, baseH, gutt
  * at r.h. Transverse ribs at each bay line, a ridge rib along the apex; `ends` lists the end walls ('-y'/'+y' or
  * '-x'/'+x') that get a lunette (the wall filled up to the vault). Returns the section for callers that need it.
  */
-export function naveVault(out, r, { rise, seg, bay, rib, ends = [] }, surf) {
+export function naveVault(out, r, { rise, seg, bay, rib, ends = [], round = false, maxRise = Infinity }, surf) {
   const alongY = (r.y1 - r.y0) >= (r.x1 - r.x0);
   const c0 = alongY ? r.x0 : r.y0, c1 = alongY ? r.x1 : r.y1, l0 = alongY ? r.y0 : r.x0, l1 = alongY ? r.y1 : r.x1;
-  const span = c1 - c0, H = Math.max(rise * span, span / 2 * 1.02);
-  const sec = pointedArch(c0, c1, r.h, H, seg);
+  // `round`: a barrel vault struck from one centre (arches.js), a semicircle or, past `maxRise`, a segment of one
+  const span = c1 - c0, H = round ? Math.min(span / 2, rise * span, maxRise) : Math.max(rise * span, span / 2 * 1.02);
+  // a round vault is cut finely enough that no face outgrows the ceiling's light cell; its lunettes finer still (wall cell)
+  const fine = (cell) => Math.max(seg, 2 * Math.ceil((Math.PI * span) / 4 / cell));
+  if (round) seg = fine(surf.ceiling.cell);
+  const sec = round ? roundArch(c0, c1, r.h, H, seg) : pointedArch(c0, c1, r.h, H, seg);
   const at = (c, z, l) => (alongY ? [c, l, z] : [l, c, z]);
   const n3 = (n) => (alongY ? [n[0], 0, n[1]] : [0, n[0], n[1]]);
   // arc length along the section for the tile's u
@@ -159,15 +164,24 @@ export function naveVault(out, r, { rise, seg, bay, rib, ends = [] }, surf) {
   };
   for (let k = 1; k < nBays; k++) ribAt(l0 + ((l1 - l0) * k) / nBays);
   const apex = sec[seg / 2], rw = rib.w * 0.4, rz = apex.z - rib.drop * 0.6;
-  for (let j = 0; j < nL; j++) {
+  for (let j = 0; j < nL && !round; j++) {   // a barrel vault has no ridge
     const la = l0 + ((l1 - l0) * j) / nL, lb = l0 + ((l1 - l0) * (j + 1)) / nL;
     quad(out, [at(apex.u - rw, rz, la), at(apex.u + rw, rz, la), at(apex.u + rw, rz, lb), at(apex.u - rw, rz, lb)], [0, 0, -1], ts, alongY ? [1, 0, 0] : [0, 1, 0], alongY ? [0, 1, 0] : [1, 0, 0]);
   }
   // lunettes: the end wall filled from the springing line up under the vault, in rows so light lands on it
+  const lun = round ? roundArch(c0, c1, r.h, H, fine(surf.wall.cell)) : sec;
   for (const end of ends) {
     const L = (end === '-y' || end === '-x') ? l0 : l1, n = alongY ? [0, end === '-y' ? 1 : -1, 0] : [end === '-x' ? 1 : -1, 0, 0];
-    for (let i = 0; i < seg; i++) {
-      const p = sec[i], q = sec[i + 1], rows = Math.max(1, Math.ceil((Math.max(p.z, q.z) - r.h) / surf.wall.cell));
+    for (let i = 0; i + 1 < lun.length; i++) {
+      const p = lun[i], q = lun[i + 1], A = alongY ? [1, 0, 0] : [0, 1, 0];
+      if (round) {
+        // level courses up to the lower end of the strip, then the sliver under the curve: no face taller than a cell
+        const zm = Math.min(p.z, q.z), k = Math.ceil((zm - r.h) / surf.wall.cell - 1e-9);
+        for (let j = 0; j < k; j++) { const za = r.h + ((zm - r.h) * j) / k, zb = r.h + ((zm - r.h) * (j + 1)) / k; quad(out, [at(p.u, za, L), at(q.u, za, L), at(q.u, zb, L), at(p.u, zb, L)], n, surf.wall, A, Z); }
+        if (Math.abs(p.z - q.z) > 1e-4) quad(out, [at(p.u, zm, L), at(q.u, zm, L), at(q.u, q.z, L), at(p.u, p.z, L)], n, surf.wall, A, Z);
+        continue;
+      }
+      const rows = Math.max(1, Math.ceil((Math.max(p.z, q.z) - r.h) / surf.wall.cell));
       for (let j = 0; j < rows; j++) {
         const f0 = j / rows, f1 = (j + 1) / rows, zp0 = r.h + (p.z - r.h) * f0, zp1 = r.h + (p.z - r.h) * f1, zq0 = r.h + (q.z - r.h) * f0, zq1 = r.h + (q.z - r.h) * f1;
         quad(out, [at(p.u, zp0, L), at(q.u, zq0, L), at(q.u, zq1, L), at(p.u, zp1, L)], n, surf.wall, alongY ? [1, 0, 0] : [0, 1, 0], Z);
