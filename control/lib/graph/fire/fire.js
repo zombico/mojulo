@@ -126,6 +126,7 @@ export function validateFire(fire) {
           else if (Fl.strength !== undefined && !(isNum(Fl.strength) && Fl.strength >= 0 && Fl.strength <= 3)) e.push(`${where}.flares.strength must be 0–3 (how much harder it burns at the peak of a flare)`);
         }
         if (s.size !== undefined && !(isNum(s.size) && s.size >= 0.25 && s.size <= 4)) e.push(`fire.sources[${i}].size must be a number from 0.25 to 4`);
+        if (s.pace !== undefined && !(isNum(s.pace) && s.pace >= 0.2 && s.pace <= 2)) e.push(`fire.sources[${i}].pace must be a number from 0.2 (a slow, languid flicker) to 2`);
         if (s.phi !== undefined && !(isNum(s.phi) && s.phi >= 0 && s.phi <= 1)) e.push(`fire.sources[${i}].phi must be from 0 (still air) to 1`);
         e.push(...colorErrors(s.color, `fire.sources[${i}].color`));
         if (s.soot !== undefined && !(isNum(s.soot) && s.soot >= 0 && s.soot <= 1)) e.push(`fire.sources[${i}].soot must be from 0 (a clean, line-coloured flame) to 1 (all yellow soot)`);
@@ -167,6 +168,7 @@ export function resolveFire(fire, placed = [], { explicit: withExplicit = true, 
         ...(col ? { line: col.line, lineK: col.k } : {}), ...(s.smokeColor ? { smokeColor: hexLin(s.smokeColor).map((v) => +v.toFixed(4)) } : {}),
         ...(s.life ? { life: { start: s.life.start || 0, kindle: s.life.kindle || 0, ...(isNum(s.life.out) ? { out: s.life.out, die: isNum(s.life.die) ? s.life.die : 4 } : {}) } } : {}),
         ...(s.flares ? { flares: { every: s.flares.every, strength: isNum(s.flares.strength) ? s.flares.strength : 1 } } : {}),
+        ...(isNum(s.pace) ? { pace: s.pace } : {}),
         ...(s.path ? { path: flightOf(s.path) } : {}) };
     }),
   };
@@ -216,7 +218,8 @@ export function fireKernel(F, air, world) {
       const eddies = []; for (let j = 0; j < 5; j++) eddies.push([0.6 + 2.6 * rnd(), 2 * Math.PI * rnd(), 2 * Math.PI * rnd(), 2 * Math.PI * rnd()]);
       fl.push({ dx: r * Math.cos(q), dy: r * Math.sin(q), dz: ball ? R * 0.25 * (rnd() - 0.5) : 0, tall: ball ? 1 - 0.2 * rnd() : 1 - 0.38 * (r / Math.max(R, 1e-9)) - 0.1 * rnd(), ph: 2 * Math.PI * rnd(), eddies });
     }
-    const puff = s.lam ? 0 : 1.5 / Math.sqrt(Math.max(s.D, 0.02));
+    // `pace` (art direction, not physics): a slower puff reads calmer on screen than a real torch's ~6 Hz
+    const puff = s.lam ? 0 : (s.pace || 1) * 1.5 / Math.sqrt(Math.max(s.D, 0.02));
     // the burnt gas rises on its buoyancy: a candle's at an effective 28 m/s², a big fire's slower (mixing)
     const gp = s.lam ? 28 : 18, wmax = 3 * Math.sqrt(G * Math.max(s.L, 0.03));
     const P = s.path, T = P ? Math.hypot(P.to[0] - P.from[0], P.to[1] - P.from[1], P.to[2] - P.from[2]) / P.speed : 0;

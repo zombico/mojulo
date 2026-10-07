@@ -93,7 +93,14 @@ export function naveShafts(plan, bays) {
 
 /** The blends over the shell (baked with it, by the same lights): moss up the wall bases and in the gutter, grime at the floor's edges. */
 export function naveBlends(plan, shell) {
-  const D = plan.kit.dress, M = D.moss, G = D.grime, walk = walkLine(plan), out = [];
+  return blendsByCause(plan, shell, plan.kit.dress.moss, plan.kit.dress.grime);
+}
+
+/** Moss (`M`) and grime (`G`) over any room stage's shell, by cause: the nave's, the crypt's, any kit with a card for them.
+ *  `E` (optional) is EARTH: the floor giving way to packed dirt, in patches and along the trodden way, as much as
+ *  `E.amount` (0–1) says; absent, nothing changes. */
+export function blendsByCause(plan, shell, M, G, E = null) {
+  const walk = walkLine(plan), out = [];
   const roomAt = (x, y) => plan.rooms.find((r) => x >= r.x0 - 0.8 && x <= r.x1 + 0.8 && y >= r.y0 - 0.8 && y <= r.y1 + 0.8) || plan.rooms[0];
   const toWalk = (c) => { let best = Infinity; for (let i = 0; i + 1 < walk.length; i++) { const [ax, ay] = walk[i], [bx, by] = walk[i + 1], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((c[0] - ax) * dx + (c[1] - ay) * dy) / L2)); best = Math.min(best, Math.hypot(c[0] - ax - t * dx, c[1] - ay - t * dy)); } return best; };
   const patch = (c, s, p) => smooth(p[0], p[1], 0.7 * vnoise(c[0] * 0.45 + c[2] * 0.3, c[1] * 0.45 + c[2] * 0.2, s) + 0.3 * vnoise(c[0] * 1.6, c[1] * 1.6 + c[2], s + 1));
@@ -113,6 +120,12 @@ export function naveBlends(plan, shell) {
         return G.max * (1 - smooth(G.edge[0], G.edge[1], e)) * mix(0.3, 1, patch(c, 4107, G.patch)) * smooth(G.walk * 0.4, G.walk, toWalk(c));
       });
       key = G.key; scale = G.scale; tint = G.tint; uv = f.corners.map((c) => [r5(c[0] / scale), r5(c[1] / scale)]);
+    }
+    if (E && E.amount > 0 && g === 'stage:floor') {
+      // earth: broad patches whose share grows with the amount, and the trodden way worn down to dirt
+      const lo = 0.74 - 0.56 * E.amount, ea = f.corners.map((c) => E.max * Math.max(smooth(lo, lo + 0.3, 0.65 * vnoise(c[0] * 0.28, c[1] * 0.28, 4111) + 0.35 * vnoise(c[0] * 1.1, c[1] * 1.1, 4113)),
+        E.amount * 0.75 * (1 - smooth(0.5, 2.2, toWalk(c))) * mix(0.5, 1, patch(c, 4115, [0.3, 0.7]))));
+      if (!ea.every((a) => a < 0.02)) out.push({ corners: f.corners, normal: n, outNormal: n, texture: E.key, textureLit: true, uv: f.corners.map((c) => [r5(c[0] / E.scale), r5(c[1] / E.scale)]), tint: E.tint, cornerAlpha: ea.map(r5), blend: true, group: 'stage:earth' });
     }
     if (!alpha || alpha.every((a) => a < 0.02)) continue;
     out.push({ corners: f.corners, normal: n, outNormal: n, texture: key, textureLit: true, uv, tint, cornerAlpha: alpha.map(r5), blend: true, group: g === 'stage:floor' ? 'stage:grime' : 'stage:moss' });

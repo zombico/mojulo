@@ -79,8 +79,9 @@ export function doorFaces(plan, ends) {
   for (const e of ends) {
     if (!e.build) continue;
     // it stands proud of the wall's own plinth (a band along the foot of the wall would run across the leaf)
-    const { F, u, hw } = e.build, h = 2.7, f = 0.3, o = (kit.plinth?.out ?? 0) + 0.06;
+    const { F, u, hw } = e.build, h = 2.7, f = 0.3, o = (kit.plinth?.out ?? 0) + 0.06, n0 = out.length;
     wallBox(out, F, u - hw, u + hw, 0, h, o, leaf, 1);
+    for (let q = n0; q < out.length; q++) out[q].node = e.id;   // the leaf is the end's own node (anchors.js); its frame is the wall's
     wallBox(out, F, u - hw - f, u - hw, 0, h + f, o + 0.1, trim, trim.cell);
     wallBox(out, F, u + hw, u + hw + f, 0, h + f, o + 0.1, trim, trim.cell);
     wallBox(out, F, u - hw - f, u + hw + f, h, h + f, o + 0.12, trim, trim.cell);

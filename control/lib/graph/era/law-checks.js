@@ -1,0 +1,108 @@
+/**
+ * LAW CHECKS — the sixth-gen laws (laws.js) read off a built room stage, so a recipe's look is measured rather than
+ * hoped for. Each check returns `{ law, ok, why }`; together they are a readout that advises and never refuses
+ * (docs/responsibility-model.md): the machine gate. The eyes gate stays the operator's.
+ *
+ * Values are measured as the nave's tests measure them: a corner's baked colour × its tile's mean colour, as luminance.
+ */
+import zlib from 'node:zlib';
+import { surfaceTexture } from '../landscape/surface-textures.js';
+
+const MEANS = new Map();
+/** A tile's mean colour (0..1) from its data-URL PNG, over its opaque texels. */
+export function tileMean(key) {
+  if (MEANS.has(key)) return MEANS.get(key);
+  const url = surfaceTexture(key);
+  if (!url) { MEANS.set(key, [1, 1, 1]); return [1, 1, 1]; }
+  const b = Buffer.from(url.split(',')[1], 'base64');
+  let o = 8, W = 0, H = 0, ct = 2; const idat = [];
+  while (o < b.length) { const len = b.readUInt32BE(o), type = b.toString('ascii', o + 4, o + 8); if (type === 'IHDR') { W = b.readUInt32BE(o + 8); H = b.readUInt32BE(o + 12); ct = b[o + 17]; } if (type === 'IDAT') idat.push(b.subarray(o + 8, o + 8 + len)); o += 12 + len; }
+  const raw = zlib.inflateSync(Buffer.concat(idat)), bpp = ct === 6 ? 4 : 3, sum = [0, 0, 0]; let n = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const q = y * (1 + W * bpp) + 1 + x * bpp; if (bpp === 4 && raw[q + 3] === 0) continue; n++; for (let k = 0; k < 3; k++) sum[k] += raw[q + k]; }
+  const m = sum.map((v) => v / (n * 255));
+  MEANS.set(key, m);
+  return m;
+}
+const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+const family = (key) => (typeof key === 'string' ? key.replace(/-[a-d]$/, '') : null);
+const near = (c, p, r) => Math.hypot(c[0] - p[0], c[1] - p[1], c[2] - p[2]) < r;
+
+/** Mean seen luminance of the corners of the faces `sel` picks (blends and cards left out), where `where` holds. */
+function seen(faces, sel, where = () => true) {
+  const v = [];
+  for (const f of faces) {
+    if (f.blend || !sel(f)) continue;
+    const t = f.texture ? tileMean(f.texture) : [1, 1, 1];
+    (f.cornerFills || [f.fill]).forEach((h, k) => { const c = f.corners[Math.min(k, f.corners.length - 1)]; if (typeof h === 'string' && where(c)) v.push(lum(hex(h).map((x, i) => x * t[i]))); });
+  }
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+
+/** Read the laws off a room stage's payload; `only` names the laws to keep (a kit's card states its own). */
+export function checkStageLaws(payload, { only = null, plan = null } = {}) {
+  const faces = payload.faces || [], torches = (payload.lights || []).map((l) => l.position);
+  const g = (name) => (f) => f.group === `stage:${name}`;
+  const nearTorch = (c) => torches.some((t) => near(c, t, 1.6));
+  const farFromTorch = (c) => !torches.some((t) => Math.hypot(c[0] - t[0], c[1] - t[1]) < 3.5);
+  const v = { torchlit: seen(faces, g('wall'), nearTorch), wall: seen(faces, g('wall'), (c) => !nearTorch(c)), floor: seen(faces, g('floor'), farFromTorch), ceiling: seen(faces, g('ceiling')) };
+  const fam = (sel) => new Set(faces.filter((f) => !f.blend && sel(f) && f.texture).map((f) => family(f.texture)));
+  const wallF = fam(g('wall')), ceilF = fam(g('ceiling'));
+  const shared = [...ceilF].filter((k) => wallF.has(k));
+  // coursed masonry carried overhead reads as a tiled ceiling, whoever's brick it is
+  const coursed = [...ceilF].filter((k) => /^(stone-wall|gen:stone-brick)/.test(k));
+  const out = [];
+  const add = (law, ok, why) => out.push({ law, ok, why });
+  if (v.torchlit != null && v.floor != null && v.ceiling != null) {
+    add('value-order', v.torchlit > v.floor && v.floor > v.ceiling,
+      `torchlit wall ${v.torchlit.toFixed(3)} > open floor ${v.floor.toFixed(3)} > ceiling ${v.ceiling.toFixed(3)}`);
+  }
+  add('materials-by-layer', ceilF.size > 0 && shared.length === 0 && coursed.length === 0 && (v.ceiling ?? 1) < (v.wall ?? 0),
+    shared.length ? `the ceiling wears the walls' tile (${shared.join(', ')})` : coursed.length ? `the ceiling is coursed brick (${coursed.join(', ')}), a wall carried overhead`
+      : `ceiling ${v.ceiling?.toFixed(3)} against wall ${v.wall?.toFixed(3)}`);
+  const blends = faces.filter((f) => f.blend);
+  add('blend-by-cause', blends.length > 0, blends.length ? `${blends.length} blend faces (${[...new Set(blends.map((f) => f.group))].join(', ')})` : 'no second tile anywhere: no moss, no grime, no wear');
+  const cards = faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:'));
+  add('cutout-cards', cards.length > 0, cards.length ? `${cards.length} cards (${[...new Set(cards.map((f) => f.texture))].join(', ')})` : 'no dressing cards: nothing hung, nothing grown');
+  // a set piece declares itself (`stage:focus…`), or a doorway breaks the scale (the nave's great door stands ≥ 5 m)
+  const doorTop = Math.max(0, ...faces.filter((f) => f.group === 'stage:door').flatMap((f) => f.corners.map((c) => c[2])));
+  const focus = faces.some((f) => typeof f.group === 'string' && f.group.startsWith('stage:focus')) || doorTop >= 5;
+  add('focus', focus, focus ? 'a set piece stands' : 'no set piece holds the eye');
+  // the composition the crypt's card adds: a repeating element on the bare walls, one accent wall, corner things
+  const motif = faces.filter((f) => f.group === 'stage:motif'), accentPlanes = new Set(faces.filter((f) => f.group === 'stage:accent').map((f) => f.normal.join()));
+  add('repeat-adjacent', motif.length > 0, motif.length ? `${faces.filter((f) => f.group === 'stage:niche').length} niche faces framed by ${motif.length}` : 'no repeating element on the bare walls');
+  add('accent-wall', accentPlanes.size === 1, accentPlanes.size === 1 ? 'one accent wall' : `${accentPlanes.size} accent walls`);
+  const props = faces.filter((f) => typeof f.group === 'string' && f.group.startsWith('stage:prop'));
+  add('corner-things', props.length > 0, props.length ? `${props.length} prop faces at the wall bases` : 'nothing where floor meets wall');
+  // round, not boxed: a vaulted ceiling (its faces lean off the vertical), arched trim (normals off every axis in the
+  // wall's plane), and a share of the built faces curved at all
+  const offAxis = (n) => [0, 1, 2].filter((k) => Math.abs(n[k]) > 0.02).length > 1;
+  const built = faces.filter((f) => !f.blend && f.normal && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && f.group !== 'stage:floor');
+  const vault = faces.filter((f) => f.group === 'stage:ceiling' && f.normal && Math.abs(f.normal[2]) < 0.97).length;
+  const archTrim = faces.filter((f) => f.group === 'stage:trim' && f.normal && offAxis(f.normal)).length;
+  const curved = built.filter((f) => offAxis(f.normal)).length / (built.length || 1);
+  add('arches-and-rounds', vault > 0 && archTrim > 0 && curved >= 0.08,
+    `${vault} vault faces, ${archTrim} arched trim faces, ${(curved * 100).toFixed(1)}% of the built faces curved (≥ 8%)`);
+  // height: the highest crown of any vault
+  const crown = Math.max(0, ...faces.filter((f) => f.group === 'stage:ceiling').flatMap((f) => f.corners.map((c) => c[2])));
+  add('dare-height', crown >= 8, `the highest vault crowns at ${crown.toFixed(1)} m (≥ 8 m)`);
+  const bands = faces.filter((f) => f.group === 'stage:motif-band');
+  add('motif-small', bands.length > 0, bands.length ? `${bands.length} band faces carry the motif` : 'no motif band: nothing small repeats on the stone');
+  // the doodads, each one found by its faces (single linkage, 0.5 m); two closer than 2 m must share a room corner
+  const dd = faces.filter((f) => f.group === 'stage:prop-doodad').map((f) => [0, 1].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length));
+  const owner = dd.map((_, i) => i), find = (i) => (owner[i] === i ? i : (owner[i] = find(owner[i])));
+  for (let i = 0; i < dd.length; i++) for (let j = i + 1; j < dd.length; j++) if (Math.hypot(dd[i][0] - dd[j][0], dd[i][1] - dd[j][1]) < 0.5) owner[find(i)] = find(j);
+  const inst = new Map(); dd.forEach((c, i) => { const r = find(i); if (!inst.has(r)) inst.set(r, []); inst.get(r).push(c); });
+  const ctr = [...inst.values()].map((cs) => [cs.reduce((a, c) => a + c[0], 0) / cs.length, cs.reduce((a, c) => a + c[1], 0) / cs.length]);
+  // a corner's cluster: both within reach of one room corner (the plan's, when given; else the pair stands as a corner
+  // pair does, an arm's length apart)
+  const corners = plan ? plan.rooms.flatMap((r) => [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]]) : null;
+  const cluster = (a, b) => (corners ? corners.some((q) => Math.hypot(a[0] - q[0], a[1] - q[1]) < 2.2 && Math.hypot(b[0] - q[0], b[1] - q[1]) < 2.2) : Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.4);
+  let crowd = 0;
+  for (let i = 0; i < ctr.length; i++) for (let j = i + 1; j < ctr.length; j++) if (Math.hypot(ctr[i][0] - ctr[j][0], ctr[i][1] - ctr[j][1]) < 2 && !cluster(ctr[i], ctr[j])) crowd++;
+  add('doodads-apart', crowd === 0, crowd ? `${crowd} pair${crowd > 1 ? 's' : ''} of doodads stand together outside a corner's cluster` : `${ctr.length} doodads, none crowded`);
+  const darkest = Math.min(...faces.filter((f) => f.cornerFills && !f.blend).flatMap((f) => f.cornerFills.map((h) => Math.max(...hex(h)))));
+  add('shade-is-colour', darkest > 0.03, `darkest corner ${darkest.toFixed(3)}`);
+  const kept = only ? out.filter((x) => only.includes(x.law)) : out;
+  return { values: v, laws: kept, passed: kept.filter((x) => x.ok).length, of: kept.length };
+}
