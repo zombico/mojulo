@@ -88,6 +88,27 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
 - **Collapse.** `destruct/collapse.js`: a seeded, stepped timeline per body: the spread (the lattice opening, a hold),
   then a passive fall or an explosion; rigid bodies land with impulses at their corners on the ground and on what
   still stands, and rest. They pass through each other (an engine's solver takes over on export).
+- **Slicing interceptors: the cut while it happens.** `destruct/interceptors.js`, on scapeshift's interceptor contract
+  (grown after, never colliding, never named; each kind a site finder, a grower and a 0 to 1 dial, seeded, its own
+  `fx:*` group). The sites are the cleave's own: each cut face names its plane, and the score is where a plane meets
+  the item's skin. `score` (the slice line drawn along the stroke), `blade` (a band sweeping the plane), `spark`,
+  `glint` (a cut face flashing white as it opens, riding its chunk) and `dust` (in the opening gaps). A grid is drawn
+  plane by plane, axis by axis; a shatter cracks out from the impact at `speed`, across the item and not through it.
+  `cutAt` is when the last stroke is drawn: `collapse({ delay })` keeps the chunks whole until then. They are the
+  cover-up for an engine's swap to pre-cut chunks; an engine that cannot play them drops them.
+- **The cut is a style.** `CUT_STYLES` in `destruct/interceptors.js`, a setting like a tone: it picks the timing, the
+  marks and how the pieces part, all in values on `fx:*` groups, so colour stays the tone's. `blade` (stroke by
+  stroke, a radial spread), `laser` (one beam at a time from off the face, the score cooling behind it, a spray, the
+  pieces barely parting), `anime` (the slash, the beat, every score at once with a flash, the halves slipping along
+  the cut) and `impact` (a ring and a flash, fast cracks, chips and dust, a burst from the hit). New marks: `beam`,
+  `ring`, `flash`, the crescent blade. A mark can be tuned (`marks`) or dialled per call. `collapse` takes per-body
+  `spread.offsets`; cleave adds the `slice` pattern (one to three clean planes, or the planes given).
+- **Destruction sounds as cues.** `destruct/sounds.js`: the cut and the collapse say when which cue fires, how loud
+  and where (`{ t, cue, gain, mark, at }`), never audio itself. Each cut style names a cue per mark; `slicing()`
+  returns `sounds`; `collapse()` records `hits` (landings by speed and mass) and its `parting`, and `collapseSounds()`
+  turns them into thuds, clacks and a whoosh. `DESTRUCT_SFX` is a valid beats-sfx manifest defining every default
+  cue; a call renames, re-gains or silences any mark (`sounds: { beam: 'my-laser', spark: false }`), and a world
+  re-voices a cue by defining the same name in its `audio.cues`.
 
 ### Scapeshift
 

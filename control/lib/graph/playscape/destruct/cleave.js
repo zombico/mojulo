@@ -7,9 +7,13 @@
  *             the item's extent; an axis thinner than ~1.5 cells is not cut (a door does not delaminate)
  *   voronoi   shatter: `count` seeded sites inside the item, at least `minSize` apart; on a thin axis the sites sit
  *             on the midplane, so the breaks run through the thickness like a plate's
+ *   slice     a few clean cuts (a sword's): `count` (1 to 3) seeded planes near the centre, each through the item's
+ *             thickness at its own angle, or the `planes` given ([{ at, normal }]); the cells are each side of each
+ *             plane, so two cuts make four pieces
  *
  * Every cut face is the inside: the block's value a step darker (`INSIDE_STEP`), so a break reads as a break under
- * any tone. Seeded (`seed`, mulberry32), pure, the same chunks for the same item forever.
+ * any tone, and names the PLANE that made it (`g<axis>.<k>` on a grid, `v<i>.<j>` between two Voronoi sites, `s<k>` for a
+ * slice), the site the slicing interceptors grow on. Seeded (`seed`, mulberry32), pure, the same chunks for the same item forever.
  *
  *   cleave(item, { pattern, cell?, count?, minSize?, seed? }) → { pattern, chunks: [{ id, pieces, faces, centroid, volume, parts }] }
  *   itemOf(resolved)                                           → { blocks, frame } from any playscape resolved object
@@ -17,7 +21,7 @@
 import { boxPolytope, clip, volume, centroid, vertices, V } from './polytope.js';
 
 export const INSIDE_STEP = 0.16;   // two emboss steps: the inside reads darker than any skin's own relief
-export const CLEAVE_PATTERNS = Object.freeze(['grid', 'voronoi']);
+export const CLEAVE_PATTERNS = Object.freeze(['grid', 'voronoi', 'slice']);
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
 const P = (p) => p.map(r5);
@@ -48,8 +52,23 @@ const insideOf = (src) => ({ ...src, value: src.value == null ? null : r5(Math.m
 // clip one block by a cell's half-spaces [n, d]; the caps wear the block's inside
 function clipBy(poly, planes, cap) {
   let q = poly;
-  for (const [n, d] of planes) { q = clip(q, n, d, cap); if (!q) return null; }
+  for (const [n, d, id] of planes) { q = clip(q, n, d, id ? { ...cap, plane: id } : cap); if (!q) return null; }
   return q;
+}
+
+function sliceCells(blocks, frame, { count = 1, planes, seed = 1 }) {
+  const axes = axesOf(frame), X = extent(blocks, axes), rnd = mulberry32((seed >>> 0) + 977);
+  const thin = X.size.indexOf(Math.min(...X.size)), [e1, e2] = [0, 1, 2].filter((k) => k !== thin).map((k) => axes[k]);
+  const mid = V.add(V.add(V.mul(axes[0], (X.lo[0] + X.hi[0]) / 2), V.mul(axes[1], (X.lo[1] + X.hi[1]) / 2)), V.mul(axes[2], (X.lo[2] + X.hi[2]) / 2));
+  const span = Math.min(...[0, 1, 2].filter((k) => k !== thin).map((k) => X.size[k]));
+  const P0 = planes ? planes.map((q) => ({ at: q.at, n: V.unit(q.normal) })) : Array.from({ length: Math.max(1, Math.min(3, count)) }, (_, k) => {
+    const a = ((k + rnd() * 0.6 + 0.2) / Math.max(1, Math.min(3, count))) * Math.PI;   // spread round the half turn, so two cuts cross
+    const n = V.add(V.mul(e1, Math.cos(a)), V.mul(e2, Math.sin(a)));
+    return { at: V.add(mid, V.add(V.mul(e1, (rnd() - 0.5) * span * 0.3), V.mul(e2, (rnd() - 0.5) * span * 0.3))), n };
+  });
+  const cells = [];
+  for (let m = 0; m < 1 << P0.length; m++) cells.push({ id: `s${m}`, planes: P0.map((q, k) => (m >> k) & 1 ? [V.mul(q.n, -1), -V.dot(q.n, q.at), `s${k}`] : [q.n, V.dot(q.n, q.at), `s${k}`]) });
+  return { cells, slices: P0.map((q) => ({ at: P(q.at), normal: P(q.n) })) };
 }
 
 function gridCells(blocks, frame, { cell, count }) {
@@ -62,8 +81,8 @@ function gridCells(blocks, frame, { cell, count }) {
     const idx = [i, j, k], planes = [];
     axes.forEach((e, a) => {
       const step = X.size[a] / n[a], lo = X.lo[a] + idx[a] * step, hi = lo + step;
-      if (idx[a] > 0) planes.push([V.mul(e, -1), -lo]);         // e·p ≥ lo
-      if (idx[a] < n[a] - 1) planes.push([e, hi]);               // e·p ≤ hi
+      if (idx[a] > 0) planes.push([V.mul(e, -1), -lo, `g${a}.${idx[a] - 1}`]);   // e·p ≥ lo (the plane under this cell)
+      if (idx[a] < n[a] - 1) planes.push([e, hi, `g${a}.${idx[a]}`]);            // e·p ≤ hi (the plane over it)
     });
     cells.push({ id: `g${i}.${j}.${k}`, planes });
   }
@@ -84,16 +103,16 @@ function voronoiCells(blocks, frame, { count = 8, minSize = 0.25, seed = 1 }) {
   }
   const cells = sites.map((si, i) => ({
     id: `v${i}`, site: P(si),
-    planes: sites.filter((_, j) => j !== i).map((sj) => { const n = V.sub(sj, si); return [n, (V.dot(sj, sj) - V.dot(si, si)) / 2]; }),
+    planes: sites.map((sj, j) => [sj, j]).filter(([, j]) => j !== i).map(([sj, j]) => { const n = V.sub(sj, si); return [n, (V.dot(sj, sj) - V.dot(si, si)) / 2, `v${Math.min(i, j)}.${Math.max(i, j)}`]; }),
   }));
   return { cells, sites };
 }
 
 /** Cut an item into chunks. */
-export function cleave(item, { pattern = 'grid', cell, count, minSize = 0.25, seed = 1 } = {}) {
+export function cleave(item, { pattern = 'grid', cell, count, minSize = 0.25, seed = 1, planes } = {}) {
   if (!CLEAVE_PATTERNS.includes(pattern)) throw new Error(`cleave: pattern must be one of ${CLEAVE_PATTERNS.join(', ')}`);
   const { blocks, frame } = item.blocks ? item : itemOf(item);
-  const { cells, split } = pattern === 'grid' ? gridCells(blocks, frame, { cell, count }) : voronoiCells(blocks, frame, { count, minSize, seed });
+  const { cells, split, sites, slices } = pattern === 'grid' ? gridCells(blocks, frame, { cell, count }) : pattern === 'slice' ? sliceCells(blocks, frame, { count, planes, seed }) : voronoiCells(blocks, frame, { count, minSize, seed });
   const polys = blocks.map((b) => ({ b, poly: boxPolytope(b) }));
   const chunks = [];
   for (const C of cells) {
@@ -112,11 +131,11 @@ export function cleave(item, { pattern = 'grid', cell, count, minSize = 0.25, se
       parts: [...new Set(pieces.map((p) => p.part).filter(Boolean))],
     });
   }
-  return { pattern, chunks, ...(split ? { split } : {}) };
+  return { pattern, chunks, ...(split ? { split } : {}), ...(sites ? { sites: sites.map(P) } : {}), ...(slices ? { slices } : {}) };
 }
 
 /** A polytope face as a scene-ready face: values only (tint is the value), the cut flagged. */
 export function faceOut(f) {
   const v = f.src && f.src.value != null ? f.src.value : 0.5;
-  return { corners: f.pts.map(P), normal: P(f.n), outNormal: P(f.n), tint: [v, v, v], value: v, group: f.src?.group ?? 'obj:body', part: f.src?.part ?? null, ...(f.src?.cut ? { cut: true } : {}) };
+  return { corners: f.pts.map(P), normal: P(f.n), outNormal: P(f.n), tint: [v, v, v], value: v, group: f.src?.group ?? 'obj:body', part: f.src?.part ?? null, ...(f.src?.cut ? { cut: true, ...(f.src.plane ? { plane: f.src.plane } : {}) } : {}) };
 }

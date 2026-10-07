@@ -2,9 +2,11 @@
  * collapse — what the pieces do once cut: a timeline per body, pure, seeded and stepped by dt (replay-safe), for the
  * World page or a bench to play and for an engine to replace with its own physics.
  *
+ *   DELAY    `delay` seconds whole and still: the cut being drawn (interceptors.js), before anything parts
  *   SPREAD   the dice beat (the `#` lattice opening): every body slides out from the item's centre, its offset scaled
  *            (`scale`, so a grid's gaps open evenly and the item still reads as itself), a seeded `jitter` and
- *            `twist`, eased over `seconds`, then hanging `hold` seconds, the beat before it falls. `spread: false` skips it.
+ *            `twist`, eased over `seconds`, then hanging `hold` seconds, the beat before it falls; `offsets` ({ id: [x,y,z] })
+ *            moves a body its own way instead (a slice's halves slipping along the cut). `spread: false` skips it.
  *   FALL     `passive`: a nudge and a little spin, then gravity; `explode`: a radial impulse from `origin`, falling
  *            off over `radius`, with spin; `none`: they hang where the spread left them.
  *
@@ -14,7 +16,9 @@
  * the honest limit of a deterministic stepper (an engine's solver takes over on export).
  *
  *   collapse(bodies, { statics?, ground?, mode?, origin?, power?, radius?, spread?, gravity?, seed?, until?, dt? })
- *     → { tracks: [{ id, frames: [{ t, pos, quat }], rest }], seconds }
+ *     → { tracks: [{ id, frames: [{ t, pos, quat }], rest }], seconds, parting, hits: [{ t, id, speed, mass, at }] }
+ *   `hits` are the landings an ear would hear (a contact faster than 0.8 m/s, one per body per 0.12 s); `parting` is
+ *   when the spread starts. sounds.js turns both into cues.
  *   pos is where the body's centroid is, quat [x, y, z, w] its turn about it: a point p of the body is at
  *   pos + rotate(quat, p − centroid).
  */
@@ -51,7 +55,7 @@ const DEFAULT_SPREAD = { scale: 0.18, jitter: 0.04, twist: 0.12, seconds: 0.6, h
 
 export function collapse(bodies, {
   statics = [], ground = 0, mode = 'passive', origin, power = 8, radius = 3, spread = {}, gravity = 20, seed = 1,
-  until = 4, dt = 1 / 120, sample = 1 / 30, restitution = 0.2, friction = 0.6,
+  until = 4, dt = 1 / 120, sample = 1 / 30, restitution = 0.2, friction = 0.6, delay = 0,
 } = {}) {
   if (!['passive', 'explode', 'none'].includes(mode)) throw new Error('collapse: mode must be passive, explode or none');
   const rnd = mulberry32(seed >>> 0);
@@ -68,15 +72,17 @@ export function collapse(bodies, {
     // post narrower than itself, so with statics the faces are sampled too, at the narrowest standing top's spacing
     const local = (tops.length ? corners.concat(b.pieces.flatMap((p) => p.poly.faces.flatMap((f) => faceSamples(f.pts, step)))) : corners).map((v) => V.sub(v, c0));
     const m = Math.max(1e-4, b.volume), I = m * Math.max(1e-4, corners.map((v) => V.sub(v, c0)).reduce((a, r) => a + V.dot(r, r), 0) / corners.length) * 0.4;
-    const off = V.mul(V.sub(c0, centre), S ? S.scale : 0), jit = S ? V.mul(randUnit(rnd), S.jitter) : [0, 0, 0], twAxis = S ? randUnit(rnd) : [0, 0, 1], twAng = S ? S.twist * (rnd() * 2 - 1) : 0;
+    const off = S && S.offsets && S.offsets[b.id] ? S.offsets[b.id] : V.mul(V.sub(c0, centre), S ? S.scale : 0), jit = S ? V.mul(randUnit(rnd), S.jitter) : [0, 0, 0], twAxis = S ? randUnit(rnd) : [0, 0, 1], twAng = S ? S.twist * (rnd() * 2 - 1) : 0;
     return { id: b.id, c0, local, m, I, off: V.add(off, jit), twAxis, twAng, x: [...c0], v: [0, 0, 0], q: [0, 0, 0, 1], w: [0, 0, 0], rest: null, hold: null, frames: [] };
   });
 
-  const t0 = S ? S.seconds : 0;
   const record = (b, t) => b.frames.push({ t: r5(t), pos: P(b.x), quat: b.q.map(r5) });
+  // the delay: whole and still while the cut is drawn (the slicing interceptors' seconds), then the spread
+  if (delay > 0) for (let t = 0; t < delay - 1e-9; t += sample) for (const b of B) record(b, t);
+  const t0 = delay + (S ? S.seconds : 0);
   // the spread: hanging, eased out to its offset and twist
-  if (S) for (let t = 0; t < t0 - 1e-9; t += sample) for (const b of B) {
-    const e = ease(t / t0);
+  if (S) for (let t = delay; t < t0 - 1e-9; t += sample) for (const b of B) {
+    const e = ease((t - delay) / S.seconds);
     b.x = V.add(b.c0, V.mul(b.off, e)); b.q = qaxis(b.twAxis, b.twAng * e);
     record(b, t);
   }
@@ -84,7 +90,7 @@ export function collapse(bodies, {
   // the hold: the opened lattice hangs, the beat before it falls
   const hold = S ? S.hold : 0;
   for (let t = t0 + sample; t <= t0 + hold + 1e-9; t += sample) for (const b of B) record(b, t);
-  if (mode === 'none') return { tracks: B.map((b) => ({ id: b.id, frames: b.frames, rest: r5(t0) })), seconds: r5(t0 + hold), centre };
+  if (mode === 'none') return { tracks: B.map((b) => ({ id: b.id, frames: b.frames, rest: r5(t0) })), seconds: r5(t0 + hold), centre, parting: S ? r5(delay) : null, hits: [] };
 
   // the throw
   for (const b of B) {
@@ -99,6 +105,7 @@ export function collapse(bodies, {
     }
   }
   const n = [0, 0, 1];
+  const hits = [];
   let next = t0 + hold + sample;
   for (let t = t0 + hold; t < until + hold; ) {
     t += dt;
@@ -114,7 +121,8 @@ export function collapse(bodies, {
         touching = true; deepest = Math.max(deepest, pen);
         const vc = V.add(b.v, V.cross(b.w, r)), vn = V.dot(vc, n);
         if (vn >= 0) continue;
-        const e = -vn < 2 * gravity * dt ? 0 : restitution;   // a resting contact does not bounce: no jitter at rest
+        const e = -vn < 2 * gravity * dt ? 0 : restitution;
+        if (-vn > 0.8 && (b.lastHit == null || t - b.lastHit > 0.12)) { b.lastHit = t; hits.push({ t: r5(t), id: b.id, speed: r5(-vn), mass: r5(b.m), at: P(p) }); }   // a hit the ear hears   // a resting contact does not bounce: no jitter at rest
         const rn = V.cross(r, n), j = (-(1 + e) * vn) / (1 / b.m + V.dot(rn, rn) / b.I);
         b.v = V.add(b.v, V.mul(n, j / b.m)); b.w = V.add(b.w, V.mul(rn, j / b.I));
         const vc2 = V.add(b.v, V.cross(b.w, r)), vt = V.sub(vc2, V.mul(n, V.dot(vc2, n))), st = V.len(vt);
@@ -132,5 +140,5 @@ export function collapse(bodies, {
     if (t >= next - 1e-9) { for (const b of B) record(b, t); next += sample; }
     if (B.every((b) => b.rest != null)) break;
   }
-  return { tracks: B.map((b) => ({ id: b.id, frames: b.frames, rest: b.rest == null ? null : r5(b.rest) })), seconds: r5(Math.max(...B.map((b) => b.frames[b.frames.length - 1].t))), centre };
+  return { tracks: B.map((b) => ({ id: b.id, frames: b.frames, rest: b.rest == null ? null : r5(b.rest) })), seconds: r5(Math.max(...B.map((b) => b.frames[b.frames.length - 1].t))), centre, parting: S ? r5(delay) : null, hits };
 }
