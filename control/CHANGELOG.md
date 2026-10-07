@@ -208,6 +208,16 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
 - **The landform board** (`out-trail-board.js`): the land in black and white before anything grows on it — both passes
   as depth maps with the trail, beats, pockets, hazards and stairs drawn over them, the heartbeat strip, and the laws.
   Absent `trail`, every open-ground kit builds byte-identically; `trail` on a room kit or the jungle is refused.
+- **The outdoor master index: man-made architecture and the swatches** (`lib/graph/era/out-made.js`,
+  `era/style/swatches.js`, drawn by `era/out-index-html.js`). Documentation first: nothing is placed in a world yet.
+  What people build along a trail (posts and fences, signs, beam bridges, steps, stepping stones, a stacked stone figure,
+  laid paving) is a cascade: structural LAWS no layer can loosen (rail height, span over depth, 2R + T, balance), then
+  the KIT's tokens rolled in rails by its seed (timber, joinery, chunk, caps, relief, wear, bond, paint), then a
+  trail's `made` block (narrow a token, re-point a swatch role, add a piece; anything else refused with what is
+  allowed), then the PIECE, a pattern's dimensions rolled inside rails that sit inside its laws. Patterns are parts put
+  together by joints, drawn in black and white elevation, section and plan, dimensioned and measured. The SWATCHES
+  record every outdoor colour, land and made: the isekai cards now read their ramps from them and nature-trail its
+  blaze, so art direction for colour is controlled there (every kit builds byte-identically).
 - **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.

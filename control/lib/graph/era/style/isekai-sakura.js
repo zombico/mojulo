@@ -3,6 +3,7 @@
  * its own palette, site and tree form). Machine checks in isekai-groves.test.js. Draft agreed with the operator 10-05.
  */
 import { ISEKAI_MEADOW as M } from './isekai-meadow.js';
+import { SWATCHES } from './swatches.js';
 
 export const ISEKAI_SAKURA = Object.freeze({
   ...M,
@@ -13,17 +14,7 @@ export const ISEKAI_SAKURA = Object.freeze({
     'Petals lie where they fell: notched petals pixel-locked to the blossom ramp, under and past each crown and over the path; live, they lie round the walker in 3-D, caught in the grass, and lift in the gusts.',
     'Spring light: fresh grass, a soft warm sun, the far ranges lilac and blue.',
   ]),
-  palette: {
-    grass: [[44, 96, 96], [72, 140, 84], [124, 184, 70], [176, 214, 86], [222, 238, 150]],
-    soil: [[110, 96, 112], [162, 132, 106], [212, 178, 132], [238, 218, 176]],
-    rock: [[86, 92, 132], [116, 120, 154], [150, 150, 170], [186, 180, 180], [218, 210, 198], [240, 234, 220]],
-    foliage: [[30, 78, 82], [52, 118, 66], [96, 164, 58], [156, 204, 78], [206, 232, 132]],
-    blossom: [[168, 124, 184], [218, 150, 194], [242, 182, 210], [252, 212, 228], [255, 238, 244]],
-    bark: [[44, 34, 54], [72, 54, 70], [106, 82, 92], [150, 122, 126]],
-    far: [[150, 156, 200], [168, 180, 220], [186, 204, 236], [206, 222, 244]],
-    sky: [[64, 128, 222], [140, 188, 238], [204, 228, 246]],
-    cloud: [[150, 170, 220], [196, 210, 238], [232, 238, 250], [255, 255, 255]],
-  },
+  palette: SWATCHES['isekai-sakura'].land,   // the ramps live in style/swatches.js
   tiles: { ...M.tiles, petals: { ramp: 'blossom', lit: [2, 3, 4], shade: [0, 1, 2] }, bark: { ramp: 'bark', lit: [1, 2, 3], shade: [0, 1, 2], scale: 0.9 },
     bloom: { ramp: 'blossom', lit: [2, 3, 4], shade: [0, 1, 2], scale: 2.4 }, sprig: { ramp: 'blossom', lit: [2, 3, 4], shade: [0, 1, 2] } },
   lock: { ...M.lock, 'isekai:blossom': 'blossom', 'isekai:sprig': 'blossom' },

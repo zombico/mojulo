@@ -6,6 +6,8 @@
  * The site, the trail, the cliff's geology and the grass placement are the nature trail's (nature.js reads the same
  * fields); what differs is how everything is DRAWN: a locked palette, pixel-locked rocks and cliffs, hats.
  */
+import { SWATCHES } from './swatches.js';
+
 export const ISEKAI_MEADOW = Object.freeze({
   id: 'isekai-meadow',
   references: ['genshin', 'botw'],
@@ -21,16 +23,7 @@ export const ISEKAI_MEADOW = Object.freeze({
   ]),
   // THE PALETTE: ramps of stops, darkest to lightest (sRGB 0–255). A group is locked to its ramp; a pixel-locked tile
   // is painted from a window of its ramp's stops (`lit` and `shade` below).
-  palette: {
-    grass: [[38, 92, 88], [62, 132, 70], [112, 176, 56], [164, 210, 70], [214, 236, 128]],
-    soil: [[104, 96, 110], [156, 128, 98], [206, 172, 120], [234, 212, 160]],
-    rock: [[78, 92, 132], [108, 122, 156], [142, 148, 170], [180, 178, 176], [214, 206, 190], [238, 230, 212]],
-    foliage: [[30, 78, 82], [52, 118, 66], [96, 164, 58], [156, 204, 78], [206, 232, 132]],
-    bark: [[64, 58, 78], [112, 90, 82], [156, 128, 104]],
-    far: [[104, 168, 166], [112, 164, 210], [160, 200, 232], [196, 222, 242]],
-    sky: [[40, 108, 220], [120, 176, 236], [186, 222, 244]],
-    cloud: [[132, 168, 216], [178, 204, 236], [222, 234, 248], [255, 255, 255]],
-  },
+  palette: SWATCHES['isekai-meadow'].land,   // the ramps live in style/swatches.js
   // which stops each pixel-locked tile is painted from (indices into its ramp): lit tiles the upper window, shade the
   // lower, overlapping by one so a band edge between them reads as one surface turning
   tiles: {
