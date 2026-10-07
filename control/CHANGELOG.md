@@ -56,11 +56,23 @@ place and its guide; what joins the tiers is playscape's to answer.
   in and a width. Facing it at its foot, W climbs and S comes down. At the lip the walker steps onto what is behind
   it, and walking out over the lip from up there takes the climb down. A local meru's climb anchors become its
   climbs. A walk without climbs emits the same script as before.
+- **A level is a stack of tiers** (`local-meru/plan.js`). Each tier stands on the top of the one below and says
+  how the walk gets up it. There are two forms: a `mound` (a plan of `sides`, 0 round or 3 and more a polygon,
+  narrowing from its foot to its summit) and a `tower`. There are three ways up: a `spiral` round the flank, a
+  `stair` straight up one face (cut into it, or standing out from it), and a `climb`. Every tier faces the way the
+  walk arrives on the one below, and a tower with a tier on it is left open, with no roof. The laws are per tier and
+  per way up, and add two: each tier fits on the top below it, and a stair starts on what it climbs from. The older
+  one-mound, one-tower words still read.
+- **Presets are tier lists** (`local-meru/presets.js`, `preset`): a mountain lookout, a terraced mountain, a
+  ziggurat, a temple pyramid and a stacked lookout. None needs code of its own.
+- **What people build takes the kit's made style** (era/out-made.js `madeStyle`). The kit's chunk sizes the tower's
+  members, its edge word makes a stair stone or timber, its paint share decides whether a roof is painted, and every
+  made colour is locked to the kit's made ramps (timber, stone, paint).
 - **The level is walked in a test** (`local-meru.walk.test.js`). A headless walker follows the World's own rules
   (gravity, the floor ray, the eye and shin rays, the climb). Steered along the spiral from the seam, it reaches the
   summit at walking pace; it climbs the tower to the deck and back down; without the climb the deck is out of reach;
   and walked straight at the flank from all round, it never reaches the summit, because a shelf's wall stops a
-  scramble from below. The World's walk has no slope limit of its own, so steep rock can be scrambled up to that wall.
+  scramble from below. Every preset is walked and climbed from the seam to its top. The World's walk has no slope limit of its own, so steep rock can be scrambled up to that wall.
 
 ### Playscape
 

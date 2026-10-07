@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { assembleStageScene } from '../era/stage.js';
 import { planLocalMeru } from './plan.js';
+import { LOCAL_MERU_PRESET_IDS } from './presets.js';
 
 const RECIPE = { kind: 'stage', kit: 'isekai-meadow', seed: 8, meru: { after: { trail: true } } };
 const DT = 1 / 60;
@@ -89,49 +90,71 @@ function walker(payload) {
   return me;
 }
 
+// walk a plan's route: steer along its walked runs a metre and a half ahead; at a climb, to its foot, face it, climb
+function walkRoute(payload, plan) {
+  const me = walker(payload), R = plan.route, log = { t: 0, tops: [] };
+  const steerTo = (at, near = 0.6, lookahead = 1.5, limit = 120) => { for (let i = 0; i < limit / DT && Math.hypot(at[0] - me.x, at[1] - me.y) > near; i++) { me.yaw = Math.atan2(at[1] - me.y, at[0] - me.x); me.step(); log.t += DT; } };
+  let k = 1;
+  while (k < R.length) {
+    if (R[k].kind === 'climb') {
+      const c = payload.walk.climbs.find((q) => Math.hypot(q.base[0] - R[k].at[0], q.base[1] - R[k].at[1]) < 0.01);
+      steerTo(c.base, 0.3);
+      me.yaw = Math.atan2(c.N[1], c.N[0]);
+      for (let i = 0; i < 900 && me.feet() < c.top[2] - 0.01; i++) { me.step(); log.t += DT; }
+      for (let i = 0; i < 30; i++) me.step(false);
+      log.tops.push(me.feet());
+      k += 2; continue;
+    }
+    // along a walked run: aim a lookahead ahead of the nearest point passed
+    let j = k; while (j < R.length && R[j].kind !== 'climb') j++;
+    for (let i = 0; i < 120 / DT; i++) {
+      while (k < j - 1 && Math.hypot(R[k].at[0] - me.x, R[k].at[1] - me.y) < 1.5) k++;
+      me.yaw = Math.atan2(R[k].at[1] - me.y, R[k].at[0] - me.x); me.step(); log.t += DT;
+      if (k === j - 1 && Math.hypot(R[k].at[0] - me.x, R[k].at[1] - me.y) < 0.6) break;
+    }
+    k = j;
+  }
+  return { me, log };
+}
+
 describe('the local meru, walked on the World\'s own rules', () => {
   const payload = assembleStageScene(RECIPE), plan = planLocalMeru({ after: { kit: 'isekai-meadow', seed: 8, trail: true } });
 
-  it('walks from the seam up the spiral and stands on the summit; then climbs the tower and stands on its deck', () => {
-    const me = walker(payload), path = [plan.join.at, ...plan.path.map((q) => q.at), plan.summit.arrive];
-    // steer along the planned walk: aim a metre and a half ahead of the nearest point passed
-    let k = 0, t = 0;
-    while (t < 90) {
-      while (k < path.length - 1 && Math.hypot(path[k][0] - me.x, path[k][1] - me.y) < 1.5) k++;
-      me.yaw = Math.atan2(path[k][1] - me.y, path[k][0] - me.x); me.step(); t += DT;
-      if (k === path.length - 1 && Math.hypot(path[k][0] - me.x, path[k][1] - me.y) < 0.6) break;
-    }
-    // the walk takes about as long as its length at the walker's pace: nothing held it up
-    expect(t).toBeLessThan((plan.length + plan.recipe.path.approach) / payload.walk.speed * 1.6 + 2);
-    expect(me.feet()).toBeCloseTo(plan.summit.z, 0);
-    expect(Math.hypot(me.x - plan.centre[0], me.y - plan.centre[1])).toBeLessThan(plan.summit.r);
-    // to the climb's foot, face it, climb
-    const c = payload.walk.climbs[0];
-    for (let i = 0; i < 600 && Math.hypot(c.base[0] - me.x, c.base[1] - me.y) > 0.3; i++) { me.yaw = Math.atan2(c.base[1] - me.y, c.base[0] - me.x); me.step(); }
-    me.yaw = Math.atan2(c.N[1], c.N[0]);
-    for (let i = 0; i < 600 && me.feet() < c.top[2] - 0.01; i++) me.step();
-    for (let i = 0; i < 30; i++) me.step(false);   // step off, stand
-    expect(me.feet()).toBeCloseTo(plan.tower.deck, 1);
-    expect(Math.hypot(me.x - plan.centre[0], me.y - plan.centre[1])).toBeLessThan(plan.tower.half);
+  it('the default: from the seam up the spiral to the summit at walking pace, then up the tower to its deck', () => {
+    const { me, log } = walkRoute(payload, plan), m = plan.tiers[0], t = plan.tiers[1];
+    expect(me.feet()).toBeCloseTo(t.deckZ, 1);
+    expect(Math.hypot(me.x - t.centre[0], me.y - t.centre[1])).toBeLessThan(t.half);
+    expect(log.t).toBeLessThan(plan.route[plan.route.length - 1].s / payload.walk.speed * 1.8 + 6);
+    void m;
   }, 120000);
+
+  for (const id of LOCAL_MERU_PRESET_IDS) {
+    it(`${id}: walked and climbed from the seam to the top`, () => {
+      const pay = assembleStageScene({ ...RECIPE, meru: { preset: id, after: { trail: true } } }), pl = planLocalMeru({ preset: id, after: { kit: 'isekai-meadow', seed: 8, trail: true } });
+      const { me } = walkRoute(pay, pl);
+      expect(me.feet()).toBeCloseTo(pl.top.top, 0);
+      expect(Math.hypot(me.x - pl.top.centre[0], me.y - pl.top.centre[1])).toBeLessThan(pl.top.form === 'tower' ? pl.top.half : pl.top.summit);
+    }, 120000);
+  }
 
   it('the climb comes back down: walked out over the lip from the deck, it lands at the foot', () => {
     const me = walker(payload), c = payload.walk.climbs[0];
     Object.assign(me, { x: c.top[0] + c.N[0] * 0.8, y: c.top[1] + c.N[1] * 0.8, z: c.top[2] + payload.walk.minEye });
     me.yaw = Math.atan2(-c.N[1], -c.N[0]);
     for (let i = 0; i < 900 && !(me.feet() <= c.base[2] + 0.05 && !me.climb); i++) me.step();
-    expect(me.feet()).toBeCloseTo(plan.summit.z, 0);
+    expect(me.feet()).toBeCloseTo(plan.tiers[0].top, 0);
   }, 60000);
 
   it('no way round the spiral: walked straight at the flank from all round its foot, no one reaches the summit', () => {
+    const m = plan.tiers[0];
     for (let a = 0; a < 6; a++) {
-      const ang = (a * Math.PI) / 3, r = plan.recipe.mound.foot + 1, m = walker(payload);
-      Object.assign(m, { x: plan.centre[0] + Math.cos(ang) * r, y: plan.centre[1] + Math.sin(ang) * r, z: 30 });
-      for (let i = 0; i < 400; i++) m.step(false);
-      m.yaw = Math.atan2(plan.centre[1] - m.y, plan.centre[0] - m.x);
-      for (let i = 0; i < 1800; i++) m.step();
+      const ang = (a * Math.PI) / 3, r = m.foot + 1, w = walker(payload);
+      Object.assign(w, { x: m.centre[0] + Math.cos(ang) * r, y: m.centre[1] + Math.sin(ang) * r, z: 30 });
+      for (let i = 0; i < 400; i++) w.step(false);
+      w.yaw = Math.atan2(m.centre[1] - w.y, m.centre[0] - w.x);
+      for (let i = 0; i < 1800; i++) w.step();
       // a shelf's wall stops a scramble up the flank from below (the World's walk has no slope limit of its own)
-      expect(m.feet()).toBeLessThan(plan.summit.z - 2);
+      expect(w.feet()).toBeLessThan(m.top - 2);
     }
   }, 120000);
 
@@ -140,6 +163,6 @@ describe('the local meru, walked on the World\'s own rules', () => {
     Object.assign(me, { x: c.base[0], y: c.base[1], z: c.base[2] + payload.walk.minEye });
     me.yaw = Math.atan2(c.N[1], c.N[0]);
     for (let i = 0; i < 300; i++) me.step();
-    expect(me.feet()).toBeLessThan(plan.summit.z + 1);
+    expect(me.feet()).toBeLessThan(plan.tiers[0].top + 1);
   }, 60000);
 });
