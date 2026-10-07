@@ -1,0 +1,6 @@
+{
+  "entry": "create_view",
+  "kind": "conics",
+  "title": "The slice that catches both cones",
+  "params": { "scenario": "hyperbola" }
+}

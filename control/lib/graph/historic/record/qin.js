@@ -23,6 +23,7 @@
  */
 
 // ── sources ──────────────────────────────────────────────────────────────────────────────────────────
+import { QIN_DRESS } from './dress-qin.js';
 const S = {
   zhXianyangSite: { author: 'Wikipedia (zh)', title: '秦咸阳城遗址', year: 2026, url: 'https://zh.wikipedia.org/wiki/秦咸阳城遗址', via: 'read' },
   zhXianyangPalace: { author: 'Wikipedia (zh)', title: '咸阳宫', year: 2026, url: 'https://zh.wikipedia.org/wiki/咸阳宫', via: 'read; secondary to the works it cites' },
@@ -319,5 +320,5 @@ const FORMS = [
   },
 ];
 
-export const QIN_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS];
+export const QIN_RECORD = [...MATERIALS, ...METHODS, ...TYPES, ...FORMS, ...QIN_DRESS];
 export const QIN_SOURCES = S;

@@ -29,9 +29,11 @@ import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
  * @param {boolean} [options.control] — image-outcomes only: the ControlNet
  *   scaffold variant (geometry only, no labels/dashed boxes). Errors on
  *   other kinds like panelId.
+ * @param {boolean} [options.backdrop] — diagram kinds: paint the surface colour behind the
+ *   drawing (renderSketchToSvg), for a file that leaves the dashboard.
  * @returns {Promise<string>} a self-contained SVG string
  */
-export async function renderStoredSketchSvg(sketch, { panelId, control } = {}) {
+export async function renderStoredSketchSvg(sketch, { panelId, control, backdrop = false } = {}) {
   const manifest = sketch?.manifest;
   if (!manifest || typeof manifest !== 'object') {
     throw new Error('renderStoredSketchSvg requires a sketch manifest');
@@ -78,5 +80,5 @@ export async function renderStoredSketchSvg(sketch, { panelId, control } = {}) {
   if (isImageOutcomesKind(manifest.kind)) {
     return renderScaffoldSvg(manifest, { ...(panelId ? { panelId } : {}), ...(control ? { control: true } : {}) });
   }
-  return renderSketchToSvg(manifest, { technical: false });
+  return renderSketchToSvg(manifest, { technical: false, backdrop });
 }

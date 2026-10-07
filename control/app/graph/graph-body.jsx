@@ -185,16 +185,16 @@ export default function GraphBody({ authEnabled = false }) {
             </div>
             <CreationMap manifest={manifest} technical={technical} />
             <div className="mt-5 pt-4 border-t border-[color:var(--border-color)]/60 flex flex-wrap gap-x-5 gap-y-2 text-xs text-[color:var(--text-secondary)]">
-              <Legend swatch="rgba(255,255,255,0.02)" border="var(--border-color)" dashed>
+              <Legend swatch="rgba(255,255,255,0.02)" border="var(--text-muted)" dashed>
                 {technical ? t('legend.inputTechnical') : t('legend.input')}
               </Legend>
               <Legend swatch="rgba(20,184,166,0.08)" border="var(--brand-teal)">
                 {technical ? t('legend.mcpToolTechnical') : t('legend.mcpTool')}
               </Legend>
-              <Legend swatch="rgba(100,116,139,0.10)" border="rgba(148,163,184,0.6)">
+              <Legend swatch="rgba(100,116,139,0.10)" border="var(--text-muted)">
                 {technical ? t('legend.filesystemTechnical') : t('legend.filesystem')}
               </Legend>
-              <Legend swatch="rgba(168,85,247,0.08)" border="rgba(168,85,247,0.7)">
+              <Legend swatch="rgba(168,85,247,0.08)" border="var(--entity-purple)">
                 {technical ? t('legend.dbRowTechnical') : t('legend.dbRow')}
               </Legend>
             </div>

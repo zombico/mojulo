@@ -1,0 +1,28 @@
+{
+  "entry": "create_beats",
+  "kind": "beats-ambient",
+  "title": "Cavern drift",
+  "params": {
+    "bpm": 66,
+    "swing": 0,
+    "seed": 40320,
+    "progression": [
+      { "chord": ["E2", "G2", "B2", "F#3"], "root": "E1" },
+      { "chord": ["A2", "C3", "E3", "G3"], "root": "A1" },
+      { "chord": ["C3", "E3", "G3", "B3"], "root": "C2" },
+      { "chord": ["B2", "E3", "F#3"], "root": "B1" }
+    ],
+    "channels": [
+      { "name": "deep-pad", "role": "harmony", "patch": "pad", "level": -4, "tone": 0.4,
+        "chain": [{ "type": "filter", "mode": "lowpass", "freq": 1200, "q": 0.7 },
+                  { "type": "reverb", "decay": 11, "wet": 0.6 }] },
+      { "name": "sub", "role": "roots", "patch": "bassMono", "level": -5, "tone": 0.5 },
+      { "name": "glints", "role": "melody", "patch": "sinePluck", "level": -10,
+        "sequence": { "table": ["E4", "G4", "A4", "B4", "D5"], "gate": 0.3 },
+        "chain": [{ "type": "pingpong", "time": 0.75, "feedback": 0.45, "mix": 0.35 },
+                  { "type": "reverb", "decay": 10, "wet": 0.55 }] },
+      { "name": "pulse", "role": "pulse", "patch": "kick", "note": "C1", "level": -8,
+        "steps": [0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.35, 0, 0, 0, 0, 0] }
+    ]
+  }
+}

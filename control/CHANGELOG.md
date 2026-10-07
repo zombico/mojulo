@@ -12,6 +12,378 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fauna behavior
+
+What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one
+word: a sheep lies with its legs folded under and chews the cud, a horse dozes on its feet with a hind hoof cocked, a
+cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. A minted animal carries them as
+animation clips beside its gaits. Every species builds byte-identically, and an animal minted without behaviors is
+unchanged.
+
+- **Behaviors.** `relax`, `alert`, `eat` and `sleep`, each a loop or a hold, in `lib/graph/fauna/behavior/`.
+- **Strategies.** Each behavior's ways of doing it, written in mechanism words a solver poses (what holds the body
+  up, where the head goes, what the tail does, the small motion that loops), tried most specific first and ending on
+  a fallback any body can do.
+- **Capabilities from the bones.** Four legs or two, wings, fins, legs that fold, a neck that reaches the ground, a
+  tail long enough to wrap, a supple back: measured from the skeleton, never authored.
+- **Tags for habits.** A closed vocabulary of the habits the bones cannot tell (`ruminant`, `dozes-standing`,
+  `perches`, `hoods`, …), set per family with species overrides. Every tag must be read by some strategy.
+- **Every animal resolves.** `resolveBehavior(id, behavior)` names the strategy and why (the capabilities and tags
+  it matched, and each more specific strategy it passed over); `behaviorTable()` gives every species at once.
+- **Posed on the bones.** `behaviorFrames(id, behavior)` poses the strategy on the species' own skeleton, in the
+  gait frame's shape, one principle per mechanism word: the trunk lowered until the belly rests on the ground, rolled
+  or shifted over a foot; each foot block placed by the support (planted where it stood, folded flat under the chest
+  or beside the belly, drawn up into the feathers) and the leg hung to it by the gait solver's two-link; a neck bent
+  until the muzzle reaches the grass, a short-necked grazer's shoulders lowering when it cannot; the face turned back
+  along the flank; nothing on land through the ground. A legless body is laid out as a coil, or a coil with the front
+  third raised in an S. Standing, dozing on a cocked hind leg, lying folded, the sphinx, the curl, perching on one
+  leg, sitting down over the feet, sitting up, rearing, lying on the side, the crouch, lying belly-flat, floating, the
+  coil, hovering and swimming on are posed; a strategy whose words are not yet posed says which (`posable`).
+- **Sitting up and rearing.** The trunk pitches up about the hips; sitting, its lowest point (the rump and the tail's
+  root) comes down onto the ground and the hind feet lie flat out in front, knees up; rearing, the hips ride on the
+  near-straight hind legs. The forelegs hang free (resting on the ground where they reach it, a chimpanzee's), or bring
+  the hands up to the mouth to eat. The neck takes back most of the pitch and the face is aimed by the head word. A
+  raccoon, a squirrel, a bear, a panda and a chimpanzee relax sitting up and eat from their hands; a raccoon, a bear
+  and a chimpanzee rear to look.
+- **Lying on the side, the crouch, and the meal.** Lying on the side, the trunk rolls onto its left flank and settles
+  on the ground (by its trunk line, or its hips and shoulders where those sit lower), the legs lying loose out to the
+  side; a head lowered on a rolled body bends about the world's horizontal, not the body's own. A crouch sinks the
+  hips on planted feet, the front a little lower. A lying predator gnaws the meal between its paws, a pig or a bear
+  roots, a raptor or a theropod tears upward from food pinned underfoot.
+- **Belly-flat and afloat.** A crocodile, a monitor and a tortoise lie belly-flat, the feet sprawled out wide on the
+  ground and the elbows and knees up. A floating body sinks by its buoyancy (a duck rides high, a mammal floats with
+  its back awash, no lower than keeps its head at the surface), its head clear of the water, its legs hanging slack and
+  its tail lying out on the surface; a floating frame reports the water's surface (`water`), and the stick strip draws
+  it. An otter eats floating on its back, the food held up at its mouth. Only an animal that eats from its paws eats
+  afloat (a hippo grazes), and only a bird sleeps afloat with its head tucked into its back.
+- **Repertoires.** `repertoire(id, behavior)` lists every way an animal does a behavior, its own first: a raccoon
+  relaxes sitting up or curled, a bear sitting up or sprawled. The catch-alls (lying folded, standing at ease) are
+  left out when anything more its own qualifies. `resolveBehavior`, `poseBehavior` and `behaviorFrames` take
+  `{ variant }` to pick another from the repertoire.
+- **Behaviors as clips.** An animal's `motion` takes behavior words beside gait words (`['walk', 'relax']`,
+  `{ behaviors: 'all' }`, `{ behaviors: ['relax'], variants: { relax: 'curl' } }`). Each behavior packs as one looping
+  clip named for its word, through the same rig as the gaits, so the World previews it and the skinned GLB and the
+  Godot pack carry it. A loop lasts as long as its motion takes (a breath, a chew, a scan round), slower on a bigger
+  body. A behavior the species is not posed doing, or a way not in its repertoire, is refused with what it can do.
+  Each species' entry card gains a `DOES` line: the behaviors it can be minted with and the way it does each.
+- **A tail carried high wraps.** A curled cat's tail, which rests pointing up, is laid level before it wraps round
+  the curl (it stood straight up).
+- **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to;
+  `--variant curl` draws another way from the repertoire.
+- **Shared solver pieces.** The leg chain and its two-link solve (`fauna/limb.js`) and the vector kit (`fauna/vec.js`)
+  moved out of the gait solver so both solvers use them; every gait poses byte-identically.
+
+### Pack menu
+
+Opening a pack (`pack_x({})`) returned every member's full description and input schema, and those manuals were
+about 85% of what came back: opening `pack_stash` to call `gather` also read the 16 KB `cook` manual. A pack now
+opens to a menu, and a member's manual is read when the agent picks it. Dispatch is unchanged.
+
+- **The menu.** The pack's orientation, one line per member, and the full manual inline for light members (800 B
+  or less). A heavy member's line ends with its manual's size and how to read it, so the cost is visible before
+  it is paid.
+- **`manual`.** `pack_x({ manual: 'cook' })` returns that member's manual alone (the same description and schema
+  the pack used to inline); a list returns several. A member homed in another pack, a spine tool, an unknown
+  name and a member the Claude plugin profile hides answer as dispatch does.
+- **Errors point at the manual.** A member's error through a pack ends with where its manual is. Structured
+  refusals (a JSON body with a code and the next action) are passed through untouched.
+- **The listing did not grow.** The pack input schema is repeated in every pack entry; its `tool` and `args`
+  wording was shortened to pay for `manual`.
+- **CLI.** `mojulo <pack_id> --manual <name>[,<name>]` reads manuals from a shell; `mojulo <pack_id>` opens the
+  menu.
+
+### Test cull
+
+The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
+never wired into a tool, a kind or a route. They are gone with their tests, and a quick critical tier joins the full run.
+
+- **Removed, with their tests:** the aircraft fuselage wrap-net (and its spike, which wrote review SVGs into the
+  removed `lite-template/` tree on every run), the box-vehicle face-net and its cards and variants (plus a second
+  spike writer), the civic-glyph city composer, the figure landmark slots, the houseplant, the manga-cel,
+  imperfect-cel and field-cel renderers with their shared cell geometry, the terrain region plan, the wave-drape
+  fitter, the face-material role selector, the pixelizer prerender seam, the mega-boy flipbook spike and the
+  beats diff exhibit. None was reachable from `app/`, `bin/`, the MCP registry or a package script.
+- **Kept on purpose:** the removal guards (chatbot carve-out, moved notices, pack boundaries), the deprecated
+  `MOJULO_RECIPE_BOOK` loader tests (it still loads until 4.0), and the proof worlds the game runtime's tests use
+  as fixtures.
+- **The `wardrobe-construction` card** described the drape fit as a function call no tool exposes. It now states
+  the principle.
+- **`npm run test:critical`** (`vitest.critical.config.js`): the MCP surface and its pins, the plugin profile, the
+  guards, the database, versions, auth, the bundled book, scripts, the dashboard and every characterization pin,
+  without the geometry-heavy suites. About 2,400 tests in two minutes against the full run's eight; CI still runs
+  `npm test`.
+- **A deep tier for exhaustive sweeps.** `*.deep.test.js` files are left out of `npm test` and run with
+  `npm run test:deep` (CI runs it after `npm test`). `npm run test:deep:changed` runs only the sweeps whose imports
+  touch an uncommitted change, so editing a city kernel runs none and editing `anime-head.js`, `anime-sculpt.js` or
+  `station-loft.js` runs the anime ones. First in: the anime head's range-end and named-cut sweeps and every look
+  built on both bases (`anime-head.deep.test.js`, `anime-looks.deep.test.js`), about 160 of the suite's
+  file-seconds. The law tests stay in `anime-head.test.js` and `anime-looks.test.js`.
+
+### create_sketch diet
+
+`create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
+lists routing only (1.7 KB), and the manual is read on demand from cards. Nothing it accepts or stores changed.
+
+- **A lean listing.** The description names the kinds (`floorplan`, `store` / `mall` / `restaurant`, `historic`,
+  the painted kinds), the recipe door, hand-built marks and stations, and the world-recipe restore. It points
+  plain flows and charts at `mint_diagram` and says to read the card before minting. `manifest` is an open object.
+  `bucket` and `preloadMetadata` are still accepted but no longer listed, and `preload` lost its nested schema.
+- **New sketch_vocab cards.** `mark-primitives` covers the 2D marks, style fields and station kinds.
+  `construction-marks` covers blob, sphere, egg, cylinder, the volume cup, form, solid, partition, array, the
+  presets, sticker shading, gesture placement and one-point perspective. Defaults are read from the expander, and
+  every example mints. `edge-notation` gains `via` / `curvature` routing.
+- **A lean result.** The `preload` echo names each prior (`ref`, `title`, and `as` / `note` / `metadata`) and no
+  longer re-sends its whole manifest. With up to eight priors, that was up to eight full manifests riding back into
+  the agent's context for nothing, since the agent composed against them before the call.
+- **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
+  description allowlist because it fits the 700-character ceiling.
+
+### Diagram auto layout
+
+A flow chart no longer needs a coordinate. Name the boxes and the arrows; the kernel places them. This was the
+biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station needed a hand-picked x, y, w and h.
+
+- **Auto-placed stations.** When no station carries a position (no `x`/`y`, `cell` or `lane`), `lowerDiagramKinds`
+  lays them out (`expandAutoLayout`, `lib/diagram-core.js`):
+  - **Ranks:** longest path along the edges. A cycle's back edge is set aside in declaration order.
+  - **Order:** barycenter sweeps within each rank.
+  - **Box size:** fitted to the label, sublabel and items. A station's own `w`/`h` win.
+  - **viewBox:** fitted when absent. A given one only grows.
+  - **Direction:** `layout: { direction: 'LR' | 'TB' }`.
+
+  It is deterministic, and the stored manifest holds the resolved coordinates. A manifest that places any station
+  never reaches the pass, so every existing row is byte-identical. Both mint doors share it, and the binding holds.
+- **Edges routed around boxes.** In an auto-placed diagram, an edge whose path or label pill would cross a box is
+  routed on the clear side:
+  - Rank-skipping edges, back edges, and a second edge between the same pair all count.
+  - Lanes on the same side stack outward, and ties go to the emptier side.
+  - An edge with its own `via` or `curvature` is left alone.
+- **`edges[].channel`.** A new optional number pins a `via` edge's lane (x for left/right, y for top/bottom), so
+  the lane can clear a wider box between the endpoints. Absent, nothing moves.
+- **Readable without adjustment.** A contrast pass over diagram ink, measured on the app floor, the dark export
+  and the light surface:
+  - **SVG download and inline view:** the dark export was transparent, so opened directly or in a host page's
+    `<img>` its pale ink sat on white at about 1.4:1. The route now paints the surface colour behind the drawing
+    (`renderSketchToSvg({ backdrop: true })`). Decks, outcome pages and world textures, which composite onto
+    their own backdrop, are unchanged.
+  - **Station outlines:** all clear 3:1 on every surface. `input` was a 1.3:1 hairline, `filesystem` fell to 1.7
+    on light, and `db_row` sat at 2.6–3.0; they now use the surface-aware `--text-muted` / `--entity-purple` inks.
+    The `/graph` legend matches.
+  - **Station sublabels:** move from `--text-muted` (about 4.0:1 at 10px) to `--text-secondary` (8:1 or more).
+- **`mint_diagram`.** The listing says boxes are auto-placed when their positions are left out, and its arrowhead
+  list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
+  form first; `edge-notation` gains `channel`.
+
+### cook diet
+
+`cook` listed every publication kind's layout manual in `tools/list`: 16.2 KB, the heaviest tool. It now lists
+4.3 KB, and each kind's guide is read for the one kind being published. What cook accepts and makes is unchanged.
+
+- **A lean listing.** The description keeps the three steps (cleave, aim, nucleate) and the authoring model, names
+  the kinds, and says to call `sketch_stash({ intent, target_kind })` before any kind but essay. The deprecated
+  `template` alias is still accepted but no longer listed.
+- **Each kind's guide.** `sketch_stash` answers with `guide`: the kind's layout (how items, drawers and metadata map
+  onto it) and the least content that renders well, word for word what cook's listing used to carry.
+- **Two kinds that could not be scaffolded now can.** `sketch_stash` listed `site` and `photojournal` but refused
+  both. Each now has a stash recipe, and `photojournal` has a guide (it had none).
+- **Ratchet.** The flat `tools/list` pin drops from 268,900 to 256,800 bytes.
+
+### Contextmap trim
+
+The contextmap tools came from the chatbot era and still read like it. Their listings are shorter, and the 2.x
+parts no longer show. Nothing they accept or record changed.
+
+- `meta_context_commit` lists 3.3 KB instead of 7.1 KB: one line per type, with the app, connected-service and
+  trigger records first, since those are what the dashboard's Apps and Connected Services panes list.
+- `meta_context_brief` (1.7 KB to 0.9 KB) and `meta_context_analyze` (1.4 KB to 0.8 KB) are shorter too.
+- No longer listed, still accepted: the 2.x `artifact_materialization` commit, which answers with the chatbot
+  notice, and the `bot` brief scope, which reads a 2.x install's rows.
+- `gather` and `execute_plan` stop mentioning bots and deploys.
+- **Ratchet.** The flat `tools/list` pin drops from 256,800 to 251,600 bytes.
+
+### Statue maker
+
+The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
+bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
+byte-identical. Being built on this branch; the sphinx comes next.
+
+- **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
+  (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
+  `archaic`, `classical`, `hellenistic`, `roman`, `roman-bust`, `egyptian`, `renaissance`. A card's stand, stillness and
+  drapery (an outfit card per silhouette) sit beneath the hero's own words; its hair is set at mint.
+- **Carved.** One material over every group: blank eyes, carved hair, the bare body's zones skin. `marble`,
+  `limestone`, `sandstone`, `granite`, `basalt`, `bronze` (its patina by `wear`, from brown to verdigris), `gilt`, and
+  `painted`: reconstructed polychromy over the card's stone, which the readout always calls conjecture.
+- **Cut.** `crop`: `full`, `bust` (below the chest, through the upper arms), `herm`, `torso` (no head or arms, the
+  thighs cut). `lose`: whole parts with what they carry (`forearmR` takes the hand), each closed in its own cap. No
+  fracture surfaces yet.
+- **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
+  from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
+- **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
+  rest) tags its faces (`spec` and `pbr`; a metal surface's `metal`), so a bronze statue exports metallic, in its
+  patina's colour, to GLB and Godot. Absent, byte-identical.
+- **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
+  'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
+  derived work carries ("inspired by …").
+- **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
+  on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
+  Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes, `pp-equestrian:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
+  slots. Absent, the city is byte-identical.
+- **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
+  clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
+  under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
+  carved worshipper can stand among the others.
+- **Seated statues.** `stand: 'seated'` on a statue build (or a card) sits the figure on a block throne built with its
+  base: the thighs level, the shins hanging, the hands flat on the knees. A long skirt is cut at the knee, since a drape
+  over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
+  cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
+  throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
+- **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
+  the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
+  length of its body. Absent, every animal is byte-identical.
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material. The rider sits on the saddle
+  found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
+  equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
+  (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
+  mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
+- **A horse in the library.** A horse ring plan for the layered kind, built with the creature-from-plan loop: a barrel
+  body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
+  stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
+  `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting (and a run along a flank from
+  collapsing); absent, every loft is unchanged.
+- **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
+  proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
+  landmark head (no hair, no beard) in a nemes with the uraeus. The nemes is a striped wrap, not a cap: its opening
+  tilted so the brow band crosses the forehead and the face looks out of it, its stripes radiating back over the crown;
+  behind the face it folds out each side like a cobra's hood, the wings flaring past the shoulders, striped across, and
+  the lappets hang striped down a breast that is broad and flat, as a man's chest, set back under the face. Carved, the stripes are grooves: a palette group named `…Groove` takes the
+  stone a shade darker. The criosphinx's headcloth is striped the same way. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  `docs/examples/ring-plans/sphinx.plan.json`.
+- **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
+  material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
+  `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
+  block stand-in, limestone by default. Giza's entry card says so.
+- **The criosphinx and the bull.** Two more ring plans built the same way. The criosphinx is Amun's ram-headed sphinx
+  of Karnak's avenue: a domed ram's skull with horns coiled round the ears, the headcloth over the shoulders, a small
+  king between the paws (`criosphinxPlan()`, sandstone). The bull is Sumer's copper guardian: a deep barrel, the
+  shoulder hump, the head forward, horns out and up (`bullPlan()`, bronze gone green). Thebes's sphinx rows and Sumer's
+  guardian pair are slots, one figure per pedestal or plinth, and take them as `form: 'criosphinx'` and `form: 'bull'`.
+- **`statues: "carved"`.** One word on a historic city carves every slot with its period's statue: a slot's own form
+  (the sphinxes, the bulls), the seated granite king on the Theban colossi, a bronze horseman on an equestrian slot
+  and nowhere else, and the culture's card everywhere else (Roman at the Forum and Pompeii, Hellenistic at Lindos,
+  Sumerian worshippers), men and women, marble and bronze, decided by each slot's own dice so the city carves the same
+  each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
+  carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
+
+### Recipe versions
+
+- **Every recipe records the mojulo version that wrote it.** A mint stores the version that minted
+  it; an edit to the recipe (`update_sketch`, `edit_solid` and the other in-place revisions) stores the
+  version that last changed it. A retitle, a folder move or a gallery pin leaves it alone, since what
+  renders is unchanged. Each archived revision of a solid and each beats revision carries the version
+  that wrote that manifest.
+- `export_model` answers with `versions: { minted, revised, rendered }`, so an export says which
+  mojulo made the recipe and which one rendered it. To reproduce an export exactly as the recipe's own
+  version drew it, render it under that version (`npx -y mojulo@<version>`) in a separate
+  `MOJULO_HOME`.
+- Recipes written before this release read `null`: they were made by 3.0 or earlier, and which one is
+  not recorded, so nothing is guessed. The columns are added on first start; nothing else changes.
+
+### Recipe book
+
+- **The recipe book ships with mojulo.** The catalog that lived in the separate `mojulo-recipe-book`
+  repo now lives at `control/book/` and is in the npm package, so every install has it with no setup,
+  including an agent box (the Claude app and web, ChatGPT's Work box), where nothing can be cloned
+  beside the package and the old attached book never loaded. It comes in at the book's 0.8.0: study
+  objects, math, worlds, loops, solids, shots and the wardrobe (garments, outfits, footwear), and the
+  `aurora` and `foucault-pendulum` view kinds. Named outfits such as `business-suit` now resolve on
+  every install.
+- Precedence is unchanged in spirit and gains one tier at the bottom: core kinds, then your cookbook,
+  then an attached clone, then the bundled book. `MOJULO_BUNDLED_BOOK=off` leaves it unattached.
+- **Deprecated:** `MOJULO_RECIPE_BOOK` and the separate `mojulo-recipe-book` repo. A clone you
+  already point at still loads, ahead of the bundled book, and warns at boot; it is removed no earlier
+  than 4.0. Book entries are now contributed to `control/book/` in this repo (see CONTRIBUTING.md).
+- The ChatGPT Work-box runner installs 3.0.1 by default, so a Work box gets the bundled book.
+- `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
+  `npm test` checks the bundled book as well.
+
+### MIDI orchestra
+
+- **In progress.** The robot band learns styles from studied masters, written as manuals an agent reads
+  before composing, not as presets. The first is **robot rock**: the 16-bit action-game sound of a rock band
+  played by machines. The card `beats-robot-rock` (via `get_beats_vocab` or `semantic_search`) covers:
+  - one fixed band and one room for a whole game, with each stage choosing only what is wet;
+  - a riff-and-bass engine, with the bass answering the lead;
+  - an intensity ladder from stage select to final boss, with a form for each scenario: stage, boss,
+    fortress, select, victory;
+  - an element (water, fire, ice, machine) signalled inside the groove rather than by swapping the band;
+  - an 8-voice discipline.
+- Every manual is white label: it names traits, never a franchise or composer.
+- The second style manual, **field orchestra**, covers the 32-bit strategy-RPG score: an orchestra written for a
+  few voices that still reads as orchestral. The card `beats-field-orchestra` covers:
+  - an energy ladder (idyllic, adventurous, processional, battle), with a form and a mix for each step;
+  - layers that enter one at a time;
+  - one shared hall, with the sustained sections wet and the percussion dry;
+  - the orchestra played as a band;
+  - loops that never close V–i;
+  - instrument families as dramatic tags.
+- New authoring vocabulary. All of it is opt-in; recipes without it expand and render byte-identical:
+  - rhythms `dotted`, `dotted-quarter` and the 6/8 `lilt`;
+  - voicings `pedal`, `pedal-5` and `drone` (the key's tonic, fifth or open fifth held under any chart);
+  - grooves `march`, `processional` and `travel`;
+  - snare-rudiment fills `paradiddle`, `drag`, `five-stroke` and `long-roll`;
+  - woodwind and timpani band roles;
+  - bands `orchestra-pastoral`, `orchestra-field`, `orchestra-processional` and `orchestra-battle`.
+- Harmony gains:
+  - the Phrygian bII as the danger chord;
+  - the tonic pedal;
+  - loop-seam cadences;
+  - the tonic flip;
+  - the Aeolian march;
+  - modes ranked by tension;
+  - key shifts by a third or a fifth between sections.
+- The worked set, `lib/graph/beats/field-moods.js`: idyllic `plains`, `desert`, `village` and `forest`; adventurous
+  `highlands`, `expedition` and `wayfarer`. Each row carries an `energy`. Not yet wired to a world or a tool.
+  Machine gates in `field-moods.test.js` hold each energy to its budget:
+  - one colour alone at the opening;
+  - parts and leads per bar;
+  - no V–i at the seam;
+  - a dynamics ceiling;
+  - adventurous moods keep moving.
+- Never the same score twice. `lib/graph/beats/field-score.js` generates field cues from these principles:
+  - `scoreIdentity(gameSeed)` rolls a game's identity: home key, a palette flavour (orchestral, folk, chamber,
+    synth-era, silk-road) with its instruments per role from the shelf, one hall, and a motif rhythm.
+  - `fieldScore(mood, { seed, identity })` rolls a cue inside the mood: mode, tempo, meter, a progression from
+    the mood's harmony family, new melodies, the arrangement order and the gear change.
+  - Same seeds give the same music; new seeds give a different score. Over 60 seeds per mood every melody
+    differs, every key appears, and all 420 recipes are distinct. Cues sharing an identity keep its tonic,
+    palette, hall and motif.
+  - `field-gates.js`: the principles as an advisory check over any beats composition, run on every generated
+    seed and on the hand-written takes. The village take keeps its flute counterline as a recorded exception.
+  - The card tells an agent composing by hand to use a fresh seed and a game identity.
+- A field score is now one call away, and mojulo suggests one:
+  - a world takes `audio: { soundtrack: 'field:plains' }` (or `{ score: { mood, seed, game } }`) and plays a
+    generated field cue. `compose_world` stores a fresh seed, so every world sounds different until you keep one;
+  - `create_beats({ kind: 'beats-composition', title, score: { mood } })` mints a field cue with fresh seeds and
+    says how to keep a whole game in one identity (`game`);
+  - a world composed without music gets a suggested mood and the exact `audio` line in the reply.
+- Loop points. A render with `loop` (`export_beats { loop: true }`, `beats.wav?loop=1`, or the recipe's
+  `export.loop`) is exactly one pass, cut at the next bar line. The ring-out is folded back onto the start, the way
+  a live loop carries it, and a `smpl` loop chunk marks the loop for samplers and game engines. The Godot pack
+  renders every music bed this way, so a level or menu loops without the old gap of silence. Off by default;
+  renders without it are byte-identical.
+- More than fields. The same generator now writes the rest of a game's non-battle music, each mood a set of
+  leanings inside the same principles:
+  - towns and interiors: `town`, `tavern` (folk instruments in any game), `shop`, `chapel`;
+  - `night`;
+  - `ceremony`, a stately procession with a brass lead (a new `processional` energy in the gates);
+  - story cues: `prayer`, `sorrow`, `tension` (before a fight, not the fight), `betrayal`, `triumph`.
+  Every mood carries its role (field, travel, town, interior, story), and the suggestion knows the new places.
+  The existing moods are unchanged, note for note.
+
 ### Bug builder
 
 - Arthropods join the animal kind, built from parts instead of a species list. Insects, spiders, scorpions,
@@ -35,11 +407,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   judges. Optional settings cover what the loop asked for: a leg joint turning out of its plane (a crab's claw
   across its face), where each leg pair attaches, jaws tipped up or down with several teeth, a flat underside,
   finer stripes and spots, markings on legs, and a scorpion's sting bulb and hook.
-- Every worked bug has an encyclopedia entry, generated from the roster and never written by hand: a card per
-  species (its common name, other names, scientific name, published size and source, and starter manifests to
-  copy) and a hub per class (insects, arachnids, crustaceans, myriapods) that also names the arthropods not
-  built yet with their nearest stand-in. Search finds "a ladybug", "a crawdad" or "a wasp", and `species`
-  takes any of those names: a name not built resolves to its stand-in and says so.
+- The arthropods join the animal encyclopedia: every worked bug has an entry card (its common name, other
+  names, scientific name, published size and source, and a starter to copy), and each class (insect, arachnid,
+  crustacean, myriapod) a hub naming the arthropods not built yet with the bug that stands in. Search finds "a
+  ladybug", "crawdad" or "daddy longlegs", and `species` (or `bug.like`) takes any of those names.
 
 ### Historic city
 
@@ -471,6 +842,137 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a source beginning before the culture drawing on it ends, a continuation beginning earlier, a variant on its
   source's layout. Every historic page is byte-identical.
 
+### Animal entries
+
+- The animal roster reaches search the way the historic cultures do. Each species gets an encyclopedia entry,
+  generated from the roster (`lib/graph/fauna/entries.js`) and served as a solid-vocab card. No tool is added,
+  and no tool description names an animal.
+  - **The index** (`animals`) lists every animal by the name people say, plus the animals people ask for that
+    aren't built yet, each with the built species that stands in.
+  - **A hub per family** (`animal/feline`) lists its species and its NOT YET rows.
+  - **An entry per species** (`animal/houseCat`) gives the subject, size, stance and basis, the STARTER spec to
+    mint, and its kin.
+- Each family module gains `about` (`common`, `aliases`, `sci`, `size`, `source`, moved out of the thesis
+  comments into data) and `wanted` (`near`, `aliases`, `note`). The facts never reach a plan: every species
+  builds byte-identically.
+- `mint_solid` kind `animal` takes the name people say: `species: 'cat'` mints `houseCat`, and the result's
+  `resolved_from` says so. Plurals and articles resolve too ('a penguin', 'wolves'). An asked-for animal
+  that isn't built yet ('koala') is refused with its stand-in named. An unknown word points at the roster.
+- A species minted as a ring plan reports its real stance (`four legs`, `two legs (a bird)`, `swims`,
+  `legless`, …), not `quadruped` for all of them.
+- A roster contract test holds what an entry reads:
+  - every species has an `about` row;
+  - every `wanted` row names a built stand-in and isn't built itself;
+  - no name is claimed by two animals.
+  A new roster (the arthropods) joins by adding itself to `ROSTERS`.
+- The `get_solid_vocab` bare listing stays one row per kind and op: the generated entries are left out, and
+  the `animal` card points at their index. The unknown-card error lists the hand-written cards and names the
+  entries.
+- The `animal` manual and routing card no longer list the old species ids or say `opts` work on a species.
+  They point at the `animals` card.
+- Fix: an upgraded install now indexes new solid-vocab cards too. The shipped-card check used to look at
+  view-vocab and routing cards only.
+
+### Animal locomotion studies
+
+- **In progress.** Every animal gets the way it moves, written down by the biomechanics of its family, so it
+  can later be animated by the leg-step and spine mechanics of its kind.
+- The roster sorts into nine shared rigs (`lib/graph/fauna/locomotion/`): running toe-walkers, hoofed,
+  flat-footed, pillar-legged, sprawling, hoppers, two-legged, wing-walkers, and whole-body wave (snakes and
+  fish). Each rig file holds its families' entries:
+  - the gaits, named in plain words (walk, trot, gallop, hop, slither, swim, …), each pointing at a footfall
+    pattern or body wave with its duty factor, stride length per hip height and speed band (Froude number);
+  - the spine bone counts, fixed per family;
+  - how the spine, girdles, head and tail move with the stride;
+  - species overrides where a family holds very different movers (snakes and the monitor lizard; the manta).
+- Where scientists disagree, the entry takes the more visual reading and says so beside the value.
+- Each species' encyclopedia entry lists its gaits (`MOVES`). No plan changes: every species builds
+  byte-identically.
+- Every species gets a bone tree (`lib/graph/fauna/skeleton.js`), derived from the plan it already builds:
+  - spine, neck and tail bones laid along the body's own centreline, in the family's fixed counts, and a
+    head bone pitched as worn; a camel's or plesiosaur's lofted neck is followed along its curve;
+  - one bone per leg row, chained joint to joint; the main chain of each shoulder and hip limb carries a role
+    (`fore.humerus` … `hind.metatarsus`), the shared animal profile a gait solver or a clip library maps by;
+  - paired fins as their own bones; snakes and fish carve their tail from the rear of the body;
+  - a binding for every plan part: torso, neck and tail stations ride the bones of their own region, a leg
+    stripe rides its leg, other decorations ride the body.
+  It is not wired into minting yet.
+- A gait solver (`lib/graph/fauna/gait.js`) poses a species' skeleton through one stride of any of its gaits, in
+  place on a treadmill:
+  - feet plant at their phase offset for the gait's duty factor and swing forward between; the upper leg solves
+    two-link to the foot block, the foot rolls over its ground contact at the ends of the stance and the girdle
+    glides (the shoulder blade on the ribs) where the leg cannot reach;
+  - the body dips with the stance legs and, in a flight phase, rises on a ballistic arc timed by the speed its
+    stride implies (stride/h ≈ 2.3·Fr^0.3);
+  - the spine flexes once a stride in gallops, bounds and hops, bends sideways as a standing wave in the
+    sprawlers, and travels as a serpenoid wave in snakes and fish (the coiled snake straightened first);
+  - fins and flippers stroke, heads hold level or nod, tails trail or counter-swing and drag on the ground.
+  Wing beats wait for the wing bones. `scripts/fauna-gait-strip.mjs <species> <gait>` draws the stride as a
+  stick GIF (side view over top view) for the eyes gate; a machine gate checks every gait of every species
+  poses rigid bones and that planted feet stay down for their duty factor.
+- The snakes' spine count rises to 20 trunk and 4 tail bones: two body waves need them.
+- The skeleton gains the wing bones `wing.js` builds (the arm chain with `wing.humerus` / `wing.radius` /
+  `wing.hand` roles, and the digits), and a penguin's flippers as fin bones. A `fly` gait rebuilds the wing at
+  each instant's fold (spread on the downstroke, half folded coming up) and rolls it about the body's long axis;
+  `glide` holds it spread. Strokes beat only their own limb group (wings, pectoral fins, flippers, paddles).
+- **Animals move.** `mint_solid { kind: 'animal', spec: { species, motion } }` binds the minted solid to the
+  species' skeleton and carries its gaits as clips. `motion` is `true` (every gait), a gait word or a list, or
+  `{ gaits, keys }`; an unknown gait is refused with the species' own list. Without `motion` the plan is the
+  species' own, byte-identical.
+  - The plan gets a `bind` on every segment (a limb's joint rings shared with the bones either side, a body
+    station blended toward the next bone as it nears that bone's end) and on the head, plus a `motion` record
+    that expandPlan carries to the recipe.
+  - The mint gate binds every vertex and checks the weights; the stats report the bones and the clips.
+  - At read time `packFaunaRig` (`lib/graph/fauna/rig.js`) packs the mesh through `packLayeredRig` with a stand-in
+    rig of the skeleton's bones and no clips (the humanoid path is untouched), then appends one clip per gait from
+    the gait solver: the absolute rotation and posed head of every bone at every key, and the stride's own
+    duration. The World page previews the clips, the skinned GLB carries them (`export_model { clips: '_all',
+    skinned: true }`), and the Godot pack plays the first.
+  - The worn wing still rides its root bone rigidly; weighting its surface from wing.js's own bindings is next.
+- The equine trunk is shaped in its mammal regions instead of one even barrel: a rounded buttock, broad quarters
+  over the hip, the loin and flank tucked in and up (the belly line climbs to the stifle), the rib barrel deepening to
+  the girth behind the elbow, the withers, and a narrow breast. It sits on the stable ring frame (`torsoUp`) so the
+  centres can rise and fall. The horse and zebra change (the zebra's stripe hoops now follow the trunk's height as
+  well as its radius); the camel keeps its own level trunk and builds byte-identically.
+- The horse and zebra heads are rebuilt level at true size and pitched nose-down (`headPitch`), instead of sheared
+  (the shear stretched the skull along its slope to ~0.9 m, half again a horse's, and slanted every feature). Now
+  ~0.59 m poll to lips (published 0.55–0.65 m): a broad flat forehead with the eyes set on the sides at its widest,
+  seated and lidded (the set eye); a nasal line narrowing to ~0.10 m mid-face; a soft muzzle flaring at large open
+  nostrils with no bare nose pad; a round jowl curving up into a thin under-jaw, chin and lower lip; the mouth line
+  only over the last quarter (behind the corner the jaw covers the seam). The zebra's head grows to ~0.52 m.
+  Three opt-in builder fields carry it, each zero bytes when absent: `nostrilR` / `nostrilSquash`, `nosePad: false`,
+  `webJaw` (the jaw end of the mouth-corner web). The camel and the giraffe (whose head starts from the equine one,
+  now exported as `CLASSIC_HEAD`) build byte-identically.
+- Tails balance the body instead of swinging as decoration. A tail is the snakes' and fish's travelling wave run
+  from the pelvis (one helper, `travelling`, now drives both; every snake and fish wave is bit-for-bit unchanged): its
+  root answers the spin the swinging legs give the body, each foot's fore-aft travel signed by its side for the yaw
+  and summed for the pitch, so a trot's diagonal pairs cancel and the tail rides calm, a biped's stride or a pace sways
+  it, and a hop or bound swings it up and down. The plain tail words (`TAILS` in the locomotion data) carry the
+  mechanics: a `counter`weight swings stiffly against the spin, a `trail`ing tail follows late with a whipping tip, a
+  `prop` is planted as a fifth leg (the kangaroo's slow walk presses it to the ground with the forelegs), `drive`
+  trails on land and rests while fins row. A heavy tail answers with a smaller swing (it shrinks as the tail outgrows
+  the hip height). The kangaroo's tail is now `prop` and the crocodile's `counter`; every species card carries a
+  `TAIL` line saying what the tail does.
+- A tail's motion now follows from what it is made of and how long it is, measured from the model. `TAIL_BUILDS`
+  (flesh, fur, hair switch, stub, feather) say how much of the drawn girth is mass, how freely it swings and whether
+  air lifts it; each family has one (the squirrel's is fur). From the plan: the tail's inertia over the body's and
+  over each leg pair's, and its swinging length (a horse's hair included). A counterweight answers the legs' angular
+  momentum by their inertia over the tail's (a T. rex's heavy legs sway its tail; a squirrel's light legs barely
+  move its), a share of it in steady straight gaits (turns and leaps use the rest). A trailing tail sways with the
+  hips at a walk and trot and is braced at the gallop (Wada et al. 1993, dogs). On top, every free tail is a
+  pendulum shaken at its root by the hips' sway and the body's real bob: a long hair switch swings late and wide, a
+  bushy brush shaken fast stays put while the body bounds beneath it, and hair and fur stream up at speed. The
+  white-tailed deer flags its tail in flight (`flag`); the moose holds its still. A body part that is not a tail no
+  longer binds to tail bones (the kangaroo's trunk rode `tail0`). Cards read `TAIL  <build>: <use>`.
+- The spine follows the footfalls instead of a fixed wave. From above, each girdle turns with its own pair's leading
+  leg (`axial.yaw`, which the solver had ignored: the shoulder or hip swings forward with its leg, lengthening the
+  stride), and the trunk bends between the two (`axial.lateral`, the sprawlers' standing wave, now locked to which
+  feet are down): opposite turns in a trot bow it into a C that flips each step, the same turn in a pace bends
+  nothing, and most of the girdles' common turn is cancelled so the trunk swings about its middle. From the side the
+  back rounds as the legs gather (hind feet forward, forefeet back) and stretches as they extend (`axial.flex`): hard
+  in a gallop and a bound, slight in a trot, none in a pronk. The planted feet still hold (the legs absorb the
+  girdles' turn); every snake and fish wave is unchanged.
+
 ### Environmental sound
 
 - **In progress.** A historic world can carry its period's music: add `"audio": { "soundtrack": "default" }`
@@ -494,6 +996,125 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - A culture names its mood on its card (`soundtrack`). A culture scaffolded from another plays its parent's
   mood until it has its own, and a new mood is a row in `MOODS`.
 - Each entry gains a SOUND line and a starter with its period music.
+
+### Historic miniatures
+
+- **Spike.** A historic city can stand its people about for scale and flavour: add `"people": true` (or
+  `{ "density": 0–1, "citizens": false, "hands": false }`) to a `historic` manifest with the `city` scene, and
+  the World page fills in two groups (`lib/graph/historic/miniatures.js`). Static figures only: no motion, no
+  paths.
+  - Citizens stand alone, in pairs or in households on the lanes, the open ground and the plan's square. They
+    are thicker on a main street than in a back alley.
+  - Field hands work in gangs on the flat ground outside the wall: stooped over the crop, at the hoe, or
+    carrying.
+- Each figure is the fractal city's pedestrian at a new `mini` level of detail, under 300 quads. Nobody is bare:
+  every garment covers the torso and hangs a skirt of cloth to its hem (`cut`: knee, shin or ankle).
+  - The skirt is fitted to the posed figure. Its top is the trunk's own waist, so it tilts when the figure bends;
+    each ring below wraps the hips and legs at its height, so a stride or a bent knee pushes the cloth out
+    instead of poking through. The legs under it are not drawn.
+  - Sleeves carry the shirt down the forearm, and `legs` give trousers.
+  - Colour is the culture's palette over the body's regions and the skirt.
+  - Dress per culture: Roman tunic, toga and stola; Greek chiton, himation and peplos; the Egyptian linen tunic over
+    a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
+    jacket over hemp trousers.
+  - New work poses: `stoop`, `hoe`, `carry`.
+- Beasts of burden (`lib/graph/historic/beasts.js`), on unless `beasts: false`:
+  - In the fields, plough teams: two oxen abreast under a yoke at the neck, the ploughman behind.
+  - On the open streets, pack donkeys and mules with panniers, and horses, each led by a driver at its head.
+  - Each culture works its own herd: oxen and donkeys from Sumer to Egypt, mules among the Greeks and Romans,
+    horses and oxen for Qin.
+  - Each beast was designed with the creature creator (`mint_solid` kind `animal`, iterated with `update_sketch`)
+    and is carried as the recipe that sketch stores. The ox is the bull gelded to a heavier draught body, short
+    horns and a pale coat; the donkey and the mule are new, from the horse; the horse and the camel are the
+    species. The camel is drawn by no culture here, since it came after these periods.
+  - `lib/graph/figures/beast-asset.js` bakes a recipe low-poly (about 400 faces against about 9,000). It uses the
+    animal kind's overlap body, keeps the coat and its pale belly, and drops the eye and nose dots.
+  - Beasts come after the people on their own seeded stream, so turning them off moves no one. Each needs footing
+    under all four hooves, clear of the people.
+- The people and the beasts are shaded smooth (`lib/graph/figures/smooth-corners.js`). Each corner takes the
+  normal averaged over the faces that share it in its own part (a limb, the trunk, the skirt), and the World page
+  shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
+  the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
+  as `smooth`, off by default, so the fractal city's people are unchanged.
+- The region, the farm and the works take `people` too (`lib/graph/historic/crews.js`). Their kits build every
+  tool and building at rest and say who belongs there, and this places them.
+  - Hitching: every yoke with a pole run back from it gets its team, two abreast, necks at the yoke, facing away
+    from the pole. The yoke and the pole's front end lift from the ground to the necks. Oxen draw the plough, the
+    culture's pack animal the cart, oxen or (in Sumer, as its kit says) donkeys the threshing sledge, and horses
+    the chariot. The ploughman stands behind the stilts; any other driver at the head.
+  - Crews: each workshop and farm building names its workers in `CREWS` (reapers bent along the barley's cut edge,
+    diggers in the clay pit, moulders on the brick field, smiths, potters, the haulers ahead of a stone sledge,
+    scribes in the shade). They stand in the slot's own frame, at its working front, inside it or ahead of it,
+    each in a pose for the work. Byres, stables and grain packs get their beasts.
+  - The region's town has its citizens on the town's own claim grid, where the region set it down. Its strip
+    fields have field hands and plough teams, and its estates and quarters their crews.
+  - Outside a town, a figure stands on the scene's own ground heights, so the clay pit's diggers stand on its
+    floor.
+  - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
+    out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
+- The city takes the same crews. Its work places name their people too: priests and worshippers at the altars
+  and before the temples, women with jars at the wells and fountains, shopkeepers at Pompeii's shop fronts with
+  customers in the street, potters at the kilns, bakers and craftsmen in Giza's bakeries and workshops, quarrymen,
+  porters on the quays, boatmen aboard, traffic and a pack animal at the gates, and traders and their beasts in
+  the Qin market. A crew can now stand before a slot facing into it (`before`), work up on a quay's top or a
+  ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
+  guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
+  layout has no slots, has none yet.
+- Dress changes with the era. Clothing is now part of each culture's record, as dated and cited `dress` entries
+  next to its materials and building types (`lib/graph/historic/dress.js`). Each entry is one garment: who wore
+  it (the man or the woman of the street, or the labourer), its span, its hem, sleeves or trousers, and a few
+  colourways. The people wear what was in use at the culture's year, and `people.year` asks for another year:
+  the buildings stay as they are, and the people dress as that year's people did.
+  - A culture with nothing recorded for a year dresses as the culture it draws its dress from (the new `dress`
+    part of a lineage relation): the Forum from Pompeii, the polis from Lindos, Thebes before the New Kingdom
+    from Giza, and Pompeii, before its Roman entries begin, from the Greek tradition.
+  - `checkRecord` checks a dress entry like any other: its wearer, its hem, its colours, and that every look
+    covers the torso.
+- Cloaks and headwear. The miniature can wear a cloak, hung from a collar over the shoulders, the trunk and the
+  upper arms to the hip or the knee, with the forearms coming out under it. It can also wear one of three head
+  coverings: a `cap`, a broad-brimmed hat (`brim`), or a `veil` that falls past the chin onto the shoulders and
+  leaves the face open. Each is fitted to the posed figure the way the skirt is, in its own colour, and the
+  figure is unchanged without one (`lib/graph/figures/pedestrian-asset.js`). The record now dresses people in:
+  - the Roman paenula, on labourers from the early Empire and on citizens from the 3rd century;
+  - the Roman palla, and the Greek himation, drawn over the head;
+  - the Greek chlamys, from the 5th to the 3rd century, and the petasos on labourers;
+  - the Sumerian sheepskin over the kaunakes;
+  - the fur cap of the Zhao horsemen's dress, and the Qin commoner's black headcloth from 221 BCE.
+- A figure stands on a kerb or a step and refuses a spot taken by anything taller.
+- Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
+- Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
+  and seated poses (the scribes stand). Pompeii
+  with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
+  it has no people.
+
+### Pompeii's land
+
+- Pompeii gets a farm scene (`scene: 'farm'`), and a works scene is next. Both draw on a new cited record of
+  its land and workshops (`lib/graph/historic/record/pompeii-land.js`), spread into Pompeii's record.
+  - The record covers:
+    - the villas of Boscoreale: Villa Regina's 18 dolia (about 10,000 litres) and the Pisanella's olive mill;
+    - the lever press of the Villa of the Mysteries;
+    - the vineyard inside the walls;
+    - the bakeries with their donkey mills, the fullery, the fish-sauce works, the tannery, the dyers, the
+      potters, a building site and a smithy;
+    - the carts and the stable of Civita Giuliana.
+
+    Each entry is cited, with its confidence and its disputes. What was working at the eruption but has no
+    recorded building date is held from 79, not back-dated.
+  - The farm is a villa rustica at the vintage, its one season. It is a new `villa` layout beside the flood-plain
+    farm, which stays as it was.
+    - The villa stands round its court, facing a country road rutted at its cart's gauge, with the dolia sunk in
+      the court.
+    - The press room and the olive mill stand behind it, the stable beside it, and the threshing terrace and a
+      barn with its pergola to the east.
+    - The vineyard lies in blocks of staked rows over the north, with an olive grove and a reaped field.
+    - A cart waits at the gate for the grapes, its pole down to the yoke.
+  - Its nine pieces (`lib/graph/historic/assets/pompeii-land.js`) are placeholders, `designed: false`, massed to
+    the record's numbers where it gives them and to stated conjecture where it does not.
+  - With `people`, pickers work the vine rows, treaders and pressmen the press room, two men the olive mill, and
+    the household the court. Horses stand in the stable, and the cart's pair is hitched with its carter.
+  - The farm's aerial view can be aimed by its plan (`aerialAt`). Sumer's and Egypt's farm and works scenes are
+    byte-identical.
 
 ### Historic Rome
 
@@ -1336,16 +1957,16 @@ needed on the anime head. Being built on this branch.
 - **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
   that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
   — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
-  (carrots, after Toriyama), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
-  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas after Videl's short cut. Shaped hair never cuts through the body: the hero's
+  (carrots, classic shonen spikes), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas in a short tomboy cut. Shaped hair never cuts through the body: the hero's
   neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
   along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
-  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, the young-Bieber swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades after Cynthia. A layer's `flick` hooks
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, a side-swept swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades. A layer's `flick` hooks
   a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
-  into a TIE and ends it there, so `frieda` (after Frieren) wears twin tails and `frieda-pony` one ponytail.
+  into a TIE and ends it there, so `frieda` wears twin tails and `frieda-pony` one ponytail.
 - **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
-  face) and `blunt` keeps a lock's full width to the cut: `hiraku` (after Hirako Shinji) is a bowl bob, `miwako` (after
-  Miwa Kasumi) a neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` is a bowl bob, `miwako` a
+  neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
   (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
 - **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
   ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining

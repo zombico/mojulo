@@ -10,6 +10,11 @@
  *   node scripts/fauna-fit.mjs --bug honeyBee --out <dir>        (an arthropod from lib/graph/bugs: see BUG MODE below)
  *   options: --targets JSON of metres (withers = top of the trunk, shoulder = trunk top at the shoulder station, length = rump→snout tip), --tol 0.1 (fraction)
  *            --el 10 --compare-res 256
+ * SWIM POSE (opt-in, for fish): `--pose swim`, or a species with `pose: 'swim'` in its params. The animal is suspended in
+ * water, not standing: the `grounded` gate is replaced by `suspended` — the lowest vertex sits at least `--floor` m
+ * (default 0.05) above z = 0, and with `--centre h` the body's vertical centre ((min z + max z) / 2) is within --tol of
+ * h — and `length` measures the WHOLE animal's y extent (snout to caudal fin tip: a fish's published total length).
+ *   node scripts/fauna-fit.mjs --species salmon --pose swim --targets '{"length":0.75}' --out <dir>
  * Prints { ok, gates: { closed, grounded, size }, pass, compare: { <view>: { iou, aspect, centroid } }, score } and
  * writes compare-<view>.png sheets (reference | source | overlap) plus fit.json to --out. `score` is the mean iou.
  * BUG MODE (--bug <id>, or --bug-spec <bauplan.json>): the same gates read for an arthropod at true scale, every
@@ -25,7 +30,7 @@ import { register } from 'node:module';
 
 const { values: args } = parseArgs({ options: {
   species: { type: 'string' }, bug: { type: 'string' }, 'bug-spec': { type: 'string' }, plan: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' },
-  targets: { type: 'string' }, tol: { type: 'string', default: '0.1' }, el: { type: 'string', default: '10' }, 'compare-res': { type: 'string', default: '256' },
+  targets: { type: 'string' }, pose: { type: 'string' }, floor: { type: 'string', default: '0.05' }, centre: { type: 'string' }, tol: { type: 'string', default: '0.1' }, el: { type: 'string', default: '10' }, 'compare-res': { type: 'string', default: '256' },
 } });
 const fail = (msg) => { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); };
 if (!args.out || (!args.species && !args.plan && !args.bug && !args['bug-spec'])) fail('need --out <dir> and one of --species <name> | --plan <plan.json> | --bug <id> | --bug-spec <bauplan.json>');
@@ -44,6 +49,8 @@ if (BUG) {
 } else if (args.plan) plan = JSON.parse(await fs.readFile(args.plan, 'utf8'));
 else {
   const { SPECIES: SPECIES_PLANS, speciesPlan } = await import('@/lib/graph/fauna/species.js');
+  const { speciesParams } = await import('@/lib/graph/fauna/species.js');
+  if (!args.pose) args.pose = speciesParams(args.species)?.pose;
   plan = speciesPlan(args.species); if (!plan) fail(`no ring plan for '${args.species}' (have ${Object.keys(SPECIES_PLANS).join(', ')})`);
 }
 
@@ -74,7 +81,8 @@ const front = trunk.length ? Math.max(...trunk.map((v) => v[1])) : 0, span = fro
 const atShoulder = J.shoulder ? trunk.filter((v) => Math.abs(v[1] - J.shoulder[1]) <= 0.1 * span) : [];
 const shoulderPts = atShoulder.length ? atShoulder : trunk.filter((v) => v[1] >= front - 0.25 * span);
 const shoulder = shoulderPts.length ? Math.max(...shoulderPts.map((v) => v[2])) : withers;
-const measured = { withers: r3(withers), shoulder: r3(shoulder), length: r3(nose - back), height: r3(Math.max(...mesh.vertices.map((v) => v[2]))), minZ: r3(minZ) };
+const swim = args.pose === 'swim', allY = mesh.vertices.map((v) => v[1]), maxZ = Math.max(...mesh.vertices.map((v) => v[2]));
+const measured = { withers: r3(withers), shoulder: r3(shoulder), length: r3(swim ? Math.max(...allY) - Math.min(...allY) : nose - back), ...(swim ? { centre: r3((minZ + maxZ) / 2) } : {}), height: r3(Math.max(...mesh.vertices.map((v) => v[2]))), minZ: r3(minZ) };
 const targets = args.targets ? JSON.parse(args.targets) : {}; const tol = Number(args.tol);
 const sizeMiss = Object.entries(targets).filter(([k, t]) => !(Math.abs(measured[k] - t) <= tol * t)).map(([k, t]) => `${k} ${measured[k]} vs ${t}`);
 // attached: every pinned detail (ears, claws) still touches its host — a detail whose base stayed put while the host
@@ -99,7 +107,9 @@ const detached = Object.entries(mesh.parts).filter(([n, p]) => p.pin?.parent && 
   return d > 0.012;
 }).map(([n]) => n);
 measured.attachGap = attachGap;
-const gates = { closed: open.size ? [...open] : true, attached: detached.length ? detached : true, grounded: Math.abs(minZ) <= 0.02 ? true : `min z ${r3(minZ)}`, size: sizeMiss.length ? sizeMiss : true };
+const gates = { closed: open.size ? [...open] : true, attached: detached.length ? detached : true, ...(swim ? { suspended: minZ < Number(args.floor) ? `min z ${r3(minZ)} below floor ${args.floor}`
+  : args.centre !== undefined && !(Math.abs((minZ + maxZ) / 2 - Number(args.centre)) <= tol * Number(args.centre)) ? `centre ${r3((minZ + maxZ) / 2)} vs ${args.centre}` : true }
+  : { grounded: Math.abs(minZ) <= 0.02 ? true : `min z ${r3(minZ)}` }), size: sizeMiss.length ? sizeMiss : true };
 const pass = Object.values(gates).every((g) => g === true);
 
 await fs.mkdir(args.out, { recursive: true });

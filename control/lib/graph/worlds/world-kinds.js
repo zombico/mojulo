@@ -38,9 +38,14 @@ import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-
 import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, characterLitFaces, characterInk, piecesAt, STUDIO_SMOOTH_CREASE } from '@/lib/graph/polygonizer/station-loft-shade';
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
+import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
+import { statueBaseOf } from '@/lib/graph/statue/expand';
+import { statueBaseFaces } from '@/lib/graph/statue/base';
+import { creatureStatue, mountedStatue, riderSeat, validateCreatureStatue, carveCreatureRecipe, creatureBaseOf } from '@/lib/graph/statue/creature';
+import { resolveMaterial, tagFacesWithMaterial } from '@/lib/graph/polygonizer/materials';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { meshSource } from '@/lib/graph/polygonizer/stroke-resolve';
 import { silhouetteResidual } from '@/lib/graph/polygonizer/silhouette-solve';
@@ -533,10 +538,17 @@ export const WORLD_KINDS = {
   layered: {
     title: 'mojulo layered solid',
     resolve: async (m, ctx) => {
+      // A CREATURE carved (statue/creature.js, opt-in `statue` on a plan that is not a hero: the creature designer's
+      // sphinx, horse, bull): every palette group the material (a `…Groove` group a shade darker: a carved channel), the
+      // surfaces tagged; its base below. Absent ⇒ byte-identical.
+      const creature = !m.hero && m.statue ? m.statue : null;
+      if (creature) { const errs = validateCreatureStatue(creature); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); m = { ...m, recipe: carveCreatureRecipe(m.recipe, creature) }; }
       // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),
       // on the workbench studio through the same faces seam the scad kind rides.
       const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
       const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
+      // a minted animal with MOTION (fauna/rig.js): its species' skeleton and gaits, packed below as the rig figure
+      const motioned = !rigged && !!(m.recipe?.motion?.gaits?.length || m.recipe?.motion?.behaviors?.length);
       const light = withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands); const seat = m.seat !== false;
       // The STAND (hero-gesture.js): a HERO (a hero-door row, `m.hero`) whose rigged recipe carries the one-key `gesture`
       // clip shows its static solid skinned at that key (bindLayered → rigNodesAt → boneFrames → skinLayered), seated on
@@ -578,14 +590,31 @@ export const WORLD_KINDS = {
       // stencil rules (channels/draw-layers.js); the rig pack orders its parts the same way (`ranges`). A mesh with no
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
       const faces = character
-        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged ? 'body' : null, hairInk: !!ink })
-        : layeredFaces(shown, m.recipe, { light, seat, group: rigged ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}) });
+        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink })
+        : layeredFaces(shown, m.recipe, { light, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
       const gear = rig && m.hero?.gear ? gearMounts(m.hero, rig.R) : null;
       const gearShown = gear?.length ? gearFaces(gear, { frames: stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null, light, dz: restDz, group: 'body' }) : null;
       if (gearShown) faces.push(...gearShown);
+      // A STATUE's BASE (statue/base.js): a hero carrying a statue build stands on its base, built under the posed
+      // figure from the footprint it stands on (the feet, or a bust's cut) in the base's stone, the figure lifted onto
+      // it (the clip preview's pack below by the same lift). Group 'base': a skinned export keeps it beside the figure.
+      // No statue ⇒ nothing here, byte-identical.
+      const statueBase = m.hero?.statue ? statueBaseOf(m.hero.statue) : null;
+      // A MOUNTED statue (statue/creature.js mountedStatue, law 10): the creature designer's horse carved in the rider's
+      // material, its saddle under the rider, the base under the horse; the rider lifted as on any base.
+      const baseTag = statueBase ? (fs) => tagFacesWithMaterial(fs, resolveMaterial(statueBase.surface)) : null;
+      const based = !statueBase ? null : statueBase.mounted && stand ? mountedStatue(faces, statueBase, { light, tag: baseTag, seat: riderSeat({ R: rig.R, pose: stand, mesh, recipe: m.recipe, dz: restDz }) }) : statueBaseFaces(faces, { kind: statueBase.kind, tone: statueBase.tone, light, seated: statueBase.seated, tag: baseTag });
+      const lift = based?.lift ?? 0;
+      if (lift) for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + lift) * 1e9) / 1e9]);
+      if (based?.faces.length) faces.push(...based.faces);
+      // A CREATURE carved (statue/creature.js, opt-in `statue` on a plan that is not a hero: the creature designer's
+      // sphinx, horse, dragon): one material over every face, an oblong base under it. Absent ⇒ byte-identical.
+      if (creature) { const B = creatureBaseOf(creature), on = statueBaseFaces(faces, { kind: B.kind, tone: B.tone, light, oblong: true, tag: (fs) => tagFacesWithMaterial(fs, resolveMaterial(B.surface)) });
+        if (on.lift) for (const f of faces) f.corners = f.corners.map((c) => [c[0], c[1], Math.round((c[2] + on.lift) * 1e9) / 1e9]);
+        faces.push(...on.faces); }
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark
@@ -593,7 +622,7 @@ export const WORLD_KINDS = {
       // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
       if (rigged) {
-        const { R, skin } = rig; const dz = restDz;
+        const { R, skin } = rig; const dz = restDz + lift;
         // hullShade (opt-in, manifest-level): bake COLOR_0 from the smooth L1 hull normal field instead of
         // flat face normals — `hullShade: true | { except: [...] }`; absent ⇒ the pack is byte-identical.
         // rim (opt-in): ms-contrast's fresnel edge `[r,g,b,strength,power]` carried on the packed figure,
@@ -619,6 +648,13 @@ export const WORLD_KINDS = {
         const pack = packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(m.recipe.clips).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
+      } else if (motioned) {
+        // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
+        // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a
+        // rigged recipe's so the preview, the GLB and Godot play it
+        const B = faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
+        const pack = packFaunaRig(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}) });
+        scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It
       // carries the wire's framing of the UNSEATED mesh (what a stroke resolves against) and the seat, the stored
@@ -663,7 +699,14 @@ export const WORLD_KINDS = {
   // assembleAnimalScene) — orbit/export object study, same posture as figure.
   animal: {
     title: 'mojulo animal',
-    resolve: (m, ctx) => assembleAnimalScene(m, { title: ctx.title, ref: ctx.ref }),
+    // A STATUE (statue/creature.js, opt-in `statue`): the animal carved in one material on an oblong base; its fur splats
+    // and skin textures dropped (stone has no coat). Absent ⇒ the animal as it was.
+    resolve: (m, ctx) => {
+      const scene = assembleAnimalScene(m, { title: ctx.title, ref: ctx.ref });
+      if (!m.statue) return scene;
+      const { splats: _s, textures: _t, ...rest } = scene;
+      return { ...rest, faces: creatureStatue(scene.faces, m.statue, { light: withBands(ctx.light || WORKBENCH_LIGHT, resolveToon(ctx.toon)?.bands) }).faces };
+    },
   },
   'carved-solid': {
     title: 'mojulo carved solid',

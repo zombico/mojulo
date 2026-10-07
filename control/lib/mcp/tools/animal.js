@@ -31,16 +31,62 @@ import { renderAnimalToSvg, ANIMAL_VIEWS } from '@/lib/graph/polygonizer/figure-
 import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
-import { SPECIES as FAUNA, speciesPlan } from '@/lib/graph/fauna/species';
+import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
+import { withMotion, motionGaits, motionBehaviors, checkBehaviors } from '@/lib/graph/fauna/rig';
+import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
+import { resolveAnimalName } from '@/lib/graph/fauna/entries';
+import { FAMILIES } from '@/lib/graph/fauna/families';
+import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
+import { fish } from '@/lib/graph/fauna/makers/fish';
+import { serpent } from '@/lib/graph/fauna/makers/serpent';
 import { BUG_SPECIES, bugParams, resolveBug, assembleBug } from '@/lib/graph/bugs/species';
-import { bugByName } from '@/lib/graph/bugs/entries';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
+import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
+// The MAKER door: a species-free body maker (fauna/makers/) called with params, merged over its family's table.
+const MAKERS = { fish, serpent };
+const MAKER_HINT = "read get_solid_vocab({ id: 'animal' }) for the maker parameter tables";
+
+/** maker params → a ring plan (the maker's fauna params over the family table, built). Throws a teaching error. */
+export function makerPlan(maker, params) {
+  if (!MAKERS[maker]) throw new Error(`\`maker\` must be one of ${Object.keys(MAKERS).join(', ')} (got ${JSON.stringify(maker)}) — ${MAKER_HINT}`);
+  if (params !== undefined && params !== null && (typeof params !== 'object' || Array.isArray(params))) throw new Error(`\`params\` must be an object of ${maker} maker parameters — ${MAKER_HINT}`);
+  let p;
+  try { p = MAKERS[maker](params || {}); }
+  catch (err) { throw new Error(`${err.message} — ${MAKER_HINT}`); }
+  return buildFauna(mergeParams(FAMILIES[p.family], p));
+}
+
 const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(BUG_SPECIES), ...Object.keys(ZOO_BUILDS)])];
 
 // an arthropod's stance word from its leg count (all legs, grounded or not)
 const legStance = (n) => ({ 6: 'hexapod', 8: 'octopod', 10: 'decapod', 14: 'isopod' }[n] || (n > 14 ? 'myriapod' : `${n}-legged`));
+
+/**
+ * `motion` → `{ gaits, keys }` (plus `behaviors` and `variants` when any are named) or null: `true` / 'all' (every
+ * gait the species has), a word or a list of them (gait words and behavior words, `['walk', 'relax']`), or
+ * `{ gaits?, behaviors?, variants?, keys? }` (`behaviors: 'all'` for every behavior the species can be posed doing;
+ * `gaits` defaults to every gait only when no behavior is named). Throws a teaching error naming what it can do.
+ */
+export function motionSpec(species, motion) {
+  if (motion === undefined || motion === null || motion === false) return null;
+  const have = motionGaits(species), does = motionBehaviors(species);
+  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}`;
+  const words = typeof motion === 'string' && motion !== 'all' ? [motion] : Array.isArray(motion) ? motion : null;
+  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter((w) => !BEHAVIORS[w]), behaviors: words.filter((w) => BEHAVIORS[w]) } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait or behavior word, a list of them, or { gaits, behaviors, keys } — ${say}`);
+  const behaviors = o.behaviors === 'all' ? does : o.behaviors === undefined ? [] : [o.behaviors].flat();
+  const gaits = o.gaits === undefined ? (behaviors.length ? [] : have) : [o.gaits].flat();
+  for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
+  const variants = o.variants ?? {};
+  if (typeof variants !== 'object' || Array.isArray(variants)) throw new Error('`motion.variants` is { <behavior>: <strategy> }');
+  try { checkBehaviors(species, behaviors, variants); } catch (err) { throw new Error(`${err.message} — ${say}`); }
+  if (!gaits.length && !behaviors.length) throw new Error(`\`motion\` names no clip — ${say}`);
+  const keys = o.keys ?? 24;
+  if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
+  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}) };
+}
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
 // cfg block — so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of
@@ -58,8 +104,10 @@ function mergeOpts(base, over) {
 
 export async function createAnimalHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('the animal kind requires { title }');
-  const { title, archetype, view, elev, crop, background, ref, folder_ref: folderRef } = input;
+  const { archetype, view, elev, crop, background, statue, ref, folder_ref: folderRef, maker } = input;
   let { species } = input;
+  let { params } = input;
+  const title = input.title;
   let { bug } = input;
   if (typeof bug === 'string' && /^\s*\{/.test(bug)) { try { bug = JSON.parse(bug); } catch { /* rejected below */ } }
   // Defensive transport parse: some MCP clients deliver object-valued params as
@@ -72,15 +120,37 @@ export async function createAnimalHandler(input) {
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
   }
-  // an arthropod by the name people say ('a ladybug', 'crawdad'), or one not built yet by its stand-in ('wasp' → the
-  // honey bee): resolved here and echoed back, so a direct mint needs no search round trip
-  let named = null;
-  if (typeof species === 'string' && !SPECIES.includes(species)) {
-    named = bugByName(species);
-    if (named) { named = { asked: species, ...named }; species = named.id; }
+  // STATUE (opt-in, statue/creature.js): every door carries it — the figure body in its manifest, a ring plan (species
+  // or maker) on its layered manifest, where the layered resolve carves it. A statue stands still: no motion with it.
+  const statueErrs = validateCreatureStatue(statue);
+  if (statueErrs.length) throw new Error(`animal: ${statueErrs.join('; ')}`);
+  const carved = statue !== undefined ? { statue } : {};
+  if (carved.statue && input.motion !== undefined && input.motion !== null && input.motion !== false) {
+    throw new Error('a statue stands still: pass `statue` or `motion`, not both');
   }
+  if (input.motion !== undefined && input.motion !== null && input.motion !== false && (maker || archetype)) {
+    throw new Error('`motion` animates a `species` (its skeleton and gaits); a maker body or an archetype has none yet');
+  }
+  if (maker !== undefined && maker !== null) {
+    if (species || archetype || bug) throw new Error('pass `maker` (+ `params`) OR `species` OR `archetype` OR `bug`, not several');
+    if (typeof params === 'string' && /^\s*[{[]/.test(params)) { try { params = JSON.parse(params); } catch { /* rejected below */ } }
+    const plan = makerPlan(maker, params);
+    const res = await createLayeredPlanHandler({
+      title, plan, plan_audit: { source: 'agent' }, ...carved,
+      ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
+    });
+    return { ...res, maker, stance: maker === 'fish' ? 'swim' : 'legless' };
+  }
+  // A species may be asked for by the name people say ('cat', 'grizzly', 'a penguin'): resolved to its id through the
+  // animal entries' name index (lib/graph/fauna/entries.js), and the result says what it resolved from.
+  let resolvedFrom = null;
   if (species !== undefined && species !== null && !SPECIES.includes(species)) {
-    throw new Error(`\`species\` must be one of ${SPECIES.join(', ')} — or omit it and pass \`archetype\` for the bare body`);
+    const r = resolveAnimalName(species);
+    if (r?.wanted) {
+      throw new Error(`no '${r.wanted}' species yet (${r.note}). The nearest built species is '${r.near}': mint it and say it stands in, or build an invented body as the \`layered\` kind. The roster: get_solid_vocab({ id: 'animals' })`);
+    }
+    if (!r) throw new Error(`\`species\` must be one of ${SPECIES.join(', ')} (or a common name for one: get_solid_vocab({ id: 'animals' })) — or omit it and pass \`archetype\` for the bare body`);
+    resolvedFrom = species; species = r.id;
   }
   if (archetype !== undefined && archetype !== null && !ARCHETYPES.includes(archetype)) {
     throw new Error(`\`archetype\` must be one of ${ARCHETYPES.join(', ')}`);
@@ -107,25 +177,28 @@ export async function createAnimalHandler(input) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
   }
 
-  // An ARTHROPOD (lib/graph/bugs): a worked bug by `species`, or one nobody has built by `bug` (the closest worked bug
-  // with the asked part forms worn over it). Both are ring plans through the layered plan door.
+  // An ARTHROPOD (lib/graph/bugs): a worked bug by `species` (or the name people say, resolved above), or one nobody
+  // has built by `bug` (the closest worked bug with the asked part forms worn over it). Ring plans through the layered
+  // plan door. No skeleton yet: `motion` is refused rather than ignored.
   if ((species && BUG_SPECIES[species]) || (bug && !species)) {
     if (opts !== undefined && opts !== null) throw new Error('`opts` are figure-body knobs; a bug is a ring plan — mint it, then tune with update_sketch on \'/plan/...\'');
+    if (input.motion !== undefined && input.motion !== null && input.motion !== false) throw new Error('`motion` animates a species with a skeleton and gaits; an arthropod has none yet');
     let resolved = null, B;
-    // `like` by any name too ('ladybug', 'wasp' → its stand-in)
-    if (bug && typeof bug.like === 'string' && !BUG_SPECIES[bug.like]) { const n = bugByName(bug.like); if (n) { named = { asked: bug.like, ...n }; bug = { ...bug, like: n.id }; } }
+    // `like` by any name too ('ladybug' → ladybird); an asked-for bug not built names its stand-in
+    if (bug && typeof bug.like === 'string' && !BUG_SPECIES[bug.like]) {
+      const r = resolveAnimalName(bug.like);
+      if (r?.wanted) throw new Error(`no '${r.wanted}' bug yet (${r.note}). The nearest worked bug is '${r.near}': pass \`like: '${r.near}'\` and say it stands in`);
+      if (r?.id && BUG_SPECIES[r.id]) { resolvedFrom = bug.like; bug = { ...bug, like: r.id }; }
+    }
     try { if (bug) { resolved = resolveBug(bug); B = resolved.bauplan; } else B = bugParams(species); }
     catch (err) { throw new Error(`${err.message}`); }
     const { plan, readout } = assembleBug(B);
     const res = await createLayeredPlanHandler({
-      title, plan, plan_audit: { source: 'agent' },
+      title, plan, plan_audit: { source: 'agent' }, ...carved,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species: species || null, stance: legStance(readout.legPairs * 2), legs: readout.legPairs * 2, length_m: readout.length,
-      ...(resolved ? { basis: resolved.basis, worn: resolved.worn, ranked: resolved.ranked } : {}),
-      ...(named && named.via !== 'id' ? { resolved_from: named.via === 'stand-in'
-        ? { name: named.asked, stand_in: true, note: `no ${named.wanted} is built yet: the ${named.id} stands in (it misses: ${named.misses})` }
-        : { name: named.asked } } : {}) };
+    return { ...res, species: species || null, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: legStance(readout.legPairs * 2), legs: readout.legPairs * 2, length_m: readout.length,
+      ...(resolved ? { basis: resolved.basis, worn: resolved.worn, ranked: resolved.ranked } : {}) };
   }
 
   // A species rebuilt as a ring plan mints through the layered plan door: watertight, dialled, and
@@ -135,11 +208,14 @@ export async function createAnimalHandler(input) {
     if (opts !== undefined && opts !== null) {
       throw new Error(`\`opts\` are figure-body knobs; '${species}' is a ring plan now — mint it, then tune with update_sketch on '/plan/...' or '/dials/<name>'`);
     }
+    // MOTION (opt-in, fauna/rig.js): the plan bound to the species' skeleton, carrying its gaits as clips the World
+    // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
+    const motion = motionSpec(species, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan: speciesPlan(species), plan_audit: { source: 'agent' },
+      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys, motion) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
-    return { ...res, species, stance: 'quadruped' };
+    return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };
   }
 
   // A species RESOLVES to (archetype, opts) here, at mint time — the stored recipe is
@@ -159,6 +235,7 @@ export async function createAnimalHandler(input) {
     ...(elev !== undefined && elev !== null ? { elev } : {}),
     ...(crop ? { crop } : {}),
     ...(background !== undefined ? { background } : {}),
+    ...(statue !== undefined ? { statue } : {}),
     title,
   };
 

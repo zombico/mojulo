@@ -53,6 +53,8 @@ import { analyze, ANALYZE_LENSES } from '@/lib/mcp/meta-context/analyze';
 // 'bot' stays a readable scope: a 2.x install's contextmap holds bot nodes that
 // artifact_materialization wrote. Nothing writes a bot node since 3.0.0.
 const BRIEF_SCOPE_KINDS = ['fleet', 'bot', 'catalyst', 'adapter', 'artifact'];
+// 'bot' still reads a 2.x install's rows but is not listed: the chatbot factory left in 3.0.
+const LISTED_BRIEF_SCOPE_KINDS = BRIEF_SCOPE_KINDS.filter((kind) => kind !== 'bot');
 
 export async function briefHandler(input, _ctx) {
   const scope = input?.scope;
@@ -1048,7 +1050,7 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_brief',
     description:
-      "Read the contextmap subgraph for a scope: `{ kind: 'fleet' }` for the whole graph, or `{ kind: 'artifact' | 'catalyst' | 'adapter' | 'bot', ref }` for a 1-hop neighborhood (`bot`: 2.x rows). Use when checking \"has the fleet already committed to something related to what I'm about to do?\", or when the user asks why a binding looks the way it does — the `materialized_by` / `binds` edges carry the reasoning principles. Also call BEFORE materializing a new artifact (app, skill, trigger): if a related artifact already exists, improve it rather than minting a sibling — this before-build check is how prior decisions survive fresh sessions. Empty fleet brief returns `meta.suggest_kyc: true` — surface the operator KYC at that point. **Brief returns the graph as recorded, not as currently active.** Append-only by design — stale rows from deleted artifacts are not auto-pruned; check the filesystem or `list_running` before treating a binding as live. Read-only.",
+      "Read what meta_context_commit recorded: `{ kind: 'fleet' }` for everything, or `{ kind: 'artifact' | 'catalyst' | 'adapter', ref }` for one node and its neighbors. Check it BEFORE making an app, workflow or trigger: if a related one exists, improve it instead of making a sibling. It is the record, not live state (deleted artifacts are not pruned; `list_running` says what runs). Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1057,14 +1059,9 @@ export function registerMetaContextTools() {
           properties: {
             kind: {
               type: 'string',
-              enum: BRIEF_SCOPE_KINDS,
-              description:
-                "'fleet' returns the whole contextmap (capped). Per-scope kinds return a 1-hop neighborhood around the named node.",
+              enum: LISTED_BRIEF_SCOPE_KINDS,
             },
-            ref: {
-              type: 'string',
-              description: "External id of the anchor node (composite artifact ref, catalyst id, adapter id, or a 2.x bot's deployment id). Required for every kind except 'fleet'.",
-            },
+            ref: { type: 'string', description: "The node's id (artifact ref, catalyst id or adapter id). Not for 'fleet'." },
           },
           required: ['kind'],
         },
@@ -1077,7 +1074,7 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_analyze',
     description:
-      "Audit sealed connected-service bindings for drift — deterministic, read-only. Lens `stale-bindings` cross-references every `binds` edge against declared inventory + researched capabilities, classifying each `missing` (bound tool gone — service will fail), `stale-capability` (vendor knowledge aged out), `no-capability`, `unknown` (inventory not declared), or `ok`. Returns findings ranked most-actionable-first with recommendations, an `inventory` freshness block, and a `summary` (severity counts + `providersToRefresh` for the research-mcp-vendor catalyst). Re-declare inventory first. Scope `{kind:'fleet'}` or `{kind:'artifact',ref}`.",
+      "Check recorded connected-service workflows for drift (read-only). Each binding is classed `missing` (its tool is gone), `stale-capability`, `no-capability`, `unknown` (no inventory declared) or `ok`, with recommendations and `summary.providersToRefresh`. Re-declare inventory first.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1087,20 +1084,14 @@ export function registerMetaContextTools() {
             kind: {
               type: 'string',
               enum: ['fleet', 'artifact'],
-              description:
-                "'fleet' audits every sealed binding; 'artifact' scopes to one connected service by its composite artifact ref.",
             },
-            ref: {
-              type: 'string',
-              description: "Composite artifact ref — required when kind is 'artifact'.",
-            },
+            ref: { type: 'string', description: "The artifact ref, for kind 'artifact'." },
           },
           required: ['kind'],
         },
         lens: {
           type: 'string',
           enum: ANALYZE_LENSES,
-          description: "Analysis lens. Defaults to 'stale-bindings' (the only lens today).",
         },
       },
       required: ['scope'],
@@ -1111,56 +1102,25 @@ export function registerMetaContextTools() {
   registerTool({
     name: 'meta_context_commit',
     description:
-      "Seal a structural decision. Event types: (1) `operator_kyc` — optional one-time bootstrap anchoring the fleet on role + primary_goal + locked-in constraints (use `revise: true` to attach a new principle to the same operator node). (2) `operator_workspace_setup` — record an absolute `workspace_root` (and optional `workspace_conventions`) the `local-storage` technique materializes folder bindings under. Append-only — every call writes a fresh principle stack; readers pick the latest `source_event = 'operator_workspace_setup'` principle on the operator node. Requires `operator_kyc` to have run first. (3) `artifact_materialization` — the 2.x seal of a catalyst materialized for a deployed bot; it left with the chatbot factory, writes nothing and answers with a notice (earlier events stay readable). (4) `primitive_artifact_materialization` — atomic per-materialization seal for primitive-binding compositions (no catalyst): adapter_id + artifact + composition_intent + `provider_artifact_refs` from prior `bind_primitives` calls. The contextmap auto-writes a summary principle on the artifact node listing every binding (primitive / role / affordance / bound tool / confidence) so future readers recover the composition's intent + shape from one row. (5) `app_materialization` — atomic per-materialization seal for generated SPA apps (App paradigm, spike): adapter_id + artifact + app_name + four bindings (runner / durability / inference / mcp_self). Bindings live on the artifact node's payload; an auto-summary principle on the artifact node renders them for audit + semantic recall. Verification additionally requires the scaffolded `<locator>/app-mcp/server.js` to exist — the runner can't lifecycle an app whose sidecar is incomplete, so the commit refuses at the gate. Adapter-delegated verification runs before write (claude-code/generic require existsSync; codex accepts opaque locators on assertion). (6) `trigger_artifact_materialization` — atomic seal for activation triggers bound via `bind_trigger`. Takes a `trigger_ref` returned by `bind_trigger`; resolves the trigger artifact, validates it carries an `artifact_ref` to a materialized contextmap node, and writes an audit principle on that node summarizing the composer component bound (e.g. `trigger/scheduled@0.1.0`), the binding params, and the payload template. Composition-only triggers (no `artifact_ref`) are not supported in Phase 1. Call ONLY AFTER materializing the artifact — never to declare intent. On commit failure, roll back via the host adapter's own affordance (delete file / cancel automation).",
+      "Record something that now exists, AFTER it exists (never to declare intent). The record is what the dashboard's Apps and Connected Services panes list. Types:\n" +
+      "- `app_materialization`: an app made with install_scaffold: adapter_id, artifact, app_name, bindings. Refused until `<locator>/app-mcp/server.js` exists.\n" +
+      "- `primitive_artifact_materialization`: a connected-service workflow: adapter_id, artifact, composition_intent, provider_artifact_refs from bind_primitives.\n" +
+      "- `trigger_artifact_materialization`: a trigger: trigger_ref from bind_trigger.\n" +
+      "- `operator_kyc` (optional: role, primary_goal, constraints, how the agent talks) and `operator_workspace_setup` (workspace_root for local storage; needs operator_kyc first).\n" +
+      "Append-only. If the commit fails, undo the artifact with the host's own tools.",
     inputSchema: {
       type: 'object',
       properties: {
         type: {
           type: 'string',
           enum: [
+            'app_materialization',
+            'primitive_artifact_materialization',
+            'trigger_artifact_materialization',
             'operator_kyc',
             'operator_workspace_setup',
-            'artifact_materialization',
-            'primitive_artifact_materialization',
-            'app_materialization',
-            'trigger_artifact_materialization',
           ],
         },
-        // trigger_artifact_materialization fields
-        trigger_ref: {
-          type: 'string',
-          description:
-            'For trigger_artifact_materialization: the `trig_<id>` ref returned by `bind_trigger`. The handler resolves the trigger artifact and attaches an audit principle to the target artifact node.',
-        },
-        // operator_kyc fields
-        role: { type: 'string' },
-        primary_goal: { type: 'string' },
-        constraints: { type: 'array', items: { type: 'string' } },
-        revise: { type: 'boolean' },
-        // operator_workspace_setup fields
-        workspace_root: {
-          type: 'string',
-          description:
-            "For operator_workspace_setup: absolute path (POSIX `/...` or Windows `C:\\...`) the operator's mojulo-bound local-storage bindings materialize under. No `..` segments. The filesystem MCP must be launched with this path (or an ancestor) in its allow-list at runtime.",
-        },
-        workspace_conventions: {
-          type: 'string',
-          description:
-            "For operator_workspace_setup: optional free-form conventions the operator wants applied across local-storage bindings (e.g. 'JSON not binary; dated subdirs; 30-day retention'). Stored as a separate principle so it can be revised independently of workspace_root.",
-        },
-        vocabulary_register: {
-          type: 'string',
-          enum: VOCABULARY_REGISTERS,
-          description:
-            "For operator_kyc: how technical the agent's user-facing nouns should be. 'plain' (everyday tool names: Gmail, Drive — never mojulo jargon like primitive/composer/contextmap), 'mixed' (default — meet the user where they are, ramp one degree), or 'mojulo' (full idiom, user has internalized the model). Persisted on the operator node and read by forward_context to branch its prose. Optional; absence preserves any prior setting on revise.",
-        },
-        procedural_disclosure: {
-          type: 'string',
-          enum: PROCEDURAL_DISCLOSURES,
-          description:
-            "For operator_kyc: how much of the agent's deliberation gets narrated. 'terse' (act and report), 'reflective' (default — name the gate before each commit step), 'pedagogical' (explain what each gate means as you cross it). Persisted on the operator node and read by forward_context. Optional; absence preserves any prior setting on revise.",
-        },
-        // primitive / app materialization shared fields
         adapter_id: { type: 'string' },
         artifact: {
           type: 'object',
@@ -1169,76 +1129,50 @@ export function registerMetaContextTools() {
             label: { type: 'string' },
           },
         },
-        // primitive_artifact_materialization only
-        composition_intent: {
-          type: 'string',
-          description:
-            'For primitive_artifact_materialization: a one-paragraph operator-stated intent for the composition (e.g. "weekly digest of open Linear issues into a Google Drive folder"). Used in the auto-generated audit principle.',
-        },
-        provider_artifact_refs: {
-          type: 'array',
-          items: { type: 'string' },
-          description:
-            'For primitive_artifact_materialization: the `prov_xxx` refs returned by prior `bind_primitives` calls — one per primitive slot in the composition. The commit walks these to build the binds edges in the contextmap.',
-        },
-        // app_materialization only
-        app_name: {
-          type: 'string',
-          description:
-            "For app_materialization: stable human-readable identifier for the materialized app (e.g. 'image-extractor'). Recorded on the artifact node's payload and used by the auto-summary principle.",
-        },
+        app_name: { type: 'string' },
         bindings: {
-          // For app_materialization: the four structural bindings. (The 2.x
-          // artifact_materialization also took an array of { mcp_tool,
-          // fields_bound } here; that commit left with the chatbot factory.)
           type: 'object',
           properties: {
             runner: {
               type: 'object',
-              properties: {
-                implementation: { type: 'string', enum: APP_RUNNER_IMPLEMENTATIONS },
-              },
+              properties: { implementation: { type: 'string', enum: APP_RUNNER_IMPLEMENTATIONS } },
               required: ['implementation'],
             },
             durability: {
               type: 'object',
-              properties: {
-                kind: { type: 'string', enum: APP_DURABILITY_KINDS },
-                git_url: { type: 'string' },
-              },
+              properties: { kind: { type: 'string', enum: APP_DURABILITY_KINDS }, git_url: { type: 'string' } },
               required: ['kind'],
             },
             inference: {
               type: 'object',
-              properties: {
-                mode: { type: 'string', enum: APP_INFERENCE_MODES },
-                provider: { type: 'string' },
-              },
+              properties: { mode: { type: 'string', enum: APP_INFERENCE_MODES }, provider: { type: 'string' } },
               required: ['mode'],
             },
             mcp_self: {
               type: 'object',
-              properties: {
-                server_kind: { type: 'string', enum: ['app'] },
-                entrypoint: { type: 'string' },
-              },
+              properties: { server_kind: { type: 'string', enum: ['app'] }, entrypoint: { type: 'string' } },
               required: ['server_kind', 'entrypoint'],
             },
           },
           required: ['runner', 'durability', 'inference', 'mcp_self'],
-          description: 'For app_materialization: the four structural bindings (runner / durability / inference / mcp_self).',
         },
-        // shared
+        composition_intent: { type: 'string', description: 'One paragraph: what the workflow does.' },
+        provider_artifact_refs: { type: 'array', items: { type: 'string' }, description: 'The prov_ refs bind_primitives returned, one per slot.' },
+        trigger_ref: { type: 'string' },
+        role: { type: 'string' },
+        primary_goal: { type: 'string' },
+        constraints: { type: 'array', items: { type: 'string' } },
+        revise: { type: 'boolean', description: 'operator_kyc: add to the existing operator record.' },
+        vocabulary_register: { type: 'string', enum: VOCABULARY_REGISTERS, description: 'operator_kyc: how technical your wording is (default mixed).' },
+        procedural_disclosure: { type: 'string', enum: PROCEDURAL_DISCLOSURES, description: 'operator_kyc: how much you narrate (default reflective).' },
+        workspace_root: { type: 'string', description: 'Absolute path, no `..`.' },
+        workspace_conventions: { type: 'string' },
         principles: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
-              scope: {
-                type: 'string',
-                description:
-                  "'artifact' | 'adapter' (node scopes); 'materialized_by' | 'binds' (edge scopes); or 'binds:<mcp_tool_ref>' for one specific binding (primitive compositions).",
-              },
+              scope: { type: 'string', description: "'artifact' | 'adapter' | 'materialized_by' | 'binds' | 'binds:<mcp_tool_ref>'" },
               body_md: { type: 'string' },
             },
             required: ['scope', 'body_md'],

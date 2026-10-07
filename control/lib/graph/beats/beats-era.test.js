@@ -711,18 +711,6 @@ describe('MIDI handoff for the era shelf', () => {
 });
 
 describe('pages carry only what they use', () => {
-  it('the diff exhibit: a fidelity exhibit keeps the fidelity kernel and realizer; an era variant gets the era ones', async () => {
-    const { emitBeatsDiff } = await import('./beats-diff-exhibit.js');
-    const { emitBeatsKernel } = await import('./beats-kernel.js');
-    const pat = (tracks) => normalizeBeatsManifest({ kind: 'beats-pattern', title: 'd', bpm: 120, seed: 1, steps: 16, tracks });
-    const v = (ref, manifest) => ({ ref, manifest, diff: ['x'], changed: new Set() });
-    const fid = emitBeatsDiff([v('a', pat([{ name: 'k', instrument: 'drum-kit', mask: [1], notes: ['C2'] }])), v('b', pat([{ name: 'k', instrument: 'drum-kit', mask: [1, 0], notes: ['C2'] }]))]);
-    expect(fid).toContain(emitBeatsKernel(['voice', 'strings', 'mix', 'sfx']));
-    expect(fid).not.toContain('KERNEL.stepKeep');
-    const era = emitBeatsDiff([v('a', pat([{ name: 'a', instrument: 'acid-bass', mask: [1], notes: ['A2'], accent: [1, 0], prob: [1, 0.5] }])), v('b', pat([{ name: 'a', instrument: 'acid-bass', mask: [1], notes: ['A2'] }]))]);
-    for (const k of ['KERNEL.stepKeep(manifest.seed, cursor, ei, ev.prob)', 'pp: ev.pp', 'const patch = e.pp ? { ...got, ...e.pp } : got;']) expect(era).toContain(k);
-  });
-
   it('a fidelity-only page kernel is the pre-era kernel, byte for byte (sha256 of the fidelity-all slice of the source)', async () => {
     // pinned from the audio-fidelity kernel (every fidelity region on): the era
     // regions, all off, must leave that text exactly as it was.

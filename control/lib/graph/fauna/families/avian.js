@@ -3,29 +3,9 @@
 // a short tail. No ears. Worked species: the griffon vulture. See ../build.js for what every field does; `wings`
 // is { wing: <wing data>, at: <root joint>, fold: 0 spread … 1 folded, palette }.
 
-const lerp = (a, b, t) => a + (b - a) * t;
-const hash = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+import { featherWing } from '../makers/wing.js';
 
-/** A FEATHERED wing as data for wing.js (vanes): tertials on the humerus, secondaries on the ulna, primaries on the
- * hand (the outer ones emarginated into slots), greater and lesser covert rows over them, seeded tones. The
- * defaults are a broad soaring wing of ~2.5 m span (griffon); a second bird passes its own numbers. */
-export function featherWing({ arm = [0.2, 0.29, 0.2], tertials = 3, secondaries = 16, primaries = 10, secLen = 0.44, primLen = 0.5, primReach = 0.16,
-  slotFrom = 0.35, slotBy = 0.55, width = 0.085, tertialLen = 1, tertialWidth = 1, boneR = 1 } = {}) {
-  const rays = []; const add1 = (o) => rays.push(o);
-  for (let k = 0; k < tertials; k++) add1({ kind: 'tertial', bone: 0, at: 0.55 + 0.2 * k, angle: 100, foldAngle: 5, len: (0.3 + 0.03 * k) * tertialLen, width: 0.1 * tertialWidth, layer: 0.012 - 0.002 * k, group: 'Flight' });
-  const S = secondaries - 1;
-  for (let k = 0; k < secondaries; k++) add1({ kind: 'secondary', bone: 1, at: 0.03 + 0.97 * k / S, angle: 98 - 3 * (k / S), foldAngle: 176, len: secLen + 0.03 * Math.sin(Math.PI * k / S), width, layer: 0.004 * (S - k) / S, group: 'Flight' });
-  for (let k = 0; k < primaries; k++) { const t = k / (primaries - 1); add1({ kind: 'primary', bone: 2, at: 0.1 + 0.9 * t, angle: lerp(95, 8, t ** 0.9), foldAngle: 4, len: primLen + primReach * Math.sin(Math.PI * Math.min(1, t * 1.15)), width: lerp(width, width * 0.82, t), layer: 0.006 + 0.004 * t,
-    emarg: t > slotFrom ? { from: 0.45, by: slotBy } : null, group: 'Flight' }); }
-  const flight = rays.filter((r) => r.kind !== 'tertial');
-  for (const [row, frac, z] of [['greater', 0.42, 0.022], ['lesser', 0.22, 0.034]]) flight.forEach((r) => add1({ ...r, kind: `${row}Covert`, len: r.len * frac, width: r.width * 1.05, emarg: null, layer: z + (r.layer ?? 0), group: row === 'greater' ? 'Covert' : 'CovertLesser' }));
-  const TONES = { Flight: { tones: ['FlightA', 'FlightB', 'FlightC'], under: 'FlightUnder' }, Covert: { tones: ['CovertA', 'CovertB', 'CovertC'], under: 'CovertUnder', tipGroup: 'CovertTip', tipFrom: 0.62 },
-    CovertLesser: { tones: ['LesserA', 'LesserB', 'LesserC'], under: 'CovertUnder', tipGroup: 'LesserTip', tipFrom: 0.8 } };
-  rays.forEach((r, i) => { const T = TONES[r.group]; const k = (i + (hash(`${r.kind}${i}`) % 5 === 0 ? 1 : 0)) % 2 + (hash(`t${r.kind}${i}`) % 7 === 0 ? 1 : 0); Object.assign(r, { tone: T.tones[k], under: T.under, ...(T.tipGroup ? { tipGroup: T.tipGroup, tipFrom: T.tipFrom } : {}) }); });
-  return { girdle: 'torso', boneGroup: 'WingBone', surface: 'vanes',
-    arm: [{ id: 'humerus', len: arm[0], spread: 8, folded: -80, r: [0.035 * boneR, 0.03 * boneR] }, { id: 'ulna', len: arm[1], spread: -6, folded: 168, r: [0.03 * boneR, 0.025 * boneR] }, { id: 'hand', len: arm[2], spread: -6, folded: -165, r: [0.025 * boneR, 0.015 * boneR] }],
-    rays, frame: { spread: { S: [1, 0, 0.14], C: [0, 1, 0] }, folded: { S: [0.2, 0, -1], C: [0, 1, 0] } } };
-}
+export { featherWing };   // lives in makers/wing.js
 
 const WING_PALETTE = { WingBone: '#7d5f40', FlightA: '#33271f', FlightB: '#43342a', FlightC: '#54433a', FlightUnder: '#8d8680',
   CovertA: '#9a7a52', CovertB: '#a98a60', CovertC: '#8b6c47', CovertTip: '#efe6d2', CovertUnder: '#e6dccb',
@@ -236,6 +216,8 @@ export const species = {
     jawCaps: { back: [0, 0.035, -0.03], tip: [0, 0.066, -0.031] },
     headScale: 1, nape: [0, -0.03, -0.03],
     eyeAt: [3.3, 1.7], eyeR: 0.022, orbit: { open: [1, 1] },
+    // the set eye (judged over the goggle discs, both orders): seated, wide open, a larger pupil
+    eyeStyle: 'set', eyeSet: { sink: 0.35, open: [0.85, 0.75], pupil: 32 },
     browStrip: [[3.05, 1.0], [3.1, 1.25], [3.15, 1.5], [3.2, 1.8], [3.25, 2.1]],
     nostrilAt: [4.3, 1.4], noseAt: [4.3, 1.4], noseR: [0.002, 0.002],
     ears: true, earAt: [1.7, 1.2], earSpine: [[0, 0, 0], [0.008, -0.006, 0.03], [0.018, -0.012, 0.062]],
@@ -260,8 +242,8 @@ export const species = {
     family: 'avian', name: 'a chicken (hen)', torsoUp: true, scale: 1,
     colors: { coat: '#8a4a24', sock: '#e0b23a', ash: '#a85f30', ashAlt: '#9a5428', belly: '#8a4a24', ears: '#c8302a', snout: '#e0b23a',
       brow: '#8a4a24', iris: '#d98a1e', sclera: '#d98a1e', nose: '#e0b23a', tip: '#5e3018', hoof: '#c9a14a', mane: '#a85f30',
-      lids: '#c8302a', pad: '#c8302a', folds: '#c8302a' },
-    headPalette: { Comb: '#c8202a', LidRim: '#c8302a' },
+      lids: '#8a4a24', pad: '#c8302a', folds: '#c8302a' },
+    headPalette: { Comb: '#c8202a', LidRim: '#c8302a', Nostrils: '#e0b23a' },
     joints: { neckBase: [0, 0.09, 0.29], neckTop: [0, 0.11, 0.36], wingRoot: [0.08, 0.04, 0.27],
       hip: [0.05, -0.02, 0.17], knee: [0.06, 0.04, 0.11], ankle: [0.05, 0.0, 0.025],
       toeF: [0.05, 0.075, 0.008], toeI: [0.02, 0.06, 0.008], toeO: [0.085, 0.055, 0.008], toeB: [0.05, -0.035, 0.008],
@@ -309,7 +291,11 @@ export const species = {
       ['st3', 0.076, { gum: -0.015, gumR: [0.003, -0.015], jaw: [0.003, -0.017], bottom: -0.018 }],
     ],
     jawCaps: { back: [0, 0.02, -0.025], tip: [0, 0.08, -0.016] },
-    headScale: 0.6, eyeAt: [2.3, 2.3], eyeR: 0.01,
+    // the eye back on the side of the head (mid-skull, behind the bill base); no mammal nose pad, a bill-coloured nostril
+    headScale: 0.6, eyeAt: [1.4, 2.4], eyeR: 0.012, nose: false,
+    // the brow raised clear of the moved-back eye (it clamped the upper lid shut over it)
+    browStrip: [[0.9, 1.6], [1.15, 1.6], [1.4, 1.6], [1.65, 1.65], [1.9, 1.8]],
+    eyeStyle: 'set', eyeSet: { sink: 0.3, open: [0.85, 0.75], pupil: 30 },
     // the COMB: three flat lobes standing on the crown midline; the WATTLES: two lobes hanging under the bill base
     headOrnaments: [
       ...[[0.6, 0.018], [1.4, 0.024], [2.2, 0.021], [2.9, 0.014]].map(([r, h], i) => ({ kind: 'sweep', name: `comb${i}`, at: [r, 0], space: 'local',
@@ -332,9 +318,9 @@ export const species = {
   mallard: {
     family: 'avian', name: 'a mallard (drake)', scale: 1,
     colors: { coat: '#9c9a94', sock: '#e8842a', ash: '#1f5a3a', ashAlt: '#1f5a3a', belly: '#b9b6ae', ears: '#1f5a3a', snout: '#d8be3a',
-      brow: '#1f5a3a', iris: '#3a2412', sclera: '#3a2412', nose: '#d8be3a', tip: '#1a1a1a', hoof: '#c86a20', mane: '#1f5a3a',
+      brow: '#1f5a3a', iris: '#7a4a1e', sclera: '#7a4a1e', nose: '#d8be3a', tip: '#1a1a1a', hoof: '#c86a20', mane: '#1f5a3a',
       lids: '#1f5a3a', pad: '#1f5a3a', folds: '#1f5a3a', skull: '#1f5a3a' },
-    headPalette: { Skull: '#1f5a3a', Jaw: '#d8be3a', LidRim: '#1f5a3a' },
+    headPalette: { Skull: '#1f5a3a', Jaw: '#d8be3a', LidRim: '#1f5a3a', Nostrils: '#d8be3a' },
     joints: { neckBase: [0, 0.12, 0.18], neckTop: [0, 0.145, 0.245], wingRoot: [0.07, 0.08, 0.20],
       hip: [0.05, -0.04, 0.10], knee: [0.06, 0.0, 0.07], ankle: [0.05, -0.01, 0.02],
       toeF: [0.05, 0.065, 0.005], toeI: [0.015, 0.05, 0.005], toeO: [0.09, 0.045, 0.005], toeB: [0.05, -0.025, 0.01],
@@ -383,9 +369,15 @@ export const species = {
       ['st3', 0.086, { gum: -0.008, gumR: [0.009, -0.008], jaw: [0.008, -0.009], bottom: -0.01 }],
     ],
     jawCaps: { back: [0, 0.02, -0.014], tip: [0, 0.09, -0.009] },
-    headScale: 1, nape: [0, -0.03, -0.01], eyeAt: [1.8, 2.3], eyeR: 0.005,
-    browStrip: [[1.0, 1.95], [1.25, 1.95], [1.5, 2.0], [1.75, 2.1], [2.0, 2.25]],
+    headScale: 1, nape: [0, -0.03, -0.01], eyeAt: [1.2, 2.4], eyeR: 0.009, nose: false,
+    eyeStyle: 'set', eyeSet: { sink: 0.2, open: [0.85, 0.75], pupil: 30 },
+    browStrip: [[0.9, 1.6], [1.15, 1.6], [1.4, 1.6], [1.65, 1.65], [1.9, 1.8]],
     nostrilAt: [3.6, 1.2], noseAt: [3.6, 1.2], noseR: [0.002, 0.002],
+    // the drake's WHITE NECK RING low on the green neck and the CHESTNUT BREAST on the trunk front
+    markings: [
+      { on: 'neck', kind: 'band', run: [0.2, 0.32], group: 'Collar', color: '#f2f0ea' },
+      { on: 'torso', kind: 'band', run: [0.78, 1], t: [0.3, 1], group: 'Breast', color: '#6b3a26', caps: ['tip'] },
+    ],
     bodyTiles: [],
     wings: { coreFit: true, pitch: 4,
       wing: featherWing({ arm: [0.08, 0.12, 0.08], secondaries: 12, secLen: 0.15, primLen: 0.17, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1, width: 0.04,
@@ -534,10 +526,41 @@ export const species = {
     jawCaps: { back: [0, 0.0, -0.045], tip: [0, 0.083, -0.053] },
     browStrip: [[1.2, 1.9], [1.45, 1.9], [1.7, 1.95], [1.95, 2.05], [2.2, 2.2]],
     headScale: 1.5, eyeAt: [2.0, 2.2], eyeR: 0.011, nose: false,
+    // the set eye (judged over the bulging white domes, both orders): seated in the bare face patch
+    eyeStyle: 'set', eyeSet: { sink: 0.45, open: [0.75, 0.6] },
     bodyTiles: [],
     wings: { wing: featherWing({ arm: [0.17, 0.25, 0.17], secLen: 0.36, primLen: 0.4, primReach: 0.08, slotFrom: 0.8, slotBy: 0.2 }), pitch: 36,
       palette: { WingBone: '#cf1f27', FlightA: '#2a50b0', FlightB: '#2446a0', FlightC: '#3058b8', FlightUnder: '#c8a02a',
         CovertA: '#f2c230', CovertB: '#eab828', CovertC: '#f2c230', CovertTip: '#3a8a40', CovertUnder: '#c8a02a',
         LesserA: '#cf1f27', LesserB: '#c41c24', LesserC: '#d42630', LesserTip: '#cf1f27' } },
   },
+};
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  vulture: { common: 'vulture', aliases: ['griffon vulture'], sci: 'Gyps fulvus', size: '~1.0 m standing; span 2.3–2.8 m', source: 'Wikipedia / BirdLife' },
+  baldEagle: { common: 'eagle', aliases: ['bald eagle', 'american eagle'], sci: 'Haliaeetus leucocephalus', size: 'length 0.70–1.02 m, span 1.8–2.3 m; perched ~0.80 m', source: 'Wikipedia, "Bald eagle"' },
+  greatHornedOwl: { common: 'owl', aliases: ['great horned owl', 'hoot owl'], sci: 'Bubo virginianus', size: 'length 0.43–0.64 m; perched ~0.52 m', source: 'Wikipedia, "Great horned owl"' },
+  chicken: { common: 'chicken', aliases: ['hen', 'fowl', 'poultry'], sci: 'Gallus gallus domesticus', size: '~0.40 m to the top of the comb', source: 'poultry breed standards' },
+  mallard: { common: 'duck', aliases: ['mallard', 'drake', 'wild duck'], sci: 'Anas platyrhynchos', size: 'length 0.50–0.65 m; standing ~0.30 m', source: 'Wikipedia, "Mallard"' },
+  emperorPenguin: { common: 'penguin', aliases: ['emperor penguin'], sci: 'Aptenodytes forsteri', size: '~1.10 m standing', source: 'Wikipedia, "Emperor penguin"' },
+  macaw: { common: 'parrot', aliases: ['macaw', 'scarlet macaw'], sci: 'Ara macao', size: 'length 0.81–0.96 m, over half of it tail; perched ~0.40 m', source: 'Wikipedia, "Scarlet macaw"' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  flamingo: { near: 'mallard', aliases: ['pink flamingo'], note: 'very long thin legs and an S neck, a bent pink bill' },
+  ostrich: { near: 'chicken', aliases: ['emu'], note: 'a huge flightless bird, a long bare neck, two-toed long legs' },
+  rooster: { near: 'chicken', aliases: ['cock', 'cockerel'], note: 'the hen with a tall comb, long wattles and arching sickle tail feathers' },
+  turkey: { near: 'chicken', aliases: [], note: 'a big fanned tail, a bare head with a red snood and wattle' },
+  peacock: { near: 'chicken', aliases: ['peafowl', 'peahen'], note: 'a blue neck, a head crest, a long eyed train' },
+  swan: { near: 'mallard', aliases: [], note: 'a long S neck, all white, an orange bill' },
+  goose: { near: 'mallard', aliases: [], note: 'a bigger duck with a longer neck' },
+  pigeon: { near: 'chicken', aliases: ['dove'], note: 'a small plump grey bird, a small head, an iridescent neck' },
+  crow: { near: 'baldEagle', aliases: ['raven'], note: 'an all-black perched bird, a heavy straight bill' },
+  toucan: { near: 'macaw', aliases: [], note: 'a huge bright banana bill, a black body, a white throat' },
+  hummingbird: { near: 'macaw', aliases: [], note: 'tiny, a needle bill, wings a blur' },
 };

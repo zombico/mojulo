@@ -242,3 +242,18 @@ export const species = {
     };
   })(),
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  hippo: { common: 'hippo', aliases: ['hippopotamus'], sci: 'Hippopotamus amphibius', size: '1.5 m at the shoulder; body ~3.6 m', source: 'Eltringham 1999 / IUCN' },
+  rhino: { common: 'rhino', aliases: ['rhinoceros', 'white rhino'], sci: 'Ceratotherium simum', size: '1.75 m at the shoulder; body ~3.8 m', source: 'Owen-Smith 1988 / IUCN' },
+  elephant: { common: 'elephant', aliases: ['african elephant', 'bush elephant'], sci: 'Loxodonta africana', size: '3.2 m at the shoulder (adult bull)', source: 'Larramendi 2016, Shoulder height, body mass and shape of proboscideans' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  mammoth: { near: 'elephant', aliases: ['woolly mammoth'], note: 'a shaggy coat, a domed head, a sloping back, long spiralled tusks' },
+};

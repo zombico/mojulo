@@ -102,6 +102,14 @@ export function buildFauna(params) {
     { kind: 'sweep', name: 'ear', at: P.earAt, space: 'local', spine: lay(earSpine), radii: earR, m: 8, squash: P.earSquash, group: 'Ears' },
     { kind: 'sweep', name: 'earInner', at: P.earAt, space: 'local', spine: lay(earSpine.map(([x, y, z], i) => [x + hs(0.012), y, i ? z - hs(0.014) : z + hs(0.012)])), radii: earR.map((r) => r * 0.6), m: 8, squash: P.earSquash, group: 'EarInner' },
   ];
+  // THE SET EYE (opt-in: `eyeStyle: 'set'`, tuned by `eyeSet` { sink, gap, lid, pupil, open }): the eyeball seated INTO
+  // the head (its centre `sink` × R under the skin, so only a low cornea shows), a thin lid that follows the ball, the
+  // orbit's reach, tuck and thickness all relative to the eye's own radius (so it scales with the head), no dark lid
+  // ring unless `colors.lidRim` asks for one (it defaults to the lids' colour), and a visible pupil (`eyeSet.pupil`, the
+  // pupil's half-angle in degrees, default 20). The species' `orbit` is ignored (its absolute bulk and thickness are the goggle); `eyeSet.orbit` overrides a field. Absent: the head as before.
+  const setEye = P.eyeStyle === 'set' ? (() => { const Q = { sink: 0.6, gap: 0.04, lid: 0.1, pupil: 20, open: [0.55, 0.4], ...(P.eyeSet || {}) }, R = hs(P.eyeR ?? 0.022);
+    return { eye: { set: { sink: Q.sink, gap: Q.gap, lid: Q.lid }, pupilAngle: Q.pupil },
+      orbit: { open: Q.open, reach: [0.3 * R, 0.3 * R, 0.3 * R], tuck: 0.08 * R, bulk: [0, 0], thickness: 0.1 * R, ...clone(Q.orbit || {}) } }; })() : null;
   const head = {
     schema: 'layered-head-v1', name: P.name || 'fauna',
     units: { scale: P.headScale, offset: [0, 0, 0] },
@@ -115,28 +123,31 @@ export function buildFauna(params) {
     ],
     // the expression skin (the head format requires it): the controls address skull rows by id
     skin: { slots: ['top', 'crownR', 'browR', 'cheekR', 'jowlR', 'lipR', 'palate'], radius: 0.05, controls: clone(P.skinControls) },
-    eye: { mode: 'iris', pupil: P.pupil || 'round', irisAngle: P.irisAngle ?? 40, catchlight: true },
+    eye: { mode: 'iris', pupil: P.pupil || 'round', irisAngle: P.irisAngle ?? 40, catchlight: true, ...(setEye ? setEye.eye : {}) },
     regions: {
       eye: { at: P.eyeAt, R: hs(P.eyeR ?? 0.022) },
-      orbit: P.headRelative ? { open: [0.45, 0.32], ...Object.fromEntries(Object.entries({ reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) }).map(([k, v]) => [k, k === 'open' ? v : hs(v)])) }
+      orbit: setEye ? setEye.orbit : P.headRelative ? { open: [0.45, 0.32], ...Object.fromEntries(Object.entries({ reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) }).map(([k, v]) => [k, k === 'open' ? v : hs(v)])) }
         : { open: [0.45, 0.32], reach: [0.012, 0.014, 0.016], tuck: 0.003, bulk: [0.002, 0.004], thickness: 0.004, ...clone(P.orbit || {}) },
       // `relBrow` (opt-in, with headRelative): the brow strip's width and height scale with the head as the eye does
       brow: { strip: P.browStrip, w: P.relBrow ? hs(0.012) : 0.012, h: P.relBrow ? hs(0.009) : 0.009, taper: [0.55, 0.9, 1, 0.9, 0.6], facing: 'down' },
-      // `nose: false` drops the nose pad; the head format requires the nostril region, so it shrinks out of sight
-      nostril: { at: P.nostrilAt, r: P.nose === false ? 0.0002 : hs(0.007), squash: [1.3, 1], slide: 0.4 },
+      // `nose: false` drops the nose pad; the head format requires the nostril region, so it shrinks out of sight.
+      // `nostrilR` (m) and `nostrilSquash` (opt-in): a bigger or longer nostril (a horse's open comma), default 0.007, [1.3, 1]
+      nostril: { at: P.nostrilAt, r: P.nose === false ? 0.0002 : hs(P.nostrilR ?? 0.007), squash: clone(P.nostrilSquash ?? [1.3, 1]), slide: 0.4 },
       fold: { strip: clone(P.foldStrip) },
-      web: { cranium: P.webCranium, jaw: [0.35, 1.7, 0.97] },
+      // the mouth corner's web: `webCranium` [s0, s1, t] on the skull, `webJaw` (opt-in) the matching run on the jaw
+      web: { cranium: P.webCranium, jaw: clone(P.webJaw ?? [0.35, 1.7, 0.97]) },
       tiles: clone(P.headTiles || []),
     },
     landmarks: { nape: clone(P.nape) },
     ornaments: [
       ...ears,
-      ...(P.nose === false ? [] : [{ kind: 'sweep', name: 'nose', at: P.noseAt, side: 'R', space: 'local', spine: hs([[0, 0, -0.008], [0, 0, 0.006], [0, 0, 0.012]]), radii: hs(P.noseR), m: 8, squash: [1.35, 1], group: 'NosePad' }]),
+      // `nosePad: false` (opt-in): no pad ornament, the nostrils kept (a horse's soft muzzle has no bare nose)
+      ...(P.nose === false || P.nosePad === false ? [] : [{ kind: 'sweep', name: 'nose', at: P.noseAt, side: 'R', space: 'local', spine: hs([[0, 0, -0.008], [0, 0, 0.006], [0, 0, 0.012]]), radii: hs(P.noseR), m: 8, squash: [1.35, 1], group: 'NosePad' }]),
       ...clone(P.headOrnaments || []),
     ],
     palette: {
       Skull: C.coat, Snout: C.snout || C.coat, Cheek: C.ash, Jowl: C.ash, Jaw: C.ash, Palate: C.mouth,
-      Brow: C.brow, Pad: C.pad || C.coat, Lids: C.lids || C.coat, LidRim: C.ink, Ears: C.ears || C.coat, EarInner: C.ash, Fur: C.ash, FurAlt: C.ashAlt,
+      Brow: C.brow, Pad: C.pad || C.coat, Lids: C.lids || C.coat, LidRim: setEye ? C.lidRim || C.lids || C.coat : C.ink, Ears: C.ears || C.coat, EarInner: C.ash, Fur: C.ash, FurAlt: C.ashAlt,
       NosePad: C.nose, Teeth: C.teeth, Nostrils: C.ink, Folds: C.folds || C.coat, Wrinkles: C.coat, Whiskers: C.ash, Mouth: C.mouth, Web: C.ash, Tongue: '#b0506a',
       Sclera: C.sclera, Iris: C.iris, Limbus: C.iris, Pupil: C.ink, Catchlight: '#ffffff', LidShadow: C.sclera,
       Horn: C.horn || '#d8cdb4', Mane: C.mane || C.coat,
@@ -176,7 +187,7 @@ export function buildFauna(params) {
       if (!up && P.levelLegs) { const d = joints[g.to].map((x, c) => x - joints[g.from][c]); if (Math.abs(d[2]) < 0.5 * Math.hypot(...d)) up = [0, 0, 1]; }
       if (up) plan.segments[i] = stableRings(g, up, joints); }
     else if ((g.kind === 'loft' || g.kind === 'segment') && g.up && extra.includes(g)) plan.segments[i] = stableRings(g, g.up === true ? [0, 0, 1] : g.up, joints); }
-  if (P.headRelative || P.orbitFallback) seatOrbit(plan, head);
+  if (P.headRelative || P.orbitFallback || setEye) seatOrbit(plan, head);
   if (P.headMesh) wearHeadMesh(plan, { pitch: P.headPitch, ...P.headMesh });
   if (P.wings) wearWings(plan, { scale: k, ...P.wings });   // opt-in: feathered or membrane wings (wing.js), worn at a root joint
   return plan;

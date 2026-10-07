@@ -96,3 +96,17 @@ export const species = {
     family: 'testudine', name: 'an Aldabra giant tortoise', scale: 1,
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  tortoise: { common: 'tortoise', aliases: ['giant tortoise', 'aldabra tortoise'], sci: 'Aldabrachelys gigantea', size: '~1.2 m carapace; ~0.72 m to the top of the shell', source: 'Seychelles Islands Foundation / Bourn & Coe' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  pondTurtle: { near: 'tortoise', aliases: ['turtle', 'pond turtle', 'box turtle', 'terrapin'], note: 'a low flat shell, webbed clawed feet, a small head' },
+  seaTurtle: { near: 'tortoise', aliases: ['sea turtle', 'green turtle'], note: 'a streamlined shell, long flippers for legs' },
+};

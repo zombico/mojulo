@@ -13,7 +13,8 @@
  * PACKS, each listed as ONE stateless dispatcher tool whose description is
  * its recognizer. In packs mode (MOJULO_TOOL_PACKS=on) connect-time
  * tools/list returns spine + pack tools only; a pack called bare returns its
- * orientation body + member manual, called with { tool, args } it dispatches
+ * orientation body + member menu, `{ manual }` returns members' manuals, and
+ * called with { tool, args } it dispatches
  * to the member server-side. Flat mode (default) is byte-identical to the
  * un-packed surface — pack tools register listed:false there, so dispatch
  * works everywhere but costs nothing at connect.
@@ -29,7 +30,7 @@
  * Studio pack bodies are NOT authored here — `form` names the FORM_TOOLSETS
  * entry (lib/mcp/tools/context.js) whose body the unveil serves, so the
  * prose has one source. Office packs carry a short `body` here; the
- * generated member manual is the meat either way.
+ * generated member menu (and `manual` on demand) is the meat either way.
  */
 
 import { mojuloCommand, runMojulo } from '../version/distribution.js';
@@ -395,19 +396,22 @@ for (const pack of PACKS) {
   }
 }
 
-// One schema for every pack tool — the dispatch grammar. Kept minimal: the
-// real member schemas ride the unveil response, not the connect payload.
+// One schema for every pack tool — the dispatch grammar. Kept minimal: it is
+// repeated in every pack's tools/list entry, and the real member schemas ride
+// the unveil menu and `manual`, not the connect payload.
 export const PACK_INPUT_SCHEMA = {
   type: 'object',
   properties: {
     tool: {
       type: 'string',
-      description:
-        "Member tool to dispatch. OMIT on the first call to open the pack: you get its orientation body plus the member manual (names, descriptions, input schemas).",
+      description: 'Member to call. Omit to open the pack: a menu of its members.',
     },
     args: {
       type: 'object',
-      description: "Arguments for the member tool, exactly as its inputSchema in the pack manual specifies.",
+      description: "The member's arguments, as its manual specifies.",
+    },
+    manual: {
+      description: 'A member name, or a list: returns just their manuals (description + inputSchema).',
     },
   },
 };

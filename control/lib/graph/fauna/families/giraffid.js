@@ -4,10 +4,10 @@
 // thin tail with a dark tuft · a patched coat (grown body tiles). Worked species: the giraffe. Authored in metres at
 // the giraffe's own size. The head and its skin controls start from the equine head (a long wedge face), which this
 // family re-proportions; everything else is the giraffid's own. See ../build.js for every field.
-import { family as equine } from './equine.js';
+import { family as equine, CLASSIC_HEAD } from './equine.js';
 
 export const family = {
-  ...equine,
+  ...equine, ...CLASSIC_HEAD,   // the classic sheared equine head (the horse's own is rebuilt level and pitched)
   family: 'giraffid',
   colors: {
     coat: '#e2c89a', sock: '#e6d4b0', ash: '#d8b884', ashAlt: '#8a5428', brow: '#5a3a20', iris: '#2a1a10',
@@ -85,3 +85,14 @@ export const species = {
     ],
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  giraffe: { common: 'giraffe', aliases: [], sci: 'Giraffa camelopardalis', size: '3.0 m at the withers, ~5 m to the head top', source: 'Dagg 2014, Giraffe: Biology, Behaviour and Conservation' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {};

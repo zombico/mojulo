@@ -5,36 +5,32 @@
 //            word (bug, insect, spider, beetle, crab, ant …) belongs to ONE species: the one most people picture
 //   sci      the binomial;  size  the published size the build is fit to;  source  where the size and the read come from
 //   read     what makes it read as itself, one line (the thesis above its roster file, short)
-// `wanted`: arthropods people ask for that no roster file builds yet. Each names a built `near` that stands in, the
-// words it is asked by, and what the stand-in misses. Building one moves its aliases onto its new `about` row.
+// `wanted`: arthropods people ask for that no roster file builds yet, in the fauna entries' shape (`family`, `near`,
+// `aliases`, `note`): the built bug that stands in, the words it is asked by, what the stand-in misses. Building one
+// moves its aliases onto its new `about` row. The bug roster joins the animal encyclopedia (fauna/entries.js ROSTERS):
+// its family is the class (insect, arachnid, crustacean, myriapod), its stance the order's leg count.
 
-/** order (the bauplan's `order`) → its everyday group and its class hub */
+/** order (the bauplan's `order`) → its everyday group, its class and its leg count */
 export const ORDERS = {
-  Hymenoptera: { label: 'bees and wasps', cls: 'insects' }, Formicidae: { label: 'ants', cls: 'insects' },
-  Diptera: { label: 'flies', cls: 'insects' }, Culicidae: { label: 'mosquitoes', cls: 'insects' },
-  Coleoptera: { label: 'beetles', cls: 'insects' }, Curculionidae: { label: 'weevils', cls: 'insects' },
-  Lepidoptera: { label: 'butterflies and moths', cls: 'insects' }, Orthoptera: { label: 'grasshoppers and crickets', cls: 'insects' },
-  Hemiptera: { label: 'true bugs', cls: 'insects' }, Cicadidae: { label: 'cicadas', cls: 'insects' },
-  Neuroptera: { label: 'lacewings', cls: 'insects' }, Ephemeroptera: { label: 'mayflies', cls: 'insects' },
-  Odonata: { label: 'dragonflies', cls: 'insects' }, Mantodea: { label: 'mantises', cls: 'insects' },
-  Phasmida: { label: 'stick insects', cls: 'insects' }, Dermaptera: { label: 'earwigs', cls: 'insects' },
-  Blattodea: { label: 'cockroaches', cls: 'insects' }, Siphonaptera: { label: 'fleas', cls: 'insects' },
-  Araneae: { label: 'spiders', cls: 'arachnids' }, Opiliones: { label: 'harvestmen', cls: 'arachnids' },
-  Ixodida: { label: 'ticks', cls: 'arachnids' }, Scorpiones: { label: 'scorpions', cls: 'arachnids' },
-  Xiphosura: { label: 'horseshoe crabs (sea cousins of the arachnids)', cls: 'arachnids' },
-  Brachyura: { label: 'crabs', cls: 'crustaceans' }, Astacidea: { label: 'clawed lobsters and crayfish', cls: 'crustaceans' },
-  Achelata: { label: 'spiny and slipper lobsters', cls: 'crustaceans' }, Isopoda: { label: 'woodlice', cls: 'crustaceans' },
-  Chilopoda: { label: 'centipedes', cls: 'myriapods' }, Diplopoda: { label: 'millipedes', cls: 'myriapods' },
+  Hymenoptera: { label: 'bees and wasps', cls: 'insect', legs: 6 }, Formicidae: { label: 'ants', cls: 'insect', legs: 6 },
+  Diptera: { label: 'flies', cls: 'insect', legs: 6 }, Culicidae: { label: 'mosquitoes', cls: 'insect', legs: 6 },
+  Coleoptera: { label: 'beetles', cls: 'insect', legs: 6 }, Curculionidae: { label: 'weevils', cls: 'insect', legs: 6 },
+  Lepidoptera: { label: 'butterflies and moths', cls: 'insect', legs: 6 }, Orthoptera: { label: 'grasshoppers and crickets', cls: 'insect', legs: 6 },
+  Hemiptera: { label: 'true bugs', cls: 'insect', legs: 6 }, Cicadidae: { label: 'cicadas', cls: 'insect', legs: 6 },
+  Neuroptera: { label: 'lacewings', cls: 'insect', legs: 6 }, Ephemeroptera: { label: 'mayflies', cls: 'insect', legs: 6 },
+  Odonata: { label: 'dragonflies', cls: 'insect', legs: 6 }, Mantodea: { label: 'mantises', cls: 'insect', legs: 6 },
+  Phasmida: { label: 'stick insects', cls: 'insect', legs: 6 }, Dermaptera: { label: 'earwigs', cls: 'insect', legs: 6 },
+  Blattodea: { label: 'cockroaches', cls: 'insect', legs: 6 }, Siphonaptera: { label: 'fleas', cls: 'insect', legs: 6 },
+  Araneae: { label: 'spiders', cls: 'arachnid', legs: 8 }, Opiliones: { label: 'harvestmen', cls: 'arachnid', legs: 8 },
+  Ixodida: { label: 'ticks', cls: 'arachnid', legs: 8 }, Scorpiones: { label: 'scorpions', cls: 'arachnid', legs: 8 },
+  Xiphosura: { label: 'horseshoe crabs (sea cousins of the arachnids)', cls: 'arachnid', legs: 10 },
+  Brachyura: { label: 'crabs', cls: 'crustacean', legs: 10 }, Astacidea: { label: 'clawed lobsters and crayfish', cls: 'crustacean', legs: 10 },
+  Achelata: { label: 'spiny and slipper lobsters', cls: 'crustacean', legs: 10 }, Isopoda: { label: 'woodlice', cls: 'crustacean', legs: 14 },
+  Chilopoda: { label: 'centipedes', cls: 'myriapod', legs: 30 }, Diplopoda: { label: 'millipedes', cls: 'myriapod', legs: 'many' },
 };
 
-/** the class hubs: what each is, and the words a general ask uses */
-export const CLASSES = {
-  insects: { label: 'Insects', aliases: ['insects', 'bugs', 'creepy crawlies', 'six legs'], what: 'six legs, a head, thorax and abdomen, antennae, most with wings' },
-  arachnids: { label: 'Arachnids', aliases: ['arachnids', 'arachnid', 'eight legs'], what: 'eight legs, no antennae, a front body (prosoma) and a back one' },
-  crustaceans: { label: 'Crustaceans', aliases: ['crustaceans', 'crustacean', 'shellfish'], what: 'a hard shell, two pairs of antennae, ten legs or more, most with claws or a tail fan' },
-  myriapods: { label: 'Myriapods', aliases: ['myriapods', 'myriapod', 'many legs'], what: 'a long body of repeated rings, a pair or two of legs on each' },
-};
 
+/** each worked bug's facts (the fauna entries' `about` shape, plus `read`: what makes it read, one line) */
 export const about = {
   honeyBee: { common: 'honey bee', aliases: ['bee', 'honeybee', 'worker bee', 'insect'], sci: 'Apis mellifera', size: '12–15 mm long', source: 'Winston 1987, The Biology of the Honey Bee', read: 'amber-and-black banded abdomen, a fuzzy thorax, elbowed antennae, two pairs of clear wings' },
   houseFly: { common: 'house fly', aliases: ['fly', 'housefly', 'common fly'], sci: 'Musca domestica', size: '6–7 mm long', source: 'Hewitt 1914, The House-Fly', read: 'a round head nearly all red eye, a grey striped thorax, one pair of clear wings in a V' },
@@ -82,35 +78,42 @@ export const about = {
   longhornBeetle: { common: 'longhorn beetle', aliases: ['longicorn', 'rosalia longicorn', 'rosalia', 'longhorned beetle'], sci: 'Rosalia alpina', size: '15–38 mm long', source: 'Russo et al. 2017, Rosalia alpina monitoring guidelines (Nature Conservation 20)', read: 'a narrow ash-blue beetle with black velvet bands and ringed antennae twice its length' },
 };
 
-/** asked-for arthropods not built: the nearest built species stands in (`near`), and what it misses (`note`) */
+/** asked-for arthropods not built: the nearest built bug stands in (`near`), and what it misses (`note`) */
 export const wanted = {
-  wasp: { common: 'wasp', near: 'honeyBee', aliases: ['yellowjacket', 'yellow jacket'], note: 'smooth not fuzzy, a thin waist, bright yellow and black' },
-  hornet: { common: 'hornet', near: 'honeyBee', aliases: [], note: 'bigger, a thin waist, brown and yellow' },
-  bumblebee: { common: 'bumblebee', near: 'honeyBee', aliases: ['bumble bee'], note: 'round and furry, broad black and yellow bands' },
-  moth: { common: 'moth', near: 'monarch', aliases: ['luna moth', 'moth butterfly'], note: 'feathery antennae, a fat furry body, dull wings laid flat or tented' },
-  cricket: { common: 'cricket', near: 'grasshopper', aliases: ['house cricket', 'field cricket'], note: 'long thread antennae past the body, flat wings, two tail cerci' },
-  katydid: { common: 'katydid', near: 'grasshopper', aliases: ['bush cricket'], note: 'leaf-green wings like a leaf, very long antennae' },
-  locust: { common: 'locust', near: 'grasshopper', aliases: ['desert locust'], note: 'a swarming grasshopper: much the same body' },
-  termite: { common: 'termite', near: 'carpenterAnt', aliases: ['white ant'], note: 'pale and soft, no waist, straight beaded antennae' },
-  aphid: { common: 'aphid', near: 'shieldBug', aliases: ['greenfly', 'plant louse'], note: 'a tiny soft pear-shaped body, two tail tubes (cornicles)' },
-  bedBug: { common: 'bed bug', near: 'tick', aliases: ['bedbug'], note: 'six legs and antennae, a flat red-brown oval with a small head' },
-  louse: { common: 'louse', near: 'flea', aliases: ['head louse', 'lice'], note: 'flattened top to bottom, claw legs for gripping hair, no jumping legs' },
-  damselfly: { common: 'damselfly', near: 'dragonfly', aliases: [], note: 'slimmer, the eyes apart, the wings folded together over the back' },
-  horsefly: { common: 'horsefly', near: 'houseFly', aliases: ['horse fly', 'gadfly'], note: 'bigger, banded eyes, a heavier body' },
-  gnat: { common: 'gnat', near: 'mosquito', aliases: ['midge'], note: 'shorter legs, no long proboscis' },
-  caterpillar: { common: 'caterpillar', near: 'millipede', aliases: ['larva', 'grub'], note: 'a soft tube with three pairs of true legs and stubby prolegs behind; no larva body yet' },
-  silverfish: { common: 'silverfish', near: 'earwig', aliases: [], note: 'a wingless silver teardrop, three tail bristles, no pincers' },
-  junebug: { common: 'june bug', near: 'cockchafer', aliases: ['june beetle'], note: 'a smaller brown chafer, short club antennae' },
-  tarantula: { common: 'tarantula', near: 'gardenSpider', aliases: ['bird-eating spider', 'birdeater'], note: 'big and hairy, thick legs, a smaller abdomen, the fangs pointing down' },
-  blackWidow: { common: 'black widow', near: 'gardenSpider', aliases: ['widow spider'], note: 'glossy black, a round abdomen with a red hourglass beneath' },
-  jumpingSpider: { common: 'jumping spider', near: 'gardenSpider', aliases: [], note: 'compact and furry, two huge forward eyes, short stout legs' },
-  wolfSpider: { common: 'wolf spider', near: 'gardenSpider', aliases: [], note: 'a ground hunter, brown striped, a long abdomen, sturdy legs' },
-  mite: { common: 'mite', near: 'tick', aliases: ['dust mite', 'spider mite'], note: 'tiny and rounder, the mouthparts small' },
-  hermitCrab: { common: 'hermit crab', near: 'greenCrab', aliases: [], note: 'a soft curled abdomen tucked into a borrowed snail shell' },
-  fiddlerCrab: { common: 'fiddler crab', near: 'greenCrab', aliases: [], note: 'one huge claw held up, eyes on long stalks' },
-  kingCrab: { common: 'king crab', near: 'greenCrab', aliases: ['red king crab', 'alaskan king crab'], note: 'long spiny legs, a spiny shell, small claws' },
-  shrimp: { common: 'shrimp', near: 'langoustine', aliases: ['prawn'], note: 'no big claws, a curved body, long feelers, swimming legs under the tail' },
-  krill: { common: 'krill', near: 'langoustine', aliases: [], note: 'a small clear shrimp, no claws, feathery legs' },
-  pillBug: { common: 'pill bug', near: 'woodlouse', aliases: ['pillbug', 'roly-poly', 'roly poly', 'pill woodlouse'], note: 'a higher dome that rolls into a ball, no tail spikes' },
-  trilobite: { common: 'trilobite', near: 'woodlouse', aliases: [], note: 'extinct and its own class, not a crustacean: a three-lobed oval shell, a broad head shield' },
+  wasp: { family: 'insect', near: 'honeyBee', aliases: ['yellowjacket', 'yellow jacket'], note: 'smooth not fuzzy, a thin waist, bright yellow and black' },
+  hornet: { family: 'insect', near: 'honeyBee', aliases: [], note: 'bigger, a thin waist, brown and yellow' },
+  bumblebee: { family: 'insect', near: 'honeyBee', aliases: ['bumble bee'], note: 'round and furry, broad black and yellow bands' },
+  moth: { family: 'insect', near: 'monarch', aliases: ['luna moth', 'moth butterfly'], note: 'feathery antennae, a fat furry body, dull wings laid flat or tented' },
+  cricket: { family: 'insect', near: 'grasshopper', aliases: ['house cricket', 'field cricket'], note: 'long thread antennae past the body, flat wings, two tail cerci' },
+  katydid: { family: 'insect', near: 'grasshopper', aliases: ['bush cricket'], note: 'leaf-green wings like a leaf, very long antennae' },
+  locust: { family: 'insect', near: 'grasshopper', aliases: ['desert locust'], note: 'a swarming grasshopper: much the same body' },
+  termite: { family: 'insect', near: 'carpenterAnt', aliases: ['white ant'], note: 'pale and soft, no waist, straight beaded antennae' },
+  aphid: { family: 'insect', near: 'shieldBug', aliases: ['greenfly', 'plant louse'], note: 'a tiny soft pear-shaped body, two tail tubes (cornicles)' },
+  bedBug: { family: 'arachnid', near: 'tick', aliases: ['bedbug'], note: 'six legs and antennae, a flat red-brown oval with a small head' },
+  louse: { family: 'insect', near: 'flea', aliases: ['head louse', 'lice'], note: 'flattened top to bottom, claw legs for gripping hair, no jumping legs' },
+  damselfly: { family: 'insect', near: 'dragonfly', aliases: [], note: 'slimmer, the eyes apart, the wings folded together over the back' },
+  horsefly: { family: 'insect', near: 'houseFly', aliases: ['horse fly', 'gadfly'], note: 'bigger, banded eyes, a heavier body' },
+  gnat: { family: 'insect', near: 'mosquito', aliases: ['midge'], note: 'shorter legs, no long proboscis' },
+  caterpillar: { family: 'myriapod', near: 'millipede', aliases: ['larva', 'grub'], note: 'a soft tube with three pairs of true legs and stubby prolegs behind; no larva body yet' },
+  silverfish: { family: 'insect', near: 'earwig', aliases: [], note: 'a wingless silver teardrop, three tail bristles, no pincers' },
+  junebug: { family: 'insect', near: 'cockchafer', aliases: ['june bug', 'june beetle'], note: 'a smaller brown chafer, short club antennae' },
+  tarantula: { family: 'arachnid', near: 'gardenSpider', aliases: ['bird-eating spider', 'birdeater'], note: 'big and hairy, thick legs, a smaller abdomen, the fangs pointing down' },
+  blackWidow: { family: 'arachnid', near: 'gardenSpider', aliases: ['widow spider'], note: 'glossy black, a round abdomen with a red hourglass beneath' },
+  jumpingSpider: { family: 'arachnid', near: 'gardenSpider', aliases: [], note: 'compact and furry, two huge forward eyes, short stout legs' },
+  wolfSpider: { family: 'arachnid', near: 'gardenSpider', aliases: [], note: 'a ground hunter, brown striped, a long abdomen, sturdy legs' },
+  mite: { family: 'arachnid', near: 'tick', aliases: ['dust mite', 'spider mite'], note: 'tiny and rounder, the mouthparts small' },
+  hermitCrab: { family: 'crustacean', near: 'greenCrab', aliases: [], note: 'a soft curled abdomen tucked into a borrowed snail shell' },
+  fiddlerCrab: { family: 'crustacean', near: 'greenCrab', aliases: [], note: 'one huge claw held up, eyes on long stalks' },
+  kingCrab: { family: 'crustacean', near: 'greenCrab', aliases: ['red king crab', 'alaskan king crab'], note: 'long spiny legs, a spiny shell, small claws' },
+  shrimp: { family: 'crustacean', near: 'langoustine', aliases: ['prawn'], note: 'no big claws, a curved body, long feelers, swimming legs under the tail' },
+  krill: { family: 'crustacean', near: 'langoustine', aliases: [], note: 'a small clear shrimp, no claws, feathery legs' },
+  pillBug: { family: 'crustacean', near: 'woodlouse', aliases: ['pillbug', 'roly-poly', 'roly poly', 'pill woodlouse'], note: 'a higher dome that rolls into a ball, no tail spikes' },
+  trilobite: { family: 'crustacean', near: 'woodlouse', aliases: [], note: 'extinct and its own class, not a crustacean: a three-lobed oval shell, a broad head shield' },
 };
+
+/** a worked bug's class (its encyclopedia family) and stance word, from its order */
+export const classOf = (order) => ORDERS[order]?.cls;
+export function stanceOfOrder(order) {
+  const n = ORDERS[order]?.legs;
+  return { 6: 'hexapod', 8: 'octopod', 10: 'decapod', 14: 'isopod' }[n] || (n ? 'myriapod' : null);
+}

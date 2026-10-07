@@ -99,6 +99,22 @@ export const species = {
   // thick tail tapering from a broad flattened base (~40% of total length) · dark brown, paler throat · 0.25 m at the
   // shoulder (ADW / Smithsonian: total length 0.89–1.30 m, tail 0.30–0.50 m, 5–14 kg; shoulder ~0.25 m).
   riverOtter: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'mustelid', name: 'a North American river otter', scale: 1,
   },
+};
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  riverOtter: { common: 'otter', aliases: ['river otter'], sci: 'Lontra canadensis', size: '0.25 m at the shoulder; total 0.89–1.30 m', source: 'ADW / Smithsonian' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  badger: { near: 'riverOtter', aliases: [], note: 'a low flat wedge body, a black-and-white striped face' },
+  skunk: { near: 'riverOtter', aliases: [], note: 'black with two white back stripes and a huge plumed tail' },
+  meerkat: { near: 'riverOtter', aliases: [], note: 'stands upright on its hind legs, a dark eye mask, a thin tail' },
 };

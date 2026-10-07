@@ -1,0 +1,34 @@
+{
+  "entry": "mint_solid",
+  "kind": "workbench",
+  "title": "copper teapot",
+  "spec": {
+    "lathes": [
+      { "axisFrom": { "x": 0, "y": 0, "z": 0 }, "axisTo": { "x": 0, "y": 0, "z": 12 },
+        "profile": [
+          { "t": 0, "radius": 4 },
+          { "t": 0.15, "radius": 7 },
+          { "t": 0.55, "radius": 7.5 },
+          { "t": 0.85, "radius": 5.5 },
+          { "t": 1, "radius": 3.2 }
+        ],
+        "tint": "#b87333", "material": "copper" },
+      { "axisFrom": { "x": 0, "y": 0, "z": 12 }, "axisTo": { "x": 0, "y": 0, "z": 15.5 },
+        "profile": [
+          { "t": 0, "radius": 3.2 },
+          { "t": 0.5, "radius": 2.4 },
+          { "t": 0.72, "radius": 0.9 },
+          { "t": 0.9, "radius": 1.2 },
+          { "t": 1, "radius": 0.8 }
+        ],
+        "tint": "#b87333", "material": "copper" }
+    ],
+    "sweeps": [
+      { "path": [[6, 0, 4.5], [9.5, 0, 6.5], [11, 0, 10.5]],
+        "radius": 0.9, "tint": "#b87333", "material": "copper" },
+      { "path": [[-5, 0, 10], [-9.5, 0, 9.5], [-10.5, 0, 6], [-6.5, 0, 3]],
+        "radius": 0.7, "caps": false, "tint": "#6b4a2f", "material": "wood" }
+    ],
+    "units": "cm"
+  }
+}

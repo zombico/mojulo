@@ -155,3 +155,15 @@ export const species = {
     ],
   },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  raccoon: { common: 'raccoon', aliases: ['racoon', 'trash panda'], sci: 'Procyon lotor', size: '0.28 m at the shoulder', source: 'published raccoon figures' },
+  redPanda: { common: 'red panda', aliases: ['lesser panda'], sci: 'Ailurus fulgens', size: '~0.25 m at the shoulder', source: 'published red panda figures' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {};

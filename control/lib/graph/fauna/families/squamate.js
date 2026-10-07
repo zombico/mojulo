@@ -5,40 +5,12 @@
 // level trunk at the head end, and the body laid down as a sinuous loft (`sinuous()` below). Tables are authored in
 // metres at Komodo-dragon size. Worked species: the Komodo dragon (monitorLizard) and the Burmese python (snake).
 
-const flat = (rows, kx, kz) => rows.map(([id, y, top, ...rest]) => [id, y, top * kz, ...rest.slice(0, 5).map(([x, z]) => [x * kx, z * kz]), rest[5] * kz]);
-const flatJaw = (rows, kx, kz) => rows.map(([id, y, s]) => [id, y, { gum: s.gum * kz, gumR: [s.gumR[0] * kx, s.gumR[1] * kz], jaw: [s.jaw[0] * kx, s.jaw[1] * kz], bottom: s.bottom * kz }]);
-// the skull rows (the crocodilian's, from the canine): reshaped per species by flat() + muzzleW / muzzleLen
-const SKULL = [
-  ['st0', -0.15, 0.045, [0.03, 0.043], [0.06, 0.02], [0.065, -0.02], [0.055, -0.05], [0.035, -0.065], -0.07],
-  ['st1', -0.09, 0.085, [0.02, 0.083], [0.07, 0.055], [0.09, -0.01], [0.08, -0.05], [0.05, -0.075], -0.08],
-  ['st2', -0.02, 0.088, [0.035, 0.084], [0.083, 0.045], [0.10, -0.005], [0.085, -0.05], [0.05, -0.075], -0.08],
-  ['st3', 0.04, 0.06, [0.012, 0.059], [0.05, 0.03], [0.06, -0.015], [0.055, -0.048], [0.04, -0.068], -0.07],
-  ['st4', 0.10, 0.036, [0.018, 0.034], [0.036, 0.012], [0.042, -0.02], [0.038, -0.045], [0.03, -0.06], -0.062],
-  ['st5', 0.16, 0.024, [0.015, 0.021], [0.027, 0.002], [0.03, -0.023], [0.028, -0.042], [0.022, -0.053], -0.055],
-  ['st6', 0.21, 0.014, [0.01, 0.012], [0.019, -0.005], [0.02, -0.024], [0.018, -0.037], [0.015, -0.046], -0.047],
-];
-const JAW = [
-  ['st0', -0.07, { gum: -0.075, gumR: [0.045, -0.075], jaw: [0.05, -0.1], bottom: -0.115 }],
-  ['st1', 0.0, { gum: -0.075, gumR: [0.04, -0.075], jaw: [0.043, -0.097], bottom: -0.108 }],
-  ['st2', 0.07, { gum: -0.064, gumR: [0.031, -0.064], jaw: [0.033, -0.083], bottom: -0.092 }],
-  ['st3', 0.14, { gum: -0.056, gumR: [0.024, -0.056], jaw: [0.025, -0.071], bottom: -0.078 }],
-  ['st4', 0.195, { gum: -0.049, gumR: [0.017, -0.049], jaw: [0.018, -0.06], bottom: -0.066 }],
-];
-const loftOf = (pts) => pts.map(([x, y, z, r]) => ({ at: [x, y, z], r }));
+import { flat, flatJaw, SKULL, JAW, loftOf, sinuous, path3, serpentMaker, serpent, TONGUE, snakeHead } from '../makers/serpent.js';
+// a snake's tongue: the family tongue at 0.55 (a slim fork about a third of the head long, not a lizard's)
+const SNAKE_TONGUE = TONGUE.map((o) => ({ ...o, spine: o.spine.map((q) => q.map((v) => v * 0.55)), radii: o.radii.map((v) => v * 0.55) }));
 
-/** A SINUOUS body on the ground: a loft whose centre line is an S (x = amp·sin, y running back), at height = the
- * ring's half-height, so the belly rests on z = 0. Stations every `step` of arc, radii tapering from `r0` to the tail.
- * Returns [x, y, z, [halfWidth, halfHeight]] rows, starting at (0, y0) heading back (−y). */
-export function sinuous({ y0 = 0, length = 3, amp = 0.4, waves = 1.25, back = 2, r0 = [0.08, 0.065], taper = [[0, 1], [0.5, 1], [0.8, 0.6], [1, 0.12]], n = 26, x0 = 0 }) {
-  // sample the curve finely, then re-sample by arc length
-  const f = (t) => [x0 + amp * Math.sin(2 * Math.PI * waves * t), y0 - back * t];
-  const fine = Array.from({ length: 400 }, (_, i) => f(i / 399)); const s = [0];
-  for (let i = 1; i < fine.length; i++) s.push(s[i - 1] + Math.hypot(fine[i][0] - fine[i - 1][0], fine[i][1] - fine[i - 1][1]));
-  const L = s[s.length - 1], k = length / L;   // scale the S so its arc is `length`
-  const tap = (u) => { for (let i = 1; i < taper.length; i++) if (u <= taper[i][0]) { const [a, va] = taper[i - 1], [b, vb] = taper[i]; return va + (vb - va) * (u - a) / (b - a); } return taper[taper.length - 1][1]; };
-  return Array.from({ length: n }, (_, j) => { const u = j / (n - 1), target = u * L; let i = s.findIndex((x) => x >= target); if (i < 0) i = s.length - 1;
-    const [x, y] = fine[i]; const r = r0.map((v) => v * tap(u)); return [x0 + (x - x0) * k, y0 + (y - y0) * k, r[1], r]; });
-}
+// the generators live in makers/serpent.js; re-exported for existing callers
+export { sinuous, path3, serpentMaker, TONGUE };
 
 export const family = {
   family: 'squamate',
@@ -104,12 +76,10 @@ family.extraSegments = [
   { name: 'tailWhip', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(family.tailStations), caps: { back: [0, -0.42, 0.27], tip: [0, -2.07, 0.012] } },
 ];
 
-// the FORKED TONGUE (opt-in ornament): two thin prongs flicked out from under the snout tip, splayed apart
-export const TONGUE = [-1, 1].map((s, i) => ({ kind: 'sweep', name: `tongue${i}`, at: [5.95, 6], space: 'local', spine: [[0, 0, -0.004], [0, 0.02, 0.004], [s * 0.008, 0.04, 0.006]], radii: [0.004, 0.003, 0.0012], m: 5, group: 'Tongue' }));
-
 // the snake's body: a short level trunk behind the head, then the S of coils on the ground
 const PY_R = [0.1, 0.08];
 const PY_BODY = sinuous({ y0: -0.05, length: 3.25, amp: 0.33, waves: 2, back: 2.0, n: 56, r0: PY_R, taper: [[0, 0.95], [0.5, 1.15], [0.82, 0.95], [0.93, 0.45], [1, 0.08]] });
+
 
 // the species of this family: each the numbers over the family's tables that make it that animal
 export const species = {
@@ -120,6 +90,7 @@ export const species = {
   // about half the total length).
   monitorLizard: {
     // kept v4 (blind judges: A v4 over post-critic v5 55%; B v5 over v1 65%)
+    // 1006 upgrade: v8 (higher trunk, longer narrower neck, 3 toes, deeper skull, longer tongue) vs v4 SPLIT (v4 won order1 65%, v8 won order2 60%) → tie, v4 kept
     family: 'squamate', name: 'a Komodo dragon', scale: 1, legBulk: 1.2, headOrnaments: TONGUE,
   },
   // BURMESE PYTHON (Python bivittatus), the snake. Thesis: NO legs · a long, thick, heavy body laid on the ground in an
@@ -138,13 +109,101 @@ export const species = {
     ],
     torsoCaps: { back: [0, -0.16, 0.08], tip: [0, 0.36, 0.08] },
     neckRA: [0.06, 0.055], neckRB: [0.045, 0.04], neckRMid: [0.05, 0.045],
-    craniumRows: flat(SKULL, 1.15, 0.55), jawRows: flatJaw(JAW, 1.15, 0.55),
-    headScale: 0.42, muzzleW: 1.05, muzzleLen: 0.9,
-    eyeAt: [2.4, 2.5], eyeR: 0.005, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 }, headOrnaments: TONGUE,
+    ...snakeHead([1.05, 0.8]),
+    headScale: 0.42, muzzleW: 1.0, muzzleLen: 0.9,
+    eyeAt: [2.4, 2.9], eyeR: 0.005, eyeStyle: 'set', orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.0005, 0.001], thickness: 0.0015 }, headOrnaments: SNAKE_TONGUE,
     extraSegments: [
       { name: 'coils', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: null, up: true, stations: loftOf(PY_BODY),
         caps: { back: [0, -0.04, 0.08], tip: [PY_BODY.at(-1)[0], PY_BODY.at(-1)[1] - 0.03, 0.01] } },
     ],
     colors: { coat: '#8a6a3e', sock: '#8a6a3e', ash: '#a8875a', ashAlt: '#9a7a50', brow: '#4a3622', belly: '#d8cba2', iris: '#9a7a3a', tip: '#4a3622' },
   },
+  // KING COBRA (Ophiophagus hannah). Thesis: NO legs · the FRONT THIRD REARED straight up off the ground (head held
+  // level ~0.95 m up) with a long, narrow spread HOOD just behind the head · the rest a long, slender, loose S on the
+  // ground · a smallish rounded head · olive-brown with pale cross bands, pale throat · ~3.6 m long (Wikipedia: adults
+  // typically 3.18–4 m, record 5.85 m; it can rear about a third of its length).
+  kingCobra: serpentMaker({ name: 'a king cobra', girth: [0.042, 0.036], profile: [[0, 0.8], [0.25, 1], [0.7, 1], [0.9, 0.55], [1, 0.1]],
+    path: { kind: 'raised', height: 0.92, ground: [[0.2, -0.78], [0.3, -1.05], [0.12, -1.32], [-0.18, -1.5], [-0.32, -1.78], [-0.15, -2.08], [0.15, -2.25], [0.3, -2.5], [0.25, -2.75]] },
+    hood: { width: 0.15, from: 0.04, peak: 0.2, to: 0.5 }, head: { shape: 'slender', scale: 0.26, eyeR: 0.0065, eyeStyle: 'set' },
+    pattern: [
+      { on: 'body', kind: 'stripes', count: 26, run: [0.2, 0.96], width: 0.28, group: 'Band', color: '#c9c58e' },
+      { on: 'body', kind: 'band', run: [0, 0.12], t: [0, 0.45], group: 'Throat', color: '#d8cf98' },
+    ],
+    colors: { coat: '#4f5230', sock: '#4f5230', ash: '#6a6a3c', ashAlt: '#5d5d36', brow: '#33341d', belly: '#c9c58e', iris: '#6a5a2a', tip: '#33341d' } }),
+  // WESTERN DIAMONDBACK RATTLESNAKE (Crotalus atrox). Thesis: NO legs · heavy body in a flat ground COIL with the neck
+  // raised over it in an S, ready to strike · a broad TRIANGULAR viper head on a thin neck · the RATTLE: a stack of
+  // keratin beads at the lifted tail tip, the tail above it ringed black and white · grey-brown with dark DIAMONDS down
+  // the back · ~1.2 m long (Wikipedia: adults commonly 1.2 m, max ~2.1 m), head ~5 cm.
+  rattlesnake: serpentMaker({ name: 'a western diamondback rattlesnake', n: 84, girth: [0.036, 0.03], profile: [[0, 0.45], [0.15, 0.9], [0.35, 1.05], [0.8, 0.9], [0.95, 0.45], [1, 0.32]],
+    path: { kind: 'coil', height: 0.2, neck: [[-0.05, 0.16], [-0.02, 0.11], [-0.07, 0.05], [-0.1, 0.0]], centre: [0, -0.17], r: [0.07, 0.165], turns: 1.25,
+      lift: [[-0.17, -0.12, 0.02], [-0.175, -0.1, 0.05]] },
+    head: { shape: 'viper', scale: 0.21, eyeR: 0.0065, eyeStyle: 'set' }, tail: { kind: 'rattle', beads: 7 },
+    pattern: [
+      { on: 'body', kind: 'patch', grid: [24, 1], run: [0.12, 0.86], t: [0.62, 1], size: [0.6, 1], group: 'Diamond', color: '#4b3b2a' },
+      { on: 'body', kind: 'band', run: [0.86, 1], group: 'TailWhite', color: '#e4ddcb' },
+      { on: 'body', kind: 'stripes', count: 4, run: [0.86, 1], width: 0.5, group: 'TailBlack', color: '#1d1a17' },
+    ],
+    colors: { coat: '#8f8166', sock: '#8f8166', ash: '#a39478', ashAlt: '#968a6e', brow: '#4b3b2a', belly: '#d9cfb4', iris: '#a88a3a', tip: '#4b3b2a', horn: '#b7a27a' } }),
+  // GREEN MAMBA (Dendroaspis viridis, western green mamba). Thesis: NO legs · very SLENDER and long, the front loosely
+  // raised, the rest draped in a long loose S · a narrow, long, coffin-shaped head barely wider than the neck · uniform
+  // BRIGHT GREEN, yellow-green belly · ~2.0 m long (Wikipedia: adults average 1.4–2 m, max 2.4 m).
+  greenMamba: serpentMaker({ name: 'a green mamba', girth: [0.02, 0.018], profile: [[0, 0.75], [0.2, 1], [0.7, 0.95], [0.9, 0.5], [1, 0.12]],
+    path: { kind: 'pts', pts: [[0, -0.03, 0.24], [0, -0.1, 0.19], [0, -0.2, 0.1], [0, -0.32, 0.02], [0, -0.45, 0], [0.18, -0.62, 0], [0.22, -0.85, 0], [0.02, -1.05, 0],
+      [-0.2, -1.22, 0], [-0.24, -1.45, 0], [-0.05, -1.65, 0], [0.15, -1.8, 0]] },
+    head: { shape: 'coffin', scale: 0.15, eyeR: 0.006, eyeStyle: 'set' },
+    pattern: [{ on: 'body', kind: 'band', t: [0, 0.32], group: 'Belly' }],
+    colors: { coat: '#3f9f35', sock: '#3f9f35', ash: '#7cbd45', ashAlt: '#6db03d', brow: '#2d7a28', belly: '#b9d65a', iris: '#8a9a2a', tip: '#2d7a28' } }),
+  // SEA SERPENT (mythic). Thesis: NO legs · HUGE: a body ~40 m long and ~1.2 m thick, a swan neck rearing the head ~7 m
+  // out of the sea, then three HUMPS arching out of the water (their feet on the water plane z = 0) and a tail run · a
+  // finned dorsal FRILL of upright blades along the neck and humps · a long DRAGON-LIKE head (~2 m) with swept-back horns
+  // and jaw frills · dark sea-green, pale belly, red frill. Intended scale: after Olaus Magnus's (1555) "200 ft" sea
+  // serpent, brought down to ~40 m so the humps read at gameplay camera (no published figure exists).
+  // kept v3; 1006 upgrade v6 (eye +30%, horns back 25°/×0.8, hump gap 1.3, centred belly band) lost both orders to v3 (70%, 70%: the shorter horns lose the horned-head read)
+  seaSerpent: serpentMaker({ name: 'a sea serpent', n: 120, girth: [0.6, 0.6], up: [1, 0, 0], profile: [[0, 0.62], [0.12, 0.85], [0.3, 1], [0.6, 0.85], [0.85, 0.5], [1, 0.12]],
+    path: { kind: 'arches', height: 6.4, neck: [[-1.2, 5.7], [-1.7, 4.4], [-1.6, 3.0], [-1.2, 1.6], [-1.4, 0.35], [-2.4, 0]], start: -3.0, humps: [[3.6, 5], [3.0, 4.6], [2.3, 4]], run: 3.1 },
+    crest: { every: 3, above: 1.4, to: 104 },
+    head: { shape: 'dragon', scale: 4.2, eyeR: 0.005, tongue: false, ornaments: [   // pinned on the right; the head mirrors them
+      { kind: 'sweep', name: 'horn', at: [1.3, 1.6], space: 'local', spine: [[0, 0, 0], [-0.35, -0.1, 0.45], [-1.0, -0.25, 0.8], [-1.6, -0.2, 0.85]], radii: [0.16, 0.12, 0.06, 0.015], m: 6, group: 'Horn' },
+      { kind: 'sweep', name: 'frill', at: [1.6, 3.6], space: 'local', spine: [[0, 0, -0.02], [-0.2, 0, 0.12], [-0.6, 0, 0.35], [-1.1, 0, 0.5]], radii: [0.04, 0.26, 0.2, 0.03], squash: [0.15, 1], m: 6, group: 'Mane' },
+    ] },
+    pattern: [{ on: 'body', kind: 'band', t: [0.5, 1], group: 'Belly' }],
+    colors: { coat: '#24514c', sock: '#24514c', ash: '#3c6a5e', ashAlt: '#356055', brow: '#163a36', belly: '#c9c49a', iris: '#d6a12a', tip: '#163a36', horn: '#d8cdb0', mane: '#a8402c', sclera: '#1a1a12' } }),
+  // GREEN ANACONDA (Eunectes murinus) — written purely as a maker call. Thesis: NO legs · VERY THICK, heavy body
+  // (~0.3 m across mid-body, the heaviest snake), the rear PARTLY COILED in a loose flat loop on the ground with the
+  // tail trailing out of it, the front laid out low in an S · a fairly small, narrow head barely wider than the neck,
+  // eyes and nostrils high on top · olive green with large black OVAL BLOTCHES down the back, yellowish belly · ~5 m
+  // long (Wikipedia: females typically 4–5 m; Rivas 2000: up to ~5.2 m measured).
+  anaconda: serpent({
+    name: 'a green anaconda', n: 110, girth: [0.15, 0.13], profile: [[0, 0.55], [0.12, 0.8], [0.3, 1], [0.7, 1], [0.88, 0.6], [1, 0.12]],
+    path: { kind: 'coil', height: 0.04, neck: [[-0.35, 0.02], [-0.6, 0], [-0.9, 0]], centre: [0.15, -1.5], r: [0.42, 0.85], turns: 0.75,
+      lift: [[1.35, -1.75, 0], [1.75, -1.4, 0], [2.15, -1.6, 0]] },
+    head: { shape: 'blunt', scale: 0.5, skull: [0.95, 0.72], muzzle: [0.9, 1.0], eyeR: 0.006, eyeAt: [2.2, 2.3], eyeStyle: 'set' },
+    pattern: [
+      { on: 'body', kind: 'patch', grid: [30, 2], run: [0.04, 0.95], t: [0.55, 1], size: [0.55, 0.7], group: 'Blotch', color: '#1d1f14' },
+      { on: 'body', kind: 'band', run: [0, 1], t: [0, 0.28], group: 'Belly' },
+    ],
+    colors: { coat: '#4f5a2a', sock: '#4f5a2a', ash: '#66703a', ashAlt: '#5b6533', brow: '#2f3618', belly: '#c9b85a', iris: '#8a7a2a', tip: '#2f3618' },
+  }),
+};
+
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  monitorLizard: { common: 'komodo dragon', aliases: ['komodo', 'monitor lizard', 'monitor', 'lizard'], sci: 'Varanus komodoensis', size: '~2.6 m total; ~0.4 m to the top of the back', source: 'Wikipedia / Smithsonian NZP' },
+  snake: { common: 'python', aliases: ['burmese python'], sci: 'Python bivittatus', size: '~3.7 m long', source: 'Reed & Rodda 2009 (USGS)' },
+  kingCobra: { common: 'king cobra', aliases: ['cobra'], sci: 'Ophiophagus hannah', size: '~3.6 m long', source: 'Wikipedia, "King cobra"' },
+  rattlesnake: { common: 'rattlesnake', aliases: ['rattler', 'diamondback', 'western diamondback'], sci: 'Crotalus atrox', size: '~1.2 m long', source: 'Wikipedia, "Western diamondback rattlesnake"' },
+  greenMamba: { common: 'green mamba', aliases: ['mamba'], sci: 'Dendroaspis viridis', size: '~2.0 m long', source: 'Wikipedia, "Western green mamba"' },
+  seaSerpent: { common: 'sea serpent', aliases: ['sea monster', 'leviathan'], sci: 'mythic', size: '~40 m long (an invented scale)', source: 'after Olaus Magnus 1555' },
+  anaconda: { common: 'anaconda', aliases: ['green anaconda'], sci: 'Eunectes murinus', size: '~5 m long', source: 'Rivas 2000' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  gecko: { near: 'monitorLizard', aliases: [], note: 'a small flat lizard with big eyes and toe pads' },
+  iguana: { near: 'monitorLizard', aliases: ['green iguana'], note: 'a dewlap, a spiny back crest, a long banded tail' },
+  chameleon: { near: 'monitorLizard', aliases: [], note: 'a casque head, turret eyes, a coiled tail, a tall flat body' },
 };

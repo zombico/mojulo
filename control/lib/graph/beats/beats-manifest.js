@@ -131,6 +131,7 @@ function checkBus(m, rows, errors) {
     else {
       if (ex.bitDepth !== undefined && ![16, 24, 32].includes(ex.bitDepth)) errors.push('export.bitDepth must be 16, 24 or 32 (32 = float)');
       if (ex.dither !== undefined && typeof ex.dither !== 'boolean') errors.push('export.dither must be true | false (seeded TPDF on 16/24-bit)');
+      if (ex.loop !== undefined && typeof ex.loop !== 'boolean') errors.push('export.loop must be true | false (one seamless pass to the bar line, with a smpl loop chunk)');
       if (ex.normalize !== undefined) {
         const n = ex.normalize;
         if (!isObj(n) || (n.peak === undefined && n.lufs === undefined)) errors.push('export.normalize must be { peak?: dBTP, lufs?: integrated loudness }');

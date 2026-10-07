@@ -298,9 +298,8 @@ function ensureShippedCards() {
       const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
       const { getRoutingCardCatalog } = await import('../../mcp/routing-cards/loader.js');
       const { getSolidVocabCatalog } = await import('../../graph/solid-vocab/loader.js');
-      // solid_vocab too: generated species entries land with a roster change, not a card file
       const shipped = [...[...getViewVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `view_vocab:${c.id}`), ...[...getRoutingCardCatalog().keys()].map((id) => `routing:${id}`),
-        ...[...getSolidVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `solid_vocab:${c.id}`)];
+        ...[...getSolidVocabCatalog().keys()].map((id) => `solid_vocab:${id}`)];   // the generated animal entries land with a species
       if (shipped.some((k) => !have.has(k))) await reindexAll();
     })().catch((err) => console.warn(`[meta_embeddings] shipped-card refresh failed: ${err.message}`));
   }

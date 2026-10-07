@@ -8,14 +8,14 @@
  *
  * MULTI-BOOK (Phase 5): the attachment is the ordered list from
  * cards.js/bookDirs() — the operator's COOKBOOK (save_recipe's write target)
- * first, then the upstream clone ($MOJULO_RECIPE_BOOK). First-wins per kind;
- * core wins over both. SCOPE GUARD: the cookbook is Door-1 ONLY — a `builder`
+ * first, then a deprecated attached clone ($MOJULO_RECIPE_BOOK), then the
+ * book bundled at control/book. First-wins per kind; core wins over all. SCOPE GUARD: the cookbook is Door-1 ONLY — a `builder`
  * entry there is skipped with a warning, because auto-loading code from a
  * directory the agent writes into is a deliberate decision Phase 5 does not
  * make (recipe-book.plan.md, Phase 5 scope guard).
  *
- * Attachment is strictly additive and loopback-honest: no env vars / no dirs
- * ⇒ the empty snapshot and byte-for-byte prior behavior. Nothing is ever
+ * Attachment is strictly additive and loopback-honest: no books (the bundled
+ * one turned off with MOJULO_BUNDLED_BOOK=off) ⇒ the empty snapshot. Nothing is ever
  * fetched at runtime. Module split: ./cards.js is the fs-only sync half
  * (card reads for the view-vocab merge), ./registry.js the import-nothing
  * snapshot for sync readers; THIS file owns dynamic import + the version
@@ -84,6 +84,9 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
       warn(`MOJULO_RECIPE_BOOK=${up} has no manifest.json — book not loaded`);
     }
   }
+  if (process.env.MOJULO_RECIPE_BOOK?.trim()) {
+    warn('MOJULO_RECIPE_BOOK is deprecated: the recipe book ships with mojulo from 3.0.1 and loads without it. An attached clone still loads, ahead of the bundled book, until 4.0; unset it to use the bundled catalog.');
+  }
   if (!dirs.length) { setBookSnapshot({ warnings }); return { kinds: 0, warnings }; }
 
   const installed = controlVersion();
@@ -98,7 +101,8 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
   for (const { dir, source } of dirs) {
     const manifest = readBookManifest(dir);
     if (!manifest) continue;
-    if (manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed)) {
+    // The bundled book ships with this version, so it never needs the handshake.
+    if (source !== 'bundled' && manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed)) {
       warn(`${source} requires mojulo ${manifest.requiresMojulo} but ${installed} is installed — the clone is ahead; update mojulo or check out an older book tag. No entries loaded from it.`);
       continue;
     }
@@ -157,7 +161,7 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
   for (const pass of ['garment', 'outfit']) {
     for (const { dir, source } of dirs) {
       const manifest = readBookManifest(dir);
-      if (!manifest || (manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed))) continue;
+      if (!manifest || (source !== 'bundled' && manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed))) continue;
       for (const entry of Array.isArray(manifest.entries) ? manifest.entries : []) {
         if (entry.type !== pass) continue;
         const id = String(entry.id || '');

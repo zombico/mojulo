@@ -31,7 +31,7 @@ describe('the lineage checklist: relations are history, held to time and to the 
 describe('reading the tree', () => {
   it('reads relations both ways', () => {
     expect(relationsOf('thebes').drawsOn.map((r) => [r.from, r.kind])).toEqual([['giza', 'continues']]);
-    expect(relationsOf('giza').drawnOnBy).toEqual([{ by: 'thebes', kind: 'continues', parts: ['patterns', 'skins', 'record'] }]);
+    expect(relationsOf('giza').drawnOnBy).toEqual([{ by: 'thebes', kind: 'continues', parts: ['patterns', 'skins', 'record', 'dress'] }]);
     expect(relationsOf('lindos').drawnOnBy.map((r) => r.by).sort()).toEqual(['forum', 'polis', 'pompeii']);
   });
 

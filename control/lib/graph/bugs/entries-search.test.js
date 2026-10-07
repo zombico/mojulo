@@ -34,13 +34,13 @@ async function top(query, k = 3) {
 
 describe('finding an arthropod by the words people type (lexical, no model)', () => {
   const cases = [
-    ['a ladybug', ['species/ladybird']], ['crawdad', ['species/crayfish']], ['daddy longlegs', ['species/harvestman']],
-    ['lightning bug', ['species/firefly']], ['a scarab beetle', ['species/dungBeetle']], ['stag beetle', ['species/stagBeetle']],
-    ['praying mantis', ['species/prayingMantis']], ['a honey bee', ['species/honeyBee']], ['monarch butterfly', ['species/monarch']],
-    ['norway lobster', ['species/langoustine']], ['horseshoe crab', ['species/horseshoeCrab']], ['pill bug', ['species/crustaceans', 'species/woodlouse']],
-    ['a wasp', ['species/insects', 'species/honeyBee']], ['hermit crab', ['species/crustaceans', 'species/greenCrab']],
-    ['tarantula', ['species/arachnids', 'species/gardenSpider']], ['insects', ['species/insects']],
-    ['coccinella septempunctata', ['species/ladybird']],
+    ['a ladybug', ['animal/ladybird']], ['crawdad', ['animal/crayfish']], ['daddy longlegs', ['animal/harvestman']],
+    ['lightning bug', ['animal/firefly']], ['a scarab beetle', ['animal/dungBeetle']], ['stag beetle', ['animal/stagBeetle']],
+    ['praying mantis', ['animal/prayingMantis']], ['a honey bee', ['animal/honeyBee']], ['monarch butterfly', ['animal/monarch']],
+    ['norway lobster', ['animal/langoustine']], ['horseshoe crab', ['animal/horseshoeCrab']], ['pill bug', ['animal/crustacean', 'animal/woodlouse']],
+    ['a wasp', ['animal/insect', 'animal/honeyBee']], ['hermit crab', ['animal/crustacean', 'animal/greenCrab']],
+    ['tarantula', ['animal/arachnid', 'animal/gardenSpider']], ['insect', ['animal/insect', 'animal/honeyBee']],
+    ['coccinella septempunctata', ['animal/ladybird']],
   ];
   for (const [q, want] of cases) {
     it(`"${q}" finds ${want[0]} in the top 3`, async () => {
@@ -53,13 +53,13 @@ describe('finding an arthropod by the words people type (lexical, no model)', ()
 describe('an upgraded index learns the entries a release shipped', () => {
   it('a corpus missing a shipped species entry gets it on the next search', async () => {
     const db = getDb();
-    db.prepare("DELETE FROM meta_embeddings WHERE source_kind = 'solid_vocab' AND source_ref = 'species/firefly'").run();
-    expect(EmbeddingsRepository.findByRef('solid_vocab', 'species/firefly')).toBeFalsy();
+    db.prepare("DELETE FROM meta_embeddings WHERE source_kind = 'solid_vocab' AND source_ref = 'animal/firefly'").run();
+    expect(EmbeddingsRepository.findByRef('solid_vocab', 'animal/firefly')).toBeFalsy();
     const flag = process.env.MOJULO_SEMANTIC_INDEX_DISABLED;
     delete process.env.MOJULO_SEMANTIC_INDEX_DISABLED;
     try {
       await EmbeddingsRepository.search('firefly', { kinds: ['solid_vocab'], limit: 3 });
     } finally { process.env.MOJULO_SEMANTIC_INDEX_DISABLED = flag; }
-    expect(EmbeddingsRepository.findByRef('solid_vocab', 'species/firefly')).toBeTruthy();
+    expect(EmbeddingsRepository.findByRef('solid_vocab', 'animal/firefly')).toBeTruthy();
   }, 120_000);
 });

@@ -16,3 +16,14 @@ export function speciesParams(id) {
 export function speciesPlan(id) {
   const p = speciesParams(id); return p ? buildFauna(p) : null;
 }
+
+/** How a species stands, said plainly: from its pose and its legs (a fish swims, a snake has none, a bird stands on two). */
+export function stanceOf(id) {
+  const p = speciesParams(id); if (!p) return null;
+  if (p.pose === 'swim') return 'swims';
+  if (!(p.legs || []).length) return 'legless';
+  if (p.family === 'avian') return 'two legs (a bird)';
+  if (p.family === 'macropod') return 'upright on its hind legs and tail';
+  if (p.family === 'chiropteran') return 'crawling on folded wings';
+  return 'four legs';
+}

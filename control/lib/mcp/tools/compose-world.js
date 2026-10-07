@@ -20,6 +20,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { resolveTheme, listThemes } from '@/lib/graph/theme-registry';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
+import { parseFieldSpec, mintFieldSpec, suggestFieldScore } from '@/lib/graph/beats/field-cue';
 import { validateFire } from '@/lib/graph/fire/fire';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -115,6 +116,10 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
           + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).`,
       );
     }
+    // a field score with no seed gets a fresh one STORED on the recipe: every world sounds different by
+    // default, and the seed is there to keep (or delete for a reroll).
+    const field = parseFieldSpec(slots.audio.soundtrack);
+    if (field && field.seed === undefined) slots.audio = { ...slots.audio, soundtrack: { score: mintFieldSpec(field) } };
     resolveWorldAudio(slots.audio); // throws per-channel (unknown beats ref, invalid recipe, dangling cue)
     audio = slots.audio;
   }
@@ -185,8 +190,20 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     }
     ignored.push(k);
   }
+  // no music asked for: suggest the field score that fits the world (quiet when none does).
+  const suggestion = audio ? null : suggestFieldScore({ base, theme, title: title ?? (recipe && recipe.title), time: slots.time });
   return {
     ...result, base, theme,
+    ...(suggestion ? {
+      music: {
+        suggest: suggestion.audio,
+        mood: suggestion.mood,
+        why: suggestion.why,
+        also: suggestion.also,
+        how: `add overrides.audio = ${JSON.stringify(suggestion.audio)} (a fresh seed is stored, so it never repeats another world's score); `
+          + "share one score.game seed across a game's worlds to keep one identity. Manual: get_beats_vocab({ id: 'beats-field-orchestra' }).",
+      },
+    } : {}),
     ...(ignored.length ? {
       note: `override key(s) not reflected in the stored recipe: ${ignored.join(', ')}`
         + (folded.length ? ` (the rest of ${folded.map((k) => `\`${k}\``).join(', ')} folded onto the recipe's top level)` : '')

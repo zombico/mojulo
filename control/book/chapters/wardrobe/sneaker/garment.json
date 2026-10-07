@@ -1,0 +1,31 @@
+{
+  "id": "sneaker",
+  "color": {
+    "cloth": "#e8e4dc"
+  },
+  "ease_cm": 0.6,
+  "pieces": [
+    {
+      "id": "sole",
+      "fit": "pattern",
+      "sloper": "shoe-sole",
+      "dials": {
+        "thickness_cm": 1.7,
+        "margin_cm": 0.8
+      },
+      "mirror": "soleR",
+      "cloth": "#c9c4bb"
+    },
+    {
+      "id": "upper",
+      "fit": "pattern",
+      "sloper": "shoe-upper",
+      "dials": {
+        "throat_blend": 0.06,
+        "throat": 0.44,
+        "collar_cm": 5.0
+      },
+      "mirror": "upperR"
+    }
+  ]
+}

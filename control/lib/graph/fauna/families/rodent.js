@@ -99,13 +99,23 @@ export const species = {
   // Animal Diversity Web / Smithsonian NMNH Castor canadensis accounts). Kept v4 2026-10-05 (judge A: v4 over the
   // critic-fixed v6, low; judge B: v6 over v1, medium — v4 and v6 differ only in hunch, hind feet, tail height).
   beaver: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'rodent', name: 'a North American beaver', scale: 1,
     muzzleW: 1.15, muzzleLen: 0.75,
+    // kept v10 (blind judges, both orders: A v10 over v8 55%/55%; B v10 over v1 65%/70%). The shoulder raised to the published 0.30 m (front torso stations deeper above the centre line)
+    torso: [
+      { at: [0, -0.40, 0.17], r: [0.07, 0.06] },
+      { at: [0, -0.32, 0.17], r: [0.14, 0.12] },
+      { at: [0, -0.20, 0.17], r: [0.165, 0.145] },
+      { at: [0, -0.06, 0.17], r: [0.155, 0.13] },
+      { at: [0, 0.07, 0.17], r: [0.13, 0.125] },
+      { at: [0, 0.17, 0.17], r: [0.10, 0.105] },
+    ],
     extraSegments: [
       { name: 'tailPaddle', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane',
         // up: a stable ring frame, so the tail drops from the rump and lies flat on the ground with no ring flip
         up: true,
-        stations: lofted([[0, -0.34, 0.10, [0.055, 0.04]], [0, -0.42, 0.055, [0.05, 0.025]], [0, -0.48, 0.032, [0.08, 0.018]], [0, -0.55, 0.026, [0.098, 0.018]], [0, -0.62, 0.024, [0.104, 0.017]], [0, -0.68, 0.024, [0.098, 0.016]], [0, -0.73, 0.022, [0.075, 0.014]], [0, -0.76, 0.02, [0.035, 0.008]]]),
+        stations: lofted([[0, -0.34, 0.10, [0.055, 0.04]], [0, -0.42, 0.055, [0.055, 0.03]], [0, -0.48, 0.036, [0.10, 0.03]], [0, -0.55, 0.033, [0.125, 0.032]], [0, -0.62, 0.031, [0.132, 0.031]], [0, -0.68, 0.03, [0.125, 0.029]], [0, -0.73, 0.027, [0.095, 0.024]], [0, -0.76, 0.022, [0.04, 0.012]]]),
         bandGroups: { ...band(7), 'st0-st1': Array(6).fill('Coat') }, caps: { back: [0, -0.31, 0.12], tip: [0, -0.775, 0.02] }, capGroups: { back: 'Coat', tip: 'Tip' } },
     ],
   },
@@ -154,4 +164,23 @@ export const species = {
         caps: { back: [0, -0.40, 0.23], tip: [0, -0.50, 0.97] } },
     ],
   },
+};
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  beaver: { common: 'beaver', aliases: [], sci: 'Castor canadensis', size: '~0.30 m at the shoulder; head-body 0.74–0.90 m', source: 'ADW / Smithsonian NMNH' },
+  squirrel: { common: 'squirrel', aliases: ['grey squirrel', 'gray squirrel'], sci: 'Sciurus carolinensis', size: '~0.12 m to the top of the back; head-body 0.23–0.30 m', source: 'ADW, Sciurus carolinensis' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  mouse: { near: 'squirrel', aliases: ['mice', 'house mouse', 'field mouse'], note: 'tiny, big round ears, a long thin bare tail' },
+  rat: { near: 'squirrel', aliases: ['brown rat'], note: 'a bigger mouse: a pointed snout, a long scaly tail' },
+  hamster: { near: 'squirrel', aliases: [], note: 'a round ball of a body, no visible tail, cheek pouches' },
+  guineaPig: { near: 'squirrel', aliases: ['guinea pig', 'cavy'], note: 'a tailless loaf body, short legs, a blunt head' },
+  hedgehog: { near: 'squirrel', aliases: [], note: 'a round body under a coat of spines, a pointed snout' },
+  porcupine: { near: 'beaver', aliases: [], note: 'a heavy body under long quills' },
 };

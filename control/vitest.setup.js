@@ -11,3 +11,8 @@
 // per case, or passes an explicit env object that never reads process.env) still
 // controls its own state.
 process.env.MOJULO_PACKS ||= 'creative';
+
+// The recipe book bundled at control/book is off by default under test, so a suite
+// measures core alone (the empty book snapshot) unless it opts in. Bundled-book
+// suites set MOJULO_BUNDLED_BOOK per case (lib/graph/views/recipe-book/bundled.test.js).
+process.env.MOJULO_BUNDLED_BOOK ||= 'off';

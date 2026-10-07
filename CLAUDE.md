@@ -45,7 +45,8 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   [docs/bicycles.md](docs/bicycles.md), [docs/responsibility-model.md](docs/responsibility-model.md).
 - **Recipes are starters.** Iterate in place with `update_sketch` / `edit_solid`; don't re-mint.
 - **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2
-  builder, not a core addition.
+  builder in [control/book/](control/book/), not a core addition. The book ships bundled (3.0.1); the
+  separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated (they cannot load in an agent box).
 - **Single operator, loopback only.** No user identity by default; the roles pack is operator-owned
   delegation, not multi-tenancy. Do not add tenant isolation, tunnels, or public exposure. The MCP route is
   bearer-gated and 404s without a key; that is the whole auth surface, by design.
@@ -78,6 +79,8 @@ npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npm run build                # --webpack too: Turbopack ignores next.config's webpack rules and fails on an absent pack or recall runtime
 npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
+npm run test:critical        # the contracts only (MCP surface, pins, guards, db, scripts), no geometry-heavy suites
+npm run test:deep:changed    # the *.deep.test.js sweeps whose imports touch an uncommitted change (none if none do)
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
@@ -85,6 +88,11 @@ node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lan
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
 entry points `chdir` there and `getServerVersion` reads `package.json` from cwd. macOS has no `timeout`.
+
+Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
+folder and `test:deep:changed`; the whole suite once before merging into the release candidate (CI runs it and
+`test:deep`). An exhaustive sweep (every word at its range ends, every preset built) goes in a `*.deep.test.js`
+beside the law tests, importing only the modules it sweeps, so `--changed` can select it.
 
 Byte-pin conventions: `*.char.test.js` and `*.trace.test.js` are characterization pins; `__snapshots__/`
 hashes are structural on purpose. A pin change is legitimate only when the step says emission changes.

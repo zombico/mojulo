@@ -14,9 +14,14 @@
 import { resolveSignage } from '@/lib/signage-chrome';
 
 const STATION_STYLES = {
+  // Contrast pass (create-sketch-diet): every outline clears the 3:1 a shape boundary needs on every
+  // surface (app floor / export dark / light). input was --border-color, a hairline token at 1.3:1,
+  // so the box all but vanished; filesystem's fixed slate fell to 1.7 on light, db_row's fixed
+  // violet to 2.6-3.0. Token inks re-tint per surface: --text-muted 4.3 / 7.0 / 5.4,
+  // --entity-purple 10.6 / 9.3 / 5.7.
   input: {
     fill: 'rgba(255,255,255,0.02)',
-    stroke: 'var(--border-color)',
+    stroke: 'var(--text-muted)',
     strokeDasharray: '4 3',
     labelFill: 'var(--text-secondary)',
   },
@@ -28,13 +33,13 @@ const STATION_STYLES = {
   },
   filesystem: {
     fill: 'rgba(100,116,139,0.10)',
-    stroke: 'rgba(148,163,184,0.6)',
+    stroke: 'var(--text-muted)',
     strokeDasharray: null,
     labelFill: 'var(--text-secondary)',
   },
   db_row: {
     fill: 'rgba(168,85,247,0.08)',
-    stroke: 'rgba(168,85,247,0.7)',
+    stroke: 'var(--entity-purple)',
     strokeDasharray: null,
     labelFill: 'var(--entity-purple)',
   },
@@ -91,18 +96,21 @@ const CHANNEL_GAP = 24;
 // wide, plus margin to keep the marker visible.
 const VIEWBOX_CLAMP = 8;
 
-function edgePath(from, to, via, viewBox, curvature = 1) {
+function edgePath(from, to, via, viewBox, curvature = 1, channel) {
   // `via: '<side>'` routes the edge as an L-shape past one side of both
   // stations, so a long edge between non-adjacent stations doesn't pierce
   // stations sitting in between. The geometry mirrors across sides: exit
   // the source's side, run along a channel just outside the lane, come
-  // back into the target's same side.
+  // back into the target's same side. An edge's own `channel` (the lane's
+  // x for left/right, y for top/bottom) replaces the endpoint-derived one —
+  // auto layout sets it past the boxes in between; absent, nothing moves.
+  const own = typeof channel === 'number' && Number.isFinite(channel);
   if (via === 'right') {
     const startX = from.x + from.w;
     const startY = from.y + from.h / 2;
     const endX = to.x + to.w;
     const endY = to.y + to.h / 2;
-    const channelX = Math.min(Math.max(startX, endX) + CHANNEL_GAP, viewBox.width - VIEWBOX_CLAMP);
+    const channelX = Math.min(own ? channel : Math.max(startX, endX) + CHANNEL_GAP, viewBox.width - VIEWBOX_CLAMP);
     return {
       d: `M ${startX} ${startY} L ${channelX} ${startY} L ${channelX} ${endY} L ${endX} ${endY}`,
       midX: channelX,
@@ -115,7 +123,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
     const startY = from.y + from.h / 2;
     const endX = to.x;
     const endY = to.y + to.h / 2;
-    const channelX = Math.max(Math.min(startX, endX) - CHANNEL_GAP, VIEWBOX_CLAMP);
+    const channelX = Math.max(own ? channel : Math.min(startX, endX) - CHANNEL_GAP, VIEWBOX_CLAMP);
     return {
       d: `M ${startX} ${startY} L ${channelX} ${startY} L ${channelX} ${endY} L ${endX} ${endY}`,
       midX: channelX,
@@ -128,7 +136,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
     const startY = from.y;
     const endX = to.x + to.w / 2;
     const endY = to.y;
-    const channelY = Math.max(Math.min(startY, endY) - CHANNEL_GAP, VIEWBOX_CLAMP);
+    const channelY = Math.max(own ? channel : Math.min(startY, endY) - CHANNEL_GAP, VIEWBOX_CLAMP);
     return {
       d: `M ${startX} ${startY} L ${startX} ${channelY} L ${endX} ${channelY} L ${endX} ${endY}`,
       midX: (startX + endX) / 2,
@@ -141,7 +149,7 @@ function edgePath(from, to, via, viewBox, curvature = 1) {
     const startY = from.y + from.h;
     const endX = to.x + to.w / 2;
     const endY = to.y + to.h;
-    const channelY = Math.min(Math.max(startY, endY) + CHANNEL_GAP, viewBox.height - VIEWBOX_CLAMP);
+    const channelY = Math.min(own ? channel : Math.max(startY, endY) + CHANNEL_GAP, viewBox.height - VIEWBOX_CLAMP);
     return {
       d: `M ${startX} ${startY} L ${startX} ${channelY} L ${endX} ${channelY} L ${endX} ${endY}`,
       midX: (startX + endX) / 2,
@@ -648,7 +656,7 @@ export default function CreationMap({ manifest, technical = false, compact = fal
           <text
             x={s.x + scale.labelOffsetX}
             y={s.y + scale.sublabelOffsetY}
-            fill="var(--text-muted)"
+            fill="var(--text-secondary)"
             fontSize={scale.sublabelSize}
             fontFamily={
               technical ? 'var(--font-geist-mono), monospace' : 'var(--font-geist-sans), sans-serif'
@@ -853,7 +861,7 @@ export default function CreationMap({ manifest, technical = false, compact = fal
           midY = ty - 46;
           sx = cx - 16; sy = ty; ex = cx + 16; ey = ty;
         } else {
-          ({ d, midX, midY, sx, sy, ex, ey } = edgePath(from, to, e.via, viewBox, e.curvature));
+          ({ d, midX, midY, sx, sy, ex, ey } = edgePath(from, to, e.via, viewBox, e.curvature, e.channel));
         }
         // Endpoint labels (P3 multiplicities): pin a short string a little inside
         // each end, nudged off the line. Only when the edge names them.

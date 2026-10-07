@@ -98,3 +98,16 @@ export const species = {
   // kept v2 (blind judges: A v2 over post-critic v3 65%; B v3 over v1 70%)
   frog: { family: 'anuran', name: 'an American bullfrog', scale: 1 },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  frog: { common: 'frog', aliases: ['bullfrog', 'american bullfrog'], sci: 'Lithobates catesbeianus', size: '~0.15 m snout–vent; ~0.07 m sitting', source: 'USGS NAS' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  toad: { near: 'frog', aliases: [], note: 'a warty dry skin, shorter legs, a heavier body' },
+};

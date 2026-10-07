@@ -1,0 +1,10 @@
+{
+  "entry": "forge_motion",
+  "shot": {
+    "motion": "turntable",
+    "frames": 48,
+    "fps": 12,
+    "loop": true
+  },
+  "subject": { "sketch_ref": "<your manji-tree sketch ref>" }
+}

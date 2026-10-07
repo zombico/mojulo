@@ -6,30 +6,9 @@
 // `wings.fold` 0 spreads them (span at true scale). Tables are authored in metres at flying-fox size. Worked
 // species: the Indian flying fox (fruitBat).
 
-const lerp = (a, b, t) => a + (b - a) * t;
+import { membraneWing } from '../makers/wing.js';
 
-/** A MEMBRANE wing as data for wing.js: the DRAGON_WING layout (humerus, forearm, digits V–II carrying the membrane,
- * a free thumb I), every length and radius × `k` (1 = the 4 m-span dragon), the folded pose and the frames for a
- * crawling bat. `fold` angles: the humerus back and down, the forearm forward-down to the wrist on the ground. */
-export function membraneWing(k = 0.19, { humerusFold = -73, forearmFold = 143, digitFold = [176, 177, 178, 179] } = {}) {
-  const r = (a) => a.map((x) => x * k);
-  return { girdle: 'torso', boneGroup: 'WingBone', surface: 'membrane',
-    arm: [{ id: 'wingHumerus', len: 0.55 * k, spread: 20, folded: humerusFold, r: r([0.075, 0.055]) }, { id: 'wingForearm', len: 0.85 * k, spread: -30, folded: forearmFold, r: r([0.05, 0.035]) }],
-    rays: [
-      { name: 'body', bone: 0, at: 0, angle: 105, foldAngle: 12, len: 1.05 * k },
-      { digit: 'V', bone: 1, at: 1, angle: 78, foldAngle: digitFold[0], len: 1.25 * k, r: r([0.028, 0.012]), offset: 0.03 * k },
-      { digit: 'IV', bone: 1, at: 1, angle: 52, foldAngle: digitFold[1], len: 1.55 * k, r: r([0.03, 0.012]), offset: 0.03 * k },
-      { digit: 'III', bone: 1, at: 1, angle: 28, foldAngle: digitFold[2], len: 1.7 * k, r: r([0.032, 0.012]), offset: 0.03 * k },
-      { digit: 'II', bone: 1, at: 1, angle: 8, foldAngle: digitFold[3], len: 1.5 * k, r: r([0.032, 0.014]), offset: 0.03 * k, claw: 0.07 * k },
-      { digit: 'I', bone: 1, at: 1, angle: -35, foldAngle: -40, len: 0.16 * k, r: r([0.03, 0.02]), phalanges: 2, claw: 0.09 * k },
-    ],
-    membrane: { order: [0, 1, 2, 3, 4], sag: [0.22, 0.3, 0.27, 0.24], sub: 10, along: [0, 0.12, 0.28, 0.46, 0.66, 0.84, 1], thickness: 0.007 * k, root: 3, bone: 0.03 * k,
-      groups: { top: 'MembraneBack', under: 'MembraneUnder', rim: 'MembraneRim', vein: 'Vein' }, veins: { every: 3, r: 0.009 * k, to: 0.8 } },
-    // spread: the wing plane level, out to the side; folded: the plane standing down the flank (span axis down and a
-    // little out, chord axis forward)
-    frame: { spread: { S: [1, 0, -0.17], C: [0, 1, -0.12] }, folded: { S: [0.35, 0, -1], C: [0, 1, 0] } } };
-}
-void lerp;
+export { membraneWing };   // lives in makers/wing.js
 
 const WING_PALETTE = { MembraneBack: '#2e241e', MembraneUnder: '#3d2f27', MembraneRim: '#1e1814', Vein: '#4a382c', WingBone: '#2e241e', Claw: '#d9d0bd' };
 
@@ -113,6 +92,19 @@ export const species = {
   // longest bone in view · a FOX-LIKE head with a long muzzle, big dark eyes, simple pointed ears · a golden-tawny
   // MANTLE over the neck and shoulders on a dark body · no tail · splayed short hind legs · ~0.2 m head–body, 1.2–1.5 m
   // wingspan, forearm ~0.16 m (Wikipedia / Animal Diversity Web: Pteropus giganteus).
-  // kept v4 (blind judges: A v4 over v3 55%; B v4 over v1 60%)
-  fruitBat: { family: 'chiropteran', name: 'an Indian flying fox', scale: 1 },
+  // kept v12 (blind judges, both orders: A v12 over v4 80%/80%; B v12 over v1 60%/75%)
+  // v12 pose: wings partly folded and TENTED — the arm root lifted above the back so the elbows stand high, the
+  // wrists + thumb claws planted ahead as front feet, the furled membrane sloping down to the ground (fold 0.82)
+  fruitBat: { family: 'chiropteran', name: 'an Indian flying fox', scale: 1, joints: { ...family.joints, wingRoot: [0.03, 0.055, 0.13] }, wings: { ...family.wings, fold: 0.82 } },
 };
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  fruitBat: { common: 'bat', aliases: ['fruit bat', 'flying fox', 'megabat'], sci: 'Pteropus medius', size: '~0.2 m head-body; span 1.2–1.5 m', source: 'ADW, Pteropus giganteus' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {};

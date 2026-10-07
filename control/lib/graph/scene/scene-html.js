@@ -39,9 +39,9 @@ export function renderSceneHtml(sketch, sceneOpts = {}) {
   // sources, a scad row's embedded fields) and the kernel is cold, this returns a PROMISE of the
   // HTML — every caller awaits (the scene route, sketch-png); otherwise the plain string as before.
   if (manifestWantsExact(manifest) && !exactKernelReady()) {
-    return ensureExactKernel().then(() => withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts));
+    return ensureExactKernel().then(() => withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts, sketch.ref));
   }
-  return withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts);
+  return withSceneSoundtrack(dispatchSceneHtml(sketch, sceneOpts), manifest, sceneOpts, sketch.ref);
 }
 
 // beats soundtrack on the CSS3D path (B4): a manifest `audio` block gets its
@@ -49,11 +49,11 @@ export function renderSceneHtml(sketch, sceneOpts = {}) {
 // preserve-3d pages have no bus or gait, so no SFX. Never on capture runs (the
 // PNG rasterizer passes capture:true), so bakes stay byte-identical to a
 // soundtrack-less page; a manifest without `audio` is untouched either way.
-function withSceneSoundtrack(html, manifest, sceneOpts) {
+function withSceneSoundtrack(html, manifest, sceneOpts, ref) {
   if (!html || sceneOpts.capture === true) return html;
   if (!manifest.audio || typeof manifest.audio !== 'object') return html;
   const scene = manifest.scene && typeof manifest.scene === 'object' ? manifest.scene : {};
-  const resolved = resolveWorldAudio(manifest.audio, { time: manifest.time ?? scene.time });
+  const resolved = resolveWorldAudio(manifest.audio, { time: manifest.time ?? scene.time, ref });
   const script = emitSceneSoundtrackScript(resolved);
   if (!script) return html;
   const at = html.lastIndexOf('</body>');

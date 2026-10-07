@@ -24,7 +24,8 @@ describe("mint_solid kind 'animal'", () => {
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'wolf', opts: { skullCfg: { length: 0.3 } } } })).rejects.toThrow(/ring plan/);
   });
 
-  it('mints every family worked species as a layered plan, deterministically', async () => {
+  // Walks the whole roster (~13 s alone); the default 30 s trips when it shares the machine with other files.
+  it('mints every family worked species as a layered plan, deterministically', { timeout: 180000 }, async () => {
     const { SPECIES, speciesPlan } = await import('@/lib/graph/fauna/species');
     const ids = Object.keys(SPECIES);
     expect(ids).toEqual(expect.arrayContaining(['wolf', 'lion', 'horse', 'buck', 'bull', 'brownBear', 'hippo', 'raccoon', 'kangaroo']));
@@ -47,17 +48,16 @@ describe("mint_solid kind 'animal'", () => {
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { bug: { order: 'Dragons' } } })).rejects.toThrow(/order 'Dragons'/);
   });
 
-  it('takes an arthropod by the name people say, and a name not built by its stand-in', async () => {
+  it('takes an arthropod by the name people say, and names the stand-in for one not built', async () => {
     const lady = await mintSolidHandler({ kind: 'animal', title: 'Ladybug', ref: 'an_ladybug', spec: { species: 'a ladybug' } });
-    expect(lady.species).toBe('ladybird'); expect(lady.resolved_from).toEqual({ name: 'a ladybug' });
-    const wasp = await mintSolidHandler({ kind: 'animal', title: 'Wasp', spec: { species: 'wasp' } });
-    expect(wasp.species).toBe('honeyBee'); expect(wasp.resolved_from.stand_in).toBe(true); expect(wasp.resolved_from.note).toMatch(/no wasp is built yet/);
+    expect(lady.species).toBe('ladybird'); expect(lady.resolved_from).toBe('a ladybug'); expect(lady.stance).toBe('hexapod');
+    await expect(mintSolidHandler({ kind: 'animal', title: 'Wasp', spec: { species: 'wasp' } })).rejects.toThrow(/no 'wasp' species yet.*'honeyBee'/);
     const print = await mintSolidHandler({ kind: 'animal', title: 'Crawdad', spec: { bug: { like: 'crawdad', length: 0.2 } } });
-    expect(print.basis).toBe('crayfish'); expect(print.length_m).toBeCloseTo(0.2, 3);
-    const bee = await mintSolidHandler({ kind: 'animal', title: 'Bee', spec: { species: 'honeyBee' } });
-    expect(bee.resolved_from).toBeUndefined();
-    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'unicorn' } })).rejects.toThrow(/`species` must be one of/);
+    expect(print.basis).toBe('crayfish'); expect(print.resolved_from).toBe('crawdad'); expect(print.length_m).toBeCloseTo(0.2, 3);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { bug: { like: 'wasp' } } })).rejects.toThrow(/no 'wasp' bug yet/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'honeyBee', motion: 'walk' } })).rejects.toThrow(/arthropod has none yet/);
   });
+
 
   it('mints a bare archetype as a recipe and renders it through the stored-sketch dispatch', async () => {
     const res = await mintSolidHandler({ kind: 'animal', title: 'Canine', ref: 'an_wolf1', spec: { archetype: 'canine', view: 'lateral' } });
@@ -110,5 +110,63 @@ describe("mint_solid kind 'animal'", () => {
     const card = getSolidVocabCatalog().get('animal');
     expect(card.entry).toBe('mint_solid');
     expect(card.family).toBe('creature');
+  });
+});
+
+describe("mint_solid kind 'animal' — the maker door", () => {
+  const closed = async (plan) => {
+    const { expandPlan } = await import('@/lib/graph/polygonizer/station-loft-plan.js');
+    const { compileLayered, auditLayered } = await import('@/lib/graph/polygonizer/station-loft.js');
+    return Object.entries(auditLayered(compileLayered(expandPlan(plan)))).filter(([, r]) => !r.pass).map(([n]) => n);
+  };
+
+  it('every maker builds a closed plan with its defaults', async () => {
+    const { makerPlan } = await import('@/lib/mcp/tools/animal');
+    for (const [m, p] of [['fish', {}], ['fish', { skeleton: 'cartilage' }], ['serpent', {}]]) expect(await closed(makerPlan(m, p))).toEqual([]);
+  });
+
+  it('mints a custom fish and a custom serpent, deterministically', async () => {
+    const { makerPlan } = await import('@/lib/mcp/tools/animal');
+    const eel = { length: 1.2, body: [[-0.37, 0.008, 0.018], [-0.18, 0.019, 0.03], [0.08, 0.024, 0.032], [0.24, 0.022, 0.027]],
+      dorsal: [[0.2, 0.004], [0.0, 0.02], [-0.36, 0.01]], pectoral: null, pelvic: null, caudal: { kind: 'rounded', from: -0.36, len: 0.035 } };
+    const snake = { girth: [0.05, 0.045], head: { shape: 'viper', scale: 0.2, skull: [1.3, 0.7] },
+      path: { kind: 'raised', height: 0.4, ground: [[0.1, -0.6], [-0.1, -0.9], [0.1, -1.2]] } };
+    expect(JSON.stringify(makerPlan('fish', eel))).toBe(JSON.stringify(makerPlan('fish', eel)));
+    expect(JSON.stringify(makerPlan('serpent', snake))).toBe(JSON.stringify(makerPlan('serpent', snake)));
+    expect(await closed(makerPlan('fish', eel))).toEqual([]);
+    const a = await mintSolidHandler({ kind: 'animal', title: 'Eel', ref: 'an_mk_eel', spec: { maker: 'fish', params: eel } });
+    const b = await mintSolidHandler({ kind: 'animal', ref: 'an_mk_snake', spec: { maker: 'serpent', params: snake, title: 'Viper' } });
+    expect(a.ok && b.ok).toBe(true);
+    expect(a.maker).toBe('fish');
+    expect(SketchRepository.getByRef('an_mk_eel').manifest.kind).toBe('layered');
+    expect(SketchRepository.getByRef('an_mk_snake').manifest.kind).toBe('layered');
+  });
+
+  it('mints a species by the name people say, and says what it resolved from', async () => {
+    const res = await mintSolidHandler({ kind: 'animal', title: 'Kitty', ref: 'an_named_cat', spec: { species: 'a kitten' } });
+    expect(res.species).toBe('houseCat');
+    expect(res.resolved_from).toBe('a kitten');
+    expect(res.stance).toBe('four legs');
+    const exact = await mintSolidHandler({ kind: 'animal', title: 'Cat', ref: 'an_exact_cat', spec: { species: 'houseCat' } });
+    expect(exact.resolved_from).toBeUndefined();
+    expect((await mintSolidHandler({ kind: 'animal', title: 'Duck', ref: 'an_named_duck', spec: { species: 'duck' } })).stance).toBe('two legs (a bird)');
+  });
+
+  it('an asked-for animal not built yet names its stand-in; an unknown word points at the roster', async () => {
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'koala' } })).rejects.toThrow(/no 'koala' species yet[\s\S]*'wombat'/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'unicorn' } })).rejects.toThrow(/id: 'animals'/);
+  });
+
+  it('bad params error helpfully, pointing at the card', async () => {
+    const bad = (spec) => expect(mintSolidHandler({ kind: 'animal', title: 'x', spec })).rejects.toThrow(/get_solid_vocab/);
+    await bad({ maker: 'bird' });
+    await bad({ maker: 'fish', params: { skeleton: 'bone' } });
+    await bad({ maker: 'fish', params: { fins: 3 } });
+    await bad({ maker: 'fish', params: { head: { mouth: 'beak' } } });
+    await bad({ maker: 'fish', params: { length: -1 } });
+    await bad({ maker: 'serpent', params: { path: { kind: 'zigzag' } } });
+    await bad({ maker: 'serpent', params: { head: { shape: 'round' } } });
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'fish', params: { head: { mouth: 'beak' } } } })).rejects.toThrow(/terminal \| upturned/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { maker: 'serpent', params: { girth: [5, 5] } } })).rejects.toThrow(/girth/);
   });
 });

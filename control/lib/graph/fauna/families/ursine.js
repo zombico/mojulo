@@ -110,7 +110,9 @@ export const species = {
   // a hand off the ground · very short stout legs on plantigrade feet · a broad, flat-topped, blunt head on almost no
   // neck, small round ears · NO visible tail · head-body ≈1.0 m, shoulder ≈0.37 m (published: length 0.8–1.3 m,
   // height ≈0.36 m). Tables in bear-size units, `scale` 0.4 brings it to true size.
+  // kept v4 (2026-10-06 rerun: v6 [rounder ears, bigger blunter head, square rump] vs v4 split 1-1, vs v1 split 1-1 — order bias, tie keeps v4)
   wombat: {
+    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'ursine', name: 'a common wombat', scale: 0.4,
     colors: { coat: '#6e6658', sock: '#4f483e', snout: '#6e6658', ash: '#6e6658', ashAlt: '#655d50', tip: '#4f483e' },
     joints: {
@@ -195,4 +197,20 @@ export const species = {
       headScale: 1.9, muzzleW: 1.1, muzzleLen: 0.4, legBulk: 1.3, bulk: 1.05, earH: 1.1, earR: [0.05, 0.056, 0.05, 0.03],
     };
   })(),
+};
+
+// What people call each species and what its build stands on: read by ../entries.js into the search cards, never
+// into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
+// words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
+export const about = {
+  brownBear: { common: 'bear', aliases: ['brown bear', 'grizzly', 'grizzly bear', 'kodiak bear'], sci: 'Ursus arctos', size: '~1.0 m at the withers; head-body ~2.0 m', source: 'published brown bear figures' },
+  wombat: { common: 'wombat', aliases: ['common wombat'], sci: 'Vombatus ursinus', size: '~0.37 m at the shoulder; head-body ~1.0 m', source: 'published common wombat figures' },
+  polarBear: { common: 'polar bear', aliases: ['ice bear', 'white bear'], sci: 'Ursus maritimus', size: '~1.3 m at the shoulder (adult male)', source: 'DeMaster & Stirling 1981, Mammalian Species 145' },
+  giantPanda: { common: 'panda', aliases: ['giant panda', 'panda bear'], sci: 'Ailuropoda melanoleuca', size: '~0.70 m at the shoulder', source: 'Chorn & Hoffmann 1978, Mammalian Species 110' },
+};
+
+// Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
+// the search card says so. Building one moves its row into `species` + `about`.
+export const wanted = {
+  koala: { near: 'wombat', aliases: ['koala bear'], note: 'round tufted ears, a big leathery nose, sits upright in a fork' },
 };

@@ -102,15 +102,15 @@ The recipe stays compact when stored. `get_beats({ ref, expand: true })` shows
 the literal events.
 
 - **`band`** (`anime-rock`, `trance-pop`, `country`, `blues`, `soloist`,
-  `nylon`) fills pan, send and `trim` per role
-  (drums, bass, rhythm, lead, keys, brass, strings, synth, pad, vocal, hit,
-  fx) where a part sets none.
+  `nylon`, `orchestra-battle`, `orchestra-processional`, `orchestra-pastoral`, `orchestra-field`) fills pan, send and
+  `trim` per role (drums, bass, rhythm, lead, keys, brass, strings, woodwind,
+  timpani, synth, pad, vocal, hit, fx) where a part sets none.
   - It adds a room (a plate or a room2) if there is none.
   - It double-tracks the rhythm guitars: a `~double` twin, mirrored and 12 ms
     late. `double: false` opts a part out, and `double: { offset, pan }` works
     on any pitched part.
 
-A recipe book attached to the install may carry whole songs in these styles:
+The recipe book (or your cookbook) may carry whole songs in these styles:
 `semantic_search({ kinds: ['beats_vocab'], query })` finds them, and the card's
 `recipe` is `{ kind, params }` to pass to `create_beats` and then revise.
 
@@ -154,6 +154,31 @@ Style recipes by trait:
   instrumental), `classical` (over `pima`), `flamenco` (over `rasgueado` and
   `palmas` on a 12/8 compás), `gypsy-jazz` (over `pompe`, `shuffle: 0.6`).
   Card `beats-soloist`.
+- **Field battle** (a strategy-RPG fight that loops for minutes):
+  140–160 bpm in a minor or Phrygian key, `band: 'orchestra-battle'`.
+  - `orchestral-perc` on `march` and timpani pickups into each section.
+  - Tuba and trombone on the downbeats as the kick, low strings on a `pedal`.
+  - Inner strings in repeated 8ths or 16ths as the hi-hat.
+  - Horns and trumpets doubling the violins' line in parallel triads.
+  - bII for danger, an open seam at the loop, the next section a third up.
+  Card `beats-field-orchestra`.
+- **Open country / world map** (travelling, the plains, a calm field):
+  80–100 bpm, often 6/8, a major or Mixolydian key, `band:
+  'orchestra-pastoral'`. A harp on `lilt` alone first, a soft low `drone`
+  on cello from bar 2, strings entering late on `upper` with hairpins, one
+  woodwind melody with rests between phrases
+  (a second woodwind answers), `travel` or no percussion. A short loop
+  (45–90 s). Card `beats-field-orchestra`.
+- **Adventurous fields** (exploring when the road gets dangerous): 100–120
+  bpm, `band: 'orchestra-field'`. A staccato string ostinato or a cello riff
+  alone first, low brass on the half bar at mp, a horn or trumpet call
+  answered by a woodwind, the tonic flip or the Aeolian march, the middle
+  section a third or a fifth up, light `processional` / `march` percussion
+  with a roll into each section. Card `beats-field-orchestra`.
+- **Military march / processional:** `march` at 130–160 bpm for a column on
+  the move, or `processional` at 70–90 bpm for a coronation, a funeral or an
+  army in review. Brass calls on `dotted`, timpani into the downbeat, a
+  `long-roll` into each section, `band: 'orchestra-processional'`.
 
 ## Orchestral scoring (opt-in)
 

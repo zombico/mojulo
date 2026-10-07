@@ -53,6 +53,10 @@ describe('parseArgv', () => {
       json: '{}',
     });
     expect(parseArgv(['pack_audio', '--json', '{}']).error).toMatch(/tool name before flags/);
+    expect(parseArgv(['pack_audio', '--manual', 'create_beats,export_beats'])).toEqual({
+      command: 'pack', pack: 'pack_audio', name: null, manual: ['create_beats', 'export_beats'],
+    });
+    expect(parseArgv(['pack_audio', '--manual']).error).toMatch(/--manual takes one argument/);
   });
 
   it('rejects usage errors without exiting', () => {
@@ -395,7 +399,11 @@ describe('runCli', () => {
     expect(await runCli(['pack_plan'], unveil.io)).toBe(0);
     const text = unveil.lines.out.join('\n');
     expect(text).toMatch(/pack_plan/);
-    expect(text).toMatch(/Member manual/);
+    expect(text).toMatch(/Members — dispatch THROUGH this pack/);
+
+    const manual = capture();
+    expect(await runCli(['pack_plan', '--manual', 'forge_plan'], manual.io)).toBe(0);
+    expect(manual.lines.out.join('\n')).toMatch(/### forge_plan/);
 
     const dispatch = capture();
     expect(await runCli(['pack_stash', 'list_cooks'], dispatch.io)).toBe(0);

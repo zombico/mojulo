@@ -121,7 +121,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   meaning; `push: { slot: [dx, dy, dz] }` moves a right-half or midline slot off the ring, the left mirrored) | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
   'chain', joints, r, over?, bind: { root } } | { name, kind: 'loft', stations: [{ at, r, e? }], caps?, mirror, bind } (explicit stations
-  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) | { name, kind: 'rings', slots, stations:
+  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest; `frame: 'keep'` holds each ring's front on
+  the side of the last, for a loft running near level along y, a barrel, that would otherwise twist) | { name, kind: 'rings', slots, stations:
   [{ id?, points: { slot: [x, y, z] } }], caps, mirror: 'name', bind } (rings given point by point, every slot of the family
   in loop order: a layer that hugs another part's surface, a muscle over the chest; `ring20` a fine family for one) ]; any segment may name `slotT` (each
   right-half and midline slot's address parameter, rising from 0: a denser ring addressed on a sparser one's scale),
@@ -383,9 +384,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
   clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
   flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
-  and the `shapes` characters `broku` (carrots only, after Toriyama), `jinto` (bananas only, comma hair over a soft two-block),
-  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs, after Cynthia), `frieda` (after Frieren: split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (after Hirako Shinji: a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob after Miwa Kasumi), `jona` (layered banana
-  PEELS: leaf-shaped, thin, cupped; the young-Bieber swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, after Videl's short cut); shaped hair never
+  and the `shapes` characters `broku` (carrots only, classic shonen spikes), `jinto` (bananas only, comma hair over a soft two-block),
+  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs), `frieda` (split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob), `jona` (layered banana
+  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut); shaped hair never
   cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
   `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
@@ -445,6 +446,29 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
   Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
+  STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the
+  hero as sculpture (`lib/graph/statue/`), on the landmark head or `head: 'none'` (the anime head and held gear refuse by
+  name; an armour build is carved with the figure). Period cards, plain JSON: `archaic` (kouros and kore), `classical`
+  (contrapposto, bronze), `hellenistic` (the turning figure), `roman` (the address, tunic and long garment as the toga's
+  stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `sumerian` (the votive worshipper: the hands clasped at the chest, a flared
+  skirt), `renaissance`. `stand: 'seated'` (build or card) sits any card on a block throne built with its base (the
+  thighs level, the shins hanging, the hands on the knees; a long skirt cut at the knee; refused with a gesture or on a
+  bust); `stand: 'mounted'` sets it astride a horse carved in its material (the horse ring plan, `horsePlan`, under the
+  animal kind's statue filter), the right arm in address, both on an oblong block: an equestrian statue. A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
+  wave off) and drapery (an outfit card per silhouette) apply when the hero names none, and its hair at mint. Laws
+  (`principles.js`): ONE MATERIAL over every group (`marble`, `limestone`, `sandstone`, `granite`, `basalt`, `bronze`,
+  `gilt`, `painted`), the eyes blank, the hair a carved mass, the bare body's zones skin; a FORMAT is a cut (`full`;
+  `bust`: below the chest, through the upper arms; `herm`: the bust on a tapering shaft; `torso`: no head, no arms, the
+  thighs cut), each cut a sealed ring; a LOSS is whole parts (`head`, `handR`, `forearmL`, `armR`, `footL`, `shankR`,
+  `legL`, …: the part and what it carries, closed in its own cap; no fracture surface); `painted` is RECONSTRUCTED
+  polychromy over the card's stone and always says so; a statue stands on a BASE (`none`, `block`, `attic`, `drum`,
+  `socle`, `herm`) of stone (a bronze, gilt or painted figure on limestone), built at read time under the posed figure,
+  the figure lifted onto it; `wear` 0–1 dulls stone and ages bronze from its brown patina to verdigris. The faces carry
+  the material's surface (`spec` and `pbr`: stone matte, a bronze or gilt figure metallic in its patina's or gilding's
+  colour) for the World page and the exports. The
+  readout's `hero.statue`: the card, period, material, format, the parts lost, base, wear, `basis` (`unverified`: drawn
+  from the general record of the type) and the `caption` derived work carries ("inspired by …"). Patch `/hero/statue`,
+  `/hero/statue/material`, `/hero/statue/crop`, `/hero/statue/lose`, `/hero/statue/dials/wear`.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
   forearm and ONE pauldron on the right shoulder with a bronze boss (the focal accent), stacked in that order, and suggests
   an earth palette beneath the operator's. Either is also DATA (the plan's `body` / `adorn` blocks below); `'none'` or
@@ -674,7 +698,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   World page (`/api/sketches/<ref>/world?draw=<view>`) that hands the patch to the agent — the page writes nothing.
   Absent, zero bytes.
 
-Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
+Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the HORSE, a light riding horse at 1.6 m, core as
+`polygonizer/horse-form.js` `horsePlan({ scale, palette })`; the SPHINX, a recumbent lion wearing the landmark head in
+a nemes, `polygonizer/sphinx-form.js` `sphinxPlan({ preset, scale, palette })`, and Karnak's ram-headed
+`criosphinxPlan()`; the BULL, `polygonizer/bull-form.js` `bullPlan({ scale, palette })`; a plan that is not a hero takes `statue`
+(true or `{ type: 'statue', material, base, dials }`: carved in one material on an oblong base); the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
 `creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form
 (`docs/examples/ring-plans/hero.plan.mjs`, a cast word → the vajra rest joints, a `style` register, the `docs/examples/hero-head/` head worn as an include). Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts), `docs/examples/dragon-body/` (the

@@ -1,0 +1,46 @@
+{
+  "entry": "create_beats",
+  "kind": "beats-sfx",
+  "title": "Arcade cabinet",
+  "params": {
+    "cues": {
+      "pickup": [
+        { "type": "sweep", "wave": "sine", "from": "C6", "to": "E6", "dur": 0.06 },
+        { "type": "burst", "at": 0.02, "decay": 0.07, "vol": 0.25, "highpass": 6000 }
+      ],
+      "laser": [
+        { "type": "sweep", "wave": "square", "from": "A5", "to": "A4", "dur": 0.09 }
+      ],
+      "jump": [
+        { "type": "sweep", "wave": "square", "from": "C4", "to": "G4", "dur": 0.12, "vol": 0.7 }
+      ],
+      "land": [
+        { "type": "thump", "from": "G2", "to": "G1", "decay": 0.18 },
+        { "type": "burst", "decay": 0.08, "vol": 0.5, "lowpass": 2500 }
+      ],
+      "hurt": [
+        { "type": "sweep", "wave": "square", "from": "E4", "to": "A3", "dur": 0.14 },
+        { "type": "burst", "at": 0.02, "decay": 0.1, "vol": 0.4, "highpass": 1500 }
+      ],
+      "powerup": [
+        { "type": "flutter", "rateHz": 28, "hold": 0.9,
+          "tiers": [
+            { "at": 0.0, "table": ["C4", "E4", "G4"] },
+            { "at": 0.3, "table": ["G4", "C5", "E5"] },
+            { "at": 0.6, "table": ["C5", "E5", "G5", "C6"] }
+          ] },
+        { "type": "sweep", "at": 0.9, "wave": "square", "from": "C6", "to": "G6", "dur": 0.15 }
+      ],
+      "coin": [
+        { "type": "sweep", "wave": "square", "from": "B5", "to": "E6", "dur": 0.05 },
+        { "type": "ring", "at": 0.05, "note": "E6", "material": "glass", "decay": 0.5, "vol": 0.5 }
+      ],
+      "lose": [
+        { "type": "sweep", "wave": "square", "from": "G4", "to": "E4", "dur": 0.25 },
+        { "type": "sweep", "at": 0.28, "wave": "square", "from": "E4", "to": "C4", "dur": 0.25 },
+        { "type": "sweep", "at": 0.56, "wave": "square", "from": "C4", "to": "F3", "dur": 0.4 },
+        { "type": "thump", "at": 0.96, "from": "C2", "to": "C1", "decay": 0.5, "vol": 0.8 }
+      ]
+    }
+  }
+}
