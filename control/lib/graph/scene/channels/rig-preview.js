@@ -186,8 +186,7 @@ function __rpBuild(fig) {
     mesh.frustumCulled = false;
     group.add(mesh);
     return mesh;
-  });
-${overlayBuild}
+  });${overlayBuild}
   scene.add(group);
   return { group, boneMeshes${overlayRet} };
 }
