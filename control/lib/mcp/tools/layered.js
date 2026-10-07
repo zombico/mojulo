@@ -50,6 +50,7 @@ import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
+import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { MATERIAL_WORDS as STATUE_MATERIAL_WORDS, CROP_WORDS as STATUE_CROP_WORDS, BASE_WORDS as STATUE_BASE_WORDS } from '@/lib/graph/statue/principles';
 import { justify } from '@/lib/graph/polygonizer/station-loft-adorn';
 import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance';
@@ -61,6 +62,9 @@ import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as h
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
+import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
+import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
+import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/lib/graph/polygonizer/hero-gear';
@@ -102,6 +106,25 @@ export function planLayered(manifest) {
       if (a.badWeights || a.restIdentity > 1e-9 || a.maxPlantedDrift > 1e-9) throw new Error(`bad weights ${a.badWeights}, rest identity ${a.restIdentity}, planted drift ${a.maxPlantedDrift}`);
       rig = { bones: R.bones.length, blendedVertices: a.blended, clips: Object.keys(clips), maxLengthError: a.maxLengthError, legs: a.poses.map((p) => p.legs) };
     } catch (err) { throw new Error(`layered rig: ${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
+  }
+  // a minted animal's MOTION (fauna/rig.js) pays its gates here too: every vertex bound to the species' skeleton with
+  // valid weights, every gait one the species has and every behavior one it can be posed doing (its clips are packed
+  // from the gait and behavior solvers at read time)
+  if (manifest.recipe.motion && !manifest.recipe.rig) {
+    try {
+      const M = manifest.recipe.motion, bug = !!M.bug, B = bug ? bugBones(M) : faunaBones(M.species);
+      if (!B) throw new Error(`unknown species '${M.species}'`);
+      // a bug's motion carries its bauplan (bugs/rig.js): its gaits are the ones its parts move by, every behavior word
+      const have = bug ? bugMotionGaits(M.bug, M.species || null) : motionGaits(M.species), who = bug ? 'this bug' : `'${M.species}'`;
+      for (const g of M.gaits || []) if (!have.includes(g)) throw new Error(`${who} has no gait '${g}' (it can: ${have.join(', ')})`);
+      if (bug) for (const w of M.behaviors || []) if (!bugMotionBehaviors().includes(w)) throw new Error(`no behavior '${w}' (the behaviors: ${bugMotionBehaviors().join(', ')})`);
+      if (bug && M.wingbeat !== undefined && !(M.wingbeat > 0) && !WINGBEATS.includes(M.wingbeat)) throw new Error(`\`wingbeat\` is ${WINGBEATS.join(' | ')} or beats a second`);
+      if (!bug) checkBehaviors(M.species, M.behaviors || [], M.variants || {});
+      const skin = bindLayered(mesh, manifest.recipe, B);
+      let bad = 0; skin.weights.forEach((w) => { if (Math.abs(w.reduce((a, b) => a + b, 0) - 1) > 1e-9 || w.some((x) => !(x >= 0))) bad++; });
+      if (bad) throw new Error(`${bad} vertices with bad weights`);
+      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M.species ?? null, ...(bug ? { bug: true } : {}) };
+    } catch (err) { throw new Error(`animal motion: ${err.message} — the species' gaits and behaviors: get_solid_vocab({ id: 'animals' }).`); }
   }
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };
 }
@@ -596,7 +619,14 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, rim, strokes, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, rim, strokes, statue, ref, folder_ref: folderRef } = input;
+  // a CREATURE carved (statue/creature.js): stored beside a plan that is not a hero, carved by the layered resolve on
+  // every read; a hero's statue is its own build (/hero/statue)
+  if (statue !== undefined) {
+    if (hero) throw new Error("a hero's statue is its build: /hero/statue (the layered kind's STATUE section)");
+    const errs = validateCreatureStatue(statue);
+    if (errs.length) throw new Error(`layered: ${errs.join('; ')}`);
+  }
   const lightErrs = toon && typeof toon === 'object' ? toonLightErrors(toon.light) : [];
   if (lightErrs.length) throw new Error(`toon refused:\n - ${lightErrs.join('\n - ')}\nThe character light — manual: get_solid_vocab({ id: 'layered' }) (the Spec section).`);
   // a toon the dial reads is stored as given; so is an explicit OPT-OUT the character light reads (`light: false`, or
@@ -620,6 +650,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     ...(hullShade === true || (hullShade && typeof hullShade === 'object') ? { hullShade } : {}),
     ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),
     ...(strokes !== undefined ? { strokes } : {}),   // drawn lines as the authoring record (layered-strokes.js); usually stored later by update_sketch
+    ...(statue !== undefined ? { statue } : {}),   // a creature carved (above); absent ⇒ byte-identical
   };
   const planned = planLayered(manifest); const { stats } = planned;
   if (typeof onPlanned === 'function') onPlanned({ mesh: planned.mesh, recipe: manifest.recipe, stats, dials: manifest.dials, channels: manifest.channels });

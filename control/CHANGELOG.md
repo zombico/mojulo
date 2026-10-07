@@ -208,6 +208,88 @@ scratch last: the cluster every new object draws from. Every existing kind build
 - **Ratchet.** `get_solid_vocab`'s `section` property moves the flat `tools/list` pin by 63 bytes (239,264 to
   239,327; pin 239,400). The card a plain part reads drops from 26.3 KB to 9.6 KB.
 
+### Bug motion
+
+The arthropods move. A bug minted with `motion` (a worked one by `species`, or one nobody has built by `bug`) carries a
+skeleton derived from the parts it is assembled from and clips the World plays, packed as the animals' are.
+
+- **The skeleton.** Bones along the body (the trunk's segments, the neck, the head, the abdomen's segments, a
+  scorpion's tail), a coxa / femur / tibia / tarsus chain per leg, the antennae, mouthparts, wings and wing cases; each
+  part bound to its bone, a section's rings blended along its segments.
+- **Walking.** One footfall rule for every leg count: each pair a fixed share of a stride behind the pair in front, the
+  two sides half a stride apart, so six legs walk the insect's alternating tripod, eight the spider's alternating
+  four, and many the millipede's wave. A planted foot holds the ground while the body passes over it.
+- **Flying, swimming and escaping.** Wings stroke about their roots (a beetle's wing cases raised clear first), oar
+  legs row, a lobster's tail flips it backwards, a crab walks sideways.
+- **Wingbeats.** A flight beats at the order's measured rate where a screen can show it (a butterfly's ten beats a
+  second); past that (a bee's two hundred) the World draws the wing's swept fan, see-through, instead of strobing
+  wings, while an engine export plays them beating at the screen's limit. `wingbeat` asks for beating, the blur, or a
+  rate.
+- **Behaviors.** Relaxing, alert, eating and sleeping, done the arthropod's way: antennae sweeping, forelegs or claws
+  raised, a scorpion's sting over its back, mouthparts working, legs drawn in.
+
+### Fauna behavior
+
+What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one
+word: a sheep lies with its legs folded under and chews the cud, a horse dozes on its feet with a hind hoof cocked, a
+cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. A minted animal carries them as
+animation clips beside its gaits. Every species builds byte-identically, and an animal minted without behaviors is
+unchanged.
+
+- **Behaviors.** `relax`, `alert`, `eat` and `sleep`, each a loop or a hold, in `lib/graph/fauna/behavior/`.
+- **Strategies.** Each behavior's ways of doing it, written in mechanism words a solver poses (what holds the body
+  up, where the head goes, what the tail does, the small motion that loops), tried most specific first and ending on
+  a fallback any body can do.
+- **Capabilities from the bones.** Four legs or two, wings, fins, legs that fold, a neck that reaches the ground, a
+  tail long enough to wrap, a supple back: measured from the skeleton, never authored.
+- **Tags for habits.** A closed vocabulary of the habits the bones cannot tell (`ruminant`, `dozes-standing`,
+  `perches`, `hoods`, …), set per family with species overrides. Every tag must be read by some strategy.
+- **Every animal resolves.** `resolveBehavior(id, behavior)` names the strategy and why (the capabilities and tags
+  it matched, and each more specific strategy it passed over); `behaviorTable()` gives every species at once.
+- **Posed on the bones.** `behaviorFrames(id, behavior)` poses the strategy on the species' own skeleton, in the
+  gait frame's shape, one principle per mechanism word: the trunk lowered until the belly rests on the ground, rolled
+  or shifted over a foot; each foot block placed by the support (planted where it stood, folded flat under the chest
+  or beside the belly, drawn up into the feathers) and the leg hung to it by the gait solver's two-link; a neck bent
+  until the muzzle reaches the grass, a short-necked grazer's shoulders lowering when it cannot; the face turned back
+  along the flank; nothing on land through the ground. A legless body is laid out as a coil, or a coil with the front
+  third raised in an S. Standing, dozing on a cocked hind leg, lying folded, the sphinx, the curl, perching on one
+  leg, sitting down over the feet, sitting up, rearing, lying on the side, the crouch, lying belly-flat, floating, the
+  coil, hovering and swimming on are posed; a strategy whose words are not yet posed says which (`posable`).
+- **Sitting up and rearing.** The trunk pitches up about the hips; sitting, its lowest point (the rump and the tail's
+  root) comes down onto the ground and the hind feet lie flat out in front, knees up; rearing, the hips ride on the
+  near-straight hind legs. The forelegs hang free (resting on the ground where they reach it, a chimpanzee's), or bring
+  the hands up to the mouth to eat. The neck takes back most of the pitch and the face is aimed by the head word. A
+  raccoon, a squirrel, a bear, a panda and a chimpanzee relax sitting up and eat from their hands; a raccoon, a bear
+  and a chimpanzee rear to look.
+- **Lying on the side, the crouch, and the meal.** Lying on the side, the trunk rolls onto its left flank and settles
+  on the ground (by its trunk line, or its hips and shoulders where those sit lower), the legs lying loose out to the
+  side; a head lowered on a rolled body bends about the world's horizontal, not the body's own. A crouch sinks the
+  hips on planted feet, the front a little lower. A lying predator gnaws the meal between its paws, a pig or a bear
+  roots, a raptor or a theropod tears upward from food pinned underfoot.
+- **Belly-flat and afloat.** A crocodile, a monitor and a tortoise lie belly-flat, the feet sprawled out wide on the
+  ground and the elbows and knees up. A floating body sinks by its buoyancy (a duck rides high, a mammal floats with
+  its back awash, no lower than keeps its head at the surface), its head clear of the water, its legs hanging slack and
+  its tail lying out on the surface; a floating frame reports the water's surface (`water`), and the stick strip draws
+  it. An otter eats floating on its back, the food held up at its mouth. Only an animal that eats from its paws eats
+  afloat (a hippo grazes), and only a bird sleeps afloat with its head tucked into its back.
+- **Repertoires.** `repertoire(id, behavior)` lists every way an animal does a behavior, its own first: a raccoon
+  relaxes sitting up or curled, a bear sitting up or sprawled. The catch-alls (lying folded, standing at ease) are
+  left out when anything more its own qualifies. `resolveBehavior`, `poseBehavior` and `behaviorFrames` take
+  `{ variant }` to pick another from the repertoire.
+- **Behaviors as clips.** An animal's `motion` takes behavior words beside gait words (`['walk', 'relax']`,
+  `{ behaviors: 'all' }`, `{ behaviors: ['relax'], variants: { relax: 'curl' } }`). Each behavior packs as one looping
+  clip named for its word, through the same rig as the gaits, so the World previews it and the skinned GLB and the
+  Godot pack carry it. A loop lasts as long as its motion takes (a breath, a chew, a scan round), slower on a bigger
+  body. A behavior the species is not posed doing, or a way not in its repertoire, is refused with what it can do.
+  Each species' entry card gains a `DOES` line: the behaviors it can be minted with and the way it does each.
+- **A tail carried high wraps.** A curled cat's tail, which rests pointing up, is laid level before it wraps round
+  the curl (it stood straight up).
+- **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to;
+  `--variant curl` draws another way from the repertoire.
+- **Shared solver pieces.** The leg chain and its two-link solve (`fauna/limb.js`) and the vector kit (`fauna/vec.js`)
+  moved out of the gait solver so both solvers use them; every gait poses byte-identically.
+
+
 ### Test cull
 
 The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
@@ -760,6 +842,34 @@ byte-identical. Being built on this branch; the sphinx comes next.
   Every mood carries its role (field, travel, town, interior, story), and the suggestion knows the new places.
   The existing moods are unchanged, note for note.
 
+### Bug builder
+
+- Arthropods join the animal kind, built from parts instead of a species list. Insects, spiders, scorpions,
+  crabs, woodlice, centipedes and millipedes share one assembler: a head (or none, fused into the trunk), a
+  trunk of repeated segments each carrying leg pairs, and a tail. Each part is chosen by form: a walking,
+  running, jumping, grasping, digging, swimming or stilt leg; a chela; filiform, elbowed, clubbed, comb or
+  feathered antennae; mandibles, a coiled proboscis, a beak or fangs; clear, scaled or narrow wings, tegmina,
+  halteres or elytra; cerci, a sting or a scorpion's tail. Two bugs share a part by naming the same form, so a
+  bee and a fly stand on the same leg and a grasshopper's jumping leg serves any jumper.
+- Legs are bent chains whose feet are solved onto the ground, and segments are the shapes the anime hair uses:
+  tapering cones for leg and antenna segments, flat crescents for mandibles and claw fingers, curved spikes for
+  claws, fangs and stings. A bug is built at its published length exactly: the body is measured and rebuilt at
+  the scale that matches.
+- `mint_solid { kind: 'animal' }` mints a worked bug by `species`, or one nobody has built by `bug`: an order
+  and a few part forms find the closest worked bug, and the asked forms are worn over it (a wasp from the bee
+  with a waisted abdomen, a crayfish from the crab with a long carapace and a tail fan). The mint returns the
+  stance, the leg count, the basis it started from and each part it swapped.
+- `scripts/fauna-fit.mjs --bug <id>` gates an arthropod at true scale: closed, grounded, every foot planted
+  and body length, each tolerance a share of the body. Animal species are measured exactly as before.
+- Every worked bug went through the same design loop as the animals: a critic, one fix pass and two blind
+  judges. Optional settings cover what the loop asked for: a leg joint turning out of its plane (a crab's claw
+  across its face), where each leg pair attaches, jaws tipped up or down with several teeth, a flat underside,
+  finer stripes and spots, markings on legs, and a scorpion's sting bulb and hook.
+- The arthropods join the animal encyclopedia: every worked bug has an entry card (its common name, other
+  names, scientific name, published size and source, and a starter to copy), and each class (insect, arachnid,
+  crustacean, myriapod) a hub naming the arthropods not built yet with the bug that stands in. Search finds "a
+  ladybug", "crawdad" or "daddy longlegs", and `species` (or `bug.like`) takes any of those names.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
@@ -1189,6 +1299,167 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - `historic/lineage.test.js` holds relations to history: every source registered, no culture its own ancestor,
   a source beginning before the culture drawing on it ends, a continuation beginning earlier, a variant on its
   source's layout. Every historic page is byte-identical.
+
+### Animal entries
+
+- The animal roster reaches search the way the historic cultures do. Each species gets an encyclopedia entry,
+  generated from the roster (`lib/graph/fauna/entries.js`) and served as a solid-vocab card. No tool is added,
+  and no tool description names an animal.
+  - **The index** (`animals`) lists every animal by the name people say, plus the animals people ask for that
+    aren't built yet, each with the built species that stands in.
+  - **A hub per family** (`animal/feline`) lists its species and its NOT YET rows.
+  - **An entry per species** (`animal/houseCat`) gives the subject, size, stance and basis, the STARTER spec to
+    mint, and its kin.
+- Each family module gains `about` (`common`, `aliases`, `sci`, `size`, `source`, moved out of the thesis
+  comments into data) and `wanted` (`near`, `aliases`, `note`). The facts never reach a plan: every species
+  builds byte-identically.
+- `mint_solid` kind `animal` takes the name people say: `species: 'cat'` mints `houseCat`, and the result's
+  `resolved_from` says so. Plurals and articles resolve too ('a penguin', 'wolves'). An asked-for animal
+  that isn't built yet ('koala') is refused with its stand-in named. An unknown word points at the roster.
+- A species minted as a ring plan reports its real stance (`four legs`, `two legs (a bird)`, `swims`,
+  `legless`, …), not `quadruped` for all of them.
+- A roster contract test holds what an entry reads:
+  - every species has an `about` row;
+  - every `wanted` row names a built stand-in and isn't built itself;
+  - no name is claimed by two animals.
+  A new roster (the arthropods) joins by adding itself to `ROSTERS`.
+- The `get_solid_vocab` bare listing stays one row per kind and op: the generated entries are left out, and
+  the `animal` card points at their index. The unknown-card error lists the hand-written cards and names the
+  entries.
+- The `animal` manual and routing card no longer list the old species ids or say `opts` work on a species.
+  They point at the `animals` card.
+- Fix: an upgraded install now indexes new solid-vocab cards too. The shipped-card check used to look at
+  view-vocab and routing cards only.
+
+### Fauna roster completion
+
+The animal encyclopedia's asked-for animals built, and the house cat given a head that reads as a cat. Every species
+already built keeps its plan except where named below.
+
+- **The faceted feline head.** The house cat's head is now a low-poly mesh built from interlocking facial volumes
+  (cranium, cheekbones, muzzle pads, nasal bridge, chin; the eye sockets carved in), placed by landmarks measured off a
+  reference sheet: almond eyes with vertical slit pupils, a pyramid nose, wedge ears with a recessed inner ear. Its
+  lower jaw is its own shell, hinged on the same `jawOpen` dial as the ring-plan heads (0–35°), the mouth's lining
+  showing when it opens. Worn through `headMesh`, which takes a jaw and an `anchorZ` (the height a head is seated on the
+  neck by; default the middle, so the raccoon is unchanged). The cat's trunk and legs are fuller and its neck shorter.
+- **Eyes that show.** The seated ("set") eye now opens its lids nearly round, sinks the ball a third of its radius and
+  keeps the lid a narrow rim; a species that wants a drowsy eye asks for its own opening.
+- **Fifty more animals.** Every animal the encyclopedia listed as asked-for is built, each at its published size
+  (`about` names the source) and passing the fit gates (closed, attached, grounded, size): coyote, spotted hyena,
+  jaguar, Eurasian lynx, warthog, woolly mammoth; donkey, llama, reindeer, elk, yak, water buffalo; house mouse, brown
+  rat, Syrian hamster, guinea pig, European hedgehog, North American porcupine, brown hare, European badger, striped
+  skunk, meerkat; white-faced capuchin, western lowland gorilla, Bornean orangutan, ring-tailed lemur, three-toed
+  sloth, koala, red-necked wallaby; tokay gecko, green iguana, veiled chameleon, American alligator, red-eared slider,
+  green sea turtle, common toad; Atlantic bluefin tuna, white-spotted puffer, southern stingray; ostrich, rooster,
+  turkey, peacock, American flamingo, mute swan, Canada goose, rock pigeon, American crow, toco toucan, ruby-throated
+  hummingbird. Their gaits follow their families, with species overrides where the animal moves differently (the
+  lizards stand on four sprawled legs, the ostrich does not fly, the waterbirds paddle, the sea turtle flies underwater
+  on its flippers, the sloth only crawls, the meerkat sits up and walks). The bobcat, emu and raven are asked-for rows
+  now, standing in as the lynx, ostrich and crow (they had been aliases of other species).
+- **Spotted coats.** The jaguar, lynx and hyena wear their spots on a fine coat shell (`lib/graph/fauna/coats.js`):
+  round, irregular patches and broken rosettes laid out in metres, not whole faces of the trunk's coarse ring.
+- **The throat.** A long face's jaw is joined to the neck (a giraffe's, a camel's, a horse's jaw held its rear corner
+  out in the air); buried where the neck already meets it; birds, frogs and worn head meshes leave it out.
+
+### Animal locomotion studies
+
+- **In progress.** Every animal gets the way it moves, written down by the biomechanics of its family, so it
+  can later be animated by the leg-step and spine mechanics of its kind.
+- The roster sorts into nine shared rigs (`lib/graph/fauna/locomotion/`): running toe-walkers, hoofed,
+  flat-footed, pillar-legged, sprawling, hoppers, two-legged, wing-walkers, and whole-body wave (snakes and
+  fish). Each rig file holds its families' entries:
+  - the gaits, named in plain words (walk, trot, gallop, hop, slither, swim, …), each pointing at a footfall
+    pattern or body wave with its duty factor, stride length per hip height and speed band (Froude number);
+  - the spine bone counts, fixed per family;
+  - how the spine, girdles, head and tail move with the stride;
+  - species overrides where a family holds very different movers (snakes and the monitor lizard; the manta).
+- Where scientists disagree, the entry takes the more visual reading and says so beside the value.
+- Each species' encyclopedia entry lists its gaits (`MOVES`). No plan changes: every species builds
+  byte-identically.
+- Every species gets a bone tree (`lib/graph/fauna/skeleton.js`), derived from the plan it already builds:
+  - spine, neck and tail bones laid along the body's own centreline, in the family's fixed counts, and a
+    head bone pitched as worn; a camel's or plesiosaur's lofted neck is followed along its curve;
+  - one bone per leg row, chained joint to joint; the main chain of each shoulder and hip limb carries a role
+    (`fore.humerus` … `hind.metatarsus`), the shared animal profile a gait solver or a clip library maps by;
+  - paired fins as their own bones; snakes and fish carve their tail from the rear of the body;
+  - a binding for every plan part: torso, neck and tail stations ride the bones of their own region, a leg
+    stripe rides its leg, other decorations ride the body.
+  It is not wired into minting yet.
+- A gait solver (`lib/graph/fauna/gait.js`) poses a species' skeleton through one stride of any of its gaits, in
+  place on a treadmill:
+  - feet plant at their phase offset for the gait's duty factor and swing forward between; the upper leg solves
+    two-link to the foot block, the foot rolls over its ground contact at the ends of the stance and the girdle
+    glides (the shoulder blade on the ribs) where the leg cannot reach;
+  - the body dips with the stance legs and, in a flight phase, rises on a ballistic arc timed by the speed its
+    stride implies (stride/h ≈ 2.3·Fr^0.3);
+  - the spine flexes once a stride in gallops, bounds and hops, bends sideways as a standing wave in the
+    sprawlers, and travels as a serpenoid wave in snakes and fish (the coiled snake straightened first);
+  - fins and flippers stroke, heads hold level or nod, tails trail or counter-swing and drag on the ground.
+  Wing beats wait for the wing bones. `scripts/fauna-gait-strip.mjs <species> <gait>` draws the stride as a
+  stick GIF (side view over top view) for the eyes gate; a machine gate checks every gait of every species
+  poses rigid bones and that planted feet stay down for their duty factor.
+- The snakes' spine count rises to 20 trunk and 4 tail bones: two body waves need them.
+- The skeleton gains the wing bones `wing.js` builds (the arm chain with `wing.humerus` / `wing.radius` /
+  `wing.hand` roles, and the digits), and a penguin's flippers as fin bones. A `fly` gait rebuilds the wing at
+  each instant's fold (spread on the downstroke, half folded coming up) and rolls it about the body's long axis;
+  `glide` holds it spread. Strokes beat only their own limb group (wings, pectoral fins, flippers, paddles).
+- **Animals move.** `mint_solid { kind: 'animal', spec: { species, motion } }` binds the minted solid to the
+  species' skeleton and carries its gaits as clips. `motion` is `true` (every gait), a gait word or a list, or
+  `{ gaits, keys }`; an unknown gait is refused with the species' own list. Without `motion` the plan is the
+  species' own, byte-identical.
+  - The plan gets a `bind` on every segment (a limb's joint rings shared with the bones either side, a body
+    station blended toward the next bone as it nears that bone's end) and on the head, plus a `motion` record
+    that expandPlan carries to the recipe.
+  - The mint gate binds every vertex and checks the weights; the stats report the bones and the clips.
+  - At read time `packFaunaRig` (`lib/graph/fauna/rig.js`) packs the mesh through `packLayeredRig` with a stand-in
+    rig of the skeleton's bones and no clips (the humanoid path is untouched), then appends one clip per gait from
+    the gait solver: the absolute rotation and posed head of every bone at every key, and the stride's own
+    duration. The World page previews the clips, the skinned GLB carries them (`export_model { clips: '_all',
+    skinned: true }`), and the Godot pack plays the first.
+  - The worn wing still rides its root bone rigidly; weighting its surface from wing.js's own bindings is next.
+- The equine trunk is shaped in its mammal regions instead of one even barrel: a rounded buttock, broad quarters
+  over the hip, the loin and flank tucked in and up (the belly line climbs to the stifle), the rib barrel deepening to
+  the girth behind the elbow, the withers, and a narrow breast. It sits on the stable ring frame (`torsoUp`) so the
+  centres can rise and fall. The horse and zebra change (the zebra's stripe hoops now follow the trunk's height as
+  well as its radius); the camel keeps its own level trunk and builds byte-identically.
+- The horse and zebra heads are rebuilt level at true size and pitched nose-down (`headPitch`), instead of sheared
+  (the shear stretched the skull along its slope to ~0.9 m, half again a horse's, and slanted every feature). Now
+  ~0.59 m poll to lips (published 0.55–0.65 m): a broad flat forehead with the eyes set on the sides at its widest,
+  seated and lidded (the set eye); a nasal line narrowing to ~0.10 m mid-face; a soft muzzle flaring at large open
+  nostrils with no bare nose pad; a round jowl curving up into a thin under-jaw, chin and lower lip; the mouth line
+  only over the last quarter (behind the corner the jaw covers the seam). The zebra's head grows to ~0.52 m.
+  Three opt-in builder fields carry it, each zero bytes when absent: `nostrilR` / `nostrilSquash`, `nosePad: false`,
+  `webJaw` (the jaw end of the mouth-corner web). The camel and the giraffe (whose head starts from the equine one,
+  now exported as `CLASSIC_HEAD`) build byte-identically.
+- Tails balance the body instead of swinging as decoration. A tail is the snakes' and fish's travelling wave run
+  from the pelvis (one helper, `travelling`, now drives both; every snake and fish wave is bit-for-bit unchanged): its
+  root answers the spin the swinging legs give the body, each foot's fore-aft travel signed by its side for the yaw
+  and summed for the pitch, so a trot's diagonal pairs cancel and the tail rides calm, a biped's stride or a pace sways
+  it, and a hop or bound swings it up and down. The plain tail words (`TAILS` in the locomotion data) carry the
+  mechanics: a `counter`weight swings stiffly against the spin, a `trail`ing tail follows late with a whipping tip, a
+  `prop` is planted as a fifth leg (the kangaroo's slow walk presses it to the ground with the forelegs), `drive`
+  trails on land and rests while fins row. A heavy tail answers with a smaller swing (it shrinks as the tail outgrows
+  the hip height). The kangaroo's tail is now `prop` and the crocodile's `counter`; every species card carries a
+  `TAIL` line saying what the tail does.
+- A tail's motion now follows from what it is made of and how long it is, measured from the model. `TAIL_BUILDS`
+  (flesh, fur, hair switch, stub, feather) say how much of the drawn girth is mass, how freely it swings and whether
+  air lifts it; each family has one (the squirrel's is fur). From the plan: the tail's inertia over the body's and
+  over each leg pair's, and its swinging length (a horse's hair included). A counterweight answers the legs' angular
+  momentum by their inertia over the tail's (a T. rex's heavy legs sway its tail; a squirrel's light legs barely
+  move its), a share of it in steady straight gaits (turns and leaps use the rest). A trailing tail sways with the
+  hips at a walk and trot and is braced at the gallop (Wada et al. 1993, dogs). On top, every free tail is a
+  pendulum shaken at its root by the hips' sway and the body's real bob: a long hair switch swings late and wide, a
+  bushy brush shaken fast stays put while the body bounds beneath it, and hair and fur stream up at speed. The
+  white-tailed deer flags its tail in flight (`flag`); the moose holds its still. A body part that is not a tail no
+  longer binds to tail bones (the kangaroo's trunk rode `tail0`). Cards read `TAIL  <build>: <use>`.
+- The spine follows the footfalls instead of a fixed wave. From above, each girdle turns with its own pair's leading
+  leg (`axial.yaw`, which the solver had ignored: the shoulder or hip swings forward with its leg, lengthening the
+  stride), and the trunk bends between the two (`axial.lateral`, the sprawlers' standing wave, now locked to which
+  feet are down): opposite turns in a trot bow it into a C that flips each step, the same turn in a pace bends
+  nothing, and most of the girdles' common turn is cancelled so the trunk swings about its middle. From the side the
+  back rounds as the legs gather (hind feet forward, forefeet back) and stretches as they extend (`axial.flex`): hard
+  in a gallop and a bound, slight in a trot, none in a pronk. The planted feet still hold (the legs absorb the
+  girdles' turn); every snake and fish wave is unchanged.
 
 ### Environmental sound
 

@@ -38,6 +38,11 @@ import { safeJson } from '../emit-util.js';
 // its plain, hair and veil spans as separate hulls, each with its layer's test (a moving lock's line never draws over
 // hair). No `layers` ⇒ every interpolation below is its old text ⇒ byte-identical.
 //
+// OVERLAYS (a bank figure carrying `overlays: [{ bone, pos, col, faces, alpha, clips }]`, the bug rig's blurred wingbeat):
+// see-through meshes riding a bone, shown only while one of their `clips` plays; a clip carrying `hide: [bone index]`
+// hides those bones' meshes while it plays (the beating wings the fan stands for). Engine exports read neither. No
+// figure carrying either ⇒ every interpolation below is '' ⇒ byte-identical.
+//
 // TIMING (a bank clip carrying `s`, its designed duration — the anime hero's, station-loft-rig packLayeredRig
 // `seconds`): that clip plays one cycle over `s` seconds, the length the GLB and the Godot pack give it; a clip without
 // one keeps the preview's period (3 s). No clip carrying `s` ⇒ the phase line is its old text ⇒ byte-identical.
@@ -127,6 +132,26 @@ function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill
   if (R.through) span(R.through[0], R.through[1], 'through');
 }` : '';
   const timed = Object.values(bank || {}).some((f) => Object.values(f?.clips || {}).some((c) => c?.s > 0));
+  const overlaid = Object.values(bank || {}).some((f) => (Array.isArray(f?.overlays) && f.overlays.length) || Object.values(f?.clips || {}).some((c) => Array.isArray(c?.hide)));
+  const overlayBuild = overlaid ? `
+  const overlays = (fig.overlays || []).map((o) => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(o.pos), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(o.col), 3, true));
+    geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: o.alpha, depthWrite: false }));
+    mesh.matrixAutoUpdate = false; mesh.frustumCulled = false; mesh.renderOrder = 2; mesh.visible = false;
+    group.add(mesh);
+    return { mesh, bone: o.bone, clips: o.clips || [] };
+  });` : '';
+  const overlayRet = overlaid ? ', overlays' : '';
+  const overlayStep = overlaid ? `
+    const hideBones = Array.isArray(clip.hide) ? clip.hide : null;
+    for (let bi = 0; bi < fig.bones.length; bi++) { const mesh = r.rig.boneMeshes[bi]; if (mesh) mesh.visible = !(hideBones && hideBones.includes(bi)); }
+    for (const o of r.rig.overlays) { const on = o.clips.includes(r.state.clip); o.mesh.visible = on; if (!on) continue;
+      __rpBone(fig, clip, phase, o.bone, __rpq, __rpHead); const rh = fig.bones[o.bone].head;
+      __rph.set(rh[0], rh[1], rh[2]).applyQuaternion(__rpq); __rpv.set(__rpHead[0] - __rph.x, __rpHead[1] - __rph.y, __rpHead[2] - __rph.z);
+      o.mesh.matrix.compose(__rpv, __rpq, __rpONE); }` : '';
   const stand = previews.some((pv) => pv && pv.solid === 'stand');
   const standStart = stand ? " || pv.solid === 'stand'" : '';
   const restLabel = stand ? "(pv.solid === 'stand' ? 'stand (the solid)' : 'rest (the solid)')" : "'rest (the solid)'";
@@ -162,8 +187,9 @@ function __rpBuild(fig) {
     group.add(mesh);
     return mesh;
   });
+${overlayBuild}
   scene.add(group);
-  return { group, boneMeshes };
+  return { group, boneMeshes${overlayRet} };
 }
 // one bone's [q, head'] from a clip at phase p — the frame-pair quaternion nlerp over the clip's sparse
 // keys (wrapping), byte-for-byte the walkers / controllable runtime's math.
@@ -216,7 +242,7 @@ stepRigPreview = (t) => {
       __rph.set(rh[0], rh[1], rh[2]).applyQuaternion(__rpq);
       __rpv.set(__rpHead[0] - __rph.x, __rpHead[1] - __rph.y, __rpHead[2] - __rph.z);
       mesh.matrix.compose(__rpv, __rpq, __rpONE);
-    }
+    }${overlayStep}
     probe.phase = phase;
   }
 };

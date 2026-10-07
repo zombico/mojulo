@@ -30,6 +30,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { readBookCards } from '../views/recipe-book/cards.js';
+import { animalEntryCards } from '../fauna/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 
 // `when` is required for the same reason as view-vocab: it's the intent-shaped
@@ -128,6 +129,13 @@ export function getSolidVocabCatalog() {
     if (catalog.has(card.id)) {
       throw new Error(`solid-vocab: duplicate card id '${card.id}' (${file})`);
     }
+    catalog.set(card.id, card);
+  }
+  // Generated animal entries (`generated: true`): the roster's index, family hubs and species, built from the fauna
+  // species and their `about` / `wanted` tables at load (../fauna/entries.js), never hand-written. Found by search,
+  // read by id; the bare index listing leaves them out (the `animal` card points at their index, `animals`).
+  for (const card of animalEntryCards()) {
+    if (catalog.has(card.id)) throw new Error(`solid-vocab: generated animal entry '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
   // Attached recipe-book / cookbook cards routed here by their
