@@ -208,6 +208,23 @@ for (const [name, base, extra] of [
   ['tuba2', 'tuba', { ...BRASS_V2, breath: { level: -36, tone: 600, q: 0.7 } }],
 ]) PATCHES[name] = { ...PATCHES[base], ...extra, vibrato: { ...PATCHES[base].vibrato, spread: 1 } };
 
+// Section v3 (audio improvements): the v2 patches with an onset — the bow's
+// scrape before the Helmholtz motion settles, the lips' buzz before the bell
+// speaks — and, for strings, the lowpass opened so the body's bridge hill
+// (in the `-3` instruments' chains) has partials to lift. Brass scoops into
+// pitch from a few cents flat. `volume` is level-matched to v2 by measured
+// RMS through the v3 chains. New names; v2 is unchanged.
+for (const [name, base, extra] of [
+  ['violin3', 'violin2', { volume: -20, filter: { mode: 'lowpass', freq: 6800, q: 0.5 }, attackNoise: { level: -24, decay: 0.06, tone: 3400, q: 0.9 } }],
+  ['viola3', 'viola2', { volume: -18.5, filter: { mode: 'lowpass', freq: 5200, q: 0.5 }, attackNoise: { level: -24, decay: 0.065, tone: 2800, q: 0.9 } }],
+  ['cello3', 'cello2', { volume: -18, filter: { mode: 'lowpass', freq: 4200, q: 0.5 }, attackNoise: { level: -25, decay: 0.07, tone: 2000, q: 0.9 } }],
+  ['contrabass3', 'contrabass2', { volume: -16, filter: { mode: 'lowpass', freq: 2400, q: 0.5 }, attackNoise: { level: -27, decay: 0.08, tone: 1200, q: 0.9 } }],
+  ['trumpet3', 'trumpet2', { volume: -19, bend: [0.988, 1, 0, 0.035], attackNoise: { level: -30, decay: 0.025, tone: 1500, q: 0.8 } }],
+  ['frenchHorn3', 'frenchHorn2', { volume: -18, bend: [0.985, 1, 0, 0.05], attackNoise: { level: -33, decay: 0.03, tone: 700, q: 0.8 } }],
+  ['trombone3', 'trombone2', { volume: -18, bend: [0.985, 1, 0, 0.04], attackNoise: { level: -31, decay: 0.03, tone: 900, q: 0.8 } }],
+  ['tuba3', 'tuba2', { volume: -14.5, bend: [0.985, 1, 0, 0.05], attackNoise: { level: -33, decay: 0.035, tone: 450, q: 0.8 } }],
+]) PATCHES[name] = { ...PATCHES[base], ...extra };
+
 // ── the orchestra shelf (orchestra and era) ────────────────────────────────
 // Woodwinds are osc voices over computed `harmonics` (sine amplitudes 1..N):
 // the flute a near-sine with breath and chiff, the clarinet an odd series

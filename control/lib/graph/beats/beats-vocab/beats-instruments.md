@@ -31,8 +31,11 @@ the piano in a world's orchestra alongside string and brass channels.
 **Pick these first for new work.** They're the fidelity shelf: tuned,
 de-locked and dynamic, per "Fidelity opt-ins" below.
 - Keys: `grand-piano`.
-- Strings: `violin-2`, `viola-2`, `cello-2`, `contrabass-2`.
-- Brass: `trumpet-2`, `french-horn-2`, `trombone-2`, `tuba-2`.
+- Strings: `violin-3`, `viola-3`, `cello-3`, `contrabass-3` (v2 through each
+  size's body: the air and corpus modes, the bridge hill, thin below the
+  lowest mode, a bow onset).
+- Brass: `trumpet-3`, `french-horn-3`, `trombone-3`, `tuba-3` (the bell's
+  radiation peak, a lip scoop into pitch). The `-2` names stay as they were.
 - Drums: `drum-kit`.
 - Plucked strings: an existing guitar with `patchParams: { "tune": "exact" }`
   (in tune at every register).

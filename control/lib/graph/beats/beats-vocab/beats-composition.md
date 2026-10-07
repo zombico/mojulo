@@ -188,6 +188,9 @@ A composition can also carry:
 - `phrases` placed by a part's `form` (transposed, inverted, reversed)
 - object events `{ at, n, d, v, art, dyn }` and a 5th tuple slot `art`
 - a part's `dynamics` (marks and hairpins)
+- a part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`):
+  velocity phrasing over its array events, an arch per `bars` (4), higher
+  notes a touch louder, long over short, the last note eased, level-neutral
 - `players`, `desk`, `seating` and `a4`
 
 The manuals are `beats-orchestra` and `beats-articulations`. Percussion kits

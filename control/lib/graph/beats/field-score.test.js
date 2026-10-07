@@ -41,11 +41,13 @@ describe('field score: the principles hold for every seed', () => {
 describe('field score: a new mood never moves an old one', () => {
   // the seven field moods, 60 seeds × 3 identities, hashed when the cue families joined (2026-10-06). New moods add
   // rows and leanings; they must not change a note of these. A legitimate change to them re-pins with a reason.
+  // Re-pinned 2026-10-06 (audio improvements): the orchestral palettes name the v3 sections, the leads carry
+  // `shape: 'phrase'`, and the lead base velocity drops to leave the phrase arch headroom under the ceilings.
   it('plains … wayfarer are byte-identical to their pin', () => {
     const h = createHash('sha256');
     for (const mood of ['plains', 'desert', 'village', 'forest', 'highlands', 'expedition', 'wayfarer'])
       for (let s = 0; s < 60; s++) for (const id of [undefined, 7, 9001]) h.update(JSON.stringify(fieldScore(mood, { seed: s * 7919 + 3, identity: id })));
-    expect(h.digest('hex')).toBe('026d068355749d75bc7bc1fbb80ff3ee656559377165cf97aa2727bf76ab8a91');
+    expect(h.digest('hex')).toBe('93ffb9d30423b0cb35a3ba181b95902aea5e453be99c16872653078d528a9a9d');
   });
 });
 
@@ -76,7 +78,7 @@ describe('field score: one game sounds like one score', () => {
     for (const idSeed of [11, 222, 3333, 44444]) {
       const id = scoreIdentity(idSeed);
       const cues = MOODS.map((mood) => [mood, fieldScore(mood, { seed: 900 + idSeed, identity: id })]);
-      const basePalette = new Set(Object.values(PALETTES[id.flavour]).flat().concat('tuba', 'glockenspiel', 'timpani', 'contrabass', 'upright-bass', 'fm-bass'));
+      const basePalette = new Set(Object.values(PALETTES[id.flavour]).flat().concat('tuba-3', 'glockenspiel', 'timpani', 'contrabass-3', 'upright-bass', 'fm-bass'));
       for (const [mood, m] of cues) {
         // a mood may name its own palette (the tavern's folk) or ostinato instrument: those join the game's voices
         const M = SCORE_MOODS[mood], own = new Set([...(M.palette ? Object.values(PALETTES[M.palette]).flat() : []), ...(M.motion ? [M.motion] : []), ...(M.kit ? [M.kit] : [])]);

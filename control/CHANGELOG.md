@@ -12,6 +12,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Audio improvements
+
+Bodies for the orchestra and phrasing for the score: the bowed strings and brass the field score plays move from the
+'80s synth-section recipe toward the instruments, and its melodies stop playing every note at one level. All opt-in by
+name or field; no kernel bytes. Ears gate not run.
+
+- **Section v3: bodies.** `violin-3`, `viola-3`, `cello-3`, `contrabass-3`: the bowed sawtooth through each size's body
+  (the air mode, the two corpus modes, the bridge hill) over a cut below the body's lowest mode, so vibrato sweeps the
+  partials across fixed resonances; a bow onset. `trumpet-3`, `french-horn-3`, `trombone-3`, `tuba-3`: the bell's
+  radiation peak and a lip scoop into pitch. Level-matched to the `-2` names. Built from the `body` and `filter` chain
+  effects and existing patch fields.
+- **Phrase shaping.** A composition part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`) scales its
+  note velocities: an arch across each phrase, higher notes a touch louder, long notes over short ones, the phrase's
+  last note eased. Lowered at render like a chord chart; a part without it is byte-identical.
+- **The field score uses both** for new scores: the orchestral palettes name the v3 sections and the leads carry
+  `shape: 'phrase'`, their base velocity lowered a little so the arch's peaks stay under each energy's ceiling. Stored
+  scores keep the instruments they name.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

@@ -39,6 +39,21 @@ export const FEEL_PRESETS = {
   'rock-drummer': { jitterTime: 0.004, jitterVel: 0.08, laid: { 36: 0.006, 38: 0.012, 40: 0.012, 41: -0.004, 43: -0.004, 45: -0.004, 47: -0.004, 48: -0.004, 50: -0.004 }, accent: { notes: [42, 44, 46], pattern: [1, 0.7, 0.85, 0.7] }, flam: { notes: [41, 43, 45, 47, 48, 50], gap: 0.016, vel: 0.4 } },
 };
 
+// ── radiators (audio improvements): `body` resonance sets for the v3 sections.
+// Strings: A0 (air), B1− and B1+ (corpus), the bridge hill (broad). Brass: the
+// bell's radiation peak and a weaker upper one. Gains ride on `mix: 1`: a
+// resonance adds `gain` × its band over the dry signal (≈ +7–8 dB at 1.4).
+const BODY = {
+  violin: [{ freq: 280, q: 12, gain: 1 }, { freq: 460, q: 14, gain: 1.4 }, { freq: 540, q: 12, gain: 1.6 }, { freq: 2500, q: 1.6, gain: 1.1 }, { freq: 3500, q: 4, gain: 0.4 }],
+  viola: [{ freq: 230, q: 12, gain: 1 }, { freq: 360, q: 12, gain: 1.3 }, { freq: 440, q: 12, gain: 1.4 }, { freq: 2000, q: 1.5, gain: 1 }],
+  cello: [{ freq: 100, q: 10, gain: 1 }, { freq: 175, q: 12, gain: 1.4 }, { freq: 205, q: 12, gain: 1.5 }, { freq: 1200, q: 1.4, gain: 0.9 }, { freq: 2600, q: 3, gain: 0.3 }],
+  contrabass: [{ freq: 62, q: 8, gain: 1 }, { freq: 105, q: 10, gain: 1.4 }, { freq: 130, q: 10, gain: 1.2 }, { freq: 700, q: 1.4, gain: 0.8 }],
+  trumpet: [{ freq: 1300, q: 1.2, gain: 1.2 }, { freq: 2800, q: 2, gain: 0.4 }],
+  horn: [{ freq: 480, q: 1.3, gain: 1 }],
+  trombone: [{ freq: 600, q: 1.2, gain: 1 }, { freq: 1500, q: 2, gain: 0.4 }],
+  tuba: [{ freq: 280, q: 1.2, gain: 1 }],
+};
+
 // ── instrument shelf — { patch, chain, feel } compositions of the four layers ──
 // patch is a name (kernel resolves it); chain is a color stack; feel is a preset
 // name or inline params. Guitars are the B6.0 seed set; other families land as
@@ -87,6 +102,23 @@ export const INSTRUMENTS = {
   'french-horn-2': { patch: 'frenchHorn2', chain: [{ type: 'reverb', wet: 0.32, decay: 3.2 }], feel: { strum: 0.016, jitterTime: 0.01, jitterVel: 0.12 } },
   'trombone-2': { patch: 'trombone2', chain: [{ type: 'reverb', wet: 0.24, decay: 2.4 }], feel: { strum: 0.012, jitterTime: 0.008, jitterVel: 0.13 } },
   'tuba-2': { patch: 'tuba2', chain: [{ type: 'reverb', wet: 0.2, decay: 2.2 }], feel: 'robotic' },
+  // Section v3 (audio improvements): the v3 patches through each instrument's
+  // radiator. A bowed string is a sawtooth-like source seen through its box:
+  // the air mode (A0), the two corpus modes (B1−, B1+) and the broad bridge
+  // hill lift the partials that land on them, and the body barely radiates
+  // below A0 (the highpass), so a violin's open G is thin and its vibrato
+  // flickers as partials sweep across fixed peaks. Frequencies scale with body
+  // size, less than proportionally (the bigger boxes are relatively small for
+  // their range). Brass: the bell's radiation peak, darker as the bell grows
+  // and, for the horn, faces away. Same rooms and feels as v2.
+  'violin-3': { patch: 'violin3', chain: [{ type: 'filter', mode: 'highpass', freq: 230, q: 0.9 }, { type: 'body', mix: 1, resonances: BODY.violin }, { type: 'reverb', wet: 0.32, decay: 3.5 }], feel: 'ensemble' },
+  'viola-3': { patch: 'viola3', chain: [{ type: 'filter', mode: 'highpass', freq: 185, q: 0.9 }, { type: 'body', mix: 1, resonances: BODY.viola }, { type: 'reverb', wet: 0.3, decay: 3.5 }], feel: 'ensemble' },
+  'cello-3': { patch: 'cello3', chain: [{ type: 'filter', mode: 'highpass', freq: 82, q: 0.9 }, { type: 'body', mix: 1, resonances: BODY.cello }, { type: 'reverb', wet: 0.3, decay: 3.5 }], feel: 'ensemble' },
+  'contrabass-3': { patch: 'contrabass3', chain: [{ type: 'filter', mode: 'highpass', freq: 48, q: 0.9 }, { type: 'body', mix: 1, resonances: BODY.contrabass }, { type: 'reverb', wet: 0.22, decay: 3 }], feel: 'robotic' },
+  'trumpet-3': { patch: 'trumpet3', chain: [{ type: 'filter', mode: 'highpass', freq: 160, q: 0.7 }, { type: 'body', mix: 1, resonances: BODY.trumpet }, { type: 'reverb', wet: 0.22, decay: 2.2 }], feel: { strum: 0.01, jitterTime: 0.007, jitterVel: 0.14 } },
+  'french-horn-3': { patch: 'frenchHorn3', chain: [{ type: 'filter', mode: 'highpass', freq: 65, q: 0.7 }, { type: 'body', mix: 1, resonances: BODY.horn }, { type: 'reverb', wet: 0.32, decay: 3.2 }], feel: { strum: 0.016, jitterTime: 0.01, jitterVel: 0.12 } },
+  'trombone-3': { patch: 'trombone3', chain: [{ type: 'filter', mode: 'highpass', freq: 70, q: 0.7 }, { type: 'body', mix: 1, resonances: BODY.trombone }, { type: 'reverb', wet: 0.24, decay: 2.4 }], feel: { strum: 0.012, jitterTime: 0.008, jitterVel: 0.13 } },
+  'tuba-3': { patch: 'tuba3', chain: [{ type: 'filter', mode: 'highpass', freq: 34, q: 0.7 }, { type: 'body', mix: 1, resonances: BODY.tuba }, { type: 'reverb', wet: 0.2, decay: 2.2 }], feel: 'robotic' },
   // the drum kit (audio fidelity): one part/track, GM drum notes pick the piece
   // (C2 kick, D2 snare, F#2 hat, A#2 open hat, F2/A2/C3 toms, C#3 crash, D#3
   // ride — GM numbers, C4 = 60). A small room; a whisper of timing/velocity looseness.
@@ -212,7 +244,7 @@ const RANGE = {
   'flamenco-guitar': ['E2', 'B5'], 'gypsy-jazz-guitar': ['E2', 'C6'],
 };
 for (const [name, r] of Object.entries(RANGE)) {
-  for (const n of [name, name + '-2']) if (INSTRUMENTS[n]) INSTRUMENTS[n].range = r;
+  for (const n of [name, name + '-2', name + '-3']) if (INSTRUMENTS[n]) INSTRUMENTS[n].range = r;
 }
 // the range of the first instrument voiced by a patch (normalized rows carry
 // only the patch name).
