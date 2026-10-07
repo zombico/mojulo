@@ -77,7 +77,7 @@ describe('the art board as a page', () => {
   it('is one self-contained document: seven cards, one per item, each with its status, the tiles as images', () => {
     const m = resolveArt({ ...ROOM('gothic-stone'), title: 'tomb', art: { seed: 5 } }), html = artBoardHtml(m);
     expect([...html.matchAll(/data-item="([a-z]+)"/g)].map((x) => x[1]).sort()).toEqual(ART_ITEMS.slice().sort());   // laid out by the page, numbered by the gate
-    expect((html.match(/<img src="data:image\/png;base64,/g) || []).length).toBeGreaterThanOrEqual(7);
+    expect((html.match(/<img [^>]*src="data:image\/png;base64,/g) || []).length).toBe(7);   // six tiles and the motif's band
     expect(html).not.toMatch(/<(script|link)\b/);
     expect((html.match(/>proposed</g) || []).length).toBe(7);
   });
