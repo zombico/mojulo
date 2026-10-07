@@ -92,6 +92,17 @@ const beamR = [0.02, 0.018, 0.016, 0.014, 0.012, 0.01, 0.005];
 const tine = (name, i, tip, r) => { const f = beam[i]; const mid = f.map((v, j) => (v + tip[j]) / 2);
   return { kind: 'sweep', name, at: [1.0, 1.0], space: 'head', spine: [...beam.slice(0, i + 1), mid, tip], radii: [...beamR.slice(0, i).map((x) => x * 0.9), r, r * 0.75, r * 0.3], m: 6, group: 'Horn' }; };
 
+// a tine off ANY beam (the elk's and the reindeer's): runs inside the beam from the pin to its branch point (station
+// i), then out to its tip, so it is one piece rooted on the skull; `opt` adds sweep fields (a squash for a palm)
+const tineOn = (bm, bmR, name, i, tip, r, opt = {}) => { const f = bm[i]; const mid = f.map((v, j) => (v + tip[j]) / 2);
+  return { kind: 'sweep', name, at: [1.0, 1.0], space: 'head', spine: [...bm.slice(0, i + 1), mid, tip], radii: [...bmR.slice(0, i).map((x) => x * 0.9), r, r * 0.75, r * 0.3], m: 6, group: 'Horn', ...opt }; };
+// the ELK's beam: long, swept up and BACK over the shoulders, the tips turning up and a little in (head units)
+const elkBeam = [[0, 0, -0.015], [0.04, -0.04, 0.08], [0.13, -0.11, 0.18], [0.20, -0.18, 0.30], [0.23, -0.24, 0.42], [0.23, -0.25, 0.54], [0.19, -0.21, 0.64]];
+const elkBeamR = [0.026, 0.024, 0.021, 0.018, 0.015, 0.011, 0.005];
+// the REINDEER's beam: back and up, then a long C curving FORWARD at the top (head units)
+const rdBeam = [[0, 0, -0.005], [0.03, -0.04, 0.08], [0.10, -0.12, 0.20], [0.16, -0.17, 0.34], [0.19, -0.14, 0.48], [0.19, -0.04, 0.58], [0.16, 0.08, 0.63]];
+const rdBeamR = [0.022, 0.02, 0.018, 0.016, 0.014, 0.011, 0.005];
+
 export const species = {
   // WHITE-TAILED BUCK (Odocoileus virginianus) — the cervid family's worked species. Thesis: a light level barrel on
   // long thin legs, high hocks, cloven hooves · slender neck carried up, a narrow tapering head, large ears out to the
@@ -161,6 +172,88 @@ export const species = {
       // the bulbous overhanging bell-nose: a heavy upper lip that droops over and past the lower jaw (one a side)
       { kind: 'sweep', name: 'upperLip', at: [5.5, 0.0001], space: 'head', spine: [[0.02, 0.16, 0.0], [0.03, 0.23, -0.005], [0.03, 0.285, -0.025], [0.028, 0.29, -0.05]], radii: [0.03, 0.05, 0.055, 0.035], m: 8, group: 'Snout' },
     ],
+  },  // REINDEER / CARIBOU (Rangifer tarandus, a bull) — Thesis: a STOCKY deer: a deep barrel on shorter, thicker legs,
+  // big BROAD hooves · a thick neck with a PALE shaggy throat MANE, a blunt haired muzzle, short ears · ONE signature:
+  // tall back-swept C-shaped antlers curving forward at the top, palmate tops, and ONE flat BROW SHOVEL thrown
+  // forward over the face (antlers on both sexes) · grey-brown coat, pale neck, white belly, rump and short tail ·
+  // 1.10 m at the withers (published 0.85–1.40 m shoulder height; ADW, Rangifer tarandus). Authored at buck units, legs 0.8.
+  reindeer: {
+    family: 'cervid', name: 'a reindeer', scale: 1.3, legScale: 0.8, bulk: 1.28, legBulk: 1.35,
+    colors: { coat: '#6e6052', sock: '#4e4238', ash: '#7a6c5e', ashAlt: '#6a5e52', belly: '#e8e2d6', brow: '#3a3028', tip: '#ece8de', mane: '#ddd6c8', horn: '#b8a582', hoof: '#26201c', snout: '#5e5246', nose: '#2a2420' },
+    neckGroup: 'Mane',
+    neckRA: [0.12, 0.17], neckRB: [0.075, 0.095], neckRMid: [0.10, 0.13],
+    headScale: 1.1, muzzleW: 1.6, muzzleLen: 0.85, earH: 0.55, earR: [0.026, 0.036, 0.032, 0.014], noseR: [0.02, 0.016],
+    joints: { maneA: [0, 0.40, 0.70], maneB: [0, 0.54, 0.86] },
+    // the broad hooves: the hoof rows wider and longer than the buck's
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.06, 0.10], [0.04, 0.045], 'Coat', [0.6, 0.5], [0.055, 0.08]],
+      ['foreArmR', 'elbow', 'carpus', [0.04, 0.045], [0.024, 0.028], 'Coat', [0.5, 0.4]],
+      ['foreCannonR', 'carpus', 'foreFetlock', 0.022, 0.02, 'Sock', [0.4, 0.4]],
+      ['forePasternR', 'foreFetlock', 'foreCoronet', 0.022, 0.026, 'Sock', [0.4, 0.4]],
+      ['foreHoofR', 'foreCoronet', 'foreToe', [0.038, 0.032], [0.034, 0.014], 'Hoof', [0.5, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.08, 0.12], [0.05, 0.055], 'Coat', [0.2, 0.5], [0.075, 0.105]],
+      ['shinR', 'stifle', 'hock', [0.05, 0.055], [0.026, 0.03], 'Coat', [0.5, 0.4]],
+      ['hindCannonR', 'hock', 'hindFetlock', 0.023, 0.02, 'Sock', [0.4, 0.4]],
+      ['hindPasternR', 'hindFetlock', 'hindCoronet', 0.022, 0.026, 'Sock', [0.4, 0.4]],
+      ['hindHoofR', 'hindCoronet', 'hindToe', [0.038, 0.032], [0.034, 0.014], 'Hoof', [0.5, 0.4]],
+    ],
+    // the white belly and rump (markings), the short white tail
+    markDensity: { torso: 2 },
+    markings: [
+      { on: 'torso', kind: 'belly', from: 0.7, group: 'Belly' },
+      { on: 'torso', kind: 'band', run: [0, 0.1], t: [0.2, 1], caps: ['back'], group: 'Rump', color: '#e8e2d6' },
+    ],
+    tail: [[0, -0.66, 0.83, 0.03], [0, -0.70, 0.81, 0.04], [0, -0.73, 0.77, 0.035]],
+    tip: null, tailGroup: 'Rump',
+    extraSegments: [
+      // the pale shaggy throat mane hanging under the neck
+      { name: 'throatMane', kind: 'segment', from: 'maneA', to: 'maneB', rA: [0.04, 0.05], rB: [0.03, 0.035], rMid: [0.05, 0.075], slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.3, 0.3] },
+    ],
+    headOrnaments: [
+      { kind: 'sweep', name: 'antlerBeam', at: [1.0, 1.0], space: 'head', spine: rdBeam, radii: rdBeamR, m: 6, group: 'Horn' },
+      // the BROW SHOVEL: a flat vertical palm thrown forward and down over the face
+      tineOn(rdBeam, rdBeamR, 'antlerShovel', 1, [0.02, 0.20, 0.10], 0.05, { squash: [0.25, 1] }),
+      tineOn(rdBeam, rdBeamR, 'antlerBez', 2, [0.12, 0.08, 0.26], 0.012),
+      tineOn(rdBeam, rdBeamR, 'antlerBack', 3, [0.21, -0.27, 0.44], 0.01),
+      // the palmate top: a flat palm with points
+      tineOn(rdBeam, rdBeamR, 'antlerPalm', 5, [0.18, 0.14, 0.72], 0.045, { squash: [0.3, 1] }),
+      tineOn(rdBeam, rdBeamR, 'antlerTop1', 4, [0.23, -0.08, 0.68], 0.008),
+    ],
+  },
+  // ELK / WAPITI (Cervus canadensis, a bull) — Thesis: a BIG deer: a long tan barrel on long legs · a thick DARK
+  // brown neck with a shaggy mane, a dark head and legs · ONE/TWO signatures: huge antlers, a long beam swept up and
+  // BACK over the shoulders with six forward-pointing tines, and the big PALE RUMP PATCH round a tiny tail ·
+  // 1.50 m at the withers (published bull shoulder height ~1.5 m; Rocky Mountain Elk Foundation / ADW, Cervus
+  // canadensis). Authored at buck units and scaled 1.6.
+  elk: {
+    family: 'cervid', name: 'a bull elk', scale: 1.6, bulk: 1.12, legBulk: 1.12,
+    colors: { coat: '#b08a5c', sock: '#3e2c1e', ash: '#3e2c1e', ashAlt: '#4a3424', belly: '#3e2c1e', brow: '#2a1e14', tip: '#e6d6b0', mane: '#4a3424', horn: '#c8b48e', snout: '#3a2a1c', nose: '#1a1410', ears: '#5a4230' },
+    neckGroup: 'Mane',
+    neckRA: [0.115, 0.165], neckRB: [0.07, 0.09], neckRMid: [0.095, 0.125],
+    headScale: 1.0, muzzleW: 1.15, earH: 0.8, noseR: [0.02, 0.016],
+    joints: { maneA: [0, 0.40, 0.72], maneB: [0, 0.55, 0.90] },
+    // the dark head: every skull band in the mane's colour
+    headPalette: { Skull: '#4a3424', SkullBack: '#4a3424', Snout: '#3a2a1c', Cheek: '#3e2c1e', Jowl: '#3e2c1e', Jaw: '#3e2c1e' },
+    // the pale rump patch round the tail; the dark belly line
+    markDensity: { torso: 2 },
+    markings: [
+      { on: 'torso', kind: 'band', run: [0, 0.14], t: [0.1, 1], caps: ['back'], group: 'Rump', color: '#e6d6b0' },
+      { on: 'torso', kind: 'belly', from: 0.8, group: 'Belly' },
+    ],
+    tail: [[0, -0.66, 0.82, 0.025], [0, -0.69, 0.80, 0.03], [0, -0.71, 0.77, 0.025]],
+    tip: null, tailGroup: 'Rump',
+    extraSegments: [
+      // the shaggy dark neck mane hanging under the throat
+      { name: 'throatMane', kind: 'segment', from: 'maneA', to: 'maneB', rA: [0.035, 0.045], rB: [0.025, 0.03], rMid: [0.045, 0.065], slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.3, 0.3] },
+    ],
+    headOrnaments: [
+      { kind: 'sweep', name: 'antlerBeam', at: [1.0, 1.0], space: 'head', spine: elkBeam, radii: elkBeamR, m: 6, group: 'Horn' },
+      tineOn(elkBeam, elkBeamR, 'antlerBrow', 1, [0.07, 0.16, 0.15], 0.012),
+      tineOn(elkBeam, elkBeamR, 'antlerBez', 2, [0.16, 0.06, 0.27], 0.011),
+      tineOn(elkBeam, elkBeamR, 'antlerTrez', 3, [0.24, -0.04, 0.45], 0.011),
+      tineOn(elkBeam, elkBeamR, 'antlerRoyal', 4, [0.27, -0.10, 0.60], 0.012),
+      tineOn(elkBeam, elkBeamR, 'antlerSur', 5, [0.26, -0.15, 0.70], 0.008),
+    ],
   },
 };
 
@@ -171,11 +264,10 @@ export const about = {
   buck: { common: 'buck', aliases: ['stag', 'white-tailed buck', 'antlered deer'], sci: 'Odocoileus virginianus', size: '0.95 m at the withers', source: 'Smithsonian / ADW figures' },
   deer: { common: 'deer', aliases: ['doe', 'white-tailed deer', 'whitetail'], sci: 'Odocoileus virginianus', size: '0.80 m at the withers (adult female)', source: 'ADW / Smithsonian figures' },
   moose: { common: 'moose', aliases: ['bull moose'], sci: 'Alces alces', size: '1.90 m at the withers (bull)', source: 'ADW / Alaska Dept. of Fish & Game' },
+  reindeer: { common: 'reindeer', aliases: ['caribou'], sci: 'Rangifer tarandus', size: '1.10 m at the withers (published 0.85–1.40 m)', source: 'ADW, Rangifer tarandus' },
+  elk: { common: 'elk', aliases: ['wapiti'], sci: 'Cervus canadensis', size: '1.50 m at the withers (bull)', source: 'Rocky Mountain Elk Foundation / ADW, Cervus canadensis' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
-export const wanted = {
-  reindeer: { near: 'buck', aliases: ['caribou'], note: 'a stockier deer, a pale neck mane, tall swept antlers with a brow shovel' },
-  elk: { near: 'buck', aliases: ['wapiti'], note: 'a big deer with a dark neck and a pale rump, long sweeping antlers' },
-};
+export const wanted = {};

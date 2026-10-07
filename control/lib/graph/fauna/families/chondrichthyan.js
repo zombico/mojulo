@@ -5,7 +5,7 @@
 // fins, five GILL SLITS (painted), and countershading (grey back, white belly; painted). No legs, ears or nose pad:
 // the fins are thin flat closed lofts (`fin()`), the pectorals and pelvics ride the `legs` rows (mirrored by name).
 // A ray is the same plan with a flat diamond trunk, wings as one loft across the midline, and a whip tail.
-// Tables are authored in metres at great-white size. Worked species: greatWhiteShark, hammerhead, mantaRay.
+// Tables are authored in metres at great-white size. Worked species: greatWhiteShark, hammerhead, mantaRay, stingray.
 
 import { cartilageFish, fin, midlineFin, caudalLobe, CARTILAGE_SKIN as SKIN } from '../makers/fish.js';
 
@@ -95,6 +95,44 @@ export const species = {
       pectoral: { wing: [[0.25, 0.08, 0, [0.2, 0.62]], [0.95, -0.02, -0.02, [0.08, 0.48]], [1.6, -0.25, -0.05, [0.035, 0.28]], [2.25, -0.58, -0.09, [0.01, 0.05]]] },
       gills: 0, pattern: { back: '#1e2124', belly: '#eeece6', from: 0.45, extra: { mouth: '#5a5050' } } }),
   },
+  // SOUTHERN STINGRAY (Hypanus americanus). Thesis: a flat RHOMBOID (diamond) disc about as long as it is wide, its
+  // straight-edged pectoral wings meeting in sharp outer corners a little ahead of mid-disc, a short obtuse snout
+  // point, NO cephalic lobes · eyes on TOP of the head · a long WHIP tail (~1½ disc lengths) carrying a serrated
+  // venomous BARB near its base, no dorsal or caudal fin · plain olive grey-brown above, white below · much smaller
+  // than the manta · females to ~1.5 m disc width (Florida Museum, "Southern stingray": females to 150 cm DW, males
+  // to 67 cm DW). Fit to a 1.5 m disc width (measured x extent 1.52 m); total length with the whip ~2.4 m.
+  stingray: {
+    family: 'chondrichthyan', name: 'a southern stingray', scale: 0.73,
+    ...(() => { const p = make({ head: 'disc',
+      // a raised centre: the trunk domed well above the thin wings (the wing roots thinner than the trunk's depth)
+      profile: [[-0.6, 0.1, 0.06], [-0.4, 0.22, 0.12], [-0.1, 0.3, 0.165], [0.2, 0.27, 0.15], [0.42, 0.18, 0.10]],
+      snout: { len: 0.6, w: 0.9, scale: 0.85, kx: 2.7, kz: 0.5, tip: 0.24 }, neck: { from: 0.38, to: 0.52, rA: [0.2, 0.10], rB: [0.17, 0.08] },
+      eyeAt: [1.8, 1.1], eyeR: 0.03,
+      dorsal: null, dorsal2: null, anal: null, pelvic: { root: [0.1, -0.5, -0.03], span: 0.1, sweep: 0.12, drop: 0.02, chord: 0.06 },
+      caudal: null, whip: { length: 1.9, r: 0.035 },
+      // the wings: straight leading and trailing edges out to a sharp corner just behind the disc's widest station
+      pectoral: { wing: [[0.18, 0.065, 0, [0.085, 0.635]], [0.5, 0.0, -0.01, [0.05, 0.4]], [0.8, -0.06, -0.02, [0.028, 0.16]], [1.02, -0.08, -0.03, [0.01, 0.03]]] },
+      gills: 0, pattern: { back: '#4e493b', belly: '#efede4', from: 0.45, extra: { mouth: '#5a5050' } } });
+      const y0 = -0.6, C = 1, W = 1.9;
+      // the WHIP: thick at the root off the disc, tapering to a hair-thin lash ~1.5 disc lengths aft (the maker's
+      // whip is a thin even rod that vanishes at World distance)
+      const whip = p.extraSegments.findIndex((g) => g.name === 'tailWhip');
+      p.extraSegments[whip] = fin('tailWhip', [[0, y0 + 0.02, C, [0.055, 0.06]], [0, y0 - 0.25, C, [0.038, 0.04]], [0, y0 - 0.7, C, [0.022, 0.022]], [0, y0 - 1.3, C, [0.011, 0.011]], [0, y0 - 1.75, C, [0.005, 0.005]]],
+        [0, y0 - W, C], { back: [0, y0 + 0.08, C], group: 'Tip' });
+      // the BARB: a pale serrated spine lying along the top of the whip a fifth of the way out, its point aft
+      const yb = y0 - W * 0.2, zb = C + 0.03;
+      p.extraSegments.push(fin('barb', [[0, yb, zb, [0.007, 0.022]], [0, yb - 0.1, zb + 0.008, [0.006, 0.017]], [0, yb - 0.2, zb + 0.012, [0.004, 0.01]]], [0, yb - 0.3, zb + 0.013], { back: [0, yb + 0.04, zb - 0.01], group: 'Horn' }));
+      // the SPIRACLES: a dark open pore just behind each raised eye on top of the head
+      Object.assign(p.joints, { spiracleBaseR: [0.1, 0.5, 1.045], spiracleTipR: [0.1, 0.44, 1.05] });
+      p.extraSegments.push({ name: 'spiracleR', kind: 'segment', from: 'spiracleBaseR', to: 'spiracleTipR', rA: 0.022, rB: 0.016, slots: 'ring12', group: 'Mane', mirror: 'name', over: [0.4, 0.5] });
+      // the pale UNDERSIDE carried out under the wings: a thin Belly underlayer just under each wing segment (the
+      // maker paints the trunk's belly only, and a flat wing's ring halves are its two edges, not top and bottom)
+      const wing = [[0.18, 0.065, 0, 0.085, 0.635], [0.5, 0.0, -0.01, 0.05, 0.4], [0.8, -0.06, -0.02, 0.028, 0.16], [1.02, -0.08, -0.03, 0.01, 0.03]];
+      wing.forEach(([x, y, dz, t], i) => { p.joints[`wingUnder${i}`] = [x, y, C + dz - t * 0.45]; });
+      wing.slice(1).forEach(([, , , t, c], i) => p.legs.push([`wingUnder${i}R`, `wingUnder${i}`, `wingUnder${i + 1}`, [wing[i][3] * 0.6, wing[i][4] * 0.985], [t * 0.6, c * 0.985], 'Belly', [i ? 0.05 : 0.3, i === 2 ? 0.3 : 0.05]]));
+      p.colors = { ...p.colors, horn: '#d9d2bf', mane: '#1d1b16' };
+      return p; })(),
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -104,10 +142,10 @@ export const about = {
   greatWhiteShark: { common: 'shark', aliases: ['great white', 'great white shark', 'white shark'], sci: 'Carcharodon carcharias', size: '~4.5 m long', source: 'Florida Museum' },
   hammerhead: { common: 'hammerhead shark', aliases: ['hammerhead', 'great hammerhead'], sci: 'Sphyrna mokarran', size: '~3.5 m long', source: 'Florida Museum' },
   mantaRay: { common: 'manta ray', aliases: ['manta', 'ray'], sci: 'Mobula birostris', size: '~4.5 m disc width', source: 'Marshall et al. 2009' },
+  stingray: { common: 'stingray', aliases: ['southern stingray', 'sting ray'], sci: 'Hypanus americanus', size: '~1.5 m disc width (females)', source: 'Florida Museum, "Southern stingray" (females to 150 cm DW)' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  stingray: { near: 'mantaRay', aliases: [], note: 'a round flat disc, a long barbed whip tail, no head lobes' },
 };

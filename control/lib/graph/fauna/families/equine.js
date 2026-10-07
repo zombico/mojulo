@@ -303,6 +303,108 @@ export const species = {
       ], caps: { back: [0, 0.18, 1.64], tip: [0, 0.88, 2.18] } },
     ],
   },
+  // DOMESTIC DONKEY (Equus africanus asinus), a standard donkey — THESIS: a small horse made plain and boxy: a straight
+  // back with no withers to speak of, a deep barrel on short straight legs with small upright hooves · a big heavy
+  // head on a thick short neck · the LONG EARS (about a third of the head's length again) standing up · a short
+  // UPRIGHT mane (no forelock) · a thin cow-like tail ending in a dark tuft · grey-dun coat with a dark dorsal stripe,
+  // a WHITE MUZZLE and pale belly · 1.07 m at the withers (published standard donkey 0.91–1.22 m; American Donkey and
+  // Mule Society size classes / The Donkey Sanctuary). Authored at horse units and scaled 0.68.
+  donkey: {
+    family: 'equine', name: 'a donkey', scale: 0.68, bulk: 1.06, legBulk: 1.45, headScale: 1.22,
+    colors: { coat: '#8a8079', sock: '#7a716b', ash: '#8f857e', ashAlt: '#7e756f', mane: '#2e2926', tip: '#2e2926', snout: '#e2dcd2', belly: '#d9d2c7', hoof: '#3a332e', brow: '#3a332e', ears: '#8a8079' },
+    // the straight back: the withers no higher than the croup
+    torso: [
+      { at: [0, -0.84, 1.29], r: [0.19, 0.22] },
+      { at: [0, -0.62, 1.26], r: [0.29, 0.31] },
+      { at: [0, -0.36, 1.28], r: [0.24, 0.24] },
+      { at: [0, -0.08, 1.22], r: [0.30, 0.33] },
+      { at: [0, 0.18, 1.19], r: [0.30, 0.37] },
+      { at: [0, 0.44, 1.22], r: [0.25, 0.32] },
+      { at: [0, 0.66, 1.18], r: [0.17, 0.25] },
+    ],
+    neckRA: [0.19, 0.32], neckRB: [0.095, 0.12], neckRMid: [0.14, 0.22],
+    joints: { neckBase: [0, 0.46, 1.40], neckTop: [0, 0.84, 1.88] },
+    // the long ears, standing up and a little apart; dark-rimmed tips
+    earR: [0.04, 0.055, 0.05, 0.016], earH: 2.0, earSquash: [1, 0.45],
+    // the white muzzle (the builder's snout bands) and a pale ring round the eye's band; a pale lower jaw
+    headPalette: { Jaw: '#d6cfc4' },
+    markDensity: { torso: 2 },
+    markings: [
+      { on: 'torso', kind: 'band', run: [0.04, 0.96], t: [0, 0.05], group: 'Stripe', color: '#3a332e' },
+      { on: 'torso', kind: 'belly', from: 0.72, group: 'Belly', color: '#d9d2c7' },
+    ],
+    extraSegments: [
+      // a thin tail to the hocks, a dark tuft at its end
+      { name: 'dock', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
+        { at: [0, -0.82, 1.42], r: [0.045, 0.045] }, { at: [0, -0.92, 1.34], r: [0.038, 0.038] }, { at: [0, -0.96, 1.00], r: [0.032, 0.032] },
+      ], caps: { back: [0, -0.78, 1.44], tip: [0, -0.965, 0.95] } },
+      { name: 'tailHair', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', stations: [
+        { at: [0, -0.96, 1.02], r: [0.04, 0.045] }, { at: [0, -0.97, 0.84], r: [0.07, 0.08] }, { at: [0, -0.97, 0.66], r: [0.04, 0.05] },
+      ], caps: { back: [0, -0.96, 1.06], tip: [0, -0.97, 0.60] } },
+      // the short upright mane, a dark brush withers to poll
+      { name: 'mane', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', stations: [
+        { at: [0, 0.30, 1.62], r: [0.022, 0.05] }, { at: [0, 0.48, 1.78], r: [0.025, 0.07] },
+        { at: [0, 0.64, 1.90], r: [0.025, 0.07] }, { at: [0, 0.78, 1.99], r: [0.022, 0.06] },
+      ], caps: { back: [0, 0.22, 1.60], tip: [0, 0.86, 2.08] } },
+    ],
+  },
+  // LLAMA (Lama glama) — THESIS: a camelid WITHOUT a hump: a level woolly barrel on long legs with two-toed padded
+  // feet · a LONG neck carried nearly UPRIGHT straight up from the chest (not the camel's U) · a small head with a
+  // longish muzzle and a split lip · tall curved BANANA EARS turning in at the tips · a short tail held out · a
+  // thick woolly coat (brown-and-white) · 1.14 m at the withers (published 1.09–1.19 m shoulder height; ADW,
+  // Lama glama). Authored at camel units (its legs and feet) and scaled 0.6.
+  llama: (() => {
+    const H = shear(0.35, 1.1);
+    return {
+      family: 'equine', name: 'a llama', scale: 0.6, bulk: 1.15, legBulk: 1.45, headScale: 0.86, torsoUp: false,
+      ...CLASSIC_FACE, muzzleLen: 0.62, muzzleW: 1.1, eyeStyle: 'set', eyeR: 0.03,
+      colors: { coat: '#8e5f3a', sock: '#7e5232', ash: '#946540', ashAlt: '#86583a', mane: '#7a4e2e', hoof: '#2e241e', snout: '#6e4628', tip: '#7a4e2e', brow: '#4a2e1a', ears: '#7e5232', belly: '#a87a52', nose: '#1e1712' },
+      joints: {
+        neckBase: [0, 0.56, 1.66], neckTop: [0, 0.82, 2.78],
+        shoulder: [0.19, 0.50, 1.52], elbow: [0.20, 0.44, 1.16], carpus: [0.15, 0.48, 0.64], foreFetlock: [0.15, 0.50, 0.18], foreCoronet: [0.15, 0.56, 0.08], foreHoof: [0.15, 0.66, 0.035],
+        hip: [0.17, -0.58, 1.50], stifle: [0.23, -0.36, 1.04], hock: [0.15, -0.70, 0.66], hindFetlock: [0.15, -0.64, 0.18], hindCoronet: [0.15, -0.58, 0.08], hindHoof: [0.15, -0.48, 0.035],
+      },
+      // a level woolly barrel, no hump; the brown patches on the rump and flank (markings)
+      torso: [
+        { at: [0, -0.84, 1.52], r: [0.22, 0.26] },
+        { at: [0, -0.60, 1.52], r: [0.30, 0.34] },
+        { at: [0, -0.25, 1.52], r: [0.33, 0.36] },
+        { at: [0, 0.10, 1.52], r: [0.33, 0.37] },
+        { at: [0, 0.40, 1.52], r: [0.30, 0.36] },
+        { at: [0, 0.62, 1.52], r: [0.22, 0.30] },
+      ],
+      torsoCaps: { back: [0, -0.96, 1.54], tip: [0, 0.74, 1.52] },
+      neckRA: [0.22, 0.27], neckRB: [0.10, 0.12], neckRMid: [0.15, 0.18],
+      legs: [
+        ['upperArmR', 'shoulder', 'elbow', [0.10, 0.15], [0.075, 0.085], 'Coat', [0.6, 0.5], [0.10, 0.12]],
+        ['foreArmR', 'elbow', 'carpus', [0.06, 0.07], [0.045, 0.05], 'Coat', [0.5, 0.4]],
+        ['foreCannonR', 'carpus', 'foreFetlock', [0.04, 0.045], [0.035, 0.04], 'Coat', [0.4, 0.4]],
+        ['forePasternR', 'foreFetlock', 'foreCoronet', [0.045, 0.045], [0.05, 0.05], 'Sock', [0.4, 0.4]],
+        ['foreHoofR', 'foreCoronet', 'foreHoof', [0.07, 0.05], [0.08, 0.03], 'Hoof', [0.3, 0.3]],
+        ['thighR', 'hip', 'stifle', [0.12, 0.19], [0.085, 0.095], 'Coat', [0.2, 0.5], [0.12, 0.16]],
+        ['gaskinR', 'stifle', 'hock', [0.065, 0.075], [0.045, 0.05], 'Coat', [0.5, 0.4]],
+        ['hindCannonR', 'hock', 'hindFetlock', [0.04, 0.045], [0.035, 0.04], 'Coat', [0.4, 0.4]],
+        ['hindPasternR', 'hindFetlock', 'hindCoronet', [0.045, 0.045], [0.05, 0.05], 'Sock', [0.4, 0.4]],
+        ['hindHoofR', 'hindCoronet', 'hindHoof', [0.07, 0.05], [0.08, 0.03], 'Hoof', [0.3, 0.3]],
+      ],
+      extraSegments: [
+        // the two-toed padded foot (as the camel's)
+        ...[['fore', 0.56, 0.74], ['hind', -0.56, -0.40]].flatMap(([k, y0, y1]) => [['In', 0.10], ['Out', 0.20]].map(([side, x]) => ({
+          name: `${k}Toe${side}R`, kind: 'loft', slots: 'ring12', group: 'Sock', mirror: 'name', stations: [
+            { at: [x, y0, 0.022], r: [0.055, 0.02] }, { at: [x, (y0 + y1) / 2 + 0.01, 0.018], r: [0.06, 0.016] }, { at: [x, y1, 0.014], r: [0.045, 0.012] },
+          ], caps: { back: [x, y0 - 0.03, 0.026], tip: [x, y1 + 0.02, 0.012] } }))),
+        // a short woolly tail carried out and a little up from the rump
+        { name: 'dock', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', up: true, stations: [
+          { at: [0, -0.90, 1.72], r: [0.07, 0.07] }, { at: [0, -1.02, 1.74], r: [0.08, 0.08] }, { at: [0, -1.12, 1.68], r: [0.065, 0.065] },
+        ], caps: { back: [0, -0.84, 1.72], tip: [0, -1.17, 1.62] } },
+      ],
+      craniumRows: H.rows(SKULL), craniumCaps: { back: H.pt([0, -0.16, -0.06]), tip: H.pt([0, 0.505, -0.045]) },
+      jawRows: H.jaw(JAW), jawCaps: { back: H.pt([0, -0.10, -0.24]), tip: H.pt([0, 0.48, -0.10]) },
+      nape: H.pt([0, -0.13, -0.02]),
+      // the tall banana ears: up from the crown, bowed out, the tips turning IN over the poll (local +y)
+      earSpine: [[0, 0, -0.01], [0, -0.015, 0.05], [0.005, -0.015, 0.11], [0.01, 0.025, 0.16], [0.01, 0.075, 0.18]], earR: [0.028, 0.034, 0.028, 0.008], earSquash: [1, 0.5], earH: 1.15,
+    };
+  })(),
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -312,11 +414,10 @@ export const about = {
   horse: { common: 'horse', aliases: ['pony', 'stallion', 'mare', 'foal', 'steed'], sci: 'Equus ferus caballus', size: '1.57 m at the withers (15.5 hands)', source: 'riding horse heights, 15–16 hh' },
   camel: { common: 'camel', aliases: ['dromedary', 'arabian camel'], sci: 'Camelus dromedarius', size: '1.86 m at the withers, hump top ~2.1 m', source: 'published dromedary figures' },
   zebra: { common: 'zebra', aliases: ['plains zebra'], sci: 'Equus quagga', size: '1.33 m at the withers', source: 'Estes 1991, The Behavior Guide to African Mammals' },
+  donkey: { common: 'donkey', aliases: ['burro', 'ass', 'mule'], sci: 'Equus africanus asinus', size: '1.07 m at the withers (a standard donkey; published 0.91–1.22 m)', source: 'American Donkey and Mule Society size classes / The Donkey Sanctuary' },
+  llama: { common: 'llama', aliases: ['alpaca'], sci: 'Lama glama', size: '1.14 m at the withers (published 1.09–1.19 m)', source: 'ADW, Lama glama' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
-export const wanted = {
-  donkey: { near: 'horse', aliases: ['burro', 'ass', 'mule'], note: 'long ears, an upright mane, a tufted tail, a smaller frame' },
-  llama: { near: 'camel', aliases: ['alpaca'], note: 'a long upright neck, no hump, banana ears, a woolly coat' },
-};
+export const wanted = {};

@@ -22,11 +22,34 @@ const JAW = [
   ['st3', 0.14, { gum: -0.056, gumR: [0.024, -0.056], jaw: [0.025, -0.071], bottom: -0.078 }],
   ['st4', 0.195, { gum: -0.049, gumR: [0.017, -0.049], jaw: [0.018, -0.06], bottom: -0.066 }],
 ];
+// a U snout: each skull / jaw row's side slots widened by its own factor (the tip rows most), so the snout stays broad
+// to a blunt rounded end instead of tapering to a point
+const uSnout = (rows, f) => rows.map(([id, y, top, ...rest], i) => [id, y, top, ...rest.slice(0, 5).map(([x, z]) => [x * f[i], z]), rest[5]]);
+const uSnoutJaw = (rows, f) => rows.map(([id, y, s], i) => [id, y, { ...s, gumR: [s.gumR[0] * f[i], s.gumR[1]], jaw: [s.jaw[0] * f[i], s.jaw[1]] }]);
 const loftOf = (pts) => pts.map(([y, z, r]) => ({ at: [0, y, z], r }));
 // the teeth: small down-pointing cones along the lip line, row positions along the skull (mirrored to both sides)
 const teeth = (rows, slot, len) => rows.map((r, i) => ({ kind: 'sweep', name: `tooth${i}`, at: [r, slot], space: 'local', spine: [[0, 0, -0.004], [0, 0, len * (i % 2 ? 0.7 : 1)]], radii: [0.006, 0.0015], m: 6, group: 'Teeth' }));
 // the dorsal scute crest: a saw-tooth midline loft, high and low stations alternating along a back line
 const crest = (pts, hi, lo) => pts.flatMap(([y, z, w], i, a) => (i === a.length - 1 ? [[y, z + hi * w, [0.02 * w, 0.02]]] : [[y, z + hi * w, [0.03 * w, 0.03]], [(y + a[i + 1][0]) / 2, (z + a[i + 1][1]) / 2 + lo * w, [0.05 * w, 0.02]]]));
+
+// THE ARMOUR ROWS (osteoderm ridges) as extra lofts riding the body's top: `prof(y)` reads the trunk + tail tables
+// ([y, z centre, half-width, half-height], linear between stations); `ridge` lays a saw-tooth loft along the body at
+// share `f` of the half-width out from the spine (a side row, mirrored by name; f = 0 a midline crest), from y0 to y1
+// in `n` teeth of height `hi` (lower toward the ends), each tooth `wide` across, painted `group` (the light armour)
+const PROF = [[0.60, 0.27, 0.22, 0.14], [0.30, 0.27, 0.32, 0.18], [-0.10, 0.27, 0.36, 0.19], [-0.50, 0.27, 0.32, 0.18], [-0.79, 0.27, 0.215, 0.15],
+  [-1.20, 0.25, 0.14, 0.18], [-1.65, 0.21, 0.09, 0.17], [-2.10, 0.16, 0.06, 0.13], [-2.50, 0.11, 0.04, 0.08], [-2.80, 0.08, 0.02, 0.05]];
+const prof = (y) => { for (let i = 0; i + 1 < PROF.length; i++) { const [ya, ...a] = PROF[i], [yb, ...b] = PROF[i + 1];
+  if (y <= ya && y >= yb) { const t = (ya - y) / (ya - yb); return a.map((v, k) => v + (b[k] - v) * t); } } return PROF[y > 0 ? 0 : PROF.length - 1].slice(1); };
+const r4 = (x) => Math.round(x * 1e4) / 1e4;
+const ridge = (name, f, y0, y1, n, hi, wide, inset = 0.012, group = 'Mane') => {
+  const at = (y, up) => { const [zc, rx, rz] = prof(y); return [r4(f * rx), r4(y), r4(zc + rz * Math.sqrt(1 - f * f) - inset + up)]; };
+  const st = [], dy = (y1 - y0) / n;
+  for (let i = 0; i <= n; i++) { const y = y0 + dy * i, k = Math.min(1, Math.min(i, n - i) / 1.5 + 0.35);
+    st.push({ at: at(y, hi * k), r: [wide * 0.6, 0.012] });
+    if (i < n) st.push({ at: at(y + dy / 2, -0.003), r: [wide, 0.01] }); }
+  return { name, kind: 'loft', slots: 'ring12', group, mirror: f ? 'name' : 'plane', up: true, stations: st,
+    caps: { back: at(y0 - dy * 0.25, hi * 0.2), tip: at(y1 + dy * 0.25, hi * 0.2) } };
+};
 
 export const family = {
   family: 'crocodilian',
@@ -108,6 +131,41 @@ export const species = {
     // kept v4 (blind judges: A v4 over v3 55%; B v4 over v1 90%)
     family: 'crocodilian', name: 'a Nile crocodile', scale: 1, legBulk: 1.3,
   },
+  // AMERICAN ALLIGATOR (Alligator mississippiensis). Thesis: the crocodilian plan · a BROAD, rounded U-shaped snout
+  // that stays wide to its blunt tip (the crocodile's narrows to a V), shorter for its width · the upper jaw overlapping
+  // the lower, so only a few upper teeth show and the lower row is hidden · near-black, the belly cream · ~3.4 m
+  // total, the tail about half (Wikipedia "American alligator" / Woodward et al. 1995: adult males 3.4–4.6 m).
+  alligator: {
+    family: 'crocodilian', name: 'an American alligator', scale: 0.8, legBulk: 1.3,
+    craniumRows: uSnout(flat(SKULL, 1.6, 0.75), [1, 1, 1, 1.05, 1.2, 1.45, 1.85]),
+    jawRows: uSnoutJaw(flatJaw(JAW, 1.6, 0.75), [1, 1, 1.1, 1.3, 1.7]),
+    muzzleW: 1.85, muzzleLen: 2.0,
+    // the upper teeth only, short and few (the lower row sits inside the overlapping upper jaw)
+    headOrnaments: teeth([3.6, 4.3, 5.0, 5.6], 5.0, 0.012),
+    // dark olive-grey above (a value the World light can model), the armour ridges a lighter grey-olive that catches
+    // the light, the belly, throat and lower jaw cream; the upper jaw's sides stay dark (only the lower jaw is pale)
+    colors: { coat: '#4a4e3e', sock: '#424636', ash: '#d2cba5', ashAlt: '#c2bb93', brow: '#3a3d30', belly: '#d8d1aa', tip: '#3a3d30', hoof: '#34372b',
+      iris: '#c9b23c', mane: '#7a7e63' },
+    headPalette: { Cheek: '#4a4e3e', Jowl: '#565a47', Snout: '#4a4e3e' },
+    throatGroup: 'Belly',
+    // the eye: a bigger, bright eye under a RAISED bony orbit (the brow knob that stands proud of the flat skull roof)
+    eyeR: 0.014, orbit: { reach: [0.006, 0.007, 0.008], bulk: [0.004, 0.007], thickness: 0.003 },
+    markDensity: { torso: 2, tailFlat: 2 },
+    markings: [{ on: 'torso', kind: 'patch', grid: [9, 2], t: [0.3, 0.56], size: [0.7, 0.6], brick: true, group: 'Plate', color: '#575b49' },
+      { on: 'torso', kind: 'belly', from: 0.62, group: 'Belly' }, { on: 'tailFlat', kind: 'belly', from: 0.7, group: 'Belly' },
+      { on: 'neck', kind: 'belly', from: 0.6, group: 'Belly' }],
+    // the armour: the flattened tail; paired osteoderm rows down the back (two each side of the spine, the inner row
+    // tallest); on the tail a DOUBLE crest (a row each side of the top edge) that merges into a SINGLE midline crest
+    // for the last third
+    extraSegments: [
+      { name: 'tailFlat', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(family.tailStations), caps: family.tailCaps },
+      ridge('scuteInnerR', 0.22, 0.52, -0.78, 8, 0.03, 0.022),
+      ridge('scuteOuterR', 0.52, 0.42, -0.70, 7, 0.022, 0.02),
+      ridge('nuchalR', 0.28, 0.66, 0.56, 1, 0.025, 0.02),
+      ridge('tailCrestR', 0.3, -0.84, -1.95, 7, 0.045, 0.014),
+      ridge('tailCrest', 0, -1.95, -2.78, 5, 0.04, 0.012),
+    ],
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -115,10 +173,10 @@ export const species = {
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
   crocodile: { common: 'crocodile', aliases: ['croc', 'nile crocodile'], sci: 'Crocodylus niloticus', size: '~4 m total; ~0.45 m to the top of the back', source: 'Britannica / IUCN Crocodile Specialist Group' },
+  alligator: { common: 'alligator', aliases: ['gator', 'caiman', 'american alligator'], sci: 'Alligator mississippiensis', size: '~3.4 m total, the tail about half', source: 'Woodward et al. 1995 / Wikipedia, "American alligator"' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  alligator: { near: 'crocodile', aliases: ['gator', 'caiman'], note: 'a broad rounded U snout, darker, the lower teeth hidden' },
 };

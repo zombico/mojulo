@@ -77,6 +77,7 @@ export const family = {
     cornerRetract: { amp: 0.015, map: [['st3.lip', 0.8, [0.1, -1, 0.3]], ['st4.lip', 0.5, [0.1, -1, 0.3]]] },
   },
   headScale: 0.2, nape: [0, -0.12, -0.02],
+  throat: false,   // no neck: the head sits on the trunk (../build.js throat)
   // the eyes BULGING on top of the head (a big eye set high, a thick lid ring), nostrils on top of the snout
   eyeAt: [2.0, 1.4], eyeR: 0.0065, orbit: { reach: [0.002, 0.0025, 0.003], bulk: [0.001, 0.0015], thickness: 0.0012 }, orbitFallback: true,
   pupil: 'round', irisAngle: 40,
@@ -97,6 +98,53 @@ export const species = {
   // up to 20 cm).
   // kept v2 (blind judges: A v2 over post-critic v3 65%; B v3 over v1 70%)
   frog: { family: 'anuran', name: 'an American bullfrog', scale: 1 },
+  // COMMON TOAD (Bufo bufo). Thesis: SQUAT and HEAVY: a broad, round-backed body sitting more upright than a frog's,
+  // propped higher on sturdy forelegs · SHORT hind legs folded close to the body (a walker and short hopper, not a
+  // leaper), small feet barely webbed · a short, blunt, rounded snout · big oval PAROTOID glands bulging behind the
+  // eyes · DRY WARTY skin all over the back · earthy brown with darker warts, a pale belly, copper eyes · ~0.10 m
+  // snout–vent (AmphibiaWeb "Bufo bufo" / Wikipedia "Common toad": adults 0.08–0.13 m SVL, females larger).
+  toad: {
+    family: 'anuran', name: 'a common toad', scale: 0.62,
+    joints: {
+      neckBase: [0, 0.028, 0.048], neckTop: [0, 0.046, 0.052],
+      // sturdier forelegs holding the front higher
+      shoulder: [0.026, 0.020, 0.036], elbow: [0.036, 0.030, 0.020], carpus: [0.034, 0.040, 0.005], forePaw: [0.035, 0.043, 0.002], foreToe: [0.034, 0.056, 0.0012],
+      // the hind leg: the same Z, every bone shorter, tucked in beside the body
+      hip: [0.022, -0.048, 0.022], stifle: [0.046, -0.020, 0.016], hock: [0.040, -0.058, 0.010], hindPaw: [0.043, -0.053, 0.003], hindToe: [0.056, -0.018, 0.002],
+    },
+    // a broad, deep, round-backed trunk sloping to the rump
+    torso: [
+      { at: [0, -0.066, 0.024], r: [0.026, 0.020] },
+      { at: [0, -0.046, 0.029], r: [0.042, 0.029] },
+      { at: [0, -0.018, 0.035], r: [0.048, 0.032] },
+      { at: [0, 0.008, 0.040], r: [0.045, 0.030] },
+      { at: [0, 0.030, 0.045], r: [0.036, 0.024] },
+    ],
+    torsoCaps: { back: [0, -0.076, 0.023], tip: [0, 0.040, 0.047] },
+    neckRA: [0.035, 0.024], neckRB: [0.032, 0.021], neckRMid: [0.033, 0.022],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', 0.0075, 0.0065, 'Coat', [0.5, 0.4]],
+      ['foreArmR', 'elbow', 'carpus', 0.0065, 0.0055, 'Coat', [0.4, 0.3]],
+      ['pasternR', 'carpus', 'forePaw', 0.005, 0.005, 'Coat', [0.3, 0.3]],
+      ['forePawR', 'forePaw', 'foreToe', [0.008, 0.0022], [0.009, 0.0015], 'Hoof', [0.3, 0.2]],
+      ['thighR', 'hip', 'stifle', [0.016, 0.017], [0.009, 0.009], 'Coat', [0.4, 0.4], [0.015, 0.015]],
+      ['shinR', 'stifle', 'hock', [0.009, 0.009], [0.0065, 0.0065], 'Coat', [0.4, 0.4], [0.009, 0.009]],
+      ['metaR', 'hock', 'hindPaw', 0.0055, 0.0045, 'Coat', [0.3, 0.3]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.0065, 0.002], [0.011, 0.0015], 'Hoof', [0.3, 0.2]],
+    ],
+    // a shorter, blunter, rounder snout than the frog's
+    craniumRows: flat(SKULL, 1.75, 0.65), jawRows: flatJaw(JAW, 1.75, 0.65), muzzleLen: 0.28, muzzleW: 1.1,
+    eyeR: 0.0065,
+    // the PAROTOID glands: long oval bulges on the head behind each eye, running back toward the shoulder
+    headOrnaments: [{ kind: 'sweep', name: 'parotoid', at: [0.9, 1.8], space: 'local', spine: [[0.002, 0, -0.002], [-0.002, 0, 0.001], [-0.009, 0, 0.0012], [-0.015, 0, -0.001]], radii: [0.002, 0.0034, 0.0032, 0.0015], m: 8, squash: [1, 0.75], group: 'Gland' }],
+    headPalette: { Gland: '#8a6a44', Nostrils: '#4a3320' },
+    // the WARTS: low round bumps strewn over the back and flanks, in the darker browns (`hoof`, `tip`)
+    bodyTiles: [
+      { id: 'warts', parts: ['torso'], s: [0.4, 3.8], t: [0.2, 3.4], grid: [7, 4], brick: true, sides: 6, coverage: 0.55, inset: 0.6, height: 0.0012, lean: 0, edgeFade: 0, thin: 1, wobble: 0.25, jitter: 0.3, group: ['Hoof', 'Tip'] },
+    ],
+    markings: [{ on: 'torso', kind: 'belly', from: 0.72, group: 'Belly' }],
+    colors: { coat: '#7d5d3b', sock: '#7d5d3b', ash: '#d6c49a', ashAlt: '#c9b68c', brow: '#5e4128', iris: '#c0702a', tip: '#5e4128', hoof: '#6e5234', belly: '#ddd0aa', lids: '#86643f', nose: '#5e4128' },
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -104,10 +152,10 @@ export const species = {
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
   frog: { common: 'frog', aliases: ['bullfrog', 'american bullfrog'], sci: 'Lithobates catesbeianus', size: '~0.15 m snout–vent; ~0.07 m sitting', source: 'USGS NAS' },
+  toad: { common: 'toad', aliases: ['common toad', 'european toad'], sci: 'Bufo bufo', size: '~0.10 m snout–vent (0.08–0.13 m)', source: 'AmphibiaWeb, "Bufo bufo"' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  toad: { near: 'frog', aliases: [], note: 'a warty dry skin, shorter legs, a heavier body' },
 };

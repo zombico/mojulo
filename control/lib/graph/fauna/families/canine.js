@@ -1,6 +1,8 @@
 // CANINE — a deep chest over a tucked loin, digitigrade paws, a long skull with a medium muzzle, erect ears, a brush
 // tail. Worked species: the grey wolf. See ../build.js for what every field does.
 
+import { fineCoat, spotField } from '../coats.js';
+
 export const family = {
   family: 'canine',
   colors: {
@@ -158,6 +160,84 @@ export const species = {
     earH: 0.85, earR: [0.05, 0.046, 0.028, 0.008],
     bulk: 0.9, legBulk: 0.8, tailBush: 1.2,
   },
+  // COYOTE (Canis latrans). Thesis: a smaller, LEANER wolf on long slender legs, a narrow chest · a narrow POINTED
+  // muzzle and LARGE pointed erect ears (bigger for the head than a wolf's) · grizzled buff-grey coat, tawny legs and
+  // ear backs, a pale throat · the bushy tail carried LOW, hanging, with a black tip · 0.60 m at the shoulder,
+  // head-body ~0.85 m (Bekoff 1977, Mammalian Species 79 "Canis latrans": shoulder 0.58–0.66 m, total length
+  // 1.0–1.35 m with a 0.30–0.40 m tail).
+  coyote: {
+    eyeStyle: 'set',
+    family: 'canine', name: 'a coyote', scale: 0.56,
+    colors: { coat: '#9a8468', sock: '#b98a5a', ash: '#ece2d0', ashAlt: '#ddd0b8', brow: '#5a4430', ears: '#a07a54', tip: '#1c1814', iris: '#c9a040' },
+    joints: { neckBase: [0, 0.38, 0.86], neckTop: [0, 0.66, 0.98] },
+    torso: [
+      { at: [0, -0.45, 0.80], r: [0.09, 0.085] },
+      { at: [0, -0.35, 0.80], r: [0.12, 0.115] },
+      { at: [0, -0.16, 0.80], r: [0.085, 0.075] },
+      { at: [0, 0.02, 0.80], r: [0.115, 0.14] },
+      { at: [0, 0.24, 0.80], r: [0.125, 0.18] },
+      { at: [0, 0.40, 0.80], r: [0.115, 0.165] },
+    ],
+    torsoCaps: { back: [0, -0.52, 0.80], tip: [0, 0.50, 0.77] },
+    neckRA: [0.11, 0.15], neckRB: [0.075, 0.085], neckRMid: [0.09, 0.11],
+    // the brush hanging low, near-vertical, behind the hocks
+    tail: [[0, -0.50, 0.84, 0.05], [0, -0.60, 0.74, 0.08], [0, -0.66, 0.58, 0.10], [0, -0.69, 0.42, 0.10], [0, -0.70, 0.31, 0.08]],
+    tip: [[0, -0.70, 0.34, 0.075], [0, -0.705, 0.25, 0.06], [0, -0.705, 0.18, 0.03]],
+    tipCaps: { back: [0, -0.70, 0.38], tip: [0, -0.705, 0.15] },
+    legScale: 1.1,
+    headScale: 1.3, muzzleW: 0.82, muzzleLen: 1.12,
+    earH: 0.95, earR: [0.054, 0.05, 0.03, 0.008],
+    bulk: 0.95, legBulk: 1.0, tailBush: 1.2,
+  },
+  // SPOTTED HYENA (Crocuta crocuta). Thesis: the SLOPING BACK: high heavy shoulders and a thick neck, the back falling
+  // to a low rump on SHORTER hind legs · a massive broad head, a short BLUNT dark muzzle, ROUNDED ears · a short
+  // erect mane on the neck and shoulders · a sandy coat with dark round SPOTS · a short tail with a black bushy tip ·
+  // 0.80 m at the shoulder, head-body ~1.3 m (Kingdon 1997, The Kingdon Field Guide to African Mammals: shoulder
+  // 0.70–0.90 m, head-body 0.95–1.66 m).
+  hyena: (() => {
+    // the back falls from the withers to a low, narrow rump; the chest deep
+    const torso = [
+      { at: [0, -0.54, 0.55], r: [0.10, 0.09] },
+      { at: [0, -0.42, 0.58], r: [0.135, 0.125] },
+      { at: [0, -0.20, 0.67], r: [0.13, 0.13] },
+      { at: [0, 0.02, 0.77], r: [0.155, 0.18] },
+      { at: [0, 0.24, 0.84], r: [0.17, 0.215] },
+      { at: [0, 0.40, 0.86], r: [0.155, 0.20] },
+    ];
+    return {
+      eyeStyle: 'set',
+      family: 'canine', name: 'a spotted hyena', scale: 0.73, torsoUp: true,
+      colors: { coat: '#b39a72', sock: '#a68c66', ash: '#cdb994', ashAlt: '#bfa983', brow: '#2e241c', snout: '#3a2e24', ears: '#6a5440', mane: '#3a2e24', tip: '#1c1814', iris: '#6a4420' },
+      joints: {
+        neckBase: [0, 0.36, 0.98], neckTop: [0, 0.66, 1.00],
+        shoulder: [0.15, 0.34, 0.88], elbow: [0.16, 0.30, 0.54], carpus: [0.14, 0.34, 0.15], forePaw: [0.14, 0.37, 0.05], foreToe: [0.14, 0.47, 0.035],
+        hip: [0.11, -0.40, 0.55], stifle: [0.15, -0.27, 0.36], hock: [0.13, -0.45, 0.17], hindPaw: [0.13, -0.42, 0.05], hindToe: [0.13, -0.32, 0.035],
+        maneA: [0, -0.10, 0.88], maneB: [0, 0.62, 1.10],
+      },
+      torso,
+      torsoCaps: { back: [0, -0.60, 0.53], tip: [0, 0.50, 0.85] },
+      neckRA: [0.16, 0.20], neckRB: [0.12, 0.13], neckRMid: [0.14, 0.17],
+      tail: [[0, -0.54, 0.60, 0.04], [0, -0.62, 0.52, 0.04], [0, -0.66, 0.42, 0.038]],
+      tip: [[0, -0.66, 0.44, 0.04], [0, -0.675, 0.34, 0.075], [0, -0.68, 0.25, 0.03]],
+      tipCaps: { back: [0, -0.66, 0.47], tip: [0, -0.68, 0.22] },
+      extraSegments: [
+        // the short erect mane along the top of the neck and over the shoulders
+        { name: 'mane', kind: 'segment', from: 'maneA', to: 'maneB', rA: [0.01, 0.02], rB: [0.03, 0.05], rMid: [0.03, 0.08], slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.3, 0.3] },
+        // the round dark SPOTS on a fine coat shell over the trunk: many small irregular patches, fewer on the belly
+        fineCoat('spots', torso, { bulk: 1.2, from: -0.52, to: 0.38, n: 36, half: 24, field: spotField({ cell: 0.115, rad: [0.03, 0.04], seed: 3, jitter: 0.6, stretch: 0.25, belly: 0.86, under: 'Coat', dark: 'Spot' }) }),
+      ],
+      headScale: 1.75, muzzleW: 1.45, muzzleLen: 0.62,
+      // rounded ears: short, broad, round-topped
+      earSpine: [[0, 0, -0.012], [0, 0, 0.015], [0, 0, 0.04], [0, 0, 0.062], [0, 0, 0.075]],
+      earR: [0.04, 0.05, 0.05, 0.036], earH: 1,
+      bulk: 1.2, legBulk: 1.35, tailBush: 1,
+      markDensity: { neck: 3, legs: 2, upperArm: 3, thigh: 3 },
+      markings: [
+        { on: 'neck', kind: 'spots', run: [0, 0.6], t: [0.15, 0.8], count: 7, size: [0.1, 0.14], seed: 4, group: 'Spot', color: '#4a3a2a' },
+        { on: ['upperArm', 'thigh'], kind: 'spots', count: 9, size: [0.08, 0.12], seed: 7, group: 'Spot', color: '#4a3a2a' },
+      ],
+    };
+  })(),
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -166,12 +246,12 @@ export const species = {
 export const about = {
   wolf: { common: 'wolf', aliases: ['grey wolf', 'gray wolf', 'timber wolf'], sci: 'Canis lupus', size: '0.80 m at the withers', source: 'published grey wolf figures' },
   dog: { common: 'dog', aliases: ['puppy', 'pup', 'doggy', 'labrador', 'labrador retriever', 'retriever', 'hound'], sci: 'Canis familiaris', size: '0.58 m at the withers (a Labrador)', source: 'AKC Labrador Retriever standard' },
+  coyote: { common: 'coyote', aliases: [], sci: 'Canis latrans', size: '0.60 m at the shoulder; head-body ~0.85 m', source: 'Bekoff 1977, Mammalian Species 79' },
+  hyena: { common: 'hyena', aliases: ['spotted hyena', 'hyaena'], sci: 'Crocuta crocuta', size: '0.80 m at the shoulder; head-body ~1.3 m', source: 'Kingdon 1997, The Kingdon Field Guide to African Mammals' },
   fox: { common: 'fox', aliases: ['red fox'], sci: 'Vulpes vulpes', size: '0.40 m at the shoulder; head-body 0.6–0.9 m', source: 'published red fox figures' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  coyote: { near: 'wolf', aliases: [], note: 'a smaller, leaner wolf with big ears and a narrow muzzle' },
-  hyena: { near: 'wolf', aliases: ['spotted hyena', 'hyaena'], note: 'sloping back from high shoulders, a heavy head, round ears, spots' },
 };

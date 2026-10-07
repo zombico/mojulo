@@ -59,9 +59,9 @@ describe('animal entries: the cards', () => {
   });
 
   it('a wanted animal is findable through its family hub, with its stand-in named', () => {
-    const hub = byId.get('animal/ursine');
-    expect(hub.when).toContain('"koala"');
-    expect(hub.body).toMatch(/koala.*nearest wombat/);
+    const hub = byId.get('animal/feline');
+    expect(hub.when).toContain('"bobcat"');
+    expect(hub.body).toMatch(/bobcat.*nearest lynx/);
   });
 
   it('the catalog carries them; the bare listing shows only the index', () => {
@@ -75,14 +75,14 @@ describe('animal entries: the cards', () => {
 describe('animal entries: names', () => {
   it('resolves the names people say', () => {
     for (const [w, id] of [['cat', 'houseCat'], ['Kitty', 'houseCat'], ['cats', 'houseCat'], ['a penguin', 'emperorPenguin'], ['house-cat', 'houseCat'],
-      ['grizzly', 'brownBear'], ['buffalo', 'bison'], ['cow', 'dairyCow'], ['shark', 'greatWhiteShark'], ['wolves', 'wolf'], ['foxes', 'fox']]) {
+      ['grizzly', 'brownBear'], ['buffalo', 'bison'], ['cow', 'dairyCow'], ['shark', 'greatWhiteShark'], ['wolves', 'wolf'], ['foxes', 'fox'],
+      ['koala', 'koala'], ['monkey', 'capuchin'], ['goose', 'canadaGoose'], ['Canada goose', 'canadaGoose']]) {
       expect(resolveAnimalName(w)?.id ?? null, w).toBe(id);
     }
   });
 
   it('an asked-for animal not built yet resolves to its stand-in; an unknown word to nothing', () => {
-    expect(resolveAnimalName('koala')).toMatchObject({ wanted: 'koala', near: 'wombat' });
-    expect(resolveAnimalName('monkey')).toMatchObject({ wanted: 'capuchin', near: 'chimpanzee' });
+    expect(resolveAnimalName('bobcat')).toMatchObject({ wanted: 'bobcat', near: 'lynx' });
     expect(resolveAnimalName('unicorn')).toBeNull();
     expect(normalizeName('  The Great_White ')).toBe('great white');
   });
