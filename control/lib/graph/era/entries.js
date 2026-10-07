@@ -15,6 +15,7 @@
  */
 import { STAGE_KITS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
+import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
@@ -58,6 +59,13 @@ const refFor = (kitId) => SIXTH_GEN_LOOK_IDS.find((l) => SIXTH_GEN_REFERENCES[SI
 const lookRef = (lookId) => SIXTH_GEN_REFERENCES[SIXTH_GEN_LOOKS[lookId]];
 const ERA = `the sixth console generation (around 2000 to 2006): seen at ${SIXTH_GEN.frame.width}×${SIXTH_GEN.frame.height}, world light baked into the vertices`;
 const isRooms = (kit) => ROOM_SHELLS.has(kit.shell);
+// the laws a kit's style card states (its own principles, its night's and its decay's), look layer first
+const kitLaws = (kit) => {
+  const S = styleOf(kit);
+  if (!S) return [];
+  const rows = Object.entries(PRINCIPLE_LAWS).filter(([k]) => k === S.id || k.startsWith(`${S.id}/`)).flatMap(([, r]) => r.flat());
+  return [...new Set(rows)].filter((l) => l !== 'kit-dressing').sort((a, b) => LAYERS.indexOf(LAWS[a].layer) - LAYERS.indexOf(LAWS[b].layer));
+};
 
 /** What a kit's own cards let a recipe switch on (each is refused by a kit that lacks it). */
 function kitOptions(kit) {
@@ -92,6 +100,7 @@ export function kitCard(kitId) {
     `LOOK       ${ref ? `pairs with '${ref}' (card 'look/${ref}'); any look can be set with "reference"` : isRooms(kit) ? `none pairs with it; "reference" sets the look (default gothic-night)` : 'its own: the style card carries the light and air'}`,
     `OPTIONS    ${opts.length ? opts.join(' · ') : 'none beyond the kit'}`,
     `ERA        ${ERA}`,
+    ...(kitLaws(kit).length ? [`LAWS       ${kitLaws(kit).join(', ')} (card 'sixth-gen-laws')`] : []),
   ];
   if (S?.principles?.length) lines.push('', `PRINCIPLES (its style card: each machine-checked; the eyes gate is the operator's)`, ...S.principles.slice(0, 5).map((p) => `  - ${p}`), ...(S.principles.length > 5 ? [`  … ${S.principles.length - 5} more on the style card`] : []));
   lines.push('', 'STARTER (a manifest: copy it, change it, mint it)', `  ${JSON.stringify(starter(kitId))}`);
@@ -135,7 +144,7 @@ export function stageHubCard() {
   const missing = looks.filter((l) => !STAGE_KITS[lookRef(l).kit]);
   const lines = [
     '# Stage: a level built the sixth-gen way', '',
-    `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names.`, '',
+    `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
     'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], … } — rooms only for a room kit; an open-ground kit takes none',
     '', 'KITS (card stage/<id>)', ...kits.map((k) => `  - ${k}: ${isRooms(STAGE_KITS[k]) ? 'rooms' : 'open ground'}. ${clip(kitSummary(k, STAGE_KITS[k]))}`),
     '', 'LOOKS (card look/<id>, set as "reference")', ...looks.map((l) => `  - ${l}: ${lookRef(l).setting}; ${lookRef(l).light.contrast} contrast, ${lookRef(l).air.sky} sky`),
@@ -149,7 +158,31 @@ export function stageHubCard() {
   };
 }
 
-/** Every generated card: the hub, each kit, each look. */
+const LAYER_TEXT = {
+  look: 'LOOK (light, value, palette, air, sky: a look carries these to any scene)',
+  surface: 'SURFACE (what a scene\'s surfaces must be built to take)',
+  composition: 'COMPOSITION (where things go: plan the scene by these)',
+  dressing: 'DRESSING (a kit\'s own set pieces)',
+};
+
+/** The laws card: what every sixth-gen template was built on, by layer, each with how many principles state it. */
+export function lawsCard() {
+  const ledger = lawLedger(), total = Object.values(statedPrinciples()).flat().length;
+  const lines = ['# Sixth-gen laws', '',
+    `The ${total} principles the stage kits were built on, counted into shared laws. Apply them when building in this look anywhere, not only on a stage. Each count is how many principles state the law; "era" marks one the era carries on its own.`];
+  for (const layer of LAYERS) {
+    lines.push('', LAYER_TEXT[layer]);
+    for (const [id, L] of Object.entries(ledger)) if (L.layer === layer) lines.push(`  - ${id} (${L.stated.length}${L.era ? ', era' : ''}): ${L.law}`);
+  }
+  return {
+    id: 'sixth-gen-laws', name: 'Sixth-gen laws', family: 'world', entry: 'create_sketch', generated: true,
+    summary: `The principles behind every sixth-gen template, counted into laws by layer: look, surface, composition, dressing.`,
+    when: '"art principles", "art direction rules", "sixth-gen look", "why it looks retro", "baked vertex light", "value order", "early 2000s 3d style"',
+    body: lines.join('\n'),
+  };
+}
+
+/** Every generated card: the hub, the laws, each kit, each look. */
 export function stageEntryCards() {
-  return [stageHubCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
+  return [stageHubCard(), lawsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
 }

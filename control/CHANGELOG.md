@@ -29,6 +29,13 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   ask ("a dark castle lit by torches", "a desert town at sunset") on its own. The reference cards in `era/sixth-gen.js`
   keep the research record. A recipe that already carries a reference card's own id or `delfino-plaza` still plans as
   before; the refusal lists only the look ids. A stage with no title is now titled by its look.
+- **Every principle is counted.** `lib/graph/era/laws.js` maps each principle every style card states (its own, its
+  night's, its decay's) to the shared laws it is an instance of, and each law to the layer that must carry it when the
+  look leaves the stage: look (light, value, palette, air, sky), surface (density, materials, blends, cards),
+  composition (focus, subject line, distinctness, causes) or dressing (a kit's own set pieces). The era card's own laws
+  (baked vertex light, vertex and texel density, the readout frame, the cast over the world) are listed too. A style card
+  that gains a principle without a mapping fails `laws.test.js`. A generated `sixth-gen-laws` card lists the laws by
+  layer, and each kit card names the laws its principles state.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from
