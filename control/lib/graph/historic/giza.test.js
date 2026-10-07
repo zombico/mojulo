@@ -38,22 +38,31 @@ describe('historic city: Old Kingdom Giza', () => {
     const rs = Object.values(cx).map((c) => c.rect);
     for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) expect(overlap(rs[i], rs[j])).toBe(false);
   });
-  it('every slot is in the kit and stands on level ground; no two buildings overlap; houses front lanes; the water lies below the land', () => {
+  it('every slot is in the kit and stands on level ground; no two buildings overlap; the water lies below the land', () => {
     const p = planHistoricCity({ seed: 7, culture: 'giza' });
-    const built = p.slots.filter((q) => q.asset !== 'gz-ship');
-    for (const q of p.slots) expect(GIZA_ASSETS[q.asset], q.asset).toBeTruthy();
-    for (const q of built) {
+    for (const q of p.slots) {
+      expect(GIZA_ASSETS[q.asset], q.asset).toBeTruthy();
       const r = q.rect, hs = [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.d], [r.x + r.w, r.y + r.d], [r.x + r.w / 2, r.y + r.d / 2]].map(([x, y]) => p.hAt(x, y));
       expect(Math.max(...hs) - Math.min(...hs), `${q.asset} at ${Math.round(r.x)},${Math.round(r.y)}`).toBeLessThan(q.asset === 'gz-sphinx' ? 0.5 : 1.5);
       expect(Math.abs(q.z - p.hAt(r.x + r.w / 2, r.y + r.d / 2)), q.asset).toBeLessThan(0.01);
     }
-    for (let i = 0; i < built.length; i++) for (let j = i + 1; j < built.length; j++) expect(overlap(built[i].rect, built[j].rect), `${built[i].asset} / ${built[j].asset}`).toBe(false);
-    expect(p.stats.mastabas).toBeGreaterThan(60);
-    expect(p.stats.houses).toBeGreaterThan(20);
-    const lanes = p.grounds.filter((g) => g.kind === 'lane');
-    const fronts = (r) => lanes.some((g) => g.x < r.x + r.w + 0.5 && g.x + g.w > r.x - 0.5 && g.y < r.y + r.d + 0.5 && g.y + g.d > r.y - 0.5);
-    expect(p.slots.filter((q) => q.asset === 'gz-house' && !fronts(q.rect))).toEqual([]);
+    for (let i = 0; i < p.slots.length; i++) for (let j = i + 1; j < p.slots.length; j++) expect(overlap(p.slots[i].rect, p.slots[j].rect), `${p.slots[i].asset} / ${p.slots[j].asset}`).toBe(false);
     expect(p.grounds.filter((g) => g.kind === 'water').every((g) => g.z < -1)).toBe(true);
+  });
+  it('is an exhibit of the monuments: the pyramids and the Sphinx, no cemeteries, town or building sites', () => {
+    const p = planHistoricCity({ seed: 7, culture: 'giza' }), n = (id) => p.slots.filter((q) => q.asset === id).length;
+    expect(n('gz-pyramid')).toBe(3);
+    expect(n('gz-sphinx')).toBe(1);
+    expect(new Set(p.slots.map((q) => q.asset))).toEqual(new Set(Object.keys(GIZA_ASSETS)));
+    expect(Object.keys(p.views)).toEqual(['valley', 'pyramid', 'harbour', 'summit']);
+    expect(p.grounds.filter((g) => g.kind === 'lane')).toEqual([]);
+  });
+  it('the ground covers the land: every point is under a ground face, the escarpment or the water', () => {
+    const p = planHistoricCity({ seed: 7, culture: 'giza' });
+    const covers = [...p.grounds.filter((g) => g.kind === 'ground' || g.kind === 'water'), ...p.boxes.filter((b) => b.kind === 'escarpment')];
+    const bare = [];
+    for (let y = 3; y < p.frame.d; y += 10) for (let x = 3; x < p.frame.w; x += 10) if (!covers.some((g) => x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.d)) bare.push([x, y]);
+    expect(bare).toEqual([]);
   });
   it('the pyramidion is plain limestone unless the gilded conjecture is asked for', () => {
     const tops = (opts) => planHistoricCity({ seed: 7, culture: 'giza', ...opts }).boxes.filter((b) => /^pyramidion/.test(b.kind));
@@ -62,6 +71,6 @@ describe('historic city: Old Kingdom Giza', () => {
     expect(tops({ pyramidion: 'electrum' }).every((b) => b.kind === 'pyramidion-gilt' && b.tint === GIZA.palette.electrum)).toBe(true);
   });
   it('builds a scene, opening on any of its views', () => {
-    for (const view of ['valley', 'pyramid', 'cemetery', 'town', 'harbour', 'works', 'summit']) expect(assembleHistoricCityScene({ seed: 7, culture: 'giza', view }).cameras[0].name).toBe(view);
+    for (const view of ['valley', 'pyramid', 'harbour', 'summit']) expect(assembleHistoricCityScene({ seed: 7, culture: 'giza', view, shade: false }).cameras[0].name).toBe(view);
   });
 });
