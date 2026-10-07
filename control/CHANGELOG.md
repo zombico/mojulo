@@ -252,6 +252,268 @@ byte-identically. A stored plan is frozen with its version (`fabricator-v0.3.0`)
   A row with nothing to buy is not eligible, and says how to get a list. A fabricated mint names the call in
   `stats.fabrication.export`.
 
+### Mountain levelling
+
+A level where the walk goes up: a stack of tiers joined by connectors, apart from buildings and from indoors or
+outdoors. It is built on the meru, the vertical ruler every two-point picture already stands on. This step makes the
+place and its guide; what joins the tiers is playscape's to answer.
+
+- **The meru is its own primitive** (`lib/graph/polygonizer/meru.js`). `meruStack` is the storey stack that was
+  inside the house builder: levels of their own heights, a slab between, below and above the ground. `houseMeru` is
+  now that ruler over the floorplan defaults, and builds byte-identically. `meruMarks` carries named heights up one
+  axis, as the landmark towers are drawn: a base, a deck, an apex.
+- **A stairs site says its way on.** A trail's stairs site anchor now carries `N` (the way on, as a beat's does) and
+  its two ends on the walk (`from`, `to`), so what answers it does not assume the trail runs along +y.
+- **A local meru from a recipe** (`lib/graph/local-meru/plan.js`). The base unit is a mound, a stairway spiralling
+  round it, and a watchtower on the summit. A recipe sets the mound (height, foot, summit, profile), the path (width,
+  turns, hand, approach, edge), the going and the tower; an unknown word is refused with the ones it knows. With
+  `after: { kit, seed, trail }` it is laid on from the end of an isekai trail: from the seam, on the trail's line,
+  heading and height. The risers share the whole rise evenly, at most ten to a flight, and the landings between
+  flights are as long as the turns ask. The level's meru names every tier (seam, landings, summit, deck, rail, eave,
+  apex), and its mandala gives the radius at every height. It builds no faces and no connectors. It asks for them as
+  anchors: a stairs site for every flight (its way on, its ends, its going and the curve it lies on), a climb site up
+  the tower with the link it prefers, and the landings, the summit and the deck as tiers. Playscape answers them.
+- **The level's laws.** The steps' laws are the man-made index's own. The level adds its own: every riser within the
+  walker's step, landings long enough to stand on, the turns asked for, shelves that never stack, a railed edge where
+  a fall would hurt, the tower and a walk round it inside the summit, a climb of one pull, the tower seen from the
+  seam, the mound past the seam, and the seam met. They advise; none refuses.
+- **The premap** (`lib/graph/local-meru/premap.js`): the level as a guide before it is built, in black and white, the
+  landform board's sibling. It has four panels and two tables: the plan (the trail it follows, the seam, the mound's
+  rings, the spiral with a tick at every riser, the tower and its climb), a half-section through the meru (named
+  heights and the radius at each), the heartbeat (from the followed trail's start, over the seam, round the spiral
+  and up the climb), a two-point massing drawn through `projectTwoPoint` with a level camera, the laws, and the
+  anchors playscape answers.
+- **A local meru, built: `meru` on an isekai stage** (`lib/graph/local-meru/scene.js`). A stage recipe with a `meru`
+  builds the level in the isekai look, on the page after the trail it follows (`after` reads the stage's kit and seed
+  unless it names others). The ground is laid on that trail's own grid, so its last row is the trail's last row at
+  the seam, and it eases to level. The mound rises from it, cliff where steep and grass where not, drawn by the isekai
+  builder's rules. The walk runs on a shelf round the flank, held up by a rock wall. The watchtower is timber: posts,
+  bracing, a deck, a rail open where the climb arrives, and a roof. A stand-in ladder stands on the climb until
+  playscape's ladder is placed there. A flight is walked as the slope its shelf lays, as a trail's stairs site is.
+  The payload carries the anchors, the level's laws and cameras from the seam, from wide, at the climb and from the
+  deck. On a kit that is not isekai it is refused; a stage without `meru` builds as before.
+- **A World's walk can climb** (`scene/channels/walk.js`, opt-in `walk.climbs`). A climb is a foot, a lip, the way
+  in and a width. Facing it at its foot, W climbs and S comes down. At the lip the walker steps onto what is behind
+  it, and walking out over the lip from up there takes the climb down. A local meru's climb anchors become its
+  climbs. A walk without climbs emits the same script as before.
+- **A level is a stack of tiers** (`local-meru/plan.js`). Each tier stands on the top of the one below and says
+  how the walk gets up it. There are two forms: a `mound` (a plan of `sides`, 0 round or 3 and more a polygon,
+  narrowing from its foot to its summit) and a `tower`. There are three ways up: a `spiral` round the flank, a
+  `stair` straight up one face (cut into it, or standing out from it), and a `climb`. Every tier faces the way the
+  walk arrives on the one below, and a tower with a tier on it is left open, with no roof. The laws are per tier and
+  per way up, and add two: each tier fits on the top below it, and a stair starts on what it climbs from. The older
+  one-mound, one-tower words still read.
+- **Presets are tier lists** (`local-meru/presets.js`, `preset`): a mountain lookout, a terraced mountain, a
+  ziggurat, a temple pyramid and a stacked lookout. None needs code of its own.
+- **What people build takes the kit's made style** (era/out-made.js `madeStyle`). The kit's chunk sizes the tower's
+  members, its edge word makes a stair stone or timber, its paint share decides whether a roof is painted, and every
+  made colour is locked to the kit's made ramps (timber, stone, paint).
+- **The level is walked in a test** (`local-meru.walk.test.js`). A headless walker follows the World's own rules
+  (gravity, the floor ray, the eye and shin rays, the climb). Steered along the spiral from the seam, it reaches the
+  summit at walking pace; it climbs the tower to the deck and back down; without the climb the deck is out of reach;
+  and walked straight at the flank from all round, it never reaches the summit, because a shelf's wall stops a
+  scramble from below. Every preset is walked and climbed from the seam to its top. The World's walk has no slope limit of its own, so steep rock can be scrambled up to that wall.
+
+### Playscape
+
+The first step toward Playscape, which makes a scapeshifted world playable on a ladder of four rungs: click demos,
+walk demos, a single level, a game of levels. This step starts its encyclopedia: the game idioms on a shelf of their
+own, the laws a game object is judged by, and the first entry, the door, where what a thing does is kept apart from
+what it looks like. No tool is added; `get_game_vocab` gains a family.
+
+- **The game idioms have cards.** `get_game_vocab({ scope: 'idiom' })` and `semantic_search({ kinds: ['game_idiom'] })`
+  return an `idiom-guide` and an `idiom-<kind>` card per idiom, generated from an about row kept beside each idiom
+  function (`IDIOM_ABOUT` in `lib/graph/worlds/game-idioms.js`). Each card lowers its own example and prints the
+  event-bus rows it becomes, so it cannot drift; an idiom without an about row fails the shelf's test. Each idiom is
+  tagged with the lowest rung it serves (`click`, `walk`, `level`, `game`). A migration adds the `game_idiom` kind.
+- **One lowering map.** `IDIOM_LOWERING` and `lowerIdioms()` in `game-idioms.js` replace the action world's private
+  map, which now also takes `banner`, `legend` and `toast` in `idioms` (before, only raw `events.hud` rows reached them).
+- **Object laws.** `lib/graph/playscape/objects/` judges a game object the way the hero is judged: the build is
+  measured and read against bands, with advice per law, never a refusal (`objectMeasures`, `objectAdvice`). The laws
+  (`objects/laws.js`): inverse interest (the more a thing matters, the more distinct its silhouette segments, counted
+  as notches that open onto the outline at play distance in the era's 640×448 frame), 33/66 (the primary detail a
+  third of the main mass and wider than the eye spot), emboss (the rest of the mass shaded in by value), values only
+  (greys on `obj:*` groups, colour left to a tone), the detail a band apart from the mass under 3, 4 and 5 hard steps,
+  the accent kept for what can be used, and juxtaposition (a placement law). One interest rank (filler, prop,
+  interactable, focus) sets the bands.
+- **The door entry: what it does apart from what it looks like.** `objects/mechanism.js` moves leaves on three joints
+  (hinge, slide, lift); the door's five variants are rows over it: `single`, `double`, `sliding-single`,
+  `sliding-double` and `portcullis`. Fitted to an opening (a doorway anchor sizes it) at any t from closed to open, a
+  door answers for itself: its collider at t, the space its leaves sweep (a level keeps it clear: the swing in front,
+  the wall pocket, the headroom), the width and height a walker gets through, and where it is used from (both sides of
+  the handle, or a control beside a portcullis). Its look is a skin worn on top (`greybox`, `plank`), drawn on the
+  closed leaf and carried by the joint. Its rules are built from the idioms: a use opens it; locked, it waits for its
+  unlock event (a key's pickup), then for a use (a sequence, since reactions carry no guard). `ejectObject` freezes
+  the variant, skin and numbers. The entry's card is generated from the variants and measured off the mechanism
+  (`lib/graph/playscape/entries.js`); it is served once a recipe can place a door.
+- **Drives: what moves an entry's t.** `objects/drive.js`: a `clock` (back and forth or round a loop over a period),
+  a `ride` (standing on it sends it to the far end; it waits `dwell` seconds empty, then comes home), a `call` (a use at
+  a stop sends it there) and a `rule` (a bus var; the door's `<id>-open`). Stepped by dt, so a timeline replays exactly.
+- **The platform entry, called by its surface area.** `objects/platform.js`: `area` is the walkable deck top in square
+  metres (`aspect` shapes it), and reads to a player as a rest, a step, a tight landing or too small. Variants
+  `static`, `shuttle` and `rail` (round if it loops, else back and forth, by distance at one pace). It answers for its
+  deck and collider at t, the space it sweeps and the headroom a rider needs over it all along, and lowers to the
+  platformer world: a still deck is a floor face and a collider, a moving one a `mover` carrier with a visible box
+  body (moving platforms rendered nothing before). Its `island` skin (a lighter deck over a keel of rock) holds every
+  object law at every area: a still island hangs one keel point, a moving one two tiers.
+- **The lift entry, vertical traversal.** `objects/lift.js`: a platform's deck carried between stops at `speed` metres
+  a second. Two stops ride; more are called. It answers for its shaft (from under the lowest stop to a rider's
+  headroom over the highest: a level leaves it open), its landings (board, and a step off to either side, at every
+  stop), and its ride time and dwell. A called lift runs as a ride between its ends until calls reach the runtime.
+- **Movers run rails and ride drives.** The `mover` rule (`worlds/controllable/rules-basic.js`) takes a `path` of
+  points (by distance; `loop`, `mode: 'loop'`) and `drive: 'ride'` (`speed`, `dwell`); the carry pass marks a
+  ride-driven carrier `_ridden` while a rider stands on it, still or moving. A mover with neither runs as before (the
+  controllable-world trace pins hold).
+- **The catapult entry: a launcher tuned by the approach.** `objects/catapult.js` stays put and throws the player:
+  `fixed` (one arc; give a `target` and it solves the power), `redirect` (keeps the run-up's speed along the pad) and
+  `bounce` (returns the fall, so a higher drop goes higher). Tunable `power`, `angle`, `gain`, `cap`, `restitution`, a
+  `cone` of approaches, `reload`. Its arc is stepped with the platform rule's own integrator (rise and fall gravity,
+  fall cap), so a solved target is where the world lands the rider; it answers for the arc, apex, landing, the tube
+  the rider flies through and how far steering can move the landing. The rider steers in the air by default;
+  `locked` holds the arc until it lands, for a scenic route.
+- **The `launcher` rule.** `worlds/controllable/rules-basic.js`: a `launch` world pass reads each rider's approach
+  (its run across the ground, its fall) and throws it through the platform rule's own momentum (`vel` z and
+  `dashVel`); a `launch-lock` pre-step takes a locked rider's stick until it lands. The platform rule's jump cut skips
+  a thrown rider (`launchedBy`); without a launcher it runs as before. The pipeline-order pin and the emission pins
+  re-pinned with notes.
+- **Items keep their blocks.** `era/props.js` `obox` also records each box it builds into a face list made by
+  `blockSink()` (its range of faces, value, group; the playscape skins tag the part); any other list gets the same
+  panels as before. Every playscape entry resolves with its blocks; the door's ride its leaf's pose.
+- **Cleave: the shaped cut.** `playscape/destruct/cleave.js` cuts an item's blocks by a pattern of convex cells into
+  closed convex chunks (`polytope.js`, plane clipping), whatever the shape: `grid` dices (a lattice in the item's frame,
+  each axis split evenly, a thin axis never cut), `voronoi` shatters (seeded sites, through the thickness on a thin
+  axis). A chunk is a cell's pieces of every block, so a handle stays with its slab; cut faces are the inside, two
+  emboss steps darker.
+- **Dismantle: the concept cut.** `destruct/dismantle.js` reads joints off the geometry (blocks that touch) and anchors
+  (the ground, or given boxes), severs parts, joints or all, and splits what no longer reaches an anchor into bodies
+  that fall whole. Relief thinner than 2.4 cm rides the one block it touches most.
+- **Collapse.** `destruct/collapse.js`: a seeded, stepped timeline per body: the spread (the lattice opening, a hold),
+  then a passive fall or an explosion; rigid bodies land with impulses at their corners on the ground and on what
+  still stands, and rest. They pass through each other (an engine's solver takes over on export).
+- **Slicing interceptors: the cut while it happens.** `destruct/interceptors.js`, on scapeshift's interceptor contract
+  (grown after, never colliding, never named; each kind a site finder, a grower and a 0 to 1 dial, seeded, its own
+  `fx:*` group). The sites are the cleave's own: each cut face names its plane, and the score is where a plane meets
+  the item's skin. `score` (the slice line drawn along the stroke), `blade` (a band sweeping the plane), `spark`,
+  `glint` (a cut face flashing white as it opens, riding its chunk) and `dust` (in the opening gaps). A grid is drawn
+  plane by plane, axis by axis; a shatter cracks out from the impact at `speed`, across the item and not through it.
+  `cutAt` is when the last stroke is drawn: `collapse({ delay })` keeps the chunks whole until then. They are the
+  cover-up for an engine's swap to pre-cut chunks; an engine that cannot play them drops them.
+- **The cut is a style.** `CUT_STYLES` in `destruct/interceptors.js`, a setting like a tone: it picks the timing, the
+  marks and how the pieces part, all in values on `fx:*` groups, so colour stays the tone's. `blade` (stroke by
+  stroke, a radial spread), `laser` (one beam at a time from off the face, the score cooling behind it, a spray, the
+  pieces barely parting), `anime` (the slash, the beat, every score at once with a flash, the halves slipping along
+  the cut) and `impact` (a ring and a flash, fast cracks, chips and dust, a burst from the hit). New marks: `beam`,
+  `ring`, `flash`, the crescent blade. A mark can be tuned (`marks`) or dialled per call. `collapse` takes per-body
+  `spread.offsets`; cleave adds the `slice` pattern (one to three clean planes, or the planes given).
+- **Destruction sounds as cues.** `destruct/sounds.js`: the cut and the collapse say when which cue fires, how loud
+  and where (`{ t, cue, gain, mark, at }`), never audio itself. Each cut style names a cue per mark; `slicing()`
+  returns `sounds`; `collapse()` records `hits` (landings by speed and mass) and its `parting`, and `collapseSounds()`
+  turns them into thuds, clacks and a whoosh. `DESTRUCT_SFX` is a valid beats-sfx manifest defining every default
+  cue; a call renames, re-gains or silences any mark (`sounds: { beam: 'my-laser', spark: false }`), and a world
+  re-voices a cue by defining the same name in its `audio.cues`.
+- **The bridge entry: a static platform from bank to bank.** `objects/bridge.js`, called by its ends (`from`, `to`,
+  `width`) or `over` a trail's pit hazard anchor. Variants `plank`, `deck`, `rope` (it sags; a long one reads as a
+  scramble) and `arch` (a humpback with end piers, its motif along the parapets). Each is built of the ELEMENTS a
+  style guide names (planks, stringers, posts, rails, braces, footropes, handropes, lashings, ring, crown, keystone,
+  spandrels, parapets, coping, abutments, piers), each turned off or tuned by name. It answers as a platform: its deck
+  line, its crossing read (road, path, plank, beam; walk or scramble), bearings, clearance under, and the deck as floor
+  faces and colliders with the rails as lines. The runs (rails, ropes, posts, dentils) shade the 66 and one middle-third
+  part is the 33, so every variant holds the object laws from 3 to 10 m (a 2 m rope bridge and a 14 m arch still draw
+  advice). Built of blocks: sever a rope bridge's footropes and its planks fall.
+- **Object measures read roles.** A face's role is its part when the part names one, else its `obj:*` group, so an
+  entry that names parts by element is judged; a silhouette notch must be 3 px each way (a rasterised sliver along the
+  hull no longer counts). Existing entries measure as before. A notch must also be 3 px thick on average, so a sliver
+  along a sloped edge (a long box and no depth) does not count either.
+- **The bridge dressed by a kit, and held to the outdoor index's structural laws.** `dress` (a kit's tokens from
+  `era/out-made.js` `madeStyle`) dresses a bridge without moving what it plays (its deck, colliders, rails and clearances
+  are the plain bridge's): members chunkier or slighter in section (a post is never slighter than what it carries; a
+  rope is a rope in every kit), posts capped (a grass hat, a round, a bevel, an open culm), every rail meeting a post
+  joined as the kit joins (lashed, pegged, notched), the deck's fascia in the kit's relief, abutments and piers coursed
+  (mortared, or laid dry), the fill worn to a spread of values, whole kinds of part painted. Dressing is the 66's
+  texture: on `obj:fill`, no more than 3 mm proud, never darker than the fill's band, so a dressed bridge keeps the
+  object laws wherever the plain one holds them. Two structural fixes from the index's laws: a deck's stringers deepen
+  with the bay they span (bay ÷ depth ≤ 16; the abutments and piers bear at their underside), and an arch's parapet is a
+  rail (0.86 m, its coping to 0.96). A value on a tone band's edge now measures in the band above it.
+- **Links: where scapeshift meets playscape.** `playscape/links.js`. Scapeshift makes the place and marks where it
+  asks to be joined (a trail's stairs site, a pit, a stream); playscape answers with a VERB (walk, climb, cross, ride,
+  launch, hop, drop) and the entry that performs it. `riseLinks(from, to)` lists every way between two levels that
+  fits the rise and the room on the ground (a hop is the walker's own jump, a drop only goes down), quickest first.
+  `linkStyle(kit)` reads a scapeshift kit's made tokens (`era/out-made.js` `madeStyle`) as the words the entries take:
+  its joinery picks a rope or a deck bridge and lashes or pegs a ladder, its edge word sets the outdoor steps' risers,
+  and every part an entry builds names the swatch role the tone will paint it from. `answerAnchor(anchor, { kit })`
+  answers a trail anchor in the kit's style: a stairs site gets a walk where one fits (the trail's own outdoor steps
+  first) and a climb where none does; a pit or a stream gets a bridge in the kit's joinery, beside the hop or the
+  ford it already is. Scapeshift imports nothing from playscape.
+- **The ladder entry: a climb from one level to the next.** `objects/ladder.js`, called by its ends like a bridge
+  (`to`, the lip; `from`, or a `rise` and a `facing`). Variants `ladder` (a lean ladder at 4:1, horns past the lip),
+  `rungs` (a fixed ladder on brackets, grab bars, a cage past 6 m), `rope` (hung from a beam, wrapped where the hands
+  close, a whipped tail) and `net` (a cargo net, climbed across as well as up). The kit's `timber` sets the rails'
+  section and its `joint` the middle third's joints, the 33 (lashings, pegs, notches, collars). Its laws (rung pitch,
+  width, 4:1, extension past the lip, cage, holds, clear, mesh, drape) come back in the man-made index's shape. Every
+  variant holds the object laws and its own from 2 to 8 m.
+- **The climb in the world runtime.** The `climb` body owner: a platform body takes hold of a `climbable` entity by
+  walking into its face, by falling past it pressing toward it, or by walking off its lip toward it; forward climbs,
+  strafe crosses a net, jump kicks off, the lip steps it off onto the level and the foot lets go. The climb owns the
+  body (the rule and its gravity are suppressed); a hit or a drop lets go. The pipeline pin names `climb` after
+  `drop`; the World page's runtime gained 80 lines and the emission pins re-pinned.
+- **The stairs entry: a walk from one level to the next.** `objects/stairs.js`, called by its ends (it fits its going
+  to the run between) or by a `rise` and a `facing` (it lays its own). Variants `flight` (closed risers between
+  stringers, balusters under a rail past 0.6 m, newels, a landing every 16 risers), `steps` (outdoor steps cut into a
+  bank, a staked board or a laid stone at each riser by the kit's `edge` word, a landing every 10) and `ramp` (a deck
+  between kerbs under the walk's grade, cleats, trestles, a landing every 9 m). The going comes from the stride
+  (2R + T); the outdoor steps are measured by the man-made index's own `steps` laws. It lowers to a floor face over a
+  solid block under each tread, so the platform rule walks up it riser by riser. Judged side-on: every variant holds
+  the object laws from 0.5 to 5 m (a ramp to 3.2 m: one with three landings draws one segment too many, and a 0.5 m
+  stone stoop's pins run a hair over the third).
+- **Breakable terrain: scapeshift gives the shape, playscape makes it break.** `playscape/terrain.js` takes either
+  scapeshift's own boxes (`fromColliders(stage.colliders, 'wall:crypt')` picks colliders by their `of` and hands the
+  rest back untouched) or a form asked of its library (`wall` in running bond, `pillar`, `crate`, `slab`), cuts them
+  into axis-aligned blocks a hit takes one at a time, and draws each block's faces under its own `node`
+  (`break:<id>`, as scapeshift's anchors do) for the page to hide. A block is standing (a collider: it blocks the walk,
+  the sight, the shot and holds up whatever stands on it) or broken (gone from the colliders). The runtime keeps the
+  state: `createWorld({ breakables })` puts each block in the colliders, and the new `break` world pass, after the
+  projectiles, takes one hp per hit from this tick's records: a hitscan that stopped on a block, a burst whose splash
+  reaches it, a swing whose reach and cone take it in (once a swing). Blocks have 1 hp while this is tested. A break
+  leaves a seq-keyed record on `state.breaks`; `breakBlock(state, id)` breaks one by hand; `groundOf(colliders)`
+  stands a walker on what still stands, so a broken slab drops it. `blockPieces` gives a broken block's shatter from
+  the destruct primitives' cleave. The pipeline pin names `break` after `projectiles`; the World page's runtime gained
+  117 lines with the gravity below and the emission pins re-pinned. The page does not yet hide a broken block or play
+  its pieces.
+- **Gravity for breakable terrain: what stacks, what falls.** A block stands while it is held: on the floor, on a
+  collider that is not a block (scapeshift's own), or on a held block; a slab's tiles (`bond: 'lateral'`) are also
+  held by each other, so a slab spans between its legs. Whenever a block breaks or lands the held set is worked out
+  again, and a block no longer held falls (18 m/s²), still a collider, onto the highest top under it that is not
+  falling, snapped so a stack lands stacked. A landing faster than 7 m/s (about 1.4 m) breaks the block and the
+  block it lands on (`how: 'fall'`, `'crush'`). So a running-bond wall keeps a block while either block under it
+  stands, a stack drops a block when its foot goes, and a crate on a slab falls through the hole a broken tile
+  leaves. `spec.breakFloor`, `fallGravity` and `fallBreak` tune it; `FORM_BOND` and `ask.bond` set the bond.
+- **The player: a hero from the hero door, driven in a world.** `playscape/player.js`: the move set adds what a hero
+  lacks for the runtime's states (`PLAYER_CLIPS`: the jump's wind-up `squat` and its flight `leap`, in the door's pose
+  words) and names which of its clips plays each state (`playerStates`: forward runs, idle idles relaxed, leap and boost
+  hold the flight, turn walks); `playerWorld({ hero | heroRef })` is a controllable world with the hero as the pilot on
+  the platform rule (W/S run, A/D turn, Space jump; a 4 m/s run, a hop of about a metre), a follow camera, a test
+  course (hop-up blocks, a flight of stairs onto a terrace, a wall) and the controls as a `legend` idiom. The figures
+  map takes a hero (world-scene.js): `figures.<name>.hero` (inline, as the door takes it) or `heroRef` (a stored
+  layered hero) resolves through the layered kind to the packed rig every rig body plays, without the static solid or
+  the preview, with `clips` naming the hero's clip for each runtime state (a name it lacks is refused by name). A
+  world's `events` block that is HUD-only (a legend alone) now reaches the page; before, it needed a reaction or a
+  sequence. The anime heroine (docs/examples/humanoid/cast/heroine.json) runs, idles, jumps and lands on the course on
+  the World page.
+- **Clips from an outside animation library, on mojulo's own rigs.** `figures/clip-library.js` reads a humanoid glTF
+  library (its skin and clips) into HUB clips: each humanoid bone's world turn away from the library's bind T-pose, in
+  the native frame (z up, facing +y), keyed by VRM name, and the hips' bob and sway as a share of the hip height
+  (`hubClips`; `LIBRARY_MAPS` maps a library's joints, Quaternius's Universal Animation Library first). `retargetClip`
+  composes each turn on the T-pose mold's rest → T offset (rig-tpose.js) and recomputes the heads down the rig's own
+  tree, so the clip lands in the keys every rig body plays; a rig with fewer spine bones takes each bone's own turn.
+  `scripts/import-clip-library.mjs` writes a hub from a library's file; Quaternius's free CC0 locomotion ships as one
+  (`figures/library/quaternius-ual.js`: idle, walk, jog, sprint, the jump's start, loop and land, crouch idle and walk,
+  a hit; 241 KB, loaded only by a world that names it). A hero in the figures map takes `library`, and a state's clip
+  the hero lacks is retargeted from it (a clip not named `_Loop` plays once and holds). The player starts from the
+  library (`LIBRARY_STATES`: the jog, the idle, the jump's start and loop), the hero's own clips and the move set's
+  filling the gaps; `library: false` plays the hero's own. Against the library's own mannequin, the heroine's limbs
+  point within 4.7° of its limbs on every frame of the walk, the jog and the jump; the whole residual is the library's
+  shin, which leans 4.7° back in its bind pose where the mold stands the leg straight.
+
 ### Scapeshift
 
 The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by
@@ -399,6 +661,137 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   direction rolls `growth`, `litter` and `cracks` under `materials.weathering` from dice of their own, so a seed rolled
   before keeps every other number, and a stored direction without them grows nothing. New cards: `card:fungus`,
   `card:crack`, `card:pebbles` (the small ones ship at half size). Tones colour each interceptor's group from a ramp.
+- **An outdoor trail from a recipe: `trail` on an open-ground kit** (`isekai-meadow`, the groves, `trail-valley`;
+  `lib/graph/era/out-trail.js`). The first rung of an outdoor ladder named `out-trail` → `out-section` → `out-level`, apart
+  from the rooms' halls and floors. What the hand-built trails shared is now a grammar the builder reads as numbers:
+  - **a spine** sized by `run` (seconds at the walker's 6 m/s; 12 by default, the isekai meadow's 72 m, the least that
+    holds two minutes of exploring; up to 25);
+  - **beats** along it, at least 11 m apart: pinch, reveal, landmark, crossing, pocket, rest, pit. Drawn by dice when
+    `beats` is not given: always a reveal, a landmark and a pocket, the landmark early, never two alike together, and as
+    many as keep the exploring under three minutes (a long trail is a sparse one);
+  - **the heartbeat** (`heartbeat` 0–1): the trail's height along its length, each beat its own shape (a climb into a
+    reveal, a dip into a pinch or a ford, flat at a rest);
+  - **bumpiness** (0–1): mounds and hollows, full off the walk and a tenth on it.
+  The ground is built in passes, each kept: rough (the heartbeat, the beats' edges, the bumps), then smooth (the profile
+  averaged, the walk laid level, the cliff's geology, the walk laid again over it, the pits cut). Where the smoothed walk
+  is still steeper than 0.3 it is a stairs site, recorded for the next rung. The cliff breathes with the beats (drawn in
+  at a pinch, pushed back at a reveal); a pocket is a clearing with a bank round it but for its mouth; a ford is a
+  stream from the cliff's foot across the valley; a pit breaks the ribbon and is cut 2.6 m deep, with the ground whole
+  wide of it; the landmark is a tall stone, the least that the trailhead (or a beat 15 m short of it) can see, and the
+  trailhead's camera frames it.
+- **Every beat and hazard is annotated.** The answer carries `anchors` (a beat with its station and the way on; a
+  pocket's mouth; the landmark by node; a hazard's zone, `severity` and `respawn`; a stairs site) and `outTrail` (its
+  length, run and exploring seconds, its beats and its laws: run, explore, spacing, order, grade, crest, hazards,
+  landmark). A sweep holds every law for every seed, heartbeat and run (`out-trail.deep.test.js`).
+- **A trail follows another: `trail.after`** (the followed trail's recipe and its stage `seed`). It starts where that
+  one leaves: on its line and heading (easing into its own sway over 24 m), at its height, on its last row of ground
+  (eased over 12 m), its cliff carried on. A `junction-<from>-<to>` anchor marks the seam, as a doorway does between
+  rooms; every anchor names its `trail`; `outTrail.after` and `origin` say where its site sits beside the followed one,
+  and a chain carries the origin on. Each trail is still its own page. A `seam` law measures the join (line, heading,
+  height and ground under a centimetre). A trail's depth is a whole number of ground cells, so every trail's grid
+  shares one spacing and two trails' vertices meet at a seam (they did not, and a cliff opened a crack).
+- **A pit or a ford is on level ground.** The smoothed walk is laid flat within 3 m of each (a `level` law: no stairs
+  site there); a pit had landed mid-staircase.
+- **The outer wall: `trail.bounds`** (`lib/graph/era/out-bounds.js`). A trail's site edge is mapped like a floor plan's
+  walls, so nobody walks off the world and an area can be closed off. Each side (`-x`, `+x`, `-y`, `+y`) is a run of
+  segments (a face for the whole side, or `{ from, to, face }` in metres), each a collider (`of: 'bound:<trail>:<side>'`)
+  and an anchor (`kind: 'bound'`), and each with a face — what the wall does besides stopping a walker: `wall` (unseen),
+  `natural` (behind a barrier the land makes: the cliff side's default), `paint` (a panel with the recipe's `png`, or
+  the style's far hills painted in three bands against the real sky), `mirror` (the site's near band reflected past
+  the wall: the world seems to go on; not the grass tufts), `penalty` (a trigger strip before it, `reset`, `hurt` or
+  `slow`, with a respawn on the nearest beat) and `open` (a seam: the side after another trail opens by default; a
+  trail that leads on says `'+y': 'open'`). A mirror's OFFSET-WRAP: `offset` slides the reflection along the wall,
+  wrapping in the segment, and `stutter` (metres, or true for 8) gives each chunk its own slide by dice, so it reads as
+  other land. Only the things standing on the reflected ground slide, each whole (a trunk with its crown), set down
+  where they land; the ground never does, so the reflection meets the real ground at the wall without a step. A
+  `bounded` law: every side covered, open only at a seam. No wrap: a mirror shows the world going on, the wall holds.
+- **Wind on a trail is free.** `wind` on an isekai kit with a `trail` gives it live grass with no change: the grass
+  reads the grammar's ground and trail line.
+- **The landform board** (`out-trail-board.js`): the land in black and white before anything grows on it — both passes
+  as depth maps with the trail, beats, pockets, hazards and stairs drawn over them, the heartbeat strip, and the laws.
+  Absent `trail`, every open-ground kit builds byte-identically; `trail` on a room kit or the jungle is refused.
+- **The outdoor master index: man-made architecture and the swatches** (`lib/graph/era/out-made.js`,
+  `era/style/swatches.js`, drawn by `era/out-index-html.js`). Documentation first: nothing is placed in a world yet.
+  What people build along a trail (posts and fences, signs, beam bridges, steps, stepping stones, a stacked stone figure,
+  laid paving) is a cascade: structural LAWS no layer can loosen (rail height, span over depth, 2R + T, balance), then
+  the KIT's tokens rolled in rails by its seed (timber, joinery, chunk, caps, relief, wear, bond, paint), then a
+  trail's `made` block (narrow a token, re-point a swatch role, add a piece; anything else refused with what is
+  allowed), then the PIECE, a pattern's dimensions rolled inside rails that sit inside its laws. Patterns are parts put
+  together by joints, drawn in black and white elevation, section and plan, dimensioned and measured. The SWATCHES
+  record every outdoor colour, land and made: the isekai cards now read their ramps from them and nature-trail its
+  blaze, so art direction for colour is controlled there (every kit builds byte-identically).
+- **One vocabulary for what built things are made of** (`era/made-elements.js`): every element word (a bridge's
+  stringers, footropes, keystone; the index's parts; the dressing's caps, lashings, courses) names its part and its
+  material. A playscape object's values become a kit's colours through it: the material picks the swatch ramp, the
+  value the stop, and what you use (`obj:status`) takes the kit's accent and nothing else does. The index's bridge is
+  now the playscape entry: the kit's `bridge` token picks the variant, its tokens dress it, and the index measures its
+  span-depth, bearing, handrail and flush laws on the built thing (a plank or a beam crossing is a challenge and needs no
+  rail); the index's own beam bridge is retired.
+- **The outdoor flora index: plants as doodads** (`era/out-flora.js`, drawn by `era/out-flora-html.js`). Research
+  first: nothing is placed in a world yet. Four forms make the plants a kit needs, each a few primitives under a few
+  dials rolled in rails by a seed: masses on a stick (lollipop, broccoli, cloud pads, column), a cap on a stalk
+  (parasol, bell, funnel, toadstool), organic growth (brackets, puffballs, frills) and sausage fingers (saguaro, pads,
+  coral, tube bundles). Built in values on named parts, skinned by a kit's swatch ramps, and built per reveal ring
+  under a face budget. Leaf density is depicted (masses, overlap, a dark core through the gaps), never modelled. Read
+  laws, not botany: one shape leads, the weight sits over the foot, body and wood differ in value, the ring's budget
+  holds. Bark is exposed as the fracture model's dials and the stylized pattern each reads as; grass is chosen from
+  mojulo's own primitives; the jungle is restated as a composition of layers, each with the form it would be.
+- **Incongruity: the distortion pass as juxtaposition** (`era/out-flora.js` `incongrue`). A doodad is now a plan of
+  base composition blocks (masses, caps, pads, knuckles, shelves) joined by links, then a mesh. Two dials mismatch the
+  blocks: vertical (along a stack, sizes out of step and one joint jogs or kinks off the line) and horizontal (side by
+  side, sizes alternate, heights go jagged, one stands out). Held by the sixth-gen object principles: one mismatch
+  leads per run (the 33), the leading shape is never the one mismatched and never shrinks (the 66), filler stays quiet
+  and a focus may be loud, and a leading mismatch under the eye spot at play distance is dropped as noise. Every stack's
+  weight is brought back over what holds it and the whole over its foot, then the doodad is fitted back into its own
+  bounds, so its footprint never changes. Under the eye spot, incongruity moves up to the composition: a cluster's
+  members answer each other the same way, gated by the eye radius (full near the trail, half mid, none far).
+- **Ikebana: `clustersprout` and the zone painter** (`era/out-ikebana.js`, drawn by `era/out-ikebana-html.js`). A
+  bundling aid: a cluster is arranged, not scattered. `clustersprout` grows one arrangement from a single root (the
+  kenzan): three principals in scalene steps (shin, soe at three quarters, hikae at three quarters of soe), each leaning
+  its style's angle (upright, slanting, spreading) toward its own side of the viewer's line, as far as it still
+  stands; an odd count of fillers inside their triangle, each sized by its footprint so it never spreads wider than
+  soe; a flowering root at the foot (the broccoli form gains a `bush` variant and `blooms`, a part each kit skins); and
+  the ma, a sector toward the viewer left open. Every stem is a flora doodad with its height pinned to its share and
+  its own incongruity scaled by its role's interest. The zone painter sprouts arrangements along painted strokes with
+  scale, bend, density, variation, kenzan and ma dials, each turned to a trail or a view, neighbours in alternate
+  hands and one odd one out per stroke. A finger's radius now scales with its height, so every form does.
+- **Wide ikebana: mixed media, its own ground, and walking** (`era/out-ikebana.js`, `era/out-flora.js`). Fillers
+  cycle through their list, never the same thing twice running, and a `mix` law asks for three different things when
+  the materials offer them. The flora index gains the terrain an arrangement is made of: `stone` (boulder, a cairn of
+  stacked courses, standing slab, outcrop), `ground` (a mound whose crown is the root; a hollow whose pool lies in the
+  ma) and `tuft` (ground cover, plain or in flower). Wide presets (garden, oasis, crater) set every element on the
+  ground's surface with cover over the footprint; a solid mass weighs more than its height, so boulders and puffballs
+  are fillers, never principals. Each element is classed for a walker from its built geometry (`WALK`): block (a trunk,
+  a stone or bush over a step, any cactus, a mound steeper than it can be climbed), walk (tufts, flowers, anything
+  under a step), under (a canopy over head height), wade (a shallow pool), as plan colliders. `walk: 'open'` keeps a way
+  in down the ma (a crowding stem turns away from the front) and `walk: 'thicket'` makes every filler block; the zone
+  painter moves an arrangement back whole until nothing that blocks stands within the trail's clearance.
+- **Ikebana in tiers, plants only** (`era/out-ikebana.js`, `era/out-flora.js`). Arrangements no longer use stones as
+  decoration: every preset is plants at every size. Fillers stand in TIERS down from the principals (an understory of
+  small trees behind, bushes in and out of bloom either side, flowers in front either side of the ma) over a ground of
+  tufts and daisies on every preset: tall behind, short in front. Each tier's materials cycle so nothing repeats. The
+  flora index gains `flower` (spike, umbel, daisy, plume: one stalk leads, a spike envelopes far) and a second bloom
+  colour per kit. Three laws hold the variety: `layers` (at least four height bands, canopy to ground), `shapes` (at
+  least three silhouettes: columnar, round, spreading, made so by swapping a filler when one is missing) and `depth`
+  (the herbs nearer the viewer than the understory). Flowers, like tufts, are walked through.
+- **The `isekai-garden` kit: ikebana placed in a level** (`era/ikebana-place.js`, `era/style/isekai-garden.js`). A card's
+  opt-in `ikebana` paints arrangements along the trail's banks (each bank its own zone and dials: the near banks at
+  mid detail, a far row sparser at far detail without cover), clear of the cliff, the apron and the trail's reserved
+  places, every arrangement facing the trail with open lawn between them (the ma at the composition's scale). Every
+  element stands on the land at its own foot, coloured from the kit's swatches through the flora skin and banded by
+  the stage's cel light, casting and taking the sun's shadow. What a walker pushes through goes in a soft group the
+  page walks through (`soft`, a new opt-in on the World emitter: absent, every page emits as before); what blocks is a
+  collider for an engine, and every arrangement an anchor. Faces never seen are not built: a face buried inside another
+  mass of the same plant, a downturned face under the eye, a face under the ground. A flower's head is never smaller
+  than reads at play distance. The garden is the meadow's grammar with no loose trees and a short lawn; every other kit
+  builds byte-identically.
+- **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
+  and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
+  ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the
+  stars out, the moon drawn on the dome where the key light comes from, a pale world where the card hangs it), `glow`
+  (each lantern crown a light baked into the ground round it and lifting the cel band near it; the crowns self-lit,
+  lifted up their ramp, a few with halos), and `water` (a trail's stream in its own colour). Trails, joins, outer walls
+  and wind work on it unchanged. Absent the fields, every kit builds byte-identically.
 - **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.

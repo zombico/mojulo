@@ -37,6 +37,7 @@ import { shiftRepeats } from '../construction/instancing.js';
 import { expandRepeats } from './rock-pool.js';
 import { shadeHex, shadeHexMat, makeLight, scaleHex } from './vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
+import { LEVEL_ROLES, meruStack } from './meru.js';
 import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
 import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
@@ -2277,14 +2278,11 @@ export function renderFloorplanPlanSvg(structure, opts = {}) {
 // every floor plugs into: ground at z=0, storeys measured along the axis. Stack a
 // basement (index −1) or second floor (index +1) by reusing the SAME floorplan
 // glyphs at a different baseZ. We deliberately keep terrain ("the ground") OUT —
-// only a helper line marks ground level.
+// only a helper line marks ground level. The ruler itself is polygonizer/meru.js;
+// a house's is that ruler over the floorplan defaults.
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Conventional level roles → meru index (ground=0, up positive, down negative). */
-export const LEVEL_ROLES = { basement: -1, ground: 0, second: 1, third: 2, upper: 1 };
-
-const levelIndex = (lvl) => (Number.isFinite(lvl.index) ? lvl.index
-  : (LEVEL_ROLES[lvl.role] ?? 0));
+export { LEVEL_ROLES };
 
 /** Role name for a storey index in the `storeys` shorthand (ground, second, third, then upper). */
 const STOREY_ROLES = ['ground', 'second', 'third'];
@@ -2319,37 +2317,11 @@ export function storeyLevels(manifest = {}) {
  */
 export function houseMeru(opts = {}) {
   const o = { ...FLOORPLAN_DEFAULTS, ...opts };
-  const groundZ = o.groundZ || 0;
-  const floorDrop = o.floorDrop;
-  const mainHeight = o.wallHeight;
-  const basementHeight = o.basementHeight ?? mainHeight;
-  const upperHeight = o.upperHeight ?? mainHeight;
-  const heightFor = (index) => (index < 0 ? basementHeight : index > 0 ? upperHeight : mainHeight);
-  return {
-    groundZ, floorDrop, wallHeight: mainHeight, basementHeight, upperHeight,
-    storeyPitch: mainHeight + floorDrop,
-    unitScale: opts.unitScale,
-    footprint: opts.footprint || null,
-    heightFor,
-    /** uniform shorthand: meru index → floor z assuming equal storeys. */
-    baseZ(index) { return groundZ + index * (mainHeight + floorDrop); },
-    /**
-     * Resolve real floor heights for a set of levels. Ground (index 0) sits at
-     * groundZ; each level above starts on the one below's ceiling + slab, each
-     * below hangs its ceiling under the floor above. Returns levels sorted with
-     * { index, height, floorZ }.
-     */
-    resolveStack(levels) {
-      const items = levels.map((l) => ({ ...l, index: levelIndex(l), height: l.height ?? heightFor(levelIndex(l)) }));
-      const indices = items.map((it) => it.index);
-      const lo = Math.min(0, ...indices), hi = Math.max(0, ...indices);
-      const heightAt = (i) => { const it = items.find((x) => x.index === i); return it ? it.height : heightFor(i); };
-      const floorZ = { 0: groundZ };
-      for (let i = 1; i <= hi; i += 1) floorZ[i] = floorZ[i - 1] + heightAt(i - 1) + floorDrop;
-      for (let i = -1; i >= lo; i -= 1) floorZ[i] = floorZ[i + 1] - floorDrop - heightAt(i);
-      return items.sort((a, b) => a.index - b.index).map((it) => ({ ...it, floorZ: floorZ[it.index] }));
-    },
-  };
+  return meruStack({
+    groundZ: o.groundZ || 0, floorDrop: o.floorDrop, wallHeight: o.wallHeight,
+    basementHeight: o.basementHeight, upperHeight: o.upperHeight,
+    unitScale: opts.unitScale, footprint: opts.footprint || null,
+  });
 }
 
 /**

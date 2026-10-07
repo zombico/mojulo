@@ -23,13 +23,15 @@ import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
+import { ALIEN_NIGHT } from './style/alien-night.js';
+import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 
 /** The bytes a kit, look or hub card's body may take: the infobox and a starter, never a manual. */
 // raised from 3200 when the laws card took dare-height, motif-small and doodads-apart (one line each)
 export const STAGE_CARD_BODY_CEILING = 3600;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
-const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA].map((s) => [s.id, s]));
+const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, ISEKAI_GARDEN].map((s) => [s.id, s]));
 const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab']);
 
 /** A recipe each kit is known to build (the shapes its own tests mint); an open-ground kit needs only its id. */
@@ -59,6 +61,8 @@ const KIT_WORDS = {
   'isekai-meadow': ['anime meadow', 'fantasy grassland', 'open field'],
   'isekai-bamboo': ['bamboo grove', 'bamboo forest'],
   'isekai-sakura': ['cherry blossom grove', 'sakura trees'],
+  'alien-night': ['alien planet at night', 'bioluminescent landscape', 'night alien world'],
+  'isekai-garden': ['flower garden', 'ikebana garden', 'garden path in bloom'],
 };
 
 // a caption cut at a word boundary, for the hub's one line per kit
@@ -113,6 +117,7 @@ export function kitCard(kitId) {
     `LOOK       ${ref ? `pairs with '${ref}' (card 'look/${ref}'); any look can be set with "reference"` : isRooms(kit) ? `none pairs with it; "reference" sets the look (default gothic-night)` : 'its own: the style card carries the light and air'}`,
     `OPTIONS    ${opts.length ? opts.join(' · ') : 'none beyond the kit'}`,
     ...(ART_KITS.includes(kitId) ? ['ART        "art": "propose" (a board to approve, item by item) or "auto" (hands off); card \'stage\''] : []),
+    ...(['nature', 'isekai'].includes(kit.shell) ? ['TRAIL      "trail": { "run"?: 12–25 s, "heartbeat"?: 0–1, "bumpiness"?: 0–1, "beats"?: [pinch|reveal|landmark|crossing|pocket|rest|pit] } builds the trail from the grammar: its beats, hazards and stairs sites annotated, its laws measured; "after" the trail it follows; "bounds" its outer wall per side (wall, natural, paint, mirror with offset and stutter, penalty, open); card \'stage\''] : []),
     `ERA        ${ERA}`,
     ...(kitLaws(kit).length ? [`LAWS       ${kitLaws(kit).join(', ')} (card 'sixth-gen-laws')`] : []),
   ];
@@ -161,6 +166,7 @@ export function stageHubCard() {
     `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
     'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], … } — rooms only for a room kit; an open-ground kit takes none',
     '', `ART FIRST (room kits ${ART_KITS.join(', ')})  "art": "propose" mints with a direction (palette, materials, architecture, motifs, plan) and answers with its board as an image: show it, then per item update_sketch patch /art/status/<item> "approved", or /art/<item> "reroll". "art": "auto" is hands off.`,
+    '', `OUT-TRAIL (open ground: ${kits.filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')})  "trail": true or { run, heartbeat, bumpiness, beats } builds the trail from principles: a spine run in "run" seconds (12, the meadow\'s 72 m, by default), beats along it, its height by "heartbeat", its ground by "bumpiness". The answer carries outTrail (its laws, measured) and anchors (every beat and hazard); the landform board shows the land in black and white before anything grows on it.`,
     '', 'KITS (card stage/<id>)', ...kits.map((k) => `  - ${k}: ${isRooms(STAGE_KITS[k]) ? 'rooms' : 'open ground'}. ${clip(kitSummary(k, STAGE_KITS[k]))}`),
     '', 'LOOKS (card look/<id>, set as "reference")', ...looks.map((l) => `  - ${l}: ${lookRef(l).setting}; ${lookRef(l).light.contrast} contrast, ${lookRef(l).air.sky} sky`),
     ...(missing.length ? ['', `Named, not built: the kits for ${missing.map((l) => `${l} ('${lookRef(l).kit}')`).join(', ')}. Their looks still apply to a built kit.`] : []),

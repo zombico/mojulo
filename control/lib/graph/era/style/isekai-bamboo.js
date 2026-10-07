@@ -3,6 +3,7 @@
  * its own palette, site and tree form). Machine checks in isekai-groves.test.js. Draft agreed with the operator 10-05.
  */
 import { ISEKAI_MEADOW as M } from './isekai-meadow.js';
+import { SWATCHES } from './swatches.js';
 
 export const ISEKAI_BAMBOO = Object.freeze({
   ...M,
@@ -13,17 +14,7 @@ export const ISEKAI_BAMBOO = Object.freeze({
     'The leaves are sprays, high: drooping lance leaves fanned from the upper culm, and the sun through them dapples the floor.',
     'Jade and teal: the grove is cool, the shade a blue-green, the path the one warm value.',
   ]),
-  palette: {
-    grass: [[34, 88, 92], [56, 124, 86], [98, 164, 76], [148, 198, 88], [200, 228, 140]],
-    soil: [[96, 92, 104], [146, 124, 100], [196, 168, 124], [228, 210, 168]],
-    rock: [[72, 92, 120], [102, 122, 144], [138, 150, 160], [176, 182, 176], [212, 210, 194], [236, 232, 214]],
-    foliage: [[28, 76, 80], [46, 112, 78], [84, 154, 84], [140, 196, 100], [196, 228, 146]],
-    culm: [[44, 90, 82], [68, 126, 90], [106, 162, 98], [156, 198, 116], [210, 228, 158]],
-    bark: [[64, 58, 78], [112, 90, 82], [156, 128, 104]],
-    far: [[86, 150, 138], [112, 168, 190], [156, 198, 224], [194, 222, 240]],
-    sky: [[48, 118, 214], [128, 184, 234], [190, 224, 242]],
-    cloud: [[136, 172, 214], [182, 208, 234], [224, 236, 248], [255, 255, 255]],
-  },
+  palette: SWATCHES['isekai-bamboo'].land,   // the ramps live in style/swatches.js
   tiles: {
     ...M.tiles,
     culm: { ramp: 'culm', lit: [2, 3, 4], shade: [0, 1, 2] },

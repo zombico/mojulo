@@ -17,27 +17,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
-import {
-  compose, scoreCounter, countdownClock, gameOverFreeze, spawnOnHeartbeat, deed,
-  onContact, pickup, onRest, ephemeralTarget, hitConfirm,
-} from '@/lib/graph/worlds/game-idioms';
-
-// kind → (params) → events fragment. Every idiom takes a single params object EXCEPT scoreCounter
-// (positional name), so it gets a thin adapter; the rest pass params straight through (onContact /
-// onRest forward their extra fields as the `...spec` verb, which is exactly the params object).
-const IDIOMS = {
-  scoreCounter: (p = {}) => scoreCounter(p.name ?? p.var ?? 'score', { label: p.label }),
-  countdownClock: (p) => countdownClock(p),
-  gameOverFreeze: (p) => gameOverFreeze(p),
-  spawnOnHeartbeat: (p) => spawnOnHeartbeat(p),
-  deed: (p) => deed(p),
-  onContact: (p) => onContact(p),
-  pickup: (p) => pickup(p),
-  onRest: (p) => onRest(p),
-  ephemeralTarget: (p) => ephemeralTarget(p),
-  hitConfirm: (p) => hitConfirm(p),
-};
-const IDIOM_KINDS = Object.keys(IDIOMS);
+import { compose, lowerIdioms } from '@/lib/graph/worlds/game-idioms';
 
 export function mintActionWorld({ title, entities, idioms, events, faces, ground, walk, worldFraming, viewBox, bg, ref, folderRef } = {}) {
   const props = Array.isArray(entities) ? entities : [];
@@ -47,14 +27,8 @@ export function mintActionWorld({ title, entities, idioms, events, faces, ground
     throw new Error('create_action_world requires `idioms`, `entities`, or an `events` block (a world with no rules does nothing)');
   }
 
-  // lower the idiom recipe to event-bus fragments (kind → game-idioms fn).
-  const fragments = recipe.map((entry, i) => {
-    if (!entry || typeof entry !== 'object') throw new Error(`idioms[${i}] must be an object { kind, ...params }`);
-    const { kind, ...params } = entry;
-    const make = IDIOMS[kind];
-    if (!make) throw new Error(`idioms[${i}] has unknown kind '${kind}' (known: ${IDIOM_KINDS.join(', ')})`);
-    return make(params);
-  });
+  // lower the idiom recipe to event-bus fragments through the shelf's one map (game-idioms.js IDIOM_LOWERING).
+  const fragments = lowerIdioms(recipe);
 
   // compose: bus props first, then idiom fragments, then any raw passthrough. compose() throws if two
   // idioms declare the same var (an authoring bug — which idiom owns `score`?), surfaced loudly.
@@ -92,7 +66,7 @@ export function mintActionWorld({ title, entities, idioms, events, faces, ground
     stats: {
       entities: props.length,
       idioms: recipe.map((e) => e && e.kind).filter(Boolean),
-      hud: Array.isArray(composed.hud) ? composed.hud.map((h) => h.var) : [],
+      hud: Array.isArray(composed.hud) ? composed.hud.map((h) => h.var ?? h.text ?? h.on) : [],   // a banner or legend row has text, not a var
       vars: composed.vars ? Object.keys(composed.vars) : [],
       walk: !!navWalk,
       nonBakeable: true,

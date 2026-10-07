@@ -34,6 +34,7 @@ import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
 import { getGlyphVocabCatalog } from '@/lib/graph/game/glyph-cards/loader';
 import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 import { getHudVocabCatalog } from '@/lib/graph/game/hud-cards/loader';
+import { getIdiomVocabCatalog } from '@/lib/graph/game/idiom-cards/loader';
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
@@ -147,10 +148,11 @@ export async function getGameVocabHandler(input) {
   const glyphs = getGlyphVocabCatalog();
   const sfx = getSfxVocabCatalog();
   const hud = getHudVocabCatalog();
+  const idioms = getIdiomVocabCatalog();
   if (id) {
-    const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id);
+    const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
@@ -162,6 +164,7 @@ export async function getGameVocabHandler(input) {
     ...(scope && scope !== 'glyph' ? [] : row(glyphs, 'glyph')),
     ...(scope && scope !== 'sfx' ? [] : row(sfx, 'sfx')),
     ...(scope && scope !== 'hud' ? [] : row(hud, 'hud')),
+    ...(scope && scope !== 'idiom' ? [] : row(idioms, 'idiom')),
   ];
   return { ok: true, cards, _telemetrySignal: { id_requested: false, found: true } };
 }
@@ -247,28 +250,27 @@ export function registerGameTools() {
   registerTool({
     name: 'get_game_vocab',
     description:
-      'Read a game-vocab card in full — six families. STORE cards (scope:slice): one store SLICE KIND '
+      'Read a game-vocab card in full — seven families. STORE (scope:slice): one store SLICE KIND '
       + '(slice-character / inventory / party / progression / flags: state shape, accepted events) or the '
-      + 'typed-events reference. LEVEL-MECHANIC cards (scope:mechanic): one level verb for a world\'s '
-      + '`game.mechanics` (reach-exit / survive / collect / hazard-damage / fail-on-death, the fall policy, '
-      + 'a mechanics-guide). GAME-KIT cards (scope:kit): a whole game TYPE — a ready store + level template '
-      + '+ progression + a worked example (dungeon-crawler / collectathon / survival-arena); start here to '
-      + 'skip designing the store. GLYPH cards (scope:glyph): one FORM on the game-UI-language shelf '
-      + '(glyph-gem / coin / key / heart / star / orb / flag / skull) — icon-grade pickup/marker bodies an '
-      + "entity uses via body:{type:'glyph', form}. SFX cards (scope:sfx): one raymarch \"juice\" verb "
-      + '(sfx-sparkle / heal / ward / enchant / kokusen / …) a world\'s `sfx` channel composes as a glowing '
-      + 'overlay anchored at an entity or point. HUD cards (scope:hud): the SCREEN-space UI language — '
-      + 'readouts (text / counter / bar / clock), banners, toasts (damage numbers) + legends, placed in seven slots (corners + '
-      + 'top / center / bottom) via `events.hud` rows, and the style tokens a game `theme` shares with every '
-      + 'level (hud-guide / hud-readout / hud-banner / hud-style). Pass `id` for one card (any family); omit for index rows '
-      + '{ id, name, summary, when, scope }; `scope` filters the list. Discover by intent via '
-      + "semantic_search({ kinds: ['game_vocab'] }) store, ['game_mechanic'] verbs, ['game_kit'] game types, "
-      + "['game_glyph'] forms, ['game_sfx'] effects, ['game_hud'] screen UI. Read-only.",
+      + 'typed-events reference. MECHANIC (scope:mechanic): one level verb for a world\'s `game.mechanics` '
+      + '(reach-exit / survive / collect / hazard-damage / fail-on-death, the fall policy, mechanics-guide). '
+      + 'KIT (scope:kit): a whole game TYPE — ready store + level template + progression + worked example '
+      + '(dungeon-crawler / collectathon / survival-arena); start here to skip designing the store. GLYPH '
+      + '(scope:glyph): an icon-grade pickup/marker FORM (glyph-gem / coin / key / heart / star / orb / flag / '
+      + "skull) an entity uses via body:{type:'glyph', form}. SFX (scope:sfx): a raymarch \"juice\" verb "
+      + '(sfx-sparkle / heal / ward / kokusen / …) a world\'s `sfx` channel anchors at an entity or point. '
+      + 'HUD (scope:hud): SCREEN-space UI — readouts, banners, toasts, legends in seven slots via `events.hud`, '
+      + 'and the style tokens a game `theme` shares with every level (hud-guide / readout / banner / style). '
+      + 'IDIOM (scope:idiom): a reusable RULE a world lists in `idioms` (deed / pickup / scoreCounter / …), '
+      + 'tiered click / walk / level / game (idiom-guide). Pass `id` for one card; omit for index rows '
+      + '{ id, name, summary, when, scope }; `scope` filters. Discover via semantic_search kinds '
+      + "['game_vocab'] store, ['game_mechanic'], ['game_kit'], ['game_glyph'], ['game_sfx'], ['game_hud'], "
+      + "['game_idiom']. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: 'Card id: a store card (slice-<kind> / typed-events), a mechanic card (reach-exit / … / fall-policy / mechanics-guide), a kit card (dungeon-crawler / collectathon / survival-arena), a glyph card (glyph-gem / … / glyph-skull), an sfx card (sfx-sparkle / … / sfx-kokusen), or a hud card (hud-guide / hud-readout / hud-banner / hud-style).' },
-        scope: { type: 'string', enum: ['slice', 'mechanic', 'kit', 'glyph', 'sfx', 'hud'], description: 'Optional list filter: store slice cards, level-mechanic cards, game-kit cards, glyph form cards, sfx verb cards, or hud (screen UI) cards. Omit to list all.' },
+        id: { type: 'string', description: 'Card id: a store card (slice-<kind> / typed-events), a mechanic card (reach-exit / … / fall-policy / mechanics-guide), a kit card (dungeon-crawler / collectathon / survival-arena), a glyph card (glyph-gem / … / glyph-skull), an sfx card (sfx-sparkle / … / sfx-kokusen), a hud card (hud-guide / hud-readout / hud-banner / hud-style), or an idiom card (idiom-guide / idiom-<kind>).' },
+        scope: { type: 'string', enum: ['slice', 'mechanic', 'kit', 'glyph', 'sfx', 'hud', 'idiom'], description: 'Optional list filter: store slice cards, level-mechanic cards, game-kit cards, glyph form cards, sfx verb cards, hud (screen UI) cards, or idiom (rule) cards. Omit to list all.' },
       },
       required: [],
     },

@@ -3,6 +3,8 @@
  * principles and as the numbers the builder (era/nature.js) reads, so the style is enforced, not described. Draft
  * agreed with the operator 10-04; machine checks for the principles live in nature.test.js.
  */
+import { accentOf, hexOfRgb } from './swatches.js';
+
 export const NATURE_TRAIL = Object.freeze({
   id: 'nature-trail',
   principles: Object.freeze([
@@ -31,7 +33,7 @@ export const NATURE_TRAIL = Object.freeze({
     rock: { key: 'rock-cave', scale: 4, tint: [0.77, 0.69, 0.58] },
     rockTop: { key: 'grass-dry', scale: 2.2, tint: [0.8, 0.84, 0.6] },
   },
-  accent: '#b8322a',
+  accent: hexOfRgb(accentOf('nature-trail')),   // the blaze: style/swatches.js
   values: ['trail', 'rock', 'grass', 'foliage'],   // brightest first (principle 5)
   slope: { rock: 0.6 },                           // a ground facet whose normal z falls below this is rock (principle 3)
   site: { w: 44, d: 72, cell: 1 },
