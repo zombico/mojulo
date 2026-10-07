@@ -12,6 +12,116 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Playscape
+
+The first step toward Playscape, which makes a scapeshifted world playable on a ladder of four rungs: click demos,
+walk demos, a single level, a game of levels. This step starts its encyclopedia: the game idioms on a shelf of their
+own, the laws a game object is judged by, and the first entry, the door, where what a thing does is kept apart from
+what it looks like. No tool is added; `get_game_vocab` gains a family.
+
+- **The game idioms have cards.** `get_game_vocab({ scope: 'idiom' })` and `semantic_search({ kinds: ['game_idiom'] })`
+  return an `idiom-guide` and an `idiom-<kind>` card per idiom, generated from an about row kept beside each idiom
+  function (`IDIOM_ABOUT` in `lib/graph/worlds/game-idioms.js`). Each card lowers its own example and prints the
+  event-bus rows it becomes, so it cannot drift; an idiom without an about row fails the shelf's test. Each idiom is
+  tagged with the lowest rung it serves (`click`, `walk`, `level`, `game`). A migration adds the `game_idiom` kind.
+- **One lowering map.** `IDIOM_LOWERING` and `lowerIdioms()` in `game-idioms.js` replace the action world's private
+  map, which now also takes `banner`, `legend` and `toast` in `idioms` (before, only raw `events.hud` rows reached them).
+- **Object laws.** `lib/graph/playscape/objects/` judges a game object the way the hero is judged: the build is
+  measured and read against bands, with advice per law, never a refusal (`objectMeasures`, `objectAdvice`). The laws
+  (`objects/laws.js`): inverse interest (the more a thing matters, the more distinct its silhouette segments, counted
+  as notches that open onto the outline at play distance in the era's 640×448 frame), 33/66 (the primary detail a
+  third of the main mass and wider than the eye spot), emboss (the rest of the mass shaded in by value), values only
+  (greys on `obj:*` groups, colour left to a tone), the detail a band apart from the mass under 3, 4 and 5 hard steps,
+  the accent kept for what can be used, and juxtaposition (a placement law). One interest rank (filler, prop,
+  interactable, focus) sets the bands.
+- **The door entry: what it does apart from what it looks like.** `objects/mechanism.js` moves leaves on three joints
+  (hinge, slide, lift); the door's five variants are rows over it: `single`, `double`, `sliding-single`,
+  `sliding-double` and `portcullis`. Fitted to an opening (a doorway anchor sizes it) at any t from closed to open, a
+  door answers for itself: its collider at t, the space its leaves sweep (a level keeps it clear: the swing in front,
+  the wall pocket, the headroom), the width and height a walker gets through, and where it is used from (both sides of
+  the handle, or a control beside a portcullis). Its look is a skin worn on top (`greybox`, `plank`), drawn on the
+  closed leaf and carried by the joint. Its rules are built from the idioms: a use opens it; locked, it waits for its
+  unlock event (a key's pickup), then for a use (a sequence, since reactions carry no guard). `ejectObject` freezes
+  the variant, skin and numbers. The entry's card is generated from the variants and measured off the mechanism
+  (`lib/graph/playscape/entries.js`); it is served once a recipe can place a door.
+- **Drives: what moves an entry's t.** `objects/drive.js`: a `clock` (back and forth or round a loop over a period),
+  a `ride` (standing on it sends it to the far end; it waits `dwell` seconds empty, then comes home), a `call` (a use at
+  a stop sends it there) and a `rule` (a bus var; the door's `<id>-open`). Stepped by dt, so a timeline replays exactly.
+- **The platform entry, called by its surface area.** `objects/platform.js`: `area` is the walkable deck top in square
+  metres (`aspect` shapes it), and reads to a player as a rest, a step, a tight landing or too small. Variants
+  `static`, `shuttle` and `rail` (round if it loops, else back and forth, by distance at one pace). It answers for its
+  deck and collider at t, the space it sweeps and the headroom a rider needs over it all along, and lowers to the
+  platformer world: a still deck is a floor face and a collider, a moving one a `mover` carrier with a visible box
+  body (moving platforms rendered nothing before). Its `island` skin (a lighter deck over a keel of rock) holds every
+  object law at every area: a still island hangs one keel point, a moving one two tiers.
+- **The lift entry, vertical traversal.** `objects/lift.js`: a platform's deck carried between stops at `speed` metres
+  a second. Two stops ride; more are called. It answers for its shaft (from under the lowest stop to a rider's
+  headroom over the highest: a level leaves it open), its landings (board, and a step off to either side, at every
+  stop), and its ride time and dwell. A called lift runs as a ride between its ends until calls reach the runtime.
+- **Movers run rails and ride drives.** The `mover` rule (`worlds/controllable/rules-basic.js`) takes a `path` of
+  points (by distance; `loop`, `mode: 'loop'`) and `drive: 'ride'` (`speed`, `dwell`); the carry pass marks a
+  ride-driven carrier `_ridden` while a rider stands on it, still or moving. A mover with neither runs as before (the
+  controllable-world trace pins hold).
+- **The catapult entry: a launcher tuned by the approach.** `objects/catapult.js` stays put and throws the player:
+  `fixed` (one arc; give a `target` and it solves the power), `redirect` (keeps the run-up's speed along the pad) and
+  `bounce` (returns the fall, so a higher drop goes higher). Tunable `power`, `angle`, `gain`, `cap`, `restitution`, a
+  `cone` of approaches, `reload`. Its arc is stepped with the platform rule's own integrator (rise and fall gravity,
+  fall cap), so a solved target is where the world lands the rider; it answers for the arc, apex, landing, the tube
+  the rider flies through and how far steering can move the landing. The rider steers in the air by default;
+  `locked` holds the arc until it lands, for a scenic route.
+- **The `launcher` rule.** `worlds/controllable/rules-basic.js`: a `launch` world pass reads each rider's approach
+  (its run across the ground, its fall) and throws it through the platform rule's own momentum (`vel` z and
+  `dashVel`); a `launch-lock` pre-step takes a locked rider's stick until it lands. The platform rule's jump cut skips
+  a thrown rider (`launchedBy`); without a launcher it runs as before. The pipeline-order pin and the emission pins
+  re-pinned with notes.
+- **Items keep their blocks.** `era/props.js` `obox` also records each box it builds into a face list made by
+  `blockSink()` (its range of faces, value, group; the playscape skins tag the part); any other list gets the same
+  panels as before. Every playscape entry resolves with its blocks; the door's ride its leaf's pose.
+- **Cleave: the shaped cut.** `playscape/destruct/cleave.js` cuts an item's blocks by a pattern of convex cells into
+  closed convex chunks (`polytope.js`, plane clipping), whatever the shape: `grid` dices (a lattice in the item's frame,
+  each axis split evenly, a thin axis never cut), `voronoi` shatters (seeded sites, through the thickness on a thin
+  axis). A chunk is a cell's pieces of every block, so a handle stays with its slab; cut faces are the inside, two
+  emboss steps darker.
+- **Dismantle: the concept cut.** `destruct/dismantle.js` reads joints off the geometry (blocks that touch) and anchors
+  (the ground, or given boxes), severs parts, joints or all, and splits what no longer reaches an anchor into bodies
+  that fall whole. Relief thinner than 2.4 cm rides the one block it touches most.
+- **Collapse.** `destruct/collapse.js`: a seeded, stepped timeline per body: the spread (the lattice opening, a hold),
+  then a passive fall or an explosion; rigid bodies land with impulses at their corners on the ground and on what
+  still stands, and rest. They pass through each other (an engine's solver takes over on export).
+- **Slicing interceptors: the cut while it happens.** `destruct/interceptors.js`, on scapeshift's interceptor contract
+  (grown after, never colliding, never named; each kind a site finder, a grower and a 0 to 1 dial, seeded, its own
+  `fx:*` group). The sites are the cleave's own: each cut face names its plane, and the score is where a plane meets
+  the item's skin. `score` (the slice line drawn along the stroke), `blade` (a band sweeping the plane), `spark`,
+  `glint` (a cut face flashing white as it opens, riding its chunk) and `dust` (in the opening gaps). A grid is drawn
+  plane by plane, axis by axis; a shatter cracks out from the impact at `speed`, across the item and not through it.
+  `cutAt` is when the last stroke is drawn: `collapse({ delay })` keeps the chunks whole until then. They are the
+  cover-up for an engine's swap to pre-cut chunks; an engine that cannot play them drops them.
+- **The cut is a style.** `CUT_STYLES` in `destruct/interceptors.js`, a setting like a tone: it picks the timing, the
+  marks and how the pieces part, all in values on `fx:*` groups, so colour stays the tone's. `blade` (stroke by
+  stroke, a radial spread), `laser` (one beam at a time from off the face, the score cooling behind it, a spray, the
+  pieces barely parting), `anime` (the slash, the beat, every score at once with a flash, the halves slipping along
+  the cut) and `impact` (a ring and a flash, fast cracks, chips and dust, a burst from the hit). New marks: `beam`,
+  `ring`, `flash`, the crescent blade. A mark can be tuned (`marks`) or dialled per call. `collapse` takes per-body
+  `spread.offsets`; cleave adds the `slice` pattern (one to three clean planes, or the planes given).
+- **Destruction sounds as cues.** `destruct/sounds.js`: the cut and the collapse say when which cue fires, how loud
+  and where (`{ t, cue, gain, mark, at }`), never audio itself. Each cut style names a cue per mark; `slicing()`
+  returns `sounds`; `collapse()` records `hits` (landings by speed and mass) and its `parting`, and `collapseSounds()`
+  turns them into thuds, clacks and a whoosh. `DESTRUCT_SFX` is a valid beats-sfx manifest defining every default
+  cue; a call renames, re-gains or silences any mark (`sounds: { beam: 'my-laser', spark: false }`), and a world
+  re-voices a cue by defining the same name in its `audio.cues`.
+- **The bridge entry: a static platform from bank to bank.** `objects/bridge.js`, called by its ends (`from`, `to`,
+  `width`) or `over` a trail's pit hazard anchor. Variants `plank`, `deck`, `rope` (it sags; a long one reads as a
+  scramble) and `arch` (a humpback with end piers, its motif along the parapets). Each is built of the ELEMENTS a
+  style guide names (planks, stringers, posts, rails, braces, footropes, handropes, lashings, ring, crown, keystone,
+  spandrels, parapets, coping, abutments, piers), each turned off or tuned by name. It answers as a platform: its deck
+  line, its crossing read (road, path, plank, beam; walk or scramble), bearings, clearance under, and the deck as floor
+  faces and colliders with the rails as lines. The runs (rails, ropes, posts, dentils) shade the 66 and one middle-third
+  part is the 33, so every variant holds the object laws from 3 to 10 m (a 2 m rope bridge and a 14 m arch still draw
+  advice). Built of blocks: sever a rope bridge's footropes and its planks fall.
+- **Object measures read roles.** A face's role is its part when the part names one, else its `obj:*` group, so an
+  entry that names parts by element is judged; a silhouette notch must be 3 px each way (a rasterised sliver along the
+  hull no longer counts). Existing entries measure as before.
+
 ### Scapeshift
 
 The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by

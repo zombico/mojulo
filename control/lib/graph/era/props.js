@@ -33,8 +33,13 @@ export const PROP_WOOD = Object.freeze({
 const woodSurf = (spec, tint) => ({ key: `${tileFamilyOf(spec, 'props.wood')}-a`, scale: 0.7, tint, group: 'stage:prop' });
 const IRON = [0.22, 0.21, 0.2];
 
-/** An oriented box: centre `c`, unit axes `A`, `B`, `C`, half sizes `h` — six panels. */
+/**
+ * An oriented box: centre `c`, unit axes `A`, `B`, `C`, half sizes `h` — six panels. A face list that carries a
+ * `boxes` array (playscape's destructible items: `blockSink()`) also gets the box itself, with the range of faces it
+ * made, so the item can be cut as solids later; any other list gets the panels only.
+ */
 export function obox(out, c, A, B, C, h, surf, cell = 0.5) {
+  const from = out.length;
   for (const [N, U, V, hn, hu, hv] of [[A, B, C, h[0], h[1], h[2]], [B, C, A, h[1], h[2], h[0]], [C, A, B, h[2], h[0], h[1]]]) {
     for (const s of [1, -1]) {
       const n = mul(N, s), u = s > 0 ? U : mul(U, -1);
@@ -42,7 +47,11 @@ export function obox(out, c, A, B, C, h, surf, cell = 0.5) {
       panel(out, o, u, 2 * hu, V, 2 * hv, n, surf, cell);
     }
   }
+  if (out.boxes) out.boxes.push({ c: [...c], A: [...A], B: [...B], C: [...C], h: [...h], group: surf.group, value: surf.tint ? surf.tint[0] : null, from, to: out.length });
 }
+
+/** A face list that also keeps the boxes `obox` builds into it (not enumerable: the faces read as before). */
+export const blockSink = () => Object.defineProperty([], 'boxes', { value: [], enumerable: false });
 
 const ITEMS = {
   crate(out, p, N, U, s, i, S) {
