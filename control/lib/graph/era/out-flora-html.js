@@ -8,6 +8,7 @@ import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_LEVELS, FLORA_LAWS, FLORA_PARTS, FLO
 import { SWATCHES, hexOfRgb } from './style/swatches.js';
 import { CSS } from './out-index-html.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { ikebanaCard, zoneCard } from './out-ikebana-html.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const n2 = (v) => (typeof v === 'number' ? (Math.round(v * 100) / 100).toString() : String(v));
@@ -15,7 +16,7 @@ const SUN = (() => { const s = [-0.45, -0.6, 0.66], l = Math.hypot(...s); return
 
 /** A doodad's front elevation in a kit's swatches: faces sorted far to near, each its part's ramp stop, a stop up or
  *  down where it faces the sun or away. `ppm` fixes the scale (pixels a metre) so a row compares sizes. */
-function drawFlora(d, kitId, { w = 150, h = 150, ppm = null, ground = true } = {}) {
+export function drawFlora(d, kitId, { w = 150, h = 150, ppm = null, ground = true } = {}) {
   const land = SWATCHES[kitId].land, skin = floraSkin(kitId);
   const proj = (p) => [p[0], p[2]];
   let x0 = Infinity, x1 = -Infinity, z1 = 0;
@@ -34,7 +35,7 @@ function drawFlora(d, kitId, { w = 150, h = 150, ppm = null, ground = true } = {
   return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(`${d.dials.form} ${d.dials.variant}`)}">${g}${polys}</svg>`;
 }
 
-const fig = (svg, cap) => `<figure>${svg}<figcaption>${cap}</figcaption></figure>`;
+export const fig = (svg, cap) => `<figure>${svg}<figcaption>${cap}</figcaption></figure>`;
 const lawLine = (d) => { const l = floraLaws(d); return l.length ? `<span class="badge solid">${esc(l.map((x) => x.law).join(', '))}</span>` : ''; };
 
 function formCard(id, kitId, seed) {
@@ -174,6 +175,7 @@ export function outFloraHtml({ seed = 8, kitId = 'isekai-meadow' } = {}) {
 <p class="lede">The plants of an outdoor world as doodads: shapes built for look, read and cost, not botany. Four forms make every plant a kit needs: masses on a stick, a cap on a stalk, organic growth, sausage fingers. Each is a few primitives under a few dials, built in values on named parts, skinned by a kit's swatches and built by reveal ring. Drawn here in ${esc(kitId)} at seed ${seed}. The grown trees (vegetation/) stay for a world that wants one.</p>
 <h2>Forms</h2>${FLORA_FORM_IDS.map((id) => formCard(id, kitId, seed)).join('<div style="height:14px"></div>')}
 <h2>Incongruity</h2>${incongruityCard(kitId, seed)}${runCard(kitId, seed)}
+<h2>Ikebana</h2>${ikebanaCard(seed)}${zoneCard(seed, kitId)}
 <h2>Density</h2>${densityCard(kitId, seed)}
 <h2>Skins</h2>${skinCard(seed)}
 <h2>Bark</h2>${barkCard(kitId, seed)}

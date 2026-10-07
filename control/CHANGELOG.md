@@ -363,6 +363,16 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   weight is brought back over what holds it and the whole over its foot, then the doodad is fitted back into its own
   bounds, so its footprint never changes. Under the eye spot, incongruity moves up to the composition: a cluster's
   members answer each other the same way, gated by the eye radius (full near the trail, half mid, none far).
+- **Ikebana: `clustersprout` and the zone painter** (`era/out-ikebana.js`, drawn by `era/out-ikebana-html.js`). A
+  bundling aid: a cluster is arranged, not scattered. `clustersprout` grows one arrangement from a single root (the
+  kenzan): three principals in scalene steps (shin, soe at three quarters, hikae at three quarters of soe), each leaning
+  its style's angle (upright, slanting, spreading) toward its own side of the viewer's line, as far as it still
+  stands; an odd count of fillers inside their triangle, each sized by its footprint so it never spreads wider than
+  soe; a flowering root at the foot (the broccoli form gains a `bush` variant and `blooms`, a part each kit skins); and
+  the ma, a sector toward the viewer left open. Every stem is a flora doodad with its height pinned to its share and
+  its own incongruity scaled by its role's interest. The zone painter sprouts arrangements along painted strokes with
+  scale, bend, density, variation, kenzan and ma dials, each turned to a trail or a view, neighbours in alternate
+  hands and one odd one out per stroke. A finger's radius now scales with its height, so every form does.
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the

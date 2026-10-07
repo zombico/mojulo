@@ -43,6 +43,7 @@ export const FLORA_PARTS = Object.freeze({
   flesh: { role: 'soil', read: 'a cap, a pad, a finger, a shelf: the body of a soft thing' },
   gills: { role: 'soil', read: 'the underside of a cap or shelf: always a step darker' },
   detail: { role: 'cloud', read: 'spots, tips, bulbs: the small marks, a step lighter' },
+  bloom: { role: 'cloud', read: 'flowers on a mass: a few posies on its lit side, the decoration (never the accent: that is for use)' },
 });
 export const DEFAULT_SKIN = Object.freeze(Object.fromEntries(Object.entries(FLORA_PARTS).map(([k, v]) => [k, v.role])));
 /** Each kit's flora skin: which of its swatch ramps each part takes (era/style/swatches.js land); unnamed parts keep
@@ -51,7 +52,7 @@ export const FLORA_SKINS = Object.freeze({
   'isekai-meadow': {},
   'isekai-bamboo': { flesh: 'bark' },
   'isekai-sakura': { flesh: 'rock' },
-  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow' },
+  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow' },
 });
 export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? {}) });
 
@@ -133,6 +134,8 @@ export const FLORA_FORMS = Object.freeze({
     rails: { height: [3, 10], crown: [0.5, 0.72], width: [0.45, 0.85], masses: [4, 9], squash: [0.75, 1.15], tiers: [1, 1], lean: [0, 0.12], trunk: [0.03, 0.055], porosity: [0, 0.35] },
     variants: {
       lollipop: { masses: [0, 0], tiers: [1, 1], porosity: [0, 0], width: [0.55, 0.7] },
+      // a bush: the crown down to the ground, wide and low; `blooms` posies on its lit side when it flowers
+      bush: { height: [0.8, 1.8], crown: [0.86, 0.94], width: [1.1, 1.5], masses: [5, 8], squash: [0.55, 0.75], lean: [0, 0.04], trunk: [0.03, 0.045], porosity: [0, 0.15], blooms: [0, 0] },
       broccoli: {},
       pads: { tiers: [3, 4], masses: [2, 4], lean: [0, 0.07], squash: [0.4, 0.55], crown: [0.62, 0.78], width: [0.5, 0.7], porosity: [0.2, 0.4] },
       column: { width: [0.22, 0.3], lean: [0, 0.06], porosity: [0, 0.1], tiers: [3, 4], masses: [3, 4], squash: [1.3, 1.6], crown: [0.8, 0.9] },
@@ -169,8 +172,8 @@ export const FLORA_FORMS = Object.freeze({
     variants: {
       saguaro: { rule: 'saguaro', ribs: [0.06, 0.12], radius: [0.1, 0.14] },
       pads: { rule: 'pads', height: [0.8, 2], arms: [2, 3] },
-      coral: { rule: 'coral', height: [0.8, 3], depth: [2, 3], radius: [0.06, 0.1], bulb: [1.2, 1.6] },
-      tubes: { rule: 'tubes', arms: [4, 9], height: [0.6, 2.4], radius: [0.08, 0.14], bulb: [1.1, 1.3] },
+      coral: { rule: 'coral', height: [0.8, 3], depth: [2, 3], radius: [0.09, 0.15], bulb: [1.2, 1.6] },
+      tubes: { rule: 'tubes', arms: [4, 9], height: [0.6, 2.4], radius: [0.13, 0.22], bulb: [1.1, 1.3] },
     },
     build: buildFingers,
   },
@@ -187,6 +190,9 @@ export function floraDials(form, variant, seed, over = {}) {
     X[k] = mix(lo, hi, rand());
   }
   for (const [k, v] of Object.entries(V)) if (!Array.isArray(v)) X[k] = v;
+  // a variant's own dials (not on the form's rails, like a bush's blooms) roll on a stream of their own
+  const extra = mulberry32(subSeed(seed, `flora:${form}:${variant}:extra`));
+  for (const [k, v] of Object.entries(V)) if (Array.isArray(v) && !(k in F.rails)) { const [lo, hi] = over[k] != null ? (Array.isArray(over[k]) ? over[k] : [over[k], over[k]]) : v; X[k] = Math.round(mix(lo, hi, extra())); }
   for (const k of ['masses', 'tiers', 'spots', 'cluster', 'count', 'arms', 'depth']) if (k in X) X[k] = Math.round(X[k]);
   return { X, rand };
 }
@@ -211,13 +217,21 @@ function plan() {
 }
 
 /** One doodad: the form's dials rolled for `seed`, planned, mismatched, built at a ring's level. */
-export function designFlora(form, variant, seed, { level = 'mid', over = {}, incongruity = null, interest = 'prop' } = {}) {
+export function designFlora(form, variant, seed, { level = 'mid', over = {}, incongruity = null, interest = 'prop', tilt = null } = {}) {
   const { X, rand } = floraDials(form, variant, seed, over), L = { ...FLORA_LEVELS[level], name: level };
   const P = plan();
   FLORA_FORMS[form].build(X, rand, L, P);
   const inc = incongruity ? incongrue(P, incongruity, seed, interest) : null;
   const { faces, elements } = meshPlan(P, L);
-  return { dials: X, faces, elements, level, incongruity: inc, unstable: planStability(P), plan: { blocks: P.blocks.length, links: P.links.length } };
+  return { dials: X, faces: tilt?.deg ? tiltFaces(faces, tilt) : faces, elements, level, incongruity: inc, tilt: tilt?.deg ? { deg: r3(tilt.deg), az: r3(tilt.az ?? 0) } : null, unstable: planStability(P), plan: { blocks: P.blocks.length, links: P.links.length } };
+}
+
+/** A built doodad leaned about its foot: `deg` from upright toward the azimuth `az` (radians, 0 = +x). A whole stem
+ *  leans; the stands law then says whether it still stands. */
+export function tiltFaces(faces, { deg = 0, az = 0 } = {}) {
+  const t = (deg * Math.PI) / 180, k = [-Math.sin(az), Math.cos(az), 0], c = Math.cos(t), sn = Math.sin(t);
+  const rot = (v) => { const kv = cross(k, v), kd = dot(k, v); return [v[0] * c + kv[0] * sn + k[0] * kd * (1 - c), v[1] * c + kv[1] * sn + k[1] * kd * (1 - c), v[2] * c + kv[2] * sn + k[2] * kd * (1 - c)]; };
+  return faces.map((f) => ({ ...f, corners: f.corners.map(rot), normal: rot(f.normal), gn: f.gn ? rot(f.gn) : f.gn }));
 }
 
 // masses on a stick
@@ -253,6 +267,18 @@ function buildBroccoli(X, rand, L, P) {
       if (rand() < X.porosity) continue;
       const a = yaw + (2 * Math.PI * (i + 0.35 * rand())) / m, e = mix(-0.3, 0.4, rand()), d = Rt * mix(0.5, 0.66, rand()) * (1 + 0.4 * X.porosity), r = Rt * mix(0.34, 0.48, rand()) * (1 - 0.6 * X.porosity);
       P.block({ id: `${id}m${i}`, kind: 'mass', parent: id, group: `ring${t}`, c: add(c, [Math.cos(a) * Math.cos(e) * d, Math.sin(a) * Math.cos(e) * d, Math.sin(e) * d * X.squash]), r: [r, r, r * X.squash], part: 'mass', value: 0.55, detail: tiers > 1 ? 0 : L.detail, bend: { to: id, off: [0, 0, -up], k: 0.6 }, what: 'mass' });
+    }
+  }
+  // BLOOMS: posies on the masses' upper, outer surface (the side the light and the eye find), riding their mass; half
+  // of them mid, none far. Their own dice, so a bush in flower keeps the shape of the same bush out of flower.
+  const n = L.name === 'near' ? X.blooms ?? 0 : L.name === 'mid' ? Math.round((X.blooms ?? 0) / 2) : 0;
+  if (n > 0) {
+    const br = mulberry32(subSeed(Math.round(X.height * 1e4), 'flora:blooms')), on = P.blocks.filter((b) => b.part === 'mass');
+    const crownC = on.reduce((s, b) => add(s, b.c), [0, 0, 0]).map((v) => v / on.length);
+    for (let i = 0; i < n; i++) {
+      const host = on[Math.floor(br() * on.length)], out_ = unit(add(unit(sub(host.c, crownC)), [mix(-0.5, 0.5, br()), mix(-0.5, 0.5, br()), mix(0.3, 0.9, br())]));
+      const sz = Math.max(...host.r) * mix(0.22, 0.32, br());
+      P.block({ id: `bloom${i}`, kind: 'mass', parent: host.id, fixed: true, c: add(host.c, [out_[0] * host.r[0] * 0.92, out_[1] * host.r[1] * 0.92, out_[2] * host.r[2] * 0.92]), r: [sz, sz, sz * 0.7], part: 'bloom', value: mix(0.62, 0.86, br()), detail: 0 });
     }
   }
 }
@@ -331,7 +357,7 @@ function buildFungi(X, rand, L, P) {
 
 // sausage fingers: knuckles joined by links whose radii are the knuckles' own, so a mismatched knuckle pinches the finger
 function buildFingers(X, rand, L, P) {
-  const H = X.height, R = X.radius * Math.max(1, H / 2), far = L.name === 'far', sides = far ? L.sides : Math.max(L.sides, X.ribs ? 8 : 0);
+  const H = X.height, R = (X.radius * H) / 2, far = L.name === 'far', sides = far ? L.sides : Math.max(L.sides, X.ribs ? 8 : 0);
   const K = (id, parent, c, r, o = {}) => P.block({ id, kind: 'knuckle', parent, c, r: [r, r, r], ...o });
   const join = (a, b, o = {}) => P.link({ from: a, to: b, radii: 'ends', sides, part: 'flesh', value: 0.58, ...o });
   // a round end, never a cut (none far); a bulb if asked
