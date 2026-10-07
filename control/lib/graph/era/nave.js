@@ -93,7 +93,12 @@ export function naveShafts(plan, bays) {
 
 /** The blends over the shell (baked with it, by the same lights): moss up the wall bases and in the gutter, grime at the floor's edges. */
 export function naveBlends(plan, shell) {
-  const D = plan.kit.dress, M = D.moss, G = D.grime, walk = walkLine(plan), out = [];
+  return blendsByCause(plan, shell, plan.kit.dress.moss, plan.kit.dress.grime);
+}
+
+/** Moss (`M`) and grime (`G`) over any room stage's shell, by cause: the nave's, the crypt's, any kit with a card for them. */
+export function blendsByCause(plan, shell, M, G) {
+  const walk = walkLine(plan), out = [];
   const roomAt = (x, y) => plan.rooms.find((r) => x >= r.x0 - 0.8 && x <= r.x1 + 0.8 && y >= r.y0 - 0.8 && y <= r.y1 + 0.8) || plan.rooms[0];
   const toWalk = (c) => { let best = Infinity; for (let i = 0; i + 1 < walk.length; i++) { const [ax, ay] = walk[i], [bx, by] = walk[i + 1], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((c[0] - ax) * dx + (c[1] - ay) * dy) / L2)); best = Math.min(best, Math.hypot(c[0] - ax - t * dx, c[1] - ay - t * dy)); } return best; };
   const patch = (c, s, p) => smooth(p[0], p[1], 0.7 * vnoise(c[0] * 0.45 + c[2] * 0.3, c[1] * 0.45 + c[2] * 0.2, s) + 0.3 * vnoise(c[0] * 1.6, c[1] * 1.6 + c[2], s + 1));

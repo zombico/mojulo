@@ -544,18 +544,32 @@ function stoneBrickPng(cfg, { size = 256, seed = 1 } = {}) {
   const accent = cfg.accent ?? 0.14, accentDark = cfg.accentDark ?? 40, accentLight = cfg.accentLight ?? 26;
   const jit = []; for (let r = 0; r < rows; r++) { jit[r] = []; for (let c = 0; c < cols + 1; c++) { let j = (rand() - 0.5) * 2 * vary; const a = rand(); if (a < accent) j -= accentDark; else if (a > 1 - accent * 0.6) j += accentLight; jit[r][c] = j; } }
   const clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  // WEAR, opt-in (absent ⇒ every byte as before): `jointDepth` recesses the mortar and lets grime settle along the
+  // stone's edges; `grime` runs streaks down from each bed joint; `chips` breaks the stone's arrises back to the joint
+  const jd = cfg.jointDepth ?? 0, gr = cfg.grime ?? 0, chp = cfg.chips ?? 0, worn = jd > 0 || gr > 0 || chp > 0;
+  const hx = (brickW / courseH) * 0.5;                                                 // head-joint distances in course units
   for (let y = 0; y < H; y++) {
     const rf = y / courseH, row = rf | 0, fy = rf - row, offset = (row % 2) * 0.5;     // running bond half-shift
     for (let x = 0; x < W; x++) {
       const xf = x / brickW + offset, col = (((xf | 0) % cols) + cols) % cols, fx = xf - Math.floor(xf), o = (y * W + x) * 3;
-      const joint = fy < mt || fy > 1 - mt || fx < mt * 0.5 || fx > 1 - mt * 0.5;       // bed + head joints
+      let joint = fy < mt || fy > 1 - mt || fx < mt * 0.5 || fx > 1 - mt * 0.5;       // bed + head joints
+      // the stone's distance to its nearest joint, in course heights
+      const edge = worn ? Math.min(fy - mt, 1 - mt - fy, (fx - mt * 0.5) * hx * 2, (1 - mt * 0.5 - fx) * hx * 2) : 1;
+      if (!joint && chp > 0 && edge < 0.07 && n.fbm(x / W * 3, y / H * 3, 40, 2) > 1 - chp * 0.55) joint = true;
       if (joint) {
         const mn = (n.fbm(x / W, y / H, 8, 3) - 0.5) * 10;
-        for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(mortar[ch] + mn);
+        const deep = jd > 0 ? jd * 34 * (1 - Math.min(1, Math.abs(Math.min(fy, 1 - fy, fx * hx * 2, (1 - fx) * hx * 2)) / mt)) : 0;
+        for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(mortar[ch] + mn - deep);
       } else {
         const g = (n.fbm(x / W + col * 0.13, y / H + row * 0.17, 10, 4) - 0.5) * grain * 2;
         const bev = (0.5 - fy) * bevel * 120;                                            // lighter top, darker bottom → carved relief
-        for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(stone[ch] + jit[row][col] + g + bev);
+        let wear = 0;
+        if (jd > 0) wear += jd * 30 * Math.max(0, 1 - edge / 0.09);                      // grime settled along the arris
+        if (gr > 0) {
+          const streak = n.fbm(x / W * 2, 0.37, 26, 2), run = Math.max(0, 1 - (fy - mt) / 0.7);
+          wear += gr * (52 * Math.max(0, streak - 0.45) * 2 * run + 16 * (n.fbm(x / W, y / H, 3, 3) - 0.35));
+        }
+        for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(stone[ch] + jit[row][col] + g + bev - wear);
       }
     }
   }

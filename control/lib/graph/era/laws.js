@@ -22,6 +22,7 @@ import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
+import { CRYPT } from './style/crypt.js';
 
 export const LAYERS = Object.freeze(['look', 'surface', 'composition', 'dressing']);
 
@@ -59,6 +60,7 @@ export const LAWS = Object.freeze({
 
 /** Each style card's principles, in order, as the laws they are instances of. */
 export const PRINCIPLE_LAWS = Object.freeze({
+  crypt: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['distinct-radius']],
   'delfino-plaza': [['value-order', 'shade-is-colour'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards'], ['depth-by-air'], ['distinct-radius'], ['kit-dressing'], ['kit-dressing'], ['focus', 'kit-dressing'], ['kit-dressing'], ['sky-is-a-place']],
   'delfino-plaza/night': [['baked-light', 'shade-is-colour'], ['value-order', 'baked-light'], ['focus'], ['distinct-radius', 'by-cause'], ['sky-is-a-place']],
   'gothic-nave': [['value-order'], ['light-through'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['focus'], ['distinct-radius'], ['materials-by-layer'], ['materials-by-layer']],
@@ -74,7 +76,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */
 export function statedPrinciples() {
   const out = {};
-  for (const S of [DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA]) {
+  for (const S of [CRYPT, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA]) {
     out[S.id] = S.principles;
     if (S.night?.principles) out[`${S.id}/night`] = S.night.principles;
     if (S.decay?.principles) out[`${S.id}/decay`] = S.decay.principles;

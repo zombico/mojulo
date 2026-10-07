@@ -23,12 +23,14 @@
  */
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
-import { makeDirt, hash3 } from './dirt.js';
+import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
 import { archedOpening, engagedColumn, naveVault, portal, oculus } from './gothic.js';
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
+import { cryptDress } from './crypt.js';
+import { CRYPT } from './style/crypt.js';
 import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
@@ -76,11 +78,41 @@ export const STAGE_KITS = ({
     torch: { every: 2, z: 2.7, out: 0.38, color: '#ffa850', intensity: 1.7, radius: 7.5 },
   }),
 });
+// GRIME (`grime: 0…1` on a room-kit recipe): one dial for how long the place has stood. It scales the dressing's moss
+// and grime blends, the baked dirt (soot, damp, age, traffic: dirt.js), and the crypt's own wall wear (recessed joints,
+// streaks, chipped arrises). The crypt stands at CRYPT_GRIME; a kit without blends takes the dirt only.
+export const CRYPT_GRIME = 0.5;
+/** The crypt's wall at a grime: the bluestone courses, worn as long as the place has stood. */
+function cryptWallFamily(g) {
+  return tileFamilyOf({ gen: 'stone-brick', stone: [118, 128, 140], mortar: [70, 78, 88], rows: 6, cols: 4, mortarThick: 0.1, vary: 28, grain: 11, bevel: 0.2,
+    accent: 0.14, accentDark: 40, accentLight: 26, jointDepth: r5(0.25 + 0.65 * g), grime: r5(g), chips: r5(0.1 + 0.5 * g) });
+}
+/** A kit at a grime: blends scaled (as a share of the card's own at the default), the crypt's wall re-worn. */
+function withGrime(kit, kitId, g, recipeWall) {
+  const f = Math.min(2, g / CRYPT_GRIME), D = kit.dress;
+  const dress = D && D.moss && D.grime ? { ...D, moss: { ...D.moss, max: r5(Math.min(1, D.moss.max * f)) }, grime: { ...D.grime, max: r5(Math.min(1, D.grime.max * f)) } } : D;
+  const tiles = kitId === 'gothic-stone' && !recipeWall ? { ...kit.tiles, wall: { ...kit.tiles.wall, family: cryptWallFamily(g) } } : kit.tiles;
+  return { ...kit, dress, tiles };
+}
+/** The baked dirt at a grime: each cause scaled from its default, none past 1. */
+export const dirtAtGrime = (g) => ({ age: r5(Math.min(1, DIRT_DEFAULTS.age * g * 2)), damp: r5(Math.min(1, DIRT_DEFAULTS.damp * g * 2)), soot: r5(Math.min(1, DIRT_DEFAULTS.soot * g * 2)), traffic: r5(Math.min(1, DIRT_DEFAULTS.traffic * g * 2)) });
+
+// the stone the nave and the plaza are cut from: gothic-stone's own numbers before its crypt dressing
+const GOTHIC_STONE_BASE = STAGE_KITS['gothic-stone'];
+// The CRYPT: gothic-stone dressed as a burial vault (style/crypt.js, era/crypt.js): a tomb chest on a dais at the end of
+// the walk, candles, cobwebs, moss and grime by cause, and a vault of rough limewash, darker than the walls, its own
+// material (never the walls' coursed stone carried overhead).
+STAGE_KITS['gothic-stone'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  tiles: { ...GOTHIC_STONE_BASE.tiles, wall: { family: cryptWallFamily(CRYPT_GRIME), scale: 2 }, ceiling: { key: 'stucco', scale: 2 } },
+  tint: { ...GOTHIC_STONE_BASE.tint, ceiling: [0.26, 0.25, 0.28] },
+  dress: CRYPT,
+});
 // The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course
 // and a lancet window above; engaged columns stand at the bay lines; the ceiling is a tall pointed barrel vault with
 // transverse ribs that continue the columns, a ridge rib, and lunettes filling the end walls.
 STAGE_KITS['gothic-nave'] = Object.freeze({
-  ...STAGE_KITS['gothic-stone'],
+  ...GOTHIC_STONE_BASE,
   shell: 'nave',
   column: { r: 0.34, embed: 0.12, sides: 10, baseH: 0.5 },
   arcade: { margin: 0.32, spring: 0.36, rise: 1.05, depth: 0.45, ring: 0.26, ringOut: 0.14, seg: 8 },
@@ -95,7 +127,7 @@ STAGE_KITS['gothic-nave'] = Object.freeze({
 // The PLAZA kit (Sunshine): an open-air square whose sides are house fronts (plaza.js) over a raised pavement step,
 // paved in warm flagstone bays, lit by a hard high sun with baked cast shadows and a blue sky fill.
 STAGE_KITS['island-plaza'] = Object.freeze({
-  ...STAGE_KITS['gothic-stone'],
+  ...GOTHIC_STONE_BASE,
   shell: 'plaza', bay: 5, sun: true, rubble: null,
   cells: { wall: 0.5, trim: 0.5, floor: 0.5, ceiling: 1, gutter: 0.5, base: 0.5, roof: 0.75, step: 0.5 },
   tiles: {
@@ -208,7 +240,9 @@ export function planStage(m = {}) {
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   const kitT = m.tiles ? withRecipeTiles(kit0, kitId, m.tiles) : kit0;
   // the recipe's own proportions (tile-specs.js PROPORTION_RAILS) over the kit's: its columns, plinths, bays, doors
-  const kit = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
+  const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
+  if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
+  const kit = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall)) : kitP;
   const refId = resolveLook(m.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
   if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
@@ -269,7 +303,7 @@ export function planStage(m = {}) {
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
 export function buildStageGeometry(plan) {
-  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [];
+  const { kit } = plan, out = [], seats = [], drains = [], dressBays = [], columns = [], houses = [], labs = [], pilasters = [];
   const surf = (part, variant = 0) => {
     const t = kit.tiles[part];
     return { key: t.family ? `${t.family}-${VARIANTS[variant % 4]}` : t.key, scale: t.scale, tint: kit.tint[part], group: `stage:${part}`, turn: !!t.turn, cell: kit.cells[part] };
@@ -439,6 +473,7 @@ export function buildStageGeometry(plan) {
         const u = (F.len * k) / nBays, a = Math.max(0, u - pw / 2), b = Math.min(F.len, u + pw / 2);
         if (cuts.some(([c0, c1]) => b > c0 - kit.door.frame && a < c1 + kit.door.frame)) continue;
         wallBox(out, F, a, b, kit.plinth.h, h - kit.cornice.h, kit.pilaster.out, trim, cell);
+        pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
         if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
     });
@@ -464,7 +499,7 @@ export function buildStageGeometry(plan) {
     panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
-  return { faces: out, seats, drains, bays: dressBays, columns, houses, ...(labs.length ? { labs } : {}) };
+  return { faces: out, seats, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -622,7 +657,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' ? cryptDress(plan, geom) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;
@@ -650,7 +685,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : lights, ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...dress.dirt, ...(manifest.dirt || {}) } : manifest.dirt), sun);
+    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : lights, ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt), sun);
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
@@ -687,7 +722,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(live ? { fireSources: [...torches.map((l) => ({ kind: 'torch', at: P([l.at[0], l.at[1], l.at[2] - 0.04]), ...(Fk && Fk.torch ? { size: Fk.torch } : {}), baked: true })),
       ...braziers.map((b) => ({ kind: 'brazier', at: b.at, size: b.size, baked: true }))] } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
-    cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }],
+    cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
     bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,

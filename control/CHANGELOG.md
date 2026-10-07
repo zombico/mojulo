@@ -56,6 +56,20 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
 - **Two stage fixes.** `torch.every: 1` seated no torches (the seat rule was `k % every === 1`); it now seats one per
   pilaster, with the kits' own spacing unchanged. A sunlit kit (the plaza) given a look with no sun threw a TypeError; it
   now refuses with the looks that have one.
+- **The laws are checked on every room stage.** `lib/graph/era/law-checks.js` reads value order (torchlit wall, open
+  floor, vault, as baked colour × tile mean), materials by layer (the vault never the walls' tile nor coursed brick),
+  blends by cause, cutout cards, a focus and coloured shade off a built stage: a readout that advises, never refuses.
+  The bare gothic-stone passed 1 of 6.
+- **gothic-stone is a crypt.** A new style card (`style/crypt.js`, its principles counted in `laws.js`) and dressing
+  (`era/crypt.js`): a tomb chest on a stepped dais in the last room of the walk, set back from the way in; candle
+  clusters at its corners, each a baked light that leaves no soot; cobwebs in pilaster angles, never on two neighbours;
+  moss and grime blended by cause (the nave's blends, now `blendsByCause` for any kit); a limewash vault darker than the
+  walls; a `tomb` camera that frames the set piece from the way in. Passes 6 of 6. The nave and the plaza are cut from
+  gothic-stone's original numbers and are unchanged. Authored `lights` still replace the torches; the candles stay.
+- **Grime is a setting.** `grime: 0…1` on a room-kit recipe scales the dressing's moss and grime, the baked dirt (soot,
+  damp, age, traffic) and the crypt's own wall wear together; the crypt stands at 0.5.
+- **Brick wears.** `stone-brick` tiles take `jointDepth` (recessed mortar, grime along the arrises), `grime` (streaks
+  down from the bed joints) and `chips` (broken arrises), each 0–1; absent, every preset tile is byte-identical.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

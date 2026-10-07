@@ -19,7 +19,8 @@ const RGB = { rgb: true };
 export const TILE_RAILS = Object.freeze({
   'stone-brick': { required: ['stone', 'mortar'], keys: {
     stone: RGB, mortar: RGB, rows: int(3, 10), cols: int(2, 6), mortarThick: num(0.04, 0.18), vary: num(4, 44), grain: num(2, 20),
-    bevel: num(0, 0.4), accent: num(0, 0.3), accentDark: num(0, 60), accentLight: num(0, 50), seed: int(1, 99999) } },
+    bevel: num(0, 0.4), accent: num(0, 0.3), accentDark: num(0, 60), accentLight: num(0, 50), jointDepth: num(0, 1), grime: num(0, 1),
+    chips: num(0, 1), seed: int(1, 99999) } },
   flagstone: { required: ['stone', 'mortar'], keys: {
     stone: RGB, mortar: RGB, gravel: RGB, cells: int(3, 8), mortarThick: num(0.02, 0.1), wobble: num(0, 4), vary: num(4, 40),
     grain: num(2, 24), lost: num(0, 0.2), cracked: num(0, 0.5), seed: int(1, 99999) } },
