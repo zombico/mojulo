@@ -43,8 +43,9 @@ phrase backwards. A motif stated twelve times costs its events once.
 
 ## The orchestral shelf
 
-- Woodwinds: `flute`, `clarinet`, `oboe`, `bassoon`, and `-2` ensembles.
-- `harp` is the tuned string.
+- Woodwinds: `flute`, `clarinet`, `oboe`, `bassoon`, `-2` ensembles, and `-3`
+  solo players whose spectrum follows velocity (pick these for a lead).
+- `harp` is the tuned string; `harp-2` adds the modal soundboard.
 - Mallets: `glockenspiel`, `xylophone`, `marimba`, `vibraphone` (motor
   tremolo), `tubular-bells`, `crotales`. `celesta` already existed.
 - `timpani`: give its part `glide` and the pedal bends every mode.

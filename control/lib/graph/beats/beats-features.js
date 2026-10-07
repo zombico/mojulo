@@ -116,6 +116,7 @@ function collect(m, set) {
     if ((row.chain || []).some((f) => f && (RACK.has(f.type) || f.model === 'bbd' || f.model === 'dub' || f.model === 'gated' || f.model === 'reverse' || (f.type === 'drive' && f.model)))) set.add('fx');
     if (row.gate || row.duck || row.stutter) set.add('fx');
     if ((row.chain || []).some((f) => f && f.type === 'reverb' && f.model === 'room2')) set.add('mix');
+    if ((row.chain || []).some((f) => f && ((f.type === 'body' && f.model === 'modal') || f.type === 'sympathetic'))) set.add('timbre');
     if (row.patchParams || row.glide) set.add('voice');
     if (row.vary && (row.cue || row.gesture)) set.add('sfx');
     addGestures(set, row.cue || (row.gesture ? [row.gesture] : null));
@@ -126,13 +127,15 @@ function collect(m, set) {
       if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
       if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
       if (p && p.bend) set.add('orch');
+      if (p && (p.harmonicsLoud || p.life || p.damper || p.ringExact)) set.add('timbre');
+      if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
       if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
     }
   }
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));

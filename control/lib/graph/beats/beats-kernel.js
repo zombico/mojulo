@@ -65,6 +65,13 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //           styles. Chord symbols, numerals, grooves, modulate, power
 //           chords and band templates are pure expansions in
 //           beats-authoring.js and cost no kernel bytes.
+// Audio improvements added one more:
+//   timbre  harmonicsLoud (a wind's spectrum blended by velocity, its peak
+//           given back), the modal body (body model 'modal'), `life`, the
+//           piano's per-key unison (unisonSpread) and the sympathetic
+//           effect. The v3
+//           sections and phrase `shape` are shelf data and authoring
+//           expansions: no kernel bytes.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -74,8 +81,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -1195,9 +1202,27 @@ export function buildBeatsKernel() {
     // per-period pluckDecay; maxRing defaults to 1.1 × T60 (≤ 8 s) and the
     // buffer end fades over 30 ms so a cap never cuts a live string. stiffness
     // (0..1) adds dispersion: upper partials run sharp, the piano's stretch.
+/*@timbre{*/
+    // ringExact (opt-in): the loop's averaging filter alone loses more per
+    // second than a treble ringT60 allows (C7 rang ~0.3 s for a 1.4 s target),
+    // and loss can't add energy back. So cap pluckDamping per note where the
+    // filter's own loss at the fundamental would overrun T60 (keeping 20 % for loss).
+    function ringDamp(patch, hz, sr) {
+      const d = patch.pluckDamping == null ? 0.5 : patch.pluckDamping, rt = patch.ringT60;
+      if (!patch.ringExact || rt == null) return d;
+      const T = Array.isArray(rt) ? rt[0] * Math.pow(rt[1] / rt[0], Math.max(0, Math.min(1, Math.log2(hz / 65.41) / 5))) : rt;
+      const g = Math.pow(10, -3 / (hz * T)), X = 0.8 * (1 - g * g) / (2 * (1 - Math.cos(2 * Math.PI * hz / sr)));
+      return X >= 0.25 ? d : Math.min(d, 1 - Math.sqrt(1 - 4 * X));
+    }
+/*|
+@*/
     function tunedString(hz, patch) {
       const sr = ctx.sampleRate, D = sr / hz, w = 2 * Math.PI * hz / sr;
+/*@timbre{*/
+      const damp = ringDamp(patch, hz, sr);
+/*|
       const damp = patch.pluckDamping == null ? 0.5 : patch.pluckDamping;
+@*/
       const pick = patch.pick == null ? 0 : patch.pick;
       const a = 1 - damp / 2, b = damp / 2;
       const apDelay = (c) => (Math.atan2(Math.sin(w), c + Math.cos(w)) - Math.atan2(c * Math.sin(w), 1 + c * Math.cos(w))) / w;
@@ -1300,6 +1325,37 @@ export function buildBeatsKernel() {
       return buf;
     }
 
+/*@timbre{*/
+    // modal body (opt-in: body model 'modal'): a wooden body is dozens of
+    // close modes, not three broad peaks. The impulse response is `modes`
+    // seeded decaying sinusoids, log-spread over [lo, hi] Hz, each weighted by
+    // the resonance set's envelope (Lorentzian peaks over a floor) and ringing
+    // for a time that falls with frequency (`ring` s at 100 Hz). L/R from
+    // independent seeds: the body is also the instrument's width. Convolved
+    // under the dry signal like the parallel body: linear, so per part.
+    function modalBodyImpulse(f, seed) {
+      const sr = ctx.sampleRate, N = Math.max(4, Math.min(160, f.modes || 64));
+      const lo = f.lo || 80, hi = f.hi || 5000, ring = f.ring || 0.18;
+      const res = f.resonances || [{ freq: 110, q: 8, gain: 1 }, { freq: 200, q: 6, gain: 0.8 }, { freq: 420, q: 4, gain: 0.55 }];
+      const env = (x) => { let e = 0.12; for (const r of res) { const w = (x - r.freq) / ((r.freq || 1) / (r.q || 4)); e += (r.gain == null ? 1 : r.gain) / (1 + w * w); } return e; };
+      const len = Math.floor(sr * Math.min(1.5, ring * 3));
+      const buf = ctx.createBuffer(2, len, sr);
+      for (let c = 0; c < 2; c++) {
+        const rng = mulberry32(hashSeed(seed || 7, 0xB0D1 + c));
+        const d = buf.getChannelData(c);
+        for (let k = 0; k < N; k++) {
+          const fk = lo * Math.pow(hi / lo, (k + rng()) / N);
+          const a = env(fk) * (0.5 + rng() * 0.5) * (rng() < 0.5 ? -1 : 1);
+          const T = ring * Math.sqrt(100 / fk), w = 2 * Math.PI * fk / sr, dec = Math.exp(-6.9078 / (T * sr));
+          const n = Math.min(len, Math.ceil(T * sr * 1.2));
+          let g = a;
+          for (let i = 0; i < n; i++) { d[i] += g * Math.sin(w * i); g *= dec; }
+        }
+      }
+      return buf;
+    }
+/*|
+@*/
 /*@anthem{*/
     // plate (anthem styles): a steel plate's reverb — dense from the first
     // millisecond (no discrete early reflections: the plate's modes are
@@ -1545,6 +1601,18 @@ export function buildBeatsKernel() {
           // acoustic body resonance: parallel bandpass resonators (air / top plate /
           // box) summed UNDER the dry string — the hollow wooden warmth. Linear, so
           // filtering the summed part equals filtering each note (cheaper, identical).
+/*@timbre{*/
+          if (f.model === 'modal') {
+            const mx = ctx.createGain(), dr = ctx.createGain(), wt = ctx.createGain();
+            head.connect(dr); dr.connect(mx);
+            const cv = ctx.createConvolver(); cv.buffer = modalBodyImpulse(f, seed);
+            wt.gain.value = f.mix == null ? 0.5 : f.mix;
+            head.connect(cv); cv.connect(wt); wt.connect(mx);
+            head = mx;
+            continue;
+          }
+/*|
+@*/
           const mix = ctx.createGain();
           const dry = ctx.createGain(); dry.gain.value = 1; head.connect(dry); dry.connect(mix);
           const wetAmt = f.mix == null ? 0.32 : f.mix;
@@ -1556,6 +1624,17 @@ export function buildBeatsKernel() {
             head.connect(bp); bp.connect(g); g.connect(mix);
           }
           head = mix;
+/*@timbre{*/
+        } else if (t === 'sympathetic') {
+          // the pedal-down halo: the part convolved with the undamped strings, under the dry.
+          const mx = ctx.createGain(), dr = ctx.createGain(), wt = ctx.createGain();
+          head.connect(dr); dr.connect(mx);
+          const cv = ctx.createConvolver(); cv.buffer = sympatheticImpulse(f, seed);
+          wt.gain.value = f.mix == null ? 0.25 : f.mix;
+          head.connect(cv); cv.connect(wt); wt.connect(mx);
+          head = mx;
+/*|
+@*/
         } else if (t === 'drive') {
           // electric overdrive: push the signal into a computed soft-clip curve, then
           // a "cabinet" low-pass rolls off the fizz. amount 0→1 clean→fuzzy; pre-gain
@@ -1734,6 +1813,97 @@ export function buildBeatsKernel() {
       if (!waves.has(k)) waves.set(k, ctx.createPeriodicWave(new Float32Array(h.length + 1), new Float32Array([0].concat(h))));
       return waves.get(k);
     }
+/*@timbre{*/
+    // a table's peak (the factor PeriodicWave normalizes away), sampled.
+    const peaks = new Map();
+    function harmonicPeak(h) {
+      const k = h.join(',');
+      if (!peaks.has(k)) {
+        let p = 0;
+        for (let j = 0; j < 1024; j++) { let y = 0; const th = 2 * Math.PI * j / 1024; for (let i = 0; i < h.length; i++) y += h[i] * Math.sin((i + 1) * th); p = Math.max(p, Math.abs(y)); }
+        peaks.set(k, p || 1);
+      }
+      return peaks.get(k);
+    }
+    // life (opt-in): a held note is never held still. Breath or bow pressure
+    // wanders — slowly, seeded per note — and level, brightness and vibrato
+    // depth move with it together, the coupling a looped sample can't make.
+    // lifeWalk → [[time, v]] with v in [−1, 1], from the end of the attack
+    // through the release; mean-reverting, `rate` points a second, ≤ 240.
+    function lifeOf(patch) { const L = patch.life === true ? {} : patch.life; return { depth: L.depth == null ? 1.5 : L.depth, bright: L.bright == null ? 4 : L.bright, follow: L.follow == null ? 0.5 : L.follow, vib: L.vib == null ? 0.25 : L.vib, rate: L.rate == null ? 3 : L.rate, shelf: L.shelf }; }
+    function lifeWalk(patch, t, dur, seed) {
+      const L = lifeOf(patch), rng = mulberry32(hashSeed(seed, 0x11FE));
+      const from = t + (patch.attack || 0.005) + (patch.decay || 0.1) * 0.5, to = t + dur + (patch.release == null ? 0.2 : patch.release);
+      const pts = [[t, 0], [from, 0]];
+      let v = 0;
+      for (let k = 1; k <= 240 && from + k / L.rate < to; k++) { v = Math.max(-1, Math.min(1, 0.7 * v + 0.55 * (rng() * 2 - 1))); pts.push([from + k / L.rate, v]); }
+      return pts;
+    }
+    // unisonSpread (opt-in, string voice with pluckDetune): a piano's unison
+    // strings are never tuned alike, and each key is out its own way. Per KEY
+    // (seeded by pitch, so a key is the same key every time it is struck): the
+    // detune between its strings ± spread, and the second string's ring up to
+    // 20% shorter, so every key beats and decays at its own rate. `life` scales
+    // it (the dial's `amount`; life: false is the uniform, mechanical piano).
+    function keyUnison(patch, hz) {
+      const L = patch.life === true ? {} : patch.life || null;
+      const amt = L ? (L.amount == null ? 1 : L.amount) : 0;
+      const rng = mulberry32(hashSeed(0x9A40, Math.round(hz * 16)));
+      const u = rng() * 2 - 1, v = rng();
+      const cents = Math.max(0.2, patch.pluckDetune * (1 + (patch.unisonSpread || 0) * amt * u));
+      const ring = 1 - Math.min(1, 0.2 * amt) * v;
+      const rt = patch.ringT60;
+      const p2 = ring === 1 || rt == null ? patch : Object.assign({}, patch, { ringT60: Array.isArray(rt) ? rt.map((x) => Math.round(x * ring * 1000) / 1000) : Math.round(rt * ring * 1000) / 1000 });
+      return { cents: cents, p2: p2 };
+    }
+    // sympathetic (chain effect): the undamped strings of a piano with the
+    // pedal down ring along with whatever sounds — a linear system, so the
+    // whole halo is one impulse: every key from `lo` to `hi` (MIDI) with its
+    // first partials (stretched a little), seeded phases, each ringing for its
+    // register's T60 (`decay` s in the bass falling to a fifth of it in the
+    // treble), cut at `length` s with a fade. Cached per settings.
+    const symCache = new Map();
+    function sympatheticImpulse(f, seed) {
+      const sr = ctx.sampleRate, lo = f.lo == null ? 21 : f.lo, hi = f.hi == null ? 108 : f.hi, P = Math.max(1, Math.min(8, f.partials || 3));
+      const T0 = f.decay == null ? 8 : f.decay, len = Math.floor(sr * Math.min(6, f.length == null ? 3 : f.length));
+      const key = [sr, lo, hi, P, T0, len, seed || 7].join('|');
+      if (symCache.has(key)) return symCache.get(key);
+      const buf = ctx.createBuffer(2, len, sr);
+      // both sides in one pass: R is each mode at its own seeded phase offset
+      // (a fixed linear mix of the same phasor), so the halo is wide for the
+      // price of one channel. A mode stops once it has decayed below −80 dB.
+      const L = buf.getChannelData(0), R = buf.getChannelData(1), rng = mulberry32(hashSeed(seed || 7, 0x5A1));
+      for (let m = lo; m <= hi; m++) {
+        const f0 = 440 * Math.pow(2, (m - 69) / 12), T = T0 * Math.pow(0.2, (m - lo) / Math.max(1, hi - lo));
+        for (let n = 1; n <= P; n++) {
+          const fn = n * f0 * Math.sqrt(1 + 0.0004 * n * n);
+          if (fn > sr * 0.45) break;
+          const w = 2 * Math.PI * fn / sr, ph = rng() * 2 * Math.PI, off = rng() * 2 * Math.PI;
+          const dec = Math.exp(-6.9078 / (T * sr / Math.sqrt(n))), co = Math.cos(off), so = Math.sin(off);
+          let re = Math.cos(ph), im = Math.sin(ph), g = (0.5 + 0.5 * rng()) / n;
+          const cw = Math.cos(w), sw = Math.sin(w), stop = g * 1e-4;
+          for (let i = 0; i < len && g > stop; i++) { L[i] += g * im; R[i] += g * (im * co + re * so); const r2 = re * cw - im * sw; im = re * sw + im * cw; re = r2; g *= dec; }
+        }
+      }
+      const nf = Math.min(len, Math.round(sr * 0.25));
+      for (let j = 0; j < nf; j++) { const k = 1 - (j + 1) / nf; L[len - nf + j] *= k; R[len - nf + j] *= k; }
+      symCache.set(key, buf);
+      return buf;
+    }
+    // harmonicsLoud (opt-in): the spectrum at full force. A note's table is
+    // `harmonics` (pp) blended toward it by velocity, in twelve steps so the
+    // wave cache holds: a wind or reed played harder gains upper partials, and
+    // with them energy. PeriodicWave normalizes each table's peak, so the voice
+    // gives the peak back (harmonicPeak, a gain per oscillator): the
+    // fundamental stays at 1 and the added partials are part of the crescendo.
+    function noteHarmonics(patch, vel) {
+      const b = Math.round(12 * Math.max(0, Math.min(1, ((vel == null ? 0.8 : vel) - 0.25) / 0.65))) / 12;
+      const a = patch.harmonics, z = patch.harmonicsLoud, n = Math.max(a.length, z.length), h = [];
+      for (let i = 0; i < n; i++) h.push(Math.round(((a[i] || 0) * (1 - b) + (z[i] || 0) * b) * 1e4) / 1e4);
+      return h;
+    }
+/*|
+@*/
 /*|
 @*/
 /*@va{*/
@@ -1996,6 +2166,29 @@ export function buildBeatsKernel() {
       }
 /*|
 @*/
+/*@timbre{*/
+      // life: pressure → level (a gain) and brightness (a high shelf), one walk;
+      // a hairpin (`amp`, the dynamics lane) brightens the shelf as it grows.
+      // (a struck or plucked string has no pressure to wander: there `life` scales unisonSpread.)
+      const lw = patch.life && patch.voice !== 'string' ? lifeWalk(patch, t, dur, key == null ? hashSeed(Math.round(hz * 16), Math.round(t * 1e4)) : key) : null;
+      if (lw) {
+        const L = lifeOf(patch), A = patch.amp;
+        const laneDb = (x) => {
+          if (!A || !A.length || !L.follow) return 0;
+          let g = A[A.length - 1][1];
+          for (let i = 1; i < A.length; i++) if (x - t <= A[i][0]) { const [s0, g0] = A[i - 1], [s1, g1] = A[i]; g = g0 + (g1 - g0) * Math.max(0, Math.min(1, (x - t - s0) / ((s1 - s0) || 1))); break; }
+          return 20 * Math.log10(Math.max(1e-4, g) / Math.max(1e-4, A[0][1]));
+        };
+        const lg = ctx.createGain(), sh = ctx.createBiquadFilter();
+        // the shelf sits at the 4th partial unless set: brightness is the upper partials of THIS note.
+        sh.type = 'highshelf'; sh.frequency.value = L.shelf || Math.max(600, Math.min(6000, hz * 4));
+        lg.gain.setValueAtTime(1, t); sh.gain.setValueAtTime(L.follow * laneDb(t), t);
+        for (const [x, v] of lw.slice(1)) { lg.gain.linearRampToValueAtTime(dbGain(L.depth * v), x); sh.gain.linearRampToValueAtTime(L.bright * v + L.follow * laneDb(x), x); }
+        sh.connect(lg); lg.connect(dest || master);
+        dest = sh;
+      }
+/*|
+@*/
 /*@va{*/
       // lfo slots aimed at amp (a gated/tremolo level) or pan (an auto-pan) wrap the whole voice.
       if (patch.lfo) for (const l of [].concat(patch.lfo)) {
@@ -2014,6 +2207,27 @@ export function buildBeatsKernel() {
       const nk = key == null ? hashSeed(Math.round(hz * 16), Math.round(t * 1e4)) : key;
       // vary (opt-in): noise layers enter the long buffer at a per-hit offset.
       const vu = patch.vary ? unit(hashSeed(nk, 0x4015E)) : null;
+/*|
+@*/
+/*@timbre{*/
+      // damper (a piano's): keys above `above` (MIDI) have none and ring on after
+      // the key lifts; below, the felt grips less toward the bass (release up to
+      // `bass`×) and lands with a soft low thud at key-off.
+      if (patch.damper && voice === 'string') {
+        const D = patch.damper, m = 69 + 12 * Math.log2(hz / 440), r = patch.release == null ? 0.2 : patch.release;
+        if (m > (D.above == null ? 88 : D.above) + 0.5) patch = Object.assign({}, patch, { release: D.ring == null ? 2.5 : D.ring });
+        else {
+          const lo = Math.max(0, Math.min(1, (72 - m) / 51));
+          patch = Object.assign({}, patch, { release: r * (1 + ((D.bass == null ? 2 : D.bass) - 1) * lo) });
+          if (D.thud !== false) {
+            const k = t + dur, nz = noiseSrc(k, unit(hashSeed(nk, 0xDA4)));
+            const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = D.tone == null ? 260 : D.tone; lp.Q.value = 0.7;
+            const tg = ctx.createGain(), pk = dbGain(D.thud == null ? -34 : D.thud) * (0.4 + 0.6 * (vel == null ? 0.8 : vel));
+            tg.gain.setValueAtTime(0.0001, k); tg.gain.exponentialRampToValueAtTime(pk, k + 0.004); tg.gain.exponentialRampToValueAtTime(0.0001, k + 0.06);
+            nz.connect(lp); lp.connect(tg); tg.connect(out); nz.stop(k + 0.08);
+          }
+        }
+      }
 /*|
 @*/
       const { node: env, end } = envGain(t, dur, patch, vel);
@@ -2203,10 +2417,18 @@ export function buildBeatsKernel() {
           // dual pluck (amp-voice spike): two strings a few cents apart. Alone the
           // beating is subtle; through a clip stage the difference tones become the
           // growl — a lone harmonic string gives intermodulation nothing to chew.
+/*@timbre{*/
+          const ku = patch.unisonSpread ? keyUnison(patch, hz) : null, cents = ku ? ku.cents : patch.pluckDetune;
+/*|
           const cents = patch.pluckDetune;
+@*/
           const g1 = ctx.createGain(); g1.gain.value = 0.6;
 /*@anthem{*/
+/*@timbre{*/
+          const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * hk * Math.pow(2, -cents / 2400), ku ? ku.p2 : patch);
+/*|
           const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * hk * Math.pow(2, -cents / 2400), patch);
+@*/
 /*|
           const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * Math.pow(2, -cents / 2400), patch);
 @*/
@@ -2367,6 +2589,16 @@ export function buildBeatsKernel() {
           const g = ctx.createGain();
           g.gain.setValueAtTime(0, t);
           g.gain.linearRampToValueAtTime(vd, t + vdel);
+/*@timbre{*/
+          // life: the vibrato breathes with the pressure walk (depth, and a
+          // little rate), once it has bloomed.
+          if (lw && lifeOf(patch).vib) {
+            const k = lifeOf(patch).vib;
+            lfo.frequency.setValueAtTime(rate, t);
+            for (const [x, v] of lw) if (x > t + vdel) { g.gain.linearRampToValueAtTime(vd * (1 + k * v), x); lfo.frequency.linearRampToValueAtTime(rate * (1 + 0.12 * k * v), x); }
+          }
+/*|
+@*/
           lfo.connect(g); lfo.start(t); lfo.stop(end);
           return g;
         };
@@ -2394,7 +2626,16 @@ export function buildBeatsKernel() {
 /*@orch{*/
           // harmonics: a computed PeriodicWave (sine amplitudes 1..N) — the
           // flute's near-sine, the clarinet's odd series, the reeds' narrow pulse.
+/*@timbre{*/
+          let hg = null;
+          if (patch.harmonics && patch.harmonicsLoud) {
+            const h = noteHarmonics(patch, vel);
+            osc.setPeriodicWave(harmonicWave(h));
+            hg = ctx.createGain(); hg.gain.value = harmonicPeak(h); osc.connect(hg);
+          } else if (patch.harmonics) osc.setPeriodicWave(harmonicWave(patch.harmonics));
+/*|
           if (patch.harmonics) osc.setPeriodicWave(harmonicWave(patch.harmonics));
+@*/
 /*|
 @*/
 /*@voice{*/
@@ -2454,8 +2695,13 @@ export function buildBeatsKernel() {
             const off = unit(hashSeed(nk, 0x91A + u)) * 0.045, pg = ctx.createGain();
             pg.gain.setValueAtTime(0, t); pg.gain.setValueAtTime(0, t + off);
             pg.gain.linearRampToValueAtTime(1, t + off + 0.02 + (patch.attack || 0) * 0.5);
+/*@timbre{*/
+            (hg || osc).connect(pg); pg.connect(vdst);
+          } else (hg || osc).connect(vdst);
+/*|
             osc.connect(pg); pg.connect(vdst);
           } else osc.connect(vdst);
+@*/
 /*|
           osc.connect(patch.width && n > 1 ? panned(mix, spread * patch.width) : mix);
 @*/

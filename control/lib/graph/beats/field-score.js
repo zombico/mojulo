@@ -39,11 +39,11 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
 // answer each other); brass: an adventurous call or a doubling; pad: distant held upper notes; motion: an
 // adventurous ostinato; kit: the percussion.
 export const PALETTES = {
-  orchestral: { colour: ['harp', 'celesta', 'violin-2'], ground: ['cello', 'contrabass'], lead: ['flute', 'oboe', 'clarinet'], brass: ['french-horn', 'trumpet'], pad: ['violin-2', 'viola-2'], motion: ['violin-2', 'cello'], kit: ['orchestral-perc'] },
-  folk: { colour: ['nylon-guitar', 'classical-guitar', 'banjo', 'acoustic-guitar', 'harp'], ground: ['upright-bass', 'cello'], lead: ['fiddle', 'harmonica', 'flute', 'clarinet'], brass: ['french-horn', 'trumpet'], pad: ['violin-2', 'viola-2'], motion: ['acoustic-guitar', 'banjo', 'fiddle'], kit: ['brush-kit', 'orchestral-perc'] },
-  chamber: { colour: ['marimba', 'vibraphone', 'music-box', 'celesta', 'harp'], ground: ['contrabass', 'cello', 'bassoon'], lead: ['clarinet', 'oboe', 'flute', 'vibraphone'], brass: ['french-horn'], pad: ['viola-2', 'violin-2'], motion: ['marimba', 'violin-2'], kit: ['orchestral-perc', 'brush-kit'] },
-  'synth-era': { colour: ['fm-bell', 'trance-pluck', 'rhodes', 'fm-keys'], ground: ['poly-strings', 'string-machine', 'fm-bass'], lead: ['flute', 'fm-keys', 'oboe', 'clarinet'], brass: ['fm-brass'], pad: ['poly-strings', 'string-machine'], motion: ['trance-pluck', 'fm-keys'], kit: ['drum-machine-88', 'orchestral-perc'] },
-  'silk-road': { colour: ['shamisen', 'harp', 'nylon-guitar'], ground: ['cello', 'contrabass'], lead: ['erhu', 'flute', 'oboe'], brass: ['french-horn'], pad: ['viola-2', 'violin-2'], motion: ['shamisen', 'violin-2'], kit: ['orchestral-perc'] },
+  orchestral: { colour: ['harp-2', 'celesta', 'violin-3'], ground: ['cello-3', 'contrabass-3'], lead: ['flute-3', 'oboe-3', 'clarinet-3'], brass: ['french-horn-3', 'trumpet-3'], pad: ['violin-3', 'viola-3'], motion: ['violin-3', 'cello-3'], kit: ['orchestral-perc'] },
+  folk: { colour: ['nylon-guitar-2', 'classical-guitar-2', 'banjo', 'acoustic-guitar-2', 'harp-2'], ground: ['upright-bass', 'cello-3'], lead: ['fiddle', 'harmonica', 'flute-3', 'clarinet-3'], brass: ['french-horn-3', 'trumpet-3'], pad: ['violin-3', 'viola-3'], motion: ['acoustic-guitar-2', 'banjo', 'fiddle'], kit: ['brush-kit', 'orchestral-perc'] },
+  chamber: { colour: ['marimba', 'vibraphone', 'music-box', 'celesta', 'harp-2'], ground: ['contrabass-3', 'cello-3', 'bassoon-3'], lead: ['clarinet-3', 'oboe-3', 'flute-3', 'vibraphone'], brass: ['french-horn-3'], pad: ['viola-3', 'violin-3'], motion: ['marimba', 'violin-3'], kit: ['orchestral-perc', 'brush-kit'] },
+  'synth-era': { colour: ['fm-bell', 'trance-pluck', 'rhodes', 'fm-keys'], ground: ['poly-strings', 'string-machine', 'fm-bass'], lead: ['flute-3', 'fm-keys', 'oboe-3', 'clarinet-3'], brass: ['fm-brass'], pad: ['poly-strings', 'string-machine'], motion: ['trance-pluck', 'fm-keys'], kit: ['drum-machine-88', 'orchestral-perc'] },
+  'silk-road': { colour: ['shamisen', 'harp-2', 'nylon-guitar-2'], ground: ['cello-3', 'contrabass-3'], lead: ['erhu', 'flute-3', 'oboe-3'], brass: ['french-horn-3'], pad: ['viola-3', 'violin-3'], motion: ['shamisen', 'violin-3'], kit: ['orchestral-perc'] },
 };
 const FLAVOURS = Object.keys(PALETTES);
 // a pitched part's playing pattern by role, per instrument family.
@@ -101,8 +101,8 @@ export const SCORE_MOODS = {
   // story cues
   prayer: { energy: 'idyllic', role: 'story', families: ['chorale', 'plagal-sway'], meters: ['4/4', '3/4'], ground: ['pedal'], perc: ['none'], slow: true, padAlways: true, tempo: { '4/4': [66, 80], '3/4': [72, 88] } },
   sorrow: { energy: 'idyllic', role: 'story', families: ['lament', 'aeolian-calm'], meters: ['4/4', '3/4'], ground: ['drone', 'pedal'], perc: ['none'], slow: true, padAlways: true, tempo: { '4/4': [66, 80], '3/4': [72, 88] } },
-  tension: { energy: 'adventurous', role: 'story', families: ['phrygian-ridge', 'tritone-road'], meters: ['4/4', '6/8'], ground: ['pedal'], perc: ['none'], gear: [0], motion: 'cello', tempo: { '4/4': [100, 112], '6/8': [104, 116] } },
-  betrayal: { energy: 'adventurous', role: 'story', families: ['shock', 'phrygian-ridge'], meters: ['4/4'], ground: ['root'], perc: ['none'], gear: [1], motion: 'cello' },
+  tension: { energy: 'adventurous', role: 'story', families: ['phrygian-ridge', 'tritone-road'], meters: ['4/4', '6/8'], ground: ['pedal'], perc: ['none'], gear: [0], motion: 'cello-3', tempo: { '4/4': [100, 112], '6/8': [104, 116] } },
+  betrayal: { energy: 'adventurous', role: 'story', families: ['shock', 'phrygian-ridge'], meters: ['4/4'], ground: ['root'], perc: ['none'], gear: [1], motion: 'cello-3' },
   triumph: { energy: 'processional', role: 'story', families: ['festive-mixo', 'brass-hymn'], meters: ['4/4'], ground: ['root'], perc: ['processional', 'march'], gear: [2, 5], brassLead: true, kit: 'orchestral-perc' },
 };
 const TEMPO = { idyllic: { '4/4': [76, 100], '3/4': [84, 108], '6/8': [78, 96] }, adventurous: { '4/4': [100, 124], '6/8': [104, 128] }, processional: { '4/4': [80, 96] } };
@@ -256,8 +256,8 @@ export function fieldScore(mood, { seed, identity } = {}) {
   const gStyle = R.pick(M.ground);
   // a walking bass needs a bass (a cello cannot reach its low fifths); low brass may take an adventurous root.
   const BASS = { folk: 'upright-bass', 'synth-era': 'fm-bass' };
-  const gInst = gStyle === 'root-fifth' ? BASS[I.flavour] || 'contrabass'
-    : adv && gStyle === 'root' && !BASS[I.flavour] && R.chance(0.5) ? 'tuba' : I.ground;
+  const gInst = gStyle === 'root-fifth' ? BASS[I.flavour] || 'contrabass-3'
+    : adv && gStyle === 'root' && !BASS[I.flavour] && R.chance(0.5) ? 'tuba-3' : I.ground;
   const ground = { name: 'ground', instrument: gInst, bars: [2, bars] };
   if (gStyle === 'drone' || gStyle === 'pedal') Object.assign(ground, { chordVoice: SUSTAIN_GROUND.test(gInst) ? 'pedal' : gStyle, hold: 1, vel: 0.32, octave: /contrabass|upright|fm-bass/.test(gInst) ? 1 : 2 });
   else if (gStyle === 'root-fifth') Object.assign(ground, { chordVoice: 'root-fifth', art: /contrabass|upright|cello/.test(gInst) ? 'pizz' : undefined, vel: 0.5, ...(meter === '4/4' ? {} : { rhythm: steps === 12 ? [0.85, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0] : 'half' }) });
@@ -297,10 +297,11 @@ export function fieldScore(mood, { seed, identity } = {}) {
     if (g !== 'A' && g !== 'B') return;
     const inst = g === 'A' ? leadA : leadB;
     const pr = rngOf('phrase', seed, id.seed, mood, gi);
-    leadEvents[g].push(...phrase(inst, gi * 4, pr, adv ? 0.66 : 0.56, groupShift(gi)));
+    // base velocity leaves the phrase arch (`shape`) its headroom under the energy's ceiling.
+    leadEvents[g].push(...phrase(inst, gi * 4, pr, adv ? 0.62 : 0.52, groupShift(gi)));
   });
-  parts.push({ name: 'leadA', instrument: leadA, events: leadEvents.A });
-  if (leadEvents.B.length) parts.push({ name: 'leadB', instrument: leadB, events: leadEvents.B });
+  parts.push({ name: 'leadA', instrument: leadA, events: leadEvents.A, shape: 'phrase' });
+  if (leadEvents.B.length) parts.push({ name: 'leadB', instrument: leadB, events: leadEvents.B, shape: 'phrase' });
 
   // adventurous: the last A doubled an octave down by a second voice, when it fits its range
   if (adv) {
@@ -310,7 +311,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
     const final = leadEvents.A.filter((e) => e[0] >= last - 1e-9);
     for (const off of [-12, 0]) {
       const notes = final.map((e) => midiOf(e[1]) + off);
-      if (notes.every((x) => x >= dlo && x <= dhi)) { parts.push({ name: 'double', instrument: dInst, events: final.map((e, i) => [e[0], nameOf(notes[i]), e[2], r3(e[3] * 0.85)]) }); break; }
+      if (notes.every((x) => x >= dlo && x <= dhi)) { parts.push({ name: 'double', instrument: dInst, events: final.map((e, i) => [e[0], nameOf(notes[i]), e[2], r3(e[3] * 0.85)]), shape: 'phrase' }); break; }
     }
   }
 

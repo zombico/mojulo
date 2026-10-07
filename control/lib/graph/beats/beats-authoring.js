@@ -700,6 +700,10 @@ function checkGroove(p, w, errors, m = {}) {
 }
 export function checkAuthoring(m, errors) {
   if (!isObj(m)) return;
+  const lifeOk = (v) => v === undefined || (Number.isFinite(v) && v >= 0 && v <= 2);
+  if (!lifeOk(m.life)) errors.push('life must be in [0, 2]: how much held notes breathe (0 mechanical, 1 natural, 2 more)');
+  const lk = lifeRows(m);
+  if (lk) m[lk].forEach((r, i) => { if (isObj(r) && !lifeOk(r.life)) errors.push(`${lk}[${i}].life must be in [0, 2] (0 holds this row still; above 0 breathes, on any instrument)`); });
   // a timed gesture takes dur (seconds) OR bars / beats (at the recipe's tempo).
   for (const [i, r] of (m.parts || m.tracks || []).entries()) {
     const list = isObj(r) ? cueList(r) : null;
@@ -745,6 +749,14 @@ export function checkAuthoring(m, errors) {
         if (!(typeof p.double === 'boolean' || (isObj(p.double) && (p.double.offset === undefined || (Number.isFinite(p.double.offset) && p.double.offset >= 3 && p.double.offset <= 60)) && (p.double.pan === undefined || (Number.isFinite(p.double.pan) && Math.abs(p.double.pan) <= 1))))) errors.push(`${w}.double must be true | false or { offset?: ms in [3, 60], pan?: −1..1 } (a second take, mirrored and a little late)`);
         else if (p.double && (kitOf(p) || isCuePart(p))) errors.push(`${w}.double is for a pitched part (the rhythm guitars), not a kit or a cue part`);
       }
+      if (p.shape !== undefined) {
+        checkShape(p.shape, w, errors);
+        if (p.shape !== false && isCuePart(p)) errors.push(`${w}.shape is for a pitched or kit part with notes, not a cue part`);
+      }
+      if (p.touch !== undefined) {
+        checkTouch(p.touch, w, errors);
+        if (p.touch !== false && (kitOf(p) || isCuePart(p))) errors.push(`${w}.touch is for a pitched part that plays chords (a piano), not a kit or a cue part`);
+      }
       if (p.power !== undefined) {
         if (typeof p.power !== 'boolean') errors.push(`${w}.power must be true | false (every single note becomes root + fifth + octave)`);
         else if (p.power && (kitOf(p) || isCuePart(p))) errors.push(`${w}.power is for a pitched part (a guitar), not a kit or a cue part`);
@@ -761,10 +773,110 @@ export function checkAuthoring(m, errors) {
   }
 }
 
+// ── phrase shaping (audio improvements): a part's `shape` lowers to velocities ─
+// A player phrases; a sequencer doesn't. Within each `bars`-long phrase a note's
+// velocity is scaled by an arch (rising to 60% of the phrase, then falling),
+// its height against the phrase's mean pitch (higher a touch louder), its
+// length against the phrase's median (long over short), and the phrase's last
+// onset is eased. Each term is a ± fraction, and the phrase's mean scale is
+// held at 1 (level-neutral). No dice, so no seed. Array events
+// only: an object event may carry a `dyn` mark, which is the writer's word.
+export const SHAPE_DEFAULTS = Object.freeze({ bars: 4, arch: 0.12, contour: 0.08, contrast: 0.05, end: 0.1 });
+const SHAPE_LIMITS = { arch: 0.5, contour: 0.5, contrast: 0.5, end: 0.5 };
+function shapeOpts(s) { return s === 'phrase' || s === true ? { ...SHAPE_DEFAULTS } : { ...SHAPE_DEFAULTS, ...s }; }
+function checkShape(s, w, errors) {
+  if (s === 'phrase' || s === true || s === false) return;
+  const ok = isObj(s) && Object.keys(s).every((k) => k in SHAPE_DEFAULTS)
+    && (s.bars === undefined || (Number.isInteger(s.bars) && s.bars >= 1 && s.bars <= 32))
+    && Object.entries(SHAPE_LIMITS).every(([k, hi]) => s[k] === undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= hi));
+  if (!ok) errors.push(`${w}.shape must be 'phrase' or { bars?: 1–32, arch?, contour?, contrast?, end?: 0–0.5 } (velocity phrasing: an arch per phrase, higher notes louder, long over short, the last note eased)`);
+}
+function shapeEvents(list, s, sc) {
+  const o = shapeOpts(s);
+  const bar0 = (k) => sc.q(`${k}:0:0`);
+  const rows = [];
+  list.forEach((ev, i) => {
+    if (!Array.isArray(ev) || !isTime(ev[0])) return;
+    const q = sc.q(ev[0]);
+    const dq = ev[2] == null ? 1 : sc.len(ev[2], q);
+    const ms = [].concat(ev[1]).map(midiOf).filter((x) => x != null);
+    let b = 0;
+    while (b < 4096 && bar0(b + 1) <= q + 1e-9) b++;
+    rows.push({ i, q, dq, pitch: ms.length ? ms.reduce((a, x) => a + x, 0) / ms.length : null, g: Math.floor(b / o.bars) });
+  });
+  const out = list.slice();
+  const groups = new Map();
+  for (const r of rows) (groups.get(r.g) || groups.set(r.g, []).get(r.g)).push(r);
+  for (const [g, rs] of groups) {
+    const q0 = bar0(g * o.bars), q1 = bar0((g + 1) * o.bars), span = q1 - q0 || 1;
+    const pitched = rs.filter((r) => r.pitch != null);
+    const mean = pitched.length ? pitched.reduce((a, r) => a + r.pitch, 0) / pitched.length : 0;
+    const lens = rs.map((r) => r.dq).sort((a, b) => a - b), median = lens[Math.floor(lens.length / 2)] || 1;
+    const last = Math.max(...rs.map((r) => r.q));
+    const ks = rs.map((r) => {
+      const x = Math.min(1, Math.max(0, (r.q - q0) / span));
+      const bump = x <= 0.6 ? x / 0.6 : (1 - x) / 0.4;
+      let k = 1 + o.arch * (2 * bump - 1);
+      if (r.pitch != null) k *= 1 + o.contour * Math.max(-1, Math.min(1, (r.pitch - mean) / 12));
+      k *= 1 + o.contrast * Math.max(-1, Math.min(1, Math.log2(r.dq / median)));
+      if (Math.abs(r.q - last) < 1e-9 && rs.length > 1) k *= 1 - o.end;
+      return k;
+    });
+    // level-neutral: the phrase's mean scale is 1, so shaping moves notes
+    // against each other, not the part against the mix.
+    const norm = ks.reduce((a, k) => a + k, 0) / ks.length || 1;
+    rs.forEach((r, j) => {
+      const ev = list[r.i].slice();
+      ev[3] = Math.round(Math.max(0.05, Math.min(1, (ev[3] == null ? 0.8 : ev[3]) * ks[j] / norm)) * 1000) / 1000;
+      out[r.i] = ev;
+    });
+  }
+  return out;
+}
+
 // ── pure articulations: a rake and a rest stroke lower to plain events ───────
 // rake { n?: 1–4 }: muted grace notes (a sixteenth of a beat apart) raked into
 // the note from the strings below; rest: the rest stroke, louder and held.
 const artType = (a) => (typeof a === 'string' ? a : isObj(a) ? a.type : undefined);
+// ── a pianist's touch (audio improvements): a part's `touch` lowers a chord to
+// one event per note. Hands voice a chord: the top note brought out (`top`), the
+// inner notes under it (`inner`), the bass a little present (`bass`), each a ±
+// fraction with the chord's mean scale held at 1 (level-neutral). The notes
+// land a few ms apart from the bass up (`roll` seconds a step, seeded ±40 %),
+// converted at the recipe bpm. Array events only; an event with an
+// articulation stays whole (the articulation is the writer's word).
+export const TOUCH_DEFAULTS = Object.freeze({ top: 0.15, inner: 0.1, bass: 0.05, roll: 0.008 });
+const TOUCH_LIMITS = { top: 0.5, inner: 0.5, bass: 0.5, roll: 0.05 };
+function touchOpts(s) { return s === 'pianist' || s === true ? { ...TOUCH_DEFAULTS } : { ...TOUCH_DEFAULTS, ...s }; }
+function checkTouch(s, w, errors) {
+  if (s === 'pianist' || s === true || s === false) return;
+  const ok = isObj(s) && Object.keys(s).every((k) => k in TOUCH_DEFAULTS)
+    && Object.entries(TOUCH_LIMITS).every(([k, hi]) => s[k] === undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= hi));
+  if (!ok) errors.push(`${w}.touch must be 'pianist' or { top?, inner?, bass?: 0–0.5, roll?: seconds 0–0.05 } (a chord voiced by hand: the top note out, the inner notes under, rolled up from the bass)`);
+}
+function touchEvents(list, s, sc, bpm, seed) {
+  const o = touchOpts(s), rng = mulberry32(seed), qps = (bpm || 120) / 60;
+  return list.flatMap((ev) => {
+    if (!Array.isArray(ev) || !isTime(ev[0]) || !Array.isArray(ev[1]) || ev[4] !== undefined) return [ev];
+    const ns = ev[1].map((n) => ({ n, m: midiOf(n) }));
+    if (ns.length < 2 || ns.some((x) => x.m == null)) return [ev];
+    ns.sort((a, b) => a.m - b.m);
+    const ks = ns.map((x, i) => (i === ns.length - 1 ? 1 + o.top : i === 0 && ns.length > 2 ? 1 + o.bass : 1 - o.inner));
+    const norm = ks.reduce((a, k) => a + k, 0) / ks.length || 1;
+    const q0 = sc.q(ev[0]), v0 = ev[3] == null ? 0.8 : ev[3];
+    let off = 0;
+    return ns.map((x, i) => {
+      if (i) off += o.roll * (0.6 + 0.8 * rng());
+      const e = ev.slice(0, 4);
+      e[0] = i ? Math.round((q0 + off * qps) * 1e6) / 1e6 : ev[0];
+      e[1] = x.n;
+      if (e[2] === undefined) e[2] = 1;
+      e[3] = Math.round(Math.max(0.05, Math.min(1, v0 * ks[i] / norm)) * 1000) / 1000;
+      return e;
+    });
+  });
+}
+
 const evArt = (ev) => (Array.isArray(ev) ? ev[4] : isObj(ev) ? ev.art : undefined);
 const hasPureArt = (list) => Array.isArray(list) && list.some((ev) => { const t = artType(evArt(ev)); return t === 'rake' || t === 'rest'; });
 function lowerPureArts(list, c) {
@@ -850,6 +962,7 @@ const hasChordEvent = (list) => Array.isArray(list) && list.some((ev) => isObj(e
 
 export function usesAuthoring(m) {
   if (!isObj(m)) return false;
+  if (usesLife(m)) return true;
   if (m.kind === 'beats-composition') {
     if (m.progression !== undefined || m.modulate !== undefined || m.band !== undefined || m.shuffle !== undefined) return true;
     if (Array.isArray(m.sweeps) && m.sweeps.some((w) => isObj(w) && w.t0 == null)) return true;
@@ -857,7 +970,7 @@ export function usesAuthoring(m) {
     for (const p of m.parts || []) {
       if (!isObj(p)) continue;
       if (isCuePart(p) && ((Array.isArray(p.events) && p.events.some(cueEventNeedsLowering)) || hasTimedGesture(cueList(p)))) return true;
-      if (hasChordEvent(p.events) || p.chordVoice !== undefined || p.groove !== undefined || p.power !== undefined || p.double !== undefined || p.shuffle !== undefined || p.solo !== undefined || hasPureArt(p.events)) return true;
+      if (hasChordEvent(p.events) || p.chordVoice !== undefined || p.groove !== undefined || p.power !== undefined || p.double !== undefined || p.shuffle !== undefined || p.solo !== undefined || p.shape !== undefined || p.touch !== undefined || hasPureArt(p.events)) return true;
     }
   }
   if (m.kind === 'beats-pattern' && isObj(m.chords) && Object.values(m.chords).some((v) => typeof v === 'string')) return true;
@@ -872,6 +985,41 @@ export function usesAuthoring(m) {
  */
 export function expandBeatsManifest(m) {
   if (!usesAuthoring(m)) return m;
+  return applyLife(expandCore(m));
+}
+
+// ── life, the natural dial (audio improvements): 0 = mechanical, 1 = natural ─
+// A recipe's `life` (0–2) scales the held-note breathing of every row whose
+// instrument breathes by default (its patch carries `life`); a row's own
+// `life` overrides it and, above 0, turns breathing on for any instrument.
+// Lowers to the row's `patchParams.life` (with `amount`: k, which a struck
+// string reads as its per-key unison spread) and scales a `sympathetic`
+// halo's mix; an explicit patchParams.life wins.
+export const LIFE_DEFAULTS = Object.freeze({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5 });
+const lifeRows = (m) => (Array.isArray(m.parts) ? 'parts' : Array.isArray(m.tracks) ? 'tracks' : Array.isArray(m.channels) ? 'channels' : null);
+const usesLife = (m) => { const k = isObj(m) && lifeRows(m); return isObj(m) && (m.life !== undefined || (!!k && m[k].some((r) => isObj(r) && r.life !== undefined))); };
+function applyLife(out) {
+  const key = lifeRows(out);
+  if (!usesLife(out)) return out;
+  const k0 = out.life;
+  delete out.life;
+  if (key) out[key] = out[key].map((r) => {
+    if (!isObj(r)) return r;
+    const { life: own, ...row } = r;
+    const k = own !== undefined ? own : k0;
+    const name = row.patch || (row.instrument && INSTRUMENTS[row.instrument] && INSTRUMENTS[row.instrument].patch);
+    const breathes = !!(name && PATCHES[name] && PATCHES[name].life);
+    if (k === undefined || (own === undefined && !breathes) || (isObj(row.patchParams) && row.patchParams.life !== undefined)) return row;
+    const life = k === 0 ? false : { ...Object.fromEntries(Object.entries(LIFE_DEFAULTS).map(([f, v]) => [f, Math.round(v * k * 1000) / 1000])), amount: k };
+    // the pedal halo follows the dial too (0 takes it out: a dry, mechanical piano).
+    const chain = Array.isArray(row.chain) && row.chain.some((f) => isObj(f) && f.type === 'sympathetic')
+      ? row.chain.flatMap((f) => (isObj(f) && f.type === 'sympathetic' ? (k === 0 ? [] : [{ ...f, mix: Math.round((f.mix == null ? 0.25 : f.mix) * Math.min(k, 4) * 1000) / 1000 }]) : [f])) : null;
+    return { ...row, ...(chain ? { chain } : {}), patchParams: { ...(isObj(row.patchParams) ? row.patchParams : {}), life } };
+  });
+  return out;
+}
+
+function expandCore(m) {
   const out = clone(m);
   const key = out.key;
   if (out.kind === 'beats-pattern') {
@@ -968,6 +1116,37 @@ export function expandBeatsManifest(m) {
             return { ...f, phrase: id };
           }) };
         }
+      }
+    }
+    if (q.shape !== undefined) {
+      // shape last: it phrases what the part finally plays (chart, groove and solo included).
+      // A form's phrases get shaped copies (a phrase is shared, so the copy is this
+      // shape's), each phrase taken from its own start.
+      const { shape, ...rest } = q;
+      q = shape === false || !Array.isArray(rest.events) ? rest : { ...rest, events: shapeEvents(rest.events, shape, sc) };
+      if (shape !== false && Array.isArray(q.form) && isObj(out.phrases)) {
+        const o = shapeOpts(shape), tag = `~shape-${[o.bars, o.arch, o.contour, o.contrast, o.end].join('-')}`;
+        q = { ...q, form: q.form.map((f) => {
+          if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
+          const id = f.phrase + tag;
+          if (!out.phrases[id]) out.phrases[id] = shapeEvents(out.phrases[f.phrase], shape, sc);
+          return { ...f, phrase: id };
+        }) };
+      }
+    }
+    if (q.touch !== undefined) {
+      // touch after shape: shape phrases the chord as one, touch then voices it by hand.
+      const { touch, ...rest } = q;
+      const seed = strSeed(hashSeed(out.seed || 1, 0x70C4), rest.name);
+      q = touch === false || !Array.isArray(rest.events) ? rest : { ...rest, events: touchEvents(rest.events, touch, sc, out.bpm, seed) };
+      if (touch !== false && Array.isArray(q.form) && isObj(out.phrases)) {
+        const o = touchOpts(touch), tag = `~touch-${[o.top, o.inner, o.bass, o.roll].join('-')}`;
+        q = { ...q, form: q.form.map((f) => {
+          if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
+          const id = f.phrase + tag;
+          if (!out.phrases[id]) out.phrases[id] = touchEvents(out.phrases[f.phrase], touch, sc, out.bpm, strSeed(seed, id));
+          return { ...f, phrase: id };
+        }) };
       }
     }
     return q;
