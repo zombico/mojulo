@@ -11,6 +11,7 @@
 
 
 import path from 'node:path';
+import { randomInt } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS } from '@/lib/mcp/plugin-profile';
@@ -288,6 +289,17 @@ function expandDiagramManifest(manifest) {
  * the "how a sketch is stored" logic in one place means the derived-sketch
  * callers get the same validation + ref + URL shape as a hand-authored one.
  */
+function newHouseSeed(m, ref) {
+  if (m?.kind !== 'floorplan' || m.seed !== undefined) return m;
+  let seed;
+  if (typeof ref === 'string' && ref) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < ref.length; i += 1) { h ^= ref.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    seed = (h % 2147483646) + 1;
+  } else seed = randomInt(1, 2147483647);
+  return { ...m, seed };
+}
+
 export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   validateSketchIdentity({ title, ref, folderRef, bucket });
   let finalized;
@@ -346,7 +358,10 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   } catch (err) {
     throw new Error(`Recipe lowering error: ${err.message}`);
   }
-  const expanded = expandDiagramManifest(working);
+  // A NEW house draws its own seed, so two houses minted from one manifest are two houses. Drawn here at mint and
+  // written into the recipe (never at render, which stays pure), before the grader so its best-of-N runs from it:
+  // from the ref when the caller names one, else at random. An explicit seed, or a row minted before, keeps its own.
+  const expanded = newHouseSeed(expandDiagramManifest(working), ref);
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
   // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
   // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,
@@ -366,6 +381,10 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   if (finalized?.kind === 'floorplan') {
     if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
     else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
+    // and varied: each room arranged from the house seed (`layout: 'varied'`), its furniture composed in the style's
+    // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
+    if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
+    if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
     const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
     for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {

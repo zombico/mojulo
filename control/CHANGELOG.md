@@ -12,6 +12,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Every new house a different draw
+
+- **A new house is minted with its own seed, varied layouts and composed furniture.** `mint_building` (and
+  `create_sketch` for a floorplan) stamps three knobs onto a new house when they are absent, beside the `style:
+  'auto'` it already stamps: a `seed` (drawn from the ref when one is named, else at random), `layout: 'varied'` and
+  `furnishing: 'composed'`. The draw is written into the recipe, so a minted house renders the same every time and
+  any knob given explicitly wins. Rows minted before this keep their bytes.
+- **`layout: 'varied'` rearranges rooms by seed.** Each room's arrangement is keyed on the house seed as well as
+  the room's place, and each room draws a layout variant and a mirror, and turns a quarter where its shape allows. A
+  living room may face the media wall, seat two sofas facing across the coffee table, or keep one armchair beside an
+  off-centre sofa. A bedroom may centre its bed between two nightstands. A deep dining room runs its table the long
+  way. The door, stair and window passes still clear every layout. Absent the knob, layouts are unchanged.
+- **Fix: `furnishing: 'composed'` was refused at mint.** The house validator only knew `'constructed'`.
+
 ### Quiet floors
 
 - **The house floor is muted.** The floorboards were saturated mid-brown with dark seams every 6 inches, so every room

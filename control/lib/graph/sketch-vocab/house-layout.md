@@ -25,7 +25,10 @@ is a `manifest`.
 { "seed": 7, "width": 40, "height": 30, "view": "exterior" }
 ```
 
-- `seed` (integer) and `width` / `height` (the footprint, feet) generate the plan.
+- `seed` (integer) and `width` / `height` (the footprint, feet) generate the plan. Leave `seed` out and the mint
+  draws one and stores it, so every new house is a different draw and still re-renders the same; name one to
+  reproduce a house. A new house is also stamped `style: 'auto'`, `layout: 'varied'` and `furnishing: 'composed'`
+  (house-dwelling); `null` opts out of each.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
 - Openings are opt-in: `windows`, `entryDoor`, `ceilings` (each default off on a generated plan).
 - Walkable at `/world`.

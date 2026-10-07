@@ -696,6 +696,8 @@ export function furnishElements(glyph, seed = 1, dims = {}) {
   if (glyph === 'K') return arrangeKitchen(rng, dims);      // feet in every mode (see makeSizer)
   const share = dims.scale === 'share';
   const post = (els) => (share ? applyFurnishBudget(els, glyph, dims) : els);
+  // `layout: 'varied'`: a seeded variant, mirror and quarter-turn of the arranger's layout (variedLayout)
+  if (dims.varied && (VARIED_ARRANGERS[glyph] && (share || !SHARE_ONLY_ARRANGERS.has(glyph)))) return post(variedLayout(glyph, seed, rng, dims));
   if (glyph === 'L') return post(arrangeLiving(rng, dims));
   if (glyph === 'D') return post(arrangeDining(rng, dims));
   if (glyph === 'B') return post(arrangeBedroom(rng, dims));
@@ -704,6 +706,119 @@ export function furnishElements(glyph, seed = 1, dims = {}) {
   if (glyph === 'S' && share) return post(arrangeStorage(rng, dims));
   // the flat archetype lists author fractions of the room outright — already a share
   return (ARCHETYPES[glyph] || ARCHETYPES.S).fill(rng);
+}
+
+// ── VARIED LAYOUTS (`layout: 'varied'`) ─────────────────────────────────────────
+// One arranger per room reads as one room in every house. A varied room draws, from its OWN seeded stream (the
+// arranger's stream is untouched, so the classic variant of a seed is that seed's classic layout), a variant of the
+// arranger's layout, a mirror across the room, and — where the room is near square, or a dining room deeper than
+// wide (its table then runs the long way) — a transpose: the layout arranged at the room's swapped dims and turned
+// over its diagonal, so the back-wall pieces stand on the left wall. The canonical door stays on the front wall, and
+// the door, stair and window passes in floorplan-structure run after, as for every layout.
+const VARIED_ARRANGERS = { L: arrangeLiving, D: arrangeDining, B: arrangeBedroom, O: arrangeOffice, E: arrangeEntry, S: arrangeStorage };
+const SHARE_ONLY_ARRANGERS = new Set(['E', 'S']);
+// a living room does not turn: its arranger keeps the front (door) side clear, and a turn hands that side to a wall, so
+// the door approach dropped its sofa or chairs; an entry or store room keeps its walls (the back is often a door wall)
+const TRANSPOSABLE = new Set(['B', 'O']);
+// a variant reworks the arranger's layout; null keeps it (the room has no space for the variant)
+const LAYOUT_VARIANTS = {
+  L: { classic: null, pair: livingPair, open: livingOpen },
+  B: { classic: null, centred: bedroomCentred },
+};
+const MIRROR_FACING = { E: 'W', W: 'E' }, MIRROR_SURFACE = { leftWall: 'rightWall', rightWall: 'leftWall' };
+const TRANSPOSE_FACING = { N: 'E', E: 'N', S: 'W', W: 'S' };
+const TRANSPOSE_SURFACE = { backWall: 'leftWall', leftWall: 'backWall', frontWall: 'rightWall', rightWall: 'frontWall' };
+const hungOn = (e) => !!(e.surface && e.surface !== 'floor');
+
+function variedLayout(glyph, seed, rng, dims) {
+  const vr = mulberry32(((seed ^ 0x5bd1e995) >>> 0) || 1);
+  const { w = 12, h = 12 } = dims;
+  const variants = LAYOUT_VARIANTS[glyph] || { classic: null };
+  const variant = pick(vr, Object.keys(variants));
+  const mirror = vr() < 0.5;
+  const turn = glyph === 'D' ? h > w * 1.05 : TRANSPOSABLE.has(glyph) && w / h > 0.8 && w / h < 1.25 && vr() < 0.35;
+  const d = turn ? { ...dims, w: h, h: w } : dims;
+  let els = VARIED_ARRANGERS[glyph](rng, d);
+  if (variants[variant]) els = variants[variant](els, d) || els;
+  if (turn) els = transposeLayout(els);
+  if (mirror) els = mirrorLayout(els);
+  return els;
+}
+
+/** A layout mirrored across the room (u ↔ 1 − u): E ↔ W facings, left ↔ right walls. */
+export function mirrorLayout(els) {
+  return els.map((e) => {
+    const o = { ...e };
+    if (hungOn(e) && MIRROR_SURFACE[e.surface]) o.surface = MIRROR_SURFACE[e.surface];
+    else if (Array.isArray(e.anchor)) o.anchor = [1 - e.anchor[0], e.anchor[1]];   // a back / front wall piece runs along u
+    if (MIRROR_FACING[e.facing]) o.facing = MIRROR_FACING[e.facing];
+    return o;
+  });
+}
+
+/** A layout turned over the room's diagonal (u ↔ v, arranged at the swapped dims): N ↔ E, S ↔ W, back ↔ left wall. */
+export function transposeLayout(els) {
+  return els.map((e) => {
+    const o = { ...e };
+    if (hungOn(e)) {
+      // a wall-hung anchor is (along the wall, up the wall): the along fraction is measured from the same corner
+      o.surface = TRANSPOSE_SURFACE[e.surface] || 'leftWall';
+    } else {
+      if (Array.isArray(e.anchor)) o.anchor = [e.anchor[1], e.anchor[0]];
+      if (e.w != null && e.h != null) { o.w = e.h; o.h = e.w; }
+    }
+    if (TRANSPOSE_FACING[e.facing]) o.facing = TRANSPOSE_FACING[e.facing];
+    return o;
+  });
+}
+
+/** Living, pair: two sofas facing each other across the coffee table, square to the media wall. */
+function livingPair(els, { w = 14, h = 14, scale = 'feet' } = {}) {
+  const sz = makeSizer({ w, h, scale });
+  const media = els.find((e) => e.type === 'media-unit'), sofa = els.find((e) => e.type === 'sofa');
+  const table = els.find((e) => e.type === 'table'), rug = els.find((e) => e.type === 'rug'), lamp = els.find((e) => e.type === 'floor-lamp');
+  if (!media || !sofa || !table) return null;
+  const [sD, sL] = sz('modern-couch', 3.2, Math.min(7, h * 0.42), 'y');     // its length runs along v
+  const [tW, tL] = sz('table', 2, Math.min(4, h * 0.3), 'y');
+  const top = (media.anchor[1] + media.h / 2) * h + 1.5, bottom = h - LIVING_DOOR_CLEAR;
+  const L = Math.min(sL, bottom - top);
+  const reach = tW / 2 + 1.4 + sD;                                            // table centre → a sofa's back
+  if (L < 4 || w / 2 - reach < 0.5) return null;
+  const cv = (top + bottom) / 2 / h, du = (tW / 2 + 1.4 + sD / 2) / w;
+  const out = els.filter((e) => !['sofa', 'table', 'armchair', 'rug', 'floor-lamp'].includes(e.type));
+  if (rug) out.push({ ...rug, anchor: [0.5, cv], w: Math.min(0.86, (2 * reach + 1) / w), h: Math.min(0.8, (L + 1.5) / h) });
+  out.push({ ...sofa, instance: 'main', anchor: [0.5 - du, cv], w: sD / w, h: L / h, facing: 'E' });
+  out.push({ ...sofa, instance: 'facing', anchor: [0.5 + du, cv], w: sD / w, h: L / h, facing: 'W' });
+  out.push({ ...table, anchor: [0.5, cv], w: tW / w, h: tL / h });
+  if (lamp) out.push({ ...lamp, anchor: [0.5 - du, Math.max(lamp.h / 2 + 0.01, cv - L / 2 / h - lamp.h / 2 - 0.02)] });
+  return out;
+}
+
+/** Living, open: one armchair, the sofa group slid off-centre, the lamp at the sofa's free end. */
+function livingOpen(els) {
+  const sofa = els.find((e) => e.type === 'sofa');
+  if (!sofa) return null;
+  const shift = Math.min(0.08, Math.max(0, sofa.anchor[0] - sofa.w / 2 - 0.02));
+  const su = sofa.anchor[0] - shift;
+  return els.filter((e) => !(e.type === 'armchair' && e.instance === 'west')).map((e) => {
+    if (e.type === 'sofa' || e.type === 'table' || e.type === 'rug') return { ...e, anchor: [e.anchor[0] - shift, e.anchor[1]] };
+    if (e.type === 'floor-lamp') return { ...e, anchor: [Math.max(e.w / 2 + 0.01, su - sofa.w / 2 - e.w / 2 - 0.01), sofa.anchor[1]] };
+    return e;
+  });
+}
+
+/** Bedroom, centred: the bed centred on the back wall, a nightstand each side, the picture over the headboard. */
+function bedroomCentred(els, { w = 11 } = {}) {
+  const bed = els.find((e) => e.type === 'bed'), ns = els.find((e) => e.type === 'nightstand');
+  if (!bed || !ns) return null;
+  const off = bed.w / 2 + 1.3 / w;
+  if (0.5 - off - ns.w / 2 < 0.005) return null;
+  return els.flatMap((e) => {
+    if (e === bed) return [{ ...e, anchor: [0.5, e.anchor[1]] }];
+    if (e === ns) return [{ ...e, instance: 'west', anchor: [0.5 - off, e.anchor[1]] }, { ...e, instance: 'east', anchor: [0.5 + off, e.anchor[1]] }];
+    if (e.type === 'picture' && e.surface === 'backWall') return [{ ...e, anchor: [0.5, e.anchor[1]] }];
+    return [e];
+  });
 }
 
 // ── COMMAND POSITION (movement-flow, kernel #2) ─────────────────────────────────

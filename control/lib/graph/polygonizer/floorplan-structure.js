@@ -103,6 +103,7 @@ export const FLOORPLAN_DEFAULTS = {
                            // 'composed' — each piece a style in the house's furniture language (furnishings/languages.js)
   furnitureLanguage: null, // composed: a language (furnishings/languages.js) over the house style's
   furniture: null,         // composed: { <role>: { like?, forms?, finish? } | 'omit' } for every room (a room's own `furniture` wins)
+  layout: null,            // 'varied': each room's arrangement keyed on the house seed, with a seeded variant, mirror and turn (floorplan-glyphs variedLayout)
   contactShadows: false,   // opt-in: a soft ambient-occlusion decal on the floor under each piece of furniture (the unbaked tier's grounding)
   wallMaterial: null,      // opt-in: a procedural-material preset the interior paint swath carries into the World tier ('plaster'); needs wallDecor
   floorTexture: null,      // opt-in: a surface-textures tile on the floor finish — 'auto' (oak boards / carrara marble by style) | a tile key | null. World + exports; the CSS still keeps its fill
@@ -722,13 +723,16 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   const pad = Math.max(o.wallThickness, 0.4);           // keep furniture off the walls
   const x0 = rect.x + pad, x1 = rect.x + rect.w - pad, y0 = rect.y + pad, y1 = rect.y + rect.h - pad;
   if (x1 - x0 < 3 || y1 - y0 < 3) return [];
-  const seed = (Math.round(rect.x * 131.1 + rect.y * 17.7 + baseZ * 7.3) >>> 0) || 1;
+  const place = Math.round(rect.x * 131.1 + rect.y * 17.7 + baseZ * 7.3);
+  // a varied house keys each room on its own seed too, so two houses with a room in one place arrange it apart
+  const varied = o.layout === 'varied';
+  const seed = ((varied ? place ^ Math.imul((o._houseSeed ?? 1) >>> 0, 0x9e3779b1) : place) >>> 0) || 1;
   const W = x1 - x0, H = y1 - y0;
   // a quarter-turned room (door on E/W) is ARRANGED at its swapped dims, so the canonical
   // layout's depth runs the room's real width after the turn (see orientElementsToDoor)
   const quarter = doorEdge === 'E' || doorEdge === 'W';
   const [cw, ch] = quarter ? [H, W] : [W, H];
-  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale })
+  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale, ...(varied ? { varied } : {}) })
     .filter((e) => e.type !== 'window' && e.type !== 'door');
   // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
   // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
@@ -1794,6 +1798,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     if (errs.length) throw new Error(`composed furnishing:\n- ${errs.join('\n- ')}`);
     if (o._composeSeed == null) o._composeSeed = plan.seed ?? input.seed ?? 1;
   }
+  if (o.layout === 'varied' && o._houseSeed == null) o._houseSeed = plan.seed ?? input.seed ?? 1;
   // ONE-CELL DEFAULTS (room-realism.plan.md phase 0). An explicit single furnished cell
   // is "make me a living room": every wall is envelope, so the opt-in posture tuned for
   // generated houses (windows/entry placed by structurizeHouse; bare slab) leaves it a

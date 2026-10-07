@@ -78,8 +78,14 @@ export function validateHouseConstruction(m) {
     const covering = m.roof && typeof m.roof === 'object' ? m.roof.covering : undefined;
     if (covering != null && covering !== false) e.push(...validateCovering(covering, 'roof.covering'));
   }
-  if ((m.kind === 'floorplan' || m.kind === 'condo-complex') && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed') {
+  if (m.kind === 'floorplan' && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed' && m.furnishing !== 'composed') {
+    e.push(`furnishing: 'composed' (composed furniture in the house style's language), 'constructed' (the pieces built on the workbench), or leave it out`);
+  }
+  if (m.kind === 'condo-complex' && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed') {
     e.push(`furnishing: 'constructed' (the pieces built on the workbench), or leave it out`);
+  }
+  if (m.kind === 'floorplan' && m.layout != null && m.layout !== false && m.layout !== 'varied') {
+    e.push(`layout: 'varied' (each room's arrangement drawn from the house seed), or leave it out`);
   }
   return e;
 }

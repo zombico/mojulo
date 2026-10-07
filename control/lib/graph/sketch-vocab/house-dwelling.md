@@ -35,6 +35,11 @@ Every furnishing knob defaults OFF on a generated plan: `furnish`, `windows`, `c
   sideboard, dresser, nightstand) sets a role in every room, and a room's own `furniture` wins: `{ sofa: { like:
   'chesterfield', finish: { fabric: 'tartan' } } }`, `{ 'easy-chair': { forms: { legs: 'bun' } } }`, `{ media:
   'omit' }`. A bad override is refused naming what is valid. Display pieces, not checked for building.
+- `layout: 'varied'` (stamped on a new house) — each room's arrangement is drawn from the house seed: a variant
+  (a living room facing the media wall, two sofas facing across the coffee table, or one armchair beside an
+  off-centre sofa; a bedroom's bed off to one side or centred between two nightstands), a mirror, and in a
+  near-square bedroom or office a quarter turn; a deep dining room runs its table the long way. Re-roll the seed
+  for another arrangement; `layout: null` keeps the one fixed arrangement per room.
 - In share mode the entry gets a bench under a picture, the storage room shelving and a cabinet,
   tables and desks their tabletop pieces; chairs are never dropped for a door approach, and a
   wall piece in a door's way (or tall storage on a windowed wall) moves to a clear wall. Interior
