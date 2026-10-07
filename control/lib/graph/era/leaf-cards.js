@@ -21,6 +21,9 @@
  *   card:flowers    a window box's flowers: a mound of leaves with red and pink geranium heads, trailing stems
  *   card:laundry    washing on a line along the top edge: shirts, sheets and towels in bright cottons, pegged, sagging
  *   card:awning     a striped canvas awning seen flat: white and blue stripes, a scalloped hem
+ *   card:fungus     a cluster of fungi from the bottom edge: pale caps on short stems over a few shelf brackets, gills dark
+ *   card:pebbles    loose stones and grit (laid flat as a decal): pebbles of every size, lit from above, near neutral
+ *   card:crack      a crack across a flagstone (laid flat as a decal): a wandering dark line, branching, wider where it opened
  *   card:roofs      a town beyond: a skyline of roofs, chimneys and a bell tower, painted near neutral (its row's colour
  *                   sets its distance), for the far rows
  *
@@ -315,6 +318,57 @@ const PAINTERS = {
       cv.px[o] = v[0]; cv.px[o + 1] = v[1]; cv.px[o + 2] = v[2]; cv.px[o + 3] = 255;
     }
   },
+  fungus(cv, R) {
+    // shelf brackets first (behind), then the capped stems in front, tallest at the back; every cap lit on its crown
+    const CAPS = [[214, 196, 160], [196, 168, 120], [226, 214, 190], [180, 140, 96], [204, 180, 140]];
+    const px = (x, y, c, k = 1) => { if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return; const o = (y * SIZE + x) * 4; cv.px[o] = clamp(c[0] * k); cv.px[o + 1] = clamp(c[1] * k); cv.px[o + 2] = clamp(c[2] * k); cv.px[o + 3] = 255; };
+    const cap = (cx, cy, rx, ry, col) => {
+      for (let y = Math.floor(cy - ry); y <= cy + 3; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+        const dx = (x - cx) / rx, dy = (y - cy) / ry;
+        if (y <= cy && dx * dx + dy * dy <= 1) px(x, y, col, 0.78 + 0.34 * (-dy) - 0.12 * Math.abs(dx));         // the dome, lit from above
+        else if (y > cy && y <= cy + 3 && Math.abs(dx) < 0.92) px(x, y, col, 0.42 + 0.1 * ((x & 1)));             // the gills under the rim
+      }
+    };
+    for (let i = 0; i < 3; i++) cap(SIZE * (0.25 + 0.5 * R()), SIZE * (0.72 + 0.12 * R()), SIZE * (0.1 + 0.05 * R()), SIZE * 0.03, CAPS[3 + (i % 2)]);
+    const n = 11;
+    for (let i = 0; i < n; i++) {
+      const back = 1 - i / n, h = SIZE * (0.06 + 0.3 * back * R()), x = SIZE * (0.5 + (R() - 0.5) * 0.7 * (0.5 + back)), lean = (R() - 0.5) * 18, w = SIZE * (0.06 + 0.1 * R()), col = CAPS[(R() * 3) | 0];
+      const top = [x + lean, SIZE - 4 - h];
+      stem(cv, [[x, SIZE - 2], [x + lean * 0.5, SIZE - 4 - h * 0.5], top], Math.max(2, w * 0.18), [col[0] * 0.92, col[1] * 0.9, col[2] * 0.86].map(clamp));
+      cap(top[0], top[1], w, w * (0.45 + 0.25 * R()), col);
+    }
+  },
+  pebbles(cv, R) {
+    // near neutral (a tint makes them the floor's stone): a few larger stones, many small, grit between; thinning to
+    // the card's edge so a patch has no border
+    for (let i = 0; i < 260; i++) {
+      const big = i < 14, a = R() * Math.PI * 2, rr = Math.pow(R(), big ? 1.2 : 0.8) * SIZE * 0.46, cx = SIZE / 2 + Math.cos(a) * rr, cy = SIZE / 2 + Math.sin(a) * rr;
+      const rx = big ? 7 + 9 * R() : 1.2 + 3.2 * R(), ry = rx * (0.55 + 0.4 * R()), turn = R() * Math.PI, ct = Math.cos(turn), st = Math.sin(turn), g = 150 + 70 * R();
+      for (let y = Math.floor(cy - rx); y <= cy + rx; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+        if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) continue;
+        const dx = x - cx, dy = y - cy, u = (dx * ct + dy * st) / rx, v = (-dx * st + dy * ct) / ry, d = u * u + v * v;
+        if (d > 1) continue;
+        const k = (0.62 + 0.45 * (-(dy / Math.max(rx, ry))) * 0.6 + 0.25 * (1 - d)) * (d > 0.75 ? 0.7 : 1), o = (y * SIZE + x) * 4;
+        cv.px[o] = clamp(g * k); cv.px[o + 1] = clamp(g * k * 0.98); cv.px[o + 2] = clamp(g * k * 0.95); cv.px[o + 3] = 255;
+      }
+    }
+  },
+  crack(cv, R) {
+    // a crack from edge to edge, wandering; a branch or two; wider and darker where it opened most
+    const draw = (x, y, a, len, w0) => {
+      const pts = [];
+      const a0 = a;
+      for (let k = 0; k <= 40; k++) { pts.push([x, y]); a += (R() - 0.5) * 0.5 + (a0 - a) * 0.25; x += Math.cos(a) * len / 40; y += Math.sin(a) * len / 40; }
+      for (let k = 0; k + 1 < pts.length; k++) {
+        const t = k / pts.length, w = w0 * (0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, t * 1.2)));
+        stem(cv, [pts[k], pts[k + 1]], w + 1.2, [74, 70, 66]);
+        stem(cv, [pts[k], pts[k + 1]], w, [22, 20, 19]);
+      }
+      return pts;
+    };
+    const main = draw(4, SIZE * (0.35 + 0.3 * R()), (R() - 0.5) * 0.4, SIZE * 0.98, 2.6);
+    for (let b = 0; b < 2; b++) { const [x, y] = main[8 + ((R() * 24) | 0)]; draw(x, y, (R() < 0.5 ? -1 : 1) * (0.6 + R() * 0.8), SIZE * (0.2 + 0.25 * R()), 1.4); }
+  },
   litter(cv, R) {
     for (let i = 0; i < 70; i++) {
       const len = SIZE * (0.07 + 0.07 * R()), col = R() < 0.78 ? DRY[(R() * DRY.length) | 0] : GREENS[(R() * GREENS.length) | 0];
@@ -325,7 +379,7 @@ const PAINTERS = {
 
 export const CARD_KEYS = Object.freeze(Object.keys(PAINTERS).map((k) => `card:${k}`));
 
-const built = {};
+const built = {}, HALF = new Set(['pebbles', 'crack', 'fungus']);
 function build(key) {
   if (built[key]) return built[key];
   const kind = key.slice(5), paint = PAINTERS[kind]; if (!paint) return null;
@@ -340,6 +394,16 @@ function build(key) {
       const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= SIZE || yy >= SIZE) continue;
       const q = (yy * SIZE + xx) * 4; if (cv.px[q] || cv.px[q + 1]) { cv.px[o] = cv.px[q]; cv.px[o + 1] = cv.px[q + 1]; cv.px[o + 2] = cv.px[q + 2]; break; }
     }
+  }
+  // a card only ever seen small (a tuft, a patch of grit, a crack) ships at half size: a quarter of the bytes
+  if (HALF.has(kind)) {
+    const H = SIZE / 2, px = Buffer.alloc(H * H * 4), ah = new Uint8Array(H * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < H; x++) {
+      const q = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([dx, dy]) => ((2 * y + dy) * SIZE + 2 * x + dx) * 4), o = (y * H + x) * 4;
+      for (let c = 0; c < 3; c++) px[o + c] = (q.reduce((t, i) => t + cv.px[i + c], 0) + 2) >> 2;
+      const al = q.reduce((t, i) => t + cv.px[i + 3], 0); px[o + 3] = ah[y * H + x] = al >= 510 ? 255 : 0;
+    }
+    return (built[key] = { url: `data:image/png;base64,${encodePngRgba(px, H, H).toString('base64')}`, mask: { W: H, H, a: ah } });
   }
   return (built[key] = { url: `data:image/png;base64,${encodePngRgba(cv.px, SIZE, SIZE).toString('base64')}`, mask: { W: SIZE, H: SIZE, a } });
 }

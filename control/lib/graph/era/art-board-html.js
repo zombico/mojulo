@@ -52,7 +52,8 @@ export function artBoardHtml(manifest) {
     .map(([name, R]) => `<div class="ramp"><span>${name}</span>${R.map((c) => `<div class="sw" style="background:${hexOf(c)}"></div>`).join('')}<code>${hexOf(R[2])}</code></div>`).join('')
     + `<div class="ramp"><span>torch</span><div class="sw" style="background:${hexOf(P.light)};border-radius:50%;width:28px"></div><code style="grid-column:3/span 2">${hexOf(P.light)}</code></div>`;
   const mats = `<div class="tiles">${tiles.map(([name, key, note]) => `<div class="tile"><img src="${surfaceTexture(key) || ''}" alt=""><div><b>${esc(name)}</b>${String(note).split('\n').map((t) => `<small>${esc(t)}</small>`).join('')}</div></div>`).join('')}</div>`
-    + `<p class="note" style="margin-top:10px">weathering: earth over ${Math.round((W.earth || 0) * 100)}% of the floor, ivy on ${Math.round((W.ivy || 0) * 100)}% of the bare bays</p>`;
+    + `<p class="note" style="margin-top:10px">weathering: earth over ${Math.round((W.earth || 0) * 100)}% of the floor, ivy on ${Math.round((W.ivy || 0) * 100)}% of the bare bays`
+    + `${W.growth !== undefined ? ` · growth ${Math.round(W.growth * 100)}% (grass, vines, creeping ivy, fungi), litter ${Math.round((W.litter || 0) * 100)}%, cracks ${Math.round((W.cracks || 0) * 100)}%` : ''}</p>`;
   const on = X.on, motif = k.motif ? `<img class="band" src="${surfaceTexture(`${k.motif.family}-a`)}" alt="">` : '';
   const motifs = `${motif}<p style="margin:8px 0 0"><b style="font-size:15px">${esc(X.pattern)}</b></p><p class="note">relief ${Math.round(X.relief * 100)}%, its figure in the ${X.figure === 'accent' ? 'accent' : 'trim'} colour</p>`
     + `<div class="where"><div class="${on !== 'plinth' ? 'on' : 'off'}">cornice</div><div class="mid">runs along the ${on === 'both' ? 'plinth and the cornice' : on}</div><div class="${on !== 'cornice' ? 'on' : 'off'}" style="line-height:22px">plinth</div></div>`;

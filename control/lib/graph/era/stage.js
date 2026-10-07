@@ -50,6 +50,7 @@ import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
+import { readInterceptors, intercept } from './interceptors.js';
 import { normalizeJets } from '../materials/jet.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
 
@@ -300,6 +301,9 @@ export function planStage(m = {}) {
     : kitG.dress && kitG.dress.earth ? { ...kitG, dress: { ...kitG.dress, earth: undefined } } : kitG;
   // TONE (`tone`, tone.js): colour as its own concern; the build is drained to its values and the page colours them
   const tone = m.tone !== undefined ? readTone(m.tone) : null;
+  // INTERCEPTORS (`growth`, `litter`, `cracks`: interceptors.js): detail grown on the built rooms, never colliding
+  // the art direction's dials first, the recipe's own over them, kind by kind
+  const icp0 = readInterceptors(m), icpAll = { ...(kit.intercept || {}), ...(icp0 || {}) }, icp = Object.values(icpAll).some((v) => v > 0) ? icpAll : null;
   const refId = resolveLook(m.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
   if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
@@ -362,7 +366,7 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}) };
+  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}) };
 }
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
@@ -755,7 +759,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;
   const hung = (f) => windSpec && Sw.groups[f.group] && typeof f.texture === 'string' && f.texture.startsWith('card:');
-  const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  // the interceptors grow on what is built (interceptors.js): the large things they climb are the dressing's solid ones
+  const grown = plan.intercept ? (() => {
+    const b = dress && dress.anchors ? nodeBounds(dress.faces) : {};
+    return intercept(plan, geom, dress && dress.anchors ? dress.anchors.filter((a) => a.solid && a.kind !== 'part').map((a) => ({ id: a.id, box: b[a.id] || a.box })) : [], plan.intercept);
+  })() : [];
+  const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
@@ -805,7 +814,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...geom.seats.filter((l) => l.flicker).map((l) => ({ at: l.at, radius: l.radius, share: Fk2.of, base: 1, mode: l.flicker.mode, seed: l.flicker.seed })),
     ...(geom.labs || []).flatMap((L) => (L.sparks || []).map((sp) => ({ at: sp.at, radius: sp.radius, share: Fk2.of, base: 0, mode: sp.mode, seed: sp.seed }))),
   ].slice(0, 8);
-  const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:')).map((f) => f.texture))].sort();
+  // a card is alpha-tested, its greyscale twin under a tone too (`value:card:…`, tone.js)
+  const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && /^((value|shade):)?card:/.test(f.texture)).map((f) => f.texture))].sort();
   // ADDRESSABLE (anchors.js): the rooms, every named place and thing, and the hulls an engine walks against; a thing
   // whose faces carry its `node` takes its bounds from them (a part with no faces, a well's lid, is no anchor)
   const bounds = nodeBounds(faces);

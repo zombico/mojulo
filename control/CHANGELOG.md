@@ -147,6 +147,19 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   and the tile's own value adds detail inside the band. Exposure is measured: the median baked light lands on `key`.
   Engine exports carry the grey build and `score.tone`; the ledger says the grading is the page's for now. Absent
   `tone`, the page's bytes are unchanged.
+- **Interceptors: immersive detail that never collides.** A room-kit stage takes `growth` (0…1 for every plant, or
+  `{ grass, vines, creep, fungus }`), `litter` and `cracks` (0…1). Each interceptor finds its sites on the built rooms
+  (the floor's stones and joints, the bare runs of wall, the large things, the corners) and grows there before the
+  bake. Litter is pebble patches and a few stones in the floor's own shade, kept off the walk. Cracks are a decal
+  inside a single flagstone. Grass grows at every height in the joints and at the wall foot, thinning toward the walk.
+  Vines and roots hang from under the cornice, clear of the piers. Creeping ivy is rooted at the feet of the set piece
+  and the doodads. Fungi grow in the corners, or at the foot of whatever stands in one, and at the piers' feet. No
+  interceptor adds a collider or an anchor, and each kind's count is capped and spread evenly over the rooms, so every
+  room gets its share and the page stays under budget at full aggressiveness on the tallest lift (tested). The art
+  direction rolls `growth`, `litter` and `cracks` under `materials.weathering` from dice of their own, so a seed rolled
+  before keeps every other number, and a stored direction without them grows nothing. New cards: `card:fungus`,
+  `card:crack`, `card:pebbles` (the small ones ship at half size). Tones colour each interceptor's group from a ramp.
+- **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

@@ -68,7 +68,7 @@ function materialsPanel(x, y, tiles, weather, status) {
     out.push(rect(tx, ty, 86, 86, 'none', 'stroke="#000" stroke-opacity="0.4"'));
     out.push(text(tx + 92, ty + 16, name, { size: 13, weight: 700 }), ...note.split('\n').map((t, k) => text(tx + 92, ty + 33 + k * 15, t, { size: 10.5, fill: DIM })));
   });
-  out.push(text(x + 16, y + 318, `weathering · earth ${Math.round((weather.earth || 0) * 100)}% of the floor · ivy ${Math.round((weather.ivy || 0) * 100)}% of the bare bays`, { size: 11, fill: DIM }));
+  out.push(text(x + 16, y + 318, `weathering · earth ${Math.round((weather.earth || 0) * 100)}% · ivy ${Math.round((weather.ivy || 0) * 100)}%${weather.growth !== undefined ? ` · growth ${Math.round(weather.growth * 100)}% · litter ${Math.round((weather.litter || 0) * 100)}% · cracks ${Math.round((weather.cracks || 0) * 100)}%` : ' of the bare bays'}`, { size: 11, fill: DIM }));
   return out.join('');
 }
 

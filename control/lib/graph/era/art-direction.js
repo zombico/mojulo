@@ -81,7 +81,7 @@ export const ART_RAILS = Object.freeze({
       ceiling: { gen: 'rock', style: 'cave', amp: [14, 26], crackFreq: [4, 8], crackWidth: [0.01, 0.025], crackDepth: [0.08, 0.2], speckle: [0.02, 0.08] },
       trim: { gen: 'rock', style: 'slate', amp: [16, 26] },
       wood: { gen: 'wood', ringFreq: [8, 12, 'i'], streakAmt: [0.08, 0.16], mottle: [3, 6] },
-      weathering: { earth: [0, 0.4], ivy: [0, 0.55] },
+      weathering: { earth: [0, 0.4], ivy: [0, 0.55], growth: [0, 0.6], litter: [0.15, 0.8], cracks: [0.1, 0.7] },
     },
     architecture: { plinth: { h: [0.45, 0.8] }, cornice: { h: [0.3, 0.55] }, pilaster: { w: [0.55, 0.85], out: [0.2, 0.32] }, rib: { w: [0.35, 0.55], drop: [0.3, 0.45] }, door: { height: [3, 3.6] },
       vaultRise: [2.2, 3.6], lift: [1, 1.3], niche: { head: ['round', 'round', 'flat'], tiers: [1, 2], urns: [0.15, 0.4] } },
@@ -103,7 +103,7 @@ export const ART_RAILS = Object.freeze({
       ceiling: { gen: 'rock', style: 'cave', amp: [22, 34], crackFreq: [5, 9], crackWidth: [0.02, 0.035], crackDepth: [0.2, 0.35], speckle: [0.06, 0.12] },
       trim: { gen: 'rock', style: 'cave', amp: [20, 30], crackFreq: [6, 9], crackWidth: [0.015, 0.03], crackDepth: [0.15, 0.3], speckle: [0.04, 0.1] },
       wood: { gen: 'wood', ringFreq: [8, 12, 'i'], streakAmt: [0.1, 0.18], mottle: [3, 6] },
-      weathering: { earth: [0.2, 0.8], ivy: [0, 0.25] },
+      weathering: { earth: [0.2, 0.8], ivy: [0, 0.25], growth: [0, 0.4], litter: [0.3, 0.9], cracks: [0.2, 0.8] },
     },
     architecture: { plinth: { h: [0.25, 0.45] }, cornice: { h: [0.2, 0.3] }, pilaster: { w: [0.5, 0.7], out: [0.12, 0.22] }, rib: { w: [0.4, 0.6], drop: [0.15, 0.3] }, door: { height: [3, 3.3] },
       vaultRise: [2, 2.8], lift: [1, 1.3], niche: { head: ['flat'], tiers: [3, 4], urns: [0.06, 0.18], sealed: [0.25, 0.55] } },
@@ -157,7 +157,13 @@ const ROLL = {
   materials(R, seed) {
     const d = dice(seed), out = { seed };
     for (const [part, rail] of Object.entries(R.materials)) {
-      if (part === 'weathering') { out.weathering = rollValue(d, rail); continue; }
+      if (part === 'weathering') {
+        // the interceptors' dials (interceptors.js) roll from dice of their own: a seed rolled before they existed
+        // keeps every other number it had
+        const { growth, litter, cracks, ...rest } = rail, d2 = dice(seed + 7919);
+        out.weathering = { ...rollValue(d, rest), ...rollValue(d2, Object.fromEntries(Object.entries({ growth, litter, cracks }).filter(([, v]) => v !== undefined))) };
+        continue;
+      }
       const spec = rollSpec(d, rail);
       spec.seed = d.i([1, 99999]);
       out[part] = spec;
@@ -229,13 +235,15 @@ export function compileArt(art, kitId) {
   normalizeTileSpec(motif, 'stage: art.motifs');
   if (!['plinth', 'cornice', 'both'].includes(X.on)) throw new Error("stage: art.motifs.on is 'plinth', 'cornice' or 'both'");
   const W2 = M.weathering || {}, unit01 = (v, at) => { if (v !== undefined && !(typeof v === 'number' && v >= 0 && v <= 1)) throw new Error(`stage: ${at} is a number from 0 to 1`); return v; };
-  unit01(W2.earth, 'art.materials.weathering.earth'); unit01(W2.ivy, 'art.materials.weathering.ivy');
+  for (const k of ['earth', 'ivy', 'growth', 'litter', 'cracks']) unit01(W2[k], `art.materials.weathering.${k}`);
   if (A.lift !== undefined && !(A.lift >= 1 && A.lift <= 2)) throw new Error('stage: art.architecture.lift is a number from 1 to 2');
   return {
     tiles, proportions: A.proportions, vault: A.vault, lift: A.lift ?? 1, motif: { spec: motif, on: X.on },
     torch: rgbHex(P.light), atmosphere: { fog: At.fog, dust: At.dust, flicker: At.flicker },
     dress: { niche: A.niche, setPiece: Dd.setPiece, accent: { stone: { stone: P.accent[2], mortar: P.accent[0] } }, props: Dd.props, clusters: Dd.clusters, wood: { light: wood, dark: { ...wood, early: P.wood[2], late: P.wood[0] } },
       cobwebs: Dd.cobwebs, slab: unitRgb(P.trim[3]), earth: W2.earth ?? 0, ivy: W2.ivy ?? 0 },
+    // the interceptors' dials: every plant at `growth`, the litter and the cracks; a direction rolled without them, none
+    intercept: Object.fromEntries([...(W2.growth !== undefined ? ['grass', 'vines', 'creep', 'fungus'].map((k) => [k, W2.growth]) : []), ...(W2.litter !== undefined ? [['litter', W2.litter]] : []), ...(W2.cracks !== undefined ? [['cracks', W2.cracks]] : [])]),
   };
 }
 
@@ -246,7 +254,7 @@ export function kitWithArt(kit, kitId, art, allowedProportions, familyOf) {
   const accentStone = { ...D.accent.stone, ...C.dress.accent.stone };
   return {
     kit: {
-      ...kit, ...props, lift: C.lift, atmosphere: C.atmosphere,
+      ...kit, ...props, lift: C.lift, atmosphere: C.atmosphere, ...(Object.keys(C.intercept).length ? { intercept: C.intercept } : {}),
       motif: { family: familyOf(C.motif.spec), on: C.motif.on, tint: [1, 1, 1] },
       arch: kit.arch ? { ...kit.arch, vault: { ...kit.arch.vault, maxRise: C.vault.maxRise } } : kit.arch,
       torch: { ...(props.torch || kit.torch), color: C.torch },

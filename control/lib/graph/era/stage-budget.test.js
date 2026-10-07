@@ -18,6 +18,9 @@ describe('the stage page budget', () => {
     ['the research lab gone derelict, every event at full, with water', { kind: 'stage', reference: 'doom3', kit: 'research-lab', rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }], decay: 1, water: true }],
     ['the castle dungeon starter: six rooms, a tomb, real fire', { ...starter('gothic-stone'), reference: 'gothic-night' }],
     ['the catacomb starter: six rooms, an ossuary, real fire', { ...starter('catacomb'), reference: 'gothic-night' }],
+    // every interceptor at full on the tallest lift a roll reaches: the worst a dressed dungeon costs
+    ['the castle dungeon overgrown: every interceptor at full, lifted', { ...starter('gothic-stone'), reference: 'gothic-night', growth: 1, litter: 1, cracks: 1, lift: 1.3 }],
+    ['the catacomb overgrown: every interceptor at full, lifted', { ...starter('catacomb'), reference: 'gothic-night', growth: 1, litter: 1, cracks: 1, lift: 1.3 }],
     ['the nave with fire, wind and its doors', { ...NAVE, fire: true, wind: true, doors: [{ id: 'west', at: { portal: true }, to: { map: 'plaza', door: 'church' } }] }],
   ])('%s opens under the budget', (_, m) => {
     const p = assembleStageScene(m);

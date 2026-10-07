@@ -36,14 +36,16 @@ export const TONE_PRESETS = Object.freeze({
   flat: {
     texture: 'shade', steps: 4, key: 0.55, gain: 1, default: 'wall',
     ramps: { wall: ['#2b2f3a', '#4a5262', '#7d8799', '#b9c1cc', '#e9edf1'], floor: ['#3a2c26', '#6b4f42', '#9c7a66', '#c9a892', '#efd9c6'], trim: ['#1f3a3a', '#2f5d5b', '#4f8a85', '#8cbcb4', '#d6ece7'], accent: ['#4a1f22', '#8a3236', '#c4534f', '#e89a86', '#fbe1d6'] },
-    groups: { 'stage:floor': 'floor', 'stage:earth': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:accent': 'accent', 'stage:focus': 'accent', 'stage:focus-lid': 'accent', 'stage:focus-dais': 'trim' },
+    groups: { 'stage:floor': 'floor', 'stage:earth': 'floor', 'stage:litter': 'floor', 'stage:crack': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:accent': 'accent', 'stage:focus': 'accent', 'stage:focus-lid': 'accent', 'stage:focus-dais': 'trim',
+      'stage:grass': 'trim', 'stage:vine': 'trim', 'stage:creep': 'trim', 'stage:ivy': 'trim', 'stage:moss': 'trim', 'stage:fungus': 'floor' },
     keep: ['stage:fixture'],
   },
   // isekai: bright, saturated and cel-banded, the stone lilac, the floor warm, the moss and the wood singing
   isekai: {
     texture: 'value', steps: 5, key: 0.6, gain: 1, default: 'stone',
     ramps: { stone: ['#2a1f4a', '#55479a', '#8f7fd6', '#c7b8f5', '#fff4ff'], floor: ['#3b2216', '#7a4a2a', '#c9874a', '#f2c27a', '#fff2cf'], trim: ['#14324a', '#1f6a8a', '#3fa6c4', '#8fe0ea', '#efffff'], green: ['#10301c', '#1f6a34', '#4fae4a', '#a6e070', '#f3ffd2'] },
-    groups: { 'stage:floor': 'floor', 'stage:earth': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:prop': 'floor', 'stage:prop-doodad': 'floor', 'stage:moss': 'green', 'stage:ivy': 'green' },
+    groups: { 'stage:floor': 'floor', 'stage:earth': 'floor', 'stage:litter': 'floor', 'stage:crack': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:prop': 'floor', 'stage:prop-doodad': 'floor',
+      'stage:moss': 'green', 'stage:ivy': 'green', 'stage:grass': 'green', 'stage:vine': 'green', 'stage:creep': 'green', 'stage:fungus': 'floor' },
     keep: ['stage:fixture'],
   },
 });
