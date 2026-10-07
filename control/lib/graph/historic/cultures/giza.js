@@ -2,10 +2,11 @@
  * Old Kingdom Giza (Egypt, the 4th Dynasty, c. 2600–2470 BCE; read at c. 2515, mid-way through Menkaure's reign — Shaw's dates, ../record/giza.js) as a
  * composition of shared patterns (../patterns.js). The pyramids are shown NEW:
  *  - cased smooth in white Tura limestone to the apex, not the stepped core stripped in the Middle Ages;
- *  - the Sphinx freshly carved, with no beard (a later addition);
- *  - the workers' town south of the Wall of the Crow in use.
- * The cited notes live in ../record/giza.js. Laid out by ../layouts/giza.js ('plateau'): the desert
- * plateau above the valley, the three pyramid complexes, causeways down the escarpment to the harbours.
+ *  - the Sphinx freshly carved, with no beard (a later addition).
+ * An exhibit of the monuments, not a full level: the cemeteries, the workers' town and the building sites
+ * are left out. The cited notes live in ../record/giza.js. Laid out by ../layouts/giza.js ('plateau'): the
+ * desert plateau above the valley, the three pyramid complexes, causeways down the escarpment to the harbours,
+ * the Sphinx in its quarry.
  */
 import { GIZA_ASSETS } from '../assets/giza.js';
 import { GIZA_RECORD, GIZA_SOURCES } from '../record/giza.js';
@@ -47,11 +48,10 @@ export const GIZA = {
       pyramid: 'tura-casing', 'pyramid-granite': 'granite', 'pyramid-rough': 'granite-rough', chapel: 'tura-casing', enclosure: 'giza-core',
       'temple-wall': 'giza-core', 'temple-roof': 'giza-core', pillar: 'granite', 'granite-casing': 'granite', terrace: 'giza-core',
       sphinx: 'bedrock', nemes: 'bedrock', quarry: 'bedrock', pyramidion: 'tura-casing', block: 'giza-core',
-      mastaba: 'tura-casing', 'mastaba-core': 'giza-core', 'crow-wall': 'giza-core', causeway: 'tura-casing',
-      gallery: 'mud-plaster', house: 'mud-plaster', 'house-parapet': 'mud-plaster', 'yard-wall': 'nile-brick', bakery: 'nile-brick',
+      causeway: 'tura-casing',
     },
   },
-  patterns: ['pyramid', 'mastaba', 'royal-necropolis', 'stone-ashlar', 'sun-dried-earth', 'flat-roof-cube', 'courtyard-house', 'blank-wall', 'colonnade', 'guardians', 'colossus', 'river-front', 'boat', 'grove-fringe'],
+  patterns: ['pyramid', 'royal-necropolis', 'stone-ashlar', 'colonnade', 'guardians', 'colossus', 'river-front', 'boat', 'grove-fringe'],
   // scale, metres
   plateau: { height: 45 },   // the plateau stands ~45 m over the Old Kingdom floodplain (~12 m above sea level)
   pyramids: {
@@ -59,8 +59,6 @@ export const GIZA = {
     khafre: { base: 215.3, slope: 53.13, granite: 0.03 },
     menkaure: { base: 104.6, slope: 51.34, granite: 0.31, rough: true },   // 16 courses (>20 m of 65) of granite, left undressed
   },
-  house: { size: [6, 12], gap: 0.4 },
-  lanes: { block: [5, 7] },
   canal: { width: 34, sink: 1.5 },
   groves: { density: 0.5, max: 140 },
   assets: GIZA_ASSETS,

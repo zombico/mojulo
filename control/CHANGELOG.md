@@ -12,6 +12,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Giza exhibit
+
+- Old Kingdom Giza is now an exhibit of its monuments rather than a full level: the three pyramid
+  complexes with their temples and causeways, the queens' and satellite pyramids, the boat pits, and the
+  Sphinx in its quarry with its temple, on the plateau above the floodplain.
+  - Left out: the mastaba cemeteries, the Wall of the Crow and the workers' town, the bakeries, the
+    building sites, the main quarry and the ships. Their assets are gone from the kit.
+  - Views: valley, pyramid, harbour and summit (cemetery, town and works are gone).
+  - The page is about 5 MB, down from about 14 MB, and builds in about a third of the time.
+- The plateau and the floodplain now have ground under them. A misplaced comment had swallowed the step
+  that starts each run of flat ground, so only the escarpment and the squares round each view were drawn.
+  The squares round a view now sit on their own layers so the de-overlap pass does not stack them on the runs.
+
 ### Fabricator shelf and naming
 
 - **The shelf reaches metal, sheet and extrusion work:**

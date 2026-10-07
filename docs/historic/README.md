@@ -77,7 +77,7 @@ Pick `--like` by the SHAPE of the town (its layout), not its look. The palette i
 |---|---|---|
 | `ring-canal` | sumer | a walled ring cut by a canal, the precinct at the heart |
 | `river-axis` | thebes | a river along the town, a temple on an axis from its quay |
-| `plateau` | giza | a monument plateau over a valley town |
+| `plateau` | giza | a monument plateau over the floodplain (an exhibit, no town) |
 | `acropolis` | lindos, polis | a sanctuary on a rock over a terraced town |
 | `wei-wards` | qin | walled wards on an axis from a palace to a river |
 | `lava-spur` | pompeii | a gridded town round a forum on a spur |

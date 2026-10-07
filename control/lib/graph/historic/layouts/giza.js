@@ -1,22 +1,23 @@
 /**
  * historic/layouts/giza — the 'plateau' layout: the royal necropolis of Giza under Menkaure (c. 2515
- * BCE), the first site on the template whose ground is not flat. The plan, in order:
+ * BCE), the first site on the template whose ground is not flat. An exhibit, not a full level: the
+ * pyramids and the Sphinx on their plateau, without the cemeteries, the workers' town or the building
+ * sites round them. The plan, in order:
  *
  *   the ground: a desert plateau ~45 m over the floodplain, falling to the valley down an escarpment
  *     (`hAt`), the Sphinx's quarry cut down to the valley floor
  *   → the three pyramid complexes on the plateau, NE to SW: Khufu, Khafre, Menkaure. Each one is a
  *     pyramid on its court inside a wall → the mortuary temple on its east face → a roofed causeway down
  *     the escarpment → the valley temple on a harbour
- *   → Khufu's queens' pyramids and boat pits; the mastaba streets of the western and eastern cemeteries
+ *   → Khufu's queens' pyramids and boat pits; the kings' satellite pyramids
  *   → the Great Sphinx in its quarry beside Khafre's causeway, its temple before it
- *   → the Wall of the Crow, and south of it the workers' town (galleries, bakeries, houses on lanes)
- *   → the floodplain: a canal, the harbour basins, fields, and ships bringing Tura limestone.
+ *   → the floodplain: a canal, the harbour basins, fields and palms.
  *
  * Slots stand on the ground at their centre (`z` = `hAt`). Plans in metres; x east, y south.
  */
 import { palm } from '../patterns.js';
 import { causeway } from '../assets/giza.js';
-import { CELL, C, LAYER, laneZ, stream, pick, claimGrid, runs, alleyLattice, packLots, lotSlot, placeSlots, skinLoose } from '../layout-kit.js';
+import { CELL, C, LAYER, stream, pick, claimGrid, placeSlots, skinLoose } from '../layout-kit.js';
 import { scaleHex } from '../../polygonizer/vexar.js';
 
 const TC = 20;   // terrain cell, metres
@@ -25,8 +26,8 @@ const TC = 20;   // terrain cell, metres
 const TERRAIN_LAYER = 10 * LAYER;
 
 export function planPlateau({ seed = 1, culture = 'giza', frame = { w: 1160, d: 1020 }, assets, pyramidion } = {}, K) {
-  const P = K.palette, g = claimGrid(frame), { cols, rows, grid, at, set } = g, Wf = cols * CELL, Df = rows * CELL;
-  const boxes = [], grounds = [], slots = [], L = stream(seed, 'layout');
+  const P = K.palette, g = claimGrid(frame), { cols, rows, grid, set } = g, Wf = cols * CELL, Df = rows * CELL;
+  const boxes = [], grounds = [], slots = [];
   const Hp = K.plateau.height;
 
   // ── 1. the ground: the plateau, the escarpment down to the valley, the Sphinx's quarry ──
@@ -90,32 +91,7 @@ export function planPlateau({ seed = 1, culture = 'giza', frame = { w: 1160, d: 
   // Menkaure's queens, south of his pyramid
   for (const x of [75, 125]) onGround({ asset: 'gz-queen-pyramid', rect: { x, y: 952, w: 44, d: 40 }, facing: 'e', pyramidion });
 
-  // ── 4. the cemeteries: mastabas in streets, each chapel to the east ──
-  const M = stream(seed, 'mastabas'), streetsY = [];
-  // the core cemeteries were laid out on a grid: rows of tombs across the field, E–W streets between them
-  const field = (x0, x1, y0, y1, len, dep, gx, gy, tag) => {
-    const rowsY = [];
-    for (let y = y0; ;) { const l = len[0] + M() * (len[1] - len[0]); if (y + l > y1) break; rowsY.push([y, l]); y += l + gy; if (tag) streetsY.push(y - gy / 2); }
-    for (let x = x0; ;) {
-      const d = dep[0] + M() * (dep[1] - dep[0]);
-      if (x + d > x1) break;
-      for (const [y, l] of rowsY) if (M() < 0.9) onGround({ asset: 'gz-mastaba', rect: { x, y, w: d, d: l }, facing: 'e' });
-      x += d + gx;
-    }
-  };
-  field(90, 352, 70, 440, [20, 30], [10, 14], 8, 7, 'west');   // the Western Cemetery
-  field(742, 830, 292, 420, [36, 52], [18, 24], 9, 8);      // the Eastern Cemetery: the great double mastabas of the king's family
-  field(420, 610, 396, 462, [16, 24], [9, 12], 7, 6);       // between Khufu and Khafre
-
-  // the work still going on: Menkaure's temples a building site, the main quarry south of Khafre, Tura
-  // limestone landed on the quays
-  onGround({ asset: 'gz-works', rect: { x: 196, y: 820, w: 48, d: 34 }, facing: 's' });
-  onGround({ asset: 'gz-works', rect: { x: 492, y: 905, w: 48, d: 30 }, facing: 'n' });
-  onGround({ asset: 'gz-quarry', rect: { x: 262, y: 748, w: 108, d: 52 }, facing: 'n' });
-  onGround({ asset: 'gz-works', rect: { x: 1018, y: 194, w: 40, d: 26 }, facing: 'n', stockpile: true });
-  onGround({ asset: 'gz-works', rect: { x: 850, y: 668, w: 40, d: 22 }, facing: 'n', stockpile: true });
-
-  // ── 5. the Great Sphinx in its quarry, its temple before it ──
+  // ── 4. the Great Sphinx in its quarry, its temple before it ──
   onGround({ asset: 'gz-sphinx', rect: { x: 695, y: 560, w: 73, d: 20 }, facing: 'e' });
   onGround({ asset: 'gz-valley-temple', rect: { x: 783, y: 548, w: 52, d: 45 }, facing: 'e', open: true });
   // the quarry's walls: the rock face left standing round the cut, following the ground above it
@@ -130,56 +106,24 @@ export function planPlateau({ seed = 1, culture = 'giza', frame = { w: 1160, d: 
   const q = quarry;
   qWall(q.x, q.y, q.x + q.w, q.y, [0, 1, 0]); qWall(q.x, q.y + q.d, q.x + q.w, q.y + q.d, [0, -1, 0]); qWall(q.x, q.y, q.x, q.y + q.d, [1, 0, 0]); qWall(q.x + q.w, q.y, q.x + q.w, q.y + q.d, [-1, 0, 0]);
 
-  // ── 6. the Wall of the Crow and the workers' town south of it ──
-  onGround({ asset: 'gz-wall-crow', rect: { x: 560, y: 795, w: 200, d: 10 }, facing: 's' });
-  const town = { x: 540, y: 812, w: 360, d: Df - 812 - 4 };
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) set(c, r, inRect({ x: town.x - 0.01, y: town.y - 0.01, w: town.w, d: town.d }, (c + 0.5) * CELL, (r + 0.5) * CELL) ? C.EMPTY : C.OUTSIDE);
-  const claim = (x, y, w, d, v) => { for (let r = Math.floor(y / CELL); r < Math.ceil((y + d) / CELL); r++) for (let c = Math.floor(x / CELL); c < Math.ceil((x + w) / CELL); c++) if (at(c, r) === C.EMPTY || at(c, r) === C.LANE) set(c, r, v); };
-  const laneCells = [], street = (x, y, w, d) => { for (let r = Math.floor(y / CELL); r < Math.ceil((y + d) / CELL); r++) for (let c = Math.floor(x / CELL); c < Math.ceil((x + w) / CELL); c++) if (at(c, r) === C.EMPTY) { set(c, r, C.LANE); laneCells.push([c, r]); } };
-  street(town.x, 812, town.w, 15);    // North Street, along the wall
-  street(town.x, 869, town.w, 30);    // Main Street
-  street(town.x, 938, town.w, 9);     // the street south of the galleries
-  for (const x of [588, 774]) street(x, 812, 9, town.d);
-  // the galleries: blocks of eight long halls, their porches to the north
-  for (const y0 of [830, 902]) for (const x0 of [600, 660, 714]) {
-    claim(x0, y0, 54, 35, C.PRECINCT);
-    for (let i = 0; i < 8; i++) slot({ asset: 'gz-gallery', rect: { x: x0 + i * 6.75, y: y0, w: 6, d: 35 }, facing: 'n', z: 0 });
-  }
-  // bakeries along the south street
-  for (let x = 602; x < 760; x += 40) { claim(x, 950, 12, 9, C.PRECINCT); slot({ asset: 'gz-bakery', rect: { x, y: 950, w: 12, d: 9 }, facing: 'n', z: 0 }); }
-  alleyLattice(g, K.lanes.block, seed, laneCells, { jog: 0.02 });   // a planned town: straight lanes
-  for (const lot of packLots(g, K.house.size, seed)) { const s = lotSlot(g, lot, K.house.gap, () => 'gz-house'); slot({ ...s, z: 0 }); }
-
-  // ── 7. ships on the canal and in the harbours, bringing stone ──
-  const SH = stream(seed, 'ships');
-  for (let y = 30; y < Df - 40; y += 70 + SH() * 60) slot({ asset: 'gz-ship', rect: { x: 1113, y, w: 6, d: 18 }, facing: SH() < 0.5 ? 'e' : 'w', z: waterZ + 0.05 });
-  slot({ asset: 'gz-ship', rect: { x: 1070, y: 232, w: 18, d: 6 }, facing: 'n', z: waterZ + 0.05 });
-  slot({ asset: 'gz-ship', rect: { x: 912, y: 592, w: 18, d: 6 }, facing: 'n', z: waterZ + 0.05 });
-  slot({ asset: 'gz-ship', rect: { x: 990, y: 612, w: 18, d: 6 }, facing: 's', z: waterZ + 0.05 });
+  // no town: the grid is all outside, so no lanes and no townsfolk
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) set(c, r, C.OUTSIDE);
 
   placeSlots(slots, assets || K.assets, K, seed, boxes, grounds, culture);
 
-  // ── 8. views (before the ground: the ground is cut fine round each eye) ──
-  const cemStreet = streetsY.sort((a, b) => Math.abs(a - 250) - Math.abs(b - 250))[0] || 250;
+  // ── 5. views (before the ground: the ground is cut fine round each eye) ──
   const views = {
     // on the roof of Khafre's valley temple: the Sphinx in its quarry, the causeway climbing, the two great pyramids behind
     valley: { eye: [792, 612, 15.1], at: [640, 530, 24] },
     // in Khufu's court at the foot of his pyramid's east face, looking up the face
     pyramid: { eye: [619, 138, Hp + 1.7], at: [500, 250, 110] },
-    // down an E–W street of the Western Cemetery, Khufu's pyramid at its end
-    cemetery: { eye: [78, cemStreet, Hp + 1.7], at: [500, cemStreet, 55] },
-    // on Main Street in the workers' town, the Wall of the Crow and the pyramids beyond it
-    town: { eye: [700, 884, 1.7], at: [420, 700, 40] },
     // from a boat in Khafre's harbour: the valley temple, the Sphinx temple, the causeway up to the pyramid
     harbour: { eye: [945, 650, waterZ + 2.2], at: [600, 600, 30] },
-    // at the foot of Menkaure's causeway, by his unfinished valley temple and its building site: the
-    // causeway climbing to his pyramid in its undressed granite, the quarry on the plateau to the north
-    works: { eye: [528, 952, 1.7], at: [150, 880, 30] },
     // beside the apex of the Great Pyramid, the last courses and the capstone against the sky
     summit: { eye: [452, 222, Hp + 150], at: [500, 250, Hp + 140] },
   };
 
-  // ── 9. ground: the terrain mesh, the water, the town's lanes, the fields ──
+  // ── 6. ground: the terrain mesh, the water, the fields ──
   const tcols = Math.ceil(Wf / TC), trows = Math.ceil(Df / TC), eyes = Object.values(views).map((v) => v.eye);
   const groundTint = (z) => scaleHex(P.valley, 1) === P.valley && z > Hp * 0.5 ? P.ground : z > 1 ? P.ground : P.valley;
   for (let r = 0; r < trows; r++) {
@@ -192,15 +136,18 @@ export function planPlateau({ seed = 1, culture = 'giza', frame = { w: 1160, d: 
       const inQ = inRect(quarry, mx, my);
       const hs = inQ ? [0, 0, 0, 0] : [natural(x0, y0), natural(x1, y0), natural(x1, y1), natural(x0, y1)];
       const flat = Math.max(...hs) - Math.min(...hs) < 0.05;
-      // round an eye the ground is cut in 5 m squares: a face reaching behind the camera is dropped whole
+      // round an eye the ground is cut in 5 m squares: a face reaching behind the camera is dropped whole.
+      // The squares sit two and three layers up, a plane apart from the runs whose edges their bleed overlaps
       if (flat && eyes.some(([ex, ey]) => Math.hypot(mx - ex, my - ey) < 60)) {
         flush();
-        for (let yy = y0; yy < y1; yy += 5) for (let xx = x0; xx < x1; xx += 5) grounds.unshift({ kind: 'ground', x: xx - 0.15, y: yy - 0.15, w: 5.3, d: 5.3, z: hs[0] + 0.01 + (((xx + yy) / 5) % 2 ? TERRAIN_LAYER : 0), fill: hs[0] > 1 ? P.ground : P.valley, surface: hs[0] > 1 ? 'rubble' : 'mud' });
+        for (let yy = y0; yy < y1; yy += 5) for (let xx = x0; xx < x1; xx += 5) grounds.unshift({ kind: 'ground', x: xx - 0.15, y: yy - 0.15, w: 5.3, d: 5.3, z: hs[0] + 0.01 + (((xx + yy) / 5) % 2 ? 3 : 2) * TERRAIN_LAYER, fill: hs[0] > 1 ? P.ground : P.valley, surface: hs[0] > 1 ? 'rubble' : 'mud' });
         continue;
       }
       if (flat) {
         const z = hs[0];
-        if (run && Math.abs(run.z - z) < 0.05 && Math.abs(run.x + run.w - x0) < 1e-6 && run.w < 40) run.w += x1 - x0;   // runs of at most ~40 m: a face many thousands of pixels wide starves the page's compositor, and one reaching behind an eye on the plateau is dropped else { flush(); run = { x: x0, w: x1 - x0, z }; }
+        // runs of at most ~40 m: a face many thousands of pixels wide starves the page's compositor, and one reaching behind an eye on the plateau is dropped
+        if (run && Math.abs(run.z - z) < 0.05 && Math.abs(run.x + run.w - x0) < 1e-6 && run.w < 40) run.w += x1 - x0;
+        else { flush(); run = { x: x0, w: x1 - x0, z }; }
         continue;
       }
       flush();
@@ -224,13 +171,11 @@ export function planPlateau({ seed = 1, culture = 'giza', frame = { w: 1160, d: 
       boxes.push({ kind: 'quay', x: edge[0], y: edge[1], w: edge[2], d: edge[3], z0: waterZ - 0.3, z1: 0.15, tint: P.limestone });
     }
   }
-  // the town's lanes (and its open slivers, too small to build: walked like lanes)
-  runs(grid, cols, rows, (v) => v === C.LANE || v === C.OPEN, (c, r, n) => grounds.push({ kind: 'lane', x: c * CELL, y: r * CELL - (r % 2 ? 0.08 : 0), w: n * CELL + 0.15, d: CELL + (r % 2 ? 0.16 : 0), z: laneZ(0, r), fill: P.lane, surface: 'mud' }));
   // fields on the floodplain, palms along the water
   const G = stream(seed, 'groves'), hit = (x, y, w, d) => occupied.some((o) => x < o.x + o.w + 6 && x + w > o.x - 6 && y < o.y + o.d + 6 && y + d > o.y - 6);
   let palms = 0;
   for (let y = 0; y < Df; y += TC) for (let x = 0; x < Wf; x += TC) {
-    if (isWater(x + TC / 2, y + TC / 2) || inRect({ x: town.x - 10, y: town.y - 30, w: town.w + 20, d: town.d + 40 }, x + TC / 2, y + TC / 2)) continue;
+    if (isWater(x + TC / 2, y + TC / 2)) continue;
     if ([[x, y], [x + TC, y], [x, y + TC], [x + TC, y + TC]].some(([px, py]) => natural(px, py) > 0.01) || hit(x, y, TC, TC)) continue;
     if (G() < 0.82) grounds.push({ kind: 'field', x: x + 0.3, y: y + 0.3, w: TC - 0.6, d: TC - 0.6, z: 0.03, fill: pick(P.field, G) });
     const nearWater = isWater(x + TC * 1.5, y + TC / 2) || isWater(x - TC / 2, y + TC / 2);
@@ -241,10 +186,8 @@ export function planPlateau({ seed = 1, culture = 'giza', frame = { w: 1160, d: 
   return {
     boxes, grounds, views, frame: { w: Wf, d: Df }, slots,
     stats: {
-      culture, mastabas: slots.filter((s) => s.asset === 'gz-mastaba').length, galleries: slots.filter((s) => s.asset === 'gz-gallery').length,
-      houses: slots.filter((s) => s.asset === 'gz-house').length, palms, precinct: khufu.rect,
+      culture, palms, precinct: khufu.rect,
       complexes: { khufu, khafre, menkaure: menk }, quarry, plateau: Hp,
-      laneCells: grid.reduce((n, v) => n + (v === C.LANE ? 1 : 0), 0),
     },
     hAt,
     grid: { cols, rows, cell: CELL, data: grid, codes: C },

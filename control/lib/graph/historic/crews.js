@@ -110,11 +110,6 @@ export const CREWS = {
   'gz-pyramid': [crew(3, 6, ['carry', 'hoe'], 'before')],
   'gz-mortuary-temple': [crew(1, 3, STAND, 'before', { dress: 'man' })],
   'gz-valley-temple': [crew(1, 3, STAND, 'before', { dress: 'man' })],
-  'gz-gallery': [crew(0, 2, STAND, 'before')],
-  'gz-bakery': [crew(2, 4, ['stoop', 'carry'], 'inside')],
-  'gz-works': [crew(2, 4, ['hoe', 'stoop'], 'inside')],
-  'gz-quarry': [crew(3, 6, ['hoe', 'hoe', 'stoop'], 'inside')],
-  'gz-ship': [crew(1, 3, ['stoop', 'idleL'], 'inside', { deck: true })],
   // Lindos (and the polis)
   'ln-temple': [crew(1, 2, STAND, 'before', { dress: 'man', women: true })],
   'ln-altar': [crew(1, 1, ['idleL'], 'before', { dress: 'man' }), crew(1, 3, STAND, 'before', { dress: 'man', women: true })],

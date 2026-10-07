@@ -10,7 +10,6 @@
 import { scaleHex } from '../../polygonizer/vexar.js';
 
 const box = (kind, x, y, w, d, z0, z1, tint, o = {}) => ({ kind, x, y, w, d, z0, z1, tint, ...o });
-const drum = (cx, cy, r, z0, z1, tint, o = {}) => ({ kind: o.kind || 'drum', solid: 'drum', x: cx - r, y: cy - r, w: 2 * r, d: 2 * r, z0, z1, tint, ...o });
 const DARK = '#2a2420';
 const bbox = (pts) => { const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]), zs = pts.map((p) => p[2]); return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(0.01, Math.max(...xs) - Math.min(...xs)), d: Math.max(0.01, Math.max(...ys) - Math.min(...ys)), z0: Math.min(...zs), z1: Math.max(...zs) }; };
 const panel = (kind, pts, out, tint) => ({ kind, solid: 'panel', pts, out, ...bbox(pts), tint });
@@ -188,28 +187,6 @@ export const greatSphinx = {
   },
 };
 
-/**
- * A stone mastaba: a flat-topped bench of a tomb, its sides battered ~10°, cased in white limestone (or
- * left in its yellow core), the offering chapel at the south end of its east (front) face with the false
- * door, burial shafts dark on the roof.
- */
-export const mastaba = {
-  id: 'gz-mastaba', sheet: 'gz-mastaba', designed: true, patterns: ['mastaba', 'stone-ashlar'],
-  read: 'A long low flat-topped tomb with sloping sides, a small chapel and a niched false door on its long front, shafts on the roof.',
-  notes: ['W = its length (N–S), D = its depth (E–W) incl. 2.6 m for the chapel; height 4.5–7 m; batter 10°.', 'Cased in Tura limestone (60%) or left in rough local core.', 'Chapel at the south end of the front; a second niche toward the north.'],
-  envelope: { w: [14, 56], d: [9, 26] },
-  build({ W, D, slot }, { palette: P, rng }) {
-    const h = 4.5 + rng() * 2.5, c = 2.6, lean = h * 0.176, cased = rng() < 0.6, out = [];
-    const tint = cased ? scaleHex(P.tura, 0.97 + rng() * 0.04) : scaleHex(P.limestone, 0.92 + rng() * 0.08), kind = cased ? 'mastaba' : 'mastaba-core';
-    out.push({ kind, solid: 'frustum', x: 0, y: c, w: W, d: D - c, z0: 0, z1: h, top: { x: lean, y: c + lean, w: W - 2 * lean, d: D - c - 2 * lean }, tint });
-    out.push(box('chapel', W * 0.68, 0, W * 0.24, c + lean * 0.5, 0, 3.4, tint), box('door', W * 0.78, -0.05, 1, 0.12, 0, 2.2, DARK));
-    out.push(box('false-door', W * 0.22, c + lean * 0.3 - 0.1, 0.9, 0.2, 0.3, 2.4, DARK));
-    const shafts = slot.shafts ?? 1 + Math.floor(rng() * 2);
-    for (let i = 0; i < shafts; i++) out.push(box('shaft', W * (0.3 + 0.35 * i) - 0.6, c + (D - c) / 2 - 0.6, 1.2, 1.2, h - 0.6, h + 0.03, DARK));   // sunk into the mass: only its mouth shows
-    return out;
-  },
-};
-
 /** A boat pit by the pyramid: `covered` — a long trench roofed with limestone slabs (a dismantled ship inside); open — a boat-shaped cut in the rock. */
 export const boatPit = {
   id: 'gz-boat-pit', sheet: 'gz-pyramid', patterns: ['boat'],
@@ -224,161 +201,6 @@ export const boatPit = {
     }
     const pts = [[0.5, D / 2], [W * 0.15, 0.4], [W * 0.85, 0.4], [W - 0.5, D / 2], [W * 0.85, D - 0.4], [W * 0.15, D - 0.4]];
     return { boxes: [box('kerb', 0, 0, W, 0.3, 0, 0.25, P.limestone), box('kerb', 0, D - 0.3, W, 0.3, 0, 0.25, P.limestone)], grounds: [{ kind: 'boat-pit', poly: pts, z: 0.07, fill: DARK }] };
-  },
-};
-
-/** The Wall of the Crow: a 10 m wall of great rough blocks closing the wadi, a tall narrow gate tunnel through its foot. */
-export const wallCrow = {
-  id: 'gz-wall-crow', sheet: 'gz-wall-crow', designed: true, patterns: ['blank-wall'],
-  read: 'A very long massive wall of rough limestone blocks, about ten metres high, a tall corbelled gate tunnel through its base.',
-  notes: ['10 m high, 10 m thick at the foot, battered to 6 m at the top.', 'Gate tunnel 2.5 m wide, 7 m high, at `gate` (fraction of the length, default 0.5).'],
-  envelope: { w: [120, 220], d: [8, 12] },
-  build({ W, D, slot }, { palette: P }) {
-    const H = 10, g = W * (slot.gate ?? 0.5), gw = 2.5, lean = 2, s = P.limestone, out = [];
-    const seg = (x0, x1) => out.push({ kind: 'crow-wall', solid: 'frustum', x: x0, y: 0, w: x1 - x0, d: D, z0: 0, z1: H, top: { x: x0, y: lean, w: x1 - x0, d: D - 2 * lean }, tint: s });
-    seg(0, g - gw / 2); seg(g + gw / 2, W);
-    out.push({ kind: 'crow-wall', solid: 'frustum', x: g - gw / 2, y: 0, w: gw, d: D, z0: 7, z1: H, top: { x: g - gw / 2, y: lean, w: gw, d: D - 2 * lean }, tint: s });
-    for (const o of [-1, 1]) out.push(box('crow-wall', g + o * (gw / 2 - 0.3) - 0.3, 0.6, 0.6, D - 1.2, 5.6, 7, s));   // the corbel steps over the tunnel
-    return out;
-  },
-};
-
-/**
- * A workers' gallery (Heit el-Ghurab): a long narrow mud-brick hall, its front an open colonnade of
- * wooden posts, a sleeping hall behind, the overseer's small house closing the back.
- */
-export const gallery = {
-  id: 'gz-gallery', sheet: 'gz-gallery', designed: true, patterns: ['sun-dried-earth', 'colonnade'],
-  read: 'A long narrow mud-brick barracks: a porch of wooden posts at its front, a long flat-roofed hall, a small house at the back.',
-  notes: ['~5 m wide, ~35 m long; walls 0.7 m, 3.4 m high; the back house 7 m deep, 4 m high.', 'Porch 4 m deep: two rows of posts every 1.5 m.'],
-  envelope: { w: [4.5, 7], d: [26, 40] },
-  build({ W, D }, { palette: P }) {
-    const t = 0.7, H = 3.4, porch = 4, back = 7, m = P.mud, out = [];
-    out.push(box('gallery', 0, porch, t, D - porch - back, 0, H, m), box('gallery', W - t, porch, t, D - porch - back, 0, H, m));
-    out.push(box('gallery', 0, D - back, W, back, 0, 4, scaleHex(m, 1.04)), box('gallery-roof', 0, porch, W, D - porch - back, H, H + 0.25, scaleHex(m, 0.92)));
-    out.push(box('gallery-roof', 0, 0, W, porch, H - 0.3, H - 0.05, P.palmwood));
-    for (let x = 0.4; x < W - 0.2; x += 1.5) for (const y of [0.3, porch - 0.4]) out.push(box('post', x, y, 0.22, 0.22, 0, H - 0.3, P.palmwood));
-    return out;
-  },
-};
-
-/** A bakery: a walled court, rows of conical bread moulds bedded in embers, a domed oven, grinding stones. */
-export const bakery = {
-  id: 'gz-bakery', sheet: 'gz-bakery', designed: true, patterns: ['sun-dried-earth'],
-  read: 'A small walled mud-brick yard with rows of pottery bread moulds in the hearth, a domed oven and grinding stones.',
-  notes: ['Walls 0.5 m, 2.4 m; the hearth bed dark; moulds 0.3 m; oven dome 2.4 m across.'],
-  envelope: { w: [7, 14], d: [6, 12] },
-  build({ W, D }, { palette: P }) {
-    const t = 0.5, H = 2.4, m = P.mud, out = [];
-    out.push(box('bakery', 0, D - t, W, t, 0, H, m), box('bakery', 0, t, t, D - 2 * t, 0, H, m), box('bakery', W - t, t, t, D - 2 * t, 0, H, m));
-    out.push(box('bakery', 0, 0, W / 2 - 0.7, t, 0, H, m), box('bakery', W / 2 + 0.7, 0, W / 2 - 0.7, t, 0, H, m));
-    out.push({ kind: 'oven', solid: 'dome', sides: 8, x: W - t - 2.6, y: D - t - 2.6, w: 2.4, d: 2.4, z0: 0, z1: 1.8, tint: scaleHex(m, 0.9) });
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 5; j++) out.push(drum(t + 1 + j * 0.65, t + 1.2 + i * 0.7, 0.16, 0.05, 0.45, '#9a5a3a', { kind: 'mould', sides: 6, taper: 0.4 }));
-    out.push(box('quern', W - t - 2.4, t + 0.6, 1.4, 0.6, 0, 0.5, P.limestone), box('quern', W - t - 2.4, t + 1.6, 1.4, 0.6, 0, 0.5, P.limestone));
-    return { boxes: out, grounds: [{ kind: 'hearth', x: t + 0.6, y: t + 0.8, w: 3.6, d: 2.4, z: 0.04, fill: '#3a3028' }] };
-  },
-};
-
-/** A workers' town house: a mud-brick block, a small walled forecourt with its door on the lane. */
-export const house = {
-  id: 'gz-house', sheet: 'gz-gallery', patterns: ['sun-dried-earth', 'courtyard-house', 'flat-roof-cube'],
-  read: 'A plain flat-roofed mud-brick house behind a small walled forecourt.',
-  notes: ['The house 60–70% of the lot, 3–4.4 m high; the forecourt wall 1.8 m.'],
-  envelope: { w: [6, 15], d: [6, 15] },
-  build({ W, D }, { palette: P, rng }) {
-    const m = scaleHex(P.mud, 0.94 + rng() * 0.12), h = 3 + rng() * 1.4, f = D * (0.3 + rng() * 0.1), out = [];
-    out.push(box('house', 0, f, W, D - f, 0, h, m), box('house-parapet', 0, f, W, 0.3, h, h + 0.4, m));
-    out.push(box('yard-wall', 0, 0, 0.4, f, 0, 1.8, m), box('yard-wall', W - 0.4, 0, 0.4, f, 0, 1.8, m), box('yard-wall', 0, 0, W / 2 - 0.5, 0.4, 0, 1.8, m), box('yard-wall', W / 2 + 0.5, 0, W / 2 - 0.5, 0.4, 0, 1.8, m));
-    out.push(box('door', W / 2 - 0.45, f - 0.05, 0.9, 0.1, 0, 1.9, DARK));
-    return out;
-  },
-};
-
-/** An Old Kingdom cargo boat bringing Tura limestone: a flat hull with upturned ends, a bipod mast and a tall narrow sail, white blocks on deck. Length along x. */
-export const ship = {
-  id: 'gz-ship', sheet: 'gz-ship', designed: true, patterns: ['boat'],
-  read: 'A long flat wooden cargo boat with upturned ends, a two-legged mast and a tall narrow sail, white limestone blocks on its deck.',
-  notes: ['Hull 18 m × 4.4 m, 1.3 m deep; the bipod mast 9 m; sail across the beam.'],
-  envelope: { w: [16, 22], d: [5, 7] },
-  build({ W, D }, { palette: P }) {
-    const c = D / 2, wood = P.cedar, out = [];
-    out.push({ kind: 'hull', solid: 'frustum', x: 1.2, y: c - 1.6, w: W - 2.4, d: 3.2, z0: -0.4, z1: 1, top: { x: 0.6, y: c - 2.2, w: W - 1.2, d: 4.4 }, tint: wood });
-    for (const [x, rise] of [[0, 'x-'], [W - 1.6, 'x+']]) out.push({ kind: 'hull', solid: 'wedge', rise, x, y: c - 0.7, w: 1.6, d: 1.4, z0: 0.6, z1: 2.4, tint: wood });
-    for (const o of [-1, 1]) out.push({ kind: 'mast', solid: 'frustum', x: W * 0.45, y: c + o * 1.6 - 0.12, w: 0.24, d: 0.24, z0: 1, z1: 9.5, top: { x: W * 0.45, y: c - 0.1, w: 0.2, d: 0.2 }, tint: P.palmwood });
-    out.push({ kind: 'sail', solid: 'panel', pts: [[W * 0.45 + 0.3, c - 1.5, 3], [W * 0.45 + 0.3, c + 1.5, 3], [W * 0.45 + 0.3, c + 1.4, 9], [W * 0.45 + 0.3, c - 1.4, 9]], out: [1, 0, 0], x: W * 0.45 + 0.29, y: c - 1.5, w: 0.02, d: 3, z0: 3, z1: 9, tint: P.linen });
-    out.push({ kind: 'sail', solid: 'panel', pts: [[W * 0.45 + 0.28, c - 1.5, 3], [W * 0.45 + 0.28, c + 1.5, 3], [W * 0.45 + 0.28, c + 1.4, 9], [W * 0.45 + 0.28, c - 1.4, 9]], out: [-1, 0, 0], x: W * 0.45 + 0.27, y: c - 1.5, w: 0.02, d: 3, z0: 3, z1: 9, tint: P.linen });
-    for (const x of [W * 0.18, W * 0.62, W * 0.76]) out.push(box('cargo', x, c - 0.9, 1.8, 1.8, 1, 2.2, P.tura));
-    out.push({ kind: 'oar', solid: 'frustum', x: W - 1.4, y: c - 0.1, w: 0.2, d: 0.2, z0: -0.3, z1: 3, top: { x: W - 2.6, y: c - 0.1, w: 0.15, d: 0.15 }, tint: P.palmwood });
-    return out;
-  },
-};
-
-// a sledge: two runners, a stone block lashed on top (stone went on sledges over wetted tracks)
-const sledge = (x, y, block, P, rot = false) => {
-  const out = [];
-  for (const o of [0.15, 1.05]) out.push(rot ? box('sledge', x + o, y, 0.2, 3.2, 0, 0.28, P.palmwood) : box('sledge', x, y + o, 3.2, 0.2, 0, 0.28, P.palmwood));
-  out.push(rot ? box('block', x + 0.1, y + 0.4, 1.2, 2.4, 0.28, 0.28 + block, P.limestone) : box('block', x + 0.4, y + 0.1, 2.4, 1.2, 0.28, 0.28 + block, P.limestone));
-  return out;
-};
-// a stack of dressed blocks, `n` × `m` on the ground and `k` high, the top course not full
-const stack = (x, y, n, m, k, s, tint, rng) => {
-  const out = [];
-  for (let c = 0; c < k; c++) for (let i = 0; i < n - c; i++) for (let j = 0; j < m; j++) if (c === 0 || rng() < 0.8) out.push(box('block', x + i * (s + 0.15) + c * s * 0.5, y + j * (s + 0.15), s, s, c * s * 0.9, c * s * 0.9 + s * 0.9, scaleHex(tint, 0.95 + rng() * 0.08)));
-  return out;
-};
-
-/**
- * A building site (Menkaure's temples, unfinished in his reign): stacks of limestone core blocks
- * waiting, a mud-brick construction ramp leaning up against a half-built wall, sledges with blocks on
- * them, a reed-roofed shelter for the gang. `stockpile`: just the stacks — Tura blocks landed on a quay.
- */
-export const works = {
-  id: 'gz-works', sheet: 'gz-mortuary-temple', patterns: ['sun-dried-earth', 'stone-ashlar'],
-  read: 'A building site: stacked limestone blocks, a mud-brick ramp against a half-built wall, sledges loaded with stone, a shelter.',
-  notes: ['Blocks ~1.4 m; the ramp 1:4, 4 m wide, on a wall ~6 m high; sledges 3.2 × 1.4 m.', '`stockpile`: rows of stacked Tura blocks only (a quay).'],
-  envelope: { w: [20, 60], d: [14, 40] },
-  build({ W, D, slot }, { palette: P, rng }) {
-    const out = [], tint = slot.stockpile ? P.tura : P.limestone;
-    if (slot.stockpile) {
-      for (let x = 1; x + 6 < W; x += 7.5) for (let y = 1; y + 4 < D; y += 6) out.push(...stack(x, y, 4, 2, 2 + Math.floor(rng() * 2), 1.4, tint, rng));
-      return out;
-    }
-    // the half-built wall (rough core courses, uneven top) and the ramp up to it
-    const wy = D - 4, wh = 6;
-    for (let x = 0; x < W * 0.7; x += 3.2) out.push(box('temple-wall', x, wy, 3.1, 4, 0, wh - (x / 3.2 % 3) * 1.2, P.limestone));
-    const rl = Math.min(wh * 4, wy - 1);   // 1:4 where the yard is deep enough, steeper where not
-    out.push({ kind: 'ramp', solid: 'wedge', rise: 'y+', x: W * 0.25, y: wy - rl, w: 4, d: rl, z0: 0, z1: wh - 0.2, tint: P.mud });
-    out.push(...stack(W * 0.72, wy - 1, 4, 2, 3, 1.4, tint, rng), ...stack(1, 1, 5, 2, 2, 1.4, tint, rng));
-    out.push(...sledge(W * 0.45, 2, 1.1, P), ...sledge(W * 0.6, Math.max(5, wy - 9), 1.1, P, true));
-    // the gang's shelter: a mat roof on four posts
-    const sx = W - 8, sy = 1;
-    for (const [px, py] of [[0, 0], [6, 0], [0, 4], [6, 4]]) out.push(box('post', sx + px, sy + py, 0.25, 0.25, 0, 2.6, P.palmwood));
-    out.push(box('mat-roof', sx - 0.3, sy - 0.3, 6.9, 4.9, 2.6, 2.8, '#b49a62'));
-    return out;
-  },
-};
-
-/**
- * A quarry on the plateau: the rock cut back in steps on three sides (the beds taken off one by one),
- * blocks half-freed by trenches still standing in the floor, freed blocks on sledges at the open side,
- * where the haul road leaves.
- */
-export const quarry = {
-  id: 'gz-quarry', sheet: 'gz-sphinx', patterns: ['stone-ashlar'],
-  read: 'A stepped open quarry: rock faces cut back in benches on three sides, blocks half-cut in the floor, others on sledges by the haul road.',
-  notes: ['Faces stepped in benches ~2.5 m high, 4 m deep, up to ~10 m; open on the front (−y).', 'Half-freed blocks 1.5 m with dark trenches between; sledges at the mouth.'],
-  envelope: { w: [60, 130], d: [36, 70] },
-  build({ W, D }, { palette: P, rng }) {
-    const out = [], k = P.bedrock;
-    for (let b = 0; b < 4; b++) {
-      const inset = b * 4, z1 = (4 - b) * 2.5, side = D - 4 - inset - 6 - b * 3;   // the rim highest, each bench in a step lower
-      out.push(box('quarry', inset, D - 4 - inset, W - 2 * inset, 4, 0, z1, k));                          // the back face
-      for (const x of [inset, W - 4 - inset]) out.push(box('quarry', x, 6 + b * 3, 4, side, 0, z1, k));  // the sides
-    }
-    // the floor: blocks half-cut in a grid, a dark trench round each
-    for (let x = 20; x < W - 20; x += 2.2) for (let y = D * 0.45; y < D - 20; y += 2.2) if (rng() < 0.6) out.push(box('quarry', x, y, 1.5, 1.5, 0, 0.6 + rng() * 0.9, scaleHex(k, 0.94 + rng() * 0.1)));
-    out.push(...sledge(W * 0.4, 2, 1.2, P), ...sledge(W * 0.55, 4, 1.2, P), ...stack(W * 0.25, 2, 3, 2, 2, 1.4, P.limestone, rng));
-    return { boxes: out, grounds: [{ kind: 'quarry-floor', x: 4, y: 0, w: W - 8, d: D - 4, z: 0.05, fill: scaleHex(k, 0.92), surface: 'rubble' }] };
   },
 };
 
@@ -405,4 +227,4 @@ export function causeway(path, { width = 5, wall = 1.6, height = 4.6, tint, kind
   return out;
 }
 
-export const GIZA_ASSETS = Object.fromEntries([pyramid, queenPyramid, mortuaryTemple, valleyTemple, greatSphinx, mastaba, boatPit, wallCrow, gallery, bakery, house, ship, works, quarry].map((a) => [a.id, a]));
+export const GIZA_ASSETS = Object.fromEntries([pyramid, queenPyramid, mortuaryTemple, valleyTemple, greatSphinx, boatPit].map((a) => [a.id, a]));
