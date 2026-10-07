@@ -23,7 +23,14 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   A kit card gives its shell, the look it pairs with, the options its style card carries (night, decay, wind, fire),
   its first principles and a starter manifest that plans. A look card gives its palette, light and air, and says when
   the kit it names is not built yet. Before this, the kit list lived only in the stage's refusal message.
+- **Looks and kits are named for what they are, not for a game.** The five looks are `gothic-night`, `desert-dusk`,
+  `island-noon`, `jungle-haze` and `lab-dark`, set as a stage recipe's `"reference"`; the plaza kit is `island-plaza`.
+  No card names a game, studio or console: each describes its setting, light, air and surfaces, so the agent matches an
+  ask ("a dark castle lit by torches", "a desert town at sunset") on its own. The reference cards in `era/sixth-gen.js`
+  keep the research record. A recipe that already carries a reference card's own id or `delfino-plaza` still plans as
+  before; the refusal lists only the look ids. A stage with no title is now titled by its look.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
+- The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from
   the curated `compose_world` base cards.
 

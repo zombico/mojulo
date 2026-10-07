@@ -3,7 +3,7 @@
   "id": "world",
   "name": "Compose a generated or live world",
   "summary": "Traversable three.js worlds: cities, hubs, drivable/flyable/platformer, planetary, painterly, terrain, math, campuses, caves.",
-  "when": "\"make a city\", \"a little town I can wander around\", \"an airport\", \"a walkable world\", \"fly a drone\", \"a platformer\", \"a game where…\", \"walk Königsberg\", \"a school campus\", \"a torch-lit cave\", \"a campfire in a meadow\", \"a fireball trap\", \"a grass fire\", \"mountains I can walk and fly over\", \"a continent with a great river\", \"a sixth-gen level\", \"a ps2-style level\"",
+  "when": "\"make a city\", \"a little town I can wander around\", \"an airport\", \"a walkable world\", \"fly a drone\", \"a platformer\", \"a game where…\", \"walk Königsberg\", \"a school campus\", \"a torch-lit cave\", \"a campfire in a meadow\", \"a fireball trap\", \"a grass fire\", \"mountains I can walk and fly over\", \"a continent with a great river\", \"a sixth-gen level\", \"an early 2000s 3d level\"",
   "entry": "compose_world",
   "form": "world"
 }

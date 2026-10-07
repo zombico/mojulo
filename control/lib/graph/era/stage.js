@@ -21,7 +21,7 @@
  * corners, drawn as a sconce with a glowing flame, and leaves as a KHR punctual point light in the GLB.
  * Deterministic: a pure function of the recipe.
  */
-import { SIXTH_GEN_REFERENCES } from './sixth-gen.js';
+import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { makeDirt, hash3 } from './dirt.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { add, sub, mul, dot, r5, P, hexRgb, rgbHex, wallFrame, openingU, panel, box, wallBox, solidSpans, onWall } from './geom.js';
@@ -93,7 +93,7 @@ STAGE_KITS['gothic-nave'] = Object.freeze({
 });
 // The PLAZA kit (Sunshine): an open-air square whose sides are house fronts (plaza.js) over a raised pavement step,
 // paved in warm flagstone bays, lit by a hard high sun with baked cast shadows and a blue sky fill.
-STAGE_KITS['delfino-plaza'] = Object.freeze({
+STAGE_KITS['island-plaza'] = Object.freeze({
   ...STAGE_KITS['gothic-stone'],
   shell: 'plaza', bay: 5, sun: true, rubble: null,
   cells: { wall: 0.5, trim: 0.5, floor: 0.5, ceiling: 1, gutter: 0.5, base: 0.5, roof: 0.75, step: 0.5 },
@@ -167,6 +167,10 @@ STAGE_KITS['isekai-meadow'] = Object.freeze({ shell: 'isekai', style: 'isekai-me
 STAGE_KITS['isekai-bamboo'] = Object.freeze({ shell: 'isekai', style: 'isekai-bamboo' });
 STAGE_KITS['isekai-sakura'] = Object.freeze({ shell: 'isekai', style: 'isekai-sakura' });
 Object.freeze(STAGE_KITS);
+/** Kit ids a recipe may still carry from before a kit was renamed: read as the kit it became. */
+export const STAGE_KIT_ALIASES = Object.freeze({ 'delfino-plaza': 'island-plaza' });
+/** A kit id (or an alias) → the kit's id; the id as given when it names neither, so the refusal can quote it. */
+export const resolveKitId = (id) => STAGE_KIT_ALIASES[id] || id;
 const VARIANTS = ['a', 'b', 'c', 'd'];
 
 // ── plan ─────────────────────────────────────────────────────────────────────
@@ -174,12 +178,12 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 export function planStage(m = {}) {
-  const kitId = m.kit || 'gothic-stone';
+  const kitId = resolveKitId(m.kit || 'gothic-stone');
   const kit = STAGE_KITS[kitId];
   if (!kit) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
-  const refId = m.reference || 'dmc3';
+  const refId = resolveLook(m.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
-  if (!ref) throw new Error(`stage: unknown reference '${refId}' (known: ${Object.keys(SIXTH_GEN_REFERENCES).join(', ')})`);
+  if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   if (!Array.isArray(m.rooms) || !m.rooms.length) throw new Error('stage: needs a non-empty `rooms` array ({ id, x, y, w, d, h })');
   const g = kit.grid, byId = new Map();
   const rooms = m.rooms.map((r, i) => {
@@ -575,7 +579,7 @@ function splitCard(f, nu, nv) {
 
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
-  const kit = STAGE_KITS[manifest.kit];
+  const kit = STAGE_KITS[resolveKitId(manifest.kit)];
   if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'isekai') return assembleIsekaiScene({ style: kit.style, ...manifest }, ctx);
@@ -654,7 +658,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
-    title: ctx.title || manifest.title || `mojulo stage · ${plan.ref.title}`,
+    title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
     bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,
     haze: { color: air.fog.color, density: air.fog.density },
     // the halo is a depth-tested camera-facing sprite: kept inside the torch's clearance from the wall, or the

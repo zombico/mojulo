@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { stageEntryCards, kitCard, lookCard, stageHubCard, STAGE_CARD_BODY_CEILING } from './entries.js';
 import { STAGE_KITS, planStage } from './stage.js';
-import { SIXTH_GEN_REFERENCES } from './sixth-gen.js';
+import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
 import { getViewVocabCatalog, _resetViewVocabCache } from '../views/view-vocab/loader.js';
 import { getViewVocabHandler } from '../../mcp/tools/create-view.js';
 
@@ -12,7 +12,8 @@ describe('stage entries: generated kit and look cards', () => {
     const ids = stageEntryCards().map((c) => c.id);
     expect(ids[0]).toBe('stage');
     for (const k of Object.keys(STAGE_KITS)) expect(ids).toContain(`stage/${k}`);
-    for (const r of Object.keys(SIXTH_GEN_REFERENCES)) expect(ids).toContain(`look/${r}`);
+    for (const l of SIXTH_GEN_LOOK_IDS) expect(ids).toContain(`look/${l}`);
+    expect(Object.values(SIXTH_GEN_LOOKS).sort()).toEqual(Object.keys(SIXTH_GEN_REFERENCES).sort());
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -27,7 +28,7 @@ describe('stage entries: generated kit and look cards', () => {
       if (m.rooms) expect(() => planStage(m), k).not.toThrow();
       else expect(['nature', 'jungle', 'isekai'], k).toContain(STAGE_KITS[k].shell);
     }
-    for (const r of Object.keys(SIXTH_GEN_REFERENCES)) expect(() => planStage(starterOf(lookCard(r).body)), r).not.toThrow();
+    for (const l of SIXTH_GEN_LOOK_IDS) expect(() => planStage(starterOf(lookCard(l).body)), l).not.toThrow();
   });
 
   it('offers an option only where the kit takes it', () => {
@@ -40,8 +41,8 @@ describe('stage entries: generated kit and look cards', () => {
   });
 
   it('names an unbuilt kit as unbuilt, never as a card to open', () => {
-    for (const [r, R] of Object.entries(SIXTH_GEN_REFERENCES)) {
-      const body = lookCard(r).body;
+    for (const l of SIXTH_GEN_LOOK_IDS) {
+      const R = SIXTH_GEN_REFERENCES[SIXTH_GEN_LOOKS[l]], body = lookCard(l).body;
       if (STAGE_KITS[R.kit]) expect(body).toContain(`card 'stage/${R.kit}'`);
       else expect(body).toMatch(/named but not built yet/);
     }
@@ -52,9 +53,25 @@ describe('stage entries: generated kit and look cards', () => {
     _resetViewVocabCache();
     const cat = getViewVocabCatalog();
     for (const c of stageEntryCards()) expect(cat.get(c.id)?.family).toBe('world');
-    const one = await getViewVocabHandler({ id: 'look/sunshine' });
+    const one = await getViewVocabHandler({ id: 'look/island-noon' });
     expect(one.ok).toBe(true);
     const rows = await getViewVocabHandler({ family: 'world' });
-    expect(rows.cards.map((c) => c.id)).toEqual(expect.arrayContaining(['stage', 'stage/gothic-nave', 'look/dmc3']));
+    expect(rows.cards.map((c) => c.id)).toEqual(expect.arrayContaining(['stage', 'stage/gothic-nave', 'look/gothic-night']));
+  });
+
+  it('names no game, studio or console: a card offers what a look is, the agent matches the ask', () => {
+    const names = Object.values(SIXTH_GEN_REFERENCES).map((R) => R.title);
+    const words = [...names, ...Object.keys(SIXTH_GEN_REFERENCES), 'delfino', 'orre', 'ps2', 'playstation', 'gamecube', 'xbox', 'mgs'];
+    const ip = new RegExp(`\\b(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'i');
+    for (const c of stageEntryCards()) {
+      for (const field of ['id', 'name', 'summary', 'when', 'body']) expect(c[field], `${c.id}.${field}`).not.toMatch(ip);
+    }
+  });
+
+  it('reads the reference ids and the old plaza kit id a recipe may already carry', () => {
+    const room = [{ id: 'a', x: 0, y: 0, w: 8, d: 8, h: 5 }];
+    for (const [look, ref] of Object.entries(SIXTH_GEN_LOOKS)) expect(planStage({ reference: ref, rooms: room }).refId).toBe(planStage({ reference: look, rooms: room }).refId);
+    expect(planStage({ kit: 'delfino-plaza', rooms: room }).kitId).toBe('island-plaza');
+    expect(() => planStage({ reference: 'nope', rooms: room })).toThrow(/known looks: gothic-night/);
   });
 });

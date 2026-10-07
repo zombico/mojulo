@@ -61,7 +61,7 @@ export const KITS = {
   platformer: {
     name: 'Platformer',
     summary: 'Jump across platforms, grab the collectibles, reach the goal flag. Falls respawn you (they cost position, not your run); hazards are opt-in and can be lethal. Pairs with platformField() for island geometry + moving platforms.',
-    when: 'a 3D platformer, jump between floating platforms, a Kirby / Mario-style jumping level, collect gems then reach the exit flag, moving platforms and spike hazards over a void',
+    when: 'a 3D platformer, jump between floating platforms, a classic mascot jumping level, collect gems then reach the exit flag, moving platforms and spike hazards over a void',
     store: {
       slices: [
         { name: 'bag', kind: 'inventory' },

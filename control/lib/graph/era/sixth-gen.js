@@ -38,7 +38,7 @@ export const SIXTH_GEN_REFERENCES = Object.freeze({
   colosseum: Object.freeze({
     title: 'Pokémon Colosseum',
     setting: 'desert industrial town',
-    kit: 'orre-industrial',
+    kit: 'desert-industrial',
     surfaces: ['sandstone', 'metal-panel', 'pipe', 'neon-sign'],
     palette: { base: '#b08a5a', accent: '#3aa8a0', warm: '#f08a40' },
     light: { ambient: '#806a60', key: { color: '#ffb070', elevation: 18, azimuth: 200 }, placed: ['neon', 'lamp-post'], contrast: 'medium' },
@@ -47,7 +47,7 @@ export const SIXTH_GEN_REFERENCES = Object.freeze({
   sunshine: Object.freeze({
     title: 'Super Mario Sunshine',
     setting: 'island plaza',
-    kit: 'delfino-plaza',
+    kit: 'island-plaza',
     surfaces: ['stucco', 'terracotta', 'wood-plank', 'cobble'],
     palette: { base: '#f0d8a8', accent: '#3a80d0', warm: '#e86a40' },
     light: { ambient: '#a8c8f0', key: { color: '#fff4d8', elevation: 58, azimuth: 225 }, placed: [], contrast: 'hard-sun' },
@@ -56,7 +56,7 @@ export const SIXTH_GEN_REFERENCES = Object.freeze({
   mgs3: Object.freeze({
     title: 'Metal Gear Solid 3',
     setting: 'jungle and soviet facility',
-    kit: 'soviet-concrete',
+    kit: 'concrete-facility',
     surfaces: ['mud', 'jungle-grass', 'concrete', 'rust-metal', 'foliage-card'],
     palette: { base: '#5a5e48', accent: '#8a6a3a', warm: '#c8b080' },
     light: { ambient: '#58604c', key: { color: '#e8e0c0', elevation: 40, azimuth: 150 }, placed: ['caged-bulb', 'floodlight'], contrast: 'filmic' },
@@ -74,3 +74,27 @@ export const SIXTH_GEN_REFERENCES = Object.freeze({
 });
 
 export const SIXTH_GEN_REFERENCE_IDS = Object.freeze(Object.keys(SIXTH_GEN_REFERENCES));
+
+/**
+ * The looks as a recipe names them: plain words for the light and air each reference card holds. These are the ids an
+ * agent sees and writes ("reference": "gothic-night"); the reference cards above stay the research record behind them,
+ * and their own ids are still read so a recipe written before the looks had names renders as it did.
+ */
+export const SIXTH_GEN_LOOKS = Object.freeze({
+  'gothic-night': 'dmc3',
+  'desert-dusk': 'colosseum',
+  'island-noon': 'sunshine',
+  'jungle-haze': 'mgs3',
+  'lab-dark': 'doom3',
+});
+export const SIXTH_GEN_LOOK_IDS = Object.freeze(Object.keys(SIXTH_GEN_LOOKS));
+const LOOK_OF_REFERENCE = Object.freeze(Object.fromEntries(Object.entries(SIXTH_GEN_LOOKS).map(([look, ref]) => [ref, look])));
+
+/** A look id (or a reference card's own id) → its reference card's id; null when it names neither. */
+export function resolveLook(id) {
+  if (SIXTH_GEN_LOOKS[id]) return SIXTH_GEN_LOOKS[id];
+  return SIXTH_GEN_REFERENCES[id] ? id : null;
+}
+
+/** A reference card's id → the look id a recipe names it by. */
+export const lookOfReference = (refId) => LOOK_OF_REFERENCE[refId];
