@@ -87,3 +87,4 @@ export const gaitFramePair = _cw.gaitFramePair;
 export const advanceGaitMix = _cw.advanceGaitMix;
 export const RULES = _cw.RULES;
 export const AI_DIFFICULTY = _cw.AI_DIFFICULTY;
+export const breakBlock = _cw.breakBlock;   // break or chip a breakable terrain block by id (playscape/terrain.js)

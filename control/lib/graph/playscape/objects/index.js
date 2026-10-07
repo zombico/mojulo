@@ -22,9 +22,11 @@ import { PLATFORM } from './platform.js';
 import { LIFT } from './lift.js';
 import { CATAPULT } from './catapult.js';
 import { BRIDGE } from './bridge.js';
+import { LADDER } from './ladder.js';
+import { STAIRS } from './stairs.js';
 import { collider, sweep, clearance, toWorld } from './mechanism.js';
 
-export const ENTRIES = Object.freeze({ door: DOOR, platform: PLATFORM, lift: LIFT, catapult: CATAPULT, bridge: BRIDGE });
+export const ENTRIES = Object.freeze({ door: DOOR, platform: PLATFORM, lift: LIFT, catapult: CATAPULT, bridge: BRIDGE, ladder: LADDER, stairs: STAIRS });
 export const ENTRY_IDS = Object.freeze(Object.keys(ENTRIES));
 
 const DEFAULT_FRAME = { at: [0, 0, 0], N: [0, -1, 0], U: [1, 0, 0] };
