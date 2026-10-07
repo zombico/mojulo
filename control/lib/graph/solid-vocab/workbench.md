@@ -112,6 +112,7 @@ A circular tube swept along a 3D path with rotation-minimizing frames (no twist)
 
 ## Lofts — a profile that changes along its path
 
+<!-- section: lofts | Lofts | a boat hull, a tapering handle, a bottle that squares off, a twisted fin: stations, interpolation and a worked hull -->
 The N-station generalisation of an extrude's `endProfile` taper and a sweep's tube: any number of closed 2D profiles (stations) placed along a path and interpolated ring to ring. A boat hull (keel → midship → transom), a tapering handle, a bottle that squares off, an airfoil that twists. A two-station straight loft is exactly the matching `endProfile` extrude.
 
 - `path` (array of ≥2 [x,y,z]) OR `axisFrom` / `axisTo` — a 2-point path (or the axis pair) is a STRAIGHT loft, framed like an extrude (profile u→x, v→y when the axis is vertical). A longer path bends the loft with rotation-minimizing frames, like a sweep; the path points ARE the rings, so put a path point where a station must land exactly.
@@ -134,9 +135,11 @@ lofts: [{
   material: 'wood'
 }]
 ```
+<!-- /section -->
 
 ## Fields — composition in field space
 
+<!-- section: fields | Fields | a hole, bore, pocket, slot, socket, fillet, bump, dent or pebble: terms, shapes, `cells`, `exact: true` for a sharp edge, the flange and pebble examples -->
 Every other monomer is a surface sweep that emits its own closed shell; they mix by sitting next to each other, and none can take material AWAY. A `fields` entry is one solid described as a list of TERMS over a signed-distance field — add a shape, subtract a shape, blend, dab, roughen — surfaced once by the surface-net polygonizer. It is the native answer for a hole, a bore, a pocket, a slot, a socket, a filleted junction, a bump, a dent, a pebble. Read the term list top-down and it is a description of the object (the same discipline as shell `ops`).
 
 **The one mixing rule.** Field solids mix with the other monomers by juxtaposition only, exactly as a mug body and its swept handle mix today. To cut INTO a lathe or an extrude, author it as a `fields` term (its field twin — `lathe` / `extrude` / `sweep` shapes take the same params as the monomers), not as a `lathes` / `extrudes` entry — or give the monomers an `id` and name them in `cuts` (below), and the workbench does that rewrite for you.
@@ -189,9 +192,11 @@ fields: [{
   tint: '#8b8378', material: 'stone'
 }]
 ```
+<!-- /section -->
 
 ### Fields — expression terms
 
+<!-- section: expr | Expression terms | a shape written as a signed-distance formula: gyroid infill, a wavy plate, a polar bolt circle, a twisted box, `smin` fillets -->
 When the shape is not on the list, write it as MATH. `{ kind:'expr', d, vars?, bounds | reach }` is a signed-distance EXPRESSION over `x y z`, usable under `add` / `subtract` / `intersect` (with `blend`) exactly like any shape. Anything you can write as a distance is in the vocabulary already.
 
 ```
@@ -217,9 +222,11 @@ Distance honesty: an expression is a FIELD with the right sign; it is an exact d
 - **A bolt circle by polar `mod`** — `d: 'let a = atan2(y, x); let s = TAU / n; let r = len2(x, y); let q = mod(a + s/2, s) - s/2; len2(r * cos(q) - pcd, r * sin(q)) - hole'`, `vars: { n: 6, pcd: 4.5, hole: 0.45 }`, under `subtract` from the disc with `bounds` spanning the disc's thickness. (The `repeat` op below does the same with a count and keeps the group id; use the expression form when the pattern itself is a formula.)
 - **A twisted box** — `d: 'let a = tw * z; let u = x*cos(a) - y*sin(a); let v = x*sin(a) + y*cos(a); let qx = abs(u) - hx; let qy = abs(v) - hy; let qz = abs(z - hz) - hz; len3(max(qx,0), max(qy,0), max(qz,0)) + min(max(qx, max(qy, qz)), 0)'`, `vars: { tw: 0.8, hx: 0.5, hy: 0.5, hz: 2 }`, `reach: 3`.
 - **A fillet by `smin`** — `d: 'smin(len3(x, y, z - 1) - 1, len2(x, y) - 0.4, 0.3)'`: a sphere on a post, welded with a `0.3` fillet; `bounds` to the post's length.
+<!-- /section -->
 
 ### Fields — rocks
 
+<!-- section: rocks | Rocks | a broken stone with its mineral grain: granite, slate, marble, quartzite, basalt or your own mix -->
 `{ kind:'rock', center, size, rock, seed? }` is a broken stone, not a displaced blob: a block of big planar fractures, then `octaves` of chips at halving scales that break edges and corners along the CLEAVAGE of the mineral grain they start in (or conchoidally where the mineral has none), over a seeded grain field that also colours it. `size` is the longest extent in the manifest's units, and `unit` (`'cm'` by default like the workbench, or `'m'` / `'mm'`) tells the rock what one unit is. That matters because the grain has a real size: a 10 cm `granite` is speckled pink, white, grey and black with feldspar cleavage steps, and an 800 m one is the grains' mean tone with the same kind of silhouette.
 
 - `rock` — a preset (`granite`, `slate`, `marble`, `quartzite`, `basalt`) or `{ modes:[[mineral, share], …], grain (metres), fabric?:{ normal:[x,y,z], scatterDeg? }, colors? }`. Minerals: quartz, orthoclase, albite, muscovite, biotite, augite, hornblende, olivine, calcite, halite; their cleavage angles come from their unit cells. A `fabric` aligns every grain (slate's mica), so the big breaks follow it; random grains break every way.
@@ -230,9 +237,11 @@ Distance honesty: an expression is a FIELD with the right sign; it is an exact d
 ```
 units: 'cm', fields: [{ cells: 96, terms: [{ id: 'rock', op: 'add', shape: { kind: 'rock', center: [0,0,0], size: 12, rock: 'granite', seed: 7 } }] }]
 ```
+<!-- /section -->
 
 ### Fields — crystals
 
+<!-- section: crystals | Crystals | a gem or a druse: quartz, amethyst, diamond, ruby, sapphire, tourmaline, opal; cuts, glow, clusters and a geode -->
 `{ kind:'crystal', gem, center, size, cut?, axis?, spin?, unit?, glow?, cluster? }` is a gem, and it is PLACED, not blended: its faces are its lattice's planes (an exact polytope from the mineral's cell and point group), so the stone sits beside the rest of the field as its own exact solid and ops after it do not touch it. Every face carries a `crystal` tag. The World page shades it live (the crystal channel: glints, fire from three refracted wavelengths, total internal reflection, colour by how far light travels in the stone, dichroism, glow, opal's flashes), draws the light it throws on the surface under it (its print: shadow and caustic), and the `.glb` exports it as a transmissive material (KHR transmission, ior, volume, dispersion).
 
 - `gem` — `quartz`, `amethyst`, `calcite`, `diamond`, `ruby`, `sapphire`, `tourmaline`, `opal`. `cut` — `natural` (the habit: quartz's pointed prism, calcite's rhomb, diamond's octahedron, corundum's barrel, tourmaline's trigonal prism; opal, amorphous, is a cabochon), `brilliant`, `cabochon`.
@@ -249,9 +258,11 @@ units: 'cm', fields: [{ cells: 90, terms: [
       cluster: { count: 200, seed: 9, on: { ellipsoid: { center: [0,0,0], radii: [9.6, 8.6, 7], zMax: -0.6 } }, lengths: [0.7, 3.6] } } },
   { id: 'heart', op: 'add', shape: { kind: 'crystal', gem: 'ruby', center: [0.5, -0.5, -5.2], size: 2.6 } } ] }]
 ```
+<!-- /section -->
 
 ### Light rigs
 
+<!-- section: light | Light rigs | lamps whose beams pass through crystals, targets that open a door, and a light puzzle -->
 `crystalLight` (top level, beside `fields` and `movers`) places lamps whose beams pass through the crystals. Each gem does one thing to a beam, so a player can tell the stones apart by their light alone. It is game-directed, not physics (the stones' shading is the physics). The constants come from what each crystal does to real light, exaggerated so they read.
 
 | gem | the beam |
@@ -285,9 +296,11 @@ crystalLight: { lamps: [{ at: [22,-1,3.4], aim: [8,0,3] }], crystals: { prism: {
   targets: [{ id: 'socket', at: [-5.69,11.9,3.33], r: 0.9, want: { color: 'green' }, toggles: 'door' }] },
 events: { reactions: [{ on: 'lit', match: { source: 'socket' }, do: 'set', var: 'open', to: 1 }], hud: [{ on: 'lit', text: 'The door opens' }] }
 ```
+<!-- /section -->
 
 ### Fields — domain operators
 
+<!-- section: domain-ops | Domain operators | repeat a feature on a grid or a circle, transform, twist, bend, taper, elongate, a shaped cutter such as a D-bore -->
 Ops, not shapes: they apply to whatever the term list has built so far, or — with a nested `terms` list — to a SUB-SOLID that is then combined in (`combine: 'add' | 'subtract' | 'intersect'`, default `add`, with `blend`). That is how a feature is repeated without repeating the part: the bolt circle is ONE bore, repeated, subtracted. Group ids survive (every instance of the bore is still `bore`, and a `transform` moves the group with the geometry), so `{ group: 'bore' }` still selects every hole. Warps act about the ORIGIN / the axis line through it: author the sub-solid there, then `transform` it into place.
 
 - `{ op:'transform', translate?, rotate?:[rx,ry,rz], scale?: s | [sx,sy,sz], mirror?: 'x'|'y'|'z', terms?, combine?, blend? }` — a rigid move (rotation in degrees, Rz·Ry·Rx like the assembler; applied scale → mirror → rotate → translate). Exact under a uniform scale.
@@ -313,9 +326,11 @@ fields: [{
   material: 'steel'
 }]
 ```
+<!-- /section -->
 
 ## Frames — timber on centrelines
 
+<!-- section: frames | Frames — timber, steel, concrete and masonry | a timber frame, post and beam, kigumi or a braced bent: members, stock, species, cut, finish; steel sections, concrete and rebar; brick walls, paving and slates; the carpentry joints and the span and assembly report -->
 A `frames` entry is carpentry: members laid on centrelines the way a frame is drawn, joints that cut them where they meet, and each member wearing the figure its cut would show in a real log. Lengths are in the entry's `unit` (`'cm'` by default).
 
 - **members** — `{ id, from, to, stock, up?, species?, finish?, tint?, cut?, log? }`. `stock` is `[width, depth]` or a named size: `2x4` … `8x10` (dressed, so a 2x4 is 3.8 × 8.9 cm), `3.5sun`, `4sun`, `5sun` (Japanese post sections), `nuki`, `kusabi`. `up` is the way the depth faces (default: up for a level member, +y for a post). `from` is the butt: a post stands the way its tree grew.
@@ -344,9 +359,11 @@ units: 'cm', frames: [{ species: 'hinoki', members: [
   joints: [ { type: 'hozo', a: 'post-l', b: 'hari', pin: true }, { type: 'hozo', a: 'post-r', b: 'hari', pin: true },
             { type: 'nuki', a: 'nuki', b: 'post-l' }, { type: 'nuki', a: 'nuki', b: 'post-r', drive: 'to' } ] }]
 ```
+<!-- /section -->
 
 ### Frames — furniture: panels, boards and fittings
 
+<!-- section: furniture | Frames — furniture | a bookcase, cabinet, wardrobe, shelving, flat-pack carcass, table or chair: builds, box members, boards (MFC, MDF, plywood), cam-lock, dowel, dado, dovetail, hinge and slide joints, hardware, the furniture report (tip-over, racking, shelf sag, cut list), a print kit and the assembly manual -->
 The same `frames` entry builds furniture. Author casework as boxes and let the joints place the hardware.
 
 - **a build** — `build: { type: 'carcass' | 'table' | 'chair', …dials }` on the frame writes the members and joints for you (appended to any you write; `stats.frames[i].build.expanded` holds them to copy and edit). Dials are in the frame's unit; defaults are the usual mm sizes.
@@ -377,9 +394,11 @@ units: 'mm', frames: [{ id: 'bookcase', unit: 'mm', members: [
             { type: 'groove', a: 'back', b: 'side-l' }, { type: 'groove', a: 'back', b: 'side-r' },
             { type: 'groove', a: 'back', b: 'top' }, { type: 'groove', a: 'back', b: 'bottom' } ] }]
 ```
+<!-- /section -->
 
 ### Frames — couches and upholstery: soft parts, cloth and covers
 
+<!-- section: upholstery | Frames — couches and upholstery | a sofa, cushion, pillow or padded bench: the sofa build, soft parts, cloth and weave drafts, covers and the seating report -->
 - **a sofa** — `build: { type: 'sofa', seats?: 1–4, seatW?, seatH?, seatD?, backH?, arms?: 'track'|'rolled'|'none', armW?, armH?, legH?, cushions?: 'loose'|'bench', back?: 'loose'|'tight'|'tufted', pillows?, fill?, fabric?, piping?, species?, joinery?: 'kd'|'glued' }` writes a hardwood seat box with corner blocks, sinuous springs clipped across it, legs on hanger bolts, plywood arms and back, and the padding and cushions. A `kd` sofa is four upholstered sections (base, arms, back) bolted together (`insert-bolt`: an M8 through one into a threaded insert in the other); its manual shows each section as one part.
 - **soft parts** — `soft: [{ id, kind, box, … }]` on any frame, fluffed from the field primitives (Fields above) and surfaced as a mesh: `cushion` (`style: 'boxed'|'knife'|'bench'`, `crown`, `round`, `piping: true|'#hex'`, `tufting: { pattern: 'diamond'|'grid', rows, cols, depth? }`), `pillow` (every edge a seam), `bolster`, `pad` (padding over a member; `roll: true|'left'|'right'` for a rolled arm), `custom` (`terms` in the frame's unit about the box's centre — write your own form). Any: `tilt` (degrees, a back cushion leans back), `fill` (`foam-hr40|foam-hr35|foam-30|fibre|feather`), `fabric`, `on` (what it rests on), `rest: 'down'|'back'`, `group`. A soft part carries no load and takes no joint; it goes in last, the way it rests.
 - **views** — `view: 'finished'` (default with soft parts: members the padding hides are left out of the faces; bolts the owner drives stay) or `'frame'` (the bare frame, springs and all). `softCell` sets the mesh's grain (about 20 mm).
@@ -393,18 +412,22 @@ units: 'mm', frames: [{ id: 'bench', unit: 'mm', members: [ /* a plywood bench *
   soft: [{ id: 'pad', kind: 'cushion', box: { min: [0,0,450], max: [1200,400,510] }, piping: '#222222', on: 'seat' }],
   fabric: { weave: 'twill-2/1', warp: ['navy', 6, 'cream', 14, 'navy', 2, 'cream', 14], weft: 'cream' } }]
 ```
+<!-- /section -->
 
 ## Drapes — hanging cloth
 
+<!-- section: drapes | Drapes | a cape, robe or banner as hanging cloth: anchor, hang, drop, flare, hem -->
 An OPEN two-sided sheet with real folds, sag, and a pin→free billow (the wave-field specialized into cloth) — so cloth is never faked with thin flat extrudes. It drapes over ANY part of the object.
 
 - `anchor` (required) — EXACTLY TWO points ([x,y,z] or {x,y,z}): the pinned top edge (e.g. the two shoulder points for a cape).
 - `hang` — `'back'` (default) or `'front'`.
 - `back` (default 1) — standoff off the object. `drop` (default 3) — how far the hem swings past `back`. `flare` (default 1.32) — widens the hem about its midpoint. `hemZ` (default = anchor-height × 0.16) — absolute hem height; set it to the ground for a floor-length robe. `spread` (default 1; >1 fans a narrow edge into a wide cape) — widens the top edge. `pinToFree` (default true) — keeps the pinned edge still while the hem billows.
 - `tint` / `material` — shade it like any monomer (satin, velvet, …).
+<!-- /section -->
 
 ## Reliefs — raised outlines
 
+<!-- section: reliefs | Reliefs | an embossed nameplate, wordmark, logo or seal raised off a surface: an SVG path or text, size, depth and bevel -->
 A 2D outline raised off a base plane into bevelled geometry — an ADDITIVE emboss, never a subtractive cut. Embossed nameplates, wordmarks lifted off a panel, a seal struck onto a lathe disc.
 
 - `shape` — the outline source: `{ path: '<svg d>' }` (logo/icon/symbol) OR `{ text: '…', font?: '<path-to-ttf>' }` (font-carved letters; counters become real holes).
@@ -413,9 +436,11 @@ A 2D outline raised off a base plane into bevelled geometry — an ADDITIVE embo
 - `normal` ({x,y,z}, default {x:0,y:0,z:1}) — raise direction; point it at a lathe wall/cap normal to emboss onto a turned form. `up` ({x,y,z}, default {x:0,y:1,z:0}) — in-plane glyph vertical.
 - `style` — `{ depth, bevel, bevelSteps, weight, blocky, slant, tracking, curveSteps }` (depth/bevel in normalized outline units, scaled by `size`).
 - `tint` / `material` — a bronze plaque or gold seal is a relief + a metal material.
+<!-- /section -->
 
 ## Shells — parametric polyhedra
 
+<!-- section: shells | Shells | a geodesic dome, a d20, a soccer ball or a faceted housing with inset panels and ports: the solids, face selectors, the panel ops and the sensor-shell example -->
 A POLYHEDRON, given by name and size. The other five monomers sweep a profile — they answer "what silhouette, swept where". A shell answers a different question: "what is the FACE LAYOUT". No sweep produces a geodesic dome, a d20 or a soccer ball, because the identity of those objects is their topology.
 
 - `solid` (required) — `tetrahedron` | `cube` | `octahedron` | `dodecahedron` | `icosahedron` | `truncated_icosahedron` (the soccer ball: 12 pentagons + 20 hexagons) | `geodesic`.
@@ -479,6 +504,7 @@ A soccer-ball shell whose hexagons become raised steel panels, with a scatter of
   }
 }
 ```
+<!-- /section -->
 
 ## Assembly — relative stacking
 
@@ -488,6 +514,7 @@ For a vertical multi-part object (candlestick, lamp, vase, dumbbell, spindle), p
 
 ## Cuts — booleans between named monomers
 
+<!-- section: cuts | Cuts | bore, subtract or intersect named lathes, extrudes and sweeps without rewriting them as fields; edge rounding and `exact: true` -->
 `assembly` says how parts STACK; `cuts` says which parts take material AWAY from which. Give the monomers an `id`, then name them — a flange composed as a lathe, its bolt circle as sweeps, and one line that bores the holes:
 
 ```
@@ -505,6 +532,7 @@ cuts:   [{ id: 'bolts', from: 'flange', subtract: ['bore', 'b1', 'b2'], cells: 9
 - `cells` (16–128, default 64) and **the ceiling**: this is the field solid's boolean, so every cut edge rounds to about one grid cell (the cut part's longest side ÷ `cells`). `stats.cuts[].edge_round` says the number in units and the mint warns with it. A 3 mm hole at true scale wants 96–128. **`exact: true` on the cut** composes it with Manifold instead — a sharp lip, exact size, `segments` for the facets, no `blend` (an exact cut has no blended rim). A toleranced fit is still a B-rep tool's (`translate_modeler_lingo` → `precision cad`).
 - `blend` (units) fillets the cut rims.
 - **The advisory sees it.** A subtracted sweep's or lathe's diameter is a BORE: a hole under the printer's floor is a `tiny_feature` that will close up, not a strut that prints as a thread.
+<!-- /section -->
 
 ## Builds — arms named by intent
 
@@ -523,14 +551,17 @@ cuts:   [{ id: 'bolts', from: 'flange', subtract: ['bore', 'b1', 'b2'], cells: 9
 
 
 - `material` (any monomer) — a named finish, a `'#hex'` (satin-tinted), or `{ preset, ...overrides }`. Named rows: gold / steel / chrome / bronze / silver / copper / gunmetal (metals — live specular in /world, real PBR metallic in the model export) · matte / plaster / stone / wood / rubber / plastic / satin (soft) · glass / neon / cel (stylized). Plain words resolve to a row (ceramic / porcelain / glazed → satin, iron → gunmetal, aluminium → steel, brass → bronze, marble / concrete → stone, clay → plaster, fabric / cloth / paper → matte, leather → rubber); anything else is rejected at mint.
+<!-- section: finishes | Metal surfaces and toon | a part that must read as real metal (metal, finish, toolpath, oxide film, Damascus pattern-welding), and cel shading with ink outlines -->
 - `material: { metal, finish?, along?, film?, pattern?, seed? }` — a **metal surface**, for a part that must read as real metal. `metal`: steel / stainless / aluminium / titanium / copper / brass / bronze / zinc / nickel / chrome / gold / silver / bismuth (colours from measured optics). `finish`: mirror / polished / brushed / turned / blasted / planished, plus spangle (zinc), mill (steel scale) and hopper (bismuth terraces); each metal has a natural default. `along`: the toolpath — `'auto'` (a long face's length, else the part's x), `'x'` / `'y'` / `'z'` / `[x,y,z]` in the part's frame, or `'around'` (a lathe defaults to turning around its own axis). `film`: an oxide colour by what makes it — `{ temper: 290 }` (°C; steel, stainless, titanium), `{ anodize: 25 }` (volts; titanium), `{ age: 20 }` (years; copper, brass, bronze), or `{ nm: 60 }` / `{ nm: [40, 180] }`. In /world the part reflects a studio tinted by the scene's sky, with the highlight stretched along the toolpath and the film shifting with angle. Named shelf metals (`'steel'`, `'gold'`…) keep their old look; the spec is the opt-in. Example: `material: { metal: 'titanium', film: { anodize: 25 } }` is a blue anodized part. `pattern: { kind: 'damascus', type: 'random' | 'ladder' | 'raindrop' | 'twist', folds?: 1–8, scale?, layers?: 'y' }` (steel or stainless, no finish or film) is **pattern-welded**: a billet of 7·2^folds layers stacked through `layers`, deformed by the type and etched where the surface cuts them; it runs along `along` (default `'z'`). Drawn in the shader, so it resolves up close and reads as steel far off; `scale` multiplies every length of the pattern for a bolder read.
 - `toon` — the cel-shading dial for the WHOLE object: `true` (three tones + ink outlines) or `{ bands, ink }`. `bands` quantizes the baked Lambert term into N tones and therefore shows in the still, the CSS-3D shots, the World, the `.glb` and every engine pack alike; `ink` (World only) draws inverted-hull silhouettes + crease lines, tunable as `{ color: '#101015', width: 0.008 (× the object's bounding radius), crease: 35 (degrees) }`. A part's own `material: 'cel'` / `{ cel: N }` still wins for that part. Bands snap per face, so at `draft` LOD a lathe reads faceted — pair the dial with denser `crossSections` / `samples`. Edit in place: `update_sketch { ref, patch: [{ op: 'set', path: '/toon', value: true }] }`.
+<!-- /section -->
 - `units` (`'mm'` / `'cm'` / `'m'` / `'in'` / `'ft'`; the readout assumes `'cm'` when absent) — the recipe's authoring unit. **Declare it**: it sets the print scale (STL / 3MF land in true millimetres), the USD `metersPerUnit`, and the glTF root scale (`moj:metersPerUnit`), so a 9 cm mug imports 9 cm tall in Blender, Godot, Unity and Unreal. Without a label the print path refuses to assume and the glTF ships 1 unit = 1 m. Also the grid spacing (1 grid cell = 5 units).
 - `viewBox` (default 900×900) — render viewBox `{ width, height }`.
 - `facing` (default `'+y'`) — which way the model's FRONT points, so the preset 'front' shot and opening camera look it in the face: `'+y'` / `'-y'` / `'+x'` / `'-x'` / a raw azimuth offset in degrees. Camera-only; geometry is untouched.
 
 ## Composition moves — how monomers relate
 
+<!-- section: composition | Composition moves | stack, jut and composite outline, and the three rules: break the silhouette, jut do not touch, a deeper jut for a lit render -->
 Three moves. Pick per JUNCTION; a build that uses only one is usually wrong.
 
 - **stack** — seat B on A's top (`assembly` does this for you). Exact, cheap,
@@ -566,6 +597,7 @@ not a defect.
    it by the SHADOW it casts, so the same jut dissolves into a smudge. Budget a
    deeper `f` for anything whose destination is a lit render, and re-check the
    feature after the first lit pass — a door that reads unlit can vanish lit.
+<!-- /section -->
 
 ### Frames and arrays — what the geometry will and will not do for you
 
@@ -614,6 +646,7 @@ Returns `{ ok, ref, worldUrl, sceneUrl, url, stats }` — `stats.parts[]` report
 
 ## Groups, a hinge, and a bare studio
 
+<!-- section: movers | Groups, translucency, hinges and a bare studio | render groups, a see-through pane, a lid or door that opens (toggle, timed table, slide), and dropping the grid -->
 - `group` (any lathe / extrude / sweep / loft / drape / relief) — names the RENDER GROUP the monomer's faces join. The World meshes each group on its own, so a channel can move it; exports keep a node per group. Fields and shells name their own groups.
 - `opacity` (any lathe / extrude / sweep / loft / drape / relief; `0 < opacity < 1`) — makes the monomer TRANSLUCENT: a window pane, a lens, a bottle, a visor. Give it its own `group` (translucency is applied per render group in the World and per node in the `.glb`), keep it thin, and put what it covers behind it as ordinary monomers — a cassette behind a `0.25` pane reads as a cassette seen through glass. Absent or `1` → opaque, byte-identical. The `glass` MATERIAL is a shading response only (it never makes a face see-through); pair it with `opacity` for a real pane. The SVG still and the CSS-3D shots draw the pane opaque; the orbitable World and the glTF / engine legs honour it.
 - `movers` (top level, beside the monomers) — the World's mover channel on those groups. A hinge is a `turn` about `axis` through `center`, in radians; `absolute: true` keeps the group's authored world coordinates (the recipe, the still and every export show the authored pose; only the live World swings it). Two ways to drive it:
@@ -621,4 +654,5 @@ Returns `{ ok, ref, worldUrl, sceneUrl, url, stats }` — `stats.parts[]` report
   - a **timed table** — `angles: [rad, …]` with `period`, `hold`, `loop` (play, hold at the end, replay; `loop: true` wraps), for a part that should move on its own.
   - a **slide** — `{ group: 'clasp', parent: 'lid', basePos: [0,0,0], slide: { axis: [0,0,1] }, states: [0, -6], key: 'c' }` translates the group along `axis` by the state's distance (units), the same toggle rules as a turn. `parent` names another group whose mesh this one rides (its move is local to the parent), so a clasp slides along a door that is itself swinging.
 - `grid: false` (top level) — drop the measured floor and grid for a bare product shot. The scale cue is the default.
+<!-- /section -->
 

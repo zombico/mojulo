@@ -24,6 +24,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `mojulo` otherwise. `orient` also maps `pack_x({ manual: … })` now. The MCP `initialize` and `tools/list` bytes do
   not change.
 
+### Workbench ladder
+
+- **The workbench card opens at a first object.** `get_solid_vocab({ id: 'workbench' })` returns the spec shape,
+  the quick-start mug, lathes, extrudes and sweeps, assembly, materials and units, the composition rules for
+  frames and arrays, and the candlestick, with a menu of the deeper families and their sizes: lofts, fields,
+  expression terms, rocks, crystals, light rigs, domain operators, timber frames and masonry, furniture,
+  upholstery, drapes, reliefs, shells, cuts, metal surfaces and toon, composition moves, and groups and movers.
+  Each menu line names the asks its section answers (a bookcase, cabinet or flat-pack carcass → `furniture`). The
+  text moved and was not rewritten; search and the embeddings still index the whole card.
+- **What an agent reads.** A plain object: 74.9 KB before, 20.3 KB now. A bookcase: 74.9 KB before, 26.0 KB now
+  (the base and `furniture`).
+- **The plugin profile edits a sectioned card's base.** Its lines about label wraps from a painted render stay in
+  the base, and the profile's body edits now apply to the base it serves as well as to the body search reads.
+  `tools/list` does not move.
+
 ### Scad ladder
 
 - **The scad card opens to its first step.** `get_solid_vocab({ id: 'scad' })` returns the part itself (spec,

@@ -36,9 +36,14 @@ describe('card sections — the loader', () => {
     expect(() => splitSections('x\n<!-- /section -->\n<!-- section: a | A | a -->')).toThrow(/never opened/);
   });
 
-  it('no sectioned card carries plugin-profile body edits (the edits would miss the split text)', () => {
+  it("a sectioned card's plugin-profile body edits all target its base (a section is served unedited)", () => {
     for (const card of getSolidVocabCatalog().values()) {
-      if (card.sections) expect(PROFILE_CARD_EDITS.solid_vocab?.[card.id]?.body, card.id).toBeUndefined();
+      if (!card.sections) continue;
+      for (const [from] of PROFILE_CARD_EDITS.solid_vocab?.[card.id]?.body || []) {
+        const hits = (t) => (from instanceof RegExp ? new RegExp(from.source, from.flags.replace('g', '')).test(t) : t.includes(from));
+        expect(hits(card.base), `${card.id}: ${from}`).toBe(true);
+        for (const [name, s] of Object.entries(card.sections)) expect(hits(s.body), `${card.id}.${name}: ${from}`).toBe(false);
+      }
     }
   });
 });
@@ -73,10 +78,10 @@ describe('the scad card', () => {
   });
 
   it('a card without sections reads whole, and refuses a section', async () => {
-    const wb = await getSolidVocabHandler({ id: 'workbench' });
-    expect(wb.card.body).toBe(getSolidVocabCatalog().get('workbench').body);
-    expect(wb.card.sections).toBeUndefined();
-    await expect(getSolidVocabHandler({ id: 'workbench', section: 'x' })).rejects.toThrow(/has no sections/);
+    const plain = await getSolidVocabHandler({ id: 'code' });
+    expect(plain.card.body).toBe(getSolidVocabCatalog().get('code').body);
+    expect(plain.card.sections).toBeUndefined();
+    await expect(getSolidVocabHandler({ id: 'code', section: 'x' })).rejects.toThrow(/has no sections/);
   });
 
   it('the index rows carry no base or sections', async () => {
