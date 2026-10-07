@@ -48,6 +48,15 @@ name or field; no kernel bytes. Ears gate not run.
   own rates; and the pedal-down halo, a `sympathetic` chain effect convolving the part with every undamped string.
   Measured on a released chord: the halo rings ~21 dB over `grand-piano-2`, ~20 dB under the chord. The `life` dial
   scales both; `life: 0` renders byte-identical to `grand-piano-2`. The halo's impulse costs ~0.3 s once per page.
+- **A pianist's touch and the dampers.** A part's `touch: 'pianist'` (or `{ top, inner, bass, roll }`) plays each chord
+  the way hands do: the top voice brought out, the inner voices softer, the bass a little present (level-neutral per
+  chord), and the notes rolled up from the bass a few seeded milliseconds apart. Lowered at authoring: no kernel bytes.
+  The piano's new `damper` patch field: a felt thud at key-off, a longer release in the bass where dampers grip less,
+  and no damper at all on the top keys (above E6), which ring on after release as on a grand. And `ringExact`: the
+  string loop's own filter lost more per second in the top two octaves than the patch's ring time allowed (C7 rang
+  ~0.3 s for a 1.4 s target); it now caps the loop damping per note so the target holds (C7: ~160 → ~45 dB/s).
+  `grand-piano-3` carries all three; other patches are unchanged. The instruments card now tells agents to write piano
+  phrased by default: the melody its own part with `shape`, the accompaniment under it with `touch`, a ritardando at the end.
 - **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
 - **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
   use it carry the previous kernel byte for byte.

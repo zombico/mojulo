@@ -127,7 +127,7 @@ function collect(m, set) {
       if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
       if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
       if (p && p.bend) set.add('orch');
-      if (p && (p.harmonicsLoud || p.life)) set.add('timbre');
+      if (p && (p.harmonicsLoud || p.life || p.damper || p.ringExact)) set.add('timbre');
       if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
       if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
     }

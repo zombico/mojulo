@@ -1202,9 +1202,27 @@ export function buildBeatsKernel() {
     // per-period pluckDecay; maxRing defaults to 1.1 × T60 (≤ 8 s) and the
     // buffer end fades over 30 ms so a cap never cuts a live string. stiffness
     // (0..1) adds dispersion: upper partials run sharp, the piano's stretch.
+/*@timbre{*/
+    // ringExact (opt-in): the loop's averaging filter alone loses more per
+    // second than a treble ringT60 allows (C7 rang ~0.3 s for a 1.4 s target),
+    // and loss can't add energy back. So cap pluckDamping per note where the
+    // filter's own loss at the fundamental would overrun T60 (keeping 20 % for loss).
+    function ringDamp(patch, hz, sr) {
+      const d = patch.pluckDamping == null ? 0.5 : patch.pluckDamping, rt = patch.ringT60;
+      if (!patch.ringExact || rt == null) return d;
+      const T = Array.isArray(rt) ? rt[0] * Math.pow(rt[1] / rt[0], Math.max(0, Math.min(1, Math.log2(hz / 65.41) / 5))) : rt;
+      const g = Math.pow(10, -3 / (hz * T)), X = 0.8 * (1 - g * g) / (2 * (1 - Math.cos(2 * Math.PI * hz / sr)));
+      return X >= 0.25 ? d : Math.min(d, 1 - Math.sqrt(1 - 4 * X));
+    }
+/*|
+@*/
     function tunedString(hz, patch) {
       const sr = ctx.sampleRate, D = sr / hz, w = 2 * Math.PI * hz / sr;
+/*@timbre{*/
+      const damp = ringDamp(patch, hz, sr);
+/*|
       const damp = patch.pluckDamping == null ? 0.5 : patch.pluckDamping;
+@*/
       const pick = patch.pick == null ? 0 : patch.pick;
       const a = 1 - damp / 2, b = damp / 2;
       const apDelay = (c) => (Math.atan2(Math.sin(w), c + Math.cos(w)) - Math.atan2(c * Math.sin(w), 1 + c * Math.cos(w))) / w;
@@ -2189,6 +2207,27 @@ export function buildBeatsKernel() {
       const nk = key == null ? hashSeed(Math.round(hz * 16), Math.round(t * 1e4)) : key;
       // vary (opt-in): noise layers enter the long buffer at a per-hit offset.
       const vu = patch.vary ? unit(hashSeed(nk, 0x4015E)) : null;
+/*|
+@*/
+/*@timbre{*/
+      // damper (a piano's): keys above `above` (MIDI) have none and ring on after
+      // the key lifts; below, the felt grips less toward the bass (release up to
+      // `bass`×) and lands with a soft low thud at key-off.
+      if (patch.damper && voice === 'string') {
+        const D = patch.damper, m = 69 + 12 * Math.log2(hz / 440), r = patch.release == null ? 0.2 : patch.release;
+        if (m > (D.above == null ? 88 : D.above) + 0.5) patch = Object.assign({}, patch, { release: D.ring == null ? 2.5 : D.ring });
+        else {
+          const lo = Math.max(0, Math.min(1, (72 - m) / 51));
+          patch = Object.assign({}, patch, { release: r * (1 + ((D.bass == null ? 2 : D.bass) - 1) * lo) });
+          if (D.thud !== false) {
+            const k = t + dur, nz = noiseSrc(k, unit(hashSeed(nk, 0xDA4)));
+            const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = D.tone == null ? 260 : D.tone; lp.Q.value = 0.7;
+            const tg = ctx.createGain(), pk = dbGain(D.thud == null ? -34 : D.thud) * (0.4 + 0.6 * (vel == null ? 0.8 : vel));
+            tg.gain.setValueAtTime(0.0001, k); tg.gain.exponentialRampToValueAtTime(pk, k + 0.004); tg.gain.exponentialRampToValueAtTime(0.0001, k + 0.06);
+            nz.connect(lp); lp.connect(tg); tg.connect(out); nz.stop(k + 0.08);
+          }
+        }
+      }
 /*|
 @*/
       const { node: env, end } = envGain(t, dur, patch, vel);

@@ -479,5 +479,7 @@ for (const g of ['guitarClean', 'guitarNylon', 'guitarClassical', 'guitarFlamenc
 // Piano v3 (audio improvements): the tuned grand whose keys are each out of
 // tune their own way — unisonSpread varies each key's string detune (±60%
 // around pluckDetune) and its second string's ring, seeded by pitch; `life`
-// scales it (life: false is a uniform, mechanical piano). New name.
-PATCHES.pianoGrand3 = { ...PATCHES.pianoGrand, unisonSpread: 0.6, life: true };
+// scales it (life: false is a uniform, mechanical piano). `damper`: the felt's
+// thud at key-off, a longer release toward the bass, no damper above E6;
+// `ringExact`: the treble rings its ringT60 instead of dying in the loop filter. New name.
+PATCHES.pianoGrand3 = { ...PATCHES.pianoGrand, unisonSpread: 0.6, life: true, ringExact: true, damper: { above: 88, bass: 2, thud: -34, tone: 260, ring: 2.5 } };

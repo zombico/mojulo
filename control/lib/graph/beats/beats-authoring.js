@@ -753,6 +753,10 @@ export function checkAuthoring(m, errors) {
         checkShape(p.shape, w, errors);
         if (p.shape !== false && isCuePart(p)) errors.push(`${w}.shape is for a pitched or kit part with notes, not a cue part`);
       }
+      if (p.touch !== undefined) {
+        checkTouch(p.touch, w, errors);
+        if (p.touch !== false && (kitOf(p) || isCuePart(p))) errors.push(`${w}.touch is for a pitched part that plays chords (a piano), not a kit or a cue part`);
+      }
       if (p.power !== undefined) {
         if (typeof p.power !== 'boolean') errors.push(`${w}.power must be true | false (every single note becomes root + fifth + octave)`);
         else if (p.power && (kitOf(p) || isCuePart(p))) errors.push(`${w}.power is for a pitched part (a guitar), not a kit or a cue part`);
@@ -834,6 +838,45 @@ function shapeEvents(list, s, sc) {
 // rake { n?: 1–4 }: muted grace notes (a sixteenth of a beat apart) raked into
 // the note from the strings below; rest: the rest stroke, louder and held.
 const artType = (a) => (typeof a === 'string' ? a : isObj(a) ? a.type : undefined);
+// ── a pianist's touch (audio improvements): a part's `touch` lowers a chord to
+// one event per note. Hands voice a chord: the top note brought out (`top`), the
+// inner notes under it (`inner`), the bass a little present (`bass`), each a ±
+// fraction with the chord's mean scale held at 1 (level-neutral). The notes
+// land a few ms apart from the bass up (`roll` seconds a step, seeded ±40 %),
+// converted at the recipe bpm. Array events only; an event with an
+// articulation stays whole (the articulation is the writer's word).
+export const TOUCH_DEFAULTS = Object.freeze({ top: 0.15, inner: 0.1, bass: 0.05, roll: 0.008 });
+const TOUCH_LIMITS = { top: 0.5, inner: 0.5, bass: 0.5, roll: 0.05 };
+function touchOpts(s) { return s === 'pianist' || s === true ? { ...TOUCH_DEFAULTS } : { ...TOUCH_DEFAULTS, ...s }; }
+function checkTouch(s, w, errors) {
+  if (s === 'pianist' || s === true || s === false) return;
+  const ok = isObj(s) && Object.keys(s).every((k) => k in TOUCH_DEFAULTS)
+    && Object.entries(TOUCH_LIMITS).every(([k, hi]) => s[k] === undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= hi));
+  if (!ok) errors.push(`${w}.touch must be 'pianist' or { top?, inner?, bass?: 0–0.5, roll?: seconds 0–0.05 } (a chord voiced by hand: the top note out, the inner notes under, rolled up from the bass)`);
+}
+function touchEvents(list, s, sc, bpm, seed) {
+  const o = touchOpts(s), rng = mulberry32(seed), qps = (bpm || 120) / 60;
+  return list.flatMap((ev) => {
+    if (!Array.isArray(ev) || !isTime(ev[0]) || !Array.isArray(ev[1]) || ev[4] !== undefined) return [ev];
+    const ns = ev[1].map((n) => ({ n, m: midiOf(n) }));
+    if (ns.length < 2 || ns.some((x) => x.m == null)) return [ev];
+    ns.sort((a, b) => a.m - b.m);
+    const ks = ns.map((x, i) => (i === ns.length - 1 ? 1 + o.top : i === 0 && ns.length > 2 ? 1 + o.bass : 1 - o.inner));
+    const norm = ks.reduce((a, k) => a + k, 0) / ks.length || 1;
+    const q0 = sc.q(ev[0]), v0 = ev[3] == null ? 0.8 : ev[3];
+    let off = 0;
+    return ns.map((x, i) => {
+      if (i) off += o.roll * (0.6 + 0.8 * rng());
+      const e = ev.slice(0, 4);
+      e[0] = i ? Math.round((q0 + off * qps) * 1e6) / 1e6 : ev[0];
+      e[1] = x.n;
+      if (e[2] === undefined) e[2] = 1;
+      e[3] = Math.round(Math.max(0.05, Math.min(1, v0 * ks[i] / norm)) * 1000) / 1000;
+      return e;
+    });
+  });
+}
+
 const evArt = (ev) => (Array.isArray(ev) ? ev[4] : isObj(ev) ? ev.art : undefined);
 const hasPureArt = (list) => Array.isArray(list) && list.some((ev) => { const t = artType(evArt(ev)); return t === 'rake' || t === 'rest'; });
 function lowerPureArts(list, c) {
@@ -927,7 +970,7 @@ export function usesAuthoring(m) {
     for (const p of m.parts || []) {
       if (!isObj(p)) continue;
       if (isCuePart(p) && ((Array.isArray(p.events) && p.events.some(cueEventNeedsLowering)) || hasTimedGesture(cueList(p)))) return true;
-      if (hasChordEvent(p.events) || p.chordVoice !== undefined || p.groove !== undefined || p.power !== undefined || p.double !== undefined || p.shuffle !== undefined || p.solo !== undefined || p.shape !== undefined || hasPureArt(p.events)) return true;
+      if (hasChordEvent(p.events) || p.chordVoice !== undefined || p.groove !== undefined || p.power !== undefined || p.double !== undefined || p.shuffle !== undefined || p.solo !== undefined || p.shape !== undefined || p.touch !== undefined || hasPureArt(p.events)) return true;
     }
   }
   if (m.kind === 'beats-pattern' && isObj(m.chords) && Object.values(m.chords).some((v) => typeof v === 'string')) return true;
@@ -1087,6 +1130,21 @@ function expandCore(m) {
           if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
           const id = f.phrase + tag;
           if (!out.phrases[id]) out.phrases[id] = shapeEvents(out.phrases[f.phrase], shape, sc);
+          return { ...f, phrase: id };
+        }) };
+      }
+    }
+    if (q.touch !== undefined) {
+      // touch after shape: shape phrases the chord as one, touch then voices it by hand.
+      const { touch, ...rest } = q;
+      const seed = strSeed(hashSeed(out.seed || 1, 0x70C4), rest.name);
+      q = touch === false || !Array.isArray(rest.events) ? rest : { ...rest, events: touchEvents(rest.events, touch, sc, out.bpm, seed) };
+      if (touch !== false && Array.isArray(q.form) && isObj(out.phrases)) {
+        const o = touchOpts(touch), tag = `~touch-${[o.top, o.inner, o.bass, o.roll].join('-')}`;
+        q = { ...q, form: q.form.map((f) => {
+          if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
+          const id = f.phrase + tag;
+          if (!out.phrases[id]) out.phrases[id] = touchEvents(out.phrases[f.phrase], touch, sc, out.bpm, strSeed(seed, id));
           return { ...f, phrase: id };
         }) };
       }

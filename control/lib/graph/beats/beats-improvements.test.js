@@ -5,7 +5,8 @@ import { beatsFeatures } from './beats-features.js';
 import { INSTRUMENTS, auditInstruments } from './instruments.js';
 import { normalizeBeatsManifest, validateBeatsManifest } from './beats-manifest.js';
 import { renderBeatsOffline, renderWithKernel } from './beats-render.js';
-import { expandBeatsManifest, SHAPE_DEFAULTS } from './beats-authoring.js';
+import { expandBeatsManifest, SHAPE_DEFAULTS, TOUCH_DEFAULTS } from './beats-authoring.js';
+import { PATCHES } from './audio-patches.js';
 import { decodeWav, rms, bandEnergy, centroid, lrCorrelation } from './audio-measure.js';
 
 // Audio improvements — the machine gates. Section v3 (bodies) and phrase
@@ -278,8 +279,9 @@ describe('piano v3: keys tuned their own way, the pedal halo', () => {
   async function render(m) { const { wav } = await renderBeatsOffline(normalizeBeatsManifest(m), { tail: 2 }); return { wav, ...decodeWav(wav) }; }
   const win = (r, a, b) => db(rms(r.channels[0], Math.round(r.sr * a), Math.round(r.sr * b)));
 
-  it('life: 0 is the mechanical grand: byte for byte grand-piano-2', async () => {
-    const [mech, two] = await Promise.all([render(chord({ life: 0 })), render(chord({}, 'grand-piano-2'))]);
+  it('life: 0 is the mechanical grand: byte for byte grand-piano-2 with the same dampers and treble', async () => {
+    const damped = comp([{ name: 'p', instrument: 'grand-piano-2', patchParams: { damper: PATCHES.pianoGrand3.damper, ringExact: true }, events: [[0, ['C3', 'E3', 'G3', 'C4'], 0.3, 0.7]] }]);
+    const [mech, two] = await Promise.all([render(chord({ life: 0 })), render(damped)]);
     expect(mech.wav.equals(two.wav)).toBe(true);
   });
 
@@ -308,5 +310,78 @@ describe('piano v3: keys tuned their own way, the pedal halo', () => {
     const v = validateBeatsManifest(comp([{ name: 'p', patch: 'pianoGrand', chain: [{ type: 'sympathetic', mix: 3, decay: 0.1 }], events: [[0, 'C4']] }]));
     expect((v.errors || []).join(' ')).toMatch(/mix must be in \[0, 1\]/);
     expect((v.errors || []).join(' ')).toMatch(/decay must be in \[0.5, 20\]/);
+  });
+});
+
+describe('piano: dampers', () => {
+  const one = (k, damper, extra = { ringExact: true }) => comp([{ name: 'p', patch: 'pianoGrand', patchParams: { ...extra, ...(damper !== undefined ? { damper } : {}) }, events: [[0, k, 0.4, 0.8]] }]);
+  async function render(m) { const { wav } = await renderBeatsOffline(normalizeBeatsManifest(m), { tail: 2 }); return decodeWav(wav); }
+  const win = (r, a, b) => db(rms(r.channels[0], Math.round(r.sr * a), Math.round(r.sr * b)));
+  const D = { above: 88, bass: 2, thud: -34, tone: 260, ring: 2.5 };
+
+  it('ringExact: the treble rings its ringT60 instead of dying in the loop filter', async () => {
+    const long = (x) => comp([{ name: 'p', patch: 'pianoGrand', patchParams: x, events: [[0, 'C7', 2, 0.8]] }]);
+    const [loose, exact] = await Promise.all([render(long({ pluckDetune: 0 })), render(long({ pluckDetune: 0, ringExact: true }))]);
+    const slope = (r) => win(r, 0.1, 0.15) - win(r, 0.6, 0.65); // dB lost over half a second
+    expect(slope(loose)).toBeGreaterThan(50);
+    expect(slope(exact)).toBeLessThan(30);
+  });
+
+  it('the top keys have no damper: released, they ring on', async () => {
+    const [plain, free] = await Promise.all([render(one('C7')), render(one('C7', D))]);
+    expect(win(free, 0.55, 0.7) - win(plain, 0.55, 0.7)).toBeGreaterThan(15);
+  });
+
+  it('a damped key lands a low thud at key-off and lets go slower in the bass', async () => {
+    const [quiet, thud] = await Promise.all([render(one('C2', { ...D, thud: false, bass: 1 })), render(one('C2', { ...D, bass: 1 }))]);
+    const e = (r) => bandEnergy(r.channels[0], r.sr, Math.round(r.sr * 0.4), 2048, 40, 400);
+    expect(e(thud)).toBeGreaterThan(e(quiet));
+    const [short, long] = await Promise.all([render(one('C2', { ...D, thud: false, bass: 1 })), render(one('C2', { ...D, thud: false, bass: 3 }))]);
+    expect(win(long, 0.6, 0.9)).toBeGreaterThan(win(short, 0.6, 0.9) + 3);
+  });
+
+  it('absent, nothing changes; validation teaches it', async () => {
+    expect(beatsFeatures(normalizeBeatsManifest(one('C4', undefined, {})))).not.toContain('timbre');
+    expect(beatsFeatures(normalizeBeatsManifest(one('C4', D)))).toContain('timbre');
+    const v = validateBeatsManifest(one('C4', { above: 200, thud: 0 }));
+    expect((v.errors || []).join(' ')).toMatch(/a piano's dampers/);
+  });
+});
+
+describe("piano: a pianist's touch", () => {
+  const part = (touch, events = [[0, ['G4', 'C4', 'E4', 'C3'], 1, 0.6]]) => comp([{ name: 'p', instrument: 'grand-piano-3', touch, events }]);
+  const evs = (m) => expandBeatsManifest(m).parts[0].events;
+
+  it('a chord becomes one note per key: top out, inner under, rolled up from the bass, level-neutral', () => {
+    const e = evs(part('pianist'));
+    expect(e.map((x) => x[1])).toEqual(['C3', 'C4', 'E4', 'G4']);
+    expect(e[0][0]).toBe(0);
+    for (let i = 1; i < e.length; i++) expect(e[i][0]).toBeGreaterThan(e[i - 1][0]);
+    expect(e[3][0]).toBeLessThan(TOUCH_DEFAULTS.roll * 3 * 1.4 + 1e-9); // bpm 60: a quarter is a second
+    expect(e[3][3]).toBeGreaterThan(e[0][3]);
+    expect(e[0][3]).toBeGreaterThan(e[1][3]);
+    expect(e[1][3]).toBe(e[2][3]);
+    expect(e.reduce((a, x) => a + x[3], 0) / e.length).toBeCloseTo(0.6, 2);
+  });
+
+  it('single notes, articulated chords and touch: false pass through; seeded, so it replays', () => {
+    const ev = [[0, 'C4', 1, 0.6], [1, ['C4', 'E4'], 1, 0.6, 'staccato']];
+    expect(evs(part('pianist', ev))).toEqual(ev);
+    expect(evs(part(false))).toEqual([[0, ['G4', 'C4', 'E4', 'C3'], 1, 0.6]]);
+    expect(evs(part('pianist'))).toEqual(evs(part('pianist')));
+  });
+
+  it('reaches form phrases through a touched copy', () => {
+    const m = comp([{ name: 'p', instrument: 'grand-piano-3', touch: 'pianist', form: [{ phrase: 'a', at: 0 }] }], { phrases: { a: [[0, ['C4', 'E4', 'G4'], 1, 0.6]] } });
+    const x = expandBeatsManifest(m);
+    const id = x.parts[0].form[0].phrase;
+    expect(id).toMatch(/^a~touch-/);
+    expect(x.phrases[id]).toHaveLength(3);
+    expect(x.phrases.a).toHaveLength(1);
+  });
+
+  it('validation teaches it', () => {
+    expect((validateBeatsManifest(part({ top: 2 })).errors || []).join(' ')).toMatch(/touch must be 'pianist'/);
+    expect(validateBeatsManifest(part({ roll: 0.01 })).errors || []).toEqual([]);
   });
 });

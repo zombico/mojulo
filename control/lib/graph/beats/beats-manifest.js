@@ -302,6 +302,8 @@ const PATCH_PARAM_CHECKS = {
   tune: [(v) => v === 'exact', "'exact' (fractional-delay string tuning)"],
   ringT60: [(v) => [].concat(v).length <= 2 && [].concat(v).every((x) => Number.isFinite(x) && x > 0 && x <= 30), 'seconds to −60 dB in (0, 30], or [at C2, at C7]'],
   stiffness: [(v) => Number.isFinite(v) && v >= 0 && v <= 1, 'a number in [0, 1] (string dispersion; ~0.5 = grand piano)'],
+  damper: [(v) => v === false || (isObj(v) && Object.keys(v).every((k) => ['above', 'bass', 'thud', 'tone', 'ring'].includes(k)) && (v.above === undefined || inRange(v.above, 21, 108)) && (v.bass === undefined || inRange(v.bass, 1, 4)) && (v.thud === undefined || v.thud === false || inRange(v.thud, -60, -12)) && (v.tone === undefined || inRange(v.tone, 40, 2000)) && (v.ring === undefined || inRange(v.ring, 0.1, 8))), "false or { above?: MIDI 21–108 (no damper above: those keys ring on), bass?: 1–4 (release × toward A0), thud?: dB −60..−12 | false, tone?: Hz, ring?: s } (a piano's dampers)"],
+  ringExact: [(v) => typeof v === 'boolean', 'true | false (the treble rings its ringT60: the loop damping is capped per note where it would cut the ring short)'],
   maxRing: [(v) => Number.isFinite(v) && v > 0 && v <= 8, 'seconds in (0, 8] (string buffer cap)'],
   keyTrack: [(v) => Number.isFinite(v) && v >= 0 && v <= 2, 'a number in [0, 2] (cutoff × (hz/C4)^k; 1 = brightness follows pitch)'],
   velToFilter: [(v) => Number.isFinite(v) && v >= 0 && v <= 4, 'a number in [0, 4] (velocity → cutoff exponent)'],

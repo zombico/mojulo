@@ -191,6 +191,9 @@ A composition can also carry:
 - a part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`):
   velocity phrasing over its array events, an arch per `bars` (4), higher
   notes a touch louder, long over short, the last note eased, level-neutral
+- a part's `touch: 'pianist'` (or `{ top, inner, bass, roll }`): each chord
+  voiced by hand, the top note out, the inner notes under, rolled up from the
+  bass a few ms apart. Use it on piano chord parts; articulated chords stay whole
 - `life` (0–2, any musical kind, also per part/track/channel): how much held
   notes breathe. 0 mechanical (dead-still holds, the sequenced sound), 1
   natural (the default on breathing instruments), 2 more. A row's `life`

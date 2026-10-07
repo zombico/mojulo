@@ -32,8 +32,12 @@ the piano in a world's orchestra alongside string and brass channels.
 de-locked and dynamic, per "Fidelity opt-ins" below.
 - Keys: `grand-piano-3` (the tuned grand on a modal soundboard, each key's
   strings out of tune their own way, and the pedal-down halo: every undamped
-  string ringing in sympathy). `life: 0` makes it the uniform, dry
-  `grand-piano-2`.
+  string ringing in sympathy; dampers that thud at key-off and leave the top
+  keys ringing; a treble that rings its full length). `life: 0` makes it the
+  uniform, dry grand. Write piano as a pianist plays it, by default: the
+  melody its own part with `shape: 'phrase'`, the accompaniment a part with
+  `touch: 'pianist'` 2–3 dB under it (`level: -2`), and a `tempo` ramp into
+  the last cadence. Notes all at one velocity read as sequenced.
 - Woodwinds: `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3` (solo players
   whose tone brightens as they play harder, not only louder).
 - Strings: `violin-3`, `viola-3`, `cello-3`, `contrabass-3` (v2 through each
