@@ -22,6 +22,7 @@ import { blobTris } from '../vegetation/tree-mesh.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { BARKS } from '../vegetation/bark.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
+import { INTEREST, EYE_SPOT_PX, metresPerPixel } from '../playscape/objects/laws.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -190,25 +191,45 @@ export function floraDials(form, variant, seed, over = {}) {
   return { X, rand };
 }
 
-/** One doodad: the form's dials rolled for `seed`, built at a ring's level. → { dials, faces, elements, level } */
-export function designFlora(form, variant, seed, { level = 'mid', over = {} } = {}) {
-  const { X, rand } = floraDials(form, variant, seed, over), L = FLORA_LEVELS[level];
-  const { faces, elements } = FLORA_FORMS[form].build(X, rand, { ...L, name: level });
-  return { dials: X, faces, elements, level };
+// ── the plan: base composition blocks ──────────────────────────────────────────
+/**
+ * A doodad is first a PLAN of base composition blocks, then a mesh. A block is a mass, a revolved body (a cap, a pad, a
+ * shelf, a cup) or a knuckle (a joint a finger bends at; drawn as a round end at a tip), placed by its centre and radii,
+ * with a parent it rests on or hangs from:
+ *   stack   true when it sits ON its parent (a vertical joint: a tier on a tier, a cap on a stalk, a pad on a pad)
+ *   group   a tag shared by the blocks that stand BESIDE each other under one parent (masses round a crown, arms on a
+ *           column, a family of puffballs): a horizontal run
+ *   fixed   an attachment that rides on its parent and is never mismatched itself (a core, a spot)
+ * LINKS join blocks with tubes (a trunk, a stalk, a limb, a finger's length); they follow the blocks wherever the
+ * incongruity pass moves them. Ids are stable across levels, so a block mismatches the same way near and mid.
+ */
+function plan() {
+  const blocks = [], links = [], byId = new Map();
+  const block = (b) => { const B = { stack: false, group: null, fixed: false, parent: null, value: 0.6, ...b, c: b.c.slice(), r: b.r.slice() }; blocks.push(B); byId.set(B.id, B); return B; };
+  const link = (l) => { if (l) links.push({ n: 1, bow: 0, side: [1, 0, 0], ...l }); };
+  return { blocks, links, byId, block, link };
+}
+
+/** One doodad: the form's dials rolled for `seed`, planned, mismatched, built at a ring's level. */
+export function designFlora(form, variant, seed, { level = 'mid', over = {}, incongruity = null, interest = 'prop' } = {}) {
+  const { X, rand } = floraDials(form, variant, seed, over), L = { ...FLORA_LEVELS[level], name: level };
+  const P = plan();
+  FLORA_FORMS[form].build(X, rand, L, P);
+  const inc = incongruity ? incongrue(P, incongruity, seed, interest) : null;
+  const { faces, elements } = meshPlan(P, L);
+  return { dials: X, faces, elements, level, incongruity: inc, unstable: planStability(P), plan: { blocks: P.blocks.length, links: P.links.length } };
 }
 
 // masses on a stick
-function buildBroccoli(X, rand, L) {
-  const out = [], elements = [], H = X.height, base = H * (1 - X.crown), Rc = (X.width * H) / 2;
+function buildBroccoli(X, rand, L, P) {
+  const H = X.height, base = H * (1 - X.crown), Rc = (X.width * H) / 2, tr = X.trunk * H;
   const yaw = rand() * Math.PI * 2, leanDir = [Math.cos(yaw), Math.sin(yaw), 0];
   const top = add([0, 0, base + Rc * X.squash * 0.8], mul(leanDir, X.lean * H));
-  // the trunk: into the crown's middle, bowed by the lean
-  tube(out, bowed([0, 0, 0], top, X.lean * H * 0.3, leanDir, 3), [X.trunk * H * 1.25, X.trunk * H, X.trunk * H * 0.8, X.trunk * H * 0.62], L.sides, 'wood', 0.3);
-  elements.push({ what: 'trunk', size: X.trunk * H * 2 });
+  P.block({ id: 'foot', kind: 'knuckle', c: [0, 0, 0], r: [tr * 1.25, tr * 1.25, tr * 1.25] });
   if (L.envelope) {
-    mass(out, top, [Rc, Rc, Rc * X.squash], 'mass', 0.6, 1, top, 0.7);
-    elements.push({ what: 'crown', size: Rc * 2 });
-    return { faces: out, elements };
+    P.block({ id: 't0', kind: 'mass', parent: 'foot', stack: true, c: top, r: [Rc, Rc, Rc * X.squash], part: 'mass', value: 0.6, detail: 1, bend: { to: 't0', off: [0, 0, 0], k: 0.7 }, what: 'crown' });
+    P.link({ from: 'foot', to: 't0', radii: [tr * 1.25, tr * 0.62], n: 3, bow: X.lean * H * 0.3, side: leanDir, part: 'wood', value: 0.3, what: 'trunk', whatSize: tr * 2 });
+    return;
   }
   const tiers = X.tiers;
   for (let t = 0; t < tiers; t++) {
@@ -216,167 +237,356 @@ function buildBroccoli(X, rand, L) {
     const f = tiers === 1 ? 0 : t / (tiers - 1), Rt = Rc * Math.pow(0.78, t);
     const z = tiers === 1 ? top[2] : mix(base + Rt * X.squash, base + (top[2] - base) * 1.9, f);
     const out2 = X.variant === 'pads' ? mul([Math.cos(yaw + t * 2.4), Math.sin(yaw + t * 2.4), 0], Rc * 0.4 * (1 - f)) : [0, 0, 0];
-    const c = add([top[0] * (z / top[2]), top[1] * (z / top[2]), z], out2);
-    if (X.variant === 'pads' && t < tiers - 1) tube(out, [[top[0] * (z / top[2]), top[1] * (z / top[2]), z - Rt * X.squash * 0.6], c], [X.trunk * H * 0.55, X.trunk * H * 0.35], L.sides, 'wood', 0.3);
+    const c = add([top[0] * (z / top[2]), top[1] * (z / top[2]), z], out2), id = `t${t}`;
+    // the leading mass rides high: one shape dominates, the rest gather round it; a sparser crown is smaller masses
+    // further apart, so the core shows between them
+    const lead = Rt * 0.64 * (1 - 0.5 * X.porosity), up = Rt * 0.3 * X.squash;
+    P.block({ id, kind: 'mass', parent: t ? `t${t - 1}` : 'foot', stack: true, c: add(c, [0, 0, up]), r: [lead, lead, lead * X.squash], part: 'mass', value: 0.62, detail: L.detail, bend: { to: id, off: [0, 0, -up], k: 0.6 }, what: `crown ${t}` });
     // the dark core: what shows through the gaps between masses (depicted density)
-    if (X.porosity > 0) mass(out, c, [Rt * 0.62, Rt * 0.62, Rt * 0.62 * X.squash], 'core', 0.12, 0, c, 0);
-    // the leading mass rides high: one shape dominates, the rest gather round it
-    // a sparser crown is smaller masses further apart, so the core shows between them
-    const lead = Rt * 0.64 * (1 - 0.5 * X.porosity);
-    mass(out, add(c, [0, 0, Rt * 0.3 * X.squash]), [lead, lead, lead * X.squash], 'mass', 0.62, L.detail, c, 0.6);
-    elements.push({ what: `crown ${t}`, size: lead * 2 });
+    if (X.porosity > 0) P.block({ id: `${id}core`, kind: 'mass', parent: id, fixed: true, c, r: [Rt * 0.62, Rt * 0.62, Rt * 0.62 * X.squash], part: 'core', value: 0.12, detail: 0 });
+    P.link(t === 0
+      ? { from: 'foot', to: id, radii: [tr * 1.25, tr, tr * 0.8, tr * 0.62], n: 3, bow: X.lean * H * 0.3, side: leanDir, part: 'wood', value: 0.3, what: 'trunk', whatSize: tr * 2 }
+      : X.variant === 'pads' ? { from: `t${t - 1}`, to: id, radii: [tr * 0.55, tr * 0.35], part: 'wood', value: 0.3 } : null);
     // a stacked crown at mid keeps three masses a tier: the tiers are the read there, not the masses
     const m = tiers > 1 && L.name !== 'near' ? Math.min(3, X.masses) : X.masses;
     for (let i = 0; i < m; i++) {
       if (rand() < X.porosity) continue;
       const a = yaw + (2 * Math.PI * (i + 0.35 * rand())) / m, e = mix(-0.3, 0.4, rand()), d = Rt * mix(0.5, 0.66, rand()) * (1 + 0.4 * X.porosity), r = Rt * mix(0.34, 0.48, rand()) * (1 - 0.6 * X.porosity);
-      mass(out, add(c, [Math.cos(a) * Math.cos(e) * d, Math.sin(a) * Math.cos(e) * d, Math.sin(e) * d * X.squash]), [r, r, r * X.squash], 'mass', 0.55, tiers > 1 ? 0 : L.detail, c, 0.6);
-      elements.push({ what: 'mass', size: r * 2 });
+      P.block({ id: `${id}m${i}`, kind: 'mass', parent: id, group: `ring${t}`, c: add(c, [Math.cos(a) * Math.cos(e) * d, Math.sin(a) * Math.cos(e) * d, Math.sin(e) * d * X.squash]), r: [r, r, r * X.squash], part: 'mass', value: 0.55, detail: tiers > 1 ? 0 : L.detail, bend: { to: id, off: [0, 0, -up], k: 0.6 }, what: 'mass' });
     }
   }
-  return { faces: out, elements };
 }
 
 // a cap on a stalk
-function buildMushroom(X, rand, L) {
-  const out = [], elements = [], n = L.round, cluster = L.name === 'far' ? 1 : X.cluster;
-  const one = (at, H, scale) => {
+function buildMushroom(X, rand, L, P) {
+  const n = L.round, cluster = L.name === 'far' ? 1 : X.cluster;
+  P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
+  const one = (k, at, H, scale) => {
     const R = X.cap * H, capH = R * mix(0.18, 1.05, Math.abs(X.dome)) * Math.sign(X.dome || 1), sr = Math.max(0.012, X.stalk * H);
     const zr = H - Math.max(0, capH) * 0.85 + R * X.curl;
-    // the stalk: a little flare at the foot, a little waist below the cap
-    lathe(out, at, [[sr * 1.35, 0], [sr, H * 0.3], [sr * 0.9, zr]], n, 'wood', 0.32);
-    // the cap from its rim to its crown: an ellipse leaning toward a cone by `cone`, the rim curled by `curl`
+    P.block({ id: `f${k}`, kind: 'knuckle', parent: 'ground', group: 'cluster', grounded: true, c: at, r: [sr * 1.35, sr * 1.35, sr * 1.35] });
+    // the cap from its rim to its crown, in units of its radius: an ellipse leaning toward a cone by `cone`, the rim
+    // curled by `curl`; the gills a disc under it, from the rim in to the stalk, a step darker
     const prof = [];
-    for (let k = 0; k <= 5; k++) {
-      const t = k / 5, r = R * (1 - t), ell = Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t))), z = zr + capH * mix(ell, t, X.cone) + (k === 0 ? R * X.curl : 0);
-      prof.push([r, z]);
+    for (let j = 0; j <= 5; j++) {
+      const t = j / 5, ell = Math.sqrt(Math.max(0, 1 - (1 - t) * (1 - t)));
+      prof.push([1 - t, (capH * mix(ell, t, X.cone) + (j === 0 ? R * X.curl : 0)) / R]);
     }
-    lathe(out, at, prof, n, 'flesh', 0.62, { wave: X.ruffle ? [7, X.ruffle] : null });
-    // the gills: the underside, a disc from the rim in to the stalk, a step darker
-    lathe(out, at, [[sr * 0.9, zr - R * 0.04], [R * 0.98, prof[0][1] - R * 0.02]], n, 'gills', 0.34);
-    elements.push({ what: 'cap', size: R * 2 * scale });
-    for (let s = 0; s < X.spots; s++) {
-      const a = rand() * Math.PI * 2, t = mix(0.15, 0.7, rand()), r = R * (1 - t), z = zr + capH * mix(Math.sqrt(1 - (1 - t) * (1 - t)), t, X.cone);
-      const p = add(at, [Math.cos(a) * r, Math.sin(a) * r, z]), sz = R * mix(0.07, 0.12, rand());
+    P.block({
+      id: `c${k}`, kind: 'lathe', parent: `f${k}`, stack: true, c: add(at, [0, 0, zr]), r: [R, R, R], what: 'cap', sizeK: scale,
+      lathes: [{ prof, sides: n, part: 'flesh', value: 0.62, wave: X.ruffle ? [7, X.ruffle] : null }, { prof: [[(sr * 0.9) / R, -0.04], [0.98, prof[0][1] - 0.02]], sides: n, part: 'gills', value: 0.34 }],
+    });
+    // the stalk: a little flare at the foot, a little waist below the cap
+    P.link({ from: `f${k}`, to: `c${k}`, radii: [sr * 1.35, sr, sr * 0.9], n: 2, part: 'wood', value: 0.32, sides: n, what: k === 0 ? 'stalk' : null, whatSize: sr * 2 });
+    for (let j = 0; j < X.spots; j++) {
+      const a = rand() * Math.PI * 2, t = mix(0.15, 0.7, rand()), rr = R * (1 - t), z = capH * mix(Math.sqrt(1 - (1 - t) * (1 - t)), t, X.cone), sz = R * mix(0.07, 0.12, rand());
       // a spot is a low five-sided button, and only where it can be seen: none in the far ring, none on the small ones mid
       if (L.name === 'far' || (L.name === 'mid' && scale < 1)) continue;
-      lathe(out, p, [[sz, -sz * 0.05], [0, sz * 0.3]], 5, 'detail', 0.86);
+      P.block({ id: `c${k}s${j}`, kind: 'lathe', parent: `c${k}`, fixed: true, c: add(at, [Math.cos(a) * rr, Math.sin(a) * rr, zr + z]), r: [sz, sz, sz], lathes: [{ prof: [[1, -0.05], [0, 0.3]], sides: 5, part: 'detail', value: 0.86 }] });
     }
   };
-  one([0, 0, 0], X.height, 1);
-  elements.push({ what: 'stalk', size: X.stalk * X.height * 2 });
-  // a cluster: smaller ones leaning in round the first
+  one(0, [0, 0, 0], X.height, 1);
+  // a cluster: smaller ones round the first
   for (let k = 1; k < cluster; k++) {
     const a = (2 * Math.PI * k) / Math.max(1, cluster - 1) + rand(), s = mix(0.35, 0.7, rand()), d = X.cap * X.height * mix(0.9, 1.4, rand());
-    one([Math.cos(a) * d, Math.sin(a) * d, 0], X.height * s, s);
+    one(k, [Math.cos(a) * d, Math.sin(a) * d, 0], X.height * s, s);
   }
-  return { faces: out, elements };
 }
 
 // organic growth
-function buildFungi(X, rand, L) {
-  const out = [], elements = [], n = L.round, count = L.name === 'far' ? Math.min(X.count, 3) : L.name === 'mid' && X.kind === 'puffball' ? Math.min(X.count, 4) : X.count;
+function buildFungi(X, rand, L, P) {
+  const n = L.round, count = L.name === 'far' ? Math.min(X.count, 3) : L.name === 'mid' && X.kind === 'puffball' ? Math.min(X.count, 4) : X.count;
+  P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
   if (X.kind === 'bracket') {
-    // a stump, its shelves stacked up one face, each a half disc tilted out, smaller as they rise
+    // a stump, its shelves stacked up one face, each a half disc out from the bark, smaller as they rise
     const hr = X.host * X.height, yaw = rand() * Math.PI * 2;
-    tube(out, [[0, 0, 0], [0, 0, X.height]], [hr * 1.1, hr], L.sides + 2, 'wood', 0.3);
-    lathe(out, [0, 0, X.height], [[hr, 0], [hr * 0.55, 0.02], [0, 0.03]], L.sides + 2, 'wood', 0.42);
-    elements.push({ what: 'stump', size: hr * 2 });
+    P.block({ id: 'top', kind: 'lathe', parent: 'ground', stack: true, c: [0, 0, X.height], r: [hr, hr, hr], what: 'stump', lathes: [{ prof: [[1, 0], [0.55, 0.02 / hr], [0, 0.03 / hr]], sides: L.sides + 2, part: 'wood', value: 0.42 }] });
+    P.link({ from: 'ground', to: 'top', radii: [hr * 1.1, hr], sides: L.sides + 2, part: 'wood', value: 0.3, axisOnly: true });
     for (let i = 0; i < X.count; i++) {
       const f = i / Math.max(1, X.count - 1), a = yaw + mix(-0.9, 0.9, rand()), s = hr * X.size * mix(1, 0.6, f) * mix(0.9, 1.05, rand());
-      const at = [Math.cos(a) * hr * 0.9, Math.sin(a) * hr * 0.9, mix(0.15, 0.85, f) * X.height];
-      // half a squashed disc, its flat side on the bark: a lathe over half a turn, pressed thin
-      const shelf = [];
-      lathe(shelf, [0, 0, 0], [[0, s * 0.4], [s * 0.7, s * 0.3], [s, 0.02 * s], [s * 0.8, -s * 0.1], [0, -s * 0.12]], n, 'flesh', 0.6);
-      for (const fc of shelf) {
-        const cs = fc.corners.map((p) => (dot(p, [1, 0, 0]) < 0 ? null : p));
-        if (cs.some((p) => !p)) continue;
-        const rot = (p) => { const c = Math.cos(a), sn = Math.sin(a); return add(at, [p[0] * c - p[1] * sn, p[0] * sn + p[1] * c, p[2]]); };
-        fc.corners = fc.corners.map(rot); fc.gn = faceNormal(fc.corners); fc.normal = fc.gn; if (fc.corners.length && fc.corners.some((p) => p[2] < at[2] - s * 0.02)) fc.part = 'gills', fc.value = 0.36;
-        out.push(fc);
-      }
-      elements.push({ what: 'shelf', size: s * 2 });
+      // a shelf rides the bark: it never jogs off it, only its size answers the one under it
+      P.block({ id: `s${i}`, kind: 'lathe', parent: i ? `s${i - 1}` : 'ground', stack: true, noJog: true, held: true, c: [Math.cos(a) * hr * 0.9, Math.sin(a) * hr * 0.9, mix(0.15, 0.85, f) * X.height], r: [s, s, s], what: 'shelf', half: a,
+        lathes: [{ prof: [[0, 0.4], [0.7, 0.3], [1, 0.02], [0.8, -0.1], [0, -0.12]], sides: n, part: 'flesh', value: 0.6, under: { part: 'gills', value: 0.36 } }] });
     }
-    return { faces: out, elements };
+    return;
   }
   if (X.kind === 'puffball') {
     // a family of round bodies, the first biggest, the rest crowding round it smaller
     for (let i = 0; i < count; i++) {
       const r = X.height * 0.5 * (i === 0 ? 1 : mix(0.3, 0.62, rand())), a = (2 * Math.PI * i) / Math.max(1, count - 1) + rand(), d = i === 0 ? 0 : X.height * mix(0.4, 0.7, rand());
-      mass(out, [Math.cos(a) * d, Math.sin(a) * d, r * 0.78], [r, r, r * 0.82], 'flesh', i === 0 ? 0.66 : 0.6, L.name === 'far' ? 0 : 1);
-      if (i === 0) mass(out, [0, 0, r * 1.55], [r * 0.2, r * 0.2, r * 0.08], 'detail', 0.86, 0);
-      elements.push({ what: 'puffball', size: r * 2 });
+      P.block({ id: `b${i}`, kind: 'mass', parent: 'ground', group: 'family', c: [Math.cos(a) * d, Math.sin(a) * d, r * 0.78], r: [r, r, r * 0.82], part: 'flesh', value: i === 0 ? 0.66 : 0.6, detail: L.name === 'far' ? 0 : 1, what: 'puffball', grounded: true });
+      if (i === 0) P.block({ id: 'b0top', kind: 'mass', parent: 'b0', fixed: true, c: [0, 0, r * 1.55], r: [r * 0.2, r * 0.2, r * 0.08], part: 'detail', value: 0.86, detail: 0 });
     }
-    return { faces: out, elements };
+    return;
   }
-  // frill: ruffled cups, a lathe whose rim waves round
-  // a family of two never balances: a frill is one, or three and more round the first
+  // frill: ruffled cups, a lathe whose rim waves round; a family of two never balances, so one, or three and more
   const sides = L.name === 'far' ? L.round : L.round + 6, family = count === 2 ? 3 : count;
   for (let i = 0; i < family; i++) {
-    // the others stand evenly round the first, so the family's weight stays over its foot
     const s = X.height * (i === 0 ? 0.5 : mix(0.25, 0.4, rand())), a = (2 * Math.PI * i) / Math.max(1, family - 1) + rand() * 0.6, d = i === 0 ? 0 : X.height * 0.28;
-    const at = [Math.cos(a) * d, Math.sin(a) * d, 0];
-    lathe(out, at, [[s * 0.12, 0], [s * 0.1, s * 0.5], [s * 0.6, s * 0.9], [s, s * 1.05]], sides, 'flesh', 0.6, { wave: [7, X.ruffle] });
-    lathe(out, at, [[s * 0.95, s * 1.02], [s * 0.5, s * 0.82], [s * 0.1, s * 0.55]], sides, 'gills', 0.34, { wave: [7, X.ruffle] });
-    elements.push({ what: 'frill', size: s * 2 });
+    P.block({ id: `u${i}`, kind: 'lathe', parent: 'ground', group: 'family', c: [Math.cos(a) * d, Math.sin(a) * d, 0], r: [s, s, s], what: 'frill', grounded: true, lathes: [
+      { prof: [[0.12, 0], [0.1, 0.5], [0.6, 0.9], [1, 1.05]], sides, part: 'flesh', value: 0.6, wave: [7, X.ruffle] },
+      { prof: [[0.95, 1.02], [0.5, 0.82], [0.1, 0.55]], sides, part: 'gills', value: 0.34, wave: [7, X.ruffle] }] });
   }
-  return { faces: out, elements };
 }
 
-// sausage fingers
-function buildFingers(X, rand, L) {
-  const out = [], elements = [], H = X.height, R = X.radius * Math.max(1, H / 2), far = L.name === 'far', sides = far ? L.sides : Math.max(L.sides, X.ribs ? 8 : 0);
-  const finger = (pts, r0, r1, bulb) => {
-    const rs = pts.map((_, i) => mix(r0, r1, i / (pts.length - 1)));
-    tube(out, pts, rs, sides, 'flesh', 0.58);
-    const tip = pts[pts.length - 1], d = unit(sub(tip, pts[pts.length - 2]));
-    // a round end (never a cut): a half-mass on the tip, a bulb if asked
-    const b = r1 * (bulb || 1);
-    if (far) return;
-    mass(out, add(tip, mul(d, b * 0.2)), [b, b, b], 'flesh', bulb ? 0.82 : 0.6, 0);
-  };
+// sausage fingers: knuckles joined by links whose radii are the knuckles' own, so a mismatched knuckle pinches the finger
+function buildFingers(X, rand, L, P) {
+  const H = X.height, R = X.radius * Math.max(1, H / 2), far = L.name === 'far', sides = far ? L.sides : Math.max(L.sides, X.ribs ? 8 : 0);
+  const K = (id, parent, c, r, o = {}) => P.block({ id, kind: 'knuckle', parent, c, r: [r, r, r], ...o });
+  const join = (a, b, o = {}) => P.link({ from: a, to: b, radii: 'ends', sides, part: 'flesh', value: 0.58, ...o });
+  // a round end, never a cut (none far); a bulb if asked
+  const tip = (bulb) => (far ? {} : { tip: { k: bulb || 1, value: bulb ? 0.82 : 0.6 } });
   if (X.rule === 'saguaro') {
-    finger([[0, 0, 0], [0, 0, H * 0.5], [0, 0, H]], R, R * 0.92, 0);
-    elements.push({ what: 'column', size: R * 2 });
+    // the column in sausage links, so a vertical mismatch can pinch and jog it
+    const zs = [0, 0.35, 0.7, 1];
+    zs.forEach((z, i) => K(`k${i}`, i ? `k${i - 1}` : null, [0, 0, z * H], R * mix(1, 0.92, z), { stack: !!i, ...(i === zs.length - 1 ? tip(0) : {}), ...(i === 0 ? { what: 'column' } : {}) }));
+    for (let i = 1; i < zs.length; i++) join(`k${i - 1}`, `k${i}`);
     for (let i = 0; i < X.arms; i++) {
       const a = rand() * Math.PI * 2, z = H * mix(0.32, 0.6, rand()), out_ = R * mix(1.6, 2.4, rand()), up = H * mix(0.2, 0.38, rand()), ar = R * mix(0.6, 0.75, rand());
-      const dir = [Math.cos(a), Math.sin(a), 0];
-      finger([add([0, 0, z], mul(dir, R * 0.5)), add([0, 0, z + ar * 0.6], mul(dir, out_ * 0.8)), add([0, 0, z + ar * 2.2], mul(dir, out_)), add([0, 0, z + up], mul(dir, out_))], ar, ar * 0.9, 0);
-      elements.push({ what: 'arm', size: ar * 2 });
+      const dir = [Math.cos(a), Math.sin(a), 0], at = z < 0.52 * H ? 'k1' : 'k2', id = `a${i}`;
+      K(`${id}0`, at, add([0, 0, z], mul(dir, R * 0.5)), ar, { group: 'arms', what: 'arm' });
+      K(`${id}1`, `${id}0`, add([0, 0, z + ar * 0.6], mul(dir, out_ * 0.8)), ar * 0.97, { fixed: true });
+      K(`${id}2`, `${id}1`, add([0, 0, z + ar * 2.2], mul(dir, out_)), ar * 0.94, { stack: true });
+      K(`${id}3`, `${id}2`, add([0, 0, z + up], mul(dir, out_)), ar * 0.9, { stack: true, ...tip(0) });
+      for (let j = 1; j < 4; j++) join(`${id}${j - 1}`, `${id}${j}`);
     }
   } else if (X.rule === 'pads') {
     // pads on pads: flattened ovals, each set on its parent's rim at a fan of angles
-    const pad = (at, w, depth, tilt, yaw) => {
+    const pad = (id, parent, at, w, depth, tilt, yaw) => {
       const h = w * 1.25, c = add(at, [Math.sin(tilt) * Math.cos(yaw) * h, Math.sin(tilt) * Math.sin(yaw) * h, Math.cos(tilt) * h]);
-      lathe(out, c, far ? [[0, -h], [w, 0], [0, h]] : [[0, -h], [w * 0.7, -h * 0.75], [w, 0], [w * 0.7, h * 0.75], [0, h]], L.round, 'flesh', 0.58, { squash: 0.28, yaw });
-      elements.push({ what: 'pad', size: w * 2 });
+      P.block({ id, kind: 'lathe', parent, stack: true, group: parent ? `fan${parent}` : null, c, r: [w, w, w], what: 'pad', grounded: !parent,
+        lathes: [{ prof: far ? [[0, -1.25], [1, 0], [0, 1.25]] : [[0, -1.25], [0.7, -0.94], [1, 0], [0.7, 0.94], [0, 1.25]], sides: L.round, part: 'flesh', value: 0.58, squash: 0.28, yaw }] });
       if (depth <= 0) return;
       const top = add(c, [Math.sin(tilt) * Math.cos(yaw) * h, Math.sin(tilt) * Math.sin(yaw) * h, Math.cos(tilt) * h * 0.9]);
-      for (let k = 0; k < (depth === X.depth - 1 && !far ? X.arms : 2) && (k === 0 || rand() < 0.8); k++) pad(top, w * mix(0.6, 0.78, rand()), depth - 1, tilt * 0.4 + (k % 2 ? -1 : 1) * mix(0.45, 0.9, rand()), yaw + mix(-0.6, 0.6, rand()));
+      for (let k = 0; k < (depth === X.depth - 1 && !far ? X.arms : 2) && (k === 0 || rand() < 0.8); k++) pad(`${id}.${k}`, id, top, w * mix(0.6, 0.78, rand()), depth - 1, tilt * 0.4 + (k % 2 ? -1 : 1) * mix(0.45, 0.9, rand()), yaw + mix(-0.6, 0.6, rand()));
     };
-    pad([0, 0, 0], H * 0.2, far ? Math.min(1, X.depth - 1) : X.depth - 1, 0, rand() * Math.PI * 2);
+    pad('p', null, [0, 0, 0], H * 0.2, far ? Math.min(1, X.depth - 1) : X.depth - 1, 0, rand() * Math.PI * 2);
   } else if (X.rule === 'coral') {
     // forks: every segment splits in two, spreading, shrinking by `taper`, round tips
-    const fork = (at, dir, len, r, depth) => {
-      const end = add(at, mul(dir, len));
-      if (depth <= 0) { finger([at, add(at, mul(dir, len * 0.5)), end], r, r * X.taper, X.bulb); return; }
-      tube(out, [at, end], [r, r * X.taper], sides, 'flesh', 0.58);
-      if (L.name === 'near') mass(out, end, [r * X.taper, r * X.taper, r * X.taper], 'flesh', 0.58, 0);
+    const seg = H / (1 + 0.75 * X.depth + 0.4);
+    K('k', null, [0, 0, 0], R * 1.6, { what: 'trunk', sizeK: 1 });
+    const fork = (id, parent, at, dir, len, r, depth) => {
+      const end = add(at, mul(dir, len)), leaf = depth <= 0;
+      K(id, parent, end, r * X.taper, { stack: true, group: parent === 'k' ? null : `fork${parent}`, ...(leaf ? tip(X.bulb) : L.name === 'near' ? { joint: true } : {}) });
+      join(parent, id);
+      if (leaf) return;
       const side = unit(cross(dir, Math.abs(dir[2]) > 0.9 ? [1, 0, 0] : [0, 0, 1])), roll = rand() * Math.PI;
       const sw = add(mul(side, Math.cos(roll)), mul(cross(dir, side), Math.sin(roll)));
-      for (const s of [-1, 1]) fork(end, unit(add(add(dir, mul(sw, s * X.spread)), [0, 0, 0.25])), len * mix(0.62, 0.8, rand()), r * X.taper, depth - 1);
+      [-1, 1].forEach((s, j) => fork(`${id}${j}`, id, end, unit(add(add(dir, mul(sw, s * X.spread)), [0, 0, 0.25])), len * mix(0.62, 0.8, rand()), r * X.taper, depth - 1));
     };
-    const seg = H / (1 + 0.75 * X.depth + 0.4);
-    fork([0, 0, 0], [0, 0, 1], seg, R * 1.6, far ? 1 : X.depth);
-    elements.push({ what: 'trunk', size: R * 3.2 });
+    fork('f', 'k', [0, 0, 0], [0, 0, 1], seg, R * 1.6, far ? 1 : X.depth);
   } else {
     // tubes: a bundle from one foot, the middle tallest, splaying out
+    P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
     for (let i = 0; i < (far ? Math.min(3, X.arms) : X.arms); i++) {
       const a = (2 * Math.PI * i) / X.arms + rand() * 0.5, d = i === 0 ? 0 : R * mix(1.6, 2.6, rand()), h = H * (i === 0 ? 1 : mix(0.45, 0.85, rand()));
-      const foot = [Math.cos(a) * d, Math.sin(a) * d, 0], lean = mul([Math.cos(a), Math.sin(a), 0], d * X.spread * 0.5);
-      finger([foot, add(foot, add([0, 0, h * 0.5], mul(lean, 0.3))), add(foot, add([0, 0, h], lean))], R, R * X.taper, X.bulb);
-      elements.push({ what: 'tube', size: R * 2 * (i === 0 ? 1.3 : 1) * (h / H) });
+      const foot = [Math.cos(a) * d, Math.sin(a) * d, 0], lean = mul([Math.cos(a), Math.sin(a), 0], d * X.spread * 0.5), id = `t${i}`;
+      K(`${id}0`, 'ground', foot, R, { group: 'bundle', what: 'tube', sizeK: (i === 0 ? 1.3 : 1) * (h / H), grounded: true });
+      K(`${id}1`, `${id}0`, add(foot, add([0, 0, h * 0.5], mul(lean, 0.3))), mix(R, R * X.taper, 0.5), { stack: true });
+      K(`${id}2`, `${id}1`, add(foot, add([0, 0, h], lean)), R * X.taper, { stack: true, ...tip(X.bulb) });
+      join(`${id}0`, `${id}1`); join(`${id}1`, `${id}2`);
     }
+  }
+}
+
+// ── the incongruity pass ───────────────────────────────────────────────────────
+/**
+ * INCONGRUITY — the distortion pass, as juxtaposition: adjacent blocks that do not match are interesting (the era's
+ * accent wall breaks a repeat; a run draws the eye). Two flavours, each a dial 0–1:
+ *   vertical    along a stack, each block answers the one under it out of step: sizes alternate (big over small, a
+ *               pinched sausage link), and the block jogs sideways off the line
+ *   horizontal  among blocks side by side, sizes alternate round the run, heights go jagged, and one stands out
+ * The sixth-gen object principles hold it:
+ *   one leads       one joint and one sibling carry the mismatch (the 33); the rest answer it quietly
+ *   inverse interest  filler stays quiet, a focus may be loud: the dials are scaled by the doodad's interest
+ *   eye spot        the leading mismatch must move at least the eye spot (12 frame px) at the distance the doodad is
+ *                   met, or it is noise and the pass is dropped
+ *   stable          every stack's weight is brought back over what holds it (a jog becomes a lean no steeper than its
+ *                   support allows), and the whole is fitted back into the bounds it had, so the space it takes,
+ *                   and every footprint a composition placed, never changes
+ * Seeded per block id, so a block mismatches the same way at every level. Mutates the plan; returns what it did.
+ */
+export const INCONGRUITY_GAIN = Object.freeze({ filler: 0.3, prop: 0.65, interactable: 0.85, focus: 1 });
+const VERTICAL = { size: 0.7, jog: 0.9, kink: 0.45, quiet: 0.3 }, HORIZONTAL = { size: 0.6, jag: 0.5, odd: 0.45, quiet: 0.3 };
+
+/** How far the weight above a joint may sit off what holds it: its support's reach, a lean of its height, or what the
+ *  base design already overhung. */
+function jointAllow(P, kids, b) {
+  const p = P.byId.get(b.parent), bs = [b];
+  for (let i = 0; i < bs.length; i++) for (const k of kids.get(bs[i].id) ?? []) bs.push(k);
+  let w = 0, x = 0, y = 0; for (const s of bs) { const v = vol(s); w += v; x += v * s.c[0]; y += v * s.c[1]; }
+  return Math.max(p.r[0] * 0.6, 0.15 * Math.max(0, b.c[2] - p.c[2]), Math.hypot(x / w - p.c[0], y / w - p.c[1]));
+}
+const vol = (b) => (b.kind === 'knuckle' ? b.r[0] * b.r[0] * 0.5 : b.r[0] * b.r[1] * b.r[2]);
+const ext = (blocks) => {
+  let w = 0, z = 0;
+  for (const b of blocks) { w = Math.max(w, Math.hypot(b.c[0], b.c[1]) + Math.max(b.r[0], b.r[1])); z = Math.max(z, b.c[2] + b.r[2]); }
+  return { w, z };
+};
+
+export function incongrue(P, { vertical = 0, horizontal = 0 } = {}, seed = 1, interest = 'prop') {
+  const g = INCONGRUITY_GAIN[interest] ?? INCONGRUITY_GAIN.prop, V = Math.max(0, Math.min(1, vertical)) * g, Hh = Math.max(0, Math.min(1, horizontal)) * g;
+  const B = P.blocks, kids = new Map();
+  for (const b of B) { b.c0 = b.c.slice(); b.r0 = b.r.slice(); b.ownS = 0; b.ownJ = [0, 0, 0]; if (b.parent) { if (!kids.has(b.parent)) kids.set(b.parent, []); kids.get(b.parent).push(b); } }
+  const sub_ = (b) => { const out = [b]; for (let i = 0; i < out.length; i++) for (const k of kids.get(out[i].id) ?? []) out.push(k); return out; };
+  const moveSub = (b, d) => { for (const x of sub_(b)) x.c = add(x.c, d); };
+  const before = ext(B);
+  // what each joint already overhangs in the base design: a mismatch may lean a joint as far as its support allows,
+  // or as far as the base design already did, never further (the realistic object is the measure of stable)
+  for (const b of B) if (b.stack && b.parent && !b.held) b.allow = jointAllow(P, kids, b);
+  const R = (key) => mulberry32(subSeed(seed, `incongruity:${key}`))();
+  // a block's own size change carries what rides on it: an attachment moves out with its surface, a block stacked on
+  // a body rises or sinks with that body's top
+  const resize = (b, s, sz = 1) => {
+    for (const k of kids.get(b.id) ?? []) {
+      if (b.kind === 'knuckle') continue;
+      // an attachment rides the surface: it moves out by the surface's own growth along its direction, not its whole offset
+      if (k.stack) moveSub(k, [0, 0, (s * sz - 1) * b.r[2]]); else { const off = sub(k.c, b.c), l = Math.hypot(...off); if (l > 1e-9) moveSub(k, mul(off, (Math.min(l, Math.max(...b.r)) * (s - 1)) / l)); }
+    }
+    b.r = [b.r[0] * s, b.r[1] * s, b.r[2] * s * sz];
+    b.ownS += Math.log(s);
+  };
+  // a block's own move (its jog or its jag), kept apart from what it inherits from its parent
+  const own = (b, d) => { moveSub(b, d); b.ownJ = add(b.ownJ, d); };
+  // the 66: the biggest shape the eye reads; it never shrinks, and an odd one out that is not it shrinks, never grows
+  const sizeOf = (b, r) => 2 * Math.max(r[0], r[1]) * (b.sizeK ?? 1), named = B.filter((b) => b.what);
+  const top66 = named.length ? named.reduce((m, b) => (sizeOf(b, b.r0) > sizeOf(m, m.r0) ? b : m)) : null;
+  const towards = (b, s, lead) => (b === top66 ? Math.max(s, 1 / s) : lead ? Math.min(s, 1 / s) : s);
+  // a knuckle's reach is its segment (the length of the link that ends at it), not its radius: its jog is a kink
+  const segLen = (b) => (b.parent ? Math.hypot(...sub(b.c0, P.byId.get(b.parent).c0)) : 0);
+  const depth = (b) => { let d = 0, x = b; while (x.parent) { d++; x = P.byId.get(x.parent); } return d; };
+  // vertical: every block that sits on another, one of them leading
+  const firstOf = new Map();
+  for (const b of B) if (b.group && b.stack) { const k = `${b.parent}|${b.group}`; if (!firstOf.has(k) || b.id < firstOf.get(k)) firstOf.set(k, b.id); }
+  // a stack's continuation answers the block under it; a fan's or a fork's other members answer across, not up
+  const stacked = B.filter((b) => b.stack && !b.fixed && b.parent && (!b.group || firstOf.get(`${b.parent}|${b.group}`) === b.id)).sort((a, b) => depth(a) - depth(b) || (a.id < b.id ? -1 : 1));
+  // the leader is one of the bigger blocks (the mismatch has to read): drawn from the larger half by size
+  const bigFirst = [...stacked].sort((a, b) => Math.max(...b.r0) * (b.kind === 'knuckle' ? 0 : 1) - Math.max(...a.r0) * (a.kind === 'knuckle' ? 0 : 1) || segLen(b) - segLen(a) || (a.id < b.id ? -1 : 1));
+  // and never the 66: the mismatch is the 33's
+  const cand = bigFirst.filter((b) => b !== top66), leadV = cand.length ? cand[Math.floor(R('lead:v') * Math.ceil(cand.length / 2))].id : null;
+  if (V > 0) for (const b of stacked) {
+    const p = P.byId.get(b.parent), q = b.id === leadV ? 1 : VERTICAL.quiet, sign = depth(b) % 2 ? -1 : 1;
+    resize(b, towards(b, Math.exp(sign * q * V * VERTICAL.size * (b.id === leadV ? 1 : 0.6 + 0.4 * R(`v:${b.id}`))), b.id === leadV));
+    if (!b.noJog && b.id === leadV) { const a = R(`j:${b.id}`) * Math.PI * 2, m = q * V * (b.kind === 'knuckle' ? VERTICAL.kink * segLen(b) : VERTICAL.jog * Math.max(p.r[0], b.r[0])); own(b, [Math.cos(a) * m, Math.sin(a) * m, 0]); b.jogged = true; }
+  }
+  // horizontal: every run of two or more side by side, one standing out
+  const groups = new Map();
+  for (const b of B) if (b.group && !b.fixed) { const k = `${b.parent}|${b.group}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(b); }
+  const leadsH = [], upward = new Set(V > 0 ? stacked.map((b) => b.id) : []);
+  for (const [k, run] of groups) groups.set(k, run.filter((b) => !upward.has(b.id)));
+  if (Hh > 0) for (const [k, run] of [...groups].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    if (run.length < 2) continue;
+    const p = P.byId.get(run[0].parent), ang = (b) => Math.atan2(b.c[1] - p.c[1], b.c[0] - p.c[0]);
+    run.sort((a, b) => ang(a) - ang(b) || (a.id < b.id ? -1 : 1));
+    const big = [...run].filter((b) => b !== top66).sort((a, b) => Math.max(...b.r0) - Math.max(...a.r0) || (a.id < b.id ? -1 : 1));
+    if (!big.length) continue;
+    const odd = big[Math.floor(R(`lead:h:${k}`) * Math.ceil(big.length / 2))].id; leadsH.push(odd);
+    run.forEach((b, j) => {
+      const q = b.id === odd ? 1 : HORIZONTAL.quiet, sign = j % 2 ? -1 : 1;
+      const s = towards(b, Math.exp(sign * q * Hh * HORIZONTAL.size), b.id === odd), sz = b.id === odd ? 1 + Hh * HORIZONTAL.odd : 1;
+      resize(b, s, sz);
+      if (b.grounded && b.kind === 'mass') moveSub(b, [0, 0, b.c0[2] * (s * sz - 1)]);
+      if (!b.grounded) own(b, [0, 0, sign * q * Hh * HORIZONTAL.jag * b.r0[2]]);
+    });
+  }
+  // the 66 keeps the lead: incongruity is the 33's, so no other shape the eye reads grows past the leading shape / 1.2
+  if (named.length > 1) {
+    const top = top66;
+    for (const b of named) if (b !== top && sizeOf(b, b.r) > sizeOf(top, top.r) / 1.25) resize(b, sizeOf(top, top.r) / 1.25 / sizeOf(b, b.r));
+  }
+  // what each block's mismatch is, against its own base: its size change, and how far it moved off its parent
+  const mis = (b) => { const p = b.parent ? P.byId.get(b.parent) : null; return Math.abs(b.ownS) + Math.hypot(...b.ownJ) / Math.max(b.kind === 'knuckle' ? segLen(b) * 0.5 : 0, b.r0[0], p ? p.r0[0] : 0, 1e-6); };
+  // STABLE: a run's weight back over its parent, then deepest first each stack's weight back over what holds it (twice,
+  // so a correction low down is answered above); a correction comes off the block's own jog
+  const comOf = (bs) => { let w = 0, x = 0, y = 0; for (const b of bs) { const v = vol(b); w += v; x += v * b.c[0]; y += v * b.c[1]; } return w ? [x / w, y / w] : [0, 0]; };
+  for (const [, run] of groups) {
+    if (run.length < 2 || run.some((b) => b.grounded)) continue;
+    const p = P.byId.get(run[0].parent), [cx, cy] = comOf(run.flatMap(sub_)), [bx, by] = comOf(run.map((b) => ({ ...b, c: b.c0, r: b.r0 })));
+    const d = [-(cx - bx), -(cy - by), 0];
+    if (Math.hypot(d[0], d[1]) > p.r[0] * 0.3) for (const b of run) moveSub(b, d);
+  }
+  // THE WHOLE STANDS: if the doodad's weight drifted off where it stood by more than 6% of its height, the
+  // leading jog gives the difference back
+  const all0 = comOf(B.map((b) => ({ ...b, c: b.c0, r: b.r0 }))), all1 = comOf(B), drift = [all1[0] - all0[0], all1[1] - all0[1]], dl = Math.hypot(...drift), lim = Math.max(0, Math.min(0.06 * before.z, 0.27 * before.z - Math.hypot(...all0)));
+  if (dl > lim && leadV) { const b = P.byId.get(leadV), w = vol(b) && comOf(sub_(b)) && sub_(b).reduce((s, x) => s + vol(x), 0) / B.reduce((s, x) => s + vol(x), 0); const k = Math.min(1, (dl - lim) / dl / Math.max(w, 0.05)); own(b, [-drift[0] * k, -drift[1] * k, 0]); }
+  const allStacked = B.filter((b) => b.stack && b.parent && !b.fixed).sort((a, b) => depth(a) - depth(b) || (a.id < b.id ? -1 : 1));
+  for (let pass = 0; pass < 3; pass++) for (const b of [...allStacked].reverse()) {
+    if (b.held) continue;
+    const p = P.byId.get(b.parent), [cx, cy] = comOf(sub_(b)), dx = cx - p.c[0], dy = cy - p.c[1], dist = Math.hypot(dx, dy), allow = b.allow;
+    if (dist > allow) { const d = [(-dx / dist) * (dist - allow), (-dy / dist) * (dist - allow), 0]; if (b.jogged) own(b, d); else moveSub(b, d); }
+  }
+  const scores = B.filter((b) => !b.fixed && b.parent).map((b) => ({ id: b.id, m: r3(mis(b)), d: r3(Math.hypot(...sub(b.c, b.c0)) + Math.max(...b.r.map((x, i) => Math.abs(x - b.r0[i])))) })).sort((a, b) => b.m - a.m || (a.id < b.id ? -1 : 1));
+  // ONE LEADS, per run: in each stack and each side-by-side run, the leader's mismatch is the run's biggest by 1.4×
+  const misOf = new Map(scores.map((x) => [x.id, x.m])), runs = [];
+  if (V > 0 && stacked.length > 1) runs.push({ lead: leadV, ids: stacked.map((b) => b.id) });
+  if (Hh > 0) for (const [, run] of groups) if (run.length > 1) runs.push({ lead: run.find((b) => leadsH.includes(b.id))?.id, ids: run.map((b) => b.id) });
+  const unled = runs.filter((r) => { const lm = misOf.get(r.lead) ?? 0, rest = Math.max(0, ...r.ids.filter((i) => i !== r.lead).map((i) => misOf.get(i) ?? 0)); return lm < 1.4 * rest; }).map((r) => r.lead);
+  // the eye spot: the leading mismatch must move far enough to read where the doodad is met, or it is noise
+  const eye = EYE_SPOT_PX * metresPerPixel(INTEREST[interest]?.distance ?? INTEREST.prop.distance), leadD = scores.length ? scores[0].d : 0;
+  if ((V > 0 || Hh > 0) && leadD < eye) {
+    for (const b of B) { b.c = b.c0; b.r = b.r0; }
+    return { vertical: r3(V), horizontal: r3(Hh), unled: [], dropped: `the leading mismatch moves ${r3(leadD)} m, under the eye spot's ${r3(eye)} m at ${INTEREST[interest]?.distance ?? INTEREST.prop.distance} m: noise`, scores: [], eye: r3(eye), fit: [1, 1] };
+  }
+  // FIT: back into the bounds it had, across and up
+  const after = ext(B), fx = after.w > 1e-9 ? before.w / after.w : 1, fz = after.z > 1e-9 ? before.z / after.z : 1;
+  for (const b of B) { b.c = [b.c[0] * fx, b.c[1] * fx, b.c[2] * fz]; b.r = [b.r[0] * fx, b.r[1] * fx, b.r[2] * fz]; }
+  for (const l of P.links) { if (Array.isArray(l.radii)) l.radii = l.radii.map((x) => x * fx); l.bow *= fx; }
+  P.fit = fx;
+  return { vertical: r3(V), horizontal: r3(Hh), leads: { vertical: leadV, horizontal: leadsH }, unled, scores: scores.slice(0, 6), eye: r3(eye), fit: [r3(fx), r3(fz)], dropped: null };
+}
+
+/** A plan's stacks, each checked: the weight above every joint over what holds it (the `stable` law). */
+export function planStability(P) {
+  const kids = new Map();
+  for (const b of P.blocks) if (b.parent) { if (!kids.has(b.parent)) kids.set(b.parent, []); kids.get(b.parent).push(b); }
+  const sub_ = (b) => { const out = [b]; for (let i = 0; i < out.length; i++) for (const k of kids.get(out[i].id) ?? []) out.push(k); return out; };
+  const off = [];
+  for (const b of P.blocks) {
+    if (!b.stack || !b.parent || b.held) continue;
+    const p = P.byId.get(b.parent), bs = sub_(b);
+    let w = 0, x = 0, y = 0; for (const s of bs) { const v = vol(s); w += v; x += v * s.c[0]; y += v * s.c[1]; }
+    const dist = Math.hypot(x / w - p.c[0], y / w - p.c[1]), fit = P.fit ?? 1, allow = (b.allow ?? jointAllow(P, kids, b)) * fit + 1e-6;
+    if (dist > allow * 1.02) off.push({ id: b.id, by: r3(dist - allow) });
+  }
+  return off;
+}
+
+// ── the mesh ───────────────────────────────────────────────────────────────────
+function meshPlan(P, L) {
+  const out = [], elements = [];
+  for (const b of P.blocks) {
+    if (b.kind === 'mass') {
+      const bend = b.bend ? { at: add(P.byId.get(b.bend.to).c, b.bend.off), k: b.bend.k } : null;
+      mass(out, b.c, b.r, b.part, b.value, b.detail ?? 0, bend?.at ?? null, bend?.k ?? 0);
+    } else if (b.kind === 'lathe') {
+      for (const l of b.lathes) {
+        const prof = l.prof.map(([pr, pz]) => [pr * b.r[0], pz * b.r[2]]);
+        if (b.half == null) { lathe(out, b.c, prof, l.sides, l.part, l.value, { wave: l.wave ?? null, squash: l.squash ?? 1, yaw: l.yaw ?? 0 }); continue; }
+        // half a body, its flat side on the bark: the outer half of the turn, turned to face out at `half`
+        const half = [];
+        lathe(half, [0, 0, 0], prof, l.sides, l.part, l.value);
+        const c = Math.cos(b.half), sn = Math.sin(b.half);
+        for (const f of half) {
+          if (f.corners.some((p) => p[0] < -1e-9)) continue;
+          f.corners = f.corners.map((p) => add(b.c, [p[0] * c - p[1] * sn, p[0] * sn + p[1] * c, p[2]]));
+          f.gn = faceNormal(f.corners); f.normal = f.gn;
+          if (l.under && f.corners.some((p) => p[2] < b.c[2] - b.r[2] * 0.02)) { f.part = l.under.part; f.value = l.under.value; }
+          out.push(f);
+        }
+      }
+    } else if (b.tip || b.joint) {
+      const k = b.tip ? b.tip.k : 1, p = P.byId.get(b.parent), d = p ? unit(sub(b.c, p.c)) : [0, 0, 1];
+      mass(out, b.tip ? add(b.c, mul(d, b.r[0] * k * 0.2)) : b.c, [b.r[0] * k, b.r[0] * k, b.r[0] * k], 'flesh', b.tip ? b.tip.value : 0.58, 0);
+    }
+    if (b.what) elements.push({ what: b.what, size: 2 * Math.max(b.r[0], b.r[1]) * (b.sizeK ?? 1) });
+  }
+  for (const l of P.links) {
+    const A = P.byId.get(l.from), Bk = P.byId.get(l.to);
+    const a = l.axisOnly ? [A.c[0], A.c[1], A.c[2]] : A.c, b = l.axisOnly ? [A.c[0], A.c[1], Bk.c[2]] : Bk.c;
+    const pts = bowed(a, b, l.bow, l.side, Math.max(1, l.n));
+    const radii = l.radii === 'ends' ? pts.map((_, i) => mix(A.r[0], Bk.r[0], i / (pts.length - 1))) : pts.map((_, i) => l.radii[Math.min(l.radii.length - 1, Math.round((i / (pts.length - 1)) * (l.radii.length - 1)))]);
+    tube(out, pts, radii, l.sides ?? L.sides, l.part, l.value);
+    if (l.what) elements.push({ what: l.what, size: l.whatSize != null ? l.whatSize * (P.fit ?? 1) : 2 * radii[0] });
   }
   return { faces: out, elements };
 }
@@ -388,12 +598,16 @@ function buildFingers(X, rand, L) {
  *   stands      the doodad's weight (its faces' area) sits over its foot: offset ≤ 0.3 of its height
  *   value-split the body (mass, flesh) and what holds it up (wood) differ by ≥ 0.2 in value, so each reads
  *   budget      its faces keep its ring's budget (FLORA_LEVELS)
+ *   stable      (planned) the weight above every joint sits over what holds it
+ *   one-leads   (mismatched) in every stack and run, one mismatch leads
  */
 export const FLORA_LAWS = Object.freeze([
   { id: 'dominant', rule: 'one shape leads: the biggest the eye reads is at least 1.2× the next' },
   { id: 'stands', rule: 'its weight sits over its foot: offset no more than 0.3 of its height' },
   { id: 'value-split', rule: 'the body and what holds it up differ by at least 0.2 in value' },
   { id: 'budget', rule: 'its faces keep the ring\'s budget' },
+  { id: 'stable', rule: 'the weight above every joint sits over what holds it, no further off than the base design' },
+  { id: 'one-leads', rule: 'in every stack and every run, one mismatch leads by 1.4× (the 33 of incongruity)' },
 ]);
 
 const area = (c) => { let s = [0, 0, 0]; for (let i = 1; i + 1 < c.length; i++) s = add(s, cross(sub(c[i], c[0]), sub(c[i + 1], c[0]))); return Math.hypot(...s) / 2; };
@@ -418,6 +632,8 @@ export function floraLaws(d) {
   if (m.offset > 0.3) out.push({ law: 'stands', line: `its weight sits ${m.offset} of its height off its foot.` });
   if (m.split != null && m.split < 0.2) out.push({ law: 'value-split', line: `body and wood are ${m.split} apart in value.` });
   if (m.faces > L.budget) out.push({ law: 'budget', line: `${m.faces} faces over the ${d.level} budget of ${L.budget}.` });
+  if (d.unstable?.length) out.push({ law: 'stable', line: `${d.unstable.map((u) => `${u.id} +${u.by} m`).join(', ')} off what holds it.` });
+  if (d.incongruity?.unled?.length) out.push({ law: 'one-leads', line: `no single mismatch leads the run at ${d.incongruity.unled.join(', ')}.` });
   return out;
 }
 
@@ -503,22 +719,41 @@ export const JUNGLE_COMPOSITION = Object.freeze((() => {
 
 /**
  * A plan of where a composition's species stand: per species, clusters (clumped, never even), thinning by ring out
- * from a trail along y at x = 0, clear of it. → [{ x, y, species, scale, ring }]
+ * from a trail along y at x = 0, clear of it. → [{ x, y, species, scale, stretch, ring, gain, odd, incongruity }]
+ *
+ * INCONGRUITY AT THE COMPOSITION'S SCALE, gated by the EYE RADIUS (distinct inside the radius, repetition outside it):
+ * a point's `gain` is 1 near the trail, a half mid, 0 far. Within a cluster the members answer each other the way blocks
+ * do inside a doodad: horizontally their sizes alternate and one stands out (`odd`); vertically their heights
+ * alternate (`stretch`), tall beside short. A doodad too small for its own mismatch to reach the eye spot gets its
+ * incongruity here, from its neighbours. Each point carries the dials its own doodad is built with (`incongruity`).
  */
-export function floraScatter(species, seed, { w = 40, d = 60, rings = { near: 7, mid: 16 }, clear = 1.6 } = {}) {
-  const out = [];
+export const RING_GAIN = Object.freeze({ near: 1, mid: 0.5, far: 0 });
+export function floraScatter(species, seed, { w = 40, d = 60, rings = { near: 7, mid: 16 }, clear = 1.6, incongruity = null } = {}) {
+  const out = [], V = incongruity?.vertical ?? 0, H = incongruity?.horizontal ?? 0;
   species.forEach((sp, si) => {
     const rand = mulberry32(subSeed(seed, `scatter:${sp.id}`)), dens = sp.density;
     for (let c = 0; c < sp.clusters; c++) {
-      const cx = mix(-w / 2, w / 2, rand()), cy = mix(0, d, rand());
+      const cx = mix(-w / 2, w / 2, rand()), cy = mix(0, d, rand()), members = [];
       for (let k = 0; k < sp.perCluster * 3; k++) {
         const r = sp.spread * Math.sqrt(rand()), a = rand() * Math.PI * 2, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
         const ax = Math.abs(x), ring = ax < rings.near ? 'near' : ax < rings.mid ? 'mid' : 'far';
         if (ax < clear + sp.size || y < 0 || y > d || ax > w / 2 || rand() > dens[ring]) continue;
         if (out.some((p) => Math.hypot(p.x - x, p.y - y) < (p.size + sp.size) * 0.7)) continue;
-        out.push({ x: r3(x), y: r3(y), species: sp.id, si, size: sp.size, scale: r3(mix(0.8, 1.2, rand()) * (1 - r / sp.spread * 0.3)), ring });
+        const p = { x: r3(x), y: r3(y), species: sp.id, si, size: sp.size, scale: r3(mix(0.8, 1.2, rand()) * (1 - r / sp.spread * 0.3)), stretch: 1, ring, gain: RING_GAIN[ring], odd: false, a };
+        out.push(p); members.push(p);
       }
+      if (!(V > 0 || H > 0) || members.length < 2) continue;
+      // round the cluster's middle, alternating; one member leads (the odd one), the rest answer it quietly
+      members.sort((p, q) => p.a - q.a);
+      const odd = Math.floor(rand() * members.length);
+      members.forEach((p, j) => {
+        const q = j === odd ? 1 : 0.3, sign = j % 2 ? -1 : 1, g = p.gain;
+        p.scale = r3(p.scale * Math.exp(sign * q * H * g * 0.5));
+        p.stretch = r3(Math.exp(-sign * q * V * g * 0.5));
+        p.odd = j === odd && g > 0;
+      });
     }
   });
+  for (const p of out) { p.incongruity = { vertical: r3(V * p.gain), horizontal: r3(H * p.gain) }; delete p.a; }
   return out;
 }

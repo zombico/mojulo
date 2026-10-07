@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_PARTS, FLORA_SKINS, FLORA_LEVELS, BARK_DIALS, BARK_PATTERNS, GRASS_PRIMITIVES, JUNGLE_COMPOSITION, designFlora, floraLaws, floraSkin, floraScatter } from './out-flora.js';
+import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_PARTS, FLORA_SKINS, FLORA_LEVELS, BARK_DIALS, BARK_PATTERNS, GRASS_PRIMITIVES, JUNGLE_COMPOSITION, INCONGRUITY_GAIN, designFlora, floraLaws, floraMeasures, floraSkin, floraScatter } from './out-flora.js';
 import { SWATCHES } from './style/swatches.js';
 import { BARKS } from '../vegetation/bark.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
@@ -52,6 +52,28 @@ describe('the flora index: plants as doodads', () => {
     expect(under.filter((p) => p.ring === 'far').length).toBe(0);
     expect(under.filter((p) => p.ring === 'near').length).toBeGreaterThan(under.filter((p) => p.ring === 'mid').length * 0.5);
     expect(JSON.stringify(floraScatter(JUNGLE_COMPOSITION.plan, 8))).toBe(JSON.stringify(floraScatter(JUNGLE_COMPOSITION.plan, 8)));
+  });
+  it('incongruity mismatches blocks, one leads, the 66 keeps the lead, and the doodad keeps its bounds', () => {
+    const base = designFlora('broccoli', 'pads', 8, { level: 'near' }), inc = designFlora('broccoli', 'pads', 8, { level: 'near', incongruity: { vertical: 1, horizontal: 1 }, interest: 'focus' });
+    expect(inc.incongruity.dropped).toBeNull();
+    expect(inc.incongruity.leads.vertical).toBeTruthy();
+    expect(JSON.stringify(inc.faces)).not.toBe(JSON.stringify(base.faces));
+    expect(floraLaws(inc)).toEqual([]);
+    expect(Math.abs(floraMeasures(inc).height - floraMeasures(base).height)).toBeLessThan(0.02 * floraMeasures(base).height);
+    expect(JSON.stringify(inc)).toBe(JSON.stringify(designFlora('broccoli', 'pads', 8, { level: 'near', incongruity: { vertical: 1, horizontal: 1 }, interest: 'focus' })));
+  });
+  it('inverse interest scales it, and under the eye spot it is dropped as noise', () => {
+    expect(INCONGRUITY_GAIN.filler).toBeLessThan(INCONGRUITY_GAIN.focus);
+    const f = designFlora('broccoli', 'broccoli', 3, { level: 'near', incongruity: { vertical: 1, horizontal: 1 }, interest: 'filler' }), F = designFlora('broccoli', 'broccoli', 3, { level: 'near', incongruity: { vertical: 1, horizontal: 1 }, interest: 'focus' });
+    expect(f.incongruity.vertical).toBeLessThan(F.incongruity.vertical);
+    const tiny = designFlora('mushroom', 'toadstool', 2, { level: 'near', incongruity: { vertical: 1, horizontal: 1 }, interest: 'filler' });
+    expect(tiny.incongruity.dropped).toMatch(/eye spot/);
+  });
+  it('the eye radius gates a composition\'s incongruity: full near, none far', () => {
+    const pts = floraScatter(JUNGLE_COMPOSITION.plan, 8, { rings: JUNGLE_COMPOSITION.rings, incongruity: { vertical: 1, horizontal: 1 } });
+    for (const p of pts) expect(p.incongruity.horizontal).toBe(p.ring === 'near' ? 1 : p.ring === 'mid' ? 0.5 : 0);
+    expect(pts.filter((p) => p.ring === 'far').every((p) => !p.odd)).toBe(true);
+    expect(pts.some((p) => p.odd)).toBe(true);
   });
   it('the board draws, and a sample of every form keeps the read laws', () => {
     for (const id of FLORA_FORM_IDS) for (const v of Object.keys(FLORA_FORMS[id].variants)) expect(floraLaws(designFlora(id, v, 8))).toEqual([]);

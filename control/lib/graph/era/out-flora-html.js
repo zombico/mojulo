@@ -4,7 +4,7 @@
  * porosity, one set of doodads skinned in every kit, bark as dials and patterns, mojulo's grass primitives, and the
  * jungle read as a composition. Data: era/out-flora.js and era/style/swatches.js. `outFloraHtml(opts)` is pure.
  */
-import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_LEVELS, FLORA_LAWS, FLORA_PARTS, FLORA_SKINS, BARK_PATTERNS, BARK_DIALS, GRASS_PRIMITIVES, COMPOSITION_ROLES, JUNGLE_COMPOSITION, designFlora, floraLaws, floraMeasures, floraSkin, floraScatter } from './out-flora.js';
+import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_LEVELS, FLORA_LAWS, FLORA_PARTS, FLORA_SKINS, BARK_PATTERNS, BARK_DIALS, GRASS_PRIMITIVES, COMPOSITION_ROLES, JUNGLE_COMPOSITION, designFlora, floraLaws, floraMeasures, floraSkin, floraScatter, INCONGRUITY_GAIN, RING_GAIN } from './out-flora.js';
 import { SWATCHES, hexOfRgb } from './style/swatches.js';
 import { CSS } from './out-index-html.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -120,13 +120,51 @@ ${pts.map((p) => `<circle cx="${((p.x + w / 2) * px).toFixed(1)}" cy="${((dd - p
 <div><p class="note">PLAN: the plan species scattered by <code>floraScatter</code>, clumped, thinning by ring (dashed), clear of the trail (grey).</p>${plan}<p class="note">${counts}</p></div></div></div>`;
 }
 
+// several doodads side by side on one ground line, at one scale (a run)
+function drawRun(items, kitId, { w = 560, h = 150 } = {}) {
+  const faces = [];
+  let x = 0;
+  for (const { d, gap = 0.4 } of items) {
+    let a = Infinity, b = -Infinity; for (const f of d.faces) for (const p of f.corners) { a = Math.min(a, p[0]); b = Math.max(b, p[0]); }
+    for (const f of d.faces) faces.push({ ...f, corners: f.corners.map((p) => [p[0] - a + x, p[1], p[2]]) });
+    x += b - a + gap;
+  }
+  return drawFlora({ faces, dials: { form: 'run', variant: '' } }, kitId, { w, h });
+}
+
+const INC_SET = [['broccoli', 'broccoli', 'near'], ['broccoli', 'pads', 'near'], ['broccoli', 'column', 'near'], ['mushroom', 'parasol', 'near'], ['fingers', 'saguaro', 'near'], ['fingers', 'pads', 'near'], ['fingers', 'coral', 'near'], ['fungi', 'bracket', 'near']];
+function incongruityCard(kitId, seed) {
+  const dials = [['base', null], ['vertical', { vertical: 1 }], ['horizontal', { horizontal: 1 }], ['both', { vertical: 1, horizontal: 1 }]];
+  const rows = INC_SET.map(([f, v, lv]) => `<tr><td><b>${esc(f)}</b><br>${esc(v)}</td>${dials.map(([, inc]) => { const d = designFlora(f, v, seed, { level: lv, incongruity: inc, interest: 'focus' }); const I = d.incongruity; const note = !I ? '' : I.dropped ? 'dropped: under the eye spot' : `leads ${esc([I.leads.vertical, ...I.leads.horizontal].filter(Boolean).join(', '))} · fit ${I.fit.join('/')}`; return `<td>${drawFlora(d, kitId, { w: 120, h: 120 })}<div class="note">${note} ${lawLine(d)}</div></td>`; }).join('')}</tr>`).join('');
+  const interest = Object.keys(INCONGRUITY_GAIN).map((k) => fig(drawFlora(designFlora('broccoli', 'pads', seed + 1, { level: 'near', incongruity: { vertical: 1, horizontal: 1 }, interest: k }), kitId, { w: 130, h: 130 }), `${esc(k)} × ${INCONGRUITY_GAIN[k]}`)).join('');
+  const steps = [0, 0.25, 0.5, 0.75, 1].map((t) => fig(drawFlora(designFlora('fingers', 'saguaro', seed + 2, { level: 'near', incongruity: { vertical: t, horizontal: t }, interest: 'focus' }), kitId, { w: 110, h: 140 }), `dial ${t}`)).join('');
+  return `<div class="card"><h3>Incongruity <span class="badge">the distortion pass, as juxtaposition</span></h3>
+<p class="note">Adjacent mismatch is interesting: the era's accent wall breaks a repeat, a run draws the eye. Incongruity is that, inside a thing. A doodad is a plan of base composition blocks (masses, caps, pads, knuckles, shelves); the pass mismatches them and then makes them stand. VERTICAL: along a stack each block answers the one under it out of step (big over small, a pinched sausage link) and one joint jogs off the line. HORIZONTAL: side by side, sizes alternate round the run, heights go jagged, one stands out. Held by the sixth-gen object principles: <b>one leads</b> (one joint and one sibling carry it, the rest answer quietly: the 33 of incongruity); <b>the 66 keeps the lead</b> (the leading shape never shrinks; an odd one out that is not it shrinks); <b>inverse interest</b> (filler quiet, a focus loud); <b>the eye spot</b> (the leading mismatch must move ${esc(String(Math.round(1000 * 12 * (2 * 4 * Math.tan(Math.PI / 6)) / 448) / 1000))} m, 12 frame px at 4 m, or it is noise and dropped); <b>stable</b> (each stack's weight brought back over what holds it, the whole over its foot, then the doodad fitted back into the bounds it had: its footprint never changes).</p>
+<table><tr><th></th>${dials.map(([n]) => `<th>${esc(n)}</th>`).join('')}</tr>${rows}</table>
+<div class="grid g2" style="margin-top:10px"><div><p class="note">INTEREST: the same dials (1, 1) scaled by how much the thing matters</p><div class="views">${interest}</div></div>
+<div><p class="note">THE DIAL: vertical and horizontal together, 0 to 1</p><div class="views">${steps}</div></div></div></div>`;
+}
+
+function runCard(kitId, seed) {
+  // toadstools too small for their own mismatch to read: their incongruity comes from their neighbours
+  const pts = (inc) => floraScatter([{ id: 'toadstool', clusters: 1, perCluster: 7, spread: 1.6, size: 0.3, density: { near: 1, mid: 1, far: 1 } }], seed + 5, { w: 40, d: 60, clear: -40, rings: { near: 99, mid: 99 }, incongruity: inc }).sort((a, b) => a.x - b.x);
+  const run = (inc) => pts(inc).map((p, i) => ({ d: designFlora('mushroom', 'toadstool', seed + i, { level: 'near', over: { height: 0.4 * p.scale * p.stretch, cluster: 1 } }), gap: 0.12 }));
+  const plain = drawRun(run(null), kitId, { w: 520, h: 120 }), mixed = drawRun(run({ vertical: 1, horizontal: 1 }), kitId, { w: 520, h: 120 });
+  const J = JUNGLE_COMPOSITION, w = 40, dd = 60, px = 5;
+  const P = floraScatter(J.plan, seed, { w, d: dd, rings: J.rings, incongruity: { vertical: 1, horizontal: 1 } });
+  const shade = (g) => (g >= 1 ? '#111' : g > 0 ? '#888' : '#ccc');
+  const plan = `<svg viewBox="0 0 ${w * px} ${dd * px}" width="${w * px}" height="${dd * px}"><rect width="${w * px}" height="${dd * px}" fill="#fff" stroke="#111"/><rect x="${(w / 2 - 1) * px}" y="0" width="${2 * px}" height="${dd * px}" fill="#eee"/>${P.map((p) => `<circle cx="${((p.x + w / 2) * px).toFixed(1)}" cy="${((dd - p.y) * px).toFixed(1)}" r="${(p.size * p.scale * px * 0.5).toFixed(1)}" fill="${shade(p.gain)}"${p.odd ? ' stroke="#111" stroke-width="2" fill-opacity="0.35"' : ''}/>`).join('')}</svg>`;
+  return `<div class="card"><h3>Incongruity at the composition's scale</h3><p class="note">Under the eye spot a doodad's own mismatch is noise, so it moves up a level: the members of a cluster answer each other the way blocks do inside a doodad (sizes alternate, one stands out; heights alternate, tall beside short). The EYE RADIUS gates it: distinct inside the radius, repetition outside it (gain ${esc(Object.entries(RING_GAIN).map(([k, v]) => `${k} ${v}`).join(', '))}); each point also carries the dials its own doodad is built with.</p>
+<div class="grid g2"><div><p class="note">A RUN OF TOADSTOOLS: plain, then answered by their neighbours (1, 1)</p>${plain}${mixed}</div><div><p class="note">THE JUNGLE'S PLAN with the dials at (1, 1): black full gain (near), grey half (mid), pale none (far); ringed, the odd one of each cluster</p>${plan}</div></div></div>`;
+}
+
 function lawsCard(seeds = 40) {
   const rows = FLORA_LAWS.map((l) => {
     let n = 0, bad = 0;
-    for (const id of FLORA_FORM_IDS) for (const v of Object.keys(FLORA_FORMS[id].variants)) for (const lv of ['near', 'mid', 'far']) for (let s = 1; s <= seeds; s++) { n++; if (floraLaws(designFlora(id, v, s, { level: lv })).some((x) => x.law === l.id)) bad++; }
+    for (const id of FLORA_FORM_IDS) for (const v of Object.keys(FLORA_FORMS[id].variants)) for (const lv of ['near', 'mid', 'far']) for (let s = 1; s <= seeds; s++) for (const inc of [null, { vertical: 1, horizontal: 1 }]) { n++; if (floraLaws(designFlora(id, v, s, { level: lv, incongruity: inc, interest: 'focus' })).some((x) => x.law === l.id)) bad++; }
     return `<tr><td><b>${esc(l.id)}</b></td><td>${esc(l.rule)}</td><td class="${bad ? 'no' : 'ok'}">${bad ? `${bad} of ${n} advise` : `holds on ${n}`}</td></tr>`;
   }).join('');
-  return `<div class="card"><h3>Read laws</h3><p class="note">A doodad answers to how it reads and what it costs, never to botany. Measured over every form, variant and ring at ${seeds} seeds.</p><table>${rows}</table>
+  return `<div class="card"><h3>Read laws</h3><p class="note">A doodad answers to how it reads and what it costs, never to botany. Measured over every form, variant and ring at ${seeds} seeds, plain and with incongruity at full (a focus).</p><table>${rows}</table>
 <p class="note" style="margin-top:8px">PARTS: ${Object.entries(FLORA_PARTS).map(([k, p]) => `<b>${esc(k)}</b> (${esc(p.role)}) ${esc(p.read)}`).join(' · ')}</p></div>`;
 }
 
@@ -135,6 +173,7 @@ export function outFloraHtml({ seed = 8, kitId = 'isekai-meadow' } = {}) {
 <h1>OUTDOOR FLORA INDEX</h1>
 <p class="lede">The plants of an outdoor world as doodads: shapes built for look, read and cost, not botany. Four forms make every plant a kit needs: masses on a stick, a cap on a stalk, organic growth, sausage fingers. Each is a few primitives under a few dials, built in values on named parts, skinned by a kit's swatches and built by reveal ring. Drawn here in ${esc(kitId)} at seed ${seed}. The grown trees (vegetation/) stay for a world that wants one.</p>
 <h2>Forms</h2>${FLORA_FORM_IDS.map((id) => formCard(id, kitId, seed)).join('<div style="height:14px"></div>')}
+<h2>Incongruity</h2>${incongruityCard(kitId, seed)}${runCard(kitId, seed)}
 <h2>Density</h2>${densityCard(kitId, seed)}
 <h2>Skins</h2>${skinCard(seed)}
 <h2>Bark</h2>${barkCard(kitId, seed)}

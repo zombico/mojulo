@@ -354,6 +354,15 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   laws, not botany: one shape leads, the weight sits over the foot, body and wood differ in value, the ring's budget
   holds. Bark is exposed as the fracture model's dials and the stylized pattern each reads as; grass is chosen from
   mojulo's own primitives; the jungle is restated as a composition of layers, each with the form it would be.
+- **Incongruity: the distortion pass as juxtaposition** (`era/out-flora.js` `incongrue`). A doodad is now a plan of
+  base composition blocks (masses, caps, pads, knuckles, shelves) joined by links, then a mesh. Two dials mismatch the
+  blocks: vertical (along a stack, sizes out of step and one joint jogs or kinks off the line) and horizontal (side by
+  side, sizes alternate, heights go jagged, one stands out). Held by the sixth-gen object principles: one mismatch
+  leads per run (the 33), the leading shape is never the one mismatched and never shrinks (the 66), filler stays quiet
+  and a focus may be loud, and a leading mismatch under the eye spot at play distance is dropped as noise. Every stack's
+  weight is brought back over what holds it and the whole over its foot, then the doodad is fitted back into its own
+  bounds, so its footprint never changes. Under the eye spot, incongruity moves up to the composition: a cluster's
+  members answer each other the same way, gated by the eye radius (full near the trail, half mid, none far).
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the
