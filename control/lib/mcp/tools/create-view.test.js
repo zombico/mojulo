@@ -46,7 +46,8 @@ describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
       expect(card.family).toBe('world');
       expect(card.entry).toBe('compose_world');
     }
-    const worldCards = [...catalog.values()].filter((c) => c.family === 'world');
+    // the generated stage cards (era/entries.js) share the family but not the entry: a stage is minted as a recipe
+    const worldCards = [...catalog.values()].filter((c) => c.family === 'world' && !c.generated);
     expect(worldCards.map((c) => c.id).sort()).toEqual([...WORLD_BASES].sort());
   });
 
@@ -129,10 +130,18 @@ describe('get_view_vocab reader', () => {
 
   it('lists index rows, filterable by family', async () => {
     const all = await getViewVocabHandler({});
-    expect(all.cards.length).toBe(62);   // + terrain (terrain-world, 2026-09-28)
+    // the curated cards (+ waterfall, 2026-10-04), plus the encyclopedia entries generated from the historic
+    // culture cards (their record cards are read by id, not listed): those grow with each culture on their own
+    // and the stage, kit and look cards generated from the sixth-gen era cards (family world, entry create_sketch)
+    const generated = [...getViewVocabCatalog().values()].filter((c) => c.generated && c.index !== false);
+    const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
+    expect(entries).toBeGreaterThan(0);
+    expect(stage).toBeGreaterThan(0);
+    expect(all.cards.length).toBe(63 + entries + stage);
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(10);
-    expect(world.cards.every((c) => c.entry === 'compose_world')).toBe(true);
+    expect(world.cards.length).toBe(10 + stage);
+    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(10);
+    expect(world.cards.filter((c) => c.entry !== 'compose_world').every((c) => c.entry === 'create_sketch')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();
   });

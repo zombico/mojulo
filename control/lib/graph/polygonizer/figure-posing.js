@@ -131,14 +131,19 @@ const HINGES = ['elbowL', 'elbowR', 'kneeL', 'kneeR'];
 // create_figure `pose` field (and the gait) emit is valid verbatim as a keyframe.
 // One vocabulary across the pose field, keyframes, and the gait.
 const RAW_SWIVELS = ['shL', 'shR', 'hipL', 'hipR'];
-const isAngles = (o) => o != null && typeof o === 'object' && ('yaw' in o || 'pitch' in o || 'roll' in o);
+const isAngles = (o) => o != null && typeof o === 'object' && ('yaw' in o || 'pitch' in o || 'roll' in o || 'turn' in o);
+// `glance`: a look aside — the neck/head TURN (figure-vajra applyHeadTurn), split as the cervical spine shares
+// it: the atlas (C1–C2) carries most of a turn. Words are a full glance; degrees are + to the left.
+const GLANCE_WORDS = { left: 60, right: -60, ahead: 0 };
+const GLANCE_NECK = 0.4;
 
 /**
  * Compile a pose intent spec into the raw `dof` for `articulate()`.
  * @param {object} spec
  *   armL/armR/legL/legR : a direction to AIM the limb (string | string[] | {x,y,z})
  *   elbowL/elbowR/kneeL/kneeR : a hinge bend (word or degrees)
- *   head : a direction to aim the head (nod forward/back, tilt left/right; no turn)
+ *   head : a direction to aim the head (nod forward/back, tilt left/right), or raw { yaw, pitch, turn }
+ *   glance : 'left' | 'right' | 'ahead' | degrees (+ left) — the neck/head turn, split 40/60
  *   spine : { curl, arch, lean:[dir,amt], sideBend:[dir,amt], twist:[dir,amt] }
  *           (or raw { sagittal, lateral, axial })
  * @param {object|null} base complete rest joint map, in the same body frame as articulate
@@ -153,6 +158,14 @@ export function resolvePose(spec = {}, base = null) {
   // neck/head: a direction to AIM (friendly), or raw { yaw, pitch } angles passed through.
   if (spec.neck != null) dof.neck = isAngles(spec.neck) ? { ...spec.neck } : aimSwivel(rest.neck, resolveDir(spec.neck, 0));
   if (spec.head != null) dof.head = isAngles(spec.head) ? { ...spec.head } : aimSwivel(rest.head, resolveDir(spec.head, 0));
+  if (spec.glance != null) {
+    const deg = typeof spec.glance === 'number' ? spec.glance : GLANCE_WORDS[spec.glance];
+    if (!Number.isFinite(deg)) throw new Error(`figure-posing: glance is ${Object.keys(GLANCE_WORDS).join(' / ')} or degrees (+ left), got ${JSON.stringify(spec.glance)}`);
+    if (deg) {
+      dof.neck = { ...dof.neck, turn: (dof.neck?.turn || 0) + deg * GLANCE_NECK };
+      dof.head = { ...dof.head, turn: (dof.head?.turn || 0) + deg * (1 - GLANCE_NECK) };
+    }
+  }
   // raw shoulder/hip swivels ({ yaw, pitch, roll }) flow straight through.
   for (const k of RAW_SWIVELS) if (isAngles(spec[k])) dof[k] = { ...spec[k] };
   for (const h of HINGES) if (spec[h] != null) dof[h] = bendAmount(spec[h]);

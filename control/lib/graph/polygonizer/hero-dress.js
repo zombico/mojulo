@@ -8,6 +8,11 @@
  * a placket left bare down the front with a row of toggles on it, knee patches facing forward, cuffs at the wrists and
  * leg wraps at the ankles. No spurs, no spines: a human has none.
  *
+ * `swimsuit` is the body BARE, to see its forms and mark its silhouette: every Top / Bottom / Shoes part is Skin and
+ * swimwear is painted on the trunk's own faces (`bandGroups`), no part of its own: the adult male's trunks, the adult
+ * female's two-piece (a band round the ribs under the bust, the breasts' lower poles its cups, the briefs high on the hip), and a child-coded
+ * figure's rash vest and trunks (never bare-chested). Its tone is `Swim`, the operator's to name.
+ *
  * `adorn`: a kit word ('ranger'), 'none', or a KIT (a list of adornments). `ranger`: a belt with an iron buckle, a
  * baldric across the chest from the right shoulder to the left hip with an iron ring, an archer's leather bracer on the
  * LEFT forearm, and ONE defended shoulder — an iron pauldron on the right with a bronze boss, the kit's single focal
@@ -21,19 +26,48 @@
  * so a palette change carries them; any tone the operator names wins. */
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/expand.js';
+import { validatePaint } from './body-paint.js';
+import { validateGarments } from './body-garment.js';
+import { isOutfitBuild, validateOutfitBuild, expandOutfit, outfitTones } from '../outfit/expand.js';
 
-export const DETAIL_WORDS = ['clothed', 'none'];
+export const DETAIL_WORDS = ['clothed', 'swimsuit', 'none'];
 export const KIT_WORDS = ['ranger', 'none'];
 const both = (xs) => xs.flatMap((n) => (/R$/.test(n) ? [n, n.replace(/R$/, 'L')] : [n]));
 
-/** the register's ring halves: the torso's (`slots`) and the limbs' (`limbSlots`) */
-export function dressContext(style = {}, scale = 1) {
+/** the register's ring halves: the torso's (`slots`) and the limbs' (`limbSlots`). On a plan with the structured core's
+ * pelvis (hero-form.js HERO_CORES) also `pelvis: true` and `Hth`, the thigh's own half (it takes the trunk's ring family
+ * there), so hip pieces hang from the pelvis and a thigh plate wraps the thigh it is drawn on; absent, as before. A dense
+ * torso (its slots addressed by `slotT`) says `dense: true`; chest layers (hero-form.js CHEST_FORM) are `chest`. */
+export function dressContext(style = {}, scale = 1, plan = null) {
   const half = (fam) => (SLOT_FAMILIES[fam] ?? SLOT_FAMILIES.ring8).length / 2;
-  return { Ht: half(style.slots ?? 'ring8'), Hl: half(style.limbSlots ?? 'limb6'), scale };
+  const ctx = { Ht: half(style.slots ?? 'ring8'), Hl: half(style.limbSlots ?? 'limb6'), scale };
+  const segs = plan?.segments || [], thigh = segs.find((s) => s.name === 'thighR');
+  if (segs.some((s) => s.name === 'pelvis')) Object.assign(ctx, { pelvis: true, Hth: thigh?.slots ? half(thigh.slots) : ctx.Hl });
+  if (segs.find((s) => s.name === 'torso')?.slotT) ctx.dense = true;
+  const chest = segs.filter((s) => /^(pectoral|bust)R$/.test(s.name)).flatMap((s) => [s.name, s.name.replace(/R$/, 'L')]);
+  if (chest.length) ctx.chest = chest;
+  return ctx;
 }
+/** Every piece worn on the torso stands off the chest's layers too (hero-form.js CHEST_FORM: the pectorals, the breasts),
+ * which lie over it there. Absent layers, the kit as given. */
+const overChest = (kit, ctx) => (!ctx.chest || !Array.isArray(kit) ? kit
+  : kit.map((A) => (A.part === 'torso' || (Array.isArray(A.over) && A.over.includes('torso')) ? { ...A, over: [...new Set([...(A.over || []), ...ctx.chest])] } : A)));
+/** A jerkin covers the chest's muscle: the clothed body drops the pectoral layers (its own volume is the chest under the
+ * cloth, and its quilt is grown on the torso's faces), from the segments and every dial; a bust stays under the cloth */
+function dropPectorals(plan) {
+  plan.segments = plan.segments.filter((s) => !/^pectoral[RL]$/.test(s.name));
+  for (const d of Object.values(plan.dials || {})) if (Array.isArray(d.parts)) d.parts = d.parts.filter((n) => !/^pectoral(\$S|[RL])$/.test(n));
+}
+/** On the structured core every piece that stands off the thighs stands off the pelvis between them too (a fauld, a
+ * belt, an operator's own kit): the pelvis is the surface under the hips there. Absent a pelvis, the kit as given. */
+const overPelvis = (kit, ctx) => (!ctx.pelvis || !Array.isArray(kit) ? kit
+  : kit.map((A) => (Array.isArray(A.over) && A.over.some((n) => /^thigh[RL]$/.test(n)) && !A.over.includes('pelvis') && A.part !== 'pelvis' ? { ...A, over: [...A.over, 'pelvis'] } : A)));
 
 /** BODY DATA for the clothed hero */
-export function clothedBody({ Ht, Hl, scale: k }) {
+export function clothedBody({ Ht, Hl, scale: k, pelvis: structured = false, dense = false }) {
+  const quilt = structured ? [1.3, 2.9] : [1.7, 3.2];   // the structured chest is rounder (less flat front per band): the panel runs longer and stops under the shoulder's turn, so its tiles keep their size
+  // on the dense torso (hero-form.js DENSE_TRUNK) the front plane's slots split the panel's span: it reaches a little
+  // wider either side so its tiles keep their size there too
   return {
     refine: [{ parts: both(['upperArmR', 'foreArmR', 'thighR', 'shankR']), slots: 'halve' }, { parts: ['torso'], slots: false }],
     volume: [
@@ -48,8 +82,8 @@ export function clothedBody({ Ht, Hl, scale: k }) {
     creases: { joints: [['upperArmR', 'foreArmR', 'TopFold'], ['upperArmL', 'foreArmL', 'TopFold']], lift: 0.32, width: 0.5, floor: 0.6 },
     // quilted jerkin: a front panel either side of a bare placket and a back panel, the sides left plain under the arms;
     // front → frontR is the chest's front plane in every ring family (t 0 → 1), the back plane is H − 1 → H
-    tiles: [{ id: 'quiltFront', parts: ['torso'], s: [1.7, 3.2], t: [0.22, 0.96], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] },
-      { id: 'quiltBack', parts: ['torso'], s: [1.7, 3.2], t: [Ht - 0.94, Ht - 0.1], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] }],
+    tiles: [{ id: 'quiltFront', parts: ['torso'], s: quilt, t: dense ? [0.15, 1.1] : [0.22, 0.96], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] },
+      { id: 'quiltBack', parts: ['torso'], s: quilt, t: [Ht - 0.94, Ht - 0.1], grid: [4, 3], sides: 4, coverage: 0.93, inset: 0.2, height: 0.006 * k, lean: 0, group: ['Quilt'] }],
     pads: both(['shankR']).map((p) => ({ id: `patch.${p}`, part: p, s: 0.16, toward: { world: [0, 1, 0] }, r: 0.66, rim: 0.05, floor: 0.08, m: 8, groups: ['PatchSeam', 'Patch'] })),
     rows: [{ part: 'torso', t: 'front', s: [1.75, 3.1], step: 0.3, shape: 'stud', r: 0.011 * k, h: 0.007 * k, m: 8, group: 'Toggle' }],
     collars: [...both(['foreArmR']).map((p) => ({ id: `cuff.${p}`, part: p, at: 'st1_st2_50', height: 0.16, width: 0.5, group: 'Cuff' })),
@@ -57,8 +91,145 @@ export function clothedBody({ Ht, Hl, scale: k }) {
   };
 }
 
+/** the swimwear's tone per figure, beneath the operator's `Swim` */
+// both in the dark value band (L* under 33), apart from the skin and from a mid-toned hair
+export const SWIM_TONES = Object.freeze({ male: '#24476b', female: '#5c1f30' });
+/** the SWIMSUIT cut, per part: which bands are swimwear, by the band's middle in `u` (the station parameter) and in `t`
+ * (0 front → 1 back, a share of the ring half, so a cut reads the same in every register). The pelvis and the thigh
+ * per core: on the structured core the pelvis is the basin (u 0 the crotch, 4 the iliac rim) and the thigh starts at the
+ * socket; on the streamlined core the thighs carry the hips (u 0 the crest, 1 the hip ring) */
+const SWIM_CUTS = {
+  // the structured male's SPEEDO: low and level (up to the ring halfway from the hip joints to the iliac crest), so the
+  // seat's square and the hip's side read bare (the trunks hid both); its leg line on the thigh's top is cut out of the
+  // faces (seat-panels.js SPEEDO_LEG: the thighs' backs are the lower seat, and a speedo ending on the pelvis's rings
+  // showed their skin through its lower edge in notches)
+  male: { pelvis: (u, _t, structured) => !structured || u < 3, thigh: (u, _t, structured) => !structured && u < 2 },
+  // the cups the breast's bands under its edge station (`n` its stations; hero-form.js CHEST_FORM.bust.edge, 12 of 16): on
+  // a bare figure that station is bent into a SWEETHEART line, high over the apex and dipping toward both ends, so each
+  // cup follows its breast and the pair dips into the cleft (a level edge read the two cups as one band: the critic;
+  // painted by faces across level rings, a curved edge stair-stepped). The upper pole stays skin, so where it melts into
+  // the chest skin meets skin; on the torso the strap round the back and sides, from under the breast's lateral side
+  // (t 0.12: it runs on under the cup, hidden by it, so the top wraps round without a gap of skin; from t 0.3 it broke
+  // off before the cup's end), the breast lying over the torso's front. The briefs run up to the hem (the pelvis's rings below the one it tucks
+  // under the torso with), so the line where the torso meets the pelvis is the waistband's edge, never a seam on skin
+  // the structured female's THONG: a front triangle narrowing to the crotch, up to the iliac crest; the string round the
+  // hip and the V at the back, narrowing into the cleft, are cut out of the faces (seat-panels.js THONG: painted by faces
+  // on the twelve-point ring the V is a block and the string a band the ring's height), so the seat reads bare and
+  // distinct from the male's (the briefs hid its shape)
+  female: { pelvis: (u, t, structured) => !structured || (u < 4 && t < (u < 1 ? 0.2 : 0.35)), thigh: (u, _t, structured) => !structured && u < 1, torso: (u, t, structured) => u >= 1.5 && u < 2 && (!structured || t > 0.12), bust: (u, _t, _s, n) => u < (n - 1) * 0.8 },
+  child: { pelvis: (u, _t, structured) => !structured || u < 5, thigh: (u, _t, structured) => u < (structured ? 1 : 2), torso: (u) => u < 3.5 },
+};
+/** The swimsuit on a plan: the body's clothing groups become Skin, the cut's bands `Swim` (figure: { female, child }) */
+export function swimsuit(plan, { female = false, child = false } = {}) {
+  const fams = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) }, structured = plan.segments.some((s) => s.name === 'pelvis');
+  const cut = SWIM_CUTS[child ? 'child' : female ? 'female' : 'male'];
+  for (const seg of plan.segments) {
+    // the streamlined bust's mounds are the cups whole; the structured breast (a rings part) takes the cut below
+    if (['Top', 'Bottom', 'Shoes'].includes(seg.group)) seg.group = /^bust[RL]$/.test(seg.name) && seg.kind !== 'rings' ? 'Swim' : 'Skin';
+    const test = cut[seg.name.replace(/[RL]$/, '')]; if (!test || !Array.isArray(seg.stations)) continue;
+    const f = seg.slots ?? plan.style?.[seg.kind === 'trunk' ? 'slots' : 'limbSlots'] ?? (seg.kind === 'trunk' ? 'ring8' : 'limb6'), F = typeof f === 'string' ? fams[f] : f, half = F.length / 2;
+    const T = F.slice(0, half + 1).map((sl, k) => seg.slotT?.[sl] ?? k), H = T[half];
+    const U = seg.stations.map((st, i) => st.u ?? i), ids = seg.stations.map((st, i) => st.id ?? `st${i}`);
+    const bands = {};
+    for (let i = 0; i + 1 < ids.length; i++) {
+      const row = T.slice(0, half).map((t, k) => (test((U[i] + U[i + 1]) / 2, (t + T[k + 1]) / (2 * H), structured, ids.length) ? 'Swim' : 'Skin'));
+      if (row.includes('Swim')) bands[`${ids[i]}-${ids[i + 1]}`] = row;
+    }
+    if (Object.keys(bands).length) seg.bandGroups = { ...(seg.bandGroups || {}), ...bands };
+    // a cap closes a swimwear band: the thigh's top inside the hip, the pelvis's at the crotch
+    const caps = { ...(bands[`${ids[0]}-${ids[1]}`] ? { back: 'Swim' } : {}), ...(bands[`${ids[ids.length - 2]}-${ids[ids.length - 1]}`] ? { tip: 'Swim' } : {}) };
+    if (Object.keys(caps).length) seg.capGroups = { ...(seg.capGroups || {}), ...caps };
+  }
+  return plan;
+}
+
+/** SECOND-SKIN garments (body-paint.js): `paint` is a word, an entry { part, u?, run?, t?, group } or a list of either,
+ * worn in order over the detail (best on the swimsuit body, whose forms they keep; a word over the hips clears the
+ * swimwear beneath it there). Each word is entries in the
+ * body's own terms, painted on its faces, so the garment re-fits every cast, tune and pose. Torso u: 0 the hem, 1 the
+ * navel, 2 the chest, 3 the shoulder, 4 the collar; a limb's run 0 at its root, 1 at its end. Tones: Top, Bottom,
+ * Shoes (the figure's own), Glove. */
+const TOES = ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], FINGERS = ['thumb', 'index', 'middle', 'ring', 'little'];
+const CHEST = ['pectoral', 'bust'];
+const tank = (g = 'Top') => [{ part: 'torso', u: [0, 3.5], group: g }, { part: 'torso', u: [3.5, 4], t: [0.3, 0.6], group: g },   // the body, the straps over the shoulders
+  { part: 'torso', u: [3, 3.5], t: [0, 0.3], group: 'Skin' }, { part: [...CHEST, 'navel'], group: g }];   // a scoop at the front
+const tee = (g = 'Top') => [{ part: 'torso', group: g }, { part: 'torso', u: [3.5, 4], t: [0, 0.35], group: 'Skin' }, { part: [...CHEST, 'navel'], group: g }, { part: 'upperArm', run: [0, 0.5], group: g }];
+const leggings = (g = 'Bottom') => [{ part: ['pelvis', 'thigh', 'shank'], group: g }];
+/** the hips' band: the structured core's pelvis; on the streamlined core the thighs carry the hips (u 0 the crest, 1
+ * the hip ring), so a brief there is the thighs' first band */
+const hips = (g, { structured }) => (structured ? [{ part: 'pelvis', group: g }] : [{ part: 'thigh', only: ['Swim'], group: 'Skin' }, { part: 'thigh', u: [0, 1], group: g }]);
+export const PAINT_WORDS = Object.freeze({
+  tank: () => tank(),
+  crop: () => [...tank(), { part: 'torso', u: [0, 1.5], group: 'Skin' }, { part: 'navel', group: 'Navel' }],
+  sportsBra: () => [{ part: 'torso', u: [1.5, 2.5], group: 'Top' }, { part: CHEST, group: 'Top' }],
+  tee: () => tee(),
+  longSleeve: () => [...tee(), { part: ['upperArm', 'foreArm'], group: 'Top' }],
+  leotard: (ctx) => [...tank(), ...hips('Top', ctx)],
+  leggings: () => leggings(),
+  bikeShorts: (ctx) => [...hips('Bottom', ctx), { part: 'thigh', run: [0, 0.5], group: 'Bottom' }],
+  tights: () => [...leggings(), { part: ['foot', ...TOES], group: 'Bottom' }],
+  catsuit: () => [{ part: ['torso', ...CHEST, 'navel', 'pelvis', 'thigh', 'shank', 'upperArm', 'foreArm'], group: 'Top' }, { part: 'neck', run: [0, 0.5], group: 'Top' }],
+  socks: () => [{ part: ['foot', ...TOES], group: 'Shoes' }, { part: 'shank', run: [0.7, 1], group: 'Shoes' }],
+  gloves: () => [{ part: ['hand', ...FINGERS], group: 'Glove' }, { part: 'foreArm', run: [0.75, 1], group: 'Glove' }],
+});
+const PAINT_TONES = { Glove: '#2b2b30' };
+/** Error strings for the door's `paint` (form; the plan grammar judges the entries) */
+export function validateDressPaint(paint) {
+  if (paint === undefined || paint === null) return [];
+  const items = Array.isArray(paint) ? paint : [paint], errs = [];
+  const words = items.filter((x) => typeof x === 'string');
+  for (const w of words) if (!Object.hasOwn(PAINT_WORDS, w)) errs.push(`paint: '${w}' is not a paint word (${Object.keys(PAINT_WORDS).join(', ')}), or give an entry { part, u?, run?, t?, group }`);
+  errs.push(...validatePaint(items.filter((x) => typeof x !== 'string')));
+  return errs;
+}
+/** The paint on a plan: words lowered to entries; a word's entry names only the parts this body has (a structured
+ * core's pelvis and toes, a breast), an operator's entry stands as written */
+export function lowerPaint(paint, plan) {
+  const have = new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), ctx = { structured: have.has('pelvis') };
+  return (Array.isArray(paint) ? paint : [paint]).flatMap((x) => (typeof x !== 'string' ? [x]
+    : PAINT_WORDS[x](ctx).flatMap((E) => { const ps = (Array.isArray(E.part) ? E.part : [E.part]).filter((n) => have.has(n)); return ps.length ? [{ ...E, part: ps }] : []; })));
+}
+
+/** GARMENTS WITH VOLUME (body-garment.js): `outfit` is an OUTFIT BUILD { type: 'outfit', style, dials?, language? }
+ * (outfit/expand.js: a styled look expanded by its passes on every read), a word, a piece { id, part, u?, run?, ease,
+ * flare?, over?, group } or a list of words and pieces, worn in order (a later piece on the same body part stands off the earlier: trousers
+ * then a tee is a shirt worn out, a tee then trousers a shirt tucked in). Each piece copies its body part's rings and
+ * binding, so it takes the body's shape, bends with it at every joint and follows its dials. Ease in metres at the
+ * cast's scale. Torso u: 0 the hem, 1 the navel, 2 the chest, 3 the shoulder, 4 the collar; the structured pelvis u 0
+ * the crotch, 6 under the torso's hem. */
+const CHEST_UNDER = ['pectoral', 'bust', 'navel'];
+const torsoPiece = (id, g, k, sleeve) => [{ id, part: 'torso', ease: 0.008 * k, over: CHEST_UNDER, group: g }, ...sleeve];   // up to the collar ring: the neck rises out of it
+const hem = (id, g, k, { structured }) => (structured ? [{ id: `${id}Hem`, part: 'pelvis', u: [4, 6], ease: 0.012 * k, group: g }] : []);
+export const OUTFIT_WORDS = Object.freeze({
+  tee: ({ scale: k, ...c }) => [...torsoPiece('tee', 'Top', k, [{ id: 'teeSleeve', part: 'upperArm', run: [0, 0.45], ease: 0.01 * k, flare: [0, 0.006 * k], group: 'Top' }]), ...hem('tee', 'Top', k, c)],
+  shirt: ({ scale: k, ...c }) => [...torsoPiece('shirt', 'Top', k, [{ id: 'shirtSleeve', part: 'upperArm', ease: 0.01 * k, group: 'Top' }, { id: 'shirtCuff', part: 'foreArm', run: [0, 0.92], ease: 0.01 * k, group: 'Top' }]), ...hem('shirt', 'Top', k, c)],
+  trousers: ({ scale: k, structured }) => [...(structured ? [{ id: 'trousersSeat', part: 'pelvis', ease: 0.01 * k, group: 'Bottom' }] : []),
+    { id: 'trousersLeg', part: 'thigh', ease: 0.01 * k, group: 'Bottom' }, { id: 'trousersShin', part: 'shank', run: [0, 0.94], ease: 0.01 * k, group: 'Bottom' }],   // whole above the knee: its overshoot ring meets the shin's
+  shorts: ({ scale: k, structured }) => [...(structured ? [{ id: 'shortsSeat', part: 'pelvis', ease: 0.012 * k, group: 'Bottom' }] : []),
+    { id: 'shortsLeg', part: 'thigh', run: [0, 0.5], ease: 0.014 * k, flare: [0, 0.01 * k], group: 'Bottom' }],
+  boots: ({ scale: k }) => [{ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' },
+    { id: 'bootFoot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'], group: 'Shoes' }],   // flat: a round heel cup and a flat toe box on one sole
+});
+/** Error strings for the door's `outfit` (form; the plan grammar judges the pieces) */
+export function validateOutfit(outfit) {
+  if (outfit === undefined || outfit === null) return [];
+  if (isOutfitBuild(outfit)) return validateOutfitBuild(outfit);
+  const items = Array.isArray(outfit) ? outfit : [outfit], errs = [];
+  for (const w of items.filter((x) => typeof x === 'string')) if (!Object.hasOwn(OUTFIT_WORDS, w)) errs.push(`outfit: '${w}' is not an outfit word (${Object.keys(OUTFIT_WORDS).join(', ')}), or give a piece { id, part, u?, run?, ease, flare?, over?, group }`);
+  errs.push(...validateGarments(items.filter((x) => typeof x !== 'string')));
+  return errs;
+}
+/** The outfit on a plan: words lowered to pieces naming only the parts this body has; a piece of the operator's stands */
+export function lowerOutfit(outfit, plan, scale = 1) {
+  const have = new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), ctx = { structured: have.has('pelvis'), scale };
+  const keep = (E) => { const ps = (Array.isArray(E.part) ? E.part : [E.part]).filter((n) => have.has(n)); if (!ps.length) return [];
+    const over = E.over?.filter((n) => have.has(n)); return [{ ...E, part: ps, ...(E.over ? { over } : {}) }]; };
+  return (Array.isArray(outfit) ? outfit : [outfit]).flatMap((x) => (typeof x !== 'string' ? [x] : OUTFIT_WORDS[x](ctx).flatMap(keep)));
+}
+
 /** the RANGER kit: belt, baldric, archer's bracer on the left, one pauldron on the right (the focal accent) */
-export function rangerKit({ Ht, Hl, scale: k }) {
+export function rangerKit({ Ht, Hl, scale: k, pelvis: structured = false }) {
+  const cap = structured ? [2.55, 3.45] : [2.8, 3.8];   // the structured torso's shoulder ring over the arm's cap, a trapezius ring above (plate.js pauldron)
   return [
     { id: 'belt', mode: 'band', part: 'torso', over: ['thighR', 'thighL'], s: [0.12, 0.44], t: 'wrap', nt: 12, ns: 2, mugen: 0.004 * k, thick: 0.01 * k, rad: 0.05 * k, group: 'Leather',
       signature: { kind: 'buckle', k: 0, j: 1, w: 0.028 * k, h: 0.022 * k, bar: 0.0055 * k, standoff: 0.006 * k, group: 'Iron' } },
@@ -70,7 +241,7 @@ export function rangerKit({ Ht, Hl, scale: k }) {
     // the pauldron caps the shoulder: the torso's slope from the yoke toward the neck, front to back round the side,
     // lifted over the arm's cap beneath it (`over`), snug at the top and flaring at its lower edge. It rides the torso,
     // so the arm moves beneath it: the dragon's rule on a human shoulder
-    { id: 'pauldron', mode: 'shell', part: 'torso', over: ['upperArmR'], side: 'R', s: [2.8, 3.8], t: [0.24 * Ht, 0.76 * Ht], nt: 8, ns: 4, mugen: 0.008 * k, thick: 0.014 * k, rad: 0.05 * k, support: 3.8, ramp: 1.2, group: 'Iron', rigid: true,
+    { id: 'pauldron', mode: 'shell', part: 'torso', over: ['upperArmR'], side: 'R', s: cap, t: [0.24 * Ht, 0.76 * Ht], nt: 8, ns: 4, mugen: 0.008 * k, thick: 0.014 * k, rad: 0.05 * k, support: cap[1], ramp: 1.2, group: 'Iron', rigid: true,
       signature: { kind: 'boss', k: 'mid', j: 1, r: 0.041 * k, h: 0.022 * k, m: 10, rim: 0.5, group: 'Bronze' } },
   ];
 }
@@ -98,17 +269,31 @@ export function validateDress({ detail, adorn } = {}) {
 
 /** Put `detail` / `adorn` on a hero plan: `plan.body`, `plan.adorn`, and the palette (the kit's suggestion beneath the
  * operator's colours, then the derived tones beneath any the operator names). Absent or 'none' changes nothing. */
-export function dressPlan(plan, { detail, adorn, operatorPalette = {}, scale = 1 } = {}) {
-  const wantDetail = detail !== undefined && detail !== 'none', wantAdorn = adorn !== undefined && adorn !== 'none';
-  if (!wantDetail && !wantAdorn) return plan;
-  const errs = validateDress({ detail, adorn }); if (errs.length) throw new Error(`hero dress: ${errs.join('; ')}`);
-  const ctx = dressContext(plan.style, scale);
-  if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
+export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette = {}, scale = 1, figure = {} } = {}) {
+  const wantDetail = detail !== undefined && detail !== 'none', wantAdorn = adorn !== undefined && adorn !== 'none', wantPaint = paint !== undefined && paint !== null, wantOutfit = outfit !== undefined && outfit !== null;
+  if (!wantDetail && !wantAdorn && !wantPaint && !wantOutfit) return plan;
+  const errs = [...validateDress({ detail, adorn }), ...validateDressPaint(paint), ...validateOutfit(outfit)]; if (errs.length) throw new Error(`hero dress: ${errs.join('; ')}`);
+  if (detail === 'clothed') dropPectorals(plan);
+  const ctx = dressContext(plan.style, scale, plan);
+  if (detail === 'swimsuit') swimsuit(plan, figure);
+  else if (wantDetail) plan.body = typeof detail === 'string' ? clothedBody(ctx) : detail;
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
-  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = A.kit; if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
-  else if (wantAdorn) plan.adorn = typeof adorn === 'string' ? rangerKit(ctx) : adorn;
+  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx); plan.adorn = overChest(overPelvis(A.kit, ctx), ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
+  else if (wantAdorn) plan.adorn = overChest(overPelvis(typeof adorn === 'string' ? rangerKit(ctx) : adorn, ctx), ctx);
+  if (wantPaint) plan.paint = lowerPaint(paint, plan);
+  let built = null;
+  if (wantOutfit && isOutfitBuild(outfit)) {
+    // an outfit build: its garments, its trims painted on them after any paint of the operator's, its buttons as body
+    // detail rows and its belt as the last adornment, all from the words on every read
+    built = expandOutfit(outfit, { have: new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), scale }, { ...plan.palette, ...outfitTones(outfit), ...operatorPalette });
+    plan.garments = built.garments;
+    if (built.paint.length) plan.paint = [...(plan.paint || []), ...built.paint];
+    if (built.rows.length) plan.body = { ...(plan.body || {}), rows: [...(plan.body?.rows || []), ...built.rows] };
+    if (built.kit.length) plan.adorn = [...(plan.adorn || []), ...built.kit];
+  } else if (wantOutfit) plan.garments = lowerOutfit(outfit, plan, scale);
   // the kit's suggestion is already beneath the operator's colours in plan.palette (humanoidPlan builds the head with it)
-  const base = { ...plan.palette, ...operatorPalette };
-  plan.palette = { ...base, ...dressTones(base), ...operatorPalette };
+  const base = { ...plan.palette, ...(detail === 'swimsuit' ? { Swim: SWIM_TONES[figure.female && !figure.child ? 'female' : 'male'] } : {}), ...operatorPalette };
+  if (built) { const own = { ...base, ...outfitTones(outfit), ...operatorPalette }; plan.palette = { ...own, ...dressTones(own), ...(wantPaint ? PAINT_TONES : {}), ...built.tones, ...operatorPalette }; return plan; }
+  plan.palette = { ...base, ...dressTones(base), ...(wantPaint ? PAINT_TONES : {}), ...operatorPalette };
   return plan;
 }

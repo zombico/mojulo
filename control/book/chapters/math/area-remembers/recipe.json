@@ -1,0 +1,6 @@
+{
+  "entry": "create_view",
+  "kind": "ftc",
+  "title": "The area remembers the curve",
+  "params": { "scenario": "sine", "at": 3.14 }
+}

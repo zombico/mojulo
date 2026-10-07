@@ -339,7 +339,7 @@ function waterAndWalls(ctx, G, waters) {
   const { faces, grounds, boxes } = ctx, C = CANAL, zw = -C.freeboard, zb = -C.bed;
   for (const r of waters) {
     grounds.push({ kind: 'canal-bed', x: r.x, y: r.y, w: r.w, d: r.d, z: zb, fill: GROUND.bed });
-    faces.push({ kind: 'canal-water', water: true, moonless: true, alpha: 0.9, doubleSided: true, fill: ctx.water, corners: [[r.x, r.y, zw], [r.x + r.w, r.y, zw], [r.x + r.w, r.y + r.d, zw], [r.x, r.y + r.d, zw]] });
+    faces.push({ kind: 'canal-water', water: true, liquid: 'canal', moonless: true, alpha: 0.9, doubleSided: true, fill: ctx.water, corners: [[r.x, r.y, zw], [r.x + r.w, r.y, zw], [r.x + r.w, r.y + r.d, zw], [r.x, r.y + r.d, zw]] });
     // a brick quay wall on every side that meets land (not more water, not the frame edge)
     const t = 0.14;
     for (const side of ['S', 'N', 'W', 'E']) for (const [lo, hi, c] of sideRuns(G, r, side)) {
@@ -534,7 +534,7 @@ export function planCanalCity({ region = null, seed = 1, elements = {}, locale =
   for (const r of bridgeRects) {
     const zw = -CANAL.freeboard;
     ctx.grounds.push({ kind: 'canal-bed', x: r.x, y: r.y, w: r.w, d: r.d, z: -CANAL.bed, fill: GROUND.bed });
-    ctx.faces.push({ kind: 'canal-water', water: true, moonless: true, alpha: 0.9, doubleSided: true, fill: ctx.water, corners: [[r.x, r.y, zw], [r.x + r.w, r.y, zw], [r.x + r.w, r.y + r.d, zw], [r.x, r.y + r.d, zw]] });
+    ctx.faces.push({ kind: 'canal-water', water: true, liquid: 'canal', moonless: true, alpha: 0.9, doubleSided: true, fill: ctx.water, corners: [[r.x, r.y, zw], [r.x + r.w, r.y, zw], [r.x + r.w, r.y + r.d, zw], [r.x, r.y + r.d, zw]] });
   }
   const q = quays(ctx, G, quayRects);
   streetsAndJunctions(ctx, roadRects);

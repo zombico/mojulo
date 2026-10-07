@@ -1,0 +1,9 @@
+{
+  "entry": "mint_solid",
+  "kind": "vehicle",
+  "title": "midnight lowrider",
+  "spec": {
+    "type": "sedan",
+    "decoration": { "paint": "#1a1a2e", "hull": "lowered" }
+  }
+}

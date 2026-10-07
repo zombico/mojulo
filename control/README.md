@@ -105,7 +105,8 @@ npx mojulo packs                      # pack ids with their recognizers
 npx mojulo help export_model          # full description + input schema
 npx mojulo call version               # invoke any tool
 npx mojulo call export_model --json '{"ref":"sk_…","format":"3mf"}'
-npx mojulo pack_object                # open a pack: orientation + member manual
+npx mojulo pack_object                # open a pack: orientation + member menu
+npx mojulo pack_object --manual mint_solid   # one member's manual
 ```
 
 Arguments can be inline JSON (`--json '{…}'`, `@file.json`, or `-` for
@@ -179,7 +180,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 - **"An ambient loop for it"** → music and SFX from seeded math, never samples; worlds opt in to soundtracks and footsteps; a score exports as WAV or MIDI.
 - **"Here's a photo of the room"** → your agent is the vision adapter: it recovers a room's perspective, a figure's pose, or an object's part-graph as a scaffold. No vision key; the image never reaches mojulo.
 
-Iterate in place — `update_sketch` changes a field on the stored recipe; nothing is re-minted — and keep what you tuned: `save_recipe` writes it to a cookbook of plain files in a local git repo with no remote, recallable by intent in a later session. Attach the public [recipe book](https://github.com/zombico/mojulo-recipe-book) to add chapters and whole new kinds from disk.
+Iterate in place — `update_sketch` changes a field on the stored recipe; nothing is re-minted — and keep what you tuned: `save_recipe` writes it to a cookbook of plain files in a local git repo with no remote, recallable by intent in a later session. The [recipe book](book/) ships bundled, so its chapters and whole new kinds are there from the first run.
 
 Also in the box, present by default and never in the way: diagrams and charts, directed images an external model paints, publications, research, plans, local apps whose inference parks back on your agent, and connected services over the MCPs you already run.
 

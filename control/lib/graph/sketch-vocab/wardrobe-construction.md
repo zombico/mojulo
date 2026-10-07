@@ -145,11 +145,10 @@ over a tailored base: `garment: ["tee", "trousers", "cloak"]`.
 
 ### The creatability gate (dreaming a NEW drape)
 
-When a dream shows a cape whose fold pattern isn't a preset, DON'T sculpt it — 
-**fit it**. `fitWaveDrape(foldField)` (lib/graph/polygonizer/wave-drape-fit.js)
-asks whether a bounded superposition of plane waves reproduces the dreamed folds:
+When a dream shows a cape whose fold pattern isn't a preset, DON'T sculpt it.
+Ask whether a bounded superposition of plane waves reproduces the dreamed folds:
 
-- **creatable** → the fitted `waves` ARE the recipe — drop them into a
+- **creatable** → those `waves` ARE the recipe — drop them into a
   `wave-drape` piece. Proof and author are the same step.
 - **not creatable** → the fold pattern is OUTSIDE the wave-field's reach: report
   it as a **named vocabulary gap**, do not invent geometry for it.
@@ -160,9 +159,8 @@ Closed vocabularies only — every dial already exists and is clamped; no freeha
 geometry from a dream. The garment spec is the sovereign recipe; a painted sheet
 or skin is a bound derived render. Slim-vs-baggy is the score, not a new
 instrument — grow the instrument table only when a character proves a piece the
-cuts+panels can't already tailor. For a DRAPE, that proof is mechanical: the
-`fitWaveDrape` gate either reaches the dreamed folds (and hands you the waves) or
-names the gap.
+cuts+panels can't already tailor. For a DRAPE, that proof is the wave fit: it
+either reaches the dreamed folds (and the waves are the recipe) or names the gap.
 
 ## 6. Cut and sewn — `fit: 'pattern'` (pieces in cm, seams, girths)
 

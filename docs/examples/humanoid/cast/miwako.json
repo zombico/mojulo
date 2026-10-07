@@ -1,0 +1,7 @@
+{
+  "name": "miwako",
+  "$note": "A heroine (female), kept simple: the `miwako` hair word, a blunt neck-length bob (the bangs cut level at the brow, the rest just above the collar), in pale blue with deep-blue strands (toon.light.strands): the hair's own hue darkened, never the ink's black.",
+  "hero": { "cast": "female", "head": "anime", "hair": "miwako", "expression": [{ "smile": 0.25 }] },
+  "palette": { "Hair": "#a9cdee", "Top": "#1d2233", "Bottom": "#1d2233" },
+  "toon": { "light": { "shade": { "Hair": "#6f94c6" }, "strands": { "Hair": true } } }
+}

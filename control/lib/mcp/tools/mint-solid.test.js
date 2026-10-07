@@ -39,9 +39,9 @@ describe('mint_solid consolidation', () => {
   it('get_solid_vocab lists a card per kind + op, and reads one by id', async () => {
     const list = await getSolidVocabHandler({});
     const ids = list.cards.map((c) => c.id).sort();
-    // one card per mint_solid kind + the two edit ops
+    // one card per mint_solid kind + the two edit ops + fabricate_solid's manual
     expect(ids).toEqual(
-      ['animal', 'assembler', 'carved-solid', 'code', 'edifice', 'emote', 'equipment', 'figure', 'layered', 'manji-tree', 'scad', 'skin', 'solid-turntable', 'vehicle', 'workbench'].sort(),
+      ['animal', 'assembler', 'carved-solid', 'code', 'edifice', 'emote', 'equipment', 'fabricate', 'figure', 'furniture', 'layered', 'manji-tree', 'scad', 'skin', 'solid-turntable', 'vehicle', 'workbench'].sort(),
     );
     const one = await getSolidVocabHandler({ id: 'figure' });
     expect(one.ok).toBe(true);
@@ -61,10 +61,11 @@ describe('mint_solid consolidation', () => {
     expect(around).toMatch(/loads three\.js from jsdelivr/);
   });
 
-  it('every solid-vocab card id matches a mint_solid kind or edit_solid op', async () => {
+  it('every solid-vocab card id matches a mint_solid kind or edit_solid op (or is fabricate_solid\'s manual)', async () => {
     const list = await getSolidVocabHandler({});
     const known = new Set([...Object.keys(SOLID_KINDS), ...Object.keys(EDIT_OPS)]);
     for (const card of list.cards) {
+      if (card.entry === 'fabricate_solid') { expect(card.id).toBe('fabricate'); continue; }
       expect(known.has(card.id), `card ${card.id} maps to a kind/op`).toBe(true);
     }
   });

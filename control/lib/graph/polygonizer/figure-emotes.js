@@ -41,19 +41,18 @@ export const EMOTES = {
     perform: { followThrough: { channels: ['head.pitch', 'head.yaw'] }, idle: { breath: 0.03, sway: 0.02 } },
   },
   headshake: {
-    // head.yaw is a lateral TILT on this armature (no axial head-turn DOF — see
-    // figure-emotes.plan.md), so the "no" read is a small torso turn (spine
-    // axial) with the head tilting against it, damping out.
-    summary: 'no — the head sways side to side against a small torso turn',
+    // a real "no": the skull turns about the neck line (head.turn, the atlas carrying most of
+    // it, the neck the rest), side to side and damping out — the trunk stays square.
+    summary: 'no — the head turns side to side, damping out',
     keyframes: [
       REST,
-      { head: { yaw: 14 }, spine: { axial: 0.18 } },
-      { head: { yaw: -14 }, spine: { axial: -0.18 } },
-      { head: { yaw: 10 }, spine: { axial: 0.12 } },
-      { head: { yaw: -7 }, spine: { axial: -0.08 } },
+      { neck: { turn: 10 }, head: { turn: 26 } },
+      { neck: { turn: -10 }, head: { turn: -26 } },
+      { neck: { turn: 7 }, head: { turn: 18 } },
+      { neck: { turn: -4 }, head: { turn: -9 } },
       REST,
     ],
-    perform: { followThrough: { channels: ['head.yaw'] }, idle: { breath: 0.03, sway: 0.02 } },
+    perform: { followThrough: { channels: ['head.turn'] }, idle: { breath: 0.03, sway: 0.02 } },
   },
   bow: {
     summary: 'formal bow — hinge at the hips, head follows, held a beat',

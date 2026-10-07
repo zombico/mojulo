@@ -44,7 +44,7 @@ Every kind below is a recipe your agent mints from a sentence, iterates in place
 - **Cities, hubs and campuses** — `compose_world` picks a base (a recursive skyline, an airport or station, a K-12 campus, a planetary body, a walkable Cayley graph) and a theme, then takes the base's own knobs. A city declares what one unit is in metres, so mechanics and exports scale with it.
 - **Landscapes** — painterly terrain composed from sky, palette and geometry glyphs.
 - **Drivable worlds** — a live world you walk, fly or platform through, with the camera and entities as first-class primitives; an `action` base adds rules (score, timer, spawns, pickups). Opt-in WebXR on walkable worlds. A volumetric effects layer rides over the mesh.
-- **Study objects** — animated science and math explainers (fission, the double slit, a derivative, DNA) from one kind plus a few knobs. The catalog is open: an attached recipe book adds chapters and whole new kinds.
+- **Study objects** — animated science and math explainers (fission, the double slit, a derivative, DNA) from one kind plus a few knobs. The bundled recipe book adds chapters and whole new kinds.
 
 **Games, composed.**
 
@@ -96,7 +96,7 @@ Everything above is a few kilobytes of parameters plus a `kind`, or an OpenSCAD 
 
 - **Iterate in place.** `update_sketch` changes a field on the stored recipe; `edit_solid` dresses or emotes a minted solid; `diff_sketches` shows what moved. You review what the model made the way you review code: as a diff, kept or reverted a line at a time. Don't re-mint what you can edit.
 - **Keep what you tuned.** `save_recipe` promotes a recipe into your **cookbook** at `~/.mojulo/data/cookbook` — plain `card.md` + `recipe.json` folders in a local git repo with **no remote**. Your agent writes the card's `when` line from the conversation, so months later a paraphrase recalls it through `semantic_search` and it re-mints exactly.
-- **Extend the catalog from disk.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a public catalog you clone and point `MOJULO_RECIPE_BOOK` at — chapters of solids, worlds, loops, shots and study objects. Some entries are params over kinds mojulo already has; others are builders that add a whole new kind without touching core. Strictly additive and read from your clone, never fetched; the builders are JavaScript mojulo imports and runs with your privileges when it starts, so attach only a book you trust. A cookbook **is** a book, same format, so a friend can clone yours as their upstream. Precedence is first-wins: core kinds > your cookbook > any attached book.
+- **A catalog that ships with it.** The [recipe book](../control/book/) is bundled in the package — chapters of solids, worlds, loops, shots, study objects and a wardrobe. Some entries are params over kinds mojulo already has; others are builders that add a whole new kind without touching core. Your cookbook **is** a book, same format. Precedence is first-wins: core kinds > your cookbook > the bundled book.
 
 ---
 
@@ -335,7 +335,7 @@ The wider shelf reaches further: indie makers vibe-coding side projects without 
 
 ## Architecture in one paragraph
 
-The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, and the Godot, Unity, Unreal and Blender packs — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: an attached [recipe book](https://github.com/zombico/mojulo-recipe-book) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps run as separate processes supervised by a daemon.
+The control plane is a Next.js app exposing both a dashboard and an MCP server (stdio for the npm package, HTTP for remote clients). Workshop state — every recipe, plus plans, research, stashes, and cooks — lives in a single SQLite under `~/.mojulo/`. A recipe is params plus a `kind`; a **kernel** in the control plane regenerates it on every read, so nothing is a stored render. One geometry spec then serves several targets off a single ref — SVG, a dependency-free CSS-3D scene, a traversable WebGL world, `.glb`, OpenUSD, STL and 3MF, and the Godot, Unity, Unreal and Blender packs — each emitter owning its own frame and unit conversion from the native z-up metre frame, and each handoff carrying an honest ledger of what did *not* travel. The kind roster is extensible without touching core: the bundled [recipe book](../control/book/) contributes recipes as data, and pure builder modules as new kinds. Optional local workers (Blender, slicers, mesh sculptors, ComfyUI, Kokoro) are operator-hosted and never dependencies. Apps run as separate processes supervised by a daemon.
 
 Full diagrams: [docs/MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) (the headless control surface) and [docs/POLYGONIZER-SYNTHESIS.md](POLYGONIZER-SYNTHESIS.md) (the geometry substrate).
 
@@ -352,7 +352,7 @@ mojulo/
 
 Per-package docs: [control/README.md](../control/README.md) — the npm package overview (what's published to npmjs.com/package/mojulo).
 
-Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) — the attachable catalog of mintable recipes. Clone it, point `MOJULO_RECIPE_BOOK` at it; strictly additive and read from your clone, never fetched (its builders run as code, so attach a book you trust). See [CONTRIBUTING.md](../CONTRIBUTING.md).
+[control/book/](../control/book/) — the recipe book, the catalog of mintable recipes, bundled in the package since 3.1.0 (the separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated). See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 **Concept docs — the factory:**
 
@@ -380,7 +380,7 @@ Separate repo: [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-boo
 
 One maintainer, no SLA — issues and PRs are read, but triage can take days or weeks.
 
-**The widest door is the recipe book, not this repo.** [mojulo-recipe-book](https://github.com/zombico/mojulo-recipe-book) is a separate public catalog of mintable recipes that mojulo reads off local disk — clone it, point `MOJULO_RECIPE_BOOK` at it, and it attaches. Adding an entry there is a folder (`card.md` + `recipe.json`, or a pure `builder.js` for a whole new kind) and needs no change to the substrate. You can also just **keep your own book**: `save_recipe` writes a cookbook beside your instance data, in the identical format, as its own local git repo with no remote — publish it yourself, or copy a folder into a PR.
+**The easiest contribution is a recipe book entry.** The [book](../control/book/) is a catalog of mintable recipes bundled in the package. Adding an entry is a folder (`card.md` + `recipe.json`, or a pure `builder.js` for a whole new kind) and needs no change to the substrate. You can also just **keep your own book**: `save_recipe` writes a cookbook beside your instance data, in the identical format, as its own local git repo with no remote — copy a folder into a PR to add it to the book.
 
 Here in core, bug reports (with a reproducer — recipes are deterministic, so a pasted manifest reproduces your bug exactly), correctness fixes to shipped kinds, translation and documentation fixes, and tests targeting the listed surfaces are always welcome. Concept PRs that change *how* mojulo works will likely sit; forks are the open door and Apache 2.0 is why. There are also standing open requests — math and science views, native WebGL, engine handoff idioms, and reproducers.
 

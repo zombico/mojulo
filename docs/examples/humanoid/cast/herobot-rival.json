@@ -1,0 +1,899 @@
+{
+  "name": "herobot-rival",
+  "$note": "An original RIVAL to herobot-classic, built on the same principles and to the same degree of adornment: the herobot proportions, the lead anime face in the same face-window helm (white frame and trim where the hero's is cyan, a blue diamond gem, two pointed horns sweeping up and back off the temples, a wild blond ponytail out of the helm's back), a dark bodysuit under red armour, and a more ANGULAR silhouette: the volumes cut to eight flat facets (forearms, boots, collar, thigh rims, soles), faceted knee spikes, and angular plate pauldrons over darker round shoulder balls. Chest, pec plates, ab plaque and briefs as on the hero.",
+  "$thesis": "a rival hero robot: red and white against blue and cyan, angles against curves, a ponytail and horns for a silhouette that reads at a glance",
+  "hero": {
+    "cast": "male",
+    "head": "anime",
+    "look": [
+      "lead"
+    ],
+    "hair": "none",
+    "expression": "determined",
+    "gesture": "guard",
+    "tune": {
+      "upperArm": 0.8,
+      "thigh": 0.85
+    },
+    "adorn": [
+      {
+        "id": "helmet",
+        "mode": "shell",
+        "part": "cranium",
+        "s": [
+          2,
+          5
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 1,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "stack": false,
+        "group": "Armor",
+        "signature": {
+          "kind": "helm",
+          "group": "Armor",
+          "parts": [
+            "face",
+            "earR",
+            "earL"
+          ],
+          "pad": 0.012,
+          "n": 2.2,
+          "crown": 0.95,
+          "drop": -0.02,
+          "flare": 0,
+          "window": {
+            "brow": 0.13,
+            "w": 0.65,
+            "bottom": 0.16,
+            "rim": {
+              "group": "Cuff"
+            },
+            "nape": 0.22,
+            "jaw": {
+              "drop": 0.26,
+              "curl": 0.45,
+              "wrap": 0.45
+            },
+            "back": {
+              "tuck": 0.35
+            },
+            "v": {
+              "apex": 0.1,
+              "curve": 1.6,
+              "raise": 0.004,
+              "group": "Cuff",
+              "frame": {
+                "cheek": [
+                  0.004,
+                  0.22
+                ],
+                "peak": [
+                  0.28,
+                  0.56
+                ],
+                "gem": {
+                  "corner": [
+                    0.1,
+                    0.28
+                  ],
+                  "top": 0.22,
+                  "bottom": 0.12
+                }
+              }
+            },
+            "hug": 0.45
+          },
+          "ears": {
+            "group": "Armor",
+            "cap": {
+              "group": "Cuff"
+            }
+          },
+          "gem": {
+            "group": "Gem",
+            "shape": "diamond",
+            "r": 0.02,
+            "setting": {
+              "group": "Armor",
+              "w": 0.15
+            }
+          },
+          "scale": 1.05,
+          "horns": {
+            "u": 0.68,
+            "a": 1.15,
+            "len": 0.12,
+            "r": 0.02,
+            "out": 0.5,
+            "up": 1.0,
+            "back": 0.9,
+            "bend": 0.25,
+            "squash": [
+              1,
+              0.4
+            ],
+            "group": "Armor"
+          },
+          "ponytail": {
+            "u": 0.55,
+            "len": 0.72,
+            "r": 0.042,
+            "n": 17,
+            "spread": 0.22,
+            "back": 0.28,
+            "wild": 0.7,
+            "group": "Hair",
+            "tie": {
+              "group": "Cuff"
+            }
+          }
+        }
+      },
+      {
+        "id": "neckband",
+        "mode": "shell",
+        "part": "neck",
+        "s": [
+          0.0,
+          0.9
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 3,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Cuff",
+        "signature": {
+          "kind": "volume",
+          "group": "Cuff",
+          "shape": "cone",
+          "girth": 1.22,
+          "taper": 0.88,
+          "n": 2.2,
+          "m": 8
+        }
+      },
+      {
+        "id": "chest",
+        "mode": "shell",
+        "part": "torso",
+        "s": [
+          1.05,
+          3.5
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Chest",
+        "signature": {
+          "kind": "volume",
+          "group": "Chest",
+          "shape": "football",
+          "girth": 1.12,
+          "n": 2.0,
+          "squash": [
+            1.32,
+            0.9
+          ],
+          "m": 16,
+          "lip": {
+            "group": "Cuff",
+            "at": "low",
+            "w": 0.12,
+            "out": 0.03
+          },
+          "base": 0.72,
+          "peak": 0.62,
+          "mouth": 0.68,
+          "rings": 18
+        }
+      },
+      {
+        "id": "pecR",
+        "mode": "shell",
+        "part": "torso",
+        "side": "R",
+        "s": [
+          1.9,
+          2.3
+        ],
+        "t": [
+          0.5,
+          1.0
+        ],
+        "nt": 2,
+        "ns": 1,
+        "mugen": -0.02,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Pec",
+        "signature": {
+          "kind": "plaque",
+          "group": "Pec",
+          "s": [
+            1.45,
+            2.6
+          ],
+          "w": [
+            0.36,
+            0.44
+          ],
+          "c": 0.78,
+          "lift": 0.024,
+          "thick": 0.007,
+          "bevel": 0.82
+        }
+      },
+      {
+        "id": "pecL",
+        "mode": "shell",
+        "part": "torso",
+        "side": "L",
+        "s": [
+          1.9,
+          2.3
+        ],
+        "t": [
+          0.5,
+          1.0
+        ],
+        "nt": 2,
+        "ns": 1,
+        "mugen": -0.02,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Pec",
+        "signature": {
+          "kind": "plaque",
+          "group": "Pec",
+          "s": [
+            1.45,
+            2.6
+          ],
+          "w": [
+            0.36,
+            0.44
+          ],
+          "c": -0.78,
+          "lift": 0.024,
+          "thick": 0.007,
+          "bevel": 0.82
+        }
+      },
+      {
+        "id": "abplate",
+        "mode": "shell",
+        "part": "torso",
+        "side": "R",
+        "s": [
+          0.9,
+          1.3
+        ],
+        "t": [
+          0,
+          0.3
+        ],
+        "nt": 2,
+        "ns": 1,
+        "mugen": -0.02,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Plaque",
+        "signature": {
+          "kind": "plaque",
+          "group": "Plaque",
+          "s": [
+            0.77,
+            1.58
+          ],
+          "w": [
+            0.3,
+            0.51
+          ],
+          "lift": 0.034,
+          "thick": 0.007,
+          "bevel": 0.84
+        }
+      },
+      {
+        "id": "brief",
+        "mode": "shell",
+        "part": "pelvis",
+        "s": [
+          0.6,
+          4.6
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "football",
+          "girth": 1.2,
+          "n": 2.4,
+          "squash": [
+            1.24,
+            0.98
+          ],
+          "m": 24,
+          "lip": {
+            "group": "Cuff",
+            "at": "high",
+            "w": 0.14,
+            "out": 0.03
+          },
+          "base": 0.7,
+          "peak": 0.6,
+          "mouth": 0.8,
+          "rings": 18
+        }
+      },
+      {
+        "id": "shoulderR",
+        "mode": "shell",
+        "part": "upperArmR",
+        "s": [
+          0.0,
+          0.9
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Pec",
+        "signature": {
+          "kind": "volume",
+          "group": "Pec",
+          "shape": "bead",
+          "girth": 2.3,
+          "at": 0.15,
+          "squashAlong": 0.85,
+          "rings": 15,
+          "m": 28
+        },
+        "side": "R"
+      },
+      {
+        "id": "pauldronR",
+        "mode": "shell",
+        "part": "upperArmR",
+        "s": [
+          0.0,
+          0.9
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "plate",
+          "girth": 2.3,
+          "at": 0.15,
+          "span": 1.45,
+          "facets": 4,
+          "thick": 0.08,
+          "profile": [
+            [
+              -1.15,
+              0.45
+            ],
+            [
+              -0.8,
+              1.1
+            ],
+            [
+              -0.2,
+              1.25
+            ],
+            [
+              0.2,
+              1.32
+            ]
+          ]
+        },
+        "side": "R"
+      },
+      {
+        "id": "shoulderL",
+        "mode": "shell",
+        "part": "upperArmL",
+        "s": [
+          0.0,
+          0.9
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Pec",
+        "signature": {
+          "kind": "volume",
+          "group": "Pec",
+          "shape": "bead",
+          "girth": 2.3,
+          "at": 0.15,
+          "squashAlong": 0.85,
+          "rings": 15,
+          "m": 28
+        },
+        "side": "L"
+      },
+      {
+        "id": "pauldronL",
+        "mode": "shell",
+        "part": "upperArmL",
+        "s": [
+          0.0,
+          0.9
+        ],
+        "t": "wrap",
+        "nt": 10,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "plate",
+          "girth": 2.3,
+          "at": 0.15,
+          "span": 1.45,
+          "facets": 4,
+          "thick": 0.08,
+          "profile": [
+            [
+              -1.15,
+              0.45
+            ],
+            [
+              -0.8,
+              1.1
+            ],
+            [
+              -0.2,
+              1.25
+            ],
+            [
+              0.2,
+              1.32
+            ]
+          ]
+        },
+        "side": "L"
+      },
+      {
+        "id": "forearmR",
+        "mode": "shell",
+        "part": "foreArmR",
+        "s": [
+          0.35,
+          1.95
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "football",
+          "girth": 2.05,
+          "peak": 0.86,
+          "mouth": 0.94,
+          "n": 2.2,
+          "lip": {
+            "group": "Cuff",
+            "at": "high",
+            "w": 0.14,
+            "out": 0.05
+          },
+          "base": 0.5,
+          "m": 8
+        }
+      },
+      {
+        "id": "bootR",
+        "mode": "shell",
+        "part": "shankR",
+        "s": [
+          0.45,
+          2.0
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "cone",
+          "girth": 1.72,
+          "taper": 1.6,
+          "n": 2.2,
+          "extend": [
+            0,
+            0.02
+          ],
+          "lip": {
+            "group": "Cuff",
+            "at": "low",
+            "w": 0.12,
+            "out": 0.06
+          },
+          "m": 8
+        }
+      },
+      {
+        "id": "soleR",
+        "mode": "shell",
+        "part": "footR",
+        "s": [
+          0.0,
+          2.0
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "football",
+          "girth": 2.05,
+          "base": 0.75,
+          "peak": 0.3,
+          "mouth": 0.1,
+          "n": 2.2,
+          "squash": [
+            1.0,
+            1.0
+          ],
+          "extend": [
+            0.45,
+            1.1
+          ],
+          "half": {
+            "cut": 0.62
+          },
+          "bias": [
+            0,
+            -0.02,
+            0
+          ],
+          "m": 8,
+          "rings": 16
+        }
+      },
+      {
+        "id": "forearmL",
+        "mode": "shell",
+        "part": "foreArmL",
+        "s": [
+          0.35,
+          1.95
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "football",
+          "girth": 2.05,
+          "peak": 0.86,
+          "mouth": 0.94,
+          "n": 2.2,
+          "lip": {
+            "group": "Cuff",
+            "at": "high",
+            "w": 0.14,
+            "out": 0.05
+          },
+          "base": 0.5,
+          "m": 8
+        }
+      },
+      {
+        "id": "bootL",
+        "mode": "shell",
+        "part": "shankL",
+        "s": [
+          0.45,
+          2.0
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "cone",
+          "girth": 1.72,
+          "taper": 1.6,
+          "n": 2.2,
+          "extend": [
+            0,
+            0.02
+          ],
+          "lip": {
+            "group": "Cuff",
+            "at": "low",
+            "w": 0.12,
+            "out": 0.06
+          },
+          "m": 8
+        }
+      },
+      {
+        "id": "soleL",
+        "mode": "shell",
+        "part": "footL",
+        "s": [
+          0.0,
+          2.0
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 4,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "football",
+          "girth": 2.05,
+          "base": 0.75,
+          "peak": 0.3,
+          "mouth": 0.1,
+          "n": 2.2,
+          "squash": [
+            1.0,
+            1.0
+          ],
+          "extend": [
+            0.45,
+            1.1
+          ],
+          "half": {
+            "cut": 0.62
+          },
+          "bias": [
+            0,
+            -0.02,
+            0
+          ],
+          "m": 8,
+          "rings": 16
+        }
+      },
+      {
+        "id": "thighRimR",
+        "mode": "shell",
+        "part": "thighR",
+        "side": "R",
+        "s": [
+          3.0,
+          3.45
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 3,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Cuff",
+        "signature": {
+          "kind": "volume",
+          "group": "Cuff",
+          "shape": "cone",
+          "girth": 1.14,
+          "taper": 0.96,
+          "n": 2.0,
+          "m": 8,
+          "rings": 6
+        }
+      },
+      {
+        "id": "thighRimL",
+        "mode": "shell",
+        "part": "thighL",
+        "side": "L",
+        "s": [
+          3.0,
+          3.45
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 3,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Cuff",
+        "signature": {
+          "kind": "volume",
+          "group": "Cuff",
+          "shape": "cone",
+          "girth": 1.14,
+          "taper": 0.96,
+          "n": 2.0,
+          "m": 8,
+          "rings": 6
+        }
+      },
+      {
+        "id": "kneeR",
+        "mode": "shell",
+        "part": "shankR",
+        "side": "R",
+        "s": [
+          0.0,
+          0.6
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 3,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "bead",
+          "girth": 1.2,
+          "at": 0.1,
+          "squashAlong": 1.15,
+          "peak": 0.6,
+          "point": "start",
+          "squash": [
+            0.95,
+            0.7
+          ],
+          "bias": [
+            0,
+            0.4,
+            0
+          ],
+          "half": {
+            "cut": 0
+          },
+          "m": 6,
+          "rings": 13
+        }
+      },
+      {
+        "id": "kneeL",
+        "mode": "shell",
+        "part": "shankL",
+        "side": "L",
+        "s": [
+          0.0,
+          0.6
+        ],
+        "t": "wrap",
+        "nt": 8,
+        "ns": 3,
+        "mugen": 0.001,
+        "thick": 0.001,
+        "rigid": true,
+        "group": "Armor",
+        "signature": {
+          "kind": "volume",
+          "group": "Armor",
+          "shape": "bead",
+          "girth": 1.2,
+          "at": 0.1,
+          "squashAlong": 1.15,
+          "peak": 0.6,
+          "point": "start",
+          "squash": [
+            0.95,
+            0.7
+          ],
+          "bias": [
+            0,
+            0.4,
+            0
+          ],
+          "half": {
+            "cut": 0
+          },
+          "m": 6,
+          "rings": 13
+        }
+      }
+    ],
+    "proportions": "herobot"
+  },
+  "palette": {
+    "Top": "#2e2d38",
+    "Bottom": "#2e2d38",
+    "Shoes": "#d3222e",
+    "Iris": "#2f8dff",
+    "Armor": "#d3222e",
+    "Cuff": "#f3f4f7",
+    "Gem": "#1f6bff",
+    "ArmorHighlight": "#ff9e9e",
+    "CuffHighlight": "#ffffff",
+    "GemHighlight": "#bcd6ff",
+    "Chest": "#d3222e",
+    "ChestHighlight": "#ff9e9e",
+    "Plaque": "#f3f4f7",
+    "Pec": "#a8151f",
+    "PecHighlight": "#ff8a8a",
+    "Hair": "#f2c94c"
+  },
+  "toon": {
+    "light": {
+      "highlight": {
+        "Armor": {
+          "kind": "gloss",
+          "threshold": 0.95
+        },
+        "Cuff": {
+          "kind": "gloss",
+          "threshold": 0.95
+        },
+        "Gem": {
+          "kind": "gloss",
+          "threshold": 0.9
+        },
+        "Chest": {
+          "kind": "gloss",
+          "threshold": 0.94
+        },
+        "Plaque": {
+          "kind": "gloss",
+          "threshold": 0.95
+        },
+        "Pec": {
+          "kind": "gloss",
+          "threshold": 0.95
+        }
+      }
+    }
+  }
+}

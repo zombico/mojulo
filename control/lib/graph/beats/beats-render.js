@@ -458,6 +458,50 @@ export function masterLoudness(channels, sr, { lufs, peak }) {
   return best;
 }
 
+// ── loop points (opt-in `loop`) ──────────────────────────────────────────────
+// The loop period is the music up to the next BAR LINE, not the last note's end: a
+// scored composition reads its own clock (meters, tempo map), a plain one counts
+// 4/4 bars, ambient and pattern renders are whole periods already.
+export function loopSeconds(manifest, duration) {
+  if (manifest.kind !== 'beats-composition') return duration;
+  const eps = 1e-6;
+  if (kernel.scored(manifest)) {
+    const clock = kernel.scoreClock(manifest);
+    for (let n = 1; n < 10000; n++) { const t = clock.sec(clock.bar(n)[0]); if (t >= duration - eps) return t; }
+    return duration;
+  }
+  const bar = kernel.barSeconds(manifest.bpm);
+  return Math.max(1, Math.ceil(duration / bar - eps)) * bar;
+}
+
+// Fold everything past the period back onto the head (the ring-out the next pass
+// would carry live), then cut at the period: the file is exactly one seamless pass.
+function foldLoop(audioBuffer, samples) {
+  const nCh = audioBuffer.numberOfChannels, data = [];
+  for (let c = 0; c < nCh; c++) {
+    const x = audioBuffer.getChannelData(c), y = new Float32Array(samples);
+    for (let i = 0; i < x.length; i++) y[i % samples] += x[i];
+    data.push(y);
+  }
+  return { numberOfChannels: nCh, sampleRate: audioBuffer.sampleRate, length: samples, getChannelData: (c) => data[c] };
+}
+
+// A `smpl` chunk with one forward loop over the whole file (start 0, end = the last
+// sample, inclusive): the loop marker DAWs, samplers and game engines read.
+function withSmplChunk(wav, sampleRate, samples) {
+  const chunk = Buffer.alloc(8 + 60);
+  chunk.write('smpl', 0); chunk.writeUInt32LE(60, 4);
+  chunk.writeUInt32LE(Math.round(1e9 / sampleRate), 16); // sample period, ns
+  chunk.writeUInt32LE(60, 20);                           // MIDI unity note
+  chunk.writeUInt32LE(1, 36);                            // one loop
+  chunk.writeUInt32LE(0, 52);                            // forward
+  chunk.writeUInt32LE(0, 56);                            // start
+  chunk.writeUInt32LE(samples - 1, 60);                  // end
+  const out = Buffer.concat([wav, chunk]);
+  out.writeUInt32LE(out.length - 8, 4);
+  return out;
+}
+
 // Encode at a chosen depth: 16/24-bit PCM (optionally TPDF-dithered from a
 // seeded mulberry32) or 32-bit IEEE float (with the fact chunk non-PCM wants).
 export function encodeWav(audioBuffer, { bitDepth = 16, dither = false, seed = 1 } = {}) {
@@ -494,8 +538,9 @@ export function encodeWav(audioBuffer, { bitDepth = 16, dither = false, seed = 1
  * Render a normalized beats manifest to a WAV Buffer via the kernel's own
  * realizer on an OfflineAudioContext. Deterministic for the same
  * (manifest, opts). opts: { bars?, loops?, cue?, tail? = 2, sampleRate? = 44100,
- * bitDepth?, dither?, normalize? } — the last three default from the manifest's
- * own `export` block. Returns { wav, durationSeconds, sampleRate, channels, meta }.
+ * bitDepth?, dither?, normalize?, loop? } — the last four default from the manifest's
+ * own `export` block. `loop`: one seamless pass to the bar line, the tail folded
+ * onto the head, with a `smpl` loop chunk. Returns { wav, durationSeconds, sampleRate, channels, meta }.
  */
 export async function renderBeatsOffline(manifest, opts = {}) {
   return renderWithKernel(kernel, manifest, opts);
@@ -519,7 +564,10 @@ export async function renderWithKernel(K, manifest, opts = {}) {
 
   if (opts.bitDepth !== undefined && ![16, 24, 32].includes(opts.bitDepth)) throw new Error('beats-render: `bitDepth` must be 16, 24 or 32 (float)');
   const plan = renderBeatsPlan(manifest, opts);
-  const total = plan.duration + tail;
+  const loop = opts.loop !== undefined ? opts.loop : !!(manifest.export && manifest.export.loop);
+  if (loop && manifest.kind === 'beats-sfx') throw new Error('beats-render: `loop` is for music — an sfx cue is a one-shot');
+  const period = loop ? loopSeconds(manifest, plan.duration) : null;
+  const total = (loop ? period : plan.duration) + tail;
   if (total > MAX_RENDER_SECONDS) {
     throw new Error(`beats-render: requested render is ${total.toFixed(1)}s — the ceiling is ${MAX_RENDER_SECONDS}s. Lower bars/loops.`);
   }
@@ -594,7 +642,9 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     }
   }
 
-  const rendered = await ctx.startRendering();
+  let rendered = await ctx.startRendering();
+  const loopSamples = loop ? Math.round(period * sampleRate) : 0;
+  if (loop) rendered = foldLoop(rendered, loopSamples);
   const ex = { ...(manifest.export || {}) };
   for (const k of ['bitDepth', 'dither', 'normalize']) if (opts[k] !== undefined) ex[k] = opts[k];
   let meta = plan.meta;
@@ -621,9 +671,11 @@ export async function renderWithKernel(K, manifest, opts = {}) {
     for (const y of data) for (let i = 0; i < y.length; i++) y[i] *= g;
     meta = { ...meta, export: { gainDb: +gainDb.toFixed(2), truePeakDb: +(tp + gainDb).toFixed(2), ...(lufs != null ? { lufs: +(lufs + gainDb).toFixed(2) } : {}), ...(want != null && gainDb < want - 0.01 ? { ceilingLimited: true } : {}) } };
   }
+  if (loop) meta = { ...meta, loop: { seconds: +period.toFixed(6), samples: loopSamples } };
+  const wav = encodeWav(out || rendered, { bitDepth: ex.bitDepth || 16, dither: !!ex.dither, seed: manifest.seed || 1 });
   return {
-    wav: encodeWav(out || rendered, { bitDepth: ex.bitDepth || 16, dither: !!ex.dither, seed: manifest.seed || 1 }),
-    durationSeconds: total,
+    wav: loop ? withSmplChunk(wav, sampleRate, loopSamples) : wav,
+    durationSeconds: loop ? loopSamples / sampleRate : total,
     sampleRate,
     channels: rendered.numberOfChannels,
     meta,

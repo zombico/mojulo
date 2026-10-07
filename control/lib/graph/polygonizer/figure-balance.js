@@ -19,7 +19,7 @@
  * Balance is measured RELATIVE to the rest figure's COM offset, so the neutral
  * pose is reproduced exactly (no drift); only deviations are corrected.
  */
-import { basePositions } from './figure-vajra.js';
+import { basePositions, TWIST_REF_NODES } from './figure-vajra.js';
 
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
 const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
@@ -63,6 +63,8 @@ function ik2(H, A, L1, L2, pole) {
 }
 
 const MOVE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR'];
+// the body nodes plus a head turn's twist pairs when present (they ride the head; absent with no turn)
+const moving = (p) => MOVE.concat(TWIST_REF_NODES.filter((k) => p[k]));
 const KNEE_POLE = { x: 0, y: 1, z: 0 };   // knees point forward (+y)
 
 /**
@@ -101,7 +103,7 @@ export function groundBalance(p0, { feet = ['L', 'R'], weight = 0, crouch = 0, k
   // Squat: drop the pelvis + upper body straight down; the feet stay planted, so
   // the knees fold via the IK below. (Done before planting so the ankles lock at
   // the floor, not the dropped height.)
-  if (crouch) for (const k of MOVE) p[k].z -= Math.max(0, Math.min(1, crouch)) * MAX_DROP;
+  if (crouch) for (const k of moving(p)) p[k].z -= Math.max(0, Math.min(1, crouch)) * MAX_DROP;
   const planted = {};
   for (const s of feet) planted[s] = { ...p['ankle' + s] };
   // knee tracking direction for the IK bend: forward, splayed out, or drawn in.
@@ -120,7 +122,7 @@ export function groundBalance(p0, { feet = ['L', 'R'], weight = 0, crouch = 0, k
     const tx = fc.x + w * half.x, ty = fc.y + w * half.y;
     const ex = (c.x - tx) - restOff.x, ey = (c.y - ty) - restOff.y;       // deviation from the desired balance
     if (Math.hypot(ex, ey) < 1e-4) break;
-    for (const k of MOVE) { p[k].x -= ex * gain; p[k].y -= ey * gain; }   // counter-shift the body over the target
+    for (const k of moving(p)) { p[k].x -= ex * gain; p[k].y -= ey * gain; }   // counter-shift the body over the target
     for (const k of freeLegParts) { p[k].x -= ex * gain; p[k].y -= ey * gain; }   // free leg rides the pelvis rigidly
     for (const s of feet) p['knee' + s] = ik2(p['hip' + s], planted[s], Llen['t' + s], Llen['s' + s], kneePole(s));
     for (const s of feet) p['ankle' + s] = { ...planted[s] };             // feet stay locked
@@ -181,7 +183,7 @@ export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, i
   const settled = {}; for (const k in base) settled[k] = { ...base[k] };
   for (const s of ['L', 'R']) settled['knee' + s] = ik2(base['hip' + s], { x: base['ankle' + s].x, y: base['ankle' + s].y, z: GROUND }, L1[s], L2[s], { x: 0, y: 1, z: 0 });
   const restOff = sub2(comOf(settled), footCentre(base, ['L', 'R']));
-  const fk0 = {}; for (const k of MOVE) fk0[k] = { ...p[k] };   // FK anchor for the body nodes
+  const fk0 = {}; for (const k of moving(p)) fk0[k] = { ...p[k] };   // FK anchor for the body nodes
   const sh = { x: 0, y: 0 };                    // accumulated horizontal COM carry
   let drop = 0;
   for (let it = 0; it < iters; it++) {
@@ -203,7 +205,7 @@ export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, i
     }
     drop *= gain;
     // 3) Place the body (pelvis + upper + hips) at the carried + dropped position…
-    for (const k of MOVE) { p[k].x = fk0[k].x + sh.x; p[k].y = fk0[k].y + sh.y; p[k].z = fk0[k].z - drop; }
+    for (const k of moving(p)) { p[k].x = fk0[k].x + sh.x; p[k].y = fk0[k].y + sh.y; p[k].z = fk0[k].z - drop; }
     // …and solve each leg: planted → foot pinned to the floor; swing → rides the carried,
     // dropped body (its FK lift preserved). Knee re-solved by 2-bone IK so bones stay exact.
     for (const s of ['L', 'R']) {

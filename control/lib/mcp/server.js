@@ -105,7 +105,7 @@ export function serverInstructions(env = process.env) {
 // through their pack); this teaches the one new mechanic.
 export const PACKS_INSTRUCTIONS_ADDENDUM = `
 
-**Tool packs are ON for this session.** tools/list carries a small spine plus one tool per PACK (\`pack_*\`) — a result-shaped bundle whose description says what it makes. Match the ask to a pack and call it with NO arguments to open it: you get its orientation plus a member manual (names, descriptions, input schemas). Then run members THROUGH the pack: \`pack_audio({ tool: 'create_beats', args: { … } })\`. Any tool named anywhere (the entries above, forward_context rows, drawers, catalysts) is called the same way via its home pack; spine tools are called directly. Packs are additive — open what the session needs, no more.`;
+**Tool packs are ON for this session.** tools/list carries a small spine plus one tool per PACK (\`pack_*\`) — a result-shaped bundle whose description says what it makes. Match the ask to a pack and call it with NO arguments to open it: you get its orientation plus a menu of members, small ones with their manual inline; read a larger member's manual with \`pack_x({ manual: '<name>' })\` before calling it. Then run members THROUGH the pack: \`pack_audio({ tool: 'create_beats', args: { … } })\`. Any tool named anywhere (the entries above, forward_context rows, drawers, catalysts) is called the same way via its home pack; spine tools are called directly. Packs are additive — open what the session needs, no more.`;
 
 // Appended for `mojulo orient` — the CLI's stand-in for `initialize`. A shell
 // caller (`npx mojulo call …` in an agent's box) never sends `initialize`, so
@@ -113,15 +113,19 @@ export const PACKS_INSTRUCTIONS_ADDENDUM = `
 // MCP call grammar. This block translates that grammar to the bin and names
 // the two env vars that replace clientInfo. Host ids come from the registry
 // so the list never drifts from lib/mcp/hosts/.
-export function cliInstructionsAddendum({ hostIds } = {}) {
+// `cmd` is the invocation the caller is actually using (`mojulo`, `npx -y mojulo@<v>`, or
+// `node scripts/mcp-stdio.mjs` from a checkout); scripts/mcp-cli.mjs works it out from how the
+// process was launched. The default keeps the installed bin's wording.
+export function cliInstructionsAddendum({ hostIds, cmd = 'mojulo' } = {}) {
   const ids = (hostIds || []).join(' / ');
   return `
 
 **You are on the CLI, not an MCP session.** Every body mojulo returns — this one, \`forward_context\`, a pack unveil, a vocab card — is written in MCP call grammar. Read it as shell:
-  \`tool({ a: 1 })\`                          → \`mojulo call tool --json '{"a":1}'\`   (or \`--a 1\` for a top-level property)
-  \`pack_x({ tool: 'name', args: { … } })\`  → \`mojulo pack_x name --json '{…}'\`
-  \`pack_x()\` (open a pack)                 → \`mojulo pack_x\`
-\`mojulo help <tool>\` prints any tool's full description and input schema. Start with \`mojulo call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so export results name this host's door and \`get_adapter\` returns its card, and \`MOJULO_SURFACE=box\` when you are in the host's own box rather than on the operator's machine. Each \`mojulo\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
+  \`tool({ a: 1 })\`                          → \`${cmd} call tool --json '{"a":1}'\`   (or \`--a 1\` for a top-level property)
+  \`pack_x({ tool: 'name', args: { … } })\`  → \`${cmd} pack_x name --json '{…}'\`
+  \`pack_x({ manual: … })\` (any pack-level args) → \`${cmd} pack_x --json '{"manual":["a","b"]}'\`   (or \`--manual a,b\`)
+  \`pack_x()\` (open a pack)                 → \`${cmd} pack_x\`
+\`${cmd} help <tool>\` prints any tool's full description and input schema. Start with \`${cmd} call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so export results name this host's door and \`get_adapter\` returns its card, and \`MOJULO_SURFACE=box\` when you are in the host's own box rather than on the operator's machine. Each \`${cmd}\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
 }
 
 const registeredTools = new Map();
@@ -578,11 +582,13 @@ async function registerAllTools() {
   const { registerVisualReferenceTools } = await import('@/lib/mcp/tools/visual-reference');
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
+  const { registerBuildingTools } = await import('@/lib/mcp/tools/building');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
   const { registerMeasureSolidTool } = await import('@/lib/mcp/tools/measure-solid');
+  const { registerFabricateTools } = await import('@/lib/mcp/tools/fabricate');
   const { registerCoverTools } = await import('@/lib/mcp/tools/cover');
   const { registerFigureSpecTools } = await import('@/lib/mcp/tools/figure-specs');
   const { registerComposeWorldTools } = await import('@/lib/mcp/tools/compose-world');
@@ -735,6 +741,9 @@ async function registerAllTools() {
   // absent install can still mint a flowchart/chart. Shares lib/diagram-core with
   // create_sketch. See kernel-diagram-surface.plan.md.
   registerDiagramTools();
+  // mint_building — one door for the house (layout → dwelling → construction → BIM); mints
+  // through the same mintSketch as create_sketch kind 'floorplan', so both store the same row.
+  registerBuildingTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).
@@ -757,6 +766,9 @@ async function registerAllTools() {
   // measure_solid — read a number back off a solid (cad-aid C1 / continuous-guardrails G2):
   // export_model's probe, closure audit, scale seam, and Manifold volume, without the file.
   registerMeasureSolidTool();
+  // fabricate_solid — a physical object by what its parts must DO, solved from standard parts first and carried out
+  // by the kind that owns the joinery (a scad source, or a workbench frame for wood). lib/graph/fabricator/.
+  registerFabricateTools();
   // create_cover — a publication COVER (illustration + title + subtext + metadata
   // composed under one art direction). Sits next to the other illustration mints;
   // persists with kind `cover`, SVG face via /svg, raster composite via /cover.png

@@ -8,16 +8,25 @@
  *     bones:  [{ id, head: <joint>, tail: <joint>, aux?: [<joint>, <joint>] }],   // aux: a two-vector frame (trunk twist)
  *     chains: { <channel>: { axis: 'x'|'y'|'z', sign?, links: [{ pivot: <joint>, joints: [<names>], weight? }] } },
  *     legs:   { L: { hip, knee, hock, toeBase, toeTip, pole: [x,y,z] }, R: {…} },   // the digitigrade chain
+ *     hands?: { R: { carrier: <boneId>, wrist: <joint>, axes: { flex, deviation, twist }, joints?: [<names>],   // default: the carrier's riders
+ *                    digits: { <digit>: { axis: [x,y,z], tip?, links: [{ pivot, joints?, weight?, axis? }] } },   // joints default: later pivots + tip
+ *                    poses?: { <word>: { <digit>: deg } } }, L: {…} },                                   // poses default: HAND_POSES
  *     reach?: 'reject' | 'clamp',                                                  // an unreachable planted toe
  *   }
- *   parts.<L1>.bind: '<boneId>' | { bone, blend: { <station|back|tip>: { <boneId>: w, … } } }
+ *   parts.<L1>.bind: '<boneId>' | { bone, blend: { <station|station.slot|back|tip>: { <boneId>: w, … } } }
  * A pinned (L2/L3) part carries NO bind: it inherits its pin face's vertex weights through the pin's own
  * barycentric weights, so a claw belongs to its toe and a tooth to its jaw by construction. Nearest-bone
  * assignment is never used.
  *
  * Pose: `resolvePose` words / raw dof for the vajra core (LIMITS apply), plus this module's channels:
  *   crouch ∈ [0,1] (pelvis drop, toes planted), lift (metres, airborne), support: 'both'|'L'|'R'|'none',
- *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), and every rig chain channel.
+ *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), seat (degrees, 0 … 60: the free legs
+ *   turned further forward about the hips, a seated statue's thighs level), and every rig chain channel.
+ * HANDS: a hand's joints ride its carrier bone (the forearm), but from points first turned in the REST frame: each digit's
+ * links about its hinge axis by the digit's curl × the link's weight (a link's turn carrying the later links' own axes) (`fingers<S>`: degrees, + closing, or { <digit>:
+ * deg }, or a word of `poses`; a number curls the thumb at half), then the whole hand about the wrist joint
+ * (`wrist<S>`: flex, or { flex, deviation, twist }, degrees about the three axes). So the wrist and the digits move in
+ * the hand's own frame whatever the arm does, and with no hand word the hand rides as it rests.
  * Planted legs: hip from the posed core; toe base and tip FIXED at rest; the metatarsus places the hock from
  * the toe and `heel`; femur + tibia solve two-link to the hock with the declared pole. Unreachable ⇒ `reach`
  * policy: 'reject' throws with the numbers, 'clamp' moves the hock onto the reach sphere and reports the
@@ -26,16 +35,16 @@
  * Pure, deterministic. Frames are flat (absolute rotation + posed head per bone), IBM = T(−restHead), the
  * contract scene-gltf's skinned writer already has.
  */
-import { articulate } from './figure-vajra.js';
+import { articulate, TWIST_REF_NODES, twistPairFor } from './figure-vajra.js';
 import { resolvePose } from './figure-posing.js';
-import { matToQuat, frameQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
+import { matToQuat, frameQuat, twistQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
 import { characterLitPieces, drawLayer } from './station-loft-shade.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -46,6 +55,43 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 const quatToMat = ([x, y, z, w]) => [[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)], [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)], [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]];
 const mv = (M, v) => [dot(M[0], v), dot(M[1], v), dot(M[2], v)];
 const rotAxis = (p, pivot, ax, deg) => { const a = deg * Math.PI / 180, c = dmath.cos(a), s = dmath.sin(a); const [i, j] = [(ax + 1) % 3, (ax + 2) % 3]; const u = p[i] - pivot[i], v = p[j] - pivot[j]; const q = [...p]; q[i] = pivot[i] + u * c - v * s; q[j] = pivot[j] + u * s + v * c; return q; };
+
+/** The hand words a `hands` block speaks unless it names its own `poses`, degrees of curl over the relaxed rest per digit
+ * (the VRM / Godot digits): `relaxed` the rest; `open` flat (each digit's rest curl undone); `fist` every finger closed,
+ * the thumb across them; `point` the index straight out of a fist; `grip` closed round a haft (a held blade's or staff's) */
+export const HAND_POSES = Object.freeze({
+  relaxed: Object.freeze({ thumb: 0, index: 0, middle: 0, ring: 0, little: 0 }),
+  open: Object.freeze({ thumb: -8, index: -10, middle: -15, ring: -21, little: -28 }),
+  fist: Object.freeze({ thumb: 30, index: 78, middle: 73, ring: 67, little: 60 }),
+  point: Object.freeze({ thumb: 28, index: -10, middle: 73, ring: 67, little: 60 }),
+  grip: Object.freeze({ thumb: 20, index: 54, middle: 50, ring: 45, little: 40 }),
+});
+/** Rodrigues: p turned about the line through `pivot` along unit `k` by `deg` degrees (right-handed). */
+const rotLine = (p, pivot, k, deg) => { const a = deg * Math.PI / 180, c = dmath.cos(a), s = dmath.sin(a); const v = sub(p, pivot), kv = cross(k, v), d = dot(k, v); return add(pivot, add(add(mul(v, c), mul(kv, s)), mul(k, d * (1 - c)))); };
+/** The hand channels a rig with `hands` reads (`wrist<S>`, `fingers<S>`). */
+const handChannel = (R, n) => { const m = /^(wrist|fingers)([A-Z]\w*)$/.exec(n); return !!(m && R.hands?.[m[2]]); };
+/** A hand channel's value in its full form: a wrist `{ flex, deviation, twist }`, the fingers `{ <digit>: deg }` (a word
+ * through the hand's poses; a number curls every digit, the thumb at half). Unknown words throw by name. */
+export function handValue(R, n, v) {
+  const m = /^(wrist|fingers)(\w+)$/.exec(n), H = R.hands[m[2]];
+  if (m[1] === 'wrist') { const w = typeof v === 'number' ? { flex: v } : (v || {}); return { flex: w.flex || 0, deviation: w.deviation || 0, twist: w.twist || 0 }; }
+  if (typeof v === 'string') { if (!H.poses[v]) throw new Error(`station-loft-rig: ${n}: no hand pose '${v}' (have ${Object.keys(H.poses).join(', ')})`); v = H.poses[v]; }
+  return Object.fromEntries(Object.keys(H.digits).map((d) => [d, typeof v === 'number' ? (d === 'thumb' ? v / 2 : v) : (v?.[d] || 0)]));
+}
+/** The hand's joints turned in the rest frame for `pose` (the digits' curls, then the wrist), by name; empty without hands. */
+function handLocal(R, pose) {
+  const out = {};
+  for (const [S, H] of Object.entries(R.hands || {})) {
+    const f = pose[`fingers${S}`], w = pose[`wrist${S}`];
+    if ((f === undefined || f === 0) && (w === undefined || w === 0)) continue;
+    const pts = Object.fromEntries(H.joints.map((j) => [j, [...R.joints[j]]]));
+    // a link's turn carries the digit's later hinges with it (the thumb's knuckle turns with its root)
+    if (f !== undefined) { const c = handValue(R, `fingers${S}`, f); for (const [d, g] of Object.entries(H.digits)) { if (!c[d]) continue; const ax = g.links.map((l) => l.axis ?? g.axis); g.links.forEach((l, i) => { const p = [...pts[l.pivot]], a = c[d] * l.weight; for (const j of l.joints) pts[j] = rotLine(pts[j], p, ax[i], a); for (let n = i + 1; n < ax.length; n++) if (ax[n] !== ax[i]) ax[n] = rotLine(ax[n], [0, 0, 0], ax[i], a); }); } }
+    if (w !== undefined) { const v = handValue(R, `wrist${S}`, w), p = R.joints[H.wrist]; for (const k of ['flex', 'deviation', 'twist']) if (v[k]) for (const j of H.joints) pts[j] = rotLine(pts[j], p, H.axes[k], v[k]); }
+    Object.assign(out, pts);
+  }
+  return out;
+}
 
 /** Validate a rig block; returns { joints: { name: at }, rides: { name: boneId }, bones, boneIndex, chains, legs, reach }. */
 export function validateRig(rig) {
@@ -58,12 +104,13 @@ export function validateRig(rig) {
     for (const k of ['head', 'tail']) if (!joints[b[k]]) throw new Error(`station-loft-rig: bone ${b.id}.${k} names unknown joint ${b[k]}`);
     if (b.head === b.tail) throw new Error(`station-loft-rig: bone ${b.id} has zero length`);
     if (b.aux && !(Array.isArray(b.aux) && b.aux.length === 2 && b.aux.every((j) => joints[j]))) throw new Error(`station-loft-rig: bone ${b.id}.aux must name two joints`);
-    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}) };
+    if (b.align !== undefined && !(Array.isArray(b.align) && b.align.length === 2 && b.align.every((j) => joints[j]) && b.align[0] !== b.align[1])) throw new Error(`station-loft-rig: bone ${b.id}.align must name two different joints`);
+    boneIndex[b.id] = i; return { id: b.id, head: b.head, tail: b.tail, ...(b.aux ? { aux: [...b.aux] } : {}), ...(b.align ? { align: [...b.align] } : {}), ...(twistPairFor(b.head, b.tail) ? { twist: twistPairFor(b.head, b.tail) } : {}) };   // a bone spanning the neck turns with it
   });
   for (const [name, bid] of Object.entries(rides)) if (boneIndex[bid] === undefined) throw new Error(`station-loft-rig: joint ${name} rides unknown bone ${bid}`);
   // riding must resolve: a joint rides a bone whose head and tail are core or ride bones that resolve first
   const placed = new Set(Object.keys(joints).filter((n) => !rides[n])); let progress = true;
-  while (progress) { progress = false; for (const [name, bid] of Object.entries(rides)) { if (placed.has(name)) continue; const b = bones[boneIndex[bid]]; if (placed.has(b.head) && placed.has(b.tail)) { placed.add(name); progress = true; } } }
+  while (progress) { progress = false; for (const [name, bid] of Object.entries(rides)) { if (placed.has(name)) continue; const b = bones[boneIndex[bid]]; if (placed.has(b.head) && placed.has(b.tail) && (b.align || []).every((j) => placed.has(j))) { placed.add(name); progress = true; } } }
   const unresolved = Object.keys(rides).filter((n) => !placed.has(n)); if (unresolved.length) throw new Error(`station-loft-rig: cyclic or dangling rides: ${unresolved.join(', ')}`);
   const chains = {};
   for (const [ch, c] of Object.entries(rig.chains || {})) {
@@ -76,14 +123,41 @@ export function validateRig(rig) {
   const legs = {};
   for (const [S, l] of Object.entries(rig.legs || {})) { for (const k of ['hip', 'knee', 'hock', 'toeBase', 'toeTip']) if (!joints[l?.[k]]) throw new Error(`station-loft-rig: legs.${S}.${k} is not a joint`); if (!fin3(l.pole)) throw new Error(`station-loft-rig: legs.${S}.pole must be a direction`); legs[S] = { ...l, pole: [...l.pole] }; }
   const reach = rig.reach ?? 'reject'; if (reach !== 'reject' && reach !== 'clamp') throw new Error("station-loft-rig: reach must be 'reject' or 'clamp'");
-  return { joints, rides, bones, boneIndex, chains, legs, reach };
+  const hands = {};
+  for (const [S, h] of Object.entries(rig.hands || {})) {
+    const at = `station-loft-rig: hands.${S}`;
+    if (boneIndex[h?.carrier] === undefined) throw new Error(`${at}.carrier is not a bone`);
+    if (!joints[h.wrist]) throw new Error(`${at}.wrist is not a joint`);
+    for (const k of ['flex', 'deviation', 'twist']) if (!fin3(h.axes?.[k])) throw new Error(`${at}.axes.${k} must be a direction`);
+    // the hand's joints: as listed, else every joint riding the carrier
+    const handJoints = h.joints ?? Object.keys(rides).filter((j) => rides[j] === h.carrier);
+    if (!Array.isArray(handJoints) || !handJoints.length) throw new Error(`${at}.joints must list the hand's joints (or joints must ride ${h.carrier})`);
+    for (const j of handJoints) if (rides[j] !== h.carrier) throw new Error(`${at}: joint ${j} must ride the carrier ${h.carrier}`);
+    const own = new Set(handJoints), digits = {};
+    for (const [d, g] of Object.entries(h.digits || {})) {
+      if (!fin3(g?.axis) || !Array.isArray(g.links) || !g.links.length) throw new Error(`${at}.digits.${d} needs an axis and links`);
+      // a link's joints: as listed, else the later links' pivots and the digit's tip
+      const later = (i) => [...g.links.slice(i + 1).map((l) => l.pivot), ...(g.tip ? [g.tip] : [])];
+      const links = g.links.map((l, i) => ({ pivot: l.pivot, joints: [...(l.joints ?? later(i))], weight: l.weight ?? 1, axis: l.axis ? unit(l.axis) : null }));
+      for (const l of links) for (const j of [l.pivot, ...l.joints]) if (!own.has(j)) throw new Error(`${at}.digits.${d} names ${j}, not one of the hand's joints`);
+      for (const l of g.links) if (l.axis !== undefined && !fin3(l.axis)) throw new Error(`${at}.digits.${d}: a link's axis must be a direction`);
+      digits[d] = { axis: unit(g.axis), links };
+    }
+    for (const ch of [`wrist${S}`, `fingers${S}`]) if (RIG_CHANNELS.includes(ch) || ch in chains) throw new Error(`${at}: the channel ${ch} is taken`);
+    hands[S] = { carrier: h.carrier, wrist: h.wrist, axes: Object.fromEntries(['flex', 'deviation', 'twist'].map((k) => [k, unit(h.axes[k])])), joints: [...handJoints], digits, poses: h.poses || HAND_POSES };
+  }
+  return { joints, rides, bones, boneIndex, chains, legs, reach, hands };
 }
 
-/** A bone's rigid frame from rest to posed: q + rotation matrix; `aux` gives a full two-vector alignment. */
+/** A bone's rigid frame from rest to posed: q + rotation matrix; `aux` gives a full two-vector alignment. `align` names
+ * two joints whose line is the primary direction in place of head → tail (a pelvis turned by its hip line alone, whatever
+ * the spine above does to its tail); the bone still sits at its head and its length is still head → tail. */
 function boneFrame(bone, rest, nodes) {
   const d0 = sub(rest[bone.tail], rest[bone.head]), d1 = sub(nodes[bone.tail], nodes[bone.head]);
   const a0 = bone.aux ? sub(rest[bone.aux[1]], rest[bone.aux[0]]) : null, a1 = bone.aux ? sub(nodes[bone.aux[1]], nodes[bone.aux[0]]) : null;
-  const q = frameQuat(d0, a0, d1, a1);
+  let q = bone.align ? frameQuat(sub(rest[bone.align[1]], rest[bone.align[0]]), a0, sub(nodes[bone.align[1]], nodes[bone.align[0]]), a1) : frameQuat(d0, a0, d1, a1);
+  // a head turn: the twist pair is in the posed map only while the neck or head turns
+  if (bone.twist && nodes[bone.twist[0]] && nodes[bone.twist[1]]) q = twistQuat(q, d1, nodes[bone.head], nodes[bone.twist[0]], nodes[bone.twist[1]]);
   return { id: bone.id, q, m: quatToMat(q), head: nodes[bone.head], restHead: rest[bone.head], lengthError: Math.abs(len(d1) - len(d0)) };
 }
 /** Every bone's frame for a posed node map. */
@@ -100,26 +174,41 @@ export function solveTwoBone(root, target, l1, l2, pole) {
 }
 
 /**
+ * Where a planted foot stands (its toe base and tip): at rest, unless the pose sets the STANCE (the feet's spread, a
+ * multiple of the hip joints' own: 1 puts each ankle under its hip) or the STAGGER (+ the left foot forward and the right
+ * back, each by half this share of the leg's height). The stand owns its base; the rest skeleton owns the anatomy.
+ */
+export function plantedFoot(R, L, pose = {}) {
+  const rest = R.joints, foot = [0, 0, 0];
+  if (Number.isFinite(pose.stance)) foot[0] = Math.sign(rest[L.hock][0] || rest[L.hip][0]) * pose.stance * Math.abs(rest[L.hip][0]) - rest[L.hock][0];
+  if (Number.isFinite(pose.stagger)) foot[1] = (rest[L.hip][0] < 0 ? 0.5 : -0.5) * pose.stagger * (rest[L.hip][2] - rest[L.toeBase][2]);
+  if (foot[0] === 0 && foot[1] === 0) return { toeBase: [...rest[L.toeBase]], toeTip: [...rest[L.toeTip]] };   // no stance word: the rest foot exactly
+  return { toeBase: add(rest[L.toeBase], foot), toeTip: add(rest[L.toeTip], foot) };
+}
+
+/**
  * Pose the rig: the vajra core through resolvePose/articulate, planted digitigrade legs, riding extension
  * joints, then the chains. Returns { nodes, report: { legs: { S: { planted, reach, metaError } } } }.
  */
 export function rigNodesAt(R, pose = {}) {
   const rest = R.joints; const nodes = {};
-  const vajraSpec = Object.fromEntries(Object.entries(pose).filter(([k]) => !RIG_CHANNELS.includes(k) && !(k in R.chains)));
+  const vajraSpec = Object.fromEntries(Object.entries(pose).filter(([k]) => !RIG_CHANNELS.includes(k) && !(k in R.chains) && !handChannel(R, k)));
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
   const posed = withMath(dmath, () => articulate(resolvePose(vajraSpec, core), core));   // shared vajra FK on dmath (util/math-scope.js)
-  for (const k of VAJRA_CORE) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
+  // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)
+  const carried = [...VAJRA_CORE, ...TWIST_REF_NODES.filter((k) => posed[k])];
+  for (const k of carried) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
   // crouch: the pelvis (and everything the core carries) drops toward planted toes; lift raises the root
   const support = pose.support ?? 'both'; const lift = Number.isFinite(pose.lift) ? pose.lift : 0; const crouch = Math.max(0, Math.min(1, pose.crouch || 0));
   const legKeys = Object.keys(R.legs); const hipZ = legKeys.length ? Math.min(...legKeys.map((S) => rest[R.legs[S].hip][2])) : 0; const toeZ = legKeys.length ? Math.min(...legKeys.map((S) => rest[R.legs[S].toeBase][2])) : 0;
   const drop = crouch * 0.45 * (hipZ - toeZ);
-  for (const k of VAJRA_CORE) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
+  for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
   const report = { legs: {} };
   for (const S of legKeys) {
     const L = R.legs[S]; const planted = lift === 0 && (support === 'both' || support === S);
     const femur = len(sub(rest[L.knee], rest[L.hip])), tibia = len(sub(rest[L.hock], rest[L.knee])), meta = len(sub(rest[L.toeBase], rest[L.hock]));
     if (planted) {
-      nodes[L.toeBase] = [...rest[L.toeBase]]; nodes[L.toeTip] = [...rest[L.toeTip]];
+      const foot = plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
       const metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, pose[`heel${S}`] || 0);
       let hock = add(nodes[L.toeBase], mul(metaDir, meta)); let metaError = 0;
       let sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, L.pole);
@@ -131,17 +220,21 @@ export function rigNodesAt(R, pose = {}) {
       nodes[L.hock] = hock; nodes[L.knee] = sol.mid;
       report.legs[S] = { planted: true, reach: metaError > 0 ? 'clamped' : 'ok', metaError: r4(metaError) };
     } else {
-      // airborne: the core's own leg pose stands; the toes ride the shin
+      // airborne: the core's own leg pose stands; the toes ride the shin. `seat` (a seated statue's: the base carries
+      // it) turns the free leg further forward about its hip, past the swivel's anatomical cone, so the thigh lies level
+      const seat = Number.isFinite(pose.seat) ? Math.max(0, Math.min(60, pose.seat)) : 0;
+      if (seat) for (const j of [L.knee, L.hock]) nodes[j] = rotAxis(nodes[j], nodes[L.hip], 0, seat);
       const shin = boneFrame({ id: 'shin', head: L.knee, tail: L.hock }, rest, nodes);
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };
     }
   }
-  // extension joints ride their bones, in dependency order
+  // extension joints ride their bones, in dependency order (a hand's from its rest points turned by the hand words)
+  const local = handLocal(R, pose);
   let pending = Object.keys(R.rides).filter((n) => !nodes[n]); let progress = true;
   while (pending.length && progress) {
     progress = false;
-    for (const name of [...pending]) { const b = R.bones[R.boneIndex[R.rides[name]]]; if (!nodes[b.head] || !nodes[b.tail]) continue; nodes[name] = ride(boneFrame(b, rest, nodes), rest[name]); pending = pending.filter((n) => n !== name); progress = true; }
+    for (const name of [...pending]) { const b = R.bones[R.boneIndex[R.rides[name]]]; if (!nodes[b.head] || !nodes[b.tail] || (b.align || []).some((j) => !nodes[j])) continue; nodes[name] = ride(boneFrame(b, rest, nodes), local[name] ?? rest[name]); pending = pending.filter((n) => n !== name); progress = true; }
   }
   if (pending.length) throw new Error(`station-loft-rig: could not place ${pending.join(', ')}`);
   for (const [ch, c] of Object.entries(R.chains)) {
@@ -167,7 +260,8 @@ export function bindLayered(mesh, recipe, R = validateRig(recipe.rig)) {
     const bind = part.bind; if (bind === undefined || bind === null) throw new Error(`station-loft-rig: part ${prov.part} has no bind`);
     if (typeof bind === 'string') { per[i] = [[boneOf(bind, prov.part), 1]]; continue; }
     if (!bind || typeof bind !== 'object' || typeof bind.bone !== 'string') throw new Error(`station-loft-rig: part ${prov.part}.bind must be a bone id or { bone, blend }`);
-    const st = stationOf(prov.id); const blend = bind.blend?.[st];
+    // a `<station>.<slot>` entry weighs that one point over its station's (a form pushed out of a ring, its own bone)
+    const st = stationOf(prov.id), sl = prov.id.match(/\.([^./]+)$/)?.[1]; const blend = (sl && bind.blend?.[`${st}.${sl}`]) || bind.blend?.[st];
     if (!blend) { per[i] = [[boneOf(bind.bone, prov.part), 1]]; continue; }
     const entries = Object.entries(blend); const sum = entries.reduce((t, [, w]) => t + w, 0);
     if (!entries.length || entries.length > 4 || entries.some(([, w]) => !Number.isFinite(w) || w < 0) || Math.abs(sum - 1) > 1e-9) throw new Error(`station-loft-rig: part ${prov.part} blend at ${st} must be ≤ 4 finite non-negative weights summing to 1`);
@@ -196,7 +290,7 @@ export function skinLayered(mesh, skin, frames) {
 export function layeredClip(keyposes, R, { loop = true } = {}) {
   if (!Array.isArray(keyposes) || !keyposes.length) throw new Error('station-loft-rig: a clip needs keyposes');
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
-  const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...withMath(dmath, () => resolvePose(vajra, core)), ...own }; });
+  const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (handChannel(R, n)) own[n] = handValue(R, n, v); else if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...withMath(dmath, () => resolvePose(vajra, core)), ...own }; });
   const seq = loop ? [...keys, keys[0]] : keys; const N = seq.length - 1;
   const blend = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const x = a[k], y = b[k]; if (typeof x === 'string' || typeof y === 'string') o[k] = t < 0.5 ? (x ?? y) : (y ?? x); else if ((x && typeof x === 'object') || (y && typeof y === 'object')) o[k] = blend(x || {}, y || {}, t); else o[k] = (x || 0) * (1 - t) + (y || 0) * t; } return o; };
   return (phase) => { if (N === 0) return { ...seq[0] }; const p = Math.max(0, Math.min(0.999999, phase)) * N; const i = Math.floor(p); let t = p - i; t = t * t * (3 - 2 * t); return blend(seq[i], seq[i + 1], t); };
@@ -341,6 +435,8 @@ function faceRowOf(face) {
 /**
  * Pack the packed rig figure: parts per DOMINANT bone with explicit per-vertex joints/weights, bones with rest
  * head/tail, clips as [q, head] per bone per key. `dz` seats the figure (the lowering's seat shift).
+ * `normals` (per-face-corner shading normals on `mesh`, layeredShadingNormals: the studio-lit hero's smooth weld) shades
+ * each corner from its own normal, so the clip preview blends as the static solid does; it wins over `hullShade`.
  * `hullShade: true | { quantum?, cell?, except? }` (default null → byte-identical output) bakes the COLOR
  * shade from `hullShadeNormals` per corner instead of the flat face normal; a null field entry keeps the
  * flat shade, so an excepted part or an unanswerable vertex shades exactly as today.
@@ -356,7 +452,7 @@ function faceRowOf(face) {
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, character = null, face = null, seconds = null, gear = null, emissive = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, seconds = null, gear = null, emissive = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
@@ -372,7 +468,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: part.tint || '#8a8f96' });
     const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const lit = glow.has(mesh.groups[fi]); const shade = lit ? 1 : 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
     const P = parts[bi]; P.faces++;
-    tri.forEach((vi, k) => { const s = !lit && vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
+    tri.forEach((vi, k) => { const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
@@ -408,7 +504,8 @@ export function auditRig(mesh, skin, R, poses = [{}]) {
   for (const pose of poses) {
     const { nodes, report } = rigNodesAt(R, pose); const frames = boneFrames(R, rest, nodes);
     for (const f of frames) { out.maxLengthError = Math.max(out.maxLengthError, f.lengthError); for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out.maxOrthoError = Math.max(out.maxOrthoError, Math.abs(dot(f.m[a], f.m[b]) - (a === b ? 1 : 0))); }
-    for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) out.maxPlantedDrift = Math.max(out.maxPlantedDrift, len(sub(nodes[l.toeBase], rest[l.toeBase])), len(sub(nodes[l.toeTip], rest[l.toeTip])));
+    // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it)
+    for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) { const at = plantedFoot(R, l, pose); out.maxPlantedDrift = Math.max(out.maxPlantedDrift, len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))); }
     out.poses.push({ pose, legs: report.legs });
   }
   return out;

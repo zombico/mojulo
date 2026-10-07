@@ -32,7 +32,7 @@ describe('the slices before anthem styles are untouched', () => {
     // pinned from 2aede88's kernel with every feature on: the anthem regions,
     // all off, must leave that text exactly as it was.
     const t = readFileSync(new URL('./beats-kernel.js', import.meta.url), 'utf8');
-    const text = sliceKernelText(t.slice(t.indexOf('function buildBeatsKernel()'), t.lastIndexOf('}') + 1), (f) => f !== 'anthem');
+    const text = sliceKernelText(t.slice(t.indexOf('function buildBeatsKernel()'), t.lastIndexOf('}') + 1), (f) => f !== 'anthem' && f !== 'timbre'); // newer features (timbre) are off too
     expect(createHash('sha256').update(text).digest('hex')).toBe('23eb1333de88e3aeb0fa29865614968cc5d3b49ecaa4518736ef0e2f1d478ba9');
   });
 });

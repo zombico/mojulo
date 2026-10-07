@@ -1,0 +1,12 @@
+{
+  "entry": "mint_solid",
+  "kind": "solid-turntable",
+  "title": "amethyst crystal",
+  "spec": {
+    "shape": "octahedron",
+    "color": "#7d4fb3",
+    "surface": "vexar",
+    "tilt": 24,
+    "spin_seconds": 14
+  }
+}

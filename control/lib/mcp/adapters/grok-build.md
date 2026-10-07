@@ -27,7 +27,7 @@ Grok caps MCP tool results (~20k bytes), and several mojulo surfaces exceed that
 
 - `forward_context` ~9k and `get_substrate` ~10k — both fit. `forward_context` is the routing index; read the rows and pull ONE drawer at a time.
 - `get_tool_index` is ~48k — roughly 2.4× your cap. Calling it costs a truncated read; `forward_context` plus `semantic_search` covers the same ground in fitting pieces. Your call, but that's the trade.
-- Pack unveils range ~4k–36k. The heavy ones (connected services, stash, image render, game, illustration, diagram, motion) can spill; the rest fit. If a result looks truncated, narrow the call rather than retrying it identically.
+- Pack unveils are menus, ~1k–7k, and fit. A large member's manual is read on its own with `pack_x({ manual: '<name>' })`; the largest (`cook`, ~16k) fits too. If a result looks truncated, narrow the call rather than retrying it identically.
 
 None of this is enforced — mojulo won't refuse a call because it might truncate, and it won't silently reshape a response you asked for. If you decide a truncated read is worth it, take it; just tell the operator what got cut so they can decide whether to narrow it or work from the fragment. This section is written for any capped host; you are the first card to carry it.
 

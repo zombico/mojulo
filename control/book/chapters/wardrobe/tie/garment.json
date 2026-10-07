@@ -1,0 +1,47 @@
+{
+  "id": "tie",
+  "color": {
+    "cloth": "#7a1f2e"
+  },
+  "ease_cm": 1,
+  "under": false,
+  "pieces": [
+    {
+      "id": "blade",
+      "fit": "pattern",
+      "chart": "trunk",
+      "outline": [
+        [
+          -4,
+          4
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          46
+        ],
+        [
+          -4,
+          46
+        ]
+      ],
+      "anchor": {
+        "piece": [
+          0,
+          46
+        ],
+        "chart": {
+          "u": "cf",
+          "v": "collar"
+        }
+      }
+    }
+  ]
+}

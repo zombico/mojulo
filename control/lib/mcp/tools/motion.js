@@ -65,6 +65,7 @@ import { resolveSceneForge, resolveClipForge } from '@/lib/graph/image-outcomes/
 import { clipFrameSelections, compositeCels } from '@/lib/graph/image-outcomes/keyframe-composite';
 import { renderSceneFrames } from '@/lib/graph/image-outcomes/keyframe-spike/scene-composite';
 import { viewerHtml, worldViewerHtml, stitchViewerHtml } from '@/lib/motion/viewer';
+import { filmShot, writeBlenderFilm } from '@/lib/motion/blender-film';
 import { composeFlipbook } from '@/lib/motion/flipbook';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import {
@@ -475,6 +476,16 @@ export async function forgeMotionHandler(input) {
   }
   if (!title || typeof title !== 'string') throw new Error('title is required');
   if (!shot || typeof shot !== 'object') throw new Error('forge_motion requires a shot');
+  // export:'blender' — a WORLD camera shot as a Blender film pack (blender-film.js). Refused
+  // before any render: the film pack is the world's Blender pack + the shot's camera path.
+  if (exportFormat === 'blender') {
+    if (!subject?.world_ref) {
+      throw new Error("export:'blender' is for WORLD camera shots (subject.world_ref) — the film pack is the world's Blender pack plus this shot's camera. Manual: get_motion_vocab({ id: 'blender-film' }).");
+    }
+    if (shot.motion === 'traversal') {
+      throw new Error("export:'blender' takes a camera motion (turntable / orbit / push_in / dolly_zoom / flythrough); a traversal is an input script, not a camera path.");
+    }
+  }
 
   // An explicit render: a world subject may download Chrome for Testing when the
   // host has no browser, and the result says so (browser_download).
@@ -556,6 +567,16 @@ export async function forgeMotionHandler(input) {
     meta: result.meta,
   };
   await fs.writeFile(path.join(dir, 'recipe.json'), JSON.stringify(recipe, null, 2), 'utf8');
+  let film = null;
+  if (exportFormat === 'blender') {
+    const filmDir = path.join(dir, 'blender');
+    await fs.mkdir(filmDir, { recursive: true });
+    const shotBody = filmShot({
+      motionRef: ref, worldRef: resolved.subjectRef, title, motion,
+      fps: result.meta.fps, width: result.width, height: result.height, cameras: result.cameras,
+    });
+    film = await writeBlenderFilm({ outDir: filmDir, shot: shotBody, title });
+  }
   // the traversal's full per-tick probe stream (entity transforms / HUD vars / physics bodies)
   // files beside the video — the deterministic record a caller can assert against.
   if (motion === 'traversal' && Array.isArray(result.probes)) {
@@ -630,11 +651,21 @@ export async function forgeMotionHandler(input) {
     ...(motion === 'traversal' && Array.isArray(result.probes) && result.probes.length
       ? { final_probe: result.probes[result.probes.length - 1], probes_path: `${url}probes.json` }
       : {}),
+    ...(film ? {
+      blender: {
+        dir: film.dir,
+        files: film.written.length,
+        film_md: `${url}blender/FILM.md`,
+        command: `node scripts/export-blender-film.mjs --motion ${ref} --render draft`,
+        note: 'The world\'s Blender pack + this shot\'s per-frame camera, light and render scripts. Blender runs on the operator\'s machine; mojulo did not launch it.',
+      },
+    } : {}),
     ...(browserFetch ? { browser_download: browserFetch.notice } : {}),
     message:
       `Motion '${motion}' rendered (${result.meta.frames} frames${isWorld ? ', three.js world via headless WebGL' : ''}) at ${url}. `
       + `Filed under ops tag ${tag.tagRef} with subject/recipe stash ${stash.stashRef}.`
-      + (motion === 'traversal' ? ' Final probe (entity positions / HUD vars) is in final_probe; the per-tick stream is at probes_path.' : ''),
+      + (motion === 'traversal' ? ' Final probe (entity positions / HUD vars) is in final_probe; the per-tick stream is at probes_path.' : '')
+      + (film ? ` Blender film pack at ${film.dir} (FILM.md; one command: blender.command).` : ''),
   };
 }
 
@@ -860,7 +891,7 @@ export function registerMotionTools() {
             loop: { type: 'boolean', description: 'Seamless loop (default true).' },
           },
         },
-        export: { type: 'string', enum: ['gif', 'svg', 'mp4', 'both'], description: "Artifact form (default 'both'). SVG families: 'both' = durable flipbook .svg + .gif cache; 'svg' skips the gif; 'mp4' bakes a downloadable H.264 beside the .svg instead of the gif (opt-in — first use resolves/lazy-fetches ffmpeg). WORLD family (raster-native, no svg): 'gif' is the looping preview, 'mp4' the downloadable H.264, 'both' writes both." },
+        export: { type: 'string', enum: ['gif', 'svg', 'mp4', 'both', 'blender'], description: "Artifact form (default 'both'). SVG families: 'both' = durable flipbook .svg + .gif cache; 'svg' skips the gif; 'mp4' bakes a downloadable H.264 beside the .svg instead of the gif (opt-in — first use resolves/lazy-fetches ffmpeg). WORLD family (raster-native, no svg): 'gif' is the looping preview, 'mp4' the downloadable H.264, 'both' writes both; 'blender' (camera motions) writes the gif plus a Blender film pack — the world + this exact camera, lit and rendered to video in Blender (get_motion_vocab({ id: 'blender-film' }))." },
         tag_ref: { type: 'string', description: 'Optional existing Motion Project ops tag (ops_…) to file this shot under, instead of forging a new one.' },
       },
     },

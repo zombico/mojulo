@@ -1121,15 +1121,18 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // The runner executes slots in a fixed sequence; WITHIN a slot, entries run in this exact
     // order (explicit `order` values, ties by EMISSION position). A diff here means the frame
     // sequence changed — that is a behavior change and must be a deliberate plan step.
+    // Playscape added the launcher: 'launch' (the throw, after the carry) and 'launch-lock' (a locked throw takes the steering),
+    // and the ladder: the 'climb' body owner (a body on a climbable is the climb's, after a drop has landed it),
+    // and breakable terrain: the 'break' pass (this tick's shots, bursts and swings take hp off the blocks they reach).
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
-      preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot', 'lock'],
+      preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
-      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop'],
+      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
       entityActions: ['weapon', 'melee', 'tackle'],
-      worldPasses: ['body-collisions', 'carry', 'projectiles', 'death-burst', 'match', 'lock', 'tutorial'],
+      worldPasses: ['body-collisions', 'carry', 'launch', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
     });
   });
 

@@ -18,7 +18,7 @@ import { characterLitPieces, layeredShadingNormals, piecesAt } from './station-l
 import { heroRecord, heroPlanOf, heroReadout, expandLayeredManifest, planLayered } from '../../mcp/tools/layered.js';
 import { humanoidPlan } from './humanoid-plan.js';
 import { composeAnime } from './anime-looks.js';
-import { heroPlan, ANIME_WAVE } from './hero-form.js';
+import { heroPlan, ANIME_WAVE, WAVE_TWIST, withWaveHand } from './hero-form.js';
 
 const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 /** a hero as the door mints it, compiled at rest, with its rig bound */
@@ -36,7 +36,9 @@ describe('the gesture words', () => {
       ['relaxed', { head: { pitch: -12 } }], { armR: ['forward', 'down'], elbowR: 'half', kneeL: 20, crouch: 0.1, shL: { yaw: 5 }, legL: { x: 0.1, y: 0.2, z: -1 } }]) expect(validateGesture(ok), JSON.stringify(ok)).toEqual([]);
     expect(validateGesture('dance')).toEqual([expect.stringMatching(/^gesture: unknown gesture word 'dance' \(rest, relaxed, hand-on-hip, guard/)]);
     expect(validateGesture(['relaxed', 'strut'])).toEqual([expect.stringMatching(/^gesture\[1\]: unknown gesture word 'strut'/)]);
-    expect(validateGesture({ wristR: { flex: 30 } })[0]).toMatch(/gesture\.wristR: the hand is rigid on the forearm \(no wrist\), so the gesture refuses it/);
+    // the hand's words are the structured core's (its hand has a wrist and digits, hero-hand.js); refused without them
+    expect(validateGesture({ wristR: { flex: 30 } })[0]).toMatch(/gesture\.wristR: the streamlined hand is rigid on the forearm \(no wrist; the structured core's has one\), so the gesture refuses it/);
+    expect(validateGesture({ wristR: { flex: 30 }, fingersL: 'fist' }, 'gesture', { hands: true })).toEqual([]);
     expect(validateGesture({ jump: 1 })[0]).toMatch(/gesture\.jump: not a gesture word \(have support, crouch, spine/);
     expect(validateGesture({ support: 'none' })[0]).toMatch(/support: 'both' \| 'L' \| 'R'/);
     expect(validateGesture({ crouch: 2 })[0]).toMatch(/crouch: 0/);
@@ -47,9 +49,9 @@ describe('the gesture words', () => {
     expect(validateGesture({ pelvis: 400 })[0]).toMatch(/pelvis: degrees, within ±45/);
     expect(validateGesture({ shoulders: -60 })[0]).toMatch(/shoulders: degrees, within ±45/);
     expect(validateGesture({ hinge: 400 })[0]).toMatch(/hinge: degrees, -30 … 90/);
-    expect(validateGesture({ head: { pitch: 120 } })[0]).toMatch(/head: \{ yaw, pitch \} in degrees, each within ±90/);
+    expect(validateGesture({ head: { pitch: 120 } })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees, each within ±90/);
     expect(validateGesture({ shL: { yaw: 720, pitch: 0, roll: 0 } })[0]).toMatch(/shL: \{ yaw, pitch, roll \} in degrees, each within ±180/);
-    expect(validateGesture({ head: { roll: 5 } })[0]).toMatch(/head: \{ yaw, pitch \}/);
+    expect(validateGesture({ head: { roll: 5 } })[0]).toMatch(/head: \{ yaw, pitch, turn \}/);
     expect(validateGesture({ armL: 'sideways' })[0]).toMatch(/armL: a direction/);
     expect(validateGesture({ elbowR: 'kinked' })[0]).toMatch(/elbowR: a bend word/);
     expect(validateGesture([])[0]).toMatch(/a gesture word/);
@@ -83,7 +85,7 @@ describe('the presets on the anime hero', () => {
   it('the anime hero stands relaxed by default: read at plan time (never stored), the clip first, the mint gate passes', () => {
     for (const [cast, { m }] of Object.entries(casts)) {
       expect(m.hero.gesture).toBeUndefined(); expect(heroGesture(m.hero)).toBe('relaxed');
-      expect(Object.keys(m.plan.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(m.plan.clips.gesture).toEqual([GESTURE_PRESETS.relaxed[cast]]);
+      expect(Object.keys(m.plan.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(m.plan.clips.gesture).toEqual([resolveGesture('relaxed', cast, { core: 'structured' })]);
       expect(Object.keys(m.recipe.clips)[0]).toBe('gesture');
       const { stats } = planLayered(m); expect(stats.layered.rig.clips).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(stats.closed).toBe(true);
     }
@@ -96,35 +98,36 @@ describe('the presets on the anime hero', () => {
     expect(heroGesture(heroRecord({ cast: 'female', head: 'anime', gesture: null }))).toBe('relaxed');   // null is no word: the default
   });
   it("a stand the rig cannot solve names the hero field that made it", () => {
-    expect(() => planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', gesture: { pelvis: 25 } }) })))
+    expect(() => planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', gesture: { pelvis: 25 }, core: 'streamlined' }) })))
       .toThrow(/the stand \(hero\.gesture \{"pelvis":25\}\): station-loft-rig: leg R cannot reach its planted toe .* — set \/hero\/gesture to another stand/);
   });
   it('every preset on both casts: solvable through the rig gates, planted toes held, the free sole on the floor', () => {
     for (const [cast, ctx] of Object.entries(casts)) for (const word of Object.keys(GESTURE_PRESETS)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', gesture: word }) });
       expect(() => planLayered(m), `${cast} ${word}`).not.toThrow();   // layeredClip + auditRig (planted drift 0) over every clip
-      const pose = standPose(m.recipe, ctx.R); expect(pose.support).toBe(GESTURE_PRESETS[word][cast].support);
+      const pose = standPose(m.recipe, ctx.R); expect(pose.support).toBe(resolveGesture(word, cast, { core: 'structured' }).support);
       const P = poseLayered(ctx.mesh, ctx.m.recipe, pose, ctx);
       for (const S of ['L', 'R']) expect(Math.abs(soleOf(ctx.mesh, P.mesh.vertices, S) - soleOf(ctx.mesh, ctx.mesh.vertices, S)), `${cast} ${word} ${S}`).toBeLessThan(1e-3);
     }
   });
   it('relaxed: no hand or forearm point inside the torso or the thighs; the placed hands within a few millimetres', () => {
     for (const [cast, ctx] of Object.entries(casts)) {
-      const at = (word) => gestureClearance(ctx.mesh, poseLayered(ctx.mesh, ctx.m.recipe, resolveGesture(word, cast), ctx).mesh.vertices);
+      const at = (word) => gestureClearance(ctx.mesh, poseLayered(ctx.mesh, ctx.m.recipe, resolveGesture(word, cast, { core: 'structured' }), ctx).mesh.vertices);
       expect(at('relaxed'), cast).toEqual({ pairs: {}, worstMm: 0 });
       for (const word of ['hand-on-hip', 'guard']) expect(at(word).worstMm, `${cast} ${word}`).toBeLessThan(5);
     }
-    // the measure itself: a forearm swung into the thigh is caught and named
+    // the measure itself: a forearm swung into the thigh is caught and named (yaw 30: the female's thigh top sits forward
+    // under her deeper seat, hero-form.js SEAT_THIGH, so 25 grazed it by 3 mm)
     const { female: f } = casts;
-    const into = gestureClearance(f.mesh, poseLayered(f.mesh, f.m.recipe, { ...resolveGesture('relaxed', 'female'), shR: { yaw: 25, pitch: 0, roll: 0 }, elbowR: 0 }, f).mesh.vertices);
+    const into = gestureClearance(f.mesh, poseLayered(f.mesh, f.m.recipe, { ...resolveGesture('relaxed', 'female', { core: 'structured' }), shR: { yaw: 30, pitch: 0, roll: 0 }, elbowR: 0 }, f).mesh.vertices);
     expect(into.worstMm).toBeGreaterThan(5); expect(Object.keys(into.pairs).some((k) => /^(hand|foreArm)R→(thighR|torso)$/.test(k))).toBe(true);
   });
   it('guard: the rear knee over its hip-to-foot line from the front (not knock-kneed, not bowed); the fists apart, one each side of the chin', () => {
     for (const [cast, ctx] of Object.entries(casts)) {
-      const n = rigNodesAt(ctx.R, resolveGesture('guard', cast)).nodes;
+      const n = rigNodesAt(ctx.R, resolveGesture('guard', cast, { core: 'structured' })).nodes;
       // the knee's offset from the hip → ankle line in the frontal (x, z) plane, + = outward (the right leg's +x)
       const out = (S) => { const [hp, k, a] = [n[`hip${S}`], n[`knee${S}`], n[`ankle${S}`]]; return (k[0] - (hp[0] + (a[0] - hp[0]) * (k[2] - hp[2]) / (a[2] - hp[2]))) * (S === 'R' ? 1 : -1); };
-      expect(out('R'), `${cast} rear knee`).toBeGreaterThanOrEqual(0); expect(out('R'), `${cast} rear knee`).toBeLessThan(0.03); expect(Math.abs(out('L')), `${cast} lead knee`).toBeLessThan(0.03);
+      expect(out('R'), `${cast} rear knee`).toBeGreaterThanOrEqual(-1e-9); expect(out('R'), `${cast} rear knee`).toBeLessThan(0.03); expect(Math.abs(out('L')), `${cast} lead knee`).toBeLessThan(0.03);
       const cx = n.headBase[0];
       expect(n.knucklesL[0], `${cast} lead fist`).toBeLessThan(cx - 0.05); expect(n.knucklesR[0], `${cast} rear fist`).toBeGreaterThan(cx + 0.05);
       expect(n.knucklesL[1], `${cast} lead fist forward`).toBeGreaterThan(n.knucklesR[1] + 0.1);
@@ -133,7 +136,7 @@ describe('the presets on the anime hero', () => {
   it('relaxed on every cast word: clear of the body and standing on the floor', () => {
     for (const cast of CAST_PRESET_NAMES) {
       const ctx = hero({ cast, head: 'anime' }); const pose = standPose(ctx.m.recipe, ctx.R);
-      expect(ctx.m.recipe.clips.gesture).toEqual([GESTURE_PRESETS.relaxed[cast]]);
+      expect(ctx.m.recipe.clips.gesture).toEqual([resolveGesture('relaxed', cast, { core: 'structured' })]);
       const P = poseLayered(ctx.mesh, ctx.m.recipe, pose, ctx);
       expect(gestureClearance(ctx.mesh, P.mesh.vertices), cast).toEqual({ pairs: {}, worstMm: 0 });
       expect(Math.abs(soleOf(ctx.mesh, P.mesh.vertices, 'R') - soleOf(ctx.mesh, ctx.mesh.vertices, 'R')), cast).toBeLessThan(1e-3);
@@ -158,6 +161,9 @@ describe('the presets on the anime hero', () => {
 const SH = { yaw: -45, pitch: 90, roll: 90 };   // the form's wave: the upper arm at shoulder height, the forearm up
 const FORM_WAVE = [{ elbowL: 'slight', elbowR: 'slight' }, { elbowL: 'slight', elbowR: 100, shR: SH, head: { x: 0.1, y: 0.95, z: 0.3 } },
   { elbowL: 'slight', elbowR: 78, shR: SH }, { elbowL: 'slight', elbowR: 118, shR: SH }];
+// on the structured core (the default) the hand has digits, so every raised key opens it and turns the palm to the front
+// (hero-form.js withWaveHand); the streamlined core's wave is the form's byte for byte
+const FORM_WAVE_HAND = withWaveHand(FORM_WAVE, WAVE_TWIST.form), ANIME_WAVE_HAND = withWaveHand(ANIME_WAVE, WAVE_TWIST.anime);
 describe('the anime wave', () => {
   const casts = { female: hero({ cast: 'female', head: 'anime' }), male: hero({ cast: 'male', head: 'anime' }) };
   const heroProps = { ...casts, 'female, hero proportions': hero({ cast: 'female', head: 'anime', proportions: 'hero' }) };
@@ -176,11 +182,13 @@ describe('the anime wave', () => {
   };
 
   it("the anime head waves its own way; every other head keeps the form's wave, byte for byte", () => {
-    for (const { m } of Object.values(heroProps)) expect(m.recipe.clips.wave).toEqual(ANIME_WAVE);
+    for (const { m } of Object.values(heroProps)) expect(m.recipe.clips.wave).toEqual(ANIME_WAVE_HAND);
     expect(ANIME_WAVE.map((k) => k.elbowR)).toEqual(['slight', 120, 85, 120, 85, 120]);   // rest, in, out, in, out, in
-    expect(JSON.stringify(heroPlan({ cast: 'male' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE));
+    expect(JSON.stringify(heroPlan({ cast: 'male' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE_HAND));
+    expect(JSON.stringify(heroPlan({ cast: 'male', core: 'streamlined' }).clips.wave)).toBe(JSON.stringify(FORM_WAVE));
+    expect(heroPlanOf(heroRecord({ cast: 'female', head: 'anime', core: 'streamlined' })).clips.wave).toEqual(ANIME_WAVE);
     for (const spec of [{ cast: 'male' }, { cast: 'female', hair: 'bob' }, { cast: 'female', proportions: 'anime' }, { cast: 'male', head: 'none' }, { cast: 'heroic', head: 'none' }])
-      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE));
+      expect(JSON.stringify(heroPlanOf(heroRecord(spec)).clips.wave), JSON.stringify(spec)).toBe(JSON.stringify(FORM_WAVE_HAND));
     // the plan gets its own copy: a plan edited downstream never reaches the table
     const p = humanoidPlan({ preset: 'female', head: 'anime', hair: 'none' }); p.clips.wave[1].elbowR = 0; expect(ANIME_WAVE[1].elbowR).toBe(120);
   });
@@ -234,18 +242,43 @@ describe('the anime wave', () => {
 // Re-pinned for the hero's `wave` clip (hero-form.js): the upper arm level and the forearm up, the elbow never over
 // the head. Every hero plan carries the clip, so the plan, the recipe and the pages move with it and with nothing else
 // (with the old wave restored these pins pass unchanged).
+// re-pinned for the STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs): the records
+// are unchanged (the core is stored only when given), and each hero at core: 'streamlined' gives the plan and recipe
+// before it, byte for byte (the last pair). Re-pinned for the structured TORSO and BUST (hero-form.js TORSO_FORM,
+// BUST_FORM: shaping rings at fractional u, the female's bust in the chest rings with its bones): the streamlined pair unchanged.
+// Re-pinned for the bare body (hero-form.js DENSE_TRUNK, TORSO_SCULPT, PELVIS_SCULPT, CHEST_FORM: the round register's
+// torso and pelvis on ring12 addressed on ring8's scale, the anatomy pushed into them, the pectorals and breasts their own
+// layers; humanoid-plan: the structured hem without the shirt's overlap): the streamlined pair unchanged. Re-pinned for the
+// pectorals meeting as one domed chest and the breast sampled from its field (breast-field.js, ring20), then for the
+// female's breasts closer together, pointing forward, rising out of her upper chest's fill, then for the pair meeting in
+// the cleft's valley (breast-field.js `cleft`) with the décolletage unfilled and her upper pole a longer ramp, then for
+// the neck rising out of the chest, the trapezius sloping, the deltoid's dome (hero-form.js NECK_ROOT; every structured
+// hero), then for the deltoid's belly down the arm, the landmark head's nape loft and the pectoral's top along the
+// clavicle, then for the seat (the female's deeper with a cleft under a curved lower back, the male's square; hero-form.js
+// PELVIS_SCULPT) and the structured speedo and thong, then for the female's seat full low (its fold) and the thong's
+// string cut out of the faces (no ring band: seat-panels.js THONG), then for the hand (hero-hand.js: a palm and five
+// digits, the rig's `hands`, fifteen finger bones a hand, the wave's open palm), then for the forearm tapering into the
+// hand at a rounded wrist, then for the arm's muscles (the triceps and biceps rings, the elbow, the forearm slimming
+// to the wrist), then for the legs' (the quadriceps, hamstrings and the ring above the knee, the calf, the slim ankle):
+// the streamlined pair unchanged; then for the landmark head's forehead (humanoid-head-fit.js: upright, the brow's end on
+// its own landmark), which moved both pairs of every landmark-headed hero, the streamlined ones too (the head is the
+// cores' own), and left the head-none pair as it was; then for the ear (head-ear.js: the side shape, a thin plate with the
+// rim, the antihelix and the bowl), the same heroes again; then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis): the rig rides in every jawed
+// (landmark-headed) recipe, so the same heroes again, the head-none pair as it was; then for
+// the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): every capped hero again, head-none as it was
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', '3c7bbf346eaac7ec', 'bea115d3e2080dac']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '19bd030cf5c6b514', '0491e3116c5d971b']],
-  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '406acf0f4215b0e5', '4124db4ac9b3b4a1']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '73b7f4b40fcd97f1', '1f5bb5d11318a03f']],
+  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'b3e1c7b0052b55ff', '3ee7561b2c4b24c5'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', 'c9f4e1f2263d820f', '23b931319d454cf7'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '5c17fc992bb86cd1', 'd5d63ac50bb70cbb'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '00eeb3f6d0d7db56', '330b1608b885c0f0'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '24cfdb36c59d2dd9', '5db4bdfa4599a290'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 describe('the door: no gesture ⇒ byte-identical', () => {
-  for (const [name, [spec, [record, plan, recipe]]] of Object.entries(PINS)) {
-    it(`${name}: record, plan, recipe`, () => {
+  for (const [name, [spec, [record, plan, recipe], [oldPlan, oldRecipe]]] of Object.entries(PINS)) {
+    it(`${name}: record, plan, recipe; the streamlined core's as before it`, () => {
       const hr = heroRecord(spec); const p = heroPlanOf(hr);
       expect(hr.gesture).toBeUndefined(); expect(h(hr)).toBe(record); expect(h(p)).toBe(plan); expect(h(expandPlan(p))).toBe(recipe);
+      const old = heroPlanOf(heroRecord({ ...spec, core: 'streamlined' })); expect(h(old)).toBe(oldPlan); expect(h(expandPlan(old))).toBe(oldRecipe);
     });
   }
   it("the anime hero at gesture: 'rest' keeps its plan and recipe", () => {
@@ -255,26 +288,34 @@ describe('the door: no gesture ⇒ byte-identical', () => {
     // neck form (hero-form.js ANIME_NECK_FORMS: the neck a ring loft): the humanoid starter with the segment neck in its
     // place gives d56790646999f85a / efd7142540e4b892, the values before it, still. Re-pinned for the female HAIR BASE
     // (anime-head ANIME_HAIR_BASE, applied by the door: the lifted, thicker ridge-section form and the side-parted cut)
-    // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives 20603e67ecc8120a /
-    // c6c06fb062f633e5, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
+    // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives 99901cc75bc4b118 /
+    // 5324bb28a14e1beb, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
     // ANIME_HERO_PALETTE, so her shade side parts from the World's backdrop): with #3b4859 passed as the operator's palette
-    // the door gives 981042f892f927a8 / fb4ca6e99c355c48, the values before it, still. Re-pinned for the ANIME WAVE
+    // the door gives d62dc077b37bcc0b / db43f836a119990e, the values before it, still. Re-pinned for the ANIME WAVE
     // (hero-form.js ANIME_WAVE, put over the form's `wave` by the humanoid starter under the anime head): each plan with
     // the form's wave back in its place gives the values before it, still
     const formWave = (x) => ({ ...x, clips: { ...x.clips, wave: FORM_WAVE } });
-    const hr = heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false }); const p = heroPlanOf(hr);
-    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('a526850c37befbbf'); expect(h(expandPlan(p))).toBe('13de9d6c2ce14d7d');
-    expect(h(formWave(p))).toBe('d5c955f2008e39c1'); expect(h(expandPlan(formWave(p)))).toBe('86ed5d6451d0e21b');
-    const was = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, palette: { Hair: '#3b4859' } }));
-    expect(h(formWave(was))).toBe('981042f892f927a8'); expect(h(expandPlan(formWave(was)))).toBe('fb4ca6e99c355c48');
+    // (on the streamlined core: this pins the stand's absence, and the chain above predates the structured core)
+    const hr = heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' }); const p = heroPlanOf(hr);
+    // re-pinned for the anime head's sideburn patches before the ears; the plans re-pinned for the face zones in the
+    // include's coverage ledger (hairCoverage.face, a readout: without it the hash in each comment; the expanded plans,
+    // the geometry, unchanged)
+    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('f7647ea5154b4342');   // 6c2aa5de57be0ba4
+    expect(h(expandPlan(p))).toBe('ba2e23db4967a273');
+    expect(h(formWave(p))).toBe('9f8ce30aba3ba23b');   // 802fd641d842ddbc
+    expect(h(expandPlan(formWave(p)))).toBe('52dd5f4339a07eec');
+    const was = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, palette: { Hair: '#3b4859' }, core: 'streamlined' }));
+    expect(h(formWave(was))).toBe('f9a42b22dfc18797');   // d62dc077b37bcc0b
+    expect(h(expandPlan(formWave(was)))).toBe('db43f836a119990e');
     const eff = composeAnime(hr, 'bob');
-    const before = humanoidPlan({ preset: 'female', register: hr.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' } });
-    expect(h(formWave(before))).toBe('20603e67ecc8120a'); expect(h(expandPlan(formWave(before)))).toBe('c6c06fb062f633e5');
+    const before = humanoidPlan({ preset: 'female', register: hr.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' }, core: 'streamlined' });
+    expect(h(formWave(before))).toBe('73cf9822ce4c750b');   // 99901cc75bc4b118
+    expect(h(expandPlan(formWave(before)))).toBe('5324bb28a14e1beb');
   });
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
-    expect(hr.gesture).toBe('guard'); expect(Object.keys(p.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(p.clips.gesture).toEqual([GESTURE_PRESETS.guard.male]);
-    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe('3c7bbf346eaac7ec');   // nothing else moved
+    expect(hr.gesture).toBe('guard'); expect(Object.keys(p.clips)).toEqual(['gesture', 'idle', 'walk', 'wave']); expect(p.clips.gesture).toEqual([resolveGesture('guard', 'male', { core: 'structured' })]);
+    const { gesture: _g, ...others } = p.clips; expect(h({ ...p, clips: others })).toBe(PINS.landmarkMale[1][1]);   // nothing else moved
   });
 });
 
@@ -282,14 +323,15 @@ describe('the door: no gesture ⇒ byte-identical', () => {
 // word), stored as given and sparse, merged over the hero's own when the plan is generated, named by the rig gates when a
 // key cannot be solved, and read out. The fast hero (the male form, blank head, low poly) carries the rig tests.
 describe('the door clips', () => {
-  const FAST = { cast: 'male', head: 'none', register: 'lowpoly' };
+  // the gate's naming is pinned on the streamlined core, where these keys are out of reach (the structured core's legs reach them)
+  const FAST = { cast: 'male', head: 'none', register: 'lowpoly', core: 'streamlined' };
   const K = { armR: ['forward', 'up'], elbowR: 'half', head: { x: 0.1, y: 0.95, z: 0.3 } };
   const planned = (spec) => { const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }); return { m, ...planLayered(m) }; };
 
   it('the words: the stand\'s and the clip words, every number range-checked; a word the rig does not know refused by clip, key and word', () => {
     expect(validateHeroClips({ greet: [{}, K] })).toEqual([]);
     for (const none of [undefined, null, {}]) expect(validateHeroClips(none)).toEqual([]);
-    expect(validateHeroClips({ greet: [{ wristR: { flex: 30 } }] })).toEqual([expect.stringMatching(/^clips\.greet\[0\]\.wristR: the hand is rigid on the forearm \(no wrist\), so the clip refuses it \(have .*heelL, heelR, lift, jaw\)$/)]);
+    expect(validateHeroClips({ greet: [{ wristR: { flex: 30 } }] })).toEqual([expect.stringMatching(/^clips\.greet\[0\]\.wristR: the streamlined hand is rigid on the forearm \(no wrist; the structured core's has one\), so the clip refuses it \(have .*heelL, heelR, lift, jaw\)$/)]);
     expect(validateHeroClips({ greet: [{ dance: 1 }] })[0]).toMatch(/clips\.greet\[0\]\.dance: not a clip word/);
     expect(validateHeroClips({ greet: [{}, { elbowR: 'kinked' }] })[0]).toMatch(/^clips\.greet\[1\]\.elbowR: a bend word/);
     for (const v of [[{}], false]) expect(validateHeroClips({ gesture: v })).toEqual([expect.stringMatching(/^clips\.gesture: the stand's clip — set \/hero\/gesture/)]);
@@ -313,16 +355,17 @@ describe('the door clips', () => {
     expect(validateHeroClips({ tiptoe: [{ heelL: 30, heelR: -20 }] })).toEqual([]);
     expect(validateHeroClips({ tiptoe: [{ heelR: 120 }] })[0]).toMatch(/heelR: degrees the metatarsus turns about the toe base, within ±90/);
     expect(validateHeroClips({ look: [{ head: { x: 0, y: 1, z: 0.2 } }, { head: 'up' }, { neck: { yaw: 20 } }, { head: ['forward', 'down'] }] })).toEqual([]);
-    expect(validateHeroClips({ look: [{ head: 'sideways' }] })[0]).toMatch(/head: \{ yaw, pitch \} in degrees, each within ±90, or a direction to aim/);
-    expect(validateHeroClips({ look: [{ head: { roll: 5 } }] })[0]).toMatch(/head: \{ yaw, pitch \} in degrees \(no roll\), each within ±90, or a direction to aim/);
-    expect(validateHeroClips({ look: [{ neck: { yaw: 120 } }] })[0]).toMatch(/neck: \{ yaw, pitch \} in degrees, each within ±90, or a direction to aim/);
+    expect(validateHeroClips({ look: [{ head: 'sideways' }] })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees, each within ±90, or a direction to aim/);
+    expect(validateHeroClips({ look: [{ head: { roll: 5 } }] })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees \(no roll; turn is the axial one\), each within ±90, or a direction to aim/);
+    expect(validateHeroClips({ look: [{ neck: { yaw: 120 } }] })[0]).toMatch(/neck: \{ yaw, pitch, turn \} in degrees, each within ±90, or a direction to aim/);
     // the stand keeps its own words: no lift, no aimed head
     expect(validateGesture({ lift: 0.2 })[0]).toMatch(/gesture\.lift: a gesture stands on the floor, so the gesture refuses it/);
-    expect(validateGesture({ head: { x: 0, y: 1, z: 0 } })[0]).toMatch(/head: \{ yaw, pitch \} in degrees, each within ±90$/);
-    // every key of the hero's own clips is in the clip words (the landmark head's idle opens the jaw, its wave aims the head)
-    for (const [spec, jaw] of [[{ cast: 'male' }, true], [{ cast: 'female', head: 'anime' }, false], [{ cast: 'female', head: 'none' }, false]]) {
+    expect(validateGesture({ head: { x: 0, y: 1, z: 0 } })[0]).toMatch(/head: \{ yaw, pitch, turn \} in degrees, each within ±90$/);
+    // every key of the hero's own clips is in the clip words (the landmark head's idle opens the jaw, its wave aims the head;
+    // on the structured core the wave opens the hand, a hand word)
+    for (const [spec, jaw] of [[{ cast: 'male' }, true], [{ cast: 'female', head: 'anime' }, false], [{ cast: 'female', head: 'none' }, false], [{ cast: 'male', core: 'streamlined' }, true]]) {
       const { [GESTURE_CLIP]: _stand, ...own } = heroPlanOf(heroRecord(spec)).clips;
-      expect(Object.keys(own)).toEqual(['idle', 'walk', 'wave']); expect(validateHeroClips(own, { jaw }), JSON.stringify(spec)).toEqual([]);
+      expect(Object.keys(own)).toEqual(['idle', 'walk', 'wave']); expect(validateHeroClips(own, { jaw, hands: spec.core !== 'streamlined' }), JSON.stringify(spec)).toEqual([]);
     }
   });
   it('merged over the hero\'s own: a name it has replaced in place, a new one after, false removing one; stored as given', () => {
@@ -423,7 +466,7 @@ describe('the door clips on the anime head: facial tracks and designed durations
     expect(F.idle).toEqual([null, null, null, null]); expect(F.gesture).toEqual([null]);
   });
   it("the rig gates name a { seconds, keys } clip's key by its path", () => {
-    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', register: 'lowpoly', clips: { lunge: { seconds: 2, keys: [{}, { pelvis: 25 }] } } }) });
+    const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', head: 'anime', register: 'lowpoly', core: 'streamlined', clips: { lunge: { seconds: 2, keys: [{}, { pelvis: 25 }] } } }) });
     expect(() => planLayered(m)).toThrow(/layered rig: the clip 'lunge' \(hero\.clips\.lunge\.keys\[1\]\): station-loft-rig: leg R cannot reach its planted toe .* — lower the crouch or change heelR in that key — set \/hero\/clips\/lunge/);
   });
 });

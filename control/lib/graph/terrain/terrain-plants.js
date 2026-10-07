@@ -25,7 +25,7 @@ export const LAPSE = 6.5;
 export const TREELINE_T = 6.7;
 /** A crown's diameter over the plant's height (a clump's, for Bambusa), for spacing a stand so its crowns cover what the
  *  painter shows. */
-const CROWN = { oak: 0.6, beech: 0.55, fir: 0.4, schefflera: 1.1, banyan: 1.6, strangler: 0.7, rubberfig: 0.9, coconut: 0.5, date: 0.55, washingtonia: 0.3, treefern: 0.8, moso: 0.25, vulgaris: 1.1, reed: 0.3, spruce: 0.25, silverfir: 0.32, pine: 0.4 };
+const CROWN = { cherry: 1.0, oak: 0.6, beech: 0.55, fir: 0.4, schefflera: 1.1, banyan: 1.6, strangler: 0.7, rubberfig: 0.9, coconut: 0.5, date: 0.55, washingtonia: 0.3, treefern: 0.8, moso: 0.25, vulgaris: 1.1, reed: 0.3, spruce: 0.25, silverfir: 0.32, pine: 0.4 };
 /** Culms per square metre of a running bamboo's grove: Moso managed for timber, about 1,500 a hectare (Moso stands run
  *  1,200–11,000; a world's groves are drawn at the managed end). */
 const GROVE = { moso: 0.15 };
@@ -114,7 +114,7 @@ export const FIG_ROWS = Object.freeze([
 
 export const TERRAIN_PLANT_DEFAULTS = Object.freeze({ radius: 1200, level: 'L2', variants: 2 });
 
-/** `plants` on a terrain manifest: true, or { radius?, level?, variants?, figs?, region? }. → error strings. */
+/** `plants` on a terrain manifest: true, or { radius?, level?, variants?, figs?, region?, kinds? }. → error strings. */
 export function validateTerrainPlants(plants, manifest = {}) {
   if (plants === undefined || plants === null || plants === false) return [];
   const e = [];
@@ -127,6 +127,10 @@ export function validateTerrainPlants(plants, manifest = {}) {
   if (plants.variants !== undefined && !(Number.isInteger(plants.variants) && plants.variants >= 1 && plants.variants <= 4)) e.push('terrain.plants.variants must be an integer 1–4 (grown variants per species)');
   if (plants.level !== undefined && !['L0', 'L1', 'L2'].includes(plants.level)) e.push('terrain.plants.level must be L0, L1 or L2 (the most detail a template carries)');
   if (plants.figs !== undefined && typeof plants.figs !== 'boolean') e.push('terrain.plants.figs must be true or false (a tropical world\'s lowland forest also grows banyans, stranglers and rubber figs)');
+  if (plants.kinds !== undefined) {
+    const ids = Object.keys(SPECIES).filter((k) => CROWN[k] !== undefined && SPECIES[k].kind !== 'tuft');
+    if (!Array.isArray(plants.kinds) || !plants.kinds.length || plants.kinds.some((k) => !ids.includes(k))) e.push(`terrain.plants.kinds must be a list of species: ${ids.join(', ')} (they replace the climate's trees: a cherry grove, a pine wood)`);
+  }
   if (plants.region !== undefined && !PLANT_REGIONS[plants.region]) e.push(`terrain.plants.region must be one of ${Object.keys(PLANT_REGIONS).join(', ')} (whose conifers the climate grows; absent, the climate's own)`);
   return e;
 }
@@ -139,12 +143,14 @@ export function resolveTerrainPlants(plants) {
 
 /**
  * The plant kernel's inputs for a composed world's field: V (vegetation-kernel.js). Species are the climate's, in row
- * order (a `region`'s rows for the climate, when it names them); the canopy layer's cell is sized to the smallest crown
+ * order (a `region`'s rows for the climate, when it names them; `kinds` in place of its trees); the canopy layer's cell is sized to the smallest crown
  * among them (bigger crowns keep fewer cells).
  */
-export function plantsConfig(field, { seed = 'plants', figs = false, region = null } = {}) {
+export function plantsConfig(field, { seed = 'plants', figs = false, region = null, kinds = null } = {}) {
   const K = field.K, climate = field.atlas && field.atlas.climate ? field.atlas.climate : field.climate || 'temperate';
-  const C0 = (region && PLANT_REGIONS[region] && PLANT_REGIONS[region][climate]) || PLANT_CLIMATES[climate] || PLANT_CLIMATES.temperate;
+  const Cc = (region && PLANT_REGIONS[region] && PLANT_REGIONS[region][climate]) || PLANT_CLIMATES[climate] || PLANT_CLIMATES.temperate;
+  // `kinds` replaces the climate's trees, everywhere the climate grows trees; its shore (the reeds) stays
+  const C0 = kinds ? { ...Cc, rows: [...kinds.map((species) => ({ species, zone: 'land', w: 1 })), ...Cc.rows.filter((r) => r.zone === 'shore')] } : Cc;
   // figs join a tropical climate's rows right after its umbrella trees; any other climate is unchanged
   const C = figs && climate === 'tropical' ? { ...C0, rows: C0.rows.flatMap((r) => (r.species === 'schefflera' ? [r, ...FIG_ROWS] : [r])) } : C0;
   const names = [...new Set(C.rows.map((r) => r.species))];
@@ -173,7 +179,7 @@ export function plantsKernel(field, V = plantsConfig(field)) { return vegetation
 
 /** Each species' pool, grown in the world's light: { [species index]: pool }. */
 export function plantPools(V, spec, light) {
-  return V.species.map((sp) => plantPool({ species: sp.name, variants: spec.variants, seed: `terrain::${sp.name}`, light, maxLevel: spec.level }));
+  return V.species.map((sp) => plantPool({ species: sp.name, variants: spec.variants, seed: `terrain::${sp.name}`, light, maxLevel: spec.level, discs: true }));
 }
 
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
@@ -239,11 +245,27 @@ export function plantsPageChannel(V, pools, spec) {
       // a tuft has one level of its own (L0, and above it the same), and a far level like any plant
       const t = { LF: add(farTemplate(facesAt(v, 'L0'))) };
       if (pool.kind === 'tuft') { const id = add(facesAt(v, 'L0')); for (const l of levels) t[l] = id; } else for (const l of levels) t[l] = add(facesAt(v, l));
-      return { h: v.height, ...(v.wax ? { wax: 1 } : {}), ...(v.lean ? { lean: v.lean, az: v.az } : {}), t };
+      // a tree in bloom: at L1 and L2 its bare wood, and its flowers drawn as discs (a species not in bloom carries neither)
+      const fl = v.bloom && levels.includes('L1') ? (levels.includes('L2') && (t.B2 = add(v.bare.L2)), t.B1 = add(v.bare.L1), packFlowers(v.bloom)) : null;
+      return { h: v.height, ...(v.wax ? { wax: 1 } : {}), ...(v.lean ? { lean: v.lean, az: v.az } : {}), t, ...(fl ? { fl } : {}) };
     });
-    return { name: V.species[si].name, kind: pool.kind, variants, ...(pool.kind === 'culm' ? { tint: [...Array(10)].map((_, a) => ageTint(SPECIES[V.species[si].name].bamboo, a)) } : {}) };
+    // a species grown at several ages picks its variant by the plant's height in its range (byH, rank: shortest first)
+    const SG = SPECIES[V.species[si].name], byH = SG && SG.growth ? { byH: SG.heights.slice(), rank: pool.variants.map((v, k) => [v.grownHeight, k]).sort((a, b) => a[0] - b[0]).map((x) => x[1]) } : {};
+    return { name: V.species[si].name, kind: pool.kind, variants, ...byH, ...(pool.kind === 'culm' ? { tint: [...Array(10)].map((_, a) => ageTint(SPECIES[V.species[si].name].bamboo, a)) } : {}) };
   });
-  return { kernel: vegetationKernel.toString(), V, species, templates, textures, levels, radius: spec.radius, tile: 64, px: { L2: 110, L1: 40, L0: 14 }, cap: 60000, drawTris: 2.5e6, budgetMs: 4 };
+  const discs = species.some((sp) => sp.variants.some((v) => v.fl)) ? { discs: 1.2e6 } : {};
+  return { kernel: vegetationKernel.toString(), V, species, templates, textures, levels, radius: spec.radius, tile: 64, px: { L2: 110, L1: 40, L0: 14 }, cap: 60000, drawTris: 2.5e6, budgetMs: 4, ...discs };
+}
+/**
+ * A variant's flowers for the page (pool.js `bloom`: 7 a flower): centres as Int16 over their box, sizes as bytes of
+ * the largest, colours as sRGB bytes. → { n, lo, sc, q, s, smax, c }.
+ */
+function packFlowers(F) {
+  const n = F.length / 7, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; let smax = 0;
+  for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) { const v = F[7 * i + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; } smax = Math.max(smax, F[7 * i + 3]); }
+  const sc = hi.map((h, k) => Math.max(1e-9, (h - lo[k]) / 65535)), q = new Int16Array(3 * n), sz = new Uint8Array(n), c = new Uint8Array(3 * n);
+  for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) { q[3 * i + k] = Math.round((F[7 * i + k] - lo[k]) / sc[k]) - 32768; c[3 * i + k] = F[7 * i + 4 + k]; } sz[i] = Math.round((255 * F[7 * i + 3]) / smax); }
+  return { n, lo, sc, q: b64(q), s: b64(sz), smax, c: b64(c) };
 }
 
 /** The plants within `radius` of a point, as pool items per species (what the exports stand around the spawn). */

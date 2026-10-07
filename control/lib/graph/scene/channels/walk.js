@@ -8,6 +8,7 @@ import { safeJson } from '../emit-util.js';
 // PointerLockControls addon is y-up, so we drive yaw (about world +Z) and pitch by hand instead.
 // `cfg`: { speed, spawn:[x,y,z] }. `center`: scene centroid (spawn faces it on entry).
 export function walkModeScript(cfg, center) {
+  const climbs = Array.isArray(cfg.climbs) && cfg.climbs.length > 0;
   return `
 // --- first-person traversal (z-up): WALK (gravity + wall collision) and FLY (free 6DOF) ---
 // Two grounded-vs-free modes sharing one pointer-lock look. WALK raycasts the real geometry
@@ -47,7 +48,43 @@ const walkColliders = solids.concat(xrayGroups.map((g) => g.fill));
 const walkDown = new THREE.Raycaster(), walkAhead = new THREE.Raycaster();
 const flyBtn = document.createElement('button'); flyBtn.textContent = 'fly';
 const walkBtn = document.createElement('button'); walkBtn.textContent = 'walk';
-function walkLookDir(){
+${climbs ? `// CLIMB (opt-in WALK.climbs): a climbable face is a lip (\`top\`), the way into the face (\`N\`), a foot
+// height (\`base\`), a width and a speed. Standing at its foot, facing it, W climbs and S comes down; at the lip
+// the climber steps over onto what is behind it; from up there, walking out over the lip takes the climb down.
+const CLIMBS = WALK.climbs;
+let walkClimb = null;
+function climbHere(px, py, feet){
+  for (const c of CLIMBS){
+    const dx = px - c.top[0], dy = py - c.top[1], into = dx * c.N[0] + dy * c.N[1], side = -dx * c.N[1] + dy * c.N[0];
+    if (Math.abs(side) <= c.width / 2 && into >= -0.9 && into <= 0.35 && feet >= c.base[2] - 0.3 && feet <= c.top[2] + 0.1) return c;
+  }
+  return null;
+}
+function stepClimb(dt){
+  const feet = camera.position.z - walkEye, c = climbHere(camera.position.x, camera.position.y, feet);
+  if (!c) { walkClimb = null; return false; }
+  const facing = Math.cos(walkYaw) * c.N[0] + Math.sin(walkYaw) * c.N[1], w = walkKeys.has('KeyW'), s = walkKeys.has('KeyS');
+  // on the face: W climbs the way you face it (up facing in, down facing out), S the other way; no key, you hang
+  // off it: at the foot facing in, or at the lip facing out, a W takes hold
+  if (walkClimb !== c) {
+    const grabUp = w && facing > 0.3 && feet < c.top[2] - 0.2, grabDown = w && facing < -0.3 && feet > c.top[2] - 0.3;
+    if (!grabUp && !grabDown) return false;
+    walkClimb = c;
+  }
+  const dir = (w ? 1 : s ? -1 : 0) * (facing >= 0 ? 1 : -1);
+  camera.position.z += dir * c.speed * dt; walkVZ = 0; walkGround = true;
+  const dx = camera.position.x - c.top[0], dy = camera.position.y - c.top[1], side = -dx * c.N[1] + dy * c.N[0];
+  camera.position.x = c.top[0] - c.N[0] * 0.5 - c.N[1] * side; camera.position.y = c.top[1] - c.N[1] * 0.5 + c.N[0] * side;
+  const f2 = camera.position.z - walkEye;
+  if (f2 >= c.top[2]) {            // over the lip: step onto what is behind it
+    camera.position.set(c.top[0] + c.N[0] * 0.8, c.top[1] + c.N[1] * 0.8, c.top[2] + walkEye); walkClimb = null;
+  } else if (f2 <= c.base[2]) {    // down at the foot: let go
+    camera.position.z = c.base[2] + walkEye; walkClimb = null;
+  }
+  camera.lookAt(camera.position.clone().add(walkLookDir()));
+  return true;
+}
+` : ''}function walkLookDir(){
   return new THREE.Vector3(Math.cos(walkPitch) * Math.cos(walkYaw), Math.cos(walkPitch) * Math.sin(walkYaw), Math.sin(walkPitch));
 }
 // world z of the nearest solid surface straight below (x,y) from height zFrom, or null if nothing underfoot
@@ -144,7 +181,8 @@ stepWalk = (dt) => {
   // Strip last frame's head-bob first so physics + the floor-snap run on the CLEAN base eye — the bob
   // is a transient render offset, never fed back into the controller state (→ no drift / no creep).
   if (BOB) { camera.position.x -= bobPrev.x; camera.position.y -= bobPrev.y; camera.position.z -= bobPrev.z; }
-  const fwd = new THREE.Vector3(Math.cos(walkYaw), Math.sin(walkYaw), 0);
+${climbs ? `  if (stepClimb(dt)) { bobPrev = { x: 0, y: 0, z: 0 }; return; }
+` : ''}  const fwd = new THREE.Vector3(Math.cos(walkYaw), Math.sin(walkYaw), 0);
   const right = new THREE.Vector3(Math.sin(walkYaw), -Math.cos(walkYaw), 0);
   const v = new THREE.Vector3();
   if (walkKeys.has('KeyW')) v.add(fwd);

@@ -28,17 +28,20 @@ import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union
 import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
 import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
+import { measureScadMotion } from '@/lib/graph/scad/scad-render';
+import { strengthReading } from '@/lib/graph/strength/index';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export async function measureSolidHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('measure_solid requires { ref }');
-  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true } = input;
+  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false, strength: strengthInput = null } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) throw new Error('`scale` must be a positive number if provided');
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) throw new Error('`target_mm` must be a positive number if provided');
   if (volume !== true && volume !== false) throw new Error('`volume` must be a boolean if provided');
+  if (motionInput !== true && motionInput !== false) throw new Error('`motion` must be a boolean if provided');
   const printer = resolvePrinter(printerInput);
 
   const sketch = SketchRepository.getByRef(ref);
@@ -97,6 +100,25 @@ export async function measureSolidHandler(input) {
     assembly = 'overlapping closed parts: every part closed, joined by overlap and pins, not one welded solid (the print union is measured below)';
   }
 
+  // the motion leg (scad + mechanism): the cycle's numbers and a collision sweep across it, on request — the sweep
+  // renders an intersection per pair, so it is not paid on every measure
+  let motion;
+  if (motionInput) {
+    if (sketch.manifest.kind !== 'scad' || !sketch.manifest.mechanism) motion = { skipped: true, reason: 'motion measures a scad row with a `mechanism` (joints, couplings, a drive) — this row has none' };
+    else {
+      motion = await measureScadMotion(sketch.manifest);
+      const hits = (motion.collisions?.pairs || []).filter((p) => p.clear === false);
+      for (const h of hits) warnings = [...(warnings || []), `motion: '${h.a}' and '${h.b}' collide at ${h.steps_colliding} of ${h.of} steps, first at drive ${h.first_at}${motion.collisions.drive_unit}, worst ${h.worst.volume} ${units || 'units'}³ near [${(h.worst.at || []).join(', ')}]`];
+      if (motion.lock) warnings = [...(warnings || []), `motion: the mechanism locks at drive ${motion.lock.drive}${motion.lock.unit}`];
+      const dyn = motion.dynamics;
+      const eff = dyn?.effort || motion.effort;   // with dynamics, the effort that counts inertia, gravity and friction
+      if (eff?.margin && !eff.margin.ok) warnings = [...(warnings || []), `motion: the drive needs ${eff.margin.required} ${eff.unit} at its worst point (drive ${eff.at_drive}${eff.at_unit}${dyn?.startup ? ', start-up included' : ''}) and has ${eff.margin.rating}`];
+      for (const f of dyn?.flags || []) if (['motor', 'wear', 'creep', 'back-driving'].includes(f.kind) && f.ok !== true) warnings = [...(warnings || []), `motion: ${f.note}`];
+      const sw = dyn?.strength?.worst;
+      if (sw && !sw.verdict.startsWith('meets')) warnings = [...(warnings || []), `motion: ${dyn.strength.line}`];
+    }
+  }
+
   const closure = profile === 'study'
     ? { audited: false, reason: `'${resolvedKind}' is a surface study — open shells by construction` }
     : auditStlClosure(payload);
@@ -119,6 +141,10 @@ export async function measureSolidHandler(input) {
   const soup = printSoup(payload, { scale });
   const measure = soup ? measurePrintability({ positions: soup, printer }) : null;
   const advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm, printer, measure });
+  // the rigidity sensor: the material and the work the part has to do, read against the same mm soup. Passed in,
+  // or stored on the row as `strength` (update_sketch) so the reading reproduces. Absent → no key at all.
+  const strengthSpec = strengthInput ?? sketch.manifest.strength ?? null;
+  const strength = strengthSpec && soup ? strengthReading(soup, strengthSpec, { scale }) : null;
   const closureLine = closure.audited
     ? (closure.closed ? 'closed' : `${closure.holes} open rim${closure.holes === 1 ? '' : 's'}, widest ≈${closure.widest}${units ? ` ${units}` : ' world units'}`)
     : `not audited (${closure.reason})`;
@@ -133,6 +159,7 @@ export async function measureSolidHandler(input) {
     ...(clearance ? { clearance } : {}),
     ...(assembly ? { assembly } : {}),
     ...(strokes ? { strokes } : {}),
+    ...(motion ? { motion } : {}),
     scale,
     scale_note: scaleNote,
     bounds: { min: probe.bounds.min.map(r3), max: probe.bounds.max.map(r3), size: probe.bounds.size.map(r3) },
@@ -146,10 +173,12 @@ export async function measureSolidHandler(input) {
     print_measure: measure,
     print_advisories: advisories,
     ...(warnings && warnings.length ? { warnings } : {}),
+    ...(strength ? { strength } : {}),
     note: `${probe.bounds.size.map(r3).join(' × ')}${units ? ` ${units}` : ' world units'} → prints ${sizeMm.join(' × ')} mm at ×${r3(scale)} (${scaleNote}). Closure: ${closureLine}. `
       + (vol.applied ? `Volume ${vol.volume_mm3} mm³ (Manifold union of ${vol.unioned} shell${vol.unioned === 1 ? '' : 's'}, genus ${vol.genus}). ` : `Volume not measured: ${vol.reason}. `)
       + `${measureLine(measure)[0].toUpperCase()}${measureLine(measure).slice(1)}. `
       + (advisories.length ? `Print advisories (${advisories.length}): ${advisories.map((a) => `${a.kind} — ${a.detail}`).join('; ')}.` : 'Print advisories: none.')
+      + (strength ? ` Strength (a sensor, not a guarantee): ${strength.line}` : '')
       + ' Advisory throughout — export_model({ ref, format: \'stl\' }) ships the same numbers beside the file.',
   };
 }
@@ -170,6 +199,8 @@ export function registerMeasureSolidTool() {
         printer: { type: 'object', description: '{ process?: fdm|sla|sls|mjf, nozzle_mm?, min_wall_mm?, bed_mm? }.' },
         volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
         exposure: { type: 'boolean', description: 'layered: per-detail exposure ledger (default true).' },
+        motion: { type: 'boolean', description: 'scad mechanism: cycle numbers + collision sweep.' },
+        strength: { type: 'object', description: 'Rigidity sensor: { material, build?, checks:[{ element, … }] } → margin, confidence, weak spot. Defaults to the row\'s stored `strength`. get_solid_vocab scad.' },
       },
       required: ['ref'],
     },

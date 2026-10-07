@@ -11,6 +11,8 @@
  * is only legitimate when a step SAYS emission changes.
  */
 
+import { resolveAquaLook } from '../materials/aqua-look.js';
+import { normalizeShallows } from '../materials/shallows.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
 
 const quad = (fill = '#888888', extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
@@ -138,6 +140,12 @@ export const EMIT_FIXTURES = [
   ['comets', { faces: [quad('#111122')], comets: [{ path: [[4, 0, 0], [3, 2, 0], [0, 4, 0], [-3, 2, 0]], sun: [0, 0, 0] }] }],
   ['fields', { faces: [floor()], fields: [{ sets: [], readout: ['field', 'E = 0'] }] }],
   ['surfaces', { faces: [floor()], surfaces: [{ grid: { nx: 3, ny: 3, x0: 0, y0: 0, dx: 1, dy: 1, z: 0.2 }, waves: [{ amp: 0.2, len: 2, speed: 1, dir: [1, 0] }] }] }],
+  // aqua look: a liquid sheet beside a glass one (the glass keeps the plain pass), and an aqua-shaded ocean surface
+  ['liquid-sheet', { faces: [floor(), { ...floor('#336699'), water: true }, { ...floor('#2a5a70'), water: true, liquid: 'lake' }],
+    sky: { zenith: [40, 80, 140], horizon: [200, 160, 120], day: 1, stars: 0, seed: 3 } }],
+  ['aqua-surfaces', { faces: [floor()], surfaces: [{ grid: { nx: 3, ny: 3, w: 4, d: 4 }, amax: 0.2, deep: [0.04, 0.12, 0.26], surf: [0.1, 0.34, 0.52], crest: [0.86, 0.92, 0.96], sun: [6, -4, 9],
+    waves: [{ dx: 1, dy: 0, A: 0.2, k: 3.14, om: 2.6, ph: 0, Q: 0.6 }], aqua: resolveAquaLook('ocean', { bg: '#0a1a2e' }) }] }],
+  ['shallows', { faces: [floor()], walk: true, shallows: { bodies: normalizeShallows([{ kind: 'pool', at: [2, 2], size: [3, 2] }]), floaters: [{ at: [2, 2], shape: 'duck', r: 0.2 }], rain: 4 } }],
   ['heat-sphere', { faces: [floor()], heatSpheres: [{ radius: 1.2, center: [2, 2, 2], coeffs: [{ l: 1, m: 0, a: 0.5, k: 0.1 }] }] }],
   ['star-surface', { faces: [floor()], starSurfaces: [{ radius: 2, center: [2, 2, 3], Tbase: 5772, seed: 3 }] }],
   ['buildups', { faces: [quad()], buildups: [{ positions: [0, 0, 0, 1, 0, 0, 1, 1, 0], rate: 40 }] }],
@@ -252,6 +260,12 @@ export const EMIT_FIXTURES = [
     { verb: 'sparkle', cc: [0, 0, 0], color: [1, 0.95, 0.7], rate: 1, size: 0.6 },
     { verb: 'ward', cc: [3, 0, 0], color: [1, 0.5, 0.2], rate: 1, size: 0.6 },
     { verb: 'beacon', cc: [-3, 0, 0], color: [0.27, 0.77, 0.41], rate: 1, size: 0.6 },
+  ] }],
+  // marks: the strength sensor's animated pointer (rings, arrow, label) at a world point. The part never moves;
+  // absent marks ⇒ byte-identical (every other fixture omits it, unchanged).
+  ['marks', { faces: [floor()], marks: [
+    { at: [2, 2, 0], dir: [0, 0, 1], size: 0.3, color: '#e5484d', label: 'shelf bracket: bending, SF 0.51 (low confidence)' },
+    { at: [1, 3, 0], dir: [0.6, 0, 0.8], size: 0.3, color: '#3fb950', period: 2 },
   ] }],
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],

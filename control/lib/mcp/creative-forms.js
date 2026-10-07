@@ -15,6 +15,7 @@ export const CREATIVE_FORMS = [
   'image-render',
   'object',
   'world',
+  'building',
   'view',
   'motion',
   'motion-comic',

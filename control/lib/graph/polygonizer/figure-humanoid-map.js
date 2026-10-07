@@ -18,9 +18,11 @@
  * uses; the joint map is the inverse door for clip ingest (seam 3b).
  *
  * VRM 1.0 REQUIRES: hips spine head, left/right UpperArm LowerArm Hand,
- * left/right UpperLeg LowerLeg Foot (15). Mojulo has no hand or foot bones —
+ * left/right UpperLeg LowerLeg Foot (15). The biped rig has no hand or foot bones —
  * the resolver adds LEAF joints at the wrist / ankle tails so the required set
- * is complete; chest / neck / shoulders / toes are optional and left out.
+ * is complete; chest / neck / shoulders / toes are optional and left out. A
+ * hero's rig (HERO_BONE_TO_VRM) has its own hands and feet, and on the structured
+ * core the finger bones VRM names (all optional in VRM).
  *
  * Honest limits (documented, not hidden): the skinned export's skeleton is
  * FLAT (every joint is a child of the figure wrapper, rotations are absolute),
@@ -44,6 +46,25 @@ export const BONE_TO_VRM = Object.freeze({
   thighR: 'rightUpperLeg',
   calfR: 'rightLowerLeg',
 });
+
+// the HERO's bone ids (hero-form.js, a layered rig) → VRM: its limbs, its jaw and toes, and on the structured core
+// the fifteen finger bones a hand (hero-hand.js: thumb1-3 from the carpometacarpal, the fingers 1-3 from the knuckle).
+// The structured core's `lumbar` is the spine, so there its `torso` is the chest (humanoidBonesFor)
+const SIDE = { L: 'left', R: 'right' };
+const DIGIT_VRM = { thumb: ['Metacarpal', 'Proximal', 'Distal'], index: ['Proximal', 'Intermediate', 'Distal'], middle: ['Proximal', 'Intermediate', 'Distal'], ring: ['Proximal', 'Intermediate', 'Distal'], little: ['Proximal', 'Intermediate', 'Distal'] };
+export const HERO_BONE_TO_VRM = Object.freeze({
+  pelvis: 'hips', lumbar: 'spine', torso: 'spine', neck: 'neck', head: 'head', jaw: 'jaw',
+  ...Object.fromEntries(Object.entries(SIDE).flatMap(([S, s]) => [
+    [`upperArm${S}`, `${s}UpperArm`], [`foreArm${S}`, `${s}LowerArm`], [`hand${S}`, `${s}Hand`],
+    [`thigh${S}`, `${s}UpperLeg`], [`shank${S}`, `${s}LowerLeg`], [`foot${S}`, `${s}Foot`], [`toes${S}`, `${s}Toes`],
+    ...Object.entries(DIGIT_VRM).flatMap(([d, parts]) => parts.map((p, i) => [`${d}${i + 1}${S}`, `${s}${d[0].toUpperCase()}${d.slice(1)}${p}`])),
+  ])),
+});
+
+// the joints the engine skeleton inserts (rig-tpose withProfileJoints) on either rig: a weightless clavicle each side (an
+// engine's humanoid profile hangs the upper arm off a shoulder bone with a large rest turn, so a skeleton without one
+// bends every arm clip) and the trunk joints a rig lacks, split out of its torso bone
+export const INSERTED_TO_VRM = Object.freeze({ clavicleL: 'leftShoulder', clavicleR: 'rightShoulder', trunkChest: 'chest', trunkUpperChest: 'upperChest' });
 
 // leaf bones VRM requires that mojulo carries only as a segment TAIL: emitted as
 // weightless joints at that tail (parent = the bone whose tail they sit on)
@@ -96,8 +117,12 @@ export function humanoidBonesFor(bones = []) {
   const names = new Map();
   const leaves = [];
   const have = new Set();
+  // a biped figure rig speaks BONE_TO_VRM; a hero's rig (its `upperArmR`, …) HERO_BONE_TO_VRM, its `torso` the chest
+  // when a `lumbar` carries the spine
+  const hero = bones.some((b) => b.id === 'upperArmR' || b.id === 'upperArmL');
+  const lumbar = hero && bones.some((b) => b.id === 'lumbar');
   bones.forEach((b, i) => {
-    const vrm = BONE_TO_VRM[b.id];
+    const vrm = INSERTED_TO_VRM[b.id] ?? (hero ? (lumbar && b.id === 'torso' ? 'chest' : HERO_BONE_TO_VRM[b.id]) : BONE_TO_VRM[b.id]);
     if (vrm) { names.set(i, vrm); have.add(vrm); }
     const leaf = LEAF_TO_VRM[b.id];
     if (leaf && Array.isArray(b.tail) && b.tail.length === 3) {

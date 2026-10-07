@@ -5,6 +5,7 @@ import { manualPlan } from './manual.js';
 import { hardwarePart } from './hardware.js';
 import { ensureExactKernel } from '../polygonizer/field-exact.js';
 import { manifestWantsExact } from '../polygonizer/field-exact-reach.js';
+import { planWorkbench } from '../worlds/workbench.js';
 
 const dresser = { id: 'dresser', unit: 'mm', build: { type: 'carcass', w: 800, h: 1000, d: 450, drawers: 4, drawerHeight: 230 } };
 const cabinet = { id: 'cabinet', unit: 'mm', build: { type: 'carcass', w: 800, h: 1800, d: 400, doors: 2, shelves: 3 } };
@@ -141,5 +142,79 @@ describe('construction/furniture-builds — a piece from a few dials', () => {
     expect(hardwarePart('hinge-35')).toMatchObject({ cup: { d: 35, depth: 13 }, edgeDist: 21.5, setback: 37 });
     expect(hardwarePart('slide-400')).toMatchObject({ length: 400, t: 12.7 });
     expect(hardwarePart('slide-420')).toBeNull();
+  });
+});
+
+// the bookcase an agent minted through `mint_solid` kind 'workbench': 800 mm wide, so a middle partition, with a fixed
+// shelf in each bay cammed into it from both faces and adjustable shelves pinned to it from both faces
+const minted = { id: 'minted', unit: 'mm', build: { type: 'carcass', w: 800, h: 1800, d: 300, t: 18, material: 'mfc', joinery: 'kd', back: 'groove', shelves: 4 } };
+/** Each fitting's world box (the frame's unit) from its drawn faces. */
+const fittingBoxes = (faces) => {
+  const m = new Map();
+  for (const f of faces) for (const c of f.corners) {
+    const b = m.get(f.group) || { lo: [Infinity, Infinity, Infinity], hi: [-Infinity, -Infinity, -Infinity] };
+    for (let k = 0; k < 3; k++) { b.lo[k] = Math.min(b.lo[k], c[k]); b.hi[k] = Math.max(b.hi[k], c[k]); }
+    m.set(f.group, b);
+  }
+  return m;
+};
+const boxesMeet = (a, b) => [0, 1, 2].every((k) => Math.min(a.hi[k], b.hi[k]) - Math.max(a.lo[k], b.lo[k]) > 0.2);
+
+describe('construction/furniture-joints — fittings that meet inside a board', () => {
+  beforeAll(async () => { await ensureExactKernel(); });
+
+  it('staggers the cams of two fixed shelves joined to the partition from its two faces, so their bolts and dowels miss', () => {
+    const { faces, report, parts } = lowerFrame(minted);
+    expect(report.build.dials.partition).toBe(true);
+    const box = fittingBoxes(faces);
+    const into = (j) => parts.filter((p) => p.host === 'partition' && p.id.startsWith(`cam-lock:${j}-partition:`)).map((p) => p.id);
+    const l = into('shelf-fixedl'), r = into('shelf-fixedr');
+    expect(l.length).toBe(4); expect(r.length).toBe(4);              // two bolts and two dowels from each side
+    for (const a of l) for (const b of r) expect(boxesMeet(box.get(a), box.get(b)), `${a} meets ${b}`).toBe(false);
+    // the second side's fittings move along the contact by the least that leaves 3 mm of board between holes
+    const y = (id) => (box.get(id).lo[1] + box.get(id).hi[1]) / 2;
+    const shift = y('cam-lock:shelf-fixedr-partition:cam-bolt1') - y('cam-lock:shelf-fixedl-partition:cam-bolt1');
+    expect(shift).toBeGreaterThanOrEqual(5 + 3 - 0.01);              // a bolt's ⌀5 bore and 3 mm of board
+    expect(report.furniture.interference).toEqual([]);
+  });
+  it('staggers shelf pins set into the partition from both faces at one height', () => {
+    const { faces, report, parts } = lowerFrame(minted);
+    const box = fittingBoxes(faces);
+    const pins = (s) => parts.filter((p) => p.id.startsWith(`shelf-pin:${s}-partition:`)).map((p) => box.get(p.id));
+    // shelf-1 (left bay) and shelf-2 (right bay) sit at the same height on the partition's two faces
+    const zc = (b) => (b.lo[2] + b.hi[2]) / 2, yc = (b) => (b.lo[1] + b.hi[1]) / 2;
+    const [a, b] = [pins('shelf-1'), pins('shelf-2')];
+    expect(zc(a[0])).toBeCloseTo(zc(b[0]), 3);
+    for (const p of a) for (const q of b) expect(Math.abs(yc(p) - yc(q))).toBeGreaterThanOrEqual(5 + 3 - 0.01);
+    expect(report.furniture.interference).toEqual([]);
+  });
+  it('gives a plinth on one cam a dowel beside it, so it does not pivot on the bolt', () => {
+    const { report } = lowerFrame(minted);
+    for (const side of ['side-l', 'side-r']) {
+      const j = report.joints.find((x) => x.joint === `cam-lock:plinth-${side}`);
+      expect(j.cams).toBe(1);
+      expect(j.fasteners.map((f) => f.code)).toEqual(['cam-bolt-15', 'dowel-8x35']);
+    }
+    expect(report.furniture.fasteners).toEqual([]);
+  });
+  it('mints clean through the workbench: no fitting meets another', () => {
+    const plan = planWorkbench({ units: 'mm', frames: [minted] });
+    expect((plan.stats.warnings || []).filter((w) => /meet inside/.test(w))).toEqual([]);
+  });
+  it('reports fittings that meet inside a member when there is no room to stagger them', () => {
+    // two 30 mm rails doweled into an 18 mm board from its two faces: one dowel each, nowhere to move it
+    const rails = {
+      id: 'rails', unit: 'mm',
+      members: [
+        { id: 'post', box: { min: [0, 0, 0], max: [18, 30, 400] }, material: 'mfc' },
+        { id: 'rail-l', box: { min: [-200, 0, 200], max: [0, 30, 218] }, material: 'mfc' },
+        { id: 'rail-r', box: { min: [18, 0, 200], max: [218, 30, 218] }, material: 'mfc' },
+      ],
+      joints: [{ type: 'dowel', a: 'rail-l', b: 'post' }, { type: 'dowel', a: 'rail-r', b: 'post' }],
+    };
+    const { report } = lowerFrame(rails);
+    const hit = report.furniture.interference.filter((i) => i.fittings);
+    expect(hit).toEqual([{ a: 'dowel:rail-l-post:dowel1', b: 'dowel:rail-r-post:dowel1', in: 'post', fittings: true, overlapMm: [9.4, 8, 8] }]);
+    expect(frameStamps(report, 'r').join('\n')).toMatch(/dowel:rail-l-post:dowel1 and dowel:rail-r-post:dowel1 meet inside post/);
   });
 });

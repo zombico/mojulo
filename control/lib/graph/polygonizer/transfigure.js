@@ -6,8 +6,7 @@
  * the form-at-phase as one BECOMES the other. The default class is built FROM
  * carve and its inverse:
  *     deskin (carve⁻¹: solid → wireframe)  →  morph  →  reskin (carve: wireframe → solid)
- * Reshape the wireframe (the form's "soul") and the skin (the body) follows —
- * after Mahito's Idle Transfiguration (JJK).
+ * Reshape the wireframe (the form's "soul") and the skin (the body) follows.
  *
  * Other classes can choose a different carrier for the middle state. For example
  * liquid-metal leaves the beveled carve renderer and uses a smooth liquid mass

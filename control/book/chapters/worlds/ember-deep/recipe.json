@@ -1,0 +1,20 @@
+{
+  "entry": "compose_world",
+  "base": "dungeon",
+  "seed": 9,
+  "title": "Ember deep",
+  "overrides": {
+    "chambers": [
+      { "id": "mouth", "at": [0, 0], "elevation": 0, "radius": 7 },
+      { "id": "gallery", "at": [16, 4], "elevation": -4, "radius": 9, "height": 7 },
+      { "id": "spring", "at": [8, 18], "elevation": -9, "radius": 6 },
+      { "id": "vault", "at": [24, 16], "elevation": -14, "radius": 8 }
+    ],
+    "tunnels": [
+      { "from": "mouth", "to": "gallery" },
+      { "from": "gallery", "to": "spring" },
+      { "from": "gallery", "to": "vault" },
+      { "from": "spring", "to": "vault" }
+    ]
+  }
+}

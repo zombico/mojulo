@@ -53,6 +53,7 @@ import { createMoleculeViewHandler } from '@/lib/mcp/tools/molecule-view';
 import { createOceanViewHandler } from '@/lib/mcp/tools/ocean-view';
 import { createBeachViewHandler } from '@/lib/mcp/tools/beach-view';
 import { createRiverViewHandler } from '@/lib/mcp/tools/river-view';
+import { createWaterfallViewHandler } from '@/lib/mcp/tools/waterfall-view';
 import { createOrbitViewHandler } from '@/lib/mcp/tools/orbit-view';
 import { createParallelTransportViewHandler } from '@/lib/mcp/tools/parallel-transport-view';
 import { createPlasmaGlobeViewHandler } from '@/lib/mcp/tools/plasma-globe-view';
@@ -118,6 +119,7 @@ export const VIEW_KINDS = {
   'quadratic': { family: 'math', retired: 'create_quadratic_view', handler: createQuadraticViewHandler },
   'reactor': { family: 'science', retired: 'create_reactor_view', handler: createReactorViewHandler },
   'river': { family: 'science', handler: createRiverViewHandler },   // born inside create_view — no retired alias
+  'waterfall': { family: 'science', handler: createWaterfallViewHandler },   // born inside create_view — no retired alias
   'rocket': { family: 'science', handler: createRocketViewHandler },   // born inside create_view — no retired alias
   'airplane': { family: 'science', handler: createAirplaneViewHandler },   // born inside create_view — no retired alias
   'saturn': { family: 'science', retired: 'create_saturn_view', handler: createSaturnViewHandler },
@@ -219,7 +221,7 @@ export async function getViewVocabHandler(input) {
     // error-row drawer miss by the same cut.
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
-  let cards = [...catalog.values()];
+  let cards = [...catalog.values()].filter((c) => c.index !== false);
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
@@ -262,15 +264,16 @@ export function registerCreateViewTools() {
     name: 'get_view_vocab',
     description:
       'Read a view-vocab card in full — the depiction prose + routing phrases + parameter manual for one '
-      + '`create_view` kind or `compose_world` base (family \'world\'). Pass `id` for one card; omit for the '
+      + '`create_view` kind or `compose_world` base (family \'world\'), or an encyclopedia entry (family '
+      + '\'entry\': a historic culture at its period, with starter manifests). Pass `id` for one card; omit for the '
       + 'index rows { id, name, family, entry, summary, when } (optional `family` filter: science / math / bio / '
-      + "world). Discover cards by intent via semantic_search({ kinds: ['view_vocab'] }); this reader returns "
+      + "world / entry). Discover cards by intent via semantic_search({ kinds: ['view_vocab'] }); this reader returns "
       + 'the full body. Read-only.',
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: 'Card id (= the create_view kind or compose_world base).' },
-        family: { type: 'string', enum: ['science', 'math', 'bio', 'world'], description: 'Optional list filter.' },
+        id: { type: 'string', description: 'Card id (= the create_view kind, compose_world base, or entry id).' },
+        family: { type: 'string', enum: ['science', 'math', 'bio', 'world', 'entry'], description: 'Optional list filter.' },
       },
       required: [],
     },

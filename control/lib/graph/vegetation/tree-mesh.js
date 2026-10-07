@@ -26,9 +26,20 @@ export function axisChains(plant) {
     const first = ns[0]; const base = nodes[first.parent];
     const pts = [base.pos, ...ns.map((n) => n.pos)]; const rs = [first.r, ...ns.map((n) => n.r)];
     const last = ns[ns.length - 1]; const continues = (plant.children.get(last.id) || []).some((c) => !nodes[c].died);
+    if (plant.arch && plant.arch.smooth) { const sm = smoothChain(pts, rs, ns); chains.push({ axis: a, order: axes[a].order, nodes: sm.ns, pts: sm.pts, rs: sm.rs, dMax: 2 * Math.max(...rs), born: sm.ns.map((n) => n.born), baseNode: base.id, continues }); continue; }
     chains.push({ axis: a, order: axes[a].order, nodes: ns, pts, rs, dMax: 2 * Math.max(...rs), born: ns.map((n) => n.born), baseNode: base.id, continues });
   }
   return chains;
+}
+// arch.smooth (opt-in): a point at each internode's Catmull–Rom midpoint, so a limb that turns from node to node bends
+// instead of kinking; each half keeps its internode's node (its age, its tone)
+function smoothChain(pts, rs, ns) {
+  const P = [pts[0]], R = [rs[0]], N = [];
+  for (let i = 1; i < pts.length; i++) {
+    const g = pts[Math.max(0, i - 2)], p = pts[i - 1], q = pts[i], c = pts[Math.min(pts.length - 1, i + 1)];
+    P.push([0, 1, 2].map((k) => (-g[k] + 9 * p[k] + 9 * q[k] - c[k]) / 16), q); R.push((rs[i - 1] + rs[i]) / 2, rs[i]); N.push(ns[i - 1], ns[i - 1]);
+  }
+  return { pts: P, rs: R, ns: N };
 }
 
 /** A tube along a chain: k sides per ring, parallel-transported frames, a cone cap at the tip. */

@@ -44,7 +44,7 @@ export const PROFILE_CARD_EDITS = Object.freeze({
           'no freehand\ngeometry from a dream. The garment spec is the sovereign recipe; a painted sheet\nor skin is a bound derived render. Slim-vs-baggy',
           'no freehand\ngeometry. The garment spec is the sovereign recipe. Slim-vs-baggy',
         ],
-        ['reaches the dreamed folds (and hands you the waves)', 'reaches the folds (and hands you the waves)'],
+        ['reaches the dreamed folds (and the waves are the recipe)', 'reaches the folds (and the waves are the recipe)'],
         ['from a drawing, a\nbook, or a dream read as pieces', 'from a drawing or a\nbook'],
       ],
     },
@@ -184,6 +184,11 @@ export function profiledCard(sourceKind, card, env = process.env) {
         : p));
     } else if (typeof out[field] === 'string') {
       out[field] = profileEdit(out[field], list, `${sourceKind}.${card.id}.${field}`);
+      // A sectioned solid card is served as its base (solid-vocab/loader.js splitSections): its body edits land
+      // there too. They must target lines the base keeps; scad-ladder.test.js / workbench-ladder.test.js check that.
+      if (field === 'body' && typeof out.base === 'string') {
+        out.base = profileEdit(out.base, list, `${sourceKind}.${card.id}.base`);
+      }
     }
   }
   return out;

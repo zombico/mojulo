@@ -12,6 +12,3375 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-07
+
+### Anime game hero
+
+- `genki` on the anime hero door (`hero.genki`, 0 … 1): the shonen spirit translated onto the character as one
+  amount over the look and the own layer. Broader shoulders, a narrower waist and stronger forearms and calves; on the
+  male bigger, rounder eyes, on the female a narrower opening; a heavier, lower brow set into a V; more taper and crown
+  in the hair; the brow set, the mouth more open and the smile wider; the stand on a wider base, chest and chin up.
+  Ratios compose as ratio^amount and offsets scale with it, so 0.5 is halfway; absent or 0 changes nothing and stores
+  nothing. Dress, adornment, gear and clips fit the body it makes. Documented in the layered manual (GENKI) and the
+  create-hero catalyst; `anime-genki.test.js` covers the zero law, the layer laws, the door and a dressed mint.
+- The worked lead (`docs/examples/humanoid/cast/lead.json`) has a matured face: bigger eyes (width ×1.12, height ×1.2,
+  the opening ×1.15) and a long jaw narrowing to a small square chin (the lower face ×1.19, the chin ×0.62, the jaw
+  corner raised), measured against front-facing shonen references.
+
+### Blender film
+
+- A world camera shot goes to Blender as a real camera. `forge_motion` with `export: 'blender'` (turntable,
+  orbit, push-in, dolly-zoom, flythrough over a world) writes the GIF preview plus a Blender film pack in the
+  motion's folder: the world's Blender pack, `shot.json` (the exact per-frame cameras the preview was rendered
+  from), and three scripts. `film_shots.py` keys a camera per shot, aimed at a target empty, with a timeline
+  marker per shot so several shots cut; `film_light.py` lights it (below); `film_render.py` renders a resumable
+  PNG sequence and cuts the MP4 in Blender's own sequencer, as an EEVEE draft or a Cycles final. A traversal is
+  refused: it is an input script, not a camera path.
+- `scripts/export-blender-film.mjs --motion mo_a [--motion mo_b …] [--render draft|final]` does it in one go
+  for any world motion, cutting several shots of one world into one film. A re-run keeps `film.blend`'s lights
+  and art and replaces only the cameras. The film workspace lives under `$MOJULO_HOME/films/`; an output folder
+  inside a git working tree is refused, so renders never land in a checkout.
+- The film is lit as the recipe declared it. `atmosphere.json` carries the world's sky preset, each street lamp's
+  intensity, the fog's look and the water surfaces the pack leaves out, from the same unshaded resolve the pack
+  reads; `film_light.py` performs them: a sky and sun per preset (day, dawn/dusk, a night sky with a faint moon,
+  interior), mojulo's lamps (already in `model.glb` as point lights) at street-lamp power, a ground fog that glows
+  in its own colour like mojulo's, and the water as a rippled reflective mesh. The draft render turns on EEVEE
+  ray tracing for reflections. Light once: a scene with the operator's own light (mojulo's imported lamps aside)
+  is left alone, and a placed rig is kept unless `--force`. The fog's defaults are one shared `FOG_DEFAULTS`; the
+  fog shader is byte-identical.
+- Machine gate: `film_shots.py --verify` reads every keyed frame back against `shot.json` (position, aim, FOV)
+  into `film-gate.json`. Eyes gate: `--check` renders Workbench stills to hold against the GIF.
+- Manual: the `blender-film` motion-vocab card. `renderWorldMotion` now returns the cameras it rendered from,
+  through one shared `worldMotionCameras`; the frames are unchanged.
+
+### Giza exhibit
+
+- Old Kingdom Giza is now an exhibit of its monuments rather than a full level: the three pyramid
+  complexes with their temples and causeways, the queens' and satellite pyramids, the boat pits, and the
+  Sphinx in its quarry with its temple, on the plateau above the floodplain.
+  - Left out: the mastaba cemeteries, the Wall of the Crow and the workers' town, the bakeries, the
+    building sites, the main quarry and the ships. Their assets are gone from the kit.
+  - Views: valley, pyramid, harbour and summit (cemetery, town and works are gone).
+  - The page is about 5 MB, down from about 14 MB, and builds in about a third of the time.
+- The plateau and the floodplain now have ground under them. A misplaced comment had swallowed the step
+  that starts each run of flat ground, so only the escarpment and the squares round each view were drawn.
+  The squares round a view now sit on their own layers so the de-overlap pass does not stack them on the runs.
+
+### Every new house a different draw
+
+- **A new house is minted with its own seed, varied layouts and composed furniture.** `mint_building` (and
+  `create_sketch` for a floorplan) stamps three knobs onto a new house when they are absent, beside the `style:
+  'auto'` it already stamps: a `seed` (drawn from the ref when one is named, else at random), `layout: 'varied'` and
+  `furnishing: 'composed'`. The draw is written into the recipe, so a minted house renders the same every time and
+  any knob given explicitly wins. Rows minted before this keep their bytes.
+- **`layout: 'varied'` rearranges rooms by seed.** Each room's arrangement is keyed on the house seed as well as
+  the room's place, and each room draws a layout variant and a mirror, and turns a quarter where its shape allows. A
+  living room may face the media wall, seat two sofas facing across the coffee table, or keep one armchair beside an
+  off-centre sofa. A bedroom may centre its bed between two nightstands. A deep dining room runs its table the long
+  way. The door, stair and window passes still clear every layout. Absent the knob, layouts are unchanged.
+- **Fix: `furnishing: 'composed'` was refused at mint.** The house validator only knew `'constructed'`.
+- **A new house draws its own program, size and storeys.** A new generated house (no `rooms`, `levels` or
+  `storeys` given) now draws, from its seed, a tier and its program (`tier: { base, beds, study, core }`: a one- or
+  two-bedroom cottage, a two- to four-bedroom house, a villa of up to five, with or without a study and a separate
+  dining room), one or two storeys (`levels`, with a stair), and a footprint sized to that program. It is built by
+  the program generator, so every house has its bedrooms, bathrooms and one kitchen (the single-floor generator
+  could draw a house with no bedroom and two kitchens). A new house also gets windows and a front door, and a porch,
+  a stoop or neither, weighted by its style. Every draw is an ordinary knob in the stored recipe; any knob given
+  explicitly wins, and `program: false` keeps the single-floor generator.
+- **`tier` names a base.** `tier: { base: 'villa', beds: 5 }` overrides a named tier; an override object without
+  `base` merges over `'house'` as before. A bad tier is refused at mint, naming what is valid.
+
+### Quiet floors
+
+- **The house floor is muted.** The floorboards were saturated mid-brown with dark seams every 6 inches, so every room
+  read as stripes. The plank tints of each house style moved halfway to a warm grey of their own lightness (each
+  family keeps its character: brick and mission stay the darker woods). The seams are now a hairline a shade under
+  the plank (0.9 of it, was 0.62) on 7.2-inch boards (were 6). Wet-room marble seams are softer (0.93, was 0.88).
+  This is an emission change: every furnished house and every store, restaurant and mall floor moves. The store,
+  room and World characterization pins are re-pinned with the reason beside them.
+
+### Furniture grammar
+
+- **Composed houses: `furnishing: 'composed'`.** Each furnished room's sofa, easy chairs, dining chairs, tables and
+  casework become composed pieces in the house style's furniture language
+  ([lib/graph/furnishings/languages.js](lib/graph/furnishings/languages.js)): per style, the styles a role may take,
+  and the legs, cloths and timbers its pieces wear. A cottage gets roll-arm sofas, turned legs and linen; a brick
+  house chesterfields and club chairs in velvet and tweed; a modern one tapered and hairpin legs and bouclé. Each room
+  picks per role, seeded by the house, the room and the role: every chair round one table is the same chair, one
+  house keeps one timber, a plain cloth takes the house palette's colour, and re-rolling the seed refurnishes. Each
+  piece's group names the style that landed (`asset:composed-furniture:chesterfield-main`). A media console keeps
+  its television and a nightstand its lamp. `furnitureLanguage` overrides the house style's language. `furniture:
+  { <role>: { like?, forms?, finish? } | 'omit' }` sets a role in every room, and a room's own `furniture` wins. A
+  bad language or override is refused once per house, naming what is valid. Beds, rugs, lamps and the kitchen run
+  keep their meshes. Absent the opt-in, every house is byte-identical. Cost: a composed living room is about 1.1 s to
+  build the first time (39 ms cached) and about 3.4× the faces of a mesh room.
+
+- **A piece is a kind, a form in each slot, a finish and a size**
+  ([lib/graph/furnishings/forms.js](lib/graph/furnishings/forms.js)), the way a bug is a bauplan.
+  - Kinds are `sofa`, `chair`, `table` and `casework`, over the workbench builds.
+  - Slots are arms (`track`, `rolled`, `tuxedo`, `rolled-high`, `none`), back (`loose`, `tight`, `tufted`),
+    seat (`loose`, `bench`), legs (`block`, `tapered`, `turned`, `bun`, `hairpin`) and the casework front
+    (`open`, `doors`, `doors-over-drawer`, `drawers`, `two-drawers`).
+  - A finish is fabric, timber, wood finish, tint, board, paint and piping, checked against what each kind wears.
+- **Styles are worked pieces over the same grammar.** The eleven room facades are the first; the chesterfield is a sofa
+  with high rolled arms, a tufted back and one bench seat, in velvet. Composed ones join them: tuxedo, English
+  roll-arm, mid-century sofa, armless settee, club chair, farmhouse table, mid-century table, turned side chair,
+  painted dresser.
+- **`resolveFurniture({ like, kind, forms, finish, size, palette })` locks a piece.** It starts from a style, swaps in
+  the forms and finish asked for, reports them (`worn`), and refuses an unknown style, slot, form or finish by naming
+  the valid ones. The lock is the build's resolved dials, cloth, tint, legs and size, so a locked piece re-renders
+  identically however the forms and styles are retuned. `lockedFurnitureFaces` draws it at its own size, never
+  stretched.
+- **Leg forms are drawn over the square blank the build cuts**, so the members, joints and cut list stay the blank's.
+  A turned leg keeps a square pommel, and a chair's back leg is turned only to its rails. A hairpin leg stands on a
+  mounting plate and a glide.
+- **`mint_solid({ kind: 'furniture', spec: { like?, piece?, forms?, finish?, size?, buildable? } })`** composes and
+  locks a piece for furnishing houses. By default it is a display asset (`furnishings/asset.js`): a workbench row whose
+  `build: { type: 'furniture', piece, dials, legs?, size, fabric?, tint? }` is drawn the way a room draws its furniture
+  (no joints, pulls on, legs shaped), filled to its size exactly, and flagged `buildable: false`, with no construction
+  report or cut list. It places in a house as `rooms[i].items: [{ ref }]` and travels into an assembly by ref.
+  `update_sketch` restyles it in place (`/build/dials/<dial>`, `/build/legs`, `/build/fabric`, `/build/size`).
+  `buildable: true` stores the jointed build instead, one workbench frame the furniture report, manual and bill of
+  materials read, and notes any axis the build held to its own proportions (a sofa's back runs 680–1000 mm). The
+  result names the style it started from and what was swapped. The card is `get_solid_vocab({ id: 'furniture' })`;
+  a test holds it to every kind, slot, form, finish key and style.
+- **A frame's `legs`** (block, tapered, turned, bun, hairpin) draws a build's legs in that form on the workbench too
+  (`construction/legs.js`); an unknown form is refused naming the forms.
+- **Roster rows name the style that composes them** (`style`), so a room slot can lock a recipe in a piece's place.
+- **The room facades are now derived from the styles.** A characterization pin covers every facade recipe at three
+  footprints, plain and in a house palette, and the room and condo hashes hold: no house changes.
+
+### Furnishings roster
+
+- **One row per piece of room furniture** ([lib/graph/furnishings/roster.js](lib/graph/furnishings/roster.js)).
+  A piece used to answer to up to five spellings across the arranger types, box-net presets and nets, the
+  share-mode meshes and the constructed stand-ins (the bookshelf was `bookshelf`, `bookcase` and
+  `constructed-bookcase`). Each row now gives the piece one id, a label, a role (what a room asks for: `sofa`,
+  `desk`, `bookcase`…), the words people say for it, and its handles into those tables. The roster names; the
+  tables still measure, and no builder reads the roster yet, so every house is byte-identical.
+- **`resolveFurnishing(word)`**, the animals' rule: "a Couch", "bookshelves", "TV stand" and "credenza" each resolve
+  to one piece. The name index throws when one word would name two pieces.
+- **The contract** (`roster.test.js`): every key of every furniture table, and every type and mesh an arranger
+  emits, belongs to exactly one row; `SHARE_ASSETS` and `CONSTRUCTED_FOR` agree with the rows; a row missing a
+  line fails with the line it needs. It found `l-table` in the wall-hugging set with no preset, band or net
+  behind it (it is only a mesh).
+
+### Fabricator shelf and naming
+
+- **The shelf reaches metal, sheet and extrusion work:**
+  - Rivet nuts thread sheet.
+  - Thumb screws go into tapped metal or rivet nuts.
+  - Hardened pins locate metal parts; tabs and slots locate sheet parts.
+  - Profile linear rails slide.
+  - A die-cast box or an extrusion frame with panels encloses.
+  - Hanging bins on a louvred panel store.
+  - Steel square tube or a timber frame carries the loads.
+  - Countersunk screws mount to a plain surface.
+  - A heat-set joint takes a heavy load reached from one side.
+  - Hardwood runners slide a drawer too short for a stock slide.
+
+  Of the 1530 probe needs, 1283 now resolve from the shelf (84 %, up from 1148), 146 from a known principle, and 101
+  remain gaps. Most of those are `print-only` needs that rightly cannot print a bought part. The rest are a 3 mm shaft
+  at 300 N, a 25 mm shaft, a board with no hole pattern and a heavy printed frame. The coverage test now holds the
+  shelf above 80 %.
+- **Provenance review packet** ([docs/fabricator-provenance.md](../docs/fabricator-provenance.md)): the tiers as the
+  code enforces them, every row that names someone else's product, the identifiers that still carry a trade name
+  (`mj_gt2_pulley`, `nyloc-*` codes, the hardware labels' "Pozidriv"), and the questions for counsel. No lawyer has
+  reviewed it. A test keeps the packet's table in step with the inventory.
+- **Generic names on the bill of materials:**
+  - A printed part is named by its generic row (a "2 mm pitch timing pulley", not the library module's name), with
+    the call as its code.
+  - The chipboard screw's buy text says "cross-recess (PZ)".
+  - The generic-name test also checks for GT2, Pozidriv and Nyloc.
+- **The vehicle family layer is no longer called the "meta-fabricator"** in what agents read (the `vehicle` card, the
+  mint_solid drawer, the modeler lingo, the vehicle-family catalyst), so it is not confused with `fabricate_solid`. The
+  module file keeps its name.
+- **`--help` names the command you typed:** `node scripts/mcp-stdio.mjs` in a checkout, `npx -y mojulo@<version>`
+  through npx. The CLI's usage errors and its unknown-tool and unknown-pack messages do the same.
+
+### Fabricator placement and re-plan
+
+A plan now follows the object after mint, and writes its own cuts where a need says where. Every existing kind builds
+byte-identically. A scad row that never calls `fab_cuts` is never touched.
+
+- **Placement** (`lib/graph/fabricator/place.js`). A need may name:
+  - `at`: the points it happens at.
+  - `axis`: the way the cut runs.
+  - `parts`: which source part takes each side (`{ into, head, hub }`, or `part`).
+
+  Its scad cuts are then written as an OpenSCAD block of `fab_cuts(part)` and `fab_adds(part)` between marker lines,
+  placed at the top of the source when the source calls them. A two-part joint's pilot sits at the mating plane, and
+  its counterbore enters the head part from its outer face. A pin's slip hole and the second magnet run the other way
+  into the other part. Each point may turn its own way.
+
+  A cut whose geometry needs more than a point (a nut trap's far face, a seal along a rim), and a cut with too few
+  points or an unnamed part, is listed in `placement.manual` with the reason. Nothing is guessed.
+- **Re-plan in place:**
+  - `fabricate_solid({ ref })` plans a stored row again from its stored needs. With `needs` it plans the row with the
+    new ones.
+  - The plan, a scad row's placement block, and a frames row's recounted fittings replace what was stored.
+  - `changes` names each need whose strategy or size moved, and each bill-of-materials line added, removed or recounted.
+  - A scad or frames row minted without a plan takes one the same way, which is what the scad ladder's `add: 'fabricate'`
+    asks for.
+  - A mint onto a taken ref is refused, and the refusal points at the re-plan.
+- **A stale list is said.** A BOM export of a scad row whose source no longer calls a planned cut warns, and says to
+  re-plan, in both the result and `bom.md`.
+
+### Fabricator sizing
+
+A fabricated part is now the smallest stock size that holds its load, not the size its load class names. The rigidity
+sensor's own checks pick it, and the bill of materials exports for whoever buys and builds. Every existing kind builds
+byte-identically. A stored plan is frozen with its version (`fabricator-v0.3.0`), so a minted row keeps its sizes.
+
+- **Sized by strength** (`lib/graph/fabricator/sizing.js`; plans are now `fabricator-v0.5.0`):
+  - Bolts: tension, shear, thread stripping and heat-set pull-out (`strength/checks.js` `bolt`).
+  - Bearings: the slimmest whose typical static rating carries its share, and its basic life when `rpm` is said.
+  - Steppers: by usable torque.
+  - Printed gears: by Lewis tooth bending.
+
+  The safety factor asked is the sensor's own, by how certain the load is (`certainty`). New need fields: `loadDir`,
+  `loadKind`, `certainty`, `material`, `grade`, `torqueNm`, `rpm`, `hours`. Each sized need carries `sizing` (size,
+  weakest mode, safety factor, the one asked, whether the load was assumed). A sized bolt line carries its `grade`.
+- **Honest failures.** No stock size holding passes the strategy over, and `refused` says why, so a heavy joint gets a
+  stronger strategy or a from-scratch design, never an undersized part. An unsaid load is assumed at 20 N, and `next`
+  says which needs assumed it. A given `size` is checked, never replaced, and `next` says when it is too weak.
+- **What changes in new plans:** a 300 N shaft on two bearings now takes the slim 688 (150 N each, safety factor near
+  4) where the load class took the 608. Four lid screws sharing 300 N stay M3 where the class took M5. A 3 kN pull on
+  one heat-set insert takes M8. Shelf coverage of the probe needs moved from 1157 to 1148 of 1530 with sizing alone: loads
+  no stock part holds resolve from scratch, as they should (the shelf work above then raised it).
+- **`export_model({ ref, format: 'bom' })`** writes `bom.csv` (RFC 4180, one row per line) and `bom.md` (buy, print,
+  cut, tools, notices) beside the model. It reads a fabricated row's frozen plan (a frames row's fittings are recounted
+  from its stored frames, the same report the mint read) or any furniture workbench row's fittings and sheet cut list.
+  A row with nothing to buy is not eligible, and says how to get a list. A fabricated mint names the call in
+  `stats.fabrication.export`.
+
+### Level graph
+
+A level is a graph of sections, and its layout is a behaviour of the graph. Trails already composed into levels by
+each naming the one it follows; this step writes the whole level down in one place, so a level can be read, laid out
+and documented as one thing. Nothing a section builds changes.
+
+- **The graph** (`lib/graph/level/graph.js`, `readLevel`). Nodes are sections (`trail` or `meru`, each its own recipe
+  less `id` and `after`, with its own `kit` and `seed` or the level's); edges are the joins (`seam` so far). One node
+  is the root, node 0: the origin of the level's frame, whatever kind of place it is (the first node listed unless
+  `root` names one). Where the player starts is a separate concern: `spawn` is a node and a place on it, the root's
+  entry unless it says otherwise. An unknown word is refused with the ones it knows.
+- **The sequential layout** (`level/sequential.js`, `layLevel`). It reads the graph as one walk from the root (a path,
+  however it twists in 3D; edges may be left out and the nodes read in the order listed) and compiles it to the
+  `after` chain the sections already follow: one stage recipe a section, in walking order. A trail then a meru
+  builds the pages the hand-written chain builds, byte for byte. A meru on another kit follows its trail in the
+  trail's own look. What it does not lay out yet is refused by name: a branch, a section after a meru, two trails in
+  a row in different looks.
+
+### Mountain levelling
+
+A level where the walk goes up: a stack of tiers joined by connectors, apart from buildings and from indoors or
+outdoors. It is built on the meru, the vertical ruler every two-point picture already stands on. This step makes the
+place and its guide; what joins the tiers is playscape's to answer.
+
+- **The meru is its own primitive** (`lib/graph/polygonizer/meru.js`). `meruStack` is the storey stack that was
+  inside the house builder: levels of their own heights, a slab between, below and above the ground. `houseMeru` is
+  now that ruler over the floorplan defaults, and builds byte-identically. `meruMarks` carries named heights up one
+  axis, as the landmark towers are drawn: a base, a deck, an apex.
+- **A stairs site says its way on.** A trail's stairs site anchor now carries `N` (the way on, as a beat's does) and
+  its two ends on the walk (`from`, `to`), so what answers it does not assume the trail runs along +y.
+- **A local meru from a recipe** (`lib/graph/local-meru/plan.js`). The base unit is a mound, a stairway spiralling
+  round it, and a watchtower on the summit. A recipe sets the mound (height, foot, summit, profile), the path (width,
+  turns, hand, approach, edge), the going and the tower; an unknown word is refused with the ones it knows. With
+  `after: { kit, seed, trail }` it is laid on from the end of an isekai trail: from the seam, on the trail's line,
+  heading and height. The risers share the whole rise evenly, at most ten to a flight, and the landings between
+  flights are as long as the turns ask. The level's meru names every tier (seam, landings, summit, deck, rail, eave,
+  apex), and its mandala gives the radius at every height. It builds no faces and no connectors. It asks for them as
+  anchors: a stairs site for every flight (its way on, its ends, its going and the curve it lies on), a climb site up
+  the tower with the link it prefers, and the landings, the summit and the deck as tiers. Playscape answers them.
+- **The level's laws.** The steps' laws are the man-made index's own. The level adds its own: every riser within the
+  walker's step, landings long enough to stand on, the turns asked for, shelves that never stack, a railed edge where
+  a fall would hurt, the tower and a walk round it inside the summit, a climb of one pull, the tower seen from the
+  seam, the mound past the seam, and the seam met. They advise; none refuses.
+- **The premap** (`lib/graph/local-meru/premap.js`): the level as a guide before it is built, in black and white, the
+  landform board's sibling. It has four panels and two tables: the plan (the trail it follows, the seam, the mound's
+  rings, the spiral with a tick at every riser, the tower and its climb), a half-section through the meru (named
+  heights and the radius at each), the heartbeat (from the followed trail's start, over the seam, round the spiral
+  and up the climb), a two-point massing drawn through `projectTwoPoint` with a level camera, the laws, and the
+  anchors playscape answers.
+- **A local meru, built: `meru` on an isekai stage** (`lib/graph/local-meru/scene.js`). A stage recipe with a `meru`
+  builds the level in the isekai look, on the page after the trail it follows (`after` reads the stage's kit and seed
+  unless it names others). The ground is laid on that trail's own grid, so its last row is the trail's last row at
+  the seam, and it eases to level. The mound rises from it, cliff where steep and grass where not, drawn by the isekai
+  builder's rules. The walk runs on a shelf round the flank, held up by a rock wall. The watchtower is timber: posts,
+  bracing, a deck, a rail open where the climb arrives, and a roof. A stand-in ladder stands on the climb until
+  playscape's ladder is placed there. A flight is walked as the slope its shelf lays, as a trail's stairs site is.
+  The payload carries the anchors, the level's laws and cameras from the seam, from wide, at the climb and from the
+  deck. On a kit that is not isekai it is refused; a stage without `meru` builds as before.
+- **A World's walk can climb** (`scene/channels/walk.js`, opt-in `walk.climbs`). A climb is a foot, a lip, the way
+  in and a width. Facing it at its foot, W climbs and S comes down. At the lip the walker steps onto what is behind
+  it, and walking out over the lip from up there takes the climb down. A local meru's climb anchors become its
+  climbs. A walk without climbs emits the same script as before.
+- **A level is a stack of tiers** (`local-meru/plan.js`). Each tier stands on the top of the one below and says
+  how the walk gets up it. There are two forms: a `mound` (a plan of `sides`, 0 round or 3 and more a polygon,
+  narrowing from its foot to its summit) and a `tower`. There are three ways up: a `spiral` round the flank, a
+  `stair` straight up one face (cut into it, or standing out from it), and a `climb`. Every tier faces the way the
+  walk arrives on the one below, and a tower with a tier on it is left open, with no roof. The laws are per tier and
+  per way up, and add two: each tier fits on the top below it, and a stair starts on what it climbs from. The older
+  one-mound, one-tower words still read.
+- **Presets are tier lists** (`local-meru/presets.js`, `preset`): a mountain lookout, a terraced mountain, a
+  ziggurat, a temple pyramid and a stacked lookout. None needs code of its own.
+- **What people build takes the kit's made style** (era/out-made.js `madeStyle`). The kit's chunk sizes the tower's
+  members, its edge word makes a stair stone or timber, its paint share decides whether a roof is painted, and every
+  made colour is locked to the kit's made ramps (timber, stone, paint).
+- **The level is walked in a test** (`local-meru.walk.test.js`). A headless walker follows the World's own rules
+  (gravity, the floor ray, the eye and shin rays, the climb). Steered along the spiral from the seam, it reaches the
+  summit at walking pace; it climbs the tower to the deck and back down; without the climb the deck is out of reach;
+  and walked straight at the flank from all round, it never reaches the summit, because a shelf's wall stops a
+  scramble from below. Every preset is walked and climbed from the seam to its top. The World's walk has no slope limit of its own, so steep rock can be scrambled up to that wall.
+
+### Playscape
+
+The first step toward Playscape, which makes a scapeshifted world playable on a ladder of four rungs: click demos,
+walk demos, a single level, a game of levels. This step starts its encyclopedia: the game idioms on a shelf of their
+own, the laws a game object is judged by, and the first entry, the door, where what a thing does is kept apart from
+what it looks like. No tool is added; `get_game_vocab` gains a family.
+
+- **The game idioms have cards.** `get_game_vocab({ scope: 'idiom' })` and `semantic_search({ kinds: ['game_idiom'] })`
+  return an `idiom-guide` and an `idiom-<kind>` card per idiom, generated from an about row kept beside each idiom
+  function (`IDIOM_ABOUT` in `lib/graph/worlds/game-idioms.js`). Each card lowers its own example and prints the
+  event-bus rows it becomes, so it cannot drift; an idiom without an about row fails the shelf's test. Each idiom is
+  tagged with the lowest rung it serves (`click`, `walk`, `level`, `game`). A migration adds the `game_idiom` kind.
+- **One lowering map.** `IDIOM_LOWERING` and `lowerIdioms()` in `game-idioms.js` replace the action world's private
+  map, which now also takes `banner`, `legend` and `toast` in `idioms` (before, only raw `events.hud` rows reached them).
+- **Object laws.** `lib/graph/playscape/objects/` judges a game object the way the hero is judged: the build is
+  measured and read against bands, with advice per law, never a refusal (`objectMeasures`, `objectAdvice`). The laws
+  (`objects/laws.js`): inverse interest (the more a thing matters, the more distinct its silhouette segments, counted
+  as notches that open onto the outline at play distance in the era's 640×448 frame), 33/66 (the primary detail a
+  third of the main mass and wider than the eye spot), emboss (the rest of the mass shaded in by value), values only
+  (greys on `obj:*` groups, colour left to a tone), the detail a band apart from the mass under 3, 4 and 5 hard steps,
+  the accent kept for what can be used, and juxtaposition (a placement law). One interest rank (filler, prop,
+  interactable, focus) sets the bands.
+- **The door entry: what it does apart from what it looks like.** `objects/mechanism.js` moves leaves on three joints
+  (hinge, slide, lift); the door's five variants are rows over it: `single`, `double`, `sliding-single`,
+  `sliding-double` and `portcullis`. Fitted to an opening (a doorway anchor sizes it) at any t from closed to open, a
+  door answers for itself: its collider at t, the space its leaves sweep (a level keeps it clear: the swing in front,
+  the wall pocket, the headroom), the width and height a walker gets through, and where it is used from (both sides of
+  the handle, or a control beside a portcullis). Its look is a skin worn on top (`greybox`, `plank`), drawn on the
+  closed leaf and carried by the joint. Its rules are built from the idioms: a use opens it; locked, it waits for its
+  unlock event (a key's pickup), then for a use (a sequence, since reactions carry no guard). `ejectObject` freezes
+  the variant, skin and numbers. The entry's card is generated from the variants and measured off the mechanism
+  (`lib/graph/playscape/entries.js`); it is served once a recipe can place a door.
+- **Drives: what moves an entry's t.** `objects/drive.js`: a `clock` (back and forth or round a loop over a period),
+  a `ride` (standing on it sends it to the far end; it waits `dwell` seconds empty, then comes home), a `call` (a use at
+  a stop sends it there) and a `rule` (a bus var; the door's `<id>-open`). Stepped by dt, so a timeline replays exactly.
+- **The platform entry, called by its surface area.** `objects/platform.js`: `area` is the walkable deck top in square
+  metres (`aspect` shapes it), and reads to a player as a rest, a step, a tight landing or too small. Variants
+  `static`, `shuttle` and `rail` (round if it loops, else back and forth, by distance at one pace). It answers for its
+  deck and collider at t, the space it sweeps and the headroom a rider needs over it all along, and lowers to the
+  platformer world: a still deck is a floor face and a collider, a moving one a `mover` carrier with a visible box
+  body (moving platforms rendered nothing before). Its `island` skin (a lighter deck over a keel of rock) holds every
+  object law at every area: a still island hangs one keel point, a moving one two tiers.
+- **The lift entry, vertical traversal.** `objects/lift.js`: a platform's deck carried between stops at `speed` metres
+  a second. Two stops ride; more are called. It answers for its shaft (from under the lowest stop to a rider's
+  headroom over the highest: a level leaves it open), its landings (board, and a step off to either side, at every
+  stop), and its ride time and dwell. A called lift runs as a ride between its ends until calls reach the runtime.
+- **Movers run rails and ride drives.** The `mover` rule (`worlds/controllable/rules-basic.js`) takes a `path` of
+  points (by distance; `loop`, `mode: 'loop'`) and `drive: 'ride'` (`speed`, `dwell`); the carry pass marks a
+  ride-driven carrier `_ridden` while a rider stands on it, still or moving. A mover with neither runs as before (the
+  controllable-world trace pins hold).
+- **The catapult entry: a launcher tuned by the approach.** `objects/catapult.js` stays put and throws the player:
+  `fixed` (one arc; give a `target` and it solves the power), `redirect` (keeps the run-up's speed along the pad) and
+  `bounce` (returns the fall, so a higher drop goes higher). Tunable `power`, `angle`, `gain`, `cap`, `restitution`, a
+  `cone` of approaches, `reload`. Its arc is stepped with the platform rule's own integrator (rise and fall gravity,
+  fall cap), so a solved target is where the world lands the rider; it answers for the arc, apex, landing, the tube
+  the rider flies through and how far steering can move the landing. The rider steers in the air by default;
+  `locked` holds the arc until it lands, for a scenic route.
+- **The `launcher` rule.** `worlds/controllable/rules-basic.js`: a `launch` world pass reads each rider's approach
+  (its run across the ground, its fall) and throws it through the platform rule's own momentum (`vel` z and
+  `dashVel`); a `launch-lock` pre-step takes a locked rider's stick until it lands. The platform rule's jump cut skips
+  a thrown rider (`launchedBy`); without a launcher it runs as before. The pipeline-order pin and the emission pins
+  re-pinned with notes.
+- **Items keep their blocks.** `era/props.js` `obox` also records each box it builds into a face list made by
+  `blockSink()` (its range of faces, value, group; the playscape skins tag the part); any other list gets the same
+  panels as before. Every playscape entry resolves with its blocks; the door's ride its leaf's pose.
+- **Cleave: the shaped cut.** `playscape/destruct/cleave.js` cuts an item's blocks by a pattern of convex cells into
+  closed convex chunks (`polytope.js`, plane clipping), whatever the shape: `grid` dices (a lattice in the item's frame,
+  each axis split evenly, a thin axis never cut), `voronoi` shatters (seeded sites, through the thickness on a thin
+  axis). A chunk is a cell's pieces of every block, so a handle stays with its slab; cut faces are the inside, two
+  emboss steps darker.
+- **Dismantle: the concept cut.** `destruct/dismantle.js` reads joints off the geometry (blocks that touch) and anchors
+  (the ground, or given boxes), severs parts, joints or all, and splits what no longer reaches an anchor into bodies
+  that fall whole. Relief thinner than 2.4 cm rides the one block it touches most.
+- **Collapse.** `destruct/collapse.js`: a seeded, stepped timeline per body: the spread (the lattice opening, a hold),
+  then a passive fall or an explosion; rigid bodies land with impulses at their corners on the ground and on what
+  still stands, and rest. They pass through each other (an engine's solver takes over on export).
+- **Slicing interceptors: the cut while it happens.** `destruct/interceptors.js`, on scapeshift's interceptor contract
+  (grown after, never colliding, never named; each kind a site finder, a grower and a 0 to 1 dial, seeded, its own
+  `fx:*` group). The sites are the cleave's own: each cut face names its plane, and the score is where a plane meets
+  the item's skin. `score` (the slice line drawn along the stroke), `blade` (a band sweeping the plane), `spark`,
+  `glint` (a cut face flashing white as it opens, riding its chunk) and `dust` (in the opening gaps). A grid is drawn
+  plane by plane, axis by axis; a shatter cracks out from the impact at `speed`, across the item and not through it.
+  `cutAt` is when the last stroke is drawn: `collapse({ delay })` keeps the chunks whole until then. They are the
+  cover-up for an engine's swap to pre-cut chunks; an engine that cannot play them drops them.
+- **The cut is a style.** `CUT_STYLES` in `destruct/interceptors.js`, a setting like a tone: it picks the timing, the
+  marks and how the pieces part, all in values on `fx:*` groups, so colour stays the tone's. `blade` (stroke by
+  stroke, a radial spread), `laser` (one beam at a time from off the face, the score cooling behind it, a spray, the
+  pieces barely parting), `anime` (the slash, the beat, every score at once with a flash, the halves slipping along
+  the cut) and `impact` (a ring and a flash, fast cracks, chips and dust, a burst from the hit). New marks: `beam`,
+  `ring`, `flash`, the crescent blade. A mark can be tuned (`marks`) or dialled per call. `collapse` takes per-body
+  `spread.offsets`; cleave adds the `slice` pattern (one to three clean planes, or the planes given).
+- **Destruction sounds as cues.** `destruct/sounds.js`: the cut and the collapse say when which cue fires, how loud
+  and where (`{ t, cue, gain, mark, at }`), never audio itself. Each cut style names a cue per mark; `slicing()`
+  returns `sounds`; `collapse()` records `hits` (landings by speed and mass) and its `parting`, and `collapseSounds()`
+  turns them into thuds, clacks and a whoosh. `DESTRUCT_SFX` is a valid beats-sfx manifest defining every default
+  cue; a call renames, re-gains or silences any mark (`sounds: { beam: 'my-laser', spark: false }`), and a world
+  re-voices a cue by defining the same name in its `audio.cues`.
+- **The bridge entry: a static platform from bank to bank.** `objects/bridge.js`, called by its ends (`from`, `to`,
+  `width`) or `over` a trail's pit hazard anchor. Variants `plank`, `deck`, `rope` (it sags; a long one reads as a
+  scramble) and `arch` (a humpback with end piers, its motif along the parapets). Each is built of the ELEMENTS a
+  style guide names (planks, stringers, posts, rails, braces, footropes, handropes, lashings, ring, crown, keystone,
+  spandrels, parapets, coping, abutments, piers), each turned off or tuned by name. It answers as a platform: its deck
+  line, its crossing read (road, path, plank, beam; walk or scramble), bearings, clearance under, and the deck as floor
+  faces and colliders with the rails as lines. The runs (rails, ropes, posts, dentils) shade the 66 and one middle-third
+  part is the 33, so every variant holds the object laws from 3 to 10 m (a 2 m rope bridge and a 14 m arch still draw
+  advice). Built of blocks: sever a rope bridge's footropes and its planks fall.
+- **Object measures read roles.** A face's role is its part when the part names one, else its `obj:*` group, so an
+  entry that names parts by element is judged; a silhouette notch must be 3 px each way (a rasterised sliver along the
+  hull no longer counts). Existing entries measure as before. A notch must also be 3 px thick on average, so a sliver
+  along a sloped edge (a long box and no depth) does not count either.
+- **The bridge dressed by a kit, and held to the outdoor index's structural laws.** `dress` (a kit's tokens from
+  `era/out-made.js` `madeStyle`) dresses a bridge without moving what it plays (its deck, colliders, rails and clearances
+  are the plain bridge's): members chunkier or slighter in section (a post is never slighter than what it carries; a
+  rope is a rope in every kit), posts capped (a grass hat, a round, a bevel, an open culm), every rail meeting a post
+  joined as the kit joins (lashed, pegged, notched), the deck's fascia in the kit's relief, abutments and piers coursed
+  (mortared, or laid dry), the fill worn to a spread of values, whole kinds of part painted. Dressing is the 66's
+  texture: on `obj:fill`, no more than 3 mm proud, never darker than the fill's band, so a dressed bridge keeps the
+  object laws wherever the plain one holds them. Two structural fixes from the index's laws: a deck's stringers deepen
+  with the bay they span (bay ÷ depth ≤ 16; the abutments and piers bear at their underside), and an arch's parapet is a
+  rail (0.86 m, its coping to 0.96). A value on a tone band's edge now measures in the band above it.
+- **Links: where scapeshift meets playscape.** `playscape/links.js`. Scapeshift makes the place and marks where it
+  asks to be joined (a trail's stairs site, a pit, a stream); playscape answers with a VERB (walk, climb, cross, ride,
+  launch, hop, drop) and the entry that performs it. `riseLinks(from, to)` lists every way between two levels that
+  fits the rise and the room on the ground (a hop is the walker's own jump, a drop only goes down), quickest first.
+  `linkStyle(kit)` reads a scapeshift kit's made tokens (`era/out-made.js` `madeStyle`) as the words the entries take:
+  its joinery picks a rope or a deck bridge and lashes or pegs a ladder, its edge word sets the outdoor steps' risers,
+  and every part an entry builds names the swatch role the tone will paint it from. `answerAnchor(anchor, { kit })`
+  answers a trail anchor in the kit's style: a stairs site gets a walk where one fits (the trail's own outdoor steps
+  first) and a climb where none does; a pit or a stream gets a bridge in the kit's joinery, beside the hop or the
+  ford it already is. Scapeshift imports nothing from playscape.
+- **The ladder entry: a climb from one level to the next.** `objects/ladder.js`, called by its ends like a bridge
+  (`to`, the lip; `from`, or a `rise` and a `facing`). Variants `ladder` (a lean ladder at 4:1, horns past the lip),
+  `rungs` (a fixed ladder on brackets, grab bars, a cage past 6 m), `rope` (hung from a beam, wrapped where the hands
+  close, a whipped tail) and `net` (a cargo net, climbed across as well as up). The kit's `timber` sets the rails'
+  section and its `joint` the middle third's joints, the 33 (lashings, pegs, notches, collars). Its laws (rung pitch,
+  width, 4:1, extension past the lip, cage, holds, clear, mesh, drape) come back in the man-made index's shape. Every
+  variant holds the object laws and its own from 2 to 8 m.
+- **The climb in the world runtime.** The `climb` body owner: a platform body takes hold of a `climbable` entity by
+  walking into its face, by falling past it pressing toward it, or by walking off its lip toward it; forward climbs,
+  strafe crosses a net, jump kicks off, the lip steps it off onto the level and the foot lets go. The climb owns the
+  body (the rule and its gravity are suppressed); a hit or a drop lets go. The pipeline pin names `climb` after
+  `drop`; the World page's runtime gained 80 lines and the emission pins re-pinned.
+- **The stairs entry: a walk from one level to the next.** `objects/stairs.js`, called by its ends (it fits its going
+  to the run between) or by a `rise` and a `facing` (it lays its own). Variants `flight` (closed risers between
+  stringers, balusters under a rail past 0.6 m, newels, a landing every 16 risers), `steps` (outdoor steps cut into a
+  bank, a staked board or a laid stone at each riser by the kit's `edge` word, a landing every 10) and `ramp` (a deck
+  between kerbs under the walk's grade, cleats, trestles, a landing every 9 m). The going comes from the stride
+  (2R + T); the outdoor steps are measured by the man-made index's own `steps` laws. It lowers to a floor face over a
+  solid block under each tread, so the platform rule walks up it riser by riser. Judged side-on: every variant holds
+  the object laws from 0.5 to 5 m (a ramp to 3.2 m: one with three landings draws one segment too many, and a 0.5 m
+  stone stoop's pins run a hair over the third).
+- **Breakable terrain: scapeshift gives the shape, playscape makes it break.** `playscape/terrain.js` takes either
+  scapeshift's own boxes (`fromColliders(stage.colliders, 'wall:crypt')` picks colliders by their `of` and hands the
+  rest back untouched) or a form asked of its library (`wall` in running bond, `pillar`, `crate`, `slab`), cuts them
+  into axis-aligned blocks a hit takes one at a time, and draws each block's faces under its own `node`
+  (`break:<id>`, as scapeshift's anchors do) for the page to hide. A block is standing (a collider: it blocks the walk,
+  the sight, the shot and holds up whatever stands on it) or broken (gone from the colliders). The runtime keeps the
+  state: `createWorld({ breakables })` puts each block in the colliders, and the new `break` world pass, after the
+  projectiles, takes one hp per hit from this tick's records: a hitscan that stopped on a block, a burst whose splash
+  reaches it, a swing whose reach and cone take it in (once a swing). Blocks have 1 hp while this is tested. A break
+  leaves a seq-keyed record on `state.breaks`; `breakBlock(state, id)` breaks one by hand; `groundOf(colliders)`
+  stands a walker on what still stands, so a broken slab drops it. `blockPieces` gives a broken block's shatter from
+  the destruct primitives' cleave. The pipeline pin names `break` after `projectiles`; the World page's runtime gained
+  117 lines with the gravity below and the emission pins re-pinned. The page does not yet hide a broken block or play
+  its pieces.
+- **Gravity for breakable terrain: what stacks, what falls.** A block stands while it is held: on the floor, on a
+  collider that is not a block (scapeshift's own), or on a held block; a slab's tiles (`bond: 'lateral'`) are also
+  held by each other, so a slab spans between its legs. Whenever a block breaks or lands the held set is worked out
+  again, and a block no longer held falls (18 m/s²), still a collider, onto the highest top under it that is not
+  falling, snapped so a stack lands stacked. A landing faster than 7 m/s (about 1.4 m) breaks the block and the
+  block it lands on (`how: 'fall'`, `'crush'`). So a running-bond wall keeps a block while either block under it
+  stands, a stack drops a block when its foot goes, and a crate on a slab falls through the hole a broken tile
+  leaves. `spec.breakFloor`, `fallGravity` and `fallBreak` tune it; `FORM_BOND` and `ask.bond` set the bond.
+- **The player: a hero from the hero door, driven in a world.** `playscape/player.js`: the move set adds what a hero
+  lacks for the runtime's states (`PLAYER_CLIPS`: the jump's wind-up `squat` and its flight `leap`, in the door's pose
+  words) and names which of its clips plays each state (`playerStates`: forward runs, idle idles relaxed, leap and boost
+  hold the flight, turn walks); `playerWorld({ hero | heroRef })` is a controllable world with the hero as the pilot on
+  the platform rule (W/S run, A/D turn, Space jump; a 4 m/s run, a hop of about a metre), a follow camera, a test
+  course (hop-up blocks, a flight of stairs onto a terrace, a wall) and the controls as a `legend` idiom. The figures
+  map takes a hero (world-scene.js): `figures.<name>.hero` (inline, as the door takes it) or `heroRef` (a stored
+  layered hero) resolves through the layered kind to the packed rig every rig body plays, without the static solid or
+  the preview, with `clips` naming the hero's clip for each runtime state (a name it lacks is refused by name). A
+  world's `events` block that is HUD-only (a legend alone) now reaches the page; before, it needed a reaction or a
+  sequence. The anime heroine (docs/examples/humanoid/cast/heroine.json) runs, idles, jumps and lands on the course on
+  the World page.
+- **Clips from an outside animation library, on mojulo's own rigs.** `figures/clip-library.js` reads a humanoid glTF
+  library (its skin and clips) into HUB clips: each humanoid bone's world turn away from the library's bind T-pose, in
+  the native frame (z up, facing +y), keyed by VRM name, and the hips' bob and sway as a share of the hip height
+  (`hubClips`; `LIBRARY_MAPS` maps a library's joints, Quaternius's Universal Animation Library first). `retargetClip`
+  composes each turn on the T-pose mold's rest → T offset (rig-tpose.js) and recomputes the heads down the rig's own
+  tree, so the clip lands in the keys every rig body plays; a rig with fewer spine bones takes each bone's own turn.
+  `scripts/import-clip-library.mjs` writes a hub from a library's file; Quaternius's free CC0 locomotion ships as one
+  (`figures/library/quaternius-ual.js`: idle, walk, jog, sprint, the jump's start, loop and land, crouch idle and walk,
+  a hit; 241 KB, loaded only by a world that names it). A hero in the figures map takes `library`, and a state's clip
+  the hero lacks is retargeted from it (a clip not named `_Loop` plays once and holds). The player starts from the
+  library (`LIBRARY_STATES`: the jog, the idle, the jump's start and loop), the hero's own clips and the move set's
+  filling the gaps; `library: false` plays the hero's own. Against the library's own mannequin, the heroine's limbs
+  point within 4.7° of its limbs on every frame of the walk, the jog and the jump; the whole residual is the library's
+  shin, which leans 4.7° back in its bind pose where the mold stands the leg straight.
+
+### Scapeshift
+
+The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by
+orchestrating the existing tools. This step makes the sixth-gen stage findable; no tool is added or changed.
+
+- **The stage, its kits and its looks have cards.** `get_view_vocab` and `semantic_search({ kinds: ['view_vocab'] })`
+  now return a `stage` hub, a `stage/<kit>` card per stage kit and a `look/<reference>` card per sixth-gen reference,
+  generated from the kit, style and reference cards at catalog load (`lib/graph/era/entries.js`), so they cannot drift.
+  A kit card gives its shell, the look it pairs with, the options its style card carries (night, decay, wind, fire),
+  its first principles and a starter manifest that plans. A look card gives its palette, light and air, and says when
+  the kit it names is not built yet. Before this, the kit list lived only in the stage's refusal message.
+- **Looks and kits are named for what they are, not for a game.** The five looks are `gothic-night`, `desert-dusk`,
+  `island-noon`, `jungle-haze` and `lab-dark`, set as a stage recipe's `"reference"`; the plaza kit is `island-plaza`.
+  No card names a game, studio or console: each describes its setting, light, air and surfaces, so the agent matches an
+  ask ("a dark castle lit by torches", "a desert town at sunset") on its own. The reference cards in `era/sixth-gen.js`
+  keep the research record. A recipe that already carries a reference card's own id or `delfino-plaza` still plans as
+  before; the refusal lists only the look ids. A stage with no title is now titled by its look.
+- **Every principle is counted.** `lib/graph/era/laws.js` maps each principle every style card states (its own, its
+  night's, its decay's) to the shared laws it is an instance of, and each law to the layer that must carry it when the
+  look leaves the stage: look (light, value, palette, air, sky), surface (density, materials, blends, cards),
+  composition (focus, subject line, distinctness, causes) or dressing (a kit's own set pieces). The era card's own laws
+  (baked vertex light, vertex and texel density, the readout frame, the cast over the world) are listed too. A style card
+  that gains a principle without a mapping fails `laws.test.js`. A generated `sixth-gen-laws` card lists the laws by
+  layer, and each kit card names the laws its principles state.
+- **A look is a setting on any world.** `look: 'gothic-night'` (or `{ id, cell }`) on a world's manifest
+  (`lib/graph/era/look.js`). A kind that resolves to raw albedo (the dungeon, the city, the controllable world, the
+  object kinds) is resolved unshaded and re-lit by the stage's own bake: every large face is split to a cell (2 m by
+  default, in metres whatever the world's unit) so the light has corners to land on, then baked with the look's
+  ambient, its sun with cast shadows and ground bounce, and the world's own point lights as torches, their flames
+  drawn. The page takes the look's fog and sky; an interior keeps its own sky and the look's fog behind. Any other
+  kind takes the air and sky only and its payload says so (`lookNote`), as does a sunless look on a world that places
+  no lights. Absent `look`, nothing changes. This lands the look laws baked-light, vertex-density, shade-is-colour,
+  depth-by-air and sky-is-a-place; value order, palette, pixel lock and the surface laws are next.
+- **A stage recipe paints its own tiles and sets its own proportions.** `tiles: { wall: { gen: 'stone-brick', stone,
+  mortar, rows, cols, bevel, … } }` per surface (generators `stone-brick`, `flagstone`, `rock`), and
+  `proportions: { column: { r, sides }, plinth: { h }, torch: { every }, … }`, each setting inside its rail
+  (`lib/graph/era/tile-specs.js`); anything outside is refused with its range. A tile family is named from its own
+  numbers and rebuilt from the recipe on every read, so it survives restarts and any number can be edited later with
+  `update_sketch`; the kit keeps its value band per surface but the recipe's colour is the hue. Each room kit offers only
+  the proportions it draws (`STAGE_KIT_PROPORTIONS`, measured: the plaza and the lab take `bay` only). A generated
+  `stage-rails` card lists every setting and range, and each kit card names its surfaces and parts.
+- **Two stage fixes.** `torch.every: 1` seated no torches (the seat rule was `k % every === 1`); it now seats one per
+  pilaster, with the kits' own spacing unchanged. A sunlit kit (the plaza) given a look with no sun threw a TypeError; it
+  now refuses with the looks that have one.
+- **The laws are checked on every room stage.** `lib/graph/era/law-checks.js` reads value order (torchlit wall, open
+  floor, vault, as baked colour × tile mean), materials by layer (the vault never the walls' tile nor coursed brick),
+  blends by cause, cutout cards, a focus and coloured shade off a built stage: a readout that advises, never refuses.
+  The bare gothic-stone passed 1 of 6.
+- **gothic-stone is a crypt.** A new style card (`style/crypt.js`, its principles counted in `laws.js`) and dressing
+  (`era/crypt.js`): a tomb chest on a stepped dais in the last room of the walk, set back from the way in; candle
+  clusters at its corners, each a baked light that leaves no soot; cobwebs in pilaster angles, never on two neighbours;
+  moss and grime blended by cause (the nave's blends, now `blendsByCause` for any kit); a limewash vault darker than the
+  walls; a `tomb` camera that frames the set piece from the way in. Passes 6 of 6. The nave and the plaza are cut from
+  gothic-stone's original numbers and are unchanged. Authored `lights` still replace the torches; the candles stay.
+- **Repeating elements, an accent wall, corner things.** Three new laws (`repeat-adjacent`, `accent-wall`,
+  `corner-things`), stated on the crypt's card and checked: every bare bay of the crypt carries the same framed burial
+  niche (in two tiers on a tall wall, an urn in some), never in a doorway; the wall behind the tomb is the accent, its
+  courses cut in larger, darker ashlar named from its numbers and bare of niches; and `lib/graph/era/props.js` gathers
+  crates, barrels, leaning planks, stones, a boulder and debris where floor meets wall, clusters in the corners and
+  singles at the wall bases, off the walking line, out of doorways and clear of the tomb, never two of a kind side by
+  side. Any room kit's dressing can name its own `props: { kinds, share }`. `checkStageLaws` takes `only`, so a kit is
+  read against the laws its own card states.
+- **Real fire in the crypt's starter.** The kit card's starter carries `fire: true`: its torches burn through the fire
+  channel. The candles stay baked lights.
+- **Grime is a setting.** `grime: 0…1` on a room-kit recipe scales the dressing's moss and grime, the baked dirt (soot,
+  damp, age, traffic) and the crypt's own wall wear together; the crypt stands at 0.5.
+- **Brick wears.** `stone-brick` tiles take `jointDepth` (recessed mortar, grime along the arrises), `grime` (streaks
+  down from the bed joints) and `chips` (broken arrises), each 0–1; absent, every preset tile is byte-identical.
+- **Round, never boxed.** A new law, `arches-and-rounds`, is stated on the crypt's and the catacomb's cards and checked
+  (a vaulted ceiling, arched trim, at least 8% of the built faces curved). A room kit opts in with `arch`
+  (`lib/graph/era/arches.js`): doorways under a semicircular head with an archivolt and a curved soffit through the
+  wall, and a barrel vault on transverse ribs over every room (the nave's vault, struck round; a segment of a circle
+  past `maxRise`), cut so no face outgrows its light cell. The crypt takes it, with arched niches, turned barrels and a
+  coped tomb lid. The nave and the other kits are unchanged.
+- **Wood is a tile spec.** `gen: 'wood'` joins the tile generators (early and late colours, ring frequency, warp,
+  cathedral, streaks); unset settings give quiet straight grain. The props' crates, barrels and planks take a muted,
+  weathered grey-brown from it instead of the preset oak and walnut; a dressing can name its own (`props.wood`).
+- **The catacomb kit.** Burial galleries cut in soft rock (`style/catacomb.js`, dressed by `era/crypt.js` from its own
+  card): walls, piers and vault one generated tufa, the vault sooted darker, worn flags in earth; loculi in up to four
+  tiers in every bare bay, some sealed with a slab; an ossuary accent wall of bone ends with rows of skulls on ledges
+  behind a sarcophagus; amphorae, bone heaps, stones and debris at the wall bases. Passes 9 of 9.
+- **Both starters are six rooms.** The crypt's walk runs nave, gallery, passage, charnel, chapel and sepulchre, turning
+  back to end beside where it began; the catacomb's runs a stair, two galleries, a cubiculum, a crossing and the
+  ossuary. Both open under the stage page budget (`stage-budget.test.js`).
+- **Art direction comes first.** A room-kit stage recipe takes `art: 'propose'`: at create_sketch the palette (ramps,
+  shade end cool, light end warm), materials (texture numbers; colours from the palette), architecture (proportions and
+  the vault's rise) and motifs (the niche, the accent wall, the corner things) are rolled by seeded dice inside the
+  kit's rails (`lib/graph/era/art-direction.js`) and stored in the recipe as numbers, each item `proposed`. The answer
+  carries the art board as an image: five panels in mojulo's own SVG (`art-board.js`) with the actual tiles, a wall
+  elevation and room section drawn from the proportions, motif glyphs and the floor plan, rasterized by sharp (without
+  it the answer says so and carries the readout). Approve an item with a patch to `/art/status/<item>`; send one back
+  with `/art/<item>: 'reroll'`; `art: 'auto'` is hands off. The recipe's own `tiles` and `proportions` still win. No new
+  tool. Every roll keeps the kit's laws (`art-direction.deep.test.js`). Absent `art`, nothing changes.
+- **Bricks take a radius and a shadow.** `stone-brick` tiles take `radius` (corners rounded, 1 makes each stone a disc)
+  and `shadow` (each stone casts a soft box-shadow into the joint below and to its right); `rows` and `cols` now run
+  to 12. The crypt's walls and accent wall use both; the ossuary's courses are now discs, bone ends seen end-on. Absent,
+  every preset tile is byte-identical.
+- **The art direction is seven items, and rolls stop repeating.** Palette, materials, architecture, MOTIFS (small: a
+  frieze carved in a band along the plinth or cornice; `gen: 'frieze'`, seven patterns), DOODADS (large: the set piece,
+  the accent wall, the things on the floor), ATMOSPHERE, and the plan. Materials choose between whole specs by weight:
+  walls in running, Flemish, coursed-ashlar or stack bond, or rubble (dark stones in grey mortar); floors in flags,
+  herringbone, basketweave or hexagons. The board shows all seven; the deep sweep keeps every kit law and the page
+  budget on every roll.
+- **Brick bonds.** `stone-brick` takes `bond`: `running` (the default, byte-identical), `stack`, `flemish`, `ashlar`,
+  `herringbone`, `basketweave`, `hex` (a hex lattice gone asymmetric) and `rubble` (shaped field stones piled in the
+  mortar); radius and shadow work on all of them.
+- **Earth, ivy, lift.** Room-kit recipes take `earth: 0…1` (the floor giving way to packed dirt, in patches and along
+  the way), `ivy: 0…1` (ivy rooted in the joints above the plinth, climbing; never on the accent wall) and `lift: 1…2`
+  (every room taller). Each is also rolled by the art direction.
+- **Set pieces and the doodad rule.** The set piece is a closed tomb, an empty one (its lid off and leaning, the dark
+  inside showing), an altar or a well. A stone coffin joins the corner things. Two doodads never stand within 2.5 m
+  unless a corner gathers them on purpose (`clusters`). New laws `dare-height`, `motif-small` and `doodads-apart` are
+  stated on both cards and checked.
+- **Atmosphere.** `atmosphere: { fog, dust, flicker }` on a room-kit stage: the look's fog thickened or thinned, dust
+  motes drifting in still air and lit near the lights (`scene/channels/motes.js`; absent, no bytes), and the torches'
+  flicker pace. Fire sources take `pace` (0.2–2); the crypt's and catacomb's torches burn at 0.45, calmer.
+- **Page weight.** Pilaster sides are lit in metre cells, niche arches take six segments and the crypt's gutter holds
+  less rubble, so the six-room starters keep room under the budget for taller rolls.
+- **A built stage is addressable.** A room-kit stage's payload carries `rooms` (id, interior box, its doorways),
+  `anchors` (each doorway between two rooms, the recipe's doors and items, the set piece and its lid, every doodad and
+  prop by form and count such as `coffin-2`, each torch, niche and the accent wall, each with its room and position)
+  and `colliders` (every closed wall as slabs cut at its doorways with a lintel kept, the pilasters, a hull per solid
+  thing). A thing's faces carry its id as `node`, and the GLB gives each its own node by that name. The engine score
+  and the GLB scene extras (`moj:rooms`, `moj:anchors`) carry the address, and the ledger counts it. The Godot kernel
+  (0.5.0) walks against the colliders, makes every anchor a named `Marker3D`, turns rooms, doorways and doors into
+  triggers (a door locked by an item opens once the bag holds it) and items into pickups whose node hides when
+  taken. The World page never reads any of it: its bytes are unchanged.
+- **Tone: colour as its own concern.** A room-kit stage takes `tone`: a preset (`noir`, `flat`, `isekai`) or a
+  direction of its own (`texture: 'value' | 'shade'`, `steps`, `key`, `gain`, `detail`, five-stop `ramps`, `groups`,
+  `keep`). The build drains the colour out: tinted faces bake grey, and tiles become their greyscale `value:` twins
+  (about half the bytes) or `shade:` twins (the shadow only, the faces flat). The World page lights first and colours
+  after (`scene/channels/tone.js`): the baked light is banded into `steps` and picks a colour off the surface's ramp,
+  and the tile's own value adds detail inside the band. Exposure is measured: the median baked light lands on `key`.
+  Engine exports carry the grey build and `score.tone`; the ledger says the grading is the page's for now. Absent
+  `tone`, the page's bytes are unchanged.
+- **Interceptors: immersive detail that never collides.** A room-kit stage takes `growth` (0…1 for every plant, or
+  `{ grass, vines, creep, fungus }`), `litter` and `cracks` (0…1). Each interceptor finds its sites on the built rooms
+  (the floor's stones and joints, the bare runs of wall, the large things, the corners) and grows there before the
+  bake. Litter is pebble patches and a few stones in the floor's own shade, kept off the walk. Cracks are a decal
+  inside a single flagstone. Grass grows at every height in the joints and at the wall foot, thinning toward the walk.
+  Vines and roots hang from under the cornice, clear of the piers. Creeping ivy is rooted at the feet of the set piece
+  and the doodads. Fungi grow in the corners, or at the foot of whatever stands in one, and at the piers' feet. No
+  interceptor adds a collider or an anchor, and each kind's count is capped and spread evenly over the rooms, so every
+  room gets its share and the page stays under budget at full aggressiveness on the tallest lift (tested). The art
+  direction rolls `growth`, `litter` and `cracks` under `materials.weathering` from dice of their own, so a seed rolled
+  before keeps every other number, and a stored direction without them grows nothing. New cards: `card:fungus`,
+  `card:crack`, `card:pebbles` (the small ones ship at half size). Tones colour each interceptor's group from a ramp.
+- **An outdoor trail from a recipe: `trail` on an open-ground kit** (`isekai-meadow`, the groves, `trail-valley`;
+  `lib/graph/era/out-trail.js`). The first rung of an outdoor ladder named `out-trail` → `out-section` → `out-level`, apart
+  from the rooms' halls and floors. What the hand-built trails shared is now a grammar the builder reads as numbers:
+  - **a spine** sized by `run` (seconds at the walker's 6 m/s; 12 by default, the isekai meadow's 72 m, the least that
+    holds two minutes of exploring; up to 25);
+  - **beats** along it, at least 11 m apart: pinch, reveal, landmark, crossing, pocket, rest, pit. Drawn by dice when
+    `beats` is not given: always a reveal, a landmark and a pocket, the landmark early, never two alike together, and as
+    many as keep the exploring under three minutes (a long trail is a sparse one);
+  - **the heartbeat** (`heartbeat` 0–1): the trail's height along its length, each beat its own shape (a climb into a
+    reveal, a dip into a pinch or a ford, flat at a rest);
+  - **bumpiness** (0–1): mounds and hollows, full off the walk and a tenth on it.
+  The ground is built in passes, each kept: rough (the heartbeat, the beats' edges, the bumps), then smooth (the profile
+  averaged, the walk laid level, the cliff's geology, the walk laid again over it, the pits cut). Where the smoothed walk
+  is still steeper than 0.3 it is a stairs site, recorded for the next rung. The cliff breathes with the beats (drawn in
+  at a pinch, pushed back at a reveal); a pocket is a clearing with a bank round it but for its mouth; a ford is a
+  stream from the cliff's foot across the valley; a pit breaks the ribbon and is cut 2.6 m deep, with the ground whole
+  wide of it; the landmark is a tall stone, the least that the trailhead (or a beat 15 m short of it) can see, and the
+  trailhead's camera frames it.
+- **Every beat and hazard is annotated.** The answer carries `anchors` (a beat with its station and the way on; a
+  pocket's mouth; the landmark by node; a hazard's zone, `severity` and `respawn`; a stairs site) and `outTrail` (its
+  length, run and exploring seconds, its beats and its laws: run, explore, spacing, order, grade, crest, hazards,
+  landmark). A sweep holds every law for every seed, heartbeat and run (`out-trail.deep.test.js`).
+- **A trail follows another: `trail.after`** (the followed trail's recipe and its stage `seed`). It starts where that
+  one leaves: on its line and heading (easing into its own sway over 24 m), at its height, on its last row of ground
+  (eased over 12 m), its cliff carried on. A `junction-<from>-<to>` anchor marks the seam, as a doorway does between
+  rooms; every anchor names its `trail`; `outTrail.after` and `origin` say where its site sits beside the followed one,
+  and a chain carries the origin on. Each trail is still its own page. A `seam` law measures the join (line, heading,
+  height and ground under a centimetre). A trail's depth is a whole number of ground cells, so every trail's grid
+  shares one spacing and two trails' vertices meet at a seam (they did not, and a cliff opened a crack).
+- **A pit or a ford is on level ground.** The smoothed walk is laid flat within 3 m of each (a `level` law: no stairs
+  site there); a pit had landed mid-staircase.
+- **The outer wall: `trail.bounds`** (`lib/graph/era/out-bounds.js`). A trail's site edge is mapped like a floor plan's
+  walls, so nobody walks off the world and an area can be closed off. Each side (`-x`, `+x`, `-y`, `+y`) is a run of
+  segments (a face for the whole side, or `{ from, to, face }` in metres), each a collider (`of: 'bound:<trail>:<side>'`)
+  and an anchor (`kind: 'bound'`), and each with a face — what the wall does besides stopping a walker: `wall` (unseen),
+  `natural` (behind a barrier the land makes: the cliff side's default), `paint` (a panel with the recipe's `png`, or
+  the style's far hills painted in three bands against the real sky), `mirror` (the site's near band reflected past
+  the wall: the world seems to go on; not the grass tufts), `penalty` (a trigger strip before it, `reset`, `hurt` or
+  `slow`, with a respawn on the nearest beat) and `open` (a seam: the side after another trail opens by default; a
+  trail that leads on says `'+y': 'open'`). A mirror's OFFSET-WRAP: `offset` slides the reflection along the wall,
+  wrapping in the segment, and `stutter` (metres, or true for 8) gives each chunk its own slide by dice, so it reads as
+  other land. Only the things standing on the reflected ground slide, each whole (a trunk with its crown), set down
+  where they land; the ground never does, so the reflection meets the real ground at the wall without a step. A
+  `bounded` law: every side covered, open only at a seam. No wrap: a mirror shows the world going on, the wall holds.
+- **Wind on a trail is free.** `wind` on an isekai kit with a `trail` gives it live grass with no change: the grass
+  reads the grammar's ground and trail line.
+- **The landform board** (`out-trail-board.js`): the land in black and white before anything grows on it — both passes
+  as depth maps with the trail, beats, pockets, hazards and stairs drawn over them, the heartbeat strip, and the laws.
+  Absent `trail`, every open-ground kit builds byte-identically; `trail` on a room kit or the jungle is refused.
+- **The outdoor master index: man-made architecture and the swatches** (`lib/graph/era/out-made.js`,
+  `era/style/swatches.js`, drawn by `era/out-index-html.js`). Documentation first: nothing is placed in a world yet.
+  What people build along a trail (posts and fences, signs, beam bridges, steps, stepping stones, a stacked stone figure,
+  laid paving) is a cascade: structural LAWS no layer can loosen (rail height, span over depth, 2R + T, balance), then
+  the KIT's tokens rolled in rails by its seed (timber, joinery, chunk, caps, relief, wear, bond, paint), then a
+  trail's `made` block (narrow a token, re-point a swatch role, add a piece; anything else refused with what is
+  allowed), then the PIECE, a pattern's dimensions rolled inside rails that sit inside its laws. Patterns are parts put
+  together by joints, drawn in black and white elevation, section and plan, dimensioned and measured. The SWATCHES
+  record every outdoor colour, land and made: the isekai cards now read their ramps from them and nature-trail its
+  blaze, so art direction for colour is controlled there (every kit builds byte-identically).
+- **One vocabulary for what built things are made of** (`era/made-elements.js`): every element word (a bridge's
+  stringers, footropes, keystone; the index's parts; the dressing's caps, lashings, courses) names its part and its
+  material. A playscape object's values become a kit's colours through it: the material picks the swatch ramp, the
+  value the stop, and what you use (`obj:status`) takes the kit's accent and nothing else does. The index's bridge is
+  now the playscape entry: the kit's `bridge` token picks the variant, its tokens dress it, and the index measures its
+  span-depth, bearing, handrail and flush laws on the built thing (a plank or a beam crossing is a challenge and needs no
+  rail); the index's own beam bridge is retired.
+- **The outdoor flora index: plants as doodads** (`era/out-flora.js`, drawn by `era/out-flora-html.js`). Research
+  first: nothing is placed in a world yet. Four forms make the plants a kit needs, each a few primitives under a few
+  dials rolled in rails by a seed: masses on a stick (lollipop, broccoli, cloud pads, column), a cap on a stalk
+  (parasol, bell, funnel, toadstool), organic growth (brackets, puffballs, frills) and sausage fingers (saguaro, pads,
+  coral, tube bundles). Built in values on named parts, skinned by a kit's swatch ramps, and built per reveal ring
+  under a face budget. Leaf density is depicted (masses, overlap, a dark core through the gaps), never modelled. Read
+  laws, not botany: one shape leads, the weight sits over the foot, body and wood differ in value, the ring's budget
+  holds. Bark is exposed as the fracture model's dials and the stylized pattern each reads as; grass is chosen from
+  mojulo's own primitives; the jungle is restated as a composition of layers, each with the form it would be.
+- **Incongruity: the distortion pass as juxtaposition** (`era/out-flora.js` `incongrue`). A doodad is now a plan of
+  base composition blocks (masses, caps, pads, knuckles, shelves) joined by links, then a mesh. Two dials mismatch the
+  blocks: vertical (along a stack, sizes out of step and one joint jogs or kinks off the line) and horizontal (side by
+  side, sizes alternate, heights go jagged, one stands out). Held by the sixth-gen object principles: one mismatch
+  leads per run (the 33), the leading shape is never the one mismatched and never shrinks (the 66), filler stays quiet
+  and a focus may be loud, and a leading mismatch under the eye spot at play distance is dropped as noise. Every stack's
+  weight is brought back over what holds it and the whole over its foot, then the doodad is fitted back into its own
+  bounds, so its footprint never changes. Under the eye spot, incongruity moves up to the composition: a cluster's
+  members answer each other the same way, gated by the eye radius (full near the trail, half mid, none far).
+- **Ikebana: `clustersprout` and the zone painter** (`era/out-ikebana.js`, drawn by `era/out-ikebana-html.js`). A
+  bundling aid: a cluster is arranged, not scattered. `clustersprout` grows one arrangement from a single root (the
+  kenzan): three principals in scalene steps (shin, soe at three quarters, hikae at three quarters of soe), each leaning
+  its style's angle (upright, slanting, spreading) toward its own side of the viewer's line, as far as it still
+  stands; an odd count of fillers inside their triangle, each sized by its footprint so it never spreads wider than
+  soe; a flowering root at the foot (the broccoli form gains a `bush` variant and `blooms`, a part each kit skins); and
+  the ma, a sector toward the viewer left open. Every stem is a flora doodad with its height pinned to its share and
+  its own incongruity scaled by its role's interest. The zone painter sprouts arrangements along painted strokes with
+  scale, bend, density, variation, kenzan and ma dials, each turned to a trail or a view, neighbours in alternate
+  hands and one odd one out per stroke. A finger's radius now scales with its height, so every form does.
+- **Wide ikebana: mixed media, its own ground, and walking** (`era/out-ikebana.js`, `era/out-flora.js`). Fillers
+  cycle through their list, never the same thing twice running, and a `mix` law asks for three different things when
+  the materials offer them. The flora index gains the terrain an arrangement is made of: `stone` (boulder, a cairn of
+  stacked courses, standing slab, outcrop), `ground` (a mound whose crown is the root; a hollow whose pool lies in the
+  ma) and `tuft` (ground cover, plain or in flower). Wide presets (garden, oasis, crater) set every element on the
+  ground's surface with cover over the footprint; a solid mass weighs more than its height, so boulders and puffballs
+  are fillers, never principals. Each element is classed for a walker from its built geometry (`WALK`): block (a trunk,
+  a stone or bush over a step, any cactus, a mound steeper than it can be climbed), walk (tufts, flowers, anything
+  under a step), under (a canopy over head height), wade (a shallow pool), as plan colliders. `walk: 'open'` keeps a way
+  in down the ma (a crowding stem turns away from the front) and `walk: 'thicket'` makes every filler block; the zone
+  painter moves an arrangement back whole until nothing that blocks stands within the trail's clearance.
+- **Ikebana in tiers, plants only** (`era/out-ikebana.js`, `era/out-flora.js`). Arrangements no longer use stones as
+  decoration: every preset is plants at every size. Fillers stand in TIERS down from the principals (an understory of
+  small trees behind, bushes in and out of bloom either side, flowers in front either side of the ma) over a ground of
+  tufts and daisies on every preset: tall behind, short in front. Each tier's materials cycle so nothing repeats. The
+  flora index gains `flower` (spike, umbel, daisy, plume: one stalk leads, a spike envelopes far) and a second bloom
+  colour per kit. Three laws hold the variety: `layers` (at least four height bands, canopy to ground), `shapes` (at
+  least three silhouettes: columnar, round, spreading, made so by swapping a filler when one is missing) and `depth`
+  (the herbs nearer the viewer than the understory). Flowers, like tufts, are walked through.
+- **The `isekai-garden` kit: ikebana placed in a level** (`era/ikebana-place.js`, `era/style/isekai-garden.js`). A card's
+  opt-in `ikebana` paints arrangements along the trail's banks (each bank its own zone and dials: the near banks at
+  mid detail, a far row sparser at far detail without cover), clear of the cliff, the apron and the trail's reserved
+  places, every arrangement facing the trail with open lawn between them (the ma at the composition's scale). Every
+  element stands on the land at its own foot, coloured from the kit's swatches through the flora skin and banded by
+  the stage's cel light, casting and taking the sun's shadow. What a walker pushes through goes in a soft group the
+  page walks through (`soft`, a new opt-in on the World emitter: absent, every page emits as before); what blocks is a
+  collider for an engine, and every arrangement an anchor. Faces never seen are not built: a face buried inside another
+  mass of the same plant, a downturned face under the eye, a face under the ground. A flower's head is never smaller
+  than reads at play distance. The garden is the meadow's grammar with no loose trees and a short lawn; every other kit
+  builds byte-identically.
+- **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
+  and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
+  ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the
+  stars out, the moon drawn on the dome where the key light comes from, a pale world where the card hangs it), `glow`
+  (each lantern crown a light baked into the ground round it and lifting the cel band near it; the crowns self-lit,
+  lifted up their ramp, a few with halos), and `water` (a trail's stream in its own colour). Trails, joins, outer walls
+  and wind work on it unchanged. Absent the fields, every kit builds byte-identically.
+- **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
+- **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
+- The platformer game kit's search line no longer names game characters.
+- The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from
+  the curated `compose_world` base cards.
+
+### Pack CLI
+
+- **`mojulo pack_x --json '{…}'` takes the pack call's own arguments.** Flags straight after the pack id are what
+  `pack_x({…})` takes over MCP: `--json '{"manual":["mint_solid","edit_solid"]}'` (a name or a list),
+  `{"tool":…,"args":{…}}`, or `--manual` / `--tool` / `--args` flags, checked against the pack schema. Before this,
+  the form that pack bodies and `orient` teach failed with "pack dispatch needs a tool name before flags". The
+  `pack_x <tool> --json …` and `pack_x --manual a,b` forms are unchanged.
+- **`orient` names the command in use.** Its shell translation and the `tools` footer say
+  `node scripts/mcp-stdio.mjs` when the repo script is run from a checkout, `npx -y mojulo@<version>` under npx, and
+  `mojulo` otherwise. `orient` also maps `pack_x({ manual: … })` now. The MCP `initialize` and `tools/list` bytes do
+  not change.
+
+### Workbench ladder
+
+- **The workbench card opens at a first object.** `get_solid_vocab({ id: 'workbench' })` returns the spec shape,
+  the quick-start mug, lathes, extrudes and sweeps, assembly, materials and units, the composition rules for
+  frames and arrays, and the candlestick, with a menu of the deeper families and their sizes: lofts, fields,
+  expression terms, rocks, crystals, light rigs, domain operators, timber frames and masonry, furniture,
+  upholstery, drapes, reliefs, shells, cuts, metal surfaces and toon, composition moves, and groups and movers.
+  Each menu line names the asks its section answers (a bookcase, cabinet or flat-pack carcass → `furniture`). The
+  text moved and was not rewritten; search and the embeddings still index the whole card.
+- **What an agent reads.** A plain object: 74.9 KB before, 20.3 KB now. A bookcase: 74.9 KB before, 26.0 KB now
+  (the base and `furniture`).
+- **The plugin profile edits a sectioned card's base.** Its lines about label wraps from a painted render stay in
+  the base, and the profile's body edits now apply to the base it serves as well as to the body search reads.
+  `tools/list` does not move.
+
+### Furniture fittings
+
+- **Fittings no longer meet inside a board.** A member joined at the same place from both faces, such as a carcass
+  partition with a fixed shelf or adjustable shelves on each side, got the second joint's fittings in the same holes
+  as the first's: 11 mm of cam bolt from each face of 18 mm board, dowels and shelf-pin holes back to back. The
+  second joint's cams, dowels, confirmats, screws and shelf pins now move along the contact toward its middle, by the
+  least whole millimetre that leaves 3 mm of board between holes. Where nothing collides, nothing moves.
+- **A single cam gets a dowel.** A cam on a short contact (a 60 mm plinth) had no dowel and could pivot on its bolt.
+  It now gets one 32 mm beside it, or 16 mm where the contact is shorter. The middle cam of a three-cam row (panels
+  about 390 mm deep or more) had its dowel placed in its own bolt hole. That dowel now goes beside the cam too.
+- **The interference report checks fittings.** `furniture.interference` lists two fittings whose holes meet inside
+  a member (`fittings: true`, `in`), and the mint warns about each one.
+- **Output changes.** These fixes change re-renders of existing rows. Every `kd` carcass with a plinth gains two
+  dowels. Every carcass with a partition and shelves on both sides, and every `kd` carcass with panels about 390 mm
+  deep or more, moves fittings. A dowel-jointed table also moves fittings, because its two apron dowels met in each
+  leg. Frames where no fittings collided render byte-identical.
+
+### Fabricator
+
+A fabrication need is said once, by the job a part does, and resolved from the shelf of standard parts first and from
+scratch last: the cluster every new object draws from. Every existing kind builds byte-identically; a scad row minted without the door is unchanged.
+
+- **Function words** (`fasten`, `thread`, `locate`, `hinge`, `slide`, `spin`, `drive`, `transmit`, `retain`, `seal`,
+  `catch`, `mount`, `enclose`, `store`, `frame`) resolve to a strategy: parts taken by a route (buy, fit the standard
+  interface into your part, print the standard part) or, last, a mint. Capabilities are measured from the need's
+  numbers (host material, load, cycles, access, shaft, axes, the host it mounts to); intent tags are a closed set
+  (`serviceable`, `tool-free`, `print-only`, `waterproof` …), each read by some strategy. `resolve`, `repertoire` and
+  `coverage` in `lib/graph/fabricator/`.
+- **The inventory** names families, not sizes: sizes are read from the construction hardware codes and the
+  mechanical library's own tables, so there is one copy of every bearing bore and motor bolt square.
+- **Provenance gates the route.** Standards, commodity parts, openly licensed systems (kept with their licence) and
+  mojulo's own designs may be bought, fitted and printed. Another owner's product or system is reference-only: bought,
+  or fitted by the interface its owner publishes, named only to say what fits, never reproduced. A refused strategy
+  is reported, and the resolver moves on (a three-prong camera mount resolves to a bought adapter).
+- **Coverage:** of the probe needs, three quarters resolve from the shelf; the rest name the gap they wait for.
+- **`fabricate_solid`:** the fabricator decides and the kind that owns the material's joinery executes. A wood need
+  whose strategy is a furniture joint (cam-lock, confirmat, insert-bolt, screwed, dowel, shelf-pin, hinge, slide) is
+  planned as that joint for a workbench `frames` entry, whose joint code places and counts the fittings. A need solved
+  by `mj_*` cuts or printed parts is planned for an OpenSCAD `source`. With `needs` alone the tool mints nothing and
+  hands back the plan: each need's executor, strategy and why, the bill of materials, the cuts and the joints. With
+  the `source` or the `frames` it mints the row with the plan frozen beside it as `fabricate`.
+  - **Advisory checks:** planned cuts or joint types the body never makes, and needs planned for the other executor,
+    are warned about. None is refused.
+  - **One shopping-list shape:** the bill of materials uses the furniture report's and the instruction manual's line
+    shape (`code`, `label`, `count`, `tool`, …). After a frames mint it is the frame's own hardware report, not the
+    plan's estimate.
+  - **Manual:** `get_solid_vocab({ id: 'fabricate' })`.
+  - **Tightened by three agent trials** (a spool holder, a waterproof Raspberry Pi box, a flat-pack bookcase):
+    - A part that is seated is bought: heat-set inserts were cut for and never listed, and a board's standoffs bought
+      no screws. A test holds every strategy that fits a seat to buy as many as it seats.
+    - Counts and depths agree: two bearings get two seats. A threaded hole runs 2 mm past the bolt tip. A fastening
+      need says the grip its bolt length assumed.
+    - Every cut says `where` it goes.
+    - One job per need: a sealed box is the box. Its rim seal (O-ring cord sized to the rim), cable gland and
+      breather are suggested as their own needs, and a need another one already covers is reported as an overlap.
+    - Furniture in wood reads as furniture: shelves are shelf pins, a back is a groove joint, the wall fixing is an
+      anti-tip kit, and a frame-placed fitting is left for the frame to count. A frames row takes the frames' unit.
+  - **On the scad ladder:** a scad row that cuts a standard part's interface (a bearing seat, a heat-set pilot, a
+    nut trap, a NEMA face …) and has no plan beside it opens `next` with `{ add: 'fabricate', tool:
+    'fabricate_solid' }`. The cutters are read off the inventory, so there is one list.
+- **Kept apart from the assembler.** The assembler places finished workbench parts in a scene; `fabricate_solid` says
+  which real hardware does a job. The routing cards contrast the two, and the assembler, handed a scad row, now says
+  that a scad object assembles inside its own source (`parts`, `mechanism`, the plan's `bom`) instead of only that
+  it is not a workbench.
+
+### Scad ladder
+
+- **The scad card opens to its first step.** `get_solid_vocab({ id: 'scad' })` returns the part itself (spec,
+  idioms, the worked example, what the kind does not do) and a menu of the deeper steps with their sizes: the
+  mechanical library, standards and composition, outputs, mechanisms, dynamics, and the rigidity sensor.
+  `get_solid_vocab({ id: 'scad', section: 'mechanism' })` reads one; a list reads several. The text moved and was not
+  rewritten; search and the embeddings still index the whole card.
+- **Any solid card can do this.** A card marks a section in its body, and a card without marks reads as before.
+- **`next` on scad rows.** `mint_solid` kind scad and `update_sketch` on a scad row return the steps open from the
+  recipe as stored, each with the section that teaches it: a mechanism for a part list, dynamics for a mechanism,
+  the motion and strength readings, a print as printed and its coupon, a DXF for sheet metal, and the print
+  package. It is computed, never stored, and names a step without predicting its result.
+- **Ratchet.** `get_solid_vocab`'s `section` property moves the flat `tools/list` pin by 63 bytes (239,264 to
+  239,327; pin 239,400). The card a plain part reads drops from 26.3 KB to 9.6 KB.
+
+### Bug motion
+
+The arthropods move. A bug minted with `motion` (a worked one by `species`, or one nobody has built by `bug`) carries a
+skeleton derived from the parts it is assembled from and clips the World plays, packed as the animals' are.
+
+- **The skeleton.** Bones along the body (the trunk's segments, the neck, the head, the abdomen's segments, a
+  scorpion's tail), a coxa / femur / tibia / tarsus chain per leg, the antennae, mouthparts, wings and wing cases; each
+  part bound to its bone, a section's rings blended along its segments.
+- **Walking.** One footfall rule for every leg count: each pair a fixed share of a stride behind the pair in front, the
+  two sides half a stride apart, so six legs walk the insect's alternating tripod, eight the spider's alternating
+  four, and many the millipede's wave. A planted foot holds the ground while the body passes over it.
+- **Flying, swimming and escaping.** Wings stroke about their roots (a beetle's wing cases raised clear first), oar
+  legs row, a lobster's tail flips it backwards, a crab walks sideways.
+- **Wingbeats.** A flight beats at the order's measured rate where a screen can show it (a butterfly's ten beats a
+  second); past that (a bee's two hundred) the World draws the wing's swept fan, see-through, instead of strobing
+  wings, while an engine export plays them beating at the screen's limit. `wingbeat` asks for beating, the blur, or a
+  rate.
+- **Behaviors.** Relaxing, alert, eating and sleeping, done the arthropod's way: antennae sweeping, forelegs or claws
+  raised, a scorpion's sting over its back, mouthparts working, legs drawn in.
+
+### Fauna behavior
+
+What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one
+word: a sheep lies with its legs folded under and chews the cud, a horse dozes on its feet with a hind hoof cocked, a
+cat curls nose to tail, a vulture perches on one leg, a python coils, a salmon hovers. A minted animal carries them as
+animation clips beside its gaits. Every species builds byte-identically, and an animal minted without behaviors is
+unchanged.
+
+- **Behaviors.** `relax`, `alert`, `eat` and `sleep`, each a loop or a hold, in `lib/graph/fauna/behavior/`.
+- **Strategies.** Each behavior's ways of doing it, written in mechanism words a solver poses (what holds the body
+  up, where the head goes, what the tail does, the small motion that loops), tried most specific first and ending on
+  a fallback any body can do.
+- **Capabilities from the bones.** Four legs or two, wings, fins, legs that fold, a neck that reaches the ground, a
+  tail long enough to wrap, a supple back: measured from the skeleton, never authored.
+- **Tags for habits.** A closed vocabulary of the habits the bones cannot tell (`ruminant`, `dozes-standing`,
+  `perches`, `hoods`, …), set per family with species overrides. Every tag must be read by some strategy.
+- **Every animal resolves.** `resolveBehavior(id, behavior)` names the strategy and why (the capabilities and tags
+  it matched, and each more specific strategy it passed over); `behaviorTable()` gives every species at once.
+- **Posed on the bones.** `behaviorFrames(id, behavior)` poses the strategy on the species' own skeleton, in the
+  gait frame's shape, one principle per mechanism word: the trunk lowered until the belly rests on the ground, rolled
+  or shifted over a foot; each foot block placed by the support (planted where it stood, folded flat under the chest
+  or beside the belly, drawn up into the feathers) and the leg hung to it by the gait solver's two-link; a neck bent
+  until the muzzle reaches the grass, a short-necked grazer's shoulders lowering when it cannot; the face turned back
+  along the flank; nothing on land through the ground. A legless body is laid out as a coil, or a coil with the front
+  third raised in an S. Standing, dozing on a cocked hind leg, lying folded, the sphinx, the curl, perching on one
+  leg, sitting down over the feet, sitting up, rearing, lying on the side, the crouch, lying belly-flat, floating, the
+  coil, hovering and swimming on are posed; a strategy whose words are not yet posed says which (`posable`).
+- **Sitting up and rearing.** The trunk pitches up about the hips; sitting, its lowest point (the rump and the tail's
+  root) comes down onto the ground and the hind feet lie flat out in front, knees up; rearing, the hips ride on the
+  near-straight hind legs. The forelegs hang free (resting on the ground where they reach it, a chimpanzee's), or bring
+  the hands up to the mouth to eat. The neck takes back most of the pitch and the face is aimed by the head word. A
+  raccoon, a squirrel, a bear, a panda and a chimpanzee relax sitting up and eat from their hands; a raccoon, a bear
+  and a chimpanzee rear to look.
+- **Lying on the side, the crouch, and the meal.** Lying on the side, the trunk rolls onto its left flank and settles
+  on the ground (by its trunk line, or its hips and shoulders where those sit lower), the legs lying loose out to the
+  side; a head lowered on a rolled body bends about the world's horizontal, not the body's own. A crouch sinks the
+  hips on planted feet, the front a little lower. A lying predator gnaws the meal between its paws, a pig or a bear
+  roots, a raptor or a theropod tears upward from food pinned underfoot.
+- **Belly-flat and afloat.** A crocodile, a monitor and a tortoise lie belly-flat, the feet sprawled out wide on the
+  ground and the elbows and knees up. A floating body sinks by its buoyancy (a duck rides high, a mammal floats with
+  its back awash, no lower than keeps its head at the surface), its head clear of the water, its legs hanging slack and
+  its tail lying out on the surface; a floating frame reports the water's surface (`water`), and the stick strip draws
+  it. An otter eats floating on its back, the food held up at its mouth. Only an animal that eats from its paws eats
+  afloat (a hippo grazes), and only a bird sleeps afloat with its head tucked into its back.
+- **Repertoires.** `repertoire(id, behavior)` lists every way an animal does a behavior, its own first: a raccoon
+  relaxes sitting up or curled, a bear sitting up or sprawled. The catch-alls (lying folded, standing at ease) are
+  left out when anything more its own qualifies. `resolveBehavior`, `poseBehavior` and `behaviorFrames` take
+  `{ variant }` to pick another from the repertoire.
+- **Behaviors as clips.** An animal's `motion` takes behavior words beside gait words (`['walk', 'relax']`,
+  `{ behaviors: 'all' }`, `{ behaviors: ['relax'], variants: { relax: 'curl' } }`). Each behavior packs as one looping
+  clip named for its word, through the same rig as the gaits, so the World previews it and the skinned GLB and the
+  Godot pack carry it. A loop lasts as long as its motion takes (a breath, a chew, a scan round), slower on a bigger
+  body. A behavior the species is not posed doing, or a way not in its repertoire, is refused with what it can do.
+  Each species' entry card gains a `DOES` line: the behaviors it can be minted with and the way it does each.
+- **A tail carried high wraps.** A curled cat's tail, which rests pointing up, is laid level before it wraps round
+  the curl (it stood straight up).
+- **The stick strip takes a behavior.** `scripts/fauna-gait-strip.mjs sheep relax` draws the loop it resolves to;
+  `--variant curl` draws another way from the repertoire.
+- **Shared solver pieces.** The leg chain and its two-link solve (`fauna/limb.js`) and the vector kit (`fauna/vec.js`)
+  moved out of the gait solver so both solvers use them; every gait poses byte-identically.
+
+
+### Test cull
+
+The suite carried tests for modules no product code reaches: spikes, renderers and planners that were built and
+never wired into a tool, a kind or a route. They are gone with their tests, and a quick critical tier joins the full run.
+
+- **Removed, with their tests:** the aircraft fuselage wrap-net (and its spike, which wrote review SVGs into the
+  removed `lite-template/` tree on every run), the box-vehicle face-net and its cards and variants (plus a second
+  spike writer), the civic-glyph city composer, the figure landmark slots, the houseplant, the manga-cel,
+  imperfect-cel and field-cel renderers with their shared cell geometry, the terrain region plan, the wave-drape
+  fitter, the face-material role selector, the pixelizer prerender seam, the mega-boy flipbook spike and the
+  beats diff exhibit. None was reachable from `app/`, `bin/`, the MCP registry or a package script.
+- **Kept on purpose:** the removal guards (chatbot carve-out, moved notices, pack boundaries), the deprecated
+  `MOJULO_RECIPE_BOOK` loader tests (it still loads until 4.0), and the proof worlds the game runtime's tests use
+  as fixtures.
+- **The `wardrobe-construction` card** described the drape fit as a function call no tool exposes. It now states
+  the principle.
+- **`npm run test:critical`** (`vitest.critical.config.js`): the MCP surface and its pins, the plugin profile, the
+  guards, the database, versions, auth, the bundled book, scripts, the dashboard and every characterization pin,
+  without the geometry-heavy suites. About 2,400 tests in two minutes against the full run's eight; CI still runs
+  `npm test`.
+- **A deep tier for exhaustive sweeps.** `*.deep.test.js` files are left out of `npm test` and run with
+  `npm run test:deep` (CI runs it after `npm test`). `npm run test:deep:changed` runs only the sweeps whose imports
+  touch an uncommitted change, so editing a city kernel runs none and editing `anime-head.js`, `anime-sculpt.js` or
+  `station-loft.js` runs the anime ones. First in: the anime head's range-end and named-cut sweeps and every look
+  built on both bases (`anime-head.deep.test.js`, `anime-looks.deep.test.js`), about 160 of the suite's
+  file-seconds. The law tests stay in `anime-head.test.js` and `anime-looks.test.js`.
+
+### Pack menu
+
+Opening a pack (`pack_x({})`) returned every member's full description and input schema, and those manuals were
+about 85% of what came back: opening `pack_stash` to call `gather` also read the 16 KB `cook` manual. A pack now
+opens to a menu, and a member's manual is read when the agent picks it. Dispatch is unchanged.
+
+- **The menu.** The pack's orientation, one line per member, and the full manual inline for light members (800 B
+  or less). A heavy member's line ends with its manual's size and how to read it, so the cost is visible before
+  it is paid.
+- **`manual`.** `pack_x({ manual: 'cook' })` returns that member's manual alone (the same description and schema
+  the pack used to inline); a list returns several. A member homed in another pack, a spine tool, an unknown
+  name and a member the Claude plugin profile hides answer as dispatch does.
+- **Errors point at the manual.** A member's error through a pack ends with where its manual is. Structured
+  refusals (a JSON body with a code and the next action) are passed through untouched.
+- **The listing did not grow.** The pack input schema is repeated in every pack entry; its `tool` and `args`
+  wording was shortened to pay for `manual`.
+- **CLI.** `mojulo <pack_id> --manual <name>[,<name>]` reads manuals from a shell; `mojulo <pack_id>` opens the
+  menu.
+
+### Building ladder
+
+A house is one recipe that gains depth: a layout, then a dwelling (furnished, storeys), then its construction
+(framing, roof, drainage), then a BIM model. The surface taught all of it at once (one 23.6 KB card, read for any
+house) and spread it over three packs. Being built on this branch.
+
+- **`mint_building`.** One door for the house: it takes the floorplan manifest `create_sketch` takes, unchanged,
+  and stores the same row. `create_sketch` with `kind: 'floorplan'` still works.
+- **`next` in the result.** A minted or updated building names the steps it can take from here (furnishing,
+  storeys, framing, roof, drainage, the IFC export) and the card for each, computed from what the recipe already
+  has. `mint_building`, `create_sketch` and `update_sketch` all return it for a house. Never stored.
+- **One card per step.** The 23.2 KB `floor-plan` card is split by step: `house-layout` (4.1 KB: seed, footprint,
+  rooms and glyphs, one-room plans, views), `house-dwelling` (8.4 KB: furnishing, your own items, finishes, light,
+  styles), `house-storeys` (3.4 KB: storeys, levels, the walkway check), `house-construction` (6.5 KB: framing,
+  roof covering, drainage) and `house-bim` (1.6 KB: IFC and glTF export). `floor-plan` is now a 1.6 KB index of
+  them, so existing references still land. A layout-only house reads 4.1 KB instead of 23.6; a framed house as IFC
+  reads 15.6 KB. Every JSON example in the six cards is a whole manifest, and a test mints each one.
+- **The door fills two fields.** `kind: 'floorplan'` and the manifest's `title` may be left out; each is added in
+  front only when absent, so a manifest `create_sketch` accepts is stored exactly as `create_sketch` stores it.
+- **A building form and pack.** `get_creative_toolset({ form: 'building' })` and `pack_building` (with
+  `update_sketch`, `get_sketch_vocab` and `export_model` shared in). The studio's HOUSE row and the `house`
+  routing card point at `mint_building`.
+- **Redirects removed.** `pack_diagram`, `pack_object`, `pack_world`, `create_sketch`, `mint_solid`,
+  `compose_world` and the world drawer no longer describe how to mint a house; they say it is `mint_building`.
+- **Ratchet.** One more pack and one more tool cost more than the redirects saved: the packs-mode listing pin
+  rises by 577 bytes (33,263 to 33,840 over the pack menu; pin 33,900) and the flat pin by 931 (237,662 to
+  238,593; pin 238,700).
+
+### create_sketch diet
+
+`create_sketch` listed a full drawing manual in `tools/list`: about 15.5 KB, the second-heaviest tool. It now
+lists routing only (1.7 KB), and the manual is read on demand from cards. Nothing it accepts or stores changed.
+
+- **A lean listing.** The description names the kinds (`floorplan`, `store` / `mall` / `restaurant`, `historic`,
+  the painted kinds), the recipe door, hand-built marks and stations, and the world-recipe restore. It points
+  plain flows and charts at `mint_diagram` and says to read the card before minting. `manifest` is an open object.
+  `bucket` and `preloadMetadata` are still accepted but no longer listed, and `preload` lost its nested schema.
+- **New sketch_vocab cards.** `mark-primitives` covers the 2D marks, style fields and station kinds.
+  `construction-marks` covers blob, sphere, egg, cylinder, the volume cup, form, solid, partition, array, the
+  presets, sticker shading, gesture placement and one-point perspective. Defaults are read from the expander, and
+  every example mints. `edge-notation` gains `via` / `curvature` routing.
+- **A lean result.** The `preload` echo names each prior (`ref`, `title`, and `as` / `note` / `metadata`) and no
+  longer re-sends its whole manifest. With up to eight priors, that was up to eight full manifests riding back into
+  the agent's context for nothing, since the agent composed against them before the call.
+- **Ratchet.** The flat `tools/list` pin drops from 268,400 to 254,600 bytes. `create_sketch` leaves the
+  description allowlist because it fits the 700-character ceiling.
+
+### Diagram auto layout
+
+A flow chart no longer needs a coordinate. Name the boxes and the arrows; the kernel places them. This was the
+biggest reasoning cost left in `mint_diagram` and `create_sketch`: every station needed a hand-picked x, y, w and h.
+
+- **Auto-placed stations.** When no station carries a position (no `x`/`y`, `cell` or `lane`), `lowerDiagramKinds`
+  lays them out (`expandAutoLayout`, `lib/diagram-core.js`):
+  - **Ranks:** longest path along the edges. A cycle's back edge is set aside in declaration order.
+  - **Order:** barycenter sweeps within each rank.
+  - **Box size:** fitted to the label, sublabel and items. A station's own `w`/`h` win.
+  - **viewBox:** fitted when absent. A given one only grows.
+  - **Direction:** `layout: { direction: 'LR' | 'TB' }`.
+
+  It is deterministic, and the stored manifest holds the resolved coordinates. A manifest that places any station
+  never reaches the pass, so every existing row is byte-identical. Both mint doors share it, and the binding holds.
+- **Edges routed around boxes.** In an auto-placed diagram, an edge whose path or label pill would cross a box is
+  routed on the clear side:
+  - Rank-skipping edges, back edges, and a second edge between the same pair all count.
+  - Lanes on the same side stack outward, and ties go to the emptier side.
+  - An edge with its own `via` or `curvature` is left alone.
+- **`edges[].channel`.** A new optional number pins a `via` edge's lane (x for left/right, y for top/bottom), so
+  the lane can clear a wider box between the endpoints. Absent, nothing moves.
+- **Readable without adjustment.** A contrast pass over diagram ink, measured on the app floor, the dark export
+  and the light surface:
+  - **SVG download and inline view:** the dark export was transparent, so opened directly or in a host page's
+    `<img>` its pale ink sat on white at about 1.4:1. The route now paints the surface colour behind the drawing
+    (`renderSketchToSvg({ backdrop: true })`). Decks, outcome pages and world textures, which composite onto
+    their own backdrop, are unchanged.
+  - **Station outlines:** all clear 3:1 on every surface. `input` was a 1.3:1 hairline, `filesystem` fell to 1.7
+    on light, and `db_row` sat at 2.6–3.0; they now use the surface-aware `--text-muted` / `--entity-purple` inks.
+    The `/graph` legend matches.
+  - **Station sublabels:** move from `--text-muted` (about 4.0:1 at 10px) to `--text-secondary` (8:1 or more).
+- **`mint_diagram`.** The listing says boxes are auto-placed when their positions are left out, and its arrowhead
+  list moved to the `edge-notation` card (697 → 659 characters). The `mark-primitives` card teaches the auto-placed
+  form first; `edge-notation` gains `channel`.
+
+### update_sketch diagram lowering
+
+`update_sketch` with a replacement diagram manifest skipped the diagram-kind lowering that `create_sketch` and
+`mint_diagram` run. A `kind: 'sequence'` or `kind: 'gantt'` spec failed validation, and a `lanes[]` or
+`boundaries[]` manifest was stored without its bands or boxes.
+
+- **One pipeline.** `create_sketch` and `update_sketch` now share one helper in `sketch-mint.js`. It runs
+  `lowerDiagramKinds` (sequence, gantt, swimlanes, auto layout), then grid cells, `expandBoundaries` and
+  Rendrant. An update stores what a mint of the same manifest stores. A lowering error on update now reads
+  `Invalid manifest: … manifest manual`, as at mint, instead of `Rendrant expansion error`.
+- **No double lowering.** The lowerings keep their trigger (`kind`, `lanes`, `boundaries`) and prepend marks,
+  so running them again on a stored row stacked a second copy of every mark. Swimlanes also shrank the viewBox,
+  because the first pass drops `col`. `loweredDiagramKinds` (`lib/diagram-core.js`) recognises a lowering
+  already present by the label text it paints, and that step is skipped. A stored row sent back whole or as a
+  patch, or re-minted as a copy through `create_sketch` or `mint_diagram`, is stored unchanged. The binding test
+  pins that both mint paths render a re-minted row the same way. As before, editing the spec of an already-lowered row
+  (a message, a task, a lane) does not redraw it. Send the bare spec to redraw it.
+- **Lanes with placed stations: intended change.** A `lanes[]` manifest whose stations all carry explicit
+  `x`/`y` used to pass `update_sketch` with no lane bands. It now gets them, as `create_sketch` always gave
+  it. Mint also sized those bands from `col` alone and overwrote the viewBox with that width, which clipped a
+  station placed past it. The bands and viewBox now grow to hold every placed station. Laned stations on the
+  column grid never reach past it, so their output is byte-identical.
+
+### cook diet
+
+`cook` listed every publication kind's layout manual in `tools/list`: 16.2 KB, the heaviest tool. It now lists
+4.3 KB, and each kind's guide is read for the one kind being published. What cook accepts and makes is unchanged.
+
+- **A lean listing.** The description keeps the three steps (cleave, aim, nucleate) and the authoring model, names
+  the kinds, and says to call `sketch_stash({ intent, target_kind })` before any kind but essay. The deprecated
+  `template` alias is still accepted but no longer listed.
+- **Each kind's guide.** `sketch_stash` answers with `guide`: the kind's layout (how items, drawers and metadata map
+  onto it) and the least content that renders well, word for word what cook's listing used to carry.
+- **Two kinds that could not be scaffolded now can.** `sketch_stash` listed `site` and `photojournal` but refused
+  both. Each now has a stash recipe, and `photojournal` has a guide (it had none).
+- **Ratchet.** The flat `tools/list` pin drops from 268,900 to 256,800 bytes.
+
+### Contextmap trim
+
+The contextmap tools came from the chatbot era and still read like it. Their listings are shorter, and the 2.x
+parts no longer show. Nothing they accept or record changed.
+
+- `meta_context_commit` lists 3.3 KB instead of 7.1 KB: one line per type, with the app, connected-service and
+  trigger records first, since those are what the dashboard's Apps and Connected Services panes list.
+- `meta_context_brief` (1.7 KB to 0.9 KB) and `meta_context_analyze` (1.4 KB to 0.8 KB) are shorter too.
+- No longer listed, still accepted: the 2.x `artifact_materialization` commit, which answers with the chatbot
+  notice, and the `bot` brief scope, which reads a 2.x install's rows.
+- `gather` and `execute_plan` stop mentioning bots and deploys.
+- **Ratchet.** The flat `tools/list` pin drops from 256,800 to 251,600 bytes.
+
+### Rigidity sensor
+
+- `measure_solid` now takes a `strength` spec. It reads how far a part bends under the work it does, how far it is
+  from breaking, and how much to trust that answer. It is a sensor, not a guarantee: every reading names its
+  assumptions and never says "safe".
+- **Material table.** A new mechanical table (`lib/graph/strength/materials.js`) covers FDM, powder and resin
+  prints, stock metals, plastics and clear wood. Each entry has typical stiffness and strength, spread, creep and
+  service temperature, all stamped "check the supplier datasheet".
+  - For prints, strength across the layers falls off by Hankinson's formula.
+  - For wood, strength across the grain falls off the same way.
+  - An undeclared build direction takes the worst case.
+- **Measured sections.** The real cross-section is cut from the mesh and integrated exactly: area, centroid,
+  principal second moments, holes. Works for every solid kind.
+- **Element checks**, each tested against a textbook answer and an overload control that flips the reading:
+  - cantilever: bending, shear and deflection by Castigliano, so a varying section is exact. Swept from the root to
+    the load, so the weak spot is found, not assumed.
+  - lever: the effort comes from machina's lever.
+  - shaft: torsion and twist.
+  - strut: Euler or Johnson buckling.
+  - bolt: ISO stress area, thread stripping, heat-set pull-out.
+  - gear: Lewis tooth bending.
+- **Stress raisers.** Steps in section and holes are found with an estimated Kt, on the face where the step sits.
+  Kt is applied for brittle materials and repeated loads. For a ductile part under a static load it is reported
+  but not applied.
+- **Each reading reports:**
+  - the margin: the safety factor of the weakest mode
+  - rigidity against a limit
+  - a confidence grade: the weakest of material, idealization, load, duty and environment, each with its reason
+  - the safety factor that grade calls for (Pugsley-style; × 1.25 for brittle materials)
+  - a verdict and one plain line
+- **Stored on the row.** The spec can live on the row as `strength` (shape-checked at `update_sketch`), so the
+  reading reproduces.
+- **Weak-spot pointer.** The World draws a pointer at the weak spot: rings that ripple out from the point, with an
+  arrow and a label. Only the rings animate; the part, the arrow and the label stay still. This is a new opt-in
+  `marks` channel, which any row can also author directly. It is not a face, so no mesh export carries it. A row
+  without `marks` or `strength` is byte-identical.
+- **Card and routing.** The scad card has a "Will it hold?" section, and `translate_modeler_lingo` has a
+  `strength-check` entry (PARTIAL; FEA, fatigue and creep are handed off).
+- machina's quantities gain stress, area and second-moment units.
+- **Ratchet.** With the drawing leg and `motion`, the flat `tools/list` pin rises by 671 bytes on the release
+  candidate (238,593 to 239,264; pin 239,300). The packs-mode listing is unchanged.
+
+### Industrial gen study
+
+A study of the parts people most often ask a CAD tool for, minted as an agent writes them first. Most of them
+mint, but the hard ones fail without saying so: threads no nut fits, gears and pulleys that only look right, text that
+renders blank, and hand-made helices and lofts that break apart. The `scad` kind gains the vendored, pinned library its
+card promised, and both silent failures now warn. A source that calls no `mj_` name is byte-identical.
+
+- **The mechanical library.** A source that calls any `mj_` module or function gets mojulo's own OpenSCAD library
+  prepended (`lib/graph/scad/mech-lib.js`), stamped `mechlib: <version>` in the ledger. It covers:
+  - ISO metric coarse fasteners M2–M24 (`mj_bolt` with hex, socket, button or countersunk heads, `mj_nut`,
+    `mj_washer`).
+  - Real helical threads (`mj_thread`, `mj_tapped_hole`, `mj_trapezoid_thread`). The ISO 68-1 profile is swept on a
+    sheared grid, so the part is a closed manifold and an `mj_nut` turns onto an `mj_bolt`.
+  - Holes that print true: `mj_hole` circumscribes the polygon and adds a named fit. Also counterbores, countersinks,
+    nut traps and slots, and heat-set pilots.
+  - Involute gears: spur, helical and herringbone (`mj_spur_gear`), `mj_rack`, `mj_ring_gear`, and `mj_planetary`,
+    which phases the planets and refuses a set that cannot assemble. A meshing pair sits at `mj_gear_center`.
+  - Bevel gears and worms, which are approximations and labelled as such.
+  - GT2 pulleys.
+  - Exact fillets and chamfers, edge by edge.
+  - Molded shells with draft, bosses and ribs.
+  - NACA sections lofted into blades.
+- **Standards.** Library v2 adds the dimensions agents get wrong from memory. Every table is from the published
+  standard and the card says to check the supplier's sheet:
+  - NEMA 11/14/17/23 motor mounts, with a stand-in motor.
+  - Bearing seats for 623–6204, 688 and LM8/10/12UU.
+  - DIN 6885 keyways, DIN 471/472 circlip grooves, and D-flat motor bores.
+  - O-ring glands for face, piston and rod.
+  - Raspberry Pi and Arduino standoff patterns, VESA patterns, T-slot extrusion, and Gridfinity bins.
+- **Composition.** Parts are placed by how they meet. `mj_gear_meshed` puts a gear in mesh at any angle, and
+  `mj_bolt_and_nut` threads the nut on in phase. `mj_enclosure` derives the base, the lid lip, the screw posts and
+  the countersinks from one set of numbers. A top-level `$mj_fit_add` shifts every fit for a printer. Each fit is
+  tested both ways: clean in place, and colliding when nudged.
+- **Outputs.**
+  - `mj_sheet` folds a chain of flanges. `mj_sheet_flat` unrolls it by bend allowance.
+  - `export_model` gains `format: 'dxf' | 'svg'` for scad rows: a 2D program as written, a `slice_z` cut, or the
+    outline, with `part` for a row that has several.
+  - `mj_fit_coupon` prints a pin and a hole for every fit.
+  - `translate_modeler_lingo` gains a `sheet metal` entry.
+- **Silent failures are said.** Two cases now warn: a `text()` call (this OpenSCAD build has no fonts, so glyphs render
+  as nothing), and a `polyhedron()` that OpenSCAD's kernel takes apart as non-manifold.
+- **The routes say so.** The `scad` card has a library section. `translate_modeler_lingo` `precision cad` and
+  `chamfer` now route threads, gears, fits and exact chamfers to the library. STEP, GD&T and constraint solving stay
+  a CAD tool's.
+
+### Industrial motion
+
+A scad row with `parts` can declare how those parts move. The World plays the mechanism, and `measure_solid` checks
+it for collisions across the cycle and reports torque, speed and force. Stress and strength are not modelled. A
+manifest without `mechanism` is byte-identical.
+
+- **Joints and couplings.** A `mechanism` block names a revolute or prismatic joint for each moving part (`on` rides
+  another part, as a planet rides its carrier). The couplings that tie the joints together are gears, ring gears,
+  belts, racks, screws, plain ratios, and rigid links between two pins.
+- **One driver, everything else solved.** The authored pose is the rest pose. Each step of the drive's cycle is
+  solved by Newton with continuation from the step before. The degrees of freedom are counted, so a part nothing
+  drives is named rather than left still. A linkage that cannot close, at a dead point or failing Grashof, is reported
+  at the drive value where it locks.
+- **The World plays it.** The solved cycle becomes the mover channel's own `turn`, `path` and `pose` tables, derived
+  at scene time and never stored.
+- **`measure_solid({ ref, motion: true })`.**
+  - Every joint's range, ratio to the driver, and peak speed.
+  - Every pair of parts intersected across the cycle, with the steps where they collide and by how much.
+  - Torque and force by virtual work, through stated efficiencies. A lead screw's efficiency comes from its lead
+    angle, and the report says whether it self-locks.
+  - Against a stated drive torque, a margin at the worst point of the cycle.
+- **A gear train chains.** `mj_gear_meshed` gains `phase`, the previous gear's own turn, so a third gear meshes
+  against a second that was itself turned into mesh (mech library v3). A sweep of a three-gear train found the gap.
+- **The routes say so.** The `scad` card has a mechanisms section. `translate_modeler_lingo` gains a
+  `mechanism-motion` entry: kinematics, linkages, gear trains and interference checks route to `mechanism`, and
+  dynamics, contact forces and stress hand off to a multibody or FEA tool.
+
+### Industrial dynamics
+
+A mechanism with a material now carries real weight, inertia and friction, and the loads it computes go to the
+rigidity sensor. The motion report then reads the whole machine's strength, not one part's. Without the new fields
+the output is byte-identical.
+
+- **Mass from the mesh.** Each part's volume, centre of mass and inertia tensor are computed exactly from its closed
+  mesh, then multiplied by the material's density and an optional print fill share. A stated `mass` overrides it.
+- **Dynamics by energy.** The drive effort through the cycle includes:
+  - the inertia of every moving body at the drive speed
+  - gravity on every rising part
+  - a start-up term for a stated `spinup` time
+  - the speed fluctuation under a mean torque, with the flywheel inertia that holds 5 %
+  - the shaking force on the frame
+- **Joint forces and friction.** For a tree-shaped mechanism, mojulo computes the force through every gear mesh, rod,
+  screw and pin from the power downstream of it. Pin friction (μ·R·r) and slide friction (μ·N) are added to the drive,
+  and a plastic bushing's PV is checked against a typical limit.
+- **Into strength.** With a material, every rod is checked as a pinned strut and every gear by Lewis, each at its peak
+  load, and the worst part is named.
+- **Flags.** Load cycles over a stated duty, a self-locking screw holding a load on a material that creeps, unbalance,
+  a NEMA motor's typical torque against the peak and start-up effort, and back-driving.
+
+### Tensile view
+
+The rigidity sensor reads tension and draws the curve every materials course draws. A materials and structures study
+probed 32 everyday problems. Three of them were wrong with no warning, and this theme fixes the two in the sensor's
+own checks.
+
+- **`tie` element.** It checks a member in tension: a strap, a hanger, a rod that pulls, a test bar. It reads the
+  peak over the swept sections, which includes the net section at a hole with its axial Kt and the bending an
+  off-centre pull adds. It also gives the stretch ∫F/EA and the strain. A stretch limit is optional.
+- **Struts are pushes only.** A strut with a negative force used to lose its sign and read as compression: a pulled
+  bar came back as "buckling, predicted to fail". It is now refused and pointed at `tie`. A cantilever whose load runs
+  straight along it says it is a tie or a strut.
+- **A hollow section is not a hole.** The hole Kt now applies only where a section's topology changes (a cross-hole,
+  or a cavity ending). It used to apply all along a tube or a hollow print, which doubled the stress in brittle
+  materials and under repeated loads. Readings of such parts change. The ligaments either side of a hole no longer
+  count as separate pieces.
+- **The tensile view.** Every reading carries the material's idealised stress–strain curve in the stressed direction:
+  brittle to the break; ductile elastic, then yield, then hardening to the ultimate where it is tabled. Across a
+  print's layers the curve is brittle. On it sit:
+  - the working point (the governing stress as a tensile equivalent, with its strain and zone)
+  - the stress this confidence allows
+  - the capacity mode, buckling or stripping, when one governs
+- **The World draws it.** A row with a stored spec gets a static chart panel beside the weak spot. Only the rings
+  move, as before. Marks without a chart emit the same bytes as before.
+- **The table.** Metals and polycarbonate gain `ultimate`, and bolt grades gain their elongation. These are new
+  fields, so existing readings are unchanged.
+- **Coupon calibration.** `mj_tensile_coupon(t, upright)` (mech library v4) prints the ISO 527-2 1A dogbone. The
+  strength spec's `coupon: { break_n, build }` turns a pulled coupon into the in-plane strength (flat) or the layer
+  factor (upright). The reading is then marked calibrated and records what was measured.
+- **Mechanisms.** A rod that pulls is now also checked as a tie at its peak tension.
+
+### Prints as printed
+
+The rigidity sensor reads a print's cross-section the way the slicer lays it down. It used to read every print as
+solid and ignore a declared infill, which overstated a typical part's strength about 2× with no warning.
+
+- **`print: { walls, line_mm, top_bottom, layer_mm, infill, pattern }`** on the strength spec, or on one check.
+  Absent, or at 100 % infill, the reading is exactly as before.
+- **The printed section.** Each cut is filled on a grid aligned with the build. The walls are a sideways offset and
+  the skins a vertical one; in a cut that lies along a layer the walls are an even offset. What is left is the infill
+  core. The section becomes the composite ("transformed") section: the exact solid values minus the core's lost
+  stiffness. Beams, levers, ties, struts (buckling on the printed I) and shafts all read it.
+- **Infill by pattern and direction.** Gibson–Ashby scaling, labelled typical ±50 %:
+  - prism walls that run with the stress carry ρ
+  - a bending-dominated lattice carries ρ²
+  - triangles and lines across the build carry ρ/3 and ρ/4
+  `infill_E` and `infill_strength` from your own test replace the table.
+- **The core is advisory.** At low density its cells crack before the walls do. The reading notes it, but the
+  walls set the margin.
+- **Confidence names the section** ("2 walls and 0.8 mm skins around a 20 % grid core …"). It drops to low when
+  the core carries more than a quarter of the stiffness and the infill was not measured.
+- **Checked.** A declared 0 % print reads the same as an explicit 0.8 mm shell mesh (79.0 MPa). The study's PLA bar
+  at 2 walls and 20 % grid reads 74.5 MPa against 35.9 solid.
+
+### Audio improvements
+
+Bodies for the orchestra and phrasing for the score: the bowed strings and brass the field score plays move from the
+'80s synth-section recipe toward the instruments, and its melodies stop playing every note at one level. All opt-in by
+name or field; recipes that don't use them render byte-identical. Ears gate: the operator's A/B listens.
+
+- **Section v3: bodies.** `violin-3`, `viola-3`, `cello-3`, `contrabass-3`: the bowed sawtooth through each size's body
+  (the air mode, the two corpus modes, the bridge hill) over a cut below the body's lowest mode, so vibrato sweeps the
+  partials across fixed resonances; a bow onset. `trumpet-3`, `french-horn-3`, `trombone-3`, `tuba-3`: the bell's
+  radiation peak and a lip scoop into pitch. Level-matched to the `-2` names. Built from the `body` and `filter` chain
+  effects and existing patch fields.
+- **Phrase shaping.** A composition part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`) scales its
+  note velocities: an arch across each phrase, higher notes a touch louder, long notes over short ones, the phrase's
+  last note eased. Lowered at render like a chord chart; a part without it is byte-identical.
+- **Woodwinds v3: tone follows force.** `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3`: solo players whose spectrum is
+  blended per note from a soft table to a loud one by velocity (`harmonicsLoud`), with the energy the added partials
+  carry, so playing harder brightens and widens the dynamic range instead of only turning up. Level-matched to the solo
+  winds at mezzo-forte.
+- **Wooden bodies v2: the modal body.** `body` takes `model: 'modal'`: a computed impulse of dozens of seeded body
+  modes shaped by the resonance set, convolved under the dry signal, independent per side. `acoustic-guitar-2`,
+  `nylon-guitar-2`, `classical-guitar-2`, `flamenco-guitar-2`, `gypsy-jazz-guitar-2` (on the tuned string), `harp-2`
+  and `grand-piano-2` use it. Level-matched; wider in stereo.
+- **Held notes breathe (`life`).** The fixed-loop "held MIDI note": a sustain that never moves. With `life`, one
+  seeded slow pressure walk per note moves level, upper-partial brightness (a high shelf at the note's 4th partial) and
+  vibrato depth and rate together, and a hairpin brightens as it swells. On by default for the `-3` strings, brass and
+  woodwinds; `patchParams: { life: false }` holds a note still. Measured on a held clarinet: level wander 0.01 → 0.6 dB,
+  brightness wander 0.1% → 3.1%.
+- **The natural dial.** `life: 0–2` on a recipe (any musical kind) scales the breathing of every row whose instrument
+  breathes; on a part, track or channel it overrides the recipe and, above 0, wakes any instrument. 0 is mechanical
+  (byte-identical to `life: false`), 1 the natural default, 2 more. Lowered at render to `patchParams.life`; an explicit
+  `patchParams.life` wins.
+- **Piano v3.** `grand-piano-3`: each key's unison strings detuned their own way (`unisonSpread`, seeded by pitch, so a
+  key is the same key every strike) with the second string ringing a little shorter, so keys beat and decay at their
+  own rates; and the pedal-down halo, a `sympathetic` chain effect convolving the part with every undamped string.
+  Measured on a released chord: the halo rings ~21 dB over `grand-piano-2`, ~20 dB under the chord. The `life` dial
+  scales both; `life: 0` renders byte-identical to `grand-piano-2`. The halo's impulse costs ~0.3 s once per page.
+- **A pianist's touch and the dampers.** A part's `touch: 'pianist'` (or `{ top, inner, bass, roll }`) plays each chord
+  the way hands do: the top voice brought out, the inner voices softer, the bass a little present (level-neutral per
+  chord), and the notes rolled up from the bass a few seeded milliseconds apart. Lowered at authoring: no kernel bytes.
+  The piano's new `damper` patch field: a felt thud at key-off, a longer release in the bass where dampers grip less,
+  and no damper at all on the top keys (above E6), which ring on after release as on a grand. And `ringExact`: the
+  string loop's own filter lost more per second in the top two octaves than the patch's ring time allowed (C7 rang
+  ~0.3 s for a 1.4 s target); it now caps the loop damping per note so the target holds (C7: ~160 → ~45 dB/s).
+  `grand-piano-3` carries all three; other patches are unchanged. The instruments card now tells agents to write piano
+  phrased by default: the melody its own part with `shape`, the accompaniment under it with `touch`, a ritardando at the end.
+- **A sustain pedal you can write.** `sustainPedal` on a recipe (every part whose instrument has dampers: the
+  piano) or on a part: `'per-chord'` re-pedals the way a pianist does, lifting just after each new harmony over a new
+  bass note and catching it again; `'held'` keeps it down; or a list of `[time, 'down' | 'up' | 'half']`. Released
+  notes ring on to the next lift (a half pedal shortens them instead), and the piano's halo rises and drains with the
+  pedal instead of staying on. Lowered at authoring; the halo's ride reuses the sweep automation. The instruments card
+  says which repertoire to pedal (Chopin, Satie, Debussy, Bach's broken chords) and which to leave dry (Mozart's runs).
+- **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
+- **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
+  use it carry the previous kernel byte for byte.
+- **The field score uses all of it** for new scores: the orchestral palettes name the v3 sections and the leads carry
+  `shape: 'phrase'`, their base velocity lowered a little so the arch's peaks stay under each energy's ceiling. Stored
+  scores keep the instruments they name.
+
+### Statue maker
+
+The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or
+bronze, cut to a bust, a herm or a torso study, with losses, on a base. Opt-in; a hero without `statue` is
+byte-identical. Being built on this branch; the sphinx comes next.
+
+- **The statue build.** `statue: '<card>'` or `{ type: 'statue', style, material, crop, lose, base, dials: { wear } }`
+  (`lib/graph/statue/`), stamped with its laws version like an outfit or armour build. Period cards, plain JSON:
+  `archaic`, `classical`, `hellenistic`, `roman`, `roman-bust`, `egyptian`, `renaissance`. A card's stand, stillness and
+  drapery (an outfit card per silhouette) sit beneath the hero's own words; its hair is set at mint.
+- **Carved.** One material over every group: blank eyes, carved hair, the bare body's zones skin. `marble`,
+  `limestone`, `sandstone`, `granite`, `basalt`, `bronze` (its patina by `wear`, from brown to verdigris), `gilt`, and
+  `painted`: reconstructed polychromy over the card's stone, which the readout always calls conjecture.
+- **Cut.** `crop`: `full`, `bust` (below the chest, through the upper arms), `herm`, `torso` (no head or arms, the
+  thighs cut). `lose`: whole parts with what they carry (`forearmR` takes the hand), each closed in its own cap. No
+  fracture surfaces yet.
+- **On a base.** `block`, `attic`, `drum`, `socle`, `herm` or `none`, in stone, built at read time under the posed figure
+  from the footprint it stands on; the figure is lifted onto it. The base rides every export as its own group.
+- **A surface for the exports.** A layered recipe's `surfaces` (group → a shelf material or a metal surface, `'*'` the
+  rest) tags its faces (`spec` and `pbr`; a metal surface's `metal`), so a bronze statue exports metallic, in its
+  patina's colour, to GLB and Godot. Absent, byte-identical.
+- **The readout.** `hero.statue`: the card, period, material, format, the parts lost, the base, wear, `basis:
+  'unverified'` (the cards are drawn from the general record of each type, not from sources read) and the caption
+  derived work carries ("inspired by …").
+- **Statues in historic cities.** A `historic` manifest's `statues: [{ ref, at, figure, height }]` stands a stored statue
+  on one of the city's statue slots in the World: a Forum monument (Marsyas at `ficus`, the Sibyls, the Concord pair,
+  Vortumnus, the Castor cella's cult statues, the Basilica Aemilia's portico figures, …) or a statue asset's slot
+  (`ln-statue:<n>` at Lindos, `pp-statue:<n>` at Pompeii, `votive-row:0` at Sumer, `eg-colossus:<n>` at Thebes, `pp-equestrian:<n>` at Pompeii). The stand-in comes down, its base stays, and the statue is
+  fitted at the stand-in's height and facing, baked under the city's sun. The entry card's `STATUES` line lists the
+  slots. Absent, the city is byte-identical.
+- **Sumer's worshippers.** A `sumerian` card: the Early Dynastic votive figure, frontal, the forearms folded and the hands
+  clasped at the chest, a flared skirt (the man shaven: no beard is carved yet), limestone; painted, the eyes lapis
+  under bitumen brows. Sumer's votive row is a slot (`votive-row:0`), one figure per plinth numbered along the row, so a
+  carved worshipper can stand among the others.
+- **Seated statues.** `stand: 'seated'` on a statue build (or a card) sits the figure on a block throne built with its
+  base: the thighs level, the shins hanging, the hands flat on the knees. A long skirt is cut at the knee, since a drape
+  over the lap isn't carved yet. The rig gains an opt-in `seat` channel that turns the free legs forward past the hip's
+  cone; absent, every pose is unchanged. Thebes's seated colossi are slots (`eg-colossus:<n>`): the stand-in king and his
+  throne come down, and a seated statue sits there on its own throne. The nemes and the crowns aren't carved yet.
+- **Carved animals.** The `animal` kind takes `statue` (`true`, or `{ type: 'statue', material, base, dials: { wear } }`):
+  the animal in one stone or metal, its fur and skin textures dropped, tagged for the exports, on an oblong base the
+  length of its body. Absent, every animal is byte-identical.
+- **Equestrian statues.** `stand: 'mounted'` sets a hero statue astride a horse carved in the same material. The rider sits on the saddle
+  found from its own hip joints, legs down the flanks, the right arm raised in address, both on one oblong block. The
+  equestrian slots take it: the Forum's Octavian horseman and Pompeii's standing equestrian bronzes
+  (`pp-equestrian:<n>`), each facing the way its stand-in's horse did. A standing statue on an equestrian slot, or a
+  mounted one on a standing slot, is refused by name. Entry cards list a slot range with gaps one by one.
+- **A horse in the library.** A horse ring plan for the layered kind, built with the creature-from-plan loop: a barrel
+  body, an arched crested neck, a long wedge head carried down, straight cannons on single hooves, the hind leg angled at
+  stifle and hock, 1.6 m at the withers. It is core (`horsePlan({ scale, palette })`), worked as
+  `docs/examples/ring-plans/horse.plan.json` (mint it with `via: 'plan'`), and it is the equestrian statues' horse.
+  A loft takes `frame: 'keep'`, which keeps a near-level barrel's rings from twisting (and a run along a flank from
+  collapsing); absent, every loft is unchanged.
+- **A sphinx in the library.** A sphinx ring plan, built the same way: a lion lying on its belly in the Great Sphinx's own
+  proportions, forelegs reaching forward, hind legs folded, the tail along the right flank, wearing the hero's carved
+  landmark head (no hair, no beard) in a nemes with the uraeus. The nemes is a striped wrap, not a cap: its opening
+  tilted so the brow band crosses the forehead and the face looks out of it, its stripes radiating back over the crown;
+  behind the face it folds out each side like a cobra's hood, the wings flaring past the shoulders, striped across, and
+  the lappets hang striped down a breast that is broad and flat, as a man's chest, set back under the face. Carved, the stripes are grooves: a palette group named `…Groove` takes the
+  stone a shade darker. The criosphinx's headcloth is striped the same way. Core as `sphinxPlan({ preset, scale, palette })`, worked as
+  `docs/examples/ring-plans/sphinx.plan.json`.
+- **Carved creatures and library forms.** Any layered plan that is not a hero takes `statue` (the creature filter: one
+  material, an oblong base). A historic city's statue entry may name a library form instead of a stored statue:
+  `{ "at": "gz-sphinx:0", "form": "sphinx", "material"? }` stands the carved sphinx in Giza's quarry in place of the
+  block stand-in, limestone by default. Giza's entry card says so.
+- **The criosphinx and the bull.** Two more ring plans built the same way. The criosphinx is Amun's ram-headed sphinx
+  of Karnak's avenue: a domed ram's skull with horns coiled round the ears, the headcloth over the shoulders, a small
+  king between the paws (`criosphinxPlan()`, sandstone). The bull is Sumer's copper guardian: a deep barrel, the
+  shoulder hump, the head forward, horns out and up (`bullPlan()`, bronze gone green). Thebes's sphinx rows and Sumer's
+  guardian pair are slots, one figure per pedestal or plinth, and take them as `form: 'criosphinx'` and `form: 'bull'`.
+- **`statues: "carved"`.** One word on a historic city carves every slot with its period's statue: a slot's own form
+  (the sphinxes, the bulls), the seated granite king on the Theban colossi, a bronze horseman on an equestrian slot
+  and nowhere else, and the culture's card everywhere else (Roman at the Forum and Pompeii, Hellenistic at Lindos,
+  Sumerian worshippers), men and women, marble and bronze, decided by each slot's own dice so the city carves the same
+  each time. The city's standing figures use the hero's light body (the streamlined core, low-poly), since the Forum
+  carves 38 of them. An entry may also give a hero statue inline (`hero: { cast, statue }`), with nothing stored.
+
+### Recipe versions
+
+- **Every recipe records the mojulo version that wrote it.** A mint stores the version that minted
+  it; an edit to the recipe (`update_sketch`, `edit_solid` and the other in-place revisions) stores the
+  version that last changed it. A retitle, a folder move or a gallery pin leaves it alone, since what
+  renders is unchanged. Each archived revision of a solid and each beats revision carries the version
+  that wrote that manifest.
+- `export_model` answers with `versions: { minted, revised, rendered }`, so an export says which
+  mojulo made the recipe and which one rendered it. To reproduce an export exactly as the recipe's own
+  version drew it, render it under that version (`npx -y mojulo@<version>`) in a separate
+  `MOJULO_HOME`.
+- Recipes written before this release read `null`: they were made by 3.0 or earlier, and which one is
+  not recorded, so nothing is guessed. The columns are added on first start; nothing else changes.
+
+### Recipe book
+
+- **The recipe book ships with mojulo.** The catalog that lived in the separate `mojulo-recipe-book`
+  repo now lives at `control/book/` and is in the npm package, so every install has it with no setup,
+  including an agent box (the Claude app and web, ChatGPT's Work box), where nothing can be cloned
+  beside the package and the old attached book never loaded. It comes in at the book's 0.8.0: study
+  objects, math, worlds, loops, solids, shots and the wardrobe (garments, outfits, footwear), and the
+  `aurora` and `foucault-pendulum` view kinds. Named outfits such as `business-suit` now resolve on
+  every install.
+- Precedence is unchanged in spirit and gains one tier at the bottom: core kinds, then your cookbook,
+  then an attached clone, then the bundled book. `MOJULO_BUNDLED_BOOK=off` leaves it unattached.
+- **Deprecated:** `MOJULO_RECIPE_BOOK` and the separate `mojulo-recipe-book` repo. A clone you
+  already point at still loads, ahead of the bundled book, and warns at boot; it is removed no earlier
+  than 4.0. Book entries are now contributed to `control/book/` in this repo (see CONTRIBUTING.md).
+- The ChatGPT Work-box runner installs 3.1.0 by default, so a Work box gets the bundled book.
+- `npm run test:book` runs the book validator and the builders' own tests; CI runs it, and
+  `npm test` checks the bundled book as well.
+
+### MIDI orchestra
+
+- **In progress.** The robot band learns styles from studied masters, written as manuals an agent reads
+  before composing, not as presets. The first is **robot rock**: the 16-bit action-game sound of a rock band
+  played by machines. The card `beats-robot-rock` (via `get_beats_vocab` or `semantic_search`) covers:
+  - one fixed band and one room for a whole game, with each stage choosing only what is wet;
+  - a riff-and-bass engine, with the bass answering the lead;
+  - an intensity ladder from stage select to final boss, with a form for each scenario: stage, boss,
+    fortress, select, victory;
+  - an element (water, fire, ice, machine) signalled inside the groove rather than by swapping the band;
+  - an 8-voice discipline.
+- Every manual is white label: it names traits, never a franchise or composer.
+- The second style manual, **field orchestra**, covers the 32-bit strategy-RPG score: an orchestra written for a
+  few voices that still reads as orchestral. The card `beats-field-orchestra` covers:
+  - an energy ladder (idyllic, adventurous, processional, battle), with a form and a mix for each step;
+  - layers that enter one at a time;
+  - one shared hall, with the sustained sections wet and the percussion dry;
+  - the orchestra played as a band;
+  - loops that never close V–i;
+  - instrument families as dramatic tags.
+- New authoring vocabulary. All of it is opt-in; recipes without it expand and render byte-identical:
+  - rhythms `dotted`, `dotted-quarter` and the 6/8 `lilt`;
+  - voicings `pedal`, `pedal-5` and `drone` (the key's tonic, fifth or open fifth held under any chart);
+  - grooves `march`, `processional` and `travel`;
+  - snare-rudiment fills `paradiddle`, `drag`, `five-stroke` and `long-roll`;
+  - woodwind and timpani band roles;
+  - bands `orchestra-pastoral`, `orchestra-field`, `orchestra-processional` and `orchestra-battle`.
+- Harmony gains:
+  - the Phrygian bII as the danger chord;
+  - the tonic pedal;
+  - loop-seam cadences;
+  - the tonic flip;
+  - the Aeolian march;
+  - modes ranked by tension;
+  - key shifts by a third or a fifth between sections.
+- The worked set, `lib/graph/beats/field-moods.js`: idyllic `plains`, `desert`, `village` and `forest`; adventurous
+  `highlands`, `expedition` and `wayfarer`. Each row carries an `energy`. Not yet wired to a world or a tool.
+  Machine gates in `field-moods.test.js` hold each energy to its budget:
+  - one colour alone at the opening;
+  - parts and leads per bar;
+  - no V–i at the seam;
+  - a dynamics ceiling;
+  - adventurous moods keep moving.
+- Never the same score twice. `lib/graph/beats/field-score.js` generates field cues from these principles:
+  - `scoreIdentity(gameSeed)` rolls a game's identity: home key, a palette flavour (orchestral, folk, chamber,
+    synth-era, silk-road) with its instruments per role from the shelf, one hall, and a motif rhythm.
+  - `fieldScore(mood, { seed, identity })` rolls a cue inside the mood: mode, tempo, meter, a progression from
+    the mood's harmony family, new melodies, the arrangement order and the gear change.
+  - Same seeds give the same music; new seeds give a different score. Over 60 seeds per mood every melody
+    differs, every key appears, and all 420 recipes are distinct. Cues sharing an identity keep its tonic,
+    palette, hall and motif.
+  - `field-gates.js`: the principles as an advisory check over any beats composition, run on every generated
+    seed and on the hand-written takes. The village take keeps its flute counterline as a recorded exception.
+  - The card tells an agent composing by hand to use a fresh seed and a game identity.
+- A field score is now one call away, and mojulo suggests one:
+  - a world takes `audio: { soundtrack: 'field:plains' }` (or `{ score: { mood, seed, game } }`) and plays a
+    generated field cue. `compose_world` stores a fresh seed, so every world sounds different until you keep one;
+  - `create_beats({ kind: 'beats-composition', title, score: { mood } })` mints a field cue with fresh seeds and
+    says how to keep a whole game in one identity (`game`);
+  - a world composed without music gets a suggested mood and the exact `audio` line in the reply.
+- Loop points. A render with `loop` (`export_beats { loop: true }`, `beats.wav?loop=1`, or the recipe's
+  `export.loop`) is exactly one pass, cut at the next bar line. The ring-out is folded back onto the start, the way
+  a live loop carries it, and a `smpl` loop chunk marks the loop for samplers and game engines. The Godot pack
+  renders every music bed this way, so a level or menu loops without the old gap of silence. Off by default;
+  renders without it are byte-identical.
+- More than fields. The same generator now writes the rest of a game's non-battle music, each mood a set of
+  leanings inside the same principles:
+  - towns and interiors: `town`, `tavern` (folk instruments in any game), `shop`, `chapel`;
+  - `night`;
+  - `ceremony`, a stately procession with a brass lead (a new `processional` energy in the gates);
+  - story cues: `prayer`, `sorrow`, `tension` (before a fight, not the fight), `betrayal`, `triumph`.
+  Every mood carries its role (field, travel, town, interior, story), and the suggestion knows the new places.
+  The existing moods are unchanged, note for note.
+
+### Bug builder
+
+- Arthropods join the animal kind, built from parts instead of a species list. Insects, spiders, scorpions,
+  crabs, woodlice, centipedes and millipedes share one assembler: a head (or none, fused into the trunk), a
+  trunk of repeated segments each carrying leg pairs, and a tail. Each part is chosen by form: a walking,
+  running, jumping, grasping, digging, swimming or stilt leg; a chela; filiform, elbowed, clubbed, comb or
+  feathered antennae; mandibles, a coiled proboscis, a beak or fangs; clear, scaled or narrow wings, tegmina,
+  halteres or elytra; cerci, a sting or a scorpion's tail. Two bugs share a part by naming the same form, so a
+  bee and a fly stand on the same leg and a grasshopper's jumping leg serves any jumper.
+- Legs are bent chains whose feet are solved onto the ground, and segments are the shapes the anime hair uses:
+  tapering cones for leg and antenna segments, flat crescents for mandibles and claw fingers, curved spikes for
+  claws, fangs and stings. A bug is built at its published length exactly: the body is measured and rebuilt at
+  the scale that matches.
+- `mint_solid { kind: 'animal' }` mints a worked bug by `species`, or one nobody has built by `bug`: an order
+  and a few part forms find the closest worked bug, and the asked forms are worn over it (a wasp from the bee
+  with a waisted abdomen, a crayfish from the crab with a long carapace and a tail fan). The mint returns the
+  stance, the leg count, the basis it started from and each part it swapped.
+- `scripts/fauna-fit.mjs --bug <id>` gates an arthropod at true scale: closed, grounded, every foot planted
+  and body length, each tolerance a share of the body. Animal species are measured exactly as before.
+- Every worked bug went through the same design loop as the animals: a critic, one fix pass and two blind
+  judges. Optional settings cover what the loop asked for: a leg joint turning out of its plane (a crab's claw
+  across its face), where each leg pair attaches, jaws tipped up or down with several teeth, a flat underside,
+  finer stripes and spots, markings on legs, and a scorpion's sting bulb and hook.
+- The arthropods join the animal encyclopedia: every worked bug has an entry card (its common name, other
+  names, scientific name, published size and source, and a starter to copy), and each class (insect, arachnid,
+  crustacean, myriapod) a hub naming the arthropods not built yet with the bug that stands in. Search finds "a
+  ladybug", "crawdad" or "daddy longlegs", and `species` (or `bug.like`) takes any of those names.
+
+### Historic city
+
+- **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
+  built one period at a time from the first cities of Sumer toward the present. A period is read as a
+  composition of shared visual patterns (sun-dried earth, flat-roofed cubes, courtyard houses, stepped
+  platforms, niched walls, towered ring walls, canals through town), so later cultures reuse them.
+- The town is built in two steps. The layout claims ground and asks for buildings by slot: the
+  ziggurat site, each house lot facing its lane, each wall run, tower and gate facing out. A per-period
+  asset kit builds each slot on its own random stream, so redesigning one building moves nothing else.
+  Each kit asset is designed from a massing sheet dreamed on the optional local image worker, then
+  rebuilt as plain masses; the sheet is a design aid and is never stored. Until an asset is designed, a
+  plain placeholder stands in its slot. The metro city is unchanged.
+- Mud brick leans: walls, towers, tiers and platforms are battered, stairs climb on slopes, and the
+  reed hall is a round vault. The ground is surfaced for street level — beaten mud alleys, rubble and
+  sherd main streets, baked-brick quays, precinct and courts, cracked dry earth outside the wall — and
+  the page opens on a street view or a view from the precinct court as well as from the air. Palms are
+  low-poly date palms, which cut a whole town's page to about a quarter of its size.
+- A town carries its art and its street life. The shared vocabulary gains art (votive figures,
+  stelae, door emblems, guardian beasts, friezes, mosaic skins, ritual vessels, altars) and street
+  structures (wells, kilns, granaries, boats), each noted where it recurs across cultures, and the
+  layout places them by meaning: offerings, guardians and the altar on the sacred axis at the
+  ziggurat's stair, the goddess's reed posts at her doors, stelae inside the precinct gate, worshippers
+  facing the god, wells where lanes meet, kilns under the wall, granaries by the precinct, boats at the
+  quays. Sumer's set includes the cone-mosaic Pillar Hall of Uruk, copper bulls, the Uruk vase and a
+  temple portal with its cattle frieze and lion-headed eagle. Round, domed and hooped forms are new
+  building blocks.
+- Each asset can be drawn as an SVG blueprint from its own parts before it is rendered: front and side
+  elevations, plan, dimensions, a parts table and build notes, so a design is checked in pure geometry
+  first and the drawing never drifts from the model.
+- Walls show what they are made of. A transparent material layer rides over each wall's own lit
+  colour, so sun and shade are kept: bare mud brick with a herringbone course on the city wall and the
+  platforms, baked brick in dark bitumen joints on the ziggurat's casing, mud render on the houses
+  (rain streaks, a fallen patch, the courses showing through where the foot of the wall has worn), and
+  lime whitewash with hairline cracks on the temples and pale houses. Each culture says which mass
+  wears which material. The coursing is pinned to world height, so neighbouring faces line up. The
+  layer shows in the CSS 3D page only; the WebGL World keeps flat colour for now.
+- The town can be walked. A loose grid of narrow alleys runs between the blocks, so every house
+  fronts a lane and no block is more than two houses deep (before, about a third of the houses had no
+  way in), and each house stands a little in from its lot so neighbours read as separate buildings.
+- The sacred precinct has room: it is larger, kept clear of the wall's towers, and its temples stand
+  by measured clearance from the ziggurat and its long front stair instead of crowding them.
+- The canal is a smooth channel sunk below the town between baked-brick embankments, with one quay
+  strip along each bank and nothing laid over it. Where a main street crosses, a humped brick bridge
+  climbs by stairs over a corbelled opening high enough for a reed boat's horns, and the boats float
+  on the water. A canal view looks along the quay at the middle bridge.
+- Brick walls read as brick in the walkable World as well as the page: bolder courses with relief,
+  the reed-mat layers Sumerian builders laid between courses, a stamped course in the baked brick,
+  and a share of houses left as bare brick instead of mud render.
+- A second culture, New Kingdom Thebes, on the same template: the Nile along the town, the temple
+  of Amun on an axis from its river quay through an avenue of sphinxes, obelisks and colossi, a
+  pylon, a court and a hypostyle hall to the sanctuary, a sacred lake, and an unwalled town of
+  mudbrick houses and villas. Each culture now brings its own layout; the grid, alleys, house lots
+  and slot placement are shared.
+- Thebes' temple walls show figures drawn to the Egyptian canon instead of one repeated group: the
+  king in the blue crown making offerings to Amun, Mut, Khonsu and Ra-Horakhty, each god with their
+  own crown and emblems, in a set of different ritual scenes with hieroglyph captions and
+  cartouches. Each wall gets whole registers of scenes, and every scene faces into the temple; each
+  pylon tower shows one smiting scene, centred, with the god standing by the gate.
+- Thebes' ram-headed sphinxes are modelled in rounded forms instead of blocks: a barrel back,
+  rounded shoulders and haunch, forelegs rising into the chest, a ram's head with a long sloping nose
+  and horns curled round the ears, on a moulded pedestal. Small carved parts on every asset no longer
+  show a jagged fringe at their edges.
+- A third culture, Old Kingdom Giza (c. 2515 BCE, under Menkaure), shows the pyramids as they looked
+  new: cased smooth in white limestone to the apex, Khafre's foot in red granite, Menkaure's lower
+  casing in undressed granite. Each pyramid stands on its court with a mortuary temple on its east
+  face, and a causeway runs down to a valley temple on a harbour. The site also has:
+  - the Great Sphinx in its quarry, with no beard yet, and its temple before it;
+  - Khufu's queens' pyramids and boat pits;
+  - mastaba tombs laid out in streets;
+  - the Wall of the Crow and the workers' town of galleries, bakeries and houses;
+  - ships bringing stone along the canal.
+  It is the first site on a raised plateau: the ground falls from the desert down an escarpment to the
+  floodplain, and slanted faces now turn and lift with their asset.
+- Giza at work: Khufu's and Khafre's satellite pyramids, and Menkaure's temples as a building site with
+  stacked blocks, a mud-brick ramp and loaded sledges. The main quarry stands south of Khafre, stepped
+  down from its rim, and Tura limestone sits stacked on the quays. Each capstone is plain limestone, as
+  the one found at Giza is; `pyramidion: 'electrum'` gilds them as a labelled conjecture, since gilded
+  capstones are attested only from the 5th Dynasty on. New views: the building site, and beside the
+  Great Pyramid's apex.
+
+### Historic countryside
+
+- **In progress.** A historic city gains sub-scenes for what its people could make and grow, beside
+  what they built: the first is the countryside that fed Sumer. A branch canal leads water through
+  baked-brick sluices into channels on low banks, with long strip fields between them. Off in the
+  fields stands a farmstead: a house round a walled yard (bread oven, reed shade, a ground loom), a
+  blind storehouse filled from roof hatches up an end stair (the barn of a dry country), a stable of
+  piers and mangers, a reed byre with ringed reed posts through its roof and its dairy jars, a
+  reed-fenced sheepfold, a round threshing floor, a tool shed, a shaduf on the canal bank and a palm
+  garden.
+- The tools are the period's own. An ard plough (a seeder with its funnel in the sowing season),
+  clay sickles (Sumer reaped with sickles; the scythe is Iron Age), hoes, mattocks and winnowing
+  shovels, a two-wheeled cart and a four-wheeled wagon on solid three-plank wheels, a threshing
+  sledge, grain heaps sealed in mud, measures, baskets and jars.
+- The scene keeps to a season, because a Sumerian year kept the work apart. At harvest (the default)
+  the barley stands and is being cut, sheaves are stooked and carted and the threshing floor is
+  busy, while a fallow strip is broken with the plain ard. At sowing the seeder plough is in the
+  furrow and the fields are furrowed and sprouting. Fields show as furrows, sown rows, stubble and
+  standing barley. The page opens from the air, in the yard, at the threshing floor, at the edge of
+  the reaping, or by the plough.
+- Tools and buildings only, at rest: people and beasts are left to their own builders, so a plough
+  stands with its yoke on the ground, a cart with its pole down, the pens and stalls empty.
+- Each piece cites its record, every gap reported. A beam (a straight timber at any slope) joins the
+  angled building blocks. Small faces no longer stretch along their length when they are sealed
+  against hairline gaps; before, a long roof edge overshot its building by up to a third, in the
+  town too.
+- A second sub-scene shows the works: how Sumer made its tools and its building stuff, and from
+  what. The plain had clay, reed, water and palm, and no stone, ore or tall timber.
+  - Its quarry is a clay pit sunk into the plain by a canal. Beside it are treading pits with straw
+    for temper, a moulding field of fresh bricks drying in rows (the wooden mould left at the end of
+    the last row), stacked hacks, and an updraft brick kiln with its fuel, ash and baked bricks.
+  - The potters have a shade over the wheel, greenware drying, stacks of bevelled-rim bowls,
+    settling tanks, a wasters heap and the town's beehive kilns.
+  - A landing takes in what the plain lacked: stone, basalt querns and flint, with a knapping
+    floor. Bitumen boilers cook mastic beside it.
+  - The forge is a coppersmiths' yard. Ingots smelted at the mines are melted there in crucibles on
+    bowl hearths blown with reed pipes, then cast in stone moulds and finished at an anvil stone.
+    Charcoal clamps burn beside it.
+  - A wheelwright makes the carts' three-plank wheels.
+  - The reed cutters stack and plait at the marsh.
+  - The page opens from the air, or at eye level in the brickyard, the forge, the potters', the
+    landing, the clay pit or the wheelwright's.
+- A slanted panel now turns with its piece, so pieces can carry sloping faces like a pit's cut
+  sides. A roof on posts draws its underside.
+- A third scene sets the city in its land. The walled town stands in the middle and its canal runs
+  on past the walls both ways. Around it the land is zoned by what each place needs:
+  - Upstream: the brick and pottery quarter on both banks (clay pits, brick fields and kilns,
+    potters' yards).
+  - Below the town: the harbour (kar), with its quays and boats, merchants' storehouses, bitumen
+    boilers, and the coppersmiths with their charcoal clamps.
+  - Along the levees by the walls: palm gardens.
+  - North and south: strip fields on their channels, with a farmstead in each quarter.
+  - Where the canal runs out: the reed marsh. On the steppe at the edge: sheepfolds.
+  - The page opens from the air, from low over the quarter or the harbour, or at eye level in the
+    fields, at the harbour or by the kilns.
+  - From the air the small things (jars, tools, fence posts) are left out. An eye-level page
+    carries only its own view: it leaves out what is behind the camera and draws the ground only to
+    about 220 m. Drawing a whole land's ground at that detail runs the page out of texture memory.
+- The town can be planned without its own fields and palms outside the walls, and gives the line of
+  its canal, so a larger scene can carry the canal on.
+- Egypt gets the same sub-scenes, at the date of the Thebes town (about 1250 BCE): a countryside
+  and its works, built from Egypt's own tools and buildings.
+  - Kept from Sumer: the clay pit, the treading pits, the brick field and the hacks. Egypt made
+    brick the same way and did not fire it, so there is no brick kiln.
+  - The farm ploughs with a horn-yoked ard and broadcasts its seed. It reaps high with flint-toothed
+    wooden sickles, and carries the grain off in rope nets and donkey panniers rather than carts.
+  - The cattle trample the threshing floor inside its kerb. Scribes measure the grain under a shade,
+    and it is stored in a court of domed silos. The A-shaped hoe sits in the tool shed.
+  - Newer things Egypt had: an upright loom, a vineyard on forked-post pergolas with its treading vat,
+    pottery beehives, and checkerboard garden beds by a shaduf pool.
+  - A third season: the inundation, with the basins under water.
+  - The works:
+    - a sandstone quarry face with stepped benches and blocks freed by trenches and wedges;
+    - sledges on wetted sleepers bringing blocks to a masons' yard, where a colossus stands in its
+      scaffold;
+    - a stone quay with a barge carrying a granite block;
+    - a foundry blown by trodden pot bellows, with oxhide ingots;
+    - a glass and faience works;
+    - carpenters sawing a plank lashed to a post;
+    - a chariot shop making spoked wheels;
+    - a boatyard with a plank hull on stocks;
+    - the potters' tall kilns and bread moulds;
+    - papyrus works by the marsh.
+  - The farm opens from the air, in the yard, at the threshing floor, at the reaping, by the plough
+    or over the flooded basins. The works open from the air, or at eye level at the quarry face, on
+    the sledge road, in the masons' yard, the foundry, on the quay, in the boatyard, the glass works,
+    the chariot shop, the brickyard or the potters'.
+  - Each piece cites its record, every gap reported.
+- The farm's eye-level views (Sumer's too) cut the ground finer near the camera, so it no longer
+  drops out in front of the eye.
+- Egypt's farm and works now use the Thebes town's own colours and wall skins, so a farm and the town
+  beside it are the same Nile mud and the same gypsum wash.
+- Thebes in its land: the town on the Nile's east bank, about 780 × 640 m of country around it.
+  - The river runs on north and south past the town.
+  - Downstream (north): the harbour, with stone quays, a barge and ships, a boatyard and granaries.
+  - Upstream (south): the works, set by what each needs. The clay pits are at the water, with brick
+    fields behind them. A stone quay and the masons' yard take the sandstone barged down from the
+    quarries; then come the potters, carpenters, chariot makers, the foundry and the glass works.
+  - East of the town: basins between their dykes, with the estates among them, out to the edge of the
+    low desert. Shadufs and palms line the bank.
+  - Three seasons: in the flood, the basins lie under water.
+  - It opens from the air, in the fields, on a harbour quay, in the works, from a boat on the Nile,
+    or in any of the town's own views.
+- A region of an unknown culture is an error rather than a Sumerian town.
+- The region's ground stays on the ground in the walkable World. A region is large enough that the
+  World read the town's thin ground layers as one plane and stacked overlapping strips upward (by up
+  to 4 m in Sumer's); its layers are now spread far enough apart to stay separate planes.
+
+### Historic light
+
+- **In progress.** A historic town takes the sixth-gen composer's light: the sun is baked once at build
+  time and carried by the page. Each culture has a style card (`lib/graph/historic/style/`) that states
+  how its town should look as principles, plus the numbers the builder reads. Each principle has a
+  machine check (`style.test.js`).
+- Cast shadows on the ground (`lib/graph/historic/light.js`). Every mass stands in an occluder
+  heightfield. Battered walls, ziggurat tiers and pyramids are sliced so their slopes cast their true
+  stepped profile. One sweep along the sun's azimuth then finds the ground in shade. A palm's crown
+  floats and casts a gappy disc from its height.
+- Sky occlusion darkens the foot of every wall and the floor of every narrow alley.
+- The shade is a cool tint at the card's alpha, never black. It is one map for the whole town (about
+  300 KB), laid into every ground face's background at that face's place, so overlapping shadows never
+  darken twice.
+- Measured on the current plans: Sumer's alleys are about a third in shade, against a twentieth of its
+  main streets and a tenth of the precinct court.
+- The page's backdrop is the card's sky, hazy blue overhead and pale with dust at the horizon,
+  replacing the flat beige.
+- `shade: false` leaves both off. The CSS 3D page only: the WebGL World ignores the map and keeps its own
+  light. Shadows land on the ground, not yet on walls or lower roofs. The region, farmstead, works and
+  asset-sheet scenes are unchanged.
+
+### Historic Hellenic
+
+- **In progress.** The first Greek city: Hellenistic Lindos on Rhodes, c. 180 BCE (`culture: 'lindos'`), and the
+  first town on a sea cliff. The sanctuary of Athena stands on a rock 116 m over the water. Below it the town lies on
+  the saddle between the great harbour and St Paul's bay. The picture is cropped to what the eye reads (the rock,
+  the town, the two bays), not the whole district.
+- Its record (`lib/graph/historic/record/lindos.js`) cites the temple (21.65 × 7.75 m, four Doric columns at each
+  end), the propylaia, the 87 m stoa with its 42 columns and 21 m stair, the theatre and Pythokritos' ship relief. It
+  lists what the scene must not show: the Knights' castle, the white cubic village, whitewash, the 1930s
+  restorations, the Lindian Chronicle. Athena's sacrifices were fireless, so her altar never burns. Heights the
+  record lacks are marked as conjecture in the kit.
+- Rock is made, not drawn (`lib/graph/historic/rock.js`). The layout gives the rock its shape, and the landform
+  operators weather it: strata bench and band the faces, joints break them into blocks, talus sheds scree at their
+  feet. It is meshed in slices at the bed planes, so the cliff reads in bands. Only steep ground is weathered. The
+  summit the temple stands on, the climb, the stair, the theatre and the town keep their exact levels.
+- Ground that is not flat, for any culture (`lib/graph/historic/terrain.js`). A layout's height function may jump.
+  Where it does, the step stands as a vertical face on the true contour, found by bisection: a cliff (bare rock) or,
+  under 4 m, a dry-stone terrace wall. The town is built on terraces 3 m apart, with a street at the foot of every
+  terrace wall and stairs climbing between them.
+- The land casts. A style card can stand the land in the light bake (`light.terrain`), so the cliffs throw their
+  shade on the sea. Lindos' card states six principles, each with a machine check: the value order of stucco,
+  plaster, rock and cliff; the cliffs' shade on the water; the climb rising station by station, with nothing higher
+  than the goddess; terrace walls no taller than a storey; turquoise shallows and a deep sea; fire in the town,
+  never on the altar.
+- A kit of the Doric order shared by every building: column, entablature with triglyphs, pediment, tile roof. It
+  builds the temple, propylaia, stoa, great stair, theatre, courtyard houses on stone socles, the ship relief, statues,
+  towers, kilns, a round tomb, warships and boats. Each was designed from a massing sheet dreamed on the local image
+  worker. New patterns: classical order, tile roof, stoa, propylon, theatre, round tomb, peristyle, acropolis,
+  terraced hillside, sea cliff, rock relief, statue base. New wall skins: dry stone, stuccoed poros, isodomic ashlar.
+- Fire is opt-in (`fire: true`). The plan hands over its house hearths and potters' kilns as fire sources, in the
+  fire channel's kinds. Without it the plan carries none.
+- The generic Hellenistic polis (`culture: 'polis'`) is the same plan on a gentle hill, with no cliff and no open
+  sea, so other Greek towns can start from it.
+- **Historic cities on the WebGL World page** (`assembleHistoricWorld`, `renderHistoricCityToWorld`). The CSS 3D
+  page draws each face as its own HTML element, and Chrome starts dropping faces when a town's eye-level views pass
+  about ten thousand of them. On the World page the same faces are a few draw calls. Lindos loads in under a
+  second and holds 60 fps in every view, at about 7.9 MB against 12.4 MB for the CSS page. The World page takes
+  the scene as it is, its ground tiles and wall skins resolved to textures and the style card's sky as its sky
+  dome. The CSS shade map is not baked for it (the World never reads it). The CSS page stays the light aerial
+  preview.
+- **Water you can see into.** On the World page the Lindos sea takes the native water look (`lagoon`): ripples,
+  the sky reflected more strongly at a grazing angle, a sun glint, and froth where the water thins against the
+  shore. Its depth comes from a seabed that shelves gently off the beaches and drops away under the cliffs, worked
+  out from the distance to the shore. The water is clear turquoise over the sand in the shallows and opaque blue
+  offshore, set by each corner's opacity on one translucent sheet whose pieces never overlap. The seabed (about a
+  thousand triangles near the shore) is drawn on the World page only. The CSS page keeps its opaque two-tone sea.
+  A culture opts in with `water.look`; terrain water takes `liquid`, `alphaAt`, `sheetFill` and `fine`.
+- **Live fire on the World page.** With `fire: true` the potters' kilns and the hearths in the house courts burn
+  live: flames, sparks, smoke and their light on the walls and ground. The painted flame cards stand down there,
+  and the CSS page keeps them. The fire channel takes a new opt-in `unit` (metres per scene unit;
+  `firePageChannel(…, { unit })`). The fires are given and burn in metres, since their buoyancy, smoke and sparks are
+  physical, and the page scales them into the world's units, with their light falling off over the same metres.
+  Without `unit` the fire script is byte-identical.
+- Views: the great harbour from a boat (`bay`), the climb, the stoa's terrace and great stair, the temple court, the cliff from the sea, the
+  theatre and a town street. Sumer, Thebes and Giza are byte-identical.
+
+### Historic Qin
+
+- **In progress.** Qin Xianyang and the Lishan works at c. 212 BCE, the first Chinese culture. Qin is the
+  earliest Chinese city that still reads as Chinese (grey tile roofs, red columns, raised earth terraces,
+  walled axial compounds), and early enough that its roofs are honestly straight.
+- Its own record (`lib/graph/historic/record/qin.js`): Xianyang Palace No. 1, Epang's front hall begun,
+  the Lishan mound, enclosures, gates and halls, terracotta Pit 1, the Wei bridge and the Zhengguo Canal.
+  Each entry is cited and dated, with its confidence and the disputes between sources. Settled by the record:
+  - No outer wall at Xianyang has been found, so none is drawn as fact.
+  - Upswept eaves and glazed roof tiles are held with their much later dates.
+  - The Han analogues (the Gaoyi que, pottery tower models, the Sichuan market brick) carry their CE dates,
+    so a Qin scene uses one only by naming it as an analogue.
+- A style card with a design language (`style/qin.js`):
+  - One batter for every earth face, about 77°, with pounded courses of 6–10 cm.
+  - Columns six to eight diameters tall on stone bases, one bracket block each.
+  - Straight hip and gable roofs, with eave-end tiles 16 cm across.
+  - A palette sampled from reference swatches.
+
+  Each principle is checked on the kit before any town plan exists. The reference drawings, and what each
+  one gives the kit, are indexed in `docs/historic/qin/`.
+- The town (`culture: 'qin'`, layout `wei-wards`): Xianyang on the north bank of the Wei, with no outer
+  wall.
+  - The palace enclosure holds Palace No. 1 on its two-tier terrace, a lesser hall either side, and a
+    pair of que in its south gate.
+  - The axis runs on as a poplar-lined avenue to a timber pile bridge over the river.
+  - Walled wards line the avenue, each with its gate on an east–west avenue and lanes of courtyard houses
+    inside; the row under the palace is the elite's, with higher walls and tiled, hipped halls.
+  - One ward is a walled market with its drum tower (a Han analogue, labelled as one).
+  - Across the river, Epang's front hall is a building site of rising earth sections, plank forms, ramps
+    and spoil.
+  - Loess fields of millet and wheat lie round the town.
+  - Views: palace, gate, avenue, ward, market, bridge, works.
+- The Qin kit (`assets/qin.js`) builds every piece from the card's numbers: hall on terrace, que,
+  rammed-earth wall, ward gate, courtyard house, market, terrace works, bridge and trees.
+  - Roofs are frusta whose top is a ridge line, so they are straight by construction.
+  - Two new wall skins: `hangtu` (pounded courses, rammer dimples, the board-form lifts and tie holes) and
+    `tile-roof` (cover rows over pan channels). The tile skin is the first laid on a sloped face.
+- New shared patterns: rammed earth, tiled roof, timber frame, terrace hall, walled ward, market and bridge.
+- The page is about 21 MB, between Giza's and Thebes'. The other cultures are unchanged.
+- The Qin ground in two steps, on the shared terrain mesher (`terrain.js`) as Lindos' is: the layout gives one
+  height function and the mesher stands the steps up.
+  - The palace stands on the lip of the Xianyang tableland, 10 m up. The bluff beneath it is sheer loess,
+    ragged except under the palace, and cut by two gullies whose floors climb to the tableland.
+  - The wards lie on the plain below. The axis climbs the bluff to the que as a rammed-earth causeway.
+  - A new `bluff` view looks along the edge.
+- The Wei through the same water channel as Lindos' sea. It uses the native `river` look, silty and flowing
+  east, near opaque over the channel and clearer over the bars' shoulders, with a riverbed under it on the
+  World page.
+  - It is braided round sandbars. Each bar stands out of the bed with a low lip, so the mesher traces its
+    outline on the true contour instead of stepping it to the grid.
+- The World page is cropped to the town. A layout can ask for a skirt (`plan.world.skirt`): the land runs a short
+  way past the frame, its heights carried out from the frame's edge, each corner fading to the sky's horizon
+  colour with its distance. Past it there is only sky, so the town stays the focus however the World is turned.
+  Qin's runs 260 m. Cultures without a skirt are unchanged.
+  - Beyond it, on the World page only, a hazy Qinling in the south and the northern hills. They are brought in
+    and scaled so they sit at about their real angle on the horizon.
+- The height of the bluff and the line of the river are drawn, not measured. Both are in the record as
+  unverified (`xianyang-tableland`, `wei-braided`); the Wei has since moved north over the old town.
+- Qin opens on the shared World page (`renderHistoricCityToWorld`) like Lindos: about 15 MB self-contained,
+  against about 21 MB for the CSS page.
+
+### Historic entries
+
+- **In progress.** The historic cities reach the agent. Until now they were reachable only from code.
+- New world kind `historic`: `create_sketch({ manifest: { kind: 'historic', culture, scene, seed, … } })` mints
+  a culture at its period as a walkable World:
+  - `scene` is `city` (every culture), or `region`, `farm` or `works` where the culture has one;
+  - an unknown culture or scene is refused with the list of ids;
+  - the cities, regions, farms and works render as they did, byte-identical.
+- Each culture card gains `readAt`, `period` and `place` as data, from its own documented header. Sumer has
+  no read-at year yet: its card spans the Uruk and Early Dynastic periods. The generic polis has no place;
+  it is invented.
+- A caption for every historic scene (`lib/graph/depiction.js` `describeHistoric`), read from the cards.
+  It keeps two questions apart: the PERIOD (when and where) and the DEPICTION (the era's budget plus a look).
+  For example: "New Kingdom Thebes · New Kingdom, c. 1550–1070 BCE (read at c. 1250 BCE) · Thebes, Upper Egypt
+  — drawn sixth-gen, to the thebes style card". A field a card lacks is never guessed.
+- Encyclopedia entries, generated from the culture, record and style cards (`lib/graph/historic/entries.js`)
+  and served as view-vocab cards of a new family `entry`. No tool is added and no tool description names an
+  entry. An agent goes from a cold ask to a world in three calls:
+  1. `semantic_search` finds the entry;
+  2. `get_view_vocab({ id })` reads it;
+  3. `create_sketch` mints one of its starters.
+- What the cards carry:
+  - **An entry** holds the infobox (subject, period, place, depiction, basis, checks), its parts by the ids
+    its generators use, its scenes, and STARTERS: `historic` manifests to copy and change.
+  - **Its record** (`<id>/record`) lists each record entry with its confidence and sources. It is read on
+    demand and kept out of search, so an entry always answers before its sources.
+  - **A region with more than one culture** (Egypt, the Greek world) gets a hub listing its entries in time
+    order.
+  - **BASIS** follows the record: read → ATTESTED, secondary → RECONSTRUCTED, unverified → CONJECTURAL. The
+    town plan is never ATTESTED.
+  - **SCOPE** says up front that each entry is a general depiction of its period, not one year's town, so
+    anachronisms are expected: pieces from across the span side by side, gaps filled from parallels. The
+    hubs and the routing card say the same, and the agent is told to say it when it hands a world over.
+- Culture cards gain `region`, `aliases` (the words people search with: pharaoh, Luxor, ziggurat) and
+  `record`, the record the entry stands on. The entries are found on the default lexical path, with no
+  embedding model.
+- A card contract test holds what an entry reads off each culture card: `years`, `period`, `readAt` (or null),
+  `place` (or null when invented), `region`, `aliases` and `record` (or null). A new culture that lacks a line
+  fails with the list of lines its card still needs. A card that says nothing about its place reads "place not
+  recorded", never "invented". A region with no row of its own still gets its hub.
+- Pompeii and the Forum Romanum (79 CE) are entries too, with their records and a Roman Italy hub: "pompeii",
+  "vesuvius", "the roman forum" and "ancient rome" find them.
+- `semantic_search` takes English terms, as its description already says. The host model translates first.
+- A routing card, `historic`, sends a cold request to the entries. The routing eval gains rows for it.
+- `get_view_vocab` takes the `entry` family. create_sketch's `manifest` property names the `historic` kind.
+  The `tools/list` payload pin moves from 267,900 to 268,200 (measured 268,159).
+- Fix: an upgraded install now indexes cards a release ships. The search index used to be built only when
+  empty, so new cards (these entries, and any routing card added since) stayed unsearchable until a manual
+  reindex. Once per process, before the first search, a corpus built by a reindex is checked for shipped
+  cards it lacks, and one reindex adds them.
+- Fix: record cards cite a group author whole ("various", not "various (sxlib").
+
+### Historic on-ramp
+
+- **In progress.** Adding a culture is a card, a registry line and a scaffold, at any depth:
+  - depth 0: a card on another culture's layout and kit, in its own colours;
+  - depth 1: plus its record and style card;
+  - depth 2: plus its own assets;
+  - depth 3: plus its own layout.
+- Registries, one line per culture or layout: `historic/cultures/index.js`, `historic/layouts/index.js` and
+  `historic/regions.js`, beside `historic/style/index.js`. `planHistoricCity` dispatches from the layout table
+  and refuses an unknown layout id. A view the scale table does not name renders at eye level instead of an
+  undefined scale. Every page is byte-identical.
+- Each culture's depth is found, never claimed (`historic/depth.js`): what it shares with a culture
+  registered before it, by identity. Its entry says it on a DEPTH line, for example "0 of 3: its own style
+  card; record, assets and layout from lindos" for the polis.
+- A card's `land` names its farm and works scenes, replacing a table written into three files. The scene lists
+  follow the registry.
+- `scripts/new-culture.mjs <id> --like <culture> …` scaffolds a culture at depth 0:
+  - it writes a card spread from an existing culture, with every contract line filled or null, `record: null`
+    and `land: null`;
+  - it adds the registry line and `docs/historic/<id>/README.md`;
+  - the culture renders, mints and is an entry on the first run;
+  - `--dry` prints without writing; bad input is refused with what is on offer.
+- A culture checklist test (`historic/cultures.test.js`): every layout is registered, every style card has
+  its culture, every entry states its depth, every layout takes a card spread under a new id, and the
+  scaffold is checked dry.
+- The guide, `docs/historic/README.md`, covers the parts of a culture and their registries, the depths with
+  the asset loop, new regions, the gates, and landing a culture on the trunk. A project skill,
+  `/historic-culture`, runs it in order.
+
+### Historic lineage
+
+- **In progress.** Cultures draw on cultures. A culture card's `draws` names the earlier cultures it continues,
+  inherits from, took forms from by contact, or varies, and what each relation carries (palette, skins,
+  patterns, assets, layout, record).
+- `historic/lineage.js` reads the tree off the cards. Its brief lists what a new culture can draw on at its
+  year: patterns, skins and assets, and the record entries in use then. Drawn record entries stay the source's:
+  each is a parallel to verify, never the new culture's own basis.
+- What a record carries depends on the kind of relation. A tradition travels as its materials and methods
+  (`inherits`, `contact`, `contemporary`); a culture's particular buildings and town form pass only on the same
+  ground (`continues`) or to a version of the same town (`variant`).
+- The relations now recorded: Thebes continues Giza; the polis is a variant of Lindos; Pompeii and the Forum
+  inherit the Hellenistic orders from Lindos; the Forum is Pompeii's contemporary.
+- Each entry gains a LINEAGE line, and a `historic-lineage` card in the encyclopedia holds the tree.
+- `scripts/new-culture.mjs --draws <culture>:<kind>[:<parts>]` writes the relations on the new card, joins
+  the patterns they carry, and writes the brief into its README. Dry runs for a Ptolemaic Thebes
+  (continues Thebes, contact with Lindos) and a Byzantine Constantinople (inherits from the Forum and Lindos)
+  each list what to start from.
+- `historic/lineage.test.js` holds relations to history: every source registered, no culture its own ancestor,
+  a source beginning before the culture drawing on it ends, a continuation beginning earlier, a variant on its
+  source's layout. Every historic page is byte-identical.
+
+### Animal entries
+
+- The animal roster reaches search the way the historic cultures do. Each species gets an encyclopedia entry,
+  generated from the roster (`lib/graph/fauna/entries.js`) and served as a solid-vocab card. No tool is added,
+  and no tool description names an animal.
+  - **The index** (`animals`) lists every animal by the name people say, plus the animals people ask for that
+    aren't built yet, each with the built species that stands in.
+  - **A hub per family** (`animal/feline`) lists its species and its NOT YET rows.
+  - **An entry per species** (`animal/houseCat`) gives the subject, size, stance and basis, the STARTER spec to
+    mint, and its kin.
+- Each family module gains `about` (`common`, `aliases`, `sci`, `size`, `source`, moved out of the thesis
+  comments into data) and `wanted` (`near`, `aliases`, `note`). The facts never reach a plan: every species
+  builds byte-identically.
+- `mint_solid` kind `animal` takes the name people say: `species: 'cat'` mints `houseCat`, and the result's
+  `resolved_from` says so. Plurals and articles resolve too ('a penguin', 'wolves'). An asked-for animal
+  that isn't built yet ('koala') is refused with its stand-in named. An unknown word points at the roster.
+- A species minted as a ring plan reports its real stance (`four legs`, `two legs (a bird)`, `swims`,
+  `legless`, …), not `quadruped` for all of them.
+- A roster contract test holds what an entry reads:
+  - every species has an `about` row;
+  - every `wanted` row names a built stand-in and isn't built itself;
+  - no name is claimed by two animals.
+  A new roster (the arthropods) joins by adding itself to `ROSTERS`.
+- The `get_solid_vocab` bare listing stays one row per kind and op: the generated entries are left out, and
+  the `animal` card points at their index. The unknown-card error lists the hand-written cards and names the
+  entries.
+- The `animal` manual and routing card no longer list the old species ids or say `opts` work on a species.
+  They point at the `animals` card.
+- Fix: an upgraded install now indexes new solid-vocab cards too. The shipped-card check used to look at
+  view-vocab and routing cards only.
+
+### Fauna roster completion
+
+The animal encyclopedia's asked-for animals built, and the house cat given a head that reads as a cat. Every species
+already built keeps its plan except where named below.
+
+- **The faceted feline head.** The house cat's head is now a low-poly mesh built from interlocking facial volumes
+  (cranium, cheekbones, muzzle pads, nasal bridge, chin; the eye sockets carved in), placed by landmarks measured off a
+  reference sheet: almond eyes with vertical slit pupils, a pyramid nose, wedge ears with a recessed inner ear. Its
+  lower jaw is its own shell, hinged on the same `jawOpen` dial as the ring-plan heads (0–35°), the mouth's lining
+  showing when it opens. Worn through `headMesh`, which takes a jaw and an `anchorZ` (the height a head is seated on the
+  neck by; default the middle, so the raccoon is unchanged). The cat's trunk and legs are fuller and its neck shorter.
+- **Eyes that show.** The seated ("set") eye now opens its lids nearly round, sinks the ball a third of its radius and
+  keeps the lid a narrow rim; a species that wants a drowsy eye asks for its own opening.
+- **Fifty more animals.** Every animal the encyclopedia listed as asked-for is built, each at its published size
+  (`about` names the source) and passing the fit gates (closed, attached, grounded, size): coyote, spotted hyena,
+  jaguar, Eurasian lynx, warthog, woolly mammoth; donkey, llama, reindeer, elk, yak, water buffalo; house mouse, brown
+  rat, Syrian hamster, guinea pig, European hedgehog, North American porcupine, brown hare, European badger, striped
+  skunk, meerkat; white-faced capuchin, western lowland gorilla, Bornean orangutan, ring-tailed lemur, three-toed
+  sloth, koala, red-necked wallaby; tokay gecko, green iguana, veiled chameleon, American alligator, red-eared slider,
+  green sea turtle, common toad; Atlantic bluefin tuna, white-spotted puffer, southern stingray; ostrich, rooster,
+  turkey, peacock, American flamingo, mute swan, Canada goose, rock pigeon, American crow, toco toucan, ruby-throated
+  hummingbird. Their gaits follow their families, with species overrides where the animal moves differently (the
+  lizards stand on four sprawled legs, the ostrich does not fly, the waterbirds paddle, the sea turtle flies underwater
+  on its flippers, the sloth only crawls, the meerkat sits up and walks). The bobcat, emu and raven are asked-for rows
+  now, standing in as the lynx, ostrich and crow (they had been aliases of other species).
+- **Spotted coats.** The jaguar, lynx and hyena wear their spots on a fine coat shell (`lib/graph/fauna/coats.js`):
+  round, irregular patches and broken rosettes laid out in metres, not whole faces of the trunk's coarse ring.
+- **The throat.** A long face's jaw is joined to the neck (a giraffe's, a camel's, a horse's jaw held its rear corner
+  out in the air); buried where the neck already meets it; birds, frogs and worn head meshes leave it out.
+
+### Animal locomotion studies
+
+- **In progress.** Every animal gets the way it moves, written down by the biomechanics of its family, so it
+  can later be animated by the leg-step and spine mechanics of its kind.
+- The roster sorts into nine shared rigs (`lib/graph/fauna/locomotion/`): running toe-walkers, hoofed,
+  flat-footed, pillar-legged, sprawling, hoppers, two-legged, wing-walkers, and whole-body wave (snakes and
+  fish). Each rig file holds its families' entries:
+  - the gaits, named in plain words (walk, trot, gallop, hop, slither, swim, …), each pointing at a footfall
+    pattern or body wave with its duty factor, stride length per hip height and speed band (Froude number);
+  - the spine bone counts, fixed per family;
+  - how the spine, girdles, head and tail move with the stride;
+  - species overrides where a family holds very different movers (snakes and the monitor lizard; the manta).
+- Where scientists disagree, the entry takes the more visual reading and says so beside the value.
+- Each species' encyclopedia entry lists its gaits (`MOVES`). No plan changes: every species builds
+  byte-identically.
+- Every species gets a bone tree (`lib/graph/fauna/skeleton.js`), derived from the plan it already builds:
+  - spine, neck and tail bones laid along the body's own centreline, in the family's fixed counts, and a
+    head bone pitched as worn; a camel's or plesiosaur's lofted neck is followed along its curve;
+  - one bone per leg row, chained joint to joint; the main chain of each shoulder and hip limb carries a role
+    (`fore.humerus` … `hind.metatarsus`), the shared animal profile a gait solver or a clip library maps by;
+  - paired fins as their own bones; snakes and fish carve their tail from the rear of the body;
+  - a binding for every plan part: torso, neck and tail stations ride the bones of their own region, a leg
+    stripe rides its leg, other decorations ride the body.
+  It is not wired into minting yet.
+- A gait solver (`lib/graph/fauna/gait.js`) poses a species' skeleton through one stride of any of its gaits, in
+  place on a treadmill:
+  - feet plant at their phase offset for the gait's duty factor and swing forward between; the upper leg solves
+    two-link to the foot block, the foot rolls over its ground contact at the ends of the stance and the girdle
+    glides (the shoulder blade on the ribs) where the leg cannot reach;
+  - the body dips with the stance legs and, in a flight phase, rises on a ballistic arc timed by the speed its
+    stride implies (stride/h ≈ 2.3·Fr^0.3);
+  - the spine flexes once a stride in gallops, bounds and hops, bends sideways as a standing wave in the
+    sprawlers, and travels as a serpenoid wave in snakes and fish (the coiled snake straightened first);
+  - fins and flippers stroke, heads hold level or nod, tails trail or counter-swing and drag on the ground.
+  Wing beats wait for the wing bones. `scripts/fauna-gait-strip.mjs <species> <gait>` draws the stride as a
+  stick GIF (side view over top view) for the eyes gate; a machine gate checks every gait of every species
+  poses rigid bones and that planted feet stay down for their duty factor.
+- The snakes' spine count rises to 20 trunk and 4 tail bones: two body waves need them.
+- The skeleton gains the wing bones `wing.js` builds (the arm chain with `wing.humerus` / `wing.radius` /
+  `wing.hand` roles, and the digits), and a penguin's flippers as fin bones. A `fly` gait rebuilds the wing at
+  each instant's fold (spread on the downstroke, half folded coming up) and rolls it about the body's long axis;
+  `glide` holds it spread. Strokes beat only their own limb group (wings, pectoral fins, flippers, paddles).
+- **Animals move.** `mint_solid { kind: 'animal', spec: { species, motion } }` binds the minted solid to the
+  species' skeleton and carries its gaits as clips. `motion` is `true` (every gait), a gait word or a list, or
+  `{ gaits, keys }`; an unknown gait is refused with the species' own list. Without `motion` the plan is the
+  species' own, byte-identical.
+  - The plan gets a `bind` on every segment (a limb's joint rings shared with the bones either side, a body
+    station blended toward the next bone as it nears that bone's end) and on the head, plus a `motion` record
+    that expandPlan carries to the recipe.
+  - The mint gate binds every vertex and checks the weights; the stats report the bones and the clips.
+  - At read time `packFaunaRig` (`lib/graph/fauna/rig.js`) packs the mesh through `packLayeredRig` with a stand-in
+    rig of the skeleton's bones and no clips (the humanoid path is untouched), then appends one clip per gait from
+    the gait solver: the absolute rotation and posed head of every bone at every key, and the stride's own
+    duration. The World page previews the clips, the skinned GLB carries them (`export_model { clips: '_all',
+    skinned: true }`), and the Godot pack plays the first.
+  - The worn wing still rides its root bone rigidly; weighting its surface from wing.js's own bindings is next.
+- The equine trunk is shaped in its mammal regions instead of one even barrel: a rounded buttock, broad quarters
+  over the hip, the loin and flank tucked in and up (the belly line climbs to the stifle), the rib barrel deepening to
+  the girth behind the elbow, the withers, and a narrow breast. It sits on the stable ring frame (`torsoUp`) so the
+  centres can rise and fall. The horse and zebra change (the zebra's stripe hoops now follow the trunk's height as
+  well as its radius); the camel keeps its own level trunk and builds byte-identically.
+- The horse and zebra heads are rebuilt level at true size and pitched nose-down (`headPitch`), instead of sheared
+  (the shear stretched the skull along its slope to ~0.9 m, half again a horse's, and slanted every feature). Now
+  ~0.59 m poll to lips (published 0.55–0.65 m): a broad flat forehead with the eyes set on the sides at its widest,
+  seated and lidded (the set eye); a nasal line narrowing to ~0.10 m mid-face; a soft muzzle flaring at large open
+  nostrils with no bare nose pad; a round jowl curving up into a thin under-jaw, chin and lower lip; the mouth line
+  only over the last quarter (behind the corner the jaw covers the seam). The zebra's head grows to ~0.52 m.
+  Three opt-in builder fields carry it, each zero bytes when absent: `nostrilR` / `nostrilSquash`, `nosePad: false`,
+  `webJaw` (the jaw end of the mouth-corner web). The camel and the giraffe (whose head starts from the equine one,
+  now exported as `CLASSIC_HEAD`) build byte-identically.
+- Tails balance the body instead of swinging as decoration. A tail is the snakes' and fish's travelling wave run
+  from the pelvis (one helper, `travelling`, now drives both; every snake and fish wave is bit-for-bit unchanged): its
+  root answers the spin the swinging legs give the body, each foot's fore-aft travel signed by its side for the yaw
+  and summed for the pitch, so a trot's diagonal pairs cancel and the tail rides calm, a biped's stride or a pace sways
+  it, and a hop or bound swings it up and down. The plain tail words (`TAILS` in the locomotion data) carry the
+  mechanics: a `counter`weight swings stiffly against the spin, a `trail`ing tail follows late with a whipping tip, a
+  `prop` is planted as a fifth leg (the kangaroo's slow walk presses it to the ground with the forelegs), `drive`
+  trails on land and rests while fins row. A heavy tail answers with a smaller swing (it shrinks as the tail outgrows
+  the hip height). The kangaroo's tail is now `prop` and the crocodile's `counter`; every species card carries a
+  `TAIL` line saying what the tail does.
+- A tail's motion now follows from what it is made of and how long it is, measured from the model. `TAIL_BUILDS`
+  (flesh, fur, hair switch, stub, feather) say how much of the drawn girth is mass, how freely it swings and whether
+  air lifts it; each family has one (the squirrel's is fur). From the plan: the tail's inertia over the body's and
+  over each leg pair's, and its swinging length (a horse's hair included). A counterweight answers the legs' angular
+  momentum by their inertia over the tail's (a T. rex's heavy legs sway its tail; a squirrel's light legs barely
+  move its), a share of it in steady straight gaits (turns and leaps use the rest). A trailing tail sways with the
+  hips at a walk and trot and is braced at the gallop (Wada et al. 1993, dogs). On top, every free tail is a
+  pendulum shaken at its root by the hips' sway and the body's real bob: a long hair switch swings late and wide, a
+  bushy brush shaken fast stays put while the body bounds beneath it, and hair and fur stream up at speed. The
+  white-tailed deer flags its tail in flight (`flag`); the moose holds its still. A body part that is not a tail no
+  longer binds to tail bones (the kangaroo's trunk rode `tail0`). Cards read `TAIL  <build>: <use>`.
+- The spine follows the footfalls instead of a fixed wave. From above, each girdle turns with its own pair's leading
+  leg (`axial.yaw`, which the solver had ignored: the shoulder or hip swings forward with its leg, lengthening the
+  stride), and the trunk bends between the two (`axial.lateral`, the sprawlers' standing wave, now locked to which
+  feet are down): opposite turns in a trot bow it into a C that flips each step, the same turn in a pace bends
+  nothing, and most of the girdles' common turn is cancelled so the trunk swings about its middle. From the side the
+  back rounds as the legs gather (hind feet forward, forefeet back) and stretches as they extend (`axial.flex`): hard
+  in a gallop and a bound, slight in a trot, none in a pronk. The planted feet still hold (the legs absorb the
+  girdles' turn); every snake and fish wave is unchanged.
+
+### Environmental sound
+
+- **In progress.** A historic world can carry its period's music: add `"audio": { "soundtrack": "default" }`
+  to a `historic` manifest and the world plays a synthesized bed in its culture's mood
+  (`lib/graph/historic/soundtrack.js`). Each mood is led by a timbre standing in for an instrument the culture
+  played:
+
+  | Mood | Cultures | Lead instruments |
+  |---|---|---|
+  | Sumer | Sumer | a dark lyre pluck and a reed pipe over a drone |
+  | Egypt | Thebes, Giza | a harp ostinato with sistrum shimmer |
+  | Greek | Lindos, the polis | a kithara and a droning aulos over the sea |
+  | Qin | Qin | a zheng with pressed bends, bronze bell chimes |
+  | Roman | Pompeii, the Forum | a water organ, a cithara and a distant horn call |
+
+- The instruments are attested; the scales, tempi and harmony are conjecture, since no ancient performance
+  survives as sound. The world's seed re-rolls the performance, so two towns of one culture sound related but
+  not the same.
+- Without the opt-in a world is silent and unchanged. The other `audio` fields (wind, bindings, cues) still
+  combine with it.
+- A culture names its mood on its card (`soundtrack`). A culture scaffolded from another plays its parent's
+  mood until it has its own, and a new mood is a row in `MOODS`.
+- Each entry gains a SOUND line and a starter with its period music.
+
+### Historic miniatures
+
+- **Spike.** A historic city can stand its people about for scale and flavour: add `"people": true` (or
+  `{ "density": 0–1, "citizens": false, "hands": false }`) to a `historic` manifest with the `city` scene, and
+  the World page fills in two groups (`lib/graph/historic/miniatures.js`). Static figures only: no motion, no
+  paths.
+  - Citizens stand alone, in pairs or in households on the lanes, the open ground and the plan's square. They
+    are thicker on a main street than in a back alley.
+  - Field hands work in gangs on the flat ground outside the wall: stooped over the crop, at the hoe, or
+    carrying.
+- Each figure is the fractal city's pedestrian at a new `mini` level of detail, under 300 quads. Nobody is bare:
+  every garment covers the torso and hangs a skirt of cloth to its hem (`cut`: knee, shin or ankle).
+  - The skirt is fitted to the posed figure. Its top is the trunk's own waist, so it tilts when the figure bends;
+    each ring below wraps the hips and legs at its height, so a stride or a bent knee pushes the cloth out
+    instead of poking through. The legs under it are not drawn.
+  - Sleeves carry the shirt down the forearm, and `legs` give trousers.
+  - Colour is the culture's palette over the body's regions and the skirt.
+  - Dress per culture: Roman tunic, toga and stola; Greek chiton, himation and peplos; the Egyptian linen tunic over
+    a kilt, and the sheath; the Sumerian fleece skirt under a shawl; the Qin long dark robe, and the labourer's
+    jacket over hemp trousers.
+  - New work poses: `stoop`, `hoe`, `carry`.
+- Beasts of burden (`lib/graph/historic/beasts.js`), on unless `beasts: false`:
+  - In the fields, plough teams: two oxen abreast under a yoke at the neck, the ploughman behind.
+  - On the open streets, pack donkeys and mules with panniers, and horses, each led by a driver at its head.
+  - Each culture works its own herd: oxen and donkeys from Sumer to Egypt, mules among the Greeks and Romans,
+    horses and oxen for Qin.
+  - Each beast was designed with the creature creator (`mint_solid` kind `animal`, iterated with `update_sketch`)
+    and is carried as the recipe that sketch stores. The ox is the bull gelded to a heavier draught body, short
+    horns and a pale coat; the donkey and the mule are new, from the horse; the horse and the camel are the
+    species. The camel is drawn by no culture here, since it came after these periods.
+  - `lib/graph/figures/beast-asset.js` bakes a recipe low-poly (about 400 faces against about 9,000). It uses the
+    animal kind's overlap body, keeps the coat and its pale belly, and drops the eye and nose dots.
+  - Beasts come after the people on their own seeded stream, so turning them off moves no one. Each needs footing
+    under all four hooves, clear of the people.
+- The people and the beasts are shaded smooth (`lib/graph/figures/smooth-corners.js`). Each corner takes the
+  normal averaged over the faces that share it in its own part (a limb, the trunk, the skirt), and the World page
+  shades by corner (`cornerFills`), so the low-poly forms read as rounded rather than faceted. The silhouette and
+  the face count are unchanged, and a colour edge (a hem, a sleeve, a belly) stays crisp. The pedestrian takes it
+  as `smooth`, off by default, so the fractal city's people are unchanged.
+- The region, the farm and the works take `people` too (`lib/graph/historic/crews.js`). Their kits build every
+  tool and building at rest and say who belongs there, and this places them.
+  - Hitching: every yoke with a pole run back from it gets its team, two abreast, necks at the yoke, facing away
+    from the pole. The yoke and the pole's front end lift from the ground to the necks. Oxen draw the plough, the
+    culture's pack animal the cart, oxen or (in Sumer, as its kit says) donkeys the threshing sledge, and horses
+    the chariot. The ploughman stands behind the stilts; any other driver at the head.
+  - Crews: each workshop and farm building names its workers in `CREWS` (reapers bent along the barley's cut edge,
+    diggers in the clay pit, moulders on the brick field, smiths, potters, the haulers ahead of a stone sledge,
+    scribes in the shade). They stand in the slot's own frame, at its working front, inside it or ahead of it,
+    each in a pose for the work. Byres, stables and grain packs get their beasts.
+  - The region's town has its citizens on the town's own claim grid, where the region set it down. Its strip
+    fields have field hands and plough teams, and its estates and quarters their crews.
+  - Outside a town, a figure stands on the scene's own ground heights, so the clay pit's diggers stand on its
+    floor.
+  - With `people` absent every scene is byte-identical, and the CSS pages never draw people. `crews: false` leaves
+    out the crews. The town's own output is unchanged by the shared placing kit this needed (`folkKit`).
+- The city takes the same crews. Its work places name their people too: priests and worshippers at the altars
+  and before the temples, women with jars at the wells and fountains, shopkeepers at Pompeii's shop fronts with
+  customers in the street, potters at the kilns, bakers and craftsmen in Giza's bakeries and workshops, quarrymen,
+  porters on the quays, boatmen aboard, traffic and a pack animal at the gates, and traders and their beasts in
+  the Qin market. A crew can now stand before a slot facing into it (`before`), work up on a quay's top or a
+  ship's hull (`deck`), and fill a big market or court in proportion to its area (`per`). Priests, shopkeepers and
+  guards wear the town's dress rather than the labourer's. The town's own people are unchanged; the Forum, whose
+  layout has no slots, has none yet.
+- Dress changes with the era. Clothing is now part of each culture's record, as dated and cited `dress` entries
+  next to its materials and building types (`lib/graph/historic/dress.js`). Each entry is one garment: who wore
+  it (the man or the woman of the street, or the labourer), its span, its hem, sleeves or trousers, and a few
+  colourways. The people wear what was in use at the culture's year, and `people.year` asks for another year:
+  the buildings stay as they are, and the people dress as that year's people did.
+  - A culture with nothing recorded for a year dresses as the culture it draws its dress from (the new `dress`
+    part of a lineage relation): the Forum from Pompeii, the polis from Lindos, Thebes before the New Kingdom
+    from Giza, and Pompeii, before its Roman entries begin, from the Greek tradition.
+  - `checkRecord` checks a dress entry like any other: its wearer, its hem, its colours, and that every look
+    covers the torso.
+- Cloaks and headwear. The miniature can wear a cloak, hung from a collar over the shoulders, the trunk and the
+  upper arms to the hip or the knee, with the forearms coming out under it. It can also wear one of three head
+  coverings: a `cap`, a broad-brimmed hat (`brim`), or a `veil` that falls past the chin onto the shoulders and
+  leaves the face open. Each is fitted to the posed figure the way the skirt is, in its own colour, and the
+  figure is unchanged without one (`lib/graph/figures/pedestrian-asset.js`). The record now dresses people in:
+  - the Roman paenula, on labourers from the early Empire and on citizens from the 3rd century;
+  - the Roman palla, and the Greek himation, drawn over the head;
+  - the Greek chlamys, from the 5th to the 3rd century, and the petasos on labourers;
+  - the Sumerian sheepskin over the kaunakes;
+  - the fur cap of the Zhao horsemen's dress, and the Qin commoner's black headcloth from 221 BCE.
+- A figure stands on a kerb or a step and refuses a spot taken by anything taller.
+- Without the opt-in, a world and the CSS page are unchanged, and so are the fractal city's pedestrians.
+- Not yet: instanced drawing, sheep and goats for the folds, people on the Forum (its layout returns no claim grid),
+  and seated poses (the scribes stand). Pompeii
+  with people is a little over twice the faces of Pompeii without. The Forum layout returns no claim grid yet, so
+  it has no people.
+
+### Pompeii's land
+
+- Pompeii gets a farm scene (`scene: 'farm'`), and a works scene is next. Both draw on a new cited record of
+  its land and workshops (`lib/graph/historic/record/pompeii-land.js`), spread into Pompeii's record.
+  - The record covers:
+    - the villas of Boscoreale: Villa Regina's 18 dolia (about 10,000 litres) and the Pisanella's olive mill;
+    - the lever press of the Villa of the Mysteries;
+    - the vineyard inside the walls;
+    - the bakeries with their donkey mills, the fullery, the fish-sauce works, the tannery, the dyers, the
+      potters, a building site and a smithy;
+    - the carts and the stable of Civita Giuliana.
+
+    Each entry is cited, with its confidence and its disputes. What was working at the eruption but has no
+    recorded building date is held from 79, not back-dated.
+  - The farm is a villa rustica at the vintage, its one season. It is a new `villa` layout beside the flood-plain
+    farm, which stays as it was.
+    - The villa stands round its court, facing a country road rutted at its cart's gauge, with the dolia sunk in
+      the court.
+    - The press room and the olive mill stand behind it, the stable beside it, and the threshing terrace and a
+      barn with its pergola to the east.
+    - The vineyard lies in blocks of staked rows over the north, with an olive grove and a reaped field.
+    - A cart waits at the gate for the grapes, its pole down to the yoke.
+  - Its nine pieces (`lib/graph/historic/assets/pompeii-land.js`) are placeholders, `designed: false`, massed to
+    the record's numbers where it gives them and to stated conjecture where it does not.
+  - With `people`, pickers work the vine rows, treaders and pressmen the press room, two men the olive mill, and
+    the household the court. Horses stand in the stable, and the cart's pair is hitched with its carter.
+  - The farm's aerial view can be aimed by its plan (`aerialAt`). Sumer's and Egypt's farm and works scenes are
+    byte-identical.
+
+### Historic Rome
+
+- **In progress.** The first Roman culture: Pompeii on a summer morning of 79 CE, before the eruption. It is
+  the best-attested Roman town, town-sized like Lindos and Xianyang, and it gives a fixed moment to read at.
+  - The scene covers the western half: the forum, the old town, the theatres on the south bluff, the Stabian
+    Baths, Via dell'Abbondanza to Via Stabiana, and the Porta Marina climb. That is about Qin's frame, so its
+    page budget is known. The amphitheatre, about 1 km east, waits for a later phase.
+- Its own record (`lib/graph/historic/record/pompeii.js`): the forum and its temples, halls and porticoes, the
+  theatres, the baths, the houses, shops and bakeries, the walls and gates, the water, and the tombs outside
+  Porta Ercolano. Each entry is cited and dated, with its confidence and the disputes between sources.
+  Settled by the record:
+  - Every building carries its state at 79 CE (standing, repaired, damaged, under repair, unfinished, relic).
+    Seventeen years after the earthquake of 62 the town is mid-repair, and a scene draws it that way: the
+    Capitolium awaits restoration, the Temple of Venus and the Central Baths are unfinished, and only the
+    Temple of Isis was wholly rebuilt.
+  - Marble is a veneer on a few buildings, much of it stripped or unfinished. The town is tufa, limestone,
+    concrete and painted stucco.
+  - Vesuvius is one broad mountain, flat-topped and in vines. The eruption and the modern cone are held from 80,
+    so a 79 read excludes them; so are the excavated ruins, the 1943 bomb damage and the post-war rebuilds.
+- A style card (`style/pompeii.js`) with six principles, each checked on the kit:
+  - the podium temple rules the forum;
+  - painted walls, never white;
+  - low red roofs;
+  - the street as a channel of lava between kerbs, with stepping stones;
+  - the orders' proportions;
+  - a Campanian sky.
+
+  Its roof pitch, kerb and stepping-stone sizes are design numbers, since the sources read give none. Its
+  palette is estimated until the reference swatches exist.
+- A design brief for the reference drawings (`docs/historic/pompeii/README.md`), in the house style of Qin's,
+  with the kit constants and the gaps the record leaves. The drawings themselves are not made yet.
+- The town laid out before its pieces are designed (culture `pompeii`, layout `lava-spur`). Every building is a
+  placeholder until it is designed, so the asset call lists all of them as still to design and gives the drawing
+  brief real sizes.
+  - The forum at the record's 143 × 38 m: the Capitolium on its podium at the north end between two arches,
+    porticoes on three sides, and the halls round it where they stood.
+  - Via dell'Abbondanza at its recorded widths, with the other named streets. Every street runs as lava paving
+    sunk between kerbed pavements.
+  - The Stabian Baths, the theatre quarter on the south bluff, and the Temple of Venus inside Porta Marina.
+  - About 700 houses, those on the main streets with shops, and fountains at the main crossings.
+  - The spur over the plain, with the Porta Marina ramp; Vesuvius and the Monti Lattari on the World page's
+    horizon.
+  - Each monument's slot carries its state from the record: the Capitolium stands roofless, and Venus, the
+    Apollo repairs and the travertine colonnade have scaffolding.
+- The placeholders are massing blocks in the card's numbers, plus pieces borrowed as they stand from Lindos
+  (the courtyard house less its porch, the wall, towers, the theatre, statues). The World page is about 15 MB,
+  Qin's size.
+- New shared patterns: podium temple, forum, atrium house, taberna, arch, street fountain, kerbed street. The
+  other cultures' pages are byte-identical.
+- The town's art, sourced into the record first (Mau's *Pompeii, Its Life and Art*, the Naples museum, Pompeii in
+  Pictures):
+  - **Floors and pools.** About two houses in five have a black-and-white mosaic floor in the atrium (a new ground
+    tile, `tessellatum`), and every atrium has its marble-rimmed impluvium.
+  - **The House of the Faun.** About 3,000 m², with two atria, the bronze Dancing Faun (0.71 m) in the first one's
+    pool, and the Alexander Mosaic (5.82 × 3.13 m) in its four colours on the exedra floor between the two gardens.
+  - **Painted fronts.** House fronts in cream, yellow or red stucco, a red field on a black socle. Lots on the main
+    streets now face them and open shops on them. Their walls carry the election notices: a new wall skin,
+    `dipinti`, with red and black capitals on whitewashed panels at head height.
+  - **The forum's statues.** A row of equestrian bases down the west side and four colossal bases across the south
+    end. No forum statue survives and they were probably stored after 62, so most bases stand empty; the two
+    statues drawn are conjecture.
+  - **Burning altars.** Before the Temples of Apollo, Vespasian (newly placed) and Isis. Roman sacrifice was burnt,
+    the opposite of Athena Lindia's fireless rite; with `fire: true` the World page burns them live.
+- A second pass at Porta Marina and the roofs:
+  - **The gate.** Its two passages are barrel-vaulted under round arches, ringed in paler stone, with a parapet on top.
+    The climb to it is as wide as the gate: a cart ramp up to the wide passage and a stepped footway up to the narrow
+    one, between cheek walls, and a paved space inside. The middle cheek wall fills the full width of the pier between
+    the passages, and a stone footing carries the gate's front where it stands out past the spur's edge. A walker can
+    go from the foot of the ramp through the gate into town without falling.
+  - **The roofs.** The borrowed Lindos house roofs rise above the wall top to their outer edge, so they seemed to float.
+    They are now closed onto the walls, and the halls' gable ends are closed flush in stucco.
+- New shared patterns: mosaic floor, painted notice. The World page is about 19.7 MB. The other cultures' pages are
+  still byte-identical.
+- A close-scale study beside the town, in progress: the Forum Romanum on the same summer day of 79, about 240 × 160 m,
+  where the detail goes into the buildings themselves.
+  - **The orders as real parts** (`assets/orders.js`), measured in the column's lower diameter as the Romans wrote
+    them. The Attic base has its plinth, tori and scotia; the shaft is fluted in 24 channels and tapers above its
+    lower third. The Corinthian capital has two rows of acanthus with raised midribs and drooping tips, the
+    caulicoli, corner volutes, inner helices, and the abacus with its flowers. Ionic and Tuscan capitals sit beside
+    it. The entablature segment has three fasciae, the frieze, dentils, modillions, the corona and the sima.
+  - Each part is built once, to stand many times as an instance on the World page, so the detail costs its faces
+    once. A Corinthian column is about 1,200 panels.
+  - **The record** (`record/forum.js`), read at Pompeii's moment with Pompeii's states, mostly from Platner & Ashby,
+    Digital Augustan Rome and the Parco del Colosseo:
+    - Each temple carries its podium and its order with column counts and sizes. The orders are dated methods, so a
+      building can use only an order Rome already had.
+    - In 79 the Temple of Vespasian does not exist yet, since Vespasian was deified only after his death that June.
+      Its plot below the Tabularium stays open.
+    - Vesta and the House of the Vestals stand rebuilt after the fire of 64, and the Capitoline temple after 69.
+    - Anachronisms are held at their real dates: Saturn's late-antique Ionic porch, Diocletian's brick Curia and
+      basilica piers, the Severan Vesta, the Equus Domitiani, the Umbilicus.
+    - The disputes are recorded and the scene takes one side of each: Saturn Corinthian in 79, Concord's porch of
+      six columns, Divus Julius Ionic.
+  - **The style card** (`style/forum.js`), six principles, each measured on the built parts:
+    - each order's height, base, capital and taper in lower diameters;
+    - the entablature about a quarter of the column;
+    - podia with a front stair, and close-set columns;
+    - Luna marble brightest, then travertine, tufa, peperino and basalt;
+    - the long open square;
+    - the summer sky.
+    The orders module reads its numbers from the card. The design brief, with nine drawing prompts, is in
+    `docs/historic/forum/README.md`.
+  - **The site** (`layouts/forum.js`, the `forum` culture): a measured plan, not a generated one. Every monument
+    stands at the record's size and in its facing, all of them placeholders:
+    - the Tabularium's arcade over its blank wall;
+    - Concord's wide cella with its six-column pronaos;
+    - Saturn on its 9 m podium;
+    - the Rostra with two rows of bronze beaks;
+    - the Arch of Tiberius and the Golden Milestone;
+    - the Curia with its porch;
+    - the Basilica Aemilia's two-storey arcade over the Tabernae Novae, and the Basilica Julia's, with their naves and
+      clerestories;
+    - Castor, octastyle peripteral with 8 × 11 columns on its 7 m podium, its tribunal part way up the stair;
+    - Divus Julius on its beaked platform round the altar niche;
+    - the three-bay Arch of Augustus;
+    - the Regia, the round Temple of Vesta with its 20 columns, and the House of the Vestals;
+    - in the square, the Lacus Curtius, and the fig and the olive with Marsyas.
+
+    The plot where the Temple of Vespasian will stand is left open. On the World page the Capitoline rises behind the
+    Tabularium with Vespasian's rebuilt Temple of Jupiter on it, and the Palatine to the south-east. Views: the square
+    from Divus Julius, Castor's corner, the Sacra Via, the Rostra, and the Capitoline brow.
+  - **Instancing.** The 315 columns, entablature runs and arcade bays are 55 templates (`assets/forum.js`), which the
+    World page draws as instances (`repeats`). A part turned to another side is its own template, because templates
+    are baked lit; columns never turn. The CSS page draws a light stand-in for each. The World page is about 7.4 MB.
+  - New shared patterns: basilica, round temple, rostra. The other cultures' pages are byte-identical.
+  - **Roofs, monuments and reliefs**, sourced into the record first (Pliny's *Natural History*, dedicated in 77, says
+    what "still stands"; Velleius; Platner & Ashby):
+    - **Tiled roofs.** Every slope is a bed of tegulae under rows of imbrices, each tile its own shade, with
+      antefixes along the eaves, ridge tiles, and a soffit under the eaves so a roof seen from below closes.
+      Jupiter's temple on the Capitol has gilt-bronze tiles, and Vesta's cone bronze ribs.
+    - **By the Rostra:** Octavian's horseman on the platform; the three Sibyls and the Hercules in a tunic beside
+      it; Duilius's rostral column and Octavian's gilded one with his statue.
+    - **In the square:**
+      - the Lacus Curtius, moved to its place near the west end, with the Curtius relief on its balustrade and a
+        puteal;
+      - the fig, the olive and the vine with Marsyas;
+      - the praetor's timber tribunal;
+      - Surdinus's inscription as written, `L·NAEVIVS·L·F·SVRDINVS·PR`, in bronze letters 30 cm high set into
+        the travertine.
+    - **Round the square:**
+      - the shrine of Ianus Geminus at the Argiletum, its bronze doors shut, as Vespasian left them;
+      - Venus Cloacina's railed round shrine and the Lapis Niger;
+      - Hercules and Mercury at Concord's stair, and the Victory and statues on the Curia;
+      - the kneeling captives in coloured marble and the portrait shields on the Basilica Aemilia's attic;
+      - the bronze Vortumnus at the Vicus Tuscus, and Caesar's cuirassed statue;
+      - the Dioscuri with their horses at the Juturna basin.
+    - **Reliefs and lettering** (new wall skins drawn in `relief-art.js`):
+      - an acanthus scroll on Divus Julius's frieze;
+      - the Basilica Aemilia's Doric frieze of ox skulls and libation bowls;
+      - the Fasti's lists in the Arch of Augustus's side bays;
+      - one band of gilt-bronze capitals across the fronts of Saturn and Divus Julius. These are real Roman
+        letterforms, but the record holds no text for those dedications, so the letters spell nothing.
+    - **Festival dressing (opt-in, `festival: true`).** Livy has the aediles hang shields in the forum only on
+      procession days, so the ordinary day shows none. The option hangs gilded shields on the basilicas' piers and
+      garlands across the temple fronts. Awnings are Republican one-offs (Pliny) and are not drawn.
+    - Fixed: a lifted building now lifts its beams too, so the roofs of temples set on platforms sit on them. The
+      World page collects an instanced template's textures, so friezes and lettering show on it.
+    - The World page is about 11.9 MB, or 12.3 MB with the festival.
+  - **The Basilica Julia, opened.** In the forum, as at Rome generally, decorated floors were indoors: the square was
+    travertine. The record gives the Julia a coloured-marble pavement in its central hall and white marble in its
+    aisles, and about 80 game boards scratched into its steps and floor (Platner & Ashby). The basilica is now a hall to
+    walk into:
+    - steps up from the Sacra Via onto its podium;
+    - the façade arcade on all four sides;
+    - aisles all round, two deep along the long sides (the five aisles);
+    - inner pier arcades on two storeys carrying the galleries;
+    - the nave, 82 × 16 m, rising to clerestory windows under a trussed timber roof.
+
+    Two new floor tiles in `ground.js`:
+    - `opus-sectile`: panels of cut, veined marble framed in white, alternating a giallo field round a pavonazzetto
+      lozenge and an africano roundel with a porta santa field round a cipollino ring;
+    - `lusoria`: white marble slabs with merels boards, the eight-spoked wheel and twelve-line boards scratched in.
+
+    A walker crosses from the nave through the arcades to the front aisle on the floor. The page is about 12.6 MB.
+  - **The Temple of Castor, as Platner & Ashby describe it, and opened.**
+    - **The stairs, corrected.** The platform's front is a sheer face, a speakers' platform with a balustrade, and is
+      reached by "two narrow staircases, at the ends and not in front". The broad flight of eleven steps runs from the
+      platform up to the porch.
+    - **The podium's vaults:** chambers in its flanks behind bronze grilles, the banks and strongrooms of the fiscus and
+      of private depositors.
+    - **The cella:** at the record's 16 × 19.7 m, its bronze doors swung back. Inside are the Tiberian black-and-white
+      mosaic floor (later replaced by coloured marble, date unknown: recorded as a dispute), smaller columns of giallo
+      antico along the walls (Italian Wikipedia), and a coffered ceiling. The twins' cult statues stand on a base at
+      the back; their form is unverified.
+    - A walker goes from the porch through the doorway down the cella on its floor. The page is about 13.2 MB.
+
+### Sixth-gen composer
+
+- Planned: levels authored the way PS2, GameCube and Xbox levels were built. They use kit pieces on a
+  grid, small painted tiles and trim sheets, two-tile vertex blends and hand-placed lights baked into
+  vertex colour. The character stays slightly more detailed than the world through a measured fidelity
+  ratio.
+- Era card and reference moods (Devil May Cry 3, Pokémon Colosseum, Super Mario Sunshine, Metal Gear
+  Solid 3) in `lib/graph/era/sixth-gen.js`.
+- `measureFidelity` (`lib/graph/era/fidelity.js`): renders a z-buffer at the era's 640×448 frame from
+  one camera. It reports triangles, vertices and texels per pixel for the cast and for the world, and
+  the cast-to-world ratio. It is advisory only.
+- New world kind `stage` (`lib/graph/era/stage.js`). It takes rooms on a grid joined by doorways and
+  dresses them from a kit card. The first card, `gothic-stone`, adds plinths, cornices, pilasters,
+  ceiling ribs, door frames and stone tiles. Torches are seated automatically or placed by hand. Each
+  one is baked into the vertex colour of nearby corners, drawn as a sconce with a glowing flame, and
+  exported as a point light in the GLB. The reference's fog becomes distance haze. The stage is walkable.
+- A stage is built in three layers that never share a material: the floor, a band where floor meets wall,
+  and the walls.
+  - The floor is flagstone paving, a different shape from the coursed walls. It is laid one tile per
+    structural bay, so its long joints line up with the pilasters, and each bay uses its own variant.
+  - The band is a recessed gutter in front of the plinth, with basalt rubble from the rock pool fallen
+    into it.
+- New `flagstone` surface tiles (`flagstone`, `flagstone-warm`, `flagstone-slate`, four variants each).
+  Square and oblong flags of mixed sizes sit on a grid, with wandering joints and worn, grimy edges.
+  Some flags are cracked, and the odd one is lost to its gravel bed. Every tile edge is a joint, so
+  each variant can have its own layout.
+- The `gothic-nave` stage kit, with curved geometry in `lib/graph/era/gothic.js`. Pointed arches have
+  real depth: a recess, reveals, a soffit and a moulded ring. Engaged columns are 10-sided. The ceiling is
+  a tall pointed barrel vault with transverse ribs, a ridge rib and filled end walls. Each bay has a blind
+  arcade arch, a string course, and a clerestory lancet whose glass glows and casts cool light. Torches
+  stand on alternate columns.
+- A stage room can leave sides `open`, a set seen from the open side for iterating on one view. The
+  view is then framed from the open corner.
+- First exterior stage kit: `delfino-plaza`, an open-air square (`lib/graph/era/plaza.js`).
+  - Each side is a row of house fronts of different heights, giving a stepped skyline. Each house has its
+    own stucco colour, a stone base band, an arched door, windows with surrounds and projecting sills,
+    sometimes a balcony, and an eave over a pitched terracotta roof.
+  - A raised pavement step runs along the house fronts, and the square is paved in warm flagstone bays.
+- The `delfino-plaza` exterior is lit by a baked sun (`lib/graph/era/sun.js`). Each vertex is tested
+  against the scene for a cast shadow, and faces that look down or sideways get a sky fill and warm
+  ground bounce. It is drawn under the reference's painted sky dome.
+- `trail-valley` stage kit: a nature level built to a style card. The card
+  (`lib/graph/era/style/nature-trail.js`) states the art style as principles and also holds the numbers
+  the builder reads. The builder (`lib/graph/era/nature.js`) makes:
+  - faceted ground, with material chosen by slope;
+  - a trail as a curved ribbon with grass edges;
+  - a cliff of leaning rock bands with ledges, buttresses and gullies, with fallen rocks at its foot;
+  - spruce trees planted in clusters;
+  - red trail-marker posts;
+  - ridges that fade into the fog.
+
+  Moss, wet stains and wear are applied by cause. The scene is lit by the baked sun, and trees cast shadows.
+  Each principle has an automated check, including the brightness order trail > rock > grass > foliage.
+- The trail level is composed by where the eye lands. The style card names focus areas: a trailhead, and a
+  boulder gate at a bend.
+  - Inside a focus area, rocks are chipped (more detailed) and each one is different, grass tufts are
+    fuller and denser, and two boulders frame the trail.
+  - Outside, cheaper rocks and tufts repeat.
+  - The trail's width and grass edges vary along its length, with pebbles along the edges.
+  - Grass is instanced tufts (tussock, meadow, sedge), darkened where shade falls. Every boulder and tree
+    sits on a soft contact shadow.
+- The trail's cliff is now real geology on one heightfield with the valley, using mojulo's landform
+  operators: a scarp, rock beds that form benches, jointed facets and a talus apron. Fallen rock lies where
+  the scree came to rest.
+- Debris on and beside the trail: roots surfacing from nearby trees, a fallen log with bark, sticks and
+  cones, flat stones worn flush, and a puddle with wet soil around it.
+- Walk mode on the trail no longer falls through the ground: the spawn is at eye height above the trail.
+- The trail level's sky has weather: mojulo's cloud deck, lit by the level's sun.
+- `composeCloudDeck` takes `depthClip`. With it, the deck reads the scene's depth and no longer paints over
+  trees, cliffs or buildings that stand in front of it. `emitThreeWorld` gives any effect layer that asks
+  for depth a shared depth pass before each render. Worlds that don't ask are unchanged.
+- `jungle-trail` stage kit: a late sixth-gen jungle in the manner of Metal Gear Solid 3, built to the
+  `jungle-mgs3` style card (`lib/graph/era/style/jungle-mgs3.js`) by `lib/graph/era/jungle.js`. It reuses the
+  trail's ground, trail ribbon, rocks and debris, with a low mossy ravine wall and a mud trail. On it stand:
+  - giant figs grown by mojulo's vegetation engine, kept for their wood (trunk, limbs, buttresses, barked near
+    the trail). Their crowns are leaf cards placed at the grown tree's own leaf clusters;
+  - tree ferns, fern and broadleaf understory, leaf litter on the floor, hanging vines and sagging lianas;
+  - a canopy roof with holes, which opens over the trail;
+  - layered walls of foliage beyond the visible area that fade into the fog.
+
+  Detail is revealed by ring out from the trail: dense and distinct near, sparser and coarser further out,
+  and only the fading walls beyond. Sunlight reaches the floor only through the canopy's holes, as dapples,
+  with soft light shafts standing where it does. A filmic grade pulls every colour toward olive and sepia.
+  Each principle has an automated check, including the brightness order dapples > trail > trunks > foliage
+  > shade.
+- The jungle trail blends into the floor. Trail, edge and floor share one mud tile mapped the same way, so
+  there is no seam. The trail is told apart by brightness and wear instead: a packed, lighter centre that
+  wanders out into the darker, patchier floor. Leaf litter piles along the edges, some lies on the trail,
+  and twigs lie across it.
+- Jungle shade is deeper, while sunlit dapples and shafts stay bright. Leaves carry their own shade: plants
+  darken toward their base, crown clumps toward their undersides, and soft shadows lie under the plants
+  near the trail.
+- Each giant near the trail has its own bark (oak, chestnut or beech) and small ferns and broadleaf plants
+  growing on its big limbs. Moss, pale lichen and dark wet streaks are applied by cause to the trunks and to
+  the tree-fern trunks.
+- The jungle's flora draws on mojulo's tropical plants, and twists:
+  - Giants grow with stronger kinks and a stronger reach toward light, using the vegetation grower's own
+    settings, so their limbs bend toward the canopy's gaps.
+  - A banyan stands at the gate. Its pillar roots land on both sides of the trail, never on it, so the
+    path runs between them. Each pillar wanders, flares at its foot and is braided with a thinner strand.
+    Its hanging roots are curtains of a new root card.
+  - Lianas wind up the trunks.
+  - Clumps of mojulo's clumping bamboo stand on the wet ground at the foot of the ravine wall, with their
+    foliage drawn as a new bamboo card. Culms on the wall side stand upright instead of leaning into the rock.
+- The jungle takes five more principles from Snake Eater's own frames, each with a check:
+  - The floor is two materials blended. A painted moss tile (`floor:moss`, `lib/graph/era/floor-tiles.js`)
+    fades in over the soil at each corner. It is worn off the trail, thick in patches and in shade, and climbs
+    the massive trunks.
+  - The floor undulates. The style card's optional `lumps` adds mounds, hollows and banks either side of the
+    trail, which sits sunk between them. Styles without it are unchanged.
+  - Occasional massive trunks: low-poly boles 2.7–3.4 m across, lumpy and flared. They carry oak bark at a
+    larger crack scale, buttress roots on the side away from the trail, and moss.
+  - Tall grass is cards of broad blades (`card:grass`), placed where sunlight reaches the floor. It is lit
+    and shaded with the rest of the scene, and walked through.
+- The `trail-valley` kit takes three principles back from the jungle, each with a check:
+  - One ground, two tiles. The trail ribbon and the meadow within 9 m of it share one soil, mapped the floor's
+    way, so the ribbon's edge has no seam. The grass returns over it as a blend: worn off the trail, wandering
+    at its edge, thinned under the spruce and in bare patches, and whole where the meadow tile takes over.
+  - Foliage is painted cards. Spruces are grown (`vegetation/conifer.js`): the trunk is barked near the trail,
+    and the crown is bough cards (`card:bough`) placed at the grown limbs. Cards are finer near the trail and
+    coarser further off, and dark toward the trunk. Grass tufts are cards (`card:meadow`, `card:grass`) instead
+    of instanced tufts, so they take the scene's light and shade. The sun falls through the cards' gaps.
+  - The ground is never flat: mounds and hollows at three scales, and a bank either side of the trail. Roots
+    surface in pieces instead of running as rails, and the trail's stones are its own rock.
+- The `gothic-nave` kit is dressed to a style card (`lib/graph/era/style/gothic-nave.js`, dressing in
+  `lib/graph/era/nave.js`), with a check for each principle:
+  - Light leads, measured: glass > torchlit stone > the shafts' pools > the open floor > the vault. The vault's
+    stone is darker than the shell's ceiling.
+  - Each clerestory lancet facing the light throws a shaft across the nave as soft translucent sheets. Where it
+    lands, a pool of light is baked into the floor. Pools are not exported as lights and leave no soot.
+  - Two-tile blends by cause: moss (`floor:moss`) rises up the wall bases and fills the gutter. Grime
+    (`floor:grime`, new; `lib/graph/era/floor-tiles.js` now holds the stage's painted tiles) gathers at the floor's edges and is worn off the walking line.
+  - Painted cutouts, each placed for a reason: ivy spills from the string course, cobwebs sit in the angle
+    between column and wall at the plinth and at the arcade's springing, and banners hang in alternate bays
+    from iron rods. No two neighbouring bays are both bare.
+  - A scale break at the focus: the end wall holds a great door (`portal` in `lib/graph/era/gothic.js`) in
+    three stepped orders under a hood moulding, with an oak leaf banded in iron. It rises half again the
+    arcade's height, with an oculus (`oculus`) above it and a torch on each flank.
+  - The ceiling is its own material: the vault's web is plaster painted night-blue with gilt stars
+    (`vault:stars`), flaked where damp has lifted it, between the stone ribs.
+  - The floor is not the walls' grid: a runner of hexagonal tiles (`floor:hex`) down the walking line between
+    slate kerbs, and irregular flags with no two alike (`floor:incertum`, opus incertum) either side.
+  `gothic-stone` and `delfino-plaza` are unchanged.
+- The `delfino-plaza` kit is dressed to a style card (`lib/graph/era/style/delfino-plaza.js`, dressing in
+  `lib/graph/era/plaza-dress.js`), with a check for each principle:
+  - Hard sun, measured: sunlit stucco > sunlit paving > the shade (a pale blue, never black) > terracotta.
+  - A fountain at the square's centre: a lathed marble basin, pedestal, bowl and finial, water standing in
+    basin and bowl and falling from the bowl's lip in streams, ringed by sandstone paving.
+  - The floor is fan-pattern setts (`floor:fan`, new): overlapping arcs, no two setts alike.
+  - Blends by cause: sand blown against the house fronts and drifted deepest into the corner, worn off at
+    the doors and along the way in; the ring round the basin dark where it splashes.
+  - Painted cutouts on the fronts: flower boxes under windows, striped awnings over doors whose shade is
+    striped (the sun reads the card), and laundry strung across the corner.
+  - The town goes on: rows of rooftop cards beyond the closed sides, each row carried toward the reference's
+    horizon colour by its distance (aerial perspective after the light, not baked).
+  - No two neighbouring houses dress alike.
+  - A Renaissance order (`lib/graph/era/piazza.js`): a portico of grey-stone columns and round arches along
+    the sunlit side, with blue-and-white roundels in the spandrels. Its roof is a walkway of hexagonal cotto.
+    The shade under it is warm, lit from below by the square (measured: warmer than a wall turned from the
+    sun, darker than the paving). Houses behind it carry no balconies, and their doors no awnings.
+  - Walkways railed in stone: lathed balusters between a plinth and a rail, pedestals on the column lines
+    carrying urns, and a stair of even treads climbing the portico's front to a landing, with a raking rail.
+  - Two red granite obelisks on stepped pedestals, either side of the fountain across the line from the way
+    in, standing over every eave, with bronze balls under the shaft and a cross on the point.
+  - Long-and-short quoins up every house edge.
+  - The sky is a place: a cloud deck (`effects`, the `undershot` deck the trail uses) over the square, and
+    the town's ribbed dome and banded bell tower over the roofs, faded toward the horizon like the rooftop
+    rows. A stage carries `effects` only when its dressing names clouds.
+  `plazaWall` takes an optional `record` that receives each house's door and windows. The nave's dressing and
+  the plaza's share one shape the stage composes. `lathe` moves to `lib/graph/era/geom.js`. `gothic-stone`
+  and `gothic-nave` are unchanged.
+- `card` and `crossed` (one painted card, and cards crossed about a vertical axis) move to
+  `lib/graph/era/geom.js`, and `dice` is exported from `lib/graph/era/nature.js`, shared by the trail and the
+  jungle. The jungle's output is unchanged.
+- `emitThreeWorld` draws faces marked `blend: true` in their own translucent pass: a second texture faded in
+  per corner by `cornerAlpha`, multiplied by the baked colour, drawn over the surface beneath it without
+  flickering. This is the era's two-tile vertex blend. Worlds without blend faces are unchanged.
+- Leaf cards (`lib/graph/era/leaf-cards.js`): painted RGBA leaf textures (`card:broadleaf`, `card:fern`,
+  `card:spray`, `card:vine`, `card:litter`, `card:roots`, `card:bamboo`, `card:grass`, `card:bough`,
+  `card:meadow`, `card:ivy`, `card:cobweb`, `card:banner`, `card:flowers`, `card:laundry`, `card:awning`,
+  `card:roofs`), resolved through the surface-texture registry. New
+  `encodePngRgba` in `lib/graph/landscape/surface-textures.js`.
+- `emitThreeWorld` takes `cutouts`, a list of texture keys whose alpha is cut out (alpha-tested). Those
+  surfaces drop their clear texels, including from the depth pass, and are not walk colliders, so foliage
+  is walked through. Worlds that don't pass it are unchanged.
+- `makeSunShadow` takes `maskOf`, so a cutout card blocks the sun only where its texture is opaque.
+- Dirt is baked into the vertex colour by cause (`lib/graph/era/dirt.js`):
+  - soot above torches;
+  - streaks under the cornice;
+  - damp wall bases;
+  - a worn walking path and grimy floor edges.
+
+  The recipe's `dirt` scales each cause. Baked ambient occlusion is on for the `stage` kind.
+
+### Stage isekai
+
+- A new stage kit, `isekai-meadow`, for the open-field anime look of current-era games. Its reference cards are
+  Genshin Impact and Breath of the Wild (`lib/graph/era/current-gen.js`). It is built only from sixth-gen parts:
+  - painted 256-px tiles;
+  - baked vertex light;
+  - cutout cards.
+- A PALETTE LOCK (`lib/graph/era/palette.js`): the style card names ramps of colour stops. Every baked colour on a
+  locked group is projected onto its ramp, so shading moves a colour along its ramp and never off it.
+- PIXEL-LOCKED rocks and cliffs:
+  - The tiles (`lib/graph/era/isekai-tiles.js`, the `isekai:` resolver) are painted only in their ramp's stops.
+  - They are drawn unlit, and the light lives in the choice of tile: each facet takes a lit or a shade tile by the
+    sun and its cast shadow. That gives two-tone cel bands with no new renderer.
+  - The cliffs are the landform's own geology drawn with strata tiles.
+  - The rocks are new chunky boulders, lofted from an irregular footprint to a flat top.
+- HATS: a boulder's top wears a grass cap with a ragged fringe hanging round its rim, and every cliff lip gets the
+  same fringe hanging over the face.
+- Trees are crowns of overlapping round masses on a short trunk, with one hero tree where the eye lands. Grass is
+  crossed blade cards, pixel-locked, and within reach of the trail it stands as one continuous field of blades.
+- DEPTH BY PAINTED LAYERS:
+  - Far ranges stand as rings round the site, each its own colour from the far ramp, with a peaked skyline.
+  - The nearest layer is a skirt of land from the site's own edge up to its skyline, banded from grass to the
+    hills' colour.
+  - The haze is thin, so each layer keeps its colour.
+- THE PAINTED SKY: heaped cumulus cards stand behind the ranges, pixel-locked to a cloud ramp and lit in crescents.
+  The sun sits on the dome where the bake's sun is.
+- Other stage kits are byte-identical.
+
+### Stage isekai groves
+
+- Two smaller isekai levels in the same art style. Every isekai level is a style card, and the builder reads it:
+  - **`isekai-bamboo`:** clumps of bamboo culms. Each culm is a pole pixel-locked in a striped `culm` tile with pale
+    node rings, two-toned by the sun. Cutout leaf sprays fan from the upper culm, and the sun bake reads their alpha,
+    so the floor is dappled.
+  - **`isekai-sakura`:** sakura trees. Dark leaning trunks fork into limbs under crowns of round masses locked to a
+    pink blossom ramp, with petal litter on the ground beneath.
+- New pixel-locked tiles: `culm`, `spray` and `petals`. The meadow is unchanged.
+- With `wind`:
+  - both groves take the live grass;
+  - crowns, culms and sprays sway;
+  - the sakura's petals fall, carried by the same gust field.
+
+### Stage isekai sakura pass
+
+- The sakura grove's trees are grown, not heaped: a branching skeleton (trunk, limbs, branches, twigs) with blossom
+  clumps at its tips.
+  - **Hero trees:** two framed sakura at full depth, with a `hero` camera under one crown's edge.
+  - **The rest:** the same tree at a lower depth, so the limbs show in the gaps of the crown.
+  - New pixel-locked tiles: `bark` (the sakura's horizontal lenticel bands), `bloom` (packed five-petal flowers on
+    each clump) and `sprig` (cutout flower clusters that break each clump's silhouette).
+- The petal litter is repainted as notched sakura petals in drifts.
+- With `wind`:
+  - live 3-D petals lie round the walker, pixel-locked like the grass and stirred by gusts. They gather in piles (drifts,
+    the path's edges, the feet of the trunks) and stay thin on open grass, so the grass stays the main read;
+  - falling petals take the same notched, cupped shape and tumble.
+- The meadow and the bamboo grove are unchanged.
+
+### Stage trail blend
+
+- A trail no longer sits on the ground as a separate ribbon. The outdoor trail primitive has a blended rim along both
+  edges: a narrow band out from the edge and its mirror in. In the band, the trail's soil and the outer ground meet
+  along one ragged boundary that wanders both ways about the edge, so soil bleeds into the grass in some places and
+  grass creeps over the trail in others.
+- The isekai levels draw the rim in two new pixel-locked cutout tiles, `rim` and `creep`, painted from one shared noise
+  field so the two sides meet. The boundary frays in a stipple of palette colours, so the colour lock holds. Each strip
+  takes the palette stop nearest the baked colour of the lane it continues, so the blend matches the light on both
+  sides. The meadow, bamboo and sakura trails all take it.
+- The jungle takes it too, through the same primitive's shared edge (`trailEdgeCover`): one wandering boundary between
+  the trail and the floor. The moss now gives out along that line, and the trail's packed-soil wear follows it too,
+  so moss and mud meet along one edge instead of fading on two separate noises.
+- The nature trail, which has its own grass blend, is unchanged.
+
+### Stage live grass
+
+- `wind` on an isekai recipe turns on a LIVE FIELD of grass on the World page (`lib/graph/scene/channels/stage-grass.js`).
+  - Grown stylized blades stand within 30 m of the walker, placed in the page from grids the stage ships: heights, a
+    grass mask that keeps them off the trail, rocks, trunks and the cliff, and the sun's shade.
+  - They thin with distance and bend in the terrain's gust field.
+- The palette lock holds through the motion. Each blade's colour is looked up from a nearest-filtered ramp texture of
+  the grass stops by its height and its lit or shade window, so only palette stops reach the screen.
+- A gust above the mean steps the upper blade up the ramp: the gust is seen as a bright band rolling across the field.
+- Blades near the walker bend away from it.
+- The static blade cards stay as the floor and as the band beyond 30 m. Inside the field's reach they dissolve, dithered
+  across its edge.
+- The tree crowns sway in the same gust field, weighted by height above the ground.
+- Absent `wind`, the payload is byte-identical.
+
+### Stage doors
+
+- A stage recipe can name DOOR ENDS (`doors: [{ id, at, to: { map, door } }]`), resolved by
+  `lib/graph/era/doors.js` from what the kit already knows (a plaza house door, the nave's great portal, a point
+  on a wall). Each end carries a trigger in front of it and a spawn further in, facing into the room. The payload
+  carries `doors` only when the recipe names them.
+- The World page's doors channel (`lib/graph/scene/channels/doors.js`): walking into a trigger asks the parent
+  page to cross (`map-door`); the parent places the walker at an end (`map-enter`). Absent doors, the page is
+  byte-identical.
+- A wall-point end on a closed wall gets a door: an oak leaf in a stone frame, in the middle of its bay, standing
+  proud of the wall's plinth.
+- ITEMS (`items: [{ id, at: [x, y] }]`): a thing on a plinth (a gold key, turning) in its own group. Walking up to
+  it takes it; the page hides it and reports the taking.
+- A LOCKED end (`locked: '<item id>'`) refuses the crossing until the run holds that item; the page says what the
+  door needs.
+- An ATLAS (`lib/graph/era/atlas.js`) joins maps by their door ends. `validateAtlas` checks that:
+  - every end names an end that names it back;
+  - every lock's item is held by some map;
+  - no item is placed twice.
+
+  `emitAtlasShell` hosts one map at a time, crosses on `map-door`, and carries the run's state across: the
+  crossing log, the refusals, visits per map, the items held, and each map's own state. A key taken stays taken
+  when you come back.
+- Played maps are closed rooms. The plaza dressing no longer assumes the open-sided set:
+  - the portico stands clear of a closed side it meets;
+  - the obelisks take the way in from the square's first door, and their symmetric spread shrinks until both
+    pedestals clear the walls and the portico.
+
+  The open set is byte-identical.
+
+### Stage decay
+
+- `decay` on a stage whose style card carries one (the lab's): a number 0–1 for every event at that strength, or
+  `{ collapse, leak, breach, blackout, abandon, seed }`, each 0–1. Every event is a cause, and the mess it leaves has
+  a place it came from (era/decay.js picks where, from the rooms and the bays alone):
+  - **collapse**: a bay of the roof came down. The deck is open over it, with torn sheets hanging from the edges.
+    The duct broke at the bay's trusses (one length down to the floor, a stub drooping), one troffer hangs from a
+    single chain and another lies in the debris heaped under the hole.
+  - **leak**: a pipe burst at the service band. Streaks and rust run down the wall under it, there's a puddle at its
+    foot and, with `water`, a thin stream.
+  - **breach**: the tank broke. Its glass is a jagged ring, the liquid is drained to a skim, the glow is out and a
+    hoop lies on the dais. The spill spreads toward the side it split, with shards strewn the same way.
+  - **blackout**: most troffers are dead, the clerestory is dark and the screens are black but for a few on their
+    batteries. Red emergency lamps on the columns are baked red, the ambient is down and the air thicker.
+  - **abandon**: chairs tipped and shoved, monitors face down on the floor, the cart rolled and over, the
+    extinguisher down and glassware broken. Papers are strewn, more of them against the walls. There's dust on
+    everything that faces up, and the walked path has faded.
+- The things are records, so abandonment changes them before they are built (`tip` lets a thing down onto the
+  floor). The dressing hands the stage its extra lights, its dirt (`leaks`, `dust`) and its water. Spills and
+  puddles take the water look with `water`.
+- Dying lamps flicker on the page (scene/channels/stage-flicker.js): some troffers that survive the blackout stutter
+  (baked on, they go off in bursts, taking their pool and their tube with them), and a troffer hanging by one chain
+  sparks (baked off, it flashes now and then). The page scales each lit mesh's baked vertex colour by the lamp's change
+  near it, so exports keep the floor (the bake). Absent `flicker` ⇒ the channel isn't emitted.
+- The tank now has a frame of four struts, so its cap stands on something.
+- The style card's decay principles are machine checks (lab-decay.test.js). The derelict lab is in the page budget.
+  No decay (absent, 0, or every event at 0) is the clean lab, byte for byte. Other stages are byte-identical.
+
+### Stage lab
+
+- A fourth stage kit and the first modern one: `research-lab`, after a new reference card `doom3` (Doom 3's UAC
+  labs). It's a tall closed lab whose structure shows (era/lab.js):
+  - a vinyl tile floor with a darker band and a rubber skirting;
+  - walls of steel I-columns at the bays, a kick band, painted panels, a service shelf and a clerestory of
+    observation windows glowing cool;
+  - a corrugated deck high up with trusses across the short span, two ducts and a cable tray down the long one, and
+    troffers hung on chains between the trusses (the light);
+  - a blast door with chamfered top corners, a hazard-striped surround and a red status lamp.
+- Its painted surfaces are the stage's own `lab:` tiles (era/lab-tiles.js): vinyl tile, steel panel, corrugated deck,
+  grating, hazard stripes, a screen, a server rack's face, a whiteboard.
+- The dressing (era/lab-dress.js, style/research-lab.js):
+  - a containment tank at the centre on a hazard-ringed dais, glowing, with cables down its steps into grated
+    trenches that run to three walls (never across the way in);
+  - benches in two rows, each carrying different things from its neighbours (monitors with lit screens, a
+    microscope, glassware, papers, a toolbox), with chairs pulled out;
+  - server racks, lockers, a whiteboard, an extinguisher and a cart.
+  - Every thing is placed as a record first and built in its own frame after, so a later pass can move, tip or
+    break it.
+- The style card's principles are machine checks (era/lab.test.js), and the lab is in the page budget. Other stages
+  are byte-identical.
+
+### Stage night
+
+- `time: 'night'` on a stage whose style card carries a night (the plaza's does): the card's moon becomes the bake's
+  key (cool and low, casting the obelisks' long shadows) under a deep blue ambient, and the reference's air and dome
+  give way to the night's. The sky shows stars and a phase-carved moon placed on the dome where the moonlight comes
+  from, and the cloud deck is lit by the moon. The town beyond is dimmed.
+- The placed light makes the picture (era/plaza-night.js): lanterns on iron brackets by most doors, lanterns hung in
+  the portico's bays, a glow under the fountain's water, and some windows lit warm with their light spilled on the
+  sill. All of it is baked like the nave's torches; the lanterns' panes glow and carry a halo.
+- The style card's night has its own principles, each a machine check (plaza-night.test.js). `time: 'day'`, or no
+  `time`, is the plaza as before, byte for byte; a kit without a night refuses one.
+- Jets take an opt-in `lit` colour for the light their white water is seen in (`jetLight` on the page). The night
+  fountain uses it so its falling sheets aren't daylight-white. Jets without it emit as before.
+
+### Stage page budget
+
+- A stage's World page now costs about 5 MB to open with every element on (the plaza was 8.7 MB), under a budget
+  (`STAGE_PAGE_BUDGET`, 7 MB) a test holds each stage to.
+- `pack` on `emitThreeWorld` (opt-in; a stage's payload sets it): each textured sub-mesh is welded, so corners equal
+  in position, uv and colour are shared through an index, and its baked colour goes as 8-bit sRGB decoded back to
+  linear in the page. Renders differ by at most 2 levels in 255. Without `pack` every page is byte-identical.
+
+### Stage elements
+
+- Sixth-gen is a floor, not a ceiling: a stage takes the merged fire and water elements as opt-ins, and without them
+  it is byte-identical (the baked torches, the painted spill).
+- `fire` on a stage (`true` or the fire object): its torches go to the fire channel as fires its bake already holds,
+  so the page only flickers their light. The stage keeps an iron arm and a collar on the wall and leaves the staff
+  and the flame to the channel. The nave's style card sizes its torches up (`fire.torch`) and stands two braziers by
+  the great portal, their light baked into the room like the torches'.
+- `water` on a stage: the plaza fountain's basin and bowl take the water look (a tinted `lagoon`, its shore foam
+  turned down for a basin a hand deep). The bowl brims over its lip in falling sheets (`jets`) in place of the
+  painted strips.
+- Jets whose `controls` are all false carry no flow panel; pages with any other jets are byte-identical.
+- `wind` on a stage (`true` or the terrain's wind object): the dressing's hung cloth swings in the terrain's gust
+  field (the same GLSL, now shared as `WIND_AT_GLSL`; the terrain page is byte-identical). Each style card names the
+  groups that take the wind (`sway`): the plaza's washing billows on its lines, an awning's valance flaps and the
+  flowers nod; in the nave the wind is the draught through the doors (`draught`), and the banners and ivy stir. Those
+  cards are cut into a small grid so they bend down their length; the bake and the sun's shadow stay at rest.
+
+### Flame depiction
+
+- Fire in worlds (`fire`, opt-in on any world): campfires, braziers, torches and candles drawn as live flames that puff at their own rate, lean in the wind and throw embers and smoke, and whose flicker lights the world around them. `fire: true` on a dungeon lights its chambers with braziers and its tunnels with torches; `fire: { sources }` places fires anywhere, on the ground in terrain worlds. Absent ⇒ byte-identical.
+- Coloured fire (`fire.color`, or per source): as fireworks are coloured, by a metal salt in the flame (sodium, calcium, strontium, lithium, barium, boron, copper, potassium, or a mix), or any `'#rrggbb'` for a fire no salt gives. A coloured flame burns clean and lights the world in its hue; a dungeon bakes the hue into its walls. `smokeColor` gives a source a signal smoke.
+- Fire that burns up and down (`life`: kindling, dying back; `flares`: a whoosh now and then; the wind feeding a fire it does not blow out), fireballs (`kind: 'fireball'` on a `path`: the tail is where the ball was a moment ago, and it bursts where it lands, swelling and throwing a shell of sparks), and grass fires on terrain (`fire.spread`: the front runs downwind as an ellipse after Rothermel and Anderson, with flames sized by Byram's law, black ground and a band of embers behind it, stopping at water and burning out at `extent`).
+- Fire in a Blender Cycles still: a world with `fire` exported through the Blender pack (`export_model({ format: 'blender', fire_t })`, which writes the same pack as `scripts/export-blender.mjs --fire-t <seconds>` and hands back the render command) carries its fire at that instant as the World page draws it. Each flame becomes a volume of light (the page's flame shader evaluated per voxel, written to OpenVDB inside Blender), each fire's smoke a density volume, and the embers, coals and props come as mojulo geometry; each fire gets a light, and a `Fire` camera frames the brightest. `import_mojulo.py --mode render` renders a still at any resolution. All of it stays in a `mojulo-fire` collection that the machine gate and the return leave out. The props are now one description (`firePropParts`) shared by the page and the pack.
+- A lit match (spike, `scripts/spikes/flame/`): fire drawn as a consumer of the wind's air field. The flame is a streakline, the burning gas rising on its own buoyancy while the room's air (`windField`, plus a breath) carries it sideways, so it leans downwind, flickers when a draught passes and blows out past a speed that grows with its size. φ = 0 stands it straight up in any wind. The match strikes (a flare and sparks), burns its head, then creeps along the stick at a rate set by its angle (head down races, head up starves); the stick chars, curls and glows at the front; blown out, the ember lets go a wisp that rises as a thread and snakes as it goes unstable. The page marches the flame as emission against the scene's depth, lights the scene from it in a match's balance of brightness, and shimmers the air above it.
+
+### Wind element
+
+- Terrain `wind` (opt-in, flat worlds with `grass` or `plants`): one seeded gust field that the live World page's grass and trees bend in. Gusts travel downwind and reshape as they go; a tuft or a tree sways as one stem of its height, lagging the gusts and ringing at its own frequency, its shape the production elastica under the wind's load (baked once, read as a 3D texture by a vertex shader). New principle, **flaccidity**: the share of the wind's push a thing takes, 0 for everything that existed before (unchanged, byte-identical pages without `wind`), 1 for grass and plants unless `flaccidity: { grass, plants }` says less. `compose_world` carries `wind` to the stored recipe. Exports carry none.
+- Wind debris: fallen leaves and dust around the camera ride the same gust field (one self-contained field function shared by the shader's texture and the particles), lying still until a gust passes their lift, then tumbling downwind and settling. On by default with `wind`; `debris: false` for none, `flaccidity.debris` to dial it.
+- Cherry grove (spike, `scripts/spikes/sakura/`): a `cherry` species in full bloom (Rauh made decurrent through a new species `over`; `bloom` recolours its leaves as blossom and `bloom.fill` fills its clusters), `plants.kinds` to grow named trees in place of the climate's, and petals as a new kind of wind debris, given off by crowns in bloom in gusts, fluttering down, carpeting the ground and lifting again. Other species and worlds without a cherry are byte-identical.
+- Hero cherry grove (spike, `scripts/spikes/sakura/hero-grove.mjs`): a standalone close-up scene built from the ground up. The cherries are grown with the species' hand and smooth axes (below). Blossom sits in umbels at the ends of the shoots, and each flower is built from its parts with fractal-edged petals. Levels go by distance: whole flowers near the eye, one lit disc per flower beyond, then the pool's levels. One wind drives tree sway, flower flutter, the lawn and the petals, and the frame goes through an HDR lighting pass. The page has a season dial (bud, bloom, petal fall, leaf-out), a petal carpet that builds where petals land, three lighting moods, and compact encodings (8.5 MB).
+- Trees with a hand (`arch.hand`, opt-in): new internodes are turned as they grow (a consistent twist, a winding lean, zig-zag laterals). Smooth axes (`arch.smooth`, opt-in) bend between nodes instead of kinking. The cherry has both; other species grow and mesh byte-identically.
+- `vegetation/blossom.js`: where a grown tree carries its flowers (umbels at the shoot tips) and one flower built from its parts at its levels of detail.
+- Terrain worlds draw a tree in bloom flower by flower: at L1 and L2, its bare wood plus one disc per flower (lit in the world's light, bent by the wind, at most about ten pixels), up to 1.2M flowers, largest trees on screen first; past that a tree keeps its clusters. Worlds without a species in bloom are byte-identical.
+- Trees of many ages (`growth` on a species): one variant is grown at each age, some in a stand, so height, girth and clear trunk come from growth rather than scale. Each plant picks its age by its height in the species' range. The cherry has five ages, from 8 to 21 years. Other species are unchanged.
+- Research spike behind it (`scripts/spikes/wind/`): one seeded wind field (gusts carried downwind, log profile, veer) that bends plants and carries debris. Introduces flaccidity φ ∈ [0, 1], the share of the air's push an element takes; everything before is φ = 0 and stays byte-identical. Plant poses reuse the production elastica through a baked table; debris (dust, leaves, twigs) lifts and settles by kind. Standalone interactive preview, no schema, exporter or runtime integration.
+
+### Aqua rendering
+
+- **Water has a look of its own.** A water preset (`ocean`, `lagoon`, `lake`, `river`, `canal`, `pool`,
+  `falls`) shades it on the World page with light-weight maths instead of a flat tint: fine ripples
+  layered over the waves, the sky reflected more strongly the lower you look (water is a mirror at a
+  grazing angle and nearly clear head-on), and a sharp sun glint that softens with distance so far
+  water does not shimmer.
+- **Foam forms where waves fold.** The animated oceans, beaches, rivers and spillways now place
+  whitecaps where the wave surface folds over itself, and draw foam as a lacy pattern of bubbles
+  rather than a white tint. Shore breakers, river banks and the foot of a falling sheet froth the same
+  way.
+- **Rivers flow along their banks.** A river's surface runs in lanes parallel to its banks that turn
+  with every bend; ripples stream downstream along them and foam gathers in lines that drift with the
+  current.
+- **You can see into the water.** Water now fades with depth the way real water does: sand and riverbeds
+  show through the shallows in the water's own clear tint (turquoise for a lagoon, olive for a river), and
+  deep water turns opaque. Where water is thin, against a beach, a bank or a floating buoy, it froths
+  in bands that lap toward the edge. The beach view gains a seabed that falls away offshore so its water
+  shades from shallows to deeps. Open sea with nothing beneath it looks as before.
+- **Water leaves with the scene.** Exported GLBs carry each body of water as its own `water:<kind>` node
+  with a clear-water material (transmission, index of refraction 1.333, and absorption that keeps
+  blue and loses red), which Blender reads. Animated seas, beaches and rivers, which no export carried
+  before, leave as one frozen frame with their foam baked in; the ocean view now exports at all. Godot
+  packs (kernel 0.4.0) shade that water live with a water shader: the seabed seen through the water,
+  bent by the ripples and fading red-first with depth, foam where the water thins, sky reflection and
+  sun glint, and drifting ripples. The waves themselves stand still in an export.
+- **Pools and ponds you can touch (groundwork).** A page can now carry shallow bodies of water whose
+  surface is simulated rather than drawn: still until something disturbs it, with waves that slow in
+  the shallows, bounce off a pool's walls and die out on a pond's bank. Walking in slows you with depth,
+  splashes on entry and leaves a frothing wake; floating toys and leaves bob on the live surface and get
+  pushed aside; rain rings it; a click splashes it. Everything that touches the water goes through one
+  interface, `window.__aqWater` (`query`, `disturb`). The floor is seen through the water, bent by the
+  ripples, with caustics where crests focus the sun. No world kind emits them yet.
+- **Wet sand follows the swash.** On an aqua beach the swash now runs a thin sheet of water up the
+  sand, with a lace of foam on its leading edge, then drains: the sheet shines with the sky and the
+  sun for a second or two, and the sand it leaves stays dark while it dries, with a damp band above
+  the highest reach. It is worked out from the swash's own timing, so it costs only a shader and an
+  export carries the band as it stands at the first frame. Beaches take `detail`
+  (`'still' | 'animated' | 'touch' | 'showpiece'`, default `'animated'`); `'still'` keeps the baked band.
+- **Footprints in the sand (`detail: 'touch'`).** A beach at the touch tier opens in walk mode facing
+  the sea, and the sand around you takes footprints: a bed of loose sand (3 cm cells) follows you as
+  you walk and blends into the beach with no visible edge. Damp sand holds a print's walls, dry sand
+  up the beach slumps them into soft dimples, and the backwash levels any print it runs over. The
+  ground kernel graduated from the soft-ground spike with per-cell moisture, a window that slides
+  with the walker, and slopes measured on the sand alone so loose sand never slides off the beach
+  face; with neither in use it replays the spike byte for byte. The beach declares its unit
+  (1 unit = 1 m at scale 1).
+- **Wading into the surf.** At the touch tier the sea around you answers too: walking in slows you
+  with depth, splashes on entry, and leaves a wake and a cloud of stirred-up sand in the water. The
+  disturbance is simulated in a small window that follows you and rides on top of the existing
+  waves (it reaches the water shader as a texture, so it adds no geometry and no seams). One step
+  routes by depth: on dry or shallow ground it prints the sand, in the surf it prints the sand and
+  stirs the water, and past waist depth only the water answers.
+- **The swash strands its foam.** On every animated beach the foam the uprush carries is left on the
+  sand where the sheet stops: it slides back with the backwash while the water still covers it, stays
+  put once the water leaves, and opens into holes and pops over a few seconds. The backwash's edge
+  carries no foam line of its own.
+- **A faucet and the basin it fills (study).** A falling stream (`jets` on the World page) is drawn on
+  the GPU along its fall: it thins as it speeds up, carries a ripple from the spout that grows until a
+  thin stream breaks into a string of beads, and below a threshold set by the spout's width it drips
+  instead. An aerator turns it white. Where it lands on a dry or barely wet floor it spreads into a
+  hydraulic jump; in standing water it plunges, with a crater, rings and foam that push floating
+  things away. Its basin is a new `basin` kind of shallow water whose level moves: it fills with the
+  plug in, drains through the plug hole with it out, and stops at the overflow, and a duck in it rides
+  up and settles on the floor when it empties. The page has a panel for flow, plug and aerator.
+- **Waterfalls (`create_view` kind `waterfall`).** The same falling water, at landscape scale: a river
+  runs along a plateau, pours off the cliff, falls, and plunges into a pool that drains away as a
+  second river. Three kinds: `veil` (a tall thin ribbon that frays to streaks), `curtain` (a broad,
+  heavy block of water) and `horsetail` (a round spout shot through a slot in the rock). Over the lip
+  the water is glassy and pours at the depth a river takes going over an edge; it whitens as it falls
+  and, past a break-up length set by how much water there is, frays into streaks and fingers and
+  spreads, with mist at its foot. The pool's surface is simulated, so the fall churns it into foam and
+  rings and pushes floating leaves away. A flow slider on the page turns the fall down to a trickle or
+  up to five times its size. Falling water can now be a sheet over a lip as well as a round stream,
+  so any world can place one.
+- **Recipes choose the water.** The ocean, beach and river views and painted-landscape lakes take
+  `aqua: '<kind>'` to pick another preset, or `aqua: false` to keep the previous look; canal cities
+  use `canal`.
+- **Glass is untouched.** Windows share the old translucent-water pass; only faces tagged `liquid`
+  take the new look, and pages without water emit the same bytes as before.
+
+### Particle vacuum spike
+
+- Isolated development experiment: frozen wave-manji carriers activated by spatial contact events, with deterministic replay and a standalone interactive preview. No level schema or runtime integration.
+- Wave-ground follow-up: conservative sand depth over sampled wave-field terrain, with 3D surface preview and slope-driven redistribution.
+- Lightweight sand follow-up: bounded occupancy grid, sleeping grains, local support-change wakeups, hopper gate and editable terrain preview.
+- Grain physics follow-up: integer gravity with terminal speed, work–energy Coulomb friction (dynamic μ sets the heap angle instead of the grid's 45°), static friction with avalanche hysteresis, and inelastic impact in the sand kernel; still no library.
+- Sand-bed follow-up: integer depth layer where walking leaves persistent footprints (displaced sand forms a rim biased toward the push) and a pushed crate plows a berm, relaxed by the same static/sliding friction pair; walkable standalone preview, no production channel yet.
+- Soft-ground materials: the same bed with a compaction ratio (snow packs under the boot and bears load, little rim) and viscosity (mud oozes back over seconds); dry sand, damp sand, fresh snow and mud presets in the walkable preview.
+
+### Emote bridge
+
+Steps toward playing common-parlance emotes and humanoid clip libraries on mojulo's figures
+([docs/emote-bridge.md](../docs/emote-bridge.md)): the head turn the figure never had, a T-pose rest and an engine skeleton
+for the engines, and Godot's retargeter set up on import.
+Both are opt-in: without them every figure, hero and export is byte-identical. Being built on this branch; each bullet is
+rewritten as its phase lands.
+
+- **`turn` on the neck and head.** `neck: { turn }` and `head: { turn }` (degrees, + the face to the figure's left;
+  35° and 45° caps) turn the skull about the neck line, so a nodded head's nod turns with the face. `glance: 'left' |
+  'right' | 'ahead' | degrees` splits a glance across the two, and the hero's gestures and clips take it too.
+- **Turned bones.** A turn reaches the frames that have an orientation: rigid armor heads, the hero's neck and head
+  bones (and the jaw, face and hair that ride them), and the packed rig's head, so it bakes into the GLB and Godot
+  clips. The joint graph does not move.
+- **`headshake` turns the head.** The emote is a real "no" now, instead of a torso twist under a head tilt.
+- **The T-pose mold.** `export_model { skinned: true, humanoid: true, rest: 'tpose' }` re-rests a humanoid figure or
+  hero in the VRM T-pose the engines retarget from (arms straight out, palms down, legs straight, feet and head as
+  they were), with every clip re-expressed on it so it plays the same motion. No recipe changes; without `rest` the
+  export is byte-identical.
+- **An engine skeleton, and Godot.** With `rest: 'tpose'` the skinned humanoid is written the way the engines read one:
+  joints nested on the VRM humanoid tree (the biped's hand and foot leaves, and a clavicle each side, as weightless bones:
+  an engine's humanoid profile hangs the arm off a shoulder with a large rest turn; and the chest and upper chest a rig
+  lacks, split out of its torso bone with the torso's skin spread along them, so a retargeted chest turn bends the
+  flesh), each parent-local, in
+  the VRM space (y up, facing +z, the figure's left on +x), every rest rotation the identity. Beside the GLB come a
+  Godot `BoneMap` per figure, a post-import script giving its surfaces their vertex colour (Godot imports a
+  vertex-coloured GLB white), and the `.import` naming both (place the folder at `res://mojulo/<ref>/`); the engine
+  figure is a scene-level node beside the z-up root, since Godot's rest fixer resets a skeleton's ancestors. On import Godot
+  renames the bones to its humanoid profile and the skeleton becomes `%GeneralSkeleton`, so the project's humanoid
+  animations play on the figure and its clips on any humanoid. `docs/examples/humanoid/godot-retarget.mjs` is the gate:
+  a real Godot plays the flat figure's bow on a hero's skeleton.
+
+### Figure adornment: clothes that fit
+
+Clothes for the hero that fit the body they are worn on, in two tiers: second-skin garments painted on the body's own
+faces, and garments with volume built on the adornment loop. Opt-in; no stored hero changes. Being built on this branch.
+
+- **Second skin.** The hero door's `paint`: a word (`tank`, `crop`, `sportsBra`, `tee`, `longSleeve`, `leotard`,
+  `leggings`, `bikeShorts`, `tights`, `catsuit`, `socks`, `gloves`), an entry `{ part, u?, run?, t?, only?, group }` or a
+  list, worn in order over the detail. The swimsuit's band rule as declared data on the expanded rings (the plan
+  grammar's `paint` block), so a segment's generated rings take it like a loft's; colour only, every ring point the
+  bare body's, so it fits every cast, tune, core and pose. Words name only the parts the body has (the structured
+  core's pelvis and toes, a breast), and one over the hips clears the swimwear beneath. Absent, zero bytes.
+- **Outfits that follow the body.** The hero door's `outfit`: garments with volume (`tee`, `shirt`, `trousers`, `shorts`,
+  `boots`, or a piece `{ id, part, u?, run?, ease, flare?, over?, group }`), built as new L1 parts copied from the body
+  part's rings over a window, carried out by an ease that scales with the cast and lifted over the layers beneath (the
+  chest's, earlier garments: worn in order, so a shirt can be worn out or tucked in). Each copies its body part's bind
+  station by station, so every garment vertex skins exactly as the skin under it and bends at the elbow and knee; every
+  dial naming the body part names its garment. The plan grammar's `garments` block. Absent, zero bytes.
+- **Flat footwear.** A piece's `fit: 'shoe'` (the boots' foot) is built, not copied: a round ellipsoid over the heel and
+  a flat half-ellipsoid over the forefoot, each fitted to hold the foot's and toes' points with the ease, their sections
+  superposed ring by ring and cut on one flat sole, so a boot stands flat with a round heel cup and a low toe box over
+  any foot; each ring binds as the foot's nearest station.
+- **Cloth shades smoothly.** Under the studio light, cloth welds its corner normals at 70°, as the skin does
+  (`STUDIO_SMOOTH_CREASE.$cloth`). Cloth is every face of a garment part (marked `garment`) and the faces a second skin
+  painted (a part's `painted` groups). So a shirt reads as one draped form, while a right angle such as a boot's sole
+  edge stays sharp. Other groups keep 35°, and a hero without cloth welds exactly as before.
+- **Outfit builds.** `outfit: { type: 'outfit', style, dials?, language? }`: a styled look built the way an armour build
+  is (`lib/graph/outfit/`), from laws, dials (`stylize`, `fit`, `coverage`, `ornament`), seeded JSON cards (`casual`,
+  `office`, `athlete`, `adventurer`) and language words for lengths on landmarks, family (knit or woven), tuck and focal.
+  It is expanded on every read in fixed passes:
+  - **CUT:** the pieces.
+  - **FIT:** ease and hang toward the free hems.
+  - **LAYER:** tucked or worn out.
+  - **CONSTRUCTION:** a woven placket.
+  - **ORNAMENT:** from the focal out — a collar or a knit rib band, buttons as body-detail rows on the shirt, a belt as an
+    adornment on the trousers; then cuffs, hems and the waistband painted on the garment parts; then the seams.
+  - **TONE.**
+  - **LEDGER:** the dress readout, with warnings, never refusals.
+
+  The laws version is stamped on the hero record. Supporting changes:
+  - A garment piece may add `rings` where its edges are finished, so a trim is as narrow as it is drawn.
+  - Paint runs after the garments, so it reaches them.
+  - A paint window too narrow for a coarse ring paints the band holding its middle.
+  - A cap takes paint only from an entry that covers its part end to end.
+  - The card's tones reach the head's include, as an armour kit's do.
+- **Skirts and dresses.** A garment `fit: 'skirt'` is one hull round the hips and both legs, from the waist to a hem on a
+  landmark:
+  - each of its rings is the support of everything at that height, made symmetric;
+  - it never narrows below the hips and widens by its cut (pencil, A-line, full);
+  - it is two-faced, folded at the hem, so it is open beneath and its hem is an edge;
+  - each point is skinned by nearness: the cloth over a leg follows that leg, and the cloth between and behind the legs
+    stays with the pelvis, so a stride swings the skirt and the knees stay inside it.
+
+  Outfit builds take `bottom { kind: 'skirt', leg, cut }` and `dress: true`. Tops drape from the bust and shoulder blades
+  rather than hugging back in under them. New female cards: `sundress`, `blouse` and `athleisure`.
+
+### Figure articulation: herobot
+
+The hero robot on the hero door: the toy-hero read of the late platformer renders, an original robot on the anime head,
+built from words the door already reads plus a few new ones. Every addition is opt-in, so no stored hero changes. Being
+built on this branch; each bullet is rewritten as its phase lands.
+
+- **`proportions: 'herobot'`.** A third proportion word beside `hero` and `anime`, at about 4.4 heads tall: a big head,
+  a short torso, short arms (a cast may now scale both arm segments' lengths) and a short neck, with big hands and feet
+  for the gauntlets and boots to sit on. Its hands are bigger still, puffed into a cartoon glove's fat, rounded digits and gloved in
+  the palette's `Glove` (white unless named), its neck in the body stocking (`Top`), and its shins a little longer for an
+  action hero's stride (a cast may carry `hands`, `puff`, `glove`, `suitNeck` and `shank`). The body keeps adult limbs and is not child-coded, unlike `chibi`.
+
+- **The `volume` signature.** Figure-fluff's girth contrast on the rig: a free solid round its carrier, sized from the
+  carrier's own measured axis and radius, riding that bone. It takes the fluff shapes (`football`, `cone`, `bell`,
+  `slab`, `bead`), a superellipse section, a `bore` (a muzzle disc), a `lip` (a cuff) and a `half` cut (a flat sole, for a half-egg foot). The robot's ball pauldrons,
+  barrel chest plate, collar, briefs, wide forearms, thigh rims, flared boots, pointed half-egg feet and knee pads are adornment data.
+  A `bead` can point its crest back toward the window's start (`point: 'start'`), so a knee pad on the shank points up. The carrying shell
+  of a volume is a slender core buried on the carrier's axis, so only the volume shows.
+
+- **The `plaque` signature.** A thick trapezoid plate lying on its carrier between two stations, wider at one end,
+  lifted forward off whatever lies beneath, with a bevelled face: an embossed ab plate jutting down under a chest plate. Set off the front by `c`, a pair
+  makes pec plates.
+  Every signature now also reads its adornment's `carrier`.
+
+- **The helm's face window.** The `helm` signature takes a `window` (the face open, the helm wrapping the crown, temples
+  and cheeks) with `brow`, `w`, `bottom`, `nape`, `rim`, cheek guards curled under the jaw (`jaw`: `drop`, `curl`,
+  `wrap`), a back tucked round to the nape (`back`), the lower sides and back rounded in like an egg to hug the face (`hug`), and the window's top edge brought down as a raised V to the bridge of the nose
+  (`v`), whose two lines can carry on as embossed `stripes` over the crown to the nape. A V `frame` grows the V into the visor's whole frame: wide
+  cheek bands tapering to the jaw, a brow band, and two horns rising to points either side of a diamond gem set in its notch. It also takes ear domes
+  (`ears`) and a brow gem (`gem`), round or a faceted `diamond` on a border plate (`fit: 'v'` sets its lower edges parallel to the V). Sized from `parts`, so `['face', 'earR', 'earL']` fits it to the anime head as raw
+  kit data, and `scale` grows the whole helm about its centre. The armour builds' helms still refuse on the anime head.
+
+- **The `gloss` highlight.** A third highlight kind on the character light: N·L above a high threshold anywhere on a
+  group, with no band. This is the moulded-plastic hot spot on each rounded armour form. Like `ring` and `streak`, it
+  is baked and conforming.
+
+- **Horns, a ponytail and plate pauldrons.** The helm takes `horns` (a pair of tapering blades off the temples) and a
+  `ponytail` (wild flattened clumps out of its back, scattered by a fixed pattern, so it stays deterministic). A `volume`
+  takes the `plate` shape: an angular plate arched over the carrier's outer side in flat facets, a pauldron over a ball.
+
+- **Worked casts.** `docs/examples/humanoid/cast/herobot-classic.json` and its rival, `herobot-rival.json`: red and white,
+  horns and a ponytail, and a more angular silhouette from the same adornment kit.
+
+### Figure hair
+
+Four anime cuts from the operator's sketches, as hair words anywhere a hair word goes, and the construction words they
+needed on the anime head. Being built on this branch.
+
+- **The cuts.** `flipped-long` (long, curtain bangs framing the face, the ends kicked out), `blunt-bob` (a level fringe
+  split off centre, the left side falling long), `side-tail` (the side-parted sheet gathered into a low tail over the
+  left shoulder).
+- **The words.** `flip`, `spikes`, `sideTail` (its clump `tail`, part `hairTail`) and `fringeNotch` join the hair form
+  words; each is absent unless given, so every stored hero builds as before.
+- **Hair as shapes.** `shapes` composes a hairstyle from one family of primitives placed on the cap or laid in rows
+  that flow from the whorl — carrots (cut conical carrots), bananas (flat crescents) or peppers (chilis, thin strands)
+  — scaled against the head, and may take over the studio's clump groups. Three male characters wear it: `broku`
+  (carrots, classic shonen spikes), `jinto` (bananas, comma hair), his cousin `jingo` (bananas, few, grown from the dome like a cap, for a long face) and `kairo` (chili
+  peppers, a wolf cut), the last three after a hairstylist's pass; the first heroine, `bidel`, wears bananas in a short tomboy cut. Shaped hair never cuts through the body: the hero's
+  neck and torso are handed to the head and a lock that meets them drapes over them. A layer's `cap` grows each lock
+  along the dome and lets it fall only past the hairline, so the crown's locks come out longest. A fourth family,
+  PEELS (layered banana peels: thin leaf-shaped sheets cupped to the scalp), dresses `jona`, a side-swept swoop, `selene`, long hair heavy on her right, and `sintia`, flower petals to the shoulder blades. A layer's `flick` hooks
+  a lock's end out from the head (or under it), and a layer's `length` now reaches 6. A layer's `gather: [az°, el°]` walks each lock
+  into a TIE and ends it there, so `frieda` wears twin tails and `frieda-pony` one ponytail.
+- **Blunt cuts and strands.** A layer's `hem` cuts its locks on a LEVEL line (`fringeHem` for the ones leaving over the
+  face) and `blunt` keeps a lock's full width to the cut: `hiraku` is a bowl bob, `miwako` a
+  neck-length one. The character light's `strands` draws lines inside the hair in its own tone darkened
+  (the hue kept), never the ink's black; absent, every light's pieces are as before. The cast gains both as card specs.
+- **Face zones and the veil.** `hairCoverage.face` reads the share of the face the hair hides from the front and both
+  ¾: RED (each eye, the nose and mouth) and YELLOW (brows, lids, cheeks, jaw). Hair over red past 15 %, or curtaining
+  yellow past 75 %, advises. The hair word `veil` (0 … 1) is the mystery and allure lever: one eye may go under the
+  hair (to 75 %) and the yellow to 95 %; the other eye and the mouth stay restricted. Advice only; nothing it builds.
+- **Sideburn patches.** Every anime head with hair now wears a thin patch in the hair's colour on the skin before each
+  ear, from under the scalp's bottom edge (it follows the hairline, so no skin shows between) to the ear's bottom, so no bare gap shows between the hair and the ear
+  (`hairSideburnL`, `hairSideburnR`), and the graphic face's ears sit a little closer in to the head. A bald head shows
+  its own skin there. The anime heroes' pinned payloads moved
+  with it.
+  A layer's `swirl` turns its flow one way (a fringe swept off its part), and a style takes up to 12 layers.
+  `sideburns` works on any style. The
+  principles and recipes cross-referenced to shonen and JRPG heroes are in `docs/examples/humanoid/DESIGNING.md`.
+- **Fixed.** An anime hero whose hair is a list (`['long', { locks }]`) now wears that family: before, the list was not
+  read as naming one, the base's cut was worn under it and its clump edits were lost.
+
+### Figure articulation: pelvic
+
+The hero's midsection structured from the vajra core it already carries, on the regular and the anime hero alike, and
+the default for every hero (`core: 'structured'`). Every hero changes: a stored hero regenerates with it. `core:
+'streamlined'` is the hero before it, byte for byte. Being built on this branch; each bullet is rewritten as its phase
+lands.
+
+- **The default.** Every hero is built on the structured core unless it says `core: 'streamlined'`. The tune keeps its
+  contract on it: `thigh` thickens the thigh about its own rings, `calf` the knee and the shin, `legs` moves the joints
+  and no radius; and the outline is one curve in every register (each ring's radius solved from the width it draws).
+  A swing word's keys stand on a base of their own, reachable on every verb.
+
+- **The pelvis bone.** On the structured core the `pelvis` bone is the basin: it turns with the hip girdle alone, as
+  the vajra's own pelvis does, so a spine curl or arch bends the lower back over a still pelvis instead of tipping it. A
+  new `lumbar` bone carries what `pelvis` used to (the pelvis hub to the navel); the hem and the top of the thighs blend
+  the two, and a hip-slung blade rides the basin. A rig bone may now take `align`, two joints whose line orients it.
+- **The legs converge.** On the structured core the thigh slants in from the hip to the knee, more on the female, so
+  the knees sit inside the hips and the feet under the knees. The female casts no longer stand with their knees wider
+  than their hips and a deep V between the thighs: their narrowed hips had left the knees behind.
+- **The stand owns its base.** New pose words `stance` (how far apart the planted feet stand, as a multiple of the hip
+  spread) and `stagger` (one foot forward, one back), and `heelL` / `heelR` in a stand. With converged legs the
+  presets plant both feet on a base of their own: the guard wide and bladed with the rear heel up, the relaxed and
+  hand-on-hip stands close-set with a soft free knee, a swing on the guard's base. Without these words a planted foot
+  stands where it always did.
+- **The pelvis mesh.** On the structured core a `pelvis` part on the vajra basket runs from the crotch up into the
+  hem, its back the seat, and the thigh is rooted at the hip socket inside it. The hip is one curve out from the waist:
+  the female's widest at the trochanter and narrowing steadily to the knee, the male's straight. The front recedes to the
+  crotch, the thighs meet under it, and the thigh comes out of the pelvis along the groin's diagonal. Gone: the corner
+  and pinch at the side of the female hip, the front standing proud of the belly, the shelf at the hem, the step at the
+  knee, and the flat seat.
+- **The dress follows the pelvis.** On the structured core the hip pieces hang from the pelvis and ride it: a knight's
+  faulds carry on down over the hips under the breastplate and the tassets hang from the crest over the hip, fitted close
+  and clear of the thighs at every dial. Every piece that stands off the thighs (a fauld, a belt, a kit of the
+  operator's) stands off the pelvis too, and thigh plates wrap the share of the thigh they were drawn for. On converged
+  legs a hardsuit's inner knee plate turns less far in, clear of the other knee.
+- **The torso.** On the structured core the torso is built on the vajra rib cage: a waist above the hem, the ribs
+  widening to a lifted chest, the male's back widest under the arms and the female's narrower, and the shoulders sloping
+  from the neck under the arm's own cap instead of a box with square corners. The new rings sit between the five the
+  dress addresses, so every torso address (`s` 0 … 4, a collar's station) lands where it did.
+- **The chest layers.** On the structured core a pectoral lies over each side of the rib cage, its own part hugging
+  the chest: the pair meets at the sternum as one domed chest, its lower border standing proud as the shelf and its
+  armpit end moving a little with the arm. The adult female hero carries a bust by default (a child or chibi cast, or
+  the kid look, never does): a breast per side over the pectoral, each its own part and a bone each (`bustR`, `bustL`)
+  an engine's spring can drive. The breast is a studied field over the chest (`breast-field.js`): its footprint and its
+  poles' profiles are a handful of anatomy words, and gates measured on the field hold it to what an artist checks (the
+  upper and lower poles 45 : 55, the fold a wall, the upper pole straight or concave, the lower pole full, the margins
+  melting into the chest, one clean peak). The pair meets at the midline in a cleavage valley (the field's `cleft`, a
+  share of the projection there), not two mounds with flat chest between them, and the triangle between the clavicles
+  and the upper poles stays shallow. A bare belly carries a navel, set where the canon puts it: about level with the elbow, a little under the
+  narrowest waist. A clothed jerkin covers the pectorals, and every piece worn on the torso stands off the layers. A trunk ring
+  may now name its own `u` (the address parameter) and `push` named slots off the ring, a skin blend may weigh one point
+  (`station.slot`) over its ring, a new plan kind `rings` gives a part's rings point by point, and a `ring20` slot
+  family is there for a finely sampled form. The knight's and
+  the ranger's pauldrons and the jerkin's quilt sit on the new shoulder.
+- **The swimsuit view.** New `detail: 'swimsuit'` shows the body bare: every shirt, trouser and shoe colour is skin, and
+  swimwear is painted on the body's own surface (the adult male's trunks, the adult female's two-piece — on the structured core a speedo and a thong — a child-coded
+  figure's rash vest and trunks; the female's cups follow her breasts with a sweetheart top edge that dips into the
+  cleft), in a `Swim` tone you can name (by default dark, so the swimwear sorts into the dark
+  value band apart from the skin and the hair). A plan segment may now carry `bandGroups` (a group
+  per band and slot) and `slotT` (each slot's address parameter).
+- **The shoulders and the neck.** On the structured core the neck rises out of the chest: the sternal notch sits under
+  the base of the neck at the back, so the neck shows from the front instead of the chin resting on the shoulders. The
+  male's trapezius slopes from the neck to the shoulder instead of standing as a plateau, and the shoulder rounds over the arm as a deltoid instead of ending in a square corner. Under the
+  anime head the neck's shade is the jaw's shadow, its lower edge a V toward the notch, no longer the whole neck down
+  to its seam on the chest. The upper arm's widest point sits a quarter down it, as the deltoid's does, its top a
+  dome over the joint; the western figure's neck is a round column whose back rises into the head, and the pectoral's
+  top edge rises from the breastbone toward the shoulder as the clavicle does. A segment may name its caps' height (`cap`).
+- **The seat.** On the structured core the female's seat is her own shape, not the male's a size up: fuller and
+  set further back, fullest halfway down it, its two halves parted by a deep cleft (drawn on bare skin in a darker
+  second shade), under a lower back that curves in over it; the male's is square and high, his back running
+  straight down into it, two masses with a cleft between them. On the structured core the swimsuit is a speedo for
+  the male (low and level, no leg, a clean leg line, the cleft a crease in it) and a thong for the female (a front
+  triangle, a thin string rising over the hip and a V at the back narrowing into her cleft, her seat bare), so the two
+  seats show; the thong's back is drawn under the studio light as well as the character light.
+- **The hands.** On the structured core the hand is a palm and five digits instead of a mitten, on the regular and
+  the anime hero alike (the anime casts' hands smaller, the same shape): the palm flat across the back with the thumb's
+  and the little finger's pads in front, the knuckles on an arc, the fingers in a relaxed curl that deepens toward the
+  little finger, the thumb opposed. The hand hangs facing the thigh, the forearm tapering into it at a rounded wrist. The wrist is a joint and the fingers bend: the
+  pose words `wristL` / `wristR` (flex, or `{ flex, deviation, twist }`) and `fingersL` / `fingersR` (a curl, a curl
+  per digit, or a hand word: `relaxed`, `open`, `fist`, `point`, `grip`) now move a structured hero instead of being
+  refused; a streamlined hero still refuses them. Fifteen finger bones a hand, named as VRM and Godot name them. A rig
+  may now carry `hands`, the wrist and digit chains its posing turns in the hand's own frame.
+- **The arms.** On the structured core the upper arm and the forearm carry their muscles instead of running as two
+  cones: under the deltoid the triceps fills the back of the upper arm and the biceps the front lower down, into an
+  elbow that is wider across than it is deep; the forearm is fullest across just below the elbow and slims into the
+  wrist over its last third. The male's are marked, the female's softer, the anime casts' softer still. Cuffs,
+  bracers and armour land where they did; a streamlined hero is unchanged. A segment may carry shaping rings between
+  its own (`shape`), addressed between its rings so its addresses keep their meaning.
+- **The legs.** The same on the structured legs: the thigh's front fuller over its upper half, the hamstrings behind
+  and the inner thigh full high, the inner bulge just above the knee and the knee narrower under it; the calf full at
+  the back and lower on the inside, the leg slimming above the ankle. Swimsuit leg lines, wraps and greaves land where
+  they did. A loft's station may name its `u` too.
+- **The feet.** A bare structured hero (the swimsuit's) stands on feet instead of shoes: a rounded heel under the
+  Achilles, the two ankle bones, the instep rising to the shin, the arch lifted on the inside, the ball wide on a
+  slant; the big toe its own, apart from the rest (the grip), the other four side by side with the lines between them.
+  The toes bend with the toe bone. Footwear replaces the foot: a hero in shoes, clothes or armour keeps the shoe as it
+  was, and sandals and boots to come take the foot's place on the same joints.
+- **The western forehead.** The landmark head's forehead rises from the brow instead of leaning back from it, and the
+  brow's outer end stands level with the corner of the eye instead of sinking in behind it, so the far side of the face
+  no longer caves in over the eye in the ¾ and the profile. The hair rides the new forehead. Every hero with the landmark
+  head changes a little above the eyes, the streamlined core's too.
+- **The ear.** The ear is an ear, not an egg, on the landmark and the anime head alike. From the side the broad top
+  runs into a nearly straight back edge and down on a diagonal into a broad lobe, the front open where the rim ends, the
+  ear leaning back. It is a thin plate, like a leaf, joined to the head at its front and angled off it toward its back.
+  On the landmark ear the rim is raised, the antihelix rises inside it and the bowl dips behind, in the darker inner
+  tone, so the light shows its depth; the anime ear is a simpler rim, fold and bowl, drawn by its outline. The anime
+  head's studio-exact face (`sculpt: false`) keeps its own ear.
+- **Smooth shading on the western hero.** A hero under the studio light (the landmark head, or no head) is shaded
+  smoothly instead of one flat tone per triangle: the face reads as one form instead of facets over the nose and the
+  cheeks, and the chest, the belly, the back and the limbs read as muscle instead of a grid. The skin blends across
+  edges that turn up to 70°; hair, cloth and the swimsuit keep their edges. The clip preview shades the same way. The
+  anime hero is unchanged (its two tones already follow a smoothed surface), and so is every layered sketch that is not
+  a hero.
+- **The jaw seam.** A standing hero with the landmark head no longer shows a dark line from the mouth along the jaw to
+  the ear when the head is turned: the jaw now turns exactly with the head, so it stays closed against the skull, and it
+  still opens at its hinge.
+- **The hair over the temple.** The skull no longer pokes through the hair at the left temple like a horn: the hair's
+  cap is folded outward over the skull on both sides alike, where its left half used to sink between its points. Every
+  cut with a cap changes slightly, the anime cuts' cap under their locks too.
+- **The head stored once.** A stored hero kept its anime head twice, once in the plan and again in the recipe the plan
+  expands to: about half of every hero row. The recipe's copy is no longer stored; it comes back from the plan when the
+  row is read, so every tool, render and export still sees the whole recipe. A head part edited by hand under
+  `/recipe` is stored as edited. A hero row is about 1.2 MB instead of 2.35 MB; a row stored before shrinks on its next
+  edit.
+- **The torso's anatomy.** On the round register the structured torso and pelvis are rounder (twelve points a ring,
+  addressed on the old scale, so every armour piece, kit and quilt lands where it did), and they carry the forms a
+  silhouette is marked by: the male's chest and its shelf, the sternum, the belly and the navel, the lats and the
+  waist's taper, the shoulder blades and the spine; the female's deeper waist and the curve of the lower back; the seat's
+  two masses on the pelvis. The step at the waist is gone.
+- **Core measures.** Every hero's readout carries `core`: the waist to hip, where the hip peaks, the seat, how far the
+  front falls below the waist, any pouch, the largest step in the outline, and whether the legs converge, with advice
+  against bands per body that names the word to move. On the structured core the advice is a warning; on a streamlined
+  hero it stays in `core.advice`. The design loop's critic reads it. `render-pelvic-overlay.mjs`
+  draws the vajra core over the hero mesh before and after.
+
 ## [3.0.0] - 2026-10-01
 
 ### Upgrading from 2.x

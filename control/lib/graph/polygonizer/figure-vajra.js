@@ -155,7 +155,9 @@ export const FIGURE_EDGES = [
 // head/neck split into two joints: the NECK flexes/tilts the whole column at its
 // base; the HEAD nods/tilts the skull on top of the neck (atlas). Their cones sum
 // to roughly the old headNeck (90).
-export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 180, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, hipRoll: 45, pelvis: 20, hinge: 80, shoulders: 30, knee: 150, wrist: 70, wristTwist: 120 };
+// neckTurn/headTurn: the AXIAL turn of the cervical column (C3–C7) and of the skull on the
+// axis (C1–C2), ≈ 80° together — a real cervical rotation; the atlas carries most of a glance.
+export const LIMITS = { neck: 45, head: 45, headNeck: 90, shoulder: 180, armRoll: 110, elbow: 150, coreTwist: 35, coreBend: 25, hip: 62, hipRoll: 45, pelvis: 20, hinge: 80, shoulders: 30, knee: 150, wrist: 70, wristTwist: 120, neckTurn: 35, headTurn: 45 };
 
 // Kinematic subtrees — the nodes a joint carries when it rotates.
 export const ARMS_L = ['elbowL', 'wristL'], ARMS_R = ['elbowR', 'wristR'];
@@ -288,6 +290,65 @@ function swivelSub(m, keys, pivotKey, yaw, pitch, limit) {
   rotateSub(m, keys, pivotKey, 'EW', pitch);
 }
 
+// ─── Head turn — the neck and skull turning about their own axis ───────
+// The neck and head are LINES (neckHub → headBase → headTop), so an axial turn moves no node of
+// an un-nodded head; it is real only where a bone has an orientation. The turn happens about the
+// posed NECK line (C1–C2 turns beneath the nod), so a nodded head's nod turns with the face —
+// the one case where headTop moves. + = the face to the figure's LEFT (the ZN sense).
+//
+// With a turn, the posed map gains a TWIST PAIR per bone that spans the neck: `<bone>FaceSwing`
+// (the bone's forward carried by the shortest arc — the frame every bone has today) and
+// `<bone>Face` (that forward turned). A bone frame reads the signed angle between them about its
+// own axis (rig-bake twistQuat), so the pair survives any rigid/uniform-scale world transform. No
+// turn → no keys: every existing output is byte-identical.
+//   neck  = neckHub → headBase (the hero's neck bone; the neck turn only)
+//   head  = headBase → headTop (the hero's head bone; neck + head turn)
+//   crown = neckHub → headTop  (the packed biped's head bone, which has no neck; neck + head turn)
+export const TWIST_REFS = Object.freeze({
+  neck: Object.freeze(['neckFaceSwing', 'neckFace']),
+  head: Object.freeze(['headFaceSwing', 'headFace']),
+  crown: Object.freeze(['crownFaceSwing', 'crownFace']),
+});
+export const TWIST_REF_NODES = Object.freeze(Object.values(TWIST_REFS).flat());
+const TWIST_SPAN = { neck: ['neckHub', 'headBase'], head: ['headBase', 'headTop'], crown: ['neckHub', 'headTop'] };
+/** The twist pair of a bone spanning `head` → `tail`, or null: a rig's bones take theirs by their joints, so no
+ * recipe stores one (rig-bake, station-loft-rig). */
+export function twistPairFor(head, tail) {
+  const bone = Object.keys(TWIST_SPAN).find((b) => TWIST_SPAN[b][0] === head && TWIST_SPAN[b][1] === tail);
+  return bone ? TWIST_REFS[bone] : null;
+}
+const FACE_REACH = 0.03;    // the refs sit this far (STAND) in front of the bone head — inside the neck and skull
+const FRONT = { x: 0, y: 1, z: 0 };   // the body frame faces +y
+
+// rotate DIRECTION v by the shortest arc carrying unit a onto unit b
+function arcTurn(v, a, b) {
+  const c = cross3(a, b), s = SM.hypot(c.x, c.y, c.z), d = dot3(a, b);
+  if (s < 1e-12) return d > 0 ? v : rotAxis(v, { x: 0, y: 0, z: 0 }, normalize3(cross3(a, Math.abs(a.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 })), 180);
+  return rotAxis(v, { x: 0, y: 0, z: 0 }, { x: c.x / s, y: c.y / s, z: c.z / s }, SM.atan2(s, d) * 180 / Math.PI);
+}
+const turnsOf = (dof) => [clamp(dof.neck?.turn || 0, -LIMITS.neckTurn, LIMITS.neckTurn), clamp(dof.head?.turn || 0, -LIMITS.headTurn, LIMITS.headTurn)];
+
+// Apply the turn to the posed map `m` (after the neck/head swivels; `base` its rest) and emit the twist pairs.
+// `turnTop(pivot, axis, deg)` performs the headTop rotation (articulate rotates the point;
+// articulateTransforms also composes the head bone). Returns nothing; a zero turn is a no-op.
+function applyHeadTurn(m, base, dof, turnTop) {
+  const [nt, ht] = turnsOf(dof);
+  if (!nt && !ht) return;
+  const rest = restFrom(base);
+  const pre = { neckHub: m.neckHub, headBase: m.headBase, headTop: m.headTop };
+  const axis = normalize3(sub3(m.headBase, m.neckHub));
+  if (nt + ht) turnTop(m.headBase, axis, nt + ht);
+  for (const [bone, [h, t]] of Object.entries(TWIST_SPAN)) {
+    const d0 = normalize3(sub3(rest[t], rest[h]));
+    const k = dot3(FRONT, d0), f0 = normalize3({ x: FRONT.x - d0.x * k, y: FRONT.y - d0.y * k, z: FRONT.z - d0.z * k });
+    const turned = rotAxis(arcTurn(f0, d0, normalize3(sub3(pre[t], pre[h]))), { x: 0, y: 0, z: 0 }, axis, bone === 'neck' ? nt : nt + ht);
+    const swing = arcTurn(f0, d0, normalize3(sub3(m[t], m[h])));
+    const [sk, tk] = TWIST_REFS[bone], at = m[h];
+    m[sk] = { x: at.x + swing.x * FACE_REACH, y: at.y + swing.y * FACE_REACH, z: at.z + swing.z * FACE_REACH };
+    m[tk] = { x: at.x + turned.x * FACE_REACH, y: at.y + turned.y * FACE_REACH, z: at.z + turned.z * FACE_REACH };
+  }
+}
+
 // Build a posed armature from a degrees-of-freedom object. Order is
 // proximal → distal so each joint rides on its parent. `base` (optional) is the rest
 // armature to pose — a cast's proportions, or any 17-landmark map; omit for the canonical one.
@@ -378,6 +439,7 @@ export function articulate(dof = {}, base = null) {
   // proximal→distal so the head rides the neck.
   if (dof.neck) swivelSub(m, ['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
   if (dof.head) swivelSub(m, ['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  applyHeadTurn(m, base, dof, (pivot, axis, deg) => { m.headTop = rotAxis(m.headTop, pivot, axis, deg); });
   return m;
 }
 
@@ -571,6 +633,8 @@ export function articulateTransforms(dof = {}, base = null, opts = {}) {
   }
   if (dof.neck) swivel(['headBase', 'headTop'], 'neckHub', dof.neck.yaw || 0, dof.neck.pitch || 0, L.neck);
   if (dof.head) swivel(['headTop'], 'headBase', dof.head.yaw || 0, dof.head.pitch || 0, L.head);
+  // the head bone (carried by headTop) turns with the skull, even where headTop itself stays put
+  applyHeadTurn(m, base, dof, (pivot, axis, deg) => step(['headTop'], pivot, rodMat(axis, deg)));
 
   return { nodes: m, bones: T };
 }

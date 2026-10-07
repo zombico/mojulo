@@ -192,9 +192,14 @@ export function levelSceneExtras(payload = {}) {
   if (Array.isArray(payload.colliders) && payload.colliders.length) {
     const boxes = payload.colliders
       .filter((c) => c && Array.isArray(c.min) && c.min.length >= 3 && Array.isArray(c.max) && c.max.length >= 3)
-      .map((c) => ({ min: [c.min[0], c.min[1], c.min[2]], max: [c.max[0], c.max[1], c.max[2]] }));
+      .map((c) => ({ min: [c.min[0], c.min[1], c.min[2]], max: [c.max[0], c.max[1], c.max[2]], ...(typeof c.of === 'string' ? { of: c.of } : {}) }));
     if (boxes.length) extras['moj:colliders'] = boxes;
   }
+  // the level's ADDRESS (a room stage's rooms and anchors, era/anchors.js): what an idiom or an engine names; an
+  // anchor with a `node` is the GLB node of that name (and its `<node>:<texture>` children). Absent ⇒ no key.
+  const addr = levelAddress(payload);
+  if (addr.rooms) extras['moj:rooms'] = addr.rooms;
+  if (addr.anchors) extras['moj:anchors'] = addr.anchors;
   const g = payload.game;
   if (g && typeof g === 'object') {
     const sum = {};
@@ -213,4 +218,23 @@ export function levelSceneExtras(payload = {}) {
     extras['moj:game'] = sum;
   }
   return Object.keys(extras).length ? extras : null;
+}
+
+const POINT_KEYS = ['at', 'spawn', 'N'], BOX_KEYS = ['box', 'trigger'], LENGTH_KEYS = ['h', 'width', 'height', 'r', 'length'];
+/**
+ * levelAddress(payload, sv?, sn?) → { rooms?, anchors? } — a payload's rooms and anchors, their positions run through
+ * `sv` (a point) and their lengths through `sn` (the unit scale; identity by default; a normal `N` is never scaled).
+ * Absent or empty lists ⇒ no key.
+ */
+export function levelAddress(payload = {}, sv = (v) => v, sn = (x) => x) {
+  const one = (o) => {
+    const q = { ...o };
+    for (const k of POINT_KEYS) if (k !== 'N' && Array.isArray(q[k])) q[k] = sv(q[k]);
+    for (const k of BOX_KEYS) if (q[k] && Array.isArray(q[k].min)) q[k] = { min: sv(q[k].min), max: sv(q[k].max) };
+    for (const k of LENGTH_KEYS) if (Number.isFinite(q[k])) q[k] = sn(q[k]);
+    return q;
+  };
+  const list = (x) => (Array.isArray(x) && x.length ? x.filter((o) => o && typeof o.id === 'string').map(one) : null);
+  const rooms = list(payload.rooms), anchors = list(payload.anchors);
+  return { ...(rooms ? { rooms } : {}), ...(anchors ? { anchors } : {}) };
 }

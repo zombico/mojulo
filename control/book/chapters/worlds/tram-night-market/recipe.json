@@ -1,0 +1,14 @@
+{
+  "entry": "compose_world",
+  "base": "city",
+  "seed": 7,
+  "title": "Tram night market",
+  "overrides": {
+    "context": { "time": "night", "locale": "east-asia", "baseScale": 0.7 },
+    "asset": {
+      "anchor": "tower",
+      "elements": { "streetcars": true },
+      "civic": ["city-park"]
+    }
+  }
+}

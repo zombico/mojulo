@@ -12,8 +12,9 @@
 //     panel lying in that plane fastened along two or more of its edges (a side, a fixed back), or two or more
 //     moment-rigid joints between members in it (a table's aprons in their legs, a bracket). Knock-down fittings
 //     alone let a corner turn: a carcass with no back folds sideways.
-//   · interference: two members' bodies that overlap with no joint between them, and two tenons that meet inside the
-//     member they both go into (a table leg: shorten them with `depth`, or mitre them).
+//   · interference: two members' bodies that overlap with no joint between them, two tenons that meet inside the
+//     member they both go into (a table leg: shorten them with `depth`, or mitre them), and two fittings whose holes
+//     meet inside a member (cam bolts or shelf pins from both faces of a partition, with no room to stagger them).
 //   · fasteners: one that pokes out of the far side, bites too little, goes into a particleboard or MDF edge as a
 //     plain screw, or sits too near a face; a cam bore that leaves too thin a floor.
 //   · the cut list: every sheet part nested onto its standard sheets (guillotine strips, 4 mm kerf, 10 mm trim; turned
@@ -22,7 +23,7 @@ import { TIMBERS } from './timber.js';
 import { SHEETS, isSheet } from './sheets.js';
 import { sectionProps } from './sections.js';
 import { hardwarePart, toolOf } from './hardware.js';
-import { FURNITURE_JOINTS, RIGIDITY, worldBox } from './furniture-joints.js';
+import { FURNITURE_JOINTS, RIGIDITY, worldBox, cylsMeet } from './furniture-joints.js';
 import { toWorld } from './members.js';
 import { seatingReport, seatingStamps } from './seating.js';
 import * as dmath from '../../util/dmath.js';
@@ -189,6 +190,18 @@ export function furnitureReport({ spec = {}, members, joints: J, drawn, soft = [
     const ov = overlap(tenons[i].box, tenons[j].box);
     if (ov.every((v) => v > 0.0005)) interference.push({ a: tenons[i].id, b: tenons[j].id, tenons: true, overlapMm: ov.map((v) => r1(v * 1000)) });
   }
+  // fittings: two holes in one member that meet, other than a cam and the bolt it grips
+  const holesIn = new Map();
+  for (const h of J.holes || []) { if (!holesIn.has(h.member)) holesIn.set(h.member, []); holesIn.get(h.member).push(h); }
+  for (const [mid, hs] of holesIn) {
+    const seen = new Set();
+    for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) {
+      const a = hs[i], b = hs[j];
+      if (a.fit === b.fit || a.mates.includes(b.fit) || b.mates.includes(a.fit) || seen.has(`${a.fit}|${b.fit}`)) continue;
+      const ov = cylsMeet(a.cyl, b.cyl, -0.0002, boxes.get(mid));
+      if (ov) { seen.add(`${a.fit}|${b.fit}`); interference.push({ a: a.fit, b: b.fit, in: mid, fittings: true, overlapMm: ov.map((v) => r1(v * 1000)) }); }
+    }
+  }
   // ── fasteners
   const flags = [];
   for (const r of J.report) {
@@ -236,7 +249,8 @@ export function furnitureStamps(f, label) {
   if (f.tip.drawers && f.tip.drawers.tips) out.push(`${label}: tips forward with its ${f.tip.drawers.count} drawer${f.tip.drawers.count > 1 ? 's' : ''} out ${f.tip.drawers.outMm} mm and a child's ${f.tip.drawers.childKg} kg on ${f.tip.drawers.onDrawer} (net ${f.tip.drawers.netNm} N·m; after ASTM F2057-23) — fix it to the wall`);
   for (const r of f.racking) if (!r.resisted) out.push(`${label}: racks ${r.plane}: nothing keeps its corners square in that plane — fix a back (in a groove, screwed or nailed) or add a brace or bracket`);
   for (const i of f.interference) {
-    if (i.tenons) out.push(`${label}: the tenons of ${i.a} and ${i.b} collide (${i.overlapMm.join(' × ')} mm) inside the member they share — shorten them (\`depth\`) or mitre their ends`);
+    if (i.fittings) out.push(`${label}: ${i.a} and ${i.b} meet inside ${i.in} (${i.overlapMm.join(' × ')} mm) — move one along the joint (\`spacing\`), or shorter fittings`);
+    else if (i.tenons) out.push(`${label}: the tenons of ${i.a} and ${i.b} collide (${i.overlapMm.join(' × ')} mm) inside the member they share — shorten them (\`depth\`) or mitre their ends`);
     else out.push(`${label}: ${i.a} and ${i.b} overlap (${i.overlapMm.join(' × ')} mm) with no joint between them`);
   }
   for (const x of f.fasteners) {

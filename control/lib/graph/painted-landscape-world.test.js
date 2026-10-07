@@ -112,10 +112,18 @@ describe('moon + translucent water in the World', () => {
 
   it('emits the water sheet as a 4-component (alpha) mesh, separate from the opaque groups', () => {
     const payload = assemblePaintedLandscapeScene(moonlit, {});
-    expect(payload.faces.some((f) => f.water)).toBe(true);       // water faces are tagged
+    expect(payload.faces.some((f) => f.water && f.liquid === 'lake')).toBe(true);   // water faces are tagged, as a lake
+    const html = emitThreeWorld(payload);
+    expect(html).toContain('liquid sheet (aqua look: lake)');
+    expect(html).toContain('BufferAttribute(col, 4)');           // per-vertex RGBA alpha
+  });
+
+  it('keeps the plain translucent sheet when the manifest opts out of the aqua look', () => {
+    const payload = assemblePaintedLandscapeScene({ ...moonlit, aqua: false }, {});
+    expect(payload.faces.some((f) => f.water && !f.liquid)).toBe(true);
     const html = emitThreeWorld(payload);
     expect(html).toContain('translucent water sheet');
-    expect(html).toContain('BufferAttribute(col, 4)');           // per-vertex RGBA alpha
+    expect(html).not.toContain('__aqPatch');
   });
 
   it('threads moon=null for a starless/moonless or daytime sky', () => {

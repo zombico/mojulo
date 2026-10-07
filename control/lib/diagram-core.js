@@ -215,7 +215,7 @@ function validateBoxPosition(node, path, errors) {
   }
   for (const k of ['x', 'y', 'w', 'h']) {
     if (!isFiniteNumber(node[k])) {
-      errors.push(`${path}.${k} must be a finite number (or supply a \`cell\` with a \`grid\`)`);
+      errors.push(`${path}.${k} must be a finite number (or supply a \`cell\` with a \`grid\`, or omit x/y/w/h on EVERY station to auto-place them)`);
     }
   }
 }
@@ -566,6 +566,10 @@ function validateEdge(edge, idx, stationIds, errors) {
     errors.push(
       `edges[${idx}].via must be one of: ${EDGE_VIA_VALUES.join(', ')} (got '${edge.via}')`,
     );
+  }
+  // The lane a `via` edge runs along (x for left/right, y for top/bottom); auto layout sets it.
+  if (edge.channel !== undefined && !isFiniteNumber(edge.channel)) {
+    errors.push(`edges[${idx}].channel must be a finite number if provided`);
   }
   validateHeads(edge, `edges[${idx}]`, errors);
   if (edge.dashed !== undefined && typeof edge.dashed !== 'boolean') {
@@ -1030,18 +1034,9 @@ export function expandSwimlanes(manifest) {
   const laneTop = 50, laneH = 110;
   const cols = stations.map((s) => (isFiniteNumber(s.col) ? Math.floor(s.col) : 0));
   const maxCol = cols.length ? Math.max(...cols) : 0;
-  const width = marginX + maxCol * colStep + stationW + 40;
-  const height = laneTop + lanes.length * laneH + 20;
 
   const MUTED = 'var(--text-muted)';
   const INK = 'var(--text-primary)';
-
-  const bands = [];
-  lanes.forEach((l, i) => {
-    const y = laneTop + i * laneH;
-    bands.push({ kind: 'rect', x: 0, y, w: width, h: laneH, z: -1, fill: i % 2 ? 'rgba(99,102,120,0.10)' : 'rgba(99,102,120,0.04)', stroke: 'rgba(99,102,120,0.35)', strokeWidth: 1 });
-    bands.push({ kind: 'text', x: 12, y: y + 20, value: l.label, size: 12, anchor: 'start', weight: 600, color: INK, z: -1 });
-  });
 
   const nextStations = stations.map((s, i) => {
     if (s.lane === undefined) return s;
@@ -1057,16 +1052,333 @@ export function expandSwimlanes(manifest) {
     };
   });
 
+  // The lanes span the column grid, grown to hold any station placed past it
+  // (explicit x/y, or a w wider than the column) so the viewBox never clips one.
+  const placed = nextStations.filter((s) => s && isFiniteNumber(s.x) && isFiniteNumber(s.y));
+  const width = Math.max(marginX + maxCol * colStep + stationW + 40, ...placed.map((s) => s.x + (isFiniteNumber(s.w) ? s.w : stationW) + 40));
+  const height = Math.max(laneTop + lanes.length * laneH + 20, ...placed.map((s) => s.y + (isFiniteNumber(s.h) ? s.h : stationH) + 20));
+
+  const bands = [];
+  lanes.forEach((l, i) => {
+    const y = laneTop + i * laneH;
+    bands.push({ kind: 'rect', x: 0, y, w: width, h: laneH, z: -1, fill: i % 2 ? 'rgba(99,102,120,0.10)' : 'rgba(99,102,120,0.04)', stroke: 'rgba(99,102,120,0.35)', strokeWidth: 1 });
+    bands.push({ kind: 'text', x: 12, y: y + 20, value: l.label, size: 12, anchor: 'start', weight: 600, color: INK, z: -1 });
+  });
+
   const existing = Array.isArray(manifest.marks) ? manifest.marks : [];
   return { ...manifest, viewBox: { width, height }, stations: nextStations, marks: [...bands, ...existing] };
 }
 
 
+// ── Auto layout (create-sketch-diet D3) ────────────────────────────────────
+//
+// A flow whose stations carry NO position (no x/y, no cell, no lane) is laid
+// out here instead of refused: the author names boxes and edges, the kernel
+// places them. Layered and deterministic — ranks by longest path along the
+// edges (back edges of a cycle are set aside by a DFS in declaration order),
+// order within a rank by barycenter sweeps with declaration-order ties, boxes
+// sized from their text (a station's own w/h win). `layout: { direction }` is
+// 'LR' (default, ranks are columns) or 'TB' (ranks are rows). Edges in such a
+// diagram that would pierce a box (a rank-skipping edge, a back edge) get the
+// first clear `via` side; an edge with its own via/curvature is left alone.
+// The resolved coords are what's stored. A manifest that positions ANY station
+// never reaches this pass, so every existing row is byte-identical.
+export const AUTO_LAYOUT_DIRECTIONS = ['LR', 'TB'];
+const AL_PAD = 48, AL_RANK_GAP = 96, AL_ITEM_GAP = 36, AL_MARGIN = 4, AL_CHANNEL = 24;
+
+function stationIsPlaced(s) {
+  return isFiniteNumber(s?.x) || isFiniteNumber(s?.y) || hasCell(s) || s?.lane !== undefined;
+}
+
+// Text-fit box size, mirroring CreationMap's default type scale (label 13px at
+// offset 20, sublabel 10px at 36, items 11px from 42 / 54, 15px apart).
+function autoStationSize(s) {
+  const items = Array.isArray(s.items) ? s.items.filter((t) => typeof t === 'string') : [];
+  const text = (t, px) => (typeof t === 'string' ? t.length * px * 0.62 : 0);
+  const fit = Math.max(text(s.label, 13), text(s.sublabel, 10), ...items.map((t) => text(t, 11))) + 24;
+  const w = isFiniteNumber(s.w) ? s.w : Math.min(320, Math.max(140, Math.ceil(fit / 10) * 10));
+  const sub = typeof s.sublabel === 'string' && s.sublabel.length > 0;
+  const h = isFiniteNumber(s.h) ? s.h
+    : items.length ? (sub ? 54 : 42) + (items.length - 1) * 15 + 14
+      : sub ? 50 : 40;
+  return { w, h };
+}
+
+function segmentHitsBox([x1, y1], [x2, y2], b) {
+  // Liang–Barsky clip of the segment against the box grown by AL_MARGIN.
+  const minX = b.x - AL_MARGIN, maxX = b.x + b.w + AL_MARGIN, minY = b.y - AL_MARGIN, maxY = b.y + b.h + AL_MARGIN;
+  const dx = x2 - x1, dy = y2 - y1;
+  let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-dx, x1 - minX], [dx, maxX - x1], [-dy, y1 - minY], [dy, maxY - y1]]) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const r = q / p;
+    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; }
+  }
+  return t0 < t1;
+}
+
+// CreationMap's edge label pill: 0.62 × 11px per char + 18 wide, 22 tall.
+function autoPillWidth(label) {
+  return typeof label === 'string' && label ? label.length * 0.62 * 11 + 18 : 0;
+}
+
+// The lane a side route runs along: past the endpoints AND every box the lane
+// would otherwise cross (it is stored as the edge's `channel`, which
+// CreationMap's edgePath uses in place of the endpoint-derived lane).
+function autoEdgeChannel(a, b, via, boxes, label, lanes) {
+  const vertical = via === 'left' || via === 'right';
+  // a lane carries its label pill centered on it: keep the pill clear of what it passes
+  const half = (l) => (vertical ? autoPillWidth(l) / 2 : (l ? 11 : 0));
+  const gap = Math.max(AL_CHANNEL, half(label) + 8);
+  const lo = vertical ? Math.min(a.y + a.h / 2, b.y + b.h / 2) : Math.min(a.x + a.w / 2, b.x + b.w / 2);
+  const hi = vertical ? Math.max(a.y + a.h / 2, b.y + b.h / 2) : Math.max(a.x + a.w / 2, b.x + b.w / 2);
+  const crossing = [...boxes.values()].filter((box) => (vertical
+    ? box.y < hi && box.y + box.h > lo
+    : box.x < hi && box.x + box.w > lo));
+  const all = [a, b, ...crossing];
+  const outward = via === 'right' || via === 'bottom' ? 1 : -1;
+  let channel = via === 'right' ? Math.max(...all.map((box) => box.x + box.w)) + gap
+    : via === 'left' ? Math.min(...all.map((box) => box.x)) - gap
+      : via === 'bottom' ? Math.max(...all.map((box) => box.y + box.h)) + gap
+        : Math.min(...all.map((box) => box.y)) - gap;
+  // lanes already routed on this side over an overlapping span: stack outward past them
+  for (const lane of lanes) {
+    if (lane.via !== via || lane.hi <= lo || lane.lo >= hi) continue;
+    const clear = lane.channel + outward * (half(lane.label) + half(label) + 12);
+    channel = outward > 0 ? Math.max(channel, clear) : Math.min(channel, clear);
+  }
+  return { channel, lo, hi };
+}
+
+// The polyline CreationMap's edgePath draws for a side and channel (no side =
+// the default S-curve, approximated by its chord between the facing sides).
+function autoEdgePoints(a, b, via, dir, channel) {
+  if (via === 'top' || via === 'bottom') {
+    const top = via === 'top';
+    const sy = top ? a.y : a.y + a.h, ey = top ? b.y : b.y + b.h;
+    const sx = a.x + a.w / 2, ex = b.x + b.w / 2;
+    return [[sx, sy], [sx, channel], [ex, channel], [ex, ey]];
+  }
+  if (via === 'left' || via === 'right') {
+    const left = via === 'left';
+    const sx = left ? a.x : a.x + a.w, ex = left ? b.x : b.x + b.w;
+    const sy = a.y + a.h / 2, ey = b.y + b.h / 2;
+    return [[sx, sy], [channel, sy], [channel, ey], [ex, ey]];
+  }
+  return dir === 'LR'
+    ? [[a.x + a.w, a.y + a.h / 2], [b.x, b.y + b.h / 2]]
+    : [[a.x + a.w / 2, a.y + a.h], [b.x + b.w / 2, b.y]];
+}
+
+function autoEdgeHits(points, boxes, skip) {
+  let n = 0;
+  for (const [id, box] of boxes) {
+    if (skip.has(id)) continue;
+    for (let i = 1; i < points.length; i++) {
+      if (segmentHitsBox(points[i - 1], points[i], box)) { n++; break; }
+    }
+  }
+  return n;
+}
+
+export function expandAutoLayout(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest.lanes)) return manifest;
+  const stations = manifest.stations;
+  if (!Array.isArray(stations) || stations.length === 0) return manifest;
+  if (!stations.every((s) => s && typeof s === 'object' && typeof s.id === 'string' && !stationIsPlaced(s))) return manifest;
+  const dir = manifest.layout?.direction ?? 'LR';
+  if (!AUTO_LAYOUT_DIRECTIONS.includes(dir)) {
+    throw new Error(`layout.direction must be one of: ${AUTO_LAYOUT_DIRECTIONS.join(', ')} (got '${dir}')`);
+  }
+
+  const ids = stations.map((s) => s.id);
+  const index = new Map(ids.map((id, i) => [id, i]));
+  const edges = (Array.isArray(manifest.edges) ? manifest.edges : [])
+    .filter((e) => e && index.has(e.from) && index.has(e.to) && e.from !== e.to);
+
+  // Back edges: DFS in declaration order; an edge into a node on the stack closes a cycle.
+  const out = new Map(ids.map((id) => [id, []]));
+  edges.forEach((e, i) => out.get(e.from).push({ to: e.to, i }));
+  const state = new Map(), back = new Set();
+  const visit = (id) => {
+    state.set(id, 1);
+    for (const { to, i } of out.get(id)) {
+      if (state.get(to) === 1) back.add(i);
+      else if (!state.has(to)) visit(to);
+    }
+    state.set(id, 2);
+  };
+  ids.forEach((id) => { if (!state.has(id)) visit(id); });
+  const forward = edges.filter((_, i) => !back.has(i));
+
+  // Ranks: longest path from the sources (Kahn over the forward edges).
+  const rank = new Map(ids.map((id) => [id, 0]));
+  const indeg = new Map(ids.map((id) => [id, 0]));
+  forward.forEach((e) => indeg.set(e.to, indeg.get(e.to) + 1));
+  const queue = ids.filter((id) => indeg.get(id) === 0);
+  for (let q = 0; q < queue.length; q++) {
+    const id = queue[q];
+    for (const e of forward) {
+      if (e.from !== id) continue;
+      rank.set(e.to, Math.max(rank.get(e.to), rank.get(id) + 1));
+      indeg.set(e.to, indeg.get(e.to) - 1);
+      if (indeg.get(e.to) === 0) queue.push(e.to);
+    }
+  }
+  const rankCount = Math.max(...rank.values()) + 1;
+  let layers = Array.from({ length: rankCount }, () => []);
+  ids.forEach((id) => layers[rank.get(id)].push(id));
+
+  // Barycenter sweeps (down, up, down, up); ties keep the previous order.
+  const preds = new Map(ids.map((id) => [id, []])), succs = new Map(ids.map((id) => [id, []]));
+  forward.forEach((e) => { preds.get(e.to).push(e.from); succs.get(e.from).push(e.to); });
+  const pos = new Map();
+  const remember = () => layers.forEach((l) => l.forEach((id, i) => pos.set(id, i)));
+  remember();
+  for (let sweep = 0; sweep < 4; sweep++) {
+    const down = sweep % 2 === 0;
+    const order = down ? layers.map((_, r) => r) : layers.map((_, r) => rankCount - 1 - r);
+    for (const r of order) {
+      const nbr = down ? preds : succs;
+      const keyed = layers[r].map((id, i) => {
+        const ns = nbr.get(id);
+        return { id, i, key: ns.length ? ns.reduce((sum, n) => sum + pos.get(n), 0) / ns.length : i };
+      });
+      keyed.sort((a, b) => a.key - b.key || a.i - b.i);
+      layers[r] = keyed.map((k) => k.id);
+      layers[r].forEach((id, i) => pos.set(id, i));
+    }
+  }
+
+  // Place: a rank's boxes stack across the flow, centered on the longest rank.
+  const size = new Map(stations.map((s) => [s.id, autoStationSize(s)]));
+  const along = (id) => (dir === 'LR' ? size.get(id).w : size.get(id).h);
+  const across = (id) => (dir === 'LR' ? size.get(id).h : size.get(id).w);
+  const rankDepth = layers.map((l) => Math.max(...l.map(along)));
+  const rankSpan = layers.map((l) => l.reduce((sum, id) => sum + across(id), 0) + (l.length - 1) * AL_ITEM_GAP);
+  const span = Math.max(...rankSpan);
+  const boxes = new Map();
+  let a = AL_PAD;
+  layers.forEach((l, r) => {
+    let c = AL_PAD + (span - rankSpan[r]) / 2;
+    for (const id of l) {
+      const { w, h } = size.get(id);
+      const offset = (rankDepth[r] - along(id)) / 2;
+      boxes.set(id, dir === 'LR' ? { x: a + offset, y: c, w, h } : { x: c, y: a + offset, w, h });
+      c += across(id) + AL_ITEM_GAP;
+    }
+    a += rankDepth[r] + AL_RANK_GAP;
+  });
+  const round = (v) => Math.round(v);
+  for (const box of boxes.values()) { box.x = round(box.x); box.y = round(box.y); }
+
+  // Route the edges that would pierce a box; the author's own routing stands.
+  const sides = dir === 'LR' ? ['bottom', 'top'] : ['right', 'left'];
+  const routed = [];
+  const lanes = [];
+  const straight = new Set();   // unordered station pairs already joined by an unrouted edge
+  const pairKey = (x, y) => (x < y ? `${x}\u0000${y}` : `${y}\u0000${x}`);
+  const pillHits = (points, label, skip) => {
+    if (!label) return false;
+    const [[x1, y1], [x2, y2]] = [points[0], points[points.length - 1]];
+    const w = autoPillWidth(label), cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+    const pill = { x: cx - w / 2, y: cy - 11, w, h: 22 };
+    for (const [id, box] of boxes) {
+      if (skip.has(id)) continue;
+      if (pill.x < box.x + box.w + AL_MARGIN && box.x - AL_MARGIN < pill.x + pill.w
+        && pill.y < box.y + box.h + AL_MARGIN && box.y - AL_MARGIN < pill.y + pill.h) return true;
+    }
+    return false;
+  };
+  const nextEdges = Array.isArray(manifest.edges) ? manifest.edges.map((e) => {
+    if (!e || !boxes.has(e.from) || !boxes.has(e.to) || e.from === e.to || e.via !== undefined || e.curvature !== undefined) return e;
+    const from = boxes.get(e.from), to = boxes.get(e.to), skip = new Set([e.from, e.to]);
+    const backward = rank.get(e.to) <= rank.get(e.from);
+    const key = pairKey(e.from, e.to);
+    if (!backward && !straight.has(key)) {
+      const chord = autoEdgePoints(from, to, null, dir);
+      if (autoEdgeHits(chord, boxes, skip) === 0 && !pillHits(chord, e.label, skip)) {
+        straight.add(key);
+        return e;
+      }
+    }
+    const order = backward ? [...sides].reverse() : sides;
+    let best = null;
+    for (const via of order) {
+      const lane = autoEdgeChannel(from, to, via, boxes, e.label, lanes);
+      const channel = round(lane.channel);
+      const hits = autoEdgeHits(autoEdgePoints(from, to, via, dir, channel), boxes, skip);
+      const crowd = lanes.filter((l) => l.via === via).length;   // ties go to the emptier side
+      if (best === null || hits < best.hits || (hits === best.hits && crowd < best.crowd)) best = { via, channel, hits, crowd, lo: lane.lo, hi: lane.hi };
+    }
+    lanes.push({ via: best.via, channel: best.channel, lo: best.lo, hi: best.hi, label: e.label });
+    const next = { ...e, via: best.via, channel: best.channel };
+    routed.push(next);
+    return next;
+  }) : manifest.edges;
+
+  // A left / top lane (with its label pill) must stay on the canvas: the renderer clamps a
+  // lane to the edge, which would drag it back across the boxes. Shift everything instead.
+  const halfPill = (e) => autoPillWidth(e.label) / 2;
+  let shiftX = 0, shiftY = 0;
+  for (const e of routed) {
+    if (e.via === 'left') shiftX = Math.max(shiftX, AL_CHANNEL - (e.channel - halfPill(e)));
+    if (e.via === 'top') shiftY = Math.max(shiftY, AL_CHANNEL - e.channel);
+  }
+  if (shiftX || shiftY) {
+    shiftX = Math.ceil(shiftX); shiftY = Math.ceil(shiftY);
+    for (const b of boxes.values()) { b.x += shiftX; b.y += shiftY; }
+    for (const e of routed) {
+      e.channel += e.via === 'left' || e.via === 'right' ? shiftX : shiftY;
+    }
+  }
+  const nextStations = stations.map((s) => ({ ...s, ...boxes.get(s.id) }));
+  let maxX = 0, maxY = 0;
+  for (const b of boxes.values()) { maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+  for (const e of routed) {
+    if (e.via === 'right') maxX = Math.max(maxX, e.channel + halfPill(e));
+    if (e.via === 'bottom') maxY = Math.max(maxY, e.channel);
+  }
+  const fit = { width: round(maxX + AL_PAD), height: round(maxY + AL_PAD) };
+  const vb = manifest.viewBox && typeof manifest.viewBox === 'object' ? manifest.viewBox : null;
+  // Fit the viewBox when absent; a given one only ever grows to hold the boxes.
+  const viewBox = vb && isFiniteNumber(vb.width) && isFiniteNumber(vb.height)
+    ? { ...vb, width: Math.max(vb.width, fit.width), height: Math.max(vb.height, fit.height) }
+    : fit;
+  return { ...manifest, viewBox, stations: nextStations, ...(nextEdges ? { edges: nextEdges } : {}) };
+}
+
+
 // The single diagram-kind lowering pass both mint paths run before grid
-// expansion. Each step no-ops unless its trigger is present, so ordering is
-// free; kept in ONE place so mint_diagram and create_sketch can't drift.
-export function lowerDiagramKinds(manifest) {
-  return expandSwimlanes(expandGantt(expandSequence(manifest)));
+// expansion. Each step no-ops unless its trigger is present; auto layout runs
+// last (a lane or any placed station opts out of it). Kept in ONE place so
+// mint_diagram and create_sketch can't drift. `skip` names steps to pass over
+// (an update re-sending a stored row skips what loweredDiagramKinds finds).
+export function lowerDiagramKinds(manifest, { skip } = {}) {
+  let m = manifest;
+  if (!skip?.has('sequence')) m = expandSequence(m);
+  if (!skip?.has('gantt')) m = expandGantt(m);
+  if (!skip?.has('lanes')) m = expandSwimlanes(m);
+  return expandAutoLayout(m);
+}
+
+// Which lowerings a manifest already carries the output of. The lowerings keep
+// their trigger (kind / lanes[] / boundaries[]) and prepend marks, so they are
+// not idempotent: a stored row re-entering the pipeline (update_sketch with a
+// patch, or a fetched manifest sent back) would stack a second copy. Each is
+// recognised by the label text it paints: a sequence's actor headers, a gantt's
+// task labels, a lane's band label, a boundary's dashed box. Edits to an
+// already-lowered spec therefore don't redraw — re-send the bare spec for that.
+export function loweredDiagramKinds(manifest) {
+  const found = new Set();
+  if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.marks)) return found;
+  const texts = (pred) => new Set(manifest.marks.filter((k) => k && k.kind === 'text' && pred(k)).map((k) => k.value));
+  const labelled = (items, painted) => Array.isArray(items) && items.some((it) => it && typeof it.label === 'string' && painted.has(it.label));
+  if (manifest.kind === 'sequence' && labelled(manifest.actors, texts((k) => k.weight === 600 && k.anchor === 'middle'))) found.add('sequence');
+  if (manifest.kind === 'gantt' && labelled(manifest.tasks, texts((k) => k.anchor === 'start' && k.z === undefined))) found.add('gantt');
+  if (labelled(manifest.lanes, texts((k) => k.z === -1))) found.add('lanes');
+  if (Array.isArray(manifest.boundaries) && manifest.marks.some((k) => k && k.kind === 'rect' && k.z === -2 && k.rx === 12)) found.add('boundaries');
+  return found;
 }
 
 

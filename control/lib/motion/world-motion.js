@@ -60,6 +60,26 @@ export function deriveBaseShot(payload) {
 }
 
 /**
+ * The per-frame cameras of a world camera motion — the one source both the headless
+ * render (renderWorldMotion) and the Blender film pack (blender-film.js) read, so a
+ * DCC camera lands on exactly the frames the GIF/MP4 shows. Pure over the payload.
+ *
+ * @returns {{ cameras: Array<{ worldFraming, viewBox }>, width:number, height:number, frameCount:number }}
+ */
+export function worldMotionCameras({ payload, motion, params = {}, frames }) {
+  const width = Math.round(params.width || DEFAULT_W);
+  const height = Math.round(params.height || DEFAULT_H);
+  const frameCount = frames || DEFAULT_FRAMES[motion] || 24;
+
+  // Backend-agnostic camera path: feed the world's base framing in as a synthetic
+  // manji-tree-shaped manifest so cameraPathFor's resolveBaseShot picks it up.
+  const base = deriveBaseShot(payload);
+  const manifest = { camera: { worldFraming: base, viewBox: { width, height } } };
+  const { cameras } = cameraPathFor(motion, { manifest, frames: frameCount, params });
+  return { cameras, width, height, frameCount };
+}
+
+/**
  * Render a camera motion over a world-eligible sketch to raster frames.
  *
  * @param {object} args
@@ -84,16 +104,8 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
     );
   }
 
-  const width = Math.round(params.width || DEFAULT_W);
-  const height = Math.round(params.height || DEFAULT_H);
+  const { cameras, width, height, frameCount } = worldMotionCameras({ payload, motion, params, frames });
   const aspect = width / height;
-  const frameCount = frames || DEFAULT_FRAMES[motion] || 24;
-
-  // Backend-agnostic camera path: feed the world's base framing in as a synthetic
-  // manji-tree-shaped manifest so cameraPathFor's resolveBaseShot picks it up.
-  const base = deriveBaseShot(payload);
-  const manifest = { camera: { worldFraming: base, viewBox: { width, height } } };
-  const { cameras } = cameraPathFor(motion, { manifest, frames: frameCount, params });
 
   // Each path camera → a capture spec: world pos/target, vertical FOV at the capture
   // aspect, and a per-frame sim-time so any animated world channels play in real time.
@@ -123,6 +135,9 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
     width,
     height,
     viewBox: [0, 0, width, height],
+    // the exact per-frame cameras the frames were captured from (z-up world units) —
+    // the Blender film pack ships these, so a DCC camera lands on the same frames.
+    cameras: cameras.map((c) => c.worldFraming),
     meta: { motion, frames: frameCount, fps, loop, backend: 'three' },
   };
 }

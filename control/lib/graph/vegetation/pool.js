@@ -22,6 +22,7 @@
 import { shadeHexMat } from '../polygonizer/vexar.js';
 import { grow, measure, ARCHITECTURES } from './grow.js';
 import { ladder } from './ladder.js';
+import { bloomFlowers } from './blossom.js';
 import { growPalm, palmLadder } from './palm.js';
 import { growCulm, culmLadder, culmTris, foliageTris, ageTint, runningGrove, clumpGrove, BAMBOOS } from './bamboo.js';
 import { growConifer } from './conifer.js';
@@ -74,6 +75,28 @@ function cached(key, make) {
   if (CACHE.has(key)) { const v = CACHE.get(key); CACHE.delete(key); CACHE.set(key, v); return v; }
   const v = make(); CACHE.set(key, v); if (CACHE.size > CACHE_MAX) CACHE.delete(CACHE.keys().next().value); return v;
 }
+// a tree in bloom: every leaf face recoloured between the blossom's deep, petal and lit tones by its own leaf tone, with a
+// little per-face scatter (pink to white), so the crown's baked light carries over into the bloom; its young shoots dark
+const bloomLad = (lad, B) => Object.fromEntries(Object.entries(lad).map(([l, tris]) => [l, tris.map((t, i) => {
+  if (t.kind !== 'leaf') return t.c[1] > t.c[0] ? { ...t, c: [0.55 * t.c[0] + 40, 0.45 * t.c[1] + 26, 0.5 * t.c[2] + 30] } : t;   // a green shoot is a dark twig in bloom
+  const lum = (t.c[0] * 0.3 + t.c[1] * 0.59 + t.c[2] * 0.11) / 160, j = ((i * 2654435761) >>> 0) / 4294967296 - 0.5, k = Math.max(0, Math.min(1, lum + 0.35 * j));
+  const c = k < 0.5 ? B.deep.map((v, n) => v + (B.petal[n] - v) * 2 * k) : B.petal.map((v, n) => v + (B.lit[n] - v) * (2 * k - 1));
+  return { ...t, c };
+})]));
+// a tree's flowers (blossom.js bloomFlowers) for a page that draws them as discs: each turned by the variant's yaw and
+// scaled to its units, its colour between the blossom's petal and lit tones by its exposure (a flower is pale even in the shade), lit facing its way (a
+// flower facing down shows its lit side, as a leaf does)
+function bloomDiscs(F, B, { light, yaw, scale }) {
+  const n = F.length / 9, out = new Float32Array(n * 7), c = dmath.cos(yaw), s = dmath.sin(yaw), lit = light ? { light } : {};
+  for (let q = 0; q < n; q++) {
+    const i = 9 * q, o = 7 * q, e = F[i + 8];
+    out[o] = (c * F[i] - s * F[i + 1]) * scale; out[o + 1] = (s * F[i] + c * F[i + 1]) * scale; out[o + 2] = F[i + 2] * scale; out[o + 3] = F[i + 7] * scale;
+    let nz = F[i + 5], nx = c * F[i + 3] - s * F[i + 4], ny = s * F[i + 3] + c * F[i + 4]; if (nz < 0) { nx = -nx; ny = -ny; nz = -nz; }
+    const col = B.petal.map((v, k) => v + (B.lit[k] - v) * e);
+    const f = shadeHexMat(hex(col), [nx, ny, nz], null, lit); out[o + 4] = parseInt(f.slice(1, 3), 16); out[o + 5] = parseInt(f.slice(3, 5), 16); out[o + 6] = parseInt(f.slice(5, 7), 16);
+  }
+  return out;
+}
 const cut = (lad, maxLevel) => Object.fromEntries(LEVELS.map((l) => [l, LEVELS.indexOf(l) <= LEVELS.indexOf(maxLevel) ? lad[l] : lad[maxLevel]]));
 
 /**
@@ -81,20 +104,28 @@ const cut = (lad, maxLevel) => Object.fromEntries(LEVELS.map((l) => [l, LEVELS.i
  * `textures` ({ key: data URL }) holds the tiles its templates wear (a tree's bark); a payload carries them beside
  * its repeats.
  * `maxLevel` caps the detail a template may carry (an oak's full-detail level is ~80k triangles: a hero, not a pool).
+ * `discs` (a species in bloom only): each variant also carries its flowers (`bloom`: 7 a flower, its centre in the
+ * variant's units, its size, and its colour lit in the scene's light as sRGB bytes) and its L1 and L2 wood bare of the
+ * crown's clusters (`bare`), for a page that draws the flowers themselves as discs. Absent, nothing changes.
  */
-export function plantPool({ species, variants = 3, seed = 'plants', light = null, maxLevel = 'L2', group = null } = {}) {
+export function plantPool({ species, variants = 3, seed = 'plants', light = null, maxLevel = 'L2', group = null, discs = false } = {}) {
   const S = SPECIES[species]; if (!S) throw new Error(`unknown species '${species}' (one of ${Object.keys(SPECIES).join(', ')})`);
   const g = group || species; const out = { species, kind: S.kind, variants: [], textures: {} };
   if (S.kind === 'tree') {
     // the trunk and limbs thicker than 6 cm wear the species' bark tile in the near levels
     const tile = S.bark ? barkTile(S.bark) : null; if (tile) out.textures[tile.key] = tile.url;
     const bark = tile ? { minR: 0.03, tile: tile.metres, color: tile.mean, key: tile.key } : null;
-    for (let k = 0; k < variants; k++) {
-      const sd = hashSeed(`${seed}::${species}::${k}`) % 100000;
-      const arch = S.fig ? FIGS[S.fig] : S.leafLife ? { ...ARCHITECTURES[S.arch], leafLife: S.leafLife } : S.arch;
-      const grown = cached(`tree:${S.arch}:${S.years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}`, () => { const p = grow(arch, { years: S.years, seed: sd }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark }) }; });
-      const yaw = (k * 2 * Math.PI) / variants; const lad = cut(grown.lad, maxLevel);
-      out.variants.push({ height: 1, grownHeight: grown.H, levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) });
+    // a species with `growth` grows one variant at each of its ages (some in a stand, whose shade lifts the crown), so
+    // height, girth and the clear trunk differ by age, not by scale; it has as many variants as ages
+    const nv = S.growth ? S.growth.length : variants;
+    for (let k = 0; k < nv; k++) {
+      const sd = hashSeed(`${seed}::${species}::${k}`) % 100000, G = S.growth ? S.growth[k] : null, years = G ? G.years : S.years, stand = G && G.stand ? { stand: G.stand } : {};
+      const arch = S.fig ? FIGS[S.fig] : S.leafLife || S.over ? { ...ARCHITECTURES[S.arch], ...(S.over || {}), ...(S.leafLife ? { leafLife: S.leafLife } : {}) } : S.arch, fill = S.bloom && S.bloom.fill ? { fill: S.bloom.fill } : {};
+      const grown = cached(`tree:${S.arch}:${years}:${sd}:${S.leafScale}:${S.bark || ''}${S.leafLife ? `:${S.leafLife}` : ''}${S.fig ? `:fig-${S.fig}` : ''}${fill.fill ? `:fill-${fill.fill}` : ''}${S.over ? `:over-${JSON.stringify(S.over)}` : ''}${stand.stand ? `:stand-${stand.stand}` : ''}`, () => { const p = grow(arch, { years, seed: sd, ...stand }); const H = measure(p).height; return { H, lad: ladder(p, H, { leafScale: S.leafScale, bark, ...fill }), ...(S.bloom ? { fl: bloomFlowers(p, { seed: sd }) } : {}) }; });
+      const yaw = (k * 2 * Math.PI) / nv; const lad = cut(S.bloom ? bloomLad(grown.lad, S.bloom) : grown.lad, maxLevel);
+      const v = { height: 1, grownHeight: grown.H, ...(G ? { years } : {}), levels: Object.fromEntries(LEVELS.map((l) => [l, trisToFaces(lad[l], { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])) };
+      if (discs && S.bloom && grown.fl) { v.bloom = bloomDiscs(grown.fl, S.bloom, { light, yaw, scale: 1 / grown.H }); v.bare = Object.fromEntries(['L1', 'L2'].map((l) => [l, trisToFaces(lad[l].filter((t) => t.kind !== 'leaf'), { light, yaw, scale: 1 / grown.H, group: `${g}-${l}` })])); }
+      out.variants.push(v);
     }
   } else if (S.kind === 'conifer') {
     const tiles = { low: barkTile(S.bark), ...(S.barkHigh ? { high: barkTile(S.barkHigh) } : {}) };
@@ -188,6 +219,10 @@ export function groveItems(species, item, { groundAt = null, water = null, seed 
  * whose units are not metres. → { repeats, stats }.
  */
 export function plantRepeats(pool, items, { eye = null, eyes = null, focalPx = 1000, level = 'L1', budget = null, sink = 0.05, clamp = true } = {}) {
+  // a species grown at several ages: the item's height within the species' range picks the age (its own jitter keeps
+  // neighbours from lining up), so a short tree is a young one and a tall one older, not one tree scaled
+  const SG = SPECIES[pool.species], ranked = SG && SG.growth ? pool.variants.map((v, k) => [v.grownHeight, k]).sort((a, b) => a[0] - b[0]).map((x) => x[1]) : null;
+  const byAge = ranked ? (h, i) => { const t = (h - SG.heights[0]) / (SG.heights[1] - SG.heights[0]) + 0.3 * (((i * 0.6180339) % 1) - 0.5); return ranked[Math.max(0, Math.min(ranked.length - 1, Math.floor(t * ranked.length)))]; } : null;
   const byLevel = { L0: 0, L1: 0, L2: 0, L3: 0 };
   const cap = LEVELS.indexOf(level); const pick = (px, T) => { let lv = 'L0'; for (const l of LEVELS) if (px >= T[l] && LEVELS.indexOf(l) <= cap) lv = l; return lv; };
   const fit = (want, have) => (clamp ? Math.max(0.92, Math.min(1.08, want / have)) : want / have);
@@ -206,7 +241,7 @@ export function plantRepeats(pool, items, { eye = null, eyes = null, focalPx = 1
   items.forEach((it, i) => {
     const pos = [it.x, it.y, it.z0 - sink];
     if (pool.kind === 'tree' || pool.kind === 'tuft') {
-      const k = i % pool.variants.length; const v = pool.variants[k]; const h = it.height;
+      const k = byAge ? byAge(it.height, i) : i % pool.variants.length; const v = pool.variants[k]; const h = it.height;
       slot(v.levels, (l) => `${k}:${l}`, (l) => `${pool.species}-${l}`, h, [it.x, it.y, it.z0 + h / 2], LEVEL_PX.height, { pos, scale: h }, true);
     } else if (pool.kind === 'palm') {
       let k = 0; pool.variants.forEach((v, j) => { if (Math.abs(dmath.log(it.height / v.height)) < Math.abs(dmath.log(it.height / pool.variants[k].height))) k = j; });

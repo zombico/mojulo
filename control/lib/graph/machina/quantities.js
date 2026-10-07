@@ -21,6 +21,9 @@ export const DIM = {
   scalar: dim(), mass: dim(1, 0, 0), length: dim(0, 1, 0), time: dim(0, 0, 1),
   velocity: dim(0, 1, -1), accel: dim(0, 1, -2),
   force: dim(1, 1, -2), work: dim(1, 2, -2), power: dim(1, 2, -3),
+  // the strength sensor's quantities: stress (force per area), area, and the second moment of area (L⁴).
+  // Torque has the dimension of work (N·m); its units below are aliases, so the guard cannot tell them apart.
+  stress: dim(1, -1, -2), area: dim(0, 2, 0), moment2: dim(0, 4, 0),
 };
 const dimEq = (a, b) => a.M === b.M && a.L === b.L && a.T === b.T;
 const dimMul = (a, b) => dim(a.M + b.M, a.L + b.L, a.T + b.T);
@@ -46,6 +49,12 @@ export const UNITS = {
   J: U(DIM.work, 1), kJ: U(DIM.work, 1000), Wh: U(DIM.work, 3600), kWh: U(DIM.work, 3.6e6),
   // power
   W: U(DIM.power, 1), kW: U(DIM.power, 1000), hp: U(DIM.power, 745.699872),
+  // torque (dimensionally work; named apart for the reader)
+  'N·m': U(DIM.work, 1), Nm: U(DIM.work, 1), 'N·mm': U(DIM.work, 1e-3), Nmm: U(DIM.work, 1e-3),
+  // stress
+  Pa: U(DIM.stress, 1), kPa: U(DIM.stress, 1e3), MPa: U(DIM.stress, 1e6), GPa: U(DIM.stress, 1e9), 'N/mm²': U(DIM.stress, 1e6), psi: U(DIM.stress, 6894.757293168),
+  // area and second moment of area
+  'm²': U(DIM.area, 1), 'mm²': U(DIM.area, 1e-6), 'm⁴': U(DIM.moment2, 1), 'mm⁴': U(DIM.moment2, 1e-12),
   // count / dimensionless (the demand multiplicity — "units", "pallets", "cases" are all scalar)
   '': U(DIM.scalar, 1), unit: U(DIM.scalar, 1), units: U(DIM.scalar, 1),
   pallet: U(DIM.scalar, 1), pallets: U(DIM.scalar, 1), case: U(DIM.scalar, 1), cases: U(DIM.scalar, 1), item: U(DIM.scalar, 1), items: U(DIM.scalar, 1),

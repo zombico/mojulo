@@ -55,8 +55,10 @@ export {
   expandSequence,
   expandGantt,
   expandSwimlanes,
+  expandAutoLayout,
   expandBoundaries,
   lowerDiagramKinds,
+  loweredDiagramKinds,
 } from '@/lib/diagram-core';
 
 export function validateSketchManifest(manifest) {
@@ -94,7 +96,7 @@ export function validateSketchManifest(manifest) {
       if (manifest.kind !== 'floorplan') {
         errors.push(`kind '${manifest.kind}' has no ${key} — only a floorplan stacks (storeys / levels[])`);
       } else if (!Number.isInteger(manifest[key]) || manifest[key] < 1) {
-        errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'floor-plan' })`);
+        errors.push(`${key} must be an integer >= 1 (got ${JSON.stringify(manifest[key])}); see get_sketch_vocab({ id: 'house-storeys' })`);
       }
     }
     if (manifest.kind === 'floorplan' && manifest.design !== undefined) errors.push(...validateDesign(manifest.design));
@@ -299,11 +301,11 @@ export const EDUCATION_VIEW_KINDS = [
 // 'controllable' carries no registry walk flag (locomotion is per-entity, from
 // the manifest's rules) but is a LIVE moved-through stage — action worlds and
 // game levels — so it belongs to the world concern.
-export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'store', 'mall', 'edifice', 'dungeon', 'math-structure', 'koenigsberg', 'controllable', 'terrain'];
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'restaurant', 'store', 'mall', 'edifice', 'dungeon', 'stage', 'historic', 'math-structure', 'koenigsberg', 'controllable', 'terrain'];
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).
-export const OBJECT_RENDER_KINDS = ['workbench', 'scad', 'assembler', 'layered', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'beach-view', 'river-view', 'windmill-view', 'hydro-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
+export const OBJECT_RENDER_KINDS = ['workbench', 'scad', 'assembler', 'layered', 'planetary', 'vehicle-instance', 'molecule-view', 'dna-view', 'dna-process', 'energy-cycle', 'cellular-view', 'atom-view', 'mechanics-view', 'rocket-view', 'airplane-view', 'orbit-view', 'comet-view', 'field-view', 'fluid-view', 'ocean-view', 'beach-view', 'river-view', 'waterfall-view', 'windmill-view', 'hydro-view', 'double-slit-view', 'black-hole-view', 'galaxy-view', 'star-birth-view', 'pulsar-view', 'plasma-globe-view', 'lightning-storm-view', 'wavepacket-view', 'fission-view', 'cascade-view', 'fusion-view', 'cherenkov-view', 'reactor-view', 'atmosphere-view', 'saturn-view', 'star-surface-view', 'gravity-wave-view', 'parallel-transport-view', 'transformer-view', 'vector-match-view', ...EDUCATION_VIEW_KINDS];
 export const WORLD_RENDER_KINDS = [...WALKABLE_WORLD_KINDS, ...OBJECT_RENDER_KINDS];
 export const SCENE_RENDER_KINDS = ['css3d-turntable', 'subway-station'];
 // Beats artifacts (beats.plan.md) — heard, not looked at. Rendered as a live

@@ -10,7 +10,9 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { resolveArt } from '../../graph/era/art-direction.js';
 import path from 'node:path';
+import { randomInt } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_KINDS } from '@/lib/mcp/plugin-profile';
@@ -30,6 +32,7 @@ import {
   expandGridLayout,
   expandBoundaries,
   lowerDiagramKinds,
+  loweredDiagramKinds,
   STATION_KINDS,
   EDGE_VIA_VALUES,
   MARK_KINDS,
@@ -56,7 +59,10 @@ import {
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
+import { buildingNext } from '@/lib/mcp/tools/building-next';
+import { scadNext } from '@/lib/mcp/tools/scad-next';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
@@ -67,6 +73,7 @@ import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeW
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
+import { strengthSpecErrors } from '@/lib/graph/strength/index';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -252,12 +259,49 @@ function validateSketchIdentity({ title, ref, folderRef, bucket }) {
 }
 
 /**
+ * The diagram half of the sketch pipeline, shared by mintSketch and update_sketch so
+ * the two can't drift: lower the diagram kinds (sequence / gantt / swimlanes / auto
+ * layout — the SAME kernel lowering mint_diagram runs), resolve grid `cell`
+ * placements to concrete x/y/w/h, wrap boundaries, then Rendrant. A lowering whose
+ * marks the manifest already carries (a stored row sent back, or patched) is skipped
+ * rather than stacked twice.
+ */
+function expandDiagramManifest(manifest) {
+  const skip = loweredDiagramKinds(manifest);
+  let working;
+  try {
+    working = lowerDiagramKinds(manifest, { skip });
+  } catch (err) {
+    throw new Error(`Invalid manifest: ${err.message} — manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`);
+  }
+  try {
+    // expandBoundaries runs after grid resolution (it wraps stations by their
+    // resolved coords) and before Rendrant (boundary marks are inert to it).
+    const gridded = expandGridLayout(working);
+    return expandNeoRembrandt(withConstellationGrid(skip.has('boundaries') ? gridded : expandBoundaries(gridded)));
+  } catch (err) {
+    throw new Error(`Rendrant expansion error: ${err.message}`);
+  }
+}
+
+/**
  * Validate + persist a sketch, returning { ok, ref, url }. Shared by the
  * create_sketch MCP tool AND the plan-mode / research-mode auto-mint path
  * (which derives a manifest deterministically, then persists it here). Keeping
  * the "how a sketch is stored" logic in one place means the derived-sketch
  * callers get the same validation + ref + URL shape as a hand-authored one.
  */
+function newHouseSeed(m, ref) {
+  if (m?.kind !== 'floorplan' || m.seed !== undefined) return m;
+  let seed;
+  if (typeof ref === 'string' && ref) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < ref.length; i += 1) { h ^= ref.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    seed = (h % 2147483646) + 1;
+  } else seed = randomInt(1, 2147483647);
+  return { ...m, seed };
+}
+
 export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   validateSketchIdentity({ title, ref, folderRef, bucket });
   let finalized;
@@ -316,24 +360,14 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   } catch (err) {
     throw new Error(`Recipe lowering error: ${err.message}`);
   }
-  // Lower the diagram kinds (sequence / gantt / swimlanes) to plain marks before
-  // grid/Rendrant expansion. Each step no-ops unless its trigger is present. This
-  // is the SAME kernel lowering mint_diagram runs, so both stay bound.
-  try {
-    working = lowerDiagramKinds(working);
-  } catch (err) {
-    throw new Error(`Invalid manifest: ${err.message} — manifest manual: semantic_search({ kinds: ['sketch_vocab'], query: '<your kind or ask>' }); read a card in full via get_sketch_vocab({ id }).`);
-  }
-  // Resolve any grid `cell` placements to concrete x/y/w/h before validating
-  // and storing, so the renderer only ever sees absolute coords.
-  let expanded;
-  try {
-    // expandBoundaries runs after grid resolution (it wraps stations by their
-    // resolved coords) and before Rendrant (boundary marks are inert to it).
-    expanded = expandNeoRembrandt(withConstellationGrid(expandBoundaries(expandGridLayout(working))));
-  } catch (err) {
-    throw new Error(`Rendrant expansion error: ${err.message}`);
-  }
+  // A NEW house draws its own seed, so two houses minted from one manifest are two houses. Drawn here at mint and
+  // written into the recipe (never at render, which stays pure), before the grader so its best-of-N runs from it:
+  // from the ref when the caller names one, else at random. An explicit seed, or a row minted before, keeps its own.
+  const seeded = newHouseSeed(expandDiagramManifest(working), ref);
+  // ...and, when it leaves its plan to the generator, its program, storeys, footprint and front, drawn from that seed
+  // (floorplan-draw.js) and stamped as ordinary knobs, so the program generator builds it and the grader leaves it be
+  const drawn = seeded?.kind === 'floorplan' ? drawNewHouse(seeded) : {};
+  const expanded = Object.keys(drawn).length ? { ...seeded, ...drawn } : seeded;
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
   // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
   // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,
@@ -353,6 +387,10 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   if (finalized?.kind === 'floorplan') {
     if (finalized.style === undefined) finalized = { ...finalized, style: 'auto' };
     else houseStyleOpts(finalized.style, '', undefined);   // an unknown style refuses, naming the families
+    // and varied: each room arranged from the house seed (`layout: 'varied'`), its furniture composed in the style's
+    // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
+    if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
+    if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
     // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
     const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
     for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
@@ -445,6 +483,9 @@ function isWorldRecipe(manifest) {
 // Creation from an exported world recipe pays the same gates as a whole-manifest edit.
 // This does not reinterpret it as authoring knobs or import assets from another filesystem.
 async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false, solveOps = [] }) {
+  // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
+  // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
+  manifest = resolveArt(manifest);
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world
@@ -474,6 +515,12 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
     if (readout !== 'full' && existingSketch?.manifest?.kind === 'workbench') {
       prevWorkbenchStats = await previousStats(ref, existingSketch.manifest);
     }
+  }
+  // The rigidity sensor's stored spec (`strength`) is shape-checked on the way in, so measure_solid never meets
+  // a malformed one later. Geometry is not needed for this; the reading itself runs in measure_solid.
+  if (manifest.strength !== undefined) {
+    const errs = strengthSpecErrors(manifest.strength);
+    if (errs.length) throw new Error(`strength refused:\n - ${errs.join('\n - ')}`);
   }
   // The scad kind pays planScad's gates on an edit as at mint (the fence, the parts contract,
   // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
@@ -571,7 +618,10 @@ export async function createSketchHandler(input) {
   // labeled-array form, the response mirrors the array shape under the same
   // key and `preloadMetadata` is folded into the first entry's note slot
   // (only for the unlabeled single-string form does the top-level metadata
-  // make sense).
+  // make sense). The echo names each prior and never carries its manifest: the
+  // agent composed against it before this call, so the body would only ride the
+  // context back for nothing (up to PRELOAD_MAX_ITEMS whole manifests). Same
+  // shape as the polygonizer handoff's echo.
   const priors = resolvePreloads(preload);
   let result;
   if (isWorldRecipe(manifest)) {
@@ -580,6 +630,9 @@ export async function createSketchHandler(input) {
     result = persistSketch({ title, manifest: nextManifest, ref, folderRef, bucket });
   } else {
     result = mintSketch({ title, manifest, ref, folderRef, bucket });
+    // A house minted here climbs the same ladder as through mint_building.
+    const next = buildingNext(manifest);
+    if (next) result.next = next;
   }
   if (priors) {
     if (!Array.isArray(preload)) {
@@ -587,14 +640,12 @@ export async function createSketchHandler(input) {
       result.preload = {
         ref: only.ref,
         title: only.title,
-        manifest: only.manifest,
         metadata: preloadMetadata ?? null,
       };
     } else {
       result.preload = priors.map((p) => ({
         ref: p.ref,
         title: p.title,
-        manifest: p.manifest,
         as: p.as,
         note: p.note,
       }));
@@ -881,12 +932,8 @@ export async function updateSketchHandler(input) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
       await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
   } else if (manifest !== undefined) {
-    let expanded;
-    try {
-      expanded = expandNeoRembrandt(withConstellationGrid(expandGridLayout(manifest)));
-    } catch (err) {
-      throw new Error(`Rendrant expansion error: ${err.message}`);
-    }
+    // the same diagram lowering as at mint: sequence / gantt / lanes / boundaries, auto layout
+    const expanded = expandDiagramManifest(manifest);
     let finalized = expanded;
     try {
       const { quality: _grade, ...improved } = improveFloorplanManifest(expanded);   // auto-improve floorplans, grade not stored; no-op otherwise
@@ -933,11 +980,14 @@ export async function updateSketchHandler(input) {
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
   const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
+  // The next steps of a ladder (a building's, a scad part's), from the recipe as stored. Never stored.
+  const next = nextManifest !== undefined ? (buildingNext(nextManifest) ?? scadNext(nextManifest)) : undefined;
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
     ...(design ? { design } : {}),
+    ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),

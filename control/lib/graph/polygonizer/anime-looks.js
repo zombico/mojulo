@@ -19,6 +19,7 @@ import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
 import { resolveTune, validateTune } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
+import { genkiLayers, genkiExpression } from './anime-genki.js';
 
 /** ARCHETYPES: starting characters (tuned for the anime head; numbers are starting points for the eyes gate). A `tune`
  * is relative to the anime proportions the anime head already wears (about 6.5 / 7 heads tall): only a character whose
@@ -98,17 +99,21 @@ export const validateLookTune = (look) => validateTune(lookEntries(look).tune);
  */
 export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   const L = hero.lookResolved ?? null;
-  const { from: _f, ...face } = resolveAnimeFace([L?.face, hero.face].filter(Boolean));
+  // GENKI (anime-genki.js): one more layer over the look and the own layer, on every channel; none when absent or 0
+  const G = genkiLayers(hero);
+  const { from: _f, ...face } = resolveAnimeFace([L?.face, hero.face, G?.face].filter(Boolean));
   const own = hero.hair === 'none' ? 'none' : hero.hair;
-  const layers = own === 'none' ? [] : [L?.hair, own].filter((x) => x !== undefined && x !== null);
+  // a layer may itself be a list (a family word and its controls): its entries join the layers in order, so its family is
+  // read as named and its controls and lock edits compose like any other entry's
+  const layers = own === 'none' ? [] : [L?.hair, own, G?.hair].flatMap((x) => (Array.isArray(x) ? x : [x])).filter((x) => x !== undefined && x !== null);
   const named = !!hairBase && own !== 'none' && resolveAnimeHair(layers).style !== null;
   const base = hairBase && own !== 'none' ? [hairBase.form, ...(named ? [] : [hairBase.cut])] : [];
   const hair = own === 'none' ? 'none' : resolveAnimeHair([...base, ...layers]);
   if (hair !== 'none' && hair.style === null) hair.style = defaultStyle;
-  const hairWords = own === 'none' ? null : resolveAnimeHair([...base, L?.hair].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
-  const expression = hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral');
-  const { from: _t, ...tune } = resolveTune([L?.tune, hero.tune].filter(Boolean));
-  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([L?.sculpt, hero.sculpt].filter((x) => x !== undefined && x !== null));
+  const hairWords = own === 'none' ? null : resolveAnimeHair([...base, ...(Array.isArray(L?.hair) ? L.hair : [L?.hair])].filter((x) => x !== undefined && x !== null)), hairCut = hairBase && own !== 'none' && !named ? hairBase.cut : null;
+  const expression = genkiExpression(hero.expression !== undefined && hero.expression !== null ? resolveAnimeExpression(hero.expression) : L?.expression ?? resolveAnimeExpression('neutral'), hero);
+  const { from: _t, ...tune } = resolveTune([L?.tune, hero.tune, G?.tune].filter(Boolean));
+  const sculpt = hero.sculpt === false ? false : resolveAnimeSculpt([L?.sculpt, hero.sculpt, G?.sculpt].filter((x) => x !== undefined && x !== null));
   return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */

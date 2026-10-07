@@ -19,6 +19,8 @@
  *   node scripts/export-blender.mjs --ref <sketch> --base unlit|shaded   # the taste dials (default lit)
  *   node scripts/export-blender.mjs --ref <sketch> --no-gate             # emit only
  *   node scripts/export-blender.mjs --ref <sketch> --force               # replace an existing <ref>.blend
+ *   node scripts/export-blender.mjs --ref <sketch> --fire-t 6.5          # a recipe with `fire`: the instant to pack (seconds)
+ *   node scripts/export-blender.mjs --ref <sketch> --fire-detail 2       # finer flame voxels (for a close, high-res still)
  * Env: MOJULO_BLENDER (default /Applications/Blender.app/Contents/MacOS/Blender, else `blender` on PATH),
  *      MOJULO_BLENDER_TIMEOUT_MS (watchdog per launch, default 10 min).
  */
@@ -42,6 +44,8 @@ const { values: args } = parseArgs({ options: {
   'no-gate': { type: 'boolean', default: false },
   force: { type: 'boolean', default: false },
   'keep-scratch': { type: 'boolean', default: false },
+  'fire-t': { type: 'string' },
+  'fire-detail': { type: 'string' },
 } });
 
 function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); }
@@ -63,7 +67,7 @@ const outDir = args.out ? path.resolve(args.out) : path.join(outcomes, args.ref,
 
 let pack;
 try {
-  pack = await buildBlenderPack({ ref: args.ref, outDir, base: args.base, posture: args.posture ?? null, log });
+  pack = await buildBlenderPack({ ref: args.ref, outDir, base: args.base, posture: args.posture ?? null, fireT: args['fire-t'] != null ? Number(args['fire-t']) : null, fireDetail: args['fire-detail'] != null ? Number(args['fire-detail']) : 1, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

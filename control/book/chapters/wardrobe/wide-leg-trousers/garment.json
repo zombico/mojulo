@@ -1,0 +1,93 @@
+{
+  "id": "wideLeg",
+  "color": {
+    "cloth": "#23272d"
+  },
+  "ease_cm": 1.5,
+  "pieces": [
+    {
+      "id": "front",
+      "fit": "pattern",
+      "sloper": "trouser-front",
+      "dials": {
+        "length": "ankle",
+        "ease_cm": 10,
+        "ease_hem_cm": 36
+      },
+      "mirror": "frontR"
+    },
+    {
+      "id": "back",
+      "fit": "pattern",
+      "sloper": "trouser-back",
+      "dials": {
+        "length": "ankle",
+        "ease_cm": 10,
+        "ease_hem_cm": 36
+      },
+      "mirror": "backR"
+    }
+  ],
+  "seams": [
+    {
+      "a": {
+        "piece": "front",
+        "edge": "inseam"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "inseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "outseam"
+      },
+      "b": {
+        "piece": "back",
+        "edge": "outseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontR",
+        "edge": "inseam"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "inseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "frontR",
+        "edge": "outseam"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "outseam"
+      }
+    },
+    {
+      "a": {
+        "piece": "front",
+        "edge": "cf"
+      },
+      "b": {
+        "piece": "frontR",
+        "edge": "cf"
+      }
+    },
+    {
+      "a": {
+        "piece": "back",
+        "edge": "cb"
+      },
+      "b": {
+        "piece": "backR",
+        "edge": "cb"
+      }
+    }
+  ]
+}

@@ -7,7 +7,8 @@
  */
 
 import { workbenchAssetFaces } from '../worlds/workbench.js';
-import { facadeFaces } from '../construction/facades.js';
+import { facadeFaces, lockedFurnitureFaces } from '../construction/facades.js';
+import { resolveFurniture } from '../furnishings/forms.js';
 import { buildLeg, buildSlab } from './room-parts.js';
 import {
   buildBookcaseWorkbenchManifest, buildBorderedRugWorkbenchManifest, buildClubArmchairWorkbenchManifest,
@@ -1348,6 +1349,25 @@ Object.assign(ROOM_FURNITURE_ASSETS, {
   'constructed-sideboard': constructed('sideboard', 'sideboard-cabinet', { rooms: ['dining', 'living-room'], roles: ['storage'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }),
   'constructed-chest': constructed('chest', 'low-dresser', { rooms: ['bedroom'], roles: ['storage'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }, ['chest-of-drawers.constructed']),
   'constructed-nightstand': constructed('nightstand', 'bedside-table', { rooms: ['bedroom'], roles: ['storage', 'table'], planeRole: ['storage-plane'], placement: ['floor', 'wall-hugging'], materials: ['wood'] }),
+});
+
+// ── a COMPOSED piece (furnishings/forms.js): a style with forms and a finish, chosen by the house's furniture language
+// (furnishings/languages.js) or by the room, locked at the element's footprint (its seats and drawers follow the size)
+// and drawn as a facade filled to it. `el.compose` is { like, forms?, finish? }; a footprint no build can take falls
+// back to `el.composeFallback`, the roster row's own mesh.
+Object.assign(ROOM_FURNITURE_ASSETS, {
+  'composed-furniture': {
+    id: 'composed-furniture', class: 'room-furniture', local: true, aliases: [],
+    tags: { rooms: [], roles: ['composed'], styles: ['composed'], placement: ['floor'] },
+    buildFaces: (el, { light } = {}) => {
+      const unitMm = Number.isFinite(el.unitMm) ? el.unitMm : 304.8;
+      const { w, d, h } = footprintDims(el);
+      const { locked } = resolveFurniture({ ...el.compose, size: [w * unitMm, d * unitMm, h * unitMm] });
+      // a room's media console carries its television and a nightstand its lamp, as the room's own pieces do
+      return lockedFurnitureFaces(locked, { unitMm, light, fit: true, dress: el.compose.like });
+    },
+    buildManifest: (el) => (ROOM_FURNITURE_ASSETS[el.composeFallback] || ROOM_FURNITURE_ASSETS['sideboard-cabinet']).buildManifest(el),
+  },
 });
 
 const ALIAS_TO_ID = new Map(Object.values(ROOM_FURNITURE_ASSETS).flatMap((asset) => [

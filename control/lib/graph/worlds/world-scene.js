@@ -34,6 +34,7 @@ import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
+import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -74,6 +75,36 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * fallback returns null for any non-room manifest). Async because the workbench path
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
+/** A hero as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
+async function heroFigure(name, spec) {
+  let manifest;
+  if (typeof spec.heroRef === 'string') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const src = SketchRepository.getByRef(spec.heroRef);
+    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (a layered sketch minted through the hero door)`);
+    manifest = src.manifest;
+  } else {
+    const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+    manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero) });
+  }
+  const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name });
+  const body = scene.figures && scene.figures.body;
+  if (!body) throw new Error(`figures.${name}: the hero has no rig with clips to play`);
+  const { preview, embodies, ...pack } = body;
+  const clips = { ...pack.clips };
+  // a LIBRARY (figures/library: an outside animation library's clips, retargeted onto this rig through the T-pose mold):
+  // a state's clip the hero lacks is taken from it, once per clip, under the library's own name
+  const lib = spec.library ? await (await import('@/lib/graph/figures/library/index.js')).loadClipLibrary(spec.library) : null;
+  const { retargetClip } = lib ? await import('@/lib/graph/figures/clip-library.js') : {};
+  const { clipLoops } = lib ? await import('@/lib/graph/figures/library/index.js') : {};
+  for (const [state, clip] of Object.entries(spec.clips || {})) {
+    if (!clips[clip] && lib && lib.clips[clip]) clips[clip] = retargetClip(pack, lib.clips[clip], { once: !clipLoops(clip) });
+    if (!clips[clip]) throw new Error(`figures.${name}: clips.${state} names '${clip}', which the hero does not have (it has ${Object.keys(pack.clips).join(', ')}${lib ? `; the ${lib.id} library has ${Object.keys(lib.clips).join(', ')}` : ''})`);
+    clips[state] = clips[clip];
+  }
+  return { ...pack, clips };
+}
+
 export async function resolveWorldScene(sketch, viewOpts = {}) {
   // field-exact: an `exact: true` field composes through Manifold, which loads asynchronously;
   // the lowering below is synchronous, so the kernel is readied here once (a no-op after).
@@ -132,7 +163,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // ≡ 1), threaded onto `ctx.light` so object-kind assemblers shade flat; the material / AO /
   // weathering darkening passes below are additionally SKIPPED. Absent `viewOpts.unshaded`
   // (the universal case) ⇒ every guard below is inert and every output byte is identical.
-  const unshaded = viewOpts.unshaded === true;
+  // a sixth-gen LOOK (era/look.js): `look` on the manifest. A kind that resolves to raw albedo is resolved unshaded so
+  // the look can bake its own light into it; any other kind keeps its light and takes the look's air and sky. The
+  // stage carries its look as `reference`. Absent `look` ⇒ null ⇒ every guard below is inert, every byte identical.
+  const lookSpec = kind !== 'stage' ? resolveLookSpec(sketch.manifest.look) : null;
+  const bakeLook = !!lookSpec && viewOpts.unshaded !== true && UNSHADED_LAMBERT_KINDS.has(kind);
+  const unshaded = viewOpts.unshaded === true || bakeLook;
   // Registry miss → check the attached recipe book's Door-2 kinds
   // (recipe-book.plan.md) before falling back to the room resolver. The await
   // only runs on a core miss, so every core kind's path is untouched; a book
@@ -155,7 +191,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     live: !!viewOpts.live,
     // FLAT_LIGHT when unshaded, else undefined → each object-kind assembler falls back to
     // its own default key (WORKBENCH_LIGHT etc.), so the shaded path is byte-identical.
-    light: unshaded ? FLAT_LIGHT : undefined,
+    light: unshaded ? FLAT_LIGHT : viewOpts.light,
     // Kinds that shade their OWN faces (fractal-city) read this to emit RAW ALBEDO for a clean
     // GI bake — plain lighting + FLAT_LIGHT, no baked diffusion/moonlight/shadows.
     unshaded,
@@ -163,6 +199,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // FACE (the skinned GLB's ask): the anime hero's rig pack carries its face rows (anime-face-rig.js), which the
     // skinned writer turns into morph targets; nothing else reads it, and the World page never asks
     face: viewOpts.face === true,
+    // the T-pose export (rest: 'tpose'): the flat figure rebuilds its rest on the T armature; nothing else reads it
+    tpose: viewOpts.tpose === true,
   };
   const payload = await desc.resolve(manifest, ctx);
   // the World's ink channel reads it; stills ignore it. A resolver that sets its own `toon` keeps it (the layered kind's
@@ -214,6 +252,49 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (!payload.textures?.[k]) (payload.textures ??= {})[k] = url;
       }
       payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...placed];
+    }
+  }
+
+  // statue refs (historic/statues.js): a historic city's statue slots name stored statues; the city removed the stand-ins
+  // and recorded where each figure stands (metres, its turn, its height). The ref resolves HERE, where the store is: its
+  // World faces baked under the city's sun turned into its own frame (`light`), its base dropped, fitted onto the slot's
+  // base (fitStatueFaces). A ref that places itself refuses, like an unknown one. No statueRefs ⇒ untouched.
+  if (payload && payload.statueRefs) {
+    const { unit, light, list } = payload.statueRefs;
+    delete payload.statueRefs;
+    const chain = [...(viewOpts._itemChain || []), sketch.ref].filter(Boolean);
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { fitStatueFaces, lightInto, statueTurn } = await import('@/lib/graph/historic/statues.js');
+    const { statueWords } = await import('@/lib/graph/statue/expand.js');
+    const baked = new Map();   // one resolve per statue and turn
+    for (const rec of list) {
+      const key = `${rec.ref ?? (rec.hero ? `hero:${JSON.stringify(rec.hero)}` : `form:${rec.form}:${rec.material ?? ''}`)}|${rec.dir}`;
+      if (!baked.has(key) && rec.form) {   // a library form (statue/forms.js): no store
+        const { statueFormManifest } = await import('@/lib/graph/statue/forms.js');
+        const inner = await resolveWorldScene({ ref: `form-${rec.form}`, title: rec.form, manifest: statueFormManifest(rec.form, { material: rec.material }) }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        if (rec.equestrian) throw new Error(`statue on '${rec.at}': an equestrian slot takes a mounted statue, not the ${rec.form}`);
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      if (!baked.has(key) && rec.hero) {   // an inline hero statue (statues: 'carved', or an entry's `hero`): no store
+        const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
+        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero) });
+        const mounted = statueWords(manifest.hero.statue).stand === 'mounted';
+        if (!!rec.equestrian !== mounted) throw new Error(`statue on '${rec.at}': ${rec.equestrian ? 'an equestrian slot takes a mounted statue (statue.stand \'mounted\')' : 'a mounted statue stands on an equestrian slot'}`);
+        const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      if (!baked.has(key)) {
+        const src = SketchRepository.getByRef(rec.ref);
+        if (!src) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is not a stored sketch`);
+        if (chain.includes(src.ref)) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' places itself (${[...chain, src.ref].join(' → ')})`);
+        // an equestrian slot takes a horse and rider, and a horse and rider takes no other slot
+        const mounted = src.manifest?.hero?.statue ? statueWords(src.manifest.hero.statue).stand === 'mounted' : false;
+        if (rec.equestrian && !mounted) throw new Error(`statue on '${rec.at}': an equestrian slot (a rider on a horse) takes a mounted statue — carve ref '${rec.ref}' with /hero/statue/stand 'mounted', or stand it on a standing slot`);
+        if (!rec.equestrian && mounted) throw new Error(`statue on '${rec.at}': ref '${rec.ref}' is mounted (horse and rider); stand it on an equestrian slot`);
+        const inner = await resolveWorldScene(src, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
+        baked.set(key, (inner.payload?.faces || []).filter((f) => !f.studio));
+      }
+      payload.faces = [...(Array.isArray(payload.faces) ? payload.faces : []), ...fitStatueFaces(baked.get(key), rec, { s: 1 / unit, group: `statue:${rec.at}:${rec.figure}` })];
     }
   }
 
@@ -428,6 +509,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (errs.length) throw new Error(`crystalLight is invalid — see get_solid_vocab({ id: 'workbench' }), "Light rigs":\n- ${errs.join('\n- ')}`);
     payload.crystalLight = sketch.manifest.crystalLight;
   }
+  // fire (flame-depiction): live flames that light the world. A kind that knows where its fires are hands them over as
+  // payload.fireSources (a dungeon's chambers and tunnels; a terrain's sources set on the ground); `fire.sources` with
+  // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
+  if (payload && sketch.manifest.fire) {
+    const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
+    const errs = validateFire(sketch.manifest.fire);
+    if (errs.length) throw new Error(`fire is invalid — see get_view_vocab({ id: 'dungeon' }) or ({ id: 'terrain' }), "Fire":\n- ${errs.join('\n- ')}`);
+    const placed = payload.fireSources || [];
+    const r = resolveFire(sketch.manifest.fire, placed, { explicit: !payload.fireSourcesAll, spread: payload.fireSpread || null });
+    if (r) payload.fire = firePageChannel(r, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
+  }
+  if (payload) { delete payload.fireSources; delete payload.fireSourcesAll; delete payload.fireSpread; }
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;
@@ -481,6 +574,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // meshRef entries were consumed by the bind-back block above (static
         // scenery lowered into payload.faces — not an entity body).
         if (typeof rawSpec.meshRef === 'string') continue;
+        // HERO bodies (playscape/player.js): a figures-map entry may be a HERO, inline (`hero`: the hero door's spec, as
+        // mint_solid({ kind: 'layered', via: 'hero', spec }) takes it) or STORED (`heroRef`: a layered hero sketch). It
+        // resolves through the layered kind and hands over the packed rig the World page already plays as a
+        // `figure-rig` body (station-loft-rig.js packLayeredRig: the same keys and blend as every rig body), without
+        // the static solid or the clip preview. `clips` names which of the hero's clips plays each runtime state
+        // ({ forward: 'run', idle: 'idleRelaxed', leap: 'leap' }): the body plays the hero's own clip under the
+        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships) whose
+        // clips fill the states the hero has no clip for, retargeted onto its rig. Absent ⇒ no hero is resolved,
+        // byte-identical.
+        if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
+          payload.figures[name] = await heroFigure(name, rawSpec);
+          continue;
+        }
         // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
         // kind:'figure' sketch instead of re-declaring the body — the entry inherits the
         // recipe's pose/proto/garment/motion and its own fields override. This is how a
@@ -669,7 +775,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const figureSources = {};
       for (const [name, rawSpec] of Object.entries(figs)) {
         if (!rawSpec || typeof rawSpec !== 'object') continue;
-        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef']
+        const refKey = ['unitRef', 'figureRef', 'vehicleRef', 'polygomerRef', 'meshRef', 'heroRef']
           .find((k) => typeof rawSpec[k] === 'string');
         if (refKey) figureSources[name] = `${refKey}:${rawSpec[refKey]}`;
       }
@@ -738,7 +844,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // channel the static stills can't run, so `nonBakeable` (the /svg + /scene degrade to frame zero).
   // Mechanics-lowered events (mechEvents) merge in here so the one bus runs both.
   const ev = payload && mergeEventManifests(sketch.manifest.events, mechEvents);
-  if (ev && ((Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length))) {
+  // A HUD-only block (a `legend` idiom: the controls hint) is a live channel too: it paints and fades on the page.
+  if (ev && ((Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {
     // the HUD widget language (hud-widgets.js): rows are validated here so a bad slot / kind /
     // token fails the compose_world resolve gate with a teaching message instead of painting
     // wrong; the events channel normalizes again at emit (idempotent), so fixtures stay raw.
@@ -823,8 +930,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // capture runs, so muted bakes stay byte-identical); the /svg + /scene stills ignore it.
   // Presentation, not simulation — it reads sim state and never feeds back. Additive; absent ⇒
   // untouched. NOT flagged nonBakeable: audio has no visual frame, so stills stay full-fidelity.
+  // A kind may name its own defaults first (`desc.audio(manifest) → audio spec`: the historic kind's
+  // `soundtrack: 'default'` is its culture's period music); a kind without one reads the manifest's as written.
   if (payload && sketch.manifest.audio && typeof sketch.manifest.audio === 'object') {
-    const resolvedAudio = resolveWorldAudio(sketch.manifest.audio, { time });
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
 
@@ -860,6 +969,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     payload.unshadedWarning = `kind '${kind}' does not shade through the vexar FLAT_LIGHT seam (it bakes environment/self lighting), so unshaded export did not flatten it — the exported base still carries baked lighting.`;
   }
 
+  // the LOOK lands last among the face passes: every face the world placed above (items, statues, figures) is baked
+  // under one light
+  if (payload && lookSpec) applyLook(payload, lookSpec, { bake: bakeLook });
+
   // A recipe-level unit declaration (`manifest.metersPerUnit`): a kind authored at another
   // scale (the fractal city's storey is 0.82 units — a town scale, not metres) says so on the
   // recipe, and the exporters' root scale + the engine score follow (scene-gltf, engine-score),
@@ -882,6 +995,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       const mpu = metersPerUnitFor(declared.units);
       if (Number.isFinite(mpu) && mpu > 0 && mpu !== 1) payload.metersPerUnit = mpu;
     }
+  }
+
+  // generic, opt-in MARKS: a pointer at a world point — authored `marks`, and the rigidity sensor's weak spots when
+  // the row stores a `strength` spec (`strength.show: false` keeps them off). Only its rings pulse; the part, the
+  // arrow and the label stay still. It is not a face, so no mesh export carries it. Absent both ⇒ payload untouched.
+  if (payload && ((Array.isArray(manifest.marks) && manifest.marks.length) || (manifest.strength && typeof manifest.strength === 'object' && manifest.strength.show !== false))) {
+    const { worldMarks } = await import('@/lib/graph/strength/world-marks');
+    const marks = worldMarks(payload, manifest, { mmPerUnit: (payload.metersPerUnit ?? 1) * 1000 });
+    if (marks.length) payload.marks = marks;
   }
 
   return { payload, kind };

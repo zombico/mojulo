@@ -9,6 +9,13 @@
 // (hardware.js): it is placed as a loose piece and the members lose the hole it asks for (`boreTerm`), so a
 // countersink fits its head and a pilot its thread. Members are axis-aligned here (boxes), as casework is.
 //
+// A member joined at the same place from both of its faces (a partition with a shelf each side) would take the second
+// joint's holes on top of the first's: 11 mm of cam bolt from each face of an 18 mm board, or two shelf-pin holes back
+// to back. Every hole is recorded (`out.holes`, world cylinders), and the second joint's fittings move along the
+// contact, toward its middle, by the least whole millimetre that leaves `WALL` of board between its holes and those
+// already there (`stagger`). Where nothing has to move, nothing does. The interference check (furniture-checks.js)
+// reports any two fittings whose holes still meet inside a member.
+//
 // Each joint records how firmly it holds the corner against racking (`rigidity`): 'moment' (a bracket; any dowel,
 // screw, confirmat or dado joint that is also glued, `glue: true`), 'shear' (a back in a groove, the carcass's
 // diagonal), 'pin' (the knock-down fittings: they hold the parts together but let the corner turn), 'none' (a shelf on
@@ -36,6 +43,64 @@ export const RIGIDITY = Object.freeze({
   dowel: 'pin', 'cam-lock': 'pin', confirmat: 'pin', screwed: 'pin', 'shelf-pin': 'none', bracket: 'moment', dado: 'pin', groove: 'shear',
   hinge: 'none', slide: 'none', dovetail: 'moment', finger: 'moment', 'insert-bolt': 'pin', 'hanger-bolt': 'pin', springs: 'none',
 });
+
+/** The board left between two holes (m), and the overlap that counts as two holes meeting. */
+export const WALL = 0.003;
+const TOL = 0.0002;
+
+/** A lathe bore term → its stepped hole as cylinders [{ a, b, r }] (in the term's frame). */
+function latheCyls(t) {
+  const d = sub(t.axisTo, t.axisFrom); const out = [];
+  for (let i = 0; i + 1 < t.profile.length; i++) {
+    const p = t.profile[i], q = t.profile[i + 1];
+    if (q.t - p.t > 1e-9) out.push({ a: add(t.axisFrom, scl(d, p.t)), b: add(t.axisFrom, scl(d, q.t)), r: Math.max(p.radius, q.radius) });
+  }
+  return out;
+}
+/** The world hole a part bores at world `at` along `axis` → cylinders. */
+function boreCyls(P, at, axis, through = 0, material = 'softwood') {
+  const t = boreTerm(P, { at, axis, through, material });
+  return t ? latheCyls(t) : [];
+}
+const axisOf = (c) => { const d = sub(c.b, c.a); return [0, 1, 2].reduce((m, i) => (Math.abs(d[i]) > Math.abs(d[m]) ? i : m), 0); };
+const cylBox = (c, k) => ({ lo: [0, 1, 2].map((i) => (i === k ? Math.min(c.a[i], c.b[i]) : c.a[i] - c.r)), hi: [0, 1, 2].map((i) => (i === k ? Math.max(c.a[i], c.b[i]) : c.a[i] + c.r)) });
+/**
+ * Do two axis-aligned hole cylinders come within `gap` (m) of each other (inside `within`, a world box, when given)? →
+ * the overlap of their boxes per world axis (m), or null. A negative gap asks that they overlap by that much.
+ */
+export function cylsMeet(c, e, gap = -TOL, within = null) {
+  const kc = axisOf(c), ke = axisOf(e);
+  const bc = cylBox(c, kc), be = cylBox(e, ke);
+  const ov = [0, 1, 2].map((i) => Math.min(bc.hi[i], be.hi[i], within ? within.hi[i] : Infinity) - Math.max(bc.lo[i], be.lo[i], within ? within.lo[i] : -Infinity));
+  if (kc === ke) {
+    const [i, j] = [0, 1, 2].filter((q) => q !== kc);
+    if (dmath.hypot(c.a[i] - e.a[i], c.a[j] - e.a[j]) >= c.r + e.r + gap) return null;
+    return ov.every((v) => v > -gap) ? ov : null;
+  }
+  return ov.every((v) => v > -gap) ? ov : null;
+}
+/** Record the holes fitting `fit` makes in M (world cylinders); `mates` are the fittings it is meant to meet there. */
+function recordHoles(out, M, fit, cyls, mates = []) {
+  if (!out.holes) out.holes = [];
+  for (const cyl of cyls) out.holes.push({ member: M.id, fit, cyl, mates });
+}
+/**
+ * The positions along contact c, moved toward its middle by the least whole millimetre that leaves WALL of board between
+ * the holes `holesAt(rho)` makes in the face member and those already in it; `reach` (m) is how far a fitting needs
+ * from the contact's ends. Unmoved (the same numbers) when they already clear, or when no move up to 64 mm does.
+ */
+function stagger(out, c, pos, holesAt, reach) {
+  const there = (out.holes || []).filter((h) => h.member === c.F.id);
+  if (!there.length) return pos;
+  const clear = (ps) => ps.every((rho) => holesAt(rho).every((h) => there.every((e) => !cylsMeet(h, e.cyl, WALL, c.fb))));
+  if (clear(pos)) return pos;
+  const mid = (c.runLo + c.runHi) / 2;
+  for (let d = 1; d <= 64; d++) {
+    const ps = pos.map((rho) => rho + (Math.sign(mid - rho) || 1) * d * MM);
+    if (ps.every((rho) => rho - reach >= c.runLo - 1e-9 && rho + reach <= c.runHi + 1e-9) && clear(ps)) return ps;
+  }
+  return pos;
+}
 
 /** A member's world box (metres): { lo, hi, c, size }. */
 export function worldBox(M) {
@@ -114,22 +179,23 @@ const L = (M, p) => toLocal(M.F, p);
 const Ld = (M, v) => [dot(v, M.F.ex), dot(v, M.F.ey), dot(v, M.F.ez)];
 
 /** Place part `code` at world `at` along world `axis`, seated in `host` → a piece; cut its bore from `cuts` members. */
-function place(out, J, { code, part, at, axis, spin, host, cuts = [], through = 0, material, idx, pre, needs }) {
+function place(out, J, { code, part, at, axis, spin, host, cuts = [], through = 0, material, idx, pre, needs, mates }) {
   const P = part || hardwarePart(code);
   const id = `${J.label}:${P.family}${idx !== undefined ? idx + 1 : ''}`;
   out.pieces.push({ id, kind: P.family, host, material: 'hardware', finish: P.finish, code: P.code, massG: P.massG, polys: partPolys(P, { at: L(host, at), axis: Ld(host, axis), ...(spin ? { spin: Ld(host, spin) } : {}) }), ...(pre ? { pre } : {}) });
   for (const M of cuts) {
     const t = boreTerm(P, { at: L(M, at), axis: Ld(M, axis), through, material: material || materialClass(M) });
-    if (t) M.subs.push(t);
+    if (t) { M.subs.push(t); recordHoles(out, M, id, boreCyls(P, at, axis, through, material || materialClass(M)), mates); }
   }
   // a fitting seated in one part before assembly goes in along its axis; a screw after the parts it crosses
   out.edges.push({ a: id, b: host.id, dirs: [axis], piece: true, needs: needs || (pre ? [host.id] : [...new Set([host.id, ...cuts.map((M) => M.id)])]) });
   return id;
 }
-/** A plain round hole in M (world `at`, `axis`, from s0 to s1 mm along it, ⌀ mm): the cam bolt's passage. */
-function holeIn(M, at, axis, s0, s1, d) {
+/** A plain round hole in M (world `at`, `axis`, from s0 to s1 mm along it, ⌀ mm): the cam bolt's passage, `fit`'s. */
+function holeIn(M, at, axis, s0, s1, d, rec) {
   const a = L(M, add(at, scl(axis, s0 * MM))), b = L(M, add(at, scl(axis, s1 * MM)));
   M.subs.push({ kind: 'lathe', axisFrom: a, axisTo: b, profile: [{ t: 0, radius: (d / 2) * MM }, { t: 1, radius: (d / 2) * MM }] });
+  if (rec) recordHoles(rec.out, M, rec.fit, [{ a: add(at, scl(axis, s0 * MM)), b: add(at, scl(axis, s1 * MM)), r: (d / 2) * MM }], rec.mates);
 }
 
 /** The dowel a panel thickness takes (mm): 6 in thin stock, 8 in 16–21 mm, 10 above. */
@@ -153,10 +219,11 @@ function dowelJoint(J, A, B, out) {
   const tF = c.fb.size[c.k] * 1000;
   const intoF = Math.min(P.length / 2, Math.max(6, tF * 0.65));
   const ac = (c.acLo + c.acHi) / 2;
-  const pos = fittingPositions(c.runLo, c.runHi, { inset: 0.032, spacing: J.spacing ? J.spacing * MM : 0.15 });
+  const dowelAt = (rho) => add(c.point(rho, ac), scl(c.n, (P.length / 2 - intoF) * MM));
+  const pos = stagger(out, c, fittingPositions(c.runLo, c.runHi, { inset: 0.032, spacing: J.spacing ? J.spacing * MM : 0.15 }), (rho) => boreCyls(P, dowelAt(rho), c.n), (P.d / 2) * MM + WALL);
   const rows = [];
   pos.forEach((rho, i) => {
-    const at = add(c.point(rho, ac), scl(c.n, (P.length / 2 - intoF) * MM));
+    const at = dowelAt(rho);
     place(out, J, { part: P, at, axis: c.n, host: c.E, cuts: [c.E, c.F], idx: i, pre: c.E.id });
     rows.push(fastenerRow(P, c, { throughMm: intoF }));
   });
@@ -175,22 +242,37 @@ function camJoint(J, A, B, out) {
   const dw = hardwarePart(dowelFor(tE));
   const tF = c.fb.size[c.k] * 1000;
   const intoF = Math.min(dw.length / 2, Math.max(6, tF * 0.65));
-  const pos = fittingPositions(c.runLo, c.runHi, { inset: 0.037, spacing: J.spacing ? J.spacing * MM : 0.3 });
+  const pos0 = fittingPositions(c.runLo, c.runHi, { inset: 0.037, spacing: J.spacing ? J.spacing * MM : 0.3 });
   const mid = (c.runLo + c.runHi) / 2;
+  // the dowel beside each cam: 32 mm toward the middle; beside a lone cam (a short contact, a plinth) or the middle one
+  // of an odd row, 32 mm or else 16 mm (clear of the cam's ⌀15 bore) to whichever side leaves its hole WALL inside
+  const need = (dw.d / 2) * MM + WALL;
+  const dowelAt = (rho) => {
+    if (!withDowels) return null;
+    if (pos0.length > 1 && Math.sign(mid - rho)) return rho + Math.sign(mid - rho) * 0.032;
+    for (const off of [0.032, 0.016]) for (const sg of [1, -1]) { const rd = rho + sg * off; if (rd - need >= c.runLo - 1e-9 && rd + need <= c.runHi + 1e-9) return rd; }
+    return null;
+  };
+  const dowelPoint = (rd) => add(c.point(rd, eMid), scl(c.n, (dw.length / 2 - intoF) * MM));
+  const pos = stagger(out, c, pos0, (rho) => {
+    const rd = dowelAt(rho);
+    return [...boreCyls(bolt, c.point(rho, eMid), scl(c.n, -1), 0, materialClass(c.F)), ...(rd === null ? [] : boreCyls(dw, dowelPoint(rd), c.n))];
+  }, (cam.d / 2) * MM + WALL);
   const rows = []; const camRows = [];
   pos.forEach((rho, i) => {
     const p = c.point(rho, eMid);
+    const camId = `${J.label}:${cam.family}${i + 1}`, boltId = `${J.label}:${bolt.family}${i + 1}`;
     // the cam: its centre `edgeDist` into the edge member, flush with the chosen face
     const camAt = add(add(p, scl(c.n, cam.edgeDist * MM)), scl(m, (tE / 2) * MM));
-    place(out, J, { part: cam, at: camAt, axis: scl(m, -1), host: c.E, cuts: [c.E], idx: i, pre: c.E.id });
+    place(out, J, { part: cam, at: camAt, axis: scl(m, -1), host: c.E, cuts: [c.E], idx: i, pre: c.E.id, mates: [boltId] });
     // the bolt: screwed into the face member, its ball reaching the cam through a ⌀8 passage in the edge
     place(out, J, { part: bolt, at: p, axis: scl(c.n, -1), host: c.F, cuts: [c.F], idx: i, pre: c.F.id, material: materialClass(c.F) });
-    holeIn(c.E, p, c.n, -0.5, cam.edgeDist, 8);
+    holeIn(c.E, p, c.n, -0.5, cam.edgeDist, 8, { out, fit: boltId, mates: [camId] });
     camRows.push({ floorMm: r1(tE - cam.bore.depth) });
     rows.push({ ...fastenerRow(bolt, c, { throughMm: 0, into: c.F, intoEdge: false }), penMm: bolt.into, pokeMm: r1(Math.max(0, bolt.into + 2 - tF)) });
-    if (withDowels && pos.length > 1) {
-      const rd = rho + Math.sign(mid - rho) * 0.032;
-      const at = add(c.point(rd, eMid), scl(c.n, (dw.length / 2 - intoF) * MM));
+    const rd = dowelAt(rho);
+    if (rd !== null) {
+      const at = dowelPoint(rd);
       place(out, J, { part: dw, at, axis: c.n, host: c.F, cuts: [c.E, c.F], idx: i, pre: c.F.id });
       rows.push(fastenerRow(dw, c, { throughMm: intoF }));
     }
@@ -219,10 +301,12 @@ function screwJoint(J, A, B, out, kind) {
   }
   const P = hardwarePart(code);
   const ac = (c.acLo + c.acHi) / 2;
-  const pos = fittingPositions(c.runLo, c.runHi, { inset: kind === 'confirmat' ? 0.05 : 0.04, spacing: J.spacing ? J.spacing * MM : kind === 'confirmat' ? 0.3 : 0.2 });
+  const outerAt = (rho) => add(c.point(rho, ac), scl(c.n, -tF * MM)); // the face member's far face, where the head sits
+  const pos = stagger(out, c, fittingPositions(c.runLo, c.runHi, { inset: kind === 'confirmat' ? 0.05 : 0.04, spacing: J.spacing ? J.spacing * MM : kind === 'confirmat' ? 0.3 : 0.2 }),
+    (rho) => boreCyls(P, outerAt(rho), c.n, tF, materialClass(c.E)), (P.d / 2) * MM + WALL);
   const rows = [];
   pos.forEach((rho, i) => {
-    const outer = add(c.point(rho, ac), scl(c.n, -tF * MM));        // the face member's far face, where the head sits
+    const outer = outerAt(rho);
     place(out, J, { part: P, at: outer, axis: c.n, host: c.F, cuts: [c.F, c.E], through: tF, material: materialClass(c.E), idx: i });
     rows.push(fastenerRow(P, c, { throughMm: tF, intoEdge }));
   });
@@ -234,9 +318,10 @@ function shelfPinJoint(J, A, B, out) {
   // a is the shelf, b the side it rests against
   const c = contact({ ...J, through: 'b' }, A, B);
   const P = hardwarePart('shelf-pin-5');
-  const pos = fittingPositions(c.runLo, c.runHi, { inset: 0.037, spacing: 1 });
   // the pin under the shelf: its axis at the shelf's underside less its radius (a horizontal shelf: across is z)
   const acPin = c.acLo - (P.d / 2) * MM;
+  // on a partition pinned from both faces at one height, this face's pins move along the shelf clear of the other's
+  const pos = stagger(out, c, fittingPositions(c.runLo, c.runHi, { inset: 0.037, spacing: 1 }), (rho) => boreCyls(P, c.point(rho, acPin), scl(c.n, -1)), (P.d / 2) * MM + WALL);
   // pins go in when the shelf does (a builder sets the height then), not before the carcass is up
   pos.forEach((rho, i) => place(out, J, { part: P, at: c.point(rho, acPin), axis: scl(c.n, -1), host: c.F, cuts: [c.F], idx: i, needs: [c.F.id, c.E.id] }));
   const runV = axisVec(c.run, 1);

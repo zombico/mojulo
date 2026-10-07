@@ -19,6 +19,7 @@ import { gameChannelScript } from './game.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
+import { marksChannelScript } from './marks.js';
 import { moverChannelScript } from './mover.js';
 import { pickChannelScript } from './pick.js';
 import { planetChannelScript } from './planet.js';
@@ -215,6 +216,10 @@ export const SETUP_CHANNELS = [
   { key: 'spriteSfx', anchor: 'post-step', script: spriteSfxChannelScript,
     normalizeIn: 'emitThreeWorld',     // assigns the scene-three-emitted `let stepSpriteSfx`
     sep: '' },                         // adjacent to fx on one template line (byte pin)
+  { key: 'marks', anchor: 'post-step', script: marksChannelScript,
+    normalizeIn: 'emitThreeWorld',     // assigns the scene-three-emitted `let stepMarks` (the strength sensor's pointer)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojMarks'] },        // the pointer count, for probes
   { key: 'audio', anchor: 'post-overlays', script: audioChannelScript,
     normalizeIn: 'emitThreeWorld',     // capture-gated: never emitted on capture runs
     requiresOptional: ['__BUS', '__mojCtrl'] },   // + walkOn (a registry let) for the gait loop
@@ -302,6 +307,7 @@ export function mojStepCalls() {
 export { glowSpriteScript } from './glow.js';
 export { splatChannelScript } from './splats.js';
 export { spriteSfxChannelScript } from './sprite-sfx.js';
+export { marksChannelScript, normalizeMarks } from './marks.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';
@@ -322,7 +328,12 @@ export { transportChannelScript } from './transport.js';
 export { shadowDecalScript } from './shadow-decal.js';
 export { inkDecalScript } from './ink-decal.js';
 export { skyDomeScript } from './sky-dome.js';
-export { waterMeshScript } from './water.js';
+export { waterMeshScript, liquidMeshScript } from './water.js';
+export { shallowsChannelScript } from './shallows.js';
+export { jetChannelScript } from './jet.js';
+export { aquaPatchScript } from './aqua-glsl.js';
+export { wetSandScript } from './wet-sand.js';
+export { softGroundScript } from './soft-ground.js';
 export { toonInkScript } from './toon-ink.js';
 export { drawLayersScript, drawLayerGroup, DRAW_LAYER_KEYS } from './draw-layers.js';
 export { walkModeScript } from './walk.js';

@@ -10,7 +10,7 @@ preflight, explicit installation, CLI execution with isolated workspace storage,
 recipe checkpoints. Installation uses npm and its native dependency install scripts;
 exports and runtime data stay in the selected workspace until transferred by the host.
 
-Mojulo is pinned to 3.0.0 by default. While testing this branch, install its tarball:
+Mojulo is pinned to 3.1.0 by default. While testing this branch, install its tarball:
 the published package with the same version may not include this work. The runner
 records and verifies the development tarball hash during checkpoint recovery.
 

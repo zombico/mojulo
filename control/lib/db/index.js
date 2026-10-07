@@ -314,6 +314,7 @@ function init(db) {
         'game_glyph',
         'game_sfx',
         'game_hud',
+        'game_idiom',
         'game_project',
         'routing'
       )),
@@ -811,6 +812,7 @@ function init(db) {
   migratePlanColumns(db);
   migrateResearchColumns(db);
   migrateSketchColumns(db);
+  migrateRecipeVersionColumns(db);
   migrateStashItemColumns(db);
   migrateStashItemTypeCheck(db);
   migrateStashBindingKindCheck(db);
@@ -822,6 +824,7 @@ function init(db) {
   migrateEmbeddingsMotionVocabKind(db);
   migrateEmbeddingsGameHudKind(db);
   migrateEmbeddingsNullableVector(db);
+  migrateEmbeddingsGameIdiomKind(db);
   ensureEmbeddingsFts(db);
   migrateMcpToolCallColumns(db);
   migrateUserColumns(db);
@@ -1174,6 +1177,22 @@ function migrateSketchColumns(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_updated_at ON sketches(updated_at DESC)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_sketches_folder_ref ON sketches(folder_ref)');
   migrateSketchDerivedColumns(db, have);
+}
+
+// The mojulo version that wrote each recipe (3.1.0). `minted_version` is the
+// version that minted the row and never moves; `revised_version` is the
+// version that last changed its manifest (NULL until the first edit). Each
+// revision row carries the version that wrote ITS manifest. A row written
+// before 3.1.0 stays NULL: it was made by 3.0.0 or earlier, and which one is not
+// known, so nothing is guessed. Stamped by the repositories from then on.
+function migrateRecipeVersionColumns(db) {
+  const have = (table) => new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+  const sketches = have('sketches');
+  if (!sketches.has('minted_version')) db.exec('ALTER TABLE sketches ADD COLUMN minted_version TEXT');
+  if (!sketches.has('revised_version')) db.exec('ALTER TABLE sketches ADD COLUMN revised_version TEXT');
+  for (const table of ['sketch_revisions', 'beats_revisions']) {
+    if (!have(table).has('version')) db.exec(`ALTER TABLE ${table} ADD COLUMN version TEXT`);
+  }
 }
 
 // Persisted DERIVED columns on sketches: `kind` (manifest.kind) and
@@ -1714,6 +1733,64 @@ function migrateEmbeddingsNullableVector(db) {
         'game_glyph',
         'game_sfx',
         'game_hud',
+        'game_project',
+        'routing'
+      )),
+      source_ref TEXT NOT NULL,
+      content_hash TEXT NOT NULL,
+      body_text TEXT NOT NULL,
+      embedding BLOB,
+      model TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(source_kind, source_ref)
+    );
+    INSERT INTO meta_embeddings_new
+      (id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at)
+      SELECT id, source_kind, source_ref, content_hash, body_text, embedding, model, created_at
+      FROM meta_embeddings;
+    DROP TABLE meta_embeddings;
+    ALTER TABLE meta_embeddings_new RENAME TO meta_embeddings;
+    CREATE INDEX IF NOT EXISTS idx_meta_embeddings_kind ON meta_embeddings(source_kind);
+    COMMIT;
+  `);
+}
+
+// Adds the 'game_idiom' source kind (the idiom-cards shelf — the reusable rules of game-idioms.js).
+// Runs after the nullable-vector rebuild so it keeps a nullable embedding; same rebuild idiom as the
+// siblings above, guarded on the new value; the CHECK list must match the CREATE TABLE block above.
+function migrateEmbeddingsGameIdiomKind(db) {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='meta_embeddings'")
+    .get();
+  if (!row || !row.sql) return;
+  if (row.sql.includes("'game_idiom'")) return;
+  db.exec(`
+    BEGIN;
+    CREATE TABLE meta_embeddings_new (
+      id INTEGER PRIMARY KEY,
+      source_kind TEXT NOT NULL CHECK(source_kind IN (
+        'principle',
+        'mcp_tool',
+        'mcp_capability',
+        'orbit_component',
+        'orbit_composition',
+        'orbit_artifact',
+        'catalyst',
+        'sketch_vocab',
+        'sketch_method',
+        'manji_program',
+        'painted_landscape',
+        'view_vocab',
+        'solid_vocab',
+        'motion_vocab',
+        'beats_vocab',
+        'game_vocab',
+        'game_mechanic',
+        'game_kit',
+        'game_glyph',
+        'game_sfx',
+        'game_hud',
+        'game_idiom',
         'game_project',
         'routing'
       )),

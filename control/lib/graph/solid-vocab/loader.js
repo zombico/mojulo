@@ -6,7 +6,9 @@
  *     workbench, assembler, carved-solid, solid-turntable, edifice, vehicle),
  *     and
  *   - `edit_solid` ops (the verbs over an already-minted family solid: skin,
- *     emote).
+ *     emote), and
+ *   - `fabricate`, the manual of `fabricate_solid` (needs → standard parts,
+ *     carried out by a scad source or a workbench frame).
  *
  * Each card carries the depiction prose, the "reach for" routing phrases, and
  * the parameter manual that used to live in the retired tool's tools/list
@@ -28,6 +30,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { readBookCards } from '../views/recipe-book/cards.js';
+import { animalEntryCards } from '../fauna/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 
 // `when` is required for the same reason as view-vocab: it's the intent-shaped
@@ -36,7 +39,7 @@ const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 // prose does.
 const REQUIRED_FIELDS = ['id', 'name', 'family', 'entry', 'summary', 'when'];
 const VALID_FAMILIES = new Set(['figure', 'creature', 'object', 'structure', 'vehicle', 'edit']);
-const VALID_ENTRIES = new Set(['mint_solid', 'edit_solid']);
+const VALID_ENTRIES = new Set(['mint_solid', 'edit_solid', 'fabricate_solid']);
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 let cache = null;
@@ -68,7 +71,49 @@ function parseCard(filePath) {
       `solid-vocab card ${filePath}: entry '${meta.entry}' not in ${[...VALID_ENTRIES].join(', ')}`,
     );
   }
-  return { ...meta, body: raw.slice(match[0].length).trim() };
+  return { ...meta, ...splitSections(raw.slice(match[0].length).trim(), filePath) };
+}
+
+// A long card can mark its deeper steps so a reader opens it at the first one:
+//   <!-- section: <name> | <title> | <one-line summary> -->
+//   …
+//   <!-- /section -->
+// `body` is the whole card with the marks removed (what search and the embeddings index, as before). `base` is
+// the card with each section replaced in place by one stub line; `sections` holds each one's text. A card with no
+// marks gets neither field and reads exactly as it did.
+const SECTION_OPEN = /^<!-- section: ([a-z][a-z0-9-]*) \| ([^|]+?) \| ([^|]+?) -->$/;
+const SECTION_CLOSE = '<!-- /section -->';
+
+export function splitSections(text, where = 'card') {
+  if (!text.includes('<!-- section:')) return { body: text };
+  const lines = text.split('\n');
+  const bodyLines = [], baseLines = [], sections = {};
+  let open = null;
+  for (const line of lines) {
+    const m = line.match(SECTION_OPEN);
+    if (m) {
+      if (open) throw new Error(`solid-vocab card ${where}: section '${m[1]}' opens inside '${open.name}'`);
+      if (sections[m[1]]) throw new Error(`solid-vocab card ${where}: duplicate section '${m[1]}'`);
+      open = { name: m[1], title: m[2].trim(), summary: m[3].trim(), lines: [] };
+      baseLines.push({ stub: open });
+      continue;
+    }
+    if (line === SECTION_CLOSE) {
+      if (!open) throw new Error(`solid-vocab card ${where}: a section closes that never opened`);
+      sections[open.name] = { title: open.title, summary: open.summary, body: open.lines.join('\n').trim() };
+      open = null;
+      continue;
+    }
+    bodyLines.push(line);
+    if (open) open.lines.push(line);
+    else baseLines.push(line);
+  }
+  if (open) throw new Error(`solid-vocab card ${where}: section '${open.name}' never closes`);
+  const kb = (s) => `${(Buffer.byteLength(s, 'utf8') / 1024).toFixed(1)} KB`;
+  const base = baseLines
+    .map((l) => (typeof l === 'string' ? l : `- **${l.stub.title}** — ${l.stub.summary}. Section \`${l.stub.name}\`, ${kb(sections[l.stub.name].body)}.`))
+    .join('\n');
+  return { body: bodyLines.join('\n'), base, sections };
 }
 
 export function getSolidVocabCatalog() {
@@ -84,6 +129,13 @@ export function getSolidVocabCatalog() {
     if (catalog.has(card.id)) {
       throw new Error(`solid-vocab: duplicate card id '${card.id}' (${file})`);
     }
+    catalog.set(card.id, card);
+  }
+  // Generated animal entries (`generated: true`): the roster's index, family hubs and species, built from the fauna
+  // species and their `about` / `wanted` tables at load (../fauna/entries.js), never hand-written. Found by search,
+  // read by id; the bare index listing leaves them out (the `animal` card points at their index, `animals`).
+  for (const card of animalEntryCards()) {
+    if (catalog.has(card.id)) throw new Error(`solid-vocab: generated animal entry '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
   // Attached recipe-book / cookbook cards routed here by their

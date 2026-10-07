@@ -108,7 +108,7 @@ const LEXICON = [
     routes: [
       { tool: 'mint_solid', when: 'most objects/figures from a natural-language prompt', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_workbench', when: 'an object study with face-card detailing' },
-      { tool: 'preview_vehicle_instance', when: 'a vehicle from the meta-fabricator families' },
+      { tool: 'preview_vehicle_instance', when: 'a vehicle from the registered vehicle families' },
       { tool: 'create_figure', when: 'a human figure (posed protoform)' },
     ],
     then: [EXPORT],
@@ -255,9 +255,10 @@ const LEXICON = [
     support: PARTIAL,
     routes: [
       { tool: 'mint_solid', when: "a FILLET: the `fields` monomer's `round` term inflates a solid and rounds every edge and corner; `blend` on an `add`/`subtract` fillets that one junction; `box` takes its own `round`.", args: { kind: 'workbench', spec: { fields: [{ terms: [{ op: 'add', shape: { kind: 'box', center: [0, 0, 1], size: [4, 3, 2], round: 0.3 } }] }] } } },
+      { tool: 'mint_solid', when: 'a sharp CHAMFER or ONE edge filleted, exactly: the `scad` kind\'s library — `mj_chamfer_box` / `mj_rounded_box` for every edge, `mj_edge_chamfer` / `mj_edge_round` subtracted along one outside edge, `mj_fillet` added into one inside corner.', args: { kind: 'scad', spec: { source: 'difference() { cube([30, 20, 10]); translate([0, 20, 10]) mj_edge_chamfer(30, 2); }' } } },
     ],
     then: [EXPORT],
-    ceiling: 'Uniform fillets only (the whole solid, or one blended junction), rounded to the field grid. A sharp CHAMFER (a flat 45° break) and per-edge fillet selection are not on offer.',
+    ceiling: 'On the workbench: uniform fillets only (the whole solid, or one blended junction), rounded to the field grid. In the `scad` kind: exact chamfers and fillets, placed edge by edge by hand (there is no edge selection by topology, and a variable-radius blend is not on offer).',
     dcc: "Chamfers and per-edge bevels: export and use Blender's Bevel modifier with edge weights / bevel segments — or, for a machined edge on a toleranced part, a B-rep CAD tool (see `precision cad`).",
   },
   {
@@ -268,14 +269,57 @@ const LEXICON = [
     concept: 'A part whose value is in its FIT — tolerances, threads, gear teeth, mating faces, machined edges — rather than its form.',
     support: HANDOFF,
     routes: [
-      { tool: 'mint_solid', when: 'the FORM of the part (a bracket, a housing, a bolt circle) is native — author it here for the world, the game, and a form-accurate print; the FIT is not', args: { kind: 'workbench', spec: { units: 'mm' } } },
+      { tool: 'mint_solid', when: 'the FORM of the part (a bracket, a housing, a bolt circle) is native — author it here for the world, the game, and a form-accurate print', args: { kind: 'workbench', spec: { units: 'mm' } } },
+      { tool: 'mint_solid', when: "the common FIT features, printable: the `scad` kind's `mj_*` library — ISO metric bolts, nuts and tapped holes with real helical threads, holes that print true (`mj_hole` with a press / slip / loose fit), counterbores, countersinks, nut traps, heat-set pilots, involute spur / helical / rack / ring / planetary gears that mesh at their computed centre distance, GT2 pulleys. Check a fit by intersecting the two parts: an empty intersection is a clearance.", args: { kind: 'scad', spec: { source: 'difference() { cube([30, 20, 10]); translate([15, 10, 10]) mj_tapped_hole("M5", 8); }' } } },
     ],
     then: [
       { tool: 'export_model', when: "meet the CAD tool HALFWAY: `format: 'scad'` hands the form over as an OpenSCAD program — exact solids and booleans with the recipe's numbers as variables at the head of the file — so the fit is added in a tool that can express it, over geometry you did not have to re-model. Still not a B-rep: no threads, no constraints, no GD&T.", args: { ref: '<sk_ref>', format: 'scad' } },
       { tool: 'bind_mesh_render', when: 'bring the CAD part home: its tessellated .glb, `units` naming the file\'s unit (a CAD GLB is mm), `expected_box` = the tool\'s own bbox, `source` = the tool', args: { ref: '<sk_ref>', glb_path: '<file.glb>', units: 'mm', source: 'text-to-cad/cadgen@x.y.z' } },
     ],
-    ceiling: "Field solids round every edge to about one grid cell and there is no constraint solver, no thread, no gear profile, no GD&T — the workbench gets the form right, not the fit. A toleranced bore is a handoff even after `cuts` lands (parts-booleans.plan.md): `cuts` is for the hole, not the fit. The `scad` export removes the ROUNDING from that handoff but not the missing fit: OpenSCAD is a mesh CSG tool, not a B-rep kernel.",
+    ceiling: "The `scad` library prints the common fits (threads, involute gears, toleranced holes) as meshes, at FDM defaults you tune by a number; there is still no constraint solver, no GD&T, no STEP, and no tolerance stack. Field solids round every edge to about one grid cell — the workbench gets the form right, not the fit. A toleranced bore is a handoff even after `cuts` lands (parts-booleans.plan.md): `cuts` is for the hole, not the fit. The `scad` export removes the ROUNDING from that handoff but not the missing fit: OpenSCAD is a mesh CSG tool, not a B-rep kernel.",
     dcc: 'Author a toleranced or threaded part in a B-rep CAD tool — text-to-cad (build123d over OpenCascade; STEP-first, with its own printability and slicer skills), FreeCAD, Onshape, Fusion — and bring the tessellated GLB home with `bind_mesh_render`. Mojulo then places it in a world, ships it to an engine, or prints it beside its own parts; the .step stays the source of the part, the recipe the source of everything around it.',
+  },
+  {
+    id: 'sheet-metal',
+    terms: ['sheet metal', 'flat pattern', 'bend allowance', 'k-factor', 'k factor', 'press brake', 'dxf', 'laser cut', 'laser cutting', 'cnc router', 'waterjet', 'cut file', '2d drawing', 'flange bend'],
+    concept: 'A part folded from flat stock, or cut from it: the bent shape and the flat outline a laser, router or brake works from.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'mint_solid', when: "the BENT part and its FLAT PATTERN: the `scad` kind's `mj_sheet(t, r, w, [[length, bend°], …], k)` folds a chain of flanges; `mj_sheet_flat(…)` is the same chain unrolled by bend allowance (K-factor 0.44 by default).", args: { kind: 'scad', spec: { source: 'mj_sheet_flat(1.5, 1.5, 25, [[20, 90], [30, -90], [20, 0]], bend_lines = true);' } } },
+    ],
+    then: [
+      { tool: 'export_model', when: "the cut file: `format: 'dxf'` (or `'svg'`) draws a scad row flat — a 2D program as written, `slice_z` to cut a plate at a height with every hole at true size, otherwise the outline.", args: { ref: '<sk_ref>', format: 'dxf' } },
+    ],
+    ceiling: 'Straight bends in a single chain, one width, set by a K-factor you choose: no reliefs, hems, louvres or forming tools, and no holes placed on the flat pattern for you. The DXF carries closed outlines only (no layers, no dimensions).',
+    dcc: 'For reliefs, hems, multi-flange parts and a tool library, a sheet-metal CAD workbench (FreeCAD SheetMetal, Onshape, SolidWorks); bring the part home with `bind_mesh_render`.',
+  },
+  {
+    id: 'mechanism-motion',
+    terms: ['kinematics', 'motion study', 'motion simulation', 'mechanism', 'linkage', 'four-bar', 'four bar linkage', 'slider-crank', 'slider crank', 'gear train', 'gearbox ratio', 'interference check', 'collision check', 'range of motion', 'lead screw', 'drive torque', 'mechanical advantage', 'inertia', 'flywheel', 'friction', 'motor sizing', 'stepper torque', 'shaking force'],
+    concept: 'Parts joined so they move together: what each part does through the cycle, whether anything collides, and what it takes to drive it.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'mint_solid', when: "the `scad` kind's `mechanism`: revolute / prismatic joints on named `parts`, couplings (gear, ring, belt, rack, screw, ratio, a rigid link pin to pin), one drive. The authored pose is the rest pose; the solver finds every other part through the cycle and the World plays it.", args: { kind: 'scad', spec: { parts: { crank: 'crank();', rod: 'rod();', piston: 'piston();' }, mechanism: { joints: { crank: { type: 'revolute', center: [0, 0, 0], axis: [0, 0, 1] }, piston: { type: 'prismatic', axis: [1, 0, 0] } }, couplings: [{ type: 'link', a: 'crank', pa: [10, 0, 9], b: 'piston', pb: [50, 0, 9], rod: 'rod' }], drive: { part: 'crank', torque: 1 }, loads: [{ part: 'piston', force: 80 }] } } } },
+    ],
+    then: [
+      { tool: 'measure_solid', when: '`motion: true`: every pair of parts intersected across the cycle (where they collide and by how much), each joint\'s range, ratio and speed, the drive torque by virtual work against a stated rating, and a lead screw\'s efficiency and self-locking', args: { ref: '<sk_ref>', motion: true } },
+    ],
+    ceiling: 'Rigid bodies: with a `material`, mass from the mesh, inertia, gravity, first-order pin and slide friction, the force through each rod, gear and screw of a tree-shaped train, and the rods and gears checked by the rigidity sensor at their peak loads. No deflection inside the mechanism, natural frequencies, impacts, fatigue life or heat; no cams or intermittent drives; one drive per mechanism. The .glb carries the rest pose, not the motion.',
+    dcc: 'Dynamics, contact forces and stress live in a multibody or FEA tool (Simscape, Adams, FreeCAD FEM, Fusion simulation); export the parts with `export_model` and rebuild the joints there.',
+  },
+  {
+    id: 'strength-check',
+    terms: ['will it hold', 'strong enough', 'safety factor', 'factor of safety', 'stress analysis', 'load test', 'rigidity', 'stiffness', 'deflection', 'how much does it bend', 'weak spot', 'weak point', 'fea', 'finite element', 'structural analysis', 'load rating', 'beam calculation', 'buckling', 'tensile', 'tension', 'tensile test', 'stress strain', 'stress-strain curve', 'yield', 'elongation', 'dogbone', 'test coupon', 'infill', 'infill strength', 'perimeters', 'wall count', 'printed strength'],
+    concept: 'How far a part bends under the work it does, how far it is from breaking, and how much to trust that answer.',
+    support: PARTIAL,
+    routes: [
+      { tool: 'measure_solid', when: "a `strength` spec: the material, the print's build direction, and one check per element (cantilever, lever, shaft, strut, tie, bolt, gear) with its load. The real section is cut from the mesh and run through the textbook formula. It returns a margin, a confidence grade and the safety factor that grade calls for, plus the weak spot and a tensile view (the material's stress–strain curve with the working point on it). `print: { walls, infill, pattern }` reads the section as sliced (walls and skins around a weaker core). A pulled `mj_tensile_coupon` calibrates the material (`coupon: { break_n, build }`). A sensor, not a guarantee.", args: { ref: '<sk_ref>', strength: { material: 'petg', build: 'z+', checks: [{ element: 'cantilever', root: { at: [5, 0, 5], normal: [1, 0, 0] }, load: { at: [75, 0, 10], mass: 5 } }] } } },
+    ],
+    then: [
+      { tool: 'update_sketch', when: 'store the spec on the row (`/strength`): the reading reproduces, and the World points at the weak spot (rings pulse there; the arrow and label stay still).', args: { ref: '<sk_ref>', patch: [{ op: 'set', path: '/strength', value: '<spec>' }] } },
+    ],
+    ceiling: 'Textbook formulas on measured sections (beams, shafts, struts, ties, bolts, Lewis gear teeth) with typical material values, an idealised stress–strain curve, and estimated stress raisers. No general 3D stress field, no fatigue life, creep rate or temperature curve, and no contact or joint analysis beyond the bolt check.',
+    dcc: 'For a full stress field, fatigue or contact: an FEA tool (FreeCAD FEM, CalculiX, Ansys, SolidWorks Simulation) on the exported STL or the CAD original. Then test the real part.',
   },
   {
     id: 'baking',

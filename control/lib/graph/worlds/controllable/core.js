@@ -221,6 +221,13 @@ export function buildCore(E) {
     const carriers = state.entities.filter((e) => e.body && e.body.carrier && !e.isCamera);
     if (!carriers.length) return;
     for (const c of carriers) {
+      // a RIDE-driven carrier (mover drive:'ride') needs to know it is stood on even while still: mark it each tick
+      if (c.rule && c.rule.drive === 'ride') {
+        const top = c.transform.pos[2] + (c.body.deck || 0), half = Array.isArray(c.body.carryHalf) ? c.body.carryHalf : [1.5, 1.5];
+        c._ridden = state.entities.some((e) => e !== c && !e.isCamera && !e.downed && !e.gone && e.grounded && e.rule && (e.rule.type === 'platform' || e.rule.type === 'walk')
+          && Math.abs(e.transform.pos[2] - (e.rule.eye ?? 0) - top) <= (e.rule.snap ?? 0.15) + 0.05
+          && Math.abs(e.transform.pos[0] - c.transform.pos[0]) <= half[0] + (e.rule.collideRadius ?? 0) && Math.abs(e.transform.pos[1] - c.transform.pos[1]) <= half[1] + (e.rule.collideRadius ?? 0));
+      }
       const p0 = c._carryFrom;
       if (!p0) continue;
       const dx = c.transform.pos[0] - p0[0], dy = c.transform.pos[1] - p0[1];

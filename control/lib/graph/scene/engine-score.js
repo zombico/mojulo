@@ -10,7 +10,8 @@
  * emitter owns its own frame/unit conversion, exactly like facesToGlb owns
  * the y-up root. NOT an engine adapter: no engine names in here.
  */
-import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
+import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
+import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
 import { normalizeHud } from '@/lib/graph/game/hud-widgets';
 import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
@@ -161,11 +162,33 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (Object.keys(crystals).length) {
     ledger.crystals_carried = { count: Object.keys(crystals).length, note: 'crystal nodes carry KHR transmission / ior / volume / dispersion (Blender reads them; Godot drops transmission, so kernel/level.gd applies a refraction material from score.crystals)' };
   }
+  // Water (aqua look): each `water:<kind>` node's look as data — absorption, tint, ripples, shore band, sky — in metres.
+  // The GLB carries transmission / ior / volume for importers that read them (Blender); Godot drops them, so
+  // kernel/level.gd gives those surfaces kernel/water.gdshader from score.water. Absent aqua water ⇒ no key.
+  const waterBodies = aquaWaterBodies(payload);
+  const water = Object.fromEntries(waterBodies.map((w) => [w.name, aquaScoreEntry(w, unitScale || 1)]));
+  if (waterBodies.length) {
+    ledger.water_carried = { count: waterBodies.length, note: 'water nodes carry KHR transmission / ior / volume (Blender reads them); Godot drops transmission, so kernel/level.gd shades them with kernel/water.gdshader from score.water (depth absorption, refraction, Fresnel sky, ripples, shore foam)' + (waterBodies.some((w) => w.frame) ? '; animated seas and rivers leave as one frozen frame (t = 0) — their ripples move in the shader, the waves do not' : '') };
+  }
   // A crystal light rig: lamps, stones as operators, targets — performed live by kernel/crystal_light.gd; the GLB's
   // frozen frame (`crystal-light:*` nodes) is what other importers keep. Absent ⇒ no key.
   const cryRig = payload.crystalLight ? crystalRigFor(payload.faces || [], payload.crystalLight) : null;
   if (cryRig) {
     ledger.crystal_light_performed = { lamps: cryRig.lamps.length, stones: cryRig.stones.filter((st) => st.op).length, targets: cryRig.targets.length, note: 'performed live by kernel/crystal_light.gd (beams re-solved each frame against the level\'s meshes); movers do not travel, so stones stand at rest; the GLB carries a frozen frame at t = 0' };
+  }
+  // The level's ADDRESS (a room stage, era/anchors.js): rooms, anchors (doorways, doors, items, the set piece, things,
+  // torches, niches) and the colliders built from them, so an idiom can name a place and an engine can walk and
+  // trigger it. Absent ⇒ no key, byte-identical.
+  const addr = levelAddress(payload, sv, sn);
+  if (addr.anchors) {
+    const by = {};
+    for (const a of addr.anchors) by[a.kind] = (by[a.kind] || 0) + 1;
+    ledger.address_carried = { count: addr.anchors.length, rooms: addr.rooms ? addr.rooms.length : 0, kinds: Object.entries(by).map(([k, n]) => `${k} ×${n}`), note: 'rooms and anchors ride score.json and the GLB scene extras (moj:rooms, moj:anchors); an anchor with a `node` is the GLB node of that name; doorways, doors and items become triggers in kernel/level.gd, every anchor a named Marker3D' };
+  }
+  // A TONE (era/tone.js) is graded on the World page: the build under it is drained to greys, and the score carries
+  // the tone as data for an engine to grade with. Absent ⇒ no key.
+  if (payload.tone && Array.isArray(payload.tone.ramps)) {
+    ledger.tone_graded_on_page = { count: payload.tone.ramps.length, note: 'the World page colours the lit value off the tone\'s ramps (channels/tone.js); the GLB carries the grey build it grades, and score.tone carries the ramps, steps and gain — an engine pass colours it (none yet)' };
   }
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
@@ -201,6 +224,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),
     colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
+    ...addr,
+    ...(payload.tone && Array.isArray(payload.tone.ramps) ? { tone: payload.tone } : {}),
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
     ...(lights.length ? { lights } : {}),
     // the sky DECLARATION (a preset name: day / night / dawn / dusk) so an engine rig can set its
@@ -210,6 +235,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // the figure look (rim) as data — see ledger.look_declared. Absent ⇒ no key.
     ...(lookFigures.length ? { look: { figures: Object.fromEntries(lookFigures.map(([n, f]) => [n, { rim: f.rim }])) } } : {}),
     ...(Object.keys(crystals).length ? { crystals } : {}),
+    ...(waterBodies.length ? { water } : {}),
     ...(cryRig ? { crystalLight: rigForScore(cryRig, unitScale || 1) } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);

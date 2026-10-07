@@ -43,6 +43,8 @@ fluidField{
 
 ## Fire (with named sources)
 
+Fire drawn in a flat picture. For fire in a 3D world — a campfire, torches, a fireball, a grass fire — use `compose_world` `overrides.fire` instead.
+
 Use `medium:"fire"` with `glyph.id:"bulb-seaweed-flame"`. Declare natural
 `flameSources` first (wick, match head, torch head, burning log knot, ember
 crack); give each source `radius` to scope licks across the full lit source

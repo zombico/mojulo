@@ -63,7 +63,10 @@ describe('the rules the passes hold themselves to', () => {
   it('refinement extends the SKIN weights: a refined joint station is the blend of its neighbours', () => {
     const { recipe } = figure('male', 'round'); const b = recipe.parts.upperArmR.bind.blend;
     expect(b.st0_st1_50).toEqual({ torso: 0.25, upperArmR: 0.75 });
-    expect(b.st1_st2_50).toEqual({ foreArmR: 0.25, upperArmR: 0.75 });
+    // on the structured arm st2's neighbour is the biceps' shaping ring (hero-form ARM_FORM: st1_st2_<k>), which takes
+    // the elbow's share by its u (refined: by u too); the ring refined between it and st2 is the blend of the two
+    const biceps = Object.keys(b).filter((id) => /^st1_st2_\d+$/.test(id)).at(-1), ref = b[`${biceps}_st2_50`];
+    expect(ref.foreArmR).toBeCloseTo((b[biceps].foreArmR + 0.5) / 2, 5); expect(ref.foreArmR + ref.upperArmR).toBeCloseTo(1, 5);
     expect(dominance(src.parts.torso)(2.5)).toEqual({ w: 1, bone: 'torso' });
   });
   it('the refined ring keeps its cyclic order on both halves (the left half mirrors the right)', () => {
@@ -87,9 +90,9 @@ describe('the rules the passes hold themselves to', () => {
 
 describe('the words and the refusals', () => {
   it('detail and adorn are a word, none, or data; anything else refuses by name', () => {
-    expect(DETAIL_WORDS).toEqual(['clothed', 'none']); expect(KIT_WORDS).toEqual(['ranger', 'none']);
+    expect(DETAIL_WORDS).toEqual(['clothed', 'swimsuit', 'none']); expect(KIT_WORDS).toEqual(['ranger', 'none']);
     expect(validateDress({ detail: 'clothed', adorn: rangerKit(dressContext({})) })).toEqual([]);
-    expect(validateDress({ detail: 'armoured' })).toEqual([expect.stringMatching(/^detail: 'clothed' \| 'none'/)]);
+    expect(validateDress({ detail: 'armoured' })).toEqual([expect.stringMatching(/^detail: 'clothed' \| 'swimsuit' \| 'none'/)]);
     expect(validateDress({ adorn: { id: 'x' } })).toEqual([expect.stringMatching(/^adorn: 'ranger' \| 'none'/)]);
   });
   it('the plan grammar refuses a pass that names no part, a signature outside the library, and two tile windows that collide', () => {
@@ -104,5 +107,36 @@ describe('the words and the refusals', () => {
     const p = humanoidPlan({ preset: 'male', detail: 'clothed', adorn: 'ranger', palette: { Top: '#203040', Leather: '#111111' } }).palette;
     expect(p.Top).toBe('#203040'); expect(p.Leather).toBe('#111111'); expect(p.TopFold).not.toBe(humanoidPlan({ preset: 'male', detail: 'clothed', adorn: 'ranger' }).palette.TopFold);
     expect(humanoidPlan({ preset: 'male', adorn: 'ranger' }).palette.Top).toBe('#56683f');   // the kit's suggestion, beneath the operator's
+  });
+});
+
+describe('the swimsuit and the chest layers', () => {
+  const swim = (opts) => { const plan = humanoidPlan({ detail: 'swimsuit', ...opts }); const mesh = compileLayered(expandPlan(plan)); return { plan, mesh, groups: (re) => new Set(mesh.groups.filter((_, i) => re.test(mesh.faceIds[i]))) }; };
+  it('the body bare: no clothing group is left, swimwear is painted on the trunk faces in its own tone', () => {
+    for (const preset of ['male', 'female']) {
+      const { plan, mesh, groups } = swim({ preset });
+      for (const g of ['Top', 'Bottom', 'Shoes']) expect(mesh.groups, `${preset} ${g}`).not.toContain(g);
+      expect(groups(/^pelvis\//).has('Swim')).toBe(true); expect(plan.palette.Swim).toMatch(/^#[0-9a-f]{6}$/);
+      expect(failures(mesh)).toEqual([]);
+    }
+    expect(swim({ preset: 'male' }).groups(/^torso\//)).toEqual(new Set(['Skin']));   // the male's chest is bare
+    const f = swim({ preset: 'female' });
+    expect(f.groups(/^bust[RL]\//)).toEqual(new Set(['Skin', 'Swim'])); expect(f.groups(/^torso\//)).toEqual(new Set(['Skin', 'Swim']));
+    const B = f.mesh.faceIds.map((id, i) => [id, f.mesh.groups[i]]).filter(([id]) => /^bustR\/st/.test(id));
+    expect(B.filter(([id]) => /^bustR\/st2-st3\./.test(id)).every(([, g]) => g === 'Swim')).toBe(true);   // the lower pole: the cup
+    expect(B.filter(([id]) => /^bustR\/st14-st15\./.test(id)).every(([, g]) => g === 'Skin')).toBe(true);   // the upper pole melts in as skin
+    expect(swim({ preset: 'female', palette: { Swim: '#112233' } }).plan.palette.Swim).toBe('#112233');
+  });
+  it('a child-coded figure is never bare-chested: a rash vest over the torso', () => {
+    const { groups } = swim({ preset: 'female', childCoded: true });
+    expect([...groups(/^torso\/st[0-2]/)]).toEqual(['Swim']);
+  });
+  it('a jerkin covers the pectorals (dropped from the parts and the dials); a kit on the torso stands off the chest layers', () => {
+    const { plan, recipe } = dressed({ preset: 'female' });
+    expect(Object.keys(recipe.parts).some((n) => /^pectoral/.test(n))).toBe(false);
+    for (const d of Object.values(plan.dials)) expect((d.parts || []).some((n) => /^pectoral/.test(n))).toBe(false);
+    expect(plan.adorn.find((A) => A.id === 'baldric').over).toEqual(expect.arrayContaining(['bustR', 'bustL']));
+    const bare = humanoidPlan({ preset: 'male', adorn: 'ranger' });
+    expect(bare.adorn.find((A) => A.id === 'pauldron').over).toEqual(expect.arrayContaining(['upperArmR', 'pectoralR', 'pectoralL']));
   });
 });

@@ -37,6 +37,11 @@ var hp := -1.0
 var start_hp := 100.0
 var bag: Dictionary = {}
 
+# the level's address (a room stage: score.rooms / score.anchors): rooms, doorways and doors as triggers
+signal address_event(what: String, id: String)
+var room_boxes: Array = []           # {id, box: AABB, inside}
+var triggers: Array = []             # {id, kind, box: AABB, to, locked, inside}
+
 var hud: Label = null
 var banner_layer: CanvasLayer = null
 
@@ -73,12 +78,14 @@ func _ready() -> void:
 	eye_scale = maxf(0.5, eye / 1.7)
 	_fix_materials()
 	_fix_crystals()
+	_fix_water()
 	_apply_rim()
 	if _fix_lights() > 0:
 		_build_environment()
 	_hide_player_double()
 	_mark_meshless_entities()
 	_build_colliders()
+	_build_address()
 	_build_crystal_light()
 	_build_cameras()
 	_spawn_walker()
@@ -164,6 +171,56 @@ func _fix_crystals() -> void:
 				m.emission = Color(float(glow[0]), float(glow[1]), float(glow[2]))
 				m.emission_energy_multiplier = 1.5
 			mi.set_surface_override_material(s, m)
+
+
+# Water (aqua rendering, kernel 0.4.0): Godot's glTF import drops KHR_materials_transmission / ior / volume, so a
+# `water:<kind>` node arrives as an opaque lit sheet. score.water carries each node's look (in metres, mojulo's z-up
+# vectors); its surfaces get kernel/water.gdshader — depth absorption over the refracted screen, shore foam, Fresnel
+# sky, sun glint, drifting ripples. Animated seas arrive as one frozen frame; their ripples move here, the waves do not.
+# Absent score.water, nothing changes.
+func _fix_water() -> void:
+	var table: Dictionary = score.get("water", {})
+	if table.is_empty():
+		return
+	var shader: Shader = load("res://kernel/water.gdshader")
+	if shader == null:
+		return
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for s in range(mesh.get_surface_count()):
+			var mat: Material = mi.get_active_material(s)
+			if mat == null or not table.has(mat.resource_name):
+				continue
+			var w: Dictionary = table[mat.resource_name]
+			var rip: Dictionary = w.get("ripple", {})
+			var sm := ShaderMaterial.new()
+			sm.resource_name = mat.resource_name
+			sm.shader = shader
+			sm.set_shader_parameter("sigma", _vec3(w.get("sigma", [0.45, 0.09, 0.06])))
+			sm.set_shader_parameter("tint", _vec3(w.get("tint", [0.03, 0.27, 0.32])))
+			sm.set_shader_parameter("zenith", _vec3(w.get("zenith", [0.16, 0.3, 0.52])))
+			sm.set_shader_parameter("horizon", _vec3(w.get("horizon", [0.62, 0.7, 0.78])))
+			sm.set_shader_parameter("foam_color", _vec3(w.get("foam", [0.86, 0.92, 0.96])))
+			if w.has("sun"):
+				sm.set_shader_parameter("sun_dir", to_yup(w["sun"]).normalized())
+			sm.set_shader_parameter("roughness", float(w.get("roughness", 0.06)))
+			sm.set_shader_parameter("reflectivity", float(w.get("reflect", 1.0)))
+			sm.set_shader_parameter("ripple_scale", float(rip.get("scale", 0.3)))
+			sm.set_shader_parameter("ripple_slope", float(rip.get("slope", 0.2)))
+			sm.set_shader_parameter("ripple_speed", float(rip.get("speed", 0.5)))
+			var fl: Array = w.get("flow", [0.6, 0.8])
+			sm.set_shader_parameter("flow", Vector2(float(fl[0]), float(fl[1])))
+			# a river streams along its flow; still water lets its ripple layers cross
+			sm.set_shader_parameter("still", 0.0 if w.get("river", false) else 1.0)
+			sm.set_shader_parameter("shore", float(w.get("shore", 1.0)))
+			sm.set_shader_parameter("lit", 1.0 if w.get("frozen", false) else 0.0)
+			mi.set_surface_override_material(s, sm)
+
+
+static func _vec3(a: Array) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
 # The crystal light rig (crystal-rig R5): performed by kernel/crystal_light.gd from score.crystalLight.
@@ -600,6 +657,76 @@ func _build_colliders() -> void:
 		body.add_child(shape)
 
 
+# The level's ADDRESS: every anchor a Marker3D under Anchors, named by its id, its id / kind / room / node / form / of
+# as metadata (group "moj_anchor"), so a script finds "coffin-2" or "doorway-nave-gallery" by name. Rooms, doorways
+# and doors become triggers (printed and emitted as address_event); an item is a pickup whose GLB node hides when
+# taken; a door locked by an item opens once the bag holds it. No rooms or anchors -> nothing.
+func _yup_box(b: Dictionary) -> AABB:
+	var a := to_yup(b["min"])
+	var c := to_yup(b["max"])
+	var lo := Vector3(minf(a.x, c.x), minf(a.y, c.y), minf(a.z, c.z))
+	return AABB(lo, Vector3(maxf(a.x, c.x), maxf(a.y, c.y), maxf(a.z, c.z)) - lo)
+
+
+# a GLB node by its exported name (the importer turns ':' and the like into '_')
+func _glb_node(node_name: String) -> Node:
+	return find_child(node_name.validate_node_name(), true, false)
+
+
+func _build_address() -> void:
+	var anchors: Array = score.get("anchors", [])
+	for r in score.get("rooms", []):
+		if r is Dictionary and r.get("box") is Dictionary:
+			room_boxes.append({"id": s_(r.get("id")), "box": _yup_box(r["box"]), "inside": false})
+	if anchors.is_empty():
+		return
+	var root := Node3D.new()
+	root.name = "Anchors"
+	add_child(root)
+	for a in anchors:
+		if not (a is Dictionary and a.get("at") is Array and a.get("id") is String):
+			continue
+		var m := Marker3D.new()
+		m.name = String(a["id"]).validate_node_name()
+		m.position = to_yup(a["at"])
+		for k in ["id", "kind", "room", "node", "form", "of"]:
+			if a.get(k) is String:
+				m.set_meta("moj_" + k, a[k])
+		m.add_to_group("moj_anchor")
+		root.add_child(m)
+		var kind := s_(a.get("kind"))
+		if kind == "item":
+			pickups.append({"item": String(a["id"]), "into": "bag", "pos": to_yup(a["at"]), "radius": float(a.get("r", 1.0)), "taken": false, "node": s_(a.get("node"))})
+		elif (kind == "doorway" or kind == "door") and a.get("trigger") is Dictionary:
+			triggers.append({"id": String(a["id"]), "kind": kind, "box": _yup_box(a["trigger"]), "to": a.get("to"), "locked": s_(a.get("locked")), "inside": false})
+	print("moj: address %d rooms, %d anchors, %d triggers" % [room_boxes.size(), anchors.size(), triggers.size()])
+
+
+func _step_address(pos: Vector3) -> void:
+	for r in room_boxes:
+		var inside: bool = r["box"].grow(0.05).has_point(pos)
+		if inside and not r["inside"]:
+			print("moj: entered room %s" % r["id"])
+			address_event.emit("room", r["id"])
+		r["inside"] = inside
+	for t in triggers:
+		var inside: bool = t["box"].grow(0.1).has_point(pos)
+		if inside and not t["inside"]:
+			if t["kind"] == "door":
+				var key: String = t["locked"]
+				if key != "" and int(bag.get(key, 0)) == 0:
+					print("moj: door %s is locked (needs %s)" % [t["id"], key])
+					address_event.emit("locked", t["id"])
+				else:
+					var to = t["to"]
+					print("moj: door %s leads to %s" % [t["id"], JSON.stringify(to)])
+					address_event.emit("door", t["id"])
+			else:
+				print("moj: through %s" % t["id"])
+				address_event.emit("doorway", t["id"])
+		t["inside"] = inside
+
+
 # Authored framings become real cameras (key 0 toggles). The score's camera
 # rotation quat is z-up; conjugate by the same -90°-about-X the GLB root bakes.
 func _build_cameras() -> void:
@@ -769,6 +896,7 @@ func _process(delta: float) -> void:
 	if state != "playing" or walker == null:
 		return
 	var pos := walker.global_position
+	_step_address(pos)
 	for z in exit_zones:
 		if _zone_hit(z, pos):
 			_complete()
@@ -783,6 +911,10 @@ func _process(delta: float) -> void:
 			p["taken"] = true
 			bag[p["item"]] = int(bag.get(p["item"], 0)) + 1
 			print("moj: picked up %s" % p["item"])
+			if s_(p.get("node")) != "":
+				var shown := _glb_node(p["node"])
+				if shown is Node3D:
+					shown.visible = false
 	for h in hazards:
 		h["cool"] = maxf(0.0, float(h["cool"]) - delta)
 		if float(h["cool"]) == 0.0 and _body_distance(h["pos"]) <= float(h["radius"]) + 0.4 * eye_scale:

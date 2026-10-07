@@ -27,9 +27,7 @@
 // specific sibling rather than from this barrel.
 
 import { registerTool } from '@/lib/mcp/server';
-import { profileEdit, withPluginProfile } from '@/lib/mcp/plugin-profile';
-import { STATION_KINDS, EDGE_VIA_VALUES, MARK_KINDS } from '@/lib/graph/sketch/sketch-manifest';
-import { recipeFamilyAllowlist } from '@/lib/graph/polygonizer/index.js';
+import { withPluginProfile } from '@/lib/mcp/plugin-profile';
 
 import {
   PRELOAD_MAX_ITEMS,
@@ -41,6 +39,7 @@ import {
   updateSketchHandler,
 } from './sketch-mint.js';
 import { getSketchVocabHandler, getStyleVocabHandler } from './sketch-vocab.js';
+import { withArtBoard } from './art-board-result.js';
 import { diffSketchesHandler } from './sketch-diff-tool.js';
 import {
   createPolygonizedSketchHandler,
@@ -85,207 +84,39 @@ export {
 };
 
 // The Claude plugin profile leaves out the painted manifest kinds (lib/mcp/plugin-profile.js).
-const PAINTED_KINDS_CLAUSE = ", `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts)";
+const PAINTED_KINDS_CLAUSE = ', painted `image-outcome` / `sequential-art` / `character-sheet` / `keyframe-animation` / `scene-motion`';
 
 export function registerSketchTools() {
   registerTool(withPluginProfile({
     name: 'create_sketch',
     description:
-      "Mint diagrams, illustrations or exported world recipes. Use diagrams for workflows, data flows and decision chains. Stations are positioned with explicit x/y/w/h (pixel coords inside the viewBox). Station kinds are " +
-      STATION_KINDS.map((k) => `\`${k}\``).join(' | ') +
-      " — pick the closest fit (e.g. `mcp_tool` for any callable/process, `filesystem` for files/payloads/messages-in-motion, `db_row` for durable records, `input` for parameters/preconditions). Edges are `{ from, to, label?, via?, curvature? }`; `label` is the verb (e.g. \"writes\", \"reads\", \"triggers\"). The default path is an S-curve that goes between the two stations — fine when the straight line is clear, but it will slice through any station that happens to sit between the endpoints. Use `via` to route around when that happens: `via: 'right' | 'left' | 'top' | 'bottom'` exits the source on that side, runs along a channel just outside both stations' extents on that side, and re-enters the target from the same side. Pick the side opposite to whatever's in the way (right/left for vertical lanes, top/bottom for horizontal lanes). Use `curvature` (0.2 – 3, default 1) to swoop the default S-curve harder (> 1) or flatten it toward straight (< 1) — useful when two stations are close and the default curve looks awkward. " +
-      "Beyond flow charts, the manifest also accepts `marks[]` — low-level chart primitives (" +
-      MARK_KINDS.map((k) => `\`${k}\``).join(' | ') +
-      ") that compose into stacked bars, donuts/rings, KPI tiles, radar, etc.; charts and stations can coexist in one manifest. The chart layout vocabulary is deliberately NOT inlined here — before building a chart, query `semantic_search({ query: \"<the user's intent>\", kinds: [\"sketch_vocab\"] })` and read the matched cards in full via `get_sketch_vocab` for the exact marks + layout math. Optional top-level `depiction` records the visual metacontext: display/panel count, related vs unrelated panels, panel blocking paradigm, per-panel constellation applicability, and eye-line layout intent. It is audit/layout metadata only; visible panels still lower to existing `grid`, `rect`, `line`, and `text` marks. Optional top-level `grid` { cols, rows, gap?, pad? } plus a per-node `cell` { col, row, colSpan?, rowSpan? } places panels/tiles into a grid instead of raw pixels (resolved to x/y/w/h before Rendrant expands the drawing); every node also takes an optional numeric `z` for paint order (ascending). " +
-      "As an alternative to `marks[]`, scene/figure illustration uses a recipe-shaped manifest: top-level `recipe: { kind, ...knobs }` where `kind` is one of " +
-      recipeFamilyAllowlist().map((k) => `\`${k}\``).join(' | ') +
-      " and the knob set is family-specific (architecturalConstruction takes style/roof/door/porch/steps/chimney; portraitBust takes its own; etc). The recipe is compiled deterministically into marks before persistence — no LLM in the lowering. This is the terminal step of the `sketch_what_possible` inverse-stable-diffusion loop: query → narrate underdetermined knobs to user → accumulate decisions → `create_sketch({ recipe: { kind, ...accumulated } })`. Don't hand-author marks for an illustration family unless you know the recipe doesn't cover what you need. " +
-      "`manifest: { kind: 'floorplan', … }` is the HOUSE: a walkable furnished house / apartment / office floor plan / one room from a seed or an explicit rooms[] plan (a WORLD kind — served at `/world`, exported by `export_model`; `storeys: N` stacks it; NOT a diagram, NOT compose_world, NOT edifice). Read `get_sketch_vocab({ id: 'floor-plan' })` before minting one. " +
-      "Also restores exported world manifests through the same world validation as update_sketch; dependent assets/refs must already exist. " +
-      "Returns `{ ok, ref, url }`. The URL belongs to the server; use the host’s handoff mechanism. The sketch persists across restarts.",
+      "Mint a sketch → `{ ok, ref, url }` (hand the URL off via the host). `manifest.kind`: `store` / `mall` / `restaurant`, `historic`" +
+      PAINTED_KINDS_CLAUSE +
+      ". `manifest.recipe`: a scene/figure illustration family (knobs via sketch_what_possible). Else hand-built `marks[]` / `stations[]` + `edges[]`; a plain flow or data chart is lighter via mint_diagram; a house is mint_building. Also restores an exported world recipe. Read the card first: get_sketch_vocab({ id }) or semantic_search({ kinds: ['sketch_vocab'] }). Iterate with update_sketch.",
     inputSchema: {
       type: 'object',
       properties: {
-        title: {
-          type: 'string',
-          description: 'Short title shown in the page header.',
-        },
-        ref: {
-          type: 'string',
-          description:
-            'Optional stable ref (1-64 chars of [A-Za-z0-9_-]). If omitted, a `sk_<10-char>` ref is generated. Errors if a sketch with this ref already exists.',
-        },
-        folder_ref: {
-          type: 'string',
-          description:
-            'Optional folder ref (a `fld_<…>` id from the operator) to drop this sketch into. When the operator opens the New-sketch modal while viewing a folder, the modal embeds the folder ref in the starter prompt so the agent can pass it here. Omit to leave the sketch at root.',
-        },
-        bucket: {
-          type: 'string',
-          enum: ['diagram', 'illustration'],
-          description:
-            "Optional concern override. Omit it (the default) and the bucket is derived from `manifest.kind`: diagrams and flows → 'diagram' (the Sketches concern, /sketches), a landscape or complicated figure in a perspective/css3d/painterly context → 'illustration' (the Mojulo Maker concern, /maker). Only set this to override an edge case. A diagram and an illustration are the same sketch primitive — stash, reference, and diff all work identically; the bucket only decides which sibling concern owns it.",
-        },
+        title: { type: 'string', description: 'Short title shown in the page header.' },
         manifest: {
-          type: 'object',
-          description:
-            'Exported world manifest, or diagram manifest. For diagrams: title, viewBox { width, height }. Provide stations[] (flow vocab) and/or marks[] (charts) — at least one. Rendrant resolves construction marks before storage; edges[] and grid are optional. '
-            + "Alternatively `manifest.kind` selects a kind-dispatched manifest with its OWN shape (no stations/marks): `floorplan` (a walkable furnished HOUSE / apartment / one room — `seed` or `rooms[]`, `storeys: N`; card id `floor-plan`), `restaurant`, `store` / `mall` (a shop or a mall fit out from retail concept cards; card id `store`), `image-outcome` / `sequential-art` / `character-sheet` (externally-painted stills + comics), `keyframe-animation` (raster character animation cels), `scene-motion` (clips staged over plates with cuts). Read that kind's sketch_vocab card (`get_sketch_vocab`) for the manifest contract before minting.",
-          properties: {
-            title: { type: 'string' },
-            viewBox: {
-              type: 'object',
-              properties: {
-                width: { type: 'number' },
-                height: { type: 'number' },
-              },
-              required: ['width', 'height'],
-            },
-            grid: {
-              type: 'object',
-              description:
-                'Optional layout grid. Box-shaped nodes (rect marks, stations) may carry `cell` instead of x/y/w/h; resolved to pixels before render.',
-              properties: {
-                cols: { type: 'number' },
-                rows: { type: 'number' },
-                gap: { type: 'number', description: 'Default 16.' },
-                pad: { type: 'number', description: 'Outer margin. Default 40.' },
-              },
-              required: ['cols', 'rows'],
-            },
-            depiction: {
-              type: 'object',
-              description:
-                'Optional visual metacontext. Use for display/panel count, panel blocking paradigm, related vs unrelated panel mode, per-panel constellation applicability, and eye-line layout intent. Does not render directly.',
-              additionalProperties: true,
-            },
-            stations: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string', description: 'Unique within this manifest; referenced by edges.' },
-                  kind: { type: 'string', enum: STATION_KINDS },
-                  label: { type: 'string' },
-                  sublabel: { type: 'string' },
-                  items: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    description: 'Bullet rows shown inside the station box.',
-                  },
-                  x: { type: 'number' },
-                  y: { type: 'number' },
-                  w: { type: 'number' },
-                  h: { type: 'number' },
-                  z: { type: 'number', description: 'Optional paint order (ascending).' },
-                  cell: {
-                    type: 'object',
-                    description: 'Grid placement (needs top-level `grid`); alternative to x/y/w/h.',
-                    properties: {
-                      col: { type: 'number' },
-                      row: { type: 'number' },
-                      colSpan: { type: 'number' },
-                      rowSpan: { type: 'number' },
-                    },
-                    required: ['col', 'row'],
-                  },
-                },
-                required: ['id', 'kind', 'label'],
-              },
-            },
-            marks: {
-              type: 'array',
-              description:
-                'Low-level chart/vector primitives composed into sketches (read the matching sketch_vocab card for chart paradigms). Common fields: kind, z?, fill?, stroke?, strokeWidth?, opacity?, dash?, blend?, elevate?, role?, closed?, weightRank?. Geometry by kind — rect{x,y,w,h,rx?} (or cell); circle{cx,cy,r}; wedge{cx,cy,r,rInner?,start,end} (start/end are fractions 0–1, clockwise from 12 o’clock); line{x1,y1,x2,y2}; polyline{points:[[x,y],…]}; polygon{points:[[x,y],…]}; blob{anchor:[x,y] OR gestureT,rx,ry,offset?,rotation?,wobble?,points?}; sphere{anchor:[x,y] OR cx,cy,r}; oval{anchor:[x,y] OR cx,cy,rx,ry}; egg{anchor:[x,y] OR cx,cy,rx,ry}; cylinder{anchor:[x,y] OR cx,cy,rx,height,depth?,openTop?}; volume{primitive:"cup",anchor:[x,y],height,rimWidth,footWidth,wallThickness?,rings?,openTop?} expands a hollow tapered ring-stack cup; form{mode:"abstract"|"animated"|"realistic",stock:"bipedal"|"plane-object",role?,anchor:[x,y],scale?,massTuning?,speciesStock?} compiles broad figure/object stocks into renderer-native marks; plane{anchor:[x,y],length,width,axis? OR points:[[x,y],...]}; solid{x,y,width,height,depth,depthOffset?,faces?} projects one cuboid into filled SVG plane faces; partition{target:"role",axis:"y",count,role?,thickness?} splits a previous solid into repeated shelf-board solids; array{role,count,from:[x,y],to:[x,y],upperFrom?,upperTo?,item:{kind:"line"|"solid",...}} repeats lines or solids along a path; cubieLattice{role,anchor:[x,y],cols?,rows?,layers?,cellSize?,gap?,depth?} expands into separated solid cubies whose gaps create negative space; arabesque{mode:"field"|"rosette"|"medallion",pattern?:"hex"|"square"|"khatam",n?,contactAngle?,cols?,rows?,interlace?,fill?,cx?,cy?,size?,starFill?,petalFill?,coreFill?} constructs Islamic geometric star patterns / rosettes (shams) / concentric medallions via polygons-in-contact and lowers to polygon/polyline/circle marks (read the `arabesque` sketch_vocab card); planePreset{ref:"bookshelf",x,y,width,height,depth?,shelves?}; solidPreset{ref:"bookshelf",x,y,width,height,depth?,shelves?} projects 3D cuboids into filled SVG plane faces; object{ref:"bookshelf-wireframe",x,y,w,h,depth?,shelves?,columns?} legacy wireframe; text{x,y,value,size?,weight?,anchor?,color?,family?}. Optional top-level polygonizer records subject, impactPoint, realityFacts, and minimalAbstractions for prompt-to-grammar audit; polygonizer.pureMandala plus cameraPrimitive{kind:"two-point", vanishingPoints, horizonY?, cropBox?, showFullMandala?} expands a deterministic room projection with paired floor/ceiling grids and pinned elements. The audit fields are informational and do not render directly. Optional top-level scene.perspective:{mode:"one-point",horizonY?,vanishingPoint:[x,y],depthScale?} locks solid depth edges to the vanishing point. Cylinder tops are closed by default; use openTop:true only for intentional tubes; prefer volume{primitive:"cup"} for hollow tapered cups. Optional top-level gesture:{kind?,points:[[x,y],...]} lets compact blobs use gestureT 0..1; create_sketch resolves anchor/rotation before storage. P0 sticker painting: a closed polygon, sphere, oval, egg, cylinder, volume, plane, solid face, or compact blob may include shade:{algorithm:"form-light-stack", intensity?} and optional highlights:{algorithm:"form-light-stack", intensity?}; legacy shade:{algorithm:"convex-value-stack"} and highlights:{algorithm:"simple-highlight"} still work. Rendrant expands construction marks, compact blobs, round primitives, cylinders, volumes, form primitives, cubie lattices, solids, planes, plane presets, solid presets, legacy object assets, and algorithmic polygon stickers before storage.',
-              items: {
-                type: 'object',
-                properties: {
-                  kind: { type: 'string', enum: MARK_KINDS },
-                  z: { type: 'number' },
-                },
-                required: ['kind'],
-                additionalProperties: true,
-              },
-            },
-            edges: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  from: { type: 'string', description: 'Source station id.' },
-                  to: { type: 'string', description: 'Destination station id.' },
-                  label: { type: 'string', description: 'Edge verb (e.g. "writes", "reads", "triggers").' },
-                  via: {
-                    type: 'string',
-                    enum: EDGE_VIA_VALUES,
-                    description:
-                      "Route around a channel outside the lane. Pick the side opposite to whatever station is in the way: 'right'/'left' for vertical lanes (when an edge skips stations stacked vertically), 'top'/'bottom' for horizontal lanes (when an edge skips stations laid out horizontally).",
-                  },
-                  curvature: {
-                    type: 'number',
-                    minimum: 0.2,
-                    maximum: 3,
-                    description:
-                      "Multiplier on the default S-curve's control-point offset. 1 (default) is the original curve; > 1 swoops harder so the curve clears territory near the straight line; < 1 flattens toward straight (good for short hops where a tight S looks awkward). Ignored when `via` is set.",
-                  },
-                },
-                required: ['from', 'to'],
-              },
-            },
-          },
-          // no `required` here: title + viewBox bind diagrams only, and validateSketchManifest refuses a diagram
-          // without them; an exported world recipe restored through this door carries neither
-        },
-        preload: {
-          oneOf: [
-            { type: 'string' },
-            {
-              type: 'array',
-              maxItems: PRELOAD_MAX_ITEMS,
-              items: {
-                oneOf: [
-                  { type: 'string' },
-                  {
-                    type: 'object',
-                    properties: {
-                      ref: { type: 'string', description: 'Prior sketch ref (`sk_…`).' },
-                      as: {
-                        type: 'string',
-                        description:
-                          "Free-form role label for this prior — e.g. 'character', 'setting', 'palette', 'composition'. Becomes the heading the polygonizer model sees in the prior-context prefix; here on create_sketch it's echoed back in the response.",
-                      },
-                      note: {
-                        type: 'string',
-                        description:
-                          'Optional per-prior note (e.g. "the fox\'s pose"). Round-tripped in the response; not interpreted by the substrate.',
-                      },
-                    },
-                    required: ['ref'],
-                  },
-                ],
-              },
-            },
-          ],
-          description:
-            "Optional prior sketch ref (`sk_…`) — or an array of refs / labeled-ref objects — the agent composed the new manifest against. Advisory only: `create_sketch` takes a fully-authored manifest, so preload is round-tripped in the response (so the agent can confirm what it carried forward), not blended into the saved sketch. The single-string form marks a sketch's provenance when it derives from an earlier one (a picture-book page continuing a prior scene). The array-of-labeled-objects form lets a sketch carry MULTIPLE priors with distinct roles (e.g. one ref `as: 'character'` + a different ref `as: 'setting'`), useful for composing pages that recombine a recurring cast against a recurring environment. Capped at " +
-            PRELOAD_MAX_ITEMS +
-            ' priors per call.',
-        },
-        preloadMetadata: {
           type: 'object',
           additionalProperties: true,
           description:
-            "Optional free-form note slot for the agent's own use describing what was carried forward from `preload` (which roles, what intent). Round-tripped verbatim in the response when `preload` is a single string. Ignored when `preload` is an array (use the per-item `note` field instead) or absent.",
+            "The recipe. Diagrams take title + viewBox { width, height } and stations[] / marks[] (cards: mark-primitives, construction-marks, edge-notation, grid-layout). A kind or a recipe takes its card's shape instead.",
+        },
+        ref: {
+          type: 'string',
+          description: 'Optional stable ref (1-64 chars of [A-Za-z0-9_-]); default `sk_<10-char>`. Errors if taken.',
+        },
+        folder_ref: { type: 'string', description: 'Optional `fld_<…>` folder to drop the sketch into.' },
+        preload: {
+          description: 'Optional prior `sk_…` ref, or up to ' + PRELOAD_MAX_ITEMS + ' `{ ref, as?, note? }`, this sketch composes against. Echoed back, not blended.',
         },
       },
       required: ['title', 'manifest'],
     },
-    handler: createSketchHandler,
+    handler: withArtBoard(createSketchHandler),
   }, {
-    schema: (schema) => {
-      schema.properties.manifest.description = profileEdit(schema.properties.manifest.description, [[PAINTED_KINDS_CLAUSE, '']], 'create_sketch.manifest');
-      return schema;
-    },
+    edits: [[PAINTED_KINDS_CLAUSE, '']],
   }));
 
   registerTool(withPluginProfile({
@@ -349,7 +180,7 @@ export function registerSketchTools() {
       },
       required: ['ref'],
     },
-    handler: updateSketchHandler,
+    handler: withArtBoard(updateSketchHandler),
   }, {
     edits: [
       [", edifices, views, image-outcomes, kind:'game'.", ", edifices, views, kind:'game'."],
@@ -535,6 +366,12 @@ export function registerSketchTools() {
           default: false,
           description: 'With `skinned`: VRM 1.0 bone names + VRMC_vrm extension (biped rigs).',
         },
+        rest: {
+          type: 'string',
+          enum: ['authored', 'tpose'],
+          default: 'authored',
+          description: "With `humanoid`: 'tpose' re-rests each figure in the VRM T-pose engines retarget from; clips play unchanged.",
+        },
         union: {
           type: 'boolean',
           default: false,
@@ -552,11 +389,15 @@ export function registerSketchTools() {
         },
         format: {
           type: 'string',
-          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc'],
+          enum: ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg', 'bom'],
           default: 'glb',
           description:
-            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools.",
+            "'glb' (default): vertex colours, group nodes, unlit. 'stl': print triangles, no colour, mm assumed. '3mf': slicer-preferred print package — mm declared in-file, colours, repeats as instanced objects. 'usda'/'usdz': OpenUSD (DCCs, AR Quick Look) at true scale; usdz = one file. 'scad': an OpenSCAD PROGRAM, not a mesh — a scad row's own source verbatim; a workbench recipe transpiled term by term into OpenSCAD solids and booleans, and a term with no equivalent bakes to polyhedron() and the result's coverage ledger names it. 'bundle': one deterministic zip of world.html + model.glb (+ model.stl for literal kinds) + recipe.json + README.md. 'ifc': a house (floorplan with storeys) as an IFC4 building model for BIM tools. 'blender': a Blender pack (import + art-pass scripts); a world with `fire` carries it at `fire_t` for a Cycles still. 'dxf'/'svg': a scad row as a flat drawing for a laser or CNC (a 2D program as written, a `slice_z` cut, or the outline). 'bom': a fabricated or furniture row's bill of materials, bom.csv + bom.md.",
         },
+        slice_z: { type: 'number', description: 'dxf/svg only: cut the scad solid at this height; omit for a 2D program as written, else the outline.' },
+        part: { type: 'string', description: "dxf/svg only: which of the scad row's `parts` to draw." },
+        fire_t: { type: 'number', description: "blender only: the instant (s) of a world's `fire` to pack; omit for when it reads best." },
+        fire_detail: { type: 'number', description: 'blender only: finer flame voxels (1 default, 2 for a close shot).' },
         cdn: {
           type: 'boolean',
           default: false,

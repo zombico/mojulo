@@ -47,13 +47,19 @@ hair lit at the three-quarter view, with shade shapes under the locks), `shade: 
 the base: skin warm and the rest a cool neutral, about 10–13 L* darker; hair by value — L* × 0.52 but no darker than
 L* 20.5 (about 15 above the World page's dark backdrop, and never within 10 of the lit tone), chroma × 0.75, the hue 20°
 toward violet, so a brown's shade stays brown), `unlit: [groups]` (drawn at their colour: `Iris`, `Pupil`, `Sclera`,
-`Ink`, `Mouth`), `highlight: { <group>: { kind: 'ring' | 'streak', threshold?, band?, falloff?, parts? } | false }` (a
+`Ink`, `Mouth`), `highlight: { <group>: { kind: 'ring' | 'streak' | 'gloss', threshold?, band?, falloff?, parts? } | false }` (a
 THIRD tone on the group's lit side, split along a second line: `ring` — N·L above `threshold` (0.3) inside its `band`
 (a share of the head's height below the skull crown, [0.14, 0.22]) narrowed away from the key's side by `falloff` (1.4):
 a crescent facing the key whose edges follow the position, so they run smooth across a lock, the sheen line; `streak`
-— N·L above `threshold` (0.5) inside the band ([0, 0.4]) only; `parts: 'fringe'` keeps it to the fringe; its colour the
+— N·L above `threshold` (0.5) inside the band ([0, 0.4]) only; `gloss` — N·L above a high `threshold` (0.86) anywhere
+on the group, no band: the moulded-plastic hot spot on each rounded form facing the key (a hero robot's armour); `parts: 'fringe'` keeps it to the fringe; its colour the
 palette's `<group>Highlight`, else derived: a quarter of the way from the base's L* to white, chroma × 1.15 — always
-lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none) `}`.
+lighter, and none on a base above about L* 84, whose lit side keeps one tone; `false` none), `strands: { <group>: {
+count?, width?, reach?, below?, tone? } | true | false }` (LINES INSIDE the group's mass in its OWN tone darkened, never
+the ink's black: `count` (22) lines about the head's vertical axis, each `width` (0.003 m), rising from the group's
+lowest edge to a top staggered across `reach` ([0.15, 0.5] of the head's height below the crown), none below `below`
+(1.15 head heights); the fill the face's lit or shade tone at `tone` (0.6) of its lightness, the hue kept and the
+saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing) `}`.
 The anime hero takes its base's hair highlight by default (the ring on the female, a fringe streak on the male) unless
 its light says `highlight`. Each face steps to its lit or shade swatch, and a face the terminator crosses is split
 along it (and its lit side again along the highlight's line), crisp in the World, the static GLB and the rig preview
@@ -73,14 +79,20 @@ outline never draws over hair (no seam between locks; the line where hair meets 
 World page does it with a stencil buffer, asked for only then; the clip preview does the same on the moving parts. The
 GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of hair lying inside another hair part.
 
-- **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux? }], chains:
+- **Rig (optional).** `rig: { joints: { name: { at, rides? } }, bones: [{ id, head, tail, aux?, align? }], chains:
   { channel: { axis, sign?, links: [{ pivot, joints }] } }, legs: { L|R: { hip, knee, hock, toeBase, toeTip,
   pole } }, reach? }` — rest joints must include the vajra core names (pelvisHub, navel, neckHub, headBase,
   headTop, shoulder/elbow/wrist/hip/knee/ankle L+R). Every L1 part then declares `bind: 'bone' | { bone,
-  blend: { station: { bone: w } } }` (the overshoot ring at a joint shared with the neighbour); a pinned
+  blend: { station: { bone: w }, 'station.slot': { bone: w } } }` (the overshoot ring at a joint shared with the
+  neighbour; a `station.slot` entry weighs that one point over its station's, a form in a ring with its own bone); a pinned
   detail inherits its face. `clips: { name: [keyposes] }` are `resolvePose` words for the core (`armL:
   'forward'`, `elbowR: 'half'`, `spine: { arch: 0.4 }`, `head: {x,y,z}`) plus `crouch` (0–1, toes planted),
-  `heelL/R` (metatarsus degrees), `lift`, `support`, and every chain channel. Legs solve to PLANTED toes;
+  `heelL/R` (metatarsus degrees about the toe base, − lifts the heel), `lift`, `support`, `stance` (the planted feet's spread, a multiple of
+  the hip joints': 1 puts each ankle under its hip), `stagger` (+ the left foot forward, a share of the leg's height),
+  and every chain channel. A rig's `hands: { R, L }` (carrier bone, wrist joint, `axes: { flex, deviation, twist }`, the
+  hand's joints, per digit a hinge `axis` and `links: [{ pivot, joints, weight, axis? }]`, `poses`) turns those joints
+  in the hand's rest frame before they ride the carrier: the channels `wristR` / `wristL` (flex degrees, or `{ flex,
+  deviation, twist }`) and `fingersR` / `fingersL` (curl degrees, `{ <digit>: deg }` or a word of `poses`). Legs solve to PLANTED toes (at rest unless `stance` / `stagger` move them);
   an unreachable pose refuses with the numbers (`reach: 'clamp'` to accept a reported error). The mint
   pays the rig gates (valid weights, rest identity, planted drift). `export_model({ format: 'glb', clips:
   '_all', skinned: true })` writes the skinned GLB with authored weights; the Godot world pack
@@ -104,10 +116,18 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 
 - **Plan (the compact door).** `mint_solid({ kind: 'layered', via: 'plan', spec: { plan } })` — a RING PLAN
   is what the seeds write by hand: `{ schema: 'layered-plan-v1', frame, joints: { name: [x, y, z] } (the right
-  side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e? }], caps, mirror: 'plane' } | { name, kind:
+  side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e?, id?, u?, push? }], caps, mirror: 'plane' } (`u` a station's address
+  parameter, default its index: a shaping ring between two addressed ones takes a fractional `u` and every address keeps its
+  meaning; `push: { slot: [dx, dy, dz] }` moves a right-half or midline slot off the ring, the left mirrored) | { name, kind:
   'segment', from, to, rA, rB, e?, over?, mirror: 'plane' | 'name', bind: { bone, prev?, next? } } | { name, kind:
   'chain', joints, r, over?, bind: { root } } | { name, kind: 'loft', stations: [{ at, r, e? }], caps?, mirror, bind } (explicit stations
-  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest) ], details: [{ name, kind: 'claw', base, dir, length, radius, pin,
+  along a polyline, each ring ⟂ its local direction: a thigh from the hip crest; `frame: 'keep'` holds each ring's front on
+  the side of the last, for a loft running near level along y, a barrel, that would otherwise twist) | { name, kind: 'rings', slots, stations:
+  [{ id?, points: { slot: [x, y, z] } }], caps, mirror: 'name', bind } (rings given point by point, every slot of the family
+  in loop order: a layer that hugs another part's surface, a muscle over the chest; `ring20` a fine family for one) ]; any segment may name `slotT` (each
+  right-half and midline slot's address parameter, rising from 0: a denser ring addressed on a sparser one's scale),
+  `bandGroups: { '<station>-<station>': [a group per right-half band] }` and `capGroups: { back?, tip? }`; a point's blend
+  `station.slot` mirrors with its slot, details: [{ name, kind: 'claw', base, dir, length, radius, pin,
   stretch?, mirror? }], heads: [{ name, plan, expression?, on: <joint> | shift, bind? }] (a detailed head as DATA, schema
   `layered-head-v1`: station tables, refine ops, skin maps by landmark, eye and regions, ornaments `sweep` /
   `teeth` / `disc`, midline pins; expanded at a preset expression (neutral, pant, flick, surprise, snarl) or
@@ -217,6 +237,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   hair follows every face control (a deeper face, fuller cheeks, a fuller occiput). `hero.hairCoverage` is the ledger:
   the share of the scalp that still shows from the back, the side, the rear three-quarter and above (0 is covered; the
   studio's own bob showed 28 % from the back on the female base, 47 % on the male); over 5 % advises in `warnings`.
+  Its `face` reads the FACE ZONES from the front and both ¾: RED (each eye's iris; the nose and mouth) and YELLOW (the
+  brows, lids, cheeks and jaw), the share the hair hides of each; the forehead above the brows is free. Hair over a red
+  zone past 15 %, or curtaining the yellow past 75 %, advises. `hair.veil` (0 … 1, absent 0) is the MYSTERY AND ALLURE
+  lever: it lets ONE eye go under the hair (to 75 % at 1) and the yellow to 95 %; the other eye and the mouth never.
+  Advice only: the veil builds nothing.
   HAIR FORMS: the `bob`, `long` and `hime` families are a few consolidated SECTIONS, not a comb of strands — three bang
   sections, a side section each side, three back sections (parts `hairFormFringeL/C/R`, `hairFormSideL/R`,
   `hairFormBackL/C/R`), each one closed shell skinned across its member clumps and ending in ONE point (its hem a V;
@@ -233,8 +258,26 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   over the crown and pointing back; `keep` names fringe clumps that still fall), `hairline: { front }` (the front
   hairline raised; the studio's 0.53; the coverage ledger follows it), `sweepSides` (an amount or `{ amount, from,
   controlY, tipX, tipY, tipZ }`: the temple clumps from `from` swept back over the ear), `fringeGroups` (the bang
-  sections by member clump, e.g. `[[1, 2, 3, 4, 5], [5, 6, 7]]`, parts `hairFormFringeA`, `B`, …) and `backNotch` (the
-  back sections' hem, 1 straight). A word is stored only when given; lists compose it last-wins (an object key by key);
+  sections by member clump, e.g. `[[1, 2, 3, 4, 5], [5, 6, 7]]`, parts `hairFormFringeA`, `B`, …), `backNotch` (the
+  back sections' hem, 1 straight), `fringeNotch` (the bang sections' hem, 1 a blunt fringe), `flip` (an amount or
+  `{ amount, out, rise, hold }`: the side and back ends hang straight, then kick out and up), `spikes` (an amount or
+  `{ amount, reach, width, up }`, the short family: the six crown accents as broad spikes from a fixed fan (front and
+  side), each a CUT CONICAL CARROT (a round cone cut square at a wide base sunk into the mass, tapering to its point), the temples a rounded mass over the ears, the back one convex fall to a point at the nape, the fringe heavy bangs) and `sideTail` (an amount or `{ amount, side: 'left' | 'right', length, width, height }`: the back and
+  that side gathered to a tie low behind the ear, one round clump `tail` (part `hairTail`) forward over the shoulder;
+  each entry gives its `amount`), and `shapes` (`{ replace?: ['fringe', 'temple', 'back', 'crown'], peppers?,
+  bananas?, carrots?, peels?, layers?, scale?, whorl? }`: a hairstyle composed from ONE family — CARROTS (cut conical carrots;
+  `length`, `base`, `sink`, `curve`, `bend`), BANANAS (flat crescents; `length`, `width`, `flat`, `bend`, `dir`
+  required), PEPPERS (chilis, thin strands; `length`, `width`, `bend`) or PEELS (layered banana peels: thin leaves
+  cupped to the scalp; `length`, `width`, `flat`, `cup`, `bend`, `dir` required) — each piece `at: [azimuth°, elevation°]` on
+  the cap and aimed by `dir: [x, y, z]`, or laid in `layers` (`{ shape, az, el, rows, count, length, width, droop,
+  lift, cover, sprout, vary, bend, swirl, cap, fringe }` (at most 12; `swirl` turns the flow one way by degrees; `cap: 1`
+  grows each lock along the dome and lets it fall only past the hairline, `length` then measured past it and `fringe`
+  the length of the locks that leave over the face), or `around: [from°, to°]` for a rosette about the whorl) that flow from the
+  `whorl` along the head, bananas and peppers tiling it (`cover`)
+  and every piece sprouting along the surface before it arcs out (`sprout`); `scale` grows the style; parts `hairCarrot0`,
+  `hairBanana0`, `hairPepper0` …), and `sideburns` (any style: `{ length, width, forward, shape?, at?, az? }`, two
+  pieces before the ears in the style's family; the principles and recipes are in docs/examples/humanoid/DESIGNING.md).
+  A word is stored only when given; lists compose it last-wins (an object key by key);
   `false` is the studio's construction for it; patch `/hero/hair/<word>` (`null` back to the base's).
   THE HAIR BASES: the anime hero's default hair per design base, read when the plan is generated, never stored. A FORM
   under every family — `lift` (male crown 0.12, temples 0.06, fringe 0.06, nape 0.05; female 0.13 / 0.06 / 0.05 / 0.07),
@@ -281,8 +324,48 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `pupilOfIris`. Each outside its base's band advises in `warnings`, naming the word that moves it (not under a look: a
   look is another character); a ratio the head does not allow measuring is null and says so. The table reads the face
   at the studio's carriage, so a `headPitch` word never moves it.
+  THE CORE: every hero's midsection is built on the vajra core (`core: 'structured'`, the default): the `pelvis` bone is the basin, turned by the
+  hip line alone, and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or side bend (and the
+  hinge) bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
+  rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
+  the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
+  receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's
+  diagonal. Its TORSO is built on the vajra rib cage: a waist above the hem, the ribs widening to a lifted chest, the male's
+  back widest under the arms, the shoulder ring over the arm's cap and a trapezius ring sloping to the neck; the new rings
+  sit at fractional `u` between the five the dress addresses, so torso `s` 0 … 4 and a collar's station mean what they did.
+  On the round register the torso and pelvis take ring12 addressed on ring8's scale (`slotT`), so every `t` lands where it
+  did, and carry the forms a silhouette is marked by, pushed into their rings: the rectus and the navel's ring, the
+  waist's taper, the lats, the scapulae and the spine groove, the clavicle and the jugular notch, the female's deeper waist
+  and lower back, the seat's two masses and cleft on the pelvis. Over the rib cage lie the CHEST LAYERS, each its own part
+  (`rings`, sampled off the torso so it hugs it): a PECTORAL per side (`pectoralR` / `pectoralL`, the lower border the most
+  proud, the pair meeting at the sternum, the armpit end a share of the arm) and over it, on a figure with a bust, a
+  BREAST per side (`bustR` / `bustL`, a bone each riding the torso for an engine's spring), sampled from the BREAST FIELD
+  (`breast-field.js`: its height over the chest a function of the chest coordinate about the apex, the footprint and the
+  poles' profiles as anatomy words, `breastGates` measuring the poles' split, the fold, the upper line, the lower pole,
+  the margins, the cleft and the one peak). The field's `cleft` sets the apex off the midline and keeps the medial side
+  full to it, so the pair meets there in a cleavage valley; each breast is cut at the midline. The NECK ROOT slopes: the sternal notch under the neck's base at the back, so the
+  neck rises out of the chest; the trapezius slopes to the shoulder, and the upper arm's
+  top is a deltoid's dome under the shoulder ring (a segment's `cap`: its caps' height, × radius). A bare belly (the swimsuit's, an adult's) carries a navel, about level with the elbow and a little under the narrowest waist. The adult female carries a bust by default
+  (`body.bust` from 0.27 of the chest; 0 for none); a child-coded figure never does. The readout's `core` measures the midsection on every hero (waist to hip, where the hip peaks, the seat, the
+  front below the waist, a pouch, a step in the outline, the legs) with advice against bands per body; on the structured
+  core that advice is a warning. Its legs CONVERGE: the thigh slants in from the hip to the knee (more on the female), the ankle under
+  the knee. Its stands own their base: `relaxed`, `hand-on-hip` and `guard` plant both feet where `stance` and `stagger`
+  put them, the free side's heel up (the guard about twice the hip spread, bladed with the left leading); a swing word's
+  keys stand on a base of their own. A gesture may say `stance`, `stagger`, `heelL` and `heelR` itself. Its HAND is a palm
+  and five digits (the anime casts' smaller, the same shape) hanging relaxed toward the thigh, with fifteen finger bones a
+  hand under their VRM names; a gesture or clip key may say `wristL` / `wristR` (flex ±70, or `{ flex, deviation ±30,
+  twist ±90 }`; + the back of the hand up, toward the thumb, palm down) and `fingersL` / `fingersR` (`relaxed`, `open`,
+  `fist`, `point`, `grip`, degrees of curl −25 … 100 over the relaxed hand, or `{ thumb, index, middle, ring, little }`);
+  the guard closes the fists, a hand holding gear grips it in every key, the wave opens the hand palm to the front. A
+  streamlined hero keeps its mitten and refuses those words. Hip armour hangs
+  from the pelvis, and every piece that stands off the thighs stands off it too. `core: 'streamlined'` is the hero
+  before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
+  legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
+  whose line orients it in place of head → tail; it still sits at its head.)
   ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
-  the realistic cast): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
+  the realistic cast; `'herobot'` is the hero ROBOT's toy-hero body, about 4.4 heads tall — a big head, a short torso,
+  short arms and neck, longer shins, big feet and bigger, puffed white cartoon gloves (`Glove`), the neck in the body stocking (`Top`); adult limbs, never
+  child-coded): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
   at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller hands and feet, the
   overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The
   anime casts wear a NECK FORM: the neck a ring loft that leans forward a little and whose back rises through a nape ring
@@ -299,17 +382,100 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `soft`, `sharp`, `youthful`, `mature`, `button-nose`, `strong-chin`; graphic-face TRAITS `heavy-lid`, `brow-block`,
   `sharp-eyes`, `low-nose` (on the sculpt); hair TRAITS `spiky`, `sleek`, `messy`,
   `heavy-bangs`, `short-bangs`, `swept-bangs`, `voluminous`, `peekaboo` (one bang over the eye: a trait may direct
-  clumps), the hair bases' cuts `swept-back` and `side-parted`, and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
+  clumps), the hair bases' cuts `swept-back` and `side-parted`, the sketch cuts `flipped-long` (curtain bangs, the ends
+  flipped out), `blunt-bob` (a level split fringe, the left side long), `side-tail` (a low tail over the left shoulder)
+  and the `shapes` characters `broku` (carrots only, classic shonen spikes), `jinto` (bananas only, comma hair over a soft two-block),
+  `jingo` (bananas only, few, grown from the dome like a cap), `selene` (peels, long and heavy on her right, `veil: 0.9`), `sintia` (peel PETALS to the shoulder blades, their ends flicking out, curtain bangs), `frieda` (split bangs, ribbon sidelocks, the rest GATHERED into twin tails), `frieda-pony` (one high ponytail), `hiraku` (a blunt BOWL BOB cut on LEVEL lines, `hem`, `fringeHem`, `blunt`) and `miwako` (a blunt neck-length bob), `jona` (layered banana
+  PEELS: leaf-shaped, thin, cupped; a side-swept swoop) and `kairo` (chili peppers only, a wolf cut), and the heroine `bidel` (bananas only, a short tomboy cut); shaped hair never
+  cuts through the body it is worn on; every anime head with hair wears sideburn patches before the ears (`hairSideburnL`,
+  `hairSideburnR`: no bare gap between the hair and the ear; a bald head shows its skin there), and the families; POSES `neutral`, `blink`, `smile`, `open`, `happy`, `determined`, `deadpan`, `angry`,
   `worried`, `surprised` (poses are `expression` words too). Left to right: ratios by product, offsets and clump edits by
   sum, a family and a pose last-wins; the own `face` / `sculpt` / `hair` / `expression` / `tune` apply ON TOP (`/hero/hair/length`
   1.1 is ten percent over the look). `look: ['rival', 'tareme']`, then `set /hero/look` to add or peel a word (a list is
   set whole). The row keeps the words and a resolved STAMP (`lookResolved`): a later re-tuning of a word never changes a
   stored hero until its list is edited. The readout says `look`, `lookFrom`, the effective head and tune, and the own
   layer apart. Every preset stays inside the studio's ranges on both bases.
+  GENKI (the anime head only). `genki: 0 … 1` is the shonen spirit translated onto the character, one amount over the
+  look and the own layer (`anime-genki.js`): broader shoulders, a narrower waist and stronger forearms and calves; on the
+  male bigger, rounder eyes, on the female a narrower opening; a heavier, lower brow set into a V; more taper and crown
+  in the hair; the brow set, the mouth more open and the smile wider; and the stand on a wider base, chest and chin up.
+  Ratios at amount s are ratio^s, offsets × s, so `/hero/genki 0.5` is halfway; absent or 0 changes nothing and stores
+  nothing. It composes with every other word (the dress, the gear and the clips fit the body it makes; read the
+  clearance warnings as for any tune). The readout says `genki`.
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a
   jerkin and trousers keep, soft sleeve folds at the elbows, a QUILTED jerkin (front panels either side of a bare placket,
-  a back panel, grown only where the torso bone dominates) with a row of toggles, knee patches, cuffs and leg wraps.
+  a back panel, grown only where the torso bone dominates) with a row of toggles, knee patches, cuffs and leg wraps; the
+  jerkin covers the pectorals (their layers are dropped under it). `detail: 'swimsuit'` shows the body BARE, to see its
+  forms and mark its silhouette: every Top / Bottom / Shoes part is Skin and swimwear is painted on the trunk's own faces
+  (the adult male's trunks, the adult female's two-piece with the breasts as its cups — on the structured core a speedo
+  with a leg line rounded up the thigh, and a thong with a thin string rising over the hip and a V back narrowing into
+  the cleft, lines cut across the faces so the studio light draws them too — a child-coded figure's rash vest and
+  trunks), in a `Swim` tone the palette may name. The structured female's seat is fuller and set further back than the male's square, high one, under a lower
+  back that curves in; both seats are two masses with a cleft, drawn on bare skin in a second, darker shade, as the
+  thong's V in the swimsuit's tones, or as a crease in the speedo. Every piece worn on the torso stands off the chest layers too.
+  SECOND SKIN. `paint` puts skintight garments on the body as colour on its own faces (`body-paint.js`; words in
+  `hero-dress.js` PAINT_WORDS): no geometry, so a garment fits every cast, tune, core and pose and bends with the skin.
+  A word (`tank`, `crop`, `sportsBra`, `tee`, `longSleeve`, `leotard`, `leggings`, `bikeShorts`, `tights`, `catsuit`,
+  `socks`, `gloves`), an entry `{ part, u?, run?, t?, only?, group }` or a list of either, worn in order (a later one paints
+  over; `Skin` cuts back). `part` is an L1 part, a base name both sides; `u` a window in the part's station parameter
+  (torso: 0 hem, 1 navel, 2 chest, 3 shoulder, 4 collar), `run` a share of the part's span (0 its root, 1 its end), `t` a
+  share of the ring half (0 front, 1 back); `only` repaints just the bands in those groups. Words wear the figure's Top,
+  Bottom and Shoes tones and Glove; best over `detail: 'swimsuit'`, whose forms they keep (a word over the hips clears the
+  swimwear beneath). Patch `/hero/paint`.
+  OUTFIT. `outfit` puts on garments WITH VOLUME that follow the body's own geometry (`body-garment.js`; words in
+  `hero-dress.js` OUTFIT_WORDS: `tee`, `shirt`, `trousers`, `shorts`, `boots`). Each piece copies its body part's rings
+  over a window, carried out by its `ease` and lifted over the layers beneath it (the chest's, the garments already on
+  that part), and copies the part's binding station by station: every garment vertex skins as the skin vertex under it,
+  so sleeves and legs bend at the elbow and the knee with the body, every dial that moves the part moves the garment,
+  and a cast, tune or core re-fits it on every read. Worn in order: trousers then a tee is a shirt worn out, a tee then
+  trousers a shirt tucked in. A piece of your own: `{ id, part, u?, run?, ease, flare?: [start, end], over?, group }`
+  (the part `<id>_<body part>`). Footwear is a piece of its own, `fit: 'shoe'` (the `boots` word's foot): two solids fitted
+  to the foot and toes, a ROUND ELLIPSOID over the heel and a FLAT HALF-ELLIPSOID over the forefoot, each the smallest
+  holding its share of their points with the ease, their sections superposed ring by ring and cut on one flat sole
+  (`toe`: the toe box's height as a share, `heel`: metres over the heel cup). Best over `detail: 'swimsuit'`; paint and
+  an outfit combine; under the studio light both shade smoothly as cloth (welded like the skin, a right angle kept
+  sharp). Patch `/hero/outfit`.
+  OUTFIT BUILD. `outfit: { type: 'outfit', style, dials?, language? }` is a styled look built the way an armour build is
+  (`lib/graph/outfit/`): a seeded card (`casual`, `office`, `athlete`, `adventurer`, or an inline card: plain JSON) over
+  laws (`principles.js`: silhouette by fit, cloth falling away to its free hems, hems on landmarks, layers nesting by
+  ease and by one value step, one focal, the edge the ornament field, honest construction for knit and woven, stylize one
+  curve), stamped with the laws version it was minted under. Dials `stylize`, `fit`, `coverage` (lengths step shorter by
+  thirds), `ornament` 0–3; language `top { family, sleeve, hem, collar }`, `bottom { family, leg }`, `feet`, `tuck`,
+  `focal`. Expanded on every read by its passes: CUT (pieces on landmarks), FIT (ease and hang), LAYER (tucked or worn
+  out), CONSTRUCTION (a woven placket), ORNAMENT (from the focal out: collar or rib, buttons, belt; cuffs, hems,
+  waistband; seams), TONE (the card's over derived Trim, Placket, Button, Seam, Waistband), LEDGER (the readout's
+  `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Skirts and dresses:
+  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full }` is one hull round the hips
+  and both legs (garment `fit: 'skirt'`): each ring the support of everything at its height, never narrowing below the
+  hips, flaring by its cut, two-faced (folded at the hem, so it is open beneath), each point skinned by nearness (the
+  cloth over a leg follows that leg, the cloth between and behind the legs the pelvis); `dress: true` makes the skirt the
+  top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
+  Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
+  `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
+  STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the
+  hero as sculpture (`lib/graph/statue/`), on the landmark head or `head: 'none'` (the anime head and held gear refuse by
+  name; an armour build is carved with the figure). Period cards, plain JSON: `archaic` (kouros and kore), `classical`
+  (contrapposto, bronze), `hellenistic` (the turning figure), `roman` (the address, tunic and long garment as the toga's
+  stand-in), `roman-bust`, `egyptian` (striding, kilt or sheath), `sumerian` (the votive worshipper: the hands clasped at the chest, a flared
+  skirt), `renaissance`. `stand: 'seated'` (build or card) sits any card on a block throne built with its base (the
+  thighs level, the shins hanging, the hands on the knees; a long skirt cut at the knee; refused with a gesture or on a
+  bust); `stand: 'mounted'` sets it astride a horse carved in its material (the horse ring plan, `horsePlan`, under the
+  animal kind's statue filter), the right arm in address, both on an oblong block: an equestrian statue. A card's stand (a word, pose words, or `{ male, female }` of them), stillness (idle, walk and
+  wave off) and drapery (an outfit card per silhouette) apply when the hero names none, and its hair at mint. Laws
+  (`principles.js`): ONE MATERIAL over every group (`marble`, `limestone`, `sandstone`, `granite`, `basalt`, `bronze`,
+  `gilt`, `painted`), the eyes blank, the hair a carved mass, the bare body's zones skin; a FORMAT is a cut (`full`;
+  `bust`: below the chest, through the upper arms; `herm`: the bust on a tapering shaft; `torso`: no head, no arms, the
+  thighs cut), each cut a sealed ring; a LOSS is whole parts (`head`, `handR`, `forearmL`, `armR`, `footL`, `shankR`,
+  `legL`, …: the part and what it carries, closed in its own cap; no fracture surface); `painted` is RECONSTRUCTED
+  polychromy over the card's stone and always says so; a statue stands on a BASE (`none`, `block`, `attic`, `drum`,
+  `socle`, `herm`) of stone (a bronze, gilt or painted figure on limestone), built at read time under the posed figure,
+  the figure lifted onto it; `wear` 0–1 dulls stone and ages bronze from its brown patina to verdigris. The faces carry
+  the material's surface (`spec` and `pbr`: stone matte, a bronze or gilt figure metallic in its patina's or gilding's
+  colour) for the World page and the exports. The
+  readout's `hero.statue`: the card, period, material, format, the parts lost, base, wear, `basis` (`unverified`: drawn
+  from the general record of the type) and the `caption` derived work carries ("inspired by …"). Patch `/hero/statue`,
+  `/hero/statue/material`, `/hero/statue/crop`, `/hero/statue/lose`, `/hero/statue/dials/wear`.
   `adorn: 'ranger'` wears a belt (iron buckle), a baldric across the chest (iron buckle), an archer's bracer on the left
   forearm and ONE pauldron on the right shoulder with a bronze boss (the focal accent), stacked in that order, and suggests
   an earth palette beneath the operator's. Either is also DATA (the plan's `body` / `adorn` blocks below); `'none'` or
@@ -446,9 +612,32 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     - `boards` `{ n, len, thick, tilt, stand?, dm?, bow?, widen?, wide?, bottom, cords?, cordR?, cordGroup? }`: flat
       laced rows hung from a piece's edge, with the cords in their own group;
     - `crest` `{ shape, w, z, r }`;
-    - `helm` `{ pad, n?, flare?, muzzle?, crown?, visor?, visorGroup?, faceplate?, grille?, brow?, coronet? }`: a
-      smooth helmet sized to the head;
+    - `helm` `{ pad, n?, flare?, muzzle?, crown?, visor?, visorGroup?, faceplate?, grille?, brow?, coronet?, parts?,
+      window?, ears?, gem?, scale?, horns?, ponytail? }`: a smooth helmet sized to the head (`parts`, default cranium + jaw; `['face', 'earR',
+      'earL']` on the anime head; `scale` grows it about its centre, its window and trim with it). `window` opens the face: `{ brow, w, bottom, nape?, rim?: { group }, jaw?: { drop,
+      curl, wrap } (cheek guards curled under the jaw), back?: { tuck } (the back rounded to the nape), hug? (the lower helm's sides and back rounded in
+      like an egg toward the face, a share of the half-width), v?: { apex,
+      curve?, raise?, group, stripes?: { w?, t?, span?, group? } } (the window's top edge as a raised V from its top corners
+      down to the bridge of the nose, its lines carried over the crown to the nape as embossed stripes; `frame` `{ cheek?:
+      [tip, top], peak?: [rise, d], gem?: { corner: [rise, d], top, bottom } }` grows it into the visor's whole frame: wide
+      cheek bands tapering to the jaw, a brow band, and two horns rising to points beside a diamond `gem` set in its notch) }`; `ears` `{ r?, h?, group, cap?: { group } }` domes at the
+      ears; `horns` `{ u, a, len, r, out?, up?, back?, bend?, squash?, group }` a pair of tapering blades off the temples;
+      `ponytail` `{ u, len, r, n?, spread?, back?, wild?, flick?, group, tie?: { group } }` wild flattened clumps out of the
+      helm's back, scattered by a fixed pattern; `gem` `{ r?, group, shape?: 'diamond', tall?, wide?, fit?: 'v', top?, setting?: { group, w? } }` a jewel on the brow
+      (`diamond` a faceted rhombus stone on a rhombus border plate `w` wider; `fit: 'v'` runs its lower edges parallel to
+      the V's lines and keeps `top` (in r) above where they turn: a kite in the V);
+    - `volume` `{ shape: 'football' | 'cone' | 'bell' | 'slab' | 'bead' | 'plate', girth, peak?, mouth?, taper?, n?, squash?,
+      bias?, extend?, at?, point?, bore?: { group }, lip?: { group, at, w?, out? }, half?: { cut } }` (`half` a flat face `cut` radii
+      below the axis, level along its length: a half-egg foot's sole; a `bead`'s `peak` points to the window's end, or its
+      start with `point: 'start'`: a knee pad pointing up the thigh); `plate` `{ at, profile: [[along, radius]…], span?, facets?, thick? }` an angular plate arched over the carrier's
+      outer side in flat facets: a pauldron over a ball: a free solid round a WRAPPED shell's
+      carrier, sized from the carrier's own axis and radius (`girth` × it) and riding its bone — figure-fluff's girth
+      contrast on the rig (a ball pauldron, a barrel chest plate, briefs, a football forearm, a flared boot cone, a
+      block sole, a thigh rim, a knee pad); its carrying shell only sizes it and is worn as a slender core buried on the carrier's axis;
     - `pack` `{ w, h, d, vents? }`;
+    - `plaque` `{ s, w, c?, lift?, thick?, bevel?, part? }`: a thick trapezoid plate on the carrier between stations `s`
+      [bottom, top], centred on the front (or at ring offset `c`, negative on the L side: a pec plate), its half-width in ring units `w` [bottom, top], lifted `lift` off what lies
+      beneath, its face narrowed to `bevel` (an embossed ab plate under a chest plate);
     - the theme motifs `skull` `{ r, horns?, socketGroup? }`, `spikes` `{ count, len, r, rise?, profile? }`, `ribs`
       `{ count, r }`, `fur` `{ r, tufts? }`, `tabard` `{ len, thick }` (on a strap) and `runes` `{ count, h, w }`.
     An adornment with `stack: false` is never lifted under the ones worn after it. A shell's `rim: { group, at?, w? }`
@@ -516,7 +705,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   World page (`/api/sketches/<ref>/world?draw=<view>`) that hands the patch to the agent — the page writes nothing.
   Absent, zero bytes.
 
-Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
+Worked plans: `docs/examples/ring-plans/` (a bare quadruped; the HORSE, a light riding horse at 1.6 m, core as
+`polygonizer/horse-form.js` `horsePlan({ scale, palette })`; the SPHINX, a recumbent lion wearing the landmark head in
+a nemes, `polygonizer/sphinx-form.js` `sphinxPlan({ preset, scale, palette })`, and Karnak's ram-headed
+`criosphinxPlan()`; the BULL, `polygonizer/bull-form.js` `bullPlan({ scale, palette })`; a plan that is not a hero takes `statue`
+(true or `{ type: 'statue', material, base, dials }`: carved in one material on an oblong base); the hero form, a human on the vajra rest skeleton with a `style` register) and the rigged dragon body's `seed-recipe.mjs` (it exports `plan`); the
 `creature-from-plan` catalyst carries the spec forms a worker fills; the `create-hero` catalyst is the human loop on the hero form
 (`docs/examples/ring-plans/hero.plan.mjs`, a cast word → the vajra rest joints, a `style` register, the `docs/examples/hero-head/` head worn as an include). Worked recipes: `docs/examples/dragon-layered/` (the dragon head: cranium and jaw as station lofts;
 horns, eyes, teeth and crest spikes pinned; seven dials; six casts), `docs/examples/dragon-body/` (the

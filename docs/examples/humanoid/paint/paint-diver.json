@@ -1,0 +1,23 @@
+{
+  "name": "paint-diver",
+  "$note": "Male, swimsuit body, a catsuit with gloves and socks: the whole second skin.",
+  "hero": {
+    "cast": "male",
+    "detail": "swimsuit",
+    "paint": [
+      "catsuit",
+      "gloves",
+      "socks"
+    ],
+    "gesture": "relaxed",
+    "tune": {
+      "shoulders": 1.08,
+      "waist": 0.94
+    }
+  },
+  "palette": {
+    "Top": "#1d1f24",
+    "Glove": "#f2b134",
+    "Shoes": "#f2b134"
+  }
+}

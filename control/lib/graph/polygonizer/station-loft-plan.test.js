@@ -128,3 +128,27 @@ describe('station-loft-plan — the ring plan expands into a layered recipe', ()
   });
   it('mirrorPartName flips only a trailing R or L', () => { expect(mirrorPartName('thighR')).toBe('thighL'); expect(mirrorPartName('torso')).toBe('torso'); expect(mirrorPartName('tail0')).toBe('tail0'); });
 });
+
+describe('station-loft-plan — rings, slot parameters and groups per band', () => {
+  // a lens over the trunk's front, given point by point (ring8 slots in loop order)
+  const lens = (z) => ({ points: { front: [0.1, 0.3, z], frontR: [0.15, 0.31, z], sideR: [0.2, 0.3, z], backR: [0.24, 0.27, z], back: [0.15, 0.25, z], backL: [0.06, 0.25, z], sideL: [0.02, 0.26, z], frontL: [0.05, 0.29, z] } });
+  const withRings = (extra = {}) => { const p = plan(); p.segments.push({ name: 'padR', kind: 'rings', slots: 'ring8', stations: [lens(1.2), lens(1.3), lens(1.4)], caps: { back: [0.13, 0.27, 1.15], tip: [0.13, 0.27, 1.45] }, group: 'Pad', mirror: 'name', bind: { bone: 'torso', blend: { 'st1.backR': { torso: 1 } } }, ...extra }); return p; };
+  it('a rings part keeps its points, mirrors by name (its point blends too) and compiles closed', () => {
+    const r = expandPlan(withRings());
+    expect(r.parts.padR.stations[1].points.sideR).toEqual([0.2, 0.3, 1.3]);
+    expect(r.parts.padL.stations[1].points.sideL).toEqual([-0.2, 0.3, 1.3]);
+    expect(r.parts.padL.bind.blend).toEqual({ 'st1.backL': { torso: 1 } });
+    const m = compileLayered(r); expect(Object.entries(auditLayered(m)).filter(([, x]) => !x.pass).map(([n]) => n)).toEqual([]);
+  });
+  it('slotT, bandGroups and capGroups pass to the part; a wrong one refuses by name', () => {
+    const T = { front: 0, frontR: 0.5, sideR: 1, backR: 3, back: 4 };
+    const p = plan(); Object.assign(p.segments[0], { slotT: T, bandGroups: { 'st0-st1': ['A', 'B', 'C', 'D'] }, capGroups: { back: 'A' } });
+    const r = expandPlan(p); expect(r.parts.torso).toMatchObject({ slotT: T, bandGroups: { 'st0-st1': ['A', 'B', 'C', 'D'] }, capGroups: { back: 'A' } });
+    const m = compileLayered(r); expect(m.groups[m.faceIds.indexOf('torso/st0-st1.k1.a')]).toBe('B');
+    const bad = (k, v) => { const q = plan(); q.segments[0][k] = v; return () => validatePlan(q); };
+    expect(bad('slotT', { ...T, frontR: 2 })).toThrow(/slotT names each right-half and midline slot/);
+    expect(bad('bandGroups', { 'st0-st1': ['A'] })).toThrow(/bandGroups\.st0-st1: a group name for each of the 4/);
+    expect(bad('capGroups', { side: 'A' })).toThrow(/capGroups is \{ back\?, tip\?/);
+    expect(() => validatePlan(withRings({ stations: [lens(1.2), { points: {} }] }))).toThrow(/every station gives points for every slot/);
+  });
+});

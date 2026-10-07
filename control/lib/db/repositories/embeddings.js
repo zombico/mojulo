@@ -132,6 +132,11 @@ export const SOURCE_KINDS = [
   // banners / legends in slots + the style tokens. Discovered by intent ("a health
   // bar", "show TIME! at the end", "theme the game"); read via `get_game_vocab`.
   'game_hud',
+  // idiom cards — the game-idiom shelf (generated from lib/graph/worlds/game-idioms.js IDIOM_ABOUT):
+  // one reusable rule a world lists in `idioms` (deed / pickup / scoreCounter / …), each tagged with
+  // the lowest tier of interactivity it serves. Discovered by intent ("click to toggle", "keep
+  // score"); read via `get_game_vocab`.
+  'game_idiom',
   // game-project charters (game-developer.plan.md) — one row per game project
   // (gp_ ref), body = the charter (premise / register / scope). Discovered by
   // intent ("my platformer project", "the game with the mono-eye suits");
@@ -279,6 +284,31 @@ function ensureLexicalCorpus() {
     });
   }
   return lexicalPopulate;
+}
+
+// An upgrade ships cards the index has never seen: reindexAll only runs on an empty table, and the boot prune
+// only removes what a release retired. So once per process, before the first search, a corpus that reindexAll
+// built (it holds both view-vocab and routing rows) is checked for shipped cards it lacks; any missing → one
+// reindex (hash-skipping: only the new rows are written). A corpus without both kinds is a hand-seeded table,
+// and is left alone; so is an index the operator disabled.
+let shelfFresh = null;
+function ensureShippedCards() {
+  if (process.env.MOJULO_SEMANTIC_INDEX_DISABLED === '1') return Promise.resolve();
+  if (!shelfFresh) {
+    shelfFresh = (async () => {
+      const db = getDb();
+      const rows = db.prepare("SELECT source_kind, source_ref FROM meta_embeddings WHERE source_kind IN ('view_vocab', 'routing', 'solid_vocab')").all();
+      if (!rows.some((r) => r.source_kind === 'view_vocab') || !rows.some((r) => r.source_kind === 'routing')) return;
+      const have = new Set(rows.map((r) => `${r.source_kind}:${r.source_ref}`));
+      const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
+      const { getRoutingCardCatalog } = await import('../../mcp/routing-cards/loader.js');
+      const { getSolidVocabCatalog } = await import('../../graph/solid-vocab/loader.js');
+      const shipped = [...[...getViewVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `view_vocab:${c.id}`), ...[...getRoutingCardCatalog().keys()].map((id) => `routing:${id}`),
+        ...[...getSolidVocabCatalog().keys()].map((id) => `solid_vocab:${id}`)];   // the generated animal entries land with a species
+      if (shipped.some((k) => !have.has(k))) await reindexAll();
+    })().catch((err) => console.warn(`[meta_embeddings] shipped-card refresh failed: ${err.message}`));
+  }
+  return shelfFresh;
 }
 
 async function searchLexical(query, { kindFilter, limit }) {
@@ -602,6 +632,7 @@ export const EmbeddingsRepository = {
       for (const k of kinds) assertSourceKind(k);
       kindFilter = kinds;
     }
+    await ensureShippedCards();
 
     let queryVector;
     try {
@@ -894,6 +925,16 @@ export const BodyComposition = {
   gameHud(card) {
     // Same shape: lead with intent phrases so "a health bar" / "game over text" / "theme the
     // game" match the hud card before its parameter manual.
+    const lines = [];
+    lines.push(`# ${card.name}`);
+    if (card.summary) lines.push('', card.summary);
+    if (card.when) lines.push('', `When: ${card.when}`);
+    if (card.body) lines.push('', '---', '', card.body);
+    return lines.join('\n');
+  },
+  gameIdiom(card) {
+    // Same shape: lead with intent phrases so "click to toggle" / "keep score" match the idiom
+    // card before its parameter manual.
     const lines = [];
     lines.push(`# ${card.name}`);
     if (card.summary) lines.push('', card.summary);
@@ -1359,6 +1400,7 @@ export async function reindexAll({ verbose = false } = {}) {
   const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
   const viewVocab = getViewVocabCatalog();
   for (const card of viewVocab.values()) {
+    if (card.index === false) continue;   // a generated record card: read on demand, never searched
     items.push({
       sourceKind: 'view_vocab',
       sourceRef: card.id,
@@ -1502,6 +1544,19 @@ export async function reindexAll({ verbose = false } = {}) {
     });
   }
   log(`game_hud: ${hudVocab.size}`);
+
+  // 18c. Idiom cards — the game-idiom shelf, GENERATED from game-idioms.js (IDIOM_ABOUT + the lowering
+  // of each card's own example), so "click to toggle" / "keep score" / "collect coins" surfaces the rule.
+  const { getIdiomVocabCatalog } = await import('../../graph/game/idiom-cards/loader.js');
+  const idiomVocab = getIdiomVocabCatalog();
+  for (const card of idiomVocab.values()) {
+    items.push({
+      sourceKind: 'game_idiom',
+      sourceRef: card.id,
+      bodyText: BodyComposition.gameIdiom(card),
+    });
+  }
+  log(`game_idiom: ${idiomVocab.size}`);
 
   // 19. Routing cards — one *.md per creative-mint routing row retired from
   // forward_context's Create-things section (lib/mcp/routing-cards/). The

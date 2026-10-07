@@ -8,12 +8,16 @@
  *
  * MULTI-BOOK (Phase 5): attachment is an ORDERED list of book directories —
  *
- *     core vocab cards  >  the COOKBOOK  >  the upstream clone
+ *     core vocab cards  >  the COOKBOOK  >  an attached clone  >  the BUNDLED book
  *
  * The cookbook is the operator's own book (save_recipe writes it), living
  * beside the instance's data (`$MOJULO_COOKBOOK` or `<data dir>/cookbook`) so
- * the index that chases it is always its neighbour. The upstream book is the
- * operator-cloned catalog (`$MOJULO_RECIPE_BOOK`). Precedence is FIRST-WINS by
+ * the index that chases it is always its neighbour. The bundled book ships in
+ * the package at control/book/ (3.1.0), so every install — an agent box included,
+ * where nothing can be cloned beside the package — carries the whole catalog.
+ * An attached clone (`$MOJULO_RECIPE_BOOK`) is DEPRECATED: it still loads, and
+ * still beats the bundled book on an id, for installs that pointed at one
+ * before the book moved in. Precedence is FIRST-WINS by
  * card id across books (and core beats both at each vocab merge), so
  * "forking" an upstream entry = saving under your own id — no merge machinery.
  *
@@ -29,6 +33,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path, { dirname, join } from 'node:path';
+import { moduleDir } from '../../../module-dir.js';
 
 // entry tool → target vocab catalog. Cards whose `entry` has no row here are
 // skipped with a warning — a book written for a newer mojulo (families this
@@ -68,6 +73,19 @@ export function parseBookCard(filePath) {
   return { ...meta, body: raw.slice(match[0].length).trim() };
 }
 
+// The book that ships with the package: control/book. MOJULO_BUNDLED_BOOK
+// overrides the path, and 'off' leaves it unattached (the test floor in
+// vitest.setup.js, so a suite measures core alone unless it opts in).
+const BUNDLED_BOOK_DIR = path.resolve(moduleDir(import.meta.url, 'lib/graph/views/recipe-book'), '../../../../book');
+export function bundledBookDir(override) {
+  const dir = override ?? process.env.MOJULO_BUNDLED_BOOK;
+  if (typeof dir === 'string' && dir.trim().length) {
+    return /^(off|0|false|none)$/i.test(dir.trim()) ? null : dir.trim();
+  }
+  return BUNDLED_BOOK_DIR;
+}
+
+// Deprecated in 3.1.0 (the book ships bundled); still honoured through 3.x.
 export function bookDir(override) {
   const dir = override ?? process.env.MOJULO_RECIPE_BOOK;
   return typeof dir === 'string' && dir.trim().length ? dir.trim() : null;
@@ -95,16 +113,18 @@ export function controlVersion() {
 }
 
 /**
- * The ordered attachment list: [{ dir, source }] — cookbook first (it beats
- * the upstream clone on id collisions), each present only if its
- * manifest.json exists. Overrides are test seams.
+ * The ordered attachment list: [{ dir, source }] — cookbook first, then an
+ * attached clone, then the bundled book (earlier beats later on an id), each
+ * present only if its manifest.json exists. Overrides are test seams.
  */
-export function bookDirs({ cookbook, upstream } = {}) {
+export function bookDirs({ cookbook, upstream, bundled } = {}) {
   const dirs = [];
   const cb = cookbookDir(cookbook);
   if (cb && existsSync(join(cb, 'manifest.json'))) dirs.push({ dir: cb, source: 'cookbook' });
   const up = bookDir(upstream);
   if (up && existsSync(join(up, 'manifest.json'))) dirs.push({ dir: up, source: 'recipe-book' });
+  const bd = bundledBookDir(bundled);
+  if (bd && existsSync(join(bd, 'manifest.json')) && bd !== up) dirs.push({ dir: bd, source: 'bundled' });
   return dirs;
 }
 

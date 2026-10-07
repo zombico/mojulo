@@ -419,6 +419,11 @@ describe('every served card, catalyst, form and manual under the profile', () =>
         };
         await byId('get_sketch_vocab', await ids('get_sketch_vocab', 'cards'));
         await byId('get_solid_vocab', await ids('get_solid_vocab', 'cards'));
+        // A sectioned card serves its base by id; read its sections too, so their text is checked like the rest.
+        for (const [, { id }, r] of read.filter(([name, args]) => name === 'get_solid_vocab' && args.id)) {
+          const menu = JSON.parse(r.text).card?.sections;
+          if (menu) read.push(['get_solid_vocab', { id, section: 'all' }, await call('get_solid_vocab', { id, section: menu.map((m) => m.name) })]);
+        }
         for (const reader of ['get_view_vocab', 'get_motion_vocab', 'get_beats_vocab', 'get_game_vocab']) {
           const r = await call(reader, {});
           read.push([reader, {}, r]);

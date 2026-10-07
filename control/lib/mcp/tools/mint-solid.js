@@ -44,6 +44,7 @@ import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler, createCodeSolidHandler, createEquipmentHandler } from '@/lib/mcp/tools/workbench';
 import { createScadHandler } from '@/lib/mcp/tools/scad';
+import { createFurnitureHandler } from '@/lib/mcp/tools/furniture';
 import { createLayeredHandler, createLayeredPlanHandler, createLayeredHeroHandler } from '@/lib/mcp/tools/layered';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
@@ -92,6 +93,9 @@ export const SOLID_KINDS = {
   // The equipment door: arms named by intent and direction (item, style, dials) — the laws in lib/graph/equipment
   // compose them. Stores kind:'workbench' + `build`, expanded on every read, so a dial patch restyles in place.
   'equipment': { family: 'object', handler: createEquipmentHandler },
+  // The furniture door: a style or a kind, slot forms, a finish and a size (furnishings/forms.js), locked at mint into
+  // one workbench frame of resolved dials. Stores kind:'workbench' + `frames`, so a `/frames/0/…` patch restyles in place.
+  'furniture': { family: 'object', handler: createFurnitureHandler },
   // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
   // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
   'scad': { family: 'object', handler: createScadHandler },
@@ -110,7 +114,7 @@ export const SOLID_KINDS = {
   'carved-solid': { family: 'object', handler: createCarvedSolidHandler },
   'solid-turntable': { family: 'object', handler: createSolidTurntableHandler },
   'edifice': { family: 'structure', handler: createEdificeHandler },
-  // A meta-fabricator VEHICLE family instance (a registered type + optional
+  // A VEHICLE family instance (lib/graph/meta-fabricator.js) (a registered type + optional
   // decoration) previewed on the measured studio grid — mints kind
   // 'vehicle-instance'.
   'vehicle': { family: 'vehicle', handler: previewVehicleInstanceHandler },
@@ -219,8 +223,27 @@ export async function editSolidHandler(input) {
   }
 }
 
+// A card with sections opens at its base plus a menu; `section` reads one, or a list reads several.
+function sectionedRead(id, card, section) {
+  const { base, sections, ...rest } = card;
+  const menu = Object.entries(sections).map(([name, s]) => ({ name, title: s.title, summary: s.summary, bytes: Buffer.byteLength(s.body, 'utf8') }));
+  if (section === undefined) {
+    return { ok: true, card: { ...rest, body: base, sections: menu, read: `get_solid_vocab({ id: '${id}', section: '<name>' }), or a list of names` }, _telemetrySignal: { id_requested: true, found: true } };
+  }
+  const names = Array.isArray(section) ? section : [section];
+  if (!names.length || names.some((n) => typeof n !== 'string')) throw new Error('get_solid_vocab: `section` is a section name or a list of them.');
+  const unknown = names.filter((n) => !sections[n]);
+  if (unknown.length) throw new Error(`get_solid_vocab: card '${id}' has no section ${unknown.map((n) => `'${n}'`).join(', ')}. Its sections: ${Object.keys(sections).join(', ')}.`);
+  return {
+    ok: true,
+    id,
+    sections: names.map((n) => ({ name: n, title: sections[n].title, body: sections[n].body })),
+    _telemetrySignal: { id_requested: true, found: true },
+  };
+}
+
 export async function getSolidVocabHandler(input) {
-  const { id, family } = input && typeof input === 'object' ? input : {};
+  const { id, family, section } = input && typeof input === 'object' ? input : {};
   const catalog = getSolidVocabCatalog();
   // The Claude plugin profile does not serve the manual of an op it leaves out (skin), and serves the
   // kept cards without their lines about the skin seam, a dreamed reference or the prompt door
@@ -231,12 +254,15 @@ export async function getSolidVocabHandler(input) {
     const card = catalog.get(id);
     if (!card) {
       throw new Error(
-        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].filter(served).join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
+        `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.values()].filter((c) => !c.generated && served(c.id)).map((c) => c.id).join(', ')}, and the animal entries ('animals' lists them: 'animal/<species>', 'animal/<family>'). Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
+    if (card.sections) return sectionedRead(id, profiledCard('solid_vocab', card), section);
+    if (section !== undefined) throw new Error(`get_solid_vocab: card '${id}' has no sections; read it whole without \`section\`.`);
     return { ok: true, card: profiledCard('solid_vocab', card), _telemetrySignal: { id_requested: true, found: true } };
   }
-  let cards = [...catalog.values()].filter((c) => served(c.id)).map((c) => profiledCard('solid_vocab', c));
+  // one row per kind and op: the generated animal entries stay out (the `animal` card points at their index, `animals`)
+  let cards = [...catalog.values()].filter((c) => served(c.id) && !c.generated).map((c) => profiledCard('solid_vocab', c));
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
@@ -257,7 +283,7 @@ export function registerMintSolidTools() {
       'Mint a 3D SOLID — a posed human figure, an ANIMAL, a part-graph creature/object, a measured object '
       + 'study, a `code` program returning one, an assembly, a carved metal wordmark/logo, a spinning solid, a '
       + 'bespoke INSTITUTIONAL building (edifice), or a vehicle-family instance. A house / apartment / one furnished '
-      + "room is NOT a solid: mint it with create_sketch, `manifest: { kind: 'floorplan', … }` (walkable, `storeys: N`). "
+      + "room is NOT a solid: mint_building. "
       + 'Served as an SVG still + orbitable World + `.glb`; a tiny deterministic '
       + 'recipe, regenerated on render. Pick `kind` from the enum; per-kind params go '
       + 'in `spec`; `via` picks an authoring door (manji-tree: ir/parts/prompt/packet; layered: '
@@ -319,16 +345,17 @@ export function registerMintSolidTools() {
   registerTool({
     name: 'get_solid_vocab',
     description:
-      'Read a solid-vocab card in full — the depiction prose + routing phrases + parameter manual '
+      'Read a solid-vocab card — the depiction prose + routing phrases + parameter manual '
       + 'for one `mint_solid` kind or `edit_solid` op. Pass `id` for one card; omit for the index '
       + 'rows { id, name, family, entry, summary, when } (optional `family` filter: figure / '
       + "creature / object / structure / vehicle / edit). Discover cards by intent via "
-      + "semantic_search({ kinds: ['solid_vocab'] }); this reader returns the full body. Read-only.",
+      + "semantic_search({ kinds: ['solid_vocab'] }). A long card opens to a `sections` menu. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string', description: 'Card id (= the mint_solid kind or edit_solid op).' },
         family: { type: 'string', enum: ['figure', 'creature', 'object', 'structure', 'vehicle', 'edit'], description: 'Optional list filter.' },
+        section: { description: 'With `id`: a section name, or a list.' },
       },
       required: [],
     },

@@ -28,19 +28,23 @@ const withoutHair = (head) => Object.fromEntries(Object.entries(head.parts).filt
 const locksOf = (head) => Object.keys(head.parts).filter((k) => k.startsWith('hairLock'));
 
 // the bytes `hairMass` grew on 2026-09-26, before the library: the same three styles at every control 1 must be these
+// (re-pinned 2026-10-05: the cap rides the head, and the fitted forehead now stands upright and the brow's end reads its
+// own landmark, so every cap's points moved with the surface; then the cap's bands split on their outward diagonals,
+// station-loft-detail.js loftParts `convex`, so its left half no longer sinks into the skull; the library's styles still
+// grow these three at control 1)
 const LEGACY = {
-  'male/crop/round': 'e737200d57a586a27fdca89ce06ecb73ea0dc11daa67f3e6ea0760af50fe7195',
-  'male/crop/lowpoly': 'e737200d57a586a27fdca89ce06ecb73ea0dc11daa67f3e6ea0760af50fe7195',
-  'male/swept/round': '48e8e5d55b44a8da5e5f54735f296e26ac11b82a90735ba318d3867b92fbe4c7',
-  'male/swept/lowpoly': '48e8e5d55b44a8da5e5f54735f296e26ac11b82a90735ba318d3867b92fbe4c7',
-  'male/bob/round': '7978bacfe674e919e6a5c19cd1089459a6ef66f0b4ccde76f4644074f1802ce9',
-  'male/bob/lowpoly': '7978bacfe674e919e6a5c19cd1089459a6ef66f0b4ccde76f4644074f1802ce9',
-  'female/crop/round': 'ca2e64c673e2cfd42fe8f4d8c4a441a557b08d51c70e69763137d3764a02b246',
-  'female/crop/lowpoly': 'ca2e64c673e2cfd42fe8f4d8c4a441a557b08d51c70e69763137d3764a02b246',
-  'female/swept/round': '0d17745228d2ba9e512a3c4bef01c5c80943d757d10f3b4143e45522d7919715',
-  'female/swept/lowpoly': '0d17745228d2ba9e512a3c4bef01c5c80943d757d10f3b4143e45522d7919715',
-  'female/bob/round': '1cd4ccfd520970de645d2b36aea9a6f1f73b41a2ac913ee93bd4279289341d23',
-  'female/bob/lowpoly': '1cd4ccfd520970de645d2b36aea9a6f1f73b41a2ac913ee93bd4279289341d23',
+  'male/crop/round': '222f04ad51e8b808d769baa24b7cc12cfbcb7b0fce7b6a99c19f77882e1771a1',
+  'male/crop/lowpoly': '222f04ad51e8b808d769baa24b7cc12cfbcb7b0fce7b6a99c19f77882e1771a1',
+  'male/swept/round': 'c2046e2f1d18057e8d9762f2817d3dd0f29108229a1a600da756cf1b588a17f6',
+  'male/swept/lowpoly': 'c2046e2f1d18057e8d9762f2817d3dd0f29108229a1a600da756cf1b588a17f6',
+  'male/bob/round': '9634ec17b451dcc09c1f029d1abe3051e520698b66c3418f65fce0b4ef3dbc5b',
+  'male/bob/lowpoly': '9634ec17b451dcc09c1f029d1abe3051e520698b66c3418f65fce0b4ef3dbc5b',
+  'female/crop/round': '842e09eaa1f38f811b836e13da0d5b95a7d7d43721c9e2e82b460e40002a7706',
+  'female/crop/lowpoly': '842e09eaa1f38f811b836e13da0d5b95a7d7d43721c9e2e82b460e40002a7706',
+  'female/swept/round': '0f59672bf2fa67c2855aedad488ca36cb49fd0c7e5340109483eef676f75a4b8',
+  'female/swept/lowpoly': '0f59672bf2fa67c2855aedad488ca36cb49fd0c7e5340109483eef676f75a4b8',
+  'female/bob/round': '2dc5f9201f962157b0af1e886c35492aa0227aacd10a0ce1e075ddc856391ac1',
+  'female/bob/lowpoly': '2dc5f9201f962157b0af1e886c35492aa0227aacd10a0ce1e075ddc856391ac1',
 };
 
 describe('the legacy pin: crop, swept and bob are the bytes the head grew before the library', () => {
@@ -202,6 +206,32 @@ describe('what each control means', () => {
       // a female part: the lobes beside it raise the cap on a parted style, the open front raises the hairline over it
       const capTop = (h) => zMax(rings(h, 'hairCap'));
       expect(capTop(humanoidHead({ preset, hair: ['long', { definition: 1.5 }] }))).toBeGreaterThan(capTop(humanoidHead({ preset, hair: ['long', { definition: 0.6 }] })));
+    });
+  }
+});
+
+describe('the cap covers the skull', () => {
+  // rays out from the skull's centre through points inside every skull face above the brow + 3.5 cm: each meets the hair
+  // (the cap's bands split on their outward diagonals, so neither half sinks a chord into the skull: the old left temple's
+  // "horn"); the swept fringe's hairline (the skull's front row, y > 0.06 at the centre) is skin by design
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  for (const [preset, hair] of [['male', 'swept'], ['female', 'bob'], ['male', 'crop'], ['female', 'swept']]) {
+    it(`${preset} ${hair}: no skull face shows through the cap, left or right`, () => {
+      const m = compileLayered(humanoidHead({ preset, hair }));
+      const partOf = (fi) => m.provenance[m.faces[fi][0]].part, P = (v) => m.vertices[v];
+      const hairTris = m.faces.filter((t, fi) => m.groups[fi] === 'Hair').map((t) => t.map(P));
+      const hit = (o, d) => hairTris.some(([a, b, c]) => { const e1 = sub(b, a), e2 = sub(c, a), h = cross(d, e2), det = dot(e1, h); if (Math.abs(det) < 1e-12) return false; const f = 1 / det, s = sub(o, a), u = f * dot(s, h); if (u < 0 || u > 1) return false; const q = cross(s, e1), v = f * dot(d, q); return v >= 0 && u + v <= 1 && f * dot(e2, q) > 1e-6; });
+      let brow = -Infinity; m.faces.forEach((t, fi) => { if (/^brow/.test(partOf(fi))) for (const v of t) brow = Math.max(brow, P(v)[2]); });
+      const skull = []; m.faces.forEach((t, fi) => { if (partOf(fi) === 'cranium' && m.groups[fi] === 'Skin') skull.push(t.map(P)); });
+      const pts = skull.flat(), C = [0, 1, 2].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length);
+      const bare = [];
+      for (const [a, b, c] of skull) for (let i = 1; i < 6; i++) for (let j = 1; i + j < 6; j++) {
+        const u = i / 6, w = j / 6, p = [0, 1, 2].map((k) => a[k] * u + b[k] * w + c[k] * (1 - u - w));
+        if (p[2] < brow + 0.035 || (Math.abs(p[0]) < 0.035 && p[1] > 0.06)) continue;
+        const d = sub(p, [C[0], C[1], Math.min(p[2], C[2] + 0.02)]), l = Math.hypot(...d);
+        if (!hit(p, d.map((x) => x / l))) bare.push(p.map((x) => +x.toFixed(3)));
+      }
+      expect(bare).toEqual([]);
     });
   }
 });

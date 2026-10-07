@@ -61,7 +61,9 @@ function refineSlot(recipe, part, a, b, name, f = 0.5) {
 /** push named slots radially out of each station ring (from the ring centroid), weighted per station */
 function volumize(recipe, part, slotW, stationW, amount) {
   const P = recipe.parts[part];
-  for (const st of P.stations) { const ws = stationW[st.id] ?? 0; if (!ws) continue; const c = mean(P.slots.map((s) => st.points[s]));
+  // a shaping station (fractional u, unnamed in the weights) takes its neighbours' weights by u
+  const wOf = (st) => stationW[st.id] ?? (st.u !== undefined && !Number.isInteger(st.u) ? (stationW[`st${Math.floor(st.u)}`] ?? 0) * (Math.ceil(st.u) - st.u) + (stationW[`st${Math.ceil(st.u)}`] ?? 0) * (st.u - Math.floor(st.u)) : 0);
+  for (const st of P.stations) { const ws = wOf(st); if (!ws) continue; const c = mean(P.slots.map((s) => st.points[s]));
     for (const [slot, wl] of Object.entries(slotW)) for (const nm of slot.endsWith('*') ? [slot.slice(0, -1) + 'R', slot.slice(0, -1) + 'L'] : [slot]) {
       const p = st.points[nm]; st.points[nm] = add(p, mul(unit(sub(p, c)), amount * ws * wl)); } }
 }
@@ -84,11 +86,24 @@ function pinToAddress(part, pin) {
 }
 
 // ── closed lofts ──
-function loftParts(rings, back, tip) {
+// `convex`: each band quad split along the diagonal that folds it OUTWARD (the fourth corner on the inner side of the
+// first triangle's plane, inner judged from the loft's centre), so a shell lofted over a rounded surface (the hair cap
+// over the skull) never sinks a chord into it, and mirrored halves split alike. Absent: every quad on the same
+// diagonal, as before.
+function loftParts(rings, back, tip, { convex = false } = {}) {
   const m = rings[0].length, pts = {}, faces = [];
   rings.forEach((r, j) => r.forEach((p, k) => (pts[`st${j}.s${k}`] = p))); pts.back = back; pts.tip = tip;
   const id = (j, k) => `st${j}.s${k % m}`;
-  for (let j = 0; j + 1 < rings.length; j++) for (let k = 0; k < m; k++) faces.push([id(j, k), id(j, k + 1), id(j + 1, k + 1)], [id(j, k), id(j + 1, k + 1), id(j + 1, k)]);
+  const o = convex ? mean(Object.values(pts)) : null;
+  const outward = (a, b, c, d) => {   // the split a–c folds outward: d on the inner side of the plane (a, b, c)
+    const P = [a, b, c, d].map((x) => pts[x]), n = cross(sub(P[1], P[0]), sub(P[2], P[0])), q = mul(P.reduce(add, [0, 0, 0]), 0.25);
+    const s = dot(n, sub(q, o)) < 0 ? -1 : 1; return s * dot(n, sub(P[3], P[0])) <= 0;
+  };
+  for (let j = 0; j + 1 < rings.length; j++) for (let k = 0; k < m; k++) {
+    const a = id(j, k), b = id(j, k + 1), c = id(j + 1, k + 1), d = id(j + 1, k);
+    if (convex && !outward(a, b, c, d)) faces.push([a, b, d], [b, c, d]);
+    else faces.push([a, b, c], [a, c, d]);
+  }
   const L = rings.length - 1; for (let k = 0; k < m; k++) faces.push([id(0, k + 1), id(0, k), 'back'], [id(L, k), id(L, k + 1), 'tip']);
   const c = mean(Object.values(pts)); const vol = faces.reduce((s, f) => s + dot(sub(pts[f[0]], c), cross(sub(pts[f[1]], c), sub(pts[f[2]], c))), 0);
   return { points: pts, faces: vol < 0 ? faces.map((f) => [...f].reverse()) : faces, rings: rings.map((r, j) => r.map((_, k) => id(j, k))), m };
@@ -236,7 +251,9 @@ function keepOut(L1, Rg, side) {
 // ── the EYE region: ball (named bands) + ONE surround ring (lids above, pad below), tucked under the brow ──
 function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browRest, orbit }) {
   const E = spec; const mode = E.mode || 'iris', pupil = E.pupil || (mode === 'solid' ? 'none' : 'round');
-  const c = [0, 0, 0.002]; const irisA = E.irisAngle ?? (pupil === 'slit' ? 46 : 36), pupilA = E.pupilAngle ?? 15, limbA = irisA + 5;
+  // SET EYE (opt-in: `spec.set` { sink, gap, lid }): the ball's centre sinks `sink` × R under the skin, so only a low
+  // cornea cap shows (no goggle dome), and the surround becomes a thin lid hugging the ball (all sizes relative to R)
+  const S = E.set; const c = S ? [0, 0, 0.002 - (S.sink ?? 0.5) * R] : [0, 0, 0.002]; const irisA = E.irisAngle ?? (pupil === 'slit' ? 46 : 36), pupilA = E.pupilAngle ?? 15, limbA = irisA + 5;
   const f = frameAt(bone, 'cranium', at, side); const out = {};
   const polar = [160, 130, 100, 75, 55, limbA, irisA, (irisA + pupilA) / 2, pupilA]; const flatZ = dmath.cos(irisA * Math.PI / 180) * R + 0.002;
   const rings = polar.map((a) => { const r = dmath.sin(a * Math.PI / 180) * R; let z = dmath.cos(a * Math.PI / 180) * R; if (a < irisA) z = flatZ - (a <= pupilA ? 0.0015 : 0);
@@ -269,7 +286,18 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   const ballR = Math.max(...Object.values(ball.points).map((p) => dmath.hypot(...sub(p, c)))), Rc = ballR + (orbit.clear ?? 0.0008);
   const hold = (p, r) => { const d = sub(p, c); return dmath.hypot(...d) >= r ? p : [p[0], p[1], c[2] + Math.sqrt(r * r - d[0] * d[0] - d[1] * d[1])]; };
   const clearOfBall = (sec) => { const H = sec.length / 2; return [...sec.slice(0, H).map((p) => hold(p, Rc + (orbit.minThick ?? 0.001))), ...sec.slice(H).map((p) => hold(p, Rc))]; };
-  for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = dmath.cos(phi), sn = dmath.sin(phi), up = sn >= 0;
+  if (S) for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = dmath.cos(phi), sn = dmath.sin(phi), up = sn >= 0;
+    // the lash on the ball (a hair off it), the lid's edge a thin step `lid` × R proud, the lid then running flush to the skin
+    const rl = R * (1 + (S.gap ?? 0.04)), TL = R * (S.lid ?? 0.1); const ax = 0.97 * R * cs, ay = Math.min(0.97 * R, up ? hu : hl) * sn;
+    const lash = add(c, [ax, ay, Math.sqrt(Math.max(1e-9, rl * rl - ax * ax - ay * ay))]);
+    const ox = (R + orbit.reach[0]) * cs; let oy = sn * (R + (up ? orbit.reach[1] : orbit.reach[2]));
+    if (up) oy = Math.min(oy, surfaceLocalOffset(f, along(brow, ox))[1] - orbit.tuck);
+    const outer = surfaceLocalOffset(f, add(projectOnto(skin.cranium, placeSurfaceOffset(f, [ox, oy, 0.06]), f.normal), mul(f.normal, 0.0005)));
+    const ud = unit(sub(lash, c)), rim = add(c, mul(ud, rl + TL));
+    const mids = [0.35, 0.7].map((w) => { const q = lerp(rim, outer, w), d = sub(q, c), r = dmath.hypot(...d), m = rl + TL * (1 - w); return r < m ? add(c, mul(unit(d), m)) : q; });
+    const inner = [add(c, mul(ud, rl - TL)), ...[rim, ...mids, outer].map((p) => sub(p, [0, 0, TL]))];
+    sections.push(clearOfBall([lash, rim, ...mids, outer, ...inner.reverse()])); }
+  else for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = dmath.cos(phi), sn = dmath.sin(phi), up = sn >= 0;
     const ax = 0.97 * R * cs, ay = (up ? hu : hl) * sn, rl = R + 0.005; const lash = add(c, [ax, ay, Math.sqrt(Math.max(1e-6, rl * rl - ax * ax - ay * ay))]);
     const ox = (R + orbit.reach[0]) * cs; let oy = sn * (R + (up ? orbit.reach[1] : orbit.reach[2]));
     if (up) oy = Math.min(oy, surfaceLocalOffset(f, along(brow, ox))[1] - orbit.tuck);

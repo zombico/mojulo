@@ -1,0 +1,13 @@
+{
+  "name": "build-casual",
+  "$note": "outfit { style: 'casual' }: a knit tee worn out over woven trousers, boots; the belt the focal, ornament 2 (ribbed collar, cuffs and hem, a waistband).",
+  "hero": {
+    "cast": "female",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "casual"
+    },
+    "gesture": "relaxed"
+  }
+}

@@ -1,5 +1,5 @@
 ---
-{ "id": "beats-orchestra", "name": "Orchestra: the score substrate and the orchestral shelf", "summary": "Orchestral writing in a beats-composition: meters and meter changes, a tempo map with rit./accel., motifs written once and placed by form (transposed, inverted, reversed), object events with dynamics, hairpins; woodwinds, harp, mallets, timpani, section size (players), depth (desk), seating presets and a4 tuning. Every sound is synthesized.", "when": "orchestral, a film score, a string ensemble, a symphonic cue, a waltz in 3/4, 6/8 or changing meters, a ritardando / accelerando / tempo ramp, a motif that recurs transposed, a crescendo or diminuendo hairpin, pp to ff dynamics, flute / clarinet / oboe / bassoon, woodwinds, harp, glockenspiel / xylophone / marimba / vibraphone / tubular bells / crotales, timpani with pedal glissando, a big string section vs a solo player, an orchestra seated left to right, orchestral tuning at 442" }
+{ "id": "beats-orchestra", "name": "Orchestra: the score substrate and the orchestral shelf", "summary": "Orchestral writing in a beats-composition: meters and meter changes, a tempo map with rit./accel., motifs written once and placed by form (transposed, inverted, reversed), object events with dynamics, hairpins; woodwinds, harp, mallets, timpani, section size (players), depth (desk), seating presets and a4 tuning. Game field and battle scores have their own manual, beats-field-orchestra. Every sound is synthesized.", "when": "orchestral, a film score, a string ensemble, a symphonic cue, a waltz in 3/4, 6/8 or changing meters, a ritardando / accelerando / tempo ramp, a motif that recurs transposed, a crescendo or diminuendo hairpin, pp to ff dynamics, flute / clarinet / oboe / bassoon, woodwinds, harp, glockenspiel / xylophone / marimba / vibraphone / tubular bells / crotales, timpani with pedal glissando, a big string section vs a solo player, an orchestra seated left to right, orchestral tuning at 442" }
 ---
 
 All of this is opt-in on `beats-composition`. A recipe that uses none of it
@@ -43,8 +43,9 @@ phrase backwards. A motif stated twelve times costs its events once.
 
 ## The orchestral shelf
 
-- Woodwinds: `flute`, `clarinet`, `oboe`, `bassoon`, and `-2` ensembles.
-- `harp` is the tuned string.
+- Woodwinds: `flute`, `clarinet`, `oboe`, `bassoon`, `-2` ensembles, and `-3`
+  solo players whose spectrum follows velocity (pick these for a lead).
+- `harp` is the tuned string; `harp-2` adds the modal soundboard.
 - Mallets: `glockenspiel`, `xylophone`, `marimba`, `vibraphone` (motor
   tremolo), `tubular-bells`, `crotales`. `celesta` already existed.
 - `timpani`: give its part `glide` and the pedal bends every mode.
@@ -72,3 +73,8 @@ glide; a harp gliss; mallets. Then a 32-bar tutti: `seating: 'american'`,
 `a4: 442`, one `room`, motif A and its answer B placed by `form`, hairpins on
 the firsts, and a four-bar `tempo` ramp from 96 to 66. The ears question:
 does the tutti read as an orchestra, or as a synth string patch?
+
+## Game scores for open country and battle
+
+The style manual `beats-field-orchestra` covers writing a game's field,
+travel and battle music for this orchestra.

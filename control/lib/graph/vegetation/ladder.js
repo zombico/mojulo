@@ -15,7 +15,7 @@ import * as dmath from '../../util/dmath.js';
 
 function leafyNodes(plant) { return plant.nodes.filter((n) => !n.died && n.leaves > 0); }
 /** Voxel-cluster the leaves at cell size c → blobs (centroid, spread radii, Beer–Lambert tone). */
-export function clusterBlobs(plant, c, { detail = 0, minR = 0.6, tint = null, leafScale = 1 } = {}) {
+export function clusterBlobs(plant, c, { detail = 0, minR = 0.6, tint = null, leafScale = 1, fill = 1 } = {}) {
   const cells = new Map();
   for (const n of leafyNodes(plant)) {
     const k = `${Math.floor(n.pos[0] / c)},${Math.floor(n.pos[1] / c)},${Math.floor(n.pos[2] / c)}`;
@@ -28,7 +28,7 @@ export function clusterBlobs(plant, c, { detail = 0, minR = 0.6, tint = null, le
     // coverage-preserving: the blob covers what its leaves would cover, by Beer–Lambert over the cluster's extent
     // (LAI = leaf area over the extent's footprint, G = 0.5), so a sparse crown stays sparse and a dense one solid
     const ext = sd.map((x) => Math.max(0.6 * size * leafScale, 1.6 * x + 0.5 * size * leafScale));
-    const leafArea = g.w * 0.45 * (size * leafScale) ** 2 * (needles ? 2.5 : 1);
+    const leafArea = g.w * 0.45 * (size * leafScale) ** 2 * (needles ? 2.5 : 1) * fill;   // fill: a tree in bloom carries more than its leaves
     const lai = leafArea / (Math.PI * ext[0] * ext[1] + 1e-9); const cover = 1 - dmath.exp(-0.5 * lai);
     ext[2] = Math.max(ext[2], 0.55 * Math.max(ext[0], ext[1]));          // a cluster is a puff, not a pancake
     // an opaque blob cannot be 30% covered, so it shrinks part-way (cover^0.35 sits between area-preserving 0.5 and
@@ -41,7 +41,7 @@ export function clusterBlobs(plant, c, { detail = 0, minR = 0.6, tint = null, le
   return tris;
 }
 /** One level: tubes above the diameter cut, clusters for the rest of the foliage. */
-export function level(plant, { dCut = 0, sidesMax = 10, cell = 0, leaves = 'quads', detail = 0, trunkOnlyBelow = null, leafScale = 1, bark = null } = {}) {
+export function level(plant, { dCut = 0, sidesMax = 10, cell = 0, leaves = 'quads', detail = 0, trunkOnlyBelow = null, leafScale = 1, bark = null, fill = 1 } = {}) {
   const chains = axisChains(plant); const col = woodTone(plant); const tris = [];
   const sidesFor = (r) => Math.min(sidesMax, defaultSides(r));
   for (const ch of chains) {
@@ -54,21 +54,21 @@ export function level(plant, { dCut = 0, sidesMax = 10, cell = 0, leaves = 'quad
     for (const t of tubeTris(chain, { sidesFor, colorFor: col })) tris.push(t);
   }
   if (leaves === 'quads') for (const t of leafTris(plant, { scale: leafScale })) tris.push(t);
-  else if (leaves === 'clusters') for (const t of clusterBlobs(plant, cell, { detail, leafScale })) tris.push(t);
+  else if (leaves === 'clusters') for (const t of clusterBlobs(plant, cell, { detail, leafScale, ...(fill !== 1 ? { fill } : {}) })) tris.push(t);
   return tris;
 }
 /**
  * The ladder for a plant of height H. Thresholds scale with H so every species gets the same pixel logic. With `bark`
  * ({ minR, tile, color, key }), the near levels (L3, L2) draw axes thicker than 2·minR as bark quads carrying the tile's uv;
- * the far levels keep plain tubes, where a tile would shimmer.
+ * the far levels keep plain tubes, where a tile would shimmer. `fill` multiplies the clusters' leaf area (a tree in bloom).
  */
-export function ladder(plant, H, { leafScale = 1, bark = null } = {}) {
+export function ladder(plant, H, { leafScale = 1, bark = null, fill = 1 } = {}) {
   const crownBase = Math.min(...leafyNodes(plant).map((n) => n.pos[2]));
   const lad = {
     L3: level(plant, { leafScale, bark }),
-    L2: level(plant, { dCut: H / 420, sidesMax: 6, cell: H / 11, leaves: 'clusters', detail: 0, leafScale, bark }),
-    L1: level(plant, { dCut: H / 180, sidesMax: 4, cell: H / 5, leaves: 'clusters', detail: 0, leafScale }),
-    L0: level(plant, { dCut: H / 60, sidesMax: 4, cell: H / 2.4, leaves: 'clusters', detail: 0, leafScale, trunkOnlyBelow: crownBase + 0.25 * (H - crownBase) }),
+    L2: level(plant, { dCut: H / 420, sidesMax: 6, cell: H / 11, leaves: 'clusters', detail: 0, leafScale, bark, fill }),
+    L1: level(plant, { dCut: H / 180, sidesMax: 4, cell: H / 5, leaves: 'clusters', detail: 0, leafScale, fill }),
+    L0: level(plant, { dCut: H / 60, sidesMax: 4, cell: H / 2.4, leaves: 'clusters', detail: 0, leafScale, fill, trunkOnlyBelow: crownBase + 0.25 * (H - crownBase) }),
   };
   // a fig's roots, lattice and buttresses (ficus.js), under the same cuts: its hanging roots past the cut become curtains
   if (plant.arch.fig) {

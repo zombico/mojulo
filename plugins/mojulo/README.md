@@ -12,7 +12,7 @@ thinking is Claude's, in your session. It needs no account, no API key and no GP
 to the maintainer or to any analytics service; mojulo's only log is a local record of its own tool
 calls, which you can turn off.
 
-This plugin starts the open-source mojulo MCP server (`npx -y mojulo@3.0.0`) and adds one skill
+This plugin starts the open-source mojulo MCP server (`npx -y mojulo@3.1.0`) and adds one skill
 that tells Claude to start from mojulo's routing index. Nothing in this folder runs code of its
 own: no hooks, no scripts. The server is the npm package built from
 [github.com/zombico/mojulo](https://github.com/zombico/mojulo). It works in Claude Code and in
@@ -91,13 +91,13 @@ below happens only on the action named.
 
 | Kind | What | When |
 |---|---|---|
-| Installs | `mojulo@3.0.0` and its dependencies, from registry.npmjs.org, into the npm cache (`_npx`) | The first start, through `npx` |
+| Installs | `mojulo@3.1.0` and its dependencies, from registry.npmjs.org, into the npm cache (`_npx`) | The first start, through `npx` |
 | Fetches | A version lookup on registry.npmjs.org, anonymous | Only when Claude calls `check_for_updates` |
-| Fetches | The dashboard, `mojulo-ui@3.0.0`, from registry.npmjs.org, once | Only when you open it yourself: `npx -y -p mojulo@3.0.0 mojulo-ui` announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1` |
-| Fetches | The search runtime (npm) and its model (about 130 MB, huggingface.co) | Only when you run `npx -y mojulo@3.0.0 install recall` in a terminal. The server never fetches it on its own; without it, search ranks by words |
+| Fetches | The dashboard, `mojulo-ui@3.1.0`, from registry.npmjs.org, once | Only when you open it yourself: `npx -y -p mojulo@3.1.0 mojulo-ui` announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1` |
+| Fetches | The search runtime (npm) and its model (about 130 MB, huggingface.co) | Only when you run `npx -y mojulo@3.1.0 install recall` in a terminal. The server never fetches it on its own; without it, search ranks by words |
 | Never | Chrome for Testing, ffmpeg, three.js from a CDN | Renders use your installed browser, MP4 encodes your installed ffmpeg, and an exported page carries its own three.js |
 | Runs | A headless browser (the one you have), ffmpeg (the one you have), `git` | Renders and encodes on the action that needs them; `git` only when you ask Claude to save a recipe (`save_recipe`): local commits in `~/.mojulo/data/cookbook`, with your git identity and no remote. It never pushes |
-| Runs, only if you set it up | Blender, the `claude` CLI, app processes | Blender through `npx -y mojulo@3.0.0 script …` from a terminal; the `claude` CLI when `MOJULO_AGENT_RUNTIME=claude-code-headless` is set; apps inside the opt-in app runtime (`mojulo-app-runtime`), which the server never starts itself. Godot, Unity and Unreal are never started |
+| Runs, only if you set it up | Blender, the `claude` CLI, app processes | Blender through `npx -y mojulo@3.1.0 script …` from a terminal; the `claude` CLI when `MOJULO_AGENT_RUNTIME=claude-code-headless` is set; apps inside the opt-in app runtime (`mojulo-app-runtime`), which the server never starts itself. Godot, Unity and Unreal are never started |
 | Writes | `~/.mojulo/` (or `$MOJULO_HOME`) | The database, your recipes and cookbook, exports under `data/outcomes/` and `data/exports/`, preview caches, and the opt-in search runtime |
 | Writes | The OS temp directory | While a headless browser or an MP4 encode runs, removed afterwards (a Blender bake leaves its `moj-bake-*` folders) |
 | Writes | A folder you name | Only for `install_scaffold`, which writes an app there, `.env` included |
@@ -134,8 +134,9 @@ arguments and result (up to 4 KB each) in the same local rows; it is off unless 
   workbench `program`) is JavaScript that runs inside the server when it is minted, edited, rendered
   or exported. Its `node:vm` context keeps it deterministic; it is not a sandbox. Treat a recipe
   someone else wrote that carries a program as code.
-- `MOJULO_RECIPE_BOOK`, if you set it, points at a local clone of a recipe book whose `builder.js`
-  files are imported when the server starts. Point it only at a book you trust.
+- `MOJULO_RECIPE_BOOK` (deprecated in 3.1.0; the recipe book now ships bundled), if you set it, points
+  at a local clone of a recipe book whose `builder.js` files are imported when the server starts.
+  Point it only at a book you trust.
 
 ## Privacy policy
 
@@ -157,7 +158,7 @@ your content.
 - Your recipes, cookbook and exports carry over as they are. A home a 2.x install used may also hold
   `data/artifacts/`, where the chatbot factory kept each bot's `.env` with its provider key in plain
   text; 3.0 never reads it, and you can delete it.
-- This plugin now pins `mojulo@3.0.0` instead of running whatever npm has newest. Plugin releases
+- This plugin now pins `mojulo@3.1.0` instead of running whatever npm has newest. Plugin releases
   move that pin.
 
 ## Updating and removing
@@ -165,13 +166,13 @@ your content.
 The plugin pins one mojulo version. To update, update the plugin (`/plugin`, then mojulo), then
 restart the session; don't run a newer `npx mojulo` beside it. To remove everything: uninstall the
 plugin, delete `~/.mojulo/`, and optionally clear the npm cache's `_npx` folder for
-`mojulo@3.0.0`.
+`mojulo@3.1.0`.
 
 ## If the first start times out
 
 Claude Code gives a local server 30 seconds to start, and the first start downloads about 79 MB.
 On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm the
-cache once from a terminal with `npx -y mojulo@3.0.0 --help` and reconnect in `/mcp`. If a desktop
+cache once from a terminal with `npx -y mojulo@3.1.0 --help` and reconnect in `/mcp`. If a desktop
 or Cowork session reports `spawn npx ENOENT`, the Node on that session's `PATH` is missing; a system
 install of Node from nodejs.org fixes it.
 

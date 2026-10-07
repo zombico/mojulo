@@ -57,7 +57,7 @@ That posture shapes what is in and out of scope below.
 Two features run JavaScript that did not ship in the package, inside the mojulo process, with the operator's user privileges. This is how they work, not a boundary mojulo claims to enforce:
 
 - **Recipes that carry a `program`** (the code door: `mint_solid` with `kind: 'code'`, or a workbench recipe's `program`). The program runs when the recipe is minted, edited, restored, rendered or exported. It runs in a `node:vm` context, which keeps it deterministic but is **not a sandbox**: a program can reach the host process, the filesystem and the network. A recipe you did not write that carries a `program` is code; read it before you restore or render it, as you would a script.
-- **Recipe books** (`MOJULO_RECIPE_BOOK`). A book's Door-2 `builder.js` files are imported when mojulo starts, like a dependency. Point it only at a book you trust. The cookbook `save_recipe` writes is recipes only; a builder there is skipped.
+- **Recipe books.** A book's Door-2 `builder.js` files are imported when mojulo starts, like a dependency. The book bundled at `control/book` is part of the package and reviewed like the rest of it. An attached clone (`MOJULO_RECIPE_BOOK`, deprecated in 3.1.0) is third-party code: point it only at a book you trust. The cookbook `save_recipe` writes is recipes only; a builder there is skipped.
 
 Reports that a `program` or a book builder can do what any local script can do are expected behavior. Reports that code runs *without* one of these doors (a recipe with no `program`, a cookbook entry, a stored row read or listed rather than rendered) are in scope.
 

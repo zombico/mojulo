@@ -177,7 +177,8 @@ export function buildRulesPlatform(E) {
         if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; jumped = true; }
       }
       // variable height: releasing jump while still rising caps the climb (short hop vs full jump).
-      if (e.vel[2] > 0 && !input.jumpHeld) e.vel[2] = Math.min(e.vel[2], cutV);
+      // A rider thrown by a launcher (`launchedBy`, cleared on landing) is not jumping: its climb is the throw's.
+      if (e.vel[2] > 0 && !input.jumpHeld && !e.launchedBy) e.vel[2] = Math.min(e.vel[2], cutV);
     }
     // surface the charge state for the renderer's jump audio: `charging`/`chargeFrac` drive the
     // rising GATHER whine, `jumpPower` (0..1) scales the RELEASE on launch. A non-charge (tap/windup)

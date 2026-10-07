@@ -14,6 +14,9 @@ import { terrainField, validateTerrainSpec, gradedField } from './terrain-field.
 import { validateTerrainCities, prepareCity, seatCity, cityLight } from './terrain-city.js';
 import { validateTerrainGrass, resolveTerrainGrass, grassConfig, grassPageChannel } from './terrain-grass.js';
 import { validateTerrainPlants, resolveTerrainPlants, plantsConfig, plantPools, plantsPageChannel, plantsBake } from './terrain-plants.js';
+import { validateTerrainWind, resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
+import { validateFire } from '../fire/fire.js';
+import { SPECIES } from '../vegetation/species.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { slicedTerrainFaces, sliceLevels } from '../polygonizer/landform-mesh.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
@@ -50,6 +53,9 @@ export function validateTerrainWorld(m) {
   if (m && m.planet && Array.isArray(m.cities) && m.cities.length) errs.push('terrain.cities is for flat worlds: a city is graded on the flat ground, and a planet\'s ground curves away under it');
   if (m && m.plants !== undefined) errs.push(...validateTerrainPlants(m.plants, m));
   if (m && m.grass !== undefined) errs.push(...validateTerrainGrass(m.grass, m));
+  if (m && m.wind !== undefined) errs.push(...validateTerrainWind(m.wind, m));
+  if (m && m.fire !== undefined) errs.push(...validateFire(m.fire).map((e) => `terrain.${e}`));
+  if (m && m.planet && m.fire && m.fire.sources) errs.push('terrain.fire is for flat worlds: a fire is set on the flat ground');
   const lod = m && m.lod;
   if (lod !== undefined) {
     if (!lod || typeof lod !== 'object') errs.push('terrain.lod must be { minSize?, split?, maxChunks? }');
@@ -223,7 +229,7 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
   // stand within 600 m of the spawn as repeats
   const plantsSpec = resolveTerrainPlants(manifest.plants); let plantBake = null, plantMeta = null;
   if (plantsSpec) {
-    const V = plantsConfig(field, { figs: !!plantsSpec.figs, region: plantsSpec.region || null }), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
+    const V = plantsConfig(field, { figs: !!plantsSpec.figs, region: plantsSpec.region || null, kinds: plantsSpec.kinds || null }), pools = plantPools(V, plantsSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
     if (live) { channel.plants = plantsPageChannel(V, pools, plantsSpec); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), templates: channel.plants.templates.length, triangles: channel.plants.templates.reduce((a, t) => a + t.tris, 0) }; }
     else { plantBake = plantsBake(field, V, pools, { at: [wx, wy], radius: 600 }); plantMeta = { climate: V.climate, species: V.species.map((sp) => sp.name), baked: plantBake.count }; }
   }
@@ -234,6 +240,20 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     const Vg = grassConfig(field, grassSpec); channel.grass = grassPageChannel(Vg, grassSpec, makeLight({ direction: [-L[0], -L[1], -L[2]], ambient: 0.56, diffuse: 0.56 }));
     grassMeta = { climate: Vg.climate, kinds: Vg.species.map((sp) => sp.name), templates: channel.grass.templates.length, triangles: channel.grass.templates.reduce((a, t) => a + t.tris, 0) };
   }
+  // wind (vegetation/wind.js): the live page's grass and plants bend in it, each as far as its flaccidity lets it;
+  // nothing else takes wind. Exports carry none: a still frame of a breeze is only a lean.
+  const windSpec = resolveTerrainWind(manifest.wind); let windMeta = null;
+  if (windSpec && live && (channel.grass || channel.plants)) {
+    channel.wind = windPageChannel(windSpec, { grassKinds: channel.grass ? channel.grass.species.map((sp) => sp.name) : [], plantKinds: channel.plants ? channel.plants.species.map((sp) => sp.kind) : [],
+      bloom: channel.plants ? channel.plants.V.species.map((sp) => (SPECIES[sp.name] && SPECIES[sp.name].bloom ? sp.crown : 0)) : [] });
+    windMeta = { speed: windSpec.speed, dir: windSpec.dir, gust: windSpec.gust, flaccidity: windSpec.flaccidity };
+  }
+  // fire (fire/fire.js): sources set on the ground here (a 2D `at` takes the ground's height under it); the page's fire
+  // channel draws them, leaning in the wind when the world has one. world-scene.js resolves them with the rest.
+  const fireSources = manifest.fire && typeof manifest.fire === 'object' && Array.isArray(manifest.fire.sources) && !PLN
+    ? manifest.fire.sources.map((s) => (s.path ? { ...s, at: s.path.from } : { ...s, at: s.at.length === 3 ? s.at : [s.at[0], s.at[1], field.groundAt(s.at[0], s.at[1])] })) : null;
+  const fireSpread = manifest.fire && typeof manifest.fire === 'object' && Array.isArray(manifest.fire.spread) && !PLN
+    ? manifest.fire.spread.map((g) => ({ ...g, at: g.at.length === 3 ? g.at : [g.at[0], g.at[1], field.groundAt(g.at[0], g.at[1])] })) : null;
   const allRepeats = [...repeats, ...(plantBake ? plantBake.repeats : [])];
   const itemRefs = Array.isArray(manifest.place) && manifest.place.length ? terrainPlacements(field, manifest.place, { surf: PLN ? surf : null }) : null;
   return {
@@ -241,9 +261,11 @@ export function assembleTerrainWorld(manifest, { title = 'mojulo terrain world',
     ...(allRepeats.length ? { repeats: allRepeats } : {}),
     ...(plantBake && Object.keys(plantBake.textures).length ? { textures: plantBake.textures } : {}),
     ...(itemRefs ? { itemRefs } : {}),
+    ...(fireSources ? { fireSources, fireSourcesAll: true } : {}),
+    ...(fireSpread ? { fireSpread } : {}),
     haze: { color: bg, density: field.atlas ? 1.2 / Math.min(world, 8e4) : 0.9 / world },   // a composed world is seen through the air: tens of kilometres, not its whole width
     walk: { speed: channel.speeds.walk, spawn: [wx, wy, gz + EYE], radius: 0.4, minEye: EYE, gravity: 20, jump: 6 },
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
-    meta: { span: field.meta.span, bounds: b, rootSize: channel.root.size, octaves: field.meta.octaves, planet: PLN ? { R: PLN.R } : null, ...(field.atlas ? { world: field.atlas } : {}), ...(cities.length ? { cities: cities.map(({ prep: p, stats }) => ({ center: p.center, size: [p.rect.w, p.rect.d], sited: p.sited, grade: p.grade.stats, ...stats })) } : {}), ...(plantMeta ? { plants: plantMeta } : {}), ...(grassMeta ? { grass: grassMeta } : {}) },
+    meta: { span: field.meta.span, bounds: b, rootSize: channel.root.size, octaves: field.meta.octaves, planet: PLN ? { R: PLN.R } : null, ...(field.atlas ? { world: field.atlas } : {}), ...(cities.length ? { cities: cities.map(({ prep: p, stats }) => ({ center: p.center, size: [p.rect.w, p.rect.d], sited: p.sited, grade: p.grade.stats, ...stats })) } : {}), ...(plantMeta ? { plants: plantMeta } : {}), ...(grassMeta ? { grass: grassMeta } : {}), ...(windMeta ? { wind: windMeta } : {}) },
   };
 }

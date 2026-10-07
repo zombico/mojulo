@@ -1,0 +1,400 @@
+{
+  "book": "mojulo-recipe-book",
+  "bookVersion": "0.8.0",
+  "requiresMojulo": ">=1.4.2",
+  "chapters": ["science", "math", "beats", "solids", "worlds", "motion", "wardrobe"],
+  "entries": [
+    {
+      "type": "builder",
+      "chapter": "science",
+      "dir": "foucault-pendulum",
+      "id": "foucault-pendulum",
+      "since": "0.1.0"
+    },
+    {
+      "type": "builder",
+      "chapter": "science",
+      "dir": "aurora",
+      "id": "aurora",
+      "since": "0.1.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "science",
+      "dir": "saturn-grand-tour",
+      "id": "saturn-grand-tour",
+      "since": "0.1.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "science",
+      "dir": "gw150914",
+      "id": "gw150914",
+      "since": "0.1.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "science",
+      "dir": "quantum-buildup",
+      "id": "quantum-buildup",
+      "since": "0.1.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "science",
+      "dir": "eht-shadow",
+      "id": "eht-shadow",
+      "since": "0.1.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "beats",
+      "dir": "midnight-library",
+      "id": "midnight-library",
+      "since": "0.2.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "beats",
+      "dir": "cavern-drift",
+      "id": "cavern-drift",
+      "since": "0.2.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "beats",
+      "dir": "sunrise-terrace",
+      "id": "sunrise-terrace",
+      "since": "0.2.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "beats",
+      "dir": "orbital-beacon",
+      "id": "orbital-beacon",
+      "since": "0.2.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "beats",
+      "dir": "low-ride",
+      "id": "low-ride",
+      "since": "0.2.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "beats",
+      "dir": "arcade-cabinet",
+      "id": "arcade-cabinet",
+      "since": "0.2.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "solids",
+      "dir": "copper-teapot",
+      "id": "copper-teapot",
+      "since": "0.3.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "solids",
+      "dir": "plaza-orator",
+      "id": "plaza-orator",
+      "since": "0.3.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "solids",
+      "dir": "amethyst-crystal",
+      "id": "amethyst-crystal",
+      "since": "0.3.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "solids",
+      "dir": "midnight-lowrider",
+      "id": "midnight-lowrider",
+      "since": "0.3.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "solids",
+      "dir": "hillside-library",
+      "id": "hillside-library",
+      "since": "0.3.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "math",
+      "dir": "slope-equals-height",
+      "id": "slope-equals-height",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "math",
+      "dir": "tangent-blowup",
+      "id": "tangent-blowup",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "math",
+      "dir": "two-branches",
+      "id": "two-branches",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "math",
+      "dir": "area-remembers",
+      "id": "area-remembers",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "worlds",
+      "dir": "tram-night-market",
+      "id": "tram-night-market",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "worlds",
+      "dir": "ember-deep",
+      "id": "ember-deep",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "worlds",
+      "dir": "earthlight-beacon",
+      "id": "earthlight-beacon",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "motion",
+      "dir": "slow-reveal",
+      "id": "slow-reveal",
+      "since": "0.4.0"
+    },
+    {
+      "type": "recipe",
+      "chapter": "motion",
+      "dir": "hero-push-in",
+      "id": "hero-push-in",
+      "since": "0.4.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "shift-dress",
+      "id": "shift-dress",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "a-line-skirt",
+      "id": "a-line-skirt",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "straight-trousers",
+      "id": "straight-trousers",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "peplum-tunic",
+      "id": "peplum-tunic",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "knee-dress",
+      "id": "knee-dress",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "scoop-top",
+      "id": "scoop-top",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "wide-leg-trousers",
+      "id": "wide-leg-trousers",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "collared-shirt",
+      "id": "collared-shirt",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "banded-skirt",
+      "id": "banded-skirt",
+      "since": "0.6.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "dress-shirt",
+      "id": "dress-shirt",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "tie",
+      "id": "tie",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "suit-trousers",
+      "id": "suit-trousers",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "suit-jacket",
+      "id": "suit-jacket",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "blouse",
+      "id": "blouse",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "pencil-skirt",
+      "id": "pencil-skirt",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "suit-jacket-fitted",
+      "id": "suit-jacket-fitted",
+      "since": "0.7.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "shift-and-trousers",
+      "id": "shift-and-trousers",
+      "since": "0.6.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "tunic-and-trousers",
+      "id": "tunic-and-trousers",
+      "since": "0.6.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "blouse-and-midi-skirt",
+      "id": "blouse-and-midi-skirt",
+      "since": "0.6.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "scoop-and-wide-leg",
+      "id": "scoop-and-wide-leg",
+      "since": "0.6.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "shirt-and-trousers",
+      "id": "shirt-and-trousers",
+      "since": "0.6.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "two-piece-suit",
+      "id": "two-piece-suit",
+      "since": "0.7.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "business-suit",
+      "id": "business-suit",
+      "since": "0.7.0"
+    },
+    {
+      "type": "outfit",
+      "chapter": "wardrobe",
+      "dir": "business-suit-trousers",
+      "id": "business-suit-trousers",
+      "since": "0.7.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "sneaker",
+      "id": "sneaker",
+      "since": "0.8.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "loafer",
+      "id": "loafer",
+      "since": "0.8.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "oxford",
+      "id": "oxford",
+      "since": "0.8.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "ankle-boot",
+      "id": "ankle-boot",
+      "since": "0.8.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "knee-boot",
+      "id": "knee-boot",
+      "since": "0.8.0"
+    },
+    {
+      "type": "garment",
+      "chapter": "wardrobe",
+      "dir": "sandal",
+      "id": "sandal",
+      "since": "0.8.0"
+    }
+  ]
+}

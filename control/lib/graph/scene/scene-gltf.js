@@ -24,6 +24,7 @@
  * No three.js import — pure typed-array + Buffer assembly, unit-testable in node.
  */
 
+import { aquaWaterBodies } from '../materials/aqua-export.js';
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, faceColorLinear, plainFaces } from '../figures/face-mesh.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
 import { resolveMetalSurface } from '../materials/metal-surface.js';
@@ -32,7 +33,8 @@ import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.j
 import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
-import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
+import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, zRotationQuat } from './scene-gltf-level.js';
+import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 
 const COMPONENT_FLOAT = 5126;
@@ -50,6 +52,27 @@ const CHUNK_BIN = 0x004e4942; // 'BIN\0'
 // z-up (mojulo world) → y-up (glTF) as a root-node rotation: -90° about X maps +Z→+Y.
 // Quaternion [x,y,z,w] for θ=-90° about X = [sin(-45°),0,0,cos(-45°)].
 const ZUP_TO_YUP = [-0.7071067811865476, 0, 0, 0.7071067811865476];
+
+// A packed clip's world keys (q, head per bone) made PARENT-LOCAL for an engine skeleton: q = Q_p⁻¹·Q, t = Q_p⁻¹·(H − H_p);
+// a root keeps its world key. Same shape out, so addRigClip writes it as any clip. The pack's keys are rounded to four
+// decimals (slightly off unit), so they are normalized first — as an engine does — or the chain would scale its offsets.
+const unitQ = (B, o) => { const l = Math.hypot(B[o], B[o + 1], B[o + 2], B[o + 3]) || 1; return [B[o] / l, B[o + 1] / l, B[o + 2] / l, B[o + 3] / l]; };
+function localClip(clip, parents, nb) {
+  const B = clip.b, out = new Array(B.length);
+  const qmul = (a, b) => [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+  const qrot = (q, v) => { const u = [q[0], q[1], q[2]], c = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; const t = c(u, v).map((x) => 2 * x), ct = c(u, t); return [v[0] + q[3] * t[0] + ct[0], v[1] + q[3] * t[1] + ct[1], v[2] + q[3] * t[2] + ct[2]]; };
+  for (let k = 0; k < clip.k; k++) for (let i = 0; i < nb; i++) {
+    const o = (k * nb + i) * 7, p = parents[i];
+    const Q = unitQ(B, o), H = [B[o + 4], B[o + 5], B[o + 6]];
+    let q = Q, t = H;
+    if (p >= 0) {
+      const po = (k * nb + p) * 7, P = unitQ(B, po), Pi = [-P[0], -P[1], -P[2], P[3]];
+      q = qmul(Pi, Q); t = qrot(Pi, [H[0] - B[po + 4], H[1] - B[po + 5], H[2] - B[po + 6]]);
+    }
+    out[o] = q[0]; out[o + 1] = q[1]; out[o + 2] = q[2]; out[o + 3] = q[3]; out[o + 4] = t[0]; out[o + 5] = t[1]; out[o + 6] = t[2];
+  }
+  return { ...clip, b: out };
+}
 
 // sRGB channel (0..1) → linear, matching face-mesh's vertex-colour convention so decal
 // colours (authored 0..255 sRGB) sit in the same space as baked face colours.
@@ -219,6 +242,10 @@ class GlbBuilder {
     this.bin = [];
     this.binLen = 0;
     this.children = []; // node indices parented under the y-up root
+    // engine-skeleton figures (the T-pose humanoid): scene-level nodes OUTSIDE the root, already in the y-up VRM space.
+    // An engine's humanoid import (Godot's rest fixer) bakes the skeleton's ancestors into it and resets them, which would
+    // strip the root's z-up → y-up from every sibling (the floor, the cameras) if the figure hung under it.
+    this.sceneRoots = [];
     this.json = {
       asset: { version: '2.0', generator },
       extensionsUsed: [],
@@ -415,6 +442,22 @@ class GlbBuilder {
     }
     if (optics.glow && optics.glow.strength > 0) mat.emissiveFactor = optics.glow.rgb.map((c) => +(c * Math.min(1, optics.glow.strength)).toFixed(4));
     mat.extensions = ext;
+    this.json.materials.push(mat);
+    return this.json.materials.length - 1;
+  }
+
+  // Water (aqua look): a clear dielectric the way the standard extensions say it — KHR_materials_transmission, ior 1.333,
+  // and KHR_materials_volume whose attenuation colour is what white light keeps after one attenuation distance of this
+  // water (Beer–Lambert, the distance set so the clearest channel loses 1/e). COLOR_0 (the body / foam colour) tints it.
+  // Lit, double-sided, the preset's roughness. The extensions are declared once, shared with crystals.
+  waterMaterial({ name, look }) {
+    const declare = (ext) => { this.crystalExts ||= new Set(); if (!this.crystalExts.has(ext)) { this.crystalExts.add(ext); this.json.extensionsUsed.push(ext); } };
+    declare('KHR_materials_transmission'); declare('KHR_materials_ior'); declare('KHR_materials_volume');
+    const sMax = Math.max(...look.sigma, 1e-4), dist = 1 / sMax;
+    const att = look.sigma.map((v) => +Math.max(0.002, Math.exp(-v * dist)).toFixed(4));
+    const mat = { name, doubleSided: true, pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1], metallicFactor: 0, roughnessFactor: +look.rough.toFixed(4) },
+      extensions: { KHR_materials_transmission: { transmissionFactor: 0.9 }, KHR_materials_ior: { ior: 1.333 },
+        KHR_materials_volume: { thicknessFactor: +(2 * dist).toFixed(4), attenuationDistance: +dist.toFixed(4), attenuationColor: att } } };
     this.json.materials.push(mat);
     return this.json.materials.length - 1;
   }
@@ -643,7 +686,12 @@ class GlbBuilder {
    * plays nothing shows the approved face) and `mesh.extras` the target names and the face's words.
    * Without a face every byte is as before.
    */
-  addSkinnedRigFigure(name, fig, clipNames, { humanoid = false, ink = null } = {}) {
+  addSkinnedRigFigure(name, fig, clipNames, { humanoid = false, ink = null, parents = null } = {}) {
+    // ENGINE SKELETON (`parents`, the T-pose export: docs/emote-bridge.md phase 4): `fig` arrives in the VRM space
+    // (rig-tpose vrmSpacePack: y up, facing +z, the left on +x) and the joints NEST on `parents` (a bone index each, −1
+    // the root), each joint's TRS local to its parent; the wrapper cancels the root's z-up→y-up, so the skeleton space an
+    // engine builds (the joints' parent space) is that VRM space. At the T rest every frame is the identity, so a joint's
+    // rest is its offset from its parent and the IBM stays T(−restHead). Absent ⇒ the flat skeleton, byte for byte.
     const material = this.surfaceMaterial({ name: `fig:${name}` });
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
@@ -661,9 +709,18 @@ class GlbBuilder {
     if (hb && hb.missing.length) throw new Error(`humanoid export: rig '${name}' cannot supply VRM bones ${hb.missing.join(', ')} — only the biped figure rig qualifies`);
 
     // joint nodes (flat, rest pose)
+    const offsetFrom = (at, pi) => (pi >= 0 ? [at[0] - bones[pi].head[0], at[1] - bones[pi].head[1], at[2] - bones[pi].head[2]] : [at[0], at[1], at[2]]);
     const jointNodes = bones.map((bone, bi) =>
-      this.json.nodes.push({ name: `${name}:${hb && hb.names.has(bi) ? hb.names.get(bi) : bone.id}`, translation: [bone.head[0], bone.head[1], bone.head[2]] }) - 1);
-    const leafNodes = hb ? hb.leaves.map((l) => this.json.nodes.push({ name: `${name}:${l.vrm}`, translation: l.at }) - 1) : [];
+      this.json.nodes.push({ name: `${name}:${hb && hb.names.has(bi) ? hb.names.get(bi) : bone.id}`, translation: parents ? offsetFrom(bone.head, parents[bi]) : [bone.head[0], bone.head[1], bone.head[2]] }) - 1);
+    const leafNodes = hb ? hb.leaves.map((l) => this.json.nodes.push({ name: `${name}:${l.vrm}`, translation: parents ? offsetFrom(l.at, l.parent) : l.at }) - 1) : [];
+    if (parents) {
+      // nest: each joint under its parent's node, each leaf under its bone's
+      const kids = new Map();
+      const adopt = (pi, node) => { if (!kids.has(pi)) kids.set(pi, []); kids.get(pi).push(node); };
+      bones.forEach((_, bi) => { if (parents[bi] >= 0) adopt(parents[bi], jointNodes[bi]); });
+      if (hb) hb.leaves.forEach((l, i) => adopt(l.parent, leafNodes[i]));
+      for (const [pi, list] of kids) this.json.nodes[jointNodes[pi]].children = list;
+    }
 
     // adjacency: bones sharing a rest endpoint (head/tail coincide) — the
     // candidate set for soft weights, so a thigh never bleeds into a wrist.
@@ -812,7 +869,7 @@ class GlbBuilder {
       faceMesh = { weights: [...fig.face.weights], extras: { targetNames: [...fig.face.targets], face: {
         about: 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words,
-        sides: "Left is mesh -x (the figure's left), Right mesh +x",
+        sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
         brow: 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
@@ -823,21 +880,25 @@ class GlbBuilder {
     }
     const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims, ...(faceMesh || {}) }) - 1;
 
-    // IBM: identity + translation(−restHead), column-major
-    const ibm = new Float32Array(bones.length * 16);
-    bones.forEach((bone, bi) => {
+    // IBM: identity + translation(−restHead), column-major. An engine skeleton also lists the VRM leaves (the biped's
+    // hands and feet) as weightless joints, so an engine builds them as BONES (a humanoid profile wants them)
+    const skinHeads = [...bones.map((b) => b.head), ...(parents && hb ? hb.leaves.map((l) => l.at) : [])];
+    const ibm = new Float32Array(skinHeads.length * 16);
+    skinHeads.forEach((head, bi) => {
       const o = bi * 16;
       ibm[o] = 1; ibm[o + 5] = 1; ibm[o + 10] = 1; ibm[o + 15] = 1;
-      ibm[o + 12] = -bone.head[0]; ibm[o + 13] = -bone.head[1]; ibm[o + 14] = -bone.head[2];
+      ibm[o + 12] = -head[0]; ibm[o + 13] = -head[1]; ibm[o + 14] = -head[2];
     });
     if (!this.json.skins) this.json.skins = [];
     const skinIdx = this.json.skins.push({
-      name: `${name}:skin`, joints: jointNodes, inverseBindMatrices: this.ibmAccessor(ibm),
+      name: `${name}:skin`, joints: parents && hb ? [...jointNodes, ...leafNodes] : jointNodes, inverseBindMatrices: this.ibmAccessor(ibm),
     }) - 1;
 
     const meshNode = this.json.nodes.push({ name: `${name}:body`, mesh: meshIdx, skin: skinIdx }) - 1;
-    const wrapIdx = this.json.nodes.push({ name, children: [...jointNodes, ...leafNodes, meshNode] }) - 1;
-    this.children.push(wrapIdx);
+    const wrapIdx = this.json.nodes.push(parents
+      ? { name, children: [...jointNodes.filter((_, bi) => parents[bi] < 0), meshNode] }
+      : { name, children: [...jointNodes, ...leafNodes, meshNode] }) - 1;
+    if (parents) this.sceneRoots.push(wrapIdx); else this.children.push(wrapIdx);
     this.rigWrappers.set(name, wrapIdx);
     if (hb && !this.vrmDeclared) {
       // one avatar per VRM file: the first humanoid figure owns the extension
@@ -858,7 +919,7 @@ class GlbBuilder {
     for (const clipName of clipNames) {
       const clip = fig.clips && fig.clips[clipName];
       if (!clip || !clip.k || !Array.isArray(clip.b)) continue;
-      this.addRigClip(name, fig, jointNodes, clipName, clip, track(clipName));
+      this.addRigClip(name, fig, jointNodes, clipName, parents ? localClip(clip, parents, fig.bones.length) : clip, track(clipName));
       animations++;
     }
     // the AMBIENT BLINK: a face-only animation (the authored face, seeded blinks) an engine layers over a held clip
@@ -873,6 +934,7 @@ class GlbBuilder {
   }
 
   // One packed clip ({ k, b:[qx,qy,qz,qw,hx,hy,hz per bone per key], once?, s? }) → one glTF
+  // (an engine skeleton's clip arrives LOCAL already: localClip, each key its parent-relative rotation and offset)
   // animation: per bone node a rotation channel + a translation channel, all samplers sharing
   // ONE input (times) accessor, LINEAR interpolation (glTF normalizes lerped quaternions —
   // matching the runtime's nlerp). Timing: T per cycle — the clip's designed duration `s` when it
@@ -981,6 +1043,11 @@ class GlbBuilder {
     // every importer receives metres with no per-engine code.
     const rootIdx = this.json.nodes.push({ name: 'mojulo', rotation: ZUP_TO_YUP, ...(this.rootScale ? { scale: this.rootScale, extras: { 'moj:metersPerUnit': this.rootScale[0] } } : {}), children: this.children }) - 1;
     this.json.scenes[0].nodes = [rootIdx];
+    for (const w of this.sceneRoots) {
+      // a scene-level engine figure takes the root's unit scale, if any (its rotation it already has, in its data)
+      if (this.rootScale) this.json.nodes[w].scale = [...this.rootScale];
+      this.json.scenes[0].nodes.push(w);
+    }
 
     // Drop empty optional arrays so the glTF validates cleanly.
     for (const key of ['images', 'samplers', 'textures', 'materials', 'extensionsUsed']) {
@@ -1041,7 +1108,10 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const rigFigs = clipSel && figures && typeof figures === 'object'
     ? Object.entries(figures).filter(([, f]) => f && f.rig === true && Array.isArray(f.bones) && Array.isArray(f.parts))
     : [];
-  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length) return null;
+  // water (aqua look): liquid sheets and frozen aqua surfaces leave as their own `water:<kind>` nodes. A scene that is
+  // only an animated sea (the ocean view: no faces) exports when it has an aqua surface; otherwise as before.
+  const waterBodies = aquaWaterBodies(payload);
+  if ((!Array.isArray(faces) || !faces.length) && !repeatList.length && !rigFigs.length && !waterBodies.some((w) => w.frame)) return null;
 
   // A rig may declare `embodies: '<group>'` (interchange.plan.md I2 — the figure kind):
   // the payload's static faces of that group depict the SAME body at rest, so when this
@@ -1089,7 +1159,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const groupMap = new Map();
   for (const f of expanded) {
     if (!f || f.decal === 'shadow' || f.decal === 'ink' || f.water) continue;
-    const k = typeof f.group === 'string' ? f.group : 'static';
+    // a face naming its `node` (an addressable thing: era/anchors.js) is that node's, whatever its group
+    const k = typeof f.node === 'string' && f.node ? f.node : typeof f.group === 'string' ? f.group : 'static';
     if (!groupMap.has(k)) groupMap.set(k, []);
     groupMap.get(k).push(f);
   }
@@ -1252,10 +1323,21 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   }
 
   // Translucent water: per-vertex alpha rides COLOR_0 (VEC4); baseColorFactor stays opaque.
-  const water = waterRaw.length ? collectWaterMesh(waterRaw) : null;
+  const liquidBody = waterBodies.find((w) => w.sheet);
+  const water = waterRaw.length ? collectWaterMesh(liquidBody ? waterRaw.filter((f) => !f.liquid) : waterRaw) : null;
   if (water && water.positions.length) {
     const mat = b.unlitMaterial({ alpha: 1, name: 'water' });
     tally(b.addNode('water', water.positions, water.colors, 4, mat));
+  }
+  for (const body of waterBodies) {
+    const mat = b.waterMaterial({ name: body.name, look: body.look });
+    if (body.sheet) {
+      const m = collectWaterMesh(body.liquidFaces);
+      if (!m) continue;
+      const rgb = new Float32Array(m.vertexCount * 3), up = new Float32Array(m.vertexCount * 3);
+      for (let i = 0; i < m.vertexCount; i++) { rgb[3 * i] = m.colors[4 * i]; rgb[3 * i + 1] = m.colors[4 * i + 1]; rgb[3 * i + 2] = m.colors[4 * i + 2]; up[3 * i + 2] = 1; }
+      tally(b.addNode(body.name, m.positions, rgb, 3, mat, undefined, up));
+    } else tally(b.addNode(body.name, body.frame.positions, body.frame.colors, 3, mat, undefined, body.frame.normals));
   }
 
   // Flat shadow + ink ground decals → one translucent dark mesh (the World's cast/contact pools).
@@ -1322,7 +1404,9 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     // path stays byte-identical.
     // toon.bake reaches skinned figures as a second, skin-bound ink primitive (rigid FK figures are
     // left un-inked: their World outline is the live channel's; a bake for them can follow demand)
-    const added = skinned ? b.addSkinnedRigFigure(name, fig, clipNames, { humanoid, ink: inkCfg ? { ...inkCfg, material: inkMat } : null }) : b.addRigFigure(name, fig, clipNames);
+    // the T-pose export's figures (a `tpose` pack, humanoid) go out as an ENGINE SKELETON: nested, in the VRM space
+    const engine = skinned && humanoid && fig.tpose ? (() => { const f = withProfileJoints(fig); return { fig: vrmSpacePack(f), parents: humanoidParents(f.bones) }; })() : null;
+    const added = skinned ? b.addSkinnedRigFigure(name, engine ? engine.fig : fig, clipNames, { humanoid, ink: inkCfg ? { ...inkCfg, material: inkMat } : null, ...(engine ? { parents: engine.parents } : {}) }) : b.addRigFigure(name, fig, clipNames);
     if (!added.nodes) continue;
     animatedFigures.push(name);
     if (added.skinned) skinnedFigures.push(name);
@@ -1334,7 +1418,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     triangleCount += added.triangles;
   }
 
-  if (!b.children.length) return null; // expansion produced nothing exportable
+  if (!b.children.length && !b.sceneRoots.length) return null; // expansion produced nothing exportable
 
   // ── level-as-layout semantics (interchange.plan.md I4) — default-on ──────────────────────
   // A GLB is a derived snapshot regenerated on demand, so enriching the export needs no opt-in:
@@ -1393,7 +1477,10 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   if (sceneExtras && unitScale) {
     const sv = (v) => v.map((x) => x * unitScale);
     if (sceneExtras['moj:spawn']) sceneExtras['moj:spawn'] = sv(sceneExtras['moj:spawn']);
-    if (sceneExtras['moj:colliders']) sceneExtras['moj:colliders'] = sceneExtras['moj:colliders'].map((c) => ({ min: sv(c.min), max: sv(c.max) }));
+    if (sceneExtras['moj:colliders']) sceneExtras['moj:colliders'] = sceneExtras['moj:colliders'].map((c) => ({ ...c, min: sv(c.min), max: sv(c.max) }));
+    const addr = levelAddress({ rooms: sceneExtras['moj:rooms'], anchors: sceneExtras['moj:anchors'] }, sv, (x) => x * unitScale);
+    if (addr.rooms) sceneExtras['moj:rooms'] = addr.rooms;
+    if (addr.anchors) sceneExtras['moj:anchors'] = addr.anchors;
   }
   if (sceneExtras) b.json.scenes[0].extras = sceneExtras;
 
@@ -1402,7 +1489,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     bytes,
     byteLength: bytes.length,
     lit: !!lit,
-    nodeCount: b.children.length,
+    nodeCount: b.children.length + b.sceneRoots.length,
     vertexCount,
     triangleCount,
   };

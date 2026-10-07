@@ -1,0 +1,6 @@
+{
+  "entry": "create_view",
+  "kind": "black-hole",
+  "params": { "scenario": "eht", "beta": 0.6 },
+  "title": "The photon-ring shadow (EHT)"
+}

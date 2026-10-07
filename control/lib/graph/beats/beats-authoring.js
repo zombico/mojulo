@@ -247,11 +247,19 @@ export const RHYTHMS = {
   gallop: [0.9, 0, 0.6, 0.6, 0.8, 0, 0.6, 0.6, 0.86, 0, 0.6, 0.6, 0.8, 0, 0.6, 0.6],
   push: [0.9, 0, 0, 0.7, 0, 0, 0.8, 0, 0, 0, 0.75, 0, 0, 0, 0.7, 0],
   backbeat: [0, 0, 0, 0, 0.85, 0, 0, 0, 0, 0, 0, 0, 0.88, 0, 0, 0],
+  // march figures: long-short per beat (the dotted eighth and its sixteenth), and per half bar.
+  dotted: [0.88, 0, 0, 0.6, 0.8, 0, 0, 0.6, 0.86, 0, 0, 0.6, 0.8, 0, 0, 0.6],
+  'dotted-quarter': [0.88, 0, 0, 0, 0, 0, 0.65, 0, 0.84, 0, 0, 0, 0, 0, 0.65, 0],
+  // the 6/8 travelling lilt: quarter-eighth, quarter-eighth (twelve sixteenths: one 6/8 bar).
+  lilt: [0.8, 0, 0, 0, 0.5, 0, 0.7, 0, 0, 0, 0.5, 0],
 };
-export const CHORD_VOICE_MODES = ['chord', 'strum', 'block', 'upper', 'power', 'root', 'octaves', 'arp', 'root-fifth', 'walk', 'boogie', 'boogie-walk', 'roll', 'pompe', 'rasgueado', 'pima'];
+export const CHORD_VOICE_MODES = ['chord', 'strum', 'block', 'upper', 'power', 'root', 'octaves', 'arp', 'root-fifth', 'walk', 'boogie', 'boogie-walk', 'roll', 'pompe', 'rasgueado', 'pima', 'pedal', 'pedal-5', 'drone'];
 // the roots modes' own rhythm when the part sets none, and their register.
-const MODE_RHYTHM = { 'root-fifth': 'half', walk: 'quarter', boogie: '8ths', 'boogie-walk': '8ths', roll: '8ths', pompe: 'quarter', rasgueado: 'quarter', pima: '8ths' };
-const BASS_MODES = ['root', 'octaves', 'root-fifth', 'walk', 'boogie-walk'];
+const MODE_RHYTHM = { 'root-fifth': 'half', walk: 'quarter', boogie: '8ths', 'boogie-walk': '8ths', roll: '8ths', pompe: 'quarter', rasgueado: 'quarter', pima: '8ths', pedal: 'whole', 'pedal-5': 'whole', drone: 'whole' };
+const BASS_MODES = ['root', 'octaves', 'root-fifth', 'walk', 'boogie-walk', 'pedal', 'pedal-5', 'drone'];
+// a pedal holds the key's tonic (or its fifth) whatever the chord above it does;
+// the drone holds both (the open fifth: a bagpipe's drones, a hurdy-gurdy).
+const PEDAL_OF = { pedal: [0], 'pedal-5': [7], drone: [0, 7] };
 const BASS_LO = 28, BASS_HI = 55; // E1 … G3: where a walking line lives
 const SCALE = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
 // the pitch classes a line may step through: the key's scale, or chromatic without a key.
@@ -382,6 +390,7 @@ function voicePart(p, chart, clock, key, seed = 1) {
         push(q, [seq[i % seq.length]], d, i % seq.length === 0 ? vel : vel * 0.8);
         return;
       }
+      if (mode in PEDAL_OF) { const t = rootMidi(parseKey(key).tonic, octave); push(q, PEDAL_OF[mode].map((x) => t + x), d); return; }
       let notes;
       if (mode === 'root') notes = [rootN];
       else if (mode === 'octaves') notes = [rootN + (octI++ % 2 ? 12 : 0)];
@@ -418,15 +427,18 @@ function lowerChordEvent(ev, key, state) {
 // from a small vocabulary, so the same seed plays the same fills. Explicit
 // events in a bar win from their first onset on (a written fill replaces the
 // generated one). Notes a kit lacks fall back (ride → hat, crash → open hat).
-export const GROOVE_STYLES = ['eight-beat', 'sixteen-beat', 'four-floor', 'half-time', 'trance-drive', 'rock-drive', 'double-time-chorus', 'blast', 'shuffle', 'shuffle-boogie', 'train', 'two-beat', 'slow-twelve-eight'];
-export const FILL_KINDS = ['tom-run', 'snare-16ths', 'flam-build', 'roll-32', 'unison-8ths', 'triplet'];
+export const GROOVE_STYLES = ['eight-beat', 'sixteen-beat', 'four-floor', 'half-time', 'trance-drive', 'rock-drive', 'double-time-chorus', 'blast', 'shuffle', 'shuffle-boogie', 'train', 'two-beat', 'slow-twelve-eight', 'march', 'processional', 'travel'];
+export const FILL_KINDS = ['tom-run', 'snare-16ths', 'flam-build', 'roll-32', 'unison-8ths', 'triplet', 'paradiddle', 'drag', 'five-stroke', 'long-roll'];
 // the seeded fill pools: the straight grooves keep the original five (their
 // stored rows pick the same fills); the shuffle and 12/8 families get their own.
 export const SHUFFLE_STYLES = ['shuffle', 'shuffle-boogie'];
-const FILL_POOL = { straight: FILL_KINDS.slice(0, 5), shuffle: ['triplet', 'tom-run', 'snare-16ths'], twelve: ['unison-8ths', 'tom-run', 'snare-16ths'] };
-const poolOf = (style) => (SHUFFLE_STYLES.includes(style) ? FILL_POOL.shuffle : style === 'slow-twelve-eight' ? FILL_POOL.twelve : FILL_POOL.straight);
+// the march family fills with snare rudiments (long-roll only when asked for: it takes the whole bar).
+const MARCH_STYLES = ['march', 'processional'];
+const FILL_POOL = { straight: FILL_KINDS.slice(0, 5), shuffle: ['triplet', 'tom-run', 'snare-16ths'], twelve: ['unison-8ths', 'tom-run', 'snare-16ths'], march: ['drag', 'paradiddle', 'five-stroke'] };
+const poolOf = (style) => (SHUFFLE_STYLES.includes(style) ? FILL_POOL.shuffle : style === 'slow-twelve-eight' ? FILL_POOL.twelve : MARCH_STYLES.includes(style) ? FILL_POOL.march : FILL_POOL.straight);
 const FILLS_EVERY = ['every-2', 'every-4', 'every-8', 'section', 'none'];
 const CRASH_AT = ['section', 'fills', 'both', 'none'];
+const TRI = 81;
 const K = 36, S = 38, X = 37, H = 42, P = 44, O = 46, C = 49, R = 51, T1 = 48, T2 = 45, T3 = 41;
 const at8 = [0, 2, 4, 6, 8, 10, 12, 14], at16 = [...Array(16).keys()], beats = [0, 4, 8, 12], offs = [2, 6, 10, 14];
 // step → [note, velocity] per style (one 4/4 bar of sixteenths).
@@ -449,6 +461,17 @@ const STYLE = {
   'two-beat': () => [...at8.map((i) => [i, H, i % 4 ? 0.3 : 0.45]), [0, K, 0.92], [8, K, 0.86], [4, X, 0.8], [12, X, 0.82]],
   // 12/8: the ride on every eighth (every second sixteenth), the dotted beats
   // accented, kick on 1 and 3, the backbeat on 2 and 4 (steps 6 and 18).
+  // the march: bass drum on every beat (1 and 3 leaning), the snare's dotted
+  // cadence with a pickup into 3 and into the next bar. Only kick, snare and
+  // crash: orchestral-perc (concert bass drum, wire snare) plays it as written.
+  march: () => [[0, K, 0.95], [4, K, 0.6], [8, K, 0.88], [12, K, 0.6], [0, S, 0.72], [3, S, 0.5], [4, S, 0.9], [6, S, 0.45], [7, S, 0.5], [8, S, 0.72], [11, S, 0.5], [12, S, 0.92], [14, S, 0.48], [15, S, 0.55]],
+  // the processional: a slow tread, bass drum on 1 (and 3, softer), the snare
+  // on 2 and 4 with a two-stroke pickup into the next bar.
+  processional: () => [[0, K, 0.95], [8, K, 0.72], [4, S, 0.6], [12, S, 0.82], [14, S, 0.38], [15, S, 0.48]],
+  // travel: almost nothing. A soft bass drum on 1 (the half bar softer still)
+  // and a triangle on 1: open-country music keeps its percussion out of the way.
+  // A kit without a triangle plays only the bass drum.
+  travel: (steps) => [[0, K, 0.45], [Math.floor(steps / 2), K, 0.3], [0, TRI, 0.32]],
   'slow-twelve-eight': (steps) => [...Array(Math.floor(steps / 2)).keys()].map((k) => [k * 2, R, k % 3 ? 0.42 : 0.68]).concat([[0, K, 0.95], [12, K, 0.86], [10, K, 0.4], [6, S, 0.9], [18, S, 0.92]]),
 };
 // fill kinds: [step, note, velocity] over the fill span (from `from` to 16).
@@ -467,10 +490,17 @@ function fillHits(kind, from, swung) {
   else if (kind === 'snare-16ths') for (let k = 0; k < n; k++) out.push([from + k, S, 0.45 + (0.55 * k) / Math.max(1, n - 1)]);
   else if (kind === 'flam-build') for (let k = 0; k < n; k += 2) { out.push([from + k - 0.12, S, 0.35]); out.push([from + k, S, 0.7 + (0.3 * k) / Math.max(1, n - 1)]); }
   else if (kind === 'roll-32') for (let k = 0; k < n * 2; k++) out.push([from + k / 2, S, 0.3 + (0.7 * k) / Math.max(1, n * 2 - 1)]);
+  // snare rudiments: the paradiddle (RLRR LRLL, the first of each four
+  // accented), drags (two grace strokes into each eighth), the five-stroke roll
+  // (two doubles into an accent) and the long roll (32nds swelling over the bar).
+  else if (kind === 'paradiddle') for (let k = 0; k < n; k++) out.push([from + k, S, (k % 4 ? 0.4 : 0.82) + (0.15 * k) / Math.max(1, n - 1)]);
+  else if (kind === 'drag') for (let k = 0; k < n; k += 2) { out.push([from + k - 0.16, S, 0.28]); out.push([from + k - 0.08, S, 0.3]); out.push([from + k, S, 0.68 + (0.3 * k) / Math.max(1, n - 1)]); }
+  else if (kind === 'five-stroke') { [0, 0.5, 1, 1.5].forEach((x, k) => out.push([from + x, S, 0.38 + 0.04 * k])); out.push([from + 2, S, 0.95]); }
+  else if (kind === 'long-roll') for (let k = 0; k < n * 2; k++) out.push([from + k / 2, S, 0.22 + (0.73 * k) / Math.max(1, n * 2 - 1)]);
   else if (kind === 'unison-8ths') for (let k = 0; k < n; k += 2) { out.push([from + k, K, 0.9]); out.push([from + k, S, 0.8 + (0.2 * k) / Math.max(1, n - 1)]); }
   return out;
 }
-const FILL_FROM = { 'tom-run': 8, 'snare-16ths': 12, 'flam-build': 8, 'roll-32': 12, 'unison-8ths': 8, triplet: 8 };
+const FILL_FROM = { 'tom-run': 8, 'snare-16ths': 12, 'flam-build': 8, 'roll-32': 12, 'unison-8ths': 8, triplet: 8, paradiddle: 8, drag: 8, 'five-stroke': 12, 'long-roll': 0 };
 const FALLBACK = { 51: 42, 49: 46, 46: 42, 44: 42, 43: 41, 47: 45, 50: 48, 52: 49, 55: 49, 57: 49, 37: 38 };
 // `only` / `drop` pick pieces by family (a kick part to duck by, the rest on another part).
 export const GROOVE_PIECES = ['kick', 'snare', 'hat', 'ride', 'crash', 'tom'];
@@ -670,6 +700,10 @@ function checkGroove(p, w, errors, m = {}) {
 }
 export function checkAuthoring(m, errors) {
   if (!isObj(m)) return;
+  const lifeOk = (v) => v === undefined || (Number.isFinite(v) && v >= 0 && v <= 2);
+  if (!lifeOk(m.life)) errors.push('life must be in [0, 2]: how much held notes breathe (0 mechanical, 1 natural, 2 more)');
+  const lk = lifeRows(m);
+  if (lk) m[lk].forEach((r, i) => { if (isObj(r) && !lifeOk(r.life)) errors.push(`${lk}[${i}].life must be in [0, 2] (0 holds this row still; above 0 breathes, on any instrument)`); });
   // a timed gesture takes dur (seconds) OR bars / beats (at the recipe's tempo).
   for (const [i, r] of (m.parts || m.tracks || []).entries()) {
     const list = isObj(r) ? cueList(r) : null;
@@ -688,6 +722,8 @@ export function checkAuthoring(m, errors) {
       });
     }
     if (m.sweeps !== undefined) checkSweeps(m, errors);
+    if (m.sustainPedal !== undefined) checkPedal(m.sustainPedal, 'sustainPedal', errors);
+    (m.parts || []).forEach((p, i) => { if (isObj(p) && p.sustainPedal !== undefined) checkPedal(p.sustainPedal, `parts[${i}].sustainPedal`, errors); });
     if (m.shuffle !== undefined && !(Number.isFinite(m.shuffle) && m.shuffle >= 0 && m.shuffle <= 1)) errors.push('shuffle must be in [0, 1]: how far the offbeat eighth moves toward the triplet (1 = a full shuffle, ~0.6 a lazy swing; `swing` stays the sixteenth feel)');
     if (m.band !== undefined && !BANDS[m.band]) errors.push(`band must be one of: ${Object.keys(BANDS).join(', ')} (a mix template: pan, send and trim per role, a room, the rhythm guitars double-tracked)`);
     (Array.isArray(m.parts) ? m.parts : []).forEach((p, i) => {
@@ -696,6 +732,7 @@ export function checkAuthoring(m, errors) {
       checkEventChords(p.events, `${w}.events`, key, errors);
       if (p.chordVoice !== undefined) {
         if (p.chordVoice !== true && !CHORD_VOICE_MODES.includes(p.chordVoice)) errors.push(`${w}.chordVoice must be one of: ${CHORD_VOICE_MODES.join(', ')} (or true = chord)`);
+        if (p.chordVoice in PEDAL_OF && !parseKey(key)) errors.push(`${w}.chordVoice '${p.chordVoice}' holds the key's ${{ pedal: 'tonic', 'pedal-5': 'fifth', drone: 'tonic and fifth' }[p.chordVoice]} under the chart: set the recipe's \`key\` (e.g. key: 'Cm')`);
         if (m.progression === undefined) errors.push(`${w}.chordVoice reads the chart: add a manifest-level progression (e.g. ['Am', 'F', 'C', 'G'] or [{ chords: 'vi IV I V', repeat: 4 }])`);
         if (p.rhythm !== undefined && !(typeof p.rhythm === 'string' ? RHYTHMS[p.rhythm] : Array.isArray(p.rhythm) && p.rhythm.length && p.rhythm.every((v) => v === true || v === false || (Number.isFinite(v) && v >= 0 && v <= 1)))) errors.push(`${w}.rhythm must be a name (${Object.keys(RHYTHMS).join(', ')}) or velocities per sixteenth, wrapping`);
         if (p.hold !== undefined && !(Number.isFinite(p.hold) && p.hold > 0 && p.hold <= 1)) errors.push(`${w}.hold must be in (0, 1] (how much of the gap to the next hit a hit holds; \`gate\` stays the trance gate)`);
@@ -714,6 +751,14 @@ export function checkAuthoring(m, errors) {
         if (!(typeof p.double === 'boolean' || (isObj(p.double) && (p.double.offset === undefined || (Number.isFinite(p.double.offset) && p.double.offset >= 3 && p.double.offset <= 60)) && (p.double.pan === undefined || (Number.isFinite(p.double.pan) && Math.abs(p.double.pan) <= 1))))) errors.push(`${w}.double must be true | false or { offset?: ms in [3, 60], pan?: −1..1 } (a second take, mirrored and a little late)`);
         else if (p.double && (kitOf(p) || isCuePart(p))) errors.push(`${w}.double is for a pitched part (the rhythm guitars), not a kit or a cue part`);
       }
+      if (p.shape !== undefined) {
+        checkShape(p.shape, w, errors);
+        if (p.shape !== false && isCuePart(p)) errors.push(`${w}.shape is for a pitched or kit part with notes, not a cue part`);
+      }
+      if (p.touch !== undefined) {
+        checkTouch(p.touch, w, errors);
+        if (p.touch !== false && (kitOf(p) || isCuePart(p))) errors.push(`${w}.touch is for a pitched part that plays chords (a piano), not a kit or a cue part`);
+      }
       if (p.power !== undefined) {
         if (typeof p.power !== 'boolean') errors.push(`${w}.power must be true | false (every single note becomes root + fifth + octave)`);
         else if (p.power && (kitOf(p) || isCuePart(p))) errors.push(`${w}.power is for a pitched part (a guitar), not a kit or a cue part`);
@@ -730,10 +775,110 @@ export function checkAuthoring(m, errors) {
   }
 }
 
+// ── phrase shaping (audio improvements): a part's `shape` lowers to velocities ─
+// A player phrases; a sequencer doesn't. Within each `bars`-long phrase a note's
+// velocity is scaled by an arch (rising to 60% of the phrase, then falling),
+// its height against the phrase's mean pitch (higher a touch louder), its
+// length against the phrase's median (long over short), and the phrase's last
+// onset is eased. Each term is a ± fraction, and the phrase's mean scale is
+// held at 1 (level-neutral). No dice, so no seed. Array events
+// only: an object event may carry a `dyn` mark, which is the writer's word.
+export const SHAPE_DEFAULTS = Object.freeze({ bars: 4, arch: 0.12, contour: 0.08, contrast: 0.05, end: 0.1 });
+const SHAPE_LIMITS = { arch: 0.5, contour: 0.5, contrast: 0.5, end: 0.5 };
+function shapeOpts(s) { return s === 'phrase' || s === true ? { ...SHAPE_DEFAULTS } : { ...SHAPE_DEFAULTS, ...s }; }
+function checkShape(s, w, errors) {
+  if (s === 'phrase' || s === true || s === false) return;
+  const ok = isObj(s) && Object.keys(s).every((k) => k in SHAPE_DEFAULTS)
+    && (s.bars === undefined || (Number.isInteger(s.bars) && s.bars >= 1 && s.bars <= 32))
+    && Object.entries(SHAPE_LIMITS).every(([k, hi]) => s[k] === undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= hi));
+  if (!ok) errors.push(`${w}.shape must be 'phrase' or { bars?: 1–32, arch?, contour?, contrast?, end?: 0–0.5 } (velocity phrasing: an arch per phrase, higher notes louder, long over short, the last note eased)`);
+}
+function shapeEvents(list, s, sc) {
+  const o = shapeOpts(s);
+  const bar0 = (k) => sc.q(`${k}:0:0`);
+  const rows = [];
+  list.forEach((ev, i) => {
+    if (!Array.isArray(ev) || !isTime(ev[0])) return;
+    const q = sc.q(ev[0]);
+    const dq = ev[2] == null ? 1 : sc.len(ev[2], q);
+    const ms = [].concat(ev[1]).map(midiOf).filter((x) => x != null);
+    let b = 0;
+    while (b < 4096 && bar0(b + 1) <= q + 1e-9) b++;
+    rows.push({ i, q, dq, pitch: ms.length ? ms.reduce((a, x) => a + x, 0) / ms.length : null, g: Math.floor(b / o.bars) });
+  });
+  const out = list.slice();
+  const groups = new Map();
+  for (const r of rows) (groups.get(r.g) || groups.set(r.g, []).get(r.g)).push(r);
+  for (const [g, rs] of groups) {
+    const q0 = bar0(g * o.bars), q1 = bar0((g + 1) * o.bars), span = q1 - q0 || 1;
+    const pitched = rs.filter((r) => r.pitch != null);
+    const mean = pitched.length ? pitched.reduce((a, r) => a + r.pitch, 0) / pitched.length : 0;
+    const lens = rs.map((r) => r.dq).sort((a, b) => a - b), median = lens[Math.floor(lens.length / 2)] || 1;
+    const last = Math.max(...rs.map((r) => r.q));
+    const ks = rs.map((r) => {
+      const x = Math.min(1, Math.max(0, (r.q - q0) / span));
+      const bump = x <= 0.6 ? x / 0.6 : (1 - x) / 0.4;
+      let k = 1 + o.arch * (2 * bump - 1);
+      if (r.pitch != null) k *= 1 + o.contour * Math.max(-1, Math.min(1, (r.pitch - mean) / 12));
+      k *= 1 + o.contrast * Math.max(-1, Math.min(1, Math.log2(r.dq / median)));
+      if (Math.abs(r.q - last) < 1e-9 && rs.length > 1) k *= 1 - o.end;
+      return k;
+    });
+    // level-neutral: the phrase's mean scale is 1, so shaping moves notes
+    // against each other, not the part against the mix.
+    const norm = ks.reduce((a, k) => a + k, 0) / ks.length || 1;
+    rs.forEach((r, j) => {
+      const ev = list[r.i].slice();
+      ev[3] = Math.round(Math.max(0.05, Math.min(1, (ev[3] == null ? 0.8 : ev[3]) * ks[j] / norm)) * 1000) / 1000;
+      out[r.i] = ev;
+    });
+  }
+  return out;
+}
+
 // ── pure articulations: a rake and a rest stroke lower to plain events ───────
 // rake { n?: 1–4 }: muted grace notes (a sixteenth of a beat apart) raked into
 // the note from the strings below; rest: the rest stroke, louder and held.
 const artType = (a) => (typeof a === 'string' ? a : isObj(a) ? a.type : undefined);
+// ── a pianist's touch (audio improvements): a part's `touch` lowers a chord to
+// one event per note. Hands voice a chord: the top note brought out (`top`), the
+// inner notes under it (`inner`), the bass a little present (`bass`), each a ±
+// fraction with the chord's mean scale held at 1 (level-neutral). The notes
+// land a few ms apart from the bass up (`roll` seconds a step, seeded ±40 %),
+// converted at the recipe bpm. Array events only; an event with an
+// articulation stays whole (the articulation is the writer's word).
+export const TOUCH_DEFAULTS = Object.freeze({ top: 0.15, inner: 0.1, bass: 0.05, roll: 0.008 });
+const TOUCH_LIMITS = { top: 0.5, inner: 0.5, bass: 0.5, roll: 0.05 };
+function touchOpts(s) { return s === 'pianist' || s === true ? { ...TOUCH_DEFAULTS } : { ...TOUCH_DEFAULTS, ...s }; }
+function checkTouch(s, w, errors) {
+  if (s === 'pianist' || s === true || s === false) return;
+  const ok = isObj(s) && Object.keys(s).every((k) => k in TOUCH_DEFAULTS)
+    && Object.entries(TOUCH_LIMITS).every(([k, hi]) => s[k] === undefined || (Number.isFinite(s[k]) && s[k] >= 0 && s[k] <= hi));
+  if (!ok) errors.push(`${w}.touch must be 'pianist' or { top?, inner?, bass?: 0–0.5, roll?: seconds 0–0.05 } (a chord voiced by hand: the top note out, the inner notes under, rolled up from the bass)`);
+}
+function touchEvents(list, s, sc, bpm, seed) {
+  const o = touchOpts(s), rng = mulberry32(seed), qps = (bpm || 120) / 60;
+  return list.flatMap((ev) => {
+    if (!Array.isArray(ev) || !isTime(ev[0]) || !Array.isArray(ev[1]) || ev[4] !== undefined) return [ev];
+    const ns = ev[1].map((n) => ({ n, m: midiOf(n) }));
+    if (ns.length < 2 || ns.some((x) => x.m == null)) return [ev];
+    ns.sort((a, b) => a.m - b.m);
+    const ks = ns.map((x, i) => (i === ns.length - 1 ? 1 + o.top : i === 0 && ns.length > 2 ? 1 + o.bass : 1 - o.inner));
+    const norm = ks.reduce((a, k) => a + k, 0) / ks.length || 1;
+    const q0 = sc.q(ev[0]), v0 = ev[3] == null ? 0.8 : ev[3];
+    let off = 0;
+    return ns.map((x, i) => {
+      if (i) off += o.roll * (0.6 + 0.8 * rng());
+      const e = ev.slice(0, 4);
+      e[0] = i ? Math.round((q0 + off * qps) * 1e6) / 1e6 : ev[0];
+      e[1] = x.n;
+      if (e[2] === undefined) e[2] = 1;
+      e[3] = Math.round(Math.max(0.05, Math.min(1, v0 * ks[i] / norm)) * 1000) / 1000;
+      return e;
+    });
+  });
+}
+
 const evArt = (ev) => (Array.isArray(ev) ? ev[4] : isObj(ev) ? ev.art : undefined);
 const hasPureArt = (list) => Array.isArray(list) && list.some((ev) => { const t = artType(evArt(ev)); return t === 'rake' || t === 'rest'; });
 function lowerPureArts(list, c) {
@@ -819,14 +964,16 @@ const hasChordEvent = (list) => Array.isArray(list) && list.some((ev) => isObj(e
 
 export function usesAuthoring(m) {
   if (!isObj(m)) return false;
+  if (usesLife(m)) return true;
   if (m.kind === 'beats-composition') {
     if (m.progression !== undefined || m.modulate !== undefined || m.band !== undefined || m.shuffle !== undefined) return true;
     if (Array.isArray(m.sweeps) && m.sweeps.some((w) => isObj(w) && w.t0 == null)) return true;
+    if (m.sustainPedal !== undefined || (m.parts || []).some((p) => isObj(p) && p.sustainPedal !== undefined)) return true;
     if (isObj(m.phrases) && Object.values(m.phrases).some((l) => hasChordEvent(l) || hasPureArt(l))) return true;
     for (const p of m.parts || []) {
       if (!isObj(p)) continue;
       if (isCuePart(p) && ((Array.isArray(p.events) && p.events.some(cueEventNeedsLowering)) || hasTimedGesture(cueList(p)))) return true;
-      if (hasChordEvent(p.events) || p.chordVoice !== undefined || p.groove !== undefined || p.power !== undefined || p.double !== undefined || p.shuffle !== undefined || p.solo !== undefined || hasPureArt(p.events)) return true;
+      if (hasChordEvent(p.events) || p.chordVoice !== undefined || p.groove !== undefined || p.power !== undefined || p.double !== undefined || p.shuffle !== undefined || p.solo !== undefined || p.shape !== undefined || p.touch !== undefined || hasPureArt(p.events)) return true;
     }
   }
   if (m.kind === 'beats-pattern' && isObj(m.chords) && Object.values(m.chords).some((v) => typeof v === 'string')) return true;
@@ -841,6 +988,144 @@ export function usesAuthoring(m) {
  */
 export function expandBeatsManifest(m) {
   if (!usesAuthoring(m)) return m;
+  return applyPedal(applyLife(expandCore(m)));
+}
+
+// ── life, the natural dial (audio improvements): 0 = mechanical, 1 = natural ─
+// A recipe's `life` (0–2) scales the held-note breathing of every row whose
+// instrument breathes by default (its patch carries `life`); a row's own
+// `life` overrides it and, above 0, turns breathing on for any instrument.
+// Lowers to the row's `patchParams.life` (with `amount`: k, which a struck
+// string reads as its per-key unison spread) and scales a `sympathetic`
+// halo's mix; an explicit patchParams.life wins.
+export const LIFE_DEFAULTS = Object.freeze({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5 });
+const lifeRows = (m) => (Array.isArray(m.parts) ? 'parts' : Array.isArray(m.tracks) ? 'tracks' : Array.isArray(m.channels) ? 'channels' : null);
+const usesLife = (m) => { const k = isObj(m) && lifeRows(m); return isObj(m) && (m.life !== undefined || (!!k && m[k].some((r) => isObj(r) && r.life !== undefined))); };
+function applyLife(out) {
+  const key = lifeRows(out);
+  if (!usesLife(out)) return out;
+  const k0 = out.life;
+  delete out.life;
+  if (key) out[key] = out[key].map((r) => {
+    if (!isObj(r)) return r;
+    const { life: own, ...row } = r;
+    const k = own !== undefined ? own : k0;
+    const name = row.patch || (row.instrument && INSTRUMENTS[row.instrument] && INSTRUMENTS[row.instrument].patch);
+    const breathes = !!(name && PATCHES[name] && PATCHES[name].life);
+    if (k === undefined || (own === undefined && !breathes) || (isObj(row.patchParams) && row.patchParams.life !== undefined)) return row;
+    const life = k === 0 ? false : { ...Object.fromEntries(Object.entries(LIFE_DEFAULTS).map(([f, v]) => [f, Math.round(v * k * 1000) / 1000])), amount: k };
+    // the pedal halo follows the dial too (0 takes it out: a dry, mechanical piano).
+    const chain = Array.isArray(row.chain) && row.chain.some((f) => isObj(f) && f.type === 'sympathetic')
+      ? row.chain.flatMap((f) => (isObj(f) && f.type === 'sympathetic' ? (k === 0 ? [] : [{ ...f, mix: Math.round((f.mix == null ? 0.25 : f.mix) * Math.min(k, 4) * 1000) / 1000 }]) : [f])) : null;
+    return { ...row, ...(chain ? { chain } : {}), patchParams: { ...(isObj(row.patchParams) ? row.patchParams : {}), life } };
+  });
+  return out;
+}
+
+// ── the sustain pedal (audio improvements): `sustainPedal` lowers to note lengths and a halo lane ─
+// One pedal per piano: a recipe's value covers every part whose instrument has
+// dampers, as one group; a part's own value makes it a group of its own.
+// 'per-chord' re-pedals as a pianist does: at each new harmony over a new bass
+// note (a chord whose lowest note is the lowest within a quarter either side,
+// whose notes over the next quarter differ from the last change's) the pedal
+// lifts 50 ms after the chord and goes down again at 150 ms, so the old
+// harmony is cleared and the new one caught. 'held' keeps it down; a list
+// [time, 'down' | 'up' | 'half'] is written by hand. A note released with the
+// pedal down rings on to the next lift (half: at most 0.6 s more); the part's
+// `sympathetic` halo gets a `lane` that rises and drains with the pedal (up
+// leaves the undamped treble's 0.12). Array events and a part's `events` only.
+const PEDAL_LEVEL = { up: 0.12, half: 0.5, down: 1 };
+const pedalOk = (v) => v === false || v === 'per-chord' || v === 'held'
+  || (Array.isArray(v) && v.length > 0 && v.every((e) => Array.isArray(e) && e.length === 2 && isTime(e[0]) && ['down', 'up', 'half'].includes(e[1])));
+function checkPedal(v, w, errors) {
+  if (!pedalOk(v)) errors.push(`${w} must be 'per-chord' (re-pedal at each harmony change), 'held', false, or [[time, 'down' | 'up' | 'half'], …] (a piano's sustain pedal)`);
+}
+function applyPedal(out) {
+  if (out.kind !== 'beats-composition' || !Array.isArray(out.parts)) return out;
+  const own = out.parts.some((p) => isObj(p) && p.sustainPedal !== undefined);
+  if (out.sustainPedal === undefined && !own) return out;
+  const sc = kernel().scoreClock(out), qps = (out.bpm || 120) / 60;
+  const damped = (p) => {
+    const name = p.patch || (p.instrument && INSTRUMENTS[p.instrument] && INSTRUMENTS[p.instrument].patch);
+    return !!((isObj(p.patchParams) && p.patchParams.damper) || (typeof name === 'string' && PATCHES[name] && PATCHES[name].damper));
+  };
+  const groups = new Map();
+  out.parts.forEach((p, i) => {
+    if (!isObj(p) || isCuePart(p) || kitOf(p) || !Array.isArray(p.events)) return;
+    const v = p.sustainPedal !== undefined ? p.sustainPedal : damped(p) ? out.sustainPedal : undefined;
+    if (v === undefined || v === false) return;
+    const k = p.sustainPedal !== undefined ? 'part:' + i : 'recipe';
+    (groups.get(k) || groups.set(k, { v, idx: [] }).get(k)).idx.push(i);
+  });
+  delete out.sustainPedal;
+  out.parts = out.parts.map((p) => (isObj(p) && p.sustainPedal !== undefined ? (({ sustainPedal, ...r }) => r)(p) : p));
+  const noteRows = (p) => p.events.map((ev, j) => {
+    if (!Array.isArray(ev) || !isTime(ev[0])) return null;
+    const ms = [].concat(ev[1]).map(midiOf).filter((x) => x != null);
+    if (!ms.length) return null;
+    const q = sc.q(ev[0]);
+    return { j, q, off: q + (ev[2] == null ? 1 : sc.len(ev[2], q)), ms };
+  }).filter(Boolean);
+  for (const { v, idx } of groups.values()) {
+    const rows = idx.flatMap((i) => noteRows(out.parts[i]));
+    if (!rows.length) continue;
+    const end = Math.max(...rows.map((r) => r.off));
+    let marks; // [q, state] in time order
+    if (Array.isArray(v)) marks = v.map(([t, st]) => [sc.q(t), st]).sort((a, b) => a[0] - b[0]);
+    else if (v === 'held') marks = [[Math.min(...rows.map((r) => r.q)), 'down'], [end, 'up']];
+    else {
+      // per-chord: cluster onsets, find the bass changes, re-pedal at each.
+      const notes = rows.flatMap((r) => r.ms.map((m) => ({ q: r.q, m }))).sort((a, b) => a.q - b.q || a.m - b.m);
+      const tol = 0.1 * qps, cl = [];
+      for (const n of notes) { const c = cl[cl.length - 1]; if (c && n.q - c.q <= tol) c.ms.push(n.m); else cl.push({ q: n.q, ms: [n.m] }); }
+      marks = [];
+      let last = null;
+      for (const c of cl) {
+        const low = Math.min(...c.ms);
+        if (notes.some((n) => Math.abs(n.q - c.q) <= 1 && (n.q < c.q - tol || n.q > c.q + tol) && n.m < low)) continue;
+        const set = notes.filter((n) => n.q >= c.q - 1e-9 && n.q < c.q + 1).map((n) => n.m).sort((a, b) => a - b).join(',');
+        if (set === last) continue;
+        if (last != null) marks.push([c.q + 0.05 * qps, 'up']);
+        marks.push([c.q + (last == null ? 0.1 : 0.15) * qps, 'down']);
+        last = set;
+      }
+      marks.push([end, 'up']);
+    }
+    const stateAt = (q) => { let st = 'up'; for (const [t, s] of marks) { if (t > q + 1e-9) break; st = s; } return st; };
+    const nextUp = (q) => { const m = marks.find(([t, s]) => t > q + 1e-9 && s === 'up'); return m ? m[0] : Math.max(end, q); };
+    for (const i of idx) {
+      const p = out.parts[i];
+      const byJ = new Map(noteRows(p).map((r) => [r.j, r]));
+      p.events = p.events.map((ev, j) => {
+        const r = byJ.get(j);
+        if (!r) return ev;
+        const st = stateAt(r.off);
+        if (st === 'up') return ev;
+        const to = st === 'half' ? Math.min(nextUp(r.off), r.off + 0.6 * qps) : nextUp(r.off);
+        if (to <= r.off + 1e-9) return ev;
+        const e = ev.slice();
+        e[2] = Math.round((to - r.q) * 1e6) / 1e6;
+        if (e.length < 4) e[3] = 0.8;
+        return e;
+      });
+      // the halo rides the pedal: a lane on each sympathetic effect.
+      if (Array.isArray(p.chain) && p.chain.some((f) => isObj(f) && f.type === 'sympathetic')) {
+        let cur = PEDAL_LEVEL[stateAt(0)];
+        const lane = [[0, 0, cur, cur]];
+        for (const [t, st] of marks) {
+          const to = PEDAL_LEVEL[st], s0 = r6(sc.sec(Math.max(0, t)));
+          if (to === cur) continue;
+          lane.push([s0, r6(s0 + 0.06), cur, to]);
+          cur = to;
+        }
+        p.chain = p.chain.map((f) => (isObj(f) && f.type === 'sympathetic' ? { ...f, lane } : f));
+      }
+    }
+  }
+  return out;
+}
+
+function expandCore(m) {
   const out = clone(m);
   const key = out.key;
   if (out.kind === 'beats-pattern') {
@@ -939,6 +1224,37 @@ export function expandBeatsManifest(m) {
         }
       }
     }
+    if (q.shape !== undefined) {
+      // shape last: it phrases what the part finally plays (chart, groove and solo included).
+      // A form's phrases get shaped copies (a phrase is shared, so the copy is this
+      // shape's), each phrase taken from its own start.
+      const { shape, ...rest } = q;
+      q = shape === false || !Array.isArray(rest.events) ? rest : { ...rest, events: shapeEvents(rest.events, shape, sc) };
+      if (shape !== false && Array.isArray(q.form) && isObj(out.phrases)) {
+        const o = shapeOpts(shape), tag = `~shape-${[o.bars, o.arch, o.contour, o.contrast, o.end].join('-')}`;
+        q = { ...q, form: q.form.map((f) => {
+          if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
+          const id = f.phrase + tag;
+          if (!out.phrases[id]) out.phrases[id] = shapeEvents(out.phrases[f.phrase], shape, sc);
+          return { ...f, phrase: id };
+        }) };
+      }
+    }
+    if (q.touch !== undefined) {
+      // touch after shape: shape phrases the chord as one, touch then voices it by hand.
+      const { touch, ...rest } = q;
+      const seed = strSeed(hashSeed(out.seed || 1, 0x70C4), rest.name);
+      q = touch === false || !Array.isArray(rest.events) ? rest : { ...rest, events: touchEvents(rest.events, touch, sc, out.bpm, seed) };
+      if (touch !== false && Array.isArray(q.form) && isObj(out.phrases)) {
+        const o = touchOpts(touch), tag = `~touch-${[o.top, o.inner, o.bass, o.roll].join('-')}`;
+        q = { ...q, form: q.form.map((f) => {
+          if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
+          const id = f.phrase + tag;
+          if (!out.phrases[id]) out.phrases[id] = touchEvents(out.phrases[f.phrase], touch, sc, out.bpm, strSeed(seed, id));
+          return { ...f, phrase: id };
+        }) };
+      }
+    }
     return q;
   });
 
@@ -1006,6 +1322,34 @@ export const BANDS = {
     double: false,
     roles: { drums: [[0], 0.12, -3], bass: [[0], 0.05, -2], rhythm: [[-0.3, 0.3], 0.18, -3], lead: [[0.1], 0.22, 0], strings: [[0.4, -0.4], 0.25, -4], keys: [[-0.35], 0.2, -5], fx: [[0], 0.2, -3] },
   },
+  // orchestral styles: one shared hall, the sustained sections wet, the
+  // percussion and the bass dry (the hall stays clear under a tight voice count).
+  'orchestra-battle': {
+    room: { model: 'room2', decay: 2.2, predelay: 0.016, damp: 0.42 },
+    double: false,
+    roles: { strings: [[-0.55, 0.55, -0.25, 0.25], 0.26, -2], brass: [[0.3, -0.3, 0.15], 0.2, -2], woodwind: [[-0.15, 0.15], 0.22, -5], timpani: [[-0.25], 0.1, -2], drums: [[0.1], 0.06, 0], bass: [[0], 0.04, -1], keys: [[0.4, -0.4], 0.22, -6], lead: [[0], 0.18, 0], pad: [[0], 0.3, -8], hit: [[0], 0.22, -3], vocal: [[0], 0.24, -1], fx: [[0], 0.2, -3] },
+  },
+  // open country (the world map, the plains, travel): a soft, wide hall; the
+  // woodwind lead forward and fairly dry, the strings a quiet distant pad,
+  // everything else well back.
+  'orchestra-pastoral': {
+    room: { model: 'room2', decay: 2.6, predelay: 0.02, damp: 0.5 },
+    double: false,
+    roles: { woodwind: [[0.1, -0.2, 0.25], 0.2, 0], strings: [[-0.45, 0.45, -0.2, 0.2], 0.36, -7], brass: [[0.3, -0.3], 0.3, -6], timpani: [[-0.25], 0.14, -6], drums: [[0.05], 0.1, -8], bass: [[0], 0.1, -4], keys: [[0.35, -0.35], 0.26, -5], lead: [[0], 0.2, 0], pad: [[0], 0.4, -9], hit: [[0], 0.3, -6], vocal: [[0], 0.26, -2], fx: [[0], 0.3, -6] },
+  },
+  // adventurous fields (the road gets dangerous): between pastoral and battle.
+  // The brass closer than pastoral, the strings a moving middle, the percussion
+  // light and dry, one medium hall.
+  'orchestra-field': {
+    room: { model: 'room2', decay: 2.4, predelay: 0.018, damp: 0.45 },
+    double: false,
+    roles: { woodwind: [[0.1, -0.2, 0.25], 0.22, 0], brass: [[0.3, -0.3, 0.15], 0.24, -2], strings: [[-0.45, 0.45, -0.2, 0.2], 0.3, -4], timpani: [[-0.25], 0.12, -3], drums: [[0.1], 0.08, -4], bass: [[0], 0.06, -2], keys: [[0.35, -0.35], 0.24, -5], lead: [[0], 0.2, 0], pad: [[0], 0.34, -8], hit: [[0], 0.24, -4], vocal: [[0], 0.24, -1], fx: [[0], 0.24, -4] },
+  },
+  'orchestra-processional': {
+    room: { model: 'room2', decay: 3.4, predelay: 0.028, damp: 0.32 },
+    double: false,
+    roles: { strings: [[-0.5, 0.5, -0.2, 0.2], 0.34, -3], brass: [[0.3, -0.3, 0.15], 0.28, -2], woodwind: [[-0.15, 0.15], 0.3, -5], timpani: [[-0.25], 0.16, -2], drums: [[0.1], 0.12, 0], bass: [[0], 0.08, -1], keys: [[0.4, -0.4], 0.3, -6], lead: [[0], 0.26, 0], pad: [[0], 0.38, -8], hit: [[0], 0.3, -3], vocal: [[0], 0.32, -1], fx: [[0], 0.28, -3] },
+  },
 };
 const ROLE_RE = [
   ['rhythm', /^guitar(Amp|DropChug|Electric|Muted|Clean|Nylon|Classical|Flamenco|Gypsy)$/], ['lead', /^(guitarLead|guitarTwang|pedalSteel|harmonica)$/],
@@ -1013,6 +1357,8 @@ const ROLE_RE = [
   ['keys', /^(banjo|piano|pianoGrand|rhodes|fmKeys|celesta|glockenspiel|musicBox|vibraphone|harpsichord|clav|organ|fmOrgan|marimba|xylophone|fmBell|tubularBells|crotales)/],
   ['brass', /^(trumpet|trombone|frenchHorn|tuba|fmBrass)/], ['strings', /^(violin|viola|cello|contrabass|polyStrings|stringMachine|harp|erhu)/],
   ['synth', /^(supersawLead|hoover|chipLead|sawStab|trancePluck|raveStab|fmBass)/], ['pad', /^pad/],
+  // the bassoon stays a bass (it matched /^bass/ before woodwinds had a role).
+  ['woodwind', /^(flute|piccolo|clarinet|oboe)/], ['timpani', /^timpani/],
 ];
 export function roleOf(p) {
   if (isCuePart(p)) return 'fx';

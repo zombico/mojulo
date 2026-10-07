@@ -56,8 +56,11 @@ const DESCRIPTION_ALLOWLIST = {
   // 699 chars (one under the ceiling) and joins the allowlist for that sentence alone.
   // compose_world re-pinned 2026-09-28 (terrain-world): the 'terrain' base clause — a painted landscape made
   // real-scale ground (walk / fly / see whole); its manual lives in the view-vocab card `terrain`, off-payload.
-  compose_world: 1793,
-  cook: 2756,
+  // compose_world re-pinned 2026-10-04 (flame-depiction): one sentence routing fire in a world (campfire, torches,
+  // fireball, grass fire) to `overrides.fire` over the older carved-solid `flame` and sketch fire; the manual is
+  // the 'Fire' section of the dungeon and terrain cards, off-payload.
+  compose_world: 1998,
+  cook: 1093,
   // create_beats / create_figure / export_beats / get_image_render_packet
   // re-pinned 2026-07-13 to bless visualization-layer branch growth measured
   // at the Mojulo Voice landing (figure garment/setup dials, beats export
@@ -77,7 +80,6 @@ const DESCRIPTION_ALLOWLIST = {
   // keep" batch growth (drapes channel + detail dial on manji trees, the
   // skin-projection seam pointers, the sketch_polygomer parts grammar).
   // Shrink-only from these snapshots.
-  create_sketch: 4366,
   // mint_solid re-pinned 2026-09-26 (871 -> 915, hero-tune): the `via` clause names the hero door
   // ("hero — a human by cast word + proportion tune"), the one phrase a host needs to find the
   // tune from tools/list; the tune's vocabulary itself is taught in layered.md, off-payload.
@@ -130,9 +132,8 @@ const DESCRIPTION_ALLOWLIST = {
   // kind (full-mission SI telemetry) and the description gained its one-line
   // column note. Shrink-only from here.
   measure_view: 1423,
-  meta_context_brief: 963,
   mint_catalyst: 850,
-  meta_context_commit: 2586,
+  meta_context_commit: 803,
   meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
@@ -145,7 +146,7 @@ const DESCRIPTION_ALLOWLIST = {
   semantic_search: 2049,
   sketch_plan: 774,
   sketch_research: 712,
-  sketch_stash: 1016,
+  sketch_stash: 817,
   sketch_what_possible: 1316,
   stitch_motion: 819,
   synthesize_abstract: 1420,
@@ -274,7 +275,57 @@ const DESCRIPTION_ALLOWLIST = {
 // format 'ifc' (the enum value and one sentence, about +87 B, building materials) and the hero door's armour, gear
 // and anime words (fantasy equipment, form articulation); create_solid_turntable's surface names that 'crystal'
 // belongs to the crystal shape (+37 B).
-const PAYLOAD_CEILING = 267_588;
+// Re-pinned 2026-10-04 (267_588 -> 267_900; measured 267,877) for flame-depiction: export_model's format 'blender'
+// (the Blender pack the export-blender CLI writes, a world's fire in it for a Cycles still: the enum value, one
+// sentence, and the `fire_t` / `fire_detail` properties).
+// Re-pinned 2026-10-05 (267_900 -> 268_200; measured 268,159) for historic entries: get_view_vocab names the
+// encyclopedia entry family (a description clause, the `entry` enum value, the id hint) and create_sketch's
+// manifest property names the `historic` kind and where its starters live. No per-entry text anywhere.
+// Re-pinned 2026-10-05 (268_200 -> 268_400; measured 268,358) merging 1005-figure-consolidation into the release
+// candidate: export_model's `rest` property (the emote bridge's T-pose mold, 'authored' | 'tpose', one sentence) is
+// the growth. Each figure branch was inside its own 267_588 pin; only the sum crossed this one.
+// Re-pinned 2026-10-05 (268_400 -> 268_800; measured 268,759) for the field score: create_beats takes
+// `score: { mood, seed?, game?, role? }` (the mood and role enums, one sentence each in the description and the
+// property). The description itself shrank to stay under its 1150 allowlist (dropped a stale "new work" line).
+// Re-pinned 2026-10-06 (268_800 -> 268_900) for loop points: export_beats' `loop` property (one sentence).
+// RATCHETED DOWN 2026-10-06 (268_400 -> 254_600; measured 254,516) for the create_sketch diet: its listing
+// went from 15,532 to 1,690 bytes. The diagram / marks / routing manual moved to the sketch_vocab cards
+// `mark-primitives`, `construction-marks` and `edge-notation`. `bucket` and `preloadMetadata` are still
+// accepted but no longer listed, and the description fits the 700-char ceiling (its allowlist entry is gone).
+// Pinned just above actual so the next feature re-pins consciously. Shrink-only from here.
+// Merged into the release candidate 2026-10-06 (268_900 -> 255_100; measured 255,009): the diet above plus
+// the field score and loop points already on the candidate.
+// RATCHETED DOWN 2026-10-06 (268_900 -> 256_800; measured 256,767) for the cook diet: cook's listing went
+// from 16,227 to 4,321 bytes. Each publication kind's layout guide left the schema for PUBLICATION_GUIDE in
+// cook.js, returned by sketch_stash({ target_kind }) for the one kind being published; the deprecated
+// `template` alias is still accepted but no longer listed. Shrink-only from here.
+// RATCHETED DOWN 2026-10-06 (256_800 -> 251_600; measured 251,525) for the contextmap trim: meta_context_commit
+// 7,144 -> 3,283 bytes, meta_context_brief 1,700 -> 912, meta_context_analyze 1,413 -> 826. The chatbot-era
+// `artifact_materialization` type and the `bot` brief scope still work but are no longer listed.
+// Merged into the release candidate 2026-10-06 (255_100 -> 237_700; measured 237,662): the create_sketch diet,
+// the cook diet and the contextmap trim together.
+// Merged with the building ladder 2026-10-06 (237_700 -> 238_700; measured 237,662 -> 238,593): mint_building's
+// entry, less the house redirects it let create_sketch, mint_solid and compose_world drop.
+// Re-pinned 2026-10-06 (268_900 -> 269_300; measured 269,246) for the industrial study's drawing leg: export_model's
+// 'dxf' / 'svg' formats (two enum values and one sentence) and the `slice_z` / `part` properties that cut a scad row
+// into a flat drawing. The mechanical library itself is off-payload (the scad card).
+// Re-pinned 2026-10-06 (269_300 -> 269_600; measured 269,450) for the rigidity sensor: measure_solid's `strength`
+// property (one sentence). The material table, the element checks and the reading live off-payload (the scad card).
+// Re-pinned 2026-10-06 (-> 269_600 held; measured 269,543) on merging the rigidity sensor with industrial motion:
+// measure_solid's `motion` boolean (one short property line) joins `strength`. The `mechanism` contract rides
+// mint_solid's free-form spec and the scad card.
+// Merged with the industrial study 2026-10-06 (238_700 -> 239_300; measured 238,593 -> 239,264): export_model's dxf/svg
+// leg and measure_solid's `strength` and `motion` properties.
+// Re-pinned 2026-10-06 (239_300 -> 239_400; measured 239,264 -> 239,327) for the scad ladder: get_solid_vocab's
+// `section` property and one sentence on the sections menu. The six sections themselves are off-payload.
+// Re-pinned 2026-10-06 (239_400 -> 240_600; measured 240,518 with the scad ladder merged) for fabricate_solid (1006-fabricator): one new tool,
+// ~1,200 bytes with its schema cut to routing grade and its annotation title. The job words, need fields, inventory and provenance rule are
+// off-payload (the `fabricate` solid-vocab card and the fabricate-parts routing card).
+// Re-pinned 2026-10-06 (240_600 -> 240_700; measured 240,518 -> 240,600) for the bill-of-materials export (1006-fabricator-sizing):
+// export_model's 'bom' format, one enum word and one clause. Sizing's need fields are off-payload (the `fabricate` card).
+// Re-pinned 2026-10-07 (240_700 -> 240_900; measured 240,809) for the Blender film: forge_motion's `export` gains
+// 'blender', one enum word and one clause. The pack, the scripts and the CLI are off-payload (the `blender-film` card).
+const PAYLOAD_CEILING = 240_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
@@ -351,7 +402,8 @@ describe('the sketch tools list schemas that admit what their handlers take', ()
     expect(accepts(manifest, { kind: 'workbench', lathes: [{ id: 'cup', profile: [[0, 0], [0.04, 0], [0.04, 0.1]] }] })).toBe(true);
     expect(accepts(manifest, { title: 'Flow', viewBox: { width: 400, height: 200 }, stations: [] })).toBe(true);
     const { createSketchHandler } = await import('./sketches.js');
-    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'process', label: 'A' }] } })).rejects.toThrow(/manifest\.viewBox is required/);
+    // a PLACED station still needs a viewBox (an unplaced flow is auto-placed and gets one fitted)
+    await expect(createSketchHandler({ title: 'Flow', manifest: { title: 'Flow', stations: [{ id: 'a', kind: 'mcp_tool', label: 'A', x: 0, y: 0, w: 100, h: 40 }] } })).rejects.toThrow(/manifest\.viewBox is required/);
   });
   it('the description keeps its iterate-in-place guidance beside the stroke pointer', async () => {
     const d = (await listedTools()).find((t) => t.name === 'update_sketch').description;

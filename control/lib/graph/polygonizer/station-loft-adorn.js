@@ -143,6 +143,63 @@ function skullAt(c, n, S) { const r = S.r; let up = sub([0, 0, 1], mul(n, n[2]))
   if (horns === 1) out.push({ ...sweep([P(0, 0.5, z0 + 0.5), P(0, 0.8, z0 + 0.95), P(0, 1.25, z0 + 1.2), P(0, 1.75, z0 + 1.25)], [r * 0.2, r * 0.14, r * 0.07], 6), group: hg });
   if (horns === 2) for (const sd of [1, -1]) out.push({ ...sweep([P(sd * 0.62, 0.45, z0 + 0.1), P(sd * 1.0, 0.7, z0 + 0.1), P(sd * 1.22, 1.15, z0), P(sd * 1.12, 1.7, z0 - 0.05)], [r * 0.2, r * 0.14, r * 0.07], 6), group: hg });
   return out; }
+export const VOLUME_SHAPES = Object.freeze(['football', 'cone', 'bell', 'slab', 'bead', 'plate']);
+/** the carrier's axis under a wrapped shell window: the ring centre and mean radius at each station row */
+function axisOf(g) { const J = g.S.length;
+  return Array.from({ length: J }, (_, j) => { const pts = g.F.map((row) => row[j].origin), c = mean(pts); return { c, r: mean(pts.map((p) => [dmath.hypot(...sub(p, c))]))[0] }; }); }
+/** the VOLUME signature's mesh (SIGNATURES.volume) */
+function volumeAt(g, S) {
+  if (!VOLUME_SHAPES.includes(S.shape)) throw new Error(`adorn: volume shape '${S.shape}' is not one of ${VOLUME_SHAPES.join(', ')}`);
+  const ax = axisOf(g), c0 = ax[0].c, c1 = ax[ax.length - 1].c, L = dmath.hypot(...sub(c1, c0)), a = unit(sub(c1, c0));
+  const R = (S.girth ?? 1.5) * mean(ax.map((x) => [x.r]))[0];
+  // the cross-section frame: `fw` the figure's forward (+y) off the axis, or up where the carrier already runs forward
+  const ref = Math.abs(a[1]) > 0.8 ? [0, 0, 1] : [0, 1, 0], fw = unit(sub(ref, mul(a, dot(ref, a)))), lat = unit(cross(fw, a));
+  const [sq0, sq1] = S.squash ?? [1, 1], [b0, b1, b2] = S.bias ?? [0, 0, 0], n = S.n ?? 2, m = S.m ?? 20;
+  const se = (v) => Math.sign(v) * dmath.pow(Math.abs(v), 2 / n);
+  // `half` { cut }: a flat face across the section `cut` radii below the axis (on the fw side's opposite), level along the
+  // whole length: a half-egg foot's sole
+  const cutAt = S.half ? -(S.half.cut ?? 0) : -Infinity;
+  const ring = (c, r) => Array.from({ length: m }, (_, i) => { const t = 2 * Math.PI * i / m; return add(c, add(mul(lat, se(dmath.cos(t)) * r * sq0), mul(fw, Math.max(se(dmath.sin(t)) * r * sq1, cutAt * R)))); });
+  const off = (u) => add(add(c0, mul(a, u * L + b2 * R)), add(mul(lat, b0 * R), mul(fw, b1 * R)));
+  if (S.shape === 'plate') {   // an angular PLATE arched over the carrier's outer side (a pauldron over a ball): `profile`
+    // rows [along (in R, negative toward the window's start), radius (in R)], each an arc of `span` radians either side of
+    // the figure's outward side in `facets` flat facets, `thick` (in R) deep
+    const c = off(S.at ?? 0.5); let o = [S.side === 'L' ? -1 : 1, 0, 0]; o = unit(sub(o, mul(a, dot(o, a)))); const f2 = cross(a, o);
+    const span = S.span ?? 1.5, nf = S.facets ?? 4, th = S.thick ?? 0.08, P = Array.from({ length: nf + 1 }, (_, i) => -span + 2 * span * i / nf);
+    const pt = (z, ph, rr) => add(add(c, mul(a, z * R)), mul(add(mul(o, dmath.cos(ph)), mul(f2, dmath.sin(ph))), rr * R));
+    const rows = (S.profile ?? [[-1.05, 0.5], [-0.7, 1.08], [0, 1.22], [0.6, 1.3]]).map(([z, r]) => [...P.map((ph) => pt(z, ph, r)), ...[...P].reverse().map((ph) => pt(z, ph, r - th))]);
+    return loftParts(rows, mean(rows[0]), mean(rows[rows.length - 1])); }
+  if (S.shape === 'bead') {   // a ball (squashed, or pointed toward a crest by `peak`) at `at` along the window
+    const c = off(S.at ?? 0.5), K = S.rings ?? 9, pk = S.peak ?? 0;
+    // `point: 'start'` turns the crest toward the window's start (a knee pad pointing up the thigh from the shank)
+    const ab = S.point === 'start' ? mul(a, -1) : a, lb = S.point === 'start' ? unit(cross(fw, ab)) : lat;
+    const rg = S.point === 'start' ? (cc, r) => Array.from({ length: m }, (_, i) => { const t = 2 * Math.PI * i / m; return add(cc, add(mul(lb, se(dmath.cos(t)) * r * sq0), mul(fw, Math.max(se(dmath.sin(t)) * r * sq1, cutAt * R)))); }) : ring;
+    const rings = Array.from({ length: K }, (_, i) => { const th = Math.PI * (i + 1) / (K + 1), z = -dmath.cos(th), w = dmath.sin(th) * (1 - pk * Math.max(0, z)); return rg(add(c, mul(ab, z * R * (S.squashAlong ?? 1))), Math.max(1e-4, w * R)); });
+    return loftParts(rings, add(c, mul(ab, -R * (S.squashAlong ?? 1))), add(c, mul(ab, R * (S.squashAlong ?? 1) * (1 + pk * 0.6)))); }
+  const [e0, e1] = S.extend ?? [0, 0], u0 = -e0, u1 = 1 + e1, K = S.rings ?? 12;
+  const prof = { cone: (q) => 1 + ((S.taper ?? 1.4) - 1) * q,
+    football: (q) => { const p = S.peak ?? 0.6, base = S.base ?? 0.62, mouth = S.mouth ?? 0.5; return q < p ? base + (1 - base) * dmath.pow(dmath.sin(Math.PI / 2 * q / p), 0.7) : mouth + (1 - mouth) * dmath.pow(dmath.cos(Math.PI / 2 * (q - p) / (1 - p)), 0.7); },
+    bell: (q) => 1 + ((S.mouth ?? 1.5) - 1) * q * q,
+    slab: (q) => 1 + ((S.taper ?? 1) - 1) * q }[S.shape];
+  const U = Array.from({ length: K }, (_, i) => u0 + (u1 - u0) * i / (K - 1)), rad = U.map((u, i) => R * prof(i / (K - 1)));
+  const rings = U.map((u, i) => ring(off(u), rad[i]));
+  // a rounded proximal end (the volume swells out of the limb), a flat distal face (a cuff, a sole, a muzzle)
+  const body = loftParts(rings, add(off(u0), mul(a, -rad[0] * 0.35)), off(u1));
+  const out = [body];
+  if (S.bore) { const br = rad[K - 1] * (S.bore.r ?? 0.62); out.push({ ...disc(add(off(u1), mul(a, 0.0005)), a, br, Math.max(0.001, br * 0.12), m, 0.7), group: S.bore.group }); }
+  if (S.lip) { const hi = S.lip.at !== 'low', w = S.lip.w ?? 0.12, o = 1 + (S.lip.out ?? 0.06), Q = 3;
+    const band = Array.from({ length: Q }, (_, i) => { const q = hi ? 1 - w + w * i / (Q - 1) : w * i / (Q - 1), u = u0 + (u1 - u0) * q; return ring(off(u), R * prof(q) * o); });
+    out.push({ ...loftParts(band, off(u0 + (u1 - u0) * (hi ? 1 - w : 0)), off(u0 + (u1 - u0) * (hi ? 1 : w))), group: S.lip.group }); }
+  return out; }
+/** the PLAQUE signature's mesh (SIGNATURES.plaque) */
+function plaqueAt(fig, beneath, S) {
+  const L1 = fig.mesh.parts, part = S.part ?? S.carrier, [s0, s1] = S.s, [wb, wt] = S.w, Q = S.rows ?? 6, K = S.cols ?? 9;
+  const lift = S.lift ?? 0.01, thick = S.thick ?? 0.004, bev = S.bevel ?? 0.86, tc = S.c ?? 0;
+  const pt = (sv, t, off) => { const f = frameAt(L1, part, [sv, Math.abs(t)], t < 0 ? 'L' : 'R'); return add(f.origin, mul(f.normal, hullHeight(beneath, f.origin, f.normal, S.rad ?? 0.05) + off)); };
+  const rows = Array.from({ length: Q }, (_, i) => { const q = i / (Q - 1), sv = s0 + (s1 - s0) * q, w = wb + (wt - wb) * q, sOut = i === 0 ? s0 + (s1 - s0) * 0.06 : sv;
+    const T = Array.from({ length: K }, (_, k) => tc + (-w + 2 * w * k / (K - 1)));
+    return [...T.map((t) => pt(sv, t, lift)), ...[...T].reverse().map((t) => pt(sOut, tc + (t - tc) * bev, lift + thick))]; });
+  return loftParts(rows, mean(rows[0]), mean(rows[Q - 1])); }
 export const SIGNATURES = {
   /** a disc on the shell's outer skin: { r, h, m?, rim? } at a grid point */
   boss: (fig, g, _b, S) => { const [k, j] = gridAt(g, S, S.side); return disc(g.outer[k][j], g.F[k][j].normal, S.r, S.h, S.m ?? 12, S.rim ?? 0.55); },
@@ -209,18 +266,54 @@ export const SIGNATURES = {
   helm: (fig, _g, _b, S) => {
     const P = (S.parts || ['cranium', 'jaw']).flatMap((n) => Object.values(fig.mesh.parts[n]?.points || {}));
     const lo = [0, 1, 2].map((i) => Math.min(...P.map((p) => p[i]))), hi = [0, 1, 2].map((i) => Math.max(...P.map((p) => p[i])));
-    const cy = (lo[1] + hi[1]) / 2, zB = lo[2] - (S.drop ?? 0.02), zT = hi[2] + S.pad * 0.8, rx0 = (hi[0] - lo[0]) / 2 + S.pad, ry0 = (hi[1] - lo[1]) / 2 + S.pad;
+    let cy = (lo[1] + hi[1]) / 2, zB = lo[2] - (S.drop ?? 0.02), zT = hi[2] + S.pad * 0.8, rx0 = (hi[0] - lo[0]) / 2 + S.pad, ry0 = (hi[1] - lo[1]) / 2 + S.pad;
+    // `scale` grows the whole helm about its own centre (the window, ears and gem ride it: they are placed in helm heights)
+    if (S.scale) { const k = S.scale, zc = (zB + zT) / 2; rx0 *= k; ry0 *= k; zB = zc + (zB - zc) * k; zT = zc + (zT - zc) * k; }
     const n = S.n ?? 2.4, m = S.m ?? 28, se = (v) => Math.sign(v) * dmath.pow(Math.abs(v), 2 / n), zEye = lo[2] + (S.eye ?? 0.55) * (hi[2] - lo[2]);
     const shape = (u) => { const top = u > 0.55 ? Math.sqrt(Math.max(0.02, 1 - ((u - 0.55) / 0.45) ** 2 * (S.crown ?? 0.9))) : 1; return top * (1 + (S.flare ?? 0) * dmath.pow(1 - u, 3)); };
     const mz = (u) => (S.muzzle ?? 0) * dmath.exp(-(((u - 0.22) / 0.14) ** 2));
     const at = (u, th, off = 0) => { const k = shape(u), c = dmath.cos(th), sn = dmath.sin(th); const rx = rx0 * k + off, ry = ry0 * k + off + (sn > 0 ? mz(u) * dmath.pow(sn, 4) : 0);
       return [rx * se(c), cy + ry * se(sn), zB + u * (zT - zB)]; };
-    const U = Array.from({ length: 14 }, (_, i) => i / 13);
-    const shell = loftParts(U.map((u) => Array.from({ length: m }, (_, q) => at(u, 2 * Math.PI * q / m))), [0, cy, zB - 0.002], [0, cy, zT + 0.002]);
-    const out = [shell]; const uOf = (z) => (z - zB) / (zT - zB), uE = uOf(zEye), F = Math.PI / 2;
+    const uOf = (z) => (z - zB) / (zT - zB), uE = uOf(zEye), F = Math.PI / 2;
+    const out = []; let shellOff = () => 0;   // the window horseshoe's own offset (jaw curl, back tuck), for trim that rides it
+    if (!S.window) { const U = Array.from({ length: 14 }, (_, i) => i / 13); out.push(loftParts(U.map((u) => Array.from({ length: m }, (_, q) => at(u, 2 * Math.PI * q / m))), [0, cy, zB - 0.002], [0, cy, zT + 0.002])); }
+    else {   // a FACE WINDOW (the hero robot's open helmet: the face shows, the helm wraps the crown, the temples and the
+      // cheeks): a closed dome from the window's top edge `brow` (above the eye line, in helm heights) over the crown, and
+      // below it a thick horseshoe round the back, open `w` radians either side of the front, down to `bottom`
+      const W = S.window, uT = Math.min(0.9, uE + (W.brow ?? 0.12)), uB = W.bottom ?? 0.12, hw = W.w ?? 0.95, th = W.thick ?? Math.max(0.004, S.pad * 0.5);
+      const Uc = Array.from({ length: 9 }, (_, i) => uT + (1 - uT) * i / 8);
+      out.push(loftParts(Uc.map((u) => Array.from({ length: m }, (_, q) => at(u, 2 * Math.PI * q / m))), [0, cy, zB + uT * (zT - zB)], [0, cy, zT + 0.002]));
+      const Uh = Array.from({ length: 7 }, (_, i) => uB + (uT - uB) * i / 6), arcN = m;
+      // `nape` drops the bottom edge toward the back (in helm heights), so the helm reaches down over the nape; `jaw`
+      // { drop, curl } brings the CHEEK GUARDS down at the window's sides (`drop` helm heights, fading round to the
+      // back) and curls them in under the jaw (`curl`: a share of the helm's half-width, growing below the jaw line)
+      const J = W.jaw, front = (a) => dmath.pow(Math.max(0, dmath.sin(a)), 1.2);
+      const ub = (a) => uB - (W.nape ?? 0) * dmath.pow(Math.max(0, -dmath.sin(a)), 1.5) - (J ? (J.drop ?? 0.12) * front(a) : 0), uh = (i, a) => ub(a) + (uT - ub(a)) * i / 6;
+      // `back` { tuck } rounds the back in profile: below the eye line the shell turns in toward the nape (a share of the
+      // helm's half-width, growing as the square toward the bottom edge, strongest straight behind), so the side view
+      // closes as a circle instead of dropping as a wall
+      const B = W.back, behind = (a) => Math.max(0, -dmath.sin(a)), uNape = uB - (W.nape ?? 0);
+      const curl = (u, a) => { let o = 0;
+        if (J && u < uB + 0.12) { const q = Math.min(1, (uB + 0.12 - u) / (0.12 + (J.drop ?? 0.12))); o -= (J.curl ?? 0.25) * rx0 * q * q * front(a); }
+        if (B && u < uE) { const q = Math.min(1, (uE - u) / Math.max(1e-6, uE - uNape)); o -= (B.tuck ?? 0.3) * rx0 * q * q * behind(a); }
+        // `hug` rounds the whole lower helm in toward the face and jaw, sides and back (a share of the half-width at the
+        // bottom edge, growing as a circle's sag below the eye line), so the shell closes like an egg instead of a bucket
+        if (W.hug && u < uE) { const q = Math.min(1, (uE - u) / Math.max(1e-6, uE - uB)); o -= W.hug * rx0 * (1 - Math.sqrt(Math.max(0, 1 - q * q))) * (1 - front(a)); }
+        return o; };
+      shellOff = curl;
+      // `jaw.wrap` (radians) closes the window over the guard's lowest rows, so the guards come forward toward the chin
+      const hwAt = (i) => hw - (J?.wrap ?? 0) * dmath.pow(Math.max(0, (2 - i) / 2), 1.5);
+      const arcAt = (i) => Array.from({ length: arcN + 1 }, (_, q) => F + hwAt(i) + (2 * Math.PI - 2 * hwAt(i)) * q / arcN);
+      out.push(loftParts(Uh.map((_, i) => { const Ai = arcAt(i); return [...Ai.map((a) => at(uh(i, a), a, curl(uh(i, a), a))), ...[...Ai].reverse().map((a) => at(uh(i, a), a, curl(uh(i, a), a) - th))]; }), [0, cy, zB + uB * (zT - zB) - 0.001], [0, cy, zB + uT * (zT - zB)]));
+    }
     // a flat bar lying on the helm's skin along (u, θ) samples, `w` wide across it, standing `t` proud
     const lift = S.faceplate ? 0.007 : 0.001;   // over a faceplate the visor stands on it, never buried beneath
-    const bar = (pts, w, t, group, base = lift) => { const secs = pts.map(([u, th], i) => { const p = at(u, th, base), o = sub(at(u, th, base + 0.01), p), out = unit(o);
+    // `surf`: stand it along the helm's true surface normal (from its u and θ tangents) instead of the horizontal offset —
+    // for a bar crossing the crown, where the skin faces up
+    const zMid = (zB + zT) / 2;
+    const surfN = (u, th, base) => { const e = 1e-3, n0 = unit(cross(sub(at(u, th + e, base), at(u, th - e, base)), sub(at(u + e, th, base), at(u - e, th, base)))), p = at(u, th, base);
+      return dot(n0, sub(p, [0, cy, zMid])) < 0 ? mul(n0, -1) : n0; };
+    const bar = (pts, w, t, group, base0 = lift, offOf = null, surf = false) => { const secs = pts.map(([u, th], i) => { const base = base0 + (offOf ? offOf(u, th) : 0), p = at(u, th, base), out = surf ? surfN(u, th, base) : unit(sub(at(u, th, base + 0.01), p));
       const [u2, th2] = pts[Math.min(i + 1, pts.length - 1)], [u1, th1] = pts[Math.max(i - 1, 0)]; const along = unit(sub(at(u2, th2), at(u1, th1))); const across = unit(cross(out, along));
       return [add(p, mul(across, -w / 2)), add(p, mul(across, w / 2)), add(add(p, mul(across, w / 2)), mul(out, t)), add(add(p, mul(across, -w / 2)), mul(out, t))]; });
       return { ...loftParts(secs, mean(secs[0]), mean(secs[secs.length - 1])), group }; };
@@ -234,6 +327,109 @@ export const SIGNATURES = {
       const secs = Array.from({ length: 8 }, (_, i) => { const u = 0.08 + i * (0.8 - 0.08) / 7, A = Array.from({ length: 9 }, (_, q) => F - 0.95 + 1.9 * q / 8);
         return [...A.map((th) => at(u, th, 0.005)), ...[...A].reverse().map((th) => at(u, th, -0.002))]; });
       out.push({ ...loftParts(secs, mean(secs[0]), mean(secs[secs.length - 1])), group: S.faceplate }); }
+    // the window's top edge as a V (`window.v`): two lines from the window's top corners (where the rim turns) down to an
+    // APEX over the bridge of the nose, the plate between them and the brow raised in its own group; `curve` > 1 keeps
+    // the V narrow longer near the apex (clear of the eyes). `stripes` carry the two lines on past the corners, up and
+    // over the crown to the back edge, as raised bands. { apex?, curve?, raise?, thick?, group, stripes?: { w?, t?, group? } }
+    const W = S.window, VP = W?.v, vLift = VP ? (VP.raise ?? 0.004) + (VP.thick ?? 0.002) : 0;
+    const uTw = W ? Math.min(0.9, uE + (W.brow ?? 0.12)) : 0, hwW = W?.w ?? 0.95, uAv = VP ? uE - (VP.apex ?? 0.05) : 0, pv = VP?.curve ?? 1.6;
+    const vHalf = (u) => hwW * dmath.pow(Math.max(0, Math.min(1, (u - uAv) / (uTw - uAv))), pv);   // the V's half-angle at height u
+    const FR = VP?.frame, FG = FR?.gem ?? { corner: [0.1, 0.28], top: 0.22, bottom: 0.09 }, [pRise, dP] = FR?.peak ?? [0.28, 0.56];
+    const uP = uTw + pRise, uGc = uTw + FG.corner[0], dG = FG.corner[1], uGt = uTw + FG.top, uGb = uAv + FG.bottom;
+    if (VP) { const Q = 10, K = 11;
+      const rows = Array.from({ length: Q }, (_, i) => uAv + (uTw - uAv) * dmath.pow(i / (Q - 1), 0.8)).map((u) => { const hv = Math.max(0.012, vHalf(u)), A = Array.from({ length: K }, (_, q) => F - hv + 2 * hv * q / (K - 1));
+        return [...A.map((a) => at(u, a, vLift)), ...[...A].reverse().map((a) => at(u, a, -0.002))]; });
+      out.push({ ...loftParts(rows, at(uAv - 0.008, F, vLift * 0.5), at(uTw + 0.004, F, vLift * 0.5)), group: VP.group ?? S.group });
+      // `frame`: the V plate grown into the visor's whole FRAME in its group: wide CHEEK bands up the window's sides
+      // (`cheek` [width at the guard's tip, width at the top corner], radians), tapering to a point at the jaw; a brow band
+      // over the V up to the gem's corners; and from there two HORNS rising to points at `peak` [height over the window's
+      // top corner, radians from the front], the gem's upper half in the helm's colour between them.
+      // { cheek?, peak?, gem?: { corner: [rise, d], top, bottom } (the gem's rhombus in helm heights and radians) }
+      if (FR) { const K = 9, gq = VP.group ?? S.group, [c0, c1] = FR.cheek ?? [0.004, 0.2], hw0 = hwW;
+        const plate = (U, iv, offOf = () => 0) => U.map((u) => { const [d0, d1] = iv(u), A = Array.from({ length: K }, (_, q) => d0 + (d1 - d0) * q / (K - 1));
+          return [...A.map((a) => at(u, a, vLift + offOf(u, a))), ...[...A].reverse().map((a) => at(u, a, -0.002 + offOf(u, a)))]; });
+        const fr = dmath.pow(dmath.sin(F + hw0), 1.2), uJb = (W.bottom ?? 0.12) - (W.jaw ? (W.jaw.drop ?? 0.12) * fr : 0);
+        const hwC = (u) => hw0 - (W.jaw?.wrap ?? 0) * dmath.pow(Math.max(0, (2 - 6 * (u - uJb) / (uTw - uJb)) / 2), 1.5);
+        const outer = (u) => (hw0 + c1) + (dP - hw0 - c1) * (u - uTw) / (uP - uTw), lo = (u) => dG + (dP - 0.004 - dG) * (u - uGc) / (uP - uGc);
+        const span = (a0, a1, k) => Array.from({ length: k }, (_, i) => a0 + (a1 - a0) * i / (k - 1));
+        for (const sd of [1, -1]) { const A = (d0, d1) => (sd > 0 ? [F + d0, F + d1] : [F - d1, F - d0]);
+          const cheek = plate(span(uJb, uTw, 12), (u) => { const q = (u - uJb) / (uTw - uJb), h = hwC(u); return A(h - 0.03, h + c0 + (c1 - c0) * dmath.pow(q, 0.6)); }, shellOff);
+          const brow = plate(span(uTw, uGc, 5), (u) => A(0, outer(u))), horn = plate(span(uGc, uP, 7), (u) => A(lo(u), outer(u)));
+          for (const R of [cheek, brow, horn]) out.push({ ...loftParts(R, mean(R[0]), mean(R[R.length - 1])), group: gq }); } }
+      if (VP.stripes) { const St = VP.stripes, cx = at(uTw, F + hwW)[0];   // the corner's lateral offset: the stripe keeps it over the head
+        // the stripe's lateral offset eases in from the corner's to `span` (a share of the helm's half-width) as it rises,
+        // and holds there over the crown and down the back; it crosses the crown on the highest ring that still holds it
+        const xs = (St.span ?? 0.38) * rx0, uK = uTw + 0.55 * (0.97 - uTw), xAt = (u) => (u >= uK ? xs : Math.abs(cx) + (xs - Math.abs(cx)) * dmath.pow(Math.max(0, (u - uTw) / (uK - uTw)), 0.8));
+        let uMax = uTw; for (let i = 0; uTw + i * 0.0025 <= 0.995; i++) { const u = uTw + i * 0.0025; if (0.96 * rx0 * shape(u) >= xAt(u)) uMax = u; }
+        // the angle where the section at height u reaches |x| on side `sd`, on the front (sin > 0) or the back
+        const thAt = (u, sd, back) => { const c = Math.min(0.96, (back ? xs : xAt(u)) / (rx0 * shape(u))), cs = Math.sign(cx) * sd * dmath.pow(c, n / 2), a = Math.acos(cs); return back ? 2 * Math.PI - a : a; };
+        const uEnd = (W.bottom ?? 0.12) - (W.nape ?? 0) + 0.04;
+        for (const sd of [1, -1]) { const vEdge = Array.from({ length: 5 }, (_, i) => { const t = i / 4, u = uAv + (uTw - uAv) * t; return [u, F - Math.sign(cx) * sd * vHalf(u)]; });   // the V's edge on the stripe's own side
+          const up = Array.from({ length: 10 }, (_, i) => { const u = uTw + (uMax - uTw) * (i + 1) / 10; return [u, thAt(u, sd, false)]; });
+          // across the crown the short way round its ring, through the side
+          const a0 = thAt(uMax, sd, false), a1 = a0 < Math.PI / 2 ? -a0 : 2 * Math.PI - a0, over = Array.from({ length: 7 }, (_, i) => [uMax, a0 + (a1 - a0) * (i + 1) / 8]);
+          const down = Array.from({ length: 12 }, (_, i) => { const u = uMax - (uMax - uEnd) * i / 11; return [u, thAt(u, sd, true)]; });
+          out.push(bar([...vEdge, ...up, ...over, ...down], St.w ?? w * 0.075, St.t ?? 0.004, St.group ?? VP.group ?? S.group, vLift * 0.5, (u, th) => (u < uTw && dmath.sin(th) < 0 ? shellOff(u, th) : 0), true)); } } }
+    // the window's RIM: a proud bar round its edge in its own group (the helmet's trim line), up the sides to the window's
+    // top corners and across the top (under a V, the plate is the top edge): { group, w?, t? }
+    if (W?.rim) { const uT = uTw, hw = hwW, n = 7;
+      // the rim follows the cheek guard's own edge: down to its dropped bottom, curled in with it
+      const fr = dmath.pow(dmath.sin(F + hw), 1.2), uB = (W.bottom ?? 0.12) - (W.jaw ? (W.jaw.drop ?? 0.12) * fr : 0), uC = (W.bottom ?? 0.12) + 0.12;
+      const cOf = (u) => (W.jaw && u < uC ? -(W.jaw.curl ?? 0.25) * rx0 * Math.min(1, (uC - u) / (0.12 + (W.jaw.drop ?? 0.12))) ** 2 * fr : 0);
+      // the rim's sides on the horseshoe's own rows (7 of them), each at that row's window half-angle (jaw.wrap)
+      const hwAt = (i) => hw - (W.jaw?.wrap ?? 0) * dmath.pow(Math.max(0, (2 - i) / 2), 1.5);
+      const side = (sd) => Array.from({ length: n }, (_, i) => [uB + (uT - uB) * i / (n - 1), F + sd * hwAt(i)]), top = Array.from({ length: 9 }, (_, i) => [uT, F + hw - 2 * hw * i / 8]);
+      const rw = W.rim.w ?? w * 0.05, rt = W.rim.t ?? 0.003, rg = W.rim.group ?? S.group;
+      if (VP) { if (!FR) for (const sd of [1, -1]) out.push(bar(side(sd), rw, rt, rg, 0, cOf)); }
+      else out.push(bar([...side(1), ...top.slice(1, -1), ...[...side(-1)].reverse()], rw, rt, rg, 0, cOf)); }
+    // EARS: a dome on each side of the helm at the ear (the hero robot's ear pods): { r, h, u?, group, cap?: { r, group } }
+    if (S.ears) { const E = S.ears, ue = E.u ?? uE - 0.08;
+      for (const a of [0, Math.PI]) { const so = W?.hug ? shellOff(ue, a) : 0, c = at(ue, a, so), nrm = unit(sub(at(ue, a, so + 0.02), c)), r = E.r ?? w * 0.16, h = E.h ?? r * 0.45;
+        out.push({ ...disc(add(c, mul(nrm, -0.002)), nrm, r, h, 20, 0.82), group: E.group ?? S.group });
+        if (E.cap) out.push({ ...disc(add(c, mul(nrm, h * 0.95)), nrm, E.cap.r ?? r * 0.55, h * 0.35, 16, 0.75), group: E.cap.group ?? S.group }); } }
+    // HORNS: a pair of tapering blades rooted on the helm at height `u` and `a` radians either side of the front, leaning
+    // `out` along the skin's normal, `up` and `back`, bending up by `bend`: { u, a, len, r, out?, up?, back?, bend?,
+    // squash?, group }
+    if (S.horns) { const H = S.horns;
+      for (const sd of [1, -1]) { const th = F - sd * (H.a ?? 1.2), root = at(H.u, th, -0.003), n0 = surfN(H.u, th, 0);
+        const d = unit(add(add(mul(n0, H.out ?? 0.6), [0, 0, H.up ?? 1]), [0, -(H.back ?? 0.6), 0])), K = 6;
+        const spine = Array.from({ length: K }, (_, i) => { const t = i / (K - 1); return add(add(root, mul(d, H.len * t)), [0, 0, (H.bend ?? 0) * H.len * t * t]); });
+        out.push({ ...sweep(spine, spine.slice(0, -1).map((_, i) => Math.max(0.0008, H.r * dmath.pow(1 - i / (K - 1), 0.9))), 6, { squash: H.squash ?? [1, 0.45] }), group: H.group ?? S.group }); } }
+    // a PONYTAIL out of the helm's back: `n` flattened, tapering clumps from a tie at height `u` (behind), falling `len`
+    // down and `back` behind, fanning `spread` (of len) toward the tips; `wild` scatters each clump's direction, length and
+    // flick by a fixed pattern (no dice), so the tail reads as wild hair: { u, len, r, n?, spread?, back?, wild?, flick?,
+    // group, tie?: { group, r? } }
+    if (S.ponytail) { const T = S.ponytail, nC = T.n ?? 9, root = at(T.u, -Math.PI / 2, 0.004), bk = [0, -1, 0], len = T.len;
+      const hsh = (i, k) => { const x = dmath.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+      if (T.tie) out.push({ ...disc(add(root, mul(bk, -0.004)), unit(add(bk, [0, 0, -0.35])), T.tie.r ?? T.r * 1.4, T.r * 0.9, 10, 0.6), group: T.tie.group ?? S.group });
+      for (let i = 0; i < nC; i++) { const ph = i * 2.39996, w = T.wild ?? 0.5, L = len * (1 - 0.3 * w * hsh(i, 1)), sp = (T.spread ?? 0.35) * (0.5 + hsh(i, 2));
+        const side = add(mul([1, 0, 0], dmath.cos(ph)), mul([0, -0.7, 0], dmath.sin(ph))), K = 7;
+        const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1);
+          return add(add(add(root, mul(bk, L * (T.back ?? 0.3) * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]),
+            add(mul(side, sp * L * dmath.pow(t, 0.9)), [0, -(T.flick ?? 0.12) * L * w * hsh(i, 3) * t * t * t, 0])); });
+        out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, T.r * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
+    // a GEM on the brow, centred over the window (the forehead jewel): { r, h?, u?, group, setting?: { group, w? }, shape?:
+    // 'diamond' (a faceted rhombus, `tall`/`wide` its half-extents in r, on a rhombus plate `w` wider: the border) }
+    if (S.gem) { const G = S.gem, ug = G.u ?? (VP ? uTw - 0.3 * (uTw - uAv) : Math.min(0.95, uE + (S.window?.brow ?? 0.12) + 0.07)), c = at(ug, F, vLift), nrm = unit(sub(at(ug, F, 0.02), c)), r = G.r ?? w * 0.07;
+      if (G.shape === 'diamond' && FR) {   // the frame's gem: its rhombus in helm heights and radians (FR.gem), set in the frame's notch
+        const h = G.h ?? r * 0.75, o0 = G.setting ? r * 0.22 : 0;
+        const V = (q, z) => [[uGc + q * (uGt - uGc), 0], [uGc, q * dG], [uGc + q * (uGb - uGc), 0], [uGc, -q * dG]].map(([u, d]) => at(u, F + d, vLift + z));
+        if (G.setting) { const bw = 1 + (G.setting.w ?? 0.2); out.push({ ...loftParts([V(bw, 0), V(bw, o0), V(bw * 0.94, o0 + r * 0.08)], at(uGc, F, vLift - 0.001), at(uGc, F, vLift + o0 + r * 0.08)), group: G.setting.group ?? S.group }); }
+        out.push({ ...loftParts([V(1, o0), V(1, o0 + h * 0.3), V(0.5, o0 + h)], at(uGc, F, vLift + o0 - 0.001), at(uGc, F, vLift + o0 + h)), group: G.group ?? S.group }); }
+      else if (G.shape === 'diamond') {   // a faceted rhombus stone, taller than wide, on a rhombus setting plate (its border)
+        let up = sub([0, 0, 1], mul(nrm, nrm[2])); up = unit(up); const lat = unit(cross(up, nrm)), hh = r * (G.tall ?? 1.35), h = G.h ?? r * 0.75;
+        let hw = r * (G.wide ?? 0.9), ys = 0, ht = hh;
+        // `fit: 'v'`: the stone's lower edges run parallel to the V's lines at its height (`wide` sets where they turn),
+        // the top shortened to `top` (in r) above that turn, so the stone sits in the V like a kite
+        if (G.fit === 'v' && VP) { const xy = (u) => { const d = sub(at(u, F + vHalf(u), vLift), c); return [Math.abs(dot(d, lat)), dot(d, up)]; };
+          const [x1, y1] = xy(ug - 0.04), [x2, y2] = xy(ug), k = (x2 - x1) / (y2 - y1); ys = -hh + hw / k; ht = ys + r * (G.top ?? 0.75); }
+        const rh = (o, q, z) => [[0, q * ht], [q * hw, q * ys], [0, -q * hh], [-q * hw, q * ys]].map(([x, y]) => add(add(c, mul(nrm, o + z)), add(mul(lat, x), mul(up, y))));
+        const o0 = G.setting ? r * 0.22 : 0;
+        if (G.setting) { const bw = 1 + (G.setting.w ?? 0.35); out.push({ ...loftParts([rh(-0.001, bw, 0), rh(-0.001, bw, o0), rh(-0.001, bw * 0.92, o0 + r * 0.08)], add(c, mul(nrm, -0.002)), add(c, mul(nrm, o0 + r * 0.08))), group: G.setting.group ?? S.group }); }
+        out.push({ ...loftParts([rh(o0, 1, 0), rh(o0, 1, h * 0.3), rh(o0, 0.5, h)], add(c, mul(nrm, o0 - 0.001)), add(c, mul(nrm, o0 + h))), group: G.group ?? S.group }); }
+      else {
+      if (G.setting) out.push({ ...disc(add(c, mul(nrm, -0.001)), nrm, r * 1.4, r * 0.3, 16, 0.8), group: G.setting.group ?? S.group });
+      out.push({ ...disc(add(c, mul(nrm, G.setting ? r * 0.25 : 0)), nrm, r, G.h ?? r * 0.6, 12, 0.55), group: G.group ?? S.group }); } }
     if (S.grille) for (let i = 0; i < S.grille; i++) { const u = 0.12 + i * 0.05; out.push(bar(arc(u, F - 0.35, F + 0.35, 5), w * 0.025, 0.004, S.grilleGroup ?? S.group)); }
     // a BROW: a proud bar over the eyes that casts the face beneath into shadow ({ group, t? })
     if (S.brow) out.push(bar(arc(Math.min(0.97, uE + 0.075), F - 0.85, F + 0.85), w * 0.07, S.brow.t ?? w * 0.05, S.brow.group ?? S.group));
@@ -258,6 +454,24 @@ export const SIGNATURES = {
     for (let q = 0; q < (S.vents ?? 0); q++) { const b = add(add(add(c, mul(lat, (-0.3 + 0.6 * (S.vents === 1 ? 0.5 : q / (S.vents - 1))) * S.w)), mul(up, S.h / 2 - 0.01)), mul(nrm, S.d * 0.55));
       out.push({ ...sweep([b, add(b, mul(up, S.ventH * 0.5)), add(b, mul(up, S.ventH))], [S.ventR, S.ventR, S.ventR * 1.1], 10), ...(S.ventGroup ? { group: S.ventGroup } : {}) }); }
     return out; },
+  /** a free VOLUME round the carrier (figure-fluff's girth contrast on the rig: the hero robot's football forearm, flared
+   * boot, shoulder ball). Built on its shell's WRAPPED window: the carrier's own axis (the ring centres at the window's
+   * ends) and its measured radius, so it scales with the body and rides the bone it is pinned to. The shape is fluff's
+   * closed set: `football` (a belly at `peak`, the distal end narrowed to `mouth`), `cone` (`taper` > 1 flares: a boot),
+   * `bell` (the distal end opened to `mouth`), `slab` (a superellipse block, `taper`), `bead` (a ball at `at` along the
+   * window). `girth` multiplies the measured radius; the cross-section is a superellipse of exponent `n` (2 round, 3–4
+   * chamfered moulding) squashed by `squash` [lateral, forward]; `bias` [lateral, forward, along] moves it off the axis
+   * (fractions of the radius; the forward is the figure's +y, or up for a carrier that already points forward, a foot);
+   * `extend` [proximal, distal] runs it past the window (fractions of the window's length). `bore` { group, r? } sets a
+   * dark muzzle disc on the distal face (the arm cannon); `lip` { group, at: 'low' | 'high', w?, out? } a proud band at
+   * one end (a cuff); `half` { cut } a flat face `cut` radii below the axis along the whole length (a half-egg foot's sole).
+   * { shape, girth, peak?, mouth?, taper?, n?, squash?, bias?, extend?, at?, m?, rings?, bore?, lip?, half? } */
+  volume: (fig, g, _b, S) => volumeAt(g, S),
+  /** a PLAQUE: a thick trapezoid plate lying on the carrier (`part`, default the adornment's own) between stations `s`
+   * [bottom, top], centred on the front (t 0), its half-width in ring units `w` [at the bottom, at the top], lifted `lift`
+   * off whatever lies beneath and `thick` deep, its face narrowed to `bevel` of its width and its bottom edge bevelled up
+   * (an embossed ab plate jutting down under a chest plate): { s, w, lift?, thick?, bevel?, part?, rows?, cols? } */
+  plaque: (fig, _g, beneath, S) => plaqueAt(fig, beneath, S),
   // ── THEME MOTIFS (armor/theme.js places them by role): the primary motif, the field's line, the edge and crest verbs ──
   /** a SKULL at the seat (seatOf: a strap's `at`, a shell's `dir`): { r, proud?, horns? 0–2, socketGroup?, hornGroup?, m? } */
   skull: (fig, g, _b, S) => { const { c, n } = seatOf(g, S); return skullAt(c, n, S); },
@@ -315,13 +529,17 @@ export const SIGNATURES = {
  * includes the ones worn before it. `recipe` (the unrefined source) names the bone a rigid adornment rides. */
 export function wear(fig, kit, { recipe } = {}) { const out = {}; const record = []; const meta = {};
   for (const A of kit) { const side = A.side || 'R'; let g, mesh; const mode = A.mode === 'band' ? 'shell' : A.mode;
-    if (mode === 'shell') { ({ mesh, grid: g } = shell(fig, A, side)); } else if (mode === 'strap') { const r = strap(fig, A); mesh = r.mesh; g = r; } else throw new Error(`adorn: ${A.id} mode must be one of ${ADORN_MODES.join(' / ')}`);
+    if (mode === 'shell') { ({ mesh, grid: g } = shell(fig, A, side));
+      // a VOLUME is the whole visible piece: its carrying shell (whose window only sizes it) becomes a slender core on the
+      // carrier's axis, buried in the body, so no shell face shows past the volume's rounded ends
+      if (A.signature?.kind === 'volume' && A.t === 'wrap') { const ax = axisOf(g), r = 0.25 * Math.min(...ax.map((x) => x.r));
+        mesh = { ...loftParts(ax.map((x, j) => ringAt(x.c, sub(ax[Math.min(j + 1, ax.length - 1)].c, ax[Math.max(j - 1, 0)].c), r, 6)), ax[0].c, ax[ax.length - 1].c), group: A.group }; } } else if (mode === 'strap') { const r = strap(fig, A); mesh = r.mesh; g = r; } else throw new Error(`adorn: ${A.id} mode must be one of ${ADORN_MODES.join(' / ')}`);
     out[`adorn.${A.id}`] = { ...mesh, layer: 3 };
     // the signature is built on the adornment (so it rides it); what it hangs past is its own beneath
     const beneath = beneathOf({ mesh: fig.mesh, parts: { ...fig.parts, ...out } }, A.signature.beneath || [A.part]);
     const make = typeof A.signature.build === 'function' ? A.signature.build : SIGNATURES[A.signature.kind];
     if (!make) throw new Error(`adorn: ${A.id} signature kind '${A.signature.kind}' is not in the library (have ${Object.keys(SIGNATURES).join(', ')})`);
-    const sig = make(fig, g, beneath, { side, ...A.signature });
+    const sig = make(fig, g, beneath, { side, carrier: A.part, ...A.signature });
     // a signature is its ELEMENT (what must read) plus whatever carries it (chain links), named apart
     // an element may carry its own group (a board's lacing cords); absent, the signature's
     const el = sig.element ? sig.element : sig; (Array.isArray(el) ? el : [el]).forEach((m, i) => { out[`adorn.${A.id}.sig${i}`] = { ...m, group: m.group ?? A.signature.group, layer: 3 }; });

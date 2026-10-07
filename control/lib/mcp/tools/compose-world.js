@@ -20,6 +20,8 @@
 import { registerTool } from '@/lib/mcp/server';
 import { resolveTheme, listThemes } from '@/lib/graph/theme-registry';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
+import { parseFieldSpec, mintFieldSpec, suggestFieldScore } from '@/lib/graph/beats/field-cue';
+import { validateFire } from '@/lib/graph/fire/fire';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { mintFractalCity, createFractalCityHandler } from '@/lib/mcp/tools/scene-city';
@@ -114,8 +116,20 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
           + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).`,
       );
     }
+    // a field score with no seed gets a fresh one STORED on the recipe: every world sounds different by
+    // default, and the seed is there to keep (or delete for a reroll).
+    const field = parseFieldSpec(slots.audio.soundtrack);
+    if (field && field.seed === undefined) slots.audio = { ...slots.audio, soundtrack: { score: mintFieldSpec(field) } };
     resolveWorldAudio(slots.audio); // throws per-channel (unknown beats ref, invalid recipe, dangling cue)
     audio = slots.audio;
+  }
+  // `fire` is kind-generic too (world-scene.js resolves it for every kind: a dungeon's own fires with `true`, or
+  // `{ sources }` anywhere): checked here for every base and stamped like audio when the base's whitelist drops it.
+  let fire;
+  if (slots.fire !== undefined && slots.fire !== false) {
+    const errs = validateFire(slots.fire);
+    if (errs.length) throw new Error(`compose_world: overrides.fire is invalid:\n - ${errs.join('\n - ')}`);
+    fire = slots.fire;
   }
   const params = b.adapt(slots);
   // Only spread top-level fields the caller actually set, so an
@@ -133,6 +147,13 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
       if (result.recipe && typeof result.recipe === 'object') result.recipe.audio = audio;
     }
   }
+  if (fire && result && result.ref && !(result.recipe && result.recipe.fire)) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      SketchRepository.update({ ref: result.ref, manifest: { ...stored.manifest, fire } });
+      if (result.recipe && typeof result.recipe === 'object') result.recipe.fire = fire;
+    }
+  }
   // Silent-swallow guard (0813 first-contact reports): every mint destructures a
   // parameter whitelist, so an override key the base doesn't know — or a value that
   // fails its validation — used to vanish without a trace. Surface a soft note for
@@ -140,7 +161,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // consumes structurally. Advisory only: some bases legitimately lower a key into
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
-  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio']);
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire']);
   // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
   // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
   // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed
@@ -169,8 +190,20 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     }
     ignored.push(k);
   }
+  // no music asked for: suggest the field score that fits the world (quiet when none does).
+  const suggestion = audio ? null : suggestFieldScore({ base, theme, title: title ?? (recipe && recipe.title), time: slots.time });
   return {
     ...result, base, theme,
+    ...(suggestion ? {
+      music: {
+        suggest: suggestion.audio,
+        mood: suggestion.mood,
+        why: suggestion.why,
+        also: suggestion.also,
+        how: `add overrides.audio = ${JSON.stringify(suggestion.audio)} (a fresh seed is stored, so it never repeats another world's score); `
+          + "share one score.game seed across a game's worlds to keep one identity. Manual: get_beats_vocab({ id: 'beats-field-orchestra' }).",
+      },
+    } : {}),
     ...(ignored.length ? {
       note: `override key(s) not reflected in the stored recipe: ${ignored.join(', ')}`
         + (folded.length ? ` (the rest of ${folded.map((k) => `\`${k}\``).join(', ')} folded onto the recipe's top level)` : '')
@@ -227,8 +260,8 @@ export function registerComposeWorldTools() {
       + "gyms, library/cafeteria, brick/glass facades, athletic fields + parking + vehicles, walkable interiors), "
       + "'dungeon' (torch-lit fantasy cave INTERIOR — organic chambers + sloping tunnels, walkable), "
       + "'terrain' (a painted landscape at real scale: walk, fly, see it whole). "
-      + "A house / apartment / cottage / one furnished room is NOT a base: mint it with create_sketch, "
-      + "`manifest: { kind: 'floorplan', … }` (walkable, furnished, `storeys: N`; card get_sketch_vocab({ id: 'floor-plan' })). "
+      + "Fire in a world (a campfire, torches, a fireball, a grass fire, coloured flame) is `overrides.fire`, the 'Fire' section of the dungeon and terrain cards; prefer it to carved-solid `flame` and sketch fire. "
+      + "A house / apartment / cottage / one furnished room is NOT a base: mint_building. "
       + "Each base's parameter manual + routing phrases live in its view-vocab card — "
       + "semantic_search({kinds:['view_vocab']}) to find, get_view_vocab({id:'<base>'}) to read before passing "
       + "overrides. Themes via list_world_themes (theme lowering ships for 'city'; other bases take theme's place "

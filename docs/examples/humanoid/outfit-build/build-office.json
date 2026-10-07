@@ -1,0 +1,13 @@
+{
+  "name": "build-office",
+  "$note": "outfit { style: 'office' }: a woven long-sleeved shirt with a collar, tucked into trousers, shoes; the collar the focal, ornament 3 (placket and buttons, cuffs, belt, side seams).",
+  "hero": {
+    "cast": "male",
+    "detail": "swimsuit",
+    "outfit": {
+      "type": "outfit",
+      "style": "office"
+    },
+    "gesture": "relaxed"
+  }
+}

@@ -389,6 +389,11 @@ describe('semantic_search — cross-kind recall integration', () => {
           expect(getHudVocabCatalog().get(r.source_ref), `game_hud ${r.source_ref} should exist`).toBeTruthy();
           break;
         }
+        case 'game_idiom': {
+          const { getIdiomVocabCatalog } = await import('@/lib/graph/game/idiom-cards/loader');
+          expect(getIdiomVocabCatalog().get(r.source_ref), `game_idiom ${r.source_ref} should exist`).toBeTruthy();
+          break;
+        }
         default:
           throw new Error(`unexpected source_kind in result: ${r.source_kind}`);
       }

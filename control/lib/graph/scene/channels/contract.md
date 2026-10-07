@@ -30,14 +30,14 @@ fails loud. A hash may change only when a plan step says emission changes.
 sphereRig, planets, movers, comets, fields, surfaces, heatSpheres, starSurfaces, buildups,
 transports, deforms, signs, physics, actions, events, controllable; then the bespoke walkers, rigPreview, strokeOverlay,
 cars, xr, stream and crystalLight blocks, each only when present) → 8. `let stepFx` /
-`let stepSpriteSfx` (iff present) + `function __mojStep(t)` → 9. `fxBlock` +
-`spriteSfxBlock` → 10. fog quad (inline in scene-three) → 11. `effectsBlock` (inline) →
+`let stepSpriteSfx` / `let stepMarks` (iff present) + `function __mojStep(t)` → 9. `fxBlock` +
+`spriteSfxBlock` + `marksBlock` → 10. fog quad (inline in scene-three) → 11. `effectsBlock` (inline) →
 12. `audioBlock` → 13. `_freeze` / `const _capture` → 14. `gameBlock` → 15. pause sidecar
 → 16. capture API + rAF loop.
 
 `__mojStep` body order: tracers, planets, movers, comets, fields, surfaces, heatSpheres,
 starSurfaces, buildups, transports, deforms, signs, physics, events (+ walkers, rigPreview, cars, crystalLight, fx,
-spriteSfx appended by scene-three when present; crystalLight after movers, so it reads the poses they set). walk / actions / controllable have NO `__mojStep` slot — walk
+spriteSfx, marks appended by scene-three when present; crystalLight after movers, so it reads the poses they set). walk / actions / controllable have NO `__mojStep` slot — walk
 and controllable are stepped from the rAF loop / capture `step()`; actions is
 listeners-only.
 
@@ -96,6 +96,7 @@ Families, gates, and normalization site per block. `normalizedBy: registry` = th
 | controllableChannelScript | runtime (loop-stepped) | entities (rule/body/isCamera) \|\| camera.rule | emitThreeWorld |
 | fxChannelScript | runtime (post-section, `stepFx`) | fx.states or fx.on non-empty | emitThreeWorld |
 | spriteSfxChannelScript | runtime (post-section, `stepSpriteSfx`) | resolved layers (verb + cc[3]) | emitThreeWorld |
+| marksChannelScript | runtime (post-section, `stepMarks`) | resolved marks (at + dir + size); authored `marks` or the strength sensor's weak spots | emitThreeWorld |
 | audioChannelScript | post (own rAF loops) | `audio && !capture` | emitThreeWorld |
 | gameChannelScript | post | `game` truthy (capture runs INCLUDED — envelope stays observable) | emitThreeWorld |
 

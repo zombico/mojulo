@@ -8,6 +8,29 @@ deterministically; `mint_solid { kind: 'layered', via: 'plan', spec: { plan } }`
 - `quadruped.plan.json`: a bare hound-sized quadruped (a spine segment between rump and withers, neck,
   head, a three-joint tail, four legs of three segments each, two ears as claw-shaped spikes), three
   dials, no rig. The form the `creature-from-plan` catalyst hands a worker, filled in.
+- `horse.plan.mjs` / `horse.plan.json`: THE HORSE, a light riding horse 1.6 m at the withers, built with the
+  creature-from-plan loop (thesis: a barrel on four straight columns, single hooves, a long deep wedge of a head carried
+  down from the poll, the arched crested neck rising at about fifty degrees). Lofts along the midline for the barrel
+  (`ring12`), the neck, the crest (the mane as a carved mass) and the head, each `frame: 'keep'` so a near-level ring
+  never turns over; a hanging tail chain; upper arm, forearm, cannon, pastern and hoof forward, thigh, gaskin, cannon,
+  pastern and hoof behind (the upper limbs start inside the body); two ears. No dials or rig yet. The form is core
+  (`control/lib/graph/polygonizer/horse-form.js`, `horsePlan({ scale, palette })`: the statue maker's equestrian statues
+  ride it); this file re-exports it and `node docs/examples/ring-plans/horse.plan.mjs` rewrites the JSON, which
+  `horse-form.test.js` pins byte for byte.
+- `sphinx.plan.mjs` / `sphinx.plan.json`: THE SPHINX, built the same way (thesis: a lion lying on its belly, the forelegs
+  stretched far forward, the hind legs folded at its sides, the tail along the right flank; a king's head in the nemes
+  with the uraeus, no beard; the small head of Giza on a long low body). Its body is drawn in the Great Sphinx's own
+  metres (73 m long, 20 m to the head) and scaled so the head, the hero's landmark head (`humanoidHead`, no hair) worn as
+  an `include`, is life-size; the nemes is lofted round the head's measured bounds (a cap, two flaring wings, two lappets,
+  the queue). Core as `control/lib/graph/polygonizer/sphinx-form.js` (`sphinxPlan({ preset, scale, palette })`); a
+  historic city's statue entry names it as `form: 'sphinx'` (Giza's `gz-sphinx:0`); `sphinx-form.test.js` pins the JSON.
+- `criosphinx.plan.json` (written by `sphinx.plan.mjs`): Amun's ram-headed sphinx of Karnak's avenue, 5 m long on the
+  avenue stand-ins' record: a chunkier lion, a ram's head (domed skull, sloping nose, horns coiled round the ears, ears
+  drooping out), the headcloth over the shoulders with its lappets, a close-wrapped king between the paws.
+  `criosphinxPlan({ scale, palette })` in `sphinx-form.js`; a city entry names it as `form: 'criosphinx'`.
+- `bull.plan.mjs` / `bull.plan.json`: THE BULL, Sumer's life-size copper guardian (thesis: a deep barrel on short
+  columns, cloven hooves, the hump over the shoulders, the head forward at shoulder height, the horns out and up).
+  Core as `control/lib/graph/polygonizer/bull-form.js` (`bullPlan({ scale, palette })`); `form: 'bull'`.
 - The rigged biped worked plan is `../dragon-body/seed-recipe.mjs` (it exports `plan`).
 - `hero.plan.mjs` / `hero.plan.json`: the HERO FORM, a human on the vajra rest skeleton. The form itself is core
   (`control/lib/graph/polygonizer/hero-form.js`, so the `mint_solid` hero door ships in the install); this file

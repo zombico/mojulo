@@ -538,6 +538,7 @@ describe('SOURCE_KINDS', () => {
       'game_glyph',
       'game_sfx',
       'game_hud',
+      'game_idiom',
       'game_project',
       'routing',
     ]);

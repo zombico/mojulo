@@ -11,12 +11,14 @@
  */
 
 import { getDb } from '../index.js';
+import { getServerVersion } from '../../server-version.js';
 
 function rowToRevision(row, { withManifest = false } = {}) {
   if (!row) return null;
   const out = {
     rev: row.rev,
     note: row.note || null,
+    version: row.version ?? null,
     createdAt: row.created_at,
   };
   if (withManifest) {
@@ -36,10 +38,12 @@ export const BeatsRevisionRepository = {
     const db = getDb();
     const head = db.prepare('SELECT MAX(rev) AS rev FROM beats_revisions WHERE ref = ?').get(ref);
     const rev = (head && head.rev ? head.rev : 0) + 1;
+    // A beats revision is the NEW manifest (create writes rev 1, each update the next head), so its
+    // version is this one.
     db.prepare(
-      `INSERT INTO beats_revisions (ref, rev, manifest_json, note, created_at)
-       VALUES (?, ?, ?, ?, unixepoch())`,
-    ).run(ref, rev, JSON.stringify(manifest), note || null);
+      `INSERT INTO beats_revisions (ref, rev, manifest_json, note, version, created_at)
+       VALUES (?, ?, ?, ?, ?, unixepoch())`,
+    ).run(ref, rev, JSON.stringify(manifest), note || null, getServerVersion());
     return this.get(ref, rev);
   },
 

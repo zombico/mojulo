@@ -1,0 +1,27 @@
+{
+  "entry": "mint_solid",
+  "kind": "edifice",
+  "title": "hillside library",
+  "spec": {
+    "masses": [
+      { "id": "reading-room", "footprint": { "w": 70, "d": 50 }, "floors": 2, "at": [0, 0],
+        "facade": { "material": "glass", "rhythm": "curtain", "glass": "#b8d4c8", "frame": "#2f3b36" },
+        "roof": "modern-shed", "interior": { "kernel": "open" } },
+      { "id": "stacks", "footprint": { "w": 50, "d": 40 }, "floors": 4,
+        "on": { "anchor": "reading-room", "side": "W", "align": "center", "gap": 20 },
+        "facade": { "material": "brick", "rhythm": "punched", "glass": "#8a4f3d", "frame": "#241a14" },
+        "roof": "flat", "interior": { "kernel": "open" } },
+      { "id": "pavilion", "footprint": { "w": 30, "d": 30 }, "floors": 1,
+        "on": { "anchor": "reading-room", "side": "S", "align": "center", "gap": 18 },
+        "facade": { "material": "concrete", "rhythm": "banded", "glass": "#9aa8a1", "frame": "#3a3f3d" },
+        "roof": "flat", "interior": { "kernel": "open" } }
+    ],
+    "concourses": [
+      { "from": "reading-room", "to": "stacks", "width": 12 },
+      { "from": "reading-room", "to": "pavilion", "width": 10 }
+    ],
+    "entrance": "pavilion",
+    "theme": "earth-temperate",
+    "seed": 7
+  }
+}

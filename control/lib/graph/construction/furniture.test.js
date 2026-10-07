@@ -151,8 +151,9 @@ describe('construction/furniture — checks that stamp, never refuse', () => {
     const { report } = lowerFrame(bookcase);
     const f = report.furniture;
     const count = Object.fromEntries(f.hardware.map((h) => [h.code, h.count]));
-    // four panels × two sides; the 300 mm panels take two cams with a dowel each, the 60 mm plinth one cam
-    expect(count).toEqual({ 'cam-15': 14, 'cam-bolt-15': 14, 'dowel-8x35': 12, 'shelf-pin-5': 4 });
+    // four panels × two sides; the 300 mm panels take two cams with a dowel each, the 60 mm plinth one cam and a dowel
+    // 16 mm beside it (it would pivot on a lone bolt)
+    expect(count).toEqual({ 'cam-15': 14, 'cam-bolt-15': 14, 'dowel-8x35': 14, 'shelf-pin-5': 4 });
     expect(f.tools).toEqual(['4 mm hex key', 'Pozidriv PZ2 screwdriver', 'hammer']);
     const cam = report.joints.find((j) => j.joint === 'cam-lock:top-side-l');
     expect(cam).toMatchObject({ face: 'side-l', edge: 'top', camFace: 'bottom', cams: 2, camFloorMm: 5, rigidity: 'pin' });

@@ -12,10 +12,14 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { getServerVersion } from '@/lib/server-version';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
+import { tposeRig, withProfileJoints } from '@/lib/graph/figures/rig-tpose';
+import { isHumanoidRig, humanoidBonesFor } from '@/lib/graph/polygonizer/figure-humanoid-map';
+import { godotBoneMapTres, godotBoneMapFile, godotHumanoidImport, GODOT_POST_IMPORT_FILE, GODOT_POST_IMPORT_GD } from '@/lib/graph/scene/godot-humanoid';
 import { facesToStl, isPrintableFace, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
 import { fieldGrid } from '@/lib/graph/polygonizer/field-faces';
@@ -27,11 +31,14 @@ import { lowerCuts } from '@/lib/graph/polygonizer/workbench-cuts';
 import { facesTo3mf } from '@/lib/graph/scene/scene-3mf';
 import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
+import { renderScad2d, SCAD_2D_FORMATS } from '@/lib/graph/scad/scad-render';
 import { manifestToIfc } from '@/lib/graph/construction/ifc';
+import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
+import { bomOf, bomCsv, bomMarkdown } from '@/lib/graph/fabricator/bom';
 import { glbNodeInventory, compareReturnContract } from '@/lib/graph/scene/blender-gate';
 import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
@@ -233,6 +240,109 @@ async function ifcExport(input, context) {
     attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
   }
   return result;
+}
+
+// ── format: 'bom' — what to buy, print and cut (lib/graph/fabricator/bom.js) ─────────────────────────────────────────
+// A fabricated row's plan (a frames row recounted through its frames) or a furniture row's hardware, as bom.csv for a
+// spreadsheet or a supplier's quick order and bom.md to read. Nothing to buy is not eligible, and says how to get a list.
+async function bomExport(input, context) {
+  const { ref, write = true } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  const bom = bomOf(sketch.manifest);
+  if (!bom) {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format: 'bom',
+      reason: "A bill of materials is read from a fabricated row (minted by fabricate_solid) or a furniture workbench row (frames with fittings); this row is neither. Say what its parts do with fabricate_solid({ needs }) and mint it there to get one.",
+    };
+  }
+  const title = sketch.title || sketch.manifest.title || ref;
+  const csv = bomCsv(bom);
+  const page = bomMarkdown(bom, { title, ref });
+  const result = {
+    ok: true, ref, kind, format: 'bom', source: bom.source, lines: bom.lines.length,
+    buy: bom.lines.filter((l) => l.kind === 'buy').length, print: bom.lines.filter((l) => l.kind === 'print').length, sheets: bom.lines.filter((l) => l.kind === 'sheet').length,
+    tools: bom.tools, notices: bom.notices, ...(bom.unplaced.length ? { unplaced: bom.unplaced, warning: `the source no longer calls ${bom.unplaced.join(', ')}: re-plan with fabricate_solid({ ref: '${ref}' }) and export again` } : {}),
+    note: 'bom.csv (one row per line, RFC 4180) and bom.md (buy, print, cut, tools, notices). Sizes are from typical tables; the supplier\'s datasheet rules.',
+  };
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'bom.csv'), csv);
+    await fs.writeFile(path.join(dir, 'bom.md'), page);
+    result.path = path.join(dir, 'bom.csv');
+    result.dir = dir;
+    result.files = ['bom.csv', 'bom.md'];
+    result.download_url = `${outcomeUrlFor(ref)}bom.csv`;
+    attachHandoff(result, context, { kind: 'file', name: 'bom.csv', path: result.path, dir, bytes: Buffer.byteLength(csv), download_url: result.download_url });
+  } else {
+    result.csv = csv;
+  }
+  return result;
+}
+
+// ── format: 'blender' — the Blender pack (blender-pack.js), the same folder `scripts/export-blender.mjs` writes ────
+// model.glb + pack.json + the import / return scripts + the art-pass guide; a world with `fire` adds its fire at
+// `fire_t` seconds (fire/fire-shot.js), which import_mojulo.py builds as Cycles volumes, lights and props. Blender
+// is a worker, never a dependency: this writes the pack and hands back the commands; it launches nothing.
+// ── format: 'dxf' | 'svg' — a flat part as a drawing (a scad row) ──────────────────────────────────────────────────
+// The laser / CNC / waterjet leg: OpenSCAD's own 2D export of a scad row, exact and in its units. A 2D program
+// (a sheet's flat pattern) draws as written; `slice_z` cuts the solid at a height; otherwise its outline from above.
+async function scad2dExport(input, context) {
+  const { ref, write = true, format, slice_z: sliceZ, part } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  if (kind !== 'scad') {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format,
+      reason: `A ${format.toUpperCase()} drawing is cut from a \`scad\` row (a plate, a flat pattern, a gasket); '${kind}' is not one. \`format: 'scad'\` transpiles a workbench recipe into one you can mint and draw.`,
+    };
+  }
+  if (sliceZ != null && !Number.isFinite(sliceZ)) throw new Error('`slice_z` must be a number (a height in the row\'s units)');
+  const drawn = await renderScad2d(sketch.manifest, { format, slice_z: sliceZ, part });
+  const how = { 'as-written': 'the program is 2D, drawn as written', slice: `the solid cut at z = ${sliceZ}`, outline: "the solid's outline seen from above (pass `slice_z` to cut it at a height instead)" }[drawn.mode];
+  const result = {
+    ok: true, ref, kind, format, mode: drawn.mode, bytes: drawn.bytes.byteLength, entities: drawn.entities, units: drawn.units,
+    ...(drawn.size ? { size: drawn.size } : {}), ...(part != null ? { part } : {}),
+    note: `${format.toUpperCase()} from OpenSCAD's exact 2D export: ${how}. ${drawn.entities} closed ${format === 'dxf' ? 'polyline' : 'path'}${drawn.entities === 1 ? '' : 's'}, in ${drawn.units} (DXF carries no unit: set the importer to ${drawn.units}).`,
+  };
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    await fs.mkdir(dir, { recursive: true });
+    const fileName = `drawing${part != null ? `-${part}` : ''}.${format}`;
+    const file = path.join(dir, fileName);
+    await fs.writeFile(file, drawn.bytes);
+    await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
+    result.path = file;
+    result.dir = dir;
+    result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
+    attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: drawn.bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
+  }
+  return result;
+}
+
+async function blenderExport(input) {
+  const { ref, fire_t: fireT = null, fire_detail: fireDetail = 1 } = input;
+  if (fireT != null && !(Number.isFinite(fireT) && fireT >= 0)) throw new Error('`fire_t` must be a time in seconds (≥ 0)');
+  if (!(Number.isFinite(fireDetail) && fireDetail > 0 && fireDetail <= 4)) throw new Error('`fire_detail` must be a number in (0, 4]');
+  const dir = path.join(outcomeDirFor(ref), 'blender');
+  await fs.mkdir(dir, { recursive: true });
+  const out = await buildBlenderPack({ ref, outDir: dir, fireT, fireDetail });
+  const run = `cd '${dir}' && <blender> -b --python import_mojulo.py -- --mode`;
+  return {
+    ok: true, ref, kind: out.pack.kind, format: 'blender', dir, files: out.written.map((w) => w.file).filter((f) => !/^fire\/g\d+\.bin$/.test(f)),
+    ...(out.pack.fire ? { fire: out.pack.fire } : {}),
+    commands: {
+      blend: `${run} run`,
+      ...(out.pack.fire ? { render: `${run} render --res 3840x2160 --samples 512`, render_camera: `${run} render --camera <name> --out still.png` } : {}),
+      gate: `node scripts/export-blender.mjs --ref ${ref}${out.pack.fire && fireT != null ? ` --fire-t ${fireT}` : ''}`,
+    },
+    note: `A Blender pack (${out.pack.base} base) in ${dir}: open it with import_mojulo.py (ARTPASS-GUIDE.md walks the art pass; the README has the dials).${out.pack.fire ? ` It carries the fire at t = ${out.pack.fire.t} s: the render command makes a Cycles still of it.` : ''} Blender runs on the operator's machine; mojulo did not launch it.`,
+  };
 }
 
 // ── format: 'bundle' (remote-worker exports P3) ───────────────────────────────────────────────
@@ -645,11 +755,29 @@ export function resolvePrintScale({ payload, profile, units, scaleInput = null, 
   return { scale, scaleNote };
 }
 
+// Which mojulo wrote the recipe and which one rendered this export (3.1.0). `minted` / `revised` are
+// null for a recipe written before 3.1.0; `rendered` is always this install. A differing `rendered`
+// is the cue that the export may not match one made at the recipe's own version — re-render under
+// `npx -y mojulo@<minted or revised>` to reproduce it exactly.
+export function recipeVersions(sketch) {
+  return {
+    minted: sketch?.mintedVersion ?? null,
+    revised: sketch?.revisedVersion ?? null,
+    rendered: getServerVersion(),
+  };
+}
+
 export async function exportModelHandler(input, context = {}) {
+  const result = await exportModel(input, context);
+  if (!result || typeof result !== 'object' || result.ok !== true || typeof input?.ref !== 'string') return result;
+  return { ...result, versions: recipeVersions(SketchRepository.getByRef(input.ref)) };
+}
+
+async function exportModel(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error('export_model requires { ref }');
   }
-  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, union = false, lit = false, printer: printerInput = null, strict = false, cdn: cdnInput = false } = input;
+  const { ref, write = true, format = 'glb', scale: scaleInput, target_mm: targetMm, clips = null, skinned = false, quantize = false, humanoid = false, rest = 'authored', union = false, lit = false, printer: printerInput = null, strict = false, cdn: cdnInput = false } = input;
   // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only the self-contained page: a page
   // it exports never loads anything from a third-party host. `cdn: true` is ignored there, and said so.
   const pluginBuild = pluginProfileActive();
@@ -660,10 +788,11 @@ export async function exportModelHandler(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', ...SCAD_2D_FORMATS, 'bom'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg', 'bom' if provided");
   }
+  if (('slice_z' in input || 'part' in input) && !SCAD_2D_FORMATS.includes(format)) throw new Error("`slice_z` and `part` apply to `format: 'dxf' | 'svg'` only");
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
   // stay silent for every mesh leg.
   if ('cdn' in input && format !== 'html') throw new Error("`cdn` applies to `format: 'html'` only");
@@ -671,6 +800,11 @@ export async function exportModelHandler(input, context = {}) {
   if (format === 'bundle') return bundleExport(input, context);
   // ifc is the building model, not the World's faces: it reads the house the recipe builds.
   if (format === 'ifc') return ifcExport(input, context);
+  if (format === 'blender') return blenderExport(input);
+  // bom is what to buy: read off the plan and the frames, not the faces.
+  if (format === 'bom') return bomExport(input, context);
+  // dxf / svg are a flat part's drawing, cut by OpenSCAD from a scad row — not the World's faces.
+  if (SCAD_2D_FORMATS.includes(format)) return scad2dExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.
   const isHtml = format === 'html';
   const isUsd = format === 'usda' || format === 'usdz';
@@ -709,6 +843,9 @@ export async function exportModelHandler(input, context = {}) {
   // VRMC_vrm extension. Rides the skinned path (names belong to skin joints).
   if (humanoid !== false && humanoid !== true) throw new Error('`humanoid` must be a boolean if provided');
   if (humanoid && !skinned) throw new Error("`humanoid: true` needs `skinned: true` (and a `clips` selection) — the VRM names belong to the skin joints");
+  // the T-pose mold (docs/emote-bridge.md §3.6): re-rest each humanoid figure in the VRM T-pose the engines retarget from
+  if (rest !== 'authored' && rest !== 'tpose') throw new Error("`rest` is 'authored' (the figure's own stand, the default) or 'tpose'");
+  if (rest === 'tpose' && !humanoid) throw new Error("`rest: 'tpose'` needs `humanoid: true` (and `skinned: true`) — the T-pose is the VRM humanoid's rest");
   // union (interchange-seams.plan.md seam 4a): a true CSG union of the printable shells via
   // Manifold before the print file is written — one solid with a measured volume instead of
   // overlapping shells the slicer must repair. Opt-in; absent the package it reports and ships plain.
@@ -732,8 +869,20 @@ export async function exportModelHandler(input, context = {}) {
   // darkening) so the importer's light is the only light on the geometry
   // a skinned export also asks for the anime hero's FACE (its expression channels as morph targets on the skinned mesh;
   // world-kinds layered, anime-face-rig.js) — every other kind and hero resolves exactly as without it
-  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}) });
+  const { payload: resolvedPayload, kind } = await resolveWorldScene(sketch, { ...(lit ? { unshaded: true } : {}), ...(skinned ? { face: true } : {}), ...(rest === 'tpose' ? { tpose: true } : {}) });
   let payload = resolvedPayload;
+  let tposed = null;
+  if (rest === 'tpose' && payload?.figures) {
+    tposed = { figures: [], skipped: [] };
+    const figures = {};
+    for (const [name, fig] of Object.entries(payload.figures)) {
+      // a flat figure arrives rebuilt in T (figure-world); any other humanoid pack takes the mold
+      if (fig?.rig === true && fig.tpose) { figures[name] = fig; tposed.figures.push(name); }
+      else if (fig?.rig === true && Array.isArray(fig.bones) && isHumanoidRig(fig.bones)) { figures[name] = tposeRig(fig); tposed.figures.push(name); }
+      else { figures[name] = fig; if (fig?.rig === true) tposed.skipped.push(name); }
+    }
+    payload = { ...payload, figures };
+  }
   let unionResult = null;
   if (union && payload) {
     const shells = printableShells(payload);
@@ -929,7 +1078,10 @@ export async function exportModelHandler(input, context = {}) {
       if (exported.humanoidFigures) {
         result.humanoid_figures = exported.humanoidFigures;
         result.humanoid_note = 'VRM 1.0 bone names on the skin joints (hips / spine / head / left+rightUpperArm…Foot; weightless leaf joints at the wrists and ankles stand in for hands / feet) + the VRMC_vrm extension on the first figure. '
-          + 'Honest limits: the skeleton is FLAT (absolute rotations, no parent chain) and the rest pose is the figure\'s stand, not a T-pose — VRM-aware tools address the bones by name today; a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).';
+          + (tposed
+            ? 'The rest pose is the VRM T-pose (rest: \'tpose\'): arms straight out, palms down, legs straight, the feet, trunk and head as authored, fingers in their rest curl; every clip is re-expressed on it and plays the same motion. The skeleton is an ENGINE skeleton: joints nested on the VRM humanoid tree (the wrist / ankle leaves weightless bones), parent-local, in the VRM space (y up, facing +z, the figure\'s left on +x), every rest rotation the identity; Godot sidecars beside the GLB (see `godot`).'
+            : 'Honest limits: the skeleton is FLAT (absolute rotations, no parent chain) and the rest pose is the figure\'s stand, not a T-pose (rest: \'tpose\' re-rests it) — VRM-aware tools address the bones by name today; a strict validator or Unity Humanoid auto-config wants the parent-local hierarchy (seam 3a-ii).');
+        if (tposed) { result.tpose_figures = tposed.figures; if (tposed.skipped.length) result.tpose_skipped = tposed.skipped; }
       }
     }
     if (exported.lit) {
@@ -1095,6 +1247,20 @@ export async function exportModelHandler(input, context = {}) {
       const scPath = path.join(dir, sc.name);
       await fs.mkdir(path.dirname(scPath), { recursive: true });
       await fs.writeFile(scPath, sc.bytes);
+    }
+    // the T-pose humanoid's Godot side (godot-humanoid.js): a BoneMap per figure and the GLB's `.import` naming them, so
+    // Godot's retargeter maps the skeleton onto its humanoid profile on import. They name each other by res:// path.
+    if (format === 'glb' && tposed?.figures.length && payload?.figures) {
+      const godotDir = `mojulo/${ref}`, written = [];
+      for (const f of tposed.figures) {
+        const { names, leaves } = humanoidBonesFor(withProfileJoints(payload.figures[f]).bones);   // the engine skeleton's bones, its inserted joints among them
+        await fs.writeFile(path.join(dir, godotBoneMapFile(f)), godotBoneMapTres(f, [...names.values(), ...leaves.map((l) => l.vrm)]));
+        written.push(godotBoneMapFile(f));
+      }
+      await fs.writeFile(path.join(dir, GODOT_POST_IMPORT_FILE), GODOT_POST_IMPORT_GD);
+      await fs.writeFile(path.join(dir, `${fileName}.import`), godotHumanoidImport(tposed.figures, godotDir));
+      written.push(GODOT_POST_IMPORT_FILE, `${fileName}.import`);
+      result.godot = { files: written, place_at: `res://${godotDir}/`, note: `Copy this folder into a Godot 4 project at res://${godotDir}/ (the .import names its BoneMap there). On import Godot renames the bones to its humanoid profile and the skeleton becomes %GeneralSkeleton, so any humanoid animation the project owns plays on it, and its clips on any humanoid; mojulo_import.gd gives its surfaces their vertex colour (Godot imports a vertex-coloured GLB white otherwise).` };
     }
     const hash = createHash('sha256').update(JSON.stringify(sketch.manifest)).digest('hex').slice(0, 16);
     await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);

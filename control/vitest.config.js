@@ -38,6 +38,10 @@ export default defineConfig({
       // Covers both spike families: *.spike.gen.test.js and *.spike.test.js.
       '**/*.gen.test.js',
       '**/*.spike.test.js',
+      // The deep tier: exhaustive sweeps (every word at its range ends, every named preset built) that take minutes
+      // and only say something when the module they sweep changed. `npm run test:deep` runs them all;
+      // `npm run test:deep:changed` runs only those whose imports touch a changed file; CI runs them all.
+      '**/*.deep.test.js',
     ],
   },
 });

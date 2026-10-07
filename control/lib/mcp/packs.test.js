@@ -48,7 +48,11 @@ import { join } from 'node:path';
 // Re-pinned 2026-09-28 (37_000 -> 34_000; measured 33,694) for the chatbot carve-out (3.0.0): the
 // three bot pack dispatchers left, and pack_runtime and pack_connected_services stopped naming the
 // chat_turn tools and chatbots. Shrink-only from here.
-const PACKS_PAYLOAD_CEILING = 34_000;
+// Re-pinned 2026-10-06 (34_000 -> 33_400; measured 33,671 -> 33,263) for the pack menu: the shared pack
+// input schema gained `manual` and paid for it by shortening the `tool` / `args` wording.
+// Merged with the building ladder 2026-10-06 (33_400 -> 33_900; measured 33,263 -> 33,840): pack_building's
+// entry, less the house redirects it let three pack descriptions drop.
+const PACKS_PAYLOAD_CEILING = 33_900;
 
 let server;
 let listTools;
@@ -650,16 +654,85 @@ describe('pack dispatcher', () => {
     expect(server.getRegisteredTool('pack_audio').timeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS).toBe(DEFAULT_TOOL_TIMEOUT_MS);
   });
 
-  it('bare call unveils: body + member manual with real schemas + grammar line', async () => {
-    const res = await callTool('pack_audio', {});
+  it('bare call unveils a menu: small members inline their manual, larger ones name its size', async () => {
+    const { INLINE_MANUAL_MAX } = await import('@/lib/mcp/tools/packs-tools');
+    const res = await callTool('pack_stash', {});
     const text = res.result.content[0].text;
     expect(res.result.isError).toBeFalsy();
-    expect(text).toContain('pack_audio');
-    for (const name of ['create_beats', 'get_beats_vocab', 'export_beats']) {
-      expect(text).toContain(`### ${name}`);
-    }
-    expect(text).toContain('inputSchema');
+    expect(text).toContain('pack_stash');
     expect(text).toContain("{ tool: '<name>', args:");
+    expect(text).toContain("pack_stash({ manual: '<name>' })");
+    // cook (~16 KB) is on the menu by name and size, not by its manual.
+    const cook = server.getRegisteredTool('cook');
+    expect(text).toContain('### cook');
+    expect(text).toMatch(/Manual \d+\.\d KB: `pack_stash\(\{ manual: 'cook' \}\)`/);
+    expect(text).not.toContain(cook.description);
+    // A light member's manual is inline, schema and all.
+    const light = PACKS.find((p) => p.id === 'pack_stash').members
+      .map((n) => server.getRegisteredTool(n))
+      .find((t) => t && (t.description || '').length + JSON.stringify(t.inputSchema || {}).length < INLINE_MANUAL_MAX - 100);
+    expect(light, 'pack_stash has a light member').toBeTruthy();
+    expect(text).toContain(light.description);
+    expect(text).toContain(`\`inputSchema\`: ${JSON.stringify(light.inputSchema)}`);
+  });
+
+  it('every pack opens to a menu that names every member and is smaller than the full manual', async () => {
+    const { dispatchTargets } = await import('@/lib/mcp/packs');
+    for (const pack of PACKS) {
+      const text = (await callTool(pack.id, {})).result.content[0].text;
+      let full = 0;
+      for (const name of dispatchTargets(pack)) {
+        expect(text, `${pack.id} menu misses ${name}`).toContain(`### ${name}`);
+        const t = server.getRegisteredTool(name);
+        full += (t.description || '').length + JSON.stringify(t.inputSchema || {}).length;
+      }
+      expect(text.length, pack.id).toBeLessThan(full + 4000);
+    }
+  });
+
+  it('manual returns exactly the member manual the old unveil inlined', async () => {
+    const res = await callTool('pack_stash', { manual: 'cook' });
+    expect(res.result.isError).toBeFalsy();
+    const text = res.result.content[0].text;
+    const cook = server.getRegisteredTool('cook');
+    expect(text).toContain(`### cook\n${cook.description}\n\`inputSchema\`: ${JSON.stringify(cook.inputSchema)}`);
+    expect(text).toContain("pack_stash({ tool: '<name>', args:");
+  });
+
+  it('manual reads a list; a shared member keeps its home note', async () => {
+    const res = await callTool('pack_illustration', { manual: ['update_sketch', 'create_cover'] });
+    const text = res.result.content[0].text;
+    expect(res.result.isError).toBeFalsy();
+    expect(text).toContain('### update_sketch _(homed in pack_diagram; dispatchable here)_');
+    expect(text).toContain('### create_cover');
+  });
+
+  it('manual answers wrong-pack, spine and unknown names as dispatch does', async () => {
+    const wrong = await callTool('pack_audio', { manual: 'create_sketch' });
+    expect(wrong.result.isError).toBe(true);
+    expect(wrong.result.content[0].text).toContain("pack_diagram({ manual: 'create_sketch' })");
+    const spine = await callTool('pack_audio', { manual: 'forward_context' });
+    expect(spine.result.isError).toBe(true);
+    expect(spine.result.content[0].text).toContain('spine');
+    const unknown = await callTool('pack_audio', { manual: 'no_such_tool' });
+    expect(unknown.result.isError).toBe(true);
+    expect(unknown.result.content[0].text).toContain('for its menu');
+    // A mixed list reads what it can and says why the rest can't be read.
+    const mixed = await callTool('pack_audio', { manual: ['create_beats', 'no_such_tool'] });
+    expect(mixed.result.isError).toBeFalsy();
+    expect(mixed.result.content[0].text).toContain('### create_beats');
+    expect(mixed.result.content[0].text).toContain("'no_such_tool' is not a member of pack_audio");
+    const empty = await callTool('pack_audio', { manual: [] });
+    expect(empty.result.isError).toBe(true);
+  });
+
+  it("a member's error through a pack points at its manual; a structured refusal is untouched", async () => {
+    const failed = await callTool('pack_illustration', { tool: 'update_sketch', args: { ref: 'no-such-ref-pointer' } });
+    expect(failed.result.isError).toBe(true);
+    expect(failed.result.content[0].text).toMatch(/\nManual: pack_illustration\(\{ manual: 'update_sketch' \}\)$/);
+    // The same call made directly carries no pointer.
+    const direct = await callTool('update_sketch', { ref: 'no-such-ref-pointer' });
+    expect(direct.result.content[0].text).not.toContain('Manual:');
   });
 
   it('studio unveil serves a one-line member index, not the full FORM body', async () => {
@@ -674,9 +747,10 @@ describe('pack dispatcher', () => {
       expect(line.length).toBeLessThanOrEqual(260);
     }
     expect(world).not.toContain(FORM_TOOLSETS.world.body);
-    // The authoritative description appears exactly once: in the manual entry.
+    // The authoritative description is not repeated: once if the member is light
+    // enough to inline, else not at all (its manual is read on demand).
     const desc = server.getRegisteredTool('compose_world').description;
-    expect(world.split(desc).length - 1).toBe(1);
+    expect(world.split(desc).length - 1).toBeLessThanOrEqual(1);
   });
 
   it('studio unveil names every member; multi-form packs serve both forms', async () => {
@@ -725,7 +799,7 @@ describe('pack dispatcher', () => {
   it('rejects unknown tools with a manual pointer', async () => {
     const res = await callTool('pack_audio', { tool: 'no_such_tool' });
     expect(res.result.isError).toBe(true);
-    expect(res.result.content[0].text).toContain('member manual');
+    expect(res.result.content[0].text).toContain('for its menu');
   });
 
   it('accepts shared members from the sharing pack', async () => {

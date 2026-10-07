@@ -23,7 +23,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   Releases before 3.0.0, and the detailed log behind 3.0.0, are in
   [control/CHANGELOG-2.x.md](control/CHANGELOG-2.x.md) (archive; add nothing new there).
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
-- Version: `package.json` says 3.0.0, the release the Unreleased section becomes (2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see `CHANGELOG-2.x.md`; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
+- Version: `package.json` says 3.1.0, the release the Unreleased section becomes (3.0.0 was released 2026-10-01; 3.0.1 was prepared and never released, and its work ships in 3.1.0; 2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see `CHANGELOG-2.x.md`; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
   Unreleased is empty at the tag; new work goes under it as `###` themes.
 - Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
@@ -45,7 +45,8 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   [docs/bicycles.md](docs/bicycles.md), [docs/responsibility-model.md](docs/responsibility-model.md).
 - **Recipes are starters.** Iterate in place with `update_sketch` / `edit_solid`; don't re-mint.
 - **Core is capability, the book is repertoire.** A new study-object kind is normally a recipe-book Door-2
-  builder, not a core addition.
+  builder in [control/book/](control/book/), not a core addition. The book ships bundled (3.1.0); the
+  separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated (they cannot load in an agent box).
 - **Single operator, loopback only.** No user identity by default; the roles pack is operator-owned
   delegation, not multi-tenancy. Do not add tenant isolation, tunnels, or public exposure. The MCP route is
   bearer-gated and 404s without a key; that is the whole auth surface, by design.
@@ -78,6 +79,8 @@ npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npm run build                # --webpack too: Turbopack ignores next.config's webpack rules and fails on an absent pack or recall runtime
 npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
+npm run test:critical        # the contracts only (MCP surface, pins, guards, db, scripts), no geometry-heavy suites
+npm run test:deep:changed    # the *.deep.test.js sweeps whose imports touch an uncommitted change (none if none do)
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
@@ -85,6 +88,11 @@ node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lan
 
 No lint, formatter, or types. CI runs `node --check` and the locale validator. Always run from `control/`:
 entry points `chdir` there and `getServerVersion` reads `package.json` from cwd. macOS has no `timeout`.
+
+Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
+folder and `test:deep:changed`; the whole suite once before merging into the release candidate (CI runs it and
+`test:deep`). An exhaustive sweep (every word at its range ends, every preset built) goes in a `*.deep.test.js`
+beside the law tests, importing only the modules it sweeps, so `--changed` can select it.
 
 Byte-pin conventions: `*.char.test.js` and `*.trace.test.js` are characterization pins; `__snapshots__/`
 hashes are structural on purpose. A pin change is legitimate only when the step says emission changes.
@@ -138,6 +146,10 @@ Pointers only; each target carries its own design notes.
   (the `scad` kind, OpenSCAD-in-WASM) and [scene/scene-scad.js](control/lib/graph/scene/scene-scad.js) (the transpiler).
 - Recipe book: [views/recipe-book/](control/lib/graph/views/recipe-book/). Vocab cards: `*-vocab/` dirs.
 - Retail: [retail/](control/lib/graph/retail/) (concept cards → the `store` / `mall` kinds; a new store is a card, not code).
+- Historic cultures: [historic/](control/lib/graph/historic/) (a real place at its period → the `historic` kind and its
+  encyclopedia entry); adding or deepening one: [docs/historic/README.md](docs/historic/README.md), `/historic-culture`.
+- Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
+  words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image
