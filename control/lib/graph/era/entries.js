@@ -113,7 +113,7 @@ export function kitCard(kitId) {
     `LOOK       ${ref ? `pairs with '${ref}' (card 'look/${ref}'); any look can be set with "reference"` : isRooms(kit) ? `none pairs with it; "reference" sets the look (default gothic-night)` : 'its own: the style card carries the light and air'}`,
     `OPTIONS    ${opts.length ? opts.join(' · ') : 'none beyond the kit'}`,
     ...(ART_KITS.includes(kitId) ? ['ART        "art": "propose" (a board to approve, item by item) or "auto" (hands off); card \'stage\''] : []),
-    ...(['nature', 'isekai'].includes(kit.shell) ? ['TRAIL      "trail": { "run"?: 12–25 s, "heartbeat"?: 0–1, "bumpiness"?: 0–1, "beats"?: [pinch|reveal|landmark|crossing|pocket|rest|pit] } builds the trail from the grammar: its beats, hazards and stairs sites annotated, its laws measured; card \'stage\''] : []),
+    ...(['nature', 'isekai'].includes(kit.shell) ? ['TRAIL      "trail": { "run"?: 12–25 s, "heartbeat"?: 0–1, "bumpiness"?: 0–1, "beats"?: [pinch|reveal|landmark|crossing|pocket|rest|pit] } builds the trail from the grammar: its beats, hazards and stairs sites annotated, its laws measured; "after" the trail it follows; "bounds" its outer wall per side (wall, natural, paint, mirror with offset and stutter, penalty, open); card \'stage\''] : []),
     `ERA        ${ERA}`,
     ...(kitLaws(kit).length ? [`LAWS       ${kitLaws(kit).join(', ')} (card 'sixth-gen-laws')`] : []),
   ];

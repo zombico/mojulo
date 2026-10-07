@@ -190,6 +190,21 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   shares one spacing and two trails' vertices meet at a seam (they did not, and a cliff opened a crack).
 - **A pit or a ford is on level ground.** The smoothed walk is laid flat within 3 m of each (a `level` law: no stairs
   site there); a pit had landed mid-staircase.
+- **The outer wall: `trail.bounds`** (`lib/graph/era/out-bounds.js`). A trail's site edge is mapped like a floor plan's
+  walls, so nobody walks off the world and an area can be closed off. Each side (`-x`, `+x`, `-y`, `+y`) is a run of
+  segments (a face for the whole side, or `{ from, to, face }` in metres), each a collider (`of: 'bound:<trail>:<side>'`)
+  and an anchor (`kind: 'bound'`), and each with a face — what the wall does besides stopping a walker: `wall` (unseen),
+  `natural` (behind a barrier the land makes: the cliff side's default), `paint` (a panel with the recipe's `png`, or
+  the style's far hills painted in three bands against the real sky), `mirror` (the site's near band reflected past
+  the wall: the world seems to go on; not the grass tufts), `penalty` (a trigger strip before it, `reset`, `hurt` or
+  `slow`, with a respawn on the nearest beat) and `open` (a seam: the side after another trail opens by default; a
+  trail that leads on says `'+y': 'open'`). A mirror's OFFSET-WRAP: `offset` slides the reflection along the wall,
+  wrapping in the segment, and `stutter` (metres, or true for 8) gives each chunk its own slide by dice, so it reads as
+  other land. Only the things standing on the reflected ground slide, each whole (a trunk with its crown), set down
+  where they land; the ground never does, so the reflection meets the real ground at the wall without a step. A
+  `bounded` law: every side covered, open only at a seam. No wrap: a mirror shows the world going on, the wall holds.
+- **Wind on a trail is free.** `wind` on an isekai kit with a `trail` gives it live grass with no change: the grass
+  reads the grammar's ground and trail line.
 - **The landform board** (`out-trail-board.js`): the land in black and white before anything grows on it — both passes
   as depth maps with the trail, beats, pockets, hazards and stairs drawn over them, the heartbeat strip, and the laws.
   Absent `trail`, every open-ground kit builds byte-identically; `trail` on a room kit or the jungle is refused.

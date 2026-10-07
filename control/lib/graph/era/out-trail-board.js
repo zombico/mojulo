@@ -61,6 +61,17 @@ function overlay(site, g, w, h) {
     const right = x < w * 0.62;
     out.push(`<text x="${f1(x + (right ? 10 : -10))}" y="${f1(y + 4)}" text-anchor="${right ? 'start' : 'end'}" class="lbl">${esc(a.id)}</text>`);
   }
+  // the BOUNDARY (out-bounds.js), round the map's edge: wall solid, natural grey, paint doubled, mirror dash-dot,
+  // penalty hatched, open dashed
+  for (const b of site.bounds || []) {
+    const S = b.side, inset = 3, along = (u) => (S.endsWith('x') ? Y(u) : X(gridX(g, 0) + u));
+    const [p, q] = S === '-x' ? [[inset, along(b.from)], [inset, along(b.to)]] : S === '+x' ? [[w - inset, along(b.from)], [w - inset, along(b.to)]]
+      : S === '-y' ? [[along(b.from), h - inset], [along(b.to), h - inset]] : [[along(b.from), inset], [along(b.to), inset]];
+    const ln = (attrs) => `<line x1="${f1(p[0])}" y1="${f1(p[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" ${attrs}/>`;
+    const st = { wall: 'stroke="#000" stroke-width="5"', natural: 'stroke="#888" stroke-width="5"', paint: 'stroke="#000" stroke-width="6"', mirror: 'stroke="#000" stroke-width="5" stroke-dasharray="10 3 2 3"', penalty: 'stroke="url(#hatch)" stroke-width="7"', open: 'stroke="#000" stroke-width="2" stroke-dasharray="3 4"' }[b.face];
+    out.push(ln(st));
+    if (b.face === 'paint') out.push(ln('stroke="#fff" stroke-width="2"'));
+  }
   return `<svg class="over" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#fff"/><line x1="0" y1="0" x2="0" y2="6" stroke="#000" stroke-width="2.4"/></pattern></defs>${out.join('')}</svg>`;
 }
 
@@ -121,7 +132,9 @@ ${map(g0, '1 · rough', 'the heartbeat, the beats’ edges, the bumps')}
 ${map(g1, '2 · smooth', 'the walk laid level, the geology at the cliff, the pits cut')}
 <div class="card"><header><h2>Laws</h2><span class="badge">machine gate</span></header><table>${laws}</table>
 <header style="margin-top:12px"><h2>Beats</h2></header><table>${beats}</table>
-<p class="note">white line: the trail · ● a beat · ▲ the landmark · dashed ring: a pocket and its spur · black bar: a pit · hatched: the stream · ticks: a stairs site</p></div>
+<p class="note">white line: the trail · ● a beat · ▲ the landmark · dashed ring: a pocket and its spur · black bar: a pit · hatched: the stream · ticks: a stairs site</p>
+<p class="note">the edge: ━ wall · grey ━ natural · ═ paint · ━ · mirror · hatched: penalty · ┄ open to a seam</p>
+<table>${(site.bounds || []).map((b) => `<tr><td><b>${esc(b.id)}</b></td><td>${esc(b.face)}${b.severity ? ` (${esc(b.severity)})` : ''}</td><td>${f1(b.from)}–${f1(b.to)} m</td></tr>`).join('')}</table></div>
 </div>
 <div class="card"><header><h2>Heartbeat</h2><span class="note" style="margin:0">dashed: rough · solid: smoothed · hatched: steeper than ${OUT_TRAIL.grade}, a stairs site</span></header>${heartbeat(site, 1156, 230)}</div>
 </div></body></html>`;

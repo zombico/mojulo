@@ -31,6 +31,7 @@ import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
+import { boundFaces } from './out-bounds.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -264,6 +265,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
   const faces = [...lockFaces([...baked, ...cel, ...ridges], (f) => (st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...(site.out ? streamFaces(site, st) : [])];
+  // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
+  if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };

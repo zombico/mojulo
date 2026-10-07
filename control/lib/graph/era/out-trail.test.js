@@ -13,7 +13,7 @@ const stage = (m) => { const k = JSON.stringify(m); return built.get(k) || built
 
 describe('out-trail', () => {
   it('reads a trail, its dials and its beats; and says what is wrong', () => {
-    expect(readOutTrail(true)).toEqual({ id: 'trail', run: 12, heartbeat: 0.5, bumpiness: 0.4, beats: null });
+    expect(readOutTrail(true)).toEqual({ id: 'trail', run: 12, heartbeat: 0.5, bumpiness: 0.4, beats: null, bounds: {} });
     expect(readOutTrail({ id: 'b', after: { id: 'a', seed: 4 } }).after).toEqual({ seed: 4, recipe: { id: 'a' }, id: 'a' });
     expect(readOutTrail({ run: 20, beats: ['pinch', 'reveal', 'pocket'] }).beats).toEqual(['pinch', 'reveal', 'pocket']);
     expect(() => readOutTrail({ run: 8 })).toThrow(/12 to 25/);

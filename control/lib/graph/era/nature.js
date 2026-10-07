@@ -38,6 +38,7 @@ import { growConifer } from '../vegetation/conifer.js';
 import { axisChains, tubeTris, barkQuads } from '../vegetation/tree-mesh.js';
 import { barkTile } from '../vegetation/tiles.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
+import { boundFaces } from './out-bounds.js';
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -704,6 +705,8 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
   const faces = [...lit, ...decals, ...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
+  // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
+  if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
   const cutouts = [...new Set(faces.filter(isCard).map((f) => f.texture))].sort();
   return {
     faces,

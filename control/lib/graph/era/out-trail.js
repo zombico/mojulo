@@ -27,6 +27,7 @@
 import { hash3, vnoise } from './dirt.js';
 import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
+import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -71,7 +72,7 @@ const C = OUT_TRAIL;
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
   if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, after? } (or true)');
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'after'];
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'after', 'bounds'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -101,7 +102,7 @@ export function readOutTrail(t, depth = 0) {
     if (rest.id === undefined || prev.id === id) throw new Error('stage: trail.after names the trail it follows by an id of its own (trail.after.id), not this trail\'s');
     after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
   }
-  return { id, run, heartbeat, bumpiness, beats, ...(after ? { after } : {}) };
+  return { id, run, heartbeat, bumpiness, beats, ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
 }
 
 /** The beats in walking order, drawn by dice when the recipe names none: a reveal, a landmark and a pocket always (a
@@ -372,8 +373,12 @@ function siteOf(st, plan) {
   const rocks = marks.map((m, i) => ({ x: m.x, y: m.y, size: m.size, detail: 1, v: i, role: 'landmark', node: m.b.id, tall: C.landmark.tall }));
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
   const origin = J ? J.origin : 0;
-  return { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius,
+  const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius,
     clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin };
+  // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail
+  site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff });
+  out.anchors.push(...boundAnchors(site, site.bounds).map((a) => ({ ...a, trail: `out-trail:${plan.id}` })));
+  return site;
 }
 
 /**
@@ -430,6 +435,7 @@ export function outTrailPayload(site) {
   const P = site.out.plan;
   return {
     anchors: site.out.anchors,
+    colliders: boundColliders(site, site.bounds, `out-trail:${P.id}`),
     outTrail: { id: `out-trail:${P.id}`, length: r5(P.L - 2 * C.ends), run: r5((P.L - 2 * C.ends) / C.speed), explore: exploreSeconds(site),
       heartbeat: P.T.heartbeat, bumpiness: P.T.bumpiness, beats: P.beats.map((b) => ({ id: b.id, beat: b.kind, s: b.s })),
       stairs: P.stairs, laws: outTrailLaws(site).map(({ law, ok, value }) => ({ law, ok, value })),
@@ -488,6 +494,8 @@ export function outTrailLaws(site) {
     for (let x = site.grid.x0; x <= site.W; x += 1) gap = Math.max(gap, Math.abs(site.ground(x, 0) - J.ground(x)));
     law('seam', gap < 0.01, r5(gap), `starts where out-trail:${J.from} leaves: its line, heading, height and ground`);
   }
+  const bf = boundLaw(site, site.bounds);
+  law('bounded', bf.length === 0, bf.join('; ') || site.bounds.length, 'every side walled or open to a seam: nobody walks off the world');
   const lm = site.out.anchors.find((a) => a.beat === 'landmark');
   law('landmark', !lm || seen(site, lm), lm ? lm.id : 'none', 'the landmark seen from the trailhead, or from a beat 15 m or more short of it');
   return out;
