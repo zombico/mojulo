@@ -321,7 +321,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-06 (239_400 -> 240_600; measured 240,518 with the scad ladder merged) for fabricate_solid (1006-fabricator): one new tool,
 // ~1,200 bytes with its schema cut to routing grade and its annotation title. The job words, need fields, inventory and provenance rule are
 // off-payload (the `fabricate` solid-vocab card and the fabricate-parts routing card).
-const PAYLOAD_CEILING = 240_600;
+// Re-pinned 2026-10-06 (240_600 -> 240_700; measured 240,518 -> 240,600) for the bill-of-materials export (1006-fabricator-sizing):
+// export_model's 'bom' format, one enum word and one clause. Sizing's need fields are off-payload (the `fabricate` card).
+const PAYLOAD_CEILING = 240_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

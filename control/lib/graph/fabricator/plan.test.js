@@ -19,7 +19,8 @@ describe('fabricator plan', () => {
     expect(p.needs.map((n) => [n.id, n.strategy])).toEqual([['lid', 'heatset-bolt'], ['axle', 'ball-bearing'], ['gasket', 'o-ring'], ['pi', 'rpi']]);
     const bolt = p.bom.find((b) => b.part === 'socket-bolt');
     expect(bolt).toMatchObject({ code: 'M3x16-socket', count: 4, tool: '2.5 mm hex key', standard: 'ISO 4762', for: ['lid'] });
-    expect(p.bom.find((b) => b.part === 'radial-bearing')).toMatchObject({ code: '608', count: 2 });
+    // 300 N on two bearings: the slim 688 carries 150 N each at a safety factor near 4 (sized by its static rating).
+    expect(p.bom.find((b) => b.part === 'radial-bearing')).toMatchObject({ code: '688', count: 2 });
     expect(p.cuts.filter((c) => c.need === 'lid').map((c) => c.count)).toEqual([4, 4]);
   });
 

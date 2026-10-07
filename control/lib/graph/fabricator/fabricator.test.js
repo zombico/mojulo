@@ -97,7 +97,7 @@ describe('fabricator: the inventory and its provenance', () => {
   });
 
   it('buy names a generic part: no reference owner\'s mark appears in a non-reference row', () => {
-    const marks = ['GoPro', 'LEGO', 'IKEA', 'SKÅDIS', 'Arca', 'Raspberry', 'Arduino', 'V-Slot', 'Blum', 'Misumi', 'McMaster'];
+    const marks = ['GoPro', 'LEGO', 'IKEA', 'SKÅDIS', 'Arca', 'Raspberry', 'Arduino', 'V-Slot', 'Blum', 'Misumi', 'McMaster', 'GT2', 'Pozidriv', 'Nyloc'];
     for (const row of Object.values(INVENTORY).filter((r) => r.provenance !== 'reference')) {
       for (const m of marks) expect(`${row.label} ${row.buy || ''}`.includes(m), `${row.id} names '${m}'`).toBe(false);
     }
@@ -141,6 +141,23 @@ describe('fabricator: every need resolves', () => {
     expect(resolve({ function: 'mount', to: 'board', board: 'esp32-devkit' }).route).toBe('mint');
   });
 
+  it('the commodity shelf reaches metal, sheet and extrusion work too', () => {
+    const at = (need) => resolve(need).strategy;
+    expect(at({ function: 'thread', host: 'sheet' })).toBe('rivet-nut');
+    expect(at({ function: 'fasten', host: 'sheet', tags: ['tool-free'] })).toBe('thumb-screw-sheet');
+    expect(at({ function: 'fasten', host: 'metal', tags: ['tool-free'] })).toBe('thumb-screw-metal');
+    expect(at({ function: 'fasten', host: 'printed', loadN: 2000, access: 'one' })).toBe('heatset-load');
+    expect(at({ function: 'locate', host: 'metal' })).toBe('dowel-pin-metal');
+    expect(at({ function: 'slide', host: 'metal' })).toBe('profile-rail');
+    expect(at({ function: 'slide', host: 'wood', depth: 200 })).toBe('wood-runners');
+    expect(at({ function: 'enclose', host: 'metal' })).toBe('cast-box');
+    expect(at({ function: 'enclose', host: 'extrusion' })).toBe('panel-frame');
+    expect(at({ function: 'store', host: 'metal' })).toBe('louvre-bins');
+    expect(at({ function: 'mount', to: 'none' })).toBe('flange-screws');
+    expect(at({ function: 'frame', host: 'metal' })).toBe('tube-frame');
+    expect(at({ function: 'frame', host: 'wood' })).toBe('timber-frame');
+  });
+
   it('an open system carries its licence into what is made', () => {
     expect(resolve({ function: 'store' }).notices.join(' ')).toMatch(/MIT licence/);
   });
@@ -156,7 +173,17 @@ describe('fabricator: every need resolves', () => {
     const c = coverage();
     expect(c.shelf + c.principle + c.minted).toBe(c.total);
     expect(c.gaps.length).toBe(c.minted);
-    expect(c.shelf / c.total).toBeGreaterThan(0.6);
+    expect(c.shelf / c.total).toBeGreaterThan(0.8);
     for (const r of Object.keys(ROUTES)) expect(typeof ROUTES[r]).toBe('string');
+  });
+});
+
+describe('fabricator: the provenance review packet', () => {
+  it('lists every row that names someone else\'s product or system', async () => {
+    const { readFileSync } = await import('node:fs');
+    const doc = readFileSync(new URL('../../../../docs/fabricator-provenance.md', import.meta.url), 'utf8');
+    for (const r of Object.values(INVENTORY).filter((x) => x.provenance === 'reference' || x.provenance === 'open')) {
+      expect(doc, `${r.id} is missing from docs/fabricator-provenance.md`).toContain(`| \`${r.id}\` | ${r.provenance} |`);
+    }
   });
 });

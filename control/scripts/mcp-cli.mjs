@@ -51,6 +51,13 @@ export const USAGE = `Usage:
   mojulo --version | -v        print the package version
   (no subcommand)              run as a stdio MCP server`;
 
+/**
+ * USAGE for the command this caller types. The text is written once with `mojulo`; a caller who reaches the CLI
+ * another way (`node scripts/mcp-stdio.mjs` in a checkout, `npx -y mojulo@<version>`) is told which word stands for
+ * it, so every line still reads as typed. Pure.
+ */
+export const usage = (cmd = 'mojulo') => (cmd === 'mojulo' ? USAGE : USAGE.replace('Usage:', `Usage (type \`${cmd}\` where it says \`mojulo\`):`));
+
 const RESERVED_FLAGS = new Set(['--json', '--timeout', '--quiet']);
 
 /**
@@ -318,11 +325,11 @@ function removedMessage(moved, packs, name, member) {
   });
   return redirect ?? moved.botToolMovedNotice(name);
 }
-function unknownToolMessage(moved, packs, name, member) {
-  return removedMessage(moved, packs, name, member) ?? `unknown tool: ${name} (run \`mojulo tools\`)`;
+function unknownToolMessage(moved, packs, name, member, cmd = 'mojulo') {
+  return removedMessage(moved, packs, name, member) ?? `unknown tool: ${name} (run \`${cmd} tools\`)`;
 }
-function unknownPackMessage(moved, packs, name, member) {
-  return removedMessage(moved, packs, name, member) ?? `unknown pack: ${name} (run \`mojulo packs\`)`;
+function unknownPackMessage(moved, packs, name, member, cmd = 'mojulo') {
+  return removedMessage(moved, packs, name, member) ?? `unknown pack: ${name} (run \`${cmd} packs\`)`;
 }
 
 export async function runCli(argv, io = {}) {
@@ -344,7 +351,7 @@ export async function runCli(argv, io = {}) {
   const parsed = parseArgv(argv);
   if (parsed.error) {
     err(`mojulo: ${parsed.error}`);
-    err(USAGE);
+    err(usage(await cliCmd()));
     return 2;
   }
 
@@ -417,7 +424,7 @@ export async function runCli(argv, io = {}) {
     });
     const tool = server.getRegisteredTool(name);
     if (!tool) {
-      const e = new Error(unknownToolMessage(moved, packs, name, base?.tool));
+      const e = new Error(unknownToolMessage(moved, packs, name, base?.tool, await cliCmd()));
       e.usage = true;
       throw e;
     }
@@ -448,7 +455,7 @@ export async function runCli(argv, io = {}) {
       if (parsed.pack) {
         const pack = packs.PACKS.find((p) => p.id === parsed.pack);
         if (!pack) {
-          err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack)}`);
+          err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, undefined, await cliCmd())}`);
           return 2;
         }
         const hiddenPack = profile.pluginProfileToolNotice(pack.id);
@@ -489,7 +496,7 @@ export async function runCli(argv, io = {}) {
     case 'help': {
       const tool = server.getRegisteredTool(parsed.name);
       if (!tool) {
-        err(`mojulo: ${unknownToolMessage(moved, packs, parsed.name)}`);
+        err(`mojulo: ${unknownToolMessage(moved, packs, parsed.name, undefined, await cliCmd())}`);
         return 2;
       }
       const hidden = profile.pluginProfileToolNotice(parsed.name);
@@ -519,7 +526,7 @@ export async function runCli(argv, io = {}) {
 
     case 'pack': {
       if (!server.hasRegisteredTool(parsed.pack)) {
-        err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, parsed.name)}`);
+        err(`mojulo: ${unknownPackMessage(moved, packs, parsed.pack, parsed.name, await cliCmd())}`);
         return 2;
       }
       if (parsed.manual) {
@@ -560,6 +567,6 @@ export async function runCli(argv, io = {}) {
   }
   // Unreachable — parseArgv covers every command — but a changed enum
   // should fail loudly as usage, not fall through as success.
-  err(`mojulo: ${USAGE}`);
+  err(`mojulo: ${usage(await cliCmd())}`);
   return 2;
 }

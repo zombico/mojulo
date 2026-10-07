@@ -108,7 +108,7 @@ const LEXICON = [
     routes: [
       { tool: 'mint_solid', when: 'most objects/figures from a natural-language prompt', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_workbench', when: 'an object study with face-card detailing' },
-      { tool: 'preview_vehicle_instance', when: 'a vehicle from the meta-fabricator families' },
+      { tool: 'preview_vehicle_instance', when: 'a vehicle from the registered vehicle families' },
       { tool: 'create_figure', when: 'a human figure (posed protoform)' },
     ],
     then: [EXPORT],

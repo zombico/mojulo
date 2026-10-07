@@ -12,8 +12,9 @@
 // the frame's own report replaces it at mint. Deterministic: the same needs give the same plan, byte for byte.
 import { FUNCTIONS, TAGS, resolve } from './index.js';
 import { hardwarePart, toolOf } from '../construction/hardware.js';
+import { placementOf, placeError } from './place.js';
 
-export const FABRICATOR_VERSION = 'fabricator-v0.3.0';
+export const FABRICATOR_VERSION = 'fabricator-v0.5.0';
 export const EXECUTORS = Object.freeze(['frames', 'scad', 'none']);
 
 const SHARED = ['host', 'loadN', 'cycles', 'access'];
@@ -29,6 +30,8 @@ export function needsError(needs) {
     const bad = (n.tags || []).filter((t) => !TAGS[t]);
     if (bad.length) return `needs[${i}].tags: unknown ${bad.join(', ')} (one of ${Object.keys(TAGS).join(', ')})`;
     if (n.id !== undefined) { if (ids.has(n.id)) return `needs[${i}].id '${n.id}' is used twice`; ids.add(n.id); }
+    const at = placeError(n, i);
+    if (at) return at;
   }
   return null;
 }
@@ -83,7 +86,10 @@ const toolLabel = (code) => { const t = code && toolOf(hardwarePart(code)); retu
  * strategy, route, why, … }], bom: [{ code, label, count, tool, buy, part, provenance, standard, for, executor }],
  * cuts: [{ need, part, route, call, count, where }], joints: [{ need, type, count }], kit, principles, notices, refused,
  * gaps, overlaps: [{ need, coveredBy, why }], suggestions: [{ from, function, …, why }] }`. A fastening need carries the
- * `assumes` its bolt lengths were cut to (`grip`: mm of material under the head).
+ * `assumes` its bolt lengths were cut to (`grip`: mm of material under the head); a need whose part was sized by
+ * strength carries its `sizing` (./sizing.js: the size, the weakest mode, its safety factor and the one asked, the
+ * load and whether it was assumed), and a bolt line its `grade` (the property class the check assumed). A plan whose
+ * needs say where (`at`, `axis`, `parts`) carries `placement`: the cuts as an OpenSCAD block, and what is left by hand.
  * Throws on a malformed needs list (needsError).
  */
 export function fabricationPlan(spec) {
@@ -110,9 +116,9 @@ export function fabricationPlan(spec) {
     const framed = executor === 'frames' && !!r.joint;
     for (const p of r.parts) {
       if (p.route === 'buy') {
-        const key = `${p.part}|${p.code || ''}|${p.label}`;
+        const key = `${p.part}|${p.code || ''}|${p.label}|${p.grade || ''}`;
         const line = bom.get(key) || { code: p.code, label: p.code ? hardwarePart(p.code)?.label || p.label : p.label, count: 0,
-          tool: toolLabel(p.code), buy: p.buy, part: p.part, provenance: p.provenance, standard: p.standard, for: [], executor: [] };
+          tool: toolLabel(p.code), buy: p.buy, part: p.part, provenance: p.provenance, standard: p.standard, ...(p.grade ? { grade: p.grade } : {}), for: [], executor: [] };
         if (framed) { line.count = null; line.perJoint = p.qty; line.note = 'counted by the frame at mint: fittings per joint follow its length'; }
         else if (line.count !== null) line.count += p.qty * count;
         if (!line.for.includes(id)) line.for.push(id);
@@ -133,7 +139,7 @@ export function fabricationPlan(spec) {
     if (r.route === 'mint') gaps.push({ need: id, function: need.function, why: r.why });
     const assumes = need.function === 'fasten' && r.parts.some((p) => /-(socket|hex|button|csk)$/.test(p.code || ''))
       ? { grip: need.grip ?? 10, size: need.size || null } : undefined;
-    return { id, function: need.function, count, executor, strategy: r.strategy, line: r.line, route: r.route, why: r.why, ...(assumes ? { assumes } : {}) };
+    return { id, function: need.function, count, executor, strategy: r.strategy, line: r.line, route: r.route, why: r.why, ...(assumes ? { assumes } : {}), ...(r.sizing ? { sizing: r.sizing } : {}) };
   });
   // A job one need's parts already do, listed again as its own need: say so, so nothing is bought twice.
   const overlaps = covered.flatMap((c) => needs.filter((n) => n.id !== c.need && n.function === c.function)
@@ -141,6 +147,8 @@ export function fabricationPlan(spec) {
   // A suggested need is left out when the plan already has that job (the same function, and the same through / shaft).
   const has = (sg) => spec.needs.some((n) => n.function === sg.function && (n.through ?? null) === (sg.through ?? null)
     && (sg.shaftD === undefined || n.shaftD === sg.shaftD) && (sg.rim === undefined || Array.isArray(n.rim) || n.sealD !== undefined));
+  // Where the needs say where (`at`, `axis`, `parts`), their scad cuts are written out as OpenSCAD (./place.js).
+  const placement = placementOf(cuts, needs.map((n, i) => ({ id: n.id, strategy: n.strategy, raw: spec.needs[i] })));
   const suggestions = [...new Map(suggested.filter((sg) => !has(sg)).map((sg) => [JSON.stringify({ ...sg, from: undefined, why: undefined }), sg])).values()];
   return {
     version: FABRICATOR_VERSION,
@@ -156,6 +164,7 @@ export function fabricationPlan(spec) {
     gaps,
     overlaps,
     suggestions,
+    ...(placement ? { placement } : {}),
   };
 }
 
@@ -188,4 +197,30 @@ export function mintedBom(plan, frameStats) {
   }
   const rest = plan.bom.filter((l) => !(l.executor.length === 1 && l.executor[0] === 'frames'));
   return [...[...placed.values()].sort((a, b) => (a.code < b.code ? -1 : 1)), ...rest.map((l) => ({ ...l, from: 'plan' }))];
+}
+
+const sizeKey = (s) => (s ? s.size ?? s.code ?? (s.frame != null ? `NEMA ${s.frame}` : s.module != null ? `module ${s.module}` : null) : null);
+const lineKey = (l) => `${l.code || l.label}${l.grade ? ` (${l.grade})` : ''}`;
+
+/**
+ * What a re-plan changed against the plan stored before it: the version, each need's strategy and size, and the bill
+ * of materials line by line. Empty lists when nothing moved.
+ */
+export function planChanges(before, after) {
+  const was = new Map((before?.needs || []).map((n) => [n.id, n]));
+  const now = new Map(after.needs.map((n) => [n.id, n]));
+  const needs = [];
+  for (const [id, n] of now) {
+    const o = was.get(id);
+    if (!o) needs.push({ need: id, added: n.strategy });
+    else if (o.strategy !== n.strategy) needs.push({ need: id, from: o.strategy, to: n.strategy });
+    else if (sizeKey(o.sizing) !== sizeKey(n.sizing)) needs.push({ need: id, size: { from: sizeKey(o.sizing) ?? 'by load class', to: sizeKey(n.sizing) } });
+  }
+  for (const [id, o] of was) if (!now.has(id)) needs.push({ need: id, removed: o.strategy });
+  const count = (plan) => new Map((plan?.bom || []).map((l) => [lineKey(l), l.count]));
+  const b0 = count(before); const b1 = count(after);
+  const bom = [];
+  for (const [k, c] of b1) if (!b0.has(k)) bom.push({ line: k, added: c }); else if (b0.get(k) !== c) bom.push({ line: k, from: b0.get(k), to: c });
+  for (const [k, c] of b0) if (!b1.has(k)) bom.push({ line: k, removed: c });
+  return { ...(before?.version !== after.version ? { version: { from: before?.version ?? null, to: after.version } } : {}), needs, bom };
 }
