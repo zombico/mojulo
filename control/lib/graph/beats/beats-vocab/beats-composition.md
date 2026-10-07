@@ -194,6 +194,10 @@ A composition can also carry:
 - a part's `touch: 'pianist'` (or `{ top, inner, bass, roll }`): each chord
   voiced by hand, the top note out, the inner notes under, rolled up from the
   bass a few ms apart. Use it on piano chord parts; articulated chords stay whole
+- `sustainPedal` (recipe: every piano part, one pedal; or per part):
+  `'per-chord'` re-pedals at each harmony change over a new bass, `'held'`,
+  or `[[time, 'down' | 'up' | 'half'], …]`. Released notes ring to the lift;
+  the piano's halo rises and drains with it. A part's `events` only, not `form`
 - `life` (0–2, any musical kind, also per part/track/channel): how much held
   notes breathe. 0 mechanical (dead-still holds, the sequenced sound), 1
   natural (the default on breathing instruments), 2 more. A row's `life`

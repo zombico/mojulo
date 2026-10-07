@@ -57,6 +57,12 @@ name or field; no kernel bytes. Ears gate not run.
   ~0.3 s for a 1.4 s target); it now caps the loop damping per note so the target holds (C7: ~160 → ~45 dB/s).
   `grand-piano-3` carries all three; other patches are unchanged. The instruments card now tells agents to write piano
   phrased by default: the melody its own part with `shape`, the accompaniment under it with `touch`, a ritardando at the end.
+- **A sustain pedal you can write.** `sustainPedal` on a recipe (every part whose instrument has dampers: the
+  piano) or on a part: `'per-chord'` re-pedals the way a pianist does, lifting just after each new harmony over a new
+  bass note and catching it again; `'held'` keeps it down; or a list of `[time, 'down' | 'up' | 'half']`. Released
+  notes ring on to the next lift (a half pedal shortens them instead), and the piano's halo rises and drains with the
+  pedal instead of staying on. Lowered at authoring; the halo's ride reuses the sweep automation. The instruments card
+  says which repertoire to pedal (Chopin, Satie, Debussy, Bach's broken chords) and which to leave dry (Mozart's runs).
 - **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
 - **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
   use it carry the previous kernel byte for byte.
