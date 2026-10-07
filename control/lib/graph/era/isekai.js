@@ -32,6 +32,7 @@ import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
+import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -173,10 +174,14 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const grove = bamboo ? bambooFaces(st, site, trees) : null;
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
   const wood = bamboo || sak ? [] : treeFaces(st, site, trees);
+  // IKEBANA (a card's `ikebana`, ikebana-place.js): arrangements painted along the banks, standing on the land; what
+  // the grass keeps clear of is the trees and every blocking stem
+  const ike = st.ikebana ? placeIkebana(st, site, seed) : null, ikeRaw = ike ? ikebanaFaces(st, ike) : [];
+  const near = ike ? [...trees, ...ike.avoid] : trees;
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
-  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
+  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...ikeRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
   // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
   const shadow = makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
@@ -222,8 +227,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   // PETALS: litter under each sakura, flat cutout cards, the band by the shade each lies in
   if (st.trees.petals) for (const f of petalFaces(st, site, trees)) draw(f, 'petals', shadow(addv(mean(f.corners), [0, 0, 0.3]), [0, 0, 1]) > 0);
+  // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
+  for (const f of ikeRaw) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  const tufts = grassTufts(st, site, trees, rocks, sun, seed), G = st.grass.cards;
+  const tufts = grassTufts(st, site, near, rocks, sun, seed), G = st.grass.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
@@ -238,7 +245,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       const px = x + (hash3(i, 71, S + 181) - 0.5) * F.every, py = y + (hash3(i, 73, S + 191) - 0.5) * F.every, d = site.trailDist(px, py), edge = site.halfWAt(py) + site.fringeAt(py);
       if (d < edge || d > edge + F.reach * (0.75 + 0.5 * vnoise(px * 0.2, py * 0.2, S + 193))) continue;
       if (site.apronAt(px, py) > st.landform.apronMin || px < site.cliffX(py) + 1) continue;
-      if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - px, r.y - py) < r.size * st.rubble.unit * 0.55) || trees.some((t) => Math.hypot(t.x - px, t.y - py) < 0.5)) continue;
+      if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - px, r.y - py) < r.size * st.rubble.unit * 0.55) || near.some((t) => Math.hypot(t.x - px, t.y - py) < 0.5)) continue;
       const z = site.ground(px, py), lt = shadow([px, py, z + 0.3], [0, 0, 1]) > 0 || (Gl ? glowAt([px, py, z + 0.3]) >= st.cel : false), h = mix(F.height[0], F.height[1], hash3(i, 75, S + 197)) * G.height;
       const raw = [];
       crossed(raw, [px, py, z - 0.03], Math.PI * hash3(i, 77, S + 199), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
@@ -282,7 +289,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     const t = trees.filter((q) => q.hero)[Fh.tree], hy = t.y - Fh.back, hx = site.trailX(hy), at = [hx, hy, site.ground(hx, hy) + Fh.eye];
     heroCam.push({ name: 'hero', worldFraming: { cameraPosition: at.map(r5), lookAt: [t.crownAt[0], t.crownAt[1], t.crownAt[2] - 0.2 * t.crownR].map(r5), horizontalFov: Fh.fov, pictureCenter: [560, 390] } });
   }
-  return {
+  const payload = {
     faces,
     cutouts,
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
@@ -296,10 +303,14 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     sky: st.night ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
     glow: !!Gl,
     pack: true,
-    ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, trees, shadow, manifest.wind, seed) } : {}),
+    ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind, seed) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
     ...(site.out ? outTrailPayload(site) : {}),
   };
+  // the arrangements on the page: the soft group is walked through; what blocks is a collider and every arrangement an
+  // anchor an engine can find
+  if (ike) Object.assign(payload, { soft: [SOFT_GROUP], colliders: [...(payload.colliders ?? []), ...ike.colliders], anchors: [...(payload.anchors ?? []), ...ike.anchors] });
+  return payload;
 }
 
 /**

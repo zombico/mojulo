@@ -118,6 +118,8 @@ export const MADE_RAILS = Object.freeze({
     chunk: [0.9, 1.05], hat: [0, 0.1], paint: [0, 0.05], wear: [0.5, 0.8], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'moss' } },
   'alien-night': { bridge: ['rope', 'arch'], timber: ['culm', 'round'], joint: ['lashed', 'notched'], edge: ['stone'], bond: ['hex', 'flagstone'], relief: ['chevron', 'none'],
     chunk: [0.9, 1.05], hat: [0, 0.2], paint: [0.3, 0.6], wear: [0.05, 0.2], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
+  'isekai-garden': { bridge: ['arch', 'deck'], timber: ['sawn', 'round'], joint: ['pegged', 'notched'], edge: ['stone', 'timber'], bond: ['flagstone', 'running'], relief: ['notch-band', 'none'],
+    chunk: [1.1, 1.3], hat: [0.4, 0.8], paint: [0.1, 0.4], wear: [0.05, 0.15], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
 });
 export const MADE_KITS = Object.freeze(Object.keys(MADE_RAILS));
 const kitRails = (kitId) => {

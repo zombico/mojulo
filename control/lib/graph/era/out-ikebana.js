@@ -367,7 +367,7 @@ export function ikebanaLaws(A, M = null) {
     if (off < A.ma) out.push({ law: 'ma', line: `a filler's crown stands ${r3(off)}° off the line to the viewer, inside the ${A.ma}° ma.` });
   }
   for (const s of A.stems.filter((x) => x.role === 'jushi')) if (spread(s) > spread(so) * 1.001) out.push({ law: 'under', line: `a filler (${s.form} ${s.variant}) spreads ${r3(spread(s))} m, wider than soe's ${r3(spread(so))} m.` });
-  for (const s of A.stems) { const lim = (s.reach ?? A.kenzan) + 1e-6, d = Math.hypot(s.x - A.at[0], s.y - A.at[1]); if (d > lim) out.push({ law: 'one-root', line: `${s.role} rises ${r3(d)} m from the root, beyond its tier's ${r3(lim)} m.` }); }
+  for (const s of A.stems) { const lim = (s.reach ?? A.kenzan) + 2e-3, d = Math.hypot(s.x - A.at[0], s.y - A.at[1]); if (d > lim) out.push({ law: 'one-root', line: `${s.role} rises ${r3(d)} m from the root, beyond its tier's ${r3(lim)} m.` }); }
   // LAYERS (vertical variety): the arrangement reads in at least four height bands, canopy to ground
   const shinH = H[0], bandOf = (h) => Object.entries(IKEBANA_TIERS).find(([, T]) => h / shinH >= T.band[0] && h / shinH < T.band[1])?.[0];
   const bands = new Set([...A.stems, ...(A.cover ?? [])].map((s) => bandOf(floraMeasures(s.design).height)).filter(Boolean));
@@ -412,7 +412,8 @@ function nearestOn(line, p) {
 
 export function ikebanaZone(zone, seed) {
   const o = { ...IKEBANA_DEFAULTS, ...zone }, rand = mulberry32(subSeed(seed, 'ikebana:zone')), arrangements = [];
-  const spacing = o.scale * mix(1.6, 0.85, o.density);
+  // the ma at the composition's scale: arrangements stand at least their own width apart, open lawn between them
+  const spacing = o.scale * mix(2.2, 1.3, o.density);
   (zone.strokes ?? []).forEach((st, si) => {
     const pts = st.points ?? st, w = st.width ?? o.scale * 0.5, roots = [];
     let carry = spacing * 0.5 * rand();

@@ -57,6 +57,7 @@ export const FLORA_SKINS = Object.freeze({
   'isekai-meadow': {},
   'isekai-bamboo': { flesh: 'bark' },
   'isekai-sakura': { flesh: 'rock', bloom2: 'blossom' },
+  'isekai-garden': { bloom2: 'blossom' },
   'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', bloom2: 'foliage', water: 'glow' },
 });
 export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? {}) });
@@ -473,6 +474,9 @@ function buildTuft(X, rand, L, P) {
 // flowers: basal leaves, stalks from one foot (the first the tallest, its head the biggest: one leads), heads by kind
 function buildFlower(X, rand, L, P) {
   const H = X.height, far = L.name === 'far', mid = L.name === 'mid', bloom = X.hue < 0.5 ? 'bloom' : 'bloom2';
+  // DEPICTION: a head is never smaller than reads at play distance (the eye spot, about 12 cm across), whatever the
+  // stalk: a flower is a doodad, its bloom drawn to be seen
+  const HEAD = 0.06, hd = (r) => Math.max(r, HEAD);
   P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
   // the leaves: a low tuft at the foot (a plume's are long, arching grass)
   const lh = H * (X.kind === 'plume' ? 0.55 : X.kind === 'daisy' ? 0.45 : 0.3), nl = far ? Math.min(3, X.leaves) : X.leaves;
@@ -487,23 +491,23 @@ function buildFlower(X, rand, L, P) {
     if (X.kind === 'spike') {
       // blooms stacked up the top of the stalk, smaller as they rise: the spike reads vertical
       const m = far ? 3 : mid ? Math.min(4, X.heads) : X.heads;
-      P.block({ ...head, what: 'spike', sizeK: 1, r: [H * 0.05 * k, H * 0.05 * k, H * 0.05 * k] });
+      P.block({ ...head, what: 'spike', sizeK: 1, r: [hd(H * 0.05) * k, hd(H * 0.05) * k, hd(H * 0.05) * k] });
       // far, the spike is one long bloom: its envelope
-      if (far) P.block({ id: `h${i}b`, kind: 'mass', parent: `h${i}`, fixed: true, c: [top[0] * 0.8, top[1] * 0.8, h * 0.8], r: [H * 0.045 * k, H * 0.045 * k, h * 0.21], part: bloom, value: 0.74, detail: 0 });
+      if (far) P.block({ id: `h${i}b`, kind: 'mass', parent: `h${i}`, fixed: true, c: [top[0] * 0.8, top[1] * 0.8, h * 0.8], r: [hd(H * 0.045) * k, hd(H * 0.045) * k, h * 0.21], part: bloom, value: 0.74, detail: 0 });
       for (let j = 0; j < (far ? 0 : m); j++) {
-        const f = j / Math.max(1, m - 1), z = h * mix(0.58, 1, f), rr = H * 0.05 * k * mix(1, 0.45, f);
+        const f = j / Math.max(1, m - 1), z = h * mix(0.58, 1, f), rr = hd(H * 0.05) * k * mix(1, 0.55, f);
         P.block({ id: `h${i}b${j}`, kind: 'mass', parent: `h${i}`, fixed: true, c: [top[0] * (z / h), top[1] * (z / h), z], r: [rr, rr, rr * 1.15], part: bloom, value: mix(0.62, 0.86, f), detail: 0 });
       }
     } else if (X.kind === 'umbel') {
-      const r = H * 0.1 * k;
+      const r = hd(H * 0.1) * k;
       P.block({ ...head, kind: 'mass', r: [r, r, r * 0.45], part: bloom, value: mix(0.64, 0.84, rand()), detail: L.name === 'near' || (mid && lead) ? 1 : 0, what: 'umbel' });
     } else if (X.kind === 'daisy') {
-      const r = H * 0.16 * k;
+      const r = hd(H * 0.16) * k;
       P.block({ ...head, kind: 'lathe', r: [r, r, r], what: 'daisy', lathes: [{ prof: [[1, 0], [0.35, 0.12], [0, 0.16]], sides: far ? 5 : 8, part: bloom, value: mix(0.7, 0.9, rand()) }] });
       if (L.name === 'near' || lead) P.block({ id: `h${i}eye`, kind: 'mass', parent: `h${i}`, fixed: true, c: add(top, [0, 0, r * 0.14]), r: [r * 0.3, r * 0.3, r * 0.15], part: bloom, value: 0.3, detail: 0 });
     } else {
       // plume: a long soft head nodding at the top
-      const r = H * 0.035 * k;
+      const r = hd(H * 0.035) * k;
       P.block({ ...head, kind: 'mass', c: add(top, [Math.cos(a) * r, Math.sin(a) * r, 0]), r: [r, r, r * 3.4], part: bloom, value: mix(0.7, 0.9, rand()), detail: 0, what: 'plume', sizeK: 1 });
     }
     P.link({ from: `s${i}`, to: `h${i}`, radii: [H * 0.012, H * 0.008], n: 2, bow: H * 0.04, side: [Math.cos(a), Math.sin(a), 0], sides: 3, part: 'blade', value: 0.4 });
@@ -734,8 +738,23 @@ export function planStability(P) {
 
 // ── the mesh ───────────────────────────────────────────────────────────────────
 function meshPlan(P, L) {
-  const out = [], elements = [];
+  const out = [], elements = [], owner = [];
   for (const b of P.blocks) {
+    const n0 = out.length;
+    meshBlock(P, L, b, out, elements);
+    for (let i = n0; i < out.length; i++) owner[i] = b;
+  }
+  for (const l of P.links) { const n0 = out.length; meshLink(P, L, l, out, elements); for (let i = n0; i < out.length; i++) owner[i] = null; }
+  // INVISIBLE FACES go: a face whose every corner lies inside another solid mass of the same plant (a trunk inside its
+  // crown, a mass's back half inside its neighbour, the core where it is covered) is never seen
+  const masses = P.blocks.filter((b) => b.kind === 'mass' && b.part !== 'bloom' && b.part !== 'bloom2' && b.part !== 'detail');
+  const inside = (p, m) => { let s = 0; for (let k = 0; k < 3; k++) { const d = (p[k] - m.c[k]) / Math.max(1e-6, m.r[k]); s += d * d; } return s < 0.96; };
+  const faces = out.filter((f, i) => !masses.some((m) => m !== owner[i] && f.corners.every((p) => inside(p, m))));
+  return { faces, elements, culled: out.length - faces.length };
+}
+
+function meshBlock(P, L, b, out, elements) {
+  {
     if (b.kind === 'mass') {
       const bend = b.bend ? { at: add(P.byId.get(b.bend.to).c, b.bend.off), k: b.bend.k } : null;
       mass(out, b.c, b.r, b.part, b.value, b.detail ?? 0, bend?.at ?? null, bend?.k ?? 0);
@@ -768,16 +787,17 @@ function meshPlan(P, L) {
     }
     if (b.what) elements.push({ what: b.what, size: 2 * Math.max(b.r[0], b.r[1]) * (b.sizeK ?? 1) });
   }
-  for (const l of P.links) {
+}
+
+function meshLink(P, L, l, out, elements) {
     const A = P.byId.get(l.from), Bk = P.byId.get(l.to);
     const a = l.axisOnly ? [A.c[0], A.c[1], A.c[2]] : A.c, b = l.axisOnly ? [A.c[0], A.c[1], Bk.c[2]] : Bk.c;
     const pts = bowed(a, b, l.bow, l.side, Math.max(1, l.n));
     const radii = l.radii === 'ends' ? pts.map((_, i) => mix(A.r[0], Bk.r[0], i / (pts.length - 1))) : pts.map((_, i) => l.radii[Math.min(l.radii.length - 1, Math.round((i / (pts.length - 1)) * (l.radii.length - 1)))]);
     tube(out, pts, radii, l.sides ?? L.sides, l.part, l.value);
     if (l.what) elements.push({ what: l.what, size: l.whatSize != null ? l.whatSize * (P.fit ?? 1) : 2 * radii[0] });
-  }
-  return { faces: out, elements };
 }
+
 
 // ── the read laws ──────────────────────────────────────────────────────────────
 /**

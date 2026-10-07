@@ -207,7 +207,7 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, tone = null, liveGrass = null, pack = false } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, tone = null, liveGrass = null, pack = false, soft = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -450,6 +450,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // string is byte-identical.
   const cutKeys = Array.isArray(cutouts) ? cutouts.filter((k) => typeof k === 'string' && textures && textures[k]) : [];
   const cutOpt = cutKeys.length ? ', ...(__CUT[t.key] ? { alphaTest: 0.5 } : {})' : '';
+  // Soft groups (opt-in): render groups a walker passes through (flowers, tufts: era/ikebana-place.js). Drawn as any
+  // group, but no walk colliders. None → '' and every emitted string is byte-identical.
+  const softKeys = Array.isArray(soft) ? soft.filter((k) => typeof k === 'string') : [];
 
   // Object-glow: one camera-facing additive sprite per emissive-fixture face. Driven by
   // the SAME `glow` markers the baked face list already carries (see collectGlowSprites).
@@ -937,7 +940,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const GROUPS = ${safeJson(groups)};
 const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
-const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}
+const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
 function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
@@ -976,7 +979,7 @@ for (const grp of GROUPS) {
     cage.renderOrder = 2; scene.add(cage);
     m.visible = false;
     xrayGroups.push({ name: grp.name, fill: m, cage, on: true });
-  } else { solids.push(m); }
+  } else ${softKeys.length ? 'if (!__SOFT[grp.name]) ' : ''}{ solids.push(m); }
   // textured label-wrap sub-meshes: a MeshBasicMaterial({ map }) per texture key (the can/box label).
   for (const t of (grp.tex || [])) {
     const url = TEXTURES[t.key]; if (!url) continue;

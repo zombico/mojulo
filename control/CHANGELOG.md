@@ -392,6 +392,17 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   colour per kit. Three laws hold the variety: `layers` (at least four height bands, canopy to ground), `shapes` (at
   least three silhouettes: columnar, round, spreading, made so by swapping a filler when one is missing) and `depth`
   (the herbs nearer the viewer than the understory). Flowers, like tufts, are walked through.
+- **The `isekai-garden` kit: ikebana placed in a level** (`era/ikebana-place.js`, `era/style/isekai-garden.js`). A card's
+  opt-in `ikebana` paints arrangements along the trail's banks (each bank its own zone and dials: the near banks at
+  mid detail, a far row sparser at far detail without cover), clear of the cliff, the apron and the trail's reserved
+  places, every arrangement facing the trail with open lawn between them (the ma at the composition's scale). Every
+  element stands on the land at its own foot, coloured from the kit's swatches through the flora skin and banded by
+  the stage's cel light, casting and taking the sun's shadow. What a walker pushes through goes in a soft group the
+  page walks through (`soft`, a new opt-in on the World emitter: absent, every page emits as before); what blocks is a
+  collider for an engine, and every arrangement an anchor. Faces never seen are not built: a face buried inside another
+  mass of the same plant, a downturned face under the eye, a face under the ground. A flower's head is never smaller
+  than reads at play distance. The garden is the meadow's grammar with no loose trees and a short lawn; every other kit
+  builds byte-identically.
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the
