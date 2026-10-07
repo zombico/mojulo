@@ -253,7 +253,7 @@ export async function getSolidVocabHandler(input) {
         `get_solid_vocab: unknown card '${id}'. Known: ${[...catalog.keys()].filter(served).join(', ')}. Find one by intent via semantic_search({ kinds: ['solid_vocab'], query: '<your ask>' }).`,
       );
     }
-    if (card.sections) return sectionedRead(id, card, section);
+    if (card.sections) return sectionedRead(id, profiledCard('solid_vocab', card), section);
     if (section !== undefined) throw new Error(`get_solid_vocab: card '${id}' has no sections; read it whole without \`section\`.`);
     return { ok: true, card: profiledCard('solid_vocab', card), _telemetrySignal: { id_requested: true, found: true } };
   }

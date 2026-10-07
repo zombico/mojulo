@@ -184,6 +184,11 @@ export function profiledCard(sourceKind, card, env = process.env) {
         : p));
     } else if (typeof out[field] === 'string') {
       out[field] = profileEdit(out[field], list, `${sourceKind}.${card.id}.${field}`);
+      // A sectioned solid card is served as its base (solid-vocab/loader.js splitSections): its body edits land
+      // there too. They must target lines the base keeps; scad-ladder.test.js / workbench-ladder.test.js check that.
+      if (field === 'body' && typeof out.base === 'string') {
+        out.base = profileEdit(out.base, list, `${sourceKind}.${card.id}.base`);
+      }
     }
   }
   return out;
