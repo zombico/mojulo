@@ -12,6 +12,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Furniture fittings
+
+- **Fittings no longer meet inside a board.** A member joined at the same place from both faces, such as a carcass
+  partition with a fixed shelf or adjustable shelves on each side, got the second joint's fittings in the same holes
+  as the first's: 11 mm of cam bolt from each face of 18 mm board, dowels and shelf-pin holes back to back. The
+  second joint's cams, dowels, confirmats, screws and shelf pins now move along the contact toward its middle, by the
+  least whole millimetre that leaves 3 mm of board between holes. Where nothing collides, nothing moves.
+- **A single cam gets a dowel.** A cam on a short contact (a 60 mm plinth) had no dowel and could pivot on its bolt.
+  It now gets one 32 mm beside it, or 16 mm where the contact is shorter. The middle cam of a three-cam row (panels
+  about 390 mm deep or more) had its dowel placed in its own bolt hole. That dowel now goes beside the cam too.
+- **The interference report checks fittings.** `furniture.interference` lists two fittings whose holes meet inside
+  a member (`fittings: true`, `in`), and the mint warns about each one.
+- **Output changes.** These fixes change re-renders of existing rows. Every `kd` carcass with a plinth gains two
+  dowels. Every carcass with a partition and shelves on both sides, and every `kd` carcass with panels about 390 mm
+  deep or more, moves fittings. A dowel-jointed table also moves fittings, because its two apron dowels met in each
+  leg. Frames where no fittings collided render byte-identical.
+
 ### Scad ladder
 
 - **The scad card opens to its first step.** `get_solid_vocab({ id: 'scad' })` returns the part itself (spec,
