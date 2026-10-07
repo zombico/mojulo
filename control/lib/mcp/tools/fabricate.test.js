@@ -119,6 +119,57 @@ describe('fabricate_solid', () => {
       .rejects.toThrow(/scad row — the assembler composes workbench parts only.*`parts` entry.*`mechanism`.*fabricate_solid/);
   });
 
+  // A base and a lid that meet at z = 20, the lid's four heat-set joints and a shaft's two bearings placed by the needs.
+  const PLACED = [
+    { id: 'lid', function: 'fasten', tags: ['serviceable'], count: 4, at: [[6, 6, 20], [34, 6, 20], [6, 34, 20], [34, 34, 20]], parts: { into: 'base', head: 'lid' } },
+    { id: 'axle', function: 'spin', shaftD: 8, part: 'base', at: [{ at: [20, 0, 10], axis: 'y+' }, { at: [20, 40, 10], axis: 'y-' }] },
+  ];
+  const BODY = 'module base() difference() { cube([40, 40, 20]); fab_cuts("base"); }\nmodule lid() difference() { translate([0, 0, 20]) cube([40, 40, 10]); fab_cuts("lid"); }';
+
+  it.skipIf(!hasWasm)('needs that say where get their cuts written into the source, and the source renders with them', async () => {
+    const plain = await fabricateSolidHandler({ host: 'printed', needs: PLACED.map(({ at, parts, part, ...n }) => n), source: BODY.replace(/fab_cuts\("\w+"\); /g, ''), parts: { base: 'base();', lid: 'lid();' }, ref: 'sk_fab_plain_box' });
+    const r = await fabricateSolidHandler({ host: 'printed', needs: PLACED, source: BODY, parts: { base: 'base();', lid: 'lid();' }, ref: 'sk_fab_placed' });
+    expect(r.ok).toBe(true);
+    expect(r.stats.fabrication).toMatchObject({ placementWritten: true, unplaced: [] });
+    expect(r.stats.fabrication.placement.placed.map((p) => `${p.need}:${p.part}`)).toEqual(['lid:base', 'lid:lid', 'axle:base']);
+    const m = SketchRepository.getByRef('sk_fab_placed').manifest;
+    expect(m.source).toMatch(/^\/\/ <fabricate placement>[\s\S]*module fab_cuts\(part\)[\s\S]*\/\/ <\/fabricate placement>\nmodule base\(\)/);
+    expect(r.stats.triangles ?? r.stats.faces, 'the cuts add faces to the solid').toBeGreaterThan(plain.stats.triangles ?? plain.stats.faces);
+  });
+
+  it.skipIf(!hasWasm)('a re-plan by ref alone keeps the needs, and with new needs rewrites the plan, the placement and the bill in place', async () => {
+    const same = await fabricateSolidHandler({ ref: 'sk_fab_placed' });
+    expect(same).toMatchObject({ ok: true, phase: 'replan', minted: false, changes: { needs: [], bom: [] } });
+    const heavier = PLACED.map((n) => (n.id === 'lid' ? { ...n, loadN: 3000, at: n.at.map(([x, y]) => [x + 1, y, 20]) } : n));
+    const r = await fabricateSolidHandler({ ref: 'sk_fab_placed', needs: heavier });
+    expect(r.changes.needs).toEqual([{ need: 'lid', size: { from: 'M3', to: 'M4' } }]);
+    expect(r.changes.bom).toEqual(expect.arrayContaining([{ line: 'M3x16-socket (8.8)', removed: 4 }, { line: expect.stringMatching(/^M4x\d+-socket \(8\.8\)$/), added: 4 }]));
+    expect(r.next).toMatch(/placement block in the source is rewritten/);
+    const m = SketchRepository.getByRef('sk_fab_placed').manifest;
+    expect(m.source.split('// <fabricate placement>')).toHaveLength(2);
+    expect(m.source).toContain('translate([7, 6, 20]) mj_heatset_hole("M4"');
+    expect(m.fabricate.needs).toEqual(heavier);
+    expect((await exportModelHandler({ ref: 'sk_fab_placed', format: 'bom', write: false })).csv).toMatch(/M4x\d+-socket/);
+  });
+
+  it.skipIf(!hasWasm)('a scad row minted without a plan takes one by ref, and a mint onto a taken ref says to re-plan', async () => {
+    SketchRepository.create({ ref: 'sk_fab_adopt', title: 'block', manifest: { kind: 'scad', source: 'difference() { cube([30, 30, 10]); translate([15, 15, 10]) mj_bearing_seat("688"); }', units: 'mm' } });
+    await expect(fabricateSolidHandler({ ref: 'sk_fab_adopt' })).rejects.toThrow(/has no plan yet — pass its `needs`/);
+    const r = await fabricateSolidHandler({ ref: 'sk_fab_adopt', needs: [{ id: 'axle', function: 'spin', shaftD: 8 }] });
+    expect(r.changes).toMatchObject({ version: { from: null }, needs: [{ need: 'axle', added: 'ball-bearing' }] });
+    expect(r.stats.fabrication.unplaced).toEqual([]);
+    expect(SketchRepository.getByRef('sk_fab_adopt').manifest.fabricate.executor).toBe('scad');
+    await expect(fabricateSolidHandler({ ref: 'sk_fab_adopt', needs: NEEDS, source: 'cube(1);' })).rejects.toThrow(/already exists — call fabricate_solid\(\{ ref: 'sk_fab_adopt', needs\? \}\) without a body/);
+  });
+
+  it('a frames row re-plans from its stored frames: the fittings recounted, nothing re-minted', async () => {
+    const r = await fabricateSolidHandler({ ref: 'sk_fab_cabinet', needs: [{ id: 'corners', function: 'fasten', count: 4 }], host: 'wood', tags: ['flat-pack'] });
+    expect(r.phase).toBe('replan');
+    expect(r.changes.needs).toEqual([{ need: 'feet', removed: 'ball-bearing' }]);
+    expect(r.stats.fabrication.bom.find((l) => l.code === 'cam-15').count).toBe(mintedCams);
+    expect(r.stats.fabrication.bom.some((l) => l.code === '688')).toBe(false);
+  });
+
   it('mint_solid no longer carries the fabricate door', async () => {
     await expect(mintSolidHandler({ kind: 'scad', via: 'fabricate', spec: { needs: NEEDS } })).rejects.toThrow(/has no via 'fabricate'/);
   });

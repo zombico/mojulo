@@ -12,13 +12,41 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fabricator placement and re-plan
+
+A plan now follows the object after mint, and writes its own cuts where a need says where. Every existing kind builds
+byte-identically. A scad row that never calls `fab_cuts` is never touched.
+
+- **Placement** (`lib/graph/fabricator/place.js`). A need may name:
+  - `at`: the points it happens at.
+  - `axis`: the way the cut runs.
+  - `parts`: which source part takes each side (`{ into, head, hub }`, or `part`).
+
+  Its scad cuts are then written as an OpenSCAD block of `fab_cuts(part)` and `fab_adds(part)` between marker lines,
+  placed at the top of the source when the source calls them. A two-part joint's pilot sits at the mating plane, and
+  its counterbore enters the head part from its outer face. A pin's slip hole and the second magnet run the other way
+  into the other part. Each point may turn its own way.
+
+  A cut whose geometry needs more than a point (a nut trap's far face, a seal along a rim), and a cut with too few
+  points or an unnamed part, is listed in `placement.manual` with the reason. Nothing is guessed.
+- **Re-plan in place:**
+  - `fabricate_solid({ ref })` plans a stored row again from its stored needs. With `needs` it plans the row with the
+    new ones.
+  - The plan, a scad row's placement block, and a frames row's recounted fittings replace what was stored.
+  - `changes` names each need whose strategy or size moved, and each bill-of-materials line added, removed or recounted.
+  - A scad or frames row minted without a plan takes one the same way, which is what the scad ladder's `add: 'fabricate'`
+    asks for.
+  - A mint onto a taken ref is refused, and the refusal points at the re-plan.
+- **A stale list is said.** A BOM export of a scad row whose source no longer calls a planned cut warns, and says to
+  re-plan, in both the result and `bom.md`.
+
 ### Fabricator sizing
 
 A fabricated part is now the smallest stock size that holds its load, not the size its load class names. The rigidity
 sensor's own checks pick it, and the bill of materials exports for whoever buys and builds. Every existing kind builds
 byte-identically. A stored plan is frozen with its version (`fabricator-v0.3.0`), so a minted row keeps its sizes.
 
-- **Sized by strength** (`lib/graph/fabricator/sizing.js`, plan version `fabricator-v0.4.0`):
+- **Sized by strength** (`lib/graph/fabricator/sizing.js`; plans are now `fabricator-v0.5.0`):
   - Bolts: tension, shear, thread stripping and heat-set pull-out (`strength/checks.js` `bolt`).
   - Bearings: the slimmest whose typical static rating carries its share, and its basic life when `rpm` is said.
   - Steppers: by usable torque.

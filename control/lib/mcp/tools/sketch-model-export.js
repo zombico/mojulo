@@ -264,7 +264,7 @@ async function bomExport(input, context) {
   const result = {
     ok: true, ref, kind, format: 'bom', source: bom.source, lines: bom.lines.length,
     buy: bom.lines.filter((l) => l.kind === 'buy').length, print: bom.lines.filter((l) => l.kind === 'print').length, sheets: bom.lines.filter((l) => l.kind === 'sheet').length,
-    tools: bom.tools, notices: bom.notices,
+    tools: bom.tools, notices: bom.notices, ...(bom.unplaced.length ? { unplaced: bom.unplaced, warning: `the source no longer calls ${bom.unplaced.join(', ')}: re-plan with fabricate_solid({ ref: '${ref}' }) and export again` } : {}),
     note: 'bom.csv (one row per line, RFC 4180) and bom.md (buy, print, cut, tools, notices). Sizes are from typical tables; the supplier\'s datasheet rules.',
   };
   if (write) {

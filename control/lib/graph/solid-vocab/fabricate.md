@@ -40,7 +40,7 @@ fabricate_solid({ host: 'printed', needs: [
    - `suggestions`: jobs the plan implies and your needs leave out. A bearing implies something retains the shaft. A sealed box implies its rim seal, a cable gland and a breather vent. Add them and plan again, or say why not.
    - A fastening need's `assumes.grip`: the mm of material under the head its bolt length was cut to. Pass `grip` when yours differs.
    - `next`: says what to write.
-2. **`needs` plus one body** mints the row.
+2. **`needs` plus one body** mints the row (a stored row is re-planned by `ref` instead: see Re-plan).
    - With `source` (an OpenSCAD program, plus `parts`, `movers`, `mechanism`, `units` or `fn` beside it) it mints a scad row. With `frames` (workbench frame entries) it mints a workbench row.
    - The plan is stored beside the recipe as `fabricate`.
    - `stats.fabrication` gives the bill of materials, `unplaced` (planned cuts or joint types the body never makes) and `elsewhere` (needs planned for the other executor).
@@ -86,6 +86,7 @@ Each sized part is the smallest stock size that passes the rigidity sensor's own
 - `shaftD` (mm), `axes` (`parallel` | `crossed` | `intersecting` | `linear`), `span` (mm between shafts).
 - `to` (`vesa` | `t-slot` | `board` | `wall` | `camera` | `action-cam` | `pegboard` | `brick` | `grid`) and `board` (`rpi3` | `rpi4` | `rpi5` | `rpi-zero` | `arduino-uno` | `arduino-mega`).
 - `sealD` (a round seal's inside ⌀), `rim: [w, d]` (a rectangular rim in mm: O-ring cord in a groove that follows it), `through: 'cable' | 'vent'` (a cable gland or a breather through a sealed wall), `wall` (its thickness in mm).
+- `at`, `axis`, `parts` (or `part`): where the need happens, for Placement below.
 - `inner: [x, y, z]` (a box's inside size in mm), `depth` (a drawer's), `size` (an M-size override) and `grip` (mm of material a bolt passes).
 - **Furniture in wood:** shelves are `store` (shelf pins), carcass corners `fasten` (cam locks with `flat-pack`), a back or bottom in grooves `enclose`, a door `hinge` (with `hidden` for cup hinges), a drawer `slide`, the anti-tip fixing `mount` with `to: 'wall'`.
 - `host`, `loadN`, `cycles`, `access` and `tags` may also sit at the top as defaults for every need.
@@ -98,9 +99,35 @@ Each sized part is the smallest stock size that passes the rigidity sensor's own
 - **Reference only:** another owner's product or system, such as a branded board, an action-camera mount, a toy brick, a branded pegboard or a camera plate. It is bought, or fitted by the interface its owner publishes, and named only to say what fits. It is never printed.
 - **Refusals:** a refused route is listed in `refused`, and the next strategy is taken (a three-prong camera mount resolves to a bought adapter). Carry the `notices` with the object.
 
-## Frozen
+## Placement — say where, and the cuts are written
 
-The plan is stamped with the fabricator version, like the assembler freezes its sources. Editing the recipe keeps it, and it is not re-solved. For new needs, fabricate again.
+Give a need the points it happens at, and its cuts are written into the source for you:
+- `at`: one point per placement, in mm.
+- `axis`: the way the cut runs into the material (default `'z-'`).
+- `parts`: which part takes each side, `{ into, head, hub }`. `part: 'base'` is short for `{ into: 'base' }`.
+
+```
+{ id: 'lid', function: 'fasten', tags: ['serviceable'], count: 4,
+  at: [[6, 6, 20], [34, 6, 20], [6, 34, 20], [34, 34, 20]], parts: { into: 'base', head: 'lid' } }
+{ id: 'axle', function: 'spin', shaftD: 8, part: 'base',
+  at: [{ at: [20, 0, 10], axis: 'y+' }, { at: [20, 40, 10], axis: 'y-' }] }
+```
+
+- **Two-part joints:** the points sit on the mating plane and `axis` is the bolt's way, head toward tip. The pilot goes into the `into` part at the point. The counterbore enters the `head` part from its outer face, its depth back from the mating plane.
+- **Located pairs:** a pin's slip hole, and the second of two magnets, run the other way into the `head` part. Each point may carry its own `axis` (a shaft's two bearings face apart).
+- **Calling the block:** write each part as `difference() { …; fab_cuts("base"); }`, and add `fab_adds("base")` to its union for built geometry (a board's standoffs). At mint, the block defining `fab_cuts` and `fab_adds` is written at the top of the source, between `// <fabricate placement>` marker lines.
+- `fabrication.placement` lists what was `placed`, and what is `manual` with why: a nut trap's far face, a seal following a rim, too few points, a side with no part named. Nothing is guessed.
+
+## Re-plan in place
+
+`fabricate_solid({ ref })` with no body plans the stored row again from its stored needs. `fabricate_solid({ ref, needs })` plans it with new ones.
+- The plan replaces the stored one in place.
+- A scad row's placement block is rewritten.
+- A frames row's fittings are recounted from its stored frames.
+- `changes` lists what moved: each need's strategy or size, and each bill-of-materials line added, removed or recounted.
+- A scad or frames row minted without a plan takes one this way.
+- A mint onto a taken ref is refused, and the refusal points here.
+- Between re-plans the plan is frozen, stamped with the fabricator version. Re-plan after editing the needs or the body.
 
 ## Not this
 

@@ -10,7 +10,7 @@
 // the export, the furniture report and the instruction manual's inventory say the same thing. The notices (an owner's
 // trademark, an open system's licence) travel with the list. Pure: the same row writes the same bytes.
 import { lowerFrame } from '../construction/frame.js';
-import { mintedBom } from './plan.js';
+import { mintedBom, unplacedModules } from './plan.js';
 
 export const BOM_COLUMNS = Object.freeze(['item', 'kind', 'count', 'code', 'label', 'grade', 'standard', 'buy', 'tool', 'provenance', 'for']);
 
@@ -49,6 +49,8 @@ export function bomOf(manifest) {
     lines, cutList, tools,
     notices: fab ? fab.plan.notices || [] : [],
     gaps: fab ? fab.plan.gaps || [] : [],
+    // A source edited since its plan may have lost a cut the plan still buys for: said, so the list is re-planned.
+    unplaced: fab && fab.executor === 'scad' && typeof manifest.source === 'string' ? unplacedModules(fab.plan, manifest.source) : [],
     source: fab ? `fabricate (${fab.executor})` : 'frames',
     version: fab ? fab.plan.version : null,
   };
@@ -73,6 +75,7 @@ export function bomMarkdown(bom, { title, ref } = {}) {
   const sheets = bom.lines.filter((l) => l.kind === 'sheet');
   const out = [`# Bill of materials: ${md(title || ref || 'untitled')}`, ''];
   if (ref) out.push(`From \`${ref}\`, ${bom.source}${bom.version ? `, ${bom.version}` : ''}. Re-export after any edit: the list is read from the recipe.`, '');
+  if (bom.unplaced?.length) out.push(`> The source no longer calls ${bom.unplaced.map((u) => `\`${u}\``).join(', ')}: the parts bought for it may not be needed. Re-plan with \`fabricate_solid({ ref${ref ? `: '${ref}'` : ''} })\` and export again.`, '');
   if (bought.length) out.push('## Buy', '', ...table(bought, [['#', (l) => l.item], ['Count', (l) => l.count ?? 'counted by the frame'], ['Part', (l) => l.label],
     ['Code', (l) => l.code], ['Grade', (l) => l.grade], ['Standard', (l) => l.standard], ['Ask for', (l) => l.buy], ['For', (l) => (l.for || []).join(', ')]]), '');
   if (printed.length) out.push('## Print', '', ...table(printed, [['#', (l) => l.item], ['Count', (l) => l.count], ['Part', (l) => `\`${l.label}\``], ['For', (l) => l.for.join(', ')]]), '');

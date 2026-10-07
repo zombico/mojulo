@@ -38,3 +38,14 @@ describe('fabricator bill of materials', () => {
     expect(bomOf(null)).toBeNull();
   });
 });
+
+describe('fabricator bill of materials after an edit', () => {
+  it('a source that lost a planned cut says so, and says to re-plan', () => {
+    const spec = { needs: [{ id: 'axle', function: 'spin', shaftD: 8 }] };
+    const row = { kind: 'scad', source: 'cube(1);', fabricate: { ...spec, executor: 'scad', plan: fabricationPlan(spec) } };
+    const bom = bomOf(row);
+    expect(bom.unplaced).toEqual(['mj_bearing_seat']);
+    expect(bomMarkdown(bom, { ref: 'sk_x' })).toMatch(/no longer calls `mj_bearing_seat`[\s\S]*fabricate_solid\(\{ ref: 'sk_x' \}\)/);
+    expect(bomOf({ ...row, source: 'mj_bearing_seat("688");' }).unplaced).toEqual([]);
+  });
+});
