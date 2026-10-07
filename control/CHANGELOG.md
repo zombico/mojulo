@@ -12,6 +12,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Furniture grammar
+
+- **A piece is a kind, a form in each slot, a finish and a size**
+  ([lib/graph/furnishings/forms.js](lib/graph/furnishings/forms.js)), the way a bug is a bauplan.
+  - Kinds are `sofa`, `chair`, `table` and `casework`, over the workbench builds.
+  - Slots are arms (`track`, `rolled`, `tuxedo`, `rolled-high`, `none`), back (`loose`, `tight`, `tufted`),
+    seat (`loose`, `bench`), legs (`block`, `tapered`, `turned`, `bun`, `hairpin`) and the casework front
+    (`open`, `doors`, `doors-over-drawer`, `drawers`, `two-drawers`).
+  - A finish is fabric, timber, wood finish, tint, board, paint and piping, checked against what each kind wears.
+- **Styles are worked pieces over the same grammar.** The eleven room facades are the first; the chesterfield is a sofa
+  with high rolled arms, a tufted back and one bench seat, in velvet. Composed ones join them: tuxedo, English
+  roll-arm, mid-century sofa, armless settee, club chair, farmhouse table, mid-century table, turned side chair,
+  painted dresser.
+- **`resolveFurniture({ like, kind, forms, finish, size, palette })` locks a piece.** It starts from a style, swaps in
+  the forms and finish asked for, reports them (`worn`), and refuses an unknown style, slot, form or finish by naming
+  the valid ones. The lock is the build's resolved dials, cloth, tint, legs and size, so a locked piece re-renders
+  identically however the forms and styles are retuned. `lockedFurnitureFaces` draws it at its own size, never
+  stretched.
+- **Leg forms are drawn over the square blank the build cuts**, so the members, joints and cut list stay the blank's.
+  A turned leg keeps a square pommel, and a chair's back leg is turned only to its rails. A hairpin leg stands on a
+  mounting plate and a glide.
+- **The room facades are now derived from the styles.** A characterization pin covers every facade recipe at three
+  footprints, plain and in a house palette, and the room and condo hashes hold: no house changes.
+
 ### Furnishings roster
 
 - **One row per piece of room furniture** ([lib/graph/furnishings/roster.js](lib/graph/furnishings/roster.js)).
