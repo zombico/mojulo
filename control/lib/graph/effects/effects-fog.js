@@ -28,10 +28,13 @@ import { buildVolumeFrag } from './volume-raymarch.js';
  * @param {number} [opts.steps=160] march steps · [opts.traceSteps=130] SDF sphere-trace steps.
  * @returns {{ frag, customUniforms, dataTextures, meta }}  ready to pass as emitThreeWorld's `fog`.
  */
+// The look knobs' defaults, shared with the Blender film's fog volume (lib/motion/blender-film.js).
+export const FOG_DEFAULTS = Object.freeze({ height: 9, density: 0.4, color: Object.freeze([0.88, 0.90, 0.95]), maxDist: 150 });
+
 export function composeVolumeFog(boxes, {
   up = 'z', cell = 5, margin = 3, K = 12,
-  height = 9, density = 0.4, color = [0.88, 0.90, 0.95],
-  maxDist = 150, steps = 160, traceSteps = 130,
+  height = FOG_DEFAULTS.height, density = FOG_DEFAULTS.density, color = FOG_DEFAULTS.color,
+  maxDist = FOG_DEFAULTS.maxDist, steps = 160, traceSteps = 130,
   // depthClip: clamp the march at the rasterized scene's depth (host renders a depth prepass),
   // so fog never paints over foreground meshes the box-field SDF doesn't carry — rigged suits,
   // walkers, cars. Opt-in: absent → the composed frag and the emitted page are byte-identical.
