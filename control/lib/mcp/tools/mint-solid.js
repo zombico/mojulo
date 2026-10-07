@@ -237,7 +237,8 @@ export async function getSolidVocabHandler(input) {
     return { ok: true, card: profiledCard('solid_vocab', card), _telemetrySignal: { id_requested: true, found: true } };
   }
   let cards = [...catalog.values()].filter((c) => served(c.id)).map((c) => profiledCard('solid_vocab', c));
-  if (family) cards = cards.filter((c) => c.family === family);
+  // the generated encyclopedia entries (family `species`) list only when asked for by family; search finds them
+  cards = family ? cards.filter((c) => c.family === family) : cards.filter((c) => !c.generated);
   return {
     ok: true,
     cards: cards.map(({ id: cid, name, family: fam, entry, summary, when }) => ({
@@ -322,13 +323,13 @@ export function registerMintSolidTools() {
       'Read a solid-vocab card in full — the depiction prose + routing phrases + parameter manual '
       + 'for one `mint_solid` kind or `edit_solid` op. Pass `id` for one card; omit for the index '
       + 'rows { id, name, family, entry, summary, when } (optional `family` filter: figure / '
-      + "creature / object / structure / vehicle / edit). Discover cards by intent via "
+      + "creature / object / structure / vehicle / edit / species). Discover cards by intent via "
       + "semantic_search({ kinds: ['solid_vocab'] }); this reader returns the full body. Read-only.",
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string', description: 'Card id (= the mint_solid kind or edit_solid op).' },
-        family: { type: 'string', enum: ['figure', 'creature', 'object', 'structure', 'vehicle', 'edit'], description: 'Optional list filter.' },
+        family: { type: 'string', enum: ['figure', 'creature', 'object', 'structure', 'vehicle', 'edit', 'species'], description: 'Optional list filter.' },
       },
       required: [],
     },

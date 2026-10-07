@@ -32,10 +32,15 @@ import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan } from '@/lib/graph/fauna/species';
+import { BUG_SPECIES, bugParams, resolveBug, assembleBug } from '@/lib/graph/bugs/species';
+import { bugByName } from '@/lib/graph/bugs/entries';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 
 const ARCHETYPES = Object.keys(QUADRUPED_ARCHETYPES);
-const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(ZOO_BUILDS)])];
+const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(BUG_SPECIES), ...Object.keys(ZOO_BUILDS)])];
+
+// an arthropod's stance word from its leg count (all legs, grounded or not)
+const legStance = (n) => ({ 6: 'hexapod', 8: 'octopod', 10: 'decapod', 14: 'isopod' }[n] || (n > 14 ? 'myriapod' : `${n}-legged`));
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
 // cfg block — so `{ skullCfg: { length: 0.3 } }` retunes ONE knob instead of
@@ -53,7 +58,10 @@ function mergeOpts(base, over) {
 
 export async function createAnimalHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('the animal kind requires { title }');
-  const { title, species, archetype, view, elev, crop, background, ref, folder_ref: folderRef } = input;
+  const { title, archetype, view, elev, crop, background, ref, folder_ref: folderRef } = input;
+  let { species } = input;
+  let { bug } = input;
+  if (typeof bug === 'string' && /^\s*\{/.test(bug)) { try { bug = JSON.parse(bug); } catch { /* rejected below */ } }
   // Defensive transport parse: some MCP clients deliver object-valued params as
   // JSON strings (same guard as createFigureHandler).
   let { opts } = input;
@@ -64,14 +72,24 @@ export async function createAnimalHandler(input) {
   if (ref !== undefined && (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref))) {
     throw new Error('`ref` must be 1-64 chars of [A-Za-z0-9_-] if provided');
   }
+  // an arthropod by the name people say ('a ladybug', 'crawdad'), or one not built yet by its stand-in ('wasp' → the
+  // honey bee): resolved here and echoed back, so a direct mint needs no search round trip
+  let named = null;
+  if (typeof species === 'string' && !SPECIES.includes(species)) {
+    named = bugByName(species);
+    if (named) { named = { asked: species, ...named }; species = named.id; }
+  }
   if (species !== undefined && species !== null && !SPECIES.includes(species)) {
     throw new Error(`\`species\` must be one of ${SPECIES.join(', ')} — or omit it and pass \`archetype\` for the bare body`);
   }
   if (archetype !== undefined && archetype !== null && !ARCHETYPES.includes(archetype)) {
     throw new Error(`\`archetype\` must be one of ${ARCHETYPES.join(', ')}`);
   }
-  if (species === undefined && archetype === undefined) {
-    throw new Error(`pass \`species\` (a dressed recipe: ${SPECIES.join(', ')}) or \`archetype\` (a bare body: ${ARCHETYPES.join(', ')})`);
+  if (bug !== undefined && bug !== null && (typeof bug !== 'object' || Array.isArray(bug))) {
+    throw new Error('`bug` describes an arthropod nobody has built: { like?, order?, traits?: { head, trunk, tail, legs, foreLegs, hindLegs, antennae, mouth, eyes, palps, wings, wingPose, extras }, length?, name?, colors?, over? }');
+  }
+  if (species === undefined && archetype === undefined && (bug === undefined || bug === null)) {
+    throw new Error(`pass \`species\` (a dressed recipe: ${SPECIES.join(', ')}) or \`archetype\` (a bare body: ${ARCHETYPES.join(', ')}) — or \`bug\` (an arthropod nobody has built, by its order and part forms)`);
   }
   if (opts !== undefined && opts !== null && (typeof opts !== 'object' || Array.isArray(opts))) {
     throw new Error('`opts` must be an object of buildAnimal knobs (skin, armatureCfg, skullCfg, footCfg, coat, face, tailCfg, …)');
@@ -87,6 +105,27 @@ export async function createAnimalHandler(input) {
   }
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);
+  }
+
+  // An ARTHROPOD (lib/graph/bugs): a worked bug by `species`, or one nobody has built by `bug` (the closest worked bug
+  // with the asked part forms worn over it). Both are ring plans through the layered plan door.
+  if ((species && BUG_SPECIES[species]) || (bug && !species)) {
+    if (opts !== undefined && opts !== null) throw new Error('`opts` are figure-body knobs; a bug is a ring plan — mint it, then tune with update_sketch on \'/plan/...\'');
+    let resolved = null, B;
+    // `like` by any name too ('ladybug', 'wasp' → its stand-in)
+    if (bug && typeof bug.like === 'string' && !BUG_SPECIES[bug.like]) { const n = bugByName(bug.like); if (n) { named = { asked: bug.like, ...n }; bug = { ...bug, like: n.id }; } }
+    try { if (bug) { resolved = resolveBug(bug); B = resolved.bauplan; } else B = bugParams(species); }
+    catch (err) { throw new Error(`${err.message}`); }
+    const { plan, readout } = assembleBug(B);
+    const res = await createLayeredPlanHandler({
+      title, plan, plan_audit: { source: 'agent' },
+      ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
+    });
+    return { ...res, species: species || null, stance: legStance(readout.legPairs * 2), legs: readout.legPairs * 2, length_m: readout.length,
+      ...(resolved ? { basis: resolved.basis, worn: resolved.worn, ranked: resolved.ranked } : {}),
+      ...(named && named.via !== 'id' ? { resolved_from: named.via === 'stand-in'
+        ? { name: named.asked, stand_in: true, note: `no ${named.wanted} is built yet: the ${named.id} stands in (it misses: ${named.misses})` }
+        : { name: named.asked } } : {}) };
   }
 
   // A species rebuilt as a ring plan mints through the layered plan door: watertight, dialled, and

@@ -292,12 +292,15 @@ function ensureShippedCards() {
   if (!shelfFresh) {
     shelfFresh = (async () => {
       const db = getDb();
-      const rows = db.prepare("SELECT source_kind, source_ref FROM meta_embeddings WHERE source_kind IN ('view_vocab', 'routing')").all();
+      const rows = db.prepare("SELECT source_kind, source_ref FROM meta_embeddings WHERE source_kind IN ('view_vocab', 'routing', 'solid_vocab')").all();
       if (!rows.some((r) => r.source_kind === 'view_vocab') || !rows.some((r) => r.source_kind === 'routing')) return;
       const have = new Set(rows.map((r) => `${r.source_kind}:${r.source_ref}`));
       const { getViewVocabCatalog } = await import('../../graph/views/view-vocab/loader.js');
       const { getRoutingCardCatalog } = await import('../../mcp/routing-cards/loader.js');
-      const shipped = [...[...getViewVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `view_vocab:${c.id}`), ...[...getRoutingCardCatalog().keys()].map((id) => `routing:${id}`)];
+      const { getSolidVocabCatalog } = await import('../../graph/solid-vocab/loader.js');
+      // solid_vocab too: generated species entries land with a roster change, not a card file
+      const shipped = [...[...getViewVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `view_vocab:${c.id}`), ...[...getRoutingCardCatalog().keys()].map((id) => `routing:${id}`),
+        ...[...getSolidVocabCatalog().values()].filter((c) => c.index !== false).map((c) => `solid_vocab:${c.id}`)];
       if (shipped.some((k) => !have.has(k))) await reindexAll();
     })().catch((err) => console.warn(`[meta_embeddings] shipped-card refresh failed: ${err.message}`));
   }

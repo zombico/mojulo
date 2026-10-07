@@ -36,6 +36,29 @@ describe("mint_solid kind 'animal'", () => {
     }
   });
 
+  it('mints a worked arthropod and a resolved one through the layered plan door', async () => {
+    const bee = await mintSolidHandler({ kind: 'animal', title: 'Honey bee', ref: 'an_bee', spec: { species: 'honeyBee' } });
+    expect(bee.ok).toBe(true); expect(bee.stance).toBe('hexapod'); expect(bee.legs).toBe(6);
+    expect(SketchRepository.getByRef('an_bee').manifest.kind).toBe('layered');
+    expect((await mintSolidHandler({ kind: 'animal', title: 'Crab', spec: { species: 'greenCrab' } })).stance).toBe('decapod');
+    const wasp = await mintSolidHandler({ kind: 'animal', title: 'Wasp', ref: 'an_wasp', spec: { bug: { order: 'Hymenoptera', traits: { tail: 'gaster' }, length: 0.018 } } });
+    expect(wasp.basis).toBe('honeyBee'); expect(wasp.worn.join(' ')).toMatch(/gaster/);
+    expect(SketchRepository.getByRef('an_wasp').manifest.plan.schema).toBe('layered-plan-v1');
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { bug: { order: 'Dragons' } } })).rejects.toThrow(/order 'Dragons'/);
+  });
+
+  it('takes an arthropod by the name people say, and a name not built by its stand-in', async () => {
+    const lady = await mintSolidHandler({ kind: 'animal', title: 'Ladybug', ref: 'an_ladybug', spec: { species: 'a ladybug' } });
+    expect(lady.species).toBe('ladybird'); expect(lady.resolved_from).toEqual({ name: 'a ladybug' });
+    const wasp = await mintSolidHandler({ kind: 'animal', title: 'Wasp', spec: { species: 'wasp' } });
+    expect(wasp.species).toBe('honeyBee'); expect(wasp.resolved_from.stand_in).toBe(true); expect(wasp.resolved_from.note).toMatch(/no wasp is built yet/);
+    const print = await mintSolidHandler({ kind: 'animal', title: 'Crawdad', spec: { bug: { like: 'crawdad', length: 0.2 } } });
+    expect(print.basis).toBe('crayfish'); expect(print.length_m).toBeCloseTo(0.2, 3);
+    const bee = await mintSolidHandler({ kind: 'animal', title: 'Bee', spec: { species: 'honeyBee' } });
+    expect(bee.resolved_from).toBeUndefined();
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'unicorn' } })).rejects.toThrow(/`species` must be one of/);
+  });
+
   it('mints a bare archetype as a recipe and renders it through the stored-sketch dispatch', async () => {
     const res = await mintSolidHandler({ kind: 'animal', title: 'Canine', ref: 'an_wolf1', spec: { archetype: 'canine', view: 'lateral' } });
     expect(res.ok).toBe(true);

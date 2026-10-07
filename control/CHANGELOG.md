@@ -12,6 +12,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Bug builder
+
+- Arthropods join the animal kind, built from parts instead of a species list. Insects, spiders, scorpions,
+  crabs, woodlice, centipedes and millipedes share one assembler: a head (or none, fused into the trunk), a
+  trunk of repeated segments each carrying leg pairs, and a tail. Each part is chosen by form: a walking,
+  running, jumping, grasping, digging, swimming or stilt leg; a chela; filiform, elbowed, clubbed, comb or
+  feathered antennae; mandibles, a coiled proboscis, a beak or fangs; clear, scaled or narrow wings, tegmina,
+  halteres or elytra; cerci, a sting or a scorpion's tail. Two bugs share a part by naming the same form, so a
+  bee and a fly stand on the same leg and a grasshopper's jumping leg serves any jumper.
+- Legs are bent chains whose feet are solved onto the ground, and segments are the shapes the anime hair uses:
+  tapering cones for leg and antenna segments, flat crescents for mandibles and claw fingers, curved spikes for
+  claws, fangs and stings. A bug is built at its published length exactly: the body is measured and rebuilt at
+  the scale that matches.
+- `mint_solid { kind: 'animal' }` mints a worked bug by `species`, or one nobody has built by `bug`: an order
+  and a few part forms find the closest worked bug, and the asked forms are worn over it (a wasp from the bee
+  with a waisted abdomen, a crayfish from the crab with a long carapace and a tail fan). The mint returns the
+  stance, the leg count, the basis it started from and each part it swapped.
+- `scripts/fauna-fit.mjs --bug <id>` gates an arthropod at true scale: closed, grounded, every foot planted
+  and body length, each tolerance a share of the body. Animal species are measured exactly as before.
+- Every worked bug went through the same design loop as the animals: a critic, one fix pass and two blind
+  judges. Optional settings cover what the loop asked for: a leg joint turning out of its plane (a crab's claw
+  across its face), where each leg pair attaches, jaws tipped up or down with several teeth, a flat underside,
+  finer stripes and spots, markings on legs, and a scorpion's sting bulb and hook.
+- Every worked bug has an encyclopedia entry, generated from the roster and never written by hand: a card per
+  species (its common name, other names, scientific name, published size and source, and starter manifests to
+  copy) and a hub per class (insects, arachnids, crustaceans, myriapods) that also names the arthropods not
+  built yet with their nearest stand-in. Search finds "a ladybug", "a crawdad" or "a wasp", and `species`
+  takes any of those names: a name not built resolves to its stand-in and says so.
+
 ### Historic city
 
 - **In progress.** A historic city becomes its own generator rather than a setting of the metro city,
