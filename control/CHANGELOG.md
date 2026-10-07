@@ -109,6 +109,18 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
   turns them into thuds, clacks and a whoosh. `DESTRUCT_SFX` is a valid beats-sfx manifest defining every default
   cue; a call renames, re-gains or silences any mark (`sounds: { beam: 'my-laser', spark: false }`), and a world
   re-voices a cue by defining the same name in its `audio.cues`.
+- **The bridge entry: a static platform from bank to bank.** `objects/bridge.js`, called by its ends (`from`, `to`,
+  `width`) or `over` a trail's pit hazard anchor. Variants `plank`, `deck`, `rope` (it sags; a long one reads as a
+  scramble) and `arch` (a humpback with end piers, its motif along the parapets). Each is built of the ELEMENTS a
+  style guide names (planks, stringers, posts, rails, braces, footropes, handropes, lashings, ring, crown, keystone,
+  spandrels, parapets, coping, abutments, piers), each turned off or tuned by name. It answers as a platform: its deck
+  line, its crossing read (road, path, plank, beam; walk or scramble), bearings, clearance under, and the deck as floor
+  faces and colliders with the rails as lines. The runs (rails, ropes, posts, dentils) shade the 66 and one middle-third
+  part is the 33, so every variant holds the object laws from 3 to 10 m (a 2 m rope bridge and a 14 m arch still draw
+  advice). Built of blocks: sever a rope bridge's footropes and its planks fall.
+- **Object measures read roles.** A face's role is its part when the part names one, else its `obj:*` group, so an
+  entry that names parts by element is judged; a silhouette notch must be 3 px each way (a rasterised sliver along the
+  hull no longer counts). Existing entries measure as before.
 
 ### Scapeshift
 

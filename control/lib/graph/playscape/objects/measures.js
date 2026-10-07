@@ -74,15 +74,17 @@ function notches({ mask, hmask, W, H }, label = null) {
   for (let i = 0; i < W * H; i++) {
     if (!hmask[i] || mask[i] || seen[i]) continue;
     const region = [i]; seen[i] = 1;
-    let opens = false;
+    let opens = false, x0 = W, x1 = -1, y0 = H, y1 = -1;
     for (let r = 0; r < region.length; r++) {
       const j = region[r], x = j % W, y = (j - x) / W;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
       for (const k of [x > 0 ? j - 1 : -1, x < W - 1 ? j + 1 : -1, y > 0 ? j - W : -1, y < H - 1 ? j + W : -1]) {
         if (k < 0 || !hmask[k]) { opens = true; continue; }
         if (!mask[k] && !seen[k]) { seen[k] = 1; region.push(k); }
       }
     }
-    if (opens && region.length >= NOTCH_PX) { n++; if (label) for (const j of region) label[j] = n; }
+    // a sliver a pixel or two across along the hull is rasterising, not a break: a notch is at least 3 px each way
+    if (opens && region.length >= NOTCH_PX && x1 - x0 >= 2 && y1 - y0 >= 2) { n++; if (label) for (const j of region) label[j] = n; }
   }
   return n;
 }
@@ -107,8 +109,12 @@ export function objectMeasures(faces, frame, interest) {
   const I = INTEREST[interest], mpp = metresPerPixel(I.distance);
   const at = frame.at || [0, 0, 0], U = frame.U || [1, 0, 0];
   const front = (f) => f.corners.map((p) => [dot(sub(p, at), U), p[2]]);
-  const polys = faces.map(front), detail = faces.filter((f) => f.part === 'detail');
-  const of = (name) => faces.filter((f) => f.part === name);
+  // a face's role is its part when the part names one (body, fill, detail, handle), else its group's (obj:detail):
+  // an entry that names its parts by element (a bridge's posts, planks, ropes) is judged by the role each plays
+  const ROLES = { body: 'body', fill: 'fill', detail: 'detail', handle: 'handle', 'obj:body': 'body', 'obj:fill': 'fill', 'obj:detail': 'detail', 'obj:status': 'handle' };
+  const role = (f) => ROLES[f.part] ?? ROLES[f.group] ?? f.part;
+  const polys = faces.map(front), detail = faces.filter((f) => role(f) === 'detail');
+  const of = (name) => faces.filter((f) => role(f) === name);
   const fill = [...of('body'), ...of('fill')].map((f) => f.value);
   const body = mean(of('body')), det = mean(detail);
   return {

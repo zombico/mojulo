@@ -8,6 +8,7 @@
  */
 import { ENTRIES, resolveObject } from './objects/index.js';
 import { landingRead } from './objects/platform.js';
+import { BRIDGE_MOTIFS, CROSSING, WALK_GRADE } from './objects/bridge.js';
 
 /** The bytes an entry card's body may take. */
 export const ENTRY_CARD_BODY_CEILING = 3200;
@@ -113,4 +114,26 @@ export function catapultCard() {
   return { id: 'entry/catapult', name: `${E.name} (playscape entry)`, summary: 'A launcher that stays put and throws the player: fixed, redirect or bounce.', when: E.when, body: lines.join('\n') };
 }
 
-export const playscapeEntryCards = () => [entryCard('door'), platformCard(), liftCard(), catapultCard()];
+/** The bridge's card: called by its ends, built of the elements a style guide names, answering as a platform. */
+export function bridgeCard() {
+  const E = ENTRIES.bridge, o = resolveObject({ entry: 'bridge', variant: 'rope', from: [0, 0, 0], to: [8, 0, 0] });
+  const lines = [
+    `# ${E.name} (playscape entry)`, '',
+    'A walkable way over a gap: a static platform stretched from bank to bank. Call it by its ENDS (`from`, `to`: where the walk meets the gap, the deck top there) and its walkable `width`, or `over` a trail\'s pit hazard anchor, which gives both.', '',
+    'VARIANTS AND THEIR ELEMENTS (the words a style guide uses; turn any off or tune it: `elements: { rails: false, posts: { every: 2 } }`)',
+    ...Object.entries(E.variants).map(([v, V]) => `  - ${v}: ${V.about}. Elements: ${V.elements.join(', ')}.`),
+    `MOTIFS     on an arch's parapets: ${BRIDGE_MOTIFS.join(', ')}`,
+    '', `CROSSING   ${CROSSING.map((c) => `${c.read} from ${c.from} m`).join(' · ')}; steeper than ${WALK_GRADE} is a scramble (an 8 m rope bridge: ${o.crossing.read}, grade ${o.crossing.grade}, ${o.crossing.walk})`,
+    'IT ANSWERS FOR ITSELF',
+    '  its deck line (the top at every half metre), how it reads to cross, its bearings (keep each bank solid there), the clearance under it;',
+    '  the pieces the world runs: floor faces and colliders end to end, the rails as lines a walker is kept inside. Built of blocks: it dices and dismantles.',
+    '', 'STARTERS',
+    `  ${JSON.stringify({ entry: 'bridge', variant: 'plank', from: [0, 0, 0], to: [3, 0, 0] })}`,
+    `  ${JSON.stringify({ entry: 'bridge', variant: 'rope', from: [0, 0, 4], to: [9, 0, 4], width: 1 })}`,
+    `  ${JSON.stringify({ entry: 'bridge', variant: 'arch', from: [0, 0, 2], to: [8, 0, 2], motif: 'dentil' })}`,
+    `  ${JSON.stringify({ entry: 'bridge', variant: 'deck', over: '<a trail pit hazard anchor>' })}`,
+  ];
+  return { id: 'entry/bridge', name: `${E.name} (playscape entry)`, summary: 'A walkable way over a gap, called by its ends: plank, deck, rope or arch.', when: E.when, body: lines.join('\n') };
+}
+
+export const playscapeEntryCards = () => [entryCard('door'), platformCard(), liftCard(), catapultCard(), bridgeCard()];
