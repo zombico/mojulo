@@ -410,7 +410,9 @@ function annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge })
         depth: C.stream.water, respawn: before(s.y) };
     }),
   ];
-  const sites = plan.stairs.map((r) => ({ id: r.id, kind: 'site', site: 'stairs', at: P3(trailX((r.y0 + r.y1) / 2), (r.y0 + r.y1) / 2), s0: r.s0, s1: r.s1, rise: r.rise }));
+  // a stairs site says its way on (`N`, as a beat does) and its two ends on the walk, so what answers it need not guess
+  const sites = plan.stairs.map((r) => ({ id: r.id, kind: 'site', site: 'stairs', at: P3(trailX((r.y0 + r.y1) / 2), (r.y0 + r.y1) / 2), N: N((r.y0 + r.y1) / 2),
+    from: P3(trailX(r.y0), r.y0), to: P3(trailX(r.y1), r.y1), s0: r.s0, s1: r.s1, rise: r.rise }));
   // the JUNCTION where a followed trail hands over to this one (as a doorway between rooms): on the seam, the walk's width
   const J = plan.join, tid = `out-trail:${plan.id}`;
   const junction = J ? [{ id: `junction-${J.from}-${plan.id}`, kind: 'junction', between: [`out-trail:${J.from}`, tid], at: P3(trailX(0), 0), N: N(0), width: r5(2 * edge(0)) }] : [];

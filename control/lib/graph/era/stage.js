@@ -46,6 +46,7 @@ import { makeSunShadow, sunDir } from './sun.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
+import { assembleLocalMeruScene } from '../local-meru/scene.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
@@ -747,6 +748,11 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder
   if (manifest.trail !== undefined && !(kit && ['nature', 'isekai'].includes(kit.shell))) throw new Error(`stage: trail: kit '${manifest.kit}' ${kit && kit.shell === 'jungle' ? 'lays its own trail (the grammar is not on the jungle yet)' : 'is not open ground'}; a trail is for ${Object.keys(STAGE_KITS).filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')}`);
+  // a recipe's `meru` (local-meru/scene.js) builds a level that goes up, laid on from the trail it follows, on an isekai kit
+  if (manifest.meru !== undefined) {
+    if (!(kit && kit.shell === 'isekai')) throw new Error(`stage: meru: kit '${manifest.kit}' is not an isekai kit; a local meru is drawn in the isekai look (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell === 'isekai').join(', ')})`);
+    return assembleLocalMeruScene({ style: kit.style, ...manifest }, ctx);
+  }
   if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'isekai') return assembleIsekaiScene({ style: kit.style, ...manifest }, ctx);

@@ -571,6 +571,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     // opt-in FPV head-bob: a baked gait-camera curve (gait-camera.js `gaitCameraCurve`)
     // riding the WALK eye. null → the rigid-eye walk, byte-for-byte unchanged.
     bob: wk.bob && Array.isArray(wk.bob.curve) ? wk.bob : null,
+    // opt-in climbable faces (channels/walk.js CLIMB): none → no key, not one byte
+    ...(Array.isArray(wk.climbs) && wk.climbs.length ? { climbs: wk.climbs } : {}),
   } : null;
   const walkBlock = walkCfg ? walkModeScript(walkCfg, mesh.center) : '';
   // a stage's door ends and items ride the walk (channels/doors.js); none, or no walk → no block, not one byte

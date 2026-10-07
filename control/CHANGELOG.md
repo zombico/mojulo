@@ -12,6 +12,56 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Mountain levelling
+
+A level where the walk goes up: a stack of tiers joined by connectors, apart from buildings and from indoors or
+outdoors. It is built on the meru, the vertical ruler every two-point picture already stands on. This step makes the
+place and its guide; what joins the tiers is playscape's to answer.
+
+- **The meru is its own primitive** (`lib/graph/polygonizer/meru.js`). `meruStack` is the storey stack that was
+  inside the house builder: levels of their own heights, a slab between, below and above the ground. `houseMeru` is
+  now that ruler over the floorplan defaults, and builds byte-identically. `meruMarks` carries named heights up one
+  axis, as the landmark towers are drawn: a base, a deck, an apex.
+- **A stairs site says its way on.** A trail's stairs site anchor now carries `N` (the way on, as a beat's does) and
+  its two ends on the walk (`from`, `to`), so what answers it does not assume the trail runs along +y.
+- **A local meru from a recipe** (`lib/graph/local-meru/plan.js`). The base unit is a mound, a stairway spiralling
+  round it, and a watchtower on the summit. A recipe sets the mound (height, foot, summit, profile), the path (width,
+  turns, hand, approach, edge), the going and the tower; an unknown word is refused with the ones it knows. With
+  `after: { kit, seed, trail }` it is laid on from the end of an isekai trail: from the seam, on the trail's line,
+  heading and height. The risers share the whole rise evenly, at most ten to a flight, and the landings between
+  flights are as long as the turns ask. The level's meru names every tier (seam, landings, summit, deck, rail, eave,
+  apex), and its mandala gives the radius at every height. It builds no faces and no connectors. It asks for them as
+  anchors: a stairs site for every flight (its way on, its ends, its going and the curve it lies on), a climb site up
+  the tower with the link it prefers, and the landings, the summit and the deck as tiers. Playscape answers them.
+- **The level's laws.** The steps' laws are the man-made index's own. The level adds its own: every riser within the
+  walker's step, landings long enough to stand on, the turns asked for, shelves that never stack, a railed edge where
+  a fall would hurt, the tower and a walk round it inside the summit, a climb of one pull, the tower seen from the
+  seam, the mound past the seam, and the seam met. They advise; none refuses.
+- **The premap** (`lib/graph/local-meru/premap.js`): the level as a guide before it is built, in black and white, the
+  landform board's sibling. It has four panels and two tables: the plan (the trail it follows, the seam, the mound's
+  rings, the spiral with a tick at every riser, the tower and its climb), a half-section through the meru (named
+  heights and the radius at each), the heartbeat (from the followed trail's start, over the seam, round the spiral
+  and up the climb), a two-point massing drawn through `projectTwoPoint` with a level camera, the laws, and the
+  anchors playscape answers.
+- **A local meru, built: `meru` on an isekai stage** (`lib/graph/local-meru/scene.js`). A stage recipe with a `meru`
+  builds the level in the isekai look, on the page after the trail it follows (`after` reads the stage's kit and seed
+  unless it names others). The ground is laid on that trail's own grid, so its last row is the trail's last row at
+  the seam, and it eases to level. The mound rises from it, cliff where steep and grass where not, drawn by the isekai
+  builder's rules. The walk runs on a shelf round the flank, held up by a rock wall. The watchtower is timber: posts,
+  bracing, a deck, a rail open where the climb arrives, and a roof. A stand-in ladder stands on the climb until
+  playscape's ladder is placed there. A flight is walked as the slope its shelf lays, as a trail's stairs site is.
+  The payload carries the anchors, the level's laws and cameras from the seam, from wide, at the climb and from the
+  deck. On a kit that is not isekai it is refused; a stage without `meru` builds as before.
+- **A World's walk can climb** (`scene/channels/walk.js`, opt-in `walk.climbs`). A climb is a foot, a lip, the way
+  in and a width. Facing it at its foot, W climbs and S comes down. At the lip the walker steps onto what is behind
+  it, and walking out over the lip from up there takes the climb down. A local meru's climb anchors become its
+  climbs. A walk without climbs emits the same script as before.
+- **The level is walked in a test** (`local-meru.walk.test.js`). A headless walker follows the World's own rules
+  (gravity, the floor ray, the eye and shin rays, the climb). Steered along the spiral from the seam, it reaches the
+  summit at walking pace; it climbs the tower to the deck and back down; without the climb the deck is out of reach;
+  and walked straight at the flank from all round, it never reaches the summit, because a shelf's wall stops a
+  scramble from below. The World's walk has no slope limit of its own, so steep rock can be scrambled up to that wall.
+
 ### Playscape
 
 The first step toward Playscape, which makes a scapeshifted world playable on a ladder of four rungs: click demos,
