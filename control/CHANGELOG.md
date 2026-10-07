@@ -43,6 +43,11 @@ name or field; no kernel bytes. Ears gate not run.
   breathes; on a part, track or channel it overrides the recipe and, above 0, wakes any instrument. 0 is mechanical
   (byte-identical to `life: false`), 1 the natural default, 2 more. Lowered at render to `patchParams.life`; an explicit
   `patchParams.life` wins.
+- **Piano v3.** `grand-piano-3`: each key's unison strings detuned their own way (`unisonSpread`, seeded by pitch, so a
+  key is the same key every strike) with the second string ringing a little shorter, so keys beat and decay at their
+  own rates; and the pedal-down halo, a `sympathetic` chain effect convolving the part with every undamped string.
+  Measured on a released chord: the halo rings ~21 dB over `grand-piano-2`, ~20 dB under the chord. The `life` dial
+  scales both; `life: 0` renders byte-identical to `grand-piano-2`. The halo's impulse costs ~0.3 s once per page.
 - **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
 - **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
   use it carry the previous kernel byte for byte.

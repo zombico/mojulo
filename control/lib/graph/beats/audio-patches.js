@@ -475,3 +475,9 @@ for (const [name, base, soft, loud, extra] of [
 // string (in tune at every register), for the `-2` instruments whose bodies
 // are modal (instruments.js). New names; the originals are unchanged.
 for (const g of ['guitarClean', 'guitarNylon', 'guitarClassical', 'guitarFlamenco', 'guitarGypsy']) PATCHES[g + '2'] = { ...PATCHES[g], tune: 'exact' };
+
+// Piano v3 (audio improvements): the tuned grand whose keys are each out of
+// tune their own way — unisonSpread varies each key's string detune (±60%
+// around pluckDetune) and its second string's ring, seeded by pitch; `life`
+// scales it (life: false is a uniform, mechanical piano). New name.
+PATCHES.pianoGrand3 = { ...PATCHES.pianoGrand, unisonSpread: 0.6, life: true };

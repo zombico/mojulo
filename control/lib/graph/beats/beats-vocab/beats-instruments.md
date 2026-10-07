@@ -30,7 +30,10 @@ the piano in a world's orchestra alongside string and brass channels.
 
 **Pick these first for new work.** They're the fidelity shelf: tuned,
 de-locked and dynamic, per "Fidelity opt-ins" below.
-- Keys: `grand-piano-2` (the tuned grand on a modal soundboard).
+- Keys: `grand-piano-3` (the tuned grand on a modal soundboard, each key's
+  strings out of tune their own way, and the pedal-down halo: every undamped
+  string ringing in sympathy). `life: 0` makes it the uniform, dry
+  `grand-piano-2`.
 - Woodwinds: `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3` (solo players
   whose tone brightens as they play harder, not only louder).
 - Strings: `violin-3`, `viola-3`, `cello-3`, `contrabass-3` (v2 through each
@@ -130,6 +133,10 @@ what makes `keys`-feel velocity jitter read as touch on piano/rhodes/clav.
   "mix":0.3 }`. Optional `resonances: [{ freq, q, gain }]`. `model: 'modal'`
   convolves a computed body instead: `modes` (4–160) seeded decaying modes
   over `lo`–`hi` Hz, weighted by the resonances, ringing `ring` s at 100 Hz.
+- **sympathetic** — the sustain pedal's halo: the part convolved with every
+  undamped string (`lo`–`hi` MIDI keys, `partials` each, the bass ringing
+  `decay` s), under the dry. `{ "type":"sympathetic", "mix":0.22 }`. The
+  `life` dial scales its mix (0 removes it). Linear, so per part.
 - **drive** — electric overdrive: a computed soft-clip + cabinet low-pass.
   `{ "type":"drive", "amount":0.6, "tone":3400 }`. `amount` 0→1 (clean→fuzzy),
   `tone` = cabinet cutoff Hz (`null` to skip the cabinet), `level` = dB makeup.

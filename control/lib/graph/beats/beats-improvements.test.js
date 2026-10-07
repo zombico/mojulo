@@ -260,7 +260,7 @@ describe('life, the natural dial', () => {
     const by = Object.fromEntries(x.parts.map((p) => [p.name, p]));
     expect(x.life).toBeUndefined();
     expect(by.a.patchParams).toBeUndefined();
-    expect(by.b.patchParams.life).toEqual({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5 });
+    expect(by.b.patchParams.life).toEqual({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5, amount: 1 });
     expect(by.c.patchParams.life).toBe(false);
     expect(by.d.patchParams.life).toEqual({ depth: 3 }); // an explicit patchParams.life is the writer's word
     expect(by.b.life).toBeUndefined();
@@ -270,5 +270,43 @@ describe('life, the natural dial', () => {
     for (const bad of [{ life: 3 }, { life: 'more' }]) expect((validateBeatsManifest(held('clarinet-3', bad)).errors || []).join(' ')).toMatch(/life must be in \[0, 2\]/);
     expect((validateBeatsManifest(held('clarinet-3', {}, { life: -1 })).errors || []).join(' ')).toMatch(/parts\[0\]\.life must be in \[0, 2\]/);
     expect(validateBeatsManifest(held('clarinet-3', { life: 1.5 })).errors || []).toEqual([]);
+  });
+});
+
+describe('piano v3: keys tuned their own way, the pedal halo', () => {
+  const chord = (extra = {}, inst = 'grand-piano-3') => comp([{ name: 'p', instrument: inst, events: [[0, ['C3', 'E3', 'G3', 'C4'], 0.3, 0.7]] }], extra);
+  async function render(m) { const { wav } = await renderBeatsOffline(normalizeBeatsManifest(m), { tail: 2 }); return { wav, ...decodeWav(wav) }; }
+  const win = (r, a, b) => db(rms(r.channels[0], Math.round(r.sr * a), Math.round(r.sr * b)));
+
+  it('life: 0 is the mechanical grand: byte for byte grand-piano-2', async () => {
+    const [mech, two] = await Promise.all([render(chord({ life: 0 })), render(chord({}, 'grand-piano-2'))]);
+    expect(mech.wav.equals(two.wav)).toBe(true);
+  });
+
+  it('the pedal halo rings on after the keys are released, well under the played chord, and grows with the dial', async () => {
+    const [two, three, more] = await Promise.all([render(chord({}, 'grand-piano-2')), render(chord()), render(chord({ life: 2 }))]);
+    expect(win(three, 0.8, 1.8) - win(two, 0.8, 1.8)).toBeGreaterThan(12);
+    expect(win(three, 0, 0.3) - win(three, 0.8, 1.8)).toBeGreaterThan(12);
+    expect(win(more, 0.8, 1.8)).toBeGreaterThan(win(three, 0.8, 1.8) + 3);
+  });
+
+  it('each key is its own: the per-key unison changes the sound; a key struck twice is the same key', async () => {
+    const one = (k, patchParams) => comp([{ name: 'p', patch: 'pianoGrand3', ...(patchParams ? { patchParams } : {}), events: [[0, k, 1.5, 0.7]] }]);
+    const [a, b, flat] = await Promise.all([render(one('A3')), render(one('A3')), render(one('A3', { life: false }))]);
+    expect(a.wav.equals(b.wav)).toBe(true);
+    expect(a.wav.equals(flat.wav)).toBe(false);
+  });
+
+  it('a feature slice renders the grand and its halo exactly like the full kernel', async () => {
+    const m = normalizeBeatsManifest(chord());
+    expect(beatsFeatures(m)).toEqual(expect.arrayContaining(['timbre', 'anthem']));
+    const K = new Function('return (' + emitBeatsKernel(beatsFeatures(m)) + ')()')();
+    expect((await renderWithKernel(K, m, { tail: 0.5 })).wav.equals((await renderBeatsOffline(m, { tail: 0.5 })).wav)).toBe(true);
+  });
+
+  it('validation teaches the halo', () => {
+    const v = validateBeatsManifest(comp([{ name: 'p', patch: 'pianoGrand', chain: [{ type: 'sympathetic', mix: 3, decay: 0.1 }], events: [[0, 'C4']] }]));
+    expect((v.errors || []).join(' ')).toMatch(/mix must be in \[0, 1\]/);
+    expect((v.errors || []).join(' ')).toMatch(/decay must be in \[0.5, 20\]/);
   });
 });

@@ -116,7 +116,7 @@ function collect(m, set) {
     if ((row.chain || []).some((f) => f && (RACK.has(f.type) || f.model === 'bbd' || f.model === 'dub' || f.model === 'gated' || f.model === 'reverse' || (f.type === 'drive' && f.model)))) set.add('fx');
     if (row.gate || row.duck || row.stutter) set.add('fx');
     if ((row.chain || []).some((f) => f && f.type === 'reverb' && f.model === 'room2')) set.add('mix');
-    if ((row.chain || []).some((f) => f && f.type === 'body' && f.model === 'modal')) set.add('timbre');
+    if ((row.chain || []).some((f) => f && ((f.type === 'body' && f.model === 'modal') || f.type === 'sympathetic'))) set.add('timbre');
     if (row.patchParams || row.glide) set.add('voice');
     if (row.vary && (row.cue || row.gesture)) set.add('sfx');
     addGestures(set, row.cue || (row.gesture ? [row.gesture] : null));
@@ -128,6 +128,7 @@ function collect(m, set) {
       if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
       if (p && p.bend) set.add('orch');
       if (p && (p.harmonicsLoud || p.life)) set.add('timbre');
+      if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
       if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
     }
   }

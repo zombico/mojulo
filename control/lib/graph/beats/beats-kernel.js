@@ -67,7 +67,9 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //           beats-authoring.js and cost no kernel bytes.
 // Audio improvements added one more:
 //   timbre  harmonicsLoud (a wind's spectrum blended by velocity, its peak
-//           given back) and the modal body (body model 'modal'). The v3
+//           given back), the modal body (body model 'modal'), `life`, the
+//           piano's per-key unison (unisonSpread) and the sympathetic
+//           effect. The v3
 //           sections and phrase `shape` are shelf data and authoring
 //           expansions: no kernel bytes.
 // Regions nest: a region inside another region's new lines is resolved
@@ -1604,6 +1606,17 @@ export function buildBeatsKernel() {
             head.connect(bp); bp.connect(g); g.connect(mix);
           }
           head = mix;
+/*@timbre{*/
+        } else if (t === 'sympathetic') {
+          // the pedal-down halo: the part convolved with the undamped strings, under the dry.
+          const mx = ctx.createGain(), dr = ctx.createGain(), wt = ctx.createGain();
+          head.connect(dr); dr.connect(mx);
+          const cv = ctx.createConvolver(); cv.buffer = sympatheticImpulse(f, seed);
+          wt.gain.value = f.mix == null ? 0.25 : f.mix;
+          head.connect(cv); cv.connect(wt); wt.connect(mx);
+          head = mx;
+/*|
+@*/
         } else if (t === 'drive') {
           // electric overdrive: push the signal into a computed soft-clip curve, then
           // a "cabinet" low-pass rolls off the fizz. amount 0→1 clean→fuzzy; pre-gain
@@ -1807,6 +1820,57 @@ export function buildBeatsKernel() {
       let v = 0;
       for (let k = 1; k <= 240 && from + k / L.rate < to; k++) { v = Math.max(-1, Math.min(1, 0.7 * v + 0.55 * (rng() * 2 - 1))); pts.push([from + k / L.rate, v]); }
       return pts;
+    }
+    // unisonSpread (opt-in, string voice with pluckDetune): a piano's unison
+    // strings are never tuned alike, and each key is out its own way. Per KEY
+    // (seeded by pitch, so a key is the same key every time it is struck): the
+    // detune between its strings ± spread, and the second string's ring up to
+    // 20% shorter, so every key beats and decays at its own rate. `life` scales
+    // it (the dial's `amount`; life: false is the uniform, mechanical piano).
+    function keyUnison(patch, hz) {
+      const L = patch.life === true ? {} : patch.life || null;
+      const amt = L ? (L.amount == null ? 1 : L.amount) : 0;
+      const rng = mulberry32(hashSeed(0x9A40, Math.round(hz * 16)));
+      const u = rng() * 2 - 1, v = rng();
+      const cents = Math.max(0.2, patch.pluckDetune * (1 + (patch.unisonSpread || 0) * amt * u));
+      const ring = 1 - Math.min(1, 0.2 * amt) * v;
+      const rt = patch.ringT60;
+      const p2 = ring === 1 || rt == null ? patch : Object.assign({}, patch, { ringT60: Array.isArray(rt) ? rt.map((x) => Math.round(x * ring * 1000) / 1000) : Math.round(rt * ring * 1000) / 1000 });
+      return { cents: cents, p2: p2 };
+    }
+    // sympathetic (chain effect): the undamped strings of a piano with the
+    // pedal down ring along with whatever sounds — a linear system, so the
+    // whole halo is one impulse: every key from `lo` to `hi` (MIDI) with its
+    // first partials (stretched a little), seeded phases, each ringing for its
+    // register's T60 (`decay` s in the bass falling to a fifth of it in the
+    // treble), cut at `length` s with a fade. Cached per settings.
+    const symCache = new Map();
+    function sympatheticImpulse(f, seed) {
+      const sr = ctx.sampleRate, lo = f.lo == null ? 21 : f.lo, hi = f.hi == null ? 108 : f.hi, P = Math.max(1, Math.min(8, f.partials || 3));
+      const T0 = f.decay == null ? 8 : f.decay, len = Math.floor(sr * Math.min(6, f.length == null ? 3 : f.length));
+      const key = [sr, lo, hi, P, T0, len, seed || 7].join('|');
+      if (symCache.has(key)) return symCache.get(key);
+      const buf = ctx.createBuffer(2, len, sr);
+      // both sides in one pass: R is each mode at its own seeded phase offset
+      // (a fixed linear mix of the same phasor), so the halo is wide for the
+      // price of one channel. A mode stops once it has decayed below −80 dB.
+      const L = buf.getChannelData(0), R = buf.getChannelData(1), rng = mulberry32(hashSeed(seed || 7, 0x5A1));
+      for (let m = lo; m <= hi; m++) {
+        const f0 = 440 * Math.pow(2, (m - 69) / 12), T = T0 * Math.pow(0.2, (m - lo) / Math.max(1, hi - lo));
+        for (let n = 1; n <= P; n++) {
+          const fn = n * f0 * Math.sqrt(1 + 0.0004 * n * n);
+          if (fn > sr * 0.45) break;
+          const w = 2 * Math.PI * fn / sr, ph = rng() * 2 * Math.PI, off = rng() * 2 * Math.PI;
+          const dec = Math.exp(-6.9078 / (T * sr / Math.sqrt(n))), co = Math.cos(off), so = Math.sin(off);
+          let re = Math.cos(ph), im = Math.sin(ph), g = (0.5 + 0.5 * rng()) / n;
+          const cw = Math.cos(w), sw = Math.sin(w), stop = g * 1e-4;
+          for (let i = 0; i < len && g > stop; i++) { L[i] += g * im; R[i] += g * (im * co + re * so); const r2 = re * cw - im * sw; im = re * sw + im * cw; re = r2; g *= dec; }
+        }
+      }
+      const nf = Math.min(len, Math.round(sr * 0.25));
+      for (let j = 0; j < nf; j++) { const k = 1 - (j + 1) / nf; L[len - nf + j] *= k; R[len - nf + j] *= k; }
+      symCache.set(key, buf);
+      return buf;
     }
     // harmonicsLoud (opt-in): the spectrum at full force. A note's table is
     // `harmonics` (pp) blended toward it by velocity, in twelve steps so the
@@ -2087,7 +2151,8 @@ export function buildBeatsKernel() {
 /*@timbre{*/
       // life: pressure → level (a gain) and brightness (a high shelf), one walk;
       // a hairpin (`amp`, the dynamics lane) brightens the shelf as it grows.
-      const lw = patch.life ? lifeWalk(patch, t, dur, key == null ? hashSeed(Math.round(hz * 16), Math.round(t * 1e4)) : key) : null;
+      // (a struck or plucked string has no pressure to wander: there `life` scales unisonSpread.)
+      const lw = patch.life && patch.voice !== 'string' ? lifeWalk(patch, t, dur, key == null ? hashSeed(Math.round(hz * 16), Math.round(t * 1e4)) : key) : null;
       if (lw) {
         const L = lifeOf(patch), A = patch.amp;
         const laneDb = (x) => {
@@ -2313,10 +2378,18 @@ export function buildBeatsKernel() {
           // dual pluck (amp-voice spike): two strings a few cents apart. Alone the
           // beating is subtle; through a clip stage the difference tones become the
           // growl — a lone harmonic string gives intermodulation nothing to chew.
+/*@timbre{*/
+          const ku = patch.unisonSpread ? keyUnison(patch, hz) : null, cents = ku ? ku.cents : patch.pluckDetune;
+/*|
           const cents = patch.pluckDetune;
+@*/
           const g1 = ctx.createGain(); g1.gain.value = 0.6;
 /*@anthem{*/
+/*@timbre{*/
+          const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * hk * Math.pow(2, -cents / 2400), ku ? ku.p2 : patch);
+/*|
           const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * hk * Math.pow(2, -cents / 2400), patch);
+@*/
 /*|
           const src2 = ctx.createBufferSource(); src2.buffer = stringBuffer(hz * Math.pow(2, -cents / 2400), patch);
 @*/

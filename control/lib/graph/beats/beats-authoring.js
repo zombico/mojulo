@@ -949,7 +949,9 @@ export function expandBeatsManifest(m) {
 // A recipe's `life` (0–2) scales the held-note breathing of every row whose
 // instrument breathes by default (its patch carries `life`); a row's own
 // `life` overrides it and, above 0, turns breathing on for any instrument.
-// Lowers to the row's `patchParams.life`; an explicit patchParams.life wins.
+// Lowers to the row's `patchParams.life` (with `amount`: k, which a struck
+// string reads as its per-key unison spread) and scales a `sympathetic`
+// halo's mix; an explicit patchParams.life wins.
 export const LIFE_DEFAULTS = Object.freeze({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5 });
 const lifeRows = (m) => (Array.isArray(m.parts) ? 'parts' : Array.isArray(m.tracks) ? 'tracks' : Array.isArray(m.channels) ? 'channels' : null);
 const usesLife = (m) => { const k = isObj(m) && lifeRows(m); return isObj(m) && (m.life !== undefined || (!!k && m[k].some((r) => isObj(r) && r.life !== undefined))); };
@@ -965,8 +967,11 @@ function applyLife(out) {
     const name = row.patch || (row.instrument && INSTRUMENTS[row.instrument] && INSTRUMENTS[row.instrument].patch);
     const breathes = !!(name && PATCHES[name] && PATCHES[name].life);
     if (k === undefined || (own === undefined && !breathes) || (isObj(row.patchParams) && row.patchParams.life !== undefined)) return row;
-    const life = k === 0 ? false : Object.fromEntries(Object.entries(LIFE_DEFAULTS).map(([f, v]) => [f, Math.round(v * k * 1000) / 1000]));
-    return { ...row, patchParams: { ...(isObj(row.patchParams) ? row.patchParams : {}), life } };
+    const life = k === 0 ? false : { ...Object.fromEntries(Object.entries(LIFE_DEFAULTS).map(([f, v]) => [f, Math.round(v * k * 1000) / 1000])), amount: k };
+    // the pedal halo follows the dial too (0 takes it out: a dry, mechanical piano).
+    const chain = Array.isArray(row.chain) && row.chain.some((f) => isObj(f) && f.type === 'sympathetic')
+      ? row.chain.flatMap((f) => (isObj(f) && f.type === 'sympathetic' ? (k === 0 ? [] : [{ ...f, mix: Math.round((f.mix == null ? 0.25 : f.mix) * Math.min(k, 4) * 1000) / 1000 }]) : [f])) : null;
+    return { ...row, ...(chain ? { chain } : {}), patchParams: { ...(isObj(row.patchParams) ? row.patchParams : {}), life } };
   });
   return out;
 }

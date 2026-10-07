@@ -248,6 +248,11 @@ for (const [name, m] of Object.entries(MODAL)) {
   INSTRUMENTS[name + '-2'] = { ...base, patch, chain: base.chain.map((f) => (f.type === 'body' ? { type: 'body', model: 'modal', resonances: f.resonances, ...body } : f)) };
 }
 
+// grand-piano-3 (audio improvements): grand-piano-2's soundboard over keys
+// tuned each their own way, and the pedal-down halo — every undamped string
+// ringing in sympathy (`sympathetic`). The dial (`life`) scales both.
+INSTRUMENTS['grand-piano-3'] = { ...INSTRUMENTS['grand-piano-2'], patch: 'pianoGrand3', chain: [...INSTRUMENTS['grand-piano-2'].chain.filter((f) => f.type !== 'reverb'), { type: 'sympathetic', mix: 0.22, decay: 8 }, ...INSTRUMENTS['grand-piano-2'].chain.filter((f) => f.type === 'reverb')] };
+
 // ── playable ranges (orchestra and era) — sounding pitch, lowest–highest.
 // Advice only: validation warns on a note outside, the note still plays. A
 // range is shelf data beside the instrument; it never reaches a manifest.

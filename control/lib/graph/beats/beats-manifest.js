@@ -28,7 +28,7 @@ const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring',
 const PRODUCTION_GESTURES = new Set(['riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch']);
 const RING_MATERIALS = new Set(['glass', 'metal', 'wood', 'cymbal', 'plate', 'bell']);
 const WAVES = new Set(['sine', 'square', 'triangle', 'sawtooth']);
-const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp', 'compress', 'phaser', 'flanger', 'tape', 'autopan', 'crush', 'ringmod', 'vocoder', 'wah', 'rotary']);
+const FX = new Set(['filter', 'delay', 'pingpong', 'chorus', 'reverb', 'body', 'drive', 'amp', 'compress', 'phaser', 'flanger', 'tape', 'autopan', 'crush', 'ringmod', 'vocoder', 'wah', 'rotary', 'sympathetic']);
 // B7 harmony bus: a chordVoice track derives its notes from the shared
 // progression instead of a note contour. Modes = how it reads the chord.
 const CHORD_VOICE_MODES = new Set(['chord', 'strum', 'block', 'arp', 'root', 'upper']);
@@ -60,6 +60,10 @@ function checkChain(chain, where, errors) {
     if (f.type === 'body' && f.model !== undefined) {
       if (f.model !== 'modal') errors.push(`${fw}.model must be 'modal' (dozens of seeded body modes, convolved) or absent (the parallel resonators)`);
       lim('modes', 4, 160, 'how many body modes'); lim('ring', 0.02, 0.5, 'seconds a 100 Hz mode rings'); lim('lo', 20, 2000); lim('hi', 200, 16000);
+    }
+    if (f.type === 'sympathetic') {
+      lim('mix', 0, 1, 'the halo under the dry part'); lim('decay', 0.5, 20, 'seconds the bass strings ring'); lim('length', 0.5, 6); lim('partials', 1, 8);
+      lim('lo', 21, 108, 'lowest key (MIDI)'); lim('hi', 21, 108, 'highest key (MIDI)');
     }
     if (f.type === 'chorus' && f.model !== undefined) {
       if (f.model !== 'bbd') errors.push(`${fw}.model must be 'bbd' (the bucket-brigade ensemble) or absent`);
