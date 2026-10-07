@@ -211,6 +211,8 @@ use `notes` (chords hit several pieces: `["C2","F#2"]`).
     the upper partials (±`bright` dB, 4, above `shelf`, default the 4th
     partial) and vibrato depth together; a hairpin brightens as it grows
     (`follow`). On the `-3` strings, brass and woodwinds; `false` turns it off.
+    The everyday knob is the recipe's or a row's `life: 0–2` (composition
+    card): 0 mechanical, 1 natural, 2 more.
 
 ```json
 { "name": "gtr", "instrument": "acoustic-guitar", "pan": -0.3,

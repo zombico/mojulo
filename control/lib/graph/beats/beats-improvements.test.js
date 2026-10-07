@@ -226,3 +226,49 @@ describe('life: a held note breathes', () => {
     expect((await renderWithKernel(K, m, { tail: 0.3 })).wav.equals((await renderBeatsOffline(m, { tail: 0.3 })).wav)).toBe(true);
   });
 });
+
+describe('life, the natural dial', () => {
+  const sd = (a) => { const m = a.reduce((x, y) => x + y, 0) / a.length; return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / a.length); };
+  async function wander(recipe) {
+    const { wav } = await renderBeatsOffline(normalizeBeatsManifest(recipe), { tail: 0.1 });
+    const { sr, channels: [y] } = decodeWav(wav);
+    const w = Math.round(sr * 0.1), L = [];
+    for (let a = Math.round(sr * 1); a + w < sr * 3.8; a += w) L.push(db(rms(y, a, a + w)));
+    return { level: sd(L), wav };
+  }
+  const held = (instrument, extra = {}, row = {}) => comp([{ name: 'p', instrument, chain: [], events: [[0, 'G4', 4, 0.7]], ...row }], extra);
+
+  it('scales the breathing: 0 is mechanical (the same bytes as life: false), 1 the default, 2 more', async () => {
+    const [zero, off, half, one, two] = await Promise.all([
+      wander(held('clarinet-3', { life: 0 })), wander(held('clarinet-3', {}, { patchParams: { life: false } })),
+      wander(held('clarinet-3', { life: 0.5 })), wander(held('clarinet-3')), wander(held('clarinet-3', { life: 2 })),
+    ]);
+    expect(zero.wav.equals(off.wav)).toBe(true);
+    expect(zero.level).toBeLessThan(0.05);
+    expect(half.level).toBeGreaterThan(zero.level + 0.1);
+    expect(one.level).toBeGreaterThan(half.level);
+    expect(two.level).toBeGreaterThan(one.level);
+  });
+
+  it('a recipe dial leaves non-breathing instruments alone; a row dial wakes any instrument and overrides the recipe', () => {
+    const x = expandBeatsManifest(comp([
+      { name: 'a', instrument: 'flute', events: [[0, 'C5', 1]] },
+      { name: 'b', instrument: 'flute', life: 1, events: [[0, 'C5', 1]] },
+      { name: 'c', instrument: 'oboe-3', life: 0, events: [[0, 'A4', 1]] },
+      { name: 'd', instrument: 'oboe-3', patchParams: { life: { depth: 3 } }, events: [[0, 'A4', 1]] },
+    ], { life: 0.5 }));
+    const by = Object.fromEntries(x.parts.map((p) => [p.name, p]));
+    expect(x.life).toBeUndefined();
+    expect(by.a.patchParams).toBeUndefined();
+    expect(by.b.patchParams.life).toEqual({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5 });
+    expect(by.c.patchParams.life).toBe(false);
+    expect(by.d.patchParams.life).toEqual({ depth: 3 }); // an explicit patchParams.life is the writer's word
+    expect(by.b.life).toBeUndefined();
+  });
+
+  it('validation teaches the dial', () => {
+    for (const bad of [{ life: 3 }, { life: 'more' }]) expect((validateBeatsManifest(held('clarinet-3', bad)).errors || []).join(' ')).toMatch(/life must be in \[0, 2\]/);
+    expect((validateBeatsManifest(held('clarinet-3', {}, { life: -1 })).errors || []).join(' ')).toMatch(/parts\[0\]\.life must be in \[0, 2\]/);
+    expect(validateBeatsManifest(held('clarinet-3', { life: 1.5 })).errors || []).toEqual([]);
+  });
+});

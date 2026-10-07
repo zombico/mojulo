@@ -191,6 +191,10 @@ A composition can also carry:
 - a part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`):
   velocity phrasing over its array events, an arch per `bars` (4), higher
   notes a touch louder, long over short, the last note eased, level-neutral
+- `life` (0–2, any musical kind, also per part/track/channel): how much held
+  notes breathe. 0 mechanical (dead-still holds, the sequenced sound), 1
+  natural (the default on breathing instruments), 2 more. A row's `life`
+  overrides the recipe's and, above 0, wakes any instrument
 - `players`, `desk`, `seating` and `a4`
 
 The manuals are `beats-orchestra` and `beats-articulations`. Percussion kits

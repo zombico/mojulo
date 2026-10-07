@@ -39,6 +39,10 @@ name or field; no kernel bytes. Ears gate not run.
   vibrato depth and rate together, and a hairpin brightens as it swells. On by default for the `-3` strings, brass and
   woodwinds; `patchParams: { life: false }` holds a note still. Measured on a held clarinet: level wander 0.01 → 0.6 dB,
   brightness wander 0.1% → 3.1%.
+- **The natural dial.** `life: 0–2` on a recipe (any musical kind) scales the breathing of every row whose instrument
+  breathes; on a part, track or channel it overrides the recipe and, above 0, wakes any instrument. 0 is mechanical
+  (byte-identical to `life: false`), 1 the natural default, 2 more. Lowered at render to `patchParams.life`; an explicit
+  `patchParams.life` wins.
 - **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
 - **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
   use it carry the previous kernel byte for byte.

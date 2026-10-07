@@ -700,6 +700,10 @@ function checkGroove(p, w, errors, m = {}) {
 }
 export function checkAuthoring(m, errors) {
   if (!isObj(m)) return;
+  const lifeOk = (v) => v === undefined || (Number.isFinite(v) && v >= 0 && v <= 2);
+  if (!lifeOk(m.life)) errors.push('life must be in [0, 2]: how much held notes breathe (0 mechanical, 1 natural, 2 more)');
+  const lk = lifeRows(m);
+  if (lk) m[lk].forEach((r, i) => { if (isObj(r) && !lifeOk(r.life)) errors.push(`${lk}[${i}].life must be in [0, 2] (0 holds this row still; above 0 breathes, on any instrument)`); });
   // a timed gesture takes dur (seconds) OR bars / beats (at the recipe's tempo).
   for (const [i, r] of (m.parts || m.tracks || []).entries()) {
     const list = isObj(r) ? cueList(r) : null;
@@ -915,6 +919,7 @@ const hasChordEvent = (list) => Array.isArray(list) && list.some((ev) => isObj(e
 
 export function usesAuthoring(m) {
   if (!isObj(m)) return false;
+  if (usesLife(m)) return true;
   if (m.kind === 'beats-composition') {
     if (m.progression !== undefined || m.modulate !== undefined || m.band !== undefined || m.shuffle !== undefined) return true;
     if (Array.isArray(m.sweeps) && m.sweeps.some((w) => isObj(w) && w.t0 == null)) return true;
@@ -937,6 +942,36 @@ export function usesAuthoring(m) {
  */
 export function expandBeatsManifest(m) {
   if (!usesAuthoring(m)) return m;
+  return applyLife(expandCore(m));
+}
+
+// ── life, the natural dial (audio improvements): 0 = mechanical, 1 = natural ─
+// A recipe's `life` (0–2) scales the held-note breathing of every row whose
+// instrument breathes by default (its patch carries `life`); a row's own
+// `life` overrides it and, above 0, turns breathing on for any instrument.
+// Lowers to the row's `patchParams.life`; an explicit patchParams.life wins.
+export const LIFE_DEFAULTS = Object.freeze({ depth: 1.5, bright: 4, vib: 0.25, follow: 0.5 });
+const lifeRows = (m) => (Array.isArray(m.parts) ? 'parts' : Array.isArray(m.tracks) ? 'tracks' : Array.isArray(m.channels) ? 'channels' : null);
+const usesLife = (m) => { const k = isObj(m) && lifeRows(m); return isObj(m) && (m.life !== undefined || (!!k && m[k].some((r) => isObj(r) && r.life !== undefined))); };
+function applyLife(out) {
+  const key = lifeRows(out);
+  if (!usesLife(out)) return out;
+  const k0 = out.life;
+  delete out.life;
+  if (key) out[key] = out[key].map((r) => {
+    if (!isObj(r)) return r;
+    const { life: own, ...row } = r;
+    const k = own !== undefined ? own : k0;
+    const name = row.patch || (row.instrument && INSTRUMENTS[row.instrument] && INSTRUMENTS[row.instrument].patch);
+    const breathes = !!(name && PATCHES[name] && PATCHES[name].life);
+    if (k === undefined || (own === undefined && !breathes) || (isObj(row.patchParams) && row.patchParams.life !== undefined)) return row;
+    const life = k === 0 ? false : Object.fromEntries(Object.entries(LIFE_DEFAULTS).map(([f, v]) => [f, Math.round(v * k * 1000) / 1000]));
+    return { ...row, patchParams: { ...(isObj(row.patchParams) ? row.patchParams : {}), life } };
+  });
+  return out;
+}
+
+function expandCore(m) {
   const out = clone(m);
   const key = out.key;
   if (out.kind === 'beats-pattern') {
