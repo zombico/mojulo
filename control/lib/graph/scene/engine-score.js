@@ -185,6 +185,11 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     for (const a of addr.anchors) by[a.kind] = (by[a.kind] || 0) + 1;
     ledger.address_carried = { count: addr.anchors.length, rooms: addr.rooms ? addr.rooms.length : 0, kinds: Object.entries(by).map(([k, n]) => `${k} ×${n}`), note: 'rooms and anchors ride score.json and the GLB scene extras (moj:rooms, moj:anchors); an anchor with a `node` is the GLB node of that name; doorways, doors and items become triggers in kernel/level.gd, every anchor a named Marker3D' };
   }
+  // A TONE (era/tone.js) is graded on the World page: the build under it is drained to greys, and the score carries
+  // the tone as data for an engine to grade with. Absent ⇒ no key.
+  if (payload.tone && Array.isArray(payload.tone.ramps)) {
+    ledger.tone_graded_on_page = { count: payload.tone.ramps.length, note: 'the World page colours the lit value off the tone\'s ramps (channels/tone.js); the GLB carries the grey build it grades, and score.tone carries the ramps, steps and gain — an engine pass colours it (none yet)' };
+  }
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
   // lib/ instead of found at the most expensive gate that happens to be open.
@@ -220,6 +225,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
       ? { textures: Object.keys(payload.textures).sort() } : {}),
     colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
     ...addr,
+    ...(payload.tone && Array.isArray(payload.tone.ramps) ? { tone: payload.tone } : {}),
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
     ...(lights.length ? { lights } : {}),
     // the sky DECLARATION (a preset name: day / night / dawn / dusk) so an engine rig can set its

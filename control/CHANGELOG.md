@@ -139,6 +139,14 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   (0.5.0) walks against the colliders, makes every anchor a named `Marker3D`, turns rooms, doorways and doors into
   triggers (a door locked by an item opens once the bag holds it) and items into pickups whose node hides when
   taken. The World page never reads any of it: its bytes are unchanged.
+- **Tone: colour as its own concern.** A room-kit stage takes `tone`: a preset (`noir`, `flat`, `isekai`) or a
+  direction of its own (`texture: 'value' | 'shade'`, `steps`, `key`, `gain`, `detail`, five-stop `ramps`, `groups`,
+  `keep`). The build drains the colour out: tinted faces bake grey, and tiles become their greyscale `value:` twins
+  (about half the bytes) or `shade:` twins (the shadow only, the faces flat). The World page lights first and colours
+  after (`scene/channels/tone.js`): the baked light is banded into `steps` and picks a colour off the surface's ramp,
+  and the tile's own value adds detail inside the band. Exposure is measured: the median baked light lands on `key`.
+  Engine exports carry the grey build and `score.tone`; the ledger says the grading is the page's for now. Absent
+  `tone`, the page's bytes are unchanged.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

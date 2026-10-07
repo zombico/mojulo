@@ -60,6 +60,23 @@ export function encodePng(rgb, W, H) {
   return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
 }
 
+/** The same encoder for a greyscale tile (colour type 0; with `alpha`, a W·H byte buffer, type 4): a third of the
+ *  bytes of the RGB tile it was drawn from (era/tone.js). */
+export function encodePngGrey(grey, W, H, alpha = null) {
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), ch = alpha ? 2 : 1;
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
+  ihdr[8] = 8; ihdr[9] = alpha ? 4 : 0;
+  const raw = Buffer.alloc(H * (1 + W * ch));
+  for (let y = 0; y < H; y++) {
+    const o = y * (1 + W * ch);
+    raw[o] = 0;
+    for (let x = 0; x < W; x++) { raw[o + 1 + x * ch] = grey[y * W + x]; if (alpha) raw[o + 2 + x * ch] = alpha[y * W + x]; }
+  }
+  const idat = zlib.deflateSync(raw, { level: 9 });
+  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))]);
+}
+
 /** The same encoder for a tile with alpha (colour type 6, RGBA): a cutout card (era/leaf-cards.js) whose clear texels
  *  the World page alpha-tests away. `rgba` is a Buffer of W·H·4 bytes. */
 export function encodePngRgba(rgba, W, H) {
