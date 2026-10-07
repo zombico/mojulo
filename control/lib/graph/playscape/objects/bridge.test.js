@@ -104,3 +104,41 @@ describe('it comes apart by its joints', () => {
     expect(c.chunks.length).toBeGreaterThan(10);
   });
 });
+
+describe('dressed by a kit, and held to the outdoor index\'s laws (era/out-made.js)', () => {
+  it('a kit\'s tokens dress it without moving what it plays: the deck, its colliders, its rails and clearances', async () => {
+    const { madeStyle } = await import('../../era/out-made.js');
+    for (const v of ['deck', 'rope', 'arch']) for (const kit of ['isekai-meadow', 'jungle-mgs3']) {
+      const plain = bridge({ variant: v }), dressed = bridge({ variant: v, dress: madeStyle(kit, 4).tokens });
+      expect(dressed.deck).toEqual(plain.deck);
+      expect(dressed.world).toEqual(plain.world);
+      expect(dressed.clearance).toEqual(plain.clearance);
+      expect(dressed.faces.length).toBeGreaterThan(plain.faces.length);
+    }
+  });
+
+  it('dressing is the 66\'s texture: it keeps the object laws wherever the plain bridge holds them', async () => {
+    const { madeStyle, MADE_KITS } = await import('../../era/out-made.js');
+    for (const kit of MADE_KITS) for (const seed of [1, 2, 3]) for (const v of ['deck', 'rope', 'arch']) {
+      const plain = bridge({ variant: v }), dressed = bridge({ variant: v, dress: madeStyle(kit, seed).tokens });
+      if (objectAdvice(objectMeasures(plain.faces, plain.frame, plain.interest), plain.interest).length) continue;
+      expect(objectAdvice(objectMeasures(dressed.faces, dressed.frame, dressed.interest), dressed.interest), `${kit}/${seed} ${v}`).toEqual([]);
+      // every dressing face on the fill, never darker than its band
+      for (const f of dressed.faces.filter((q) => ['caps', 'hat', 'nodes', 'lashing', 'peg', 'notch', 'motif', 'courses'].includes(q.part))) {
+        expect(f.group).toBe('obj:fill');
+        expect(f.value).toBeGreaterThanOrEqual(0.3);
+      }
+    }
+  });
+
+  it('every walkable variant holds the index\'s structural laws, long and short: stringers deepen with the bay, parapets are rails', async () => {
+    const { bridgeMeasures, MADE_LAWS } = await import('../../era/out-made.js');
+    const laws = MADE_LAWS.filter((l) => l.pattern === 'bridge' && l.test);
+    for (const v of ['deck', 'rope', 'arch']) for (const span of [3, 5, 6.5, 10]) {
+      const m = bridgeMeasures(bridge({ variant: v, to: [span, 0, 0], width: 1.4 }));
+      for (const l of laws) expect(l.test(m), `${v} ${span} m: ${l.law} = ${l.show(m)}`).toBe(true);
+    }
+    // a plank is a challenge crossing: its width reads as one, so it needs no rail
+    expect(bridgeMeasures(bridge({ variant: 'plank', to: [6, 0, 0] })).needsRail).toBe(false);
+  });
+});

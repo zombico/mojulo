@@ -121,6 +121,16 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
 - **Object measures read roles.** A face's role is its part when the part names one, else its `obj:*` group, so an
   entry that names parts by element is judged; a silhouette notch must be 3 px each way (a rasterised sliver along the
   hull no longer counts). Existing entries measure as before.
+- **The bridge dressed by a kit, and held to the outdoor index's structural laws.** `dress` (a kit's tokens from
+  `era/out-made.js` `madeStyle`) dresses a bridge without moving what it plays (its deck, colliders, rails and clearances
+  are the plain bridge's): members chunkier or slighter in section (a post is never slighter than what it carries; a
+  rope is a rope in every kit), posts capped (a grass hat, a round, a bevel, an open culm), every rail meeting a post
+  joined as the kit joins (lashed, pegged, notched), the deck's fascia in the kit's relief, abutments and piers coursed
+  (mortared, or laid dry), the fill worn to a spread of values, whole kinds of part painted. Dressing is the 66's
+  texture: on `obj:fill`, no more than 3 mm proud, never darker than the fill's band, so a dressed bridge keeps the
+  object laws wherever the plain one holds them. Two structural fixes from the index's laws: a deck's stringers deepen
+  with the bay they span (bay ÷ depth ≤ 16; the abutments and piers bear at their underside), and an arch's parapet is a
+  rail (0.86 m, its coping to 0.96). A value on a tone band's edge now measures in the band above it.
 
 ### Scapeshift
 
@@ -328,6 +338,13 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   together by joints, drawn in black and white elevation, section and plan, dimensioned and measured. The SWATCHES
   record every outdoor colour, land and made: the isekai cards now read their ramps from them and nature-trail its
   blaze, so art direction for colour is controlled there (every kit builds byte-identically).
+- **One vocabulary for what built things are made of** (`era/made-elements.js`): every element word (a bridge's
+  stringers, footropes, keystone; the index's parts; the dressing's caps, lashings, courses) names its part and its
+  material. A playscape object's values become a kit's colours through it: the material picks the swatch ramp, the
+  value the stop, and what you use (`obj:status`) takes the kit's accent and nothing else does. The index's bridge is
+  now the playscape entry: the kit's `bridge` token picks the variant, its tokens dress it, and the index measures its
+  span-depth, bearing, handrail and flush laws on the built thing (a plank or a beam crossing is a challenge and needs no
+  rail); the index's own beam bridge is retired.
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the

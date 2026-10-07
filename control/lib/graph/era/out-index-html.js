@@ -7,6 +7,7 @@
  */
 import { MADE_PATTERNS, MADE_PATTERN_IDS, MADE_LAWS, MADE_PARTS, MADE_JOINTS, MADE_RAILS, MADE_KITS, MADE_SPOTS, madeStyle, designPiece } from './out-made.js';
 import { SWATCHES, hexOfRgb, accentOf } from './style/swatches.js';
+import { madeColour } from './made-elements.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const n2 = (v) => (typeof v === 'number' ? (Math.round(v * 1000) / 1000).toString() : String(v));
@@ -50,7 +51,8 @@ export function drawShapes(shapes, { w = 520, maxH = 300, style, pad = 26, dims 
     + `<pattern id="${id}w" width="10" height="5" patternUnits="userSpaceOnUse"><path d="M0 2.5 q2.5 -2 5 0 t5 0" fill="none" stroke="${ink.line}" stroke-width="0.6"/></pattern>`
     + `<pattern id="${id}d" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="0.7" fill="${ink.line}"/></pattern></defs>`;
   const rect = (s, fill, extra = '') => `<rect x="${X(s.x)}" y="${Y(s.y + s.h)}" width="${L(s.w)}" height="${L(s.h)}" fill="${fill}" stroke="${ink.line}" stroke-width="${lw}"${extra}/>`;
-  const fillOf = (s) => (s.cut ? `url(#${id}h)` : s.painted ? ink.paint : s.part === 'stone' ? (s.kerb ? ink.kerb : ink.stone) : s.part === 'soil' ? `url(#${id}h)` : s.part === 'bedding' ? `url(#${id}d)` : ink.timber);
+  const grey = (v) => { const g = Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0'); return `#${g}${g}${g}`; };
+  const fillOf = (s) => (s.solid ? (style ? madeColour(style, s) : grey(s.value)) : s.cut ? `url(#${id}h)` : s.painted ? ink.paint : s.part === 'stone' ? (s.kerb ? ink.kerb : ink.stone) : s.part === 'soil' ? `url(#${id}h)` : s.part === 'bedding' ? `url(#${id}d)` : ink.timber);
   for (const s of shapes) {
     if (s.k === 'ground') {
       const y = s.y ?? 0;
@@ -77,7 +79,7 @@ export function drawShapes(shapes, { w = 520, maxH = 300, style, pad = 26, dims 
         for (let y = s.y, row = 0; y < s.y + s.h - 0.02; y += course, row++) for (let x = s.x + (row % 2 ? unit / 2 : unit) * (s.bond === 'rubble' ? 0.5 + R() : 1); x < s.x + s.w - 0.05; x += unit * (s.bond === 'rubble' ? 0.6 + R() * 0.8 : 1)) o.push(`<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x)}" y2="${Y(Math.min(y + course, s.y + s.h))}" stroke="${ink.line}" stroke-width="0.7"/>`);
       }
     } else if (s.k === 'poly') {
-      o.push(`<polygon points="${s.pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ')}" fill="${fillOf(s)}" stroke="${ink.line}" stroke-width="${lw}" stroke-linejoin="round"/>`);
+      o.push(`<polygon points="${s.pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ')}" fill="${fillOf(s)}" stroke="${ink.line}" stroke-width="${s.solid ? 0.5 : lw}" stroke-linejoin="round"/>`);
       if (s.part === 'board') o.push(`<line x1="${X(s.pts[0][0] + 0.05)}" y1="${Y((s.pts[0][1] + s.pts[4][1]) / 2)}" x2="${X(s.pts[2][0] - 0.12)}" y2="${Y((s.pts[0][1] + s.pts[4][1]) / 2)}" stroke="${ink.line}" stroke-width="0.4"/>`);
     } else if (s.k === 'joint') {
       const x = +X(s.x), y = +Y(s.y), r = 3.5;
@@ -190,9 +192,11 @@ function lawRows(laws) {
 
 function patternCard(id, style, seed) {
   const P = MADE_PATTERNS[id], d = designPiece(id, style, seed);
-  const views = [d.elevation && ['elevation', d.elevation, 560], d.plan && ['plan', d.plan, 560], d.section && ['section', d.section, 300]].filter(Boolean);
+  const views = [d.elevation && ['elevation', d.elevation, 560], d.plan && ['plan', d.plan, 560], d.section && [id === 'bridge' ? 'end' : 'section', d.section, 300]].filter(Boolean);
   const draw = views.map(([nm, sh, w]) => `<figure>${drawShapes(sh, { w, maxH: 280 })}<figcaption>${nm}</figcaption></figure>`).join('');
-  const kits = MADE_KITS.map((k) => { const st = madeStyle(k, seed), dd = designPiece(id, st, seed); return `<figure>${drawShapes(dd.elevation || dd.plan, { w: 220, maxH: 150, pad: 14, dims: false })}<figcaption>${esc(k)}</figcaption></figure>`; }).join('');
+  const kits = MADE_KITS.map((k) => { const st = madeStyle(k, seed), dd = designPiece(id, st, seed); return `<figure>${drawShapes(dd.elevation || dd.plan, { w: 220, maxH: 150, pad: 14, dims: false })}<figcaption>${esc(k)}${dd.variant ? ` · ${esc(dd.variant)}` : ''}</figcaption></figure>`; }).join('');
+  // the bridge is the playscape entry: each of its variants, dressed in the meadow's other tokens
+  const variants = id === 'bridge' ? `<h3 style="margin-top:10px">Its variants, in the same tokens <span class="badge">playscape entry</span></h3><div class="views">${['deck', 'rope', 'arch', 'plank'].map((v) => { const vd = designPiece(id, { ...style, tokens: { ...style.tokens, bridge: v } }, seed); return `<figure>${drawShapes(vd.elevation, { w: 280, maxH: 170, pad: 14, dims: false })}<figcaption>${v} · ${esc(vd.crossing.read)}${vd.laws.every((l) => l.ok !== false) ? ' · laws hold' : ' · BROKEN'} · ${esc(vd.elements.join(', '))}</figcaption></figure>`; }).join('')}</div>` : '';
   const why = MADE_LAWS.filter((l) => l.pattern === id).map((l) => `<tr><td>${esc(l.law)}</td><td>${esc(l.why)}</td></tr>`).join('');
   const rails = Object.entries(P.rails).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(showRail(v))}</td><td>${esc(n2(d.dims[k]))}</td></tr>`).join('');
   return `<div class="card" id="p-${id}"><h3>${esc(id)}</h3><p class="note">${esc(P.read)}</p>
@@ -201,14 +205,15 @@ function patternCard(id, style, seed) {
 <div class="grid g2" style="margin-top:8px"><div><h3>Laws, measured <span class="badge">machine gate</span></h3><table><tr><th>law</th><th></th><th>value</th><th>want</th></tr>${lawRows(d.laws)}</table>
 <h3 style="margin-top:10px">Why</h3><table>${why}</table></div>
 <div><h3>Dimension rails</h3><table><tr><th>dimension</th><th>rail (m)</th><th>this one</th></tr>${rails}</table><p class="note">The rails sit inside the laws: any roll holds them.</p></div></div>
-<h3 style="margin-top:10px">The same pattern in each kit's tokens</h3><div class="views">${kits}</div></div>`;
+${variants}<h3 style="margin-top:10px">The same pattern in each kit's tokens</h3><div class="views">${kits}</div></div>`;
 }
 
 function kitCard(kitId, seed) {
   const R = MADE_RAILS[kitId], st = madeStyle(kitId, seed);
   const rows = Object.entries(R).filter(([k]) => k !== 'swatch').map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(showRail(v))}</td><td>${esc(n2(st.tokens[k]))}</td></tr>`).join('');
   const roles = Object.entries(st.swatch).map(([role, s]) => `<tr><td>${esc(role)}</td><td>${esc(s.ramp)}</td><td><span style="display:inline-flex">${s.stops.map((c) => `<i style="width:14px;height:14px;display:inline-block;background:${hexOfRgb(c)}"></i>`).join('')}</span></td></tr>`).join('');
-  const plate = ['post-fence', 'sign', 'inukshuk'].map((p) => `<figure>${drawShapes(designPiece(p, st, seed).elevation, { w: 112, maxH: 150, style: st, pad: 8, dims: false })}</figure>`).join('');
+  const plate = ['post-fence', 'sign', 'inukshuk'].map((p) => `<figure>${drawShapes(designPiece(p, st, seed).elevation, { w: 112, maxH: 150, style: st, pad: 8, dims: false })}</figure>`).join('')
+    + `<figure>${drawShapes(designPiece('bridge', st, seed).elevation, { w: 340, maxH: 150, style: st, pad: 8, dims: false })}<figcaption>bridge: ${esc(st.tokens.bridge)}</figcaption></figure>`;
   return `<div class="card"><h3>${esc(kitId)}</h3><table><tr><th>token</th><th>rail</th><th>seed ${seed}</th></tr>${rows}</table>
 <h3 style="margin-top:8px">Swatch roles</h3><table>${roles}</table><h3 style="margin-top:8px">Plate <span class="badge">painted from the swatches</span></h3><div class="views">${plate}</div></div>`;
 }
@@ -240,7 +245,7 @@ const TREE = `outdoor master index
 
 const EXAMPLE = {
   kit: 'isekai-meadow', seed: 8,
-  made: { tokens: { timber: 'round', hat: [0.8, 0.9] }, swatches: { hat: 'foliage' }, pieces: [{ pattern: 'beam-bridge', at: 'crossing', dims: { span: 6 } }, { pattern: 'sign', at: 'trailhead' }, { pattern: 'paving', from: 4, to: 16 }] },
+  made: { tokens: { timber: 'round', hat: [0.8, 0.9] }, swatches: { hat: 'foliage' }, pieces: [{ pattern: 'bridge', at: 'crossing', dims: { span: 6 } }, { pattern: 'sign', at: 'trailhead' }, { pattern: 'paving', from: 4, to: 16 }] },
 };
 const REFUSED = [
   { laws: { 'rail-height': [0.6, 1.2] } },

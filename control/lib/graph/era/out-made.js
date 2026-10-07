@@ -18,6 +18,9 @@
  * Documentation first: nothing here is placed in a world yet. Pure; seeded dice only.
  */
 import { SWATCHES, madeRamp } from './style/swatches.js';
+import { materialOf } from './made-elements.js';
+import { resolveObject } from '../playscape/objects/index.js';
+import { stringerDepth, deckTop } from '../playscape/objects/bridge.js';
 
 function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -73,12 +76,11 @@ export const MADE_LAWS = Object.freeze([
   { pattern: 'sign', law: 'footing', want: 'buried ≥ ⅓ of the height above ground', why: 'a sign is a sail: it holds by its footing', test: (m) => m.foot >= 1 / 3 - 1e-9, show: (m) => m.foot },
   { pattern: 'sign', law: 'carried', want: 'a board spans both its posts; a finger reaches ≤ 0.9 m', why: 'the board is held, not hung on air', test: (m) => (m.posts === 2 ? m.boardW >= m.between - 1e-9 : m.reach <= 0.9 + 1e-9), show: (m) => (m.posts === 2 ? `${m.boardW} over ${m.between}` : m.reach) },
   { pattern: 'sign', law: 'faces-approach', want: 'the board faces the way people arrive', why: 'a sign read from behind is a plank', when: 'placed' },
-  { pattern: 'beam-bridge', law: 'span-depth', want: 'span ÷ beam depth ≤ 18', why: 'a timber beam deeper for a longer span: a thin beam reads as a sag', test: (m) => m.ratio <= 18 + 1e-9, show: (m) => m.ratio },
-  { pattern: 'beam-bridge', law: 'bearing', want: 'each beam end bears ≥ 0.3 m on its abutment', why: 'a beam sits on stone, not on the edge of it', test: (m) => m.bearing >= 0.3 - 1e-9, show: (m) => m.bearing },
-  { pattern: 'beam-bridge', law: 'clearance', want: 'beams ≥ 0.3 m over the water', why: 'a bridge clears what it crosses, with room for a flood', test: (m) => m.clearance >= 0.3 - 1e-9, show: (m) => m.clearance },
-  { pattern: 'beam-bridge', law: 'deck-width', want: 'deck ≥ 1.2 m wide', why: 'as wide as the walk it carries', test: (m) => m.width >= 1.2 - 1e-9, show: (m) => m.width },
-  { pattern: 'beam-bridge', law: 'handrail', want: 'railed (top 0.9–1.1 m, posts ≤ 2.4 m) past a 4 m span or a 1 m drop', why: 'the fence\'s laws, where a fall would hurt', test: (m) => !m.needsRail || (within(m.railTop, [0.9, 1.1]) && m.postSpacing <= 2.4 + 1e-9), show: (m) => (m.needsRail ? `${m.railTop} at ${m.postSpacing}` : 'not needed') },
-  { pattern: 'beam-bridge', law: 'flush', want: 'the deck meets the trail with no step', why: 'the walk does not change height to cross', test: (m) => Math.abs(m.step) <= 0.03, show: (m) => m.step },
+  { pattern: 'bridge', law: 'span-depth', want: 'a deck\'s bay ÷ its stringers\' depth ≤ 18', why: 'a timber beam deeper for a longer span: a thin beam reads as a sag', test: (m) => m.ratio === null || m.ratio <= 18 + 1e-9, show: (m) => (m.ratio === null ? `${m.variant}: no beams` : m.ratio) },
+  { pattern: 'bridge', law: 'bearing', want: 'each end bears ≥ 0.3 m on its bank', why: 'a bridge sits on the bank, not on its edge', test: (m) => m.bearing >= 0.3 - 1e-9, show: (m) => m.bearing },
+  { pattern: 'bridge', law: 'handrail', want: 'a path or road crossing past a 4 m span or a 1 m drop is railed: top 0.9–1.1 m, held every ≤ 2.4 m', why: 'the fence\'s laws, where a fall would hurt; a plank or a beam is a challenge, and says so by its width', test: (m) => !m.needsRail || (m.railed && within(m.railTop, [0.9, 1.1]) && m.held <= 2.4 + 1e-9), show: (m) => (m.needsRail ? `${m.railTop} held at ${m.held}` : `${m.read}: not needed`) },
+  { pattern: 'bridge', law: 'flush', want: 'the deck meets the bank with no step', why: 'the walk does not change height to cross', test: (m) => Math.abs(m.step) <= 0.03, show: (m) => m.step },
+  { pattern: 'bridge', law: 'clearance', want: 'its underside ≥ 0.3 m over the water it crosses', why: 'a bridge clears what it crosses, with room for a flood', when: 'placed' },
   { pattern: 'steps', law: 'blondel', want: '2 × riser + tread 0.60–0.70 m', why: 'one stride: steps out of rhythm with a pace trip people', test: (m) => within(m.blondel, [0.6, 0.7]), show: (m) => m.blondel },
   { pattern: 'steps', law: 'riser', want: 'riser 0.10–0.18 m', why: 'an outdoor step is lower than a stair indoors', test: (m) => within(m.R, [0.1, 0.18]), show: (m) => m.R },
   { pattern: 'steps', law: 'tread', want: 'tread ≥ 0.28 m', why: 'a whole boot lands on it', test: (m) => m.T >= 0.28 - 1e-9, show: (m) => m.T },
@@ -102,19 +104,19 @@ export const MADE_LAWS = Object.freeze([
  * stone's width), never a law's dimension; `hat`, `paint` and `wear` are shares (of caps that wear grass, of boards
  * painted, of edges chipped). `swatch` maps each role to a ramp of the kit's swatches.
  */
-const MADE_TOKENS = ['timber', 'joint', 'edge', 'bond', 'relief', 'chunk', 'hat', 'paint', 'wear'];
+const MADE_TOKENS = ['bridge', 'timber', 'joint', 'edge', 'bond', 'relief', 'chunk', 'hat', 'paint', 'wear'];
 export const MADE_RAILS = Object.freeze({
-  'isekai-meadow': { timber: ['sawn', 'sawn', 'round'], joint: ['pegged', 'notched'], edge: ['timber', 'stone'], bond: ['flagstone', 'running'], relief: ['notch-band', 'chevron', 'none'],
+  'isekai-meadow': { bridge: ['deck', 'deck', 'arch'], timber: ['sawn', 'sawn', 'round'], joint: ['pegged', 'notched'], edge: ['timber', 'stone'], bond: ['flagstone', 'running'], relief: ['notch-band', 'chevron', 'none'],
     chunk: [1.15, 1.35], hat: [0.5, 0.9], paint: [0, 0.3], wear: [0.05, 0.2], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
-  'isekai-bamboo': { timber: ['culm'], joint: ['lashed'], edge: ['timber', 'stone'], bond: ['flagstone', 'rubble'], relief: ['none', 'rope'],
+  'isekai-bamboo': { bridge: ['rope'], timber: ['culm'], joint: ['lashed'], edge: ['timber', 'stone'], bond: ['flagstone', 'rubble'], relief: ['none', 'rope'],
     chunk: [0.95, 1.1], hat: [0.2, 0.5], paint: [0, 0.15], wear: [0.1, 0.3], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
-  'isekai-sakura': { timber: ['sawn'], joint: ['pegged', 'notched'], edge: ['stone', 'timber'], bond: ['running', 'hex'], relief: ['chevron', 'notch-band'],
+  'isekai-sakura': { bridge: ['arch', 'deck'], timber: ['sawn'], joint: ['pegged', 'notched'], edge: ['stone', 'timber'], bond: ['running', 'hex'], relief: ['chevron', 'notch-band'],
     chunk: [1, 1.2], hat: [0.2, 0.5], paint: [0.4, 0.8], wear: [0.05, 0.15], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
-  'nature-trail': { timber: ['sawn', 'round'], joint: ['pegged', 'notched'], edge: ['timber'], bond: ['rubble', 'flagstone'], relief: ['none'],
+  'nature-trail': { bridge: ['deck'], timber: ['sawn', 'round'], joint: ['pegged', 'notched'], edge: ['timber'], bond: ['rubble', 'flagstone'], relief: ['none'],
     chunk: [0.95, 1.1], hat: [0, 0.15], paint: [0, 0.1], wear: [0.25, 0.5], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'moss' } },
-  'jungle-mgs3': { timber: ['round', 'culm'], joint: ['lashed'], edge: ['timber', 'stone'], bond: ['rubble'], relief: ['none', 'rope'],
+  'jungle-mgs3': { bridge: ['rope'], timber: ['round', 'culm'], joint: ['lashed'], edge: ['timber', 'stone'], bond: ['rubble'], relief: ['none', 'rope'],
     chunk: [0.9, 1.05], hat: [0, 0.1], paint: [0, 0.05], wear: [0.5, 0.8], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'moss' } },
-  'alien-night': { timber: ['culm', 'round'], joint: ['lashed', 'notched'], edge: ['stone'], bond: ['hex', 'flagstone'], relief: ['chevron', 'none'],
+  'alien-night': { bridge: ['rope', 'arch'], timber: ['culm', 'round'], joint: ['lashed', 'notched'], edge: ['stone'], bond: ['hex', 'flagstone'], relief: ['chevron', 'none'],
     chunk: [0.9, 1.05], hat: [0, 0.2], paint: [0.3, 0.6], wear: [0.05, 0.2], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
 });
 export const MADE_KITS = Object.freeze(Object.keys(MADE_RAILS));
@@ -260,33 +262,28 @@ export const MADE_PATTERNS = Object.freeze({
       return { measures: { posts: 1, centre: X.centre, foot: r3(foot / postH), reach: X.reach }, elevation: out };
     },
   },
-  'beam-bridge': {
-    read: 'beams from bank to bank on stone abutments, a plank deck flush with the trail, rails past a 4 m span',
+  // the bridge is the playscape entry (playscape/objects/bridge.js): the kit's `bridge` token picks its variant, its
+  // tokens dress it, and the index measures its laws on the built thing
+  bridge: {
+    read: 'a walkable way over a gap from bank to bank: a deck on stringers, a rope bridge, a stone arch (the playscape entry, dressed by the kit)',
     at: ['crossing', 'pit'],
-    parts: ['beam', 'plank', 'post', 'rail', 'stone'], joints: ['pegged', 'notched', 'lashed', 'mortared'],
-    rails: { span: [3, 8], ratio: [12, 16], width: [1.3, 1.8], plank: [0.05, 0.07], beam: [0.14, 0.2], bearing: [0.35, 0.5], clearance: [0.35, 0.7], water: [0.3, 0.6], railTop: [0.95, 1.05], post: [0.1, 0.13] },
+    parts: ['beam', 'plank', 'post', 'rail', 'stone'], joints: ['pegged', 'notched', 'lashed', 'mortared', 'dry'],
+    rails: { span: [3, 8], width: [1.2, 1.8], drop: [1.5, 5] },
     design(T, D, X) {
-      const S = X.span, depth = r3(S / X.ratio), deckTop = 0, beamBot = r3(deckTop - X.plank - depth), waterY = r3(beamBot - X.clearance), bed = r3(waterY - X.water);
-      const out = [{ k: 'ground', x0: -1.6, x1: -X.bearing - 0.25 }, { k: 'ground', x0: S + X.bearing + 0.25, x1: S + 1.6 }, { k: 'water', x0: 0, x1: S, y: waterY, bed }];
-      for (const [x0, x1] of [[-X.bearing - 0.25, 0], [S, S + X.bearing + 0.25]]) out.push({ k: 'box', part: 'stone', x: r3(x0), y: bed, w: r3(x1 - x0), h: r3(beamBot - bed), bond: T.bond === 'running' || T.bond === 'hex' ? 'coursed' : T.bond, joint: T.joint === 'lashed' ? 'dry' : 'mortared' });
-      out.push({ k: 'box', part: 'beam', x: r3(-X.bearing), y: beamBot, w: r3(S + 2 * X.bearing), h: depth, timber: T.timber });
-      if (T.relief !== 'none') out.push({ k: 'relief', x: r3(-X.bearing + 0.1), y: r3(beamBot + depth * 0.35), w: r3(S + 2 * X.bearing - 0.2), h: r3(depth * 0.3), kind: T.relief });
-      out.push({ k: 'box', part: 'plank', x: r3(-X.bearing), y: r3(-X.plank), w: r3(S + 2 * X.bearing), h: X.plank, timber: T.timber });
-      const needsRail = S > 4 || deckTop - bed > 1, n = Math.max(1, Math.ceil(S / 2.2)), postSpacing = r3(S / n), p = r3(X.post * T.chunk);
-      if (needsRail) {
-        for (let i = 0; i <= n; i++) { const x = r3(i * postSpacing); out.push({ k: 'box', part: 'post', x: r3(x - p / 2), y: 0, w: p, h: r3(X.railTop + 0.08), timber: T.timber, cap: capOf(T, D) }); out.push({ k: 'joint', x, y: r3(X.railTop - 0.04), kind: T.joint }); }
-        for (const top of [X.railTop, r3(X.railTop / 2)]) out.push({ k: 'box', part: 'rail', x: r3(-p / 2), y: r3(top - 0.08), w: r3(S + p), h: 0.08, timber: T.timber });
-      }
-      out.push({ k: 'dim', a: [0, bed - 0.3], b: [S, bed - 0.3], label: `span ${S} m` });
-      out.push({ k: 'dim', a: [S + X.bearing + 0.55, beamBot], b: [S + X.bearing + 0.55, deckTop - X.plank], label: `${depth} m` });
-      out.push({ k: 'dim', a: [-0.25, waterY], b: [-0.25, beamBot], label: `${X.clearance} m` });
-      // the cross-section: planks over two or three beams, the rail posts at the edges
-      const W = X.width, nb = W >= 1.6 ? 3 : 2, bw = r3(X.beam * T.chunk), section = [{ k: 'water', x0: -0.4, x1: W + 0.4, y: waterY, bed }];
-      section.push({ k: 'box', part: 'plank', x: 0, y: r3(-X.plank), w: W, h: X.plank, cut: true });
-      for (let i = 0; i < nb; i++) section.push({ k: 'box', part: 'beam', x: r3(0.12 + (i * (W - 0.24 - bw)) / (nb - 1)), y: beamBot, w: bw, h: depth, cut: true });
-      if (needsRail) for (const x of [0, r3(W - p)]) section.push({ k: 'box', part: 'post', x, y: 0, w: p, h: r3(X.railTop + 0.08), timber: T.timber, cap: 'bevel' });
-      section.push({ k: 'dim', a: [0, X.railTop + 0.3], b: [W, X.railTop + 0.3], label: `${W} m` });
-      return { measures: { span: S, ratio: r3(S / depth), bearing: X.bearing, clearance: X.clearance, width: W, needsRail, railTop: X.railTop, postSpacing, step: 0 }, elevation: out, section };
+      // a plank keeps its own width: it is a challenge crossing, never a path (the handrail law reads the width's read)
+      const o = resolveObject({ entry: 'bridge', variant: T.bridge, from: [0, 0, 0], to: [X.span, 0, 0], ...(T.bridge === 'plank' ? {} : { width: X.width }), floor: -X.drop, dress: T });
+      const p = o.params, boxes = o.faces.boxes, Sx = X.span;
+      const water = r3(-X.drop + 0.35), floor = -X.drop;
+      // the banks drawn as ground cut down to the gap's floor: the abutments stand in them
+      const bank = (x0, x1) => ({ k: 'poly', part: 'soil', cut: true, pts: [[x0, 0], [x1, 0], [x1, floor], [x0, floor]] });
+      const elevation = [bank(-1.8, 0), bank(Sx, Sx + 1.8), { k: 'ground', x0: -1.8, x1: 0 }, { k: 'ground', x0: Sx, x1: Sx + 1.8 }, { k: 'water', x0: 0, x1: Sx, y: water, bed: floor },
+        ...projectBoxes(boxes, [1, 0, 0], [0, -1, 0]),
+        { k: 'dim', a: [0, floor - 0.35], b: [Sx, floor - 0.35], label: `span ${Sx} m` }];
+      const m = bridgeMeasures(o);
+      if (m.railed) elevation.push({ k: 'dim', a: [Sx + 0.9, 0], b: [Sx + 0.9, m.railTop], label: `${m.railTop} m` });
+      const end = [{ k: 'water', x0: -X.width, x1: X.width, y: water, bed: floor }, ...projectBoxes(boxes, [0, 1, 0], [-1, 0, 0]).map((q) => ({ ...q, pts: q.pts.map(([x, y]) => [x, y]) })),
+        { k: 'dim', a: [-X.width / 2, -0.6], b: [X.width / 2, -0.6], label: `${X.width} m` }];
+      return { measures: m, elevation, section: end, faces: o.faces, elements: o.elements, crossing: o.crossing, variant: p.variant };
     },
   },
   steps: {
@@ -392,6 +389,43 @@ export const MADE_PATTERNS = Object.freeze({
   },
 });
 export const MADE_PATTERN_IDS = Object.freeze(Object.keys(MADE_PATTERNS));
+
+/**
+ * Boxes (a playscape build's `faces.boxes`) drawn flat for the index: each box's silhouette seen along `toward` (the
+ * way the viewer looks back, toward the eye), `right` across the drawing and up up it, far boxes first. A shape keeps
+ * its element, value and material, so the drawing is greys and a kit plate paints it from the swatches.
+ */
+export function projectBoxes(boxes, right, toward) {
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const hull = (ps) => {
+    ps = ps.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], up = [];
+    for (const q of ps) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+    for (const q of ps.slice().reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+    return [...lo.slice(0, -1), ...up.slice(0, -1)];
+  };
+  return boxes.map((b) => ({ b, d: dot(b.c, toward) })).sort((a, b) => a.d - b.d).map(({ b }) => {
+    const cs = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => [0, 1, 2].map((k) => b.c[k] + b.A[k] * b.h[0] * (i & 1 ? 1 : -1) + b.B[k] * b.h[1] * (i & 2 ? 1 : -1) + b.C[k] * b.h[2] * (i & 4 ? 1 : -1)));
+    return { k: 'poly', solid: true, part: b.part, group: b.group, value: b.value, material: b.material ?? materialOf(b.part), pts: hull(cs.map((c) => [r3(dot(c, right)), r3(c[2])])) };
+  });
+}
+
+/** A built bridge measured for the index's laws: its rail's top over the deck, how often the rail is held, its
+ *  stringers' bay over their depth, its bearing, how its outer end meets the bank, and whether its read and size need
+ *  a rail. */
+export function bridgeMeasures(o) {
+  const p = o.params, boxes = o.faces.boxes, deckZ = (c) => { const s = (c[0] - p.from[0]) * p.D[0] + (c[1] - p.from[1]) * p.D[1]; const u = Math.min(1, Math.max(0, s / p.span)); return o.deck.line[Math.round(u * (o.deck.line.length - 1))][2]; };
+  const topOf = (b) => b.c[2] + Math.abs(b.A[2]) * b.h[0] + Math.abs(b.B[2]) * b.h[1] + Math.abs(b.C[2]) * b.h[2];
+  const railish = boxes.filter((b) => ['rails', 'handropes', 'coping'].includes(b.part)).map((b) => topOf(b) - deckZ(b.c)).sort((a, b) => a - b);
+  const railTop = railish.length ? r3(railish[Math.floor(railish.length / 2)]) : 0;
+  const holders = p.variant === 'deck' ? 'posts' : p.variant === 'rope' ? 'suspenders' : null, stations = (part) => [...new Set(boxes.filter((b) => b.part === part).map((b) => r3((b.c[0] - p.from[0]) * p.D[0] + (b.c[1] - p.from[1]) * p.D[1])))].sort((a, b) => a - b);
+  const st = holders ? [0, ...stations(holders), p.span] : [];
+  const held = p.variant === 'arch' ? 0 : r3(Math.max(...st.slice(1).map((v, i) => v - st[i])));
+  const read = o.crossing.read, drop = r3(Math.min(p.from[2], p.to[2]) - p.floor);
+  return { variant: p.variant, span: p.span, read, railed: o.crossing.railed, railTop, held, needsRail: (read === 'path' || read === 'road') && (p.span > 4 || drop > 1),
+    ratio: p.variant === 'deck' ? r3((p.span > 7 ? p.span / (Math.floor(p.span / 6) + 1) : p.span) / stringerDepth(p)) : null,
+    bearing: p.bearing, step: r3(Math.abs(deckTop(p, -p.bearing - (p.variant === 'arch' ? 0.15 : 0))[2] - p.from[2])) };   // where the deck's end meets the bank: an arch's approach is part of its hump
+}
 
 /** One piece: a pattern designed under a resolved style, its dimensions rolled inside its rails (or given). */
 export function designPiece(pattern, style, seed = 1, dims = {}) {

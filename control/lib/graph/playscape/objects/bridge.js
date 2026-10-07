@@ -21,6 +21,7 @@
  */
 import { obox, blockSink } from '../../era/props.js';
 import { r5, P } from '../../era/geom.js';
+import { materialOf } from '../../era/made-elements.js';
 
 const Z = [0, 0, 1];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -56,7 +57,7 @@ export function endsOver(anchor, { margin = 0.2 } = {}) {
     : { from: [r5(min[0] - margin), anchor.at[1], z], to: [r5(max[0] + margin), anchor.at[1], z], width: r5(Math.min(2.4, (max[1] - min[1]) / 2)) };
 }
 
-export function bridgeParams({ variant = 'deck', from, to, over, width, sag = 0.08, rise, floor, bearing = 0.45, elements = {}, motif } = {}) {
+export function bridgeParams({ variant = 'deck', from, to, over, width, sag = 0.08, rise, floor, bearing = 0.45, elements = {}, motif, dress } = {}) {
   if (!BRIDGE_VARIANTS[variant]) throw new Error(`playscape: a bridge has no variant '${variant}' (variants: ${BRIDGE_VARIANT_IDS.join(', ')})`);
   const E = over ? endsOver(over) : null;
   const a = from || E?.from, b = to || E?.to;
@@ -71,7 +72,8 @@ export function bridgeParams({ variant = 'deck', from, to, over, width, sag = 0.
   return {
     variant, from: P(a), to: P(b), span: r5(L), width: r5(w), D: P(unit(flat)), S: P(unit([-flat[1], flat[0], 0])),
     sag: variant === 'rope' ? sag : 0, rise: variant === 'arch' ? r5(rise ?? Math.min(0.32 * L, Math.max(1, lo - (floor ?? lo - 6) - 1))) : 0,
-    floor: r5(floor ?? lo - 6), bearing, elements, motif: motif ?? (variant === 'arch' ? 'dentil' : null),
+    floor: r5(floor ?? lo - 6), bearing, elements, motif: motif ?? (variant !== 'arch' ? null : dress ? RELIEF_MOTIF[dress.relief] ?? null : 'dentil'),
+    ...(dress ? { dress } : {}),
   };
 }
 
@@ -86,16 +88,38 @@ export function deckTop(p, s) {
   return P(add(base, [0, 0, sag]));
 }
 
+// a kit's relief, on an arch's parapets
+const RELIEF_MOTIF = { 'notch-band': 'dentil', chevron: 'dentil', rope: 'band', none: null };
+// the deck's stringers deepen with the bay they span (span ÷ depth ≤ 16: the outdoor index's span-depth law, with room)
+export const STRINGER_RATIO = 16;
+const deckBay = (p) => (p.span > 7 ? p.span / (Math.floor(p.span / 6) + 1) : p.span);
+export const stringerDepth = (p) => Math.max(0.26, deckBay(p) / STRINGER_RATIO);
+// an arch's parapet: walked beside, so it is a rail (the index's rail-height law): 0.86 m, its coping to 0.96
+const PARAPET = 0.86;
 const on = (p, k) => p.elements[k] !== false;
 const opt = (p, k) => (typeof p.elements[k] === 'object' ? p.elements[k] : {});
 
 // ── the build: blocks along the span, values only on the obj:* groups ───────────────────────────────────────────
 const surf = (group, v) => ({ key: null, scale: 1, tint: [v, v, v], group });
+// DRESS (a kit's tokens, era/out-made.js madeStyle): members chunkier or slighter in section (never in length, so the
+// deck, its colliders and its clearances are the realistic bridge's), timber worn to a spread of values, some parts
+// painted (wear moves only the fill's values: the main mass and the 33 keep their bands); then caps, joints, relief
+// and coursing laid on (dressBridge)
+const DRESSING = new Set(['caps', 'hat', 'nodes', 'lashing', 'peg', 'notch', 'motif', 'courses']);   // laid on: worn already
+const CHUNKY = new Set(['posts', 'rails', 'stringers', 'braces']);   // timber members: a rope is a rope in every kit
+const hh = (i, k) => { let t = (Math.imul(i + 1, 374761393) + Math.imul(k + 1, 668265263)) | 0; t = Math.imul(t ^ (t >>> 13), 1274126177); return ((t ^ (t >>> 16)) >>> 0) / 4294967296; };
 function put(out, part, group, v, c, A, B, C, h) {
-  const from = out.length;
+  const from = out.length, Dr = out.dress;
+  let material = null;
+  if (Dr) {
+    // a post is never slighter than what it carries: chunk thickens any member, thins only rails, braces, stringers
+    if (CHUNKY.has(part)) { const big = h.indexOf(Math.max(...h)), k = part === 'posts' ? Math.max(1, Dr.chunk) : Dr.chunk; h = h.map((x, i) => (i === big ? x : x * k)); }
+    if (materialOf(part) === 'timber' && group === 'obj:fill' && !DRESSING.has(part)) v = Math.round(Math.max(0.05, Math.min(0.95, v + (hh(out.boxes.length, 3) - 0.5) * Dr.wear * 0.3)) * 1000) / 1000;
+    if (out.painted.has(part)) material = 'paint';
+  }
   obox(out, c, A, B, C, h, surf(group, v), 8);
-  for (let i = from; i < out.length; i++) Object.assign(out[i], { part, value: v });
-  if (out.boxes) out.boxes[out.boxes.length - 1].part = part;
+  for (let i = from; i < out.length; i++) Object.assign(out[i], { part, value: v, ...(material ? { material } : {}) });
+  if (out.boxes) Object.assign(out.boxes[out.boxes.length - 1], { part, ...(material ? { material } : {}) });
 }
 // a box along the span between stations s0 and s1, `off` across, `dz` under the deck top, its thickness `t` and height `h`
 function along(out, p, part, group, v, s0, s1, off, dz, t, h) {
@@ -127,7 +151,8 @@ const BUILD = {
   },
   deck(out, p) {
     const w = p.width, half = w / 2, every = opt(p, 'planks').every ?? 0.28, posts = opt(p, 'posts').every ?? 1.6, H = 1.0;
-    if (on(p, 'stringers')) for (const o of [-half + 0.12, half - 0.12]) run(out, p, 'stringers', 'obj:body', 0.46, -p.bearing, p.span + p.bearing, o, 0.06, 0.14, 0.26);
+    const depth = stringerDepth(p), under = 0.06 + depth;   // the stringers' underside: the abutments and piers bear there
+    if (on(p, 'stringers')) for (const o of [-half + 0.12, half - 0.12]) run(out, p, 'stringers', 'obj:body', 0.46, -p.bearing, p.span + p.bearing, o, 0.06, 0.14, depth);
     const np = Math.max(1, Math.round((p.span + 2 * p.bearing) / every)), pe = (p.span + 2 * p.bearing) / np;   // planks that end where the deck ends
     if (on(p, 'planks')) for (let i = 0; i < np; i++) { const s = -p.bearing + (i + 0.5) * pe; along(out, p, 'planks', 'obj:fill', 0.72 - 0.06 * (i % 2), s - pe / 2 + 0.012, s + pe / 2 - 0.012, 0, 0, w + 0.1, 0.06); }
     const n = Math.max(1, Math.round(p.span / posts));
@@ -140,10 +165,10 @@ const BUILD = {
       const s0 = p.span * 0.3, s1 = p.span * 0.7;
       for (const o of [-half - 0.05, half + 0.05]) { along(out, p, 'braces', 'obj:detail', 0.12, s0, s1, o, -H + 0.1, 0.06, 0.07); along(out, p, 'braces', 'obj:detail', 0.12, s0, s1, o, -0.15, 0.06, 0.07); upright(out, p, 'braces', 'obj:detail', 0.12, (s0 + s1) / 2, o, 0.1, H - 0.1, 0.08); }
     }
-    if (on(p, 'abutments')) for (const s of [-p.bearing / 2, p.span + p.bearing / 2]) upright(out, p, 'abutments', 'obj:body', 0.36, s, 0, -1.0, -0.32, p.bearing, w + 0.5);
+    if (on(p, 'abutments')) for (const s of [-p.bearing / 2, p.span + p.bearing / 2]) upright(out, p, 'abutments', 'obj:body', 0.36, s, 0, -0.68 - under, -under, p.bearing, w + 0.5);
     if (on(p, 'piers') && p.span > 7) {
       const k = Math.floor(p.span / 6);
-      for (let i = 1; i <= k; i++) { const s = (p.span * i) / (k + 1), top = deckTop(p, s)[2] - 0.32; upright(out, p, 'piers', 'obj:body', 0.38, s, 0, p.floor - top - 0.32, -0.32, 0.5, w); }
+      for (let i = 1; i <= k; i++) { const s = (p.span * i) / (k + 1), top = deckTop(p, s)[2] - under; upright(out, p, 'piers', 'obj:body', 0.38, s, 0, p.floor - top - under, -under, 0.5, w); }
     }
   },
   rope(out, p) {
@@ -176,13 +201,68 @@ const BUILD = {
       if (on(p, 'spandrels') && top - z > 0.05) put(out, 'spandrels', 'obj:fill', 0.62, [p.from[0] + p.D[0] * sm, p.from[1] + p.D[1] * sm, (z + top) / 2], p.D, p.S, Z, [(s1 - s0) / 2, half + 0.1, (top - z) / 2]);
     }
     if (on(p, 'deck')) run(out, p, 'deck', 'obj:fill', 0.7, -E, L + E, 0, 0, w + 0.3, 0.3);
-    if (on(p, 'parapets')) for (const o of [-half - 0.15, half + 0.15]) run(out, p, 'parapets', 'obj:body', 0.5, -E, L + E, o, -0.62, 0.28, 0.62);
-    if (on(p, 'coping')) for (const o of [-half - 0.15, half + 0.15]) run(out, p, 'coping', 'obj:fill', 0.74, -E, L + E, o, -0.72, 0.36, 0.1);
-    if (p.motif === 'dentil' && on(p, 'parapets')) for (const o of [-half - 0.31, half + 0.31]) for (let s = 0.2; s < L; s += 0.42) along(out, p, 'dentils', 'obj:fill', 0.4, s - 0.1, s + 0.1, o, -0.58, 0.06, 0.1);
-    if (p.motif === 'band' && on(p, 'parapets')) for (const o of [-half - 0.3, half + 0.3]) run(out, p, 'band', 'obj:fill', 0.4, -E, L + E, o, -0.5, 0.04, 0.08);
-    if (on(p, 'abutments')) for (const s of [(-E - 0.12 + 0.3) / 2, L + (E + 0.12 - 0.3) / 2]) upright(out, p, 'abutments', 'obj:body', 0.4, s, 0, spring - deckZ(s) - 0.2, 0.72, E + 0.42, w + 0.8);   // from the springing up to an end pier over the coping: each end one clean upright
+    if (on(p, 'parapets')) for (const o of [-half - 0.15, half + 0.15]) run(out, p, 'parapets', 'obj:body', 0.5, -E, L + E, o, -PARAPET, 0.28, PARAPET);
+    if (on(p, 'coping')) for (const o of [-half - 0.15, half + 0.15]) run(out, p, 'coping', 'obj:fill', 0.74, -E, L + E, o, -PARAPET - 0.1, 0.36, 0.1);
+    if (p.motif === 'dentil' && on(p, 'parapets')) for (const o of [-half - 0.31, half + 0.31]) for (let s = 0.2; s < L; s += 0.42) along(out, p, 'dentils', 'obj:fill', 0.4, s - 0.1, s + 0.1, o, -PARAPET + 0.04, 0.06, 0.1);
+    if (p.motif === 'band' && on(p, 'parapets')) for (const o of [-half - 0.3, half + 0.3]) run(out, p, 'band', 'obj:fill', 0.4, -E, L + E, o, -PARAPET + 0.12, 0.04, 0.08);
+    if (on(p, 'abutments')) for (const s of [(-E - 0.12 + 0.3) / 2, L + (E + 0.12 - 0.3) / 2]) upright(out, p, 'abutments', 'obj:body', 0.4, s, 0, spring - deckZ(s) - 0.2, PARAPET + 0.1, E + 0.42, w + 0.8);   // from the springing up to an end pier over the coping: each end one clean upright
   },
 };
+
+/**
+ * A kit's dressing laid on a built bridge (its tokens: era/out-made.js MADE_RAILS): each post capped (a grass hat for a
+ * share of them, else as its timber caps: a bevel, a round, an open culm), a culm ringed at its nodes; every meeting of
+ * a rail with a post joined as the kit joins (lashed, pegged, notched); the deck's fascia in the kit's relief; the stone
+ * coursed, mortared or laid dry. All on `obj:fill`: dressing is the 66's texture, never the 33 — no more than 3 mm
+ * proud of what it dresses (a prop's outline stays quiet) and never darker than the fill's band (0.3: the dark is the 33's).
+ */
+const LOUD = false;   // a bridge is a prop (BRIDGE.interest): its dressing never breaks its outline
+function dressBridge(out, p) {
+  const Dr = out.dress, posts = out.boxes.filter((b) => b.part === 'posts'), H = 1.0;
+  const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], at = (b, u, v, w) => add3(add3(add3(b.c, mul(b.A, u)), mul(b.B, v)), mul(b.C, w));
+  const box = (part, v, c, b, h) => put(out, part, 'obj:fill', v, c, b.A, b.B, b.C, h);
+  posts.forEach((b, i) => {
+    const [h0, h1, h2] = b.h, top = h2;
+    if (Dr.timber === 'culm') for (let z = -h2 + 0.3; z < h2 - 0.1; z += 0.3) box('nodes', 0.38, at(b, 0, 0, z), b, [h0 + 0.003, h1 + 0.003, 0.012]);
+    // a cap is the post's own section (a prop's outline stays quiet: inverse interest), its shape told in value: a
+    // grass hat dark over a fringe hanging flush down the faces, a round cap and a bevel a light band, a culm's open top
+    // a dark ring; only a focus breaks its outline with them (LOUD)
+    const k = LOUD ? 1.3 : 1;
+    if (hh(i, 7) < Dr.hat) {
+      box('hat', 0.4, at(b, 0, 0, top + 0.015), b, [h0 * k, h1 * k, 0.015]);
+      for (const [u, v] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) box('hat', 0.36, at(b, u * (h0 * k + 0.003), v * (h1 * k + 0.003), top - 0.04), b, [u ? 0.003 : h0 * k, v ? 0.003 : h1 * k, 0.05]);
+    } else if (Dr.timber === 'round') box('caps', 0.8, at(b, 0, 0, top - 0.03), b, [h0 + 0.003, h1 + 0.003, 0.03]);
+    else if (Dr.timber === 'culm') box('caps', 0.36, at(b, 0, 0, top - 0.012), b, [h0 + 0.004, h1 + 0.004, 0.012]);
+    else box('caps', 0.78, at(b, 0, 0, top - 0.015), b, [h0 + 0.003, h1 + 0.003, 0.015]);
+    // the meetings: a deck's rail (and its braces' ends) at H over the deck; a rope bridge's handrope at H on its posts
+    const z = H - (b.c[2] - (deckTop(p, (b.c[0] - p.from[0]) * p.D[0] + (b.c[1] - p.from[1]) * p.D[1])[2]));
+    const out1 = Math.sign((b.c[0] - p.from[0]) * p.S[0] + (b.c[1] - p.from[1]) * p.S[1]) || 1;
+    if (Dr.joint === 'lashed') box('lashing', 0.38, at(b, 0, 0, z), b, [h0 + 0.003, h1 + 0.003, 0.06]);
+    else if (Dr.joint === 'pegged') box('peg', 0.82, at(b, 0, out1 * (h1 + 0.02), z - 0.08), b, [0.022, 0.02, 0.022]);
+    else if (Dr.joint === 'notched') box('notch', 0.36, at(b, 0, out1 * (h1 + 0.003), z - 0.09), b, [h0 * 0.8, 0.004, 0.03]);
+  });
+  // the deck's fascia: the kit's relief along each outer stringer's face
+  if (p.variant === 'deck' && Dr.relief !== 'none' && on(p, 'stringers')) {
+    const depth = stringerDepth(p), half = p.width / 2, face = half - 0.12 + 0.07 * Dr.chunk + 0.006, step = Dr.relief === 'rope' ? 0.16 : 0.34;
+    for (const o of [-face, face]) for (let s = 0.2, k = 0; s < p.span - 0.1; s += step, k++) {
+      const lift = Dr.relief === 'chevron' ? (k % 2 ? 0.22 : -0.22) * depth : Dr.relief === 'rope' ? (k % 2 ? 0.1 : -0.1) * depth : 0;
+      along(out, p, 'motif', 'obj:fill', 0.36, s - 0.05, s + 0.05, o, 0.06 + depth / 2 - lift - 0.03, 0.012, 0.06);
+    }
+  }
+  // the stone, coursed: mortar lines (light) or dry joints (dark) on its two long faces, every 0.25 m, the verticals
+  // staggered course by course (rubble at random lengths)
+  const dry = Dr.bond === 'rubble', mortar = dry ? 0.3 : 0.8;
+  for (const b of out.boxes.filter((q) => q.part === 'abutments' || q.part === 'piers')) {
+    const [h0, h1, h2] = b.h, rows = Math.max(1, Math.floor((2 * h2) / 0.25));
+    for (const sd of [1, -1]) for (let r = 0; r <= rows; r++) {
+      const z = -h2 + (2 * h2 * r) / rows;
+      if (r > 0 && r < rows) box('courses', mortar, at(b, 0, sd * (h1 + 0.004), z), b, [h0, 0.004, 0.012]);
+      if (r === rows) continue;
+      const unit = dry ? 0.28 + 0.24 * hh(r, 13) : 0.42;
+      for (let u = -h0 + (r % 2 ? unit / 2 : unit); u < h0 - 0.04; u += dry ? 0.28 + 0.24 * hh(r * 7 + Math.round(u * 50), 17) : unit) box('courses', mortar, at(b, u, sd * (h1 + 0.004), z + h2 / rows), b, [0.012, 0.004, h2 / rows - 0.01]);
+    }
+  }
+}
 
 export const BRIDGE = {
   id: 'bridge',
@@ -197,12 +277,18 @@ export const BRIDGE = {
     if (skin !== 'greybox') throw new Error("playscape: a bridge has no skin '" + skin + "' (skins: greybox)");
     const p = params || bridgeParams({ variant: variant ?? spec.variant, ...spec });
     const faces = blockSink();
+    if (p.dress) {
+      Object.defineProperty(faces, 'dress', { value: p.dress, enumerable: false });
+      // paint goes on whole kinds of part (every rail, or every post), a share of them by the kit's `paint`
+      Object.defineProperty(faces, 'painted', { value: new Set(['rails', 'posts', 'coping'].filter((k, i) => hh(i, 11) < p.dress.paint)), enumerable: false });
+    }
     BUILD[p.variant](faces, p);
+    if (p.dress) dressBridge(faces, p);
     const stations = Array.from({ length: Math.max(2, Math.ceil(p.span / 0.5) + 1) }, (_, i) => (p.span * i) / Math.max(1, Math.ceil(p.span / 0.5)));
     const line = stations.map((s) => deckTop(p, s));
     const grade = Math.max(...line.slice(1).map((q, i) => Math.abs(q[2] - line[i][2]) / Math.max(1e-6, Math.hypot(q[0] - line[i][0], q[1] - line[i][1]))));
     const railed = (p.variant === 'deck' && on(p, 'rails')) || (p.variant === 'rope' && on(p, 'handropes')) || (p.variant === 'arch' && on(p, 'parapets'));
-    const under = Math.min(...stations.map((s) => deckTop(p, s)[2])) - (p.variant === 'arch' ? 0.3 + p.rise + 0.5 : p.variant === 'rope' ? 0.1 : 0.32);
+    const under = Math.min(...stations.map((s) => deckTop(p, s)[2])) - (p.variant === 'arch' ? 0.3 + p.rise + 0.5 : p.variant === 'rope' ? 0.1 : p.variant === 'deck' ? 0.06 + stringerDepth(p) : 0.32);
     const mid = deckTop(p, p.span / 2);
     return {
       entry: 'bridge', variant: p.variant, skin, params: p, interest: this.interest,

@@ -103,7 +103,8 @@ const span = (polys) => {
   return Math.max(Math.max(...all.map((q) => q[0])) - Math.min(...all.map((q) => q[0])), Math.max(...all.map((q) => q[1])) - Math.min(...all.map((q) => q[1])));
 };
 const mean = (fs) => { let a = 0, v = 0; for (const f of fs) { const w = area(f.corners); a += w; v += w * f.value; } return a ? v / a : null; };
-const band = (v, steps) => Math.min(steps - 1, Math.floor(v * steps));
+// a value on a band's edge is in the band above it (an area-weighted mean of 0.4s comes back a hair under 0.4)
+const band = (v, steps) => Math.min(steps - 1, Math.floor(v * steps + 1e-9));
 
 export function objectMeasures(faces, frame, interest) {
   const I = INTEREST[interest], mpp = metresPerPixel(I.distance);

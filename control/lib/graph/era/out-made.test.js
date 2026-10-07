@@ -44,7 +44,7 @@ describe('out-made', () => {
     expect(ford.tokens.timber).toBe('round');
     expect(ford.tokens.hat).toBeGreaterThanOrEqual(0.8);
     expect(ford.from).toMatchObject({ timber: 'trail', hat: 'trail', joint: 'kit' });
-    for (const k of ['joint', 'edge', 'bond', 'relief', 'chunk', 'paint', 'wear']) expect(ford.tokens[k]).toBe(base.tokens[k]);
+    for (const k of ['bridge', 'joint', 'edge', 'bond', 'relief', 'chunk', 'paint', 'wear']) expect(ford.tokens[k]).toBe(base.tokens[k]);
     expect(ford.swatch.hat).toMatchObject({ ramp: 'foliage', from: 'trail', stops: SWATCHES['isekai-meadow'].land.foliage });
     expect(ford.swatch.timber.from).toBe('kit');
     // tokens stay inside the kit's rails for every seed
@@ -61,18 +61,18 @@ describe('out-made', () => {
     expect(m({ swatches: { glow: 'paint' } })).toThrow(/not a swatch role/);
     expect(m({ pieces: [{ pattern: 'post-fence', at: 'pit', dims: { railTop: 0.7 } }] })).toThrow(/railTop is 0.95–1.05, inside its laws/);
     expect(m({ pieces: [{ pattern: 'inukshuk', from: 0, to: 10 }] })).toThrow(/stands at a spot/);
-    expect(m({ pieces: [{ pattern: 'beam-bridge', at: 'trailhead' }] })).toThrow(/stands at crossing, pit/);
+    expect(m({ pieces: [{ pattern: 'bridge', at: 'trailhead' }] })).toThrow(/stands at crossing, pit/);
     expect(m({ pieces: [{ pattern: 'gazebo', at: 'rest' }] })).toThrow(/not a pattern/);
     expect(m({ walls: [] })).toThrow(/not a layer/);
-    expect(readMade({ pieces: [{ pattern: 'paving', from: 4, to: 16 }, { pattern: 'beam-bridge', at: 'crossing', dims: { span: 6 } }] }, 'isekai-meadow').pieces)
-      .toEqual([{ pattern: 'paving', from: 4, to: 16, dims: {} }, { pattern: 'beam-bridge', at: 'crossing', dims: { span: 6 } }]);
+    expect(readMade({ pieces: [{ pattern: 'paving', from: 4, to: 16 }, { pattern: 'bridge', at: 'crossing', dims: { span: 6 } }] }, 'isekai-meadow').pieces)
+      .toEqual([{ pattern: 'paving', from: 4, to: 16, dims: {} }, { pattern: 'bridge', at: 'crossing', dims: { span: 6 } }]);
     expect(() => madeStyle('gothic-stone', 1)).toThrow(/indexed for the outdoor kits/);
   });
 
   it('a piece is a pure function of its pattern, style and seed', () => {
     const st = madeStyle('isekai-sakura', 3);
     for (const id of MADE_PATTERN_IDS) expect(JSON.stringify(designPiece(id, st, 5))).toBe(JSON.stringify(designPiece(id, madeStyle('isekai-sakura', 3), 5)));
-    expect(designPiece('beam-bridge', st, 5, { span: 7.5 }).measures.span).toBe(7.5);
+    expect(designPiece('bridge', st, 5, { span: 7.5 }).measures.span).toBe(7.5);
   });
 
   it('the index page draws every swatch, pattern and kit, and is the same page every time', () => {
