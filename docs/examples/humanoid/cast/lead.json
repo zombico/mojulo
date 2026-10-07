@@ -1,12 +1,12 @@
 {
   "name": "lead",
-  "$note": "A hot-headed young fighter (male): a short, set-jawed face with a strong chin, low brows and sharp upturned eyes, determined, in the guard stand. Shows the hair form words: short upright spikes from a hand-set sweepBack (the head construction frame, y up and +z back: the control point at rise and controlZ, the tip at tipY and tipZ), crown and fringe lifts, a raised front hairline and two fringe locks moved by hand; the hair lit without a highlight on its own step (toon.light).",
+  "$note": "A hot-headed young fighter (male): a long, set-jawed face narrowing to a small square chin, big eyes under low brows, sharp and upturned, determined, in the guard stand. Shows the hair form words: short upright spikes from a hand-set sweepBack (the head construction frame, y up and +z back: the control point at rise and controlZ, the tip at tipY and tipZ), crown and fringe lifts, a raised front hairline and two fringe locks moved by hand; the hair lit without a highlight on its own step (toon.light).",
   "hero": {
     "cast": "male",
     "head": "anime",
     "look": ["lead", "tsurime", "strong-chin", "brow-block", "sharp-eyes"],
-    "face": { "lower": 0.95, "jaw": 1.08 },
-    "sculpt": { "browGap": 0.85, "browAngle": 4, "mouthWidth": 1.05, "eyeLevel": 0.006, "pronasale": -0.008 },
+    "face": { "lower": 1.1875, "jaw": 0.972, "eyeWidth": 1.12, "eyeHeight": 1.2, "chin": 0.62, "chinHeight": 1.1, "jawAngle": 1.18, "lowerCheekVolume": 0.82 },
+    "sculpt": { "browGap": 0.85, "browAngle": 4, "mouthWidth": 1.05, "eyeLevel": 0.006, "pronasale": -0.008, "fissureHeight": 1.15 },
     "hair": {
       "style": "short",
       "lift": { "crown": 0.2, "temple": 0.06, "fringe": 0.12, "nape": 0.05 },

@@ -395,6 +395,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   set whole). The row keeps the words and a resolved STAMP (`lookResolved`): a later re-tuning of a word never changes a
   stored hero until its list is edited. The readout says `look`, `lookFrom`, the effective head and tune, and the own
   layer apart. Every preset stays inside the studio's ranges on both bases.
+  GENKI (the anime head only). `genki: 0 … 1` is the shonen spirit translated onto the character, one amount over the
+  look and the own layer (`anime-genki.js`): broader shoulders, a narrower waist and stronger forearms and calves; on the
+  male bigger, rounder eyes, on the female a narrower opening; a heavier, lower brow set into a V; more taper and crown
+  in the hair; the brow set, the mouth more open and the smile wider; and the stand on a wider base, chest and chin up.
+  Ratios at amount s are ratio^s, offsets × s, so `/hero/genki 0.5` is halfway; absent or 0 changes nothing and stores
+  nothing. It composes with every other word (the dress, the gear and the clips fit the body it makes; read the
+  clearance warnings as for any tune). The readout says `genki`.
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a
   jerkin and trousers keep, soft sleeve folds at the elbows, a QUILTED jerkin (front panels either side of a bare placket,

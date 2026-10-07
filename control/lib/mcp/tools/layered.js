@@ -58,6 +58,7 @@ import { layeredLegibility } from '@/lib/graph/polygonizer/station-loft-legibili
 import { fitEvidence } from '@/lib/graph/polygonizer/humanoid-head-fit';
 import { ANIME_FACE, ANIME_HAIR, ANIME_FACE_KEYS, ANIME_HAIR_KEYS, ANIME_POSES, ANIME_PRESETS, resolveAnimeFace, validateAnimeFace, animeFaceWarnings, resolveAnimeHair, validateAnimeHair, animeHairWarnings, resolveAnimeExpression, validateAnimeExpression, animeExpressionWarnings, animeCoverageWarnings, animeFaceZoneWarnings, ANIME_HAIR_BASE, ANIME_HAIR_FORM_WORDS } from '@/lib/graph/polygonizer/anime-head';
 import { ANIME_HAIR_STYLES } from '@/lib/graph/polygonizer/anime-head';
+import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -168,6 +169,8 @@ export function normalizeHero(hero) {
   if (hero && hero.clips !== undefined && (hero.clips === null || !Object.keys(hero.clips).length)) { const { clips: _c, ...rest } = hero; hero = rest; }
   // the ambient blink is stored only when off: a patch setting it back on (true, null) drops the field
   if (hero && hero.blink !== undefined && hero.blink !== false) { const { blink: _b, ...rest } = hero; hero = rest; }
+  // genki set back to 0 (or null) by a patch drops the field
+  if (hero && hero.genki !== undefined && !(Number.isFinite(hero.genki) && hero.genki > 0)) { const { genki: _g, ...rest } = hero; hero = rest; }
   if (!hero || hero.head !== 'anime') return hero;
   // the graphic face's layer is kept sparse after a patch under /hero/sculpt (a word set back to the base drops out; an
   // emptied or null sculpt drops the field); a record without one is as it was
@@ -181,7 +184,7 @@ export function normalizeHero(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -216,6 +219,7 @@ export function validateHeroSpec(spec) {
     errs.push(`register: a register word (${Object.keys(REGISTERS).join(', ')}) or { slots, limbSlots, e }`);
   }
   errs.push(...validateTune(spec.tune));
+  errs.push(...validateGenki(spec));
   if (spec.body !== undefined) {
     if (!spec.body || typeof spec.body !== 'object' || Array.isArray(spec.body)) errs.push(`body: an object of radii in metres (have ${Object.keys(BODY_DEFAULTS).join(', ')}); for PERCENTAGES of the cast use tune`);
     else for (const k of Object.keys(spec.body)) if (!(k in BODY_DEFAULTS)) errs.push(`body.${k}: not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}); a proportion word (${TUNE_KEYS.join(', ')}) belongs in tune`);
@@ -297,6 +301,8 @@ export function heroRecord(spec) {
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
   }
   for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
+  if (Number.isFinite(spec.genki) && spec.genki > 0) hero.genki = spec.genki;
   // the stand, stored AS GIVEN (a word re-resolves for the cast on every regeneration, so a /hero/cast edit carries the
   // stand to the new body); the anime hero's `relaxed` is a plan-time default (heroGesture), never stored
   if (spec.gesture !== undefined && spec.gesture !== null) hero.gesture = spec.gesture;
@@ -336,7 +342,8 @@ export function heroPlanOf(hero) {
   // sinks at least that far
   if (swing && (hero.core ?? DEFAULT_CORE) === 'structured') swing = { ...swing, keys: swing.keys.map((k) => ({ ...STRUCTURED_SWING_BASE, ...k, crouch: Math.max(k.crouch ?? 0, STRUCTURED_SWING_BASE.crouch) })) };
   if (swing) { const p = withGestureClip(own, swing.keys[0]); return gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero); }
-  return gripHands(withGestureClip(own, resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE })), hero);
+  // genki moves the resolved stand (the stance, the chest, the chin); a swing's keys are its own and stay as they are
+  return gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE }), hero)), hero);
 }
 /** A hand that holds gear (gear.right / gear.left: a blade's or a staff's grip, a shield's back grip) closes round it:
  * every clip key that says nothing of that hand's fingers takes the `grip` hand word, on a rig whose hands have digits
@@ -531,7 +538,7 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const ownMoved = (r, one = (k) => ANIME_FACE.DEFAULT[k] ?? ANIME_HAIR.DEFAULT[k] ?? 1) => (r && typeof r === 'object' ? Object.fromEntries(Object.entries(r).filter(([k, v]) => k !== 'style' && k !== 'locks' && typeof v === 'number' && v !== one(k))) : r);
   return { cast: hero.cast, register: hero.register, tune, ...(hero.from ? { from: hero.from } : {}), moved: movedOf(tune), measures: heroMeasures(plan, stats),
     ...(anime && hero.look?.length ? { look: hero.look, lookFrom: hero.look.join('+'), own: { face: ownMoved(hero.face), hair: hero.hair === 'none' ? 'none' : { ...(hero.hair?.style ? { style: hero.hair.style } : {}), ...ownMoved(hero.hair), ...(Object.keys(hero.hair?.locks || {}).length ? { locks: Object.keys(hero.hair.locks) } : {}) }, ...(hero.expression ? { expression: hero.expression } : {}), ...(hero.sculpt !== undefined ? { sculpt: hero.sculpt } : {}), tune: movedOf(hero.tune) } } : {}),
-    head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include',
+    head: landmark ? 'landmark' : typeof hero.head === 'string' ? hero.head : 'include', ...(hero.genki ? { genki: hero.genki } : {}),
     ...(anime ? { base: headPoleOf(hero), proportions: hero.proportions ?? 'anime', ...(inc?.faceMeasures ? (() => { const fm = faceMeasures(hero, plan); return { headsTall: Math.round((inc.shift[2] + fm.crown_z) / fm.head_m * 100) / 100 }; })() : {}), face: animeFace, ...(hero.faceFrom ? { faceFrom: hero.faceFrom } : {}), faceMoved: Object.fromEntries(Object.entries(animeFace).filter(([k, v]) => v !== ANIME_FACE.DEFAULT[k])),
       sculpt: eff.sculpt === false ? false : sparseSculpt(eff.sculpt) ?? {},
       // hairMoved: what moved off the hair base the door applied (its form, and its cut when worn), the look's moves included
