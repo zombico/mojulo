@@ -40,7 +40,7 @@ function seen(faces, sel, where = () => true) {
 }
 
 /** Read the laws off a room stage's payload; `only` names the laws to keep (a kit's card states its own). */
-export function checkStageLaws(payload, { only = null } = {}) {
+export function checkStageLaws(payload, { only = null, plan = null } = {}) {
   const faces = payload.faces || [], torches = (payload.lights || []).map((l) => l.position);
   const g = (name) => (f) => f.group === `stage:${name}`;
   const nearTorch = (c) => torches.some((t) => near(c, t, 1.6));
@@ -72,7 +72,7 @@ export function checkStageLaws(payload, { only = null } = {}) {
   const motif = faces.filter((f) => f.group === 'stage:motif'), accentPlanes = new Set(faces.filter((f) => f.group === 'stage:accent').map((f) => f.normal.join()));
   add('repeat-adjacent', motif.length > 0, motif.length ? `${faces.filter((f) => f.group === 'stage:niche').length} niche faces framed by ${motif.length}` : 'no repeating element on the bare walls');
   add('accent-wall', accentPlanes.size === 1, accentPlanes.size === 1 ? 'one accent wall' : `${accentPlanes.size} accent walls`);
-  const props = faces.filter((f) => f.group === 'stage:prop');
+  const props = faces.filter((f) => typeof f.group === 'string' && f.group.startsWith('stage:prop'));
   add('corner-things', props.length > 0, props.length ? `${props.length} prop faces at the wall bases` : 'nothing where floor meets wall');
   // round, not boxed: a vaulted ceiling (its faces lean off the vertical), arched trim (normals off every axis in the
   // wall's plane), and a share of the built faces curved at all
@@ -83,6 +83,24 @@ export function checkStageLaws(payload, { only = null } = {}) {
   const curved = built.filter((f) => offAxis(f.normal)).length / (built.length || 1);
   add('arches-and-rounds', vault > 0 && archTrim > 0 && curved >= 0.08,
     `${vault} vault faces, ${archTrim} arched trim faces, ${(curved * 100).toFixed(1)}% of the built faces curved (≥ 8%)`);
+  // height: the highest crown of any vault
+  const crown = Math.max(0, ...faces.filter((f) => f.group === 'stage:ceiling').flatMap((f) => f.corners.map((c) => c[2])));
+  add('dare-height', crown >= 8, `the highest vault crowns at ${crown.toFixed(1)} m (≥ 8 m)`);
+  const bands = faces.filter((f) => f.group === 'stage:motif-band');
+  add('motif-small', bands.length > 0, bands.length ? `${bands.length} band faces carry the motif` : 'no motif band: nothing small repeats on the stone');
+  // the doodads, each one found by its faces (single linkage, 0.5 m); two closer than 2 m must share a room corner
+  const dd = faces.filter((f) => f.group === 'stage:prop-doodad').map((f) => [0, 1].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length));
+  const owner = dd.map((_, i) => i), find = (i) => (owner[i] === i ? i : (owner[i] = find(owner[i])));
+  for (let i = 0; i < dd.length; i++) for (let j = i + 1; j < dd.length; j++) if (Math.hypot(dd[i][0] - dd[j][0], dd[i][1] - dd[j][1]) < 0.5) owner[find(i)] = find(j);
+  const inst = new Map(); dd.forEach((c, i) => { const r = find(i); if (!inst.has(r)) inst.set(r, []); inst.get(r).push(c); });
+  const ctr = [...inst.values()].map((cs) => [cs.reduce((a, c) => a + c[0], 0) / cs.length, cs.reduce((a, c) => a + c[1], 0) / cs.length]);
+  // a corner's cluster: both within reach of one room corner (the plan's, when given; else the pair stands as a corner
+  // pair does, an arm's length apart)
+  const corners = plan ? plan.rooms.flatMap((r) => [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]]) : null;
+  const cluster = (a, b) => (corners ? corners.some((q) => Math.hypot(a[0] - q[0], a[1] - q[1]) < 2.2 && Math.hypot(b[0] - q[0], b[1] - q[1]) < 2.2) : Math.hypot(a[0] - b[0], a[1] - b[1]) < 1.4);
+  let crowd = 0;
+  for (let i = 0; i < ctr.length; i++) for (let j = i + 1; j < ctr.length; j++) if (Math.hypot(ctr[i][0] - ctr[j][0], ctr[i][1] - ctr[j][1]) < 2 && !cluster(ctr[i], ctr[j])) crowd++;
+  add('doodads-apart', crowd === 0, crowd ? `${crowd} pair${crowd > 1 ? 's' : ''} of doodads stand together outside a corner's cluster` : `${ctr.length} doodads, none crowded`);
   const darkest = Math.min(...faces.filter((f) => f.cornerFills && !f.blend).flatMap((f) => f.cornerFills.map((h) => Math.max(...hex(h)))));
   add('shade-is-colour', darkest > 0.03, `darkest corner ${darkest.toFixed(3)}`);
   const kept = only ? out.filter((x) => only.includes(x.law)) : out;

@@ -168,7 +168,7 @@ const __fireBoxGeo = new THREE.BoxGeometry(1, 1, 1), __fireFlames = [];
 __fireAll.forEach((s, i) => {
   for (let k = 0; k < s.n; k++) {
     const U = { uSpine: { value: Array.from({ length: __FNP }, () => new THREE.Vector3()) }, uRad: { value: new Array(__FNP).fill(0) }, uBoxMin: { value: new THREE.Vector3() }, uBoxMax: { value: new THREE.Vector3() },
-      uTime: { value: 0 }, uGain: { value: (s.lam ? 1.4 : s.path ? 0.3 : s.kind === 'grass' ? 0.55 : 0.85 / (1 + 0.3 * (s.n - 1))) * (1 - 0.45 * (FIRE.day || 0)) }, uSoot: { value: s.soot }, uEdge: { value: s.lam ? 0.08 : 0.45 }, uLam: { value: s.lam ? 1 : 0 }, uRise: { value: Math.sqrt(9.81 * s.L) }, uLineK: { value: s.lineK || 0 }, uLine: { value: new THREE.Vector3(...(s.line || [1, 1, 1])) }, uBall: { value: s.path ? 1 : 0 } };
+      uTime: { value: 0 }, uGain: { value: (s.lam ? 1.4 : s.path ? 0.3 : s.kind === 'grass' ? 0.55 : 0.85 / (1 + 0.3 * (s.n - 1))) * (1 - 0.45 * (FIRE.day || 0)) }, uSoot: { value: s.soot }, uEdge: { value: s.lam ? 0.08 : 0.45 }, uLam: { value: s.lam ? 1 : 0 }, uRise: { value: Math.sqrt(9.81 * s.L) * (s.pace || 1) }, uLineK: { value: s.lineK || 0 }, uLine: { value: new THREE.Vector3(...(s.line || [1, 1, 1])) }, uBall: { value: s.path ? 1 : 0 } };
     const m = new THREE.Mesh(__fireBoxGeo, new THREE.ShaderMaterial({ uniforms: U, vertexShader: __fireFlameVS, fragmentShader: __fireFlameFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     m.frustumCulled = false; m.renderOrder = 7; scene.add(m); __fireFlames.push({ m, U, i, k });
   }

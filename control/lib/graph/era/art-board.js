@@ -21,7 +21,7 @@ import { roundArch } from './arches.js';
 import { artForBuild } from './art-direction.js';
 import { loadSharp } from '../../sharp-lazy.js';
 
-export const BOARD = Object.freeze({ w: 1200, h: 880 });
+export const BOARD = Object.freeze({ w: 1200, h: 1010 });
 const KIT_NAMES = { 'gothic-stone': 'castle dungeon', catacomb: 'catacomb' };
 const STATUS_COLOUR = { proposed: '#e8b04a', approved: '#6cc070', auto: '#8a93a6' };
 const INK = '#e9e4da', DIM = '#9a958c', PANEL = '#1e2026', BG = '#14161a';
@@ -47,37 +47,44 @@ function panel(x, y, w, h, n, title, status, sub = '') {
 
 function palettePanel(x, y, P, status) {
   const rows = [['walls', P.stone], ['floor', P.floor], ['vault', P.vault], ['trim', P.trim], ['wood', P.wood], ['accent', P.accent]];
-  const out = [panel(x, y, 560, 300, 1, 'PALETTE', status, `stone: ${P.family} · ramps run shade (cool) to light (warm)`)];
+  const out = [panel(x, y, 380, 330, 1, 'PALETTE', status, `stone: ${P.family} · shade (cool) to light (warm)`)];
   rows.forEach(([name, R], i) => {
-    const ry = y + 60 + i * 34;
+    const ry = y + 58 + i * 38;
     out.push(text(x + 14, ry + 20, name, { size: 13, fill: DIM }));
-    R.forEach((c, k) => out.push(rect(x + 90 + k * 62, ry, 58, 28, hex(c), 'rx="3"')));
-    out.push(text(x + 410, ry + 19, hex(R[2]), { size: 12, fill: DIM }));
+    R.forEach((c, k) => out.push(rect(x + 76 + k * 48, ry, 44, 30, hex(c), 'rx="3"')));
+    out.push(text(x + 322, ry + 19, hex(R[2]), { size: 11, fill: DIM }));
   });
-  out.push(text(x + 14, y + 284, 'torchlight', { size: 13, fill: DIM }), `<circle cx="${x + 119}" cy="${y + 279}" r="12" fill="${hex(P.light)}"/>`, text(x + 140, y + 284, hex(P.light), { size: 12, fill: DIM }));
+  out.push(text(x + 14, y + 314, 'torchlight', { size: 13, fill: DIM }), `<circle cx="${x + 98}" cy="${y + 309}" r="11" fill="${hex(P.light)}"/>`, text(x + 116, y + 314, hex(P.light), { size: 11, fill: DIM }));
   return out.join('');
 }
 
-function materialsPanel(x, y, tiles, status) {
-  const out = [panel(x, y, 600, 300, 2, 'MATERIALS', status, 'the tiles the build lays, exactly')];
+function materialsPanel(x, y, tiles, weather, status) {
+  const out = [panel(x, y, 480, 330, 2, 'MATERIALS', status, 'the tiles the build lays, exactly')];
   tiles.forEach(([name, key, note], i) => {
-    const tx = x + 14 + (i % 3) * 194, ty = y + 54 + Math.floor(i / 3) * 122, url = surfaceTexture(key);
-    if (url) out.push(`<image x="${tx}" y="${ty}" width="96" height="96" href="${url}" preserveAspectRatio="none"/>`);
-    out.push(rect(tx, ty, 96, 96, 'none', 'stroke="#000" stroke-opacity="0.4"'));
-    out.push(text(tx + 104, ty + 18, name, { size: 13, weight: 700 }), text(tx + 104, ty + 36, note, { size: 11, fill: DIM }));
+    const tx = x + 16 + (i % 3) * 156, ty = y + 52 + Math.floor(i / 3) * 124, url = surfaceTexture(key);
+    if (url) out.push(`<image x="${tx}" y="${ty}" width="86" height="86" href="${url}" preserveAspectRatio="none"/>`);
+    out.push(rect(tx, ty, 86, 86, 'none', 'stroke="#000" stroke-opacity="0.4"'));
+    out.push(text(tx + 92, ty + 16, name, { size: 13, weight: 700 }), ...note.split('\n').map((t, k) => text(tx + 92, ty + 33 + k * 15, t, { size: 10.5, fill: DIM })));
   });
+  out.push(text(x + 16, y + 318, `weathering · earth ${Math.round((weather.earth || 0) * 100)}% of the floor · ivy ${Math.round((weather.ivy || 0) * 100)}% of the bare bays`, { size: 11, fill: DIM }));
   return out.join('');
 }
 
 /** The elevation (two bays of one wall) and the section (the room across, its vault), at a common scale. */
 function architecturePanel(x, y, plan, P, status) {
-  const k = plan.kit, out = [panel(x, y, 560, 440, 3, 'ARCHITECTURE', status, 'one wall, two bays · the room across · metres')];
+  const k = plan.kit, lift = k.lift || 1, out = [panel(x, y, 560, 440, 3, 'ARCHITECTURE', status, `one wall, two bays · the room across · metres${lift > 1 ? ` · every room ×${lift} taller` : ''}`)];
   const H = 5, bay = k.bay, s = Math.min(250 / (2 * bay), 290 / (H + 3.4), 186 / 6), gx = x + 24, gy = y + 400;   // ground line
   const X = (u) => gx + u * s, Y = (z) => gy - z * s, c = (r) => hex(r);
   const wall = c(P.stone[2]), trim = c(P.trim[3]), dark = c(P.stone[0]), niche = c([18, 16, 15]);
   // the wall, its plinth and cornice
   out.push(rect(X(0), Y(H), 2 * bay * s, H * s, wall));
   out.push(rect(X(0), Y(k.plinth.h), 2 * bay * s, k.plinth.h * s, trim), rect(X(0), Y(H), 2 * bay * s, k.cornice.h * s, trim));
+  // the motif band, where it is carved (a pattern of the frieze tile, four motifs to a tile, square to the band)
+  if (k.motif) {
+    const url = surfaceTexture(`${k.motif.family}-a`), band = (z0, bh, id) => [`<defs><pattern id="${id}" patternUnits="userSpaceOnUse" x="${f1(X(0))}" y="${f1(Y(z0 + bh))}" width="${f1(4 * bh * s)}" height="${f1(bh * s)}"><image href="${url}" width="${f1(4 * bh * s)}" height="${f1(bh * s)}" preserveAspectRatio="none"/></pattern></defs>`, rect(X(0), Y(z0 + bh), 2 * bay * s, bh * s, `url(#${id})`)].join('');
+    if (k.motif.on !== 'cornice') out.push(band(k.plinth.h * 0.2, k.plinth.h * 0.6, 'bandP'));
+    if (k.motif.on !== 'plinth') out.push(band(H - k.cornice.h * 0.8, k.cornice.h * 0.6, 'bandC'));
+  }
   // bay 1: the repeating niche (its head, its tiers)
   const N = k.dress.niches, wd = Math.min(N.w, (bay - k.pilaster.w) * 0.6), round = N.head === 'round', nh = N.h + (round ? wd / 2 : 0);
   const top = H - k.cornice.h, z0 = k.plinth.h + N.sill, tiers = Math.max(1, Math.min(N.tiers ?? 2, Math.floor((top - z0 - 0.3 + N.gap) / (nh + N.gap))));
@@ -122,41 +129,78 @@ const PROP_GLYPH = {
   boulder: (x, y, c) => `<ellipse cx="${x}" cy="${y - 14}" rx="17" ry="14" fill="${c.stone}"/>`,
   debris: (x, y, c) => [[-12, -3], [-4, -5], [5, -2], [11, -4], [0, -9], [-8, -10]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="2.6" fill="${c.stone}"/>`).join(''),
   amphora: (x, y, c) => `<path d="M${x - 4} ${y - 38} h8 v5 q12 6 10 20 q-2 12 -9 13 h-10 q-7 -1 -9 -13 q-2 -14 10 -20 z" fill="#9e6a4c"/>`,
+  coffin: (x, y, c) => rect(x - 22, y - 16, 44, 16, c.pale, `stroke="${c.dark}"`) + `<polygon points="${x - 26},${y - 16} ${x + 18},${y - 22} ${x + 20},${y - 18} ${x - 24},${y - 12}" fill="${c.pale}" stroke="${c.dark}"/>`,
   bones: (x, y, c) => line([[x - 14, y - 4], [x + 14, y - 12]], c.bone, 4) + line([[x - 12, y - 14], [x + 13, y - 2]], c.bone, 4) + `<circle cx="${x + 2}" cy="${y - 22}" r="8" fill="${c.bone}"/>`,
 };
 
-function motifsPanel(x, y, plan, P, status) {
-  const k = plan.kit, D = k.dress, N = D.niches, out = [panel(x, y, 290, 440, 4, 'MOTIFS', status)];
-  const c = { wood: hex(P.wood[3]), dark: hex(P.wood[0]), stone: hex(P.stone[1]), bone: hex(P.accent[3]) };
-  out.push(text(x + 14, y + 54, 'repeats on every bare bay', { size: 12, fill: DIM }));
-  // the niche, at a glyph's size
-  const nx = x + 40, ny = y + 140, w = 50, round = N.head === 'round';
-  out.push(rect(nx - 8, ny - 70, w + 16, 86, hex(P.stone[2]), 'rx="2"'));
-  out.push(round ? `<path d="M${nx} ${ny} v-34 a${w / 2} ${w / 2} 0 0 1 ${w} 0 v34 z" fill="#121010" stroke="${hex(P.trim[3])}" stroke-width="4"/>` : rect(nx, ny - 26, w, 22, '#121010', `stroke="${hex(P.trim[3])}" stroke-width="4"`));
-  out.push(text(nx + w + 22, ny - 40, round ? 'arched niche' : N.sealed !== undefined ? 'loculus slot' : 'square niche', { size: 13, weight: 700 }), text(nx + w + 22, ny - 22, `${N.tiers} tier${N.tiers > 1 ? 's' : ''} · urns ${Math.round(N.urns * 100)}%`, { size: 11, fill: DIM }));
-  if (N.sealed !== undefined) out.push(text(nx + w + 22, ny - 6, `sealed ${Math.round(N.sealed * 100)}%`, { size: 11, fill: DIM }));
+const SET_PIECE = {
+  tomb: (x, y, c) => rect(x - 50, y - 12, 100, 12, c.trim) + rect(x - 36, y - 46, 72, 34, c.pale) + `<path d="M${x - 40} ${y - 46} q40 -16 80 0 z" fill="${c.pale}" stroke="${c.dark}"/>`,
+  'open-tomb': (x, y, c) => rect(x - 50, y - 12, 100, 12, c.trim) + rect(x - 36, y - 46, 72, 34, c.pale) + rect(x - 30, y - 46, 60, 6, '#0d0c0c') + `<polygon points="${x + 38},${y - 12} ${x + 46},${y - 12} ${x + 30},${y - 62} ${x + 22},${y - 62}" fill="${c.pale}" stroke="${c.dark}"/>`,
+  altar: (x, y, c) => rect(x - 50, y - 12, 100, 12, c.trim) + rect(x - 30, y - 40, 14, 28, c.pale) + rect(x + 16, y - 40, 14, 28, c.pale) + rect(x - 42, y - 48, 84, 9, c.pale, `stroke="${c.dark}"`),
+  well: (x, y, c) => rect(x - 50, y - 12, 100, 12, c.trim) + `<path d="M${x - 34} ${y - 44} v30 a34 10 0 0 0 68 0 v-30" fill="${c.pale}" stroke="${c.dark}"/><ellipse cx="${x}" cy="${y - 44}" rx="34" ry="10" fill="${c.pale}" stroke="${c.dark}"/><ellipse cx="${x}" cy="${y - 44}" rx="27" ry="7" fill="#0b0b0c"/>`,
+};
+const SET_PIECE_WORDS = { tomb: 'a tomb chest, closed', 'open-tomb': 'an empty tomb, its lid off', altar: 'an altar on two blocks', well: 'a round well' };
+
+function doodadsPanel(x, y, plan, P, status) {
+  const k = plan.kit, D = k.dress, out = [panel(x, y, 290, 440, 5, 'DOODADS', status, 'the large things, never two together')];
+  const c = { wood: hex(P.wood[3]), dark: hex(P.wood[0]), stone: hex(P.stone[1]), bone: hex(P.accent[3]), pale: '#d8d2c6', trim: hex(P.trim[2]) };
+  const kind = D.tomb.kind || 'tomb';
+  out.push(SET_PIECE[kind](x + 70, y + 128, c), text(x + 136, y + 92, 'set piece', { size: 13, weight: 700 }), text(x + 136, y + 110, SET_PIECE_WORDS[kind], { size: 11, fill: DIM }), text(x + 136, y + 125, 'at the end of the walk', { size: 11, fill: DIM }));
   // the accent wall
-  const ay = y + 200, ossuary = !!D.accent.skulls;
+  const ay = y + 160, ossuary = !!D.accent.skulls;
   out.push(text(x + 14, ay, 'one accent wall, behind the set piece', { size: 12, fill: DIM }));
-  out.push(rect(x + 14, ay + 10, 262, 70, hex(P.accent[2])));
+  out.push(rect(x + 14, ay + 10, 262, 64, hex(P.accent[2])));
   for (let r = 0; r < 4; r++) for (let q = 0; q < (ossuary ? 14 : 5); q++) {
-    const bw = ossuary ? 18 : 52, bh = ossuary ? 16 : 16;
-    out.push(rect(x + 16 + q * (bw + 1) + (r % 2) * (bw / 2) - (r % 2 ? bw / 2 : 0), ay + 12 + r * (bh + 1), bw - 1, bh, hex(P.accent[1 + ((q + r) % 3)])));
+    const bw = ossuary ? 18 : 52, bh = 15;
+    if (ossuary) out.push(`<circle cx="${f1(x + 24 + q * 18.6 + (r % 2) * 9)}" cy="${f1(ay + 18 + r * 16)}" r="7" fill="${hex(P.accent[1 + ((q + r) % 3)])}"/>`);
+    else { const bx = x + 16 + q * (bw + 1) - (r % 2 ? bw / 2 : 0), l = Math.max(bx, x + 16), rr = Math.min(bx + bw - 1, x + 274); if (rr > l) out.push(rect(l, ay + 12 + r * (bh + 1), rr - l, bh, hex(P.accent[1 + ((q + r) % 3)]), 'rx="3"')); }
   }
-  if (ossuary) for (let q = 0; q < 10; q++) out.push(`<circle cx="${x + 30 + q * 25}" cy="${ay + 46}" r="8" fill="${hex(P.accent[4])}"/>`, `<circle cx="${x + 27 + q * 25}" cy="${ay + 45}" r="1.8" fill="#111"/>`, `<circle cx="${x + 33 + q * 25}" cy="${ay + 45}" r="1.8" fill="#111"/>`);
-  out.push(text(x + 14, ay + 98, ossuary ? 'ossuary: bone ends, rows of skulls' : 'larger, darker ashlar; no niches', { size: 11, fill: DIM }));
-  // the corner things
-  const py = y + 330;
-  out.push(text(x + 14, py, 'corner things, where floor meets wall', { size: 12, fill: DIM }));
-  D.props.kinds.forEach((kind, i) => {
-    const gx = x + 36 + (i % 5) * 54, gy = py + 62;
-    out.push((PROP_GLYPH[kind] || (() => ''))(gx, gy, c), text(gx, gy + 16, kind, { size: 10, fill: DIM, anchor: 'middle' }));
+  if (ossuary) for (let q = 0; q < 10; q++) out.push(`<circle cx="${x + 30 + q * 25}" cy="${ay + 42}" r="8" fill="${hex(P.accent[4])}"/>`, `<circle cx="${x + 27 + q * 25}" cy="${ay + 41}" r="1.8" fill="#111"/>`, `<circle cx="${x + 33 + q * 25}" cy="${ay + 41}" r="1.8" fill="#111"/>`);
+  out.push(text(x + 14, ay + 90, ossuary ? 'ossuary: bone ends, rows of skulls' : 'larger, darker ashlar; no niches', { size: 11, fill: DIM }));
+  // the things on the floor: doodads apart, scatter anywhere
+  const py = y + 288, P2 = D.props;
+  out.push(text(x + 14, py, 'things where floor meets wall', { size: 12, fill: DIM }));
+  P2.kinds.forEach((kd, i) => {
+    const gx = x + 36 + (i % 5) * 54, gy = py + 64;
+    out.push((PROP_GLYPH[kd] || (() => ''))(gx, gy, c), text(gx, gy + 16, kd, { size: 10, fill: DIM, anchor: 'middle' }));
   });
+  out.push(text(x + 14, y + 410, `${P2.clusters ?? 1} corner${(P2.clusters ?? 1) === 1 ? '' : 's'} may gather two on purpose`, { size: 11, fill: DIM }), text(x + 14, y + 425, `elsewhere doodads stand ${P2.apart ?? 2.5} m apart`, { size: 11, fill: DIM }));
+  return out.join('');
+}
+
+function motifsPanel(x, y, plan, art, status) {
+  const k = plan.kit, X = art.motifs, out = [panel(x, y, 290, 330, 4, 'MOTIFS', status, 'small: a pattern carved in a band')];
+  if (!k.motif) return out.join('');
+  const url = surfaceTexture(`${k.motif.family}-a`);
+  out.push(`<image x="${x + 16}" y="${y + 58}" width="256" height="64" href="${url}" preserveAspectRatio="none"/>`);
+  out.push(text(x + 16, y + 146, X.pattern, { size: 15, weight: 700 }), text(x + 16, y + 164, `relief ${Math.round(X.relief * 100)}% · figure in the ${X.figure === 'accent' ? 'accent' : 'trim'} colour`, { size: 11, fill: DIM }));
+  // where it runs: a wall in section, the band lit where it is carved
+  const wx = x + 16, wy = y + 186, wh = 120, on = X.on;
+  out.push(rect(wx, wy, 256, wh, '#2b2d33'), rect(wx, wy, 256, 16, on !== 'plinth' ? '#e8b04a' : '#45484f'), rect(wx, wy + wh - 22, 256, 22, on !== 'cornice' ? '#e8b04a' : '#45484f'));
+  out.push(text(wx + 128, wy + 12, 'cornice', { size: 10, fill: '#14161a', anchor: 'middle', weight: 700 }), text(wx + 128, wy + wh - 7, 'plinth', { size: 10, fill: '#14161a', anchor: 'middle', weight: 700 }));
+  out.push(text(wx + 128, wy + wh / 2 + 4, `runs along the ${on === 'both' ? 'plinth and the cornice' : on}`, { size: 11, fill: DIM, anchor: 'middle' }));
+  return out.join('');
+}
+
+function atmospherePanel(x, y, plan, art, P, status) {
+  const A = art.atmosphere, base = plan.ref.air.fog, dens = base.density * (A.fog || 1), seen = Math.round(3 / Math.max(dens, 1e-3));
+  const out = [panel(x, y, 1160, 140, 6, 'ATMOSPHERE', status)];
+  // fog: a run of wall fading into the fog colour as far as one can see
+  out.push(`<defs><linearGradient id="fogG" x1="0" x2="1"><stop offset="0" stop-color="${hex(P.stone[3])}"/><stop offset="${Math.min(0.95, 0.12 + 0.6 * (seen / 60)).toFixed(2)}" stop-color="${base.color}"/><stop offset="1" stop-color="${base.color}"/></linearGradient></defs>`);
+  out.push(rect(x + 16, y + 52, 340, 50, 'url(#fogG)', 'rx="3"'), text(x + 16, y + 124, `fog ×${A.fog} · about ${seen} m before the far wall is lost`, { size: 11, fill: DIM }));
+  // dust: specks in a block of air, as many as the setting
+  out.push(rect(x + 390, y + 52, 340, 50, '#0f1013', 'rx="3"'));
+  for (let i = 0; i < Math.round(A.dust * 120); i++) { const a = Math.sin(i * 12.9898) * 43758.5453, b = Math.sin(i * 78.233) * 12345.678; out.push(`<circle cx="${f1(x + 392 + (a - Math.floor(a)) * 336)}" cy="${f1(y + 54 + (b - Math.floor(b)) * 46)}" r="1.1" fill="${hex(P.light)}" opacity="${(0.25 + 0.6 * ((a * 7) % 1 + 1) % 1).toFixed(2)}"/>`); }
+  out.push(text(x + 390, y + 124, `dust ${Math.round(A.dust * 100)}% · drifting in still air, lit near the torches`, { size: 11, fill: DIM }));
+  // flicker: a torch's light over two seconds at its pace
+  const fx = x + 764, pts = []; for (let i = 0; i <= 120; i++) { const t = (i / 120) * 2, w = 2 * Math.PI * 5.7 * A.flicker * t; pts.push([fx + i * 2.8, y + 77 - 18 * (0.6 * Math.sin(w) + 0.25 * Math.sin(2.3 * w + 1) + 0.15 * Math.sin(0.37 * w + 2))]); }
+  out.push(rect(fx, y + 52, 340, 50, '#0f1013', 'rx="3"'), line(pts, hex(P.light), 2));
+  out.push(text(fx, y + 124, `torch flicker ×${A.flicker} a real torch's · ${A.flicker < 0.5 ? 'calm' : 'restless'}`, { size: 11, fill: DIM }));
   return out.join('');
 }
 
 function planPanel(x, y, plan, P, status) {
-  const out = [panel(x, y, 290, 440, 5, 'PLAN', status, `${plan.rooms.length} rooms · walk ends at the set piece`)];
+  const out = [panel(x, y, 290, 440, 7, 'PLAN', status, `${plan.rooms.length} rooms · walk ends at the set piece`)];
   const xs = plan.rooms.flatMap((r) => r.box.filter((_, i) => i % 2 === 0)), ys = plan.rooms.flatMap((r) => r.box.filter((_, i) => i % 2 === 1));
   const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
   const s = Math.min(250 / (maxX - minX), 340 / (maxY - minY)), ox = x + 20 + (250 - (maxX - minX) * s) / 2, oy = y + 60 + (340 - (maxY - minY) * s) / 2;
@@ -183,23 +227,26 @@ function planPanel(x, y, plan, P, status) {
 /** The board for a room stage recipe with an art direction. → SVG text. */
 export function artBoardSvg(manifest) {
   const kitId = manifest.kit || 'gothic-stone', art = artForBuild(kitId, manifest.art), status = manifest.art && manifest.art.status || {};
-  const plan = planStage(manifest), k = plan.kit, P = art.palette;
+  const plan = planStage(manifest), k = plan.kit, P = art.palette, M = art.materials;
+  const how = (spec) => (spec.gen === 'stone-brick' ? `${spec.bond || 'running'} bond\n${spec.dark ? 'dark in grey' : `radius ${spec.radius ?? 0}`}` : spec.gen);
   const fam = (part) => k.tiles[part].family ? `${k.tiles[part].family}-a` : k.tiles[part].key;
   const tiles = [
-    ['walls', fam('wall'), art.materials.wall.gen], ['floor', fam('floor'), art.materials.floor.gen], ['vault', fam('ceiling'), art.materials.ceiling.gen],
-    ['trim', fam('trim'), art.materials.trim.gen], ['wood', `${tileFamilyOf(k.dress.props.wood.light)}-a`, 'props'], ['accent', `${tileFamilyOf({ gen: 'stone-brick', ...k.dress.accent.stone })}-a`, k.dress.accent.skulls ? 'ossuary' : 'ashlar'],
+    ['walls', fam('wall'), how(M.wall)], ['floor', fam('floor'), how(M.floor)], ['vault', fam('ceiling'), M.ceiling.gen],
+    ['trim', fam('trim'), M.trim.gen], ['wood', `${tileFamilyOf(k.dress.props.wood.light)}-a`, 'props'], ['accent', `${tileFamilyOf({ gen: 'stone-brick', ...k.dress.accent.stone })}-a`, k.dress.accent.skulls ? 'ossuary' : 'ashlar'],
   ];
   const { w, h } = BOARD;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
     rect(0, 0, w, h, BG),
     text(20, 38, `ART DIRECTION · ${KIT_NAMES[kitId] || kitId}`, { size: 22, weight: 700 }),
-    text(20, 58, `${manifest.title || ''}${art.seed ? ` seed ${art.seed}` : ''} · approve or send back each item; nothing is built from an item you reject`, { size: 12, fill: DIM }),
+    text(20, 58, `${manifest.title || ''}${art.seed ? ` seed ${art.seed}` : ''} · approve each item or send it back to be rolled again`, { size: 12, fill: DIM }),
     palettePanel(20, 70, P, status.palette),
-    materialsPanel(590, 70, tiles, status.materials),
-    architecturePanel(20, 390, plan, P, status.architecture),
-    motifsPanel(590, 390, plan, P, status.motifs),
-    planPanel(890, 390, plan, P, status.plan),
+    materialsPanel(410, 70, tiles, M.weathering || {}, status.materials),
+    motifsPanel(900, 70, plan, art, status.motifs),
+    architecturePanel(20, 410, plan, P, status.architecture),
+    doodadsPanel(590, 410, plan, P, status.doodads),
+    planPanel(890, 410, plan, P, status.plan),
+    atmospherePanel(20, 860, plan, art, P, status.atmosphere),
     '</svg>',
   ].join('');
 }

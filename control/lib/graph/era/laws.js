@@ -54,6 +54,9 @@ export const LAWS = Object.freeze({
   'layered-depth': { layer: 'composition', law: 'Layers at every depth, revealed in rings out from the way.' },
   'by-cause': { layer: 'composition', law: 'Everything placed or messy has a cause it can be traced to.' },
   'arches-and-rounds': { layer: 'composition', law: 'Curves break the grid: openings arched, ceilings vaulted, things turned round; a level is never only boxes (the voxel read).' },
+  'dare-height': { layer: 'composition', law: 'Don\'t be afraid to make it tall: some space rises far over the walker, its vault lost in the dark.' },
+  'motif-small': { layer: 'surface', law: 'Motifs are small: a pattern carved or painted in a band (a frieze on the plinth, the cornice), never an object.' },
+  'doodads-apart': { layer: 'composition', law: 'Doodads are the large things: never two together unless gathered on purpose (a corner\'s cluster).' },
   'repeat-adjacent': { layer: 'composition', law: 'Adjacent bare walls share a repeating design element.' },
   'accent-wall': { layer: 'composition', law: 'One accent wall breaks the repeat and carries the eye.' },
   'corner-things': { layer: 'composition', law: 'Things gather where floor meets wall: clusters in corners, singles at wall bases, off the way.' },
@@ -66,9 +69,9 @@ export const LAWS = Object.freeze({
 /** Each style card's principles, in order, as the laws they are instances of. */
 export const PRINCIPLE_LAWS = Object.freeze({
   crypt: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['distinct-radius'],
-    ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['arches-and-rounds', 'big-shapes']],
+    ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['arches-and-rounds', 'big-shapes'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters']],
   catacomb: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['arches-and-rounds', 'big-shapes'], ['repeat-adjacent'],
-    ['accent-wall', 'focus', 'kit-dressing'], ['blend-by-cause'], ['cutout-cards', 'by-cause', 'distinct-radius'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause']],
+    ['accent-wall', 'focus', 'kit-dressing'], ['blend-by-cause'], ['cutout-cards', 'by-cause', 'distinct-radius'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause'], ['dare-height', 'big-shapes'], ['motif-small', 'detail-in-tile'], ['doodads-apart', 'clusters']],
   'delfino-plaza': [['value-order', 'shade-is-colour'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards'], ['depth-by-air'], ['distinct-radius'], ['kit-dressing'], ['kit-dressing'], ['focus', 'kit-dressing'], ['kit-dressing'], ['sky-is-a-place']],
   'delfino-plaza/night': [['baked-light', 'shade-is-colour'], ['value-order', 'baked-light'], ['focus'], ['distinct-radius', 'by-cause'], ['sky-is-a-place']],
   'gothic-nave': [['value-order'], ['light-through'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['focus'], ['distinct-radius'], ['materials-by-layer'], ['materials-by-layer']],

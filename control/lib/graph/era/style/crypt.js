@@ -16,8 +16,13 @@ export const CRYPT = Object.freeze({
     'One accent wall: the wall behind the tomb breaks the repeat, its courses cut in larger, darker ashlar and bare of niches, so the eye lands on it.',
     'Things gather where floor meets wall: crates, barrels, planks leaning on the wall, stones, a boulder, debris; clusters in the corners and singles at the wall bases, off the way, never two of a kind side by side.',
     'Round, never boxed: doorways under semicircular heads, every room a barrel vault on ribs, the niches arched, the barrels turned and the tomb\'s lid coped; curves break the grid.',
+    'Don\'t be afraid to make it tall: the great rooms rise well over the walker, their vaults lost in the dark above the torches.',
+    'Motifs are small: a pattern carved in a band along the plinth or the cornice (a key, a rope, teeth), never an object.',
+    'Doodads are the large things (the set piece, a coffin, a barrel, a boulder): never two together unless a corner gathers them on purpose.',
   ]),
   values: Object.freeze(['candle', 'torchlit', 'floor', 'vault']),
+  // the torches' live flicker, against a real torch's: slower reads as still air underground, not a gale
+  flicker: 0.45,
   // the blends (era/blends.js): moss up the wall bases and in the gutter; grime near the walls, off the walking line
   moss: { key: 'floor:moss', scale: 1.3, tint: [0.5, 0.6, 0.54], rise: [0.15, 1.4], max: 0.8, patch: [0.32, 0.64], wander: 0.45 },
   grime: { key: 'floor:grime', scale: 1.7, tint: [0.9, 0.86, 0.82], edge: [0.3, 2.2], max: 0.9, walk: 1.4, patch: [0.25, 0.6] },

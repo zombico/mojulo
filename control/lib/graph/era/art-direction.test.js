@@ -54,18 +54,18 @@ describe('art direction: rolled at authoring time, stored as numbers', () => {
   it('each kit rolls inside its own rails: the catacomb draws rock and an ossuary, the dungeon brick and ashlar', () => {
     for (const kit of ART_KITS) {
       const a = rollArt(kit, 11);
-      expect(a.motifs.accent).toBe(kit === 'catacomb' ? 'ossuary' : 'ashlar');
-      expect(a.materials.wall.gen).toBe(kit === 'catacomb' ? 'rock' : 'stone-brick');
-      expect(a.motifs.props.length).toBeGreaterThanOrEqual(4);
+      expect(a.doodads.accent).toBe(kit === 'catacomb' ? 'ossuary' : 'ashlar');
+      expect(kit === 'catacomb' ? ['rock', 'stone-brick'] : ['stone-brick']).toContain(a.materials.wall.gen);
+      expect(a.doodads.props.length).toBeGreaterThanOrEqual(4);
     }
   });
 });
 
 describe('the art board', () => {
-  it('draws the five items in plain SVG, with the real tiles inside, and rasterizes', async () => {
+  it('draws the seven items in plain SVG, with the real tiles inside, and rasterizes', async () => {
     const m = resolveArt({ ...ROOM('catacomb'), title: 'tomb', art: { seed: 99 } }), svg = artBoardSvg(m);
-    for (const t of ['PALETTE', 'MATERIALS', 'ARCHITECTURE', 'MOTIFS', 'PLAN']) expect(svg).toContain(t);
-    expect((svg.match(/<image /g) || []).length).toBe(6);
+    for (const t of ['PALETTE', 'MATERIALS', 'ARCHITECTURE', 'MOTIFS', 'DOODADS', 'ATMOSPHERE', 'PLAN']) expect(svg).toContain(t);
+    expect((svg.match(/<image /g) || []).length).toBeGreaterThanOrEqual(7);   // six materials and the motif
     expect(svg).toContain('ossuary');
     const png = await artBoardPng(m);
     expect(png.subarray(1, 4).toString()).toBe('PNG');

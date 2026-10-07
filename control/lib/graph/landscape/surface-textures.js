@@ -532,7 +532,128 @@ const SLATE_RIVEN = { 'slate-riven': { base: [128, 130, 126], baseFreq: 4, amp: 
 // every variant shares the SAME course grid + mortar + palette + scale, varying only the
 // seed (per-stone values + grain). Mixing variants across a wall therefore keeps courses
 // continuous (it reads as one wall) while no patch repeats — harmony without spam.
+// BONDS, opt-in (`bond`; absent or 'running' ⇒ the running bond, every byte as before): the stone's cell, in course
+// units, for (x, y): { id, px, py, len, hgt, vy } — px along its length, py across it, vy how far down the stone a
+// texel sits in the world (the bevel's light comes from above whichever way the stone lies). Every bond tiles.
+const BONDS = ['running', 'stack', 'flemish', 'ashlar', 'herringbone', 'basketweave', 'hex', 'rubble'];
+function bondCells(bond, W, H, rows, cols, seed) {
+  const ih = (a, b, c) => { let h = Math.imul(a | 0, 0x27d4eb2d) ^ Math.imul(b | 0, 0x165667b1) ^ Math.imul(c | 0, 0x1b873593); h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d); h ^= h >>> 13; return h >>> 0; };
+  const wrap = (v, m) => ((v % m) + m) % m;
+  if (bond === 'hex' || bond === 'rubble') {
+    // CELLS (Voronoi on wrapped points): 'hex' jitters a hexagonal lattice a little, so each stone is a hexagon gone
+    // asymmetric; 'rubble' scatters them freely, big and small — shaped field stones piled in the mortar, as an English
+    // rubble wall. A texel's stone is its nearest point; its distance to the joint is half the gap to the second
+    const N = Math.max(3, rows), u = H / N, pts = [], ru = (k, a) => ih(seed, k, a) / 4294967296;
+    if (bond === 'hex') {
+      const cols2 = Math.max(2, Math.round(W / (u * 1.1547)));
+      for (let r = 0; r < N; r++) for (let c = 0; c < cols2; c++) pts.push([((c + (r % 2) * 0.5) * W) / cols2 + (ru(r * 97 + c, 1) - 0.5) * 0.42 * (W / cols2), (r + 0.5) * u + (ru(r * 97 + c, 2) - 0.5) * 0.42 * u]);
+    } else {
+      // jittered grid, then thinned and nudged: no two stones alike, none tiny, a few large where a point was dropped
+      let a = (seed * 2654435761) >>> 0; const R = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const g = Math.max(3, Math.round(W / (u * 0.9))), gs = W / g;
+      for (let r = 0; r < g; r++) for (let c = 0; c < g; c++) { if (R() < 0.18) continue; pts.push([(c + 0.15 + 0.7 * R()) * gs, (r + 0.15 + 0.7 * R()) * gs]); }
+    }
+    // a coarse bucket grid over the wrapped points, so each texel looks at a few neighbours, not all of them
+    const B = Math.max(1, Math.floor(W / (u * 1.5))), cw = W / B, grid = Array.from({ length: B * B }, () => []);
+    for (const p of pts) { p[0] = wrap(p[0], W); p[1] = wrap(p[1], H); }
+    pts.forEach((p, i) => grid[Math.min(B - 1, Math.floor(p[1] / cw)) * B + Math.min(B - 1, Math.floor(p[0] / cw))].push(i));
+    return { unit: u, at(x, y) {
+      const X = wrap(x, W), Y = wrap(y, H), bx = Math.floor(X / cw), by = Math.floor(Y / cw);
+      let d1 = Infinity, d2 = Infinity, best = 0, bp = null;
+      for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
+        const gx = wrap(bx + i, B), gy = wrap(by + j, B), ox = Math.floor((bx + i) / B) * W, oy = Math.floor((by + j) / B) * H;
+        for (const k of grid[gy * B + gx]) {
+          const px = pts[k][0] + ox, py = pts[k][1] + oy, d = Math.hypot(X - px, Y - py);
+          if (d < d1) { d2 = d1; d1 = d; best = k; bp = [px, py]; } else if (d < d2) d2 = d;
+        }
+      }
+      // in course units: a cell has no length or height, only its distance to the joint (passed through `edge`)
+      const e = (d2 - d1) / 2 / u;
+      return { id: ih(best, 11, 0), px: e, py: e, len: 99, hgt: 99, vy: Math.min(1, Math.max(0, (Y - bp[1]) / u + 0.5)), cell: e };
+    } };
+  }
+  if (bond === 'herringbone' || bond === 'basketweave') {
+    const N = 4 * Math.max(2, Math.round(rows / 2)), u = W / N;   // square cells, a multiple of four a side
+    return { unit: u, at(x, y) {
+      const X = wrap(x, W) / u, Y = wrap(y, H) / u, i = X | 0, j = Y | 0, fu = X - i, fv = Y - j;
+      if (bond === 'herringbone') {
+        const d = wrap(i - j, 4);
+        if (d < 2) return { id: ih(i - d, j, 1), px: d + fu, py: fv, len: 2, hgt: 1, vy: fv };
+        const top = d === 3 ? j : j - 1;
+        return { id: ih(i, top, 2), px: (j - top) + fv, py: fu, len: 2, hgt: 1, vy: ((j - top) + fv) / 2 };
+      }
+      const I = i >> 1, J = j >> 1, bi = i & 1, bj = j & 1;
+      if (((I + J) & 1) === 0) return { id: ih(I, J, 3 + bj), px: bi + fu, py: fv, len: 2, hgt: 1, vy: fv };
+      return { id: ih(I, J, 5 + bi), px: bj + fv, py: fu, len: 2, hgt: 1, vy: (bj + fv) / 2 };
+    } };
+  }
+  const ch = H / rows, bwU = W / cols / ch;   // course height in px; a stretcher's length in course units
+  let breaks = null;
+  if (bond === 'ashlar') {   // coursed ashlar: each course cut at its own random lengths, summing to the tile's width
+    breaks = [];
+    for (let r = 0; r < rows; r++) {
+      const L = []; let t = 0; for (let k = 0; t < W / ch - 1e-9 && k < 64; k++) { const l = (0.55 + 0.9 * (ih(seed, r, k) / 4294967296)) * bwU; L.push(l); t += l; }
+      const f = (W / ch) / t; let acc = 0; breaks.push(L.map((l) => (acc += l * f)));
+    }
+  }
+  return { unit: ch, at(x, y) {
+    const Y = wrap(y, H) / ch, row = Y | 0, fy = Y - row, X = wrap(x, W) / ch;
+    if (bond === 'stack') { const c = Math.floor(X / bwU); return { id: ih(row, c, 7), px: X - c * bwU, py: fy, len: bwU, hgt: 1, vy: fy }; }
+    if (bond === 'flemish') {   // stretcher, header, stretcher, header …; each course shifted half a pair
+      const pair = bwU * 1.5, xs = wrap(X + (row % 2) * pair / 2, W / ch), k = Math.floor(xs / pair), o = xs - k * pair;
+      return o < bwU ? { id: ih(row, k, 8), px: o, py: fy, len: bwU, hgt: 1, vy: fy } : { id: ih(row, k, 9), px: o - bwU, py: fy, len: pair - bwU, hgt: 1, vy: fy };
+    }
+    const B = breaks[row], xs = wrap(X + (row % 2) * bwU * 0.37, W / ch);
+    let k = 0; while (k < B.length - 1 && xs >= B[k]) k++;
+    const a = k ? B[k - 1] : 0;
+    return { id: ih(row, k, 10), px: xs - a, py: fy, len: B[k] - a, hgt: 1, vy: fy };
+  } };
+}
+
+/** The bonded stone wall: the running bond's paint (jitter, accents, grain, bevel, wear, radius, shadow) on any bond. */
+function bondedBrickPng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, n = makeNoise(seed * 7 + 1), rgb = Buffer.alloc(W * H * 3);
+  const rows = cfg.rows ?? 6, cols = cfg.cols ?? 4, mt = cfg.mortarThick ?? 0.1;
+  const stone = cfg.stone ?? [150, 145, 135], mortar = cfg.mortar ?? [92, 88, 80];
+  const vary = cfg.vary ?? 26, grain = cfg.grain ?? 10, bevel = cfg.bevel ?? 0.18;
+  const accent = cfg.accent ?? 0.14, accentDark = cfg.accentDark ?? 40, accentLight = cfg.accentLight ?? 26;
+  const jd = cfg.jointDepth ?? 0, gr = cfg.grime ?? 0, chp = cfg.chips ?? 0, rad = cfg.radius ?? 0, sh = cfg.shadow ?? 0;
+  const C = bondCells(cfg.bond, W, H, rows, cols, seed), m = mt, clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  const jit = (id) => { const a = ((id * 2654435761) >>> 0) / 4294967296, b = (((id ^ 0x5bd1e995) * 1597334677) >>> 0) / 4294967296; let j = (a - 0.5) * 2 * vary; if (b < accent) j -= accentDark; else if (b > 1 - accent * 0.6) j += accentLight; return j; };
+  // the stone's distance to its edge (course units), negative in the joint; rounded at the corners by `radius`
+  const inside = (c) => {
+    if (c.cell !== undefined) return c.cell - m * 0.5 - rad * 0.12 * Math.max(0, 0.35 - c.cell);   // a cell's edge; radius softens its corners a little
+    const x0 = m * 0.5, x1 = c.len - m * 0.5, y0 = m, y1 = c.hgt - m, rr = rad * Math.min((y1 - y0) / 2, (x1 - x0) / 2);
+    let d = Math.min(c.px - x0, x1 - c.px, c.py - y0, y1 - c.py);
+    if (rr > 0 && d >= 0) { const cx = Math.min(Math.max(c.px, x0 + rr), x1 - rr), cy = Math.min(Math.max(c.py, y0 + rr), y1 - rr), q = Math.hypot(c.px - cx, c.py - cy); if (q > 0) d = Math.min(d, rr - q); }
+    return d;
+  };
+  const so = mt * C.unit * 1.1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const c = C.at(x, y), o = (y * W + x) * 3, edge = inside(c);
+      let joint = edge < 0;
+      if (!joint && chp > 0 && edge < 0.07 && n.fbm(x / W * 3, y / H * 3, 40, 2) > 1 - chp * 0.55) joint = true;
+      if (joint) {
+        const mn = (n.fbm(x / W, y / H, 8, 3) - 0.5) * 10, deep = jd > 0 ? jd * 34 * Math.min(1, -edge / m) : 0;
+        const cast = sh > 0 ? sh * (34 * (inside(C.at(x - so * 0.5, y - so)) >= 0) + 26 * (inside(C.at(x - so * 0.25, y - so * 0.5)) >= 0)) : 0;
+        for (let k = 0; k < 3; k++) rgb[o + k] = clamp(mortar[k] + mn - deep - cast);
+      } else {
+        const g = (n.fbm(x / W + (c.id % 97) * 0.013, y / H + (c.id % 89) * 0.017, 10, 4) - 0.5) * grain * 2;
+        const bev = (0.5 - c.vy) * bevel * 120;
+        let wear = 0;
+        if (jd > 0) wear += jd * 30 * Math.max(0, 1 - edge / 0.09);
+        if (gr > 0) { const streak = n.fbm(x / W * 2, 0.37, 26, 2), run = Math.max(0, 1 - c.vy / 0.7); wear += gr * (52 * Math.max(0, streak - 0.45) * 2 * run + 16 * (n.fbm(x / W, y / H, 3, 3) - 0.35)); }
+        const j = jit(c.id);
+        for (let k = 0; k < 3; k++) rgb[o + k] = clamp(stone[k] + j + g + bev - wear);
+      }
+    }
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
+
 function stoneBrickPng(cfg, { size = 256, seed = 1 } = {}) {
+  if (cfg.bond && cfg.bond !== 'running') return bondedBrickPng(cfg, { size, seed });
   const W = size, H = size, n = makeNoise(seed * 7 + 1), rgb = Buffer.alloc(W * H * 3);
   let s = (seed >>> 0) || 1; const rand = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
   const rows = cfg.rows ?? 6, cols = cfg.cols ?? 4, mt = cfg.mortarThick ?? 0.1;       // rows even → running bond wraps across stacked tiles
@@ -1140,8 +1261,42 @@ export function defineWoodPanelFamily(name, { early, late, ...opts } = {}) {
   return TEXTURE_FAMILIES[name].slice();
 }
 
+export const BRICK_BONDS = Object.freeze(BONDS);
+
+// ── FRIEZE: a MOTIF, small, carved into a band (a plinth's face, a cornice's) — a key, a zigzag, teeth, a rope, shells,
+// diamonds, rosettes. The tile is four motifs across and the band's height tall: lay it with u = along / (4 · band
+// height), v = up the band. The figure stands proud of the ground (lit along its top, casting down into the ground);
+// fillets run along both edges. `relief` 0–1: how deep it reads.
+const MEANDER = ['########', '#......#', '#.####.#', '#.#..#.#', '#.#.##.#', '#.#....#', '#.######', '#.......'];
+const FRIEZE = {
+  meander: (u, v) => { const x = (u - 0.1) / 0.8, y = (v - 0.16) / 0.68; return x >= 0 && x < 1 && y >= 0 && y < 1 && MEANDER[(y * 8) | 0][(x * 8) | 0] === '#'; },
+  chevron: (u, v) => Math.abs(v - (0.26 + 0.48 * Math.abs(((u * 2) % 1) * 2 - 1))) < 0.1,
+  dentil: (u, v) => ((u * 2) % 1) < 0.62 && v > 0.2 && v < 0.72,
+  rope: (u, v) => v > 0.16 && v < 0.84 && (((u * 2 + v * 0.9) % 1) < 0.56),
+  scallop: (u, v) => { const d = Math.hypot(u - 0.5, v - 0.22); return (v > 0.22 && d > 0.3 && d < 0.43) || d < 0.07; },
+  diamond: (u, v) => { const d = Math.abs(u - 0.5) * 1.5 + Math.abs(v - 0.5); return (d > 0.26 && d < 0.38) || d < 0.08; },
+  rosette: (u, v) => { const r = Math.hypot(u - 0.5, v - 0.5), a = Math.atan2(v - 0.5, u - 0.5); return (r < 0.36 * (0.72 + 0.28 * Math.cos(6 * a)) && r > 0.11) || r < 0.06; },
+};
+export const FRIEZE_PATTERNS = Object.freeze(Object.keys(FRIEZE));
+function friezePng(cfg, { size = 256, seed = 1 } = {}) {
+  const W = size, H = size, cw = W / 4, n = makeNoise(seed), rgb = Buffer.alloc(W * H * 3), f = FRIEZE[cfg.pattern] || FRIEZE.chevron;
+  const g = cfg.ground || [120, 110, 98], fg = cfg.figure || [170, 160, 140], rl = cfg.relief ?? 0.6, off = Math.round(H * 0.025);
+  const fig = (x, y) => { const v = y / H; if (v < 0.07 || v > 0.93) return true; const xx = ((x % W) + W) % W; return f((xx % cw) / cw, v); };
+  const clamp = (v) => Math.max(0, Math.min(255, v)) | 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const o = (y * W + x) * 3, grain = (n.fbm(x / W, y / H, 6, 3) - 0.5) * 14;
+    if (fig(x, y)) {
+      const lit = !fig(x, y - off) ? 26 * rl : fig(x, y + off) ? 0 : -18 * rl;   // the top edge catches the light, the foot turns away
+      for (let k = 0; k < 3; k++) rgb[o + k] = clamp(fg[k] + grain + lit);
+    } else {
+      const cast = fig(x - off * 0.5, y - off) ? 34 * rl : 0;                       // the figure's shadow in the ground below it
+      for (let k = 0; k < 3; k++) rgb[o + k] = clamp(g[k] + grain - cast);
+    }
+  }
+  return `data:image/png;base64,${encodePng(rgb, W, H).toString('base64')}`;
+}
 /** The generators a recipe may name in a tile spec (era/tile-specs.js holds their rails). */
-const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng, wood: woodPng };
+const SPEC_GENERATORS = { 'stone-brick': stoneBrickPng, flagstone: flagstonePng, rock: rockPng, wood: woodPng, frieze: friezePng };
 const SPEC_VARIANT_SEEDS = [['a', 13], ['b', 47], ['c', 88], ['d', 124]];
 
 /**

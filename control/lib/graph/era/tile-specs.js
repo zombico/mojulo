@@ -9,7 +9,7 @@
  * (`gen:<generator>-<hash>`), so the same numbers are always the same four tiles, rebuilt from the recipe on every
  * read. Nothing is kept outside the recipe: edit a number with update_sketch and the tiles follow.
  */
-import { defineGeneratedFamily, ROCK_STYLES, rockDnaOf } from '../landscape/surface-textures.js';
+import { defineGeneratedFamily, ROCK_STYLES, rockDnaOf, BRICK_BONDS, FRIEZE_PATTERNS } from '../landscape/surface-textures.js';
 
 const int = (lo, hi) => ({ lo, hi, int: true });
 const num = (lo, hi) => ({ lo, hi });
@@ -18,7 +18,7 @@ const RGB = { rgb: true };
 /** Each generator's settings: `rgb` a colour, `lo..hi` a number (integers where `int`), `of` one of a list. */
 export const TILE_RAILS = Object.freeze({
   'stone-brick': { required: ['stone', 'mortar'], keys: {
-    stone: RGB, mortar: RGB, rows: int(3, 12), cols: int(2, 12), radius: num(0, 1), shadow: num(0, 1), mortarThick: num(0.04, 0.18), vary: num(4, 44), grain: num(2, 20),
+    stone: RGB, mortar: RGB, bond: { of: BRICK_BONDS }, rows: int(3, 12), cols: int(2, 12), radius: num(0, 1), shadow: num(0, 1), mortarThick: num(0.04, 0.18), vary: num(4, 44), grain: num(2, 20),
     bevel: num(0, 0.4), accent: num(0, 0.3), accentDark: num(0, 60), accentLight: num(0, 50), jointDepth: num(0, 1), grime: num(0, 1),
     chips: num(0, 1), seed: int(1, 99999) } },
   flagstone: { required: ['stone', 'mortar'], keys: {
@@ -29,6 +29,8 @@ export const TILE_RAILS = Object.freeze({
   wood: { required: ['early', 'late'], keys: {
     early: RGB, late: RGB, ringFreq: int(2, 16), ringWarp: num(0, 1), ringSharp: num(0.3, 3), cathedral: num(0, 1), streakFreq: int(8, 96),
     streakAmt: num(0, 0.4), mottle: num(0, 14), period: int(1, 6), seed: int(1, 99999) } },
+  // a carved band (a motif): `pattern` the figure, `ground` and `figure` its colours, `relief` how deep it reads
+  frieze: { required: ['pattern', 'ground', 'figure'], keys: { pattern: { of: FRIEZE_PATTERNS }, ground: RGB, figure: RGB, relief: num(0, 1), seed: int(1, 99999) } },
   rock: { required: ['base'], keys: {
     style: { of: ROCK_STYLES }, base: RGB, amp: num(10, 120), crackFreq: num(2, 20), crackWidth: num(0.005, 0.1), crackDepth: num(0, 0.8),
     bands: int(0, 16), bandAmp: num(0, 30), speckle: num(0, 0.4), seed: int(1, 99999) } },

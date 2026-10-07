@@ -17,7 +17,7 @@ describe('the art gate through create_sketch / update_sketch', () => {
     const r = await create({ title: 'tomb', manifest: { ...ROOMS, art: 'propose' }, ref: 'art-1' });
     expect(r.content[1].type).toBe('image');
     const body = JSON.parse(r.content[0].text);
-    expect(body.art.pending).toEqual(['palette', 'materials', 'architecture', 'motifs', 'plan']);
+    expect(body.art.pending).toEqual(['palette', 'materials', 'architecture', 'motifs', 'doodads', 'atmosphere', 'plan']);
     expect(body.next).toMatch(/\/art\/status\/<item>/);
     const stored = SketchRepository.getByRef('art-1').manifest;
     expect(Number.isInteger(stored.art.seed)).toBe(true);

@@ -100,6 +100,10 @@ function withGrime(kit, kitId, g, recipeWall) {
 /** The baked dirt at a grime: each cause scaled from its default, none past 1. */
 export const dirtAtGrime = (g) => ({ age: r5(Math.min(1, DIRT_DEFAULTS.age * g * 2)), damp: r5(Math.min(1, DIRT_DEFAULTS.damp * g * 2)), soot: r5(Math.min(1, DIRT_DEFAULTS.soot * g * 2)), traffic: r5(Math.min(1, DIRT_DEFAULTS.traffic * g * 2)) });
 
+// the floor's dirt (blendsByCause's earth layer), coloured by the soil tile, a little darker than the flags
+// ivy in the dark: a deep, cool green, darker than any lit leaf
+const IVY = Object.freeze({ tint: [0.5, 0.62, 0.48] });
+const EARTH = Object.freeze({ key: 'soil-dirt', scale: 2.4, tint: [0.78, 0.72, 0.66], max: 0.92 });
 // the round vocabulary a room kit opts into: round-headed doorways, a barrel vault (a semicircle, a segment past maxRise)
 export const ARCHED = Object.freeze({ door: { seg: 8 }, vault: { rise: 0.5, maxRise: 3, seg: 10 } });
 // the stone the nave and the plaza are cut from: gothic-stone's own numbers before its crypt dressing
@@ -111,8 +115,11 @@ STAGE_KITS['gothic-stone'] = Object.freeze({
   ...GOTHIC_STONE_BASE,
   tiles: { ...GOTHIC_STONE_BASE.tiles, wall: { family: cryptWallFamily(CRYPT_GRIME), scale: 2 }, ceiling: { key: 'stucco', scale: 2 } },
   tint: { ...GOTHIC_STONE_BASE.tint, ceiling: [0.26, 0.25, 0.28] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.35 },
   // round, not boxed (arches.js): doorways under a semicircular head, a barrel vault on ribs over every room
   arch: ARCHED,
+  // its motif, small: a key carved along the plinth (an art direction picks its own)
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'meander', ground: [88, 92, 100], figure: [150, 154, 162], relief: 0.6 }), on: 'plinth', tint: [1, 1, 1] },
   dress: CRYPT,
 });
 // The NAVE kit: the same stone, but nothing is a box. Each wall bay is a blind pointed arcade arch below a string course
@@ -218,6 +225,7 @@ STAGE_KITS.catacomb = Object.freeze({
   rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#7a6e60' },
   torch: { ...GOTHIC_STONE_BASE.torch, z: 2.3 },
   arch: ARCHED,
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'scallop', ground: [118, 100, 80], figure: [178, 158, 128], relief: 0.55 }), on: 'cornice', tint: [1, 1, 1] },
   dress: CATACOMB,
 });
 // The TRAIL-VALLEY kit: no architecture — a trail, a cliff and trees built to a style card (nature.js).
@@ -272,13 +280,22 @@ export function planStage(m = {}) {
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
-  const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || []) : null;
+  const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || [], tileFamilyOf) : null;
   const kitArt = artA ? withRecipeTiles(artA.kit, kitId, artA.tiles) : kit0;
   const kitT = m.tiles ? withRecipeTiles(kitArt, kitId, m.tiles) : kitArt;
   // the recipe's own proportions (tile-specs.js PROPORTION_RAILS) over the kit's: its columns, plinths, bays, doors
   const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
-  const kit = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
+  let kitG = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
+  // EARTH (`earth: 0…1`): how far the floor has given way to packed dirt (era/nave.js blendsByCause); the recipe's
+  // own over the art direction's; a kit without blends takes none
+  if (m.earth !== undefined && !(typeof m.earth === 'number' && m.earth >= 0 && m.earth <= 1)) throw new Error('stage: earth is a number from 0 (a laid floor) to 1 (mostly packed dirt)');
+  const earthAt = m.earth ?? (kitG.dress && kitG.dress.earth ? kitG.dress.earth.amount : 0);
+  // IVY (`ivy: 0…1`): how much ivy has taken the bare walls (era/crypt.js ivyGrowth); a dressing without walls takes none
+  if (m.ivy !== undefined && !(typeof m.ivy === 'number' && m.ivy >= 0 && m.ivy <= 1)) throw new Error('stage: ivy is a number from 0 (none) to 1 (overgrown)');
+  if (m.ivy !== undefined && kitG.dress && kitG.dress.niches) kitG = { ...kitG, dress: { ...kitG.dress, ivy: { ...IVY, ...(kitG.dress.ivy || {}), amount: m.ivy } } };
+  const kit = kitG.dress && kitG.dress.moss && earthAt > 0 ? { ...kitG, dress: { ...kitG.dress, earth: { ...EARTH, ...(kitG.dress.earth || {}), amount: earthAt } } }
+    : kitG.dress && kitG.dress.earth ? { ...kitG, dress: { ...kitG.dress, earth: undefined } } : kitG;
   const refId = resolveLook(m.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
   if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
@@ -286,6 +303,13 @@ export function planStage(m = {}) {
   if (kit0.sun && !ref.light.key) throw new Error(`stage: kit '${kitId}' is lit by the sun; give it a look with one (${SIXTH_GEN_LOOK_IDS.filter((l) => SIXTH_GEN_REFERENCES[resolveLook(l)].light.key).join(', ')})`);
   if (!Array.isArray(m.rooms) || !m.rooms.length) throw new Error('stage: needs a non-empty `rooms` array ({ id, x, y, w, d, h })');
   const g = kit.grid, byId = new Map();
+  // LIFT (`lift`, or the art direction's): every room's height times it, to the half metre — don't be afraid of height
+  if (m.lift !== undefined && !(typeof m.lift === 'number' && m.lift >= 1 && m.lift <= 2)) throw new Error('stage: lift is a number from 1 (as drawn) to 2 (every room twice as tall)');
+  const lift = m.lift ?? kit.lift ?? 1;
+  // ATMOSPHERE (`atmosphere: { fog, dust, flicker }`, or the art direction's): the look's fog thickened or thinned
+  // (a factor), dust in the air (0–1, channels/motes.js), the torches' flicker pace (fire.js `pace`)
+  const At = { ...(kit.atmosphere || {}), ...(m.atmosphere && typeof m.atmosphere === 'object' ? m.atmosphere : {}) };
+  for (const [k, lo, hi] of [['fog', 0.3, 3], ['dust', 0, 1], ['flicker', 0.2, 2]]) if (At[k] !== undefined && !(typeof At[k] === 'number' && At[k] >= lo && At[k] <= hi)) throw new Error(`stage: atmosphere.${k} is a number from ${lo} to ${hi}`);
   const rooms = m.rooms.map((r, i) => {
     const id = r.id ?? `r${i}`;
     if (byId.has(id)) throw new Error(`stage: duplicate room id '${id}'`);
@@ -295,7 +319,7 @@ export function planStage(m = {}) {
     const t = kit.wall / 2;   // the interior: the box inset by half a wall
     // `open`: sides left out (a stage SET seen from the open side while iterating — no third or fourth wall)
     const open = Array.isArray(r.open) ? r.open.filter((s) => ['-x', '+x', '-y', '+y'].includes(s)) : [];
-    const room = { id, box: [r.x, r.y, r.x + r.w, r.y + r.d], x0: r.x + t, y0: r.y + t, x1: r.x + r.w - t, y1: r.y + r.d - t, h: r.h, open, openings: { '-x': [], '+x': [], '-y': [], '+y': [] } };
+    const room = { id, box: [r.x, r.y, r.x + r.w, r.y + r.d], x0: r.x + t, y0: r.y + t, x1: r.x + r.w - t, y1: r.y + r.d - t, h: lift === 1 ? r.h : Math.round(r.h * lift * 2) / 2, open, openings: { '-x': [], '+x': [], '-y': [], '+y': [] } };
     byId.set(id, room);
     return room;
   });
@@ -334,7 +358,7 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}) };
+  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}) };
 }
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
@@ -477,6 +501,16 @@ export function buildStageGeometry(plan) {
       // plinth + cornice runs, broken at doorways (by the frame's width)
       for (const [a, b] of solidSpans(F.len, cuts, kit.door.frame)) wallBox(out, F, a, b, 0, kit.plinth.h, kit.plinth.out, trim, cell);
       wallBox(out, F, 0, F.len, h - kit.cornice.h, h, kit.cornice.out, trim, cell, true);
+      // the MOTIF (kit.motif: a frieze tile, art-direction.js): a small pattern carved along the plinth's face, the
+      // cornice's, or both — a band a hair proud of the stone it is cut in, its motifs square to the band's height
+      if (kit.motif) {
+        const M = kit.motif, bandOn = (z0, bh, out0, spans) => {
+          const sf = { key: `${M.family}-a`, scale: 1, tint: M.tint, group: 'stage:motif-band', uvOf: (p) => [dot(p, F.U) / (4 * bh), (p[2] - z0) / bh] };
+          for (const [a, b] of spans) panel(out, add(add(F.o, mul(F.U, a)), add(mul(F.N, out0 + 0.006), [0, 0, z0])), F.U, b - a, [0, 0, 1], bh, F.N, sf, 1);   // a band is a thin strip: metre cells
+        };
+        if (M.on !== 'cornice') bandOn(kit.plinth.h * 0.2, kit.plinth.h * 0.6, kit.plinth.out, solidSpans(F.len, cuts, kit.door.frame));
+        if (M.on !== 'plinth') bandOn(h - kit.cornice.h * 0.8, kit.cornice.h * 0.6, kit.cornice.out, [[0, F.len]]);
+      }
       // door frames: two jambs + a head, standing a little proud
       for (const [a, b, top] of cuts) {
         const fw = kit.door.frame, fo = kit.door.out;
@@ -521,7 +555,12 @@ export function buildStageGeometry(plan) {
       for (let k = 0; k <= nBays && !nave; k++) {
         const u = (F.len * k) / nBays, a = Math.max(0, u - pw / 2), b = Math.min(F.len, u + pw / 2);
         if (cuts.some(([c0, c1]) => b > c0 - kit.door.frame && a < c1 + kit.door.frame)) continue;
-        wallBox(out, F, a, b, kit.plinth.h, h - kit.cornice.h, kit.pilaster.out, trim, cell);
+        // the pilaster: its face lit in the trim's fine cells, its sides (seen edge-on) in metre cells; its top and foot
+        // are hidden under the cornice and on the plinth
+        const z0p = kit.plinth.h, hp = h - kit.cornice.h - z0p, po = kit.pilaster.out, base0 = add(add(F.o, mul(F.U, a)), [0, 0, z0p]);
+        panel(out, add(base0, mul(F.N, po)), F.U, b - a, [0, 0, 1], hp, F.N, trim, cell);
+        panel(out, base0, F.N, po, [0, 0, 1], hp, mul(F.U, -1), trim, 1);
+        panel(out, add(add(F.o, mul(F.U, b)), [0, 0, z0p]), F.N, po, [0, 0, 1], hp, F.U, trim, 1);
         pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
         if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
@@ -769,14 +808,19 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(manifest.doors ? { doors: withoutBuild(ends) } : {}),
     ...(taken ? { items: taken.items } : {}),
     // the fires this map knows (the World route resolves `manifest.fire` against them: fire/fire.js resolveFire)
-    ...(live ? { fireSources: [...torches.map((l) => ({ kind: 'torch', at: P([l.at[0], l.at[1], l.at[2] - 0.04]), ...(Fk && Fk.torch ? { size: Fk.torch } : {}), baked: true })),
+    ...(live ? { fireSources: [...torches.map((l) => ({ kind: 'torch', at: P([l.at[0], l.at[1], l.at[2] - 0.04]), ...(Fk && Fk.torch ? { size: Fk.torch } : {}), ...((plan.atmosphere && plan.atmosphere.flicker) || (plan.kit.dress && plan.kit.dress.flicker) ? { pace: (plan.atmosphere && plan.atmosphere.flicker) || plan.kit.dress.flicker } : {}), baked: true })),
       ...braziers.map((b) => ({ kind: 'brazier', at: b.at, size: b.size, baked: true }))] } : {}),
     lights: lights.map((l, i) => ({ name: `stage-light-${i}`, type: 'point', position: l.at, color: hexRgb(l.color), intensity: +(l.intensity * 40).toFixed(3), range: l.radius })),
     cameras: [manifest.camera || setCam || { name: 'spawn', worldFraming: { cameraPosition: [plan.spawn[0], plan.spawn[1], 1.7], lookAt, horizontalFov: 75, pictureCenter: [560, 390] } }, ...(dress && dress.cameras ? dress.cameras : [])],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${lookOfReference(plan.refId).replace('-', ' ')}`,
     bg: daylight ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color,
-    haze: { color: air.fog.color, density: air.fog.density },
+    haze: { color: air.fog.color, density: plan.atmosphere && plan.atmosphere.fog ? +(air.fog.density * plan.atmosphere.fog).toFixed(5) : air.fog.density },
+    // dust hanging in the air (channels/motes.js), lit by the lights near it; about one mote per two cubic metres at full
+    ...(plan.atmosphere && plan.atmosphere.dust > 0 ? { motes: {
+      count: Math.min(3200, Math.round(plan.atmosphere.dust * 0.55 * plan.rooms.reduce((a, r) => a + (r.x1 - r.x0) * (r.y1 - r.y0) * r.h, 0))),
+      boxes: plan.rooms.map((r) => [r.x0, r.y0, 0.2, r.x1, r.y1, r.h].map(r5)), lights: lights.slice(0, 48).map((l) => [...l.at, l.radius * 0.8].map(r5)),
+      color: [1, 0.86, 0.64], size: 0.035, drift: 0.22 } } : {}),
     // the halo is a depth-tested camera-facing sprite: kept inside the torch's clearance from the wall, or the
     // pilasters around it slice it into bright wedges
     glow: { scale: 0.32, opacity: 0.8 },

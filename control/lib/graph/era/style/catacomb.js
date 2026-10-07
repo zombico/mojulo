@@ -16,8 +16,13 @@ export const CATACOMB = Object.freeze({
     'Dust and damp by cause: grime pooled at the walls and worn off the walking line, a little moss where water seeps.',
     'Cobwebs in the angle of a pier and the rock, never on two neighbouring piers.',
     'Things gather where floor meets wall: amphorae, heaps of bones, fallen stones, debris, a few old planks; clusters in the corners and singles at the wall bases, off the way, never two of a kind side by side.',
+    'Don\'t be afraid to make it tall: the great rooms rise well over the walker, their vaults lost in the dark above the torches.',
+    'Motifs are small: a pattern carved in a band along the plinth or the cornice (a key, a rope, teeth), never an object.',
+    'Doodads are the large things (the set piece, a coffin, a barrel, a boulder): never two together unless a corner gathers them on purpose.',
   ]),
   values: Object.freeze(['candle', 'torchlit', 'floor', 'vault']),
+  // the torches' live flicker, against a real torch's: slower reads as still air underground, not a gale
+  flicker: 0.45,
   moss: { key: 'floor:moss', scale: 1.3, tint: [0.56, 0.62, 0.54], rise: [0.1, 0.8], max: 0.45, patch: [0.42, 0.7], wander: 0.4 },
   grime: { key: 'floor:grime', scale: 1.7, tint: [0.92, 0.88, 0.82], edge: [0.3, 2.4], max: 0.95, walk: 1.2, patch: [0.2, 0.55] },
   cobwebs: { share: 0.45, size: [0.35, 0.7], tint: [0.88, 0.87, 0.84] },

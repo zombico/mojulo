@@ -109,6 +109,27 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   and `shadow` (each stone casts a soft box-shadow into the joint below and to its right); `rows` and `cols` now run
   to 12. The crypt's walls and accent wall use both; the ossuary's courses are now discs, bone ends seen end-on. Absent,
   every preset tile is byte-identical.
+- **The art direction is seven items, and rolls stop repeating.** Palette, materials, architecture, MOTIFS (small: a
+  frieze carved in a band along the plinth or cornice; `gen: 'frieze'`, seven patterns), DOODADS (large: the set piece,
+  the accent wall, the things on the floor), ATMOSPHERE, and the plan. Materials choose between whole specs by weight:
+  walls in running, Flemish, coursed-ashlar or stack bond, or rubble (dark stones in grey mortar); floors in flags,
+  herringbone, basketweave or hexagons. The board shows all seven; the deep sweep keeps every kit law and the page
+  budget on every roll.
+- **Brick bonds.** `stone-brick` takes `bond`: `running` (the default, byte-identical), `stack`, `flemish`, `ashlar`,
+  `herringbone`, `basketweave`, `hex` (a hex lattice gone asymmetric) and `rubble` (shaped field stones piled in the
+  mortar); radius and shadow work on all of them.
+- **Earth, ivy, lift.** Room-kit recipes take `earth: 0…1` (the floor giving way to packed dirt, in patches and along
+  the way), `ivy: 0…1` (ivy rooted in the joints above the plinth, climbing; never on the accent wall) and `lift: 1…2`
+  (every room taller). Each is also rolled by the art direction.
+- **Set pieces and the doodad rule.** The set piece is a closed tomb, an empty one (its lid off and leaning, the dark
+  inside showing), an altar or a well. A stone coffin joins the corner things. Two doodads never stand within 2.5 m
+  unless a corner gathers them on purpose (`clusters`). New laws `dare-height`, `motif-small` and `doodads-apart` are
+  stated on both cards and checked.
+- **Atmosphere.** `atmosphere: { fog, dust, flicker }` on a room-kit stage: the look's fog thickened or thinned, dust
+  motes drifting in still air and lit near the lights (`scene/channels/motes.js`; absent, no bytes), and the torches'
+  flicker pace. Fire sources take `pace` (0.2–2); the crypt's and catacomb's torches burn at 0.45, calmer.
+- **Page weight.** Pilaster sides are lit in metre cells, niche arches take six segments and the crypt's gutter holds
+  less rubble, so the six-room starters keep room under the budget for taller rolls.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

@@ -13,7 +13,11 @@ import { P, r5, panel, hexRgb, lathe } from './geom.js';
 import { rockPool, rockRepeats, expandRepeats } from '../polygonizer/rock-pool.js';
 import { tileFamilyOf } from './tile-specs.js';
 
-export const PROP_KINDS = Object.freeze(['crate', 'barrel', 'planks', 'amphora', 'bones', 'stones', 'boulder', 'debris']);
+export const PROP_KINDS = Object.freeze(['crate', 'barrel', 'planks', 'amphora', 'bones', 'coffin', 'stones', 'boulder', 'debris']);
+// DOODADS are the large things (a crate, a barrel, a boulder, jars, a coffin); the rest is scatter. Two doodads never
+// stand together (within `apart` metres) unless the dressing declared a cluster there on purpose (`clusters`: how many
+// corners may gather two); scatter goes anywhere.
+export const DOODAD_KINDS = Object.freeze(['crate', 'barrel', 'boulder', 'amphora', 'coffin']);
 
 const mix = (a, b, t) => a + (b - a) * t;
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -30,7 +34,7 @@ const woodSurf = (spec, tint) => ({ key: `${tileFamilyOf(spec, 'props.wood')}-a`
 const IRON = [0.22, 0.21, 0.2];
 
 /** An oriented box: centre `c`, unit axes `A`, `B`, `C`, half sizes `h` — six panels. */
-function obox(out, c, A, B, C, h, surf, cell = 0.5) {
+export function obox(out, c, A, B, C, h, surf, cell = 0.5) {
   for (const [N, U, V, hn, hu, hv] of [[A, B, C, h[0], h[1], h[2]], [B, C, A, h[1], h[2], h[0]], [C, A, B, h[2], h[0], h[1]]]) {
     for (const s of [1, -1]) {
       const n = mul(N, s), u = s > 0 ? U : mul(U, -1);
@@ -59,6 +63,15 @@ const ITEMS = {
       const sz = mix(0.85, 1.15, hash3(i, k, 5133)), c = add(add(p, mul(N, 0.26)), mul(U, (k - (n - 1) / 2) * 0.42));
       lathe(out, c, [[0.05, 0], [0.15, 0.1], [0.2, 0.32], [0.15, 0.55], [0.06, 0.63], [0.07, 0.72], [0.045, 0.73], [0, 0.73]].map(([r, z]) => [r * sz, z * sz]), 8, clay, 'stage:prop');
     }
+  },
+  coffin(out, p, N, U, s, i, S) {
+    // an emptied stone coffin along the wall: its lid knocked askew, the dark inside showing at the gap
+    const c = add(p, mul(N, 0.4)), L = mix(1.7, 2.0, hash3(i, 9, 5151)), h = 0.58, A = unit([U[0], U[1], 0]), B = unit([N[0], N[1], 0]);
+    obox(out, add(c, [0, 0, h / 2]), A, B, [0, 0, 1], [L / 2, 0.34, h / 2], S.stone, 0.5);
+    const tw = 0.06, dark = { key: null, scale: 1, tint: [0.05, 0.05, 0.06], group: 'stage:prop' };
+    out.push({ corners: [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => P(add(add(c, mul(A, a * (L / 2 - tw))), add(mul(B, b * (0.34 - tw)), [0, 0, h + 0.002])))), normal: [0, 0, 1], outNormal: [0, 0, 1], ...dark });
+    const yaw = 0.22 * (hash3(i, 10, 5153) < 0.5 ? -1 : 1), cs = Math.cos(yaw), sn = Math.sin(yaw), A2 = unit(add(mul(A, cs), mul(B, sn))), B2 = unit(add(mul(B, cs), mul(A, -sn)));
+    obox(out, add(add(c, mul(A, L * 0.18)), [0, 0, h + 0.05]), A2, B2, [0, 0, 1], [L / 2 + 0.04, 0.38, 0.05], S.stone, 0.5);
   },
   bones(out, p, N, U, s, i) {
     // a heap of long bones, crossed as they fell, and a skull or two on top
@@ -121,19 +134,43 @@ function spots(plan, pilasters, keepClear) {
 }
 
 /** The props for a plan: `spec` { kinds, share, rock?, tone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room. */
-export function cornerThings(plan, pilasters, spec, keepClear = []) {
-  const kinds = spec.kinds.filter((k) => PROP_KINDS.includes(k)), out = [], rocks = [];
-  const W = spec.wood || PROP_WOOD, S = { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]) };
-  let prev = null;
+/** Where each thing goes and what it is: [{ kind, p, N, U, s, seed, cluster }], the doodad rule kept (see DOODAD_KINDS). */
+export function placeThings(plan, pilasters, spec, keepClear = []) {
+  const kinds = spec.kinds.filter((k) => PROP_KINDS.includes(k)), scatter = kinds.filter((k) => !DOODAD_KINDS.includes(k));
+  const clusters = spec.clusters ?? 1, apart = spec.apart ?? 2.5, placed = [], out = [];
+  let prev = null, used = 0;
   spots(plan, pilasters, keepClear).forEach((s, si) => {
     if (!s.corner && hash3(si, 0, 5111) > spec.share) return;
+    // a corner gathers two things only where a cluster is declared; elsewhere it holds one
+    const cluster = s.corner && used < clusters ? `c${si}` : null;
+    if (cluster) used++;
     s.items.forEach((it, ii) => {
-      if (!s.corner && ii > 0) return;
+      if (ii > 0 && !cluster) return;
       let kind = kinds[Math.floor(hash3(si, ii, 5113) * kinds.length)];
       if (kind === prev) kind = kinds[(kinds.indexOf(kind) + 1) % kinds.length];   // never two of a kind side by side
+      if (DOODAD_KINDS.includes(kind) && placed.some((q) => Math.hypot(q.p[0] - it.p[0], q.p[1] - it.p[1]) < apart && (!cluster || q.cluster !== cluster))) {
+        kind = scatter.find((k) => k !== prev) || null;   // too near another doodad: scatter instead, or nothing
+        if (!kind) return;
+      }
       prev = kind;
-      const seed = si * 11 + ii;
-      if (ITEMS[kind]) { ITEMS[kind](out, it.p, it.N, it.U, s.corner ? hash3(seed, 2, 5115) : 0, seed, S); return; }
+      const seed = si * 11 + ii, thing = { kind, p: it.p, N: it.N, U: it.U, s: s.corner ? hash3(seed, 2, 5115) : 0, seed, cluster };
+      if (DOODAD_KINDS.includes(kind)) placed.push(thing);
+      out.push(thing);
+    });
+  });
+  return out;
+}
+
+/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room. */
+export function cornerThings(plan, pilasters, spec, keepClear = []) {
+  const out = [], rocks = [];
+  const W = spec.wood || PROP_WOOD, S = { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]),
+    stone: { ...(spec.stone || { key: 'marble-carrara', scale: 1.2, tint: [0.6, 0.58, 0.55] }), group: 'stage:prop' } };
+  for (const t of placeThings(plan, pilasters, spec, keepClear)) {
+    const { kind, seed } = t, it = t;
+    {
+      // a doodad's faces carry their own group (`stage:prop-doodad`), so the law reads where the large things stand
+      if (ITEMS[kind]) { const n0 = out.length; ITEMS[kind](out, it.p, it.N, it.U, t.s, seed, S); if (DOODAD_KINDS.includes(kind)) for (let q = n0; q < out.length; q++) out[q].group = 'stage:prop-doodad'; continue; }
       // the rock kinds: stones in a small heap, a boulder with stones at its foot, a scatter of debris
       const n = kind === 'stones' ? 5 : kind === 'boulder' ? 3 : 8;
       for (let k = 0; k < n; k++) {
@@ -142,8 +179,8 @@ export function cornerThings(plan, pilasters, spec, keepClear = []) {
         const q = add(add(it.p, mul(it.U, along)), mul(it.N, out2));
         rocks.push({ x: r5(q[0]), y: r5(q[1]), z0: 0, size: r5(size) });
       }
-    });
-  });
+    }
+  }
   for (const f of out) f.doubleSided = true;   // a prop is seen from every side the walker can reach
   if (rocks.length) {
     const tone = spec.tone || '#6a6660', pool = rockPool({ rock: spec.rock || 'basalt', variants: 6, detail: 0, tone, seed: 'stage-props', group: 'stage:prop' });

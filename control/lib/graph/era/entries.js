@@ -25,7 +25,8 @@ import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 
 /** The bytes a kit, look or hub card's body may take: the infobox and a starter, never a manual. */
-export const STAGE_CARD_BODY_CEILING = 3200;
+// raised from 3200 when the laws card took dare-height, motif-small and doodads-apart (one line each)
+export const STAGE_CARD_BODY_CEILING = 3600;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA].map((s) => [s.id, s]));
@@ -38,8 +39,8 @@ const KIT_STARTERS = {
     { id: 'charnel', x: 32, y: 2, w: 10, d: 16, h: 6 }, { id: 'chapel', x: 26, y: 18, w: 16, d: 8, h: 5 }, { id: 'sepulchre', x: 14, y: 18, w: 12, d: 12, h: 7 }],
   links: [{ from: 'nave', to: 'gallery' }, { from: 'gallery', to: 'passage' }, { from: 'passage', to: 'charnel' }, { from: 'charnel', to: 'chapel' }, { from: 'chapel', to: 'sepulchre' }], fire: true },
   // long low galleries between small chambers, the last the ossuary chapel with the sarcophagus
-  catacomb: { rooms: [{ id: 'stair', x: 0, y: 0, w: 8, d: 8, h: 5 }, { id: 'gallery-a', x: 8, y: 2, w: 16, d: 4, h: 4 }, { id: 'cubiculum', x: 24, y: 0, w: 8, d: 8, h: 4.5 },
-    { id: 'gallery-b', x: 26, y: 8, w: 4, d: 14, h: 4 }, { id: 'crossing', x: 22, y: 22, w: 12, d: 10, h: 5 }, { id: 'ossuary', x: 10, y: 22, w: 12, d: 10, h: 5.5 }],
+  catacomb: { rooms: [{ id: 'stair', x: 0, y: 0, w: 8, d: 8, h: 6 }, { id: 'gallery-a', x: 8, y: 2, w: 16, d: 4, h: 4 }, { id: 'cubiculum', x: 24, y: 0, w: 8, d: 8, h: 4.5 },
+    { id: 'gallery-b', x: 26, y: 8, w: 4, d: 14, h: 4 }, { id: 'crossing', x: 22, y: 22, w: 12, d: 10, h: 6 }, { id: 'ossuary', x: 10, y: 22, w: 12, d: 10, h: 6.5 }],
   links: [{ from: 'stair', to: 'gallery-a' }, { from: 'gallery-a', to: 'cubiculum' }, { from: 'cubiculum', to: 'gallery-b' }, { from: 'gallery-b', to: 'crossing' }, { from: 'crossing', to: 'ossuary' }], fire: true },
   'gothic-nave': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 24, h: 13 }] },
   'island-plaza': { rooms: [{ id: 'plaza', x: 0, y: 0, w: 26, d: 22, h: 12, open: ['-y', '+x'] }] },

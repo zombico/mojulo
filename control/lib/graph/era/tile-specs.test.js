@@ -15,7 +15,7 @@ describe('tile specs: the rails', () => {
     expect(() => normalizeTileSpec({ ...WALL, stone: [300, 0, 0] })).toThrow(/0–255/);
     expect(() => normalizeTileSpec({ ...WALL, shine: 1 })).toThrow(/not a stone-brick setting/);
     expect(() => normalizeTileSpec({ gen: 'stone-brick', stone: [1, 2, 3] })).toThrow(/mortar: required/);
-    expect(() => normalizeTileSpec({ gen: 'plasma' })).toThrow(/one of stone-brick, flagstone, wood, rock/);
+    expect(() => normalizeTileSpec({ gen: 'plasma' })).toThrow(/one of stone-brick, flagstone, wood, frieze, rock/);
     expect(() => normalizeTileSpec({ gen: 'rock', base: [90, 90, 90], style: 'chalk' })).toThrow(/one of cave/);
   });
 
