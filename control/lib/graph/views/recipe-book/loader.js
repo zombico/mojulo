@@ -85,7 +85,7 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
     }
   }
   if (process.env.MOJULO_RECIPE_BOOK?.trim()) {
-    warn('MOJULO_RECIPE_BOOK is deprecated: the recipe book ships with mojulo from 3.0.1 and loads without it. An attached clone still loads, ahead of the bundled book, until 4.0; unset it to use the bundled catalog.');
+    warn('MOJULO_RECIPE_BOOK is deprecated: the recipe book ships with mojulo from 3.1.0 and loads without it. An attached clone still loads, ahead of the bundled book, until 4.0; unset it to use the bundled catalog.');
   }
   if (!dirs.length) { setBookSnapshot({ warnings }); return { kinds: 0, warnings }; }
 

@@ -12,7 +12,7 @@ Straight up: Claude reviews PRs here. The maintainer is one person and most read
 
 There are also four [open requests](#open-requests) — things I actively want and won't get to alone. For three of them a good issue is worth more than a PR.
 
-> **The book moved in (3.0.1).** Until 3.0.0 the book was a separate repo, `zombico/mojulo-recipe-book`, that you cloned and pointed `MOJULO_RECIPE_BOOK` at. Mojulo now mostly runs in agent boxes (the Claude app and web, ChatGPT's Work box and the like), where the package is installed fresh and nothing can be cloned beside it, so a book that has to be cloned never loads. The book now ships inside the package and every install has it. The old repo is frozen at 0.8.0 and will be archived; send book entries here. `MOJULO_RECIPE_BOOK` still works through 3.x and warns that it is deprecated.
+> **The book moved in (3.1.0).** Until 3.0.0 the book was a separate repo, `zombico/mojulo-recipe-book`, that you cloned and pointed `MOJULO_RECIPE_BOOK` at. Mojulo now mostly runs in agent boxes (the Claude app and web, ChatGPT's Work box and the like), where the package is installed fresh and nothing can be cloned beside it, so a book that has to be cloned never loads. The book now ships inside the package and every install has it. The old repo is frozen at 0.8.0 and will be archived; send book entries here. `MOJULO_RECIPE_BOOK` still works through 3.x and warns that it is deprecated.
 
 ---
 

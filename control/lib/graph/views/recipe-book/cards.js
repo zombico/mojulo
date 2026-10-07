@@ -13,7 +13,7 @@
  * The cookbook is the operator's own book (save_recipe writes it), living
  * beside the instance's data (`$MOJULO_COOKBOOK` or `<data dir>/cookbook`) so
  * the index that chases it is always its neighbour. The bundled book ships in
- * the package at control/book/ (3.0.1), so every install — an agent box included,
+ * the package at control/book/ (3.1.0), so every install — an agent box included,
  * where nothing can be cloned beside the package — carries the whole catalog.
  * An attached clone (`$MOJULO_RECIPE_BOOK`) is DEPRECATED: it still loads, and
  * still beats the bundled book on an id, for installs that pointed at one
@@ -85,7 +85,7 @@ export function bundledBookDir(override) {
   return BUNDLED_BOOK_DIR;
 }
 
-// Deprecated in 3.0.1 (the book ships bundled); still honoured through 3.x.
+// Deprecated in 3.1.0 (the book ships bundled); still honoured through 3.x.
 export function bookDir(override) {
   const dir = override ?? process.env.MOJULO_RECIPE_BOOK;
   return typeof dir === 'string' && dir.trim().length ? dir.trim() : null;

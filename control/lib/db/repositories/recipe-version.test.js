@@ -1,4 +1,4 @@
-// The mojulo version that wrote each recipe (3.0.1): minted on create, revised on a recipe edit only,
+// The mojulo version that wrote each recipe (3.1.0): minted on create, revised on a recipe edit only,
 // carried by every revision row, and null (never guessed) on a row written before 3.1.
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
@@ -59,7 +59,7 @@ describe('recipe versions', () => {
     expect(rev.version).toBe(VERSION);
   });
 
-  it('a row written before 3.0.1 reads null, not a guess', () => {
+  it('a row written before 3.1.0 reads null, not a guess', () => {
     SketchRepository.create({ ref: 'sk_old', title: 'Old', manifest: manifest(1) });
     getDb().prepare("UPDATE sketches SET minted_version = NULL WHERE ref = 'sk_old'").run();
     const old = SketchRepository.getByRef('sk_old');

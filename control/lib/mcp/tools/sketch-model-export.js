@@ -755,8 +755,8 @@ export function resolvePrintScale({ payload, profile, units, scaleInput = null, 
   return { scale, scaleNote };
 }
 
-// Which mojulo wrote the recipe and which one rendered this export (3.0.1). `minted` / `revised` are
-// null for a recipe written before 3.0.1; `rendered` is always this install. A differing `rendered`
+// Which mojulo wrote the recipe and which one rendered this export (3.1.0). `minted` / `revised` are
+// null for a recipe written before 3.1.0; `rendered` is always this install. A differing `rendered`
 // is the cue that the export may not match one made at the recipe's own version — re-render under
 // `npx -y mojulo@<minted or revised>` to reproduce it exactly.
 export function recipeVersions(sketch) {

@@ -352,7 +352,7 @@ mojulo/
 
 Per-package docs: [control/README.md](../control/README.md) — the npm package overview (what's published to npmjs.com/package/mojulo).
 
-[control/book/](../control/book/) — the recipe book, the catalog of mintable recipes, bundled in the package since 3.0.1 (the separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated). See [CONTRIBUTING.md](../CONTRIBUTING.md).
+[control/book/](../control/book/) — the recipe book, the catalog of mintable recipes, bundled in the package since 3.1.0 (the separate `mojulo-recipe-book` repo and `MOJULO_RECIPE_BOOK` are deprecated). See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 **Concept docs — the factory:**
 

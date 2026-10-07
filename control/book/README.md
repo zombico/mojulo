@@ -5,7 +5,7 @@ loops, solids, shots and a wardrobe, each a folder of plain text and JSON that a
 through mojulo's own tools. It loads on every install with no setup; `MOJULO_BUNDLED_BOOK=off` leaves
 it unattached.
 
-Until mojulo 3.0.1 this was the separate `mojulo-recipe-book` repo, attached by cloning it and setting
+Until mojulo 3.1.0 this was the separate `mojulo-recipe-book` repo, attached by cloning it and setting
 `MOJULO_RECIPE_BOOK`. That repo is frozen at 0.8.0 and the variable is deprecated.
 
 - `manifest.json` declares every entry; bump `bookVersion` when you add one.
