@@ -8,7 +8,7 @@ import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_LEVELS, FLORA_LAWS, FLORA_PARTS, FLO
 import { SWATCHES, hexOfRgb } from './style/swatches.js';
 import { CSS } from './out-index-html.js';
 import { mulberry32 } from '../vegetation/grow.js';
-import { ikebanaCard, zoneCard } from './out-ikebana-html.js';
+import { ikebanaCard, zoneCard, wideCard } from './out-ikebana-html.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const n2 = (v) => (typeof v === 'number' ? (Math.round(v * 100) / 100).toString() : String(v));
@@ -175,7 +175,7 @@ export function outFloraHtml({ seed = 8, kitId = 'isekai-meadow' } = {}) {
 <p class="lede">The plants of an outdoor world as doodads: shapes built for look, read and cost, not botany. Four forms make every plant a kit needs: masses on a stick, a cap on a stalk, organic growth, sausage fingers. Each is a few primitives under a few dials, built in values on named parts, skinned by a kit's swatches and built by reveal ring. Drawn here in ${esc(kitId)} at seed ${seed}. The grown trees (vegetation/) stay for a world that wants one.</p>
 <h2>Forms</h2>${FLORA_FORM_IDS.map((id) => formCard(id, kitId, seed)).join('<div style="height:14px"></div>')}
 <h2>Incongruity</h2>${incongruityCard(kitId, seed)}${runCard(kitId, seed)}
-<h2>Ikebana</h2>${ikebanaCard(seed)}${zoneCard(seed, kitId)}
+<h2>Ikebana</h2>${ikebanaCard(seed)}${wideCard(seed)}${zoneCard(seed, kitId)}
 <h2>Density</h2>${densityCard(kitId, seed)}
 <h2>Skins</h2>${skinCard(seed)}
 <h2>Bark</h2>${barkCard(kitId, seed)}

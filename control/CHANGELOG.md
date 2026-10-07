@@ -373,6 +373,17 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   its own incongruity scaled by its role's interest. The zone painter sprouts arrangements along painted strokes with
   scale, bend, density, variation, kenzan and ma dials, each turned to a trail or a view, neighbours in alternate
   hands and one odd one out per stroke. A finger's radius now scales with its height, so every form does.
+- **Wide ikebana: mixed media, its own ground, and walking** (`era/out-ikebana.js`, `era/out-flora.js`). Fillers
+  cycle through their list, never the same thing twice running, and a `mix` law asks for three different things when
+  the materials offer them. The flora index gains the terrain an arrangement is made of: `stone` (boulder, a cairn of
+  stacked courses, standing slab, outcrop), `ground` (a mound whose crown is the root; a hollow whose pool lies in the
+  ma) and `tuft` (ground cover, plain or in flower). Wide presets (garden, oasis, crater) set every element on the
+  ground's surface with cover over the footprint; a solid mass weighs more than its height, so boulders and puffballs
+  are fillers, never principals. Each element is classed for a walker from its built geometry (`WALK`): block (a trunk,
+  a stone or bush over a step, any cactus, a mound steeper than it can be climbed), walk (tufts, flowers, anything
+  under a step), under (a canopy over head height), wade (a shallow pool), as plan colliders. `walk: 'open'` keeps a way
+  in down the ma (a crowding stem turns away from the front) and `walk: 'thicket'` makes every filler block; the zone
+  painter moves an arrangement back whole until nothing that blocks stands within the trail's clearance.
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the

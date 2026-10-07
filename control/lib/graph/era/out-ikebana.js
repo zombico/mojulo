@@ -18,7 +18,7 @@
  * A stem leans as far as it still STANDS (the flora index's stands law): a tree leans less than a stem in a vase.
  * Seeded; pure.
  */
-import { designFlora, floraLaws, floraMeasures, subSeed } from './out-flora.js';
+import { designFlora, floraLaws, floraMeasures, groundSurface, subSeed } from './out-flora.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -64,7 +64,37 @@ export const IKEBANA_MATERIALS = Object.freeze({
     shin: [{ form: 'fingers', variant: 'tubes' }], soe: [{ form: 'fingers', variant: 'coral' }], hikae: [{ form: 'fingers', variant: 'pads' }],
     jushi: [{ form: 'fingers', variant: 'coral' }, { form: 'fingers', variant: 'tubes' }], ne: [{ form: 'fungi', variant: 'frill' }],
   },
+  // WIDE: mixed media on a ground of their own, with ground cover. A meadow garden: a tree over a cairn over a bush in
+  // flower, stones and lollipops and toadstools between, all on a mound in grass
+  garden: {
+    shin: [{ form: 'broccoli', variant: 'column' }, { form: 'broccoli', variant: 'broccoli' }], soe: [{ form: 'stone', variant: 'stack' }], hikae: [{ form: 'broccoli', variant: 'bush', over: { blooms: [8, 14] } }],
+    jushi: [{ form: 'stone', variant: 'boulder' }, { form: 'broccoli', variant: 'lollipop' }, { form: 'tuft', variant: 'flowering' }, { form: 'mushroom', variant: 'toadstool' }],
+    ne: [{ form: 'tuft', variant: 'flowering' }], ground: { form: 'ground', variant: 'mound' }, cover: { form: 'tuft', variant: 'blades' },
+  },
+  // an oasis: a parasol over a saguaro over a standing stone, round a pool that is the ma (a solid mass weighs more than
+  // its height: a boulder or a puffball is a filler, never a principal)
+  oasis: {
+    shin: [{ form: 'mushroom', variant: 'parasol' }], soe: [{ form: 'fingers', variant: 'saguaro' }], hikae: [{ form: 'stone', variant: 'slab' }],
+    jushi: [{ form: 'fingers', variant: 'pads' }, { form: 'tuft', variant: 'blades' }, { form: 'stone', variant: 'boulder' }, { form: 'fungi', variant: 'puffball' }],
+    ne: [{ form: 'tuft', variant: 'flowering' }], ground: { form: 'ground', variant: 'hollow' }, cover: { form: 'tuft', variant: 'blades' },
+  },
+  // a crater garden at night: a cap over a spire of stones over a bundle of glowing tubes, round a glowing pool
+  crater: {
+    shin: [{ form: 'mushroom', variant: 'parasol' }], soe: [{ form: 'stone', variant: 'stack' }], hikae: [{ form: 'fingers', variant: 'tubes' }],
+    jushi: [{ form: 'fungi', variant: 'puffball' }, { form: 'mushroom', variant: 'toadstool' }, { form: 'stone', variant: 'boulder' }, { form: 'tuft', variant: 'flowering' }],
+    ne: [{ form: 'fungi', variant: 'frill' }], ground: { form: 'ground', variant: 'hollow' }, cover: { form: 'tuft', variant: 'flowering' },
+  },
 });
+
+/**
+ * WALKING: what each element is to a walker, decided from its built geometry (the arrangement's colliders):
+ *   block  what a walker meets at body height: a trunk, a stalk, a stone or a bush taller than a step, any cactus,
+ *          a mound too steep to climb; in a THICKET every filler blocks too (a wall of brush)
+ *   walk   what a walker steps over or through: tufts, flowers, anything under a step
+ *   under  a canopy over head height: walked under (its trunk still blocks)
+ *   wade   a shallow pool: walked through, slowly
+ */
+export const WALK = Object.freeze({ step: 0.45, body: 1.8, head: 2.1, climb: 35, wade: 0.6, modes: ['open', 'thicket'] });
 
 /** The zone painter's dials and their rails. */
 export const IKEBANA_DIALS = Object.freeze({
@@ -75,8 +105,10 @@ export const IKEBANA_DIALS = Object.freeze({
   kenzan: { rail: [0.05, 0.3], read: 'the root\'s radius as a share of scale: how tight the bundle' },
   ma: { rail: [10, 50], read: 'the half-angle in degrees of the open sector toward the viewer' },
   incongruity: { rail: [0, 1], read: 'the stems\' own block mismatch (scaled by each role\'s interest)' },
+  cover: { rail: [0, 1], read: 'how much ground cover the arrangement\'s footprint holds (a wide arrangement\'s tufts)' },
+  walk: { rail: ['open', 'thicket'], read: 'open: only trunks, stones and bushes block and a way in stays through the ma; thicket: fillers block too' },
 });
-export const IKEBANA_DEFAULTS = Object.freeze({ style: 'upright', hand: 'left', materials: 'grove', scale: 9, bend: 0.35, density: 0.5, variation: 0.4, kenzan: 0.14, ma: 28, incongruity: 0.5, level: 'mid' });
+export const IKEBANA_DEFAULTS = Object.freeze({ clear: 1.2, style: 'upright', hand: 'left', materials: 'grove', scale: 9, bend: 0.35, density: 0.5, variation: 0.4, kenzan: 0.14, ma: 28, incongruity: 0.5, cover: 0.5, walk: 'open', level: 'mid' });
 
 const pick = (list, r) => list[Math.floor(r * list.length) % list.length];
 
@@ -95,21 +127,22 @@ export function clustersprout(seed, opts = {}) {
     const R = IKEBANA_ROLES[role], h = o.scale * mix(R.height[0], R.height[1], rand()) * (1 + o.variation * mix(-0.04, 0.04, rand()));   // variation strays inside the 1.2× step, never across it
     const az = azOf(toward), rr = K * (role === 'shin' ? 0.15 : mix(0.4, 1, rand()));
     const x = at[0] + Math.cos(az) * rr, y = at[1] + Math.sin(az) * rr;
-    stems.push({ role, ...material, x: r3(x), y: r3(y), height: r3(h), az, lean: lean * o.bend, k, interest: R.interest });
+    stems.push({ role, ...material, x: r3(x), y: r3(y), rr, height: r3(h), az, lean: lean * o.bend, k, interest: R.interest });
   };
   stem('shin', pick(M.shin, rand()), S.toward.shin, S.lean.shin, 0);
   stem('soe', pick(M.soe, rand()), S.toward.soe, S.lean.soe, 1);
   stem('hikae', pick(M.hikae, rand()), S.toward.hikae, S.lean.hikae, 2);
   // fillers: an odd count (three principals and the root are four, so the whole counts odd), toward the angles between the principals (inside the triangle), out of the ma
   const nJ = [1, 1, 3, 3, 5, 5, 7][Math.round(o.density * 6)];
-  const inside = [S.toward.shin, S.toward.soe, S.toward.hikae].sort((a, b) => a - b);
+  const inside = [S.toward.shin, S.toward.soe, S.toward.hikae].sort((a, b) => a - b), start = Math.floor(rand() * M.jushi.length);
   for (let j = 0; j < nJ; j++) {
     const lo = inside[j % 2 ? 1 : 0], hi = inside[j % 2 ? 2 : 1];
     let toward = mix(lo, hi, rand());
     // the ma: the sector toward the viewer (180° from away) is left open
     const fromFront = 180 - Math.abs(((toward % 360) + 540) % 360 - 180);
     if (fromFront < o.ma) toward = toward >= 0 ? 180 - o.ma - 5 : -(180 - o.ma - 5);
-    const mat = o.variation > 0.5 || j % 2 ? pick(M.jushi, rand()) : M.jushi[0];
+    // fillers MIX: they cycle through their list from a seeded start, never the same twice running
+    const mat = M.jushi[(start + j) % M.jushi.length];
     stem('jushi', mat, toward, mix(8, 30, rand()), 3 + j);
   }
   // the root: at the foot, toward the front and the hikae side, standing
@@ -146,9 +179,51 @@ export function clustersprout(seed, opts = {}) {
   // settles again: a turned stem leans a new way)
   const hk = stems.find((x) => x.role === 'hikae');
   for (let i = 0; i < 6 && !scaleneTriangle(stems); i++) { hk.az += hand * 14 * D; settle(hk); }
-  for (const s of stems) delete s.over;
-  const out = { at, facing: face, hand: hand > 0 ? 'left' : 'right', style: o.style, kenzan: r3(K), ma: o.ma, stems };
-  out.laws = ikebanaLaws(out);
+  // WIDE: the ground the arrangement stands on (a mound's crown is the root; a hollow's pool lies in front, in the ma)
+  // and every stem set on its surface
+  let ground = null, gs = groundSurface({ dials: {} });
+  if (M.ground) {
+    const kind = M.ground.variant, R = o.scale * (kind === 'hollow' ? 1 : 0.9), gh = o.scale * (kind === 'hollow' ? 0.06 : 0.1);
+    const gd = designFlora(M.ground.form, kind, subSeed(seed, 'ikebana:ground'), { level: o.level, over: { height: gh, spread: R / gh } });
+    const c = kind === 'hollow' ? [at[0] + Math.cos(face) * R * 0.55, at[1] + Math.sin(face) * R * 0.55] : at.slice();
+    ground = { form: M.ground.form, variant: kind, x: r3(c[0]), y: r3(c[1]), z: 0, design: gd };
+    gs = groundSurface(gd);
+  }
+  const zAt = (x, y) => (ground ? r3(gs.at(Math.hypot(x - ground.x, y - ground.y))) : 0);
+  for (const s of stems) s.z = zAt(s.x, s.y);
+  // ground cover: tufts over the footprint, round the root and out of the ma (and out of the pool)
+  const cover = [];
+  if (M.cover && o.cover > 0) {
+    const n = Math.round(4 + 12 * o.cover), Rc = o.scale * 0.6, cr = mulberry32(subSeed(seed, 'ikebana:cover'));
+    for (let i = 0, tries = 0; i < n && tries < n * 6; tries++) {
+      const a = cr() * Math.PI * 2, d = mix(K, Rc, Math.sqrt(cr())), x = at[0] + Math.cos(a) * d, y = at[1] + Math.sin(a) * d;
+      const off = Math.abs((((a - face) / D) % 360 + 540) % 360 - 180);
+      if (off < o.ma || (gs.pool && Math.hypot(x - ground.x, y - ground.y) < gs.pool * 1.05)) continue;
+      const design = designFlora(M.cover.form, M.cover.variant, subSeed(seed, `ikebana:cover:${i}`), { level: o.level, interest: 'filler' });
+      cover.push({ role: 'cover', form: M.cover.form, variant: M.cover.variant, x: r3(x), y: r3(y), z: zAt(x, y), az: a, tilt: 0, design }); i++;
+    }
+  }
+  const out = { at, facing: face, hand: hand > 0 ? 'left' : 'right', style: o.style, kenzan: r3(K), ma: o.ma, walk: o.walk, stems, ground, cover, surface: ground ? { R: r3(gs.R), pool: r3(gs.pool), maxSlope: gs.maxSlope } : null };
+  out.colliders = colliders(out);
+  // THE WAY IN and SCALENE, settled together: in an open arrangement a blocking stem that crowds the ma turns away from
+  // the front (its root round the kenzan, its lean with it); while the principals' triangle has two sides alike, hikae
+  // turns away from the front too. Either turn is checked against the other.
+  const away_ = (st) => {
+    const rel = ((((st.az - face) / D) % 360) + 540) % 360 - 180;
+    st.az += (rel >= 0 ? 1 : -1) * 16 * D;
+    st.x = r3(at[0] + Math.cos(st.az) * st.rr); st.y = r3(at[1] + Math.sin(st.az) * st.rr);
+    settle(st); st.z = zAt(st.x, st.y);
+  };
+  for (let i = 0; i < 10; i++) {
+    const crowd = o.walk === 'open' ? wayInBlockers(out).map((c) => c.stem).filter((x, j, a) => x && a.indexOf(x) === j) : [];
+    if (crowd.length) crowd.forEach(away_);
+    else if (!scaleneTriangle(stems)) away_(hk);
+    else break;
+    out.colliders = colliders(out);
+  }
+  out.laws = ikebanaLaws(out, M);
+  for (const st of stems) { delete st.over; delete st.rr; }
+  out.colliders = out.colliders.map(({ stem: _s, ...c }) => c);
   return out;
 }
 
@@ -161,6 +236,34 @@ const scaleneTriangle = (stems) => {
 };
 // where a stem's crown stands in plan: its foot moved by its lean
 export const crownXY = (s) => { const h = floraMeasures(s.design).height, off = Math.sin((s.tilt * Math.PI) / 180) * h * 0.7; return [s.x + Math.cos(s.az) * off, s.y + Math.sin(s.az) * off]; };
+
+/**
+ * The arrangement's colliders, from what was built (WALK): each element a circle in plan, `block`, `walk`, `under` or
+ * `wade`. A stem's block is what it holds below body height round its foot; a canopy over head height is `under`.
+ */
+export function colliders(A) {
+  const out = [], solid = new Set(['wood', 'flesh', 'stone', 'mass', 'core', 'gills']);
+  for (const s of [...A.stems, ...A.cover]) {
+    const fs = s.design.faces, h = floraMeasures(s.design).height;
+    const low = fs.flatMap((f) => (solid.has(f.part) ? f.corners : [])).filter((p) => p[2] < WALK.body);
+    const circle = (pts) => { if (!pts.length) return null; const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length; return { x: r3(s.x + cx), y: r3(s.y + cy), r: r3(Math.max(...pts.map((p) => Math.hypot(p[0] - cx, p[1] - cy)))) }; };
+    const thick = A.walk === 'thicket' && s.role === 'jushi';
+    let kind = h < WALK.step ? 'walk' : 'block';
+    if (s.form === 'tuft') kind = 'walk';
+    if (s.form === 'fingers' && h >= WALK.step * 0.5) kind = 'block';
+    if (thick) kind = 'block';
+    const c = circle(thick ? fs.flatMap((f) => f.corners) : low.length ? low : fs.flatMap((f) => f.corners));
+    if (c) out.push({ of: s.role, form: s.form, kind, ...c, h: r3(h), stem: s });
+    const high = fs.flatMap((f) => (f.part === 'mass' || f.part === 'flesh' ? f.corners : [])).filter((p) => p[2] > WALK.head), cu = circle(high);
+    if (cu && kind === 'block' && cu.r > (c?.r ?? 0) * 1.2) out.push({ of: s.role, form: s.form, kind: 'under', ...cu, h: r3(h), stem: s });
+  }
+  if (A.ground) {
+    const g = A.ground, S = A.surface;
+    out.push({ of: 'ground', form: 'ground', kind: S.maxSlope <= WALK.climb ? 'walk' : 'block', x: g.x, y: g.y, r: S.R, slope: S.maxSlope });
+    if (S.pool) out.push({ of: 'ground', form: 'water', kind: A.ground.design.dials.height * A.ground.design.dials.pool <= WALK.wade ? 'wade' : 'block', x: g.x, y: g.y, r: S.pool });
+  }
+  return out;
+}
 
 /**
  * The arrangement's laws (advice, never refusal):
@@ -179,9 +282,24 @@ export const IKEBANA_LAWS = Object.freeze([
   { id: 'one-root', rule: 'every stem rises within the kenzan\'s radius: the bundle' },
   { id: 'under', rule: 'a filler never spreads wider than soe: the principals keep the read' },
   { id: 'stands', rule: 'every stem, leaned, keeps the flora index\'s laws' },
+  { id: 'mix', rule: 'an arrangement mixes what its materials offer: at least three different things when it can' },
+  { id: 'way-in', rule: 'an open arrangement keeps the ma walkable from its edge in to the root' },
+  { id: 'trail-clear', rule: 'painted along a trail, nothing that blocks stands within its clearance of it' },
 ]);
 
-export function ikebanaLaws(A) {
+/** The blocking colliders that reach into the way in: the corridor down the ma (half its angle each side) from beyond the
+ *  root's own reach out to the arrangement's edge. */
+export function wayInBlockers(A) {
+  return (A.colliders ?? []).filter((c) => {
+    if (c.kind !== 'block' || c.of === 'ground') return false;
+    const dx = c.x - A.at[0], dy = c.y - A.at[1], dist = Math.hypot(dx, dy);
+    if (dist < A.kenzan * 1.5) return false;
+    const off = Math.abs((((Math.atan2(dy, dx) - A.facing) / D) % 360 + 540) % 360 - 180), half = Math.asin(Math.min(1, c.r / Math.max(dist, 1e-6))) / D;
+    return off - half < A.ma * 0.5;
+  });
+}
+
+export function ikebanaLaws(A, M = null) {
   const out = [], by = (r) => A.stems.find((s) => s.role === r);
   const [sh, so, hi] = ['shin', 'soe', 'hikae'].map(by), H = [sh, so, hi].map((s) => floraMeasures(s.design).height);
   if (!(H[0] >= 1.2 * H[1] * 0.999 && H[1] >= 1.2 * H[2] * 0.999)) out.push({ law: 'scalene', line: `principal heights ${H.map(r3).join(', ')}: each should be 1.2× the next.` });
@@ -197,6 +315,13 @@ export function ikebanaLaws(A) {
   for (const s of A.stems.filter((x) => x.role === 'jushi')) if (spread(s) > spread(so) * 1.001) out.push({ law: 'under', line: `a filler (${s.form} ${s.variant}) spreads ${r3(spread(s))} m, wider than soe's ${r3(spread(so))} m.` });
   for (const s of A.stems) if (Math.hypot(s.x - A.at[0], s.y - A.at[1]) > A.kenzan + 1e-6) out.push({ law: 'one-root', line: `${s.role} rises ${r3(Math.hypot(s.x - A.at[0], s.y - A.at[1]))} m from the root, outside its ${A.kenzan} m.` });
   for (const s of A.stems) for (const l of floraLaws(s.design)) out.push({ law: 'stands', line: `${s.role} (${s.form} ${s.variant}): ${l.line}` });
+  // MIX: an arrangement mixes what its materials offer, up to three different things
+  if (M) {
+    const offered = new Set(['shin', 'soe', 'hikae', 'jushi', 'ne'].flatMap((r) => (M[r] ?? []).map((m) => `${m.form}/${m.variant}`))), used = new Set(A.stems.map((s) => `${s.form}/${s.variant}`));
+    if (used.size < Math.min(3, offered.size)) out.push({ law: 'mix', line: `${used.size} different things; the materials offer ${offered.size}.` });
+  }
+  // WAY IN: an open arrangement keeps the ma walkable from its edge in to the root
+  if (A.walk === 'open') for (const c of wayInBlockers(A)) out.push({ law: 'way-in', line: `${c.of} (${c.form}) blocks the way in through the ma.` });
   return out;
 }
 
@@ -239,12 +364,26 @@ export function ikebanaZone(zone, seed) {
       const to = o.faceTo ? nearestOn(o.faceTo, at) : o.view;
       const facing = to ? Math.atan2(to[1] - at[1], to[0] - at[0]) : (o.facing ?? -Math.PI / 2);
       const isOdd = k === odd;
-      arrangements.push({ stroke: si, odd: isOdd, ...clustersprout(subSeed(seed, `ikebana:${si}:${k}`), {
+      const A = { stroke: si, odd: isOdd, ...clustersprout(subSeed(seed, `ikebana:${si}:${k}`), {
         ...o, at, facing,
         hand: (k % 2 ? (o.hand === 'left' ? 'right' : 'left') : o.hand),
         style: isOdd ? pick(other, rand()) : o.style,
         scale: o.scale * (isOdd ? 1.3 : mix(1 - 0.25 * o.variation, 1 + 0.1 * o.variation, rand())),
-      }) });
+      }) };
+      // THE TRAIL STAYS CLEAR: nothing that blocks stands within `clear` metres of the line the arrangement faces; one
+      // that would is moved back whole, away from the line
+      if (o.faceTo) {
+        const gap = (c) => Math.hypot(c.x - nearestOn(o.faceTo, [c.x, c.y])[0], c.y - nearestOn(o.faceTo, [c.x, c.y])[1]) - c.r;
+        const worst = Math.min(Infinity, ...A.colliders.filter((c) => c.kind === 'block' && c.of !== 'ground').map(gap));
+        if (worst < o.clear) {
+          const q = nearestOn(o.faceTo, A.at), dx = A.at[0] - q[0], dy = A.at[1] - q[1], l = Math.hypot(dx, dy) || 1, m = o.clear - worst + 0.01, d = [(dx / l) * m, (dy / l) * m];
+          const mv = (e) => { e.x = r3(e.x + d[0]); e.y = r3(e.y + d[1]); };
+          A.at = [r3(A.at[0] + d[0]), r3(A.at[1] + d[1])]; A.stems.forEach(mv); A.cover.forEach(mv); A.colliders.forEach(mv); if (A.ground) mv(A.ground);
+        }
+        const now = Math.min(Infinity, ...A.colliders.filter((c) => c.kind === 'block' && c.of !== 'ground').map(gap));
+        if (now < o.clear - 0.02) A.laws.push({ law: 'trail-clear', line: `a blocker stands ${r3(now)} m from the trail, inside its ${o.clear} m.` });
+      }
+      arrangements.push(A);
     });
   });
   return { arrangements, params: { style: o.style, materials: typeof o.materials === 'string' ? o.materials : 'custom', scale: o.scale, density: o.density, variation: o.variation, bend: o.bend, spacing: r3(spacing) } };

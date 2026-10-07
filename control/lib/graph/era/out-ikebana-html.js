@@ -2,7 +2,7 @@
  * IKEBANA, drawn — the cards the flora index shows for the bundling aid (era/out-ikebana.js): the roles, the styles'
  * angles, arrangements clustersprouted in three kits (elevation and plan), and the zone painter's strokes. Pure.
  */
-import { IKEBANA_ROLES, IKEBANA_STYLES, IKEBANA_DIALS, IKEBANA_LAWS, IKEBANA_DEFAULTS, clustersprout, ikebanaZone, crownXY } from './out-ikebana.js';
+import { IKEBANA_ROLES, IKEBANA_STYLES, IKEBANA_DIALS, IKEBANA_LAWS, IKEBANA_DEFAULTS, WALK, clustersprout, ikebanaZone, crownXY } from './out-ikebana.js';
 import { floraMeasures } from './out-flora.js';
 import { drawFlora, fig } from './out-flora-html.js';
 
@@ -14,7 +14,7 @@ const D = Math.PI / 180;
 // `turn` (radians) turns the scene about the vertical first, so a viewer can stand anywhere: the scene is seen from −y
 function drawArrangements(As, kitId, opts = {}) {
   const faces = [], c = Math.cos(opts.turn ?? 0), sn = Math.sin(opts.turn ?? 0), T = (p) => [p[0] * c - p[1] * sn, p[0] * sn + p[1] * c, p[2]];
-  for (const A of As) for (const s of A.stems) for (const f of s.design.faces) faces.push({ ...f, corners: f.corners.map((p) => T([p[0] + s.x, p[1] + s.y, p[2]])), normal: T(f.normal) });
+  for (const A of As) for (const s of [...(A.ground ? [A.ground] : []), ...A.stems, ...(A.cover ?? [])]) for (const f of s.design.faces) faces.push({ ...f, corners: f.corners.map((p) => T([p[0] + s.x, p[1] + s.y, p[2] + (s.z ?? 0)])), normal: T(f.normal) });
   return drawFlora({ faces, dials: { form: 'arrangement', variant: '' } }, kitId, opts);
 }
 
@@ -72,4 +72,32 @@ ${As.map((A) => A.stems.map((s) => { const c = crownXY(s); return `<circle cx="$
   return `<div class="card"><h3>The ikebana zone painter</h3><p class="note">Paint strokes; arrangements sprout along them, a spacing apart (closer with density), jittered across the stroke's width, each turned to its view (here the trail). Neighbours alternate hands, so the run answers itself; one arrangement in each stroke is the odd one out (bigger, in another style). A grove painted this way is close and varied, with a bush in flower at the foot of each arrangement.</p>
 <div class="grid g2"><div><table><tr><th>dial</th><th>rail</th><th>here</th><th>reads</th></tr>${rows}</table><p class="note" style="margin-top:8px">THE LEFT BANK'S STROKE, seen from the trail (${left.length} arrangements, ${left.reduce((n, A) => n + A.stems.length, 0)} stems; ${esc(left.map((A) => A.laws.length ? 'advice' : 'holds').join(' · '))})</p>${drawArrangements(left, kitId, { w: 560, h: 200, turn: -Math.PI / 2 })}</div>
 <div><p class="note">PLAN: strokes (pale), crowns by hand (black left, grey right), the odd one ringed; the trail grey</p>${plan}</div></div></div>`;
+}
+
+// an arrangement's colliders in plan: block solid, under dashed, walk pale, wade hatched; the way in down the ma
+function walkPlan(A, { size = 220 } = {}) {
+  const C = A.colliders, R = Math.max(...C.map((c) => Math.hypot(c.x - A.at[0], c.y - A.at[1]) + c.r)) * 1.08;
+  const k = size / 2 / R, X = (x) => (size / 2 + (x - A.at[0]) * k).toFixed(1), Y = (y) => (size / 2 - (y - A.at[1]) * k).toFixed(1);
+  const ma = (a) => [A.at[0] + Math.cos(A.facing + a) * R, A.at[1] + Math.sin(A.facing + a) * R];
+  const style = { block: 'fill="#111" fill-opacity="0.75"', under: 'fill="none" stroke="#111" stroke-dasharray="3 3"', walk: 'fill="#ddd" fill-opacity="0.6"', wade: 'fill="url(#hatch)" stroke="#888"' };
+  const order = { walk: 0, wade: 1, under: 2, block: 3 };
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#888" stroke-width="1.2"/></pattern></defs><rect width="${size}" height="${size}" fill="#fff"/>
+${A.walk === 'open' ? `<path d="M${X(A.at[0])},${Y(A.at[1])} L${X(ma(-A.ma * D / 2)[0])},${Y(ma(-A.ma * D / 2)[1])} L${X(ma(A.ma * D / 2)[0])},${Y(ma(A.ma * D / 2)[1])} Z" fill="#f4f4f4" stroke="#bbb" stroke-dasharray="2 3"/>` : ''}
+${[...C].sort((a, b) => order[a.kind] - order[b.kind]).map((c) => `<circle cx="${X(c.x)}" cy="${Y(c.y)}" r="${Math.max(1.5, c.r * k).toFixed(1)}" ${style[c.kind]}/>`).join('')}
+<text x="${size / 2}" y="${size - 5}" text-anchor="middle" font-size="9" fill="#555">the viewer ↓</text></svg>`;
+}
+
+const tally = (A) => Object.entries(A.colliders.reduce((m, c) => ((m[c.kind] = (m[c.kind] ?? 0) + 1), m), {})).map(([k, n]) => `${n} ${k}`).join(' · ');
+
+export function wideCard(seed) {
+  const rows = [['garden', 'isekai-meadow', 4.5, 'upright'], ['oasis', 'isekai-bamboo', 5, 'spreading'], ['crater', 'alien-night', 5, 'slanting']].map(([m, kit, scale, style]) => {
+    const A = clustersprout(seed, { materials: m, scale, style, density: 0.8, variation: 0.6, cover: 0.7 });
+    const forms = [...new Set(A.stems.map((s) => `${s.form} ${s.variant}`))];
+    return `<tr><td><b>${esc(m)}</b><br><span class="note">${esc(kit)} · ${esc(style)} · on a ${esc(A.ground.variant)} (slope ${A.surface.maxSlope}°${A.surface.pool ? `, a pool ${n2(A.surface.pool)} m` : ''}) · ${A.stems.length} stems, ${A.cover.length} tufts</span><br><span class="note">mixes ${forms.length}: ${esc(forms.join(', '))}</span><br><span class="note">${esc(tally(A))}</span><br>${lawCell(A)}</td><td>${drawArrangements([A], kit, { w: 360, h: 210 })}</td><td>${walkPlan(A)}</td></tr>`;
+  }).join('');
+  const O = clustersprout(seed + 1, { materials: 'garden', scale: 4.5, density: 1, walk: 'open' }), T = clustersprout(seed + 1, { materials: 'garden', scale: 4.5, density: 1, walk: 'thicket' });
+  return `<div class="card"><h3>Wide ikebana: mixed media on its own ground</h3><p class="note">An arrangement is not one thing repeated: its fillers cycle through their list (never the same twice running) and a wide arrangement mixes flora with the terrain it is made of: stones (a boulder, a cairn of stacked courses, a standing slab, an outcrop), a ground of its own (a mound whose crown is the root; a hollow whose pool lies in front, in the ma) and ground cover (tufts, plain or in flower). Every element is a doodad under the same laws, set on the ground's surface.</p>
+<p class="note"><b>Walking</b>, decided from what was built: <b>block</b> is what a walker meets at body height (${WALK.body} m): a trunk, a stalk, a stone or bush over a step (${WALK.step} m), any cactus, a mound steeper than ${WALK.climb}°; <b>walk</b> is stepped through (tufts, flowers, anything under a step); <b>under</b> is a canopy over head height (${WALK.head} m); <b>wade</b> is a pool no deeper than ${WALK.wade} m. <code>walk: 'open'</code> keeps a way in down the ma (a blocking stem that crowds it turns away from the front); <code>walk: 'thicket'</code> makes every filler block, a wall of brush. Painted along a trail, nothing that blocks stands within the clearance (${IKEBANA_DEFAULTS.clear} m): an arrangement that would is moved back whole.</p>
+<table><tr><th>materials</th><th>elevation</th><th>plan: block (solid), under (dashed), walk (pale), wade (hatched), the way in</th></tr>${rows}</table>
+<div class="grid g2" style="margin-top:10px"><div><p class="note">OPEN: ${esc(tally(O))}</p>${walkPlan(O, { size: 240 })}</div><div><p class="note">THICKET, the same seed: ${esc(tally(T))}</p>${walkPlan(T, { size: 240 })}</div></div></div>`;
 }

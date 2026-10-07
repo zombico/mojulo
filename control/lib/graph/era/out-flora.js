@@ -43,6 +43,10 @@ export const FLORA_PARTS = Object.freeze({
   flesh: { role: 'soil', read: 'a cap, a pad, a finger, a shelf: the body of a soft thing' },
   gills: { role: 'soil', read: 'the underside of a cap or shelf: always a step darker' },
   detail: { role: 'cloud', read: 'spots, tips, bulbs: the small marks, a step lighter' },
+  stone: { role: 'rock', read: 'a stone: a boulder, a cairn\'s course, a standing slab' },
+  ground: { role: 'grass', read: 'the ground an arrangement stands on: a mound, a hollow\'s dish' },
+  water: { role: 'sky', read: 'a pool\'s still face: it takes the sky' },
+  blade: { role: 'grass', read: 'a grass blade: dark at the root, lit at the tip' },
   bloom: { role: 'cloud', read: 'flowers on a mass: a few posies on its lit side, the decoration (never the accent: that is for use)' },
 });
 export const DEFAULT_SKIN = Object.freeze(Object.fromEntries(Object.entries(FLORA_PARTS).map(([k, v]) => [k, v.role])));
@@ -52,7 +56,7 @@ export const FLORA_SKINS = Object.freeze({
   'isekai-meadow': {},
   'isekai-bamboo': { flesh: 'bark' },
   'isekai-sakura': { flesh: 'rock' },
-  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow' },
+  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', water: 'glow' },
 });
 export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? {}) });
 
@@ -176,6 +180,33 @@ export const FLORA_FORMS = Object.freeze({
       tubes: { rule: 'tubes', arms: [4, 9], height: [0.6, 2.4], radius: [0.13, 0.22], bulb: [1.1, 1.3] },
     },
     build: buildFingers,
+  },
+  // the terrain an arrangement is made with as well as of: not flora, built and judged the same way
+  stone: {
+    read: 'stones: a boulder, a cairn of stacked stones, a standing slab, an outcrop',
+    makes: ['boulder', 'cairn', 'standing stone', 'outcrop'],
+    rails: { height: [0.5, 2.2], width: [0.7, 1.2], depth: [0.6, 0.9], count: [2, 4], sink: [0.08, 0.16] },
+    variants: {
+      boulder: { kind: 'boulder', height: [0.5, 1.6] },
+      stack: { kind: 'stack', count: [3, 4], height: [0.9, 2] },
+      slab: { kind: 'slab', width: [0.4, 0.6], depth: [0.22, 0.32], height: [1.2, 2.2] },
+      outcrop: { kind: 'outcrop', count: [3, 5], height: [0.6, 1.6] },
+    },
+    build: buildStone,
+  },
+  ground: {
+    read: 'the ground an arrangement stands on: a mound to stand up on, a hollow holding a pool',
+    makes: ['mound', 'hollow with a pool'],
+    rails: { height: [0.4, 1.4], spread: [5, 8], pool: [0.4, 0.55] },
+    variants: { mound: { kind: 'mound' }, hollow: { kind: 'hollow', height: [0.35, 0.7], spread: [6, 9] } },
+    build: buildGround,
+  },
+  tuft: {
+    read: 'ground cover: a tuft of blades, or one in flower',
+    makes: ['grass tuft', 'flowering tuft'],
+    rails: { height: [0.25, 0.7], blades: [5, 11], splay: [0.25, 0.55], flowers: [0, 0] },
+    variants: { blades: {}, flowering: { flowers: [3, 6] } },
+    build: buildTuft,
   },
 });
 export const FLORA_FORM_IDS = Object.freeze(Object.keys(FLORA_FORMS));
@@ -352,6 +383,77 @@ function buildFungi(X, rand, L, P) {
     P.block({ id: `u${i}`, kind: 'lathe', parent: 'ground', group: 'family', c: [Math.cos(a) * d, Math.sin(a) * d, 0], r: [s, s, s], what: 'frill', grounded: true, lathes: [
       { prof: [[0.12, 0], [0.1, 0.5], [0.6, 0.9], [1, 1.05]], sides, part: 'flesh', value: 0.6, wave: [7, X.ruffle] },
       { prof: [[0.95, 1.02], [0.5, 0.82], [0.1, 0.55]], sides, part: 'gills', value: 0.34, wave: [7, X.ruffle] }] });
+  }
+}
+
+// stones: faceted masses (detail 0 reads as stone), sunk a little into the ground
+function buildStone(X, rand, L, P) {
+  const H = X.height;
+  P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
+  const stone = (id, parent, c, r, o = {}) => P.block({ id, kind: 'mass', parent, c, r, part: 'stone', value: mix(0.42, 0.58, rand()), detail: 0, ...o });
+  if (X.kind === 'stack') {
+    // a cairn: courses smaller as they rise, each sitting on the one below (the stable law holds it)
+    let z = 0, w = H * 0.42 * X.width, prev = 'ground';
+    const n = Math.max(2, X.count), share = Array.from({ length: n }, (_, i) => Math.pow(0.78, i)), tot = share.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < n; i++) {
+      const h = (H * share[i]) / tot, r = [w * Math.pow(0.82, i), w * Math.pow(0.82, i) * X.depth, h / 2];
+      stone(`c${i}`, prev, [mix(-0.04, 0.04, rand()) * w, mix(-0.04, 0.04, rand()) * w, z + h / 2 - (i ? h * 0.08 : h * X.sink)], r, { stack: true, what: i ? 'course' : 'cairn' });
+      z += h * (i ? 0.92 : 1 - X.sink); prev = `c${i}`;
+    }
+    return;
+  }
+  if (X.kind === 'outcrop') {
+    // a family: one big, the rest lower round it
+    for (let i = 0; i < (L.name === 'far' ? Math.min(4, X.count) : X.count); i++) {
+      const h = H * (i ? mix(0.35, 0.65, rand()) : 1), a = (2 * Math.PI * i) / Math.max(1, X.count - 1) + rand(), d = i ? H * X.width * mix(0.55, 0.8, rand()) : 0, w = h * 0.55 * X.width;
+      stone(`s${i}`, 'ground', [Math.cos(a) * d, Math.sin(a) * d, h * (0.5 - X.sink)], [w, w * X.depth, h / 2], { group: 'outcrop', grounded: true, what: 'stone' });
+    }
+    return;
+  }
+  const w = H * 0.5 * X.width;
+  stone('s0', 'ground', [0, 0, H * (0.5 - X.sink)], [w, w * X.depth, H / 2], { stack: true, what: X.kind });
+}
+
+// the ground under an arrangement: a lathe in its own units; `seat` says where the arrangement's root goes on it
+function buildGround(X, rand, L, P) {
+  const R = X.height * X.spread, n = L.round * 2;
+  if (X.kind === 'mound') {
+    const prof = Array.from({ length: 7 }, (_, i) => { const r = 1 - i / 6; return [r, (X.height * (1 + Math.cos(Math.PI * r))) / 2 / R]; });
+    P.block({ id: 'g', kind: 'lathe', c: [0, 0, 0], r: [R, R, R], what: 'mound', lathes: [{ prof, sides: n, part: 'ground', value: 0.5 }] });
+    return;
+  }
+  // a hollow: a dish, and a pool standing in it at 0.6 of its depth
+  const D = X.height, prof = Array.from({ length: 7 }, (_, i) => { const r = 1 - i / 6; return [r, -(D * (1 + Math.cos(Math.PI * r))) / 2 / R]; });
+  const rp = (R * Math.acos(2 * X.pool - 1)) / Math.PI, zp = -D * X.pool;
+  P.block({ id: 'g', kind: 'lathe', c: [0, 0, 0], r: [R, R, R], what: 'hollow', lathes: [{ prof, sides: n, part: 'ground', value: 0.46 }, { prof: [[rp / R, zp / R + 0.002], [0, zp / R + 0.002]], sides: n, part: 'water', value: 0.6 }] });
+}
+
+/** The ground's height at a distance r from its middle (a mound's crown, a hollow's dish), and its pool. */
+export function groundSurface(d) {
+  const X = d.dials, R = X.height * X.spread;
+  if (X.form !== 'ground') return { at: () => 0, R: 0, pool: 0, maxSlope: 0 };
+  const sign = X.kind === 'mound' ? 1 : -1, H = X.height;
+  return {
+    R, at: (r) => (r >= R ? 0 : (sign * H * (1 + Math.cos((Math.PI * r) / R))) / 2),
+    pool: X.kind === 'hollow' ? (R * Math.acos(2 * X.pool - 1)) / Math.PI : 0, poolZ: X.kind === 'hollow' ? -H * X.pool : 0,
+    maxSlope: r3((Math.atan((H * Math.PI) / (2 * R)) * 180) / Math.PI),
+  };
+}
+
+// a tuft: blades fanned from one foot, each a tapered strip dark at the root and lit at the tip; flowers on stalks
+function buildTuft(X, rand, L, P) {
+  P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
+  const n = L.name === 'far' ? Math.min(4, X.blades) : X.blades, H = X.height;
+  P.blades = [];
+  for (let i = 0; i < n; i++) {
+    const a = (2 * Math.PI * i) / n + rand() * 0.6, h = H * mix(0.6, 1, rand()), out_ = X.splay * h * mix(0.6, 1, rand()), w = H * 0.06;
+    P.blades.push({ a, h, out: out_, w });
+  }
+  P.block({ id: 'tuft', kind: 'tuft', parent: 'ground', c: [0, 0, 0], r: [H * X.splay, H * X.splay, H], what: 'tuft' });
+  for (let i = 0; i < (L.name === 'far' ? 0 : X.flowers); i++) {
+    const a = rand() * Math.PI * 2, d = H * X.splay * mix(0.2, 0.6, rand()), z = H * mix(1.05, 1.35, rand()), sz = H * 0.07;
+    P.block({ id: `f${i}`, kind: 'mass', parent: 'tuft', fixed: true, c: [Math.cos(a) * d, Math.sin(a) * d, z], r: [sz, sz, sz * 0.7], part: 'bloom', value: mix(0.65, 0.88, rand()), detail: 0 });
+    P.link({ from: 'ground', to: `f${i}`, radii: [H * 0.012, H * 0.01], sides: 3, part: 'blade', value: 0.4 });
   }
 }
 
@@ -599,6 +701,13 @@ function meshPlan(P, L) {
           if (l.under && f.corners.some((p) => p[2] < b.c[2] - b.r[2] * 0.02)) { f.part = l.under.part; f.value = l.under.value; }
           out.push(f);
         }
+      }
+    } else if (b.kind === 'tuft') {
+      for (const bl of P.blades ?? []) {
+        const d = [Math.cos(bl.a), Math.sin(bl.a), 0], sd = [-d[1], d[0], 0], mid = [d[0] * bl.out * 0.45, d[1] * bl.out * 0.45, bl.h * 0.55], tip = [d[0] * bl.out, d[1] * bl.out, bl.h];
+        const A = add(b.c, mul(sd, bl.w)), Bq = add(b.c, mul(sd, -bl.w)), M1 = add(add(b.c, mid), mul(sd, bl.w * 0.6)), M2 = add(add(b.c, mid), mul(sd, -bl.w * 0.6));
+        pushFace(out, [A, Bq, M2, M1], 'blade', 0.34, add(b.c, [0, 0, bl.h * 0.3]));
+        pushFace(out, [M1, M2, add(b.c, tip)], 'blade', 0.74, add(b.c, [0, 0, bl.h * 0.3]));
       }
     } else if (b.tip || b.joint) {
       const k = b.tip ? b.tip.k : 1, p = P.byId.get(b.parent), d = p ? unit(sub(b.c, p.c)) : [0, 0, 1];
