@@ -175,6 +175,32 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
   block it lands on (`how: 'fall'`, `'crush'`). So a running-bond wall keeps a block while either block under it
   stands, a stack drops a block when its foot goes, and a crate on a slab falls through the hole a broken tile
   leaves. `spec.breakFloor`, `fallGravity` and `fallBreak` tune it; `FORM_BOND` and `ask.bond` set the bond.
+- **The player: a hero from the hero door, driven in a world.** `playscape/player.js`: the move set adds what a hero
+  lacks for the runtime's states (`PLAYER_CLIPS`: the jump's wind-up `squat` and its flight `leap`, in the door's pose
+  words) and names which of its clips plays each state (`playerStates`: forward runs, idle idles relaxed, leap and boost
+  hold the flight, turn walks); `playerWorld({ hero | heroRef })` is a controllable world with the hero as the pilot on
+  the platform rule (W/S run, A/D turn, Space jump; a 4 m/s run, a hop of about a metre), a follow camera, a test
+  course (hop-up blocks, a flight of stairs onto a terrace, a wall) and the controls as a `legend` idiom. The figures
+  map takes a hero (world-scene.js): `figures.<name>.hero` (inline, as the door takes it) or `heroRef` (a stored
+  layered hero) resolves through the layered kind to the packed rig every rig body plays, without the static solid or
+  the preview, with `clips` naming the hero's clip for each runtime state (a name it lacks is refused by name). A
+  world's `events` block that is HUD-only (a legend alone) now reaches the page; before, it needed a reaction or a
+  sequence. The anime heroine (docs/examples/humanoid/cast/heroine.json) runs, idles, jumps and lands on the course on
+  the World page.
+- **Clips from an outside animation library, on mojulo's own rigs.** `figures/clip-library.js` reads a humanoid glTF
+  library (its skin and clips) into HUB clips: each humanoid bone's world turn away from the library's bind T-pose, in
+  the native frame (z up, facing +y), keyed by VRM name, and the hips' bob and sway as a share of the hip height
+  (`hubClips`; `LIBRARY_MAPS` maps a library's joints, Quaternius's Universal Animation Library first). `retargetClip`
+  composes each turn on the T-pose mold's rest → T offset (rig-tpose.js) and recomputes the heads down the rig's own
+  tree, so the clip lands in the keys every rig body plays; a rig with fewer spine bones takes each bone's own turn.
+  `scripts/import-clip-library.mjs` writes a hub from a library's file; Quaternius's free CC0 locomotion ships as one
+  (`figures/library/quaternius-ual.js`: idle, walk, jog, sprint, the jump's start, loop and land, crouch idle and walk,
+  a hit; 241 KB, loaded only by a world that names it). A hero in the figures map takes `library`, and a state's clip
+  the hero lacks is retargeted from it (a clip not named `_Loop` plays once and holds). The player starts from the
+  library (`LIBRARY_STATES`: the jog, the idle, the jump's start and loop), the hero's own clips and the move set's
+  filling the gaps; `library: false` plays the hero's own. Against the library's own mannequin, the heroine's limbs
+  point within 4.7° of its limbs on every frame of the walk, the jog and the jump; the whole residual is the library's
+  shin, which leans 4.7° back in its bind pose where the mold stands the leg straight.
 
 ### Scapeshift
 
