@@ -13,6 +13,20 @@ const sloped = (rows) => rows.map(([id, y, ...sl]) => [id, y, ...sl.map((v) => s
 const slopedJaw = (rows) => rows.map(([id, y, o]) => [id, y, Object.fromEntries(Object.entries(o).map(([k, v]) => [k, slopeSlot(y, v)]))]);
 const slopedCap = ([x, y, z]) => [x, y, z + dz(y)];
 
+// HAIR LOCKS (a shaggy coat's hanging fringe): flat tapering blades hung straight down, mirrored by name (right side
+// authored), each [name, x, y, zTop, zHem, width]; the blade lies along the body (its width runs fore and aft, its
+// thickness out from the flank) and narrows to a point at the hem, so a row of them reads as a tattered fringe
+const lock = ([name, x, y, z0, z1, w], group) => ({ name, kind: 'loft', slots: 'ring12', group, mirror: 'name', up: [1, 0, 0],
+  stations: [{ at: [x - 0.035, y, z0], r: [w * 0.55, w * 0.3] }, { at: [x, y, z0 + (z1 - z0) * 0.3], r: [w, w * 0.5] }, { at: [x - 0.01, y, z0 + (z1 - z0) * 0.65], r: [w * 0.8, w * 0.4] },
+    { at: [x - 0.02, y, z1 + 0.05], r: [w * 0.4, w * 0.22] }],
+  caps: { back: [x - 0.04, y, z0 + 0.04], tip: [x - 0.025, y, z1] } });
+// a fixed ragged rhythm for the hem (deterministic: no random), metres the lock hangs past the even hem
+const RAG = [0.0, 0.07, 0.025, 0.1, 0.045, 0.085, 0.01, 0.06, 0.035, 0.095, 0.02, 0.075];
+// the yak's skirt line, fore and aft along the flank: [y, the skirt's half-width there, its centre height] (bison
+// units, read off the yak's skirt loft)
+const YAK_SKIRT = [[-0.82, 0.41, 0.80], [-0.72, 0.43, 0.79], [-0.62, 0.445, 0.78], [-0.52, 0.455, 0.77], [-0.42, 0.462, 0.76], [-0.32, 0.468, 0.76],
+  [-0.22, 0.472, 0.76], [-0.12, 0.477, 0.76], [-0.02, 0.48, 0.76], [0.08, 0.48, 0.765], [0.18, 0.48, 0.773], [0.28, 0.48, 0.78], [0.38, 0.46, 0.80], [0.48, 0.435, 0.815], [0.58, 0.41, 0.83]];
+
 export const family = {
   family: 'bovid',
   colors: {
@@ -345,6 +359,80 @@ export const species = {
     ],
     headOrnaments: [],
   },
+
+  // DOMESTIC YAK (Bos grunniens) — Thesis: a heavy black ox under a LONG SHAGGY SKIRT of hair hanging from the flanks
+  // and belly nearly to the ground (only the lower legs show) · a moderate HUMP over the shoulders, the back falling
+  // to the rump · a short neck, the head carried low · long horns out sideways then UP, tips curving in · a BUSHY
+  // horse-like tail · black-brown, pale horns · 1.25 m at the withers (published domestic yak bull ~1.1–1.4 m at the
+  // withers; FAO, Wiener, Han & Long 2003, "The Yak"). Authored at bison units and scaled 0.72.
+  yak: {
+    family: 'bovid', name: 'a domestic yak', scale: 0.72,
+    colors: { coat: '#2e2520', sock: '#2a221e', ash: '#2a221e', ashAlt: '#43352c', snout: '#3a302a', brow: '#1a1512', mane: '#221b17', horn: '#cfc6b4', tip: '#1e1814', hoof: '#151210', nose: '#151210', belly: '#221b17' },
+    joints: {
+      neckBase: [0, 0.62, 1.12], neckTop: [0, 0.98, 1.0],
+      dewlapA: [0, 0.80, 0.70], dewlapB: [0, 1.02, 0.70],
+    },
+    torsoUp: true,
+    torso: [
+      { at: [0, -0.95, 1.0], r: [0.24, 0.28] },
+      { at: [0, -0.82, 1.0], r: [0.33, 0.36], top: 0.02 },
+      { at: [0, -0.45, 1.0], r: [0.38, 0.40], top: 0.04 },
+      { at: [0, -0.05, 1.0], r: [0.41, 0.42], top: 0.12 },
+      { at: [0, 0.30, 1.0], r: [0.41, 0.43], top: 0.24 },
+      { at: [0, 0.62, 1.0], r: [0.34, 0.40], top: 0.10 },
+    ],
+    torsoCaps: { back: [0, -1.02, 1.04], tip: [0, 0.80, 1.0] },
+    neckRA: [0.28, 0.36], neckRB: [0.22, 0.26], neckRMid: [0.25, 0.30],
+    legBulk: 1.25, headScale: 1.1, muzzleW: 1.2, muzzleLen: 0.7, headPitch: -15, noseR: [0.025, 0.02],
+    earR: [0.03, 0.045, 0.04, 0.02], earH: 0.7,
+    // the bushy tail: a short dock, then a long full hair switch to the hocks
+    tail: [[0, -0.98, 1.24, 0.05], [0, -1.05, 1.14, 0.045], [0, -1.07, 0.98, 0.04]],
+    tip: [[0, -1.07, 1.02, 0.07], [0, -1.08, 0.80, 0.12], [0, -1.08, 0.56, 0.10], [0, -1.075, 0.40, 0.05]],
+    tipCaps: { back: [0, -1.07, 1.08], tip: [0, -1.075, 0.34] },
+    extraSegments: [
+      // the SKIRT: a shaggy hanging fringe of hair round the flanks and belly; its own hem is high, the LOCKS below
+      // carry it on down to a RAGGED edge near the knees
+      { name: 'skirt', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', up: true,
+        stations: [{ at: [0, -0.86, 0.80], r: [0.40, 0.38] }, { at: [0, -0.45, 0.76], r: [0.46, 0.46] }, { at: [0, -0.05, 0.76], r: [0.48, 0.48] }, { at: [0, 0.30, 0.78], r: [0.48, 0.46] }, { at: [0, 0.62, 0.84], r: [0.40, 0.40] }],
+        caps: { back: [0, -0.98, 0.84], tip: [0, 0.76, 0.88] } },
+      // the long locks: one row hung from the skirt's widest line, each a ragged length past the even hem
+      ...YAK_SKIRT.map(([y, rx, zc], i) => lock([`skirtLock${i}R`, rx * (i % 2 ? 0.95 : 0.99), y, zc - 0.02 + 0.5 * RAG[(i + 7) % RAG.length], 0.25 - RAG[i % RAG.length], 0.08], i % 4 === 1 ? 'FurAlt' : 'Mane')),
+      // the layered tufts: a shorter row over the long one, staggered between its locks (a coat in layers, not a sheet)
+      ...YAK_SKIRT.slice(0, -1).map(([y, rx, zc], i) => lock([`skirtTuft${i}R`, rx * 1.0 + 0.02, y + 0.05, zc + 0.12 + RAG[(i + 3) % RAG.length], zc - 0.24 - 0.8 * RAG[(i + 5) % RAG.length], 0.065], i % 3 === 2 ? 'FurAlt' : 'Mane')),
+      // the brisket fringe hanging between the forelegs
+      ...[[0.10, 0.68, 0.0], [0.24, 0.64, 0.05]].map(([x, y, d], i) => lock([`chestLock${i}R`, x, y, 0.62, 0.22 - d, 0.055], 'Mane')),
+      // the breeches: locks hanging off the haunches behind the skirt, round the rump
+      ...[[0.33, -0.90, 0.80, 0.30], [0.22, -0.96, 0.84, 0.36]].map(([x, y, z0, z1], i) => lock([`rumpLock${i}R`, x, y, z0, z1, 0.06], i ? 'FurAlt' : 'Mane')),
+      // the long-haired tail: loose strands falling round the switch, to below the hocks
+      ...[[0.04, -1.075, 0.30], [0.025, -1.11, 0.26]].map(([x, y, z1], i) => lock([`tailLock${i}R`, x, y, 0.92, z1, 0.035], 'Tip')),
+      // shaggy chaps on the upper forelegs, and the throat fringe
+      { name: 'chapsR', kind: 'segment', from: 'shoulder', to: 'carpus', rA: [0.18, 0.22], rB: [0.10, 0.12], rMid: [0.15, 0.18], slots: 'ring12', group: 'Mane', mirror: 'name', over: [0.3, 0.2] },
+      { name: 'dewlap', kind: 'segment', from: 'dewlapA', to: 'dewlapB', rA: [0.08, 0.14], rB: [0.05, 0.08], rMid: [0.07, 0.15], slots: 'ring12', group: 'Mane', mirror: 'plane', over: [0.3, 0.3] },
+    ],
+    headOrnaments: [
+      { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.10, -0.08, 0.10], [0.19, -0.08, 0.12], [0.27, -0.06, 0.18], [0.31, -0.03, 0.27], [0.30, -0.02, 0.36], [0.25, -0.05, 0.42]], radii: [0.045, 0.038, 0.03, 0.022, 0.014, 0.005], m: 8, group: 'Horn' },
+    ],
+  },
+
+  // WATER BUFFALO (Bubalus bubalis, a domestic river buffalo) — Thesis: a big heavy slate-grey ox with a SPARSE dark
+  // hide, a straight back, short legs, NO real dewlap · the head carried LEVEL and forward (face out, not down), a
+  // long face and broad muzzle, ears out sideways · ONE signature: WIDE flattened CRESCENT horns swept out and BACK
+  // from the poll, the tips curving up · a thin tail to the hocks, pale lower legs · 1.35 m at the withers (published
+  // domestic river buffalo 1.3–1.45 m; FAO, Cockrill 1974, "The Husbandry and Health of the Domestic Buffalo").
+  // Authored at bull units and scaled 0.9.
+  waterBuffalo: {
+    family: 'bovid', name: 'a water buffalo', scale: 0.9,
+    colors: { coat: '#3c3b3d', sock: '#8c8682', ash: '#353436', ashAlt: '#302f31', snout: '#2e2d2f', brow: '#1c1b1c', horn: '#2a2624', tip: '#1c1b1c', hoof: '#1a1818', nose: '#1a1818', belly: '#4a4848' },
+    legBulk: 1.4, bulk: 1.08, headScale: 1.2, muzzleW: 1.6, muzzleLen: 0.6, noseR: [0.03, 0.02], headPitch: 10,
+    joints: { neckBase: [0, 0.55, 1.12], neckTop: [0, 1.08, 1.26] },
+    neckRA: [0.26, 0.32], neckRB: [0.19, 0.24], neckRMid: [0.21, 0.26],
+    earR: [0.04, 0.06, 0.055, 0.025], earH: 1.1,
+    extraSegments: [],
+    headOrnaments: [
+      // the crescent: out sideways from the poll, then sweeping BACK and up; flattened (wide in front, thin in depth)
+      { kind: 'sweep', name: 'horn', at: [0.6, 1.2], space: 'head', spine: [[0.10, -0.10, 0.11], [0.20, -0.13, 0.13], [0.31, -0.19, 0.16], [0.40, -0.28, 0.22], [0.43, -0.37, 0.31], [0.39, -0.43, 0.40]], radii: [0.06, 0.055, 0.046, 0.034, 0.022, 0.008], squash: [1, 0.6], m: 8, group: 'Horn' },
+    ],
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -357,12 +445,11 @@ export const about = {
   sheep: { common: 'sheep', aliases: ['lamb', 'ewe'], sci: 'Ovis aries', size: '0.75 m at the withers (a Suffolk ewe)', source: 'breed-society standards' },
   goat: { common: 'goat', aliases: ['billy goat', 'nanny goat'], sci: 'Capra hircus', size: '0.70 m at the withers', source: 'ADW / FAO breed descriptions' },
   bison: { common: 'bison', aliases: ['buffalo', 'american bison', 'american buffalo'], sci: 'Bison bison', size: '1.80 m at the withers (bull)', source: 'NPS Yellowstone / ADW' },
+  yak: { common: 'yak', aliases: [], sci: 'Bos grunniens', size: '1.25 m at the withers (domestic bull; published ~1.1–1.4 m)', source: 'FAO, Wiener, Han & Long 2003, The Yak' },
+  waterBuffalo: { common: 'water buffalo', aliases: ['water buffalo', 'carabao'], sci: 'Bubalus bubalis', size: '1.35 m at the withers (domestic river buffalo; published 1.3–1.45 m)', source: 'FAO, Cockrill 1974, The Husbandry and Health of the Domestic Buffalo' },
   dairyCow: { common: 'cow', aliases: ['dairy cow', 'holstein', 'milk cow', 'cattle'], sci: 'Bos taurus', size: '1.45 m at the withers (a Holstein)', source: 'Holstein Association USA' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
-export const wanted = {
-  yak: { near: 'bison', aliases: [], note: 'a long shaggy skirt of hair to the ground, a hump, upswept horns' },
-  waterBuffalo: { near: 'bull', aliases: ['water buffalo', 'carabao'], note: 'wide swept-back crescent horns, a dark grey hide' },
-};
+export const wanted = {};

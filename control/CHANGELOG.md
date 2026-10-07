@@ -873,6 +873,36 @@ byte-identical. Being built on this branch; the sphinx comes next.
 - Fix: an upgraded install now indexes new solid-vocab cards too. The shipped-card check used to look at
   view-vocab and routing cards only.
 
+### Fauna roster completion
+
+The animal encyclopedia's asked-for animals built, and the house cat given a head that reads as a cat. Every species
+already built keeps its plan except where named below.
+
+- **The faceted feline head.** The house cat's head is now a low-poly mesh built from interlocking facial volumes
+  (cranium, cheekbones, muzzle pads, nasal bridge, chin; the eye sockets carved in), placed by landmarks measured off a
+  reference sheet: almond eyes with vertical slit pupils, a pyramid nose, wedge ears with a recessed inner ear. Its
+  lower jaw is its own shell, hinged on the same `jawOpen` dial as the ring-plan heads (0–35°), the mouth's lining
+  showing when it opens. Worn through `headMesh`, which takes a jaw and an `anchorZ` (the height a head is seated on the
+  neck by; default the middle, so the raccoon is unchanged). The cat's trunk and legs are fuller and its neck shorter.
+- **Eyes that show.** The seated ("set") eye now opens its lids nearly round, sinks the ball a third of its radius and
+  keeps the lid a narrow rim; a species that wants a drowsy eye asks for its own opening.
+- **Fifty more animals.** Every animal the encyclopedia listed as asked-for is built, each at its published size
+  (`about` names the source) and passing the fit gates (closed, attached, grounded, size): coyote, spotted hyena,
+  jaguar, Eurasian lynx, warthog, woolly mammoth; donkey, llama, reindeer, elk, yak, water buffalo; house mouse, brown
+  rat, Syrian hamster, guinea pig, European hedgehog, North American porcupine, brown hare, European badger, striped
+  skunk, meerkat; white-faced capuchin, western lowland gorilla, Bornean orangutan, ring-tailed lemur, three-toed
+  sloth, koala, red-necked wallaby; tokay gecko, green iguana, veiled chameleon, American alligator, red-eared slider,
+  green sea turtle, common toad; Atlantic bluefin tuna, white-spotted puffer, southern stingray; ostrich, rooster,
+  turkey, peacock, American flamingo, mute swan, Canada goose, rock pigeon, American crow, toco toucan, ruby-throated
+  hummingbird. Their gaits follow their families, with species overrides where the animal moves differently (the
+  lizards stand on four sprawled legs, the ostrich does not fly, the waterbirds paddle, the sea turtle flies underwater
+  on its flippers, the sloth only crawls, the meerkat sits up and walks). The bobcat, emu and raven are asked-for rows
+  now, standing in as the lynx, ostrich and crow (they had been aliases of other species).
+- **Spotted coats.** The jaguar, lynx and hyena wear their spots on a fine coat shell (`lib/graph/fauna/coats.js`):
+  round, irregular patches and broken rosettes laid out in metres, not whole faces of the trunk's coarse ring.
+- **The throat.** A long face's jaw is joined to the neck (a giraffe's, a camel's, a horse's jaw held its rear corner
+  out in the air); buried where the neck already meets it; birds, frogs and worn head meshes leave it out.
+
 ### Animal locomotion studies
 
 - **In progress.** Every animal gets the way it moves, written down by the biomechanics of its family, so it

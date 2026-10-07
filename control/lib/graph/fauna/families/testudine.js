@@ -85,6 +85,9 @@ export const family = {
   scale: 1,
 };
 
+const PT = 0.2;   // the pond turtle's scale (its shell `top` is written in metres after scale)
+const ST = 0.82;  // the sea turtle's, likewise
+
 // the species of this family: each the numbers over the family's tables that make it that animal
 export const species = {
   // ALDABRA GIANT TORTOISE (Aldabrachelys gigantea). Thesis: a high DOMED carapace of hexagonal scutes that is most
@@ -95,6 +98,102 @@ export const species = {
     // kept v3 (blind judge A: v3 over the post-critic v5 60%; B: v5 over v1 75%)
     family: 'testudine', name: 'an Aldabra giant tortoise', scale: 1,
   },
+  // RED-EARED SLIDER (Trachemys scripta elegans), the pond turtle. Thesis: a LOW, smooth, oval carapace (no dome),
+  // the plastron near the ground · short SPRAWLING legs with flat, WEBBED, clawed feet, the hind feet turned back · a
+  // small pointed head on a slim neck, striped yellow on green, with the bright RED patch behind each eye · olive shell
+  // · ~0.25 m carapace (Wikipedia "Red-eared slider" / Ernst & Lovich 2009: carapace 0.15–0.3 m, females larger);
+  // the fit length (rump to snout, the head out) is ~0.3 m.
+  pondTurtle: {
+    family: 'testudine', name: 'a red-eared slider', scale: PT, legBulk: 0.65,
+    joints: {
+      neckBase: [0, 0.42, 0.25], neckTop: [0, 0.86, 0.31],
+      shoulder: [0.30, 0.34, 0.22], elbow: [0.50, 0.42, 0.15], carpus: [0.55, 0.48, 0.06], forePaw: [0.55, 0.49, 0.03], foreToe: [0.60, 0.62, 0.012],
+      hip: [0.28, -0.34, 0.22], stifle: [0.48, -0.42, 0.15], hock: [0.53, -0.50, 0.06], hindPaw: [0.53, -0.51, 0.03], hindToe: [0.60, -0.65, 0.012],
+    },
+    // a low oval shell: a shallow dome (`top`) over a flat plastron close to the ground. `top` is in metres AFTER
+    // `scale` (build.js scales every other trunk number but not this one), so it is written × the species' scale
+    torso: [
+      { at: [0, -0.56, 0.24], r: [0.30, 0.07], top: 0.04 * PT },
+      { at: [0, -0.42, 0.24], r: [0.46, 0.09], top: 0.09 * PT },
+      { at: [0, -0.15, 0.24], r: [0.52, 0.10], top: 0.13 * PT },
+      { at: [0, 0.15, 0.24], r: [0.52, 0.10], top: 0.13 * PT },
+      { at: [0, 0.40, 0.24], r: [0.44, 0.09], top: 0.08 * PT },
+      { at: [0, 0.54, 0.24], r: [0.30, 0.07], top: 0.03 * PT },
+    ],
+    torsoCaps: { back: [0, -0.62, 0.24], tip: [0, 0.60, 0.25] },
+    neckRA: [0.06, 0.06], neckRB: [0.045, 0.045], neckRMid: [0.05, 0.05],
+    tail: [[0, -0.55, 0.20, 0.04], [0, -0.66, 0.14, 0.022], [0, -0.74, 0.09, 0.008]],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.10, 0.09], [0.08, 0.07], 'Sock', [0.4, 0.4]],
+      ['foreArmR', 'elbow', 'carpus', [0.08, 0.07], [0.07, 0.06], 'Sock', [0.4, 0.3]],
+      ['pasternR', 'carpus', 'forePaw', 0.065, 0.06, 'Sock', [0.3, 0.3]],
+      ['forePawR', 'forePaw', 'foreToe', [0.09, 0.02], [0.12, 0.01], 'Sock', [0.3, 0.2]],
+      ['thighR', 'hip', 'stifle', [0.11, 0.10], [0.085, 0.08], 'Sock', [0.4, 0.4]],
+      ['shinR', 'stifle', 'hock', [0.085, 0.08], [0.07, 0.065], 'Sock', [0.4, 0.3]],
+      ['metaR', 'hock', 'hindPaw', 0.07, 0.065, 'Sock', [0.3, 0.3]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.10, 0.02], [0.14, 0.01], 'Sock', [0.3, 0.2]],
+    ],
+    // a small, more pointed head than the tortoise's
+    headScale: 0.6, muzzleLen: 0.6, muzzleW: 0.95,
+    // the RED EAR: a flat stripe of colour behind each eye (head units: a thin sweep laid on the skin)
+    headOrnaments: [{ kind: 'sweep', name: 'redEar', at: [1.3, 2.7], space: 'local', spine: [[0.002, 0, -0.001], [-0.004, 0, 0.0004], [-0.011, 0, 0.0003]], radii: [0.0028, 0.0032, 0.0018], m: 8, squash: [1, 0.3], group: 'EarStripe' }],
+    headPalette: { EarStripe: '#c8342a', Nostrils: '#33461f' },
+    markDensity: { neck: 3 },
+    markings: [
+      { on: 'neck', kind: 'band', t: [0.05, 0.12], group: 'Stripe', color: '#d6c64a' },
+      { on: 'neck', kind: 'band', t: [0.3, 0.37], group: 'Stripe' },
+      { on: 'neck', kind: 'band', t: [0.55, 0.62], group: 'Stripe' },
+      { on: 'neck', kind: 'band', t: [0.8, 1], group: 'Stripe' },
+    ],
+    bodyTiles: [
+      { id: 'scutes', parts: ['torso'], s: [0.6, 4.6], t: [0.3, 2.6], grid: [4, 2], brick: true, sides: 6, coverage: 0.95, inset: 0.85, height: 0.006, lean: 0, edgeFade: 0, thin: 1, wobble: 0.05, jitter: 0.05, group: ['Horn', 'Hoof'] },
+    ],
+    colors: { coat: '#4c5530', sock: '#3f5a2c', ash: '#4a6232', ashAlt: '#3f5a2c', brow: '#33461f', snout: '#4a6232', belly: '#d8c870', horn: '#56602f', hoof: '#4a5229', tip: '#3f5a2c', iris: '#c9a23a' },
+  },
+  // GREEN SEA TURTLE (Chelonia mydas). Thesis: a LOW, smooth, STREAMLINED teardrop shell, widest in front and
+  // tapering behind · LONG flat paddle FLIPPERS for forelegs, swept back like wings, short broad rudder hind flippers,
+  // no toes · a small blunt rounded head on a short thick neck that does not retract · olive-brown shell, pale-edged
+  // scales on the grey skin, cream belly · ~1.0 m carapace (Wikipedia "Green sea turtle" / NOAA Fisheries: adults
+  // 0.78–1.12 m carapace, ~70–190 kg); the fit length (rump to snout) is ~1.2 m. Built hauled out, the plastron on the sand.
+  seaTurtle: {
+    family: 'testudine', name: 'a green sea turtle', scale: ST,
+    joints: {
+      neckBase: [0, 0.46, 0.22], neckTop: [0, 0.70, 0.26],
+      // the fore FLIPPER: out from under the shell rim, then a long flat blade swept back along the sand
+      shoulder: [0.30, 0.34, 0.18], elbow: [0.52, 0.34, 0.10], carpus: [0.74, 0.22, 0.035], forePaw: [0.84, 0.12, 0.02], foreToe: [1.02, -0.08, 0.012],
+      // the hind flipper: short, broad, trailing
+      hip: [0.24, -0.40, 0.18], stifle: [0.36, -0.50, 0.09], hock: [0.42, -0.58, 0.035], hindPaw: [0.44, -0.61, 0.02], hindToe: [0.52, -0.80, 0.012],
+    },
+    // a low teardrop shell: widest in front, tapering behind; `top` is metres after scale (see the pond turtle)
+    torso: [
+      { at: [0, -0.62, 0.20], r: [0.16, 0.05], top: 0.02 * ST },
+      { at: [0, -0.44, 0.20], r: [0.36, 0.08], top: 0.07 * ST },
+      { at: [0, -0.15, 0.20], r: [0.48, 0.10], top: 0.12 * ST },
+      { at: [0, 0.15, 0.20], r: [0.50, 0.10], top: 0.13 * ST },
+      { at: [0, 0.40, 0.20], r: [0.44, 0.09], top: 0.08 * ST },
+      { at: [0, 0.54, 0.20], r: [0.30, 0.07], top: 0.03 * ST },
+    ],
+    torsoCaps: { back: [0, -0.70, 0.20], tip: [0, 0.60, 0.21] },
+    neckRA: [0.13, 0.11], neckRB: [0.10, 0.09], neckRMid: [0.11, 0.10],
+    tail: [[0, -0.62, 0.17, 0.04], [0, -0.70, 0.13, 0.02], [0, -0.75, 0.10, 0.006]],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.09, 0.07], [0.08, 0.05], 'Sock', [0.4, 0.4]],
+      ['foreArmR', 'elbow', 'carpus', [0.09, 0.04], [0.12, 0.025], 'Sock', [0.4, 0.3]],
+      ['pasternR', 'carpus', 'forePaw', [0.12, 0.022], [0.11, 0.02], 'Sock', [0.3, 0.3]],
+      ['forePawR', 'forePaw', 'foreToe', [0.11, 0.02], [0.03, 0.008], 'Sock', [0.3, 0.2], [0.09, 0.016]],
+      ['thighR', 'hip', 'stifle', [0.08, 0.07], [0.07, 0.05], 'Sock', [0.4, 0.4]],
+      ['shinR', 'stifle', 'hock', [0.07, 0.04], [0.09, 0.025], 'Sock', [0.4, 0.3]],
+      ['metaR', 'hock', 'hindPaw', [0.09, 0.022], [0.10, 0.02], 'Sock', [0.3, 0.3]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.10, 0.02], [0.05, 0.01], 'Sock', [0.3, 0.2]],
+    ],
+    // a small blunt rounded head
+    headScale: 0.62, muzzleLen: 0.5, muzzleW: 1.05,
+    headPalette: { Nostrils: '#4a4a38' },
+    bodyTiles: [
+      { id: 'scutes', parts: ['torso'], s: [0.6, 4.6], t: [0.3, 2.6], grid: [4, 2], brick: true, sides: 6, coverage: 0.95, inset: 0.85, height: 0.012, lean: 0, edgeFade: 0, thin: 1, wobble: 0.05, jitter: 0.05, group: ['Horn', 'Hoof'] },
+    ],
+    colors: { coat: '#5a4a2e', sock: '#6e6a50', ash: '#7c785c', ashAlt: '#6e6a50', brow: '#4e4a36', snout: '#7c785c', belly: '#e0d6a8', horn: '#7a6236', hoof: '#4a3a22', tip: '#6e6a50', iris: '#2a2218' },
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -102,11 +201,11 @@ export const species = {
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
   tortoise: { common: 'tortoise', aliases: ['giant tortoise', 'aldabra tortoise'], sci: 'Aldabrachelys gigantea', size: '~1.2 m carapace; ~0.72 m to the top of the shell', source: 'Seychelles Islands Foundation / Bourn & Coe' },
+  pondTurtle: { common: 'turtle', aliases: ['pond turtle', 'box turtle', 'terrapin', 'red-eared slider', 'slider'], sci: 'Trachemys scripta elegans', size: '~0.25 m carapace (0.15–0.3 m)', source: 'Ernst & Lovich 2009, Turtles of the United States and Canada' },
+  seaTurtle: { common: 'sea turtle', aliases: ['green turtle', 'green sea turtle'], sci: 'Chelonia mydas', size: '~1.0 m carapace (0.78–1.12 m)', source: 'NOAA Fisheries, "Green turtle"' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  pondTurtle: { near: 'tortoise', aliases: ['turtle', 'pond turtle', 'box turtle', 'terrapin'], note: 'a low flat shell, webbed clawed feet, a small head' },
-  seaTurtle: { near: 'tortoise', aliases: ['sea turtle', 'green turtle'], note: 'a streamlined shell, long flippers for legs' },
 };

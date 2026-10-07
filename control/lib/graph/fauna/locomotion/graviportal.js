@@ -84,5 +84,10 @@ export const FAMILIES = {
     axial: { flex: 0, lateral: 0, wave: 'none', roll: 0.3, yaw: 0.15, head: 'reach', tail: 'still' },
     note: 'the slowest walk: the shell rocks from side to side over each leg, the neck reaching out',
     source: 'Jayes & Alexander 1980 (tortoise walking)',
+    species: {
+      seaTurtle: { gaits: { walk: null, crawl: { pattern: 'lateralWalk', duty: 0.85, stride: 0.4, fr: [0, 0.08], sprawl: 0.6 }, swim: { pattern: 'flipperFlight' } },
+        axial: { roll: 0.1, yaw: 0.05, head: 'steady' }, note: 'flies underwater on its long fore flippers, the hind ones steering; heaves itself over sand' },
+      pondTurtle: { gaits: { swim: { pattern: 'paddle' } }, note: 'walks on webbed feet; swims paddling, the hind feet strongest' },
+    },
   },
 };

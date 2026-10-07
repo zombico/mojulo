@@ -243,6 +243,62 @@ export const species = {
   })(),
 };
 
+// WOOLLY MAMMOTH (Mammuthus primigenius). Thesis: the elephant's plan with a STEEPLY SLOPING back: a HIGH SHOULDER HUMP
+// over the forelegs, a neck dip behind the head, the back falling to low hindquarters on shorter hind legs · a tall
+// single-DOMED head carried high · SMALL ears (cold-adapted) · a SHAGGY dark coat, long hair hanging from the flanks
+// and belly · LONG TUSKS curving down, out, up and in at the tips · a short tail · 2.9 m at the shoulder (adult bull,
+// Larramendi 2016 "Shoulder height, body mass and shape of proboscideans": woolly mammoth bulls ~2.7–3.1 m). Built
+// over the elephant's tables (elephant units, the whole animal scaled).
+species.mammoth = (() => {
+  const E = species.elephant;
+  return {
+    ...E, name: 'a woolly mammoth', scale: 1.6,
+    colors: { coat: '#4e3424', sock: '#3c281c', ash: '#5e3e28', ashAlt: '#6c4a30', mane: '#5a3a24', mouth: '#4e3a30', horn: '#e8dcbc', hoof: '#bfb39a', tip: '#3a2618', ears: '#3c281c' },
+    joints: {
+      ...E.joints,
+      neckBase: [0, 0.82, 1.36], neckTop: [0, 1.02, 1.42],
+      hip: [0.27, -0.74, 0.92], stifle: [0.30, -0.66, 0.56], hock: [0.30, -0.80, 0.22],
+    },
+    // the back: the shoulder hump highest, falling steeply to a low rump
+    torso: [
+      { at: [0, -0.92, 0.84], r: [0.34, 0.33] },
+      { at: [0, -0.75, 0.88], r: [0.46, 0.43] },
+      { at: [0, -0.35, 0.98], r: [0.53, 0.48] },
+      { at: [0, 0.15, 1.10], r: [0.55, 0.52], top: 0.12 },
+      { at: [0, 0.52, 1.16], r: [0.50, 0.50], top: 0.42 },
+      { at: [0, 0.82, 1.20], r: [0.40, 0.42], top: 0.12 },
+    ],
+    torsoCaps: { back: [0, -1.03, 0.90], tip: [0, 0.95, 1.24] },
+    tail: [[0, -1.03, 1.10, 0.035], [0, -1.08, 0.96, 0.03], [0, -1.09, 0.80, 0.025]],
+    tip: [[0, -1.09, 0.83, 0.03], [0, -1.09, 0.72, 0.06], [0, -1.09, 0.64, 0.025]],
+    tipCaps: { back: [0, -1.09, 0.87], tip: [0, -1.09, 0.61] },
+    // the tall single DOME: the crown peaked high and narrow at st1, the face falling steep to the trunk
+    craniumRows: [
+      ['st0', -0.24, 0.24, [0.10, 0.22], [0.20, 0.10], [0.24, -0.02], [0.21, -0.16], [0.13, -0.24], -0.26],
+      ['st1', -0.10, 0.48, [0.09, 0.42], [0.21, 0.20], [0.25, 0.0], [0.22, -0.16], [0.14, -0.25], -0.27],
+      ['st2', 0.04, 0.44, [0.10, 0.38], [0.21, 0.20], [0.24, 0.0], [0.20, -0.17], [0.13, -0.25], -0.27],
+      ['st3', 0.15, 0.30, [0.11, 0.27], [0.19, 0.14], [0.20, -0.02], [0.17, -0.17], [0.11, -0.24], -0.26],
+      ['st4', 0.23, 0.18, [0.10, 0.16], [0.16, 0.08], [0.17, -0.04], [0.14, -0.16], [0.10, -0.22], -0.24],
+      ['st5', 0.29, 0.06, [0.09, 0.05], [0.13, 0.0], [0.14, -0.06], [0.12, -0.14], [0.09, -0.20], -0.22],
+      ['st6', 0.32, -0.04, [0.07, -0.04], [0.10, -0.07], [0.11, -0.10], [0.10, -0.15], [0.07, -0.19], -0.20],
+    ],
+    headOrnaments: [
+      // SMALL ears, close to the head
+      { kind: 'sweep', name: 'ear', at: [1.0, 2.0], space: 'head', spine: [[0.23, -0.10, 0.12], [0.30, -0.18, 0.10], [0.33, -0.22, -0.02], [0.32, -0.20, -0.14]], radii: [0.06, 0.14, 0.13, 0.04], m: 8, squash: [1, 0.2], group: 'Ears' },
+      { kind: 'sweep', name: 'trunk', at: [6.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.24, 0.0], [0, 0.34, -0.22], [0, 0.38, -0.55], [0, 0.38, -0.85], [0, 0.37, -1.10], [0, 0.41, -1.24]], radii: [0.14, 0.12, 0.095, 0.075, 0.06, 0.045], m: 10, group: 'Skull' },
+      // the LONG curved tusks: down and forward out of the lip, sweeping out and up, the tips turning in
+      { kind: 'sweep', name: 'tusk', at: [4.5, 4.5], space: 'head', spine: [[0.11, 0.20, -0.22], [0.15, 0.36, -0.42], [0.24, 0.58, -0.54], [0.36, 0.82, -0.54], [0.46, 1.04, -0.42], [0.48, 1.20, -0.24], [0.38, 1.28, -0.10], [0.18, 1.26, -0.04]], radii: [0.105, 0.10, 0.093, 0.083, 0.07, 0.054, 0.036, 0.014], m: 10, group: 'Horn' },
+    ],
+    // the SHAGGY coat: long hair tiles hanging off the flanks and the belly
+    bodyTiles: [
+      { id: 'shag', parts: ['torso'], s: [0.2, 5.0], t: [2.0, 6.0], grid: [12, 5], brick: true, sides: 3, coverage: 1.3, inset: 0.85, height: 0.18, lean: -1.4, edgeFade: 0.15, thin: 0.35, wobble: 0.3, jitter: 0.3, group: ['Fur', 'FurAlt'] },
+      // the hair carried on down over the upper legs and round the short neck (a skirt, not bare elephant limbs)
+      { id: 'legShag', parts: ['upperArmR', 'thighR'], s: [0.1, 1.6], t: [0, 6], grid: [5, 4], brick: true, sides: 3, coverage: 1.6, inset: 0.85, height: 0.13, lean: -1.3, edgeFade: 0.2, thin: 0.35, wobble: 0.3, jitter: 0.3, group: ['Fur', 'FurAlt'] },
+      { id: 'neckShag', parts: ['neck'], s: [0.1, 1.2], t: [0, 6], grid: [6, 4], brick: true, sides: 3, coverage: 1.5, inset: 0.85, height: 0.14, lean: -1.3, edgeFade: 0.2, thin: 0.35, wobble: 0.3, jitter: 0.3, group: ['Fur', 'FurAlt'] },
+    ],
+  };
+})();
+
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
 // into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
@@ -250,10 +306,10 @@ export const about = {
   hippo: { common: 'hippo', aliases: ['hippopotamus'], sci: 'Hippopotamus amphibius', size: '1.5 m at the shoulder; body ~3.6 m', source: 'Eltringham 1999 / IUCN' },
   rhino: { common: 'rhino', aliases: ['rhinoceros', 'white rhino'], sci: 'Ceratotherium simum', size: '1.75 m at the shoulder; body ~3.8 m', source: 'Owen-Smith 1988 / IUCN' },
   elephant: { common: 'elephant', aliases: ['african elephant', 'bush elephant'], sci: 'Loxodonta africana', size: '3.2 m at the shoulder (adult bull)', source: 'Larramendi 2016, Shoulder height, body mass and shape of proboscideans' },
+  mammoth: { common: 'mammoth', aliases: ['woolly mammoth'], sci: 'Mammuthus primigenius', size: '2.9 m at the shoulder (adult bull)', source: 'Larramendi 2016, Shoulder height, body mass and shape of proboscideans' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  mammoth: { near: 'elephant', aliases: ['woolly mammoth'], note: 'a shaggy coat, a domed head, a sloping back, long spiralled tusks' },
 };

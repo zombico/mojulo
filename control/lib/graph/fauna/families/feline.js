@@ -2,6 +2,9 @@
 // broad muzzle, small rounded ears, a long low-carried tail, big round digitigrade paws. Worked species: the African
 // lion. See ../build.js for what every field does. Tables are authored at ~1.0 m withers (scale 1).
 
+import { felineFacetHead } from '../heads/feline-facet.js';
+import { fineCoat, rosetteField, spotField } from '../coats.js';
+
 export const family = {
   family: 'feline',
   colors: {
@@ -94,6 +97,7 @@ const coatShell = (name, torso, { bulk = 1, proud = 1.035, ys, pick, z }) => {
 // a sparse, irregular spot field (deterministic): band i, slot j dark when the hash falls under `d`
 const spotty = (d, seed = 0) => (i, j) => (j >= 5 ? 'Belly' : ((i * 7 + j * 13 + seed) * 37) % 100 < d * 100 ? 'Mane' : 'Coat');
 const steps = (a, b, n) => Array.from({ length: n + 1 }, (_, i) => a + (b - a) * i / n);
+
 // a tail as a loft with dark rings (bandGroups), the tip cap dark
 const ringedTail = (pts, ringFrom, caps) => ({ name: 'tailRinged', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
   stations: pts.map(([x, y, z, r]) => ({ at: [x, y, z], r })),
@@ -148,21 +152,26 @@ export const species = {
     headScale: 1.05, muzzleW: 1.15, muzzleLen: 0.68, earH: 0.9, bulk: 1.25, legBulk: 1.32,
   },
   // DOMESTIC CAT, shorthair (Felis catus). Thesis: small, compact supple trunk, level back, fine legs · digitigrade
-  // small round paws · a LARGE round head for the body, short muzzle · UPRIGHT TRIANGULAR pointed ears, big for the
+  // small round paws · a round head, big for the body, short muzzle · UPRIGHT TRIANGULAR pointed ears, big for the
   // head · the long thin tail carried UP · 0.25 m at the shoulder (Sunquist & Sunquist 2002, Wild Cats of the World:
-  // domestic cat shoulder height ~23-25 cm, head-body ~46 cm, tail ~30 cm).
+  // domestic cat shoulder height ~23-25 cm, head-body ~46 cm, tail ~30 cm). Operator's eyes (2026-10-06): the body's
+  // scale was off (a thin trunk on stick legs): the trunk and legs filled out, the neck shorter and thicker, set low
+  // into the shoulders. The ring-plan head could not hold a cat's face (every fix to one feature moved another), so
+  // the head is the faceted feline head (../heads/feline-facet.js): interlocking facial volumes measured off a
+  // low-poly reference sheet the operator chose, worn whole.
   houseCat: {
-    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'feline', name: 'a house cat', scale: 0.27,
-    colors: { coat: '#8a8178', sock: '#8a8178', ash: '#d8d2c8', ashAlt: '#c8c0b4', brow: '#4a443e', tip: '#3e3832', iris: '#b8a83a', nose: '#c08080' },
-    joints: { neckBase: [0, 0.42, 0.80], neckTop: [0, 0.62, 0.94] },
+    headMesh: {
+      mesh: felineFacetHead(), length: 0.095, anchor: 0.2, anchorZ: 0.2,
+      palette: { Skull: '#8a8178', Jaw: '#a0978c', Muzzle: '#e8e2d8', Socket: '#2a2622', Eyes: '#b6bd48', Pupil: '#141210', Nose: '#c98a86', Ears: '#8a8178', EarInset: '#d9a49a', Mouth: '#6e3a3c', Stripe: '#5e554c', Whiskers: '#f2efe9' },
+    },
+    colors: { coat: '#8a8178', sock: '#8a8178', ash: '#d8d2c8', ashAlt: '#c8c0b4', brow: '#6e665e', tip: '#3e3832', iris: '#b8a83a', nose: '#c08080' },
+    joints: { neckBase: [0, 0.36, 0.74], neckTop: [0, 0.62, 0.86] },
+    neckRA: [0.17, 0.19], neckRB: [0.13, 0.14], neckRMid: [0.15, 0.17],
     tail: [[0, -0.64, 0.76, 0.045], [0, -0.74, 0.86, 0.042], [0, -0.80, 1.02, 0.04], [0, -0.82, 1.20, 0.038], [0, -0.80, 1.36, 0.036], [0, -0.74, 1.48, 0.034]],
     tip: [[0, -0.745, 1.475, 0.034], [0, -0.69, 1.53, 0.03], [0, -0.63, 1.55, 0.022]],
     tipCaps: { back: [0, -0.77, 1.45], tip: [0, -0.60, 1.555] },
-    headScale: 2.3, muzzleW: 1.0, muzzleLen: 0.6, noseR: [0.012, 0.01],
-    earAt: [1.2, 1.6], earSpine: [[0, 0, -0.012], [0, 0, 0.015], [0, 0, 0.04], [0, 0, 0.065], [0, 0, 0.09]],
-    earR: [0.046, 0.04, 0.025, 0.005], earSquash: [1, 0.35], earH: 0.78,
-    bulk: 1.1, legBulk: 1.05, tailBush: 0.85,
+    bulk: 1.4, legBulk: 1.32, tailBush: 0.85,
   },
   // BENGAL TIGER, adult male (Panthera tigris tigris). Thesis: the lion's long low supple trunk but LONGER and with
   // no mane, a level back, heavy forequarters · digitigrade, big round paws · a big round head with white cheek ruffs,
@@ -254,6 +263,102 @@ export const species = {
       headScale: 0.9, muzzleW: 1.05, muzzleLen: 0.6, earH: 0.75, earR: [0.034, 0.036, 0.03, 0.018],
     };
   })(),
+  // JAGUAR, adult (Panthera onca). Thesis: the leopard's plan made STOCKIER: a deep heavy barrel on short THICK legs,
+  // big paws · a BIG broad head with a massive jaw and short muzzle, small round ears · THE ROSETTES: big dark broken
+  // rings with a darker tawny centre and a DOT inside, a row of solid spots down the spine, a white belly spotted
+  // black · a SHORTER tail than the leopard's (about half the head-body), ringed toward the end · 0.72 m at the
+  // shoulder, head-body ~1.5 m (Seymour 1989, Mammalian Species 340 "Panthera onca": shoulder 0.68–0.76 m, head-body
+  // 1.12–1.85 m).
+  jaguar: (() => {
+    const BULK = 1.45, Z = 0.56;
+    const torso = family.torso.map((s) => ({ ...s, at: [0, s.at[1] < 0 ? s.at[1] * 1.05 : s.at[1], Z] }));
+    // THE COAT on a fine shell: broken rosettes (dark blotch rings round a deeper-tawny centre, often a dot) over the
+    // flanks, smaller solid spots down the spine and low on the flank, the pale belly spotted black
+    const roses = rosetteField({ cell: 0.19, rad: [0.068, 0.085], seed: 21, jitter: 0.5, stretch: 0.3, ring: 0.55, gap: 0.3 });
+    const spine = spotField({ cell: 0.11, rad: [0.025, 0.035], seed: 22, jitter: 0.6, belly: 2 });
+    const under = spotField({ cell: 0.15, rad: [0.03, 0.042], seed: 23, jitter: 0.7, belly: 0, bellySpots: true });
+    const coat = (y, s, t) => (t < 0.14 ? spine(y, s, t) : t >= 0.8 ? under(y, s, t) : t >= 0.66 ? spine(y, s + 0.05, t) : roses(y, s, t));
+    return {
+      family: 'feline', name: 'a jaguar', scale: 0.88, bulk: BULK, legBulk: 1.65,
+      colors: { coat: '#cf9a48', sock: '#cf9a48', ash: '#f0e6d2', ashAlt: '#e2d6bc', brow: '#1f170f', tip: '#1a130c', mane: '#1f170f', hoof: '#9a5f22' },
+      torso, torsoCaps: { back: [0, -0.80, Z], tip: [0, 0.50, Z - 0.02] },
+      joints: {
+        neckBase: [0, 0.42, 0.64], neckTop: [0, 0.64, 0.72],
+        shoulder: [0.16, 0.36, 0.56], elbow: [0.17, 0.29, 0.31], carpus: [0.15, 0.33, 0.12], hip: [0.13, -0.52, 0.56], stifle: [0.16, -0.36, 0.33], hock: [0.15, -0.60, 0.17], hindPaw: [0.15, -0.55, 0.074], hindToe: [0.15, -0.43, 0.064],
+      },
+      neckRA: [0.16, 0.19], neckRB: [0.12, 0.13], neckRMid: [0.14, 0.16],
+      tail: null, tip: null,
+      extraSegments: [
+        fineCoat('rosettes', torso, { bulk: BULK, from: -0.72, to: 0.38, n: 36, half: 26, field: coat }),
+        // the shorter tail (≈ half the head-body), hanging low, the end lifted
+        ringedTail([[0, -0.72, 0.60, 0.065], [0, -0.84, 0.50, 0.06], [0, -0.92, 0.38, 0.056], [0, -0.98, 0.27, 0.052], [0, -1.05, 0.19, 0.049], [0, -1.13, 0.17, 0.046], [0, -1.20, 0.21, 0.042]], 2,
+          { back: [0, -0.68, 0.63], tip: [0, -1.23, 0.24] }),
+      ],
+      headScale: 1.75, muzzleW: 1.45, muzzleLen: 0.56, earH: 0.8, earR: [0.04, 0.042, 0.036, 0.024],
+      // solid dark spots over the heavy shoulders and haunches the coat shell does not reach
+      markDensity: { upperArm: 4, thigh: 4, foreArm: 3, shin: 3 },
+      markings: [
+        { on: ['upperArm', 'thigh'], kind: 'spots', count: 10, size: [0.08, 0.12], seed: 4, group: 'Spot', color: '#1f170f' },
+        { on: ['foreArm', 'shin'], kind: 'spots', count: 7, size: [0.1, 0.16], seed: 5, group: 'Spot', color: '#1f170f' },
+      ],
+    };
+  })(),
+  // EURASIAN LYNX, adult (Lynx lynx). Thesis: a SHORT compact trunk high on LONG legs (the rump a little above the
+  // shoulders), BIG furry paws · a small round head, short muzzle · TALL pointed ears with BLACK TUFTS · the facial RUFF
+  // hanging from the cheeks · a BOBBED stub tail with a black tip · a greyish-tawny coat with faint dark spots, a pale
+  // belly · 0.65 m at the shoulder, head-body ~1.0 m (Nowell & Jackson 1996, Wild Cats: Status Survey, IUCN: shoulder
+  // 0.60–0.75 m, head-body 0.80–1.30 m).
+  lynx: {
+    family: 'feline', name: 'a Eurasian lynx', scale: 0.62,
+    colors: { coat: '#ad8d66', sock: '#a88862', ash: '#ece2d0', ashAlt: '#ddd0ba', brow: '#1a1410', tip: '#141010', iris: '#c8a33a' },
+    torso: [
+      { at: [0, -0.50, 0.72], r: [0.11, 0.10], top: 0.02 },
+      { at: [0, -0.38, 0.72], r: [0.145, 0.145], top: 0.02 },
+      { at: [0, -0.18, 0.70], r: [0.125, 0.14] },
+      { at: [0, 0.04, 0.70], r: [0.14, 0.17] },
+      { at: [0, 0.24, 0.70], r: [0.15, 0.18] },
+      { at: [0, 0.40, 0.70], r: [0.14, 0.17] },
+    ],
+    torsoCaps: { back: [0, -0.58, 0.73], tip: [0, 0.50, 0.68] },
+    joints: {
+      neckBase: [0, 0.42, 0.78], neckTop: [0, 0.62, 0.88],
+      hip: [0.13, -0.38, 0.73], stifle: [0.16, -0.20, 0.44], hock: [0.15, -0.48, 0.22], hindPaw: [0.15, -0.43, 0.074], hindToe: [0.15, -0.31, 0.064],
+    },
+    // the BOBBED tail: a short stub off the rump, its end black
+    tail: [[0, -0.52, 0.78, 0.045], [0, -0.60, 0.75, 0.05], [0, -0.66, 0.70, 0.048]],
+    tip: [[0, -0.655, 0.705, 0.048], [0, -0.69, 0.665, 0.042], [0, -0.71, 0.63, 0.02]],
+    tipCaps: { back: [0, -0.64, 0.72], tip: [0, -0.72, 0.61] },
+    legScale: 1.18,
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.095, 0.14], [0.065, 0.07], 'Coat', [0.6, 0.5], [0.085, 0.105]],
+      ['foreArmR', 'elbow', 'carpus', [0.065, 0.07], [0.045, 0.047], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.05, 0.055, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.10, 0.06], [0.095, 0.045], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.12, 0.165], [0.065, 0.07], 'Coat', [0.2, 0.5], [0.10, 0.13]],
+      ['shinR', 'stifle', 'hock', [0.06, 0.07], [0.04, 0.045], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.046, 0.05, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.095, 0.058], [0.09, 0.044], 'Sock', [0.6, 0.4]],
+    ],
+    headScale: 1.15, muzzleW: 1.15, muzzleLen: 0.62,
+    // tall pointed ears, each with a black tuft standing off its tip
+    earH: 1.45, earR: [0.042, 0.04, 0.026, 0.008],
+    headOrnaments: [
+      { kind: 'sweep', name: 'earTuft', at: [1.2, 1.8], space: 'local', spine: [[0, 0, -0.005], [0, 0, 0.09], [0, 0, 0.12], [0.004, 0, 0.155]], radii: [0.004, 0.006, 0.006, 0.002], m: 6, group: 'Brow' },
+      // the facial RUFF: a pale flap of long fur hanging down and back off each cheek
+      { kind: 'sweep', name: 'ruff', at: [1.6, 3.6], space: 'local', spine: [[0, 0, -0.01], [-0.015, -0.03, 0.015], [-0.035, -0.07, 0.02], [-0.05, -0.11, 0.01]], radii: [0.022, 0.034, 0.026, 0.006], m: 8, squash: [1, 0.3], group: 'Fur' },
+    ],
+    bulk: 1.2, legBulk: 1.25,
+    // the faint spots on a fine coat shell over the trunk: many small round-ish patches, the belly pale
+    extraSegments: [fineCoat('spots', [
+      { at: [0, -0.50, 0.72], r: [0.11, 0.10], top: 0.02 }, { at: [0, -0.38, 0.72], r: [0.145, 0.145], top: 0.02 }, { at: [0, -0.18, 0.70], r: [0.125, 0.14] },
+      { at: [0, 0.04, 0.70], r: [0.14, 0.17] }, { at: [0, 0.24, 0.70], r: [0.15, 0.18] }, { at: [0, 0.40, 0.70], r: [0.14, 0.17] },
+    ], { bulk: 1.2, from: -0.48, to: 0.38, n: 34, half: 24, field: spotField({ cell: 0.095, rad: [0.025, 0.033], seed: 11, jitter: 0.7, stretch: 0.35, belly: 0.82, dark: 'Spot' }) })],
+    markDensity: { legs: 2, upperArm: 3, thigh: 3 },
+    markings: [
+      { on: ['upperArm', 'thigh'], kind: 'spots', count: 9, size: [0.1, 0.1], seed: 2, group: 'Spot', color: '#6a4c32' },
+      { on: 'torso', kind: 'belly', from: 0.8, group: 'Belly', color: '#ece2d0' },
+    ],
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -266,11 +371,12 @@ export const about = {
   tiger: { common: 'tiger', aliases: ['bengal tiger'], sci: 'Panthera tigris tigris', size: '~1.0 m at the shoulder (adult male)', source: 'Mazák 1981, Mammalian Species 152' },
   leopard: { common: 'leopard', aliases: ['panther'], sci: 'Panthera pardus', size: '~0.65 m at the shoulder', source: 'Nowell & Jackson 1996, Wild Cats (IUCN)' },
   cheetah: { common: 'cheetah', aliases: [], sci: 'Acinonyx jubatus', size: '~0.80 m at the shoulder', source: 'Krausman & Morales 2005, Mammalian Species 771' },
+  jaguar: { common: 'jaguar', aliases: [], sci: 'Panthera onca', size: '0.72 m at the shoulder; head-body ~1.5 m', source: 'Seymour 1989, Mammalian Species 340' },
+  lynx: { common: 'lynx', aliases: ['eurasian lynx'], sci: 'Lynx lynx', size: '0.65 m at the shoulder; head-body ~1.0 m', source: 'Nowell & Jackson 1996, Wild Cats (IUCN)' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  jaguar: { near: 'leopard', aliases: [], note: 'stockier than the leopard, a bigger head, rosettes with a centre spot' },
-  lynx: { near: 'cougar', aliases: ['bobcat'], note: 'a short bobbed tail, ear tufts, a facial ruff' },
+  bobcat: { near: 'lynx', aliases: [], note: 'the smaller American lynx (Lynx rufus): short ear tufts, a spotted coat, a bobbed tail barred black on top only' },
 };

@@ -164,6 +164,289 @@ export const species = {
         caps: { back: [0, -0.40, 0.23], tip: [0, -0.50, 0.97] } },
     ],
   },
+  // HOUSE MOUSE (Mus musculus). Thesis: a tiny low pear-shaped body, hunched (the rump the high point), on short legs
+  // with pink feet · a pointed tapering snout, big black eyes · ONE signature: LARGE ROUND THIN EARS standing off the
+  // crown · a long thin bare pink tail as long as the body, trailing on the ground · grey-brown above, paler below ·
+  // published: head-body 6.5–9.5 cm, tail 6–10.5 cm, 12–30 g (Animal Diversity Web, Mus musculus). Modelled on the
+  // squirrel's tables; `scale` brings it to size.
+  mouse: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a house mouse', scale: 0.094,
+    colors: { coat: '#7d7368', sock: '#d9a9a0', ash: '#b3a99c', ashAlt: '#a39a8d', ears: '#c99a92', belly: '#cfc6b8',
+      mane: '#d4a49b', tip: '#c99a92', snout: '#7d7368', teeth: '#e8d6a8', brow: '#5e554b', mouth: '#5e554b', nose: '#d08f8a', iris: '#050404', sclera: '#050404' },
+    joints: {
+      neckBase: [0, 0.17, 0.20], neckTop: [0, 0.26, 0.24],
+      shoulder: [0.08, 0.12, 0.16], elbow: [0.09, 0.08, 0.09], carpus: [0.085, 0.14, 0.035], forePaw: [0.085, 0.145, 0.012], foreToe: [0.085, 0.20, 0.008],
+      hip: [0.09, -0.24, 0.20], stifle: [0.12, -0.11, 0.12], hock: [0.11, -0.27, 0.045], hindPaw: [0.11, -0.26, 0.012], hindToe: [0.11, -0.10, 0.008],
+    },
+    torso: [
+      { at: [0, -0.40, 0.19], r: [0.06, 0.06] },
+      { at: [0, -0.32, 0.19], r: [0.14, 0.16] },
+      { at: [0, -0.18, 0.19], r: [0.15, 0.17] },
+      { at: [0, -0.04, 0.19], r: [0.125, 0.135] },
+      { at: [0, 0.08, 0.19], r: [0.10, 0.10] },
+      { at: [0, 0.17, 0.19], r: [0.08, 0.075] },
+    ],
+    torsoCaps: { back: [0, -0.45, 0.19], tip: [0, 0.22, 0.19] },
+    neckRA: [0.085, 0.08], neckRB: [0.075, 0.075], neckRMid: [0.08, 0.078],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.035, 0.045], [0.022, 0.024], 'Coat', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.022, 0.024], [0.016, 0.017], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.016, 0.015, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.022, 0.01], [0.022, 0.007], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.065, 0.08], [0.035, 0.038], 'Coat', [0.2, 0.5], [0.055, 0.065]],
+      ['shinR', 'stifle', 'hock', [0.03, 0.033], [0.018, 0.02], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.018, 0.016, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.02, 0.012], [0.022, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // a big head for the body, the muzzle drawn out narrow and pointed
+    headScale: 0.62, muzzleLen: 1.05, muzzleW: 0.8,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.2], eyeR: 0.034, nose: false, headOrnaments: [], headPitch: 2,
+    // the ears: big, round, thin, standing up and out off the back of the crown
+    earAt: [1.0, 1.9], earSpine: [[0, 0, -0.012], [0, -0.01, 0.03], [0, -0.03, 0.07], [0, -0.05, 0.11], [0, -0.06, 0.14]], earH: 0.8, earR: [0.05, 0.10, 0.12, 0.10], earSquash: [1, 0.2],
+    extraSegments: [
+      // the tail: out of the rump, down to the ground, then a long thin bare whip trailing behind
+      { name: 'tailWhip', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', up: true,
+        stations: lofted([[0, -0.42, 0.17, 0.035], [0, -0.52, 0.10, 0.03], [0, -0.64, 0.05, 0.026], [0, -0.82, 0.03, 0.022], [0, -1.02, 0.03, 0.018], [0, -1.20, 0.035, 0.014], [0, -1.34, 0.04, 0.009]]),
+        caps: { back: [0, -0.40, 0.18], tip: [0, -1.38, 0.042] } },
+    ],
+  },
+  // BROWN RAT (Rattus norvegicus). Thesis: a LONG heavy low body (longer and less round than the mouse), hunched over
+  // the hips, on short legs with pink feet · a long blunt-tipped snout, small dark eyes · SMALLER close-set ears than
+  // the mouse, pinkish, half hidden in the fur · a THICK scaly tail, a little shorter than the body, tapering to a point
+  // along the ground · coarse grey-brown above, grey-white below · published: head-body 20–28 cm, tail 17–23 cm,
+  // 200–500 g (Animal Diversity Web, Rattus norvegicus).
+  rat: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a brown rat', scale: 0.227,
+    colors: { coat: '#6e5d4a', sock: '#c99e95', ash: '#a39582', ashAlt: '#948671', ears: '#b48c84', belly: '#b9b1a3',
+      mane: '#a88c86', tip: '#9a7f79', snout: '#6e5d4a', teeth: '#e0b85a', brow: '#4c3f31', mouth: '#4c3f31', nose: '#c08a86', iris: '#050404', sclera: '#050404' },
+    joints: {
+      neckBase: [0, 0.22, 0.20], neckTop: [0, 0.31, 0.235],
+      shoulder: [0.08, 0.15, 0.16], elbow: [0.09, 0.11, 0.09], carpus: [0.085, 0.17, 0.035], forePaw: [0.085, 0.175, 0.012], foreToe: [0.085, 0.23, 0.008],
+      hip: [0.09, -0.32, 0.20], stifle: [0.12, -0.19, 0.12], hock: [0.11, -0.35, 0.045], hindPaw: [0.11, -0.34, 0.012], hindToe: [0.11, -0.17, 0.008],
+    },
+    torso: [
+      { at: [0, -0.50, 0.19], r: [0.06, 0.06] },
+      { at: [0, -0.42, 0.19], r: [0.135, 0.155] },
+      { at: [0, -0.27, 0.19], r: [0.145, 0.165] },
+      { at: [0, -0.10, 0.19], r: [0.13, 0.14] },
+      { at: [0, 0.06, 0.19], r: [0.11, 0.11] },
+      { at: [0, 0.20, 0.19], r: [0.085, 0.08] },
+    ],
+    torsoCaps: { back: [0, -0.55, 0.19], tip: [0, 0.26, 0.19] },
+    neckRA: [0.09, 0.085], neckRB: [0.075, 0.075], neckRMid: [0.082, 0.08],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.035, 0.045], [0.022, 0.024], 'Coat', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.022, 0.024], [0.016, 0.017], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.016, 0.015, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.022, 0.01], [0.022, 0.007], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.065, 0.08], [0.035, 0.038], 'Coat', [0.2, 0.5], [0.055, 0.065]],
+      ['shinR', 'stifle', 'hock', [0.03, 0.033], [0.018, 0.02], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.018, 0.016, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.02, 0.012], [0.022, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // a long head, the muzzle long and blunt-tipped
+    headScale: 0.56, muzzleLen: 1.2, muzzleW: 0.95,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.4, 2.2], eyeR: 0.026, nose: false, headOrnaments: [], headPitch: 0,
+    // the ears: smaller than the mouse's, rounded, set low and back
+    earAt: [0.9, 1.9], earSpine: [[0, 0, -0.012], [0, -0.01, 0.03], [0, -0.025, 0.065], [0, -0.04, 0.10], [0, -0.05, 0.12]], earH: 0.6, earR: [0.045, 0.075, 0.08, 0.06], earSquash: [1, 0.22],
+    extraSegments: [
+      // the tail: thick at the root, down to the ground, a long scaly taper behind (faint light / dark rings)
+      { name: 'tailScaly', kind: 'loft', slots: 'ring12', group: 'Mane', mirror: 'plane', up: true,
+        stations: lofted([[0, -0.52, 0.17, 0.055], [0, -0.62, 0.10, 0.045], [0, -0.74, 0.05, 0.038], [0, -0.92, 0.035, 0.03], [0, -1.10, 0.035, 0.023], [0, -1.26, 0.04, 0.016], [0, -1.38, 0.045, 0.009]]),
+        bandGroups: band(6), caps: { back: [0, -0.50, 0.18], tip: [0, -1.42, 0.047] } },
+    ],
+  },  // SYRIAN (GOLDEN) HAMSTER (Mesocricetus auratus). Thesis: a ROUND BALL of a body sitting low, the belly near the
+  // ground, the short legs nearly hidden under it, NO visible tail (a stub) · a big round head with PUFFED CHEEKS (the
+  // pouches) and a short blunt muzzle, dark bulging eyes, small round upright ears · golden-orange above, cream below ·
+  // published: head-body 13–18 cm, tail ~1.2 cm, 100–150 g (Animal Diversity Web, Mesocricetus auratus).
+  hamster: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a Syrian hamster', scale: 0.19,
+    colors: { coat: '#c58a4c', sock: '#e8c9b6', ash: '#e9dcc6', ashAlt: '#dccdb4', ears: '#c99a8a', belly: '#f1e8d8',
+      mane: '#c58a4c', tip: '#e8c9b6', snout: '#d9a56c', teeth: '#e8d6a8', brow: '#8a5a30', mouth: '#6a4428', nose: '#c88f8a', iris: '#050404', sclera: '#050404' },
+    joints: {
+      neckBase: [0, 0.14, 0.25], neckTop: [0, 0.23, 0.31],
+      shoulder: [0.10, 0.10, 0.14], elbow: [0.11, 0.08, 0.08], carpus: [0.105, 0.13, 0.03], forePaw: [0.105, 0.135, 0.012], foreToe: [0.105, 0.18, 0.008],
+      hip: [0.12, -0.20, 0.16], stifle: [0.15, -0.10, 0.09], hock: [0.14, -0.22, 0.04], hindPaw: [0.14, -0.21, 0.012], hindToe: [0.14, -0.09, 0.008],
+    },
+    // a short fat barrel, as wide as it is deep, its belly a hand's breadth off the ground
+    torso: [
+      { at: [0, -0.33, 0.20], r: [0.12, 0.11] },
+      { at: [0, -0.27, 0.20], r: [0.20, 0.18] },
+      { at: [0, -0.15, 0.20], r: [0.235, 0.20] },
+      { at: [0, -0.01, 0.20], r: [0.225, 0.19] },
+      { at: [0, 0.10, 0.20], r: [0.18, 0.16] },
+      { at: [0, 0.17, 0.20], r: [0.12, 0.11] },
+    ],
+    torsoCaps: { back: [0, -0.40, 0.20], tip: [0, 0.22, 0.21] },
+    neckRA: [0.14, 0.13], neckRB: [0.12, 0.11], neckRMid: [0.13, 0.12],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.035, 0.045], [0.022, 0.024], 'Coat', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.022, 0.024], [0.016, 0.017], 'Belly', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.016, 0.015, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.022, 0.01], [0.022, 0.007], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.065, 0.08], [0.035, 0.038], 'Coat', [0.2, 0.5], [0.055, 0.065]],
+      ['shinR', 'stifle', 'hock', [0.03, 0.033], [0.018, 0.02], 'Belly', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.018, 0.016, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.02, 0.012], [0.022, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // a big round head, the muzzle short and blunt, the cheeks puffed wide (the pouches)
+    headScale: 0.78, muzzleLen: 0.6, muzzleW: 1.45,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.1], eyeR: 0.032, nose: false, headOrnaments: [], headPitch: 4,
+    // small round ears, upright on the crown
+    earAt: [1.2, 1.9], earSpine: [[0, 0, -0.012], [0.004, -0.008, 0.03], [0.006, -0.018, 0.06], [0.006, -0.028, 0.09], [0.006, -0.032, 0.105]], earH: 0.9, earR: [0.04, 0.055, 0.056, 0.04], earSquash: [1, 0.25],
+    // the tail: a tiny stub, barely out of the fur
+    extraSegments: [
+      { name: 'tailStub', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
+        stations: lofted([[0, -0.36, 0.20, 0.03], [0, -0.40, 0.19, 0.025], [0, -0.42, 0.18, 0.015]]), caps: { back: [0, -0.34, 0.205], tip: [0, -0.43, 0.175] } },
+    ],
+    markings: [{ on: ['torso', 'neck'], kind: 'belly', from: 0.68, group: 'Belly' }],
+  },  // DOMESTIC GUINEA PIG (Cavia porcellus). Thesis: a long TAILLESS LOAF of a body, level-backed and blunt at both
+  // ends, set low on very short legs · a big deep blunt head running straight into the body with no neck to speak of,
+  // a deep ROMAN-NOSED muzzle, round dark eyes set high · small PETAL ears drooping at the sides · a patched coat
+  // (ginger, white and dark) · published: head-body 20–25 cm, no external tail, 0.7–1.2 kg (Animal Diversity Web,
+  // Cavia porcellus).
+  guineaPig: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a domestic guinea pig', scale: 0.26,
+    colors: { coat: '#b8743a', sock: '#e3c8b8', ash: '#efe6da', ashAlt: '#e2d8ca', ears: '#9a6a52', belly: '#f2ece2',
+      mane: '#2c2420', tip: '#2c2420', snout: '#b8743a', teeth: '#e8d6a8', brow: '#6a4428', mouth: '#5a3a22', nose: '#b88a80', iris: '#0a0606', sclera: '#0a0606' },
+    joints: {
+      neckBase: [0, 0.16, 0.20], neckTop: [0, 0.22, 0.23],
+      shoulder: [0.09, 0.10, 0.11], elbow: [0.10, 0.09, 0.06], carpus: [0.095, 0.12, 0.025], forePaw: [0.095, 0.125, 0.01], foreToe: [0.095, 0.16, 0.007],
+      hip: [0.11, -0.28, 0.13], stifle: [0.13, -0.20, 0.07], hock: [0.13, -0.30, 0.03], hindPaw: [0.13, -0.29, 0.01], hindToe: [0.13, -0.20, 0.007],
+    },
+    // a long even loaf, level-backed, blunt at the rump, the belly low
+    torso: [
+      { at: [0, -0.44, 0.17], r: [0.12, 0.10] },
+      { at: [0, -0.38, 0.17], r: [0.18, 0.155] },
+      { at: [0, -0.24, 0.17], r: [0.20, 0.165] },
+      { at: [0, -0.08, 0.17], r: [0.195, 0.16] },
+      { at: [0, 0.06, 0.17], r: [0.175, 0.15] },
+      { at: [0, 0.16, 0.17], r: [0.14, 0.13] },
+    ],
+    torsoCaps: { back: [0, -0.49, 0.17], tip: [0, 0.21, 0.18] },
+    neckRA: [0.14, 0.13], neckRB: [0.125, 0.12], neckRMid: [0.13, 0.125],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.035, 0.045], [0.022, 0.024], 'Coat', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.022, 0.024], [0.016, 0.017], 'Belly', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.016, 0.015, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.02, 0.01], [0.02, 0.007], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.06, 0.07], [0.035, 0.038], 'Coat', [0.2, 0.5], [0.05, 0.06]],
+      ['shinR', 'stifle', 'hock', [0.03, 0.033], [0.018, 0.02], 'Belly', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.018, 0.016, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.02, 0.012], [0.02, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // a big deep head, the muzzle blunt and deep (the Roman nose), not pointed
+    headScale: 0.8, muzzleLen: 0.75, muzzleW: 1.2,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.2, 2.0], eyeR: 0.03, nose: false, headOrnaments: [], headPitch: -6,
+    // small petal ears, low on the side of the crown, drooping out and down
+    earAt: [1.1, 2.4], earDrop: 70, earH: 0.6, earR: [0.04, 0.06, 0.06, 0.04], earSquash: [1, 0.2],
+    extraSegments: [],
+    // the patched coat: a white blaze over the middle, a dark saddle on the rump, the belly pale
+    markings: [
+      { on: ['torso', 'neck'], kind: 'belly', from: 0.7, group: 'Belly' },
+      { on: 'torso', kind: 'band', run: [0.38, 0.6], t: [0, 0.7], group: 'Belly' },
+      { on: 'torso', kind: 'band', run: [0, 0.3], t: [0, 0.55], caps: ['back'], group: 'Tip' },
+    ],
+  },  // EUROPEAN HEDGEHOG (Erinaceus europaeus) — an insectivore (Eulipotyphla), NOT a rodent: the roster files it here
+  // because its build is a rodent's (a small round low body on short plantigrade legs). Thesis: a DOMED ROUND body, low
+  // to the ground, the legs hidden under a skirt of fur · ONE signature: a coat of SPINES over the whole back and crown,
+  // banded cream and dark brown, raked back · a pointed tapering snout with a dark nose, small dark eyes, small round
+  // ears half in the spines · a pale brown face and underside · published: head-body 20–30 cm, tail ~2 cm, 0.4–1.2 kg
+  // (Animal Diversity Web, Erinaceus europaeus).
+  hedgehog: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a European hedgehog', scale: 0.272,
+    colors: { coat: '#8a6c50', sock: '#5a4232', ash: '#b39878', ashAlt: '#a38a6a', ears: '#7a5c44', belly: '#a88c6c',
+      mane: '#d8ccb4', tip: '#4a3626', snout: '#9a7c5e', teeth: '#e8d6a8', brow: '#5a4232', mouth: '#4a3626', nose: '#1a1310', iris: '#050404', sclera: '#050404' },
+    joints: {
+      neckBase: [0, 0.16, 0.17], neckTop: [0, 0.24, 0.17],
+      shoulder: [0.09, 0.10, 0.11], elbow: [0.10, 0.09, 0.06], carpus: [0.095, 0.12, 0.025], forePaw: [0.095, 0.125, 0.01], foreToe: [0.095, 0.16, 0.007],
+      hip: [0.10, -0.24, 0.12], stifle: [0.12, -0.17, 0.07], hock: [0.12, -0.26, 0.03], hindPaw: [0.12, -0.25, 0.01], hindToe: [0.12, -0.17, 0.007],
+    },
+    // a high dome: deepest and tallest mid-back, the skirt of the coat hanging near the ground
+    torso: [
+      { at: [0, -0.38, 0.17], r: [0.10, 0.09] },
+      { at: [0, -0.31, 0.17], r: [0.19, 0.17] },
+      { at: [0, -0.17, 0.17], r: [0.23, 0.21] },
+      { at: [0, -0.02, 0.17], r: [0.225, 0.20] },
+      { at: [0, 0.10, 0.17], r: [0.18, 0.16] },
+      { at: [0, 0.18, 0.17], r: [0.12, 0.11] },
+    ],
+    torsoCaps: { back: [0, -0.43, 0.17], tip: [0, 0.23, 0.17] },
+    neckRA: [0.12, 0.11], neckRB: [0.09, 0.085], neckRMid: [0.105, 0.10],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.035, 0.045], [0.022, 0.024], 'Belly', [0.6, 0.5]],
+      ['foreArmR', 'elbow', 'carpus', [0.022, 0.024], [0.016, 0.017], 'Sock', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.016, 0.015, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.02, 0.01], [0.02, 0.007], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.06, 0.07], [0.035, 0.038], 'Belly', [0.2, 0.5], [0.05, 0.06]],
+      ['shinR', 'stifle', 'hock', [0.03, 0.033], [0.018, 0.02], 'Sock', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.018, 0.016, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.02, 0.012], [0.02, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
+    ],
+    // a pointed snout, long and tapering to a dark nose tip
+    headScale: 0.62, muzzleLen: 1.15, muzzleW: 0.75,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.4, 2.2], eyeR: 0.022, nose: false, headOrnaments: [], headPitch: -4,
+    headPalette: { Snout: '#9a7c5e' },
+    // small round ears, low at the edge of the spines
+    earAt: [1.2, 2.0], earSpine: [[0, 0, -0.012], [0, -0.008, 0.03], [0, -0.016, 0.06], [0, -0.022, 0.08]], earH: 0.7, earR: [0.035, 0.045, 0.04], earSquash: [1, 0.3],
+    extraSegments: [],
+    // the SPINES: raked-back narrow cones over the whole back and down the flanks, banded cream and dark; a second
+    // patch over the neck and crown
+    bodyTiles: [
+      { id: 'spines', parts: ['torso'], s: [0.3, 5.0], t: [0, 3.9], grid: [17, 9], brick: true, sides: 3, coverage: 1.25, inset: 0.97, height: 0.019, lean: -1.4, edgeFade: 0.15, thin: 0, wobble: 0.3, jitter: 0.35, group: ['Mane', 'Tip'] },
+      { id: 'neckSpines', parts: ['neck'], s: [0.0, 1.0], t: [0, 2.8], grid: [4, 5], brick: true, sides: 3, coverage: 1.25, inset: 0.97, height: 0.016, lean: -1.4, edgeFade: 0.2, thin: 0, wobble: 0.3, jitter: 0.35, group: ['Mane', 'Tip'] },
+    ],
+    markings: [{ on: 'torso', kind: 'belly', from: 0.75, group: 'Belly' }],
+  },  // NORTH AMERICAN PORCUPINE (Erethizon dorsatum). Thesis: a HEAVY round-backed body, the back arched high over the
+  // hips, on short bowed plantigrade legs · a small blunt head with a short deep muzzle, small dark eyes and tiny ears
+  // lost in the fur · ONE signature: LONG QUILLS, cream with dark tips, standing off the back, rump and the short
+  // thick tail, raked back; shorter ones over the crown · dark brown-black underfur · published: total length
+  // 0.65–1.03 m, tail 0.15–0.30 m, 3.5–7 kg (Woods 1973, Mammalian Species 29, Erethizon dorsatum). Modelled on the
+  // beaver's tables at `scale` 0.75.
+  porcupine: {
+    eyeStyle: 'set',
+    family: 'rodent', name: 'a North American porcupine', scale: 0.75,
+    colors: { coat: '#2f2925', sock: '#1d1916', ash: '#4a423a', ashAlt: '#3e3731', ears: '#2f2925', belly: '#3a332d', brow: '#1d1916',
+      mane: '#e2d8c2', tip: '#1a1613', snout: '#3a332d', teeth: '#d9a24a', mouth: '#1d1916', nose: '#120e0c', iris: '#0a0806', sclera: '#0a0806' },
+    joints: {
+      neckBase: [0, 0.17, 0.20], neckTop: [0, 0.25, 0.21],
+      hip: [0.10, -0.24, 0.21], stifle: [0.135, -0.15, 0.12], hindToe: [0.13, -0.13, 0.008],
+    },
+    // the hind foot a narrow plantigrade sole, not the beaver's webbed fan
+    legs: [...family.legs.slice(0, 7), ['hindPawR', 'hindPaw', 'hindToe', [0.03, 0.02], [0.03, 0.012], 'Sock', [0.5, 0.4]]],
+    // the arch: the trunk deepest and highest over the hips, falling to a low narrow chest
+    torso: [
+      { at: [0, -0.42, 0.20], r: [0.09, 0.09] },
+      { at: [0, -0.34, 0.20], r: [0.17, 0.17] },
+      { at: [0, -0.21, 0.20], r: [0.20, 0.20] },
+      { at: [0, -0.07, 0.20], r: [0.18, 0.17] },
+      { at: [0, 0.06, 0.20], r: [0.14, 0.13] },
+      { at: [0, 0.16, 0.20], r: [0.10, 0.10] },
+    ],
+    torsoCaps: { back: [0, -0.48, 0.20], tip: [0, 0.21, 0.20] },
+    neckRA: [0.10, 0.10], neckRB: [0.08, 0.08], neckRMid: [0.09, 0.09],
+    // a small blunt head, the incisors orange
+    headScale: 0.42, muzzleW: 1.1, muzzleLen: 0.7, headPitch: -8,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.2], eyeR: 0.022,
+    earR: [0.035, 0.03, 0.02, 0.01], earH: 0.25,
+    extraSegments: [
+      // the tail: short, thick, round, held low off the rump
+      { name: 'tailQuilled', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
+        stations: lofted([[0, -0.44, 0.17, 0.075], [0, -0.52, 0.13, 0.07], [0, -0.60, 0.10, 0.06], [0, -0.67, 0.08, 0.045]]),
+        caps: { back: [0, -0.42, 0.18], tip: [0, -0.71, 0.07] } },
+    ],
+    // the QUILLS: long narrow cones raked back over the back, flanks and rump, the tail's top, a short crest at the neck
+    bodyTiles: [
+      { id: 'quills', parts: ['torso'], s: [0.2, 4.6], t: [0, 3.6], grid: [11, 6], brick: true, sides: 3, coverage: 1.3, inset: 0.97, height: 0.075, lean: -1.8, edgeFade: 0.25, thin: 0, wobble: 0.35, jitter: 0.35, group: ['Mane', 'Mane', 'Tip'] },
+      { id: 'tailQuills', parts: ['tailQuilled'], s: [0, 3], t: [0, 3.2], grid: [4, 3], brick: true, sides: 3, coverage: 1.3, inset: 0.97, height: 0.05, lean: -1.8, edgeFade: 0.2, thin: 0, wobble: 0.3, jitter: 0.3, group: ['Mane', 'Tip'] },
+      { id: 'crest', parts: ['neck'], s: [0, 1], t: [0, 2.4], grid: [3, 3], brick: true, sides: 3, coverage: 1.3, inset: 0.97, height: 0.04, lean: -1.8, edgeFade: 0.2, thin: 0, wobble: 0.3, jitter: 0.3, group: ['Mane', 'Tip'] },
+    ],
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -172,15 +455,15 @@ export const species = {
 export const about = {
   beaver: { common: 'beaver', aliases: [], sci: 'Castor canadensis', size: '~0.30 m at the shoulder; head-body 0.74–0.90 m', source: 'ADW / Smithsonian NMNH' },
   squirrel: { common: 'squirrel', aliases: ['grey squirrel', 'gray squirrel'], sci: 'Sciurus carolinensis', size: '~0.12 m to the top of the back; head-body 0.23–0.30 m', source: 'ADW, Sciurus carolinensis' },
+  mouse: { common: 'mouse', aliases: ['mice', 'house mouse', 'field mouse'], sci: 'Mus musculus', size: 'head-body 0.065–0.095 m, tail 0.06–0.105 m', source: 'ADW, Mus musculus' },
+  rat: { common: 'rat', aliases: ['brown rat'], sci: 'Rattus norvegicus', size: 'head-body 0.20–0.28 m, tail 0.17–0.23 m', source: 'ADW, Rattus norvegicus' },
+  hamster: { common: 'hamster', aliases: ['syrian hamster', 'golden hamster'], sci: 'Mesocricetus auratus', size: 'head-body 0.13–0.18 m, tail ~0.012 m', source: 'ADW, Mesocricetus auratus' },
+  guineaPig: { common: 'guinea pig', aliases: ['cavy'], sci: 'Cavia porcellus', size: 'head-body 0.20–0.25 m, no external tail', source: 'ADW, Cavia porcellus' },
+  hedgehog: { common: 'hedgehog', aliases: ['european hedgehog'], sci: 'Erinaceus europaeus', size: 'head-body 0.20–0.30 m', source: 'ADW, Erinaceus europaeus' },
+  porcupine: { common: 'porcupine', aliases: ['north american porcupine'], sci: 'Erethizon dorsatum', size: 'total length 0.65–1.03 m, tail 0.15–0.30 m', source: 'Woods 1973, Mammalian Species 29' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  mouse: { near: 'squirrel', aliases: ['mice', 'house mouse', 'field mouse'], note: 'tiny, big round ears, a long thin bare tail' },
-  rat: { near: 'squirrel', aliases: ['brown rat'], note: 'a bigger mouse: a pointed snout, a long scaly tail' },
-  hamster: { near: 'squirrel', aliases: [], note: 'a round ball of a body, no visible tail, cheek pouches' },
-  guineaPig: { near: 'squirrel', aliases: ['guinea pig', 'cavy'], note: 'a tailless loaf body, short legs, a blunt head' },
-  hedgehog: { near: 'squirrel', aliases: [], note: 'a round body under a coat of spines, a pointed snout' },
-  porcupine: { near: 'beaver', aliases: [], note: 'a heavy body under long quills' },
 };

@@ -77,6 +77,12 @@ family.extraSegments = [
 ];
 
 // the snake's body: a short level trunk behind the head, then the S of coils on the ground
+// a dorsal crest of spines: a thin midline loft, tall narrow stations (`h` × weight above the back line) between
+// low ones, along a back line [y, z of the back surface, weight] (the crocodilian's scute crest, made tall and thin)
+const spines = (pts, h) => pts.flatMap(([y, z, w], i, a) => (i === a.length - 1 ? [[0, y, z + 0.3 * h * w, [0.006, 0.025]]]
+  : [[0, y, z + 0.6 * h * w, [0.006, 0.4 * h * w]], [0, (y + a[i + 1][0]) / 2, (z + a[i + 1][1]) / 2 + 0.12 * h * w, [0.008, 0.12 * h * w]]]));
+
+const CH = 0.22;   // the chameleon's scale (its trunk `top` is written in metres after scale)
 const PY_R = [0.1, 0.08];
 const PY_BODY = sinuous({ y0: -0.05, length: 3.25, amp: 0.33, waves: 2, back: 2.0, n: 56, r0: PY_R, taper: [[0, 0.95], [0.5, 1.15], [0.82, 0.95], [0.93, 0.45], [1, 0.08]] });
 
@@ -184,6 +190,163 @@ export const species = {
     ],
     colors: { coat: '#4f5a2a', sock: '#4f5a2a', ash: '#66703a', ashAlt: '#5b6533', brow: '#2f3618', belly: '#c9b85a', iris: '#8a7a2a', tip: '#2f3618' },
   }),
+  // TOKAY GECKO (Gekko gecko). Thesis: a small, FLAT, broad lizard on short splayed legs ending in wide adhesive TOE
+  // PADS · a BIG, broad, triangular head on almost no neck, short rounded snout, HUGE lidless eyes with slit pupils ·
+  // a plump tail about as long as the body · blue-grey skin dotted with ORANGE spots · ~0.17 m snout–vent, ~0.3 m
+  // total (Wikipedia "Tokay gecko" / Grossmann 2004: SVL up to ~0.18 m, total 0.3–0.4 m). Authored at the family's
+  // Komodo size and scaled down.
+  gecko: {
+    family: 'squamate', name: 'a tokay gecko', scale: 0.12, orbitFallback: true,
+    joints: {
+      neckBase: [0, 0.40, 0.21], neckTop: [0, 0.58, 0.235],
+      shoulder: [0.12, 0.30, 0.20], elbow: [0.32, 0.30, 0.19], carpus: [0.36, 0.38, 0.04], forePaw: [0.37, 0.40, 0.02], foreToe: [0.44, 0.50, 0.008],
+      hip: [0.11, -0.34, 0.21], stifle: [0.36, -0.28, 0.20], hock: [0.40, -0.42, 0.04], hindPaw: [0.41, -0.43, 0.02], hindToe: [0.50, -0.34, 0.008],
+    },
+    torso: [
+      { at: [0, -0.46, 0.22], r: [0.12, 0.08] },
+      { at: [0, -0.26, 0.22], r: [0.19, 0.10] },
+      { at: [0, 0.0, 0.22], r: [0.21, 0.11] },
+      { at: [0, 0.24, 0.22], r: [0.18, 0.10] },
+      { at: [0, 0.42, 0.22], r: [0.13, 0.085] },
+    ],
+    torsoCaps: { back: [0, -0.53, 0.22], tip: [0, 0.50, 0.22] },
+    neckRA: [0.13, 0.085], neckRB: [0.12, 0.08], neckRMid: [0.125, 0.08],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.05, 0.045], [0.038, 0.035], 'Coat', [0.5, 0.4]],
+      ['foreArmR', 'elbow', 'carpus', [0.038, 0.035], [0.028, 0.028], 'Coat', [0.4, 0.3]],
+      ['pasternR', 'carpus', 'forePaw', 0.028, 0.026, 'Sock', [0.3, 0.3]],
+      ['forePawR', 'forePaw', 'foreToe', [0.045, 0.012], [0.075, 0.01], 'Hoof', [0.3, 0.2]],
+      ['thighR', 'hip', 'stifle', [0.065, 0.06], [0.045, 0.042], 'Coat', [0.4, 0.4]],
+      ['shinR', 'stifle', 'hock', [0.042, 0.04], [0.03, 0.03], 'Coat', [0.4, 0.3]],
+      ['metaR', 'hock', 'hindPaw', 0.03, 0.028, 'Sock', [0.3, 0.3]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.05, 0.012], [0.08, 0.01], 'Hoof', [0.3, 0.2]],
+    ],
+    // the head: broad and flat-topped, the snout short and round
+    craniumRows: flat(SKULL, 1.45, 0.8), jawRows: flatJaw(JAW, 1.45, 0.8),
+    headScale: 1.0, muzzleW: 1.0, muzzleLen: 0.9,
+    eyeAt: [2.2, 2.1], eyeR: 0.015, eyeStyle: 'set', eyeSet: { sink: 0.35, open: [1.0, 0.95] }, pupil: 'slit',
+    headPalette: { Nostrils: '#4a566c' },   // the family's hairline nostril slits, toned down to a darker grey
+    extraSegments: [
+      { name: 'tailWhip', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true,
+        stations: loftOf([[0, -0.48, 0.22, [0.12, 0.08]], [0, -0.68, 0.19, [0.10, 0.075]], [0, -0.92, 0.12, [0.075, 0.06]], [0, -1.18, 0.06, [0.05, 0.04]], [0, -1.42, 0.03, [0.025, 0.022]]]),
+        caps: { back: [0, -0.42, 0.22], tip: [0, -1.48, 0.025] } },
+    ],
+    markDensity: { torso: 5, tailWhip: 3 },
+    markings: [
+      { on: 'torso', kind: 'spots', count: 40, seed: 3, t: [0.05, 0.65], size: [0.05, 0.08], group: 'Spot', color: '#d9773a' },
+      { on: 'tailWhip', kind: 'stripes', count: 7, width: 0.35, t: [0, 0.7], group: 'Band', color: '#cfd6e0' },
+      { on: 'torso', kind: 'belly', from: 0.7, group: 'Belly' },
+    ],
+    colors: { coat: '#6f7f9a', sock: '#6f7f9a', ash: '#8e9bb0', ashAlt: '#8090a8', brow: '#56637a', belly: '#c8ccd2', iris: '#c9b84a', tip: '#56637a', hoof: '#9aa6b8', lids: '#5a6780' },
+  },
+  // GREEN IGUANA (Iguana iguana). Thesis: a deep, laterally flattened body on sprawling legs, the head held UP on a
+  // short thick neck · a big hanging DEWLAP under the throat · a CREST of tall soft spines from the nape down the back
+  // and onto the tail · a short deep blunt head with a round pale cheek SHIELD below the ear · a very long whip tail,
+  // about two thirds of the animal, banded dark · bright green · ~0.4 m snout–vent, ~1.5 m total (ADW "Iguana
+  // iguana": SVL to ~0.42 m, total to ~2 m, the tail about 2/3 of the length).
+  iguana: {
+    family: 'squamate', name: 'a green iguana', scale: 0.28,
+    joints: {
+      neckBase: [0, 0.40, 0.30], neckTop: [0, 0.64, 0.40],
+      shoulder: [0.10, 0.30, 0.25], elbow: [0.28, 0.27, 0.22], carpus: [0.30, 0.33, 0.045], forePaw: [0.30, 0.345, 0.02], foreToe: [0.35, 0.47, 0.008],
+      hip: [0.10, -0.36, 0.25], stifle: [0.31, -0.30, 0.22], hock: [0.33, -0.45, 0.05], hindPaw: [0.33, -0.44, 0.02], hindToe: [0.40, -0.28, 0.008],
+    },
+    // deeper than wide (a laterally flattened lizard)
+    torso: [
+      { at: [0, -0.48, 0.28], r: [0.10, 0.11] },
+      { at: [0, -0.28, 0.28], r: [0.14, 0.16] },
+      { at: [0, 0.0, 0.28], r: [0.155, 0.175] },
+      { at: [0, 0.24, 0.28], r: [0.135, 0.16] },
+      { at: [0, 0.42, 0.28], r: [0.095, 0.115] },
+    ],
+    torsoCaps: { back: [0, -0.55, 0.28], tip: [0, 0.50, 0.29] },
+    neckRA: [0.09, 0.105], neckRB: [0.075, 0.085], neckRMid: [0.08, 0.095],
+    // the head: deep and blunt, the snout short
+    craniumRows: flat(SKULL, 0.95, 1.05), jawRows: flatJaw(JAW, 0.95, 1.05),
+    headScale: 0.72, muzzleW: 0.9, muzzleLen: 0.8,
+    eyeAt: [2.2, 2.1], eyeR: 0.0105, eyeStyle: 'set', eyeSet: { sink: 0.35, open: [1.0, 0.9] }, orbitFallback: true,
+    headPalette: { Nostrils: '#3e6a2a' },
+    // the subtympanic SHIELD: a big round pale scale low on the cheek behind the mouth
+    headOrnaments: [{ kind: 'sweep', name: 'shield', at: [1.1, 3.9], space: 'local', spine: [[0, 0, -0.004], [0, 0, 0.002]], radii: [0.013, 0.012], m: 10, squash: [1, 1], group: 'Horn' }],
+    legBulk: 1.1,
+    extraSegments: [
+      { name: 'tailWhip', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true,
+        stations: loftOf([[0, -0.50, 0.28, [0.10, 0.11]], [0, -0.80, 0.24, [0.075, 0.09]], [0, -1.20, 0.16, [0.05, 0.06]], [0, -1.70, 0.08, [0.032, 0.036]], [0, -2.25, 0.035, [0.018, 0.02]], [0, -2.75, 0.015, [0.008, 0.008]]]),
+        caps: { back: [0, -0.43, 0.28], tip: [0, -2.82, 0.012] } },
+      // the DEWLAP: a thin keel of skin hanging under the throat, from the chin back to the chest
+      { name: 'dewlap', kind: 'loft', slots: 'ring12', group: 'Ash', mirror: 'plane', up: true,
+        stations: loftOf([[0, 0.40, 0.22, [0.015, 0.03]], [0, 0.50, 0.17, [0.016, 0.08]], [0, 0.60, 0.19, [0.015, 0.085]], [0, 0.70, 0.25, [0.013, 0.06]], [0, 0.76, 0.30, [0.01, 0.025]]]),
+        caps: { back: [0, 0.37, 0.24], tip: [0, 0.79, 0.31] } },
+      // the dorsal CREST: soft spines, tallest at the nape, down the back and onto the tail
+      { name: 'crest', kind: 'loft', slots: 'ring12', group: 'Horn', mirror: 'plane', up: true, stations: loftOf(spines([[0.60, 0.46, 1.4], [0.42, 0.43, 1.5], [0.24, 0.45, 1.3], [0.0, 0.46, 1.2], [-0.28, 0.44, 1.0], [-0.50, 0.39, 0.9], [-0.80, 0.33, 0.8], [-1.20, 0.22, 0.6], [-1.50, 0.14, 0.4]], 0.05)),
+        caps: { back: [0, 0.64, 0.45], tip: [0, -1.55, 0.13] } },
+    ],
+    markDensity: { tailWhip: 4 },
+    markings: [
+      { on: 'tailWhip', kind: 'stripes', count: 9, run: [0.15, 1], width: 0.35, group: 'Band', color: '#2f4a24' },
+      { on: 'torso', kind: 'belly', from: 0.65, group: 'Belly' },
+    ],
+    colors: { coat: '#5f9a3a', sock: '#5f9a3a', ash: '#8bbd5a', ashAlt: '#7cb04e', brow: '#467a2c', belly: '#a9cf7a', iris: '#c98a2a', tip: '#2f4a24', hoof: '#3a4a2e', horn: '#9ec98a', lids: '#4f8530' },
+  },
+  // VEILED CHAMELEON (Chamaeleo calyptratus). Thesis: a TALL, narrow, leaf-flat body with an arched back, held high on
+  // thin legs that stand UNDER it (not sprawled), each foot split in two opposed toe bundles gripping · a tall
+  // helmet CASQUE rising off the back of the head, no neck · TURRET EYES: big domed lids with only a small hole for
+  // the pupil · a prehensile tail CURLED in a tight downward coil · green with pale yellow bands · ~0.25 m snout–vent,
+  // ~0.5 m total (Wikipedia "Veiled chameleon" / Nečas 1999: males 43–61 cm total, the tail about half).
+  chameleon: {
+    family: 'squamate', name: 'a veiled chameleon', scale: CH, legScale: 0.65, levelLegs: false, orbitFallback: true,
+    joints: {
+      neckBase: [0, 0.34, 0.60], neckTop: [0, 0.46, 0.66],
+      shoulder: [0.07, 0.26, 0.52], elbow: [0.15, 0.36, 0.32], carpus: [0.14, 0.30, 0.05], forePaw: [0.14, 0.31, 0.025], foreToe: [0.14, 0.40, 0.01], foreToeB: [0.14, 0.22, 0.01],
+      hip: [0.07, -0.28, 0.52], stifle: [0.16, -0.20, 0.32], hock: [0.15, -0.32, 0.05], hindPaw: [0.15, -0.31, 0.025], hindToe: [0.15, -0.22, 0.01], hindToeB: [0.15, -0.40, 0.01],
+    },
+    // tall and narrow, the back arched (`top` raises the upper half of each ring; it is metres AFTER `scale`, which
+    // build.js does not apply to it, so it is written × the species' scale)
+    torso: [
+      { at: [0, -0.40, 0.56], r: [0.06, 0.10], top: 0.015 * CH },
+      { at: [0, -0.22, 0.56], r: [0.08, 0.15], top: 0.075 * CH },
+      { at: [0, 0.0, 0.56], r: [0.09, 0.165], top: 0.105 * CH },
+      { at: [0, 0.20, 0.56], r: [0.08, 0.15], top: 0.075 * CH },
+      { at: [0, 0.36, 0.58], r: [0.06, 0.11], top: 0.03 * CH },
+    ],
+    torsoCaps: { back: [0, -0.46, 0.55], tip: [0, 0.42, 0.60] },
+    neckRA: [0.07, 0.12], neckRB: [0.07, 0.10], neckRMid: [0.07, 0.11],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', 0.032, 0.026, 'Coat', [0.5, 0.4]],
+      ['foreArmR', 'elbow', 'carpus', 0.026, 0.02, 'Coat', [0.4, 0.3]],
+      ['pasternR', 'carpus', 'forePaw', 0.02, 0.018, 'Sock', [0.3, 0.3]],
+      ['forePawR', 'forePaw', 'foreToe', [0.022, 0.014], [0.012, 0.008], 'Sock', [0.3, 0.2]],
+      ['forePawBR', 'forePaw', 'foreToeB', [0.022, 0.014], [0.012, 0.008], 'Sock', [0.3, 0.2]],
+      ['thighR', 'hip', 'stifle', 0.04, 0.03, 'Coat', [0.4, 0.4]],
+      ['shinR', 'stifle', 'hock', 0.03, 0.022, 'Coat', [0.4, 0.3]],
+      ['metaR', 'hock', 'hindPaw', 0.022, 0.02, 'Sock', [0.3, 0.3]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.022, 0.014], [0.012, 0.008], 'Sock', [0.3, 0.2]],
+      ['hindPawBR', 'hindPaw', 'hindToeB', [0.022, 0.014], [0.012, 0.008], 'Sock', [0.3, 0.2]],
+    ],
+    // the head: deep and narrow, the snout short
+    craniumRows: flat(SKULL, 0.85, 1.1), jawRows: flatJaw(JAW, 0.85, 1.1),
+    headScale: 0.8, muzzleW: 0.85, muzzleLen: 0.75,
+    // TURRET EYES: a big ball wrapped in a domed lid, open only around the pupil
+    eyeAt: [2.2, 2.1], eyeR: 0.016, eyeStyle: 'set', eyeSet: { sink: 0.15, open: [0.5, 0.5], lid: 0.05 },
+    headPalette: { Nostrils: '#3e6a2a' },
+    // the CASQUE: a tall flat helmet rising off the back of the skull (head units, like the hadrosaur's crest)
+    headOrnaments: [{ kind: 'sweep', name: 'casque', at: [0.6, 0.0001], side: 'R', space: 'head',
+      spine: [[0, 0.02, 0.06], [0, -0.05, 0.11], [0, -0.11, 0.155], [0, -0.145, 0.17]], radii: [0.045, 0.055, 0.04, 0.01], m: 8, squash: [0.3, 1], group: 'Skull' }],
+    extraSegments: [
+      // the tail: back, then curled down and forward in a tight coil (a vertical spiral, so its rings take +x as up)
+      { name: 'tailCoil', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: [1, 0, 0],
+        stations: loftOf([[0, -0.42, 0.56, [0.055, 0.08]], [0, -0.58, 0.50, [0.045, 0.055]], [0, -0.72, 0.40, [0.036, 0.04]], [0, -0.80, 0.32, [0.03, 0.032]],
+          [0, -0.78, 0.23, [0.026, 0.026]], [0, -0.71, 0.18, [0.022, 0.022]], [0, -0.63, 0.19, [0.019, 0.019]], [0, -0.59, 0.25, [0.016, 0.016]], [0, -0.62, 0.30, [0.013, 0.013]],
+          [0, -0.68, 0.30, [0.011, 0.011]], [0, -0.69, 0.25, [0.009, 0.009]], [0, -0.65, 0.23, [0.007, 0.007]]]),
+        caps: { back: [0, -0.38, 0.56], tip: [0, -0.62, 0.24] } },
+    ],
+    markDensity: { torso: 3 },
+    markings: [
+      { on: 'torso', kind: 'stripes', count: 5, run: [0.1, 0.9], width: 0.3, t: [0, 0.75], group: 'Band', color: '#c9c24a' },
+      { on: 'torso', kind: 'belly', from: 0.8, group: 'Belly' },
+    ],
+    colors: { coat: '#4f9a3c', sock: '#4f9a3c', ash: '#79b65a', ashAlt: '#6aaa4c', brow: '#3c7a2c', belly: '#b5d27a', iris: '#c9a23a', tip: '#3c7a2c', hoof: '#3c7a2c', lids: '#4f9a3c' },
+  },
 };
 
 
@@ -198,12 +361,12 @@ export const about = {
   greenMamba: { common: 'green mamba', aliases: ['mamba'], sci: 'Dendroaspis viridis', size: '~2.0 m long', source: 'Wikipedia, "Western green mamba"' },
   seaSerpent: { common: 'sea serpent', aliases: ['sea monster', 'leviathan'], sci: 'mythic', size: '~40 m long (an invented scale)', source: 'after Olaus Magnus 1555' },
   anaconda: { common: 'anaconda', aliases: ['green anaconda'], sci: 'Eunectes murinus', size: '~5 m long', source: 'Rivas 2000' },
+  gecko: { common: 'gecko', aliases: ['tokay gecko', 'tokay'], sci: 'Gekko gecko', size: '~0.17 m snout–vent; ~0.3 m total', source: 'Wikipedia, "Tokay gecko" / Grossmann 2004' },
+  iguana: { common: 'iguana', aliases: ['green iguana'], sci: 'Iguana iguana', size: '~0.4 m snout–vent; ~1.5 m total', source: 'ADW, "Iguana iguana"' },
+  chameleon: { common: 'chameleon', aliases: ['veiled chameleon'], sci: 'Chamaeleo calyptratus', size: '~0.25 m snout–vent; ~0.5 m total', source: 'Wikipedia, "Veiled chameleon" / Nečas 1999' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  gecko: { near: 'monitorLizard', aliases: [], note: 'a small flat lizard with big eyes and toe pads' },
-  iguana: { near: 'monitorLizard', aliases: ['green iguana'], note: 'a dewlap, a spiny back crest, a long banded tail' },
-  chameleon: { near: 'monitorLizard', aliases: [], note: 'a casque head, turret eyes, a coiled tail, a tall flat body' },
 };
