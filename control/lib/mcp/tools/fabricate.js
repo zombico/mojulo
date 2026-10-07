@@ -15,6 +15,7 @@
 import { registerTool } from '@/lib/mcp/server';
 import { mintScad } from '@/lib/mcp/tools/scad';
 import { createWorkbenchHandler } from '@/lib/mcp/tools/workbench';
+import { DEFAULT_LOAD_N } from '@/lib/graph/fabricator/sizing';
 import { fabricationPlan, planModules, unplacedModules, unplacedJoints, mintedBom, EXECUTORS } from '@/lib/graph/fabricator/plan';
 
 const NEEDS_KEYS = ['needs', 'host', 'loadN', 'cycles', 'access', 'tags'];
@@ -26,6 +27,10 @@ const nextFor = (plan) => {
   if (!how.length) how.push('`source` or `frames` for the body; every planned part is bought and fitted by hand');
   const notes = [];
   const grips = plan.needs.filter((n) => n.assumes).map((n) => `${n.id} ${n.assumes.grip} mm`);
+  const assumed = plan.needs.filter((n) => n.sizing?.loadAssumed).map((n) => n.id);
+  if (assumed.length) notes.push(`Sized for ${DEFAULT_LOAD_N} N where no load was said (${assumed.join(', ')}): pass \`loadN\` (N on the joint, shared by its count) and \`certainty\`, and plan again.`);
+  const weak = plan.needs.filter((n) => n.sizing?.by === 'given' && n.sizing.sf < n.sizing.required).map((n) => `${n.id} (${n.sizing.size}: safety factor ${n.sizing.sf}, ${n.sizing.required} asked)`);
+  if (weak.length) notes.push(`A given size is weaker than its load asks: ${weak.join('; ')}.`);
   if (grips.length) notes.push(`Bolt lengths assume a grip (mm of material under the head) of ${grips.join(', ')}: pass \`grip\` on a need when yours differs, and plan again.`);
   if (plan.overlaps.length) notes.push(`Counted twice: ${plan.overlaps.map((o) => o.why).join('; ')}.`);
   if (plan.suggestions.length) notes.push(`Also needed, and not in your needs: ${plan.suggestions.map((s) => `{ function: '${s.function}'${s.through ? `, through: '${s.through}'` : ''}${s.rim ? `, rim: [${s.rim.join(', ')}]` : ''}${s.shaftD ? `, shaftD: ${s.shaftD}` : ''} } (${s.why})`).join('; ')}. Add them and plan again, or say why not.`);
@@ -68,7 +73,7 @@ export async function fabricateSolidHandler(input) {
     ...out,
     stats: {
       ...out.stats,
-      fabrication: { ...fabrication, notices: plan.notices, gaps: plan.gaps, elsewhere, overlaps: plan.overlaps, suggestions: plan.suggestions },
+      fabrication: { ...fabrication, ...(out.ref ? { export: `export_model({ ref: '${out.ref}', format: 'bom' })` } : {}), notices: plan.notices, gaps: plan.gaps, elsewhere, overlaps: plan.overlaps, suggestions: plan.suggestions },
       ...(warnings.length ? { warnings: [...(out.stats.warnings || []), ...warnings] } : {}),
     },
   };

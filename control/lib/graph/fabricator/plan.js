@@ -13,7 +13,7 @@
 import { FUNCTIONS, TAGS, resolve } from './index.js';
 import { hardwarePart, toolOf } from '../construction/hardware.js';
 
-export const FABRICATOR_VERSION = 'fabricator-v0.3.0';
+export const FABRICATOR_VERSION = 'fabricator-v0.4.0';
 export const EXECUTORS = Object.freeze(['frames', 'scad', 'none']);
 
 const SHARED = ['host', 'loadN', 'cycles', 'access'];
@@ -83,7 +83,9 @@ const toolLabel = (code) => { const t = code && toolOf(hardwarePart(code)); retu
  * strategy, route, why, … }], bom: [{ code, label, count, tool, buy, part, provenance, standard, for, executor }],
  * cuts: [{ need, part, route, call, count, where }], joints: [{ need, type, count }], kit, principles, notices, refused,
  * gaps, overlaps: [{ need, coveredBy, why }], suggestions: [{ from, function, …, why }] }`. A fastening need carries the
- * `assumes` its bolt lengths were cut to (`grip`: mm of material under the head).
+ * `assumes` its bolt lengths were cut to (`grip`: mm of material under the head); a need whose part was sized by
+ * strength carries its `sizing` (./sizing.js: the size, the weakest mode, its safety factor and the one asked, the
+ * load and whether it was assumed), and a bolt line its `grade` (the property class the check assumed).
  * Throws on a malformed needs list (needsError).
  */
 export function fabricationPlan(spec) {
@@ -110,9 +112,9 @@ export function fabricationPlan(spec) {
     const framed = executor === 'frames' && !!r.joint;
     for (const p of r.parts) {
       if (p.route === 'buy') {
-        const key = `${p.part}|${p.code || ''}|${p.label}`;
+        const key = `${p.part}|${p.code || ''}|${p.label}|${p.grade || ''}`;
         const line = bom.get(key) || { code: p.code, label: p.code ? hardwarePart(p.code)?.label || p.label : p.label, count: 0,
-          tool: toolLabel(p.code), buy: p.buy, part: p.part, provenance: p.provenance, standard: p.standard, for: [], executor: [] };
+          tool: toolLabel(p.code), buy: p.buy, part: p.part, provenance: p.provenance, standard: p.standard, ...(p.grade ? { grade: p.grade } : {}), for: [], executor: [] };
         if (framed) { line.count = null; line.perJoint = p.qty; line.note = 'counted by the frame at mint: fittings per joint follow its length'; }
         else if (line.count !== null) line.count += p.qty * count;
         if (!line.for.includes(id)) line.for.push(id);
@@ -133,7 +135,7 @@ export function fabricationPlan(spec) {
     if (r.route === 'mint') gaps.push({ need: id, function: need.function, why: r.why });
     const assumes = need.function === 'fasten' && r.parts.some((p) => /-(socket|hex|button|csk)$/.test(p.code || ''))
       ? { grip: need.grip ?? 10, size: need.size || null } : undefined;
-    return { id, function: need.function, count, executor, strategy: r.strategy, line: r.line, route: r.route, why: r.why, ...(assumes ? { assumes } : {}) };
+    return { id, function: need.function, count, executor, strategy: r.strategy, line: r.line, route: r.route, why: r.why, ...(assumes ? { assumes } : {}), ...(r.sizing ? { sizing: r.sizing } : {}) };
   });
   // A job one need's parts already do, listed again as its own need: say so, so nothing is bought twice.
   const overlaps = covered.flatMap((c) => needs.filter((n) => n.id !== c.need && n.function === c.function)

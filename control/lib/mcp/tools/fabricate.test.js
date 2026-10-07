@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { loadOpenscad } from '@/lib/graph/scad/scad-render';
 import { fabricateSolidHandler } from './fabricate.js';
 import { mintSolidHandler } from './mint-solid.js';
+import { exportModelHandler } from './sketch-model-export.js';
 
 const hasWasm = (await loadOpenscad()) != null;
 const NEEDS = [{ id: 'lid', function: 'fasten', tags: ['serviceable'], count: 4 }, { id: 'axle', function: 'spin', shaftD: 8 }];
@@ -21,6 +22,8 @@ const CARCASS = [{ id: 'cabinet', unit: 'mm', members: [
   { type: 'cam-lock', a: 'top', b: 'side-l' }, { type: 'cam-lock', a: 'top', b: 'side-r' },
   { type: 'cam-lock', a: 'bottom', b: 'side-l' }, { type: 'cam-lock', a: 'bottom', b: 'side-r' },
 ] }];
+
+let mintedCams;
 
 describe('fabricate_solid', () => {
   it('needs alone hand back the plan and mint nothing', async () => {
@@ -58,6 +61,8 @@ describe('fabricate_solid', () => {
     const cams = f.bom.find((l) => l.code === 'cam-15');
     expect(cams).toMatchObject({ from: 'frames', label: expect.any(String) });
     expect(cams.count).toBe(r.stats.frames[0].furniture.hardware.find((h) => h.code === 'cam-15').count);
+    mintedCams = cams.count;
+    expect(f.export).toBe("export_model({ ref: 'sk_fab_cabinet', format: 'bom' })");
     expect(f.bom.some((l) => l.part === 'cam-lock' && l.from === 'plan')).toBe(false);   // the estimate gave way to the report
     expect(f.bom.find((l) => l.code === '688')).toMatchObject({ from: 'plan' });          // the printed need stays on the plan
     expect(f.elsewhere).toEqual(['feet (scad)']);
@@ -66,6 +71,27 @@ describe('fabricate_solid', () => {
     expect(m.kind).toBe('workbench');
     expect(m.fabricate).toMatchObject({ executor: 'frames', host: 'wood', plan: { version: expect.stringMatching(/^fabricator-v/) } });
     expect(m.units, 'the frames\' unit is the row\'s when it declares none').toBe('mm');
+  });
+
+  it('the bill of materials exports as CSV and Markdown, the frame\'s fittings recounted from the stored frames', async () => {
+    const minted = SketchRepository.getByRef('sk_fab_cabinet');
+    expect(minted, 'minted by the test above').toBeTruthy();
+    const r = await exportModelHandler({ ref: 'sk_fab_cabinet', format: 'bom', write: false });
+    expect(r).toMatchObject({ ok: true, format: 'bom', source: 'fabricate (frames)' });
+    const rows = r.csv.trim().split('\r\n');
+    expect(rows[0]).toBe('item,kind,count,code,label,grade,standard,buy,tool,provenance,for');
+    const cams = rows.find((row) => row.split(',')[3] === 'cam-15').split(',');
+    expect(+cams[2], 'the count the mint\'s frame report gave').toBe(mintedCams);
+    expect(rows.some((row) => row.split(',')[3] === '688'), 'the printed need\'s bearings are bought too').toBe(true);
+    expect(rows.some((row) => row.split(',')[1] === 'sheet'), 'the sheets to cut').toBe(true);
+    const again = await exportModelHandler({ ref: 'sk_fab_cabinet', format: 'bom', write: false });
+    expect(again.csv).toBe(r.csv);
+  });
+
+  it('a row with nothing to buy is not eligible for a bill of materials, and says how to get one', async () => {
+    SketchRepository.create({ ref: 'sk_fab_plain', title: 'plain', manifest: { kind: 'scad', source: 'cube(10);' } });
+    const out = await exportModelHandler({ ref: 'sk_fab_plain', format: 'bom', write: false });
+    expect(out).toMatchObject({ ok: false, eligible: false, reason: expect.stringMatching(/fabricate_solid/) });
   });
 
   it('a frame without the planned joint is warned about, not refused', async () => {

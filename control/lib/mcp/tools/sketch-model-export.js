@@ -38,6 +38,7 @@ import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
 import { facesBox } from '@/lib/graph/scene/mesh-fit';
 import { nextMeshPath } from '@/lib/graph/scene/mesh-store';
+import { bomOf, bomCsv, bomMarkdown } from '@/lib/graph/fabricator/bom';
 import { glbNodeInventory, compareReturnContract } from '@/lib/graph/scene/blender-gate';
 import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
@@ -237,6 +238,47 @@ async function ifcExport(input, context) {
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
     attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
+  }
+  return result;
+}
+
+// ── format: 'bom' — what to buy, print and cut (lib/graph/fabricator/bom.js) ─────────────────────────────────────────
+// A fabricated row's plan (a frames row recounted through its frames) or a furniture row's hardware, as bom.csv for a
+// spreadsheet or a supplier's quick order and bom.md to read. Nothing to buy is not eligible, and says how to get a list.
+async function bomExport(input, context) {
+  const { ref, write = true } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  const bom = bomOf(sketch.manifest);
+  if (!bom) {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format: 'bom',
+      reason: "A bill of materials is read from a fabricated row (minted by fabricate_solid) or a furniture workbench row (frames with fittings); this row is neither. Say what its parts do with fabricate_solid({ needs }) and mint it there to get one.",
+    };
+  }
+  const title = sketch.title || sketch.manifest.title || ref;
+  const csv = bomCsv(bom);
+  const page = bomMarkdown(bom, { title, ref });
+  const result = {
+    ok: true, ref, kind, format: 'bom', source: bom.source, lines: bom.lines.length,
+    buy: bom.lines.filter((l) => l.kind === 'buy').length, print: bom.lines.filter((l) => l.kind === 'print').length, sheets: bom.lines.filter((l) => l.kind === 'sheet').length,
+    tools: bom.tools, notices: bom.notices,
+    note: 'bom.csv (one row per line, RFC 4180) and bom.md (buy, print, cut, tools, notices). Sizes are from typical tables; the supplier\'s datasheet rules.',
+  };
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'bom.csv'), csv);
+    await fs.writeFile(path.join(dir, 'bom.md'), page);
+    result.path = path.join(dir, 'bom.csv');
+    result.dir = dir;
+    result.files = ['bom.csv', 'bom.md'];
+    result.download_url = `${outcomeUrlFor(ref)}bom.csv`;
+    attachHandoff(result, context, { kind: 'file', name: 'bom.csv', path: result.path, dir, bytes: Buffer.byteLength(csv), download_url: result.download_url });
+  } else {
+    result.csv = csv;
   }
   return result;
 }
@@ -746,9 +788,9 @@ async function exportModel(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', ...SCAD_2D_FORMATS];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', ...SCAD_2D_FORMATS, 'bom'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg', 'bom' if provided");
   }
   if (('slice_z' in input || 'part' in input) && !SCAD_2D_FORMATS.includes(format)) throw new Error("`slice_z` and `part` apply to `format: 'dxf' | 'svg'` only");
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
@@ -759,6 +801,8 @@ async function exportModel(input, context = {}) {
   // ifc is the building model, not the World's faces: it reads the house the recipe builds.
   if (format === 'ifc') return ifcExport(input, context);
   if (format === 'blender') return blenderExport(input);
+  // bom is what to buy: read off the plan and the frames, not the faces.
+  if (format === 'bom') return bomExport(input, context);
   // dxf / svg are a flat part's drawing, cut by OpenSCAD from a scad row — not the World's faces.
   if (SCAD_2D_FORMATS.includes(format)) return scad2dExport(input, context);
   // html is the World PAGE, not a mesh: no print seams, no ledger of triangles, the same resolve.

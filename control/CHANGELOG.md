@@ -12,6 +12,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fabricator sizing
+
+A fabricated part is now the smallest stock size that holds its load, not the size its load class names. The rigidity
+sensor's own checks pick it, and the bill of materials exports for whoever buys and builds. Every existing kind builds
+byte-identically. A stored plan is frozen with its version (`fabricator-v0.3.0`), so a minted row keeps its sizes.
+
+- **Sized by strength** (`lib/graph/fabricator/sizing.js`, plan version `fabricator-v0.4.0`):
+  - Bolts: tension, shear, thread stripping and heat-set pull-out (`strength/checks.js` `bolt`).
+  - Bearings: the slimmest whose typical static rating carries its share, and its basic life when `rpm` is said.
+  - Steppers: by usable torque.
+  - Printed gears: by Lewis tooth bending.
+
+  The safety factor asked is the sensor's own, by how certain the load is (`certainty`). New need fields: `loadDir`,
+  `loadKind`, `certainty`, `material`, `grade`, `torqueNm`, `rpm`, `hours`. Each sized need carries `sizing` (size,
+  weakest mode, safety factor, the one asked, whether the load was assumed). A sized bolt line carries its `grade`.
+- **Honest failures.** No stock size holding passes the strategy over, and `refused` says why, so a heavy joint gets a
+  stronger strategy or a from-scratch design, never an undersized part. An unsaid load is assumed at 20 N, and `next`
+  says which needs assumed it. A given `size` is checked, never replaced, and `next` says when it is too weak.
+- **What changes in new plans:** a 300 N shaft on two bearings now takes the slim 688 (150 N each, safety factor near
+  4) where the load class took the 608. Four lid screws sharing 300 N stay M3 where the class took M5. A 3 kN pull on
+  one heat-set insert takes M8. Shelf coverage of the probe needs moves from 1157 to 1148 of 1530: loads no stock part
+  holds now resolve from scratch, as they should.
+- **`export_model({ ref, format: 'bom' })`** writes `bom.csv` (RFC 4180, one row per line) and `bom.md` (buy, print,
+  cut, tools, notices) beside the model. It reads a fabricated row's frozen plan (a frames row's fittings are recounted
+  from its stored frames, the same report the mint read) or any furniture workbench row's fittings and sheet cut list.
+  A row with nothing to buy is not eligible, and says how to get a list. A fabricated mint names the call in
+  `stats.fabrication.export`.
+
 ### Pack CLI
 
 - **`mojulo pack_x --json '{…}'` takes the pack call's own arguments.** Flags straight after the pack id are what

@@ -18,7 +18,7 @@
 //   licence     for an open row: the licence and attribution kept with what is made.
 export const INVENTORY = Object.freeze(Object.fromEntries([
   // ── fasteners ──
-  { id: 'socket-bolt', label: 'socket head cap screw', provenance: 'standard', standard: 'ISO 4762', buy: 'socket head cap screw, metric, A2 or 8.8', hardware: 'M3x10-socket', fit: 'mj_counterbore', print: 'mj_bolt' },
+  { id: 'socket-bolt', label: 'socket head cap screw', provenance: 'standard', standard: 'ISO 4762', buy: 'socket head cap screw, metric, in the grade the line names', hardware: 'M3x10-socket', fit: 'mj_counterbore', print: 'mj_bolt' },
   { id: 'hex-bolt', label: 'hex head bolt', provenance: 'standard', standard: 'ISO 4017', buy: 'hex head bolt, metric, 8.8', hardware: 'M6x30-hex', fit: 'mj_clearance_hole', print: 'mj_bolt' },
   { id: 'button-bolt', label: 'button head screw', provenance: 'standard', standard: 'ISO 7380', buy: 'button head socket screw, metric', hardware: 'M4x10-button', fit: 'mj_clearance_hole' },
   { id: 'csk-bolt', label: 'countersunk screw', provenance: 'standard', standard: 'ISO 10642', buy: 'countersunk socket screw, metric', hardware: 'M4x12-csk', fit: 'mj_countersink' },
