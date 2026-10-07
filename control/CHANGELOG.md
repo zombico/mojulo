@@ -12,6 +12,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Level graph
+
+A level is a graph of sections, and its layout is a behaviour of the graph. Trails already composed into levels by
+each naming the one it follows; this step writes the whole level down in one place, so a level can be read, laid out
+and documented as one thing. Nothing a section builds changes.
+
+- **The graph** (`lib/graph/level/graph.js`, `readLevel`). Nodes are sections (`trail` or `meru`, each its own recipe
+  less `id` and `after`, with its own `kit` and `seed` or the level's); edges are the joins (`seam` so far). One node
+  is the root, node 0: the origin of the level's frame, whatever kind of place it is (the first node listed unless
+  `root` names one). Where the player starts is a separate concern: `spawn` is a node and a place on it, the root's
+  entry unless it says otherwise. An unknown word is refused with the ones it knows.
+- **The sequential layout** (`level/sequential.js`, `layLevel`). It reads the graph as one walk from the root (a path,
+  however it twists in 3D; edges may be left out and the nodes read in the order listed) and compiles it to the
+  `after` chain the sections already follow: one stage recipe a section, in walking order. A trail then a meru
+  builds the pages the hand-written chain builds, byte for byte. A meru on another kit follows its trail in the
+  trail's own look. What it does not lay out yet is refused by name: a branch, a section after a meru, two trails in
+  a row in different looks.
+
 ### Mountain levelling
 
 A level where the walk goes up: a stack of tiers joined by connectors, apart from buildings and from indoors or
