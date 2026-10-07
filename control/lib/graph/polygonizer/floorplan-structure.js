@@ -39,6 +39,9 @@ import { shadeHex, shadeHexMat, makeLight, scaleHex } from './vexar.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import { generatePlan, generateProgramPlan, upperHallFits, resolveTier, furnishElements, orientElementsToDoor, archetypeArea, ARCHETYPES, makeSizer, SHARE_ASSETS, WALL_HUG_TYPES, SEAT_TUCK_TYPES, TALL_STORAGE_TYPES, ASSET_FACING_IN, nearestWallOf } from './floorplan-glyphs.js';
 import { getRoomFurnitureAsset } from '../architecture/room-assets.js';
+import { FURNISHINGS, pieceOfType } from '../furnishings/roster.js';
+import { FURNITURE_LANGUAGES, FURNITURE_LANGUAGE_NAMES, DEFAULT_LANGUAGE, COMPOSED_ROLES, composeForRole } from '../furnishings/languages.js';
+import { FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
 import { houseStyleOpts, houseStyleKey } from './floorplan-styles.js';
 import { doorApproaches } from '../worlds/movement-flow.js';
@@ -96,7 +99,10 @@ export const FLOORPLAN_DEFAULTS = {
   xrayWalls: false,        // opt-in: render the outer envelope as a see-through wireframe cage
   furnish: false,          // opt-in: populate each registered room with its archetype furniture
   furnishScale: 'feet',    // 'feet' (legacy: arrangers size pieces in fixed feet) | 'share' (preset share of the floor, banded + budgeted)
-  furnishing: null,        // opt-in: 'constructed' — the pieces built on the workbench (construction/facades.js) in place of the simpler ones
+  furnishing: null,        // opt-in: 'constructed' — the pieces built on the workbench (construction/facades.js) in place of the simpler ones;
+                           // 'composed' — each piece a style in the house's furniture language (furnishings/languages.js)
+  furnitureLanguage: null, // composed: a language (furnishings/languages.js) over the house style's
+  furniture: null,         // composed: { <role>: { like?, forms?, finish? } | 'omit' } for every room (a room's own `furniture` wins)
   contactShadows: false,   // opt-in: a soft ambient-occlusion decal on the floor under each piece of furniture (the unbaked tier's grounding)
   wallMaterial: null,      // opt-in: a procedural-material preset the interior paint swath carries into the World tier ('plaster'); needs wallDecor
   floorTexture: null,      // opt-in: a surface-textures tile on the floor finish — 'auto' (oak boards / carrara marble by style) | a tile key | null. World + exports; the CSS still keeps its fill
@@ -776,7 +782,65 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   if (!elements.length) return [];
   // `furnishing: 'constructed'`: the pieces built on the workbench, as facades, in place of the simpler ones
   if (o.furnishing === 'constructed') elements = elements.map(constructedPiece);
+  // `furnishing: 'composed'`: each piece a composed role names, in the house's furniture language (composedPieces)
+  else if (o.furnishing === 'composed') elements = composedPieces(elements, rect, seed, o);
+  if (!elements.length) return [];
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
+}
+
+// ── COMPOSED furnishing (furnishings/languages.js) ──────────────────────────────────────────────
+// Each generated piece whose roster role (furnishings/roster.js) a composed room fills becomes a style with forms and
+// a finish, chosen in the house's language — `furnitureLanguage`, else the house style's, else the default — seeded by
+// the house, the room and the role, so every chair at one table is the same chair and the next house differs. The
+// house's `furniture` and a room's own `furniture` ({ <role>: { like?, forms?, finish? } | 'omit' }, the room's
+// winning) override a role: a `like` starts from that style, forms and a finish alone swap over the language's pick,
+// 'omit' leaves the role out. Every other piece (a bed, a rug, the kitchen run) keeps its mesh.
+function composedPieces(elements, rect, roomSeed, o) {
+  const language = o.furnitureLanguage || (FURNITURE_LANGUAGES[o.styleName] ? o.styleName : DEFAULT_LANGUAGE);
+  const overrides = { ...(o.furniture || {}), ...((rect && rect.furniture) || {}) };
+  const chosen = new Map(), out = [];
+  for (const e of elements) {
+    const id = pieceOfType(e.type), role = id ? FURNISHINGS[id].role : null;
+    if (!role || !COMPOSED_ROLES.includes(role)) { out.push(e); continue; }
+    const ov = overrides[role];
+    if (ov === 'omit') continue;
+    if (!chosen.has(role)) chosen.set(role, composedOverride(composeForRole(language, role, { houseSeed: o._composeSeed ?? 1, roomSeed, palette: o.furnishFinish }), ov));
+    const row = FURNISHINGS[id];
+    // the group names the style that landed (`asset:composed-furniture:<style>[-<instance>]`), so a reader sees what stands
+    const c = chosen.get(role);
+    out.push({ ...e, asset: 'composed-furniture', compose: c, composeFallback: e.asset || row.asset || row.wears || null, instance: e.instance ? `${c.like}-${e.instance}` : c.like });
+  }
+  return out;
+}
+const composedOverride = (base, ov) => {
+  if (!ov || typeof ov !== 'object') return base;
+  if (ov.like && ov.like !== base.like) return { like: ov.like, forms: ov.forms || {}, finish: ov.finish || {} };
+  return { like: base.like, forms: { ...base.forms, ...(ov.forms || {}) }, finish: { ...base.finish, ...(ov.finish || {}) } };
+};
+
+/** Why a composed furnishing's language or overrides are malformed → string[], each naming what is valid. Checked once
+ *  per house, so a bad override fails the mint rather than falling back to a mesh in silence. */
+export function composedFurnishingErrors(o, rooms = []) {
+  const e = [];
+  if (o.furnitureLanguage != null && !FURNITURE_LANGUAGES[o.furnitureLanguage]) e.push(`furnitureLanguage: one of ${FURNITURE_LANGUAGE_NAMES.join(', ')}`);
+  const lang = FURNITURE_LANGUAGES[o.furnitureLanguage] || FURNITURE_LANGUAGES[o.styleName] || FURNITURE_LANGUAGES[DEFAULT_LANGUAGE];
+  const check = (map, at) => {
+    if (map == null) return;
+    if (typeof map !== 'object' || Array.isArray(map)) { e.push(`${at}: { <role>: { like?, forms?, finish? } | 'omit' }`); return; }
+    for (const [role, ov] of Object.entries(map)) {
+      if (!COMPOSED_ROLES.includes(role)) { e.push(`${at}.${role}: a role a composed room fills, one of ${COMPOSED_ROLES.join(', ')}`); continue; }
+      if (ov === 'omit') continue;
+      if (!ov || typeof ov !== 'object') { e.push(`${at}.${role}: { like?, forms?, finish? } or 'omit'`); continue; }
+      const kind = FURNITURE_STYLES[lang.styles[role][0]].kind;
+      try {
+        const r = resolveFurniture(ov.like ? { like: ov.like, forms: ov.forms, finish: ov.finish } : { kind, forms: ov.forms, finish: ov.finish });
+        if (r.locked.kind !== kind) e.push(`${at}.${role}.like: '${ov.like}' is a ${r.locked.kind}; the ${role} is a ${kind}`);
+      } catch (err) { e.push(`${at}.${role}: ${err.message.replace(/^furniture: /, '')}`); }
+    }
+  };
+  check(o.furniture, 'furniture');
+  rooms.forEach((r, i) => check(r && r.furniture, `rooms[${i}].furniture`));
+  return e;
 }
 
 // arranger type (or the mesh it was given) → the constructed facade that stands in for it (room-assets.js)
@@ -1111,8 +1175,8 @@ function furnishRoom(room, baseZ, o, doorEdge = null, doorWalls = null, windowWa
     const faces = []; let c = 0;
     room.zones.forEach((g, i) => {
       const len = span * weights[i] / total;
-      const sub = horiz ? { x: room.x + c, y: room.y, w: len, h: room.h }
-        : { x: room.x, y: room.y + c, w: room.w, h: len };
+      const sub = horiz ? { x: room.x + c, y: room.y, w: len, h: room.h, ...(room.furniture ? { furniture: room.furniture } : {}) }
+        : { x: room.x, y: room.y + c, w: room.w, h: len, ...(room.furniture ? { furniture: room.furniture } : {}) };
       // the kitchen sits at the FAR end of the core (zones ordered so K is last) → run its
       // counter along that exterior end wall: x1 ('E') for a horizontal core, y1 ('S') for a vertical one.
       const wall = (g === 'K' && i === room.zones.length - 1) ? (horiz ? 'E' : 'S') : null;
@@ -1723,6 +1787,13 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   const plan = Array.isArray(input.rooms)
     ? { rooms: input.rooms, halls: input.halls || [], doors: input.doors || [], width: input.width, height: input.height, seed: input.seed }
     : generatePlan(input.seed ?? 1, { width: input.width, height: input.height, maxDepth: input.maxDepth, corridors: input.corridors ?? false, minRoom: input.minRoom });
+  // composed furnishing: the language and every override checked once (a bad one fails the mint, never falls back
+  // to a mesh in silence), and the house's seed kept for the per-room picks
+  if (o.furnishing === 'composed') {
+    const errs = composedFurnishingErrors(o, plan.rooms);
+    if (errs.length) throw new Error(`composed furnishing:\n- ${errs.join('\n- ')}`);
+    if (o._composeSeed == null) o._composeSeed = plan.seed ?? input.seed ?? 1;
+  }
   // ONE-CELL DEFAULTS (room-realism.plan.md phase 0). An explicit single furnished cell
   // is "make me a living room": every wall is envelope, so the opt-in posture tuned for
   // generated houses (windows/entry placed by structurizeHouse; bare slab) leaves it a

@@ -25,6 +25,16 @@ Every furnishing knob defaults OFF on a generated plan: `furnish`, `windows`, `c
   a house style's finish colours their cloth and wood. Any item can name one: `asset:
   'constructed-sofa'` (`-armchair`, `-chesterfield`, `-coffee-table`, `-dining-table`, `-chair`,
   `-bookcase`, `-media-console`, `-sideboard`, `-chest`, `-nightstand`).
+- `furnishing: 'composed'` — the same pieces become composed furniture (`get_solid_vocab({ id: 'furniture' })`)
+  in the house style's furniture language: a cottage gets roll-arm sofas, turned legs and linen, a brick house
+  chesterfields and club chairs in velvet and tweed, a modern one tapered legs and bouclé. Each room picks per role,
+  seeded by the house, so the chairs round one table match, re-rolling the seed refurnishes, and one house keeps one
+  timber. Each piece's group names its style (`asset:composed-furniture:chesterfield-main`). `furnitureLanguage:
+  'cottage' | 'brick' | 'modern' | 'tofu' | 'mission'` overrides the style's; `furniture: { <role>: { like?, forms?,
+  finish? } | 'omit' }` (roles: sofa, easy-chair, dining-chair, coffee-table, dining-table, bookcase, media,
+  sideboard, dresser, nightstand) sets a role in every room, and a room's own `furniture` wins: `{ sofa: { like:
+  'chesterfield', finish: { fabric: 'tartan' } } }`, `{ 'easy-chair': { forms: { legs: 'bun' } } }`, `{ media:
+  'omit' }`. A bad override is refused naming what is valid. Display pieces, not checked for building.
 - In share mode the entry gets a bench under a picture, the storage room shelving and a cabinet,
   tables and desks their tabletop pieces; chairs are never dropped for a door approach, and a
   wall piece in a door's way (or tall storage on a windowed wall) moves to a clear wall. Interior

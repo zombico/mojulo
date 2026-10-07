@@ -88,7 +88,8 @@ describe('one piece, one row: the legacy tables are all claimed', () => {
 
   it('gives every room mesh to a row, as the mesh it owns or its constructed stand-in', () => {
     const meshes = new Set(IDS.flatMap((id) => handlesOf(id).meshes));
-    expect(Object.keys(ROOM_FURNITURE_ASSETS).filter((a) => !meshes.has(a))).toEqual([]);
+    // 'composed-furniture' is no piece: it draws whichever style a composed room locks (furnishings/languages.js)
+    expect(Object.keys(ROOM_FURNITURE_ASSETS).filter((a) => !meshes.has(a) && a !== 'composed-furniture')).toEqual([]);
   });
 
   it('lets no two rows own one type, spelling or mesh', () => {

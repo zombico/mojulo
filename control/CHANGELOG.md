@@ -23,6 +23,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Furniture grammar
 
+- **Composed houses: `furnishing: 'composed'`.** Each furnished room's sofa, easy chairs, dining chairs, tables and
+  casework become composed pieces in the house style's furniture language
+  ([lib/graph/furnishings/languages.js](lib/graph/furnishings/languages.js)): per style, the styles a role may take,
+  and the legs, cloths and timbers its pieces wear. A cottage gets roll-arm sofas, turned legs and linen; a brick
+  house chesterfields and club chairs in velvet and tweed; a modern one tapered and hairpin legs and bouclé. Each room
+  picks per role, seeded by the house, the room and the role: every chair round one table is the same chair, one
+  house keeps one timber, a plain cloth takes the house palette's colour, and re-rolling the seed refurnishes. Each
+  piece's group names the style that landed (`asset:composed-furniture:chesterfield-main`). A media console keeps
+  its television and a nightstand its lamp. `furnitureLanguage` overrides the house style's language. `furniture:
+  { <role>: { like?, forms?, finish? } | 'omit' }` sets a role in every room, and a room's own `furniture` wins. A
+  bad language or override is refused once per house, naming what is valid. Beds, rugs, lamps and the kitchen run
+  keep their meshes. Absent the opt-in, every house is byte-identical. Cost: a composed living room is about 1.1 s to
+  build the first time (39 ms cached) and about 3.4× the faces of a mesh room.
+
 - **A piece is a kind, a form in each slot, a finish and a size**
   ([lib/graph/furnishings/forms.js](lib/graph/furnishings/forms.js)), the way a bug is a bauplan.
   - Kinds are `sofa`, `chair`, `table` and `casework`, over the workbench builds.

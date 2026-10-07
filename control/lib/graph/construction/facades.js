@@ -130,13 +130,14 @@ export function facadeFaces(kind, { w, d, h, unitMm = FT, palette = null, light 
 /** A LOCKED piece (furnishings/forms.js resolveFurniture) → its faces in a unit of `unitMm` millimetres: centred, on
  *  the floor, facing +y. At the build's own size, or with `fit` scaled per axis to the lock's `sizeMm` exactly (an
  *  asset fills the size it is given, as a room's facade fills its footprint). */
-export function lockedFurnitureFaces(locked, { unitMm = FT, light = null, fit = false } = {}) {
+export function lockedFurnitureFaces(locked, { unitMm = FT, light = null, fit = false, dress = null } = {}) {
   if (!locked || !locked.build) throw new Error('facade: a locked piece { kind, build, legs, sizeMm, fabric?, tint? }');
   const L = light || ROOM_LIGHT;
-  const key = JSON.stringify(['locked', locked, unitMm, L, fit]);
+  const key = JSON.stringify(['locked', locked, unitMm, L, fit, dress]);
   if (CACHE.has(key)) return CACHE.get(key);
   const spec = frameOf(locked.kind, locked);
-  const { faces, lo, hi } = lowerFacade(locked.kind, spec, L);
+  // `dress` names a facade kind whose room dressing the piece takes (a media console's television, a nightstand's lamp)
+  const { faces, lo, hi } = lowerFacade(dress || locked.kind, spec, L);
   const k = 1 / unitMm;
   const scale = fit ? [0, 1, 2].map((a) => (locked.sizeMm[a] / (hi[a] - lo[a])) * k) : [k, k, k];
   return remember(key, place(faces, lo, hi, scale));
