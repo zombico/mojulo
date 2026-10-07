@@ -96,6 +96,19 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
 - **Both starters are six rooms.** The crypt's walk runs nave, gallery, passage, charnel, chapel and sepulchre, turning
   back to end beside where it began; the catacomb's runs a stair, two galleries, a cubiculum, a crossing and the
   ossuary. Both open under the stage page budget (`stage-budget.test.js`).
+- **Art direction comes first.** A room-kit stage recipe takes `art: 'propose'`: at create_sketch the palette (ramps,
+  shade end cool, light end warm), materials (texture numbers; colours from the palette), architecture (proportions and
+  the vault's rise) and motifs (the niche, the accent wall, the corner things) are rolled by seeded dice inside the
+  kit's rails (`lib/graph/era/art-direction.js`) and stored in the recipe as numbers, each item `proposed`. The answer
+  carries the art board as an image: five panels in mojulo's own SVG (`art-board.js`) with the actual tiles, a wall
+  elevation and room section drawn from the proportions, motif glyphs and the floor plan, rasterized by sharp (without
+  it the answer says so and carries the readout). Approve an item with a patch to `/art/status/<item>`; send one back
+  with `/art/<item>: 'reroll'`; `art: 'auto'` is hands off. The recipe's own `tiles` and `proportions` still win. No new
+  tool. Every roll keeps the kit's laws (`art-direction.deep.test.js`). Absent `art`, nothing changes.
+- **Bricks take a radius and a shadow.** `stone-brick` tiles take `radius` (corners rounded, 1 makes each stone a disc)
+  and `shadow` (each stone casts a soft box-shadow into the joint below and to its right); `rows` and `cols` now run
+  to 12. The crypt's walls and accent wall use both; the ossuary's courses are now discs, bone ends seen end-on. Absent,
+  every preset tile is byte-identical.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

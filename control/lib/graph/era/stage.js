@@ -33,6 +33,7 @@ import { naveDress } from './nave.js';
 import { cryptDress } from './crypt.js';
 import { CRYPT } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
+import { kitWithArt, artForBuild } from './art-direction.js';
 import { plazaDress } from './plaza-dress.js';
 import { DELFINO_PLAZA } from './style/delfino-plaza.js';
 import { RESEARCH_LAB } from './style/research-lab.js';
@@ -86,7 +87,7 @@ export const STAGE_KITS = ({
 export const CRYPT_GRIME = 0.5;
 /** The crypt's wall at a grime: the bluestone courses, worn as long as the place has stood. */
 function cryptWallFamily(g) {
-  return tileFamilyOf({ gen: 'stone-brick', stone: [118, 128, 140], mortar: [70, 78, 88], rows: 6, cols: 4, mortarThick: 0.1, vary: 28, grain: 11, bevel: 0.2,
+  return tileFamilyOf({ gen: 'stone-brick', stone: [118, 128, 140], mortar: [70, 78, 88], rows: 6, cols: 4, radius: 0.18, shadow: 0.5, mortarThick: 0.1, vary: 28, grain: 11, bevel: 0.2,
     accent: 0.14, accentDark: 40, accentLight: 26, jointDepth: r5(0.25 + 0.65 * g), grime: r5(g), chips: r5(0.1 + 0.5 * g) });
 }
 /** A kit at a grime: blends scaled (as a share of the card's own at the default), the crypt's wall re-worn. */
@@ -269,11 +270,15 @@ export function planStage(m = {}) {
   const kitId = resolveKitId(m.kit || 'gothic-stone');
   const kit0 = STAGE_KITS[kitId];
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
-  const kitT = m.tiles ? withRecipeTiles(kit0, kitId, m.tiles) : kit0;
+  // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
+  // proportions are then laid over it, surface by surface
+  const artA = m.art !== undefined ? kitWithArt(kit0, kitId, artForBuild(kitId, m.art), STAGE_KIT_PROPORTIONS[kitId] || []) : null;
+  const kitArt = artA ? withRecipeTiles(artA.kit, kitId, artA.tiles) : kit0;
+  const kitT = m.tiles ? withRecipeTiles(kitArt, kitId, m.tiles) : kitArt;
   // the recipe's own proportions (tile-specs.js PROPORTION_RAILS) over the kit's: its columns, plinths, bays, doors
   const kitP = m.proportions ? { ...kitT, ...proportionsOver(kitT, kitId, m.proportions, STAGE_KIT_PROPORTIONS[kitId] || []) } : kitT;
   if (m.grime !== undefined && !(typeof m.grime === 'number' && m.grime >= 0 && m.grime <= 1)) throw new Error('stage: grime is a number from 0 (just built) to 1 (abandoned for centuries)');
-  const kit = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall)) : kitP;
+  const kit = m.grime !== undefined ? withGrime(kitP, kitId, m.grime, !!(m.tiles && m.tiles.wall) || !!artA) : kitP;
   const refId = resolveLook(m.reference || 'gothic-night');
   const ref = SIXTH_GEN_REFERENCES[refId];
   if (!ref) throw new Error(`stage: unknown reference '${m.reference}' (known looks: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);

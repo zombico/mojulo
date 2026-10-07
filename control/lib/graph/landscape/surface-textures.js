@@ -548,18 +548,36 @@ function stoneBrickPng(cfg, { size = 256, seed = 1 } = {}) {
   // stone's edges; `grime` runs streaks down from each bed joint; `chips` breaks the stone's arrises back to the joint
   const jd = cfg.jointDepth ?? 0, gr = cfg.grime ?? 0, chp = cfg.chips ?? 0, worn = jd > 0 || gr > 0 || chp > 0;
   const hx = (brickW / courseH) * 0.5;                                                 // head-joint distances in course units
+  // RADIUS, opt-in (absent ⇒ every byte as before): each stone's corners rounded, as a share (0–1) of its shorter half
+  // side — a little softens the grid, 1 makes a stone a disc or a stadium (bone ends, cobbles, river stones)
+  const rad = cfg.radius ?? 0, bw = hx * 2, sx0 = mt * 0.5 * bw, sx1 = (1 - mt * 0.5) * bw, rr = rad * Math.min((1 - 2 * mt) / 2, (sx1 - sx0) / 2);
+  // SHADOW, opt-in (absent ⇒ every byte as before): each stone casts a soft shadow into the mortar below and to its
+  // right, lit from the top left (a box-shadow): the joint reads as a recess, the stone as standing proud of it
+  const sh = cfg.shadow ?? 0, so = mt * courseH * 1.1;
+  const stoneAt = (x, y) => {   // is texel (x, y) stone? (the joint test, wrapped so the shadow tiles seamlessly)
+    const yy = ((y % H) + H) % H, rf = yy / courseH, row = rf | 0, fy = rf - row, xf = (((x % W) + W) % W) / brickW + (row % 2) * 0.5, fx = xf - Math.floor(xf);
+    if (fy < mt || fy > 1 - mt || fx < mt * 0.5 || fx > 1 - mt * 0.5) return false;
+    if (rr <= 0) return true;
+    const px = fx * bw, cx = Math.min(Math.max(px, sx0 + rr), sx1 - rr), cy = Math.min(Math.max(fy, mt + rr), 1 - mt - rr);
+    return Math.hypot(px - cx, fy - cy) <= rr;
+  };
   for (let y = 0; y < H; y++) {
     const rf = y / courseH, row = rf | 0, fy = rf - row, offset = (row % 2) * 0.5;     // running bond half-shift
     for (let x = 0; x < W; x++) {
       const xf = x / brickW + offset, col = (((xf | 0) % cols) + cols) % cols, fx = xf - Math.floor(xf), o = (y * W + x) * 3;
       let joint = fy < mt || fy > 1 - mt || fx < mt * 0.5 || fx > 1 - mt * 0.5;       // bed + head joints
       // the stone's distance to its nearest joint, in course heights
-      const edge = worn ? Math.min(fy - mt, 1 - mt - fy, (fx - mt * 0.5) * hx * 2, (1 - mt * 0.5 - fx) * hx * 2) : 1;
+      let edge = worn ? Math.min(fy - mt, 1 - mt - fy, (fx - mt * 0.5) * hx * 2, (1 - mt * 0.5 - fx) * hx * 2) : 1;
+      if (rr > 0 && !joint) {
+        const px = fx * bw, cx = Math.min(Math.max(px, sx0 + rr), sx1 - rr), cy = Math.min(Math.max(fy, mt + rr), 1 - mt - rr), d = Math.hypot(px - cx, fy - cy);
+        if (d > rr) joint = true; else if (d > 0) edge = Math.min(edge, rr - d);
+      }
       if (!joint && chp > 0 && edge < 0.07 && n.fbm(x / W * 3, y / H * 3, 40, 2) > 1 - chp * 0.55) joint = true;
       if (joint) {
         const mn = (n.fbm(x / W, y / H, 8, 3) - 0.5) * 10;
         const deep = jd > 0 ? jd * 34 * (1 - Math.min(1, Math.abs(Math.min(fy, 1 - fy, fx * hx * 2, (1 - fx) * hx * 2)) / mt)) : 0;
-        for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(mortar[ch] + mn - deep);
+        const cast = sh > 0 ? sh * (34 * stoneAt(x - so * 0.5, y - so) + 26 * stoneAt(x - so * 0.25, y - so * 0.5)) : 0;
+        for (let ch = 0; ch < 3; ch++) rgb[o + ch] = clamp(mortar[ch] + mn - deep - cast);
       } else {
         const g = (n.fbm(x / W + col * 0.13, y / H + row * 0.17, 10, 4) - 0.5) * grain * 2;
         const bev = (0.5 - fy) * bevel * 120;                                            // lighter top, darker bottom → carved relief

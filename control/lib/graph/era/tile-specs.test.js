@@ -10,7 +10,7 @@ const world = (manifest) => resolveWorldScene({ ref: 'sk_tiles_test', title: 'ti
 
 describe('tile specs: the rails', () => {
   it('refuses what is outside them, naming the range or the list', () => {
-    expect(() => normalizeTileSpec({ ...WALL, rows: 40 })).toThrow(/rows: an integer from 3 to 10/);
+    expect(() => normalizeTileSpec({ ...WALL, rows: 40 })).toThrow(/rows: an integer from 3 to 12/);
     expect(() => normalizeTileSpec({ ...WALL, rows: 4.5 })).toThrow(/integer/);
     expect(() => normalizeTileSpec({ ...WALL, stone: [300, 0, 0] })).toThrow(/0–255/);
     expect(() => normalizeTileSpec({ ...WALL, shine: 1 })).toThrow(/not a stone-brick setting/);

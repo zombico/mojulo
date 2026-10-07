@@ -29,7 +29,7 @@ export const CRYPT = Object.freeze({
   // standing `out` proud; a second tier where the wall is tall; a share of them hold an urn
   niches: { head: 'round', tiers: 2, w: 1.3, h: 0.5, sill: 0.55, gap: 0.5, frame: 0.12, out: 0.08, dark: [0.16, 0.15, 0.15], urns: 0.3, urn: [0.6, 0.48, 0.38] },
   // the accent wall's stone: half the courses of the walls round it, warmer and darker, worn
-  accent: { stone: { stone: [112, 96, 86], mortar: [58, 50, 44], rows: 3, cols: 2, bevel: 0.3, vary: 26, accent: 0.1, jointDepth: 0.75, grime: 0.45, chips: 0.35 }, tint: [0.86, 0.84, 0.82] },
+  accent: { stone: { stone: [112, 96, 86], mortar: [58, 50, 44], rows: 3, cols: 2, radius: 0.22, shadow: 0.6, bevel: 0.3, vary: 26, accent: 0.1, jointDepth: 0.75, grime: 0.45, chips: 0.35 }, tint: [0.86, 0.84, 0.82] },
   // the corner things (era/props.js): which kinds, and the share of bare wall bases that get one
   props: { kinds: ['crate', 'barrel', 'planks', 'stones', 'boulder', 'debris'], share: 0.45, rock: 'basalt', tone: '#66625c' },
   // candles in a cluster at each dais corner: wax, a flame card, a small warm light baked like a torch

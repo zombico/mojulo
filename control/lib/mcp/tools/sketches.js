@@ -39,6 +39,7 @@ import {
   updateSketchHandler,
 } from './sketch-mint.js';
 import { getSketchVocabHandler, getStyleVocabHandler } from './sketch-vocab.js';
+import { withArtBoard } from './art-board-result.js';
 import { diffSketchesHandler } from './sketch-diff-tool.js';
 import {
   createPolygonizedSketchHandler,
@@ -113,7 +114,7 @@ export function registerSketchTools() {
       },
       required: ['title', 'manifest'],
     },
-    handler: createSketchHandler,
+    handler: withArtBoard(createSketchHandler),
   }, {
     edits: [[PAINTED_KINDS_CLAUSE, '']],
   }));
@@ -179,7 +180,7 @@ export function registerSketchTools() {
       },
       required: ['ref'],
     },
-    handler: updateSketchHandler,
+    handler: withArtBoard(updateSketchHandler),
   }, {
     edits: [
       [", edifices, views, image-outcomes, kind:'game'.", ", edifices, views, kind:'game'."],

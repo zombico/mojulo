@@ -18,7 +18,7 @@ const RGB = { rgb: true };
 /** Each generator's settings: `rgb` a colour, `lo..hi` a number (integers where `int`), `of` one of a list. */
 export const TILE_RAILS = Object.freeze({
   'stone-brick': { required: ['stone', 'mortar'], keys: {
-    stone: RGB, mortar: RGB, rows: int(3, 10), cols: int(2, 6), mortarThick: num(0.04, 0.18), vary: num(4, 44), grain: num(2, 20),
+    stone: RGB, mortar: RGB, rows: int(3, 12), cols: int(2, 12), radius: num(0, 1), shadow: num(0, 1), mortarThick: num(0.04, 0.18), vary: num(4, 44), grain: num(2, 20),
     bevel: num(0, 0.4), accent: num(0, 0.3), accentDark: num(0, 60), accentLight: num(0, 50), jointDepth: num(0, 1), grime: num(0, 1),
     chips: num(0, 1), seed: int(1, 99999) } },
   flagstone: { required: ['stone', 'mortar'], keys: {

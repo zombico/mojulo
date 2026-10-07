@@ -13,6 +13,7 @@
  * No card names a game, a studio or a console: the reference cards keep that research record, and a card describes
  * what each look and kit offers so the agent can match an ask to it on its own.
  */
+import { ART_KITS } from './art-direction.js';
 import { STAGE_KITS, STAGE_KIT_PROPORTIONS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
 import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
@@ -110,6 +111,7 @@ export function kitCard(kitId) {
     `SHELL      ${isRooms(kit) ? `rooms: axis-aligned boxes on a ${kit.grid} m grid, bays every ${kit.bay} m, a doorway where two rooms share a wall` : 'open ground: no rooms, the builder lays the site (trail, cliff, planting) from its style card'}`,
     `LOOK       ${ref ? `pairs with '${ref}' (card 'look/${ref}'); any look can be set with "reference"` : isRooms(kit) ? `none pairs with it; "reference" sets the look (default gothic-night)` : 'its own: the style card carries the light and air'}`,
     `OPTIONS    ${opts.length ? opts.join(' · ') : 'none beyond the kit'}`,
+    ...(ART_KITS.includes(kitId) ? ['ART        "art": "propose" (a board to approve, item by item) or "auto" (hands off); card \'stage\''] : []),
     `ERA        ${ERA}`,
     ...(kitLaws(kit).length ? [`LAWS       ${kitLaws(kit).join(', ')} (card 'sixth-gen-laws')`] : []),
   ];
@@ -157,6 +159,7 @@ export function stageHubCard() {
     '# Stage: a level built the sixth-gen way', '',
     `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
     'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], … } — rooms only for a room kit; an open-ground kit takes none',
+    '', `ART FIRST (room kits ${ART_KITS.join(', ')})  "art": "propose" mints with a direction (palette, materials, architecture, motifs, plan) and answers with its board as an image: show it, then per item update_sketch patch /art/status/<item> "approved", or /art/<item> "reroll". "art": "auto" is hands off.`,
     '', 'KITS (card stage/<id>)', ...kits.map((k) => `  - ${k}: ${isRooms(STAGE_KITS[k]) ? 'rooms' : 'open ground'}. ${clip(kitSummary(k, STAGE_KITS[k]))}`),
     '', 'LOOKS (card look/<id>, set as "reference")', ...looks.map((l) => `  - ${l}: ${lookRef(l).setting}; ${lookRef(l).light.contrast} contrast, ${lookRef(l).air.sky} sky`),
     ...(missing.length ? ['', `Named, not built: the kits for ${missing.map((l) => `${l} ('${lookRef(l).kit}')`).join(', ')}. Their looks still apply to a built kit.`] : []),

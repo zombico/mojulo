@@ -27,8 +27,9 @@ export const CATACOMB = Object.freeze({
   niches: { head: 'flat', tiers: 4, w: 1.7, h: 0.42, sill: 0.25, gap: 0.3, frame: 0.08, out: 0.05, dark: [0.1, 0.09, 0.08], urns: 0.12, urn: [0.6, 0.44, 0.32],
     sealed: 0.4, slab: [0.92, 0.88, 0.8] },
   // the ossuary wall: courses of bone ends (pale, small, rounded) and skulls on ledges
-  // (`repeat`: the tile laid that many times denser than the wall's, so the bone ends are hand-sized, not bricks)
-  accent: { stone: { stone: [150, 136, 112], mortar: [40, 33, 27], rows: 10, cols: 6, mortarThick: 0.18, bevel: 0.4, vary: 40, grain: 6, jointDepth: 0.9, grime: 0.5, chips: 0.3 },
+  // (`radius: 1` rounds each course stone to a disc, a bone seen end-on; `repeat` lays the tile that many times denser
+  // than the wall's, so the bone ends are hand-sized)
+  accent: { stone: { stone: [150, 136, 112], mortar: [40, 33, 27], rows: 10, cols: 10, radius: 1, shadow: 0.85, mortarThick: 0.18, bevel: 0.4, vary: 40, grain: 6, jointDepth: 0.9, grime: 0.5, chips: 0.3 },
     repeat: 2.6, tint: [0.86, 0.84, 0.8], skulls: { rows: [0.95, 1.8, 2.65, 3.5], r: 0.15, gap: 0.4, tone: [1, 0.95, 0.84], ledge: [0.34, 0.3, 0.27] } },
   props: { kinds: ['amphora', 'bones', 'stones', 'debris', 'planks'], share: 0.5, rock: 'basalt', tone: '#7a6e60' },
   // the view the walk leads to: from the way into the last chamber, a little high, on the sarcophagus and the wall behind

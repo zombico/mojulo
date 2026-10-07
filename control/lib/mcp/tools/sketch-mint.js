@@ -10,6 +10,7 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { resolveArt } from '../../graph/era/art-direction.js';
 import path from 'node:path';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
@@ -458,6 +459,9 @@ function isWorldRecipe(manifest) {
 // Creation from an exported world recipe pays the same gates as a whole-manifest edit.
 // This does not reinterpret it as authoring knobs or import assets from another filesystem.
 async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false, solveOps = [] }) {
+  // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
+  // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
+  manifest = resolveArt(manifest);
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world
