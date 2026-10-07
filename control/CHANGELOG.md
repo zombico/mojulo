@@ -66,6 +66,16 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   moss and grime blended by cause (the nave's blends, now `blendsByCause` for any kit); a limewash vault darker than the
   walls; a `tomb` camera that frames the set piece from the way in. Passes 6 of 6. The nave and the plaza are cut from
   gothic-stone's original numbers and are unchanged. Authored `lights` still replace the torches; the candles stay.
+- **Repeating elements, an accent wall, corner things.** Three new laws (`repeat-adjacent`, `accent-wall`,
+  `corner-things`), stated on the crypt's card and checked: every bare bay of the crypt carries the same framed burial
+  niche (in two tiers on a tall wall, an urn in some), never in a doorway; the wall behind the tomb is the accent, its
+  courses cut in larger, darker ashlar named from its numbers and bare of niches; and `lib/graph/era/props.js` gathers
+  crates, barrels, leaning planks, stones, a boulder and debris where floor meets wall, clusters in the corners and
+  singles at the wall bases, off the walking line, out of doorways and clear of the tomb, never two of a kind side by
+  side. Any room kit's dressing can name its own `props: { kinds, share }`. `checkStageLaws` takes `only`, so a kit is
+  read against the laws its own card states.
+- **Real fire in the crypt's starter.** The kit card's starter carries `fire: true`: its torches burn through the fire
+  channel. The candles stay baked lights.
 - **Grime is a setting.** `grime: 0…1` on a room-kit recipe scales the dressing's moss and grime, the baked dirt (soot,
   damp, age, traffic) and the crypt's own wall wear together; the crypt stands at 0.5.
 - **Brick wears.** `stone-brick` tiles take `jointDepth` (recessed mortar, grime along the arrises), `grime` (streaks

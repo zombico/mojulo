@@ -39,8 +39,8 @@ function seen(faces, sel, where = () => true) {
   return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
 }
 
-/** Read the laws off a room stage's payload. */
-export function checkStageLaws(payload) {
+/** Read the laws off a room stage's payload; `only` names the laws to keep (a kit's card states its own). */
+export function checkStageLaws(payload, { only = null } = {}) {
   const faces = payload.faces || [], torches = (payload.lights || []).map((l) => l.position);
   const g = (name) => (f) => f.group === `stage:${name}`;
   const nearTorch = (c) => torches.some((t) => near(c, t, 1.6));
@@ -68,7 +68,14 @@ export function checkStageLaws(payload) {
   const doorTop = Math.max(0, ...faces.filter((f) => f.group === 'stage:door').flatMap((f) => f.corners.map((c) => c[2])));
   const focus = faces.some((f) => typeof f.group === 'string' && f.group.startsWith('stage:focus')) || doorTop >= 5;
   add('focus', focus, focus ? 'a set piece stands' : 'no set piece holds the eye');
+  // the composition the crypt's card adds: a repeating element on the bare walls, one accent wall, corner things
+  const motif = faces.filter((f) => f.group === 'stage:motif'), accentPlanes = new Set(faces.filter((f) => f.group === 'stage:accent').map((f) => f.normal.join()));
+  add('repeat-adjacent', motif.length > 0, motif.length ? `${faces.filter((f) => f.group === 'stage:niche').length} niche faces framed by ${motif.length}` : 'no repeating element on the bare walls');
+  add('accent-wall', accentPlanes.size === 1, accentPlanes.size === 1 ? 'one accent wall' : `${accentPlanes.size} accent walls`);
+  const props = faces.filter((f) => f.group === 'stage:prop');
+  add('corner-things', props.length > 0, props.length ? `${props.length} prop faces at the wall bases` : 'nothing where floor meets wall');
   const darkest = Math.min(...faces.filter((f) => f.cornerFills && !f.blend).flatMap((f) => f.cornerFills.map((h) => Math.max(...hex(h)))));
   add('shade-is-colour', darkest > 0.03, `darkest corner ${darkest.toFixed(3)}`);
-  return { values: v, laws: out, passed: out.filter((x) => x.ok).length, of: out.length };
+  const kept = only ? out.filter((x) => only.includes(x.law)) : out;
+  return { values: v, laws: kept, passed: kept.filter((x) => x.ok).length, of: kept.length };
 }

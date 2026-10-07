@@ -32,7 +32,7 @@ const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab']);
 
 /** A recipe each kit is known to build (the shapes its own tests mint); an open-ground kit needs only its id. */
 const KIT_STARTERS = {
-  'gothic-stone': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }], links: [{ from: 'nave', to: 'gallery' }] },
+  'gothic-stone': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }], links: [{ from: 'nave', to: 'gallery' }], fire: true },
   'gothic-nave': { rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 24, h: 13 }] },
   'island-plaza': { rooms: [{ id: 'plaza', x: 0, y: 0, w: 26, d: 22, h: 12, open: ['-y', '+x'] }] },
   'research-lab': { rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }] },

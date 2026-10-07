@@ -10,6 +10,9 @@
 import { hash3, walkLine } from './dirt.js';
 import { P, r5, box, card as cardRaw, hexRgb } from './geom.js';
 import { blendsByCause } from './nave.js';
+import { cornerThings } from './props.js';
+import { tileFamilyOf } from './tile-specs.js';
+import { panel, wallBox } from './geom.js';
 import './leaf-cards.js';
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -98,6 +101,77 @@ export function cryptCobwebs(plan, pilasters) {
   return out;
 }
 
+/** The walls of the plan, each with its pilasters in order: the bays between two neighbours are its runs of bare wall. */
+function wallsOf(pilasters) {
+  const by = new Map();
+  for (const p of pilasters) { const k = `${p.room}|${p.F.o.join()}|${p.F.U.join()}`; if (!by.has(k)) by.set(k, { F: p.F, room: p.room, ps: [] }); by.get(k).ps.push(p); }
+  for (const w of by.values()) w.ps.sort((a, b) => a.k - b.k);
+  return [...by.values()];
+}
+
+/** Whether a doorway opens in the wall `F` between `u0` and `u1` (its centre on the wall's plane, its span overlapping). */
+export function doorIn(plan, F, u0, u1) {
+  return plan.links.some((l) => {
+    const mid = (l.lo + l.hi) / 2, c = l.wall.endsWith('y') ? [mid, l.at] : [l.at, mid], half = (l.hi - l.lo) / 2 + plan.kit.door.frame;
+    const off = (c[0] - F.o[0]) * F.N[0] + (c[1] - F.o[1]) * F.N[1], u = (c[0] - F.o[0]) * F.U[0] + (c[1] - F.o[1]) * F.U[1];
+    return Math.abs(off) < plan.kit.wall + 0.1 && u + half > u0 && u - half < u1;
+  });
+}
+
+/** The accent wall: in the last room, the wall behind the tomb (its normal faces back toward the way in). */
+export function accentWall(plan, pilasters, tombAt) {
+  const { r } = lastRoom(plan);
+  let best = null;
+  for (const w of wallsOf(pilasters)) {
+    if (w.room !== r.id) continue;
+    const mid = [w.F.o[0] + w.F.U[0] * w.F.len / 2, w.F.o[1] + w.F.U[1] * w.F.len / 2], d = Math.hypot(mid[0] - tombAt[0], mid[1] - tombAt[1]);
+    const behind = (tombAt[0] - mid[0]) * w.F.N[0] + (tombAt[1] - mid[1]) * w.F.N[1] > 0;   // the tomb stands in front of it
+    if (behind && (!best || d < best.d)) best = { ...w, d };
+  }
+  return best;
+}
+
+/** The repeating element: a burial niche (a loculus) centred in every bare bay, the same on every wall, in tiers where
+ *  the wall is tall; a niche holds an urn now and then. The accent wall carries none: it breaks the repeat. */
+export function cryptNiches(plan, pilasters, accent) {
+  const N = plan.kit.dress.niches, pw = plan.kit.pilaster.w, out = [];
+  const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
+  const back = { key: null, scale: 1, tint: N.dark, group: 'stage:niche' };
+  let n = 0;
+  for (const w of wallsOf(pilasters)) {
+    if (accent && w.room === accent.room && w.F === accent.F) continue;
+    for (let i = 0; i + 1 < w.ps.length; i++) {
+      const a = w.ps[i], b = w.ps[i + 1];
+      if (b.k !== a.k + 1) continue;   // a doorway lies between: not a bare run
+      const u0 = a.u + pw / 2, u1 = b.u - pw / 2, wd = Math.min(N.w, (u1 - u0) * 0.6), um = (u0 + u1) / 2;
+      if (doorIn(plan, w.F, u0, u1)) continue;   // a doorway inside the bay: not bare either
+      const z0 = plan.kit.plinth.h + N.sill, tiers = a.top - z0 > 2 * N.h + N.gap + 0.6 ? 2 : 1;
+      for (let t = 0; t < tiers; t++) {
+        const zb = z0 + t * (N.h + N.gap), zt = zb + N.h, F = w.F, f = N.frame;
+        // the recess reads by its dark back; the frame stands proud of the wall around it
+        panel(out, at(F, um - wd / 2, 0.012, zb), F.U, wd, [0, 0, 1], N.h, F.N, back, 0.5);
+        wallBox(out, F, um - wd / 2 - f, um + wd / 2 + f, zb - f, zb, N.out, trim, 0.5);        // sill
+        wallBox(out, F, um - wd / 2 - f, um + wd / 2 + f, zt, zt + f, N.out, trim, 0.5);        // lintel
+        wallBox(out, F, um - wd / 2 - f, um - wd / 2, zb, zt, N.out, trim, 0.5, true);          // jambs
+        wallBox(out, F, um + wd / 2, um + wd / 2 + f, zb, zt, N.out, trim, 0.5, true);
+        if (hash3(n++, t, 4401) < N.urns) {
+          const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, 0.18, zb);
+          for (let k = 0; k < 8; k++) {
+            const a0 = (k / 8) * 2 * Math.PI, a1 = ((k + 1) / 8) * 2 * Math.PI, nrm = [Math.cos((a0 + a1) / 2), Math.sin((a0 + a1) / 2), 0].map(r5);
+            const pt = (a, rr, z) => P([c[0] + rr * Math.cos(a), c[1] + rr * Math.sin(a), z]);
+            out.push({ corners: [pt(a0, 0.09, zb), pt(a1, 0.09, zb), pt(a1, 0.12, zb + 0.18), pt(a0, 0.12, zb + 0.18)], normal: nrm, outNormal: nrm, tint: N.urn, group: 'stage:motif-urn', doubleSided: true });
+            out.push({ corners: [pt(a0, 0.12, zb + 0.18), pt(a1, 0.12, zb + 0.18), pt(a1, 0.07, zb + 0.3), pt(a0, 0.07, zb + 0.3)], normal: nrm, outNormal: nrm, tint: N.urn, group: 'stage:motif-urn', doubleSided: true });
+          }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** The accent's stone: larger, darker ashlar than the courses round it, named from its own numbers. */
+const accentFamily = (A) => tileFamilyOf({ gen: 'stone-brick', ...A.stone });
+
 /** The view the walk leads to: from the way into the last room, eye height, on the tomb. */
 export function tombCamera(plan, corners) {
   const { r, entry } = lastRoom(plan), cx = corners.reduce((s, c) => s + c[0], 0) / 4, cy = corners.reduce((s, c) => s + c[1], 0) / 4;
@@ -108,11 +182,18 @@ export function tombCamera(plan, corners) {
 
 /** Everything the crypt adds, in the shape the stage composes (see naveDress). */
 export function cryptDress(plan, geom) {
-  const D = plan.kit.dress, tomb = cryptTomb(plan), candles = cryptCandles(plan, tomb.corners);
+  const D = plan.kit.dress, tomb = cryptTomb(plan), candles = cryptCandles(plan, tomb.corners), pil = geom.pilasters || [];
+  const tc = [tomb.corners.reduce((s, c) => s + c[0], 0) / 4, tomb.corners.reduce((s, c) => s + c[1], 0) / 4];
+  const accent = accentWall(plan, pil, tc), fam = accentFamily(D.accent);
+  // the accent wall's courses re-cut in its own stone: the shell's wall faces on that plane are replaced, variant kept
+  const onAccent = (f) => accent && f.group === 'stage:wall' && f.normal[0] === accent.F.N[0] && f.normal[1] === accent.F.N[1]
+    && f.corners.every((c) => Math.abs((c[0] - accent.F.o[0]) * accent.F.N[0] + (c[1] - accent.F.o[1]) * accent.F.N[1]) < 0.02);
+  const accentFaces = accent ? geom.faces.filter(onAccent).map((f) => ({ ...f, texture: `${fam}-${(f.texture || 'x-a').slice(-1)}`, tint: D.accent.tint, group: 'stage:accent' })) : [];
+  const keepClear = [{ x: tc[0], y: tc[1], r: Math.hypot(D.tomb.dais.w, D.tomb.dais.d) / 2 + 0.6 }];
   return {
     cameras: [tombCamera(plan, tomb.corners)],
-    faces: [...tomb.faces, ...cryptCobwebs(plan, geom.pilasters || [])],
+    faces: [...tomb.faces, ...accentFaces, ...cryptNiches(plan, pil, accent), ...cryptCobwebs(plan, pil), ...cornerThings(plan, pil, D.props, keepClear)],
     blends: (faces) => blendsByCause(plan, faces, D.moss, D.grime),
-    after: candles.faces, pools: [], lights: candles.lights, cut: () => false, shadowSkip: () => false,
+    after: candles.faces, pools: [], lights: candles.lights, cut: onAccent, shadowSkip: () => false,
   };
 }

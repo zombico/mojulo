@@ -52,6 +52,9 @@ export const LAWS = Object.freeze({
   'clusters': { layer: 'composition', law: 'Things come in clusters with gaps, never an even scatter.' },
   'layered-depth': { layer: 'composition', law: 'Layers at every depth, revealed in rings out from the way.' },
   'by-cause': { layer: 'composition', law: 'Everything placed or messy has a cause it can be traced to.' },
+  'repeat-adjacent': { layer: 'composition', law: 'Adjacent bare walls share a repeating design element.' },
+  'accent-wall': { layer: 'composition', law: 'One accent wall breaks the repeat and carries the eye.' },
+  'corner-things': { layer: 'composition', law: 'Things gather where floor meets wall: clusters in corners, singles at wall bases, off the way.' },
   'cast-over-world': { layer: 'composition', era: true, law: 'The cast reads denser on screen than the world behind it.' },
   'frame-readout': { layer: 'composition', era: true, law: 'Detail is read at the era\'s frame (640×448), not at today\'s.' },
   // dressing
@@ -60,7 +63,8 @@ export const LAWS = Object.freeze({
 
 /** Each style card's principles, in order, as the laws they are instances of. */
 export const PRINCIPLE_LAWS = Object.freeze({
-  crypt: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['distinct-radius']],
+  crypt: [['value-order', 'light-through'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['distinct-radius'],
+    ['repeat-adjacent'], ['accent-wall', 'focus'], ['corner-things', 'clusters', 'distinct-radius', 'by-cause']],
   'delfino-plaza': [['value-order', 'shade-is-colour'], ['focus', 'kit-dressing'], ['materials-by-layer'], ['blend-by-cause'], ['cutout-cards'], ['depth-by-air'], ['distinct-radius'], ['kit-dressing'], ['kit-dressing'], ['focus', 'kit-dressing'], ['kit-dressing'], ['sky-is-a-place']],
   'delfino-plaza/night': [['baked-light', 'shade-is-colour'], ['value-order', 'baked-light'], ['focus'], ['distinct-radius', 'by-cause'], ['sky-is-a-place']],
   'gothic-nave': [['value-order'], ['light-through'], ['blend-by-cause'], ['cutout-cards', 'by-cause'], ['focus'], ['distinct-radius'], ['materials-by-layer'], ['materials-by-layer']],
