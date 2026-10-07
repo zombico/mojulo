@@ -332,3 +332,20 @@ export function resolveSfxLayers(sfxSpec, entities) {
   }
   return out;
 }
+
+// Where each verb belongs, in the playscape setting words (../playscape/setting.js): a glow is magic or machine, never
+// grounded; a hit flash reads anywhere. An axis a verb omits fits any world.
+const GLOW = { fiction: ['fantasy', 'sci-fi', 'toy'] };
+export const SFX_SETTINGS = Object.freeze({
+  enchant: { fiction: ['fantasy', 'toy'] },
+  heal: GLOW,
+  charge: GLOW,
+  hit: {},
+  accumulate: GLOW,
+  ward: { fiction: ['fantasy', 'toy'] },
+  sparkle: { fiction: ['fantasy', 'toy'] },
+  drain: { fiction: ['fantasy'] },
+  aura: GLOW,
+  'ssj-aura': { fiction: ['fantasy', 'toy'] },
+  kokusen: { fiction: ['fantasy'] },
+});

@@ -195,3 +195,18 @@ export function cornerThings(plan, pilasters, spec, keepClear = [], anchors = nu
   }
   return out;
 }
+
+// Where each prop belongs, in the playscape setting words (../playscape/setting.js). Timber, rope and stone are old
+// enough for any pre-industrial room; a coffin and bones keep to the dead. An axis a prop omits fits any world.
+const BEFORE_NOW = ['ancient', 'medieval', 'early-modern', 'modern'];
+export const PROP_SETTINGS = Object.freeze({
+  crate: { era: BEFORE_NOW },
+  barrel: { era: BEFORE_NOW },
+  planks: { era: BEFORE_NOW },
+  amphora: { era: ['ancient', 'medieval'] },
+  bones: { place: ['funerary', 'sacred', 'wild'] },
+  coffin: { place: ['funerary', 'sacred'] },
+  stones: {},
+  boulder: {},
+  debris: {},
+});

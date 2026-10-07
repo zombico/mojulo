@@ -12,6 +12,49 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Playscape
+
+The first step toward Playscape, which makes a scapeshifted world playable on a ladder of four rungs: click demos,
+walk demos, a single level, a game of levels. This step puts the game idioms on a shelf of their own and gives every
+shelf a shared setting vocabulary, so the shelves can be composed into one world without anything turning up where it
+does not belong. No tool is added; `get_game_vocab` gains a family.
+
+- **The game idioms have cards.** `get_game_vocab({ scope: 'idiom' })` and `semantic_search({ kinds: ['game_idiom'] })`
+  return an `idiom-guide` and an `idiom-<kind>` card per idiom, generated from an about row kept beside each idiom
+  function (`IDIOM_ABOUT` in `lib/graph/worlds/game-idioms.js`). Each card lowers its own example and prints the
+  event-bus rows it becomes, so it cannot drift; an idiom without an about row fails the shelf's test. Each idiom is
+  tagged with the lowest rung it serves (`click`, `walk`, `level`, `game`). A migration adds the `game_idiom` kind.
+- **One lowering map.** `IDIOM_LOWERING` and `lowerIdioms()` in `game-idioms.js` replace the action world's private
+  map, which now also takes `banner`, `legend` and `toast` in `idioms` (before, only raw `events.hud` rows reached them).
+- **The setting words.** `lib/graph/playscape/setting.js` names three axes: era (ancient to future), place (funerary,
+  sacred, domestic, civic, industrial, wild, arcade) and fiction (grounded, fantasy, sci-fi, toy). Each shelf tags its
+  own rows in those words, beside the rows (`GLYPH_SETTINGS`, `SFX_SETTINGS`, `HUD_LOOK_SETTINGS`, `PROP_SETTINGS`),
+  and each stage kit has a default world setting (`lib/graph/era/kit-settings.js`) a recipe's `setting` overrides per
+  axis. `admit()` sorts a shelf for a world: what fits may be drawn on its own, what misses stays on the shelf unless
+  the recipe names it, and a named miss is kept and stamped with what it misses. The setting adds no geometry.
+- **The acceptance test.** `lib/graph/playscape/crypt.test.js`: a lich's crypt (the crypt kit, `fiction: fantasy`)
+  draws no flat-pack furniture on its own, keeps a sofa it names with a stamp, and dresses itself in bones, a coffin, a
+  skull, a key and a magic glow; the same crypt without the lich has no glow at all.
+- **Game objects as archetypes, judged by object laws.** `lib/graph/playscape/objects/` holds game objects that
+  transform to the world they stand in, judged the way the hero is: the build is measured and read against bands, with
+  advice per law (`objectMeasures`, `objectAdvice`). The laws (`objects/laws.js`): inverse interest (the more a thing
+  matters, the more distinct its silhouette segments), 33/66 (the primary detail a third of the main mass, and wider
+  than the eye spot at play distance in the era's 640×448 frame), emboss (the rest of the mass shaded in by value),
+  values only (greys on `obj:*` groups, colour left to a tone), the detail a band apart from the mass under 3, 4 and 5
+  hard steps, the accent kept for what can be used, and juxtaposition (a placement law). One interest rank (filler,
+  prop, interactable, focus) sets the bands. The first archetype is the door: the setting picks its form (iron-bound
+  planks in a crypt, a sliding slab in a lab; a world no form fits gets the nearest, stamped), a doorway anchor sizes
+  it, it has closed, open and locked states, and every form holds every law in every state. `ejectObject` freezes the
+  form and its numbers so an ejected door no longer follows the world. Its rules are built from the idioms; a locked
+  door waits for its unlock event, then for a use (a sequence, since reactions carry no guard).
+- **Shape styles: what tone is to colour, for proportion.** `objects/style.js` passes a realistic object through a
+  resizer (each part by its own factors; fill fattens across its thin side and never outgrows its host) and a warp, then
+  fits the result back into the realistic object's own bounds, so the space it takes, its collider and its play never
+  change. The `isekai` shape flares by straight lines: a narrow foot, the sides leaning out to a shoulder, then
+  breaking in to a pointed head; every line inside leans in proportion to its distance from the middle, so inner
+  edges echo the outline's angle. Parts stay tidy, each a little out of true by its seed. Styled builds hold every
+  object law. The silhouette measure now counts only notches that open onto the outside of the outline.
+
 ### Scapeshift
 
 The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by

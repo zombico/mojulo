@@ -259,3 +259,16 @@ export function lowerGlyphBodies(entities, figures) {
   });
   return { entities: outEntities, figures: outFigures };
 }
+
+// Where each form belongs, in the playscape setting words (../playscape/setting.js): a goal flag has no place in a
+// crypt, a floating star belongs to the bright toy language. An axis a form omits fits any world.
+export const GLYPH_SETTINGS = Object.freeze({
+  gem: { fiction: ['fantasy', 'toy'] },
+  coin: {},
+  key: { era: ['ancient', 'medieval', 'early-modern', 'modern'] },
+  heart: { fiction: ['fantasy', 'toy'] },
+  star: { fiction: ['toy'] },
+  orb: { fiction: ['fantasy', 'sci-fi', 'toy'] },
+  flag: { place: ['civic', 'wild', 'arcade', 'industrial'] },
+  skull: { place: ['funerary', 'sacred', 'wild', 'arcade'], fiction: ['grounded', 'fantasy', 'toy'] },
+});

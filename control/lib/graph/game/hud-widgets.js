@@ -211,3 +211,14 @@ export function hudSlotsUsed(widgets) {
   const used = new Set((widgets || []).map((w) => w.slot));
   return HUD_SLOTS.filter((s) => used.has(s));
 }
+
+// Where each screen treatment belongs, in the playscape setting words (../playscape/setting.js): the corner-bracket
+// `style: 'hud'` and mono type are a machine's readout; the clean look and the book faces fit anywhere.
+export const HUD_LOOK_SETTINGS = Object.freeze({
+  'style:hud': { era: ['modern', 'future'], fiction: ['sci-fi', 'toy'] },
+  'style:clean': {},
+  'font:system': {},
+  'font:mono': { era: ['modern', 'future'] },
+  'font:serif': {},
+  'font:display': {},
+});
