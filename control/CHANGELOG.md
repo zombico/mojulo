@@ -181,6 +181,15 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   pocket's mouth; the landmark by node; a hazard's zone, `severity` and `respawn`; a stairs site) and `outTrail` (its
   length, run and exploring seconds, its beats and its laws: run, explore, spacing, order, grade, crest, hazards,
   landmark). A sweep holds every law for every seed, heartbeat and run (`out-trail.deep.test.js`).
+- **A trail follows another: `trail.after`** (the followed trail's recipe and its stage `seed`). It starts where that
+  one leaves: on its line and heading (easing into its own sway over 24 m), at its height, on its last row of ground
+  (eased over 12 m), its cliff carried on. A `junction-<from>-<to>` anchor marks the seam, as a doorway does between
+  rooms; every anchor names its `trail`; `outTrail.after` and `origin` say where its site sits beside the followed one,
+  and a chain carries the origin on. Each trail is still its own page. A `seam` law measures the join (line, heading,
+  height and ground under a centimetre). A trail's depth is a whole number of ground cells, so every trail's grid
+  shares one spacing and two trails' vertices meet at a seam (they did not, and a cliff opened a crack).
+- **A pit or a ford is on level ground.** The smoothed walk is laid flat within 3 m of each (a `level` law: no stairs
+  site there); a pit had landed mid-staircase.
 - **The landform board** (`out-trail-board.js`): the land in black and white before anything grows on it — both passes
   as depth maps with the trail, beats, pockets, hazards and stairs drawn over them, the heartbeat strip, and the laws.
   Absent `trail`, every open-ground kit builds byte-identically; `trail` on a room kit or the jungle is refused.

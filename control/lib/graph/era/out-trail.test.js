@@ -14,6 +14,7 @@ const stage = (m) => { const k = JSON.stringify(m); return built.get(k) || built
 describe('out-trail', () => {
   it('reads a trail, its dials and its beats; and says what is wrong', () => {
     expect(readOutTrail(true)).toEqual({ id: 'trail', run: 12, heartbeat: 0.5, bumpiness: 0.4, beats: null });
+    expect(readOutTrail({ id: 'b', after: { id: 'a', seed: 4 } }).after).toEqual({ seed: 4, recipe: { id: 'a' }, id: 'a' });
     expect(readOutTrail({ run: 20, beats: ['pinch', 'reveal', 'pocket'] }).beats).toEqual(['pinch', 'reveal', 'pocket']);
     expect(() => readOutTrail({ run: 8 })).toThrow(/12 to 25/);
     expect(() => readOutTrail({ heartbeat: 2 })).toThrow(/0 \(level\) to 1/);
@@ -108,6 +109,26 @@ describe('out-trail', () => {
     const over = p.faces.filter((f) => f.group === 'isekai:trail' && f.corners.every((c) => c[1] > pit.box.min[1] && c[1] < pit.box.max[1]));
     expect(over).toEqual([]);
   }, 60000);
+
+  it('a trail AFTER another starts where it leaves: on its line, at its height, on its ground; a junction between them', () => {
+    const A = { id: 'meadow', heartbeat: 0.8, bumpiness: 0.6 }, a = outTrailSite(ST, A, 8);
+    const b = outTrailSite(ST, { id: 'ford', run: 16, heartbeat: 0.85, bumpiness: 0.7, beats: ['pinch', 'landmark', 'crossing', 'pocket', 'pit', 'reveal'], after: { ...A, seed: 8 } }, 33);
+    expect(outTrailLaws(b).filter((l) => !l.ok)).toEqual([]);
+    expect(outTrailLaws(b).find((l) => l.law === 'seam').value).toBeLessThan(0.01);
+    for (let x = -10; x <= 44; x += 2) expect(Math.abs(b.ground(x, 0) - a.ground(x, a.D))).toBeLessThan(0.01);
+    expect(Math.abs(b.trailX(0) - a.trailX(a.D))).toBeLessThan(1e-6);
+    expect(Math.abs(b.cliffX(0) - a.cliffX(a.D))).toBeLessThan(1e-6);
+    expect(b.origin).toBe(a.D);
+    const j = b.out.anchors.find((q) => q.kind === 'junction');
+    expect(j).toMatchObject({ id: 'junction-meadow-ford', between: ['out-trail:meadow', 'out-trail:ford'] });
+    expect(b.out.anchors.every((q) => q.trail === 'out-trail:ford')).toBe(true);
+    // and a third after the second: the chain carries the origin on
+    const c = outTrailSite(ST, { id: 'climb', after: { id: 'ford', run: 16, heartbeat: 0.85, bumpiness: 0.7, beats: ['pinch', 'landmark', 'crossing', 'pocket', 'pit', 'reveal'], seed: 33, after: { ...A, seed: 8 } } }, 5);
+    expect(c.origin).toBeCloseTo(a.D + b.D, 6);
+    expect(outTrailLaws(c).filter((l) => !l.ok)).toEqual([]);
+    expect(() => readOutTrail({ id: 'x', after: { run: 12 } })).toThrow(/by an id of its own/);
+    expect(() => readOutTrail({ id: 'x', after: { id: 'x' } })).toThrow(/by an id of its own/);
+  });
 
   it('a trail is for open ground', () => {
     expect(() => assembleStageScene({ kind: 'stage', kit: 'gothic-stone', trail: true })).toThrow(/is not open ground/);

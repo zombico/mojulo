@@ -46,7 +46,7 @@ const gauss = (v, w) => Math.exp(-(v * v) / (2 * w * w));
 export const OUT_TRAIL = Object.freeze({
   speed: 6, pace: 1.5,
   run: [12, 25, 12], explore: [120, 180],
-  rise: 7, grade: 0.3, spacing: 11, ends: 4,
+  rise: 7, grade: 0.3, spacing: 11, ends: 4, level: 3,
   bump: { m: 1.1, octaves: [[0.55, 0.08], [0.3, 0.22], [0.15, 0.6]], walk: 0.12 },
   // each beat: its DWELL (seconds an explorer spends there), its share of the heartbeat and how wide it reaches (m)
   beats: Object.freeze({
@@ -68,10 +68,10 @@ export const OUT_BEATS = Object.freeze(Object.keys(OUT_TRAIL.beats));
 const C = OUT_TRAIL;
 
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
-export function readOutTrail(t) {
+export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats? } (or true)');
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats'];
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, after? } (or true)');
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'after'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -89,7 +89,19 @@ export function readOutTrail(t) {
   }
   const id = t.id === undefined ? 'trail' : t.id;
   if (typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(id)) throw new Error('stage: trail.id is a short lower-case name (letters, digits, hyphens)');
-  return { id, run, heartbeat, bumpiness, beats };
+  // AFTER: the trail this one follows — its own trail recipe and its stage's `seed`. This trail starts where that one
+  // leaves: on its line, at its height, on its last row of ground, its cliff carried on
+  let after = null;
+  if (t.after !== undefined) {
+    if (!t.after || typeof t.after !== 'object' || Array.isArray(t.after)) throw new Error('stage: trail.after is the trail this one follows: its trail recipe and its stage seed, { id, seed?, run?, … }');
+    if (depth >= 7) throw new Error('stage: trail.after: a chain of more than eight trails is a section, not a trail');
+    const { seed: aSeed, ...rest } = t.after;
+    if (aSeed !== undefined && !Number.isFinite(aSeed)) throw new Error('stage: trail.after.seed is the followed trail\'s stage seed (a number)');
+    const prev = readOutTrail(rest, depth + 1);
+    if (rest.id === undefined || prev.id === id) throw new Error('stage: trail.after names the trail it follows by an id of its own (trail.after.id), not this trail\'s');
+    after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
+  }
+  return { id, run, heartbeat, bumpiness, beats, ...(after ? { after } : {}) };
 }
 
 /** The beats in walking order, drawn by dice when the recipe names none: a reveal, a landmark and a pocket always (a
@@ -124,15 +136,22 @@ export function beatOrderFaults(order) {
  * The PLAN of a trail: its spine, its beats at their stations, its heartbeat (rough and smoothed), its stairs runs.
  * `st` is the kit's style card (its trail width, sway and site width); → everything the passes read.
  */
-export function planOutTrail(st, T, seed = 1, beatCount = null) {
+export function planOutTrail(st, T, seed = 1, beatCount = null, join = null) {
   const S = seed | 0, W = st.site.w, L = T.run * C.speed + 2 * C.ends;
   const [a1, f1, a2, f2] = st.trail.sway, ph = 6.2832 * hash3(S, 1, 701);
-  const trailX = (y) => W * st.trail.x + a1 * Math.sin(y * f1 + 0.5 + ph) + a2 * Math.sin(y * f2 + 1.3 + ph * 0.7);
-  const trailSlope = (y) => a1 * f1 * Math.cos(y * f1 + 0.5 + ph) + a2 * f2 * Math.cos(y * f2 + 1.3 + ph * 0.7);
+  const rawX = (y) => W * st.trail.x + a1 * Math.sin(y * f1 + 0.5 + ph) + a2 * Math.sin(y * f2 + 1.3 + ph * 0.7);
+  const rawSlope = (y) => a1 * f1 * Math.cos(y * f1 + 0.5 + ph) + a2 * f2 * Math.cos(y * f2 + 1.3 + ph * 0.7);
+  // JOINED (a trail `after` another): the line starts on the followed trail's, in its heading, and eases into its own
+  // sway over the first `JOIN` metres
+  const dx = join ? join.x - rawX(0) : 0, dsl = join ? join.slope - rawSlope(0) : 0;
+  const fade = (y) => (y >= JOIN ? 0 : 1 - smooth(0, JOIN, y)), fadeD = (y) => { const t = y / JOIN; return y >= JOIN || y <= 0 ? 0 : (-6 * t * (1 - t)) / JOIN; };
+  const trailX = (y) => rawX(y) + fade(y) * (dx + dsl * y);
+  const trailSlope = (y) => rawSlope(y) + fadeD(y) * (dx + dsl * y) + fade(y) * dsl;
   // the site is as deep as the spine needs: the arc from 0 to D is the run plus the two ends
   const dy = 0.25, ys = [0], arc = [0];
   for (let y = 0; arc[arc.length - 1] < L; y += dy) { ys.push(y + dy); arc.push(arc[arc.length - 1] + Math.hypot(1, trailSlope(y + dy / 2)) * dy); }
-  const D = r5(ys[ys.length - 1]);
+  // a whole number of the ground's cells: every trail's grid on one spacing, so two trails' vertices meet at a seam
+  const cell = st.landform.cell, D = Math.ceil(ys[ys.length - 1] / cell - 1e-9) * cell;
   const sOf = (y) => { const k = Math.max(0, Math.min(ys.length - 2, Math.floor(y / dy))), t = (y - ys[k]) / dy; return mix(arc[k], arc[k + 1], Math.max(0, Math.min(1, t))); };
   const yOf = (s) => { let lo = 0, hi = arc.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (arc[m] < s) lo = m; else hi = m; } return mix(ys[lo], ys[hi], (s - arc[lo]) / (arc[hi] - arc[lo] || 1)); };
   // the BEATS: the trailhead and the exit at the ends, the rest evenly between, each nudged by its dice
@@ -169,6 +188,13 @@ export function planOutTrail(st, T, seed = 1, beatCount = null) {
   // pass 2 on the profile: averaged twice over 6 m (a box of 13 samples), then the stairs where it is still too steep
   const box = (a, w) => { const o = new Float64Array(a.length); for (let k = 0; k < a.length; k++) { let t = 0, c = 0; for (let j = k - w; j <= k + w; j++) if (j >= 0 && j < a.length) { t += a[j]; c++; } o[k] = t / c; } return o; };
   const smoothed = box(box(rough, 6), 6);
+  // a pit is jumped from level ground, a ford is waded level: the smoothed walk is laid flat about each, and eased back
+  for (const b of beats.filter((q) => q.kind === 'pit' || q.kind === 'crossing')) {
+    const hb = smoothed[Math.round(b.s / ds)];
+    for (let k = 0; k < n; k++) smoothed[k] = mix(smoothed[k], hb, 1 - smooth(C.level, C.level + 7, Math.abs(k * ds - b.s)));
+  }
+  // joined, the whole heartbeat stands at the followed trail's height where it leaves
+  if (join) { const dz = join.z - smoothed[0]; for (let k = 0; k < n; k++) { rough[k] += dz; smoothed[k] += dz; } }
   const stairs = [];
   for (let k = 1; k < n; k++) {
     const g = Math.abs(smoothed[k] - smoothed[k - 1]) / ds, s = (k - 0.5) * ds, last = stairs[stairs.length - 1];
@@ -181,7 +207,7 @@ export function planOutTrail(st, T, seed = 1, beatCount = null) {
     return { id: `stairs-${i + 1}`, s0: r5(r.s0), s1: r5(r.s1), y0: r5(yOf(r.s0)), y1: r5(yOf(r.s1)), rise: r5(h1 - h0) };
   });
   const at = (a) => (s) => { const k = Math.max(0, Math.min(n - 1, s / ds)), i = Math.floor(k), t = k - i; return i + 1 < n ? mix(a[i], a[i + 1], t) : a[n - 1]; };
-  return { id: T.id, T, S, W, D, L, trailX, trailSlope, sOf, yOf, beats, order, profile: { ds, rough, smoothed }, roughAt: at(rough), smoothAt: at(smoothed), stairs: runs };
+  return { id: T.id, T, S, W, D, L, trailX, trailSlope, sOf, yOf, beats, order, profile: { ds, rough, smoothed }, roughAt: at(rough), smoothAt: at(smoothed), stairs: runs, join };
 }
 
 /** How many beats a spine of `len` metres holds at the least spacing (3 to 7). */
@@ -194,15 +220,23 @@ export const beatRoom = (len) => Math.max(3, Math.min(7, Math.floor((len - 2 * C
  * landmark), `passes` (each pass's grid, for the board) and `out` (the plan, its hazards and its anchors).
  */
 export function outTrailSite(st, recipe, seed = 1) {
-  const T = readOutTrail(recipe);
-  if (T.beats) return siteOf(st, planOutTrail(st, T, seed));
+  const T = readOutTrail(recipe), join = T.after ? joinOf(outTrailSite(st, T.after.recipe, T.after.seed)) : null;
+  if (T.beats) return siteOf(st, planOutTrail(st, T, seed, null, join));
   // drawn beats: as many as the spine holds, fewer while exploring would run past the band (a long trail is a sparse
   // one: the run grows, the exploring stays two or three minutes)
   for (let n = beatRoom(T.run * C.speed); ; n--) {
-    const site = siteOf(st, planOutTrail(st, T, seed, n));
+    const site = siteOf(st, planOutTrail(st, T, seed, n, join));
     if (n <= 3 || exploreSeconds(site) <= C.explore[1]) return site;
   }
 }
+/** Where a trail leaves, for the one that follows it: its line, heading and height at its far edge, its last row of
+ *  ground, its cliff, and where the follower's site sits in the section (`origin`, metres along y). */
+function joinOf(prev) {
+  const D = prev.D, P = prev.out.plan;
+  return { from: P.id, x: prev.trailX(D), slope: P.trailSlope(D), z: P.smoothAt(P.L), cliff: prev.cliffX(D), ground: (x) => prev.ground(x, D), origin: r5(prev.origin + D) };
+}
+const JOIN = 24, SEAM = 12;
+
 function siteOf(st, plan) {
   const { T, S, W, D, trailX, trailSlope, sOf, beats } = plan;
   const Lf = st.landform, halfW = st.trail.width / 2;
@@ -218,11 +252,14 @@ function siteOf(st, plan) {
   const lineDist = (x, y) => Math.abs(x - trailX(y)) / Math.sqrt(1 + trailSlope(y) ** 2);
   const edge = (y) => halfWAt(y) + fringeAt(y);
   // the CLIFF breathes with the beats: drawn in at a pinch, pushed back at a reveal
-  const cliff0 = (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
+  const cliffRaw = (y) => st.cliff.x + 3 * (vnoise(y * 0.05, 0.5, S + 3) - 0.5);
+  const J = plan.join, seamW = (y) => (J ? 1 - smooth(0, SEAM, y) : 0);
+  const cliff0 = (y) => cliffRaw(y) + (J ? (1 - smooth(0, JOIN, y)) * (J.cliff - cliffRaw(0)) : 0);
   const cliffX = (y) => {
     let x = cliff0(y);
-    for (const b of at('pinch')) x = mix(x, Math.max(x, trailX(y) - edge(y) - 6), near(b, y, 5));
-    for (const b of at('reveal')) x -= 3 * near(b, y, 8);
+    const k = 1 - seamW(y);   // (at a seam the followed trail's cliff holds: no beat moves it there)
+    for (const b of at('pinch')) x = mix(x, Math.max(x, trailX(y) - edge(y) - 6), k * near(b, y, 5));
+    for (const b of at('reveal')) x -= 3 * k * near(b, y, 8);
     return x;
   };
   // the POCKETS: a clearing off the spine, reached by a short spur, a bank round it but for its mouth
@@ -295,6 +332,11 @@ function siteOf(st, plan) {
     const x = gridX(g, i), y = gridY(g, j), w = walkLevel(x, y); if (w <= 0) continue;
     const q = j * g.nx + i; g.z[q] = mix(g.z[q], plan.smoothAt(sOf(y)), w); g.apron[q] *= 1 - w;
   }
+  // the SEAM: a followed trail's last row of ground is this one's first, eased into over `SEAM` metres
+  if (J) for (let j = 0; j < g.ny; j++) {
+    const y = gridY(g, j), w = seamW(y); if (w <= 0) continue;
+    for (let i = 0; i < g.nx; i++) { const q = j * g.nx + i; g.z[q] = mix(g.z[q], J.ground(gridX(g, i)), w); g.apron[q] *= 1 - w; g.hard[q] *= 1 - w; }
+  }
   // the PITS, cut last so nothing fills them: across the walk and a little wider, the ground whole beyond (the way round)
   for (const p of pits) for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const x = gridX(g, i), y = gridY(g, j), d = lineDist(x, y), e = edge(y);
@@ -329,8 +371,9 @@ function siteOf(st, plan) {
   }
   const rocks = marks.map((m, i) => ({ x: m.x, y: m.y, size: m.size, detail: 1, v: i, role: 'landmark', node: m.b.id, tall: C.landmark.tall }));
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
+  const origin = J ? J.origin : 0;
   return { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius,
-    clear, gapAt, rocks, passes: { rough, smooth: g }, out };
+    clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin };
 }
 
 /**
@@ -363,7 +406,11 @@ function annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge })
     }),
   ];
   const sites = plan.stairs.map((r) => ({ id: r.id, kind: 'site', site: 'stairs', at: P3(trailX((r.y0 + r.y1) / 2), (r.y0 + r.y1) / 2), s0: r.s0, s1: r.s1, rise: r.rise }));
-  return { plan, anchors: [...anchors, ...hazards, ...sites], hazards, streams, pits };
+  // the JUNCTION where a followed trail hands over to this one (as a doorway between rooms): on the seam, the walk's width
+  const J = plan.join, tid = `out-trail:${plan.id}`;
+  const junction = J ? [{ id: `junction-${J.from}-${plan.id}`, kind: 'junction', between: [`out-trail:${J.from}`, tid], at: P3(trailX(0), 0), N: N(0), width: r5(2 * edge(0)) }] : [];
+  // every anchor says which trail it is on (as a room's anchors say their room): ids are a trail's own
+  return { plan, anchors: [...junction, ...anchors, ...hazards, ...sites].map((a) => ({ ...a, trail: tid })), hazards, streams, pits };
 }
 
 /** The trailhead's frame: the eye at the trailhead, on the landmark when there is one (it is what pulls the walker
@@ -385,7 +432,9 @@ export function outTrailPayload(site) {
     anchors: site.out.anchors,
     outTrail: { id: `out-trail:${P.id}`, length: r5(P.L - 2 * C.ends), run: r5((P.L - 2 * C.ends) / C.speed), explore: exploreSeconds(site),
       heartbeat: P.T.heartbeat, bumpiness: P.T.bumpiness, beats: P.beats.map((b) => ({ id: b.id, beat: b.kind, s: b.s })),
-      stairs: P.stairs, laws: outTrailLaws(site).map(({ law, ok, value }) => ({ law, ok, value })) },
+      stairs: P.stairs, laws: outTrailLaws(site).map(({ law, ok, value }) => ({ law, ok, value })),
+      // a trail that follows another: which, and where its site sits beside it (the followed one's frame, metres)
+      ...(P.join ? { after: `out-trail:${P.join.from}`, origin: [0, site.origin, 0] } : {}) },
   };
 }
 
@@ -428,9 +477,17 @@ export function outTrailLaws(site) {
     if (!onStairs(s)) steep = Math.max(steep, g);
   }
   law('grade', steep <= C.grade + 1e-9, r5(steep), `the walk off the stairs no steeper than ${C.grade}`);
+  const hz = beats.filter((b) => b.kind === 'pit' || b.kind === 'crossing'), onHazard = hz.filter((b) => stairs.some((r) => r.s1 > b.s - C.level && r.s0 < b.s + C.level));
+  law('level', onHazard.length === 0, onHazard.map((b) => b.id).join(', ') || hz.length, `a pit or a ford on level ground, no stairs within ${C.level} m`);
   const reveal = beats.filter((b) => b.kind === 'reveal');
   law('crest', reveal.every((b) => P.smoothAt(b.s) >= P.smoothAt(b.s - 12) + 0.25 * P.T.heartbeat * C.rise - 0.05), reveal.length, 'every reveal at the top of a climb');
   law('hazards', site.out.hazards.every((h) => h.respawn && h.severity && (h.hazard !== 'pit' || h.around)), site.out.hazards.length, 'every hazard with a severity, a way round and a respawn');
+  const J = P.join;
+  if (J) {
+    let gap = Math.abs(site.trailX(0) - J.x) + Math.abs(P.trailSlope(0) - J.slope) + Math.abs(P.smoothAt(0) - J.z);
+    for (let x = site.grid.x0; x <= site.W; x += 1) gap = Math.max(gap, Math.abs(site.ground(x, 0) - J.ground(x)));
+    law('seam', gap < 0.01, r5(gap), `starts where out-trail:${J.from} leaves: its line, heading, height and ground`);
+  }
   const lm = site.out.anchors.find((a) => a.beat === 'landmark');
   law('landmark', !lm || seen(site, lm), lm ? lm.id : 'none', 'the landmark seen from the trailhead, or from a beat 15 m or more short of it');
   return out;
