@@ -95,6 +95,38 @@ export const species = {
     family: 'macropod', name: 'a red kangaroo',
     headScale: 0.95, muzzleW: 1.1, muzzleLen: 0.8,
   },
+  // RED-NECKED WALLABY (Notamacropus rufogriseus, Bennett's wallaby), adult male — THESIS: the kangaroo's upright
+  // tripod at about half the size · a relatively bigger head with SHORTER ears and a shorter muzzle · THE PATTERN:
+  // grizzled grey body, the RUFOUS nape and shoulders (the red neck), a pale belly, a white stripe on the upper lip,
+  // a dark muzzle and nose, BLACK paws and feet and a dark tail tip · ≈0.85 m standing to the head top (head-body
+  // 0.7–0.9 m, tail 0.6–0.9 m, males 15–20 kg — Australian Museum / ADW Macropus rufogriseus). The kangaroo's tables
+  // scaled down.
+  wallaby: {
+    family: 'macropod', name: 'a red-necked wallaby', scale: 0.56,
+    colors: { coat: '#8a8279', sock: '#26201c', ash: '#d8d0c4', ashAlt: '#cbc2b4', snout: '#4a403a', brow: '#3a302a', tip: '#2a2420',
+      belly: '#e6ded2', mane: '#b0603a', ears: '#7a7068', nose: '#141010' },
+    // the red neck: the neck and shoulders rufous
+    neckGroup: 'Mane',
+    markDensity: { trunk: 2 },
+    markings: [{ on: 'trunk', kind: 'band', run: [0.72, 1], t: [0, 0.6], group: 'Mane' }],
+    legs: [
+      ['upperArmR', 'shoulder', 'elbow', [0.045, 0.05], [0.032, 0.034], 'Mane', [0.5, 0.4]],
+      ['foreArmR', 'elbow', 'carpus', [0.03, 0.032], [0.022, 0.022], 'Coat', [0.5, 0.4]],
+      ['handR', 'carpus', 'forePaw', [0.024, 0.02], [0.018, 0.014], 'Sock', [0.5, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.15, 0.2], [0.08, 0.095], 'Coat', [0.3, 0.5], [0.14, 0.18]],
+      ['shinR', 'stifle', 'hock', [0.06, 0.065], [0.035, 0.035], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', [0.035, 0.035], [0.035, 0.03], 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.035, 0.03], [0.025, 0.02], 'Sock', [0.6, 0.4]],
+    ],
+    // the white upper-lip stripe: the cheek band under the eye pale, the muzzle top dark
+    craniumBandGroups: {
+      'st3-st4': ['Snout', 'Snout', 'Skull', 'Cheek', 'Jowl', 'Palate'],
+      'st4-st5': ['Snout', 'Snout', 'Snout', 'Cheek', 'Jowl', 'Palate'],
+    },
+    // the eye, ears and nose authored at the kangaroo's head (headScale 0.95) and scaled with this smaller head
+    headRelative: 0.95, relBrow: true,
+    headScale: 1.15, muzzleW: 1.1, muzzleLen: 0.7, earH: 0.72,
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -102,10 +134,10 @@ export const species = {
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
   kangaroo: { common: 'kangaroo', aliases: ['red kangaroo', 'roo'], sci: 'Macropus rufus', size: '~1.6 m standing to the head top (adult male)', source: 'Australian Museum / Dawson 2012, Kangaroos' },
+  wallaby: { common: 'wallaby', aliases: ['red-necked wallaby', "bennett's wallaby"], sci: 'Notamacropus rufogriseus', size: '~0.85 m standing to the head top; head-body 0.7–0.9 m', source: 'Australian Museum / ADW Macropus rufogriseus' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  wallaby: { near: 'kangaroo', aliases: [], note: 'a kangaroo at half the size, a darker face' },
 };

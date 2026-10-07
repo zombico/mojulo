@@ -197,6 +197,48 @@ export const species = {
       headScale: 1.9, muzzleW: 1.1, muzzleLen: 0.4, legBulk: 1.3, bulk: 1.05, earH: 1.1, earR: [0.05, 0.056, 0.05, 0.03],
     };
   })(),
+  // KOALA (Phascolarctos cinereus), adult — filed here by the roster (a marsupial, not a bear; its `near` was the
+  // wombat). The builder stands every animal on the ground (no tree fork to sit in), so this is the koala walking on
+  // all fours as it does between trees. THESIS: a compact round body, NO tail, the rump rounded · stout legs a little
+  // longer than a wombat's, plantigrade · a BIG ROUND head with a flat short face · ONE signature: the huge round
+  // fluffy EARS out to the sides (grey, white-lined) and the big black leathery NOSE down the face · grey coat, white
+  // chin, chest and belly · head-body ≈0.72 m (published 0.60–0.85 m, 4–15 kg — ADW Phascolarctos cinereus).
+  // Tables in bear-size units, `scale` 0.4 brings it to true size.
+  koala: {
+    eyeStyle: 'set',
+    family: 'ursine', name: 'a koala', scale: 0.4,
+    colors: { coat: '#8d8a86', sock: '#77736e', snout: '#8d8a86', ash: '#ebe7df', ashAlt: '#dedad1', tip: '#77736e', ears: '#8d8a86',
+      belly: '#ebe7df', brow: '#6e6a65', iris: '#2a1d14', nose: '#141212' },
+    joints: {
+      neckBase: [0, 0.30, 0.70], neckTop: [0, 0.46, 0.76],
+      shoulder: [0.22, 0.20, 0.58], elbow: [0.26, 0.17, 0.32], carpus: [0.25, 0.25, 0.10], forePaw: [0.25, 0.27, 0.068], foreToe: [0.25, 0.42, 0.05],
+      hip: [0.22, -0.58, 0.64], stifle: [0.27, -0.44, 0.36], hock: [0.26, -0.62, 0.10], hindPaw: [0.26, -0.60, 0.068], hindToe: [0.26, -0.42, 0.05],
+    },
+    // a short round trunk, the rump a rounded ball, a little higher than the shoulders
+    torso: [
+      { at: [0, -0.80, 0.64], r: [0.24, 0.25] },
+      { at: [0, -0.68, 0.64], r: [0.32, 0.33] },
+      { at: [0, -0.42, 0.64], r: [0.35, 0.35] },
+      { at: [0, -0.12, 0.64], r: [0.34, 0.32] },
+      { at: [0, 0.12, 0.64], r: [0.32, 0.30] },
+      { at: [0, 0.32, 0.64], r: [0.26, 0.26] },
+    ],
+    torsoCaps: { back: [0, -0.90, 0.64], tip: [0, 0.40, 0.65] },
+    extraSegments: [],
+    neckRA: [0.23, 0.25], neckRB: [0.20, 0.21], neckRMid: [0.22, 0.23],
+    tail: null,
+    // the white chest and belly
+    markDensity: { torso: 2 },
+    markings: [{ on: 'torso', kind: 'belly', from: 0.6, group: 'Belly' }],
+    neckGroup: 'Coat',
+    // a big round head, the face short and flat
+    headScale: 1.8, muzzleW: 1.35, muzzleLen: 0.3, legBulk: 1.3,
+    // THE EARS: big round flat discs standing out to the sides of the crown, white-lined
+    earAt: [1.3, 2.2], earSpine: [[0, 0, -0.012], [0, 0, 0.015], [0, 0, 0.045], [0, 0, 0.075], [0, 0, 0.095]],
+    earR: [0.035, 0.058, 0.065, 0.048], earSquash: [1, 0.38], earH: 0.8,
+    // THE NOSE: a big black leathery pad over the front of the short face
+    noseAt: [5.6, 0.6], noseR: [0.032, 0.028], eyeR: 0.009,
+  },
 };
 
 // What people call each species and what its build stands on: read by ../entries.js into the search cards, never
@@ -206,11 +248,11 @@ export const about = {
   brownBear: { common: 'bear', aliases: ['brown bear', 'grizzly', 'grizzly bear', 'kodiak bear'], sci: 'Ursus arctos', size: '~1.0 m at the withers; head-body ~2.0 m', source: 'published brown bear figures' },
   wombat: { common: 'wombat', aliases: ['common wombat'], sci: 'Vombatus ursinus', size: '~0.37 m at the shoulder; head-body ~1.0 m', source: 'published common wombat figures' },
   polarBear: { common: 'polar bear', aliases: ['ice bear', 'white bear'], sci: 'Ursus maritimus', size: '~1.3 m at the shoulder (adult male)', source: 'DeMaster & Stirling 1981, Mammalian Species 145' },
+  koala: { common: 'koala', aliases: ['koala bear'], sci: 'Phascolarctos cinereus', size: 'head-body ~0.72 m (0.60–0.85 m)', source: 'ADW Phascolarctos cinereus' },
   giantPanda: { common: 'panda', aliases: ['giant panda', 'panda bear'], sci: 'Ailuropoda melanoleuca', size: '~0.70 m at the shoulder', source: 'Chorn & Hoffmann 1978, Mammalian Species 110' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  koala: { near: 'wombat', aliases: ['koala bear'], note: 'round tufted ears, a big leathery nose, sits upright in a fork' },
 };

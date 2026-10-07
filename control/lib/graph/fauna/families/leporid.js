@@ -101,6 +101,42 @@ export const species = {
   rabbit: {
     eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'leporid', name: 'a European rabbit', scale: 1, muzzleLen: 0.85,
+  },  // EUROPEAN BROWN HARE (Lepus europaeus). Thesis: a bigger, LANKIER leporid than the rabbit: a longer body carried
+  // higher on LONG legs (the forelegs straight and long, the hind feet very long) · a longer head with big amber eyes
+  // set high · ONE signature: very LONG EARS, longer than the head, with BLACK TIPS · the tail black above, white
+  // below · tawny-brown grizzled coat, a white belly · published: head-body 48–70 cm, ear 9.4–11 cm, hind foot
+  // 13–16 cm, 2.5–6.4 kg (Animal Diversity Web, Lepus europaeus).
+  hare: {
+    eyeStyle: 'set',
+    family: 'leporid', name: 'a European brown hare', scale: 1.45, muzzleLen: 1.0,
+    colors: { coat: '#9c7448', sock: '#a88560', ash: '#cdb08a', ashAlt: '#bb9c74', ears: '#9c7448', snout: '#9c7448', mane: '#9c7448',
+      belly: '#efe9dd', tip: '#16110d', iris: '#b07a26', nose: '#5a4434', brow: '#5a4030' },
+    legScale: { fore: 1.45, hind: 1.25 },
+    // a longer, shallower trunk than the rabbit's round egg
+    torso: [
+      { at: [0, -0.18, 0.11], r: [0.04, 0.05] },
+      { at: [0, -0.14, 0.11], r: [0.08, 0.09] },
+      { at: [0, -0.07, 0.11], r: [0.085, 0.095] },
+      { at: [0, 0.0, 0.11], r: [0.075, 0.072] },
+      { at: [0, 0.06, 0.11], r: [0.06, 0.062] },
+      { at: [0, 0.10, 0.11], r: [0.046, 0.052] },
+    ],
+    eyeR: 0.03,
+    // the long ears: a third longer than the rabbit's, upright and raked back; their tips black (an ornament
+    // following the same spine: a hair-thin core inside the ear, swelling over its last fifth)
+    earH: 0.5, earR: [0.022, 0.03, 0.028, 0.015],
+    headOrnaments: [
+      { kind: 'sweep', name: 'earTip', at: [1.1, 0.75], space: 'local', spine: [[0, 0, -0.006], [0, -0.01, 0.04], [0, -0.025, 0.085], [0, -0.033, 0.1075], [0, -0.04, 0.125], [0, -0.05, 0.145]],
+        radii: [0.003, 0.003, 0.003, 0.0235, 0.0175], m: 8, squash: [1, 0.4], group: 'EarTip' },
+    ],
+    headPalette: { EarTip: '#16110d' },
+    extraSegments: [
+      // the scut: black above, white below
+      { name: 'scut', kind: 'loft', slots: 'ring12', group: 'Belly', mirror: 'plane',
+        stations: lofted([[0, -0.185, 0.13, 0.022], [0, -0.21, 0.145, 0.028], [0, -0.225, 0.16, 0.02]]), caps: { back: [0, -0.17, 0.125], tip: [0, -0.235, 0.17] },
+        bandGroups: { 'st0-st1': ['Tip', 'Tip', 'Tip', 'Belly', 'Belly', 'Belly'], 'st1-st2': ['Tip', 'Tip', 'Tip', 'Belly', 'Belly', 'Belly'] }, capGroups: { back: 'Tip', tip: 'Tip' } },
+    ],
+    markings: [{ on: 'torso', kind: 'belly', from: 0.72, group: 'Belly' }],
   },
 };
 
@@ -109,10 +145,10 @@ export const species = {
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
   rabbit: { common: 'rabbit', aliases: ['bunny', 'bunny rabbit', 'european rabbit'], sci: 'Oryctolagus cuniculus', size: '~0.20 m to the top of the hunched back; head-body 0.34–0.50 m', source: 'ADW, Oryctolagus cuniculus' },
+  hare: { common: 'hare', aliases: ['jackrabbit', 'brown hare', 'european hare'], sci: 'Lepus europaeus', size: 'head-body 0.48–0.70 m, ear 0.094–0.11 m', source: 'ADW, Lepus europaeus' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  hare: { near: 'rabbit', aliases: ['jackrabbit'], note: 'longer legs and longer black-tipped ears than the rabbit' },
 };

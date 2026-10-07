@@ -103,13 +103,17 @@ export function buildFauna(params) {
     { kind: 'sweep', name: 'earInner', at: P.earAt, space: 'local', spine: lay(earSpine.map(([x, y, z], i) => [x + hs(0.012), y, i ? z - hs(0.014) : z + hs(0.012)])), radii: earR.map((r) => r * 0.6), m: 8, squash: P.earSquash, group: 'EarInner' },
   ];
   // THE SET EYE (opt-in: `eyeStyle: 'set'`, tuned by `eyeSet` { sink, gap, lid, pupil, open }): the eyeball seated INTO
-  // the head (its centre `sink` × R under the skin, so only a low cornea shows), a thin lid that follows the ball, the
+  // the head (its centre `sink` × R under the skin, so the cornea shows), a thin lid that follows the ball, the
   // orbit's reach, tuck and thickness all relative to the eye's own radius (so it scales with the head), no dark lid
   // ring unless `colors.lidRim` asks for one (it defaults to the lids' colour), and a visible pupil (`eyeSet.pupil`, the
   // pupil's half-angle in degrees, default 20). The species' `orbit` is ignored (its absolute bulk and thickness are the goggle); `eyeSet.orbit` overrides a field. Absent: the head as before.
-  const setEye = P.eyeStyle === 'set' ? (() => { const Q = { sink: 0.6, gap: 0.04, lid: 0.1, pupil: 20, open: [0.55, 0.4], ...(P.eyeSet || {}) }, R = hs(P.eyeR ?? 0.022);
+  // The defaults are an eye that SHOWS: lids open nearly round, the ball sunk a little over a third of its radius, and
+  // a lid that is a narrow rim (operator, 2026-10-06: the eyelids were far too big on animals that show their eyes; the
+  // first defaults, sink 0.6, open [0.55, 0.4], lid 0.1, a 0.3 R reach, hooded every eye). A drowsy or hooded eye asks
+  // for its own `open` and `sink`.
+  const setEye = P.eyeStyle === 'set' ? (() => { const Q = { sink: 0.35, gap: 0.04, lid: 0.03, pupil: 20, open: [1.0, 0.9], ...(P.eyeSet || {}) }, R = hs(P.eyeR ?? 0.022);
     return { eye: { set: { sink: Q.sink, gap: Q.gap, lid: Q.lid }, pupilAngle: Q.pupil },
-      orbit: { open: Q.open, reach: [0.3 * R, 0.3 * R, 0.3 * R], tuck: 0.08 * R, bulk: [0, 0], thickness: 0.1 * R, ...clone(Q.orbit || {}) } }; })() : null;
+      orbit: { open: Q.open, reach: [0.12 * R, 0.12 * R, 0.12 * R], tuck: 0.05 * R, bulk: [0, 0], thickness: 0.05 * R, ...clone(Q.orbit || {}) } }; })() : null;
   const head = {
     schema: 'layered-head-v1', name: P.name || 'fauna',
     units: { scale: P.headScale, offset: [0, 0, 0] },
@@ -187,10 +191,37 @@ export function buildFauna(params) {
       if (!up && P.levelLegs) { const d = joints[g.to].map((x, c) => x - joints[g.from][c]); if (Math.abs(d[2]) < 0.5 * Math.hypot(...d)) up = [0, 0, 1]; }
       if (up) plan.segments[i] = stableRings(g, up, joints); }
     else if ((g.kind === 'loft' || g.kind === 'segment') && g.up && extra.includes(g)) plan.segments[i] = stableRings(g, g.up === true ? [0, 0, 1] : g.up, joints); }
+  throat(plan, P, head);
   if (P.headRelative || P.orbitFallback || setEye) seatOrbit(plan, head);
   if (P.headMesh) wearHeadMesh(plan, { pitch: P.headPitch, ...P.headMesh });
   if (P.wings) wearWings(plan, { scale: k, ...P.wings });   // opt-in: feathered or membrane wings (wing.js), worn at a root joint
   return plan;
+}
+
+/**
+ * THE THROAT: the jaw joined to the neck. The head is worn by its nape on neckTop, so a long face (a giraffe's, a
+ * camel's, a horse's) holds its jaw's rear corner out in the air in front of the neck, the throat open beneath the
+ * skull. A tapering segment runs from inside the neck (the foot of the jaw on the neck's axis, a quarter of the way
+ * out toward the jaw, the neck's own girth) into the jaw (its second row, mid-depth, inside the jaw's section, so its
+ * cap never knobs out): the underside of the head runs on into the neck. Where the neck already meets the jaw it lies
+ * buried in both. `throat: false` leaves it out (a bird's throat is its feathered head; a frog's has no neck).
+ */
+function throat(plan, P, head) {
+  const J = plan.joints, jr = P.jawRows?.[0];
+  if (P.throat === false || P.headMesh || !jr || !J.neckTop || !J.neckBase || !P.nape) return;   // a worn head mesh has its own underside
+  const k = head.units.scale, nape = P.nape, a = ((P.headPitch || 0) * Math.PI) / 180, ca = dmath.cos(a), sa = dmath.sin(a);
+  const world = (q) => { const y = (q[1] - nape[1]) * k, z = (q[2] - nape[2]) * k; return [q[0] * k + J.neckTop[0], J.neckTop[1] + y * ca - z * sa, J.neckTop[2] + y * sa + z * ca]; };
+  // the far end inside the jaw, at its second row (or a third along a one-row jaw), mid-depth, and no bigger than the
+  // jaw's own section there, so it stays buried in the jaw (its cap never knobs out)
+  const r1 = P.jawRows[1] || jr, { bottom, gum, jaw: [jw] } = r1[2], depth = gum - bottom;
+  const B = world([0, r1[1], bottom + 0.5 * depth]);
+  const d = J.neckTop.map((x, i) => J.neckBase[i] - x), L = Math.hypot(...d), u = d.map((x) => x / L);
+  const t = Math.max(0.05 * L, Math.min(0.7 * L, B.reduce((m, x, i) => m + (x - J.neckTop[i]) * u[i], 0)));
+  const foot = J.neckTop.map((x, i) => x + u[i] * t), A = foot.map((x, i) => x + (B[i] - x) / 4);
+  const rNeck = Math.min(...[P.neckRA, P.neckRB].flat().filter(Number.isFinite)) * (P.scale ?? 1);
+  J.throatA = A.map((x) => +x.toFixed(6)); J.throatB = B.map((x) => +x.toFixed(6));
+  plan.segments.push({ name: 'throat', kind: 'segment', from: 'throatA', to: 'throatB', rA: [0.9 * rNeck, 0.8 * rNeck], rB: [0.9 * jw * k, 0.48 * depth * k],
+    slots: 'ring12', over: [0.3, 0], group: P.throatGroup || (P.neckGroup && P.neckGroup !== 'Coat' ? P.neckGroup : 'Coat'), mirror: 'plane' });
 }
 
 /** A STABLE RING FRAME for a segment or loft (opt-in): its rings rebuilt as explicit points whose `front` slot is
@@ -238,32 +269,47 @@ function seatOrbit(plan, head) {
 
 /** A HEAD MESH worn natively: an authored polygon head (vertices, faces, groups in its own +y front, +z up frame)
  * replaces the ring-built head. Its polygons are kept exactly: the mesh is scaled to `length` (metres, nape to nose)
- * and its anchor (the point `anchor` of the way from its back to its front, at mid height) seated on neckTop, then
+ * and its anchor (the point `anchor` of the way from its back to its front, at `anchorZ` of its height) seated on neckTop, then
  * worn as ONE layer-2 part pinned to a small hidden core loft, every vertex an offset in that pin's frame. */
-function wearHeadMesh(plan, { mesh, length, anchor = 0.25, lift = 0, palette = {}, pitch = 0 }) {
+function wearHeadMesh(plan, { mesh, length, anchor = 0.25, anchorZ = 0.5, lift = 0, palette = {}, pitch = 0 }) {
   const V = mesh.vertices, axis = (a) => [Math.min(...V.map((v) => v[a])), Math.max(...V.map((v) => v[a]))];
   const [y0, y1] = axis(1), [z0, z1] = axis(2), k = length / (y1 - y0);
-  const N = plan.joints.neckTop, at = [0, y0 + (y1 - y0) * anchor, (z0 + z1) / 2];
+  // `anchorZ` (opt-in): the anchor's height, the share of the way up from the mesh's lowest point (default mid height);
+  // a head with tall ears has its middle up in the skull, far from where the neck enters it
+  const N = plan.joints.neckTop, at = [0, y0 + (y1 - y0) * anchor, z0 + (z1 - z0) * anchorZ];
   // `pitch` (degrees about x through the anchor, + raises the nose) tilts the mesh as the ring head's `headPitch` does
   const ca = dmath.cos(pitch * Math.PI / 180), sa = dmath.sin(pitch * Math.PI / 180);
-  const world = V.map((v) => { const y = (v[1] - at[1]) * k, z = (v[2] - at[2]) * k; return [v[0] * k, N[1] + y * ca - z * sa, N[2] + lift + y * sa + z * ca]; });
+  const place = (v) => { const y = (v[1] - at[1]) * k, z = (v[2] - at[2]) * k; return [v[0] * k, N[1] + y * ca - z * sa, N[2] + lift + y * sa + z * ca]; };
+  const world = V.map(place);
   // the core: a small level loft inside the head, the pin's parent (a detail part needs a layer-1 surface to ride)
   const r = 0.12 * length, cy = N[1], cz = N[2] + lift;
   plan.segments.push({ name: 'headCore', kind: 'loft', slots: 'ring12', group: 'Skull', mirror: 'plane',
     stations: [{ at: [0, cy - r, cz], r }, { at: [0, cy + r, cz], r }], caps: { back: [0, cy - 2 * r, cz], tip: [0, cy + 2 * r, cz] } });
+  // THE JAW (opt-in: `mesh.jaw` { vertices, faces, groups, hinge }): the lower jaw worn apart on a core of its own, a
+  // thin loft from the hinge into the jaw, which the `jawOpen` dial turns about the hinge (the ring head's dial: 0–35°,
+  // the front going down); the jaw rides it
+  const J = mesh.jaw, hinge = J ? place(J.hinge) : null, jawMid = J ? place([0, ...[1, 2].map((a) => J.vertices.reduce((m, v) => m + v[a], 0) / J.vertices.length)]) : null;
+  if (J) { const rj = 0.05 * length, d = [0, jawMid[1] - hinge[1], jawMid[2] - hinge[2]];
+    plan.segments.push({ name: 'jawCore', kind: 'loft', slots: 'ring12', group: 'Skull', mirror: 'plane',
+      stations: [{ at: [0, hinge[1] + 0.2 * d[1], hinge[2] + 0.2 * d[2]], r: rj }, { at: [0, hinge[1] + 0.8 * d[1], hinge[2] + 0.8 * d[2]], r: rj }], caps: { back: hinge, tip: jawMid } }); }
   delete plan.heads; delete plan.dials.head;
-  const built = compileLayered(expandPlan(plan), {}, { details: false, creases: false }).parts.headCore;
-  const [faceId, face] = Object.entries(built.faces).sort(([a], [b]) => (a < b ? -1 : 1))[0];
-  const pin = { parent: 'headCore', face: faceId, weights: [1 / 3, 1 / 3, 1 / 3], tangentEdge: [face[0], face[1]], handedness: 1 };
-  const frame = pinFrame(built, pin), id = (i) => `v${String(i).padStart(3, '0')}`;
+  const parts = compileLayered(expandPlan(plan), {}, { details: false, creases: false }).parts;
   const r6 = (x) => Math.round(x * 1e6) / 1e6;
-  const part = {
-    layer: 2, pin,
-    offsets: Object.fromEntries(world.map((p, i) => [id(i), surfaceLocalOffset(frame, p).map(r6)])),
-    faces: Object.fromEntries(mesh.faces.map((f, i) => [`f${String(i).padStart(3, '0')}`, f.map(id)])),
-    groups: Object.fromEntries(mesh.groups.map((g, i) => [`f${String(i).padStart(3, '0')}`, g])),
+  const worn = (core, pts, M) => {
+    const built = parts[core], [faceId, face] = Object.entries(built.faces).sort(([a], [b]) => (a < b ? -1 : 1))[0];
+    const pin = { parent: core, face: faceId, weights: [1 / 3, 1 / 3, 1 / 3], tangentEdge: [face[0], face[1]], handedness: 1 };
+    const frame = pinFrame(built, pin), id = (i) => `v${String(i).padStart(3, '0')}`;
+    return { layer: 2, pin,
+      offsets: Object.fromEntries(pts.map((p, i) => [id(i), surfaceLocalOffset(frame, p).map(r6)])),
+      faces: Object.fromEntries(M.faces.map((f, i) => [`f${String(i).padStart(3, '0')}`, f.map(id)])),
+      groups: Object.fromEntries(M.groups.map((g, i) => [`f${String(i).padStart(3, '0')}`, g])) };
   };
-  plan.include = [...(plan.include || []), { name: 'headMesh', parts: { headMesh: part }, shift: [0, 0, 0] }];
+  const include = { headMesh: worn('headCore', world, mesh) };
+  if (J) {
+    include.headJaw = worn('jawCore', J.vertices.map(place), J);
+    plan.dials.jawOpen = { min: 0, max: 35, rest: 0, doc: 'degrees the jaw rotates about its hinge (front goes down)', op: 'hinge', part: 'jawCore', pivot: 'jawCore/back', axis: 'x', sign: -1 };
+  }
+  plan.include = [...(plan.include || []), { name: 'headMesh', parts: include, shift: [0, 0, 0] }];
   plan.palette = { ...(plan.palette || {}), ...palette };
 }
 

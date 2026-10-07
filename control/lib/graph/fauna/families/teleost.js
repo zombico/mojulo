@@ -5,7 +5,7 @@
 // caudal fin (two midline lobes raking up and down off the peduncle) and paired pectoral and pelvic fins (flat
 // segments, thin vertically). Tables are authored in metres at salmon size, body centre at z = 0.5.
 // Builder features used: legs: [], ears: false, nose: false, tail: null, extra loft / segment `up`, markings.
-// Worked species: salmon, clownfish, goldfish, angelfish.
+// Worked species: salmon, clownfish, goldfish, angelfish, tuna, pufferfish.
 
 import { fish, fishMaker, midFin, lobe, pairFin } from '../makers/fish.js';
 
@@ -48,8 +48,83 @@ export const family = {
 };
 for (const k of Object.keys(family)) if (family[k] === undefined) delete family[k];
 
+// FINLETS: a row of small midline flags along the back (dir 1) or belly (−1) of a fishMaker body, each a short raked
+// lobe rooted just inside the skin — `ys` their y (front → back), `h` their height (m, before scale)
+const bodyAt = (B, y, k) => { if (y <= B[0][0]) return B[0][k]; for (let i = 1; i < B.length; i++) if (y <= B[i][0]) return B[i - 1][k] + (B[i][k] - B[i - 1][k]) * (y - B[i - 1][0]) / (B[i][0] - B[i - 1][0]); return B.at(-1)[k]; };
+const finlets = (pre, B, Z, ys, h, dir) => ys.map((y, i) => { const z = Z + dir * bodyAt(B, y, 2) * 0.9;
+  return lobe(`${pre}${i}`, [[y, z, h * 0.35], [y - h * 0.45, z + dir * h * 0.55, h * 0.3], [y - h * 0.9, z + dir * h, h * 0.1]], { t: 0.0025 }); });
+
+// ATLANTIC BLUEFIN TUNA (Thunnus thynnus). Thesis: a deep, ROUND-sectioned TORPEDO (depth ~¼ of length, thickest a
+// third back) tapering to a pencil-thin caudal peduncle · a tall, stiff, SICKLE (lunate) tail · a low spiny first
+// dorsal, then a tall pointed second dorsal mirrored by the anal fin · a row of small yellow FINLETS above and below
+// between those fins and the tail (the tuna tell) · a short pectoral, a conical head, terminal mouth, a big eye ·
+// dark metallic blue-black back over silver-white flanks and belly · ~2.0 m total length (Wikipedia, "Atlantic
+// bluefin tuna": adults commonly 2.0–2.5 m; FAO species catalogue, Collette & Nauen 1983: common to 200 cm).
+const TUNA_BODY = [[-0.27, 0.007, 0.01], [-0.22, 0.02, 0.026], [-0.14, 0.05, 0.062], [-0.04, 0.072, 0.09], [0.06, 0.074, 0.092], [0.15, 0.064, 0.078], [0.2, 0.052, 0.062]];
+const TUNA = fishMaker({
+  name: 'an Atlantic bluefin tuna', Z: 0.5, scale: 3.0,
+  body: TUNA_BODY,
+  head: { scale: 0.45, len: 0.13, taper: [1.35, 0.72], snout: -0.08, eye: { at: 0.3, h: 0.42, r: 0.2 }, mouth: 'terminal', gill: 0.78 },
+  caudal: { kind: 'lunate', from: -0.262, len: 0.115, spread: 0.14, w: 0.034 },
+  dorsal: [[0.075, 0.008], [0.06, 0.045], [0.03, 0.03], [-0.01, 0.018], [-0.04, 0.008]],
+  dorsal2: [[-0.05, 0.01], [-0.062, 0.08], [-0.09, 0.03], [-0.105, 0.008]],
+  anal: [[-0.062, 0.01], [-0.08, 0.06], [-0.09, 0.068], [-0.11, 0.025], [-0.122, 0.01]],
+  pectoral: { y: 0.12, len: 0.085, w: [0.014, 0.008], drop: 0.2 }, pelvic: { y: 0.1, len: 0.04, w: [0.009, 0.006] },
+  markings: [
+    { on: ['torso', 'neck'], kind: 'band', group: 'Back', t: [0, 0.42], color: '#1b2742' },
+    { on: ['torso', 'neck'], kind: 'band', group: 'Flank', t: [0.42, 0.5], color: '#6d7c8c' },
+    { on: ['torso', 'neck'], kind: 'belly', group: 'Belly', from: 0.7 },
+    { on: [...Array(8).keys()].map((i) => `finletD${i}`).concat([...Array(7).keys()].map((i) => `finletV${i}`)), kind: 'band', group: 'Finlet', color: '#e2b628' },
+  ],
+  colors: { coat: '#b4bec6', sock: '#b4bec6', ash: '#c4ccd2', ashAlt: '#bac3c9', belly: '#eef0ee', tip: '#26304a', brow: '#1b2742', iris: '#c8b048', sclera: '#141414', gill: '#2c3550' },
+  headPalette: { Skull: '#1b2742', Snout: '#1b2742', Brow: '#1b2742', Lids: '#9aa6b0', Jowl: '#e4e8ea', Jaw: '#e4e8ea' },
+});
+TUNA.extraSegments.push(
+  ...finlets('finletD', TUNA_BODY, 0.5, [-0.13, -0.147, -0.164, -0.181, -0.198, -0.215, -0.232, -0.248], 0.016, 1),
+  ...finlets('finletV', TUNA_BODY, 0.5, [-0.14, -0.158, -0.176, -0.194, -0.212, -0.23, -0.247], 0.015, -1));
+
+// WHITE-SPOTTED PUFFER (Arothron hispidus), built INFLATED. Thesis: a near-SPHERICAL ball of a body (as wide and deep
+// as it is long, blown up with water) with a short stub of a tail · a blunt face with a small BEAK-LIKE mouth (fused
+// pale tooth plates) and big eyes high on the head · tiny fins: small rounded pectorals, a small dorsal and anal set
+// far back by the tail, a short rounded caudal fan, NO pelvic fins · short PRICKLES standing out over the ball ·
+// olive grey-brown back sprinkled with small WHITE SPOTS over a white belly · ~0.5 m total length (FishBase, Arothron
+// hispidus: max 50 cm TL; Wikipedia, "White-spotted puffer": up to 50 cm).
+const PUFF_BODY = [[-0.2, 0.03, 0.034], [-0.17, 0.08, 0.09], [-0.11, 0.14, 0.145], [-0.03, 0.165, 0.165], [0.05, 0.16, 0.158], [0.11, 0.135, 0.13], [0.15, 0.105, 0.1]];
+const PUFFER = fishMaker({
+  name: 'a white-spotted puffer (inflated)', Z: 0.5, scale: 0.98,
+  body: PUFF_BODY,
+  head: { scale: 0.62, len: 0.09, taper: [1.5, 0.7], kx: 0.95, snout: -0.12, eye: { at: 0.85, h: 0.5, r: 0.2 }, mouth: 'small', gill: false },
+  caudal: { kind: 'rounded', from: -0.19, len: 0.09, spread: 0.06, w: 0.028 },
+  dorsal: [[-0.15, 0.008], [-0.16, 0.05], [-0.185, 0.04], [-0.2, 0.01]],
+  anal: [[-0.145, 0.01], [-0.158, 0.04], [-0.166, 0.045], [-0.185, 0.03], [-0.2, 0.01]],
+  pectoral: { y: 0.12, len: 0.05, w: [0.018, 0.028], up: [0.4, 0, 1], drop: 0.2 }, pelvic: null,
+  markDensity: { torso: 2 },
+  markings: [
+    { on: ['torso', 'neck'], kind: 'belly', group: 'Belly', from: 0.6 },
+    { on: 'torso', kind: 'band', group: 'Spot', color: '#f2f0e6', run: [0, 0], t: [0, 0] },   // the spots' colour (the spots are bumps below)
+  ],
+  colors: { coat: '#6e6650', sock: '#6e6650', ash: '#7a7258', ashAlt: '#716a52', belly: '#f1efe6', tip: '#857c62', brow: '#6e6650', iris: '#d9c46a', sclera: '#141414', gill: '#3e3a2e' },
+  headPalette: { Skull: '#6e6650', Snout: '#6e6650', Brow: '#6e6650', Lids: '#6e6650', Jowl: '#f1efe6', Jaw: '#f1efe6', Mouth: '#e8e2cc' },
+});
+// the prickles: short cones standing out of the ball, rows around the body (right side; mirrored by name), each rooted
+// inside the skin
+{ const Z = 0.5, rows = [[-0.1, [25, 65, 105, 145]], [-0.03, [10, 45, 80, 115, 150]], [0.04, [25, 65, 105, 145]], [0.1, [15, 50, 88, 130]]];
+  let n = 0; for (const [y, angs] of rows) for (const a of angs) { const t = a * Math.PI / 180, w = bodyAt(PUFF_BODY, y, 1), h = bodyAt(PUFF_BODY, y, 2);
+    const p = (k) => [w * k * Math.sin(t), y - (k - 0.9) * 0.08, Z + h * k * Math.cos(t)];
+    PUFFER.joints[`prk${n}A`] = p(0.9); PUFFER.joints[`prk${n}B`] = p(1.13);
+    PUFFER.extraSegments.push({ name: `prickle${n}R`, kind: 'segment', from: `prk${n}A`, to: `prk${n}B`, rA: [0.007, 0.007], rB: [0.0012, 0.0012], slots: 'ring12', over: [0.2, 0.2], group: 'Tip', mirror: 'name' }); n++; } }
+// the WHITE SPOTS: small pale bumps just proud of the back and flanks (paint on the ball's coarse faces would be bars),
+// on a staggered, deterministically jittered lattice
+{ const Z = 0.5; let n = 0;
+  for (let i = 0; i < 9; i++) for (let j = 0; j < 5; j++) { const y = -0.15 + i * 0.033 + (j % 2) * 0.016, a = (8 + j * 21 + ((i * 7 + j * 3) % 5) * 2) * Math.PI / 180;
+    if (y > 0.15) continue; const w = bodyAt(PUFF_BODY, y, 1), h = bodyAt(PUFF_BODY, y, 2), p = (k) => [w * k * Math.sin(a) + 0.0001, y, Z + h * k * Math.cos(a)];
+    PUFFER.joints[`spt${n}A`] = p(0.95); PUFFER.joints[`spt${n}B`] = p(1.012);
+    PUFFER.extraSegments.push({ name: `spot${n}R`, kind: 'segment', from: `spt${n}A`, to: `spt${n}B`, rA: [0.0065, 0.0065], rB: [0.005, 0.005], slots: 'ring12', over: [0.1, 0.3], group: 'Spot', mirror: 'name' }); n++; } }
+
 export const species = {
   salmon: SALMON,
+  pufferfish: PUFFER,
+  tuna: TUNA,
   // CLOWNFISH (Amphiprion ocellaris). Thesis: a short, DEEP oval body (depth ~⅓ of length), a thick peduncle · a
   // blunt rounded head, big eye · ROUNDED fins: a long dorsal (low spiny front, taller rounded soft rear), a rounded
   // fan caudal, rounded anal, big rounded pectorals · ORANGE with THREE WHITE BARS (behind the eye, mid-body, at the
@@ -149,11 +224,11 @@ export const about = {
   goldfish: { common: 'goldfish', aliases: ['gold fish'], sci: 'Carassius auratus', size: '~0.20 m long', source: 'FishBase' },
   angelfish: { common: 'angelfish', aliases: ['angel fish'], sci: 'Pterophyllum scalare', size: '~0.15 m long, ~0.20 m tall', source: 'Wikipedia, Pterophyllum scalare' },
   morayEel: { common: 'moray eel', aliases: ['moray', 'eel'], sci: 'Gymnothorax funebris', size: '~1.8 m long', source: 'FishBase' },
+  tuna: { common: 'tuna', aliases: ['bluefin tuna', 'atlantic bluefin tuna', 'bluefin'], sci: 'Thunnus thynnus', size: '~2.0 m long', source: 'FAO species catalogue (Collette & Nauen 1983): common to 200 cm' },
+  pufferfish: { common: 'pufferfish', aliases: ['puffer', 'blowfish', 'white-spotted puffer', 'puffer fish'], sci: 'Arothron hispidus', size: '~0.5 m long (built inflated)', source: 'FishBase, Arothron hispidus (max 50 cm TL)' },
 };
 
 // Animals people ask for that this family would build but does not yet: `near` (a built species) stands in, and
 // the search card says so. Building one moves its row into `species` + `about`.
 export const wanted = {
-  tuna: { near: 'salmon', aliases: [], note: 'a deep torpedo, a sickle tail, finlets before the tail' },
-  pufferfish: { near: 'goldfish', aliases: ['puffer', 'blowfish'], note: 'a round inflated spiny ball' },
 };

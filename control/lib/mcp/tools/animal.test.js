@@ -131,7 +131,7 @@ describe("mint_solid kind 'animal' — the maker door", () => {
   });
 
   it('an asked-for animal not built yet names its stand-in; an unknown word points at the roster', async () => {
-    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'koala' } })).rejects.toThrow(/no 'koala' species yet[\s\S]*'wombat'/);
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'bobcat' } })).rejects.toThrow(/no 'bobcat' species yet[\s\S]*'lynx'/);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'unicorn' } })).rejects.toThrow(/id: 'animals'/);
   });
 

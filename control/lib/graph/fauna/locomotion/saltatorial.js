@@ -42,5 +42,8 @@ export const FAMILIES = {
     axial: { flex: 0.2, lateral: 0, wave: 'none', roll: 0, yaw: 0, head: 'steady', tail: 'none' },
     note: 'unfolds all hind joints at once to leap, lands on its forelegs; swims with both hind legs kicking together',
     source: 'Gray 1968 (animal locomotion); Astley & Roberts 2012 (frog jumping)',
+    species: {
+      toad: { gaits: { walk: { pattern: 'lateralWalk', duty: 0.7, stride: 0.8, fr: [0, 0.3] }, hop: { stride: 2 } }, note: 'walks more than it leaps; short hops' },
+    },
   },
 };
