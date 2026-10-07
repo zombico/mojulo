@@ -12,6 +12,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Quiet floors
+
+- **The house floor is muted.** The floorboards were saturated mid-brown with dark seams every 6 inches, so every room
+  read as stripes. The plank tints of each house style moved halfway to a warm grey of their own lightness (each
+  family keeps its character: brick and mission stay the darker woods). The seams are now a hairline a shade under
+  the plank (0.9 of it, was 0.62) on 7.2-inch boards (were 6). Wet-room marble seams are softer (0.93, was 0.88).
+  This is an emission change: every furnished house and every store, restaurant and mall floor moves. The store,
+  room and World characterization pins are re-pinned with the reason beside them.
+
 ### Furniture grammar
 
 - **A piece is a kind, a form in each slot, a finish and a size**

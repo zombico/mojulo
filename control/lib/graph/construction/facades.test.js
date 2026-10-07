@@ -12,7 +12,8 @@ const bbox = (faces) => {
   return { lo, hi, size: lo.map((v, k) => hi[k] - v) };
 };
 const centroid = (faces) => [0, 1, 2].map((k) => faces.reduce((s, f) => s + f.corners[0][k], 0) / faces.length);
-/** Without `furnishing`, a room and a condo are the ones they were before facades: hashes captured at 23fd35b. */
+/** Without `furnishing`, a room and a condo are the ones they were before facades: hashes captured at 23fd35b (the room's
+ *  re-pinned when the floor finish went quiet). */
 const sha = (faces) => createHash('sha256').update(JSON.stringify(faces)).digest('hex').slice(0, 16);
 
 describe('construction/facades — the built pieces, placeable', () => {
@@ -53,7 +54,7 @@ describe('construction/facades — the built pieces, placeable', () => {
     const ONE = { width: 24, height: 28, rooms: [{ x: 2, y: 2, w: 20, h: 24, glyph: 'L' }], doors: [{ x: 12, y: 26, room: 0, edge: 'S' }] };
     const assets = (s) => new Set(s.faces.map((f) => f.group).filter((g) => /^asset:/.test(g)).map((g) => g.split(':')[1]));
     const room = structurizeFloorplan(ONE, { furnish: true });
-    expect(sha(room.faces)).toBe('b3cbfe6b82f513bd');
+    expect(sha(room.faces)).toBe('03a9eadc21604348');   // re-pinned when the floor finish went quiet (muted planks, hairline seams)
     const plain = assets(room);
     const built = assets(structurizeFloorplan(ONE, { furnish: true, furnishing: 'constructed' }));
     expect([...plain].some((a) => a.startsWith('constructed-'))).toBe(false);

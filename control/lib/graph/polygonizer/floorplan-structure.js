@@ -79,7 +79,7 @@ export const FLOORPLAN_DEFAULTS = {
   exteriorThickness: 0.67, // exterior wall ~8 in (2×6 stud + sheathing + finish)
   floorDrop: 1.1,          // floor/joist assembly ~13 in
   floorStyle: null,        // floor finish over the slab: null/'plain' | 'floorboards' | 'marble' | 'auto' (wet rooms marble, else floorboards)
-  floorboardTint: '#9a7b52', // wood plank floor
+  floorboardTint: '#8f7d64', // wood plank floor: a muted oak, half way to a warm grey of its lightness
   marbleTint: '#e2ded5',   // marble / stone tile floor
   doorWidth: 3,            // 36 in leaf — generous/accessible, reads right under 9 ft ceilings
   doorClearance: 3,        // approach depth kept furniture-free each side of a doorway (open-plan walkability) — 0.91 m (was 2.5: 0.76 m)
@@ -512,14 +512,15 @@ function floorFinishFaces(rect, style, baseZ, o, holes = []) {
   };
   for (const r of rects) {
     if (style === 'marble') {
-      const base = o.marbleTint || FLOORPLAN_DEFAULTS.marbleTint, seam = scaleHex(base, 0.88);
+      const base = o.marbleTint || FLOORPLAN_DEFAULTS.marbleTint, seam = scaleHex(base, 0.93);
       quad(r.x0, r.x1, r.y0, r.y1, z, base, texFor(r, true));
       const tile = 2.0, sw = 0.05;                                     // a tile grid both ways
       for (let x = Math.ceil(r.x0 / tile) * tile; x < r.x1 - Q; x += tile) quad(x - sw / 2, x + sw / 2, r.y0, r.y1, z + 0.004, seam);
       for (let y = Math.ceil(r.y0 / tile) * tile; y < r.y1 - Q; y += tile) quad(r.x0, r.x1, y - sw / 2, y + sw / 2, z + 0.004, seam);
     } else {                                                           // floorboards
-      const base = o.floorboardTint || FLOORPLAN_DEFAULTS.floorboardTint, seam = scaleHex(base, 0.62);
-      const along = (r.x1 - r.x0) >= (r.y1 - r.y0), board = 0.5, sw = 0.035;   // planks run along the longer axis
+      // the seams are a hairline a shade under the plank, so a room reads as one quiet floor, not as stripes
+      const base = o.floorboardTint || FLOORPLAN_DEFAULTS.floorboardTint, seam = scaleHex(base, 0.9);
+      const along = (r.x1 - r.x0) >= (r.y1 - r.y0), board = 0.6, sw = 0.02;    // planks run along the longer axis
       quad(r.x0, r.x1, r.y0, r.y1, z, texKey ? TEX_BASE : base, texFor(r, along));
       if (along) for (let y = Math.ceil(r.y0 / board) * board; y < r.y1 - Q; y += board) quad(r.x0, r.x1, y - sw / 2, y + sw / 2, z + 0.004, seam);
       else for (let x = Math.ceil(r.x0 / board) * board; x < r.x1 - Q; x += board) quad(x - sw / 2, x + sw / 2, r.y0, r.y1, z + 0.004, seam);
