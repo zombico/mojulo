@@ -946,8 +946,30 @@ export const DEFAULT_TIER = 'house';
 
 /** Resolve a tier name (or a partial override object) into a full tier config. */
 export function resolveTier(tier) {
-  if (tier && typeof tier === 'object') return { ...HOUSE_TIERS[DEFAULT_TIER], ...tier };
+  // an override object merges over the tier its `base` names (over 'house' when it names none, as it always did)
+  if (tier && typeof tier === 'object') {
+    if (tier.base == null) return { ...HOUSE_TIERS[DEFAULT_TIER], ...tier };
+    const { base, ...over } = tier;
+    return { ...(HOUSE_TIERS[base] || HOUSE_TIERS[DEFAULT_TIER]), ...over };
+  }
   return HOUSE_TIERS[tier] || HOUSE_TIERS[DEFAULT_TIER];
+}
+
+/** A manifest's `tier` → string[] of what is wrong with it (empty when it is a tier name or a well-formed override). */
+export function tierErrors(tier) {
+  const names = Object.keys(HOUSE_TIERS).join(', ');
+  if (tier == null) return [];
+  if (typeof tier === 'string') return HOUSE_TIERS[tier] ? [] : [`tier: one of ${names}, or { base?, beds?, study?, core?, maxPerRow? }`];
+  if (typeof tier !== 'object' || Array.isArray(tier)) return [`tier: one of ${names}, or { base?, beds?, study?, core?, maxPerRow? }`];
+  const e = [];
+  if (tier.base != null && !HOUSE_TIERS[tier.base]) e.push(`tier.base: one of ${names}`);
+  if (tier.beds != null && !(Number.isInteger(tier.beds) && tier.beds >= 0 && tier.beds <= 8)) e.push('tier.beds: a whole number of bedrooms, 0 to 8');
+  if (tier.study != null && typeof tier.study !== 'boolean') e.push('tier.study: true or false');
+  if (tier.maxPerRow != null && !(Number.isInteger(tier.maxPerRow) && tier.maxPerRow >= 1)) e.push('tier.maxPerRow: a whole number, at least 1');
+  if (tier.core != null && !(Array.isArray(tier.core) && tier.core.includes('L') && tier.core.includes('K') && tier.core.every((g) => ['L', 'K', 'D'].includes(g)))) {
+    e.push("tier.core: the open core's zones, ['L', 'K'] or ['L', 'K', 'D'] (living, kitchen, dining)");
+  }
+  return e;
 }
 
 // Split `total` into segments PROPORTIONAL to weights (each room's furniture budget),

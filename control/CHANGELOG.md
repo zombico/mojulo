@@ -25,6 +25,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   off-centre sofa. A bedroom may centre its bed between two nightstands. A deep dining room runs its table the long
   way. The door, stair and window passes still clear every layout. Absent the knob, layouts are unchanged.
 - **Fix: `furnishing: 'composed'` was refused at mint.** The house validator only knew `'constructed'`.
+- **A new house draws its own program, size and storeys.** A new generated house (no `rooms`, `levels` or
+  `storeys` given) now draws, from its seed, a tier and its program (`tier: { base, beds, study, core }`: a one- or
+  two-bedroom cottage, a two- to four-bedroom house, a villa of up to five, with or without a study and a separate
+  dining room), one or two storeys (`levels`, with a stair), and a footprint sized to that program. It is built by
+  the program generator, so every house has its bedrooms, bathrooms and one kitchen (the single-floor generator
+  could draw a house with no bedroom and two kitchens). A new house also gets windows and a front door, and a porch,
+  a stoop or neither, weighted by its style. Every draw is an ordinary knob in the stored recipe; any knob given
+  explicitly wins, and `program: false` keeps the single-floor generator.
+- **`tier` names a base.** `tier: { base: 'villa', beds: 5 }` overrides a named tier; an override object without
+  `base` merges over `'house'` as before. A bad tier is refused at mint, naming what is valid.
 
 ### Quiet floors
 

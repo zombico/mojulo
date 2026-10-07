@@ -41,10 +41,10 @@ exports[`mint goldens — the default pipeline branch > stores erd identically 1
 
 exports[`mint goldens — the default pipeline branch > stores floorplan-seeded identically 1`] = `
 {
-  "digest": "16424d6b3f1924fc",
+  "digest": "63f33e9b9d27d4a9",
   "shape": {
     "edges": null,
-    "keys": "furnishing,height,kind,layout,seed,style,title,viewBox,width,windows",
+    "keys": "entryDoor,furnishing,height,kind,layout,levels,porch,seed,style,tier,title,viewBox,width,windows",
     "kind": "floorplan",
     "marks": null,
     "stations": null,

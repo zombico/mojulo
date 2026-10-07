@@ -61,6 +61,7 @@ import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.
 import { buildingNext } from '@/lib/mcp/tools/building-next';
 import { scadNext } from '@/lib/mcp/tools/scad-next';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
+import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
 import { metalSurfaceError } from '@/lib/graph/materials/metal-surface.js';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
@@ -361,7 +362,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   // A NEW house draws its own seed, so two houses minted from one manifest are two houses. Drawn here at mint and
   // written into the recipe (never at render, which stays pure), before the grader so its best-of-N runs from it:
   // from the ref when the caller names one, else at random. An explicit seed, or a row minted before, keeps its own.
-  const expanded = newHouseSeed(expandDiagramManifest(working), ref);
+  const seeded = newHouseSeed(expandDiagramManifest(working), ref);
+  // ...and, when it leaves its plan to the generator, its program, storeys, footprint and front, drawn from that seed
+  // (floorplan-draw.js) and stamped as ordinary knobs, so the program generator builds it and the grader leaves it be
+  const drawn = seeded?.kind === 'floorplan' ? drawNewHouse(seeded) : {};
+  const expanded = Object.keys(drawn).length ? { ...seeded, ...drawn } : seeded;
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
   // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
   // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,

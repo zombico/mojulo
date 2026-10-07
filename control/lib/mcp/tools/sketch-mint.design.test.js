@@ -61,7 +61,10 @@ describe('design considerations at mint and update', () => {
 
   it('refuses a malformed design, and reads nothing for a single floor', async () => {
     await expect(createSketchHandler({ title: 'bad', manifest: { kind: 'floorplan', title: 'bad', storeys: 2, seed: 1, design: { passage: 'wide' } } })).rejects.toThrow(/design.passage/);
-    const floor = await createSketchHandler({ title: 'one floor', manifest: { kind: 'floorplan', title: 'one floor', seed: 3 } });
+    const floor = await createSketchHandler({ title: 'one floor', manifest: { kind: 'floorplan', title: 'one floor', seed: 3, program: false } });
     expect(floor.design).toBeUndefined();
+    // a house left to the draw is a program stack, and is walked like one
+    const drawn = await createSketchHandler({ title: 'drawn', manifest: { kind: 'floorplan', title: 'drawn', seed: 3 } });
+    expect(drawn.design).toBeTruthy();
   });
 });
