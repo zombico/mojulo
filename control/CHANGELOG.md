@@ -33,6 +33,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Leg forms are drawn over the square blank the build cuts**, so the members, joints and cut list stay the blank's.
   A turned leg keeps a square pommel, and a chair's back leg is turned only to its rails. A hairpin leg stands on a
   mounting plate and a glide.
+- **`mint_solid({ kind: 'furniture', spec: { like?, piece?, forms?, finish?, size?, buildable? } })`** composes and
+  locks a piece for furnishing houses. By default it is a display asset (`furnishings/asset.js`): a workbench row whose
+  `build: { type: 'furniture', piece, dials, legs?, size, fabric?, tint? }` is drawn the way a room draws its furniture
+  (no joints, pulls on, legs shaped), filled to its size exactly, and flagged `buildable: false`, with no construction
+  report or cut list. It places in a house as `rooms[i].items: [{ ref }]` and travels into an assembly by ref.
+  `update_sketch` restyles it in place (`/build/dials/<dial>`, `/build/legs`, `/build/fabric`, `/build/size`).
+  `buildable: true` stores the jointed build instead, one workbench frame the furniture report, manual and bill of
+  materials read, and notes any axis the build held to its own proportions (a sofa's back runs 680–1000 mm). The
+  result names the style it started from and what was swapped. The card is `get_solid_vocab({ id: 'furniture' })`;
+  a test holds it to every kind, slot, form, finish key and style.
+- **A frame's `legs`** (block, tapered, turned, bun, hairpin) draws a build's legs in that form on the workbench too
+  (`construction/legs.js`); an unknown form is refused naming the forms.
+- **Roster rows name the style that composes them** (`style`), so a room slot can lock a recipe in a piece's place.
 - **The room facades are now derived from the styles.** A characterization pin covers every facade recipe at three
   footprints, plain and in a house palette, and the room and condo hashes hold: no house changes.
 

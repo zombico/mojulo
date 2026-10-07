@@ -76,7 +76,7 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
   const hasProgram = program && typeof program === 'object';
   const hasBuild = build && typeof build === 'object' && !Array.isArray(build);
   if (!hasLathes && !hasExtrudes && !hasSweeps && !hasLofts && !hasFields && !hasDrapes && !hasReliefs && !hasShells && !hasFrames && !hasProgram && !hasBuild) {
-    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, `frames`, or `assembly` (the polygomer) — or a `program` (the code kind) or an equipment `build`.');
+    throw new Error('Provide at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells`, `frames`, or `assembly` (the polygomer) — or a `program` (the code kind) or an equipment or furniture `build`.');
   }
   const manifest = {
     kind: 'workbench',
@@ -85,7 +85,8 @@ export function mintWorkbench({ title, lathes, extrudes, sweeps, lofts, fields, 
     ...(hasProgram ? { program: { source: program.source, ...(program.params !== undefined ? { params: program.params } : {}), ...(program.seed !== undefined ? { seed: program.seed } : {}), ...(program.budgetMs !== undefined ? { budgetMs: program.budgetMs } : {}) } } : {}),
     // an equipment build (equipment/expand.js): the words are the recipe, expanded on every read, stamped with the
     // version of the laws it was minted under so a later refinement never moves it
-    ...(hasBuild ? { build: { ...build, laws: build.laws ?? LAWS_VERSION } } : {}),
+    // (a furniture build, furnishings/asset.js, is a lock of resolved dials and needs no laws stamp)
+    ...(hasBuild ? { build: build.type === 'equipment' ? { ...build, laws: build.laws ?? LAWS_VERSION } : build } : {}),
     ...(hasLathes ? { lathes: baseLathes } : {}),
     ...(hasExtrudes ? { extrudes: baseExtrudes } : {}),
     ...(hasSweeps ? { sweeps } : {}),

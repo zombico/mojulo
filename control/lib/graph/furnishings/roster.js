@@ -20,6 +20,7 @@
  *   wears      a mesh another piece owns that this one renders with (the desk chair
  *              wears the dining chair)
  *   constructed  the workbench build that stands in for it under `furnishing: 'constructed'`
+ *   style      the furniture style that composes it (furnishings/forms.js): the recipe a room can lock in its place
  *
  * The contract (roster.test.js) holds every key of every legacy table, and every type
  * and mesh an arranger emits, to exactly one row, and the legacy pairings to the rows.
@@ -61,13 +62,13 @@ export const NOT_FURNISHINGS = ['window', 'door'];
 
 export const FURNISHINGS = {
   // ── seats ──
-  sofa: { label: 'sofa', role: 'sofa', aliases: ['couch', 'settee', 'davenport'], type: 'sofa', constructed: 'constructed-sofa' },
+  sofa: { label: 'sofa', role: 'sofa', aliases: ['couch', 'settee', 'davenport'], type: 'sofa', constructed: 'constructed-sofa', style: 'sofa' },
   'modern-couch': { label: 'modern couch', role: 'sofa', aliases: ['modern sofa', 'mid-century sofa'], type: 'modern-couch', asset: 'modern-couch', constructed: 'constructed-sofa' },
-  chesterfield: { label: 'chesterfield', role: 'sofa', aliases: ['button-tufted sofa'], asset: 'constructed-chesterfield' },
-  armchair: { label: 'armchair', role: 'easy-chair', aliases: ['arm chair', 'easy chair'], type: 'armchair', asset: 'club-armchair', constructed: 'constructed-armchair' },
+  chesterfield: { label: 'chesterfield', role: 'sofa', aliases: ['button-tufted sofa'], asset: 'constructed-chesterfield', style: 'chesterfield' },
+  armchair: { label: 'armchair', role: 'easy-chair', aliases: ['arm chair', 'easy chair'], type: 'armchair', asset: 'club-armchair', constructed: 'constructed-armchair', style: 'armchair' },
   'club-chair': { label: 'club chair', role: 'easy-chair', aliases: ['single sofa'], type: 'club-chair', spellings: ['single-sofa'] },
   'lounge-chair': { label: 'lounge chair', role: 'easy-chair', aliases: ['tub chair'], type: 'lounge-chair', spellings: ['tub-chair'] },
-  'dining-chair': { label: 'dining chair', role: 'dining-chair', aliases: ['chair', 'ladder-back chair', 'kitchen chair'], type: 'ladder-chair', asset: 'chair', constructed: 'constructed-chair' },
+  'dining-chair': { label: 'dining chair', role: 'dining-chair', aliases: ['chair', 'ladder-back chair', 'kitchen chair'], type: 'ladder-chair', asset: 'chair', constructed: 'constructed-chair', style: 'chair' },
   'yoke-chair': { label: 'yoke-back chair', role: 'dining-chair', aliases: ['yoke back chair'], type: 'yoke-chair' },
   'block-chair': { label: 'block chair', role: 'dining-chair', aliases: ['simple chair'], type: 'chair' },
   'desk-chair': { label: 'desk chair', role: 'desk-chair', aliases: ['office chair', 'computer chair', 'swivel chair'], type: 'computer-chair', wears: 'chair', constructed: 'constructed-chair' },
@@ -75,8 +76,8 @@ export const FURNISHINGS = {
   bench: { label: 'bench', role: 'bench', aliases: ['hall bench', 'shoe bench', 'entry bench'], type: 'bench', asset: 'entry-bench' },
 
   // ── tables and desks ──
-  'coffee-table': { label: 'coffee table', role: 'coffee-table', aliases: ['low table', 'cocktail table'], type: 'table', asset: 'coffee-table', constructed: 'constructed-coffee-table' },
-  'dining-table': { label: 'dining table', role: 'dining-table', aliases: ['kitchen table', 'farmhouse table'], type: 'dining-table', asset: 'plank-dining-table', constructed: 'constructed-dining-table' },
+  'coffee-table': { label: 'coffee table', role: 'coffee-table', aliases: ['low table', 'cocktail table'], type: 'table', asset: 'coffee-table', constructed: 'constructed-coffee-table', style: 'coffee-table' },
+  'dining-table': { label: 'dining table', role: 'dining-table', aliases: ['kitchen table', 'farmhouse table'], type: 'dining-table', asset: 'plank-dining-table', constructed: 'constructed-dining-table', style: 'dining-table' },
   'study-table': { label: 'writing desk', role: 'desk', aliases: ['desk', 'study desk', 'writing table'], type: 'study-table', spellings: ['desk'], asset: 'study-table' },
   'computer-table': { label: 'computer desk', role: 'desk', aliases: ['pc desk', 'workstation'], type: 'computer-table', asset: 'computer-table' },
   'standing-desk': { label: 'standing desk', role: 'desk', aliases: ['sit-stand desk'], type: 'standing-desk', asset: 'standing-desk' },
@@ -85,16 +86,16 @@ export const FURNISHINGS = {
 
   // ── the bedroom ──
   bed: { label: 'bed', role: 'bed', aliases: ['double bed', 'queen bed', 'king bed'], type: 'bed', asset: 'platform-bed' },
-  nightstand: { label: 'nightstand', role: 'nightstand', aliases: ['bedside table', 'night table'], type: 'nightstand', asset: 'bedside-table', constructed: 'constructed-nightstand' },
-  dresser: { label: 'dresser', role: 'dresser', aliases: ['bureau', 'chest'], type: 'dresser', asset: 'low-dresser', constructed: 'constructed-chest' },
+  nightstand: { label: 'nightstand', role: 'nightstand', aliases: ['bedside table', 'night table'], type: 'nightstand', asset: 'bedside-table', constructed: 'constructed-nightstand', style: 'nightstand' },
+  dresser: { label: 'dresser', role: 'dresser', aliases: ['bureau', 'chest'], type: 'dresser', asset: 'low-dresser', constructed: 'constructed-chest', style: 'chest' },
   drawers: { label: 'tallboy', role: 'dresser', aliases: ['drawer tower', 'tall dresser'], type: 'drawers', spellings: ['tallboy'] },
 
   // ── storage ──
-  bookcase: { label: 'bookcase', role: 'bookcase', aliases: ['bookshelf', 'book shelf', 'bookshelves'], type: 'bookshelf', asset: 'bookcase', constructed: 'constructed-bookcase' },
+  bookcase: { label: 'bookcase', role: 'bookcase', aliases: ['bookshelf', 'book shelf', 'bookshelves'], type: 'bookshelf', asset: 'bookcase', constructed: 'constructed-bookcase', style: 'bookcase' },
   'utility-shelf': { label: 'utility shelving', role: 'shelving', aliases: ['rack shelf', 'wire shelving', 'garage shelving'], type: 'rack-shelf', spellings: ['rackShelves'], asset: 'utility-shelf' },
   cabinet: { label: 'cabinet', role: 'cabinet', aliases: ['cupboard', 'storage cabinet'], type: 'cabinet' },
-  sideboard: { label: 'sideboard', role: 'sideboard', aliases: ['buffet'], type: 'sideboard', asset: 'sideboard-cabinet', constructed: 'constructed-sideboard' },
-  'media-unit': { label: 'media unit', role: 'media', aliases: ['tv stand', 'entertainment center', 'media console'], type: 'media-unit', spellings: ['tv-stand'], asset: 'media-console', constructed: 'constructed-media-console' },
+  sideboard: { label: 'sideboard', role: 'sideboard', aliases: ['buffet'], type: 'sideboard', asset: 'sideboard-cabinet', constructed: 'constructed-sideboard', style: 'sideboard' },
+  'media-unit': { label: 'media unit', role: 'media', aliases: ['tv stand', 'entertainment center', 'media console'], type: 'media-unit', spellings: ['tv-stand'], asset: 'media-console', constructed: 'constructed-media-console', style: 'media-console' },
 
   // ── floor, light, walls ──
   rug: { label: 'rug', role: 'rug', aliases: ['carpet'], type: 'rug', asset: 'bordered-rug' },

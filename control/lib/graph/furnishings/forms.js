@@ -20,7 +20,7 @@
  * Leg forms other than `block` change only what is drawn (construction/facades.js): a turned or tapered leg is turned
  * from the square blank the build cuts, so the members, joints and cut list stay the blank's.
  */
-import { expandBuild } from '../construction/furniture-builds.js';
+import { expandBuild, LEG_SHAPES } from '../construction/furniture-builds.js';
 import { fabricError } from '../construction/fabric.js';
 import { TIMBER_KEYS, FINISHES as TIMBER_FINISHES } from '../construction/timber.js';
 import { SHEET_KEYS } from '../construction/sheets.js';
@@ -49,13 +49,7 @@ export const SEAT_FORMS = {
   bench: { cushions: 'bench' },
 };
 // drawn, not built: the blank stays square in the build (see the header)
-export const LEG_FORMS = {
-  block: {},
-  tapered: {},
-  turned: {},
-  bun: {},
-  hairpin: {},
-};
+export const LEG_FORMS = Object.fromEntries(LEG_SHAPES.map((k) => [k, {}]));
 export const FRONT_FORMS = {
   open: {},
   doors: { doors: 2, shelves: 1 },

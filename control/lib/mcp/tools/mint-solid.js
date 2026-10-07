@@ -44,6 +44,7 @@ import { createAnimalHandler } from '@/lib/mcp/tools/animal';
 import { createManjiTreeHandler, sketchPolygomerHandler } from '@/lib/mcp/tools/manji-trees';
 import { createWorkbenchHandler, createCodeSolidHandler, createEquipmentHandler } from '@/lib/mcp/tools/workbench';
 import { createScadHandler } from '@/lib/mcp/tools/scad';
+import { createFurnitureHandler } from '@/lib/mcp/tools/furniture';
 import { createLayeredHandler, createLayeredPlanHandler, createLayeredHeroHandler } from '@/lib/mcp/tools/layered';
 import { createAssemblerHandler } from '@/lib/mcp/tools/assembler';
 import { createCarvedSolidHandler } from '@/lib/mcp/tools/carved-solid';
@@ -92,6 +93,9 @@ export const SOLID_KINDS = {
   // The equipment door: arms named by intent and direction (item, style, dials) — the laws in lib/graph/equipment
   // compose them. Stores kind:'workbench' + `build`, expanded on every read, so a dial patch restyles in place.
   'equipment': { family: 'object', handler: createEquipmentHandler },
+  // The furniture door: a style or a kind, slot forms, a finish and a size (furnishings/forms.js), locked at mint into
+  // one workbench frame of resolved dials. Stores kind:'workbench' + `frames`, so a `/frames/0/…` patch restyles in place.
+  'furniture': { family: 'object', handler: createFurnitureHandler },
   // The OpenSCAD front door: `spec.source` is an OpenSCAD program and IS the recipe, meshed
   // in-process by OpenSCAD (WASM) and served on the workbench studio. Stores kind:'scad'.
   'scad': { family: 'object', handler: createScadHandler },

@@ -11,6 +11,7 @@ import { CONSTRUCTED_FOR } from '../polygonizer/floorplan-structure.js';
 import { ROOM_SCENE_ELEMENT_PRESETS } from '../polygonizer/room-scene-elements.js';
 import { FURNITURE_NETS } from '../polygonizer/furniture-cards.js';
 import { ROOM_FURNITURE_ASSETS, getRoomFurnitureAsset } from '../architecture/room-assets.js';
+import { FURNITURE_STYLES } from './forms.js';
 
 const IDS = Object.keys(FURNISHINGS);
 const MESH_ALIASES = Object.fromEntries(Object.values(ROOM_FURNITURE_ASSETS).map((a) => [a.id, a.aliases || []]));
@@ -53,6 +54,7 @@ const CONTRACT = {
   spellings: (r) => (r.spellings || []).every((s) => ROOM_SCENE_ELEMENT_PRESETS[s] || FURNITURE_FT[s] != null || FURNITURE_NETS[s]) || 'spellings: legacy keys that exist in a legacy table',
   asset: (r) => r.asset == null || getRoomFurnitureAsset(r.asset)?.id === r.asset || `asset: '${r.asset}' is no room-asset id`,
   wears: (r) => r.wears == null || IDS.some((id) => FURNISHINGS[id].asset === r.wears) || `wears: '${r.wears}' is owned by no row`,
+  style: (r) => r.style == null || r.style in FURNITURE_STYLES || `style: '${r.style}' is no furniture style`,
   constructed: (r) => r.constructed == null || (getRoomFurnitureAsset(r.constructed)?.id === r.constructed && r.constructed.startsWith('constructed-')) || `constructed: '${r.constructed}' is no constructed-* asset`,
 };
 
@@ -122,6 +124,18 @@ describe('the rows agree with the legacy pairings', () => {
       const id = pieceOfType(key) || IDS.find((i) => FURNISHINGS[i].asset === key);
       expect(id, key).toBeTruthy();
       expect(FURNISHINGS[id].constructed, `${key} → ${build}`).toBe(build);
+    }
+  });
+
+  it('composes every constructed piece from a style of the same build', () => {
+    // a row with a constructed stand-in is a piece the grammar can make: it names its style
+    const KIND_OF = { 'constructed-sofa': 'sofa', 'constructed-armchair': 'sofa', 'constructed-chesterfield': 'sofa', 'constructed-chair': 'chair', 'constructed-coffee-table': 'table', 'constructed-dining-table': 'table' };
+    for (const id of IDS) {
+      const r = FURNISHINGS[id];
+      const build = r.constructed || (r.asset && r.asset.startsWith('constructed-') ? r.asset : null);
+      if (!build || id === 'desk-chair' || id === 'modern-couch') continue;   // they share a stand-in with the row that owns the style
+      expect(r.style, `${id} has a constructed build but no style`).toBeTruthy();
+      expect(FURNITURE_STYLES[r.style].kind).toBe(KIND_OF[build] || 'casework');
     }
   });
 
