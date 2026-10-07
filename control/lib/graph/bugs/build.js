@@ -123,7 +123,7 @@ function buildLeg(tag, F, socket, L, group) {
   // a bar as a piece: its thin side across the leg's plane ('plane') or top to bottom ('up'); its bow in the plane
   const pc = (nm, P, Q, B, a, bn) => piece(`${tag}${nm}R`, sub(P, mul(unit(sub(Q, P)), (B.sink ?? 0.35) * B.r)), Q, { ...B, group, mirror: 'name', up: B.thin === 'up' ? nrmB(a, bn) : acrossOf(bn), toward: nrmB(a, bn) });
   const parts = [pc('Coxa', socket, P1, C, A.coxa, 'coxa'), pc('Femur', P1, P2, Fm, af, 'femur'), pc('Tibia', P2, P3, T, b, 'tibia')];
-  let P4 = P3;
+  let P4 = P3; const extra = {};
   if (F.chela) {
     // the CHELA: a palm (a bulb) on, then the fixed finger continuing it and the movable finger hinged below, gaping
     const ch = F.chela, d = dirB(at, 'tarsus'), palm = ch.palm * L * k, pr = ch.r * L * th, P5 = add(P3, mul(d, palm));
@@ -132,7 +132,7 @@ function buildLeg(tag, F, socket, L, group) {
     const fix = add(add(P5, mul(Z, 0.25 * pr)), mul(d, -0.25 * pr)), mov = add(add(P5, mul(Z, -0.3 * pr)), mul(d, -0.3 * pr));
     parts.push(piece(`${tag}FingerR`, fix, add(fix, mul(rotate(d, across, ch.gape / 2), fl)), { shape: 'banana', r: fr, flat: 0.7, bend: 0.12, toward: mul(Z, -1), up: across, group: 'Claw', mirror: 'name' }));
     parts.push(piece(`${tag}DactylR`, mov, add(mov, mul(rotate(d, across, -ch.gape / 2), fl * 1.05)), { shape: 'banana', r: fr, flat: 0.7, bend: 0.12, toward: Z, up: across, group: 'Claw', mirror: 'name' }));
-    P4 = add(P5, mul(d, fl));
+    P4 = add(P5, mul(d, fl)); extra.dactyl = [mov, add(mov, mul(rotate(d, across, -ch.gape / 2), fl * 1.05))];
   } else if (Ts) {
     // the TARSUS: `tarsi` carrots, each tapering a little into the next, the radius falling to the foot's `end`
     const n = Math.max(1, F.tarsi || 1), d = dirB(at, 'tarsus'), seg = Ts.len / n, across = acrossOf('tarsus'), nrm = (a) => nrmB(a, 'tarsus');
@@ -144,7 +144,7 @@ function buildLeg(tag, F, socket, L, group) {
       for (const [j, s] of [[0, 1], [1, -1]]) { const h = unit(add(sub(d, mul(Z, d[2])), mul(across, 0.35 * s))), cd = F.ground !== false ? add(mul(h, cosd(drop)), mul(Z, -sind(drop))) : unit(add(h, mul(Z, -0.9)));
         parts.push(piece(`${tag}Claw${j}R`, sub(P4, mul(d, 0.5 * cr)), add(P4, mul(cd, cl)), { shape: 'chili', r: cr, bend: 0.3, toward: mul(d, -1), group: 'Claw', mirror: 'name' })); } }
   }
-  return { parts, ground: F.ground !== false && !!Ts, foot: P4, joints: { socket, knee: P2, ankle: P3, foot: P4 } };
+  return { parts, ground: F.ground !== false && !!Ts, foot: P4, joints: { socket, hip: P1, knee: P2, ankle: P3, foot: P4, ...extra } };
 }
 
 /** a right-side ring part mirrored to the left, by hand: x negated, R → L, each ring's slots swapped across its
@@ -178,6 +178,10 @@ export function bodyLength(plan) {
 function assembleAt(B, L) {
   const C = { body: '#5a4a32', ...(B.colors || {}) }, col = (k, d = C.body) => C[k] ?? d;
   const parts = []; const keep = (...g) => { for (const x of g.flat()) if (x) parts.push(x); return g[0]; };
+  // the RIG readout (bugs/skeleton.js reads it; the plan never carries it): each section's segment bounds and station
+  // shares, each appendage's joints, in the plan's frame
+  const rig = { sections: {}, legs: [], palps: [], wings: [], antenna: null, mouth: null, metasoma: null };
+  const secRig = (sec) => ({ pts: sec.bounds.map((u) => sec.at(u).c), u: sec.stations.map((st) => st.u), n: sec.n });
 
   // ── the SECTIONS: trunk along +y from y = 0, the tail behind it (past a waist), the head in front ──
   const TR = pickForm(TRUNK_FORMS, B.trunk ?? 'compact', 'trunk');
@@ -194,6 +198,7 @@ function assembleAt(B, L) {
   const tailStart = add(add(rear, mul(TD, wl - (waist ? 0.15 : 0.12) * TL.len * L * (waist ? 0.3 : 1) - (TL.overhang || 0) * L)), mul(Z, (TL.lift || 0) * L));
   const tail = section(TL, tailStart, TD, TU, L);
   keep(ringPart('tail', tail.stations, { group: 'Tail', slots: TL.slots || 'ring12' }));
+  rig.sections.trunk = secRig(trunk); rig.sections.tail = secRig(tail);
   if (waist) {
     const wr = waist.r * L, node = (waist.node || 0) * L, m = 6, st = [];
     for (let i = 0; i <= m; i++) { const u = i / m, c = add(add(rear, mul(Y, 0.2 * wr)), mul(sub(add(tailStart, mul(TD, -0.4 * wr)), add(rear, mul(Y, 0.2 * wr))), u));
@@ -207,7 +212,7 @@ function assembleAt(B, L) {
     const NK = { len: 0.2, w: 0.04, h: 0.04, pitch: 30, r0: 0.9, peak: 0.5, r1: 0.9, p: 1, q: 1, overlap: 0.1, ...B.neck };
     const nf = trunk.at(1), ND = [0, cosd(NK.pitch), sind(NK.pitch)], NU = [0, -sind(NK.pitch), cosd(NK.pitch)];
     neck = section(NK, add(nf.c, mul(nf.D, -(NK.overlap ?? 0.1) * NK.len * L)), ND, NU, L);
-    keep(ringPart('neck', neck.stations, { group: 'Neck', slots: 'ring12' }));
+    keep(ringPart('neck', neck.stations, { group: 'Neck', slots: 'ring12' })); rig.sections.neck = secRig(neck);
   }
   // the head: its back ring overlapping the trunk's (or the neck's) front, its axis pitched (face down: hypognathous)
   let head = null;
@@ -215,7 +220,7 @@ function assembleAt(B, L) {
     const front = (neck || trunk).at(1), HDir = [0, cosd(HD.pitch), sind(HD.pitch)], HU = [0, -sind(HD.pitch), cosd(HD.pitch)];
     const start = add(add(front.c, mul(neck || TR.pitch ? front.D : Y, -(HD.overlap ?? 0.15) * HD.len * L)), mul(Z, (HD.lift || 0) * L));
     head = section(HD, start, HDir, HU, L);
-    keep(ringPart('head', head.stations, { group: 'Head', slots: 'ring12' }));
+    keep(ringPart('head', head.stations, { group: 'Head', slots: 'ring12' })); rig.sections.head = secRig(head);
   }
   // a fused head is the trunk's front quarter: head sockets read the trunk from u = 0.7
   const H = head || { ...trunk, at: (u) => trunk.at(0.7 + 0.3 * u), fused: true };
@@ -270,7 +275,7 @@ function assembleAt(B, L) {
       return AN.bead ? { len: l, r: Math.max(ra, rb), shape: 'bulb', r0: 0.55, peak: 0.5, end: 0.55 } : { len: l, r: Math.max(ra, 1e-6), shape: 'carrot', end: Math.min(1.6, rb / Math.max(ra, 1e-9)) * 0.92, taper: 0.8 }; });
     const ch = chain('antenna', sock, heading(AN.yaw, AN.rise), segs, (i, d) => { let q = bendDown(d, (AN.curve || 0) / n); q = rotate(q, Z, -(AN.flare || 0) / n);
       if (AN.elbow && i === AN.elbow.at) q = rotate(bendDown(q, AN.elbow.deg), Z, -(AN.elbow.flare || 0)); return q; }, { mirror: 'name', group: 'Antenna', sink: 0.2 });
-    keep(ch.parts); const pts = ch.joints;
+    keep(ch.parts); const pts = ch.joints; rig.antenna = pts;
     if (AN.comb) { const cb = AN.comb, m = cb.count;
       for (let j = 0; j < m * (cb.both ? 2 : 1); j++) { const u = lerp(cb.from, 0.95, (j % m) / Math.max(1, m - 1)), i = Math.min(n - 1, Math.round(u * n)), base = pts[i], d = unit(sub(pts[i + 1], pts[i]));
         const side = unit(cross(d, j < m ? Z : X)), dd = unit(add(mul(side, j < m ? 1 : -1), mul(d, 0.5))), l = cb.len * L * (1 - 0.6 * u);
@@ -290,7 +295,7 @@ function assembleAt(B, L) {
       // rising); `toward` (opt-in) the side the jaw bows to (default in, −x)
       const base = add(mouth, mul(tip.S, Math.max(0.45 * tip.w, 1.2 * r))), d = rotate(rotate(tip.D, tip.U, -(MO.spread || 0)), tip.S, MO.pitch || 0), end = add(base, mul(d, len));
       const bow = MO.toward || [-1, 0, 0], mj = { shape: MO.shape || 'banana', r, flat: MO.flat ?? 0.5, bend: MO.bend ?? 0.25, toward: bow, up: tip.U, group: 'Mouth', mirror: 'name', n: 8 };
-      keep(piece('mandibleR', base, end, mj));
+      keep(piece('mandibleR', base, end, mj)); rig.mouth = { kind: 'mandibles', root: base, tip: end };
       // TEETH: `tooth` (one, at that share) or `teeth: [{ at, len, dir? }]`, each rooted ON the bowed curve
       const ctrl = add(mul(add(base, end), 0.5), mul((() => { const k = unit(sub(end, base)); const o = sub(bow, mul(k, dot(bow, k))); return norm(o) > 1e-9 ? unit(o) : [0, 0, 0]; })(), mj.bend * len));
       const onCurve = (t) => add(add(mul(base, (1 - t) ** 2), mul(ctrl, 2 * (1 - t) * t)), mul(end, t * t));
@@ -300,16 +305,17 @@ function assembleAt(B, L) {
     } else if (MO.kind === 'coil') {
       const n = 28, total = (MO.turns ?? 2) * 360, w = Array.from({ length: n }, (_, i) => dmath.pow(i + 1, 1.3)), ws = w.reduce((s2, x) => s2 + x, 0);
       const pts = trace(add(mouth, mul(tip.D, -0.2 * tip.h)), mul(Z, -1), len, n, (i, d) => rotate(d, X, (total * w[i]) / ws));
-      keep(rod('proboscis', pts, pts.map((_, i) => r * lerp(1, 0.5, i / n)), { group: 'Mouth', up: X }));
+      keep(rod('proboscis', pts, pts.map((_, i) => r * lerp(1, 0.5, i / n)), { group: 'Mouth', up: X })); rig.mouth = { kind: 'coil', root: pts[0], tip: pts[n] };
     } else if (MO.kind === 'needle') {
       const d = [0, cosd(MO.pitch), sind(MO.pitch)], end = add(mouth, mul(d, len));
       // `bend` / `toward` (opt-in): a curved rostrum (an acorn weevil's), bowed toward `toward` (default down)
       keep(piece('proboscis', mouth, end, { shape: 'carrot', r, end: MO.end ?? 0.3, up: X, group: 'Mouth', ...(MO.bend ? { bend: MO.bend, toward: MO.toward || [0, 0, -1], n: 8 } : {}) }));
+      rig.mouth = { kind: 'needle', root: mouth, tip: end };
       if (MO.pad) { const pr = MO.pad * L; keep(ringPart('labellum', [-0.8, 0, 0.8].map((v) => ({ c: add(end, mul(d, v * pr * 0.6)), r: [pr, pr * 0.6], up: Y })), { group: 'Mouth', slots: 'ring8', cap: [0.5, 0.5] })); }
     } else if (MO.kind === 'fangs') {
       const base = add(mouth, mul(tip.S, 0.3 * tip.w));
       keep(piece('fangBaseR', base, add(base, mul(unit([0.05, 0.6, -0.8]), len * 0.6)), { shape: 'carrot', r, end: 0.7, group: 'Mouth', mirror: 'name' }));
-      const fb = add(base, mul(unit([0.05, 0.6, -0.8]), len * 0.55));
+      const fb = add(base, mul(unit([0.05, 0.6, -0.8]), len * 0.55)); rig.mouth = { kind: 'fangs', root: base, tip: fb };
       keep(piece('fangR', fb, add(fb, mul(unit([-0.4, -0.2, -0.9]), len * 0.6)), { shape: 'chili', r: r * 0.5, bend: 0.3, toward: [0, -1, 0], group: 'Claw', mirror: 'name' }));
     }
   }
@@ -335,6 +341,7 @@ function assembleAt(B, L) {
       // `seam` (opt-in, share): each case widened across the midline by that share, so the two meet flush (no valley)
       if (W.seam) for (const q of st) { const we = q.c[0] * 2; q.c = [we / 2 * (1 - W.seam), q.c[1], q.c[2]]; q.r = [we / 2 * (1 + W.seam) * 1.02, q.r[1]]; }
       keep(ringPart(`elytron${i ? i : ''}R`, st, { group: W.group, slots: W.slots || 'ring12', mirror: 'name', cap: [0.5, 0.4] }));
+      rig.wings.push({ name: `elytron${i ? i : ''}R`, root: st[0].c, tip: st[m].c, elytra: true });
       return;
     }
     const seg = trunk.segAt(w.seg ?? wingSegs[Math.min(i, 1)]), { p } = surfacePoint(trunk, seg, w.socket ?? 62, 0.25);
@@ -344,6 +351,7 @@ function assembleAt(B, L) {
     for (let j = 0; j <= m; j++) { const u = j / m, c = profile(u, W) * ch, spar = add(p, mul(S, u * span * 0.98));
       st.push({ c: add(spar, mul(Cc, (W.lead - 0.5) * c)), r: [Math.max(W.thick * L * 0.5, 1e-6), c / 2], up: Cc, d: S }); }
     keep(ringPart(`wing${i ? (i === 1 ? 'Hind' : i) : 'Fore'}R`, st, { group: W.group, slots: W.slots || 'ring8', mirror: 'name', cap: [0.3, 0.3] }));
+    rig.wings.push({ name: `wing${i ? (i === 1 ? 'Hind' : i) : 'Fore'}R`, root: p, tip: add(p, mul(S, span)), pair: i });
   });
 
   // ── EXTRAS at the tail tip: cerci (chilis; earwig forceps as bananas), a median filament, an ovipositor, a sting,
@@ -357,7 +365,7 @@ function assembleAt(B, L) {
       const n = x.segs ?? 5, segs = Array.from({ length: n }, (_, i) => ({ len: (len / n) * (1 + 0.15 * i / n), r: r * lerp(1, 0.75, i / n), shape: 'bulb', r0: 0.7, peak: 0.55, end: 0.75 }));
       // the curl: each joint lifts the heading up and over (about x)
       const curled = chain('metasoma', add(tt.c, mul(tt.D, -0.2 * tt.h)), heading(180, x.rise ?? 25), segs, (_, d) => rotate(d, X, -(x.curl ?? 32)), { group: 'Tail', up: X });
-      keep(curled.parts);
+      keep(curled.parts); rig.metasoma = curled.joints;
       const e = curled.joints[n], d = rotate(curled.heading, X, -(x.curl ?? 32)), sl = (x.sting ?? 0.08) * L;
       // `vesicle` (opt-in): the bulb's radius as a share of the tail's; `stingCurl` (degrees) the sting's hook
       keep(piece('telson', sub(e, mul(d, 0.3 * r)), add(e, mul(d, sl * 0.55)), { shape: 'bulb', r: r * (x.vesicle ?? 0.95), r0: 0.6, peak: 0.6, end: 0.5, up: X, group: 'Tail' }));
@@ -380,6 +388,8 @@ function assembleAt(B, L) {
   for (const g of parts) shiftPart(g, dz);
   const lift = (sec) => ({ ...sec, at: (u) => { const a = sec.at(u); return { ...a, c: [a.c[0], a.c[1], a.c[2] + dz] }; } });
   const trunkZ = lift(trunk), HZ = lift(H), neckZ = neck ? lift(neck) : null;
+  { const up = (q) => (Array.isArray(q) && typeof q[0] === 'number' && q.length === 3 ? [q[0], q[1], q[2] + dz] : Array.isArray(q) ? q.map(up) : q && typeof q === 'object' ? Object.fromEntries(Object.entries(q).map(([k, v]) => [k, k === 'u' || k === 'n' ? v : up(v)])) : q);
+    for (const k of ['sections', 'wings', 'antenna', 'mouth', 'metasoma']) rig[k] = up(rig[k]); }
 
   // ── LEGS: a socket per pair on its segment's flank, a manji chain each; grounded feet on z = 0 ──
   const LG = B.legs ?? {}, base = LG.form ?? 'walker', socketDeg = LG.socket ?? -38, legs = [];
@@ -398,21 +408,22 @@ function assembleAt(B, L) {
     const yw = F.yaw; F.yawDeg = F.yawOver ?? (Array.isArray(yw) ? (yw.length === 1 ? yw[0] : (() => { const t = (P === 1 ? 0 : j / (P - 1)) * (yw.length - 1), i = Math.min(yw.length - 2, Math.floor(t)); return lerp(yw[i], yw[i + 1], t - i); })()) : yw);
     // `at` (opt-in): the pair's socket as a share of the trunk from its front (0) to its rear (1)
     const { p } = over.on === 'neck' && neckZ ? surfacePoint(neckZ, over.at ?? 0.85, over.socket ?? socketDeg, 0.2) : surfacePoint(trunkZ, over.at !== undefined ? 1 - over.at : u, over.socket ?? socketDeg, 0.2);
-    let leg = buildLeg(`leg${j}`, F, p, L, 'Leg');
+    let leg = buildLeg(`leg${j}`, F, p, L, 'Leg'), lft = null;
     if (over.left) {
       // UNEQUAL SIDES (opt-in, `left: { …overrides }` on a pair): the right leg as built, the left built from the merged
       // overrides as a right leg and mirrored here (a lobster's crusher and cutter, a fiddler crab's one big claw)
       const FL = pickForm(LEG_FORMS, { form: over.form ?? base, ...merge1(over, over.left) }, `legs[${j}].left`); FL.yawDeg = F.yawDeg;
-      const lft = buildLeg(`leg${j}`, FL, p, L, 'Leg');
+      lft = buildLeg(`leg${j}`, FL, p, L, 'Leg');
       for (const g of leg.parts) g.mirror = null;
       leg = { ...leg, parts: [...leg.parts, ...lft.parts.map(mirrorRings)], ground: leg.ground && lft.ground };
     }
     keep(leg.parts); legs.push({ pair: j, role, form: over.form ?? base, ground: leg.ground });
+    rig.legs.push({ pair: j, role, ground: leg.ground, joints: leg.joints, ...(over.left ? { left: Object.fromEntries(Object.entries(lft.joints).map(([k, v]) => [k, Array.isArray(v[0]) ? v.map((q) => [-q[0] + 0, q[1], q[2]]) : [-v[0] + 0, v[1], v[2]]])) } : {}) });
   });
   // palps (spiders) and other raised appendages at the head's front
   for (const [i, pp] of (B.palps ? [B.palps] : []).entries()) {
     const F = pickForm(LEG_FORMS, { form: 'palp', ...pp }, 'palps'); F.yawDeg = F.yaw; const { p } = surfacePoint(HZ, 0.85, -20, 0.2);
-    keep(buildLeg(`palp${i || ''}`, F, p, L, 'Leg').parts);
+    const pl = buildLeg(`palp${i || ''}`, F, p, L, 'Leg'); keep(pl.parts); rig.palps.push({ name: `palp${i || ''}`, ground: false, joints: pl.joints });
   }
 
   // ── MARKINGS: paint on the parts' own faces (body-paint.js) ──
@@ -445,7 +456,7 @@ function assembleAt(B, L) {
     },
   };
   if (paint.length) plan.paint = paint;
-  return { plan, readout: { name: B.name || null, length: L, legPairs: legs.length, legs, grounded: legs.filter((g) => g.ground).length * 2, wings: (wings?.pairs || []).length } };
+  return { plan, rig, readout: { name: B.name || null, length: L, legPairs: legs.length, legs, grounded: legs.filter((g) => g.ground).length * 2, wings: (wings?.pairs || []).length } };
 }
 
 /** the readout alone (see assembleBug) */

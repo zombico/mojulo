@@ -40,6 +40,7 @@ import { buildFauna, mergeParams } from '@/lib/graph/fauna/build';
 import { fish } from '@/lib/graph/fauna/makers/fish';
 import { serpent } from '@/lib/graph/fauna/makers/serpent';
 import { BUG_SPECIES, bugParams, resolveBug, assembleBug } from '@/lib/graph/bugs/species';
+import { withBugMotion, bugMotionGaits, bugMotionBehaviors, bugBehaviorLines } from '@/lib/graph/bugs/rig';
 import { createLayeredPlanHandler } from '@/lib/mcp/tools/layered';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 
@@ -86,6 +87,29 @@ export function motionSpec(species, motion) {
   const keys = o.keys ?? 24;
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
   return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}) };
+}
+
+/**
+ * A bug's `motion` (bugs/rig.js) → `{ gaits, keys, behaviors?, wingbeat? }` or null, read as a species' is: `true` /
+ * 'all' every gait it moves by, a gait or behavior word or a list, or `{ gaits, behaviors, keys, wingbeat }` (`wingbeat`:
+ * 'auto' | 'beat' | 'blur' | beats a second, how a flight's wings show: bugs/gait.js).
+ */
+export function bugMotionSpec(B, id, motion) {
+  if (motion === undefined || motion === null || motion === false) return null;
+  const have = bugMotionGaits(B, id), does = bugMotionBehaviors(), say = `this bug moves: ${have.join(', ')}; does: ${does.join(', ')}`;
+  const words = typeof motion === 'string' && motion !== 'all' ? [motion] : Array.isArray(motion) ? motion : null;
+  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter((w) => !does.includes(w)), behaviors: words.filter((w) => does.includes(w)) } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait or behavior word, a list of them, or { gaits, behaviors, keys } — ${say}`);
+  const behaviors = o.behaviors === 'all' ? does : o.behaviors === undefined ? [] : [o.behaviors].flat();
+  const gaits = o.gaits === undefined ? (behaviors.length ? [] : have) : [o.gaits].flat();
+  for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
+  for (const b of behaviors) if (!does.includes(b)) throw new Error(`no behavior '${b}' — ${say}`);
+  if (!gaits.length && !behaviors.length) throw new Error(`\`motion\` names no clip — ${say}`);
+  const keys = o.keys ?? 24;
+  if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
+  const wingbeat = o.wingbeat;
+  if (wingbeat !== undefined && !gaits.includes('fly')) throw new Error(`\`wingbeat\` sets a flight: name the \`fly\` gait — ${say}`);
+  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(wingbeat !== undefined ? { wingbeat } : {}) };
 }
 
 // Deep-merge the caller's `opts` over a species recipe's own, one level into each
@@ -179,10 +203,9 @@ export async function createAnimalHandler(input) {
 
   // An ARTHROPOD (lib/graph/bugs): a worked bug by `species` (or the name people say, resolved above), or one nobody
   // has built by `bug` (the closest worked bug with the asked part forms worn over it). Ring plans through the layered
-  // plan door. No skeleton yet: `motion` is refused rather than ignored.
+  // plan door. MOTION (opt-in, bugs/rig.js): the plan bound to the skeleton its parts give, its gaits as clips.
   if ((species && BUG_SPECIES[species]) || (bug && !species)) {
     if (opts !== undefined && opts !== null) throw new Error('`opts` are figure-body knobs; a bug is a ring plan — mint it, then tune with update_sketch on \'/plan/...\'');
-    if (input.motion !== undefined && input.motion !== null && input.motion !== false) throw new Error('`motion` animates a species with a skeleton and gaits; an arthropod has none yet');
     let resolved = null, B;
     // `like` by any name too ('ladybug' → ladybird); an asked-for bug not built names its stand-in
     if (bug && typeof bug.like === 'string' && !BUG_SPECIES[bug.like]) {
@@ -193,12 +216,13 @@ export async function createAnimalHandler(input) {
     try { if (bug) { resolved = resolveBug(bug); B = resolved.bauplan; } else B = bugParams(species); }
     catch (err) { throw new Error(`${err.message}`); }
     const { plan, readout } = assembleBug(B);
+    const motion = bugMotionSpec(B, species || null, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan, plan_audit: { source: 'agent' }, ...carved,
+      title, plan: motion ? withBugMotion(plan, B, species || null, motion.gaits, motion.keys, motion) : plan, plan_audit: { source: 'agent' }, ...carved,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
     return { ...res, species: species || null, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: legStance(readout.legPairs * 2), legs: readout.legPairs * 2, length_m: readout.length,
-      ...(resolved ? { basis: resolved.basis, worn: resolved.worn, ranked: resolved.ranked } : {}) };
+      ...(resolved ? { basis: resolved.basis, worn: resolved.worn, ranked: resolved.ranked } : {}), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(Object.entries(bugBehaviorLines(B, species || null)).filter(([w]) => motion.behaviors.includes(w))) } : {}) } } : {}) };
   }
 
   // A species rebuilt as a ring plan mints through the layered plan door: watertight, dialled, and

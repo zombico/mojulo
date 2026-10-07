@@ -39,6 +39,7 @@ import { resolveCharacterLight, layeredShadingNormals, characterLitPieces, chara
 import { standPose, poseLayered, rigidParts, GESTURE_CLIP, heroClipSeconds } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from '@/lib/graph/polygonizer/station-loft-rig';
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
+import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
@@ -652,8 +653,10 @@ export const WORLD_KINDS = {
         // the animal's gaits and behaviors: the mesh bound to the species' skeleton, each gait a clip from the gait solver
         // (in place, one stride, its own duration) and each behavior one loop from the behavior solver, packed like a
         // rigged recipe's so the preview, the GLB and Godot play it
-        const B = faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = packFaunaRig(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}) });
+        // (a bug's motion carries its bauplan: bugs/rig.js derives the skeleton and clips from it, packed the same way)
+        const bugMotion = !!m.recipe.motion.bug;
+        const B = bugMotion ? bugBones(m.recipe.motion) : faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It

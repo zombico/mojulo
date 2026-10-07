@@ -55,7 +55,10 @@ describe("mint_solid kind 'animal'", () => {
     const print = await mintSolidHandler({ kind: 'animal', title: 'Crawdad', spec: { bug: { like: 'crawdad', length: 0.2 } } });
     expect(print.basis).toBe('crayfish'); expect(print.resolved_from).toBe('crawdad'); expect(print.length_m).toBeCloseTo(0.2, 3);
     await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { bug: { like: 'wasp' } } })).rejects.toThrow(/no 'wasp' bug yet/);
-    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'honeyBee', motion: 'walk' } })).rejects.toThrow(/arthropod has none yet/);
+    const walker = await mintSolidHandler({ kind: 'animal', title: 'Bee', ref: 'an_beewalk', spec: { species: 'honeyBee', motion: 'walk' } });
+    expect(walker.motion).toEqual({ gaits: ['walk'] });
+    expect(SketchRepository.getByRef('an_beewalk').manifest.plan.motion).toMatchObject({ species: 'honeyBee', gaits: ['walk'], bug: { order: 'Hymenoptera' } });
+    await expect(mintSolidHandler({ kind: 'animal', title: 'x', spec: { species: 'ladybird', motion: 'fly' } })).rejects.toThrow(/no gait 'fly' — this bug moves: walk/);
   });
 
 

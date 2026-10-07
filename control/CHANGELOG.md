@@ -12,6 +12,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Bug motion
+
+The arthropods move. A bug minted with `motion` (a worked one by `species`, or one nobody has built by `bug`) carries a
+skeleton derived from the parts it is assembled from and clips the World plays, packed as the animals' are.
+
+- **The skeleton.** Bones along the body (the trunk's segments, the neck, the head, the abdomen's segments, a
+  scorpion's tail), a coxa / femur / tibia / tarsus chain per leg, the antennae, mouthparts, wings and wing cases; each
+  part bound to its bone, a section's rings blended along its segments.
+- **Walking.** One footfall rule for every leg count: each pair a fixed share of a stride behind the pair in front, the
+  two sides half a stride apart, so six legs walk the insect's alternating tripod, eight the spider's alternating
+  four, and many the millipede's wave. A planted foot holds the ground while the body passes over it.
+- **Flying, swimming and escaping.** Wings stroke about their roots (a beetle's wing cases raised clear first), oar
+  legs row, a lobster's tail flips it backwards, a crab walks sideways.
+- **Wingbeats.** A flight beats at the order's measured rate where a screen can show it (a butterfly's ten beats a
+  second); past that (a bee's two hundred) the World draws the wing's swept fan, see-through, instead of strobing
+  wings, while an engine export plays them beating at the screen's limit. `wingbeat` asks for beating, the blur, or a
+  rate.
+- **Behaviors.** Relaxing, alert, eating and sleeping, done the arthropod's way: antennae sweeping, forelegs or claws
+  raised, a scorpion's sting over its back, mouthparts working, legs drawn in.
+
 ### Fauna behavior
 
 What an animal does, said once for every animal and resolved per species to how its body does it. `relax` is one

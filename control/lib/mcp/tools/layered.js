@@ -63,6 +63,8 @@ import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
+import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
+import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
 import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/lib/graph/polygonizer/hero-gear';
@@ -110,14 +112,18 @@ export function planLayered(manifest) {
   // from the gait and behavior solvers at read time)
   if (manifest.recipe.motion && !manifest.recipe.rig) {
     try {
-      const M = manifest.recipe.motion, B = faunaBones(M.species);
+      const M = manifest.recipe.motion, bug = !!M.bug, B = bug ? bugBones(M) : faunaBones(M.species);
       if (!B) throw new Error(`unknown species '${M.species}'`);
-      const have = motionGaits(M.species); for (const g of M.gaits || []) if (!have.includes(g)) throw new Error(`'${M.species}' has no gait '${g}' (it can: ${have.join(', ')})`);
-      checkBehaviors(M.species, M.behaviors || [], M.variants || {});
+      // a bug's motion carries its bauplan (bugs/rig.js): its gaits are the ones its parts move by, every behavior word
+      const have = bug ? bugMotionGaits(M.bug, M.species || null) : motionGaits(M.species), who = bug ? 'this bug' : `'${M.species}'`;
+      for (const g of M.gaits || []) if (!have.includes(g)) throw new Error(`${who} has no gait '${g}' (it can: ${have.join(', ')})`);
+      if (bug) for (const w of M.behaviors || []) if (!bugMotionBehaviors().includes(w)) throw new Error(`no behavior '${w}' (the behaviors: ${bugMotionBehaviors().join(', ')})`);
+      if (bug && M.wingbeat !== undefined && !(M.wingbeat > 0) && !WINGBEATS.includes(M.wingbeat)) throw new Error(`\`wingbeat\` is ${WINGBEATS.join(' | ')} or beats a second`);
+      if (!bug) checkBehaviors(M.species, M.behaviors || [], M.variants || {});
       const skin = bindLayered(mesh, manifest.recipe, B);
       let bad = 0; skin.weights.forEach((w) => { if (Math.abs(w.reduce((a, b) => a + b, 0) - 1) > 1e-9 || w.some((x) => !(x >= 0))) bad++; });
       if (bad) throw new Error(`${bad} vertices with bad weights`);
-      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M.species };
+      rig = { bones: B.bones.length, blendedVertices: skin.weights.filter((w) => w.filter((x) => x > 1e-9).length > 1).length, clips: [...(M.gaits || []), ...(M.behaviors || [])], species: M.species ?? null, ...(bug ? { bug: true } : {}) };
     } catch (err) { throw new Error(`animal motion: ${err.message} — the species' gaits and behaviors: get_solid_vocab({ id: 'animals' }).`); }
   }
   return { mesh, stats: { ...stats, layered: { dials: mesh.dials, parts: Object.keys(mesh.parts).length, auditFailures: stats.auditFailures, ...(rig ? { rig } : {}) } } };

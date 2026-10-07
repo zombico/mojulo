@@ -189,8 +189,19 @@ spec: {
 
 The bugs are in the animal encyclopedia with the rest: an entry card `animal/<id>` per worked bug, a hub per class
 (`animal/insect`, `animal/arachnid`, `animal/crustacean`, `animal/myriapod`) naming the arthropods not built yet and
-what stands in, all on the `animals` index. Sizes are true scale: scale up (`bug: { like, length }`) for a print. No
-bug has a skeleton yet, so `motion` is refused.
+what stands in, all on the `animals` index. Sizes are true scale: scale up (`bug: { like, length }`) for a print.
+
+`motion` animates a bug as it does a species (`true`, a word, a list, or `{ gaits, behaviors, keys }`): its skeleton
+comes from the parts it is built with (a coxa / femur / tibia / tarsus chain per leg, the body's segments, antennae,
+mouthparts, wings), so an asked bug moves too. Gaits by order, where its parts allow: `walk` for every legged bug (six
+legs on an alternating tripod, eight on the spider's alternating four, many in a wave), `run` (ants, cockroaches,
+spiders, earwigs, the tiger beetle), `fly` (a bug with flight wings), `sideways` (crabs), `tailFlip` (lobsters,
+crayfish), `swim` (the diving beetle's oars, the crayfish's flip). The behaviors `relax`, `alert`, `eat`, `sleep`, done
+the way its parts allow (claws raised and a scorpion's sting arched, a mantis ready to strike, a spider's forelegs up,
+mandibles chewing, a proboscis sipping). `wingbeat` (with `fly`): 'auto' (the default: wings beat at the order's
+measured rate where a screen can show it, a butterfly's or a dragonfly's, and a bee's or a fly's turns to a see-through
+blur over the stroke), 'beat' (always beating, at most 18 a second), 'blur', or beats a second. The blur is the World's
+drawing; a GLB or Godot export plays the wings beating at 18 a second.
 
 Forms (the common denominators; lib/graph/bugs/forms.js documents every field):
 - head: `hypognathous` (face down) · `prognathous` (face forward) · `opisthognathous` (beak back) · `globe` · `fused`
