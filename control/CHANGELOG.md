@@ -159,6 +159,31 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   direction rolls `growth`, `litter` and `cracks` under `materials.weathering` from dice of their own, so a seed rolled
   before keeps every other number, and a stored direction without them grows nothing. New cards: `card:fungus`,
   `card:crack`, `card:pebbles` (the small ones ship at half size). Tones colour each interceptor's group from a ramp.
+- **An outdoor trail from a recipe: `trail` on an open-ground kit** (`isekai-meadow`, the groves, `trail-valley`;
+  `lib/graph/era/out-trail.js`). The first rung of an outdoor ladder named `out-trail` → `out-section` → `out-level`, apart
+  from the rooms' halls and floors. What the hand-built trails shared is now a grammar the builder reads as numbers:
+  - **a spine** sized by `run` (seconds at the walker's 6 m/s; 12 by default, the isekai meadow's 72 m, the least that
+    holds two minutes of exploring; up to 25);
+  - **beats** along it, at least 11 m apart: pinch, reveal, landmark, crossing, pocket, rest, pit. Drawn by dice when
+    `beats` is not given: always a reveal, a landmark and a pocket, the landmark early, never two alike together, and as
+    many as keep the exploring under three minutes (a long trail is a sparse one);
+  - **the heartbeat** (`heartbeat` 0–1): the trail's height along its length, each beat its own shape (a climb into a
+    reveal, a dip into a pinch or a ford, flat at a rest);
+  - **bumpiness** (0–1): mounds and hollows, full off the walk and a tenth on it.
+  The ground is built in passes, each kept: rough (the heartbeat, the beats' edges, the bumps), then smooth (the profile
+  averaged, the walk laid level, the cliff's geology, the walk laid again over it, the pits cut). Where the smoothed walk
+  is still steeper than 0.3 it is a stairs site, recorded for the next rung. The cliff breathes with the beats (drawn in
+  at a pinch, pushed back at a reveal); a pocket is a clearing with a bank round it but for its mouth; a ford is a
+  stream from the cliff's foot across the valley; a pit breaks the ribbon and is cut 2.6 m deep, with the ground whole
+  wide of it; the landmark is a tall stone, the least that the trailhead (or a beat 15 m short of it) can see, and the
+  trailhead's camera frames it.
+- **Every beat and hazard is annotated.** The answer carries `anchors` (a beat with its station and the way on; a
+  pocket's mouth; the landmark by node; a hazard's zone, `severity` and `respawn`; a stairs site) and `outTrail` (its
+  length, run and exploring seconds, its beats and its laws: run, explore, spacing, order, grade, crest, hazards,
+  landmark). A sweep holds every law for every seed, heartbeat and run (`out-trail.deep.test.js`).
+- **The landform board** (`out-trail-board.js`): the land in black and white before anything grows on it — both passes
+  as depth maps with the trail, beats, pockets, hazards and stairs drawn over them, the heartbeat strip, and the laws.
+  Absent `trail`, every open-ground kit builds byte-identically; `trail` on a room kit or the jungle is refused.
 - **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.

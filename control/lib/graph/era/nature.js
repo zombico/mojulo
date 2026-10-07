@@ -37,6 +37,7 @@ import { cardMask } from './leaf-cards.js';
 import { growConifer } from '../vegetation/conifer.js';
 import { axisChains, tubeTris, barkQuads } from '../vegetation/tree-mesh.js';
 import { barkTile } from '../vegetation/tiles.js';
+import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -141,6 +142,8 @@ export function trailFaces(st, site) {
   let s0 = 0;
   for (let y = 0; y < D; y += step) {
     const A = station(y), B = station(Math.min(D, y + step)), s1 = s0 + Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]);
+    // a site's gap (out-trail.js: a pit) breaks the ribbon
+    if (site.gapAt && (site.gapAt(y) || site.gapAt(Math.min(D, y + step)))) { s0 = s1; continue; }
     for (const [c0, c1, cls, lift] of lanes) {
       const a0 = offAt(c0, A.c[1]), a1 = offAt(c1, A.c[1]), b0 = offAt(c0, B.c[1]), b1 = offAt(c1, B.c[1]);
       const sf = surf(cls), cs = [at(A, a0, lift), at(A, a1, lift), at(B, b1, lift), at(B, b0, lift)];
@@ -175,6 +178,7 @@ export function trailRims(st, site, seed = 1) {
   let s0 = 0;
   for (let y = 0; y < D; y += step) {
     const A = station(y), B = station(Math.min(D, y + step)), s1 = s0 + Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]);
+    if (site.gapAt && (site.gapAt(y) || site.gapAt(Math.min(D, y + step)))) { s0 = s1; continue; }   // as the ribbon breaks
     for (const side of [-1, 1]) for (const band of ['bleed', 'over']) {
       const dir = band === 'bleed' ? side : -side, lift = R.lift[band];
       const a0 = side * halfWAt(A.c[1]), b0 = side * halfWAt(B.c[1]), a1 = a0 + dir * width(side, A.c[1]), b1 = b0 + dir * width(side, B.c[1]);
@@ -270,6 +274,8 @@ export function rockItems(st, site, seed) {
     const x = trailX(y) + side * (halfWAt(y) * (0.75 + 0.6 * hash3(i, 11, S + 59)));
     items.push({ x, y, size: mix(R.pebbles.size[0], R.pebbles.size[1], hash3(i, 12, S + 61)), detail: 0, v: i % R.variants, role: 'pebble' });
   }
+  // a site's own stones (out-trail.js: the landmark), named so an engine can find them
+  if (site.rocks) items.push(...site.rocks);
   return items.map((it) => ({ ...it, x: r5(it.x), y: r5(it.y), size: r5(it.size), z0: r5(ground(it.x, it.y)) }));
 }
 
@@ -279,11 +285,11 @@ export function rockFaces(st, items) {
   for (const it of items) {
     const s = it.size * R.unit, sink = (it.role === 'pebble' ? 0.15 : 0.3) * s, centre = [it.x, it.y, it.z0 + s * 0.3];
     for (const f of pools[it.detail][it.v].faces) {
-      const cs = f.corners.map((p) => P([it.x + p[0] * s, it.y + p[1] * s, it.z0 - sink + p[2] * s]));
+      const cs = f.corners.map((p) => P([it.x + p[0] * s, it.y + p[1] * s, it.z0 - sink + p[2] * s * (it.tall || 1)]));   // a landmark stands `tall`
       // a field rock carries no normal: take the facet's, turned away from the stone's centre
       const mid = cs.reduce((a, p) => [a[0] + p[0] / cs.length, a[1] + p[1] / cs.length, a[2] + p[2] / cs.length], [0, 0, 0]);
       const n = f.outNormal || (cs.length >= 4 ? facet(cs, sub(mid, centre)) : facet([cs[0], cs[1], cs[2], cs[2]], sub(mid, centre)));
-      out.push({ corners: cs, normal: n, outNormal: n, tint, group: 'trail:rock', doubleSided: true, ...(it.detail ? { detail: 1 } : {}) });
+      out.push({ corners: cs, normal: n, outNormal: n, tint, group: 'trail:rock', doubleSided: true, ...(it.detail ? { detail: 1 } : {}), ...(it.node ? { node: it.node } : {}) });
     }
   }
   return out;
@@ -292,7 +298,7 @@ export function rockFaces(st, items) {
 /** Tree positions: cluster centres by rejection (apart from each other, the trail and the cliff), 3–7 trees each. */
 export function treeItems(st, site, seed) {
   const T = st.trees, { W, D, trailDist, cliffX, apronAt } = site, S = seed | 0, centres = [], trees = [];
-  const ok = (x, y, clear) => x > cliffX(y) + T.clearCliff && x < W - 1 && y > 1 && y < D - 1 && trailDist(x, y) > clear && apronAt(x, y) < 0.02;
+  const ok = (x, y, clear) => x > cliffX(y) + T.clearCliff && x < W - 1 && y > 1 && y < D - 1 && trailDist(x, y) > clear && apronAt(x, y) < 0.02 && !(site.clear && site.clear(x, y));
   for (let i = 0; i < 400 && centres.length < T.clusters; i++) {
     const x = W * hash3(i, 1, S + 51), y = D * hash3(i, 2, S + 53);
     if (ok(x, y, T.clearTrail + T.spread * 0.6) && centres.every((c) => Math.hypot(c[0] - x, c[1] - y) > T.spread * 2.6)) centres.push([x, y]);
@@ -670,7 +676,8 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const st = NATURE_STYLES[manifest.style || 'nature-trail'];
   if (!st) throw new Error(`stage: unknown nature style '${manifest.style}' (known: ${Object.keys(NATURE_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
-  const site = natureSite(st, seed), trees = treeItems(st, site, seed);
+  // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
+  const site = manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), trees = treeItems(st, site, seed);
   const rocks = rockItems(st, site, seed);
   const puddles = puddleSpots(st, site);
   let ground = groundFaces(st, site), ribbon = trailFaces(st, site);
@@ -696,7 +703,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   const decals = contactShadows(st, site, trees, rocks);
   const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
-  const faces = [...lit, ...decals, ...puddleFaces(st, site, puddles), ...ridgeFaces(st, site)];
+  const faces = [...lit, ...decals, ...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
   const cutouts = [...new Set(faces.filter(isCard).map((f) => f.texture))].sort();
   return {
     faces,
@@ -706,7 +713,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
     // page draws it, exports carry none)
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],
-    cameras: [manifest.camera || { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }],
+    cameras: [manifest.camera || (site.out ? outTrailCamera(site) : { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } })],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || 'mojulo stage · nature trail',
     bg: rgbHex(st.air.dome.horizon.map((v) => v / 255)),
@@ -716,5 +723,6 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
     // the spawn is at EYE height: the trail ribbon floats over a cut-away ground, so a spawn at ground level would
     // cast its first floor ray from under the ribbon, find nothing, and fall through
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
+    ...(site.out ? outTrailPayload(site) : {}),
   };
 }

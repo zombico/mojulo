@@ -743,6 +743,8 @@ function splitCard(f, nu, nv) {
 export function assembleStageScene(manifest = {}, ctx = {}) {
   const kit = STAGE_KITS[resolveKitId(manifest.kit)];
   if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
+  // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder
+  if (manifest.trail !== undefined && !(kit && ['nature', 'isekai'].includes(kit.shell))) throw new Error(`stage: trail: kit '${manifest.kit}' ${kit && kit.shell === 'jungle' ? 'lays its own trail (the grammar is not on the jungle yet)' : 'is not open ground'}; a trail is for ${Object.keys(STAGE_KITS).filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')}`);
   if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
   if (kit && kit.shell === 'isekai') return assembleIsekaiScene({ style: kit.style, ...manifest }, ctx);

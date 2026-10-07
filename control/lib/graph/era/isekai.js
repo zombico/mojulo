@@ -30,6 +30,7 @@ import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
+import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -105,7 +106,7 @@ export function isekaiGround(st, site) {
 export function boulderFaces(st, it, seed) {
   const B = st.boulder, R = st.rubble, s = it.size * R.unit, k = Math.round(it.x * 13 + it.y * 7) + it.v * 101, S = seed | 0;
   const n = B.sides[0] + Math.floor(hash3(k, 1, S + 701) * (B.sides[1] - B.sides[0] + 1));
-  const h = s * mix(B.height[0], B.height[1], hash3(k, 2, S + 703)), sink = B.sink * s;
+  const h = s * mix(B.height[0], B.height[1], hash3(k, 2, S + 703)) * (it.tall || 1), sink = B.sink * s;   // a landmark stands `tall`
   const lean = [(hash3(k, 3, S + 707) - 0.5) * 2 * B.lean * s, (hash3(k, 4, S + 709) - 0.5) * 2 * B.lean * s];
   const tilt = [(hash3(k, 5, S + 711) - 0.5) * 0.16, (hash3(k, 6, S + 713) - 0.5) * 0.16], yaw = 2 * Math.PI * hash3(k, 7, S + 719);
   const foot = Array.from({ length: n }, (_, i) => {
@@ -148,12 +149,15 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'];
   if (!st) throw new Error(`stage: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, S = seed | 0;
-  const site = natureSite(st, seed), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
+  // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
+  const site = manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
   const ground = isekaiGround(st, site);
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
-  const rocks = rockItems(st, site, seed), boulders = rocks.map((it) => ({ it, ...boulderFaces(st, it, seed) }));
+  // a named stone (the trail's landmark) carries its node on every face
+  const named = (fs, it) => (it.node ? fs.map((f) => ({ ...f, node: it.node })) : fs);
+  const rocks = rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
   const trees = bamboo ? bambooItems(st, site, seed) : treeItems(st, site, seed);
@@ -259,7 +263,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   }
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
-  const faces = lockFaces([...baked, ...cel, ...ridges], (f) => (st.lock[f.group] ? st.palette[st.lock[f.group]] : null));
+  const faces = [...lockFaces([...baked, ...cel, ...ridges], (f) => (st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...(site.out ? streamFaces(site, st) : [])];
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // ── the frame ──
   const Fr = st.frame || { look: 28, top: { y: 22, lookY: 48 } };
@@ -276,7 +280,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     cutouts,
     ...(st.clouds ? { effects: [composeCloudDeck([], { up: 'z', ...st.clouds, sun: dir })] } : {}),
     lights: [],
-    cameras: [manifest.camera || { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } },
+    cameras: [manifest.camera || (site.out ? outTrailCamera(site) : { name: 'trail', worldFraming: { cameraPosition: eye.map(r5), lookAt: [x1, y1, site.ground(x1, y1) + 3].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }),
       { name: 'cliff-top', worldFraming: { cameraPosition: lip.map(r5), lookAt: [site.W * 0.75, Fr.top.lookY, site.ground(site.W * 0.75, Fr.top.lookY)].map(r5), horizontalFov: 75, pictureCenter: [560, 390] } }, ...heroCam],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
@@ -287,6 +291,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     pack: true,
     ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, trees, shadow, manifest.wind, seed) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
+    ...(site.out ? outTrailPayload(site) : {}),
   };
 }
 
