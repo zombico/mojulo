@@ -148,6 +148,8 @@ Pointers only; each target carries its own design notes.
 - Retail: [retail/](control/lib/graph/retail/) (concept cards → the `store` / `mall` kinds; a new store is a card, not code).
 - Historic cultures: [historic/](control/lib/graph/historic/) (a real place at its period → the `historic` kind and its
   encyclopedia entry); adding or deepening one: [docs/historic/README.md](docs/historic/README.md), `/historic-culture`.
+- Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
+  words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image

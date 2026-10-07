@@ -51,6 +51,105 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   that starts each run of flat ground, so only the escarpment and the squares round each view were drawn.
   The squares round a view now sit on their own layers so the de-overlap pass does not stack them on the runs.
 
+### Every new house a different draw
+
+- **A new house is minted with its own seed, varied layouts and composed furniture.** `mint_building` (and
+  `create_sketch` for a floorplan) stamps three knobs onto a new house when they are absent, beside the `style:
+  'auto'` it already stamps: a `seed` (drawn from the ref when one is named, else at random), `layout: 'varied'` and
+  `furnishing: 'composed'`. The draw is written into the recipe, so a minted house renders the same every time and
+  any knob given explicitly wins. Rows minted before this keep their bytes.
+- **`layout: 'varied'` rearranges rooms by seed.** Each room's arrangement is keyed on the house seed as well as
+  the room's place, and each room draws a layout variant and a mirror, and turns a quarter where its shape allows. A
+  living room may face the media wall, seat two sofas facing across the coffee table, or keep one armchair beside an
+  off-centre sofa. A bedroom may centre its bed between two nightstands. A deep dining room runs its table the long
+  way. The door, stair and window passes still clear every layout. Absent the knob, layouts are unchanged.
+- **Fix: `furnishing: 'composed'` was refused at mint.** The house validator only knew `'constructed'`.
+- **A new house draws its own program, size and storeys.** A new generated house (no `rooms`, `levels` or
+  `storeys` given) now draws, from its seed, a tier and its program (`tier: { base, beds, study, core }`: a one- or
+  two-bedroom cottage, a two- to four-bedroom house, a villa of up to five, with or without a study and a separate
+  dining room), one or two storeys (`levels`, with a stair), and a footprint sized to that program. It is built by
+  the program generator, so every house has its bedrooms, bathrooms and one kitchen (the single-floor generator
+  could draw a house with no bedroom and two kitchens). A new house also gets windows and a front door, and a porch,
+  a stoop or neither, weighted by its style. Every draw is an ordinary knob in the stored recipe; any knob given
+  explicitly wins, and `program: false` keeps the single-floor generator.
+- **`tier` names a base.** `tier: { base: 'villa', beds: 5 }` overrides a named tier; an override object without
+  `base` merges over `'house'` as before. A bad tier is refused at mint, naming what is valid.
+
+### Quiet floors
+
+- **The house floor is muted.** The floorboards were saturated mid-brown with dark seams every 6 inches, so every room
+  read as stripes. The plank tints of each house style moved halfway to a warm grey of their own lightness (each
+  family keeps its character: brick and mission stay the darker woods). The seams are now a hairline a shade under
+  the plank (0.9 of it, was 0.62) on 7.2-inch boards (were 6). Wet-room marble seams are softer (0.93, was 0.88).
+  This is an emission change: every furnished house and every store, restaurant and mall floor moves. The store,
+  room and World characterization pins are re-pinned with the reason beside them.
+
+### Furniture grammar
+
+- **Composed houses: `furnishing: 'composed'`.** Each furnished room's sofa, easy chairs, dining chairs, tables and
+  casework become composed pieces in the house style's furniture language
+  ([lib/graph/furnishings/languages.js](lib/graph/furnishings/languages.js)): per style, the styles a role may take,
+  and the legs, cloths and timbers its pieces wear. A cottage gets roll-arm sofas, turned legs and linen; a brick
+  house chesterfields and club chairs in velvet and tweed; a modern one tapered and hairpin legs and bouclé. Each room
+  picks per role, seeded by the house, the room and the role: every chair round one table is the same chair, one
+  house keeps one timber, a plain cloth takes the house palette's colour, and re-rolling the seed refurnishes. Each
+  piece's group names the style that landed (`asset:composed-furniture:chesterfield-main`). A media console keeps
+  its television and a nightstand its lamp. `furnitureLanguage` overrides the house style's language. `furniture:
+  { <role>: { like?, forms?, finish? } | 'omit' }` sets a role in every room, and a room's own `furniture` wins. A
+  bad language or override is refused once per house, naming what is valid. Beds, rugs, lamps and the kitchen run
+  keep their meshes. Absent the opt-in, every house is byte-identical. Cost: a composed living room is about 1.1 s to
+  build the first time (39 ms cached) and about 3.4× the faces of a mesh room.
+
+- **A piece is a kind, a form in each slot, a finish and a size**
+  ([lib/graph/furnishings/forms.js](lib/graph/furnishings/forms.js)), the way a bug is a bauplan.
+  - Kinds are `sofa`, `chair`, `table` and `casework`, over the workbench builds.
+  - Slots are arms (`track`, `rolled`, `tuxedo`, `rolled-high`, `none`), back (`loose`, `tight`, `tufted`),
+    seat (`loose`, `bench`), legs (`block`, `tapered`, `turned`, `bun`, `hairpin`) and the casework front
+    (`open`, `doors`, `doors-over-drawer`, `drawers`, `two-drawers`).
+  - A finish is fabric, timber, wood finish, tint, board, paint and piping, checked against what each kind wears.
+- **Styles are worked pieces over the same grammar.** The eleven room facades are the first; the chesterfield is a sofa
+  with high rolled arms, a tufted back and one bench seat, in velvet. Composed ones join them: tuxedo, English
+  roll-arm, mid-century sofa, armless settee, club chair, farmhouse table, mid-century table, turned side chair,
+  painted dresser.
+- **`resolveFurniture({ like, kind, forms, finish, size, palette })` locks a piece.** It starts from a style, swaps in
+  the forms and finish asked for, reports them (`worn`), and refuses an unknown style, slot, form or finish by naming
+  the valid ones. The lock is the build's resolved dials, cloth, tint, legs and size, so a locked piece re-renders
+  identically however the forms and styles are retuned. `lockedFurnitureFaces` draws it at its own size, never
+  stretched.
+- **Leg forms are drawn over the square blank the build cuts**, so the members, joints and cut list stay the blank's.
+  A turned leg keeps a square pommel, and a chair's back leg is turned only to its rails. A hairpin leg stands on a
+  mounting plate and a glide.
+- **`mint_solid({ kind: 'furniture', spec: { like?, piece?, forms?, finish?, size?, buildable? } })`** composes and
+  locks a piece for furnishing houses. By default it is a display asset (`furnishings/asset.js`): a workbench row whose
+  `build: { type: 'furniture', piece, dials, legs?, size, fabric?, tint? }` is drawn the way a room draws its furniture
+  (no joints, pulls on, legs shaped), filled to its size exactly, and flagged `buildable: false`, with no construction
+  report or cut list. It places in a house as `rooms[i].items: [{ ref }]` and travels into an assembly by ref.
+  `update_sketch` restyles it in place (`/build/dials/<dial>`, `/build/legs`, `/build/fabric`, `/build/size`).
+  `buildable: true` stores the jointed build instead, one workbench frame the furniture report, manual and bill of
+  materials read, and notes any axis the build held to its own proportions (a sofa's back runs 680–1000 mm). The
+  result names the style it started from and what was swapped. The card is `get_solid_vocab({ id: 'furniture' })`;
+  a test holds it to every kind, slot, form, finish key and style.
+- **A frame's `legs`** (block, tapered, turned, bun, hairpin) draws a build's legs in that form on the workbench too
+  (`construction/legs.js`); an unknown form is refused naming the forms.
+- **Roster rows name the style that composes them** (`style`), so a room slot can lock a recipe in a piece's place.
+- **The room facades are now derived from the styles.** A characterization pin covers every facade recipe at three
+  footprints, plain and in a house palette, and the room and condo hashes hold: no house changes.
+
+### Furnishings roster
+
+- **One row per piece of room furniture** ([lib/graph/furnishings/roster.js](lib/graph/furnishings/roster.js)).
+  A piece used to answer to up to five spellings across the arranger types, box-net presets and nets, the
+  share-mode meshes and the constructed stand-ins (the bookshelf was `bookshelf`, `bookcase` and
+  `constructed-bookcase`). Each row now gives the piece one id, a label, a role (what a room asks for: `sofa`,
+  `desk`, `bookcase`…), the words people say for it, and its handles into those tables. The roster names; the
+  tables still measure, and no builder reads the roster yet, so every house is byte-identical.
+- **`resolveFurnishing(word)`**, the animals' rule: "a Couch", "bookshelves", "TV stand" and "credenza" each resolve
+  to one piece. The name index throws when one word would name two pieces.
+- **The contract** (`roster.test.js`): every key of every furniture table, and every type and mesh an arranger
+  emits, belongs to exactly one row; `SHARE_ASSETS` and `CONSTRUCTED_FOR` agree with the rows; a row missing a
+  line fails with the line it needs. It found `l-table` in the wall-hugging set with no preset, band or net
+  behind it (it is only a mesh).
+
 ### Fabricator shelf and naming
 
 - **The shelf reaches metal, sheet and extrusion work:**

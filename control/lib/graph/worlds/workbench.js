@@ -46,7 +46,10 @@ import { auditClosure } from '../polygonizer/face-closure.js';
 import { rasterSampler, analyzeSkin, bakeSkinOntoFaces } from '../polygonizer/skin-projection.js';
 import { scaffoldViewBox } from '../polygonizer/faces-scaffold-svg.js';
 import { mergeExactFaces } from '../scad/coplanar-merge.js';
-import { lowerFrame, validateFrames, frameStamps } from '../construction/frame.js';
+import { lowerFrame, validateFrames, frameStamps, FRAME_UNITS } from '../construction/frame.js';
+import { expandBuild } from '../construction/furniture-builds.js';
+import { shapeLegs } from '../construction/legs.js';
+import { hasFurnitureAsset, furnitureAssetErrors, furnitureAssetFaces, furnitureAssetReadout } from '../furnishings/asset.js';
 
 // Neutral studio key (z is UP in this World) — a clean form light, not a mood scene. Shared by the
 // baked faces and the scene so object, grid, and ground all agree. Mirrors the proven 0616 spike.
@@ -106,6 +109,12 @@ export function lowerObjectFaces(manifest, light) {
   // An equipment `build` (equipment/expand.js) expands to monomers merged before the explicit arrays; absent one,
   // `manifest` passes through by identity.
   manifest = withEquipment(manifest);
+  // A furniture `build` (furnishings/asset.js) is a display piece drawn from a furniture build, its faces beside any
+  // monomers written with it; absent one, `manifest` passes through.
+  if (hasFurnitureAsset(manifest)) {
+    const { build, ...rest } = manifest;
+    return [...lowerObjectFaces(rest, light), ...furnitureAssetFaces(build, manifest.units, light)];
+  }
   // A `program` (the code kind, expressiveness.plan.md E3) expands to monomers and/or a face
   // list first; absent one, `manifest` passes through untouched.
   if (hasProgram(manifest)) {
@@ -155,8 +164,17 @@ export function lowerObjectFaces(manifest, light) {
     ...reliefs.flatMap((spec) => grouped(reliefToFaces(spec, { light, material: spec.material }), spec)),
     // `index` seeds the shell's stable per-face id (`<index>:<n>`), so a recipe can name a face.
     ...shells.flatMap((spec, i) => shellToFaces(spec, { light, material: spec.material, index: i })),
-    ...frames.flatMap((spec) => lowerFrame(spec, { light }).faces),
+    ...frames.flatMap((spec) => frameFaces(spec, light)),
   ];
+}
+
+/** A frame's faces; a build's legs drawn in the frame's `legs` form (construction/legs.js), absent → as lowered. */
+function frameFaces(spec, light) {
+  const { faces } = lowerFrame(spec, { light });
+  if (!spec.legs || spec.legs === 'block' || !spec.build) return faces;
+  const unit = spec.unit || 'cm';
+  const { members } = expandBuild({ unit, build: spec.build });
+  return shapeLegs(faces, { members, legs: spec.legs, tint: spec.tint }, light, FRAME_UNITS[unit] * 1000);
 }
 
 /**
@@ -435,6 +453,14 @@ export function planWorkbench(manifest = {}) {
   // the stats as `equipment`: the focal, the sockets, the variants, the laws it was built under.
   const equipment = hasEquipment(manifest) ? equipmentReadout(manifest.build) : null;
   manifest = withEquipment(manifest);
+  // A furniture asset (furnishings/asset.js): a malformed build fails here, naming what is valid; its readout says it
+  // is a display piece, not checked for building.
+  let furniture = null;
+  if (hasFurnitureAsset(manifest)) {
+    const errs = furnitureAssetErrors(manifest.build);
+    if (errs.length) throw new Error(`Invalid furniture build:\n- ${errs.join('\n- ')}`);
+    furniture = furnitureAssetReadout(manifest.build);
+  }
   if (hasProgram(manifest)) {
     const ex = expandWorkbenchProgram(manifest, { light: WORKBENCH_LIGHT });
     programReport = ex.program;
@@ -460,7 +486,7 @@ export function planWorkbench(manifest = {}) {
   // a flange with holes IS one part now (parts-booleans.plan.md B1).
   manifest = canonicalizeMonomers(manifest);
   const src = arraysOf(manifest);
-  if (!src.lathes.length && !src.extrudes.length && !src.sweeps.length && !src.drapes.length && !src.reliefs.length && !src.shells.length && !src.lofts.length && !src.fields.length && !src.frames.length && !programFaces.length) {
+  if (!src.lathes.length && !src.extrudes.length && !src.sweeps.length && !src.drapes.length && !src.reliefs.length && !src.shells.length && !src.lofts.length && !src.fields.length && !src.frames.length && !programFaces.length && !furniture) {
     throw new Error('A workbench needs at least one monomer — a non-empty `lathes`, `extrudes`, `sweeps`, `lofts`, `fields`, `drapes`, `reliefs`, `shells` and/or `frames` array (or a `program` that returns them).');
   }
   const errors = [...validateLathes(src.lathes, []), ...validateExtrudes(src.extrudes, []), ...validateSweeps(src.sweeps, []), ...validateLofts(src.lofts, []), ...validateFields(src.fields, []), ...validateDrapes(src.drapes, []), ...validateReliefs(src.reliefs, []), ...validateShells(src.shells, []), ...validateFrames(src.frames)]; // endpoints are literal {x,y,z}
@@ -622,7 +648,7 @@ export function planWorkbench(manifest = {}) {
     closed: closureWarnings.length === 0,
     ...(programReport ? { program_ms: programReport.ms } : {}),
   };
-  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length + frames.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), ...(frames.length ? { frames: frameReports } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(contribution.length ? { contribution } : {}), ...(components ? { components } : {}), ...(programReport ? { program: programReport } : {}), ...(equipment ? { equipment } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
+  return { stats: { monomers: lathes.length + extrudes.length + sweeps.length + lofts.length + fields.length + drapes.length + reliefs.length + shells.length + frames.length, lathes: lathes.length, extrudes: extrudes.length, sweeps: sweeps.length, ...(lofts.length ? { lofts: lofts.length } : {}), ...(fields.length ? { fields: fields.length } : {}), ...(frames.length ? { frames: frameReports } : {}), drapes: drapes.length, reliefs: reliefs.length, shells: shells.length, faces: faces.length, units, size, parts, ...(cuts.length ? { cuts } : {}), ...(contribution.length ? { contribution } : {}), ...(components ? { components } : {}), ...(programReport ? { program: programReport } : {}), ...(equipment ? { equipment } : {}), ...(furniture ? { furniture } : {}), ledger, ...(warnings.length ? { warnings } : {}) } };
 }
 
 export { WORKBENCH_LIGHT };

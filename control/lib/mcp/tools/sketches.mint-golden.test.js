@@ -189,6 +189,10 @@ const BOUNDARY = {
 // the only case that also exercises improveFloorplanManifest's grading.
 // Re-pinned 2026-09-25 (CHANGELOG-2.x.md "House styles"): a new house is stamped
 // `style: 'auto'` at mint, so the stored manifest gains that one key on purpose.
+// Re-pinned 2026-10-07 (CHANGELOG "Every new house a different draw"): a new house is also stamped `layout: 'varied'`
+// and `furnishing: 'composed'`; this manifest names its seed, so it keeps it.
+// Re-pinned again 2026-10-07 (CHANGELOG "A new house draws its own program, size and storeys"): it leaves its plan to
+// the generator, so it is stamped its drawn tier, levels and front (its own width / height / windows stand).
 const FLOORPLAN = {
   kind: 'floorplan',
   title: 'house',

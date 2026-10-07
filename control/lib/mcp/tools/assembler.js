@@ -23,6 +23,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { planAssembler } from '@/lib/graph/worlds/workbench-assembler';
 import { MONOMER_KEYS, hasProgram } from '@/lib/graph/worlds/workbench-program';
 import { hasEquipment } from '@/lib/graph/equipment/expand';
+import { hasFurnitureAsset } from '@/lib/graph/furnishings/asset';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 
 // Pull the renderable monomer arrays off a workbench-shaped manifest (the frozen part). Every
@@ -41,6 +42,8 @@ function monomersOf(manifest) {
   if (hasProgram(manifest)) out.program = manifest.program;
   // An equipment build freezes the same way: its words (laws stamp included) ride inline and expand in the lowering.
   if (hasEquipment(manifest)) out.build = manifest.build;
+  // so does a furniture asset: its lock rides inline and is drawn in the lowering
+  if (hasFurnitureAsset(manifest)) out.build = manifest.build;
   return Object.keys(out).length ? out : null;
 }
 

@@ -25,7 +25,16 @@ is a `manifest`.
 { "seed": 7, "width": 40, "height": 30, "view": "exterior" }
 ```
 
-- `seed` (integer) and `width` / `height` (the footprint, feet) generate the plan.
+- `seed` (integer) and `width` / `height` (the footprint, feet) generate the plan. Leave `seed` out and the mint
+  draws one and stores it, so every new house is a different draw and still re-renders the same; name one to
+  reproduce a house. A new house is also stamped `style: 'auto'`, `layout: 'varied'` and `furnishing: 'composed'`
+  (house-dwelling); `null` opts out of each.
+- **A house left to the generator is drawn.** With no `rooms`, `levels` or `storeys`, the mint draws from the seed
+  a program, `tier: { base: 'cottage' | 'house' | 'villa', beds, study, core: ['L','K'] | ['L','K','D'] }`, one or
+  two storeys (`levels`, `stairs: true`), a `width` / `height` that holds it (checked against the generator, so the
+  bedrooms drawn are the bedrooms built), `windows`, `entryDoor` and a `porch` or `stoop` by style. Each is a plain
+  knob in the stored recipe: "add a bedroom" is `tier.beds`, "make it one floor" is `levels: [{ role: 'ground' }]`.
+  Anything given wins; `program: false` keeps the single-floor generator below.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
 - Openings are opt-in: `windows`, `entryDoor`, `ceilings` (each default off on a generated plan).
 - Walkable at `/world`.

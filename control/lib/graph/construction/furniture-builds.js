@@ -32,6 +32,9 @@ import * as dmath from '../../util/dmath.js';
 const FRAME_UNITS = { mm: 0.001, cm: 0.01, m: 1 };                 // frame.js's units (kept here: frame.js imports this)
 
 export const BUILD_TYPES = Object.freeze(['carcass', 'table', 'chair', 'sofa']);
+// How a build's legs are DRAWN (`legs` on a frame or a facade; construction/facades.js shapeLegs). The build always cuts
+// square blanks: a turned or tapered leg is turned from one, so members, joints and the cut list do not change.
+export const LEG_SHAPES = Object.freeze(['block', 'tapered', 'turned', 'bun', 'hairpin']);
 const SLIDES = [250, 300, 350, 400, 450, 500, 550];
 
 const num = (v) => Number.isFinite(v) && v > 0;

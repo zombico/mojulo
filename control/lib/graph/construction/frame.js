@@ -42,7 +42,7 @@ import { boxPolys } from './prims.js';
 import { SHEETS, SHEET_KEYS, isSheet, sheetColor, sheetFigureMean, sheetTile, bandFor, edgesError, thicknessAdvice } from './sheets.js';
 import { HARDWARE_FINISHES } from './hardware.js';
 import { furnitureReport, furnitureStamps, isFurniture } from './furniture-checks.js';
-import { expandBuild, validateBuild } from './furniture-builds.js';
+import { expandBuild, validateBuild, LEG_SHAPES } from './furniture-builds.js';
 import { validateLog, ageForRadius } from './log.js';
 import { figureMean } from './figure.js';
 import { stockSection, memberFrame, toWorld, dirWorld, cutError, cutPose, poseReach, localToLog, localDirToLog, boxToCentreline, boxError } from './members.js';
@@ -104,6 +104,8 @@ export function validateFrames(frames) {
     if (f.load !== undefined && !(Number.isFinite(f.load) && f.load >= 0)) errors.push(`${at}.load: kN per metre, a number ≥ 0`);
     if (f.explode !== undefined && !(Number.isFinite(f.explode) && f.explode >= 0)) errors.push(`${at}.explode: a distance in the frame's unit, ≥ 0`);
     if (f.xray !== undefined && typeof f.xray !== 'boolean') errors.push(`${at}.xray: true or false`);
+    if (f0.legs !== undefined && !LEG_SHAPES.includes(f0.legs)) errors.push(`${at}.legs: how a build's legs are drawn, one of ${LEG_SHAPES.join(', ')}`);
+    if (f0.legs !== undefined && !f0.build) errors.push(`${at}.legs: draws a build's legs — give the frame a \`build\``);
     if (f.detail !== undefined && !FRAME_DETAILS.includes(f.detail)) errors.push(`${at}.detail: one of ${FRAME_DETAILS.join(', ')}`);
     for (const k of ['walls', 'paving', 'slates']) if (f[k] !== undefined && !Array.isArray(f[k])) errors.push(`${at}.${k}: must be an array`);
     errors.push(...validateMasonry(f, at));
