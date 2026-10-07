@@ -525,7 +525,7 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
 /** A torch: an iron bracket, a bowl, and two crossed flame cards; the flame carries a glow halo and is emissive in the GLB.
  *  With live fire (`live`) the fire channel draws the torch's staff and its flame: the wall keeps only an iron arm and
  *  a collar the staff stands in. */
-function torchFaces(l, live = false) {
+export function torchFaces(l, live = false) {
   const out = [], [x, y, z] = l.at, plain = { key: null, scale: 1, tint: [1, 1, 1] };
   const iron = (mn, mx, fill) => {
     const raw = [];

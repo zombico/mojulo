@@ -36,6 +36,15 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   (baked vertex light, vertex and texel density, the readout frame, the cast over the world) are listed too. A style card
   that gains a principle without a mapping fails `laws.test.js`. A generated `sixth-gen-laws` card lists the laws by
   layer, and each kit card names the laws its principles state.
+- **A look is a setting on any world.** `look: 'gothic-night'` (or `{ id, cell }`) on a world's manifest
+  (`lib/graph/era/look.js`). A kind that resolves to raw albedo (the dungeon, the city, the controllable world, the
+  object kinds) is resolved unshaded and re-lit by the stage's own bake: every large face is split to a cell (2 m by
+  default, in metres whatever the world's unit) so the light has corners to land on, then baked with the look's
+  ambient, its sun with cast shadows and ground bounce, and the world's own point lights as torches, their flames
+  drawn. The page takes the look's fog and sky; an interior keeps its own sky and the look's fog behind. Any other
+  kind takes the air and sky only and its payload says so (`lookNote`), as does a sunless look on a world that places
+  no lights. Absent `look`, nothing changes. This lands the look laws baked-light, vertex-density, shade-is-colour,
+  depth-by-air and sky-is-a-place; value order, palette, pixel lock and the surface laws are next.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from
