@@ -62,6 +62,18 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
   points (by distance; `loop`, `mode: 'loop'`) and `drive: 'ride'` (`speed`, `dwell`); the carry pass marks a
   ride-driven carrier `_ridden` while a rider stands on it, still or moving. A mover with neither runs as before (the
   controllable-world trace pins hold).
+- **The catapult entry: a launcher tuned by the approach.** `objects/catapult.js` stays put and throws the player:
+  `fixed` (one arc; give a `target` and it solves the power), `redirect` (keeps the run-up's speed along the pad) and
+  `bounce` (returns the fall, so a higher drop goes higher). Tunable `power`, `angle`, `gain`, `cap`, `restitution`, a
+  `cone` of approaches, `reload`. Its arc is stepped with the platform rule's own integrator (rise and fall gravity,
+  fall cap), so a solved target is where the world lands the rider; it answers for the arc, apex, landing, the tube
+  the rider flies through and how far steering can move the landing. The rider steers in the air by default;
+  `locked` holds the arc until it lands, for a scenic route.
+- **The `launcher` rule.** `worlds/controllable/rules-basic.js`: a `launch` world pass reads each rider's approach
+  (its run across the ground, its fall) and throws it through the platform rule's own momentum (`vel` z and
+  `dashVel`); a `launch-lock` pre-step takes a locked rider's stick until it lands. The platform rule's jump cut skips
+  a thrown rider (`launchedBy`); without a launcher it runs as before. The pipeline-order pin and the emission pins
+  re-pinned with notes.
 
 ### Scapeshift
 

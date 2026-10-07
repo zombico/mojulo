@@ -202,5 +202,64 @@ export function buildRulesBasic(E) {
     e.transform.pos[2] = from[2] + (to[2] - from[2]) * u;
     e.moving = true;
   }
-  Object.assign(RULES, { glide, walk, follow, clock, mover });
+  // launcher — a pad that stays put and throws a platform-rule rider who comes onto it. It ticks its own reload (`_cool`)
+  // and the throw's t (`_arm`, 0 → 1 fast, back over `reload`, for the renderer); the launch itself is the world pass
+  // below, after the rules, where it can read how the rider came in. Rule fields: `mode` fixed | redirect | bounce,
+  // `dir` [x, y] (the throw's heading), `angle` deg, `power` m/s, `gain` (how much of the approach carries), `cap` m/s,
+  // `restitution` (bounce), `cone` deg (the approaches it takes, absent = any), `half` [hx, hy] and `top` (the pad's
+  // face, off pos-z), `reload` s, `locked` (the rider cannot steer until it lands: a scenic route).
+  function launcher(e, input, dt) {
+    e._cool = Math.max(0, (e._cool || 0) - dt);
+    const reload = e.rule.reload ?? 0.6;
+    e._arm = e._cool > 0 ? Math.min(1, (reload - e._cool) / 0.08, e._cool / Math.max(1e-6, reload - 0.08)) : 0;
+  }
+  Object.assign(RULES, { glide, walk, follow, clock, mover, launcher });
+
+  // the launch: each rider's last tick (where it stood, how fast it fell) is kept on the pad, so a rider arriving this
+  // tick is read by its approach: its run across the ground and its fall. Fixed throws one arc whatever the approach;
+  // redirect keeps the run's speed (× gain) and sends it along the pad; bounce returns the fall (× restitution) and
+  // keeps the run. The throw is the platform rule's own momentum: vel z, and `dashVel` (the carry that ends on touchdown).
+  const LAUNCH_EPS = 0.05;
+  E.registerWorldPass('launch', (state, input, dt) => {
+    const pads = state.entities.filter((p) => p.rule && p.rule.type === 'launcher' && !p.gone);
+    if (!pads.length) return;
+    const riders = state.entities.filter((e) => !e.isCamera && !e.downed && !e.gone && e.rule && e.rule.type === 'platform' && !e.rule.space && e.vel);
+    for (const e of riders) if (e.launchedBy && e.grounded && e._launchAt !== state.time) { e.launchLock = false; e.launchedBy = null; }   // landed
+    for (const p of pads) {
+      const r = p.rule, seen = p._seen || (p._seen = {}), half = r.half || [0.75, 0.75], top = p.transform.pos[2] + (r.top ?? 0);
+      for (const e of riders) {
+        const foot = e.transform.pos[2] - (e.rule.eye ?? 0), rr = e.rule.collideRadius ?? 0;
+        const on = e.grounded && Math.abs(foot - top) <= (e.rule.snap ?? 0.15) + LAUNCH_EPS
+          && Math.abs(e.transform.pos[0] - p.transform.pos[0]) <= half[0] + rr && Math.abs(e.transform.pos[1] - p.transform.pos[1]) <= half[1] + rr;
+        const last = seen[e.id];
+        seen[e.id] = { pos: [e.transform.pos[0], e.transform.pos[1]], vz: e.vel[2], on };
+        if (!on || (last && last.on) || p._cool > 0) continue;
+        const run = last ? [(e.transform.pos[0] - last.pos[0]) / dt, (e.transform.pos[1] - last.pos[1]) / dt] : [0, 0], fall = last ? Math.max(0, -last.vz) : 0;
+        const dn = Math.hypot(r.dir ? r.dir[0] : 1, r.dir ? r.dir[1] : 0) || 1, d = [(r.dir ? r.dir[0] : 1) / dn, (r.dir ? r.dir[1] : 0) / dn];
+        const runSpeed = Math.hypot(run[0], run[1]);
+        if (r.cone != null && !(runSpeed > 0.5 && (run[0] * d[0] + run[1] * d[1]) / runSpeed >= Math.cos((r.cone / 2) * Math.PI / 180))) continue;
+        const a = (r.angle ?? 60) * Math.PI / 180, cap = r.cap ?? 40, gain = r.gain ?? 1;
+        let v;
+        if (r.mode === 'bounce') {
+          const vz = Math.min(cap, Math.max(r.power ?? 12, (r.restitution ?? 0.8) * fall));
+          v = [run[0] * gain, run[1] * gain, vz];
+        } else {
+          const s = Math.min(cap, (r.power ?? 12) + (r.mode === 'redirect' ? gain * runSpeed : 0));
+          v = [d[0] * s * Math.cos(a), d[1] * s * Math.cos(a), s * Math.sin(a)];
+        }
+        e.vel[2] = v[2]; e.dashVel = [v[0], v[1]]; e.grounded = false; e.coyote = 1; e.jumpBuf = 0;
+        e.launchedBy = p.id; e.launchLock = !!r.locked; e._launchAt = state.time;
+        seen[e.id].on = true;
+        p._cool = r.reload ?? 0.6;
+        p.lastLaunch = { t: state.time, rider: e.id, vel: v, mode: r.mode || 'fixed' };
+      }
+    }
+  }, 25);
+
+  // a LOCKED launch takes the pilot's steering until it lands (look still turns the camera): the scenic route
+  E.registerPreStep('launch-lock', (state, input) => {
+    const me = state.pilotId ? state.byId[state.pilotId] : null;
+    if (!me || !me.launchLock) return null;
+    return { ...input, forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0 };
+  }, 60);
 }

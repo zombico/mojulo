@@ -90,4 +90,27 @@ export function liftCard() {
   return { id: 'entry/lift', name: `${E.name} (playscape entry)`, summary: 'Vertical traversal between stops: ridden or called.', when: E.when, body: lines.join('\n') };
 }
 
-export const playscapeEntryCards = () => [entryCard('door'), platformCard(), liftCard()];
+/** The catapult's card: the three ways it reads the approach, steering, what it answers. */
+export function catapultCard() {
+  const E = ENTRIES.catapult, o = resolveObject({ entry: 'catapult', variant: 'fixed', target: [10, 0, 2] });
+  const lines = [
+    `# ${E.name} (playscape entry)`, '',
+    'A launcher that stays put and throws the player, its throw tuned by how the player comes in. The throw is the platform rule\'s own momentum, so the rider lands as the entry says.', '',
+    'VARIANTS (how it reads the approach)', ...Object.entries(E.variants).map(([v, V]) => `  - ${v}: ${V.about}.`),
+    '', 'TUNING     power m/s, angle deg, gain (how much of the run-up carries), cap m/s, restitution (bounce), cone deg (the approaches it takes; absent, any), reload s',
+    'STEERING   the rider steers in the air by default; `locked: true` holds the arc until it lands (a scenic route that must arrive where aimed)',
+    '', 'IT ANSWERS FOR ITSELF',
+    `  its ARC for an approach, stepped as the world steps it: apex, landing, seconds aloft (a target 10 m out and 2 m up: ${o.params.power} m/s at ${o.params.angle}°, ${o.arc.seconds} s);`,
+    '  the TUBE the rider\'s body flies through (keep it clear); how far steering can move the landing (`reach`); its plate on a lift joint (t is the throw).',
+    '', 'IN THE WORLD  a pad with its collider and a `launcher` entity; it reloads before it throws again.',
+    `SKINS      ${Object.keys(E.skins).join(', ')} (values only; chevrons along the heading, more for a stronger throw; a ring for a bounce)`,
+    '', 'STARTERS',
+    `  ${JSON.stringify({ entry: 'catapult', variant: 'fixed', target: [10, 0, 2], at: [0, 0, 0] })}`,
+    `  ${JSON.stringify({ entry: 'catapult', variant: 'redirect', dir: [1, 0], power: 6, angle: 40, cone: 90 })}`,
+    `  ${JSON.stringify({ entry: 'catapult', variant: 'bounce', power: 8, restitution: 0.9 })}`,
+    `  ${JSON.stringify({ entry: 'catapult', variant: 'fixed', target: [24, 6, 8], angle: 50, locked: true })}`,
+  ];
+  return { id: 'entry/catapult', name: `${E.name} (playscape entry)`, summary: 'A launcher that stays put and throws the player: fixed, redirect or bounce.', when: E.when, body: lines.join('\n') };
+}
+
+export const playscapeEntryCards = () => [entryCard('door'), platformCard(), liftCard(), catapultCard()];

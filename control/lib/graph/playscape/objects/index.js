@@ -11,8 +11,8 @@
  *   }
  *   ejectObject(resolved) → { kind: 'game-object', entry, variant, skin, params, ejected: true }
  *
- * A platform and a lift resolve themselves (`resolve` on the entry) and answer in their own terms: a deck, its sweep
- * and headroom or its shaft and landings, its landing read, and the pieces the world runs (`world`).
+ * A platform, a lift and a catapult resolve themselves (`resolve` on the entry) and answer in their own terms: a deck, its sweep
+ * and headroom or its shaft and landings, its landing read, a catapult its throw and arc, and the pieces the world runs (`world`).
  *
  * The variant says what it does, the skin what it looks like, the fit how big it is, t where it is in its motion.
  * An ejected object keeps its numbers, so it is edited like any recipe and no longer follows its opening.
@@ -20,9 +20,10 @@
 import { DOOR } from './door.js';
 import { PLATFORM } from './platform.js';
 import { LIFT } from './lift.js';
+import { CATAPULT } from './catapult.js';
 import { collider, sweep, clearance, toWorld } from './mechanism.js';
 
-export const ENTRIES = Object.freeze({ door: DOOR, platform: PLATFORM, lift: LIFT });
+export const ENTRIES = Object.freeze({ door: DOOR, platform: PLATFORM, lift: LIFT, catapult: CATAPULT });
 export const ENTRY_IDS = Object.freeze(Object.keys(ENTRIES));
 
 const DEFAULT_FRAME = { at: [0, 0, 0], N: [0, -1, 0], U: [1, 0, 0] };

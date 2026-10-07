@@ -20,6 +20,10 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
 // is additions only (85 lines, none removed); every fixture that embeds the controllable runtime re-pinned with it.
+//
+// Re-pinned 2026-10-07 (playscape: the catapult): the runtime gained the `launcher` rule, its `launch` world pass and
+// `launch-lock` pre-step. On the `controllable` fixture 62 lines are added and 2 replaced: the rule registry names
+// `launcher`, and the platform rule's jump cut skips a rider a launcher threw (`!e.launchedBy`, unset without one).
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
