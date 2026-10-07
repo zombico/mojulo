@@ -64,6 +64,105 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   that starts each run of flat ground, so only the escarpment and the squares round each view were drawn.
   The squares round a view now sit on their own layers so the de-overlap pass does not stack them on the runs.
 
+### Every new house a different draw
+
+- **A new house is minted with its own seed, varied layouts and composed furniture.** `mint_building` (and
+  `create_sketch` for a floorplan) stamps three knobs onto a new house when they are absent, beside the `style:
+  'auto'` it already stamps: a `seed` (drawn from the ref when one is named, else at random), `layout: 'varied'` and
+  `furnishing: 'composed'`. The draw is written into the recipe, so a minted house renders the same every time and
+  any knob given explicitly wins. Rows minted before this keep their bytes.
+- **`layout: 'varied'` rearranges rooms by seed.** Each room's arrangement is keyed on the house seed as well as
+  the room's place, and each room draws a layout variant and a mirror, and turns a quarter where its shape allows. A
+  living room may face the media wall, seat two sofas facing across the coffee table, or keep one armchair beside an
+  off-centre sofa. A bedroom may centre its bed between two nightstands. A deep dining room runs its table the long
+  way. The door, stair and window passes still clear every layout. Absent the knob, layouts are unchanged.
+- **Fix: `furnishing: 'composed'` was refused at mint.** The house validator only knew `'constructed'`.
+- **A new house draws its own program, size and storeys.** A new generated house (no `rooms`, `levels` or
+  `storeys` given) now draws, from its seed, a tier and its program (`tier: { base, beds, study, core }`: a one- or
+  two-bedroom cottage, a two- to four-bedroom house, a villa of up to five, with or without a study and a separate
+  dining room), one or two storeys (`levels`, with a stair), and a footprint sized to that program. It is built by
+  the program generator, so every house has its bedrooms, bathrooms and one kitchen (the single-floor generator
+  could draw a house with no bedroom and two kitchens). A new house also gets windows and a front door, and a porch,
+  a stoop or neither, weighted by its style. Every draw is an ordinary knob in the stored recipe; any knob given
+  explicitly wins, and `program: false` keeps the single-floor generator.
+- **`tier` names a base.** `tier: { base: 'villa', beds: 5 }` overrides a named tier; an override object without
+  `base` merges over `'house'` as before. A bad tier is refused at mint, naming what is valid.
+
+### Quiet floors
+
+- **The house floor is muted.** The floorboards were saturated mid-brown with dark seams every 6 inches, so every room
+  read as stripes. The plank tints of each house style moved halfway to a warm grey of their own lightness (each
+  family keeps its character: brick and mission stay the darker woods). The seams are now a hairline a shade under
+  the plank (0.9 of it, was 0.62) on 7.2-inch boards (were 6). Wet-room marble seams are softer (0.93, was 0.88).
+  This is an emission change: every furnished house and every store, restaurant and mall floor moves. The store,
+  room and World characterization pins are re-pinned with the reason beside them.
+
+### Furniture grammar
+
+- **Composed houses: `furnishing: 'composed'`.** Each furnished room's sofa, easy chairs, dining chairs, tables and
+  casework become composed pieces in the house style's furniture language
+  ([lib/graph/furnishings/languages.js](lib/graph/furnishings/languages.js)): per style, the styles a role may take,
+  and the legs, cloths and timbers its pieces wear. A cottage gets roll-arm sofas, turned legs and linen; a brick
+  house chesterfields and club chairs in velvet and tweed; a modern one tapered and hairpin legs and bouclé. Each room
+  picks per role, seeded by the house, the room and the role: every chair round one table is the same chair, one
+  house keeps one timber, a plain cloth takes the house palette's colour, and re-rolling the seed refurnishes. Each
+  piece's group names the style that landed (`asset:composed-furniture:chesterfield-main`). A media console keeps
+  its television and a nightstand its lamp. `furnitureLanguage` overrides the house style's language. `furniture:
+  { <role>: { like?, forms?, finish? } | 'omit' }` sets a role in every room, and a room's own `furniture` wins. A
+  bad language or override is refused once per house, naming what is valid. Beds, rugs, lamps and the kitchen run
+  keep their meshes. Absent the opt-in, every house is byte-identical. Cost: a composed living room is about 1.1 s to
+  build the first time (39 ms cached) and about 3.4× the faces of a mesh room.
+
+- **A piece is a kind, a form in each slot, a finish and a size**
+  ([lib/graph/furnishings/forms.js](lib/graph/furnishings/forms.js)), the way a bug is a bauplan.
+  - Kinds are `sofa`, `chair`, `table` and `casework`, over the workbench builds.
+  - Slots are arms (`track`, `rolled`, `tuxedo`, `rolled-high`, `none`), back (`loose`, `tight`, `tufted`),
+    seat (`loose`, `bench`), legs (`block`, `tapered`, `turned`, `bun`, `hairpin`) and the casework front
+    (`open`, `doors`, `doors-over-drawer`, `drawers`, `two-drawers`).
+  - A finish is fabric, timber, wood finish, tint, board, paint and piping, checked against what each kind wears.
+- **Styles are worked pieces over the same grammar.** The eleven room facades are the first; the chesterfield is a sofa
+  with high rolled arms, a tufted back and one bench seat, in velvet. Composed ones join them: tuxedo, English
+  roll-arm, mid-century sofa, armless settee, club chair, farmhouse table, mid-century table, turned side chair,
+  painted dresser.
+- **`resolveFurniture({ like, kind, forms, finish, size, palette })` locks a piece.** It starts from a style, swaps in
+  the forms and finish asked for, reports them (`worn`), and refuses an unknown style, slot, form or finish by naming
+  the valid ones. The lock is the build's resolved dials, cloth, tint, legs and size, so a locked piece re-renders
+  identically however the forms and styles are retuned. `lockedFurnitureFaces` draws it at its own size, never
+  stretched.
+- **Leg forms are drawn over the square blank the build cuts**, so the members, joints and cut list stay the blank's.
+  A turned leg keeps a square pommel, and a chair's back leg is turned only to its rails. A hairpin leg stands on a
+  mounting plate and a glide.
+- **`mint_solid({ kind: 'furniture', spec: { like?, piece?, forms?, finish?, size?, buildable? } })`** composes and
+  locks a piece for furnishing houses. By default it is a display asset (`furnishings/asset.js`): a workbench row whose
+  `build: { type: 'furniture', piece, dials, legs?, size, fabric?, tint? }` is drawn the way a room draws its furniture
+  (no joints, pulls on, legs shaped), filled to its size exactly, and flagged `buildable: false`, with no construction
+  report or cut list. It places in a house as `rooms[i].items: [{ ref }]` and travels into an assembly by ref.
+  `update_sketch` restyles it in place (`/build/dials/<dial>`, `/build/legs`, `/build/fabric`, `/build/size`).
+  `buildable: true` stores the jointed build instead, one workbench frame the furniture report, manual and bill of
+  materials read, and notes any axis the build held to its own proportions (a sofa's back runs 680–1000 mm). The
+  result names the style it started from and what was swapped. The card is `get_solid_vocab({ id: 'furniture' })`;
+  a test holds it to every kind, slot, form, finish key and style.
+- **A frame's `legs`** (block, tapered, turned, bun, hairpin) draws a build's legs in that form on the workbench too
+  (`construction/legs.js`); an unknown form is refused naming the forms.
+- **Roster rows name the style that composes them** (`style`), so a room slot can lock a recipe in a piece's place.
+- **The room facades are now derived from the styles.** A characterization pin covers every facade recipe at three
+  footprints, plain and in a house palette, and the room and condo hashes hold: no house changes.
+
+### Furnishings roster
+
+- **One row per piece of room furniture** ([lib/graph/furnishings/roster.js](lib/graph/furnishings/roster.js)).
+  A piece used to answer to up to five spellings across the arranger types, box-net presets and nets, the
+  share-mode meshes and the constructed stand-ins (the bookshelf was `bookshelf`, `bookcase` and
+  `constructed-bookcase`). Each row now gives the piece one id, a label, a role (what a room asks for: `sofa`,
+  `desk`, `bookcase`…), the words people say for it, and its handles into those tables. The roster names; the
+  tables still measure, and no builder reads the roster yet, so every house is byte-identical.
+- **`resolveFurnishing(word)`**, the animals' rule: "a Couch", "bookshelves", "TV stand" and "credenza" each resolve
+  to one piece. The name index throws when one word would name two pieces.
+- **The contract** (`roster.test.js`): every key of every furniture table, and every type and mesh an arranger
+  emits, belongs to exactly one row; `SHARE_ASSETS` and `CONSTRUCTED_FOR` agree with the rows; a row missing a
+  line fails with the line it needs. It found `l-table` in the wall-hugging set with no preset, band or net
+  behind it (it is only a mesh).
+
 ### Fabricator shelf and naming
 
 - **The shelf reaches metal, sheet and extrusion work:**
@@ -152,6 +251,159 @@ byte-identically. A stored plan is frozen with its version (`fabricator-v0.3.0`)
   from its stored frames, the same report the mint read) or any furniture workbench row's fittings and sheet cut list.
   A row with nothing to buy is not eligible, and says how to get a list. A fabricated mint names the call in
   `stats.fabrication.export`.
+
+### Scapeshift
+
+The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by
+orchestrating the existing tools. This step makes the sixth-gen stage findable; no tool is added or changed.
+
+- **The stage, its kits and its looks have cards.** `get_view_vocab` and `semantic_search({ kinds: ['view_vocab'] })`
+  now return a `stage` hub, a `stage/<kit>` card per stage kit and a `look/<reference>` card per sixth-gen reference,
+  generated from the kit, style and reference cards at catalog load (`lib/graph/era/entries.js`), so they cannot drift.
+  A kit card gives its shell, the look it pairs with, the options its style card carries (night, decay, wind, fire),
+  its first principles and a starter manifest that plans. A look card gives its palette, light and air, and says when
+  the kit it names is not built yet. Before this, the kit list lived only in the stage's refusal message.
+- **Looks and kits are named for what they are, not for a game.** The five looks are `gothic-night`, `desert-dusk`,
+  `island-noon`, `jungle-haze` and `lab-dark`, set as a stage recipe's `"reference"`; the plaza kit is `island-plaza`.
+  No card names a game, studio or console: each describes its setting, light, air and surfaces, so the agent matches an
+  ask ("a dark castle lit by torches", "a desert town at sunset") on its own. The reference cards in `era/sixth-gen.js`
+  keep the research record. A recipe that already carries a reference card's own id or `delfino-plaza` still plans as
+  before; the refusal lists only the look ids. A stage with no title is now titled by its look.
+- **Every principle is counted.** `lib/graph/era/laws.js` maps each principle every style card states (its own, its
+  night's, its decay's) to the shared laws it is an instance of, and each law to the layer that must carry it when the
+  look leaves the stage: look (light, value, palette, air, sky), surface (density, materials, blends, cards),
+  composition (focus, subject line, distinctness, causes) or dressing (a kit's own set pieces). The era card's own laws
+  (baked vertex light, vertex and texel density, the readout frame, the cast over the world) are listed too. A style card
+  that gains a principle without a mapping fails `laws.test.js`. A generated `sixth-gen-laws` card lists the laws by
+  layer, and each kit card names the laws its principles state.
+- **A look is a setting on any world.** `look: 'gothic-night'` (or `{ id, cell }`) on a world's manifest
+  (`lib/graph/era/look.js`). A kind that resolves to raw albedo (the dungeon, the city, the controllable world, the
+  object kinds) is resolved unshaded and re-lit by the stage's own bake: every large face is split to a cell (2 m by
+  default, in metres whatever the world's unit) so the light has corners to land on, then baked with the look's
+  ambient, its sun with cast shadows and ground bounce, and the world's own point lights as torches, their flames
+  drawn. The page takes the look's fog and sky; an interior keeps its own sky and the look's fog behind. Any other
+  kind takes the air and sky only and its payload says so (`lookNote`), as does a sunless look on a world that places
+  no lights. Absent `look`, nothing changes. This lands the look laws baked-light, vertex-density, shade-is-colour,
+  depth-by-air and sky-is-a-place; value order, palette, pixel lock and the surface laws are next.
+- **A stage recipe paints its own tiles and sets its own proportions.** `tiles: { wall: { gen: 'stone-brick', stone,
+  mortar, rows, cols, bevel, … } }` per surface (generators `stone-brick`, `flagstone`, `rock`), and
+  `proportions: { column: { r, sides }, plinth: { h }, torch: { every }, … }`, each setting inside its rail
+  (`lib/graph/era/tile-specs.js`); anything outside is refused with its range. A tile family is named from its own
+  numbers and rebuilt from the recipe on every read, so it survives restarts and any number can be edited later with
+  `update_sketch`; the kit keeps its value band per surface but the recipe's colour is the hue. Each room kit offers only
+  the proportions it draws (`STAGE_KIT_PROPORTIONS`, measured: the plaza and the lab take `bay` only). A generated
+  `stage-rails` card lists every setting and range, and each kit card names its surfaces and parts.
+- **Two stage fixes.** `torch.every: 1` seated no torches (the seat rule was `k % every === 1`); it now seats one per
+  pilaster, with the kits' own spacing unchanged. A sunlit kit (the plaza) given a look with no sun threw a TypeError; it
+  now refuses with the looks that have one.
+- **The laws are checked on every room stage.** `lib/graph/era/law-checks.js` reads value order (torchlit wall, open
+  floor, vault, as baked colour × tile mean), materials by layer (the vault never the walls' tile nor coursed brick),
+  blends by cause, cutout cards, a focus and coloured shade off a built stage: a readout that advises, never refuses.
+  The bare gothic-stone passed 1 of 6.
+- **gothic-stone is a crypt.** A new style card (`style/crypt.js`, its principles counted in `laws.js`) and dressing
+  (`era/crypt.js`): a tomb chest on a stepped dais in the last room of the walk, set back from the way in; candle
+  clusters at its corners, each a baked light that leaves no soot; cobwebs in pilaster angles, never on two neighbours;
+  moss and grime blended by cause (the nave's blends, now `blendsByCause` for any kit); a limewash vault darker than the
+  walls; a `tomb` camera that frames the set piece from the way in. Passes 6 of 6. The nave and the plaza are cut from
+  gothic-stone's original numbers and are unchanged. Authored `lights` still replace the torches; the candles stay.
+- **Repeating elements, an accent wall, corner things.** Three new laws (`repeat-adjacent`, `accent-wall`,
+  `corner-things`), stated on the crypt's card and checked: every bare bay of the crypt carries the same framed burial
+  niche (in two tiers on a tall wall, an urn in some), never in a doorway; the wall behind the tomb is the accent, its
+  courses cut in larger, darker ashlar named from its numbers and bare of niches; and `lib/graph/era/props.js` gathers
+  crates, barrels, leaning planks, stones, a boulder and debris where floor meets wall, clusters in the corners and
+  singles at the wall bases, off the walking line, out of doorways and clear of the tomb, never two of a kind side by
+  side. Any room kit's dressing can name its own `props: { kinds, share }`. `checkStageLaws` takes `only`, so a kit is
+  read against the laws its own card states.
+- **Real fire in the crypt's starter.** The kit card's starter carries `fire: true`: its torches burn through the fire
+  channel. The candles stay baked lights.
+- **Grime is a setting.** `grime: 0…1` on a room-kit recipe scales the dressing's moss and grime, the baked dirt (soot,
+  damp, age, traffic) and the crypt's own wall wear together; the crypt stands at 0.5.
+- **Brick wears.** `stone-brick` tiles take `jointDepth` (recessed mortar, grime along the arrises), `grime` (streaks
+  down from the bed joints) and `chips` (broken arrises), each 0–1; absent, every preset tile is byte-identical.
+- **Round, never boxed.** A new law, `arches-and-rounds`, is stated on the crypt's and the catacomb's cards and checked
+  (a vaulted ceiling, arched trim, at least 8% of the built faces curved). A room kit opts in with `arch`
+  (`lib/graph/era/arches.js`): doorways under a semicircular head with an archivolt and a curved soffit through the
+  wall, and a barrel vault on transverse ribs over every room (the nave's vault, struck round; a segment of a circle
+  past `maxRise`), cut so no face outgrows its light cell. The crypt takes it, with arched niches, turned barrels and a
+  coped tomb lid. The nave and the other kits are unchanged.
+- **Wood is a tile spec.** `gen: 'wood'` joins the tile generators (early and late colours, ring frequency, warp,
+  cathedral, streaks); unset settings give quiet straight grain. The props' crates, barrels and planks take a muted,
+  weathered grey-brown from it instead of the preset oak and walnut; a dressing can name its own (`props.wood`).
+- **The catacomb kit.** Burial galleries cut in soft rock (`style/catacomb.js`, dressed by `era/crypt.js` from its own
+  card): walls, piers and vault one generated tufa, the vault sooted darker, worn flags in earth; loculi in up to four
+  tiers in every bare bay, some sealed with a slab; an ossuary accent wall of bone ends with rows of skulls on ledges
+  behind a sarcophagus; amphorae, bone heaps, stones and debris at the wall bases. Passes 9 of 9.
+- **Both starters are six rooms.** The crypt's walk runs nave, gallery, passage, charnel, chapel and sepulchre, turning
+  back to end beside where it began; the catacomb's runs a stair, two galleries, a cubiculum, a crossing and the
+  ossuary. Both open under the stage page budget (`stage-budget.test.js`).
+- **Art direction comes first.** A room-kit stage recipe takes `art: 'propose'`: at create_sketch the palette (ramps,
+  shade end cool, light end warm), materials (texture numbers; colours from the palette), architecture (proportions and
+  the vault's rise) and motifs (the niche, the accent wall, the corner things) are rolled by seeded dice inside the
+  kit's rails (`lib/graph/era/art-direction.js`) and stored in the recipe as numbers, each item `proposed`. The answer
+  carries the art board as an image: five panels in mojulo's own SVG (`art-board.js`) with the actual tiles, a wall
+  elevation and room section drawn from the proportions, motif glyphs and the floor plan, rasterized by sharp (without
+  it the answer says so and carries the readout). Approve an item with a patch to `/art/status/<item>`; send one back
+  with `/art/<item>: 'reroll'`; `art: 'auto'` is hands off. The recipe's own `tiles` and `proportions` still win. No new
+  tool. Every roll keeps the kit's laws (`art-direction.deep.test.js`). Absent `art`, nothing changes.
+- **Bricks take a radius and a shadow.** `stone-brick` tiles take `radius` (corners rounded, 1 makes each stone a disc)
+  and `shadow` (each stone casts a soft box-shadow into the joint below and to its right); `rows` and `cols` now run
+  to 12. The crypt's walls and accent wall use both; the ossuary's courses are now discs, bone ends seen end-on. Absent,
+  every preset tile is byte-identical.
+- **The art direction is seven items, and rolls stop repeating.** Palette, materials, architecture, MOTIFS (small: a
+  frieze carved in a band along the plinth or cornice; `gen: 'frieze'`, seven patterns), DOODADS (large: the set piece,
+  the accent wall, the things on the floor), ATMOSPHERE, and the plan. Materials choose between whole specs by weight:
+  walls in running, Flemish, coursed-ashlar or stack bond, or rubble (dark stones in grey mortar); floors in flags,
+  herringbone, basketweave or hexagons. The board shows all seven; the deep sweep keeps every kit law and the page
+  budget on every roll.
+- **Brick bonds.** `stone-brick` takes `bond`: `running` (the default, byte-identical), `stack`, `flemish`, `ashlar`,
+  `herringbone`, `basketweave`, `hex` (a hex lattice gone asymmetric) and `rubble` (shaped field stones piled in the
+  mortar); radius and shadow work on all of them.
+- **Earth, ivy, lift.** Room-kit recipes take `earth: 0…1` (the floor giving way to packed dirt, in patches and along
+  the way), `ivy: 0…1` (ivy rooted in the joints above the plinth, climbing; never on the accent wall) and `lift: 1…2`
+  (every room taller). Each is also rolled by the art direction.
+- **Set pieces and the doodad rule.** The set piece is a closed tomb, an empty one (its lid off and leaning, the dark
+  inside showing), an altar or a well. A stone coffin joins the corner things. Two doodads never stand within 2.5 m
+  unless a corner gathers them on purpose (`clusters`). New laws `dare-height`, `motif-small` and `doodads-apart` are
+  stated on both cards and checked.
+- **Atmosphere.** `atmosphere: { fog, dust, flicker }` on a room-kit stage: the look's fog thickened or thinned, dust
+  motes drifting in still air and lit near the lights (`scene/channels/motes.js`; absent, no bytes), and the torches'
+  flicker pace. Fire sources take `pace` (0.2–2); the crypt's and catacomb's torches burn at 0.45, calmer.
+- **Page weight.** Pilaster sides are lit in metre cells, niche arches take six segments and the crypt's gutter holds
+  less rubble, so the six-room starters keep room under the budget for taller rolls.
+- **A built stage is addressable.** A room-kit stage's payload carries `rooms` (id, interior box, its doorways),
+  `anchors` (each doorway between two rooms, the recipe's doors and items, the set piece and its lid, every doodad and
+  prop by form and count such as `coffin-2`, each torch, niche and the accent wall, each with its room and position)
+  and `colliders` (every closed wall as slabs cut at its doorways with a lintel kept, the pilasters, a hull per solid
+  thing). A thing's faces carry its id as `node`, and the GLB gives each its own node by that name. The engine score
+  and the GLB scene extras (`moj:rooms`, `moj:anchors`) carry the address, and the ledger counts it. The Godot kernel
+  (0.5.0) walks against the colliders, makes every anchor a named `Marker3D`, turns rooms, doorways and doors into
+  triggers (a door locked by an item opens once the bag holds it) and items into pickups whose node hides when
+  taken. The World page never reads any of it: its bytes are unchanged.
+- **Tone: colour as its own concern.** A room-kit stage takes `tone`: a preset (`noir`, `flat`, `isekai`) or a
+  direction of its own (`texture: 'value' | 'shade'`, `steps`, `key`, `gain`, `detail`, five-stop `ramps`, `groups`,
+  `keep`). The build drains the colour out: tinted faces bake grey, and tiles become their greyscale `value:` twins
+  (about half the bytes) or `shade:` twins (the shadow only, the faces flat). The World page lights first and colours
+  after (`scene/channels/tone.js`): the baked light is banded into `steps` and picks a colour off the surface's ramp,
+  and the tile's own value adds detail inside the band. Exposure is measured: the median baked light lands on `key`.
+  Engine exports carry the grey build and `score.tone`; the ledger says the grading is the page's for now. Absent
+  `tone`, the page's bytes are unchanged.
+- **Interceptors: immersive detail that never collides.** A room-kit stage takes `growth` (0…1 for every plant, or
+  `{ grass, vines, creep, fungus }`), `litter` and `cracks` (0…1). Each interceptor finds its sites on the built rooms
+  (the floor's stones and joints, the bare runs of wall, the large things, the corners) and grows there before the
+  bake. Litter is pebble patches and a few stones in the floor's own shade, kept off the walk. Cracks are a decal
+  inside a single flagstone. Grass grows at every height in the joints and at the wall foot, thinning toward the walk.
+  Vines and roots hang from under the cornice, clear of the piers. Creeping ivy is rooted at the feet of the set piece
+  and the doodads. Fungi grow in the corners, or at the foot of whatever stands in one, and at the piers' feet. No
+  interceptor adds a collider or an anchor, and each kind's count is capped and spread evenly over the rooms, so every
+  room gets its share and the page stays under budget at full aggressiveness on the tallest lift (tested). The art
+  direction rolls `growth`, `litter` and `cracks` under `materials.weathering` from dice of their own, so a seed rolled
+  before keeps every other number, and a stored direction without them grows nothing. New cards: `card:fungus`,
+  `card:crack`, `card:pebbles` (the small ones ship at half size). Tones colour each interceptor's group from a ramp.
+- **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
+- **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
+- The platformer game kit's search line no longer names game characters.
+- The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from
+  the curated `compose_world` base cards.
 
 ### Pack CLI
 

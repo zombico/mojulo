@@ -163,3 +163,31 @@ export async function renderWorldToPng(html, {
     if (browser) await browser.close().catch(() => {});
   }
 }
+
+/**
+ * Rasterize a plain self-contained HTML document (a board, a sheet: no 3D, no WebGL) to a PNG, clipped to the element
+ * `selector` matches (the whole viewport when none does). Chromium lays the page out — grid, wrapping, fonts — so the
+ * document is written as content, not coordinates.
+ *
+ * @param {string} html — a full HTML document with no subresources
+ * @param {object} [opts] — { width = 1200, height = 900, selector = '#board', deviceScaleFactor = 1, timeoutMs = 30000 }
+ * @returns {Promise<Buffer>} PNG bytes
+ */
+export async function renderPageToPng(html, { width = 1200, height = 900, selector = '#board', deviceScaleFactor = 1, timeoutMs = 30000 } = {}) {
+  if (!html || typeof html !== 'string') throw new Error('renderPageToPng requires an HTML document');
+  await loadPuppeteer();
+  const executablePath = await resolveChromium();
+  let browser = null;
+  try {
+    browser = await launchChromium({ executablePath, headless: true, args: CHROMIUM_LAUNCH_ARGS, timeout: timeoutMs });
+    const page = await browser.newPage();
+    await page.setViewport({ width, height, deviceScaleFactor });
+    await page.setContent(html, { waitUntil: 'load', timeout: timeoutMs });
+    await Promise.race([page.evaluate(() => (document.fonts ? document.fonts.ready : null)).catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
+    const target = await page.$(selector);
+    const shot = target ? await target.screenshot({ type: 'png' }) : await page.screenshot({ type: 'png', fullPage: true });
+    return Buffer.from(shot);
+  } finally {
+    if (browser) await browser.close().catch(() => {});
+  }
+}

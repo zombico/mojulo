@@ -337,6 +337,9 @@ function assetFields(source) {
   if (source.assetRef != null) out.assetRef = source.assetRef;
   if (source.instance != null) out.instance = source.instance;
   if (source.finish != null) out.finish = source.finish;     // a house style's furnishing palette (room-assets recolorManifest)
+  // a composed piece's style, forms and finish, and the mesh it falls back to (room-assets 'composed-furniture')
+  if (source.compose != null) out.compose = source.compose;
+  if (source.composeFallback != null) out.composeFallback = source.composeFallback;
   return out;
 }
 

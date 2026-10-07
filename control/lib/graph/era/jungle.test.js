@@ -32,7 +32,7 @@ describe('leaf cards', () => {
       const url = cardTexture(k), png = Buffer.from(url.split(',')[1], 'base64');
       expect(png[25]).toBe(6);   // IHDR colour type 6: RGBA
       const c = cardCover(k);
-      expect(c).toBeGreaterThan(k === 'card:cobweb' ? 0.03 : 0.1);   // a web is threads: mostly clear by nature
+      expect(c).toBeGreaterThan(['card:cobweb', 'card:crack'].includes(k) ? 0.03 : 0.1);   // a web is threads, a crack a line: mostly clear by nature
       expect(c).toBeLessThan(['card:awning', 'card:roofs'].includes(k) ? 0.95 : 0.7);   // a card is mostly leaf where it matters and clear around it (cloth and a skyline are solid)
       expect(cardTexture(k)).toBe(url);
     }

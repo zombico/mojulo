@@ -60,7 +60,9 @@ describe('stage geometry', () => {
   it('floor and wall are different layers: other families, other shapes, a warmer and darker floor', () => {
     const fam = (g) => new Set(faces.filter((f) => f.group === g).map((f) => f.texture.replace(/-[a-d]$/, '')));
     expect([...fam('stage:floor')]).toEqual(['flagstone']);       // square/oblong flags in a grid
-    expect([...fam('stage:wall')]).toEqual(['stone-wall-bluestone']);   // running-bond courses
+    // running-bond courses: the crypt's bluestone, worn at its grime (recessed joints, streaks, chipped arrises)
+    expect([...fam('stage:wall')]).toHaveLength(1);
+    expect([...fam('stage:wall')][0]).toMatch(/^gen:stone-brick-/);
     const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     expect(lum(kit.tint.wall) - lum(kit.tint.floor)).toBeGreaterThan(0.2);
     expect(kit.tint.floor[0] - kit.tint.floor[2]).toBeGreaterThan(0);   // warm
@@ -139,18 +141,22 @@ describe('stage scene', () => {
     expect(shell.some((f) => new Set(f.cornerFills).size > 1)).toBe(true);
     expect(a.lights.length).toBeGreaterThan(0);
     for (const l of a.lights) { expect(l.type).toBe('point'); expect(l.position).toHaveLength(3); }
-    expect(a.faces.filter((f) => f.glow)).toHaveLength(a.lights.length * 2);
+    // two flame cards per torch; the crypt's candles burn in their own group, one light per cluster
+    const candles = new Set(a.faces.filter((f) => f.group === 'stage:candle' && f.glow).map((f) => f.corners[0].slice(0, 2).map(Math.round).join())).size > 0 ? 4 : 0;
+    expect(a.faces.filter((f) => f.glow && f.group === 'stage:fixture')).toHaveLength((a.lights.length - candles) * 2);
   });
   it('rubble is in the scene, lit once per stone face', () => {
     const rubble = a.faces.filter((f) => f.group === 'stage:rubble');
     expect(rubble.length).toBeGreaterThan(0);
     expect(rubble.every((f) => typeof f.fill === 'string' && !f.tint)).toBe(true);
   });
-  it('authored lights replace the auto torches; an empty list leaves only ambient', () => {
+  it('authored lights replace the auto torches; an empty list leaves only the dressing\'s own (the tomb\'s candles)', () => {
+    const candles = assembleStageScene({ ...DMC3_STUDY, lights: [] }).lights.length;
+    expect(candles).toBe(4);   // one per dais corner
     const one = assembleStageScene({ ...DMC3_STUDY, lights: [{ at: [6, 10, 3], color: '#ff3020' }] });
-    expect(one.lights).toHaveLength(1);
+    expect(one.lights).toHaveLength(1 + candles);
     const none = assembleStageScene({ ...DMC3_STUDY, lights: [] });
-    expect(none.lights).toHaveLength(0);
+    expect(none.lights).toHaveLength(candles);
     expect(none.faces.every((f) => !f.cornerFills || new Set(f.cornerFills).size >= 1)).toBe(true);
   });
   it('carries the reference air: haze in the fog colour, an interior sky', () => {

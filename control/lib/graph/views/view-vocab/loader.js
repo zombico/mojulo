@@ -29,6 +29,7 @@ import { join } from 'node:path';
 import { moduleDir } from '../../../module-dir.js';
 import { readBookCards } from '../recipe-book/cards.js';
 import { historicEntryCards } from '../../historic/entries.js';
+import { stageEntryCards } from '../../era/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/views/view-vocab');
 
 // `when` is required for the same reason as sketch-vocab: it's the
@@ -91,6 +92,12 @@ export function getViewVocabCatalog() {
   // `index: false`: read on demand, kept out of search and the index rows, so an entry answers before its sources.
   for (const card of historicEntryCards()) {
     if (catalog.has(card.id)) throw new Error(`view-vocab: generated entry '${card.id}' collides with a card`);
+    catalog.set(card.id, card);
+  }
+  // Generated stage cards (family `world`): the sixth-gen stage, its kits and its looks, built from the kit, style and
+  // reference cards at load (../../era/entries.js), never hand-written.
+  for (const card of stageEntryCards()) {
+    if (catalog.has(card.id)) throw new Error(`view-vocab: generated stage card '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
   // Attached recipe-book cards (recipe-book.plan.md) — merged AFTER core so

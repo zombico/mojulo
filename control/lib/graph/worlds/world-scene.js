@@ -34,6 +34,7 @@ import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
+import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -132,7 +133,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // ≡ 1), threaded onto `ctx.light` so object-kind assemblers shade flat; the material / AO /
   // weathering darkening passes below are additionally SKIPPED. Absent `viewOpts.unshaded`
   // (the universal case) ⇒ every guard below is inert and every output byte is identical.
-  const unshaded = viewOpts.unshaded === true;
+  // a sixth-gen LOOK (era/look.js): `look` on the manifest. A kind that resolves to raw albedo is resolved unshaded so
+  // the look can bake its own light into it; any other kind keeps its light and takes the look's air and sky. The
+  // stage carries its look as `reference`. Absent `look` ⇒ null ⇒ every guard below is inert, every byte identical.
+  const lookSpec = kind !== 'stage' ? resolveLookSpec(sketch.manifest.look) : null;
+  const bakeLook = !!lookSpec && viewOpts.unshaded !== true && UNSHADED_LAMBERT_KINDS.has(kind);
+  const unshaded = viewOpts.unshaded === true || bakeLook;
   // Registry miss → check the attached recipe book's Door-2 kinds
   // (recipe-book.plan.md) before falling back to the room resolver. The await
   // only runs on a core miss, so every core kind's path is untouched; a book
@@ -918,6 +924,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (unshaded && payload && !UNSHADED_LAMBERT_KINDS.has(kind)) {
     payload.unshadedWarning = `kind '${kind}' does not shade through the vexar FLAT_LIGHT seam (it bakes environment/self lighting), so unshaded export did not flatten it — the exported base still carries baked lighting.`;
   }
+
+  // the LOOK lands last among the face passes: every face the world placed above (items, statues, figures) is baked
+  // under one light
+  if (payload && lookSpec) applyLook(payload, lookSpec, { bake: bakeLook });
 
   // A recipe-level unit declaration (`manifest.metersPerUnit`): a kind authored at another
   // scale (the fractal city's storey is 0.82 units — a town scale, not metres) says so on the
