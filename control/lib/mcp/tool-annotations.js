@@ -198,6 +198,7 @@ export const TOOL_ANNOTATIONS = {
   edit_solid: ['Skin or emote a solid', ADDITIVE], // skins append a slot; emotes add a GIF or mint
   get_solid_vocab: ['Solid vocabulary cards', READ],
   measure_solid: ['Measure a solid', READ],
+  fabricate_solid: ['Fabricate from standard parts', hints(false, false, false, false)], // the plan call writes nothing; the mint adds a row
   create_cover: ['Create a publication cover', ADDITIVE],
   compose_world: ['Compose a world', ADDITIVE],
   list_world_themes: ['List world themes', READ],

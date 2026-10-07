@@ -88,6 +88,10 @@ mint_solid({ kind: 'scad', title: 'M5 clamp block', spec: { source: `
 ` }})
 ```
 
+## Fabricate
+
+Which standard parts a design needs, and what to buy: `get_solid_vocab({ id: 'fabricate' })`. A fabricated row stores its plan as `fabricate`.
+
 ## Mechanisms — `mechanism`
 
 <!-- section: mechanism | The mechanism contract | joints, couplings (gear, ring, belt, rack, screw, ratio, link), the drive and its loads; the motion report and its collision sweep -->

@@ -121,6 +121,13 @@ describe('scadNext', () => {
     expect(scadNext({ ...S, strength: { material: 'pla', checks: [] } })[0]).toEqual({ measure: 'strength', card: 'scad', section: 'strength' });
   });
 
+  it('a part cut for standard parts, with no plan, opens fabricate first; a fabricated row does not', () => {
+    const cut = { ...S, source: 'difference() { cube([30, 30, 8]); translate([15, 15, 8]) mj_bearing_seat("608"); }' };
+    expect(scadNext(cut)[0]).toEqual({ add: 'fabricate', tool: 'fabricate_solid', card: 'fabricate' });
+    expect(names({ ...cut, fabricate: { needs: [], plan: {} } })).toEqual(['strength', '3mf']);
+    expect(names({ ...S, source: 'difference() { cube(10); mj_hole(3, 10); }' })).toEqual(['strength', '3mf']);
+  });
+
   it('sheet metal opens the drawing', () => {
     expect(scadNext({ ...S, source: 'mj_sheet(1.5, 1, 40, [[30, 90], [20, 0]]);' }).at(-2)).toEqual({ export: 'dxf', card: 'scad', section: 'outputs' });
   });
@@ -132,6 +139,7 @@ describe('scadNext', () => {
       { ...S, strength: { material: 'pla', print: {} } }, { ...S, source: 'mj_sheet(1,1,1,[]);' },
     ].flatMap(scadNext);
     for (const s of all) if (s.section) expect(sections[s.section], s.section).toBeDefined();
+    expect(getSolidVocabCatalog().get('fabricate'), 'the fabricate step names a card that exists').toBeDefined();
   });
 });
 

@@ -6,7 +6,9 @@
  *     workbench, assembler, carved-solid, solid-turntable, edifice, vehicle),
  *     and
  *   - `edit_solid` ops (the verbs over an already-minted family solid: skin,
- *     emote).
+ *     emote), and
+ *   - `fabricate`, the manual of `fabricate_solid` (needs → standard parts,
+ *     carried out by a scad source or a workbench frame).
  *
  * Each card carries the depiction prose, the "reach for" routing phrases, and
  * the parameter manual that used to live in the retired tool's tools/list
@@ -36,7 +38,7 @@ const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 // prose does.
 const REQUIRED_FIELDS = ['id', 'name', 'family', 'entry', 'summary', 'when'];
 const VALID_FAMILIES = new Set(['figure', 'creature', 'object', 'structure', 'vehicle', 'edit']);
-const VALID_ENTRIES = new Set(['mint_solid', 'edit_solid']);
+const VALID_ENTRIES = new Set(['mint_solid', 'edit_solid', 'fabricate_solid']);
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 let cache = null;

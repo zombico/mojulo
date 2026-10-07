@@ -56,6 +56,54 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   deep or more, moves fittings. A dowel-jointed table also moves fittings, because its two apron dowels met in each
   leg. Frames where no fittings collided render byte-identical.
 
+### Fabricator
+
+A fabrication need is said once, by the job a part does, and resolved from the shelf of standard parts first and from
+scratch last: the cluster every new object draws from. Every existing kind builds byte-identically; a scad row minted without the door is unchanged.
+
+- **Function words** (`fasten`, `thread`, `locate`, `hinge`, `slide`, `spin`, `drive`, `transmit`, `retain`, `seal`,
+  `catch`, `mount`, `enclose`, `store`, `frame`) resolve to a strategy: parts taken by a route (buy, fit the standard
+  interface into your part, print the standard part) or, last, a mint. Capabilities are measured from the need's
+  numbers (host material, load, cycles, access, shaft, axes, the host it mounts to); intent tags are a closed set
+  (`serviceable`, `tool-free`, `print-only`, `waterproof` …), each read by some strategy. `resolve`, `repertoire` and
+  `coverage` in `lib/graph/fabricator/`.
+- **The inventory** names families, not sizes: sizes are read from the construction hardware codes and the
+  mechanical library's own tables, so there is one copy of every bearing bore and motor bolt square.
+- **Provenance gates the route.** Standards, commodity parts, openly licensed systems (kept with their licence) and
+  mojulo's own designs may be bought, fitted and printed. Another owner's product or system is reference-only: bought,
+  or fitted by the interface its owner publishes, named only to say what fits, never reproduced. A refused strategy
+  is reported, and the resolver moves on (a three-prong camera mount resolves to a bought adapter).
+- **Coverage:** of the probe needs, three quarters resolve from the shelf; the rest name the gap they wait for.
+- **`fabricate_solid`:** the fabricator decides and the kind that owns the material's joinery executes. A wood need
+  whose strategy is a furniture joint (cam-lock, confirmat, insert-bolt, screwed, dowel, shelf-pin, hinge, slide) is
+  planned as that joint for a workbench `frames` entry, whose joint code places and counts the fittings. A need solved
+  by `mj_*` cuts or printed parts is planned for an OpenSCAD `source`. With `needs` alone the tool mints nothing and
+  hands back the plan: each need's executor, strategy and why, the bill of materials, the cuts and the joints. With
+  the `source` or the `frames` it mints the row with the plan frozen beside it as `fabricate`.
+  - **Advisory checks:** planned cuts or joint types the body never makes, and needs planned for the other executor,
+    are warned about. None is refused.
+  - **One shopping-list shape:** the bill of materials uses the furniture report's and the instruction manual's line
+    shape (`code`, `label`, `count`, `tool`, …). After a frames mint it is the frame's own hardware report, not the
+    plan's estimate.
+  - **Manual:** `get_solid_vocab({ id: 'fabricate' })`.
+  - **Tightened by three agent trials** (a spool holder, a waterproof Raspberry Pi box, a flat-pack bookcase):
+    - A part that is seated is bought: heat-set inserts were cut for and never listed, and a board's standoffs bought
+      no screws. A test holds every strategy that fits a seat to buy as many as it seats.
+    - Counts and depths agree: two bearings get two seats. A threaded hole runs 2 mm past the bolt tip. A fastening
+      need says the grip its bolt length assumed.
+    - Every cut says `where` it goes.
+    - One job per need: a sealed box is the box. Its rim seal (O-ring cord sized to the rim), cable gland and
+      breather are suggested as their own needs, and a need another one already covers is reported as an overlap.
+    - Furniture in wood reads as furniture: shelves are shelf pins, a back is a groove joint, the wall fixing is an
+      anti-tip kit, and a frame-placed fitting is left for the frame to count. A frames row takes the frames' unit.
+  - **On the scad ladder:** a scad row that cuts a standard part's interface (a bearing seat, a heat-set pilot, a
+    nut trap, a NEMA face …) and has no plan beside it opens `next` with `{ add: 'fabricate', tool:
+    'fabricate_solid' }`. The cutters are read off the inventory, so there is one list.
+- **Kept apart from the assembler.** The assembler places finished workbench parts in a scene; `fabricate_solid` says
+  which real hardware does a job. The routing cards contrast the two, and the assembler, handed a scad row, now says
+  that a scad object assembles inside its own source (`parts`, `mechanism`, the plan's `bom`) instead of only that
+  it is not a workbench.
+
 ### Scad ladder
 
 - **The scad card opens to its first step.** `get_solid_vocab({ id: 'scad' })` returns the part itself (spec,
