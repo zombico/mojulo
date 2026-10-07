@@ -12,6 +12,57 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Playscape
+
+The first step toward Playscape, which makes a scapeshifted world playable on a ladder of four rungs: click demos,
+walk demos, a single level, a game of levels. This step starts its encyclopedia: the game idioms on a shelf of their
+own, the laws a game object is judged by, and the first entry, the door, where what a thing does is kept apart from
+what it looks like. No tool is added; `get_game_vocab` gains a family.
+
+- **The game idioms have cards.** `get_game_vocab({ scope: 'idiom' })` and `semantic_search({ kinds: ['game_idiom'] })`
+  return an `idiom-guide` and an `idiom-<kind>` card per idiom, generated from an about row kept beside each idiom
+  function (`IDIOM_ABOUT` in `lib/graph/worlds/game-idioms.js`). Each card lowers its own example and prints the
+  event-bus rows it becomes, so it cannot drift; an idiom without an about row fails the shelf's test. Each idiom is
+  tagged with the lowest rung it serves (`click`, `walk`, `level`, `game`). A migration adds the `game_idiom` kind.
+- **One lowering map.** `IDIOM_LOWERING` and `lowerIdioms()` in `game-idioms.js` replace the action world's private
+  map, which now also takes `banner`, `legend` and `toast` in `idioms` (before, only raw `events.hud` rows reached them).
+- **Object laws.** `lib/graph/playscape/objects/` judges a game object the way the hero is judged: the build is
+  measured and read against bands, with advice per law, never a refusal (`objectMeasures`, `objectAdvice`). The laws
+  (`objects/laws.js`): inverse interest (the more a thing matters, the more distinct its silhouette segments, counted
+  as notches that open onto the outline at play distance in the era's 640×448 frame), 33/66 (the primary detail a
+  third of the main mass and wider than the eye spot), emboss (the rest of the mass shaded in by value), values only
+  (greys on `obj:*` groups, colour left to a tone), the detail a band apart from the mass under 3, 4 and 5 hard steps,
+  the accent kept for what can be used, and juxtaposition (a placement law). One interest rank (filler, prop,
+  interactable, focus) sets the bands.
+- **The door entry: what it does apart from what it looks like.** `objects/mechanism.js` moves leaves on three joints
+  (hinge, slide, lift); the door's five variants are rows over it: `single`, `double`, `sliding-single`,
+  `sliding-double` and `portcullis`. Fitted to an opening (a doorway anchor sizes it) at any t from closed to open, a
+  door answers for itself: its collider at t, the space its leaves sweep (a level keeps it clear: the swing in front,
+  the wall pocket, the headroom), the width and height a walker gets through, and where it is used from (both sides of
+  the handle, or a control beside a portcullis). Its look is a skin worn on top (`greybox`, `plank`), drawn on the
+  closed leaf and carried by the joint. Its rules are built from the idioms: a use opens it; locked, it waits for its
+  unlock event (a key's pickup), then for a use (a sequence, since reactions carry no guard). `ejectObject` freezes
+  the variant, skin and numbers. The entry's card is generated from the variants and measured off the mechanism
+  (`lib/graph/playscape/entries.js`); it is served once a recipe can place a door.
+- **Drives: what moves an entry's t.** `objects/drive.js`: a `clock` (back and forth or round a loop over a period),
+  a `ride` (standing on it sends it to the far end; it waits `dwell` seconds empty, then comes home), a `call` (a use at
+  a stop sends it there) and a `rule` (a bus var; the door's `<id>-open`). Stepped by dt, so a timeline replays exactly.
+- **The platform entry, called by its surface area.** `objects/platform.js`: `area` is the walkable deck top in square
+  metres (`aspect` shapes it), and reads to a player as a rest, a step, a tight landing or too small. Variants
+  `static`, `shuttle` and `rail` (round if it loops, else back and forth, by distance at one pace). It answers for its
+  deck and collider at t, the space it sweeps and the headroom a rider needs over it all along, and lowers to the
+  platformer world: a still deck is a floor face and a collider, a moving one a `mover` carrier with a visible box
+  body (moving platforms rendered nothing before). Its `island` skin (a lighter deck over a keel of rock) holds every
+  object law at every area: a still island hangs one keel point, a moving one two tiers.
+- **The lift entry, vertical traversal.** `objects/lift.js`: a platform's deck carried between stops at `speed` metres
+  a second. Two stops ride; more are called. It answers for its shaft (from under the lowest stop to a rider's
+  headroom over the highest: a level leaves it open), its landings (board, and a step off to either side, at every
+  stop), and its ride time and dwell. A called lift runs as a ride between its ends until calls reach the runtime.
+- **Movers run rails and ride drives.** The `mover` rule (`worlds/controllable/rules-basic.js`) takes a `path` of
+  points (by distance; `loop`, `mode: 'loop'`) and `drive: 'ride'` (`speed`, `dwell`); the carry pass marks a
+  ride-driven carrier `_ridden` while a rider stands on it, still or moving. A mover with neither runs as before (the
+  controllable-world trace pins hold).
+
 ### Scapeshift
 
 The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by

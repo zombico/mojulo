@@ -153,8 +153,43 @@ export function buildRulesBasic(E) {
   // top inherits its per-tick HORIZONTAL motion via the carry post-pass in stepWorld; vertical carry
   // comes free from re-grounding on the moving top. Mark the entity `body.carrier:true` (+ a footprint:
   // `body.carryHalf:[hx,hy]` AABB or `body.carryRadius`; `body.deck` offsets the ride surface off pos-z).
+  // A RAIL (`path`: two or more points, round if `loop`) moves the carrier by DISTANCE along the polyline, so it runs at
+  // one pace; `mode: 'loop'` runs t as a saw (one way round), else the smoothed ping-pong below. A RIDE drive
+  // (`drive: 'ride'`, `speed` t/s, `dwell` s) waits at the path's start until a rider stands on it (the carry pass
+  // marks `e._ridden`), runs to the end, waits `dwell` empty, and comes home. A mover with neither runs as before.
+  function railPoint(path, loop, t) {
+    const pts = loop ? path.concat([path[0]]) : path;
+    let total = 0; const seg = [];
+    for (let i = 1; i < pts.length; i++) { const L = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]); seg.push(L); total += L; }
+    let s = Math.min(1, Math.max(0, t)) * total, i = 0;
+    while (i < seg.length - 1 && s > seg[i]) { s -= seg[i]; i++; }
+    const f = seg[i] ? s / seg[i] : 0, a = pts[i], b = pts[i + 1];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  }
   function mover(e, input, dt) {
     const r = e.rule;
+    if (Array.isArray(r.path) && r.path.length >= 2) {
+      let t;
+      if (r.drive === 'ride') {
+        const st = e._ride || (e._ride = { t: 0, target: 0, wait: 0 });
+        const atEnd = st.t >= 1 - 1e-9, atHome = st.t <= 1e-9;
+        if (e._ridden && atHome) st.target = 1;
+        if (atEnd && !e._ridden) { st.wait += dt; if (st.wait >= (r.dwell ?? 2)) { st.target = 0; st.wait = 0; } } else if (!atEnd) st.wait = 0;
+        const step = (r.speed > 0 ? r.speed : 0.25) * dt;
+        st.t = st.t < st.target ? Math.min(st.target, st.t + step) : Math.max(st.target, st.t - step);
+        t = st.t;
+      } else {
+        const period = r.period > 0 ? r.period : 4;
+        e._mt = (e._mt || 0) + dt;
+        const s = ((e._mt / period + (r.phase || 0)) % 1 + 1) % 1;
+        const tri = 1 - Math.abs(s * 2 - 1);
+        t = r.mode === 'loop' ? s : tri * tri * (3 - 2 * tri);
+      }
+      const p = railPoint(r.path, !!r.loop, t);
+      e.transform.pos[0] = p[0]; e.transform.pos[1] = p[1]; e.transform.pos[2] = p[2];
+      e.moving = true;
+      return;
+    }
     const from = Array.isArray(r.from) ? r.from : (e.spawn ? e.spawn.pos : e.transform.pos);
     const to = Array.isArray(r.to) ? r.to : from;
     const period = r.period > 0 ? r.period : 4;

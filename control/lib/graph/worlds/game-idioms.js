@@ -215,3 +215,145 @@ export function hitConfirm({ on = 'fire', emit = 'shot', score = 'score', drop =
     ],
   };
 }
+
+// ── the shelf — one lowering map and one about row per idiom ──────────────────────────────────────
+// IDIOM_LOWERING is the single kind → fragment map every declarative caller lowers through (compose_world's
+// action base, the playscape builder). Every idiom takes one params object except scoreCounter (positional
+// name), which gets a thin adapter; onContact / onRest forward their extra fields as the `...spec` verb.
+export const IDIOM_LOWERING = {
+  scoreCounter: (p = {}) => scoreCounter(p.name ?? p.var ?? 'score', { label: p.label, slot: p.slot, as: p.as, color: p.color }),
+  countdownClock: (p) => countdownClock(p),
+  banner: (p) => banner(p),
+  legend: (p) => legend(p),
+  toast: (p) => toast(p),
+  gameOverFreeze: (p) => gameOverFreeze(p),
+  spawnOnHeartbeat: (p) => spawnOnHeartbeat(p),
+  deed: (p) => deed(p),
+  onContact: (p) => onContact(p),
+  pickup: (p) => pickup(p),
+  onRest: (p) => onRest(p),
+  ephemeralTarget: (p) => ephemeralTarget(p),
+  hitConfirm: (p) => hitConfirm(p),
+};
+export const IDIOM_KINDS = Object.keys(IDIOM_LOWERING);
+
+// lowerIdioms([{ kind, ...params }]) → the fragments, in order; an unknown kind names the shelf.
+export function lowerIdioms(recipe, where = 'idioms') {
+  return (Array.isArray(recipe) ? recipe : []).map((entry, i) => {
+    if (!entry || typeof entry !== 'object') throw new Error(`${where}[${i}] must be an object { kind, ...params }`);
+    const { kind, ...params } = entry;
+    const make = IDIOM_LOWERING[kind];
+    if (!make) throw new Error(`${where}[${i}] has unknown kind '${kind}' (known: ${IDIOM_KINDS.join(', ')})`);
+    return make(params);
+  });
+}
+
+// The rungs of interactivity, lowest first. An idiom's `tier` is the lowest rung it is useful on: a click demo
+// (things you press that answer), a walk demo (a body you drive through the world), a level (one place with a
+// goal), a game (levels that carry state between them).
+export const PLAY_TIERS = ['click', 'walk', 'level', 'game'];
+
+// One row per idiom, kept beside the functions so a new idiom cannot ship without its card. `example` is a real
+// recipe row: the card lowers it and prints what it becomes, so the card cannot drift from the function.
+// `needs` names what the world must already hold for the idiom to do anything.
+export const IDIOM_ABOUT = {
+  scoreCounter: {
+    name: 'Score counter', tier: 'level',
+    summary: 'A tracker var shown on the HUD. Something else increments it: a deed, a pickup or a confirmed hit.',
+    when: 'keep score, a points counter, count the hits, a tally on screen',
+    params: { name: 'the var (default score)', label: 'HUD label', slot: 'HUD slot', as: 'text | counter | bar | clock', color: 'HUD colour' },
+    example: { name: 'score', label: 'Score' },
+  },
+  countdownClock: {
+    name: 'Countdown clock', tier: 'level',
+    summary: 'A var counting down once a second, stopped by the freeze gate, that fires an event when it reaches zero.',
+    when: 'a timed round, a countdown, beat the clock, 30 seconds to score',
+    params: { var: 'the var (default time)', from: 'starting seconds', onZero: 'event fired at zero (default game-over)', gate: 'freeze var (default over)', tick: 'a distinct tick event per clock if a world has several', label: 'HUD label' },
+    example: { var: 'time', from: 30, label: 'Time' },
+  },
+  banner: {
+    name: 'Banner', tier: 'level',
+    summary: 'Words on the centre line when an event fires, for a few seconds; {name} reads a var.',
+    when: 'game over text, show TIME!, a you win message, announce what happened',
+    params: { on: 'event glob (default game-over)', text: 'the words; {score} reads a var', slot: 'HUD slot', ttl: 'seconds shown', color: 'colour' },
+    example: { on: 'game-over', text: 'TIME! {score}' },
+  },
+  legend: {
+    name: 'Legend', tier: 'click',
+    summary: 'Static text in a slot: the controls hint or a press-E prompt. A ttl makes it fade after the opening seconds.',
+    when: 'controls hint, press E to open, click the lever, an instruction on screen',
+    params: { text: 'the words', slot: 'HUD slot', ttl: 'seconds before it fades', color: 'colour' },
+    example: { text: 'Click the lever', slot: 'bottom', ttl: 6 },
+  },
+  toast: {
+    name: 'Toast', tier: 'level',
+    summary: 'A rising, fading number that stacks: one per event, or one each time a var changes.',
+    when: 'damage numbers, +1 popping up, show points gained, hit feedback',
+    params: { on: 'an event (text may read {event.<field>})', var: 'or a var (text may read {delta} and {value})', text: 'the words', slot: 'HUD slot', ttl: 'seconds', color: 'colour' },
+    example: { var: 'score', text: '+{delta}' },
+  },
+  gameOverFreeze: {
+    name: 'Game-over freeze', tier: 'level',
+    summary: 'On a signal, raise the freeze gate (every gated timer stops), optionally show a banner entity and lower the listed entities.',
+    when: 'end the round, stop everything at game over, freeze when time runs out',
+    params: { signal: 'event (default game-over)', gate: 'freeze var (default over)', banner: 'entity id to show', clear: 'entity ids to hide' },
+    example: { signal: 'game-over', clear: ['mole-0', 'mole-1'] },
+    needs: 'the entities it names',
+  },
+  spawnOnHeartbeat: {
+    name: 'Spawn on heartbeat', tier: 'level',
+    summary: 'Each target pops on its own cadence while the gate is down; periods cycle when shorter than targets.',
+    when: 'moles pop up, targets appear on a rhythm, things spawn every few seconds',
+    params: { targets: 'entity ids', periods: 'seconds, cycled', pop: 'event (default pop)', field: 'event field naming the target', rise: 'false to only emit, pairing with ephemeralTarget', gate: 'freeze var' },
+    example: { targets: ['mole-0', 'mole-1'], periods: [1.2, 0.9], field: 'hole' },
+    needs: 'the entities it names',
+  },
+  deed: {
+    name: 'Deed', tier: 'click',
+    summary: 'Bind an input (pick, key or drag) to an event and the reactions it triggers: where a world says what an action means.',
+    when: 'click a thing and it reacts, press a button, a switch, whack it, tap to toggle',
+    params: { on: 'pick | key | drag', emit: 'event type', effects: 'reaction rows ({ on, do, target | var, … })' },
+    example: { on: 'pick', emit: 'flip', effects: [{ on: 'flip', do: 'toggle', target: 'lamp' }] },
+    needs: 'the entities its effects name',
+  },
+  onContact: {
+    name: 'On contact', tier: 'walk',
+    summary: 'When a touches b, run a verb. Omit a or b for a wildcard. Policy over the physics contact facts.',
+    when: 'when it hits, bump into it, touch to trigger, a collision does something',
+    params: { a: 'entity id', b: 'entity id', '…verb': 'do: emit | impulse | toggle | …, plus its fields' },
+    example: { a: 'ball', b: 'bell', do: 'emit', type: 'ring' },
+    needs: 'a physics world',
+  },
+  pickup: {
+    name: 'Pickup', tier: 'walk',
+    summary: 'An item touching a collector disappears and a tracker var counts it.',
+    when: 'collect coins, pot the ball, grab it by touching it',
+    params: { item: 'entity id', by: 'collector entity id', score: 'var (default score)' },
+    example: { item: 'coin-0', by: 'player', score: 'coins' },
+    needs: 'a physics world and the var it counts into',
+  },
+  onRest: {
+    name: 'On rest', tier: 'walk',
+    summary: 'A body coming to rest runs a verb: delivered, settled, landed.',
+    when: 'when it stops, the stone settles, after it lands',
+    params: { body: 'entity id', '…verb': 'do: emit | toggle | …, plus its fields' },
+    example: { body: 'stone', do: 'emit', type: 'delivered' },
+    needs: 'a physics world',
+  },
+  ephemeralTarget: {
+    name: 'Ephemeral target', tier: 'level',
+    summary: 'On an event, a target appears, lives ttl seconds and disappears; one timeline per target.',
+    when: 'targets that vanish, appear then disappear, a short window to hit it',
+    params: { on: 'event (default pop)', ttl: 'seconds alive', field: 'event field naming the target' },
+    example: { on: 'pop', ttl: 2, field: 'target' },
+    needs: 'a heartbeat or other event naming the target',
+  },
+  hitConfirm: {
+    name: 'Hit confirm', tier: 'level',
+    summary: 'A fire input raycasts by line of sight; a hit drops the target, scores, and can flash a marker.',
+    when: 'shoot targets, a laser range, aim and fire, a shooting gallery',
+    params: { on: 'input (default fire)', emit: 'event (default shot)', score: 'var', drop: 'hide the hit target', marker: 'entity id flashed on a hit', from: 'shooter entity for third person', damage: 'number carried on the event' },
+    example: { score: 'score', marker: 'hitmarker' },
+    needs: 'the var it scores into; a marker entity if named',
+  },
+};

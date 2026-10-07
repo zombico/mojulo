@@ -16,6 +16,10 @@ import { emitThreeWorld } from './scene-three.js';
 //     process.stdout.write(emitThreeWorld(fx[1]));
 //   })" > /tmp/emission.html
 // and diff against the same dump from a clean checkout.
+//
+// Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
+// the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
+// is additions only (85 lines, none removed); every fixture that embeds the controllable runtime re-pinned with it.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
