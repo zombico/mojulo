@@ -123,7 +123,8 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             the opening) and look at the face view. Start from a LOOK when the operator names a
             character: `look: ['rival', 'tareme']` (archetypes heroine / lead / rival / princess /
             mentor / kid / stoic; face and hair traits; poses), then add or peel ONE word with
-            `set /hero/look`, and fine-tune on top with `/hero/face/<control>`.
+            `set /hero/look`, and fine-tune on top with `/hero/face/<control>`. For a shonen lead's energy set `/hero/genki` (0 … 1):
+            one amount over the body, the face, the hair, the expression and the stand (the layered manual: GENKI).
             The anime head wears its GRAPHIC FACE by default (`sculpt`: the eye level, the nose tip
             and a nose line on its shade side, the lip line, the fissure's shape, the upper-lid band,
             the lid covering the iris, one catchlight, the brow as a block, the ear spanning the eye

@@ -12,6 +12,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Anime game hero
+
+- `genki` on the anime hero door (`hero.genki`, 0 … 1): the shonen spirit translated onto the character as one
+  amount over the look and the own layer. Broader shoulders, a narrower waist and stronger forearms and calves; on the
+  male bigger, rounder eyes, on the female a narrower opening; a heavier, lower brow set into a V; more taper and crown
+  in the hair; the brow set, the mouth more open and the smile wider; the stand on a wider base, chest and chin up.
+  Ratios compose as ratio^amount and offsets scale with it, so 0.5 is halfway; absent or 0 changes nothing and stores
+  nothing. Dress, adornment, gear and clips fit the body it makes. Documented in the layered manual (GENKI) and the
+  create-hero catalyst; `anime-genki.test.js` covers the zero law, the layer laws, the door and a dressed mint.
+- The worked lead (`docs/examples/humanoid/cast/lead.json`) has a matured face: bigger eyes (width ×1.12, height ×1.2,
+  the opening ×1.15) and a long jaw narrowing to a small square chin (the lower face ×1.19, the chin ×0.62, the jaw
+  corner raised), measured against front-facing shonen references.
+
 ### Blender film
 
 - A world camera shot goes to Blender as a real camera. `forge_motion` with `export: 'blender'` (turntable,
