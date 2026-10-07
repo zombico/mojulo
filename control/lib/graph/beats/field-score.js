@@ -39,11 +39,11 @@ const r3 = (x) => Math.round(x * 1000) / 1000;
 // answer each other); brass: an adventurous call or a doubling; pad: distant held upper notes; motion: an
 // adventurous ostinato; kit: the percussion.
 export const PALETTES = {
-  orchestral: { colour: ['harp', 'celesta', 'violin-3'], ground: ['cello-3', 'contrabass-3'], lead: ['flute', 'oboe', 'clarinet'], brass: ['french-horn-3', 'trumpet-3'], pad: ['violin-3', 'viola-3'], motion: ['violin-3', 'cello-3'], kit: ['orchestral-perc'] },
-  folk: { colour: ['nylon-guitar', 'classical-guitar', 'banjo', 'acoustic-guitar', 'harp'], ground: ['upright-bass', 'cello-3'], lead: ['fiddle', 'harmonica', 'flute', 'clarinet'], brass: ['french-horn-3', 'trumpet-3'], pad: ['violin-3', 'viola-3'], motion: ['acoustic-guitar', 'banjo', 'fiddle'], kit: ['brush-kit', 'orchestral-perc'] },
-  chamber: { colour: ['marimba', 'vibraphone', 'music-box', 'celesta', 'harp'], ground: ['contrabass-3', 'cello-3', 'bassoon'], lead: ['clarinet', 'oboe', 'flute', 'vibraphone'], brass: ['french-horn-3'], pad: ['viola-3', 'violin-3'], motion: ['marimba', 'violin-3'], kit: ['orchestral-perc', 'brush-kit'] },
-  'synth-era': { colour: ['fm-bell', 'trance-pluck', 'rhodes', 'fm-keys'], ground: ['poly-strings', 'string-machine', 'fm-bass'], lead: ['flute', 'fm-keys', 'oboe', 'clarinet'], brass: ['fm-brass'], pad: ['poly-strings', 'string-machine'], motion: ['trance-pluck', 'fm-keys'], kit: ['drum-machine-88', 'orchestral-perc'] },
-  'silk-road': { colour: ['shamisen', 'harp', 'nylon-guitar'], ground: ['cello-3', 'contrabass-3'], lead: ['erhu', 'flute', 'oboe'], brass: ['french-horn-3'], pad: ['viola-3', 'violin-3'], motion: ['shamisen', 'violin-3'], kit: ['orchestral-perc'] },
+  orchestral: { colour: ['harp-2', 'celesta', 'violin-3'], ground: ['cello-3', 'contrabass-3'], lead: ['flute-3', 'oboe-3', 'clarinet-3'], brass: ['french-horn-3', 'trumpet-3'], pad: ['violin-3', 'viola-3'], motion: ['violin-3', 'cello-3'], kit: ['orchestral-perc'] },
+  folk: { colour: ['nylon-guitar-2', 'classical-guitar-2', 'banjo', 'acoustic-guitar-2', 'harp-2'], ground: ['upright-bass', 'cello-3'], lead: ['fiddle', 'harmonica', 'flute-3', 'clarinet-3'], brass: ['french-horn-3', 'trumpet-3'], pad: ['violin-3', 'viola-3'], motion: ['acoustic-guitar-2', 'banjo', 'fiddle'], kit: ['brush-kit', 'orchestral-perc'] },
+  chamber: { colour: ['marimba', 'vibraphone', 'music-box', 'celesta', 'harp-2'], ground: ['contrabass-3', 'cello-3', 'bassoon-3'], lead: ['clarinet-3', 'oboe-3', 'flute-3', 'vibraphone'], brass: ['french-horn-3'], pad: ['viola-3', 'violin-3'], motion: ['marimba', 'violin-3'], kit: ['orchestral-perc', 'brush-kit'] },
+  'synth-era': { colour: ['fm-bell', 'trance-pluck', 'rhodes', 'fm-keys'], ground: ['poly-strings', 'string-machine', 'fm-bass'], lead: ['flute-3', 'fm-keys', 'oboe-3', 'clarinet-3'], brass: ['fm-brass'], pad: ['poly-strings', 'string-machine'], motion: ['trance-pluck', 'fm-keys'], kit: ['drum-machine-88', 'orchestral-perc'] },
+  'silk-road': { colour: ['shamisen', 'harp-2', 'nylon-guitar-2'], ground: ['cello-3', 'contrabass-3'], lead: ['erhu', 'flute-3', 'oboe-3'], brass: ['french-horn-3'], pad: ['viola-3', 'violin-3'], motion: ['shamisen', 'violin-3'], kit: ['orchestral-perc'] },
 };
 const FLAVOURS = Object.keys(PALETTES);
 // a pitched part's playing pattern by role, per instrument family.

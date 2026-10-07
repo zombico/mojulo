@@ -26,7 +26,23 @@ name or field; no kernel bytes. Ears gate not run.
 - **Phrase shaping.** A composition part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`) scales its
   note velocities: an arch across each phrase, higher notes a touch louder, long notes over short ones, the phrase's
   last note eased. Lowered at render like a chord chart; a part without it is byte-identical.
-- **The field score uses both** for new scores: the orchestral palettes name the v3 sections and the leads carry
+- **Woodwinds v3: tone follows force.** `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3`: solo players whose spectrum is
+  blended per note from a soft table to a loud one by velocity (`harmonicsLoud`), with the energy the added partials
+  carry, so playing harder brightens and widens the dynamic range instead of only turning up. Level-matched to the solo
+  winds at mezzo-forte.
+- **Wooden bodies v2: the modal body.** `body` takes `model: 'modal'`: a computed impulse of dozens of seeded body
+  modes shaped by the resonance set, convolved under the dry signal, independent per side. `acoustic-guitar-2`,
+  `nylon-guitar-2`, `classical-guitar-2`, `flamenco-guitar-2`, `gypsy-jazz-guitar-2` (on the tuned string), `harp-2`
+  and `grand-piano-2` use it. Level-matched; wider in stereo.
+- **Held notes breathe (`life`).** The fixed-loop "held MIDI note": a sustain that never moves. With `life`, one
+  seeded slow pressure walk per note moves level, upper-partial brightness (a high shelf at the note's 4th partial) and
+  vibrato depth and rate together, and a hairpin brightens as it swells. On by default for the `-3` strings, brass and
+  woodwinds; `patchParams: { life: false }` holds a note still. Measured on a held clarinet: level wander 0.01 → 0.6 dB,
+  brightness wander 0.1% → 3.1%.
+- **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
+- **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
+  use it carry the previous kernel byte for byte.
+- **The field score uses all of it** for new scores: the orchestral palettes name the v3 sections and the leads carry
   `shape: 'phrase'`, their base velocity lowered a little so the arch's peaks stay under each energy's ceiling. Stored
   scores keep the instruments they name.
 

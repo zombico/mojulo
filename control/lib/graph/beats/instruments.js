@@ -168,6 +168,8 @@ export const INSTRUMENTS = {
   timpani: { patch: 'timpani', chain: [{ type: 'reverb', wet: 0.3, decay: 3 }], feel: { jitterTime: 0.005, jitterVel: 0.08 } },
 };
 for (const w of ['flute', 'clarinet', 'oboe', 'bassoon']) INSTRUMENTS[w + '-2'] = { ...INSTRUMENTS[w], patch: w + '2', feel: 'ensemble' };
+// `-3` (audio improvements) = the solo player whose tone follows force (harmonicsLoud).
+for (const w of ['flute', 'clarinet', 'oboe', 'bassoon']) INSTRUMENTS[w + '-3'] = { ...INSTRUMENTS[w], patch: w + '3' };
 // percussion kits (orchestra and era): every piece `vary`-able, GM note maps,
 // hat chokes. The arena kit's chain IS its kit bus: parallel compression under
 // the dry kit, then one shared room2 (20 ms pre-delay) with a driven return —
@@ -226,6 +228,25 @@ Object.assign(INSTRUMENTS, {
   'blues-kit': { patch: 'acousticKit', chain: [{ type: 'compress', threshold: -22, ratio: 3, attack: 0.004, release: 0.1 }, { type: 'reverb', model: 'room2', decay: 1.4, wet: 0.16 }], feel: { jitterTime: 0.006, jitterVel: 0.12 } },
   palmas: { patch: 'palmas', chain: [{ type: 'reverb', model: 'room2', decay: 1.2, wet: 0.2 }], feel: { jitterTime: 0.007, jitterVel: 0.15 } },
 });
+
+// Wooden bodies v2 (audio improvements): the acoustic guitars, harp and grand
+// through a modal body — dozens of seeded body modes shaped by the same
+// resonance set, convolved (`body` model 'modal'), instead of three broad
+// peaks; the guitars on the tuned string. Same rooms and feels. Soundboards
+// ring longer and reach higher than guitar boxes.
+const MODAL = {
+  'acoustic-guitar': { patch: 'guitarClean2', modes: 64, ring: 0.16, lo: 80, hi: 5000, mix: 0.55 },
+  'nylon-guitar': { patch: 'guitarNylon2', modes: 64, ring: 0.18, lo: 80, hi: 4000, mix: 0.55 },
+  'classical-guitar': { patch: 'guitarClassical2', modes: 64, ring: 0.18, lo: 80, hi: 4000, mix: 0.55 },
+  'flamenco-guitar': { patch: 'guitarFlamenco2', modes: 64, ring: 0.12, lo: 90, hi: 6000, mix: 0.5 },
+  'gypsy-jazz-guitar': { patch: 'guitarGypsy2', modes: 56, ring: 0.1, lo: 120, hi: 6000, mix: 0.5 },
+  harp: { patch: 'harp', modes: 72, ring: 0.22, lo: 70, hi: 5000, mix: 0.45 },
+  'grand-piano': { patch: 'pianoGrand', modes: 96, ring: 0.28, lo: 50, hi: 6000, mix: 0.45 },
+};
+for (const [name, m] of Object.entries(MODAL)) {
+  const { patch, ...body } = m, base = INSTRUMENTS[name];
+  INSTRUMENTS[name + '-2'] = { ...base, patch, chain: base.chain.map((f) => (f.type === 'body' ? { type: 'body', model: 'modal', resonances: f.resonances, ...body } : f)) };
+}
 
 // ── playable ranges (orchestra and era) — sounding pitch, lowest–highest.
 // Advice only: validation warns on a note outside, the note still plays. A

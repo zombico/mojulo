@@ -43,11 +43,12 @@ describe('field score: a new mood never moves an old one', () => {
   // rows and leanings; they must not change a note of these. A legitimate change to them re-pins with a reason.
   // Re-pinned 2026-10-06 (audio improvements): the orchestral palettes name the v3 sections, the leads carry
   // `shape: 'phrase'`, and the lead base velocity drops to leave the phrase arch headroom under the ceilings.
+  // Re-pinned again the same day: the palettes name the v3 woodwinds and the modal-body harp and guitars.
   it('plains … wayfarer are byte-identical to their pin', () => {
     const h = createHash('sha256');
     for (const mood of ['plains', 'desert', 'village', 'forest', 'highlands', 'expedition', 'wayfarer'])
       for (let s = 0; s < 60; s++) for (const id of [undefined, 7, 9001]) h.update(JSON.stringify(fieldScore(mood, { seed: s * 7919 + 3, identity: id })));
-    expect(h.digest('hex')).toBe('93ffb9d30423b0cb35a3ba181b95902aea5e453be99c16872653078d528a9a9d');
+    expect(h.digest('hex')).toBe('824235fdb9da6da610242a2ee74ffc227084278b8c69ebe6789f507eb68243c8');
   });
 });
 

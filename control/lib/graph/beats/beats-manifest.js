@@ -57,6 +57,10 @@ function checkChain(chain, where, errors) {
     if (f.type === 'reverb') checkRoomShape(f, `${where}.chain[${i}]`, errors);
     if (f.type === 'reverb' && f.drive !== undefined && !inRange(f.drive, 0, 0.99)) errors.push(`${where}.chain[${i}].drive must be in [0, 0.99] (saturation on the reverb return — the room roars)`);
     const fw = `${where}.chain[${i}]`, lim = (k, lo, hi, why) => { if (f[k] !== undefined && !inRange(f[k], lo, hi)) errors.push(`${fw}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
+    if (f.type === 'body' && f.model !== undefined) {
+      if (f.model !== 'modal') errors.push(`${fw}.model must be 'modal' (dozens of seeded body modes, convolved) or absent (the parallel resonators)`);
+      lim('modes', 4, 160, 'how many body modes'); lim('ring', 0.02, 0.5, 'seconds a 100 Hz mode rings'); lim('lo', 20, 2000); lim('hi', 200, 16000);
+    }
     if (f.type === 'chorus' && f.model !== undefined) {
       if (f.model !== 'bbd') errors.push(`${fw}.model must be 'bbd' (the bucket-brigade ensemble) or absent`);
       if (f.mode !== undefined && !['I', 'II', 'I+II'].includes(f.mode)) errors.push(`${fw}.mode must be 'I', 'II' or 'I+II'`);

@@ -30,15 +30,19 @@ the piano in a world's orchestra alongside string and brass channels.
 
 **Pick these first for new work.** They're the fidelity shelf: tuned,
 de-locked and dynamic, per "Fidelity opt-ins" below.
-- Keys: `grand-piano`.
+- Keys: `grand-piano-2` (the tuned grand on a modal soundboard).
+- Woodwinds: `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3` (solo players
+  whose tone brightens as they play harder, not only louder).
 - Strings: `violin-3`, `viola-3`, `cello-3`, `contrabass-3` (v2 through each
   size's body: the air and corpus modes, the bridge hill, thin below the
   lowest mode, a bow onset).
 - Brass: `trumpet-3`, `french-horn-3`, `trombone-3`, `tuba-3` (the bell's
   radiation peak, a lip scoop into pitch). The `-2` names stay as they were.
 - Drums: `drum-kit`.
-- Plucked strings: an existing guitar with `patchParams: { "tune": "exact" }`
-  (in tune at every register).
+- Plucked strings: `acoustic-guitar-2`, `nylon-guitar-2`, `classical-guitar-2`,
+  `flamenco-guitar-2`, `gypsy-jazz-guitar-2`, `harp-2` (tuned, through a modal
+  body: dozens of body modes, wider in stereo). For another guitar,
+  `patchParams: { "tune": "exact" }` keeps it in tune at every register.
 - Placement: give each part a `pan`. The mix shares one `room` via row `send`
   (composition card).
 
@@ -123,7 +127,9 @@ what makes `keys`-feel velocity jitter read as touch on piano/rhodes/clav.
 
 - **body** — acoustic body resonance: parallel bandpass resonators (air / top
   plate / box) under the dry string = hollow wooden warmth. `{ "type":"body",
-  "mix":0.3 }`. Optional `resonances: [{ freq, q, gain }]`.
+  "mix":0.3 }`. Optional `resonances: [{ freq, q, gain }]`. `model: 'modal'`
+  convolves a computed body instead: `modes` (4–160) seeded decaying modes
+  over `lo`–`hi` Hz, weighted by the resonances, ringing `ring` s at 100 Hz.
 - **drive** — electric overdrive: a computed soft-clip + cabinet low-pass.
   `{ "type":"drive", "amount":0.6, "tone":3400 }`. `amount` 0→1 (clean→fuzzy),
   `tone` = cabinet cutoff Hz (`null` to skip the cabinet), `level` = dB makeup.
@@ -200,6 +206,11 @@ use `notes` (chords hit several pieces: `["C2","F#2"]`).
   - `breath: { level, tone, q }` lays filtered air under the note.
   - `vibrato: { rate, depth, delay, spread }`: `spread` 0..1 gives each unison
     voice its own seeded rate and phase.
+  - `life: true | { depth, bright, vib, follow, rate, shelf }`: a held note
+    breathes. One seeded slow pressure walk moves level (±`depth` dB, 1.5),
+    the upper partials (±`bright` dB, 4, above `shelf`, default the 4th
+    partial) and vibrato depth together; a hairpin brightens as it grows
+    (`follow`). On the `-3` strings, brass and woodwinds; `false` turns it off.
 
 ```json
 { "name": "gtr", "instrument": "acoustic-guitar", "pan": -0.3,

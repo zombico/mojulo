@@ -212,18 +212,19 @@ for (const [name, base, extra] of [
 // scrape before the Helmholtz motion settles, the lips' buzz before the bell
 // speaks — and, for strings, the lowpass opened so the body's bridge hill
 // (in the `-3` instruments' chains) has partials to lift. Brass scoops into
-// pitch from a few cents flat. `volume` is level-matched to v2 by measured
-// RMS through the v3 chains. New names; v2 is unchanged.
+// pitch from a few cents flat. `life`: the held note breathes (level,
+// brightness and vibrato on one seeded pressure walk). `volume` is level-
+// matched to v2 by measured RMS through the v3 chains. New names; v2 is unchanged.
 for (const [name, base, extra] of [
-  ['violin3', 'violin2', { volume: -20, filter: { mode: 'lowpass', freq: 6800, q: 0.5 }, attackNoise: { level: -24, decay: 0.06, tone: 3400, q: 0.9 } }],
+  ['violin3', 'violin2', { volume: -20.5, filter: { mode: 'lowpass', freq: 6800, q: 0.5 }, attackNoise: { level: -24, decay: 0.06, tone: 3400, q: 0.9 } }],
   ['viola3', 'viola2', { volume: -18.5, filter: { mode: 'lowpass', freq: 5200, q: 0.5 }, attackNoise: { level: -24, decay: 0.065, tone: 2800, q: 0.9 } }],
-  ['cello3', 'cello2', { volume: -18, filter: { mode: 'lowpass', freq: 4200, q: 0.5 }, attackNoise: { level: -25, decay: 0.07, tone: 2000, q: 0.9 } }],
-  ['contrabass3', 'contrabass2', { volume: -16, filter: { mode: 'lowpass', freq: 2400, q: 0.5 }, attackNoise: { level: -27, decay: 0.08, tone: 1200, q: 0.9 } }],
-  ['trumpet3', 'trumpet2', { volume: -19, bend: [0.988, 1, 0, 0.035], attackNoise: { level: -30, decay: 0.025, tone: 1500, q: 0.8 } }],
+  ['cello3', 'cello2', { volume: -17.8, filter: { mode: 'lowpass', freq: 4200, q: 0.5 }, attackNoise: { level: -25, decay: 0.07, tone: 2000, q: 0.9 } }],
+  ['contrabass3', 'contrabass2', { volume: -16.5, filter: { mode: 'lowpass', freq: 2400, q: 0.5 }, attackNoise: { level: -27, decay: 0.08, tone: 1200, q: 0.9 } }],
+  ['trumpet3', 'trumpet2', { volume: -19.5, bend: [0.988, 1, 0, 0.035], attackNoise: { level: -30, decay: 0.025, tone: 1500, q: 0.8 } }],
   ['frenchHorn3', 'frenchHorn2', { volume: -18, bend: [0.985, 1, 0, 0.05], attackNoise: { level: -33, decay: 0.03, tone: 700, q: 0.8 } }],
   ['trombone3', 'trombone2', { volume: -18, bend: [0.985, 1, 0, 0.04], attackNoise: { level: -31, decay: 0.03, tone: 900, q: 0.8 } }],
   ['tuba3', 'tuba2', { volume: -14.5, bend: [0.985, 1, 0, 0.05], attackNoise: { level: -33, decay: 0.035, tone: 450, q: 0.8 } }],
-]) PATCHES[name] = { ...PATCHES[base], ...extra };
+]) PATCHES[name] = { ...PATCHES[base], ...extra, life: true };
 
 // ── the orchestra shelf (orchestra and era) ────────────────────────────────
 // Woodwinds are osc voices over computed `harmonics` (sine amplitudes 1..N):
@@ -453,3 +454,24 @@ export function getPatch(name, overrides) {
   }
   return overrides && typeof overrides === 'object' ? { ...base, ...overrides } : { ...base };
 }
+
+// Woodwinds v3 (audio improvements): solo players whose spectrum follows
+// force. `harmonics` is the soft table and `harmonicsLoud` the full one; the
+// kernel blends them per note by velocity (a reed or an air jet blown harder
+// adds upper partials, which a level change alone never does), and
+// velToFilter opens the tone filter with them; `life` keeps a held note
+// moving. Oboe and bassoon tilt their
+// narrow-pulse tables; flute and clarinet are written out. New names; the
+// solo and -2 woodwinds are unchanged.
+const tilt = (h, r) => h.map((a, i) => round3(a * Math.pow(r, i)));
+for (const [name, base, soft, loud, extra] of [
+  ['flute3', 'flute', [1, 0.06, 0.015, 0.005], [1, 0.4, 0.22, 0.12, 0.07, 0.04, 0.02], { volume: -15.5, velToFilter: 0.8 }],
+  ['clarinet3', 'clarinet', [1, 0.02, 0.3, 0.01, 0.1, 0, 0.04, 0, 0.015], [1, 0.05, 0.75, 0.05, 0.55, 0.04, 0.42, 0.03, 0.3, 0.03, 0.22, 0.02, 0.15, 0.02, 0.1], { volume: -19.5, velToFilter: 0.9 }],
+  ['oboe3', 'oboe', tilt(pulse(0.14, 16), 0.8), tilt(pulse(0.14, 20), 1.04), { volume: -27.6, velToFilter: 0.8 }],
+  ['bassoon3', 'bassoon', tilt(pulse(0.2, 14), 0.78), tilt(pulse(0.2, 18), 1.04), { volume: -21, velToFilter: 0.8 }],
+]) PATCHES[name] = { ...PATCHES[base], harmonics: soft, harmonicsLoud: loud, ...extra, life: true };
+
+// Wooden bodies v2 (audio improvements): the acoustic guitars on the tuned
+// string (in tune at every register), for the `-2` instruments whose bodies
+// are modal (instruments.js). New names; the originals are unchanged.
+for (const g of ['guitarClean', 'guitarNylon', 'guitarClassical', 'guitarFlamenco', 'guitarGypsy']) PATCHES[g + '2'] = { ...PATCHES[g], tune: 'exact' };

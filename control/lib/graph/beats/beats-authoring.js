@@ -1037,8 +1037,19 @@ export function expandBeatsManifest(m) {
     }
     if (q.shape !== undefined) {
       // shape last: it phrases what the part finally plays (chart, groove and solo included).
+      // A form's phrases get shaped copies (a phrase is shared, so the copy is this
+      // shape's), each phrase taken from its own start.
       const { shape, ...rest } = q;
       q = shape === false || !Array.isArray(rest.events) ? rest : { ...rest, events: shapeEvents(rest.events, shape, sc) };
+      if (shape !== false && Array.isArray(q.form) && isObj(out.phrases)) {
+        const o = shapeOpts(shape), tag = `~shape-${[o.bars, o.arch, o.contour, o.contrast, o.end].join('-')}`;
+        q = { ...q, form: q.form.map((f) => {
+          if (!isObj(f) || !Array.isArray(out.phrases[f.phrase])) return f;
+          const id = f.phrase + tag;
+          if (!out.phrases[id]) out.phrases[id] = shapeEvents(out.phrases[f.phrase], shape, sc);
+          return { ...f, phrase: id };
+        }) };
+      }
     }
     return q;
   });
