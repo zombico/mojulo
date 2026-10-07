@@ -84,6 +84,17 @@ describe('out-trail', () => {
     expect(Math.hypot(pocket.at[0] - pocket.mouth[0], pocket.at[1] - pocket.mouth[1])).toBeGreaterThan(OUT_TRAIL.pocket.reach[0]);
   });
 
+  it('a stairs site says its way on and its two ends on the walk, the rise between them', () => {
+    const s = site({ heartbeat: 1 }), sites = s.out.anchors.filter((a) => a.site === 'stairs');
+    expect(sites.length).toBeGreaterThan(0);
+    for (const a of sites) {
+      expect(Math.hypot(...a.N)).toBeCloseTo(1, 4);
+      expect(a.N[1]).toBeGreaterThan(0);   // the way on runs down the spine (+y), as a beat's does
+      expect(a.to[1]).toBeGreaterThan(a.from[1]);
+      expect(a.to[2] - a.from[2]).toBeCloseTo(a.rise, 0);
+    }
+  });
+
   it('the same recipe builds the same trail; another seed another', () => {
     const a = site({}, 5), b = site({}, 5), c = site({}, 6);
     expect(b.out.anchors).toEqual(a.out.anchors);
