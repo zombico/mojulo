@@ -117,6 +117,7 @@ function collect(m, set) {
     if (row.gate || row.duck || row.stutter) set.add('fx');
     if ((row.chain || []).some((f) => f && f.type === 'reverb' && f.model === 'room2')) set.add('mix');
     if ((row.chain || []).some((f) => f && ((f.type === 'body' && f.model === 'modal') || f.type === 'sympathetic'))) set.add('timbre');
+    if ((row.chain || []).some((f) => f && f.type === 'sympathetic' && f.lane)) set.add('anthem'); // the pedal's halo rides the sweep automation
     if (row.patchParams || row.glide) set.add('voice');
     if (row.vary && (row.cue || row.gesture)) set.add('sfx');
     addGestures(set, row.cue || (row.gesture ? [row.gesture] : null));

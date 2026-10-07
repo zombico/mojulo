@@ -385,3 +385,49 @@ describe("piano: a pianist's touch", () => {
     expect(validateBeatsManifest(part({ roll: 0.01 })).errors || []).toEqual([]);
   });
 });
+
+describe('piano: the sustain pedal', () => {
+  const satie = (pedal, extra = {}) => comp([
+    { name: 'bass', instrument: 'grand-piano-3', events: [[0, 'G2', 2.9, 0.4], [3, 'D2', 2.9, 0.4], [6, 'G2', 2.9, 0.4]] },
+    { name: 'ch', instrument: 'grand-piano-3', events: [[1, ['B3', 'D4', 'F#4'], 1.9, 0.3], [4, ['A3', 'C#4', 'F#4'], 1.9, 0.3], [7, ['B3', 'D4', 'F#4'], 1.9, 0.3]] },
+    { name: 'mel', instrument: 'grand-piano-3', events: [[1, 'F#5', 1, 0.5], [2, 'A5', 1, 0.5], [3, 'G5', 1, 0.5]] },
+  ], { meter: '3/4', ...(pedal !== undefined ? { sustainPedal: pedal } : {}), ...extra });
+  const parts = (m) => Object.fromEntries(expandBeatsManifest(m).parts.map((p) => [p.name, p.events]));
+  async function render(m) { const { wav } = await renderBeatsOffline(normalizeBeatsManifest(m), { tail: 2 }); return { wav, ...decodeWav(wav) }; }
+  const win = (r, a, b) => db(rms(r.channels[0], Math.round(r.sr * a), Math.round(r.sr * b)));
+
+  it("per-chord re-pedals at each new bass, not at the chord over it; released notes ring to the lift", () => {
+    const e = parts(satie('per-chord'));
+    expect(e.bass.map((x) => x[2])).toEqual([3.05, 3.05, 2.9]); // up 50 ms after the next bass (bpm 60); the last lift is the end
+    expect(e.ch.map((x) => x[2])).toEqual([2.05, 2.05, 1.9]);
+    expect(e.mel.map((x) => x[2])).toEqual([2.05, 1.05, 3.05]);
+  });
+
+  it("'held' rings everything to the end; a half pedal shortens instead of holding", () => {
+    expect(parts(satie('held')).mel.map((x) => x[0] + x[2])).toEqual([8.9, 8.9, 8.9]);
+    const half = parts(satie(undefined, { parts: [{ name: 'p', instrument: 'grand-piano-3', sustainPedal: [[0, 'half'], [8, 'up']], events: [[0, 'C4', 1, 0.5]] }] }));
+    expect(half.p[0][2]).toBeCloseTo(1.6, 6);
+  });
+
+  it('the halo drains when the pedal lifts', async () => {
+    const chord = (p) => comp([{ name: 'p', instrument: 'grand-piano-3', sustainPedal: p, events: [[0, ['C3', 'E3', 'G3', 'C4'], 0.3, 0.7]] }]);
+    const [held, lifted] = await Promise.all([render(chord([[0, 'down'], [3, 'up']])), render(chord([[0, 'down'], [0.6, 'up']]))]);
+    expect(win(held, 1, 1.8) - win(lifted, 1, 1.8)).toBeGreaterThan(8);
+  });
+
+  it('absent or false, nothing changes; a feature slice renders it like the full kernel', async () => {
+    const a = await render(satie()), b = await render(satie(false));
+    expect(a.wav.equals(b.wav)).toBe(true);
+    const m = normalizeBeatsManifest(satie('per-chord'));
+    const x = expandBeatsManifest(m);
+    expect(x.parts[0].chain.find((f) => f.type === 'sympathetic').lane.length).toBeGreaterThan(3);
+    expect(beatsFeatures(x)).toEqual(expect.arrayContaining(['timbre', 'anthem']));
+    const K = new Function('return (' + emitBeatsKernel(beatsFeatures(x)) + ')()')();
+    expect((await renderWithKernel(K, m, { tail: 0.5 })).wav.equals((await renderBeatsOffline(m, { tail: 0.5 })).wav)).toBe(true);
+  });
+
+  it('validation teaches it', () => {
+    expect((validateBeatsManifest(satie('sometimes')).errors || []).join(' ')).toMatch(/sustainPedal must be 'per-chord'/);
+    expect(validateBeatsManifest(satie([[0, 'down'], ['2:0:0', 'up']])).errors || []).toEqual([]);
+  });
+});

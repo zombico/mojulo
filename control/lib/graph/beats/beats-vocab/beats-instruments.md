@@ -37,7 +37,9 @@ de-locked and dynamic, per "Fidelity opt-ins" below.
   uniform, dry grand. Write piano as a pianist plays it, by default: the
   melody its own part with `shape: 'phrase'`, the accompaniment a part with
   `touch: 'pianist'` 2–3 dB under it (`level: -2`), and a `tempo` ramp into
-  the last cadence. Notes all at one velocity read as sequenced.
+  the last cadence. Pedal Chopin, Satie, Debussy and Bach's broken chords with
+  `sustainPedal: 'per-chord'`; leave Mozart's runs and fast passagework dry.
+  Notes all at one velocity read as sequenced.
 - Woodwinds: `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3` (solo players
   whose tone brightens as they play harder, not only louder).
 - Strings: `violin-3`, `viola-3`, `cello-3`, `contrabass-3` (v2 through each

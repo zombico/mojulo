@@ -722,6 +722,8 @@ export function checkAuthoring(m, errors) {
       });
     }
     if (m.sweeps !== undefined) checkSweeps(m, errors);
+    if (m.sustainPedal !== undefined) checkPedal(m.sustainPedal, 'sustainPedal', errors);
+    (m.parts || []).forEach((p, i) => { if (isObj(p) && p.sustainPedal !== undefined) checkPedal(p.sustainPedal, `parts[${i}].sustainPedal`, errors); });
     if (m.shuffle !== undefined && !(Number.isFinite(m.shuffle) && m.shuffle >= 0 && m.shuffle <= 1)) errors.push('shuffle must be in [0, 1]: how far the offbeat eighth moves toward the triplet (1 = a full shuffle, ~0.6 a lazy swing; `swing` stays the sixteenth feel)');
     if (m.band !== undefined && !BANDS[m.band]) errors.push(`band must be one of: ${Object.keys(BANDS).join(', ')} (a mix template: pan, send and trim per role, a room, the rhythm guitars double-tracked)`);
     (Array.isArray(m.parts) ? m.parts : []).forEach((p, i) => {
@@ -966,6 +968,7 @@ export function usesAuthoring(m) {
   if (m.kind === 'beats-composition') {
     if (m.progression !== undefined || m.modulate !== undefined || m.band !== undefined || m.shuffle !== undefined) return true;
     if (Array.isArray(m.sweeps) && m.sweeps.some((w) => isObj(w) && w.t0 == null)) return true;
+    if (m.sustainPedal !== undefined || (m.parts || []).some((p) => isObj(p) && p.sustainPedal !== undefined)) return true;
     if (isObj(m.phrases) && Object.values(m.phrases).some((l) => hasChordEvent(l) || hasPureArt(l))) return true;
     for (const p of m.parts || []) {
       if (!isObj(p)) continue;
@@ -985,7 +988,7 @@ export function usesAuthoring(m) {
  */
 export function expandBeatsManifest(m) {
   if (!usesAuthoring(m)) return m;
-  return applyLife(expandCore(m));
+  return applyPedal(applyLife(expandCore(m)));
 }
 
 // ── life, the natural dial (audio improvements): 0 = mechanical, 1 = natural ─
@@ -1016,6 +1019,109 @@ function applyLife(out) {
       ? row.chain.flatMap((f) => (isObj(f) && f.type === 'sympathetic' ? (k === 0 ? [] : [{ ...f, mix: Math.round((f.mix == null ? 0.25 : f.mix) * Math.min(k, 4) * 1000) / 1000 }]) : [f])) : null;
     return { ...row, ...(chain ? { chain } : {}), patchParams: { ...(isObj(row.patchParams) ? row.patchParams : {}), life } };
   });
+  return out;
+}
+
+// ── the sustain pedal (audio improvements): `sustainPedal` lowers to note lengths and a halo lane ─
+// One pedal per piano: a recipe's value covers every part whose instrument has
+// dampers, as one group; a part's own value makes it a group of its own.
+// 'per-chord' re-pedals as a pianist does: at each new harmony over a new bass
+// note (a chord whose lowest note is the lowest within a quarter either side,
+// whose notes over the next quarter differ from the last change's) the pedal
+// lifts 50 ms after the chord and goes down again at 150 ms, so the old
+// harmony is cleared and the new one caught. 'held' keeps it down; a list
+// [time, 'down' | 'up' | 'half'] is written by hand. A note released with the
+// pedal down rings on to the next lift (half: at most 0.6 s more); the part's
+// `sympathetic` halo gets a `lane` that rises and drains with the pedal (up
+// leaves the undamped treble's 0.12). Array events and a part's `events` only.
+const PEDAL_LEVEL = { up: 0.12, half: 0.5, down: 1 };
+const pedalOk = (v) => v === false || v === 'per-chord' || v === 'held'
+  || (Array.isArray(v) && v.length > 0 && v.every((e) => Array.isArray(e) && e.length === 2 && isTime(e[0]) && ['down', 'up', 'half'].includes(e[1])));
+function checkPedal(v, w, errors) {
+  if (!pedalOk(v)) errors.push(`${w} must be 'per-chord' (re-pedal at each harmony change), 'held', false, or [[time, 'down' | 'up' | 'half'], …] (a piano's sustain pedal)`);
+}
+function applyPedal(out) {
+  if (out.kind !== 'beats-composition' || !Array.isArray(out.parts)) return out;
+  const own = out.parts.some((p) => isObj(p) && p.sustainPedal !== undefined);
+  if (out.sustainPedal === undefined && !own) return out;
+  const sc = kernel().scoreClock(out), qps = (out.bpm || 120) / 60;
+  const damped = (p) => {
+    const name = p.patch || (p.instrument && INSTRUMENTS[p.instrument] && INSTRUMENTS[p.instrument].patch);
+    return !!((isObj(p.patchParams) && p.patchParams.damper) || (typeof name === 'string' && PATCHES[name] && PATCHES[name].damper));
+  };
+  const groups = new Map();
+  out.parts.forEach((p, i) => {
+    if (!isObj(p) || isCuePart(p) || kitOf(p) || !Array.isArray(p.events)) return;
+    const v = p.sustainPedal !== undefined ? p.sustainPedal : damped(p) ? out.sustainPedal : undefined;
+    if (v === undefined || v === false) return;
+    const k = p.sustainPedal !== undefined ? 'part:' + i : 'recipe';
+    (groups.get(k) || groups.set(k, { v, idx: [] }).get(k)).idx.push(i);
+  });
+  delete out.sustainPedal;
+  out.parts = out.parts.map((p) => (isObj(p) && p.sustainPedal !== undefined ? (({ sustainPedal, ...r }) => r)(p) : p));
+  const noteRows = (p) => p.events.map((ev, j) => {
+    if (!Array.isArray(ev) || !isTime(ev[0])) return null;
+    const ms = [].concat(ev[1]).map(midiOf).filter((x) => x != null);
+    if (!ms.length) return null;
+    const q = sc.q(ev[0]);
+    return { j, q, off: q + (ev[2] == null ? 1 : sc.len(ev[2], q)), ms };
+  }).filter(Boolean);
+  for (const { v, idx } of groups.values()) {
+    const rows = idx.flatMap((i) => noteRows(out.parts[i]));
+    if (!rows.length) continue;
+    const end = Math.max(...rows.map((r) => r.off));
+    let marks; // [q, state] in time order
+    if (Array.isArray(v)) marks = v.map(([t, st]) => [sc.q(t), st]).sort((a, b) => a[0] - b[0]);
+    else if (v === 'held') marks = [[Math.min(...rows.map((r) => r.q)), 'down'], [end, 'up']];
+    else {
+      // per-chord: cluster onsets, find the bass changes, re-pedal at each.
+      const notes = rows.flatMap((r) => r.ms.map((m) => ({ q: r.q, m }))).sort((a, b) => a.q - b.q || a.m - b.m);
+      const tol = 0.1 * qps, cl = [];
+      for (const n of notes) { const c = cl[cl.length - 1]; if (c && n.q - c.q <= tol) c.ms.push(n.m); else cl.push({ q: n.q, ms: [n.m] }); }
+      marks = [];
+      let last = null;
+      for (const c of cl) {
+        const low = Math.min(...c.ms);
+        if (notes.some((n) => Math.abs(n.q - c.q) <= 1 && (n.q < c.q - tol || n.q > c.q + tol) && n.m < low)) continue;
+        const set = notes.filter((n) => n.q >= c.q - 1e-9 && n.q < c.q + 1).map((n) => n.m).sort((a, b) => a - b).join(',');
+        if (set === last) continue;
+        if (last != null) marks.push([c.q + 0.05 * qps, 'up']);
+        marks.push([c.q + (last == null ? 0.1 : 0.15) * qps, 'down']);
+        last = set;
+      }
+      marks.push([end, 'up']);
+    }
+    const stateAt = (q) => { let st = 'up'; for (const [t, s] of marks) { if (t > q + 1e-9) break; st = s; } return st; };
+    const nextUp = (q) => { const m = marks.find(([t, s]) => t > q + 1e-9 && s === 'up'); return m ? m[0] : Math.max(end, q); };
+    for (const i of idx) {
+      const p = out.parts[i];
+      const byJ = new Map(noteRows(p).map((r) => [r.j, r]));
+      p.events = p.events.map((ev, j) => {
+        const r = byJ.get(j);
+        if (!r) return ev;
+        const st = stateAt(r.off);
+        if (st === 'up') return ev;
+        const to = st === 'half' ? Math.min(nextUp(r.off), r.off + 0.6 * qps) : nextUp(r.off);
+        if (to <= r.off + 1e-9) return ev;
+        const e = ev.slice();
+        e[2] = Math.round((to - r.q) * 1e6) / 1e6;
+        if (e.length < 4) e[3] = 0.8;
+        return e;
+      });
+      // the halo rides the pedal: a lane on each sympathetic effect.
+      if (Array.isArray(p.chain) && p.chain.some((f) => isObj(f) && f.type === 'sympathetic')) {
+        let cur = PEDAL_LEVEL[stateAt(0)];
+        const lane = [[0, 0, cur, cur]];
+        for (const [t, st] of marks) {
+          const to = PEDAL_LEVEL[st], s0 = r6(sc.sec(Math.max(0, t)));
+          if (to === cur) continue;
+          lane.push([s0, r6(s0 + 0.06), cur, to]);
+          cur = to;
+        }
+        p.chain = p.chain.map((f) => (isObj(f) && f.type === 'sympathetic' ? { ...f, lane } : f));
+      }
+    }
+  }
   return out;
 }
 

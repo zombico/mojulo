@@ -1631,6 +1631,11 @@ export function buildBeatsKernel() {
           head.connect(dr); dr.connect(mx);
           const cv = ctx.createConvolver(); cv.buffer = sympatheticImpulse(f, seed);
           wt.gain.value = f.mix == null ? 0.25 : f.mix;
+/*@anthem{*/
+          // lane (the written sustain pedal): [t0, t1, from, to] seconds × mix, ridden like a sweep.
+          if (f.lane) for (const s of f.lane) sweepParams.push([wt.gain, { param: 'send', from: s[2] * wt.gain.value, to: s[3] * wt.gain.value, t0: s[0], t1: s[1] }]);
+/*|
+@*/
           head.connect(cv); cv.connect(wt); wt.connect(mx);
           head = mx;
 /*|

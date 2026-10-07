@@ -64,6 +64,7 @@ function checkChain(chain, where, errors) {
     if (f.type === 'sympathetic') {
       lim('mix', 0, 1, 'the halo under the dry part'); lim('decay', 0.5, 20, 'seconds the bass strings ring'); lim('length', 0.5, 6); lim('partials', 1, 8);
       lim('lo', 21, 108, 'lowest key (MIDI)'); lim('hi', 21, 108, 'highest key (MIDI)');
+      if (f.lane !== undefined && !(Array.isArray(f.lane) && f.lane.every((s) => Array.isArray(s) && s.length === 4 && s.every((x) => Number.isFinite(x) && x >= 0) && s[1] >= s[0]))) errors.push(`${fw}.lane must be [[t0, t1, from, to]] (seconds, × mix): the sustain pedal lowers to it; write sustainPedal instead`);
     }
     if (f.type === 'chorus' && f.model !== undefined) {
       if (f.model !== 'bbd') errors.push(`${fw}.model must be 'bbd' (the bucket-brigade ensemble) or absent`);
