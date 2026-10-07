@@ -12,6 +12,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Blender film
+
+- A world camera shot goes to Blender as a real camera. `forge_motion` with `export: 'blender'` (turntable,
+  orbit, push-in, dolly-zoom, flythrough over a world) writes the GIF preview plus a Blender film pack in the
+  motion's folder: the world's Blender pack, `shot.json` (the exact per-frame cameras the preview was rendered
+  from), and three scripts. `film_shots.py` keys a camera per shot, aimed at a target empty, with a timeline
+  marker per shot so several shots cut; `film_light.py` lights it (below); `film_render.py` renders a resumable
+  PNG sequence and cuts the MP4 in Blender's own sequencer, as an EEVEE draft or a Cycles final. A traversal is
+  refused: it is an input script, not a camera path.
+- `scripts/export-blender-film.mjs --motion mo_a [--motion mo_b …] [--render draft|final]` does it in one go
+  for any world motion, cutting several shots of one world into one film. A re-run keeps `film.blend`'s lights
+  and art and replaces only the cameras. The film workspace lives under `$MOJULO_HOME/films/`; an output folder
+  inside a git working tree is refused, so renders never land in a checkout.
+- The film is lit as the recipe declared it. `atmosphere.json` carries the world's sky preset, each street lamp's
+  intensity, the fog's look and the water surfaces the pack leaves out, from the same unshaded resolve the pack
+  reads; `film_light.py` performs them: a sky and sun per preset (day, dawn/dusk, a night sky with a faint moon,
+  interior), mojulo's lamps (already in `model.glb` as point lights) at street-lamp power, a ground fog that glows
+  in its own colour like mojulo's, and the water as a rippled reflective mesh. The draft render turns on EEVEE
+  ray tracing for reflections. Light once: a scene with the operator's own light (mojulo's imported lamps aside)
+  is left alone, and a placed rig is kept unless `--force`. The fog's defaults are one shared `FOG_DEFAULTS`; the
+  fog shader is byte-identical.
+- Machine gate: `film_shots.py --verify` reads every keyed frame back against `shot.json` (position, aim, FOV)
+  into `film-gate.json`. Eyes gate: `--check` renders Workbench stills to hold against the GIF.
+- Manual: the `blender-film` motion-vocab card. `renderWorldMotion` now returns the cameras it rendered from,
+  through one shared `worldMotionCameras`; the frames are unchanged.
+
 ### Giza exhibit
 
 - Old Kingdom Giza is now an exhibit of its monuments rather than a full level: the three pyramid

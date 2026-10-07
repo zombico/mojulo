@@ -323,7 +323,9 @@ const DESCRIPTION_ALLOWLIST = {
 // off-payload (the `fabricate` solid-vocab card and the fabricate-parts routing card).
 // Re-pinned 2026-10-06 (240_600 -> 240_700; measured 240,518 -> 240,600) for the bill-of-materials export (1006-fabricator-sizing):
 // export_model's 'bom' format, one enum word and one clause. Sizing's need fields are off-payload (the `fabricate` card).
-const PAYLOAD_CEILING = 240_700;
+// Re-pinned 2026-10-07 (240_700 -> 240_900; measured 240,809) for the Blender film: forge_motion's `export` gains
+// 'blender', one enum word and one clause. The pack, the scripts and the CLI are off-payload (the `blender-film` card).
+const PAYLOAD_CEILING = 240_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
