@@ -455,7 +455,7 @@ export function streamFaces(site, st) {
     for (let i = 0; i < n; i++) {
       const xa = mix(x0, x1, i / n), xb = mix(x0, x1, (i + 1) / n);
       out.push({ corners: [[xa, s.y - w, z(xa)], [xb, s.y - w, z(xb)], [xb, s.y + w, z(xb)], [xa, s.y + w, z(xa)]].map((p) => p.map(r5)), normal: [0, 0, 1], water: true,
-        fill: st.debris ? st.debris.water : '#7f95ab', cornerAlpha: [0.55, 0.55, 0.55, 0.55], group: 'trail:water' });
+        fill: st.water ? st.water.fill : st.debris ? st.debris.water : '#7f95ab', cornerAlpha: [0.55, 0.55, 0.55, 0.55], group: 'trail:water' });
     }
   }
   return out;

@@ -4,7 +4,7 @@ import { ISEKAI_STYLES } from './isekai.js';
 import { NATURE_STYLES } from './nature.js';
 
 // the trail grammar's laws hold over the dials' range: every seed, heartbeat and run (era/out-trail.js)
-const STYLES = { meadow: ISEKAI_STYLES['isekai-meadow'], valley: NATURE_STYLES['nature-trail'] };
+const STYLES = { meadow: ISEKAI_STYLES['isekai-meadow'], valley: NATURE_STYLES['nature-trail'], alien: ISEKAI_STYLES['alien-night'] };
 
 describe('out-trail sweep', () => {
   it('a trail after the meadow holds every law and its seam, for every seed and heartbeat', () => {

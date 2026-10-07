@@ -38,8 +38,9 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
+import { ALIEN_NIGHT } from './style/alien-night.js';
 
-export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW, 'isekai-bamboo': ISEKAI_BAMBOO, 'isekai-sakura': ISEKAI_SAKURA });
+export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW, 'isekai-bamboo': ISEKAI_BAMBOO, 'isekai-sakura': ISEKAI_SAKURA, 'alien-night': ALIEN_NIGHT });
 const SIZE = 256;
 const CUTOUT = new Set(['fringe', 'blades', 'cumulus', 'spray', 'petals', 'sprig', 'rim', 'creep']);
 // A STIPPLE: a cutout's TRANSPARENCY as whole texel blocks kept or dropped against a random threshold each (seamless:

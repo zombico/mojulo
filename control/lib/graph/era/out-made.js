@@ -114,6 +114,8 @@ export const MADE_RAILS = Object.freeze({
     chunk: [0.95, 1.1], hat: [0, 0.15], paint: [0, 0.1], wear: [0.25, 0.5], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'moss' } },
   'jungle-mgs3': { timber: ['round', 'culm'], joint: ['lashed'], edge: ['timber', 'stone'], bond: ['rubble'], relief: ['none', 'rope'],
     chunk: [0.9, 1.05], hat: [0, 0.1], paint: [0, 0.05], wear: [0.5, 0.8], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'moss' } },
+  'alien-night': { timber: ['culm', 'round'], joint: ['lashed', 'notched'], edge: ['stone'], bond: ['hex', 'flagstone'], relief: ['chevron', 'none'],
+    chunk: [0.9, 1.05], hat: [0, 0.2], paint: [0.3, 0.6], wear: [0.05, 0.2], swatch: { timber: 'timber', stone: 'stone', rope: 'rope', paint: 'paint', hat: 'grass' } },
 });
 export const MADE_KITS = Object.freeze(Object.keys(MADE_RAILS));
 const kitRails = (kitId) => {

@@ -218,6 +218,13 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   together by joints, drawn in black and white elevation, section and plan, dimensioned and measured. The SWATCHES
   record every outdoor colour, land and made: the isekai cards now read their ramps from them and nature-trail its
   blaze, so art direction for colour is controlled there (every kit builds byte-identically).
+- **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
+  and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
+  ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the
+  stars out, the moon drawn on the dome where the key light comes from, a pale world where the card hangs it), `glow`
+  (each lantern crown a light baked into the ground round it and lifting the cel band near it; the crowns self-lit,
+  lifted up their ramp, a few with halos), and `water` (a trail's stream in its own colour). Trails, joins, outer walls
+  and wind work on it unchanged. Absent the fields, every kit builds byte-identically.
 - **Fix: under a tone, cards stay cut out.** A toned card's texture (`value:card:…`) is alpha-tested like the card.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.

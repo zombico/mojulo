@@ -23,13 +23,14 @@ import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
+import { ALIEN_NIGHT } from './style/alien-night.js';
 
 /** The bytes a kit, look or hub card's body may take: the infobox and a starter, never a manual. */
 // raised from 3200 when the laws card took dare-height, motif-small and doodads-apart (one line each)
 export const STAGE_CARD_BODY_CEILING = 3600;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
-const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA].map((s) => [s.id, s]));
+const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT].map((s) => [s.id, s]));
 const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab']);
 
 /** A recipe each kit is known to build (the shapes its own tests mint); an open-ground kit needs only its id. */
@@ -59,6 +60,7 @@ const KIT_WORDS = {
   'isekai-meadow': ['anime meadow', 'fantasy grassland', 'open field'],
   'isekai-bamboo': ['bamboo grove', 'bamboo forest'],
   'isekai-sakura': ['cherry blossom grove', 'sakura trees'],
+  'alien-night': ['alien planet at night', 'bioluminescent landscape', 'night alien world'],
 };
 
 // a caption cut at a word boundary, for the hub's one line per kit

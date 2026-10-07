@@ -22,6 +22,7 @@ import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
+import { ALIEN_NIGHT } from './style/alien-night.js';
 import { CRYPT } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
 
@@ -82,12 +83,13 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'isekai-meadow': [['locked-palette', 'pixel-lock'], ['pixel-lock'], ['shade-is-colour'], ['kit-dressing'], ['big-shapes'], ['value-order'], ['depth-by-air'], ['sky-is-a-place', 'pixel-lock']],
   'isekai-bamboo': [['clusters'], ['pixel-lock', 'kit-dressing'], ['light-through', 'cutout-cards'], ['locked-palette', 'subject-line']],
   'isekai-sakura': [['focus', 'pixel-lock'], ['kit-dressing'], ['by-cause', 'pixel-lock'], ['locked-palette']],
+  'alien-night': [['locked-palette', 'shade-is-colour'], ['baked-light', 'focus'], ['big-shapes'], ['depth-by-air', 'value-order'], ['sky-is-a-place'], ['value-order', 'focus']],
 });
 
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */
 export function statedPrinciples() {
   const out = {};
-  for (const S of [CRYPT, CATACOMB, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA]) {
+  for (const S of [CRYPT, CATACOMB, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT]) {
     out[S.id] = S.principles;
     if (S.night?.principles) out[`${S.id}/night`] = S.night.principles;
     if (S.decay?.principles) out[`${S.id}/decay`] = S.decay.principles;

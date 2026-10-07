@@ -173,13 +173,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const grove = bamboo ? bambooFaces(st, site, trees) : null;
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
   const wood = bamboo || sak ? [] : treeFaces(st, site, trees);
+  // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
+  const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
+  const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
   const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
   // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
   const shadow = makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const reach = (p, n) => Math.max(0, dot(n, dir)) * shadow(addv(p, mul(n, 0.05)), n);
-  const lit = (p, n) => reach(p, n) >= st.cel;
+  const lit = Gl ? (p, n) => reach(p, n) >= st.cel || glowAt(p) >= st.cel : (p, n) => reach(p, n) >= st.cel;
   // ── the pixel-locked faces: the cel band is the choice of tile ──
   const cel = [];
   const draw = (f, tile, isLit) => { const { cel: _c, size: _s, key: _k, celN: _n, ...rest } = f; cel.push({ ...rest, texture: isekaiKeyOf(st, tile, isLit), fill: stopFill(st, tile, isLit) }); };
@@ -236,7 +239,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
       if (d < edge || d > edge + F.reach * (0.75 + 0.5 * vnoise(px * 0.2, py * 0.2, S + 193))) continue;
       if (site.apronAt(px, py) > st.landform.apronMin || px < site.cliffX(py) + 1) continue;
       if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - px, r.y - py) < r.size * st.rubble.unit * 0.55) || trees.some((t) => Math.hypot(t.x - px, t.y - py) < 0.5)) continue;
-      const z = site.ground(px, py), lt = shadow([px, py, z + 0.3], [0, 0, 1]) > 0, h = mix(F.height[0], F.height[1], hash3(i, 75, S + 197)) * G.height;
+      const z = site.ground(px, py), lt = shadow([px, py, z + 0.3], [0, 0, 1]) > 0 || (Gl ? glowAt([px, py, z + 0.3]) >= st.cel : false), h = mix(F.height[0], F.height[1], hash3(i, 75, S + 197)) * G.height;
       const raw = [];
       crossed(raw, [px, py, z - 0.03], Math.PI * hash3(i, 77, S + 199), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
       for (const { tint, textureLit, ...f } of raw) cel.push({ ...f, fill: stopFill(st, 'blades', lt) });
@@ -245,7 +248,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // ── the bake, then the lock ──
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   const plain = [...ground.faces.filter((f) => !f.cel), ...ribbon, ...wood];
-  const baked = bakeStageLight(plain, [], ambient, isekaiMarks(st, site, S), sun).map(({ cls, ...f }) => f);
+  const baked = bakeStageLight(plain, glowLights, ambient, isekaiMarks(st, site, S), sun).map(({ cls, ...f }) => f);
   // the TRAIL BLEND: the soil's rim out over the grass and the grass's creep in over the trail, each in the stop nearest
   // the baked colour of the lane it carries on — the trail's along the edge for the rim, the fringe's for the creep —
   // so the blend is the two materials meeting, not a third laid between them
@@ -265,6 +268,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const ridges = layerFaces(st, site, dir);
   if (st.cumulus) for (const f of cumulusFaces(st, site, dir)) cel.push(f);
   const faces = [...lockFaces([...baked, ...cel, ...ridges], (f) => (st.lock[f.group] ? st.palette[st.lock[f.group]] : null)), ...(site.out ? streamFaces(site, st) : [])];
+  if (Gl) glowFaces(faces, Gl, trees, st);
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(fringe|blades|cumulus|spray|petals|sprig|rim|creep)-/.test(f.texture || '')).map((f) => f.texture))].sort();
@@ -289,13 +293,43 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
-    glow: false,
+    sky: st.night ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
+    glow: !!Gl,
     pack: true,
     ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, trees, shadow, manifest.wind, seed) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
     ...(site.out ? outTrailPayload(site) : {}),
   };
+}
+
+/**
+ * THE NIGHT SKY (a card's `night`): dark to the zenith, the stars out, the moon drawn on the dome where the key light
+ * comes from (the dome's front-sky u, h: azimuth −90° at u = ½, swinging 180° per unit), and a pale world hanging where
+ * the card puts it.
+ */
+function nightSky(st, dir) {
+  const N = st.night, sky = st.palette.sky, az = Math.atan2(dir[1], dir[0]), el = Math.asin(Math.max(-1, Math.min(1, dir[2])));
+  return { zenith: sky[0], horizon: sky[sky.length - 1], day: N.day, stars: N.stars, seed: 1,
+    moon: { u: r5((az + Math.PI / 2) / Math.PI + 0.5), h: r5(el / (Math.PI / 2)), phase: N.moon.phase, size: N.moon.size },
+    ...(N.planet ? { sun: { dir: sunDir(N.planet.elevation, N.planet.azimuth).map(r5), size: N.planet.size, glow: N.planet.glow } } : {}) };
+}
+
+/** Self-lit faces for a card's `glow`: the groups it names glow in their own (locked) colour; the crown face nearest the
+ *  top of each of the first `halos` lanterns (the hero first) carries a halo. */
+function glowFaces(faces, Gl, trees, st) {
+  const halos = trees.filter((t) => t.crownAt).sort((a, b) => (b.hero ? 1 : 0) - (a.hero ? 1 : 0)).slice(0, Gl.halos), best = halos.map(() => [Infinity, -1]);
+  faces.forEach((f, i) => {
+    const k = Gl.emissive[f.group];
+    if (!k) return;
+    // lifted `lift` stops up its locked ramp: the night left it dark, the glow is its own
+    const ramp = st.palette[st.lock[f.group]], rgb = hexRgb(f.fill).map((v) => v * 255);
+    const at = ramp ? ramp.reduce((b, s, j) => (Math.hypot(...s.map((v, q) => v - rgb[q])) < Math.hypot(...ramp[b].map((v, q) => v - rgb[q])) ? j : b), 0) : -1;
+    const fill = ramp ? rgbHex(ramp[Math.min(ramp.length - 1, at + (Gl.lift || 0))].map((v) => v / 255)) : f.fill;
+    faces[i] = { ...f, fill, emissive: hexRgb(fill), emissiveStrength: k };
+    const c = mean(f.corners);
+    halos.forEach((t, j) => { const d = Math.hypot(c[0] - t.crownAt[0], c[1] - t.crownAt[1], c[2] - t.crownAt[2] - t.crownR); if (d < best[j][0]) best[j] = [d, i]; });
+  });
+  for (const [, i] of best) if (i >= 0) faces[i] = { ...faces[i], glow: `0 0 12px 5px ${Gl.color}` };
 }
 
 /**

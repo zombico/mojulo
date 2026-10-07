@@ -241,6 +241,8 @@ STAGE_KITS['isekai-meadow'] = Object.freeze({ shell: 'isekai', style: 'isekai-me
 // The isekai GROVES: smaller levels in the same look — a bamboo grove, a sakura grove.
 STAGE_KITS['isekai-bamboo'] = Object.freeze({ shell: 'isekai', style: 'isekai-bamboo' });
 STAGE_KITS['isekai-sakura'] = Object.freeze({ shell: 'isekai', style: 'isekai-sakura' });
+// The ALIEN-NIGHT kit: another world at night in the same look — the moon the key, lantern plants lighting the ground.
+STAGE_KITS['alien-night'] = Object.freeze({ shell: 'isekai', style: 'alien-night' });
 Object.freeze(STAGE_KITS);
 /** The proportions each room kit is built by (tile-specs.js PROPORTION_RAILS): a part it inherits but never draws (the
  *  plaza's pilasters, the nave's ribs) is not offered. Measured, and kept honest by tile-specs.test.js. */
