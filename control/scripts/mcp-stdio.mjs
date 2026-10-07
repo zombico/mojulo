@@ -72,8 +72,13 @@ if (process.argv[2] === 'install') {
 // imports, so USAGE is safe to read before `register()`.
 const firstArg = process.argv[2];
 if (firstArg === '--help' || firstArg === '-h' || (firstArg === 'help' && process.argv.length === 3)) {
-  const { USAGE } = await import('./mcp-cli.mjs');
-  process.stdout.write(`${USAGE}\n`);
+  // The loader is not up yet, so the distribution is read off how we were launched: the script run by path is a
+  // source checkout's; an npx copy is pinned to this version.
+  const { usage, cliInvocation } = await import('./mcp-cli.mjs');
+  const { readFileSync } = await import('node:fs');
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const cmd = cliInvocation({ argv1: process.argv[1], env: process.env, isSource: /mcp-stdio\.mjs$/.test(process.argv[1] || ''), npx: () => `npx -y mojulo@${version}` });
+  process.stdout.write(`${usage(cmd)}\n`);
   process.exit(0);
 }
 if (firstArg === '--version' || firstArg === '-v') {

@@ -2,7 +2,7 @@
 {
   "id": "design-vehicle-family",
   "name": "Populate a vehicle fleet library",
-  "summary": "Add a new ENTRY to the procedural vehicle libraries the world-populators sample — a new aircraft livery scheme, a car paint, or a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box). Introspect the family via the meta-fabricator, author the candidate params, eyeball it with preview_vehicle_instance, then commit it to the registry so it flows into create_transportation_hub automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
+  "summary": "Add a new ENTRY to the procedural vehicle libraries the world-populators sample — a new aircraft livery scheme, a car paint, or a tuned frame preset within an existing family (fixed-wing-aircraft / ground-car / ground-box). Introspect the family via the vehicle family layer, author the candidate params, eyeball it with preview_vehicle_instance, then commit it to the registry so it flows into create_transportation_hub automatically. The THIRD sensibility above the workbench: author a FAMILY entry (a generator input), not a single artifact.",
   "valueHook": "Design a new airline livery or a regional-jet preset once and the airport starts spawning it — the fleet derives from the registry, so a new entry needs no populator edit.",
   "version": 1,
   "category": "world-building",
@@ -21,8 +21,8 @@
 The workbench authors ONE artifact (an object, a world asset). This authors a **family entry** — an
 input to a *generator*. The fixed-wing-aircraft, ground-car, and ground-box families are procedural:
 the airport (`create_transportation_hub`) samples them to spawn its fleet. Growing the fleet means
-**adding a registry row**, not modelling a vehicle. The meta-fabricator
-(`control/lib/graph/meta-fabricator.js`) is the family layer you read and the registry is the single
+**adding a registry row**, not modelling a vehicle. The vehicle family layer
+(`control/lib/graph/meta-fabricator.js`; unrelated to `fabricate_solid`, which picks hardware) is what you read and the registry is the single
 source of truth — add an entry and the populators pick it up.
 
 ## 1. Introspect the family (what already exists)

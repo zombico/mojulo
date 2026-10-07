@@ -16,7 +16,7 @@ describe('fabricator bill of materials', () => {
     expect(bom.source).toBe('fabricate (scad)');
     expect(bom.lines.map((l) => l.item)).toEqual(bom.lines.map((_, i) => i + 1));
     expect(bom.lines.find((l) => l.code?.endsWith('-socket') && l.for.includes('lid'))).toMatchObject({ kind: 'buy', count: 4, grade: '8.8', standard: 'ISO 4762' });
-    expect(bom.lines.filter((l) => l.kind === 'print').map((l) => l.label)).toEqual(row.fabricate.plan.cuts.filter((c) => c.route === 'print').map((c) => c.call));
+    expect(bom.lines.filter((l) => l.kind === 'print').map((l) => [l.code, l.label])).toEqual(row.fabricate.plan.cuts.filter((c) => c.route === 'print').map((c) => [c.call, 'spur gear']));
     expect(bom.notices.join(' ')).toMatch(/Raspberry Pi is a trademark/);
   });
 

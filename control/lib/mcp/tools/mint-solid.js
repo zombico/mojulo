@@ -110,7 +110,7 @@ export const SOLID_KINDS = {
   'carved-solid': { family: 'object', handler: createCarvedSolidHandler },
   'solid-turntable': { family: 'object', handler: createSolidTurntableHandler },
   'edifice': { family: 'structure', handler: createEdificeHandler },
-  // A meta-fabricator VEHICLE family instance (a registered type + optional
+  // A VEHICLE family instance (lib/graph/meta-fabricator.js) (a registered type + optional
   // decoration) previewed on the measured studio grid — mints kind
   // 'vehicle-instance'.
   'vehicle': { family: 'vehicle', handler: previewVehicleInstanceHandler },

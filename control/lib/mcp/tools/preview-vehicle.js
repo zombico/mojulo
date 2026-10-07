@@ -59,11 +59,11 @@ export function registerPreviewVehicleTools() {
     name: 'preview_vehicle_instance',
     description:
       "Preview a single VEHICLE family instance on the workbench's measured studio grid — orbitable in "
-      + "/world. A meta-fabricator family instance is a registered vehicle TYPE plus an optional "
+      + "/world. A family instance is a registered vehicle TYPE plus an optional "
       + "DECORATION. This is the eyeball-before-you-commit step of populating a fleet library: render a "
       + "candidate (a tuned preset, a new livery scheme, a car paint/hull) and check the silhouette + "
       + "decoration read, then commit it to the registry. Families + their presets and decoration "
-      + "vocabularies come from the meta-fabricator (control/lib/graph/meta-fabricator.js): "
+      + "vocabularies come from the vehicle family registry: "
       + "fixed-wing-aircraft (airliner | widebody | regional | bizjet; livery scheme by name — classic, "
       + "teal, crimson, forest, ember, royal, sky, sand), ground-car (sedan | suv | taxi | opsWagon; "
       + "paint hex + hull name — standard/coupe/wide/lowered/lifted…), ground-box (cityBus | boxTruck | "

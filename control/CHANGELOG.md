@@ -12,6 +12,39 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fabricator shelf and naming
+
+- **The shelf reaches metal, sheet and extrusion work:**
+  - Rivet nuts thread sheet.
+  - Thumb screws go into tapped metal or rivet nuts.
+  - Hardened pins locate metal parts; tabs and slots locate sheet parts.
+  - Profile linear rails slide.
+  - A die-cast box or an extrusion frame with panels encloses.
+  - Hanging bins on a louvred panel store.
+  - Steel square tube or a timber frame carries the loads.
+  - Countersunk screws mount to a plain surface.
+  - A heat-set joint takes a heavy load reached from one side.
+  - Hardwood runners slide a drawer too short for a stock slide.
+
+  Of the 1530 probe needs, 1283 now resolve from the shelf (84 %, up from 1148), 146 from a known principle, and 101
+  remain gaps. Most of those are `print-only` needs that rightly cannot print a bought part. The rest are a 3 mm shaft
+  at 300 N, a 25 mm shaft, a board with no hole pattern and a heavy printed frame. The coverage test now holds the
+  shelf above 80 %.
+- **Provenance review packet** ([docs/fabricator-provenance.md](../docs/fabricator-provenance.md)): the tiers as the
+  code enforces them, every row that names someone else's product, the identifiers that still carry a trade name
+  (`mj_gt2_pulley`, `nyloc-*` codes, the hardware labels' "Pozidriv"), and the questions for counsel. No lawyer has
+  reviewed it. A test keeps the packet's table in step with the inventory.
+- **Generic names on the bill of materials:**
+  - A printed part is named by its generic row (a "2 mm pitch timing pulley", not the library module's name), with
+    the call as its code.
+  - The chipboard screw's buy text says "cross-recess (PZ)".
+  - The generic-name test also checks for GT2, Pozidriv and Nyloc.
+- **The vehicle family layer is no longer called the "meta-fabricator"** in what agents read (the `vehicle` card, the
+  mint_solid drawer, the modeler lingo, the vehicle-family catalyst), so it is not confused with `fabricate_solid`. The
+  module file keeps its name.
+- **`--help` names the command you typed:** `node scripts/mcp-stdio.mjs` in a checkout, `npx -y mojulo@<version>`
+  through npx. The CLI's usage errors and its unknown-tool and unknown-pack messages do the same.
+
 ### Fabricator placement and re-plan
 
 A plan now follows the object after mint, and writes its own cuts where a need says where. Every existing kind builds
@@ -60,8 +93,8 @@ byte-identically. A stored plan is frozen with its version (`fabricator-v0.3.0`)
   says which needs assumed it. A given `size` is checked, never replaced, and `next` says when it is too weak.
 - **What changes in new plans:** a 300 N shaft on two bearings now takes the slim 688 (150 N each, safety factor near
   4) where the load class took the 608. Four lid screws sharing 300 N stay M3 where the class took M5. A 3 kN pull on
-  one heat-set insert takes M8. Shelf coverage of the probe needs moves from 1157 to 1148 of 1530: loads no stock part
-  holds now resolve from scratch, as they should.
+  one heat-set insert takes M8. Shelf coverage of the probe needs moved from 1157 to 1148 of 1530 with sizing alone: loads
+  no stock part holds resolve from scratch, as they should (the shelf work above then raised it).
 - **`export_model({ ref, format: 'bom' })`** writes `bom.csv` (RFC 4180, one row per line) and `bom.md` (buy, print,
   cut, tools, notices) beside the model. It reads a fabricated row's frozen plan (a frames row's fittings are recounted
   from its stored frames, the same report the mint read) or any furniture workbench row's fittings and sheet cut list.

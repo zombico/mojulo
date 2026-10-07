@@ -11,6 +11,7 @@
 // trademark, an open system's licence) travel with the list. Pure: the same row writes the same bytes.
 import { lowerFrame } from '../construction/frame.js';
 import { mintedBom, unplacedModules } from './plan.js';
+import { INVENTORY } from './inventory.js';
 
 export const BOM_COLUMNS = Object.freeze(['item', 'kind', 'count', 'code', 'label', 'grade', 'standard', 'buy', 'tool', 'provenance', 'for']);
 
@@ -34,7 +35,9 @@ export function bomOf(manifest) {
     const made = new Map();
     for (const c of fab.plan.cuts || []) {
       if (c.route !== 'print') continue;
-      const line = made.get(c.call) || { kind: 'print', count: 0, code: null, label: c.call, grade: null, standard: null, buy: null, tool: null, provenance: null, for: [] };
+      // Named by its generic row (a library module's name is an identifier, not what the part is called); the call is its code.
+      const row = INVENTORY[c.part];
+      const line = made.get(c.call) || { kind: 'print', count: 0, code: c.call, label: row ? row.label : c.call, grade: null, standard: row?.standard ?? null, buy: null, tool: null, provenance: row?.provenance ?? null, for: [] };
       line.count += c.count;
       if (!line.for.includes(c.need)) line.for.push(c.need);
       made.set(c.call, line);
@@ -78,7 +81,7 @@ export function bomMarkdown(bom, { title, ref } = {}) {
   if (bom.unplaced?.length) out.push(`> The source no longer calls ${bom.unplaced.map((u) => `\`${u}\``).join(', ')}: the parts bought for it may not be needed. Re-plan with \`fabricate_solid({ ref${ref ? `: '${ref}'` : ''} })\` and export again.`, '');
   if (bought.length) out.push('## Buy', '', ...table(bought, [['#', (l) => l.item], ['Count', (l) => l.count ?? 'counted by the frame'], ['Part', (l) => l.label],
     ['Code', (l) => l.code], ['Grade', (l) => l.grade], ['Standard', (l) => l.standard], ['Ask for', (l) => l.buy], ['For', (l) => (l.for || []).join(', ')]]), '');
-  if (printed.length) out.push('## Print', '', ...table(printed, [['#', (l) => l.item], ['Count', (l) => l.count], ['Part', (l) => `\`${l.label}\``], ['For', (l) => l.for.join(', ')]]), '');
+  if (printed.length) out.push('## Print', '', ...table(printed, [['#', (l) => l.item], ['Count', (l) => l.count], ['Part', (l) => l.label], ['Call', (l) => `\`${l.code}\``], ['For', (l) => l.for.join(', ')]]), '');
   if (sheets.length) out.push('## Cut', '', ...table(sheets, [['#', (l) => l.item], ['Sheets', (l) => l.count], ['Stock', (l) => l.label]]), '');
   if (bom.tools.length) out.push('## Tools', '', ...bom.tools.map((t) => `- ${md(t)}`), '');
   if (bom.gaps.length) out.push('## Designed from scratch', '', ...bom.gaps.map((g) => `- ${md(g.need)} (${md(g.function)}): ${md(g.why)}`), '');

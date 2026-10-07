@@ -575,3 +575,13 @@ describe('mcp-stdio bin without sharp', () => {
     expect(r.stderr).not.toMatch(/triggerUncaughtException/);
   }, 150_000);
 });
+
+describe('usage names the command this caller types', () => {
+  it('reads as written for the bin, and says which word to type for any other door', async () => {
+    const { usage, USAGE } = await import('./mcp-cli.mjs');
+    expect(usage()).toBe(USAGE);
+    expect(usage('mojulo')).toBe(USAGE);
+    expect(usage('node scripts/mcp-stdio.mjs').split('\n')[0]).toBe('Usage (type `node scripts/mcp-stdio.mjs` where it says `mojulo`):');
+    expect(usage('npx -y mojulo@3.0.0').split('\n').slice(1).join('\n')).toBe(USAGE.split('\n').slice(1).join('\n'));
+  });
+});

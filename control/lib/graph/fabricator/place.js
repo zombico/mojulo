@@ -41,6 +41,10 @@ const ADD = { rule: 'add', side: 'into' };
 /** strategy → module (or module#fit for mj_hole) → rule. Anything not listed is placed by hand. */
 const RULES = Object.freeze({
   'heatset-bolt': { mj_heatset_hole: INTO, mj_counterbore: HEAD },
+  'heatset-load': { mj_heatset_hole: INTO, mj_counterbore: HEAD },
+  'thumb-screw-metal': { mj_tapped_hole: INTO },
+  'dowel-pin-metal': { 'mj_hole#press': INTO, 'mj_hole#slip': FLIPPED },
+  'flange-screws': { mj_countersink: INTO },
   tapped: { mj_tapped_hole: INTO },
   'tapped-metal': { mj_tapped_hole: INTO },
   'heat-set': { mj_heatset_hole: INTO },
