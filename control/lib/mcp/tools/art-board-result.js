@@ -1,11 +1,14 @@
 /**
  * The art board in a tool's answer: when create_sketch / update_sketch leaves a room stage carrying an art direction,
- * the answer carries the board as an image (era/art-board.js, rasterized by sharp) and the gate's next move — show
- * the operator, take each item's approval or send it back. Without sharp the answer says so and still carries the
- * readout; it never fails the mint. Any other result passes through untouched.
+ * the answer carries the board as an image and the gate's next move — show the operator, take each item's approval or
+ * send it back. The board is the HTML page (era/art-board-html.js) laid out by a browser already on the machine; else
+ * its SVG twin (era/art-board.js) by sharp; else the readout alone. It never fails the mint. Any other result passes
+ * through untouched.
  */
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { artBoardPng } from '@/lib/graph/era/art-board.js';
+import { artBoardPagePng } from '@/lib/graph/era/art-board-html.js';
+import { withoutChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { ART_ITEMS } from '@/lib/graph/era/art-direction.js';
 
 const patchFor = (path, value) => `{ op: 'set', path: '${path}', value: ${JSON.stringify(value)} }`;
@@ -32,12 +35,15 @@ export function withArtBoard(handler) {
     const row = SketchRepository.getByRef(result.ref), m = row && row.manifest;
     if (!m || m.kind !== 'stage' || !m.art || typeof m.art !== 'object') return result;
     const body = { ...result, ...artReadout(m) };
+    // the board is an HTML page laid out by a browser already on this machine (never downloaded for this); without one,
+    // its SVG twin rasterized by sharp; without either, the readout in words
+    const m2 = { ...m, title: row.title }, answer = (png) => ({ content: [{ type: 'text', text: JSON.stringify(body) }, { type: 'image', data: png.toString('base64'), mimeType: 'image/png' }] });
+    try { return answer(await withoutChromiumFetch(() => artBoardPagePng(m2))); } catch { /* no browser here: the SVG board */ }
     try {
-      const png = await artBoardPng({ ...m, title: row.title });
-      return { content: [{ type: 'text', text: JSON.stringify(body) }, { type: 'image', data: png.toString('base64'), mimeType: 'image/png' }] };
+      return answer(await artBoardPng(m2));
     } catch (err) {
       if (err && err.code !== 'SHARP_UNAVAILABLE') throw err;
-      return { ...body, board: 'not drawn: the image library (sharp) is not installed; describe the direction from `art` in words instead' };
+      return { ...body, board: 'not drawn: neither a browser nor the image library (sharp) is installed; describe the direction from `art` in words instead' };
     }
   };
 }

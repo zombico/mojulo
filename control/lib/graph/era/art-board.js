@@ -34,7 +34,9 @@ const rect = (x, y, w, h, fill, extra = '') => `<rect x="${f1(x)}" y="${f1(y)}" 
 const poly = (pts, fill, extra = '') => `<polygon points="${pts.map(([x, y]) => `${f1(x)},${f1(y)}`).join(' ')}" fill="${fill}" ${extra}/>`;
 const line = (pts, stroke, w = 1, extra = '') => `<polyline points="${pts.map(([x, y]) => `${f1(x)},${f1(y)}`).join(' ')}" fill="none" stroke="${stroke}" stroke-width="${w}" ${extra}/>`;
 
+let CHROME = true;   // the SVG board draws its own panel chrome; the HTML board lays it out in CSS
 function panel(x, y, w, h, n, title, status, sub = '') {
+  if (!CHROME) return '';
   const c = STATUS_COLOUR[status] || DIM;
   return [
     rect(x, y, w, h, PANEL, 'rx="6"'),
@@ -225,7 +227,8 @@ function planPanel(x, y, plan, P, status) {
 }
 
 /** The board for a room stage recipe with an art direction. → SVG text. */
-export function artBoardSvg(manifest) {
+/** What the board shows, either way it is drawn: the plan as built, the direction, each item's status, the tiles. */
+export function boardModel(manifest) {
   const kitId = manifest.kit || 'gothic-stone', art = artForBuild(kitId, manifest.art), status = manifest.art && manifest.art.status || {};
   const plan = planStage(manifest), k = plan.kit, P = art.palette, M = art.materials;
   const how = (spec) => (spec.gen === 'stone-brick' ? `${spec.bond || 'running'} bond\n${spec.dark ? 'dark in grey' : `radius ${spec.radius ?? 0}`}` : spec.gen);
@@ -234,6 +237,11 @@ export function artBoardSvg(manifest) {
     ['walls', fam('wall'), how(M.wall)], ['floor', fam('floor'), how(M.floor)], ['vault', fam('ceiling'), M.ceiling.gen],
     ['trim', fam('trim'), M.trim.gen], ['wood', `${tileFamilyOf(k.dress.props.wood.light)}-a`, 'props'], ['accent', `${tileFamilyOf({ gen: 'stone-brick', ...k.dress.accent.stone })}-a`, k.dress.accent.skulls ? 'ossuary' : 'ashlar'],
   ];
+  return { kitId, kitName: KIT_NAMES[kitId] || kitId, art, status, plan, k, P, M, tiles };
+}
+
+export function artBoardSvg(manifest) {
+  const { kitId, art, status, plan, P, M, tiles } = boardModel(manifest);
   const { w, h } = BOARD;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
@@ -252,6 +260,10 @@ export function artBoardSvg(manifest) {
 }
 
 /** The board as a PNG (sharp). Throws SHARP_UNAVAILABLE without it. */
+/** A panel's drawing alone (no chrome), for the HTML board: `fn` as the SVG board calls it, at the origin. */
+export function drawingOf(fn, ...args) { CHROME = false; try { return fn(0, 0, ...args); } finally { CHROME = true; } }
+export { architecturePanel, doodadsPanel, planPanel, atmospherePanel, SET_PIECE, SET_PIECE_WORDS, PROP_GLYPH, hex as hexOf };
+
 export async function artBoardPng(manifest) {
   const sharp = await loadSharp();
   return sharp(Buffer.from(artBoardSvg(manifest))).png().toBuffer();

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { rollArt, resolveArt, compileArt, ART_ITEMS, ART_KITS } from './art-direction.js';
 import { planStage } from './stage.js';
 import { artBoardSvg, artBoardPng } from './art-board.js';
+import { artBoardHtml } from './art-board-html.js';
 import { normalizeTileSpec, tileFamilyOf } from './tile-specs.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 import { starter } from './entries.js';
@@ -70,6 +71,16 @@ describe('the art board', () => {
     const png = await artBoardPng(m);
     expect(png.subarray(1, 4).toString()).toBe('PNG');
   }, 60000);
+});
+
+describe('the art board as a page', () => {
+  it('is one self-contained document: seven cards, one per item, each with its status, the tiles as images', () => {
+    const m = resolveArt({ ...ROOM('gothic-stone'), title: 'tomb', art: { seed: 5 } }), html = artBoardHtml(m);
+    expect([...html.matchAll(/data-item="([a-z]+)"/g)].map((x) => x[1]).sort()).toEqual(ART_ITEMS.slice().sort());   // laid out by the page, numbered by the gate
+    expect((html.match(/<img src="data:image\/png;base64,/g) || []).length).toBeGreaterThanOrEqual(7);
+    expect(html).not.toMatch(/<(script|link)\b/);
+    expect((html.match(/>proposed</g) || []).length).toBe(7);
+  });
 });
 
 describe('stone-brick: radius and shadow', () => {
