@@ -113,15 +113,19 @@ export const PACKS_INSTRUCTIONS_ADDENDUM = `
 // MCP call grammar. This block translates that grammar to the bin and names
 // the two env vars that replace clientInfo. Host ids come from the registry
 // so the list never drifts from lib/mcp/hosts/.
-export function cliInstructionsAddendum({ hostIds } = {}) {
+// `cmd` is the invocation the caller is actually using (`mojulo`, `npx -y mojulo@<v>`, or
+// `node scripts/mcp-stdio.mjs` from a checkout); scripts/mcp-cli.mjs works it out from how the
+// process was launched. The default keeps the installed bin's wording.
+export function cliInstructionsAddendum({ hostIds, cmd = 'mojulo' } = {}) {
   const ids = (hostIds || []).join(' / ');
   return `
 
 **You are on the CLI, not an MCP session.** Every body mojulo returns — this one, \`forward_context\`, a pack unveil, a vocab card — is written in MCP call grammar. Read it as shell:
-  \`tool({ a: 1 })\`                          → \`mojulo call tool --json '{"a":1}'\`   (or \`--a 1\` for a top-level property)
-  \`pack_x({ tool: 'name', args: { … } })\`  → \`mojulo pack_x name --json '{…}'\`
-  \`pack_x()\` (open a pack)                 → \`mojulo pack_x\`
-\`mojulo help <tool>\` prints any tool's full description and input schema. Start with \`mojulo call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so export results name this host's door and \`get_adapter\` returns its card, and \`MOJULO_SURFACE=box\` when you are in the host's own box rather than on the operator's machine. Each \`mojulo\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
+  \`tool({ a: 1 })\`                          → \`${cmd} call tool --json '{"a":1}'\`   (or \`--a 1\` for a top-level property)
+  \`pack_x({ tool: 'name', args: { … } })\`  → \`${cmd} pack_x name --json '{…}'\`
+  \`pack_x({ manual: … })\` (any pack-level args) → \`${cmd} pack_x --json '{"manual":["a","b"]}'\`   (or \`--manual a,b\`)
+  \`pack_x()\` (open a pack)                 → \`${cmd} pack_x\`
+\`${cmd} help <tool>\` prints any tool's full description and input schema. Start with \`${cmd} call forward_context\` — the routing index — unless the ask already names its tool. There is no \`initialize\` here, so mojulo cannot see which host you are: set \`MOJULO_HOST=<profile>\` (${ids}) so export results name this host's door and \`get_adapter\` returns its card, and \`MOJULO_SURFACE=box\` when you are in the host's own box rather than on the operator's machine. Each \`${cmd}\` invocation is a fresh process; long-poll tools need \`--timeout <ms>\`.`;
 }
 
 const registeredTools = new Map();

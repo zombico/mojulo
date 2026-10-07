@@ -12,6 +12,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Pack CLI
+
+- **`mojulo pack_x --json '{…}'` takes the pack call's own arguments.** Flags straight after the pack id are what
+  `pack_x({…})` takes over MCP: `--json '{"manual":["mint_solid","edit_solid"]}'` (a name or a list),
+  `{"tool":…,"args":{…}}`, or `--manual` / `--tool` / `--args` flags, checked against the pack schema. Before this,
+  the form that pack bodies and `orient` teach failed with "pack dispatch needs a tool name before flags". The
+  `pack_x <tool> --json …` and `pack_x --manual a,b` forms are unchanged.
+- **`orient` names the command in use.** Its shell translation and the `tools` footer say
+  `node scripts/mcp-stdio.mjs` when the repo script is run from a checkout, `npx -y mojulo@<version>` under npx, and
+  `mojulo` otherwise. `orient` also maps `pack_x({ manual: … })` now. The MCP `initialize` and `tools/list` bytes do
+  not change.
+
 ### Scad ladder
 
 - **The scad card opens to its first step.** `get_solid_vocab({ id: 'scad' })` returns the part itself (spec,
