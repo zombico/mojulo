@@ -339,10 +339,10 @@ function notch(J, A, B, out) {
 
 /**
  * Apply every joint to the members (id → member record with F, W, D, L, xMin, xMax, trims, adds, subs). Mutates the
- * records; returns { pieces, edges, report }.
+ * records; returns { pieces, edges, report, holes } (holes: the furniture fittings' bores, world cylinders).
  */
 export function applyJoints(joints, byId) {
-  const out = { pieces: [], edges: [], report: [] };
+  const out = { pieces: [], edges: [], report: [], holes: [] };
   joints.forEach((J0, i) => {
     const J = { ...J0, label: J0.id || `${J0.type}:${J0.a}-${J0.b}` };
     const A = byId.get(J.a), B = J.b === undefined ? null : byId.get(J.b);
