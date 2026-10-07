@@ -698,6 +698,64 @@ solid and ignore a declared infill, which overstated a typical part's strength a
 - **Checked.** A declared 0 % print reads the same as an explicit 0.8 mm shell mesh (79.0 MPa). The study's PLA bar
   at 2 walls and 20 % grid reads 74.5 MPa against 35.9 solid.
 
+### Audio improvements
+
+Bodies for the orchestra and phrasing for the score: the bowed strings and brass the field score plays move from the
+'80s synth-section recipe toward the instruments, and its melodies stop playing every note at one level. All opt-in by
+name or field; recipes that don't use them render byte-identical. Ears gate: the operator's A/B listens.
+
+- **Section v3: bodies.** `violin-3`, `viola-3`, `cello-3`, `contrabass-3`: the bowed sawtooth through each size's body
+  (the air mode, the two corpus modes, the bridge hill) over a cut below the body's lowest mode, so vibrato sweeps the
+  partials across fixed resonances; a bow onset. `trumpet-3`, `french-horn-3`, `trombone-3`, `tuba-3`: the bell's
+  radiation peak and a lip scoop into pitch. Level-matched to the `-2` names. Built from the `body` and `filter` chain
+  effects and existing patch fields.
+- **Phrase shaping.** A composition part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`) scales its
+  note velocities: an arch across each phrase, higher notes a touch louder, long notes over short ones, the phrase's
+  last note eased. Lowered at render like a chord chart; a part without it is byte-identical.
+- **Woodwinds v3: tone follows force.** `flute-3`, `clarinet-3`, `oboe-3`, `bassoon-3`: solo players whose spectrum is
+  blended per note from a soft table to a loud one by velocity (`harmonicsLoud`), with the energy the added partials
+  carry, so playing harder brightens and widens the dynamic range instead of only turning up. Level-matched to the solo
+  winds at mezzo-forte.
+- **Wooden bodies v2: the modal body.** `body` takes `model: 'modal'`: a computed impulse of dozens of seeded body
+  modes shaped by the resonance set, convolved under the dry signal, independent per side. `acoustic-guitar-2`,
+  `nylon-guitar-2`, `classical-guitar-2`, `flamenco-guitar-2`, `gypsy-jazz-guitar-2` (on the tuned string), `harp-2`
+  and `grand-piano-2` use it. Level-matched; wider in stereo.
+- **Held notes breathe (`life`).** The fixed-loop "held MIDI note": a sustain that never moves. With `life`, one
+  seeded slow pressure walk per note moves level, upper-partial brightness (a high shelf at the note's 4th partial) and
+  vibrato depth and rate together, and a hairpin brightens as it swells. On by default for the `-3` strings, brass and
+  woodwinds; `patchParams: { life: false }` holds a note still. Measured on a held clarinet: level wander 0.01 → 0.6 dB,
+  brightness wander 0.1% → 3.1%.
+- **The natural dial.** `life: 0–2` on a recipe (any musical kind) scales the breathing of every row whose instrument
+  breathes; on a part, track or channel it overrides the recipe and, above 0, wakes any instrument. 0 is mechanical
+  (byte-identical to `life: false`), 1 the natural default, 2 more. Lowered at render to `patchParams.life`; an explicit
+  `patchParams.life` wins.
+- **Piano v3.** `grand-piano-3`: each key's unison strings detuned their own way (`unisonSpread`, seeded by pitch, so a
+  key is the same key every strike) with the second string ringing a little shorter, so keys beat and decay at their
+  own rates; and the pedal-down halo, a `sympathetic` chain effect convolving the part with every undamped string.
+  Measured on a released chord: the halo rings ~21 dB over `grand-piano-2`, ~20 dB under the chord. The `life` dial
+  scales both; `life: 0` renders byte-identical to `grand-piano-2`. The halo's impulse costs ~0.3 s once per page.
+- **A pianist's touch and the dampers.** A part's `touch: 'pianist'` (or `{ top, inner, bass, roll }`) plays each chord
+  the way hands do: the top voice brought out, the inner voices softer, the bass a little present (level-neutral per
+  chord), and the notes rolled up from the bass a few seeded milliseconds apart. Lowered at authoring: no kernel bytes.
+  The piano's new `damper` patch field: a felt thud at key-off, a longer release in the bass where dampers grip less,
+  and no damper at all on the top keys (above E6), which ring on after release as on a grand. And `ringExact`: the
+  string loop's own filter lost more per second in the top two octaves than the patch's ring time allowed (C7 rang
+  ~0.3 s for a 1.4 s target); it now caps the loop damping per note so the target holds (C7: ~160 → ~45 dB/s).
+  `grand-piano-3` carries all three; other patches are unchanged. The instruments card now tells agents to write piano
+  phrased by default: the melody its own part with `shape`, the accompaniment under it with `touch`, a ritardando at the end.
+- **A sustain pedal you can write.** `sustainPedal` on a recipe (every part whose instrument has dampers: the
+  piano) or on a part: `'per-chord'` re-pedals the way a pianist does, lifting just after each new harmony over a new
+  bass note and catching it again; `'held'` keeps it down; or a list of `[time, 'down' | 'up' | 'half']`. Released
+  notes ring on to the next lift (a half pedal shortens them instead), and the piano's halo rises and drains with the
+  pedal instead of staying on. Lowered at authoring; the halo's ride reuses the sweep automation. The instruments card
+  says which repertoire to pedal (Chopin, Satie, Debussy, Bach's broken chords) and which to leave dry (Mozart's runs).
+- **Phrase shaping reaches `form` phrases** through per-part shaped copies; the shared phrase is untouched.
+- **One new kernel feature, `timbre`** (the velocity spectra, the modal body and `life`), sliced like the rest: pages that don't
+  use it carry the previous kernel byte for byte.
+- **The field score uses all of it** for new scores: the orchestral palettes name the v3 sections and the leads carry
+  `shape: 'phrase'`, their base velocity lowered a little so the arch's peaks stay under each energy's ceiling. Stored
+  scores keep the instruments they name.
+
 ### Statue maker
 
 The hero door carves the Western character creator's figure as sculpture: posed, draped or nude, in a period's stone or

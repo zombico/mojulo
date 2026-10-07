@@ -188,6 +188,20 @@ A composition can also carry:
 - `phrases` placed by a part's `form` (transposed, inverted, reversed)
 - object events `{ at, n, d, v, art, dyn }` and a 5th tuple slot `art`
 - a part's `dynamics` (marks and hairpins)
+- a part's `shape: 'phrase'` (or `{ bars, arch, contour, contrast, end }`):
+  velocity phrasing over its array events, an arch per `bars` (4), higher
+  notes a touch louder, long over short, the last note eased, level-neutral
+- a part's `touch: 'pianist'` (or `{ top, inner, bass, roll }`): each chord
+  voiced by hand, the top note out, the inner notes under, rolled up from the
+  bass a few ms apart. Use it on piano chord parts; articulated chords stay whole
+- `sustainPedal` (recipe: every piano part, one pedal; or per part):
+  `'per-chord'` re-pedals at each harmony change over a new bass, `'held'`,
+  or `[[time, 'down' | 'up' | 'half'], …]`. Released notes ring to the lift;
+  the piano's halo rises and drains with it. A part's `events` only, not `form`
+- `life` (0–2, any musical kind, also per part/track/channel): how much held
+  notes breathe. 0 mechanical (dead-still holds, the sequenced sound), 1
+  natural (the default on breathing instruments), 2 more. A row's `life`
+  overrides the recipe's and, above 0, wakes any instrument
 - `players`, `desk`, `seating` and `a4`
 
 The manuals are `beats-orchestra` and `beats-articulations`. Percussion kits
