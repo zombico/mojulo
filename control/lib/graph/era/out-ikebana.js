@@ -8,7 +8,8 @@
  *   three principals  SHIN (heaven) the tallest, the line the arrangement is about; SOE (man) three quarters of it,
  *                     leaning out to one side; HIKAE (earth) three quarters of soe, low and forward. Heights and the
  *                     triangle their crowns make are SCALENE: no two alike (a mismatch built in, one leading)
- *   fillers (jushi)   support the principals, shorter, inside their triangle; an odd count
+ *   fillers (jushi)   support the principals in TIERS down from them (understory, shrub, herb, then the ground's
+ *                     cover): tall behind, short in front, an odd count, a mix of plants, never one repeated
  *   the root (ne)     an accent at the foot: a flowering bush, the arrangement's one bloom (decoration, never the
  *                     accent colour, which is for use)
  *   ma                the empty space: a sector toward the viewer is left open, so the eye can enter
@@ -30,9 +31,23 @@ export const IKEBANA_ROLES = Object.freeze({
   shin: { height: [1, 1], interest: 'focus', read: 'heaven: the tallest, the line the arrangement is about' },
   soe: { height: [0.75, 0.75], interest: 'prop', read: 'man: three quarters of shin, leaning out to one side' },
   hikae: { height: [0.56, 0.56], interest: 'prop', read: 'earth: three quarters of soe, low and forward' },
-  jushi: { height: [0.22, 0.48], interest: 'filler', read: 'fillers: shorter supporting stems inside the triangle, never in the ma' },
-  ne: { height: [0.14, 0.24], interest: 'prop', read: 'the root: a flowering accent at the foot, the one bloom' },
+  jushi: { height: [0.05, 0.5], interest: 'filler', read: 'fillers: plants at every size below the principals, by tier (IKEBANA_TIERS), never in the ma' },
+  ne: { height: [0.16, 0.25], interest: 'prop', read: 'the root: a flowering accent at the foot, the one bloom' },
 });
+
+/**
+ * The TIERS an arrangement reads in, vertically: each a band of height as a share of shin's, how far from the root its
+ * plants may stand (in kenzan radii) and where round it they go. Tall behind, short in front: a bed seen from the way.
+ */
+export const IKEBANA_TIERS = Object.freeze({
+  canopy: { band: [0.5, 1.01], read: 'the principals: shin, soe, hikae' },
+  understory: { band: [0.28, 0.5], reach: 1, where: 'back', lean: [5, 20], read: 'small trees and tall shrubs, inside the triangle, behind' },
+  shrub: { band: [0.14, 0.28], reach: 1.8, where: 'sides', lean: [0, 8], read: 'bushes, in and out of bloom, either side of the root' },
+  herb: { band: [0.05, 0.14], reach: 2.6, where: 'front', lean: [0, 12], read: 'flowers and tall grasses, in front, either side of the ma' },
+  ground: { band: [0, 0.05], read: 'the cover: tufts and low flowers over the footprint' },
+});
+// the fillers' tiers by count: a single filler is a flower; more fill the bands from the top down and back up
+const TIER_RUN = { 1: ['herb'], 3: ['understory', 'shrub', 'herb'], 5: ['understory', 'shrub', 'herb', 'herb', 'shrub'], 7: ['understory', 'shrub', 'herb', 'herb', 'shrub', 'understory', 'herb'] };
 
 /**
  * The styles: each principal's lean from upright (degrees, as in a vase) and the direction it leans, as an angle from
@@ -45,44 +60,50 @@ export const IKEBANA_STYLES = Object.freeze({
   spreading: { lean: { shin: 22, soe: 60, hikae: 82 }, toward: { shin: 15, soe: 95, hikae: -110 }, read: 'low and wide: the principals open out like a grove on a bank' },
 });
 
-/** What each role is made of: presets a zone names (or its own table of the same shape). */
+/**
+ * What each role is made of, per tier: presets a zone names (or its own table of the same shape). Plants only, at every
+ * size: trees, bushes in and out of bloom, flowers (spikes, umbels, plumes, daisies), caps and fingers; a wide preset
+ * adds a ground of its own. Each tier's list is cycled, so an arrangement mixes and never repeats one thing.
+ */
+const F = (form, variant, over) => ({ form, variant, ...(over ? { over } : {}) });
+const BLOOMING = F('broccoli', 'bush', { blooms: [8, 14] });
 export const IKEBANA_MATERIALS = Object.freeze({
-  // a grove of trees, close and varied, paired with a bush in flower at its foot
+  // a grove of trees, close and varied, a bush in flower at its foot and a bed of flowers in front
   grove: {
-    shin: [{ form: 'broccoli', variant: 'column' }], soe: [{ form: 'broccoli', variant: 'broccoli' }], hikae: [{ form: 'broccoli', variant: 'lollipop' }, { form: 'broccoli', variant: 'broccoli' }],
-    jushi: [{ form: 'broccoli', variant: 'lollipop' }, { form: 'broccoli', variant: 'bush' }, { form: 'broccoli', variant: 'column' }],
-    ne: [{ form: 'broccoli', variant: 'bush', over: { blooms: [8, 14] } }],
+    shin: [F('broccoli', 'column')], soe: [F('broccoli', 'broccoli')], hikae: [F('broccoli', 'lollipop'), F('broccoli', 'broccoli')],
+    understory: [F('broccoli', 'lollipop'), F('broccoli', 'column')], shrub: [BLOOMING, F('broccoli', 'bush')], herb: [F('flower', 'spike'), F('flower', 'umbel'), F('flower', 'plume')],
+    ne: [BLOOMING], cover: [F('tuft', 'flowering'), F('flower', 'daisy'), F('tuft', 'blades')],
   },
-  // a cap-and-finger thicket: parasols over bells, a saguaro low, toadstools and tubes between, a puffball at the root
+  // a cap-and-finger thicket: parasols over bells over a saguaro, puffballs and frills, spikes and plumes in front
   fungal: {
-    shin: [{ form: 'mushroom', variant: 'parasol' }], soe: [{ form: 'mushroom', variant: 'bell' }], hikae: [{ form: 'fingers', variant: 'saguaro' }],
-    jushi: [{ form: 'mushroom', variant: 'toadstool' }, { form: 'fingers', variant: 'tubes' }, { form: 'fungi', variant: 'puffball' }],
-    ne: [{ form: 'fungi', variant: 'puffball' }],
+    shin: [F('mushroom', 'parasol')], soe: [F('mushroom', 'bell')], hikae: [F('fingers', 'saguaro')],
+    understory: [F('mushroom', 'bell'), F('fingers', 'tubes')], shrub: [F('fungi', 'puffball'), F('mushroom', 'toadstool')], herb: [F('flower', 'spike'), F('mushroom', 'toadstool'), F('flower', 'plume')],
+    ne: [F('fungi', 'frill')], cover: [F('tuft', 'flowering'), F('flower', 'daisy')],
   },
-  // a reef: coral and pads, a tube bundle for the heaven line
+  // a reef: coral and pads under a tube bundle, frills and plumes between
   reef: {
-    shin: [{ form: 'fingers', variant: 'tubes' }], soe: [{ form: 'fingers', variant: 'coral' }], hikae: [{ form: 'fingers', variant: 'pads' }],
-    jushi: [{ form: 'fingers', variant: 'coral' }, { form: 'fingers', variant: 'tubes' }], ne: [{ form: 'fungi', variant: 'frill' }],
+    shin: [F('fingers', 'tubes')], soe: [F('fingers', 'coral')], hikae: [F('fingers', 'pads')],
+    understory: [F('fingers', 'coral')], shrub: [F('fingers', 'pads'), F('fungi', 'frill')], herb: [F('flower', 'plume'), F('flower', 'umbel')],
+    ne: [F('fungi', 'puffball')], cover: [F('tuft', 'blades'), F('flower', 'daisy')],
   },
-  // WIDE: mixed media on a ground of their own, with ground cover. A meadow garden: a tree over a cairn over a bush in
-  // flower, stones and lollipops and toadstools between, all on a mound in grass
+  // WIDE: on a ground of their own. A meadow garden on a mound: a round tree over a column over a lollipop, a bush in
+  // bloom, spikes, umbels and plumes, daisies in the grass
   garden: {
-    shin: [{ form: 'broccoli', variant: 'column' }, { form: 'broccoli', variant: 'broccoli' }], soe: [{ form: 'stone', variant: 'stack' }], hikae: [{ form: 'broccoli', variant: 'bush', over: { blooms: [8, 14] } }],
-    jushi: [{ form: 'stone', variant: 'boulder' }, { form: 'broccoli', variant: 'lollipop' }, { form: 'tuft', variant: 'flowering' }, { form: 'mushroom', variant: 'toadstool' }],
-    ne: [{ form: 'tuft', variant: 'flowering' }], ground: { form: 'ground', variant: 'mound' }, cover: { form: 'tuft', variant: 'blades' },
+    shin: [F('broccoli', 'broccoli')], soe: [F('broccoli', 'column')], hikae: [F('broccoli', 'lollipop')],
+    understory: [F('broccoli', 'lollipop')], shrub: [BLOOMING, F('broccoli', 'bush')], herb: [F('flower', 'spike'), F('flower', 'umbel'), F('flower', 'plume')],
+    ne: [F('flower', 'umbel')], cover: [F('flower', 'daisy'), F('tuft', 'flowering')], ground: F('ground', 'mound'),
   },
-  // an oasis: a parasol over a saguaro over a standing stone, round a pool that is the ma (a solid mass weighs more than
-  // its height: a boulder or a puffball is a filler, never a principal)
+  // an oasis: a parasol over a saguaro over pads, round a pool that is the ma; bushes and plumes on the rim
   oasis: {
-    shin: [{ form: 'mushroom', variant: 'parasol' }], soe: [{ form: 'fingers', variant: 'saguaro' }], hikae: [{ form: 'stone', variant: 'slab' }],
-    jushi: [{ form: 'fingers', variant: 'pads' }, { form: 'tuft', variant: 'blades' }, { form: 'stone', variant: 'boulder' }, { form: 'fungi', variant: 'puffball' }],
-    ne: [{ form: 'tuft', variant: 'flowering' }], ground: { form: 'ground', variant: 'hollow' }, cover: { form: 'tuft', variant: 'blades' },
+    shin: [F('mushroom', 'parasol')], soe: [F('fingers', 'saguaro')], hikae: [F('fingers', 'pads')],
+    understory: [F('broccoli', 'lollipop')], shrub: [F('broccoli', 'bush'), F('fungi', 'puffball')], herb: [F('flower', 'plume'), F('flower', 'spike')],
+    ne: [F('flower', 'umbel')], cover: [F('tuft', 'blades'), F('flower', 'daisy')], ground: F('ground', 'hollow'),
   },
-  // a crater garden at night: a cap over a spire of stones over a bundle of glowing tubes, round a glowing pool
+  // a crater garden at night: a cap over a bell over glowing tubes, round a glowing pool
   crater: {
-    shin: [{ form: 'mushroom', variant: 'parasol' }], soe: [{ form: 'stone', variant: 'stack' }], hikae: [{ form: 'fingers', variant: 'tubes' }],
-    jushi: [{ form: 'fungi', variant: 'puffball' }, { form: 'mushroom', variant: 'toadstool' }, { form: 'stone', variant: 'boulder' }, { form: 'tuft', variant: 'flowering' }],
-    ne: [{ form: 'fungi', variant: 'frill' }], ground: { form: 'ground', variant: 'hollow' }, cover: { form: 'tuft', variant: 'flowering' },
+    shin: [F('mushroom', 'parasol')], soe: [F('mushroom', 'bell')], hikae: [F('fingers', 'tubes')],
+    understory: [F('fingers', 'saguaro')], shrub: [F('fungi', 'puffball'), F('fungi', 'frill')], herb: [F('flower', 'spike'), F('flower', 'plume')],
+    ne: [F('mushroom', 'toadstool')], cover: [F('tuft', 'flowering'), F('flower', 'daisy')], ground: F('ground', 'hollow'),
   },
 });
 
@@ -123,28 +144,31 @@ export function clustersprout(seed, opts = {}) {
   // a direction given as degrees from AWAY toward the LEFT (mirrored for the right hand) → an azimuth in the world
   const away = face + Math.PI, azOf = (deg) => away + hand * deg * D;
   const K = o.kenzan * o.scale, stems = [];
-  const stem = (role, material, toward, lean, k) => {
-    const R = IKEBANA_ROLES[role], h = o.scale * mix(R.height[0], R.height[1], rand()) * (1 + o.variation * mix(-0.04, 0.04, rand()));   // variation strays inside the 1.2× step, never across it
-    const az = azOf(toward), rr = K * (role === 'shin' ? 0.15 : mix(0.4, 1, rand()));
+  const stem = (role, material, toward, lean, k, tier = null) => {
+    const R = IKEBANA_ROLES[role], T = tier ? IKEBANA_TIERS[tier] : null, band = T ? [T.band[0] + 0.01, T.band[1] - 0.01] : R.height;
+    const h = o.scale * mix(band[0], band[1], rand()) * (1 + o.variation * mix(-0.04, 0.04, rand()));   // variation strays inside the 1.2× step, never across it
+    const reach = K * (T?.reach ?? 1), az = azOf(toward), rr = role === 'shin' ? K * 0.15 : T ? mix(T.reach > 1 ? K * 0.9 : K * 0.4, reach, rand()) : K * mix(0.4, 1, rand());
     const x = at[0] + Math.cos(az) * rr, y = at[1] + Math.sin(az) * rr;
-    stems.push({ role, ...material, x: r3(x), y: r3(y), rr, height: r3(h), az, lean: lean * o.bend, k, interest: R.interest });
+    stems.push({ role, ...(tier ? { tier } : {}), ...material, x: r3(x), y: r3(y), rr, reach: r3(reach), height: r3(h), az, lean: lean * o.bend, k, interest: R.interest });
   };
   stem('shin', pick(M.shin, rand()), S.toward.shin, S.lean.shin, 0);
   stem('soe', pick(M.soe, rand()), S.toward.soe, S.lean.soe, 1);
   stem('hikae', pick(M.hikae, rand()), S.toward.hikae, S.lean.hikae, 2);
-  // fillers: an odd count (three principals and the root are four, so the whole counts odd), toward the angles between the principals (inside the triangle), out of the ma
-  const nJ = [1, 1, 3, 3, 5, 5, 7][Math.round(o.density * 6)];
-  const inside = [S.toward.shin, S.toward.soe, S.toward.hikae].sort((a, b) => a - b), start = Math.floor(rand() * M.jushi.length);
-  for (let j = 0; j < nJ; j++) {
-    const lo = inside[j % 2 ? 1 : 0], hi = inside[j % 2 ? 2 : 1];
-    let toward = mix(lo, hi, rand());
-    // the ma: the sector toward the viewer (180° from away) is left open
-    const fromFront = 180 - Math.abs(((toward % 360) + 540) % 360 - 180);
-    if (fromFront < o.ma) toward = toward >= 0 ? 180 - o.ma - 5 : -(180 - o.ma - 5);
-    // fillers MIX: they cycle through their list from a seeded start, never the same twice running
-    const mat = M.jushi[(start + j) % M.jushi.length];
-    stem('jushi', mat, toward, mix(8, 30, rand()), 3 + j);
-  }
+  // fillers: an odd count (three principals and the root are four, so the whole counts odd), in tiers down from the
+  // principals: the understory inside the triangle, behind; shrubs either side of the root; herbs in front, either
+  // side of the ma. Each tier's materials cycle from a seeded start, so the plants mix and never repeat in a row
+  const nJ = [1, 1, 3, 3, 5, 5, 7][Math.round(o.density * 6)], run = TIER_RUN[nJ], cyc = {};
+  const listOf = (tier) => M[tier] ?? M.jushi ?? [];
+  run.forEach((tier, j) => {
+    const T = IKEBANA_TIERS[tier], list = listOf(tier);
+    if (cyc[tier] == null) cyc[tier] = Math.floor(rand() * list.length);
+    const mat = list[cyc[tier]++ % list.length], side = j % 2 ? -1 : 1;
+    let toward;
+    if (T.where === 'back') toward = mix(Math.min(S.toward.shin, S.toward.soe) - 25, Math.max(S.toward.shin, S.toward.soe) + 25, rand());
+    else if (T.where === 'sides') toward = side * mix(70, 125, rand());
+    else toward = side * (180 - o.ma - mix(8, 50, rand()));
+    stem('jushi', mat, toward, mix(T.lean[0], T.lean[1], rand()), 3 + j, tier);
+  });
   // the root: at the foot, toward the front and the hikae side, standing
   stem('ne', pick(M.ne, rand()), S.toward.hikae * 0.6, 0, 99);
   // build every stem: its height pinned, its own incongruity by its interest, its lean taken back until it stands
@@ -194,13 +218,14 @@ export function clustersprout(seed, opts = {}) {
   // ground cover: tufts over the footprint, round the root and out of the ma (and out of the pool)
   const cover = [];
   if (M.cover && o.cover > 0) {
-    const n = Math.round(4 + 12 * o.cover), Rc = o.scale * 0.6, cr = mulberry32(subSeed(seed, 'ikebana:cover'));
+    const n = Math.round(4 + 12 * o.cover), Rc = o.scale * 0.75, cr = mulberry32(subSeed(seed, 'ikebana:cover'));
     for (let i = 0, tries = 0; i < n && tries < n * 6; tries++) {
       const a = cr() * Math.PI * 2, d = mix(K, Rc, Math.sqrt(cr())), x = at[0] + Math.cos(a) * d, y = at[1] + Math.sin(a) * d;
       const off = Math.abs((((a - face) / D) % 360 + 540) % 360 - 180);
       if (off < o.ma || (gs.pool && Math.hypot(x - ground.x, y - ground.y) < gs.pool * 1.05)) continue;
-      const design = designFlora(M.cover.form, M.cover.variant, subSeed(seed, `ikebana:cover:${i}`), { level: o.level, interest: 'filler' });
-      cover.push({ role: 'cover', form: M.cover.form, variant: M.cover.variant, x: r3(x), y: r3(y), z: zAt(x, y), az: a, tilt: 0, design }); i++;
+      const cm = [].concat(M.cover)[i % [].concat(M.cover).length];
+      const design = designFlora(cm.form, cm.variant, subSeed(seed, `ikebana:cover:${i}`), { level: o.level, interest: 'filler', over: { height: o.scale * mix(0.02, 0.05, cr()) } });
+      cover.push({ role: 'cover', tier: 'ground', form: cm.form, variant: cm.variant, x: r3(x), y: r3(y), z: zAt(x, y), az: a, tilt: 0, design }); i++;
     }
   }
   const out = { at, facing: face, hand: hand > 0 ? 'left' : 'right', style: o.style, kenzan: r3(K), ma: o.ma, walk: o.walk, stems, ground, cover, surface: ground ? { R: r3(gs.R), pool: r3(gs.pool), maxSlope: gs.maxSlope } : null };
@@ -214,19 +239,44 @@ export function clustersprout(seed, opts = {}) {
     st.x = r3(at[0] + Math.cos(st.az) * st.rr); st.y = r3(at[1] + Math.sin(st.az) * st.rr);
     settle(st); st.z = zAt(st.x, st.y);
   };
-  for (let i = 0; i < 10; i++) {
-    const crowd = o.walk === 'open' ? wayInBlockers(out).map((c) => c.stem).filter((x, j, a) => x && a.indexOf(x) === j) : [];
-    if (crowd.length) crowd.forEach(away_);
-    else if (!scaleneTriangle(stems)) away_(hk);
-    else break;
-    out.colliders = colliders(out);
+  const turns = () => {
+    for (let i = 0; i < 10; i++) {
+      const crowd = o.walk === 'open' ? wayInBlockers(out).map((c) => c.stem).filter((x, j, a) => x && a.indexOf(x) === j) : [];
+      if (crowd.length) crowd.forEach(away_);
+      else if (!scaleneTriangle(stems)) away_(hk);
+      else break;
+      out.colliders = colliders(out);
+    }
+  };
+  turns();
+  // SHAPES by construction: while fewer than three silhouettes show, a filler (the last first, then the root) tries its
+  // tier's other plants, then a spike (columnar), daisies or a bush (spreading), a lollipop (round), keeping the first
+  // that adds the missing one
+  const UNIVERSAL = [{ form: 'flower', variant: 'spike' }, { form: 'flower', variant: 'daisy' }, { form: 'broccoli', variant: 'bush' }, { form: 'broccoli', variant: 'lollipop' }];
+  for (const f of [...stems.filter((x) => x.role === 'jushi').reverse(), ...stems.filter((x) => x.role === 'ne')]) {
+    const have = new Set(stems.filter((x) => x !== f).map(shapeOf));
+    if (new Set(stems.map(shapeOf)).size >= 3) break;
+    if (have.has(shapeOf(f))) {
+      const was = { form: f.form, variant: f.variant, over: f.over, design: f.design, tilt: f.tilt, height: f.height };
+      let ok = false;
+      for (const c of [...(f.tier ? listOf(f.tier) : []), ...UNIVERSAL]) {
+        Object.assign(f, { form: c.form, variant: c.variant, over: c.over, height: was.height }); settle(f);
+        if (!have.has(shapeOf(f)) && (f.role !== 'jushi' || spread(f) <= 0.9 * spread(soe))) { ok = true; break; }
+      }
+      if (!ok) Object.assign(f, was);
+    }
   }
+  for (const st of stems) st.z = zAt(st.x, st.y);
+  out.colliders = colliders(out);
+  turns();
   out.laws = ikebanaLaws(out, M);
   for (const st of stems) { delete st.over; delete st.rr; }
   out.colliders = out.colliders.map(({ stem: _s, ...c }) => c);
   return out;
 }
 
+// a plant's silhouette class: tall and narrow, about as tall as wide, or wider than tall
+const shapeOf = (s) => { const a = floraMeasures(s.design).height / Math.max(1e-6, spread(s)); return a >= 1.8 ? 'columnar' : a >= 0.8 ? 'round' : 'spreading'; };
 // how wide a stem spreads in plan
 const spread = (s) => { let a = Infinity, b = -Infinity, c = Infinity, e = -Infinity; for (const f of s.design.faces) for (const p of f.corners) { a = Math.min(a, p[0]); b = Math.max(b, p[0]); c = Math.min(c, p[1]); e = Math.max(e, p[1]); } return Math.max(b - a, e - c); };
 const scaleneTriangle = (stems) => {
@@ -249,7 +299,8 @@ export function colliders(A) {
     const circle = (pts) => { if (!pts.length) return null; const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length; return { x: r3(s.x + cx), y: r3(s.y + cy), r: r3(Math.max(...pts.map((p) => Math.hypot(p[0] - cx, p[1] - cy)))) }; };
     const thick = A.walk === 'thicket' && s.role === 'jushi';
     let kind = h < WALK.step ? 'walk' : 'block';
-    if (s.form === 'tuft') kind = 'walk';
+    // soft plants (tufts, flowers) are walked through: a walker parts them
+    if (s.form === 'tuft' || s.form === 'flower') kind = 'walk';
     if (s.form === 'fingers' && h >= WALK.step * 0.5) kind = 'block';
     if (thick) kind = 'block';
     const c = circle(thick ? fs.flatMap((f) => f.corners) : low.length ? low : fs.flatMap((f) => f.corners));
@@ -284,6 +335,9 @@ export const IKEBANA_LAWS = Object.freeze([
   { id: 'stands', rule: 'every stem, leaned, keeps the flora index\'s laws' },
   { id: 'mix', rule: 'an arrangement mixes what its materials offer: at least three different things when it can' },
   { id: 'way-in', rule: 'an open arrangement keeps the ma walkable from its edge in to the root' },
+  { id: 'layers', rule: 'it reads in at least four height bands, canopy to ground (vertical variety)' },
+  { id: 'shapes', rule: 'its plants show at least three silhouettes: columnar, round, spreading (horizontal variety)' },
+  { id: 'depth', rule: 'tall behind, short in front: the herbs stand nearer the viewer than the understory' },
   { id: 'trail-clear', rule: 'painted along a trail, nothing that blocks stands within its clearance of it' },
 ]);
 
@@ -313,7 +367,19 @@ export function ikebanaLaws(A, M = null) {
     if (off < A.ma) out.push({ law: 'ma', line: `a filler's crown stands ${r3(off)}° off the line to the viewer, inside the ${A.ma}° ma.` });
   }
   for (const s of A.stems.filter((x) => x.role === 'jushi')) if (spread(s) > spread(so) * 1.001) out.push({ law: 'under', line: `a filler (${s.form} ${s.variant}) spreads ${r3(spread(s))} m, wider than soe's ${r3(spread(so))} m.` });
-  for (const s of A.stems) if (Math.hypot(s.x - A.at[0], s.y - A.at[1]) > A.kenzan + 1e-6) out.push({ law: 'one-root', line: `${s.role} rises ${r3(Math.hypot(s.x - A.at[0], s.y - A.at[1]))} m from the root, outside its ${A.kenzan} m.` });
+  for (const s of A.stems) { const lim = (s.reach ?? A.kenzan) + 1e-6, d = Math.hypot(s.x - A.at[0], s.y - A.at[1]); if (d > lim) out.push({ law: 'one-root', line: `${s.role} rises ${r3(d)} m from the root, beyond its tier's ${r3(lim)} m.` }); }
+  // LAYERS (vertical variety): the arrangement reads in at least four height bands, canopy to ground
+  const shinH = H[0], bandOf = (h) => Object.entries(IKEBANA_TIERS).find(([, T]) => h / shinH >= T.band[0] && h / shinH < T.band[1])?.[0];
+  const bands = new Set([...A.stems, ...(A.cover ?? [])].map((s) => bandOf(floraMeasures(s.design).height)).filter(Boolean));
+  if (bands.size < (A.cover?.length ? 4 : 3)) out.push({ law: 'layers', line: `it reads in ${bands.size} height bands (${[...bands].join(', ')}); give it four, canopy to ground.` });
+  // SHAPES (horizontal variety): its plants show at least three silhouettes: columnar, round, spreading
+  const shapes = new Set(A.stems.map(shapeOf));
+  if (shapes.size < 3) out.push({ law: 'shapes', line: `its plants show ${shapes.size} silhouettes (${[...shapes].join(', ')}); mix columnar, round and spreading.` });
+  // DEPTH: tall behind, short in front: the herbs stand nearer the viewer than the understory
+  const front = (s) => { const c = crownXY(s); return (c[0] - A.at[0]) * Math.cos(A.facing) + (c[1] - A.at[1]) * Math.sin(A.facing); };
+  const tierFront = (t) => { const ss = A.stems.filter((s) => s.tier === t); return ss.length ? ss.reduce((a, s) => a + front(s), 0) / ss.length : null; };
+  const fu = tierFront('understory'), fh = tierFront('herb');
+  if (fu != null && fh != null && fh <= fu) out.push({ law: 'depth', line: 'the herbs stand no nearer the viewer than the understory: tall behind, short in front.' });
   for (const s of A.stems) for (const l of floraLaws(s.design)) out.push({ law: 'stands', line: `${s.role} (${s.form} ${s.variant}): ${l.line}` });
   // MIX: an arrangement mixes what its materials offer, up to three different things
   if (M) {

@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { IKEBANA_ROLES, IKEBANA_STYLES, IKEBANA_MATERIALS, IKEBANA_LAWS, WALK, clustersprout, ikebanaZone, ikebanaLaws, crownXY } from './out-ikebana.js';
+import { IKEBANA_ROLES, IKEBANA_STYLES, IKEBANA_MATERIALS, IKEBANA_LAWS, IKEBANA_TIERS, WALK, clustersprout, ikebanaZone, ikebanaLaws, crownXY } from './out-ikebana.js';
 import { FLORA_FORMS, floraMeasures, designFlora } from './out-flora.js';
 
 describe('ikebana: clustersprout and the zone painter', () => {
-  it('an arrangement is three principals in scalene steps, odd fillers, a root, from one kenzan, and keeps its laws', () => {
+  it('an arrangement is three principals in scalene steps, odd fillers, a root, from one kenzan (fillers within their tier\'s reach), and keeps its laws', () => {
     const A = clustersprout(8, { materials: 'grove', scale: 9 });
     expect(A.laws).toEqual([]);
     const H = ['shin', 'soe', 'hikae'].map((r) => floraMeasures(A.stems.find((s) => s.role === r).design).height);
     expect(H[0] / H[1]).toBeGreaterThanOrEqual(1.2); expect(H[1] / H[2]).toBeGreaterThanOrEqual(1.2);
     expect(A.stems.length % 2).toBe(1);
     expect(A.stems.filter((s) => s.role === 'ne')).toHaveLength(1);
-    for (const s of A.stems) expect(Math.hypot(s.x - A.at[0], s.y - A.at[1])).toBeLessThanOrEqual(A.kenzan + 1e-6);
+    for (const s of A.stems) expect(Math.hypot(s.x - A.at[0], s.y - A.at[1])).toBeLessThanOrEqual((s.tier ? s.reach : A.kenzan) + 1e-6);
     expect(JSON.stringify(A)).toBe(JSON.stringify(clustersprout(8, { materials: 'grove', scale: 9 })));
   });
   it('every material names doodads that exist, and the root of the grove is a bush in flower', () => {
@@ -56,17 +56,31 @@ describe('ikebana: clustersprout and the zone painter', () => {
     const toPool = Math.atan2(pool.y - O.at[1], pool.x - O.at[0]);
     expect(Math.abs(((toPool - O.facing + 3 * Math.PI) % (2 * Math.PI)) - Math.PI)).toBeLessThan(0.05);
   });
-  it('walking: trunks and stones block, tufts are walked through, canopies walked under; a thicket blocks more', () => {
+  it('walking: trunks and bushes block, flowers and tufts are walked through, canopies walked under; a thicket blocks more', () => {
     const open = clustersprout(2, { materials: 'garden', scale: 4.5, density: 1, walk: 'open' }), thick = clustersprout(2, { materials: 'garden', scale: 4.5, density: 1, walk: 'thicket' });
     expect(open.colliders.filter((c) => c.form === 'tuft' && c.of === 'cover').every((c) => c.kind === 'walk')).toBe(true);
-    expect(open.colliders.some((c) => c.form === 'stone' && c.kind === 'block')).toBe(true);
+    expect(open.colliders.some((c) => c.form === 'broccoli' && c.kind === 'block')).toBe(true);
+    expect(open.colliders.filter((c) => c.form === 'flower').every((c) => c.kind === 'walk')).toBe(true);
     expect(thick.colliders.filter((c) => c.kind === 'block').length).toBeGreaterThan(open.colliders.filter((c) => c.kind === 'block').length);
     expect(open.laws.filter((l) => l.law === 'way-in')).toEqual([]);
     expect(WALK.modes).toEqual(['open', 'thicket']);
   });
+  it('plants only: no preset decorates with stones', () => {
+    for (const M of Object.values(IKEBANA_MATERIALS)) for (const [role, list] of Object.entries(M)) if (role !== 'ground') for (const m of [].concat(list)) expect(m.form).not.toBe('stone');
+  });
+  it('it reads vertically in tiers, tall behind and short in front, and horizontally in mixed silhouettes', () => {
+    const A = clustersprout(5, { materials: 'grove', scale: 9, density: 1 });
+    expect(A.laws).toEqual([]);
+    const tiers = new Set(A.stems.map((s) => s.tier).filter(Boolean));
+    expect([...tiers].sort()).toEqual(['herb', 'shrub', 'understory']);
+    expect(A.stems.filter((s) => s.form === 'flower').length).toBeGreaterThan(0);
+    for (const s of A.stems.filter((x) => x.tier)) { const r = floraMeasures(s.design).height / floraMeasures(A.stems[0].design).height; expect(r).toBeLessThan(IKEBANA_TIERS[s.tier].band[1] + 0.05); }
+    const lo = clustersprout(5, { materials: 'fungal', scale: 5, density: 0 });
+    expect(lo.laws.filter((l) => ['layers', 'shapes'].includes(l.law))).toEqual([]);
+  });
   it('roles, styles and laws are stated', () => {
     expect(Object.keys(IKEBANA_ROLES)).toEqual(['shin', 'soe', 'hikae', 'jushi', 'ne']);
-    expect(IKEBANA_LAWS.map((l) => l.id)).toEqual(['scalene', 'odd', 'ma', 'one-root', 'under', 'stands', 'mix', 'way-in', 'trail-clear']);
+    expect(IKEBANA_LAWS.map((l) => l.id)).toEqual(['scalene', 'odd', 'ma', 'one-root', 'under', 'stands', 'mix', 'way-in', 'layers', 'shapes', 'depth', 'trail-clear']);
     expect(ikebanaLaws(clustersprout(2))).toEqual([]);
     expect(designFlora('broccoli', 'bush', 1, { level: 'near', over: { blooms: 10 } }).faces.filter((f) => f.part === 'bloom').length).toBeGreaterThan(0);
   });

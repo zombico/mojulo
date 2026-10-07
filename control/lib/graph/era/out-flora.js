@@ -47,6 +47,7 @@ export const FLORA_PARTS = Object.freeze({
   ground: { role: 'grass', read: 'the ground an arrangement stands on: a mound, a hollow\'s dish' },
   water: { role: 'sky', read: 'a pool\'s still face: it takes the sky' },
   blade: { role: 'grass', read: 'a grass blade: dark at the root, lit at the tip' },
+  bloom2: { role: 'soil', read: 'a second flower colour, so a bed is never one white: warm in a meadow, the blossom in sakura' },
   bloom: { role: 'cloud', read: 'flowers on a mass: a few posies on its lit side, the decoration (never the accent: that is for use)' },
 });
 export const DEFAULT_SKIN = Object.freeze(Object.fromEntries(Object.entries(FLORA_PARTS).map(([k, v]) => [k, v.role])));
@@ -55,8 +56,8 @@ export const DEFAULT_SKIN = Object.freeze(Object.fromEntries(Object.entries(FLOR
 export const FLORA_SKINS = Object.freeze({
   'isekai-meadow': {},
   'isekai-bamboo': { flesh: 'bark' },
-  'isekai-sakura': { flesh: 'rock' },
-  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', water: 'glow' },
+  'isekai-sakura': { flesh: 'rock', bloom2: 'blossom' },
+  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', bloom2: 'foliage', water: 'glow' },
 });
 export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? {}) });
 
@@ -200,6 +201,18 @@ export const FLORA_FORMS = Object.freeze({
     rails: { height: [0.4, 1.4], spread: [5, 8], pool: [0.4, 0.55] },
     variants: { mound: { kind: 'mound' }, hollow: { kind: 'hollow', height: [0.35, 0.7], spread: [6, 9] } },
     build: buildGround,
+  },
+  flower: {
+    read: 'flowering plants: a spike of stacked blooms, umbels on stalks, a spread of daisies, a plume of tall grass',
+    makes: ['spike (lupin, foxglove)', 'umbel', 'daisies', 'plume grass'],
+    rails: { height: [0.3, 2.4], stalks: [1, 3], heads: [4, 7], leaves: [3, 7], spread: [0.15, 0.4], lead: [1.3, 1.5], hue: [0, 1] },
+    variants: {
+      spike: { kind: 'spike', height: [0.6, 1.6], stalks: [1, 3], heads: [4, 7], spread: [0.06, 0.14], leaves: [3, 5] },
+      umbel: { kind: 'umbel', height: [0.5, 1.4], stalks: [3, 6], spread: [0.25, 0.45] },
+      daisy: { kind: 'daisy', height: [0.2, 0.5], stalks: [5, 11], spread: [0.6, 1] },
+      plume: { kind: 'plume', height: [1, 2.4], stalks: [2, 5], leaves: [7, 12], spread: [0.2, 0.35] },
+    },
+    build: buildFlower,
   },
   tuft: {
     read: 'ground cover: a tuft of blades, or one in flower',
@@ -454,6 +467,46 @@ function buildTuft(X, rand, L, P) {
     const a = rand() * Math.PI * 2, d = H * X.splay * mix(0.2, 0.6, rand()), z = H * mix(1.05, 1.35, rand()), sz = H * 0.07;
     P.block({ id: `f${i}`, kind: 'mass', parent: 'tuft', fixed: true, c: [Math.cos(a) * d, Math.sin(a) * d, z], r: [sz, sz, sz * 0.7], part: 'bloom', value: mix(0.65, 0.88, rand()), detail: 0 });
     P.link({ from: 'ground', to: `f${i}`, radii: [H * 0.012, H * 0.01], sides: 3, part: 'blade', value: 0.4 });
+  }
+}
+
+// flowers: basal leaves, stalks from one foot (the first the tallest, its head the biggest: one leads), heads by kind
+function buildFlower(X, rand, L, P) {
+  const H = X.height, far = L.name === 'far', mid = L.name === 'mid', bloom = X.hue < 0.5 ? 'bloom' : 'bloom2';
+  P.block({ id: 'ground', kind: 'knuckle', c: [0, 0, 0], r: [0.01, 0.01, 0.01] });
+  // the leaves: a low tuft at the foot (a plume's are long, arching grass)
+  const lh = H * (X.kind === 'plume' ? 0.55 : X.kind === 'daisy' ? 0.45 : 0.3), nl = far ? Math.min(3, X.leaves) : X.leaves;
+  P.blades = Array.from({ length: nl }, (_, i) => ({ a: (2 * Math.PI * i) / nl + rand() * 0.5, h: lh * mix(0.7, 1, rand()), out: lh * mix(0.35, 0.6, rand()), w: lh * 0.07 }));
+  P.block({ id: 'leaves', kind: 'tuft', parent: 'ground', c: [0, 0, 0], r: [lh * 0.5, lh * 0.5, lh] });
+  const n = far ? Math.min(2, X.stalks) : mid ? Math.min(7, X.stalks) : X.stalks;
+  for (let i = 0; i < n; i++) {
+    const a = (2 * Math.PI * i) / n + rand() * 0.8, lead = i === 0, h = H * (lead ? 1 : mix(0.55, 0.85, rand())), out_ = X.spread * H * (lead ? 0.15 : mix(0.5, 1, rand()));
+    const top = [Math.cos(a) * out_, Math.sin(a) * out_, h], foot = [Math.cos(a) * H * 0.03, Math.sin(a) * H * 0.03, 0], k = lead ? X.lead : 1;
+    P.block({ id: `s${i}`, kind: 'knuckle', parent: 'ground', group: 'stalks', grounded: true, c: foot, r: [H * 0.014, H * 0.014, H * 0.014] });
+    const head = { id: `h${i}`, kind: 'knuckle', parent: `s${i}`, stack: true, c: top, r: [H * 0.01, H * 0.01, H * 0.01] };
+    if (X.kind === 'spike') {
+      // blooms stacked up the top of the stalk, smaller as they rise: the spike reads vertical
+      const m = far ? 3 : mid ? Math.min(4, X.heads) : X.heads;
+      P.block({ ...head, what: 'spike', sizeK: 1, r: [H * 0.05 * k, H * 0.05 * k, H * 0.05 * k] });
+      // far, the spike is one long bloom: its envelope
+      if (far) P.block({ id: `h${i}b`, kind: 'mass', parent: `h${i}`, fixed: true, c: [top[0] * 0.8, top[1] * 0.8, h * 0.8], r: [H * 0.045 * k, H * 0.045 * k, h * 0.21], part: bloom, value: 0.74, detail: 0 });
+      for (let j = 0; j < (far ? 0 : m); j++) {
+        const f = j / Math.max(1, m - 1), z = h * mix(0.58, 1, f), rr = H * 0.05 * k * mix(1, 0.45, f);
+        P.block({ id: `h${i}b${j}`, kind: 'mass', parent: `h${i}`, fixed: true, c: [top[0] * (z / h), top[1] * (z / h), z], r: [rr, rr, rr * 1.15], part: bloom, value: mix(0.62, 0.86, f), detail: 0 });
+      }
+    } else if (X.kind === 'umbel') {
+      const r = H * 0.1 * k;
+      P.block({ ...head, kind: 'mass', r: [r, r, r * 0.45], part: bloom, value: mix(0.64, 0.84, rand()), detail: L.name === 'near' || (mid && lead) ? 1 : 0, what: 'umbel' });
+    } else if (X.kind === 'daisy') {
+      const r = H * 0.16 * k;
+      P.block({ ...head, kind: 'lathe', r: [r, r, r], what: 'daisy', lathes: [{ prof: [[1, 0], [0.35, 0.12], [0, 0.16]], sides: far ? 5 : 8, part: bloom, value: mix(0.7, 0.9, rand()) }] });
+      if (L.name === 'near' || lead) P.block({ id: `h${i}eye`, kind: 'mass', parent: `h${i}`, fixed: true, c: add(top, [0, 0, r * 0.14]), r: [r * 0.3, r * 0.3, r * 0.15], part: bloom, value: 0.3, detail: 0 });
+    } else {
+      // plume: a long soft head nodding at the top
+      const r = H * 0.035 * k;
+      P.block({ ...head, kind: 'mass', c: add(top, [Math.cos(a) * r, Math.sin(a) * r, 0]), r: [r, r, r * 3.4], part: bloom, value: mix(0.7, 0.9, rand()), detail: 0, what: 'plume', sizeK: 1 });
+    }
+    P.link({ from: `s${i}`, to: `h${i}`, radii: [H * 0.012, H * 0.008], n: 2, bow: H * 0.04, side: [Math.cos(a), Math.sin(a), 0], sides: 3, part: 'blade', value: 0.4 });
   }
 }
 

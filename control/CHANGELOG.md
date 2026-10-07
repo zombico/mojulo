@@ -384,6 +384,14 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   under a step), under (a canopy over head height), wade (a shallow pool), as plan colliders. `walk: 'open'` keeps a way
   in down the ma (a crowding stem turns away from the front) and `walk: 'thicket'` makes every filler block; the zone
   painter moves an arrangement back whole until nothing that blocks stands within the trail's clearance.
+- **Ikebana in tiers, plants only** (`era/out-ikebana.js`, `era/out-flora.js`). Arrangements no longer use stones as
+  decoration: every preset is plants at every size. Fillers stand in TIERS down from the principals (an understory of
+  small trees behind, bushes in and out of bloom either side, flowers in front either side of the ma) over a ground of
+  tufts and daisies on every preset: tall behind, short in front. Each tier's materials cycle so nothing repeats. The
+  flora index gains `flower` (spike, umbel, daisy, plume: one stalk leads, a spike envelopes far) and a second bloom
+  colour per kit. Three laws hold the variety: `layers` (at least four height bands, canopy to ground), `shapes` (at
+  least three silhouettes: columnar, round, spreading, made so by swapping a filler when one is missing) and `depth`
+  (the herbs nearer the viewer than the understory). Flowers, like tufts, are walked through.
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the
