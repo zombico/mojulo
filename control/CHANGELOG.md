@@ -12,6 +12,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Scapeshift
+
+The first step toward Scapeshift, a scene-generation door that builds a place from a described scene by
+orchestrating the existing tools. This step makes the sixth-gen stage findable; no tool is added or changed.
+
+- **The stage, its kits and its looks have cards.** `get_view_vocab` and `semantic_search({ kinds: ['view_vocab'] })`
+  now return a `stage` hub, a `stage/<kit>` card per stage kit and a `look/<reference>` card per sixth-gen reference,
+  generated from the kit, style and reference cards at catalog load (`lib/graph/era/entries.js`), so they cannot drift.
+  A kit card gives its shell, the look it pairs with, the options its style card carries (night, decay, wind, fire),
+  its first principles and a starter manifest that plans. A look card gives its palette, light and air, and says when
+  the kit it names is not built yet. Before this, the kit list lived only in the stage's refusal message.
+- **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
+- The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from
+  the curated `compose_world` base cards.
+
 ### Pack CLI
 
 - **`mojulo pack_x --json '{…}'` takes the pack call's own arguments.** Flags straight after the pack id are what
