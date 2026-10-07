@@ -345,6 +345,15 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   now the playscape entry: the kit's `bridge` token picks the variant, its tokens dress it, and the index measures its
   span-depth, bearing, handrail and flush laws on the built thing (a plank or a beam crossing is a challenge and needs no
   rail); the index's own beam bridge is retired.
+- **The outdoor flora index: plants as doodads** (`era/out-flora.js`, drawn by `era/out-flora-html.js`). Research
+  first: nothing is placed in a world yet. Four forms make the plants a kit needs, each a few primitives under a few
+  dials rolled in rails by a seed: masses on a stick (lollipop, broccoli, cloud pads, column), a cap on a stalk
+  (parasol, bell, funnel, toadstool), organic growth (brackets, puffballs, frills) and sausage fingers (saguaro, pads,
+  coral, tube bundles). Built in values on named parts, skinned by a kit's swatch ramps, and built per reveal ring
+  under a face budget. Leaf density is depicted (masses, overlap, a dark core through the gaps), never modelled. Read
+  laws, not botany: one shape leads, the weight sits over the foot, body and wood differ in value, the ring's budget
+  holds. Bark is exposed as the fracture model's dials and the stylized pattern each reads as; grass is chosen from
+  mojulo's own primitives; the jungle is restated as a composition of layers, each with the form it would be.
 - **The `alien-night` kit: another world at night, from the isekai grammar** (`era/style/alien-night.js`). A style card
   and a row of swatches: spires for boulders, lantern stalks for trees, a taller scarp, jagged far silhouettes, every
   ramp dark and coloured. Three opt-in card fields on the isekai builder carry the night: `night` (the sky dark, the

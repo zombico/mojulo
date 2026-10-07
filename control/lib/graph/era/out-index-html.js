@@ -157,7 +157,7 @@ const JOINT_SHAPES = {
 };
 
 // ── the page ────────────────────────────────────────────────────────────────────────────────────────────────────────
-const CSS = `
+export const CSS = `
 :root{--ink:#111;--mute:#555;--line:#d6d6d6;--paper:#fff}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.4 Helvetica,Arial,sans-serif}
 #page{max-width:1240px;margin:0 auto;padding:22px 16px 60px}
