@@ -13,7 +13,7 @@
  * landing reads (rest, step, tight, too small) against the walker. It lowers to the world the platformer already
  * runs: a static deck is a floor face and a collider; a moving deck is a `mover` carrier the rider rides.
  */
-import { obox } from '../../era/props.js';
+import { obox, blockSink } from '../../era/props.js';
 import { r5, P } from '../../era/geom.js';
 import { driveErrors } from './drive.js';
 
@@ -76,6 +76,7 @@ function box(out, part, group, v, c, h) {
   const from = out.length;
   obox(out, c, X, Y, Z, h, surf(group, v), 8);
   for (let i = from; i < out.length; i++) Object.assign(out[i], { part, value: v });
+  if (out.boxes) out.boxes[out.boxes.length - 1].part = part;
 }
 
 export const PLATFORM_SKINS = {
@@ -115,7 +116,7 @@ export const PLATFORM = {
   resolve({ variant = 'static', skin = 'greybox', t = 0, params, ...spec } = {}) {
     if (!PLATFORM_VARIANTS[variant]) throw new Error(`playscape: a platform has no variant '${variant}' (variants: ${PLATFORM_VARIANT_IDS.join(', ')})`);
     if (!PLATFORM_SKINS[skin]) throw new Error(`playscape: a platform has no skin '${skin}' (skins: ${PLATFORM_SKIN_IDS.join(', ')})`);
-    const p = params || platformParams(spec, variant), at = Math.min(1, Math.max(0, t)), c = deckAt(p, at), faces = [];
+    const p = params || platformParams(spec, variant), at = Math.min(1, Math.max(0, t)), c = deckAt(p, at), faces = blockSink();
     PLATFORM_SKINS[skin](faces, p, c, variant !== 'static');
     return {
       entry: 'platform', variant, skin, t: at, params: p, interest: this.interest(variant),

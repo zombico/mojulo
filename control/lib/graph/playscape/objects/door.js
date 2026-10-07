@@ -16,7 +16,7 @@
  * through, where the player stands to use it, and the rules that open it.
  */
 import { P, r5 } from '../../era/geom.js';
-import { obox } from '../../era/props.js';
+import { obox, blockSink } from '../../era/props.js';
 import { compose, deed } from '../../worlds/game-idioms.js';
 import { poseLeaf, leafTransform, toWorld } from './mechanism.js';
 
@@ -65,6 +65,7 @@ function box(out, name, group, v, [u, n, z], [hu, hn, hz]) {
   const from = out.length;
   obox(out, [u, n, z], [0, 1, 0], [1, 0, 0], Z, [hn, hu, hz], surf(group, v), 8);
   for (let i = from; i < out.length; i++) Object.assign(out[i], { part: name, value: v });
+  if (out.boxes) out.boxes[out.boxes.length - 1].part = name;
 }
 // the latch edge (where a handle goes): away from the hinge; a sliding leaf's is the edge that stays in the opening
 const latchU = (L) => (L.hinge === 'left' ? L.span[1] : L.hinge === 'right' ? L.span[0] : L.joint.dir === -1 ? L.span[1] : L.joint.dir === 1 ? L.span[0] : null);
@@ -148,15 +149,21 @@ export const DOOR = {
 
   /** The faces of every leaf, skinned, posed at t, in the world. */
   build(variant, p, skin, t, frame) {
-    const W = toWorld(frame), out = [];
+    const W = toWorld(frame), out = blockSink();
     for (const L of this.leaves(variant, p)) {
-      const mine = [];
+      const mine = blockSink();
       DOOR_SKINS[skin](mine, L);
       const move = leafTransform(L, t), { yaw } = poseLeaf(L, t), ca = Math.cos(yaw), sa = Math.sin(yaw);
       for (const f of mine) {
         const n = [f.normal[0] * ca - f.normal[1] * sa, f.normal[0] * sa + f.normal[1] * ca, f.normal[2]];
         const nw = [0, 1, 2].map((k) => r5(frame.U[k] * n[0] + frame.N[k] * n[1] + (k === 2 ? n[2] : 0)));
         out.push({ ...f, corners: f.corners.map((c) => W(move(c))), normal: nw, outNormal: nw, leaf: L.id });
+      }
+      // the leaf's boxes ride the same pose: a centre moves as a point, an axis as the difference of two
+      const at = (p) => W(move(p));
+      for (const b of mine.boxes) {
+        const c = at(b.c), ax = (a) => { const q = at([b.c[0] + a[0], b.c[1] + a[1], b.c[2] + a[2]]); return P([q[0] - c[0], q[1] - c[1], q[2] - c[2]]); };
+        out.boxes.push({ ...b, c, A: ax(b.A), B: ax(b.B), C: ax(b.C), leaf: L.id });
       }
     }
     return out;

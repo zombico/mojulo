@@ -74,6 +74,20 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
   `dashVel`); a `launch-lock` pre-step takes a locked rider's stick until it lands. The platform rule's jump cut skips
   a thrown rider (`launchedBy`); without a launcher it runs as before. The pipeline-order pin and the emission pins
   re-pinned with notes.
+- **Items keep their blocks.** `era/props.js` `obox` also records each box it builds into a face list made by
+  `blockSink()` (its range of faces, value, group; the playscape skins tag the part); any other list gets the same
+  panels as before. Every playscape entry resolves with its blocks; the door's ride its leaf's pose.
+- **Cleave: the shaped cut.** `playscape/destruct/cleave.js` cuts an item's blocks by a pattern of convex cells into
+  closed convex chunks (`polytope.js`, plane clipping), whatever the shape: `grid` dices (a lattice in the item's frame,
+  each axis split evenly, a thin axis never cut), `voronoi` shatters (seeded sites, through the thickness on a thin
+  axis). A chunk is a cell's pieces of every block, so a handle stays with its slab; cut faces are the inside, two
+  emboss steps darker.
+- **Dismantle: the concept cut.** `destruct/dismantle.js` reads joints off the geometry (blocks that touch) and anchors
+  (the ground, or given boxes), severs parts, joints or all, and splits what no longer reaches an anchor into bodies
+  that fall whole. Relief thinner than 2.4 cm rides the one block it touches most.
+- **Collapse.** `destruct/collapse.js`: a seeded, stepped timeline per body: the spread (the lattice opening, a hold),
+  then a passive fall or an explosion; rigid bodies land with impulses at their corners on the ground and on what
+  still stands, and rest. They pass through each other (an engine's solver takes over on export).
 
 ### Scapeshift
 

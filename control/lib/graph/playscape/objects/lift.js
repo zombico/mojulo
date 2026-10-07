@@ -12,6 +12,7 @@
  * as a ride between its ends until calls reach the runtime.
  */
 import { P, r5 } from '../../era/geom.js';
+import { blockSink } from '../../era/props.js';
 import { PLATFORM_SKINS } from './platform.js';
 import { driveErrors } from './drive.js';
 
@@ -43,7 +44,7 @@ export const LIFT = {
   resolve({ skin = 'greybox', t = 0, params, ...spec } = {}) {
     if (!this.skins[skin]) throw new Error(`playscape: a lift has no skin '${skin}' (skins: ${Object.keys(this.skins).join(', ')})`);
     const p = params || liftParams(spec), at = Math.min(1, Math.max(0, t)), [x, y] = p.at, z = deckZ(p, at);
-    const faces = [];
+    const faces = blockSink();
     this.skins[skin](faces, p, P([x, y, z]), true);
     const hw = p.w / 2, hd = p.d / 2, top = p.at[2] + p.stops[p.stops.length - 1], bottom = p.at[2] + p.stops[0];
     return {

@@ -15,7 +15,7 @@
  * and the pieces the world runs: a pad, its collider, and a `launcher` entity. Its moving part is a plate on a lift
  * joint, so t is the throw.
  */
-import { obox } from '../../era/props.js';
+import { obox, blockSink } from '../../era/props.js';
 import { r5, P } from '../../era/geom.js';
 import { collider, sweep } from './mechanism.js';
 
@@ -97,6 +97,7 @@ function box(out, part, group, v, c, A, B, h) {
   const from = out.length;
   obox(out, c, A, B, Z, h, surf(group, v), 8);
   for (let i = from; i < out.length; i++) Object.assign(out[i], { part, value: v });
+  if (out.boxes) out.boxes[out.boxes.length - 1].part = part;
 }
 
 export const CATAPULT_SKINS = {
@@ -153,7 +154,7 @@ export const CATAPULT = {
 
   resolve({ variant, skin = 'greybox', t = 0, params, approach, ...spec } = {}) {
     if (!CATAPULT_SKINS[skin]) throw new Error(`playscape: a catapult has no skin '${skin}' (skins: ${CATAPULT_SKIN_IDS.join(', ')})`);
-    const p = params || catapultParams({ mode: variant ?? spec.mode, ...spec }), at = Math.min(1, Math.max(0, t)), faces = [];
+    const p = params || catapultParams({ mode: variant ?? spec.mode, ...spec }), at = Math.min(1, Math.max(0, t)), faces = blockSink();
     CATAPULT_SKINS[skin](faces, p, at);
     const top = P([p.at[0], p.at[1], p.at[2] + p.height]), app = approach || defaultApproach(p), v = throwFor(p, app);
     const f = v && flight(v, p.rider, p.target ? p.target[2] : 0);
