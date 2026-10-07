@@ -130,6 +130,15 @@ orchestrating the existing tools. This step makes the sixth-gen stage findable; 
   flicker pace. Fire sources take `pace` (0.2–2); the crypt's and catacomb's torches burn at 0.45, calmer.
 - **Page weight.** Pilaster sides are lit in metre cells, niche arches take six segments and the crypt's gutter holds
   less rubble, so the six-room starters keep room under the budget for taller rolls.
+- **A built stage is addressable.** A room-kit stage's payload carries `rooms` (id, interior box, its doorways),
+  `anchors` (each doorway between two rooms, the recipe's doors and items, the set piece and its lid, every doodad and
+  prop by form and count such as `coffin-2`, each torch, niche and the accent wall, each with its room and position)
+  and `colliders` (every closed wall as slabs cut at its doorways with a lintel kept, the pilasters, a hull per solid
+  thing). A thing's faces carry its id as `node`, and the GLB gives each its own node by that name. The engine score
+  and the GLB scene extras (`moj:rooms`, `moj:anchors`) carry the address, and the ledger counts it. The Godot kernel
+  (0.5.0) walks against the colliders, makes every anchor a named `Marker3D`, turns rooms, doorways and doors into
+  triggers (a door locked by an item opens once the bag holds it) and items into pickups whose node hides when
+  taken. The World page never reads any of it: its bytes are unchanged.
 - **The world routing card points at `stage`.** A sixth-gen level is a `create_sketch` recipe read from card `stage`.
 - The platformer game kit's search line no longer names game characters.
 - The generated cards are family `world` with entry `create_sketch`; the family-world tests now tell them apart from

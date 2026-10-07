@@ -48,6 +48,7 @@ import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
+import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
 import { normalizeJets } from '../materials/jet.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
 
@@ -778,7 +779,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');
-  const fixtures = torches.flatMap((l) => torchFaces(l, live));
+  // each torch its own node (anchors.js): an engine can snuff one by name
+  const fixtures = torches.flatMap((l, i) => torchFaces(l, live).map((f) => ({ ...f, node: `torch-${i + 1}` })));
   const r0 = plan.rooms[0];
   // a SET (a room with open sides) is framed from its open corner, looking up into the far corner of the vault
   const setCam = r0.open.length ? (() => {
@@ -799,6 +801,18 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(geom.labs || []).flatMap((L) => (L.sparks || []).map((sp) => ({ at: sp.at, radius: sp.radius, share: Fk2.of, base: 0, mode: sp.mode, seed: sp.seed }))),
   ].slice(0, 8);
   const cutouts = [...new Set(faces.filter((f) => typeof f.texture === 'string' && f.texture.startsWith('card:')).map((f) => f.texture))].sort();
+  // ADDRESSABLE (anchors.js): the rooms, every named place and thing, and the hulls an engine walks against; a thing
+  // whose faces carry its `node` takes its bounds from them (a part with no faces, a well's lid, is no anchor)
+  const bounds = nodeBounds(faces);
+  const anchors = [
+    ...doorwayAnchors(plan),
+    ...ends.map((e) => ({ id: e.id, kind: 'door', at: e.sill, N: e.N, to: e.to, ...(e.locked ? { locked: e.locked } : {}), trigger: e.trigger, spawn: e.spawn })),
+    ...(taken ? taken.items.map((it) => ({ id: it.id, kind: 'item', at: it.at, r: it.r, node: `item:${it.id}`, box: { min: P([it.at[0] - 0.31, it.at[1] - 0.31, 0]), max: P([it.at[0] + 0.31, it.at[1] + 0.31, it.at[2] + 0.4]) }, solid: true })) : []),
+    ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
+    ...(dress && dress.anchors ? dress.anchors : []),
+  ].filter((a) => a.kind !== 'part' || bounds[a.id])
+    .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
+  const colliders = stageColliders(plan, geom, anchors);
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
@@ -839,6 +853,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...(windSpec ? { sway: { wind: { speed: +(windSpec.speed * (Sw.draught ?? 1)).toFixed(4), dir: (windSpec.dir * Math.PI) / 180, gust: windSpec.gust, scale: windSpec.scale, evolve: windSpec.evolve,
       veer: (windSpec.veer * Math.PI) / 180, seed: windSpec.seed, z0: Sw.z0 }, groups: Sw.groups } } : {}),
     ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
+    rooms: stageRooms(plan), anchors, colliders,
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },
   };

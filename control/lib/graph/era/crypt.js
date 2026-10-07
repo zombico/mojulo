@@ -87,7 +87,9 @@ export function cryptTomb(plan) {
   }
   const top = z - T.dais.step * 0 , k = (T.dais.steps - 1) * T.dais.inset + 0.18;
   const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => [tx + sx * (dw / 2 - k), ty + sy * (dd / 2 - k), top]);
-  return { faces: out, corners };
+  // addressable (anchors.js): the set piece is one node, its lid (closed, leaning or the altar's slab) another
+  for (const f of out) f.node = f.group === 'stage:focus-lid' ? 'set-piece-lid' : 'set-piece';
+  return { faces: out, corners, form: kind, room: r.id, at: P([tx, ty, 0]) };
 }
 
 /** A cluster of candles at each dais corner: wax faces, flame faces, and one baked light per cluster. */
@@ -173,7 +175,7 @@ export function accentWall(plan, pilasters, tombAt) {
 
 /** The repeating element: a burial niche (a loculus) centred in every bare bay, the same on every wall, in tiers where
  *  the wall is tall; a niche holds an urn now and then. The accent wall carries none: it breaks the repeat. */
-export function cryptNiches(plan, pilasters, accent) {
+export function cryptNiches(plan, pilasters, accent, anchors = null) {
   const N = plan.kit.dress.niches, pw = plan.kit.pilaster.w, out = [];
   const trimT = plan.kit.tiles.trim, trim = { key: trimT.family ? `${trimT.family}-a` : trimT.key, scale: trimT.scale, tint: plan.kit.tint.trim, group: 'stage:motif' };
   const back = { key: null, scale: 1, tint: N.dark, group: 'stage:niche' };
@@ -199,8 +201,10 @@ export function cryptNiches(plan, pilasters, accent) {
         } else wallBox(out, F, u0 - f, u1 + f, zt, zt + f, N.out, trim, 0.5);   // lintel
         wallBox(out, F, u0 - f, u0, zb, zt, N.out, trim, 0.5, true);          // jambs
         wallBox(out, F, u1, u1 + f, zb, zt, N.out, trim, 0.5, true);
-        if (N.sealed && hash3(n, t, 4407) < N.sealed) panel(out, at(F, u0 + 0.04, 0.03, zb + 0.03), F.U, wd - 0.08, [0, 0, 1], N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
-        if (hash3(n++, t, 4401) < N.urns) {
+        const sealed = !!(N.sealed && hash3(n, t, 4407) < N.sealed), urn = hash3(n, t, 4401) < N.urns;
+        if (anchors) anchors.push({ id: `niche-${anchors.filter((q) => q.kind === 'niche').length + 1}`, kind: 'niche', room: w.room, at: P(at(F, um, 0, zb)), N: P(F.N), width: r5(wd), height: r5(nh), tier: t, ...(sealed ? { sealed } : {}), ...(urn ? { urn } : {}) });
+        if (sealed) panel(out, at(F, u0 + 0.04, 0.03, zb + 0.03), F.U, wd - 0.08, [0, 0, 1], N.h - 0.06, F.N, { ...trim, group: 'stage:motif', tint: N.slab || trim.tint }, 0.5);   // a slab closes it
+        if ((n++, urn)) {
           const c = at(F, um + (hash3(n, t, 4403) - 0.5) * wd * 0.5, 0.18, zb);
           for (let k = 0; k < 8; k++) {
             const a0 = (k / 8) * 2 * Math.PI, a1 = ((k + 1) / 8) * 2 * Math.PI, nrm = [Math.cos((a0 + a1) / 2), Math.sin((a0 + a1) / 2), 0].map(r5);
@@ -291,9 +295,16 @@ export function cryptDress(plan, geom) {
   const k = D.accent.repeat || 1, uv = (f) => (k === 1 ? f.uv : f.uv.map(([u, v]) => [r5(u * k), r5(v * k)]));
   const accentFaces = accent ? geom.faces.filter(onAccent).map((f) => ({ ...f, texture: `${fam}-${(f.texture || 'x-a').slice(-1)}`, uv: uv(f), tint: D.accent.tint, group: 'stage:accent' })) : [];
   const keepClear = [{ x: tc[0], y: tc[1], r: Math.hypot(D.tomb.dais.w, D.tomb.dais.d) / 2 + 0.6 }];
+  // what the dressing places, by name (anchors.js): the set piece and its lid, the accent wall, every niche and thing
+  const anchors = [
+    { id: 'set-piece', kind: 'set-piece', form: tomb.form, room: tomb.room, at: tomb.at, solid: true },
+    { id: 'set-piece-lid', kind: 'part', of: 'set-piece', name: 'lid', room: tomb.room, at: tomb.at, solid: true },
+    ...(accent ? [{ id: 'accent-wall', kind: 'accent-wall', room: accent.room, at: P(at(accent.F, accent.F.len / 2, 0, 0)), N: P(accent.F.N), length: r5(accent.F.len), ...(D.accent.skulls ? { form: 'ossuary' } : {}) }] : []),
+  ];
+  const faces = [...tomb.faces, ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent, anchors), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear, anchors)];
   return {
     cameras: [tombCamera(plan, tomb.corners)],
-    faces: [...tomb.faces, ...accentFaces, ...(accent && D.accent.skulls ? ossuaryRows(plan, pil, accent) : []), ...cryptNiches(plan, pil, accent), ...cryptCobwebs(plan, pil), ...(D.ivy && D.ivy.amount > 0 ? ivyGrowth(plan, pil, accent, D.ivy.amount, D.ivy.tint) : []), ...cornerThings(plan, pil, { stone: coffinStone(plan), ...D.props }, keepClear)],
+    faces, anchors,
     blends: (faces) => blendsByCause(plan, faces, D.moss, D.grime, D.earth),
     after: candles.faces, pools: [], lights: candles.lights, cut: onAccent, shadowSkip: () => false,
   };

@@ -161,16 +161,19 @@ export function placeThings(plan, pilasters, spec, keepClear = []) {
   return out;
 }
 
-/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room. */
-export function cornerThings(plan, pilasters, spec, keepClear = []) {
-  const out = [], rocks = [];
+/** The props for a plan: `spec` { kinds, share, clusters?, apart?, rock?, tone?, wood?, stone? }; `keepClear` [{ x, y, r }]. → faces, baked with the room.
+ *  `anchors` (an array) takes one record per thing (anchors.js): a doodad's or a built prop's faces carry its id as
+ *  their `node`; a heap of stones is pooled with every other, so it is addressed by its place and size alone. */
+export function cornerThings(plan, pilasters, spec, keepClear = [], anchors = null) {
+  const out = [], rocks = [], count = {};
   const W = spec.wood || PROP_WOOD, S = { wood: woodSurf(W.light, [0.9, 0.88, 0.86]), dark: woodSurf(W.dark, [0.92, 0.9, 0.88]),
     stone: { ...(spec.stone || { key: 'marble-carrara', scale: 1.2, tint: [0.6, 0.58, 0.55] }), group: 'stage:prop' } };
   for (const t of placeThings(plan, pilasters, spec, keepClear)) {
-    const { kind, seed } = t, it = t;
+    const { kind, seed } = t, it = t, id = `${kind}-${(count[kind] = (count[kind] || 0) + 1)}`, big = DOODAD_KINDS.includes(kind);
+    if (anchors) anchors.push({ id, kind: big ? 'doodad' : 'prop', form: kind, at: P(it.p), N: P(it.N), ...(t.cluster ? { cluster: t.cluster } : {}), ...(big ? { solid: true } : {}) });
     {
       // a doodad's faces carry their own group (`stage:prop-doodad`), so the law reads where the large things stand
-      if (ITEMS[kind]) { const n0 = out.length; ITEMS[kind](out, it.p, it.N, it.U, t.s, seed, S); if (DOODAD_KINDS.includes(kind)) for (let q = n0; q < out.length; q++) out[q].group = 'stage:prop-doodad'; continue; }
+      if (ITEMS[kind]) { const n0 = out.length; ITEMS[kind](out, it.p, it.N, it.U, t.s, seed, S); for (let q = n0; q < out.length; q++) { if (big) out[q].group = 'stage:prop-doodad'; if (anchors) out[q].node = id; } continue; }
       // the rock kinds: stones in a small heap, a boulder with stones at its foot, a scatter of debris
       const n = kind === 'stones' ? 5 : kind === 'boulder' ? 3 : 8;
       for (let k = 0; k < n; k++) {
@@ -179,6 +182,9 @@ export function cornerThings(plan, pilasters, spec, keepClear = []) {
         const q = add(add(it.p, mul(it.U, along)), mul(it.N, out2));
         rocks.push({ x: r5(q[0]), y: r5(q[1]), z0: 0, size: r5(size) });
       }
+      // pooled with every other stone: its bounds are its stones' (each about its size across, sunk a fifth)
+      if (anchors) { const mine = rocks.slice(-n), a = anchors[anchors.length - 1];
+        a.box = { min: P([Math.min(...mine.map((q) => q.x - q.size / 2)), Math.min(...mine.map((q) => q.y - q.size / 2)), 0]), max: P([Math.max(...mine.map((q) => q.x + q.size / 2)), Math.max(...mine.map((q) => q.y + q.size / 2)), Math.max(...mine.map((q) => q.size * 0.8))]) }; }
     }
   }
   for (const f of out) f.doubleSided = true;   // a prop is seen from every side the walker can reach

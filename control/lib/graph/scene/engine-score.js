@@ -11,7 +11,7 @@
  * the y-up root. NOT an engine adapter: no engine names in here.
  */
 import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
-import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
+import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
 import { normalizeHud } from '@/lib/graph/game/hud-widgets';
 import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
@@ -176,6 +176,15 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (cryRig) {
     ledger.crystal_light_performed = { lamps: cryRig.lamps.length, stones: cryRig.stones.filter((st) => st.op).length, targets: cryRig.targets.length, note: 'performed live by kernel/crystal_light.gd (beams re-solved each frame against the level\'s meshes); movers do not travel, so stones stand at rest; the GLB carries a frozen frame at t = 0' };
   }
+  // The level's ADDRESS (a room stage, era/anchors.js): rooms, anchors (doorways, doors, items, the set piece, things,
+  // torches, niches) and the colliders built from them, so an idiom can name a place and an engine can walk and
+  // trigger it. Absent ⇒ no key, byte-identical.
+  const addr = levelAddress(payload, sv, sn);
+  if (addr.anchors) {
+    const by = {};
+    for (const a of addr.anchors) by[a.kind] = (by[a.kind] || 0) + 1;
+    ledger.address_carried = { count: addr.anchors.length, rooms: addr.rooms ? addr.rooms.length : 0, kinds: Object.entries(by).map(([k, n]) => `${k} ×${n}`), note: 'rooms and anchors ride score.json and the GLB scene extras (moj:rooms, moj:anchors); an anchor with a `node` is the GLB node of that name; doorways, doors and items become triggers in kernel/level.gd, every anchor a named Marker3D' };
+  }
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
   // lib/ instead of found at the most expensive gate that happens to be open.
@@ -210,6 +219,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),
     colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
+    ...addr,
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
     ...(lights.length ? { lights } : {}),
     // the sky DECLARATION (a preset name: day / night / dawn / dusk) so an engine rig can set its

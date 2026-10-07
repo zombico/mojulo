@@ -33,7 +33,7 @@ import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.j
 import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
-import { levelCameras, levelEntityNodes, levelSceneExtras, zRotationQuat } from './scene-gltf-level.js';
+import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, zRotationQuat } from './scene-gltf-level.js';
 import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 
@@ -1159,7 +1159,8 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const groupMap = new Map();
   for (const f of expanded) {
     if (!f || f.decal === 'shadow' || f.decal === 'ink' || f.water) continue;
-    const k = typeof f.group === 'string' ? f.group : 'static';
+    // a face naming its `node` (an addressable thing: era/anchors.js) is that node's, whatever its group
+    const k = typeof f.node === 'string' && f.node ? f.node : typeof f.group === 'string' ? f.group : 'static';
     if (!groupMap.has(k)) groupMap.set(k, []);
     groupMap.get(k).push(f);
   }
@@ -1476,7 +1477,10 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   if (sceneExtras && unitScale) {
     const sv = (v) => v.map((x) => x * unitScale);
     if (sceneExtras['moj:spawn']) sceneExtras['moj:spawn'] = sv(sceneExtras['moj:spawn']);
-    if (sceneExtras['moj:colliders']) sceneExtras['moj:colliders'] = sceneExtras['moj:colliders'].map((c) => ({ min: sv(c.min), max: sv(c.max) }));
+    if (sceneExtras['moj:colliders']) sceneExtras['moj:colliders'] = sceneExtras['moj:colliders'].map((c) => ({ ...c, min: sv(c.min), max: sv(c.max) }));
+    const addr = levelAddress({ rooms: sceneExtras['moj:rooms'], anchors: sceneExtras['moj:anchors'] }, sv, (x) => x * unitScale);
+    if (addr.rooms) sceneExtras['moj:rooms'] = addr.rooms;
+    if (addr.anchors) sceneExtras['moj:anchors'] = addr.anchors;
   }
   if (sceneExtras) b.json.scenes[0].extras = sceneExtras;
 
