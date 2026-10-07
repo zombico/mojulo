@@ -8,7 +8,7 @@
   "mcpServers": {
     "mojulo": {
       "command": "npx",
-      "args": ["-y", "mojulo@3.0.1"]
+      "args": ["-y", "mojulo@3.1.0"]
     }
   }
 }
