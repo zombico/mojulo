@@ -24,6 +24,15 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-07 (playscape: the catapult): the runtime gained the `launcher` rule, its `launch` world pass and
 // `launch-lock` pre-step. On the `controllable` fixture 62 lines are added and 2 replaced: the rule registry names
 // `launcher`, and the platform rule's jump cut skips a rider a launcher threw (`!e.launchedBy`, unset without one).
+//
+// Re-pinned 2026-10-07 (playscape: the ladder): the runtime gained the `climb` body owner (a platform body takes hold of
+// a `climbable` entity, climbs it, mounts its lip, kicks off it). The diff on the `controllable` fixture is additions
+// only (80 lines, none removed); a world without a climbable never takes hold.
+//
+// Re-pinned 2026-10-07 (playscape: breakable terrain and its gravity): the runtime gained the `breakables` state init,
+// the `break` world pass (after the projectiles: hits, then the held set, the falls and the landings) and
+// `breakBlock`. The diff on the `controllable` fixture is additions only (117 lines, none removed); a world without
+// `breakables` keeps no breakable state and the pass returns at once.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

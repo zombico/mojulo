@@ -656,7 +656,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // reactions or sequences — it reacts to physics FACTS (via __mojSim, when physics is live) and/or
   // timer-driven sequences, reflecting verb effects onto marker meshes. No reactions/sequences → no
   // block (a bare `sources` list with nothing listening is inert, so it is not worth emitting).
-  const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0));
+  const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0) || (Array.isArray(events.hud) && events.hud.length > 0));
   const eventsBlock = hasEvents ? eventsChannelScript(events) : '';
   // audio channel: never emitted on capture runs (headless bakes carry no sound and must stay
   // byte-identical to a muted live run); absent audio interpolates '' so no-audio worlds are

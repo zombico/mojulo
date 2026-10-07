@@ -9,6 +9,9 @@
 import { ENTRIES, resolveObject } from './objects/index.js';
 import { landingRead } from './objects/platform.js';
 import { BRIDGE_MOTIFS, CROSSING, WALK_GRADE } from './objects/bridge.js';
+import { LADDER_LAWS } from './objects/ladder.js';
+import { STAIRS_LAWS } from './objects/stairs.js';
+import { LINK_VERBS } from './links.js';
 
 /** The bytes an entry card's body may take. */
 export const ENTRY_CARD_BODY_CEILING = 3200;
@@ -136,4 +139,48 @@ export function bridgeCard() {
   return { id: 'entry/bridge', name: `${E.name} (playscape entry)`, summary: 'A walkable way over a gap, called by its ends: plank, deck, rope or arch.', when: E.when, body: lines.join('\n') };
 }
 
-export const playscapeEntryCards = () => [entryCard('door'), platformCard(), liftCard(), catapultCard(), bridgeCard()];
+// the verbs line every link card closes with: how the entry fits among the others that join two levels
+const VERBS = `LINKS      a level change is answered by a verb: ${Object.keys(LINK_VERBS).join(', ')}. riseLinks(from, to) lists every one that fits; answerAnchor(a scapeshift stairs site, pit or crossing, { kit }) builds the one that fits in the kit's style (its timber, joint and edge words).`;
+
+export function ladderCard() {
+  const E = ENTRIES.ladder, o = resolveObject({ entry: 'ladder', to: [0, 0, 3], rise: 3, facing: [0, -1] });
+  const lines = [
+    `# ${E.name} (playscape entry)`, '',
+    'A climb from one level to the next: the body leaves the walk and goes hand over hand. Call it by its ENDS (`to`: the lip of the level above, on its top; `from`: a point on the level below) or by `to`, a `rise` and the `facing` the climber comes from.', '',
+    'VARIANTS AND THEIR ELEMENTS (turn any off: `elements: { cage: true, horns: false }`)',
+    ...Object.entries(E.variants).map(([v, V]) => `  - ${v}: ${V.about}. Elements: ${V.elements.join(', ')}. Climbed at ${V.speed} m/s.`),
+    'KIT WORDS  `timber` sawn | round | culm (the rails\' section), `joint` lashed | pegged | notched | collared: the middle third\'s joints are its 33.',
+    `LAWS       ${[...new Set(LADDER_LAWS.map((l) => `${l.law} (${l.want})`))].join('; ')}. Measured, never refused.`,
+    'IT ANSWERS FOR ITSELF',
+    `  its climb (a 3 m lean ladder: ${o.climb.seconds} s, mounts the lip, lands you ${m2(0.5)} onto the level), its laws, and a \`climbable\` the world runs: walk into its face to take hold, forward climbs, jump kicks off, the lip steps you off; walk off the lip toward it to climb down.`,
+    VERBS,
+    '', 'STARTERS',
+    `  ${JSON.stringify({ entry: 'ladder', variant: 'ladder', to: [0, 0, 3], rise: 3, facing: [0, -1] })}`,
+    `  ${JSON.stringify({ entry: 'ladder', variant: 'rungs', from: [0, -1, 0], to: [0, 0, 8] })}`,
+    `  ${JSON.stringify({ entry: 'ladder', variant: 'rope', to: [4, 0, 5], rise: 5, facing: [0, -1], mount: false })}`,
+    `  ${JSON.stringify({ entry: 'ladder', variant: 'net', from: [0, -2, 0], to: [0, 0, 3.5], width: 2.4 })}`,
+  ];
+  return { id: 'entry/ladder', name: `${E.name} (playscape entry)`, summary: 'A climb up to a lip: a lean ladder, fixed rungs, a rope or a net, climbed in the world.', when: E.when, body: lines.join('\n') };
+}
+
+export function stairsCard() {
+  const E = ENTRIES.stairs, o = resolveObject({ entry: 'stairs', from: [0, 0, 0], rise: 2.4 });
+  const lines = [
+    `# ${E.name} (playscape entry)`, '',
+    'A walk from one level to the next: the body never leaves its feet. Call it by its ENDS (`from`: the foot on the level below; `to`: the top on the level above) and it fits its going to the run between, or by `from`, a `rise` and a `facing` and it lays its own.', '',
+    'VARIANTS AND THEIR ELEMENTS (turn any off: `elements: { handrail: false }`)',
+    ...Object.entries(E.variants).map(([v, V]) => `  - ${v}: ${V.about}. Elements: ${V.elements.join(', ')}.`),
+    'KIT WORDS  `edge` timber | stone: the outdoor steps\' riser edge, a staked board or a laid stone.',
+    `LAWS       a flight: ${STAIRS_LAWS.filter((l) => l.forms.includes('flight')).map((l) => l.law).join(', ')}; outdoor steps: the man-made index's own steps laws; a ramp: ${STAIRS_LAWS.filter((l) => l.forms.includes('ramp')).map((l) => l.law).join(', ')}.`,
+    'IT ANSWERS FOR ITSELF',
+    `  its walk (a 2.4 m flight: ${o.params.n} risers of ${m2(o.params.R)}, treads ${m2(o.params.T)}, ${m2(o.params.run)} of run, ${o.walk.seconds} s), its laws, a floor face over a solid block under each tread (the platform rule steps up it), the rails as lines.`,
+    VERBS,
+    '', 'STARTERS',
+    `  ${JSON.stringify({ entry: 'stairs', variant: 'flight', from: [0, 0, 0], to: [0, 4, 2.8] })}`,
+    `  ${JSON.stringify({ entry: 'stairs', variant: 'steps', from: [0, 0, 0], rise: 1.4, facing: [0, 1], edge: 'stone' })}`,
+    `  ${JSON.stringify({ entry: 'stairs', variant: 'ramp', from: [0, 0, 0], rise: 1, facing: [1, 0] })}`,
+  ];
+  return { id: 'entry/stairs', name: `${E.name} (playscape entry)`, summary: 'A walk up to the next level: a flight, outdoor steps or a ramp, its going laid by the stride.', when: E.when, body: lines.join('\n') };
+}
+
+export const playscapeEntryCards = () => [entryCard('door'), platformCard(), liftCard(), catapultCard(), bridgeCard(), ladderCard(), stairsCard()];

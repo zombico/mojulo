@@ -83,8 +83,9 @@ function notches({ mask, hmask, W, H }, label = null) {
         if (!mask[k] && !seen[k]) { seen[k] = 1; region.push(k); }
       }
     }
-    // a sliver a pixel or two across along the hull is rasterising, not a break: a notch is at least 3 px each way
-    if (opens && region.length >= NOTCH_PX && x1 - x0 >= 2 && y1 - y0 >= 2) { n++; if (label) for (const j of region) label[j] = n; }
+    // a sliver a pixel or two across along the hull is rasterising, not a break: a notch is at least 3 px each way, and
+    // as thick on average (a sliver along a sloped edge has a long box and no depth)
+    if (opens && region.length >= NOTCH_PX && x1 - x0 >= 2 && y1 - y0 >= 2 && region.length / Math.max(x1 - x0 + 1, y1 - y0 + 1) >= 3) { n++; if (label) for (const j of region) label[j] = n; }
   }
   return n;
 }

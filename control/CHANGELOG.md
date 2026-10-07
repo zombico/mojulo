@@ -120,7 +120,8 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
   advice). Built of blocks: sever a rope bridge's footropes and its planks fall.
 - **Object measures read roles.** A face's role is its part when the part names one, else its `obj:*` group, so an
   entry that names parts by element is judged; a silhouette notch must be 3 px each way (a rasterised sliver along the
-  hull no longer counts). Existing entries measure as before.
+  hull no longer counts). Existing entries measure as before. A notch must also be 3 px thick on average, so a sliver
+  along a sloped edge (a long box and no depth) does not count either.
 - **The bridge dressed by a kit, and held to the outdoor index's structural laws.** `dress` (a kit's tokens from
   `era/out-made.js` `madeStyle`) dresses a bridge without moving what it plays (its deck, colliders, rails and clearances
   are the plain bridge's): members chunkier or slighter in section (a post is never slighter than what it carries; a
@@ -131,6 +132,85 @@ what it looks like. No tool is added; `get_game_vocab` gains a family.
   object laws wherever the plain one holds them. Two structural fixes from the index's laws: a deck's stringers deepen
   with the bay they span (bay ÷ depth ≤ 16; the abutments and piers bear at their underside), and an arch's parapet is a
   rail (0.86 m, its coping to 0.96). A value on a tone band's edge now measures in the band above it.
+- **Links: where scapeshift meets playscape.** `playscape/links.js`. Scapeshift makes the place and marks where it
+  asks to be joined (a trail's stairs site, a pit, a stream); playscape answers with a VERB (walk, climb, cross, ride,
+  launch, hop, drop) and the entry that performs it. `riseLinks(from, to)` lists every way between two levels that
+  fits the rise and the room on the ground (a hop is the walker's own jump, a drop only goes down), quickest first.
+  `linkStyle(kit)` reads a scapeshift kit's made tokens (`era/out-made.js` `madeStyle`) as the words the entries take:
+  its joinery picks a rope or a deck bridge and lashes or pegs a ladder, its edge word sets the outdoor steps' risers,
+  and every part an entry builds names the swatch role the tone will paint it from. `answerAnchor(anchor, { kit })`
+  answers a trail anchor in the kit's style: a stairs site gets a walk where one fits (the trail's own outdoor steps
+  first) and a climb where none does; a pit or a stream gets a bridge in the kit's joinery, beside the hop or the
+  ford it already is. Scapeshift imports nothing from playscape.
+- **The ladder entry: a climb from one level to the next.** `objects/ladder.js`, called by its ends like a bridge
+  (`to`, the lip; `from`, or a `rise` and a `facing`). Variants `ladder` (a lean ladder at 4:1, horns past the lip),
+  `rungs` (a fixed ladder on brackets, grab bars, a cage past 6 m), `rope` (hung from a beam, wrapped where the hands
+  close, a whipped tail) and `net` (a cargo net, climbed across as well as up). The kit's `timber` sets the rails'
+  section and its `joint` the middle third's joints, the 33 (lashings, pegs, notches, collars). Its laws (rung pitch,
+  width, 4:1, extension past the lip, cage, holds, clear, mesh, drape) come back in the man-made index's shape. Every
+  variant holds the object laws and its own from 2 to 8 m.
+- **The climb in the world runtime.** The `climb` body owner: a platform body takes hold of a `climbable` entity by
+  walking into its face, by falling past it pressing toward it, or by walking off its lip toward it; forward climbs,
+  strafe crosses a net, jump kicks off, the lip steps it off onto the level and the foot lets go. The climb owns the
+  body (the rule and its gravity are suppressed); a hit or a drop lets go. The pipeline pin names `climb` after
+  `drop`; the World page's runtime gained 80 lines and the emission pins re-pinned.
+- **The stairs entry: a walk from one level to the next.** `objects/stairs.js`, called by its ends (it fits its going
+  to the run between) or by a `rise` and a `facing` (it lays its own). Variants `flight` (closed risers between
+  stringers, balusters under a rail past 0.6 m, newels, a landing every 16 risers), `steps` (outdoor steps cut into a
+  bank, a staked board or a laid stone at each riser by the kit's `edge` word, a landing every 10) and `ramp` (a deck
+  between kerbs under the walk's grade, cleats, trestles, a landing every 9 m). The going comes from the stride
+  (2R + T); the outdoor steps are measured by the man-made index's own `steps` laws. It lowers to a floor face over a
+  solid block under each tread, so the platform rule walks up it riser by riser. Judged side-on: every variant holds
+  the object laws from 0.5 to 5 m (a ramp to 3.2 m: one with three landings draws one segment too many, and a 0.5 m
+  stone stoop's pins run a hair over the third).
+- **Breakable terrain: scapeshift gives the shape, playscape makes it break.** `playscape/terrain.js` takes either
+  scapeshift's own boxes (`fromColliders(stage.colliders, 'wall:crypt')` picks colliders by their `of` and hands the
+  rest back untouched) or a form asked of its library (`wall` in running bond, `pillar`, `crate`, `slab`), cuts them
+  into axis-aligned blocks a hit takes one at a time, and draws each block's faces under its own `node`
+  (`break:<id>`, as scapeshift's anchors do) for the page to hide. A block is standing (a collider: it blocks the walk,
+  the sight, the shot and holds up whatever stands on it) or broken (gone from the colliders). The runtime keeps the
+  state: `createWorld({ breakables })` puts each block in the colliders, and the new `break` world pass, after the
+  projectiles, takes one hp per hit from this tick's records: a hitscan that stopped on a block, a burst whose splash
+  reaches it, a swing whose reach and cone take it in (once a swing). Blocks have 1 hp while this is tested. A break
+  leaves a seq-keyed record on `state.breaks`; `breakBlock(state, id)` breaks one by hand; `groundOf(colliders)`
+  stands a walker on what still stands, so a broken slab drops it. `blockPieces` gives a broken block's shatter from
+  the destruct primitives' cleave. The pipeline pin names `break` after `projectiles`; the World page's runtime gained
+  117 lines with the gravity below and the emission pins re-pinned. The page does not yet hide a broken block or play
+  its pieces.
+- **Gravity for breakable terrain: what stacks, what falls.** A block stands while it is held: on the floor, on a
+  collider that is not a block (scapeshift's own), or on a held block; a slab's tiles (`bond: 'lateral'`) are also
+  held by each other, so a slab spans between its legs. Whenever a block breaks or lands the held set is worked out
+  again, and a block no longer held falls (18 m/s²), still a collider, onto the highest top under it that is not
+  falling, snapped so a stack lands stacked. A landing faster than 7 m/s (about 1.4 m) breaks the block and the
+  block it lands on (`how: 'fall'`, `'crush'`). So a running-bond wall keeps a block while either block under it
+  stands, a stack drops a block when its foot goes, and a crate on a slab falls through the hole a broken tile
+  leaves. `spec.breakFloor`, `fallGravity` and `fallBreak` tune it; `FORM_BOND` and `ask.bond` set the bond.
+- **The player: a hero from the hero door, driven in a world.** `playscape/player.js`: the move set adds what a hero
+  lacks for the runtime's states (`PLAYER_CLIPS`: the jump's wind-up `squat` and its flight `leap`, in the door's pose
+  words) and names which of its clips plays each state (`playerStates`: forward runs, idle idles relaxed, leap and boost
+  hold the flight, turn walks); `playerWorld({ hero | heroRef })` is a controllable world with the hero as the pilot on
+  the platform rule (W/S run, A/D turn, Space jump; a 4 m/s run, a hop of about a metre), a follow camera, a test
+  course (hop-up blocks, a flight of stairs onto a terrace, a wall) and the controls as a `legend` idiom. The figures
+  map takes a hero (world-scene.js): `figures.<name>.hero` (inline, as the door takes it) or `heroRef` (a stored
+  layered hero) resolves through the layered kind to the packed rig every rig body plays, without the static solid or
+  the preview, with `clips` naming the hero's clip for each runtime state (a name it lacks is refused by name). A
+  world's `events` block that is HUD-only (a legend alone) now reaches the page; before, it needed a reaction or a
+  sequence. The anime heroine (docs/examples/humanoid/cast/heroine.json) runs, idles, jumps and lands on the course on
+  the World page.
+- **Clips from an outside animation library, on mojulo's own rigs.** `figures/clip-library.js` reads a humanoid glTF
+  library (its skin and clips) into HUB clips: each humanoid bone's world turn away from the library's bind T-pose, in
+  the native frame (z up, facing +y), keyed by VRM name, and the hips' bob and sway as a share of the hip height
+  (`hubClips`; `LIBRARY_MAPS` maps a library's joints, Quaternius's Universal Animation Library first). `retargetClip`
+  composes each turn on the T-pose mold's rest → T offset (rig-tpose.js) and recomputes the heads down the rig's own
+  tree, so the clip lands in the keys every rig body plays; a rig with fewer spine bones takes each bone's own turn.
+  `scripts/import-clip-library.mjs` writes a hub from a library's file; Quaternius's free CC0 locomotion ships as one
+  (`figures/library/quaternius-ual.js`: idle, walk, jog, sprint, the jump's start, loop and land, crouch idle and walk,
+  a hit; 241 KB, loaded only by a world that names it). A hero in the figures map takes `library`, and a state's clip
+  the hero lacks is retargeted from it (a clip not named `_Loop` plays once and holds). The player starts from the
+  library (`LIBRARY_STATES`: the jog, the idle, the jump's start and loop), the hero's own clips and the move set's
+  filling the gaps; `library: false` plays the hero's own. Against the library's own mannequin, the heroine's limbs
+  point within 4.7° of its limbs on every frame of the walk, the jog and the jump; the whole residual is the library's
+  shin, which leans 4.7° back in its bind pose where the mold stands the leg straight.
 
 ### Scapeshift
 
