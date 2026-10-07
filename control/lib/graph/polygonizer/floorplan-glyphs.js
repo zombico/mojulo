@@ -788,7 +788,7 @@ const PROGRAM_HALL = 4.5;      // landing / corridor width (feet) — 1.37 m cle
 // target for circulation), this gives the area a room of that kind WANTS. Rooms are
 // then allocated the footprint in proportion to these budgets (the "fractal" share),
 // so a bedroom is wider than a closet and bigger houses grow rooms AND add them.
-const FURNITURE_FT = {
+export const FURNITURE_FT = {
   sofa: 21, 'modern-couch': 22, table: 4, 'dining-table': 18,
   armchair: 6, 'club-chair': 6, 'lounge-chair': 6, 'tub-chair': 6, 'single-sofa': 6,
   chair: 3.5, 'yoke-chair': 3.5, 'ladder-chair': 3.5, 'computer-chair': 3.5, stool: 2,
@@ -799,7 +799,7 @@ const FURNITURE_FT = {
   window: 0, door: 0, picture: 0, sconce: 0, tv: 0, rug: 0, runner: 0, monitor: 0, laptop: 0, keyboard: 0,
 };
 // furniture-to-floor coverage a room packs to; the remainder is circulation
-const PACKING = { L: 0.30, D: 0.28, K: 0.22, B: 0.34, O: 0.30, S: 0.5, E: 0.3, W: 0.30, Y: 0.45 };
+export const PACKING = { L: 0.30, D: 0.28, K: 0.22, B: 0.34, O: 0.30, S: 0.5, E: 0.3, W: 0.30, Y: 0.45 };
 
 /** Furniture-derived target floor area (sqft) an archetype WANTS = Σ its piece
  *  footprints ÷ its packing target (circulation around the furniture). */

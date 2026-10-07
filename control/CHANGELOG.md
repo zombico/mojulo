@@ -12,6 +12,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Furnishings roster
+
+- **One row per piece of room furniture** ([lib/graph/furnishings/roster.js](lib/graph/furnishings/roster.js)).
+  A piece used to answer to up to five spellings across the arranger types, box-net presets and nets, the
+  share-mode meshes and the constructed stand-ins (the bookshelf was `bookshelf`, `bookcase` and
+  `constructed-bookcase`). Each row now gives the piece one id, a label, a role (what a room asks for: `sofa`,
+  `desk`, `bookcase`…), the words people say for it, and its handles into those tables. The roster names; the
+  tables still measure, and no builder reads the roster yet, so every house is byte-identical.
+- **`resolveFurnishing(word)`**, the animals' rule: "a Couch", "bookshelves", "TV stand" and "credenza" each resolve
+  to one piece. The name index throws when one word would name two pieces.
+- **The contract** (`roster.test.js`): every key of every furniture table, and every type and mesh an arranger
+  emits, belongs to exactly one row; `SHARE_ASSETS` and `CONSTRUCTED_FOR` agree with the rows; a row missing a
+  line fails with the line it needs. It found `l-table` in the wall-hugging set with no preset, band or net
+  behind it (it is only a mesh).
+
 ### Fabricator shelf and naming
 
 - **The shelf reaches metal, sheet and extrusion work:**

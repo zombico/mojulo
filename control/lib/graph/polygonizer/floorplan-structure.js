@@ -779,7 +779,7 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
 }
 
 // arranger type (or the mesh it was given) → the constructed facade that stands in for it (room-assets.js)
-const CONSTRUCTED_FOR = {
+export const CONSTRUCTED_FOR = {
   sofa: 'constructed-sofa', 'modern-couch': 'constructed-sofa', armchair: 'constructed-armchair', 'club-armchair': 'constructed-armchair',
   table: 'constructed-coffee-table', 'coffee-table': 'constructed-coffee-table', 'media-unit': 'constructed-media-console', 'media-console': 'constructed-media-console',
   bookshelf: 'constructed-bookcase', bookcase: 'constructed-bookcase', sideboard: 'constructed-sideboard', 'sideboard-cabinet': 'constructed-sideboard',
