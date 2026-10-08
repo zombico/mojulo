@@ -10,6 +10,7 @@ import { figureSpan, lift } from './camera.js';
 import { plateMask } from './mask.js';
 import { inPoly, edgeDist, touches } from './geom.js';
 import { components, cellOf } from './bake.js';
+import { cutsOf } from './walkmesh.js';
 
 export const WALK_LAWS = Object.freeze({
   'floor-below-horizon': 'Every floor point sits below the horizon: a point on or above it never lands on the ground.',
@@ -54,7 +55,7 @@ export function groupOf(plate, x, groups = floorGroups(plate)) {
 const mid = (e) => ({ px: e.px.every(Boolean) ? [(e.px[0][0] + e.px[1][0]) / 2, (e.px[0][1] + e.px[1][1]) / 2] : null, m: e.m.every(Boolean) ? [(e.m[0][0] + e.m[1][0]) / 2, (e.m[0][1] + e.m[1][1]) / 2, 0] : null });
 
 export function walkAdvice(wm) {
-  const out = [], byId = new Map(wm.plates.map((p) => [p.id, p]));
+  const out = [], byId = new Map(wm.plates.map((p) => [p.id, p])), cuts = cutsOf(wm);
   for (const p of wm.plates) {
     const [W, H] = p.size, tol = Math.hypot(W, H) * EDGE_TOL, groups = floorGroups(p);
     if (!p.floor.length) { out.push({ law: 'reachable', at: p.id, advice: 'the plate has no floor: draw the walkable ground as floor polygons' }); continue; }
@@ -73,7 +74,7 @@ export function walkAdvice(wm) {
     const starts = [];
     for (const s of p.spawns) {
       const g = groupOf(p, s, groups);
-      if (g < 0 || (p.source === 'painted' && !p.floor.some((f) => inPoly(s.px, f.px)))) out.push({ law: 'spawn-on-floor', at: `${p.id} · ${s.id}`, advice: 'the spawn is off the floor' });
+      if (g < 0 || (p.source === 'painted' && (!p.floor.some((f) => inPoly(s.px, f.px)) || p.holes.some((q) => inPoly(s.px, q.px))))) out.push({ law: 'spawn-on-floor', at: `${p.id} · ${s.id}`, advice: 'the spawn is off the floor' });
       else starts.push(g);
     }
     for (const e of p.exits) {
@@ -88,7 +89,8 @@ export function walkAdvice(wm) {
         else if (!(back.to.plate === p.id && back.to.exit === e.id)) out.push({ law: 'exit-resolves', at: `${p.id} · ${e.id}`, advice: `'${e.to.plate}.${e.to.exit}' does not lead back here: a one-way cut` });
       }
     }
-    if (!p.spawns.length && !p.exits.length) out.push({ law: 'reachable', at: p.id, advice: 'no spawn and no exit: nothing enters this plate' });
+    const cutIn = cuts.some((c) => (c.by === 'zone' && (c.from === p.id || c.to === p.id)) || (c.by === 'trigger' && c.to === p.id));
+    if (!p.spawns.length && !p.exits.length && !cutIn) out.push({ law: 'reachable', at: p.id, advice: 'no spawn, no exit, no zone cut and no trigger: nothing enters this plate' });
     // the figure at the front and at the back of the floor the plate shows (the mask's nearest and farthest rows)
     const mask = plateMask(p, 96), rows = [];
     for (let j = 0; j < mask.h; j++) { const xs = []; for (let i = 0; i < mask.w; i++) if (mask.cells[j * mask.w + i]) xs.push(i); if (xs.length) rows.push([j, xs[xs.length >> 1]]); }

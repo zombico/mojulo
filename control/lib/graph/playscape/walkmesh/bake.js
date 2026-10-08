@@ -10,8 +10,9 @@
  *   cellOf(bake, [x, y])                  the cell index under a point, or −1 off the grid
  *   walkable(bake, [x, y])
  *   components(bake)                      the walking cells grouped by 4-connection → { label: Int32Array, count }
- *   bakeMask(payload, B, size, bake, w)   the occlusion mask at w columns: per cell 0 nothing, 1 floor seen, 2 floor
- *                                         hidden (a figure standing there loses its feet behind a nearer face)
+ *   bakeMask(payload, B, size, bake, w, zone)  the occlusion mask at w columns: per cell 0 nothing, 1 floor seen, 2
+ *                                         floor hidden (a figure standing there loses its feet behind a nearer face);
+ *                                         only the zone's floor (metres) when a zone is given
  *
  * Pure and deterministic: the grid, the merge and the raster read the faces in order.
  */
@@ -112,7 +113,7 @@ export function components(bake) {
 }
 
 /** The occlusion mask: the world rasterised from the plate camera at w columns, nearest face per cell. */
-export function bakeMask(payload, B, [W, H], bake, w = 192) {
+export function bakeMask(payload, B, [W, H], bake, w = 192, zone = null) {
   const h = Math.max(1, Math.round((w * H) / W)), s = w / W;
   const depth = new Float32Array(w * h).fill(Infinity);
   const solid = solidOf(payload);
@@ -142,7 +143,7 @@ export function bakeMask(payload, B, [W, H], bake, w = 192) {
   const cells = new Uint8Array(w * h);
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     const g = lift(B, [(i + 0.5) / s, (j + 0.5) / s], 0);
-    if (!g || !walkable(bake, g)) continue;
+    if (!g || !walkable(bake, g) || (zone && !inPoly(g, zone))) continue;
     const gd = (g[0] - B.position[0]) * B.forward[0] + (g[1] - B.position[1]) * B.forward[1] + (g[2] - B.position[2]) * B.forward[2];
     cells[j * w + i] = depth[j * w + i] < gd - Math.max(0.15, gd * 0.01) ? 2 : 1;
   }

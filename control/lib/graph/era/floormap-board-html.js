@@ -12,9 +12,10 @@
  *   floormapPieceIds(manifest)
  *   floormapBoardPng(manifest)    the board laid out by a local Chromium (scene-png.js renderPageToPng)
  */
-import { readFloormap, floormapFaces, footprint, centroid } from './floormap.js';
+import { readFloormap, floormapFaces, footprint, centroid, triggerArea } from './floormap.js';
 import { floormapCameras, cutsOf, VIEW, FIGURE } from './floormap-cameras.js';
 import { floormapAdvice, project, FLOORMAP_LAWS } from './floormap-laws.js';
+import { plateBrief } from './floormap-brief.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (n) => Math.round(n * 10) / 10;
@@ -47,7 +48,7 @@ h1{font-size:22px;margin:0;letter-spacing:.02em}
 .badge{border:1.5px solid;border-radius:10px;padding:1px 10px;font-size:11px;font-weight:700;text-transform:uppercase;white-space:nowrap}
 .note{color:#9a958c;font-size:12px;margin:2px 0 8px}
 .key{display:flex;flex-wrap:wrap;gap:4px 14px;color:#9a958c;font-size:11px;margin:6px 0 0}.key svg{display:inline-block;width:22px;height:10px;vertical-align:-1px;margin-right:4px;background:none}
-.shot small{display:block;color:#9a958c;margin:4px 0 0;font-size:11px}.shot b{color:#e9e4da;font-weight:700}
+.shot .brief{color:#9a958c;font-size:10.5px;line-height:1.3;margin:4px 0 0}.shot small{display:block;color:#9a958c;margin:4px 0 0;font-size:11px}.shot b{color:#e9e4da;font-weight:700}
 ul.adv{margin:6px 0 0;padding-left:16px;color:#e8b04a;font-size:12px}ul.adv b{color:#e9e4da;font-weight:400}
 p.ok{color:#6cc070;font-size:12px;margin:6px 0 0}
 svg{display:block;width:100%;height:auto;background:#0d0e11;border-radius:3px}
@@ -102,6 +103,7 @@ export function piecePlan(fm, cams, cuts) {
     let g;
     if (f && it.kind === 'block') g = `<polygon points="${f.map(at).join(' ')}" fill="#b8b0a0" fill-opacity=".85"/>`;
     else if (f) g = `<polygon points="${f.map(at).join(' ')}" fill="#e9e4da"/>`;
+    else if (it.kind === 'trigger') g = `<polygon points="${triggerArea(it).map(at).join(' ')}" fill="#d65cc0" fill-opacity="${it.cut ? '.12' : '0'}" stroke="#d65cc0" stroke-dasharray="3 2"/>`;
     else if (it.kind === 'spawn') { const a = (it.face * Math.PI) / 180, d = [Math.cos(a), -Math.sin(a)]; g = `<path d="M${r1(x + d[0] * 9)} ${r1(y + d[1] * 9)} L${r1(x - d[1] * 5 - d[0] * 4)} ${r1(y + d[0] * 5 - d[1] * 4)} L${r1(x + d[1] * 5 - d[0] * 4)} ${r1(y - d[0] * 5 - d[1] * 4)} Z" fill="#fff"/>`; }
     else g = GLYPH[it.kind](x, y, (it.r || 1) * k);
     return `${g}${label(x + 8, y - 7, it.id, 10, 'start', '#c9c3b6')}`;
@@ -112,10 +114,18 @@ export function piecePlan(fm, cams, cuts) {
     const h = hue.get(c.id);
     return `<polygon points="${at(P)} ${at(ray(half))} ${at(ray(-half))}" fill="${h}" fill-opacity=".07" stroke="${h}" stroke-opacity=".7" stroke-dasharray="4 3"/><rect x="${r1(X(P[0]) - 5)}" y="${r1(Y(P[1]) - 4)}" width="10" height="8" fill="${h}"/>${label(X(P[0]), Y(P[1]) - 8, `${c.id} · ${c.shot}`, 11, 'middle', h)}`;
   }).join('');
-  const flips = cuts.filter((c) => c.flips).map((c) => `<circle cx="${X(c.at[0])}" cy="${Y(c.at[1])}" r="7" fill="none" stroke="#f07c5a" stroke-width="2"/>${label(X(c.at[0]) + 10, Y(c.at[1]) + 4, `${c.from} → ${c.to} turns round`, 10, 'start', '#f07c5a')}`).join('');
+  // a camera trigger: an arrow from its floor to the camera it cuts to (an insert's camera is its own)
+  const pos = new Map(cams.map((c) => [c.id, c.basis.position]));
+  const trig = fm.items.filter((it) => it.kind === 'trigger' && it.cut).map((it) => {
+    const to = typeof it.cut === 'string' ? it.cut : it.id, P = pos.get(to), h = hue.get(to) || '#d65cc0';
+    if (!P) return '';
+    const d = [P[0] - it.at[0], P[1] - it.at[1]], L = Math.hypot(...d) || 1, e = [P[0] - (d[0] / L) * 0.5, P[1] - (d[1] / L) * 0.5];
+    return `<line x1="${X(it.at[0])}" y1="${Y(it.at[1])}" x2="${X(e[0])}" y2="${Y(e[1])}" stroke="${h}" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow)"/>${label(X(it.at[0]), Y(it.at[1]) + 16, typeof it.cut === 'string' ? `cut → ${to}${it.from ? ` (from ${it.from})` : ''}` : `insert · ${it.cut.shot}`, 10, 'middle', h)}`;
+  }).join('');
+  const flips = cuts.filter((c) => c.flips && c.by !== 'leave').map((c) => `<circle cx="${X(c.at[0])}" cy="${Y(c.at[1])}" r="7" fill="none" stroke="#f07c5a" stroke-width="2"/>${label(X(c.at[0]) + 10, Y(c.at[1]) + 4, `${c.from} → ${c.to} turns round`, 10, 'start', '#f07c5a')}`).join('');
   const bar = `<line x1="${r1(ox + 10)}" x2="${r1(ox + 10 + step * k)}" y1="${r1(VH - 10)}" y2="${r1(VH - 10)}" stroke="#fff" stroke-width="2"/>${label(ox + 10, VH - 15, `${step} m`, 10)}`;
   const defs = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#fff"/></marker></defs>';
-  return piece('map:plan', `<svg viewBox="0 0 ${VW} ${r1(VH)}">${defs}${grid}${floors}${zones}${names}${edges}${items}${lenses}${flips}${bar}</svg>`);
+  return piece('map:plan', `<svg viewBox="0 0 ${VW} ${r1(VH)}">${defs}${grid}${floors}${zones}${names}${edges}${items}${lenses}${trig}${flips}${bar}</svg>`);
 }
 
 // a world polygon cut to the part in front of the camera
@@ -133,7 +143,7 @@ const LIGHT = (() => { const v = [-0.35, -0.55, 0.76], L = Math.hypot(...v); ret
 const shade = (hex, n) => { const s = 0.58 + 0.42 * Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]); return `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * s).toString(16).padStart(2, '0')).join('')}`; };
 
 /** map:shot:<camera> — the greybox through one camera, painter-sorted, back faces of the edges culled. */
-export function pieceShot(fm, cam, faces, hue) {
+export function pieceShot(fm, cam, faces, hue, brief = null) {
   const B = cam.basis, s = 480 / VIEW.width, z = fm.regions.find((r) => r.id === cam.zone.region).z, draws = [];
   for (const f of faces) {
     const c = f.corners.reduce((a, p) => [a[0] + p[0] / f.corners.length, a[1] + p[1] / f.corners.length, a[2] + p[2] / f.corners.length], [0, 0, 0]);
@@ -159,7 +169,7 @@ export function pieceShot(fm, cam, faces, hue) {
   // floors lie under everything that stands: they go first, then the zone's tint, then the rest far to near
   draws.sort((a, b) => (b.floor ? 1 : 0) - (a.floor ? 1 : 0) || b.depth - a.depth);
   const n = draws.filter((d) => d.floor).length, body = draws.slice(0, n).map((d) => d.svg).join('') + zone + draws.slice(n).map((d) => d.svg).join('');
-  return piece(`map:shot:${cam.id}`, `<div class="shot"><svg viewBox="0 0 480 270"><rect width="480" height="270" fill="#202228"/>${body}</svg><small><b style="color:${hue}">${esc(cam.id)}</b> · ${cam.shot} · ${Math.round(cam.framing.horizontalFov)}° across · eye ${r1(cam.basis.position[2] - z)} m · sees ${esc(cam.zone.region)}</small></div>`);
+  return piece(`map:shot:${cam.id}`, `<div class="shot"><svg viewBox="0 0 480 270"><rect width="480" height="270" fill="#202228"/>${body}</svg><small><b style="color:${hue}">${esc(cam.id)}</b> · ${cam.shot} · ${Math.round(cam.framing.horizontalFov)}° across · eye ${r1(cam.basis.position[2] - z)} m · sees ${esc(cam.zone.region)}</small>${brief ? `<p class="brief">${esc(brief.prompt)}</p>` : ''}</div>`);
 }
 
 /** map:laws — the advice, grouped by law. */
@@ -178,12 +188,12 @@ const KEY = `<div class="key">${['wall', 'rail', 'drop', 'water', 'foliage', 'vo
 export function floormapBoardHtml(manifest) {
   const { fm, cams, cuts, adv } = solve(manifest), st = Object.fromEntries(MAP_ITEMS.map((k) => [k, (manifest.direction || {})[k] || 'proposed'])), hue = hueOf(cams), faces = floormapFaces(fm);
   const tally = Object.entries(fm.pieces.reduce((m, p) => ((m[p.kind] = (m[p.kind] || 0) + Math.hypot(p.b[0] - p.a[0], p.b[1] - p.a[1])), m), {})).filter(([k]) => k !== 'open').map(([k, v]) => `${k} ${Math.round(v)} m`).join(' · ');
-  const shots = cams.map((c) => pieceShot(fm, c, faces, hue.get(c.id))).join('');
+  const shots = cams.map((c) => pieceShot(fm, c, faces, hue.get(c.id), plateBrief(fm, c, { style: manifest.style }))).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1240"><title>${esc(`Floormap · ${fm.title}`)}</title><style>${CSS}</style></head><body><div id="board">
 <h1>${esc(`FLOORMAP · ${fm.title}`.toUpperCase())}</h1>
 <p class="lede">seed ${fm.seed} · ${fm.regions.length} regions · ${fm.items.length} items · ${cams.length} cameras · ${cuts.length} cuts · approve each item: ${MAP_ITEMS.join(', ')}</p>
 <div class="row"><section class="card"><header><h2>From above</h2><div class="badges">${badge(TITLES.map, st.map)}${badge(TITLES.items, st.items)}</div></header><p class="note">edges: ${esc(tally)} · everything off the floor is backdrop</p>${piecePlan(fm, cams, cuts)}${KEY}</section></div>
-<div class="row"><section class="card"><header><h2>Shots</h2>${badge(TITLES.cameras, st.cameras)}</header><p class="note">the greybox through each camera; its zone tinted; a figure (${FIGURE} m) at the zone's middle</p><div class="row r3">${shots}</div></section></div>
+<div class="row"><section class="card"><header><h2>Shots</h2>${badge(TITLES.cameras, st.cameras)}</header><p class="note">the greybox through each camera; its zone tinted; a figure (${FIGURE} m) at the zone's middle · under each, the brief a painter gets with its guide</p><div class="row r3">${shots}</div></section></div>
 <div class="row"><section class="card"><header><h2>Laws</h2></header><p class="note">measured and advised, never refused</p>${pieceLaws(adv)}</section></div>
 </div></body></html>`;
 }

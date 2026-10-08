@@ -24,6 +24,11 @@
  *   floormapFaces(fm)      → the greybox: [{ corners, normal, kind, of }] (bakeFloor reads it as a world's faces);
  *                            edges face into their region, items out
  *   regionAt(fm, [x, y])   the region whose floor holds a point, or null
+ *   triggerArea(it)        a trigger's floor: a disc (`r`) or a turned rect (`size`, `rot`)
+ *
+ * A CAMERA TRIGGER is a trigger with `cut`: a camera's id (walking in switches to it, until the next cut; with `from`,
+ * only while that camera is live), or a shot `{ shot, at, look, fov }` (an insert: a camera of its own holding the
+ * trigger's floor, in on entering, back out on leaving).
  *
  * Pure; coordinates rounded to 1e-5 (geom.js r5) so a re-read is byte-identical.
  */
@@ -194,7 +199,17 @@ function readItem(it, i, fm) {
   }
   if (it.kind === 'pickup') out.item = typeof it.item === 'string' ? it.item : id;
   if (it.kind === 'spawn') out.face = Number.isFinite(it.face) ? it.face : 90;
-  if (it.kind === 'trigger') { out.r = Number.isFinite(it.r) && it.r > 0 ? it.r : 1; out.does = typeof it.does === 'string' ? it.does : ''; }
+  if (it.kind === 'trigger') {
+    if (Array.isArray(it.size)) { out.size = [num(it.size[0], `item '${id}' size`), num(it.size[1], `item '${id}' size`)]; out.rot = Number.isFinite(it.rot) ? it.rot : 0; }
+    else out.r = Number.isFinite(it.r) && it.r > 0 ? it.r : 1;
+    out.does = typeof it.does === 'string' ? it.does : '';
+    // a camera trigger: a switch to a named camera (from one, when `from` says), or an insert shot of its own
+    if (typeof it.cut === 'string') { out.cut = idOf(it.cut, `trigger '${id}' cut`); out.from = it.from === undefined ? null : idOf(it.from, `trigger '${id}' from`); }
+    else if (it.cut && typeof it.cut === 'object') {
+      if (it.from !== undefined) throw new Error(`floormap: trigger '${id}' is an insert; it cuts in from whatever holds its floor, so drop from`);
+      out.cut = { shot: it.cut.shot ?? 'corner', at: it.cut.at, look: it.cut.look, fov: it.cut.fov };
+    } else if (it.cut !== undefined) throw new Error(`floormap: trigger '${id}' cut is a camera's id or a shot ({ shot, at, look, fov })`);
+  }
   if (it.kind === 'light') out.h = Number.isFinite(it.h) ? it.h : 2.5;
   return out;
 }
@@ -207,6 +222,15 @@ export function footprint(it) {
     return [[-w, -d], [w, -d], [w, d], [-w, d]].map(([x, y]) => [it.at[0] + x * c - y * s, it.at[1] + x * s + y * c]);
   }
   return null;
+}
+
+/** A trigger's area on the floor: a disc (16 sides) or a turned rect. */
+export function triggerArea(it) {
+  if (it.size) {
+    const a = ((it.rot || 0) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), [w, d] = [it.size[0] / 2, it.size[1] / 2];
+    return [[-w, -d], [w, -d], [w, d], [-w, d]].map(([x, y]) => [it.at[0] + x * c - y * s, it.at[1] + x * s + y * c]);
+  }
+  return Array.from({ length: 16 }, (_, k) => [it.at[0] + it.r * Math.cos((Math.PI * k) / 8), it.at[1] + it.r * Math.sin((Math.PI * k) / 8)]);
 }
 
 export const regionAt = (fm, p) => fm.regions.find((r) => inPoly(p, r.poly) || edgeDist(p, r.poly) < TOL) || null;
@@ -318,4 +342,46 @@ export function floormapFaces(fm) {
     out.push(up(f.map(([x, y]) => [x, y, it.z + it.h].map(r5)), it.kind, it.id));
   }
   return out;
+}
+
+// ── the World payload ────────────────────────────────────────────────────────────────────────────────────────────────
+// the greybox in values: what a bake renders and a painter is guided by; the backdrop's look comes later
+export const GREY = Object.freeze({ floor: '#8d8a83', wall: '#6d6f74', lintel: '#6d6f74', rail: '#a3a5a9', foliage: '#5d7a55', drop: '#3d4a5a', water: '#3a5a7a', stand: '#d8d2c4', block: '#b8b0a0' });
+const SUN = (() => { const v = [-0.35, -0.55, 0.76], L = Math.hypot(...v); return v.map((x) => x / L); })();
+const shadeHex = (hex, n) => { const s = 0.58 + 0.42 * Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2]); return `#${[1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * s).toString(16).padStart(2, '0')).join('')}`; };
+
+/** A simple polygon (counter-clockwise, no holes) cut into triangles by ear clipping. */
+export function triangulate(poly) {
+  const idx = poly.map((_, i) => i), tris = [];
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const inside = (p, a, b, c) => cross(a, b, p) >= 0 && cross(b, c, p) >= 0 && cross(c, a, p) >= 0;
+  let guard = 0;
+  while (idx.length > 3 && guard++ < 10000) {
+    let cut = false;
+    for (let k = 0; k < idx.length; k++) {
+      const i0 = idx[(k + idx.length - 1) % idx.length], i1 = idx[k], i2 = idx[(k + 1) % idx.length], a = poly[i0], b = poly[i1], c = poly[i2];
+      if (cross(a, b, c) <= 1e-12) continue;
+      if (idx.some((j) => j !== i0 && j !== i1 && j !== i2 && inside(poly[j], a, b, c))) continue;
+      tris.push([i0, i1, i2]); idx.splice(k, 1); cut = true; break;
+    }
+    if (!cut) break;
+  }
+  if (idx.length === 3) tris.push([...idx]);
+  return tris;
+}
+
+/**
+ * The floormap as a World payload (scene-three.js emitThreeWorld): the greybox shaded in values, floors cut into
+ * triangles, the edges and items single-sided (a fixed camera behind a wall sees through its back), the cameras as
+ * the page's shots, and the anchor payload riding along.
+ */
+export function floormapPayload(fm, cams = []) {
+  const faces = [];
+  for (const f of floormapFaces(fm)) {
+    const fill = shadeHex(GREY[f.kind] || GREY.floor, f.normal), group = `floormap:${f.kind}`;
+    if (f.kind === 'floor' || f.corners.length > 4) {
+      for (const [a, b, c] of triangulate(f.corners)) faces.push({ corners: [f.corners[a], f.corners[b], f.corners[c], f.corners[a]], normal: f.normal, fill, group, of: f.of });
+    } else faces.push({ corners: f.corners, normal: f.normal, fill, group, of: f.of, singleSide: true });
+  }
+  return { faces, cameras: cams.map((c) => ({ name: c.id, worldFraming: c.framing })), viewBox: { width: 1280, height: 720 }, title: fm.title, bg: '#16171b', ...floormapAnchors(fm) };
 }

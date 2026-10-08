@@ -5,12 +5,18 @@
  *
  *   { kind: 'walkmesh', title, start: '<plate>.<spawn>', plates: [{ id,
  *       painted: { image, size: [w, h] }  |  baked: { world: <manifest>, camera: { at, look, fov }, size? },
- *       ground: { horizon, height, fov },    painted: the camera fit (horizon px, eye height m, horizontal fov)
+ *       ground: { horizon, height, fov },    painted: the camera fit (horizon px, eye height m, horizontal fov), or
+ *       camera: { at, look, fov },           painted over a known camera (it then stands in its world's metres)
+ *       space, zone, holes,                  one floor shared by several plates; the part this one holds (metres when the
+ *                                            plate's camera is known, else px); floor it covers but cannot stand on
  *       floor: [poly | { id, poly }],        painted only: plate px (a bake derives its floor from the world)
  *       occluders: [{ id, poly, base? }],    painted only: a plate crop standing on the floor at its lowest y (or base)
  *       exits: [{ id, edge: [a, b], to }],   to: '<plate>.<exit>' | { map, door }
  *       spawns: [{ id, at, face? }],
  *       figure: 1.75 }],
+ *     triggers: [{ id, space, area, to, from?, insert? }],   camera triggers on a shared floor (area in metres): walking
+ *                                          in cuts to plate `to` (only from plate `from`, when named); an insert's plate
+ *                                          holds the trigger's floor alone, and walking out cuts back
  *     direction: { [item]: 'proposed' | 'approved' | 'auto' } }
  *
  * A plate's words are in its own space: px on paint, metres on a bake. Both read to one floor in metres (z-up) that
@@ -20,11 +26,17 @@
  *   readWalkmesh(m, { bakes })       the normalized walkmesh; `bakes` maps a baked plate's id to its resolved World
  *                                    payload (resolveBakes). Shape errors throw; geometry is the laws' to judge.
  *   resolveBakes(m)                  { [plateId]: payload } for every baked plate (worlds/world-scene.js)
- *   cutsOf(wm)                       the cut graph: [{ from: 'plate.exit', to: 'plate.exit' | { map, door } }]
+ *   cutsOf(wm)                       the cut graph: exits [{ by: 'exit', from: 'plate.exit', to: 'plate.exit' | { map, door } }]
+ *                                    zone lines [{ by: 'zone', from: plate, to: plate }], camera triggers
+ *                                    [{ by: 'trigger', trigger, from, to }] and the way out of an insert [{ by: 'leave', … }]
+ *
+ * ONE FLOOR, SEVERAL CAMERAS: plates in one `space` (a floormap's shots, or a world baked from several cameras) share
+ * one floor in metres; each holds a `zone` of it, and crossing a zone line cuts to the next plate without an exit. A
+ * painted plate stands in that space when it is painted over a known `camera` instead of a fitted `ground`.
  */
 import { paintedFraming, bakedFraming, plateBasis, project, lift, horizonOf, FOV_RANGE } from './camera.js';
 import { bakeFloor } from './bake.js';
-import { clipNear } from './geom.js';
+import { clipNear, touches } from './geom.js';
 
 export const WALK_ITEMS = Object.freeze(['plates', 'ground', 'floor', 'occluders', 'exits', 'cuts']);
 export const WALK_STATUS = Object.freeze(['proposed', 'approved', 'auto']);
@@ -69,14 +81,21 @@ function readPlate(p, i, bakes) {
     size = p.painted.size;
     if (!Array.isArray(size) || size.length !== 2 || !size.every((n) => Number.isFinite(n) && n > 0)) throw new Error(`walkmesh: painted plate '${id}' needs size: [w, h] in px`);
     if (typeof p.painted.image !== 'string' || !p.painted.image.trim()) throw new Error(`walkmesh: painted plate '${id}' needs an image`);
-    const g = p.ground || {};
-    if (!Number.isFinite(g.horizon)) throw new Error(`walkmesh: painted plate '${id}' needs ground.horizon (the plate y where the level ground meets the sky)`);
-    for (const k of ['height', 'fov']) if (g[k] !== undefined && !(Number.isFinite(g[k]) && g[k] > 0)) throw new Error(`walkmesh: plate '${id}' ground.${k} is a positive number`);
-    if (g.fov !== undefined && (g.fov < FOV_RANGE[0] || g.fov > FOV_RANGE[1])) throw new Error(`walkmesh: plate '${id}' ground.fov is ${FOV_RANGE[0]}..${FOV_RANGE[1]} degrees`);
-    framing = paintedFraming(size, g);
+    if (p.camera) {
+      // painted over a known camera (a floormap's shot): the plate stands in that world's metres
+      const c = p.camera;
+      pt(c.at || [], `plate '${id}' camera.at`); pt(c.look || [], `plate '${id}' camera.look`);
+      framing = bakedFraming({ at: [c.at[0], c.at[1], c.at[2] ?? 1.6], look: [c.look[0], c.look[1], c.look[2] ?? 1.6], fov: c.fov }, size);
+    } else {
+      const g = p.ground || {};
+      if (!Number.isFinite(g.horizon)) throw new Error(`walkmesh: painted plate '${id}' needs ground.horizon (the plate y where the level ground meets the sky) or a camera`);
+      for (const k of ['height', 'fov']) if (g[k] !== undefined && !(Number.isFinite(g[k]) && g[k] > 0)) throw new Error(`walkmesh: plate '${id}' ground.${k} is a positive number`);
+      if (g.fov !== undefined && (g.fov < FOV_RANGE[0] || g.fov > FOV_RANGE[1])) throw new Error(`walkmesh: plate '${id}' ground.fov is ${FOV_RANGE[0]}..${FOV_RANGE[1]} degrees`);
+      framing = paintedFraming(size, g);
+    }
   } else {
     const c = p.baked.camera || {};
-    if (!p.baked.world || typeof p.baked.world !== 'object') throw new Error(`walkmesh: baked plate '${id}' needs the world it freezes (baked.world, a manifest)`);
+    if (!(p.baked.world && typeof p.baked.world === 'object') && !(p.baked.floormap && typeof p.baked.floormap === 'object')) throw new Error(`walkmesh: baked plate '${id}' needs what it freezes (baked.world or baked.floormap, a manifest)`);
     pt(c.at || [], `plate '${id}' camera.at`); pt(c.look || [], `plate '${id}' camera.look`);
     for (const k of ['floor', 'occluders']) if (p[k] !== undefined) throw new Error(`walkmesh: baked plate '${id}' reads its ${k} off the world; drop ${k}`);
     size = Array.isArray(p.baked.size) ? p.baked.size : [...BAKE_SIZE];
@@ -112,11 +131,24 @@ function readPlate(p, i, bakes) {
     const sid = idOf(s, undefined, `plate '${id}' spawn ${k}`), at = both(pt(s.at, `plate '${id}' spawn '${sid}'`));
     return { id: sid, px: at.px, m: at.m, face: Number.isFinite(s.face) ? s.face : null };
   });
+  // the zone: the floor this plate's camera holds (one floor, several cameras: crossing a zone line is a cut)
+  // a plate that stands in a space with a known camera (baked, or painted over a camera) writes its zone in metres;
+  // a fitted painted plate in plate px
+  const anchored = baked || !!p.camera;
+  const zone = p.zone ? (() => {
+    const poly = polyOf(p.zone, `plate '${id}' zone`);
+    if (!anchored) { const q = poly.map(both); return { px: q.map((x) => x.px), m: q.map((x) => x.m) }; }
+    const m = poly.map((q) => [q[0], q[1], 0]), seen = clipNear(B, m).map((P) => project(B, P)).filter(Boolean).map((x) => x.px);
+    return { m, px: seen.length >= 3 ? seen : null };
+  })() : null;
+  // holes: floor a painted plate's polygons cover but the figure cannot stand on (a desk, a crate)
+  const holes = (painted ? p.holes || [] : []).map((h, k) => { const poly = polyOf(h, `plate '${id}' hole ${k}`); return { px: poly, m: poly.map((q) => lift(B, q)) }; });
+  if (p.space !== undefined && (typeof p.space !== 'string' || !ID.test(p.space))) throw new Error(`walkmesh: plate '${id}' space '${p.space}' is a lower-case word`);
   for (const [what, list] of [['exit', exits], ['spawn', spawns], ['occluder', occluders], ['floor', floor]]) {
     const seen = new Set();
     for (const x of list) { if (seen.has(x.id)) throw new Error(`walkmesh: plate '${id}' has two ${what}s called '${x.id}'`); seen.add(x.id); }
   }
-  return { id, source: painted ? 'painted' : 'baked', image: painted ? p.painted.image.trim() : null, world: baked ? p.baked.world : null, size: [...size], framing, basis: B, horizon: horizonOf(B), ground: painted ? { horizon: p.ground.horizon, height: framing.cameraPosition[2], fov: framing.horizontalFov } : null, figure, floor, occluders, exits, spawns, bake, payload };
+  return { id, source: painted ? 'painted' : 'baked', image: painted ? p.painted.image.trim() : null, world: baked ? p.baked.world || p.baked.floormap : null, size: [...size], framing, basis: B, horizon: horizonOf(B), ground: painted && !p.camera ? { horizon: p.ground.horizon, height: framing.cameraPosition[2], fov: framing.horizontalFov } : null, figure, floor, occluders, exits, spawns, zone, holes, space: p.space ?? (baked ? `bake-${id}` : null), bake, payload };
 }
 
 export function readWalkmesh(manifest, { bakes = {} } = {}) {
@@ -133,19 +165,45 @@ export function readWalkmesh(manifest, { bakes = {} } = {}) {
   }
   const allBaked = plates.every((p) => p.source === 'baked');
   const status = Object.fromEntries(WALK_ITEMS.map((k) => [k, d[k] || (allBaked && BAKED_ITEMS.includes(k) ? 'auto' : 'proposed')]));
+  const triggers = (manifest.triggers || []).map((t, k) => {
+    const tid = idOf(t, undefined, `trigger ${k}`);
+    if (typeof t.space !== 'string') throw new Error(`walkmesh: trigger '${tid}' needs the space it lies in`);
+    if (!ids.has(t.to)) throw new Error(`walkmesh: trigger '${tid}' cuts to '${t.to}', and no plate is called that`);
+    if (t.from !== undefined && !ids.has(t.from)) throw new Error(`walkmesh: trigger '${tid}' fires from '${t.from}', and no plate is called that`);
+    return { id: tid, space: t.space, area: polyOf(t.area, `trigger '${tid}' area`), to: t.to, from: t.from ?? null, insert: t.insert === true };
+  });
   const start = typeof manifest.start === 'string' ? manifest.start : `${plates[0].id}.${(plates[0].spawns[0] || {}).id || ''}`;
-  return { title: manifest.title || 'walkmesh', start, plates, status };
+  return { title: manifest.title || 'walkmesh', start, plates, triggers, status };
 }
 
 export async function resolveBakes(manifest) {
-  const { resolveWorldScene } = await import('../../worlds/world-scene.js');
   const out = {};
   for (const p of manifest.plates || []) {
-    if (!p || !p.baked || !p.baked.world) continue;
-    const { payload } = await resolveWorldScene({ ref: `walkmesh-${p.id}`, render_mode: 'world', manifest: p.baked.world });
-    out[p.id] = payload;
+    if (!p || !p.baked) continue;
+    if (p.baked.floormap) {
+      const { readFloormap, floormapPayload } = await import('../../era/floormap.js');
+      out[p.id] = floormapPayload(readFloormap(p.baked.floormap));
+    } else if (p.baked.world) {
+      const { resolveWorldScene } = await import('../../worlds/world-scene.js');
+      out[p.id] = (await resolveWorldScene({ ref: `walkmesh-${p.id}`, render_mode: 'world', manifest: p.baked.world })).payload;
+    }
   }
   return out;
 }
 
-export const cutsOf = (wm) => wm.plates.flatMap((p) => p.exits.map((e) => ({ from: `${p.id}.${e.id}`, to: e.to.plate ? `${e.to.plate}.${e.to.exit}` : e.to })));
+/** The cut graph: every exit, every zone line between two plates that stand in one space, and the camera triggers. */
+export function cutsOf(wm) {
+  const out = wm.plates.flatMap((p) => p.exits.map((e) => ({ by: 'exit', from: `${p.id}.${e.id}`, to: e.to.plate ? `${e.to.plate}.${e.to.exit}` : e.to })));
+  const triggers = wm.triggers || [], inserts = new Set(triggers.filter((t) => t.insert).map((t) => t.to));
+  const zoned = wm.plates.filter((p) => p.space && p.zone && p.zone.m.every(Boolean) && !inserts.has(p.id));
+  for (let i = 0; i < zoned.length; i++) for (let j = i + 1; j < zoned.length; j++) {
+    const a = zoned[i], b = zoned[j];
+    if (a.space === b.space && touches(a.zone.m, b.zone.m, 0.1)) out.push({ by: 'zone', from: a.id, to: b.id });
+  }
+  for (const t of triggers) {
+    const hosts = zoned.filter((p) => p.space === t.space && p.id !== t.to && touches(t.area, p.zone.m, 0.05)).map((p) => p.id);
+    if (t.insert) for (const h of hosts) out.push({ by: 'trigger', trigger: t.id, from: h, to: t.to }, { by: 'leave', trigger: t.id, from: t.to, to: h });
+    else for (const h of t.from ? [t.from] : hosts) out.push({ by: 'trigger', trigger: t.id, from: h, to: t.to });
+  }
+  return out;
+}

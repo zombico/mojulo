@@ -5,8 +5,8 @@
  *   floormapAdvice(fm, cams, cuts)    [{ law, at, advice }]
  *   project(basis, P)                 world point → { px, depth } through a camera, or null behind it
  */
-import { inPoly, edgeDist, footprint, regionAt } from './floormap.js';
-import { FIGURE, VIEW, fitPoints, COVER_MIN } from './floormap-cameras.js';
+import { inPoly, edgeDist, footprint, regionAt, centroid, triggerArea } from './floormap.js';
+import { FIGURE, VIEW, fitPoints, COVER_MIN, tallFootprints, crossesPoly, CLEAR } from './floormap-cameras.js';
 
 export const FLOORMAP_LAWS = Object.freeze({
   'regions-apart': 'Two regions overlap only when they are one floor (linked open).',
@@ -17,6 +17,8 @@ export const FLOORMAP_LAWS = Object.freeze({
   'shot-covers': 'A camera sees most of its zone (all but the floor under the lens and along its own walls) within a lens it can hold.',
   'figure-reads': 'The figure reads in every shot: no taller than the frame at the front, no smaller than a glyph at the back.',
   'screen-direction': 'Across a cut the figure keeps its screen direction: walking right out of one shot, it walks right into the next.',
+  'shot-clear': 'A camera does not stand against something tall, or look at its zone through it: it would fill the shot.',
+  'trigger-cuts': 'A camera trigger can fire: some live camera holds its floor (its `from`, when it names one), and it cuts to a camera that does not already hold it all.',
   'stand-hides': 'A stand is cover: some camera sees floor behind it, so the figure can walk out of sight.',
 });
 
@@ -83,7 +85,21 @@ export function floormapAdvice(fm, cams = [], cuts = []) {
       if (back.span < H * TOO_SMALL) out.push({ law: 'figure-reads', at: c.id, advice: `the figure is ${Math.round(back.span)} px at the back of its zone (${back.depth.toFixed(1)} m); split the zone` });
     }
   }
-  for (const k of cuts) if (k.flips) out.push({ law: 'screen-direction', at: `${k.from} → ${k.to}`, advice: 'crossing this cut, the figure turns round on screen; move one camera to the same side of the line of travel' });
+  const walls = tallFootprints(fm);
+  for (const c of cams) {
+    const P = c.basis.position, mid = centroid(c.zone.poly);
+    if (walls.some((w) => inPoly(P, w) || edgeDist(P, w) < CLEAR || crossesPoly(P, mid, w))) out.push({ law: 'shot-clear', at: c.id, advice: 'something tall stands against the camera or between it and its zone; move the camera or the piece' });
+  }
+  // camera triggers: one that no live camera's zone reaches never fires
+  const holds = (c, area) => area.some((q) => inPoly(q, c.zone.poly) || edgeDist(q, c.zone.poly) < 0.05);
+  for (const it of fm.items.filter((x) => x.kind === 'trigger' && x.cut && x.region)) {
+    const area = triggerArea(it), hosts = cams.filter((c) => !c.insert && holds(c, area));
+    if (typeof it.cut === 'object') { if (!hosts.length) out.push({ law: 'trigger-cuts', at: it.id, advice: 'no camera holds its floor, so nothing cuts in to it' }); continue; }
+    const from = it.from && cams.find((c) => c.id === it.from);
+    if (from && !holds(from, area)) out.push({ law: 'trigger-cuts', at: it.id, advice: `it fires only from ${it.from}, whose zone does not reach it; move it into that zone or drop from` });
+    else if (!from && !hosts.some((c) => c.id !== it.cut)) out.push({ law: 'trigger-cuts', at: it.id, advice: `only ${it.cut} holds its floor, so it cuts to the camera already live; move it, or name the camera it cuts from` });
+  }
+  for (const k of cuts) if (k.flips && k.by !== 'leave') out.push({ law: 'screen-direction', at: `${k.from} → ${k.to}`, advice: 'crossing this cut, the figure turns round on screen; move one camera to the same side of the line of travel' });
   // a stand hides floor in some shot: a floor point behind it on the line from the lens
   for (const s of fm.items.filter((it) => it.kind === 'stand')) {
     const hides = cams.some((c) => {

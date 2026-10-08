@@ -5,7 +5,9 @@
  *
  *   SHOTS                          shot → { height (m over the floor), inset (m in from the zone's edge), min (fov), about }
  *   floormapCameras(fm, spec)      → [{ id, zone: { region, poly }, shot, from, framing, basis, fit }]
- *   cutsOf(fm, cams)               → [{ from, to, at, flips }] between cameras whose zones touch on walkable ground
+ *   cutsOf(fm, cams)               → [{ by, from, to, at, flips, trigger? }]: by 'zone' between cameras whose zones
+ *                                    touch on walkable ground, 'trigger' where a camera trigger fires, 'leave' out of
+ *                                    an insert back to the camera that holds its floor
  *   FRAME                          [16, 9]: the frame a shot is fitted to
  *
  * THE SOLVE: the camera stands at the shot's place (a corner of the zone for `corner` and `low`, the end of its long
@@ -16,7 +18,7 @@
  */
 import { resolveCameraBasis } from '../polygonizer/pure-mandala.js';
 import { r5 } from './geom.js';
-import { centroid, inPoly, edgeDist } from './floormap.js';
+import { centroid, inPoly, edgeDist, footprint, triggerArea } from './floormap.js';
 
 export const FRAME = Object.freeze([16, 9]);
 export const VIEW = Object.freeze({ width: 1280, height: 720 });
@@ -128,8 +130,8 @@ export function fitShot(at, aim, { floor, must }, { min = 35, fov: fixed = null 
   return { framing: { cameraPosition: at.map(r5), lookAt: [at[0] + f[0] * 10, at[1] + f[1] * 10, at[2] + f[2] * 10].map(r5), horizontalFov: r5(fov), pictureCenter: [VIEW.width / 2, VIEW.height / 2] }, need: r5(need), behind: F.h.filter((x) => x === Math.PI / 2).length, cover: r5(cover) };
 }
 
-function placeShot(shot, zone, z, entry, from, R, keep = []) {
-  const A = axes(zone), H = z + SHOTS[shot].height, c = A.c;
+function placeShot(shot, zone, z, entry, from, R, keep = [], walls = [], target = null) {
+  const A = axes(zone), H = z + SHOTS[shot].height, c = A.c, t = target || c;   // t: what the shot looks at
   if (shot === 'overhead') { const s = entry ? Math.sign((entry[0] - c[0]) * A.u[0] + (entry[1] - c[1]) * A.u[1]) || 1 : 1, k = (from === 'far' ? -1 : 1) * s * 0.3 * (A.hi - A.lo) / 2; return [c[0] + A.u[0] * k, c[1] + A.u[1] * k, H]; }
   if (shot === 'profile') {
     const s = R() < 0.5 ? 1 : -1, d = Math.max(3, (A.hi - A.lo) * 0.75);
@@ -144,11 +146,25 @@ function placeShot(shot, zone, z, entry, from, R, keep = []) {
     : zone.map(off);
   const jitter = cands.map(() => R() * 1e-3);
   // a candidate that turns the figure round across a cut to an earlier camera is a last resort
-  const flips = (p) => keep.some(({ dir, sign }) => { const f = [c[0] - p[0], c[1] - p[1]], L = Math.hypot(...f) || 1, sx = (dir[0] * f[1] - dir[1] * f[0]) / L; return Math.abs(sx) > 0.35 && Math.sign(sx) !== sign; });
-  const score = (p, i) => (flips(p) ? -1e6 : 0) + (entry ? (from === 'far' ? 1 : -1) * Math.hypot(p[0] - entry[0], p[1] - entry[1]) : 0) + jitter[i] * (entry ? 1 : 1e3);
+  const flips = (p) => keep.some(({ dir, sign }) => { const f = [t[0] - p[0], t[1] - p[1]], L = Math.hypot(...f) || 1, sx = (dir[0] * f[1] - dir[1] * f[0]) / L; return Math.abs(sx) > 0.35 && Math.sign(sx) !== sign; });
+  // a candidate standing against something tall, or looking at the zone's middle through it, is the worst seat (the
+  // shot is unusable), worse than one that turns the figure round across a cut
+  const blocked = (p) => walls.some((w) => inPoly(p, w) || edgeDist(p, w) < CLEAR || crossesPoly(p, t, w));
+  const score = (p, i) => (flips(p) ? -1e6 : 0) + (blocked(p) ? -1e7 : 0) + (entry ? (from === 'far' ? 1 : -1) * Math.hypot(p[0] - entry[0], p[1] - entry[1]) : 0) + jitter[i] * (entry ? 1 : 1e3);
   let best = 0;
   cands.forEach((p, i) => { if (score(p, i) > score(cands[best], best)) best = i; });
   return [...cands[best], H];
+}
+
+// the seats round an insert: eight points a couple of metres out from its area, each pulled in onto the region's floor
+const INSERT_REACH = 2.5;
+function insertSeats(floor, area, c) {
+  const d = Math.max(...area.map((q) => Math.hypot(q[0] - c[0], q[1] - c[1]))) + INSERT_REACH;
+  return Array.from({ length: 8 }, (_, k) => {
+    const a = (Math.PI * k) / 4 + Math.PI / 8;
+    for (let t = d; t > 0.3; t -= 0.25) { const q = [c[0] + Math.cos(a) * t, c[1] + Math.sin(a) * t]; if (inPoly(q, floor) && edgeDist(q, floor) > 0.4) return q; }
+    return null;
+  }).filter(Boolean);
 }
 
 export function floormapCameras(fm, spec = 'auto', more = {}) {
@@ -175,10 +191,19 @@ export function floormapCameras(fm, spec = 'auto', more = {}) {
     if (!SHOTS[p.shot]) throw new Error(`floormap: camera '${p.id}' shot '${p.shot}' is one of ${Object.keys(SHOTS).join(', ')}`);
     if (!FROM.includes(p.from)) throw new Error(`floormap: camera '${p.id}' from '${p.from}' is far or entry`);
   }
+  // an insert trigger is a camera of its own, holding the trigger's floor, seated over its region
+  for (const it of fm.items) {
+    if (it.kind !== 'trigger' || !it.cut || typeof it.cut !== 'object' || !it.region) continue;
+    if (ids.has(it.id)) throw new Error(`floormap: trigger '${it.id}' is an insert, and a camera is called that too`);
+    if (!SHOTS[it.cut.shot]) throw new Error(`floormap: trigger '${it.id}' shot '${it.cut.shot}' is one of ${Object.keys(SHOTS).join(', ')}`);
+    ids.add(it.id);
+    plan.push({ id: it.id, zone: it.region, insert: it, shot: it.cut.shot, from: 'far', at: it.cut.at, look: it.cut.look, fov: it.cut.fov });
+  }
   // a region seen by n cameras is cut into n zones along its long axis, in the order the cameras come
   const byRegion = new Map();
-  for (const p of plan) byRegion.set(p.zone, [...(byRegion.get(p.zone) || []), p]);
+  for (const p of plan) if (!p.insert) byRegion.set(p.zone, [...(byRegion.get(p.zone) || []), p]);
   const zones = new Map();
+  for (const p of plan) if (p.insert) zones.set(p.id, triggerArea(p.insert));
   for (const [rid, list] of byRegion) {
     const r = fm.regions.find((x) => x.id === rid);
     (r.legs && r.legs.length === list.length ? r.legs : splitZones(r.poly, list.length)).forEach((z, k) => zones.set(list[k].id, z));
@@ -191,13 +216,16 @@ export function floormapCameras(fm, spec = 'auto', more = {}) {
       const dc = centroid(d.zone.poly), v = [c[0] - dc[0], c[1] - dc[1]], L = Math.hypot(...v) || 1, dir = [v[0] / L, v[1] / L];
       return { dir, sign: Math.sign(dir[0] * d.basis.right[0] + dir[1] * d.basis.right[1]) };
     });
-    const entry = entryOf(fm, p.zone, zone), at = Array.isArray(p.at) ? [p.at[0], p.at[1], p.at[2] ?? z + SHOTS[p.shot].height] : placeShot(p.shot, zone, z, entry, p.from, R, keep);
+    // an insert is seated close round its trigger (its own zone is too small to stand in), on its region's floor
+    const seat = p.insert ? insertSeats(fm.regions.find((r) => r.id === p.zone).poly, zone, c) : zone;
+    const entry = p.insert ? c : entryOf(fm, p.zone, zone), at = Array.isArray(p.at) ? [p.at[0], p.at[1], p.at[2] ?? z + SHOTS[p.shot].height] : placeShot(p.shot, seat, z, entry, p.from, R, keep, tallFootprints(fm), p.insert ? c : null);
     const aim = Array.isArray(p.look) ? [p.look[0], p.look[1], p.look[2] ?? z] : [c[0], c[1], z + 0.6];
     const points = fitPoints(zone, at, z);
     const fit = fitShot(at, aim, points, { min: SHOTS[p.shot].min, fov: Number.isFinite(p.fov) ? p.fov : null });
     if (Array.isArray(p.look) && Number.isFinite(p.fov)) fit.framing = { ...fit.framing, lookAt: aim.map(r5) };
     const basis = resolveCameraBasis({ worldFraming: fit.framing, viewBox: VIEW });
     const cam = { id: p.id, zone: { region: p.zone, poly: zone }, shot: p.shot, from: p.from, framing: fit.framing, basis, fit: { need: fit.need, behind: fit.behind, cover: fit.cover } };
+    if (p.insert) cam.insert = p.id;
     done.push(cam);
     return cam;
   });
@@ -205,7 +233,7 @@ export function floormapCameras(fm, spec = 'auto', more = {}) {
   if (auto) {
     const grow = {};
     for (const r of fm.regions) {
-      const mine = cams.filter((c) => c.zone.region === r.id);
+      const mine = cams.filter((c) => c.zone.region === r.id && !c.insert);
       if (!r.shots && !r.legs && mine.length < 3 && mine.some((c) => c.fit.cover < COVER_MIN)) grow[r.id] = Array(mine.length + 1).fill('corner');
     }
     if (Object.keys(grow).length) return floormapCameras(fm, spec, { ...more, ...grow });
@@ -222,6 +250,15 @@ const touchLen = (A, B) => {
   return n;
 };
 
+/** The footprints of what stands tall enough to fill a shot from close by (a stand, a block at least TALL high). */
+export const TALL = 1.2, CLEAR = 1.5;   // m: closer than this, a tall piece fills the frame
+export const tallFootprints = (fm) => fm.items.filter((it) => footprint(it) && (it.kind === 'stand' || it.h >= TALL)).map(footprint);
+/** Does the plan segment a→b pass through the polygon? */
+export function crossesPoly(a, b, poly) {
+  for (let k = 1; k < 8; k++) { const q = [a[0] + ((b[0] - a[0]) * k) / 8, a[1] + ((b[1] - a[1]) * k) / 8]; if (inPoly(q, poly)) return true; }
+  return false;
+}
+
 // two zones the figure walks between: one region split, or regions joined open, by a door or a stair, and touching
 function joinedZones(fm, A, B) {
   const a = A.zone.region, b = B.zone.region;
@@ -229,16 +266,36 @@ function joinedZones(fm, A, B) {
   return joined && touchLen(A.zone.poly, B.zone.poly) > 0;
 }
 
-/** The cuts: neighbouring zones on walkable ground (one region split, or regions joined open, by a door or a stair). */
+/** The cuts: neighbouring zones on walkable ground (one region split, or regions joined open, by a door or a stair),
+ * and the camera triggers. */
 export function cutsOf(fm, cams) {
-  const out = [];
-  for (let i = 0; i < cams.length; i++) for (let j = i + 1; j < cams.length; j++) {
-    const A = cams[i], B = cams[j];
-    if (!joinedZones(fm, A, B)) continue;
-    const ca = centroid(A.zone.poly), cb = centroid(B.zone.poly), d = [cb[0] - ca[0], cb[1] - ca[1]], L = Math.hypot(...d) || 1, dir = [d[0] / L, d[1] / L, 0];
-    const sx = (cam) => dir[0] * cam.basis.right[0] + dir[1] * cam.basis.right[1];
-    const a = sx(A), b = sx(B);
-    out.push({ from: A.id, to: B.id, at: [(ca[0] + cb[0]) / 2, (ca[1] + cb[1]) / 2].map(r5), flips: Math.abs(a) > 0.35 && Math.abs(b) > 0.35 && Math.sign(a) !== Math.sign(b) });
+  const out = [], byId = new Map(cams.map((c) => [c.id, c])), held = cams.filter((c) => !c.insert);
+  // flips: walking from a toward b, does the figure's screen direction turn round between the two shots?
+  const cut = (by, A, B, a, b, extra = {}) => {
+    const d = [b[0] - a[0], b[1] - a[1]], L = Math.hypot(...d), sx = (cam, dir) => dir[0] * cam.basis.right[0] + dir[1] * cam.basis.right[1];
+    // no way in to measure (an insert in the middle of its host): two cameras facing each other turn everything round
+    const flips = L < 0.5
+      ? A.basis.right[0] * B.basis.right[0] + A.basis.right[1] * B.basis.right[1] < -0.35
+      : (() => { const dir = [d[0] / L, d[1] / L], u = sx(A, dir), v = sx(B, dir); return Math.abs(u) > 0.35 && Math.abs(v) > 0.35 && Math.sign(u) !== Math.sign(v); })();
+    return { by, from: A.id, to: B.id, at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2].map(r5), flips, ...extra };
+  };
+  for (let i = 0; i < held.length; i++) for (let j = i + 1; j < held.length; j++) {
+    const A = held[i], B = held[j];
+    if (joinedZones(fm, A, B)) out.push(cut('zone', A, B, centroid(A.zone.poly), centroid(B.zone.poly)));
+  }
+  for (const it of fm.items) {
+    if (it.kind !== 'trigger' || !it.cut) continue;
+    const area = triggerArea(it), hosts = held.filter((c) => touchLen(area, c.zone.poly) > 0 || area.some((q) => inPoly(q, c.zone.poly)));
+    if (typeof it.cut === 'string') {
+      const B = byId.get(it.cut);
+      if (!B) throw new Error(`floormap: trigger '${it.id}' cuts to '${it.cut}', and no camera is called that (${cams.map((c) => c.id).join(', ')})`);
+      if (it.from && !byId.has(it.from)) throw new Error(`floormap: trigger '${it.id}' fires from '${it.from}', and no camera is called that`);
+      for (const A of it.from ? [byId.get(it.from)] : hosts.filter((c) => c.id !== B.id)) out.push(cut('trigger', A, B, centroid(A.zone.poly), it.at, { trigger: it.id }));
+    } else {
+      const B = byId.get(it.id);
+      if (!B) continue;   // off the floor: the laws say so
+      for (const A of hosts) out.push(cut('trigger', A, B, centroid(A.zone.poly), it.at, { trigger: it.id }), cut('leave', B, A, it.at, it.at, { trigger: it.id }));
+    }
   }
   return out;
 }

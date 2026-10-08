@@ -5,6 +5,8 @@ import { readWalkmesh, cutsOf } from './walkmesh.js';
 import { walkAdvice } from './laws.js';
 import { plateMask } from './mask.js';
 import { walkBoardHtml, walkPieceIds } from './board-html.js';
+import { walkmeshOfFloormap } from './from-floormap.js';
+import { resolveBakes } from './walkmesh.js';
 
 // a painted plate 1600×900: the ground meets the sky at y 400; the floor a trapezoid below it
 const PAINT = (over = {}) => ({
@@ -51,7 +53,7 @@ describe('readWalkmesh', () => {
     expect(yard.floor[0].m.every(Boolean)).toBe(true);
     expect(yard.spawns[0].m[1]).toBeGreaterThan(0);
     expect(wm.plates[1].floor[0].id).toBe('floor-0');
-    expect(cutsOf(wm)).toEqual([{ from: 'yard.gate', to: 'hall.door' }, { from: 'hall.door', to: 'yard.gate' }]);
+    expect(cutsOf(wm)).toEqual([{ by: 'exit', from: 'yard.gate', to: 'hall.door' }, { by: 'exit', from: 'hall.door', to: 'yard.gate' }]);
     expect(wm.status).toEqual({ plates: 'proposed', ground: 'proposed', floor: 'proposed', occluders: 'proposed', exits: 'proposed', cuts: 'proposed' });
   });
   it('refuses a malformed shape with a sentence', () => {
@@ -125,5 +127,46 @@ describe('the board', () => {
     expect(html).toContain('href="yard.png"');
     expect(html).toContain('every law holds');
     expect(walkBoardHtml(wm, { images: { hall: 'data:image/png;base64,AAAA' } })).toBe(html);
+  });
+});
+
+// a floormap: a hall with a column, a door to a study; the walkmesh it makes, baked and painted
+const FLOORMAP = { kind: 'floormap', title: 'Two rooms', regions: [{ id: 'hall', rect: [0, 0, 8, 6] }, { id: 'study', rect: [8, 1, 5, 4] }],
+  links: [{ from: 'hall', to: 'study', as: 'door' }], edges: [{ region: 'study', side: 'e', as: 'exit', id: 'out', to: { map: 'yard', door: 'gate' } }],
+  items: [{ id: 'start', kind: 'spawn', at: [2, 2] }, { id: 'column', kind: 'stand', at: [5, 3], r: 0.4, h: 3.5 }, { id: 'desk', kind: 'block', at: [10.5, 3], size: [1.4, 0.7], h: 0.8 }] };
+
+describe('from a floormap', () => {
+  it('baked: one plate per camera in one space, cut by zones, the exit and spawn where they stand', async () => {
+    const m = walkmeshOfFloormap(FLOORMAP), wm = readWalkmesh(m, { bakes: await resolveBakes(m) });
+    expect(wm.plates.map((p) => [p.id, p.source, p.space])).toEqual([['hall', 'baked', 'floormap'], ['study', 'baked', 'floormap']]);
+    expect(wm.start).toBe('hall.start');
+    expect(cutsOf(wm)).toEqual([{ by: 'exit', from: 'study.out', to: { map: 'yard', door: 'gate' } }, { by: 'zone', from: 'hall', to: 'study' }]);
+    expect(walkAdvice(wm)).toEqual([]);
+    const mask = plateMask(wm.plates[0], 96);
+    expect(mask.cells.some((v) => v === 2)).toBe(true);   // the column hides floor in the hall's zone
+  });
+  it('painted: an image for a camera makes a painted plate whose floor, holes, occluders and exits are projected', () => {
+    const m = walkmeshOfFloormap(FLOORMAP, { images: { hall: 'hall.png', study: 'study.png' } }), wm = readWalkmesh(m);
+    const [hall, study] = wm.plates;
+    expect(hall.source).toBe('painted');
+    expect(hall.occluders.map((o) => o.id)).toEqual(['column']);
+    expect(study.holes.length).toBe(2);   // the desk, and the hall's column seen through the door
+    expect(study.exits.map((e) => e.id)).toEqual(['out']);
+    expect(hall.spawns[0].m[0]).toBeCloseTo(2, 3);
+    expect(hall.spawns[0].m[1]).toBeCloseTo(2, 3);
+    expect(cutsOf(wm).filter((c) => c.by === 'zone')).toEqual([{ by: 'zone', from: 'hall', to: 'study' }]);
+    expect(walkAdvice(wm)).toEqual([]);
+  });
+  it('camera triggers carry over: a switch, and an insert whose plate holds the trigger\'s floor', async () => {
+    const fm = { ...FLOORMAP, items: [...FLOORMAP.items, { id: 'peek', kind: 'trigger', at: [7.4, 3], size: [0.8, 1.2], cut: 'study', from: 'hall' }, { id: 'close', kind: 'trigger', at: [2.5, 4.5], r: 1, cut: {} }] };
+    const m = walkmeshOfFloormap(fm), bakes = await resolveBakes(m), wm = readWalkmesh(m, { bakes });
+    expect(m.triggers.map((t) => [t.id, t.to, t.from ?? null, t.insert ?? false])).toEqual([['peek', 'study', 'hall', false], ['close', 'close', null, true]]);
+    expect(cutsOf(wm).filter((c) => c.by !== 'exit')).toEqual([
+      { by: 'zone', from: 'hall', to: 'study' },
+      { by: 'trigger', trigger: 'peek', from: 'hall', to: 'study' },
+      { by: 'trigger', trigger: 'close', from: 'hall', to: 'close' }, { by: 'leave', trigger: 'close', from: 'close', to: 'hall' },
+    ]);
+    expect(walkAdvice(wm)).toEqual([]);
+    expect(() => readWalkmesh({ ...m, triggers: [{ ...m.triggers[0], to: 'attic' }] }, { bakes })).toThrow(/no plate is called that/);
   });
 });

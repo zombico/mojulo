@@ -104,7 +104,8 @@ export function piecePlate(plate, images = {}, mask = plateMask(plate)) {
     const span = s.m ? (figureSpan(plate.basis, s.m, plate.figure) || {}).span : null;
     return `${span ? figure(s.px, span, 0.95) : ''}<circle cx="${r1(s.px[0])}" cy="${r1(s.px[1])}" r="${r1(u * 0.9)}" fill="${EXIT}" stroke="#000" stroke-width="${r1(u * 0.25)}"/>${label(s.px[0] + u * 1.6, s.px[1] + u * 3.2, `${s.id}`, u * 2.4)}`;
   }).join('');
-  return piece(`walk:plate:${plate.id}`, `<svg viewBox="0 0 ${W} ${H}">${plateImage(plate, images)}${maskSvg(plate, mask)}${floor}${horizon}${occ}${exits}${spawns}</svg>`);
+  const zone = plate.zone && plate.zone.px ? `<polygon points="${pts(plate.zone.px)}" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="${r1(u * 0.35)}" stroke-dasharray="${r1(u * 1.2)} ${r1(u * 0.8)}"/>` : '';
+  return piece(`walk:plate:${plate.id}`, `<svg viewBox="0 0 ${W} ${H}">${plateImage(plate, images)}${maskSvg(plate, mask)}${floor}${zone}${horizon}${occ}${exits}${spawns}</svg>`);
 }
 
 /** The floor's scale ladder: five rows across the floor's height in the plate (even in screen y, so even in 1/depth). */
@@ -130,7 +131,7 @@ export function pieceGround(plate, images = {}) {
   const [W, H] = plate.size, u = H / 100, rungs = ladderOf(plate);
   const horizon = plate.horizon !== null && plate.horizon > 0 && plate.horizon < H ? `<line x1="0" x2="${W}" y1="${r1(plate.horizon)}" y2="${r1(plate.horizon)}" stroke="#fff" stroke-opacity=".8" stroke-dasharray="${r1(u * 2)} ${r1(u * 1.4)}" stroke-width="${r1(u * 0.3)}"/>` : '';
   const figs = rungs.map((r) => `${figure(r.px, r.span)}${label(r.px[0] + r.span * 0.16 + u, r.px[1] - r.span * 0.5, `${r.depth.toFixed(1)} m`, Math.max(u * 2.4, 1))}`).join('');
-  const P = plate.basis.position, fit = plate.source === 'painted'
+  const P = plate.basis.position, fit = plate.ground
     ? `<tr><td class="k">eye</td><td>${plate.ground.height} m over the floor</td></tr><tr><td class="k">fov</td><td>${plate.ground.fov}° across</td></tr><tr><td class="k">horizon</td><td>y ${Math.round(plate.ground.horizon)} of ${H}</td></tr>`
     : `<tr><td class="k">camera</td><td>at ${P.map((v) => v.toFixed(1)).join(', ')} m, ${plate.framing.horizontalFov}° across (read off the world)</td></tr>`;
   return piece(`walk:ground:${plate.id}`, `<svg viewBox="0 0 ${W} ${H}">${plateImage(plate, images, 0.45)}${horizon}${figs}</svg><table>${fit}<tr><td class="k">figure</td><td>${plate.figure} m${rungs.length ? `, ${Math.round(rungs[rungs.length - 1].span)} px at the front to ${Math.round(rungs[0].span)} px at the back` : ''}</td></tr></table>`);
@@ -165,29 +166,34 @@ export function piecePlan(plate) {
   return piece(`walk:plan:${plate.id}`, `<svg viewBox="0 0 ${VW} ${r1(VH)}">${grid}${walls}${floor}${view}${occ}${exits}${spawns}${bar}</svg>`);
 }
 
-/** walk:cuts — the plates and the exits between them, each pair of exits that lead to each other drawn once. */
+/** walk:cuts — the plates in a row; zone cuts arc over them, exits between plates arc under, a map's door drops out. */
 export function pieceCuts(wm, images = {}) {
-  const n = wm.plates.length, TW = 240, gap = 90, VW = n * TW + (n - 1) * gap + 40;
-  const th = (p) => (TW * p.size[1]) / p.size[0], TH = Math.max(...wm.plates.map(th)), VH = TH + 120;
-  const x = (i) => 20 + i * (TW + gap), idx = new Map(wm.plates.map((p, i) => [p.id, i]));
+  const n = wm.plates.length, TW = 220, gap = 40, VW = n * TW + (n - 1) * gap + 40;
+  const th = (p) => (TW * p.size[1]) / p.size[0], TH = Math.max(...wm.plates.map(th)), top = 70, VH = top + TH + 110;
+  const x = (i) => 20 + i * (TW + gap), idx = new Map(wm.plates.map((p, i) => [p.id, i])), cx = (i) => x(i) + TW / 2;
   const nodes = wm.plates.map((p, i) => {
-    const href = imageOf(p, images), h = th(p), y = 30 + (TH - h) / 2;
-    return `${href ? `<image href="${esc(href)}" x="${x(i)}" y="${r1(y)}" width="${TW}" height="${r1(h)}" preserveAspectRatio="none"/>` : `<rect x="${x(i)}" y="${r1(y)}" width="${TW}" height="${r1(h)}" fill="#2b2d33"/>`}<rect x="${x(i)}" y="${r1(y)}" width="${TW}" height="${r1(h)}" fill="none" stroke="${wm.start.startsWith(`${p.id}.`) ? '#6cc070' : '#45484f'}" stroke-width="2"/>${label(x(i), 20, `${p.id} · ${p.source}`, 12)}`;
+    const href = imageOf(p, images), h = th(p), y = top + (TH - h) / 2, start = wm.start.startsWith(`${p.id}.`);
+    return `${href ? `<image href="${esc(href)}" x="${x(i)}" y="${r1(y)}" width="${TW}" height="${r1(h)}" preserveAspectRatio="none"/>` : `<rect x="${x(i)}" y="${r1(y)}" width="${TW}" height="${r1(h)}" fill="#2b2d33"/>`}<rect x="${x(i)}" y="${r1(y)}" width="${TW}" height="${r1(h)}" fill="none" stroke="${start ? '#6cc070' : '#45484f'}" stroke-width="2"/>${label(x(i) + 4, top + TH + 16, `${p.id} · ${p.source}`, 12)}`;
   }).join('');
-  const done = new Set(), cy = 30 + TH / 2;
-  const edges = cutsOf(wm).map((c) => {
-    if (done.has(c.from)) return '';
+  const arc = (a, b, y0, dy, dash, text) => {
+    const xa = cx(a), xb = cx(b), my = y0 + dy * (1 + Math.abs(a - b) * 0.35);
+    return `<path d="M${xa} ${y0} Q${(xa + xb) / 2} ${r1(my)} ${xb} ${y0}" fill="none" stroke="#fff" stroke-width="1.6" ${dash}/>${text ? label((xa + xb) / 2, r1(my + (dy < 0 ? -4 : 14)), text, 10, 'middle') : ''}`;
+  };
+  const done = new Set(), edges = [];
+  for (const c of cutsOf(wm)) {
+    if (c.by === 'zone') { edges.push(arc(idx.get(c.from), idx.get(c.to), top, -22, 'stroke-dasharray="2 3"', '')); continue; }
+    if (c.by === 'leave') continue;
+    if (c.by === 'trigger') { edges.push(arc(idx.get(c.from), idx.get(c.to), top, -34, 'stroke-dasharray="6 2 1 2"', c.trigger)); continue; }
+    if (done.has(c.from)) continue;
     const [fp, fe] = c.from.split('.'), a = idx.get(fp);
-    if (typeof c.to !== 'string') return `<line x1="${x(a) + TW / 2}" y1="${r1(30 + TH)}" x2="${x(a) + TW / 2}" y2="${r1(30 + TH + 40)}" stroke="#fff" stroke-dasharray="4 3"/>${label(x(a) + TW / 2, 30 + TH + 56, `${fe} → map ${c.to.map}`, 11, 'middle')}`;
+    if (typeof c.to !== 'string') { edges.push(`<line x1="${cx(a)}" y1="${top + TH + 24}" x2="${cx(a)}" y2="${top + TH + 52}" stroke="#fff" stroke-dasharray="4 3"/>${label(cx(a), top + TH + 66, `${fe} → map ${c.to.map}`, 11, 'middle')}`); continue; }
     done.add(c.from); done.add(c.to);
     const [tp, te] = c.to.split('.'), b = idx.get(tp);
-    if (b === undefined) return label(x(a) + TW / 2, 30 + TH + 56, `${fe} → ${c.to} (no such plate)`, 11, 'middle', OCC);
-    if (b === a) return label(x(a) + TW / 2, 30 + TH + 56, `${fe} ↔ ${te}`, 11, 'middle');
-    const [l, r] = a < b ? [a, b] : [b, a], [ln, rn] = a < b ? [fe, te] : [te, fe];
+    if (b === undefined) { edges.push(label(cx(a), top + TH + 66, `${fe} → ${c.to} (no such plate)`, 11, 'middle', OCC)); continue; }
     const back = wm.plates[b].exits.find((e) => e.id === te), two = back && back.to.plate === fp && back.to.exit === fe;
-    return `<line x1="${x(l) + TW}" y1="${r1(cy)}" x2="${x(r)}" y2="${r1(cy)}" stroke="#fff" stroke-width="2" ${two ? '' : 'stroke-dasharray="5 4"'}/>${label(x(l) + TW + 4, cy - 8, ln, 11)}${label(x(r) - 4, cy + 18, rn, 11, 'end')}`;
-  }).join('');
-  return piece('walk:cuts', `<svg viewBox="0 0 ${VW} ${r1(VH)}">${nodes}${edges}</svg>`);
+    edges.push(arc(a, b, top + TH + 24, 26, two ? '' : 'stroke-dasharray="5 4"', `${fe} ↔ ${te}`));
+  }
+  return piece('walk:cuts', `<svg viewBox="0 0 ${VW} ${r1(VH)}">${nodes}${edges.join('')}</svg>`);
 }
 
 /** walk:laws — the advice, grouped by law. */
@@ -201,7 +207,7 @@ export function pieceLaws(wm) {
 
 export const walkPieceIds = (wm) => [...wm.plates.flatMap((p) => [`walk:plate:${p.id}`, `walk:ground:${p.id}`, `walk:plan:${p.id}`]), 'walk:cuts', 'walk:laws'];
 
-const KEY = `<div class="key"><span><i style="background:${SEEN};opacity:.6"></i>floor, seen</span><span><i style="background:${HIDDEN};opacity:.8"></i>floor, hidden (the figure's feet go behind)</span><span><i style="background:${OCC}"></i>occluder and its base line</span><span><i style="background:${EXIT}"></i>exit, spawn</span></div>`;
+const KEY = `<div class="key"><span><i style="background:${SEEN};opacity:.6"></i>floor, seen</span><span><i style="background:${HIDDEN};opacity:.8"></i>floor, hidden (the figure's feet go behind)</span><span><i style="background:${OCC}"></i>occluder and its base line</span><span><i style="background:${EXIT}"></i>exit, spawn</span><span><i style="border:1px dashed #fff"></i>the zone this camera holds</span></div>`;
 
 /** The board for a read walkmesh, as one self-contained HTML document. */
 export function walkBoardHtml(wm, { images = {} } = {}) {
@@ -217,7 +223,7 @@ ${piecePlate(p, images)}${KEY}
 <h1>${esc(`WALKMESH · ${wm.title}`.toUpperCase())}</h1>
 <p class="lede">start ${esc(wm.start)} · approve each item: ${WALK_ITEMS.map((k) => TITLES[k].toLowerCase()).join(', ')}</p>
 <div class="row">${plates}</div>
-<div class="row r2"><section class="card"><header><h2>Cuts</h2>${badge(TITLES.cuts, st.cuts)}</header><p class="note">solid: the two exits lead to each other · dashed: one way · green frame: where it starts</p>${pieceCuts(wm, images)}</section>
+<div class="row r2"><section class="card"><header><h2>Cuts</h2>${badge(TITLES.cuts, st.cuts)}</header><p class="note">dotted over: a zone cut (one floor, the camera changes), dash-dot over: a camera trigger (named) · under: exits, solid when the two lead to each other · green frame: where it starts</p>${pieceCuts(wm, images)}</section>
 <section class="card"><header><h2>Laws</h2></header><p class="note">measured and advised, never refused</p>${pieceLaws(wm)}</section></div>
 </div></body></html>`;
 }

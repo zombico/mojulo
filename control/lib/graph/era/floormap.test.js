@@ -3,13 +3,15 @@ import { readFloormap, floormapAnchors, floormapFaces, footprint, regionAt } fro
 import { floormapCameras, cutsOf, fitPoints, COVER } from './floormap-cameras.js';
 import { floormapAdvice, project } from './floormap-laws.js';
 import { floormapBoardHtml, floormapPieceIds } from './floormap-board-html.js';
+import { plateBrief } from './floormap-brief.js';
+import { floormapPayload, triangulate } from './floormap.js';
 import { bakeFloor, walkable, components, cellOf } from '../playscape/walkmesh/bake.js';
 
 const MANOR = {
   kind: 'floormap', title: 'Manor east wing', seed: 3,
   regions: [
-    { id: 'hall', rect: [0, 0, 9, 7] },
-    { id: 'library', rect: [1, 7, 7, 6] },
+    { id: 'hall', rect: [0, 0, 9, 7], form: 'a marble entrance hall' },
+    { id: 'library', rect: [1, 7, 7, 6], form: 'a panelled library' },
     { id: 'gallery', strip: { path: [[9, 3.5], [21, 3.5], [21, 13]], width: 2.6 } },
     { id: 'garden', poly: [[17, 13], [26, 13], [28, 18], [23, 24], [15, 21]] },
   ],
@@ -22,11 +24,11 @@ const MANOR = {
   ],
   items: [
     { id: 'start', kind: 'spawn', at: [4.5, 1.2], face: 90 },
-    { id: 'pillar-w', kind: 'stand', at: [3, 4], r: 0.4, h: 4 },
+    { id: 'pillar-w', kind: 'stand', at: [3, 4], r: 0.4, h: 4, form: 'a fluted column' },
     { id: 'pillar-e', kind: 'stand', at: [6, 4], r: 0.4, h: 4 },
     { id: 'typewriter', kind: 'hotspot', at: [1, 6.2], verb: 'use' },
     { id: 'desk', kind: 'block', at: [5.5, 10], size: [1.8, 0.9], h: 0.8 },
-    { id: 'shelf', kind: 'block', at: [1.5, 10], size: [0.6, 4], h: 2.4 },
+    { id: 'shelf', kind: 'block', at: [7.5, 10], size: [0.6, 4], h: 2.4 },
     { id: 'crest-key', kind: 'pickup', at: [6.1, 10], item: 'crest key' },
     { id: 'statue', kind: 'stand', at: [21, 17.5], r: 0.7, h: 2.6 },
     { id: 'yew', kind: 'stand', at: [25, 16], r: 0.9, h: 5 },
@@ -128,6 +130,34 @@ describe('cameras', () => {
   });
 });
 
+describe('camera triggers', () => {
+  const TRIG = { ...MANOR, items: [...MANOR.items,
+    { id: 'to-gallery', kind: 'trigger', at: [8.2, 3.5], size: [1, 1.6], cut: 'gallery-1', from: 'hall' },
+    { id: 'desk-close', kind: 'trigger', at: [5.5, 9], r: 1.1, cut: {} }] };
+  it('a switch cuts to its camera from the one it names; an insert is a camera of its own, in and back out', () => {
+    const { cams, cuts, adv } = solve(TRIG);
+    const ins = cams.find((c) => c.id === 'desk-close');
+    expect(ins.insert).toBe('desk-close');
+    expect(ins.zone.region).toBe('library');
+    expect(Math.hypot(ins.basis.position[0] - 5.5, ins.basis.position[1] - 9)).toBeLessThan(4.5);   // seated close round it
+    expect(cuts.filter((c) => c.by !== 'zone').map((c) => `${c.by} ${c.from}>${c.to} ${c.trigger}`)).toEqual(['trigger hall>gallery-1 to-gallery', 'trigger library>desk-close desk-close', 'leave desk-close>library desk-close']);
+    expect(cuts.filter((c) => c.by === 'zone')).toHaveLength(4);   // an insert takes no part in the zones
+    expect(adv).toEqual([]);
+  });
+  it('a cut to no camera, or an insert with a from, is refused; a trigger no live camera can fire is advised', () => {
+    const fm = read({ items: [{ id: 't', kind: 'trigger', at: [4, 2], cut: 'nowhere' }] });
+    expect(() => cutsOf(fm, floormapCameras(fm, 'auto'))).toThrow(/no camera is called that/);
+    expect(() => read({ items: [{ id: 't', kind: 'trigger', at: [4, 2], cut: {}, from: 'hall' }] })).toThrow(/drop from/);
+    const odd = solve({ ...MANOR, items: [...MANOR.items, { id: 'a', kind: 'trigger', at: [4, 2], cut: 'library', from: 'garden' }, { id: 'b', kind: 'trigger', at: [4, 10], cut: 'library' }] });
+    expect(odd.adv.filter((x) => x.law === 'trigger-cuts').map((x) => x.at)).toEqual(['a', 'b']);
+  });
+  it('the plan draws the trigger and its cut', () => {
+    const html = floormapBoardHtml(TRIG);
+    expect(html).toContain('cut → gallery-1 (from hall)');
+    expect(html).toContain('insert · corner');
+  });
+});
+
 describe('the laws', () => {
   it('the manor holds every law', () => {
     expect(solve().adv).toEqual([]);
@@ -146,8 +176,31 @@ describe('the board', () => {
   it('assembles its pieces, escapes, and is the same twice', () => {
     const m = { ...MANOR, title: 'Manor <b>' }, html = floormapBoardHtml(m);
     for (const id of floormapPieceIds(m)) expect(html).toContain(`data-piece="${id}"`);
-    expect(html).not.toContain('<b>');
+    expect(html).toContain('Manor &lt;b&gt;');
+    expect(html).not.toContain('Manor <b>');
     expect(html).toContain('every law holds');
     expect(floormapBoardHtml(m)).toBe(html);
+  });
+});
+
+describe('the plate brief and the payload', () => {
+  it('a brief names what its camera sees in the floormap\'s own words, and carries the guide', () => {
+    const { fm, cams } = solve(), hall = plateBrief(fm, cams[0], { style: 'gothic ink wash' });
+    expect(hall.inView.regions).toContain('hall');
+    expect(hall.inView.items).toEqual(expect.arrayContaining(['pillar-w', 'pillar-e']));
+    expect(hall.prompt).toMatch(/a marble entrance hall/);
+    expect(hall.prompt).toMatch(/a fluted column/);
+    expect(hall.prompt).not.toMatch(/pillar-e|stand\b/);
+    expect(hall.prompt).toMatch(/Style: gothic ink wash\./);
+    expect(hall.guide).toMatch(/^<svg[^>]+viewBox="0 0 1280 720"/);
+    expect(plateBrief(fm, cams[0]).prompt).not.toMatch(/Style/);
+  });
+  it('the payload shades the greybox, cuts concave floors into triangles and carries the shots', () => {
+    const { fm, cams } = solve(), pay = floormapPayload(fm, cams);
+    expect(pay.cameras.map((c) => c.name)).toEqual(cams.map((c) => c.id));
+    expect(pay.faces.every((f) => /^#[0-9a-f]{6}$/.test(f.fill))).toBe(true);
+    const L = [[0, 0], [4, 0], [4, 1], [1, 1], [1, 4], [0, 4]];
+    expect(triangulate(L)).toHaveLength(4);
+    expect(pay.anchors.some((a) => a.kind === 'doorway')).toBe(true);
   });
 });

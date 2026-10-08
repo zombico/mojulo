@@ -37,8 +37,35 @@ cameras sit. Everything off the floor is backdrop to be depicted. Its outcome is
     floor, shots that cover, the figure readable, screen direction kept across cuts, stands that hide.
   - `floormap-board-html.js`: the floor from above (zones, edges by kind, doors, exits, items, cameras and their
     view) and a greybox shot per camera, drawn in plain SVG with no browser.
+- **A floormap becomes a walkmesh, baked or painted (`playscape/walkmesh/from-floormap.js`).**
+  `walkmeshOfFloormap` makes one plate per camera, all in one space, each holding its camera's zone.
+  - A baked plate freezes the floormap's greybox: `floormapPayload` shades it in values and cuts concave floors into
+    triangles.
+  - A painted plate (an image handed in for that camera) gets everything projected from the floormap through the
+    camera it was painted over: its floor, holes (blocks), occluders (stands, tall blocks), exits and spawns.
+    Nothing is traced.
+- **One floor, several cameras.** Walkmesh plates in one `space` each hold a `zone` of a shared floor, and crossing a
+  zone line cuts to the next plate without an exit. `cutsOf` lists zone cuts beside exits, and a plate judges only
+  its zone's floor. A painted plate may stand over a known `camera` instead of a fitted `ground`, and may carry
+  `holes`.
+- **The plate brief (`era/floormap-brief.js`).** Per camera: what it sees and a prompt in the floormap's own words
+  (a region's or item's `form`, the edge kinds' depictions, style from the caller), with a guide drawing (the
+  greybox in values). What it sees is judged by a small depth raster, not by the frame alone. The floormap board
+  prints each brief under its shot.
+- **Cameras keep clear of tall pieces.** The solve won't seat a camera within 1.5 m of a stand or tall block, or
+  looking at its zone through one; that ranks worse than turning the figure round at a cut. A `shot-clear` law
+  advises when no clear seat exists.
 - **The walkmesh bake drops sealed pockets:** a patch of floor enclosed by standing faces and smaller than a square
   metre is inside a solid (a column, a crate), not floor.
+- **Camera triggers: a trigger can cut the shot.** A `trigger` item (a disc, or a rect with `size` and `rot`) takes
+  `cut`:
+  - a camera's id: walking into the trigger switches to that camera, and it holds until the next cut. With `from`,
+    it fires only while that camera is live, so two offset triggers keep a doorway from flickering between shots.
+  - a shot (`{ shot, at?, look?, fov? }`): an insert, a camera of its own that holds just the trigger's floor.
+    Walking in cuts to it, walking out cuts back.
+
+  `cutsOf` names how each cut fires (`by`: zone, trigger, leave). The plan draws each trigger's cut, and a
+  `trigger-cuts` law advises a trigger that no live camera can fire. The walkmesh carries them as `triggers`.
 
 ### Walkmesh
 
