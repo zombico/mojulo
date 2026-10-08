@@ -108,3 +108,35 @@ describe('hero-flow: a garment designed to flow', () => {
     });
   });
 });
+
+// RIBBONS: a cloth strand tessellated as the hair's sections are (a sheet across, an outer and an inner face, a ridge, a
+// taper, a cut end), and when its signature says a rigidity, hung on a strand from where it is tied.
+describe('hero-flow: ribbons, bows and streamers', () => {
+  const spine = [[0, 0, 1], [0.01, -0.01, 0.94], [0.02, -0.012, 0.86], [0.03, -0.01, 0.78]];
+  it('a ribbon is a closed sheet: the swallow cut short at the middle, the taper narrowing it; deterministic', async () => {
+    const { ribbonMesh } = await import('./station-loft-adorn.js');
+    const sq = ribbonMesh(spine, { width: 0.04, thick: 0.004 }), sw = ribbonMesh(spine, { width: 0.04, thick: 0.004, tip: 'swallow', notch: 0.2 }), tp = ribbonMesh(spine, { width: 0.04, thick: 0.004, taper: 0.5 });
+    const edges = new Map(); for (const f of sq.faces) for (let k = 0; k < 3; k++) { const e = [f[k], f[(k + 1) % 3]].sort().join('|'); edges.set(e, (edges.get(e) || 0) + 1); }
+    expect([...edges.values()].every((n) => n === 2)).toBe(true);   // watertight
+    const last = (M) => M.rings[M.rings.length - 1].map((id) => M.points[id]), mid = (R) => R[Math.floor(R.length / 4)], side = (R) => R[0];
+    expect(mid(last(sw))[2]).toBeGreaterThan(side(last(sw))[2] + 0.01);   // the V: the middle of the end higher than its corners
+    const span = (R) => Math.hypot(...[0, 1, 2].map((a) => R[0][a] - R[R.length / 2 - 1][a]));
+    expect(span(last(tp))).toBeLessThan(0.7 * span(last(sq)));
+    expect(JSON.stringify(ribbonMesh(spine, { tip: 'swallow', ridge: 0.5, twist: 30 }))).toBe(JSON.stringify(ribbonMesh(spine, { tip: 'swallow', ridge: 0.5, twist: 30 })));
+  });
+  it('a bow\'s tails as flowing ribbons hang as strands from their knot; a bad rigidity refuses; without it nothing flows', async () => {
+    const { validateKit } = await import('./station-loft-adorn.js');
+    const tails = (extra = {}) => ({ id: 'bowKnot', mode: 'shell', part: 'torso', side: 'R', s: [0.25, 0.7], t: [3.7, 4], nt: 2, ns: 2, mugen: 0.004, thick: 0.014, rad: 0.04, group: 'Sash',
+      signature: { kind: 'ribbon', k: 2, j: 1, spread: [-1, 1], spine: [[0, 0, 0], [0.014, -0.008, -0.06], [0.026, -0.012, -0.13], [0.04, -0.006, -0.24]], width: 0.034, thick: 0.003, tip: 'swallow', group: 'Sash', ...extra } });
+    expect(validateKit([tails({ rigidity: 'silk' })], FEMALE.recipe.parts).join(' ')).toMatch(/signature\.rigidity/);
+    const F = heroOf({ cast: 'female', head: 'anime', adorn: [tails({ rigidity: 'flowing' })] }), L = heroOf({ cast: 'female', head: 'anime', adorn: [tails()] });
+    expect(F.recipe.parts['adorn.bowKnot.sig0'].rigidity).toBe('flowing'); expect(L.recipe.parts['adorn.bowKnot.sig0'].rigidity).toBeUndefined();
+    expect(flowRig(L.mesh, L.recipe, { hair: false }).strings).toHaveLength(0);
+    const H2 = flowRig(F.mesh, F.recipe, { hair: false }); expect(H2.strings.map((s) => s.part).sort()).toEqual(['adorn.bowKnot.sig0', 'adorn.bowKnot.sig1']);
+    const root = F.recipe.parts['adorn.bowKnot.sig0'].root;
+    for (const st of H2.strings) { expect(Math.hypot(...st.rest[0].map((v, a) => v - root[a]))).toBeLessThan(0.03); expect(st.joints.length).toBeGreaterThanOrEqual(3); }
+    const fn = locomotionClips(motionPlan({ jog: true }), validateRig(F.recipe.rig)).clips.jog, K = 84;
+    const out = simulateClip(H2, Array.from({ length: K }, (_, k) => fn(k / K)), 0.7, { air: () => [0, -2.4, 0] });
+    for (const pose of out.filter((_, i) => i % 7 === 0)) { const { nodes } = rigNodesAt(H2.R, pose); for (const st of H2.strings) st.joints.forEach((j, k) => { if (k) expect(Math.abs(Math.hypot(...[0, 1, 2].map((a) => nodes[j][a] - nodes[st.joints[k - 1]][a])) - st.lengths[k - 1])).toBeLessThan(0.003); }); }
+  });
+});

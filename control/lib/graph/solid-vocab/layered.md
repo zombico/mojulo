@@ -701,7 +701,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   mode: 'shell' | 'band' | 'strap', part, over?, side?, s, t: 'wrap' | [t0, t1] | path, mugen, thick, rad?, support?,
   ramp?, width?, rigid?, pin?: [s, t, side, part?], signature: { kind, group, … } }]` (`station-loft-adorn.js`: a point
   of an adornment is an address lifted by the smoothed hull of EVERYTHING beneath it plus its mugen, so adornments stack;
-  signatures from the library `boss`, `spike`, `buckle`, `ring`, `medallion`, `plume`, `bell`, `studs`). `expandPlan`
+  signatures from the library `boss`, `spike`, `buckle`, `ring`, `medallion`, `plume`, `ribbon`, `bell`, `studs`; a `ribbon` is
+  a cloth strand built as the anime hair's sections are, `{ spine, spread?, width, thick, taper?, ridge?, flute?, twist?, tip:
+  'square' | 'point' | 'swallow', notch? }`: a bow's tails, a streamer; any signature's `rigidity` (rigidity.js) makes its
+  elements flow, each hung on a strand from where it is tied). `expandPlan`
   bakes both as pinned parts on the refined rest carrier (detail L2, adornment L3): they ride the dials and inherit their
   pin face's skin weights, and refinement extends the parts' bind blends so skinning is unchanged. An adornment and its
   signature share one pin, so a rigid adornment rides one bone (`pin` may name another carrier: a pauldron shaped over the

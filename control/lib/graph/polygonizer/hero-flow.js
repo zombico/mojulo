@@ -87,7 +87,8 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
   // what flows: the hair's sections, then each part that says (or is told) its rigidity, a shell staying locked
   const want = [];
   for (const [part, P] of Object.entries(hair || {})) if (byPart[part]) want.push({ part, layout: 'strand', from: 'skull', ...P });
-  const said = Object.fromEntries(Object.entries(recipe.parts || {}).filter(([, p]) => p.rigidity !== undefined).map(([n, p]) => [n, { rigidity: p.rigidity }]));
+  // a part that says its rigidity; one tied at a point (`root`: a ribbon, a streamer, a bow's tail) hangs as a strand from it
+  const said = Object.fromEntries(Object.entries(recipe.parts || {}).filter(([, p]) => p.rigidity !== undefined).map(([n, p]) => [n, { rigidity: p.rigidity, ...(Array.isArray(p.root) ? { layout: 'strand', from: p.root } : {}) }]));
   for (const [part, P] of Object.entries({ ...said, ...pieces })) { if (!byPart[part] || rigidityOf(P.rigidity) === null || rigidityOf(P.rigidity) >= 1) continue; want.push({ part, layout: 'curtain', ...P }); }
   const flowing = new Set(want.map((w) => w.part));
   const joints = { ...rig.joints }, bones = [...rig.bones], strings = [], pairs = [];
@@ -116,12 +117,12 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
     // the carrier: what holds the attached edge (the head for hair; for a garment the bone its top rides most)
     const carrier = W.carrier ?? (W.from === 'skull' ? 'head' : carrierOf(ids.filter((_, i) => pts[i][2] >= Math.max(...pts.map((p) => p[2])) - 0.1 * (Math.max(...pts.map((p) => p[2])) - Math.min(...pts.map((p) => p[2]))))));
     if (W.layout === 'strand') {
-      // root → tip: by distance from the skull's centre (hair), else from the top down
-      const d = W.from === 'skull' ? pts.map((p) => len(sub(p, skull))) : pts.map((p) => -p[2]);
+      // root → tip: by distance from the skull's centre (hair), from where it is tied (a ribbon), else from the top down
+      const d = W.from === 'skull' ? pts.map((p) => len(sub(p, skull))) : Array.isArray(W.from) ? pts.map((p) => len(sub(p, W.from))) : pts.map((p) => -p[2]);
       const sorted = [...d].sort((a, b) => a - b), q = (f) => sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))];
       const rootIds = ids.filter((_, i) => d[i] <= q(0.08)), tipIds = ids.filter((_, i) => d[i] >= q(0.92));
       const root = centroid(rootIds.map((i) => V[i])), tip = centroid(tipIds.map((i) => V[i])), ax = sub(tip, root), L2 = dot(ax, ax); if (L2 < 1e-6) continue;
-      const s = pts.map((p) => Math.max(0, Math.min(1, dot(sub(p, root), ax) / L2))), n = W.links ?? 3;
+      const s = pts.map((p) => Math.max(0, Math.min(1, dot(sub(p, root), ax) / L2))), n = W.links ?? Math.max(2, Math.min(6, Math.round(Math.sqrt(L2) / 0.06)));
       const restPts = [root], bins = [rootIds];
       for (let k = 1; k < n; k++) { const inS = ids.filter((_, i) => Math.abs(s[i] - k / n) <= 0.5 / n); restPts.push(inS.length ? centroid(inS.map((i) => V[i])) : add(root, mul(ax, k / n))); bins.push(inS.length ? inS : rootIds); }
       restPts.push(tip); bins.push(tipIds);

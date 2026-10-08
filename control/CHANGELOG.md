@@ -54,6 +54,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   cast's `hands` (1.2), and a broader palm through a new `handWidth` (1.17 female, 1.25 male: the palm's width, the
   knuckles' spread and the digits' width across, their depth by its root). The feet are unchanged. Every anime hero's
   mesh moves at the hand; its pins are re-pinned.
+- Ribbons, bows and streamers: a `ribbon` adornment signature, a cloth strand tessellated as the anime hair's sections
+  are (a sheet of columns across, an outer and an inner face, a `ridge` or `flute`, a `taper`, a `twist`, its end cut
+  `square`, to a `point` or into a `swallow` tail). Any signature takes a `rigidity`: its elements then flow, each hung on a
+  strand from where it is tied (`root`, carried on the part), swinging with the stride, the stop and the wind like the
+  hair (`polygonizer/hero-flow.js`). Without it every adornment is as it was.
 - The shoulders rise with the arms: the structured core has a SHOULDER GIRDLE, a collarbone each side from the shoulder
   line to the shoulder, that lifts with a raised arm (past 30° of raise a third of the further raise, at most 25°: the
   scapulohumeral rhythm), the arm carried up with it in its own direction. The arm's cap and the chest's skin at the side
