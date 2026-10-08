@@ -140,6 +140,13 @@ ${map(g1, '2 · smooth', 'the walk laid level, the geology at the cliff, the pit
 </div></body></html>`;
 }
 
+/** The trail's plan alone (its smooth pass under the trail, its beats and its edge), `w` wide, for a page that is not the board. */
+export function outTrailPlanSvg(manifest, w = 330) {
+  const { site } = outTrailOf(manifest), g = site.passes.smooth, h = Math.round((w * (gridY(g, g.ny - 1) - gridY(g, 0))) / (gridX(g, g.nx - 1) - gridX(g, 0))), d = depthPng(site, g);
+  const labels = '.lbl{font:700 11px Helvetica,Arial,sans-serif;fill:#000;paint-order:stroke;stroke:#fff;stroke-width:3px}';
+  return overlay(site, g, w, h).replace(/^<svg class="over"/, '<svg').replace('<defs>', `<style>${labels}</style><defs>`).replace('</defs>', `</defs><image href="${d.url}" width="${w}" height="${h}" preserveAspectRatio="none"/>`);
+}
+
 /** The board as a PNG, laid out by a headless Chromium (scene-png.js). Throws when no browser can be resolved. */
 export async function outTrailBoardPng(manifest) {
   const { renderPageToPng } = await import('../scene/scene-png.js');

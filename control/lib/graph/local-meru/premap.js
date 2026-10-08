@@ -88,6 +88,11 @@ function planSvg(p, w) {
   o.push(`<line x1="${w - 16}" y1="${h - 12}" x2="${w - 16}" y2="${h - 36}" stroke="#000" stroke-width="1.5" marker-end="url(#arr)"/><text x="${w - 16}" y="${h - 40}" text-anchor="middle" class="sm">+y</text>`);
   return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg"><defs>${ARROW}</defs>${o.join('')}</svg>`;
 }
+/** The meru's plan alone, `w` wide, carrying its own label styles (for a page that is not the premap). */
+export function localMeruPlanSvg(recipe = {}, w = 420) {
+  const labels = '.lbl{font:700 11px Helvetica,Arial,sans-serif;fill:#000;paint-order:stroke;stroke:#fff;stroke-width:3px}.lbl2{font:700 11px Helvetica,Arial,sans-serif;fill:#000}.sm{font:10px Helvetica,Arial,sans-serif;fill:#555}';
+  return planSvg(planLocalMeru(recipe), w).replace('<defs>', `<style>${labels}</style><defs>`);
+}
 
 // ── 2 · the meru: a half-section through the axis ────────────────────────────────────────────────────────────────
 function meruSvg(p, w) {

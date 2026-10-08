@@ -12,6 +12,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Gameworlds: a world above its levels
+
+- A gameworld recipe (`lib/graph/gameworld/`): the world carries the style guide (kit, building language,
+  fortification, the ground's character for trails, climbs, towns and castles) and every level inherits it; a level
+  or a section may override any of it, and each override is kept in a ledger beside the world's value. Levels lay out
+  through the level graph unchanged. Characters and mechanics are reserved, left open.
+- The gameworld graph: worlds, styles, levels, sections and places as nodes, with typed edges (contains, seam, leads,
+  drawn-in, speaks, fortified-by, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
+- The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the full style guide, a page for each
+  level (its walk, its places, what it overrides) and the open sections.
+
 ### Scapeshift structures
 
 Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a world yet.
