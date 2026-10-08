@@ -330,7 +330,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   side bend bends the lower back over a still pelvis; a `clavicle` bone each side from the shoulder line to the shoulder
   RISES with a raised arm (past 30° a third of the further raise, at most 25°: the shoulder blade's rhythm), the top of the
   shoulder's skin and the arm's cap riding it, so the shoulder lifts with the arm instead of the chest's corner standing; the hem and the top of the thighs blend the two, and a hip-slung blade
-  rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
+  rides the basin. The limbs are HARD: each bone's rings are rigid on it, a joint's blend only within about a limb's radius of
+  the joint (`bind.zone`), so a limb bends at its joints and its bones stay straight. The hip, the knee and the elbow
+  each have a FOLD bone (`hipFold`, `kneeFold`, `elbowFold`, a side): the rings at the joint ride it, turned half the
+  bend and pushed to its convex side (the kneecap, the point of the elbow) as the bend grows, so a deep crouch or a bent
+  arm keeps its volume instead of folding flat, and a turned-out thigh comes out of the hip. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
   the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
   receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's
   diagonal. Its TORSO is built on the vajra rib cage: a waist above the hem, the ribs widening to a lifted chest, the male's

@@ -12,6 +12,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Ready stances
+
+- Hard limbs: the structured core's limbs bend at their joints and nowhere else. Each bone's rings are rigid on it; a
+  joint's blend eases in only within about a limb's radius of the joint (`bind.zone`, metres, on the thigh, shin, upper
+  arm and forearm: the refine pass and the shaping rings ease by the rings' distance from the joint's ring instead of
+  spreading linearly over the span), where it ran up to 23 cm into the bone and bowed a bent arm or leg like a hose.
+  The hip, knee and elbow each have a FOLD bone (`hipFold<S>`, `kneeFold<S>`, `elbowFold<S>`: station-loft-rig.js
+  `folds`) carrying the rings at the joint, turned half the bend (the mitre of the two tubes; the hip's half the
+  thigh's turn off the pelvis) and pushed to the bend's convex side by the mitre's own growth (at most 0.6 of the limb's
+  radius), so a crouch's knees and a guard's elbows keep their volume instead of folding flat, and a turned-out thigh
+  comes out of the hip instead of standing in the pelvis like a tube. Six more joints in the skinned export (57); the
+  streamlined core is unchanged.
+- Ready stances for the main actions (`polygonizer/hero-stance.js`), sorted by where the feet stand and so how the body
+  faces: SQUARE (`athletic`, `low`, `centre`: the body facing the target) and BLADED (`guard`, `fencing`, `hitting`: side
+  on), each bladed or staggered stance with its exact mirror (`guardLeft`, …). A stance is design words (the feet's
+  spread and line, each toe's turn, the sink, the lean, the weight between the feet, the hands' places in the target's
+  frame) solved from principles: the body's facing follows from the feet, squared to the foot line only as far as each
+  hip can keep its knee over its toes; the centre of mass is set over the feet at the weight asked; the neck and head
+  turn the eyes back to the target; each arm reaches its hand's place with the elbow down. Each stance gives its held
+  pose, an enter clip from the stand (the feet stepping into place one at a time, the body turning over them) and its
+  checks (balance margin, knees over toes, hip turnout, gaze, reach). The rig takes two new pose channels, `facing` (the
+  body turned over planted feet) and `splay<S>` (a planted foot turned on its ball, its knee with it); absent, every
+  pose and export is byte-identical (a planted leg under a `facing` reads its bones from its own solve). Not yet on the hero door or in exports. The motion card draws them
+  (`render-motion.mjs --stances`, with `--views front,side,top`).
+
 ### Character rig presets
 
 - `motion` on the hero door (`hero.motion: { walk?, jog?, sprint? }`, each `true` or the gait's own dials plus `tilt`

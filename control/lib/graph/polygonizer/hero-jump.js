@@ -193,12 +193,12 @@ const BASE = {
 // THE MIRROR: a clip done to the other side — each L / R channel swapped for its twin, and every sideways angle (a
 // joint's yaw, roll and turn, the spine's lateral bend and axial twist, the body's roll) turned the other way; the
 // pitches, the bends and the timing are a side's own. The rig is symmetric, so the mirror is exact.
-const SIDEWAYS = new Set(['yaw', 'roll', 'turn', 'lateral', 'axial', 'rollBody']);
+const SIDEWAYS = new Set(['yaw', 'roll', 'turn', 'lateral', 'axial', 'rollBody', 'facing', 'glance']);
 const twin = (k) => k.replace(/([LR])$/, (s) => (s === 'L' ? 'R' : 'L'));
 export function mirrored(o) {
   if (Array.isArray(o)) return o.map(mirrored);
   if (!o || typeof o !== 'object') return o;
-  return Object.fromEntries(Object.entries(o).map(([k, v]) => [/^(sh|elbow|hip|knee|ankle|toe|wrist|ground|foot|heel)[LR]$/.test(k) ? twin(k) : k, SIDEWAYS.has(k) && Number.isFinite(v) ? -v : mirrored(v)]));
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [/^(sh|elbow|hip|knee|ankle|toe|wrist|ground|foot|heel|out|splay)[LR]$/.test(k) ? twin(k) : k, SIDEWAYS.has(k) && Number.isFinite(v) ? -v : mirrored(v)]));
 }
 /** the left-hand rolls: the right ones mirrored (over the LEFT shoulder; rolling to the left) */
 export const JUMPS = Object.freeze({
@@ -254,8 +254,10 @@ export function keyedClip(J, R, opts = {}) {
   const flat = J.keys.map((k) => flatten(k.pose));
   const paths = [...new Set(flat.flatMap((f) => Object.keys(f)))];
   // the jump's own channels: `sink`, and per side `ground`, `foot`, `heel` (a key's `groundL` over its `ground`, …)
-  const own = (k, p) => { if (p === '$sink') return k.sink; if (p === '$pitchBody' || p === '$rollBody') return k[p.slice(1)] ?? 0; const [, ch, S] = p.match(/^\$(ground|foot|heel)([LR])$/); return k[`${ch}${S}`] ?? k[ch] ?? 0; };
-  const OWN = ['$sink', '$pitchBody', '$rollBody', ...['ground', 'foot', 'heel'].flatMap((c) => ['L', 'R'].map((S) => `$${c}${S}`))];
+  // (and `out<S>`, metres a planted toe sits out from its rest place: a stance's, hero-stance.js)
+  const own = (k, p) => { if (p === '$sink') return k.sink; if (p === '$pitchBody' || p === '$rollBody') return k[p.slice(1)] ?? 0; const [, ch, S] = p.match(/^\$(ground|foot|heel|out)([LR])$/); return k[`${ch}${S}`] ?? k[ch] ?? 0; };
+  const outs = J.keys.some((k) => ['out', 'outL', 'outR'].some((c) => k[c] !== undefined));
+  const OWN = ['$sink', '$pitchBody', '$rollBody', ...['ground', 'foot', 'heel', ...(outs ? ['out'] : [])].flatMap((c) => ['L', 'R'].map((S) => `$${c}${S}`))];
   const curves = Object.fromEntries([...paths, ...OWN].map((p) => [p, curve(J.keys.map((k, i) => ({ t: k.t, v: OWN.includes(p) ? own(k, p) : (flat[i][p] ?? 0) })))]));
   const rest = R.joints; const sides = Object.keys(R.legs);
   const legOf = Object.fromEntries(sides.map((S) => { const L = R.legs[S]; return [S, { L, reach: REACH * (len(sub(rest[L.knee], rest[L.hip])) + len(sub(rest[L.hock], rest[L.knee]))), heel: sub(rest[L.hock], rest[L.toeBase]), floor: rest[L.toeBase][2] }]; }));
@@ -305,14 +307,16 @@ export function keyedClip(J, R, opts = {}) {
     for (const S of sides) {
       const { L, reach, heel: hv0, floor } = legOf[S];
       const w = Math.max(0, Math.min(1, curves[`$ground${S}`](t))), heel = Math.max(0, curves[`$heel${S}`](t)); heels[`heel${S}`] = -heel;
-      const planted = [rest[L.toeBase][0], rest[L.toeBase][1] + curves[`$foot${S}`](t) + slideOf(S, t), rest[L.toeBase][2]];
+      const planted = [rest[L.toeBase][0] + (outs ? Math.sign(rest[L.hip][0]) * curves[`$out${S}`](t) : 0), rest[L.toeBase][1] + curves[`$foot${S}`](t) + slideOf(S, t), rest[L.toeBase][2]];
       let target = lerp3(free[L.toeBase], planted, w);
       // the toe TOUCHES only once the blend is whole: until then it rides just above the floor (a toe clamped down while
       // still blending from its swing would skate along the ground at the swing's speed)
       // (and the hover itself fades in from no ground at all, or a leaving toe would drop the hover's height at once)
       if (!J.roll) target[2] = Math.max(target[2], floor + TOUCH * Math.pow(1 - w, 0.25) * Math.min(1, w / 0.15));   // a roll's floor is its floor solve's
       // the hock for this heel (the rig turns the toe-base → hock line about x by −heel), and the reach from the hip
-      const a = (-heel * Math.PI) / 180; const hv = [hv0[0], hv0[1] * Math.cos(a) - hv0[2] * Math.sin(a), hv0[1] * Math.sin(a) + hv0[2] * Math.cos(a)];
+      const a = (-heel * Math.PI) / 180; let hv = [hv0[0], hv0[1] * Math.cos(a) - hv0[2] * Math.sin(a), hv0[1] * Math.sin(a) + hv0[2] * Math.cos(a)];
+      // a splayed foot (a stance's `splay<S>`, the rig turning it about its ball) puts its hock round the vertical too
+      const sp = pose[`splay${S}`]; if (Number.isFinite(sp) && sp) { const b = (sp * (rest[L.hip][0] < 0 ? 1 : -1) * Math.PI) / 180; hv = [hv[0] * Math.cos(b) - hv[1] * Math.sin(b), hv[0] * Math.sin(b) + hv[1] * Math.cos(b), hv[2]]; }
       const hip = free[L.hip]; const hock = (p) => [p[0] + hv[0], p[1] + hv[1], p[2] + hv[2]];
       const d = len(sub(hock(target), hip));
       if (d > reach) { const dir = sub(hock(target), hip); target = sub([hip[0] + (dir[0] * reach) / d, hip[1] + (dir[1] * reach) / d, hip[2] + (dir[2] * reach) / d], hv); }

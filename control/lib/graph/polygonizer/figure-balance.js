@@ -31,7 +31,7 @@ const norm = (a) => { const l = len(a) || 1; return { x: a.x / l, y: a.y / l, z:
 
 // Rough segment mass fractions (biomechanical) — the mass rides each segment's
 // midpoint. Trunk + head dominate; limbs taper. Used only for the COM estimate.
-const MASS = [
+export const MASS = [
   ['pelvisHub', 'neckHub', 0.46], ['neckHub', 'headTop', 0.08],
   ['hipL', 'kneeL', 0.10], ['hipR', 'kneeR', 0.10],
   ['kneeL', 'ankleL', 0.045], ['kneeR', 'ankleR', 0.045],

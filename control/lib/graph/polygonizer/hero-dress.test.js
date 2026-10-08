@@ -62,11 +62,15 @@ describe('the rules the passes hold themselves to', () => {
   });
   it('refinement extends the SKIN weights: a refined joint station is the blend of its neighbours', () => {
     const { recipe } = figure('male', 'round'); const b = recipe.parts.upperArmR.bind.blend;
-    expect(b.st0_st1_50).toEqual({ clavicleR: 0.25, upperArmR: 0.75 });   // the arm's cap blends the collarbone (the structured shoulder girdle)
+    // the arm's cap blends the collarbone (the structured shoulder girdle), eased toward the joint (a hard limb's `zone`)
+    expect(b.st0_st1_50.clavicleR).toBeCloseTo(0.25, 1); expect(b.st0_st1_50.clavicleR + b.st0_st1_50.upperArmR).toBe(1);
     // on the structured arm st2's neighbour is the biceps' shaping ring (hero-form ARM_FORM: st1_st2_<k>), which takes
-    // the elbow's share by its u (refined: by u too); the ring refined between it and st2 is the blend of the two
+    // the elbow's share by its u (refined: by u too); the ring refined between it and st2 is the blend of the two — st2
+    // the elbow's FOLD bone's alone (the hinge's rings ride the fold, station-loft-rig.js)
     const biceps = Object.keys(b).filter((id) => /^st1_st2_\d+$/.test(id)).at(-1), ref = b[`${biceps}_st2_50`];
-    expect(ref.foreArmR).toBeCloseTo((b[biceps].foreArmR + 0.5) / 2, 5); expect(ref.foreArmR + ref.upperArmR).toBeCloseTo(1, 5);
+    expect(b.st2).toEqual({ elbowFoldR: 1 });
+    // (a hard limb: the biceps' ring rides the arm alone, out of the elbow's zone; the refined ring nearer the elbow eases in)
+    expect(b[biceps]).toBeUndefined(); expect(ref === undefined || ref.upperArmR > 0.5).toBe(true);
     expect(dominance(src.parts.torso)(2.5)).toEqual({ w: 1, bone: 'torso' });
   });
   it('the refined ring keeps its cyclic order on both halves (the left half mirrors the right)', () => {

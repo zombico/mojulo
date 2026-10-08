@@ -65,11 +65,28 @@ function densify(r, part, { stations = true, slots = LIMB6_SLOTS } = {}) {
 function extendBlends(r) { for (const d of Object.values(r.dials || {})) { if (!d.blend) continue; for (const pn of d.parts || []) { const P = r.parts[pn]; if (!P) continue;
   for (const st of P.stations) { if (d.blend[st.id] !== undefined || st.u === undefined || Number.isInteger(st.u)) continue; const t = st.u - Math.floor(st.u);
     d.blend[st.id] = (d.blend[`st${Math.floor(st.u)}`] ?? 0) * (1 - t) + (d.blend[`st${Math.ceil(st.u)}`] ?? 0) * t; } } } }
-/** a refined station's SKIN weights: the blend of its neighbours' by u (an unlisted station is the part's own bone) */
+/** a refined station's SKIN weights: the blend of its neighbours' by u (an unlisted station is the part's own bone).
+ * A HARD limb (`bind.zone`, metres: hero-form's structured limbs) keeps its bone rigid: between a ring on the bone
+ * alone and a joint's ring, the joint's share eases in only within `zone` of the joint ring (smoothstep on the
+ * distance between the rings' centres), so a bent hinge bends at the hinge and the bone between stays straight — a
+ * blend spread by u over the whole span bowed the limb like a hose */
+/** rounded shares summing to 1: the largest takes what the others leave */
+export function settle(w) { const ks = Object.keys(w); if (ks.length < 2) return w; const big = ks.reduce((a, k) => (w[k] > w[a] ? k : a), ks[0]); w[big] = 1 - ks.filter((k) => k !== big).reduce((t, k) => t + w[k], 0); return w; }
 function extendBinds(r, refined) { for (const pn of refined) { const P = r.parts[pn]; const b = P.bind; if (!b || typeof b !== 'object' || !b.blend) continue;
   const at = (i) => b.blend[`st${i}`] ?? { [b.bone]: 1 };
-  for (const st of P.stations) { if (b.blend[st.id] !== undefined || st.u === undefined || Number.isInteger(st.u)) continue; const lo = at(Math.floor(st.u)), hi = at(Math.ceil(st.u)), t = st.u - Math.floor(st.u);
+  const rigid = (w) => Object.keys(w).length === 1 && w[b.bone] === 1;
+  const centre = (st) => { const v = Object.values(st.points || {}); return v.length ? [0, 1, 2].map((k) => v.reduce((a, p) => a + p[k], 0) / v.length) : null; };
+  const byId = Object.fromEntries(P.stations.map((st) => [st.id, st]));
+  const zoneT = (st, i0, i1, t) => {
+    if (!(b.zone > 0)) return t;
+    const lo = at(i0), hi = at(i1), loR = rigid(lo), hiR = rigid(hi); if (loR === hiR) return t;
+    const c = centre(st), cj = centre(byId[`st${loR ? i1 : i0}`] || {}); if (!c || !cj) return t;
+    const d = Math.hypot(c[0] - cj[0], c[1] - cj[1], c[2] - cj[2]), x = Math.max(0, Math.min(1, 1 - d / b.zone)), sm = x * x * (3 - 2 * x);
+    return loR ? sm : 1 - sm;
+  };
+  for (const st of P.stations) { if (b.blend[st.id] !== undefined || st.u === undefined || Number.isInteger(st.u)) continue; const lo = at(Math.floor(st.u)), hi = at(Math.ceil(st.u)), t = zoneT(st, Math.floor(st.u), Math.ceil(st.u), st.u - Math.floor(st.u));
     const w = {}; for (const k of [...new Set([...Object.keys(lo), ...Object.keys(hi)])].sort()) { const v = r6((lo[k] ?? 0) * (1 - t) + (hi[k] ?? 0) * t); if (v > 0) w[k] = v; }
+    if (b.zone > 0) settle(w);   // (eased shares rounded: the largest takes the remainder, so they sum to 1)
     if (!(Object.keys(w).length === 1 && w[b.bone] === 1)) b.blend[st.id] = w; } } }
 /** re-pin L2 parts whose parent was refined: face pin → (s,t) on the unrefined carrier → face pin on the refined one */
 function migratePins(before, r, refined) { const L1u = compileLayered(before, {}, { details: false, creases: false }).parts, L1r = compileLayered(r, {}, { details: false, creases: false }).parts;

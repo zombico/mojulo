@@ -25,7 +25,8 @@
  * Deterministic. Run from control:
  *   node ../docs/examples/humanoid/render-motion.mjs --spec ../docs/examples/humanoid/cast/lead.json \
  *     [--clips walk,idle] [--motion jog='{"sprint":{"dutyFactor":0.45}}'] [--plant gait|stance] [--seconds jog=0.7]
- *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--frames 24] [--cell 220] [--out <dir>]   (default out: $MOJULO_SPIKE_OUT or the scratch folder below, /<name>/)
+ *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--stances guard,fencingLeft] [--views front,side,top,q34,rear]
+ *     [--frames 24] [--cell 220] [--out <dir>]   (default out: $MOJULO_SPIKE_OUT or the scratch folder below, /<name>/)
  */
 import { register, createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -41,6 +42,7 @@ const { poseLayered, heroClipSeconds, GESTURE_CLIP } = await lib('graph/polygoni
 const { resolveMotion } = await lib('graph/polygonizer/figure-posing.js');
 const { heroLocomotion, locomotionClips } = await lib('graph/polygonizer/hero-motion.js');
 const { heroJump, JUMP_NAMES } = await lib('graph/polygonizer/hero-jump.js');
+const { heroStance, STANCE_NAMES } = await lib('graph/polygonizer/hero-stance.js');
 const { flowRig, simulateClip, rigidityOf } = await lib('graph/polygonizer/hero-flow.js');
 const { windField, resolveTerrainWind } = await lib('graph/vegetation/wind.js');
 
@@ -53,6 +55,8 @@ const FRAMES = Number(argOf('--frames') ?? 24), CELL = Number(argOf('--cell') ??
 if (!['feet', 'gait', 'stance'].includes(PLANT)) throw new Error(`--plant: feet, gait or stance (got ${PLANT})`);
 const MOTIONS = argsOf('--motion').map((s) => { const i = s.indexOf('='); if (i < 1) throw new Error(`--motion ${s}: <name>=<json motion spec>`); return [s.slice(0, i), JSON.parse(s.slice(i + 1))]; });
 const JUMPS_ASKED = (argOf('--jumps') ?? '').split(',').filter(Boolean);
+// --stances guard,fencingLeft,…: ready stances (hero-stance.js), each its enter clip from the stand to the held pose
+const STANCES_ASKED = (argOf('--stances') ?? '').split(',').filter(Boolean);
 const SECONDS = Object.fromEntries(argsOf('--seconds').map((s) => { const [k, v] = s.split('='); return [k, Number(v)]; }));
 // --hair: the hair on its control strings (hero-flow.js), against the body and outfit as one collision form;
 // --wind speed[,dir[,gust]]: the world's wind (vegetation/wind.js), m/s, dir in degrees the wind blows TOWARD (0 the
@@ -83,7 +87,7 @@ const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
 // the door's motion (hero.motion), baked as the pack bakes it: its gaits replace the hero's own clips of their names
 const LOCO = recipe.locomotion ? locomotionClips(recipe.locomotion, R, { keys: FRAMES }) : null;
 const own = [...new Set([...Object.keys(recipe.clips || {}), ...Object.keys(LOCO?.clips || {})])].filter((k) => k !== GESTURE_CLIP);
-const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length ? [] : own);
+const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length ? [] : own);
 for (const c of asked) if (!recipe.clips?.[c] && !LOCO?.clips[c]) throw new Error(`--clips: the hero has no clip '${c}' (has ${own.join(', ')})`);
 const bridge = (dof) => {
   if (PLANT === 'gait' || !dof?.plant) return dof;
@@ -98,6 +102,7 @@ const CLIPS = [
     if (PLANT === 'feet') { const loco = heroLocomotion(m, R, { frames: FRAMES }); const s = SECONDS[n] ?? 1; return { name: n, src: `motion ${JSON.stringify(m)} · feet · travel ${loco.travel.toFixed(3)} m/cycle`, fn: loco.fn, seconds: s }; }
     const f = resolveMotion(m, { frames: FRAMES, base: core }); if (!f) throw new Error(`--motion ${n}: not a motion spec resolveMotion takes`); return { name: n, src: `motion ${JSON.stringify(m)} · plant ${PLANT}`, fn: (ph) => bridge(f(ph)), seconds: SECONDS[n] ?? 1 }; }),
   ...JUMPS_ASKED.map((n) => { if (!JUMP_NAMES.includes(n)) throw new Error(`--jumps: no jump '${n}' (have ${JUMP_NAMES.join(', ')})`); const J = heroJump(n, R, { seconds: SECONDS[n] }); return { name: n, src: `jump · in place · air ${J.air ? `${J.air.takeoff}–${J.air.land} s, ${(J.air.height * 100).toFixed(0)} cm${J.air.kick !== undefined ? `, kick at ${J.air.kick} s (${(J.air.kickHeight * 100).toFixed(0)} cm) → ${(J.air.apexHeight * 100).toFixed(0)} cm` : ''}` : 'none'} (the card draws the arc)${J.roll ? ` · roll ${J.roll.axis} ${J.roll.start}–${J.roll.end} s, ${J.roll.travel} m at ${J.roll.speed} m/s` : ''}`, fn: J.fn, seconds: J.seconds, once: true, air: J.air, speed: J.air?.speed ?? 0, roll: J.roll }; }),
+  ...STANCES_ASKED.map((n) => { if (!STANCE_NAMES.includes(n)) throw new Error(`--stances: no stance '${n}' (have ${STANCE_NAMES.join(', ')})`); const S = heroStance(n, R, { seconds: SECONDS[n] }); const c = S.checks; return { name: n, src: `stance · ${S.family}${S.lead ? ` · lead ${S.lead}` : ''} · facing ${S.facing}° · com ${(c.com.margin * 100).toFixed(1)} cm in, weight ${c.com.weight} · knees ${c.knees.L}/${c.knees.R}° · turnout ${c.turnout.L}/${c.turnout.R}° · gaze ${c.gaze}° · serves ${S.serves.join(', ')}`, fn: S.clip.fn, seconds: S.clip.seconds, once: true, checks: c }; }),
 ];
 
 // ─── a small vector kit and the raster ─────────────────────────────────────
@@ -110,11 +115,9 @@ const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 /** an orthographic camera at azimuth `az` (0 = in front of the figure, which faces +y; 90 = its right side) and
  * elevation `el`: screen right, screen up, and the depth axis toward the camera */
 const camera = (az, el) => { const d = [Math.sin(rad(az)) * Math.cos(rad(el)), Math.cos(rad(az)) * Math.cos(rad(el)), Math.sin(rad(el))]; const r = unit(cross([0, 0, 1], d)); return { d, r, u: cross(d, r) }; };
-const VIEWS = [
-  { id: 'side', label: 'side', cam: camera(90, 0) },
-  { id: 'q34', label: '¾', cam: camera(35, 8) },
-  { id: 'rear', label: 'rear ¾ 20° down (gameplay)', cam: camera(150, 20) },
-];
+// --views front,side,top,q34,rear (default side,q34,rear): the cells after the stick figure
+const VIEW_SET = { front: { id: 'front', label: 'front', cam: camera(0, 0) }, side: { id: 'side', label: 'side', cam: camera(90, 0) }, top: { id: 'top', label: 'top (target up)', cam: camera(180, 89) }, q34: { id: 'q34', label: '¾', cam: camera(35, 8) }, rear: { id: 'rear', label: 'rear ¾ 20° down (gameplay)', cam: camera(150, 20) } };
+const VIEWS = (argOf('--views') ?? 'side,q34,rear').split(',').map((v) => { if (!VIEW_SET[v]) throw new Error(`--views: ${Object.keys(VIEW_SET).join(', ')} (got ${v})`); return VIEW_SET[v]; });
 const PAL = recipe.palette || {}; const GREY = [138, 143, 150];
 const faceRgb = mesh.faces.map((_, fi) => (PAL[mesh.groups?.[fi]] ? hexRgb(PAL[mesh.groups[fi]]) : GREY));
 const LIGHT = unit([0.35, 0.55, 0.75]);

@@ -22,12 +22,13 @@
  * lab's comfortable exploration limits: `tuneWarnings` advises past them, nothing refuses (docs/bicycles.md).
  *
  * The canonical JSON lives at docs/examples/ring-plans/hero.plan.json, written by hero.plan.mjs (a re-export of this). */
-import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, shapeId } from './station-loft-plan.js';
+import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, segmentBind, shapeId } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
 import { heroHand } from './hero-hand.js';
 import { heroFoot } from './hero-foot.js';
 import { CLAVICLE_IN } from './figure-vajra.js';
 import { mirrorPid } from './station-loft.js';
+import { settle } from './station-loft-body.js';
 import { castArmature, resolveCast, validateCast } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
 import * as dmath from '../../util/dmath.js';
@@ -758,6 +759,21 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     ...(foot ? foot.segments : [limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
       limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) })]),
   ];
+  // the structured core's FOLDS (station-loft-rig.js): the rings at the knee and the elbow ride a helper bone turned half
+  // the bend and pushed out to its outside (the kneecap, the point of the elbow), not a blend of the limb's two bones
+  // (which draws a bent hinge's ring inside the joint: the paper fold)
+  if (structured) {
+    const fold = (name, ends) => { const seg = segments.find((x) => x.name === name); const sb = segmentBind(seg.bind.prev, seg.bind.bone, seg.bind.next); for (const st of ends) sb.blend[st] = { [`${name.startsWith('upperArm') || name.startsWith('foreArm') ? 'elbow' : 'knee'}FoldR`]: 1 }; seg.bind = sb; };
+    // (the end rings only: each tube's pinched cap stays inside the other limb, on that limb's bone, as before)
+    fold('upperArmR', ['st2']); fold('foreArmR', ['st0']); fold('shankR', ['st0']);
+    // the hip ring half the pelvis's, half the hip fold's (a quarter of the thigh's turn), the thigh rigid below it: the
+    // basin and the thigh met in one blend (the top of a turned-out thigh read as a tube's end stuck in the pelvis)
+    Object.assign(thigh.bind.blend, { st1: { pelvis: 0.5, hipFoldR: 0.5 }, st2: { thighR: 1 }, st4: { kneeFoldR: 1 } });
+    // HARD limbs: each bone rigid, its joint's blend only within about a limb's radius of the joint ring
+    // (station-loft-body.js extendBinds `zone`): the bones stay straight, the bend is the hinge's
+    thigh.bind.zone = r6(1.3 * b.calf);
+    for (const x of segments) if (/^(shank|upperArm|foreArm)R$/.test(x.name)) x.bind.zone = r6(1.3 * (x.name === 'shankR' ? b.calf : g(x.name === 'foreArmR' ? b.forearm : b.arm)));   // each its own limb's radius
+  }
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
@@ -780,11 +796,21 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   for (const P of segments.filter((p) => (p.kind === 'trunk' || p.kind === 'loft') && p.stations.some((st) => st.u !== undefined && !Number.isInteger(st.u)))) {
     const at = (blend, i, own) => blend[`st${i}`] ?? own;
     const lerpW = (lo, hi, t) => { const w = {}; for (const k of [...new Set([...Object.keys(lo), ...Object.keys(hi)])].sort()) { const v = r6((lo[k] ?? 0) * (1 - t) + (hi[k] ?? 0) * t); if (v > 0) w[k] = v; } return w; };
+    // (a HARD limb's, `bind.zone`: the joint's share only within the zone of the joint's ring, as extendBinds)
+    const ints = P.stations.filter((st) => st.u === undefined || Number.isInteger(st.u));
+    const zoned = (i, t, st) => {
+      const z = P.bind?.zone, own = { [P.bind?.bone]: 1 }, lo = at(P.bind?.blend || {}, i, own), hi = at(P.bind?.blend || {}, i + 1, own);
+      const rigid = (w) => Object.keys(w).length === 1 && w[P.bind.bone] === 1; if (!(z > 0) || rigid(lo) === rigid(hi) || !st.at) return t;
+      const j = ints[rigid(lo) ? i + 1 : i]?.at; if (!j) return t;
+      const x = Math.max(0, Math.min(1, 1 - Math.hypot(st.at[0] - j[0], st.at[1] - j[1], st.at[2] - j[2]) / z)), sm = x * x * (3 - 2 * x);
+      return rigid(lo) ? sm : 1 - sm;
+    };
     for (const st of P.stations) {
       if (st.u === undefined || Number.isInteger(st.u)) continue;
       const i = Math.floor(st.u), t = st.u - i, id = st.id ?? shapeId(st.u);
       if (P.bind && typeof P.bind === 'object' && P.bind.blend && P.bind.blend[id] === undefined) {
-        const w = lerpW(at(P.bind.blend, i, { [P.bind.bone]: 1 }), at(P.bind.blend, i + 1, { [P.bind.bone]: 1 }), t);
+        const w = lerpW(at(P.bind.blend, i, { [P.bind.bone]: 1 }), at(P.bind.blend, i + 1, { [P.bind.bone]: 1 }), zoned(i, t, st));
+        if (P.bind.zone > 0) settle(w);
         if (!(Object.keys(w).length === 1 && w[P.bind.bone] === 1)) P.bind.blend[id] = w;
       }
       for (const d of Object.values(dials)) if (d.blend && d.parts?.some((n) => n.replace('$S', 'R') === P.name) && d.blend[id] === undefined) d.blend[id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
@@ -822,11 +848,19 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
         ...(structured ? [{ id: 'clavicle$S', head: 'clavicle$S', tail: 'shoulder$S' }] : []),
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S', ...(hand ? { aux: ['littleMcp$S', 'indexMcp$S'] } : {}) }, ...(hand ? hand.bones : []),
         ...(bustJoints.bustRoot$S ? [{ id: 'bust$S', head: 'bustRoot$S', tail: 'bustTip$S' }] : []),
-        { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shank$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'foot$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
+        { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shank$S', head: 'knee$S', tail: 'ankle$S' },
+        ...(structured ? ['hip', 'knee', 'elbow'].map((h) => ({ id: `${h}Fold$S`, head: `${h}Fold$S`, tail: `${h}FoldTip$S`, aux: [`${h}Fold$S`, `${h}FoldAim$S`] })) : []), { id: 'foot$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
       ] },
     ],
     ...(jawed ? { chains: { jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] } } } : {}),
     legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
+    // the knee's outside is its front, the elbow's its back; each pushed by the limb's radius there
+    ...(structured ? { folds: {
+      // the hip: a ball joint, the thigh's rest line carried by the pelvis into it (the socket's axis)
+      hipFold$S: { joint: 'hip$S', inAxis: [0, 1, 2].map((k) => r6(J.knee[k] - J.hip[k])), to: 'knee$S', front: [0, 1, 0], push: r6(0.5 * b.thigh), bones: ['pelvis', 'thigh$S'], head: 'hipFold$S', tail: 'hipFoldTip$S', aim: 'hipFoldAim$S' },
+      kneeFold$S: { joint: 'knee$S', from: 'hip$S', to: 'ankle$S', front: [0, 1, 0], push: r6(b.calf), bones: ['thigh$S', 'shank$S'], head: 'kneeFold$S', tail: 'kneeFoldTip$S', aim: 'kneeFoldAim$S' },
+      elbowFold$S: { joint: 'elbow$S', from: 'shoulder$S', to: 'wrist$S', front: [0, -1, 0], push: r6(g(b.arm * AF.elbow[1])), bones: ['upperArm$S', 'foreArm$S'], head: 'elbowFold$S', tail: 'elbowFoldTip$S', aim: 'elbowFoldAim$S' },
+    } } : {}),
     reach: 'reject',
     ...(hand ? { hands: hand.hands } : {}),
   };
