@@ -25,7 +25,7 @@
  * Deterministic. Run from control:
  *   node ../docs/examples/humanoid/render-motion.mjs --spec ../docs/examples/humanoid/cast/lead.json \
  *     [--clips walk,idle] [--motion jog='{"sprint":{"dutyFactor":0.45}}'] [--plant gait|stance] [--seconds jog=0.7]
- *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--stances guard,fencingLeft] [--views front,side,top,q34,rear]
+ *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--stances guard,fencingLeft] [--strikes jab,thrust] [--views front,side,top,q34,rear]
  *     [--frames 24] [--cell 220] [--out <dir>]   (default out: $MOJULO_SPIKE_OUT or the scratch folder below, /<name>/)
  */
 import { register, createRequire } from 'node:module';
@@ -43,6 +43,7 @@ const { resolveMotion } = await lib('graph/polygonizer/figure-posing.js');
 const { heroLocomotion, locomotionClips } = await lib('graph/polygonizer/hero-motion.js');
 const { heroJump, JUMP_NAMES } = await lib('graph/polygonizer/hero-jump.js');
 const { heroStance, STANCE_NAMES } = await lib('graph/polygonizer/hero-stance.js');
+const { heroStrike, STRIKE_NAMES } = await lib('graph/polygonizer/hero-strike.js');
 const { flowRig, simulateClip, rigidityOf } = await lib('graph/polygonizer/hero-flow.js');
 const { windField, resolveTerrainWind } = await lib('graph/vegetation/wind.js');
 
@@ -57,6 +58,8 @@ const MOTIONS = argsOf('--motion').map((s) => { const i = s.indexOf('='); if (i 
 const JUMPS_ASKED = (argOf('--jumps') ?? '').split(',').filter(Boolean);
 // --stances guard,fencingLeft,…: ready stances (hero-stance.js), each its enter clip from the stand to the held pose
 const STANCES_ASKED = (argOf('--stances') ?? '').split(',').filter(Boolean);
+// --strikes jab,crossLeft,thrust,…: straight strikes (hero-strike.js) out of their stances and back
+const STRIKES_ASKED = (argOf('--strikes') ?? '').split(',').filter(Boolean);
 const SECONDS = Object.fromEntries(argsOf('--seconds').map((s) => { const [k, v] = s.split('='); return [k, Number(v)]; }));
 // --hair: the hair on its control strings (hero-flow.js), against the body and outfit as one collision form;
 // --wind speed[,dir[,gust]]: the world's wind (vegetation/wind.js), m/s, dir in degrees the wind blows TOWARD (0 the
@@ -87,7 +90,7 @@ const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
 // the door's motion (hero.motion), baked as the pack bakes it: its gaits replace the hero's own clips of their names
 const LOCO = recipe.locomotion ? locomotionClips(recipe.locomotion, R, { keys: FRAMES }) : null;
 const own = [...new Set([...Object.keys(recipe.clips || {}), ...Object.keys(LOCO?.clips || {})])].filter((k) => k !== GESTURE_CLIP);
-const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length ? [] : own);
+const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length || STRIKES_ASKED.length ? [] : own);
 for (const c of asked) if (!recipe.clips?.[c] && !LOCO?.clips[c]) throw new Error(`--clips: the hero has no clip '${c}' (has ${own.join(', ')})`);
 const bridge = (dof) => {
   if (PLANT === 'gait' || !dof?.plant) return dof;
@@ -102,6 +105,7 @@ const CLIPS = [
     if (PLANT === 'feet') { const loco = heroLocomotion(m, R, { frames: FRAMES }); const s = SECONDS[n] ?? 1; return { name: n, src: `motion ${JSON.stringify(m)} · feet · travel ${loco.travel.toFixed(3)} m/cycle`, fn: loco.fn, seconds: s }; }
     const f = resolveMotion(m, { frames: FRAMES, base: core }); if (!f) throw new Error(`--motion ${n}: not a motion spec resolveMotion takes`); return { name: n, src: `motion ${JSON.stringify(m)} · plant ${PLANT}`, fn: (ph) => bridge(f(ph)), seconds: SECONDS[n] ?? 1 }; }),
   ...JUMPS_ASKED.map((n) => { if (!JUMP_NAMES.includes(n)) throw new Error(`--jumps: no jump '${n}' (have ${JUMP_NAMES.join(', ')})`); const J = heroJump(n, R, { seconds: SECONDS[n] }); return { name: n, src: `jump · in place · air ${J.air ? `${J.air.takeoff}–${J.air.land} s, ${(J.air.height * 100).toFixed(0)} cm${J.air.kick !== undefined ? `, kick at ${J.air.kick} s (${(J.air.kickHeight * 100).toFixed(0)} cm) → ${(J.air.apexHeight * 100).toFixed(0)} cm` : ''}` : 'none'} (the card draws the arc)${J.roll ? ` · roll ${J.roll.axis} ${J.roll.start}–${J.roll.end} s, ${J.roll.travel} m at ${J.roll.speed} m/s` : ''}`, fn: J.fn, seconds: J.seconds, once: true, air: J.air, speed: J.air?.speed ?? 0, roll: J.roll }; }),
+  ...STRIKES_ASKED.map((n) => { if (!STRIKE_NAMES.includes(n)) throw new Error(`--strikes: no strike '${n}' (have ${STRIKE_NAMES.join(', ')})`); const K = heroStrike(n, R, { seconds: SECONDS[n] }); const c = K.checks; return { name: n, src: `strike from ${K.from} · ${K.hand} hand · contact ${K.contact.t}s, off ${(c.contact * 100).toFixed(1)} cm · path ±${(c.straight * 100).toFixed(1)} cm · peaks hips ${c.order.hips} chest ${c.order.chest} hand ${c.order.hand}${c.order.ordered ? '' : ' (OUT OF ORDER)'} · balance ${(c.balance * 100).toFixed(1)} cm · elbow ${c.elbow}°`, fn: K.clip.fn, seconds: K.seconds, once: true }; }),
   ...STANCES_ASKED.map((n) => { if (!STANCE_NAMES.includes(n)) throw new Error(`--stances: no stance '${n}' (have ${STANCE_NAMES.join(', ')})`); const S = heroStance(n, R, { seconds: SECONDS[n] }); const c = S.checks; return { name: n, src: `stance · ${S.family}${S.lead ? ` · lead ${S.lead}` : ''} · facing ${S.facing}° · com ${(c.com.margin * 100).toFixed(1)} cm in, weight ${c.com.weight} · knees ${c.knees.L}/${c.knees.R}° · turnout ${c.turnout.L}/${c.turnout.R}° · gaze ${c.gaze}° · serves ${S.serves.join(', ')}`, fn: S.clip.fn, seconds: S.clip.seconds, once: true, checks: c }; }),
 ];
 

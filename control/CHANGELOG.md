@@ -14,6 +14,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Ready stances
 
+- Straight strikes out of the stances (`polygonizer/hero-strike.js`): `jab` and `cross` from `guard`, `thrust` (a
+  fencer's lunge) from `fencing`, each with its exact mirror (`jabLeft`, …). A strike is design words (the hand, its
+  reach, how far the hips and chest turn, the weight at contact, the rear foot's pivot, a lunge, the other hand's
+  counter, the timing) solved from principles: the hand's contact point on the target line at its shoulder's height,
+  reached along a straight path; a body-led strike drives up the chain (the weight, then the hips, then the chest, each
+  peaking and braking as the next takes over, the hand alone fastest into contact), a hand-led one extends the arm first
+  and lunges after; the weight moves toward the lead foot over the planted feet (a new rig channel, `shift`: the core
+  carried over the floor, absent ⇒ byte-identical); a small load the other way first; the eyes on the target; the guard
+  hand riding the chest, a counter swinging in joint space. One-shot clips from the stance's held pose back to it, with
+  checks (the hand on its point, the path's straightness, the chain's order, balance, planted feet, the elbow at
+  contact). The motion card draws them (`render-motion.mjs --strikes`). Not yet on the hero door or in exports.
 - Hard limbs: the structured core's limbs bend at their joints and nowhere else. Each bone's rings are rigid on it; a
   joint's blend eases in only within about a limb's radius of the joint (`bind.zone`, metres, on the thigh, shin, upper
   arm and forearm: the refine pass and the shaping rings ease by the rings' distance from the joint's ring instead of

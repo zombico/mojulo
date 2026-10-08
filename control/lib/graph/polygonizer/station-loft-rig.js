@@ -44,7 +44,7 @@ import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -276,6 +276,10 @@ export function rigNodesAt(R, pose = {}) {
   const sink = Number.isFinite(pose.sink) ? Math.max(0, pose.sink) : 0;
   const drop = crouch * 0.45 * (hipZ - toeZ) + sink;
   for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
+  // `shift: { x, y }` (metres: an action's, hero-strike.js) carries the core over the floor — the weight moving over
+  // planted feet, the legs reaching them from where the hips now are. Absent ⇒ nothing moves.
+  const sx = Number.isFinite(pose.shift?.x) ? pose.shift.x : 0, sy = Number.isFinite(pose.shift?.y) ? pose.shift.y : 0;
+  if (sx || sy) for (const k of carried) nodes[k] = [nodes[k][0] + sx, nodes[k][1] + sy, nodes[k][2]];
   // `facing` (degrees, + to the body's left: a stance's, hero-stance.js) turns the core — the pelvis and all it carries —
   // about the vertical through the pelvis hub BEFORE the legs reach their feet, so planted feet stay where they stand and
   // the body turns over them. Absent ⇒ nothing turns.

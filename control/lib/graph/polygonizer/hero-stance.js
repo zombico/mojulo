@@ -70,7 +70,7 @@ export const STANCES = Object.freeze({
   // ── BLADED: a rear toe turned out; the body turns side on to the target ──
   guard: {
     family: 'bladed', spread: 0.5, line: 48, toes: { L: 48, R: 18 }, sink: 0.08, lean: 10, weight: 0.45, heel: 22, chest: 0.35,
-    hands: { R: { at: 'chin', fwd: 0.3, up: -0.02, side: 0.0, line: true }, L: { at: 'chin', fwd: 0.12, up: -0.05, side: -0.1, line: true } },
+    hands: { R: { at: 'chin', fwd: 0.3, up: -0.06, side: 0.0, line: true }, L: { at: 'chin', fwd: 0.14, up: -0.09, side: -0.1, line: true } },   // the fists under the eyes
     serves: ['jab', 'cross', 'hook', 'kick', 'knife', 'parry'],
   },
   fencing: {
@@ -221,7 +221,17 @@ function solveStance(S, R) {
     { t: 0.74, pose: { ...lerpPose(1), ...splay(1, 1), ...halfArms(arms, 0.7) }, ...toKey(ball, sink), ground: 1, heel: 0 },
     { t: 1, pose: { ...held }, ...toKey(ball, sink), ground: 1, ...(S.heel ? { heelL: S.heel } : {}), heel: 0 },
   ];
-  return { facing, keys };
+  return { S, facing, keys, ball, sink, trunk, arms, held, legLen };
+}
+
+/**
+ * A stance's solved state in the RIGHT-LED frame (a `Left` stance is its mirror; an action solves here and mirrors its
+ * keys): { S, facing, ball (each foot's ball on the floor), sink, trunk, arms, held (the held pose's angles), legLen,
+ * keys (its enter timeline), final (the held key: the feet, the sink, the heels) }.
+ */
+export function stanceState(name, R) {
+  const S = STANCES[name]; if (!S) throw new Error(`hero-stance: no stance '${name}' (have ${Object.keys(STANCES).join(', ')})`);
+  const st = solveStance(S, R); return { ...st, final: st.keys[st.keys.length - 1] };
 }
 const halfArms = (arms, k) => Object.fromEntries(Object.entries(arms).map(([j, v]) => [j, typeof v === 'number' ? v * k : Object.fromEntries(Object.entries(v).map(([a, x]) => [a, x * k]))]));
 
@@ -237,14 +247,35 @@ function landmark(n, at, side) {
   throw new Error(`hero-stance: no landmark '${at}' (chin, chest, navel, shoulder, leadShoulder, rearShoulder)`);
 }
 
+/** where a hand spec ({ at, fwd, up, side, line }: the target's frame) puts the wrist on a posed body (rig frame) */
+export function handGoal(n, h, side) {
+  const lm = landmark(n, h.at, side);
+  // the lead side is the right (+x); `side` metres toward it, from the target line or the landmark
+  return [(h.line ? 0 : lm[0]) + h.side, lm[1] + h.fwd, lm[2] + h.up];
+}
+const liteOf = (R) => ({ ...R, rides: {}, chains: {}, folds: undefined });   // the wrists alone: no riders, no folds
+
 /** each arm solved to put its wrist where the stance's hands say (in the target's frame), the elbow kept down */
 function armsFor(S, R, body) {
-  const lite = { ...R, rides: {}, chains: {}, folds: undefined };   // the wrists alone: no riders, no folds
-  const n0 = rigNodesAt(lite, body).nodes; const out = {};
+  const n0 = rigNodesAt(liteOf(R), body).nodes; const out = {};
   for (const side of ['R', 'L']) {
-    const h = S.hands[side]; const lm = landmark(n0, h.at, side === 'R' ? 'R' : 'L');
-    // the lead side is the right (+x); `side` metres toward it, from the target line or the landmark
-    const goal = [(h.line ? 0 : lm[0]) + h.side, lm[1] + h.fwd, lm[2] + h.up];
+    const goal = handGoal(n0, S.hands[side], side);
+    const a = reachArm(R, body, side, goal);
+    out[`sh${side}`] = a.sh; out[`elbow${side}`] = a.elbow; out[`$reach${side}`] = a.err;
+  }
+  const reachErr = { R: out.$reachR, L: out.$reachL }; delete out.$reachR; delete out.$reachL;
+  Object.defineProperty(out, '$reach', { value: reachErr, enumerable: false });
+  return out;
+}
+
+/**
+ * One arm reaching a wrist goal on a posed body: { sh: { pitch, yaw, roll }, elbow, err (metres) }. `seed` (a previous
+ * solution: a moving hand's last frame) starts the search there and skips the coarse sweep, so the arm never flips to
+ * another of its solutions between frames.
+ */
+export function reachArm(R, body, side, goal, seed = null) {
+  const lite = liteOf(R);
+  {
     // a hand is reached many ways (the arm swivels about its shoulder → wrist line): ELBOWS DOWN picks the one — the
     // elbow in the upright plane through the shoulder and the wrist, under their line
     // so the elbow's place is solved first (two links from the shoulder to the hand, bent toward the floor and a little
@@ -261,23 +292,20 @@ function armsFor(S, R, body) {
       return dist2(w, goal) + 0.5 * dist2(el, E);
     };
     let best = null;
-    for (let p = -30; p <= 170; p += 20) for (let y = -90; y <= 90; y += 22.5) for (let e = 0; e <= 150; e += 30) for (let r = -60; r <= 60; r += 30) { const c = cost([p, y, e, r]); if (!best || c < best.c) best = { x: [p, y, e, r], c }; }
-    for (const step of [12, 6, 3, 1, 0.5]) {
+    if (seed) { const x = [seed.sh.pitch, seed.sh.yaw ?? 0, seed.elbow, seed.sh.roll ?? 0]; best = { x, c: cost(x) }; }
+    else for (let p = -30; p <= 170; p += 20) for (let y = -90; y <= 90; y += 22.5) for (let e = 0; e <= 150; e += 30) for (let r = -60; r <= 60; r += 30) { const c = cost([p, y, e, r]); if (!best || c < best.c) best = { x: [p, y, e, r], c }; }
+    for (const step of seed ? [4, 2, 1, 0.5] : [12, 6, 3, 1, 0.5]) {
       let moved = true;
       while (moved) {
         moved = false;
         for (let i = 0; i < 4; i++) for (const sg of [1, -1]) {
-          const x = [...best.x]; x[i] += sg * step; x[2] = clamp(x[2], 0, 150); x[0] = clamp(x[0], -40, 175); x[1] = clamp(x[1], -100, 100); x[3] = clamp(x[3], -90, 90);
+          const x = [...best.x]; x[i] += sg * step; x[2] = clamp(x[2], 0, 150); x[0] = clamp(x[0], -40, 175); x[1] = clamp(x[1], -100, 100); x[3] = clamp(x[3], -160, 160);
           const c = cost(x); if (c < best.c - 1e-12) { best = { x, c }; moved = true; }
         }
       }
     }
-    out[`sh${side}`] = { pitch: r1(best.x[0]), yaw: r1(best.x[1]), roll: r1(best.x[3]) }; out[`elbow${side}`] = r1(best.x[2]);
-    out[`$reach${side}`] = Math.sqrt(best.c);
+    return { sh: { pitch: r1(best.x[0]), yaw: r1(best.x[1]), roll: r1(best.x[3]) }, elbow: r1(best.x[2]), err: dist(rigNodesAt(lite, elbowsDown(R, { ...body, [`sh${side}`]: { pitch: r1(best.x[0]), yaw: r1(best.x[1]), roll: r1(best.x[3]) }, [`elbow${side}`]: r1(best.x[2]) })).nodes[`wrist${side}`], goal) };
   }
-  const reachErr = { R: out.$reachR, L: out.$reachL }; delete out.$reachR; delete out.$reachL;
-  Object.defineProperty(out, '$reach', { value: reachErr, enumerable: false });
-  return out;
 }
 
 /**

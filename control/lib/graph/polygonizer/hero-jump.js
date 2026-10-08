@@ -193,7 +193,7 @@ const BASE = {
 // THE MIRROR: a clip done to the other side — each L / R channel swapped for its twin, and every sideways angle (a
 // joint's yaw, roll and turn, the spine's lateral bend and axial twist, the body's roll) turned the other way; the
 // pitches, the bends and the timing are a side's own. The rig is symmetric, so the mirror is exact.
-const SIDEWAYS = new Set(['yaw', 'roll', 'turn', 'lateral', 'axial', 'rollBody', 'facing', 'glance']);
+const SIDEWAYS = new Set(['yaw', 'roll', 'turn', 'lateral', 'axial', 'rollBody', 'facing', 'glance', 'x']);   // (`x`: a shift's, an aim's across)
 const twin = (k) => k.replace(/([LR])$/, (s) => (s === 'L' ? 'R' : 'L'));
 export function mirrored(o) {
   if (Array.isArray(o)) return o.map(mirrored);
