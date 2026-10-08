@@ -36,9 +36,10 @@ export const CAST_WHEN = Object.freeze({
   stuck: "a character's walk can't get through (a second without progress); the walk drops",
   faded: 'a status comes off a character: it ran out or was lifted: { faded: who } any, or { faded: { who, is } }',
 });
+const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
-  spawn: 'wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees } }',
-  vanish: 'send a character away (asleep again: hidden, untouchable)',
+  spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,
+  vanish: `send a character away (asleep again: hidden, untouchable): { vanish: who | { who, with? } }`,
   kill: 'a character falls (it lies down; down fires)',
   hurt: '{ hurt: { who, by } } takes from its body.hp; at 0 it falls',
   heal: '{ heal: who | { who, by? } } gives back body.hp (no by: all of it)',
@@ -46,7 +47,11 @@ export const CAST_THEN = Object.freeze({
   stop: 'end a walk, or a hold at a spot',
   status: `{ status: { who, is, look?, for?, color? } } the character carries a status: is is any name you give it; look is how it shows on the body as it moves (a preset: ${LOOK_NAMES.join(', ')}; a name in play.looks; or its layers), defaulting to the look called is; for seconds, until lifted, or until the cue ends`,
   lift: '{ lift: who | { who, is? } } take a status off (no is: all of them)',
+  transfigure: '{ transfigure: { who, into, with? } } who becomes into (a character minted asleep): into wakes where who stands and who goes; with: galvatron (default: skin to wire, the form morphs, re-skin) or any transit',
+  puff: '{ puff: who | { who? | at: place, is? } } a puff of smoke at a character or a place',
 });
+// how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
+export const TRANSITS = Object.freeze(['smoke', 'hologram', 'scan', 'transporter', 'galvatron']);
 export const SPOT_POSES = Object.freeze(['stand', 'sit', 'use', 'talk', 'lean']);
 export const WALK_THEN = Object.freeze(['stay', 'loop', 'back']);
 
@@ -120,6 +125,11 @@ export function readCastWhen(k, w, where) {
 
 export function readCastEffect(k, t, where, ctx = {}) {
   const v = t[k], w = `${where}.${k}`;
+  // a puff stands at a place, or at a character
+  if (k === 'puff' && isObj(v) && v.who === undefined) {
+    if (v.at === undefined) throw new Error(`${w} is a character's id, or { at: place, is? }`);
+    return { kind: 'cast', op: 'puff', who: null, at: readPlace(v.at, `${w}.at`), ...(v.is !== undefined ? { is: readPuff(v.is, `${w}.is`) } : {}), page: true };
+  }
   const who = isStr(v) ? v : isObj(v) && isStr(v.who) ? v.who : null;
   if (!who) throw new Error(k === 'hurt' || k === 'walk' || k === 'status' ? `${w}.who is a character's id` : `${w} is a character's id, or { who, … }`);
   const o = isObj(v) ? v : {};
@@ -129,6 +139,12 @@ export function readCastEffect(k, t, where, ctx = {}) {
     out.by = o.by;
   }
   if (k === 'heal' && o.by !== undefined) { if (!(Number.isFinite(o.by) && o.by > 0)) throw new Error(`${w}.by is how much hp it gives`); out.by = o.by; }
+  if ((k === 'spawn' || k === 'vanish' || k === 'transfigure') && o.with !== undefined) {
+    if (!TRANSITS.includes(o.with)) throw new Error(`${w}.with is how it comes or goes: ${TRANSITS.join(', ')}`);
+    out.with = o.with;
+  }
+  if (k === 'transfigure') { if (!isStr(o.into) || o.into === who) throw new Error(`${w}.into is the character it becomes (minted asleep)`); out.into = o.into; }
+  if (k === 'puff' && o.is !== undefined) out.is = readPuff(o.is, `${w}.is`);
   if (k === 'spawn') {
     if (o.at !== undefined) out.at = readPlace(o.at, `${w}.at`);
     if (o.face !== undefined) { if (!Number.isFinite(o.face)) throw new Error(`${w}.face is degrees`); out.face = o.face; }
@@ -154,6 +170,8 @@ export function readCastEffect(k, t, where, ctx = {}) {
   return out;
 }
 
+const readPuff = (v, where) => { if (v !== 'smoke') throw new Error(`${where} is smoke (the one puff so far)`); return v; };
+
 /** A cast happening's reaction: the character world's event, matched to the who (and the place). */
 export const castFire = (w, type) => ({ on: w.kind, match: { entity: w.who, ...(w.at ? { at: w.at } : {}), ...(w.is ? { is: w.is } : {}) }, do: 'emit', type });
 
@@ -163,7 +181,8 @@ const placeAt = (ref, places) => (Array.isArray(ref) ? { at: ref, name: null } :
 export function lowerCastEffect(t, on, frag, places = []) {
   const r = { on, do: 'ctrl', op: t.op, who: t.who };
   if (t.by !== undefined) r.by = t.by;
-  for (const k of ['is', 'for', 'color']) if (t[k] !== undefined) r[k] = t[k];
+  for (const k of ['is', 'for', 'color', 'with', 'into']) if (t[k] !== undefined) r[k] = t[k];
+  if (t.op === 'puff') { if (!t.who) delete r.who; if (t.at !== undefined) { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); } }
   if (t.op === 'spawn') {
     if (t.at !== undefined) { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); if (t.face === undefined && Number.isFinite(p.face)) r.face = p.face; }
     if (t.face !== undefined) r.face = t.face;
@@ -188,9 +207,11 @@ export function castRefs(effects, whens) {
   const who = new Set(), places = new Set(), spawns = new Set(), vanished = new Set();
   for (const t of effects) {
     if (t.kind !== 'cast') continue;
-    who.add(t.who);
+    if (t.who) who.add(t.who);
     if (t.op === 'spawn') { spawns.add(t.who); if (isStr(t.at)) places.add(t.at); }
-    if (t.op === 'vanish' || t.op === 'kill') vanished.add(t.who);
+    if (t.op === 'vanish' || t.op === 'kill' || t.op === 'transfigure') vanished.add(t.who);
+    if (t.op === 'transfigure') { who.add(t.into); spawns.add(t.into); }
+    if (t.op === 'puff' && isStr(t.at)) places.add(t.at);
     if (t.op === 'walk') for (const p of t.to) if (isStr(p)) places.add(p);
   }
   // a cast happening's character, and the one a zone watches in place of the player

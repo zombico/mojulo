@@ -190,6 +190,7 @@ function __elEncase(body, seed, color) {
   // into the body's own frame, round the block's middle (so it grows from there), riding the body
   const inv = new THREE.Matrix4().copy(body.matrixWorld).invert(), mid = body.worldToLocal(c.clone());
   g.applyMatrix4(inv); g.translate(-mid.x, -mid.y, -mid.z);
+  g.computeBoundingBox(); const minZ = g.boundingBox.min.z;
   const grp = new THREE.Group(); grp.position.copy(mid); grp.userData.coat = true;
   const mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false }); mat.userData.__fire = true;
   const shell = new THREE.Mesh(g, mat); shell.raycast = function () {}; shell.renderOrder = 6;
@@ -197,11 +198,12 @@ function __elEncase(body, seed, color) {
   grp.add(shell, edges); body.add(grp);
   const corners = []; for (const [key] of pull) { const [x, y, z] = key.split(',').map(Number); if (z > 0) corners.push(new THREE.Vector3(x, y, z)); }
   const glints = []; for (let i = 0; i < 8; i++) { const v = new THREE.Vector3().fromBufferAttribute(P, Math.floor(h(i, 9) * P.count)); glints.push({ v, s: __elSpr(__elTex, [0.9, 0.97, 1], THREE.AdditiveBlending) }); }
-  return { grp, shell, edges, glints };
+  return { grp, shell, edges, glints, mid, minZ };
 }
-function __elEncaseStep(E, age, fade, show) {
-  const gr = Math.min(1, age / 0.45), g = 0.35 + 0.65 * (1 - Math.pow(1 - gr, 3));
-  E.grp.visible = show; E.grp.scale.setScalar(g * Math.min(1, 0.6 + 0.4 * fade));
+function __elEncaseStep(E, age, fade, show, melt) {
+  // FREEZE: the block rises from the ground; THAW (melt 0 → 1): it sinks back into it, spreading a little, clearing
+  const gr = Math.min(1, age / 0.6), up = 1 - Math.pow(1 - gr, 3), sz = (0.05 + 0.95 * up) * (1 - 0.95 * Math.pow(melt, 1.4)), sx = (0.85 + 0.15 * up) * (1 + 0.12 * melt);
+  E.grp.visible = show; E.grp.scale.set(sx, sx, sz); E.grp.position.z = E.mid.z + E.minZ * (1 - sz);
   E.shell.material.opacity = 0.42 * Math.min(1, fade * 1.4); E.edges.material.opacity = 0.7 * Math.min(1, fade * 1.4);
   E.glints.forEach((q, i) => { const tw = Math.pow(Math.max(0, Math.sin(Math.PI * ((age * 0.4 + i * 0.29) % 1))), 14) * fade * gr; q.s.visible = show && tw > 0.04; if (q.s.visible) { q.s.position.copy(E.shell.localToWorld(__elW.copy(q.v))); q.s.scale.setScalar(0.1 + 0.3 * tw); q.s.material.opacity = tw; } });
 }
@@ -211,8 +213,150 @@ function __elEncaseDrop(E) {
   for (const q of E.glints) { scene.remove(q.s); q.s.material.dispose(); }
 }
 `;
+const TRANSIT = `// TRANSITS: how a character comes or goes (spawn / vanish \`with\`, transfigure), and puffs at a place. Coming, the real
+// body plays it (its materials faded, clipped, wired); going, a GHOST does: a copy of its meshes where it stood, since
+// the body itself is hidden the moment it is gone. Each runs once on the world clock from the op's own time.
+const __TR_DUR = { smoke: 1.1, hologram: 1.4, scan: 1.3, transporter: 1.6, galvatron: 2.0 };
+const __TR_COL = { hologram: [0.4, 0.9, 1], scan: [1, 0.45, 0.15], transporter: [0.6, 0.85, 1], galvatron: [0.72, 0.45, 1] };
+const __trLive = {};
+const __trTex = (stops) => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); for (const [o, a] of stops) g.addColorStop(o, 'rgba(255,255,255,' + a + ')'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); };
+const __trSoft = __trTex([[0, 0.95], [0.5, 0.45], [1, 0]]), __trDot = __trTex([[0, 1], [0.3, 0.5], [1, 0]]);
+const __trH = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
+const __trSm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+const __trV = new THREE.Vector3();
+function __trSpr(tex, rgb, blend) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(rgb[0], rgb[1], rgb[2]), blending: blend, depthWrite: false, transparent: true })); s.visible = false; s.raycast = function () {}; scene.add(s); return s; }
+function __trMeshes(root) { const out = []; if (root) root.traverse((o) => { if (o.isMesh && o.geometry && !(o.userData && (o.userData.coat || o.userData.ink))) out.push(o); }); return out; }
+// a ghost: each mesh copied where it stands now (its world matrix), materials cloned so they fade alone
+function __trGhost(root) {
+  const g = new THREE.Group(), mats = [];
+  root.updateMatrixWorld(true);
+  for (const o of __trMeshes(root)) {
+    const ms = (Array.isArray(o.material) ? o.material : [o.material]).map((m) => { const c = m.clone(); c.transparent = true; c.userData.__fire = true; mats.push(c); return c; });
+    const c = new THREE.Mesh(o.geometry, Array.isArray(o.material) ? ms : ms[0]); c.matrixAutoUpdate = false; c.matrix.copy(o.matrixWorld); c.raycast = function () {}; g.add(c);
+  }
+  scene.add(g); return { g, mats, meshes: g.children };
+}
+// the real body's skin, faded / clipped, and put back as it was
+function __trSkin(meshes) {
+  const keep = [];
+  for (const o of meshes) for (const m of Array.isArray(o.material) ? o.material : [o.material]) keep.push({ m, t: m.transparent, op: m.opacity, cl: m.clippingPlanes });
+  return { keep, set(op) { for (const k of keep) { k.m.transparent = true; k.m.opacity = k.op * op; k.m.depthWrite = op > 0.98; } }, clip(planes) { for (const k of keep) { k.m.clippingPlanes = planes; k.m.needsUpdate = true; } }, restore() { for (const k of keep) { k.m.transparent = k.t; k.m.opacity = k.op; k.m.depthWrite = true; k.m.clippingPlanes = k.cl; k.m.needsUpdate = true; } } };
+}
+// every edge of the body (a curved body's seams are shallow, so all of them: the wire reads as its mesh)
+function __trWire(meshes, rgb) {
+  return meshes.map((o) => { const l = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 1), new THREE.LineBasicMaterial({ color: new THREE.Color(rgb[0], rgb[1], rgb[2]), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); l.raycast = function () {}; l.renderOrder = 8; o.add(l); return l; });
+}
+// points on a set of meshes, in the world, picked by the dice from their vertices
+function __trPts(meshes, n, seed) {
+  const all = [];
+  for (const o of meshes) { o.updateMatrixWorld(true); const P = o.geometry.attributes.position; all.push({ o, P }); }
+  const out = [], tot = all.reduce((s, a) => s + a.P.count, 0);
+  for (let i = 0; i < n && tot; i++) {
+    let k = Math.floor(__trH(i, seed) * tot), j = 0; while (k >= all[j].P.count) { k -= all[j].P.count; j++; }
+    out.push(new THREE.Vector3().fromBufferAttribute(all[j].P, k).applyMatrix4(all[j].o.matrixWorld));
+  }
+  return out;
+}
+function __trBounds(meshes) { const b = new THREE.Box3(); for (const o of meshes) { o.updateMatrixWorld(true); if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } return b; }
+function __trMake(e, T, now) {
+  const is = T.is, dir = T.dir, I = { is, dir, t0: T.t0, dur: __TR_DUR[is] || 1.2, sprs: [], wires: [], extra: [] };
+  const body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id];
+  if (!body) return I;
+  if (dir === 'out') { I.ghost = __trGhost(body); I.meshes = I.ghost.meshes; } else { I.meshes = __trMeshes(body); I.skin = __trSkin(I.meshes); I.skin.set(0); }
+  I.box = __trBounds(I.meshes); I.c = I.box.getCenter(new THREE.Vector3());
+  const col = __TR_COL[is] || [1, 1, 1];
+  if (is === 'smoke') for (let i = 0; i < 18; i++) I.sprs.push(__trSpr(__trSoft, [0.86, 0.86, 0.88], THREE.NormalBlending));
+  if (is === 'hologram' || is === 'galvatron') I.wires = __trWire(I.meshes, col);
+  if (is === 'scan') {
+    renderer.localClippingEnabled = true;
+    I.plane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+    if (dir === 'out') { for (const m of I.ghost.mats) { m.clippingPlanes = [I.plane]; m.needsUpdate = true; } } else I.skin.clip([I.plane]);
+    const r = Math.max(I.box.max.x - I.box.min.x, I.box.max.y - I.box.min.y) * 0.6 + 0.08;
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(r, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0], col[1], col[2]), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(r * 0.96, r * 1.04, 48), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    for (const m of [disc, ring]) { m.material.userData.__fire = true; m.raycast = function () {}; m.renderOrder = 9; m.position.set(I.c.x, I.c.y, 0); scene.add(m); I.extra.push(m); }
+  }
+  if (is === 'transporter') { I.to = __trPts(I.meshes, 48, 3.3); for (let i = 0; i < 48; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending)); }
+  if (is === 'galvatron' && dir === 'out') { I.from = __trPts(I.meshes, 72, 7.7); I.to = null; I.into = T.to; for (let i = 0; i < 72; i++) I.sprs.push(__trSpr(__trDot, col, THREE.AdditiveBlending)); }
+  return I;
+}
+function __trStep(I, u, W) {
+  const out = I.dir === 'out', h = I.box.max.z - I.box.min.z, C = I.c, skin = (op) => { if (I.dir === 'puff') return; if (out) for (const m of I.ghost.mats) m.opacity = op; else I.skin.set(op); };
+  const wire = (op) => { for (const l of I.wires) l.material.opacity = op * (0.75 + 0.25 * Math.sin(u * 90)); };
+  if (I.is === 'smoke') {
+    skin(out ? (u < 0.22 ? 1 : 0) : (u < 0.3 ? 0 : 1));
+    I.sprs.forEach((s, i) => {
+      const a = __trH(i, 1) * 6.283, up = __trH(i, 2), ex = 1 - Math.pow(1 - u, 2.2), d = 0.25 + 1.05 * ex * (0.6 + 0.6 * __trH(i, 3));
+      s.visible = true; s.position.set(C.x + Math.cos(a) * d, C.y + Math.sin(a) * d, I.box.min.z + h * (0.15 + 0.7 * up) + 0.6 * ex);
+      s.scale.setScalar((0.35 + 1.1 * ex) * (0.7 + 0.6 * __trH(i, 4))); s.material.opacity = 0.85 * Math.pow(1 - u, 1.3);
+    });
+  } else if (I.is === 'hologram') {
+    const v = out ? 1 - u : u;
+    wire(v < 0.45 ? __trSm(v / 0.45) * (__trH(Math.floor(u * 30), 5) > 0.2 ? 1 : 0.3) : 1 - __trSm((v - 0.8) / 0.2));
+    skin(__trSm((v - 0.45) / 0.45));
+  } else if (I.is === 'scan') {
+    const v = out ? 1 - u : u, lv = I.box.min.z + (h + 0.1) * v;
+    I.plane.constant = lv; skin(1);
+    for (const m of I.extra) { m.position.z = lv; m.material.opacity = (m === I.extra[0] ? 0.35 : 0.9) * Math.sin(Math.PI * Math.min(1, u * 1.05)); }
+  } else if (I.is === 'transporter') {
+    const v = out ? 1 - u : u;
+    skin(__trSm((v - 0.55) / 0.4));
+    I.sprs.forEach((s, i) => {
+      const p = I.to[i], a = __trH(i, 6) * 6.283, k = __trSm(v / 0.7), far = 1.4 * (1 - k);
+      s.visible = true; s.position.set(p.x + Math.cos(a) * far, p.y + Math.sin(a) * far, p.z + (__trH(i, 7) - 0.3) * 1.6 * (1 - k) + (out ? 1.2 * u : 0));
+      s.scale.setScalar(0.12 + 0.1 * Math.sin(u * 40 + i)); s.material.opacity = Math.min(1, 1.6 * Math.sin(Math.PI * Math.min(1, u)));
+    });
+  } else if (I.is === 'galvatron') {
+    if (out) {
+      // the old form: skin to wire, then the wire goes, then its points flow into the new form
+      skin(1 - __trSm(u / 0.25)); wire(__trSm(u / 0.2) * (1 - __trSm((u - 0.3) / 0.15)));
+      if (!I.to && u > 0.25) { const B = window.__mojCtrl.bodies && window.__mojCtrl.bodies[I.into]; const ms = __trMeshes(B); I.to = ms.length ? __trPts(ms, 72, 9.1) : I.from; const zs = (a) => a.map((p, i) => [p.z, i]).sort((x, y) => x[0] - y[0]).map((x) => x[1]); I.pa = zs(I.from); I.pb = zs(I.to); }
+      I.sprs.forEach((s, i) => {
+        const k = I.to ? __trSm((u - 0.25) / 0.45) : 0, a = I.from[I.pa ? I.pa[i] : i], b = I.to ? I.to[I.pb[i]] : a;
+        s.visible = u > 0.15 && u < 0.85; s.position.lerpVectors(a, b, k); s.position.z += 0.25 * Math.sin(Math.PI * k);
+        s.scale.setScalar(0.09); s.material.opacity = Math.sin(Math.PI * Math.min(1, (u - 0.15) / 0.7));
+      });
+    } else { skin(__trSm((u - 0.7) / 0.25)); wire(__trSm((u - 0.5) / 0.2) * (1 - __trSm((u - 0.85) / 0.15))); }
+  }
+}
+function __trDrop(I) {
+  for (const s of I.sprs) { scene.remove(s); s.material.dispose(); }
+  for (const l of I.wires) { if (l.parent) l.parent.remove(l); l.geometry.dispose(); l.material.dispose(); }
+  for (const m of I.extra) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+  if (I.ghost) { scene.remove(I.ghost.g); for (const m of I.ghost.mats) m.dispose(); }
+  if (I.skin) I.skin.restore();
+}
+// a puff at a place: the smoke alone
+function __trPuff(M) { const I = { is: 'smoke', dir: 'puff', t0: M.t0, dur: 1.1, sprs: [], wires: [], extra: [], c: new THREE.Vector3(M.at[0], M.at[1], M.at[2] + 0.5), box: new THREE.Box3(new THREE.Vector3(M.at[0] - 0.4, M.at[1] - 0.4, M.at[2]), new THREE.Vector3(M.at[0] + 0.4, M.at[1] + 0.4, M.at[2] + 1)) }; for (let i = 0; i < 14; i++) I.sprs.push(__trSpr(__trSoft, [0.86, 0.86, 0.88], THREE.NormalBlending)); I.ghost = { mats: [] }; return I; }
+function __stepTransits() {
+  const W = window.__mojCtrl && window.__mojCtrl.world; if (!W) return;
+  const now = W.time || 0;
+  for (const e of W.entities) {
+    const T = e.transit; if (!T) continue;
+    const key = e.id + '|' + T.t0;
+    if (!__trLive[key] && now - T.t0 < (__TR_DUR[T.is] || 1.2)) __trLive[key] = __trMake(e, T, now);
+  }
+  (W.moments || []).forEach((M) => { const key = 'puff|' + M.t0 + '|' + M.at.join(','); if (!__trLive[key] && now - M.t0 < 1.1) __trLive[key] = __trPuff(M); });
+  for (const key in __trLive) {
+    const I = __trLive[key], u = (now - I.t0) / I.dur;
+    if (u >= 1) { __trDrop(I); delete __trLive[key]; continue; }
+    if (I.meshes || I.dir === 'puff') __trStep(I, Math.max(0, u), W);
+  }
+}
+`;
 
-export function statusScript(looks) {
+/** The transits a world's events play (spawn / vanish with, transfigure, puff), in first-named order. */
+export function transitKinds(events) {
+  const out = [];
+  for (const r of (events && events.reactions) || []) {
+    if (!r || r.do !== 'ctrl') continue;
+    const k = r.op === 'transfigure' ? r.with || 'galvatron' : r.op === 'puff' ? 'smoke' : (r.op === 'spawn' || r.op === 'vanish') && r.with ? r.with : null;
+    if (k && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+
+export function statusScript(looks, transits = []) {
   const L = looks || {}, all = Object.values(L);
   const has = (f) => all.some(f), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
   return `
@@ -224,7 +368,8 @@ const __wave = ${wavePoints.toString()};${bolts ? `
 const __BOLT = ${safeJson(BOLT_SHAPE)};
 const kokusenBolts = (() => { const TAU = 6.283185307179586, frac = (x) => x - Math.floor(x), h3 = (a, b, c) => frac(Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453); return ${kokusenBolts.toString()}; })();` : ''}
 const __elTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.5)'); g.addColorStop(0.6, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
-const __elLive = {};   // '<who>|<is>' → what draws it
+${transits.length ? `${TRANSIT}
+` : ''}const __elLive = {}, __elDying = {};   // '<who>|<is>' → what draws it; and what is fading out
 ${surf || encase ? `${SURF}` : ''}${encase ? `
 ${ENCASE}` : ''}
 function __elCoatMat(color, dark, p) {
@@ -240,9 +385,10 @@ function __elCoatMat(color, dark, p) {
 const __elSeed = (id) => { let h = 7; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973; return h / 97; };
 function __elMake(e, is, st) {
   const K = __LOOK[is], base = st.color != null ? __rgb(st.color) : __rgb(K.color), body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id];
-  const D = { coats: [], mat: null, waves: [], ribbon: null, glow: null, surf: [], encase: null };
+  const D = { coats: [], mat: null, waves: [], ribbon: null, glow: null, surf: [], encase: null, who: e.id, K, t0: st.t0, meshes: [] };
   const meshes = [];
   if (body) body.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.normal && !(o.userData && (o.userData.ink || o.userData.coat))) meshes.push(o); });
+  D.meshes = meshes;
   if (K.coat) {
     D.mat = __elCoatMat(K.coat.color != null && st.color == null ? __rgb(K.coat.color) : base, !!K.coat.dark, K.coat.p);
     for (const o of meshes) { const c = new THREE.Mesh(o.geometry, D.mat); c.userData.coat = true; c.raycast = function () {}; c.renderOrder = 4; o.add(c); D.coats.push(c); }
@@ -275,7 +421,8 @@ function __elDrop(D) {
   for (const r of [D.ribbon, D.glow]) if (r) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); }${surf ? `
   for (const U of D.surf) __elSurfDrop(U);` : ''}${encase ? `
   if (D.encase) __elEncaseDrop(D.encase);` : ''}
-  if (D.mat) D.mat.dispose();
+  if (D.mat) D.mat.dispose();${surf ? `
+  if (D.boil) __elSurfDrop(D.boil);` : ''}
 }${bolts ? `
 const __elA = new THREE.Vector3(), __elB = new THREE.Vector3(), __elD = new THREE.Vector3(), __elV = new THREE.Vector3(), __elS = new THREE.Vector3();
 // one ribbon of strokes: each segment a quad facing the camera, as wide at each end as its node's thickness
@@ -304,37 +451,47 @@ function __stepStatus() {
       const D = __elLive[key] || (__elLive[key] = __elMake(e, is, st));
       const age = now - st.t0, show = !e.gone;
       const fade = Math.min(1, age / 0.15) * (st.until != null ? Math.min(1, Math.max(0, (st.until - now) / 0.25)) : 1);
-      const C = K.coat;
-      if (C) {
-        D.mat.userData.uK.value = C.k * fade * (C.shape === 'grow' ? Math.min(1, 0.25 + age / 2) * (C.hz ? 0.8 + 0.2 * Math.sin(age * C.hz * 6.283) : 1)
-          : C.shape === 'flash' ? Math.exp(-age / 0.25)
-          : C.shape === 'flicker' ? 0.65 + 0.35 * (((Math.floor(age * 8) * 7919) % 13) / 12)
-          : C.shape === 'hold' ? 1
-          : 0.7 + 0.3 * Math.sin(age * C.hz * 6.283));
-        for (const c of D.coats) c.visible = show;
-      }
-      const cc = __elFoot(e);
-      for (const { W: wv, sprs } of D.waves) {
-        const bs = __wave(wv, cc, age);
-        for (let i = 0; i < sprs.length; i++) {
-          const b = bs[i], s = sprs[i];
-          if (!show || !b || b.w * fade < 0.04) { s.visible = false; continue; }
-          s.visible = true; s.position.set(b.p[0], b.p[1], b.p[2]);
-          // lights differ in size by their place in the wave
-          const vary = 0.7 + 0.6 * (((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1);
-          const sz = wv.size * (wv.count * wv.trail > 1 ? vary : 1) * (0.35 + 0.65 * Math.min(1, b.w));
-          s.scale.set(sz, sz, 1); s.material.opacity = Math.min(1, 0.3 + 0.7 * b.w) * fade;
-        }
-      }${bolts ? `
-      if (D.ribbon) {
-        D.ribbon.visible = D.glow.visible = show; D.ribbon.material.opacity = fade; D.glow.material.opacity = 0.55 * fade;
-        if (show) { const bolts = kokusenBolts(cc, age, __BOLT); __elStroke(D.ribbon, bolts, K.bolts.width); __elStroke(D.glow, bolts, K.bolts.width * 2.6); }
-      }` : ''}${surf ? `
-      for (const U of D.surf) __elSurfStep(U, age, fade, show, cc[2]);` : ''}${encase ? `
-      if (D.encase) __elEncaseStep(D.encase, age, fade, show);` : ''}
+      __elDraw(D, e, K, age, fade, show, 0);
     }
   }
-  for (const key in __elLive) if (!seen[key]) { __elDrop(__elLive[key]); delete __elLive[key]; }
+  // a look that comes off fades out over 1.2 s: its layers dim, ice thaws into the ground, water boils off as steam
+  for (const key in __elLive) if (!seen[key]) { const D = __elLive[key]; delete __elLive[key]; __elDying[key] = { D, t: now }; }
+  for (const key in __elDying) {
+    const X = __elDying[key], D = X.D, u = (now - X.t) / 1.2, e = W.byId[D.who];
+    if (u >= 1 || !e) { __elDrop(D); delete __elDying[key]; continue; }
+    __elDraw(D, e, D.K, now - D.t0, 1 - u, !e.gone, u);${surf ? `
+    if (D.K.water && D.meshes.length) { if (!D.boil) D.boil = __elSurfMake({ kind: 'vapor', count: 22 }, D.meshes, [1, 1, 1]); __elSurfStep(D.boil, now - X.t + 0.6, Math.sin(Math.PI * Math.min(1, u * 1.1)), !e.gone, __elFoot(e)[2]); }` : ''}
+  }${transits.length ? '\n  __stepTransits();' : ''}
+}
+function __elDraw(D, e, K, age, fade, show, melt) {
+  const C = K.coat;
+  if (C) {
+    D.mat.userData.uK.value = C.k * fade * (C.shape === 'grow' ? Math.min(1, 0.25 + age / 2) * (C.hz ? 0.8 + 0.2 * Math.sin(age * C.hz * 6.283) : 1)
+      : C.shape === 'flash' ? Math.exp(-age / 0.25)
+      : C.shape === 'flicker' ? 0.65 + 0.35 * (((Math.floor(age * 8) * 7919) % 13) / 12)
+      : C.shape === 'hold' ? 1
+      : 0.7 + 0.3 * Math.sin(age * C.hz * 6.283));
+    for (const c of D.coats) c.visible = show;
+  }
+  const cc = __elFoot(e);
+  for (const { W: wv, sprs } of D.waves) {
+    const bs = __wave(wv, cc, age);
+    for (let i = 0; i < sprs.length; i++) {
+      const b = bs[i], s = sprs[i];
+      if (!show || !b || b.w * fade < 0.04) { s.visible = false; continue; }
+      s.visible = true; s.position.set(b.p[0], b.p[1], b.p[2]);
+      // lights differ in size by their place in the wave
+      const vary = 0.7 + 0.6 * (((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1);
+      const sz = wv.size * (wv.count * wv.trail > 1 ? vary : 1) * (0.35 + 0.65 * Math.min(1, b.w));
+      s.scale.set(sz, sz, 1); s.material.opacity = Math.min(1, 0.3 + 0.7 * b.w) * fade;
+    }
+  }${bolts ? `
+  if (D.ribbon) {
+    D.ribbon.visible = D.glow.visible = show; D.ribbon.material.opacity = fade; D.glow.material.opacity = 0.55 * fade;
+    if (show) { const bolts = kokusenBolts(cc, age, __BOLT); __elStroke(D.ribbon, bolts, K.bolts.width); __elStroke(D.glow, bolts, K.bolts.width * 2.6); }
+  }` : ''}${surf ? `
+  for (const U of D.surf) __elSurfStep(U, age, fade, show, cc[2]);` : ''}${encase ? `
+  if (D.encase) __elEncaseStep(D.encase, age, fade, show, melt);` : ''}
 }
 if (/[?&]values\\b/.test(location.search)) renderer.domElement.style.filter = 'grayscale(1)';
 window.__mojStatus = { live: () => Object.keys(__elLive) };`;

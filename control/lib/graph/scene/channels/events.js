@@ -4,7 +4,7 @@ import { safeJson } from '../emit-util.js';
 import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
-import { statusElements, statusScript } from './status-channel.js';
+import { statusElements, statusScript, transitKinds } from './status-channel.js';
 
 export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
@@ -161,7 +161,8 @@ export function eventsChannelScript(events) {
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
   const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
-  const status = els.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]]))) : '';
+  const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure, puff)
+  const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};

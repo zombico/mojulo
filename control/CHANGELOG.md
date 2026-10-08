@@ -322,6 +322,18 @@ This step builds the contract and the approval gate. No rung is served yet.
 - **Values first.** Every preset reads apart with the colour taken out; the `looks-apart` law names two statuses a play
   uses that differ only in colour, and `status-lifts` one that never comes off. `?values` shows the page in greys.
 
+### Transitory effects
+
+- **Appear, vanish, transfigure.** `spawn` and `vanish` take `with`: `smoke` (a burst of puffs, the body pops in or is
+  gone behind it), `hologram` (an edge wireframe flickers on, the skin fills in), `scan` (a glowing plane sweeps up the
+  body, printing it), `transporter` (sparks gather onto the body's surface). Going, each plays in reverse on a ghost of
+  the body where it stood. `{ transfigure: { who, into, with? } }` turns one character into another minted asleep: it
+  wakes where the first stood, by default `galvatron`: the skin goes to wire, a cloud of points morphs one form into the
+  other, the new form re-skins (the carved-letter effects of the same names, in 3D on any body). `{ puff: who | { at } }`
+  is a puff of smoke at a place.
+- **Water changes state.** Ice rises from the ground as it freezes and sinks away as it thaws; water boils off in a burst
+  of steam when it comes off. Every look now fades its layers out instead of vanishing.
+
 ### Places
 
 - **Box bodies.** `body.collide: { box: [hx, hy, hz?] }` is an axis-aligned box of those half sizes round the body's

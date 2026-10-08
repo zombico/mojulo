@@ -54,7 +54,7 @@ import {
   strokeOverlayChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
-import { statusElements } from './channels/status-channel.js';
+import { statusElements, transitKinds } from './channels/status-channel.js';
 import { streamChannelScript } from './channels/stream.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
@@ -823,7 +823,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     const dir = [-tx / horiz, -ty / horiz];
     return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
   })();
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && statusElements(events).length > 0), pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, key: shadowKey, toonInk: toonInkCfg }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0)), pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, key: shadowKey, toonInk: toonInkCfg }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;

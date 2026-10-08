@@ -55,6 +55,8 @@ import { emitThreeWorld } from './scene-three.js';
 // on the world clock). Events pages are unchanged unless their cues put a status on someone (then the status channel
 // and the bodies map ride along); the controllable trace pins hold. The status op keeps a burning element's colorant
 // name (fire/fire.js carries a body's fire to its body; pages without one are unchanged).
+// Re-pinned 2026-10-08 (transitory): the engine's cast takes spawn / vanish `with` (a transit the page plays), and the
+// transfigure and puff ops. Pages whose cues use none of them carry no transit code; the controllable trace pins hold.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

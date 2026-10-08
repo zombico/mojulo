@@ -14,6 +14,11 @@
  *     status { is, for?, color? }   (color: [r, g, b], or a burning element's colorant) it carries an element (playscape/elements) from now, for `for` seconds or until
  *                         lifted: e.statuses[is] = { t0, until, color? } on the world clock (the page draws it)
  *     lift { is? }            take one status off, or all of them
+ *     spawn / vanish { with? }   a TRANSIT the page plays as it comes or goes (smoke, hologram, scan, transporter):
+ *                         e.transit = { is, dir: 'in' | 'out', t0 }
+ *     transfigure { into, with? }   who becomes into (minted asleep): into wakes where who stands, facing as it faces,
+ *                         who goes; both carry the transit (default galvatron), linked by `to` / `from`
+ *     puff { at?, is? }       a moment at a place or at who's feet (state.moments: { is, at, t0 }, kept 3 s)
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
  *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
  *     out, here, or was lifted)
@@ -23,7 +28,7 @@
  * less than a sixth of its pace is stuck: the walk drops and `stuck` fires (a solid body in the way, a wall).
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function; core precedes it in EMISSION. Field ownership:
- * e.route, e.held, e.pose, e.castDown, e.arrivals, e.arrivedAt, e.arrivedLast, e.stucks, e.statuses, e.faded.
+ * e.route, e.held, e.pose, e.castDown, e.arrivals, e.arrivedAt, e.arrivedLast, e.stucks, e.statuses, e.faded, e.transit; state.moments.
  */
 
 export function buildCast(E) {
@@ -78,15 +83,37 @@ export function buildCast(E) {
   const pt3 = (p, z) => [p[0], p[1], Number.isFinite(p[2]) ? p[2] : z];
   function castOps(state, ops) {
     for (const o of ops || []) {
+      if (o && o.op === 'puff' && !o.who && Array.isArray(o.at)) {   // a puff at a place, no one there
+        const t = state.time || 0, m = (state.moments || (state.moments = [])).filter((x) => t - x.t0 < 3);
+        m.push({ is: typeof o.is === 'string' ? o.is : 'smoke', at: pt3(o.at, 0), t0: t }); state.moments = m;
+        continue;
+      }
       const e = o && state.byId[o.who];
       if (!e || e.isCamera) continue;
+      const t = state.time || 0;
+      if (o.op === 'transfigure') {
+        const B = state.byId[o.into];
+        if (!B || B === e || B.isCamera || e.gone) continue;
+        const is = typeof o.with === 'string' ? o.with : 'galvatron';
+        castOps(state, [{ op: 'spawn', who: B.id, at: e.transform.pos.slice(), face: (e.transform.heading || 0) / DEG }, { op: 'vanish', who: e.id }]);
+        e.transit = { is, dir: 'out', t0: t, to: B.id }; B.transit = { is, dir: 'in', t0: t, from: e.id };
+        continue;
+      }
+      if (o.op === 'puff') {
+        const at = Array.isArray(o.at) ? pt3(o.at, 0) : e.transform.pos.slice();
+        const m = (state.moments || (state.moments = [])).filter((x) => t - x.t0 < 3);
+        m.push({ is: typeof o.is === 'string' ? o.is : 'smoke', at, t0: t }); state.moments = m;
+        continue;
+      }
       if (o.op === 'spawn') {
+        if (typeof o.with === 'string') e.transit = { is: o.with, dir: 'in', t0: t };
         e.dormant = false; e.gone = false; e.downed = false; e.castDown = false; e.route = null; e.held = false; e.pose = null;
         if (Number.isFinite(e.hpMax) && e.body) { e.body.hp = e.hpMax; e.body.hittable = true; }
         if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
         if (Number.isFinite(o.face)) e.transform.heading = o.face * DEG;
         if (Array.isArray(e.vel)) e.vel = [0, 0, 0];
       } else if (o.op === 'vanish') {
+        if (typeof o.with === 'string' && !e.gone) e.transit = { is: o.with, dir: 'out', t0: t };
         e.gone = true; e.dormant = true; e.route = null; e.held = false; e.moving = false;
         if (e.body) e.body.hittable = false;
       } else if (o.op === 'kill' || o.op === 'hurt') {
