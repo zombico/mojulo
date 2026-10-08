@@ -334,6 +334,38 @@ This step builds the contract and the approval gate. No rung is served yet.
 - **Water changes state.** Ice rises from the ground as it freezes and sinks away as it thaws; water boils off in a burst
   of steam when it comes off. Every look now fades its layers out instead of vanishing.
 
+### Weather and moments
+
+- **Drift.** A look's `drift` layer is a particle spray, as `motes` is a wave: `{ glyph, count, from, v, el, go,
+  gravity, swirl, life, grow, spin, size, rings?, color? }`, one closed form in time that the page runs as written.
+  Presets `rain` (a cloud over the head, drops ringing out at the feet), `snow`, `wind` (streaks and leaves swirled
+  round), `embers`, `dusty`.
+- **Lightning.** `bolts: { bright: true }` strikes white-hot over the coloured glow; the `shock` preset crackles with
+  it.
+- **Moments.** `puff.is` is `smoke`, `dust`, `splash`, `flash` (an impact: a starburst and speed lines), `strike`
+  (lightning from the sky onto the spot), `sparks` or `fireworks`, with `color?` and `shake?`.
+- **Shake.** `{ shake: k | { k, for? } }` shakes the camera, decaying; it is added around each draw, so no camera keeps
+  it.
+
+### Beams
+
+- **Attacks as functions.** `{ beam: { who, to, is } }` fires an attack from a character's hand at a character or a
+  place. An attack is strands, each one closed form in time: a `ray` (it grows to the target, holds, and its tail runs
+  after it) or a `bolt` (a body and a head that fly), shaped by `speed`, `width`, `length`, `head`, `taper`, `pulse`,
+  and a path: `arc`, `bow` (each copy curves out its own way and lands on the target), `wave` (a slither the body
+  follows), `twist` (strands braiding round the line). `count`, `stagger` and `vary` make a barrage. Layers: a
+  `charge` (an orb gathering at the hand or over the head), `rings` along a ray, `sparks` at a head, an `impact` (a puff
+  kind) and a `shake`. `edge: ink` draws a black edge round a white core, so attacks read in black and white first.
+- **Presets.** `orb`, `serpent`, `ray`, `nova`, `barrage`, `braid`, `laser`; `play.beams` designs your own.
+- **Struck.** When a beam reaches a character, `struck` fires (`{ struck: who }`), so a cue can hurt, mark or puff.
+
+### Looks in Godot
+
+- **The pack carries the looks.** A world whose cues put on statuses ships them in `score.looks`, and kernel 0.6.0
+  draws them: `Looks.wear(node, name)` lays the coat on every mesh as a `material_overlay` and drives its shape, waves
+  and drift run as billboards from the same closed forms, and `Looks.transit(node, kind, dir)` plays a transit as an
+  animation clip. Cues do not travel, so the ledger says nothing wears a look until a script calls it.
+
 ### Places
 
 - **Box bodies.** `body.collide: { box: [hx, hy, hz?] }` is an axis-aligned box of those half sizes round the body's

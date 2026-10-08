@@ -10,7 +10,10 @@
  *              'flash' | 'flicker' | 'hold', dark?: true (a black rim) } · false for none
  *   motes    lights moving round the body: one WAVE or a list of them (below). Every orbiting, rising, spiralling,
  *            bursting, twinkling light is one of these.
- *   bolts    jagged black-flash lightning round the body (kokusen): { width?, color? } (the glow edge takes color)
+ *   bolts    jagged lightning round the body: { width?, color?, bright? } (black strokes over a glow edge in color,
+ *            kokusen's black flash; bright: white-hot strokes, lightning)
+ *   drift    particles thrown, blown or dropped round the body: one SPRAY or a list of them (below). Rain, snow, leaves
+ *            on the wind, embers, sparks, dust are each one of these.
  *   fire     the world's own fire on the body (fire/fire.js): { size: 1 licks · 3.5 engulfs, color? }
  *   ice      { mode: 'encase' (a randomized angular block round the body) | 'spikes' (crystals grown from its surface) }
  *   water    drops run off it, fall and ring out at its feet: {} or { count }
@@ -26,12 +29,24 @@
  *     pulse: 0..1 (breathes with the cycle), size: 0.6, scatter?: [sx, sy, sz] (fixed lights in a box that twinkle,
  *     `twinkle` sharpness), color? }
  *
+ * A SPRAY: `count` particles, each living `life` seconds and born again (a moment's spray goes once): it starts at
+ * `from` (point: the feet + z · ground: a disc of radius r at height z · shell: round the body at r, z [lo, hi] ·
+ * cloud: a disc at z, and a small cloud is drawn there), leaves at `v` m/s at an elevation in `el` [lo, hi] degrees
+ * (outward from a shell), drifts by `go` [vx, vy, vz], falls by `gravity` (below 0 it rises), swirls round the body
+ * `swirl` turns a second; it swells by `grow`, spins `spin` turns a second, and fades by `env`:
+ *   { glyph: 'dot' | 'soft' | 'streak' | 'drop' | 'flake' | 'leaf' | 'spark' | 'chip', count: 12, from: 'shell', r: 0.6,
+ *     z: 0.9 | [lo, hi], v: 0, el: [-90, 90], go: [0, 0, 0], gravity: 0, swirl: 0, life: 1.5, grow: 0, spin: 0,
+ *     size: 0.12, env: 'out', trail: 1, lag: 0.04 (ghosts behind each, s apart), rings?: true (a drop that lands rings
+ *     out), color? }
+ *
  *   LOOKS / LOOK_NAMES     presets to start from (named by what they do, not what they mean)
  *   readLook(v, where)     a preset's name or a spec → the look, read and filled (teaches on a bad one)
  *   readLooks(play)        play.looks: { name: spec }, read
  *   valueSignature(look)   what reads with the colour taken out (two looks a play uses should differ in it)
  *   wavePoints(w, cc, t)   one wave's lights at t seconds round feet cc: [{ p, w }] (the page runs the same source)
+ *   sprayPoints(s, cc, t, loop)  one spray's particles at t seconds: [{ p, v, w, s, rot, ring }] (the same, the page's)
  *   kokusenBolts(cc, ph, p)  the black-flash currents
+ *   lookRGB(look)          a look with every colour as [r, g, b] (for an engine with no colorant table)
  *
  * Designed in values first: a look is told apart by light or dark, how strong its coat is, how fast it breathes and how
  * its lights move. Colour comes last.
@@ -68,6 +83,47 @@ export function wavePoints(W, cc, t) {
   return out;
 }
 
+// ── the spray: every thrown, blown or dropped particle is one ───────────────────────────────────────────────────
+/** One spray's particles at t seconds round feet cc: each { p, v (its velocity), w (0 hidden), s (size), rot, ring (its
+ *  share of a ring's time since it landed, a drop that rings out; else -1) }, then its trail's ghosts. count × trail
+ *  entries, always, so a page's pool stays one size.
+ *  loop: each particle born again every life (a status); else once, from t = 0 (a moment). The page runs this source. */
+export function sprayPoints(S, cc, t, loop) {
+  const out = [], TAU = 6.283185307179586, fr = (x) => x - Math.floor(x), hs = (a, b) => fr(Math.sin(a * 12.9898 + b * 78.233 + 4.1) * 43758.5453);
+  const env = (u) => (S.env === 'ends' ? Math.sin(Math.PI * u) : S.env === 'in' ? u * u : S.env === 'out' ? Math.min(1, u * 12) * (1 - u) * (1 - u) : Math.min(1, u * 12) * Math.min(1, (1 - u) * 6));
+  const RING = 0.45, sl0 = Math.sin((S.el[0] * Math.PI) / 180), sl1 = Math.sin((S.el[1] * Math.PI) / 180), trail = S.trail || 1, lag = S.lag || 0;
+  for (let i = 0; i < S.count; i++) {
+    const life = S.life * (loop ? 0.75 + 0.5 * hs(i, 1) : 0.85 + 0.3 * hs(i, 1));
+    const tau0 = loop ? fr(t / life + hs(i, 2)) * life : t - S.delay - S.stagger * hs(i, 2);
+    // where it starts
+    const a = hs(i, 3) * TAU, d = Math.sqrt(hs(i, 4)) * S.r, zz = S.z[0] + (S.z[1] - S.z[0]) * hs(i, 10);
+    const x0 = S.from === 'point' ? 0 : S.from === 'shell' ? S.r * Math.cos(a) : d * Math.cos(a), y0 = S.from === 'point' ? 0 : S.from === 'shell' ? S.r * Math.sin(a) : d * Math.sin(a);
+    // how it leaves: at v, an elevation spread even over the sphere's band, outward from a shell
+    const sp = S.v * (0.6 + 0.8 * hs(i, 5)), se = sl0 + (sl1 - sl0) * hs(i, 6), ce = Math.sqrt(1 - se * se);
+    const az = S.from === 'shell' ? a + (hs(i, 7) - 0.5) * 0.6 : hs(i, 7) * TAU;
+    const vx = sp * ce * Math.cos(az) + S.go[0], vy = sp * ce * Math.sin(az) + S.go[1], vz = sp * se + S.go[2], g = S.gravity;
+    // where it falls to: the feet's ground, once
+    const land = g > 0 ? (vz + Math.sqrt(vz * vz + 2 * g * zz)) / g : vz < 0 ? zz / -vz : Infinity;
+    // the particle and its trail: the same flight a lag behind, dimmer down the trail
+    for (let k = 0; k < trail; k++) {
+      const tau = tau0 - k * lag;
+      if (tau < 0 || tau > life || (k && tau > land)) { out.push({ p: [cc[0], cc[1], cc[2]], v: [0, 0, 0], w: 0, s: 0, rot: 0, ring: -1 }); continue; }
+      const tt = Math.min(tau, land), ring = tau > land ? tau - land : -1;
+      if (ring >= 0 && !(S.rings && ring < RING)) { out.push({ p: [cc[0], cc[1], cc[2]], v: [0, 0, 0], w: 0, s: 0, rot: 0, ring: -1 }); continue; }
+      const x = x0 + vx * tt, y = y0 + vy * tt, z = zz + vz * tt - 0.5 * g * tt * tt;
+      // swirled round the body's axis
+      const sw = S.swirl * TAU * tt, cs = Math.cos(sw), sn = Math.sin(sw), rx = x * cs - y * sn, ry = x * sn + y * cs;
+      const u = tau / life, s = S.size * (0.7 + 0.6 * hs(i, 8)) * (1 + S.grow * u) * (1 - (0.6 * k) / trail);
+      out.push({
+        p: [cc[0] + rx, cc[1] + ry, cc[2] + z],
+        v: [vx * cs - vy * sn - S.swirl * TAU * ry, vx * sn + vy * cs + S.swirl * TAU * rx, vz - g * tt],
+        w: ring >= 0 ? 0 : env(u) * Math.pow(0.7, k), s, rot: hs(i, 9) * TAU + S.spin * TAU * tau, ring: ring >= 0 ? ring / RING : -1,
+      });
+    }
+  }
+  return out;
+}
+
 // ── kokusen's black-flash currents ───────────────────────────────────────────────────────────────────────────────
 // nine jagged arcs round the body, struck afresh 8 times a second; one whose dice fall under 0.3 sits the frame out
 // (w 0). Each strike its own weight and every node its own kink of it, tapering root to tip; a fork from the middle.
@@ -99,7 +155,9 @@ export const BOLT_SHAPE = Object.freeze({ arcR: 0.6, zBase: 0.3, zSpan: 1.3 });
 const COAT_SHAPES = ['breathe', 'grow', 'flash', 'flicker', 'hold'];
 const ENVS = ['steady', 'ends', 'in', 'out'];
 const ICE_MODES = ['encase', 'spikes'];
-export const LOOK_LAYERS = Object.freeze(['color', 'coat', 'motes', 'bolts', 'fire', 'ice', 'water', 'steam']);
+export const LOOK_LAYERS = Object.freeze(['color', 'coat', 'motes', 'drift', 'bolts', 'fire', 'ice', 'water', 'steam']);
+export const GLYPHS = Object.freeze(['dot', 'soft', 'streak', 'drop', 'flake', 'leaf', 'spark', 'chip']);
+const SPRAY_FROM = ['point', 'ground', 'shell', 'cloud'];
 const HEX = /^#[0-9a-f]{6}$/i;
 
 export function readColor(c, where) {
@@ -148,6 +206,42 @@ function readWave(w, where) {
   return out;
 }
 
+/** A spray (see the top): read and filled. */
+export function readSpray(w, where) {
+  if (!isObj(w)) throw new Error(`${where} is a spray: { glyph, count, from, v, el, go, gravity, swirl, life, … } (see the play-elements card)`);
+  const n = (k, d, ok, say) => { const v = w[k] ?? d; if (!num(v) || !ok(v)) throw new Error(`${where}.${k} is ${say}`); return v; };
+  const vec = (k) => { const v = w[k] ?? [0, 0, 0]; if (!(Array.isArray(v) && v.length === 3 && v.every(num))) throw new Error(`${where}.${k} is [x, y, z] (m a second)`); return v.slice(); };
+  const out = {
+    glyph: w.glyph ?? 'dot',
+    count: Math.round(n('count', 12, (v) => v >= 1 && v <= 80, 'how many particles (1 to 80)')),
+    from: w.from ?? 'shell',
+    r: n('r', 0.6, (v) => v >= 0, 'the radius they start in (m)'),
+    z: pair(w.z ?? 0.9, `${where}.z`, 'the height they start at above the feet (m)'),
+    v: n('v', 0, (v) => v >= 0, 'the speed they leave at (m a second)'),
+    el: w.el === undefined ? [-90, 90] : pair(w.el, `${where}.el`, 'the elevation they leave at, degrees [lo, hi]'),
+    go: vec('go'),
+    gravity: n('gravity', 0, () => true, 'm a second² down (below 0 they rise)'),
+    swirl: n('swirl', 0, () => true, 'turns a second round the body'),
+    life: n('life', 1.5, (v) => v > 0 && v <= 20, 'seconds a particle lives (to 20)'),
+    grow: n('grow', 0, (v) => v >= 0, 'how much a particle swells over its life'),
+    spin: n('spin', 0, () => true, 'turns a second'),
+    size: n('size', 0.12, (v) => v > 0, 'a particle across (m)'),
+    env: w.env ?? 'out',
+    delay: n('delay', 0, (v) => v >= 0, 'seconds before a moment\'s spray goes'),
+    stagger: n('stagger', 0, (v) => v >= 0, 'seconds a moment\'s particles leave over'),
+    trail: Math.round(n('trail', 1, (v) => v >= 1 && v <= 8, 'the ghosts behind each particle (1 to 8)')),
+    lag: n('lag', 0.04, (v) => v >= 0, 'seconds between a trail\'s ghosts'),
+  };
+  if (out.count * out.trail > 400) throw new Error(`${where}: count × trail is at most 400`);
+  if (!GLYPHS.includes(out.glyph)) throw new Error(`${where}.glyph is one of: ${GLYPHS.join(', ')}`);
+  if (!SPRAY_FROM.includes(out.from)) throw new Error(`${where}.from is one of: ${SPRAY_FROM.join(', ')}`);
+  if (!ENVS.includes(out.env)) throw new Error(`${where}.env is one of: ${ENVS.join(', ')}`);
+  if (out.el.some((x) => x < -90 || x > 90)) throw new Error(`${where}.el is degrees in -90..90`);
+  if (w.rings) out.rings = true;
+  if (w.color !== undefined) out.color = readColor(w.color, `${where}.color`);
+  return out;
+}
+
 /** A look: a preset's name (or one in `looks`, play.looks read), or a spec of layers. */
 export function readLook(v, where, looks = null) {
   if (typeof v === 'string') {
@@ -158,7 +252,7 @@ export function readLook(v, where, looks = null) {
   if (!isObj(v)) throw new Error(`${where} is a look: a preset's name, or its layers { ${LOOK_LAYERS.join(', ')} }`);
   const bad = Object.keys(v).filter((k) => !LOOK_LAYERS.includes(k));
   if (bad.length) throw new Error(`${where} has no layer ${bad.join(', ')}: its layers are ${LOOK_LAYERS.join(', ')}`);
-  const out = { color: v.color === undefined ? [1, 1, 1] : readColor(v.color, `${where}.color`), coat: null, motes: [], bolts: null, fire: null, ice: null, water: null, steam: null };
+  const out = { color: v.color === undefined ? [1, 1, 1] : readColor(v.color, `${where}.color`), coat: null, motes: [], drift: [], bolts: null, fire: null, ice: null, water: null, steam: null };
   if (v.coat !== undefined && v.coat !== false) {
     const c = v.coat === true ? {} : v.coat;
     if (!isObj(c)) throw new Error(`${where}.coat is { k, hz, p, shape, dark? } or false`);
@@ -168,10 +262,11 @@ export function readLook(v, where, looks = null) {
     out.coat = { k: c.k ?? 0.6, hz: c.hz ?? 0.6, p: c.p ?? 2, shape, ...(c.dark ? { dark: true } : {}), ...(c.color !== undefined ? { color: readColor(c.color, `${where}.coat.color`) } : {}) };
   }
   if (v.motes !== undefined) out.motes = (Array.isArray(v.motes) ? v.motes : [v.motes]).map((w, i) => readWave(w, `${where}.motes${Array.isArray(v.motes) ? `[${i}]` : ''}`));
+  if (v.drift !== undefined) out.drift = (Array.isArray(v.drift) ? v.drift : [v.drift]).map((w, i) => readSpray(w, `${where}.drift${Array.isArray(v.drift) ? `[${i}]` : ''}`));
   if (v.bolts !== undefined && v.bolts !== false) {
     const b = v.bolts === true ? {} : v.bolts;
-    if (!isObj(b)) throw new Error(`${where}.bolts is { width?, color? } or true`);
-    out.bolts = { width: num(b.width) && b.width > 0 ? b.width : 0.02, ...(b.color !== undefined ? { color: readColor(b.color, `${where}.bolts.color`) } : {}) };
+    if (!isObj(b)) throw new Error(`${where}.bolts is { width?, color?, bright? } or true`);
+    out.bolts = { width: num(b.width) && b.width > 0 ? b.width : 0.02, ...(b.bright ? { bright: true } : {}), ...(b.color !== undefined ? { color: readColor(b.color, `${where}.bolts.color`) } : {}) };
   }
   if (v.fire !== undefined && v.fire !== false) {
     const f = v.fire === true ? {} : v.fire;
@@ -190,6 +285,12 @@ export function readLook(v, where, looks = null) {
     out[k] = { count: Math.round(c.count ?? (k === 'water' ? 14 : 18)) };
   }
   return out;
+}
+
+/** A look with every colour as [r, g, b]: its own, its coat's, each wave's and spray's, its bolts' and fire's. */
+export function lookRGB(L) {
+  const c = (o) => (o && o.color !== undefined ? { ...o, color: colorRGB(o.color) } : o);
+  return { ...L, color: colorRGB(L.color), coat: c(L.coat), motes: L.motes.map(c), drift: (L.drift || []).map(c), bolts: c(L.bolts), fire: c(L.fire) };
 }
 
 /** play.looks: { name: layers }, read (a name is any lower-case word). */
@@ -226,6 +327,12 @@ export const LOOKS = Object.freeze({
   frost: P({ color: [0.78, 0.92, 1], coat: { k: 0.7, hz: 0, p: 1.8, shape: 'hold' }, ice: { mode: 'spikes' } }),
   wet: P({ color: [0.62, 0.82, 1], coat: { k: 0.45, hz: 0.3, p: 3.2 }, water: {} }),
   steam: P({ color: [1, 0.95, 0.9], coat: { k: 0.35, hz: 0.5, p: 2.2 }, steam: {} }),
+  shock: P({ color: [0.55, 0.75, 1], coat: { k: 0.8, hz: 0, p: 1.6, shape: 'flicker' }, bolts: { width: 0.016, bright: true }, drift: { glyph: 'streak', count: 14, from: 'shell', r: 0.35, z: [0.3, 1.5], v: 2.6, el: [-30, 60], gravity: 6, life: 0.45, size: 0.08, color: [0.85, 0.93, 1] } }),
+  rain: P({ color: [0.6, 0.75, 1], coat: { k: 0.4, hz: 0.25, p: 3 }, drift: { glyph: 'drop', count: 26, from: 'cloud', r: 0.5, z: 2.45, go: [0, 0, -6.5], life: 0.55, size: 0.07, env: 'steady', rings: true } }),
+  snow: P({ color: [0.92, 0.96, 1], coat: { k: 0.35, hz: 0, p: 3, shape: 'hold' }, drift: { glyph: 'flake', count: 30, from: 'ground', r: 1.1, z: 2.4, go: [0, 0, -0.55], swirl: 0.05, life: 4.4, spin: 0.2, size: 0.1, env: 'ends' } }),
+  wind: P({ color: [0.85, 0.95, 0.9], coat: false, drift: [{ glyph: 'streak', count: 10, from: 'shell', r: 0.9, z: [0.2, 1.7], swirl: 0.55, life: 1.1, size: 0.16, env: 'ends' }, { glyph: 'leaf', count: 9, from: 'shell', r: 0.75, z: [0.1, 1.5], go: [0, 0, 0.35], swirl: 0.4, life: 2.6, spin: 0.9, size: 0.13, env: 'ends', color: [0.55, 0.72, 0.3] }] }),
+  embers: P({ color: [1, 0.55, 0.2], coat: { k: 0.45, hz: 1.4, p: 2.4 }, drift: { glyph: 'spark', count: 22, from: 'shell', r: 0.3, z: [0.1, 1.2], v: 0.3, el: [30, 90], gravity: -0.9, swirl: 0.08, life: 2, size: 0.07, env: 'ends' } }),
+  dusty: P({ color: [0.72, 0.62, 0.48], coat: false, drift: { glyph: 'soft', count: 14, from: 'ground', r: 0.55, z: 0.06, v: 0.35, el: [0, 25], life: 1.8, grow: 1.8, size: 0.28, env: 'ends' } }),
 });
 export const LOOK_NAMES = Object.freeze(Object.keys(LOOKS));
 
@@ -233,10 +340,11 @@ export const LOOK_NAMES = Object.freeze(Object.keys(LOOKS));
 // scatters, trails, how it brightens
 const sgn = (a, b) => (b > a + 1e-6 ? 'up' : b < a - 1e-6 ? 'down' : 'still');
 const waveSig = (w) => (w.scatter ? 'scatter' : [Math.sign(w.turn), sgn(w.r[0], w.r[1]), sgn(w.z[0], w.z[1]), Math.abs(w.tilt) > 45 ? 'ring' : 'flat', w.trail > 1 ? 'trail' : 'one', w.env, w.count > 4 ? 'many' : 'few'].join(' '));
+const spraySig = (s) => [s.glyph, s.from, s.gravity > 0 || s.go[2] < 0 ? 'falls' : s.gravity < 0 || s.go[2] > 0 ? 'rises' : 'level', Math.abs(s.swirl) > 0.2 ? 'swirls' : 'straight', s.v > 1.5 ? 'thrown' : 'loose'].join(' ');
 const band = (x, cuts) => cuts.findIndex((c) => x <= c);
 /** What a look reads as with the colour taken out. */
 export function valueSignature(L) {
   const c = L.coat;
-  return [c && c.dark ? 'dark' : L.bolts ? 'dark' : 'light', c ? c.shape : 'none', c ? band(c.k, [0.4, 0.7, 2]) : -1, c ? band(c.hz, [0, 0.5, 1, 99]) : -1,
-    L.motes.map(waveSig).join(' + ') || 'still', L.bolts ? 'bolts' : '', L.fire ? `fire ${L.fire.size > 2.5 ? 'big' : 'small'}` : '', L.ice ? `ice ${L.ice.mode}` : '', L.water ? 'water' : '', L.steam ? 'steam' : ''].join(' | ');
+  return [c && c.dark ? 'dark' : L.bolts && !L.bolts.bright ? 'dark' : 'light', c ? c.shape : 'none', c ? band(c.k, [0.4, 0.7, 2]) : -1, c ? band(c.hz, [0, 0.5, 1, 99]) : -1,
+    L.motes.map(waveSig).join(' + ') || 'still', (L.drift || []).map(spraySig).join(' + '), L.bolts ? (L.bolts.bright ? 'bright bolts' : 'bolts') : '', L.fire ? `fire ${L.fire.size > 2.5 ? 'big' : 'small'}` : '', L.ice ? `ice ${L.ice.mode}` : '', L.water ? 'water' : '', L.steam ? 'steam' : ''].join(' | ');
 }

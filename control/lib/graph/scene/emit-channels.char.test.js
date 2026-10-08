@@ -57,6 +57,12 @@ import { emitThreeWorld } from './scene-three.js';
 // name (fire/fire.js carries a body's fire to its body; pages without one are unchanged).
 // Re-pinned 2026-10-08 (transitory): the engine's cast takes spawn / vanish `with` (a transit the page plays), and the
 // transfigure and puff ops. Pages whose cues use none of them carry no transit code; the controllable trace pins hold.
+// Re-pinned 2026-10-08 (weather): the engine's puff stands at a character's feet and keeps its kind, colour and shake,
+// and a `shake` op puts down a camera moment. Pages whose cues puff or shake nothing carry no moment code; the
+// controllable trace pins hold.
+// Re-pinned 2026-10-08 (beams): the engine's cast takes the `beam` op (an attack's moment, its impact and shake at the
+// landing) and castFacts the `struck` fact; a moment may wait for a later t0. Pages whose cues fire no beam carry no
+// beam code; the controllable trace pins hold.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

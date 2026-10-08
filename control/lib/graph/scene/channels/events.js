@@ -5,6 +5,8 @@ import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
+import { momentKinds, momentScript } from './moment-channel.js';
+import { beamSpecs, beamScript } from './beam-channel.js';
 
 export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
@@ -161,7 +163,11 @@ export function eventsChannelScript(events) {
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
   const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
-  const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure, puff)
+  const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
+  const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
+  const moments = mos.length ? momentScript(mos) : '';
+  const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
+  const beams = bms.length ? beamScript(bms) : '';
   const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
@@ -269,7 +275,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}
+${hudBlock}${reach}${status}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -316,7 +322,7 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
   if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { const w = __BUS.watchEvents(__busState); if (!w.length) break; __BUS.processEvents(__busState, w); } }

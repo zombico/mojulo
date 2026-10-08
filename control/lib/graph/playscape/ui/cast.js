@@ -27,6 +27,8 @@
  */
 import { DOOR_STAND } from '../objects/door.js';
 import { readLook, readColor, LOOK_NAMES } from '../elements/elements.js';
+import { PUFFS } from '../elements/moments.js';
+import { readBeam, beamLanding, BEAM_NAMES } from '../elements/beams.js';
 
 export const CAST_WHEN = Object.freeze({
   down: 'a character falls: killed, or its hp runs out (its id, a glob)',
@@ -35,6 +37,7 @@ export const CAST_WHEN = Object.freeze({
   arrive: 'a character reaches a point of its walk: { arrive: who } any point, or { arrive: { who, at: place } }',
   stuck: "a character's walk can't get through (a second without progress); the walk drops",
   faded: 'a status comes off a character: it ran out or was lifted: { faded: who } any, or { faded: { who, is } }',
+  struck: 'a beam reaches a character (its id, a glob)',
 });
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
@@ -48,7 +51,9 @@ export const CAST_THEN = Object.freeze({
   status: `{ status: { who, is, look?, for?, color? } } the character carries a status: is is any name you give it; look is how it shows on the body as it moves (a preset: ${LOOK_NAMES.join(', ')}; a name in play.looks; or its layers), defaulting to the look called is; for seconds, until lifted, or until the cue ends`,
   lift: '{ lift: who | { who, is? } } take a status off (no is: all of them)',
   transfigure: '{ transfigure: { who, into, with? } } who becomes into (a character minted asleep): into wakes where who stands and who goes; with: galvatron (default: skin to wire, the form morphs, re-skin) or any transit',
-  puff: '{ puff: who | { who? | at: place, is? } } a puff of smoke at a character or a place',
+  puff: `{ puff: who | { who? | at: place, is?, color?, shake?: 0..1 } } a moment at a character's feet or a place: is ${PUFFS.join(', ')} (smoke by default); shake shakes the camera too`,
+  shake: '{ shake: k | { k, for? } } the camera shakes, k 0..1 (0.5 a thump, 1 a quake), over for seconds (0.4), dying away',
+  beam: `{ beam: { who, to: who | place, is?, color? } } who fires an attack from its hand at a character or a place: is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character`,
 });
 // how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
 export const TRANSITS = Object.freeze(['smoke', 'hologram', 'scan', 'transporter', 'galvatron']);
@@ -128,7 +133,14 @@ export function readCastEffect(k, t, where, ctx = {}) {
   // a puff stands at a place, or at a character
   if (k === 'puff' && isObj(v) && v.who === undefined) {
     if (v.at === undefined) throw new Error(`${w} is a character's id, or { at: place, is? }`);
-    return { kind: 'cast', op: 'puff', who: null, at: readPlace(v.at, `${w}.at`), ...(v.is !== undefined ? { is: readPuff(v.is, `${w}.is`) } : {}), page: true };
+    return { kind: 'cast', op: 'puff', who: null, at: readPlace(v.at, `${w}.at`), ...puffOpts(v, w), page: true };
+  }
+  // a shake is the camera's: no one, no place
+  if (k === 'shake') {
+    const o = Number.isFinite(v) ? { k: v } : v;
+    if (!isObj(o) || !(Number.isFinite(o.k) && o.k > 0 && o.k <= 1)) throw new Error(`${w} is how hard, 0..1, or { k, for? }`);
+    if (o.for !== undefined && !(Number.isFinite(o.for) && o.for > 0 && o.for <= 3)) throw new Error(`${w}.for is seconds (to 3)`);
+    return { kind: 'cast', op: 'shake', who: null, k: o.k, ...(o.for !== undefined ? { for: o.for } : {}), page: true };
   }
   const who = isStr(v) ? v : isObj(v) && isStr(v.who) ? v.who : null;
   if (!who) throw new Error(k === 'hurt' || k === 'walk' || k === 'status' ? `${w}.who is a character's id` : `${w} is a character's id, or { who, … }`);
@@ -144,7 +156,7 @@ export function readCastEffect(k, t, where, ctx = {}) {
     out.with = o.with;
   }
   if (k === 'transfigure') { if (!isStr(o.into) || o.into === who) throw new Error(`${w}.into is the character it becomes (minted asleep)`); out.into = o.into; }
-  if (k === 'puff' && o.is !== undefined) out.is = readPuff(o.is, `${w}.is`);
+  if (k === 'puff') Object.assign(out, puffOpts(o, w));
   if (k === 'spawn') {
     if (o.at !== undefined) out.at = readPlace(o.at, `${w}.at`);
     if (o.face !== undefined) { if (!Number.isFinite(o.face)) throw new Error(`${w}.face is degrees`); out.face = o.face; }
@@ -155,6 +167,13 @@ export function readCastEffect(k, t, where, ctx = {}) {
     // its look: given, or the one called by its name (play.looks, then the presets)
     out.look = o.look !== undefined ? readLook(o.look, `${w}.look`, ctx.looks) : readLook(o.is, `${w}.is`, ctx.looks);
     if (o.for !== undefined) { if (!(Number.isFinite(o.for) && o.for > 0)) throw new Error(`${w}.for is seconds`); out.for = o.for; }
+    if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
+  }
+  if (k === 'beam') {
+    if (o.to === undefined) throw new Error(`${w}.to is a character's id or a place`);
+    out.to = isStr(o.to) ? o.to : readPlace(o.to, `${w}.to`);
+    out.spec = readBeam(o.is ?? 'orb', `${w}.is`, ctx.beams);
+    if (isStr(o.is)) out.name = o.is;
     if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
   }
   if (k === 'lift' && o.is !== undefined) { if (!(isStr(o.is) && ID.test(o.is))) throw new Error(`${w}.is is a status's name`); out.is = o.is; }
@@ -170,7 +189,14 @@ export function readCastEffect(k, t, where, ctx = {}) {
   return out;
 }
 
-const readPuff = (v, where) => { if (v !== 'smoke') throw new Error(`${where} is smoke (the one puff so far)`); return v; };
+// a puff's kind, its colour and how hard it shakes the camera
+function puffOpts(o, w) {
+  const out = {};
+  if (o.is !== undefined) { if (!PUFFS.includes(o.is)) throw new Error(`${w}.is is one of: ${PUFFS.join(', ')}`); out.is = o.is; }
+  if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
+  if (o.shake !== undefined) { if (!(Number.isFinite(o.shake) && o.shake > 0 && o.shake <= 1)) throw new Error(`${w}.shake is how hard the camera shakes, 0..1`); out.shake = o.shake; }
+  return out;
+}
 
 /** A cast happening's reaction: the character world's event, matched to the who (and the place). */
 export const castFire = (w, type) => ({ on: w.kind, match: { entity: w.who, ...(w.at ? { at: w.at } : {}), ...(w.is ? { is: w.is } : {}) }, do: 'emit', type });
@@ -181,7 +207,15 @@ const placeAt = (ref, places) => (Array.isArray(ref) ? { at: ref, name: null } :
 export function lowerCastEffect(t, on, frag, places = []) {
   const r = { on, do: 'ctrl', op: t.op, who: t.who };
   if (t.by !== undefined) r.by = t.by;
-  for (const k of ['is', 'for', 'color', 'with', 'into']) if (t[k] !== undefined) r[k] = t[k];
+  for (const k of ['is', 'for', 'color', 'with', 'into', 'shake', 'k']) if (t[k] !== undefined) r[k] = t[k];
+  if (t.op === 'shake') delete r.who;
+  if (t.op === 'beam') {
+    // at a place when one is called so, else at the character of that name
+    const p = placeAt(t.to, places);
+    r.to = p ? p.at.slice() : t.to;
+    r.spec = t.spec; r.land = beamLanding(t.spec);
+    if (t.name) r.name = t.name;
+  }
   if (t.op === 'puff') { if (!t.who) delete r.who; if (t.at !== undefined) { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); } }
   if (t.op === 'spawn') {
     if (t.at !== undefined) { const p = placeAt(t.at, places); if (!p) return frag; r.at = p.at.slice(); if (t.face === undefined && Number.isFinite(p.face)) r.face = p.face; }

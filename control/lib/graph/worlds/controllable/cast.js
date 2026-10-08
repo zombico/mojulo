@@ -18,10 +18,16 @@
  *                         e.transit = { is, dir: 'in' | 'out', t0 }
  *     transfigure { into, with? }   who becomes into (minted asleep): into wakes where who stands, facing as it faces,
  *                         who goes; both carry the transit (default galvatron), linked by `to` / `from`
- *     puff { at?, is? }       a moment at a place or at who's feet (state.moments: { is, at, t0 }, kept 3 s)
+ *     puff { at?, is?, color?, shake? }   a moment at a place or at who's feet (state.moments: { is, at, t0, color? },
+ *                         kept 3 s); shake: the camera shakes too
+ *     shake { k, for? }       (no who) the camera shakes k (0..1) over for seconds: a moment { is: 'shake', k, for, t0 }
+ *     beam { to, spec, land, name?, color? }   who fires an attack (playscape/elements/beams.js) from its hand (or over
+ *                         its head, a charge `at: above`) at a character (its middle, where it stands now) or a point: a
+ *                         moment { is: 'beam', from, to, target?, spec, hit, until }; it lands at hit (the least a + b ×
+ *                         distance of `land`), its impact and shake are moments then, and `struck` fires on a target
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
  *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
- *     out, here, or was lifted)
+ *     out, here, or was lifted) · struck { by, beam } (a beam reached it)
  *     (the first read seeds; nothing a world was minted with fires)
  *
  * A walk is a BODY OWNER (the rule waits while it walks or holds); so is a cast fall. A second of walking that closes
@@ -81,13 +87,18 @@ export function buildCast(E) {
   }, 200);
 
   const pt3 = (p, z) => [p[0], p[1], Number.isFinite(p[2]) ? p[2] : z];
+  // where a character stands: its eye above its feet, or half its height
+  const feet = (e) => { const p = e.transform.pos, r = e.rule || {}, b = e.body || {}; return [p[0], p[1], p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0)]; };
+  // a moment: kept 3 s on the world clock
+  function moment(state, m) { const t = state.time || 0; state.moments = (state.moments || []).filter((x) => t < (x.until != null ? x.until : x.t0 + 3)).concat([{ t0: t, ...m }]); }
+  function puff(state, o, at) {
+    moment(state, { is: typeof o.is === 'string' ? o.is : 'smoke', at, ...(o.color !== undefined ? { color: o.color } : {}) });
+    if (Number.isFinite(o.shake) && o.shake > 0) moment(state, { is: 'shake', at: at.slice(), k: o.shake, for: 0.4 });
+  }
   function castOps(state, ops) {
     for (const o of ops || []) {
-      if (o && o.op === 'puff' && !o.who && Array.isArray(o.at)) {   // a puff at a place, no one there
-        const t = state.time || 0, m = (state.moments || (state.moments = [])).filter((x) => t - x.t0 < 3);
-        m.push({ is: typeof o.is === 'string' ? o.is : 'smoke', at: pt3(o.at, 0), t0: t }); state.moments = m;
-        continue;
-      }
+      if (o && o.op === 'shake') { moment(state, { is: 'shake', at: [0, 0, 0], k: Number.isFinite(o.k) ? o.k : 0.5, for: Number.isFinite(o.for) ? o.for : 0.4 }); continue; }
+      if (o && o.op === 'puff' && !o.who && Array.isArray(o.at)) { puff(state, o, pt3(o.at, 0)); continue; }   // a puff at a place, no one there
       const e = o && state.byId[o.who];
       if (!e || e.isCamera) continue;
       const t = state.time || 0;
@@ -99,10 +110,20 @@ export function buildCast(E) {
         e.transit = { is, dir: 'out', t0: t, to: B.id }; B.transit = { is, dir: 'in', t0: t, from: e.id };
         continue;
       }
-      if (o.op === 'puff') {
-        const at = Array.isArray(o.at) ? pt3(o.at, 0) : e.transform.pos.slice();
-        const m = (state.moments || (state.moments = [])).filter((x) => t - x.t0 < 3);
-        m.push({ is: typeof o.is === 'string' ? o.is : 'smoke', at, t0: t }); state.moments = m;
+      if (o.op === 'puff') { puff(state, o, Array.isArray(o.at) ? pt3(o.at, 0) : feet(e)); continue; }
+      if (o.op === 'beam') {
+        if (e.gone || !o.spec) continue;
+        // from the hand (forward of it, at chest height), or over the head; at a character's middle, or a point
+        const f = feet(e), h = e.transform.heading || 0, above = o.spec.charge && o.spec.charge.at === 'above';
+        const from = above ? [f[0], f[1], f[2] + 2.7] : [f[0] + Math.cos(h) * 0.45, f[1] + Math.sin(h) * 0.45, f[2] + 1.15];
+        const T = typeof o.to === 'string' ? state.byId[o.to] : null;
+        if (typeof o.to === 'string' && (!T || T.gone)) continue;
+        const to = T ? T.transform.pos.slice() : pt3(o.to, 0), D = Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]);
+        const hit = t + Math.min(...(o.land || [[0, 0]]).map(([a, b]) => a + b * D));
+        moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), hit, until: hit + 8 });
+        const land = T ? feet(T) : to;
+        if (o.spec.impact) moment(state, { is: o.spec.impact, at: land, t0: hit, ...(o.color !== undefined ? { color: o.color } : {}) });
+        if (o.spec.shake) moment(state, { is: 'shake', at: land, k: o.spec.shake, for: 0.4, t0: hit });
         continue;
       }
       if (o.op === 'spawn') {
@@ -169,6 +190,8 @@ export function buildCast(E) {
       if (e.statuses) for (const k of Object.keys(e.statuses)) { const u = e.statuses[k].until; if (u != null && (state.time || 0) >= u) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); } }
       if (e.faded && e.faded.length) { for (const k of e.faded) events.push({ type: 'faded', entity: e.id, is: k }); e.faded.length = 0; }
     }
+    // a beam that has reached its character
+    for (const M of state.moments || []) if (M.is === 'beam' && M.target && !M.struck && (state.time || 0) >= M.hit) { M.struck = true; if (!seed) events.push({ type: 'struck', entity: M.target, by: M.by, ...(M.name ? { beam: M.name } : {}) }); }
     return { events, prev: next };
   }
 

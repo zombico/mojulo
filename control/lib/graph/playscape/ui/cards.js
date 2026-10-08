@@ -19,6 +19,8 @@ import { CUE_WHEN, CUE_THEN, SAY_AS, lowerCues, ANCHOR_REACH } from './cues.js';
 import { SPOT_POSES } from './cast.js';
 import { MENU_KINDS, MENU_IDS } from './menus.js';
 import { LOOK_NAMES, LOOK_LAYERS } from '../elements/elements.js';
+import { PUFFS } from '../elements/moments.js';
+import { BEAM_NAMES, BEAM_LAYERS } from '../elements/beams.js';
 import { BORDER_ELEMENTS, ELEMENT_IDS, BORDER_FLAVORS, FLAVOR_IDS, PIXEL_SIZES } from './borders.js';
 
 // one ladder: the play tiers (click, walk, level, game) and the UI rungs merged; a rung admits itself and all below
@@ -216,14 +218,37 @@ function elementsCard() {
     '  called is) · { lift: who | { who, is? } } · when: { faded: who | { who, is } } (it ran out or was lifted)',
     `  play.looks: { name: { ${LOOK_LAYERS.join(', ')} } } designs your own; color is '#rrggbb', [r, g, b] or a flame colorant`,
     'LAYERS: coat { k, hz, p, shape: breathe | grow | flash | flicker | hold, dark? } a fresnel rim, "this is happening now";',
-    '  motes: one wave or a list; bolts { width } black-flash lightning; fire { size: 1 licks, 3.5 engulfs, color } the',
+    '  motes: one wave or a list; drift: one spray or a list; bolts { width, bright? } lightning (black: kokusen\'s flash;',
+    '  bright: white-hot); fire { size: 1 licks, 3.5 engulfs, color } the',
     '  world\'s own fire; ice { mode: encase | spikes }; water {} drops that fall and ring out; steam {} vapour rising.',
     'A WAVE (every orbiting light): { count, trail, lag, cycle (s), turn (a cycle; 0 straight, < 0 the other way), r, z',
     '  (a number, or [from, to] over a cycle: in, out, up, down), arc, tilt (90: a ring), wobble [amp, per turn],',
     '  spread: even | random, env: steady | ends | in | out, tail, pulse, size, scatter [sx, sy, sz] (twinkling), color }',
+    'A SPRAY (every thrown, blown or dropped particle: rain, snow, leaves, embers, sparks, dust): { glyph: dot | soft |',
+    '  streak | drop | flake | leaf | spark | chip, count, from: point | ground | shell | cloud, r, z, v (m/s), el [lo, hi]',
+    '  degrees, go [vx, vy, vz] (a wind), gravity (< 0 rises), swirl (turns/s round the body), life, grow, spin, size, env,',
+    '  rings? (drops ring out where they land), color }',
     `PRESETS to start from (what they do, not what they mean): ${LOOK_NAMES.join(', ')}.`,
+    `MOMENTS (once, then gone): { puff: who | { at: place, is: ${PUFFS.join(' | ')}, color?, shake?: 0..1 } } · { shake: k | { k, for? } } the camera.`,
     'VALUES FIRST: two looks a play uses should read apart with the colour taken out (laws: looks-apart); ?values greys the page.',
     `example: ${JSON.stringify({ looks: { cursed: { color: '#7a3cff', coat: { k: 0.7, hz: 0.4 }, motes: { count: 3, trail: 8, cycle: 4, turn: -2, r: [0.3, 1.2], z: [1.6, 0.2], env: 'ends' } } }, cues: [{ id: 'hex', when: { down: 'witch' }, then: { status: { who: 'hero', is: 'cursed', for: 20 } } }] })}`,
+  );
+}
+
+function beamsCard() {
+  return lines(
+    'BEAMS AND ATTACKS — { beam: { who, to: who | place, is?, color? } } fires an attack from who\'s hand; when it lands on a',
+    '  character, when: { struck: who } fires (hurt it, mark it, puff there). is: a preset, a name in play.beams, or its layers:',
+    `  { ${BEAM_LAYERS.join(', ')} }`,
+    'A STRAND is one function of time: { form: ray (grows to the target, holds, its tail runs after) | bolt (a body behind a',
+    '  head, flying), speed, width, length, hold, head (× width), taper, pulse (hz), count, stagger, vary (barrage), bow (m:',
+    '  each copy curves its own way and lands), arc (m up), wave [amp, per m] (a slither the body follows), twist (turns a',
+    '  metre round the line at wave\'s amp: braids), phase, delay, edge: glow | ink | both, color }',
+    'LAYERS: charge { time, size, at: hand | above } an orb gathering first; rings { every, size } shock rings on a ray;',
+    `  sparks: a spray at every head; impact: a puff kind where it lands (${PUFFS.join(', ')}); shake: 0..1.`,
+    `PRESETS (what they do): ${BEAM_NAMES.join(', ')}.`,
+    'VALUES FIRST: a white core, a black ink edge (edge: ink | both), a coloured glow; ?values greys the page.',
+    `example: ${JSON.stringify({ beams: { twin: { color: '#66ccff', charge: { time: 0.8, size: 0.3 }, strands: [{ form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0] }, { form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0], phase: 0.5, color: '#ff66cc' }], impact: 'flash' } }, cues: [{ id: 'fire', when: { use: 'altar' }, then: { beam: { who: 'hero', to: 'golem', is: 'twin' } } }, { id: 'hit', when: { struck: 'golem' }, then: { hurt: { who: 'golem', by: 30 } } }] })}`,
   );
 }
 
@@ -243,7 +268,8 @@ export function playCards() {
     ['ui-shared', 'Shared status', 'whose value a part shows (of) and who may see it (audience)', 'multiplayer: nameplates, scoreboards, team status', sharedCard()],
     ['ui-cues', 'Cues', 'the UI answering the game: when a happening, then an effect, until another', 'a prompt near a door, a pickup toast, an area name, a low-health alert, a hint', cuesCard()],
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
-    ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, bolts, fire, ice, water, steam) is drawn on the body', 'a shield, a heal, poison, on fire, frozen, soaked, a black flash, any status you design', elementsCard()],
+    ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, drifting particles, bolts, fire, ice, water, steam) is drawn on the body; moments (puffs, splashes, impacts, lightning, fireworks, shake) play once', 'a shield, a heal, poison, on fire, frozen, soaked, rained on, electrified, a black flash, an impact, a lightning strike, any status you design', elementsCard()],
+    ['play-beams', 'Beams and attacks', 'an attack is strands (rays and bolts, one function of time each) fired from a hand, landing with struck', 'a ki wave, a fireball, a fire dragon, a death ball, a laser barrage, braided beams, any attack you design', beamsCard()],
     ['ui-pace', 'Pace', 'glance, scan or study: how densely the UI may be read', 'a twitch HUD vs a management screen', paceCard()],
     ...PART_IDS.map((p) => [`ui-part-${p}`, `Part: ${p}`, PARTS[p].about, `a ${p} on screen`, partCard(p)]),
   ];
@@ -270,7 +296,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'play-elements', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'play-elements', 'play-beams', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }

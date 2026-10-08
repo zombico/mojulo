@@ -57,6 +57,7 @@ var figure_players: Array = []       # [{node, player, anim}] — ambient idles,
 var probe_frames := -1               # --mojulo-frames=N: dump at frame N and quit
 var probe_frame := 0
 var _marker_res: Dictionary = {}     # marker kind -> the one shared Mesh (material on it)
+var looks: Node3D = null             # kernel/looks.gd when the score carries looks: looks.wear(node, name) / lift / transit
 
 
 static func to_yup(v: Array) -> Vector3:
@@ -90,6 +91,7 @@ func _ready() -> void:
 	_build_cameras()
 	_spawn_walker()
 	_build_rigs()
+	_build_looks()
 	_build_mechanics()
 	_start_music()
 	_build_hud()
@@ -221,6 +223,25 @@ func _fix_water() -> void:
 
 static func _vec3(a: Array) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
+
+
+# Looks (playscape elements, kernel 0.6.0): score.looks carries the looks a world's cues put on its cast, score.transits
+# the ways they come and go. The cues do not travel, so kernel/looks.gd waits for a script: $Level.looks.wear(node,
+# "poisoned"), .lift(node), .transit(node, "hologram", "in"). The probe wears one from the command line:
+# --mojulo-wear=<node name>:<look>. Absent both, no node.
+func _build_looks() -> void:
+	if not (score.has("looks") or score.has("transits")):
+		return
+	looks = load("res://kernel/looks.gd").new()
+	looks.name = "looks"
+	add_child(looks)
+	looks.setup(score.get("looks", {}))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--mojulo-wear="):
+			var kv := a.trim_prefix("--mojulo-wear=").split(":")
+			var hit := find_children(kv[0], "Node3D", true, false)
+			if kv.size() == 2 and not hit.is_empty():
+				looks.wear(hit[0], kv[1])
 
 
 # The crystal light rig (crystal-rig R5): performed by kernel/crystal_light.gd from score.crystalLight.

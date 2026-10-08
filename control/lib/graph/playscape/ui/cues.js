@@ -45,6 +45,7 @@ import { UI_STATES } from './parts.js';
 import { regionOf, HUD_REGIONS } from './regions.js';
 import { CAST_WHEN, CAST_THEN, readCastWhen, readCastEffect, castFire, lowerCastEffect } from './cast.js';
 import { readLooks } from '../elements/elements.js';
+import { readBeams } from '../elements/beams.js';
 
 export const CUE_WHEN = Object.freeze({
   enter: 'the figure walks into a zone: a zone the world declares, an anchor of the map { anchor, r? }, or an area { at, r } | { at, half }',
@@ -176,7 +177,7 @@ export function effectContext(play, phases = (play && play.phases) || ['playing'
   const partIds = new Set();
   for (const p of (play && play.parts) || []) if (p && isStr(p.id)) { if (partIds.has(p.id)) throw new Error(`play.parts: two parts called '${p.id}'`); partIds.add(p.id); }
   const menuIds = new Set(((play && play.menus) || []).map((m) => m && m.id).filter(isStr));
-  return { partIds, phases, menuIds, looks: readLooks(play) };
+  return { partIds, phases, menuIds, looks: readLooks(play), beams: readBeams(play) };
 }
 
 /** The cues of a play block, read; shape errors throw and teach. */

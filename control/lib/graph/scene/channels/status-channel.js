@@ -1,6 +1,7 @@
 import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
-import { wavePoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/elements.js';
+import { wavePoints, sprayPoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/elements.js';
+import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
 
 /**
  * status-channel — the page's side of the cast's STATUSES: each status a character carries (e.statuses, held by the
@@ -10,7 +11,10 @@ import { wavePoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/e
  *            material, so the page's log depth holds): a rim pow(1 - |n·v|, p) added in the colour, or laid in black;
  *            its strength follows the coat's shape, fading in over 0.15 s and out over a timed status's last 0.25 s
  *   motes    each wave's lights as additive sprites round the feet (wavePoints: the one source, run here as in node)
- *   bolts    black-flash currents: camera-facing black ribbons over a glow edge, struck afresh 8 times a second
+ *   drift    each spray's particles (sprayPoints, born again through their lives) as glyph sprites; a cloud over the
+ *            head when they fall from one, rings where drops land
+ *   bolts    currents: camera-facing ribbons over a glow edge, struck afresh 8 times a second (black: kokusen; bright:
+ *            lightning, a white-hot core)
  *   ice      encase (a randomized angular block round the body, riding it) or spikes (crystals from its surface)
  *   water    drops gather on the body, fall to its feet and ring out · steam: puffs rise, swell and thin
  *   (fire is the fire channel's: a body's fire, carried there)
@@ -213,7 +217,7 @@ function __elEncaseDrop(E) {
   for (const q of E.glints) { scene.remove(q.s); q.s.material.dispose(); }
 }
 `;
-const TRANSIT = `// TRANSITS: how a character comes or goes (spawn / vanish \`with\`, transfigure), and puffs at a place. Coming, the real
+const TRANSIT = `// TRANSITS: how a character comes or goes (spawn / vanish \`with\`, transfigure). Coming, the real
 // body plays it (its materials faded, clipped, wired); going, a GHOST does: a copy of its meshes where it stood, since
 // the body itself is hidden the moment it is gone. Each runs once on the world clock from the op's own time.
 const __TR_DUR = { smoke: 1.1, hologram: 1.4, scan: 1.3, transporter: 1.6, galvatron: 2.0 };
@@ -281,7 +285,7 @@ function __trMake(e, T, now) {
   return I;
 }
 function __trStep(I, u, W) {
-  const out = I.dir === 'out', h = I.box.max.z - I.box.min.z, C = I.c, skin = (op) => { if (I.dir === 'puff') return; if (out) for (const m of I.ghost.mats) m.opacity = op; else I.skin.set(op); };
+  const out = I.dir === 'out', h = I.box.max.z - I.box.min.z, C = I.c, skin = (op) => { if (out) for (const m of I.ghost.mats) m.opacity = op; else I.skin.set(op); };
   const wire = (op) => { for (const l of I.wires) l.material.opacity = op * (0.75 + 0.25 * Math.sin(u * 90)); };
   if (I.is === 'smoke') {
     skin(out ? (u < 0.22 ? 1 : 0) : (u < 0.3 ? 0 : 1));
@@ -326,8 +330,6 @@ function __trDrop(I) {
   if (I.ghost) { scene.remove(I.ghost.g); for (const m of I.ghost.mats) m.dispose(); }
   if (I.skin) I.skin.restore();
 }
-// a puff at a place: the smoke alone
-function __trPuff(M) { const I = { is: 'smoke', dir: 'puff', t0: M.t0, dur: 1.1, sprs: [], wires: [], extra: [], c: new THREE.Vector3(M.at[0], M.at[1], M.at[2] + 0.5), box: new THREE.Box3(new THREE.Vector3(M.at[0] - 0.4, M.at[1] - 0.4, M.at[2]), new THREE.Vector3(M.at[0] + 0.4, M.at[1] + 0.4, M.at[2] + 1)) }; for (let i = 0; i < 14; i++) I.sprs.push(__trSpr(__trSoft, [0.86, 0.86, 0.88], THREE.NormalBlending)); I.ghost = { mats: [] }; return I; }
 function __stepTransits() {
   const W = window.__mojCtrl && window.__mojCtrl.world; if (!W) return;
   const now = W.time || 0;
@@ -336,21 +338,20 @@ function __stepTransits() {
     const key = e.id + '|' + T.t0;
     if (!__trLive[key] && now - T.t0 < (__TR_DUR[T.is] || 1.2)) __trLive[key] = __trMake(e, T, now);
   }
-  (W.moments || []).forEach((M) => { const key = 'puff|' + M.t0 + '|' + M.at.join(','); if (!__trLive[key] && now - M.t0 < 1.1) __trLive[key] = __trPuff(M); });
   for (const key in __trLive) {
     const I = __trLive[key], u = (now - I.t0) / I.dur;
     if (u >= 1) { __trDrop(I); delete __trLive[key]; continue; }
-    if (I.meshes || I.dir === 'puff') __trStep(I, Math.max(0, u), W);
+    if (I.meshes) __trStep(I, Math.max(0, u), W);
   }
 }
 `;
 
-/** The transits a world's events play (spawn / vanish with, transfigure, puff), in first-named order. */
+/** The transits a world's events play (spawn / vanish with, transfigure), in first-named order. */
 export function transitKinds(events) {
   const out = [];
   for (const r of (events && events.reactions) || []) {
     if (!r || r.do !== 'ctrl') continue;
-    const k = r.op === 'transfigure' ? r.with || 'galvatron' : r.op === 'puff' ? 'smoke' : (r.op === 'spawn' || r.op === 'vanish') && r.with ? r.with : null;
+    const k = r.op === 'transfigure' ? r.with || 'galvatron' : (r.op === 'spawn' || r.op === 'vanish') && r.with ? r.with : null;
     if (k && !out.includes(k)) out.push(k);
   }
   return out;
@@ -358,13 +359,16 @@ export function transitKinds(events) {
 
 export function statusScript(looks, transits = []) {
   const L = looks || {}, all = Object.values(L);
-  const has = (f) => all.some(f), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
+  const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
   return `
 // STATUS: what the cast carries, drawn on their bodies in its look (coat, motes, bolts, ice, water, steam; fire is the fire channel's)
 const __LOOK = ${safeJson(L)};
 const __FCOL = ${safeJson(FIRE_COLORANTS)};
 const __rgb = (c) => (Array.isArray(c) ? c : typeof c === 'string' && __FCOL[c] ? __FCOL[c] : typeof c === 'string' && c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255) : [1, 1, 1]);
-const __wave = ${wavePoints.toString()};${bolts ? `
+const __wave = ${wavePoints.toString()};${drift ? `
+const __elGlyph = ${GLYPHS_SRC};
+const __spray = ${sprayPoints.toString()};
+${SPRAY_SRC}` : ''}${bolts ? `
 const __BOLT = ${safeJson(BOLT_SHAPE)};
 const kokusenBolts = (() => { const TAU = 6.283185307179586, frac = (x) => x - Math.floor(x), h3 = (a, b, c) => frac(Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453); return ${kokusenBolts.toString()}; })();` : ''}
 const __elTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.5)'); g.addColorStop(0.6, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 7); x.fill(); return new THREE.CanvasTexture(cv); })();
@@ -385,7 +389,7 @@ function __elCoatMat(color, dark, p) {
 const __elSeed = (id) => { let h = 7; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973; return h / 97; };
 function __elMake(e, is, st) {
   const K = __LOOK[is], base = st.color != null ? __rgb(st.color) : __rgb(K.color), body = window.__mojCtrl.bodies && window.__mojCtrl.bodies[e.id];
-  const D = { coats: [], mat: null, waves: [], ribbon: null, glow: null, surf: [], encase: null, who: e.id, K, t0: st.t0, meshes: [] };
+  const D = { coats: [], mat: null, waves: [], drifts: [], cloud: [], ribbon: null, glow: null, surf: [], encase: null, who: e.id, K, t0: st.t0, meshes: [] };
   const meshes = [];
   if (body) body.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.normal && !(o.userData && (o.userData.ink || o.userData.coat))) meshes.push(o); });
   D.meshes = meshes;
@@ -398,14 +402,20 @@ function __elMake(e, is, st) {
     const col = W.color != null && st.color == null ? __rgb(W.color) : base, n = __wave(W, [0, 0, 0], 0).length, sprs = [];
     for (let i = 0; i < n; i++) { const m = new THREE.SpriteMaterial({ map: __elTex, color: new THREE.Color(col[0], col[1], col[2]), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }); const s = new THREE.Sprite(m); s.visible = false; s.raycast = function () {}; scene.add(s); sprs.push(s); }
     D.waves.push({ W, sprs });
-  }${bolts ? `
+  }${drift ? `
+  for (const S of K.drift) {
+    D.drifts.push(__sprMake(S, S.color != null && st.color == null ? __rgb(S.color) : base, __elGlyph));
+    // a spray that falls from a cloud: the cloud, a few soft greys over the head
+    if (S.from === 'cloud') for (let i = 0; i < 8; i++) { const m = new THREE.SpriteMaterial({ map: __elGlyph.soft.tex, color: new THREE.Color(0.36 + 0.05 * (i % 3), 0.39 + 0.05 * (i % 3), 0.46 + 0.05 * (i % 3)), depthWrite: false, transparent: true }); m.userData.__fire = true; const c = new THREE.Sprite(m); c.visible = false; c.raycast = function () {}; scene.add(c); D.cloud.push({ c, S, i }); }
+  }` : ''}${bolts ? `
   if (K.bolts) {
     // the bolts: a black stroke over a wider glow edge in the look's colour, quads per segment
     let segs = 0; for (const b of kokusenBolts([0, 0, 0], 0, __BOLT)) segs += b.nodes.length - 1;
     const gc = K.bolts.color != null && st.color == null ? __rgb(K.bolts.color) : base;
     const rib = (mat, order) => { mat.userData.__fire = true; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(segs * 18), 3)); const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.raycast = function () {}; m.renderOrder = order; scene.add(m); return m; };
     D.glow = rib(new THREE.MeshBasicMaterial({ color: new THREE.Color(gc[0], gc[1], gc[2]), side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.55 }), 4);
-    D.ribbon = rib(new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, transparent: true, depthWrite: false }), 5);
+    // the stroke: black (kokusen's flash), or white-hot over the glow (lightning)
+    D.ribbon = rib(K.bolts.bright ? new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }) : new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, transparent: true, depthWrite: false }), 5);
   }` : ''}${surf ? `
   if (meshes.length) {
     if (K.ice && K.ice.mode === 'spikes') D.surf.push(__elSurfMake({ kind: 'shards', count: K.ice.count, length: K.ice.length, width: K.ice.width }, meshes, base));
@@ -418,7 +428,8 @@ function __elMake(e, is, st) {
 function __elDrop(D) {
   for (const c of D.coats) if (c.parent) c.parent.remove(c);
   for (const w of D.waves) for (const s of w.sprs) { scene.remove(s); s.material.dispose(); }
-  for (const r of [D.ribbon, D.glow]) if (r) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); }${surf ? `
+  for (const r of [D.ribbon, D.glow]) if (r) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); }${drift ? `
+  D.drifts.forEach(__sprDrop); for (const q of D.cloud) { scene.remove(q.c); q.c.material.dispose(); }` : ''}${surf ? `
   for (const U of D.surf) __elSurfDrop(U);` : ''}${encase ? `
   if (D.encase) __elEncaseDrop(D.encase);` : ''}
   if (D.mat) D.mat.dispose();${surf ? `
@@ -485,10 +496,19 @@ function __elDraw(D, e, K, age, fade, show, melt) {
       const sz = wv.size * (wv.count * wv.trail > 1 ? vary : 1) * (0.35 + 0.65 * Math.min(1, b.w));
       s.scale.set(sz, sz, 1); s.material.opacity = Math.min(1, 0.3 + 0.7 * b.w) * fade;
     }
-  }${bolts ? `
+  }${drift ? `
+  D.drifts.forEach((P) => __sprStep(P, __spray(P.S, cc, age, true), fade, show));
+  for (const q of D.cloud) {
+    // the cloud drifts a little about its place, its puffs breathing
+    const a = q.i * 2.4, r = q.S.r * (0.25 + 0.6 * ((q.i * 0.37) % 1)), b = Math.sin(age * 0.8 + q.i);
+    q.c.visible = show; q.c.position.set(cc[0] + r * Math.cos(a) + 0.05 * b, cc[1] + r * Math.sin(a), cc[2] + q.S.z[0] + 0.12 + 0.08 * Math.sin(q.i * 1.7));
+    q.c.scale.setScalar(0.55 + 0.25 * ((q.i * 0.61) % 1) + 0.04 * b); q.c.material.opacity = 0.92 * fade;
+  }` : ''}${bolts ? `
   if (D.ribbon) {
-    D.ribbon.visible = D.glow.visible = show; D.ribbon.material.opacity = fade; D.glow.material.opacity = 0.55 * fade;
-    if (show) { const bolts = kokusenBolts(cc, age, __BOLT); __elStroke(D.ribbon, bolts, K.bolts.width); __elStroke(D.glow, bolts, K.bolts.width * 2.6); }
+    // lightning: a thin white-hot core in a wide glow; kokusen: the black stroke over a narrow one
+    const hot = !!K.bolts.bright;
+    D.ribbon.visible = D.glow.visible = show; D.ribbon.material.opacity = fade; D.glow.material.opacity = (hot ? 0.4 : 0.55) * fade;
+    if (show) { const bolts = kokusenBolts(cc, age, __BOLT); __elStroke(D.ribbon, bolts, K.bolts.width * (hot ? 0.5 : 1)); __elStroke(D.glow, bolts, K.bolts.width * (hot ? 2.2 : 2.6)); }
   }` : ''}${surf ? `
   for (const U of D.surf) __elSurfStep(U, age, fade, show, cc[2]);` : ''}${encase ? `
   if (D.encase) __elEncaseStep(D.encase, age, fade, show, melt);` : ''}
