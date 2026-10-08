@@ -12,6 +12,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Walkmesh
+
+A walkmesh is a world kind scapeshift can't make: a fixed-camera plate (the background, painted or baked from a
+world) with an invisible floor the figure walks on, occluders it walks behind, and exits that cut to other plates.
+Only the floor has to be geometrically true, so the background is isolated as an image and can be anything.
+
+- **The vocabulary and the board (`lib/graph/playscape/walkmesh/`).** Nothing reaches the World page yet.
+  - `camera.js`: one pinhole per plate, the one every still and the World use (`resolveCameraBasis`). A painted
+    plate is fitted by its horizon line, eye height and field of view; `lift` takes a plate pixel to the floor in
+    metres and `project` brings it back.
+  - `walkmesh.js`: `readWalkmesh` reads painted plates (floor, occluders, exits and spawns in plate px) and baked
+    plates (a scapeshift world and a camera; exits and spawns in metres) to one floor in metres. Exits go to
+    `'<plate>.<exit>'` or to an era map door; `cutsOf` is the cut graph.
+  - `bake.js`: a baked plate's floor is read off the world on a quarter-metre grid (an up face within a step of the
+    ground, nothing standing across it at body height); its occluders are the world itself. Decals, light volumes
+    and cutout cards are not solid.
+  - `mask.js`: where the figure stands seen and where it stands hidden, for both sources.
+  - `laws.js`: the floor below the horizon and inside the plate, exits on the floor's edge and leading back,
+    spawns on the floor, every exit reachable, occluders standing on the floor, the figure readable at the front and
+    the back, the start resolving.
+  - `board-html.js`: per plate, the plate with the floor seen and hidden, occluders, exits and spawns; the scale
+    ladder (the figure at five depths); the floor from above with the camera's view; then the cut graph and the
+    laws. `bakePlatePng` renders a baked plate from its camera.
+
 ### Playscape UI
 
 Playscape treats the interface as a layout problem. A UI part says four things:
