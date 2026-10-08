@@ -134,7 +134,15 @@ Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a wor
   the branch's end, the branch brought to its bridge, the keep the town's landmark (law `outside`). A curtain holding
   ground behind it now shows its inner face over that ground. `node scripts/out-sheet.mjs castle` writes the Castle
   Index: the budget against the fortified town's, the keep by depth, both compositions (plan, standing, from the
-  south), one ward, a seeded one with its chapel, and the town below its castle.
+  south), one ward, a seeded one with its chapel, and the town below its castle. The castle is designed by the style it
+  keeps (`STYLE_INFLUENCE`, `influenceOf`): a language that builds round (shells, drums) draws its curtain as an
+  ellipse as long as its masses (the keep a third out past the far end of the long axis, the hall at the near focus,
+  the wards nested rings, the walk round the forecourt under the inner wall, ranges on every length of the ring, the
+  ring's lengths a building long); its cap speaks on the towers (shells and domes crown drums with a dome, a flat roof
+  carries the crenels round); its landmark becomes the keep (shells stack into a keep of orbs, tiers under flat roofs
+  step into a platform with a stair and a shrine). `build.keep` gains `form: 'orbs' | 'stepped'`, the tower a `dome`
+  crown. A round keep is drawn a ninth broader to weigh as a square; the court takes a building in each room while it
+  is a field (the hall's focus first, stepped aside of the flight).
 - **Town interceptors dress it** (`lib/graph/era/out-town-dress.js`): lamps, posts, wells, market stalls, benches,
   carts, barrels, woodpiles, planters, signs and trees, each a site finder over the map, a grower and an
   aggressiveness 0…1, seeded and capped, never on the walk but for lamps, posts and signs.

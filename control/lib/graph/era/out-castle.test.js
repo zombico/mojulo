@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { structureStyle } from './out-structures.js';
-import { CASTLE_CARD, CASTLE_LAWS, readCastlePlan, castleMoat, designCastle, castleFaces, castleSurface } from './out-castle.js';
+import { CASTLE_CARD, CASTLE_LAWS, STYLE_INFLUENCE, readCastlePlan, castleMoat, designCastle, castleFaces, castleSurface, influenceOf } from './out-castle.js';
+import { decompileAnchor } from './out-anchor-structure.js';
 import { composeFort, build } from './out-fortress.js';
 import { designTown } from './out-town.js';
 import { dressTown } from './out-town-dress.js';
@@ -74,5 +75,28 @@ describe('out-castle', () => {
       expect(t.lots.filter((l) => l.castle).length).toBe(t.castle.lots.length);
       expect(t.laws.map((l) => l.law)).toContain('outside');
     }
+  }, 120000);
+
+  it('is designed by the style it keeps: a round language draws an ellipse crowned with domes round a keep of orbs; tiers under flat roofs step the keep', () => {
+    expect(STYLE_INFLUENCE.map((r) => r.id)).toEqual(['trace', 'crown', 'keep']);
+    const F = composeFort('crenellated');
+    expect(influenceOf(decompileAnchor('timber-hall'), F)).toMatchObject({ trace: 'rect', crown: F.tower.crown, keep: null });
+    expect(influenceOf(decompileAnchor('shell'), F)).toMatchObject({ trace: 'ellipse', crown: 'dome', keep: 'orbs' });
+    const flat = { ...decompileAnchor('tiered') }; flat.vocab = { ...flat.vocab, cap: 'flat' };
+    expect(influenceOf(flat, F)).toMatchObject({ trace: 'rect', keep: 'stepped' });
+    expect(() => composeFort({ ...F, tower: { plan: 'square', crown: 'dome' } })).toThrow(/dome crowns a drum/);
+    for (const wards of [1, 2]) {
+      const c = designCastle(meadow, 8, { anchor: 'shell', wards });
+      expect(c.trace).toBe('ellipse');
+      expect(c.set.tower.crown).toBe('dome');
+      expect(c.keep.form).toBe('orbs');
+      expect(c.laws.filter((l) => !l.ok).map((l) => `${l.law} ${l.value}`)).toEqual([]);
+      // the walls stop at the keep; every range stands in its ward
+      for (const k of c.curtains) for (const p of k.pts) expect(Math.hypot(p[0] - c.keep.at[0], p[1] - c.keep.at[1])).toBeGreaterThanOrEqual(c.keep.K / 2 - 1e-6);
+      expect(castleMoat({}, { language: decompileAnchor('shell') }).d1).toBe(c.ditch.d1);
+    }
+    const t = designTown(meadow, 8, { anchor: 'shell', castle: true });
+    expect(t.castle.trace).toBe('ellipse');
+    expect(t.laws.filter((l) => !l.ok).map((l) => `${l.law} ${l.value}`)).toEqual([]);
   }, 120000);
 });

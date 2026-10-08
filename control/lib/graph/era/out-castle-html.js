@@ -65,9 +65,9 @@ function castleMapSvg(c, paint, { px = 5, labels = true } = {}) {
   const under = `<rect width="${W}" height="${H}" fill="${tint(paint, 'town:grass', 0.45)}"/>${castleGroundSvg(c, poly, paint).join('')}<g fill="${tint(paint, 'town:grass', 0)}" opacity="0.2">${shade.join('')}</g>`;
   const lab = [], tag = (x, y, t) => lab.push(`<text x="${X(x)}" y="${Y(y)}" text-anchor="middle" font-size="12" font-weight="700" fill="#111" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(t)}</text>`);
   if (labels) {
-    const mg = c.gates.find((g) => g.main), cx = (c.extent.x0 + c.extent.x1) / 2;
+    const mg = c.gates.find((g) => g.main);
     tag(mg.at[0], mg.at[1] - c.ditch.d1 - 3, 'the gate ↑'); tag(c.keep.at[0], c.keep.at[1] + c.keep.K / 2 + 3, 'the keep');
-    tag(cx, (c.courts.inner[0][1] + c.courts.inner[2][1]) / 2, 'the court'); if (c.courts.fore) tag(cx - (mg.at[0] - cx) * 0.4, c.courts.fore[2][1] - 1.5, 'forecourt');
+    tag(c.marks.court[0], c.marks.court[1], 'the court'); if (c.marks.fore) tag(c.marks.fore[0], c.marks.fore[1], 'forecourt');
     for (const l of c.lots.filter((x) => x.use === 'hall')) tag(l.front[0], l.front[1] + (l.island ? 0 : -1.5), l.island ? 'the chapel' : 'the hall');
   }
   return drawStructures(F.groups, { view: 'plan', paint, w: W, h: H, ppm: px, at: [-B.x0 * px, B.y1 * px], under, over: lab.join('') });
@@ -88,7 +88,7 @@ function castleFrontSvg(c, paint, groups = null) {
 function castleCard(style, paint, seed, rec, title) {
   const c = designCastle(style, seed, rec), B = c.budget, uses = {};
   for (const l of c.lots) uses[l.use] = (uses[l.use] ?? 0) + 1;
-  return `<div class="card"><h3>${esc(title)} <span class="badge solid">${c.wards === 2 ? 'two wards' : 'one ward'} · ${c.W} m</span></h3><p class="note">${esc(c.set.read)}. The ranges speak ${esc(c.language)}. The inner ward ${c.W} × ${Math.round(c.D)} m on a ${c.rise} m platform, its walls ${c.Hin} m over it${c.wards === 2 ? `; a forecourt ${Math.round(c.Df)} m deep before it, its walls ${c.Hout} m, its gate on the other hand from the inner gate` : ''}. The keep ${Math.round(c.keep.K)} m across, ${Math.round(c.keep.top - c.z)} m high; ${c.towers.length} towers; ${c.lots.length} ranges (${esc(Object.entries(uses).map(([u, n]) => `${n} ${u === 'hall' ? 'hall' : u}${n > 1 && u !== 'hall' ? 's' : ''}`).join(', '))}), backed onto the curtains; the court ${B.inner.span} m at its widest open square. North is up; the gate faces south, down to the town.</p>
+  return `<div class="card"><h3>${esc(title)} <span class="badge solid">${c.wards === 2 ? 'two wards' : 'one ward'} · ${c.W} m</span></h3><p class="note">${esc(c.set.read)}. The ranges speak ${esc(c.language)}; the style's influence: ${esc(c.influence.read.join('; '))}. The inner ward ${c.W} × ${Math.round(c.D)} m on a ${c.rise} m platform, its walls ${c.Hin} m over it${c.wards === 2 ? `; a forecourt ${Math.round(c.Df)} m deep before it, its walls ${c.Hout} m, its gate on the other hand from the inner gate` : ''}. The keep ${Math.round(c.keep.K)} m across, ${Math.round(c.keep.top - c.z)} m high; ${c.towers.length} towers; ${c.lots.length} ranges (${esc(Object.entries(uses).map(([u, n]) => `${n} ${u === 'hall' ? 'hall' : u}${n > 1 && u !== 'hall' ? 's' : ''}`).join(', '))}), backed onto the curtains; the court ${B.inner.span} m at its widest open square. North is up; the gate faces south, down to the town.</p>
 <div style="overflow-x:auto">${castleMapSvg(c, paint)}</div>
 <div class="views" style="margin-top:6px">${fig(castleAxonSvg(c, paint), 'standing')}</div>
 <div class="views" style="margin-top:6px">${fig(castleFrontSvg(c, paint), 'from the south, where the town comes up to it: the gate, the ranges\' roofs over the curtain, the keep over all')}</div>

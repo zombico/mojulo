@@ -282,7 +282,7 @@ export function designTown(style, seed = 1, recipe = {}) {
   // run on to the ditch's lip where the bridge starts; the town stands outside it
   let castle = null;
   if (T.castle) {
-    const r = routes.find((x) => x.id === 'branch'), end = r.pts[r.pts.length - 1], M = castleMoat(T.castle), gy = r3(end[1] + M.d1 + 2);
+    const r = routes.find((x) => x.id === 'branch'), end = r.pts[r.pts.length - 1], M = castleMoat(T.castle, { language }), gy = r3(end[1] + M.d1 + 2);
     r.pts.push([end[0], r3(gy - M.d1 - 0.5)]);
     castle = designCastle(style, seed, T.castle, { language, at: [end[0], gy, zAt(end[0], gy)] });
   }

@@ -30,7 +30,7 @@ import { build as EB } from './out-anchor-elements.js';
 const { face, dice, subSeed, r3 } = G;
 
 // ── the elements ────────────────────────────────────────────────────────────────────────────────────────────────────
-const WORDS = { base: ['straight', 'battered'], parapet: ['crenel', 'loophole', 'solid'], plan: ['round', 'square'], crown: ['crenel', 'cone', 'hip', 'tiers'], gate: ['twin', 'box'] };
+const WORDS = { base: ['straight', 'battered'], parapet: ['crenel', 'loophole', 'solid'], plan: ['round', 'square'], crown: ['crenel', 'cone', 'dome', 'hip', 'tiers'], gate: ['twin', 'box'] };
 /** A rampart, game-scaled: the curtain's height above its ground grows along this rail as the dial turns. */
 export const RAMPART = Object.freeze([5, 9]);
 export const FORT_KINDS = Object.freeze({
@@ -93,7 +93,7 @@ export const TOWER_RULES = Object.freeze([
   { id: 'rises', rule: 'a storey and a half (at least 3 m) over the walk, and over whatever stands near it inside' },
   { id: 'stands-out', rule: 'out of the curtain\'s face by 0.6 of its width: from it the face it flanks is seen end to end' },
   { id: 'turns', rule: 'its own plan: a drum (round) or a square, 2.6 times the curtain\'s thickness across (5–9 m)' },
-  { id: 'crowns', rule: 'its crown: the bay\'s crenels carried round, a cone or a hipped roof over a ring of eaves, or a second tier under one' },
+  { id: 'crowns', rule: 'its crown: the bay\'s crenels carried round, a cone, a dome or a hipped roof over a ring of eaves, or a second tier under one' },
 ]);
 /** A fortification's elements against their rails, the tower derived from the bay, the gate composed. */
 export function composeFort(F) {
@@ -104,7 +104,8 @@ export function composeFort(F) {
     for (const [p, spec] of Object.entries(FORT_KINDS[k].params)) if (A[k][p] !== undefined && !inRail(A[k][p], spec.rail)) throw new Error(`fort: ${k}.${p} is ${typeof spec.rail[0] === 'string' ? spec.rail.join(' | ') : `${spec.rail[0]}–${spec.rail[1]}`} (got ${JSON.stringify(A[k][p])})`);
   }
   if (A.walk.w > A.curtain.t - 0.4 + 1e-9) throw new Error(`fort: the walk (${A.walk.w} m) does not fit on a ${A.curtain.t} m curtain behind its parapet (at most ${r3(A.curtain.t - 0.4)} m)`);
-  if (A.tower.plan === 'round' && ['hip', 'tiers'].includes(A.tower.crown)) throw new Error('fort: a drum is crowned by crenels or a cone, not a hipped roof');
+  if (A.tower.plan === 'round' && ['hip', 'tiers'].includes(A.tower.crown)) throw new Error('fort: a drum is crowned by crenels, a cone or a dome, not a hipped roof');
+  if (A.tower.plan === 'square' && A.tower.crown === 'dome') throw new Error('fort: a dome crowns a drum, not a square');
   const w = r3(Math.max(5, Math.min(9, A.curtain.t * 2.6)));
   return { ...A, towerDims: { w, proud: r3(0.6 * w), over: 3 }, read: A.read };
 }
@@ -201,6 +202,15 @@ function body(out, plan, w, z0, z1, group, value, bat = 0, sides = 12) {
   for (let k = 0; k < 4; k++) { const [a, b] = [c[k], c[(k + 1) % 4]], n = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, bat]; face(out, [[a[0] * h0, a[1] * h0, z0], [b[0] * h0, b[1] * h0, z0], [b[0] * h1, b[1] * h1, z1], [a[0] * h1, a[1] * h1, z1]], n, 'wall', value, { group }); }
   face(out, c.map(([x, y]) => [x * h1, y * h1, z1]), [0, 0, 1], 'wall', Math.min(1, value + 0.1), { group });
 }
+/** A dome: the upper half of a spheroid `r` across its foot at z0, rising `rise`, in rings of quads (a point at its crown). */
+function dome(out, r, z0, rise, group, value, sides = 12, rings = 4) {
+  const P = (k, j) => { const a = (Math.PI / 2) * (j / rings), t = (2 * Math.PI * k) / sides; return [r * Math.cos(a) * Math.cos(t), r * Math.cos(a) * Math.sin(t), z0 + rise * Math.sin(a)]; };
+  for (let j = 0; j < rings; j++) for (let k = 0; k < sides; k++) {
+    const t = (2 * Math.PI * (k + 0.5)) / sides, a = (Math.PI / 2) * ((j + 0.5) / rings), n = [Math.cos(a) * Math.cos(t) / r, Math.cos(a) * Math.sin(t) / r, Math.sin(a) / rise];
+    const pts = j === rings - 1 ? [P(k, j), P(k + 1, j), P(0, rings)] : [P(k, j), P(k + 1, j), P(k + 1, j + 1), P(k, j + 1)];
+    face(out, pts.map((p) => p.map(r3)), n, 'roof', Math.min(1, value + 0.05 * j), { group });
+  }
+}
 /**
  * A TOWER `H` over its foot, derived from the bay (`F.towerDims`), in its own frame (centred, −y the field), by depth:
  * 0 its body to its crown's foot and a plain cap; 1 its crown (crenels round it, a cone or a hipped roof over eaves,
@@ -217,6 +227,10 @@ function tower(out, F, H, { depth = 2, sides = 12 } = {}) {
     cap(out, 'square', w, z1, depth ? 0.9 : 0, T.cover, T.value, 0.7);
     if (depth) { body(out, 'square', w * 0.72, z1 + 0.5, H, T.upper ?? C.group, T.upperValue ?? C.value); cap(out, 'square', w * 0.72, H, w * 0.36, T.cover, T.value, 0.6); }
     else cap(out, 'square', w, z1, H - z1 + w * 0.3, T.cover, T.value, 0.4);
+  } else if (T.crown === 'dome') {
+    // a dome over a ring of eaves, a point at its crown
+    if (depth) { cap(out, 'round', w + 0.2, z1, 0.25, T.cover, Math.max(0, T.value - 0.08), 0.2); dome(out, w / 2, z1 + 0.25, w * 0.5, T.cover, T.value, sides, 4); }
+    else cap(out, 'round', w, z1, w * 0.45, T.cover, T.value, 0.2);
   } else cap(out, T.plan, w, z1, depth ? (T.crown === 'cone' ? w * 0.95 : w * 0.42) : w * 0.6, T.cover, T.value, depth ? 0.45 : 0.2);
   if (depth >= 2) {
     // loopholes on the field's faces, a storey apart
@@ -269,8 +283,10 @@ function gable(out, g, yE, yW, z, group, value, wall, wallValue) {
  * under a hipped roof. By depth: 0 the mass and a plain cap; 1 the crown, turrets, forebuilding, gables; 2 the windows
  * and loops, in the tile.
  */
-function keep(out, F, K, H, { depth = 2, base = 0 } = {}) {
+function keep(out, F, K, H, { depth = 2, base = 0, form = null } = {}) {
   const C = F.curtain, P = F.parapet, T = F.tower, pg = P.group ?? C.group, pv = P.value ?? C.value, dark = Math.max(0.04, C.value - 0.3);
+  if (form === 'orbs') return orbs(out, F, K, H, { depth, base });
+  if (form === 'stepped') return stepped(out, F, K, H, { depth, base });
   const lights = (w, z0, z1, every, wide = 0.5, tall = 1.1, faces4 = true) => {
     // windows a storey apart on each face, in the tile
     for (let z = z0; z < z1 - tall; z += every) for (let k = 0; k < (faces4 ? 4 : 1); k++) {
@@ -335,6 +351,56 @@ function keep(out, F, K, H, { depth = 2, base = 0 } = {}) {
   EB.box(out, [-K / 2 + 1, K / 2, 0], [-K / 2 + 1 + fw, K / 2 + fd, fh], C.group, C.value);
   for (let u = -K / 2 + 1.2; u < -K / 2 + 1 + fw - P.merlon; u += pitch) EB.box(out, [u, K / 2 + fd - 0.6, fh], [u + P.merlon, K / 2 + fd, fh + P.h * 0.8], pg, pv);
   if (depth >= 2) { lights(K, 4, H - 1.5, 4, 0.6, 1.4); for (let u = -K / 2 + 1.6; u < -K / 2 + fw; u += 1.8) mark(out, [[u, K / 2 + fd + 0.01, 2.5], [u + 0.5, K / 2 + fd + 0.01, 2.5], [u + 0.5, K / 2 + fd + 0.01, 3.5], [u, K / 2 + fd + 0.01, 3.5]], [0, 1, 0], 0.06, C.group); }
+}
+
+/**
+ * A KEEP OF ORBS, for a language of shells: a drum of stone to the platform and a storey over it, then orbs stacked
+ * smaller, each a collar and a dome, the next rising out of the dome under it, a point at the crown; by depth: 0 the
+ * drum and one dome; 1 the stack; 2 the lights round each collar, in the tile.
+ */
+function orbs(out, F, K, H, { depth = 2, base = 0 } = {}) {
+  const C = F.curtain, T = F.tower, sides = depth ? 16 : 10, hb = r3(Math.max(3, base + 2.5)), up = T.upper ?? F.parapet.group ?? C.group, uv = T.upperValue ?? F.parapet.value ?? C.value;
+  body(out, 'round', K, 0, hb, C.group, C.value, 0, sides);
+  if (!depth) { dome(out, K / 2, hb, H - hb, up, uv, sides, 3); return; }
+  const rs = [0.5, 0.36, 0.25].map((k) => r3(K * k)), share = [0.46, 0.32, 0.22];
+  let z = hb;
+  rs.forEach((r, i) => {
+    const h = (H - hb) * share[i], collar = r3(h * 0.3), hd = r3(h * 0.95);
+    body(out, 'round', 2 * r * 0.98, z, z + collar, up, uv, 0, sides);
+    dome(out, r, z + collar, hd, up, Math.min(1, uv + 0.04 * i), sides, 4);
+    if (depth >= 2) for (let k = 0; k < 8; k++) { const t = (2 * Math.PI * (k + 0.5)) / 8, x = r * 0.99 * Math.cos(t), y = r * 0.99 * Math.sin(t), tx = -Math.sin(t) * 0.35, ty = Math.cos(t) * 0.35, zc = z + collar * 0.5; mark(out, [[x - tx, y - ty, zc - 0.3], [x + tx, y + ty, zc - 0.3], [x + tx, y + ty, zc + 0.3], [x - tx, y - ty, zc + 0.3]], [Math.cos(t), Math.sin(t), 0], 0.62, 'str:lens'); }
+    // the next orb rises out of this dome where its collar meets it
+    const next = rs[i + 1];
+    z = next ? r3(z + collar + hd * Math.sqrt(Math.max(0, 1 - ((next * 0.98) / r) ** 2))) : z;
+  });
+  const tip = H + (H - hb) * 0.12; face(out, [[-0.25, 0, H - 0.4], [0.25, 0, H - 0.4], [0, 0, tip]], [0, -1, 0], 'roof', T.value, { group: T.cover }); face(out, [[0, -0.25, H - 0.4], [0, 0.25, H - 0.4], [0, 0, tip]], [1, 0, 0], 'roof', T.value, { group: T.cover });
+}
+/**
+ * A STEPPED KEEP, for a language that steps in tiers under flat roofs: terraces of sloped stone (each a talud under a
+ * panel), stepping in to a platform at seven tenths of its height; a stair up the face toward the court between its
+ * balustrades; on the platform a shrine under a flat roof and a crest. By depth: 0 the terraces as one stepped mass;
+ * 1 the panels, the stair, the shrine and its crest; 2 the stair's treads and the panels' frames, in the tile.
+ */
+function stepped(out, F, K, H, { depth = 2 } = {}) {
+  const C = F.curtain, P = F.parapet, T = F.tower, n = 4, hp = r3(H * 0.7), th = hp / n, up = T.upper ?? P.group ?? C.group, uv = T.upperValue ?? P.value ?? C.value, crest = P.group ?? C.group;
+  const wOf = (i) => r3(K * (1 - 0.17 * i));
+  for (let i = 0; i < n; i++) {
+    const w = wOf(i), z0 = r3(i * th), zt = r3(z0 + th * 0.62);
+    body(out, 'square', w, z0, depth ? zt : z0 + th, C.group, C.value, 0.22);
+    if (depth) body(out, 'square', w - 0.6, zt, z0 + th, C.group, Math.min(1, C.value + 0.1));
+    if (depth >= 2) for (let k = 0; k < 4; k++) { const t = (k * Math.PI) / 2, cs = Math.cos(t), sn = Math.sin(t), y = -(w - 0.6) / 2 - 0.01, a = -(w - 0.6) / 2 + 0.4, b = (w - 0.6) / 2 - 0.4, R = (x, zz) => [r3(x * cs - y * sn), r3(x * sn + y * cs), zz]; mark(out, [R(a, zt + 0.15), R(b, zt + 0.15), R(b, z0 + th - 0.15), R(a, z0 + th - 0.15)], [sn, -cs, 0], Math.max(0.04, C.value - 0.25), C.group); }
+  }
+  if (!depth) return;
+  // the stair up the court's face (+y), its balustrades either side
+  const sw = r3(Math.max(3, K * 0.24)), steps = Math.round(hp / 0.3), run = K / 2 - wOf(n - 1) / 2;
+  for (let k = 0; k < steps; k++) { const z = r3(((k + 1) * hp) / steps), y = r3(K / 2 - (k * run) / steps + 0.4); EB.box(out, [-sw / 2, y - run / steps - 0.05, z - hp / steps], [sw / 2, y, z], C.group, Math.min(1, C.value + 0.12)); }
+  for (const sx of [-1, 1]) { const x = sx * (sw / 2 + 0.35); face(out, [[x - 0.35, K / 2 + 0.4, 0], [x + 0.35, K / 2 + 0.4, 0], [x + 0.35, K / 2 - run + 0.4, hp + 0.3], [x - 0.35, K / 2 - run + 0.4, hp + 0.3]], [0, 1, run / hp], 'wall', Math.max(0, C.value - 0.06), { group: C.group }); }
+  // the shrine on the platform, under a flat roof, its crest over it
+  const sh = r3(wOf(n - 1) * 0.68), z1 = H - 0.4;
+  EB.box(out, [-sh / 2, -sh / 2, hp], [sh / 2, sh / 2, z1], up, uv);
+  EB.box(out, [-sh / 2 - 0.4, -sh / 2 - 0.4, z1], [sh / 2 + 0.4, sh / 2 + 0.4, H], C.group, C.value);
+  EB.box(out, [-sh * 0.35, -0.3, H], [sh * 0.35, 0.3, H + sh * 0.45], crest, P.value ?? C.value);
+  if (depth >= 2) { mark(out, [[-0.8, sh / 2 + 0.01, hp], [0.8, sh / 2 + 0.01, hp], [0.8, sh / 2 + 0.01, hp + 2.4], [-0.8, sh / 2 + 0.01, hp + 2.4]], [0, 1, 0], 0.05, up); for (let x = -sh * 0.3; x < sh * 0.3; x += 0.9) mark(out, [[x, -0.31, H + 0.4], [x + 0.45, -0.31, H + 0.4], [x + 0.45, -0.31, H + sh * 0.35], [x, -0.31, H + sh * 0.35]], [0, -1, 0], 0.62, 'str:lens'); }
 }
 
 export const build = Object.freeze({ bay, tower, gatehouse, keep });
