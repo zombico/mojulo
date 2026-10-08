@@ -296,24 +296,31 @@ This step builds the contract and the approval gate. No rung is served yet.
 
 ### Elements
 
-- **The juice verbs come into playscape as elements.** Enchant, heal, charge, hit, accumulate, ward, sparkle, drain,
-  aura and beacon, plus kokusen (black-flash lightning) and the ssj aura, which the sprite backend had left behind
-  because they darken rather than glow. Each element says what it means and when to reach for it, and is designed in
-  values first (light or dark, how strong, how fast it breathes, how it moves); colour comes after.
-- **A fresnel coat.** A live element wraps its body in a rim glow that breathes at the element's pace: the mark of
-  "this is happening now", and the base every element's motion stands on. A dark element's coat and bolts are black.
-  Kokusen's bolts are black strokes over a red glow edge, each struck with its own weight, kinked node to node and
-  tapering to a hairline, some forking, so no two read as the same line; the other elements' marks leave short trails
-  and differ in size.
-- **Fire as an element.** `burning` (flames licking up the body) and `blaze` (engulfed from the feet) are the world's own
-  fire, not sprites: its flames, embers and smoke, lighting what is near. Each burning status a play may set is one
-  fire, carried by its body and burning only while the status is on; its `color` is a colorant, so copper burns blue,
-  barium green, strontium red and potassium lilac. A body's fire stands on no prop and lights the world at a share of a
-  standing fire's light, so its own body is not washed out.
-- **Statuses on the bus.** Cues and menu choices put an element on a character (`{ status: { who, is, for?, color? } }`)
-  and take it off (`{ lift: who | { who, is? } }`); `{ faded: who | { who, is } }` fires when one runs out or is lifted.
-  A status without `for` comes off when its cue ends. The effect follows the character as it moves. A page carries
-  this only when its cues use statuses, and only the elements they name. `?values` on the page shows it in greys.
+- **Statuses are names; looks are what they wear.** A cue or a menu choice puts a status on a character by any name
+  (`{ status: { who, is: 'poisoned', look?, for?, color? } }`); nothing is built into the name. Its look is what the
+  page draws on the body as it moves, in layers: a fresnel `coat` (a rim glow that breathes, grows, flashes, flickers or
+  holds: "this is happening now"), `motes`, `bolts`, `fire`, `ice`, `water` and `steam`. `play.looks` designs your own;
+  presets to start from are named by what they do (glow, orbit, rise, spiral, burst, converge, ring, twinkle, fall,
+  column, flare, kokusen, fire, blaze, ice, frost, wet, steam). `{ lift }` takes one off; `{ faded }` fires when one
+  runs out or is lifted; an untimed status comes off when its cue ends. A page carries only the looks its cues name and
+  only the layers they use.
+- **One wave for every orbiting light.** The juice verbs (enchant, heal, charge, ward, sparkle, drain, aura, …) were
+  each a path of lights round a body; they are now one parameterized wave: streams, trail, cycle, turns, radius and
+  height from → to, arc, tilt (a ring), wobble, spread, a brightness envelope, pulse, size, or a scatter that twinkles.
+  A look may stack several.
+- **Kokusen.** Black-flash lightning (left behind by the sprite backend, which can only add light): black strokes over
+  a red glow edge, each struck with its own weight, kinked node to node and tapering to a hairline, some forking.
+- **Fire, one layer.** `fire: { size, color }` lights the world's own fire on the body (its flames, embers and smoke,
+  lighting what is near) and carries it there while the status lasts: a small one licks up from the top of the body, a
+  big one engulfs it from the feet. Its colour is any colorant (copper blue, barium green, strontium red, potassium
+  lilac, …) or `#rrggbb`. It stands on no prop and lights the world at a share of a standing fire's light.
+- **Water in its three states.** `ice: { mode: 'encase' }` closes the body in a randomized, angular block of ice (a
+  faceted shell pulled about at every corner, different on every body, flat on the ground, frost-shaded with its edges
+  drawn white); `mode: 'spikes'` grows crystals out of its surface (the carved-letter ice effect, now in 3D). `water`:
+  drops gather, fall to its feet and ring out. `steam`: vapour rises, swells and thins. These grow from the body's own
+  meshes, so they fit a box, a ball or a figure and move with it.
+- **Values first.** Every preset reads apart with the colour taken out; the `looks-apart` law names two statuses a play
+  uses that differ only in colour, and `status-lifts` one that never comes off. `?values` shows the page in greys.
 
 ### Places
 

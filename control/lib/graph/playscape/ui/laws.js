@@ -12,6 +12,7 @@ import { phasesOf } from './direction.js';
 import { readCues, unplacedAnchors } from './cues.js';
 import { readMenus, openers } from './menus.js';
 import { readSpots, castRefs, withStands } from './cast.js';
+import { valueSignature } from '../elements/elements.js';
 
 export const UI_LAWS = Object.freeze({
   'values-only': 'Black and white: a part is built in values on ui:panel, ui:line, ui:ink and ui:status; colour is the guide\'s.',
@@ -33,6 +34,7 @@ export const UI_LAWS = Object.freeze({
   'stuck-retry': 'A cue on stuck that sends the same walk again fires once (once: true) or goes somewhere else; it would retry every second.',
   'round-collide': 'A collide egg is round on the ground: a wide heavy thing (a gate, a counter) blocks with a box.',
   'status-lifts': 'A status with no time of its own comes off: its cue ends, or something lifts it.',
+  'looks-apart': 'Two statuses a play uses read apart with the colour taken out: light or dark, coat, how their lights move.',
 });
 
 // moments and held overlays pass through a region; the budget is what stands
@@ -110,6 +112,14 @@ export function uiAdvice(play, ui = play && play.ui, { anchors = null, entities 
       out.push({ law: 'status-lifts', at: `cue ${c.id}`, advice: `${t.who} keeps ${t.is} for good: give it for: seconds, an until on the cue, or a lift` });
     }
   }
+  // two statuses that read the same in greys: only their colour tells them apart
+  { const seen = new Map();
+    for (const t of [...cues.flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))]) {
+      if (t.kind !== 'cast' || t.op !== 'status' || !t.look) continue;
+      const sig = valueSignature(t.look), had = seen.get(sig);
+      if (had && had !== t.is) out.push({ law: 'looks-apart', at: `${had}, ${t.is}`, advice: `${had} and ${t.is} look alike in values (only their colour differs); give one another coat, motion or layer` });
+      else if (!had) seen.set(sig, t.is);
+    } }
   // a stuck walk sent again from its own stuck, every time: it loops once a second
   for (const c of cues) {
     if (c.once || c.when.kind !== 'stuck' || c.when.who.includes('*')) continue;

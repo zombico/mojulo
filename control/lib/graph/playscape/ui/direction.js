@@ -201,6 +201,10 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them
   const castOn = (r) => r.do === 'ctrl' || (CAST_WHEN[r.on] && r.match && 'entity' in r.match);
   if ((out.reactions || []).some(castOn)) out.cast = true;
+  // the looks its statuses wear, by status name (the first a name is given wins; the laws say when two differ)
+  const looks = {};
+  for (const t of [...readCues(play).flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))]) if (t.kind === 'cast' && t.op === 'status' && !looks[t.is]) looks[t.is] = t.look;
+  if (Object.keys(looks).length) out.looks = looks;
   const u = play.ui;
   if (isObj(u) && isObj(u.guide)) {
     if (uiSettled(u)) {

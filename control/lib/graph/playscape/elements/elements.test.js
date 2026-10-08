@@ -1,60 +1,66 @@
 import { describe, it, expect } from 'vitest';
-import { ELEMENTS, ELEMENT_IDS, valueSignature, elementMotifs, elementBeads } from './elements.js';
-import { SPRITE_VERB_IDS, DEFERRED_VERBS } from '../../game/glyph-sfx-sprites.js';
+import { LOOKS, LOOK_NAMES, readLook, readLooks, valueSignature, wavePoints, kokusenBolts, BOLT_SHAPE } from './elements.js';
 import { createBusState, processEvents, watchEvents, syncToCtrl, deriveZoneEvents } from '../../worlds/event-bus.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { readCues } from '../ui/cues.js';
 import { lowerPlay, resolvePlayUi } from '../ui/direction.js';
 import { uiBoardHtml } from '../ui/board-html.js';
+import { uiAdvice } from '../ui/laws.js';
 
 const CW = composeLive();
 const DT = 1 / 30;
 
-describe('the elements', () => {
-  it('carry the whole shelf and the two it left behind, each saying what it means', () => {
-    expect([...ELEMENT_IDS].sort()).toEqual([...SPRITE_VERB_IDS, ...DEFERRED_VERBS, 'burning', 'blaze'].sort());
-    for (const id of ELEMENT_IDS) {
-      const E = ELEMENTS[id];
-      expect(E.says.length, id).toBeGreaterThan(10);
-      expect(E.when.length, id).toBeGreaterThan(5);
-      expect(['breathe', 'grow', 'flash', 'flicker']).toContain(E.coat.shape);
-    }
-    expect(ELEMENTS.kokusen.tone).toBe('dark');
+describe('looks', () => {
+  it('presets start from what they do; each reads apart with the colour taken out', () => {
+    expect(LOOK_NAMES).toEqual(['glow', 'orbit', 'rise', 'spiral', 'burst', 'converge', 'ring', 'twinkle', 'fall', 'column', 'flare', 'kokusen', 'fire', 'blaze', 'ice', 'frost', 'wet', 'steam']);
+    const sigs = LOOK_NAMES.map((n) => valueSignature(LOOKS[n]));
+    expect(new Set(sigs).size).toBe(LOOK_NAMES.length);
   });
 
-  it('read apart in values: no two share a signature (light or dark, motion, coat shape, strength, pace)', () => {
-    const sigs = ELEMENT_IDS.map((id) => JSON.stringify(valueSignature(id)));
-    expect(new Set(sigs).size).toBe(ELEMENT_IDS.length);
+  it('a look is its layers; a bad one teaches', () => {
+    const L = readLook({ color: 'copper', coat: { k: 0.4, shape: 'hold' }, motes: { count: 3, r: [1, 0.2], z: [0, 1.5] }, fire: { size: 2 } }, 'x');
+    expect(L.motes[0]).toMatchObject({ count: 3, trail: 6, r: [1, 0.2], z: [0, 1.5], turn: 1, env: 'steady' });
+    expect(L.fire).toEqual({ size: 2 });
+    expect(L.color).toBe('copper');
+    expect(() => readLook({ glitter: 1 }, 'x')).toThrow(/has no layer glitter: its layers are color, coat, motes/);
+    expect(() => readLook({ motes: { r: 'wide' } }, 'x')).toThrow(/x.motes.r is the radius/);
+    expect(() => readLook({ coat: { shape: 'wobble' } }, 'x')).toThrow(/shape is one of: breathe, grow, flash, flicker, hold/);
+    expect(() => readLook({ fire: { size: 9 } }, 'x')).toThrow(/0.5 to 5/);
+    expect(() => readLook('sparkly', 'x')).toThrow(/'sparkly' is not a look: name a preset \(glow, orbit/);
+    expect(readLooks({ looks: { cursed: 'fall' } }).cursed).toBe(LOOKS.fall);
   });
 
-  it('their marks are deterministic in ph, kokusen strikes nine bolts afresh 8 times a second, and the page source runs', () => {
-    expect(elementBeads('ssj-aura', [1, 2, 0], 0.7)).toEqual(elementBeads('ssj-aura', [1, 2, 0], 0.7));
-    const M = new Function(`${elementMotifs(['kokusen', 'ward'])}; return __ELM;`)();
-    const P = ELEMENTS.kokusen.params, a = M.kokusen.bolts([0, 0, 0], 0.01, P), b = M.kokusen.bolts([0, 0, 0], 0.1, P), c = M.kokusen.bolts([0, 0, 0], 0.2, P);
-    expect(a).toHaveLength(18);   // nine bolts, then nine fork slots
-    expect(a.filter((x) => !x.fork).every((x) => x.nodes.length === 12 && x.t.length === 12)).toBe(true);
-    expect(a.filter((x) => x.fork).every((x) => x.nodes.length === 5)).toBe(true);
-    // no two strokes the same line: each bolt its own weight, every node its own kink of it, tapering root to tip
-    const main = a.filter((x) => !x.fork), roots = main.map((x) => x.t[0].toFixed(3));
-    expect(new Set(roots).size).toBe(9);
+  it('one wave draws every orbiting light: deterministic in t, a ring stands up, scatter twinkles in place', () => {
+    const W = LOOKS.orbit.motes[0];
+    expect(wavePoints(W, [1, 2, 0], 0.7)).toEqual(wavePoints(W, [1, 2, 0], 0.7));
+    expect(wavePoints(W, [0, 0, 0], 0)).toHaveLength(16);
+    // a ring (tilt 90) leaves the ground plane: its lights spread in height, not across y
+    const ring = wavePoints(LOOKS.ring.motes[0], [0, 0, 0], 1.3), zs = ring.map((b) => b.p[2]), ys = ring.map((b) => Math.abs(b.p[1]));
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(1);
+    expect(Math.max(...ys)).toBeLessThan(1e-9);
+    // a rise climbs: the head of a stream is higher a moment later in its cycle
+    const R = LOOKS.rise.motes[0];
+    expect(wavePoints(R, [0, 0, 0], 1)[0].p[2]).toBeGreaterThan(wavePoints(R, [0, 0, 0], 0.5)[0].p[2]);
+    const tw = LOOKS.twinkle.motes[0];
+    expect(wavePoints(tw, [0, 0, 0], 0.4).map((b) => b.p)).toEqual(wavePoints(tw, [0, 0, 0], 2.1).map((b) => b.p));
+  });
+
+  it('kokusen strikes nine varied, tapering bolts afresh 8 times a second, some forking', () => {
+    const a = kokusenBolts([0, 0, 0], 0.01, BOLT_SHAPE), c = kokusenBolts([0, 0, 0], 0.2, BOLT_SHAPE), main = a.filter((x) => !x.fork);
+    expect(a).toHaveLength(18);
+    expect(new Set(main.map((x) => x.t[0].toFixed(3))).size).toBe(9);
     for (const x of main) expect(x.t[11]).toBeLessThan(x.t[0]);
-    expect(new Set(main[0].t.map((v) => v.toFixed(3))).size).toBe(12);
-    // within one frame a bolt only turns with ph; across frames it is struck afresh (which sit out changes too)
-    expect(a.map((x) => x.w > 0)).toEqual(b.map((x) => x.w > 0));
     expect(JSON.stringify(c.map((x) => x.nodes[3]))).not.toBe(JSON.stringify(a.map((x) => x.nodes[3])));
-    expect(M.kokusen.beads([0, 0, 0], 0.3, P)).toHaveLength(10);   // a fixed pool: the aura and a spark per bolt
-    expect(M.ward.beads([0, 0, 0], 0.3, ELEMENTS.ward.params)).toEqual(elementBeads('ward', [0, 0, 0], 0.3));
-    expect(Object.keys(M)).toEqual(['kokusen', 'ward']);
   });
 });
 
 // the page's loop in node: world, zones, cast facts, the bus, the cast's ops
-function level(cues) {
+function level(play) {
   const entities = [
     { id: 'hero', rule: { type: 'walk' }, transform: { pos: [0, -6, 0] }, body: { type: 'none' } },
     { id: 'guard', rule: { type: 'static' }, transform: { pos: [0, 0, 0] }, body: { type: 'none', hp: 10 } },
   ];
-  const ev = lowerPlay({ entities, play: { cues } }, { player: 'hero' });
+  const ev = lowerPlay({ entities, play }, { player: 'hero' });
   const world = CW.createWorld({ entities: JSON.parse(JSON.stringify(entities)) });
   const bus = createBusState(ev, []);
   let prev, zp = null;
@@ -70,120 +76,115 @@ function level(cues) {
   return { ev, world, bus, tick, run: (n, x) => { for (let i = 0; i < n; i++) tick(x); }, guard: () => world.byId.guard, fired: (t) => bus.log.filter((r) => r.type === t).length };
 }
 
-describe('statuses on the bus', () => {
-  it('reads status, lift and faded, and teaches', () => {
-    const [c] = readCues({ cues: [{ id: 'x', when: { faded: { who: 'guard', is: 'ward' } }, then: [{ status: { who: 'guard', is: 'kokusen', for: 0.6, color: '#ff0000' } }, { lift: 'hero' }] }] });
-    expect(c.when).toEqual({ kind: 'faded', who: 'guard', at: null, is: 'ward' });
-    expect(c.then.map((t) => [t.op, t.who, t.is, t.for, t.color])).toEqual([['status', 'guard', 'kokusen', 0.6, [1, 0, 0]], ['lift', 'hero', undefined, undefined, undefined]]);
-    const bad = (then) => () => readCues({ cues: [{ id: 'x', when: { start: true }, then }] });
-    expect(bad({ status: { who: 'guard', is: 'glow' } })).toThrow(/is is an element: enchant/);
-    expect(bad({ status: { who: 'guard', is: 'ward', for: 0 } })).toThrow(/for is seconds/);
-    expect(bad({ status: { who: 'guard', is: 'ward', color: 'red' } })).toThrow(/#rrggbb/);
+describe('statuses are names; looks are what they wear', () => {
+  it('reads a status by any name, its look given, from play.looks, or the preset of its name', () => {
+    const play = { looks: { hexed: { color: '#7a3cff', coat: { k: 0.7 }, motes: { count: 3, r: [0.3, 1.2], z: [1.6, 0.2], env: 'ends' } } }, cues: [
+      { id: 'a', when: { start: true }, then: [{ status: { who: 'guard', is: 'hexed' } }, { status: { who: 'guard', is: 'poisoned', look: 'fall', color: '#33ff66' } }, { status: { who: 'hero', is: 'ice' } }] },
+    ] };
+    const [c] = readCues(play);
+    expect(c.then.map((t) => [t.is, t.look.motes.length, t.color])).toEqual([['hexed', 1, undefined], ['poisoned', 1, '#33ff66'], ['ice', 0, undefined]]);
+    expect(c.then[0].look.color).toBe('#7a3cff');
+    const ev = lowerPlay({ play }, { player: 'hero' });
+    expect(Object.keys(ev.looks)).toEqual(['hexed', 'poisoned', 'ice']);
+    expect(ev.looks.ice.ice).toEqual({ mode: 'encase' });
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { status: { who: 'guard', is: 'sparkly' } } }] })).toThrow(/'sparkly' is not a look/);
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { status: { who: 'guard', is: 'Bad Name', look: 'glow' } } }] })).toThrow(/is the status's name, a lower-case word/);
   });
 
-  it('a timed status is carried on the world clock, then fades and fires faded', () => {
-    const L = level([
-      { id: 'flash', when: { start: true }, then: { status: { who: 'guard', is: 'kokusen', for: 0.5 } } },
-      { id: 'after', when: { faded: { who: 'guard', is: 'kokusen' } }, then: { set: 'done', to: 1 } },
-    ]);
+  it('a timed status runs out on the world clock and fires faded; an untimed one comes off with its cue; lift takes one off', () => {
+    const L = level({ cues: [
+      { id: 'flash', when: { start: true }, then: { status: { who: 'guard', is: 'struck', look: 'kokusen', for: 0.5 } } },
+      { id: 'after', when: { faded: { who: 'guard', is: 'struck' } }, then: { set: 'done', to: 1 } },
+      { id: 'close', when: { near: { at: [0, 0], r: 2 } }, then: { status: { who: 'guard', is: 'shielded', look: 'ring' } } },
+      { id: 'cure', when: { on: 'cure' }, then: { lift: { who: 'guard', is: 'struck' } } },
+    ] });
+    expect(L.ev.reactions).toContainEqual({ on: 'cue-end:close', do: 'ctrl', op: 'lift', who: 'guard', is: 'shielded' });
     L.tick();
-    expect(Object.keys(L.guard().statuses)).toEqual(['kokusen']);
-    L.run(10);
-    expect(L.guard().statuses.kokusen).toBeTruthy();
-    L.run(10);
-    expect(L.guard().statuses.kokusen).toBeUndefined();
-    expect(L.fired('faded')).toBe(1);
+    expect(Object.keys(L.guard().statuses)).toEqual(['struck']);
+    L.run(20);
+    expect(L.guard().statuses.struck).toBeUndefined();
     expect(L.bus.vars.done).toBe(1);
-  });
-
-  it('a status with no time comes off when its cue ends (walking off a near); lift takes one off', () => {
-    const L = level([
-      { id: 'close', when: { near: { at: [0, 0], r: 2 } }, then: { status: { who: 'guard', is: 'ward' } } },
-      { id: 'hurt', when: { on: 'zap' }, then: [{ status: { who: 'guard', is: 'drain' } }, { status: { who: 'hero', is: 'heal' } }] },
-      { id: 'cure', when: { on: 'cure' }, then: { lift: { who: 'guard', is: 'drain' } } },
-    ]);
-    expect(L.ev.reactions).toContainEqual({ on: 'cue-end:close', do: 'ctrl', op: 'lift', who: 'guard', is: 'ward' });
     L.world.byId.hero.transform.pos = [0, -1, 0];
     L.run(2);
-    expect(Object.keys(L.guard().statuses)).toEqual(['ward']);
+    expect(Object.keys(L.guard().statuses)).toEqual(['shielded']);
     L.world.byId.hero.transform.pos = [0, -6, 0];
     L.run(2);
-    expect(L.guard().statuses.ward).toBeUndefined();
-    L.tick([{ type: 'zap' }]);
-    L.run(1);
-    expect(Object.keys(L.guard().statuses)).toEqual(['drain']);
-    expect(Object.keys(L.world.byId.hero.statuses)).toEqual(['heal']);
-    L.tick([{ type: 'cure' }]);
-    L.run(1);
     expect(L.guard().statuses).toEqual({});
     expect(L.fired('faded')).toBe(2);
   });
 
-  it('the board says them', () => {
-    const html = uiBoardHtml(resolvePlayUi({ play: { ui: 'propose', cues: [{ id: 'go', when: { faded: { who: 'guard', is: 'ward' } }, then: { status: { who: 'guard', is: 'kokusen', for: 0.6 } } }] } }, () => 7));
-    expect(html).toContain('guard is no longer ward');
-    expect(html).toContain('guard is kokusen for 0.6 s');
+  it('the board says them; the laws name a status that never comes off and two that look alike in greys', () => {
+    const html = uiBoardHtml(resolvePlayUi({ play: { ui: 'propose', cues: [{ id: 'go', when: { faded: { who: 'guard', is: 'shielded' } }, then: { status: { who: 'guard', is: 'burning', look: 'fire', for: 3 } } }] } }, () => 7));
+    expect(html).toContain('guard is no longer shielded');
+    expect(html).toContain('guard is burning for 3 s');
+    const law = (cues, k) => uiAdvice({ cues }, null, { entities: [{ id: 'guard' }] }).filter((l) => l.law === k).map((l) => l.at);
+    expect(law([{ id: 'a', when: { start: true }, then: { status: { who: 'guard', is: 'shielded', look: 'ring' } } }], 'status-lifts')).toEqual(['cue a']);
+    expect(law([{ id: 'a', when: { start: true }, then: { status: { who: 'guard', is: 'shielded', look: 'ring', for: 2 } } }], 'status-lifts')).toEqual([]);
+    expect(law([{ id: 'a', when: { start: true }, then: [{ status: { who: 'guard', is: 'poisoned', look: 'fall', for: 2 } }, { status: { who: 'guard', is: 'cursed', look: 'fall', color: '#7a3cff', for: 2 } }] }], 'looks-apart')).toEqual(['poisoned, cursed']);
   });
 });
 
 describe('the page', () => {
-  it('draws statuses only when cues put one on someone, with only the elements they name, and exposes the bodies', async () => {
+  it('carries only the looks its cues name and only the layers they use, and exposes the bodies', async () => {
     const { emitThreeWorld } = await import('../../scene/scene-three.js');
     const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
     const page = (cues) => emitThreeWorld({ entities, events: lowerPlay({ entities, play: { cues } }, { player: 'hero' }), inline: false });
-    const js = page([{ id: 'x', when: { start: true }, then: { status: { who: 'hero', is: 'kokusen' } } }]);
+    const js = page([{ id: 'x', when: { start: true }, then: { status: { who: 'hero', is: 'frozen', look: 'ice' } } }]);
     expect(js).toContain('__stepStatus();');
-    expect(js).toContain('"kokusen": { beads:');
-    expect(js).not.toContain('"ward": { beads:');
+    expect(js).toContain('function __elEncase(');
+    expect(js).not.toContain('const kokusenBolts = ');
     expect(js).toContain(' bodies: __bodies,');
+    const dark = page([{ id: 'x', when: { start: true }, then: { status: { who: 'hero', is: 'struck', look: 'kokusen' } } }]);
+    expect(dark).toContain('const kokusenBolts = ');
+    expect(dark).not.toContain('function __elEncase(');
     const plain = page([{ id: 'x', when: { start: true }, then: { kill: 'hero' } }]);
     expect(plain).not.toContain('__stepStatus');
     expect(plain).not.toContain(' bodies: __bodies,');
   });
-});
 
-describe('the laws and the cards', () => {
-  it('a status that never comes off is named; a timed, ended or lifted one is not', async () => {
-    const { uiAdvice } = await import('../ui/laws.js');
-    const law = (cues) => uiAdvice({ cues }, null, { entities: [{ id: 'guard' }] }).filter((l) => l.law === 'status-lifts').map((l) => l.at);
-    expect(law([{ id: 'a', when: { start: true }, then: { status: { who: 'guard', is: 'ward' } } }])).toEqual(['cue a']);
-    expect(law([{ id: 'a', when: { start: true }, then: { status: { who: 'guard', is: 'ward', for: 2 } } }])).toEqual([]);
-    expect(law([{ id: 'a', when: { near: { at: [0, 0], r: 1 } }, then: { status: { who: 'guard', is: 'ward' } } }])).toEqual([]);
-    expect(law([{ id: 'a', when: { start: true }, then: { status: { who: 'guard', is: 'ward' } } }, { id: 'b', when: { on: 'x' }, then: { lift: 'guard' } }])).toEqual([]);
-  });
-
-  it('the play drawer lists every element', async () => {
-    const { playCards } = await import('../ui/cards.js');
-    const card = playCards().get('play-elements');
-    for (const id of ELEMENT_IDS) expect(card.body).toContain(`  ${id.padEnd(10)} `);
-    expect(playCards().get('ui-menus').body).not.toContain('later step');
+  it('the page source runs with every preset', async () => {
+    const { statusScript } = await import('../../scene/channels/status-channel.js');
+    expect(() => new Function('THREE', 'scene', 'camera', 'renderer', 'location', 'window', 'document', `${statusScript(LOOKS)}; return 1;`)).not.toThrow();
+    // and the bolts it strikes run with their own helpers (the page has no module scope)
+    const src = statusScript({ k: LOOKS.kokusen }), at = src.indexOf('const __BOLT'), end = src.indexOf('})();', at) + 5;
+    const bolts = new Function(`${src.slice(at, end)}; return kokusenBolts([0, 0, 0], 0.3, __BOLT);`)();
+    expect(bolts).toEqual(kokusenBolts([0, 0, 0], 0.3, BOLT_SHAPE));
   });
 });
 
-describe("burning elements: the world's own fire on a body", () => {
+describe('fire: one layer, a size and a colour', () => {
   const entities = [{ id: 'hero', rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.5, 0.5, 1.7] } }];
-  it('each burning status a play may set is one fire source, carried by its body, in its colorant', async () => {
+  it('each status whose look burns is one fire source on its body: small licks from the top, big engulfs from the feet', async () => {
     const { bodyFires } = await import('./body-fire.js');
-    const play = { cues: [
-      { id: 'a', when: { start: true }, then: [{ status: { who: 'hero', is: 'burning' } }, { status: { who: 'hero', is: 'burning', color: 'copper' } }, { status: { who: 'ghost', is: 'blaze' } }, { status: { who: 'hero', is: 'ward' } }] },
-      { id: 'b', when: { on: 'x' }, then: { status: { who: 'hero', is: 'burning' } } },
-    ] };
+    const play = { cues: [{ id: 'a', when: { start: true }, then: [
+      { status: { who: 'hero', is: 'burning', look: 'fire' } }, { status: { who: 'hero', is: 'witchfire', look: 'fire', color: 'copper' } },
+      { status: { who: 'hero', is: 'pyre', look: { fire: { size: 3.5, color: '#66ff88' } } } }, { status: { who: 'ghost', is: 'burning', look: 'fire' } }, { status: { who: 'hero', is: 'shielded', look: 'ring' } },
+    ] }] };
     expect(bodyFires(play, entities)).toEqual([
       { kind: 'brazier', at: [0, 0, 0], size: 1.5, follow: 'hero', el: 'burning', key: '', rise: 0.85 },
-      { kind: 'brazier', at: [0, 0, 0], size: 1.5, color: 'copper', follow: 'hero', el: 'burning', key: 'copper', rise: 0.85 },
+      { kind: 'brazier', at: [0, 0, 0], size: 1.5, color: 'copper', follow: 'hero', el: 'witchfire', key: 'copper', rise: 0.85 },
+      { kind: 'campfire', at: [0, 0, 0], size: 3.5, color: '#66ff88', follow: 'hero', el: 'pyre', key: '', rise: 0 },
     ]);
-    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { status: { who: 'hero', is: 'burning', color: 'plasma' } } }] })).toThrow(/colorant the flame burns in \(sodium/);
   });
 
-  it('the page lights them with no prop, carries them to the body, and puts them out with the status', async () => {
+  it('the fire channel carries a body\'s fire with no prop; a page without one is unchanged', async () => {
     const { resolveFire } = await import('../../fire/fire.js');
     const { fireChannelScript } = await import('../../scene/channels/fire.js');
-    const r = resolveFire({}, [{ kind: 'brazier', at: [0, 0, 0], size: 1, color: 'copper', follow: 'hero', el: 'burning', key: 'copper', rise: 0.7 }]);
-    expect(r.sources[0]).toMatchObject({ follow: 'hero', el: 'burning', key: 'copper', rise: 0.7, line: [expect.any(Number), expect.any(Number), 1] });
+    const r = resolveFire({}, [{ kind: 'brazier', at: [0, 0, 0], size: 1.5, color: 'copper', follow: 'hero', el: 'burning', key: 'copper', rise: 0.85 }]);
+    expect(r.sources[0]).toMatchObject({ follow: 'hero', el: 'burning', key: 'copper', rise: 0.85, line: [expect.any(Number), expect.any(Number), 1] });
+    expect(r.sources[0].light).toBeLessThanOrEqual(1.6);
     const js = fireChannelScript(r);
     expect(js).toContain('function __fireFollow(K)');
     expect(js).toContain('FIRE_PROPS = [[]];');
-    const plain = fireChannelScript(resolveFire({ sources: [{ kind: 'brazier', at: [0, 0, 0] }] }));
-    expect(plain).not.toContain('__fireFollow');
+    expect(fireChannelScript(resolveFire({ sources: [{ kind: 'brazier', at: [0, 0, 0] }] }))).not.toContain('__fireFollow');
+  });
+});
+
+describe('the drawer', () => {
+  it('teaches statuses, looks, the wave and the presets', async () => {
+    const { playCards } = await import('../ui/cards.js');
+    const body = playCards().get('play-elements').body;
+    for (const w of ['a status is a name you give', 'A WAVE (every orbiting light)', ...LOOK_NAMES]) expect(body).toContain(w);
+    expect(playCards().get('ui-menus').body).not.toContain('later step');
   });
 });

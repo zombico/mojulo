@@ -26,8 +26,7 @@
  *   castRefs(play)                  { who: [..], places: [..], spawns: [..], vanished: [..] } every name the cast effects use
  */
 import { DOOR_STAND } from '../objects/door.js';
-import { ELEMENTS, ELEMENT_IDS } from '../elements/elements.js';
-import { FIRE_COLORANTS } from '../../fire/fire.js';
+import { readLook, readColor, LOOK_NAMES } from '../elements/elements.js';
 
 export const CAST_WHEN = Object.freeze({
   down: 'a character falls: killed, or its hp runs out (its id, a glob)',
@@ -45,7 +44,7 @@ export const CAST_THEN = Object.freeze({
   heal: '{ heal: who | { who, by? } } gives back body.hp (no by: all of it)',
   walk: "{ walk: { who, to: place | [places], speed?, then?: 'stay' | 'loop' | 'back', face?, pose? } } a dumb path: straight lines, the world's walls push it out, no pathfinding",
   stop: 'end a walk, or a hold at a spot',
-  status: `{ status: { who, is, for?, color? } } the character carries an element (${ELEMENT_IDS.join(', ')}): a fresnel coat and its marks, on the body as it moves; for seconds, until lifted, or until the cue ends`,
+  status: `{ status: { who, is, look?, for?, color? } } the character carries a status: is is any name you give it; look is how it shows on the body as it moves (a preset: ${LOOK_NAMES.join(', ')}; a name in play.looks; or its layers), defaulting to the look called is; for seconds, until lifted, or until the cue ends`,
   lift: '{ lift: who | { who, is? } } take a status off (no is: all of them)',
 });
 export const SPOT_POSES = Object.freeze(['stand', 'sit', 'use', 'talk', 'lean']);
@@ -112,14 +111,14 @@ export function readCastWhen(k, w, where) {
   }
   if (k === 'faded' && isObj(v)) {
     if (!isStr(v.who)) throw new Error(`${where}.faded.who is a character's id`);
-    if (v.is !== undefined && !ELEMENTS[v.is]) throw new Error(`${where}.faded.is is an element: ${ELEMENT_IDS.join(', ')}`);
+    if (v.is !== undefined && !(isStr(v.is) && ID.test(v.is))) throw new Error(`${where}.faded.is is a status's name`);
     return { kind: 'faded', who: v.who, at: null, ...(v.is ? { is: v.is } : {}) };
   }
   if (!isStr(v)) throw new Error(`${where}.${k} is a character's id (a glob)${k === 'arrive' ? ', or { who, at }' : k === 'faded' ? ', or { who, is }' : ''}`);
   return { kind: k, who: v, at: null };
 }
 
-export function readCastEffect(k, t, where) {
+export function readCastEffect(k, t, where, ctx = {}) {
   const v = t[k], w = `${where}.${k}`;
   const who = isStr(v) ? v : isObj(v) && isStr(v.who) ? v.who : null;
   if (!who) throw new Error(k === 'hurt' || k === 'walk' || k === 'status' ? `${w}.who is a character's id` : `${w} is a character's id, or { who, … }`);
@@ -135,13 +134,14 @@ export function readCastEffect(k, t, where) {
     if (o.face !== undefined) { if (!Number.isFinite(o.face)) throw new Error(`${w}.face is degrees`); out.face = o.face; }
   }
   if (k === 'status') {
-    if (!ELEMENTS[o.is]) throw new Error(`${w}.is is an element: ${ELEMENT_IDS.join(', ')}`);
+    if (!(isStr(o.is) && ID.test(o.is))) throw new Error(`${w}.is is the status's name, a lower-case word ('poisoned', 'blessed', 'marked')`);
     out.is = o.is;
+    // its look: given, or the one called by its name (play.looks, then the presets)
+    out.look = o.look !== undefined ? readLook(o.look, `${w}.look`, ctx.looks) : readLook(o.is, `${w}.is`, ctx.looks);
     if (o.for !== undefined) { if (!(Number.isFinite(o.for) && o.for > 0)) throw new Error(`${w}.for is seconds`); out.for = o.for; }
-    // a burning element burns in a colorant, as the world's fires do (or '#rrggbb'); the others take a display colour
-    if (o.color !== undefined) out.color = ELEMENTS[o.is].fire ? readFireColor(o.color, `${w}.color`) : readColor(o.color, `${w}.color`);
+    if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
   }
-  if (k === 'lift' && o.is !== undefined) { if (!ELEMENTS[o.is]) throw new Error(`${w}.is is an element: ${ELEMENT_IDS.join(', ')}`); out.is = o.is; }
+  if (k === 'lift' && o.is !== undefined) { if (!(isStr(o.is) && ID.test(o.is))) throw new Error(`${w}.is is a status's name`); out.is = o.is; }
   if (k === 'walk') {
     if (o.to === undefined) throw new Error(`${w}.to is a place or a list of places`);
     out.to = (isPt(o.to) || !Array.isArray(o.to) ? [o.to] : o.to).map((p, i) => readPlace(p, `${w}.to${Array.isArray(o.to) && !isPt(o.to) ? `[${i}]` : ''}`));
@@ -156,17 +156,6 @@ export function readCastEffect(k, t, where) {
 
 /** A cast happening's reaction: the character world's event, matched to the who (and the place). */
 export const castFire = (w, type) => ({ on: w.kind, match: { entity: w.who, ...(w.at ? { at: w.at } : {}), ...(w.is ? { is: w.is } : {}) }, do: 'emit', type });
-
-function readFireColor(c, where) {
-  if (typeof c === 'string' && (FIRE_COLORANTS[c] || /^#[0-9a-f]{6}$/i.test(c))) return c;
-  throw new Error(`${where} is a colorant the flame burns in (${Object.keys(FIRE_COLORANTS).join(', ')}) or '#rrggbb'`);
-}
-// a colour: '#rrggbb' or [r, g, b] in 0..1
-function readColor(c, where) {
-  if (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) return [1, 3, 5].map((i) => Math.round((parseInt(c.slice(i, i + 2), 16) / 255) * 1000) / 1000);
-  if (Array.isArray(c) && c.length === 3 && c.every((x) => Number.isFinite(x) && x >= 0 && x <= 1)) return c.slice();
-  throw new Error(`${where} is '#rrggbb' or [r, g, b] in 0..1`);
-}
 
 const placeAt = (ref, places) => (Array.isArray(ref) ? { at: ref, name: null } : (places || []).find((p) => p.id === ref) || null);
 

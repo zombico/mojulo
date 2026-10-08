@@ -160,8 +160,8 @@ export function eventsChannelScript(events) {
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
-  const els = cast ? statusElements(events) : [];   // the elements its cues put on the cast (drawn on their bodies)
-  const status = els.length ? statusScript(els) : '';
+  const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
+  const status = els.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]]))) : '';
   const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};

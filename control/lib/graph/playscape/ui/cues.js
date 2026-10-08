@@ -44,6 +44,7 @@
 import { UI_STATES } from './parts.js';
 import { regionOf, HUD_REGIONS } from './regions.js';
 import { CAST_WHEN, CAST_THEN, readCastWhen, readCastEffect, castFire, lowerCastEffect } from './cast.js';
+import { readLooks } from '../elements/elements.js';
 
 export const CUE_WHEN = Object.freeze({
   enter: 'the figure walks into a zone: a zone the world declares, an anchor of the map { anchor, r? }, or an area { at, r } | { at, half }',
@@ -127,12 +128,13 @@ function readWhen(w, where) {
   return { kind: 'start' };
 }
 
-export function readEffect(t, where, { partIds = new Set(), phases = ['playing'], menuIds = new Set() } = {}) {
+export function readEffect(t, where, ctx = {}) {
+  const { partIds = new Set(), phases = ['playing'], menuIds = new Set() } = ctx;
   if (!isObj(t)) throw new Error(`${where} is an effect: ${Object.keys(CUE_THEN).join(', ')}`);
   const keys = Object.keys(CUE_THEN).filter((k) => t[k] !== undefined);
   if (keys.length !== 1) throw new Error(`${where} does one thing (${Object.keys(CUE_THEN).join(', ')}), not ${keys.length ? keys.join(' and ') : 'none'}`);
   const k = keys[0];
-  if (CAST_THEN[k]) return readCastEffect(k, t, where);
+  if (CAST_THEN[k]) return readCastEffect(k, t, where, ctx);
   if (k === 'say') {
     if (!isStr(t.say)) throw new Error(`${where}.say is the words`);
     const as = t.as ?? 'banner';
@@ -174,7 +176,7 @@ export function effectContext(play, phases = (play && play.phases) || ['playing'
   const partIds = new Set();
   for (const p of (play && play.parts) || []) if (p && isStr(p.id)) { if (partIds.has(p.id)) throw new Error(`play.parts: two parts called '${p.id}'`); partIds.add(p.id); }
   const menuIds = new Set(((play && play.menus) || []).map((m) => m && m.id).filter(isStr));
-  return { partIds, phases, menuIds };
+  return { partIds, phases, menuIds, looks: readLooks(play) };
 }
 
 /** The cues of a play block, read; shape errors throw and teach. */
