@@ -110,10 +110,10 @@ const r1 = (x) => +x.toFixed(1), r4 = (x) => +x.toFixed(4);
 const MIRROR = [[-1, 0, 0], [0, 1, 0], [0, 0, 1]];
 /** a direction in the target's frame ({ fwd, up, side }) in the rig's: +y the target, +x the right */
 const dirOf = (v) => unit([v.side || 0, v.fwd || 0, v.up || 0]);
-const liteOf = (R) => ({ ...R, rides: {}, chains: {}, folds: undefined });
+export const liteOf = (R) => ({ ...R, rides: {}, chains: {}, folds: undefined });
 
 /** a landmark on the posed body (the rig's frame) */
-function landmark(n, at) {
+export function landmark(n, at) {
   const mid = (a, b) => mul(add(a, b), 0.5);
   // the belly button: about a fifth of the way from the hip joints up to the neck's base (the rig's `navel` is the
   // spine's middle joint, a hand higher)
@@ -146,7 +146,7 @@ export const GRIPS = Object.freeze({ hammer: { angle: 45 }, handshake: { angle: 
 const GEAR_ANGLE = 45;
 /** each hand's mount of an item (gearMounts' rest hold) for a grip: the hilt rolled about the palm's normal (the item's
  * y) through the grip centre, so the blade turns toward the hand's axis; a reverse grip then turned half about the edge */
-function mountOf(R, build, side, grip = 'handshake') {
+export function mountOf(R, build, side, grip = 'handshake') {
   const G = gearMounts({ head: 'anime', gear: { [side === 'R' ? 'right' : 'left']: build } }, R)[0];
   const g = GRIPS[grip]; if (!g) throw new Error(`hero-grip: no grip '${grip}' (have ${Object.keys(GRIPS).join(', ')})`);
   const d = ((GEAR_ANGLE - g.angle) * Math.PI) / 180, c = Math.cos(d), sn = Math.sin(d);
@@ -164,7 +164,7 @@ function shieldMount(R, build, side, strap = 30) {
 }
 /** the item's stations (its own cm, along +z): the hands' grip centres, the guard, the tip, the balance; `pommel` when the
  * lower hand cups the pommel (a grip shorter than two palms) */
-function stationsOf(G, R, hands) {
+export function stationsOf(G, R, hands) {
   const g = G.sockets.grip, z0 = g.origin[2] - g.length / 2, z1 = g.origin[2] + g.length / 2, guard = G.sockets.guard?.origin?.[2] ?? z1;
   const palm = (PALM_GAP * dist(R.joints.indexMcpR ?? R.joints.knucklesR, R.joints.littleMcpR ?? R.joints.knucklesR)) / G.k;
   const upper = Math.max(z0 + palm / 2, Math.min(z1, guard) - palm / 2);
@@ -288,9 +288,11 @@ function lm(f, x0, lo, hi, iters = 40) {
  * One arm to a hand frame: the wrist to `goal` (the rig's frame), the elbow's swivel chosen so the wrist turns least past
  * its functional range (and never past its anatomical one) with the elbow as low as that allows, the wrist then the rest of the
  * way. → { sh, elbow, lift (m, the elbow off its elbows-down place), wrist (the channel), anatomy (the wrist the laws read), err (m),
- * stray (degrees past the functional range) }. `pole` bends the elbow another way first (a shield arm's, out).
+ * stray (degrees past the functional range) }. `pole` bends the elbow another way first (a shield arm's, out); `range`
+ * weighs a degree past the wrist's anatomical range against the fist's millimetres (a guard's √½: as one), `clear` a
+ * metre of the arm pressed into the trunk (a guard's 100: a centimetre as a millimetre).
  */
-export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, band = WRIST_EASE } = {}) {
+export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, band = WRIST_EASE, range = Math.SQRT1_2, clear = 100 } = {}) {
   const lite = liteOf(R), fa = { bones: [R.bones[R.boneIndex[`foreArm${side}`]]] };
   const l1 = dist(R.joints[`shoulder${side}`], R.joints[`elbow${side}`]), l2 = dist(R.joints[`elbow${side}`], R.joints[`wrist${side}`]);
   const nodesOf = (x) => rigNodesAt(lite, elbowsDown(R, { ...body, [`sh${side}`]: { pitch: x[0], yaw: x[1], roll: x[3] }, [`elbow${side}`]: x[2] })).nodes;
@@ -314,7 +316,7 @@ export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, b
   // the trunk (a centimetre in weighs as a degree past the wrist's range: the elbow lifts and swings out first)
   const ease = skilled ? 5e-3 : 5e-5;
   const over = (w, band, k) => Object.entries(band).map(([a, [lo, hi]]) => k * Math.max(0, lo - w[a], w[a] - hi));
-  const resid = (x) => { const n = nodesOf(x); const { w } = read(n); return [...mul(sub(n[`wrist${side}`], goal), 1000), ...mul(sub(n[`elbow${side}`], E0), Math.SQRT1_2), ...over(w, band, Math.sqrt(ease)), ...over(w, WRIST_RANGE, Math.SQRT1_2), Math.SQRT1_2 * Math.max(0, HUMERAL_RANGE[0] - humeralTurn(n, side), humeralTurn(n, side) - HUMERAL_RANGE[1]), 100 * Math.max(0, -armClear(R, n, side))]; };
+  const resid = (x) => { const n = nodesOf(x); const { w } = read(n); return [...mul(sub(n[`wrist${side}`], goal), 1000), ...mul(sub(n[`elbow${side}`], E0), Math.SQRT1_2), ...over(w, band, Math.sqrt(ease)), ...over(w, WRIST_RANGE, range), Math.SQRT1_2 * Math.max(0, HUMERAL_RANGE[0] - humeralTurn(n, side), humeralTurn(n, side) - HUMERAL_RANGE[1]), clear * Math.max(0, -armClear(R, n, side))]; };
   const score = (x) => resid(x).reduce((a, v) => a + v * v, 0);
   // the arm reaches a wrist in several separate ways (the roll's range and the elbow's one-way hinge split them), so the
   // seeds are elbows-down's and the best distinct ways a coarse grid finds to reach the wrist, each settled on the whole
@@ -334,7 +336,7 @@ export function holdArm(R, body, side, goal, m, { pole = null, skilled = true, b
 // ─── the guard ────────────────────────────────────────────────────────────────────────────────────────────────────────
 /** a guard's own TRUNK on its stance's: `turn` (share of the spine's axial range, + to the body's left), `lean` (its side
  * bend, + to the right), `bow` (its forward bend), each added to the stance's spine */
-const withTrunk = (body, t) => {
+export const withTrunk = (body, t) => {
   if (!t) return body;
   const sp = body.spine || { sagittal: 0, lateral: 0, axial: 0 }; const c = (v) => Math.max(-1, Math.min(1, v));
   return { ...body, spine: { sagittal: c((sp.sagittal || 0) + (t.bow || 0)), lateral: c((sp.lateral || 0) + (t.lean || 0)), axial: c((sp.axial || 0) + (t.turn || 0)) } };

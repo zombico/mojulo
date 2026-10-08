@@ -136,12 +136,16 @@ export function facingOf({ line, toes }) {
 /**
  * Solve a stance on a rig: { name, family, lead, facing, hold (the rig pose), keys (the enter timeline), clip
  * (keyedClip of it), feet, checks, serves }.
- * @param {string} name  a STANCE_NAMES name (`<name>Left` the mirror)
+ * @param {string|object} name  a STANCE_NAMES name (`<name>Left` the mirror), or stance words in STANCES' shape (`left`
+ *                              in the options asks their mirror)
  * @param {object} R     a validated rig
  */
-export function heroStance(name, R, { seconds = 0.7 } = {}) {
-  const left = /Left$/.test(name) && STANCES[name.slice(0, -4)]; const base = left ? name.slice(0, -4) : name;
-  const S = STANCES[base]; if (!S || (left && !mirrors(S))) throw new Error(`hero-stance: no stance '${name}' (have ${STANCE_NAMES.join(', ')})`);
+export function heroStance(name, R, { seconds = 0.7, left: asLeft = false } = {}) {
+  // a stance by name, or its words themselves (an action's own stance: `left` asks its mirror)
+  const own = typeof name === 'object' && name;
+  const left = own ? asLeft : /Left$/.test(name) && STANCES[name.slice(0, -4)]; const base = own ? null : left ? name.slice(0, -4) : name;
+  const S = own || STANCES[base]; if (!S || (!own && left && !mirrors(S))) throw new Error(`hero-stance: no stance '${name}' (have ${STANCE_NAMES.join(', ')})`);
+  if (own) name = left ? 'ownLeft' : 'own';
   const solved = solveStance(S, R);
   const keys = left ? mirrored(solved.keys) : solved.keys;
   const clip = keyedClip({ seconds, keys }, R);

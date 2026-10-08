@@ -12,6 +12,41 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Carrying
+
+- Holding things in a mode, solved from the thing (`polygonizer/hero-carry.js`): `heroHold(name, R, { kg, regime })`
+  places the thing by what the mode is for, then closes each hand on its station with hero-grip's arm solve.
+  `heroCarry(item, mode, R, { hands })` picks the hold.
+- Things (`CARRIED`): pistol, carbine, shotgun, lmg, box, suitcase, lantern, sack (generic proxies with true sizes,
+  masses and stations: grips, a support hand's handguard and magazine, a butt, a sight line, a rest point), and the
+  sword and greatsword from gear. Mass is a word.
+- Holds (`HOLDS`), relax and aim, one hand, two hands and dual:
+  - Relax: hung from a straight arm under gravity, out until it clears the thigh (pistol, suitcase, lantern, the
+    trail carry of a long gun at its balance, the lmg by its handle, a sword); low ready; hugged (box, pulled in as
+    the effort rises); rested (a sack on the shoulder, a greatsword's point planted before the feet).
+  - Aim: a long gun's cheek weld (the butt in the shoulder pocket, the sight line from the dominant eye to the
+    mark, the neck, head and the butt's place in the pocket solved together, and the support hand kept in reach); a
+    pistol's sights on the eye's line at the arms' reach (isosceles, one hand); two pistols pointed at the mark; a
+    lantern held out.
+  - A support hand slides along its handguard and turns round it to where the wrist sits easiest, and grips the
+    magazine when its arm cannot hold the handguard; a rested thing spins about its length the same way.
+- Perceived effort (`effortOf`): the static moments at each shoulder, elbow and wrist and at the low back, from the
+  arms' own segments (de Leva) and the thing's weight shared between its supports by the lever rule, over adult
+  strengths scaled by body mass (female upper limb about 0.6 of male), read as Borg CR10 (10 × %MVC) and as
+  Rohmert's endurance time.
+- The body answers the effort: a hold eases the thing in toward the trunk; the trunk bends back or aside, and the
+  ankles take the rest, so the body and the load stand where the body alone stood (an aim leans into the gun, never
+  back); the free arm swings out against a one-sided load; the knees soften by the load's share of body mass; relax
+  keeps the hold whose effort plus its style cost is least. The weightless regime perceives none of it.
+- Checks per hold: hands on stations, wrists in their anatomical range (how far past the functional range each
+  strays is reported), humerus, arms clear of the trunk, the thing clear of the body (touching only where it rests),
+  aim (eye on the sight line, the line on the mark, the butt in the pocket), balance, and the load held.
+- Every hold passes on both anime casts (`hero-carry.deep.test.js`).
+- `render-motion.mjs --carry <hold>[:kg][~]` draws a hold with the thing in hand.
+- `heroStance` takes stance words as well as a name. `holdArm` takes `range` and `clear` weights (defaults are the
+  guards' own). `hero-grip` exports `landmark`, `mountOf`, `stationsOf`, `withTrunk` and `liteOf`. Output is
+  unchanged when none of these are used.
+
 ### Action faces
 
 - The anime hero's face acting an action (`polygonizer/hero-face-action.js`). `actionFace(action, { seed })` takes a
