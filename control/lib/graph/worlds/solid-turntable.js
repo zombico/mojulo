@@ -196,8 +196,10 @@ function faceDiv(corners, normal, hex, surface) {
  * Fills bake the first-frame vexar shade (yaw 0 against the fixed turntable light —
  * exactly what /scene shows before the spin starts); 'solid'/'glow' surfaces keep
  * their flat hex (a glow halo is a screen effect, not geometry). Coordinates remap
- * CSS space (x right, y down, z toward viewer) into the z-up world by the proper
- * rotation [x, z, -y]; the camera sits on +y (the CSS-front side) above by `tilt`.
+ * CSS space (x right, y down, z toward viewer — a LEFT-handed frame) into the z-up
+ * world as [-x, z, -y], with each face's winding reversed: the camera sits on +y (the
+ * CSS-front side) above by `tilt`, and from there the world's right is −x, so the
+ * World shows the shape and its lit side as the CSS scene does, not their mirror.
  */
 export function assembleSolidTurntableScene(recipe = {}, ctx = {}) {
   const plan = planSolidTurntable(recipe);
@@ -216,7 +218,7 @@ export function assembleSolidTurntableScene(recipe = {}, ctx = {}) {
   const faces = plan.faces.flatMap((f, i) => {
     const fill = crystalFills ? crystalFills[i] : plan.surface === 'vexar' ? shadeHex(f.hex, f.normal, plan.light) : f.hex;
     const tag = crystalFills ? { crystal: { gem: plan.crystal.gem, stone: 0, c: [0, 0, 0], r: 1, axis: [0, 0, 1], cmu: plan.crystal.cmPerUnit, ...(plan.crystal.glow ? { glow: plan.crystal.glow } : {}) } } : {};
-    return lowerPoly(f.corners.map(([x, y, z]) => [x, z, -y])).map((corners) => ({ corners, fill, group: plan.shape, ...tag }));
+    return lowerPoly(f.corners.map(([x, y, z]) => [-x, z, -y]).reverse()).map((corners) => ({ corners, fill, group: plan.shape, ...tag }));
   });
   // a gem gets a floor under it to catch its print (the crystal channel traces it there); other shapes float as before
   if (crystalFills) {

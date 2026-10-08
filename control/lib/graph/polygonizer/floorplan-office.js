@@ -30,6 +30,7 @@ import {
 import { doorApproach } from '../worlds/movement-flow.js';
 import { emitPreserve3dScene } from '../scene/scene-css3d.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
+import { planToWorld } from './floorplan-world.js';
 
 export const OFFICE_DEFAULTS = {
   ...FLOORPLAN_DEFAULTS,
@@ -444,13 +445,13 @@ export function assembleOfficeWorldScene(input = {}, opts = {}) {
     ...c, worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming },
   }));
   const fp = r.footprint;
-  return {
+  return planToWorld({
     faces: r.faces, cameras, viewBox,
     title: opts.title || 'mojulo office floor',
     bg: opts.bg || '#10131a', inline: opts.inline ?? false, light: opts.light,
     walk: opts.walk === false ? false : { eye: r.baseZ + 5.4, spawn: [(fp.x0 + fp.x1) / 2, (fp.y0 + fp.y1) / 2] },
     office: r,
-  };
+  });
 }
 
 export function renderOfficeToThreeWorld(input = {}, opts = {}) {

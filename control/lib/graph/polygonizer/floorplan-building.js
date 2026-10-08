@@ -43,6 +43,7 @@ import {
   buildElevatorBank, buildFountain, buildFeatureTable, buildFloorMedallion, buildEntryScreen,
   buildGlassEntrance,
 } from './floorplan-building-assets.js';
+import { planToWorld } from './floorplan-world.js';
 
 // ── building defaults (one world unit = one FOOT, as in the house concern) ────
 export const BUILDING_DEFAULTS = {
@@ -749,7 +750,7 @@ export function assembleBuildingWorldScene(input = {}, opts = {}) {
     ...c,
     worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming },
   }));
-  return {
+  return planToWorld({
     faces, cameras, viewBox,
     title: opts.title || 'mojulo building',
     bg: opts.bg || '#10131a',
@@ -758,7 +759,7 @@ export function assembleBuildingWorldScene(input = {}, opts = {}) {
     walk: opts.walk === false ? false
       : { eye: b.meru.groundZ + 5.4, spawn: [(fp.x0 + fp.x1) / 2, (fp.y0 + fp.y1) / 2] },
     building: b,
-  };
+  });
 }
 
 /** Render the stacked building as a navigable three.js World. */

@@ -865,7 +865,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // emitThreeWorld first-person Fly/Walk navigation (WASD + pointer-lock look, ground-snap, wall
   // collision against the scene `solids`). Needed by controllable game worlds you move THROUGH — e.g.
   // a laser range. Additive; absent ⇒ orbit only.
-  if (payload && sketch.manifest.walk) payload.walk = sketch.manifest.walk;
+  // A kind whose resolver reads the manifest's walk itself (`ownsWalk`: the floorplan family) has already made
+  // it the payload's, framed and in the world (its spawn reflected out of the plan frame); laying the raw
+  // manifest value over it would put the spawn back in the plan.
+  if (payload && sketch.manifest.walk && !desc.ownsWalk) payload.walk = sketch.manifest.walk;
 
   // generic, opt-in WebXR (interchange-seams.plan.md seam 7): `xr: true` (or { eye, speed, snap })
   // adds an immersive-vr entry to the live /world page — a headset walks the same scene, no engine.

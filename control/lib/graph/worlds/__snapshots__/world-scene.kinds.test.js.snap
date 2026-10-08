@@ -88,7 +88,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo fission",
   },
   "floorplan": {
-    "hash": "d1d9566f",
+    "hash": "d54e90c6",
     "tier": "T0",
     "title": "mojulo house",
   },
@@ -122,7 +122,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo lightning storm",
   },
   "mall": {
-    "hash": "fc457150",
+    "hash": "6cb6e93f",
     "tier": "T0",
     "title": "mojulo mall",
   },
@@ -180,7 +180,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo reactor",
   },
   "restaurant": {
-    "hash": "9930a447",
+    "hash": "6168d86c",
     "tier": "T0",
     "title": "mojulo restaurant",
   },
@@ -207,7 +207,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
     "title": "mojulo star birth",
   },
   "store": {
-    "hash": "a50b6ac0",
+    "hash": "d52ed318",
     "tier": "T0",
     "title": "mojulo store",
   },
@@ -267,7 +267,7 @@ exports[`world-scene kinds — per-arm characterization > every dispatch arm res
 
 exports[`world-scene kinds — per-arm characterization > viewOpts.view forwards into the floorplan arm (pinned: forwarding must survive the refactor) 1`] = `
 {
-  "base": "d1d9566f",
-  "dollhouse": "d1d9566f",
+  "base": "d54e90c6",
+  "dollhouse": "d54e90c6",
 }
 `;

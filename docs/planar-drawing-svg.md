@@ -71,9 +71,10 @@ from the same spatial source. These are rendering passes, not separately drawn a
 world-up, up = right × forward. That is the picture three.js renders on the World page, the
 frame the GLB root rotation preserves, and what every engine leg imports, so a wire SVG in
 this basis matches the model. Mojulo's `resolveCameraBasis` (the CSS3D and scaffold-SVG
-renderers) takes right = world-up × forward, which is the horizontal mirror of the same
-`worldFraming`; those renderers keep their pinned bytes and are documented as mirrored
-legacy. New emitters use the physical basis. The native emitter is
+renderers) took right = world-up × forward, the horizontal mirror of the same
+`worldFraming`, and kept it for its pinned bytes; the handedness fix (2026-10-08) moved it to
+the physical basis too, because the mirror hid a mirrored house plan. Every emitter uses the
+physical basis. The native emitter is
 `control/lib/graph/scene/wire-svg.js`, pinned against the Python reference generator, with
 `control/scripts/export-wire-svg.mjs` as the CLI (`--ref <sketch>` or `--source <json>`).
 

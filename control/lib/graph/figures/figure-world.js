@@ -21,8 +21,7 @@
  * flesh, so the animated export drops it (scene-gltf) instead of shipping a frozen
  * ghost inside the walking figure. Known fidelity limits, accepted at this art
  * style: rigid parts approximate the spine warp's smooth trunk bend (rig-bake.js
- * doctrine), and the /svg mirror convention (screen-x negated) cannot apply in 3D,
- * so left/right read un-mirrored in viewers.
+ * doctrine). Left and right read the same in viewers as in the /svg still.
  *
  * Deterministic: pure math over the manifest's dials — no dice, no clock.
  */

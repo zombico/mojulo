@@ -9,10 +9,9 @@
  * metadata so a stroke maps back to its edge and 3D parameter interval.
  *
  * Camera basis: PHYSICAL (right = forward × worldUp, up = right × forward), i.e. the picture
- * three.js, the GLB root and every engine leg show for one worldFraming. `resolveCameraBasis`
- * in pure-mandala (the CSS3D and scaffold-SVG renderers) takes right = worldUp × forward, the
- * horizontal MIRROR of this; those renderers keep their pinned bytes and are documented as
- * mirrored. The wire view is the one that matches the model.
+ * three.js, the GLB root and every engine leg show for one worldFraming — and, since the 3.1
+ * handedness fix, the same basis `resolveCameraBasis` (the CSS3D and scaffold-SVG renderers)
+ * takes, so every still of one worldFraming is one picture.
  *
  * Line rules (the reference policy, not universal anatomy): an edge is drawn when it is a
  * boundary, a crease over `creaseDegrees`, a group boundary, a silhouette (facing flips across

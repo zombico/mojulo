@@ -416,19 +416,16 @@ function makeCamera(view) {
   const a = (viewAzimuth(view) * Math.PI) / 180;
   const CAM = [FIG_R * SM.sin(a), FIG_R * SM.cos(a), FIG_H];           // az 0 = +y (front)
   const cam = { kind: 'two-point', viewBox: { width: 1000, height: 1000 }, worldFraming: { cameraPosition: CAM, lookAt: LOOK, horizontalFov: 30, pictureCenter: [500, 500] } };
-  // Un-mirror screen-x: projectTwoPoint puts the figure's +x (its right side) on
-  // screen-right, but a figure facing us should show its right on OUR left (the
-  // natural mirror/photo convention). Negating x makes posing read intuitively —
-  // the figure's right hand (shR) lands on the viewer's left.
-  const project = (p) => { const r = projectTwoPoint([p[0], p[1], p[2]], cam, ROOM); return [-r[0], r[1]]; };
+  // The figure's right side is +x and it faces +y, so from the front its right hand (shR) lands on the
+  // viewer's left — what a right-handed camera shows, the same as the World and every engine export.
+  const project = (p) => { const r = projectTwoPoint([p[0], p[1], p[2]], cam, ROOM); return [r[0], r[1]]; };
   return { CAM, project };
 }
 
 /**
- * The /svg studio orbit camera as a World-payload camera (interchange.plan.md I2 —
- * the figure world/export form). Same rig makeCamera builds: azimuth around the
- * figure at FIG_R/FIG_H, 30° fov. NOTE the /svg path additionally MIRRORS screen-x
- * (the photo convention); a 3D viewport cannot, so left/right read un-mirrored there.
+ * The /svg studio orbit camera as a World-payload camera (the figure world/export form).
+ * Same rig makeCamera builds: azimuth around the figure at FIG_R/FIG_H, 30° fov; left and
+ * right read the same in the still and the World.
  */
 export function figureWorldCamera(view) {
   const a = (viewAzimuth(view) * Math.PI) / 180;
@@ -742,7 +739,7 @@ function cropStacksToHead(stacks) {
   return stacks.filter((s) => isHeadStack(s, neckTopZ));
 }
 // A self-framing two-point camera orbiting the shown stacks' world bbox (az from the view,
-// elev in degrees). Same screen-x un-mirror as makeCamera so left/right read the same.
+// elev in degrees). Left and right read as makeCamera's do.
 function orbitCamera(shown, view, elevDeg, groundZ) {
   const V = worldVertex(shown, groundZ);
   const bb = { mnx: Infinity, mny: Infinity, mnz: Infinity, mxx: -Infinity, mxy: -Infinity, mxz: -Infinity };
@@ -768,7 +765,7 @@ function orbitCamera(shown, view, elevDeg, groundZ) {
     const d = Math.max(1e-3, v[0] * fwd[0] + v[1] * fwd[1] + v[2] * fwd[2]);
     const x = (v[0] * rightAx[0] + v[1] * rightAx[1] + v[2] * rightAx[2]) / d * f;
     const y = (v[0] * upAx[0] + v[1] * upAx[1] + v[2] * upAx[2]) / d * f;
-    return [-(500 + x), 500 - y];   // screen-x un-mirrored like makeCamera
+    return [500 + x, 500 - y];
   };
   return { CAM, project };
 }
@@ -851,8 +848,7 @@ function animalStacks(parts) {
 }
 
 // A self-framing two-point camera orbiting the animal's world bounding box (so any
-// archetype frames itself). Mirrors makeCamera's screen-x un-mirror so left/right read
-// naturally. az/elev in radians/deg.
+// archetype frames itself). Left and right read as makeCamera's do. az/elev in radians/deg.
 function animalCamera(stacks, az, elevDeg) {
   const V = worldVertex(stacks, null);
   const bb = { mnx: Infinity, mny: Infinity, mnz: Infinity, mxx: -Infinity, mxy: -Infinity, mxz: -Infinity };
@@ -870,7 +866,7 @@ function animalCamera(stacks, az, elevDeg) {
   const el = (elevDeg * Math.PI) / 180, R = radius * 3.2;
   const CAM = [center[0] + R * SM.cos(el) * SM.sin(az), center[1] - R * SM.cos(el) * SM.cos(az), center[2] + R * SM.sin(el)];
   const cam = { kind: 'two-point', viewBox: { width: 1000, height: 1000 }, worldFraming: { cameraPosition: CAM, lookAt: center, horizontalFov: 32, pictureCenter: [500, 500] } };
-  const project = (p) => { const r = projectTwoPoint([p[0], p[1], p[2]], cam, ROOM); return [-r[0], r[1]]; };
+  const project = (p) => { const r = projectTwoPoint([p[0], p[1], p[2]], cam, ROOM); return [r[0], r[1]]; };
   return { CAM, project };
 }
 

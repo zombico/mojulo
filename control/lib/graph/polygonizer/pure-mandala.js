@@ -740,12 +740,15 @@ export function resolveCameraBasis(cameraPrimitive = {}, roomBasis = {}) {
   const forward = normalize3(sub3(lookAt, position));
   if (length3(forward) < 1e-9) return null;
 
+  // A right-handed camera in the z-up world: right = forward × up, up = right × forward. (Until 3.1.0 this
+  // read right = up × forward, which put the world's left on screen-right — every still was a mirror image
+  // of the same scene in the three.js World and in every engine export.)
   const worldUp = [0, 0, 1];
-  let right = normalize3(cross3(worldUp, forward));
+  let right = normalize3(cross3(forward, worldUp));
   if (length3(right) < 1e-9) {
     right = [1, 0, 0];
   }
-  const up = normalize3(cross3(forward, right));
+  const up = normalize3(cross3(right, forward));
   const pictureCenter = validPoint(worldFraming.pictureCenter)
     || validPoint(cameraPrimitive.pictureCenter)
     || [width / 2, height / 2];

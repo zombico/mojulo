@@ -111,6 +111,10 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit3 = (a) => { const l = dmath.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const m3 = (p) => p.map((v) => v * FT);
+// The house is built in the PLAN frame (x east, y south — floorplan-world.js); the IFC is the world's (z-up,
+// right-handed, north +y). An IFC placement cannot reflect, so every plan point and direction is reflected on
+// the way in (y → −y) and each local frame is built right-handed from the reflected points.
+const W = (p) => [p[0], -p[1], p[2]];
 
 /** An open polyline [[y, z]…] thickened by `t` to one side → a closed ring (a thin-walled section). */
 function thicken(pts, t) {
@@ -173,8 +177,8 @@ export function houseToIfc(house, o = {}) {
   const polyProfile = (pts, holes = []) => (holes.length
     ? st.add('IFCARBITRARYPROFILEDEFWITHVOIDS', [E('AREA'), '$', poly2(pts), holes.map(poly2)])
     : st.add('IFCARBITRARYCLOSEDPROFILEDEF', [E('AREA'), '$', poly2(pts)]));
-  const boxGeom = (lo, hi, elev) => {
-    const a = m3(lo), b = m3(hi);
+  const boxGeom = (lo, hi, elev) => {   // lo/hi: a plan-frame box; reflected, its y bounds trade places
+    const a = m3([lo[0], -hi[1], lo[2]]), b = m3([hi[0], -lo[1], hi[2]]);
     const d = [0, 1, 2].map((i) => Math.max(1e-3, b[i] - a[i]));
     return { placeAt: [a[0], a[1], a[2] - elev], solid: extrude(rect(d[0], d[1], d[0] / 2, d[1] / 2), d[2]) };
   };
@@ -284,8 +288,8 @@ export function houseToIfc(house, o = {}) {
       }
       // the floor under the storey, less its stair voids
       const fp = house.footprint;
-      const holes = ((l.structure && l.structure.slabHoles) || []).map((h) => [[h.x0, h.y0], [h.x1, h.y0], [h.x1, h.y1], [h.x0, h.y1]].map((p) => m3([p[0], p[1], 0]).slice(0, 2)));
-      const outer = [[fp.x0, fp.y0], [fp.x1, fp.y0], [fp.x1, fp.y1], [fp.x0, fp.y1]].map((p) => m3([p[0], p[1], 0]).slice(0, 2));
+      const holes = ((l.structure && l.structure.slabHoles) || []).map((h) => [[h.x0, h.y0], [h.x1, h.y0], [h.x1, h.y1], [h.x0, h.y1]].map((p) => m3(W([p[0], p[1], 0])).slice(0, 2)));
+      const outer = [[fp.x0, fp.y0], [fp.x1, fp.y0], [fp.x1, fp.y1], [fp.x0, fp.y1]].map((p) => m3(W([p[0], p[1], 0])).slice(0, 2));
       product('IfcSlab', { key: `slab:L${l.index}`, nm: 'floor slab', type: 'FLOOR', storey: l.index, at: [0, 0, -drop * FT], items: [extrude(polyProfile(outer, holes), drop * FT)], material: 'wall:floor' });
     }
     // ── the finished roof: one slab per plane, aggregated under the roof ──
@@ -293,17 +297,19 @@ export function houseToIfc(house, o = {}) {
       const top = levels[levels.length - 1];
       const parts = [];
       o.roofPlanes.forEach((pl, i) => {
-        const F = planeFrame(pl.corners);
+        const corners = pl.corners.map(W);
+        const F = planeFrame(corners);
         const e = F ? F.e : [1, 0, 0];
         const n = F ? F.n : [0, 0, 1];
         const y = cross(n, e);
-        const O = pl.corners[0];
-        const pts = pl.corners.map((c) => { const r = sub(c, O); return [dot(r, e) * FT, dot(r, y) * FT]; });
+        const O = corners[0];
+        const pts = corners.map((c) => { const r = sub(c, O); return [dot(r, e) * FT, dot(r, y) * FT]; });
         const s = storeyOf(top.index);
         parts.push(product('IfcSlab', { key: `roof:${pl.key || i}`, nm: 'roof plane', type: 'ROOF', storey: top.index, at: [O[0] * FT, O[1] * FT, O[2] * FT - s.elev], axis: n, ref: e, items: [extrude(polyProfile(pts), 0.15)], material: o.roofMaterial || 'roofing:membrane', contain: false }));
       });
       // the walls the roof closes over the top storey: each polygon stood in its plane, a wall thick
-      (o.roofPlanes.gables || []).forEach((poly, i) => {
+      (o.roofPlanes.gables || []).forEach((plan, i) => {
+        const poly = plan.map(W);
         const ps = poly.filter((p, k) => k === 0 || dmath.hypot(p[0] - poly[k - 1][0], p[1] - poly[k - 1][1], p[2] - poly[k - 1][2]) > 1e-6);
         const e = unit3(sub(ps[1], ps[0])), n0 = unit3(cross(e, [0, 0, 1])), y = cross(n0, e);
         const O = ps[0], sdt = storeyOf(top.index);
@@ -322,21 +328,24 @@ export function houseToIfc(house, o = {}) {
       const props = { Key: el.key, CatalogMaterial: el.material, ...(el.circuit ? { Circuit: el.circuit } : {}), ...(el.quantities && el.quantities.lengthFt ? { LengthM: Math.round(el.quantities.lengthFt * FT * 1000) / 1000 } : {}) };
       const common = { key: el.key, nm: el.key.split(':').slice(-2).join(':'), type: el.type, objectType: el.objectType || null, storey: el.storey, material: el.material, props };
       if (g.kind === 'member') {
-        const a = m3(g.from), b = m3(g.to);
-        const F = memberFrame(a, b, g.up);
+        const a = m3(W(g.from)), b = m3(W(g.to));
+        // built from reflected points the frame's side axis (ey) is the plan's reversed: symmetric sections do not
+        // mind; a channel turns half round (its web back on the side it was), an angle a quarter with its legs swapped
+        const F = memberFrame(a, b, Array.isArray(g.up) ? W(g.up) : g.up);
+        let ref = F.ey;
         let profile;
         const sec = g.section && SECTIONS[g.section];
         const mm = (v) => v / 1000;
         if (sec && sec.shape === 'I') profile = st.add('IFCISHAPEPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.b), mm(sec.h), mm(sec.tw), mm(sec.tf), '$', '$', '$']);
-        else if (sec && sec.shape === 'C') profile = st.add('IFCUSHAPEPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.h), mm(sec.b), mm(sec.tw), mm(sec.tf), '$', '$', '$']);
-        else if (sec && sec.shape === 'L') profile = st.add('IFCLSHAPEPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.h), mm(sec.b), mm(sec.t), '$', '$', '$']);
+        else if (sec && sec.shape === 'C') { profile = st.add('IFCUSHAPEPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.h), mm(sec.b), mm(sec.tw), mm(sec.tf), '$', '$', '$']); ref = F.ey.map((v) => -v); }
+        else if (sec && sec.shape === 'L') { profile = st.add('IFCLSHAPEPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.b), mm(sec.h), mm(sec.t), '$', '$', '$']); ref = F.ez; }
         else if (sec && sec.shape === 'SHS') profile = st.add('IFCRECTANGLEHOLLOWPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.b), mm(sec.h), mm(sec.t), '$', '$']);
         else if (sec && sec.shape === 'CHS') profile = st.add('IFCCIRCLEHOLLOWPROFILEDEF', [E('AREA'), S(g.section), '$', mm(sec.h) / 2, mm(sec.t)]);
         else if (sec) profile = rect(mm(sec.b), mm(sec.h));
         else { const [w, d] = g.sectionMm || [100, 100]; profile = rect(w / 1000, d / 1000); }
-        product(el.ifc, { ...common, at: [a[0], a[1], a[2] - s.elev], axis: F.ex, ref: F.ey, items: [extrude(profile, F.L)] });
+        product(el.ifc, { ...common, at: [a[0], a[1], a[2] - s.elev], axis: F.ex, ref, items: [extrude(profile, F.L)] });
       } else if (g.kind === 'wall') {
-        const a = m3(g.from), b = m3(g.to);
+        const a = m3(W(g.from)), b = m3(W(g.to));
         const along = unit3(sub(b, a)), L = dmath.hypot(b[0] - a[0], b[1] - a[1]);
         const T = g.thicknessMm / 1000, H = g.height * FT;
         // the wall's local frame: x along it, y across, z up — a box from its start, openings voiding it
@@ -347,9 +356,10 @@ export function houseToIfc(house, o = {}) {
           st.add('IFCRELVOIDSELEMENT', [G(`void:${el.key}:${k}`), '$', '$', '$', id, oid], true);
         });
       } else if (g.kind === 'plane') {
-        const F = planeFrame(g.corners);
-        const e = F ? F.e : [1, 0, 0], n = F ? F.n : [0, 0, 1], y = cross(n, e), O = g.corners[0];
-        const pts = g.corners.map((c) => { const r = sub(c, O); return [dot(r, e) * FT, dot(r, y) * FT]; });
+        const corners = g.corners.map(W);
+        const F = planeFrame(corners);
+        const e = F ? F.e : [1, 0, 0], n = F ? F.n : [0, 0, 1], y = cross(n, e), O = corners[0];
+        const pts = corners.map((c) => { const r = sub(c, O); return [dot(r, e) * FT, dot(r, y) * FT]; });
         product(el.ifc, { ...common, at: [O[0] * FT, O[1] * FT, O[2] * FT - s.elev], axis: n, ref: e, items: [extrude(polyProfile(pts), (g.thicknessMm || 10) / 1000)] });
       } else if (el.ifc === 'IfcDoor' || el.ifc === 'IfcWindow') {
         const gb = boxGeom(g.lo, g.hi, s.elev);
@@ -387,12 +397,13 @@ export function houseToIfc(house, o = {}) {
       let id;
       if (el.sweep && el.sweep.path) {
         const r = Math.max(...el.sweep.section.map(([a, b]) => dmath.hypot(a, b))) * FT;
-        const path = st.add('IFCPOLYLINE', [el.sweep.path.map((p) => pt([p[0] * FT, p[1] * FT, p[2] * FT - s.elev]))]);
+        const path = st.add('IFCPOLYLINE', [el.sweep.path.map((p) => pt([p[0] * FT, -p[1] * FT, p[2] * FT - s.elev]))]);
         id = product(el.ifc, { ...common, at: [0, 0, 0], items: [st.add('IFCSWEPTDISKSOLID', [path, r, '$', '$', '$'])], kind: 'AdvancedSweptSolid' });
       } else if (el.sweep) {
-        const a = m3(el.sweep.from), b = m3(el.sweep.to);
+        const a = m3(W(el.sweep.from)), b = m3(W(el.sweep.to));
         const Z = unit3(sub(b, a)), X = unit3(cross([0, 0, 1], Z));
-        const across = Math.abs(Z[0]) > 0.5 ? [0, 1, 0] : [1, 0, 0];
+        // the section's y is authored toward the plan's +y (or +x) side: in the world that is −y (or +x)
+        const across = Math.abs(Z[0]) > 0.5 ? [0, -1, 0] : [1, 0, 0];
         const sign = dot(X, across) >= 0 ? 1 : -1;
         const ring = thicken(el.sweep.section.map(([y, z]) => [sign * y * FT, z * FT]), 0.0015);
         id = product(el.ifc, { ...common, at: [a[0], a[1], a[2] - s.elev], axis: Z, ref: X, items: [extrude(polyProfile(ring), dmath.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]))] });

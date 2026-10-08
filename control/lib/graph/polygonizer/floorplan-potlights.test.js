@@ -43,7 +43,7 @@ describe('pot lights', () => {
     }
     const xs = [...new Set(w.lights.map((l) => l.position[0].toFixed(3)))];
     expect(xs).toHaveLength(3);
-    expect(w.lights.find((l) => near(l.position.slice(0, 2), [12, 14], 1e-6))).toBeTruthy();   // the centre can
+    expect(w.lights.find((l) => near(l.position.slice(0, 2), [12, -14], 1e-6))).toBeTruthy();   // the centre can (plan [12, 14], north-up)
     for (const f of cans(w.faces)) expect(f.corners).toHaveLength(4);   // quads only (face-mesh triangulates quads)
   });
 
