@@ -25,7 +25,7 @@
  * Deterministic. Run from control:
  *   node ../docs/examples/humanoid/render-motion.mjs --spec ../docs/examples/humanoid/cast/lead.json \
  *     [--clips walk,idle] [--motion jog='{"sprint":{"dutyFactor":0.45}}'] [--plant gait|stance] [--seconds jog=0.7]
- *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--stances guard,fencingLeft] [--strikes jab,thrust] [--views front,side,top,q34,rear]
+ *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--stances guard,fencingLeft] [--strikes jab,thrust] [--guards chudan,hassoLeft] [--views front,side,top,q34,rear]
  *     [--frames 24] [--cell 220] [--out <dir>]   (default out: $MOJULO_SPIKE_OUT or the scratch folder below, /<name>/)
  */
 import { register, createRequire } from 'node:module';
@@ -37,13 +37,16 @@ register('../../../control/scripts/mcp-stdio-loader.mjs', import.meta.url);
 const lib = (p) => import(new URL(`../../../control/lib/${p}`, import.meta.url).href);
 const sharp = createRequire(new URL('../../../control/package.json', import.meta.url))('sharp');
 const { HERO_FIELDS, heroRecord, heroPlanOf, planLayered, expandLayeredManifest } = await lib('mcp/tools/layered.js');
-const { validateRig, bindLayered, layeredClip, rigNodesAt, VAJRA_CORE } = await lib('graph/polygonizer/station-loft-rig.js');
+const { validateRig, bindLayered, layeredClip, rigNodesAt, boneFrames, VAJRA_CORE } = await lib('graph/polygonizer/station-loft-rig.js');
 const { poseLayered, heroClipSeconds, GESTURE_CLIP } = await lib('graph/polygonizer/hero-gesture.js');
 const { resolveMotion } = await lib('graph/polygonizer/figure-posing.js');
 const { heroLocomotion, locomotionClips } = await lib('graph/polygonizer/hero-motion.js');
 const { heroJump, JUMP_NAMES } = await lib('graph/polygonizer/hero-jump.js');
 const { heroStance, STANCE_NAMES } = await lib('graph/polygonizer/hero-stance.js');
 const { heroStrike, STRIKE_NAMES } = await lib('graph/polygonizer/hero-strike.js');
+const { heroGuard, GUARD_NAMES } = await lib('graph/polygonizer/hero-grip.js');
+const { gearFaces } = await lib('graph/polygonizer/hero-gear.js');
+const { WORKBENCH_LIGHT } = await lib('graph/worlds/workbench.js');
 const { flowRig, simulateClip, rigidityOf } = await lib('graph/polygonizer/hero-flow.js');
 const { windField, resolveTerrainWind } = await lib('graph/vegetation/wind.js');
 
@@ -60,6 +63,9 @@ const JUMPS_ASKED = (argOf('--jumps') ?? '').split(',').filter(Boolean);
 const STANCES_ASKED = (argOf('--stances') ?? '').split(',').filter(Boolean);
 // --strikes jab,crossLeft,thrust,…: straight strikes (hero-strike.js) out of their stances and back
 const STRIKES_ASKED = (argOf('--strikes') ?? '').split(',').filter(Boolean);
+// --guards chudan,hassoLeft,…: sword guards (hero-grip.js), each its stance's enter with the hands closing on the grip,
+// the sword (and a shield) drawn in the hand as it carries it
+const GUARDS_ASKED = (argOf('--guards') ?? '').split(',').filter(Boolean);
 const SECONDS = Object.fromEntries(argsOf('--seconds').map((s) => { const [k, v] = s.split('='); return [k, Number(v)]; }));
 // --hair: the hair on its control strings (hero-flow.js), against the body and outfit as one collision form;
 // --wind speed[,dir[,gust]]: the world's wind (vegetation/wind.js), m/s, dir in degrees the wind blows TOWARD (0 the
@@ -90,7 +96,7 @@ const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
 // the door's motion (hero.motion), baked as the pack bakes it: its gaits replace the hero's own clips of their names
 const LOCO = recipe.locomotion ? locomotionClips(recipe.locomotion, R, { keys: FRAMES }) : null;
 const own = [...new Set([...Object.keys(recipe.clips || {}), ...Object.keys(LOCO?.clips || {})])].filter((k) => k !== GESTURE_CLIP);
-const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length || STRIKES_ASKED.length ? [] : own);
+const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length || STRIKES_ASKED.length || GUARDS_ASKED.length ? [] : own);
 for (const c of asked) if (!recipe.clips?.[c] && !LOCO?.clips[c]) throw new Error(`--clips: the hero has no clip '${c}' (has ${own.join(', ')})`);
 const bridge = (dof) => {
   if (PLANT === 'gait' || !dof?.plant) return dof;
@@ -106,6 +112,7 @@ const CLIPS = [
     const f = resolveMotion(m, { frames: FRAMES, base: core }); if (!f) throw new Error(`--motion ${n}: not a motion spec resolveMotion takes`); return { name: n, src: `motion ${JSON.stringify(m)} · plant ${PLANT}`, fn: (ph) => bridge(f(ph)), seconds: SECONDS[n] ?? 1 }; }),
   ...JUMPS_ASKED.map((n) => { if (!JUMP_NAMES.includes(n)) throw new Error(`--jumps: no jump '${n}' (have ${JUMP_NAMES.join(', ')})`); const J = heroJump(n, R, { seconds: SECONDS[n] }); return { name: n, src: `jump · in place · air ${J.air ? `${J.air.takeoff}–${J.air.land} s, ${(J.air.height * 100).toFixed(0)} cm${J.air.kick !== undefined ? `, kick at ${J.air.kick} s (${(J.air.kickHeight * 100).toFixed(0)} cm) → ${(J.air.apexHeight * 100).toFixed(0)} cm` : ''}` : 'none'} (the card draws the arc)${J.roll ? ` · roll ${J.roll.axis} ${J.roll.start}–${J.roll.end} s, ${J.roll.travel} m at ${J.roll.speed} m/s` : ''}`, fn: J.fn, seconds: J.seconds, once: true, air: J.air, speed: J.air?.speed ?? 0, roll: J.roll }; }),
   ...STRIKES_ASKED.map((n) => { if (!STRIKE_NAMES.includes(n)) throw new Error(`--strikes: no strike '${n}' (have ${STRIKE_NAMES.join(', ')})`); const K = heroStrike(n, R, { seconds: SECONDS[n] }); const c = K.checks; return { name: n, src: `strike from ${K.from} · ${K.hand} hand · contact ${K.contact.t}s, off ${(c.contact * 100).toFixed(1)} cm · path ±${(c.straight * 100).toFixed(1)} cm · peaks hips ${c.order.hips} chest ${c.order.chest} hand ${c.order.hand}${c.order.ordered ? '' : ' (OUT OF ORDER)'} · balance ${(c.balance * 100).toFixed(1)} cm · elbow ${c.elbow}°`, fn: K.clip.fn, seconds: K.seconds, once: true }; }),
+  ...GUARDS_ASKED.map((n) => { if (!GUARD_NAMES.includes(n)) throw new Error(`--guards: no guard '${n}' (have ${GUARD_NAMES.join(', ')})`); const K = heroGuard(n, R, { seconds: SECONDS[n] }); const c = K.checks; const hands = Object.entries(c.hands).map(([s, h]) => `${s} wrist ${h.wrist.flex}/${h.wrist.deviation}/${h.wrist.twist}°${h.stray ? ` (+${h.stray}° past ease)` : ''}`).join(' · '); const fails = Object.entries(c.laws).filter(([, v]) => !v).map(([k]) => k); return { name: n, src: `guard · ${K.regime} · ${K.tradition} · ${K.stance} · ${K.grip} grip · ${hands} · point ${c.point}° · edge ${c.edge}° · clear ${(c.clearance * 100).toFixed(1)} cm · lever ${c.lever} · balance ${(c.balance * 100).toFixed(1)} cm${fails.length ? ` · FAILS ${fails.join(', ')}` : ' · laws hold'}`, fn: K.clip.fn, seconds: K.clip.seconds ?? SECONDS[n] ?? 0.9, once: true, gear: K.mounts }; }),
   ...STANCES_ASKED.map((n) => { if (!STANCE_NAMES.includes(n)) throw new Error(`--stances: no stance '${n}' (have ${STANCE_NAMES.join(', ')})`); const S = heroStance(n, R, { seconds: SECONDS[n] }); const c = S.checks; return { name: n, src: `stance · ${S.family}${S.lead ? ` · lead ${S.lead}` : ''} · facing ${S.facing}° · com ${(c.com.margin * 100).toFixed(1)} cm in, weight ${c.com.weight} · knees ${c.knees.L}/${c.knees.R}° · turnout ${c.turnout.L}/${c.turnout.R}° · gaze ${c.gaze}° · serves ${S.serves.join(', ')}`, fn: S.clip.fn, seconds: S.clip.seconds, once: true, checks: c }; }),
 ];
 
@@ -116,6 +123,8 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const rad = (d) => (d * Math.PI) / 180;
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+/** a baked face fill ('#rrggbb' or 'rgb(r, g, b)') as 0–255 */
+const fillRgb = (f) => { if (typeof f === 'string' && f[0] === '#') return hexRgb(f); const m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)/.exec(f || ''); return m ? [+m[1], +m[2], +m[3]].map(Math.round) : [120, 120, 125]; };
 /** an orthographic camera at azimuth `az` (0 = in front of the figure, which faces +y; 90 = its right side) and
  * elevation `el`: screen right, screen up, and the depth axis toward the camera */
 const camera = (az, el) => { const d = [Math.sin(rad(az)) * Math.cos(rad(el)), Math.cos(rad(az)) * Math.cos(rad(el)), Math.sin(rad(el))]; const r = unit(cross([0, 0, 1], d)); return { d, r, u: cross(d, r) }; };
@@ -134,17 +143,20 @@ function boundsOf(frames, cam) {
   return [x0, x1, y0, y1];
 }
 /** one view of posed vertices into an RGB buffer W × H (2× supersampled, then box-filtered by the caller) */
-function raster(V, cam, box, W, H) {
+function raster(V, cam, box, W, H, extra = []) {
   const [x0, x1, y0, y1] = box; const pad = 0.06 * Math.max(x1 - x0, y1 - y0);
   const s = Math.min((W - 2) / (x1 - x0 + 2 * pad), (H - 2) / (y1 - y0 + 2 * pad));
   const ox = W / 2 - s * (x0 + x1) / 2, oy = H / 2 + s * (y0 + y1) / 2;
   const P = V.map((p) => [ox + s * dot(p, cam.r), oy - s * dot(p, cam.u), dot(p, cam.d)]);
   const rgb = Buffer.alloc(W * H * 3); for (let i = 0; i < W * H; i++) { rgb[3 * i] = BG[0]; rgb[3 * i + 1] = BG[1]; rgb[3 * i + 2] = BG[2]; }
   const z = new Float64Array(W * H).fill(-Infinity);
-  mesh.faces.forEach((f, fi) => {
-    const [a, b, c] = f.map((i) => P[i]); const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); if (Math.abs(area) < 1e-9) return;
-    const n = unit(cross(sub(V[f[1]], V[f[0]]), sub(V[f[2]], V[f[0]]))); const facing = dot(n, cam.d) < 0 ? -1 : 1;
-    const sh = 0.55 + 0.45 * Math.max(0, facing * dot(n, LIGHT)); const col = faceRgb[fi].map((v) => Math.min(255, Math.round(v * sh)));
+  const proj = (p) => [ox + s * dot(p, cam.r), oy - s * dot(p, cam.u), dot(p, cam.d)];
+  // the mesh's triangles (shaded here), then any held gear's (in their baked fill)
+  const tris = [...mesh.faces.map((f, fi) => ({ q: f.map((i) => P[i]), w: f.map((i) => V[i]), rgb: faceRgb[fi], shade: true })), ...extra.map((t) => ({ q: t.p.map(proj), w: t.p, rgb: t.rgb, shade: false }))];
+  tris.forEach((T) => {
+    const [a, b, c] = T.q; const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); if (Math.abs(area) < 1e-9) return;
+    const n = unit(cross(sub(T.w[1], T.w[0]), sub(T.w[2], T.w[0]))); const facing = dot(n, cam.d) < 0 ? -1 : 1;
+    const sh = T.shade ? 0.55 + 0.45 * Math.max(0, facing * dot(n, LIGHT)) : 1; const col = T.rgb.map((v) => Math.min(255, Math.round(v * sh)));
     const minX = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), maxX = Math.min(W - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
     const minY = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), maxY = Math.min(H - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
     for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
@@ -254,10 +266,12 @@ for (const C of CLIPS) {
       else { const g = 9.81, v1 = Math.sqrt(2 * g * A.height); if (s < A.kick) { const u = s - A.takeoff; up = v1 * u - g * u * u / 2; } else { const vk = v1 - g * (A.kick - A.takeoff), u = s - A.kick; up = A.kickHeight + (vk + A.kickSpeed) * u - g * u * u / 2; } }
       up = Math.max(0, up); } }
     const lift = (p) => [p[0], p[1], p[2] + up];
-    frames.push({ V: up ? posed.mesh.vertices.map(lift) : posed.mesh.vertices, nodes: up ? Object.fromEntries(Object.entries(nodes).map(([k, v]) => [k, lift(v)])) : nodes }); reports.push(rep);
+    // held gear (a guard's sword, a shield): its faces carried by the posed bones, in their baked fill
+    const X = C.gear ? gearFaces(C.gear, { frames: boneFrames(R, R.joints, nodes), light: WORKBENCH_LIGHT }).flatMap((g) => { const rgb = fillRgb(g.fill); const c = g.corners.map(lift); return c.slice(2).map((_, k) => ({ p: [c[0], c[k + 1], c[k + 2]], rgb })); }) : [];
+    frames.push({ V: up ? posed.mesh.vertices.map(lift) : posed.mesh.vertices, X, nodes: up ? Object.fromEntries(Object.entries(nodes).map(([k, v]) => [k, lift(v)])) : nodes }); reports.push(rep);
   }
   const M = measure(frames, C.seconds);
-  const boxes = VIEWS.map((v) => boundsOf(frames.map((f) => f.V), v.cam));
+  const boxes = VIEWS.map((v) => boundsOf(frames.map((f) => [...f.V, ...f.X.flatMap((t) => t.p)]), v.cam));
   const clamped = reports.flatMap((r, i) => Object.entries(r.legs).filter(([, l]) => l.reach === 'clamped').map(([S]) => `${S}@${i}`));
   const head = `${NAME} · ${C.name} · ${C.seconds}s · ${C.src === 'clip' ? 'hero clip' : C.src}`;
   const sub2 = `v ${M.v} m/s · bob ${(M.bob * 100).toFixed(1)} cm · ${SIDES.map((S) => `${S}: stance ${Math.round(M.feet[S].stance * 100)}% slide ${M.feet[S].slide.mean}±${M.feet[S].slide.spread} stride ${(M.feet[S].stride * 100).toFixed(0)}cm lift ${(M.feet[S].lift * 100).toFixed(0)}cm`).join(' · ')}${clamped.length ? ` · leg clamped ${clamped.length}×` : ''}`;
@@ -266,7 +280,7 @@ for (const C of CLIPS) {
     const f = frames[i]; const layers = [];
     layers.push({ input: Buffer.from(stickSvg(f.nodes, boxes[0], CW, CH, i / FRAMES, M.v * C.seconds)), left: 0, top: 0 });
     for (const [vi, v] of VIEWS.entries()) {
-      const r = raster(f.V, v.cam, boxes[vi], CW * 2, CH * 2);
+      const r = raster(f.V, v.cam, boxes[vi], CW * 2, CH * 2, f.X);
       layers.push({ input: await sharp(r.rgb, { raw: { width: CW * 2, height: CH * 2, channels: 3 } }).resize(CW, CH, { kernel: 'cubic' }).png().toBuffer(), left: CW * (vi + 1), top: 0 });
     }
     return layers;

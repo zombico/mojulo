@@ -198,7 +198,7 @@ const twin = (k) => k.replace(/([LR])$/, (s) => (s === 'L' ? 'R' : 'L'));
 export function mirrored(o) {
   if (Array.isArray(o)) return o.map(mirrored);
   if (!o || typeof o !== 'object') return o;
-  return Object.fromEntries(Object.entries(o).map(([k, v]) => [/^(sh|elbow|hip|knee|ankle|toe|wrist|ground|foot|heel|out|splay)[LR]$/.test(k) ? twin(k) : k, SIDEWAYS.has(k) && Number.isFinite(v) ? -v : mirrored(v)]));
+  return Object.fromEntries(Object.entries(o).map(([k, v]) => [/^(sh|elbow|hip|knee|ankle|toe|wrist|fingers|ground|foot|heel|out|splay)[LR]$/.test(k) ? twin(k) : k, SIDEWAYS.has(k) && Number.isFinite(v) ? -v : mirrored(v)]));
 }
 /** the left-hand rolls: the right ones mirrored (over the LEFT shoulder; rolling to the left) */
 export const JUMPS = Object.freeze({

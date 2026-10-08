@@ -12,6 +12,55 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Action faces
+
+- The anime hero's face acting an action (`polygonizer/hero-face-action.js`). `actionFace(action, { seed })` takes a
+  solved strike, jump, roll or guard and returns a face sequence on the face tracks' 30-fps grid, in the four
+  expression channels, timed to the action's own beats (load, contact, follow; take-off, apex, touch-down, kick;
+  a roll's start and end; a guard's arms closing and set).
+- Each family has a few samples: strikes kiai, grit, focus, cocky and flinch; jumps effort, joy and startle; rolls
+  tuck and brave; guards resolve, calm, smirk and fire. The seed picks one, weighted by the action's intensity (a
+  cross shouts more often than a jab, a lunge holds a fencer's stillness, a weightless guard smirks), and shifts
+  each drawing's frame and channels within the sample's ranges. `after` makes the previous take's sample a quarter
+  as likely.
+- Timing rules: the set face leads the load; the shout or clench starts a frame or two before the contact so it is on
+  screen at it; a jump's hup lands on the take-off and its lids squash on the touch-down; no eye shuts from a
+  strike's load to the end of its follow; blinks come after. Drawings hold at least two frames, eyes are drawn only at
+  their knots with their in-betweens, a one-shot ends back on the authored face and a guard on its held one.
+  `preroll` reports how many frames the face wanted to lead the clip's first frame.
+- `actionFaceTrack(take)` gives the take as face-track keys (half a frame early, the weights in the hero's targets).
+  Nothing calls it yet: no clip or export changes.
+
+### Sword holding
+
+- Sword guards solved from the sword (`polygonizer/hero-grip.js`). A guard names the sword's frame in the target's
+  frame: where the grip sits (a landmark of the posed body), where the point aims (a mark on an opponent of the
+  figure's own size, or a direction) and which way the edge faces. Each hand then closes on its station of the grip
+  with gear's own hold, the arm reaches the wrist and the wrist turns the rest of the way.
+- Twelve guards, each with its exact mirror (`chudanLeft`, …):
+  - Skilled two-hand: `chudan`, `jodan`, `hasso`, `gedan`, `waki`.
+  - Skilled one-hand: `terza`, `hanging`.
+  - Dual: `niten`.
+  - Sword and shield: `shield`.
+  - Weightless (the anime holds): `challenge`, `reverse`, `trailing`.
+- `GRIPS` sets the blade's angle off the hand's long axis: `hammer` (45°, gear's own hold) and `handshake` (25°, the
+  hilt rolled toward the heel of the palm), each with a reverse.
+- The arm's elbow swivel is solved by Levenberg–Marquardt from several seeds, weighing the wrist against the elbow.
+- Wrists are read against an anatomical forearm frame (the elbow's flexion plane), not the rig's shortest-arc
+  forearm. They must stay inside the anatomical range; skilled guards must also stay inside the functional range
+  daily tasks use.
+- The upper arm's turn about its own axis (read from the elbow's flexion plane) stays within a shoulder's ±90°, so an
+  elbow never folds backward.
+- The upper arm and forearm stay clear of the trunk: a third of the shoulder span plus an arm's radius. A guard can
+  set its own trunk (`trunk: { turn, lean, bow }` on its stance's spine); waki turns and bows toward the sword with
+  its back elbow lifted out.
+- A strapped shield is held in the hand, its wrist locked by the straps.
+- Checks per guard: hands on the hilt, wrist range, point, edge, the blade's clearance of the body, balance with the
+  sword's mass, and (skilled only) the sword's lever on each holding shoulder.
+- `render-motion.mjs --guards` draws the held sword and shield on the card.
+- `hero-stance` exports `hull` and `margin`, and `reachArm` takes an optional `pole`. `mirrored()` now swaps
+  `fingers<S>`. Output is unchanged when none of these are used.
+
 ### Ready stances
 
 - Straight strikes out of the stances (`polygonizer/hero-strike.js`): `jab` and `cross` from `guard`, `thrust` (a

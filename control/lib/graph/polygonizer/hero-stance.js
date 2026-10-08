@@ -105,13 +105,13 @@ export function comOf(nodes) {
   return [x / M, y / M];
 }
 /** the convex hull of ground points (counter-clockwise), and a point's signed margin inside it (metres; − outside) */
-function hull(pts) {
+export function hull(pts) {
   const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]); const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
   const lo = [], up = []; for (const q of p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
   for (const q of p.reverse()) { while (up.length > 1 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
   return lo.slice(0, -1).concat(up.slice(0, -1));
 }
-function margin(H, q) {
+export function margin(H, q) {
   let m = Infinity;
   for (let i = 0; i < H.length; i++) { const a = H[i], b = H[(i + 1) % H.length]; const e = sub2(b, a), l = Math.hypot(e[0], e[1]); m = Math.min(m, (e[0] * (q[1] - a[1]) - e[1] * (q[0] - a[0])) / l); }
   return m;
@@ -273,7 +273,7 @@ function armsFor(S, R, body) {
  * solution: a moving hand's last frame) starts the search there and skips the coarse sweep, so the arm never flips to
  * another of its solutions between frames.
  */
-export function reachArm(R, body, side, goal, seed = null) {
+export function reachArm(R, body, side, goal, seed = null, { pole: towards = null } = {}) {
   const lite = liteOf(R);
   {
     // a hand is reached many ways (the arm swivels about its shoulder → wrist line): ELBOWS DOWN picks the one — the
@@ -281,7 +281,7 @@ export function reachArm(R, body, side, goal, seed = null) {
     // so the elbow's place is solved first (two links from the shoulder to the hand, bent toward the floor and a little
     // out), and the shoulder and elbow angles are searched to put the elbow and the wrist there
     const l1 = dist(R.joints[`shoulder${side}`], R.joints[`elbow${side}`]), l2 = dist(R.joints[`elbow${side}`], R.joints[`wrist${side}`]);
-    const pole = [side === 'R' ? 0.25 : -0.25, 0, -1];
+    const pole = towards ?? [side === 'R' ? 0.25 : -0.25, 0, -1];   // (a caller may bend the elbow another way: hero-grip.js)
     // (the roll is searched too: the rig's own elbow-down roll is set for an arm swung straight ahead, and an arm swung
     // across a turned body needs its own)
     const cost = ([p, y, e, r]) => {
