@@ -12,6 +12,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Floormap
+
+A floormap is scapeshift's primitive for fixed-camera levels: it places floor, not rooms. Regions of any shape, how
+they join, what lies along their edges (a wall, a rail over a drop, water), what stands on them, and where the
+cameras sit. Everything off the floor is backdrop to be depicted. Its outcome is the walkmesh.
+
+- **The recipe, the camera solve and the board (`lib/graph/era/floormap*.js`).** Nothing reaches the World page
+  yet.
+  - `floormap.js`: regions are a rect, a polygon, a disc or a strip (a path at a width, one leg per segment). Links
+    join them open, by a door, a stair or a gap. Each region's boundary is cut into pieces:
+    - open where it meets a linked region, and a wall where it meets an unlinked one;
+    - one opening per door link;
+    - elsewhere the floormap's edge kind, unless an edge rule names it by side (a compass word) and span: wall,
+      rail, drop, water, foliage, void, or an exit to another map's door.
+
+    Items (stand, block, hotspot, pickup, spawn, trigger, light) leave as stage-style anchors. `floormapFaces` is
+    the greybox: walls face into their region, and the walkmesh bake reads it as is.
+  - `floormap-cameras.js`: shots are corner, wide, low, overhead and profile. Each camera owns a zone (a region, a
+    corridor leg, or a region split along its long axis), stands inside it, and turns and widens until it holds
+    the figures and 90% of the floor. Under `cameras: 'auto'`, a region one shot can't hold gets another, and a
+    camera that would turn the figure round across a cut is placed elsewhere. `cutsOf` lists the cuts.
+  - `floormap-laws.js`: regions apart, links that touch, rules that land, reachable from the spawn, items on the
+    floor, shots that cover, the figure readable, screen direction kept across cuts, stands that hide.
+  - `floormap-board-html.js`: the floor from above (zones, edges by kind, doors, exits, items, cameras and their
+    view) and a greybox shot per camera, drawn in plain SVG with no browser.
+- **The walkmesh bake drops sealed pockets:** a patch of floor enclosed by standing faces and smaller than a square
+  metre is inside a solid (a column, a crate), not floor.
+
 ### Walkmesh
 
 A walkmesh is a world kind scapeshift can't make: a fixed-camera plate (the background, painted or baked from a

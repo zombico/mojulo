@@ -22,6 +22,7 @@ import { inPoly } from './geom.js';
 export const BAKE_CELL = 0.25;
 export const STEP = 0.35;            // an up face this high over the ground is still floor (a kerb, a dais step)
 export const BODY = Object.freeze([0.3, 1.7]);   // a standing face crossing this band blocks the cell
+export const POCKET = 1;   // m²: a sealed patch of floor smaller than this is inside a solid
 
 const isUp = (f) => f.normal && f.normal[2] > 0.9;
 const isStanding = (f) => f.normal && Math.abs(f.normal[2]) < 0.5;
@@ -67,6 +68,10 @@ export function bakeFloor(payload, { cell = BAKE_CELL } = {}) {
   }
   const walk = new Uint8Array(nx * ny);
   for (let k = 0; k < walk.length; k++) walk[k] = floor[k] && !block[k] ? 1 : 0;
+  // a pocket sealed by standing faces and smaller than POCKET is inside something (a column, a closed crate), not floor
+  const { label, count } = components({ nx, ny, walk }), size = new Array(count).fill(0);
+  for (const l of label) if (l >= 0) size[l]++;
+  for (let k = 0; k < walk.length; k++) if (walk[k] && size[label[k]] * cell * cell < POCKET) walk[k] = 0;
   return { cell, origin: [x0, y0], nx, ny, walk, rects: mergeRects(walk, nx, ny, cell, [x0, y0]) };
 }
 

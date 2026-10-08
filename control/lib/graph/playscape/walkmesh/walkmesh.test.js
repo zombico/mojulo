@@ -110,7 +110,7 @@ describe('the bake', () => {
     const payload = { faces: [quad(-4, 0, 4, 12), ...box(-0.4, 3.6, 0.4, 4.4, 3)] }, size = [400, 300];
     const B = plateBasis({ cameraPosition: [0, 0, 1.6], lookAt: [0, 10, 0.4], horizontalFov: 60, pictureCenter: [200, 150] }, size);
     const m = bakeMask(payload, B, size, bakeFloor(payload), 200);
-    const behind = project(B, [0, 8, 0]).px, beside = project(B, [2, 8, 0]).px, cell = ([x, y]) => m.cells[Math.floor(y / 1.5) * m.w + Math.floor(x / 2)];
+    const behind = project(B, [0, 8, 0]).px, beside = project(B, [2, 8, 0]).px, cell = ([x, y]) => m.cells[Math.floor((y / 300) * m.h) * m.w + Math.floor((x / 400) * m.w)];
     expect(cell(behind)).toBe(2);
     expect(cell(beside)).toBe(1);
   });
