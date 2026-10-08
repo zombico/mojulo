@@ -5,7 +5,7 @@
  * lights, shutters or none). Each has a depth (the ring prunes it) and reads at a ring as geometry, a mark in the tile,
  * or not at all, by the eye spot. Building elements (the wall and its bond, the cap, the light, the door, the socle,
  * the cornice, sills, lintels, quoins, shutters, the chimney, points, ribs, bands, the frame) and street elements (the
- * road, the footway, the kerb, the lamp, the post, the fence) are designed together: the street is part of the
+ * road, the footway (a walk in one of its equivalent forms), the kerb, the lamp, the post, the boundaries) are designed together: the street is part of the
  * anchor.
  *
  * Then the ANCHOR is composed from them: a CITIZEN (the ordinary house, at full effort, standing in its SLICE of street:
@@ -32,7 +32,8 @@ const ST = 'street';
 const WORDS = {
   bond: ['none', 'coursed', 'ashlar', 'brick', 'rubble', 'boards'], capForm: ['gable', 'hip', 'pyramid', 'flat', 'dome', 'cone', 'none'], lightForm: ['rect', 'arch', 'round', 'lens'],
   doorForm: ['rect', 'arch'], lintelForm: ['flat', 'key'], head: ['lantern', 'globe', 'hood', 'orb'], arm: ['post', 'bracket', 'crook'], postForm: ['square', 'round', 'capped'],
-  fenceForm: ['rail', 'paling', 'wall'], footPaving: ['flags', 'setts', 'slabs'], roadPaving: ['setts', 'flags', 'earth'],
+  boundForm: ['rail', 'paling', 'picket', 'hedge', 'drystone', 'coursed', 'rendered'], footPaving: ['flags', 'setts', 'slabs'], roadPaving: ['setts', 'flags', 'earth'],
+  walkForm: ['kerbed', 'flush', 'boards', 'verge'],
 };
 export const ELEMENT_KINDS = Object.freeze({
   wall: { family: 'building', depth: 0, read: 'the wall, storey by storey: its material (a surface group and value) and how it is laid (its bond, marks in the tile)', params: { bond: { rail: WORDS.bond, hold: ST } } },
@@ -51,16 +52,89 @@ export const ELEMENT_KINDS = Object.freeze({
   band: { family: 'building', depth: 2, read: 'a horizontal band at each storey line', params: { w: { rail: [0.14, 0.3], hold: ST } } },
   frame: { family: 'building', depth: 3, read: 'timber members over the upper walls, posts at each bay', params: { member: { rail: [0.15, 0.26], hold: ST } } },
   road: { family: 'street', depth: 0, read: 'the way itself: its paving by the route\'s rank (the lane the section\'s, the back lane earth)', params: { paving: { rail: WORDS.roadPaving, hold: ST } } },
-  footway: { family: 'street', depth: 0, read: 'the walk beside the road, behind the kerb; it narrows down the hierarchy and is gone on a back lane', params: { w: { rail: [1, 2.6], hold: ST }, paving: { rail: WORDS.footPaving, hold: ST } } },
+  footway: { family: 'street', depth: 0, read: 'the walk beside the road: a function, not a shape (raised behind a kerb, flush with a channel and posts, boards on sleepers, or a path behind a verge); it narrows down the hierarchy and is gone on a back lane', params: { w: { rail: [1, 2.6], hold: ST }, paving: { rail: WORDS.footPaving, hold: ST }, form: { rail: WORDS.walkForm, hold: ST }, verge: { rail: [0.4, 1.2], hold: ST } } },
   kerb: { family: 'street', depth: 1, read: 'the edge between road and footway: a stone set on end', params: { h: { rail: [0.08, 0.2], hold: ST }, w: { rail: [0.15, 0.35], hold: ST } } },
   lamp: { family: 'street', depth: 2, read: 'the streetlight: a post, an arm, a head, at a stride along the kerb', params: { h: { rail: [2.4, 4], hold: ST }, head: { rail: WORDS.head, hold: ST }, arm: { rail: WORDS.arm, hold: ST }, stride: { rail: [12, 24], hold: ST } } },
   post: { family: 'street', depth: 2, read: 'a bollard where the walk meets an open place or a stair', params: { h: { rail: [0.5, 1.1], hold: ST }, form: { rail: WORDS.postForm, hold: ST }, stride: { rail: [2.5, 6], hold: ST } } },
-  fence: { family: 'street', depth: 2, read: 'what closes a lot\'s back: rails, palings or a low wall', params: { h: { rail: [0.8, 1.4], hold: ST }, form: { rail: WORDS.fenceForm, hold: ST } } },
+  boundary: { family: 'street', depth: 1, read: 'a line that keeps something: a fence, a hedge or a wall, as high as the role it takes (a front low, a yard\'s back over the eye, a drop guarded at the waist, a terrace held as high as its rise)', params: { form: { rail: WORDS.boundForm, hold: ST }, lift: { rail: [0, 1], hold: { house: 0.25 } }, pier: { rail: [2, 6], hold: ST }, cope: { rail: [0, 0.12], hold: ST } } },
 });
 export const ELEMENT_KIND_IDS = Object.freeze(Object.keys(ELEMENT_KINDS));
 /** The ornament kinds a building's pieces carry (the details among them), and those that need a flat wall. */
 export const DETAIL_KINDS = Object.freeze(['socle', 'cornice', 'sill', 'lintel', 'quoins']);
 export const FLAT_WALL = Object.freeze(['sill', 'lintel', 'quoins', 'shutters', 'frame']);
+
+// ── walks and boundaries: what the street keeps apart ───────────────────────────────────────────────────────────────
+/**
+ * THE WALKS: a sidewalk is a function (keep the walker off the wheel's line), and each form is an equivalent way to do
+ * it. `edge` is what a wheel meets; `lift` whether the walk stands above the road (by the kerb's height).
+ */
+export const WALK_FORMS = Object.freeze({
+  kerbed: { lift: true, edge: 'kerb', read: 'raised behind a kerb set on end: a wheel meets a step' },
+  flush: { lift: false, edge: 'channel', read: 'level with the road, a dished channel at the line and posts along it: a wheel meets a post' },
+  boards: { lift: true, edge: 'fascia', read: 'a timber walk on sleepers, its edge a board on end: a wheel meets a step, a foot hears it' },
+  verge: { lift: false, edge: 'verge', read: 'a grass verge between the road and the path: a wheel meets soft ground, the walker is a stride away' },
+});
+export const WALK_FORM_IDS = Object.freeze(Object.keys(WALK_FORMS));
+/** The least clear path a walk keeps (m): a verge takes what is left over. */
+export const WALK_CLEAR = 0.9;
+
+/** HEIGHT CLASSES: how high a line stands says what it does, measured against a body (the eye at 1.6 m). */
+export const BOUNDARY_HEIGHTS = Object.freeze({
+  kerb: { h: [0.3, 0.5], read: 'a plinth: it marks a line and stops nothing' },
+  low: { h: [0.6, 1], read: 'knee to hip: the street sees over it to the door' },
+  waist: { h: [1, 1.3], read: 'it stops stock and children; neighbours talk over it; a fall is guarded' },
+  screen: { h: [1.6, 2.1], read: 'over the eye: a yard is private' },
+  high: { h: [2.4, 3.2], read: 'a precinct: what is inside is kept' },
+});
+/** ROLES: what a line does in a town, and so its class. `need`: a town must have it (a fallback wall takes it). */
+export const BOUNDARY_ROLES = Object.freeze({
+  front: { cls: 'low', need: false, read: 'a lived lot\'s street edge, gated at its door path: low, so the street sees the door' },
+  side: { cls: 'waist', need: false, read: 'between neighbours, behind the building line (in front of it, the front\'s height): a party line built once' },
+  back: { cls: 'screen', need: false, read: 'the yard\'s back: over the eye' },
+  field: { cls: 'waist', need: false, read: 'round a farm\'s field, gated toward its yard: stock stays in' },
+  precinct: { cls: 'high', need: false, read: 'round the hall\'s yard: what is inside is kept' },
+  guard: { cls: 'waist', need: true, read: 'along a terrace\'s drop, open at its stairs: nobody walks off it' },
+  retain: { cls: null, need: true, read: 'holds a terrace: as high as its rise, then on into its guard' },
+});
+export const BOUNDARY_ROLE_IDS = Object.freeze(Object.keys(BOUNDARY_ROLES));
+/**
+ * THE FORMS: material (a surface group and value), thickness `t`, the least and greatest height it stands to, and the
+ * highest rise it can hold back (0: it cannot retain). Timber is posts and rails; hedges are grown; stone is laid.
+ */
+export const BOUNDARY_FORMS = Object.freeze({
+  rail: { group: 'str:timber', value: 0.4, t: 0.12, h: [0.6, 1.4], retain: 0, read: 'posts and two rails: it stops stock, not the eye' },
+  paling: { group: 'str:timber', value: 0.45, t: 0.1, h: [0.8, 2.1], retain: 0, read: 'close palings between rails: a screen of boards' },
+  picket: { group: 'str:timber', value: 0.82, t: 0.08, h: [0.6, 1.2], retain: 0, read: 'pointed pickets, spaced: a front that says where the garden starts' },
+  hedge: { group: 'dress:leaf', value: 0.42, t: 0.7, h: [0.6, 2.2], retain: 0, read: 'clipped growth: soft, thick and slow' },
+  drystone: { group: 'str:stone', value: 0.55, t: 0.55, h: [0.3, 1.6], retain: 3.2, read: 'unmortared stones battered in, through-stones across, a cope of stones on edge' },
+  coursed: { group: 'str:stone', value: 0.62, t: 0.4, h: [0.3, 3.2], retain: 4.4, read: 'laid in mortared courses, a coping slab proud of it, piers at a stride' },
+  rendered: { group: 'str:plaster', value: 0.86, t: 0.3, h: [0.3, 3.2], retain: 0, read: 'plastered over rubble, a stone coping on top, piers at a stride' },
+});
+const TIMBER_FORMS = ['rail', 'paling', 'picket'];
+/** The wall a needed role falls to when no named boundary can take it. */
+export const DEFAULT_BOUNDARY = Object.freeze({ kind: 'boundary', form: 'coursed', roles: ['guard', 'retain'], lift: 0.5, pier: 4, cope: 0.06 });
+const reaches = (form, cls) => { const F = BOUNDARY_FORMS[form], H = BOUNDARY_HEIGHTS[cls].h; return F.h[1] >= H[0] - 1e-9 && F.h[0] <= H[1] + 1e-9; };
+/** A role's height rail for a form: its class's, inside what the form can stand to. */
+export const roleRail = (role, form) => { const H = BOUNDARY_HEIGHTS[BOUNDARY_ROLES[role].cls].h, F = BOUNDARY_FORMS[form].h; return [Math.max(H[0], F[0]), Math.min(H[1], F[1])]; };
+/**
+ * Which boundary takes each role on a street: the first named for it whose form can reach the role's class (or hold
+ * the rise, for `retain`); one named that cannot passes the role to the strongest named boundary that can, then to the
+ * default coursed wall. A role nobody names is open, unless the town needs it. → { role: { id, el, form, rail, lift } | null }
+ */
+export function boundaryRoles(bounds, rise = 0) {
+  const named = Object.entries(bounds ?? {}), out = {};
+  const can = (el, role) => (role === 'retain' ? BOUNDARY_FORMS[el.form].retain >= rise - 1e-9 && BOUNDARY_FORMS[el.form].retain > 0 : reaches(el.form, BOUNDARY_ROLES[role].cls));
+  const strongest = (role) => named.filter(([, el]) => can(el, role)).sort((a, b) => BOUNDARY_FORMS[b[1].form].h[1] + BOUNDARY_FORMS[b[1].form].retain - (BOUNDARY_FORMS[a[1].form].h[1] + BOUNDARY_FORMS[a[1].form].retain))[0];
+  for (const role of BOUNDARY_ROLE_IDS) {
+    const mine = named.filter(([, el]) => (el.roles ?? []).includes(role));
+    let hit = mine.find(([, el]) => can(el, role));
+    if (!hit && (mine.length || BOUNDARY_ROLES[role].need)) hit = strongest(role) ?? ['default', DEFAULT_BOUNDARY];
+    out[role] = hit ? { id: hit[0], el: hit[1], form: hit[1].form, rail: role === 'retain' ? [rise, rise] : roleRail(role, hit[1].form), lift: hit[1].lift ?? 0.5, fell: !mine.some(([id]) => id === hit[0]) } : null;
+  }
+  return out;
+}
+/** The height a role stands at: up its rail by the street's lift, a household's own lift moving it by up to `house`. */
+export const roleHeight = (R, house = 0) => { if (!R) return 0; const [lo, hi] = R.rail, l = Math.max(0, Math.min(1, R.lift + house)); return r3(lo + (hi - lo) * l); };
 
 // ── the authored element sets, and how each is composed ─────────────────────────────────────────────────────────────
 const S = (group, value, bond = 'none') => ({ group, value, bond });
@@ -81,7 +155,10 @@ export const ELEMENT_SETS = Object.freeze({
       frame: { kind: 'frame', member: 0.2, group: 'str:timber', value: 0.25 },
       shutters: { kind: 'shutters', share: 0.7, group: 'str:paint', value: 0.55 },
       road: { kind: 'road', paving: 'setts' }, footway: { kind: 'footway', w: 1.6, paving: 'flags' }, kerb: { kind: 'kerb', h: 0.14, w: 0.25 },
-      lamp: { kind: 'lamp', h: 3.1, head: 'lantern', arm: 'bracket', stride: 16 }, post: { kind: 'post', h: 0.9, form: 'capped', stride: 3.5 }, fence: { kind: 'fence', h: 1.1, form: 'rail' },
+      lamp: { kind: 'lamp', h: 3.1, head: 'lantern', arm: 'bracket', stride: 16 }, post: { kind: 'post', h: 0.9, form: 'capped', stride: 3.5 },
+      pickets: { kind: 'boundary', form: 'picket', roles: ['front'], lift: 0.6, pier: 2.4 },
+      yards: { kind: 'boundary', form: 'drystone', roles: ['side', 'back', 'field', 'guard', 'retain'], lift: 0.4, pier: 4, cope: 0.06 },
+      precinct: { kind: 'boundary', form: 'coursed', roles: ['precinct'], lift: 0.5, pier: 3.6, cope: 0.08 },
     },
     compose: { mass: { kind: 'block', w: 10, d: 7.5 }, storeys: 2, annex: { scale: 0.6 } },
   },
@@ -96,13 +173,15 @@ export const ELEMENT_SETS = Object.freeze({
       socle: { kind: 'socle', h: 0.4, group: 'str:motif', value: 0.6 },
       points: { kind: 'point', count: 3, len: 0.1, base: 0.2, group: 'str:shell', value: 0.82 },
       ribs: { kind: 'rib', count: 4, w: 0.16, share: 0.75, group: 'str:motif', value: 0.62 },
-      road: { kind: 'road', paving: 'flags' }, footway: { kind: 'footway', w: 1.4, paving: 'slabs' }, kerb: { kind: 'kerb', h: 0.1, w: 0.3 },
-      lamp: { kind: 'lamp', h: 3.4, head: 'orb', arm: 'crook', stride: 18 }, post: { kind: 'post', h: 0.7, form: 'round', stride: 3 }, fence: { kind: 'fence', h: 0.9, form: 'wall' },
+      road: { kind: 'road', paving: 'flags' }, footway: { kind: 'footway', w: 2.2, paving: 'slabs', form: 'verge', verge: 0.9 }, kerb: { kind: 'kerb', h: 0.1, w: 0.3 },
+      lamp: { kind: 'lamp', h: 3.4, head: 'orb', arm: 'crook', stride: 18 }, post: { kind: 'post', h: 0.7, form: 'round', stride: 3 },
+      hedges: { kind: 'boundary', form: 'hedge', roles: ['front', 'side', 'field'], lift: 0.35 },
+      walls: { kind: 'boundary', form: 'rendered', roles: ['back', 'precinct', 'guard'], lift: 0.5, pier: 5, cope: 0.05, group: 'str:shell', value: 0.86 },
     },
     compose: { mass: { kind: 'shell', w: 11, d: 11 }, storeys: 1, annex: { scale: 0.6 } },
   },
   tiered: {
-    read: 'a tiered timber tower-house: each storey a smaller tier under its own wide hipped eave with a cornice under it, round-headed lights with keystones, a band at every storey, one tall point at the crown; a flagged lane, setts footways, hooded lamps on posts, paling fences',
+    read: 'a tiered timber tower-house: each storey a smaller tier under its own wide hipped eave with a cornice under it, round-headed lights with keystones, a band at every storey, one tall point at the crown; a flagged lane, setts footways, hooded lamps on posts, a boardwalk, paling fences and coursed walls',
     storeyH: 3.1,
     elements: {
       wall: { kind: 'wall', storeys: [S('str:timber', 0.72, 'boards')] },
@@ -113,8 +192,11 @@ export const ELEMENT_SETS = Object.freeze({
       lintels: { kind: 'lintel', h: 0.24, form: 'key', group: 'str:timber', value: 0.4 },
       finial: { kind: 'point', count: 1, len: 0.2, base: 0.26, group: 'str:timber', value: 0.4 },
       bands: { kind: 'band', w: 0.24, group: 'str:paint', value: 0.55 },
-      road: { kind: 'road', paving: 'flags' }, footway: { kind: 'footway', w: 1.3, paving: 'setts' }, kerb: { kind: 'kerb', h: 0.12, w: 0.2 },
-      lamp: { kind: 'lamp', h: 2.6, head: 'hood', arm: 'post', stride: 14 }, post: { kind: 'post', h: 0.6, form: 'square', stride: 2.8 }, fence: { kind: 'fence', h: 1.2, form: 'paling' },
+      road: { kind: 'road', paving: 'flags' }, footway: { kind: 'footway', w: 1.5, paving: 'setts', form: 'boards' }, kerb: { kind: 'kerb', h: 0.18, w: 0.2 },
+      lamp: { kind: 'lamp', h: 2.6, head: 'hood', arm: 'post', stride: 14 }, post: { kind: 'post', h: 0.6, form: 'square', stride: 2.8 },
+      palings: { kind: 'boundary', form: 'paling', roles: ['front', 'side', 'back'], lift: 0.3, pier: 2.2 },
+      rails: { kind: 'boundary', form: 'rail', roles: ['field', 'guard'], lift: 0.5, pier: 2.2 },
+      walls: { kind: 'boundary', form: 'coursed', roles: ['precinct', 'retain'], lift: 0.7, pier: 3.2, cope: 0.1 },
     },
     compose: { mass: { kind: 'block', w: 8.5, d: 8.5 }, storeys: 2, tiers: { shrink: 0.76, every: true } },
   },
@@ -123,9 +205,10 @@ export const ELEMENT_SETS = Object.freeze({
 /** The street a pieces-only anchor stands in (it named no street elements). */
 export const DEFAULT_STREET = Object.freeze({
   road: { kind: 'road', paving: 'setts' }, footway: { kind: 'footway', w: 1.5, paving: 'flags' }, kerb: { kind: 'kerb', h: 0.14, w: 0.25 },
-  lamp: { kind: 'lamp', h: 3, head: 'lantern', arm: 'bracket', stride: 16 }, post: { kind: 'post', h: 0.9, form: 'capped', stride: 3.5 }, fence: { kind: 'fence', h: 1.1, form: 'rail' },
+  lamp: { kind: 'lamp', h: 3, head: 'lantern', arm: 'bracket', stride: 16 }, post: { kind: 'post', h: 0.9, form: 'capped', stride: 3.5 },
+  bounds: { yards: { kind: 'boundary', form: 'drystone', roles: ['side', 'back', 'field', 'guard', 'retain'], lift: 0.4, pier: 4, cope: 0.06 }, precinct: { kind: 'boundary', form: 'coursed', roles: ['precinct'], lift: 0.5, pier: 3.6, cope: 0.08 } },
 });
-const STREET_KINDS = ['road', 'footway', 'kerb', 'lamp', 'post', 'fence'];
+const STREET_KINDS = ['road', 'footway', 'kerb', 'lamp', 'post'];
 
 /**
  * Elements drawn from the kinds' rails, each choice constraining the next: the cap first (it decides what masses can
@@ -168,7 +251,19 @@ export function seedElements(seed = 1) {
   E.kerb = { kind: 'kerb', h: roll([0.1, 0.18]), w: roll([0.2, 0.3]) };
   E.lamp = { kind: 'lamp', h: roll([2.6, 3.8]), head: pick(round ? ['orb', 'globe', 'hood'] : WORDS.head), arm: pick(WORDS.arm), stride: roll([14, 22]) };
   E.post = { kind: 'post', h: roll([0.6, 1]), form: pick(WORDS.postForm), stride: roll([2.8, 4.5]) };
-  E.fence = { kind: 'fence', h: roll([0.9, 1.3]), form: pick(WORDS.fenceForm) };
+  // two draws that were the fence's (its lines have their own dice now), kept so a seed draws the building it always has
+  D.R(); D.R();
+  // the walk's form and the boundaries come from their own dice, so the building drawn from this seed stays the same:
+  // a front (or none: an open street), a yard's line, and a wall for what must be kept or held
+  const D2 = dice(subSeed(seed, 'anchor:lines')), pick2 = (a) => a[Math.floor(D2.R() * a.length)], roll2 = (r) => D2.roll(r);
+  const walk = pick2(round ? ['kerbed', 'flush', 'verge', 'verge'] : ['kerbed', 'kerbed', 'flush', 'boards', 'verge']);
+  E.footway.form = walk;
+  if (walk === 'verge') { E.footway.w = r3(Math.max(E.footway.w, roll2([1.9, 2.4]))); E.footway.verge = roll2([0.5, 0.9]); }
+  const yardF = pick2(['drystone', 'coursed', 'paling', 'hedge', ...(storeys.some((s) => s.group === 'str:plaster') ? ['rendered'] : [])]);
+  const frontF = pick2(['picket', 'rail', 'hedge', 'drystone', yardF, null]);
+  if (frontF && frontF !== yardF) E.front = { kind: 'boundary', form: frontF, roles: ['front'], lift: roll2([0.2, 0.8]), pier: roll2([2.2, 4]) };
+  E.yards = { kind: 'boundary', form: yardF, roles: [...(frontF === yardF ? ['front'] : []), 'side', 'back', 'field'], lift: roll2([0.2, 0.8]), pier: roll2([2.2, 4]), cope: ['drystone', 'coursed', 'rendered'].includes(yardF) ? roll2([0.03, 0.1]) : undefined };
+  E.walls = { kind: 'boundary', form: pick2(['coursed', 'coursed', 'drystone']), roles: ['precinct', 'guard', 'retain'], lift: roll2([0.3, 0.7]), pier: roll2([3, 5]), cope: roll2([0.04, 0.1]) };
   // the composition the elements allow: the mass their cap and light can stand on
   const mass = masses.length === 1 ? masses[0] : light === 'lens' || (round && D.R() < 0.7) ? 'drum' : 'block';
   if (mass !== 'block') for (const k of ['sills', 'lintels', 'quoins', 'frame', 'shutters']) delete E[k];
@@ -217,13 +312,17 @@ export function composeAnchor(A) {
   // the grammar, at the elements: what needs a flat wall, what needs an eave
   for (const k of FLAT_WALL) if (of(k).length && !block) throw new Error(`anchor: ${k} need a flat wall; a ${mass} has none`);
   if (of('cornice').length && cap.form === 'none') throw new Error('anchor: a cornice runs under an eave; a shell has none');
+  // the walks and boundaries: a verge leaves the walker a clear path; a boundary names roles a town has
+  const fw = one('footway');
+  if (fw?.form === 'verge' && !(fw.verge > 0 && fw.w - fw.verge >= WALK_CLEAR - 1e-9)) throw new Error(`anchor: a verge leaves a clear path of ${WALK_CLEAR} m (footway ${fw.w} m, verge ${fw.verge} m)`);
+  for (const [id, el] of of('boundary')) for (const r of el.roles ?? []) if (!BOUNDARY_ROLES[r]) throw new Error(`anchor: boundary '${id}': '${r}' is not a role (${BOUNDARY_ROLE_IDS.join(', ')})`);
   const pieces = [{ id: 'mass', role: 'mass', kind: mass, w: C.mass.w, d: C.mass.d, rise: mass === 'shell' ? C.mass.rise ?? cap.rise : undefined, storeys: wall.storeys.map((s) => ({ group: s.group, value: s.value })), ...(C.tiers ? { tiers: { shrink: C.tiers.shrink } } : {}) }];
   if (cap.form !== 'none') pieces.push({ id: 'cap', role: 'cap', kind: cap.form, on: 'mass', pitch: cap.pitch, rise: cap.rise, eave: cap.eave, every: !!C.tiers?.every, group: cap.group, value: cap.value, courses: !!cap.courses });
   pieces.push({ id: 'lights', role: 'opening', kind: light.form, on: 'mass', w: light.w, h: light.h, sill: light.sill, rhythm: block ? { by: 'bays', bay: light.bay } : { by: 'band', count: light.count ?? 2 }, group: light.group, value: light.value });
   pieces.push({ id: 'door', role: 'entry', kind: block ? 'door' : 'tunnel', shape: door.form, on: 'mass', w: door.w, h: door.h });
-  for (const [id, el] of Object.entries(E)) if (!['wall', 'cap', 'light', 'door', ...STREET_KINDS].includes(el.kind)) pieces.push({ ...el, id, role: 'ornament', kind: el.kind, on: 'mass' });
+  for (const [id, el] of Object.entries(E)) if (!['wall', 'cap', 'light', 'door', 'boundary', ...STREET_KINDS].includes(el.kind)) pieces.push({ ...el, id, role: 'ornament', kind: el.kind, on: 'mass' });
   if (C.annex) pieces.push({ id: 'annex', role: 'annex', kind: mass, on: 'mass', at: 'behind', scale: C.annex.scale });
-  const street = Object.fromEntries(STREET_KINDS.map((k) => [k, one(k) ?? DEFAULT_STREET[k]]));
+  const street = { ...Object.fromEntries(STREET_KINDS.map((k) => [k, one(k) ?? DEFAULT_STREET[k]])), bounds: of('boundary').length ? Object.fromEntries(of('boundary')) : DEFAULT_STREET.bounds };
   return { read: A.read, use: 'dwelling', lot: A.lot ?? { w: 12, d: 18 }, storeyH: A.storeyH, storeys: C.storeys ?? 1, seeded: A.seeded, pieces, street, holds: holdsOf(E), bonds: wall.storeys.map((s) => s.bond ?? 'none'), elements: E, compose: C };
 }
 
@@ -371,29 +470,129 @@ function post(out, el, ch = 1) {
   box(out, [-r, -r, 0], [r, r, el.h], STONE, 0.62);
   if (el.form === 'capped') cone(out, [0, 0], r * 1.5, el.h, el.h + 0.14, STONE, 0.72, 4);
 }
-/** A fence `len` long along x: posts and two rails, palings between rails, or a low coped wall. */
-function fence(out, len, el, ch = 1) {
-  if (el.form === 'wall') { box(out, [0, -0.18, 0], [len, 0.18, el.h * 0.8], STONE, 0.58); box(out, [-0.04, -0.24, el.h * 0.8], [len + 0.04, 0.24, el.h * 0.8 + 0.1], STONE, 0.74); return; }
-  const n = Math.max(1, Math.ceil(len / 2.2)), p = 0.12 * ch;
-  for (let k = 0; k <= n; k++) { const x = (len * k) / n; box(out, [x - p / 2, -p / 2, 0], [x + p / 2, p / 2, el.h], TIMBER, 0.35); }
-  for (const z of [0.38 * el.h, 0.82 * el.h]) box(out, [0, -0.03, z], [len, 0.03, z + 0.08], TIMBER, 0.5);
-  if (el.form === 'paling') for (let x = 0.15; x < len - 0.1; x += 0.3) for (const s of [-1, 1]) face(out, [[x - 0.05, -0.05 * s, 0.1], [x + 0.05, -0.05 * s, 0.1], [x + 0.05, -0.05 * s, el.h - 0.1], [x - 0.05, -0.05 * s, el.h - 0.1]], [0, -s, 0], 'dress', 0.55, { group: TIMBER });
+// ── boundaries: a line `len` along x, centred on y = 0, standing from z = 0 ────────────────────────────────────────
+/** A slab from a to b along x, `w0` thick at its foot and `w1` at its top (a batter), z0 to z1: its two faces, its top and its ends. */
+function slab(out, a, b, w0, w1, z0, z1, group, value, { ends = true, top = true, back = true } = {}) {
+  const q = (pts, o, v = value) => face(out, pts, o, 'dress', v, { group });
+  q([[a, -w0 / 2, z0], [b, -w0 / 2, z0], [b, -w1 / 2, z1], [a, -w1 / 2, z1]], [0, -1, (w0 - w1) / 2]);
+  if (back) q([[a, w0 / 2, z0], [b, w0 / 2, z0], [b, w1 / 2, z1], [a, w1 / 2, z1]], [0, 1, (w0 - w1) / 2]);
+  if (top) q([[a, -w1 / 2, z1], [b, -w1 / 2, z1], [b, w1 / 2, z1], [a, w1 / 2, z1]], [0, 0, 1], Math.min(1, value + 0.08));
+  if (ends) for (const [x, sx] of [[a, -1], [b, 1]]) q([[x, -w0 / 2, z0], [x, w0 / 2, z0], [x, w1 / 2, z1], [x, -w1 / 2, z1]], [sx, 0, 0]);
 }
-/** A slice of street in section, `len` along x: the road's half from y = −(road/2) to the kerb, the kerb, the footway. */
-function section(out, len, road, S) {
-  const kerb = S.kerb, foot = S.footway.w, rg = S.road.paving === 'earth' ? 'town:soil' : 'town:stone';
-  face(out, [[0, -road, 0], [len, -road, 0], [len, 0, 0], [0, 0, 0]], [0, 0, 1], 'ground', S.road.paving === 'earth' ? 0.6 : 0.62, { group: rg });
-  face(out, [[0, 0, 0], [len, 0, 0], [len, 0, kerb.h], [0, 0, kerb.h]], [0, -1, 0], 'kerb', 0.5, { group: 'town:stone' });
-  face(out, [[0, 0, kerb.h], [len, 0, kerb.h], [len, kerb.w, kerb.h], [0, kerb.w, kerb.h]], [0, 0, 1], 'kerb', 0.8, { group: 'town:stone' });
-  face(out, [[0, kerb.w, kerb.h], [len, kerb.w, kerb.h], [len, foot, kerb.h], [0, foot, kerb.h]], [0, 0, 1], 'ground', 0.7, { group: 'town:stone' });
-  // the footway's joints and the road's, marks in their tile
-  const j = (pts) => face(out, pts, [0, 0, 1], 'joint', 0.35, { group: 'town:stone', tile: true });
-  const fu = S.footway.paving === 'setts' ? 0.32 : S.footway.paving === 'slabs' ? 0.9 : 0.6;
-  for (let x = fu; x < len; x += fu) j([[x - 0.015, kerb.w, kerb.h + 0.004], [x + 0.015, kerb.w, kerb.h + 0.004], [x + 0.015, foot, kerb.h + 0.004], [x - 0.015, foot, kerb.h + 0.004]]);
-  if (S.road.paving !== 'earth') { const ru = S.road.paving === 'setts' ? 0.32 : 0.6; for (let y = -ru; y > -road; y -= ru) j([[0, y - 0.012, 0.004], [len, y - 0.012, 0.004], [len, y + 0.012, 0.004], [0, y + 0.012, 0.004]]); }
-  return { top: kerb.h, foot };
+/** A mark in a boundary's tile, on its face toward `side` (−1 the street, 1 the yard), from (x0, z0) to (x1, z1). */
+function markOn(out, side, y, x0, x1, z0, z1, value, group) { face(out, [[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], [0, side, 0], 'bond', value, { group, tile: true }); }
+/**
+ * A boundary `len` long: a fence, a hedge or a wall at `h`, its form's (era BOUNDARY_FORMS), by DEPTH: 0 its mass (a
+ * wall's slab, a hedge's block, a fence's posts and top rail, a paling's panel); 1 its coping and piers, the second
+ * rail, a hedge's foot; 2 its laying as marks in the tile (courses, stones, through-stones, palings' joints, clipping),
+ * a picket's points; 3 its gate leaves and a picket's gaps. `gates` are openings [{ u, w }] (posts or piers either
+ * side from depth 1). `retain` > 0 builds a retaining wall instead: its face to the lower ground, `retain` high, the
+ * coping at its top, no back (the upper ground is behind it). Values only, on the form's group (or the element's).
+ */
+function boundary(out, len, el, h, { depth = 3, gates = [], seed = 1, retain = 0 } = {}) {
+  const F = BOUNDARY_FORMS[el.form], group = el.group ?? F.group, value = el.value ?? F.value, t = F.t, R = G.mulberry32(seed);
+  const spans = [], gs = gates.map((g) => ({ a: Math.max(0, g.u - g.w / 2), b: Math.min(len, g.u + g.w / 2), u: g.u, w: g.w })).sort((x, y) => x.a - y.a);
+  let x = 0; for (const g of gs) { if (g.a - x > 0.05) spans.push([x, g.a]); x = Math.max(x, g.b); } if (len - x > 0.05) spans.push([x, len]);
+  const stone = ['drystone', 'coursed', 'rendered'].includes(el.form), H = retain || h;
+  if (stone) {
+    const dry = el.form === 'drystone', copeH = depth >= 1 ? (dry ? 0.2 : 0.1) : 0, cope = el.cope ?? 0.05, top = dry ? t * 0.72 : t, coping = el.form === 'rendered' ? { group: 'str:stone', value: 0.7 } : { group, value: Math.min(1, value + 0.12) };
+    for (const [a, b] of spans) {
+      slab(out, a, b, t, top, 0, H - copeH, group, value, { back: !retain, top: !copeH });
+      // the coping: a slab proud of the wall; on a dry wall, stones set on edge (their joints marks from depth 2)
+      if (copeH) slab(out, a - (dry ? 0 : cope), b + (dry ? 0 : cope), top + (dry ? 0.04 : 2 * cope), top + (dry ? 0 : 2 * cope), H - copeH, H, coping.group, dry ? Math.max(0, value - 0.1) : coping.value, { back: !retain });
+      if (depth >= 2) {
+        const yF = -t / 2 - 0.006, dark = Math.max(0.04, value - 0.22);
+        if (el.form === 'coursed') { let k = 0; for (let z = 0.3; z < H - copeH - 0.08; z += 0.3, k++) { markOn(out, -1, yF, a, b, z - 0.012, z + 0.012, dark, group); for (let u = a + (k % 2 ? 0.45 : 0.9); u < b - 0.05; u += 0.9) markOn(out, -1, yF, u - 0.012, u + 0.012, z - 0.3, z, dark, group); } }
+        if (dry) { for (let z = 0.26; z < H - copeH - 0.1; z += 0.26) { markOn(out, -1, yF, a, b, z - 0.014, z + 0.014, dark, group); for (let u = a + R() * 0.5; u < b - 0.1; u += 0.35 + R() * 0.5) markOn(out, -1, yF, u - 0.014, u + 0.014, z - 0.26, z, dark, group); } for (let u = a + 0.6; u < b - 0.3; u += 1.1) markOn(out, -1, yF - 0.002, u - 0.1, u + 0.1, (H - copeH) * 0.48, (H - copeH) * 0.48 + 0.16, Math.min(1, value + 0.15), group); for (let u = a + 0.1; u < b - 0.1; u += 0.32) markOn(out, -1, -top / 2 - 0.026, u - 0.012, u + 0.012, H - copeH, H, dark, group); }
+      }
+    }
+    // piers at the stride and either side of every gate (a dry wall's gate is two tall stones)
+    if (depth >= 1 && !retain) {
+      const pw = dry ? 0.32 : t + 0.16, ph = H + (dry ? 0.3 : 0.12), at = [...gs.flatMap((g) => [g.a - pw / 2, g.b + pw / 2])];
+      if (!dry) for (const [a, b] of spans) { const n = Math.floor((b - a) / (el.pier ?? 4)); for (let k = 1; k <= n - 0; k++) { const u = a + ((b - a) * k) / (n + 1); if (n) at.push(u); } }
+      for (const u of at) if (u > 0 && u < len) slab(out, u - pw / 2, u + pw / 2, pw, pw, 0, ph, coping.group, Math.min(1, coping.value + 0.04));
+    }
+  } else if (el.form === 'hedge') {
+    for (const [a, b] of spans) {
+      slab(out, a, b, t, t * 0.86, depth >= 1 ? 0.22 : 0, h, group, value);
+      if (depth >= 1) slab(out, a + 0.04, b - 0.04, t * 0.7, t * 0.7, 0, 0.22, 'dress:bark', 0.3, { top: false });
+      if (depth >= 2) for (let z = 0.5; z < h - 0.15; z += 0.45) for (let u = a + R() * 0.6; u < b - 0.3; u += 0.7 + R() * 0.8) markOn(out, -1, -t / 2 - 0.01, u, Math.min(b, u + 0.25 + R() * 0.3), z, z + 0.04, Math.max(0, value - 0.18), group);
+    }
+    if (depth >= 1) for (const g of gs) for (const u of [g.a - 0.06, g.b + 0.06]) box(out, [u - 0.07, -0.07, 0], [u + 0.07, 0.07, Math.min(h, 1.3) + 0.1], 'str:timber', 0.35);
+  } else {
+    // timber: posts no further apart than a rail spans (2.4 m), rails on the yard side
+    const p = 0.12, stride = Math.min(2.4, el.pier ?? 2.4), rails = el.form === 'rail' ? [0.42, 0.88] : [0.18, 0.8], tv = value;
+    for (const [a, b] of spans) {
+      const n = Math.max(1, Math.ceil((b - a) / stride));
+      for (let k = 0; k <= n; k++) { const u = a + ((b - a) * k) / n; box(out, [u - p / 2, -p / 2, 0], [u + p / 2, p / 2, h + (el.form === 'picket' ? 0.04 : 0)], 'str:timber', Math.max(0.2, tv - 0.12)); }
+      const rail = (z) => box(out, [a, p / 2 - 0.01, z * h - 0.045], [b, p / 2 + 0.05, z * h + 0.045], 'str:timber', tv);
+      if (el.form === 'rail') { rail(rails[1]); if (depth >= 1) rail(rails[0]); }
+      if (el.form === 'paling') {
+        slab(out, a, b, 0.04, 0.04, 0.06, h - 0.04, group, value, { ends: false });
+        if (depth >= 1) { rail(0.2); rail(0.82); }
+        if (depth >= 2) for (let u = a + 0.24; u < b - 0.05; u += 0.24) markOn(out, -1, -0.026, u - 0.01, u + 0.01, 0.06, h - 0.04, Math.max(0.04, value - 0.2), group);
+      }
+      if (el.form === 'picket') {
+        rail(0.82); if (depth >= 1) rail(0.2);
+        if (depth < 2) continue;
+        // the pickets as one face each side with their points along its top; their gaps marks from depth 3
+        const pitch = 0.16, pts = [[a, 0.08], [b, 0.08]];
+        const tops = []; for (let u = a; u < b - 1e-6; u += pitch) { const u1 = Math.min(b, u + pitch); tops.push([u1, h - 0.1], [(u + u1) / 2, h], [u, h - 0.1]); }
+        const poly = [...pts.map(([u, z]) => [u, -0.02, z]), ...tops.reverse().map(([u, z]) => [u, -0.02, z])];
+        face(out, poly, [0, -1, 0], 'dress', value, { group });
+        face(out, poly.map(([u, , z]) => [u, 0.02, z]), [0, 1, 0], 'dress', Math.max(0, value - 0.06), { group });
+        if (depth >= 3) for (let u = a + pitch; u < b - 0.05; u += pitch) markOn(out, -1, -0.026, u - 0.025, u + 0.025, 0.08, h - 0.16, Math.max(0.04, value - 0.45), group);
+      }
+    }
+  }
+  // the gate leaves, shut in their openings
+  if (depth >= 3 && !retain) for (const g of gs) { const gh = r3(Math.min(stone ? H - 0.1 : h, Math.max(0.9, Math.min(1.1, H)) + (H > 1.8 ? H - 1.2 : 0))); box(out, [g.a + 0.05, -0.025, 0.06], [g.b - 0.05, 0.025, gh], 'str:timber', 0.38); }
 }
-export const build = Object.freeze({ bond, socle, cornice, sill, lintel, quoins, lamp, post, fence, section, box });
+
+/** A walk's edge and surfaces in section, `len` along x: the road's half from y = −`road` to the line, the walk behind it. */
+function section(out, len, road, S, { depth = 2, kind = 'run' } = {}) {
+  const kerb = S.kerb, foot = S.footway.w, form = S.footway.form ?? 'kerbed', W = WALK_FORMS[form], rg = S.road.paving === 'earth' ? 'town:soil' : 'town:stone';
+  const lift = W.lift ? kerb.h : 0, timber = form === 'boards', fg = timber ? 'str:timber' : 'town:stone', fv = timber ? 0.5 : 0.7;
+  const q = (pts, n, part, v, group) => face(out, pts, n, part, v, { group });
+  const j = (pts, v = 0.35, group = 'town:stone') => face(out, pts, [0, 0, 1], 'joint', v, { group, tile: true });
+  // a crossing drops the walk to the road over 1.6 m mid-tile, a ramp either side
+  // (under the eye spot, at depth 0, a crossing is the run)
+  const drop = kind === 'drop' && W.lift && depth >= 1 ? [len / 2 - 0.8, len / 2 + 0.8] : null, ramp = 0.6;
+  const xs = drop ? [[0, drop[0]], [drop[1], len]] : [[0, len]];
+  q([[0, -road, 0], [len, -road, 0], [len, 0, 0], [0, 0, 0]], [0, 0, 1], 'ground', S.road.paving === 'earth' ? 0.6 : 0.62, rg);
+  // the edge: a kerb, a channel, a fascia or a low edge stone before a verge
+  const ew = form === 'flush' ? 0.35 : kerb.w, eh = form === 'verge' ? Math.min(kerb.h, 0.06) : lift, ev = timber ? 0.4 : 0.5;
+  if (form === 'flush') { if (depth >= 1) q([[0, -ew, 0.003], [len, -ew, 0.003], [len, 0, 0.003], [0, 0, 0.003]], [0, 0, 1], 'kerb', 0.45, 'town:stone'); }
+  else {
+    for (const [a, b] of xs) {
+      // a verge's edge stone is under the eye spot from afar: the grass meets the road
+      if (depth >= 1 || form !== 'verge') q([[a, 0, 0], [b, 0, 0], [b, 0, eh], [a, 0, eh]], [0, -1, 0], 'kerb', ev, timber ? fg : 'town:stone');
+      if (depth >= 1 && !timber) q([[a, 0, eh], [b, 0, eh], [b, ew, eh], [a, ew, eh]], [0, 0, 1], 'kerb', 0.8, 'town:stone');
+    }
+    if (drop) {
+      const [a, b] = drop, lo = 0.02;
+      q([[a, 0, 0], [b, 0, 0], [b, 0, lo], [a, 0, lo]], [0, -1, 0], 'kerb', ev, 'town:stone');
+      q([[a, 0, lo], [b, 0, lo], [b, ew + ramp, lift], [a, ew + ramp, lift]], [0, -1, 1.5], 'ground', 0.66, 'town:stone');
+      if (depth >= 2) for (const [x, sx] of [[a, 1], [b, -1]]) q([[x, 0, lo], [x, ew + ramp, lift], [x, 0, lift]], [sx, 0, 0], 'kerb', 0.5, 'town:stone');
+    }
+  }
+  // the walk: behind the edge (and the verge's grass), at the walk's lift
+  const vg = form === 'verge' ? r3(Math.min(S.footway.verge ?? 0.6, Math.max(0, foot - ew - WALK_CLEAR))) : 0, w0 = (depth >= 1 || timber || form === 'verge' ? ew : 0) + vg, zW = form === 'verge' ? 0.02 : lift;
+  if (vg > 0) q([[0, ew, 0.02], [len, ew, 0.02], [len, ew + vg, 0.02], [0, ew + vg, 0.02]], [0, 0, 1], 'ground', 0.5, 'town:grass');
+  for (const [a, b] of xs) q([[a, depth >= 1 || form !== 'kerbed' ? w0 : 0, zW], [b, depth >= 1 || form !== 'kerbed' ? w0 : 0, zW], [b, foot, zW], [a, foot, zW]], [0, 0, 1], 'ground', fv, fg);
+  if (drop) q([[drop[0], ew + ramp, lift], [drop[1], ew + ramp, lift], [drop[1], foot, lift], [drop[0], foot, lift]], [0, 0, 1], 'ground', fv, fg);
+  // the walk's end: the edge returns across it
+  if (kind === 'end' && zW > 0.03 && depth >= 1) q([[len, 0, 0], [len, foot, 0], [len, foot, zW], [len, 0, zW]], [1, 0, 0], 'kerb', 0.5, fg);
+  // the joints, whole units to the tile (a joint at 0, none at len, so tiles meet joint to joint), marks in the tile
+  if (depth >= 2) {
+    const fu = timber ? 0.5 : S.footway.paving === 'setts' ? 0.32 : S.footway.paving === 'slabs' ? 0.9 : 0.6, nf = Math.max(1, Math.round(len / fu));
+    for (let i = 0; i < nf; i++) { const x = (len * i) / nf; j([[x - 0.015, w0, zW + 0.004], [x + 0.015, w0, zW + 0.004], [x + 0.015, foot, zW + 0.004], [x - 0.015, foot, zW + 0.004]], timber ? 0.3 : 0.35, fg); }
+    if (form === 'flush' || form === 'kerbed') { const nk = Math.max(1, Math.round(len / 0.9)); for (let i = 0; i < nk; i++) { const x = (len * i) / nk; j([[x - 0.012, -(form === 'flush' ? ew : 0), eh + 0.004], [x + 0.012, -(form === 'flush' ? ew : 0), eh + 0.004], [x + 0.012, form === 'flush' ? 0 : ew, eh + 0.004], [x - 0.012, form === 'flush' ? 0 : ew, eh + 0.004]]); } }
+    if (S.road.paving !== 'earth') { const ru = S.road.paving === 'setts' ? 0.32 : 0.6; for (let y = -ru; y > -road; y -= ru) j([[0, y - 0.012, 0.004], [len, y - 0.012, 0.004], [len, y + 0.012, 0.004], [0, y + 0.012, 0.004]]); }
+  }
+  return { top: zW, foot, edge: W.edge, verge: vg };
+}
+export const build = Object.freeze({ bond, socle, cornice, sill, lintel, quoins, lamp, post, boundary, section, box, slab });
 
 // ── swatches: each element drawn on its own, for the sheet ──────────────────────────────────────────────────────────
 /**
@@ -452,22 +651,39 @@ export function elementSwatch(anchor, id, ch = 1.2) {
   if (el.kind === 'shutters') return elementSwatch(anchor, Object.keys(A.elements).find((k) => A.elements[k].kind === 'light'), ch);
   if (el.kind === 'lamp') { lamp(out, el, ch); return out; }
   if (el.kind === 'post') { for (let k = 0; k < 3; k++) { const o = []; post(o, el, ch); out.push(...o.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [r3(x + k * el.stride * 0.4), y, z]) }))); } return out; }
-  if (el.kind === 'fence') { fence(out, 4.4, el, ch); return out; }
-  if (el.kind === 'footway') { section(out, 3, 2.4, A.street); return out; }
+  if (el.kind === 'boundary') {
+    // the element at each role it takes on this street, side by side, a gate in the front; a retaining length under its guard
+    const R = boundaryRoles(A.street.bounds, 3), mine = BOUNDARY_ROLE_IDS.filter((r) => R[r]?.id === id);
+    let x = 0;
+    for (const role of mine) {
+      const o = [], len = role === 'retain' ? 2.4 : 3.2, h = role === 'retain' ? 3 : roleHeight(R[role]);
+      boundary(o, len, el, h, { depth: 3, gates: role === 'front' ? [{ u: len / 2, w: 1.2 }] : [], seed: 7, retain: role === 'retain' ? h : 0 });
+      out.push(...o.map((f) => ({ ...f, role, corners: f.corners.map(([u, y, z]) => [r3(u + x), y, z]) })));
+      x += len + 0.8;
+    }
+    return out;
+  }
+  if (el.kind === 'footway') { section(out, 3, 2.4, A.street, { kind: 'drop' }); return out; }
   // the road on its own, its joints; the kerb close up, a little road before it and a little walk behind
   if (el.kind === 'road') { const tmp = []; section(tmp, 3, 2.4, A.street); return tmp.filter((f) => f.corners.every((c) => c[1] <= 1e-9 && c[2] < 0.01)); }
   if (el.kind === 'kerb') { const S2 = { ...A.street, footway: { ...A.street.footway, w: A.street.kerb.w + 0.35 } }; section(out, 1.2, 0.5, S2); return out; }
   return out;
 }
 
-/** The slice: the citizen's street in front of it, `len` along the frontage, its lamp and posts on the footway. */
-export function sliceStreet(anchor, len = 14, ch = 1.2) {
+/**
+ * The slice: the citizen's street in front of it, `len` along the frontage, its lamp and posts on the walk (a flush walk
+ * posted along its line), and its lot's front boundary (if the street gives lived lots one) with a gate at `gateU`.
+ */
+export function sliceStreet(anchor, len = 14, ch = 1.2, { gateU = len / 2, setback = 0.4 } = {}) {
   const A = composeAnchor(anchor), S = A.street, out = [];
   const { top, foot } = section(out, len, 3, S);
-  const at = (faces, dx, dy) => faces.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [r3(x + dx), r3(y + dy), r3(z + top)]) }));
-  const L = []; lamp(L, S.lamp, ch); out.push(...at(L, len * 0.78, S.kerb.w + 0.4).map((f) => ({ ...f, corners: f.corners })));
-  for (const x of [1.2, 1.2 + S.post.stride]) { const P = []; post(P, S.post, ch); out.push(...at(P, x, S.kerb.w + 0.3)); }
-  return { faces: out, foot, top };
+  const at = (faces, dx, dy, dz = top) => faces.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [r3(x + dx), r3(y + dy), r3(z + dz)]) }));
+  const L = []; lamp(L, S.lamp, ch); out.push(...at(L, len * 0.78, S.kerb.w + 0.4));
+  const flush = S.footway.form === 'flush', posts = flush ? Array.from({ length: Math.floor((len - 1) / S.post.stride) + 1 }, (_, k) => 0.6 + k * S.post.stride) : [1.2, 1.2 + S.post.stride];
+  for (const x of posts) { const P = []; post(P, S.post, ch); out.push(...at(P, x, flush ? 0.2 : S.kerb.w + 0.3)); }
+  const R = boundaryRoles(S.bounds).front;
+  if (R) { const o = [], t = BOUNDARY_FORMS[R.form].t; boundary(o, len, R.el, roleHeight(R), { depth: 3, gates: [{ u: gateU, w: 1.2 }], seed: 3 }); out.push(...at(o, 0, foot + setback + 0.05 + t / 2)); }
+  return { faces: out, foot, top, front: R ? { form: R.form, h: roleHeight(R), t: BOUNDARY_FORMS[R.form].t } : null };
 }
 
 void add3;

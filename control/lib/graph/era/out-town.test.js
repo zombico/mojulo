@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { STRUCTURE_KITS, STRUCTURE_USES, structureStyle } from './out-structures.js';
-import { TOWN_CARD, HEARTBEAT_IDS, readTownPlan, designTown, placedFaces, distTo, heartbeatBand } from './out-town.js';
+import { TOWN_CARD, HEARTBEAT_IDS, readTownPlan, designTown, placedFaces, distTo, heartbeatBand, boundaryFaces, streetTile } from './out-town.js';
+import { ELEMENT_SETS, BOUNDARY_HEIGHTS } from './out-anchor-elements.js';
 import { TOWN_DRESS, TOWN_DRESS_IDS, readTownDress, dressTown } from './out-town-dress.js';
 import { townMapSvg } from './out-town-html.js';
 import { structurePaint, streetPaints } from './out-structures-paint.js';
@@ -129,5 +130,52 @@ describe('out-town', () => {
     expect(ids(townMapSvg(a, P, d))).toBe(ids(townMapSvg(b, P, dressTown(b, meadow, undefined, 5))));
     // as built, without a paint, the map is greys only
     expect(ids(townMapSvg(a, null, d)).match(/#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/g).every((h) => h.slice(1, 3) === h.slice(3, 5) && h.slice(3, 5) === h.slice(5, 7))).toBe(true);
+  });
+
+  it('the plan makes room for its boundaries: fronts on lived lots, gated; yards closed; terraces held and guarded', () => {
+    for (const anchor of [...Object.keys(ELEMENT_SETS), { seed: 4 }]) {
+      const t = designTown(meadow, 8, { anchor, levels: 2 }), B = t.boundaries, id = JSON.stringify(anchor);
+      expect(t.laws.filter((l) => !l.ok), id).toEqual([]);
+      // a front closes only where people live, and stands under a metre
+      for (const b of B.filter((x) => x.role === 'front')) { expect(t.lots[b.lot].use, id).toBe('dwelling'); expect(b.h).toBeLessThanOrEqual(BOUNDARY_HEIGHTS.low.h[1] + 1e-9); }
+      // each terrace: one retaining run as high as its rise, one guard on its top, open where the branch climbs it
+      for (const tr of t.terraces) {
+        const ret = B.find((b) => b.role === 'retain' && b.pts[0][1] === tr.y), g = B.find((b) => b.role === 'guard' && b.z === tr.z1);
+        expect(ret.h).toBe(tr.rise);
+        expect(g.gates).toHaveLength(1);
+        expect(g.h).toBeGreaterThanOrEqual(0.9);
+      }
+      // the lines are structures: each built as faces in town coordinates, inside the map's frame
+      for (const b of B.filter((x) => x.ring === 'near').slice(0, 30)) for (const f of boundaryFaces(t, b).flat()) for (const [x, y] of f.corners) { expect(x).toBeGreaterThanOrEqual(t.bounds.x0 - 1); expect(x).toBeLessThanOrEqual(t.bounds.x1 + 1); expect(y).toBeGreaterThanOrEqual(t.bounds.y0 - 1); }
+    }
+    // the dress no longer grows fences: the plan owns them
+    expect(TOWN_DRESS_IDS).not.toContain('fences');
+  });
+
+  it('a flush walk is posted along its line; a verge narrows down the ranks but keeps its clear path', () => {
+    const flush = { ...ELEMENT_SETS['timber-hall'], elements: { ...ELEMENT_SETS['timber-hall'].elements, footway: { kind: 'footway', w: 1.6, paving: 'flags', form: 'flush' } } };
+    const t = designTown(meadow, 8, { anchor: flush }), lane = t.routes.find((r) => r.id === 'lane');
+    expect(lane.walkForm).toBe('flush');
+    expect(lane.kerbH).toBe(0);
+    expect(t.laws.filter((l) => !l.ok)).toEqual([]);
+    const d = dressTown(t, meadow, { posts: 1 }, 8), lined = d.items.filter((it) => it.kind === 'posts' && Math.abs(distTo(lane.pts, it.at[0], it.at[1]) - (lane.w / 2 + 0.2)) < 0.05);
+    expect(lined.length).toBeGreaterThan(10);
+    expect(d.laws.filter((l) => !l.ok)).toEqual([]);
+    const ts = designTown(meadow, 8, { anchor: 'shell' });
+    for (const r of ts.routes.filter((x) => x.foot)) { expect(r.walkForm).toBe('verge'); expect(r.foot - r.verge).toBeGreaterThanOrEqual(0.9 - 1e-9); }
+  });
+
+  it('street tiles: every rank at every ring tiles seamlessly, in whole units, inside its budget', () => {
+    for (const anchor of Object.keys(ELEMENT_SETS)) for (const rank of ['lane', 'branch', 'upper', 'back']) for (const ring of ['near', 'mid', 'far']) for (const kind of ['run', 'drop', 'end']) {
+      const T = streetTile(anchor, rank, { ring, kind });
+      expect(T.laws.filter((l) => !l.ok), `${anchor} ${rank} ${ring} ${kind}`).toEqual([]);
+      // nothing leaves the tile's length
+      for (const f of T.faces) for (const c of f.corners) { expect(c[0]).toBeGreaterThanOrEqual(-0.02); expect(c[0]).toBeLessThanOrEqual(T.len + 0.02); }
+    }
+    // the degrees of detail cost more as the ring nears
+    const tri = (ring) => streetTile('timber-hall', 'lane', { ring }).tris;
+    expect(tri('far')).toBeLessThan(tri('mid'));
+    expect(streetTile('timber-hall', 'lane', { ring: 'near' }).faces.some((f) => f.tile)).toBe(true);
+    expect(streetTile('timber-hall', 'lane', { ring: 'mid' }).faces.some((f) => f.tile)).toBe(false);
   });
 });

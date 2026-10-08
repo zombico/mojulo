@@ -28,7 +28,7 @@ Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a wor
   house, at full effort; every other use is a promotion of it (a counter, a work floor, the hall with the accent, the
   tower that dares height). It stands in a slice of street (road, kerb, footway, lamp, posts) that every route in the
   town is laid in, stepped down the ranks: the lane in the anchor's road paving with full footways, a branch narrower,
-  a back lane earth with none; lots stand behind the footways. Lamps, posts and fences in the town are built from the
+  a back lane earth with none; lots stand behind the footways. Lamps, posts and boundaries in the town are built from the
   anchor's elements at their strides. `seedAnchor(n)` draws elements first, each choice constraining the next, then the
   composition they allow.
 - **A town is spoken from one anchor structure.** No house shape is stored. A town names a single anchor structure
@@ -86,14 +86,64 @@ Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a wor
   paths cross each front; the back lane yields behind the square so the hall keeps its ground. The recipe (`length`,
   `sway`, `branches`, `levels`, `back`, `farms`, `heartbeat`, `dress`, `paint`, `anchor`) is read against the town card
   and refused anything else.
+- **Walks and boundaries are structures** (`lib/graph/era/out-anchor-elements.js`, `lib/graph/era/out-town.js`). The
+  footway is a function with four equivalent forms (`kerbed`, `flush` with a channel and posts along its line, `boards`
+  on sleepers, `verge` with a clear path behind the grass). The `fence` element is replaced by `boundary`: forms rail,
+  paling, picket, hedge, drystone, coursed and rendered, each with its thickness, the heights it stands to and the rise
+  it can hold back; height classes (kerb, low, waist, screen, high) measured against a body; roles (front, side, back,
+  field, precinct, guard, retain) that say how high a line stands by what it does. An anchor names its boundaries and
+  their roles; a role a named form cannot reach falls to the strongest that can, then to a coursed wall. Each line is
+  built by depth (mass; coping, piers and rails; its laying as marks; gate leaves), the ring choosing the depth. The
+  town plan lays them out after the buildings: a lived lot's front gated at its door path, one party line down the
+  passage between neighbours (and one back line between yards back to back), yards' backs, the hall's precinct, the
+  fields, each terrace held by a retaining wall and guarded along its drop; town laws `bounded`, `gated`, `sightline`,
+  `guarded`, `form-reach`, `walls-clear`, `party-once`. The dress no longer grows fences; flush walks are posted.
+  `streetTile(anchor, rank, { ring, kind })` gives a route's section as a tile (run, crossing, end), whole paving units
+  long and the same at both ends, at three degrees of detail, with laws `seamless`, `whole-units`, `budget`. A seeded
+  anchor draws its walk and boundaries from their own dice, so the building it draws is unchanged.
+- **A fortified town, the lord's land inside** (`lib/graph/era/out-fortress.js`, `lib/graph/era/out-town.js`). One dial,
+  `fortified` 0…1 on the town recipe (0 is the open town, unchanged): a curtain traced round the town (an octagon off
+  the routes) with a gate wherever a route crosses it and towers at its corners, where it steps a terrace and at a
+  rhythm that tightens with the dial; from 0.4 a ditch and an approach that runs under the west wall outside it and
+  turns into the gate; from 0.6 each terrace's wall a ward's curtain, entered by one gate where the branch climbs (the
+  branch dog-legs inside so no two gates line up); from 0.75 one gate; from 0.85 the lord's land, two wards over the bailey and
+  the lane drawn in. Nothing is built on the road outside the gates. The fortification is designed elements first (`fort`: the
+  curtain and its base, the parapet, the walk, the tower's plan and crown, the gate, the ditch; rails; a rampart of
+  5–9 m, game-scaled): the bay (a length of curtain) is its citizen, built by depth; the tower is derived from the bay
+  by contrast (it rises, stands out of the face to flank it, turns its plan, crowns itself); the gatehouse composes
+  towers over the passage (twin, or a box gate-tower); the keep is the town's landmark on a broad lot, raised over every
+  tower, a secondary held two metres under it. Two authored compositions, `crenellated` and `battered`, and `seedFort`.
+  Laws `enclosed`, `flanking`, `bent-entry`, `commands`, `skyline`, `glacis`, `gates-only`, `one-way-up`. Along the
+  way: a lot on the inside of a bend steps back until both front corners clear the walk; a front reaches a passage's
+  middle only where it stays clear of the walk; back-to-back yards share their line where the two overlap; a secondary
+  is never its neighbour's repeat. `node scripts/out-sheet.mjs fortified-town` writes the Fortified Town Index: the dial
+  at 0, 0.5 and 1, each composition's elements by depth with the tower's derivation and the gatehouse, a fortified town
+  from above, standing and from the south with its laws, the other composition, and a seeded one.
+- **A castle is the lord's land drawn tight** (`lib/graph/era/out-castle.js`). The fortified town spends its surface
+  on its walls (its lord's ward is about 4 % built, its keep 1.4 % of the ward); a castle takes the town's walls off and
+  compresses what they kept into one structure, the town outside it. It is composed inward from its wall by a budget:
+  the keep first (a third of the ward's breadth on the back corner, straddling the curtain; a great tower with corner
+  turrets and a forebuilding, a drum, or a tiered keep on its stone base, `build.keep` by depth), then ranges backed
+  onto every curtain (lots spoken in the town's language, wall to wall: the hall by the keep, lodgings, stables and work
+  by the gates, a chapel when the court would be a field), the court what is left. The inner ward stands on a platform
+  (a battered base holds its ward high and its wall low), climbed by a flight inside its gate; with `wards: 2` a
+  forecourt before it, its gate on the other hand, the walk turning under the inner wall. The walls are cut to what
+  they keep: no higher than the language's lodgings can show over. Settings `fort`, `size` 40–56, `wards` 1–2, `rise`.
+  Laws `filled`, `court-span`, `rich-inside`, `keep-weight`, `shows-over`, `flanking`, `commands`, `bent-entry`,
+  `one-gate-each`, `climbed`. The town recipe's `castle` (never with `fortified`) sets it on the highest ground past
+  the branch's end, the branch brought to its bridge, the keep the town's landmark (law `outside`). A curtain holding
+  ground behind it now shows its inner face over that ground. `node scripts/out-sheet.mjs castle` writes the Castle
+  Index: the budget against the fortified town's, the keep by depth, both compositions (plan, standing, from the
+  south), one ward, a seeded one with its chapel, and the town below its castle.
 - **Town interceptors dress it** (`lib/graph/era/out-town-dress.js`): lamps, posts, wells, market stalls, benches,
-  carts, barrels, woodpiles, planters, fences, signs and trees, each a site finder over the map, a grower and an
+  carts, barrels, woodpiles, planters, signs and trees, each a site finder over the map, a grower and an
   aggressiveness 0…1, seeded and capped, never on the walk but for lamps, posts and signs.
 - **The sheet.** `lib/graph/era/out-structures-html.js` draws the Outdoor Structures Index: the elements (each drawn on
   its own, its holds and how it reads by ring), the citizen in its slice of street (axonometric and in section), the
   anchor in pieces and its language, the language spoken on every use (by depth, by ring, by household), one frontage
   of six households with the street's lines drawn across it, the secondary (its derivation, rule by rule, and a
-  frontage with it set in as skyline, values and paint), the town in miniature (a top-down map and an
+  frontage with it set in as skyline, values and paint), walks and boundaries (the four walks, every role at its
+  height against a body, each line by depth, one lot and the lines the plan gives it), street tiles, the town in miniature (a top-down map and an
   axonometric), the heartbeats (curves and a frontage in elevation at each), a gallery of other anchors and the towns they speak, values and paint, one use on five lots,
   routes and levels, paving, the interceptors, the vocabulary, the laws, roofs by covering, every kit. The drawer is
   `era/out-structures-draw.js`, the town's cards `era/out-town-html.js`. `node scripts/out-sheet.mjs

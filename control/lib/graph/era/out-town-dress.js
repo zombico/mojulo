@@ -1,19 +1,19 @@
 /**
  * TOWN INTERCEPTORS — what a lived-in town takes on after its routes and buildings are laid: things that are seen and
  * never named (a lamp, a bench, a cart at a work door, barrels at a counter, a woodpile against a gable, a planter by
- * a door, a fence along a back, a sign at a fork, a tree in a yard, the market round the well). The room stage's
+ * a door, a sign at a fork, a tree in a yard, the market round the well). The room stage's
  * interceptors (era/interceptors.js) are the pattern: each kind is a SITE FINDER over the town map, a GROWER, and an
  * AGGRESSIVENESS from 0 (none) to 1 (every site taken), seeded from the town alone, so a recipe dresses the same way
  * every time. A kind's count is capped, so the budget holds at full aggressiveness.
  *
- * The street's own furniture is the ANCHOR's: the lamp, the post and the fence are elements designed with the town's
- * citizen (era/out-anchor-elements.js), built from those elements, at their strides, on the section's footway.
+ * The street's own furniture is the ANCHOR's: the lamp and the post are elements designed with the town's citizen
+ * (era/out-anchor-elements.js), built from those elements, at their strides, on the section's footway. Fences and walls
+ * are not dress: they are structures, laid out by the town plan (era/out-town.js `boundaries`).
  *
  * Sites are read off the plan, never placed by hand: lamps along the walk's kerb at the lamp's stride (wider down the
  * ranks), posts where the walk meets the square and at each stair, the well at the heart of every
  * place, stalls round it, benches on a place's edges and at the top of a stair looking back over the town, carts at
- * work doors, barrels at counters, woodpiles against a hearth's free gable, planters at lived doors, fences along the
- * backs of the frontage, signs where the trail comes in and where routes fork, trees in back yards and at the
+ * work doors, barrels at counters, woodpiles against a hearth's free gable, planters at lived doors, signs where the trail comes in and where routes fork, trees in back yards and at the
  * square's back corners. A doodad is built in values on surface groups (`dress:timber`, `dress:leaf`, …) and painted by
  * the style guide as a separate concern (era/out-structures-paint.js); one that is under the eye spot at its ring
  * is not there (the dress is near-ring detail; trees reach the mid ring as flora).
@@ -35,7 +35,7 @@ const subSeed = (seed, key) => { let h = (seed >>> 0) ^ 0x9e3779b9; for (const c
 /** Each kind: what it reads as, where it grows, how many at most, and its least span (the eye-spot gate). */
 export const TOWN_DRESS = Object.freeze({
   lamps: { read: 'the anchor\'s streetlight on the footway by the kerb, at its stride (wider on a branch), sides alternating (it reads by its head)', cap: 24, span: 0.32, def: 0.7 },
-  posts: { read: 'the anchor\'s posts where the walk meets the square, and either side of each stair', cap: 24, span: 0.22, def: 0.8 },
+  posts: { read: 'the anchor\'s posts where the walk meets the square, either side of each stair, and along a flush walk\'s line (where no kerb keeps the wheel off it)', cap: 72, span: 0.22, def: 0.8 },
   well: { read: 'a well at the heart of every place: a stone ring, two posts, a little roof', cap: 3, span: 1.6, def: 1 },
   market: { read: 'stalls round the square\'s well, facing it: a counter under a striped awning', cap: 6, span: 0.9, def: 0.6 },
   benches: { read: 'benches on a place\'s edges facing in, and at a stair\'s top looking back over the town', cap: 10, span: 0.45, def: 0.6 },
@@ -43,7 +43,6 @@ export const TOWN_DRESS = Object.freeze({
   barrels: { read: 'barrels and a crate beside a counter\'s door', cap: 12, span: 0.6, def: 0.7 },
   woodpiles: { read: 'logs stacked against a hearth\'s free gable', cap: 12, span: 0.55, def: 0.5 },
   planters: { read: 'a planter either side of a lived door, in flower', cap: 24, span: 0.3, def: 0.5 },
-  fences: { read: 'the anchor\'s fence along a lot\'s back: rails, palings or a low wall (it reads by its run)', cap: 18, span: 1.15, def: 0.4 },
   signs: { read: 'a sign where the trail comes in, where routes fork and at a stair\'s top', cap: 8, span: 0.4, def: 1 },
   trees: { read: 'a tree in a back yard, two at the square\'s back corners', cap: 30, span: 1.5, def: 0.6 },
 });
@@ -93,8 +92,6 @@ const BUILD = {
   planters(o, ch) { box(o, [-0.4, -0.16, 0], [0.4, 0.16, 0.36], TIMBER, 0.5); box(o, [-0.38, -0.14, 0.36], [0.38, 0.14, 0.6], LEAF, 0.55); box(o, [-0.25, -0.17, 0.48], [-0.05, 0.1, 0.64], BLOOM, 0.75); box(o, [0.08, -0.17, 0.44], [0.3, 0.1, 0.62], BLOOM, 0.6); },
   signs(o, ch) { box(o, [-0.06, -0.06, 0], [0.06, 0.06, 2.1], TIMBER, 0.35); box(o, [-0.48, -0.1, 1.45], [0.48, -0.04, 1.85], PAINT, 0.6); },
 };
-/** A fence from a to b (in the doodad's own frame along x), posts at most 2.2 m apart, two rails. */
-function fence(o, len, ch, S) { EB.fence(o, len, S.fence, ch); }
 function tree(o, seed) { const v = ['lollipop', 'broccoli', 'column'][seed % 3], d = designFlora('broccoli', v, seed, { level: 'mid' }); for (const f of d.faces) o.push({ corners: f.corners, normal: f.normal, part: 'dress', group: f.part === 'wood' ? BARK : LEAF, value: f.value }); }
 
 /** Place a doodad's faces: its front faces `face` (a unit [x, y]); the frame keeps right-handed (ex × ey = z). */
@@ -136,6 +133,15 @@ function sites(town) {
   // posts: where the walk meets the square, along its lane edge at the post's stride; either side of each stair's top and foot
   const sq = town.places.find((p) => p.id === 'square');
   if (sq) { const [a, b] = sq.poly, L = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L], n = [-u[1], u[0]]; for (let s = 1; s < L - 0.5; s += SX.post.stride) S.posts.push({ at: [r3(a[0] + u[0] * s + n[0] * 0.4), r3(a[1] + u[1] * s + n[1] * 0.4), 0], face: [-n[0], -n[1]] }); }
+  // a flush walk keeps its line by posts, at the post's stride, both sides, clear of doors and stairs
+  for (const r of walk.filter((x) => x.walkForm === 'flush' && x.foot)) {
+    let L = 0; for (let i = 1; i < r.pts.length; i++) L += Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]);
+    for (let s = 2; s < L - 2; s += SX.post.stride) for (const side of [1, -1]) {
+      const c = along(r.pts, s), n = [-c.t[1] * side, c.t[0] * side], at = [r3(c.p[0] + n[0] * (r.w / 2 + 0.2)), r3(c.p[1] + n[1] * (r.w / 2 + 0.2))];
+      if (doors.some((d) => Math.hypot(d[0] - at[0], d[1] - at[1]) < 1.6) || town.paths.some((p) => Math.hypot(p.pts[1][0] - at[0], p.pts[1][1] - at[1]) < 1.6) || town.stairs.some((st) => Math.abs(at[0] - st.at[0]) < 3 && at[1] < st.at[1] + 1 && at[1] > st.at[1] - st.run - 1)) continue;
+      S.posts.push({ at: [...at, levelZ(town, at[1])], face: [-n[0], -n[1]] });
+    }
+  }
   for (const st of town.stairs) for (const dx of [-1, 1]) { const x = r3(st.at[0] + dx * (st.width / 2 + 0.45)); S.posts.push({ at: [x, r3(st.at[1] + 0.4), st.z0 + st.rise], face: [0, -1] }, { at: [x, r3(st.at[1] - st.run - 0.4), st.z0], face: [0, -1] }); }
   // benches at each stair's top, looking back over the town; a sign at each
   for (const st of town.stairs) for (const dx of [-4.2, 4.2]) S.benches.push({ at: [r3(st.at[0] + dx), r3(st.at[1] + 2.2), st.z0 + st.rise], face: [0, -1] });
@@ -151,7 +157,6 @@ function sites(town) {
     if (l.use === 'dwelling' && front >= 0.8) for (const s of [-1, 1]) S.planters.push({ at: lotAt(l, u + s * (d.dims.doorW / 2 + 0.55), -0.3), face: [-l.ey[0], -l.ey[1]] });
     if (STRUCTURE_HEARTH.includes(l.use) && d.dims.side >= 1.2) S.woodpiles.push({ at: lotAt(l, d.dims.W0 + 0.42, d.dims.D0 * 0.62), face: [l.ex[0], l.ex[1]] });
     if (d.dims.rear >= 2.4 && l.d - d.dims.front - d.dims.D0 >= 3.5) S.trees.push({ at: lotAt(l, d.dims.W0 * (0.3 + 0.4 * ((l.k ?? 0) % 2)), l.d - d.dims.front - 1.8), face: [0, -1] });
-    if (['lane', 'upper', 'branch'].includes(l.route)) S.fences.push({ at: [r3(l.A[0] + l.ey[0] * (l.d - 0.2)), r3(l.A[1] + l.ey[1] * (l.d - 0.2)), l.z], face: [-l.ey[0], -l.ey[1]], len: l.w });
   }
   for (const f of town.farms) S.trees.push({ at: [f.field[1][0] + 1.5, f.field[2][1] - 1.5, 0], face: [0, -1] });
   return S;
@@ -168,8 +173,7 @@ export function dressTown(town, style, dress, seed = 1) {
     if (!counts[k].built) continue;
     taken.forEach((s, i) => {
       const local = [];
-      if (k === 'fences') fence(local, s.len, ch, town.language.street); else if (k === 'trees') tree(local, subSeed(seed, `tree:${i}`) % 997); else BUILD[k](local, ch, town.language.street);
-      // a fence runs along its lot's back from the corner A: its frame starts there
+      if (k === 'trees') tree(local, subSeed(seed, `tree:${i}`) % 997); else BUILD[k](local, ch, town.language.street);
       items.push({ kind: k, at: s.at, face: s.face, ring, faces: placed(local, s.at, s.face) });
     });
   }

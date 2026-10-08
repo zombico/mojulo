@@ -15,8 +15,8 @@ import { drawStructures, fig } from './out-structures-draw.js';
 import { designTown, TOWN_LAWS } from './out-town.js';
 import { structurePaint, paintLaws, streetPaints, SURFACE_GROUPS } from './out-structures-paint.js';
 import { dressTown } from './out-town-dress.js';
-import { townMapCard, townAxonCard, townMapSvg, townFaces, routesCard, pavingCard, roofsCard, dressCard, heartbeatCard, resetTownIds } from './out-town-html.js';
-import { ELEMENT_KINDS, SECONDARY_RULES, elementSwatch, sliceStreet } from './out-anchor-elements.js';
+import { townMapCard, townAxonCard, townMapSvg, townFaces, routesCard, pavingCard, roofsCard, dressCard, heartbeatCard, boundariesCard, tilesCard, resetTownIds } from './out-town-html.js';
+import { ELEMENT_KINDS, SECONDARY_RULES, WALK_FORMS, elementSwatch, sliceStreet, boundaryRoles, roleHeight } from './out-anchor-elements.js';
 import { eyeSpot } from './out-structures.js';
 import { CSS } from './out-index-html.js';
 
@@ -147,11 +147,11 @@ const spanOf = (el, ch, E) => ({ light: Math.min(el.w, el.h ?? el.w), door: el.w
 function elementsCard(L, style, paint) {
   const E = L.elements, ch = style.tokens.chunk, A = L.anchor;
   if (!E) return '<p class="note">This anchor was given as pieces: it names no elements.</p>';
-  const RINGS = { near: 3, mid: 2, far: 0 }, street = (el) => ELEMENT_KINDS[el.kind].family === 'street', furniture = (el) => ['lamp', 'post', 'fence'].includes(el.kind);
+  const RINGS = { near: 3, mid: 2, far: 0 }, street = (el) => ELEMENT_KINDS[el.kind].family === 'street', furniture = (el) => ['lamp', 'post'].includes(el.kind);
   const card = ([id, el]) => {
     const K = ELEMENT_KINDS[el.kind], faces = elementSwatch(A, id, ch), span = spanOf(el, ch, E);
-    const params = Object.entries(K.params).filter(([p]) => el[p] !== undefined).map(([p, spec]) => `<tr><td>${esc(p)}</td><td><b>${esc(showP(el[p]))}</b></td><td class="note">${esc(holdOf(spec))}</td><td class="note">${esc(Array.isArray(spec.rail) && typeof spec.rail[0] === 'number' ? `${spec.rail[0]}–${spec.rail[1]}` : spec.rail.length > 4 ? `${spec.rail.length} forms` : spec.rail.join(' | '))}</td></tr>`).join('') + (el.storeys ? `<tr><td>storeys</td><td colspan="3"><b>${esc(showP(el.storeys))}</b> <span class="note">the street holds</span></td></tr>` : '') + (el.group ? `<tr><td>group</td><td colspan="3">${esc(el.group)} ${el.value}</td></tr>` : '');
-    const reads = Object.entries(RINGS).map(([r, dep]) => { const shown = furniture(el) ? r === 'near' : dep >= K.depth; const how = !shown ? '—' : span === null ? 'geometry' : el.kind === 'wall' ? (span >= eyeSpot(r) ? 'marks' : 'a value') : span >= eyeSpot(r) ? 'geometry' : 'tile'; return `${r} <b>${how}</b>`; }).join(' · ');
+    const params = Object.entries(K.params).filter(([p]) => el[p] !== undefined).map(([p, spec]) => `<tr><td>${esc(p)}</td><td><b>${esc(showP(el[p]))}</b></td><td class="note">${esc(holdOf(spec))}</td><td class="note">${esc(Array.isArray(spec.rail) && typeof spec.rail[0] === 'number' ? `${spec.rail[0]}–${spec.rail[1]}` : spec.rail.length > 4 ? `${spec.rail.length} forms` : spec.rail.join(' | '))}</td></tr>`).join('') + (el.storeys ? `<tr><td>storeys</td><td colspan="3"><b>${esc(showP(el.storeys))}</b> <span class="note">the street holds</span></td></tr>` : '') + (el.roles ? `<tr><td>roles</td><td colspan="3"><b>${esc(el.roles.join(', '))}</b> <span class="note">what it keeps in this town</span></td></tr>` : '') + (el.group ? `<tr><td>group</td><td colspan="3">${esc(el.group)} ${el.value}</td></tr>` : '');
+    const reads = el.kind === 'boundary' ? `near <b>all its detail</b> · mid <b>mass, coping, piers</b> · far <b>its mass</b> where it stands over ${eyeSpot('far')} m` : Object.entries(RINGS).map(([r, dep]) => { const shown = furniture(el) ? r === 'near' : dep >= K.depth; const how = !shown ? '—' : span === null ? 'geometry' : el.kind === 'wall' ? (span >= eyeSpot(r) ? 'marks' : 'a value') : span >= eyeSpot(r) ? 'geometry' : 'tile'; return `${r} <b>${how}</b>`; }).join(' · ');
     return `<div class="card"><h3>${esc(id)} <span class="badge">${esc(el.kind)}</span></h3>${faces.length ? `<div class="views">${drawStructures([faces], { view: 'axon', w: 170, h: 150 })}${drawStructures([faces], { view: 'axon', paint, w: 170, h: 150 })}</div>` : ''}<p class="note">${esc(K.read)}</p><table>${params}</table><p class="note">depth ${K.depth} · reads: ${reads}</p></div>`;
   };
   const building = Object.entries(E).filter(([, el]) => !street(el)), streetEls = Object.entries(E).filter(([, el]) => street(el));
@@ -159,14 +159,15 @@ function elementsCard(L, style, paint) {
 <h3>The building's</h3><div class="grid g3">${building.map(card).join('')}</div><h3 style="margin-top:10px">The street's</h3><div class="grid g3">${streetEls.map(card).join('')}</div>`;
 }
 
-/** The citizen in its slice of street: footway, kerb and road in front of its lot, its lamp and posts on the walk. */
+/** The citizen in its slice of street: walk, edge and road in front of its lot, its lamp and posts, its front gated at its door. */
 function sliceCard(L, style, paint, seed) {
   const b = roundTrip(L, style, seed).building, A = L.anchor, ch = style.tokens.chunk, len = Math.max(A.lot.w, b.dims.W0 + 2);
-  const S = sliceStreet(A, len, ch), dy = S.foot + 0.4 + b.dims.front, dx = (len - b.dims.W0) / 2;
+  const dx = (len - b.dims.W0) / 2, door = b.faces.find((f) => f.part === 'door' || f.part === 'accent'), gateU = door ? dx + door.corners.reduce((a, c) => a + c[0], 0) / door.corners.length : len / 2;
+  const S = sliceStreet(A, len, ch, { gateU }), dy = S.foot + 0.4 + b.dims.front;
   const house = all(b).map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x + dx, y + dy, z + S.top]) }));
   const lot = [{ corners: [[0, S.foot, S.top], [len, S.foot, S.top], [len, S.foot + A.lot.d, S.top], [0, S.foot + A.lot.d, S.top]], normal: [0, 0, 1], part: 'ground', group: 'town:grass', value: 0.45 }];
-  const X = L.street, row = [['road', `${X.road.paving}: the lane's; a branch takes the kit's flags, a back lane earth`], ['kerb', `${X.kerb.h} m high, ${X.kerb.w} m wide`], ['footway', `${X.footway.w} m in ${X.footway.paving}; ${Math.round(0.6 * 100)} % of it on a branch, none on a back lane`], ['lamp', `${X.lamp.head} on a ${X.lamp.arm === 'post' ? 'post' : X.lamp.arm}, ${X.lamp.h} m, every ${X.lamp.stride} m by the kerb`], ['post', `${X.post.form}, ${X.post.h} m, every ${X.post.stride} m where the walk meets the square and at stairs`], ['fence', `${X.fence.form}, ${X.fence.h} m, along the lots' backs`]].map(([k, v]) => `<tr><td><b>${k}</b></td><td>${esc(v)}</td></tr>`).join('');
-  return `<div class="card"><h3>The slice <span class="badge solid">a house and its street</span></h3><p class="note">The anchor is more than a house: it is the citizen standing on its lot behind the street it gives the town. Its road, kerb, footway, lamp and posts are designed with it, and every route in the town is laid in this section, stepped down the ranks.</p>
+  const X = L.street, row = [['road', `${X.road.paving}: the lane's; a branch takes the kit's flags, a back lane earth`], ['kerb', `${X.kerb.h} m high, ${X.kerb.w} m wide`], ['footway', `${X.footway.form ?? 'kerbed'}: ${WALK_FORMS[X.footway.form ?? 'kerbed'].read}; ${X.footway.w} m in ${X.footway.paving}${X.footway.verge ? `, ${X.footway.verge} m of it verge` : ''}; ${Math.round(0.6 * 100)} % of it on a branch, none on a back lane`], ['lamp', `${X.lamp.head} on a ${X.lamp.arm === 'post' ? 'post' : X.lamp.arm}, ${X.lamp.h} m, every ${X.lamp.stride} m by the kerb`], ['post', `${X.post.form}, ${X.post.h} m, every ${X.post.stride} m where the walk meets the square and at stairs`], ...Object.entries(boundaryRoles(X.bounds)).filter(([r, v]) => v && ['front', 'side', 'back'].includes(r)).map(([r, v]) => [r, `${v.form} (${v.id}), ${n2(roleHeight(v))} m${r === 'front' ? ', gated at the door path' : ''}`])].map(([k, v]) => `<tr><td><b>${k}</b></td><td>${esc(v)}</td></tr>`).join('');
+  return `<div class="card"><h3>The slice <span class="badge solid">a house and its street</span></h3><p class="note">The anchor is more than a house: it is the citizen standing on its lot behind the street it gives the town. Its road, the walk's edge, the walk, lamp, posts and the lot's front (gated at the door path) are designed with it, and every route in the town is laid in this section, stepped down the ranks.</p>
 <div class="views">${fig(drawStructures([S.faces, house], { view: 'axon', w: 440, h: 360, floor: lot }), 'the slice, values')}${fig(drawStructures([S.faces, house], { view: 'axon', paint, w: 440, h: 360, floor: lot }), `painted: ${esc(paint.kitId)}`)}${fig(drawStructures([S.faces, house], { view: 'side', w: 360, h: 200, ppm: 13 }), `in section: road · kerb ${X.kerb.h} m · footway ${X.footway.w} m · setback ${n2(b.dims.front)} m · the house`)}</div>
 <table style="margin-top:8px">${row}</table></div>`;
 }
@@ -218,13 +219,15 @@ export function outStructuresHtml({ seed = 8, kitId = 'isekai-meadow', town: rec
   const style = structureStyle(kitId, seed), paint = structurePaint(kitId, recipe.paint), town = designTown(style, seed, recipe), dressed = dressTown(town, style, recipe.dress, seed), L = town.language;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Outdoor Structures Index</title><style>${CSS}.views svg{border:1px solid var(--line)}ol li{margin:2px 0}</style></head><body><div id="page">
 <h1>OUTDOOR STRUCTURES INDEX</h1>
-<p class="lede">A town spoken from one anchor structure. Its elements are designed first, each a set of rules (what the street holds, what a house may vary, how it reads by ring); the anchor is composed from them as a citizen, the ordinary house at full effort, standing in its slice of street (footway, kerb, road, lamp, posts). It is built in pieces, in values only; decompiled, it gives the town its language (vocabulary, proportions, rhythm, values, depths); every building is that language spoken on a lot cut from a route, pruned by its ring and gated by the eye spot, and an annex or a tier is the language spoken again. The style guide paints it as a separate concern. Here: <b>${esc(L.id)}</b>, painted in ${esc(kitId)}, seed ${seed}. Placed in a world: not yet.</p>
+<p class="lede">A town spoken from one anchor structure. Its elements are designed first, each a set of rules (what the street holds, what a house may vary, how it reads by ring); the anchor is composed from them as a citizen, the ordinary house at full effort, standing in its slice of street (a walk in one of its equivalent forms, its edge, the road, lamps, posts, the lot's front). It is built in pieces, in values only; decompiled, it gives the town its language (vocabulary, proportions, rhythm, values, depths); every building is that language spoken on a lot cut from a route, pruned by its ring and gated by the eye spot, and an annex or a tier is the language spoken again. The style guide paints it as a separate concern. Here: <b>${esc(L.id)}</b>, painted in ${esc(kitId)}, seed ${seed}. Placed in a world: not yet.</p>
 <div class="card"><h3>The town this is tuned toward <span class="badge solid">${esc(STRUCTURE_TARGET.kit)}</span></h3><p class="note">${esc(STRUCTURE_TARGET.read)}. <b>Scale:</b> ${esc(STRUCTURE_TARGET.scale)}. <b>Materials:</b> ${esc(STRUCTURE_TARGET.materials)}.</p></div>
 <h2>The elements</h2>${elementsCard(L, style, paint)}
 <h2>The anchor: a citizen in its slice of street</h2>${sliceCard(L, style, paint, seed)}${anchorCard(L, style, paint, seed)}
 <h2>Spoken</h2>${spokenCard(L, style, paint, seed)}
 <h2>Variation within reason</h2>${variationCard(L, style, paint, seed)}
 <h2>The secondary</h2>${secondaryCard(L, style, paint, seed)}
+<h2>Walks and boundaries</h2>${boundariesCard(town, style, paint)}
+<h2>Street tiles</h2>${tilesCard(town, paint)}
 <h2>The town</h2>${townMapCard(town, paint, dressed)}${townAxonCard(town, paint, dressed)}
 <h2>Heartbeats</h2>${heartbeatCard(style, paint, seed, { ...recipe, heartbeat: undefined })}
 <h2>One anchor, one town</h2><p class="note">The same code, other anchors: two authored, three seeded from the vocabulary by a number. Each is shown in pieces, spoken on four uses, and as the square of the town it speaks.</p>${galleryCard(seed)}

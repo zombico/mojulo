@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { STRUCTURE_RING_IDS, structureStyle } from './out-structures.js';
-import { ELEMENT_KINDS, ELEMENT_SETS, seedElements, composeAnchor, readElement, elementSwatch, sliceStreet } from './out-anchor-elements.js';
+import { ELEMENT_KINDS, ELEMENT_SETS, BOUNDARY_FORMS, BOUNDARY_HEIGHTS, BOUNDARY_ROLES, BOUNDARY_ROLE_IDS, WALK_FORM_IDS, seedElements, composeAnchor, readElement, elementSwatch, sliceStreet, boundaryRoles, roleHeight, build } from './out-anchor-elements.js';
 import { decompileAnchor, speak, secondaryOf } from './out-anchor-structure.js';
 import { SURFACE_GROUP_IDS } from './out-structures-paint.js';
 
@@ -16,7 +16,7 @@ describe('out-anchor-elements', () => {
       for (const [id, el] of Object.entries(A.elements)) for (const [p, spec] of Object.entries(ELEMENT_KINDS[el.kind].params)) if (el[p] !== undefined) expect(inRail(el[p], spec.rail), `${A.read} ${id}.${p} ${el[p]}`).toBe(true);
       const C = composeAnchor(A);
       expect(C.use).toBe('dwelling');
-      expect(Object.keys(C.street).sort()).toEqual(['fence', 'footway', 'kerb', 'lamp', 'post', 'road']);
+      expect(Object.keys(C.street).sort()).toEqual(['bounds', 'footway', 'kerb', 'lamp', 'post', 'road']);
       expect(() => decompileAnchor(A)).not.toThrow();
     }
     expect(JSON.stringify(seedElements(9))).toBe(JSON.stringify(seedElements(9)));
@@ -87,5 +87,55 @@ describe('out-anchor-elements', () => {
       }
     }
     expect(secondaryOf({ ...decompileAnchor('timber-hall'), anchor: { pieces: decompileAnchor('timber-hall').anchor.pieces } })).toBeNull();
+  });
+
+  it('a walk is a function: every form separates the walker, and a verge leaves a clear path', () => {
+    const A = ELEMENT_SETS['timber-hall'];
+    for (const form of WALK_FORM_IDS) {
+      const fw = { kind: 'footway', w: 2.2, paving: 'flags', form, verge: form === 'verge' ? 0.8 : undefined }, C = composeAnchor({ ...A, elements: { ...A.elements, footway: fw } }), out = [];
+      const S = build.section(out, 4, 2.4, C.street);
+      expect(S.edge, form).toBe({ kerbed: 'kerb', flush: 'channel', boards: 'fascia', verge: 'verge' }[form]);
+      if (form === 'verge') expect(S.verge).toBeGreaterThan(0);
+    }
+    expect(() => composeAnchor({ ...A, elements: { ...A.elements, footway: { kind: 'footway', w: 1.4, paving: 'flags', form: 'verge', verge: 0.8 } } })).toThrow(/clear path of 0.9 m/);
+    expect(() => readElement('footway', { kind: 'footway', form: 'moat' })).toThrow(/kerbed \| flush \| boards \| verge/);
+  });
+
+  it('boundaries take roles by height class: a form that cannot reach passes the role on; a town\'s needs always met', () => {
+    for (const A of [...Object.values(ELEMENT_SETS), ...Array.from({ length: 40 }, (_, i) => seedElements(i + 1))]) {
+      const C = composeAnchor(A);
+      for (const rise of [2.8, 4.2]) {
+        const R = boundaryRoles(C.street.bounds, rise);
+        for (const role of BOUNDARY_ROLE_IDS) {
+          if (BOUNDARY_ROLES[role].need) expect(R[role], `${A.read} ${role}`).not.toBeNull();
+          if (!R[role]) continue;
+          const F = BOUNDARY_FORMS[R[role].form];
+          if (role === 'retain') { expect(F.retain).toBeGreaterThanOrEqual(rise); continue; }
+          // the height stands inside the class and inside what the form can stand to
+          const h = roleHeight(R[role]), cls = BOUNDARY_HEIGHTS[BOUNDARY_ROLES[role].cls].h;
+          expect(h, `${role} ${R[role].form}`).toBeGreaterThanOrEqual(Math.max(cls[0], F.h[0]) - 1e-9);
+          expect(h).toBeLessThanOrEqual(Math.min(cls[1], F.h[1]) + 1e-9);
+        }
+      }
+    }
+    // a rail fence named for the yard's back cannot stand over the eye: the role falls to the strongest named that can
+    const R = boundaryRoles({ rails: { kind: 'boundary', form: 'rail', roles: ['back'] }, wall: { kind: 'boundary', form: 'coursed', roles: ['precinct'] } });
+    expect(R.back).toMatchObject({ id: 'wall', form: 'coursed', fell: true });
+    expect(R.front).toBeNull();
+    expect(R.retain.form).toBe('coursed');
+    expect(() => composeAnchor({ ...ELEMENT_SETS.shell, elements: { ...ELEMENT_SETS.shell.elements, moat: { kind: 'boundary', form: 'hedge', roles: ['moat'] } } })).toThrow(/'moat' is not a role/);
+  });
+
+  it('a boundary by depth: each degree adds to the one before; a gate opens it; a retaining wall has no back', () => {
+    for (const form of Object.keys(BOUNDARY_FORMS)) {
+      const el = { kind: 'boundary', form, pier: 2.4, cope: 0.06 }, h = Math.min(1.1, BOUNDARY_FORMS[form].h[1]), n = [0, 1, 2, 3].map((depth) => { const o = []; build.boundary(o, 4, el, h, { depth, gates: [{ u: 2, w: 1.2 }] }); return o.length; });
+      for (let d = 1; d < 4; d++) expect(n[d], `${form} ${d}`).toBeGreaterThanOrEqual(n[d - 1]);
+      // nothing stands in the gate below its leaf
+      const o = []; build.boundary(o, 4, el, h, { depth: 2, gates: [{ u: 2, w: 1.2 }] });
+      expect(o.filter((f) => f.corners.every((c) => c[0] > 1.5 && c[0] < 2.5)), form).toEqual([]);
+    }
+    const r = []; build.boundary(r, 4, { kind: 'boundary', form: 'coursed' }, 3, { depth: 1, retain: 3 });
+    expect(r.some((f) => f.normal[1] > 0.5)).toBe(false);
+    expect(Math.max(...r.flatMap((f) => f.corners.map((c) => c[2])))).toBeCloseTo(3, 6);
   });
 });

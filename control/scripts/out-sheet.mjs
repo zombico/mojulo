@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Write a scapeshift outdoor sheet to disk: `node scripts/out-sheet.mjs <index|flora|structures> [out.html] [--seed N] [--kit id]`.
+ * Write a scapeshift outdoor sheet to disk: `node scripts/out-sheet.mjs <index|flora|structures|fortified-town|castle> [out.html] [--seed N] [--kit id]`.
  * The sheets are pure string builders (era/out-*-html.js); this only writes one where a browser can open it.
  */
 import { writeFileSync } from 'node:fs';
@@ -13,6 +13,8 @@ const SHEETS = {
   index: async (o) => (await import('../lib/graph/era/out-index-html.js')).outIndexHtml(o),
   flora: async (o) => (await import('../lib/graph/era/out-flora-html.js')).outFloraHtml(o),
   structures: async (o) => (await import('../lib/graph/era/out-structures-html.js')).outStructuresHtml(o),
+  'fortified-town': async (o) => (await import('../lib/graph/era/out-fortified-town-html.js')).outFortifiedTownHtml(o),
+  castle: async (o) => (await import('../lib/graph/era/out-castle-html.js')).outCastleHtml(o),
 };
 if (!SHEETS[name]) { console.error(`out-sheet: '${name}' is not a sheet (${Object.keys(SHEETS).join(', ')})`); process.exit(1); }
 const opts = { ...(seed ? { seed: Number(seed) } : {}), ...(kitId ? { kitId } : {}) };

@@ -1,7 +1,7 @@
 /**
  * THE ANCHOR STRUCTURE — a town's style language is not a template: it is DECOMPILED from one structure. Its ELEMENTS
  * come first (era/out-anchor-elements.js: the wall and its bond, the cap, the light, the door, the socle, cornice,
- * sills, lintels, quoins, the ornaments, and the street: road, footway, kerb, lamp, post, fence), each a set of rules
+ * sills, lintels, quoins, the ornaments, and the street: road, footway, kerb, lamp, post, boundaries), each a set of rules
  * that says what a street holds and what a house may vary. The anchor is then COMPOSED from them as a CITIZEN, the
  * ordinary house at full effort, standing in its slice of street; composed, it is black and white and in PIECES (a
  * mass, a cap on it, openings in a rhythm, an entry, ornaments and details, an annex or tiers, each a piece of a small
@@ -164,7 +164,8 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
 
   // ── the plan: the short side within the anchor's reach, in the anchor's aspect ──
   let W0, D0, axis = 'x';
-  if (tw) { W0 = D0 = r3(Math.min(X('side', U.side) * (round ? 1.15 : 1), bw, bd, reach)); }
+  // (a fortified town's keep is given its plan: the fort's scale, not the anchor's reach, binds it)
+  if (tw) { W0 = D0 = r3(Math.min(over.plan ?? X('side', U.side) * (round ? 1.15 : 1), bw, bd, over.plan ? Infinity : reach)); }
   // a compact language (the secondary) stands square and upright, as wide as its reach allows
   else if (L.compact) { W0 = D0 = r3(Math.min(bw, bd, reach)); axis = 'y'; }
   else if (round) { const asp = Math.max(1.05, Math.min(1.3, P.aspect)); W0 = Math.min(bw, reach); D0 = r3(Math.min(bd, reach, W0 * asp)); W0 = r3(Math.min(W0, D0 * asp)); axis = 'y'; }
