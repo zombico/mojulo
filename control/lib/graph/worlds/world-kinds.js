@@ -484,6 +484,7 @@ export const WORLD_KINDS = {
   floorplan: {
     title: 'mojulo house',
     walk: true,
+    ownsWalk: true,   // the resolver reads m.walk (world-scene keeps its framed, reflected walk)
     ao: true,
     // A `levels[]` manifest is a STACK (structurizeHouse: one meru, per-level plans and heights,
     // stairs through the slabs, one roof on the top footprint); `storeys: N` (alias `floors`) is
@@ -500,6 +501,7 @@ export const WORLD_KINDS = {
   restaurant: {
     title: 'mojulo restaurant',
     walk: true,
+    ownsWalk: true,   // the resolver reads m.walk (world-scene keeps its framed, reflected walk)
     ao: true,
     resolve: (m, ctx) => assembleRestaurantWorldScene(m, { ...m, view: ctx.view ?? m.view, walk: m.walk ?? true, title: ctx.title }),
   },
@@ -507,12 +509,14 @@ export const WORLD_KINDS = {
   store: {
     title: 'mojulo store',
     walk: true,
+    ownsWalk: true,   // the resolver reads m.walk (world-scene keeps its framed, reflected walk)
     ao: true,
     resolve: (m, ctx) => assembleStoreWorldScene(m, { walk: m.walk ?? true, title: ctx.title }),
   },
   mall: {
     title: 'mojulo mall',
     walk: true,
+    ownsWalk: true,   // the resolver reads m.walk (world-scene keeps its framed, reflected walk)
     ao: true,
     resolve: (m, ctx) => assembleMallWorldScene(m, { walk: m.walk ?? true, title: ctx.title }),
   },

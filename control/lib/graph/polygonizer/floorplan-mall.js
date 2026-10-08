@@ -20,6 +20,7 @@ import { buildEscalator } from '../architecture/subway-building.js';
 import { makeLight } from './vexar.js';
 import { cardPlan, cardBayFaces } from '../retail/store-mall.js';
 import { resolveCard } from '../retail/store-cards.js';
+import { planToWorld } from './floorplan-world.js';
 
 export const MALL_DEFAULTS = {
   width: 64,            // x extent (ft)
@@ -270,13 +271,13 @@ export function assembleMallWorldScene(input = {}, opts = {}) {
     { name: 'aerial', worldFraming: { cameraPosition: [cx - 0.25 * W, fp.y0 - 0.4 * H, 10 * levels + 1.2 * Math.max(W, H)], lookAt: [cx, cy, 0], horizontalFov: 60 } },
     { name: 'concourse', worldFraming: { cameraPosition: [cx, conc.y + 2, 5.4], lookAt: [cx, conc.y + conc.h, 4.2], horizontalFov: 78 } },
   ]).map((c) => ({ ...c, worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming } }));
-  return {
+  return planToWorld({
     faces: m.faces, cameras, viewBox, title: opts.title || 'mojulo mall', bg: opts.bg || '#0d1016',
     inline: opts.inline ?? false, light: opts.light,
     walk: opts.walk === false ? false : { eye: 5.4, spawn: [cx, conc.y + 3] },
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
     mall: { bays: (m.bays || []).map((b) => ({ index: b.index, card: b.card.id, degraded: b.store?.fitOut.report.degraded || [] })) },
-  };
+  });
 }
 
 /** Render a (styled) single-floor mall to a navigable three.js World. */
@@ -400,9 +401,9 @@ export function renderMallTwoLevelToThreeWorld(input = {}, opts = {}) {
   const cameras = opts.cameras || [{ name: 'atrium', worldFraming: {
     cameraPosition: [cx, footprint.y0 + 0.18 * H, 6], lookAt: [cx, footprint.y0 + 0.55 * H, 11], horizontalFov: 88,
   } }];
-  return emitThreeWorld({
+  return emitThreeWorld(planToWorld({
     faces, cameras, viewBox: opts.viewBox || { width: 1500, height: 950 },
     title: opts.title || 'mojulo mall (two levels)', bg: opts.bg || '#0d1016',
     inline: opts.inline ?? true, walk: opts.walk ?? false, light: opts.light,
-  });
+  }));
 }

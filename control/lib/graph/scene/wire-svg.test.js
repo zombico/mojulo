@@ -50,10 +50,10 @@ describe('wire-svg — camera basis', () => {
     const a = projectVertices(HEAD.vertices, cam150); const b = projectVertices(HEAD.vertices, worldFramingCamera(wf));
     for (let i = 0; i < a.length; i++) for (let k = 0; k < 3; k++) expect(Math.abs(a[i][k] - b[i][k])).toBeLessThan(1e-9);
   });
-  it('is the horizontal mirror of resolveCameraBasis (the legacy CSS3D / scaffold picture), documented on purpose', () => {
+  it('lands every vertex where resolveCameraBasis does: the wire still and the filled still are one camera, not mirrors', () => {
     const wf = { worldFraming: { cameraPosition: cam150.position, lookAt: [0, 0, 1.60], horizontalFov: 2 * Math.atan(450 / 1400) * 180 / Math.PI }, viewBox: { width: 900, height: 900 } };
     const ours = projectVertices(HEAD.vertices, worldFramingCamera(wf));
-    for (let i = 0; i < HEAD.vertices.length; i++) { const legacy = projectTwoPointPinhole(HEAD.vertices[i], wf, {}); expect(Math.abs((900 - legacy[0]) - ours[i][0])).toBeLessThan(2e-3); expect(Math.abs(legacy[1] - ours[i][1])).toBeLessThan(2e-3); }
+    for (let i = 0; i < HEAD.vertices.length; i++) { const pinhole = projectTwoPointPinhole(HEAD.vertices[i], wf, {}); expect(Math.abs(pinhole[0] - ours[i][0])).toBeLessThan(2e-3); expect(Math.abs(pinhole[1] - ours[i][1])).toBeLessThan(2e-3); }
   });
   it('refuses a source behind the camera', () => {
     expect(() => projectVertices([[0, 0, 1.6], [0, 5, 1.6]], cam150)).toThrow(/behind camera/);

@@ -18,5 +18,9 @@ open from here and the card for each. Read only the card for the step you are ad
 { "seed": 7, "width": 40, "height": 30, "furnish": true, "view": "cutaway" }
 ```
 
+Every number in a house recipe is a plan coordinate in feet, as the plan card draws it: x east, y
+south (N is the y0 wall), authored `cameras` and `walk.spawn` included. The World, the stills and
+every export build the house north-up from them, the way round the plan reads.
+
 Iterate with `update_sketch({ ref, patch })`; re-mint only for a side-by-side variant. A bespoke
 institutional building is `mint_solid` kind `edifice`; a city or campus is `compose_world`.

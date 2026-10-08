@@ -12,6 +12,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Handedness
+
+- The still camera is right-handed. The pinhole projector behind every SVG still and the CSS-3D scene
+  (`resolveCameraBasis`, `cameraMatrixFromWorldFraming`, `projectWorldToScreen`) read right = up × forward, which
+  put the world's left on screen-right: every still was the mirror image of the same scene in the three.js World and
+  in every engine export, and the wire still (already right-handed) disagreed with the filled one. Right is now
+  forward × up. The figure and animal stills negated screen-x to undo the mirror; that negation is gone, so their
+  stills read as before, and the figure's study views (head, top, under), which negated x over a camera that was
+  already right-handed, stop mirroring.
+- A house is built the way round its plan reads. A floor plan is authored as the plan card draws it — x east, y south,
+  N the y0 wall — and its (x, y) went straight into the z-up world, where north is +y: every house, restaurant, store
+  and mall in the World, the GLB, USDZ, STL and 3MF and the Godot, Unity, Unreal and Blender legs was the mirror image
+  of its plan (the mirrored stills hid it). Each floorplan-family assembler now hands its payload through one reflection
+  on the way out (`planToWorld`, `polygonizer/floorplan-world.js`): corners and normals reflect with their winding
+  turned, per-corner arrays follow, an explicit `uv` mirrors in u so textures read true, a CSS clip is re-measured,
+  and cameras, the walk spawn and yaw, pot lights, the manifest light, stamped repeats and item refs move with them.
+  Plan logic (wall and facing letters, layouts, furnishing, the plan card) is untouched; a `ref` item is placed
+  true-handed at its world facing. The IFC4 model reflects the same way (`ifc.js`: boxes, slabs, roof planes, gables,
+  members, walls, gutters), its local frames built right-handed from the reflected points. The default house cameras
+  stand off the plan's south side, so the aerial reads as the plan card, north up. A floorplan-family manifest's
+  `walk` is no longer replaced, after the kind framed it, by the raw manifest value (which dropped the eye height and
+  walker radius and would have put the spawn back in the plan). Re-pinned: the floorplan, restaurant, store and mall
+  rows of `world-scene.kinds` (their geometry moved); `floorplan-world.test.js` pins the laws.
+- The turntable's World is the CSS scene, not its mirror: CSS space (x right, y down, z toward the viewer) is
+  left-handed, and its rotation into the world flipped the lit side. It maps as [-x, z, -y], winding reversed.
+
 ## [3.1.0] - 2026-10-07
 
 ### Anime game hero

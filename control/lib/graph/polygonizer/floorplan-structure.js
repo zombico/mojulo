@@ -54,6 +54,7 @@ import { tessellateForBake } from '../scene/bake-prep.js';
 import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter.js';
 import { AUTHORING_UNITS, metersPerUnitFor } from '../scene/world-units.js';
 import { SM } from '../../util/math-scope.js';
+import { planToWorld } from './floorplan-world.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
 // The sibling of floorplan-glyphs' ARCHETYPES: those say what's IN a room, these
@@ -187,12 +188,13 @@ function groundPlaneFaces(footprint, z, o) {
 
 // Exterior orbit cameras: frame the whole massed house + roof from outside & above.
 export function floorplanExteriorCameras(fp, zTop, _opts = {}) {
+  // from the plan's SOUTH (beyond y1): out of planToWorld the house is north-up, so the aerial reads as the plan card
   const cx = (fp.x0 + fp.x1) / 2, cy = (fp.y0 + fp.y1) / 2;
   const w = fp.x1 - fp.x0, d = fp.y1 - fp.y0, span = Math.max(w, d, zTop);
   const look = [cx, cy, zTop * 0.42];
   return [
-    { name: 'exterior', worldFraming: { cameraPosition: [cx - 0.45 * w, fp.y0 - 1.15 * d, zTop + 0.85 * span], lookAt: look, horizontalFov: 60 } },
-    { name: 'corner', worldFraming: { cameraPosition: [fp.x0 - 0.9 * w, fp.y0 - 0.9 * d, zTop + 0.5 * span], lookAt: look, horizontalFov: 66 } },
+    { name: 'exterior', worldFraming: { cameraPosition: [cx - 0.45 * w, fp.y1 + 1.15 * d, zTop + 0.85 * span], lookAt: look, horizontalFov: 60 } },
+    { name: 'corner', worldFraming: { cameraPosition: [fp.x0 - 0.9 * w, fp.y1 + 0.9 * d, zTop + 0.5 * span], lookAt: look, horizontalFov: 66 } },
   ];
 }
 
@@ -899,7 +901,8 @@ function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
 const OPPOSITE = { N: 'S', S: 'N', E: 'W', W: 'E' };
 // the room renderer's facing letters are mirrored in v (see orientElementsToDoor)
 const RENDER_FACING = { N: 'S', S: 'N', E: 'E', W: 'W' };
-// the angle that turns a ref's own +y front onto a compass facing (z-up, N = −y)
+// the angle that turns a ref's own +y front onto a compass facing in the PLAN frame (N = −y); a ref the
+// assembler has handed through planToWorld carries its world angle instead (floorplan-world.js)
 const FACING_ANGLE = { S: 0, N: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 };
 // a share-mode asset id back to the arranger type whose preset (height, box-net) it wears
 const ASSET_TYPE = Object.fromEntries(Object.entries(SHARE_ASSETS).map(([t, a]) => [a, t]));
@@ -999,7 +1002,8 @@ export function placeItemFaces(faces, rec) {
   const [w, d] = rec.size;
   const k = Math.min(w / Math.max(bx1 - bx0, eps), d / Math.max(by1 - by0, eps), rec.height ? rec.height / Math.max(bz1 - bz0, eps) : Infinity);
   const mx = (bx0 + bx1) / 2, my = (by0 + by1) / 2;
-  const a = FACING_ANGLE[rec.facing] ?? 0;                // the turn is already in x, y above
+  // the turn is already in x, y above; a ref out of planToWorld carries its world facing as an angle
+  const a = Number.isFinite(rec.facingAngle) ? rec.facingAngle : (FACING_ANGLE[rec.facing] ?? 0);
   const ca = SM.cos(a), sa = SM.sin(a);
   const [cx, cy] = rec.center;
   const cn = SM.cos(turn + a), sn = SM.sin(turn + a);
@@ -1980,12 +1984,13 @@ export function structurizeFloorplan(input = {}, opts = {}) {
 
 /** Slight-overhead cameras that read the exterior skin and the open-roof interior. */
 export function floorplanCameras(fp, opts = {}) {
+  // from the plan's SOUTH (beyond y1): out of planToWorld the house is north-up, so the aerial reads as the plan card
   const o = { ...FLOORPLAN_DEFAULTS, ...opts };
   const cx = (fp.x0 + fp.x1) / 2, cy = (fp.y0 + fp.y1) / 2;
   const w = fp.x1 - fp.x0, d = fp.y1 - fp.y0, span = Math.max(w, d);
   return [
-    { name: 'aerial', worldFraming: { cameraPosition: [cx - 0.12 * w, fp.y0 - 0.7 * d, o.wallHeight + 0.95 * span], lookAt: [cx, cy, 0], horizontalFov: 58 } },
-    { name: 'corner', worldFraming: { cameraPosition: [fp.x0 - 0.55 * w, fp.y0 - 0.6 * d, o.wallHeight * 2.6], lookAt: [cx, cy, 0], horizontalFov: 70 } },
+    { name: 'aerial', worldFraming: { cameraPosition: [cx - 0.12 * w, fp.y1 + 0.7 * d, o.wallHeight + 0.95 * span], lookAt: [cx, cy, 0], horizontalFov: 58 } },
+    { name: 'corner', worldFraming: { cameraPosition: [fp.x0 - 0.55 * w, fp.y1 + 0.6 * d, o.wallHeight * 2.6], lookAt: [cx, cy, 0], horizontalFov: 70 } },
   ];
 }
 
@@ -1994,7 +1999,7 @@ export function assembleFloorplanScene(input = {}, opts = {}) {
   const s = structurizeFloorplan(input, opts);
   const exterior = opts.view === 'exterior';
   const zTop = (s.baseZ || 0) + (opts.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight);
-  return {
+  return planToWorld({
     faces: s.faces,
     cameras: opts.cameras || (exterior ? floorplanExteriorCameras(s.lot || s.footprint, zTop, opts) : floorplanCameras(s.footprint, opts)),
     viewBox: opts.viewBox || { width: 1120, height: 760 },
@@ -2002,7 +2007,7 @@ export function assembleFloorplanScene(input = {}, opts = {}) {
     title: opts.title || 'mojulo house',
     bg: opts.bg || '#10131a',
     structure: s,
-  };
+  });
 }
 
 /** Convenience: structurized house → self-contained preserve-3d HTML scene. */
@@ -2035,7 +2040,8 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
   const textures = {};
   for (const k of s.roofTextureKeys || []) { const u = surfaceTexture(k); if (u) textures[k] = u; }
   collectFaceTextures(s.faces, textures);                                 // floor tiles (lit-handoff step 3)
-  return {
+  // the plan is built in the plan frame (y south); the payload leaves in the world's (floorplan-world.js)
+  return planToWorld({
     faces: s.faces,
     cameras,
     viewBox,
@@ -2054,7 +2060,7 @@ export function assembleFloorWorldScene(input = {}, opts = {}) {
     // and the engine score scale by this so every importer receives metres (the engine-leg
     // finding: the lounge landed in Unreal at 3.28× with a 10 m ceiling).
     metersPerUnit: s.metersPerUnit,
-  };
+  });
 }
 
 /**
@@ -2187,7 +2193,7 @@ export function structurizeSplitMirror(input = {}, opts = {}) {
 export function assembleSplitMirrorScene(input = {}, opts = {}) {
   const s = structurizeSplitMirror(input, opts);
   const zTop = s.zTop ?? s.wallHeight ?? opts.wallHeight ?? FLOORPLAN_DEFAULTS.wallHeight;
-  return {
+  return planToWorld({
     faces: s.faces,
     cameras: opts.cameras || floorplanExteriorCameras(s.lot, zTop, opts),
     viewBox: opts.viewBox || { width: 1200, height: 760 },
@@ -2195,7 +2201,7 @@ export function assembleSplitMirrorScene(input = {}, opts = {}) {
     title: opts.title || 'mojulo split-mirror',
     bg: opts.bg || '#10131a',
     structure: s,
-  };
+  });
 }
 
 /** Split-mirror pair → self-contained preserve-3d HTML scene. */
@@ -2215,11 +2221,11 @@ export function assembleSplitMirrorWorld(input = {}, opts = {}) {
   const cameras = floorplanExteriorCameras(s.lot, s.zTop, opts).map((c) => ({
     ...c, worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming },
   }));
-  return {
+  return planToWorld({
     faces: s.faces, cameras, viewBox,
     title: opts.title || 'mojulo split-mirror', bg: opts.bg || '#10131a',
     inline: opts.inline ?? true, light: opts.light, walk: false, structure: s,
-  };
+  });
 }
 
 /** Split-mirror pair → a self-contained navigable three.js World (HTML). */
@@ -2822,25 +2828,27 @@ export function structurizeHouse(input = {}, opts = {}) {
 
 /** Cameras for a multi-level house (pulls back to take in the whole stack — and lot). */
 export function houseCameras(house, opts = {}) {
+  // from the plan's SOUTH (beyond y1): out of planToWorld the house is north-up, so the aerial reads as the plan card
   const fp = house.lot || house.footprint;   // frame the whole lot when perimeter is built
   const zs = house.levels.flatMap((l) => [l.baseZ - house.meru.floorDrop, l.baseZ + l.height]);
   const zMax = Math.max(...zs), zMin = Math.min(...zs);
   const cx = (fp.x0 + fp.x1) / 2, cy = (fp.y0 + fp.y1) / 2;
   const w = fp.x1 - fp.x0, d = fp.y1 - fp.y0, span = Math.max(w, d, zMax - zMin);
   return [
-    { name: 'aerial', worldFraming: { cameraPosition: [cx - 0.15 * w, fp.y0 - 0.9 * d, zMax + 1.0 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 60 } },
-    { name: 'corner', worldFraming: { cameraPosition: [fp.x0 - 0.7 * w, fp.y0 - 0.7 * d, zMax + 0.3 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 72 } },
+    { name: 'aerial', worldFraming: { cameraPosition: [cx - 0.15 * w, fp.y1 + 0.9 * d, zMax + 1.0 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 60 } },
+    { name: 'corner', worldFraming: { cameraPosition: [fp.x0 - 0.7 * w, fp.y1 + 0.7 * d, zMax + 0.3 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 72 } },
   ];
 }
 
 /** Cameras framing a footprint over an explicit z-range (used by the three.js house). */
 function camerasForBounds(fp, zMin, zMax, viewBox) {
+  // from the plan's SOUTH (beyond y1): out of planToWorld the house is north-up, so the aerial reads as the plan card
   const cx = (fp.x0 + fp.x1) / 2, cy = (fp.y0 + fp.y1) / 2;
   const w = fp.x1 - fp.x0, d = fp.y1 - fp.y0, span = Math.max(w, d, zMax - zMin);
   const pc = [viewBox.width / 2, viewBox.height / 2];
   return [
-    { name: 'aerial', worldFraming: { pictureCenter: pc, cameraPosition: [cx - 0.2 * w, fp.y0 - 1.0 * d, zMax + 0.9 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 60 } },
-    { name: 'corner', worldFraming: { pictureCenter: pc, cameraPosition: [fp.x0 - 0.85 * w, fp.y0 - 0.85 * d, zMax + 0.4 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 72 } },
+    { name: 'aerial', worldFraming: { pictureCenter: pc, cameraPosition: [cx - 0.2 * w, fp.y1 + 1.0 * d, zMax + 0.9 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 60 } },
+    { name: 'corner', worldFraming: { pictureCenter: pc, cameraPosition: [fp.x0 - 0.85 * w, fp.y1 + 0.85 * d, zMax + 0.4 * span], lookAt: [cx, cy, (zMax + zMin) / 2], horizontalFov: 72 } },
   ];
 }
 
@@ -2892,7 +2900,7 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
   collectFaceTextures(house.faces, textures);
   // placed `ref` items per storey, riding the level's explode offset like its faces
   const itemRefs = house.levels.flatMap((lvl) => (lvl.structure.itemRefs || []).map((r) => (gap ? { ...r, z: r.z + lvl.index * gap } : r)));
-  return {
+  return planToWorld({
     faces, cameras, viewBox,
     title: opts.title || 'mojulo house',
     bg: opts.bg || '#10131a', inline: opts.inline ?? false, light: opts.light,
@@ -2902,7 +2910,7 @@ export function assembleHouseWorldScene(input = {}, opts = {}) {
     ...(repeats.length ? { repeats } : {}),
     // authored in FEET like the single floor; the GLB root and engine score scale by this.
     metersPerUnit: FLOORPLAN_METERS_PER_UNIT,
-  };
+  });
 }
 
 /** Render a multi-level house as a navigable three.js World (see assembleHouseWorldScene). */
@@ -2971,6 +2979,7 @@ export function renderHouseToHtml(input = {}, opts = {}) {
     for (const f of faces) for (const c of f.corners) { if (c[2] < zLo) zLo = c[2]; if (c[2] > zHi) zHi = c[2]; }
     cameras = opts.cameras || camerasForBounds(house.footprint, zLo, zHi, viewBox);
   }
+  ({ faces, cameras } = planToWorld({ faces, cameras }));   // plan frame → world (floorplan-world.js)
   return emitPreserve3dScene({
     faces,
     cameras,

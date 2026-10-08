@@ -163,13 +163,14 @@ describe('ref items', () => {
     expect(mug.length).toBeGreaterThan(0);
     const b = bounds(mug);
     const [p] = roomItemPlacements(manifest.rooms[0]);
+    // the placement is a plan rect (y south); the World is north-up, so its y span is the rect's reflected
     expect(b.x0).toBeGreaterThanOrEqual(p.rect.x0 - 1e-6);
     expect(b.x1).toBeLessThanOrEqual(p.rect.x1 + 1e-6);
-    expect(b.y0).toBeGreaterThanOrEqual(p.rect.y0 - 1e-6);
-    expect(b.y1).toBeLessThanOrEqual(p.rect.y1 + 1e-6);
+    expect(b.y0).toBeGreaterThanOrEqual(-p.rect.y1 - 1e-6);
+    expect(b.y1).toBeLessThanOrEqual(-p.rect.y0 + 1e-6);
     expect(b.z0).toBeCloseTo(0, 6);
     expect(b.z1).toBeLessThanOrEqual(3 + 1e-6);
-    // facing W turns local +y onto −x, so the +x handle swings round to +y
+    // facing W turns local +y onto −x, so the +x handle (on the mug's right) swings round to +y, north
     const handle = mug.filter((f) => f.corners.every((c) => c[1] > (b.y0 + b.y1) / 2 + 0.3 * (b.y1 - b.y0) / 2));
     expect(handle.length).toBeGreaterThan(0);
   });

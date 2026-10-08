@@ -10,6 +10,7 @@ import { assessStoreConcept } from './store-assess.js';
 import { resolveCard, SEEDED_CARDS } from './store-cards.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
+import { planToWorld } from '../polygonizer/floorplan-world.js';
 
 export const STORE_WORLD_DEFAULTS = { width: 24, depth: 40, seed: 1 };
 
@@ -46,7 +47,7 @@ function assembleStoreWorldSceneIn(m = {}, opts = {}) {
   const assessment = assessStoreConcept(cardUsed, s);
   const viewBox = opts.viewBox || { width: 1120, height: 840 };
   const cameras = (opts.cameras || storeCameras(s)).map((c) => ({ ...c, worldFraming: { pictureCenter: [viewBox.width / 2, viewBox.height / 2], ...c.worldFraming } }));
-  return {
+  return planToWorld({
     faces: s.faces, cameras, viewBox,
     title: opts.title || m.title || card.label || 'mojulo store',
     bg: opts.bg || '#11141a', inline: opts.inline ?? false, light: opts.light,
@@ -59,5 +60,5 @@ function assembleStoreWorldSceneIn(m = {}, opts = {}) {
       fitted: s.fitOut.report.fitted,
       degraded: s.fitOut.report.degraded,
     },
-  };
+  });
 }

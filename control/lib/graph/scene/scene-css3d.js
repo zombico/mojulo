@@ -97,11 +97,11 @@ export function cameraMatrixFromWorldFraming(worldFraming = {}, viewBox = {}, un
   const fov = Number(worldFraming.horizontalFov) || 60;
   const W = Number(viewBox.width) || 1080;
   const H = Number(viewBox.height) || 720;
-  // Match projectTwoPointPinhole's basis exactly: right = worldUp × forward,
-  // up = forward × right (a flipped right axis mirrors the scene).
+  // Match projectTwoPointPinhole's basis exactly: right = forward × worldUp,
+  // up = right × forward (a flipped right axis mirrors the scene).
   const f = norm(sub(look, pos));
-  const r = norm(cross([0, 0, 1], f));
-  const u = cross(f, r);
+  const r = norm(cross(f, [0, 0, 1]));
+  const u = cross(r, f);
   const focal = (W / 2) / SM.tan((fov * Math.PI / 180) / 2);
   const p = scale(pos, unitScale);
   const cols = [
@@ -127,8 +127,8 @@ export function projectWorldToScreen(worldPt, worldFraming = {}, viewBox = {}) {
   const W = Number(viewBox.width) || 1080;
   const H = Number(viewBox.height) || 720;
   const f = norm(sub(look, pos));
-  const r = norm(cross([0, 0, 1], f));
-  const u = cross(f, r);
+  const r = norm(cross(f, [0, 0, 1]));
+  const u = cross(r, f);
   const focal = (W / 2) / SM.tan((fov * Math.PI / 180) / 2);
   const center = Array.isArray(worldFraming.pictureCenter) ? worldFraming.pictureCenter : [W / 2, H / 2];
   const V = sub(worldPt, pos);
