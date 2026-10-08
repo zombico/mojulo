@@ -54,6 +54,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   cast's `hands` (1.2), and a broader palm through a new `handWidth` (1.17 female, 1.25 male: the palm's width, the
   knuckles' spread and the digits' width across, their depth by its root). The feet are unchanged. Every anime hero's
   mesh moves at the hand; its pins are re-pinned.
+- The hips bend as one piece: on the structured core the pelvis bone now TIPS with the hip hinge (a `pelvisTilt`
+  reference the vajra carries with the pelvis, never with the spine), so the basin, the waistband and the belt go over
+  the thighs with the trunk instead of staying upright under it (the waist opened a gap, a shelf at the back, whenever
+  the figure bent at the hips: a lean, a stop, a jump's load). A skirt's cloth below the seat now hangs from both
+  thighs evenly instead of the pelvis, so the tipping pelvis never swings it into the legs. Every hinged pose of a
+  structured hero moves; their pins are re-pinned. The streamlined core is as it was.
+- What flows, on control strings (`polygonizer/hero-flow.js`, a spike: not yet on the door's bake or in the exports).
+  RIGIDITY (`polygonizer/rigidity.js`), the garment canon's long-named fourth axis, is now a word: `shell` (locked, the
+  default), `stiff`, `crisp`, `soft`, `flowing`, or 0 … 1. A garment piece takes it (`rigidity` on a garment, or an
+  outfit build's `language.bottom.rigidity` for a skirt); it rides the part and leaves the mesh as it was. Each
+  section of the anime hair carries its own (the back soft, the fringe stiff, the ahoge springy). What flows hangs on
+  strings: a STRAND (one chain: a hair section from the skull) or a CURTAIN (a chain every 22.5° round a hanging edge,
+  neighbours coupled: a skirt). Each joint is pulled toward where the piece's own skin would carry it (a skirt still
+  follows the legs) and swings with inertia, gravity as its carrier tilts, and the air (the world's seeded gust field,
+  `vegetation/wind.js`, less the body's own motion: a sprint streams it back, a stop throws it forward). Everything
+  locked (the body and its shell pieces) is one COLLISION FORM of tapered capsules; what flows stays out of it, leaving
+  a limb on its own side (a leg sweeping through a skirt does not catch it), and above the floor. The rig's `flow`
+  channel places a string joint in its carrier's frame (absent ⇒ the rig as it was). The motion card takes `--hair`,
+  `--flow <part>=<rigidity>` and `--wind speed,dir,gust`.
 - Elbows down (`polygonizer/hero-elbow.js`): in every gait and jump a raised, bent arm rolls at the shoulder so the
   forearm folds up with the elbow beneath it, never sideways across the chest; the roll follows the raise smoothly and
   leaves hanging and back-swung arms alone.

@@ -6,7 +6,7 @@
 //   dials     { stylize, fit, coverage, ornament } — the defaults a build's own `dials` override
 //   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar: true|false } | false (no top)
 //             bottom: { family, leg } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
-//             full } | false
+//             full, rigidity?: shell | stiff | crisp | soft | flowing | 0 … 1 (how the skirt moves: rigidity.js) } | false
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
 //             feet:   'boots' | 'shoes' | 'none'
 //             tuck:   true (the top tucked in, the bottom over its tail) | false (worn out over the bottom)
@@ -15,6 +15,7 @@
 //   tones     group → '#hex': Top, Bottom, Shoes and the construction's (Trim, Placket, Button, Seam, Waistband,
 //             Leather, Buckle), suggested beneath the operator's own palette; the rest derive from Top and Bottom
 
+import { rigidityErrors } from '../polygonizer/rigidity.js';
 export const SEEDED_OUTFITS = Object.freeze({
   casual: {
     "id": "casual",
@@ -74,7 +75,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.top !== undefined && L.top !== false) { if (typeof L.top !== 'object') errs.push(`${at}.language.top: { family, sleeve, hem, collar? } or false`);
     else errs.push(...one(L.top.family, FAMILY, `${at}.language.top.family`), ...one(L.top.sleeve, SLEEVE, `${at}.language.top.sleeve`), ...one(L.top.hem, HEM, `${at}.language.top.hem`)); }
   if (L.bottom !== undefined && L.bottom !== false) { if (typeof L.bottom !== 'object') errs.push(`${at}.language.bottom: { family, leg } or false`);
-    else if (L.bottom.kind === 'skirt') errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, SKIRT, `${at}.language.bottom.leg`), ...one(L.bottom.cut, CUT, `${at}.language.bottom.cut`));
+    else if (L.bottom.kind === 'skirt') errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, SKIRT, `${at}.language.bottom.leg`), ...one(L.bottom.cut, CUT, `${at}.language.bottom.cut`), ...rigidityErrors(L.bottom.rigidity, `${at}.language.bottom.rigidity`));
     else if (L.bottom.kind !== undefined && L.bottom.kind !== 'trousers') errs.push(`${at}.language.bottom.kind: 'trousers' (the default) or 'skirt'`);
     else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`)); }
   if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);

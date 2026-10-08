@@ -30,15 +30,18 @@
  * an address { part, u | run }) to the hem (`to`), each ring the support of everything at its height in twenty
  * directions, symmetric, never narrowing below the hips and widening by `flare` (m per m of fall); each point skins as
  * the pelvis at the waist, and below by the crotch as the leg it lies over (the cloth near a leg follows it, the cloth
- * between and behind the legs stays with the pelvis). The
+ * between the legs hangs from both thighs below the seat). The
  * cloth has two faces, down the outside, folded at the hem and back up `thick` (m) inside to the hips, so the hem is an edge
  * and the skirt open beneath. The piece is `<id>_skirt`; its outer rings are st0 (the waist) … st11 (the hem).
+ * `rigidity` (any piece's; hero-flow.js): how it moves with the figure — 'shell' (locked, the default), 'stiff', 'crisp',
+ * 'soft', 'flowing' or 0 … 1 — carried on its part for the flow rig; the mesh is the same either way.
  * `drape` (a copy piece's): held out above, the cloth falls from there, coming in at most `drape` per metre of fall (a
  * shirt from the bust, not hugging back under it). Pure, deterministic.
  */
 import { hullHeight } from './station-loft-adorn.js';
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
+import { rigidityErrors } from './rigidity.js';
 
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
@@ -68,10 +71,11 @@ export function validateGarments(G) {
     if (P.rings !== undefined && !(P.rings && typeof P.rings === 'object' && Object.keys(P.rings).every((k) => ['u', 'run'].includes(k)) && Object.values(P.rings).every((v) => Array.isArray(v) && v.every(Number.isFinite)))) errs.push(`${at}.rings: { u?: [stations], run?: [shares] } — rings added inside the window`);
     if (P.fit !== undefined && !['shoe', 'skirt'].includes(P.fit)) errs.push(`${at}.fit: 'shoe' (footwear on a flat sole), 'skirt' (a hull round the hips and both legs), or absent (a copy of the part's rings)`);
     if (P.fit === 'skirt') for (const k of ['from', 'to']) if (!(P[k] && typeof P[k].part === 'string' && (Number.isFinite(P[k].u) || Number.isFinite(P[k].run)))) errs.push(`${at}.${k}: { part, u | run } — the ${k === 'from' ? 'waist' : 'hem'}'s height, an address on a body part`);
+    errs.push(...rigidityErrors(P.rigidity, `${at}.rigidity`));
     if (P.drape !== undefined && !(Number.isFinite(P.drape) && P.drape >= 0)) errs.push(`${at}.drape: how far the cloth may fall in per metre it falls below what holds it out (≥ 0; 0 falls straight)`);
     if (P.toe !== undefined && !(Number.isFinite(P.toe) && P.toe > 0)) errs.push(`${at}.toe: the toe box's height as a share of the foot's (> 0)`);
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
-    for (const k of Object.keys(P)) if (!['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick'].includes(k)) errs.push(`${at}.${k}: not a garment field (id, part, u, run, ease, flare, over, group, fit, toe, heel, rings, from, to, drape, thick)`);
+    for (const k of Object.keys(P)) if (!['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity'].includes(k)) errs.push(`${at}.${k}: not a garment field (id, part, u, run, ease, flare, over, group, fit, toe, heel, rings, from, to, drape, thick, rigidity)`);
     if (P.thick !== undefined && !(Number.isFinite(P.thick) && P.thick > 0)) errs.push(`${at}.thick: a skirt's cloth thickness at the hem (m, > 0)`);
   });
   return errs;
@@ -108,12 +112,14 @@ export function garmentParts(parts, garments, dials = {}) {
   const worn = {};   // body part → the garment parts already on it (the next one stands off them)
   garments.forEach((P, i) => {
     const names = both(P.part).flatMap((n) => { const hit = partsNamed(parts, n); if (!hit.length) throw new Error(`garments[${i}]: '${n}' is not an L1 part`); return hit; });
-    if (P.fit === 'skirt') { const name = `${P.id}_skirt`; parts[name] = skirtPart(parts, names, P, worn);
+    // `rigidity` (hero-flow.js) rides the piece's part: how it moves when the figure moves (absent: locked, a shell)
+    const stiff = (part) => (P.rigidity !== undefined ? Object.assign(part, { rigidity: P.rigidity }) : part);
+    if (P.fit === 'skirt') { const name = `${P.id}_skirt`; parts[name] = stiff(skirtPart(parts, names, P, worn));
       for (const src of names) (worn[src] ??= []).push(name);
       for (const d of Object.values(dials)) if (Array.isArray(d.parts) && names.some((n) => d.parts.includes(n))) d.parts = [...d.parts, name];
       return; }
     for (const src of names) {
-      if (P.fit === 'shoe') { const name = `${P.id}_${src}`; parts[name] = shoePart(parts, src, P); (worn[src] ??= []).push(name);
+      if (P.fit === 'shoe') { const name = `${P.id}_${src}`; parts[name] = stiff(shoePart(parts, src, P)); (worn[src] ??= []).push(name);
         for (const d of Object.values(dials)) if (Array.isArray(d.parts) && d.parts.includes(src)) d.parts = [...d.parts, name];
         continue; }
       const part = parts[src], rings = windowRings(part, P);
@@ -149,7 +155,7 @@ export function garmentParts(parts, garments, dials = {}) {
         const blend = Object.fromEntries(rings.map((r) => [r.id, own(r)]));
         piece.bind = { bone: typeof part.bind === 'string' ? part.bind : part.bind.bone, blend: { ...blend, back: own(rings[0]), tip: own(rings[n - 1]) } };
       }
-      parts[name] = piece; (worn[src] ??= []).push(name);
+      parts[name] = stiff(piece); (worn[src] ??= []).push(name);
       for (const d of Object.values(dials)) if (Array.isArray(d.parts) && d.parts.includes(src)) d.parts = [...d.parts, name];
     }
   });
@@ -273,13 +279,18 @@ function skirtPart(parts, names, P, worn) {
     slots.forEach((sl, k) => { const [dx, dy] = dirs[k], r = R[i][k] + e - (inner ? thick : 0); const p = [dx * r, cy + dy * r, z]; points[sl] = p.map(r6);
       // the cloth goes with what it lies nearest: each leg, or the line between them (the pelvis), by the inverse square
       // of its distance from each at its height (a leg from its surface, the line from the axis, the leg's radius off it).
-      // So the cloth over a knee goes where the knee goes, the cloth between and behind the knees stays with the pelvis,
-      // and a stride swings the skirt rather than flinging it. The legs' share grows from the waist to the crotch.
+      // So the cloth over a knee goes where the knee goes, the cloth between and behind the knees hangs between them, and a
+      // stride swings the skirt rather than flinging it. The legs' share grows from the waist to the crotch, and so does the
+      // between's: from the pelvis over the seat to both thighs evenly by the crotch (cloth HANGS from the waist: a hip
+      // hinge tips the pelvis and the waistband with the trunk, never the cloth below the hips into the thighs).
       const down = Math.max(0, Math.min(1, (zw - z) / Math.max(1e-6, zw - zc))), LgR = legAt('R', z), LgL = legAt('L', z);
       const inv = (d) => 1 / Math.max(1e-4, d) ** 2, off = (L) => (L ? Math.max(0.005, dmath.hypot(p[0] - L.c[0], p[1] - L.c[1]) - L.r) : Infinity);
       const iR = LgR ? inv(off(LgR)) : 0, iL = LgL ? inv(off(LgL)) : 0, iC = inv(Math.max(0.005, dmath.hypot(p[0], p[1] - cy) - (LgR?.r ?? 0.06)));
       const legs = Math.min(0.95, down * (iR + iL) / (iR + iL + iC)), split = iR + iL > 0 ? iR / (iR + iL) : 0.5;
-      const w = { [pelvisBone]: 1 - legs, [legBone('R')]: legs * split, [legBone('L')]: legs * (1 - split) };
+      // the between's share that hangs between the thighs: none over the seat (it goes back with the pelvis in a hinge),
+      // eased in over the lower half of the fall to the crotch
+      const hs = Math.max(0, Math.min(1, (down - 0.5) / 0.5)), hang = (1 - legs) * hs * hs * (3 - 2 * hs);
+      const w = { [pelvisBone]: 1 - legs - hang, [legBone('R')]: legs * split + hang / 2, [legBone('L')]: legs * (1 - split) + hang / 2 };
       const ent = Object.entries(w).filter(([, x]) => x > 1e-6), sum = ent.reduce((t, [, x]) => t + x, 0), out = Object.fromEntries(ent.map(([b, x]) => [b, r6(x / sum)]));
       const top = ent.sort((a2, b2) => b2[1] - a2[1])[0][0]; out[top] = r6(out[top] + 1 - Object.values(out).reduce((t, x) => t + x, 0)); blend[`${id}.${sl}`] = out; });
     stations.push({ id, u: j, points }); });

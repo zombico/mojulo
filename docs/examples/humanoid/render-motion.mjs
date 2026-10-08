@@ -41,6 +41,8 @@ const { poseLayered, heroClipSeconds, GESTURE_CLIP } = await lib('graph/polygoni
 const { resolveMotion } = await lib('graph/polygonizer/figure-posing.js');
 const { heroLocomotion, locomotionClips } = await lib('graph/polygonizer/hero-motion.js');
 const { heroJump, JUMP_NAMES } = await lib('graph/polygonizer/hero-jump.js');
+const { flowRig, simulateClip, rigidityOf } = await lib('graph/polygonizer/hero-flow.js');
+const { windField, resolveTerrainWind } = await lib('graph/vegetation/wind.js');
 
 // ─── arguments ─────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -52,6 +54,13 @@ if (!['feet', 'gait', 'stance'].includes(PLANT)) throw new Error(`--plant: feet,
 const MOTIONS = argsOf('--motion').map((s) => { const i = s.indexOf('='); if (i < 1) throw new Error(`--motion ${s}: <name>=<json motion spec>`); return [s.slice(0, i), JSON.parse(s.slice(i + 1))]; });
 const JUMPS_ASKED = (argOf('--jumps') ?? '').split(',').filter(Boolean);
 const SECONDS = Object.fromEntries(argsOf('--seconds').map((s) => { const [k, v] = s.split('='); return [k, Number(v)]; }));
+// --hair: the hair on its control strings (hero-flow.js), against the body and outfit as one collision form;
+// --wind speed[,dir[,gust]]: the world's wind (vegetation/wind.js), m/s, dir in degrees the wind blows TOWARD (0 the
+// figure's front, 90 its right), gust 0 … 1 (default 0.5)
+// --flow <part>=<rigidity> (repeatable): a garment part made to flow (a word: stiff | crisp | soft | flowing, or 0 … 1)
+const FLOWS = Object.fromEntries(argsOf('--flow').map((s) => { const [k, v] = s.split('='); const r = Number.isFinite(Number(v)) ? Number(v) : v; if (rigidityOf(r) === null) throw new Error(`--flow ${s}: <part>=<rigidity>`); return [k, { rigidity: r }]; }));
+const HAIR = argv.includes('--hair') || argv.includes('--wind') || Object.keys(FLOWS).length > 0;
+const WIND = argOf('--wind') ? (() => { const [sp, dir = 0, gust = 0.5] = argOf('--wind').split(',').map(Number); return { speed: sp, dir: ((90 - dir) * Math.PI) / 180, gust }; })() : null;
 
 // ─── the hero through the door ─────────────────────────────────────────────
 const spec = JSON.parse(readFileSync(resolve(SPEC), 'utf8'));
@@ -64,7 +73,9 @@ const plan = heroPlanOf(hero);
 const ex = expandLayeredManifest({ kind: 'layered', title: NAME, hero });
 const manifest = { kind: 'layered', title: NAME, recipe: ex.recipe, plan, hero, dials: ex.dials, units: 'm' };
 const { mesh } = planLayered(manifest);
-const recipe = manifest.recipe; const R = validateRig(recipe.rig); const skin = bindLayered(mesh, recipe, R);
+const recipe = manifest.recipe; const HR = HAIR ? flowRig(mesh, recipe, { pieces: FLOWS }) : null;
+const R = HR ? HR.R : validateRig(recipe.rig); const skin = HR ? HR.skin : bindLayered(mesh, recipe, R);
+const FIELD = WIND ? windField({ ...resolveTerrainWind(WIND), z0: 0.03 }) : null;
 const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
 const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
 
@@ -81,12 +92,12 @@ const bridge = (dof) => {
 };
 const CLIPS = [
   ...asked.map((c) => (LOCO?.clips[c]
-    ? { name: c, src: `hero.motion.${c} · v ${LOCO.speeds[c]} m/s`, fn: LOCO.clips[c], seconds: SECONDS[c] ?? LOCO.seconds[c] }
+    ? { name: c, src: `hero.motion.${c} · v ${LOCO.speeds[c]} m/s`, fn: LOCO.clips[c], seconds: SECONDS[c] ?? LOCO.seconds[c], once: !!LOCO.clips[c].once, air: LOCO.clips[c].air, speed: LOCO.speeds[c] ?? LOCO.clips[c].air?.speed ?? 0, roll: LOCO.clips[c].roll, before: LOCO.clips[c].stop ? LOCO.speeds[LOCO.clips[c].stop.from] ?? 0 : 0 }
     : { name: c, src: 'clip', fn: layeredClip(recipe.clips[c], R), seconds: SECONDS[c] ?? ownSeconds[c] ?? 1 })),
   ...MOTIONS.map(([n, m]) => {
     if (PLANT === 'feet') { const loco = heroLocomotion(m, R, { frames: FRAMES }); const s = SECONDS[n] ?? 1; return { name: n, src: `motion ${JSON.stringify(m)} · feet · travel ${loco.travel.toFixed(3)} m/cycle`, fn: loco.fn, seconds: s }; }
     const f = resolveMotion(m, { frames: FRAMES, base: core }); if (!f) throw new Error(`--motion ${n}: not a motion spec resolveMotion takes`); return { name: n, src: `motion ${JSON.stringify(m)} · plant ${PLANT}`, fn: (ph) => bridge(f(ph)), seconds: SECONDS[n] ?? 1 }; }),
-  ...JUMPS_ASKED.map((n) => { if (!JUMP_NAMES.includes(n)) throw new Error(`--jumps: no jump '${n}' (have ${JUMP_NAMES.join(', ')})`); const J = heroJump(n, R, { seconds: SECONDS[n] }); return { name: n, src: `jump · in place · air ${J.air ? `${J.air.takeoff}–${J.air.land} s, ${(J.air.height * 100).toFixed(0)} cm${J.air.kick !== undefined ? `, kick at ${J.air.kick} s (${(J.air.kickHeight * 100).toFixed(0)} cm) → ${(J.air.apexHeight * 100).toFixed(0)} cm` : ''}` : 'none'} (the card draws the arc)${J.roll ? ` · roll ${J.roll.axis} ${J.roll.start}–${J.roll.end} s, ${J.roll.travel} m at ${J.roll.speed} m/s` : ''}`, fn: J.fn, seconds: J.seconds, once: true, air: J.air }; }),
+  ...JUMPS_ASKED.map((n) => { if (!JUMP_NAMES.includes(n)) throw new Error(`--jumps: no jump '${n}' (have ${JUMP_NAMES.join(', ')})`); const J = heroJump(n, R, { seconds: SECONDS[n] }); return { name: n, src: `jump · in place · air ${J.air ? `${J.air.takeoff}–${J.air.land} s, ${(J.air.height * 100).toFixed(0)} cm${J.air.kick !== undefined ? `, kick at ${J.air.kick} s (${(J.air.kickHeight * 100).toFixed(0)} cm) → ${(J.air.apexHeight * 100).toFixed(0)} cm` : ''}` : 'none'} (the card draws the arc)${J.roll ? ` · roll ${J.roll.axis} ${J.roll.start}–${J.roll.end} s, ${J.roll.travel} m at ${J.roll.speed} m/s` : ''}`, fn: J.fn, seconds: J.seconds, once: true, air: J.air, speed: J.air?.speed ?? 0, roll: J.roll }; }),
 ];
 
 // ─── a small vector kit and the raster ─────────────────────────────────────
@@ -165,6 +176,8 @@ function stickSvg(nodes, box, W, H, phase, travel) {
   const order = [...STICK].sort((a, b) => (sideOf(...a) === 'R' ? 1 : 0) - (sideOf(...b) === 'R' ? 1 : 0));   // seen from the right side, the right limbs are near: drawn last
   for (const [a, b] of order) { if (!nodes[a] || !nodes[b]) continue; const [p, q] = [pt(nodes[a]), pt(nodes[b])]; g += `<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${STICK_COL[sideOf(a, b)]}" stroke-width="4" stroke-linecap="round"/>`; }
   for (const k of Object.keys(nodes)) if (VAJRA_CORE.includes(k)) { const [x, y] = pt(nodes[k]); g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#1b1a19"/>`; }
+  // the hair's control strings
+  for (const st of HR?.strings ?? []) g += `<polyline fill="none" stroke="${/^hair/.test(st.part) ? '#b5562a' : '#7a3fa0'}" stroke-width="2" stroke-linejoin="round" points="${st.joints.map((j) => pt(nodes[j]).map((v) => v.toFixed(1)).join(',')).join(' ')}"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="100%" height="100%" fill="#fbfaf7"/>${g}</svg>`;
 }
 
@@ -212,9 +225,21 @@ const report = { name: NAME, spec: SPEC, plant: PLANT, frames: FRAMES, clips: {}
 for (const C of CLIPS) {
   const t0 = Date.now();
   const frames = []; const reports = [];
+  // the hair: the clip sampled at 120 Hz and simulated (the air at the head: the wind less the body's own motion — a
+  // gait's ground speed, a roll's travel between its start and end), each frame taking the nearest sample
+  let hairAt = null;
+  if (HR) {
+    const K = Math.max(FRAMES, Math.round(C.seconds * 120)), poses = Array.from({ length: K }, (_, k) => C.fn(C.once ? k / (K - 1) : k / K));
+    const headAt = R.joints.headBase;
+    // a stop arrives at its gait's speed (the hair settles in that headwind) and is halted at once: still air after
+    const own = (s) => (s <= 0 && C.before ? C.before : C.roll && s >= C.roll.start && s <= C.roll.end ? C.roll.speed : C.once && !C.speed ? 0 : C.speed || 0);
+    const air = (s) => { const w = FIELD ? FIELD.at(headAt[0], headAt[1] + own(s) * s, headAt[2], s) : [0, 0, 0]; return [w[0], w[1] - own(s), w[2]]; };
+    const sim = simulateClip(HR, poses, C.seconds, { loop: !C.once, air });
+    hairAt = (t) => sim[Math.min(K - 1, Math.round(t * (C.once ? K - 1 : K)) % (C.once ? K : K))];
+  }
   for (let i = 0; i < FRAMES; i++) {
     const t = C.once ? i / (FRAMES - 1) : i / FRAMES;
-    const pose = C.fn(t); const { nodes, report: rep } = rigNodesAt(R, pose);
+    const pose = hairAt ? hairAt(t) : C.fn(t); const { nodes, report: rep } = rigNodesAt(R, pose);
     const posed = poseLayered(mesh, recipe, pose, { R, skin });
     // a jump plays in place; the card draws the flight its timing designs (ballistic between take-off and touch-down)
     let up = 0; if (C.air) { const s = t * C.seconds, A = C.air; if (s > A.takeoff && s < A.land) {

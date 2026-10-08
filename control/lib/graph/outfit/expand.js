@@ -88,7 +88,7 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     const fam = bottom.family ?? 'woven', leg = lengths.skirt = stepLength('skirt', bottom.leg ?? 'knee', dials.coverage);
     const to = { micro: { part: 'thigh', run: 0.2 }, mini: { part: 'thigh', run: 0.45 }, knee: { part: 'thigh', run: 1 }, midi: { part: 'shank', run: 0.5 }, maxi: { part: 'shank', run: 0.9 } }[leg];
     bottoms.push({ id: 'skirt', fit: 'skirt', part: ['pelvis', 'thigh', ...(to.part === 'shank' ? ['shank'] : [])], from: structured ? { part: 'pelvis', u: 6 } : { part: 'thigh', u: 0 }, to,
-      ease: easeOf(fam) * (tuck ? 1.25 : 1), flare: [0, r6(SKIRT_CUTS[bottom.cut ?? 'aline'] * (1 + 0.5 * dials.stylize))], group: dress ? 'Top' : 'Bottom' });
+      ease: easeOf(fam) * (tuck ? 1.25 : 1), flare: [0, r6(SKIRT_CUTS[bottom.cut ?? 'aline'] * (1 + 0.5 * dials.stylize))], group: dress ? 'Top' : 'Bottom', ...(bottom.rigidity !== undefined ? { rigidity: bottom.rigidity } : {}) });
   } else if (bottom) {
     const fam = bottom.family ?? 'woven', e = easeOf(fam), h = hangOf(fam), leg = lengths.leg = stepLength('leg', bottom.leg ?? 'long', dials.coverage);
     if (structured) bottoms.push({ id: 'bottomSeat', part: 'pelvis', ease: e * (tuck ? 1.25 : 1), rings: { u: [6 - EDGE.waistband] }, group: 'Bottom' });

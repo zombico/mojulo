@@ -548,6 +548,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // pins (the rig rides in the recipe and the pack), head-none unchanged; then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): the same
   // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
   // `hands`, `handWidth`): the hand alone moved
+  // and again when the structured pelvis took the hip hinge's tilt (`pelvisTilt`) and a skirt's cloth below the seat hung
+  // from both thighs
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
     const S = { landmarkMale: [{ cast: 'male' }, ['14b1447baccfad73', '2fbb270f54d6c463', 'd36a970c8e01181b']],
       landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c98838e2a805d2d8', '2172a469f9bff055', 'b5b9086ef71717f1']],
@@ -557,7 +559,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
     // the anime heroes re-pinned for the sideburn patches before the ears (every anime head wears them)
-    for (const [cast, pin] of [['female', 'f4e1ec9d85d3eda7'], ['male', 'ef642ada51566caf']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    for (const [cast, pin] of [['female', 'b71c16059e2d20a5'], ['male', '52d2bb4159cd38e3']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {

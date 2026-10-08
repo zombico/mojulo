@@ -325,8 +325,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   look is another character); a ratio the head does not allow measuring is null and says so. The table reads the face
   at the studio's carriage, so a `headPitch` word never moves it.
   THE CORE: every hero's midsection is built on the vajra core (`core: 'structured'`, the default): the `pelvis` bone is the basin, turned by the
-  hip line alone, and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or side bend (and the
-  hinge) bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
+  hip line and TIPPED by the hip hinge (the pelvis rocks over the thighs with the trunk, so nothing opens at the waist
+  when the figure bends at the hips), and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or
+  side bend bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
   rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
   the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
   receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's
@@ -446,10 +447,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   out), CONSTRUCTION (a woven placket), ORNAMENT (from the focal out: collar or rib, buttons, belt; cuffs, hems,
   waistband; seams), TONE (the card's over derived Trim, Placket, Button, Seam, Waistband), LEDGER (the readout's
   `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Skirts and dresses:
-  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full }` is one hull round the hips
+  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full, rigidity? }` is one hull round the hips
   and both legs (garment `fit: 'skirt'`): each ring the support of everything at its height, never narrowing below the
   hips, flaring by its cut, two-faced (folded at the hem, so it is open beneath), each point skinned by nearness (the
-  cloth over a leg follows that leg, the cloth between and behind the legs the pelvis); `dress: true` makes the skirt the
+  cloth over a leg follows that leg; over the seat the cloth goes with the pelvis, below it the cloth between the legs
+  hangs from both thighs, so a hip hinge never swings it into them); `rigidity` (`shell` the default: locked; `stiff`, `crisp`,
+  `soft`, `flowing` or 0 … 1; any garment piece takes it too) says how it moves: below a shell it flows on control strings,
+  swinging with the stride, the stop and the wind against the locked body (the motion card's `--hair`, `--wind`); `dress: true` makes the skirt the
   top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
   Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.

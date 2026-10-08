@@ -782,15 +782,16 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   // ── the rig: the vajra core IS the joint table; hands and feet ride or plant ──
   const rig = {
-    joints: { pelvisHub: { at: J.pelvisHub }, navel: { at: J.navel }, neckHub: { at: J.neckHub }, headBase: { at: J.headBase }, headTop: { at: J.headTop },
+    joints: { pelvisHub: { at: J.pelvisHub }, ...(structured ? { pelvisTilt: { at: [J.pelvisHub[0], r6(J.pelvisHub[1] + 0.1), J.pelvisHub[2]] } } : {}), navel: { at: J.navel }, neckHub: { at: J.neckHub }, headBase: { at: J.headBase }, headTop: { at: J.headTop },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
       ...(jawed ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}), ...bustJoints, ...(hand ? hand.joints : {}) },
     bones: [
       ...(structured
-        // the basin turns with the hip line alone (figure-vajra.js articulateTransforms' pelvis rides hipL); the lumbar is
-        // the old pelvis frame, the pelvis hub to the navel, so a spine curl bends it over a still basin
-        ? [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', align: ['hipR', 'hipL'] }, { id: 'lumbar', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]
+        // the basin turns with the hip line and TIPS with the hip hinge (its `pelvisTilt` forward of the hub, carried by
+        // the vajra with the pelvis, never by the spine); the lumbar is the old pelvis frame, the pelvis hub to the navel,
+        // so a spine curl bends it over a still basin and a hinge carries basin and trunk over the thighs together
+        ? [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', align: ['hipR', 'hipL'], aux: ['pelvisHub', 'pelvisTilt'] }, { id: 'lumbar', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]
         : [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]),
       { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
       // the jaw's frame takes the head's axis as its second direction, so it is the head's exactly (plus the hinge): read

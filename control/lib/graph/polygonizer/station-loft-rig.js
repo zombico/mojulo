@@ -44,7 +44,7 @@ import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'feet', 'sink', 'body'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'feet', 'sink', 'body', 'flow'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -201,10 +201,13 @@ export function plantedFoot(R, L, pose = {}) {
 export function rigNodesAt(R, pose = {}) {
   const rest = R.joints; const nodes = {};
   const vajraSpec = Object.fromEntries(Object.entries(pose).filter(([k]) => !RIG_CHANNELS.includes(k) && !(k in R.chains) && !handChannel(R, k)));
-  const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
+  // a rig's `pelvisTilt` joint (the structured core's) rides the vajra with the pelvis: it tips with the hip hinge, so
+  // the pelvis bone (its roll from it) tips with the trunk over the thighs, and stays put when only the spine bends
+  const coreKeys = rest.pelvisTilt ? [...VAJRA_CORE, 'pelvisTilt'] : VAJRA_CORE;
+  const core = Object.fromEntries(coreKeys.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
   const posed = withMath(dmath, () => articulate(resolvePose(vajraSpec, core), core));   // shared vajra FK on dmath (util/math-scope.js)
   // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)
-  const carried = [...VAJRA_CORE, ...TWIST_REF_NODES.filter((k) => posed[k])];
+  const carried = [...coreKeys, ...TWIST_REF_NODES.filter((k) => posed[k])];
   for (const k of carried) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];
   // crouch: the pelvis (and everything the core carries) drops toward planted toes; lift raises the root
   const support = pose.support ?? 'both'; const lift = Number.isFinite(pose.lift) ? pose.lift : 0; const crouch = Math.max(0, Math.min(1, pose.crouch || 0));
@@ -246,10 +249,15 @@ export function rigNodesAt(R, pose = {}) {
   }
   // extension joints ride their bones, in dependency order (a hand's from its rest points turned by the hand words)
   const local = handLocal(R, pose);
+  // `flow: { <joint>: [dx, dy, dz] }` (hero-flow.js): a control string's joint displaced from its rest place in the frame
+  // of the bone it rides (the head for hair, the pelvis for a skirt), so a string swings with what carries it through any
+  // turn. Absent ⇒ nothing moves.
+  const H = pose.flow && typeof pose.flow === 'object' ? pose.flow : null;
+  const restOf = (name) => { const p = local[name] ?? rest[name], d = H?.[name]; return Array.isArray(d) && d.length === 3 ? [p[0] + d[0], p[1] + d[1], p[2] + d[2]] : p; };
   let pending = Object.keys(R.rides).filter((n) => !nodes[n]); let progress = true;
   while (pending.length && progress) {
     progress = false;
-    for (const name of [...pending]) { const b = R.bones[R.boneIndex[R.rides[name]]]; if (!nodes[b.head] || !nodes[b.tail] || (b.align || []).some((j) => !nodes[j])) continue; nodes[name] = ride(boneFrame(b, rest, nodes), local[name] ?? rest[name]); pending = pending.filter((n) => n !== name); progress = true; }
+    for (const name of [...pending]) { const b = R.bones[R.boneIndex[R.rides[name]]]; if (!nodes[b.head] || !nodes[b.tail] || (b.align || []).some((j) => !nodes[j])) continue; nodes[name] = ride(boneFrame(b, rest, nodes), restOf(name)); pending = pending.filter((n) => n !== name); progress = true; }
   }
   if (pending.length) throw new Error(`station-loft-rig: could not place ${pending.join(', ')}`);
   for (const [ch, c] of Object.entries(R.chains)) {

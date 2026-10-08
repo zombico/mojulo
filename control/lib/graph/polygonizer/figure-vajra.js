@@ -386,7 +386,10 @@ export function articulate(dof = {}, base = null) {
   // stride and smoothing the COM. The trunk above pelvisHub stays put, so the pelvis counter-
   // rotates against the thorax (the spine's axial drive) the way a real walk does. Applied
   // before the hip swivels so each thigh swings relative to the rotated pelvis.
-  if (dof.pelvis) rotateSub(m, LOWER_BODY, 'pelvisHub', 'ZN', clamp(dof.pelvis, -L.pelvis, L.pelvis));
+  // (`pelvisTilt`, when the base carries it — a rig's pelvis reference, station-loft-rig.js — is the pelvis's own: it
+  // turns with the pelvis and tips with the hinge, never with the spine's bend)
+  const tilt = m.pelvisTilt ? ['pelvisTilt'] : [];
+  if (dof.pelvis) rotateSub(m, [...LOWER_BODY, ...tilt], 'pelvisHub', 'ZN', clamp(dof.pelvis, -L.pelvis, L.pelvis));
   // HIP HINGE (sagittal pelvic tilt): the rigid pelvis tips ANTERIOR about the hip axis —
   // the line through hipL/hipR, which pelvisHub lies on — carrying the whole trunk (navel +
   // up) forward over the planted, near-straight legs while the hips/legs stay put. The
@@ -396,7 +399,7 @@ export function articulate(dof = {}, base = null) {
   // toward parallel — rows / deadlifts / good-mornings / bowing). Forward = negative EW (as
   // with the spine flex). Applied after the spine drives so the back's flat/rounded shape
   // composes under the inclination, and after the transverse pelvis so the two tilts stack.
-  if (dof.hinge) rotateSub(m, ['navel', ...UPPER_BODY], 'pelvisHub', 'EW', -clamp(dof.hinge, 0, L.hinge));
+  if (dof.hinge) rotateSub(m, ['navel', ...UPPER_BODY, ...tilt], 'pelvisHub', 'EW', -clamp(dof.hinge, 0, L.hinge));
   // SHOULDER-GIRDLE rotation (transverse plane) — the upper mirror of dof.pelvis. The rigid
   // shoulder girdle rotates about the vertical axis through neckHub, carrying the shoulders +
   // arms (NOT the head — the gaze stays level), so one shoulder leads forward (+ = RIGHT
