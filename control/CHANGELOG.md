@@ -14,14 +14,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Gameworlds: a world above its levels
 
-- A gameworld recipe (`lib/graph/gameworld/`): the world carries the style guide (kit, building language,
-  fortification, the ground's character for trails, climbs, towns and castles) and every level inherits it; a level
-  or a section may override any of it, and each override is kept in a ledger beside the world's value. Levels lay out
-  through the level graph unchanged. Characters and mechanics are reserved, left open.
-- The gameworld graph: worlds, styles, levels, sections and places as nodes, with typed edges (contains, seam, leads,
-  drawn-in, speaks, fortified-by, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
-- The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the full style guide, a page for each
-  level (its walk, its places, what it overrides) and the open sections.
+- A gameworld recipe (`lib/graph/gameworld/`) in two concerns: the style (the kit its ground is drawn in, the
+  ground's character for trails and climbs) and its civilizations, as many as it keeps, each a building language, a
+  fortification and how it lays out a town and raises a castle. Every level inherits both and is settled by one
+  civilization; a town or a castle may be built by another. A level, a section or a place may override any of it,
+  and each override is kept in a ledger beside the world's value. Levels lay out through the level graph unchanged.
+  Characters, mechanics and the people of the civilizations are left open.
+- The gameworld graph: worlds, kits, civilizations, languages, fortifications, levels, sections and places as nodes,
+  with typed edges (contains, styled, drawn-in, settled-by, built-by, speaks, raises, seam, leads, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
+- The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the style, a card for each civilization
+  (its houses, its castle, what its language makes of a castle, where it builds), a page for each level (its walk,
+  its places and who built them, what it overrides) and the open sections.
 
 ### Scapeshift structures
 

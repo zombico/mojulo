@@ -3,12 +3,15 @@
  * A document draws it however it needs: a map of levels in the bible, an outline in a note, a flowchart in a doc
  * (`graphOutline`, `graphMermaid`). Nodes and edges carry their kind and what a drawing needs to label them.
  *
- *   nodes   world · kit · language · fort (the style guide) · level · section (a trail, a climb) · place (town, castle)
- *   edges   contains   the world its levels, a level its sections and places, a town its castle
- *           styled     the world to each part of its style guide
+ *   nodes   world · kit (the style) · civilization · language · fort · level · section (a trail, a climb) ·
+ *           place (town, castle)
+ *   edges   contains   the world its levels and civilizations, a level its sections and places, a town its castle
+ *           styled     the world to its kit, and to the civilization that builds unless another is named
  *           drawn-in   a level (or a section that overrides it) to the kit its ground is drawn in
- *           speaks     a town or a castle to the language it is built in
- *           raises     a castle to the fortification it raises
+ *           settled-by a level to the civilization that builds on it unless another is named
+ *           built-by   a town or a castle to the civilization that built it
+ *           speaks     a civilization to its building language
+ *           raises     a civilization to the fortification it raises
  *           seam       a section to the one that follows it
  *           leads      a level to the next (a road, a gate)
  *           overrides  a level (or a section, a place) to its world, one edge a key: the world's value and its own
@@ -34,14 +37,20 @@ export function gameworldGraph(world) {
 
   node('world', 'world', G.name, { seed: G.seed, start: G.start });
   edge('world', kitN(G.style.kit), 'styled', { key: 'kit' });
-  edge('world', langN(G.style.anchor, G.style.kit), 'styled', { key: 'anchor' });
-  edge('world', fortN(G.style.fort), 'styled', { key: 'fort' });
+  for (const cid of G.civIds) {
+    const C = G.civilizations[cid], cn = node(`civilization:${cid}`, 'civilization', C.name);
+    edge('world', cn, 'contains');
+    edge(cn, langN(C.anchor, G.style.kit), 'speaks');
+    edge(cn, fortN(C.fort), 'raises');
+  }
+  edge('world', `civilization:${G.style.civilization}`, 'styled', { key: 'civilization' });
 
   for (const id of G.ids) {
     const R = resolveLevel(G, id), lv = `level:${id}`, walk = readLevel(R.level);
     node(lv, 'level', R.name, { seed: R.seed, kit: R.style.kit, start: id === G.start });
     edge('world', lv, 'contains');
     edge(lv, kitN(R.style.kit), 'drawn-in');
+    edge(lv, `civilization:${R.style.civilization}`, 'settled-by');
     for (const sid of walk.ids) {
       const n = walk.nodes[sid], s = `section:${id}/${sid}`;
       node(s, 'section', sid, { section: n.section, seed: n.seed, kit: n.kit, root: sid === walk.root });
@@ -52,12 +61,11 @@ export function gameworldGraph(world) {
     if (R.town) {
       const t = node(`place:${id}/town`, 'place', 'town', { place: 'town' });
       edge(lv, t, 'contains');
-      edge(t, langN(R.town.anchor, R.style.kit), 'speaks');
+      edge(t, `civilization:${R.built.town}`, 'built-by');
       if (R.town.castle) {
         const c = node(`place:${id}/castle`, 'place', 'castle', { place: 'castle' });
         edge(t, c, 'contains');
-        edge(c, langN(R.town.castle.anchor ?? R.town.anchor, R.style.kit), 'speaks');
-        edge(c, fortN(R.town.castle.fort), 'raises');
+        edge(c, `civilization:${R.built.castle}`, 'built-by');
       }
     }
     for (const o of R.ledger) {
@@ -90,8 +98,8 @@ export function graphMermaid(g, { overrides = true } = {}) {
   const key = (id) => id.replace(/[^a-zA-Z0-9]/g, '_'), q = (s) => `"${String(s).replace(/"/g, "'")}"`;
   const by = Object.fromEntries(g.nodes.map((n) => [n.id, n])), out = ['flowchart LR'];
   out.push(`  ${key('world')}([${q(by.world.label)}])`);
-  out.push('  subgraph style_guide["style guide"]');
-  for (const n of g.nodes.filter((x) => ['kit', 'language', 'fort'].includes(x.kind))) out.push(`    ${key(n.id)}[${q(`${n.kind}: ${n.label}`)}]`);
+  out.push('  subgraph style_guide["style and civilizations"]');
+  for (const n of g.nodes.filter((x) => ['kit', 'civilization', 'language', 'fort'].includes(x.kind))) out.push(`    ${key(n.id)}[${q(`${n.kind}: ${n.label}`)}]`);
   out.push('  end');
   for (const lv of g.nodes.filter((x) => x.kind === 'level')) {
     out.push(`  subgraph ${key(lv.id)}[${q(lv.label)}]`);

@@ -1,7 +1,8 @@
 /**
- * THE STYLE GUIDE — a world's style read into cards: the kit its ground is drawn in (its principles, its palette), the
- * language its towns speak (its read, its elements), the fortification its castles raise, what the language does to a
- * castle (the style's influence), and the ground's character. Data only; the bible draws it.
+ * THE STYLE GUIDE — a world read into cards. The style: the kit its ground is drawn in (its principles, its palette)
+ * and the ground's character. Each civilization: the language its towns speak (its read, its elements), the
+ * fortification its castles raise, what the language does to a castle (the style's influence), how it lays out a
+ * town and raises a castle. Data only; the bible draws it.
  */
 import { STAGE_KITS } from '../era/stage.js';
 import { NATURE_STYLES } from '../era/nature.js';
@@ -44,19 +45,25 @@ export function fortCard(fort, language) {
   return { kind: 'fort', id: typeof fort === 'string' ? fort : 'its own', read: F.read, tower: { plan: F.tower.plan, crown: F.tower.crown }, influence: { trace: I.trace, crown: I.crown, keep: I.keep ?? 'tower', read: I.read } };
 }
 
-/** The ground's character: what the world sets for trails, climbs, towns and castles, the rest at its card's default. */
+/** The ground's character: what the world sets for trails and climbs, the rest at its card's default. */
 export function groundCard(style) {
   return {
     kind: 'ground',
     trail: { run: style.trail?.run ?? OUT_TRAIL.run[2], heartbeat: style.trail?.heartbeat ?? 'the kit\'s', bumpiness: style.trail?.bumpiness ?? 'the kit\'s' },
     meru: { preset: style.meru?.preset ?? 'mountain-lookout' },
-    town: { ...(style.town || {}) },
-    castle: { ...(style.castle || {}) },
   };
 }
 
-/** Every card of a style. */
-export function styleGuide(style, seed = 1) {
-  const language = languageCard(style.kit, style.anchor, seed);
-  return { kit: kitCard(style.kit), language, fort: fortCard(style.fort, language.language), ground: groundCard(style) };
+/** A civilization's cards, read on a kit: its language, its fortification and what the language makes of it, how it lays out a town and raises a castle. */
+export function civilizationCard(C, kit, seed = 1) {
+  const language = languageCard(kit, C.anchor, seed);
+  return { kind: 'civilization', name: C.name, language, fort: fortCard(C.fort, language.language), town: { ...(C.town || {}) }, castle: { ...(C.castle || {}) } };
+}
+
+/** Every card of a world: its style, and each civilization on the world's kit. */
+export function styleGuide(G) {
+  return {
+    kit: kitCard(G.style.kit), ground: groundCard(G.style),
+    civilizations: Object.fromEntries(G.civIds.map((id) => [id, civilizationCard(G.civilizations[id], G.style.kit, G.seed)])),
+  };
 }

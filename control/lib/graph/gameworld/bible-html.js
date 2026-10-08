@@ -1,14 +1,15 @@
 /**
  * THE GAMEWORLD BIBLE — a world's binder for the creator who makes it: its cover and its levels in the order they are
- * played, the world map drawn from its graph, the whole style guide, a page for each level (its walk, what stands on
- * its ground, how it differs from its world) and the parts of a game left open. Every plate is drawn by its builder.
+ * played, the world map drawn from its graph, the style (the ground), its civilizations (who builds on it, and how), a
+ * page for each level (its walk, what stands on its ground and who built it, how it differs from its world) and the
+ * parts of a game left open. Every plate is drawn by its builder.
  *
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
 import { readGameworld, resolveLevel, RESERVED } from './world.js';
 import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
-import { styleGuide, kitCard, languageCard, fortCard } from './style-guide.js';
+import { styleGuide, kitCard, civilizationCard } from './style-guide.js';
 import { layLevel } from '../level/index.js';
 import { outTrailPlanSvg } from '../era/out-trail-board.js';
 import { localMeruPlanSvg } from '../local-meru/premap.js';
@@ -64,7 +65,8 @@ function worldMapSvg(g, order) {
   cols.forEach((c, i) => {
     const x = x0(i), n = by[c.lv];
     o.push(`<rect x="${x}" y="${pad}" width="${colW}" height="${H - pad * 2}" rx="6" fill="var(--sheet)" stroke="var(--ink)" stroke-width="1.5"/>`);
-    o.push(`<text x="${x + 14}" y="${pad + 26}" class="wm-h">${esc(n.label)}</text><text x="${x + 14}" y="${pad + 44}" class="wm-s">${esc(n.kit)} · seed ${n.seed}${n.start ? ' · start' : ''}</text>`);
+    const settled = by[g.edges.find((e) => e.from === c.lv && e.kind === 'settled-by').to].label;
+    o.push(`<text x="${x + 14}" y="${pad + 26}" class="wm-h">${esc(n.label)}</text><text x="${x + 14}" y="${pad + 44}" class="wm-s">${esc(n.kit)} · ${esc(settled)}${n.start ? ' · start' : ''}</text>`);
     let y = pad + 62;
     c.secs.forEach((s, k) => {
       const S = by[s];
@@ -72,7 +74,7 @@ function worldMapSvg(g, order) {
       if (k < c.secs.length - 1) o.push(`<path d="M${x + 30} ${y + 28} v12" stroke="var(--ink)" stroke-width="1.5" marker-end="url(#wm-a)"/>`);
       y += 40;
     });
-    for (const p of c.places) { o.push(`<rect x="${x + 14}" y="${y}" width="${colW - 28}" height="28" rx="14" fill="none" stroke="var(--c-place)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${x + 30}" y="${y + 19}" class="wm-n">${esc(by[p].label)}</text><text x="${x + colW - 20}" y="${y + 19}" text-anchor="end" class="wm-s">on its ground</text>`); y += 40; }
+    for (const p of c.places) { o.push(`<rect x="${x + 14}" y="${y}" width="${colW - 28}" height="28" rx="14" fill="none" stroke="var(--c-place)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${x + 30}" y="${y + 19}" class="wm-n">${esc(by[p].label)}</text><text x="${x + colW - 20}" y="${y + 19}" text-anchor="end" class="wm-s">by ${esc(by[g.edges.find((e) => e.from === p && e.kind === 'built-by').to].label)}</text>`); y += 40; }
     if (c.local.length) o.push(`<text x="${x + 14}" y="${y + 18}" class="wm-l">its own: ${esc([...new Set(c.local.map((e) => e.key))].join(', '))}</text>`);
   });
   for (const e of g.edges.filter((x) => x.kind === 'leads')) {
@@ -95,14 +97,14 @@ const ramps = (card) => `<div class="ramps">${card.ramps.map((r) => `<div><div c
 /** The bible of a gameworld, as one page. */
 export function gameworldBibleHtml(world) {
   resetTownIds();
-  const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G.style, G.seed);
+  const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
   const built = Object.fromEntries(order.map((id) => [id, buildLevel(G, id)]));
   const first = built[order.find((id) => built[id].town) ?? order[0]];
   const cover = first.town ? plate('cover', townAxonSvg(first.town, first.paint, null, { w: 1500, h: 900 })) : first.walk[0].svg;
 
-  // the style guide's castle: the world's fortification in the world's language
-  const wst = structureStyle(G.style.kit, G.seed), wpaint = structurePaint(G.style.kit);
-  const wcastle = designCastle(wst, G.seed, { fort: G.style.fort, anchor: G.style.anchor, ...(G.style.castle || {}) });
+  // where each civilization builds: its places, and the kit it is first drawn in
+  const builds = Object.fromEntries(G.civIds.map((c) => [c, []]));
+  for (const id of order) { const B = built[id].R.built; if (B) { builds[B.town].push([id, 'town']); if (B.castle) builds[B.castle].push([id, 'castle']); } }
 
   const strip = order.map((id, i) => {
     const b = built[id], thumb = b.town ? plate(`strip-${id}`, townMapSvg(b.town, b.paint, null, { px: 2, labels: false })) : b.walk[0].svg;
@@ -111,39 +113,48 @@ export function gameworldBibleHtml(world) {
   }).join('');
 
   const kitHtml = `<article class="card" id="guide-kit"><div class="card-h"><span class="eyebrow">Kit</span><h3>${esc(guide.kit.id)}</h3></div>${ramps(guide.kit)}<ul class="principles">${guide.kit.principles.slice(0, 6).map((p) => `<li>${esc(p)}</li>`).join('')}</ul></article>`;
-  const V = guide.language.vocab;
-  const langHtml = `<article class="card wide" id="guide-language"><div class="card-h"><span class="eyebrow">Building language</span><h3>${esc(guide.language.id)}</h3></div><p class="read">${esc(guide.language.read)}</p><div class="houses">${houseRow(guide.language.language, G.style.kit, G.seed)}</div><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['annex', V.annex], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></article>`;
-  const I = guide.fort.influence;
-  const fortHtml = `<article class="card wide" id="guide-fort"><div class="card-h"><span class="eyebrow">Fortification</span><h3>${esc(guide.fort.id)}</h3></div><div class="fort"><div class="fort-im">${plate('guide-castle', castleAxon(wcastle, wpaint))}</div><div><p class="read">${esc(guide.fort.read)}</p><h4>What the language makes of it</h4><dl class="vocab"><dt>wall</dt><dd>${esc(I.read[0])}</dd><dt>towers</dt><dd>${esc(I.read[1])}</dd><dt>keep</dt><dd>${esc(I.read[2])}</dd></dl></div></div></article>`;
   const gr = guide.ground, row = (o) => Object.entries(o).map(([k, v]) => `${esc(k)} ${show(v)}`).join(' · ') || 'its card\'s own';
-  const groundHtml = `<article class="card" id="guide-ground"><div class="card-h"><span class="eyebrow">The ground's character</span><h3>Handed down</h3></div><dl class="vocab"><dt>trails</dt><dd>${row(gr.trail)}</dd><dt>climbs</dt><dd>${row(gr.meru)}</dd><dt>towns</dt><dd>${row(gr.town)}</dd><dt>castles</dt><dd>${row(gr.castle)}</dd></dl></article>`;
+  const groundHtml = `<article class="card" id="guide-ground"><div class="card-h"><span class="eyebrow">The ground's character</span><h3>Handed down</h3></div><dl class="vocab"><dt>trails</dt><dd>${row(gr.trail)}</dd><dt>climbs</dt><dd>${row(gr.meru)}</dd><dt>builds</dt><dd>${esc(G.civilizations[G.style.civilization].name)}, unless a level or a place names another</dd></dl></article>`;
+
+  // each civilization, drawn in the kit it is first found in: its houses, its castle, how it lays out a town
+  const civHtml = G.civIds.map((cid) => {
+    const C = G.civilizations[cid], at = builds[cid][0], kit = at ? built[at[0]].R.style.kit : G.style.kit, card = civilizationCard(C, kit, G.seed), V = card.language.vocab, I = card.fort.influence;
+    const castle = designCastle(structureStyle(kit, G.seed), G.seed, { fort: C.fort, ...(C.anchor !== undefined ? { anchor: C.anchor } : {}), ...(C.castle || {}) });
+    const where = builds[cid].length ? builds[cid].map(([id, what]) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a> · ${what}`).join('<br>') : 'nowhere yet';
+    return `<article class="civ" id="civ-${esc(cid)}"><div class="civ-h"><div><span class="eyebrow">Civilization · ${esc(cid)}</span><h3>${esc(C.name)}</h3></div><p class="muted mono">${esc(card.language.id)} · ${esc(card.fort.id)} · drawn in ${esc(kit)}</p></div>
+<p class="read">${esc(card.language.read)}</p><div class="houses">${houseRow(card.language.language, kit, G.seed)}</div>
+<div class="fort"><div class="fort-im">${plate(`civ-castle-${cid}`, castleAxon(castle, structurePaint(kit)))}</div><div><p class="read">${esc(card.fort.read)}</p><h4>What its language makes of a castle</h4><dl class="vocab"><dt>wall</dt><dd>${esc(I.read[0])}</dd><dt>towers</dt><dd>${esc(I.read[1])}</dd><dt>keep</dt><dd>${esc(I.read[2])}</dd></dl>
+<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div></article>`;
+  }).join('');
 
   const levels = order.map((id, i) => {
     const b = built[id], R = b.R, own = R.ledger;
     const ledger = own.length ? `<ul class="ledger">${own.map((o) => `<li><b>${esc(o.key)}</b> ${show(o.local)} <span>world: ${show(o.world)}</span>${o.scope !== 'level' ? ` <em>${esc(o.at.split('/')[1])}</em>` : ''}</li>`).join('')}</ul>` : '<p class="muted">Follows its world in everything.</p>';
     const ownStyle = [];
     if (R.style.kit !== G.style.kit) ownStyle.push(`<div class="own"><span class="eyebrow">Its own kit · ${esc(R.style.kit)}</span>${ramps(kitCard(R.style.kit))}</div>`);
-    if (JSON.stringify(R.style.anchor) !== JSON.stringify(G.style.anchor)) { const L = languageCard(R.style.kit, R.style.anchor, R.seed); ownStyle.push(`<div class="own"><span class="eyebrow">Its own language · ${esc(L.id)}</span><p class="read">${esc(L.read)}</p><p class="muted">${esc(fortCard(R.style.fort, L.language).influence.read.join(' · '))}</p></div>`); }
+    const by = R.built ? [['town', R.built.town], ...(R.built.castle ? [['castle', R.built.castle]] : [])] : [];
+    if (by.length) ownStyle.unshift(`<div class="own"><span class="eyebrow">Built by</span><ul class="ledger">${by.map(([what, c]) => `<li><b>${what}</b> <a href="#civ-${esc(c)}">${esc(G.civilizations[c].name)}</a></li>`).join('')}</ul></div>`);
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
-    const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing</figcaption></figure>` : ''}</div>` : '';
+    const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
 <div class="level-grid"><div><h4>The walk</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local"><h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
-  const open = RESERVED.map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them.</p></article>`).join('');
+  const open = RESERVED.map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
 <style>${CSS}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Gameworld bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
-<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#map">World map</a><a href="#guide">Style guide</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}<a href="#open">Open</a></nav>
-<section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${order.length} level${order.length === 1 ? '' : 's'} · ${esc(G.style.kit)} · ${esc(guide.language.id)}</p></div><figure class="hero">${cover}</figure></div>
+<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#map">World map</a><a href="#guide">Style</a><a href="#civilizations">Civilizations</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}<a href="#open">Open</a></nav>
+<section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${order.length} level${order.length === 1 ? '' : 's'} · ${esc(G.style.kit)} · ${G.civIds.length} civilization${G.civIds.length === 1 ? '' : 's'}</p></div><figure class="hero">${cover}</figure></div>
 <div class="eyebrow">The levels, in the order they are played</div><div class="strip">${strip}</div></section>
 <section class="part" id="map"><div class="part-h"><span class="eyebrow">World map</span><h2>The world, drawn from its graph</h2></div><div class="canvas">${worldMapSvg(graph, order)}</div>
 <details><summary>The graph as an outline</summary><pre>${esc(graphOutline(graph))}</pre></details>
 <details><summary>The graph as a flowchart (Mermaid)</summary><pre>${esc(graphMermaid(graph))}</pre></details>
 <script type="application/json" id="gameworld-graph">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script></section>
-<section class="part" id="guide"><div class="part-h"><span class="eyebrow">Style guide</span><h2>What every level inherits</h2></div><div class="cards">${kitHtml}${groundHtml}${langHtml}${fortHtml}</div></section>
+<section class="part" id="guide"><div class="part-h"><span class="eyebrow">Style</span><h2>The ground every level inherits</h2></div><div class="cards">${kitHtml}${groundHtml}</div></section>
+<section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations</span><h2>Who builds on it</h2></div>${civHtml}</section>
 ${levels}
 <section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>
 <footer><span class="eyebrow">Every plate drawn from its recipe</span><span class="eyebrow">Scapeshift</span></footer>
@@ -206,6 +217,7 @@ pre{font:12px/1.5 var(--mono);white-space:pre;overflow-x:auto;margin:10px 0 0}
 .ledger{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:14px}.ledger b{font:500 12px var(--mono);color:var(--local)}.ledger span{color:var(--muted);font-size:12.5px}.ledger em{font:normal 11px var(--mono);color:var(--muted)}
 .own{display:grid;gap:8px;border-top:1px dashed var(--rule);padding-top:12px}
 .card.open{border-style:dashed;background:transparent}
+.civ{background:var(--sheet);border:1px solid var(--rule);border-top:3px solid var(--ink);border-radius:4px;padding:16px;display:grid;gap:14px}.civ-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:8px}.civ-h h3{font-size:34px}.vocab a,.ledger a{color:inherit}
 footer{margin-top:56px;padding-top:14px;border-top:2px solid var(--ink);display:flex;justify-content:space-between;gap:8px 24px;flex-wrap:wrap}
 @media (max-width:860px){.cover,.level-grid,.fort,.cards,.places{grid-template-columns:1fr}.houses{grid-template-columns:repeat(2,minmax(0,1fr))}}
 `;

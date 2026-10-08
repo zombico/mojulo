@@ -1,28 +1,35 @@
 /**
  * THE GAMEWORLD — a game is a series of levels, and a gameworld is what they share. The world carries the broad
- * strokes, its STYLE GUIDE: the kit its ground is drawn in, the building language its towns speak, the fortification
- * its castles raise, and the character of its ground (how trails rise and fall, how climbs are built, how towns and
- * castles are laid out). Every level inherits all of it. A level is a local lord: it executes the world's style in
- * place and interprets it, and it may override any part of it (its own kit, its own language, a steeper trail);
- * a section may override its level the same way. Every override is kept in a LEDGER beside the value it replaced,
- * so a level's page can say how it differs from its world.
+ * strokes in two concerns:
+ *
+ *   STYLE           the ground: the kit it is drawn in (palette, tiles, light, flora) and its character (how trails
+ *                   rise and fall, how climbs are built), and which civilization builds where no one else is named
+ *   CIVILIZATIONS   who builds on it: each its building language, its fortification, how it lays out a town and
+ *                   raises a castle. A world keeps as many as it likes; a level is settled by one, and any town or
+ *                   castle on it may be built by another (a conqueror's castle over an older town). Only what a
+ *                   civilization builds is here; its people are left open with the world's characters
+ *
+ * Every level inherits both. A level is a local lord: it executes the world's style in place and interprets it, and
+ * may override any part of it (its own kit, a steeper trail, another civilization); a section or a place may override
+ * its level the same way. Every override is kept in a LEDGER beside the value it replaced.
  *
  *   gameworld: {
  *     id, name?, seed?,
- *     style?: { kit?, anchor?, fort?, trail?: {…}, meru?: {…}, town?: {…}, castle?: {…} },   // the style guide
+ *     style?: { kit?, civilization?, trail?: {…}, meru?: {…} },
+ *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…} } },
  *     levels: { '<id>': {
  *       name?, seed?,                     // the seed derives from the world's and the level's id unless named
- *       style?: { … },                    // the level's overrides, the style guide's shape
+ *       style?: { … },                    // the level's overrides, the style's shape
  *       walk: { layout?, root?, nodes, edges?, spawn? },   // the level graph (level/graph.js) less its kit and seed
- *       places?: { town?: true | {…}, castle?: true | {…} | false },   // what stands on its ground, not yet placed
+ *       places?: { town?: true | { civilization?, … }, castle?: true | false | { civilization?, … } },
  *     } },
- *     links?: [ { from, to, kind?: 'road' | 'gate' } ],   // how the levels lead on, one to the next
+ *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
  *     characters?, mechanics?,            // reserved: what is not on the ground is left open
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
- * level's whole style, and its ledger. Pure: the same world resolves the same levels.
+ * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
 import { STAGE_KITS, resolveKitId } from '../era/stage.js';
 import { readOutTrail } from '../era/out-trail.js';
@@ -31,15 +38,20 @@ import { readTownPlan } from '../era/out-town.js';
 import { readCastlePlan } from '../era/out-castle.js';
 import { readLevel } from '../level/graph.js';
 
-/** The style guide: what a world hands down, and what each part of it is. */
+/** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
   kit: 'the stage kit its open ground is drawn in: palette, tiles, light, flora',
-  anchor: 'the building language its towns and castles speak (an anchor structure, or its elements)',
-  fort: 'the fortification its castles raise (crenellated, battered, or its elements)',
+  civilization: 'the civilization that builds where no other is named',
   trail: 'the ground\'s character on a trail: run, heartbeat, bumpiness',
   meru: 'how a climb is built: its preset',
-  town: 'how a town is laid out: length, sway, branches, levels, back, farms, heartbeat, secondary',
-  castle: 'how a castle is drawn: size, wards, rise',
+});
+/** A civilization: what it builds, and how. */
+export const CIVILIZATION = Object.freeze({
+  name: 'what it is called',
+  anchor: 'its building language (an anchor structure, or its elements); the kit\'s own when left out',
+  fort: 'the fortification its castles raise (crenellated, battered, or its elements)',
+  town: 'how it lays out a town: length, sway, branches, levels, back, farms, heartbeat, secondary',
+  castle: 'how it raises a castle: size, wards, rise',
 });
 const GROUPS = Object.freeze({
   trail: ['run', 'heartbeat', 'bumpiness'],
@@ -50,9 +62,11 @@ const GROUPS = Object.freeze({
 export const LINK_KINDS = Object.freeze({ road: 'the walk goes on: the next level starts where this one leaves', gate: 'a door between them: a portal, a stair down, a boat' });
 /** Not on the ground: named so a world can say it, left open. */
 export const RESERVED = Object.freeze(['characters', 'mechanics']);
+/** The civilization a world without any keeps: the kit's own language, crenellated. */
+export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
-const KEYS = ['id', 'name', 'seed', 'style', 'levels', 'links', 'start', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'style', 'civilizations', 'levels', 'links', 'start', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -64,22 +78,34 @@ export function levelSeed(worldSeed, id) {
   return (h % 9973) + 1;
 }
 
-// a style (the world's or a level's): its keys, each group's keys
+const group = (k, v, at) => {
+  if (!isObj(v)) throw new Error(`gameworld: ${at} is { ${GROUPS[k].join(', ')} }`);
+  for (const g of Object.keys(v)) if (!GROUPS[k].includes(g)) throw new Error(`gameworld: ${at}.${g} is not a ${k} setting a world hands down (${GROUPS[k].join(', ')})`);
+  return { ...v };
+};
+// a style (the world's or a level's)
 function readStyle(s, at) {
   if (s === undefined) return {};
   if (!isObj(s)) throw new Error(`gameworld: ${at} is { ${Object.keys(WORLD_STYLE).join(', ')} }`);
   const out = {};
   for (const [k, v] of Object.entries(s)) {
-    if (!WORLD_STYLE[k]) throw new Error(`gameworld: ${at}.${k} is not part of the style guide (${Object.keys(WORLD_STYLE).join(', ')})`);
+    if (!WORLD_STYLE[k]) throw new Error(`gameworld: ${at}.${k} is not part of the style (${Object.keys(WORLD_STYLE).join(', ')})${CIVILIZATION[k] ? `; ${k} belongs to a civilization` : ''}`);
     if (k === 'kit') {
       const id = resolveKitId(v);
       if (!STAGE_KITS[id] || !STAGE_KITS[id].shell) throw new Error(`gameworld: ${at}.kit '${v}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].shell).join(', ')})`);
       out.kit = id;
-    } else if (GROUPS[k]) {
-      if (!isObj(v)) throw new Error(`gameworld: ${at}.${k} is { ${GROUPS[k].join(', ')} }`);
-      for (const g of Object.keys(v)) if (!GROUPS[k].includes(g)) throw new Error(`gameworld: ${at}.${k}.${g} is not a ${k} setting a world hands down (${GROUPS[k].join(', ')})`);
-      out[k] = { ...v };
-    } else out[k] = v;
+    } else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
+    else out[k] = v;
+  }
+  return out;
+}
+// a civilization
+function readCivilization(c, at) {
+  if (!isObj(c)) throw new Error(`gameworld: ${at} is { ${Object.keys(CIVILIZATION).join(', ')} }`);
+  const out = { fort: 'crenellated' };
+  for (const [k, v] of Object.entries(c)) {
+    if (!CIVILIZATION[k]) throw new Error(`gameworld: ${at}.${k} is not part of a civilization (${Object.keys(CIVILIZATION).join(', ')})${k === 'characters' || k === 'people' ? '; its people are left open for now' : ''}`);
+    out[k] = GROUPS[k] ? group(k, v, `${at}.${k}`) : v;
   }
   return out;
 }
@@ -99,17 +125,28 @@ function differences(base, top, scope, at) {
   return out;
 }
 
-/** Read a gameworld and say what is wrong. → { id, name, seed, style, levels: { id: raw }, ids, links, start }. */
+/** Read a gameworld and say what is wrong. → { id, name, seed, style, civilizations, civIds, levels, ids, links, start }. */
 const READ = Symbol('read gameworld');
 export function readGameworld(W) {
   if (W && W[READ]) return W;
-  if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, levels, links?, start? }');
+  if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');
   for (const k of Object.keys(W)) if (!KEYS.includes(k)) throw new Error(`gameworld: '${k}' is not a world setting (settings: ${KEYS.join(', ')})`);
   for (const k of RESERVED) if (W[k] !== undefined && W[k] !== null) throw new Error(`gameworld: ${k} are not on the ground: the world leaves them open for now (null, or leave it out)`);
   if (typeof W.id !== 'string' || !ID.test(W.id)) throw new Error('gameworld: id is a short lower-case name (letters, digits, hyphens)');
   if (W.seed !== undefined && !Number.isFinite(W.seed)) throw new Error('gameworld: seed is a number');
   const seed = W.seed ?? 1;
-  const style = { kit: 'isekai-meadow', fort: 'crenellated', ...readStyle(W.style, 'style') };
+
+  // CIVILIZATIONS: as many as the world keeps; the kit's own when it keeps none
+  if (W.civilizations !== undefined && (!isObj(W.civilizations) || !Object.keys(W.civilizations).length)) throw new Error('gameworld: civilizations is { <id>: { name?, anchor?, fort?, town?, castle? } }, at least one (or leave it out)');
+  const civilizations = {}, civIds = Object.keys(W.civilizations ?? { [NATIVE]: {} });
+  for (const id of civIds) {
+    if (!ID.test(id)) throw new Error(`gameworld: civilization '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
+    civilizations[id] = { name: id, ...readCivilization((W.civilizations ?? { [NATIVE]: { name: 'the kit\'s own' } })[id], `civilizations.${id}`) };
+  }
+  const civ = (v, at) => { if (!civilizations[v]) throw new Error(`gameworld: ${at} '${v}' is not a civilization (civilizations: ${civIds.join(', ')})`); return v; };
+
+  const style = { kit: 'isekai-meadow', civilization: civIds[0], ...readStyle(W.style, 'style') };
+  civ(style.civilization, 'style.civilization');
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
   const ids = Object.keys(W.levels), levels = {};
   for (const id of ids) {
@@ -120,11 +157,16 @@ export function readGameworld(W) {
     if (!isObj(L.walk)) throw new Error(`gameworld: ${at}.walk is the level's graph { nodes, edges?, … }`);
     for (const k of ['kit', 'seed']) if (L.walk[k] !== undefined) throw new Error(`gameworld: ${at}.walk.${k}: a level's ${k} is its own (${k === 'kit' ? `${at}.style.kit` : `${at}.seed`}), handed to its sections`);
     if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error(`gameworld: ${at}.seed is a number`);
+    const st = readStyle(L.style, `${at}.style`);
+    if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
       if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle? }`);
-      for (const k of Object.keys(L.places)) if (!['town', 'castle'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle)`);
+      for (const k of Object.keys(L.places)) {
+        if (!['town', 'castle'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle)`);
+        if (isObj(L.places[k]) && L.places[k].civilization !== undefined) civ(L.places[k].civilization, `${at}.places.${k}.civilization`);
+      }
     }
-    levels[id] = { ...L, style: readStyle(L.style, `${at}.style`) };
+    levels[id] = { ...L, style: st };
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
@@ -137,13 +179,13 @@ export function readGameworld(W) {
   });
   const start = W.start ?? ids[0];
   if (!levels[start]) throw new Error(`gameworld: start '${start}' is not a level (levels: ${ids.join(', ')})`);
-  return { id: W.id, name: W.name ?? W.id, seed, style, levels, ids, links, start, [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, [READ]: true };
 }
 
 /**
- * A level as its world hands it down: `{ id, name, seed, style, ledger, level, town }`. `level` is the recipe
- * `layLevel` reads (the level's kit and seed on it, every trail and climb given the world's ground first); `town` is
- * the town's recipe, its castle in it, or null; `ledger` lists every override, the level's and its sections'.
+ * A level as its world hands it down: `{ id, name, seed, style, built, ledger, level, town }`. `level` is the recipe
+ * `layLevel` reads; `town` the town's recipe in its civilization's language, its castle raised by its own, or null;
+ * `built` who built them ({ town, castle } civilization ids); `ledger` every override, the level's and its parts'.
  */
 export function resolveLevel(world, id) {
   const G = readGameworld(world);
@@ -168,23 +210,30 @@ export function resolveLevel(world, id) {
   const level = { ...L.walk, kit: style.kit, seed, nodes };
   readLevel(level);
 
-  // the places: the town in the world's language, its castle raised in the world's fortification
-  let town = null;
-  const P = L.places || {};
-  if (P.town || (P.castle !== undefined && P.castle !== false)) {
-    const own = isObj(P.town) ? P.town : {};
-    for (const k of Object.keys(own)) if (GROUPS.town.includes(k) && style.town?.[k] !== undefined && !same(style.town[k], own[k])) ledger.push({ scope: 'place', at: `${id}/town`, key: `town.${k}`, world: style.town[k], local: own[k] });
-    town = { ...(style.town || {}), ...own };
-    if (style.anchor !== undefined && town.anchor === undefined) town.anchor = style.anchor;
-    if (P.castle !== undefined && P.castle !== false) {
-      const c = isObj(P.castle) ? P.castle : {};
-      for (const k of Object.keys(c)) if (GROUPS.castle.includes(k) && style.castle?.[k] !== undefined && !same(style.castle[k], c[k])) ledger.push({ scope: 'place', at: `${id}/castle`, key: `castle.${k}`, world: style.castle[k], local: c[k] });
-      town.castle = { fort: style.fort, ...(style.castle || {}), ...c };
+  // the places: the town built by its civilization, its castle raised by its own (the town's unless named)
+  let town = null, built = null;
+  const P = L.places || {}, hasCastle = P.castle !== undefined && P.castle !== false;
+  if (P.town || hasCastle) {
+    const own = isObj(P.town) ? { ...P.town } : {}, townCiv = own.civilization ?? style.civilization, C = G.civilizations[townCiv];
+    delete own.civilization;
+    if (townCiv !== style.civilization) ledger.push({ scope: 'place', at: `${id}/town`, key: 'civilization', world: style.civilization, local: townCiv });
+    for (const k of Object.keys(own)) if (GROUPS.town.includes(k) && C.town?.[k] !== undefined && !same(C.town[k], own[k])) ledger.push({ scope: 'place', at: `${id}/town`, key: `town.${k}`, world: C.town[k], local: own[k] });
+    town = { ...(C.town || {}), ...own };
+    if (C.anchor !== undefined && town.anchor === undefined) town.anchor = C.anchor;
+    built = { town: townCiv, castle: null };
+    if (hasCastle) {
+      const c = isObj(P.castle) ? { ...P.castle } : {}, castleCiv = c.civilization ?? townCiv, K = G.civilizations[castleCiv];
+      delete c.civilization;
+      if (castleCiv !== townCiv) ledger.push({ scope: 'place', at: `${id}/castle`, key: 'civilization', world: townCiv, local: castleCiv });
+      for (const k of Object.keys(c)) if (GROUPS.castle.includes(k) && K.castle?.[k] !== undefined && !same(K.castle[k], c[k])) ledger.push({ scope: 'place', at: `${id}/castle`, key: `castle.${k}`, world: K.castle[k], local: c[k] });
+      town.castle = { fort: K.fort, ...(K.castle || {}), ...c };
+      if (castleCiv !== townCiv && K.anchor !== undefined) town.castle.anchor = K.anchor;
       readCastlePlan(town.castle);
+      built.castle = castleCiv;
     }
     readTownPlan(town);
   }
-  return { id, name: L.name ?? id, seed, style, ledger, level, town };
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

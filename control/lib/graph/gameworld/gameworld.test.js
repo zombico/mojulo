@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readGameworld, resolveLevel, resolveWorld, levelSeed, gameworldGraph, graphOutline, graphMermaid, styleGuide, gameworldBibleHtml, MEADOWMARK } from './index.js';
+import { readGameworld, resolveLevel, resolveWorld, levelSeed, gameworldGraph, graphOutline, graphMermaid, styleGuide, civilizationCard, gameworldBibleHtml, MEADOWMARK } from './index.js';
 import { layLevel } from '../level/index.js';
 
 const W = (more = {}) => ({ id: 'w', seed: 8, levels: { a: { walk: { nodes: { t: { trail: true } } } } }, ...more });
@@ -7,7 +7,8 @@ const W = (more = {}) => ({ id: 'w', seed: 8, levels: { a: { walk: { nodes: { t:
 describe('gameworld', () => {
   it('reads a world: the style guide\'s defaults, the start, seeds derived from the world\'s and each level\'s id', () => {
     const G = readGameworld(W());
-    expect(G).toMatchObject({ id: 'w', name: 'w', seed: 8, start: 'a', style: { kit: 'isekai-meadow', fort: 'crenellated' }, links: [] });
+    expect(G).toMatchObject({ id: 'w', name: 'w', seed: 8, start: 'a', style: { kit: 'isekai-meadow', civilization: 'native' }, civIds: ['native'], links: [] });
+    expect(G.civilizations.native).toMatchObject({ fort: 'crenellated' });
     expect(levelSeed(8, 'a')).toBe(levelSeed(8, 'a'));
     expect(levelSeed(8, 'a')).not.toBe(levelSeed(8, 'b'));
     expect(resolveLevel(G, 'a').seed).toBe(levelSeed(8, 'a'));
@@ -20,7 +21,13 @@ describe('gameworld', () => {
     bad(W({ characters: [{ name: 'hero' }] }), /characters are not on the ground/);
     bad(W({ style: { kit: 'gothic-stone' } }), /not an outdoor stage kit/);
     bad(W({ style: { trail: { beats: [] } } }), /trail.beats is not a trail setting a world hands down/);
-    bad(W({ style: { weather: 'rain' } }), /not part of the style guide/);
+    bad(W({ style: { weather: 'rain' } }), /not part of the style/);
+    bad(W({ style: { anchor: 'shell' } }), /anchor belongs to a civilization/);
+    bad(W({ civilizations: {} }), /at least one/);
+    bad(W({ civilizations: { elves: { people: [] } } }), /its people are left open/);
+    bad(W({ civilizations: { elves: { town: { dragons: 3 } } } }), /town.dragons is not a town setting/);
+    bad(W({ style: { civilization: 'orcs' } }), /'orcs' is not a civilization/);
+    bad(W({ levels: { a: { walk: { nodes: { t: { trail: true } } }, places: { town: { civilization: 'orcs' } } } } }), /places.town.civilization 'orcs'/);
     bad(W({ levels: { a: { walk: { kit: 'alien-night', nodes: { t: { trail: true } } } } } }), /a level's kit is its own/);
     bad(W({ links: [{ from: 'a', to: 'z' }] }), /'z' is not a level/);
     bad(W({ start: 'q' }), /start 'q' is not a level/);
@@ -28,21 +35,28 @@ describe('gameworld', () => {
     bad(W({ levels: { a: { walk: { nodes: { t: { trail: true } } }, places: { inn: true } } } }), /not a place/);
   });
 
-  it('a level inherits its world, and keeps a ledger of what it overrides', () => {
-    const w = W({ style: { anchor: 'timber-hall', trail: { heartbeat: 0.8, bumpiness: 0.6 }, town: { levels: 2 } },
-      levels: { a: { style: { kit: 'alien-night', anchor: 'shell' }, walk: { nodes: { t: { trail: true }, u: { trail: { heartbeat: 0.95 } } } }, places: { town: { levels: 1 }, castle: { size: 48 } } } } });
+  it('a level inherits its world and is built by its civilizations, and keeps a ledger of what it overrides', () => {
+    const civilizations = { framers: { anchor: 'timber-hall', town: { levels: 2 } }, shells: { anchor: 'shell', castle: { size: 44 } }, steps: { anchor: 'tiered', fort: 'battered' } };
+    const w = W({ style: { trail: { heartbeat: 0.8, bumpiness: 0.6 } }, civilizations,
+      levels: { a: { style: { kit: 'alien-night', civilization: 'shells' }, walk: { nodes: { t: { trail: true }, u: { trail: { heartbeat: 0.95 } } } }, places: { town: { levels: 1 }, castle: { size: 48 } } } } });
     const R = resolveLevel(w, 'a');
-    expect(R.style).toMatchObject({ kit: 'alien-night', anchor: 'shell', fort: 'crenellated', trail: { heartbeat: 0.8, bumpiness: 0.6 } });
+    expect(R.style).toMatchObject({ kit: 'alien-night', civilization: 'shells', trail: { heartbeat: 0.8, bumpiness: 0.6 } });
     expect(R.level.kit).toBe('alien-night');
     expect(R.level.nodes.t.trail).toEqual({ heartbeat: 0.8, bumpiness: 0.6 });
     expect(R.level.nodes.u.trail).toEqual({ heartbeat: 0.95, bumpiness: 0.6 });
+    expect(R.built).toEqual({ town: 'shells', castle: 'shells' });
     expect(R.town).toEqual({ levels: 1, anchor: 'shell', castle: { fort: 'crenellated', size: 48 } });
     expect(R.ledger).toEqual([
       { scope: 'level', at: 'a', key: 'kit', world: 'isekai-meadow', local: 'alien-night' },
-      { scope: 'level', at: 'a', key: 'anchor', world: 'timber-hall', local: 'shell' },
+      { scope: 'level', at: 'a', key: 'civilization', world: 'framers', local: 'shells' },
       { scope: 'section', at: 'a/u', key: 'trail.heartbeat', world: 0.8, local: 0.95 },
-      { scope: 'place', at: 'a/town', key: 'town.levels', world: 2, local: 1 },
+      { scope: 'place', at: 'a/castle', key: 'castle.size', world: 44, local: 48 },
     ]);
+    // N + x: a castle raised by another civilization over the town, in its own language and fortification
+    const C = resolveLevel(W({ civilizations, levels: { a: { walk: { nodes: { t: { trail: true } } }, places: { town: true, castle: { civilization: 'steps' } } } } }), 'a');
+    expect(C.built).toEqual({ town: 'framers', castle: 'steps' });
+    expect(C.town).toEqual({ levels: 2, anchor: 'timber-hall', castle: { fort: 'battered', anchor: 'tiered' } });
+    expect(C.ledger).toEqual([{ scope: 'place', at: 'a/castle', key: 'civilization', world: 'framers', local: 'steps' }]);
     // a level that follows its world in everything keeps an empty ledger
     expect(resolveLevel(W(), 'a').ledger).toEqual([]);
   });
@@ -63,28 +77,34 @@ describe('gameworld', () => {
     const has = (e) => expect(g.edges).toContainEqual(expect.objectContaining(e));
     has({ from: 'level:meadow-ascent', to: 'level:shell-shore', kind: 'leads', via: 'gate' });
     has({ from: 'section:meadow-ascent/trailhead', to: 'section:meadow-ascent/approach', kind: 'seam' });
-    has({ from: 'place:shell-shore/town', to: 'language:shell', kind: 'speaks' });
-    has({ from: 'place:shell-shore/castle', to: 'fort:crenellated', kind: 'raises' });
+    expect(kinds('civilization')).toEqual(['civilization:framers', 'civilization:stepkeepers', 'civilization:shell-builders']);
+    has({ from: 'place:shell-shore/town', to: 'civilization:shell-builders', kind: 'built-by' });
+    has({ from: 'place:meadow-ascent/castle', to: 'civilization:stepkeepers', kind: 'built-by' });
+    has({ from: 'civilization:shell-builders', to: 'language:shell', kind: 'speaks' });
+    has({ from: 'civilization:stepkeepers', to: 'fort:battered', kind: 'raises' });
+    has({ from: 'level:shell-shore', to: 'civilization:shell-builders', kind: 'settled-by' });
     has({ from: 'level:shell-shore', to: 'world', kind: 'overrides', key: 'kit', local: 'alien-night' });
     has({ from: 'section:meadow-ascent/approach', to: 'world', kind: 'overrides', key: 'trail.heartbeat' });
     for (const e of g.edges) for (const k of ['from', 'to']) expect(g.nodes.some((n) => n.id === e[k])).toBe(true);
-    expect(graphOutline(g).split('\n')[0]).toBe('world · Meadowmark — styled → isekai-meadow; styled → timber-hall; styled → crenellated');
+    expect(graphOutline(g).split('\n')[0]).toBe('world · Meadowmark — styled → isekai-meadow; styled → The framers');
     expect(graphMermaid(g).startsWith('flowchart LR')).toBe(true);
   });
 
-  it('the style guide: the kit\'s palette and principles, the language\'s elements, what the language makes of the castle', () => {
-    const S = styleGuide({ kit: 'isekai-meadow', anchor: 'shell', fort: 'crenellated' }, 8);
+  it('the style guide: the kit\'s palette and principles; each civilization\'s language and what it makes of a castle', () => {
+    const S = styleGuide(readGameworld(MEADOWMARK));
     expect(S.kit.ramps.map((r) => r.name)).toContain('grass');
     expect(S.kit.principles.length).toBeGreaterThan(3);
-    expect(S.language.vocab.mass).toBe('shell');
-    expect(S.fort.influence).toMatchObject({ trace: 'ellipse', crown: 'dome', keep: 'orbs' });
-    expect(styleGuide({ kit: 'isekai-meadow', anchor: 'timber-hall', fort: 'crenellated' }, 8).fort.influence.trace).toBe('rect');
+    expect(Object.keys(S.civilizations)).toEqual(['framers', 'stepkeepers', 'shell-builders']);
+    expect(S.civilizations['shell-builders'].language.vocab.mass).toBe('shell');
+    expect(S.civilizations['shell-builders'].fort.influence).toMatchObject({ trace: 'ellipse', crown: 'dome', keep: 'orbs' });
+    expect(S.civilizations.framers.fort.influence.trace).toBe('rect');
+    expect(civilizationCard({ name: 'x', fort: 'battered' }, 'isekai-meadow', 8).language.own).toBe(true);
   });
 
   it('the bible: the same world, the same page; a page for each level, every plate fenced', () => {
     const a = gameworldBibleHtml(MEADOWMARK), b = gameworldBibleHtml(MEADOWMARK);
     expect(a).toBe(b);
-    for (const id of ['cover', 'map', 'guide', 'level-meadow-ascent', 'level-shell-shore', 'open']) expect(a).toContain(`id="${id}"`);
+    for (const id of ['cover', 'map', 'guide', 'civilizations', 'civ-stepkeepers', 'level-meadow-ascent', 'level-shell-shore', 'open']) expect(a).toContain(`id="${id}"`);
     expect((a.match(/<!--plate:/g) || []).length).toBe((a.match(/<!--\/plate-->/g) || []).length);
     expect(a).toContain('id="gameworld-graph"');
   }, 120000);
