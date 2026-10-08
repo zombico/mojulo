@@ -3,6 +3,7 @@ import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../gam
 import { safeJson } from '../emit-util.js';
 import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
+import { menuHtml } from '../../playscape/ui/menus.js';
 
 // The HUD widget layer's stylesheet (hud-widgets.js): one absolutely-positioned column per slot
 // over #wrap (the corners + the centre line), a widget per row, kinds styled by class. Every
@@ -37,6 +38,57 @@ export const HUD_CSS = [
   '.moj-hidden{opacity:0}',
 ].join('');
 
+// A play block's menus (playscape/ui/menus.js) over the play: centred, solid, taking the pointer; the guide's register
+// and border dress them through the same .moj-w rules as every widget. Emitted only when the world has menus.
+export const MENU_CSS = [
+  '.moj-menu-hud{display:flex;align-items:center;justify-content:center;z-index:13}',
+  '.moj-w-menu{white-space:normal;display:flex;flex-direction:column;gap:7px;width:300px;text-align:left;font-weight:500;padding:12px 14px;pointer-events:auto;background:var(--moj-panel)}',
+  '.moj-w-menu .pu-mt{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.75}.moj-w-menu .pu-who{font-weight:700}',
+  '.moj-w-menu .pu-ch{display:block;padding:1px 0 1px 14px;position:relative;cursor:pointer}.moj-w-menu .pu-ch.on{color:var(--moj-accent)}',
+  '.moj-w-menu .pu-ch.on::before{content:"▸";position:absolute;left:0}.moj-w-menu .pu-foot{display:flex;gap:14px;font-size:12px;opacity:.75;border-top:1px solid var(--moj-line);padding-top:5px}',
+  '.moj-w-menu .pu-tab{border-collapse:collapse;font-size:13px}.moj-w-menu .pu-tab td{padding:1px 8px 1px 0}.moj-w-menu .pu-num{text-align:right;font-variant-numeric:tabular-nums}',
+  '.moj-w-menu .pu-map{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}.moj-w-menu .pu-map i{height:22px;border:1px solid var(--moj-line)}.moj-w-menu .pu-map i.here{background:var(--moj-accent)}',
+].join('');
+
+// the menus' block: the open menu is the last whose bus var (ui-menu-<id>) is 1; it is drawn from the same markup the
+// board draws (menuHtml). Keys go to the menu while one is open (a capture listener, so the walker does not move):
+// up / down move the focus, enter / space / E pick (menu-pick:<menu>:<n>), escape closes (menu-close:<menu>); a read
+// menu turns its pages and closes after the last; a click picks. Picks enter the bus as inputs do, on the next step.
+function menuScript(menus) {
+  return `
+const __MENUS = ${safeJson(menus)};
+${menuHtml.toString()}
+const __menuHud = document.createElement('div'); __menuHud.className = 'moj-hud moj-menu-hud'; wrap.appendChild(__menuHud);
+let __menuOpen = null, __menuF = 0, __menuPg = 0, __menuShown = '';
+// only an actual change touches the DOM: a per-frame rewrite would swap the choice under the pointer between press and release, and no click would land
+function __menuDraw() { const h = __menuOpen ? menuHtml(__menuOpen, __menuF, __menuPg).replace(/\{([^}]+)\}/g, (_, k) => String(__busState.vars[k] != null ? __busState.vars[k] : 0)) : ''; if (h !== __menuShown) { __menuShown = h; __menuHud.innerHTML = h; } }
+function __menuCount(m) { return m.picks ? m.picks.length : m.kind === 'save' ? Math.min(m.slots, 4) : m.kind === 'shop' ? m.stock.length : m.kind === 'chest' ? m.holds.length : m.kind === 'list' ? m.rows.length : 0; }
+function __menuClose() { if (__menuOpen) __inputQueue.push({ type: 'menu-close:' + __menuOpen.id }); }
+function __menuAct() {
+  const m = __menuOpen; if (!m) return;
+  if (m.kind === 'read' && __menuPg + 1 < m.pages.length) { __menuPg++; __menuDraw(); return; }
+  if (m.picks && m.picks.length) __inputQueue.push({ type: 'menu-pick:' + m.id + ':' + __menuF }); else __menuClose();
+}
+window.addEventListener('keydown', (ev) => {
+  if (!__menuOpen) return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  if (ev.repeat) return;
+  const n = __menuCount(__menuOpen);
+  if ((ev.code === 'ArrowUp' || ev.code === 'KeyW') && n) { __menuF = (__menuF + n - 1) % n; __menuDraw(); }
+  else if ((ev.code === 'ArrowDown' || ev.code === 'KeyS') && n) { __menuF = (__menuF + 1) % n; __menuDraw(); }
+  else if (ev.code === 'Enter' || ev.code === 'Space' || ev.code === 'KeyE') __menuAct();
+  else if (ev.code === 'Escape' || ev.code === 'Backspace') __menuClose();
+}, true);
+__menuHud.addEventListener('click', (ev) => { const p = ev.target.closest('[data-pick]'); if (!p || !__menuOpen) return; __menuF = Number(p.getAttribute('data-pick')); __menuAct(); });
+function __syncMenus() {
+  let open = null;
+  for (const m of __MENUS) if (__busState.vars[m.var] === 1) open = m;
+  if (open !== __menuOpen) { __menuOpen = open; __menuF = 0; __menuPg = 0; }
+  __menuDraw();
+}
+window.__mojMenus = { open: () => (__menuOpen ? __menuOpen.id : null), act: __menuAct, close: __menuClose };`;
+}
+
 // the in-page widget block. Widgets arrive normalized (kind / slot / as filled); each carries a
 // pre-resolved `css` color so the page never interprets an author string as CSS. Banners watch
 // the bus LOG delta each step (the same read-only observation the game channel makes) and hide
@@ -44,7 +96,7 @@ export const HUD_CSS = [
 // Toasts spawn one element per firing (capped per widget) that rises + fades on the same clock;
 // an event toast reads its `{event.*}` fields from the frame's INCOMING list (the log keeps type
 // only), a var toast from the var's change since the last frame (first frame seeds, never fires).
-function hudScript(widgets, style, register) {
+function hudScript(widgets, style, register, menus = null) {
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
@@ -54,7 +106,7 @@ const __HUD = ${safeJson(rows)};
 const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
-  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
   const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
@@ -152,7 +204,9 @@ function __syncHud(t, incoming) {
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
 export function eventsChannelScript(events) {
   const { widgets } = normalizeHud(events.hud);
-  const hudBlock = widgets.length ? hudScript(widgets, events.style, events.register) : 'function __syncHud() {}';
+  const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
+  const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
+  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
 const __BUS = (${buildBus.toString()})();
@@ -274,7 +328,7 @@ function __syncBus() {
 // first, so window.__mojSim is already present).
 if (window.__mojSim) __BUS.linkPhysics(__busState, window.__mojSim.state);
 if (EVENTS.initial) __BUS.processEvents(__busState, EVENTS.initial);
-let __busPrev, __busPrevT = 0, __zonePrev;
+let __busPrev, __busPrevT = 0, __zonePrev;${cast ? ' let __castPrev;' : ''}
 stepEvents = (t) => {
   const dtSec = __busPrevT ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0
   if (window.__mojSim) __BUS.syncFromBodies(__busState, window.__mojSim.state);   // fresh body reads
@@ -289,7 +343,12 @@ stepEvents = (t) => {
     const z = __BUS.deriveZoneEvents(window.__mojCtrl.world.entities, __zonePrev, __SOURCES);
     __zonePrev = z.prev;
     for (const ev of z.events) incoming.push(ev);
-  }
+  }${cast ? `
+  if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck
+    const c = window.__mojCtrl.facts(__castPrev);
+    __castPrev = c.prev;
+    for (const ev of c.events) incoming.push(ev);
+  }` : ''}
   if (incoming.length) __BUS.processEvents(__busState, incoming);
   __watchFix();                                      // conceptual predicates (vars/entities/counts)
   const ticks = __BUS.tickTimers(__busState, dtSec); // recurring world heartbeats (spawners, countdowns)
@@ -298,8 +357,8 @@ stepEvents = (t) => {
   if (timed.length) __BUS.processEvents(__busState, timed);
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
-  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities); // apply respawn/teleport warps
-  __syncBus(); __syncHud(t, incoming); __updateAim();
+  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { const w = __BUS.watchEvents(__busState); if (!w.length) break; __BUS.processEvents(__busState, w); } }

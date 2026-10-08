@@ -208,6 +208,55 @@ This step builds the contract and the approval gate. No rung is served yet.
     `ui-register`, `ui-motion`, `ui-layout`, `ui-part-<part>`) are generated in `cards.js`.
   - The tool lives in `pack_game`. Studio routing gets a PLAY row, and a `play` routing card is added. The
     tools/list payload is re-pinned to 241,700.
+- **Cues: one primitive for the UI answering the game (`playscape/ui/cues.js`).** A cue says, in game words, when
+  the UI acts, what it does and until when:
+  - when: the figure enters, leaves or comes near a zone, uses a thing, takes an item, a value crosses a line, any
+    bus event, or the level starts;
+  - then: words on screen (a banner, a toast, a prompt), a part shown, hidden or put in a state, or a phase;
+  - until: another happening, or a time; `once` fires it the first time only.
+
+  Each cue fires one bus event, `cue:<id>`, so any part can bind to it. The words are drawn on the page today; showing,
+  hiding and states are set on the bus and drawn on the board until the page reads them. Parts may carry an `id`.
+- **Menus, opened from anything in any map.** A cue's zone may name an anchor, the addressable places and things
+  every scapeshift map already carries (a stage, a dungeon, a floormap, a trail), so a shop counter, a bed, a sign
+  or a chest can open a menu. `play.menus` holds them, each one of a closed set of kinds: read, talk, confirm, shop,
+  chest, save, map, list. A talk's choices and a confirm's answers do cue effects, which also gain `open`, `close`,
+  `set` (a var) and `emit` (a bus event). A menu carries no style of its own: the world's UI style guide dresses it,
+  as it does the parts.
+- **The page draws menus.** A world with menus gets an overlay that shows the open menu over the play, from the
+  same markup the board draws (`menuHtml`), dressed by the guide:
+  - up and down move the focus; enter, space or E picks; escape closes; a click picks;
+  - a read menu turns its pages and closes after the last;
+  - keys go to the menu while it is open, so the walker stands still;
+  - the overlay is rewritten only when its markup changes, since a rewrite every frame swaps the choice under the
+    pointer between press and release and the click never lands.
+
+  A cue's zone watches the world's walker, so its own props don't set it off. A world without menus emits exactly
+  what it did. A shop's buying waits on an "afford it?" check the bus doesn't have yet: picking from its stock only
+  closes it.
+
+### World events
+
+- **The bus and the characters talk both ways.** Nothing a character did reached the event bus but standing in a zone,
+  and the bus could do nothing to a character but warp it. A bus verb `{ do: 'ctrl', op, … }` queues an intent that
+  `syncToCtrl` hands to the character world (`cast`), and the character world reports what happened to it (`facts`):
+  `down` (it fell), `gone`, `spawned`, `arrive` (at a point of its walk, by name) and `stuck`. The page carries the two
+  lines only when the world uses them; every other world emits what it did.
+- **Cues reach the cast.** `play.cues` and menu choices take the new happenings (`when: { down | gone | spawned |
+  stuck: '<who>' }`, `{ arrive: '<who>' | { who, at } }`) and effects:
+  - `spawn` wakes a character minted asleep (`dormant: true`) or sent away, where it's told (`at`, `face`), revived.
+    The cast stays fixed at build, so a world replays the same;
+  - `vanish` sends one away; `kill`, `hurt { by }` and `heal` act on its `body.hp`, and a killed plain body lies down;
+  - `walk { who, to: [places], speed?, then: stay | loop | back }` is a dumb path: straight lines, ground snap, the
+    world's collider boxes push it out, no pathfinding. A second without progress is `stuck` and drops the walk.
+    `stop` ends one.
+- **Spots.** `play.spots: [{ id, at, face?, pose? }]` are action points: where someone stands to do a thing. A walk
+  that ends on a spot takes its facing and its pose (recorded; figures don't draw poses yet). Spots are places like a
+  map's anchors: a cue's zone, a walk's points, a spawn's place.
+- **Bodies keep their space.** `body.collide` eggs pushed only `platform` bodies; `walk` bodies and anyone walking a
+  path are pushed now too (on the ground plane), so the walker and the cast don't pass through each other.
+  `body.heavy` holds still. Laws: `cast-known` (an effect names someone the world doesn't have), `cast-places` (a
+  place it doesn't carry), `spawn-asleep` (a spawn of someone already up and never sent away).
 
 ### Handedness
 
@@ -234,6 +283,10 @@ This step builds the contract and the approval gate. No rung is served yet.
   rows of `world-scene.kinds` (their geometry moved); `floorplan-world.test.js` pins the laws.
 - The turntable's World is the CSS scene, not its mirror: CSS space (x right, y down, z toward the viewer) is
   left-handed, and its rotation into the world flipped the lit side. It maps as [-x, z, -y], winding reversed.
+- The `walk` rule turns the way its keys say. Its tank turn added the turn axis to the heading, and the heading
+  climbs counter-clockwise from above, so D turned the walker left and A right; `platform` and `drive` already
+  negated it. A is a left turn now, D a right one. Re-pinned: the controllable rows of `emit-channels.char` (the
+  rule ships in the page) and the walk world's golden trace.
 
 ## [3.1.0] - 2026-10-07
 

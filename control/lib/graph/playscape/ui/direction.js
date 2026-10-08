@@ -15,7 +15,8 @@
  *   resolvePlayUi(manifest)  → AUTHORING TIME ONLY (create_sketch / update_sketch): fills the guide and the motion,
  *                              rolls any item set to 'reroll', keeps the others and their approval
  *   uiSettled(ui)            → every item approved or auto
- *   lowerPlay(manifest)      → the BUILD's read: an events fragment { hud, style?, register? }, or null
+ *   lowerPlay(manifest, { anchors, player }) → the BUILD's read: an events fragment { hud, …the cues' bus channels, menus?, style?,
+ *                              register? }, or null
  *
  * Every guide value carries the layer that set it: 'operator' (play.ui), 'hints' (play_hints), 'flavor' (a stylized
  * border's preset, borders.js), 'world' (the stage's tone), 'roll' (dice inside a rail) or 'default'. Nothing is styled from taste.
@@ -28,6 +29,9 @@ import { rollMotion } from './motion.js';
 import { readBorder, readPixel, BORDER_FLAVORS } from './borders.js';
 import { PACES } from './regions.js';
 import { lowerParts, readPart } from './parts.js';
+import { lowerCues, readCues } from './cues.js';
+import { lowerMenus, readMenus, menuPages } from './menus.js';
+import { readSpots, spotAnchors, CAST_WHEN } from './cast.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -147,6 +151,9 @@ export function resolvePlayUi(manifest, fresh = freshUiSeed) {
   if (!(typeof u === 'string' || isObj(u))) throw new Error("play.ui is 'propose', 'auto', or { register?, pin?, seed? }");
   phasesOf(play);
   (play.parts || []).forEach((p, i) => readPart(p, i));
+  readCues(play, phasesOf(play));
+  readMenus(play);
+  readSpots(play);
   if (typeof u === 'string' || !ROLLED.some((k) => k in u)) {
     const ask = typeof u === 'string' ? {} : readAsk(u), seed = isObj(u) && Number.isInteger(u.seed) ? u.seed : fresh();
     const motion = rollMotion(mulberry32(subSeed(seed, 'motion')));
@@ -171,15 +178,29 @@ export function uiSettled(ui) {
 export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.status) && (ui.status[k] === 'approved' || ui.status[k] === 'auto')));
 
 /**
- * THE BUILD'S READ (pure, no dice): play.parts lowered to hud rows; with a direction, the style tokens and the
+ * THE BUILD'S READ (pure, no dice): play.parts lowered to hud rows, play.cues and play.menus to their rows and bus
+ * channels (`anchors`, the built map's, place a cue named by an anchor); with a direction, the style tokens and the
  * register's dials once it is settled, the greybox until then. Absent `play` ⇒ null (zero bytes).
  */
-export function lowerPlay(manifest) {
+export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   const play = manifest && manifest.play;
   if (!isObj(play)) return null;
   phasesOf(play);
-  const hud = lowerParts(play.parts);
+  // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
+  // channels as they are (the two share the menus' vars)
+  // spots are places like the map's anchors: a cue's zone, the cast's walks and spawns
+  const spots = readSpots(play), places = [...spots, ...(anchors || [])];
+  const cues = lowerCues(play, { anchors: [...spotAnchors(play), ...(anchors || [])], player, places }) || {}, menus = lowerMenus(play, { places }) || {};
+  const hud = [...lowerParts(play.parts), ...(cues.hud || []), ...(menus.hud || [])];
   const out = hud.length ? { hud } : {};
+  const vars = { ...(cues.vars || {}), ...(menus.vars || {}) };
+  if (Object.keys(vars).length) out.vars = vars;
+  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences']) { const v = [...(cues[k] || []), ...(menus[k] || [])]; if (v.length) out[k] = v; }
+  const pages = menuPages(play);
+  if (pages.length) out.menus = pages;
+  // the page reads the characters' happenings and hands them the cast's ops only when something here uses them
+  const castOn = (r) => r.do === 'ctrl' || (CAST_WHEN[r.on] && r.match && 'entity' in r.match);
+  if ((out.reactions || []).some(castOn)) out.cast = true;
   const u = play.ui;
   if (isObj(u) && isObj(u.guide)) {
     if (uiSettled(u)) {

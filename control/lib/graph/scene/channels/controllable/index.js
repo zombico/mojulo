@@ -738,6 +738,10 @@ function __syncEntity(e, dt) {
     // roll (body x), then pitch (body y, negated so nose-up pitches up), then the yaw.
     // Absent → the flat yaw-only read, byte-identical.
     if (e.tilt) m.rotation.set(e.tilt.roll || 0, -(e.tilt.pitch || 0), e.transform.heading, 'ZYX');
+    else if (e.castDown) {   // felled by the cast: it lies along its heading, on the ground its feet were on
+      m.rotation.set(0, Math.PI / 2, e.transform.heading, 'ZYX');
+      m.position.z = e.transform.pos[2] - ((e.rule && e.rule.eye) || 0) + (Array.isArray(e.body.size) ? e.body.size[0] / 2 : (e.body.radius || 0));
+    }
     else m.rotation.set(0, 0, e.transform.heading);   // yaw about +Z (z-up)
   }
 }
@@ -2382,5 +2386,5 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input) };`;
+window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev) };`;
 }

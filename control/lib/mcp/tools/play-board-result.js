@@ -15,7 +15,7 @@ const patchFor = (path, value) => `{ op: 'set', path: '${path}', value: ${JSON.s
 
 export function playReadout(manifest) {
   const u = manifest.play.ui, pending = uiPending(u), g = u.guide;
-  const advice = uiAdvice(manifest.play, u);
+  const advice = uiAdvice(manifest.play, u, { entities: Array.isArray(manifest.entities) ? manifest.entities : null });
   return {
     play_ui: {
       register: g.register, stop: g.stop, dials: g.dials, font: g.font, tokens: g.tokens, sources: g.sources,

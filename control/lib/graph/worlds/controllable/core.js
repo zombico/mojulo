@@ -184,6 +184,9 @@ export function buildCore(E) {
   // and shoves the mover out — so ramming the enemy stops YOU, not it — and two movers split the
   // penetration. Approaching velocity along the contact normal is killed (rest against the hull, no
   // jitter). Opt-in per body (`collideVol`, from `body.collide`); worlds without it are a no-op.
+  // who gives way: 1 a live platform body (pushed in 3D), 2 a ground walker (the walk rule, a cast walk: pushed on the
+  // ground plane), 0 one that holds (anything else, and any `body.heavy`)
+  const moverOf = (e) => (e.body && e.body.heavy ? 0 : e.rule && e.rule.type === 'platform' ? 1 : (e.rule && e.rule.type === 'walk') || e.route ? 2 : 0);
   function stepBodyCollisions(state) {
     const solids = [];
     for (const e of state.entities) if (e.collideVol && !e.isCamera && !e.gone && e.cineT == null) solids.push(e);   // cinematic suits stand close — skip solidity
@@ -197,13 +200,13 @@ export function buildCore(E) {
         const ux = dx / dist, uy = dy / dist, uz = dz / dist;
         const pen = eggRadius(A.collideVol, ux, uy, uz) + eggRadius(B.collideVol, ux, uy, uz) - dist;
         if (pen <= 0) continue;
-        const mA = A.rule && A.rule.type === 'platform';
-        const mB = B.rule && B.rule.type === 'platform';
+        const mA = moverOf(A), mB = moverOf(B);
         if (!mA && !mB) continue;   // two stationary bodies — nothing to push
         const wA = mA ? (mB ? 0.5 : 1) : 0;
         const wB = mB ? (mA ? 0.5 : 1) : 0;
-        pa[0] -= ux * pen * wA; pa[1] -= uy * pen * wA; pa[2] -= uz * pen * wA;
-        pb[0] += ux * pen * wB; pb[1] += uy * pen * wB; pb[2] += uz * pen * wB;
+        // a ground walker (walk rule, a cast walk) is pushed on the ground plane; its feet stay where the ground put them
+        pa[0] -= ux * pen * wA; pa[1] -= uy * pen * wA; if (mA === 1) pa[2] -= uz * pen * wA;
+        pb[0] += ux * pen * wB; pb[1] += uy * pen * wB; if (mB === 1) pb[2] += uz * pen * wB;
         if (mA && A.vel) { const vn = A.vel[0] * ux + A.vel[1] * uy + A.vel[2] * uz; if (vn > 0) { A.vel[0] -= vn * ux; A.vel[1] -= vn * uy; A.vel[2] -= vn * uz; } }
         if (mB && B.vel) { const vn = B.vel[0] * ux + B.vel[1] * uy + B.vel[2] * uz; if (vn < 0) { B.vel[0] -= vn * ux; B.vel[1] -= vn * uy; B.vel[2] -= vn * uz; } }
       }

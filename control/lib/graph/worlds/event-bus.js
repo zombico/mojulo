@@ -135,6 +135,9 @@ export function buildBus() {
       return [out];
     }
     if (verb === 'spawn') { spawnEntity(state, spec, ev); return []; }
+    // a CHARACTER intent (spawn / vanish / kill / hurt / heal / walk / stop a controllable entity): queued, resolved
+    // against the firing event, handed to the character world by syncToCtrl after the tick (its `cast`)
+    if (verb === 'ctrl') { const op = {}; for (const k in spec) if (k !== 'do') op[k] = resolveRef(spec[k], ev); (state._ctrlOps || (state._ctrlOps = [])).push(op); return []; }
     // CONCEPTUAL-STATE verbs (no entity target): write the `vars` bag where non-physical meaning lives.
     // Optional `min`/`max` CLAMP a numeric result (health floors, ammo caps, score ceilings) — the
     // fall-penalty-respawn case needs `{do:'inc',var:'hp',by:-20,min:1}` so a fall can never reach 0.
@@ -518,7 +521,10 @@ export function buildBus() {
   // per tick AFTER processEvents (the respawn/teleport path for fall-handling; game-mechanics.plan.md).
   // Conditional by construction: only ids a reaction warped this tick are touched, so the walk rule's
   // own per-tick position is never fought — a warp is an event, not a continuous sync like bodies.
-  function syncToCtrl(state, ctrlEntities) {
+  // `cast` (the character world's, when given) takes the tick's queued character intents (the `ctrl` verb), in order.
+  function syncToCtrl(state, ctrlEntities, cast) {
+    const ops = state._ctrlOps;
+    if (ops && ops.length) { state._ctrlOps = []; if (cast) cast(ops); }
     const warps = state._ctrlWarps;
     if (!warps) return;
     for (const e of (ctrlEntities || [])) {

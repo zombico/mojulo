@@ -45,7 +45,7 @@ export function buildRulesBasic(E) {
     const r = e.rule;
     const speed = r.speed ?? 6, turn = r.turn ?? 2.2, stride = r.stride ?? 2.4, strafe = r.strafe ?? 0;
     const t = e.transform;
-    if ((r.turnMode ?? 'tank') === 'tank') t.heading = (t.heading + input.turn * turn * dt) % TAU;
+    if ((r.turnMode ?? 'tank') === 'tank') t.heading = (t.heading - input.turn * turn * dt) % TAU;   // A=left, D=right (heading+ is a LEFT turn)
     else t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
     const f = fwdXY(t.heading), rt = rightXY(t.heading);
     const moveF = input.forward * speed * dt;

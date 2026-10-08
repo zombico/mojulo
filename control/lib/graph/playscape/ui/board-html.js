@@ -9,6 +9,8 @@
  *                          world's board one per part it declares, keyed by its var or event; on the sheet one per variant)
  *   ui:layout              the region grid, the parts in it, the budget and the advice
  *   ui:wireframe:<phase>   one black-and-white frame per phase: boxes only, so structure is approved apart from look
+ *   ui:cues                every cue as when → then → until, and whether the page draws it yet
+ *   ui:menu:<id>           a menu in values, then dressed by the guide (its plate raised to solid: it reads over play)
  *
  *   uiBoardHtml(manifest)    the board for a world with play.ui (as the page a viewer opens)
  *   uiSheetHtml(opts)        THE REFERENCE SHEET: every part × variant × state at a register, pre-generated once per
@@ -19,7 +21,7 @@
  * The specimens use the HUD page's own sheet (scene/channels/events.js HUD_CSS) and the register's dom backend
  * (register.js registerCss), so what the board shows is what the page draws.
  */
-import { HUD_CSS } from '../../scene/channels/events.js';
+import { HUD_CSS, MENU_CSS } from '../../scene/channels/events.js';
 import { styleVars, colorCss, FONTS } from '../../game/hud-widgets.js';
 import { PARTS, PART_IDS, UI_STATES, readPart } from './parts.js';
 import { UI_REGIONS, REGION_CELLS, REGION_BUDGETS, regionClass } from './regions.js';
@@ -28,6 +30,9 @@ import { motionSheet } from './motion.js';
 import { borderCss, BORDER_ELEMENTS } from './borders.js';
 import { UI_ITEMS, GREYBOX_TOKENS, phasesOf } from './direction.js';
 import { uiAdvice, DEFAULT_REGION, MOMENTS, FOCUS } from './laws.js';
+import { readCues } from './cues.js';
+import { CAST_WHEN } from './cast.js';
+import { readMenus, openers, MENU_KINDS, menuPages, menuHtml } from './menus.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const STATUS = { proposed: '#e8b04a', approved: '#6cc070', auto: '#8a93a6' };
@@ -63,6 +68,7 @@ table{border-collapse:collapse;width:100%;font-size:12px}td{padding:2px 6px 2px 
 .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.grid9>div{background:#2b2d33;border-radius:2px;padding:6px;min-height:58px;font-size:11px}
 .grid9 b{display:block;color:#9a958c;font-weight:400;font-size:10px;text-transform:uppercase}.grid9 .over{outline:1.5px solid #e8b04a}
 .wfs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.wf small{color:#9a958c;display:block;margin-bottom:3px}
+table.cues td{padding:3px 10px 3px 0}.mns{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}.mn-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}.mn-pair .pu-stage{align-items:flex-start;zoom:.8}table.cues small{color:#9a958c}
 ul.adv{margin:6px 0 0;padding-left:16px;color:#e8b04a;font-size:12px}
 svg{display:block;width:100%;height:auto}
 [data-piece]{display:contents}
@@ -221,8 +227,8 @@ export function piecePart(part, variant, guide, p, of = '') {
 }
 
 /** ui:layout — the grid, the parts in each region (all phases), the budget and the advice. */
-export function pieceLayout(play, ui) {
-  const parts = (play.parts || []).map((p, i) => readPart(p, i)), advice = uiAdvice(play, ui);
+export function pieceLayout(play, ui, entities = null) {
+  const parts = (play.parts || []).map((p, i) => readPart(p, i)), advice = uiAdvice(play, ui, { entities });
   const pace = (ui && ui.guide && ui.guide.pace) || 'scan', budgets = REGION_BUDGETS[pace];
   const name = (x) => esc(`${x.part}.${x.variant}${x.binds ? ` ${x.part === 'banner' || x.part === 'alerts' ? 'on ' : ''}${x.binds}` : ''}${x.of !== 'self' ? ` · of ${x.of}` : ''}${x.audience !== (x.of === 'self' ? 'self' : x.of === 'team' ? 'team' : 'all') ? ` · seen by ${x.audience}` : ''}${x.page ? '' : ' ◦'}`);
   const cells = UI_REGIONS.map((r) => {
@@ -232,6 +238,41 @@ export function pieceLayout(play, ui) {
   }).join('');
   const over = parts.filter((x) => x.region === 'over');
   return piece('ui:layout', `<p class="note">pace ${esc(pace)} · ◦ drawn on the board only</p><div class="grid9">${cells}</div>${over.length ? `<p class="note" style="margin-top:6px">over each entity: ${over.map(name).join(', ')}</p>` : ''}${advice.length ? `<ul class="adv">${advice.map((a) => `<li>${esc(a.law)} · ${esc(a.at || '')}: ${esc(a.advice)}</li>`).join('')}</ul>` : '<p class="note" style="margin-top:6px">no advice</p>'}`);
+}
+
+// a happening and an effect in words, as the board reads them
+const zoneWords = (w) => (w.anchor ? `${w.anchor} (${w.r} m)` : w.zone ? `'${w.zone}'` : w.area.r ? `${w.area.r} m round ${w.area.at[0]}, ${w.area.at[1]}` : `${w.area.half[0] * 2} × ${w.area.half[1] * 2} m at ${w.area.at[0]}, ${w.area.at[1]}`);
+export function whenWords(w) {
+  if (w.kind === 'enter' || w.kind === 'near' || w.kind === 'leave') return `${{ enter: 'walks into', near: 'comes near', leave: 'walks out of' }[w.kind]} ${zoneWords(w)}`;
+  if (w.kind === 'use') return `uses ${w.id}`;
+  if (w.kind === 'take') return `takes ${w.id}`;
+  if (w.kind === 'var') { const sym = { gte: '≥', gt: '>', lte: '≤', lt: '<', eq: '=', ne: '≠' }; return `${w.var} ${Object.keys(sym).filter((k) => w[k] !== undefined).map((k) => `${sym[k]} ${w[k]}`).join(' and ')}`; }
+  if (w.kind === 'on') return `the bus says ${w.on}${w.match ? ` (${Object.entries(w.match).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`;
+  if (w.kind === 'ttl') return `${w.ttl} s`;
+  if (CAST_WHEN[w.kind]) return `${w.who} ${{ down: 'falls', gone: 'is sent away', spawned: 'appears', arrive: 'arrives', stuck: 'is stuck' }[w.kind]}${w.at ? ` at ${w.at}` : ''}`;
+  return 'the level starts';
+}
+const place = (p) => (Array.isArray(p) ? `[${p.slice(0, 2).join(', ')}]` : p);
+const castWords = (t) => (t.op === 'walk' ? `${t.who} walks to ${t.to.map(place).join(' → ')}${t.then && t.then !== 'stay' ? ` (${t.then})` : ''}` : t.op === 'spawn' ? `${t.who} appears${t.at ? ` at ${place(t.at)}` : ''}` : t.op === 'hurt' ? `${t.who} −${t.by} hp` : t.op === 'heal' ? `${t.who} +${t.by ?? 'all'} hp` : `${{ vanish: 'send away', kill: 'fell', stop: 'stop' }[t.op]} ${t.who}`);
+const thenWords = (t) => (t.kind === 'cast' ? castWords(t) : t.kind === 'say' ? `${t.as} “${t.say}” at ${t.region}` : t.kind === 'state' ? `${t.part} → ${t.to}` : t.kind === 'phase' ? `phase → ${t.phase}` : t.kind === 'open' ? `open menu ${t.menu}` : t.kind === 'close' ? `close ${t.menu ? `menu ${t.menu}` : 'the menu'}` : t.kind === 'set' ? `${t.var} = ${t.to}` : t.kind === 'emit' ? `emit ${t.event}` : `${t.kind} ${t.part}`);
+
+/** ui:cues — every cue as when → then → until; ◦ marks an effect the page does not draw yet (set on the bus). */
+export function pieceCues(play) {
+  const cues = readCues(play, phasesOf(play));
+  const rows = cues.map((c) => `<tr><td><b>${esc(c.id)}</b>${c.once ? ' <small>once</small>' : ''}</td><td>${esc(whenWords(c.when))}</td><td>→</td><td>${c.then.map((t) => esc(thenWords(t)) + (t.page ? '' : ' ◦')).join('<br>')}</td><td class="about">${c.until ? `until ${esc(c.until.same ? 'it walks away' : whenWords(c.until))}` : ''}</td></tr>`).join('');
+  return piece('ui:cues', `<table class="cues"><tr><td class="about">cue</td><td class="about">when the figure…</td><td></td><td class="about">the UI</td><td class="about"></td></tr>${rows}</table>`);
+}
+
+// a menu's specimen: the page's own markup (menus.js menuHtml), sample values for a list's vars
+const menuSpecimen = (m) => menuHtml(m).replace(/\{[^}]+\}/g, (_, i) => '62');
+const RAISE = { clear: 'solid', flat: 'solid', solid: 'solid', textured: 'textured' };
+
+/** ui:menu:<id> — a menu in values, then dressed by the world's guide, with what opens it. */
+export function pieceMenu(m, guide, by = []) {
+  const id = `ui:menu:${m.id}`, k = id.replace(/[^a-z0-9]/gi, '-');
+  // a menu reads over play: the guide's plate, raised to solid when it is clearer
+  const css = `<style>${stageCss(`.v-${k}`, GREYBOX_TOKENS, 'system', { plate: 'solid' }, true)}${guide ? stageCss(`.d-${k}`, guide.tokens, guide.font, { ...guide.dials, plate: RAISE[guide.dials.plate] || 'solid' }, false, guide) : ''}</style>`;
+  return piece(id, `${css}<div class="mn"><p class="note"><b style="color:#e9e4da">${esc(m.id)}</b> · ${esc(m.kind)} · ${esc(MENU_KINDS[m.kind].about)}<br>opened by ${by.length ? esc(by.join(', ')) : '<span style="color:#e8b04a">nothing yet</span>'}</p><div class="mn-pair"><div class="pu-stage v-${k}">${menuSpecimen(m)}</div>${guide ? `<div class="pu-stage d-${k}">${menuSpecimen(m)}</div>` : ''}</div></div>`);
 }
 
 // who sees a part from a view: a player sees all but the spectators' own overlays; a spectator sees what is shown to all
@@ -300,10 +341,10 @@ const usedParts = (play) => {
 /** The ids a world's board is assembled from, in board order. */
 export function boardPieceIds(manifest) {
   const play = manifest.play || {};
-  return ['ui:guide', 'ui:motion', ...usedParts(play).map((x) => `ui:part:${x.part}.${x.variant}${x.of ? `:${x.of}` : ''}`), 'ui:layout', ...phasesOf(play).flatMap((ph) => viewsOf(play).map((v) => `ui:wireframe:${ph}${v ? `:${v}` : ''}`))];
+  return ['ui:guide', 'ui:motion', ...usedParts(play).map((x) => `ui:part:${x.part}.${x.variant}${x.of ? `:${x.of}` : ''}`), ...(play.cues && play.cues.length ? ['ui:cues'] : []), ...readMenus(play).map((m) => `ui:menu:${m.id}`), 'ui:layout', ...phasesOf(play).flatMap((ph) => viewsOf(play).map((v) => `ui:wireframe:${ph}${v ? `:${v}` : ''}`))];
 }
 
-const page = (title, lede, body) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1240"><title>${esc(title)}</title><style>${CSS}${HUD_CSS}${PROPOSED_CSS}</style></head><body><div id="board">
+const page = (title, lede, body) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=1240"><title>${esc(title)}</title><style>${CSS}${HUD_CSS}${MENU_CSS}${PROPOSED_CSS}</style></head><body><div id="board">
 <h1>${esc(title.toUpperCase())}</h1>
 <p class="lede">${esc(lede)}</p>
 ${body}
@@ -321,8 +362,10 @@ ${card('guide', status.guide, pieceGuide(g), 'every value tagged with the layer 
 ${card('motion', status.motion, pieceMotion(ui.motion, g.dials.motion), 'the moves, in frames')}
 </div>
 <div class="row">${card('parts', status.parts, parts.length ? specs(parts.map((x) => piecePart(x.part, x.variant, g, x.p, x.of)).join('')) : '<p class="note">no parts yet: play.parts</p>', 'each part in every state: in values, then dressed by the guide · drawn at 78% (banners 42%, legends 64%, panels 56%) to fit a cell')}</div>
+${play.cues && play.cues.length ? `<div class="row"><section class="card" data-item="cues"><header><h2>Cues</h2></header><p class="note">what the game does → what the UI does, until when · each fires the bus event cue:&lt;id&gt; · ◦ set on the bus, drawn on the board only · approved with the parts</p>${pieceCues(play)}</section></div>` : ''}
+${(play.menus || []).length ? (() => { const by = openers(play); return `<div class="row"><section class="card" data-item="menus"><header><h2>Menus</h2></header><p class="note">what comes up when the figure does something in the map · in values, then dressed by the world's guide (no look of its own) · drawn on the board; the page draws menus in a later step</p><div class="mns">${menuPages(play).map((m) => pieceMenu(m, g, by.get(m.id))).join('')}</div></section></div>`; })() : ''}
 <div class="row r3">
-${card('layout', status.layout, pieceLayout(play, ui), 'every phase at once; standing parts against the pace\'s budget (moments pass through); a region over it is outlined')}
+${card('layout', status.layout, pieceLayout(play, ui, Array.isArray(manifest.entities) ? manifest.entities : null), 'every phase at once; standing parts against the pace\'s budget (moments pass through); a region over it is outlined')}
 ${card('wireframes', status.wireframes, `<div class="wfs">${phases.flatMap((ph) => viewsOf(play).map((v) => pieceWireframe(ph, play, g.dials, v))).join('')}</div>`, 'black and white: structure apart from look · dashed: drawn on the board only')}
 </div>`);
 }

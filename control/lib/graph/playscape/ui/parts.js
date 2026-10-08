@@ -2,7 +2,7 @@
  * PARTS — the UI encyclopedia: what a part IS, apart from where it sits (regions.js), what it looks like (the guide's
  * tokens and the register's dials) and which appearance state it is in. One shape for every rung:
  *
- *   { part, variant?, bind?: { var, of? } | { on, of? }, at?: '<region>' | { region } | 'over', audience?, mark?,
+ *   { part, id?, variant?, bind?: { var, of? } | { on, of? }, at?: '<region>' | { region } | 'over', audience?, mark?,
  *     label?, max?, text?, ttl?, color?, when?: ['<phase>', …], …the part's own fields (rows, rate, into, columns) }
  *
  * WHOSE value a part shows is `bind.of`: 'self' (mine, the default), 'team', 'all' (the match's shared state), 'target'
@@ -183,6 +183,7 @@ export function readPart(p, i = 0) {
     if (!region) throw new Error(`${where}.at is a region (${UI_REGIONS.join(', ')}), or 'over' for a part over each entity`);
   }
   if (p.when !== undefined && !(Array.isArray(p.when) && p.when.every(isStr))) throw new Error(`${where}.when is a list of phase names`);
+  if (p.id !== undefined && !(isStr(p.id) && /^[a-z][a-z0-9-]*$/.test(p.id))) throw new Error(`${where}.id '${p.id}' is a lower-case word (a cue names a part by it)`);
 
   const needVar = P.bind === 'var' || (p.part === 'toast' && variant === 'change'), needOn = P.bind === 'on' || (p.part === 'toast' && variant === 'event');
   if (needVar && !from && !isStr(b.var)) throw new Error(`${where}: a ${p.part}${p.part === 'toast' ? ' (change)' : ''} binds a bus var — bind: { var: '<name>' }`);
@@ -205,7 +206,7 @@ export function readPart(p, i = 0) {
     else row = { ...pass(['text']), ...slot, ...pass(['ttl', 'color']) };
   }
   const binds = b.var || b.on || (Array.isArray(p.rows) ? p.rows.map((r) => r.var).join('+') : '') || (from ? `${from}${b.field || p.field ? `.${b.field || p.field}` : ''}` : '');
-  return { part: p.part, variant, region, row, page, of, audience, mark, binds, from, layers: p.part === 'reticle' ? (p.layers || ['core']) : null };
+  return { part: p.part, id: p.id ?? null, variant, region, row, page, of, audience, mark, binds, from, layers: p.part === 'reticle' ? (p.layers || ['core']) : null };
 }
 
 /** Parts → their events.hud rows, in order, for the parts the page draws (the others are the board's). */

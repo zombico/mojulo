@@ -35,7 +35,7 @@ import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/procedural-material';
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
-import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
+import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -844,18 +844,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // `physics`), so it is gated on an existing payload. Present (reactions or sequences) ⇒ a LIVE
   // channel the static stills can't run, so `nonBakeable` (the /svg + /scene degrade to frame zero).
   // Mechanics-lowered events (mechEvents) merge in here so the one bus runs both.
-  // A `play` block (playscape/ui/direction.js) lowers its parts to hud rows after the hand rows and
+  // A `play` block (playscape/ui/direction.js) lowers its parts (and its cues' words) to hud rows after the hand rows and
   // before the mechanics' (so a hand row still restyles either by naming its var), and brings its
   // direction's tokens and dials (the greybox while the direction waits on approval). A hand-written
-  // events.style wins over the play block's. Absent `play` ⇒ not a byte changes.
-  const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest) : null;
-  let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, playEv && playEv.hud ? { hud: playEv.hud } : null), mechEvents);
+  // events.style wins over the play block's. Its cues (playscape/ui/cues.js) bring their reactions, watches, zones
+  // and sequences beside it. Absent `play` ⇒ not a byte changes.
+  const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
+  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, ...playBus } = playEv || {};
+  let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
   if (ev && playEv) {
     if (playEv.style && ev.style === undefined) ev = { ...ev, style: playEv.style };
     if (playEv.register) ev = { ...ev, register: playEv.register };
+    if (playEv.menus) ev = { ...ev, menus: playEv.menus };
+    if (playEv.cast) ev = { ...ev, cast: true };
   }
   // A HUD-only block (a `legend` idiom: the controls hint) is a live channel too: it paints and fades on the page.
-  if (ev && ((Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {
+  if (ev && ((Array.isArray(ev.menus) && ev.menus.length) || (Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {
     // the HUD widget language (hud-widgets.js): rows are validated here so a bad slot / kind /
     // token fails the compose_world resolve gate with a teaching message instead of painting
     // wrong; the events channel normalizes again at emit (idempotent), so fixtures stay raw.

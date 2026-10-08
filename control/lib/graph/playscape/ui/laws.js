@@ -2,12 +2,16 @@
  * UI LAWS — what a layout is judged by. Measured and advised, never refused (objects/laws.js is the model).
  *
  *   UI_LAWS              law → one line
- *   uiAdvice(play, ui)   [{ law, at?, advice }] for a play block (and its direction, when it has one)
+ *   uiAdvice(play, ui, { anchors, entities }?)   [{ law, at?, advice }] for a play block (and its direction, when it has one; the
+ *                        built map's anchors, when known, to find what cues name)
  */
 import { UI_REGIONS, REGION_BUDGETS, regionClass } from './regions.js';
 import { readPart, PARTS } from './parts.js';
 import { SCENE_ONLY } from './register.js';
 import { phasesOf } from './direction.js';
+import { readCues, unplacedAnchors } from './cues.js';
+import { readMenus, openers } from './menus.js';
+import { readSpots, castRefs } from './cast.js';
 
 export const UI_LAWS = Object.freeze({
   'values-only': 'Black and white: a part is built in values on ui:panel, ui:line, ui:ink and ui:status; colour is the guide\'s.',
@@ -18,6 +22,10 @@ export const UI_LAWS = Object.freeze({
   'hit-reads': 'A hit changes the reticle\'s shape (a hitmarker), not only its colour, so it reads in values and in the corner of the eye.',
   'board-only': 'A part the page does not draw yet (its renderer, or a value owned by a team or by each entity) is designed on the board, and the page leaves it out until it lands.',
   'values-apart': 'Two standing parts that mean different things read apart in values (shape, size or place), never by colour alone.',
+  'cue-ends': 'A cue that puts something up (a part shown, a prompt) says when it comes down: until a happening or a time.',
+  'menu-reached': 'Every menu is opened by something: a cue, or another menu\'s choice.',
+  'menu-closes': 'A menu lets the player out: a talk with choices has one that leads back to play, and a confirm\'s answers close it.',
+  'cue-anchor': 'A cue named by an anchor finds it on the built map (anchors are the map\'s own ids: get the world to read them).',
   'scene-backend': 'A dial value only the engine draws (light: lit) is drawn by the dom backend at its nearest until the scene backend lands.',
 });
 
@@ -28,7 +36,7 @@ export const FOCUS = Object.freeze(['reticle']);
 export const DEFAULT_REGION = Object.freeze({ reticle: 'center', hitmarker: 'center', ammo: 'bottom-right', weapon: 'bottom-right', lock: 'over', target: 'top', damage: 'center', feed: 'top-right', readout: 'top-left', banner: 'center', toast: 'center', legend: 'bottom', ledger: 'top-left', forecast: 'top', trend: 'top-left', alerts: 'right', allocator: 'bottom-left', queue: 'bottom', scoreboard: 'center', nameplate: 'over' });
 
 /** Advice for a play block: per phase, the parts each region holds against its budget and the centre's reservation. */
-export function uiAdvice(play, ui = play && play.ui) {
+export function uiAdvice(play, ui = play && play.ui, { anchors = null, entities = null } = {}) {
   const out = [];
   if (!play || typeof play !== 'object') return out;
   const parts = (play.parts || []).map((p, i) => ({ ...readPart(p, i), when: p.when, bound: (p.bind && (p.bind.var || p.bind.on)) || p.part }));
@@ -59,6 +67,34 @@ export function uiAdvice(play, ui = play && play.ui) {
   const groups = new Map();
   for (const p of parts.filter((x) => !x.page)) { const k = why(p); if (!groups.has(k)) groups.set(k, new Set()); groups.get(k).add(p.part); }
   if (groups.size) out.push({ law: 'board-only', at: 'page', advice: `drawn on the board, not yet on the page: ${[...groups].map(([k, v]) => `${[...v].join(', ')} (${k})`).join('; ')}` });
+  // the cues: what they put up comes down; what the page does not draw yet is the board's
+  const cues = readCues(play, phasesOf(play));
+  for (const c of cues) {
+    const up = c.then.filter((t) => t.kind === 'show' || (t.kind === 'say' && t.as === 'prompt' && !t.ttl));
+    if (up.length && !c.until) out.push({ law: 'cue-ends', at: `cue ${c.id}`, advice: `it ${up.map((t) => (t.kind === 'show' ? `shows ${t.part}` : 'holds a prompt')).join(' and ')} and never takes it down; add until (a happening, or { ttl })` });
+  }
+  const opened = openers(play);
+  for (const m of readMenus(play)) {
+    if (!opened.get(m.id).length) out.push({ law: 'menu-reached', at: `menu ${m.id}`, advice: `nothing opens it; add a cue (when: { near: { anchor } }, then: { open: '${m.id}' }) or a choice that does` });
+    // a talk whose every choice opens another menu never returns to play on its own
+    if (m.kind === 'talk' && m.picks.length && m.picks.every((p) => p.then.some((t) => t.kind === 'open'))) out.push({ law: 'menu-closes', at: `menu ${m.id}`, advice: 'every choice opens another menu; give one choice that leads back to play (a choice with no then closes it)' });
+  }
+  if (anchors) { const lost = unplacedAnchors(play, anchors); if (lost.length) out.push({ law: 'cue-anchor', at: lost.join(', '), advice: `the map carries no anchor called ${lost.join(', ')}; its anchors are ${anchors.slice(0, 12).map((a) => a.id).join(', ')}${anchors.length > 12 ? ', …' : ''}` }); }
+  const held = cues.flatMap((c) => c.then.filter((t) => !t.page).map((t) => `${c.id} (${t.kind}${t.part ? ` ${t.part}` : t.phase ? ` ${t.phase}` : t.menu ? ` ${t.menu}` : ''})`));
+  if (held.length) out.push({ law: 'board-only', at: 'cues', advice: `set on the bus, drawn on the board, not yet on the page: ${held.join(', ')}` });
+  // the cast: whom its effects name, the places they go, and spawns of someone already up
+  const refs = castRefs([...cues.flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))], cues.flatMap((c) => [c.when, c.until]));
+  if (Array.isArray(entities)) {
+    const ids = new Set(entities.map((e) => e && e.id)), lost = refs.who.filter((w) => !ids.has(w));
+    if (lost.length) out.push({ law: 'cast-known', at: lost.join(', '), advice: `the world has no character called ${lost.join(', ')}; its entities are ${[...ids].filter(Boolean).slice(0, 12).join(', ')}` });
+    for (const s of refs.spawns) {
+      const e = entities.find((x) => x && x.id === s);
+      if (e && e.dormant !== true && !refs.vanished.includes(s)) out.push({ law: 'spawn-asleep', at: s, advice: `${s} is up from the start and nothing sends it away, so its spawn only moves it; mint it asleep (dormant: true) to have it appear` });
+    }
+  }
+  const spotIds = new Set(readSpots(play).map((s) => s.id)), anchorIds = anchors ? new Set(anchors.map((a) => a.id)) : null;
+  const nowhere = refs.places.filter((p) => !spotIds.has(p) && (anchorIds ? !anchorIds.has(p) : false));
+  if (nowhere.length) out.push({ law: 'cast-places', at: nowhere.join(', '), advice: `no spot or anchor is called ${nowhere.join(', ')}; the walk or spawn that names it does nothing; add it to play.spots` });
   const dials = ui && ui.guide && ui.guide.dials;
   if (dials) for (const [d, words] of Object.entries(SCENE_ONLY)) if (words.includes(dials[d])) out.push({ law: 'scene-backend', at: `dial ${d}`, advice: `${d}: ${dials[d]} is the engine's to draw; the page draws it unlit for now` });
   return out;

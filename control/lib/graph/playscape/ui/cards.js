@@ -1,7 +1,7 @@
 /**
  * THE PLAY DRAWER's cards (get_play_vocab) — playscape served scaled to the ask: the ladder first (one line a rung),
  * a rung's set when the ask names one, one card in full by id. Generated from the registries beside them (PARTS,
- * DIALS, UI_MOTIONS, UI_LAWS, UI_ITEMS), never written by hand, so a card cannot drift from what the build reads.
+ * DIALS, UI_MOTIONS, UI_LAWS, UI_ITEMS, CUE_WHEN, CUE_THEN), never written by hand, so a card cannot drift from what the build reads.
  *
  *   PLAY_RUNGS            the ladder: rung → { name, makes, asks, built }
  *   playCards()           Map id → { id, name, summary, when, body }
@@ -15,6 +15,9 @@ import { UI_LAWS } from './laws.js';
 import { UI_ITEMS, MAX_PHASES } from './direction.js';
 import { UI_REGIONS, HUD_REGIONS, UI_LAYERS, UI_SURFACES, PACES, REGION_BUDGETS } from './regions.js';
 import { SYSTEMS, SYSTEM_IDS } from './systems.js';
+import { CUE_WHEN, CUE_THEN, SAY_AS, lowerCues, ANCHOR_REACH } from './cues.js';
+import { SPOT_POSES } from './cast.js';
+import { MENU_KINDS, MENU_IDS } from './menus.js';
 import { BORDER_ELEMENTS, ELEMENT_IDS, BORDER_FLAVORS, FLAVOR_IDS, PIXEL_SIZES } from './borders.js';
 
 // one ladder: the play tiers (click, walk, level, game) and the UI rungs merged; a rung admits itself and all below
@@ -42,6 +45,8 @@ function guideCard() {
     `  parts   what shows (get_play_vocab({ id: 'ui-part-<part>' })); it lowers to events.hud rows exactly:`,
     `          ${JSON.stringify(lowerParts(ex.parts))}`,
     `  phases  at most ${MAX_PHASES} names; a part's \`when\` lists the phases it lives in (drawn as wireframes today)`,
+    '  cues    the UI answering the game: when a happening, then an effect, until another (card \'ui-cues\')',
+    '  menus   what comes up from a thing in the map: a sign, a talk, a shop, a chest (card \'ui-menus\')',
     '  ui      the direction gate (card \'ui-board\'): \'propose\' → a board to approve item by item; \'auto\' is hands off;',
     '          { register, pin, border, pixel, pace } tune it (cards ui-register, ui-border, ui-pixel, ui-pace)',
     '',
@@ -140,6 +145,47 @@ function borderCard() {
   );
 }
 
+function cuesCard() {
+  const ex = { parts: [{ part: 'readout', id: 'hp-bar', variant: 'bar', bind: { var: 'hp' }, max: 100 }], cues: [
+    { id: 'door', when: { near: { at: [8, 3], r: 1.2 } }, then: { say: 'Press E to open', as: 'prompt' } },
+    { id: 'low', when: { var: 'hp', lte: 25 }, then: { state: 'hp-bar', to: 'alert' }, until: { var: 'hp', gt: 25 } }] };
+  return lines(
+    'CUES — the UI answering the game, one primitive for every such moment (the pickup toast, the "press E" prompt, the',
+    'area name, the low-health alert, the tutorial hint). play.cues: [{ id, when, then, until?, once? }].',
+    'WHEN (one happening):',
+    Object.entries(CUE_WHEN).map(([k, v]) => `  ${k.padEnd(6)} ${v}`),
+    'THEN (one effect or a list):',
+    Object.entries(CUE_THEN).map(([k, v]) => `  ${k.padEnd(6)} ${v}`),
+    `  say as: ${SAY_AS.join(' | ')}; at: a region; ttl: seconds. show / hide / state name a part by its id (play.parts[i].id).`,
+    'UNTIL: a happening or { ttl }; what came up goes down (a near ends on walking away). once: true fires it the first time.',
+    `example: ${JSON.stringify(ex.cues)}`,
+    'Each cue fires the bus event cue:<id>, so any part can bind { on: \'cue:<id>\' }. The words draw on the page today;',
+    'show, hide, state and phase are set on the bus (ui-<part>, ui-<part>-state, phase) and drawn on the board until the',
+    `page reads them. Lowered, the example adds ${Object.keys(lowerCues(ex)).join(', ')} to the world's events.`,
+    'THE CAST (characters): down / gone / spawned / arrive / stuck are happenings; spawn, vanish, kill, hurt, heal, walk,',
+    'stop are effects. A walk is a dumb path through places (straight lines, no pathfinding); a place is a spot\'s or an',
+    `anchor's id or [x, y]. SPOTS are action points: play.spots: [{ id, at, face?, pose?: ${SPOT_POSES.join(' | ')} }]; a`,
+    'walk ending on one takes its facing and pose. Spawn wakes one minted asleep (dormant: true). body.collide keeps',
+    'bodies apart (walkers give way on the ground plane; body.heavy holds).',
+  );
+}
+
+function menusCard() {
+  return lines(
+    'MENUS — what comes up when the figure does something in a map: a sign, a keeper, a shop counter, a chest, a bed,',
+    'a save point, the map table. play.menus: [{ id, kind, title?, … }], one of a closed set of kinds:',
+    MENU_IDS.map((k) => `  ${k.padEnd(8)} ${MENU_KINDS[k].about} · ${MENU_KINDS[k].fields}`),
+    'OPENED BY A CUE from anything the map carries: when: { near: { anchor: \'<id>\', r? } }, then: { open: \'<menu>\' }.',
+    `  Anchors are the map's own ids (a stage's rooms, doorways and things, a floormap's items, a trail's beats); r is`,
+    `  metres round it (${ANCHOR_REACH}). A near closes what it opened when the figure walks away.`,
+    'A talk\'s choices and a confirm\'s yes / no do cue effects (say, show, hide, state, phase, open, close, set, emit);',
+    'picking one closes its menu unless it opens another. A choice with no then just closes it.',
+    'NO LOOK OF ITS OWN: the world\'s UI guide (play.ui) dresses every menu as it dresses the parts; style keys are refused.',
+    'Designed on the board today; the page draws menus in a later step. Picks\' set and emit already run on the bus.',
+    `example: ${JSON.stringify([MENU_KINDS.talk.example, MENU_KINDS.shop.example])}`,
+  );
+}
+
 function pixelCard() {
   return lines(
     `PIXELATED — a tuning beside the register, not on it. play.ui.pixel: ${PIXEL_SIZES.join(' | ')} (0 off; else the pixel size) or true (3).`,
@@ -173,6 +219,8 @@ export function playCards() {
     ['ui-pixel', 'Pixelated', 'the pixel tuning', 'a pixel-art UI', pixelCard()],
     ['ui-systems', 'Systems', 'what the weapon, lock, body and match publish, and the shooter parts that read them', 'an FPS / action HUD: reticle, ammo, hitmarker, lock', systemsCard()],
     ['ui-shared', 'Shared status', 'whose value a part shows (of) and who may see it (audience)', 'multiplayer: nameplates, scoreboards, team status', sharedCard()],
+    ['ui-cues', 'Cues', 'the UI answering the game: when a happening, then an effect, until another', 'a prompt near a door, a pickup toast, an area name, a low-health alert, a hint', cuesCard()],
+    ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
     ['ui-pace', 'Pace', 'glance, scan or study: how densely the UI may be read', 'a twitch HUD vs a management screen', paceCard()],
     ...PART_IDS.map((p) => [`ui-part-${p}`, `Part: ${p}`, PARTS[p].about, `a ${p} on screen`, partCard(p)]),
   ];
@@ -199,7 +247,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }
