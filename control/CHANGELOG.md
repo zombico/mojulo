@@ -294,6 +294,20 @@ This step builds the contract and the approval gate. No rung is served yet.
   what it did. A shop's buying waits on an "afford it?" check the bus doesn't have yet: picking from its stock only
   closes it.
 
+### Places
+
+- **Box bodies.** `body.collide: { box: [hx, hy, hz?] }` is an axis-aligned box of those half sizes round the body's
+  position, as a mesh box is placed. A round collide is a disc on the ground (a 4 m gate made of one blocked 2 m of
+  road); a box blocks its whole width. Walkers and the cast slide along it; it holds, and two boxes don't shove each
+  other. Eggs behave as before.
+- **Stand points.** A doorway gives a place on each side, named by the room it stands in (`doorway-nave-crypt@nave`);
+  a door gives `<id>@front` and `<id>@back`. Each is 0.75 m off the sill, the door's own use-point reach, facing the
+  opening, so a walk, a spawn or a cue can send someone to a door without walking them into its frame.
+- **Zones that watch anyone.** `near`, `enter` and `leave` take `who` (`{ anchor | at, r, who: 'guard' }`): the zone
+  fires for that character (a glob) instead of the player.
+- **Laws.** `stuck-retry` (a cue on `stuck` that sends the same walk again, not `once`, loops every second) and
+  `round-collide` (a heavy body with a round collide wider than 1.5 m blocks a disc; a box blocks a wall).
+
 ### Interaction
 
 - **An interact key.** The pilot scheme gains `interact` (E; the pad's west face, X / □ / Y; the left grip in VR),

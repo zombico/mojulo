@@ -17,11 +17,16 @@
  *   CAST_WHEN, CAST_THEN, SPOT_POSES, WALK_THEN   the vocabulary, one line each
  *   readSpots(play)                 → [{ id, at, face, pose }] or throws, teaching
  *   spotAnchors(play)               the spots as anchors ({ id, kind: 'spot', at }) for zones
+ *   standPoints(anchors)            where a figure stands at a doorway (`<id>@<room>`, each side) or a door (`<id>@front`
+ *                                   along its normal, `<id>@back`): DOOR_STAND off the sill, facing it
+ *   withStands(anchors)             the anchors and their stand points: what places, zones and the laws look up
  *   readCastWhen(k, w, where) / readCastEffect(k, t, where)   one happening / effect, read
  *   castFire(w, type)               its reaction onto the bus
  *   lowerCastEffect(t, on, frag, places)   an effect onto the bus (an unplaced place drops; the laws name it)
  *   castRefs(play)                  { who: [..], places: [..], spawns: [..], vanished: [..] } every name the cast effects use
  */
+import { DOOR_STAND } from '../objects/door.js';
+
 export const CAST_WHEN = Object.freeze({
   down: 'a character falls: killed, or its hp runs out (its id, a glob)',
   gone: 'a character is sent away (vanish, a wreck that burst)',
@@ -67,6 +72,25 @@ export function readSpots(play) {
 
 /** The spots as anchors, so a cue's zone may be named by one. */
 export const spotAnchors = (play) => readSpots(play).map((s) => ({ id: s.id, kind: 'spot', at: s.at }));
+
+/** The stand points of the anchors with a normal (doorways, doors): places like spots, facing the opening. */
+export function standPoints(anchors) {
+  const out = [];
+  for (const a of anchors || []) {
+    if (!a || (a.kind !== 'doorway' && a.kind !== 'door') || !Array.isArray(a.N) || !Array.isArray(a.at)) continue;
+    const l = Math.hypot(a.N[0], a.N[1]);
+    if (!(l > 0)) continue;
+    const nx = a.N[0] / l, ny = a.N[1] / l, deg = (x, y) => r3((Math.atan2(y + 0, x + 0) * 180) / Math.PI);
+    const side = (s, name) => ({ id: `${a.id}@${name}`, kind: 'stand', of: a.id, at: [r3(a.at[0] + s * nx * DOOR_STAND), r3(a.at[1] + s * ny * DOOR_STAND), a.at[2] ?? 0], face: deg(-s * nx, -s * ny), pose: null });
+    // a doorway's normal runs from its first room into its second
+    if (a.kind === 'doorway' && Array.isArray(a.between)) out.push(side(-1, a.between[0]), side(1, a.between[1]));
+    else out.push(side(1, 'front'), side(-1, 'back'));
+  }
+  return out;
+}
+/** The anchors and their stand points. */
+export const withStands = (anchors) => (anchors ? [...anchors, ...standPoints(anchors)] : anchors);
+const r3 = (x) => Math.round(x * 1000) / 1000 + 0;
 
 function readPlace(p, where) {
   if (isStr(p)) return p;
@@ -150,6 +174,7 @@ export function castRefs(effects, whens) {
     if (t.op === 'vanish' || t.op === 'kill') vanished.add(t.who);
     if (t.op === 'walk') for (const p of t.to) if (isStr(p)) places.add(p);
   }
-  for (const w of whens) if (w && CAST_WHEN[w.kind] && !w.who.includes('*')) who.add(w.who);
+  // a cast happening's character, and the one a zone watches in place of the player
+  for (const w of whens) if (w && (CAST_WHEN[w.kind] || w.who) && isStr(w.who) && !w.who.includes('*')) who.add(w.who);
   return { who: [...who], places: [...places], spawns: [...spawns], vanished: [...vanished] };
 }

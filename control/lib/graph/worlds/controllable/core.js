@@ -187,12 +187,42 @@ export function buildCore(E) {
   // who gives way: 1 a live platform body (pushed in 3D), 2 a ground walker (the walk rule, a cast walk: pushed on the
   // ground plane), 0 one that holds (anything else, and any `body.heavy`)
   const moverOf = (e) => (e.body && e.body.heavy ? 0 : e.rule && e.rule.type === 'platform' ? 1 : (e.rule && e.rule.type === 'walk') || e.route ? 2 : 0);
+  // a BOX body (`body.collide.box`, half sizes round pos) against an egg: the egg's lateral radius leaves the box's
+  // footprint on the ground plane (the resolveBlocking idiom), when their heights overlap; two boxes don't push
+  function boxContact(A, B) {
+    if (A.collideVol.box && B.collideVol.box) return;
+    const X = A.collideVol.box ? A : B, Y = X === A ? B : A, bx = X.collideVol.box, vy = Y.collideVol;
+    const px = X.transform.pos, py = Y.transform.pos;
+    const yc = py[2] + vy.cz;
+    if (yc + vy.c <= px[2] - X.collideVol.c || yc - vy.c >= px[2] + X.collideVol.c) return;
+    const mn0 = px[0] - bx[0], mx0 = px[0] + bx[0], mn1 = px[1] - bx[1], mx1 = px[1] + bx[1], r = vy.a;
+    let nx, ny, pen;
+    if (py[0] > mn0 && py[0] < mx0 && py[1] > mn1 && py[1] < mx1) {
+      // centre inside the footprint: out through the nearest side
+      const dL = py[0] - mn0, dR = mx0 - py[0], dD = py[1] - mn1, dU = mx1 - py[1], m = Math.min(dL, dR, dD, dU);
+      if (m === dL) { nx = -1; ny = 0; } else if (m === dR) { nx = 1; ny = 0; } else if (m === dD) { nx = 0; ny = -1; } else { nx = 0; ny = 1; }
+      pen = m + r;
+    } else {
+      const cx = py[0] < mn0 ? mn0 : py[0] > mx0 ? mx0 : py[0], cy = py[1] < mn1 ? mn1 : py[1] > mx1 ? mx1 : py[1];
+      const dx = py[0] - cx, dy = py[1] - cy, d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= r || d < 1e-9) return;
+      nx = dx / d; ny = dy / d; pen = r - d;
+    }
+    const mX = moverOf(X), mY = moverOf(Y);
+    if (!mX && !mY) return;
+    const wY = mY ? (mX ? 0.5 : 1) : 0, wX = mX ? (mY ? 0.5 : 1) : 0;
+    py[0] += nx * pen * wY; py[1] += ny * pen * wY;
+    px[0] -= nx * pen * wX; px[1] -= ny * pen * wX;
+    if (mY && Y.vel) { const vn = Y.vel[0] * nx + Y.vel[1] * ny; if (vn < 0) { Y.vel[0] -= vn * nx; Y.vel[1] -= vn * ny; } }
+    if (mX && X.vel) { const vn = X.vel[0] * nx + X.vel[1] * ny; if (vn > 0) { X.vel[0] -= vn * nx; X.vel[1] -= vn * ny; } }
+  }
   function stepBodyCollisions(state) {
     const solids = [];
     for (const e of state.entities) if (e.collideVol && !e.isCamera && !e.gone && e.cineT == null) solids.push(e);   // cinematic suits stand close — skip solidity
     for (let i = 0; i < solids.length; i++) {
       for (let j = i + 1; j < solids.length; j++) {
         const A = solids[i], B = solids[j];
+        if (A.collideVol.box || B.collideVol.box) { boxContact(A, B); continue; }
         const pa = A.transform.pos, pb = B.transform.pos;
         let dx = pb[0] - pa[0], dy = pb[1] - pa[1], dz = (pb[2] + B.collideVol.cz) - (pa[2] + A.collideVol.cz);
         let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);

@@ -11,7 +11,7 @@ import { SCENE_ONLY } from './register.js';
 import { phasesOf } from './direction.js';
 import { readCues, unplacedAnchors } from './cues.js';
 import { readMenus, openers } from './menus.js';
-import { readSpots, castRefs } from './cast.js';
+import { readSpots, castRefs, withStands } from './cast.js';
 
 export const UI_LAWS = Object.freeze({
   'values-only': 'Black and white: a part is built in values on ui:panel, ui:line, ui:ink and ui:status; colour is the guide\'s.',
@@ -27,6 +27,11 @@ export const UI_LAWS = Object.freeze({
   'menu-closes': 'A menu lets the player out: a talk with choices has one that leads back to play, and a confirm\'s answers close it.',
   'cue-anchor': 'A cue named by an anchor finds it on the built map (anchors are the map\'s own ids: get the world to read them).',
   'scene-backend': 'A dial value only the engine draws (light: lit) is drawn by the dom backend at its nearest until the scene backend lands.',
+  'cast-known': 'A cast effect or a zone\'s who names a character the world has.',
+  'cast-places': 'A walk or a spawn goes to a place the world carries: a spot, an anchor or a stand point at a door.',
+  'spawn-asleep': 'Who appears by a spawn is minted asleep (dormant: true), or sent away before.',
+  'stuck-retry': 'A cue on stuck that sends the same walk again fires once (once: true) or goes somewhere else; it would retry every second.',
+  'round-collide': 'A collide egg is round on the ground: a wide heavy thing (a gate, a counter) blocks with a box.',
 });
 
 // moments and held overlays pass through a region; the budget is what stands
@@ -39,6 +44,7 @@ export const DEFAULT_REGION = Object.freeze({ reticle: 'center', hitmarker: 'cen
 export function uiAdvice(play, ui = play && play.ui, { anchors = null, entities = null } = {}) {
   const out = [];
   if (!play || typeof play !== 'object') return out;
+  anchors = withStands(anchors);
   const parts = (play.parts || []).map((p, i) => ({ ...readPart(p, i), when: p.when, bound: (p.bind && (p.bind.var || p.bind.on)) || p.part }));
   const pace = (ui && ui.guide && ui.guide.pace) || 'scan', budgets = REGION_BUDGETS[pace] || REGION_BUDGETS.scan;
   for (const phase of phasesOf(play)) {
@@ -91,6 +97,15 @@ export function uiAdvice(play, ui = play && play.ui, { anchors = null, entities 
       const e = entities.find((x) => x && x.id === s);
       if (e && e.dormant !== true && !refs.vanished.includes(s)) out.push({ law: 'spawn-asleep', at: s, advice: `${s} is up from the start and nothing sends it away, so its spawn only moves it; mint it asleep (dormant: true) to have it appear` });
     }
+  }
+  // a stuck walk sent again from its own stuck, every time: it loops once a second
+  for (const c of cues) {
+    if (c.once || c.when.kind !== 'stuck' || c.when.who.includes('*')) continue;
+    if (c.then.some((t) => t.kind === 'cast' && t.op === 'walk' && t.who === c.when.who)) out.push({ law: 'stuck-retry', at: `cue ${c.id}`, advice: `${c.when.who} is sent walking again each time it is stuck, so a blocked way retries every second; make the cue once: true or send it elsewhere` });
+  }
+  if (Array.isArray(entities)) for (const e of entities) {
+    const cv = e && e.body && e.body.heavy ? e.body.collide : null, a = Number.isFinite(cv) ? cv : cv && !cv.box ? cv.a : 0;
+    if (a > 1.5) out.push({ law: 'round-collide', at: e.id, advice: `${e.id} collides as a disc ${a * 2} m across, not its shape; give it collide: { box: [hx, hy, hz] }` });
   }
   const spotIds = new Set(readSpots(play).map((s) => s.id)), anchorIds = anchors ? new Set(anchors.map((a) => a.id)) : null;
   const nowhere = refs.places.filter((p) => !spotIds.has(p) && (anchorIds ? !anchorIds.has(p) : false));

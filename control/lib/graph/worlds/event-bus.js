@@ -472,7 +472,7 @@ export function buildBus() {
       if (s.type !== 'zone' || !s.zone) continue;
       const watch = s.watch || '*';
       for (const e of list) {
-        if (!e || !e.id) continue;
+        if (!e || !e.id || e.gone) continue;           // one asleep or sent away stands in no zone
         if (!glob(e.id, watch)) continue;
         if (!inZone(zonePos(e), s)) continue;
         const key = s.zone + '|' + e.id;

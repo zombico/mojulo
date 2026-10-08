@@ -107,6 +107,9 @@ export const DOOR_SKINS = {
 };
 export const DOOR_SKIN_IDS = Object.freeze(Object.keys(DOOR_SKINS));
 
+// how far off the sill a figure stands to use a door, on either side (the stand points of doorways and doors too)
+export const DOOR_STAND = 0.75;
+
 // ── the entry ────────────────────────────────────────────────────────────────────────────────────────────────────
 export const DOOR = {
   id: 'door',
@@ -128,7 +131,7 @@ export const DOOR = {
     const V = DOOR_VARIANTS[variant];
     if (V.control === 'beside') return [{ at: P([p.width / 2 + 0.6, 0.8, 0]), side: 1, use: 'control' }];
     const L = this.leaves(variant, p)[0], lu = latchU(L);
-    return [1, -1].map((s) => ({ at: P([lu - Math.sign(lu) * 0.3, s * 0.75, 0]), side: s, use: 'handle' }));
+    return [1, -1].map((s) => ({ at: P([lu - Math.sign(lu) * 0.3, s * DOOR_STAND, 0]), side: s, use: 'handle' }));
   },
 
   // the rules, from the shelf's idioms: a use sets `<id>-open`; locked (`unlock`: the event that frees it, a key's

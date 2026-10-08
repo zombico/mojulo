@@ -31,7 +31,7 @@ import { PACES } from './regions.js';
 import { lowerParts, readPart } from './parts.js';
 import { lowerCues, readCues } from './cues.js';
 import { lowerMenus, readMenus, menuPages } from './menus.js';
-import { readSpots, spotAnchors, CAST_WHEN } from './cast.js';
+import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -188,9 +188,9 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
   // channels as they are (the two share the menus' vars)
-  // spots are places like the map's anchors: a cue's zone, the cast's walks and spawns
-  const spots = readSpots(play), places = [...spots, ...(anchors || [])];
-  const cues = lowerCues(play, { anchors: [...spotAnchors(play), ...(anchors || [])], player, places }) || {}, menus = lowerMenus(play, { places }) || {};
+  // spots are places like the map's anchors (and the stand points at their doors): a cue's zone, the cast's walks and spawns
+  const stood = withStands(anchors || []), spots = readSpots(play), places = [...spots, ...stood];
+  const cues = lowerCues(play, { anchors: [...spotAnchors(play), ...stood], player, places }) || {}, menus = lowerMenus(play, { places }) || {};
   const hud = [...lowerParts(play.parts), ...(cues.hud || []), ...(menus.hud || [])];
   const out = hud.length ? { hud } : {};
   const vars = { ...(cues.vars || {}), ...(menus.vars || {}) };

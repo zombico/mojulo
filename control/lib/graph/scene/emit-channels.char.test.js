@@ -48,6 +48,9 @@ import { emitThreeWorld } from './scene-three.js';
 // reads it as a counted press edge, keeps it from strafing in reach (window.__mojReach), takes no input while a menu is
 // up (window.__mojMenuOpen) and labels a control for the device last used. Events pages without menus or usable places
 // are unchanged; the menu runtime moved to interact-channel.js and reads the menu scheme.
+// Re-pinned 2026-10-08 (places): the bus's zone step skips a character asleep or sent away (`gone`), now that a cue's
+// zone may watch the cast; the engine's body step gains box bodies (`body.collide.box`). Worlds without them move the
+// same: the controllable trace pins hold.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

@@ -4,7 +4,7 @@
  * area-name banner, the low-health alert and the tutorial hint are all cues, not functions of their own.
  *
  *   play.cues: [{ id,
- *     when:  { enter | leave | near: '<zone>' | { anchor, r? } | { at, r } | { at, half } }
+ *     when:  { enter | leave | near: '<zone>' | { anchor, r?, who? } | { at, r, who? } | { at, half, who? } }  (who: the one it watches)
  *                                                                       the figure walks into / out of / up to a zone (an
  *                                                                       anchor: any thing or place a map carries)
  *          | { use: '<place>' | '<id>' | { anchor, r? } | { at, r }, prompt? }   the figure uses a place (stands in reach and
@@ -84,14 +84,17 @@ const pt = (p) => Array.isArray(p) && p.length >= 2 && p.slice(0, 3).every(Numbe
 // a zone: a name the world declares, or an area the cue declares
 function readZone(z, where) {
   if (isStr(z)) return { zone: z, area: null };
+  // `who`: the character the zone watches (a glob) in place of the player
+  if (isObj(z) && z.who !== undefined && !isStr(z.who)) throw new Error(`${where}.who is a character's id (a glob): the zone watches it in place of the player`);
+  const who = isObj(z) && isStr(z.who) ? { who: z.who } : {};
   if (isObj(z) && isStr(z.anchor)) {
     if (z.r !== undefined && !(Number.isFinite(z.r) && z.r > 0)) throw new Error(`${where}.r is metres round the anchor`);
-    return { zone: null, area: null, anchor: z.anchor, r: z.r ?? ANCHOR_REACH };
+    return { zone: null, area: null, anchor: z.anchor, r: z.r ?? ANCHOR_REACH, ...who };
   }
   if (isObj(z) && pt(z.at) && ((Number.isFinite(z.r) && z.r > 0) || (Array.isArray(z.half) && z.half.length >= 2 && z.half.every((h) => Number.isFinite(h) && h > 0)))) {
-    return { zone: null, area: { at: [z.at[0], z.at[1], z.at[2] ?? 0], ...(z.half ? { half: [z.half[0], z.half[1], z.half[2] ?? 1] } : { r: z.r }) } };
+    return { zone: null, area: { at: [z.at[0], z.at[1], z.at[2] ?? 0], ...(z.half ? { half: [z.half[0], z.half[1], z.half[2] ?? 1] } : { r: z.r }) }, ...who };
   }
-  throw new Error(`${where} is a zone's name, an anchor { anchor: '<id>', r? }, or an area { at: [x, y], r } | { at, half: [hx, hy] }`);
+  throw new Error(`${where} is a zone's name, an anchor { anchor: '<id>', r?, who? }, or an area { at: [x, y], r, who? } | { at, half: [hx, hy] }`);
 }
 
 function readWhen(w, where) {
@@ -195,7 +198,7 @@ export function readCues(play, phases = (play && play.phases) || ['playing']) {
         if (!(Number.isFinite(c.until.ttl) && c.until.ttl > 0)) throw new Error(`${where}.until.ttl is seconds`);
         until = { kind: 'ttl', ttl: c.until.ttl };
       } else until = readWhen(c.until, `${where}.until`);
-    } else if (when.kind === 'near') until = { kind: 'leave', zone: when.zone, area: when.area, anchor: when.anchor, r: when.r, same: true };
+    } else if (when.kind === 'near') until = { kind: 'leave', zone: when.zone, area: when.area, anchor: when.anchor, r: when.r, ...(when.who ? { who: when.who } : {}), same: true };
     if (c.once !== undefined && typeof c.once !== 'boolean') throw new Error(`${where}.once is true or false`);
     return { id: c.id, when, then, until, once: c.once === true, page: then.every((t) => t.page) };
   });
@@ -225,8 +228,9 @@ function fire(w, type, zoneId, anchors, player = null) {
     // an anchor's zone is a disc round it, where the built map put it (unplaced, nothing fires: the laws say so)
     const a = w.anchor ? (anchors || []).find((x) => x.id === w.anchor) : null, area = a ? { at: [a.at[0], a.at[1], a.at[2] ?? 0], r: w.r } : w.area;
     if (w.anchor && !a) return out;
-    // the zone watches the player when the world names one (a walker's own props stand in their zones too)
-    if (area && !w.same) out.sources.push({ type: 'zone', zone, at: area.at, ...(area.half ? { half: area.half } : { radius: area.r }), planar: true, ...(player ? { watch: player } : {}) });
+    // the zone watches its `who`, else the player when the world names one (a walker's own props stand in their zones too)
+    const watch = w.who || player;
+    if (area && !w.same) out.sources.push({ type: 'zone', zone, at: area.at, ...(area.half ? { half: area.half } : { radius: area.r }), planar: true, ...(watch ? { watch } : {}) });
     out.reactions.push({ on: w.kind === 'leave' ? 'exit' : 'enter', match: { zone }, do: 'emit', type });
   } else if (w.kind === 'use') {
     // a place to use: a planar zone flagged `use` (standing in it is reach; the page sends use-<id> on the interact press)
