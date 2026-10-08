@@ -12,6 +12,65 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### UI controls
+
+A game reads what the player means (jump, rotate clockwise, accept), never a key. A control scheme says which
+controls of each input device serve each intent, using the conventions players of that genre already know. The
+pause legend is read off the same table, so it only teaches controls the world answers to, and a remap will
+relabel it. The model is OpenXR's action system: a scheme is an action set, a device family is an interaction
+profile, and a scheme's bindings are suggested bindings.
+
+- **`lib/graph/controls/devices.js` names each input device family after the standard it follows.**
+  - `keyboard`: `KeyboardEvent.code`, positional.
+  - `mouse`: `MouseEvent.button`.
+  - `gamepad`: the W3C Gamepad "standard" mapping. Buttons have positional names (`south`, `rb`) and print in
+    Xbox, PlayStation or Nintendo layout.
+  - `xr`: the WebXR "xr-standard" mapping, per hand (`right.trigger`, `left.thumbstickY-`).
+  - `sim`: USB HID Simulation Controls (steering, accelerator, brake, clutch, throttle, rudder, aileron, elevator,
+    toe brake), plus buttons and a hat switch.
+  - A control is a key code, a button, an axis, or a half axis (`leftY-` is the stick pushed up). A family's driver
+    turns raw device state into control values. `xr` and `sim` are declared with no driver yet: their controls can
+    already be bound, labelled, validated and checked for conflicts.
+- **`schemes.js` holds the schemes as plain data.**
+  - `pilot`: 3D walk, platform, suit, glide, drive, fly and spectate.
+  - `falling-block`: the guideline layout.
+  - `grid`, `point` and `menu`.
+  - Each action binds up to two controls per device family and names the contexts where it is live. Two actions may
+    share a control only in different contexts.
+  - Defaults follow each genre: WASD and mouse; left stick moves and right stick looks; in VR the left thumbstick
+    walks and the right one turns; on a wheel, the accelerator, brake and wheel drive.
+  - Adding a device family means one `devices.js` entry plus bindings. No new fields.
+- **`controls-kernel.js` is import-free; pages run its `toString()`.**
+  - It reads any family through a driver's `read(control)`: held buttons, analog values, and axes taken slot by
+    slot. Controls a held chord button silences can be quieted.
+  - `gamepadRead` is the reference driver: digital reads use the browser's pressed threshold, and analog reads give
+    raw trigger travel.
+  - It resolves a scheme with per-family overrides, dropping anything that is not a control of that family.
+  - It labels every family, builds legend rows per family from live world flags, and lists conflicts per family and
+    context.
+- **The controllable runtime reads the pilot scheme through the keyboard, mouse and gamepad families.**
+  - `__BIND` is the live table in place of literals. Input is unchanged for the default bindings. One exception: in
+    glide, Space with one Shift held now cancels instead of ascending.
+  - Look keys are new and unbound by default. Binding them gives a keyboard-only player the camera.
+  - The pause legend comes from `__ctlLegend`. It now names tackle and target lock when the world has them, shows
+    the weapon pad rows only when armed, and says throttle / brake for a vehicle.
+- **Confirm and cancel are gamepad roles, not positions.**
+  - The menu, grid and point schemes bind `confirm` / `cancel`.
+  - `resolve` places them for the pad's layout: the bottom button accepts on Xbox and PlayStation, and A (on the right)
+    accepts on a Nintendo pad.
+  - `padLayout(id)` reads Xbox, PlayStation or Nintendo off a Gamepad id. The 3D runtime re-resolves when the layout
+    changes, and its legend and weapon-selector glyphs print in that layout.
+- **Brickster reads `KeyboardEvent.code` and the gamepad from the falling-block scheme.**
+  - Keys are positional, so Caps Lock and other layouts no longer miss Z / X / C. Ctrl now rotates counter-clockwise,
+    following the guideline.
+  - The pad layout follows the console guideline:
+    - D-pad or left stick moves and soft-drops, D-pad ↑ hard-drops;
+    - the right face button rotates clockwise and the bottom one counter-clockwise;
+    - LB / RB hold, start restarts.
+  - A held move or soft drop repeats like the touch knob. The first press lifts the start gate. A line under the board
+    names the pad's own buttons.
+- **The game shell's pause comes from a `shell` scheme** (gamepad start), not a hard-coded button index.
+
 ### Floormap
 
 A floormap is scapeshift's primitive for fixed-camera levels: it places floor, not rooms. Regions of any shape, how
