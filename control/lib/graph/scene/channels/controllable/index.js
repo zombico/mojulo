@@ -4,6 +4,9 @@ import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../..
 import { hangarStepperBlock } from './hangar-menu.js';
 import { projectileSmokeBlock } from './projectile-smoke.js';
 import { suitShadowBlock } from './suit-shadows.js';
+import { buildControlsKernel } from '../../../controls/controls-kernel.js';
+import { SCHEMES } from '../../../controls/schemes.js';
+import { DEVICES } from '../../../controls/devices.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -807,8 +810,18 @@ function __ground(pos) {
   for (const hit of hits) { if (!hit.object.isMesh) continue; let o = hit.object; while (o) { if (own.includes(o)) break; o = o.parent; } if (!o) return hit.point.z; }
   return null;
 }
-// input: keys → normalized axes, mouse → look deltas (consumed each frame).
+// input: keys → normalized axes, mouse → look deltas (consumed each frame). Which key, pad button or
+// mouse button serves an action is the pilot scheme's (controls/schemes.js), read through the controls
+// kernel per device family (controls/devices.js); __BIND is the live table, so a remap replaces it and
+// nothing below changes. This page drives the keyboard, mouse and standard-mapping gamepad families.
+const __CTL = (${buildControlsKernel.toString()})();
+const __SCHEME = ${safeJson(SCHEMES.pilot)};
+const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
+let __BIND = __CTL.resolve(__SCHEME, __DEV);
 const __held = {};
+const __kbRead = (c) => __held[c];
+const __k = (id) => __CTL.held(__BIND, id, 'keyboard', __kbRead);
+const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.buttons).find((n) => __DEV.mouse.buttons[n] === e.button));
 window.addEventListener('keydown', (e) => { __held[e.code] = true; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
 let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;
@@ -821,8 +834,8 @@ if (__MOUSELOOK) {
   document.addEventListener('mousemove', (e) => { if (document.pointerLockElement === __canvas) { __lookDX -= e.movementX || 0; __lookDY -= e.movementY || 0; } });
   // FIRE = left mouse, but ONLY once the pointer is captured (the first click captures the mouse and
   // does not fire). The weapon subsystem gates ROF / semi-edge / reload, so this is a raw held flag.
-  __canvas.addEventListener('mousedown', (e) => { if (e.button === 0 && document.pointerLockElement === __canvas) __fireDown = true; });
-  window.addEventListener('mouseup', (e) => { if (e.button === 0) __fireDown = false; });
+  __canvas.addEventListener('mousedown', (e) => { if (__mb('fire', e) && document.pointerLockElement === __canvas) __fireDown = true; });
+  window.addEventListener('mouseup', (e) => { if (__mb('fire', e)) __fireDown = false; });
 } else {
   // default: hold-to-look drag (walk / glide / orbit worlds keep the cursor visible).
   __canvas.addEventListener('pointerdown', () => { __drag = true; });
@@ -832,9 +845,9 @@ if (__MOUSELOOK) {
 ${lock ? `// TARGET LOCK (lock.js): middle mouse is the lock press beside C and pad R3 — a held flag the
 // input read turns into an edge. preventDefault keeps the browser's autoscroll off the canvas.
 let __midDown = false;
-__canvas.addEventListener('mousedown', (e) => { if (e.button === 1) { e.preventDefault(); __midDown = true; } });
-window.addEventListener('mouseup', (e) => { if (e.button === 1) __midDown = false; });
-` : ''}const __ax = (a, b) => (__held[a] ? 1 : 0) - (__held[b] ? 1 : 0);
+__canvas.addEventListener('mousedown', (e) => { if (__mb('lock', e)) { e.preventDefault(); __midDown = true; } });
+window.addEventListener('mouseup', (e) => { if (__mb('lock', e)) __midDown = false; });
+` : ''}const __kx = (pos, neg) => __CTL.axis(__BIND, pos, neg, 'keyboard', __kbRead);
 // gamepad (standard-mapping): polled once per input read and MERGED into the same normalized
 // snapshot the keyboard/mouse build — the engine never learns which device spoke. Keyboard wins
 // an axis it is actively pressing; pad buttons OR into the shared held/edge chains so dodge
@@ -868,7 +881,7 @@ const __padStick = (x, y) => {   // radial dead zone, rescaled so travel starts 
 // ranged weapon always rides X (PS square) and the MAIN melee always rides Y (PS triangle)
 // (operator, 2026-08-03); leftover slots fill B then A in shelf order. Recomputed per open,
 // so a suit switch (new loadout) re-deals the buttons.
-let __wcPrevRB = false, __wcDownT = 0, __wcChorded = false, __wcOpen = false, __wcPrevFace = 0, __wcEl = null, __wcSony = false, __wcCur = -1;
+let __wcPrevRB = false, __wcDownT = 0, __wcChorded = false, __wcOpen = false, __wcPrevFace = 0, __wcEl = null, __padLayout = 'xbox', __wcCur = -1;
 const __WC_HOLD = 260;   // ms — under it a release is a tap (cycle), past it the selector raises
 const __wcEnt = () => (__world.pilotId && __world.byId[__world.pilotId]) || null;
 function __wcMap() {
@@ -896,7 +909,8 @@ function __wcRender() {
     __wcEl.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:30;display:flex;flex-direction:column;gap:6px;min-width:240px;padding:14px 18px;background:rgba(8,13,24,.88);border:1px solid #2a3b58;border-radius:12px;font:600 13px system-ui,sans-serif;color:#cfe3ff;pointer-events:none;backdrop-filter:blur(2px)';
     (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__wcEl);
   }
-  const gl = __wcSony ? { 0: '\\u2715', 1: '\\u25EF', 2: '\\u25A1', 3: '\\u25B3' } : { 0: 'A', 1: 'B', 2: 'X', 3: 'Y' };
+  const gl = {};   // the face glyphs in this pad's own layout (positions 0-3: south, east, west, north)
+  __DEV.gamepad.faces.forEach((f, i) => { gl[i] = __CTL.label(__DEV, 'gamepad', f, __padLayout); });
   const cur = ent.loadoutIdx || 0;
   let html = '<div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#8fa5c8;margin-bottom:4px">weapons \\u2014 hold RB \\u00b7 tap a button</div>';
   for (const bi of [2, 3, 1, 0]) {   // main weapon, main melee, then the leftovers
@@ -925,16 +939,18 @@ function __pollPad() {
   if (!g) { for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { g = pads[i]; __padIdx = i; break; } }
   if (!g) { __wcHide(); __wcPrevRB = false; return null; }
   __padSeen = true;
-  // 'Wireless Controller' alone is the DualShock id; Xbox pads say 'Xbox Wireless Controller' —
-  // the ambiguous term only reads Sony when the Xbox marks are absent.
-  __wcSony = /054c|sony|dual\\s?shock|dual\\s?sense/i.test(g.id || '') || (/wireless controller/i.test(g.id || '') && !/xbox|045e/i.test(g.id || ''));
+  // the pad's printed layout (Xbox, PlayStation, Nintendo): the glyphs it shows, and where confirm / cancel sit
+  const __lay = __CTL.padLayout(g.id);
+  if (__lay !== __padLayout) { __padLayout = __lay; __BIND = __CTL.resolve(__SCHEME, __DEV, null, { layout: __lay }); }
   const b = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
+  const __gr = __CTL.gamepadRead(g, __DEV), __ga = __CTL.gamepadRead(g, __DEV, true);
+  const pb = (id, quiet) => __CTL.held(__BIND, id, 'gamepad', __gr, quiet ? __DEV.gamepad.faces : null);   // quiet: a held RB silences the face buttons (they chord)
   const [mx, my] = __padStick(g.axes[0] || 0, g.axes[1] || 0);
   const [lx, ly] = __padStick(g.axes[2] || 0, g.axes[3] || 0);
   // RB state machine: press starts the tap/hold clock; the hold raises the selector; face-button
   // press EDGES while RB is down chord a slot (and mark the press so release doesn't also cycle);
   // a chordless release inside the tap window is the cycle.
-  const rb = b(5);
+  const rb = pb('cycleWeapon');
   const now = performance.now();
   let cycle = false, slot = 0;
   if (rb && !__wcPrevRB) { __wcDownT = now; __wcChorded = false; }
@@ -958,17 +974,31 @@ function __pollPad() {
   return {
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
-    fire: b(7), boost: b(6),
+    fire: pb('fire'), boost: pb('boost'),
     // analog trigger VALUES — the vehicle rules (drive/fly) read RT/LT as throttle/brake, the
     // console-driving standard; suits keep the pressed reads above untouched.
-    rt: (g.buttons[7] && g.buttons[7].value) || 0, lt: (g.buttons[6] && g.buttons[6].value) || 0,
-    tackle: b(3) && !rb,                       // Y / PS triangle (operator, 2026-08-03) — silent inside an RB chord
-    kneel: b(4) || (b(1) && !rb),              // LB or B / PS circle — descend in space, kneel on ground
-    jump: b(0) && !rb,                         // A / PS cross — ascend in space
+    rt: __CTL.value(__BIND, 'fire', 'gamepad', __ga), lt: __CTL.value(__BIND, 'boost', 'gamepad', __ga),
+    tackle: pb('tackle', rb),                  // Y / PS triangle (operator, 2026-08-03) — silent inside an RB chord
+    kneel: pb('kneel', rb),                    // LB or B / PS circle — descend in space, kneel on ground
+    jump: pb('jump', rb),                      // A / PS cross — ascend in space
     cycle, slot,                               // RB tap / RB chord (the selector)
-    swap: b(12), ai: b(8),                     // D-pad up = switch suit · select = AI toggle
-    lock: b(11),                               // R3 (right stick click) = target lock (lock.js)
+    swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
+    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)
   };
+}
+// the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
+// read off the live bindings and filtered by what this world has, so it teaches only the keys it answers to.
+function __ctlLegend(pil) {
+  const r = pil.rule || pil.pilotRule || {};
+  const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
+  return __CTL.legend(__SCHEME, __BIND, __DEV, {
+    space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly',
+    mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
+    suits: W.entities.filter((e) => e.pilotable).length > 1,
+    ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
+    follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
+    active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
+  });
 }
 let __prevJump = false;             // for the jump PRESS edge (platform rule) vs held (variable height)
 let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-5)
@@ -987,36 +1017,36 @@ window.addEventListener('message', (e) => {
 });
 function __readInput() {
   const __pad = __pollPad();   // null when no controller (or prefs turned it off)
-  const sp = !!__held['Space'] || !!(__pad && __pad.jump);
+  const sp = __k('jump') || !!(__pad && __pad.jump);
   const jump = sp && !__prevJump ? 1 : 0;   // rising edge: a discrete press, not a held axis
   __prevJump = sp;
   // weapon cycling (platform rule, opt-in loadout): R press edge cycles, digit press edge selects
-  const cy = !!__held['KeyR'] || !!(__pad && __pad.cycle);
+  const cy = __k('cycleWeapon') || !!(__pad && __pad.cycle);
   const cycle = cy && !__prevCycle ? 1 : 0;
   __prevCycle = cy;
   let slotNow = (__pad && __pad.slot) || 0;
-  for (let d = 1; d <= 5; d++) if (__held['Digit' + d]) { slotNow = d; break; }
+  for (let d = 1; d <= 5; d++) if (__k('weapon' + d)) { slotNow = d; break; }
   const slot = slotNow && slotNow !== __prevSlot ? slotNow : 0;
   __prevSlot = slotNow;
   // suit switcher (pilotable entities): T press edge transfers the pilot
-  const sw = !!__held['KeyT'] || !!(__pad && __pad.swap);
+  const sw = __k('swapSuit') || !!(__pad && __pad.swap);
   const swap = sw && !__prevSwap ? 1 : 0;
   __prevSwap = sw;
   // TACKLE (platform rule, opt-in r.tackle): Shift press edge fires the invincible offensive dash.
   // A press EDGE (not held) — one tackle per key-down, like the suit-switcher / jump edges.
-  const tk = !!(__held['ShiftLeft'] || __held['ShiftRight']) || !!(__pad && __pad.tackle);
+  const tk = __k('tackle') || !!(__pad && __pad.tackle);
   const tackle = tk && !__prevTackle ? 1 : 0;
   __prevTackle = tk;
   // AI attack toggle (worlds with ai ambients): G press edge OR the HUD button OR the shell's
   // requested state (pause-menu switch — inject edges until aiEnabled converges), one shared edge
   const __aiCur = __world.aiEnabled !== false;
   if (__aiWant != null && __aiWant === __aiCur) __aiWant = null;   // converged — stand down
-  const ai = !!__held['KeyG'] || __aiBtnPress || !!(__pad && __pad.ai) || (__aiWant != null && __aiWant !== __aiCur);
+  const ai = __k('aiToggle') || __aiBtnPress || !!(__pad && __pad.ai) || (__aiWant != null && __aiWant !== __aiCur);
   const aiToggle = ai && !__prevAi ? 1 : 0;
   __prevAi = ai;
   __aiBtnPress = false;
   // TARGET LOCK press edge (lock.js): C / middle mouse / pad R3 — acquire, cycle, release
-  const lk = ${lock ? "!!__held['KeyC'] || __midDown || !!(__pad && __pad.lock)" : 'false'};
+  const lk = ${lock ? "__k('lock') || __midDown || !!(__pad && __pad.lock)" : 'false'};
   const lock = lk && !__prevLock ? 1 : 0;
   __prevLock = lk;
   // pad right stick → the SAME look accumulators the mouse feeds, per-frame at lookScale px
@@ -1028,6 +1058,14 @@ function __readInput() {
     if (__MOUSELOOK) { __lookDX -= __pad.lookX * __ps; __lookDY -= __pad.lookY * __ps * __py; }
     else { __lookDX += __pad.lookX * __ps; __lookDY += __pad.lookY * __ps * __py; }
   }
+  // look keys (unbound by default: the mouse looks) steer the same accumulators at the pad's full-deflection rate,
+  // so a remap gives a keyboard-only player the camera
+  const __klx = __kx('lookRight', 'lookLeft'), __kly = __kx('lookDown', 'lookUp');
+  if (__klx || __kly) {
+    const __ks = __padCfg.lookScale;
+    if (__MOUSELOOK) { __lookDX -= __klx * __ks; __lookDY -= __kly * __ks; }
+    else { __lookDX += __klx * __ks; __lookDY += __kly * __ks; }
+  }
   // keyboard wins an axis it is actively pressing; otherwise the pad's analog float flows
   // through (the rules multiply by accel/speed, so magnitude = walk-to-run travel).
   const __pmx = __pad ? __pad.moveX : 0, __pmy = __pad ? __pad.moveY : 0;
@@ -1038,16 +1076,16 @@ function __readInput() {
   const __vp = __world.pilotId && __world.byId[__world.pilotId];
   const __veh = !!(__vp && __vp.rule && (__vp.rule.type === 'drive' || __vp.rule.type === 'fly'));
   const inp = {
-    forward: __ax('KeyW', 'KeyS') || __ax('ArrowUp', 'ArrowDown')
+    forward: __kx('moveForward', 'moveBack')
       || (__veh && __pad && (__pad.rt > 0.02 || __pad.lt > 0.02) ? __pad.rt - __pad.lt : __pmy),
     // look worlds steer with the stick/mouse — left stick X strafes (matching how A/D fold
     // into sideIn there); tank-turn worlds keep left stick X as the turn axis.
-    turn: __ax('KeyD', 'KeyA') || __ax('ArrowRight', 'ArrowLeft') || (__MOUSELOOK ? 0 : __pmx),
-    strafe: __ax('KeyE', 'KeyQ') || (__MOUSELOOK ? __pmx : 0),
-    lift: __ax('Space', 'ShiftLeft') || __ax('Space', 'ShiftRight') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
+    turn: __kx('turnRight', 'turnLeft') || (__MOUSELOOK ? 0 : __pmx),
+    strafe: __kx('strafeRight', 'strafeLeft') || (__MOUSELOOK ? __pmx : 0),
+    lift: __kx('jump', 'descend') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
-    boost: __held['KeyF'] || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
-    kneel: __held['KeyX'] || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
+    boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
+    kneel: __k('kneel') || (__pad && __pad.kneel) ? 1 : 0,   // one-knee hold (platform rule, opt-in kneel:true) / space descend
     fire: __fireDown || (__pad && __pad.fire && !__veh) ? 1 : 0,   // left mouse or RT (weapon subsystem; RT is throttle in a vehicle)
     cycle, slot,                     // weapon cycling (platform rule, opt-in loadout)
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
@@ -1072,7 +1110,7 @@ if (__world.camera && __world.camera.rule.type === 'follow') {
   const __rvFlip = () => { const r = __world.camera.rule; r.reverse = !r.reverse; __rvBtn.classList.toggle('on', !!r.reverse); };
   __rvBtn.classList.toggle('on', !!__world.camera.rule.reverse);
   __rvBtn.onclick = __rvFlip;
-  window.addEventListener('keydown', (ev) => { if (ev.code === 'KeyV' && !ev.repeat) __rvFlip(); });
+  window.addEventListener('keydown', (ev) => { if (__CTL.is(__BIND, 'reverseView', 'keyboard', ev.code) && !ev.repeat) __rvFlip(); });
   hud.appendChild(__rvBtn);
 }
 // AI ATTACK toggle (worlds with ai-ambient suits): a HUD button twin of the G key. The click only
@@ -1164,8 +1202,8 @@ if (__world.spectate && __world.camera) {
     __specSync();
   };
   window.addEventListener('keydown', (ev) => {
-    if (ev.code === 'Tab') { ev.preventDefault(); if (!ev.repeat) __specCycle(); }
-    else if (ev.code === 'KeyF' && !ev.repeat) { __specLocked = !__specLocked; if (__specLocked) __specFollow(); else __specFree(); __specSync(); }
+    if (__CTL.is(__BIND, 'spectateNext', 'keyboard', ev.code)) { ev.preventDefault(); if (!ev.repeat) __specCycle(); }
+    else if (__CTL.is(__BIND, 'spectateLock', 'keyboard', ev.code) && !ev.repeat) { __specLocked = !__specLocked; if (__specLocked) __specFollow(); else __specFree(); __specSync(); }
   });
   __specSync();
 }

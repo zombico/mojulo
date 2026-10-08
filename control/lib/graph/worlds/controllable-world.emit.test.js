@@ -41,7 +41,7 @@ describe('emitThreeWorld controllable channel', () => {
     expect(plain).toContain('const lk = false;');            // the edge exists in the input snapshot, never armed
     const locked = emitThreeWorld({ faces: [floor], entities: ents, camera: { rule: 'follow', target: 'me', lockTrack: true }, lock: { range: 80 } });
     expect(locked).toContain(', lock: {"range":80}');
-    expect(locked).toContain("__held['KeyC'] || __midDown || !!(__pad && __pad.lock)");
+    expect(locked).toContain("__k('lock') || __midDown || !!(__pad && __pad.lock)");
     expect(locked).toContain('function __updateLock()');
     expect(locked).toContain('__updateRadar();\n  __updateLock();');
     expect(locked).toContain('"lockTrack":true');

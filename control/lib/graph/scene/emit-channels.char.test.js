@@ -34,6 +34,17 @@ import { emitThreeWorld } from './scene-three.js';
 // `breakBlock`. The diff on the `controllable` fixture is additions only (117 lines, none removed); a world without
 // `breakables` keeps no breakable state and the pass returns at once.
 
+// Re-pinned 2026-10-08 (UI controls: the pilot scheme): the pause sidecar's `__controlRows` hands a piloted world's
+// legend to the controllable channel (`__ctlLegend`), so every fixture re-pinned with that one region. Pages with the
+// controllable runtime also embed the controls kernel, the pilot scheme and the device families they drive (`__CTL`,
+// `__SCHEME`, `__DEV`, `__BIND`) and read keys, pad buttons and mouse buttons through it in place of literals, plus
+// look keys (unbound by default); the input a world receives from the default bindings is unchanged. The pad's printed
+// layout (Xbox, PlayStation, Nintendo) is read by the kernel's `padLayout`, and the weapon selector's glyphs follow it.
+// Re-pinned 2026-10-08 (world events): the event bus and the controllable engine ship in the page, and both grew the
+// cast — the bus's `ctrl` verb and syncToCtrl's hand-off, the engine's cast builder (ops, facts, the walk owner) and
+// walk bodies giving way to solid ones — and the walk rule's tank turn flipped so A turns left. A world without cues
+// on its characters runs the same; the controllable trace pins hold except the walk world's (the turn).
+
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
