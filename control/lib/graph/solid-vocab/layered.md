@@ -366,8 +366,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the realistic cast; `'herobot'` is the hero ROBOT's toy-hero body, about 4.4 heads tall — a big head, a short torso,
   short arms and neck, longer shins, big feet and bigger, puffed white cartoon gloves (`Glove`), the neck in the body stocking (`Top`); adult limbs, never
   child-coded): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
-  at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller hands and feet, the
-  overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The
+  at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller feet, hands at an adult hand's share
+  of the height (wrist to fingertip about 0.10 of it, the palm broad enough to read from behind), the overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The
   anime casts wear a NECK FORM: the neck a ring loft that leans forward a little and whose back rises through a nape ring
   into the occiput (no shelf under the skull); the male's column is broader (about 0.75–0.8 of W) over a trapezius ring
   that breaks the shoulder line, the female's keeps her own radius (about 0.4 of W); `body.neck` still sizes both. The

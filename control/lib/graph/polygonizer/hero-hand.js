@@ -97,12 +97,14 @@ export { HAND_POSES };
  * Returns { segments, joints, bones, hands, wrist }: the six rings parts (mirrored by name), the rig joints and bones
  * (`$S`), the rig's `hands` block for both sides, and the hand's section at the wrist (the forearm's last ring).
  */
-export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false, group = 'Skin' }) {
+export function heroHand({ wrist, elbow, len, X = 1, girth = 1, wide = 1, female = false, group = 'Skin' }) {
   const F = HAND_FORM[female ? 'female' : 'male'];
   const A = unit(sub(wrist, elbow)), V = unit(sub([0, 1, 0], mul(A, A[1]))), N = unit(cross(V, A));   // along, across (toward the thumb), out of the palm
   const at = (u, v, w) => add(wrist, add(add(mul(A, u), mul(V, v)), mul(N, w)));
   const dirOf = (u, v, w) => unit(add(add(mul(A, u), mul(V, v)), mul(N, w)));
-  const x = X, gx = X * girth;
+  // `wide`: the hand's breadth beyond its length (the anime casts' broader palm): the palm's width, the knuckles'
+  // spread and the digits' width across; their depth only by its root, so the hand broadens without thickening
+  const x = X, gx = X * girth, wx = gx * wide, dx = gx * Math.sqrt(wide);
   // a ring of `n` points round `c` across `d`: `f` its first point's direction (the back of the hand), the half width
   // `hw` toward cross(f, d) (the thumb's side), the back's and the front's half depths; slot order is the family's
   const ringAt = (c, d, f, hw, hb, hf, slots, e = 2.4, push = {}) => {
@@ -119,9 +121,9 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false, 
       ...(i === 1 || i === 2 ? { backR: mul(N, P.thenar[i - 1] * gx), backL: mul(N, (i === 1 ? P.hypothenar : P.hypothenar * 0.6) * gx) } : {}),
     };
     // the wrist's two rings round (e 2: the forearm's oval runs on into them), the palm's flatter across (e 2.6)
-    const pts = ringAt(at(u * len, 0, 0), A, back, hw * gx, hb * gx, hf * gx, ring8, i < 2 ? 2 : 2.6, push);
+    const pts = ringAt(at(u * len, 0, 0), A, back, hw * wx, hb * dx, hf * dx, ring8, i < 2 ? 2 : 2.6, push);
     // the knuckle arc: the last ring's ends fall short of the middle knuckle, the little finger's more
-    if (last) for (const sl of ring8) { const v = dot(sub(pts[sl], wrist), V), side = v < 0 ? P.arc[0] * x * Math.min(1, -v / (hw * gx)) : P.arc[1] * x * Math.min(1, v / (hw * gx)); pts[sl] = R(sub(pts[sl], mul(A, side))); }
+    if (last) for (const sl of ring8) { const v = dot(sub(pts[sl], wrist), V), side = v < 0 ? P.arc[0] * x * Math.min(1, -v / (hw * wx)) : P.arc[1] * x * Math.min(1, v / (hw * wx)); pts[sl] = R(sub(pts[sl], mul(A, side))); }
     return { id: `st${i}`, points: pts };
   });
   const palm = { name: 'handR', kind: 'rings', slots: 'ring8', stations: palmStations, caps: { back: R(at(-0.2 * len, 0, 0)), tip: R(at((1 + P.tip) * len - 0.004 * x, 0, -0.002 * x)) }, group, mirror: 'name',
@@ -137,8 +139,8 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false, 
   for (const d of DIGITS) {
     const thumb = d === 'thumb', G = thumb ? F.thumb : F.fingers[d];
     let base, dir, flexTo;
-    if (thumb) { base = at(G.u * len, G.v * gx, G.w * gx); dir = dirOf(...G.dir); flexTo = dirOf(...G.flexTo); }
-    else { const fan = G.fan * Math.PI / 180; base = at(G.u * len, G.v * gx, 0); dir = unit(add(mul(A, dmath.cos(fan)), mul(V, dmath.sin(fan)))); flexTo = N; }
+    if (thumb) { base = at(G.u * len, G.v * wx, G.w * dx); dir = dirOf(...G.dir); flexTo = dirOf(...G.flexTo); }
+    else { const fan = G.fan * Math.PI / 180; base = at(G.u * len, G.v * wx, 0); dir = unit(add(mul(A, dmath.cos(fan)), mul(V, dmath.sin(fan)))); flexTo = N; }
     // each link's hinge: a finger's three about one axis (its tip toward the palm); the thumb's root sweeps it across the
     // palm (opposition, about `oppose`), its two joints flex it about its own axis
     const axis = thumb ? axisToward(dir, flexTo) : fingerAxis;
@@ -160,7 +162,7 @@ export function heroHand({ wrist, elbow, len, X = 1, girth = 1, female = false, 
     // the rest curl, link by link: a point past a link's pivot turns by the whole angle, a ring by its skin's share of
     // the link's bone (SHARE: the binds below), so a joint's ring stands on the bisector
     const W = thumb ? CURL_LINKS.thumb : CURL_LINKS.finger, SHARE = thumb ? THUMB_SHARE : FINGER_SHARE;
-    let jp = js.map((p) => [...p]), rings = st.map((s) => ({ ...s, pts: ringAt(s.c, dir, f0, s.r, s.r * deep, s.r * deep, limb6, 2) })), tipCap = add(js[3], mul(f0, -0.15 * r[3]));
+    let jp = js.map((p) => [...p]), rings = st.map((s) => ({ ...s, pts: ringAt(s.c, dir, f0, s.r * wide, s.r * deep * Math.sqrt(wide), s.r * deep * Math.sqrt(wide), limb6, 2) })), tipCap = add(js[3], mul(f0, -0.15 * r[3]));
     // the hinge joints (a bone's aux, on the axis its own link turns about): the root's, and the thumb's knuckle's
     const hinge = add(js[0], mul(ax[0], 0.01 * x)); let knuckle = thumb ? add(js[1], mul(ax[1], 0.01 * x)) : null;
     for (let k = 0; k < 3; k++) {

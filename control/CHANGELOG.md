@@ -48,6 +48,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `jogStopLeft`), each carrying its `stop` (the gait it leaves, the lead, the gait phase it starts at) so an engine
   picks the one nearest the cycle: the packed clip's `stop`, the GLB's `extras['moj:stop']`, the engine score's
   `locomotion.stops`.
+- Anime hands at adult size: the anime casts' hands were about 25–35 % short and 40 % narrow for the figure (a critic
+  reading the proportions sheet, and two blind judges preferring the change on the heroine and the tough). They now
+  keep an adult hand's share of the height (wrist to fingertip about 0.10 on the female, 0.105 on the male) through the
+  cast's `hands` (1.2), and a broader palm through a new `handWidth` (1.17 female, 1.25 male: the palm's width, the
+  knuckles' spread and the digits' width across, their depth by its root). The feet are unchanged. Every anime hero's
+  mesh moves at the hand; its pins are re-pinned.
 - Elbows down (`polygonizer/hero-elbow.js`): in every gait and jump a raised, bent arm rolls at the shoulder so the
   forearm folds up with the elbow beneath it, never sideways across the chest; the roll follows the raise smoothly and
   leaves hanging and back-swung arms alone.

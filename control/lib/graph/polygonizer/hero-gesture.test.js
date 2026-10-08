@@ -281,6 +281,8 @@ describe('the door: no gesture ⇒ byte-identical', () => {
       const old = heroPlanOf(heroRecord({ ...spec, core: 'streamlined' })); expect(h(old)).toBe(oldPlan); expect(h(expandPlan(old))).toBe(oldRecipe);
     });
   }
+  // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
+  // `hands`, `handWidth`): the hand alone moved
   it("the anime hero at gesture: 'rest' keeps its plan and recipe", () => {
     // re-pinned for the anime hero's own palette (layered.js ANIME_HERO_PALETTE): the plan and recipe the door gave before
     // the gesture existed for the same hero with that palette passed as its operator palette, byte for byte; on the
@@ -289,9 +291,9 @@ describe('the door: no gesture ⇒ byte-identical', () => {
     // place gives d56790646999f85a / efd7142540e4b892, the values before it, still. Re-pinned for the female HAIR BASE
     // (anime-head ANIME_HAIR_BASE, applied by the door: the lifted, thicker ridge-section form and the side-parted cut)
     // and her hair colour (#3b4859): the starter with the studio's hair and the one palette gives 99901cc75bc4b118 /
-    // 5324bb28a14e1beb, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
+    // 3b7df620943ce7d1, the values before them, still. Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js
     // ANIME_HERO_PALETTE, so her shade side parts from the World's backdrop): with #3b4859 passed as the operator's palette
-    // the door gives d62dc077b37bcc0b / db43f836a119990e, the values before it, still. Re-pinned for the ANIME WAVE
+    // the door gives d62dc077b37bcc0b / f2c34365426d1e5f, the values before it, still. Re-pinned for the ANIME WAVE
     // (hero-form.js ANIME_WAVE, put over the form's `wave` by the humanoid starter under the anime head): each plan with
     // the form's wave back in its place gives the values before it, still
     const formWave = (x) => ({ ...x, clips: { ...x.clips, wave: FORM_WAVE } });
@@ -300,17 +302,17 @@ describe('the door: no gesture ⇒ byte-identical', () => {
     // re-pinned for the anime head's sideburn patches before the ears; the plans re-pinned for the face zones in the
     // include's coverage ledger (hairCoverage.face, a readout: without it the hash in each comment; the expanded plans,
     // the geometry, unchanged)
-    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('f7647ea5154b4342');   // 6c2aa5de57be0ba4
-    expect(h(expandPlan(p))).toBe('ba2e23db4967a273');
-    expect(h(formWave(p))).toBe('9f8ce30aba3ba23b');   // 802fd641d842ddbc
-    expect(h(expandPlan(formWave(p)))).toBe('52dd5f4339a07eec');
+    expect(hr.gesture).toBe('rest'); expect(p.clips.gesture).toBeUndefined(); expect(h(p)).toBe('39b788a6040ae69b');   // 6c2aa5de57be0ba4
+    expect(h(expandPlan(p))).toBe('8174e51b84713dbc');
+    expect(h(formWave(p))).toBe('5ab48951d634db76');   // 802fd641d842ddbc
+    expect(h(expandPlan(formWave(p)))).toBe('d683366b3488b1ed');
     const was = heroPlanOf(heroRecord({ cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, palette: { Hair: '#3b4859' }, core: 'streamlined' }));
-    expect(h(formWave(was))).toBe('f9a42b22dfc18797');   // d62dc077b37bcc0b
-    expect(h(expandPlan(formWave(was)))).toBe('db43f836a119990e');
+    expect(h(formWave(was))).toBe('3d32491df7df1a18');   // d62dc077b37bcc0b
+    expect(h(expandPlan(formWave(was)))).toBe('f2c34365426d1e5f');
     const eff = composeAnime(hr, 'bob');
     const before = humanoidPlan({ preset: 'female', register: hr.register, tune: eff.tune, body: {}, girth: 1, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { Hair: '#644634', Ink: '#16181c' }, core: 'streamlined' });
-    expect(h(formWave(before))).toBe('73cf9822ce4c750b');   // 99901cc75bc4b118
-    expect(h(expandPlan(formWave(before)))).toBe('5324bb28a14e1beb');
+    expect(h(formWave(before))).toBe('d189450453fb3c72');   // 99901cc75bc4b118
+    expect(h(expandPlan(formWave(before)))).toBe('3b7df620943ce7d1');
   });
   it('a landmark hero stands only when it says so', () => {
     const hr = heroRecord({ cast: 'male', gesture: 'guard' }); const p = heroPlanOf(hr);
