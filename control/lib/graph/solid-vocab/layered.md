@@ -572,7 +572,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (over the left shoulder, to the left; `roll.side` says which). A roll turns the whole body (the rig's `body`
   rotation), set down each moment so its lowest part rests on the floor, in place; its ground rides the clip (`roll`:
   axis, side, start and end in seconds, the travel and the speed it rolls at without slipping) — the GLB's
-  `extras['moj:roll']` and the engine score's `locomotion.rolls`. A jump is ONE-SHOT and IN PLACE: the load, the push onto the toes, the
+  `extras['moj:roll']` and the engine score's `locomotion.rolls`. STOPS ride it too: `walkStop`, `jogStop`, `sprintStop`
+  (0.6 / 0.75 / 0.9 s), for when forward is let go. The game stops the character dead; the clip shows the momentum,
+  starting from the gait's own frame: the swinging foot brakes under the body, the trunk pitches past the feet with the
+  arms swinging forward, the trail foot steps up beside it, and the trunk recoils just past upright onto the stand. The
+  feet never slide, and the lurch grows with the gait. Each gives two clips, `<name>` (the right foot brakes) and
+  `<name>Left`, each with its `stop` (`from`, `lead`, the gait `phase` it starts at; the GLB's `extras['moj:stop']`, the
+  engine score's `locomotion.stops`): on release, play the one whose phase is nearest the gait's. A jump is ONE-SHOT and IN PLACE: the load, the push onto the toes, the
   tuck and reach in the air, the absorb; the engine's physics flies the arc. Its timing rides the clip (`air`: take-off,
   touch-down and apex in seconds, and the height a ballistic flight of that air time reaches; a double jump's `kick`,
   the height it happens at, the upward speed it adds and the second apex) — the skinned GLB's `extras['moj:jump']` and

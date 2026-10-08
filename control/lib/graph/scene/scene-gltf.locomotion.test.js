@@ -14,7 +14,7 @@ const glb = (payload) => Buffer.from(facesToGlb(payload, { generator: 'mojulo lo
 
 describe('the hero door\'s motion', () => {
   it('refuses an unknown gait, an unknown dial and a seconds out of range, naming them', () => {
-    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft\)/);
+    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop\)/);
     expect(validateHeroSpec({ motion: { walk: { stride: 0.4 } } }).join(' ')).toMatch(/motion\.walk\.stride: not a walk dial/);
     expect(validateHeroSpec({ motion: { jog: { seconds: 40 } } }).join(' ')).toMatch(/motion\.jog\.seconds/);
     expect(validateHeroSpec({ motion: { walk: { strideLength: 0.4, vault: true, seconds: 1.2 }, jog: true, sprint: { tilt: 22 } } })).toEqual([]);
@@ -57,5 +57,16 @@ describe('the hero door\'s motion', () => {
     expect(anims.find((a) => a.name === 'body:doubleJump').extras['moj:jump'].kick).toBe(clips.doubleJump.air.kick);
     expect(clips.rollForward.once).toBe(true); expect(clips.rollForward.roll.axis).toBe('forward');
     expect(anims.find((a) => a.name === 'body:rollForward').extras['moj:roll']).toEqual(clips.rollForward.roll);
+  });
+
+  it('a stop packs two one-shots (each braking foot) with its start phase; the GLB carries moj:stop; a stop refuses dials', async () => {
+    expect(validateHeroSpec({ motion: { jogStop: { tilt: 5 } } }).join(' ')).toMatch(/motion\.jogStop\.tilt: a stop takes only seconds/);
+    const payload = await resolve(heroManifest({ cast: 'male', head: 'anime', motion: { jog: true, jogStop: true } }));
+    const clips = payload.figures.body.clips;
+    for (const [n, lead] of [['jogStop', 'R'], ['jogStopLeft', 'L']]) {
+      expect(clips[n].once).toBe(true); expect(clips[n].s).toBe(0.75); expect(clips[n].stop).toMatchObject({ from: 'jog', lead });
+    }
+    expect(Math.abs(clips.jogStop.stop.phase - clips.jogStopLeft.stop.phase)).toBeCloseTo(0.5, 2);
+    expect(glbJson(glb(payload)).animations.find((a) => a.name === 'body:jogStopLeft').extras['moj:stop']).toEqual(clips.jogStopLeft.stop);
   });
 });

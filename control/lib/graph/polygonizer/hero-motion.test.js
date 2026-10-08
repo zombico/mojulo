@@ -3,7 +3,8 @@
 // floor, every phase solves on a rig that refuses an unreachable toe, and the bake is deterministic.
 import { describe, expect, it } from 'vitest';
 import { validateRig, rigNodesAt } from './station-loft-rig.js';
-import { heroLocomotion, groundedPose, rigCore, locomotionCameraCurve, motionPlan, locomotionClips, MOTION_GAITS } from './hero-motion.js';
+import { heroLocomotion, groundedPose, rigCore, locomotionCameraCurve, motionPlan, locomotionClips, MOTION_GAITS, heroStop } from './hero-motion.js';
+import { mirrored } from './hero-jump.js';
 import { resolveMotion } from './figure-posing.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
@@ -105,5 +106,39 @@ describe('hero-motion: the locomotion bake', () => {
       const mean = lean.reduce((a, b) => a + b, 0) / M;
       expect(mean).toBeGreaterThan(MOTION_GAITS[gait].tilt - 2);
     }
+  });
+});
+
+// THE STOP: letting go of forward. It starts on the gait's own frame (an engine cuts to it without a pop), the feet
+// never slide or pass the floor (the game has stopped the body; nothing may skate), the momentum shows as the trunk
+// pitching past the feet, and it ends exactly on the stand (it hands over to the idle).
+describe('hero-motion: the stop', () => {
+  const R = HEROES.female; const plan = motionPlan({ walk: true, jog: true, sprint: true });
+  for (const gait of ['walk', 'jog', 'sprint']) for (const lead of ['R', 'L']) it(`${gait} (${lead} brakes): from the gait's frame, feet held, the lurch, onto the stand`, () => {
+    const S = heroStop(plan[gait], R, { from: gait, lead }); const loco = heroLocomotion(plan[gait].spec, R, { tilt: plan[gait].tilt });
+    const a = rigNodesAt(R, loco.fn(S.stop.phase)).nodes, b = rigNodesAt(R, S.fn(0)).nodes;
+    for (const k of Object.keys(a)) expect(Math.hypot(...[0, 1, 2].map((c) => a[k][c] - b[k][c]))).toBeLessThan(gait === 'walk' ? 0.025 : 0.002);   // the walk's swing clearance lifts its toe a little over the leg's own
+    const N = 120, n = Array.from({ length: N + 1 }, (_, i) => rigNodesAt(R, S.fn(i / N)).nodes); const trail = lead === 'R' ? 'L' : 'R';
+    for (const s of ['L', 'R']) {
+      const L = R.legs[s]; const z = n.map((m) => m[L.toeBase][2] - R.joints[L.toeBase][2]);
+      expect(Math.min(...z)).toBeGreaterThan(-1e-6);
+      // a toe on the floor in two frames running stays where it is
+      for (let i = 0; i < N; i++) if (z[i] < 1e-6 && z[i + 1] < 1e-6) expect(Math.abs(n[i + 1][L.toeBase][1] - n[i][L.toeBase][1])).toBeLessThan(1e-6);
+    }
+    expect(Math.max(...n.map((m) => m[R.legs[trail].toeBase][2] - R.joints[R.legs[trail].toeBase][2]))).toBeGreaterThan(0.02);   // the catch step lifts
+    const lean = n.map((m) => Math.atan2(m.neckHub[1] - m.pelvisHub[1], m.neckHub[2] - m.pelvisHub[2]) * 180 / Math.PI);
+    expect(Math.max(...lean)).toBeGreaterThan(plan[gait].tilt + 4);   // past the gait's own lean: the momentum
+    const stand = rigNodesAt(R, {}).nodes;   // the rig's own stand (the idle's first frame), its knees by the leg solve
+    for (const k of Object.keys(n[N])) for (let c = 0; c < 3; c++) expect(n[N][k][c]).toBeCloseTo(stand[k][c], 6);
+    const dt = S.seconds / N;
+    for (const k of ['headTop', 'pelvisHub']) for (let i = 0; i < N; i++) expect(Math.hypot(...[0, 1, 2].map((c) => n[i + 1][k][c] - n[i][k][c])) / dt).toBeLessThan(4);
+  });
+  it('the harder the gait, the bigger the lurch; the two leads are mirrors', () => {
+    const peak = (g) => { const S = heroStop(plan[g], R, { from: g }); return Math.max(...Array.from({ length: 61 }, (_, i) => { const m = rigNodesAt(R, S.fn(i / 60)).nodes; return Math.atan2(m.neckHub[1] - m.pelvisHub[1], m.neckHub[2] - m.pelvisHub[2]); })); };
+    expect(peak('walk')).toBeLessThan(peak('jog')); expect(peak('jog')).toBeLessThan(peak('sprint'));
+    const A = heroStop(plan.jog, R, { from: 'jog', lead: 'R' }), B = heroStop(plan.jog, R, { from: 'jog', lead: 'L' });
+    const twin = (k) => k.replace(/([LR])$/, (c) => (c === 'L' ? 'R' : 'L'));
+    for (const t of [0.3, 0.5, 0.8]) { const a = rigNodesAt(R, A.fn(t)).nodes, b = rigNodesAt(R, B.fn(t)).nodes; for (const k of ['headTop', 'wristL', 'kneeR', 'toeBaseL']) { expect(b[twin(k)][0]).toBeCloseTo(-a[k][0], 2); expect(b[twin(k)][2]).toBeCloseTo(a[k][2], 2); } }
+    expect(mirrored({ hipL: { yaw: 3 }, groundR: 1 })).toEqual({ hipR: { yaw: -3 }, groundL: 1 });
   });
 });

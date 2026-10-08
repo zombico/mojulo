@@ -40,6 +40,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   spun by a shortest arc), the roll set down so its lowest part rests on the floor along a smooth envelope, the turn
   waiting for the feet to leave. Each carries its `roll` ground (axis, side, start, end, travel, speed): the packed clip's `roll`,
   the GLB's `extras['moj:roll']`, the engine score's `locomotion.rolls`.
+- Stops on the hero door's `motion`: `walkStop`, `jogStop` and `sprintStop`, each `true` or `{ seconds }`, play when
+  forward is let go. The game halts the character on the spot; the clip shows the momentum it had. Starting from the
+  gait's own frame, the swinging foot sets down as a brake, the trunk pitches past the feet with the arms swinging
+  forward, the trailing foot steps up beside it, and the trunk recoils just past upright onto the stand. The feet never
+  slide, and the lurch grows with the gait's speed. Each bakes two clips, one per braking foot (`jogStop`,
+  `jogStopLeft`), each carrying its `stop` (the gait it leaves, the lead, the gait phase it starts at) so an engine
+  picks the one nearest the cycle: the packed clip's `stop`, the GLB's `extras['moj:stop']`, the engine score's
+  `locomotion.stops`.
 - Elbows down (`polygonizer/hero-elbow.js`): in every gait and jump a raised, bent arm rolls at the shoulder so the
   forearm folds up with the elbow beneath it, never sideways across the chest; the roll follows the raise smoothly and
   leaves hanging and back-swung arms alone.

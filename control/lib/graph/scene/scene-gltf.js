@@ -994,7 +994,8 @@ class GlbBuilder {
     // a roll's ground (hero-jump.js) rides as `moj:roll`: its axis, start and end in seconds, the travel (metres) and the
     // speed it rolls at without slipping (metres a second)
     const roll = clip.roll ? { ...clip.roll, travel: r4(clip.roll.travel * mpu), speed: r4(clip.roll.speed * mpu) } : null;
-    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}) };
+    // a stop (hero-motion.js heroStop) rides as `moj:stop`: the gait it leaves, the braking foot, the gait phase it starts at
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }

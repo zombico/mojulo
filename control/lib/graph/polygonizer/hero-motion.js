@@ -20,8 +20,8 @@
  */
 import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
 import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS } from './figure-posing.js';
-import { heroJump, JUMPS } from './hero-jump.js';
-import { elbowsDown } from './hero-elbow.js';
+import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
+import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
@@ -206,7 +206,62 @@ export const MOTION_GAITS = Object.freeze({
   sprint: Object.freeze({ motion: 'sprint', base: Object.freeze({ strideLength: 0.72, hipDrive: 1.7, swingTuck: 130, armSwing: 56, armBack: 1.1, elbowBend: 84, lean: 0.08, dutyFactor: 0.32, flightLift: 0.09, spineGive: 0.06, anklePoint: 20, toeFlick: 30 }), tilt: 18, seconds: 0.55 }),
   // the jumps (hero-jump.js): one-shot clips in place, their air timed for an engine's physics
   ...Object.fromEntries(Object.entries(JUMPS).map(([k, J]) => [k, Object.freeze({ motion: 'jump', seconds: J.seconds })])),
+  // the stops (heroStop): one-shot, out of a gait when forward is let go
+  ...Object.fromEntries(Object.entries({ walk: 0.6, jog: 0.75, sprint: 0.9 }).map(([g, sec]) => [`${g}Stop`, Object.freeze({ motion: 'stop', from: g, seconds: sec })])),
 });
+
+// ─── the STOP: letting go of forward ───────────────────────────────────────
+// The game stops the character on the spot; the clip shows the momentum it had. Out of the gait's own frame (the lead
+// foot past the middle of its swing, the trail foot planted behind), the lead foot sets down under the body as a brake,
+// the body runs on over it — the trunk pitching forward past the feet, the arms flung forward, the head dipping, the
+// trail heel peeling up — then the trail foot steps up beside the lead, the trunk recoils just past upright and settles
+// into the stand. The feet end on their rest spots and nothing slides, so it hands over to the idle clean. `effort`
+// scales the lurch with the gait's speed: a walk barely sways, a sprint folds over.
+/** each gait's stop: how hard the momentum shows (0 … 1) */
+export const STOP_EFFORT = Object.freeze({ walk: 0.3, jog: 0.65, sprint: 1 });
+/** the lead foot's place in its swing at the release frame */
+const STOP_AT = 0.6;
+const both2 = (o) => Object.fromEntries(Object.entries(o).flatMap(([k, v]) => [[`${k}L`, v], [`${k}R`, v]]));
+const armsOf = (pitch, elbow) => ({ shL: { pitch }, shR: { pitch }, ...both2({ elbow }) });
+
+/**
+ * A gait's stop on a rig: `fn(t)` (0 … 1 inclusive, a one-shot), its `seconds` and `stop` — the gait it leaves (`from`),
+ * the lead foot (`lead`, the one that brakes) and the gait `phase` its first frame is (an engine starts the stop whose
+ * phase is nearest the cycle's when forward is let go: one for each lead).
+ * @param {{ spec, seconds, tilt }} gait  the gait as the plan carries it (motionPlan)
+ * @param {'R'|'L'} lead
+ */
+export function heroStop(gait, R, { from = 'walk', lead = 'R', seconds, effort = STOP_EFFORT[from] ?? 0.5, frames = 24 } = {}) {
+  const loco = heroLocomotion(gait.spec, R, { frames, tilt: gait.tilt ?? 0 });
+  const trail = lead === 'R' ? 'L' : 'R'; const st = loco.stance[lead];
+  if (!st || !loco.stance[trail]) throw new Error(`hero-motion: a stop needs a gait with a stance on both feet`);
+  const phase = (st.t0 + st.span + STOP_AT * (1 - st.span)) % 1;
+  const { feet, sink, heelL, heelR, ...pose } = loco.fn(phase);
+  const heelOf = { L: -heelL, R: -heelR };
+  // the gait's arms already roll elbow-down; the timeline rolls them again as it plays, so the frame goes in without it
+  for (const S of ['L', 'R']) { const sh = pose[`sh${S}`]; if (sh && Number.isFinite(sh.pitch)) pose[`sh${S}`] = { ...sh, roll: (sh.roll || 0) - elbowDownRoll(R, S, sh.pitch) }; }
+  // the trail foot where the gait has it (planted, behind); the lead in the air
+  const f0 = feet[trail][1] - R.joints[R.legs[trail].toeBase][1];
+  const e = effort, tilt = gait.tilt ?? 0, lurch = 4 + 30 * e;
+  // (the catch step never lets go of its foot entirely — `ground` 0.03 at its top — so the floor clamp holds it out of a
+  // sunk body's floor; the bent knee lifts it)
+  // the timeline written for the RIGHT foot leading (`T` the trail's channels are L's); a left lead is its mirror
+  const k = [
+    { t: 0.18, pose: { hinge: 0.5 * tilt + 0.55 * lurch, spine: { sagittal: 0.05 * e }, hipL: { pitch: -8 }, kneeL: 20, ...armsOf(15 + 25 * e, 20 + 20 * e), head: { pitch: 4 } }, sink: 0.02 + 0.04 * e, heelL: 18 + 15 * e, heelR: 0, groundL: 1, groundR: 1, footL: f0, footR: 0 },
+    { t: 0.32, pose: { hinge: lurch, spine: { sagittal: 0.06 + 0.1 * e }, hipL: { pitch: -10 }, kneeL: 25 + 20 * e, ...armsOf(35 + 45 * e, 15 + 20 * e), neck: { pitch: -4 * e }, head: { pitch: -3 - 6 * e } }, sink: 0.03 + 0.06 * e, heelL: 28 + 15 * e, heelR: 0, groundL: 1, groundR: 1, footL: f0, footR: 0 },
+    { t: 0.45, pose: { hinge: 0.55 * lurch, spine: { sagittal: 0.04 * e }, hipL: { pitch: 40 }, kneeL: 75, ...armsOf(15 + 15 * e, 30 + 20 * e), head: { pitch: 2 } }, sink: 0.025 + 0.05 * e, heelL: 10, heelR: 0, groundL: 0.03, groundR: 1, footL: f0 / 2, footR: 0 },
+    { t: 0.58, pose: { hinge: 2, spine: { sagittal: -0.04 - 0.06 * e }, ...armsOf(-8 - 12 * e, 22), head: { pitch: 3 } }, sink: 0.02 + 0.04 * e, heelL: 0, heelR: 0, groundL: 1, groundR: 1, footL: 0, footR: 0 },
+    { t: 0.75, pose: { hinge: 3 + 3 * e, spine: { sagittal: 0.01 }, ...armsOf(6, 18), head: { pitch: -1 } }, sink: 0.015 + 0.02 * e, heelL: 0, heelR: 0, groundL: 1, groundR: 1, footL: 0, footR: 0 },
+    { t: 1, pose: {}, sink: 0, heelL: 0, heelR: 0, groundL: 1, groundR: 1, footL: 0, footR: 0 },
+  ];
+  const keys = [
+    { t: 0, pose, sink, [`heel${lead}`]: heelOf[lead], [`heel${trail}`]: heelOf[trail], [`ground${lead}`]: 1e-5, [`ground${trail}`]: 1, [`foot${lead}`]: 0, [`foot${trail}`]: f0 },
+    ...(lead === 'R' ? k : mirrored(k)),
+  ];
+  const T = seconds ?? MOTION_GAITS[`${from}Stop`]?.seconds ?? 0.75;
+  const J = keyedClip({ seconds: T, keys }, R);
+  return { fn: J.fn, seconds: J.seconds, stop: { from, lead, phase: Math.round(phase * 1e4) / 1e4 } };
+}
 /** a tilt's share the head takes back, so the gaze runs ahead (a little down) instead of at the floor */
 const GAZE_HOLD = 0.7;
 const TILT = [0, 35];
@@ -223,10 +278,10 @@ export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint
     const G = MOTION_GAITS[name];
     if (!G) { errs.push(`motion.${name}: not a gait (have ${Object.keys(MOTION_GAITS).join(', ')})`); continue; }
     if (g === true) continue;
-    if (G.motion === 'jump') {
+    if (G.motion === 'jump' || G.motion === 'stop') {
       if (!isObj(g)) { errs.push(`motion.${name}: true, or { seconds }`); continue; }
       for (const [k, v] of Object.entries(g)) {
-        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a jump takes only seconds (its poses are studied; tune them in hero-jump.js)`);
+        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${G.motion} takes only seconds (its poses are studied; tune them in hero-${G.motion === 'stop' ? 'motion' : 'jump'}.js)`);
         else if (!(Number.isFinite(v) && v >= JUMP_SECONDS[0] && v <= JUMP_SECONDS[1])) errs.push(`motion.${name}.seconds: ${JUMP_SECONDS[0]} … ${JUMP_SECONDS[1]} seconds`);
       }
       continue;
@@ -249,6 +304,7 @@ export function motionPlan(motion) {
   return Object.fromEntries(Object.entries(motion).map(([name, g]) => {
     const G = MOTION_GAITS[name];
     if (G.motion === 'jump') return [name, { jump: name, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
+    if (G.motion === 'stop') return [name, { stop: G.from, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     const { seconds, tilt, ...own } = g === true ? {} : g;
     return [name, { spec: { [G.motion]: { ...G.base, ...own } }, seconds: seconds ?? G.seconds, tilt: tilt ?? G.tilt }];
   }));
@@ -260,7 +316,21 @@ export function motionPlan(motion) {
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop }] of Object.entries(locomotion || {})) {
+    if (stop) {
+      // a stop: two clips, the right foot braking (`<name>`) and the left (`<name>Left`), out of the hero's own gait (the
+      // door's, else the gait as studied)
+      const gait = locomotion[stop] ?? motionPlan({ [stop]: true })[stop];
+      for (const lead of ['R', 'L']) {
+        const clip = lead === 'R' ? name : `${name}Left`; let S;
+        try { S = heroStop(gait, R, { from: stop, lead, seconds: s, frames: keys }); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+        const K = Math.max(keys, Math.round(S.seconds * 30) + 1);
+        try { for (let k = 0; k < K; k++) rigNodesAt(R, S.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+        const fn = (t) => S.fn(t); fn.keys = K; fn.once = true; fn.stop = S.stop;
+        clips[clip] = fn; seconds[clip] = S.seconds;
+      }
+      continue;
+    }
     if (jump) {
       // a jump: one-shot (sampled 0 … 1 inclusive), ~30 keys a second, its air riding the function
       // a running jump slides its planted feet at the hero's sprint speed (the door's sprint if it has one, else the

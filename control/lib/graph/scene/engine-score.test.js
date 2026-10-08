@@ -127,6 +127,9 @@ describe('extractEngineScore — the locomotion row (export-unreal U2, the walki
     p.figures.suit_multi.clips.rollSide = { once: true, roll: { axis: 'side', speed: 3 } };
     expect(extractEngineScore(sketch(), p).entities[0].locomotion.jumps).toEqual({ jump: 'suit_multi:jump' });
     expect(extractEngineScore(sketch(), p).entities[0].locomotion.rolls).toEqual({ rollSide: 'suit_multi:rollSide' });
+    p.figures.suit_multi.clips.jogStop = { once: true, stop: { from: 'jog', lead: 'R', phase: 0.32 } };
+    p.figures.suit_multi.clips.jogStopLeft = { once: true, stop: { from: 'jog', lead: 'L', phase: 0.82 } };
+    expect(extractEngineScore(sketch(), p).entities[0].locomotion.stops).toEqual({ jog: [{ clip: 'suit_multi:jogStop', lead: 'R', phase: 0.32 }, { clip: 'suit_multi:jogStopLeft', lead: 'L', phase: 0.82 }] });
     p.metersPerUnit = 2;
     expect(extractEngineScore(sketch({ metersPerUnit: 2 }), p).entities[0].locomotion.walkSpeed).toBeGreaterThan(0);
   });

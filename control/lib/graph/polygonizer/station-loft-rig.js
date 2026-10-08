@@ -516,7 +516,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     // a function clip may also be ONE-SHOT (`once`: a jump's, sampled 0 … 1 inclusive) and carry its `air` (hero-jump.js)
     const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = typeof clip === 'function' && clip.once === true; const flat = [];
     for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); if (nodes.$body) Object.defineProperty(shifted, '$body', { value: nodes.$body, enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}) };
+    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}) };
   }
   let mnz = Infinity, mxz = -Infinity; for (const v of mesh.vertices) { if (v[2] + dz < mnz) mnz = v[2] + dz; if (v[2] + dz > mxz) mxz = v[2] + dz; }
   return {

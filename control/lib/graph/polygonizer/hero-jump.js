@@ -195,7 +195,7 @@ const BASE = {
 // pitches, the bends and the timing are a side's own. The rig is symmetric, so the mirror is exact.
 const SIDEWAYS = new Set(['yaw', 'roll', 'turn', 'lateral', 'axial', 'rollBody']);
 const twin = (k) => k.replace(/([LR])$/, (s) => (s === 'L' ? 'R' : 'L'));
-function mirrored(o) {
+export function mirrored(o) {
   if (Array.isArray(o)) return o.map(mirrored);
   if (!o || typeof o !== 'object') return o;
   return Object.fromEntries(Object.entries(o).map(([k, v]) => [/^(sh|elbow|hip|knee|ankle|toe|wrist|ground|foot|heel)[LR]$/.test(k) ? twin(k) : k, SIDEWAYS.has(k) && Number.isFinite(v) ? -v : mirrored(v)]));
@@ -242,8 +242,13 @@ function curve(keys) {
  * @param {object} R     a validated rig
  */
 export function heroJump(name, R, opts = {}) {
-  const { seconds } = opts;
   const J = JUMPS[name]; if (!J) throw new Error(`hero-jump: no jump '${name}' (have ${JUMP_NAMES.join(', ')})`);
+  return keyedClip(J, R, opts);
+}
+
+/** any one-shot timeline in the JUMPS shape (`{ seconds, keys, run?, roll?, side?, kick?, firstAir? }`) on a rig, as heroJump */
+export function keyedClip(J, R, opts = {}) {
+  const { seconds } = opts;
   const T = seconds ?? J.seconds;
   // one curve per channel over every key (a channel a key leaves out is 0 there: the stand)
   const flat = J.keys.map((k) => flatten(k.pose));

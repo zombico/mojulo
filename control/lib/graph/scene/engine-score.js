@@ -106,12 +106,16 @@ function locomotionFor(figures, figKey, unitScale = 1) {
   // the jumps a figure carries (one-shot clips with their air, hero-jump.js), by name; none ⇒ no key
   const jumps = Object.entries(clips).filter(([, c]) => c && c.once && c.air).map(([n]) => [n, `${figKey}:${n}`]);
   const rolls = Object.entries(clips).filter(([, c]) => c && c.once && c.roll).map(([n]) => [n, `${figKey}:${n}`]);
+  // the stops (hero-motion.js heroStop), by the gait they leave: one per braking foot, with the gait phase each starts at
+  const stops = {};
+  for (const [n, c] of Object.entries(clips)) if (c && c.once && c.stop) (stops[c.stop.from] ??= []).push({ clip: `${figKey}:${n}`, lead: c.stop.lead, phase: c.stop.phase });
   return {
     ...(idle ? { idle } : {}),
     ...(walk ? { walk } : {}),
     ...(v > 0 ? { walkSpeed: Math.round(v * unitScale * 1e4) / 1e4 } : {}),
     ...(jumps.length ? { jumps: Object.fromEntries(jumps) } : {}),
     ...(rolls.length ? { rolls: Object.fromEntries(rolls) } : {}),
+    ...(Object.keys(stops).length ? { stops } : {}),
     ...(boost ? { boost } : {}),
   };
 }
