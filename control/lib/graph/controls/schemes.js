@@ -33,7 +33,8 @@ const LOOK4 = ['lookUp', 'lookLeft', 'lookDown', 'lookRight'];
 const PILOT = {
   id: 'pilot',
   label: '3D pilot: walk, platform, suit, glide, drive, fly',
-  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate'],
+  // `reach`: standing somewhere usable (a cue's use place); an overlay on the others, where interact takes its controls
+  contexts: ['ground', 'space', 'glide', 'vehicle', 'spectate', 'reach'],
   actions: [
     // a pad's left stick X turns in a tank-turn world and strafes under a mouselook camera (the runtime picks);
     // in VR the left thumbstick walks and strafes and the right one turns, the comfort convention
@@ -71,6 +72,8 @@ const PILOT = {
     { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'] } },
     { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'] } },
     { id: 'pause', label: 'pause', group: 'system', in: [...MOVE, 'spectate'], bind: { keyboard: ['Escape'], gamepad: ['start'] } },
+    // use / talk / open, live only in reach: E strafes anywhere else, and the runtime keeps it from strafing in reach
+    { id: 'interact', label: 'use / talk', group: 'world', in: ['reach'], bind: { keyboard: ['KeyE'], gamepad: ['west'], xr: ['left.squeeze'] } },
   ],
   // the pause sheet, one row list per family (keyboard always, the others once that device has spoken).
   // `ids` joins each action's primary control with ' / ' (or `sep`); `dev` reads another family (the mouse)
@@ -93,6 +96,7 @@ const PILOT = {
       { ids: ['swapSuit'], label: 'switch suit', when: 'suits' },
       { ids: ['aiToggle'], label: 'AI attack on / off', when: 'ai' },
       { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
+      { ids: ['interact'], label: 'use / talk', when: 'interact' },
     ],
     gamepad: [
       { quad: MOVE4, prefix: '🎮 ', label: { _: 'move', space: 'thrust & strafe', vehicle: 'steer' } },
@@ -104,6 +108,7 @@ const PILOT = {
       { ids: ['jump', 'tackle'], sep: ' · ', label: 'jump · tackle', unless: 'space' },
       { ids: ['swapSuit', 'aiToggle'], sep: ' · ', label: 'switch suit · AI toggle' },
       { ids: ['lock'], label: 'target lock', when: 'lock' },
+      { ids: ['interact'], label: 'use / talk', when: 'interact' },
       { ids: ['pause'], label: 'pause' },
     ],
     xr: [
@@ -213,17 +218,17 @@ const POINT = {
   },
 };
 
-// Menus everywhere: arrows or Tab to move, Enter / Space to accept, Esc to go back. On a pad accept and back
+// Menus everywhere: arrows (or W A S D) or Tab to move, Enter / Space to accept, Esc to go back. On a pad accept and back
 // are roles, not positions: the bottom button accepts on Xbox and PlayStation, A on the right does on Nintendo.
 const MENU = {
   id: 'menu',
   label: 'menus and overlays',
   contexts: ['menu'],
   actions: [
-    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-'] } },
-    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+'] } },
-    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-'] } },
-    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+'] } },
+    { id: 'up', label: 'up', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowUp', 'KeyW'], gamepad: ['up', 'leftY-'], xr: ['right.thumbstickY-'] } },
+    { id: 'down', label: 'down', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowDown', 'KeyS'], gamepad: ['down', 'leftY+'], xr: ['right.thumbstickY+'] } },
+    { id: 'left', label: 'left', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowLeft', 'KeyA'], gamepad: ['left', 'leftX-'], xr: ['right.thumbstickX-'] } },
+    { id: 'right', label: 'right', group: 'navigate', in: ['menu'], bind: { keyboard: ['ArrowRight', 'KeyD'], gamepad: ['right', 'leftX+'], xr: ['right.thumbstickX+'] } },
     { id: 'accept', label: 'accept', group: 'navigate', in: ['menu'], bind: { keyboard: ['Enter', 'Space'], gamepad: ['confirm'], xr: ['right.trigger'] } },
     { id: 'back', label: 'back', group: 'navigate', in: ['menu'], bind: { keyboard: ['Escape', 'Backspace'], gamepad: ['cancel'], xr: ['right.secondary'] } },
     { id: 'tabNext', label: 'next tab', group: 'navigate', in: ['menu'], bind: { keyboard: ['BracketRight'], gamepad: ['rb'] } },

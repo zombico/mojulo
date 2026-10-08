@@ -3,7 +3,9 @@ import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../gam
 import { safeJson } from '../emit-util.js';
 import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
-import { menuHtml } from '../../playscape/ui/menus.js';
+import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
+
+export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
 // The HUD widget layer's stylesheet (hud-widgets.js): one absolutely-positioned column per slot
 // over #wrap (the corners + the centre line), a widget per row, kinds styled by class. Every
@@ -37,57 +39,6 @@ export const HUD_CSS = [
   '.moj-w-legend{font-size:12px;font-weight:500;opacity:.85;letter-spacing:.3px}',
   '.moj-hidden{opacity:0}',
 ].join('');
-
-// A play block's menus (playscape/ui/menus.js) over the play: centred, solid, taking the pointer; the guide's register
-// and border dress them through the same .moj-w rules as every widget. Emitted only when the world has menus.
-export const MENU_CSS = [
-  '.moj-menu-hud{display:flex;align-items:center;justify-content:center;z-index:13}',
-  '.moj-w-menu{white-space:normal;display:flex;flex-direction:column;gap:7px;width:300px;text-align:left;font-weight:500;padding:12px 14px;pointer-events:auto;background:var(--moj-panel)}',
-  '.moj-w-menu .pu-mt{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.75}.moj-w-menu .pu-who{font-weight:700}',
-  '.moj-w-menu .pu-ch{display:block;padding:1px 0 1px 14px;position:relative;cursor:pointer}.moj-w-menu .pu-ch.on{color:var(--moj-accent)}',
-  '.moj-w-menu .pu-ch.on::before{content:"▸";position:absolute;left:0}.moj-w-menu .pu-foot{display:flex;gap:14px;font-size:12px;opacity:.75;border-top:1px solid var(--moj-line);padding-top:5px}',
-  '.moj-w-menu .pu-tab{border-collapse:collapse;font-size:13px}.moj-w-menu .pu-tab td{padding:1px 8px 1px 0}.moj-w-menu .pu-num{text-align:right;font-variant-numeric:tabular-nums}',
-  '.moj-w-menu .pu-map{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}.moj-w-menu .pu-map i{height:22px;border:1px solid var(--moj-line)}.moj-w-menu .pu-map i.here{background:var(--moj-accent)}',
-].join('');
-
-// the menus' block: the open menu is the last whose bus var (ui-menu-<id>) is 1; it is drawn from the same markup the
-// board draws (menuHtml). Keys go to the menu while one is open (a capture listener, so the walker does not move):
-// up / down move the focus, enter / space / E pick (menu-pick:<menu>:<n>), escape closes (menu-close:<menu>); a read
-// menu turns its pages and closes after the last; a click picks. Picks enter the bus as inputs do, on the next step.
-function menuScript(menus) {
-  return `
-const __MENUS = ${safeJson(menus)};
-${menuHtml.toString()}
-const __menuHud = document.createElement('div'); __menuHud.className = 'moj-hud moj-menu-hud'; wrap.appendChild(__menuHud);
-let __menuOpen = null, __menuF = 0, __menuPg = 0, __menuShown = '';
-// only an actual change touches the DOM: a per-frame rewrite would swap the choice under the pointer between press and release, and no click would land
-function __menuDraw() { const h = __menuOpen ? menuHtml(__menuOpen, __menuF, __menuPg).replace(/\{([^}]+)\}/g, (_, k) => String(__busState.vars[k] != null ? __busState.vars[k] : 0)) : ''; if (h !== __menuShown) { __menuShown = h; __menuHud.innerHTML = h; } }
-function __menuCount(m) { return m.picks ? m.picks.length : m.kind === 'save' ? Math.min(m.slots, 4) : m.kind === 'shop' ? m.stock.length : m.kind === 'chest' ? m.holds.length : m.kind === 'list' ? m.rows.length : 0; }
-function __menuClose() { if (__menuOpen) __inputQueue.push({ type: 'menu-close:' + __menuOpen.id }); }
-function __menuAct() {
-  const m = __menuOpen; if (!m) return;
-  if (m.kind === 'read' && __menuPg + 1 < m.pages.length) { __menuPg++; __menuDraw(); return; }
-  if (m.picks && m.picks.length) __inputQueue.push({ type: 'menu-pick:' + m.id + ':' + __menuF }); else __menuClose();
-}
-window.addEventListener('keydown', (ev) => {
-  if (!__menuOpen) return;
-  ev.preventDefault(); ev.stopImmediatePropagation();
-  if (ev.repeat) return;
-  const n = __menuCount(__menuOpen);
-  if ((ev.code === 'ArrowUp' || ev.code === 'KeyW') && n) { __menuF = (__menuF + n - 1) % n; __menuDraw(); }
-  else if ((ev.code === 'ArrowDown' || ev.code === 'KeyS') && n) { __menuF = (__menuF + 1) % n; __menuDraw(); }
-  else if (ev.code === 'Enter' || ev.code === 'Space' || ev.code === 'KeyE') __menuAct();
-  else if (ev.code === 'Escape' || ev.code === 'Backspace') __menuClose();
-}, true);
-__menuHud.addEventListener('click', (ev) => { const p = ev.target.closest('[data-pick]'); if (!p || !__menuOpen) return; __menuF = Number(p.getAttribute('data-pick')); __menuAct(); });
-function __syncMenus() {
-  let open = null;
-  for (const m of __MENUS) if (__busState.vars[m.var] === 1) open = m;
-  if (open !== __menuOpen) { __menuOpen = open; __menuF = 0; __menuPg = 0; }
-  __menuDraw();
-}
-window.__mojMenus = { open: () => (__menuOpen ? __menuOpen.id : null), act: __menuAct, close: __menuClose };`;
-}
 
 // the in-page widget block. Widgets arrive normalized (kind / slot / as filled); each carries a
 // pre-resolved `css` color so the page never interprets an author string as CSS. Banners watch
@@ -206,6 +157,8 @@ export function eventsChannelScript(events) {
   const { widgets } = normalizeHud(events.hud);
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
+  const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
+  const reach = Object.keys(uses).length ? reachScript(uses) : '';
   const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
@@ -312,7 +265,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}
+${hudBlock}${reach}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -342,7 +295,8 @@ stepEvents = (t) => {
   if (window.__mojCtrl) {           // ZONE FACTS → enter/exit events for the walking player (M0-pre)
     const z = __BUS.deriveZoneEvents(window.__mojCtrl.world.entities, __zonePrev, __SOURCES);
     __zonePrev = z.prev;
-    for (const ev of z.events) incoming.push(ev);
+    for (const ev of z.events) incoming.push(ev);${reach ? `
+    __stepReach(z.events, incoming);` : ''}
   }${cast ? `
   if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck
     const c = window.__mojCtrl.facts(__castPrev);

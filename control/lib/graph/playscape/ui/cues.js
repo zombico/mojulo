@@ -7,7 +7,9 @@
  *     when:  { enter | leave | near: '<zone>' | { anchor, r? } | { at, r } | { at, half } }
  *                                                                       the figure walks into / out of / up to a zone (an
  *                                                                       anchor: any thing or place a map carries)
- *          | { use: '<id>' }                                                the figure uses a thing (its `use-<id>` event)
+ *          | { use: '<place>' | '<id>' | { anchor, r? } | { at, r }, prompt? }   the figure uses a place (stands in reach and
+ *                                                                       presses interact; the page shows the key and the prompt)
+ *                                                                       or a thing (its `use-<id>` event, a door's click)
  *          | { take: '<item>' }                                             the figure picks an item up (its contact)
  *          | { var: '<name>', gte | gt | lte | lt | eq | ne }               a value crosses a line
  *          | { on: '<event>', match? }                                      any bus event
@@ -47,7 +49,7 @@ export const CUE_WHEN = Object.freeze({
   enter: 'the figure walks into a zone: a zone the world declares, an anchor of the map { anchor, r? }, or an area { at, r } | { at, half }',
   leave: 'the figure walks out of a zone',
   near: 'the figure comes up to a zone; the cue ends when it walks away (the "press E" prompt)',
-  use: 'the figure uses a thing: its use event (use-<id>)',
+  use: 'the figure uses a place (a spot or an anchor, { anchor, r } or { at, r }: it stands there and presses interact, E; prompt: the word the page shows beside the key) or a thing (its use-<id> event)',
   take: 'the figure picks an item up (the item touching the figure)',
   var: 'a value crosses a line: { var, gte | gt | lte | lt | eq | ne }, each time it becomes true',
   on: 'any bus event (a glob), with match: { field: pattern }',
@@ -98,7 +100,14 @@ function readWhen(w, where) {
   if (keys.length !== 1) throw new Error(`${where} names one happening (${Object.keys(CUE_WHEN).join(', ')}), not ${keys.length ? keys.join(' and ') : 'none'}`);
   const k = keys[0];
   if (k === 'enter' || k === 'leave' || k === 'near') return { kind: k, ...readZone(w[k], `${where}.${k}`) };
-  if (k === 'use' || k === 'take') { if (!isStr(w[k])) throw new Error(`${where}.${k} is a thing's id`); return { kind: k, id: w[k] }; }
+  if (k === 'use') {
+    if (w.prompt !== undefined && !isStr(w.prompt)) throw new Error(`${where}.prompt is the word shown beside the interact key ('talk', 'open', 'read')`);
+    const prompt = w.prompt ?? null;
+    if (isStr(w.use)) return { kind: 'use', id: w.use, prompt };
+    const z = readZone(w.use, `${where}.use`);
+    return { kind: 'use', id: z.anchor || null, ...z, prompt };
+  }
+  if (k === 'take') { if (!isStr(w[k])) throw new Error(`${where}.${k} is a thing's id`); return { kind: k, id: w[k] }; }
   if (k === 'var') {
     if (!isStr(w.var)) throw new Error(`${where}.var is a bus var's name`);
     const c = CMP.filter((x) => w[x] !== undefined);
@@ -199,6 +208,15 @@ export function unplacedAnchors(play, anchors = []) {
   return out;
 }
 
+// where a use happens: a place the map or the play carries (an anchor, a spot) or the cue's own area; null when the use
+// names a thing (the event alone) or an anchor the map doesn't carry
+function usePlace(w, zoneId, anchors) {
+  if (w.area) return { id: zoneId, zone: `use-${zoneId}`, at: w.area.at, r: w.area.r, half: w.area.half };
+  const a = (anchors || []).find((x) => x.id === (w.anchor || w.id));
+  if (!a) return null;
+  return { id: a.id, zone: `use-${a.id}`, at: [a.at[0], a.at[1], a.at[2] ?? 0], r: w.anchor ? w.r : ANCHOR_REACH };
+}
+
 // the bus side of a happening: the events that fire it, as reactions emitting `type`, plus the sources it needs
 function fire(w, type, zoneId, anchors, player = null) {
   const out = { sources: [], reactions: [], watches: [], initial: [] };
@@ -210,7 +228,12 @@ function fire(w, type, zoneId, anchors, player = null) {
     // the zone watches the player when the world names one (a walker's own props stand in their zones too)
     if (area && !w.same) out.sources.push({ type: 'zone', zone, at: area.at, ...(area.half ? { half: area.half } : { radius: area.r }), planar: true, ...(player ? { watch: player } : {}) });
     out.reactions.push({ on: w.kind === 'leave' ? 'exit' : 'enter', match: { zone }, do: 'emit', type });
-  } else if (w.kind === 'use') out.reactions.push({ on: `use-${w.id}`, do: 'emit', type });
+  } else if (w.kind === 'use') {
+    // a place to use: a planar zone flagged `use` (standing in it is reach; the page sends use-<id> on the interact press)
+    const u = usePlace(w, zoneId, anchors);
+    if (u) out.sources.push({ type: 'zone', zone: u.zone, at: u.at, ...(u.half ? { half: u.half } : { radius: u.r }), planar: true, ...(player ? { watch: player } : {}), use: u.id, ...(w.prompt ? { prompt: w.prompt } : {}) });
+    out.reactions.push({ on: `use-${u ? u.id : w.id}`, do: 'emit', type });
+  }
   else if (w.kind === 'take') out.reactions.push({ on: 'contact', match: { a: w.id }, do: 'emit', type });
   else if (w.kind === 'on') out.reactions.push({ on: w.on, ...(w.match ? { match: w.match } : {}), do: 'emit', type });
   else if (w.kind === 'var') out.watches.push({ type, when: Object.fromEntries(['var', ...CMP].filter((k) => w[k] !== undefined).map((k) => [k, w[k]])) });
@@ -271,7 +294,18 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
     // until a time: a sequence per cue waits it out after each firing, then ends the cue
     if (c.until && c.until.kind === 'ttl') frag.sequences.push({ id: `cue-${c.id}`, scope: c.id, trigger: { on }, steps: [{ await: { timer: c.until.ttl } }, { do: 'emit', type: end }] });
     else if (c.until) add(fire(c.until, end, c.until.same ? zone : `${zone}-end`, anchors, player));
-    lowerEffects(c.then, on, frag, { phases, menuIds, places, end: c.until ? end : null, ttl: c.until && c.until.kind === 'ttl' ? c.until.ttl : null });
+    // a use at a place ends, as a near does, when the figure walks off it (what it opened closes)
+    const used = !c.until && c.when.kind === 'use' ? usePlace(c.when, zone, anchors) : null;
+    if (used) frag.reactions.push({ on: 'exit', match: { zone: used.zone }, do: 'emit', type: end });
+    lowerEffects(c.then, on, frag, { phases, menuIds, places, end: c.until || used ? end : null, ttl: c.until && c.until.kind === 'ttl' ? c.until.ttl : null });
   }
+  // two cues on one place share its zone (one enter, one exit); the first prompt given is its word
+  const byZone = new Map();
+  frag.sources = frag.sources.filter((x) => {
+    const had = byZone.get(x.zone);
+    if (!had) { byZone.set(x.zone, x); return true; }
+    if (x.prompt && !had.prompt) had.prompt = x.prompt;
+    return false;
+  });
   return tidy(frag);
 }

@@ -294,6 +294,21 @@ This step builds the contract and the approval gate. No rung is served yet.
   what it did. A shop's buying waits on an "afford it?" check the bus doesn't have yet: picking from its stock only
   closes it.
 
+### Interaction
+
+- **An interact key.** The pilot scheme gains `interact` (E; the pad's west face, X / □ / Y; the left grip in VR),
+  live only in a new `reach` context: while the figure stands somewhere usable, E interacts and doesn't strafe;
+  anywhere else E strafes as it did. The pause legend lists it in worlds that have somewhere to use.
+- **Places you use.** A cue's `when: { use: '<place>' }` (a spot or an anchor, or `{ anchor, r }` / `{ at, r }`),
+  with an optional `prompt` word, makes the place usable: standing in it is reach, the page shows the live key and
+  the word ("E  talk", "X  talk" on a pad), and the press sends `use-<place>` to the bus. What the cue opened closes
+  when the figure walks off. `use` naming no place keeps its meaning (the `use-<id>` event alone, a door's click).
+  The page carries this only when a world has a usable place.
+- **Menus read the menu scheme.** The menu overlay takes its keys from the `menu` scheme (arrows or W / S, Enter or
+  Space or the interact key, Esc) and now answers the gamepad (D-pad or stick, confirm and cancel where the pad's
+  layout puts them, so a Nintendo pad confirms with A on the right). While a menu is up the figure takes no input at
+  all: a key held as it opened, the pad and the mouse look all wait.
+
 ### World events
 
 - **The bus and the characters talk both ways.** Nothing a character did reached the event bus but standing in a zone,

@@ -244,7 +244,7 @@ export function pieceLayout(play, ui, entities = null) {
 const zoneWords = (w) => (w.anchor ? `${w.anchor} (${w.r} m)` : w.zone ? `'${w.zone}'` : w.area.r ? `${w.area.r} m round ${w.area.at[0]}, ${w.area.at[1]}` : `${w.area.half[0] * 2} × ${w.area.half[1] * 2} m at ${w.area.at[0]}, ${w.area.at[1]}`);
 export function whenWords(w) {
   if (w.kind === 'enter' || w.kind === 'near' || w.kind === 'leave') return `${{ enter: 'walks into', near: 'comes near', leave: 'walks out of' }[w.kind]} ${zoneWords(w)}`;
-  if (w.kind === 'use') return `uses ${w.id}`;
+  if (w.kind === 'use') return `uses ${w.id || zoneWords(w)}${w.prompt ? ` (${w.prompt})` : ''}`;
   if (w.kind === 'take') return `takes ${w.id}`;
   if (w.kind === 'var') { const sym = { gte: '≥', gt: '>', lte: '≤', lt: '<', eq: '=', ne: '≠' }; return `${w.var} ${Object.keys(sym).filter((k) => w[k] !== undefined).map((k) => `${sym[k]} ${w[k]}`).join(' and ')}`; }
   if (w.kind === 'on') return `the bus says ${w.on}${w.match ? ` (${Object.entries(w.match).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`;

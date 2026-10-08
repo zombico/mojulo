@@ -822,7 +822,8 @@ const __held = {};
 const __kbRead = (c) => __held[c];
 const __k = (id) => __CTL.held(__BIND, id, 'keyboard', __kbRead);
 const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.buttons).find((n) => __DEV.mouse.buttons[n] === e.button));
-window.addEventListener('keydown', (e) => { __held[e.code] = true; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
+let __usePad = false;   // the device the player last used (a prompt names its key): a key press says keyboard, pad activity the pad
+window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
 let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;
 const __canvas = renderer.domElement;
@@ -947,6 +948,7 @@ function __pollPad() {
   const pb = (id, quiet) => __CTL.held(__BIND, id, 'gamepad', __gr, quiet ? __DEV.gamepad.faces : null);   // quiet: a held RB silences the face buttons (they chord)
   const [mx, my] = __padStick(g.axes[0] || 0, g.axes[1] || 0);
   const [lx, ly] = __padStick(g.axes[2] || 0, g.axes[3] || 0);
+  if (mx || my || lx || ly || g.buttons.some((x) => x && x.pressed)) __usePad = true;
   // RB state machine: press starts the tap/hold clock; the hold raises the selector; face-button
   // press EDGES while RB is down chord a slot (and mark the press so release doesn't also cycle);
   // a chordless release inside the tap window is the cycle.
@@ -984,6 +986,7 @@ function __pollPad() {
     cycle, slot,                               // RB tap / RB chord (the selector)
     swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
     lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)
+    interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)
   };
 }
 // the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
@@ -997,10 +1000,12 @@ function __ctlLegend(pil) {
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
 }
 let __prevJump = false;             // for the jump PRESS edge (platform rule) vs held (variable height)
+let __prevInteract = false, __interactN = 0;   // interact press edges, counted for the events channel (a use where the figure stands)
 let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-5)
 let __prevSwap = false;                    // suit-switcher press edge (T)
 let __prevTackle = false;                  // tackle press edge (Shift) — platform rule, opt-in r.tackle
@@ -1016,7 +1021,14 @@ window.addEventListener('message', (e) => {
   if (d && d.moj === '${GAME_MSG_AI}' && typeof d.on === 'boolean') __aiWant = d.on;
 });
 function __readInput() {
+  // a menu is up (events channel): the figure takes nothing — not a key held as it opened, not the pad, not the look.
+  // The edges read as held, so the key that picked doesn't jump or interact again when the menu goes.
+  if (window.__mojMenuOpen) { __lookDX = 0; __lookDY = 0; __fireDown = false; __prevJump = true; __prevInteract = true; return { ...__CW.ZERO_INPUT }; }
   const __pad = __pollPad();   // null when no controller (or prefs turned it off)
+  // INTERACT (use / talk) press edge: counted; the events channel sends use-<place> when the figure stands in reach
+  const it = __k('interact') || !!(__pad && __pad.interact);
+  if (it && !__prevInteract) __interactN++;
+  __prevInteract = it;
   const sp = __k('jump') || !!(__pad && __pad.jump);
   const jump = sp && !__prevJump ? 1 : 0;   // rising edge: a discrete press, not a held axis
   __prevJump = sp;
@@ -1081,7 +1093,8 @@ function __readInput() {
     // look worlds steer with the stick/mouse — left stick X strafes (matching how A/D fold
     // into sideIn there); tank-turn worlds keep left stick X as the turn axis.
     turn: __kx('turnRight', 'turnLeft') || (__MOUSELOOK ? 0 : __pmx),
-    strafe: __kx('strafeRight', 'strafeLeft') || (__MOUSELOOK ? __pmx : 0),
+    // in reach (window.__mojReach, the events channel's) the interact controls interact and don't strafe
+    strafe: (window.__mojReach ? __CTL.value(__BIND, 'strafeRight', 'keyboard', __kbRead, __BIND.bind.keyboard.interact) - __CTL.value(__BIND, 'strafeLeft', 'keyboard', __kbRead, __BIND.bind.keyboard.interact) : __kx('strafeRight', 'strafeLeft')) || (__MOUSELOOK ? __pmx : 0),
     lift: __kx('jump', 'descend') || (__pad ? (__pad.jump ? 1 : 0) - (__pad.kneel ? 1 : 0) : 0),
     jump, jumpHeld: sp ? 1 : 0,
     boost: __k('boost') || (__pad && __pad.boost && !__veh) ? 1 : 0,   // thrusters (platform rule): held = boost locomotion
@@ -2424,5 +2437,5 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev) };`;
+window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
 }
