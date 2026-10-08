@@ -11,15 +11,19 @@
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
  *     stop                    end a walk or a hold
+ *     status { is, for?, color? }   (color: [r, g, b], or a burning element's colorant) it carries an element (playscape/elements) from now, for `for` seconds or until
+ *                         lifted: e.statuses[is] = { t0, until, color? } on the world clock (the page draws it)
+ *     lift { is? }            take one status off, or all of them
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
- *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck
+ *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
+ *     out, here, or was lifted)
  *     (the first read seeds; nothing a world was minted with fires)
  *
  * A walk is a BODY OWNER (the rule waits while it walks or holds); so is a cast fall. A second of walking that closes
  * less than a sixth of its pace is stuck: the walk drops and `stuck` fires (a solid body in the way, a wall).
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function; core precedes it in EMISSION. Field ownership:
- * e.route, e.held, e.pose, e.castDown, e.arrivals, e.arrivedAt, e.arrivedLast, e.stucks.
+ * e.route, e.held, e.pose, e.castDown, e.arrivals, e.arrivedAt, e.arrivedLast, e.stucks, e.statuses, e.faded.
  */
 
 export function buildCast(E) {
@@ -110,6 +114,14 @@ export function buildCast(E) {
           face: Number.isFinite(o.face) ? o.face * DEG : null, pose: typeof o.pose === 'string' ? o.pose : null,
         };
       } else if (o.op === 'stop') { e.route = null; e.held = false; e.moving = false; }
+      else if (o.op === 'status') {
+        if (typeof o.is !== 'string' || e.gone) continue;
+        const t = state.time || 0;
+        (e.statuses || (e.statuses = {}))[o.is] = { t0: t, until: Number.isFinite(o.for) && o.for > 0 ? t + o.for : null, ...(Array.isArray(o.color) ? { color: o.color.slice(0, 3) } : typeof o.color === 'string' ? { color: o.color } : {}) };
+      } else if (o.op === 'lift') {
+        if (!e.statuses) continue;
+        for (const k of Object.keys(e.statuses)) if (o.is == null || o.is === k) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); }
+      }
     }
   }
 
@@ -126,6 +138,9 @@ export function buildCast(E) {
       if (!cur.g && p.g) events.push({ type: 'spawned', entity: e.id });
       if (cur.a > p.a) events.push({ type: 'arrive', entity: e.id, at: e.arrivedAt, last: e.arrivedLast ? 1 : 0, ...(e.arrivedLast && e.pose ? { pose: e.pose } : {}) });
       if (cur.s > p.s) events.push({ type: 'stuck', entity: e.id });
+      // statuses run out on the world clock; a lifted one was queued by the op
+      if (e.statuses) for (const k of Object.keys(e.statuses)) { const u = e.statuses[k].until; if (u != null && (state.time || 0) >= u) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); } }
+      if (e.faded && e.faded.length) { for (const k of e.faded) events.push({ type: 'faded', entity: e.id, is: k }); e.faded.length = 0; }
     }
     return { events, prev: next };
   }

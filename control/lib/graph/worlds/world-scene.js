@@ -513,12 +513,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // fire (flame-depiction): live flames that light the world. A kind that knows where its fires are hands them over as
   // payload.fireSources (a dungeon's chambers and tunnels; a terrain's sources set on the ground); `fire.sources` with
   // a 3D `at` add to them anywhere. Opt-in; absent ⇒ byte-identical.
-  if (payload && sketch.manifest.fire) {
+  // A play block's burning statuses (playscape elements burning / blaze) add a fire per body they may set alight.
+  const bodyFire = payload && sketch.manifest.play ? (await import('@/lib/graph/playscape/elements/body-fire.js')).bodyFires(sketch.manifest.play, sketch.manifest.entities) : [];
+  if (payload && (sketch.manifest.fire || bodyFire.length)) {
     const { validateFire, resolveFire, firePageChannel } = await import('@/lib/graph/fire/fire.js');
     const errs = validateFire(sketch.manifest.fire);
     if (errs.length) throw new Error(`fire is invalid — see get_view_vocab({ id: 'dungeon' }) or ({ id: 'terrain' }), "Fire":\n- ${errs.join('\n- ')}`);
-    const placed = payload.fireSources || [];
-    const r = resolveFire(sketch.manifest.fire, placed, { explicit: !payload.fireSourcesAll, spread: payload.fireSpread || null });
+    const placed = [...(payload.fireSources || []), ...bodyFire];
+    const r = resolveFire(sketch.manifest.fire || {}, placed, { explicit: !payload.fireSourcesAll, spread: payload.fireSpread || null });
     if (r) payload.fire = firePageChannel(r, { terrainAir: !!payload.terrain, day: payload.sky && Number.isFinite(payload.sky.day) ? payload.sky.day : 0 });
   }
   if (payload) { delete payload.fireSources; delete payload.fireSourcesAll; delete payload.fireSpread; }

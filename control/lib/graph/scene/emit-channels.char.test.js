@@ -51,6 +51,10 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-08 (places): the bus's zone step skips a character asleep or sent away (`gone`), now that a cue's
 // zone may watch the cast; the engine's body step gains box bodies (`body.collide.box`). Worlds without them move the
 // same: the controllable trace pins hold.
+// Re-pinned 2026-10-08 (elements): the engine's cast gains the `status` and `lift` ops and the `faded` fact (statuses
+// on the world clock). Events pages are unchanged unless their cues put a status on someone (then the status channel
+// and the bodies map ride along); the controllable trace pins hold. The status op keeps a burning element's colorant
+// name (fire/fire.js carries a body's fire to its body; pages without one are unchanged).
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

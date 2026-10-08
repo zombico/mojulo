@@ -256,7 +256,12 @@ const shown = UI_STATES.indexOf('shown');
  */
 export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new Set(), end = null, ttl = null, places = [] } = {}) {
   for (const t of ts) {
-    if (t.kind === 'cast') { lowerCastEffect(t, on, frag, places); continue; }
+    if (t.kind === 'cast') {
+      lowerCastEffect(t, on, frag, places);
+      // a status with no time of its own comes off when the cue ends (as a shown part hides)
+      if (end && t.op === 'status' && t.for === undefined) frag.reactions.push({ on: end, do: 'ctrl', op: 'lift', who: t.who, is: t.is });
+      continue;
+    }
     if (t.kind === 'say') {
       const life = t.ttl ?? ttl ?? (t.as === 'prompt' ? PROMPT_TTL : undefined);
       if (t.page) frag.hud.push({ on, ...(t.as === 'toast' ? { as: 'toast' } : {}), text: t.say, slot: t.region, ...(life ? { ttl: life } : {}) });

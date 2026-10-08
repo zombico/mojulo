@@ -32,6 +32,7 @@ export const UI_LAWS = Object.freeze({
   'spawn-asleep': 'Who appears by a spawn is minted asleep (dormant: true), or sent away before.',
   'stuck-retry': 'A cue on stuck that sends the same walk again fires once (once: true) or goes somewhere else; it would retry every second.',
   'round-collide': 'A collide egg is round on the ground: a wide heavy thing (a gate, a counter) blocks with a box.',
+  'status-lifts': 'A status with no time of its own comes off: its cue ends, or something lifts it.',
 });
 
 // moments and held overlays pass through a region; the budget is what stands
@@ -96,6 +97,17 @@ export function uiAdvice(play, ui = play && play.ui, { anchors = null, entities 
     for (const s of refs.spawns) {
       const e = entities.find((x) => x && x.id === s);
       if (e && e.dormant !== true && !refs.vanished.includes(s)) out.push({ law: 'spawn-asleep', at: s, advice: `${s} is up from the start and nothing sends it away, so its spawn only moves it; mint it asleep (dormant: true) to have it appear` });
+    }
+  }
+  // a status with no time, on a cue that never ends, that nothing lifts: it stays for good
+  const lifts = [...cues.flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))].filter((t) => t.kind === 'cast' && t.op === 'lift');
+  for (const c of cues) {
+    // a cue that ends (an until, a near, a use at a place: walking off) takes its untimed statuses with it
+    if (c.until || c.when.kind === 'use') continue;
+    for (const t of c.then) {
+      if (t.kind !== 'cast' || t.op !== 'status' || t.for !== undefined) continue;
+      if (lifts.some((l) => (l.who === t.who || l.who.includes('*')) && (!l.is || l.is === t.is))) continue;
+      out.push({ law: 'status-lifts', at: `cue ${c.id}`, advice: `${t.who} keeps ${t.is} for good: give it for: seconds, an until on the cue, or a lift` });
     }
   }
   // a stuck walk sent again from its own stuck, every time: it loops once a second

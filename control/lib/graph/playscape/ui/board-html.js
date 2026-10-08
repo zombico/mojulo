@@ -249,11 +249,11 @@ export function whenWords(w) {
   if (w.kind === 'var') { const sym = { gte: '≥', gt: '>', lte: '≤', lt: '<', eq: '=', ne: '≠' }; return `${w.var} ${Object.keys(sym).filter((k) => w[k] !== undefined).map((k) => `${sym[k]} ${w[k]}`).join(' and ')}`; }
   if (w.kind === 'on') return `the bus says ${w.on}${w.match ? ` (${Object.entries(w.match).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`;
   if (w.kind === 'ttl') return `${w.ttl} s`;
-  if (CAST_WHEN[w.kind]) return `${w.who} ${{ down: 'falls', gone: 'is sent away', spawned: 'appears', arrive: 'arrives', stuck: 'is stuck' }[w.kind]}${w.at ? ` at ${w.at}` : ''}`;
+  if (CAST_WHEN[w.kind]) return `${w.who} ${{ down: 'falls', gone: 'is sent away', spawned: 'appears', arrive: 'arrives', stuck: 'is stuck', faded: w.is ? `is no longer ${w.is}` : 'loses a status' }[w.kind]}${w.at ? ` at ${w.at}` : ''}`;
   return 'the level starts';
 }
 const place = (p) => (Array.isArray(p) ? `[${p.slice(0, 2).join(', ')}]` : p);
-const castWords = (t) => (t.op === 'walk' ? `${t.who} walks to ${t.to.map(place).join(' → ')}${t.then && t.then !== 'stay' ? ` (${t.then})` : ''}` : t.op === 'spawn' ? `${t.who} appears${t.at ? ` at ${place(t.at)}` : ''}` : t.op === 'hurt' ? `${t.who} −${t.by} hp` : t.op === 'heal' ? `${t.who} +${t.by ?? 'all'} hp` : `${{ vanish: 'send away', kill: 'fell', stop: 'stop' }[t.op]} ${t.who}`);
+const castWords = (t) => (t.op === 'walk' ? `${t.who} walks to ${t.to.map(place).join(' → ')}${t.then && t.then !== 'stay' ? ` (${t.then})` : ''}` : t.op === 'spawn' ? `${t.who} appears${t.at ? ` at ${place(t.at)}` : ''}` : t.op === 'hurt' ? `${t.who} −${t.by} hp` : t.op === 'heal' ? `${t.who} +${t.by ?? 'all'} hp` : t.op === 'status' ? `${t.who} is ${t.is}${t.for ? ` for ${t.for} s` : ''}` : t.op === 'lift' ? `${t.who} loses ${t.is || 'every status'}` : `${{ vanish: 'send away', kill: 'fell', stop: 'stop' }[t.op]} ${t.who}`);
 const thenWords = (t) => (t.kind === 'cast' ? castWords(t) : t.kind === 'say' ? `${t.as} “${t.say}” at ${t.region}` : t.kind === 'state' ? `${t.part} → ${t.to}` : t.kind === 'phase' ? `phase → ${t.phase}` : t.kind === 'open' ? `open menu ${t.menu}` : t.kind === 'close' ? `close ${t.menu ? `menu ${t.menu}` : 'the menu'}` : t.kind === 'set' ? `${t.var} = ${t.to}` : t.kind === 'emit' ? `emit ${t.event}` : `${t.kind} ${t.part}`);
 
 /** ui:cues — every cue as when → then → until; ◦ marks an effect the page does not draw yet (set on the bus). */

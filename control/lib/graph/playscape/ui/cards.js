@@ -18,6 +18,7 @@ import { SYSTEMS, SYSTEM_IDS } from './systems.js';
 import { CUE_WHEN, CUE_THEN, SAY_AS, lowerCues, ANCHOR_REACH } from './cues.js';
 import { SPOT_POSES } from './cast.js';
 import { MENU_KINDS, MENU_IDS } from './menus.js';
+import { ELEMENTS as STATUS_ELEMENTS, ELEMENT_IDS as STATUS_IDS } from '../elements/elements.js';
 import { BORDER_ELEMENTS, ELEMENT_IDS, BORDER_FLAVORS, FLAVOR_IDS, PIXEL_SIZES } from './borders.js';
 
 // one ladder: the play tiers (click, walk, level, game) and the UI rungs merged; a rung admits itself and all below
@@ -183,7 +184,7 @@ function menusCard() {
     'A talk\'s choices and a confirm\'s yes / no do cue effects (say, show, hide, state, phase, open, close, set, emit);',
     'picking one closes its menu unless it opens another. A choice with no then just closes it.',
     'NO LOOK OF ITS OWN: the world\'s UI guide (play.ui) dresses every menu as it dresses the parts; style keys are refused.',
-    'Designed on the board today; the page draws menus in a later step. Picks\' set and emit already run on the bus.',
+    'The page draws them over the play and they answer the keys (arrows or W / S, Enter, Esc) and the pad; the figure waits.',
     `example: ${JSON.stringify([MENU_KINDS.talk.example, MENU_KINDS.shop.example])}`,
   );
 }
@@ -207,6 +208,18 @@ function partCard(id) {
   );
 }
 
+function elementsCard() {
+  return lines(
+    'ELEMENTS — what a character is going through, drawn on its body as it moves: a fresnel coat (a rim glow over its own',
+    'surfaces, "this is happening now") and the element\'s marks round it. Put on and taken off by cues and menu choices:',
+    `  then: { status: { who, is, for?, color? } } (for: seconds; none: until lifted or the cue ends) · { lift: who | { who, is? } }`,
+    `  when: { faded: who | { who, is } } (it ran out or was lifted)`,
+    ...STATUS_IDS.map((id) => { const E = STATUS_ELEMENTS[id]; return `  ${id.padEnd(10)} ${E.says} For ${E.when}. (${E.tone}, ${E.motion}, coat ${E.coat.shape})`; }),
+    'VALUES FIRST: each reads apart with the colour taken out (light or dark, motion, coat); ?values on the page shows it in greys.',
+    `example: ${JSON.stringify({ id: 'black-flash', when: { down: 'guard' }, then: { status: { who: 'hero', is: 'kokusen', for: 0.6 } } })}`,
+  );
+}
+
 let CARDS = null;
 /** Every card, by id. */
 export function playCards() {
@@ -223,6 +236,7 @@ export function playCards() {
     ['ui-shared', 'Shared status', 'whose value a part shows (of) and who may see it (audience)', 'multiplayer: nameplates, scoreboards, team status', sharedCard()],
     ['ui-cues', 'Cues', 'the UI answering the game: when a happening, then an effect, until another', 'a prompt near a door, a pickup toast, an area name, a low-health alert, a hint', cuesCard()],
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
+    ['play-elements', 'Elements', 'statuses drawn on a character: a fresnel coat and an element\'s marks (ward, heal, drain, kokusen, …)', 'a shield, a heal, poison, powering up, a black flash, a goal marker', elementsCard()],
     ['ui-pace', 'Pace', 'glance, scan or study: how densely the UI may be read', 'a twitch HUD vs a management screen', paceCard()],
     ...PART_IDS.map((p) => [`ui-part-${p}`, `Part: ${p}`, PARTS[p].about, `a ${p} on screen`, partCard(p)]),
   ];
@@ -249,7 +263,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'play-elements', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }

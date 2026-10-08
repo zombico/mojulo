@@ -294,6 +294,27 @@ This step builds the contract and the approval gate. No rung is served yet.
   what it did. A shop's buying waits on an "afford it?" check the bus doesn't have yet: picking from its stock only
   closes it.
 
+### Elements
+
+- **The juice verbs come into playscape as elements.** Enchant, heal, charge, hit, accumulate, ward, sparkle, drain,
+  aura and beacon, plus kokusen (black-flash lightning) and the ssj aura, which the sprite backend had left behind
+  because they darken rather than glow. Each element says what it means and when to reach for it, and is designed in
+  values first (light or dark, how strong, how fast it breathes, how it moves); colour comes after.
+- **A fresnel coat.** A live element wraps its body in a rim glow that breathes at the element's pace: the mark of
+  "this is happening now", and the base every element's motion stands on. A dark element's coat and bolts are black.
+  Kokusen's bolts are black strokes over a red glow edge, each struck with its own weight, kinked node to node and
+  tapering to a hairline, some forking, so no two read as the same line; the other elements' marks leave short trails
+  and differ in size.
+- **Fire as an element.** `burning` (flames licking up the body) and `blaze` (engulfed from the feet) are the world's own
+  fire, not sprites: its flames, embers and smoke, lighting what is near. Each burning status a play may set is one
+  fire, carried by its body and burning only while the status is on; its `color` is a colorant, so copper burns blue,
+  barium green, strontium red and potassium lilac. A body's fire stands on no prop and lights the world at a share of a
+  standing fire's light, so its own body is not washed out.
+- **Statuses on the bus.** Cues and menu choices put an element on a character (`{ status: { who, is, for?, color? } }`)
+  and take it off (`{ lift: who | { who, is? } }`); `{ faded: who | { who, is } }` fires when one runs out or is lifted.
+  A status without `for` comes off when its cue ends. The effect follows the character as it moves. A page carries
+  this only when its cues use statuses, and only the elements they name. `?values` on the page shows it in greys.
+
 ### Places
 
 - **Box bodies.** `body.collide: { box: [hx, hy, hz?] }` is an axis-aligned box of those half sizes round the body's
