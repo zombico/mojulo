@@ -12,6 +12,93 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Scapeshift structures
+
+Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a world yet.
+
+- **Elements first.** A town's elements are designed before any building is composed
+  (`lib/graph/era/out-anchor-elements.js`): building elements (the wall and its bond, the cap, the light, the door, the
+  socle, cornice, sills, lintels, quoins, shutters, chimney, points, ribs, bands, frame) and street elements (road,
+  footway, kerb, lamp, post, fence). Each is a set of rules, not a shape: every param has a rail and says whether the
+  street holds it (storey height, pitch, eave, the lights' head line, the bond) or a house may vary it (a bay ± 12 %, a
+  light more or fewer, a dome's rise), or whether it is a household's choice (shutters, ribs, by share); each has a
+  depth and reads at a ring as geometry, a mark in the tile, or not at all. An element off its rail, an unknown kind,
+  or a detail its mass cannot carry (sills on a shell, a cornice with no eave) is refused, saying why.
+- **The anchor is a citizen in its slice of street.** The anchor is composed from its elements as the town's ordinary
+  house, at full effort; every other use is a promotion of it (a counter, a work floor, the hall with the accent, the
+  tower that dares height). It stands in a slice of street (road, kerb, footway, lamp, posts) that every route in the
+  town is laid in, stepped down the ranks: the lane in the anchor's road paving with full footways, a branch narrower,
+  a back lane earth with none; lots stand behind the footways. Lamps, posts and fences in the town are built from the
+  anchor's elements at their strides. `seedAnchor(n)` draws elements first, each choice constraining the next, then the
+  composition they allow.
+- **A town is spoken from one anchor structure.** No house shape is stored. A town names a single anchor structure
+  (`lib/graph/era/out-anchor-structure.js`), built black and white and in pieces from a small generic vocabulary
+  (masses: block, drum, shell; caps: gable, hip, pyramid, dome, cone, flat; lights: rect, arch, round, lens; entries:
+  door, tunnel; ornaments: point, chimney, rib, band, frame, shutters; relations: annex, tiers), each piece a value on a
+  surface group. `decompileAnchor` reads it into the town's language (vocabulary, normalised proportions, rhythm,
+  values, the depth each piece is spoken at); the grammar refuses what it does not allow (a cone on a block, a door in
+  a curved wall), saying why. `speak` builds every building from the language on its lot and programme: the plan from
+  the lot inside the anchor's reach, storeys from the need, the anchor's cap at its pitch, its lights in its rhythm,
+  its ornaments at their counts, households varying inside the language and mirroring their plans. It is fractal:
+  what a plan cannot hold is the language again behind (an annex, a depth shallower), a focus that must stand over the
+  street takes a taller storey, a steeper cap, or the language once more on top; the ring prunes the tree (far is one
+  envelope) and the eye spot gates every piece. Three anchors are authored (a timber house, a shell, a tiered
+  tower-house) and `seedAnchor(n)` draws one from the grammar by a number; `roundTrip` checks the decompile is faithful.
+  A kit's craft is its `chunk` and its default anchor; a town recipe's `anchor` names another (an id, pieces, or
+  `{ seed }`).
+- **What every building answers to, whatever its anchor** (`lib/graph/era/out-structures.js`): the uses as programmes,
+  the rings and the eye spot (a part is geometry at a ring only where its least span covers 12 frame px at the ring's
+  read distance; smaller marks go into the tile, smaller things on the silhouette are not built), budgets by ring, the
+  laws of scale (storey, door, one-leads, value-order, eye-spot, budget, programme) and the anchor's laws
+  (speaks-the-anchor, reach, sheds, rise, rhythm, ornament-even), measured on every building; they advise.
+- **Roofs are laid in courses.** Pitched caps carry their covering's courses as shadow lines clipped per slope (tile,
+  shingle, slate; thatch none, rolled at the ridge), drawn in the tile; the ridge cap is geometry where it covers the
+  eye spot.
+- **Values first, paint second.** Every piece is built in values on a surface group (`str:plaster`, `str:tile`,
+  `str:lens`, `str:accent`, `town:grass`, `dress:timber`, …); no builder reads a colour. The style guide paints as a
+  separate concern (`lib/graph/era/out-structures-paint.js`): each group a kit ramp, the lit value picks the stop, the
+  accent kept for the one surface that marks a use, a cap on its walls' ramp a stop under them, trim on a cap's ramp a
+  stop over it; its law checks the paint keeps the anchor's value order. The alien-night swatches gain a blue `lens`
+  ramp.
+- **The secondary.** Every anchor has a counterpoint derived from its elements by contrast rules (`deriveSecondary`,
+  `secondaryOf`; `SECONDARY_RULES`): it shares the street, the storey height, the door, the lights' form, the ground
+  storey and the details, and turns the rest: a compact square plan, a pyramid 12° steeper (a cone over a drum or a
+  shell's), the anchor's neighbouring covering (never its walls' material), a dark boarded body in a pale street or a
+  pale one in a dark street, lights 0.85 × 1.15, a finial and a band at every storey. The town sets secondaries as
+  punctuation (corners and run ends in a fuller town, then a rhythm by the recipe's `secondary` 0…1, never two
+  together), each in the lowest band that rises a metre over both neighbours and under the hall round the square, or
+  a citizen where none fits; law `secondary`. They wear the anchor's paint fitted to their own values.
+- **Heartbeats and ruled paint.** A town's `heartbeat` (hamlet, village, market, burgh) is its height as a curve: a band
+  of storeys at the heart and at the edge, eased by distance off the square, a back lane a storey lower; every citizen
+  keeps to it (a shell as far as its rise allows). Citizens are painted by ruled variation of the anchor's paint
+  (`streetPaints`): roofs hold, walls step a stop or swap among the group's kit ramps, neighbours on a frontage differ,
+  every variant keeps the value order, the focus and the landmark wear the anchor's own. The painter fits a paint to a
+  language (`fitPaint`: a cap over its walls steps down, or the walls up) and never lets a covering sink to the
+  openings' stop; a tower told to stand taller climbs by storeys first. Town laws `street-holds`,
+  `heartbeat`, `section`; paint laws `roofs-hold`, `neighbours-differ`, `variants-keep-values`. A building past its
+  ring's budget puts its finest details (quoins, lintels, sills, shutters) into the tile first.
+- **A town is drawn path first** (`lib/graph/era/out-town.js`). The lane sways with the trail and forks at the reveal
+  into the square, a branch climbs from it through up to two terraces (each held by a retaining wall and climbed by a
+  flight whose going is the man-made index's `steps`) to the landmark, an upper lane runs along the first terrace, a
+  back lane behind the frontage, a second way drops to a pocket. Lots are cut from every frontage in walking order on an
+  occupancy grid, each use by cause, each ring by distance off the walk; the mid ring repeats in pairs, the far ring is
+  farmsteads in their fields; the focus and the landmark are told how tall to stand. Paving is the route's rank, door
+  paths cross each front; the back lane yields behind the square so the hall keeps its ground. The recipe (`length`,
+  `sway`, `branches`, `levels`, `back`, `farms`, `heartbeat`, `dress`, `paint`, `anchor`) is read against the town card
+  and refused anything else.
+- **Town interceptors dress it** (`lib/graph/era/out-town-dress.js`): lamps, posts, wells, market stalls, benches,
+  carts, barrels, woodpiles, planters, fences, signs and trees, each a site finder over the map, a grower and an
+  aggressiveness 0…1, seeded and capped, never on the walk but for lamps, posts and signs.
+- **The sheet.** `lib/graph/era/out-structures-html.js` draws the Outdoor Structures Index: the elements (each drawn on
+  its own, its holds and how it reads by ring), the citizen in its slice of street (axonometric and in section), the
+  anchor in pieces and its language, the language spoken on every use (by depth, by ring, by household), one frontage
+  of six households with the street's lines drawn across it, the secondary (its derivation, rule by rule, and a
+  frontage with it set in as skyline, values and paint), the town in miniature (a top-down map and an
+  axonometric), the heartbeats (curves and a frontage in elevation at each), a gallery of other anchors and the towns they speak, values and paint, one use on five lots,
+  routes and levels, paving, the interceptors, the vocabulary, the laws, roofs by covering, every kit. The drawer is
+  `era/out-structures-draw.js`, the town's cards `era/out-town-html.js`. `node scripts/out-sheet.mjs
+  <index|flora|structures> [out.html] [--seed N] [--kit id]` writes any of the outdoor sheets to disk.
+
 ### Handedness
 
 - The still camera is right-handed. The pinhole projector behind every SVG still and the CSS-3D scene

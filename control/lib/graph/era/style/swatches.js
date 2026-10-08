@@ -112,6 +112,8 @@ export const SWATCHES = Object.freeze({
       stone: 'rock',
       rope: [[40, 30, 60], [80, 64, 100], [130, 112, 150], [180, 166, 200]],
       paint: 'glow',
+      // the lights a shell is set with: a deep blue lens
+      lens: [[24, 40, 110], [40, 80, 180], [80, 140, 230], [150, 200, 250], [220, 240, 255]],
     },
     accent: ['glow', 2],
   },
