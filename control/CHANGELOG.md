@@ -22,9 +22,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Characters, mechanics and the people of the civilizations are left open.
 - The gameworld graph: worlds, kits, civilizations, languages, fortifications, levels, sections and places as nodes,
   with typed edges (contains, styled, drawn-in, settled-by, built-by, speaks, raises, seam, leads, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
-- The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the style, a card for each civilization
-  (its houses, its castle, what its language makes of a castle, where it builds), a page for each level (its walk,
-  its places and who built them, what it overrides) and the open sections.
+- The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the natural world, a card for each
+  civilization (its houses, its castle, what its language makes of a castle, where it builds), the style and color
+  key, a page for each level (its walk, its places and who built them, what it overrides) and the open sections.
+- The natural world: each kit the world is drawn in, its land designed as the buildings are: the land index's forms
+  at the variant and the step from little to many the world chose (a level may choose its own, kept in its ledger),
+  each step's strip beside it as guidance, and the kit's card (trees, grass, water, sky by day or night with its
+  moon, light, air, far layers). A kit's own land is read from its style card where the world leaves it. The style
+  and color key lays out every kit's ramps, shadow to light, and what each one paints. Creatures are left open.
+- The bible is scapeshifting's approval gate (`gameworld/review.js`): a world is reviewed in parts (its shape, its
+  natural world, its civilizations, its color key, each level), each with a fingerprint of what it resolves to. The
+  creator's verdicts live in the recipe (`review`: approved on a print, sent back with a note, or waiting); an
+  approval whose part has changed since stands stale and the part comes back. The cover lists every stamp and what
+  to look at next; each section carries its own.
+- Autonomous mode (`gameworld/compose.js`, `out-sheet.mjs gameworld --auto "a few words"`): a whole gameworld from a
+  prompt. Its words are read against a lexicon of what they say about the ground (a kit, a building language, a
+  fortification, the land's forms and how much of each, the ground's character); the seed decides the rest inside
+  the same rails; a level whose town's laws advise is laid again on the next seed. Every unreviewed part is stamped
+  by its machine gate (auto, or revise), never approved; the bible shows the prompt and what each word decided.
+- The land index (`era/out-land.js`, `out-sheet.mjs land`), beside the flora index: six forms (the lie of the
+  ground, rock formations, the sediment in a cliff, what a cliff's face is built of, clouds, natural landmarks), each
+  a few primitives under a few dials with named variants, a little-to-many dial in five named steps (flat to rugged,
+  bare to a field, massive to laminated, smooth to shattered, clear to overcast, alone to a range), built by reveal
+  ring inside a face budget and skinned by a kit's ramps.
 
 ### Scapeshift structures
 

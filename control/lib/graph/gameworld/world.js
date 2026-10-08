@@ -2,8 +2,10 @@
  * THE GAMEWORLD — a game is a series of levels, and a gameworld is what they share. The world carries the broad
  * strokes in two concerns:
  *
- *   STYLE           the ground: the kit it is drawn in (palette, tiles, light, flora) and its character (how trails
- *                   rise and fall, how climbs are built), and which civilization builds where no one else is named
+ *   STYLE           the ground: the kit it is drawn in (palette, tiles, light, flora), its character (how trails
+ *                   rise and fall, how climbs are built), its LAND (era/out-land.js: each form's variant and where it
+ *                   stands from little to many: its clouds, rocks, cliffs, landmarks), and which civilization builds
+ *                   where no one else is named
  *   CIVILIZATIONS   who builds on it: each its building language, its fortification, how it lays out a town and
  *                   raises a castle. A world keeps as many as it likes; a level is settled by one, and any town or
  *                   castle on it may be built by another (a conqueror's castle over an older town). Only what a
@@ -15,7 +17,7 @@
  *
  *   gameworld: {
  *     id, name?, seed?,
- *     style?: { kit?, civilization?, trail?: {…}, meru?: {…} },
+ *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, land?: { <form>: variant | many | { variant?, many? } } },
  *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…} } },
  *     levels: { '<id>': {
  *       name?, seed?,                     // the seed derives from the world's and the level's id unless named
@@ -26,6 +28,7 @@
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
  *     characters?, mechanics?,            // reserved: what is not on the ground is left open
+ *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
@@ -37,6 +40,7 @@ import { readLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from '../era/out-town.js';
 import { readCastlePlan } from '../era/out-castle.js';
 import { readLevel } from '../level/graph.js';
+import { LAND_FORMS, LAND_FORM_IDS } from '../era/out-land.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -44,6 +48,7 @@ export const WORLD_STYLE = Object.freeze({
   civilization: 'the civilization that builds where no other is named',
   trail: 'the ground\'s character on a trail: run, heartbeat, bumpiness',
   meru: 'how a climb is built: its preset',
+  land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
 });
 /** A civilization: what it builds, and how. */
 export const CIVILIZATION = Object.freeze({
@@ -66,7 +71,8 @@ export const RESERVED = Object.freeze(['characters', 'mechanics']);
 export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
-const KEYS = ['id', 'name', 'seed', 'style', 'civilizations', 'levels', 'links', 'start', ...RESERVED];
+// mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'style', 'civilizations', 'levels', 'links', 'start', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -94,8 +100,24 @@ function readStyle(s, at) {
       const id = resolveKitId(v);
       if (!STAGE_KITS[id] || !STAGE_KITS[id].shell) throw new Error(`gameworld: ${at}.kit '${v}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].shell).join(', ')})`);
       out.kit = id;
-    } else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
+    } else if (k === 'land') out.land = readLand(v, `${at}.land`);
+    else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
+  }
+  return out;
+}
+// the land: each form a variant, a step from little to many (0…1), or both
+function readLand(v, at) {
+  if (!isObj(v)) throw new Error(`gameworld: ${at} is { ${LAND_FORM_IDS.join(', ')} }`);
+  const out = {};
+  for (const [f, x] of Object.entries(v)) {
+    if (!LAND_FORMS[f]) throw new Error(`gameworld: ${at}.${f} is not a land form (${LAND_FORM_IDS.join(', ')})`);
+    const o = typeof x === 'string' ? { variant: x } : typeof x === 'number' ? { many: x } : isObj(x) ? { ...x } : null;
+    if (!o) throw new Error(`gameworld: ${at}.${f} is a variant, a step from little to many (0…1), or { variant, many }`);
+    for (const k of Object.keys(o)) if (!['variant', 'many'].includes(k)) throw new Error(`gameworld: ${at}.${f}.${k} is not a land setting (variant, many)`);
+    if (o.variant !== undefined && !LAND_FORMS[f].variants[o.variant]) throw new Error(`gameworld: ${at}.${f}.variant '${o.variant}' is not a ${f} (${Object.keys(LAND_FORMS[f].variants).join(', ')})`);
+    if (o.many !== undefined && !(typeof o.many === 'number' && o.many >= 0 && o.many <= 1)) throw new Error(`gameworld: ${at}.${f}.many is a step from little (0) to many (1)`);
+    out[f] = o;
   }
   return out;
 }
@@ -112,14 +134,15 @@ function readCivilization(c, at) {
 // one style laid over another: the scalars replaced, the groups merged key by key
 const over = (base, top) => {
   const out = { ...base };
-  for (const [k, v] of Object.entries(top)) out[k] = GROUPS[k] ? { ...(base[k] || {}), ...v } : v;
+  for (const [k, v] of Object.entries(top)) out[k] = k === 'land' ? Object.fromEntries([...new Set([...Object.keys(base.land || {}), ...Object.keys(v)])].map((f) => [f, { ...(base.land?.[f] || {}), ...(v[f] || {}) }])) : GROUPS[k] ? { ...(base[k] || {}), ...v } : v;
   return out;
 };
 // what `top` changes of `base`, as ledger entries
 function differences(base, top, scope, at) {
   const out = [];
   for (const [k, v] of Object.entries(top)) {
-    if (GROUPS[k]) { for (const [g, w] of Object.entries(v)) if (!same(base[k]?.[g], w)) out.push({ scope, at, key: `${k}.${g}`, world: base[k]?.[g] ?? null, local: w }); }
+    if (k === 'land') { for (const [f, o] of Object.entries(v)) for (const [g, w] of Object.entries(o)) if (!same(base.land?.[f]?.[g], w)) out.push({ scope, at, key: `land.${f}.${g}`, world: base.land?.[f]?.[g] ?? null, local: w }); }
+    else if (GROUPS[k]) { for (const [g, w] of Object.entries(v)) if (!same(base[k]?.[g], w)) out.push({ scope, at, key: `${k}.${g}`, world: base[k]?.[g] ?? null, local: w }); }
     else if (!same(base[k], v)) out.push({ scope, at, key: k, world: base[k] ?? null, local: v });
   }
   return out;
