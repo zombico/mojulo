@@ -402,5 +402,8 @@ export function expandPlan(plan) {
   if (plan.clips) recipe.clips = plan.clips;
   // motion (opt-in, fauna/rig.js): a minted animal's gaits, packed at read time from its skeleton; absent ⇒ byte-identical
   if (plan.motion) recipe.motion = plan.motion;
+  // locomotion (opt-in, hero-motion.js): a hero's gaits from the door's `motion`, compiled on the rig where its clips are
+  // packed; absent ⇒ byte-identical
+  if (plan.locomotion) recipe.locomotion = plan.locomotion;
   return recipe;
 }

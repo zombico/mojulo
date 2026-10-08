@@ -985,7 +985,18 @@ class GlbBuilder {
     if (!channels.length) return;
     if (face) this.addWeightsChannel(samplers, channels, face, times[outKeys - 1]);
     if (!this.json.animations) this.json.animations = [];
-    this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels });
+    // a locomotion clip's ground speed (`v`, hero-motion.js) rides the animation as `moj:speed` — metres a second in the
+    // exported scene (the root's metres per unit applied): any engine plays the cycle at planar speed ÷ moj:speed
+    const mpu = this.rootScale ? this.rootScale[0] : 1, r4 = (x) => Math.round(x * 1e4) / 1e4;
+    // a jump's air (hero-jump.js) rides as `moj:jump`: take-off, touch-down, apex (and a double jump's kick) in seconds,
+    // heights in the exported scene's metres — the flight its poses were timed for
+    const air = clip.air ? Object.fromEntries(Object.entries(clip.air).map(([k, v]) => [k, /height/i.test(k) ? r4(v * mpu) : k === 'kickSpeed' ? r4(v * mpu) : v])) : null;
+    // a roll's ground (hero-jump.js) rides as `moj:roll`: its axis, start and end in seconds, the travel (metres) and the
+    // speed it rolls at without slipping (metres a second)
+    const roll = clip.roll ? { ...clip.roll, travel: r4(clip.roll.travel * mpu), speed: r4(clip.roll.speed * mpu) } : null;
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}) };
+    const speed = Object.keys(extras).length ? { extras } : {};
+    this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }
 
   // A facial track ({ node, t, w: [weights per key] }) → a STEP sampler (its own float32 input; the last time `end` when

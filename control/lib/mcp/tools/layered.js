@@ -72,6 +72,7 @@ import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
 import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_SWING_BASE, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
+import { validateHeroMotion, motionPlan, locomotionClips } from '../../graph/polygonizer/hero-motion.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -85,6 +86,8 @@ export function planLayered(manifest) {
     try {
       const R = validateRig(manifest.recipe.rig); const skin = bindLayered(mesh, manifest.recipe, R);
       const clips = manifest.recipe.clips || {}; for (const [name, keys] of Object.entries(clips)) layeredClip(keys, R);
+      // the door's gaits (hero-motion.js) bake on this rig at mint: a gait it cannot ground refuses naming it
+      if (manifest.recipe.locomotion) locomotionClips(manifest.recipe.locomotion, R);
       // a hero's stand the rig cannot solve names the field that made it (the solver's own hint is about crouch and heel
       // channels the stand's author never wrote); solved once here, before the audit poses every clip's keys
       if (manifest.hero && clips[GESTURE_CLIP]) {
@@ -184,7 +187,7 @@ export function normalizeHero(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -220,6 +223,7 @@ export function validateHeroSpec(spec) {
   }
   errs.push(...validateTune(spec.tune));
   errs.push(...validateGenki(spec));
+  errs.push(...validateHeroMotion(spec.motion));
   if (spec.body !== undefined) {
     if (!spec.body || typeof spec.body !== 'object' || Array.isArray(spec.body)) errs.push(`body: an object of radii in metres (have ${Object.keys(BODY_DEFAULTS).join(', ')}); for PERCENTAGES of the cast use tune`);
     else for (const k of Object.keys(spec.body)) if (!(k in BODY_DEFAULTS)) errs.push(`body.${k}: not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}); a proportion word (${TUNE_KEYS.join(', ')}) belongs in tune`);
@@ -279,7 +283,7 @@ export function validateHeroSpec(spec) {
  * a later re-tuning of a move never changes a stored row's meaning. */
 export function heroRecord(spec) {
   const errs = validateHeroSpec(spec);
-  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), blink?: false }`);
+  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds } }, blink?: false }`);
   const { from, ...tune } = resolveTune(spec.tune);
   const hero = { cast: spec.cast ?? 'male', register: spec.register ?? 'round', tune, ...(from ? { from } : {}), head: spec.head ?? 'landmark' };
   if (hero.head === 'landmark') {
@@ -308,6 +312,8 @@ export function heroRecord(spec) {
   if (spec.gesture !== undefined && spec.gesture !== null) hero.gesture = spec.gesture;
   // the door's clips, stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
   if (spec.clips && typeof spec.clips === 'object' && Object.keys(spec.clips).length) hero.clips = spec.clips;
+  // the door's motion (hero-motion.js), stored AS GIVEN and sparse: absent when none (an empty object stores nothing)
+  if (spec.motion && typeof spec.motion === 'object' && Object.keys(spec.motion).length) hero.motion = spec.motion;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key
@@ -341,9 +347,15 @@ export function heroPlanOf(hero) {
   // narrower than the guard's, because a swing's keys crouch little and a straight leg cannot reach a wide foot; every key
   // sinks at least that far
   if (swing && (hero.core ?? DEFAULT_CORE) === 'structured') swing = { ...swing, keys: swing.keys.map((k) => ({ ...STRUCTURED_SWING_BASE, ...k, crouch: Math.max(k.crouch ?? 0, STRUCTURED_SWING_BASE.crouch) })) };
-  if (swing) { const p = withGestureClip(own, swing.keys[0]); return gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero); }
+  if (swing) { const p = withGestureClip(own, swing.keys[0]); return withLocomotion(hero, gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero)); }
   // genki moves the resolved stand (the stance, the chest, the chin); a swing's keys are its own and stay as they are
-  return gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE }), hero)), hero);
+  return withLocomotion(hero, gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE }), hero)), hero));
+}
+/** the door's MOTION (hero-motion.js) on a rigged plan: its gaits as `plan.locomotion` (compiled where the clips are
+ * packed); absent ⇒ the plan as it was */
+function withLocomotion(hero, plan) {
+  const locomotion = plan?.rig ? motionPlan(hero.motion) : null;
+  return locomotion ? { ...plan, locomotion } : plan;
 }
 /** A hand that holds gear (gear.right / gear.left: a blade's or a staff's grip, a shield's back grip) closes round it:
  * every clip key that says nothing of that hand's fingers takes the `grip` hand word, on a rig whose hands have digits

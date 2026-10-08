@@ -118,6 +118,18 @@ describe('extractEngineScore — the locomotion row (export-unreal U2, the walki
     expect(extractEngineScore(sketch(), p).entities[0].locomotion)
       .toEqual({ idle: 'suit_multi:idle', walk: 'suit_multi:walk' });
   });
+
+  it('carries the walk clip\'s ground speed (packed `v`, hero-motion.js) as walkSpeed in engine metres a second', () => {
+    const p = rigPayload();
+    p.figures.suit_multi = { clips: { idle: {}, walk: { v: 0.7 } } };
+    expect(extractEngineScore(sketch(), p).entities[0].locomotion).toEqual({ idle: 'suit_multi:idle', walk: 'suit_multi:walk', walkSpeed: 0.7 });
+    p.figures.suit_multi.clips.jump = { once: true, air: { takeoff: 0.3, land: 0.7 } };
+    p.figures.suit_multi.clips.rollSide = { once: true, roll: { axis: 'side', speed: 3 } };
+    expect(extractEngineScore(sketch(), p).entities[0].locomotion.jumps).toEqual({ jump: 'suit_multi:jump' });
+    expect(extractEngineScore(sketch(), p).entities[0].locomotion.rolls).toEqual({ rollSide: 'suit_multi:rollSide' });
+    p.metersPerUnit = 2;
+    expect(extractEngineScore(sketch({ metersPerUnit: 2 }), p).entities[0].locomotion.walkSpeed).toBeGreaterThan(0);
+  });
 });
 
 describe('fallback ground elevation', () => {

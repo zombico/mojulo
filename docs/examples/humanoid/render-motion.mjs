@@ -1,0 +1,268 @@
+/** render-motion.mjs — the MOTION CARD: a hero's clips played on its own rig, for the motion loop (MOTION.md). A hero spec
+ * (the cast files' shape: { name, hero, … }) is taken through the hero door's steps without a database (heroRecord →
+ * heroPlanOf → expandLayeredManifest → planLayered, the rig gates included), then every clip asked for is posed frame by
+ * frame on the skinned mesh (rigNodesAt → poseLayered: what the rig pack bakes, not a preview) and drawn by a flat
+ * z-buffer raster in the palette's own colours. Per clip it writes:
+ *   <clip>.gif         the stick figure from the side (the rig's joints, left blue, right orange, on a ground line whose
+ *                      ticks slide at the clip's own ground speed), the skinned figure from the side, at the three-quarter
+ *                      and at the REAR three-quarter 20° down (the gameplay camera), and under them the FOOT TRACE: each
+ *                      foot's height and its slide speed over the cycle, a cursor at the frame
+ *   <clip>-strip.png   eight phases of the same four views, for a still review
+ *   motion.json        per clip: seconds, frames, and the measures the gates read — per foot the stance share (the toe
+ *                      within 1 cm of the floor), the stance slide (the planted toe's speed in the figure's frame, m/s,
+ *                      mean and spread), the stride (the toe's fore-aft travel); the implied ground speed `v` (the mean
+ *                      backward stance slide: the speed the root must move for a planted foot to stay put; 0 for a clip
+ *                      that walks in place); the pelvis bob; the wrists' fore-aft swing
+ * Clips: the hero's own and its door clips by name (--clips walk,idle; default every clip but the stand) — the door's
+ * `motion` gaits baked as the pack bakes them, replacing the hero's own of their names — and MOTION SPECS
+ * on the hero's core (--motion <name>='<json>', repeatable): any vajra motion spec resolveMotion takes ('walk',
+ * { walk: { strideLength, … } }, { sprint: {…} }, { keyframes: […] }, `perform`), resolved on THIS body's joints and
+ * posed through the rig. --plant says how a motion spec's footfalls reach the rig's planted legs: `feet` (the default) is
+ * the locomotion bake (hero-motion.js: each toe on the gait's own path, planted on the floor, the root sunk to reach);
+ * the two earlier ways are kept for comparison: `gait` passes the
+ * gait's own support word (a double-support 'both' pins both feet at rest), `stance` plants only the foot the gait bears
+ * on (the other leg swings free on the core's own pose). A prototype of the bridge: nothing here is a recipe change.
+ * Deterministic. Run from control:
+ *   node ../docs/examples/humanoid/render-motion.mjs --spec ../docs/examples/humanoid/cast/lead.json \
+ *     [--clips walk,idle] [--motion jog='{"sprint":{"dutyFactor":0.45}}'] [--plant gait|stance] [--seconds jog=0.7]
+ *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--frames 24] [--cell 220] [--out <dir>]   (default out: $MOJULO_SPIKE_OUT or the scratch folder below, /<name>/)
+ */
+import { register, createRequire } from 'node:module';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+register('../../../control/scripts/mcp-stdio-loader.mjs', import.meta.url);
+const lib = (p) => import(new URL(`../../../control/lib/${p}`, import.meta.url).href);
+const sharp = createRequire(new URL('../../../control/package.json', import.meta.url))('sharp');
+const { HERO_FIELDS, heroRecord, heroPlanOf, planLayered, expandLayeredManifest } = await lib('mcp/tools/layered.js');
+const { validateRig, bindLayered, layeredClip, rigNodesAt, VAJRA_CORE } = await lib('graph/polygonizer/station-loft-rig.js');
+const { poseLayered, heroClipSeconds, GESTURE_CLIP } = await lib('graph/polygonizer/hero-gesture.js');
+const { resolveMotion } = await lib('graph/polygonizer/figure-posing.js');
+const { heroLocomotion, locomotionClips } = await lib('graph/polygonizer/hero-motion.js');
+const { heroJump, JUMP_NAMES } = await lib('graph/polygonizer/hero-jump.js');
+
+// ─── arguments ─────────────────────────────────────────────────────────────
+const argv = process.argv.slice(2);
+const argOf = (k) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : undefined);
+const argsOf = (k) => argv.flatMap((a, i) => (a === k ? [argv[i + 1]] : []));
+const SPEC = argOf('--spec'); if (!SPEC) throw new Error('render-motion: --spec <hero spec .json> (the cast files\' shape)');
+const FRAMES = Number(argOf('--frames') ?? 24), CELL = Number(argOf('--cell') ?? 220), PLANT = argOf('--plant') ?? 'feet';
+if (!['feet', 'gait', 'stance'].includes(PLANT)) throw new Error(`--plant: feet, gait or stance (got ${PLANT})`);
+const MOTIONS = argsOf('--motion').map((s) => { const i = s.indexOf('='); if (i < 1) throw new Error(`--motion ${s}: <name>=<json motion spec>`); return [s.slice(0, i), JSON.parse(s.slice(i + 1))]; });
+const JUMPS_ASKED = (argOf('--jumps') ?? '').split(',').filter(Boolean);
+const SECONDS = Object.fromEntries(argsOf('--seconds').map((s) => { const [k, v] = s.split('='); return [k, Number(v)]; }));
+
+// ─── the hero through the door ─────────────────────────────────────────────
+const spec = JSON.parse(readFileSync(resolve(SPEC), 'utf8'));
+const NAME = spec.name ?? 'hero';
+const OUT = resolve(argOf('--out') ?? join(process.env.MOJULO_SPIKE_OUT || fileURLToPath(new URL('../../../lite-template/integration/1008/spike-output/motion', import.meta.url)), NAME));
+mkdirSync(OUT, { recursive: true });
+const heroIn = { ...spec.hero, ...(spec.palette ? { palette: { ...(spec.hero?.palette || {}), ...spec.palette } } : {}) };
+const hero = heroRecord(Object.fromEntries(HERO_FIELDS.filter((k) => heroIn[k] !== undefined).map((k) => [k, heroIn[k]])));
+const plan = heroPlanOf(hero);
+const ex = expandLayeredManifest({ kind: 'layered', title: NAME, hero });
+const manifest = { kind: 'layered', title: NAME, recipe: ex.recipe, plan, hero, dials: ex.dials, units: 'm' };
+const { mesh } = planLayered(manifest);
+const recipe = manifest.recipe; const R = validateRig(recipe.rig); const skin = bindLayered(mesh, recipe, R);
+const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
+const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
+
+// the clips: own/door clips by name, then the motion specs on this body
+// the door's motion (hero.motion), baked as the pack bakes it: its gaits replace the hero's own clips of their names
+const LOCO = recipe.locomotion ? locomotionClips(recipe.locomotion, R, { keys: FRAMES }) : null;
+const own = [...new Set([...Object.keys(recipe.clips || {}), ...Object.keys(LOCO?.clips || {})])].filter((k) => k !== GESTURE_CLIP);
+const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length ? [] : own);
+for (const c of asked) if (!recipe.clips?.[c] && !LOCO?.clips[c]) throw new Error(`--clips: the hero has no clip '${c}' (has ${own.join(', ')})`);
+const bridge = (dof) => {
+  if (PLANT === 'gait' || !dof?.plant) return dof;
+  const { L = 1, R: Rt = 1 } = dof.plant;
+  return { ...dof, support: L >= 0.5 && Rt >= 0.5 ? 'both' : L >= Rt ? 'L' : 'R' };
+};
+const CLIPS = [
+  ...asked.map((c) => (LOCO?.clips[c]
+    ? { name: c, src: `hero.motion.${c} · v ${LOCO.speeds[c]} m/s`, fn: LOCO.clips[c], seconds: SECONDS[c] ?? LOCO.seconds[c] }
+    : { name: c, src: 'clip', fn: layeredClip(recipe.clips[c], R), seconds: SECONDS[c] ?? ownSeconds[c] ?? 1 })),
+  ...MOTIONS.map(([n, m]) => {
+    if (PLANT === 'feet') { const loco = heroLocomotion(m, R, { frames: FRAMES }); const s = SECONDS[n] ?? 1; return { name: n, src: `motion ${JSON.stringify(m)} · feet · travel ${loco.travel.toFixed(3)} m/cycle`, fn: loco.fn, seconds: s }; }
+    const f = resolveMotion(m, { frames: FRAMES, base: core }); if (!f) throw new Error(`--motion ${n}: not a motion spec resolveMotion takes`); return { name: n, src: `motion ${JSON.stringify(m)} · plant ${PLANT}`, fn: (ph) => bridge(f(ph)), seconds: SECONDS[n] ?? 1 }; }),
+  ...JUMPS_ASKED.map((n) => { if (!JUMP_NAMES.includes(n)) throw new Error(`--jumps: no jump '${n}' (have ${JUMP_NAMES.join(', ')})`); const J = heroJump(n, R, { seconds: SECONDS[n] }); return { name: n, src: `jump · in place · air ${J.air ? `${J.air.takeoff}–${J.air.land} s, ${(J.air.height * 100).toFixed(0)} cm${J.air.kick !== undefined ? `, kick at ${J.air.kick} s (${(J.air.kickHeight * 100).toFixed(0)} cm) → ${(J.air.apexHeight * 100).toFixed(0)} cm` : ''}` : 'none'} (the card draws the arc)${J.roll ? ` · roll ${J.roll.axis} ${J.roll.start}–${J.roll.end} s, ${J.roll.travel} m at ${J.roll.speed} m/s` : ''}`, fn: J.fn, seconds: J.seconds, once: true, air: J.air }; }),
+];
+
+// ─── a small vector kit and the raster ─────────────────────────────────────
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const rad = (d) => (d * Math.PI) / 180;
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+/** an orthographic camera at azimuth `az` (0 = in front of the figure, which faces +y; 90 = its right side) and
+ * elevation `el`: screen right, screen up, and the depth axis toward the camera */
+const camera = (az, el) => { const d = [Math.sin(rad(az)) * Math.cos(rad(el)), Math.cos(rad(az)) * Math.cos(rad(el)), Math.sin(rad(el))]; const r = unit(cross([0, 0, 1], d)); return { d, r, u: cross(d, r) }; };
+const VIEWS = [
+  { id: 'side', label: 'side', cam: camera(90, 0) },
+  { id: 'q34', label: '¾', cam: camera(35, 8) },
+  { id: 'rear', label: 'rear ¾ 20° down (gameplay)', cam: camera(150, 20) },
+];
+const PAL = recipe.palette || {}; const GREY = [138, 143, 150];
+const faceRgb = mesh.faces.map((_, fi) => (PAL[mesh.groups?.[fi]] ? hexRgb(PAL[mesh.groups[fi]]) : GREY));
+const LIGHT = unit([0.35, 0.55, 0.75]);
+const BG = [233, 230, 223];
+
+/** the figure's frame over the whole clip in one view (so the cell does not jump): [x0, x1, y0, y1] on screen */
+function boundsOf(frames, cam) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const V of frames) for (const p of V) { const x = dot(p, cam.r), y = dot(p, cam.u); if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return [x0, x1, y0, y1];
+}
+/** one view of posed vertices into an RGB buffer W × H (2× supersampled, then box-filtered by the caller) */
+function raster(V, cam, box, W, H) {
+  const [x0, x1, y0, y1] = box; const pad = 0.06 * Math.max(x1 - x0, y1 - y0);
+  const s = Math.min((W - 2) / (x1 - x0 + 2 * pad), (H - 2) / (y1 - y0 + 2 * pad));
+  const ox = W / 2 - s * (x0 + x1) / 2, oy = H / 2 + s * (y0 + y1) / 2;
+  const P = V.map((p) => [ox + s * dot(p, cam.r), oy - s * dot(p, cam.u), dot(p, cam.d)]);
+  const rgb = Buffer.alloc(W * H * 3); for (let i = 0; i < W * H; i++) { rgb[3 * i] = BG[0]; rgb[3 * i + 1] = BG[1]; rgb[3 * i + 2] = BG[2]; }
+  const z = new Float64Array(W * H).fill(-Infinity);
+  mesh.faces.forEach((f, fi) => {
+    const [a, b, c] = f.map((i) => P[i]); const area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); if (Math.abs(area) < 1e-9) return;
+    const n = unit(cross(sub(V[f[1]], V[f[0]]), sub(V[f[2]], V[f[0]]))); const facing = dot(n, cam.d) < 0 ? -1 : 1;
+    const sh = 0.55 + 0.45 * Math.max(0, facing * dot(n, LIGHT)); const col = faceRgb[fi].map((v) => Math.min(255, Math.round(v * sh)));
+    const minX = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), maxX = Math.min(W - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
+    const minY = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), maxY = Math.min(H - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
+    for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+      const px = x + 0.5, py = y + 0.5;
+      const w0 = ((b[0] - px) * (c[1] - py) - (b[1] - py) * (c[0] - px)) / area, w1 = ((c[0] - px) * (a[1] - py) - (c[1] - py) * (a[0] - px)) / area, w2 = 1 - w0 - w1;
+      if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+      const d = w0 * a[2] + w1 * b[2] + w2 * c[2]; const k = y * W + x; if (d <= z[k]) continue;
+      z[k] = d; rgb[3 * k] = col[0]; rgb[3 * k + 1] = col[1]; rgb[3 * k + 2] = col[2];
+    }
+  });
+  // the figure's outline: a dark pixel wherever the depth breaks against the background
+  const out = Buffer.from(rgb);
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const k = y * W + x; if (z[k] === -Infinity) continue; if (z[k - 1] === -Infinity || z[k + 1] === -Infinity || z[k - W] === -Infinity || z[k + W] === -Infinity) { out[3 * k] = 30; out[3 * k + 1] = 28; out[3 * k + 2] = 26; } }
+  // the floor line (z = 0) where the camera looks level; a raised camera shows the floor as a plane, not a line
+  const floorY = Math.abs(cam.d[2]) < 1e-9 ? Math.round(oy) : -1; if (floorY > 0 && floorY < H) for (let x = 0; x < W; x++) { const k = floorY * W + x; if (z[k] === -Infinity) { out[3 * k] = 120; out[3 * k + 1] = 140; out[3 * k + 2] = 110; } }
+  return { rgb: out, s, ox, oy };
+}
+
+// ─── the legs and the stick ────────────────────────────────────────────────
+const SIDES = Object.keys(R.legs);
+const STICK = [['headTop', 'headBase'], ['headBase', 'neckHub'], ['neckHub', 'navel'], ['navel', 'pelvisHub'],
+  ...['L', 'R'].flatMap((S) => [['neckHub', `shoulder${S}`], [`shoulder${S}`, `elbow${S}`], [`elbow${S}`, `wrist${S}`], ['pelvisHub', `hip${S}`]]),
+  ...SIDES.flatMap((S) => { const L = R.legs[S]; return [[L.hip, L.knee], [L.knee, L.hock], [L.hock, L.toeBase], [L.toeBase, L.toeTip]]; })];
+const sideOf = (a, b) => (/L$/.test(a) || /L$/.test(b) ? 'L' : /R$/.test(a) || /R$/.test(b) ? 'R' : '');
+const STICK_COL = { L: '#2f6fd0', R: '#e07a2a', '': '#3a3633' };
+const FLOOR = Math.min(...SIDES.map((S) => Math.min(R.joints[R.legs[S].toeBase][2], R.joints[R.legs[S].toeTip][2])));
+
+/** the stick cell (side view) as SVG: the joints from the rig, the floor whose ticks slide back at the ground speed */
+function stickSvg(nodes, box, W, H, phase, travel) {
+  const cam = VIEWS[0].cam; const [x0, x1, y0, y1] = box; const pad = 0.06 * Math.max(x1 - x0, y1 - y0);
+  const s = Math.min((W - 2) / (x1 - x0 + 2 * pad), (H - 2) / (y1 - y0 + 2 * pad)); const ox = W / 2 - s * (x0 + x1) / 2, oy = H / 2 + s * (y0 + y1) / 2;
+  const pt = (p) => [ox + s * dot(p, cam.r), oy - s * dot(p, cam.u)];
+  const fy = oy - s * FLOOR; const tick = 0.1 * s; const shift = ((-(travel * phase) * s) % tick + tick) % tick;
+  let g = `<line x1="0" y1="${fy}" x2="${W}" y2="${fy}" stroke="#7a8a6e" stroke-width="2"/>`;
+  for (let x = shift - tick; x < W + tick; x += tick) g += `<line x1="${x.toFixed(1)}" y1="${fy}" x2="${(x - 6).toFixed(1)}" y2="${fy + 8}" stroke="#7a8a6e" stroke-width="1.5"/>`;
+  const order = [...STICK].sort((a, b) => (sideOf(...a) === 'R' ? 1 : 0) - (sideOf(...b) === 'R' ? 1 : 0));   // seen from the right side, the right limbs are near: drawn last
+  for (const [a, b] of order) { if (!nodes[a] || !nodes[b]) continue; const [p, q] = [pt(nodes[a]), pt(nodes[b])]; g += `<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${STICK_COL[sideOf(a, b)]}" stroke-width="4" stroke-linecap="round"/>`; }
+  for (const k of Object.keys(nodes)) if (VAJRA_CORE.includes(k)) { const [x, y] = pt(nodes[k]); g += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#1b1a19"/>`; }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="100%" height="100%" fill="#fbfaf7"/>${g}</svg>`;
+}
+
+// ─── measure one clip ──────────────────────────────────────────────────────
+function measure(frames, seconds) {
+  const n = frames.length, dt = seconds / n; const feet = {};
+  for (const S of SIDES) {
+    const L = R.legs[S];
+    const h = frames.map((f) => Math.min(f.nodes[L.toeBase][2], f.nodes[L.toeTip][2]) - FLOOR);
+    const y = frames.map((f) => f.nodes[L.toeBase][1]);
+    const vel = y.map((v, i) => (y[(i + 1) % n] - v) / dt);   // the step to the next frame
+    const st = h.map((v) => v < 0.01); const sv = vel.filter((_, i) => st[i] && st[(i + 1) % n]);   // planted at both ends
+    const mean = sv.length ? sv.reduce((a, b) => a + b, 0) / sv.length : 0;
+    const spread = sv.length ? Math.sqrt(sv.reduce((a, b) => a + (b - mean) ** 2, 0) / sv.length) : 0;
+    feet[S] = { stance: +(st.filter(Boolean).length / n).toFixed(3), slide: { mean: +mean.toFixed(3), spread: +spread.toFixed(3) }, stride: +(Math.max(...y) - Math.min(...y)).toFixed(3), lift: +Math.max(...h).toFixed(3), h, vel };
+  }
+  const v = Math.max(0, -SIDES.map((S) => feet[S].slide.mean).reduce((a, b) => a + b, 0) / SIDES.length);
+  const pz = frames.map((f) => f.nodes.pelvisHub[2]); const wy = (S) => frames.map((f) => f.nodes[`wrist${S}`][1]);
+  return { feet, v: +v.toFixed(3), bob: +(Math.max(...pz) - Math.min(...pz)).toFixed(3), wristSwing: Object.fromEntries(['L', 'R'].map((S) => [S, +(Math.max(...wy(S)) - Math.min(...wy(S))).toFixed(3)])) };
+}
+
+/** the foot trace (W × H SVG): each foot's height (solid) and slide speed (dashed) over the cycle, a cursor at `i` */
+function traceSvg(M, i, n, W, H, title) {
+  const hMax = Math.max(0.05, ...SIDES.map((S) => M.feet[S].lift)); const vMax = Math.max(0.2, ...SIDES.flatMap((S) => M.feet[S].vel.map(Math.abs)));
+  const X = (k) => 40 + (k / (n - 1)) * (W - 60); const mid = H / 2 + 6;
+  let g = `<rect width="100%" height="100%" fill="#f2efe8"/><text x="8" y="16" font-family="Helvetica, Arial" font-size="12" font-weight="700" fill="#23201d">${title}</text>`;
+  g += `<line x1="40" y1="${mid}" x2="${W - 20}" y2="${mid}" stroke="#bbb"/><text x="4" y="${mid + 4}" font-family="Helvetica" font-size="10" fill="#666">floor</text>`;
+  for (const S of SIDES) {
+    const F = M.feet[S], col = STICK_COL[S];
+    g += `<polyline fill="none" stroke="${col}" stroke-width="2" points="${F.h.map((h, k) => `${X(k).toFixed(1)},${(mid - (h / hMax) * (H / 2 - 24)).toFixed(1)}`).join(' ')}"/>`;
+    g += `<polyline fill="none" stroke="${col}" stroke-width="1.2" stroke-dasharray="4 3" points="${F.vel.map((v, k) => `${X(k).toFixed(1)},${(mid + (v / vMax) * (H / 2 - 14) * -1).toFixed(1)}`).join(' ')}"/>`;
+    F.h.forEach((h, k) => { if (h < 0.01) g += `<rect x="${(X(k) - 2).toFixed(1)}" y="${S === 'L' ? H - 10 : H - 5}" width="${((W - 60) / (n - 1) + 1).toFixed(1)}" height="4" fill="${col}"/>`; });
+  }
+  g += `<line x1="${X(i).toFixed(1)}" y1="20" x2="${X(i).toFixed(1)}" y2="${H}" stroke="#23201d" stroke-width="1.5"/>`;
+  g += `<text x="${W - 8}" y="16" text-anchor="end" font-family="Helvetica" font-size="11" fill="#444">solid: toe height (max ${(hMax * 100).toFixed(1)} cm) · dashed: toe speed (±${vMax.toFixed(2)} m/s) · bars: planted</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${g}</svg>`;
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const labelSvg = (W, H, text, size = 12) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect width="100%" height="100%" fill="#d9d4ca"/><text x="6" y="${H - 6}" font-family="Helvetica, Arial" font-size="${size}" font-weight="700" fill="#23201d">${esc(text)}</text></svg>`);
+
+// ─── render ────────────────────────────────────────────────────────────────
+const CW = CELL, CH = Math.round(CELL * 1.45), LAB = 20, TRACE = 120, HEAD = 34;
+const W = CW * 4, Hgif = HEAD + LAB + CH + TRACE;
+const report = { name: NAME, spec: SPEC, plant: PLANT, frames: FRAMES, clips: {} };
+for (const C of CLIPS) {
+  const t0 = Date.now();
+  const frames = []; const reports = [];
+  for (let i = 0; i < FRAMES; i++) {
+    const t = C.once ? i / (FRAMES - 1) : i / FRAMES;
+    const pose = C.fn(t); const { nodes, report: rep } = rigNodesAt(R, pose);
+    const posed = poseLayered(mesh, recipe, pose, { R, skin });
+    // a jump plays in place; the card draws the flight its timing designs (ballistic between take-off and touch-down)
+    let up = 0; if (C.air) { const s = t * C.seconds, A = C.air; if (s > A.takeoff && s < A.land) {
+      if (A.kick === undefined) { const ta = A.land - A.takeoff, u = s - A.takeoff; up = 4 * A.height * (u / ta) * (1 - u / ta); }
+      else { const g = 9.81, v1 = Math.sqrt(2 * g * A.height); if (s < A.kick) { const u = s - A.takeoff; up = v1 * u - g * u * u / 2; } else { const vk = v1 - g * (A.kick - A.takeoff), u = s - A.kick; up = A.kickHeight + (vk + A.kickSpeed) * u - g * u * u / 2; } }
+      up = Math.max(0, up); } }
+    const lift = (p) => [p[0], p[1], p[2] + up];
+    frames.push({ V: up ? posed.mesh.vertices.map(lift) : posed.mesh.vertices, nodes: up ? Object.fromEntries(Object.entries(nodes).map(([k, v]) => [k, lift(v)])) : nodes }); reports.push(rep);
+  }
+  const M = measure(frames, C.seconds);
+  const boxes = VIEWS.map((v) => boundsOf(frames.map((f) => f.V), v.cam));
+  const clamped = reports.flatMap((r, i) => Object.entries(r.legs).filter(([, l]) => l.reach === 'clamped').map(([S]) => `${S}@${i}`));
+  const head = `${NAME} · ${C.name} · ${C.seconds}s · ${C.src === 'clip' ? 'hero clip' : C.src}`;
+  const sub2 = `v ${M.v} m/s · bob ${(M.bob * 100).toFixed(1)} cm · ${SIDES.map((S) => `${S}: stance ${Math.round(M.feet[S].stance * 100)}% slide ${M.feet[S].slide.mean}±${M.feet[S].slide.spread} stride ${(M.feet[S].stride * 100).toFixed(0)}cm lift ${(M.feet[S].lift * 100).toFixed(0)}cm`).join(' · ')}${clamped.length ? ` · leg clamped ${clamped.length}×` : ''}`;
+  const headSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${HEAD}"><rect width="100%" height="100%" fill="#c9c4bb"/><text x="8" y="15" font-family="Helvetica" font-size="13" font-weight="700" fill="#23201d">${esc(head)}</text><text x="8" y="29" font-family="Helvetica" font-size="10.5" fill="#23201d">${esc(sub2)}</text></svg>`);
+  const cellsAt = async (i) => {
+    const f = frames[i]; const layers = [];
+    layers.push({ input: Buffer.from(stickSvg(f.nodes, boxes[0], CW, CH, i / FRAMES, M.v * C.seconds)), left: 0, top: 0 });
+    for (const [vi, v] of VIEWS.entries()) {
+      const r = raster(f.V, v.cam, boxes[vi], CW * 2, CH * 2);
+      layers.push({ input: await sharp(r.rgb, { raw: { width: CW * 2, height: CH * 2, channels: 3 } }).resize(CW, CH, { kernel: 'cubic' }).png().toBuffer(), left: CW * (vi + 1), top: 0 });
+    }
+    return layers;
+  };
+  const labels = [{ input: labelSvg(CW, LAB, 'stick · side'), left: 0, top: HEAD }, ...VIEWS.map((v, vi) => ({ input: labelSvg(CW, LAB, v.label), left: CW * (vi + 1), top: HEAD }))];
+  const gifFrames = [];
+  for (let i = 0; i < FRAMES; i++) {
+    const cells = (await cellsAt(i)).map((l) => ({ ...l, top: l.top + HEAD + LAB }));
+    const png = await sharp({ create: { width: W, height: Hgif, channels: 3, background: '#bdb8ae' } })
+      .composite([{ input: headSvg, left: 0, top: 0 }, ...labels, ...cells, { input: Buffer.from(traceSvg(M, i, FRAMES, W, TRACE, `foot trace · phase ${(i / FRAMES).toFixed(2)}`)), left: 0, top: HEAD + LAB + CH }]).png().toBuffer();
+    gifFrames.push(png);
+  }
+  const delay = Math.max(20, Math.round((C.seconds * 1000) / FRAMES));
+  const gif = join(OUT, `${C.name}.gif`);
+  writeFileSync(gif, await sharp(gifFrames, { join: { animated: true } }).gif({ delay: gifFrames.map(() => delay), loop: 0 }).toBuffer());
+  // the strip: eight phases, each a row of the four cells
+  const phases = Array.from({ length: 8 }, (_, k) => Math.round((k * FRAMES) / 8));
+  const SW = W, SH = HEAD + phases.length * (LAB + CH);
+  const strip = [{ input: headSvg, left: 0, top: 0 }];
+  for (const [k, i] of phases.entries()) {
+    const top = HEAD + k * (LAB + CH);
+    strip.push({ input: labelSvg(W, LAB, `phase ${(i / FRAMES).toFixed(3)} · stick side | side | ¾ | rear ¾ (gameplay)`), left: 0, top });
+    for (const l of await cellsAt(i)) strip.push({ ...l, top: top + LAB });
+  }
+  writeFileSync(join(OUT, `${C.name}-strip.png`), await sharp({ create: { width: SW, height: SH, channels: 3, background: '#bdb8ae' } }).composite(strip).png().toBuffer());
+  const { feet, ...rest } = M;
+  report.clips[C.name] = { src: C.src, seconds: C.seconds, ...rest, feet: Object.fromEntries(Object.entries(feet).map(([S, F]) => [S, { stance: F.stance, slide: F.slide, stride: F.stride, lift: F.lift }])), legClamped: clamped.length };
+  console.log(`${C.name}: ${gif} (${Date.now() - t0} ms) · ${sub2}`);
+}
+writeFileSync(join(OUT, 'motion.json'), JSON.stringify(report, null, 2) + '\n');
+console.log(`wrote ${join(OUT, 'motion.json')}`);

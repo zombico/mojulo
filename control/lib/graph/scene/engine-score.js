@@ -88,8 +88,10 @@ function scaleMechanic(m, sv, sn) {
 // (mojulo rigs name their travel cycle 'forward'; 'walk' is accepted as an
 // alias). Engine-agnostic: these are glTF animation names (`<figure>:<clip>`),
 // each engine kernel resolves them to its own imported-asset naming. Absent
-// clips ⇒ no row, byte-identical entity.
-function locomotionFor(figures, figKey) {
+// clips ⇒ no row, byte-identical entity. `walkSpeed`: the walk clip's GROUND SPEED (its packed `v`, hero-motion.js) in
+// engine metres a second — the speed at which its planted feet stay put, so a kernel plays the walk at planar speed ÷
+// walkSpeed; absent when the clip carries none (a walk in place), the row as before.
+function locomotionFor(figures, figKey, unitScale = 1) {
   const clips = figKey != null ? figures?.[figKey]?.clips : null;
   if (!clips || typeof clips !== 'object') return null;
   const clip = (...names) => {
@@ -100,9 +102,16 @@ function locomotionFor(figures, figKey) {
   const walk = clip('forward', 'walk');
   const boost = clip('boost');
   if (!idle && !walk) return null;
+  const v = walk ? clips[walk.slice(figKey.length + 1)]?.v : null;
+  // the jumps a figure carries (one-shot clips with their air, hero-jump.js), by name; none ⇒ no key
+  const jumps = Object.entries(clips).filter(([, c]) => c && c.once && c.air).map(([n]) => [n, `${figKey}:${n}`]);
+  const rolls = Object.entries(clips).filter(([, c]) => c && c.once && c.roll).map(([n]) => [n, `${figKey}:${n}`]);
   return {
     ...(idle ? { idle } : {}),
     ...(walk ? { walk } : {}),
+    ...(v > 0 ? { walkSpeed: Math.round(v * unitScale * 1e4) / 1e4 } : {}),
+    ...(jumps.length ? { jumps: Object.fromEntries(jumps) } : {}),
+    ...(rolls.length ? { rolls: Object.fromEntries(rolls) } : {}),
     ...(boost ? { boost } : {}),
   };
 }
@@ -238,7 +247,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...(waterBodies.length ? { water } : {}),
     ...(cryRig ? { crystalLight: rigForScore(cryRig, unitScale || 1) } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
-      const locomotion = locomotionFor(payload.figures, e.figure);
+      const locomotion = locomotionFor(payload.figures, e.figure, unitScale || 1);
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;
       return locomotion ? { ...scaled, locomotion } : scaled;
     }),

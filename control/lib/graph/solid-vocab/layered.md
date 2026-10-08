@@ -542,6 +542,43 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   false` turns it off (stored only when false; any other head refuses it). The drawings are a frame each at 30 fps:
   play the GLB at 30 fps or more (at 24, Blender's default scene rate, a one-frame drawing can fall between two
   samples). The readout's `hero.clips` adds `seconds` (every clip played) and `face` (the door clips carrying one).
+  THE MOTION. `motion: { walk?, jog?, sprint? }` gives the hero locomotion that travels: each gait `true` (as studied)
+  or an object of the gait's own dials plus `tilt` (degrees, 0 … 35: the body leaning into it from the hips, the spine
+  straight, the head taking most of it back so the gaze runs ahead) and `seconds` (a cycle, 0.25 … 10). A walk takes the
+  walk's dials (`strideLength`, `swingLift`, `armSwing`, `elbowBase`, `pelvisRot`, `shoulderRot`, `spineTwist`,
+  `weightShift`, `hipSway`, `lean`, `headTilt`, `headLevel`, `ankleRoll`, `toeRoll`, `handCurl`, `wristGive`,
+  `stanceKnee`, `cross`, `cadence`, `vault`, …; upright, 1.1 s); a jog and a sprint take the run's (`dutyFactor` under ½
+  for a flight, `strideLength`, `hipDrive`, `swingTuck`, `armSwing`, `armBack`, `elbowBend`, `lean`, `flightLift`,
+  `anklePoint`, `toeFlick`, …). The jog is soft: a half-length flight, loose arms, tilted 10°, 0.7 s. The sprint is
+  effort: tilted 18°, the knee driven high and the heel tucked tight, the arms pumping at a right angle with the elbows
+  driving back, a long stride with little ground and more flight, a hard push off the forefoot, 0.55 s. An unknown gait
+  or dial refuses naming it. Each gait is baked on THIS rig: every toe on the gait's own path, on the floor through its
+  stance and sliding back at one constant speed, the swing clearing the floor, the heel rolling up to push off, and the
+  root sinking to reach a long stride along one smooth curve over the cycle (the head bobs; it never drops in a frame,
+  so a camera on the head does not shake). The clip walks in place and carries its GROUND SPEED (`v`, metres a second
+  at its seconds): the speed at which its planted feet stay put. A gait REPLACES the hero's own clip of that name (the
+  stock walk) and a new name joins the clips; it rides the World's clip picker, the skinned GLB (24 keys a cycle; the
+  animation's `extras['moj:speed']`) and the engine score (the player's `locomotion.walkSpeed`), where Godot and Unity
+  play the walk at the walker's planar speed ÷ walkSpeed. JUMPS ride the same field: `jump` (standing, straight up,
+  1.1 s), `jumpForward` and `jumpBack` (1.2 s: leaning into it or off the toes, the planted feet falling behind the
+  travelling body at the push and landing ahead of it, or behind for the back jump, the body then rolling over them) and
+  `doubleJump` (1.7 s: a first jump, a kick down off the air with the arms sweeping, a deeper second tuck) and
+  `runningJump` (0.82 s: a hurdler's leap out of the sprint and back into it — the lead leg reaching out, the trail leg
+  round at the side, the trunk diving over the lead, the opposite arm reaching; its planted feet slide at the hero's
+  sprint speed, `air.speed`, so it plays between sprint cycles), each `true` or `{ seconds }` (0.5 … 3; the poses are
+  studied). ROLLS ride it too: `rollForward` (1.5 s: the combat roll — down onto the hands, over the RIGHT shoulder and
+  diagonally across the back to the hip, up through a crouch; the head never takes the floor) and `rollSide` (1.35 s: a
+  tucked barrel roll to the right, shoulder to back to shoulder), and their mirrors `rollForwardLeft` and `rollSideLeft`
+  (over the left shoulder, to the left; `roll.side` says which). A roll turns the whole body (the rig's `body`
+  rotation), set down each moment so its lowest part rests on the floor, in place; its ground rides the clip (`roll`:
+  axis, side, start and end in seconds, the travel and the speed it rolls at without slipping) — the GLB's
+  `extras['moj:roll']` and the engine score's `locomotion.rolls`. A jump is ONE-SHOT and IN PLACE: the load, the push onto the toes, the
+  tuck and reach in the air, the absorb; the engine's physics flies the arc. Its timing rides the clip (`air`: take-off,
+  touch-down and apex in seconds, and the height a ballistic flight of that air time reaches; a double jump's `kick`,
+  the height it happens at, the upward speed it adds and the second apex) — the skinned GLB's `extras['moj:jump']` and
+  the engine score's `locomotion.jumps`. In every gait and jump a raised, bent arm folds with its ELBOW DOWN (the
+  shoulder rolls with the raise; never the forearm across the chest). Absent, the hero and every export are as before.
+  Patch `/hero/motion` (set it to an object first), then `/hero/motion/<gait or jump>`.
   THE GEAR. `gear: { right?, left?, back?, hip? }`, each slot an item's build words, the same an equipment item takes
   (`{ item, style?, dials?, parts?, gem?, seed? }`, the equipment card): `gear: { right: { item: 'sword', style: 'dwarven' },
   left: { item: 'shield', style: 'dwarven' } }`. Stored with the laws stamped; patch `/hero/gear/right/dials/stylize`.

@@ -44,7 +44,7 @@ import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'feet', 'sink', 'body'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -153,6 +153,14 @@ export function validateRig(rig) {
  * two joints whose line is the primary direction in place of head → tail (a pelvis turned by its hip line alone, whatever
  * the spine above does to its tail); the bone still sits at its head and its length is still head → tail. */
 function boneFrame(bone, rest, nodes) {
+  // a whole-body turn (`body`, rigNodesAt): the frame of the upright solve, turned by the body's own rotation — a bone's
+  // own line alone would leave its spin to the shortest arc, which twists a head or a hand past a quarter turn
+  if (nodes.$body) {
+    const f = boneFrame(bone, rest, nodes.$body.unrot); const M = nodes.$body.M;
+    const m = [0, 1, 2].map((r) => [0, 1, 2].map((c) => M[r][0] * f.m[0][c] + M[r][1] * f.m[1][c] + M[r][2] * f.m[2][c]));
+    // (rig-bake's matToQuat reads a matrix by columns where quatToMat writes rows: hand it the transpose)
+    const q = matToQuat([0, 1, 2].map((c) => [0, 1, 2].map((r) => m[r][c]))); return { ...f, q, m: quatToMat(q), head: nodes[bone.head] };
+  }
   const d0 = sub(rest[bone.tail], rest[bone.head]), d1 = sub(nodes[bone.tail], nodes[bone.head]);
   const a0 = bone.aux ? sub(rest[bone.aux[1]], rest[bone.aux[0]]) : null, a1 = bone.aux ? sub(nodes[bone.aux[1]], nodes[bone.aux[0]]) : null;
   let q = bone.align ? frameQuat(sub(rest[bone.align[1]], rest[bone.align[0]]), a0, sub(nodes[bone.align[1]], nodes[bone.align[0]]), a1) : frameQuat(d0, a0, d1, a1);
@@ -201,14 +209,21 @@ export function rigNodesAt(R, pose = {}) {
   // crouch: the pelvis (and everything the core carries) drops toward planted toes; lift raises the root
   const support = pose.support ?? 'both'; const lift = Number.isFinite(pose.lift) ? pose.lift : 0; const crouch = Math.max(0, Math.min(1, pose.crouch || 0));
   const legKeys = Object.keys(R.legs); const hipZ = legKeys.length ? Math.min(...legKeys.map((S) => rest[R.legs[S].hip][2])) : 0; const toeZ = legKeys.length ? Math.min(...legKeys.map((S) => rest[R.legs[S].toeBase][2])) : 0;
-  const drop = crouch * 0.45 * (hipZ - toeZ);
+  // `sink` (metres, a locomotion bake's: hero-motion.js) lowers the root as the walk's vault does, so a planted foot
+  // reached fore or aft stays on the floor. Absent ⇒ 0.
+  const sink = Number.isFinite(pose.sink) ? Math.max(0, pose.sink) : 0;
+  const drop = crouch * 0.45 * (hipZ - toeZ) + sink;
   for (const k of carried) nodes[k] = [nodes[k][0], nodes[k][1], nodes[k][2] - drop + lift];
   const report = { legs: {} };
   for (const S of legKeys) {
-    const L = R.legs[S]; const planted = lift === 0 && (support === 'both' || support === S);
+    // `feet: { L?, R? }` (a locomotion bake's) gives a leg its toe-base TARGET in the rig frame: the leg reaches it
+    // whatever the support says (a footfall planted anywhere on the floor, or a swing foot on its arc), the foot keeping
+    // its rest orientation turned by heel<S>. Absent ⇒ the planted / free legs as before.
+    const target = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : null;
+    const L = R.legs[S]; const planted = !!target || (lift === 0 && (support === 'both' || support === S));
     const femur = len(sub(rest[L.knee], rest[L.hip])), tibia = len(sub(rest[L.hock], rest[L.knee])), meta = len(sub(rest[L.toeBase], rest[L.hock]));
     if (planted) {
-      const foot = plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
+      const foot = target ? { toeBase: [...target], toeTip: add(target, sub(rest[L.toeTip], rest[L.toeBase])) } : plantedFoot(R, L, pose); nodes[L.toeBase] = foot.toeBase; nodes[L.toeTip] = foot.toeTip;
       const metaDir = rotAxis(unit(sub(rest[L.hock], rest[L.toeBase])), [0, 0, 0], 0, pose[`heel${S}`] || 0);
       let hock = add(nodes[L.toeBase], mul(metaDir, meta)); let metaError = 0;
       let sol = solveTwoBone(nodes[L.hip], hock, femur, tibia, L.pole);
@@ -240,6 +255,25 @@ export function rigNodesAt(R, pose = {}) {
   for (const [ch, c] of Object.entries(R.chains)) {
     const v = pose[ch]; if (!Number.isFinite(v) || v === 0) continue;
     for (const link of c.links) { const p = [...nodes[link.pivot]]; for (const j of link.joints) nodes[j] = rotAxis(nodes[j], p, c.axis, c.sign * v * link.weight); }
+  }
+  // `body: { pitch?, roll?, at, up? }` (a roll's: hero-jump.js) turns the whole posed figure rigidly about the point `at`
+  // — first `roll` degrees to its right (the head toward +x), then `pitch` degrees forward (the head toward +y), so a
+  // forward roll tilted onto a shoulder goes over it diagonally — then raises it `up` metres. Absent ⇒ nothing moves.
+  const B = pose.body;
+  if (B && typeof B === 'object' && Array.isArray(B.at)) {
+    const pv = B.at, up = Number.isFinite(B.up) ? B.up : 0;
+    // the rotation itself (the basis turned as the points are), and the upright solve, ride the map unenumerated for
+    // boneFrames: each bone's frame is the upright one turned by it
+    const turn = (v) => { let q = v; if (Number.isFinite(B.roll) && B.roll) q = rotAxis(q, [0, 0, 0], 1, B.roll); if (Number.isFinite(B.pitch) && B.pitch) q = rotAxis(q, [0, 0, 0], 0, -B.pitch); return q; };
+    const cols = [turn([1, 0, 0]), turn([0, 1, 0]), turn([0, 0, 1])]; const M = [0, 1, 2].map((r) => cols.map((c) => c[r]));
+    const unrot = { ...nodes };
+    for (const k of Object.keys(nodes)) {
+      let q = nodes[k];
+      if (Number.isFinite(B.roll) && B.roll) q = rotAxis(q, pv, 1, B.roll);
+      if (Number.isFinite(B.pitch) && B.pitch) q = rotAxis(q, pv, 0, -B.pitch);
+      nodes[k] = [q[0], q[1], q[2] + up];
+    }
+    Object.defineProperty(nodes, '$body', { value: { M, unrot }, enumerable: false });
   }
   return { nodes, report };
 }
@@ -447,12 +481,15 @@ function faceRowOf(face) {
  * corner (faceRowOf); a part holding a corner that moves gets `morph: { i, d }` after its other keys — `i` the part's
  * vertex indices (u32), `d` each one's row as float32 ((1 + targets) × 3: the rebase, then every target) — which the
  * skinned GLB writer turns into morph targets.
+ * `speeds` (default null → byte-identical output): a locomotion clip's GROUND SPEED (hero-motion.js, metres a second at its
+ * seconds), carried as `v`: the speed the figure must move for a planted foot to stay put (an engine plays the clip at
+ * planar speed ÷ v).
  * `seconds` (default null → byte-identical output): each clip's DESIGNED DURATION (hero-gesture `heroClipSeconds`, the
  * anime hero's), carried as `s` on its packed clip — the World page's clip preview and the GLB play the cycle over it
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, seconds = null, gear = null, emissive = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, seconds = null, speeds = null, gear = null, emissive = null } = {}) {
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
@@ -475,9 +512,11 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; for (const p of t.p) { P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); } } }
   const packedClips = {};
   for (const [name, clip] of Object.entries(clips)) {
-    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const flat = [];
-    for (let k = 0; k < keys; k++) { const { nodes } = rigNodesAt(R, fn(k / keys)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: keys, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}) };
+    // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
+    // a function clip may also be ONE-SHOT (`once`: a jump's, sampled 0 … 1 inclusive) and carry its `air` (hero-jump.js)
+    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = typeof clip === 'function' && clip.once === true; const flat = [];
+    for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); if (nodes.$body) Object.defineProperty(shifted, '$body', { value: nodes.$body, enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
+    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}) };
   }
   let mnz = Infinity, mxz = -Infinity; for (const v of mesh.vertices) { if (v[2] + dz < mnz) mnz = v[2] + dz; if (v[2] + dz > mxz) mxz = v[2] + dz; }
   return {

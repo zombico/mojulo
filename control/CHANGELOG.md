@@ -12,6 +12,51 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character rig presets
+
+- `motion` on the hero door (`hero.motion: { walk?, jog?, sprint? }`, each `true` or the gait's own dials plus `tilt`
+  and `seconds`): locomotion that travels instead of walking in place. The jog leans 10° and runs soft; the sprint
+  leans 18° with effort (knee drive, heel tuck, a right-angled arm pump, a long stride, more flight). `tilt` leans the
+  body from the hips with the spine straight and the gaze held ahead. Each gait is the vajra stick figure's walk or run
+  baked on the hero's own rig (`polygonizer/hero-motion.js`): every toe on the gait's path, on the floor through its
+  stance and sliding back at one constant speed, the swing clearing the floor, the trailing heel rising at push-off and
+  the root sinking to reach a long stride along ONE smooth curve planned over the whole cycle (its first four
+  harmonics, never below any phase's need), so the head bobs and never drops in a frame as a foot lands — no shake for a
+  camera on the head. A gait replaces the hero's clip of its name (the stock walk, four
+  keys in place) as a 24-key clip carrying its ground speed `v`. Unknown gaits and dials refuse by name; absent,
+  every hero and export is byte-identical. Documented in the layered manual (THE MOTION).
+- Jumps on the hero door's `motion` (`polygonizer/hero-jump.js`): `jump`, `jumpForward`, `jumpBack`, `doubleJump` and
+  `runningJump` (a hurdler's leap between sprint strides, its planted feet sliding at the hero's sprint speed), each
+  `true` or `{ seconds }`. One-shot clips in place (the engine flies the arc), timed key poses on smooth monotone
+  curves (no stop at a key), the planted feet blending into the air pose at take-off and touch-down without a pop, a
+  directional jump's feet landing ahead (or behind) and the body rolling over them; a toe touches the floor only once its
+  blend from the swing is whole, so no foot skates at touch-down. Each carries its `air` timing
+  (take-off, touch-down, apex, the designed height; a double jump's kick and second apex): the packed clip's `once` and
+  `air`, the GLB animation's `extras['moj:jump']`, the engine score's `locomotion.jumps`.
+- Rolls on the hero door's `motion`: `rollForward` (the combat roll over the right shoulder, the head never on the floor)
+  and `rollSide` (a tucked barrel roll to the right), and their exact mirrors `rollForwardLeft` and `rollSideLeft`, each
+  `true` or `{ seconds }`. The rig takes a whole-body turn
+  (`body: { roll, pitch, at, up }`; each bone's frame is the upright solve's turned by it, so a head or a hand is never
+  spun by a shortest arc), the roll set down so its lowest part rests on the floor along a smooth envelope, the turn
+  waiting for the feet to leave. Each carries its `roll` ground (axis, side, start, end, travel, speed): the packed clip's `roll`,
+  the GLB's `extras['moj:roll']`, the engine score's `locomotion.rolls`.
+- Elbows down (`polygonizer/hero-elbow.js`): in every gait and jump a raised, bent arm rolls at the shoulder so the
+  forearm folds up with the elbow beneath it, never sideways across the chest; the roll follows the raise smoothly and
+  leaves hanging and back-swung arms alone.
+- `locomotionCameraCurve` (hero-motion.js): a hero gait's first-person bob in the shape the World walk reads
+  (`walk.bob`, as gait-camera.js bakes from the stick figure), read off that hero's own baked gait.
+- The rig's leg solve takes `feet` (a toe target per leg) and `sink` (the root lowered, metres) as pose channels, and
+  `packLayeredRig` a key count per function clip and `speeds` (the packed clip's `v`); absent, as before.
+- Exports carry the ground speed engine-neutrally: the skinned GLB's animation `extras['moj:speed']` and the engine
+  score's `locomotion.walkSpeed` (engine metres a second). The Godot kernel (0.6.0) and the Unity kernel play the
+  player's walk at planar speed ÷ walkSpeed (clamped ¼ … 3×), so its planted feet stay put; the Godot probe's dump
+  prints the rate.
+- `docs/examples/humanoid/MOTION.md`: the motion loop, what good motion looks like, the motion critic and the blind
+  judge. `render-motion.mjs` beside it: the motion card — a hero's clips (its own, its `motion` gaits, or any vajra
+  motion spec) posed on the skinned mesh from the side, the three-quarter and the rear three-quarter gameplay camera
+  with the stick figure and a foot trace, an eight-phase strip, and the measures (stance, planted slide, stride, lift,
+  ground speed, bob).
+
 ## [3.1.0] - 2026-10-07
 
 ### Anime game hero
