@@ -35,6 +35,7 @@ import { getGlyphVocabCatalog } from '@/lib/graph/game/glyph-cards/loader';
 import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 import { getHudVocabCatalog } from '@/lib/graph/game/hud-cards/loader';
 import { getIdiomVocabCatalog } from '@/lib/graph/game/idiom-cards/loader';
+import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscape/ui/cards';
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
@@ -169,6 +170,23 @@ export async function getGameVocabHandler(input) {
   return { ok: true, cards, _telemetrySignal: { id_requested: false, found: true } };
 }
 
+// THE PLAY DRAWER (playscape/ui/cards.js): playscape served scaled to the ask — the ladder with no argument, a rung's
+// set with `rung`, one card in full with `id`.
+export async function getPlayVocabHandler(input) {
+  const { id, rung } = input && typeof input === 'object' ? input : {};
+  if (id) {
+    const card = playCards().get(id);
+    if (!card) throw new Error(`get_play_vocab: unknown card '${id}'. Known: ${[...playCards().keys()].join(', ')}.`);
+    return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
+  }
+  if (rung !== undefined) {
+    const read = playRung(rung);
+    if (!read) throw new Error(`get_play_vocab: unknown id: rung ${rung} — rungs are ${PLAY_RUNGS.map((r) => r.rung).join(', ')}.`);
+    return { ok: true, ...read, _telemetrySignal: { id_requested: true, found: true } };
+  }
+  return { ok: true, ...playIndex(), _telemetrySignal: { id_requested: false, found: true } };
+}
+
 export function registerGameTools() {
   registerTool({
     name: 'create_game',
@@ -275,5 +293,23 @@ export function registerGameTools() {
       required: [],
     },
     handler: getGameVocabHandler,
+  });
+
+  registerTool({
+    name: 'get_play_vocab',
+    description:
+      'The PLAY drawer: make a world interactive (a door that opens, a lever, a HUD, a level, a game that is only its '
+      + 'UI), scaled to the ask. No argument → the ladder (board, click, level, systems, game) and the card rows; `rung` '
+      + '→ what that rung admits; `id` → one card (play-guide first). A world opts in with a `play` block via '
+      + 'update_sketch. Read-only.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'One card: play-guide, ui-board, ui-register, ui-motion, ui-layout, ui-part-<part>.' },
+        rung: { type: 'integer', minimum: 0, maximum: 4, description: '0 board, 1 click, 2 level, 3 systems, 4 game.' },
+      },
+      required: [],
+    },
+    handler: getPlayVocabHandler,
   });
 }

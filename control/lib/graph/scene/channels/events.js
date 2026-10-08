@@ -1,13 +1,18 @@
 import { buildBus } from '../../worlds/event-bus.js';
 import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
+import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
+import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 
 // The HUD widget layer's stylesheet (hud-widgets.js): one absolutely-positioned column per slot
 // over #wrap (the corners + the centre line), a widget per row, kinds styled by class. Every
 // color and family is a `--moj-*` token so the game shell's theme (game-init sidecar) or the
 // world's own `events.style` skins it; the fallbacks are today's look. Emitted ONLY when the
-// world carries hud rows — a hud-less events world is byte-identical.
-const HUD_CSS = [
+// world carries hud rows — a hud-less events world is byte-identical. A settled play direction's
+// `events.register` (playscape/ui/register.js) lays its dials' sheet over this one, and its stylized
+// border and pixel tuning (borders.js) over that, from closed words only; absent, not a byte is
+// added. Exported for the UI board's specimens.
+export const HUD_CSS = [
   '.moj-hud{position:absolute;inset:0;pointer-events:none;z-index:12;font-family:var(--moj-font);color:var(--moj-ink)}',
   '.moj-hud-col{position:absolute;display:flex;flex-direction:column;gap:8px;max-width:46%}',
   '.moj-hud-top-left{left:12px;top:12px}.moj-hud-top-right{right:12px;top:12px;align-items:flex-end}',
@@ -39,7 +44,7 @@ const HUD_CSS = [
 // Toasts spawn one element per firing (capped per widget) that rises + fades on the same clock;
 // an event toast reads its `{event.*}` fields from the frame's INCOMING list (the log keeps type
 // only), a var toast from the var's change since the last frame (first frame seeds, never fires).
-function hudScript(widgets, style) {
+function hudScript(widgets, style, register) {
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
@@ -49,7 +54,7 @@ const __HUD = ${safeJson(rows)};
 const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
-  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}`)}; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
   const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
@@ -147,7 +152,7 @@ function __syncHud(t, incoming) {
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
 export function eventsChannelScript(events) {
   const { widgets } = normalizeHud(events.hud);
-  const hudBlock = widgets.length ? hudScript(widgets, events.style) : 'function __syncHud() {}';
+  const hudBlock = widgets.length ? hudScript(widgets, events.style, events.register) : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
 const __BUS = (${buildBus.toString()})();

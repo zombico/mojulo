@@ -11,6 +11,7 @@
 
 
 import { resolveArt } from '../../graph/era/art-direction.js';
+import { resolvePlayUi } from '../../graph/playscape/ui/direction.js';
 import path from 'node:path';
 import { randomInt } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -486,6 +487,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
   manifest = resolveArt(manifest);
+  // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
+  manifest = resolvePlayUi(manifest);
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world

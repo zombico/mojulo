@@ -36,6 +36,7 @@ import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/pro
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests } from '@/lib/graph/game/level-synth';
+import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
@@ -843,7 +844,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // `physics`), so it is gated on an existing payload. Present (reactions or sequences) ⇒ a LIVE
   // channel the static stills can't run, so `nonBakeable` (the /svg + /scene degrade to frame zero).
   // Mechanics-lowered events (mechEvents) merge in here so the one bus runs both.
-  const ev = payload && mergeEventManifests(sketch.manifest.events, mechEvents);
+  // A `play` block (playscape/ui/direction.js) lowers its parts to hud rows after the hand rows and
+  // before the mechanics' (so a hand row still restyles either by naming its var), and brings its
+  // direction's tokens and dials (the greybox while the direction waits on approval). A hand-written
+  // events.style wins over the play block's. Absent `play` ⇒ not a byte changes.
+  const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest) : null;
+  let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, playEv && playEv.hud ? { hud: playEv.hud } : null), mechEvents);
+  if (ev && playEv) {
+    if (playEv.style && ev.style === undefined) ev = { ...ev, style: playEv.style };
+    if (playEv.register) ev = { ...ev, register: playEv.register };
+  }
   // A HUD-only block (a `legend` idiom: the controls hint) is a live channel too: it paints and fades on the page.
   if (ev && ((Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {
     // the HUD widget language (hud-widgets.js): rows are validated here so a bad slot / kind /

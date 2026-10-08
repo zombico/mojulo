@@ -12,6 +12,124 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Playscape UI
+
+Playscape treats the interface as a layout problem. A UI part says four things:
+- where it sits: a screen region, an object, a point in the world, the cursor;
+- what it shows: a bus var, an event, a store slice, a sense of the world;
+- which appearance state it is in;
+- what it looks like: a style guide of tokens over values, under the black-and-white law that game objects follow.
+
+Parts compose up five rungs:
+- UI that is the game;
+- switches with cause and effect;
+- a live HUD for games with a few states;
+- HUDs composed from a complex game's systems;
+- deep menus and stat displays.
+
+This step builds the contract and the approval gate. No rung is served yet.
+
+- **A world takes a `play` block, and its parts lower exactly onto today's HUD.**
+  - `lib/graph/playscape/ui/parts.js`: `PARTS` holds readout (text, counter, bar, clock), banner, toast and legend.
+    `readPart` and `lowerParts` turn `{ part, variant, bind, at, when }` into `events.hud` rows. Those rows normalize
+    to the same widgets as the idioms that make them.
+  - `regions.js` holds the nine regions (the page draws seven; `left` and `right` are wireframe words until the
+    rung-0 renderer), the layers and the surfaces.
+  - `world-scene.js` lowers the block between the hand rows and the mechanics' rows. A hand-written `events.style`
+    still wins over the play block's style.
+  - Absent `play`, the emission is byte-identical.
+- **The UI is proposed and approved before it is created.** `direction.js` follows scapeshift's art direction:
+  - `play.ui: 'propose' | 'auto' | { register, pin, seed }` is filled at authoring time (`resolvePlayUi` in
+    `sketch-mint.js`) into five items: guide, motion, parts, layout, wireframes. Each item is `proposed`,
+    `approved` or `auto`.
+  - `'reroll'` on the guide or the motion redraws that item only. Parts, layout and wireframes follow
+    `play.parts` and `play.phases` (at most eight).
+  - While any item is proposed, `lowerPlay` gives the page greybox tokens. Once every item is approved or auto, it
+    gives the guide's tokens and the register's dials.
+  - Every guide value names the layer that set it: operator, hints (a stage's optional `play_hints`), world (the
+    stage's tone), roll, or default.
+- **One register slider, from modern to immersive.** `register.js` defines it:
+  - `REGISTER_STOPS`: modern 0, clean 0.25, framed 0.5, console 0.75, immersive 1.
+  - The slider moves nine `DIALS` together (type, frame, plate, surface, layout, motion, sound, cursor, light). Any
+    dial can be pinned on its own.
+  - `registerCss` is the dom backend. It reads closed words only, so no author string reaches CSS.
+  - `scene/channels/events.js` lays it over the HUD sheet when a settled direction brings `events.register`.
+    Without one, no bytes are added.
+- **Motion is counted in frames on the game clock.** `motion.js` holds snap, punch, roll, shake, pulse, hold-fade,
+  slide and sway. Each has a rail its rolled frame count stays inside, and the motion dial sets the curve: eased,
+  snapped, stepped or mechanical.
+- **The UI board is assembled from tracked pieces.** `board-html.js`:
+  - Pieces: `ui:guide`, `ui:motion`, `ui:part:<part>.<variant>`, `ui:layout`, `ui:wireframe:<phase>`. Each part
+    is drawn in every appearance state, in values and then dressed by the guide, using the page's own `HUD_CSS`.
+  - `uiSheetHtml` is the reference sheet: every part, variant and state at a register.
+  - `create_sketch` and `update_sketch` answer with the board as an image (`play-board-result.js`), with the pending
+    items and the exact patches to approve or reroll.
+  - `laws.js` advises, and never refuses, on `centre-is-focus`, `region-budget` and `scene-backend`.
+- **Stylized borders: art over the frame, composed from elements.** `lib/graph/playscape/ui/borders.js`:
+  - `BORDER_ELEMENTS` are ticks, scanlines, dotgrid, hazard, sidebar, brackets, tendrils, notch, stitch, glow and
+    soft. Each takes a slot: one element per slot, except the background and shadow slots, which stack.
+    `readBorder` refuses only geometry that cannot hold together: a notch clips away whatever stands off the edge.
+  - `BORDER_FLAVORS` are named sets of elements, each with the face, dials and tint that go with it:
+    - `covert`: brackets, scanlines, ticks;
+    - `futurepunk`: ticks, notch, dotgrid, glow;
+    - `mech-cockpit`: hazard, sidebar, notch;
+    - `cozy`: soft, stitch, tendrils.
+  - The art draws in the guide's tokens only. A flavor's tint is a token proposal with source `flavor`;
+    `tint: false` keeps the world's colours.
+  - Precedence: the operator's words, then the hints, then the flavor, then the register and the world.
+  - `borderCss` is the dom backend. The World page lays it after the register's sheet, from the settled
+    `events.register`.
+- **Pixelated is a tuning beside the register.** `play.ui.pixel` is 0, 2, 3 or 4, or `true` for 3. It turns off font
+  smoothing and gives hard edges, stepped corners, integer strokes, stepped bar fills and the mono face. Every border
+  element draws at the pixel size.
+- **The board answers the black-and-white test.**
+  - Each part the world declares gets its own row, keyed by what it binds, in its own colour.
+  - The values row drains even the semantic hues.
+  - The `values-apart` law advises when two standing parts of one kind in one region differ only by colour and label.
+  - The guide piece shows the border and the pixel tuning, each with its source. The drawer gains `ui-border` and
+    `ui-pixel` cards.
+- **Shared status: whose value a part shows, and who may see it.**
+  - `bind.of` is `self`, `team`, `all` or `each:<tag>`; `each` makes one part many. `audience` is `self`, `team`,
+    `all` or `spectator`.
+  - `nameplate` sits over each tagged entity (`at: 'over'`). `scoreboard` is a row per entity.
+  - The board draws a wireframe per phase per view (player, spectator), with ally and enemy markers, so what each
+    view is shown can be checked before anything is built.
+  - The `owners-apart` law advises when a part enemies also see doesn't tell mine from theirs by shape
+    (`mark: { ally, enemy }`).
+  - The bus stays local; team and per-entity parts are designed on the board, and authority over shared state is
+    the exported engine's.
+- **Flow parts for management screens: rates, not stocks.** `ledger` (stocks with rates), `forecast` ("runs out in
+  2:10"), `trend`, `alerts` (held until acted on), `allocator` (splitting a fixed pool) and `queue`.
+- **Designed on the board before the page draws them.**
+  - A part the page can't draw yet (`page: false`) is drawn on the board, dashed in the wireframes, and left out of
+    the lowering. The `board-only` law names each one.
+  - A part placed at `left` or `right` is now board-only too, instead of an error.
+- **Pace scales the layout laws.**
+  - `play.ui.pace` is `glance`, `scan` (the default) or `study`. Each pace has its own region budgets
+    (`REGION_BUDGETS` in `regions.js`).
+  - At `study` pace the centre may hold a standing panel.
+  - The drawer gains `ui-shared` and `ui-pace` cards.
+- **The shooter's idioms are parts, and systems publish what they read.**
+  - `lib/graph/playscape/ui/systems.js` lists what the piloted runtime already keeps: weapon (ammo, magazine,
+    reload, cooldown, charge, energy, hit, assist-hit and miss events), lock (the target), body (hp, harm) and match
+    (kills, the feed).
+  - New parts bind a system (`bind: { from }`, by default their own): `reticle` (ring, cross, dot or chevron, with
+    core, assist, status and charge layers), `hitmarker`, `ammo` (count, pips, bar or gauge), `weapon` (icon-name or
+    loadout), `lock` and `target` over what you aim at (`bind.of: 'target'`), `damage` arcs and the kill `feed`.
+  - A readout may read a system field: `bind: { from: 'body', field: 'hp' }`.
+  - The laws: the reticle stands in the centre by right. `hit-reads` advises when a reticle has no hitmarker,
+    because then a hit reads only as a colour flash.
+  - On the board, the centre marks draw bare (no plate, no border art) and sit at the exact centre of the
+    wireframes. `board-only` advice is grouped by reason.
+  - The piloted runtime keeps drawing its own HUD until it is drawn from these parts.
+  - The drawer gains a `ui-systems` card.
+- **`get_play_vocab` is the play drawer, scaled to the ask.**
+  - With no argument it returns the ladder: board, click, level, systems, game.
+  - `rung` returns what that rung admits; `id` returns one card. The cards (`play-guide`, `ui-board`,
+    `ui-register`, `ui-motion`, `ui-layout`, `ui-part-<part>`) are generated in `cards.js`.
+  - The tool lives in `pack_game`. Studio routing gets a PLAY row, and a `play` routing card is added. The
+    tools/list payload is re-pinned to 241,700.
+
 ### Handedness
 
 - The still camera is right-handed. The pinhole projector behind every SVG still and the CSS-3D scene

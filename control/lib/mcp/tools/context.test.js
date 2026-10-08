@@ -520,7 +520,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
-    'create_game', 'get_game_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
+    'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
     // game projects (game-developer.plan.md GP1) — the project layer's tools
     // live in the game form drawer beside the mint.
     'create_game_project', 'get_game_project', 'update_game_project', 'bind_to_game_project', 'list_game_projects',

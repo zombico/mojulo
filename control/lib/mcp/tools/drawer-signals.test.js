@@ -11,7 +11,7 @@ import { getViewVocabHandler } from './create-view.js';
 import { getSolidVocabHandler } from './mint-solid.js';
 import { getMotionVocabHandler } from './motion.js';
 import { getBeatsVocabHandler } from './beats.js';
-import { getGameVocabHandler } from './create-game.js';
+import { getGameVocabHandler, getPlayVocabHandler } from './create-game.js';
 import { getVoiceVocabHandler } from './voice.js';
 
 // ---------------------------------------------------------------------------
@@ -69,6 +69,11 @@ const DRAWER_FIXTURES = {
   },
   get_game_vocab: {
     handler: getGameVocabHandler,
+    missInput: { id: '__no_such_card__' },
+    indexInput: {},
+  },
+  get_play_vocab: {
+    handler: getPlayVocabHandler,
     missInput: { id: '__no_such_card__' },
     indexInput: {},
   },
