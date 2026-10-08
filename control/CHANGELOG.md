@@ -54,6 +54,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   cast's `hands` (1.2), and a broader palm through a new `handWidth` (1.17 female, 1.25 male: the palm's width, the
   knuckles' spread and the digits' width across, their depth by its root). The feet are unchanged. Every anime hero's
   mesh moves at the hand; its pins are re-pinned.
+- The shoulders rise with the arms: the structured core has a SHOULDER GIRDLE, a collarbone each side from the shoulder
+  line to the shoulder, that lifts with a raised arm (past 30° of raise a third of the further raise, at most 25°: the
+  scapulohumeral rhythm), the arm carried up with it in its own direction. The arm's cap and the chest's skin at the side
+  of the shoulder ride it, so an arm overhead takes the top of the shoulder with it instead of leaving the chest's
+  square corner beside it. The chest takes its roll from where the shoulders sat, so one arm raised never rolls it.
+  Garment rings now carry the body's own slot weights (the shoulder's over the collarbone, a pectoral's), so the cloth
+  bends as the skin under it. The skinned export has two more joints; structured pins re-pinned.
 - The hips bend as one piece: on the structured core the pelvis bone now TIPS with the hip hinge (a `pelvisTilt`
   reference the vajra carries with the pelvis, never with the spine), so the basin, the waistband and the belt go over
   the thighs with the trunk instead of staying upright under it (the waist opened a gap, a shelf at the back, whenever

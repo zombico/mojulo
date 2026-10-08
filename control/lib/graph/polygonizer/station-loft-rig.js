@@ -203,9 +203,12 @@ export function rigNodesAt(R, pose = {}) {
   const vajraSpec = Object.fromEntries(Object.entries(pose).filter(([k]) => !RIG_CHANNELS.includes(k) && !(k in R.chains) && !handChannel(R, k)));
   // a rig's `pelvisTilt` joint (the structured core's) rides the vajra with the pelvis: it tips with the hip hinge, so
   // the pelvis bone (its roll from it) tips with the trunk over the thighs, and stays put when only the spine bends
-  const coreKeys = rest.pelvisTilt ? [...VAJRA_CORE, 'pelvisTilt'] : VAJRA_CORE;
+  // a rig with collarbones (`girdleL/R`: the structured core's) lifts the shoulder with a raised arm (figure-vajra.js
+  // `girdle`), `girdle<S>` keeping where it sat for the chest's own line
+  const girdle = !!rest.girdleR;
+  const coreKeys = [...VAJRA_CORE, ...(rest.pelvisTilt ? ['pelvisTilt'] : []), ...(girdle ? ['girdleL', 'girdleR', 'clavicleL', 'clavicleR'] : [])];
   const core = Object.fromEntries(coreKeys.map((k) => [k, { x: rest[k][0], y: rest[k][1], z: rest[k][2] }]));
-  const posed = withMath(dmath, () => articulate(resolvePose(vajraSpec, core), core));   // shared vajra FK on dmath (util/math-scope.js)
+  const posed = withMath(dmath, () => articulate({ ...resolvePose(vajraSpec, core), ...(girdle ? { girdle: true } : {}) }, core));   // shared vajra FK on dmath (util/math-scope.js)
   // the core, and the head turn's twist pairs when the pose turns the neck or head (absent otherwise)
   const carried = [...coreKeys, ...TWIST_REF_NODES.filter((k) => posed[k])];
   for (const k of carried) nodes[k] = [posed[k].x, posed[k].y, posed[k].z];

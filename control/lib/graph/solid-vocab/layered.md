@@ -327,7 +327,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   THE CORE: every hero's midsection is built on the vajra core (`core: 'structured'`, the default): the `pelvis` bone is the basin, turned by the
   hip line and TIPPED by the hip hinge (the pelvis rocks over the thighs with the trunk, so nothing opens at the waist
   when the figure bends at the hips), and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or
-  side bend bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
+  side bend bends the lower back over a still pelvis; a `clavicle` bone each side from the shoulder line to the shoulder
+  RISES with a raised arm (past 30° a third of the further raise, at most 25°: the shoulder blade's rhythm), the top of the
+  shoulder's skin and the arm's cap riding it, so the shoulder lifts with the arm instead of the chest's corner standing; the hem and the top of the thighs blend the two, and a hip-slung blade
   rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
   the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
   receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's

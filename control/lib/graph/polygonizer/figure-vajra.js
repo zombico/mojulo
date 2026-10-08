@@ -352,6 +352,18 @@ function applyHeadTurn(m, base, dof, turnTop) {
 // Build a posed armature from a degrees-of-freedom object. Order is
 // proximal → distal so each joint rides on its parent. `base` (optional) is the rest
 // armature to pose — a cast's proportions, or any 17-landmark map; omit for the canonical one.
+// small vector helpers on {x, y, z} (the girdle's rise)
+const subV = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+const addV = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
+const scaleV = (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s });
+const dotV = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+const crossV = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
+const unitV = (a) => { const l = SM.hypot(a.x, a.y, a.z) || 1; return scaleV(a, 1 / l); };
+/** v turned about the unit `k` by `a` radians (Rodrigues) */
+const rotVec = (v, k, a) => { const c = SM.cos(a), s = SM.sin(a), kv = crossV(k, v), d = dotV(k, v); return addV(addV(scaleV(v, c), scaleV(kv, s)), scaleV(k, d * (1 - c))); };
+const GIRDLE_MAX = 25;   // degrees: the clavicle's elevation at full raise
+export const CLAVICLE_IN = 0.375;   // the clavicle's inner end: this share of the way along the shoulder line toward the other
+
 export function articulate(dof = {}, base = null) {
   const m = restFrom(base);
   const L = LIMITS;
@@ -411,6 +423,26 @@ export function articulate(dof = {}, base = null) {
   // socket — the shoulder node stays put. Mirrors the hip (thigh about the hip).
   if (dof.shL) swivelSub(m, ARMS_L, 'shoulderL', dof.shL.yaw || 0, dof.shL.pitch || 0, L.shoulder);
   if (dof.shR) swivelSub(m, ARMS_R, 'shoulderR', dof.shR.yaw || 0, dof.shR.pitch || 0, L.shoulder);
+  // THE SHOULDER GIRDLE RISES WITH THE ARM (`dof.girdle`: a rig that has collarbones, station-loft-rig.js): past 30° of
+  // raise the shoulder lifts with the arm, a third of the further raise (the scapulohumeral rhythm, the scapula and
+  // the clavicle taking about one degree in three), at most GIRDLE_MAX — the clavicle turning up about its inner end, the
+  // arm carried up with it, its direction its own. `girdle<S>` keeps where the shoulder sat (the chest's own line).
+  if (dof.girdle) for (const S of ['L', 'R']) m[`girdle${S}`] = { ...m[`shoulder${S}`] };
+  if (dof.girdle) for (const S of ['L', 'R']) {
+    const sh = m[`shoulder${S}`], el = m[`elbow${S}`], O = m[`girdle${S === 'L' ? 'R' : 'L'}`];
+    // the clavicle's inner end on the chest's shoulder line where the base has it (CLAVICLE_IN of the way in, as the
+    // rig's rest says it to the micrometre), so it moves with both shoulders and its bone keeps its length
+    const B = base?.[`clavicle${S}`], G0 = base?.[`girdle${S}`], O0 = base?.[`girdle${S === 'L' ? 'R' : 'L'}`];
+    const f = B && G0 && O0 && Math.abs(O0.x - G0.x) > 1e-9 ? (B.x - G0.x) / (O0.x - G0.x) : CLAVICLE_IN;
+    const piv = addV(m[`girdle${S}`], scaleV(subV(O, m[`girdle${S}`]), f)); m[`clavicle${S}`] = piv;
+    const down = unitV(subV(m.navel, m.neckHub)), d = unitV(subV(el, sh));
+    const raise = SM.acos(Math.max(-1, Math.min(1, dotV(d, down)))) * 180 / Math.PI, g = Math.min(GIRDLE_MAX, Math.max(0, (raise - 30) / 3));
+    if (g <= 0) continue;
+    // about the clavicle's inner end, in the plane of the clavicle and the trunk's up
+    const c = subV(sh, piv), up = scaleV(down, -1), axis = unitV(crossV(c, up));
+    const r = rotVec(c, axis, g * Math.PI / 180), moved = addV(piv, r), dv = subV(moved, sh);
+    for (const k of [`shoulder${S}`, ...(S === 'L' ? ARMS_L : ARMS_R)]) m[k] = addV(m[k], dv);
+  }
   if (dof.hipL) swivelSub(m, LEG_L, 'hipL', dof.hipL.yaw || 0, dof.hipL.pitch || 0, L.hip);
   if (dof.hipR) swivelSub(m, LEG_R, 'hipR', dof.hipR.yaw || 0, dof.hipR.pitch || 0, L.hip);
   hingeFold(m, 'elbowL', 'wristL', REF_FWD, clamp(dof.elbowL || 0, 0, L.elbow));

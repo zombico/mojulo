@@ -153,6 +153,15 @@ export function garmentParts(parts, garments, dials = {}) {
       if (part.bind !== undefined) {
         const own = (r) => (r.mix ? mixBlend(blendOf(part.bind, r.mix[0]), blendOf(part.bind, r.mix[1]), r.mix[2]) : blendOf(part.bind, r.id));
         const blend = Object.fromEntries(rings.map((r) => [r.id, own(r)]));
+        // a body ring's own slot blends (a slot weighed apart from its station: the shoulder's over the collarbone, a
+        // pectoral's) carry onto the garment ring over it, so the cloth there bends as that skin does
+        const slotBlend = (id, sl) => part.bind.blend?.[`${id}.${sl}`];
+        if (typeof part.bind === 'object') for (const r of rings) for (const sl of Object.keys(r.points ?? {})) {
+          const a = r.mix ? (slotBlend(r.mix[0], sl) ?? blendOf(part.bind, r.mix[0])) : slotBlend(r.id, sl);
+          if (!r.mix) { if (a) blend[`${r.id}.${sl}`] = { ...a }; continue; }
+          const b = slotBlend(r.mix[1], sl) ?? blendOf(part.bind, r.mix[1]);
+          if (slotBlend(r.mix[0], sl) || slotBlend(r.mix[1], sl)) blend[`${r.id}.${sl}`] = mixBlend(a, b, r.mix[2]);
+        }
         piece.bind = { bone: typeof part.bind === 'string' ? part.bind : part.bind.bone, blend: { ...blend, back: own(rings[0]), tip: own(rings[n - 1]) } };
       }
       parts[name] = stiff(piece); (worn[src] ??= []).push(name);

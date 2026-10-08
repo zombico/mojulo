@@ -267,15 +267,16 @@ describe('the anime wave', () => {
 // (landmark-headed) recipe, so the same heroes again, the head-none pair as it was; then for
 // the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): every capped hero again, head-none as it was
 const PINS = {
-  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', 'e7c62f09f4c4a63d', 'acbf17075c97c613'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
-  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', 'fb92c843d2641092', 'b7cb2ea4c3f184c3'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
-  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '713ca63b644af2e6', '417175f59cd04449'], ['3501097320b96707', 'cd26a720b2420d48']],
-  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '6f0a424b9c1ac169', '8e99000cca01afc8'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
-  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '00d0789a2e4969ac', '5fa7320c00b72c3c'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
+  landmarkMale: [{ cast: 'male' }, ['5151980a1491275e', '229392938ea5085a', 'bd37f6e76d84664e'], ['83486ddf925dd1e5', '061c177f4a0b9175']],
+  landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['724eb23c69be56d1', '49f243f08fe9ffea', '649e6626b60382ee'], ['a1abb4fbc8d78a61', '7f67633ae270e296']],
+  headNone: [{ cast: 'female', head: 'none' }, ['2abfcb8d912a8fef', '5cea81b92efbd40a', '91d3ce30bdbb6397'], ['3501097320b96707', 'cd26a720b2420d48']],
+  ranger: [{ cast: 'male', hair: 'crop', detail: 'clothed', adorn: 'ranger' }, ['3f6b63054ff0a911', '21062789865de5b7', '670030f3930d73bc'], ['e09eb3fc01c74335', '7510f5dc97a29248']],
+  chibiFaced: [{ cast: 'chibi', headScale: 1.3, face: 'broad-jaw' }, ['aa18806411303cd1', '9238b6e86733e65d', 'f2efd5173ffd32aa'], ['031f46caafd139ae', '1c2adc75891c5cf2']],
 };
 describe('the door: no gesture ⇒ byte-identical', () => {
   // (the structured core's plans and recipes re-pinned when its pelvis bone took the hip hinge's tilt, `pelvisTilt`: the
-  // rig gained the reference joint; the streamlined core's pins did not move)
+  // rig gained the reference joint; the streamlined core's pins did not move), and again for its shoulder girdle (the
+  // collarbones that rise with a raised arm, the shoulder's skin over them)
   for (const [name, [spec, [record, plan, recipe], [oldPlan, oldRecipe]]] of Object.entries(PINS)) {
     it(`${name}: record, plan, recipe; the streamlined core's as before it`, () => {
       const hr = heroRecord(spec); const p = heroPlanOf(hr);

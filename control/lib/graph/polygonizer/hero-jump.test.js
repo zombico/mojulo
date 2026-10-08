@@ -27,7 +27,8 @@ describe('hero-jump', () => {
       // speeds a body reaches (the hands throw fast; the head, the pelvis and the feet do not), and no POP: no frame
       // breaks from its neighbours (the second difference stays small)
       const dt = J.seconds / N;
-      for (const [k, vMax] of [['wristL', 16], ['wristR', 16], ['headTop', JUMPS[name].roll ? 11 : 7], ['pelvisHub', JUMPS[name].roll ? 8 : 4],   // a roll swings the head and the hips round its pivot
+      for (const [k, vMax] of [['wristL', 17], ['wristR', 17],   // (the shoulder girdle rising with a fast arm swing adds to the hand's speed)
+         ['headTop', JUMPS[name].roll ? 11 : 7], ['pelvisHub', JUMPS[name].roll ? 8 : 4],   // a roll swings the head and the hips round its pivot
         ['toeBaseL', run ? 18 : JUMPS[name].roll ? 16 : 7], ['toeBaseR', run ? 18 : JUMPS[name].roll ? 16 : 7]]) {   // a sprinter's swing foot passes the body faster than the run (the sprint's own peaks ~17.7 m/s)
         for (let i = 0; i < N; i++) { const a = nodes[i][k], b = nodes[i + 1][k]; expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / dt).toBeLessThan(vMax); }
         // a roll turns the whole body fast: its bound is wider (a pop would not shrink with a finer step; this does)
