@@ -25,10 +25,10 @@ function rig(cfg, extra = []) {
   };
   const added = [], scene = { fog: new THREE.FogExp2(new Color(0.6), 0.02), background: new Color(0.6), add: (o) => added.push(o), traverse: (f) => scene.extra.concat(added).forEach(f), extra };
   const camera = { position: { x: 3, y: 4, z: 2 } };
-  const ov = { style: {} }, frames = [];
+  const ov = { style: {} };
   const win = { __mojGlyphs: { soft: { tex: 1 }, leaf: { tex: 1 }, flake: { tex: 1 }, dot: { tex: 1 } }, __mojClock: 0 };
-  new Function('THREE', 'scene', 'camera', 'document', 'window', 'requestAnimationFrame', 'performance', weatherScript(cfg))(THREE, scene, camera, { createElement: () => ov, body: { appendChild() {} } }, win, (f) => frames.push(f), { now: () => 0 });
-  const at = (sec) => { win.__mojClock = sec * 1000; frames.pop()(); };
+  const step = new Function('THREE', 'scene', 'camera', 'document', 'window', 'performance', weatherScript(cfg) + '\nreturn (t) => stepWeather(t);')(THREE, scene, camera, { createElement: () => ov, body: { appendChild() {} } }, win, { now: () => 0 });
+  const at = (sec) => { win.__mojClock = sec * 1000; step(sec * 1000); };
   return { scene, ov, win, added, at, THREE };
 }
 
@@ -39,6 +39,15 @@ describe('weather channel', () => {
     const html = emitThreeWorld({ faces: [face], weather: { weather: W, seed: 5 } });
     expect(html).toContain('window.__mojWeather');
     expect(html.length).toBeGreaterThan(base.length);
+  });
+
+  it('a camera capture pins the clock for it, and the page\'s own step drives it (no loop of its own)', () => {
+    const w = { weather: W, seed: 5 }, f = { faces: [face] };
+    expect(emitThreeWorld({ ...f, weather: w, capture: true })).toContain('window.__mojClock = Number.isFinite(spec.t)');
+    expect(emitThreeWorld({ ...f, capture: true })).not.toContain('window.__mojClock = Number.isFinite(spec.t)');
+    const html = emitThreeWorld({ ...f, weather: w });
+    expect(html).toContain('stepWeather(t);');
+    expect(weatherScript({ weather: W, seed: 5 })).not.toContain('requestAnimationFrame');
   });
 
   it('the page runs, and its sky is the module\'s: the same seed at the same moment gives the same fog', () => {
@@ -75,22 +84,23 @@ describe('weather forced by a cue', () => {
   it('the page reads the bus var: eases to the forced state, holds it, and eases back to the schedule', () => {
     const r = rig({ weather: W2, seed: 1, radius: 40, forces: ['blizzard'] });
     const vars = {}; r.win.__mojBus = { state: { vars } };
+    const F = 'weather-force:cue:pass', B = 'weather-blend:cue:pass';
     r.at(10); const clearFog = r.scene.fog.density;
-    vars['weather-force'] = 'blizzard'; vars['weather-blend'] = 4;
+    vars[F] = 'blizzard'; vars[B] = 4;
     r.at(11); r.at(13);
     const mid = r.scene.fog.density;
     r.at(20);
     const held = r.scene.fog.density;
     expect(mid).toBeGreaterThan(clearFog); expect(held).toBeGreaterThan(mid);
     expect(held).toBeCloseTo(0.02 * 9, 6);                  // the blizzard's factor on the kit's own fog
-    vars['weather-force'] = '';
+    vars[F] = '';
     r.at(21); r.at(40);
     expect(r.scene.fog.density).toBeCloseTo(clearFog, 6);   // back on the schedule
   });
   it('a state a cue forces that the climate lacks still has its pool', () => {
     expect(weatherStates(W2, ['blizzard'])).toEqual(['clear', 'blizzard']);
-    expect(weatherForces({ reactions: [{ do: 'set', var: 'weather-force', to: 'fog' }, { do: 'set', var: 'weather-force', to: '' }, { do: 'set', var: 'x', to: 'rain' }] })).toEqual(['fog']);
-    expect(emitThreeWorld({ faces: [face], weather: { weather: W2, seed: 1 }, events: { reactions: [{ on: 'go', do: 'set', var: 'weather-force', to: 'blizzard' }] } })).toContain('"blizzard"');
+    expect(weatherForces({ reactions: [{ do: 'set', var: 'weather-force:cue:a', to: 'fog' }, { do: 'set', var: 'weather-force:cue:a', to: '' }, { do: 'set', var: 'x', to: 'rain' }] })).toEqual(['fog']);
+    expect(emitThreeWorld({ faces: [face], weather: { weather: W2, seed: 1 }, events: { reactions: [{ on: 'go', do: 'set', var: 'weather-force:go', to: 'blizzard' }] } })).toContain('"blizzard"');
   });
 });
 

@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { STATES, FALL_BOX, IMPACT_LIFE, dice, draw, weatherAt, blendState, fallCount, fallPoints, impactPoints, impactCount, flashesIn } from '../../weather/weather.js';
+import { STATES, FALL_BOX, IMPACT_LIFE, buildWeatherLib } from '../../weather/weather.js';
 import { GLYPHS_SRC } from './moment-channel.js';
 import { airColour, castOf, airFromHaze } from '../../era/air.js';
 
@@ -19,19 +19,23 @@ import { airColour, castOf, airFromHaze } from '../../era/air.js';
 // Absent `weather` ⇒ NOT emitted. `cfg`: { weather: a read weather, seed, air?: the style's air card, fog?: { color, density }, radius, ground? }
 // (no card: one is made of the haze, era/air.js airFromHaze).
 // window.__mojWeather = { W, seed, at(t) } is the page's probe (and the bus's, for a forced state).
-// (fallCount and impactCount are arrows: named here; the rest are declarations that carry their names)
-const LIB = [dice, draw, weatherAt, blendState, fallPoints, impactPoints, flashesIn, airColour, castOf].map((f) => f.toString()).concat(`const fallCount = ${fallCount.toString()};`, `const impactCount = ${impactCount.toString()};`).join('\n');
+// (the lib is one closure and the air functions are bound to names here: nothing leans on a function's own name, which a
+// minifying bundler renames)
+const LIB = `const { dice, draw, weatherAt, blendState, fallCount, fallPoints, impactPoints, impactCount, flashesIn } = (${buildWeatherLib.toString()})(STATES, FALL_BOX, IMPACT_LIFE);
+const airColour = ${airColour.toString()};
+const castOf = ${castOf.toString()};`;
 
 /** The states a weather can show: its climate's, its start, and any a cue forces (`extra`). */
 export const weatherStates = (W, extra = []) => [...new Set([...Object.keys(W.climate), ...(W.start ? [W.start] : []), ...extra])];
 /** The states a world's cues force (their lowered reactions set the weather var), in first-named order. */
-export const weatherForces = (events) => [...new Set(((events && events.reactions) || []).filter((r) => r && r.do === 'set' && r.var === 'weather-force' && typeof r.to === 'string' && STATES[r.to]).map((r) => r.to))];
+export const weatherForces = (events) => [...new Set(((events && events.reactions) || []).filter((r) => r && r.do === 'set' && typeof r.var === 'string' && r.var.startsWith('weather-force') && typeof r.to === 'string' && STATES[r.to]).map((r) => r.to))];
 
 export function weatherScript(input) {
   const cfg = { ...input, air: input.air || airFromHaze(input.fog, input.weather.air) };
   const names = weatherStates(cfg.weather, cfg.forces), states = Object.fromEntries(names.map((n) => [n, STATES[n]]));
   return `
 // --- weather: the world's sky, from its climate (weather/weather.js) ---
+let stepWeather = () => {};   // __mojStep(t) drives it
 (function () {
   const CFG = ${safeJson(cfg)}, W = CFG.weather, SEED = CFG.seed, STATES = ${safeJson(states)};
   const FALL_BOX = ${safeJson(FALL_BOX)}, IMPACT_LIFE = ${safeJson(IMPACT_LIFE)};
@@ -49,13 +53,27 @@ export function weatherScript(input) {
     return { S: blendState(A.S, B.S, u), sh };
   };
   let last = lookAt(0), forced = null, freed = null, was = '';
-  const busVar = (k) => { const b = window.__mojBus; return b && b.state && b.state.vars ? b.state.vars[k] : undefined; };
+  // the bus's word: each cue that forces the sky has its own var (weather-force:<event>, and weather-blend:<event> for how
+  // long the change takes); the newest force still set is the sky's, and when none is the schedule's own again
+  const seen = {}, live = {};
+  function bus() {
+    const b = window.__mojBus, v = b && b.state && b.state.vars;
+    if (!v) return null;
+    let top = null;
+    for (const k of Object.keys(v)) {
+      if (k.indexOf('weather-force') !== 0) continue;
+      const now = v[k] || '';
+      if (now !== (seen[k] || '')) { seen[k] = now; if (now) live[k] = { n: now, k, at: ++order, bl: v['weather-blend' + k.slice(13)] }; else delete live[k]; }
+      if (live[k] && (!top || live[k].at > top.at)) top = live[k];
+    }
+    return top;
+  }
+  let order = 0;
   function look(t) {
-    // the bus's word: the state forced (a cue's weather effect) and how long the change takes
-    const f = busVar('weather-force') || '', bl = busVar('weather-blend');
+    const top = bus(), f = top ? top.n + '|' + top.k + '|' + top.at : '';
     if (f !== was) {
-      const len = Number.isFinite(bl) && bl >= 0 ? bl : W.blend;
-      if (f) { forced = { n: f, t0: t, from: last, len }; freed = null; }
+      const len = top && Number.isFinite(top.bl) && top.bl >= 0 ? top.bl : W.blend;
+      if (top) { forced = { n: top.n, t0: t, from: last, len }; freed = null; }
       else if (forced) { freed = { t0: t, from: last, len: forced.len }; forced = null; }
       was = f;
     }
@@ -113,7 +131,7 @@ export function weatherScript(input) {
     const P = pools[name]; if (!P) return;
     const n = Math.min(P.count, Math.round(P.count * k));
     P.o.visible = n > 0; if (!n) return;
-    const pts = fallPoints(P.F, camP, t, n, heading), a = P.F.length ? 1 : 0, op = P.streak ? 0.5 : 0.85;
+    const pts = fallPoints(P.F, camP, t, n, heading), op = P.streak ? 0.5 : 0.85;
     let i = 0;
     for (const q of pts) {
       const w = q.w * op;
@@ -183,9 +201,9 @@ export function weatherScript(input) {
     for (const n of Object.keys(pools)) { const k = L.sh[n] || 0; fall(n, k, t); if (k > 0) land(n, k, t, used); }
     rings.count = used.r.n; discs.count = used.d.n;
     for (const m of [rings, discs]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
-    requestAnimationFrame(step);
   }
-  step();
+  // the page's own clocked step drives it (so a capture's frame is the frame it pinned, and a live page's every frame)
+  stepWeather = step; step();
 })();
 `;
 }

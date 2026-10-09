@@ -195,11 +195,11 @@ describe('weather cues', () => {
   });
   it('lowers onto the bus: a var set, a sequence that clears it, a timer for the heartbeat', () => {
     const f = lowerCues(play([{ id: 'pass', when: { enter: { at: [0, 0], r: 5 } }, then: { weather: { is: 'blizzard', for: 90 } } }, { id: 'roll', when: { every: 300 }, then: { weather: 'fog' }, until: { ttl: 60 } }]));
-    expect(f.vars).toMatchObject({ 'weather-force': '' });
-    expect(f.reactions).toContainEqual({ on: 'cue:pass', do: 'set', var: 'weather-force', to: 'blizzard' });
-    expect(f.sequences.find((q) => q.id === 'weather-cue:pass').steps).toEqual([{ await: { timer: 90 } }, { do: 'set', var: 'weather-force', to: '' }]);
+    expect(f.vars).toMatchObject({ 'weather-force:cue:pass': '' });
+    expect(f.reactions).toContainEqual({ on: 'cue:pass', do: 'set', var: 'weather-force:cue:pass', to: 'blizzard' });
+    expect(f.sequences.find((q) => q.id === 'weather-cue:pass').steps).toEqual([{ await: { timer: 90 } }, { do: 'set', var: 'weather-force:cue:pass', to: '' }]);
     expect(f.timers).toEqual([{ every: 300, emit: { type: 'cue:roll' } }]);
-    expect(f.reactions).toContainEqual({ on: 'cue-end:roll', do: 'set', var: 'weather-force', to: '' });
+    expect(f.reactions).toContainEqual({ on: 'cue-end:roll', do: 'set', var: 'weather-force:cue:roll', to: '' });
   });
   it('says what is wrong', () => {
     const bad = (c, re) => expect(() => readCues(play([c]))).toThrow(re);
@@ -214,8 +214,20 @@ describe('weather cues on a running bus', () => {
     const f = lowerCues({ cues: [{ id: 'roll', when: { every: 300 }, then: { weather: { is: 'fog', for: 60 } } }] });
     const bus = createBusState(f, []);
     for (let t = 0; t < 301; t++) { const k = tickTimers(bus, 1); if (k.length) processEvents(bus, k); }
-    expect(bus.vars['weather-force']).toBe('fog');
+    expect(bus.vars['weather-force:cue:roll']).toBe('fog');
     for (let t = 0; t < 61; t++) { const k = stepTime(bus, 1); if (k.length) processEvents(bus, k); }
-    expect(bus.vars['weather-force']).toBe('');
+    expect(bus.vars['weather-force:cue:roll']).toBe('');
+  });
+
+  it('two cues forcing the sky do not clear each other, and one cue forces one weather', () => {
+    const f = lowerCues({ cues: [{ id: 'a', when: { on: 'go-a' }, then: { weather: { is: 'fog', for: 60 } } }, { id: 'b', when: { on: 'go-b' }, then: { weather: { is: 'rain', for: 300 } } }] });
+    const bus = createBusState(f, []);
+    processEvents(bus, [{ type: 'go-a' }]);
+    for (let t = 0; t < 30; t++) { const k = stepTime(bus, 1); if (k.length) processEvents(bus, k); }
+    processEvents(bus, [{ type: 'go-b' }]);
+    for (let t = 0; t < 40; t++) { const k = stepTime(bus, 1); if (k.length) processEvents(bus, k); }   // a's 60 s is up at 60
+    expect(bus.vars['weather-force:cue:a']).toBe('');
+    expect(bus.vars['weather-force:cue:b']).toBe('rain');                    // b still holds
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: [{ weather: 'fog' }, { weather: 'rain' }] }] })).toThrow(/forces one weather/);
   });
 });

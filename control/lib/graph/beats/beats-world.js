@@ -197,7 +197,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (typeof w !== 'object' || Array.isArray(w)) throw new Error('audio.weather is true or { level?, surface? }');
     for (const k of Object.keys(w)) if (!['level', 'surface'].includes(k)) throw new Error(`audio.weather.${k} is not a weather sound setting (level, surface)`);
     if (w.level !== undefined && !(Number.isFinite(w.level) && w.level >= 0 && w.level <= 1)) throw new Error('audio.weather.level is a gain from 0 to 1');
-    if (w.surface !== undefined && !SURFACES[w.surface]) throw new Error(`audio.weather.surface is one of: ${Object.keys(SURFACES).join(', ')}`);
+    if (w.surface !== undefined && !Object.prototype.hasOwnProperty.call(SURFACES, w.surface)) throw new Error(`audio.weather.surface is one of: ${Object.keys(SURFACES).join(', ')}`);
     out.weather = { ...(w.level !== undefined ? { level: w.level } : {}), ...(w.surface ? { surface: w.surface } : {}) };
   }
 

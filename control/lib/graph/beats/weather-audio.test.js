@@ -84,6 +84,25 @@ describe('weather audio', () => {
     expect(SLICE).toBe(0.5);
   });
 
+  it('a band is always a band: a surface that closes the top never closes it below the floor', () => {
+    for (const bank of Object.keys(BANKS)) for (const surf of Object.keys(SURFACE_VOICES)) for (const g of sliceCues(bank, 1, voiceFor(3, bank), surf, 0, 1, 3)) if (g.band) expect(g.band.lo, `${bank} on ${surf}`).toBeLessThan(g.band.hi);
+  });
+
+  it('thunder still arrives after the sky has cleared, and unmuting does not replay what was missed', () => {
+    const played = [], ticks = [], S = { ...STATES.thunderstorm, flash: { every: [6, 22], near: 0.3, bright: 1, share: 1 } };
+    let t = 100, sh = { thunderstorm: 1 }, muted = false, flashes = [{ at: 99, near: true, dist: 343 * 6, seed: 3 }];   // due at 105
+    const MW = { seed: 5, W: {}, states: STATES, clock: () => t, cur: () => ({ sh, S: sh.thunderstorm ? S : { ...STATES.clear } }), flashes: () => flashes };
+    const run = () => new Function('window', '__AUDIO', '__beatsEng', '__beatsMuted', '__beatsCtx', 'setInterval', weatherAudioScript())({ __mojWeather: MW }, { weather: {} }, { playCue: (...a) => played.push(a) }, muted, { currentTime: 1 }, (f) => ticks.push(f));
+    run(); ticks[0]();                                      // t = 100, storm
+    sh = { clear: 1 }; t = 103; ticks[0]();                 // the sky has cleared; thunder is not yet due
+    t = 106; ticks[0]();                                    // and arrives anyway
+    expect(played.filter((a) => a[0].some((x) => x.type === 'burst' && x.lowpass)).length).toBe(1);
+    // muted across the due time: nothing replays when sound returns
+    played.length = 0; ticks.length = 0; muted = true; t = 200; sh = { thunderstorm: 1 }; flashes = [{ at: 199, near: false, dist: 343 * 2, seed: 4 }];
+    run(); ticks[0](); t = 205; ticks[0]();                 // muted: the ticks only move the clock on
+    expect(played.length).toBe(0);
+  });
+
   it('the page schedules a slice each tick, and thunder once when its delay is up', () => {
     const played = [], ticks = [];
     const S = { ...STATES.thunderstorm, flash: { every: [6, 22], near: 0.3, bright: 1, share: 1 } };

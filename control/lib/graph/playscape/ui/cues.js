@@ -84,8 +84,11 @@ export const CUE_THEN = Object.freeze({
 export const SAY_AS = Object.freeze(['banner', 'toast', 'prompt']);
 export const PROMPT_TTL = 4;
 export const PHASE_VAR = 'phase';
-/** The bus vars the page's sky reads: the state a cue forces ('' = the schedule's own), and how long the change takes. */
+/** The bus vars the page's sky reads: the state a cue forces ('' = the schedule's own), and how long the change takes. Each
+ *  cue has its own pair (`weather-force:<event>`), so one cue's end or timer never clears another's; the page takes the
+ *  newest force that is still set. */
 export const WEATHER_VAR = 'weather-force', WEATHER_BLEND_VAR = 'weather-blend';
+export const weatherVar = (on) => `${WEATHER_VAR}:${on}`, weatherBlendVar = (on) => `${WEATHER_BLEND_VAR}:${on}`;
 export const cueVar = (part, state = false) => `ui-${part}${state ? '-state' : ''}`;
 export const menuVar = (menu) => `ui-menu-${menu}`;
 export const ANCHOR_REACH = 1.5;   // m round an anchor named with no r: arm's length and a step
@@ -239,6 +242,7 @@ export function readCues(play, phases = (play && play.phases) || ['playing']) {
     const when = readWhen(c.when, `${where}.when`, ctx);
     const then = (Array.isArray(c.then) ? c.then : [c.then]).map((t, k) => readEffect(t, `${where}.then${Array.isArray(c.then) ? `[${k}]` : ''}`, ctx));
     if (!then.length) throw new Error(`${where}.then is one effect or a list of them`);
+    if (then.filter((t) => t.kind === 'weather').length > 1) throw new Error(`${where}.then forces one weather: a cue that changes the sky twice is two cues`);
     let until = null;
     if (c.until !== undefined) {
       if (isObj(c.until) && Object.keys(c.until).length === 1 && c.until.ttl !== undefined) {
@@ -323,10 +327,11 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     if (t.kind === 'emit') { frag.reactions.push({ on, do: 'emit', type: t.event }); continue; }
     if (t.kind === 'weather') {
       // the page's sky reads two vars: the state forced, and the change's length; cleared after `for`, or when the cue ends
-      frag.vars[WEATHER_VAR] ??= ''; frag.vars[WEATHER_BLEND_VAR] ??= -1;
-      frag.reactions.push({ on, do: 'set', var: WEATHER_BLEND_VAR, to: t.blend ?? -1 }, { on, do: 'set', var: WEATHER_VAR, to: t.is });
-      if (t.for) frag.sequences.push({ id: `weather-${on}`, scope: `weather-${on}`, trigger: { on }, steps: [{ await: { timer: t.for } }, { do: 'set', var: WEATHER_VAR, to: '' }] });
-      if (end) frag.reactions.push({ on: end, do: 'set', var: WEATHER_VAR, to: '' });
+      const fv = weatherVar(on), bv = weatherBlendVar(on);
+      frag.vars[fv] ??= ''; frag.vars[bv] ??= -1;
+      frag.reactions.push({ on, do: 'set', var: bv, to: t.blend ?? -1 }, { on, do: 'set', var: fv, to: t.is });
+      if (t.for) frag.sequences.push({ id: `weather-${on}`, scope: `weather-${on}`, trigger: { on }, steps: [{ await: { timer: t.for } }, { do: 'set', var: fv, to: '' }] });
+      if (end) frag.reactions.push({ on: end, do: 'set', var: fv, to: '' });
       continue;
     }
     if (t.kind === 'close' && !t.menu) {

@@ -78,14 +78,15 @@ export function buildWeatherAudio() {
     const seed = (Math.imul(worldSeed >>> 0, 2654435761) ^ Math.imul(n + 1, 40503) ^ hashName(bank)) >>> 0;
     const oct = Math.pow(2, voice.tone), g = B.gust ? 1 + B.gust * (gustAt(voice, t + SLICE / 2) * 2 - 1) : 1;
     // the bed: a dense train of small grains; intensity is how many
-    const lo = B.bed.band[0] * oct, hi = Math.min(S.bed || 1e9, B.bed.band[1] * oct);
+    // (a surface that closes the bed's top may not close it below its own floor: the band stays a band)
+    const hi = Math.min(S.bed || 1e9, B.bed.band[1] * oct), lo = Math.min(B.bed.band[0] * oct, hi * 0.6);
     const grains = Math.round(B.bed.density * share * g * SLICE);
     if (grains > 0) out.push({ type: 'grain', at: 0, grains, over: SLICE, decay: [0.05, 0.14], band: { lo, hi }, vol: B.bed.vol, spread: 0.5, seed });
     // the drops: size is band (bigger lower, longer), the surface its resonance
     if (B.drops && S.drops > 0) {
       const size = voice.size, c = 5400 - 4300 * size, rate = B.drops.rate * share * S.drops;
       const count = Math.round(rate * SLICE + roll(seed, 1, 1) - 0.5);
-      const dHi = Math.min(S.hi || 1e9, c * 1.7), dLo = Math.max(150, (c / 1.7) * (S.click || 1));
+      const dHi = Math.min(S.hi || 1e9, c * 1.7), dLo = Math.min(Math.max(150, (c / 1.7) * (S.click || 1)), dHi * 0.6);
       if (count > 0) out.push({ type: 'grain', at: 0, grains: count, over: SLICE, decay: [0.012 + 0.03 * size, 0.03 + 0.07 * size], band: { lo: dLo, hi: dHi }, vol: 0.32, spread: 0.7, seed: seed ^ 0x51ED });
       if (S.ring) {
         const rings = Math.round(rate * S.ring.share * SLICE * 0.5 + roll(seed, 2, 2) - 0.5);
@@ -135,11 +136,14 @@ export function weatherAudioScript() {
 // weather sound: beds, drops and thunder rolled from the sky's look (beats/weather-audio.js)
 if (__AUDIO.weather) {
   const __WA = (${buildWeatherAudio.toString()})(), __WC = __AUDIO.weather, __wVoices = {};
-  let __wN = 0, __wPrev = null;
+  let __wN = 0, __wPrev = null, __wFlash = null, __wFlashAt = -1e9;
   setInterval(() => {
     const MW = window.__mojWeather;
-    if (!MW || !__beatsEng || __beatsMuted || !MW.cur) return;
-    const L = MW.cur(), t = MW.clock(), surface = __WC.surface || MW.W.surface || 'stone', gain = __WC.level == null ? 1 : __WC.level, when = __beatsCtx.currentTime + 0.05;
+    if (!MW || !MW.cur) return;
+    const t = MW.clock(), from = __wPrev == null ? t : __wPrev;
+    __wPrev = t;   // (moves on while muted: unmuting does not replay the thunder it missed)
+    if (!__beatsEng || __beatsMuted) return;
+    const L = MW.cur(), surface = __WC.surface || MW.W.surface || 'stone', gain = __WC.level == null ? 1 : __WC.level, when = __beatsCtx.currentTime + 0.05;
     // the banks of the states showing, each at its share (two states in a blend share a bank)
     const banks = {};
     for (const n of Object.keys(L.sh)) { const st = MW.states[n]; if (st) banks[st.sound] = (banks[st.sound] || 0) + L.sh[n]; }
@@ -149,15 +153,15 @@ if (__AUDIO.weather) {
       if (cue.length) __beatsEng.playCue(cue, when, null, gain, __wN + 1);
     }
     __wN++;
-    // thunder: each flash's crack or rumble arrives distance / 343 s after it
-    if (L.S.flash) {
-      const from = __wPrev == null ? t : __wPrev;
-      for (const f of MW.flashes(L.S.flash, Math.max(0, from - 40), t)) {
+    // thunder: each flash's crack or rumble arrives distance / 343 s after it, and still arrives when the sky has moved on
+    // (the last lightning the sky had, at its full share, for as long as the farthest thunder can be late)
+    if (L.S.flash) { __wFlash = { ...L.S.flash, share: 1 }; __wFlashAt = t; }
+    if (__wFlash && t - __wFlashAt < 30) {
+      for (const f of MW.flashes(__wFlash, Math.max(0, from - 30), t)) {
         const th = __WA.thunderCues(f, MW.seed), due = f.at + th.delay;
         if (due > from && due <= t) __beatsEng.playCue(th.gestures, when, null, gain, (f.seed >>> 0) + 1);
       }
     }
-    __wPrev = t;
   }, ${Math.round(SLICE * 1000)});
 }`;
 }

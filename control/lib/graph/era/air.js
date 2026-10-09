@@ -19,6 +19,7 @@
  */
 
 const HEX = /^#[0-9a-f]{6}$/i;
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export const AIR_BODIES = Object.freeze({
   smooth: 'the exponential falloff of ordinary fog',
   banded: 'flat planes of haze, `steps` of them (a cel look)',
@@ -44,10 +45,10 @@ export function readAir(a, where = 'air', stateNames = null) {
   if (!a || typeof a !== 'object' || Array.isArray(a)) throw new Error(`${where} is { ${Object.keys(AIR).join(', ')} }`);
   const out = {};
   for (const [k, v] of Object.entries(a)) {
-    if (!AIR[k]) throw new Error(`${where}.${k} is not an air setting (${Object.keys(AIR).join(', ')})`);
+    if (!own(AIR, k)) throw new Error(`${where}.${k} is not an air setting (${Object.keys(AIR).join(', ')})`);
     if (k === 'hue' || k === 'shade') { if (!(typeof v === 'string' && HEX.test(v))) throw new Error(`${where}.${k} is a colour, #rrggbb`); out[k] = v.toLowerCase(); }
     else if (k === 'depth' || k === 'cast' || k === 'skyFollow') { if (!num01(v)) throw new Error(`${where}.${k} is from 0 to 1`); out[k] = v; }
-    else if (k === 'body') { if (!AIR_BODIES[v]) throw new Error(`${where}.body is one of: ${Object.keys(AIR_BODIES).join(', ')}`); out.body = v; }
+    else if (k === 'body') { if (!own(AIR_BODIES, v)) throw new Error(`${where}.body is one of: ${Object.keys(AIR_BODIES).join(', ')}`); out.body = v; }
     else if (k === 'steps') { if (!(Number.isInteger(v) && v >= 2 && v <= 8)) throw new Error(`${where}.steps is a whole number from 2 to 8`); out.steps = v; }
     else {
       if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error(`${where}.states is { <state>: { hue } }`);

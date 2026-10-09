@@ -951,7 +951,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // round the camera and lights the storms, every moment a pure function of the world clock and the seed (the
   // manifest's, else the sketch ref's). Live only (the stills ignore it, and are not degraded: no frame is missing).
   // Additive; absent ⇒ the emitted page is byte-identical.
-  if (payload && sketch.manifest.weather !== undefined) {
+  if (payload && sketch.manifest.weather != null && sketch.manifest.weather !== false) {
     const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
     const W = readWeather(sketch.manifest.weather, 'weather');
     // the air is the STYLE's (era/air.js: fog colour and body, the shade, what a state's air is): a kit's style card, or a

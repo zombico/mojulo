@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  STATES, STATE_NAMES, CLIMATES, FALL_GLYPHS, IMPACTS, FAMILIES, SOUND_BANKS, FALL_BOX,
+  STATES, STATE_NAMES, CLIMATES, FALL_GLYPHS, IMPACTS, FAMILIES, SOUND_BANKS, FALL_BOX, IMPACT_LIFE, buildWeatherLib,
   readWeather, weatherAt, weatherRuns, blendState, fallPoints, fallCount, impactPoints, impactCount, flashesIn, skyAt, dice,
 } from './weather.js';
 
@@ -157,5 +157,25 @@ describe('the dice', () => {
   it('the sky at t is the blend of the schedule', () => {
     const W = readWeather('monsoon'), s = skyAt(W, 1, 100);
     expect(s.state).toEqual(blendState(s.is, s.next, s.mix));
+  });
+});
+
+describe('weather review fixes', () => {
+  it('only own names are states, climates and settings (constructor is none)', () => {
+    expect(() => readWeather({ climate: { constructor: 1 } })).toThrow(/not a state/);
+    expect(() => readWeather('constructor')).toThrow(/neither a climate/);
+    expect(() => readWeather({ climate: 'temperate', toString: 1 })).toThrow(/not a weather setting/);
+    expect(() => readWeather({ climate: 'temperate', start: '__proto__' })).toThrow(/not a state/);
+  });
+  it('an unset blend never exceeds a short dwell', () => {
+    const W = readWeather({ climate: 'temperate', dwell: [5, 10] });
+    expect(W.blend).toBe(5);
+    expect(() => readWeather({ climate: 'temperate', dwell: [5, 10], blend: 8 })).toThrow(/blend is seconds/);
+  });
+  it('the page lib is one closure: it runs with nothing but its three arguments, under any names', () => {
+    const src = buildWeatherLib.toString(), run = new Function('S', 'B', 'I', `return (${src})(S, B, I);`)(STATES, FALL_BOX, IMPACT_LIFE);
+    const W = readWeather({ climate: { rain: 1, snow: 1 }, dwell: [10, 20], blend: 4 });
+    expect(run.weatherAt(W, 7, 33)).toEqual(weatherAt(W, 7, 33));
+    expect(run.fallPoints(STATES.rain.fall, [0, 0, 1], 2, 10)).toEqual(fallPoints(STATES.rain.fall, [0, 0, 1], 2, 10));
   });
 });

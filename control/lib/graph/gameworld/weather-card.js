@@ -3,9 +3,8 @@
  * the fog's veil, what falls), and a strip of the first twenty minutes of its dice. Values only; the style guide
  * colours it. Pure: the same climate and seed, the same card.
  */
-import { STATES, weatherRuns, SURFACES } from '../weather/weather.js';
+import { STATES, weatherRuns, SURFACES, dice } from '../weather/weather.js';
 import { airColour, castOf } from '../era/air.js';
-import { dice } from '../weather/weather.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const grey = (v) => { const n = Math.round(255 * Math.min(1, Math.max(0, v))); return `rgb(${n},${n},${n})`; };
