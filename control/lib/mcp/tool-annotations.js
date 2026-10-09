@@ -227,6 +227,7 @@ export const TOOL_ANNOTATIONS = {
   // ── games (create-game.js, game-projects.js, pixelizer, sprites, export) ───
   create_game: ['Create a game', ADDITIVE],
   get_game_vocab: ['Game vocabulary cards', READ],
+  get_play_vocab: ['Play vocabulary cards', READ],
   create_game_project: ['Create a game project', ADDITIVE],
   get_game_project: ['Get game project', READ],
   update_game_project: ['Update a game project', DESTRUCTIVE_IDEMPOTENT],

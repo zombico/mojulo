@@ -28,6 +28,9 @@ import { emitBeatsKernel } from '../beats/beats-kernel.js';
 import { beatsFeatures, pagePatches } from '../beats/beats-features.js';
 import { GROOVE, POLKA, SFX } from './brickster-audio.recipe.js';
 import { moduleDir } from '../../module-dir.js';
+import { buildControlsKernel } from '../controls/controls-kernel.js';
+import { SCHEMES } from '../controls/schemes.js';
+import { DEVICES } from '../controls/devices.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/pixelizer');
 
@@ -117,6 +120,19 @@ trackBtn.addEventListener('pointerdown', (e) => {
 });
 trackBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 `;
+
+const CTL = buildControlsKernel();
+const FALLING_BLOCK = CTL.resolve(SCHEMES['falling-block'], { keyboard: DEVICES.keyboard, gamepad: DEVICES.gamepad });
+const FALLING_BLOCK_KEYS = CTL.codeMap(FALLING_BLOCK, 'keyboard');
+// the pad's bindings as [kind, index, sign]: 'b' a standard-mapping button, 'a' a half axis
+const FALLING_BLOCK_PAD = Object.fromEntries(Object.entries(FALLING_BLOCK.bind.gamepad).map(([id, cs]) => [id, cs.map((c) => {
+  const m = /^([A-Za-z]+?)([+-])?$/.exec(c);
+  return m[2] ? ['a', DEVICES.gamepad.axes[m[1]], m[2] === '-' ? -1 : 1] : ['b', DEVICES.gamepad.buttons[c]];
+})]));
+// the pad's line under the board, in each printed layout (the page picks one by the pad's id)
+const FALLING_BLOCK_PAD_HINT = Object.fromEntries(Object.keys(DEVICES.gamepad.layouts).map((layout) => [layout,
+  CTL.legend(SCHEMES['falling-block'], FALLING_BLOCK, DEVICES, { active: { gamepad: true }, layout })
+    .slice(SCHEMES['falling-block'].legend.keyboard.length).map(([k, v]) => k + ' ' + v).join(' · ')]));
 
 export const shell = ({ padDefault = false, music = false } = {}) => `
 // --- render: world raster into #game, overlay view-model into real DOM ---
@@ -258,18 +274,49 @@ setInterval(() => {
   }
   musicTick();
 }, 30);
-const KEYS = {
-  ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'softDrop', ArrowUp: 'cw',
-  ' ': 'hardDrop', x: 'cw', z: 'ccw', c: 'hold', Shift: 'hold', Enter: 'restart',
-};
+// physical key → action, from the falling-block scheme (controls/schemes.js): the guideline layout
+const KEYS = ${JSON.stringify(FALLING_BLOCK_KEYS)};
 addEventListener('keydown', (e) => {
-  const action = KEYS[e.key];
+  const action = KEYS[e.code];
   if (!action) return;
   e.preventDefault();
   startMusic();
   if (!started) { begin(); return; } // first key lifts the start gate, doesn't act
   dispatch(action);
 });
+
+// --- gamepad: a third translator beside KEYS and the touch pad, from the same scheme. A press edge
+// dispatches; a held move or soft drop repeats like the knob (DAS, then REPEAT). The first press lifts
+// the start gate, as a key does. The line under the board names the pad's own buttons.
+const PAD = ${JSON.stringify(FALLING_BLOCK_PAD)};
+const PAD_REPEATS = { left: true, right: true, softDrop: true };
+const PAD_HINT = ${JSON.stringify(FALLING_BLOCK_PAD_HINT)};
+const padLayout = ${CTL.padLayout.toString()};
+const padHeld = {};
+const padKeys = document.getElementById('pad-keys');
+const padOn = (g, binds) => binds.some(([k, i, sgn]) => (k === 'b' ? !!(g.buttons[i] && g.buttons[i].pressed) : (g.axes[i] || 0) * sgn > 0.5));
+const padPoll = () => {
+  requestAnimationFrame(padPoll);
+  const pads = navigator.getGamepads();
+  let g = null;
+  for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { g = pads[i]; break; }
+  if (padKeys) { padKeys.style.display = g ? 'block' : 'none'; if (g) padKeys.textContent = PAD_HINT[padLayout(g.id)]; }
+  if (!g) return;
+  const now = performance.now();
+  for (const action of Object.keys(PAD)) {
+    const on = padOn(g, PAD[action]), h = padHeld[action];
+    if (on && !h) {
+      padHeld[action] = { next: now + DAS };
+      startMusic();
+      if (!started) { begin(); continue; }
+      dispatch(action);
+    } else if (on && PAD_REPEATS[action] && now >= h.next) {
+      h.next = now + REPEAT;
+      dispatch(action);
+    } else if (!on && h) delete padHeld[action];
+  }
+};
+if (navigator.getGamepads) requestAnimationFrame(padPoll);
 render();
 `;
 
@@ -350,6 +397,7 @@ ${HUD_CSS}
   #mute-btn.muted { color: #4a4a55; text-decoration: line-through; }
   #audio button.on { background: #68687c; color: #16161e; border-color: #8a8a99; }
   #touch-keys { display: none; text-align: center; margin-top: 8px; color: #66667a; }
+  #pad-keys { display: none; text-align: center; margin-top: 8px; color: #66667a; }
   /* the phone posture: stat strip above a fit-scaled board, pad below */
   @media (max-width: 620px) {
     body { place-items: start center; padding: 10px 0 calc(8px + env(safe-area-inset-bottom)); }
@@ -382,6 +430,7 @@ ${HUD_CSS}
     <div id="knob"><div id="thumb"></div></div>
   </div>
   <div id="keys">&larr;&rarr; move &middot; &darr; soft &middot; space hard &middot; z/x/&uarr; rotate &middot; c hold &middot; enter restart</div>
+  <div id="pad-keys"></div>
   <div id="touch-keys">drag: move/rotate/soft &middot; tap: nudge &middot; hold center 2s: hard drop &middot; game over: tap restarts</div>
 </div>
 <script>

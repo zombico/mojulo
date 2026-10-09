@@ -154,11 +154,11 @@ export const RUNTIME_CHANNELS = [
 let __ctrlActive = false;       // there are controllable entities to step each frame
 let __ctrlOwnsCamera = false;   // a camera entity is present → drive the camera + disable OrbitControls`,
     normalizeIn: 'emitThreeWorld',   // entity packing (figure clips / rig bakes) + camera/shadow-key coupling
-    // __world/__bodies/__MOUSELOOK/__fireDown/__lookDX/__lookDY are probed by the page's own
+    // __world/__bodies/__MOUSELOOK/__fireDown/__lookDX/__lookDY/__ctlLegend are probed by the page's own
     // pause sidecar + capture code; __mojHangar/__mojShadows/__mojSmoke escape from the opt-in
     // sub-blocks (see channels/contract.md § interpolation points).
     provides: ['__mojCtrl', '__world', '__bodies', '__mojHangar', '__mojShadows', '__mojSmoke',
-      '__MOUSELOOK', '__fireDown', '__lookDX', '__lookDY'],
+      '__MOUSELOOK', '__fireDown', '__lookDX', '__lookDY', '__ctlLegend'],
     requiresOptional: ['__specPatch', '__mojGame', '__mojCast'] },
 ];
 

@@ -54,6 +54,7 @@ import {
   strokeOverlayChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
+import { statusElements, transitKinds } from './channels/status-channel.js';
 import { streamChannelScript } from './channels/stream.js';
 import { collectBlendLayers, blendLayerScript } from './channels/blend-layer.js';
 import { terrainChannelScript } from './channels/terrain-lod.js';
@@ -822,7 +823,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     const dir = [-tx / horiz, -ty / horiz];
     return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
   })();
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm, pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, key: shadowKey, toonInk: toonInkCfg }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0)), pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, key: shadowKey, toonInk: toonInkCfg }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -1318,32 +1319,9 @@ function __controlRows() {
   const rows = [];
   const W = (typeof __world !== 'undefined') ? __world : null;
   const pil = W && W.pilotId && W.byId ? W.byId[W.pilotId] : null;
-  if (pil) {
-    const r = pil.rule || pil.pilotRule || {};
-    const space = r.space === true;
-    rows.push(['W A S D / arrows', space ? 'thrust & turn' : 'move & turn']);
-    rows.push([(typeof __MOUSELOOK !== 'undefined' && __MOUSELOOK) ? 'mouse · click to capture' : 'mouse drag', 'look / aim']);
-    rows.push(['E / Q', 'strafe']);
-    rows.push(space ? ['Space / X', 'ascend / descend'] : ['Space', 'jump']);
-    rows.push(['F (hold)', 'boost thrusters']);
-    if (!space && r.kneel === true) rows.push(['X (hold)', 'kneel']);
-    const lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
-    if (W.entities.some((e) => e.weapon || lo(e))) { rows.push(['left mouse', 'fire']); rows.push(['R · 1–5', 'cycle · select weapon']); }
-    if (W.entities.filter((e) => e.pilotable).length > 1) rows.push(['T', 'switch suit']);
-    if (W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai'))) rows.push(['G', 'AI attack on / off']);
-    if (W.camera && W.camera.rule && W.camera.rule.type === 'follow') rows.push(['V', 'reverse view']);
-    // controller legend (only once a pad has spoken): the standard-mapping bindings the
-    // controllable channel's gamepad poll answers to — same actions, second device.
-    if (window.__mojPad && window.__mojPad.active()) {
-      rows.push(['🎮 left stick', space ? 'thrust & strafe' : 'move']);
-      rows.push(['right stick', 'look / aim']);
-      rows.push(['RT / LT', 'fire / boost (tap-tap: dodge)']);
-      rows.push(['RB', 'tap: next weapon · hold: selector']);
-      rows.push(['RB + □ / △', 'main weapon / main melee']);
-      rows.push([space ? 'A / B' : 'A · △ (Y)', space ? 'ascend / descend' : 'jump · tackle']);
-      rows.push(['D-pad ↑ · select', 'switch suit · AI toggle']);
-      rows.push(['start', 'pause']);
-    }
+  if (pil && typeof __ctlLegend === 'function') {
+    // the controllable channel reads its legend off the live bindings (controls/schemes.js)
+    rows.push(...__ctlLegend(pil));
   } else if (typeof walkMode !== 'undefined') {
     rows.push(['W A S D / arrows', 'move']);
     rows.push(['mouse drag', 'look']);

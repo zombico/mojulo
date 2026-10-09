@@ -325,7 +325,9 @@ const DESCRIPTION_ALLOWLIST = {
 // export_model's 'bom' format, one enum word and one clause. Sizing's need fields are off-payload (the `fabricate` card).
 // Re-pinned 2026-10-07 (240_700 -> 240_900; measured 240,809) for the Blender film: forge_motion's `export` gains
 // 'blender', one enum word and one clause. The pack, the scripts and the CLI are off-payload (the `blender-film` card).
-const PAYLOAD_CEILING = 240_900;
+// Re-pinned 2026-10-08 (240_900 -> 241_700; measured 241,592) for Playscape UI: one new drawer, get_play_vocab (the
+// play ladder, scaled to the ask), its description cut to routing grade. The cards themselves are off-payload.
+const PAYLOAD_CEILING = 241_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

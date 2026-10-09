@@ -16,6 +16,8 @@ import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-c
 import { normalizeHud } from '@/lib/graph/game/hud-widgets';
 import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
 import { crystalRigFor, rigForScore } from './crystal-rig.js';
+import { statusElements, transitKinds } from './channels/status-channel.js';
+import { lookRGB } from '../playscape/elements/elements.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -190,6 +192,20 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (payload.tone && Array.isArray(payload.tone.ramps)) {
     ledger.tone_graded_on_page = { count: payload.tone.ramps.length, note: 'the World page colours the lit value off the tone\'s ramps (channels/tone.js); the GLB carries the grey build it grades, and score.tone carries the ramps, steps and gain — an engine pass colours it (none yet)' };
   }
+  // LOOKS (playscape elements): the looks a world's cues put on its cast, and the transits they play, as data. The cues
+  // do not travel, so an engine kernel offers them to its scripts (Godot: kernel/looks.gd). Absent ⇒ no key.
+  const ev = payload.events && payload.events.cast === true ? payload.events : null;
+  const worn = ev ? statusElements(ev).filter((n) => ev.looks && ev.looks[n]) : [];
+  const transits = ev ? transitKinds(ev) : [];
+  const looks = Object.fromEntries(worn.map((n) => [n, lookRGB(ev.looks[n])]));
+  if (worn.length || transits.length) {
+    const DRAWN = ['coat', 'motes', 'drift'], dropped = [...new Set(worn.flatMap((n) => ['bolts', 'fire', 'ice', 'water', 'steam'].filter((k) => looks[n][k])))];
+    ledger.looks_carried = {
+      count: worn.length, names: worn, ...(transits.length ? { transits } : {}), drawn: DRAWN, ...(dropped.length ? { not_drawn: dropped } : {}),
+      note: 'score.looks carries each status\'s look as data; kernel/looks.gd wears it (the coat as a material_overlay, waves and drift as billboards from the same closed forms) and plays transits as animation clips. Cues do not travel: nothing wears a look until a script calls $Level.looks.wear(node, name)',
+    };
+  }
+
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
   // lib/ instead of found at the most expensive gate that happens to be open.
@@ -237,6 +253,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...(Object.keys(crystals).length ? { crystals } : {}),
     ...(waterBodies.length ? { water } : {}),
     ...(cryRig ? { crystalLight: rigForScore(cryRig, unitScale || 1) } : {}),
+    ...(worn.length ? { looks } : {}),
+    ...(transits.length ? { transits } : {}),
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure);
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;

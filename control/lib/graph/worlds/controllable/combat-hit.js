@@ -402,7 +402,12 @@ export function buildCombatHit(E) {
     // is an isotropic sphere (cz 0, centered at pos). Absent → the body is non-solid to other bodies
     // (byte-identical to pre-collision worlds). Consumed by stepBodyCollisions.
     const cv = ent.body && ent.body.collide;
-    if (cv && typeof cv === 'object' && Number.isFinite(cv.a) && cv.a > 0 && Number.isFinite(cv.c) && cv.c > 0) {
+    // `{ box: [hx, hy, hz?] }` is an axis-aligned box of those half sizes centred on pos, as a mesh box is (a gate, a
+    // counter): it blocks its whole width
+    if (cv && typeof cv === 'object' && Array.isArray(cv.box) && cv.box.length >= 2 && cv.box.every((x) => Number.isFinite(x) && x > 0)) {
+      const hz = cv.box[2] ?? 1;
+      ent.collideVol = { box: [cv.box[0], cv.box[1]], a: Math.max(cv.box[0], cv.box[1]), c: hz, cz: 0 };
+    } else if (cv && typeof cv === 'object' && Number.isFinite(cv.a) && cv.a > 0 && Number.isFinite(cv.c) && cv.c > 0) {
       ent.collideVol = { a: cv.a, c: cv.c, cz: Number.isFinite(cv.cz) ? cv.cz : cv.c };
     } else if (Number.isFinite(cv) && cv > 0) {
       ent.collideVol = { a: cv, c: cv, cz: 0 };

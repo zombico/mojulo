@@ -275,6 +275,455 @@ Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a wor
   routes and levels, paving, the interceptors, the vocabulary, the laws, roofs by covering, every kit. The drawer is
   `era/out-structures-draw.js`, the town's cards `era/out-town-html.js`. `node scripts/out-sheet.mjs
   <index|flora|structures> [out.html] [--seed N] [--kit id]` writes any of the outdoor sheets to disk.
+### UI controls
+
+A game reads what the player means (jump, rotate clockwise, accept), never a key. A control scheme says which
+controls of each input device serve each intent, using the conventions players of that genre already know. The
+pause legend is read off the same table, so it only teaches controls the world answers to, and a remap will
+relabel it. The model is OpenXR's action system: a scheme is an action set, a device family is an interaction
+profile, and a scheme's bindings are suggested bindings.
+
+- **`lib/graph/controls/devices.js` names each input device family after the standard it follows.**
+  - `keyboard`: `KeyboardEvent.code`, positional.
+  - `mouse`: `MouseEvent.button`.
+  - `gamepad`: the W3C Gamepad "standard" mapping. Buttons have positional names (`south`, `rb`) and print in
+    Xbox, PlayStation or Nintendo layout.
+  - `xr`: the WebXR "xr-standard" mapping, per hand (`right.trigger`, `left.thumbstickY-`).
+  - `sim`: USB HID Simulation Controls (steering, accelerator, brake, clutch, throttle, rudder, aileron, elevator,
+    toe brake), plus buttons and a hat switch.
+  - A control is a key code, a button, an axis, or a half axis (`leftY-` is the stick pushed up). A family's driver
+    turns raw device state into control values. `xr` and `sim` are declared with no driver yet: their controls can
+    already be bound, labelled, validated and checked for conflicts.
+- **`schemes.js` holds the schemes as plain data.**
+  - `pilot`: 3D walk, platform, suit, glide, drive, fly and spectate.
+  - `falling-block`: the guideline layout.
+  - `grid`, `point` and `menu`.
+  - Each action binds up to two controls per device family and names the contexts where it is live. Two actions may
+    share a control only in different contexts.
+  - Defaults follow each genre: WASD and mouse; left stick moves and right stick looks; in VR the left thumbstick
+    walks and the right one turns; on a wheel, the accelerator, brake and wheel drive.
+  - Adding a device family means one `devices.js` entry plus bindings. No new fields.
+- **`controls-kernel.js` is import-free; pages run its `toString()`.**
+  - It reads any family through a driver's `read(control)`: held buttons, analog values, and axes taken slot by
+    slot. Controls a held chord button silences can be quieted.
+  - `gamepadRead` is the reference driver: digital reads use the browser's pressed threshold, and analog reads give
+    raw trigger travel.
+  - It resolves a scheme with per-family overrides, dropping anything that is not a control of that family.
+  - It labels every family, builds legend rows per family from live world flags, and lists conflicts per family and
+    context.
+- **The controllable runtime reads the pilot scheme through the keyboard, mouse and gamepad families.**
+  - `__BIND` is the live table in place of literals. Input is unchanged for the default bindings. One exception: in
+    glide, Space with one Shift held now cancels instead of ascending.
+  - Look keys are new and unbound by default. Binding them gives a keyboard-only player the camera.
+  - The pause legend comes from `__ctlLegend`. It now names tackle and target lock when the world has them, shows
+    the weapon pad rows only when armed, and says throttle / brake for a vehicle.
+- **Confirm and cancel are gamepad roles, not positions.**
+  - The menu, grid and point schemes bind `confirm` / `cancel`.
+  - `resolve` places them for the pad's layout: the bottom button accepts on Xbox and PlayStation, and A (on the right)
+    accepts on a Nintendo pad.
+  - `padLayout(id)` reads Xbox, PlayStation or Nintendo off a Gamepad id. The 3D runtime re-resolves when the layout
+    changes, and its legend and weapon-selector glyphs print in that layout.
+- **Brickster reads `KeyboardEvent.code` and the gamepad from the falling-block scheme.**
+  - Keys are positional, so Caps Lock and other layouts no longer miss Z / X / C. Ctrl now rotates counter-clockwise,
+    following the guideline.
+  - The pad layout follows the console guideline:
+    - D-pad or left stick moves and soft-drops, D-pad ↑ hard-drops;
+    - the right face button rotates clockwise and the bottom one counter-clockwise;
+    - LB / RB hold, start restarts.
+  - A held move or soft drop repeats like the touch knob. The first press lifts the start gate. A line under the board
+    names the pad's own buttons.
+- **The game shell's pause comes from a `shell` scheme** (gamepad start), not a hard-coded button index.
+
+### Floormap
+
+A floormap is scapeshift's primitive for fixed-camera levels: it places floor, not rooms. Regions of any shape, how
+they join, what lies along their edges (a wall, a rail over a drop, water), what stands on them, and where the
+cameras sit. Everything off the floor is backdrop to be depicted. Its outcome is the walkmesh.
+
+- **The recipe, the camera solve and the board (`lib/graph/era/floormap*.js`).** Nothing reaches the World page
+  yet.
+  - `floormap.js`: regions are a rect, a polygon, a disc or a strip (a path at a width, one leg per segment). Links
+    join them open, by a door, a stair or a gap. Each region's boundary is cut into pieces:
+    - open where it meets a linked region, and a wall where it meets an unlinked one;
+    - one opening per door link;
+    - elsewhere the floormap's edge kind, unless an edge rule names it by side (a compass word) and span: wall,
+      rail, drop, water, foliage, void, or an exit to another map's door.
+
+    Items (stand, block, hotspot, pickup, spawn, trigger, light) leave as stage-style anchors. `floormapFaces` is
+    the greybox: walls face into their region, and the walkmesh bake reads it as is.
+  - `floormap-cameras.js`: shots are corner, wide, low, overhead and profile. Each camera owns a zone (a region, a
+    corridor leg, or a region split along its long axis), stands inside it, and turns and widens until it holds
+    the figures and 90% of the floor. Under `cameras: 'auto'`, a region one shot can't hold gets another, and a
+    camera that would turn the figure round across a cut is placed elsewhere. `cutsOf` lists the cuts.
+  - `floormap-laws.js`: regions apart, links that touch, rules that land, reachable from the spawn, items on the
+    floor, shots that cover, the figure readable, screen direction kept across cuts, stands that hide.
+  - `floormap-board-html.js`: the floor from above (zones, edges by kind, doors, exits, items, cameras and their
+    view) and a greybox shot per camera, drawn in plain SVG with no browser.
+- **A floormap becomes a walkmesh, baked or painted (`playscape/walkmesh/from-floormap.js`).**
+  `walkmeshOfFloormap` makes one plate per camera, all in one space, each holding its camera's zone.
+  - A baked plate freezes the floormap's greybox: `floormapPayload` shades it in values and cuts concave floors into
+    triangles.
+  - A painted plate (an image handed in for that camera) gets everything projected from the floormap through the
+    camera it was painted over: its floor, holes (blocks), occluders (stands, tall blocks), exits and spawns.
+    Nothing is traced.
+- **One floor, several cameras.** Walkmesh plates in one `space` each hold a `zone` of a shared floor, and crossing a
+  zone line cuts to the next plate without an exit. `cutsOf` lists zone cuts beside exits, and a plate judges only
+  its zone's floor. A painted plate may stand over a known `camera` instead of a fitted `ground`, and may carry
+  `holes`.
+- **The plate brief (`era/floormap-brief.js`).** Per camera: what it sees and a prompt in the floormap's own words
+  (a region's or item's `form`, the edge kinds' depictions, style from the caller), with a guide drawing (the
+  greybox in values). What it sees is judged by a small depth raster, not by the frame alone. The floormap board
+  prints each brief under its shot.
+- **Cameras keep clear of tall pieces.** The solve won't seat a camera within 1.5 m of a stand or tall block, or
+  looking at its zone through one; that ranks worse than turning the figure round at a cut. A `shot-clear` law
+  advises when no clear seat exists.
+- **The walkmesh bake drops sealed pockets:** a patch of floor enclosed by standing faces and smaller than a square
+  metre is inside a solid (a column, a crate), not floor.
+- **Camera triggers: a trigger can cut the shot.** A `trigger` item (a disc, or a rect with `size` and `rot`) takes
+  `cut`:
+  - a camera's id: walking into the trigger switches to that camera, and it holds until the next cut. With `from`,
+    it fires only while that camera is live, so two offset triggers keep a doorway from flickering between shots.
+  - a shot (`{ shot, at?, look?, fov? }`): an insert, a camera of its own that holds just the trigger's floor.
+    Walking in cuts to it, walking out cuts back.
+
+  `cutsOf` names how each cut fires (`by`: zone, trigger, leave). The plan draws each trigger's cut, and a
+  `trigger-cuts` law advises a trigger that no live camera can fire. The walkmesh carries them as `triggers`.
+
+### Walkmesh
+
+A walkmesh is a world kind scapeshift can't make: a fixed-camera plate (the background, painted or baked from a
+world) with an invisible floor the figure walks on, occluders it walks behind, and exits that cut to other plates.
+Only the floor has to be geometrically true, so the background is isolated as an image and can be anything.
+
+- **The vocabulary and the board (`lib/graph/playscape/walkmesh/`).** Nothing reaches the World page yet.
+  - `camera.js`: one pinhole per plate, the one every still and the World use (`resolveCameraBasis`). A painted
+    plate is fitted by its horizon line, eye height and field of view; `lift` takes a plate pixel to the floor in
+    metres and `project` brings it back.
+  - `walkmesh.js`: `readWalkmesh` reads painted plates (floor, occluders, exits and spawns in plate px) and baked
+    plates (a scapeshift world and a camera; exits and spawns in metres) to one floor in metres. Exits go to
+    `'<plate>.<exit>'` or to an era map door; `cutsOf` is the cut graph.
+  - `bake.js`: a baked plate's floor is read off the world on a quarter-metre grid (an up face within a step of the
+    ground, nothing standing across it at body height); its occluders are the world itself. Decals, light volumes
+    and cutout cards are not solid.
+  - `mask.js`: where the figure stands seen and where it stands hidden, for both sources.
+  - `laws.js`: the floor below the horizon and inside the plate, exits on the floor's edge and leading back,
+    spawns on the floor, every exit reachable, occluders standing on the floor, the figure readable at the front and
+    the back, the start resolving.
+  - `board-html.js`: per plate, the plate with the floor seen and hidden, occluders, exits and spawns; the scale
+    ladder (the figure at five depths); the floor from above with the camera's view; then the cut graph and the
+    laws. `bakePlatePng` renders a baked plate from its camera.
+
+### Playscape UI
+
+Playscape treats the interface as a layout problem. A UI part says four things:
+- where it sits: a screen region, an object, a point in the world, the cursor;
+- what it shows: a bus var, an event, a store slice, a sense of the world;
+- which appearance state it is in;
+- what it looks like: a style guide of tokens over values, under the black-and-white law that game objects follow.
+
+Parts compose up five rungs:
+- UI that is the game;
+- switches with cause and effect;
+- a live HUD for games with a few states;
+- HUDs composed from a complex game's systems;
+- deep menus and stat displays.
+
+This step builds the contract and the approval gate. No rung is served yet.
+
+- **A world takes a `play` block, and its parts lower exactly onto today's HUD.**
+  - `lib/graph/playscape/ui/parts.js`: `PARTS` holds readout (text, counter, bar, clock), banner, toast and legend.
+    `readPart` and `lowerParts` turn `{ part, variant, bind, at, when }` into `events.hud` rows. Those rows normalize
+    to the same widgets as the idioms that make them.
+  - `regions.js` holds the nine regions (the page draws seven; `left` and `right` are wireframe words until the
+    rung-0 renderer), the layers and the surfaces.
+  - `world-scene.js` lowers the block between the hand rows and the mechanics' rows. A hand-written `events.style`
+    still wins over the play block's style.
+  - Absent `play`, the emission is byte-identical.
+- **The UI is proposed and approved before it is created.** `direction.js` follows scapeshift's art direction:
+  - `play.ui: 'propose' | 'auto' | { register, pin, seed }` is filled at authoring time (`resolvePlayUi` in
+    `sketch-mint.js`) into five items: guide, motion, parts, layout, wireframes. Each item is `proposed`,
+    `approved` or `auto`.
+  - `'reroll'` on the guide or the motion redraws that item only. Parts, layout and wireframes follow
+    `play.parts` and `play.phases` (at most eight).
+  - While any item is proposed, `lowerPlay` gives the page greybox tokens. Once every item is approved or auto, it
+    gives the guide's tokens and the register's dials.
+  - Every guide value names the layer that set it: operator, hints (a stage's optional `play_hints`), world (the
+    stage's tone), roll, or default.
+- **One register slider, from modern to immersive.** `register.js` defines it:
+  - `REGISTER_STOPS`: modern 0, clean 0.25, framed 0.5, console 0.75, immersive 1.
+  - The slider moves nine `DIALS` together (type, frame, plate, surface, layout, motion, sound, cursor, light). Any
+    dial can be pinned on its own.
+  - `registerCss` is the dom backend. It reads closed words only, so no author string reaches CSS.
+  - `scene/channels/events.js` lays it over the HUD sheet when a settled direction brings `events.register`.
+    Without one, no bytes are added.
+- **Motion is counted in frames on the game clock.** `motion.js` holds snap, punch, roll, shake, pulse, hold-fade,
+  slide and sway. Each has a rail its rolled frame count stays inside, and the motion dial sets the curve: eased,
+  snapped, stepped or mechanical.
+- **The UI board is assembled from tracked pieces.** `board-html.js`:
+  - Pieces: `ui:guide`, `ui:motion`, `ui:part:<part>.<variant>`, `ui:layout`, `ui:wireframe:<phase>`. Each part
+    is drawn in every appearance state, in values and then dressed by the guide, using the page's own `HUD_CSS`.
+  - `uiSheetHtml` is the reference sheet: every part, variant and state at a register.
+  - `create_sketch` and `update_sketch` answer with the board as an image (`play-board-result.js`), with the pending
+    items and the exact patches to approve or reroll.
+  - `laws.js` advises, and never refuses, on `centre-is-focus`, `region-budget` and `scene-backend`.
+- **Stylized borders: art over the frame, composed from elements.** `lib/graph/playscape/ui/borders.js`:
+  - `BORDER_ELEMENTS` are ticks, scanlines, dotgrid, hazard, sidebar, brackets, tendrils, notch, stitch, glow and
+    soft. Each takes a slot: one element per slot, except the background and shadow slots, which stack.
+    `readBorder` refuses only geometry that cannot hold together: a notch clips away whatever stands off the edge.
+  - `BORDER_FLAVORS` are named sets of elements, each with the face, dials and tint that go with it:
+    - `covert`: brackets, scanlines, ticks;
+    - `futurepunk`: ticks, notch, dotgrid, glow;
+    - `mech-cockpit`: hazard, sidebar, notch;
+    - `cozy`: soft, stitch, tendrils.
+  - The art draws in the guide's tokens only. A flavor's tint is a token proposal with source `flavor`;
+    `tint: false` keeps the world's colours.
+  - Precedence: the operator's words, then the hints, then the flavor, then the register and the world.
+  - `borderCss` is the dom backend. The World page lays it after the register's sheet, from the settled
+    `events.register`.
+- **Pixelated is a tuning beside the register.** `play.ui.pixel` is 0, 2, 3 or 4, or `true` for 3. It turns off font
+  smoothing and gives hard edges, stepped corners, integer strokes, stepped bar fills and the mono face. Every border
+  element draws at the pixel size.
+- **The board answers the black-and-white test.**
+  - Each part the world declares gets its own row, keyed by what it binds, in its own colour.
+  - The values row drains even the semantic hues.
+  - The `values-apart` law advises when two standing parts of one kind in one region differ only by colour and label.
+  - The guide piece shows the border and the pixel tuning, each with its source. The drawer gains `ui-border` and
+    `ui-pixel` cards.
+- **Shared status: whose value a part shows, and who may see it.**
+  - `bind.of` is `self`, `team`, `all` or `each:<tag>`; `each` makes one part many. `audience` is `self`, `team`,
+    `all` or `spectator`.
+  - `nameplate` sits over each tagged entity (`at: 'over'`). `scoreboard` is a row per entity.
+  - The board draws a wireframe per phase per view (player, spectator), with ally and enemy markers, so what each
+    view is shown can be checked before anything is built.
+  - The `owners-apart` law advises when a part enemies also see doesn't tell mine from theirs by shape
+    (`mark: { ally, enemy }`).
+  - The bus stays local; team and per-entity parts are designed on the board, and authority over shared state is
+    the exported engine's.
+- **Flow parts for management screens: rates, not stocks.** `ledger` (stocks with rates), `forecast` ("runs out in
+  2:10"), `trend`, `alerts` (held until acted on), `allocator` (splitting a fixed pool) and `queue`.
+- **Designed on the board before the page draws them.**
+  - A part the page can't draw yet (`page: false`) is drawn on the board, dashed in the wireframes, and left out of
+    the lowering. The `board-only` law names each one.
+  - A part placed at `left` or `right` is now board-only too, instead of an error.
+- **Pace scales the layout laws.**
+  - `play.ui.pace` is `glance`, `scan` (the default) or `study`. Each pace has its own region budgets
+    (`REGION_BUDGETS` in `regions.js`).
+  - At `study` pace the centre may hold a standing panel.
+  - The drawer gains `ui-shared` and `ui-pace` cards.
+- **The shooter's idioms are parts, and systems publish what they read.**
+  - `lib/graph/playscape/ui/systems.js` lists what the piloted runtime already keeps: weapon (ammo, magazine,
+    reload, cooldown, charge, energy, hit, assist-hit and miss events), lock (the target), body (hp, harm) and match
+    (kills, the feed).
+  - New parts bind a system (`bind: { from }`, by default their own): `reticle` (ring, cross, dot or chevron, with
+    core, assist, status and charge layers), `hitmarker`, `ammo` (count, pips, bar or gauge), `weapon` (icon-name or
+    loadout), `lock` and `target` over what you aim at (`bind.of: 'target'`), `damage` arcs and the kill `feed`.
+  - A readout may read a system field: `bind: { from: 'body', field: 'hp' }`.
+  - The laws: the reticle stands in the centre by right. `hit-reads` advises when a reticle has no hitmarker,
+    because then a hit reads only as a colour flash.
+  - On the board, the centre marks draw bare (no plate, no border art) and sit at the exact centre of the
+    wireframes. `board-only` advice is grouped by reason.
+  - The piloted runtime keeps drawing its own HUD until it is drawn from these parts.
+  - The drawer gains a `ui-systems` card.
+- **`get_play_vocab` is the play drawer, scaled to the ask.**
+  - With no argument it returns the ladder: board, click, level, systems, game.
+  - `rung` returns what that rung admits; `id` returns one card. The cards (`play-guide`, `ui-board`,
+    `ui-register`, `ui-motion`, `ui-layout`, `ui-part-<part>`) are generated in `cards.js`.
+  - The tool lives in `pack_game`. Studio routing gets a PLAY row, and a `play` routing card is added. The
+    tools/list payload is re-pinned to 241,700.
+- **Cues: one primitive for the UI answering the game (`playscape/ui/cues.js`).** A cue says, in game words, when
+  the UI acts, what it does and until when:
+  - when: the figure enters, leaves or comes near a zone, uses a thing, takes an item, a value crosses a line, any
+    bus event, or the level starts;
+  - then: words on screen (a banner, a toast, a prompt), a part shown, hidden or put in a state, or a phase;
+  - until: another happening, or a time; `once` fires it the first time only.
+
+  Each cue fires one bus event, `cue:<id>`, so any part can bind to it. The words are drawn on the page today; showing,
+  hiding and states are set on the bus and drawn on the board until the page reads them. Parts may carry an `id`.
+- **Menus, opened from anything in any map.** A cue's zone may name an anchor, the addressable places and things
+  every scapeshift map already carries (a stage, a dungeon, a floormap, a trail), so a shop counter, a bed, a sign
+  or a chest can open a menu. `play.menus` holds them, each one of a closed set of kinds: read, talk, confirm, shop,
+  chest, save, map, list. A talk's choices and a confirm's answers do cue effects, which also gain `open`, `close`,
+  `set` (a var) and `emit` (a bus event). A menu carries no style of its own: the world's UI style guide dresses it,
+  as it does the parts.
+- **The page draws menus.** A world with menus gets an overlay that shows the open menu over the play, from the
+  same markup the board draws (`menuHtml`), dressed by the guide:
+  - up and down move the focus; enter, space or E picks; escape closes; a click picks;
+  - a read menu turns its pages and closes after the last;
+  - keys go to the menu while it is open, so the walker stands still;
+  - the overlay is rewritten only when its markup changes, since a rewrite every frame swaps the choice under the
+    pointer between press and release and the click never lands.
+
+  A cue's zone watches the world's walker, so its own props don't set it off. A world without menus emits exactly
+  what it did. A shop's buying waits on an "afford it?" check the bus doesn't have yet: picking from its stock only
+  closes it.
+
+### Elements
+
+- **Statuses are names; looks are what they wear.** A cue or a menu choice puts a status on a character by any name
+  (`{ status: { who, is: 'poisoned', look?, for?, color? } }`); nothing is built into the name. Its look is what the
+  page draws on the body as it moves, in layers: a fresnel `coat` (a rim glow that breathes, grows, flashes, flickers or
+  holds: "this is happening now"), `motes`, `bolts`, `fire`, `ice`, `water` and `steam`. `play.looks` designs your own;
+  presets to start from are named by what they do (glow, orbit, rise, spiral, burst, converge, ring, twinkle, fall,
+  column, flare, kokusen, fire, blaze, ice, frost, wet, steam). `{ lift }` takes one off; `{ faded }` fires when one
+  runs out or is lifted; an untimed status comes off when its cue ends. A page carries only the looks its cues name and
+  only the layers they use.
+- **One wave for every orbiting light.** The juice verbs (enchant, heal, charge, ward, sparkle, drain, aura, …) were
+  each a path of lights round a body; they are now one parameterized wave: streams, trail, cycle, turns, radius and
+  height from → to, arc, tilt (a ring), wobble, spread, a brightness envelope, pulse, size, or a scatter that twinkles.
+  A look may stack several.
+- **Kokusen.** Black-flash lightning (left behind by the sprite backend, which can only add light): black strokes over
+  a red glow edge, each struck with its own weight, kinked node to node and tapering to a hairline, some forking.
+- **Fire, one layer.** `fire: { size, color }` lights the world's own fire on the body (its flames, embers and smoke,
+  lighting what is near) and carries it there while the status lasts: a small one licks up from the top of the body, a
+  big one engulfs it from the feet. Its colour is any colorant (copper blue, barium green, strontium red, potassium
+  lilac, …) or `#rrggbb`. It stands on no prop and lights the world at a share of a standing fire's light.
+- **Water in its three states.** `ice: { mode: 'encase' }` closes the body in a randomized, angular block of ice (a
+  faceted shell pulled about at every corner, different on every body, flat on the ground, frost-shaded with its edges
+  drawn white); `mode: 'spikes'` grows crystals out of its surface (the carved-letter ice effect, now in 3D). `water`:
+  drops gather, fall to its feet and ring out. `steam`: vapour rises, swells and thins. These grow from the body's own
+  meshes, so they fit a box, a ball or a figure and move with it.
+- **Values first.** Every preset reads apart with the colour taken out; the `looks-apart` law names two statuses a play
+  uses that differ only in colour, and `status-lifts` one that never comes off. `?values` shows the page in greys.
+
+### Transitory effects
+
+- **Appear, vanish, transfigure.** `spawn` and `vanish` take `with`: `smoke` (a burst of puffs, the body pops in or is
+  gone behind it), `hologram` (an edge wireframe flickers on, the skin fills in), `scan` (a glowing plane sweeps up the
+  body, printing it), `transporter` (sparks gather onto the body's surface). Going, each plays in reverse on a ghost of
+  the body where it stood. `{ transfigure: { who, into, with? } }` turns one character into another minted asleep: it
+  wakes where the first stood, by default `galvatron`: the skin goes to wire, a cloud of points morphs one form into the
+  other, the new form re-skins (the carved-letter effects of the same names, in 3D on any body). `{ puff: who | { at } }`
+  is a puff of smoke at a place.
+- **Water changes state.** Ice rises from the ground as it freezes and sinks away as it thaws; water boils off in a burst
+  of steam when it comes off. Every look now fades its layers out instead of vanishing.
+
+### Weather and moments
+
+- **Drift.** A look's `drift` layer is a particle spray, as `motes` is a wave: `{ glyph, count, from, v, el, go,
+  gravity, swirl, life, grow, spin, size, rings?, color? }`, one closed form in time that the page runs as written.
+  Presets `rain` (a cloud over the head, drops ringing out at the feet), `snow`, `wind` (streaks and leaves swirled
+  round), `embers`, `dusty`.
+- **Lightning.** `bolts: { bright: true }` strikes white-hot over the coloured glow; the `shock` preset crackles with
+  it.
+- **Moments.** `puff.is` is `smoke`, `dust`, `splash`, `flash` (an impact: a starburst and speed lines), `strike`
+  (lightning from the sky onto the spot), `sparks` or `fireworks`, with `color?` and `shake?`.
+- **Shake.** `{ shake: k | { k, for? } }` shakes the camera, decaying; it is added around each draw, so no camera keeps
+  it.
+
+### Stats
+
+- **A stat is felt through the phenomena it scales.** `play.stats` declares holders (a character, or `game`) and
+  their stats. Strength appears nowhere in the world: a hit just lands harder. Where a phenomenon takes a number
+  (`hurt.by`, `heal.by`, `explode.scale`, `status.for`, `shake.k`, `puff.shake`, `walk.speed`), a scaling
+  `{ stat, of?, base?, per?, min?, max? }` reads it live. A scaling may read a stat, a resource, `level`, `xp`, `epoch`
+  or a tech node's rank.
+- **Levels, resources and buying.** A level track (`start`, `max`, xp thresholds as a list or `{ base, growth }`)
+  gives auto raises and stat currency on every level (`each`) and at named levels (`at`). Resources (points, gold)
+  are balances on the bus. `{ buy: id }` is one atomic transaction: when the requirements are met, the rank is not
+  at max and the holder can afford it, the cost is deducted, the gives apply and `bought` fires. Otherwise nothing
+  changes and `denied` fires, saying why.
+- **Epochs and tech trees.** Epochs are ordered bundles over levels (hatchery, lair, hive). A holder reaches one by
+  level, by buying it, or both. Tech nodes have ranks with cost growth, require levels, epochs (that epoch or a later
+  one), other nodes' ranks or stats, and carry subtrees that open at the parent's rank. Cues hear `levelled`,
+  `bought`, `denied`, `epoch` and `opened`, and fire `raise`, `grant`, `xp`, `level` and `buy`.
+- **Formulas.** A number may be a formula: a term `{ stat, of?, base?, per? }`, or `{ sum, mul, curve, min, max }`
+  nesting terms. `of: 'target'` reads the stats of whoever the phenomenon lands on, which covers defence and level
+  gaps. Holders may start with their own values (`{ id: 'ogre', stats: { armor: 100 } }`). There are three curves:
+  `{ mitigate: k }` is the armor curve `k / (k + v)`, a factor that never reaches zero; `{ soft: at, slope }` is a
+  soft cap; and `sqrt`. Expression strings are never accepted.
+- **Modifier layers.** The effective stat is (base + Σ add) × (1 + Σ pct) × Π mul, held to its min and max.
+  `<holder>.<stat>` is the effective value; raises move `<holder>.<stat>.base`. `{ buff: { id, mods, for? } }` and
+  `{ unbuff: id }` add and remove modifiers. A status may carry `mods`: they come off when the status is lifted, when
+  its time runs out, or when its cue ends.
+- **Derived stats.** `{ id, from: formula }` follows the stats it reads; it is never raised, and a cycle is refused.
+  `bodies: { hpMax, speed }` binds a stat to each holder character's body. When hpMax rises, hp gains the
+  difference.
+- **A third kernel, only when used.** `playscape/stats/kernel.js` runs on the node side and on the page from one
+  source. It drains its own intents from the bus's `ctrl` queue and resolves the scalings on the cast's intents.
+  The bus is unchanged, and a world without `play.stats` emits no new bytes.
+
+### Explosions
+
+- **Blasts as functions.** `{ explode: { who | at, is, color?, scale? } }` sets one off at a character's feet or a place.
+  An explosion is parts: a `flash`, a `fireball` that billows out and stops, `smoke` that rises and lingers, `debris`,
+  `sparks`, a `shock` ring along the ground, a `shell` of air round the middle, a `scorch` left on the ground, a `comic`
+  black-edged white starburst, a mushroom's `stem`, an `implode` ring closing in first, a light and a shake; `count`,
+  `spread` and `stagger` chain it. Values first: a white flash, a coloured fire, dark smoke, an ink burst.
+- **Presets.** `pop`, `blast`, `mushroom`, `comic`, `chain`, `implode`; `play.explosions` designs your own, and a
+  beam's `impact` may name one.
+- **Sprays slow and change colour.** A spray takes `drag` (it slows and stops) and `ramp` (colours over a particle's
+  life), and a shell's spray may go inward.
+
+### Beams
+
+- **Attacks as functions.** `{ beam: { who, to, is } }` fires an attack from a character's hand at a character or a
+  place. An attack is strands, each one closed form in time: a `ray` (it grows to the target, holds, and its tail runs
+  after it) or a `bolt` (a body and a head that fly), shaped by `speed`, `width`, `length`, `head`, `taper`, `pulse`,
+  and a path: `arc`, `bow` (each copy curves out its own way and lands on the target), `wave` (a slither the body
+  follows), `twist` (strands braiding round the line). `count`, `stagger` and `vary` make a barrage. Layers: a
+  `charge` (an orb gathering at the hand or over the head), `rings` along a ray, `sparks` at a head, an `impact` (a puff
+  kind) and a `shake`. `edge: ink` draws a black edge round a white core, so attacks read in black and white first.
+- **Presets.** `orb`, `serpent`, `ray`, `nova`, `barrage`, `braid`, `laser`; `play.beams` designs your own.
+- **Struck.** When a beam reaches a character, `struck` fires (`{ struck: who }`), so a cue can hurt, mark or puff.
+
+### Looks in Godot
+
+- **The pack carries the looks.** A world whose cues put on statuses ships them in `score.looks`, and kernel 0.6.0
+  draws them: `Looks.wear(node, name)` lays the coat on every mesh as a `material_overlay` and drives its shape, waves
+  and drift run as billboards from the same closed forms, and `Looks.transit(node, kind, dir)` plays a transit as an
+  animation clip. Cues do not travel, so the ledger says nothing wears a look until a script calls it.
+
+### Places
+
+- **Box bodies.** `body.collide: { box: [hx, hy, hz?] }` is an axis-aligned box of those half sizes round the body's
+  position, as a mesh box is placed. A round collide is a disc on the ground (a 4 m gate made of one blocked 2 m of
+  road); a box blocks its whole width. Walkers and the cast slide along it; it holds, and two boxes don't shove each
+  other. Eggs behave as before.
+- **Stand points.** A doorway gives a place on each side, named by the room it stands in (`doorway-nave-crypt@nave`);
+  a door gives `<id>@front` and `<id>@back`. Each is 0.75 m off the sill, the door's own use-point reach, facing the
+  opening, so a walk, a spawn or a cue can send someone to a door without walking them into its frame.
+- **Zones that watch anyone.** `near`, `enter` and `leave` take `who` (`{ anchor | at, r, who: 'guard' }`): the zone
+  fires for that character (a glob) instead of the player.
+- **Laws.** `stuck-retry` (a cue on `stuck` that sends the same walk again, not `once`, loops every second) and
+  `round-collide` (a heavy body with a round collide wider than 1.5 m blocks a disc; a box blocks a wall).
+
+### Interaction
+
+- **An interact key.** The pilot scheme gains `interact` (E; the pad's west face, X / □ / Y; the left grip in VR),
+  live only in a new `reach` context: while the figure stands somewhere usable, E interacts and doesn't strafe;
+  anywhere else E strafes as it did. The pause legend lists it in worlds that have somewhere to use.
+- **Places you use.** A cue's `when: { use: '<place>' }` (a spot or an anchor, or `{ anchor, r }` / `{ at, r }`),
+  with an optional `prompt` word, makes the place usable: standing in it is reach, the page shows the live key and
+  the word ("E  talk", "X  talk" on a pad), and the press sends `use-<place>` to the bus. What the cue opened closes
+  when the figure walks off. `use` naming no place keeps its meaning (the `use-<id>` event alone, a door's click).
+  The page carries this only when a world has a usable place.
+- **Menus read the menu scheme.** The menu overlay takes its keys from the `menu` scheme (arrows or W / S, Enter or
+  Space or the interact key, Esc) and now answers the gamepad (D-pad or stick, confirm and cancel where the pad's
+  layout puts them, so a Nintendo pad confirms with A on the right). While a menu is up the figure takes no input at
+  all: a key held as it opened, the pad and the mouse look all wait.
+
+### World events
+
+- **The bus and the characters talk both ways.** Nothing a character did reached the event bus but standing in a zone,
+  and the bus could do nothing to a character but warp it. A bus verb `{ do: 'ctrl', op, … }` queues an intent that
+  `syncToCtrl` hands to the character world (`cast`), and the character world reports what happened to it (`facts`):
+  `down` (it fell), `gone`, `spawned`, `arrive` (at a point of its walk, by name) and `stuck`. The page carries the two
+  lines only when the world uses them; every other world emits what it did.
+- **Cues reach the cast.** `play.cues` and menu choices take the new happenings (`when: { down | gone | spawned |
+  stuck: '<who>' }`, `{ arrive: '<who>' | { who, at } }`) and effects:
+  - `spawn` wakes a character minted asleep (`dormant: true`) or sent away, where it's told (`at`, `face`), revived.
+    The cast stays fixed at build, so a world replays the same;
+  - `vanish` sends one away; `kill`, `hurt { by }` and `heal` act on its `body.hp`, and a killed plain body lies down;
+  - `walk { who, to: [places], speed?, then: stay | loop | back }` is a dumb path: straight lines, ground snap, the
+    world's collider boxes push it out, no pathfinding. A second without progress is `stuck` and drops the walk.
+    `stop` ends one.
+- **Spots.** `play.spots: [{ id, at, face?, pose? }]` are action points: where someone stands to do a thing. A walk
+  that ends on a spot takes its facing and its pose (recorded; figures don't draw poses yet). Spots are places like a
+  map's anchors: a cue's zone, a walk's points, a spawn's place.
+- **Bodies keep their space.** `body.collide` eggs pushed only `platform` bodies; `walk` bodies and anyone walking a
+  path are pushed now too (on the ground plane), so the walker and the cast don't pass through each other.
+  `body.heavy` holds still. Laws: `cast-known` (an effect names someone the world doesn't have), `cast-places` (a
+  place it doesn't carry), `spawn-asleep` (a spawn of someone already up and never sent away).
 
 ### Handedness
 
@@ -301,6 +750,10 @@ Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a wor
   rows of `world-scene.kinds` (their geometry moved); `floorplan-world.test.js` pins the laws.
 - The turntable's World is the CSS scene, not its mirror: CSS space (x right, y down, z toward the viewer) is
   left-handed, and its rotation into the world flipped the lit side. It maps as [-x, z, -y], winding reversed.
+- The `walk` rule turns the way its keys say. Its tank turn added the turn axis to the heading, and the heading
+  climbs counter-clockwise from above, so D turned the walker left and A right; `platform` and `drive` already
+  negated it. A is a left turn now, D a right one. Re-pinned: the controllable rows of `emit-channels.char` (the
+  rule ships in the page) and the walk world's golden trace.
 
 ## [3.1.0] - 2026-10-07
 

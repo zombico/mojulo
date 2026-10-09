@@ -1,13 +1,25 @@
 import { buildBus } from '../../worlds/event-bus.js';
 import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
+import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
+import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
+import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
+import { statusElements, statusScript, transitKinds } from './status-channel.js';
+import { momentKinds, momentScript } from './moment-channel.js';
+import { beamSpecs, beamScript } from './beam-channel.js';
+import { buildStats } from '../../playscape/stats/kernel.js';
+
+export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
 // The HUD widget layer's stylesheet (hud-widgets.js): one absolutely-positioned column per slot
 // over #wrap (the corners + the centre line), a widget per row, kinds styled by class. Every
 // color and family is a `--moj-*` token so the game shell's theme (game-init sidecar) or the
 // world's own `events.style` skins it; the fallbacks are today's look. Emitted ONLY when the
-// world carries hud rows — a hud-less events world is byte-identical.
-const HUD_CSS = [
+// world carries hud rows — a hud-less events world is byte-identical. A settled play direction's
+// `events.register` (playscape/ui/register.js) lays its dials' sheet over this one, and its stylized
+// border and pixel tuning (borders.js) over that, from closed words only; absent, not a byte is
+// added. Exported for the UI board's specimens.
+export const HUD_CSS = [
   '.moj-hud{position:absolute;inset:0;pointer-events:none;z-index:12;font-family:var(--moj-font);color:var(--moj-ink)}',
   '.moj-hud-col{position:absolute;display:flex;flex-direction:column;gap:8px;max-width:46%}',
   '.moj-hud-top-left{left:12px;top:12px}.moj-hud-top-right{right:12px;top:12px;align-items:flex-end}',
@@ -39,7 +51,7 @@ const HUD_CSS = [
 // Toasts spawn one element per firing (capped per widget) that rises + fades on the same clock;
 // an event toast reads its `{event.*}` fields from the frame's INCOMING list (the log keeps type
 // only), a var toast from the var's change since the last frame (first frame seeds, never fires).
-function hudScript(widgets, style) {
+function hudScript(widgets, style, register, menus = null) {
   // default colors: banners, event toasts and bars take the accent; a var toast with no color
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
@@ -49,7 +61,7 @@ const __HUD = ${safeJson(rows)};
 const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
-  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}`)}; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
   const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
@@ -147,11 +159,24 @@ function __syncHud(t, incoming) {
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
 export function eventsChannelScript(events) {
   const { widgets } = normalizeHud(events.hud);
-  const hudBlock = widgets.length ? hudScript(widgets, events.style) : 'function __syncHud() {}';
+  const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
+  const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
+  const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
+  const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
+  const reach = Object.keys(uses).length ? reachScript(uses) : '';
+  const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
+  const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
+  const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
+  const moments = mos.length ? momentScript(mos) : '';
+  const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
+  const beams = bms.length ? beamScript(bms) : '';
+  const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
+  const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
 const __BUS = (${buildBus.toString()})();
-const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);
+const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);${stats ? `
+const __STATS = (${buildStats.toString()})();   // levels, resources, purchases, epochs, tech ranks; scalings on the cast's ops` : ''}
 const __SOURCES = EVENTS.sources || [];
 // INPUT as a source (the 4th, beside physics facts / timers / watches): bind key/pointer to a bus
 // event. Listeners push onto a queue drained each frame, so a conceptual world is clickable.
@@ -253,7 +278,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}
+${hudBlock}${reach}${status}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -269,7 +294,7 @@ function __syncBus() {
 // first, so window.__mojSim is already present).
 if (window.__mojSim) __BUS.linkPhysics(__busState, window.__mojSim.state);
 if (EVENTS.initial) __BUS.processEvents(__busState, EVENTS.initial);
-let __busPrev, __busPrevT = 0, __zonePrev;
+let __busPrev, __busPrevT = 0, __zonePrev;${cast ? ' let __castPrev;' : ''}
 stepEvents = (t) => {
   const dtSec = __busPrevT ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0
   if (window.__mojSim) __BUS.syncFromBodies(__busState, window.__mojSim.state);   // fresh body reads
@@ -283,8 +308,14 @@ stepEvents = (t) => {
   if (window.__mojCtrl) {           // ZONE FACTS → enter/exit events for the walking player (M0-pre)
     const z = __BUS.deriveZoneEvents(window.__mojCtrl.world.entities, __zonePrev, __SOURCES);
     __zonePrev = z.prev;
-    for (const ev of z.events) incoming.push(ev);
-  }
+    for (const ev of z.events) incoming.push(ev);${reach ? `
+    __stepReach(z.events, incoming);` : ''}
+  }${cast ? `
+  if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck
+    const c = window.__mojCtrl.facts(__castPrev);
+    __castPrev = c.prev;
+    for (const ev of c.events) incoming.push(ev);
+  }` : ''}
   if (incoming.length) __BUS.processEvents(__busState, incoming);
   __watchFix();                                      // conceptual predicates (vars/entities/counts)
   const ticks = __BUS.tickTimers(__busState, dtSec); // recurring world heartbeats (spawners, countdowns)
@@ -293,10 +324,10 @@ stepEvents = (t) => {
   if (timed.length) __BUS.processEvents(__busState, timed);
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
-  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities); // apply respawn/teleport warps
-  __syncBus(); __syncHud(t, incoming); __updateAim();
+${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
-function __watchFix() { let g = 0; while (g++ < 8) { const w = __BUS.watchEvents(__busState); if (!w.length) break; __BUS.processEvents(__busState, w); } }
+function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
 window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };`;
 }

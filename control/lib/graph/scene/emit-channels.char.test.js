@@ -34,6 +34,39 @@ import { emitThreeWorld } from './scene-three.js';
 // `breakBlock`. The diff on the `controllable` fixture is additions only (117 lines, none removed); a world without
 // `breakables` keeps no breakable state and the pass returns at once.
 
+// Re-pinned 2026-10-08 (UI controls: the pilot scheme): the pause sidecar's `__controlRows` hands a piloted world's
+// legend to the controllable channel (`__ctlLegend`), so every fixture re-pinned with that one region. Pages with the
+// controllable runtime also embed the controls kernel, the pilot scheme and the device families they drive (`__CTL`,
+// `__SCHEME`, `__DEV`, `__BIND`) and read keys, pad buttons and mouse buttons through it in place of literals, plus
+// look keys (unbound by default); the input a world receives from the default bindings is unchanged. The pad's printed
+// layout (Xbox, PlayStation, Nintendo) is read by the kernel's `padLayout`, and the weapon selector's glyphs follow it.
+// Re-pinned 2026-10-08 (world events): the event bus and the controllable engine ship in the page, and both grew the
+// cast — the bus's `ctrl` verb and syncToCtrl's hand-off, the engine's cast builder (ops, facts, the walk owner) and
+// walk bodies giving way to solid ones — and the walk rule's tank turn flipped so A turns left. A world without cues
+// on its characters runs the same; the controllable trace pins hold except the walk world's (the turn).
+// Re-pinned 2026-10-08 (interaction): the pilot scheme gains `interact` (live in `reach`), and the controllable runtime
+// reads it as a counted press edge, keeps it from strafing in reach (window.__mojReach), takes no input while a menu is
+// up (window.__mojMenuOpen) and labels a control for the device last used. Events pages without menus or usable places
+// are unchanged; the menu runtime moved to interact-channel.js and reads the menu scheme.
+// Re-pinned 2026-10-08 (places): the bus's zone step skips a character asleep or sent away (`gone`), now that a cue's
+// zone may watch the cast; the engine's body step gains box bodies (`body.collide.box`). Worlds without them move the
+// same: the controllable trace pins hold.
+// Re-pinned 2026-10-08 (elements): the engine's cast gains the `status` and `lift` ops and the `faded` fact (statuses
+// on the world clock). Events pages are unchanged unless their cues put a status on someone (then the status channel
+// and the bodies map ride along); the controllable trace pins hold. The status op keeps a burning element's colorant
+// name (fire/fire.js carries a body's fire to its body; pages without one are unchanged).
+// Re-pinned 2026-10-08 (transitory): the engine's cast takes spawn / vanish `with` (a transit the page plays), and the
+// transfigure and puff ops. Pages whose cues use none of them carry no transit code; the controllable trace pins hold.
+// Re-pinned 2026-10-08 (weather): the engine's puff stands at a character's feet and keeps its kind, colour and shake,
+// and a `shake` op puts down a camera moment. Pages whose cues puff or shake nothing carry no moment code; the
+// controllable trace pins hold.
+// Re-pinned 2026-10-08 (beams): the engine's cast takes the `beam` op (an attack's moment, its impact and shake at the
+// landing) and castFacts the `struck` fact; a moment may wait for a later t0. Pages whose cues fire no beam carry no
+// beam code; the controllable trace pins hold.
+// Re-pinned 2026-10-08 (explosions): the engine's puff carries an explosion's parts (a chain is several, scattered by
+// seeded dice and staggered) and a scale, and a beam's impact may be one. Pages that set none off are unchanged in
+// their moment code; the controllable trace pins hold.
+
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {

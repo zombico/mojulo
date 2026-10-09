@@ -50,6 +50,21 @@ const gdName = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
 const gdStr = (s) => JSON.stringify(String(s));
 const GITIGNORE = '.godot/\nbuild/\n';
 
+// The looks a world's cues put on its cast (score.looks / score.transits): the cues stay on the web, so the README says
+// how a script wears them. Absent both ⇒ no section, byte-identical.
+const looksSection = (score) => (score.looks || score.transits ? `## Looks
+
+The world's cues put these looks on its characters: ${Object.keys(score.looks || {}).map((n) => `\`${n}\``).join(', ') || 'none'}${score.transits ? `; they come and go by ${score.transits.map((n) => `\`${n}\``).join(', ')}` : ''}.
+Cues do not travel, so wear them from your own script (kernel/looks.gd):
+
+    $Level.looks.wear($Level.find_child("hero"), "${Object.keys(score.looks || {})[0] || 'name'}")   # lift(node, name?) takes it off
+    $Level.looks.transit(node, "${(score.transits || ['hologram'])[0]}", "in")            # or "out"
+
+The coat lies over the body as a material_overlay; orbiting lights and drifting particles are billboards.
+Headless probe: \`godot --headless --path . res://level.tscn -- --mojulo-wear=<node>:<look>\`.
+
+` : '');
+
 // Godot 4 requires `exclude_filter` in every preset (without it the import logs one ERROR per preset); emitted with a
 // figure only, so every other pack stays byte-identical.
 function buildPresets(ref, { exclude = false } = {}) {
@@ -419,7 +434,7 @@ Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
 its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
 
-## What travelled, what didn't
+${looksSection(score)}## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,

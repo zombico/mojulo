@@ -20,7 +20,9 @@ import { fireKernel, fireLightRGB, firePropParts, FIRE_KIND_LIGHT, FIRE_PROP_COL
 //     world's units, their light by 1/unit² so it falls off over the same metres. Absent ⇒ none of this is emitted.
 export function fireChannelScript(cfg) {
   const u = Number.isFinite(cfg.unit) && cfg.unit > 0 && cfg.unit !== 1 ? cfg.unit : 0, k = u ? 1 / u : 1;
-  const props = cfg.sources.map(firePropParts).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
+  // a body's fire (follow) stands on no prop: the body is its fuel
+  const follow = cfg.sources.some((x) => x.follow);
+  const props = cfg.sources.map((x) => (x.follow ? [] : firePropParts(x))).map((parts) => (u ? parts.map((p) => ({ ...p, ...(p.a ? { a: p.a.map((v) => v * k), b: p.b.map((v) => v * k), r0: p.r0 * k, r1: p.r1 * k } : {}), ...(p.at ? { at: p.at.map((v) => v * k) } : {}), ...(p.r ? { r: p.r * k } : {}) })) : parts));
   return `
 // --- fire (opt-in \`fire\`) ---
 const FIRE = ${safeJson(cfg)}, FIRE_KIND_LIGHT = ${safeJson(FIRE_KIND_LIGHT)}, FIRE_PROPS = ${safeJson(props)};
@@ -39,7 +41,19 @@ const __fireWind = __fireTW && __fireTW.wind ? __fireTW.wind : null;
 // a grass fire spreads in the wind's mean, over the terrain's ground, and stops at its water
 if (__fireWind && FIRE.spread) FIRE.wind = { speed: __fireWind.cfg.speed, dir: __fireWind.cfg.dir };
 const __fireWorld = __fireTW ? { groundAt: (x, y) => __fireTW.kernel.groundAt(x, y), burnable: (x, y) => !(__fireTW.cfg.water && __fireTW.kernel.groundAt(x, y) < __fireTW.cfg.water.z) } : null;
-const __fireK = ${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld)${u ? `, ${k})` : ''};
+${follow ? `// BODY FIRES (playscape elements: burning, blaze): a source with \`follow\` is lit at the origin and carried to its body's
+// feet each step while the body carries that status in that colour (off[i]); off, it is nowhere, as a fireball is
+// between casts. A standing fire's off[i] stays undefined and passes through untouched.
+function __fireFollow(K) {
+  const off = new Array(K.N), mv = (a, st, n) => { if (!a) return a; const o = a.slice(); for (let j = 0; j < o.length; j++) if (j % st < n) o[j] += off.cur[j % st % 3]; return o; };
+  const at = (i, fn) => (off[i] === undefined ? fn() : off[i] ? (off.cur = off[i], 1) && fn(true) : null);
+  return { ...K, off,
+    centre: (i, t) => at(i, (m) => { const c = K.centre(i, t); return m && c ? mv(c, 3, 3) : c; }),
+    flames: (i, t) => off[i] === null ? K.flames(i, t).map(() => null) : at(i, (m) => K.flames(i, t).map((f) => (m && f ? { ...f, pts: mv(f.pts, 3, 3) } : f))),
+    embers: (i, t) => (off[i] === null ? [] : at(i, (m) => (m ? mv(K.embers(i, t), 7, 6) : K.embers(i, t)))),
+    smoke: (i, t) => (off[i] === null ? [] : at(i, (m) => (m ? mv(K.smoke(i, t), 5, 3) : K.smoke(i, t)))) };
+}
+` : ''}const __fireK = ${follow ? '__fireFollow(' : ''}${u ? '__fireUnit(' : ''}(${fireKernel.toString()})(FIRE, __fireWind ? (x, y, z, t) => __fireWind.field.at(x, y, 1.2, t) : null, __fireWorld)${u ? `, ${k})` : ''}${follow ? ')' : ''};
 // every fire the kernel draws: the standing ones (FIRE.sources, with their props) and the grass fires' fronts
 const __fireN = __fireK.N, __FNP = __fireK.NP, __fireAll = Array.from({ length: __fireN }, (_, i) => __fireK.src(i));
 // a fire's light: its kind's warm yellow, or as much of its colorant's lines as the flame is coloured (fire.js fireLightRGB)
@@ -194,7 +208,19 @@ window.__mojFire = { cfg: FIRE, kernel: __fireK, camera, flames: __fireFlames, p
 const stepFire = (ms) => {
   // the page's step time: a capture frame pins it, so a fire is the same at the same t; live it runs with the wind's
   // own clock, so the flames lean in the gusts the grass bends in
-  const T = ms / 1000;
+  const T = ms / 1000;${follow ? `
+  // carry each body's fire to its body's feet, or put it out
+  { const W = window.__mojCtrl && window.__mojCtrl.world;
+    for (let i = 0; i < __fireK.N; i++) {
+      const s = __fireAll[i]; if (!s.follow) continue;
+      const e = W && W.byId[s.follow], st = e && !e.gone && e.statuses && e.statuses[s.el];
+      const key = st ? (st.color == null ? '' : typeof st.color === 'string' ? st.color : JSON.stringify(st.color)) : null;
+      if (!st || key !== s.key) { __fireK.off[i] = null; continue; }
+      // its feet, and up the body by its share of the body's height (a box's, a ball's, else a figure's from its eye)
+      const p = e.transform.pos, r = e.rule || {}, b = e.body || {}, h = Array.isArray(b.size) ? b.size[2] : Number.isFinite(b.radius) ? 2 * b.radius : Number.isFinite(r.eye) ? r.eye / 0.93 : 1.7;
+      const foot = p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0);
+      __fireK.off[i] = [p[0], p[1], foot + s.rise * h];
+    } }` : ''}
   if (!(ms - __firePatchT < 500 && __firePatchT >= 0)) { __firePatchT = ms; __firePatchAll(); }   // terrain chunks stream in
   camera.updateMatrixWorld();   // a capture frame steps before it renders: the eye may have just moved
   __fpm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); __ffr.setFromProjectionMatrix(__fpm);

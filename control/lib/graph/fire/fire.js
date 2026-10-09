@@ -163,12 +163,15 @@ export function resolveFire(fire, placed = [], { explicit: withExplicit = true, 
       const at = [s.at[0], s.at[1], s.at[2] + (K.seat || 0) * k], col = resolveColor(s.color !== undefined ? s.color : o.color);
       // a coloured flame burns clean unless told: its soot is what is left of an ordinary flame's
       const soot = isNum(s.soot) ? s.soot : col ? (col.magic ? 0.06 : 0.12) : 1;
-      return { kind: s.kind, at: at.map((v) => +v.toFixed(4)), D: K.D * k, L: K.L * Math.pow(k, 0.8), n: K.n, lam: K.lam, light: K.light * Math.pow(k, 1.6),
+      // a body's fire burns on the body it lights: a share of a standing fire's light, or its own body whites out
+      return { kind: s.kind, at: at.map((v) => +v.toFixed(4)), D: K.D * k, L: K.L * Math.pow(k, 0.8), n: K.n, lam: K.lam, light: typeof s.follow === 'string' ? Math.min(1.6, 0.12 * K.light * Math.pow(k, 1.6)) : K.light * Math.pow(k, 1.6),
         embers: Math.round(K.embers * k), smoke: K.smoke, soot: K.soot * soot, phi: isNum(s.phi) ? s.phi : 1, baked: !!s.baked, seed: (i * 7919 + 17) | 0,
         ...(col ? { line: col.line, lineK: col.k } : {}), ...(s.smokeColor ? { smokeColor: hexLin(s.smokeColor).map((v) => +v.toFixed(4)) } : {}),
         ...(s.life ? { life: { start: s.life.start || 0, kindle: s.life.kindle || 0, ...(isNum(s.life.out) ? { out: s.life.out, die: isNum(s.life.die) ? s.life.die : 4 } : {}) } } : {}),
         ...(s.flares ? { flares: { every: s.flares.every, strength: isNum(s.flares.strength) ? s.flares.strength : 1 } } : {}),
         ...(isNum(s.pace) ? { pace: s.pace } : {}),
+        // a body's fire (playscape/elements/body-fire.js): carried by the body `follow` while it carries status `el` in `key`
+        ...(typeof s.follow === 'string' ? { follow: s.follow, el: s.el, key: s.key || '', rise: isNum(s.rise) ? s.rise : 0 } : {}),
         ...(s.path ? { path: flightOf(s.path) } : {}) };
     }),
   };

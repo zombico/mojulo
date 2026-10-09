@@ -50,6 +50,13 @@
 import { buildGameStoreKernel } from './store-kernel.js';
 import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
+import { buildControlsKernel } from '../controls/controls-kernel.js';
+import { SCHEMES } from '../controls/schemes.js';
+import { DEVICES } from '../controls/devices.js';
+
+// the shell's own pause, from the shell scheme (controls/schemes.js): the standard-mapping buttons it polls
+const CTL = buildControlsKernel();
+const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -615,7 +622,7 @@ function syncPadName() {
 window.addEventListener('gamepadconnected', syncPadName);
 window.addEventListener('gamepaddisconnected', syncPadName);
 syncPadName();
-// gamepad START (standard button 9) toggles the pause menu during battle — the SHELL polls it
+// gamepad START (the shell scheme's pause, standard button 9) toggles the pause menu during battle — the SHELL polls it
 // (the world deliberately leaves start alone), so the pad can pause and resume even while the
 // level underneath is frozen. Rising-edge, level screens only.
 let padStartPrev = false;
@@ -624,7 +631,8 @@ let padStartPrev = false;
   if (!settings.padOn || screen !== 'level' || !navigator.getGamepads) { padStartPrev = false; return; }
   let dn = false;
   const ps = navigator.getGamepads();
-  for (let i = 0; i < ps.length; i++) { const p = ps[i]; if (p && p.connected && p.buttons[9] && p.buttons[9].pressed) { dn = true; break; } }
+  const PAUSE = ${JSON.stringify(PAUSE_BUTTONS)};
+  for (let i = 0; i < ps.length && !dn; i++) { const p = ps[i]; if (p && p.connected) dn = PAUSE.some((b) => p.buttons[b] && p.buttons[b].pressed); }
   if (dn && !padStartPrev) setGamePaused(!gamePaused);
   padStartPrev = dn;
 })();

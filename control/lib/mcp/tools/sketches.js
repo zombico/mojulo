@@ -40,6 +40,7 @@ import {
 } from './sketch-mint.js';
 import { getSketchVocabHandler, getStyleVocabHandler } from './sketch-vocab.js';
 import { withArtBoard } from './art-board-result.js';
+import { withPlayBoard } from './play-board-result.js';
 import { diffSketchesHandler } from './sketch-diff-tool.js';
 import {
   createPolygonizedSketchHandler,
@@ -114,7 +115,7 @@ export function registerSketchTools() {
       },
       required: ['title', 'manifest'],
     },
-    handler: withArtBoard(createSketchHandler),
+    handler: withPlayBoard(withArtBoard(createSketchHandler)),
   }, {
     edits: [[PAINTED_KINDS_CLAUSE, '']],
   }));
@@ -180,7 +181,7 @@ export function registerSketchTools() {
       },
       required: ['ref'],
     },
-    handler: withArtBoard(updateSketchHandler),
+    handler: withPlayBoard(withArtBoard(updateSketchHandler)),
   }, {
     edits: [
       [", edifices, views, image-outcomes, kind:'game'.", ", edifices, views, kind:'game'."],

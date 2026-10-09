@@ -184,12 +184,45 @@ export function buildCore(E) {
   // and shoves the mover out — so ramming the enemy stops YOU, not it — and two movers split the
   // penetration. Approaching velocity along the contact normal is killed (rest against the hull, no
   // jitter). Opt-in per body (`collideVol`, from `body.collide`); worlds without it are a no-op.
+  // who gives way: 1 a live platform body (pushed in 3D), 2 a ground walker (the walk rule, a cast walk: pushed on the
+  // ground plane), 0 one that holds (anything else, and any `body.heavy`)
+  const moverOf = (e) => (e.body && e.body.heavy ? 0 : e.rule && e.rule.type === 'platform' ? 1 : (e.rule && e.rule.type === 'walk') || e.route ? 2 : 0);
+  // a BOX body (`body.collide.box`, half sizes round pos) against an egg: the egg's lateral radius leaves the box's
+  // footprint on the ground plane (the resolveBlocking idiom), when their heights overlap; two boxes don't push
+  function boxContact(A, B) {
+    if (A.collideVol.box && B.collideVol.box) return;
+    const X = A.collideVol.box ? A : B, Y = X === A ? B : A, bx = X.collideVol.box, vy = Y.collideVol;
+    const px = X.transform.pos, py = Y.transform.pos;
+    const yc = py[2] + vy.cz;
+    if (yc + vy.c <= px[2] - X.collideVol.c || yc - vy.c >= px[2] + X.collideVol.c) return;
+    const mn0 = px[0] - bx[0], mx0 = px[0] + bx[0], mn1 = px[1] - bx[1], mx1 = px[1] + bx[1], r = vy.a;
+    let nx, ny, pen;
+    if (py[0] > mn0 && py[0] < mx0 && py[1] > mn1 && py[1] < mx1) {
+      // centre inside the footprint: out through the nearest side
+      const dL = py[0] - mn0, dR = mx0 - py[0], dD = py[1] - mn1, dU = mx1 - py[1], m = Math.min(dL, dR, dD, dU);
+      if (m === dL) { nx = -1; ny = 0; } else if (m === dR) { nx = 1; ny = 0; } else if (m === dD) { nx = 0; ny = -1; } else { nx = 0; ny = 1; }
+      pen = m + r;
+    } else {
+      const cx = py[0] < mn0 ? mn0 : py[0] > mx0 ? mx0 : py[0], cy = py[1] < mn1 ? mn1 : py[1] > mx1 ? mx1 : py[1];
+      const dx = py[0] - cx, dy = py[1] - cy, d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= r || d < 1e-9) return;
+      nx = dx / d; ny = dy / d; pen = r - d;
+    }
+    const mX = moverOf(X), mY = moverOf(Y);
+    if (!mX && !mY) return;
+    const wY = mY ? (mX ? 0.5 : 1) : 0, wX = mX ? (mY ? 0.5 : 1) : 0;
+    py[0] += nx * pen * wY; py[1] += ny * pen * wY;
+    px[0] -= nx * pen * wX; px[1] -= ny * pen * wX;
+    if (mY && Y.vel) { const vn = Y.vel[0] * nx + Y.vel[1] * ny; if (vn < 0) { Y.vel[0] -= vn * nx; Y.vel[1] -= vn * ny; } }
+    if (mX && X.vel) { const vn = X.vel[0] * nx + X.vel[1] * ny; if (vn > 0) { X.vel[0] -= vn * nx; X.vel[1] -= vn * ny; } }
+  }
   function stepBodyCollisions(state) {
     const solids = [];
     for (const e of state.entities) if (e.collideVol && !e.isCamera && !e.gone && e.cineT == null) solids.push(e);   // cinematic suits stand close — skip solidity
     for (let i = 0; i < solids.length; i++) {
       for (let j = i + 1; j < solids.length; j++) {
         const A = solids[i], B = solids[j];
+        if (A.collideVol.box || B.collideVol.box) { boxContact(A, B); continue; }
         const pa = A.transform.pos, pb = B.transform.pos;
         let dx = pb[0] - pa[0], dy = pb[1] - pa[1], dz = (pb[2] + B.collideVol.cz) - (pa[2] + A.collideVol.cz);
         let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -197,13 +230,13 @@ export function buildCore(E) {
         const ux = dx / dist, uy = dy / dist, uz = dz / dist;
         const pen = eggRadius(A.collideVol, ux, uy, uz) + eggRadius(B.collideVol, ux, uy, uz) - dist;
         if (pen <= 0) continue;
-        const mA = A.rule && A.rule.type === 'platform';
-        const mB = B.rule && B.rule.type === 'platform';
+        const mA = moverOf(A), mB = moverOf(B);
         if (!mA && !mB) continue;   // two stationary bodies — nothing to push
         const wA = mA ? (mB ? 0.5 : 1) : 0;
         const wB = mB ? (mA ? 0.5 : 1) : 0;
-        pa[0] -= ux * pen * wA; pa[1] -= uy * pen * wA; pa[2] -= uz * pen * wA;
-        pb[0] += ux * pen * wB; pb[1] += uy * pen * wB; pb[2] += uz * pen * wB;
+        // a ground walker (walk rule, a cast walk) is pushed on the ground plane; its feet stay where the ground put them
+        pa[0] -= ux * pen * wA; pa[1] -= uy * pen * wA; if (mA === 1) pa[2] -= uz * pen * wA;
+        pb[0] += ux * pen * wB; pb[1] += uy * pen * wB; if (mB === 1) pb[2] += uz * pen * wB;
         if (mA && A.vel) { const vn = A.vel[0] * ux + A.vel[1] * uy + A.vel[2] * uz; if (vn > 0) { A.vel[0] -= vn * ux; A.vel[1] -= vn * uy; A.vel[2] -= vn * uz; } }
         if (mB && B.vel) { const vn = B.vel[0] * ux + B.vel[1] * uy + B.vel[2] * uz; if (vn < 0) { B.vel[0] -= vn * ux; B.vel[1] -= vn * uy; B.vel[2] -= vn * uz; } }
       }

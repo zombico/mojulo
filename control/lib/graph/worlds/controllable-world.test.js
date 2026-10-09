@@ -48,10 +48,10 @@ describe('rule: walk (tank)', () => {
     expect(w.byId.h.transform.pos[0]).toBeLessThan(0);
   });
 
-  it('A/D turn the heading', () => {
+  it('A/D turn the heading (D = +1 = a right turn, heading down, as platform and drive)', () => {
     const w = createWorld({ entities: [{ id: 'h', rule: { type: 'walk', turn: 2 }, transform: { heading: 0 } }] });
     run(w, { turn: 1 }, 60);
-    expect(w.byId.h.transform.heading).toBeCloseTo(2, 1);   // 2 rad/s · 1s
+    expect(w.byId.h.transform.heading).toBeCloseTo(-2, 1);   // 2 rad/s · 1s, clockwise from above
   });
 
   it('a ground hook sets the foot height', () => {
@@ -1128,7 +1128,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
-      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb'],
+      bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
       entityActions: ['weapon', 'melee', 'tackle'],
