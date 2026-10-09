@@ -7,9 +7,10 @@
  * `outTrailBoardHtml(manifest)` is pure; `outTrailBoardPng(manifest)` lays it out in a headless Chromium (scene-png.js).
  */
 import { outTrailSite, outTrailLaws, exploreSeconds, OUT_TRAIL } from './out-trail.js';
-import { STAGE_KITS, resolveKitId } from './stage.js';
+import { STAGE_KITS, resolveKitId, stageKit } from './stage.js';
 import { NATURE_STYLES } from './nature.js';
 import { ISEKAI_STYLES } from './isekai.js';
+import { lookOf } from './style/looks.js';
 import { JUNGLE_STYLES } from './jungle.js';
 import { encodePngGrey } from '../landscape/surface-textures.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
@@ -21,9 +22,9 @@ const LABEL = { trailhead: 'trailhead', exit: 'exit', pinch: 'pinch', reveal: 'r
 
 /** The trail a recipe asks for, on the style its kit is drawn by. */
 export function outTrailOf(manifest) {
-  const kitId = resolveKitId(manifest.kit || 'isekai-meadow'), kit = STAGE_KITS[kitId];
+  const kitId = resolveKitId(manifest.kit || 'isekai-meadow'), kit = stageKit(kitId);
   if (!kit || !STYLES[kit.shell]) throw new Error(`stage: kit '${kitId}' is not open ground: a trail is for an outdoor kit (${Object.keys(STAGE_KITS).filter((k) => STYLES[STAGE_KITS[k].shell]).join(', ')})`);
-  const st = STYLES[kit.shell][manifest.style || kit.style], seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
+  const st = STYLES[kit.shell][manifest.style || kit.style] ?? lookOf(manifest.style || kit.style)?.card, seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   return { kitId, st, seed, site: outTrailSite(st, manifest.trail === undefined ? true : manifest.trail, seed) };
 }
 
@@ -138,6 +139,13 @@ ${map(g1, '2 · smooth', 'the walk laid level, the geology at the cliff, the pit
 </div>
 <div class="card"><header><h2>Heartbeat</h2><span class="note" style="margin:0">dashed: rough · solid: smoothed · hatched: steeper than ${OUT_TRAIL.grade}, a stairs site</span></header>${heartbeat(site, 1156, 230)}</div>
 </div></body></html>`;
+}
+
+/** The trail's plan alone (its smooth pass under the trail, its beats and its edge), `w` wide, for a page that is not the board. */
+export function outTrailPlanSvg(manifest, w = 330) {
+  const { site } = outTrailOf(manifest), g = site.passes.smooth, h = Math.round((w * (gridY(g, g.ny - 1) - gridY(g, 0))) / (gridX(g, g.nx - 1) - gridX(g, 0))), d = depthPng(site, g);
+  const labels = '.lbl{font:700 11px Helvetica,Arial,sans-serif;fill:#000;paint-order:stroke;stroke:#fff;stroke-width:3px}';
+  return overlay(site, g, w, h).replace(/^<svg class="over"/, '<svg').replace('<defs>', `<style>${labels}</style><defs>`).replace('</defs>', `</defs><image href="${d.url}" width="${w}" height="${h}" preserveAspectRatio="none"/>`);
 }
 
 /** The board as a PNG, laid out by a headless Chromium (scene-png.js). Throws when no browser can be resolved. */

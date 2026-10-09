@@ -27,6 +27,7 @@
  *
  * Coordinates are the followed trail's site (x across, y along, z up, metres). Pure numbers; nothing builds a face.
  */
+import { lookOf } from '../era/style/looks.js';
 import { outTrailSite } from '../era/out-trail.js';
 import { madeLaws } from '../era/out-made.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
@@ -125,7 +126,7 @@ export function readLocalMeru(recipe = {}) {
  */
 export function joinOfTrail(after) {
   if (!after) return { from: null, at: [0, 0, 0], N: [0, 1, 0], site: null };
-  const kit = after.kit || 'isekai-meadow', st = ISEKAI_STYLES[kit];
+  const kit = after.kit || 'isekai-meadow', st = ISEKAI_STYLES[kit] ?? lookOf(kit)?.card;
   if (!st) throw new Error(`local-meru: after.kit '${kit}' is not an isekai kit (${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(after.seed) ? after.seed : 1, site = outTrailSite(st, after.trail === undefined ? true : after.trail, seed);
   const D = site.D, x = site.trailX(D), sl = site.out.plan.trailSlope(D), l = Math.hypot(sl, 1);

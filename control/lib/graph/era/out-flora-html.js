@@ -5,7 +5,9 @@
  * jungle read as a composition. Data: era/out-flora.js and era/style/swatches.js. `outFloraHtml(opts)` is pure.
  */
 import { FLORA_FORMS, FLORA_FORM_IDS, FLORA_LEVELS, FLORA_LAWS, FLORA_PARTS, FLORA_SKINS, BARK_PATTERNS, BARK_DIALS, GRASS_PRIMITIVES, COMPOSITION_ROLES, JUNGLE_COMPOSITION, designFlora, floraLaws, floraMeasures, floraSkin, floraScatter, INCONGRUITY_GAIN, RING_GAIN } from './out-flora.js';
-import { SWATCHES, hexOfRgb } from './style/swatches.js';
+import { SWATCHES, hexOfRgb, swatchesOf } from './style/swatches.js';
+import { poleOf, materialOf, platePattern } from './style/pole.js';
+import { defsOf } from './out-structures-draw.js';
 import { CSS } from './out-index-html.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { ikebanaCard, zoneCard, wideCard } from './out-ikebana-html.js';
@@ -17,7 +19,8 @@ const SUN = (() => { const s = [-0.45, -0.6, 0.66], l = Math.hypot(...s); return
 /** A doodad's front elevation in a kit's swatches: faces sorted far to near, each its part's ramp stop, a stop up or
  *  down where it faces the sun or away. `ppm` fixes the scale (pixels a metre) so a row compares sizes. */
 export function drawFlora(d, kitId, { w = 150, h = 150, ppm = null, ground = true } = {}) {
-  const land = SWATCHES[kitId].land, skin = floraSkin(kitId);
+  // on the material pole (era/style/pole.js) every face is its material, a pattern round its stop
+  const land = (SWATCHES[kitId] ?? swatchesOf(kitId)).land, skin = floraSkin(kitId), real = poleOf(kitId) === 'material', defs = new Map();
   const proj = (p) => [p[0], p[2]];
   let x0 = Infinity, x1 = -Infinity, z1 = 0;
   for (const f of d.faces) for (const p of f.corners) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z1 = Math.max(z1, p[2]); }
@@ -28,11 +31,11 @@ export function drawFlora(d, kitId, { w = 150, h = 150, ppm = null, ground = tru
     const ramp = land[skin[f.part]] ?? land.foliage, n = ramp.length;
     const lam = f.normal[0] * SUN[0] + f.normal[1] * SUN[1] + f.normal[2] * SUN[2];
     const stop = Math.max(0, Math.min(n - 1, Math.round(f.value * (n - 1)) + (lam > 0.55 ? 1 : lam < 0.05 ? -1 : 0)));
-    const col = hexOfRgb(ramp[stop]);
-    return `<polygon points="${f.corners.map(proj).map(([x, z]) => `${(cx + x * k).toFixed(1)},${(base - z * k).toFixed(1)}`).join(' ')}" fill="${col}" stroke="${col}" stroke-width="0.5" stroke-linejoin="round"/>`;
+    const col = hexOfRgb(ramp[stop]), m = real ? materialOf(land[skin[f.part]] ? skin[f.part] : 'foliage') : null;
+    return `<polygon points="${f.corners.map(proj).map(([x, z]) => `${(cx + x * k).toFixed(1)},${(base - z * k).toFixed(1)}`).join(' ')}" fill="${m ? platePattern(defs, { stops: ramp, i: stop, material: m, seed: skin[f.part], kit: kitId, step: lam > 0.55 ? 1 : lam < 0.05 ? -1 : 0 }) : col}" stroke="${col}" stroke-width="0.5" stroke-linejoin="round"/>`;
   }).join('');
   const g = ground ? `<line x1="2" x2="${w - 2}" y1="${base + 0.5}" y2="${base + 0.5}" stroke="#111" stroke-width="1.2"/>` : '';
-  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(`${d.dials.form} ${d.dials.variant}`)}">${g}${polys}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(`${d.dials.form} ${d.dials.variant}`)}">${defsOf(defs)}${g}${polys}</svg>`;
 }
 
 export const fig = (svg, cap) => `<figure>${svg}<figcaption>${cap}</figcaption></figure>`;

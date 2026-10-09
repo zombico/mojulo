@@ -12,6 +12,270 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Realistic ground: the opposite pole of the isekai look
+
+- **Why.** The isekai look carries its ground on grass cards and pixel tiles. On bare ground (a desert, a clay plain) the mesh underneath showed through:
+  - each landform cell was lit with its own facet normal, so slopes broke into steps;
+  - the sun's shadow was sampled at four corners and smeared across two triangles (the "waffle");
+  - a warm ramp's lit and shaded stops sat too close to give any contrast.
+- **The realistic pole.** A look card's `ground` (grammar facet) draws the ground as material under light:
+  - The colour belongs to the material: `dirt`, `scree` and `packed` tiles painted in the ramp's stops, round the ramp's middle. The trail sits a stop paler.
+  - The baked corners carry light only, and the page multiplies texel × light.
+  - The light is smooth over the form (the heightfield's normal at each corner, shared by every cell meeting there), with a warm key and a cool sky fill.
+  - Cavity darkens hollows and lifts crests.
+  - The sun's shadow is hard: a cell whose shadow changes inside it is split, so the shade gathers into pockets with an edge.
+  - The tiles show clods with an outline on the shadow side and a lit chip on the sun side, plus patches and grit.
+  - A card without `ground` renders exactly as before, so every written isekai card is unchanged.
+- **Variants that join.** The ground tiles come in edge-matched variants (Wang tiles), so the ground doesn't repeat in rows from far:
+  - each tile edge has a type;
+  - each edge is painted once, as a strip across the seam;
+  - each block's variant is set by its four edges' types, each type chosen by its own dice;
+  - clods lie as thick by a seam as anywhere else.
+- **In the land tunnel.**
+  - A `realistic` trait (realism, realistic, naturalistic) pulls the pole.
+  - A new `pocketing` look law measures contrast at two scales: sun on a flat against its shade, and the ground tile from its darkest to its lightest texel.
+  - When the law fails, its tweak deepens the shade (the sky's fill down) or widens the tile's window.
+- **The pole cascades.** A look decides its pole once (`card.pole`: absent is banded, `'material'` is realistic), and every drawer reads it through `era/style/pole.js`; no drawer decides it.
+  - **Materials.** A surface's material comes from the ramp its colour comes from: stone, grain (timber, bark, rope), leaf, dirt, otherwise plaster. A machine's finish names its own (`FINISH_MATERIALS`: an alloy body is metal). Paint, lenses, glow, the accent and openings stay flat.
+  - **One painter set** (`isekai-tiles.js`): dirt, scree, packed, stone, plaster, grain, leaf, metal. `materialBlocks` gives any material in any five stops, a texel a block.
+  - **The stage.** The cliffs, rocks, hats, fringes, grass cards and trees are texel × light. Every tile's window is re-centred, the light makes the band, and the trees take leaf and grain tiles. Locked colour no longer applies to them.
+  - **The plates.** On a structure, machine, castle, land, flora or town plate, each face is a pixel pattern of its material in the five stops round its lit stop, a block a plate pixel.
+  - **The far ring.** Past it the texel is under the eye spot and the air carries the colour: far ridges, their clumps, the clouds and the cloud plate stay flat on either pole.
+- **A palette that reads as realism.** Four look laws apply on the material pole; a banded look stands aside.
+  - `hue-steady`: a material ramp keeps one hue, and the light shifts it, not the ramp.
+  - `chroma-ceiling`: natural ground is muted, with no stop past half saturated and its ends less.
+  - `albedo-band`: a material's middle sits low-middle, and the sun makes it bright.
+  - `one-family`: the ground's materials share a hue family and part by value and texture.
+  - One tweak rebuilds a failing ramp round its middle made real, with almost no hue lean (`toHsl` / `toRgb` are now exported from `look-facets.js`).
+- **Alpha patches by cause.** Five patches lie over the realistic ground on the page's blend layer:
+  - **fines** in hollows, a stop darker;
+  - **gravel** on slopes and the talus apron;
+  - **dust** drifted over flats, a stop paler;
+  - a lichen **crust** on stable flats off the trail;
+  - **trodden** fines along the trail's edges.
+- **How a patch draws.** Each patch is a material tile in its ramp's stops, and its alpha is a block noise from ½ to 1. It is drawn alpha-tested against its weight (`blend: 'cut'`: tex.a × weight against ½), so its edge is a ragged pixel edge that grows with the weight. Each patch takes the light of the piece it lies on, so shadows stay crisp.
+- **Rock drawn real.** Recolouring alone left the rock isekai: the banded `cliff` tile paints its own light in (lit bench tops, black ledges), and `rock` is two flat blotch levels with ink cracks.
+  - On the material pole the cliff is drawn as `strata` (a fine mottle, uneven bedding planes broken here and there, few joints, so they never close into bricks) and the rock as a `rockface` (mottle, thin fractures lit along their upper edge, speckle). A card's tile may name its painter (`paint`).
+  - Rock and cliff are lit smooth corner by corner (a form's normals summed at its shared corners), with the shadow still the face's own and crisp.
+  - Boulders stand bare: no grass hats.
+  - A `sky-fill` law keeps the sky's fill near grey (chroma ≤ 48), so rock in shade leans cool instead of turning blue.
+  - On the plates, rock is a rock face and worked stone is stone.
+- **Leaves, not blobs.** On the material pole a crown is stamped with the look's LEAF DIE (`LEAF_DIES`: oval, lance, cleft, lobed, needle), chosen by what grows: scrub and thorn are cleft, oak lobed, willow lance, pine needle, birch oval, and oval otherwise.
+  - **The skin.** It comes in four bands of light (`canopy-b0`…`b3`), and figure and ground swap as the light falls: lit is a light ground with a few dark leaves, then denser, then a dark ground with light leaves, then a few light leaves in the deepest shade. Each crown face takes its band by the light it was baked with, and the corner colour carries only the light left over (its hue kept).
+  - **Leaf cards.** Crossed cutout cards (`leafcard`) stand out of every crown mass, dense at the foot and ragged at the tip, so a crown's edge breaks into leaf shapes.
+  - **The plates.** Foliage on a look with a die is its canopy skin, banded by the face's light.
+- **Compact cut layers.** A cut layer with a world-locked uv (`uvScale`) ships compact: four corners a quad, sRGB bytes, and the uv and triangles rebuilt in the page. Existing blend layers are byte-identical.
+
+### Scapeshift tunnels: blocks, not kits
+
+- A thing is tunnelled, not templated (`lib/graph/gameworld/tunnel.js`): an intent is read into traits (each a measure
+  on the result; a phrase names its own trait and its words still say what they say alone), the blocks that can show
+  them are pulled and combined, the result is assessed (every trait's measure and the domain's laws), tweaked inside its
+  rails and reassessed for a bounded number of passes, every pass logged, then it goes on the plan. A trait nothing can
+  show is a gap, named with what would close it, never filled silently. One loop, three domains.
+- Blocks (`lib/graph/era/blocks.js`): primitives in code (box, drum, tube, cone, dish, truss, panel, wheel, track, arm,
+  fin, lamp, ring), blocks as data the agent writes (parts on rails, numbers as expressions over params, a `many` dial
+  from little to many, sockets, an automation's cycle), every part gated by the eye spot at its tier's ring, and laws
+  (one leads, the signature reads at its ring, every claimed function shows its reads, one status light, budget,
+  stands). Finishes point the technology's surface groups at a kit's ramps. A starter library
+  (`era/tech-blocks.js`) and the block index sheet (`out-sheet.mjs blocks`).
+- Buildings tunnel (`gameworld/tunnel-buildings.js`): building intents ("a modular sci-fi habitat, raised, with a comms
+  mast and solar") as ops on the building elements and technology mounted on them, spoken for a programme so modules
+  emerge as annexes. Its first run named a gap, panel seams; the wall's bond rail gained `panels` to close it.
+- Technology tunnel (`gameworld/tunnel-tech.js`): civilizations gain technology, conceptual and visual only. Functions
+  (power, store, move, lift, make, sense, signal, keep, grow, light) are what the eye must find; a layout grammar lays
+  a part for every read on a body at the tier's scale (tool, machine, installation, automation); the plan is a block a
+  civilization's library keeps. A lost signature piece is thickened, not the whole thing. The technology index sheet
+  (`out-sheet.mjs tech`).
+- Land tunnel (`gameworld/tunnel-land.js`): a look composed from words instead of a kit written by hand. Style cards come
+  apart into facets (`era/look-facets.js`: palette, grammar, geology, flora, sky, air, water) and every written card
+  round-trips; colour phrases build ramps; the look's laws (ramps climb, shadows are colours, the sky brightest by day,
+  aerial perspective, tiles inside their ramps) tweak what they find. Looks register under a content-addressed id
+  (`era/style/looks.js`) and every kit lookup falls back to them, so a stage, a sheet and a bible draw one like any kit.
+  A day sky may carry a companion world.
+- In the gameworld: a civilization's `builds` and `technology` and a style's `look` are words, tunnelled when the world is
+  read; the graph gains `thing` nodes (`makes`); the bible shows each tunnel's work and each machine. Autonomous mode
+  runs all three tunnels from its prompt. An example frontier, Halden Reach, composed entirely through them.
+
+### Gameworlds: a world above its levels
+
+- A gameworld recipe (`lib/graph/gameworld/`) in two concerns: the style (the kit its ground is drawn in, the
+  ground's character for trails and climbs) and its civilizations, as many as it keeps, each a building language, a
+  fortification and how it lays out a town and raises a castle. Every level inherits both and is settled by one
+  civilization; a town or a castle may be built by another. A level, a section or a place may override any of it,
+  and each override is kept in a ledger beside the world's value. Levels lay out through the level graph unchanged.
+  Characters, mechanics and the people of the civilizations are left open.
+- The gameworld graph: worlds, kits, civilizations, languages, fortifications, levels, sections and places as nodes,
+  with typed edges (contains, styled, drawn-in, settled-by, built-by, speaks, raises, seam, leads, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
+- The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the natural world, a card for each
+  civilization (its houses, its castle, what its language makes of a castle, where it builds), the style and color
+  key, a page for each level (its walk, its places and who built them, what it overrides) and the open sections.
+- The natural world: each kit the world is drawn in, its land designed as the buildings are: the land index's forms
+  at the variant and the step from little to many the world chose (a level may choose its own, kept in its ledger),
+  each step's strip beside it as guidance, and the kit's card (trees, grass, water, sky by day or night with its
+  moon, light, air, far layers). A kit's own land is read from its style card where the world leaves it. The style
+  and color key lays out every kit's ramps, shadow to light, and what each one paints. Creatures are left open.
+- The bible is scapeshifting's approval gate (`gameworld/review.js`): a world is reviewed in parts (its shape, its
+  natural world, its civilizations, its color key, each level), each with a fingerprint of what it resolves to. The
+  creator's verdicts live in the recipe (`review`: approved on a print, sent back with a note, or waiting); an
+  approval whose part has changed since stands stale and the part comes back. The cover lists every stamp and what
+  to look at next; each section carries its own.
+- Autonomous mode (`gameworld/compose.js`, `out-sheet.mjs gameworld --auto "a few words"`): a whole gameworld from a
+  prompt. Its words are read against a lexicon of what they say about the ground (a kit, a building language, a
+  fortification, the land's forms and how much of each, the ground's character); the seed decides the rest inside
+  the same rails; a level whose town's laws advise is laid again on the next seed. Every unreviewed part is stamped
+  by its machine gate (auto, or revise), never approved; the bible shows the prompt and what each word decided.
+- The land index (`era/out-land.js`, `out-sheet.mjs land`), beside the flora index: six forms (the lie of the
+  ground, rock formations, the sediment in a cliff, what a cliff's face is built of, clouds, natural landmarks), each
+  a few primitives under a few dials with named variants, a little-to-many dial in five named steps (flat to rugged,
+  bare to a field, massive to laminated, smooth to shattered, clear to overcast, alone to a range), built by reveal
+  ring inside a face budget and skinned by a kit's ramps.
+
+### Scapeshift structures
+
+Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a world yet.
+
+- **Elements first.** A town's elements are designed before any building is composed
+  (`lib/graph/era/out-anchor-elements.js`): building elements (the wall and its bond, the cap, the light, the door, the
+  socle, cornice, sills, lintels, quoins, shutters, chimney, points, ribs, bands, frame) and street elements (road,
+  footway, kerb, lamp, post, fence). Each is a set of rules, not a shape: every param has a rail and says whether the
+  street holds it (storey height, pitch, eave, the lights' head line, the bond) or a house may vary it (a bay ± 12 %, a
+  light more or fewer, a dome's rise), or whether it is a household's choice (shutters, ribs, by share); each has a
+  depth and reads at a ring as geometry, a mark in the tile, or not at all. An element off its rail, an unknown kind,
+  or a detail its mass cannot carry (sills on a shell, a cornice with no eave) is refused, saying why.
+- **The anchor is a citizen in its slice of street.** The anchor is composed from its elements as the town's ordinary
+  house, at full effort; every other use is a promotion of it (a counter, a work floor, the hall with the accent, the
+  tower that dares height). It stands in a slice of street (road, kerb, footway, lamp, posts) that every route in the
+  town is laid in, stepped down the ranks: the lane in the anchor's road paving with full footways, a branch narrower,
+  a back lane earth with none; lots stand behind the footways. Lamps, posts and boundaries in the town are built from the
+  anchor's elements at their strides. `seedAnchor(n)` draws elements first, each choice constraining the next, then the
+  composition they allow.
+- **A town is spoken from one anchor structure.** No house shape is stored. A town names a single anchor structure
+  (`lib/graph/era/out-anchor-structure.js`), built black and white and in pieces from a small generic vocabulary
+  (masses: block, drum, shell; caps: gable, hip, pyramid, dome, cone, flat; lights: rect, arch, round, lens; entries:
+  door, tunnel; ornaments: point, chimney, rib, band, frame, shutters; relations: annex, tiers), each piece a value on a
+  surface group. `decompileAnchor` reads it into the town's language (vocabulary, normalised proportions, rhythm,
+  values, the depth each piece is spoken at); the grammar refuses what it does not allow (a cone on a block, a door in
+  a curved wall), saying why. `speak` builds every building from the language on its lot and programme: the plan from
+  the lot inside the anchor's reach, storeys from the need, the anchor's cap at its pitch, its lights in its rhythm,
+  its ornaments at their counts, households varying inside the language and mirroring their plans. It is fractal:
+  what a plan cannot hold is the language again behind (an annex, a depth shallower), a focus that must stand over the
+  street takes a taller storey, a steeper cap, or the language once more on top; the ring prunes the tree (far is one
+  envelope) and the eye spot gates every piece. Three anchors are authored (a timber house, a shell, a tiered
+  tower-house) and `seedAnchor(n)` draws one from the grammar by a number; `roundTrip` checks the decompile is faithful.
+  A kit's craft is its `chunk` and its default anchor; a town recipe's `anchor` names another (an id, pieces, or
+  `{ seed }`).
+- **What every building answers to, whatever its anchor** (`lib/graph/era/out-structures.js`): the uses as programmes,
+  the rings and the eye spot (a part is geometry at a ring only where its least span covers 12 frame px at the ring's
+  read distance; smaller marks go into the tile, smaller things on the silhouette are not built), budgets by ring, the
+  laws of scale (storey, door, one-leads, value-order, eye-spot, budget, programme) and the anchor's laws
+  (speaks-the-anchor, reach, sheds, rise, rhythm, ornament-even), measured on every building; they advise.
+- **Roofs are laid in courses.** Pitched caps carry their covering's courses as shadow lines clipped per slope (tile,
+  shingle, slate; thatch none, rolled at the ridge), drawn in the tile; the ridge cap is geometry where it covers the
+  eye spot.
+- **Values first, paint second.** Every piece is built in values on a surface group (`str:plaster`, `str:tile`,
+  `str:lens`, `str:accent`, `town:grass`, `dress:timber`, …); no builder reads a colour. The style guide paints as a
+  separate concern (`lib/graph/era/out-structures-paint.js`): each group a kit ramp, the lit value picks the stop, the
+  accent kept for the one surface that marks a use, a cap on its walls' ramp a stop under them, trim on a cap's ramp a
+  stop over it; its law checks the paint keeps the anchor's value order. The alien-night swatches gain a blue `lens`
+  ramp.
+- **The secondary.** Every anchor has a counterpoint derived from its elements by contrast rules (`deriveSecondary`,
+  `secondaryOf`; `SECONDARY_RULES`): it shares the street, the storey height, the door, the lights' form, the ground
+  storey and the details, and turns the rest: a compact square plan, a pyramid 12° steeper (a cone over a drum or a
+  shell's), the anchor's neighbouring covering (never its walls' material), a dark boarded body in a pale street or a
+  pale one in a dark street, lights 0.85 × 1.15, a finial and a band at every storey. The town sets secondaries as
+  punctuation (corners and run ends in a fuller town, then a rhythm by the recipe's `secondary` 0…1, never two
+  together), each in the lowest band that rises a metre over both neighbours and under the hall round the square, or
+  a citizen where none fits; law `secondary`. They wear the anchor's paint fitted to their own values.
+- **Heartbeats and ruled paint.** A town's `heartbeat` (hamlet, village, market, burgh) is its height as a curve: a band
+  of storeys at the heart and at the edge, eased by distance off the square, a back lane a storey lower; every citizen
+  keeps to it (a shell as far as its rise allows). Citizens are painted by ruled variation of the anchor's paint
+  (`streetPaints`): roofs hold, walls step a stop or swap among the group's kit ramps, neighbours on a frontage differ,
+  every variant keeps the value order, the focus and the landmark wear the anchor's own. The painter fits a paint to a
+  language (`fitPaint`: a cap over its walls steps down, or the walls up) and never lets a covering sink to the
+  openings' stop; a tower told to stand taller climbs by storeys first. Town laws `street-holds`,
+  `heartbeat`, `section`; paint laws `roofs-hold`, `neighbours-differ`, `variants-keep-values`. A building past its
+  ring's budget puts its finest details (quoins, lintels, sills, shutters) into the tile first.
+- **A town is drawn path first** (`lib/graph/era/out-town.js`). The lane sways with the trail and forks at the reveal
+  into the square, a branch climbs from it through up to two terraces (each held by a retaining wall and climbed by a
+  flight whose going is the man-made index's `steps`) to the landmark, an upper lane runs along the first terrace, a
+  back lane behind the frontage, a second way drops to a pocket. Lots are cut from every frontage in walking order on an
+  occupancy grid, each use by cause, each ring by distance off the walk; the mid ring repeats in pairs, the far ring is
+  farmsteads in their fields; the focus and the landmark are told how tall to stand. Paving is the route's rank, door
+  paths cross each front; the back lane yields behind the square so the hall keeps its ground. The recipe (`length`,
+  `sway`, `branches`, `levels`, `back`, `farms`, `heartbeat`, `dress`, `paint`, `anchor`) is read against the town card
+  and refused anything else.
+- **Walks and boundaries are structures** (`lib/graph/era/out-anchor-elements.js`, `lib/graph/era/out-town.js`). The
+  footway is a function with four equivalent forms (`kerbed`, `flush` with a channel and posts along its line, `boards`
+  on sleepers, `verge` with a clear path behind the grass). The `fence` element is replaced by `boundary`: forms rail,
+  paling, picket, hedge, drystone, coursed and rendered, each with its thickness, the heights it stands to and the rise
+  it can hold back; height classes (kerb, low, waist, screen, high) measured against a body; roles (front, side, back,
+  field, precinct, guard, retain) that say how high a line stands by what it does. An anchor names its boundaries and
+  their roles; a role a named form cannot reach falls to the strongest that can, then to a coursed wall. Each line is
+  built by depth (mass; coping, piers and rails; its laying as marks; gate leaves), the ring choosing the depth. The
+  town plan lays them out after the buildings: a lived lot's front gated at its door path, one party line down the
+  passage between neighbours (and one back line between yards back to back), yards' backs, the hall's precinct, the
+  fields, each terrace held by a retaining wall and guarded along its drop; town laws `bounded`, `gated`, `sightline`,
+  `guarded`, `form-reach`, `walls-clear`, `party-once`. The dress no longer grows fences; flush walks are posted.
+  `streetTile(anchor, rank, { ring, kind })` gives a route's section as a tile (run, crossing, end), whole paving units
+  long and the same at both ends, at three degrees of detail, with laws `seamless`, `whole-units`, `budget`. A seeded
+  anchor draws its walk and boundaries from their own dice, so the building it draws is unchanged.
+- **A fortified town, the lord's land inside** (`lib/graph/era/out-fortress.js`, `lib/graph/era/out-town.js`). One dial,
+  `fortified` 0…1 on the town recipe (0 is the open town, unchanged): a curtain traced round the town (an octagon off
+  the routes) with a gate wherever a route crosses it and towers at its corners, where it steps a terrace and at a
+  rhythm that tightens with the dial; from 0.4 a ditch and an approach that runs under the west wall outside it and
+  turns into the gate; from 0.6 each terrace's wall a ward's curtain, entered by one gate where the branch climbs (the
+  branch dog-legs inside so no two gates line up); from 0.75 one gate; from 0.85 the lord's land, two wards over the bailey and
+  the lane drawn in. Nothing is built on the road outside the gates. The fortification is designed elements first (`fort`: the
+  curtain and its base, the parapet, the walk, the tower's plan and crown, the gate, the ditch; rails; a rampart of
+  5–9 m, game-scaled): the bay (a length of curtain) is its citizen, built by depth; the tower is derived from the bay
+  by contrast (it rises, stands out of the face to flank it, turns its plan, crowns itself); the gatehouse composes
+  towers over the passage (twin, or a box gate-tower); the keep is the town's landmark on a broad lot, raised over every
+  tower, a secondary held two metres under it. Two authored compositions, `crenellated` and `battered`, and `seedFort`.
+  Laws `enclosed`, `flanking`, `bent-entry`, `commands`, `skyline`, `glacis`, `gates-only`, `one-way-up`. Along the
+  way: a lot on the inside of a bend steps back until both front corners clear the walk; a front reaches a passage's
+  middle only where it stays clear of the walk; back-to-back yards share their line where the two overlap; a secondary
+  is never its neighbour's repeat. `node scripts/out-sheet.mjs fortified-town` writes the Fortified Town Index: the dial
+  at 0, 0.5 and 1, each composition's elements by depth with the tower's derivation and the gatehouse, a fortified town
+  from above, standing and from the south with its laws, the other composition, and a seeded one.
+- **A castle is the lord's land drawn tight** (`lib/graph/era/out-castle.js`). The fortified town spends its surface
+  on its walls (its lord's ward is about 4 % built, its keep 1.4 % of the ward); a castle takes the town's walls off and
+  compresses what they kept into one structure, the town outside it. It is composed inward from its wall by a budget:
+  the keep first (a third of the ward's breadth on the back corner, straddling the curtain; a great tower with corner
+  turrets and a forebuilding, a drum, or a tiered keep on its stone base, `build.keep` by depth), then ranges backed
+  onto every curtain (lots spoken in the town's language, wall to wall: the hall by the keep, lodgings, stables and work
+  by the gates, a chapel when the court would be a field), the court what is left. The inner ward stands on a platform
+  (a battered base holds its ward high and its wall low), climbed by a flight inside its gate; with `wards: 2` a
+  forecourt before it, its gate on the other hand, the walk turning under the inner wall. The walls are cut to what
+  they keep: no higher than the language's lodgings can show over. Settings `fort`, `size` 40–56, `wards` 1–2, `rise`.
+  Laws `filled`, `court-span`, `rich-inside`, `keep-weight`, `shows-over`, `flanking`, `commands`, `bent-entry`,
+  `one-gate-each`, `climbed`. The town recipe's `castle` (never with `fortified`) sets it on the highest ground past
+  the branch's end, the branch brought to its bridge, the keep the town's landmark (law `outside`). A curtain holding
+  ground behind it now shows its inner face over that ground. `node scripts/out-sheet.mjs castle` writes the Castle
+  Index: the budget against the fortified town's, the keep by depth, both compositions (plan, standing, from the
+  south), one ward, a seeded one with its chapel, and the town below its castle. The castle is designed by the style it
+  keeps (`STYLE_INFLUENCE`, `influenceOf`): a language that builds round (shells, drums) draws its curtain as an
+  ellipse as long as its masses (the keep a third out past the far end of the long axis, the hall at the near focus,
+  the wards nested rings, the walk round the forecourt under the inner wall, ranges on every length of the ring, the
+  ring's lengths a building long); its cap speaks on the towers (shells and domes crown drums with a dome, a flat roof
+  carries the crenels round); its landmark becomes the keep (shells stack into a keep of orbs, tiers under flat roofs
+  step into a platform with a stair and a shrine). `build.keep` gains `form: 'orbs' | 'stepped'`, the tower a `dome`
+  crown. A round keep is drawn a ninth broader to weigh as a square; the court takes a building in each room while it
+  is a field (the hall's focus first, stepped aside of the flight).
+- **Town interceptors dress it** (`lib/graph/era/out-town-dress.js`): lamps, posts, wells, market stalls, benches,
+  carts, barrels, woodpiles, planters, signs and trees, each a site finder over the map, a grower and an
+  aggressiveness 0…1, seeded and capped, never on the walk but for lamps, posts and signs.
+- **The sheet.** `lib/graph/era/out-structures-html.js` draws the Outdoor Structures Index: the elements (each drawn on
+  its own, its holds and how it reads by ring), the citizen in its slice of street (axonometric and in section), the
+  anchor in pieces and its language, the language spoken on every use (by depth, by ring, by household), one frontage
+  of six households with the street's lines drawn across it, the secondary (its derivation, rule by rule, and a
+  frontage with it set in as skyline, values and paint), walks and boundaries (the four walks, every role at its
+  height against a body, each line by depth, one lot and the lines the plan gives it), street tiles, the town in miniature (a top-down map and an
+  axonometric), the heartbeats (curves and a frontage in elevation at each), a gallery of other anchors and the towns they speak, values and paint, one use on five lots,
+  routes and levels, paving, the interceptors, the vocabulary, the laws, roofs by covering, every kit. The drawer is
+  `era/out-structures-draw.js`, the town's cards `era/out-town-html.js`. `node scripts/out-sheet.mjs
+  <index|flora|structures> [out.html] [--seed N] [--kit id]` writes any of the outdoor sheets to disk.
+
 ### Handedness
 
 - The still camera is right-handed. The pinhole projector behind every SVG still and the CSS-3D scene

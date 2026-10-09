@@ -13,6 +13,8 @@
  * A kit drawn from tinted textures (nature-trail, jungle) has no land ramps yet: its ground is a texture times a tint,
  * recorded on its card; its made ramps and accent live here all the same.
  */
+import { lookOf } from './looks.js';
+
 export const SWATCHES = Object.freeze({
   'isekai-meadow': {
     land: {
@@ -112,6 +114,8 @@ export const SWATCHES = Object.freeze({
       stone: 'rock',
       rope: [[40, 30, 60], [80, 64, 100], [130, 112, 150], [180, 166, 200]],
       paint: 'glow',
+      // the lights a shell is set with: a deep blue lens
+      lens: [[24, 40, 110], [40, 80, 180], [80, 140, 230], [150, 200, 250], [220, 240, 255]],
     },
     accent: ['glow', 2],
   },
@@ -139,10 +143,12 @@ export const SWATCHES = Object.freeze({
 });
 
 export const SWATCH_KITS = Object.freeze(Object.keys(SWATCHES));
+/** A kit's swatches: a written kit's, or a composed look's (era/style/looks.js). */
+export const swatchesOf = (kitId) => SWATCHES[kitId] ?? lookOf(kitId)?.swatches;
 
 /** A kit's made ramp by name: a ramp, or the name of one of its land ramps. */
 export function madeRamp(kitId, name) {
-  const K = SWATCHES[kitId];
+  const K = swatchesOf(kitId);
   if (!K) throw new Error(`swatches: no swatches for kit '${kitId}' (${SWATCH_KITS.join(', ')})`);
   const r = K.made[name] ?? K.land?.[name];
   if (r === undefined) throw new Error(`swatches: kit '${kitId}' has no ramp '${name}' (made: ${Object.keys(K.made).join(', ')}${K.land ? `; land: ${Object.keys(K.land).join(', ')}` : ''})`);
@@ -150,6 +156,6 @@ export function madeRamp(kitId, name) {
 }
 
 /** The kit's one accent colour, as [r, g, b]. */
-export const accentOf = (kitId) => { const [ramp, stop] = SWATCHES[kitId].accent; return madeRamp(kitId, ramp)[stop]; };
+export const accentOf = (kitId) => { const [ramp, stop] = swatchesOf(kitId).accent; return madeRamp(kitId, ramp)[stop]; };
 
 export const hexOfRgb = (c) => `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
