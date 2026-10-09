@@ -56,6 +56,31 @@ power as an alternate use. What the page conceives is the template of its class 
   the proposal while none is adopted) and the equipment table with its rows to fill.
 - Not yet: the eyes gate on every item and tier, worn armour and paint, and the table's calibration.
 
+### Character book: the game's systems
+
+The fourth step of the character book: the hero's actions numbered. The world's `mechanics` slot is read from the
+actions' mechanics seed: each stage becomes an epoch, each power a node of the tree in its stage, and the system's
+resource a resource the powers spend. It lowers to the `play.stats` the stats kernel runs, with a HUD derived from what
+the systems publish. Every derived number carries its reason, and the creator's own numbers are laid over it, ledgered.
+Equipment is made once the stats stand: each class of gear raises a stat by tier.
+
+- **Each system its own way.** A metroidvania-like power is found (a free node a pickup buys); a shonen-like one is
+  bought with the points each level gives, each form raising power; a soulslike one is learned, with gear and sparse
+  upgrades offered for coin; an action-adventure-like one is opened by the item that serves it. How each power is used
+  (what it spends, how hard it lands by stage) is carried as data until the powers have an input.
+- **The dials and the creator's own.** `mechanics.scale` (hp, power, cost, curve) moves the derivation;
+  `mechanics.stats` lays the creator's numbers over it by id and key, ledgered and judged by the stats kernel;
+  `mechanics.gear` says what a class of gear raises.
+- **The HUD.** Bars for health and the system's resource, a level counter, a banner on each level and stage, and a
+  status page, styled by the world's UI direction (`propose` by default, gated when the world is minted).
+- **Reviewed, and playable.** The stats and the HUD are parts of the review gate; the equipment step waits on the stats.
+  The orders mint a player world with the hero and the play block. The character bible draws the systems and what each
+  gear tier raises.
+- **Fixed: a world's stats reach the page when it has events of its own.** The play block's `play.stats` was dropped
+  in the merge with a manifest's own `events` (a player world's controls legend), so the stats kernel never ran there.
+- Not yet: the eyes gate on the numbers in play; the HP bar's max is the starting health (it does not follow levels);
+  nothing opens the status page yet.
+
 ### Realistic ground: the opposite pole of the isekai look
 
 - **Why.** The isekai look carries its ground on grass cards and pixel tiles. On bare ground (a desert, a clay plain) the mesh underneath showed through:

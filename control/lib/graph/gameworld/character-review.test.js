@@ -19,7 +19,7 @@ describe('the character book\'s review', () => {
   it('the parts are the direction, four looks pages, the base, the motion and the actions, each with a print', () => {
     const P = characterParts(world({}));
     expect(P.map((p) => p.id)).toEqual(CHARACTER_PART_IDS);
-    expect(CHARACTER_PART_IDS).toEqual(['characters:direction', 'hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment']);
+    expect(CHARACTER_PART_IDS).toEqual(['characters:direction', 'hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
     for (const p of P) expect(p.print).toMatch(/^[0-9a-f]{8}$/);
     expect(JSON.stringify(characterParts(world({})))).toBe(JSON.stringify(characterParts(world({}))));
   });
@@ -107,9 +107,11 @@ describe('the character book\'s review', () => {
     expect(ready(w2).systems).toEqual({ ready: false, waiting: [{ id: 'hero:motion', status: 'proposed' }] });
     const w3 = { ...w0, review: approveCharacter(w2, 'hero:motion') };
     expect(ready(w3).systems.ready).toBe(true);
-    // the equipment waits on the stats as well: `mechanics` is not built while it is reserved
-    expect(ready(w3).equipment).toEqual({ ready: false, waiting: [{ id: 'mechanics', status: 'not built' }] });
-    expect(ready(w0).equipment.waiting.map((x) => x.id)).toEqual(['hero:base', 'hero:actions', 'hero:motion', 'mechanics']);
+    // the equipment waits on the stats as well: the systems' stats part, settled
+    expect(ready(w3).equipment).toEqual({ ready: false, waiting: [{ id: 'mechanics:stats', status: 'proposed' }] });
+    expect(ready(w0).equipment.waiting.map((x) => x.id)).toEqual(['hero:base', 'hero:actions', 'hero:motion', 'mechanics:stats']);
+    const w4 = { ...w3, mechanics: {} }, w5 = { ...w4, review: approveCharacter(w4, 'mechanics:stats') };
+    expect(ready(w5).equipment).toEqual({ ready: true, waiting: [] });
     // the actions page changing after approval puts adornment back to waiting
     expect(ready({ ...w3, characters: { ...w3.characters, hero: { actions: complete } } }).adornment.waiting).toEqual([{ id: 'hero:actions', status: 'changed' }]);
   });

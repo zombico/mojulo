@@ -10,6 +10,7 @@ export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT
 export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
 export { suggestKit, RAILS, ELEMENT_GEM } from './adornment-kit.js';
 export { readEquipment, resolveEquipment, equipmentOrders, CLASS_SLOTS } from './equipment.js';
+export { readMechanics, resolveMechanics, mechanicsOrders, SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 export { ELEMENT_WORDS } from './element-words.js';
 export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './hero-vibe.js';
 export { basePrint, pinBase, verifyBase, revisionLookup } from './hero-base.js';

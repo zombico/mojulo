@@ -54,9 +54,22 @@ describe('the character bible', () => {
     expect(html).toContain('hero:wind-staff');
     expect(html).toMatch(/<td><b>sword<\/b><\/td><td class="muted">to fill<\/td>/);
     expect(html).toMatch(/To fill<\/h4><p class="muted">dagger, sword, greatsword, bow, shield/);
-    expect(html).toMatch(/Not made yet: waiting on .*mechanics \(not built\)/);
+    expect(html).toMatch(/Not made yet: waiting on .*mechanics:stats \(proposed\)/);
     expect(html).not.toMatch(/The orders that make them/);
     expect(html).not.toMatch(/variation/i);
+  });
+
+  it('draws the systems: the stats, the escalation numbered, how each power is used, the HUD; and the gear tiers\' gives', () => {
+    expect(html).toContain('id="mechanics-stats"');
+    expect(html).toMatch(/<td><b>hp<\/b><\/td><td>100<\/td>/);
+    expect(html).toMatch(/<span class="eyebrow">mid · level 5<\/span><p><b>wind-orb<\/b> <span class="muted">free/);
+    expect(html).toMatch(/wind-orb \(mid\): found in the world/);
+    expect(html).toContain('id="mechanics-hud"');
+    expect(html).toMatch(/Banners: Level up · The mid stage · The late stage/);
+    expect(html).toContain('mid · ornament 2, mass 1.1 · power +3');
+    expect(html).toContain('&quot;tool&quot;: &quot;create_sketch&quot;');
+    const { mechanics, ...without } = MEADOWMARK_HERO;
+    expect(characterBibleHtml(without)).toMatch(/Not laid out yet\. Write <code>mechanics: \{\}<\/code>/);
   });
 
   it('a hero with no adornment page shows what the loop proposes, not adopted', () => {

@@ -860,6 +860,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (playEv.menus) ev = { ...ev, menus: playEv.menus };
     if (playEv.cast) ev = { ...ev, cast: true };
     if (playEv.looks) ev = { ...ev, looks: playEv.looks };
+    // the stats kernel's cfg is not a channel the merge carries: a world with its own events (a player world's controls
+    // legend) would otherwise lose it
+    if (playEv.stats) ev = { ...ev, stats: playEv.stats };
   }
   // A HUD-only block (a `legend` idiom: the controls hint) is a live channel too: it paints and fades on the page.
   if (ev && ((Array.isArray(ev.menus) && ev.menus.length) || (Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {

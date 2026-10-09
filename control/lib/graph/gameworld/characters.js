@@ -80,9 +80,10 @@ const NOT_LOOKS = Object.freeze({
   statue: 'a statue is not a character',
 });
 /** The parts the character book is reviewed in, in order (character-review.js): the direction, the four looks pages,
- * the pinned base, the motion, the actions, the adornment, and the world's equipment table it seeds (equipment.js).
+ * the pinned base, the motion, the actions, the adornment, the world's equipment table it seeds (equipment.js), and
+ * the systems numbered from the actions (mechanics.js): their stats and their HUD.
  * They share the world's `review` field with the world's own parts. */
-export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment']);
+export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
 const HERO_KEYS = ['looks', 'motion', 'actions', 'adornment'];
 const KEYS = ['direction', 'hero', 'cast'];
 

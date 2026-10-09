@@ -54,7 +54,7 @@ describe('equipment', () => {
   it('orders wait for the stats: nothing to mint until the step is ready, then one equipment mint per filled class', () => {
     const waiting = equipmentOrders(G, characterReady(MEADOWMARK_HERO).equipment);
     expect(waiting.mints).toEqual([]);
-    expect(waiting.waiting.map((w) => w.id)).toContain('mechanics');
+    expect(waiting.waiting.map((w) => w.id)).toContain('mechanics:stats');
     const ready = equipmentOrders(G, { ready: true, waiting: [] });
     expect(ready).toEqual({ waiting: [], mints: [{ tool: 'mint_solid', part: 'equipment', class: 'staff', args: { kind: 'equipment', title: 'Meadowmark · staff', item: 'staff', parts: { head: 'claw' }, dials: { focus: 'head', ornament: 1, mass: 1 }, gem: 'quartz' } }] });
   });

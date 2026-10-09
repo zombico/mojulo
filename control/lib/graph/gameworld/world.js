@@ -13,6 +13,7 @@
  *   CHARACTERS      who walks it (characters.js): the character book, its direction and its hero; read here,
  *                   resolved there
  *   EQUIPMENT       what can be equipped (equipment.js): a row per class of gear, read here, resolved there
+ *   MECHANICS       the game's systems (mechanics.js): the stats and the HUD, derived from the hero's actions
  *
  * Every level inherits both. A level is a local lord: it executes the world's style in place and interprets it, and
  * may override any part of it (its own kit, a steeper trail, another civilization); a section or a place may override
@@ -32,7 +33,7 @@
  *     start?: '<level id>',
  *     characters?: { direction, hero? },  // the character book (characters.js)
  *     equipment?: { classes? },           // the gear classes, seeded by the hero's adornment (equipment.js)
- *     mechanics?,                         // reserved: what is not on the ground is left open
+ *     mechanics?: { stats?, scale?, hud?, ui?, gear? },   // the game's systems, numbered from the actions (mechanics.js)
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
  *   }
  *
@@ -53,6 +54,7 @@ import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
 import { readEquipment } from './equipment.js';
+import { readMechanics } from './mechanics.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -80,16 +82,16 @@ const GROUPS = Object.freeze({
   castle: ['size', 'wards', 'rise'],
 });
 export const LINK_KINDS = Object.freeze({ road: 'the walk goes on: the next level starts where this one leaves', gate: 'a door between them: a portal, a stair down, a boat' });
-/** Not on the ground: named so a world can say it, left open. */
-export const RESERVED = Object.freeze(['mechanics']);
-/** The slots a world's bible names open while the world leaves them out: its characters, then what is reserved. */
-export const OPEN_SLOTS = Object.freeze(['characters', ...RESERVED]);
+/** Not on the ground and not built yet: named so a world can say it, left open (none today). */
+export const RESERVED = Object.freeze([]);
+/** The slots a world's bible names open while the world leaves them out: its characters and its systems. */
+export const OPEN_SLOTS = Object.freeze(['characters', 'mechanics', ...RESERVED]);
 /** The civilization a world without any keeps: the kit's own language, crenellated. */
 export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -281,10 +283,11 @@ export function readGameworld(W) {
   });
   const start = W.start ?? ids[0];
   if (!levels[start]) throw new Error(`gameworld: start '${start}' is not a level (levels: ${ids.join(', ')})`);
-  // the character book and the equipment: read here, so a world says what is wrong with them at once; kept only when present
+  // the character book, the equipment and the mechanics: read here, so a world says what is wrong with them at once; kept only when present
   const characters = W.characters === undefined || W.characters === null ? null : readCharacters(W.characters);
   const equipment = W.equipment === undefined || W.equipment === null ? null : readEquipment(W.equipment);
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), [READ]: true };
+  const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), [READ]: true };
 }
 
 /**

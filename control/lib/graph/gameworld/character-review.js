@@ -11,17 +11,18 @@
  *
  * `characterReady` says which later steps may start: adornment (equipment shaped to the main loop) needs the base and
  * the actions settled; the game's systems (numbers and UI) also need the motion; the equipment (the gear classes, made)
- * needs the systems' parts AND the stats built (`mechanics`, reserved today). It advises; nothing refuses.
+ * needs the systems' parts AND the stats settled (`mechanics:stats`). It advises; nothing refuses.
  *
  * `resolveBook(world)` resolves every page once; the parts, the machine gate and the bible all read it.
  */
-import { readGameworld, RESERVED } from './world.js';
+import { readGameworld } from './world.js';
 import { CHARACTER_PART_IDS } from './characters.js';
 import { composeHero, heroLooks } from './hero-looks.js';
 import { resolveActions } from './actions.js';
 import { resolveMotion } from './hero-vibe.js';
 import { resolveAdornment } from './adornment.js';
 import { resolveEquipment } from './equipment.js';
+import { resolveMechanics } from './mechanics.js';
 import { verifyBase } from './hero-base.js';
 import { fingerprint, checkReviewEntry, stampPart, MODES } from './review.js';
 
@@ -30,22 +31,22 @@ const SETTLED = Object.freeze(['approved', 'auto']);
 const NAMES = Object.freeze({
   'characters:direction': 'Direction', 'hero:body': 'Hero · body', 'hero:head': 'Hero · head', 'hero:hair': 'Hero · hair',
   'hero:colour': 'Hero · colour', 'hero:base': 'Hero · base', 'hero:motion': 'Hero · motion', 'hero:actions': 'Hero · actions',
-  'hero:adornment': 'Hero · adornment', equipment: 'Equipment',
+  'hero:adornment': 'Hero · adornment', equipment: 'Equipment', 'mechanics:stats': 'Systems · stats', 'mechanics:hud': 'Systems · HUD',
 });
 
 /**
- * The character book resolved, every page once: `{ G, D, looks, composed, hero, actions, motion, adornment, equipment }`
- * (motion and adornment null when not laid out); null for a world without characters.
+ * The character book resolved, every page once: `{ G, D, looks, composed, hero, actions, motion, adornment, equipment,
+ * mechanics }` (motion, adornment and mechanics null when not laid out); null for a world without characters.
  */
 export function resolveBook(world) {
   const G = readGameworld(world);
   if (!G.characters) return null;
   const looks = heroLooks(G), D = looks.direction, hero = G.characters.hero ?? {}, actions = resolveActions(hero.actions ?? {}, D);
+  const adornment = hero.adornment ? resolveAdornment(hero.adornment, actions) : null, equipment = resolveEquipment(G);
   return {
     G, D, looks, composed: composeHero(G, looks), hero, actions,
     motion: hero.motion ? resolveMotion(hero.motion) : null,
-    adornment: hero.adornment ? resolveAdornment(hero.adornment, actions) : null,
-    equipment: resolveEquipment(G),
+    adornment, equipment, mechanics: resolveMechanics(G, { actions, equipment, adornment }),
   };
 }
 
@@ -61,6 +62,8 @@ export function characterParts(world, B = resolveBook(world)) {
     'hero:actions': B.actions,
     'hero:adornment': A && { items: A.items, bodily: A.bodily, open: A.open },
     equipment: { rows: E.rows, ledger: E.ledger },
+    'mechanics:stats': B.mechanics && { stats: B.mechanics.play.stats, powers: B.mechanics.powers, ledger: B.mechanics.ledger },
+    'mechanics:hud': B.mechanics && { parts: B.mechanics.play.parts ?? [], cues: B.mechanics.play.cues ?? [], menus: B.mechanics.play.menus ?? [], ui: B.mechanics.play.ui },
   };
   return CHARACTER_PART_IDS.map((id) => ({ id, name: NAMES[id], content: content[id], print: fingerprint(content[id]) }));
 }
@@ -80,6 +83,8 @@ function characterMachine(B, lookup) {
   out['hero:adornment'] = B.adornment ? B.adornment.open : ['no adornment is laid out yet'];
   // an empty class is the creator's task, not a fault; a table with no template at all is
   out.equipment = B.equipment.rows.some((r) => r.status !== 'empty') ? [] : ['no class has a template yet'];
+  out['mechanics:stats'] = B.mechanics ? B.mechanics.open : ['no systems are laid out yet (mechanics)'];
+  out['mechanics:hud'] = !B.mechanics ? ['no systems are laid out yet (mechanics)'] : B.mechanics.play.parts?.length ? [] : ['the systems show nothing on the HUD'];
   return out;
 }
 
@@ -105,17 +110,16 @@ export function approveCharacter(world, part, note) {
 /**
  * Which later steps may start: `{ adornment, systems, equipment }`, each `{ ready, waiting: [{ id, status }] }`.
  * Adornment needs `hero:base` and `hero:actions` settled (approved, or auto); the systems need `hero:motion` as well;
- * the equipment needs the systems' parts and the stats built (`mechanics`), since gear matters only once they exist.
+ * the equipment needs the systems' parts and the stats settled (`mechanics:stats`), since gear matters only once they
+ * exist.
  * `state` is characterState's, if at hand.
  */
 export function characterReady(world, { state: given, ...opts } = {}) {
   const state = given ?? characterState(world, opts), at = (id) => state.find((s) => s.id === id);
-  const step = (ids, more = []) => {
-    const waiting = [...ids.map((id) => ({ id, status: at(id)?.status ?? 'proposed' })).filter((x) => !SETTLED.includes(x.status)), ...more];
+  const step = (ids) => {
+    const waiting = ids.map((id) => ({ id, status: at(id)?.status ?? 'proposed' })).filter((x) => !SETTLED.includes(x.status));
     return { ready: state.length > 0 && !waiting.length, waiting };
   };
   const systems = ['hero:base', 'hero:actions', 'hero:motion'];
-  // the stats are the `mechanics` concern, reserved until step 4 builds it
-  const stats = RESERVED.includes('mechanics') ? [{ id: 'mechanics', status: 'not built' }] : [];
-  return { adornment: step(['hero:base', 'hero:actions']), systems: step(systems), equipment: step(systems, stats) };
+  return { adornment: step(['hero:base', 'hero:actions']), systems: step(systems), equipment: step([...systems, 'mechanics:stats']) };
 }

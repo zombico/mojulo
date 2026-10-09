@@ -305,3 +305,16 @@ describe('world-scene — painted-landscape raymarch forest', () => {
     expect(payload.raymarch.customUniforms.uTreeCount).toBeGreaterThan(0);
   });
 });
+
+describe('world-scene — the play block on a world with its own events', () => {
+  it('keeps play.stats when the manifest carries events of its own (a controls legend)', async () => {
+    const floor = [{ corners: [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]], fill: '#888888' }];
+    const base = { kind: 'controllable', faces: floor, entities: [{ id: 'hero', pilotable: true, rule: { type: 'platform' }, transform: { pos: [0, 0, 0] } }] };
+    const play = { stats: { stats: [{ id: 'power', base: 10 }] }, parts: [{ part: 'readout', variant: 'counter', bind: { var: 'player.power' }, at: 'top-left', label: 'POW' }] };
+    const legend = { hud: [{ kind: 'text', slot: 'bottom', text: 'W / S  run' }] };
+    for (const events of [undefined, legend]) {
+      const { payload } = await resolveWorldScene(sketch({ ...base, ...(events ? { events } : {}), play }));
+      expect(payload.events.stats?.stats?.power, events ? 'with events' : 'without').toEqual({ base: 10 });
+    }
+  });
+});

@@ -43,7 +43,8 @@ export const MEADOWMARK = Object.freeze({
  * The same world with its character book begun: an anime hero in the meadow's own direction, led by wind and
  * supported by brass, with a spiral motif. Its looks are four pages, its power set a metroidvania-like traversal set
  * (a step, a thrown ball of wind, a rising column), laid out early, mid and late, and a bouncy, bold walk. Nothing in it
- * is reviewed and the base is not pinned: every part of the character book waits for the creator.
+ * is reviewed and the base is not pinned: every part of the character book waits for the creator. Its systems are
+ * laid out but hold nothing of their own: every number is the one the loop derives.
  */
 export const MEADOWMARK_HERO = Object.freeze({
   ...MEADOWMARK,
@@ -80,6 +81,8 @@ export const MEADOWMARK_HERO = Object.freeze({
       },
     },
   },
+  // the systems, every number derived from the actions above (mechanics.js): nothing of its own yet
+  mechanics: {},
 });
 
 /**
