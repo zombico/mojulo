@@ -37,21 +37,27 @@ export function weatherScript(input) {
 // --- weather: the world's sky, from its climate (weather/weather.js) ---
 let stepWeather = () => {};   // __mojStep(t) drives it
 (function () {
-  const CFG = ${safeJson(cfg)}, W = CFG.weather, SEED = CFG.seed, STATES = ${safeJson(states)};
+  const CFG = ${safeJson(cfg)}, SEED = CFG.seed, STATES = ${safeJson(states)};
+  let W = CFG.weather;
   const FALL_BOX = ${safeJson(FALL_BOX)}, IMPACT_LIFE = ${safeJson(IMPACT_LIFE)};
   const r4 = (v) => Math.round(v * 1e4) / 1e4, smooth = (u) => u * u * (3 - 2 * u), lerp = (a, b, u) => a + (b - a) * u;
   ${LIB.replace(/\n/g, '\n  ')}
   const G = ${GLYPHS_SRC};
-  const clock = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000;
+  ${cfg.gallery ? "const GQ = new URLSearchParams(location.search), SPEED = Number(GQ.get('wxspeed')) || 1;\n  const clock = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000 * SPEED;" : 'const clock = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000;'}
   const at = (t) => { const a = weatherAt(W, SEED, t); return { ...a, state: blendState(STATES[a.is], STATES[a.next], a.mix) }; };
   // a look: the blended state and each pool's share of it. The schedule's at t; a forced state's; one look eased into
   // another (a cue forcing a state eases in from what was showing, and out again to the schedule where its clock is)
-  const lookAt = (t) => { const a = at(t), sh = {}; sh[a.is] = 1 - a.mix; if (a.next !== a.is) sh[a.next] = a.mix; return { S: a.state, sh, is: a.is, next: a.next, mix: a.mix }; };
+  let lookAt = (t) => { const a = at(t), sh = {}; sh[a.is] = 1 - a.mix; if (a.next !== a.is) sh[a.next] = a.mix; return { S: a.state, sh, is: a.is, next: a.next, mix: a.mix }; };
   const lookOf = (n) => ({ S: blendState(STATES[n], STATES[n], 0), sh: { [n]: 1 } });
   const ease = (A, B, u) => {
     const sh = {}; for (const k of Object.keys(A.sh)) sh[k] = (sh[k] || 0) + A.sh[k] * (1 - u); for (const k of Object.keys(B.sh)) sh[k] = (sh[k] || 0) + B.sh[k] * u;
     return { S: blendState(A.S, B.S, u), sh };
   };
+  ${cfg.gallery ? `// the gallery's page takes its sky from the address: ?wx=<state> holds one state, ?wxclimate=<climate> plays that climate (
+  // ?wxspeed=<n> runs the clock n times faster); the page carries every state's pool and every climate
+  const WX = GQ.get('wx'), WC = GQ.get('wxclimate');
+  if (WC && CFG.climates && CFG.climates[WC]) W = CFG.climates[WC];
+  if (WX && STATES[WX]) lookAt = () => lookOf(WX);` : ''}
   let last = lookAt(0), forced = null, freed = null, was = '';
   // the bus's word: each cue that forces the sky has its own var (weather-force:<event>, and weather-blend:<event> for how
   // long the change takes); the newest force still set is the sky's, and when none is the schedule's own again

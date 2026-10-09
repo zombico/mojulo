@@ -22,6 +22,7 @@ import { resolveTheme, listThemes } from '@/lib/graph/theme-registry';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
 import { parseFieldSpec, mintFieldSpec, suggestFieldScore } from '@/lib/graph/beats/field-cue';
 import { validateFire } from '@/lib/graph/fire/fire';
+import { readWeather } from '@/lib/graph/weather/weather';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { mintFractalCity, createFractalCityHandler } from '@/lib/mcp/tools/scene-city';
@@ -131,6 +132,14 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     if (errs.length) throw new Error(`compose_world: overrides.fire is invalid:\n - ${errs.join('\n - ')}`);
     fire = slots.fire;
   }
+  // `weather` is kind-generic as well (world-scene.js resolves manifest.weather for every kind): a climate's name or
+  // { climate, dwell?, blend?, start?, surface?, air? }, read here (an unknown state or climate refuses the mint, teaching) and
+  // stamped like audio when the base's whitelist drops it. Manual: get_view_vocab({ id: 'weather' }).
+  let weather;
+  if (slots.weather !== undefined && slots.weather !== null && slots.weather !== false) {
+    try { readWeather(slots.weather, 'overrides.weather'); } catch (err) { throw new Error(`compose_world: ${err.message}. Manual: get_view_vocab({ id: 'weather' }).`); }
+    weather = slots.weather;
+  }
   const params = b.adapt(slots);
   // Only spread top-level fields the caller actually set, so an
   // overrides-supplied seed/title isn't clobbered by `undefined`.
@@ -147,6 +156,13 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
       if (result.recipe && typeof result.recipe === 'object') result.recipe.audio = audio;
     }
   }
+  if (weather && result && result.ref && !(result.recipe && result.recipe.weather)) {
+    const stored = SketchRepository.getByRef(result.ref);
+    if (stored) {
+      SketchRepository.update({ ref: result.ref, manifest: { ...stored.manifest, weather } });
+      if (result.recipe && typeof result.recipe === 'object') result.recipe.weather = weather;
+    }
+  }
   if (fire && result && result.ref && !(result.recipe && result.recipe.fire)) {
     const stored = SketchRepository.getByRef(result.ref);
     if (stored) {
@@ -161,7 +177,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // consumes structurally. Advisory only: some bases legitimately lower a key into
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
-  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire']);
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather']);
   // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
   // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
   // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed
