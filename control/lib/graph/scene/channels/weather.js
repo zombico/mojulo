@@ -1,29 +1,34 @@
 import { safeJson } from '../emit-util.js';
 import { STATES, FALL_BOX, IMPACT_LIFE, dice, draw, weatherAt, blendState, fallCount, fallPoints, impactPoints, impactCount, flashesIn } from '../../weather/weather.js';
 import { GLYPHS_SRC } from './moment-channel.js';
+import { airColour, castOf, airFromHaze } from '../../era/air.js';
 
 // In-page script: the WORLD's WEATHER (opt-in `weather`: weather/weather.js). The sky's schedule is the module's own
 // (weatherAt: one source, node and page), read off the world clock (window.__mojClock when a capture pins it), so the
 // same seed is the same sky at every moment and a scrubbed frame needs no history.
-//   · the air: scene.fog's density is the kit's own times the state's fog factor, its colour scaled by the state's veil
-//     (the style's fog colour stays the hue; the weather only chooses its value); the background follows the fog.
-//   · the light: a fixed overlay over the canvas (black for the light the state takes off, white for a flash); the
-//     baked colours are never touched.
+//   · the air: scene.fog's density is the kit's own times the state's fog factor; its colour is the STYLE's (the air card,
+//     era/air.js: the hue, falling toward the shade by the state's veil, a state's own hue where the style names one);
+//     the background follows the fog and the sky takes a share of it. A banded or dithered style draws the fog that way
+//     (three's fog chunk, patched once). The weather itself holds no colour.
+//   · the light: a fixed overlay over the canvas that MULTIPLIES the style's SHADE in (never black) for the light the state
+//     takes off, white for a flash; the baked colours are never touched. Cast and contact shadows fade with the sun (castOf).
 //   · the fall: one pool a state, fixed size, in a box the camera carries (fallPoints): rain as line segments that lean
 //     with the wind, the rest as points in their glyph; a state in a blend shows its share of its pool. Landings
 //     (impactPoints) are two instanced meshes (rings, discs) on the ground under the camera.
 //   · lightning: a sheet flash lifts the fog and the overlay (flashesIn: a pure function of the clock).
-// Absent `weather` ⇒ NOT emitted. `cfg`: { weather: a read weather, seed, fog?: { color, density }, radius, ground? }.
+// Absent `weather` ⇒ NOT emitted. `cfg`: { weather: a read weather, seed, air?: the style's air card, fog?: { color, density }, radius, ground? }
+// (no card: one is made of the haze, era/air.js airFromHaze).
 // window.__mojWeather = { W, seed, at(t) } is the page's probe (and the bus's, for a forced state).
 // (fallCount and impactCount are arrows: named here; the rest are declarations that carry their names)
-const LIB = [dice, draw, weatherAt, blendState, fallPoints, impactPoints, flashesIn].map((f) => f.toString()).concat(`const fallCount = ${fallCount.toString()};`, `const impactCount = ${impactCount.toString()};`).join('\n');
+const LIB = [dice, draw, weatherAt, blendState, fallPoints, impactPoints, flashesIn, airColour, castOf].map((f) => f.toString()).concat(`const fallCount = ${fallCount.toString()};`, `const impactCount = ${impactCount.toString()};`).join('\n');
 
 /** The states a weather can show: its climate's, its start, and any a cue forces (`extra`). */
 export const weatherStates = (W, extra = []) => [...new Set([...Object.keys(W.climate), ...(W.start ? [W.start] : []), ...extra])];
 /** The states a world's cues force (their lowered reactions set the weather var), in first-named order. */
 export const weatherForces = (events) => [...new Set(((events && events.reactions) || []).filter((r) => r && r.do === 'set' && r.var === 'weather-force' && typeof r.to === 'string' && STATES[r.to]).map((r) => r.to))];
 
-export function weatherScript(cfg) {
+export function weatherScript(input) {
+  const cfg = { ...input, air: input.air || airFromHaze(input.fog, input.weather.air) };
   const names = weatherStates(cfg.weather, cfg.forces), states = Object.fromEntries(names.map((n) => [n, STATES[n]]));
   return `
 // --- weather: the world's sky, from its climate (weather/weather.js) ---
@@ -68,11 +73,23 @@ export function weatherScript(cfg) {
   const baseColor = fog ? fog.color.clone() : new THREE.Color(CFG.fog ? CFG.fog.color : '#aab4c0');
   const baseDensity = fog ? fog.density : (CFG.fog ? CFG.fog.density : 1.2 / Math.max(10, CFG.radius || 40));
   if (!fog) { fog = scene.fog = new THREE.FogExp2(baseColor.clone(), baseDensity); scene.traverse(dark); }
-  const CLEAR_VEIL = 0.75, tint = new THREE.Color(), white = new THREE.Color(1, 1, 1);
+  const AIR = CFG.air, tint = new THREE.Color(), white = new THREE.Color(1, 1, 1), shadeC = new THREE.Color(AIR.shade);
+  // the fog drawn in the style's body: flat planes (banded) or an ordered stipple (dithered), by quantising the factor in
+  // three's own fog chunk, before any material compiles; smooth leaves the chunk alone
+  if (AIR.body !== 'smooth' && THREE.ShaderChunk && THREE.ShaderChunk.fog_fragment) {
+    const N = AIR.steps.toFixed(1), q = AIR.body === 'banded' ? 'floor(fogFactor * ' + N + ' + 0.5) / ' + N : 'floor(fogFactor * ' + N + ' + fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))) / ' + N;
+    THREE.ShaderChunk.fog_fragment = THREE.ShaderChunk.fog_fragment.replace('gl_FragColor.rgb = mix(', 'fogFactor = ' + q + ';\\n\\tgl_FragColor.rgb = mix(');
+  }
+  // the sky (its dome takes a share of the fog's colour) and the shadows (they fade with the sun): found once, by what they are
+  const domes = [], decals = [];
+  scene.traverse((o) => {
+    if (o.renderOrder < 0 && o.isMesh && o.material && o.material.color && o.geometry && o.geometry.attributes && o.geometry.attributes.color) { o.material.transparent = true; domes.push(o); }
+    else if (o.isMesh && o.renderOrder === 0.5 && o.material && o.material.transparent && !o.material.depthWrite && o.geometry && o.geometry.attributes.position && o.geometry.attributes.position.count === 6) decals.push([o, o.material.opacity]);
+  });
 
   // the light: an overlay above the canvas
   const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0;background:#000';
+  ov.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0;background:#fff';
   document.body.appendChild(ov);
 
   // the fall: a pool for each state that has one
@@ -143,12 +160,24 @@ export function weatherScript(cfg) {
     let fl = 0;
     if (S.flash) for (const f of flashesIn(S.flash, SEED, Math.max(0, t - 0.9), t + 1e-6)) { const age = t - f.at, p = Math.exp(-age * 6) * (0.65 + 0.35 * Math.cos(age * 42) ** 2); fl = Math.max(fl, p * (f.near ? 1 : 0.55)); }
     fog.density = baseDensity * S.fog;
-    const sc = S.veil / CLEAR_VEIL;
-    tint.setRGB(Math.min(1, baseColor.r * sc), Math.min(1, baseColor.g * sc), Math.min(1, baseColor.b * sc)).lerp(white, fl * 0.5);
+    // the fog's colour: each showing state's own, at its share
+    let fr = 0, fg = 0, fb = 0;
+    for (const n of Object.keys(L.sh)) { const k = L.sh[n], c = airColour(AIR, n, (STATES[n] || S).veil); fr += c[0] * k; fg += c[1] * k; fb += c[2] * k; }
+    tint.setRGB(fr, fg, fb).lerp(white, fl * 0.5);
     fog.color.copy(tint); if (scene.background && scene.background.isColor) scene.background.copy(tint);
-    // light off the world; white for a flash
-    const off = Math.min(0.75, S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4);
-    if (fl > 0.02) { ov.style.background = '#fff'; ov.style.opacity = String(Math.min(0.6, fl * 0.55)); } else { ov.style.background = '#000'; ov.style.opacity = String(off); }
+    // light off the world, in the style's shade (never black); white for a flash
+    const off = Math.min(0.75, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth));
+    // (multiplied, not laid over: a bright shade, an anime ambient, then darkens and tints instead of washing the world out)
+    if (fl > 0.02) { ov.style.mixBlendMode = 'normal'; ov.style.background = '#fff'; ov.style.opacity = String(Math.min(0.6, fl * 0.55)); }
+    else {
+      // the shade, taking half its hue from the murk it falls through (a dust storm's dark is brown, not the sky's blue; more so where the style owns the state's colour)
+      const k = Math.min(1, off / 0.6), mx = Math.max(tint.r, tint.g, tint.b, 0.05), own = Object.keys(L.sh).reduce((a, n) => a + (AIR.states[n] ? L.sh[n] : 0), 0), w = 0.5 + 0.35 * own, sh = [shadeC.r, shadeC.g, shadeC.b].map((v, i) => v * (1 - w) + w * [tint.r, tint.g, tint.b][i] / mx), c = sh.map((v) => Math.round(255 * (1 + (v - 1) * k))); ov.style.mixBlendMode = 'multiply'; ov.style.background = 'rgb(' + c.join(',') + ')'; ov.style.opacity = '1';
+    }
+    // the sky gives way to the fog's colour (the background) as the air closes, as far as the style lets it; shadows fade with the sun
+    // (as far as the style's skyFollow lets it, but a wall of dust or snow is a wall: past fog 5 the sky is gone whatever the style)
+    const base = Math.min(1, Math.max(0, (S.fog - 0.6) / 2.5 + (0.85 - S.sky) * 1.2)) * AIR.skyFollow, wall = Math.min(1, Math.max(0, (S.fog - 5) / 4)), cover = base + (1 - base) * wall;
+    for (const d of domes) d.material.opacity = 1 - cover;
+    const ck = castOf(S, AIR); for (const [m, a0] of decals) m.material.opacity = a0 * ck;
     // the fall and its landings, each state's pool at its share
     const used = { r: { n: 0 }, d: { n: 0 } };
     for (const n of Object.keys(pools)) { const k = L.sh[n] || 0; fall(n, k, t); if (k > 0) land(n, k, t, used); }

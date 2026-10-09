@@ -38,6 +38,7 @@ import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
 import { readWeather } from '@/lib/graph/weather/weather';
+import { airCard } from '@/lib/graph/era/air';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -952,7 +953,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // Additive; absent ⇒ the emitted page is byte-identical.
   if (payload && sketch.manifest.weather !== undefined) {
     const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
-    payload.weather = { weather: readWeather(sketch.manifest.weather, 'weather'), seed };
+    const W = readWeather(sketch.manifest.weather, 'weather');
+    // the air is the STYLE's (era/air.js: fog colour and body, the shade, what a state's air is): a kit's style card, or a
+    // sixth-gen look's reference; a world with neither gets one made of its haze at emit. `weather.air` tunes either.
+    const kit = sketch.manifest.kit ?? (sketch.manifest.stage && sketch.manifest.stage.kit);
+    let air = null;
+    if (kit) air = (await import('@/lib/graph/gameworld/style-guide')).airOfKit(kit, W.air);
+    if (!air && sketch.manifest.look) {
+      const ref = resolveLookSpec(sketch.manifest.look).ref;
+      air = airCard({ air: ref.air, light: ref.light }, W.air);
+    }
+    payload.weather = { weather: W, seed, ...(air ? { air } : {}) };
   }
 
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient

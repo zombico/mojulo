@@ -317,6 +317,13 @@ describe('world-scene — generic opt-in weather channel', () => {
     expect(emitThreeWorld(payload)).toContain('window.__mojWeather');
     expect(emitThreeWorld(none.payload)).not.toContain('window.__mojWeather');
   });
+  it('the air is the style\'s: a kit\'s card, tuned by weather.air, else made of the haze at emit', async () => {
+    const { payload } = await resolveWorldScene(orbit({ kit: 'isekai-meadow', weather: { climate: 'temperate', air: { shade: '#223344', cast: 0.5 } } }));
+    expect(payload.weather.air).toMatchObject({ body: 'banded', hue: '#b4d8f0', shade: '#223344', cast: 0.5 });
+    const bare = await resolveWorldScene(orbit({ weather: 'temperate' }));
+    expect(bare.payload.weather.air).toBeUndefined();
+    expect(emitThreeWorld({ ...bare.payload, haze: { color: '#445566', density: 0.01 } })).toContain('"hue":"#445566"');
+  });
   it('refuses a weather it cannot read, saying what the climates are', async () => {
     await expect(resolveWorldScene(orbit({ weather: 'sleet' }))).rejects.toThrow(/neither a climate/);
   });

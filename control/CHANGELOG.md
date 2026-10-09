@@ -28,6 +28,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Absent `weather` adds not a byte to the page.
 - **Cues.** `then: { weather: 'blizzard' }` (or `{ is, for?, blend? }`) forces a state, for `for` seconds or until the cue ends; `when: { every: 300 }` is a heartbeat the bus lacked.
   - "Entering the pass starts a blizzard until you leave" and "every 300 s the fog rolls in" are one cue each. The sky eases in from what was showing and back out to its schedule.
+- **The air is the style's.** The style guide owns an air card per kit (`era/air.js`, `airOfKit`): the fog's hue, the world's shade (the style's ambient, never black), how the fog is drawn (smooth, banded in flat planes, or dithered), what a dust storm or a blizzard is in that style, and how strong cast shadows are. The weather asks the card and holds no colour; `weather.air` tunes it.
+  - A cel kit gets banded fog in its own steps and a blue shade; a painted kit a smooth gradient. A dust storm is the style's ochre, and the light a storm takes off is multiplied in as the shade, never black. Cast shadows fade with the sun and the fog, and the sky gives way to the fog.
+  - The bible's Weather card draws each state in the style's air.
 - **Sound from principles.** `audio: { weather: true }` rolls the sky's sound on the page (`beats/weather-audio.js`, card `beats-weather`), with no sampled audio and no kernel change.
   - A bed, a rain of small drops and rare thunder. Intensity is the rate of drops, size is their band, the surface (leaf, stone, tin, water, sand, snow) is the resonance, and distance is lowpass, delay and length.
   - The world's seed picks this world's rain; each event jitters round it, so two storms sound alike and never the same.

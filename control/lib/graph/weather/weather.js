@@ -16,6 +16,8 @@
  *   style.weather: { climate: { <state>: weight } | '<preset>', dwell?: [lo, hi] s, blend?: s, start?, surface? }
  */
 
+import { readAir, AIR } from '../era/air.js';
+
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -74,9 +76,9 @@ export const STATES = Object.freeze({
   duststorm: S('dust', 'a dust storm: a wall of grit, the sun a disc', { fog: 10, veil: 0.55, dim: 0.55, sky: 0.5, wind: 0.95, gust: 0.85, sound: 'gale',
     fall: FALL({ glyph: 'streak', rate: 1.6, size: 0.012, length: 0.4, speed: 3, slant: 84, sway: 0.3, impact: 'puffs', value: 0.6 }) }),
   petals: S('bloom', 'petals drifting down, tumbling, lying where they land', { fog: 0.9, veil: 0.8, dim: 0.02, sky: 0.86, wind: 0.2, gust: 0.25, sound: 'rustle',
-    fall: FALL({ glyph: 'petal', rate: 0.04, size: 0.05, speed: 0.6, slant: 20, sway: 0.6, spin: 0.7, impact: 'settles', value: 0.92 }) }),
+    fall: FALL({ glyph: 'petal', rate: 0.1, size: 0.09, speed: 0.6, slant: 20, sway: 0.6, spin: 0.7, impact: 'settles', value: 0.92 }) }),
   leaves: S('bloom', 'leaves blown across, turning over', { fog: 1.1, veil: 0.72, dim: 0.1, sky: 0.74, wind: 0.5, gust: 0.45, sound: 'rustle',
-    fall: FALL({ glyph: 'leaf', rate: 0.03, size: 0.08, speed: 1.2, slant: 55, sway: 0.5, spin: 1.1, impact: 'settles', value: 0.55 }) }),
+    fall: FALL({ glyph: 'leaf', rate: 0.06, size: 0.12, speed: 1.2, slant: 55, sway: 0.5, spin: 1.1, impact: 'settles', value: 0.55 }) }),
 });
 export const STATE_NAMES = Object.freeze(Object.keys(STATES));
 
@@ -100,6 +102,7 @@ export const WEATHER = Object.freeze({
   blend: 'how long a change takes, seconds (the end of a slot eases into the next)',
   start: 'the state a level opens in (else the dice)',
   surface: `what the fall lands on: ${Object.keys(SURFACES).join(', ')} (its impacts and its sound)`,
+  air: `how the style draws this air, tuned: { ${Object.keys(AIR).join(', ')} } (era/air.js; the style guide's own where left out)`,
 });
 const DWELL = [90, 240], BLEND = 20;
 
@@ -133,6 +136,7 @@ export function readWeather(w, where = 'weather') {
     if (!STATES[w.start]) throw new Error(`${where}.start '${w.start}' is not a state (${STATE_NAMES.join(', ')})`);
     out.start = w.start;
   }
+  if (w.air !== undefined) out.air = readAir(w.air, `${where}.air`, STATE_NAMES);
   if (w.surface !== undefined) {
     if (!SURFACES[w.surface]) throw new Error(`${where}.surface is one of: ${Object.keys(SURFACES).join(', ')}`);
     out.surface = w.surface;
