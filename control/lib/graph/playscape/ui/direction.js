@@ -31,6 +31,8 @@ import { PACES } from './regions.js';
 import { lowerParts, readPart } from './parts.js';
 import { lowerCues, readCues } from './cues.js';
 import { lowerMenus, readMenus, menuPages } from './menus.js';
+import { lowerStats, readStats } from '../stats/stats.js';
+import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
@@ -154,6 +156,7 @@ export function resolvePlayUi(manifest, fresh = freshUiSeed) {
   readCues(play, phasesOf(play));
   readMenus(play);
   readSpots(play);
+  readStats(play);
   if (typeof u === 'string' || !ROLLED.some((k) => k in u)) {
     const ask = typeof u === 'string' ? {} : readAsk(u), seed = isObj(u) && Number.isInteger(u.seed) ? u.seed : fresh();
     const motion = rollMotion(mulberry32(subSeed(seed, 'motion')));
@@ -193,13 +196,16 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   const cues = lowerCues(play, { anchors: [...spotAnchors(play), ...stood], player, places }) || {}, menus = lowerMenus(play, { places }) || {};
   const hud = [...lowerParts(play.parts), ...(cues.hud || []), ...(menus.hud || [])];
   const out = hud.length ? { hud } : {};
-  const vars = { ...(cues.vars || {}), ...(menus.vars || {}) };
+  const stats = lowerStats(play);
+  const vars = { ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };
   if (Object.keys(vars).length) out.vars = vars;
   for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences']) { const v = [...(cues[k] || []), ...(menus[k] || [])]; if (v.length) out[k] = v; }
   const pages = menuPages(play);
   if (pages.length) out.menus = pages;
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them
-  const castOn = (r) => r.do === 'ctrl' || (CAST_WHEN[r.on] && r.match && 'entity' in r.match);
+  // (a stat op rides the same ctrl queue; the stats kernel takes it, so it alone needs no cast)
+  const castOn = (r) => (r.do === 'ctrl' && !(r.op in STAT_OPS)) || (CAST_WHEN[r.on] && r.match && 'entity' in r.match);
+  if (stats) out.stats = stats.stats;
   if ((out.reactions || []).some(castOn)) out.cast = true;
   // the looks its statuses wear, by status name (the first a name is given wins; the laws say when two differ)
   const looks = {};

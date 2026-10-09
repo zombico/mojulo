@@ -15,6 +15,7 @@
  *          | { on: '<event>', match? }                                      any bus event
  *          | { start: true }                                                the level starts
  *          | { down | gone | spawned | stuck: '<who>' } | { arrive: '<who>' | { who, at? } }   the cast (cast.js)
+ *          | { levelled | bought | denied | epoch | opened: … }              the stats (stats/stats.js)
  *     then:  effect | [effect, …]:
  *            { say: '<text>', as?: 'banner' | 'toast' | 'prompt', at?, ttl? }   words on screen
  *            { show: '<part id>' } | { hide: '<part id>' }                      a part comes or goes
@@ -23,6 +24,7 @@
  *            { open: '<menu id>' } | { close: '<menu id>' | true }             a menu (menus.js) comes up or goes
  *            { set: '<var>', to } | { emit: '<event>' }                        the game's own state, for its rules to read
  *            { spawn | vanish | kill | hurt | heal | walk | stop: … }        the cast: a character (cast.js)
+ *            { raise | grant | xp | level | buy: … }                       the stats (stats/stats.js); a cast number may be a scaling
  *     until?: a when | { ttl },                                             the effects end (shown → hidden, a prompt goes)
  *     once?:  true }]                                                       the first time only
  *
@@ -47,6 +49,7 @@ import { CAST_WHEN, CAST_THEN, readCastWhen, readCastEffect, castFire, lowerCast
 import { readLooks } from '../elements/elements.js';
 import { readBeams } from '../elements/beams.js';
 import { readExplosions } from '../elements/explosions.js';
+import { STAT_WHEN, STAT_THEN, SCALABLE, readStats, readStatWhen, readStatEffect, readScaling, isScaling, readMods, statFire, lowerStatEffect, lowerStatusMods } from '../stats/stats.js';
 
 export const CUE_WHEN = Object.freeze({
   enter: 'the figure walks into a zone: a zone the world declares, an anchor of the map { anchor, r? }, or an area { at, r } | { at, half }',
@@ -58,6 +61,7 @@ export const CUE_WHEN = Object.freeze({
   on: 'any bus event (a glob), with match: { field: pattern }',
   start: 'the level starts',
   ...CAST_WHEN,
+  ...STAT_WHEN,
 });
 export const CUE_THEN = Object.freeze({
   say: 'words on screen: a banner (replaces), a toast (stacks) or a prompt (at the bottom while the cue lasts; 4 s on the page today); {name} reads a var',
@@ -70,6 +74,7 @@ export const CUE_THEN = Object.freeze({
   set: 'a game var takes a value ({ set: var, to }), for the game\'s rules to read',
   emit: 'a bus event, for the game\'s rules to react to',
   ...CAST_THEN,
+  ...STAT_THEN,
 });
 export const SAY_AS = Object.freeze(['banner', 'toast', 'prompt']);
 export const PROMPT_TTL = 4;
@@ -100,7 +105,7 @@ function readZone(z, where) {
   throw new Error(`${where} is a zone's name, an anchor { anchor: '<id>', r?, who? }, or an area { at: [x, y], r, who? } | { at, half: [hx, hy] }`);
 }
 
-function readWhen(w, where) {
+function readWhen(w, where, ctx = {}) {
   if (!isObj(w)) throw new Error(`${where} is one happening: ${Object.keys(CUE_WHEN).join(', ')}`);
   const keys = Object.keys(CUE_WHEN).filter((k) => w[k] !== undefined);
   if (keys.length !== 1) throw new Error(`${where} names one happening (${Object.keys(CUE_WHEN).join(', ')}), not ${keys.length ? keys.join(' and ') : 'none'}`);
@@ -121,6 +126,7 @@ function readWhen(w, where) {
     return { kind: 'var', var: w.var, ...Object.fromEntries(c.map((x) => [x, w[x]])) };
   }
   if (CAST_WHEN[k]) return readCastWhen(k, w, where);
+  if (STAT_WHEN[k]) return readStatWhen(k, w, where, ctx);
   if (k === 'on') {
     if (!isStr(w.on)) throw new Error(`${where}.on is a bus event (a glob)`);
     if (w.match !== undefined && !isObj(w.match)) throw new Error(`${where}.match is { field: pattern }`);
@@ -136,7 +142,25 @@ export function readEffect(t, where, ctx = {}) {
   const keys = Object.keys(CUE_THEN).filter((k) => t[k] !== undefined);
   if (keys.length !== 1) throw new Error(`${where} does one thing (${Object.keys(CUE_THEN).join(', ')}), not ${keys.length ? keys.join(' and ') : 'none'}`);
   const k = keys[0];
-  if (CAST_THEN[k]) return readCastEffect(k, t, where, ctx);
+  if (STAT_THEN[k]) return readStatEffect(k, t, where, ctx);
+  // a stat-affected phenomenon: a scaling where the cast takes a number is read here, the rest as the cast reads it
+  if (CAST_THEN[k] && SCALABLE[k] && isObj(t[k]) && SCALABLE[k].some((f) => isScaling(t[k][f])) && !(k === 'status' && t[k].mods !== undefined)) {
+    const v = { ...t[k] }, sc = {};
+    for (const f of SCALABLE[k]) if (isScaling(v[f])) { sc[f] = readScaling(v[f], `${where}.${k}.${f}`, ctx.stats); v[f] = 1; }
+    return Object.assign(readCastEffect(k, { [k]: v }, where, ctx), sc);
+  }
+  // a status that carries modifiers on a holder's stats while it lasts (mods), and a lift that takes them off again
+  if (k === 'status' && isObj(t.status) && t.status.mods !== undefined) {
+    const { mods, ...rest } = t.status, w = `${where}.status`;
+    if (!(ctx.stats && ctx.stats.holders.includes(rest.who))) throw new Error(`${w}.mods: modifiers go on a holder's stats (play.stats.holders: ${ctx.stats ? ctx.stats.holders.join(', ') : 'none'}), and '${rest.who}' is none`);
+    if (isScaling(rest.for)) throw new Error(`${w}.for is seconds (a status that carries mods keeps a fixed time)`);
+    return { ...readEffect({ status: rest }, where, ctx), mods: readMods(mods, `${w}.mods`, ctx.stats) };
+  }
+  if (CAST_THEN[k]) {
+    const out = readCastEffect(k, t, where, ctx);
+    if (out.op === 'lift' && ctx.stats && ctx.stats.holders.includes(out.who)) out.unbuff = true;
+    return out;
+  }
   if (k === 'say') {
     if (!isStr(t.say)) throw new Error(`${where}.say is the words`);
     const as = t.as ?? 'banner';
@@ -178,7 +202,7 @@ export function effectContext(play, phases = (play && play.phases) || ['playing'
   const partIds = new Set();
   for (const p of (play && play.parts) || []) if (p && isStr(p.id)) { if (partIds.has(p.id)) throw new Error(`play.parts: two parts called '${p.id}'`); partIds.add(p.id); }
   const menuIds = new Set(((play && play.menus) || []).map((m) => m && m.id).filter(isStr));
-  return { partIds, phases, menuIds, looks: readLooks(play), explosions: readExplosions(play), beams: readBeams(play) };
+  return { partIds, phases, menuIds, looks: readLooks(play), explosions: readExplosions(play), beams: readBeams(play), stats: readStats(play) };
 }
 
 /** The cues of a play block, read; shape errors throw and teach. */
@@ -193,7 +217,7 @@ export function readCues(play, phases = (play && play.phases) || ['playing']) {
     if (!isStr(c.id) || !ID.test(c.id)) throw new Error(`${where}.id '${c.id}' is a lower-case word`);
     if (seen.has(c.id)) throw new Error(`play.cues: two cues called '${c.id}'`);
     seen.add(c.id);
-    const when = readWhen(c.when, `${where}.when`);
+    const when = readWhen(c.when, `${where}.when`, ctx);
     const then = (Array.isArray(c.then) ? c.then : [c.then]).map((t, k) => readEffect(t, `${where}.then${Array.isArray(c.then) ? `[${k}]` : ''}`, ctx));
     if (!then.length) throw new Error(`${where}.then is one effect or a list of them`);
     let until = null;
@@ -201,7 +225,7 @@ export function readCues(play, phases = (play && play.phases) || ['playing']) {
       if (isObj(c.until) && Object.keys(c.until).length === 1 && c.until.ttl !== undefined) {
         if (!(Number.isFinite(c.until.ttl) && c.until.ttl > 0)) throw new Error(`${where}.until.ttl is seconds`);
         until = { kind: 'ttl', ttl: c.until.ttl };
-      } else until = readWhen(c.until, `${where}.until`);
+      } else until = readWhen(c.until, `${where}.until`, ctx);
     } else if (when.kind === 'near') until = { kind: 'leave', zone: when.zone, area: when.area, anchor: when.anchor, r: when.r, ...(when.who ? { who: when.who } : {}), same: true };
     if (c.once !== undefined && typeof c.once !== 'boolean') throw new Error(`${where}.once is true or false`);
     return { id: c.id, when, then, until, once: c.once === true, page: then.every((t) => t.page) };
@@ -247,6 +271,7 @@ function fire(w, type, zoneId, anchors, player = null) {
   else if (w.kind === 'var') out.watches.push({ type, when: Object.fromEntries(['var', ...CMP].filter((k) => w[k] !== undefined).map((k) => [k, w[k]])) });
   else if (w.kind === 'start') out.initial.push({ type });
   else if (CAST_WHEN[w.kind]) out.reactions.push(castFire(w, type));
+  else if (STAT_WHEN[w.kind]) out.reactions.push(statFire(w, type));
   return out;
 }
 
@@ -260,8 +285,11 @@ const shown = UI_STATES.indexOf('shown');
  */
 export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new Set(), end = null, ttl = null, places = [] } = {}) {
   for (const t of ts) {
+    if (t.kind === 'stat') { lowerStatEffect(t, on, frag); continue; }
     if (t.kind === 'cast') {
       lowerCastEffect(t, on, frag, places);
+      if (t.op === 'status' && t.mods) lowerStatusMods(t, on, frag, end);
+      if (t.op === 'lift' && t.unbuff) frag.reactions.push({ on, do: 'ctrl', op: 'unbuff', of: t.who, id: t.is ? `status:${t.is}` : 'status:*' });
       // a status with no time of its own comes off when the cue ends (as a shown part hides)
       if (end && t.op === 'status' && t.for === undefined) frag.reactions.push({ on: end, do: 'ctrl', op: 'lift', who: t.who, is: t.is });
       continue;

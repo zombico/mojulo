@@ -347,6 +347,38 @@ This step builds the contract and the approval gate. No rung is served yet.
 - **Shake.** `{ shake: k | { k, for? } }` shakes the camera, decaying; it is added around each draw, so no camera keeps
   it.
 
+### Stats
+
+- **A stat is felt through the phenomena it scales.** `play.stats` declares holders (a character, or `game`) and
+  their stats. Strength appears nowhere in the world: a hit just lands harder. Where a phenomenon takes a number
+  (`hurt.by`, `heal.by`, `explode.scale`, `status.for`, `shake.k`, `puff.shake`, `walk.speed`), a scaling
+  `{ stat, of?, base?, per?, min?, max? }` reads it live. A scaling may read a stat, a resource, `level`, `xp`, `epoch`
+  or a tech node's rank.
+- **Levels, resources and buying.** A level track (`start`, `max`, xp thresholds as a list or `{ base, growth }`)
+  gives auto raises and stat currency on every level (`each`) and at named levels (`at`). Resources (points, gold)
+  are balances on the bus. `{ buy: id }` is one atomic transaction: when the requirements are met, the rank is not
+  at max and the holder can afford it, the cost is deducted, the gives apply and `bought` fires. Otherwise nothing
+  changes and `denied` fires, saying why.
+- **Epochs and tech trees.** Epochs are ordered bundles over levels (hatchery, lair, hive). A holder reaches one by
+  level, by buying it, or both. Tech nodes have ranks with cost growth, require levels, epochs (that epoch or a later
+  one), other nodes' ranks or stats, and carry subtrees that open at the parent's rank. Cues hear `levelled`,
+  `bought`, `denied`, `epoch` and `opened`, and fire `raise`, `grant`, `xp`, `level` and `buy`.
+- **Formulas.** A number may be a formula: a term `{ stat, of?, base?, per? }`, or `{ sum, mul, curve, min, max }`
+  nesting terms. `of: 'target'` reads the stats of whoever the phenomenon lands on, which covers defence and level
+  gaps. Holders may start with their own values (`{ id: 'ogre', stats: { armor: 100 } }`). There are three curves:
+  `{ mitigate: k }` is the armor curve `k / (k + v)`, a factor that never reaches zero; `{ soft: at, slope }` is a
+  soft cap; and `sqrt`. Expression strings are never accepted.
+- **Modifier layers.** The effective stat is (base + Σ add) × (1 + Σ pct) × Π mul, held to its min and max.
+  `<holder>.<stat>` is the effective value; raises move `<holder>.<stat>.base`. `{ buff: { id, mods, for? } }` and
+  `{ unbuff: id }` add and remove modifiers. A status may carry `mods`: they come off when the status is lifted, when
+  its time runs out, or when its cue ends.
+- **Derived stats.** `{ id, from: formula }` follows the stats it reads; it is never raised, and a cycle is refused.
+  `bodies: { hpMax, speed }` binds a stat to each holder character's body. When hpMax rises, hp gains the
+  difference.
+- **A third kernel, only when used.** `playscape/stats/kernel.js` runs on the node side and on the page from one
+  source. It drains its own intents from the bus's `ctrl` queue and resolves the scalings on the cast's intents.
+  The bus is unchanged, and a world without `play.stats` emits no new bytes.
+
 ### Explosions
 
 - **Blasts as functions.** `{ explode: { who | at, is, color?, scale? } }` sets one off at a character's feet or a place.

@@ -7,6 +7,7 @@ import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
 import { momentKinds, momentScript } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
+import { buildStats } from '../../playscape/stats/kernel.js';
 
 export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
@@ -160,6 +161,7 @@ export function eventsChannelScript(events) {
   const { widgets } = normalizeHud(events.hud);
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
+  const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
   const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
@@ -173,7 +175,8 @@ export function eventsChannelScript(events) {
   return `
 const EVENTS = ${safeJson(events)};
 const __BUS = (${buildBus.toString()})();
-const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);
+const __busState = __BUS.createBusState(EVENTS, EVENTS.entities || []);${stats ? `
+const __STATS = (${buildStats.toString()})();   // levels, resources, purchases, epochs, tech ranks; scalings on the cast's ops` : ''}
 const __SOURCES = EVENTS.sources || [];
 // INPUT as a source (the 4th, beside physics facts / timers / watches): bind key/pointer to a bus
 // event. Listeners push onto a queue drained each frame, so a conceptual world is clickable.
@@ -321,10 +324,10 @@ stepEvents = (t) => {
   if (timed.length) __BUS.processEvents(__busState, timed);
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
-  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
+${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
   __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
-function __watchFix() { let g = 0; while (g++ < 8) { const w = __BUS.watchEvents(__busState); if (!w.length) break; __BUS.processEvents(__busState, w); } }
+function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
 window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };`;
 }
