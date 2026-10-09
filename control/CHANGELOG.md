@@ -28,6 +28,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Absent `weather` adds not a byte to the page.
 - **Cues.** `then: { weather: 'blizzard' }` (or `{ is, for?, blend? }`) forces a state, for `for` seconds or until the cue ends; `when: { every: 300 }` is a heartbeat the bus lacked.
   - "Entering the pass starts a blizzard until you leave" and "every 300 s the fog rolls in" are one cue each. The sky eases in from what was showing and back out to its schedule.
+- **Sound from principles.** `audio: { weather: true }` rolls the sky's sound on the page (`beats/weather-audio.js`, card `beats-weather`), with no sampled audio and no kernel change.
+  - A bed, a rain of small drops and rare thunder. Intensity is the rate of drops, size is their band, the surface (leaf, stone, tin, water, sand, snow) is the resonance, and distance is lowpass, delay and length.
+  - The world's seed picks this world's rain; each event jitters round it, so two storms sound alike and never the same.
 
 ### Realistic ground: the opposite pole of the isekai look
 

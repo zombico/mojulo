@@ -9,6 +9,7 @@
  *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } },
  *     footsteps?:  true | { step?, jump?, land? (gesture lists) },
  *     wind?:       true | { level (dB), freq (Hz) },
+ *     weather?:    true | { level? (0..1), surface? }   the world's sky, sounding (manifest.weather; beats/weather-audio.js)
  *     bindings?:   [{ source, entity?|point?, range: [from,to],
  *                     target: { channel, macro: tone|level|transpose, range: [a,b] } }]
  *   }
@@ -42,6 +43,7 @@ import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
+import { SURFACES } from '../weather/weather.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
 const DEFAULT_FOOTSTEPS = {
@@ -186,6 +188,17 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       freq: w.freq == null ? (night ? 260 : 320) : w.freq,
     };
     if (w.vary === true) out.wind.vary = true; // the long noise bed (opt-in)
+  }
+
+  // WEATHER sound: the manifest's `weather` (its states, its seed) rolled to beds, drops and thunder on the page
+  // (beats/weather-audio.js). `true` takes the weather's own surface; `{ level }` is a 0..1 gain on it all.
+  if (audioSpec.weather) {
+    const w = audioSpec.weather === true ? {} : audioSpec.weather;
+    if (typeof w !== 'object' || Array.isArray(w)) throw new Error('audio.weather is true or { level?, surface? }');
+    for (const k of Object.keys(w)) if (!['level', 'surface'].includes(k)) throw new Error(`audio.weather.${k} is not a weather sound setting (level, surface)`);
+    if (w.level !== undefined && !(Number.isFinite(w.level) && w.level >= 0 && w.level <= 1)) throw new Error('audio.weather.level is a gain from 0 to 1');
+    if (w.surface !== undefined && !SURFACES[w.surface]) throw new Error(`audio.weather.surface is one of: ${Object.keys(SURFACES).join(', ')}`);
+    out.weather = { ...(w.level !== undefined ? { level: w.level } : {}), ...(w.surface ? { surface: w.surface } : {}) };
   }
 
   // thruster ROAR: a sustained rocket-engine voice the audio channel swells with a controllable

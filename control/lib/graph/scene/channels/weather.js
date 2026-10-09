@@ -60,7 +60,7 @@ export function weatherScript(cfg) {
     else L = lookAt(t);
     last = L; return L;
   }
-  window.__mojWeather = { W, seed: SEED, at, look };
+  window.__mojWeather = { W, seed: SEED, at, look, cur: () => last, states: STATES, clock, flashes: (fl, t0, t1) => flashesIn(fl, SEED, t0, t1) };
 
   // the air: the kit's own fog (or one sized to the world), thickened and thinned
   const dark = (o) => { if (o.renderOrder < 0 && o.material) o.material.fog = false; };
