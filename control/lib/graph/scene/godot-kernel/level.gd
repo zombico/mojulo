@@ -19,6 +19,7 @@ extends Node3D
 @export var music_db: float = 0.0
 
 const WalkerScript := preload("res://kernel/walker.gd")
+const WeatherScript := preload("res://kernel/weather.gd")
 const HAZARD_COOLDOWN := 0.8
 
 var score: Dictionary = {}
@@ -84,6 +85,7 @@ func _ready() -> void:
 	_apply_rim()
 	if _fix_lights() > 0:
 		_build_environment()
+	_build_weather()
 	_hide_player_double()
 	_mark_meshless_entities()
 	_build_colliders()
@@ -353,6 +355,30 @@ func _build_environment() -> void:
 	add_child(we)
 
 
+# The world's weather (score.weather, kernel/weather.gd): the fog, its colour, the background and the light follow the sky's
+# schedule. Needs an Environment to carry the fog: the lit world's, a hand-authored one, or (an unlit pack, which must keep its
+# web look and so gets no tonemapper) a fog-only one of its own.
+func _build_weather() -> void:
+	var w = score.get("weather")
+	if not (w is Dictionary) or w.is_empty():
+		return
+	var env: Environment = get_viewport().world_3d.environment
+	if env == null:
+		env = Environment.new()
+		env.background_mode = Environment.BG_COLOR
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.9, 0.9, 1.0)
+		env.ambient_light_energy = 0.0
+		var we := WorldEnvironment.new()
+		we.name = "Environment"
+		we.environment = env
+		add_child(we)
+	var node := WeatherScript.new()
+	node.name = "MojuloWeather"
+	add_child(node)
+	node.setup(w, env, find_children("*", "Light3D", true, false))
+
+
 # Godot's glTF importer rewrites the characters a node/animation name may not
 # carry (":" among them) to "_", case preserved: "g_multi:forward" imports as
 # "g_multi_forward". Score names are compared in that space; nothing here
@@ -614,6 +640,10 @@ func _read_probe_args() -> void:
 
 
 func _dump(tag: String) -> void:
+	var wx := get_node_or_null("MojuloWeather")
+	if wx != null:
+		var wl: Dictionary = wx.look_at(wx.t)
+		print("[mojulo-weather] %s state=%s->%s mix=%.2f fog=%.4f dim=%.2f enabled=%s" % [tag, wl["a"], wl["b"], wl["mix"], wl["density"], wl["dim"], str(wx.env.fog_enabled)])
 	var w := walker.global_position
 	var line := "[mojulo-dump] %s walker=(%.2f,%.2f,%.2f)" % [tag, w.x, w.y, w.z]
 	if suit != null:

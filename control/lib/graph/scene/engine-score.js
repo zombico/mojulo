@@ -18,6 +18,7 @@ import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
 import { crystalRigFor, rigForScore } from './crystal-rig.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { lookRGB } from '../playscape/elements/elements.js';
+import { weatherScore } from './weather-score.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -151,6 +152,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   // too — the score and the mesh agree in metres. Absent ⇒ every field byte-identical.
   const mpu = Number(payload.metersPerUnit);
   const unitScale = Number.isFinite(mpu) && mpu > 0 && mpu !== 1 ? mpu : null;
+  const weatherScoreRow = weatherScore(payload, { unitScale: unitScale || 1 });
+  if (weatherScoreRow) ledger.weather_partial = { note: 'the sky\'s fog, colour and light are played by the engine kernels from score.weather (its schedule and each state in the style\'s air); falling rain, snow, dust and petals, their landings and the lightning stay the web build\'s, and Blender and a bare GLB carry the row as data only' };
   const sv = (v) => (unitScale && Array.isArray(v) ? v.map((x) => (Number.isFinite(x) ? x * unitScale : x)) : v);
   const sn = (x) => (unitScale && Number.isFinite(x) ? x * unitScale : x);
   // Positioned lights (pot lights) ride the GLB as KHR_lights_punctual; the score carries
@@ -261,6 +264,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // sun, sky and fog to what the recipe said — the mesh never carried the backdrop
     // (sky_approximated). Absent a preset ⇒ no row, byte-identical.
     ...(typeof payload.sky?.preset === 'string' ? { sky: { preset: payload.sky.preset } } : {}),
+    // the world's weather as data (weather-score.js): the schedule's first half hour and what each state is in the style's air,
+    // for the kernels' fog, colour and light; falls and lightning stay the web build's (ledger.weather_partial). Absent ⇒ no row.
+    ...(weatherScoreRow ? { weather: weatherScoreRow } : {}),
     // the figure look (rim) as data — see ledger.look_declared. Absent ⇒ no key.
     ...(lookFigures.length ? { look: { figures: Object.fromEntries(lookFigures.map(([n, f]) => [n, { rim: f.rim }])) } } : {}),
     ...(Object.keys(crystals).length ? { crystals } : {}),
