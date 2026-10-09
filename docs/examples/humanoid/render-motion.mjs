@@ -27,6 +27,7 @@
  *     [--clips walk,idle] [--motion jog='{"sprint":{"dutyFactor":0.45}}'] [--plant gait|stance] [--seconds jog=0.7]
  *     [--jumps jump,jumpForward,jumpBack,doubleJump] [--stances guard,fencingLeft] [--strikes jab,thrust] [--guards chudan,hassoLeft]
  *     [--carry carbineAim,boxFront:18,greatswordSide~] [--rest chairUpright,lotus,yamcha] [--rise chairUpright,lotusDown]
+ *     [--vaults hurdle:0.4:0.1:sprint,kongVaultLeft:0.8:0.9] [--auras crossedArms,jotaroPointLeft]
  *     [--views front,side,top,q34,rear]
  *     [--frames 24] [--cell 220] [--out <dir>]   (default out: $MOJULO_SPIKE_OUT or the scratch folder below, /<name>/)
  */
@@ -51,6 +52,8 @@ const { gearFaces } = await lib('graph/polygonizer/hero-gear.js');
 const { heroHold, HOLD_NAMES, carryTriangles, carryMounts } = await lib('graph/polygonizer/hero-carry.js');
 const { heroRest, REST_NAMES, restTriangles } = await lib('graph/polygonizer/hero-rest.js');
 const { heroRise } = await lib('graph/polygonizer/hero-rise.js');
+const { heroVault, VAULT_NAMES } = await lib('graph/polygonizer/hero-vault.js');
+const { heroAura, AURA_NAMES, auraBody } = await lib('graph/polygonizer/hero-aura.js');
 const { WORKBENCH_LIGHT } = await lib('graph/worlds/workbench.js');
 const { flowRig, simulateClip, rigidityOf } = await lib('graph/polygonizer/hero-flow.js');
 const { windField, resolveTerrainWind } = await lib('graph/vegetation/wind.js');
@@ -78,6 +81,11 @@ const CARRY_ASKED = (argOf('--carry') ?? '').split(',').filter(Boolean);
 const REST_ASKED = (argOf('--rest') ?? '').split(',').filter(Boolean);
 // --rise chairUpright,lotusDown,…: getting up out of a rest pose (hero-rise.js), or with `Down` sitting / lying into it
 const RISE_ASKED = (argOf('--rise') ?? '').split(',').filter(Boolean);
+// --vaults hurdle:0.4:0.1:sprint,…: clearing a box out of the run (hero-vault.js), `name:h:d[:gait]` (metres: the box's
+// height and depth), the box drawn passing under the figure as the engine carries it on
+const VAULTS_ASKED = (argOf('--vaults') ?? '').split(',').filter(Boolean);
+// --auras crossedArms,jotaroPointLeft,…: showcase poses (hero-aura.js), each its performance from the stand to the hit
+const AURAS_ASKED = (argOf('--auras') ?? '').split(',').filter(Boolean);
 const SECONDS = Object.fromEntries(argsOf('--seconds').map((s) => { const [k, v] = s.split('='); return [k, Number(v)]; }));
 // --hair: the hair on its control strings (hero-flow.js), against the body and outfit as one collision form;
 // --wind speed[,dir[,gust]]: the world's wind (vegetation/wind.js), m/s, dir in degrees the wind blows TOWARD (0 the
@@ -100,6 +108,7 @@ const manifest = { kind: 'layered', title: NAME, recipe: ex.recipe, plan, hero, 
 const { mesh } = planLayered(manifest);
 const recipe = manifest.recipe; const HR = HAIR ? flowRig(mesh, recipe, { pieces: FLOWS }) : null;
 const R = HR ? HR.R : validateRig(recipe.rig); const skin = HR ? HR.skin : bindLayered(mesh, recipe, R);
+let auraBodyMemo = null; const AURA_BODY = () => auraBodyMemo || (auraBodyMemo = auraBody(R, mesh, skin));
 const FIELD = WIND ? windField({ ...resolveTerrainWind(WIND), z0: 0.03 }) : null;
 const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
 const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
@@ -108,7 +117,7 @@ const ownSeconds = heroClipSeconds(hero, recipe.clips) || {};
 // the door's motion (hero.motion), baked as the pack bakes it: its gaits replace the hero's own clips of their names
 const LOCO = recipe.locomotion ? locomotionClips(recipe.locomotion, R, { keys: FRAMES }) : null;
 const own = [...new Set([...Object.keys(recipe.clips || {}), ...Object.keys(LOCO?.clips || {})])].filter((k) => k !== GESTURE_CLIP);
-const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length || STRIKES_ASKED.length || GUARDS_ASKED.length || CARRY_ASKED.length || REST_ASKED.length || RISE_ASKED.length ? [] : own);
+const asked = argOf('--clips') ? argOf('--clips').split(',').filter(Boolean) : (MOTIONS.length || JUMPS_ASKED.length || STANCES_ASKED.length || STRIKES_ASKED.length || GUARDS_ASKED.length || CARRY_ASKED.length || REST_ASKED.length || RISE_ASKED.length || VAULTS_ASKED.length || AURAS_ASKED.length ? [] : own);
 for (const c of asked) if (!recipe.clips?.[c] && !LOCO?.clips[c]) throw new Error(`--clips: the hero has no clip '${c}' (has ${own.join(', ')})`);
 const bridge = (dof) => {
   if (PLANT === 'gait' || !dof?.plant) return dof;
@@ -128,6 +137,8 @@ const CLIPS = [
   ...CARRY_ASKED.map((spec) => { const m = /^(\w+)(?::([\d.]+))?(~)?$/.exec(spec); if (!m || !HOLD_NAMES.includes(m[1])) throw new Error(`--carry: no hold '${spec}' (have ${HOLD_NAMES.join(', ')})`); const K = heroHold(m[1], R, { ...(m[2] ? { kg: Number(m[2]) } : {}), regime: m[3] ? 'weightless' : 'skilled' }); const c = K.checks, e = K.effort, a = K.answer; const fails = Object.entries(c.laws).filter(([, v]) => !v).map(([k]) => k); const hands = Object.entries(c.hands).map(([s, h]) => `${s} wrist ${h.wrist.flex}/${h.wrist.deviation}/${h.wrist.twist}°`).join(' · '); return { name: spec.replace(/[:~]/g, '_'), src: `carry · ${K.mode} · ${K.item} ${K.kg} kg · ${K.regime} · effort CR10 ${e.cr10} (${e.word}, ${e.limit} ${Math.round(e.mvc * 100)}% MVC${Number.isFinite(e.endurance) ? `, ${e.endurance} min` : ''}) · lean ${a.lean} side ${a.sideLean} sway ${(a.sway[1] * 100).toFixed(1)} cm${a.ease ? ` · held in ${a.ease.from}→${a.ease.to} m` : ''} · ${hands}${fails.length ? ` · FAILS ${fails.join(', ')}` : ' · laws hold'}`, fn: () => K.pose, seconds: 0.5, once: true, carry: K, gear: carryMounts(K, R) }; }),
   ...REST_ASKED.map((n) => { if (!REST_NAMES.includes(n)) throw new Error(`--rest: no rest pose '${n}' (have ${REST_NAMES.join(', ')})`); const K = heroRest(n, R), c = K.checks; const fails = Object.entries(c.laws).filter(([, v]) => !v).map(([k]) => k); return { name: n, src: `rest · ${K.family}${K.seat ? ` · ${K.seat.kind}` : ''} · knees ${c.knees.R}/${c.knees.L}° · hips ${c.hips.R}/${c.hips.L}° · floor ${(c.floor * 100).toFixed(1)} cm (${c.floorAt})${c.balance !== null ? ` · balance ${(c.balance * 100).toFixed(1)} cm` : ''} · ${K.effort ? `effort CR10 ${K.effort.cr10} (${K.effort.limit}${K.effort.supported ? `, ${K.effort.supported} supported` : ''})` : 'the floor holds it'}${fails.length ? ` · FAILS ${fails.join(', ')}` : ' · laws hold'}`, fn: () => K.pose, seconds: 0.5, once: true, rest: K }; }),
   ...RISE_ASKED.map((spec) => { const down = /Down$/.test(spec), n = down ? spec.slice(0, -4) : spec; if (!REST_NAMES.includes(n)) throw new Error(`--rise: no rest pose '${n}' (have ${REST_NAMES.join(', ')})`); const K = heroRise(n, R, { down, seconds: SECONDS[spec] }), c = K.checks; const fails = Object.entries(c.laws).filter(([, v]) => !v).map(([k]) => k); return { name: K.name, src: `${down ? 'down into' : 'up from'} ${n} · ${K.beats.states.map((x) => `${x.name} ${x.t}`).join(' → ')} s${K.lean !== null ? ` · lean ${K.lean}°` : ''} · balance ${(c.balance * 100).toFixed(1)} cm · floor ${(c.floor * 100).toFixed(1)} cm · knees ${c.knees}° hips ${c.hips}° · fastest ${c.speed} m/s${fails.length ? ` · FAILS ${fails.join(', ')}` : ' · laws hold'}`, fn: K.fn, seconds: K.seconds, once: true, rest: { props: K.props } }; }),
+  ...VAULTS_ASKED.map((spec) => { const [n, h, d = '0.3', from] = spec.split(':'); if (!VAULT_NAMES.includes(n)) throw new Error(`--vaults: no move '${n}' (have ${VAULT_NAMES.join(', ')})`); const K = heroVault(n, R, { h: Number(h), d: Number(d), ...(from ? { from } : {}), seconds: SECONDS[n] }), c = K.checks; const fails = Object.entries(c.laws).filter(([, v]) => !v).map(([k]) => k); return { name: `${n}_${h}x${d}`, src: `${K.move} out of the ${K.from} · ${K.foot} off ${K.entry.takeoff} m before, ${K.landing} lands ${K.exit.landing} m past · ${K.beats.map((x) => `${x.name} ${x.t}`).join(' → ')} s · up ${c.takeoff} m/s · clear ${(-c.clear * 100).toFixed(1)} cm (${c.clearAt}) · knees ${c.knees}° hips ${c.hips}°${fails.length ? ` · FAILS ${fails.join(', ')}` : ' · laws hold'}`, fn: K.fn, seconds: K.seconds, once: true, rest: { props: K.props }, propsAt: (t) => K.props.map((b) => { const y = K.root.y(t); return { ...b, lo: [b.lo[0], b.lo[1] - y, b.lo[2]], hi: [b.hi[0], b.hi[1] - y, b.hi[2]] }; }) }; }),
+  ...AURAS_ASKED.map((n) => { if (!AURA_NAMES.includes(n)) throw new Error(`--auras: no pose '${n}' (have ${AURA_NAMES.join(', ')})`); const K = heroAura(n, R, { body: AURA_BODY(), seconds: SECONDS[n] }), c = K.checks; const fails = Object.entries(c.laws).filter(([, v]) => !v).map(([k]) => k); return { name: n, src: `${K.family} · ${K.beats.map((x) => `${x.name} ${x.t}`).join(' → ')} s · balance ${(c.balance * 100).toFixed(1)} cm · hands ${Object.entries(c.hands).map(([s, d]) => `${s} ${(d * 100).toFixed(1)}`).join('/')} cm · clear ${(c.clear * 100).toFixed(1)} cm (${c.clearAt}) · gaze ${c.gaze}° · fastest ${c.speed} m/s${fails.length ? ` · FAILS ${fails.join(', ')}` : ' · laws hold'}`, fn: K.clip.fn, seconds: K.seconds, once: true }; }),
   ...STANCES_ASKED.map((n) => { if (!STANCE_NAMES.includes(n)) throw new Error(`--stances: no stance '${n}' (have ${STANCE_NAMES.join(', ')})`); const S = heroStance(n, R, { seconds: SECONDS[n] }); const c = S.checks; return { name: n, src: `stance · ${S.family}${S.lead ? ` · lead ${S.lead}` : ''} · facing ${S.facing}° · com ${(c.com.margin * 100).toFixed(1)} cm in, weight ${c.com.weight} · knees ${c.knees.L}/${c.knees.R}° · turnout ${c.turnout.L}/${c.turnout.R}° · gaze ${c.gaze}° · serves ${S.serves.join(', ')}`, fn: S.clip.fn, seconds: S.clip.seconds, once: true, checks: c }; }),
 ];
 
@@ -282,7 +293,7 @@ for (const C of CLIPS) {
       up = Math.max(0, up); } }
     const lift = (p) => [p[0], p[1], p[2] + up];
     // held gear (a guard's sword, a shield): its faces carried by the posed bones, in their baked fill
-    const XR = C.rest ? restTriangles(C.rest).map((t) => ({ p: t.p, rgb: hexRgb(t.colour) })) : [];
+    const XR = C.rest ? restTriangles(C.propsAt ? { props: C.propsAt(t) } : C.rest).map((t) => ({ p: t.p, rgb: hexRgb(t.colour) })) : [];
     const X0 = C.carry ? carryTriangles(C.carry, R, boneFrames(R, R.joints, nodes)).map((t) => ({ p: t.p.map(lift), rgb: hexRgb(t.colour) })) : [];
     const X = [...XR, ...X0, ...(C.gear ? gearFaces(C.gear, { frames: boneFrames(R, R.joints, nodes), light: WORKBENCH_LIGHT }).flatMap((g) => { const rgb = fillRgb(g.fill); const c = g.corners.map(lift); return c.slice(2).map((_, k) => ({ p: [c[0], c[k + 1], c[k + 2]], rgb })); }) : [])];
     frames.push({ V: up ? posed.mesh.vertices.map(lift) : posed.mesh.vertices, X, nodes: up ? Object.fromEntries(Object.entries(nodes).map(([k, v]) => [k, lift(v)])) : nodes }); reports.push(rep);

@@ -12,6 +12,68 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Aura poses
+
+- Standing showcase poses (`polygonizer/hero-aura.js`): `heroAura(name, R, { body, seconds })` returns the performance
+  clip from the stand to the held pose (`clip.fn(t)`), its keys, the held pose, the face track (the anime channels per
+  beat), the beats and the checks. `auraBody(R, mesh, skin)` gives the body the hands rest on: each bone's surface as a
+  radial profile of the skinned mesh, and the face's landmarks from the head's own parts.
+- The poses, each right-handed with a `<name>Left` mirror, in four families:
+  - aura: `hairToss`, `ojouLaugh`, `fistCrush`, `crossedArms`, `heroHips`, `niceGuy`, `pocketsCool`, `glassesPush`,
+    `fingerGuns`, `fistToSky`, `peaceWink`;
+  - jojo: `dioBack`, `jotaroPoint`, `killerQueen`, `josuke`, `giorno`, `josephPoint`, `jonathanArch`;
+  - squad: `sentaiRoll`, `henshin`, `ginyu`, `recoome`;
+  - meme: `tPose`.
+- A pose is design words per beat, never keyed angle by angle:
+  - the feet and the weight (`FOOTINGS`, from `together` to `crane`);
+  - the trunk (turn, chest, bend, curl, hinge);
+  - the look and the head;
+  - each hand placed at a body landmark (on its surface) or aimed from the shoulder, with the part of the hand that
+    goes there, its shape (`SHAPES`: the rig's hand words, plus `flat`, `vee`, `thumb`, `claw`, `gun`, `pinch`,
+    `cup`), the way the palm faces and the fingers point, and the elbow's bend.
+
+  The solver sinks the hips until the legs reach. It carries the core over the feet, turns the neck and head to the
+  look, then reaches each arm with the wrist turned to its words and the hand's own point brought onto its goal.
+- The performance: a foot that moves between beats steps, with the weight over the other foot. Where a transition
+  would pass a hand or forearm through the body, a via key carries that arm round the front of it.
+- Checks:
+  - the balance (one foot is an area, not a line);
+  - the legs' reach and the knees;
+  - each hand on its goal and turned within its aim;
+  - no hand or forearm inside the body, with a resting hand excused only against what it rests on, to a resting depth;
+  - the forearms clear of each other;
+  - the gaze;
+  - over the clip: the planted toes, the fastest hand, and the clearance through every transition.
+
+  `hero-aura.deep.test.js` sweeps every pose and its mirror on both anime casts.
+- `render-motion.mjs --auras name,…` draws the performance.
+
+### Free run
+
+- Clearing a low box out of the run (`polygonizer/hero-vault.js`): `heroVault(name, R, { h, d, w, from, seconds })` returns
+  the clip in place (`fn(t)`, keys at 30 per second), its root track (`root.y`, `root.z`: the engine carries the
+  character along it), the entry (the gait's phase, the take-off foot, the take-off distance to the near face), the
+  exit (the phase it hands back to, the landing past the far face), the flights, the beats, the box and its checks.
+- The moves, each from either foot (`<name>Left` takes off from the right): `hurdle` (a thin bar), `stepVault` (a hand
+  and a foot on the top, out of the jog), `speedVault` (a rail, out of the sprint), `kongVault` (a table, out of the
+  sprint).
+- A clip is a route of contact states between two of the gait's own frames: the take-off foot's touchdown and the
+  landing foot's toe-off, so the run plays into it and out of it with nothing to blend.
+  - The flights are ballistic: the centre of mass flies a parabola under g; the take-off speed follows.
+  - Where it takes off is solved from where the hands land on the top; the hurdle's air time is the least that clears.
+  - Each support state's height is solved between clearing the box and the held hands reaching their points.
+- `freeRun(state, obstacle, R)` picks the move for a box from the frame the runner is in (`{ gait, phase }`): the band
+  (the box's height as a share of the hip height, its depth, the gait), the take-off foot and the stretch of the next
+  footfalls (within ±20 %) that puts the take-off toe on its spot. A box under the swing's clearance is `stride`; one
+  out of every band, or too near, returns `move: null` and why.
+- Rig: `seatL` / `seatR` carry one free leg past the hip's swivel cone (`seat` for that leg alone). Absent, nothing
+  changes.
+- Checks: the ends on the gait's frames; clear of the box by 3 cm; feet and hands hold; the floor; the take-off under
+  3.2 m/s up; the landing a foot past the far face; knees and hips in range; the fastest limb under 1.5× the gait's
+  own; the clearance lift off the parabolas under 8 cm. `hero-vault.deep.test.js` sweeps every move across its band,
+  from each foot, on both anime casts.
+- `render-motion.mjs --vaults name:h:d[:gait]` draws the box passing under the figure.
+
 ### Rise and sit
 
 - Getting up out of every rest pose, and sitting or lying down into it (`polygonizer/hero-rise.js`):
