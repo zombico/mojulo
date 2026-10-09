@@ -347,6 +347,18 @@ This step builds the contract and the approval gate. No rung is served yet.
 - **Shake.** `{ shake: k | { k, for? } }` shakes the camera, decaying; it is added around each draw, so no camera keeps
   it.
 
+### Explosions
+
+- **Blasts as functions.** `{ explode: { who | at, is, color?, scale? } }` sets one off at a character's feet or a place.
+  An explosion is parts: a `flash`, a `fireball` that billows out and stops, `smoke` that rises and lingers, `debris`,
+  `sparks`, a `shock` ring along the ground, a `shell` of air round the middle, a `scorch` left on the ground, a `comic`
+  black-edged white starburst, a mushroom's `stem`, an `implode` ring closing in first, a light and a shake; `count`,
+  `spread` and `stagger` chain it. Values first: a white flash, a coloured fire, dark smoke, an ink burst.
+- **Presets.** `pop`, `blast`, `mushroom`, `comic`, `chain`, `implode`; `play.explosions` designs your own, and a
+  beam's `impact` may name one.
+- **Sprays slow and change colour.** A spray takes `drag` (it slows and stops) and `ramp` (colours over a particle's
+  life), and a shell's spray may go inward.
+
 ### Beams
 
 - **Attacks as functions.** `{ beam: { who, to, is } }` fires an attack from a character's hand at a character or a

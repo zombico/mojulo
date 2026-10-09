@@ -8,7 +8,8 @@
  *            (above: over the head, and the strands leave from there)
  *   rings    shock rings riding a ray: { every (m), size (× width) }
  *   sparks   a spray (elements.js) round every head, born again as it flies
- *   impact   a puff kind where it lands (moments.js), when the first head arrives · shake: 0..1 then
+ *   impact   a puff kind (moments.js) or an explosion (explosions.js) where it lands, when the first head arrives ·
+ *            shake: 0..1 then
  *
  * A STRAND: a `ray` grows from the hand to the target at `speed`, holds `hold` seconds, then its tail runs after it; a
  * `bolt` is a body `length` long behind a head, flying at `speed` until its tail is in. Its path from A to B is the
@@ -34,6 +35,7 @@
  */
 import { readColor, readSpray } from './elements.js';
 import { PUFFS } from './moments.js';
+import { readExplosion, readExplosions, EXPLOSION_NAMES } from './explosions.js';
 
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -142,7 +144,7 @@ export function readStrand(v, where) {
 
 export const BEAM_LAYERS = Object.freeze(['color', 'strands', 'charge', 'rings', 'sparks', 'impact', 'shake']);
 /** An attack: a preset's name (or one in `beams`, play.beams read), or a spec. */
-export function readBeam(v, where, beams = null) {
+export function readBeam(v, where, beams = null, explosions = null) {
   if (typeof v === 'string') {
     const B = (beams && beams[v]) || BEAMS[v];
     if (!B) throw new Error(`${where} '${v}' is not an attack: name a preset (${BEAM_NAMES.join(', ')}), one in play.beams, or give its strands`);
@@ -172,7 +174,12 @@ export function readBeam(v, where, beams = null) {
     out.rings = { every: r.every ?? 1.5, size: r.size ?? 2.2 };
   }
   if (v.sparks !== undefined && v.sparks !== false) out.sparks = readSpray(v.sparks === true ? { glyph: 'spark', count: 10, from: 'point', z: 0, v: 2.5, life: 0.4, size: 0.08 } : v.sparks, `${where}.sparks`);
-  if (v.impact !== undefined && v.impact !== false) { if (!PUFFS.includes(v.impact)) throw new Error(`${where}.impact is a puff where it lands: ${PUFFS.join(', ')}`); out.impact = v.impact; }
+  // where it lands: a puff kind, or an explosion (a preset, or one in play.explosions)
+  if (v.impact !== undefined && v.impact !== false) {
+    if (PUFFS.includes(v.impact)) out.impact = v.impact;
+    else if (typeof v.impact === 'string' && ((explosions && explosions[v.impact]) || EXPLOSION_NAMES.includes(v.impact))) { out.impact = v.impact; out.impactSpec = readExplosion(v.impact, `${where}.impact`, explosions); }
+    else throw new Error(`${where}.impact is a puff (${PUFFS.join(', ')}) or an explosion (${EXPLOSION_NAMES.join(', ')}, or one in play.explosions) where it lands`);
+  }
   if (v.shake !== undefined) { if (!(num(v.shake) && v.shake > 0 && v.shake <= 1)) throw new Error(`${where}.shake is 0..1`); out.shake = v.shake; }
   return out;
 }
@@ -182,10 +189,10 @@ export function readBeams(play) {
   const L = play && play.beams;
   if (L === undefined) return {};
   if (!isObj(L)) throw new Error('play.beams is { name: { strands, charge?, … } }');
-  const out = {};
+  const out = {}, explosions = readExplosions(play);
   for (const [k, v] of Object.entries(L)) {
     if (!/^[a-z][a-z0-9-]*$/.test(k)) throw new Error(`play.beams: '${k}' is a lower-case word`);
-    out[k] = readBeam(v, `play.beams.${k}`);
+    out[k] = readBeam(v, `play.beams.${k}`, null, explosions);
   }
   return out;
 }
@@ -200,7 +207,7 @@ export const BEAMS = Object.freeze({
   // gathered at the hands, then a column that reaches, holds and goes
   ray: P({ color: [0.5, 0.8, 1], charge: { time: 1.2, size: 0.4 }, strands: { form: 'ray', speed: 24, width: 0.42, hold: 1.4, head: 1.5, pulse: 14, edge: 'both' }, rings: { every: 1.8, size: 2.1 }, impact: 'flash', shake: 0.6 }),
   // a great ball raised over the head, sent slowly down
-  nova: P({ color: [1, 0.55, 0.25], charge: { time: 1.6, size: 1.1, at: 'above' }, strands: { form: 'bolt', speed: 3.2, width: 1.1, length: 0, head: 1, edge: 'ink' }, impact: 'strike', shake: 1 }),
+  nova: P({ color: [1, 0.55, 0.25], charge: { time: 1.6, size: 1.1, at: 'above' }, strands: { form: 'bolt', speed: 3.2, width: 1.1, length: 0, head: 1, edge: 'ink' }, impact: 'blast', shake: 1 }),
   // many thin bolts from one hand, each its own speed and curve, all landing
   barrage: P({ color: [1, 0.35, 0.6], strands: { form: 'bolt', speed: 13, width: 0.05, length: 1.4, head: 2, taper: 1, count: 14, stagger: 0.07, vary: 0.55, bow: 2.6, edge: 'glow' }, impact: 'sparks' }),
   // two rays braiding round the line, meeting at the target

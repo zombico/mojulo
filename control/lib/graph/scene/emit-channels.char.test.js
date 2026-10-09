@@ -63,6 +63,9 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-08 (beams): the engine's cast takes the `beam` op (an attack's moment, its impact and shake at the
 // landing) and castFacts the `struck` fact; a moment may wait for a later t0. Pages whose cues fire no beam carry no
 // beam code; the controllable trace pins hold.
+// Re-pinned 2026-10-08 (explosions): the engine's puff carries an explosion's parts (a chain is several, scattered by
+// seeded dice and staggered) and a scale, and a beam's impact may be one. Pages that set none off are unchanged in
+// their moment code; the controllable trace pins hold.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

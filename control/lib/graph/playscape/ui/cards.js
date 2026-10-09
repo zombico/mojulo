@@ -21,6 +21,7 @@ import { MENU_KINDS, MENU_IDS } from './menus.js';
 import { LOOK_NAMES, LOOK_LAYERS } from '../elements/elements.js';
 import { PUFFS } from '../elements/moments.js';
 import { BEAM_NAMES, BEAM_LAYERS } from '../elements/beams.js';
+import { EXPLOSION_NAMES } from '../elements/explosions.js';
 import { BORDER_ELEMENTS, ELEMENT_IDS, BORDER_FLAVORS, FLAVOR_IDS, PIXEL_SIZES } from './borders.js';
 
 // one ladder: the play tiers (click, walk, level, game) and the UI rungs merged; a rung admits itself and all below
@@ -252,6 +253,23 @@ function beamsCard() {
   );
 }
 
+function explosionsCard() {
+  return lines(
+    'EXPLOSIONS — { explode: who | { who? | at: place, is?, color?, scale? } } sets one off at a character\'s feet or a place;',
+    '  a beam\'s impact may name one. is: a preset, a name in play.explosions, or its parts (each optional, each a function of',
+    '  time the page draws):',
+    '  flash { size, life } · fireball { radius, rise, life, puffs } (billows out and stops; white → its colour → smoke) ·',
+    '  smoke { rise, life, puffs } · debris { count, speed } · sparks { count, speed } · shock { radius, life } (a ring on',
+    '  the ground) · shell { radius, life } (a ring of air) · scorch { radius, life } (a mark left) · comic { size, spikes,',
+    '  life } (a white star, black ink edge) · stem { height } (a mushroom\'s column) · implode { radius, life } (closes in',
+    '  first; the rest waits) · light { k } · shake · sprays: [spray] (anything else) · count, spread, stagger (a chain)',
+    'A SPRAY may slow (drag: 1/s) and change colour over its life (ramp: [colour, …]); a shell\'s may go inward (v < 0).',
+    `PRESETS (what they do): ${EXPLOSION_NAMES.join(', ')}.`,
+    'VALUES FIRST: a white flash, the colour, dark smoke; comic is pure black and white. ?values greys the page.',
+    `example: ${JSON.stringify({ explosions: { flare: { color: '#66ffcc', implode: { radius: 3 }, flash: { size: 2 }, shell: { radius: 4 }, sparks: { count: 30 } } }, cues: [{ id: 'boom', when: { struck: 'golem' }, then: { explode: { who: 'golem', is: 'flare', scale: 1.5 } } }] })}`,
+  );
+}
+
 let CARDS = null;
 /** Every card, by id. */
 export function playCards() {
@@ -270,6 +288,7 @@ export function playCards() {
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
     ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, drifting particles, bolts, fire, ice, water, steam) is drawn on the body; moments (puffs, splashes, impacts, lightning, fireworks, shake) play once', 'a shield, a heal, poison, on fire, frozen, soaked, rained on, electrified, a black flash, an impact, a lightning strike, any status you design', elementsCard()],
     ['play-beams', 'Beams and attacks', 'an attack is strands (rays and bolts, one function of time each) fired from a hand, landing with struck', 'a ki wave, a fireball, a fire dragon, a death ball, a laser barrage, braided beams, any attack you design', beamsCard()],
+    ['play-explosions', 'Explosions', 'an explosion is parts (flash, fireball, smoke, debris, rings, scorch, a comic burst, a chain), set off at a spot or a beam\'s landing', 'a grenade, a mushroom cloud, a comic BOOM, a chain of blasts, an implosion, any blast you design', explosionsCard()],
     ['ui-pace', 'Pace', 'glance, scan or study: how densely the UI may be read', 'a twitch HUD vs a management screen', paceCard()],
     ...PART_IDS.map((p) => [`ui-part-${p}`, `Part: ${p}`, PARTS[p].about, `a ${p} on screen`, partCard(p)]),
   ];
@@ -296,7 +315,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'play-elements', 'play-beams', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }

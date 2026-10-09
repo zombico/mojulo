@@ -36,8 +36,9 @@
  * `swirl` turns a second; it swells by `grow`, spins `spin` turns a second, and fades by `env`:
  *   { glyph: 'dot' | 'soft' | 'streak' | 'drop' | 'flake' | 'leaf' | 'spark' | 'chip', count: 12, from: 'shell', r: 0.6,
  *     z: 0.9 | [lo, hi], v: 0, el: [-90, 90], go: [0, 0, 0], gravity: 0, swirl: 0, life: 1.5, grow: 0, spin: 0,
- *     size: 0.12, env: 'out', trail: 1, lag: 0.04 (ghosts behind each, s apart), rings?: true (a drop that lands rings
- *     out), color? }
+ *     size: 0.12, env: 'out', trail: 1, lag: 0.04 (ghosts behind each, s apart), drag: 0 (1/s: it slows, going v / drag
+ *     at most, and lies on the ground), ramp?: [colour, …] (over its life), rings?: true (a drop that lands rings out),
+ *     color? }   v below 0: a shell's particles go inward
  *
  *   LOOKS / LOOK_NAMES     presets to start from (named by what they do, not what they mean)
  *   readLook(v, where)     a preset's name or a spec → the look, read and filled (teaches on a bad one)
@@ -85,7 +86,7 @@ export function wavePoints(W, cc, t) {
 
 // ── the spray: every thrown, blown or dropped particle is one ───────────────────────────────────────────────────
 /** One spray's particles at t seconds round feet cc: each { p, v (its velocity), w (0 hidden), s (size), rot, ring (its
- *  share of a ring's time since it landed, a drop that rings out; else -1) }, then its trail's ghosts. count × trail
+ *  share of a ring's time since it landed, a drop that rings out; else -1), u (its life, 0 → 1) }, then its trail's ghosts. count × trail
  *  entries, always, so a page's pool stays one size.
  *  loop: each particle born again every life (a status); else once, from t = 0 (a moment). The page runs this source. */
 export function sprayPoints(S, cc, t, loop) {
@@ -101,23 +102,26 @@ export function sprayPoints(S, cc, t, loop) {
     // how it leaves: at v, an elevation spread even over the sphere's band, outward from a shell
     const sp = S.v * (0.6 + 0.8 * hs(i, 5)), se = sl0 + (sl1 - sl0) * hs(i, 6), ce = Math.sqrt(1 - se * se);
     const az = S.from === 'shell' ? a + (hs(i, 7) - 0.5) * 0.6 : hs(i, 7) * TAU;
-    const vx = sp * ce * Math.cos(az) + S.go[0], vy = sp * ce * Math.sin(az) + S.go[1], vz = sp * se + S.go[2], g = S.gravity;
-    // where it falls to: the feet's ground, once
-    const land = g > 0 ? (vz + Math.sqrt(vz * vz + 2 * g * zz)) / g : vz < 0 ? zz / -vz : Infinity;
+    const lx = sp * ce * Math.cos(az), ly = sp * ce * Math.sin(az), lz = sp * se, g = S.gravity, k = S.drag || 0;
+    const vx = lx + S.go[0], vy = ly + S.go[1], vz = lz + S.go[2];
+    // where it falls to: the feet's ground, once (a dragged one lies on it instead)
+    const land = k ? Infinity : g > 0 ? (vz + Math.sqrt(vz * vz + 2 * g * zz)) / g : vz < 0 ? zz / -vz : Infinity;
     // the particle and its trail: the same flight a lag behind, dimmer down the trail
-    for (let k = 0; k < trail; k++) {
-      const tau = tau0 - k * lag;
-      if (tau < 0 || tau > life || (k && tau > land)) { out.push({ p: [cc[0], cc[1], cc[2]], v: [0, 0, 0], w: 0, s: 0, rot: 0, ring: -1 }); continue; }
+    for (let q = 0; q < trail; q++) {
+      const tau = tau0 - q * lag;
+      if (tau < 0 || tau > life || (q && tau > land)) { out.push({ p: [cc[0], cc[1], cc[2]], v: [0, 0, 0], w: 0, s: 0, rot: 0, ring: -1 }); continue; }
       const tt = Math.min(tau, land), ring = tau > land ? tau - land : -1;
       if (ring >= 0 && !(S.rings && ring < RING)) { out.push({ p: [cc[0], cc[1], cc[2]], v: [0, 0, 0], w: 0, s: 0, rot: 0, ring: -1 }); continue; }
-      const x = x0 + vx * tt, y = y0 + vy * tt, z = zz + vz * tt - 0.5 * g * tt * tt;
+      // the launch slows by its drag (it goes v / drag at most); a wind and gravity do not
+      const dk = k ? (1 - Math.exp(-k * tt)) / k : tt, ek = k ? Math.exp(-k * tt) : 1;
+      const x = x0 + lx * dk + S.go[0] * tt, y = y0 + ly * dk + S.go[1] * tt, z = Math.max(k ? 0 : -Infinity, zz + lz * dk + S.go[2] * tt - 0.5 * g * tt * tt);
       // swirled round the body's axis
       const sw = S.swirl * TAU * tt, cs = Math.cos(sw), sn = Math.sin(sw), rx = x * cs - y * sn, ry = x * sn + y * cs;
-      const u = tau / life, s = S.size * (0.7 + 0.6 * hs(i, 8)) * (1 + S.grow * u) * (1 - (0.6 * k) / trail);
+      const u = tau / life, s = S.size * (0.7 + 0.6 * hs(i, 8)) * (1 + S.grow * u) * (1 - (0.6 * q) / trail);
       out.push({
         p: [cc[0] + rx, cc[1] + ry, cc[2] + z],
-        v: [vx * cs - vy * sn - S.swirl * TAU * ry, vx * sn + vy * cs + S.swirl * TAU * rx, vz - g * tt],
-        w: ring >= 0 ? 0 : env(u) * Math.pow(0.7, k), s, rot: hs(i, 9) * TAU + S.spin * TAU * tau, ring: ring >= 0 ? ring / RING : -1,
+        v: [(lx * ek + S.go[0]) * cs - (ly * ek + S.go[1]) * sn - S.swirl * TAU * ry, (lx * ek + S.go[0]) * sn + (ly * ek + S.go[1]) * cs + S.swirl * TAU * rx, lz * ek + S.go[2] - g * tt],
+        w: ring >= 0 ? 0 : env(u) * Math.pow(0.7, q), s, rot: hs(i, 9) * TAU + S.spin * TAU * tau, ring: ring >= 0 ? ring / RING : -1, u,
       });
     }
   }
@@ -217,7 +221,7 @@ export function readSpray(w, where) {
     from: w.from ?? 'shell',
     r: n('r', 0.6, (v) => v >= 0, 'the radius they start in (m)'),
     z: pair(w.z ?? 0.9, `${where}.z`, 'the height they start at above the feet (m)'),
-    v: n('v', 0, (v) => v >= 0, 'the speed they leave at (m a second)'),
+    v: n('v', 0, (v) => v >= -50 && v <= 100, 'the speed they leave at (m a second; below 0 a shell\'s go inward)'),
     el: w.el === undefined ? [-90, 90] : pair(w.el, `${where}.el`, 'the elevation they leave at, degrees [lo, hi]'),
     go: vec('go'),
     gravity: n('gravity', 0, () => true, 'm a second² down (below 0 they rise)'),
@@ -231,7 +235,12 @@ export function readSpray(w, where) {
     stagger: n('stagger', 0, (v) => v >= 0, 'seconds a moment\'s particles leave over'),
     trail: Math.round(n('trail', 1, (v) => v >= 1 && v <= 8, 'the ghosts behind each particle (1 to 8)')),
     lag: n('lag', 0.04, (v) => v >= 0, 'seconds between a trail\'s ghosts'),
+    drag: n('drag', 0, (v) => v >= 0 && v <= 50, 'how fast they slow (1/s: they go v / drag at most)'),
   };
+  if (w.ramp !== undefined) {
+    if (!(Array.isArray(w.ramp) && w.ramp.length >= 2 && w.ramp.length <= 6)) throw new Error(`${where}.ramp is 2 to 6 colours over a particle's life`);
+    out.ramp = w.ramp.map((c, i) => colorRGB(readColor(c, `${where}.ramp[${i}]`)));
+  }
   if (out.count * out.trail > 400) throw new Error(`${where}: count × trail is at most 400`);
   if (!GLYPHS.includes(out.glyph)) throw new Error(`${where}.glyph is one of: ${GLYPHS.join(', ')}`);
   if (!SPRAY_FROM.includes(out.from)) throw new Error(`${where}.from is one of: ${SPRAY_FROM.join(', ')}`);

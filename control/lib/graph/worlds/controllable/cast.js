@@ -18,8 +18,9 @@
  *                         e.transit = { is, dir: 'in' | 'out', t0 }
  *     transfigure { into, with? }   who becomes into (minted asleep): into wakes where who stands, facing as it faces,
  *                         who goes; both carry the transit (default galvatron), linked by `to` / `from`
- *     puff { at?, is?, color?, shake? }   a moment at a place or at who's feet (state.moments: { is, at, t0, color? },
- *                         kept 3 s); shake: the camera shakes too
+ *     puff { at?, is?, color?, shake?, spec?, scale? }   a moment at a place or at who's feet (state.moments: { is, at,
+ *                         t0, color? }, kept 3 s); shake: the camera shakes too; spec: an explosion (its parts, kept
+ *                         its dur; a chain is several, scattered and staggered), scale sizing it
  *     shake { k, for? }       (no who) the camera shakes k (0..1) over for seconds: a moment { is: 'shake', k, for, t0 }
  *     beam { to, spec, land, name?, color? }   who fires an attack (playscape/elements/beams.js) from its hand (or over
  *                         its head, a charge `at: above`) at a character (its middle, where it stands now) or a point: a
@@ -91,9 +92,17 @@ export function buildCast(E) {
   const feet = (e) => { const p = e.transform.pos, r = e.rule || {}, b = e.body || {}; return [p[0], p[1], p[2] - (Number.isFinite(r.eye) ? r.eye : Array.isArray(b.size) ? b.size[2] / 2 : Number.isFinite(b.radius) ? b.radius : 0)]; };
   // a moment: kept 3 s on the world clock
   function moment(state, m) { const t = state.time || 0; state.moments = (state.moments || []).filter((x) => t < (x.until != null ? x.until : x.t0 + 3)).concat([{ t0: t, ...m }]); }
-  function puff(state, o, at) {
-    moment(state, { is: typeof o.is === 'string' ? o.is : 'smoke', at, ...(o.color !== undefined ? { color: o.color } : {}) });
-    if (Number.isFinite(o.shake) && o.shake > 0) moment(state, { is: 'shake', at: at.slice(), k: o.shake, for: 0.4 });
+  // a puff, or an explosion (o.spec, playscape/elements/explosions.js): a chain is count blasts scattered round the
+  // spot by seeded dice, one after another; a scale sizes it (and its spread)
+  function puff(state, o, at, t0 = state.time || 0) {
+    const X = o.spec || null, sc = Number.isFinite(o.scale) ? o.scale : 1, C = X && X.chain, n = C ? C.count : 1;
+    for (let j = 0; j < n; j++) {
+      const d = (k) => { const x = Math.sin(j * 12.9898 + k * 78.233 + 5.1) * 43758.5453; return x - Math.floor(x); };
+      const a = d(1) * TAU, r = j && C ? C.spread * sc * Math.sqrt(d(2)) : 0, tj = t0 + (C ? j * C.stagger : 0);
+      moment(state, { is: typeof o.is === 'string' ? o.is : 'smoke', at: [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2]], t0: tj, ...(X ? { spec: X, until: tj + X.dur + 0.2 } : {}), ...(sc !== 1 ? { scale: sc } : {}), ...(o.color !== undefined ? { color: o.color } : {}) });
+    }
+    const k = Number.isFinite(o.shake) && o.shake > 0 ? o.shake : X && X.shake ? X.shake : 0;
+    if (k) moment(state, { is: 'shake', at: at.slice(), k: Math.min(1, k * Math.sqrt(sc)), for: C ? 0.4 + C.stagger * (n - 1) : 0.4, t0 });
   }
   function castOps(state, ops) {
     for (const o of ops || []) {
@@ -122,7 +131,7 @@ export function buildCast(E) {
         const hit = t + Math.min(...(o.land || [[0, 0]]).map(([a, b]) => a + b * D));
         moment(state, { is: 'beam', at: from, from, to, ...(T ? { target: T.id } : {}), by: e.id, name: o.name || null, spec: o.spec, ...(o.color !== undefined ? { color: o.color } : {}), hit, until: hit + 8 });
         const land = T ? feet(T) : to;
-        if (o.spec.impact) moment(state, { is: o.spec.impact, at: land, t0: hit, ...(o.color !== undefined ? { color: o.color } : {}) });
+        if (o.spec.impact) puff(state, { is: o.spec.impact, ...(o.spec.impactSpec ? { spec: o.spec.impactSpec } : {}), ...(o.color !== undefined ? { color: o.color } : {}) }, land, hit);
         if (o.spec.shake) moment(state, { is: 'shake', at: land, k: o.spec.shake, for: 0.4, t0: hit });
         continue;
       }

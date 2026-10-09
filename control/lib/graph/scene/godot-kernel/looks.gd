@@ -314,7 +314,8 @@ static func _hs4(a: float, b: float) -> float:
 	return _fr(sin(a * 12.9898 + b * 78.233 + 4.1) * 43758.5453)
 
 
-# sprayPoints (playscape/elements/elements.js), line for line: [{ p, v, w, s, rot, ring }]
+# sprayPoints (playscape/elements/elements.js), line for line (drag included; a ramp's colours are the web page's):
+# [{ p, v, w, s, rot, ring }]
 static func _spray(S: Dictionary, cc: Array, t: float, loop: bool) -> Array:
 	var out: Array = []
 	var el := _pair(S.get("el"), 0.0)
@@ -351,11 +352,17 @@ static func _spray(S: Dictionary, cc: Array, t: float, loop: bool) -> Array:
 		var se := sl0 + (sl1 - sl0) * _hs4(i, 6)
 		var ce := sqrt(maxf(0.0, 1.0 - se * se))
 		var az: float = (a + (_hs4(i, 7) - 0.5) * 0.6) if from == "shell" else _hs4(i, 7) * TAU_
-		var vx := sp * ce * cos(az) + float(go[0])
-		var vy := sp * ce * sin(az) + float(go[1])
-		var vz := sp * se + float(go[2])
+		var lx := sp * ce * cos(az)
+		var ly := sp * ce * sin(az)
+		var lz := sp * se
+		var kd := float(S.get("drag", 0.0))
+		var vx := lx + float(go[0])
+		var vy := ly + float(go[1])
+		var vz := lz + float(go[2])
 		var land := INF
-		if g > 0.0:
+		if kd > 0.0:
+			land = INF   # a dragged one lies on the ground instead
+		elif g > 0.0:
 			land = (vz + sqrt(vz * vz + 2.0 * g * zz)) / g
 		elif vz < 0.0:
 			land = zz / -vz
@@ -368,9 +375,13 @@ static func _spray(S: Dictionary, cc: Array, t: float, loop: bool) -> Array:
 			if tau > land:
 				out.append(none)   # a landed drop's ring is the web page's
 				continue
-			var x := x0 + vx * tt
-			var y := y0 + vy * tt
-			var zt: float = zz + vz * tt - 0.5 * g * tt * tt
+			# the launch slows by its drag; a wind and gravity do not
+			var dk := (1.0 - exp(-kd * tt)) / kd if kd > 0.0 else tt
+			var x := x0 + lx * dk + float(go[0]) * tt
+			var y := y0 + ly * dk + float(go[1]) * tt
+			var zt: float = zz + lz * dk + float(go[2]) * tt - 0.5 * g * tt * tt
+			if kd > 0.0:
+				zt = maxf(0.0, zt)
 			var swa := sw_ * TAU_ * tt
 			var rx := x * cos(swa) - y * sin(swa)
 			var ry := x * sin(swa) + y * cos(swa)

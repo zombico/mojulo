@@ -56,7 +56,7 @@ describe('a strand', () => {
     expect(() => readStrand({ twist: 0.5 }, 's')).toThrow(/give wave: \[amp, 0\]/);
     expect(() => readStrand({ speeed: 3 }, 's')).toThrow(/s has no speeed/);
     expect(() => readBeam({ strands: [] }, 'b')).toThrow(/b.strands is one strand or a list/);
-    expect(() => readBeam({ strands: {}, impact: 'boom' }, 'b')).toThrow(/b.impact is a puff where it lands/);
+    expect(() => readBeam({ strands: {}, impact: 'boom' }, 'b')).toThrow(/b.impact is a puff \(smoke, .*\) or an explosion \(pop, blast/);
     expect(() => readBeam('hadoken', 'b')).toThrow(/is not an attack: name a preset \(orb, serpent/);
     // the charge comes first: every strand waits for it
     expect(readBeam({ charge: { time: 1 }, strands: { delay: 0.2 } }, 'b').strands[0].delay).toBeCloseTo(1.2, 9);

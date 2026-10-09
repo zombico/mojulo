@@ -29,6 +29,7 @@ import { DOOR_STAND } from '../objects/door.js';
 import { readLook, readColor, LOOK_NAMES } from '../elements/elements.js';
 import { PUFFS } from '../elements/moments.js';
 import { readBeam, beamLanding, BEAM_NAMES } from '../elements/beams.js';
+import { readExplosion, EXPLOSION_NAMES } from '../elements/explosions.js';
 
 export const CAST_WHEN = Object.freeze({
   down: 'a character falls: killed, or its hp runs out (its id, a glob)',
@@ -53,6 +54,7 @@ export const CAST_THEN = Object.freeze({
   transfigure: '{ transfigure: { who, into, with? } } who becomes into (a character minted asleep): into wakes where who stands and who goes; with: galvatron (default: skin to wire, the form morphs, re-skin) or any transit',
   puff: `{ puff: who | { who? | at: place, is?, color?, shake?: 0..1 } } a moment at a character's feet or a place: is ${PUFFS.join(', ')} (smoke by default); shake shakes the camera too`,
   shake: '{ shake: k | { k, for? } } the camera shakes, k 0..1 (0.5 a thump, 1 a quake), over for seconds (0.4), dying away',
+  explode: `{ explode: who | { who? | at: place, is?, color?, scale? } } an explosion at a character's feet or a place: is a preset (${EXPLOSION_NAMES.join(', ')}), a name in play.explosions, or its parts (blast by default); scale sizes it`,
   beam: `{ beam: { who, to: who | place, is?, color? } } who fires an attack from its hand at a character or a place: is a preset (${BEAM_NAMES.join(', ')}), a name in play.beams, or its strands (orb by default); struck fires when it lands on a character`,
 });
 // how a character comes or goes (the page plays it on the body, or on a ghost of it as it goes)
@@ -135,6 +137,17 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (v.at === undefined) throw new Error(`${w} is a character's id, or { at: place, is? }`);
     return { kind: 'cast', op: 'puff', who: null, at: readPlace(v.at, `${w}.at`), ...puffOpts(v, w), page: true };
   }
+  // an explosion is a puff carrying its parts: at a place, or at a character's feet
+  if (k === 'explode') {
+    const o = isStr(v) ? { who: v } : v;
+    if (!isObj(o) || (o.who === undefined && o.at === undefined)) throw new Error(`${w} is a character's id, or { who | at: place, is?, color?, scale? }`);
+    const name = isStr(o.is) ? o.is : o.is === undefined ? 'blast' : null;
+    const out = { kind: 'cast', op: 'puff', who: isStr(o.who) ? o.who : null, is: name || 'explosion', spec: readExplosion(o.is ?? 'blast', `${w}.is`, ctx.explosions), page: true };
+    if (o.who === undefined) out.at = readPlace(o.at, `${w}.at`);
+    if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
+    if (o.scale !== undefined) { if (!(Number.isFinite(o.scale) && o.scale > 0 && o.scale <= 10)) throw new Error(`${w}.scale is how big, 0.1 to 10`); out.scale = o.scale; }
+    return out;
+  }
   // a shake is the camera's: no one, no place
   if (k === 'shake') {
     const o = Number.isFinite(v) ? { k: v } : v;
@@ -172,7 +185,7 @@ export function readCastEffect(k, t, where, ctx = {}) {
   if (k === 'beam') {
     if (o.to === undefined) throw new Error(`${w}.to is a character's id or a place`);
     out.to = isStr(o.to) ? o.to : readPlace(o.to, `${w}.to`);
-    out.spec = readBeam(o.is ?? 'orb', `${w}.is`, ctx.beams);
+    out.spec = readBeam(o.is ?? 'orb', `${w}.is`, ctx.beams, ctx.explosions);
     if (isStr(o.is)) out.name = o.is;
     if (o.color !== undefined) out.color = readColor(o.color, `${w}.color`);
   }
@@ -207,7 +220,7 @@ const placeAt = (ref, places) => (Array.isArray(ref) ? { at: ref, name: null } :
 export function lowerCastEffect(t, on, frag, places = []) {
   const r = { on, do: 'ctrl', op: t.op, who: t.who };
   if (t.by !== undefined) r.by = t.by;
-  for (const k of ['is', 'for', 'color', 'with', 'into', 'shake', 'k']) if (t[k] !== undefined) r[k] = t[k];
+  for (const k of ['is', 'for', 'color', 'with', 'into', 'shake', 'k', 'spec', 'scale']) if (t[k] !== undefined) r[k] = t[k];
   if (t.op === 'shake') delete r.who;
   if (t.op === 'beam') {
     // at a place when one is called so, else at the character of that name
