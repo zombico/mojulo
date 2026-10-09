@@ -18,7 +18,7 @@
  *   gameworld: {
  *     id, name?, seed?,
  *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, land?: { <form>: variant | many | { variant?, many? } } },
- *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…} } },
+ *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…}, builds?, technology? } },
  *     levels: { '<id>': {
  *       name?, seed?,                     // the seed derives from the world's and the level's id unless named
  *       style?: { … },                    // the level's overrides, the style's shape
@@ -34,13 +34,18 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
-import { STAGE_KITS, resolveKitId } from '../era/stage.js';
+import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
 import { readOutTrail } from '../era/out-trail.js';
 import { readLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from '../era/out-town.js';
 import { readCastlePlan } from '../era/out-castle.js';
 import { readLevel } from '../level/graph.js';
 import { LAND_FORMS, LAND_FORM_IDS } from '../era/out-land.js';
+import { tunnelBuilding } from './tunnel-buildings.js';
+import { tunnelTech } from './tunnel-tech.js';
+import { composeLook } from './tunnel-land.js';
+import { STARTER_BLOCKS } from '../era/tech-blocks.js';
+import { readBlock, FINISHES } from '../era/blocks.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -49,6 +54,7 @@ export const WORLD_STYLE = Object.freeze({
   trail: 'the ground\'s character on a trail: run, heartbeat, bumpiness',
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
+  look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit into a look of its own, which the ground is drawn in',
 });
 /** A civilization: what it builds, and how. */
 export const CIVILIZATION = Object.freeze({
@@ -57,6 +63,8 @@ export const CIVILIZATION = Object.freeze({
   fort: 'the fortification its castles raise (crenellated, battered, or its elements)',
   town: 'how it lays out a town: length, sway, branches, levels, back, farms, heartbeat, secondary',
   castle: 'how it raises a castle: size, wards, rise',
+  builds: 'what it builds, in words ("a modular sci-fi habitat", or { intent, seed? }): tunnelled through its blocks into its building language, from its anchor when one is named',
+  technology: 'its technology: { finish?, blocks?: { <id>: block }, things?: { <id>: words | { intent, seed? } } }, each thing tunnelled into a block its library keeps',
 });
 const GROUPS = Object.freeze({
   trail: ['run', 'heartbeat', 'bumpiness'],
@@ -98,9 +106,10 @@ function readStyle(s, at) {
     if (!WORLD_STYLE[k]) throw new Error(`gameworld: ${at}.${k} is not part of the style (${Object.keys(WORLD_STYLE).join(', ')})${CIVILIZATION[k] ? `; ${k} belongs to a civilization` : ''}`);
     if (k === 'kit') {
       const id = resolveKitId(v);
-      if (!STAGE_KITS[id] || !STAGE_KITS[id].shell) throw new Error(`gameworld: ${at}.kit '${v}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].shell).join(', ')})`);
+      if (!stageKit(id) || !stageKit(id).shell) throw new Error(`gameworld: ${at}.kit '${v}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].shell).join(', ')})`);
       out.kit = id;
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
+    else if (k === 'look') out.look = intentOf(v, `${at}.look`);
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
   }
@@ -128,6 +137,62 @@ function readCivilization(c, at) {
   for (const [k, v] of Object.entries(c)) {
     if (!CIVILIZATION[k]) throw new Error(`gameworld: ${at}.${k} is not part of a civilization (${Object.keys(CIVILIZATION).join(', ')})${k === 'characters' || k === 'people' ? '; its people are left open for now' : ''}`);
     out[k] = GROUPS[k] ? group(k, v, `${at}.${k}`) : v;
+  }
+  if (out.builds !== undefined) out.builds = intentOf(out.builds, `${at}.builds`);
+  if (out.technology !== undefined) {
+    const T = out.technology;
+    if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, things? }`);
+    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'things'].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, things)`);
+    if (T.finish !== undefined && !FINISHES[T.finish]) throw new Error(`gameworld: ${at}.technology.finish '${T.finish}' is not a finish (${Object.keys(FINISHES).join(', ')})`);
+    if (T.blocks !== undefined && !isObj(T.blocks)) throw new Error(`gameworld: ${at}.technology.blocks is { <id>: block }`);
+    if (T.things !== undefined && !isObj(T.things)) throw new Error(`gameworld: ${at}.technology.things is { <id>: words | { intent, seed? } }`);
+    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: Object.fromEntries(Object.entries(T.things ?? {}).map(([id, v]) => { if (!ID.test(id)) throw new Error(`gameworld: ${at}.technology.things '${id}': an id is a short lower-case name`); return [id, intentOf(v, `${at}.technology.things.${id}`)]; })) };
+  }
+  return out;
+}
+const intentOf = (v, at) => {
+  const o = typeof v === 'string' ? { intent: v } : isObj(v) ? { ...v } : null;
+  if (!o || typeof o.intent !== 'string' || !o.intent.trim()) throw new Error(`gameworld: ${at} is a few words, or { intent, seed? }`);
+  for (const k of Object.keys(o)) if (!['intent', 'seed'].includes(k)) throw new Error(`gameworld: ${at}.${k} is not an intent setting (intent, seed)`);
+  return o;
+};
+const slugOf = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').filter((w) => !['a', 'an', 'the', 'of', 'and', 'with'].includes(w)).slice(0, 4).join('-');
+// the tunnels a world reads run once per what they are given: the same words, seed and blocks tunnel the same way
+const TUNNELS = new Map();
+const once = (key, fn) => { if (!TUNNELS.has(key)) { if (TUNNELS.size > 256) TUNNELS.clear(); TUNNELS.set(key, fn()); } return TUNNELS.get(key); };
+/** A look from words, on a base kit: the kit id it registers under, and what its tunnel did. */
+const lookFor = (look, base, seed, name) => {
+  const L = once(JSON.stringify(['l', look, base, seed, name]), () => composeLook(look.intent, { seed: look.seed ?? seed, base, name }));
+  return { kit: L.id, look: { ...look, base: L.base, id: L.id, tunnel: logOf(L.record) } };
+};
+/** What a tunnel did, for the bible and the graph: the traits it read, its passes, its gaps. */
+const logOf = (r) => ({ intent: r.intent, seed: r.seed, traits: r.read.traits.map((t) => t.id), unread: r.read.unread, passes: r.passes.length, tweaks: r.passes.flatMap((p) => p.changed ?? []), gaps: r.gaps.map(({ trait, why, proposal }) => ({ trait, why, proposal })), held: r.held, complete: r.complete });
+// a civilization's tunnels: its building language from its words, its things from theirs, in its library
+/** A civilization's library: the starter blocks, then its own (each named by its key), checked against the rest. */
+export function civLibrary(C) {
+  const library = { ...STARTER_BLOCKS };
+  for (const [id, B] of Object.entries(C.technology?.blocks ?? {})) { library[id] = { ...B, id }; readBlock(library[id], library); }
+  return library;
+}
+function tunnelCivilization(C, cid, kit, seed) {
+  const out = { ...C }, library = civLibrary(C);
+  if (C.builds) {
+    const b = C.builds, r = once(JSON.stringify(['b', b, C.anchor ?? null, kit, Object.keys(library)]), () => tunnelBuilding(b.intent, { seed: b.seed ?? seed, base: C.anchor, kitId: kit, library }));
+    if (C.anchor !== undefined) out.from = C.anchor;
+    // the language the tunnel made: named and read by its words, no longer the seed it may have started from
+    const { seeded: _s, ...anchor } = r.plan.anchor;
+    out.anchor = { ...anchor, id: slugOf(b.intent) || `${cid}-language`, read: `${b.intent}: ${r.plan.read}` };
+    out.fittings = r.plan.mounts;
+    out.tunnel = logOf(r);
+  }
+  if (C.technology) {
+    const things = {};
+    for (const [id, t] of Object.entries(C.technology.things)) {
+      const r = once(JSON.stringify(['t', id, t, Object.keys(library)]), () => tunnelTech(t.intent, { seed: t.seed ?? seed, id, library }));
+      things[id] = { ...t, block: r.plan.block, tunnel: logOf(r) };
+      library[id] = r.plan.block;
+    }
+    out.technology = { ...C.technology, things };
   }
   return out;
 }
@@ -160,7 +225,7 @@ export function readGameworld(W) {
   const seed = W.seed ?? 1;
 
   // CIVILIZATIONS: as many as the world keeps; the kit's own when it keeps none
-  if (W.civilizations !== undefined && (!isObj(W.civilizations) || !Object.keys(W.civilizations).length)) throw new Error('gameworld: civilizations is { <id>: { name?, anchor?, fort?, town?, castle? } }, at least one (or leave it out)');
+  if (W.civilizations !== undefined && (!isObj(W.civilizations) || !Object.keys(W.civilizations).length)) throw new Error('gameworld: civilizations is { <id>: { name?, anchor?, fort?, town?, castle?, builds?, technology? } }, at least one (or leave it out)');
   const civilizations = {}, civIds = Object.keys(W.civilizations ?? { [NATIVE]: {} });
   for (const id of civIds) {
     if (!ID.test(id)) throw new Error(`gameworld: civilization '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
@@ -170,6 +235,10 @@ export function readGameworld(W) {
 
   const style = { kit: 'isekai-meadow', civilization: civIds[0], ...readStyle(W.style, 'style') };
   civ(style.civilization, 'style.civilization');
+  // a look in words is tunnelled from the kit it names (or the meadow) into a look of its own, drawn as a kit is
+  if (style.look) Object.assign(style, lookFor(style.look, style.kit, seed, W.id));
+  // what a civilization says in words is tunnelled through its blocks, on the world's kit
+  for (const id of civIds) if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, style.kit, seed);
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
   const ids = Object.keys(W.levels), levels = {};
   for (const id of ids) {
@@ -181,6 +250,7 @@ export function readGameworld(W) {
     for (const k of ['kit', 'seed']) if (L.walk[k] !== undefined) throw new Error(`gameworld: ${at}.walk.${k}: a level's ${k} is its own (${k === 'kit' ? `${at}.style.kit` : `${at}.seed`}), handed to its sections`);
     if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error(`gameworld: ${at}.seed is a number`);
     const st = readStyle(L.style, `${at}.style`);
+    if (st.look) Object.assign(st, lookFor(st.look, st.kit ?? style.kit, seed, `${W.id}-${id}`));
     if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
       if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle? }`);

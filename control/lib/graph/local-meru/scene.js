@@ -18,6 +18,7 @@
  * members, the edge word says whether a stair is stone or timber, the paint share whether a roof is painted, and every
  * made colour is locked to the kit's made ramps (era/style/swatches.js). The bake and the lock are the isekai builder's.
  */
+import { lookOf } from '../era/style/looks.js';
 import { ISEKAI_STYLES, isekaiKeyOf, boulderFaces } from '../era/isekai.js';
 import { bakeStageLight } from '../era/stage.js';
 import { makeSunShadow, sunDir } from '../era/sun.js';
@@ -206,7 +207,7 @@ function madeOf(kitId, seed) {
 
 /** manifest → World payload, for a stage whose recipe carries a `meru` (a local meru on an isekai kit). */
 export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
-  const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'];
+  const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
   if (!st) throw new Error(`stage: meru: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, M = manifest.meru === true ? {} : manifest.meru;
   // `after` reads the stage's own kit and seed unless it names others: the trail this page follows

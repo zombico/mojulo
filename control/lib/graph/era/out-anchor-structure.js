@@ -84,7 +84,7 @@ export function decompileAnchor(anchor, id = null) {
   for (const p of by('ornament')) if (['sill', 'lintel', 'quoins', 'shutters', 'frame'].includes(p.kind) && M.kind !== 'block') throw new Error(`anchor: ${p.kind} need a flat wall; a ${M.kind} has none`);
   const least = Math.min(M.w, M.d), orn = Object.fromEntries(by('ornament').map((p) => [p.kind, p]));
   return {
-    id: id ?? (typeof anchor === 'string' ? anchor : A.seeded ? `seeded-${A.seeded}` : 'anchor'), read: A.read, anchor: A, use: A.use, storeys: A.storeys,
+    id: id ?? (typeof anchor === 'string' ? anchor : raw.id ?? (A.seeded ? `seeded-${A.seeded}` : 'anchor')), read: A.read, anchor: A, use: A.use, storeys: A.storeys,
     vocab: { mass: M.kind, cap: C?.kind ?? null, capEvery: !!C?.every, opening: O.kind, entry: E.kind, entryShape: E.shape, ornaments: Object.keys(orn), annex: N?.kind ?? null, tiers: !!M.tiers },
     proportions: {
       aspect: r3(Math.max(M.w, M.d) / least), reach: r3(least * 1.15), storeyH: A.storeyH,
@@ -425,7 +425,7 @@ export function speak(L, use, lot, style, seed = 1, { ring = 'near', corner = fa
   }
   // the bond: marks in the tile where its joints are spaced wider than the eye spot (nearer, the wall is a value)
   if (!envelope && at('bond') && V.mass === 'block' && L.bonds.some((b) => b && b !== 'none')) {
-    const SPACE = { coursed: 0.45, ashlar: 0.5, brick: 0.3, rubble: 0.4, boards: 0.28 };
+    const SPACE = { coursed: 0.45, ashlar: 0.5, brick: 0.3, rubble: 0.4, boards: 0.28, panels: 1.2 };
     let marks = 0;
     for (let i = 0; i < n; i++) { const b = L.bonds[Math.min(i, L.bonds.length - 1)]; if (!b || b === 'none' || SPACE[b] < eye) continue; for (const s of sidesOf(false)) marks += EB.bond(tile, wallOf(rects[i], s), 0, wallOf(rects[i], s).len, r3(i * storeyH + (i === 0 && P.socle ? P.socle.h : 0)), r3((i + 1) * storeyH), b, stGroup(i).value, stGroup(i).group, subSeed(seed, `bond:${i}:${s}`)); }
     if (marks) parts.push({ part: 'bond', span: 0, built: 'tile', n: marks });

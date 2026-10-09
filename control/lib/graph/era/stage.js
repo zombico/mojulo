@@ -21,6 +21,7 @@
  * corners, drawn as a sconce with a glowing flame, and leaves as a KHR punctual point light in the GLB.
  * Deterministic: a pure function of the recipe.
  */
+import { lookOf } from './style/looks.js';
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook, lookOfReference } from './sixth-gen.js';
 import { tileFamilyOf, normalizeTileSpec, proportionsOver } from './tile-specs.js';
 import { makeDirt, hash3, DIRT_DEFAULTS } from './dirt.js';
@@ -259,6 +260,8 @@ export const STAGE_KIT_PROPORTIONS = Object.freeze({
 export const STAGE_KIT_ALIASES = Object.freeze({ 'delfino-plaza': 'island-plaza' });
 /** A kit id (or an alias) → the kit's id; the id as given when it names neither, so the refusal can quote it. */
 export const resolveKitId = (id) => STAGE_KIT_ALIASES[id] || id;
+/** A kit by id: a written kit, or a composed look (era/style/looks.js), which is open ground in the isekai shell. */
+export const stageKit = (id) => STAGE_KITS[id] ?? (lookOf(id) ? { shell: 'isekai', style: id } : undefined);
 const VARIANTS = ['a', 'b', 'c', 'd'];
 
 /** The recipe's own tiles (`tiles: { wall: { gen, … } }`, tile-specs.js) over the kit's, surface by surface: each spec
@@ -283,7 +286,7 @@ const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 1e-9;
 /** Validate + resolve the recipe. Structural errors throw (at mint); nothing here is advisory. */
 export function planStage(m = {}) {
   const kitId = resolveKitId(m.kit || 'gothic-stone');
-  const kit0 = STAGE_KITS[kitId];
+  const kit0 = stageKit(kitId);
   if (!kit0) throw new Error(`stage: unknown kit '${kitId}' (known: ${Object.keys(STAGE_KITS).join(', ')})`);
   // the art direction (art-direction.js) first: its tiles, proportions and dressing; the recipe's own tiles and
   // proportions are then laid over it, surface by surface
@@ -745,7 +748,7 @@ function splitCard(f, nu, nv) {
 
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
-  const kit = STAGE_KITS[resolveKitId(manifest.kit)];
+  const kit = stageKit(resolveKitId(manifest.kit));
   if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder
   if (manifest.trail !== undefined && !(kit && ['nature', 'isekai'].includes(kit.shell))) throw new Error(`stage: trail: kit '${manifest.kit}' ${kit && kit.shell === 'jungle' ? 'lays its own trail (the grammar is not on the jungle yet)' : 'is not open ground'}; a trail is for ${Object.keys(STAGE_KITS).filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')}`);

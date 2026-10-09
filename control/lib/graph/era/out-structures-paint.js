@@ -24,10 +24,12 @@
  *
  *   structurePaint(kitId, { swatches })  → { kitId, ramps: { group: stops }, from, shift, accent }
  *   paintStop(paint, group, value)       → [r, g, b]
+ *   paintIndex(paint, group, value)      → { stops, i, ramp } (the ramp and the stop: a material's window on the material pole)
  *   paintLaws(paint)                     → [{ law, ok, value, want }]
  *   streetPaints(paint, town)            → { paints: one per lot, laws }
  */
-import { SWATCHES, madeRamp } from './style/swatches.js';
+import { SWATCHES, madeRamp, swatchesOf } from './style/swatches.js';
+import { baseOf } from './style/looks.js';
 import { STRUCTURE_RAILS, COVERINGS, geometry } from './out-structures.js';
 import { decompileAnchor } from './out-anchor-structure.js';
 
@@ -59,29 +61,35 @@ const resolve = (kitId, names) => { for (const n of names) { try { return { name
 
 /** A kit's paint, a recipe's re-pointings applied (a group at another of the kit's ramps), the painter's rules run. */
 export function structurePaint(kitId, { swatches = {} } = {}) {
-  if (!STRUCTURE_PAINTS[kitId] || !SWATCHES[kitId]) throw new Error(`paint: the outdoor structures are painted for ${Object.keys(STRUCTURE_PAINTS).join(', ')} (got '${kitId}')`);
+  const own = STRUCTURE_PAINTS[kitId] ?? STRUCTURE_PAINTS[baseOf(kitId)];
+  if (!own || !swatchesOf(kitId)) throw new Error(`paint: the outdoor structures are painted for ${Object.keys(STRUCTURE_PAINTS).join(', ')} (got '${kitId}')`);
   const ramps = {}, names = {}, from = {}, shift = {};
   for (const g of SURFACE_GROUP_IDS) {
     if (swatches[g] !== undefined) { madeRamp(kitId, swatches[g]); const r = resolve(kitId, [swatches[g]]); ramps[g] = r.stops; names[g] = r.name; from[g] = 'recipe'; continue; }
-    const r = resolve(kitId, STRUCTURE_PAINTS[kitId][g] ?? BASE[g]); ramps[g] = r.stops; names[g] = r.name; from[g] = 'kit';
+    const r = resolve(kitId, own[g] ?? BASE[g]); ramps[g] = r.stops; names[g] = r.name; from[g] = 'kit';
   }
   for (const g of Object.keys(swatches)) if (!SURFACE_GROUPS[g]) throw new Error(`paint: '${g}' is not a surface group (${SURFACE_GROUP_IDS.join(', ')})`);
   const covers = Object.keys(COVERINGS).map((c) => `str:${c}`), walls = ['str:plaster', 'str:stone', 'str:timber'];
   // a covering on its walls' ramp sits a stop under them; trim on a covering's ramp sits a stop over it
   for (const c of covers) if (walls.some((w) => ramps[w] === ramps[c])) shift[c] = -1;
   if (covers.some((c) => ramps[c] === ramps['str:paint'])) { shift['str:paint'] = 1; from['str:paint'] = `${from['str:paint']} · rule: a stop over the roof it shares a ramp with`; }
-  const [accRamp, accStop] = SWATCHES[kitId].accent;
+  const [accRamp, accStop] = swatchesOf(kitId).accent;
   return { kitId, ramps, names, from, shift, accent: madeRamp(kitId, accRamp)[accStop], accentRamp: madeRamp(kitId, accRamp), accentStop: accStop };
 }
 
 /** A group's colour at a value (a lit value: the light has been applied), the painter's rules kept. */
 export function paintStop(P, group, value, step = 0) {
-  if (group === 'str:accent') return P.accent;
+  const { stops, i } = paintIndex(P, group, value, step);
+  return stops[i];
+}
+/** The same, as the ramp and the stop on it (`ramp` its name): what a material is painted round on the material pole. */
+export function paintIndex(P, group, value, step = 0) {
+  if (group === 'str:accent') return { stops: P.accentRamp, i: P.accentStop, ramp: 'accent' };
   const S = P.ramps[group] ?? P.ramps['str:stone'], n = S.length;
   let i = Math.max(0, Math.min(n - 1, Math.round(value * (n - 1)) + step + (P.shift[group] ?? 0)));
   if (S === P.accentRamp && i === P.accentStop) i = i + (step > 0 || i === 0 ? 1 : -1);
   if (COVER_GROUPS.has(group) && S === P.ramps['str:opening']) i = Math.max(i, Math.round(0.04 * (n - 1)) + (P.shift['str:opening'] ?? 0) + 1);
-  return S[Math.max(0, Math.min(n - 1, i))];
+  return { stops: S, i: Math.max(0, Math.min(n - 1, i)), ramp: group === 'str:opening' ? 'opening' : (P.names?.[group] ?? 'stone') };
 }
 
 const COVER_GROUPS = new Set(Object.keys(COVERINGS).map((c) => `str:${c}`));

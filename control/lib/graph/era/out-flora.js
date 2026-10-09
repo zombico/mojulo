@@ -18,6 +18,7 @@
  * a few stylized BARK_PATTERNS; GRASS is chosen from mojulo's own grass primitives (GRASS_PRIMITIVES), not one look.
  * A COMPOSITION is layers of forms with density by ring (JUNGLE_COMPOSITION reads the jungle that way). Pure; seeded.
  */
+import { baseOf } from './style/looks.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { BARKS } from '../vegetation/bark.js';
@@ -60,7 +61,7 @@ export const FLORA_SKINS = Object.freeze({
   'isekai-garden': { bloom2: 'blossom' },
   'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', bloom2: 'foliage', water: 'glow' },
 });
-export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? {}) });
+export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? FLORA_SKINS[baseOf(kitId)] ?? {}) });
 
 // ── geometry: icosphere masses, revolved profiles, tubes ───────────────────────
 const faceNormal = (c) => unit(cross(sub(c[1], c[0]), sub(c[2], c[0])));

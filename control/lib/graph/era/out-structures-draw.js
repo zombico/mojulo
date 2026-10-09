@@ -4,7 +4,8 @@
  * their courses. Shared by the structures sheet (out-structures-html.js) and the town map (out-town-html.js). Pure.
  */
 import { hexOfRgb } from './style/swatches.js';
-import { paintStop } from './out-structures-paint.js';
+import { paintIndex } from './out-structures-paint.js';
+import { poleOf, materialOf, platePattern } from './style/pole.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const SUN = (() => { const s = [-0.45, -0.6, 0.66], l = Math.hypot(...s); return s.map((x) => x / l); })();
@@ -26,19 +27,34 @@ export const VIEWS = {
 
 // ground takes the kit's land ramps; a kit drawn from textures has none, and takes its stone
 /** A face's fill: the light first (a stop up where it faces the sun, down where it turns away), then the paint picks
- *  the colour off the face's group's ramp. Without a paint the face is drawn in its values: the asset as built. */
-export function fillOf(f, paint) {
+ *  the colour off the face's group's ramp. Without a paint the face is drawn in its values: the asset as built. On the
+ *  MATERIAL pole (era/style/pole.js) and given `defs` (a Map the drawing puts in its <defs>), the face is its material,
+ *  a pixel pattern in the stops round that colour (the paint's `materials` say what a group is made of where its ramp
+ *  can't: a machine's finish); a mark, a light or a void stays flat. */
+export function fillOf(f, paint, defs = null) {
   const lam = dot(f.normal, SUN), step = lam > 0.5 ? 1 : lam < 0.12 ? -1 : 0;
   if (!paint) { const g = Math.round(Math.max(0.03, Math.min(1, f.value + step * 0.1)) * 255).toString(16).padStart(2, '0'); return `#${g}${g}${g}`; }
-  return hexOfRgb(paintStop(paint, f.group ?? 'str:plaster', f.value, step));
+  const { stops, i, ramp } = paintIndex(paint, f.group ?? 'str:plaster', f.value, step), m = defs && poleOf(paint.kitId) === 'material' ? (paint.materials && f.group in paint.materials ? paint.materials[f.group] : materialOf(ramp)) : null;
+  return m ? platePattern(defs, { stops, i, material: m, seed: ramp, kit: paint.kitId, step }) : hexOfRgb(stops[i]);
 }
+/** A surface group at a value as a fill (a plan's ground, a route, a court): its paint stop, or on the material pole and
+ *  given `defs` its material's pattern round that stop. */
+export function paintFill(paint, group, value, defs = null) {
+  if (!paint) { const g = Math.round(Math.max(0, Math.min(1, value)) * 255).toString(16).padStart(2, '0'); return `#${g}${g}${g}`; }
+  const { stops, i, ramp } = paintIndex(paint, group, value), m = defs && poleOf(paint.kitId) === 'material' ? materialOf(ramp) : null;
+  return m ? platePattern(defs, { stops, i, material: m, seed: ramp, kit: paint.kitId }) : hexOfRgb(stops[i]);
+}
+/** The <defs> of a drawing's material patterns ('' when there are none: a banded drawing is as it was). */
+export const defsOf = (defs) => (defs && defs.size ? `<defs>${[...defs.values()].join('')}</defs>` : '');
+/** The flat colour under a fill (a pattern's middle stop): what an outline is stroked in. */
+const strokeOf = (f, paint) => (paint ? fillOf(f, paint) : '#111');
 
 /**
  * Buildings drawn in one view: `groups` is a list of face lists (one per building); groups are drawn far to near,
  * inside each its masses far to near, then what is mounted on its walls, then what stands before them. `ppm` fixes the
  * scale (pixels a metre) so a row compares sizes; `markTile` hatches the tile's marks; `ground` draws the ground line.
  */
-export function drawStructures(groups, { view = 'axon', paint = null, w = 260, h = 220, ppm = null, pad = 10, ground = true, markTile = false, under = '', over = '', at = null, floor = [] } = {}) {
+export function drawStructures(groups, { view = 'axon', paint = null, w = 260, h = 220, ppm = null, pad = 10, ground = true, markTile = false, under = '', over = '', at = null, floor = [], defs: shared = null } = {}) {
   const V = VIEWS[view], vis = (f) => dot(f.normal, V.F) < -1e-6;
   const centre = (f) => f.corners.reduce((s, p) => [s[0] + p[0] / f.corners.length, s[1] + p[1] / f.corners.length, s[2] + p[2] / f.corners.length], [0, 0, 0]);
   // a building is drawn mass by mass, far to near; inside a mass its walls far to near, each followed by what is
@@ -76,13 +92,14 @@ export function drawStructures(groups, { view = 'axon', paint = null, w = 260, h
   // `at` pins the origin (px) so a drawing can share a frame with what is under it
   const ox = at ? at[0] : w / 2 - ((u0 + u1) / 2) * k, oy = at ? at[1] : h - pad - (view === 'plan' ? (h - 2 * pad - (v1 - v0) * k) / 2 : 0) + v0 * k;
   const X = (u) => (ox + u * k).toFixed(1), Y = (v) => (oy - v * k).toFixed(1);
-  const polys = [];
+  // (`defs`: a Map the caller's own under/over drew patterns into, so all of them land in the one <defs>)
+  const polys = [], defs = shared ?? new Map();
   for (const g of prepared) for (const x of g.shown) {
     // a face may carry its own paint (a household's, by the street's rules); without a paint all is values
-    const fill = fillOf(x.f, paint ? (x.f.paint ?? paint) : null), pts = x.pts.map(([u, v]) => `${X(u)},${Y(v)}`).join(' ');
-    polys.push(`<polygon points="${pts}" fill="${fill}" stroke="${paint ? fill : '#111'}" stroke-width="${paint ? 0.5 : 0.35}" stroke-linejoin="round"${x.f.tile && markTile ? ' stroke-dasharray="2 1.5" opacity="0.85"' : ''}/>`);
+    const P = paint ? (x.f.paint ?? paint) : null, fill = fillOf(x.f, P, defs), pts = x.pts.map(([u, v]) => `${X(u)},${Y(v)}`).join(' ');
+    polys.push(`<polygon points="${pts}" fill="${fill}" stroke="${strokeOf(x.f, P)}" stroke-width="${paint ? 0.5 : 0.35}" stroke-linejoin="round"${x.f.tile && markTile ? ' stroke-dasharray="2 1.5" opacity="0.85"' : ''}/>`);
   }
   const g = ground && view !== 'plan' && view !== 'axon' ? `<line x1="2" x2="${w - 2}" y1="${Y(0)}" y2="${Y(0)}" stroke="#111" stroke-width="1.2"/>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${under}${g}${polys.join('')}${over}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${defsOf(defs)}${under}${g}${polys.join('')}${over}</svg>`;
 }
 export const fig = (svg, cap) => `<figure>${svg}<figcaption>${cap}</figcaption></figure>`;

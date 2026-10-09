@@ -16,7 +16,7 @@
  * A node's recipe is its section's own (era/out-trail.js `readOutTrail`, local-meru/plan.js `readLocalMeru`) less its
  * `id` and `after`: the node's key is its id, and the graph says what it follows.
  */
-import { STAGE_KITS, resolveKitId } from '../era/stage.js';
+import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
 
 export const LEVEL_LAYOUTS = Object.freeze(['sequential']);
 export const LEVEL_SECTIONS = Object.freeze(['trail', 'meru']);
@@ -30,7 +30,7 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 /** A kit id as the level reads it: known, and resolved from any older name. */
 function kitOf(where, k) {
   const id = resolveKitId(k);
-  if (!STAGE_KITS[id]) throw new Error(`level: ${where}.kit '${k}' is not a stage kit`);
+  if (!stageKit(id)) throw new Error(`level: ${where}.kit '${k}' is not a stage kit`);
   return id;
 }
 
@@ -100,4 +100,4 @@ export function readLevel(L) {
 }
 
 /** The look a kit draws its open ground in (a trail followed is planned in its follower's look). */
-export const styleOfKit = (kit) => STAGE_KITS[kit].style || null;
+export const styleOfKit = (kit) => stageKit(kit).style || null;

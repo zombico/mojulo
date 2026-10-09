@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Write a scapeshift outdoor sheet to disk: `node scripts/out-sheet.mjs <index|flora|land|structures|fortified-town|castle|gameworld> [out.html] [--seed N] [--kit id] [--raster]`.
- * `gameworld --auto "a few words"` composes a world from a prompt (autonomous mode) and draws its bible instead of the
+ * Write a scapeshift outdoor sheet to disk: `node scripts/out-sheet.mjs <index|flora|land|blocks|tech|structures|fortified-town|castle|gameworld> [out.html] [--seed N] [--kit id] [--raster]`.
+ * `gameworld --example halden-reach` draws the frontier example instead of Meadowmark. `gameworld --auto "a few words"` composes a world from a prompt (autonomous mode) and draws its bible instead of the
  * example's. `--raster` swaps each of the gameworld bible's plates (drawn as SVG) for a JPEG, for a page small enough to share.
  * The sheets are pure string builders (era/out-*-html.js); this only writes one where a browser can open it.
  */
@@ -10,7 +10,7 @@ import { resolve } from 'node:path';
 
 const args = process.argv.slice(2), flag = (k) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const raster = args.includes('--raster') && !!args.splice(args.indexOf('--raster'), 1);
-const seed = flag('--seed'), kitId = flag('--kit'), auto = flag('--auto');
+const seed = flag('--seed'), kitId = flag('--kit'), auto = flag('--auto'), example = flag('--example');
 const [name = 'structures', out = `out-${name}.html`] = args;
 const SHEETS = {
   index: async (o) => (await import('../lib/graph/era/out-index-html.js')).outIndexHtml(o),
@@ -19,7 +19,9 @@ const SHEETS = {
   'fortified-town': async (o) => (await import('../lib/graph/era/out-fortified-town-html.js')).outFortifiedTownHtml(o),
   castle: async (o) => (await import('../lib/graph/era/out-castle-html.js')).outCastleHtml(o),
   land: async (o) => (await import('../lib/graph/era/out-land-html.js')).outLandHtml(o),
-  gameworld: async () => { const G = await import('../lib/graph/gameworld/index.js'); return G.gameworldBibleHtml(auto ? G.composeGameworld({ prompt: auto, seed: seed ? Number(seed) : 1 }) : G.MEADOWMARK); },
+  blocks: async (o) => (await import('../lib/graph/era/out-blocks-html.js')).outBlocksHtml(o),
+  tech: async (o) => (await import('../lib/graph/gameworld/tech-html.js')).techIndexHtml(o),
+  gameworld: async () => { const G = await import('../lib/graph/gameworld/index.js'); return G.gameworldBibleHtml(auto ? G.composeGameworld({ prompt: auto, seed: seed ? Number(seed) : 1 }) : example === 'halden-reach' ? G.HALDEN_REACH : G.MEADOWMARK); },
 };
 if (!SHEETS[name]) { console.error(`out-sheet: '${name}' is not a sheet (${Object.keys(SHEETS).join(', ')})`); process.exit(1); }
 const opts = { ...(seed ? { seed: Number(seed) } : {}), ...(kitId ? { kitId } : {}) };

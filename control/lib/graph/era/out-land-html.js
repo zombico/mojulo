@@ -5,8 +5,10 @@
  * and `drawLand(d, kit)` are pure.
  */
 import { LAND_FORMS, LAND_FORM_IDS, LAND_LEVELS, LAND_LAWS, LAND_PARTS, designLand, landLaws } from './out-land.js';
-import { SWATCHES, hexOfRgb } from './style/swatches.js';
+import { SWATCHES, hexOfRgb, swatchesOf } from './style/swatches.js';
 import { CSS } from './out-index-html.js';
+import { poleOf, materialOf, platePattern } from './style/pole.js';
+import { defsOf } from './out-structures-draw.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const n2 = (v) => (typeof v === 'number' ? (Math.round(v * 100) / 100).toString() : String(v));
@@ -15,7 +17,7 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const SUN = unit([-0.45, -0.6, 0.66]);
 /** The kits that carry land ramps; a kit drawn from tinted textures borrows the meadow's to be drawn at all. */
 export const LAND_KITS = Object.freeze(Object.keys(SWATCHES).filter((k) => SWATCHES[k].land));
-const rampsOf = (kitId) => (SWATCHES[kitId]?.land ? SWATCHES[kitId].land : SWATCHES['isekai-meadow'].land);
+const rampsOf = (kitId) => swatchesOf(kitId)?.land ?? SWATCHES['isekai-meadow'].land;
 
 /**
  * A land form in a kit's swatches, seen from above and to the left (or face on, `view: 'front'`): faces culled and
@@ -37,18 +39,19 @@ function frame(d, view, lift) {
 export const landFit = (d, { w = 180, h = 140, view = 'axon', lift = 1 } = {}) => { const F = frame(d, view, lift); return Math.min((w - 12) / Math.max(0.01, F.x1 - F.x0), (h - 12) / Math.max(0.01, F.y1 - F.y0)); };
 
 export function drawLand(d, kitId, { w = 180, h = 140, ppm = null, view = 'axon', sky = false, lift = 1 } = {}) {
-  const land = rampsOf(kitId), { D, R, U, faces, x0, x1, y0, y1 } = frame(d, view, lift);
+  // on the material pole (era/style/pole.js) every face is its material, a pattern round its stop
+  const land = rampsOf(kitId), { D, R, U, faces, x0, x1, y0, y1 } = frame(d, view, lift), real = poleOf(kitId) === 'material', defs = new Map();
   const k = ppm ?? Math.min((w - 12) / Math.max(0.01, x1 - x0), (h - 12) / Math.max(0.01, y1 - y0));
   const ox = w / 2 - ((x0 + x1) / 2) * k, oy = h / 2 - ((y0 + y1) / 2) * k;
   const depth = (f) => f.corners.reduce((s, p) => s + dot(p, D), 0) / f.corners.length;
   const polys = faces.map((f) => ({ f, z: depth(f) })).sort((a, b) => b.z - a.z).map(({ f }) => {
     const ramp = land[LAND_PARTS[f.part].role] ?? land.rock, n = ramp.length, lam = dot(f.normal, SUN);
     const stop = Math.max(0, Math.min(n - 1, Math.round(f.value * (n - 1)) + (lam > 0.55 ? 1 : lam < 0.05 ? -1 : 0)));
-    const col = hexOfRgb(ramp[stop]);
-    return `<polygon points="${f.corners.map((p) => `${(ox + dot(p, R) * k).toFixed(1)},${(oy - dot(p, U) * k).toFixed(1)}`).join(' ')}" fill="${col}" stroke="${col}" stroke-width="0.5" stroke-linejoin="round"/>`;
+    const col = hexOfRgb(ramp[stop]), role = LAND_PARTS[f.part].role, m = real ? materialOf(land[role] ? role : 'rock') : null;
+    return `<polygon points="${f.corners.map((p) => `${(ox + dot(p, R) * k).toFixed(1)},${(oy - dot(p, U) * k).toFixed(1)}`).join(' ')}" fill="${m ? platePattern(defs, { stops: ramp, i: stop, material: m, seed: role, kit: kitId, step: lam > 0.55 ? 1 : lam < 0.05 ? -1 : 0 }) : col}" stroke="${col}" stroke-width="0.5" stroke-linejoin="round"/>`;
   }).join('');
   const bg = sky ? `<rect width="${w}" height="${h}" fill="${hexOfRgb((land.sky ?? land.far)[Math.min(1, (land.sky ?? land.far).length - 1)])}"/>` : '';
-  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(`${d.dials.form} ${d.dials.variant}`)}">${bg}${polys}</svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(`${d.dials.form} ${d.dials.variant}`)}">${defsOf(defs)}${bg}${polys}</svg>`;
 }
 
 const fig = (svg, cap) => `<figure>${svg}<figcaption>${cap}</figcaption></figure>`;

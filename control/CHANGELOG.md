@@ -12,6 +12,91 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Realistic ground: the opposite pole of the isekai look
+
+- **Why.** The isekai look carries its ground on grass cards and pixel tiles. On bare ground (a desert, a clay plain) the mesh underneath showed through:
+  - each landform cell was lit with its own facet normal, so slopes broke into steps;
+  - the sun's shadow was sampled at four corners and smeared across two triangles (the "waffle");
+  - a warm ramp's lit and shaded stops sat too close to give any contrast.
+- **The realistic pole.** A look card's `ground` (grammar facet) draws the ground as material under light:
+  - The colour belongs to the material: `dirt`, `scree` and `packed` tiles painted in the ramp's stops, round the ramp's middle. The trail sits a stop paler.
+  - The baked corners carry light only, and the page multiplies texel × light.
+  - The light is smooth over the form (the heightfield's normal at each corner, shared by every cell meeting there), with a warm key and a cool sky fill.
+  - Cavity darkens hollows and lifts crests.
+  - The sun's shadow is hard: a cell whose shadow changes inside it is split, so the shade gathers into pockets with an edge.
+  - The tiles show clods with an outline on the shadow side and a lit chip on the sun side, plus patches and grit.
+  - A card without `ground` renders exactly as before, so every written isekai card is unchanged.
+- **Variants that join.** The ground tiles come in edge-matched variants (Wang tiles), so the ground doesn't repeat in rows from far:
+  - each tile edge has a type;
+  - each edge is painted once, as a strip across the seam;
+  - each block's variant is set by its four edges' types, each type chosen by its own dice;
+  - clods lie as thick by a seam as anywhere else.
+- **In the land tunnel.**
+  - A `realistic` trait (realism, realistic, naturalistic) pulls the pole.
+  - A new `pocketing` look law measures contrast at two scales: sun on a flat against its shade, and the ground tile from its darkest to its lightest texel.
+  - When the law fails, its tweak deepens the shade (the sky's fill down) or widens the tile's window.
+- **The pole cascades.** A look decides its pole once (`card.pole`: absent is banded, `'material'` is realistic), and every drawer reads it through `era/style/pole.js`; no drawer decides it.
+  - **Materials.** A surface's material comes from the ramp its colour comes from: stone, grain (timber, bark, rope), leaf, dirt, otherwise plaster. A machine's finish names its own (`FINISH_MATERIALS`: an alloy body is metal). Paint, lenses, glow, the accent and openings stay flat.
+  - **One painter set** (`isekai-tiles.js`): dirt, scree, packed, stone, plaster, grain, leaf, metal. `materialBlocks` gives any material in any five stops, a texel a block.
+  - **The stage.** The cliffs, rocks, hats, fringes, grass cards and trees are texel × light. Every tile's window is re-centred, the light makes the band, and the trees take leaf and grain tiles. Locked colour no longer applies to them.
+  - **The plates.** On a structure, machine, castle, land, flora or town plate, each face is a pixel pattern of its material in the five stops round its lit stop, a block a plate pixel.
+  - **The far ring.** Past it the texel is under the eye spot and the air carries the colour: far ridges, their clumps, the clouds and the cloud plate stay flat on either pole.
+- **A palette that reads as realism.** Four look laws apply on the material pole; a banded look stands aside.
+  - `hue-steady`: a material ramp keeps one hue, and the light shifts it, not the ramp.
+  - `chroma-ceiling`: natural ground is muted, with no stop past half saturated and its ends less.
+  - `albedo-band`: a material's middle sits low-middle, and the sun makes it bright.
+  - `one-family`: the ground's materials share a hue family and part by value and texture.
+  - One tweak rebuilds a failing ramp round its middle made real, with almost no hue lean (`toHsl` / `toRgb` are now exported from `look-facets.js`).
+- **Alpha patches by cause.** Five patches lie over the realistic ground on the page's blend layer:
+  - **fines** in hollows, a stop darker;
+  - **gravel** on slopes and the talus apron;
+  - **dust** drifted over flats, a stop paler;
+  - a lichen **crust** on stable flats off the trail;
+  - **trodden** fines along the trail's edges.
+- **How a patch draws.** Each patch is a material tile in its ramp's stops, and its alpha is a block noise from ½ to 1. It is drawn alpha-tested against its weight (`blend: 'cut'`: tex.a × weight against ½), so its edge is a ragged pixel edge that grows with the weight. Each patch takes the light of the piece it lies on, so shadows stay crisp.
+- **Rock drawn real.** Recolouring alone left the rock isekai: the banded `cliff` tile paints its own light in (lit bench tops, black ledges), and `rock` is two flat blotch levels with ink cracks.
+  - On the material pole the cliff is drawn as `strata` (a fine mottle, uneven bedding planes broken here and there, few joints, so they never close into bricks) and the rock as a `rockface` (mottle, thin fractures lit along their upper edge, speckle). A card's tile may name its painter (`paint`).
+  - Rock and cliff are lit smooth corner by corner (a form's normals summed at its shared corners), with the shadow still the face's own and crisp.
+  - Boulders stand bare: no grass hats.
+  - A `sky-fill` law keeps the sky's fill near grey (chroma ≤ 48), so rock in shade leans cool instead of turning blue.
+  - On the plates, rock is a rock face and worked stone is stone.
+- **Leaves, not blobs.** On the material pole a crown is stamped with the look's LEAF DIE (`LEAF_DIES`: oval, lance, cleft, lobed, needle), chosen by what grows: scrub and thorn are cleft, oak lobed, willow lance, pine needle, birch oval, and oval otherwise.
+  - **The skin.** It comes in four bands of light (`canopy-b0`…`b3`), and figure and ground swap as the light falls: lit is a light ground with a few dark leaves, then denser, then a dark ground with light leaves, then a few light leaves in the deepest shade. Each crown face takes its band by the light it was baked with, and the corner colour carries only the light left over (its hue kept).
+  - **Leaf cards.** Crossed cutout cards (`leafcard`) stand out of every crown mass, dense at the foot and ragged at the tip, so a crown's edge breaks into leaf shapes.
+  - **The plates.** Foliage on a look with a die is its canopy skin, banded by the face's light.
+- **Compact cut layers.** A cut layer with a world-locked uv (`uvScale`) ships compact: four corners a quad, sRGB bytes, and the uv and triangles rebuilt in the page. Existing blend layers are byte-identical.
+
+### Scapeshift tunnels: blocks, not kits
+
+- A thing is tunnelled, not templated (`lib/graph/gameworld/tunnel.js`): an intent is read into traits (each a measure
+  on the result; a phrase names its own trait and its words still say what they say alone), the blocks that can show
+  them are pulled and combined, the result is assessed (every trait's measure and the domain's laws), tweaked inside its
+  rails and reassessed for a bounded number of passes, every pass logged, then it goes on the plan. A trait nothing can
+  show is a gap, named with what would close it, never filled silently. One loop, three domains.
+- Blocks (`lib/graph/era/blocks.js`): primitives in code (box, drum, tube, cone, dish, truss, panel, wheel, track, arm,
+  fin, lamp, ring), blocks as data the agent writes (parts on rails, numbers as expressions over params, a `many` dial
+  from little to many, sockets, an automation's cycle), every part gated by the eye spot at its tier's ring, and laws
+  (one leads, the signature reads at its ring, every claimed function shows its reads, one status light, budget,
+  stands). Finishes point the technology's surface groups at a kit's ramps. A starter library
+  (`era/tech-blocks.js`) and the block index sheet (`out-sheet.mjs blocks`).
+- Buildings tunnel (`gameworld/tunnel-buildings.js`): building intents ("a modular sci-fi habitat, raised, with a comms
+  mast and solar") as ops on the building elements and technology mounted on them, spoken for a programme so modules
+  emerge as annexes. Its first run named a gap, panel seams; the wall's bond rail gained `panels` to close it.
+- Technology tunnel (`gameworld/tunnel-tech.js`): civilizations gain technology, conceptual and visual only. Functions
+  (power, store, move, lift, make, sense, signal, keep, grow, light) are what the eye must find; a layout grammar lays
+  a part for every read on a body at the tier's scale (tool, machine, installation, automation); the plan is a block a
+  civilization's library keeps. A lost signature piece is thickened, not the whole thing. The technology index sheet
+  (`out-sheet.mjs tech`).
+- Land tunnel (`gameworld/tunnel-land.js`): a look composed from words instead of a kit written by hand. Style cards come
+  apart into facets (`era/look-facets.js`: palette, grammar, geology, flora, sky, air, water) and every written card
+  round-trips; colour phrases build ramps; the look's laws (ramps climb, shadows are colours, the sky brightest by day,
+  aerial perspective, tiles inside their ramps) tweak what they find. Looks register under a content-addressed id
+  (`era/style/looks.js`) and every kit lookup falls back to them, so a stage, a sheet and a bible draw one like any kit.
+  A day sky may carry a companion world.
+- In the gameworld: a civilization's `builds` and `technology` and a style's `look` are words, tunnelled when the world is
+  read; the graph gains `thing` nodes (`makes`); the bible shows each tunnel's work and each machine. Autonomous mode
+  runs all three tunnels from its prompt. An example frontier, Halden Reach, composed entirely through them.
+
 ### Gameworlds: a world above its levels
 
 - A gameworld recipe (`lib/graph/gameworld/`) in two concerns: the style (the kit its ground is drawn in, the

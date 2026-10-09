@@ -30,7 +30,7 @@ const { face, wallQuad, wallPoly, wallOf, add3, unit, dice, subSeed, r3 } = G;
 // by up to k, a fraction, or ± k whole for a count), or 'share' (the share of households that have the element)
 const ST = 'street';
 const WORDS = {
-  bond: ['none', 'coursed', 'ashlar', 'brick', 'rubble', 'boards'], capForm: ['gable', 'hip', 'pyramid', 'flat', 'dome', 'cone', 'none'], lightForm: ['rect', 'arch', 'round', 'lens'],
+  bond: ['none', 'coursed', 'ashlar', 'brick', 'rubble', 'boards', 'panels'], capForm: ['gable', 'hip', 'pyramid', 'flat', 'dome', 'cone', 'none'], lightForm: ['rect', 'arch', 'round', 'lens'],
   doorForm: ['rect', 'arch'], lintelForm: ['flat', 'key'], head: ['lantern', 'globe', 'hood', 'orb'], arm: ['post', 'bracket', 'crook'], postForm: ['square', 'round', 'capped'],
   boundForm: ['rail', 'paling', 'picket', 'hedge', 'drystone', 'coursed', 'rendered'], footPaving: ['flags', 'setts', 'slabs'], roadPaving: ['setts', 'flags', 'earth'],
   walkForm: ['kerbed', 'flush', 'boards', 'verge'],
@@ -399,6 +399,8 @@ function bond(out, W, u0, u1, z0, z1, kind, value, group, seed = 1) {
   // every course is drawn; the joints along it are depicted one for every few laid, so a wall reads as laid, not as noise
   const spec = { coursed: [0.45, 1.35], ashlar: [0.5, 1.5], brick: [0.3, 0.9], rubble: [0.4, 0] }[kind];
   if (kind === 'boards') { for (let z = z0 + 0.28; z < z1 - 0.1; z += 0.28) row(z); return out.length - before; }
+  // panels: a grid of seams, the joints lined up (a panel is made, not laid), one seam per panel each way
+  if (kind === 'panels') { for (let z = z0 + 1.2; z < z1 - 0.1; z += 1.2) row(z); for (let u = u0 + 1.2; u < u1 - 0.05; u += 1.2) perp(u, z0, z1); return out.length - before; }
   const [ch, pw] = spec;
   let k = 0;
   for (let z = z0 + ch; z < z1 - 0.08; z += ch, k++) {

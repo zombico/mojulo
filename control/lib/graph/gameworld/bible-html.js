@@ -17,7 +17,7 @@
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
-import { readGameworld, resolveLevel, RESERVED } from './world.js';
+import { readGameworld, resolveLevel, RESERVED, civLibrary } from './world.js';
 import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
 import { natureCard, colorKey, landFor } from './nature.js';
@@ -35,9 +35,27 @@ import { townMapSvg, townAxonSvg, resetTownIds } from '../era/out-town-html.js';
 import { designCastle, castleFaces } from '../era/out-castle.js';
 import { speak } from '../era/out-anchor-structure.js';
 import { drawStructures } from '../era/out-structures-draw.js';
+import { buildBlock, blockPaint } from '../era/blocks.js';
+import { tunnelBuilding } from './tunnel-buildings.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
+
+// what a tunnel did, in a line or two: the traits it read, the passes it took, what it tweaked, what it could not say
+const tunnelLog = (T) => `<p class="muted"><b>${esc(T.intent)}</b> · read as ${esc(T.traits.join(', ') || 'nothing')}${T.unread.length ? ` · unread: ${esc(T.unread.join(', '))}` : ''} · ${T.passes} pass${T.passes === 1 ? '' : 'es'}${T.tweaks.length ? `, tweaked: ${esc(T.tweaks.join('; '))}` : ''} · ${T.complete ? 'every trait and law holds' : T.held ? 'holds, with gaps' : '<b>advises</b>'}</p>${T.gaps.map((g) => `<p class="muted">Gap · <b>${esc(g.trait)}</b>: ${esc(g.why)}. Would close it: ${esc(g.proposal)}.</p>`).join('')}`;
+/** A civilization's building language as tunnelled from its words: the building it speaks, with its fittings. */
+function tunnelHtml(C, cid, kit, seed, worldKit) {
+  if (!C.tunnel) return '';
+  const r = tunnelBuilding(C.builds.intent, { seed: C.builds.seed ?? seed, base: C.from, kitId: worldKit, library: civLibrary(C) });
+  return `<div class="tunnel"><h4>Tunnelled from its words</h4><div class="fort"><div class="fort-im">${plate(`civ-tunnel-${cid}`, drawStructures([r.built.faces], { paint: blockPaint(kit, C.technology?.finish ?? 'alloy'), w: 360, h: 260 }))}</div><div>${tunnelLog(C.tunnel)}${C.fittings?.length ? `<p class="muted">Fittings: ${esc(C.fittings.map((m) => `${m.n > 1 ? `${m.n} × ` : ''}${m.block} on the ${m.on}`).join(', '))}.</p>` : ''}</div></div></div>`;
+}
+/** A civilization's technology: each thing it makes, drawn in its finish, and what its tunnel did. */
+function techHtml(C, cid, kit, seed) {
+  const T = C.technology;
+  if (!T || !Object.keys(T.things).length) return '';
+  const paint = blockPaint(kit, T.finish);
+  return `<div class="tech"><h4>Its technology · ${esc(T.finish)}</h4><div class="things">${Object.entries(T.things).map(([id, t]) => { const b = buildBlock(t.block, { seed: t.seed ?? seed }); return `<figure>${plate(`civ-thing-${cid}-${id}`, drawStructures([b.faces], { paint, w: 240, h: 190 }))}<figcaption><b>${esc(id)}</b> · ${esc(t.block.tier)} · ${esc(t.block.functions.join(', '))}${tunnelLog(t.tunnel)}</figcaption></figure>`; }).join('')}</div></div>`;
+}
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
 const SECTION_WORDS = { trail: 'trail', meru: 'climb' };
 
@@ -159,7 +177,7 @@ export function gameworldBibleHtml(world) {
     return `<article class="civ" id="civ-${esc(cid)}"><div class="civ-h"><div><span class="eyebrow">Civilization · ${esc(cid)}</span><h3>${esc(C.name)}</h3></div><p class="muted mono">${esc(card.language.id)} · ${esc(card.fort.id)} · drawn in ${esc(kit)}</p></div>
 <p class="read">${esc(card.language.read)}</p><div class="houses">${houseRow(card.language.language, kit, G.seed)}</div>
 <div class="fort"><div class="fort-im">${plate(`civ-castle-${cid}`, castleAxon(castle, structurePaint(kit)))}</div><div><p class="read">${esc(card.fort.read)}</p><h4>What its language makes of a castle</h4><dl class="vocab"><dt>wall</dt><dd>${esc(I.read[0])}</dd><dt>towers</dt><dd>${esc(I.read[1])}</dd><dt>keep</dt><dd>${esc(I.read[2])}</dd></dl>
-<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div></article>`;
+<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div>${tunnelHtml(C, cid, kit, G.seed, G.style.kit)}${techHtml(C, cid, kit, G.seed)}</article>`;
   }).join('');
 
   // the gate: each part's stamp, its machine gate measured by the builders that drew it
@@ -277,6 +295,7 @@ pre{font:12px/1.5 var(--mono);white-space:pre;overflow-x:auto;margin:10px 0 0}
 .form svg,.form img{width:100%;height:auto;border:1px solid var(--rule);border-radius:3px;background:#fff}.form figcaption{font:10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:4px}.own-mark{color:var(--local);font-weight:500}
 .strips{display:grid;gap:10px}.strip-row{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;align-items:center}.many{overflow-x:auto}.many-in{display:flex;gap:8px}.many-in figure{margin:0;flex:none}.many-in svg{border:1px solid var(--rule);border-radius:3px;background:#fff}.many-in figure.mark svg{outline:3px solid var(--local);outline-offset:1px}.many-in figcaption{font:10px var(--mono);text-transform:uppercase;color:var(--muted);margin-top:3px}.many-in figure.mark figcaption{color:var(--local);font-weight:500}.many img{width:100%;height:auto;border-radius:3px}
 @media (max-width:860px){.land-hero{grid-template-columns:1fr}.strip-row{grid-template-columns:1fr}}
+.things{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.things figure{margin:0}.tech h4,.tunnel h4{margin:6px 0}
 .civ{background:var(--sheet);border:1px solid var(--rule);border-top:3px solid var(--ink);border-radius:4px;padding:16px;display:grid;gap:14px}.civ-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:8px}.civ-h h3{font-size:34px}.vocab a,.ledger a{color:inherit}
 footer{margin-top:56px;padding-top:14px;border-top:2px solid var(--ink);display:flex;justify-content:space-between;gap:8px 24px;flex-wrap:wrap}
 @media (max-width:860px){.cover,.level-grid,.fort,.cards,.places{grid-template-columns:1fr}.houses{grid-template-columns:repeat(2,minmax(0,1fr))}}

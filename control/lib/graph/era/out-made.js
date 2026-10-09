@@ -17,6 +17,7 @@
  *
  * Documentation first: nothing here is placed in a world yet. Pure; seeded dice only.
  */
+import { baseOf } from './style/looks.js';
 import { SWATCHES, madeRamp } from './style/swatches.js';
 import { materialOf } from './made-elements.js';
 import { resolveObject } from '../playscape/objects/index.js';
@@ -123,7 +124,7 @@ export const MADE_RAILS = Object.freeze({
 });
 export const MADE_KITS = Object.freeze(Object.keys(MADE_RAILS));
 const kitRails = (kitId) => {
-  const R = MADE_RAILS[kitId];
+  const R = MADE_RAILS[kitId] ?? MADE_RAILS[baseOf(kitId)];
   if (!R) throw new Error(`made: man-made architecture is indexed for the outdoor kits ${MADE_KITS.join(', ')} (got '${kitId}')`);
   return R;
 };

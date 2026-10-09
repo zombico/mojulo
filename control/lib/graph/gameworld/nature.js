@@ -9,11 +9,12 @@
  * or its clear night, how many boulders it strews, how its cliff is bedded and jointed); `landFor(kit, land)` lays a
  * world's or a level's choices over it. Pure.
  */
-import { STAGE_KITS } from '../era/stage.js';
+import { stageKit } from '../era/stage.js';
+import { lookOf } from '../era/style/looks.js';
 import { NATURE_STYLES } from '../era/nature.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { JUNGLE_STYLES } from '../era/jungle.js';
-import { SWATCHES } from '../era/style/swatches.js';
+import { swatchesOf } from '../era/style/swatches.js';
 import { LAND_FORMS, LAND_FORM_IDS, manyStep } from '../era/out-land.js';
 
 const SHELLS = { nature: NATURE_STYLES, isekai: ISEKAI_STYLES, jungle: JUNGLE_STYLES };
@@ -29,11 +30,11 @@ export const RAMP_KEY = Object.freeze({
   glow: 'what glows: water, lantern plants, lit crowns', lens: 'lit lenses and lamps', rope: 'rope and cord', paint: 'paint on what is built',
 });
 
-const cardOf = (kit) => { const K = STAGE_KITS[kit]; return SHELLS[K.shell][K.style]; };
+const cardOf = (kit) => { const K = stageKit(kit); return SHELLS[K.shell][K.style] ?? lookOf(kit)?.card; };
 
 /** A kit's natural world, read from its style card. */
 export function natureCard(kit) {
-  const K = STAGE_KITS[kit], S = cardOf(kit), L = S.landform || {}, T = S.trees || {}, G = S.grass || {}, N = S.night || null;
+  const K = stageKit(kit), S = cardOf(kit), L = S.landform || {}, T = S.trees || {}, G = S.grass || {}, N = S.night || null;
   const glows = !!S.glow, water = S.water?.fill ?? '#7f95ab';
   return {
     kind: 'nature', id: kit, look: K.style, principles: [...(S.principles || [])],
@@ -43,7 +44,7 @@ export function natureCard(kit) {
     water: { fill: water, read: `a painted ribbon, ${water}, a little under half see-through${glows ? '; it glows, the brightest line on the ground' : ''}` },
     sky: N
       ? { time: 'night', read: `night: stars${N.moon ? `, a moon (size ${N.moon.size}, phase ${N.moon.phase})` : ''}${N.planet ? `, a world hanging ${N.planet.elevation}° up, ${N.planet.size} times the moon` : ''}` }
-      : { time: 'day', read: `day: ${S.sun ? `a sun (size ${S.sun.size}, glow ${S.sun.glow})` : 'no sun'}${S.cumulus ? `, cumulus in ${S.cumulus.tiers.length} tiers leaning toward it` : ''}` },
+      : { time: 'day', read: `day: ${S.sun ? `a sun (size ${S.sun.size}, glow ${S.sun.glow})` : 'no sun'}${S.cumulus ? `, cumulus in ${S.cumulus.tiers.length} tiers leaning toward it` : ''}${S.companion ? `, a world hanging ${S.companion.elevation}° up in the day, ${S.companion.size} times the moon` : ''}` },
     light: S.light ? `key ${S.light.key.color} from ${S.light.key.elevation}° up, ambient ${S.light.ambient}` : 'the kit\'s own',
     air: S.air?.fog ? `fog ${S.air.fog.color}, density ${S.air.fog.density}` : 'clear',
     far: Array.isArray(S.layers) ? `${S.layers.length} far layers, the nearest ${range(S.layers[0].height)} m high at ${S.layers[0].at} m` : 'none',
@@ -52,7 +53,7 @@ export function natureCard(kit) {
 
 /** A kit's palette as a key: each ramp, shadow to light, and what it paints. */
 export function colorKey(kit) {
-  const K = STAGE_KITS[kit], sw = SWATCHES[K.style] || {}, out = [];
+  const K = stageKit(kit), sw = swatchesOf(K.style) || {}, out = [];
   for (const [part, ramps] of [['land', sw.land || {}], ['made', sw.made || {}]]) for (const [name, r] of Object.entries(ramps)) {
     const stops = Array.isArray(r) && Array.isArray(r[0]) ? r : typeof r === 'string' && Array.isArray(sw.land?.[r]) ? sw.land[r] : null;
     if (stops) out.push({ part, name, stops: stops.map(hex), paints: RAMP_KEY[name] ?? name, shared: typeof r === 'string' ? r : null });

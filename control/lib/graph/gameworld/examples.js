@@ -38,3 +38,53 @@ export const MEADOWMARK = Object.freeze({
   },
   links: [{ from: 'meadow-ascent', to: 'shell-shore', kind: 'gate' }],
 });
+
+/**
+ * A frontier, composed from words: nothing in it was written as a kit or a building language. Its look is tunnelled
+ * from the meadow's facets ("realism but stylized and detailed …": a grounded palette of seven stops a ramp, bare
+ * basalt, sparse scrub, a gas giant in a pale day sky, dust in the air); the survey corps' habitats are tunnelled from
+ * the building elements and the technology blocks; the dome growers start from the shell and make it theirs; each
+ * civilization's machines are tunnelled into blocks. Three levels from the landing flats to a walled relay. Its review
+ * has not begun: every part waits for the creator.
+ */
+export const HALDEN_REACH = Object.freeze({
+  id: 'halden-reach', name: 'Halden Reach', seed: 7, mode: 'gated',
+  style: {
+    kit: 'isekai-meadow',
+    look: 'realism but stylized and detailed: a grounded frontier of rust plains, basalt cliffs, sparse lichen scrub, a gas giant in a pale sky, dusty, vast',
+    civilization: 'survey-corps', trail: { heartbeat: 0.6, bumpiness: 0.55 }, meru: { preset: 'stacked-lookout' },
+    land: { landscape: { variant: 'rugged', many: 0.5 }, rock: { variant: 'boulders', many: 0.5 }, strata: { variant: 'layered', many: 0.75 }, face: { variant: 'columnar', many: 0.75 }, cloud: { variant: 'cirrus', many: 0.25 }, landmark: { variant: 'butte', many: 0.5 } },
+  },
+  civilizations: {
+    'survey-corps': {
+      name: 'The survey corps', fort: 'battered', town: { levels: 1, heartbeat: 'hamlet' },
+      builds: 'a modular sci-fi habitat, raised, with a comms mast and solar',
+      technology: { finish: 'alloy', things: { hauler: 'a tracked ore hauler', relay: 'a wind turbine relay beacon', array: 'a solar power station', scanner: 'a portable survey scanner', fabricator: 'an automated fabricator' } },
+    },
+    'dome-growers': {
+      name: 'The dome growers', anchor: 'shell', fort: 'crenellated', town: { levels: 2 },
+      builds: 'pressurised domes, banded, with solar',
+      technology: { finish: 'composite', things: { greenhouse: 'a hydroponic greenhouse', cistern: 'a water tank', loader: 'a tracked crane loader' } },
+    },
+  },
+  levels: {
+    'landing-flats': {
+      name: 'The landing flats',
+      walk: { nodes: { pad: { trail: { heartbeat: 0.35 } }, flats: { trail: true }, survey: { meru: true } } },
+      places: { town: true },
+    },
+    'basalt-run': {
+      name: 'The basalt run',
+      style: { civilization: 'dome-growers', land: { face: { variant: 'columnar', many: 1 }, landmark: { variant: 'spire', many: 0.25 } } },
+      walk: { nodes: { cut: { trail: { heartbeat: 0.8, bumpiness: 0.8 } }, gully: { trail: true } } },
+      places: { town: true },
+    },
+    'relay-ridge': {
+      name: 'Relay ridge',
+      style: { trail: { heartbeat: 0.85 } },
+      walk: { nodes: { switchback: { trail: true }, crest: { meru: { preset: 'mountain-lookout' } } } },
+      places: { town: true, castle: true },
+    },
+  },
+  links: [{ from: 'landing-flats', to: 'basalt-run', kind: 'road' }, { from: 'basalt-run', to: 'relay-ridge', kind: 'road' }],
+});

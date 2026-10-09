@@ -7,9 +7,10 @@
  * `outTrailBoardHtml(manifest)` is pure; `outTrailBoardPng(manifest)` lays it out in a headless Chromium (scene-png.js).
  */
 import { outTrailSite, outTrailLaws, exploreSeconds, OUT_TRAIL } from './out-trail.js';
-import { STAGE_KITS, resolveKitId } from './stage.js';
+import { STAGE_KITS, resolveKitId, stageKit } from './stage.js';
 import { NATURE_STYLES } from './nature.js';
 import { ISEKAI_STYLES } from './isekai.js';
+import { lookOf } from './style/looks.js';
 import { JUNGLE_STYLES } from './jungle.js';
 import { encodePngGrey } from '../landscape/surface-textures.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
@@ -21,9 +22,9 @@ const LABEL = { trailhead: 'trailhead', exit: 'exit', pinch: 'pinch', reveal: 'r
 
 /** The trail a recipe asks for, on the style its kit is drawn by. */
 export function outTrailOf(manifest) {
-  const kitId = resolveKitId(manifest.kit || 'isekai-meadow'), kit = STAGE_KITS[kitId];
+  const kitId = resolveKitId(manifest.kit || 'isekai-meadow'), kit = stageKit(kitId);
   if (!kit || !STYLES[kit.shell]) throw new Error(`stage: kit '${kitId}' is not open ground: a trail is for an outdoor kit (${Object.keys(STAGE_KITS).filter((k) => STYLES[STAGE_KITS[k].shell]).join(', ')})`);
-  const st = STYLES[kit.shell][manifest.style || kit.style], seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
+  const st = STYLES[kit.shell][manifest.style || kit.style] ?? lookOf(manifest.style || kit.style)?.card, seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   return { kitId, st, seed, site: outTrailSite(st, manifest.trail === undefined ? true : manifest.trail, seed) };
 }
 

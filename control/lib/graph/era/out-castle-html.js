@@ -8,7 +8,7 @@ import { structureStyle } from './out-structures.js';
 import { drawStructures, fig, SUN } from './out-structures-draw.js';
 import { designTown, TOWN_LAWS, fortFaces } from './out-town.js';
 import { structurePaint, paintStop } from './out-structures-paint.js';
-import { townMapSvg, townAxonSvg, resetTownIds, castleGroundSvg } from './out-town-html.js';
+import { townMapSvg, townAxonSvg, resetTownIds, castleGroundSvg, fillT, mapDefs } from './out-town-html.js';
 import { CASTLE_CARD, CASTLE_LAWS, designCastle, castleFaces, castleSurface } from './out-castle.js';
 import { composeFort, seedFort, build as FB } from './out-fortress.js';
 import { hexOfRgb } from './style/swatches.js';
@@ -57,12 +57,13 @@ function keepCard(F, title, paint) {
 }
 
 /** A castle in plan, at `px` a metre: its ditch and floor, its shadows, its walls and buildings from above, labelled. */
-function castleMapSvg(c, paint, { px = 5, labels = true } = {}) {
+function castleMapSvg(c, paint, opts = {}) { return mapDefs((defs) => castleMap(c, paint, opts, defs)); }
+function castleMap(c, paint, { px = 5, labels = true } = {}, defs = null) {
   const m = c.ditch.d1 + 6, B = { x0: c.extent.x0 - m, x1: c.extent.x1 + m, y0: c.extent.y0 - m - 6, y1: c.extent.y1 + m }, W = Math.round((B.x1 - B.x0) * px), H = Math.round((B.y1 - B.y0) * px);
   const X = (x) => ((x - B.x0) * px).toFixed(1), Y = (y) => ((B.y1 - y) * px).toFixed(1), poly = (pts) => pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ');
   const F = castleFaces(c, { most: 1 }), shade = [], k = -SUN[2], sx = (0.55 * SUN[0]) / k, sy = (0.55 * SUN[1]) / k;
   for (const g of F.groups) { const z0 = Math.min(...g.flatMap((f) => f.corners.map((p) => p[2]))); for (const f of g) if (!f.tile) shade.push(`<polygon points="${f.corners.map((p) => `${X(p[0] + sx * (p[2] - z0))},${Y(p[1] + sy * (p[2] - z0))}`).join(' ')}"/>`); }
-  const under = `<rect width="${W}" height="${H}" fill="${tint(paint, 'town:grass', 0.45)}"/>${castleGroundSvg(c, poly, paint).join('')}<g fill="${tint(paint, 'town:grass', 0)}" opacity="0.2">${shade.join('')}</g>`;
+  const under = `<rect width="${W}" height="${H}" fill="${fillT(paint, 'town:grass', 0.45)}"/>${castleGroundSvg(c, poly, paint).join('')}<g fill="${tint(paint, 'town:grass', 0)}" opacity="0.2">${shade.join('')}</g>`;
   const lab = [], tag = (x, y, t) => lab.push(`<text x="${X(x)}" y="${Y(y)}" text-anchor="middle" font-size="12" font-weight="700" fill="#111" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(t)}</text>`);
   if (labels) {
     const mg = c.gates.find((g) => g.main);
@@ -70,7 +71,7 @@ function castleMapSvg(c, paint, { px = 5, labels = true } = {}) {
     tag(c.marks.court[0], c.marks.court[1], 'the court'); if (c.marks.fore) tag(c.marks.fore[0], c.marks.fore[1], 'forecourt');
     for (const l of c.lots.filter((x) => x.use === 'hall')) tag(l.front[0], l.front[1] + (l.island ? 0 : -1.5), l.island ? 'the chapel' : 'the hall');
   }
-  return drawStructures(F.groups, { view: 'plan', paint, w: W, h: H, ppm: px, at: [-B.x0 * px, B.y1 * px], under, over: lab.join('') });
+  return drawStructures(F.groups, { view: 'plan', paint, w: W, h: H, ppm: px, at: [-B.x0 * px, B.y1 * px], under, over: lab.join(''), defs });
 }
 /** A castle standing (axonometric), on its ground. */
 function castleAxonSvg(c, paint, { w = 900, h = 620, most = 1 } = {}) {

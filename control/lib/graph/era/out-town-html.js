@@ -11,7 +11,7 @@ import { BOUNDARY_FORMS, BOUNDARY_HEIGHTS, BOUNDARY_ROLES, BOUNDARY_ROLE_IDS, WA
 import { TOWN_DRESS, TOWN_DRESS_IDS, dressTown } from './out-town-dress.js';
 import { COVERINGS, STRUCTURE_RINGS, eyeSpot } from './out-structures.js';
 import { decompileAnchor, speak } from './out-anchor-structure.js';
-import { drawStructures, fig, SUN } from './out-structures-draw.js';
+import { drawStructures, fig, SUN, paintFill } from './out-structures-draw.js';
 import { paintStop, streetPaints } from './out-structures-paint.js';
 import { hexOfRgb } from './style/swatches.js';
 
@@ -24,6 +24,12 @@ let UID = 0;
 /** Clip ids restart per page, so a page is the same bytes every time. */
 export const resetTownIds = () => { UID = 0; };
 // a surface group at a value: painted by the paint, or its grey when the town is drawn as built
+// on the material pole a map's grounds are their materials too: `fillT` while a map is drawn (`mapDefs`) puts their
+// patterns in the drawing's <defs>; outlines and joints stay flat (`tint`)
+let DEFS = null;
+export const fillT = (paint, group, v) => (DEFS ? paintFill(paint, group, v, DEFS) : tint(paint, group, v));
+/** Draw a map with its grounds' patterns collected: `fn(defs)` → svg (it passes `defs` to drawStructures). */
+export function mapDefs(fn) { const prev = DEFS; DEFS = new Map(); try { return fn(DEFS); } finally { DEFS = prev; } }
 const tint = (paint, group, v) => { if (!paint) { const g = Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0'); return `#${g}${g}${g}`; } return hexOfRgb(paintStop(paint, group, v)); };
 
 /** A town's buildings as face groups, each lot in its household's paint (the street's rules) when a paint is given. */
@@ -48,17 +54,18 @@ const segPath = (segs, X, Y) => segs.map(([a, b]) => `M${X(a[0])} ${Y(a[1])}L${X
  * The town from straight above, at `px` pixels a metre: everything the town map says, in the kit's swatches. The
  * buildings and dress are drawn by the structures drawer in plan, on the same frame as the ground under them.
  */
-export function townMapSvg(town, paint, dressed, { px = 7, labels = true } = {}) {
+export function townMapSvg(town, paint, dressed, opts = {}) { return mapDefs((defs) => townMap(town, paint, dressed, opts, defs)); }
+function townMap(town, paint, dressed, { px = 7, labels = true } = {}, defs = null) {
   const B = town.bounds, W = Math.round((B.x1 - B.x0) * px), H = Math.round((B.y1 - B.y0) * px), id = `tm${++UID}`;
   // shade is the ground's deepest stop under a paint, black as built
   const dark = paint ? tint(paint, 'town:grass', 0) : '#000000';
   const X = (x) => ((x - B.x0) * px).toFixed(1), Y = (y) => ((B.y1 - y) * px).toFixed(1), poly = (pts) => pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ');
   const g = [];
   // the ground, by level: one grass, each level under the top a little deeper in the air's shade
-  g.push(`<rect width="${W}" height="${H}" fill="${tint(paint, 'town:grass', 0.45)}"/>`);
+  g.push(`<rect width="${W}" height="${H}" fill="${fillT(paint, 'town:grass', 0.45)}"/>`);
   town.terraces.forEach((t, k) => g.push(`<rect x="0" y="${Y(t.y)}" width="${W}" height="${(H - +Y(t.y)).toFixed(1)}" fill="${dark}" opacity="0.09"/>`));
   // the fields, furrowed
-  for (const f of town.farms) { g.push(`<polygon points="${poly(f.field)}" fill="${tint(paint, 'town:soil', 0.66)}"/>`); const [a, , c] = f.field, rows = []; for (let y = a[1] + 1; y < c[1]; y += 1.4) rows.push([[a[0] + 0.5, y], [c[0] - 0.5, y]]); g.push(`<path d="${segPath(rows, X, Y)}" stroke="${tint(paint, 'town:soil', 0.3)}" stroke-width="1.1"/>`); }
+  for (const f of town.farms) { g.push(`<polygon points="${poly(f.field)}" fill="${fillT(paint, 'town:soil', 0.66)}"/>`); const [a, , c] = f.field, rows = []; for (let y = a[1] + 1; y < c[1]; y += 1.4) rows.push([[a[0] + 0.5, y], [c[0] - 0.5, y]]); g.push(`<path d="${segPath(rows, X, Y)}" stroke="${tint(paint, 'town:soil', 0.3)}" stroke-width="1.1"/>`); }
   // shadows: every building and doodad cast on the ground under it, the sun's way, as one tone
   const shade = [], k = -SUN[2], sx = (0.55 * SUN[0]) / k, sy = (0.55 * SUN[1]) / k;
   const cast = (faces, z0) => { for (const f of faces) if (!f.tile) shade.push(`<polygon points="${f.corners.map((c) => `${X(c[0] + sx * (c[2] - z0))},${Y(c[1] + sy * (c[2] - z0))}`).join(' ')}"/>`); };
@@ -68,19 +75,19 @@ export function townMapSvg(town, paint, dressed, { px = 7, labels = true } = {})
   for (const r of town.routes.filter((x) => x.foot)) {
     // the walk in its form: boards in timber, a verge's grass between the road and the path
     const rib = ribbon(r.pts, r.w + 2 * r.foot), boards = r.walkForm === 'boards', F = boards ? { group: 'str:timber', value: 0.44 } : PAVINGS[r.footPaving] ?? PAVINGS.flags, cid = `${id}${r.id}f`;
-    routeSvg.push(`<clipPath id="${cid}"><polygon points="${poly(rib)}"/></clipPath><polygon points="${poly(rib)}" fill="${tint(paint, F.group, F.value + 0.06)}"/><path clip-path="url(#${cid})" d="${segPath(joints(r.pts, r.w + 2 * r.foot, boards ? 'earth' : r.footPaving === 'setts' ? 'setts' : 'flags', r.pts.length * 17), X, Y)}" stroke="${tint(paint, F.group, 0.4)}" stroke-width="0.5" fill="none" opacity="0.7"/>`);
-    if (r.verge) routeSvg.push(`<polygon points="${poly(ribbon(r.pts, r.w + 2 * (r.verge + 0.06)))}" fill="${tint(paint, 'town:grass', 0.55)}"/>`);
+    routeSvg.push(`<clipPath id="${cid}"><polygon points="${poly(rib)}"/></clipPath><polygon points="${poly(rib)}" fill="${fillT(paint, F.group, F.value + 0.06)}"/><path clip-path="url(#${cid})" d="${segPath(joints(r.pts, r.w + 2 * r.foot, boards ? 'earth' : r.footPaving === 'setts' ? 'setts' : 'flags', r.pts.length * 17), X, Y)}" stroke="${tint(paint, F.group, 0.4)}" stroke-width="0.5" fill="none" opacity="0.7"/>`);
+    if (r.verge) routeSvg.push(`<polygon points="${poly(ribbon(r.pts, r.w + 2 * (r.verge + 0.06)))}" fill="${fillT(paint, 'town:grass', 0.55)}"/>`);
   }
   for (const r of town.routes) {
     const rib = ribbon(r.pts, r.w), P = PAVINGS[r.paving], cid = `${id}${r.id}`;
-    routeSvg.push(`<clipPath id="${cid}"><polygon points="${poly(rib)}"/></clipPath><polygon points="${poly(rib)}" fill="${tint(paint, P.group, P.value)}"${(P.kerb || r.foot) && r.walkForm !== 'flush' ? ` stroke="${tint(paint, 'town:stone', 0.3)}" stroke-width="${(0.3 * px).toFixed(1)}"` : ''}/>`);
+    routeSvg.push(`<clipPath id="${cid}"><polygon points="${poly(rib)}"/></clipPath><polygon points="${poly(rib)}" fill="${fillT(paint, P.group, P.value)}"${(P.kerb || r.foot) && r.walkForm !== 'flush' ? ` stroke="${tint(paint, 'town:stone', 0.3)}" stroke-width="${(0.3 * px).toFixed(1)}"` : ''}/>`);
     routeSvg.push(`<path clip-path="url(#${cid})" d="${segPath(joints(r.pts, r.w, r.paving, r.pts.length * 31), X, Y)}" stroke="${tint(paint, P.group, 0.3)}" stroke-width="${r.paving === 'earth' ? 2 : 0.6}" fill="none" opacity="0.8"/>`);
   }
   // the places: the square laid in fans round its well, the pocket in flags
   for (const p of town.places.filter((x) => x.poly)) {
     const cid = `${id}${p.id}`, rings = [];
     if (p.paving === 'fan') for (let r = 1.6; r < 18; r += 0.9) rings.push(`<circle cx="${X(p.centre[0])}" cy="${Y(p.centre[1])}" r="${(r * px).toFixed(1)}"/>`);
-    routeSvg.push(`<clipPath id="${cid}"><polygon points="${poly(p.poly)}"/></clipPath><polygon points="${poly(p.poly)}" fill="${tint(paint, 'town:stone', 0.72)}"/><g clip-path="url(#${cid})" fill="none" stroke="${tint(paint, 'town:stone', 0.35)}" stroke-width="0.6" opacity="0.8">${rings.join('')}</g>`);
+    routeSvg.push(`<clipPath id="${cid}"><polygon points="${poly(p.poly)}"/></clipPath><polygon points="${poly(p.poly)}" fill="${fillT(paint, 'town:stone', 0.72)}"/><g clip-path="url(#${cid})" fill="none" stroke="${tint(paint, 'town:stone', 0.35)}" stroke-width="0.6" opacity="0.8">${rings.join('')}</g>`);
   }
   // the boundaries, from above: each run its thickness (a fence at least a line's), gates cut, in its form's material;
   // the retaining walls under their guards, and the stairs, every tread drawn
@@ -90,12 +97,12 @@ export function townMapSvg(town, paint, dressed, { px = 7, labels = true } = {})
     const el = town.language.street.bounds[b.el] ?? {}, group = el.group ?? F.group, w = Math.max(b.t, b.role === 'retain' ? 0.7 : 0.22) / 2, cuts = [...b.gates].sort((x, y) => x.s - y.s), spans = [];
     let s0 = 0; for (const g of cuts) { if (g.s - g.w / 2 > s0) spans.push([s0, g.s - g.w / 2]); s0 = g.s + g.w / 2; } if (s0 < L) spans.push([s0, L]);
     const P = (s, k) => [a[0] + u[0] * s + n[0] * k, a[1] + u[1] * s + n[1] * k], timber = ['rail', 'paling', 'picket'].includes(b.form);
-    for (const [x0, x1] of spans) walls.push(`<polygon points="${poly([P(x0, -w), P(x1, -w), P(x1, w), P(x0, w)])}" fill="${tint(paint, group, Math.min(1, (el.value ?? F.value) + (timber ? 0 : 0.14)))}" stroke="${tint(paint, group, 0.18)}" stroke-width="${timber ? 0.5 : 0.8}"/>`);
+    for (const [x0, x1] of spans) walls.push(`<polygon points="${poly([P(x0, -w), P(x1, -w), P(x1, w), P(x0, w)])}" fill="${fillT(paint, group, Math.min(1, (el.value ?? F.value) + (timber ? 0 : 0.14)))}" stroke="${tint(paint, group, 0.18)}" stroke-width="${timber ? 0.5 : 0.8}"/>`);
   }
   for (const s of town.stairs) {
     const x0 = s.at[0] - s.width / 2, y1 = s.at[1], y0 = s.at[1] - s.run, treads = [];
     for (let i = 1; i < s.risers; i++) { const y = y0 + (i * s.run) / s.risers; treads.push([[x0, y], [x0 + s.width, y]]); }
-    walls.push(`<rect x="${X(x0 - 0.3)}" y="${Y(y1)}" width="${((s.width + 0.6) * px).toFixed(1)}" height="${(s.run * px).toFixed(1)}" fill="${tint(paint, 'town:stone', 0.7)}" stroke="${tint(paint, 'town:stone', 0.2)}" stroke-width="1"/><path d="${segPath(treads, X, Y)}" stroke="${tint(paint, 'town:stone', 0.3)}" stroke-width="0.8"/>`);
+    walls.push(`<rect x="${X(x0 - 0.3)}" y="${Y(y1)}" width="${((s.width + 0.6) * px).toFixed(1)}" height="${(s.run * px).toFixed(1)}" fill="${fillT(paint, 'town:stone', 0.7)}" stroke="${tint(paint, 'town:stone', 0.2)}" stroke-width="1"/><path d="${segPath(treads, X, Y)}" stroke="${tint(paint, 'town:stone', 0.3)}" stroke-width="0.8"/>`);
   }
   // door paths: stepping slabs across the front setback
   const slabs = [];
@@ -104,13 +111,13 @@ export function townMapSvg(town, paint, dressed, { px = 7, labels = true } = {})
   // walk and its platform
   const ditch = [];
   if (town.castle) ditch.push(...castleGroundSvg(town.castle, poly, paint));
-  if (town.fort?.ditchRing) { const { inner, outer } = town.fort.ditchRing; ditch.push(`<path d="M${poly(outer).replace(/ /g, 'L')}ZM${poly(inner).replace(/ /g, 'L')}Z" fill-rule="evenodd" fill="${tint(paint, 'town:soil', 0.24)}" stroke="${tint(paint, 'town:soil', 0.12)}"/>`); for (const f of fortFaces(town, { most: 0 }).floor.filter((x) => x.group === 'str:timber')) ditch.push(`<polygon points="${poly(f.corners)}" fill="${tint(paint, 'str:timber', 0.5)}" stroke="${tint(paint, 'str:timber', 0.2)}"/>`); }
+  if (town.fort?.ditchRing) { const { inner, outer } = town.fort.ditchRing; ditch.push(`<path d="M${poly(outer).replace(/ /g, 'L')}ZM${poly(inner).replace(/ /g, 'L')}Z" fill-rule="evenodd" fill="${fillT(paint, 'town:soil', 0.24)}" stroke="${tint(paint, 'town:soil', 0.12)}"/>`); for (const f of fortFaces(town, { most: 0 }).floor.filter((x) => x.group === 'str:timber')) ditch.push(`<polygon points="${poly(f.corners)}" fill="${fillT(paint, 'str:timber', 0.5)}" stroke="${tint(paint, 'str:timber', 0.2)}"/>`); }
   // the buildings, the fortification and the dress, from above
   const groups = townFaces(town, paint), fortG = fortFaces(town, { most: 1 }).groups, dress = dressed ? dressed.items.map((it) => it.faces) : [];
   town.lots.forEach((l, i) => cast(groups[i], l.z));
   for (const g of fortG) cast(g, Math.min(...g.flatMap((f) => f.corners.map((c) => c[2]))));
   if (dressed) dressed.items.forEach((it) => cast(it.faces, it.at[2]));
-  const under = g.join('') + ditch.join('') + routeSvg.join('') + `<g fill="${tint(paint, 'town:stone', 0.75)}">${slabs.join('')}</g>` + walls.join('') + `<g fill="${dark}" opacity="0.2">${shade.join('')}</g>`;
+  const under = g.join('') + ditch.join('') + routeSvg.join('') + `<g fill="${fillT(paint, 'town:stone', 0.75)}">${slabs.join('')}</g>` + walls.join('') + `<g fill="${dark}" opacity="0.2">${shade.join('')}</g>`;
   const lab = [];
   if (labels) {
     const tag = (x, y, t, a = 'middle') => lab.push(`<text x="${X(x)}" y="${Y(y)}" text-anchor="${a}" font-size="12" font-weight="700" fill="#111" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(t)}</text>`);
@@ -125,14 +132,14 @@ export function townMapSvg(town, paint, dressed, { px = 7, labels = true } = {})
     const na = [B.x1 - 6, B.y0 + 6];
     lab.push(`<g><path d="M${X(na[0])} ${Y(na[1] + 4)} l${(-1.4 * px).toFixed(1)} ${(4 * px).toFixed(1)} l${(1.4 * px).toFixed(1)} ${(-1.1 * px).toFixed(1)} l${(1.4 * px).toFixed(1)} ${(1.1 * px).toFixed(1)} z" fill="#111"/><text x="${X(na[0])}" y="${Y(na[1] - 1.6)}" font-size="12" font-weight="700" text-anchor="middle" fill="#111">N</text></g>`);
   }
-  return drawStructures([...groups, ...fortG, ...dress], { view: 'plan', paint, w: W, h: H, ppm: px, at: [-B.x0 * px, B.y1 * px], under, over: lab.join('') });
+  return drawStructures([...groups, ...fortG, ...dress], { view: 'plan', paint, w: W, h: H, ppm: px, at: [-B.x0 * px, B.y1 * px], under, over: lab.join(''), defs });
 }
 
 /** A castle's ground in plan, as SVG under its walls: the ditch ring, then its floor (the courts, the walk, the platform, the bridge). */
 export function castleGroundSvg(c, poly, paint) {
   const out = [], { inner, outer } = c.ditch;
-  out.push(`<path d="M${poly(outer).replace(/ /g, 'L')}ZM${poly(inner).replace(/ /g, 'L')}Z" fill-rule="evenodd" fill="${tint(paint, 'town:soil', 0.24)}" stroke="${tint(paint, 'town:soil', 0.12)}"/>`);
-  for (const f of castleFaces(c, { most: 0, lots: false }).floor.filter((x) => x.group !== 'town:soil' || x.value > 0.3)) out.push(`<polygon points="${poly(f.corners)}" fill="${tint(paint, f.group, f.value)}" stroke="${tint(paint, f.group, Math.max(0, f.value - 0.25))}" stroke-width="0.5"/>`);
+  out.push(`<path d="M${poly(outer).replace(/ /g, 'L')}ZM${poly(inner).replace(/ /g, 'L')}Z" fill-rule="evenodd" fill="${fillT(paint, 'town:soil', 0.24)}" stroke="${tint(paint, 'town:soil', 0.12)}"/>`);
+  for (const f of castleFaces(c, { most: 0, lots: false }).floor.filter((x) => x.group !== 'town:soil' || x.value > 0.3)) out.push(`<polygon points="${poly(f.corners)}" fill="${fillT(paint, f.group, f.value)}" stroke="${tint(paint, f.group, Math.max(0, f.value - 0.25))}" stroke-width="0.5"/>`);
   return out;
 }
 
@@ -213,7 +220,7 @@ export function pavingCard(paint) {
     const fill = tint(paint, P.group, P.value), line = tint(paint, P.group, 0.3);
     let body = `<clipPath id="${id}"><polygon points="${rib.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ')}"/></clipPath><polygon points="${rib.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ')}" fill="${fill}"${P.kerb ? ` stroke="${tint(paint, 'town:stone', 0.3)}" stroke-width="${(0.3 * px).toFixed(1)}"` : ''}/>`;
     if (paving === 'fan') { body += `<g clip-path="url(#${id})" fill="none" stroke="${line}" stroke-width="1">${Array.from({ length: 14 }, (_, k) => `<circle cx="${X(4)}" cy="${Y(-3)}" r="${((1.6 + 0.9 * k) * px).toFixed(1)}"/>`).join('')}</g>`; }
-    else if (paving === 'slabs') { for (let s = 0.4; s < 8; s += 0.75) body += `<rect x="${X(s - 0.3)}" y="${Y(0.45)}" width="${(0.6 * px).toFixed(1)}" height="${(0.9 * px).toFixed(1)}" fill="${tint(paint, 'town:stone', 0.75)}" stroke="${line}"/>`; body = body.replace(/<polygon[^>]*fill="[^"]*"[^>]*\/>/, `<polygon points="${rib.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ')}" fill="${tint(paint, 'town:grass', 0.45)}"/>`); }
+    else if (paving === 'slabs') { for (let s = 0.4; s < 8; s += 0.75) body += `<rect x="${X(s - 0.3)}" y="${Y(0.45)}" width="${(0.6 * px).toFixed(1)}" height="${(0.9 * px).toFixed(1)}" fill="${fillT(paint, 'town:stone', 0.75)}" stroke="${line}"/>`; body = body.replace(/<polygon[^>]*fill="[^"]*"[^>]*\/>/, `<polygon points="${rib.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ')}" fill="${fillT(paint, 'town:grass', 0.45)}"/>`); }
     else body += `<path clip-path="url(#${id})" d="${segPath(joints(pts, w, paving, 7), X, Y)}" stroke="${line}" stroke-width="${paving === 'earth' ? 3 : 1}" fill="none"/>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${body}</svg>`;
   };

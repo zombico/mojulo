@@ -4,11 +4,12 @@
  * fortification its castles raise, what the language does to a castle (the style's influence), how it lays out a
  * town and raises a castle. Data only; the bible draws it.
  */
-import { STAGE_KITS } from '../era/stage.js';
+import { stageKit } from '../era/stage.js';
+import { lookOf } from '../era/style/looks.js';
 import { NATURE_STYLES } from '../era/nature.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { JUNGLE_STYLES } from '../era/jungle.js';
-import { SWATCHES } from '../era/style/swatches.js';
+import { swatchesOf } from '../era/style/swatches.js';
 import { structureStyle } from '../era/out-structures.js';
 import { townLanguage } from '../era/out-town.js';
 import { composeFort } from '../era/out-fortress.js';
@@ -21,7 +22,7 @@ const RAMPS = ['grass', 'soil', 'rock', 'foliage', 'sky', 'timber', 'stone'];
 
 /** The kit's card: its style card's principles and its palette's ramps, shadow to light. */
 export function kitCard(kit) {
-  const K = STAGE_KITS[kit], card = SHELLS[K.shell][K.style], sw = SWATCHES[K.style] || {}, ramps = [];
+  const K = stageKit(kit), card = SHELLS[K.shell][K.style] ?? lookOf(kit)?.card, sw = swatchesOf(K.style) || {}, ramps = [];
   for (const name of RAMPS) {
     const r = sw.land?.[name] ?? sw.made?.[name];
     if (Array.isArray(r) && Array.isArray(r[0])) ramps.push({ name, stops: r.map(hex) });

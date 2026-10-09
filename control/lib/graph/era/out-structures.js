@@ -13,6 +13,7 @@
  * Frame: metres, x along the lane frontage, y back from the lot's front edge, z up, right-handed; the lane side is −y.
  * Pure; seeded dice only.
  */
+import { baseOf } from './style/looks.js';
 import { EYE_SPOT_PX, metresPerPixel } from '../playscape/objects/laws.js';
 
 function mulberry32(a) {
@@ -116,7 +117,7 @@ export const STRUCTURE_RAILS = Object.freeze({
 });
 export const STRUCTURE_KITS = Object.freeze(Object.keys(STRUCTURE_RAILS));
 const kitRails = (kitId) => {
-  const R = STRUCTURE_RAILS[kitId];
+  const R = STRUCTURE_RAILS[kitId] ?? STRUCTURE_RAILS[baseOf(kitId)];
   if (!R) throw new Error(`structures: buildings are indexed for the outdoor kits ${STRUCTURE_KITS.join(', ')} (got '${kitId}')`);
   return R;
 };

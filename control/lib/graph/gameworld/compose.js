@@ -16,6 +16,10 @@ import { LAND_FORMS } from '../era/out-land.js';
 import { readGameworld, resolveLevel } from './world.js';
 import { structureStyle } from '../era/out-structures.js';
 import { designTown } from '../era/out-town.js';
+import { readIntent } from './tunnel.js';
+import { landDomain } from './tunnel-land.js';
+import { buildingDomain } from './tunnel-buildings.js';
+import { techDomain, TECH_TRAITS } from './tunnel-tech.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -55,6 +59,7 @@ export const LEXICON = Object.freeze({
   small: { levels: 2 }, short: { levels: 2 }, epic: { levels: 5 }, vast: { levels: 5 }, long: { levels: 4 },
 });
 
+const STOP = new Set(['with', 'from', 'into', 'over', 'under', 'that', 'this', 'their', 'there', 'where', 'some', 'very']);
 const SUFFIX = ['approach', 'crossing', 'heights', 'hold', 'reach', 'end'];
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'world';
@@ -63,7 +68,7 @@ const pick = (rand, a) => a[Math.floor(rand() * a.length)];
 /** Read a prompt's words: what each decides, and what nothing read. */
 export function readPrompt(prompt) {
   const words = String(prompt ?? '').toLowerCase().split(/[^a-z-]+/).filter(Boolean), read = [], unread = [];
-  for (const w of words) { const r = LEXICON[w] ?? LEXICON[w.replace(/s$/, '')]; if (r) read.push({ word: w, decides: Object.keys(r) }); else if (w.length > 3) unread.push(w); }
+  for (const w of words) { const r = LEXICON[w] ?? LEXICON[w.replace(/s$/, '')]; if (r) read.push({ word: w, decides: Object.keys(r) }); else if (w.length > 3 && !STOP.has(w)) unread.push(w); }
   return { words, read, unread: [...new Set(unread)] };
 }
 
@@ -98,10 +103,36 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const civilizations = Object.fromEntries(langs.map((a, i) => [`${a}-folk`, { name: `The ${a.replace('-', ' ')} folk`, anchor: a, fort: i === 0 ? (fort ?? 'crenellated') : 'battered' }]));
   const civIds = Object.keys(civilizations);
   style.civilization = civIds[0];
+  // the tunnels: what the prompt says about the look, the buildings and the machines is tunnelled, not looked up. The
+  // whole prompt is each tunnel's intent: every tunnel reads only the words it knows
+  const tunnels = { look: readIntent(landDomain(), prompt).traits.map((t) => t.id), builds: readIntent(buildingDomain(), prompt).traits.map((t) => t.id), things: [] };
+  if (tunnels.look.length) style.look = prompt;
+  if (tunnels.builds.length) civilizations[civIds[0]].builds = prompt;
+  // a machine is a clause of its own ("tracked haulers", "solar arrays") that names a function and no building
+  const techRead = readIntent(techDomain(), prompt).traits, things = {};
+  for (const clause of prompt.split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
+    const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
+    // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
+    if (!fn.length || readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
+    const id = slug(fn.at(-1).word.replace(/s$/, ''));
+    if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+  }
+  if (Object.keys(things).length) { civilizations[civIds[0]].technology = { things }; tunnels.things = Object.keys(things); }
+  // a civilization whose buildings are tunnelled from the prompt is named for what it builds
+  if (tunnels.builds.length && !P.read.some((r) => r.decides.includes('anchor'))) {
+    const said = readIntent(buildingDomain(), prompt).traits.map((t) => t.word), word = ['habitat', 'outpost', 'bunker', 'module', 'tower'].find((w) => said.includes(w)) ?? 'builder';
+    const cid = `${slug(word.replace(/s$/, ''))}-folk`, C = civilizations[civIds[0]];
+    delete civilizations[civIds[0]];
+    civilizations[cid] = { ...C, name: `The ${word.replace(/s$/, '').replace(/-/g, ' ')} folk` };
+    civIds[0] = cid; style.civilization = cid;
+  }
 
   const title = name ?? cap(P.read[0]?.word ?? 'nameless') + (P.read[1] ? ` ${P.read[1].word}` : '') + ' world', wid = id ?? slug(title);
   const landscape = style.land.landscape?.variant ?? 'meadow';
-  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread }, style, civilizations, levels: {}, links: [] };
+  // a word a tunnel read is read, whatever the lexicon made of it
+  // a word is unread when neither the lexicon nor any tunnel read it
+  const unreadBy = [landDomain(), buildingDomain(), techDomain()].map((d) => new Set(readIntent(d, prompt).unread)), tunnelled = { has: (w) => !unreadBy.every((u) => u.has(w)) };
+  const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w)), tunnels }, style, civilizations, levels: {}, links: [] };
   const decided = [];
   for (let i = 0; i < n; i++) {
     const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0;
