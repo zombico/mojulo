@@ -212,3 +212,22 @@ describe('gameworld weather', () => {
     expect(gameworldBibleHtml(W())).not.toContain('guide-weather');
   });
 });
+
+describe('a level\'s sky reaches its pages', () => {
+  const w = W({ style: { weather: 'monsoon' }, levels: { a: { walk: { nodes: { t: { trail: true }, u: { trail: true, weather: 'alpine' } } } }, b: { style: { weather: 'desert' }, walk: { nodes: { t: { trail: true } } } } } });
+  it('the level recipe carries the sky it inherits or overrides, and the ledger says where a section differs', () => {
+    const G = readGameworld(w), A = resolveLevel(G, 'a'), B = resolveLevel(G, 'b');
+    expect(A.level.weather.climate).toMatchObject({ rain: 3 });
+    expect(B.level.weather.climate).toMatchObject({ clear: 5, dust: 2 });
+    expect(A.ledger).toEqual([expect.objectContaining({ scope: 'section', at: 'a/u', key: 'weather' })]);
+    expect(layLevel(A.level).stages.map((s) => Object.keys(s.manifest.weather.climate)[0])).toEqual(['overcast', 'clear']);   // monsoon, then the section's alpine
+  });
+  it('a stage page minted from it plays the sky in its kit\'s air, seeded by the level', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const R = resolveLevel(readGameworld(w), 'a'), m = layLevel(R.level).stages[0].manifest;
+    const { payload } = await resolveWorldScene({ manifest: m, title: 'a', ref: 'sk_a' });
+    expect(payload.weather.seed).toBe(R.seed);
+    expect(payload.weather.air).toMatchObject({ body: 'banded', hue: '#b4d8f0' });
+  });
+});
+

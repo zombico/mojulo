@@ -303,8 +303,10 @@ export function resolveLevel(world, id) {
     if (section === 'trail') readOutTrail(recipe); else readLocalMeru(recipe);
     nodes[nid] = { ...n, [section]: recipe };
   }
-  const level = { ...L.walk, kit: style.kit, seed, nodes };
-  readLevel(level);
+  // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
+  const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}) };
+  const lv = readLevel(level);
+  for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 
   // the places: the town built by its civilization, its castle raised by its own (the town's unless named)
   let town = null, built = null;
