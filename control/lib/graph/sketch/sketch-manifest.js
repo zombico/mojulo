@@ -340,5 +340,6 @@ export function sketchRenderMode(manifest) {
   if (VOICE_RENDER_SET.has(kind)) return 'voice';   // spoken, not looked at
   if (kind === 'game') return 'game';   // played, not looked at — the game shell (create_game)
   if (kind === 'motion-comic') return 'play';   // clicked-through — the /play presentation player
+  if (kind === 'gameworld') return 'bible';   // read — the game book's sheets (/bible); a design, so never the Arcade's
   return 'diagram';
 }

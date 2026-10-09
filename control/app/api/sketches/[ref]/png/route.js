@@ -63,6 +63,14 @@ export async function GET(request, { params }) {
       }, { status: 422 });
     }
 
+    // A gameworld is a design document read as its bible, with no still of its own
+    if (sketch.manifest.kind === 'gameworld') {
+      return NextResponse.json({
+        error: `Sketch '${ref}' is a gameworld (the game book's recipe) — it has no PNG form`,
+        bible: `/api/sketches/${encodeURIComponent(ref)}/bible`,
+      }, { status: 422 });
+    }
+
     const url = new URL(request.url);
 
     // Keyframe animations have no diagram/scene form — a scaffold request

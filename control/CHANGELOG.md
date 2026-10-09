@@ -12,6 +12,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Gameworlds: a door for agents
+
+The gameworld and its character book become what an agent builds a game with: a rail in front of the game tools that
+takes the back-and-forth of system-making (the hero, its gear, the numbers, the HUD, the levels) and leaves every page
+the creator's to change after. The older game tools stay, behind it: the rail calls them.
+
+- **A gameworld is a sketch.** `create_sketch({ kind: 'gameworld' })` stores the recipe as written and
+  `update_sketch` iterates it in place; every mint and update reads it, and the reader's teaching errors are the
+  refusal. An approval is a patch on its `review`. It is read, not played: its sketch page shows its bible (the
+  character bible when it has a character book, else the world bible) from `/api/sketches/<ref>/bible`, resolved
+  from the recipe on every read; it has no PNG and never appears in the Arcade.
+- Not yet: the `design_game` door, the runner, the reworked `get_game_vocab`, synthetic browsing and the comparison
+  after creation (this theme's next steps).
+
 ### Character book: the hero, looks and actions
 
 The game book's second concern, beside the world bible: the `characters` slot a gameworld held open. Its first page

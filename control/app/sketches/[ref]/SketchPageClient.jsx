@@ -367,12 +367,13 @@ export default function SketchPageClient({
             technical={false}
             mode={view.wireframe ? 'wireframe' : 'color'}
           />
-        ) : renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' ? (
+        ) : renderMode === 'beats' || renderMode === 'game' || renderMode === 'play' || renderMode === 'bible' ? (
           <div
             className="relative w-full"
             style={{
               aspectRatio: renderMode === 'beats' ? '760 / 640'
                 : renderMode === 'game' ? '4 / 3'
+                : renderMode === 'bible' ? '4 / 5'   // a long sheet, scrolled inside its frame
                 : renderMode === 'play'
                   // the motion-comic BOX plus the player's 46px nav bar
                   ? `${manifest.box?.width || 4} / ${(manifest.box?.height || 3) + 46}`

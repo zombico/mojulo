@@ -59,6 +59,7 @@ import {
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
+import { isGameworldKind, normalizeGameworldManifest } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext } from '@/lib/mcp/tools/building-next';
 import { scadNext } from '@/lib/mcp/tools/scad-next';
@@ -303,10 +304,23 @@ function newHouseSeed(m, ref) {
   return { ...m, seed };
 }
 
+/** A gameworld manifest read and returned as written, or the reader's refusal. */
+function gameworldManifest(manifest) {
+  try {
+    return normalizeGameworldManifest(manifest);
+  } catch (err) {
+    throw new Error(`Invalid manifest: ${err.message}`);
+  }
+}
+
 export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   validateSketchIdentity({ title, ref, folderRef, bucket });
   let finalized;
-  if (isMotionComicKind(manifest?.kind)) {
+  if (isGameworldKind(manifest?.kind)) {
+    // A gameworld (the game book's recipe) bypasses the diagram pipeline: the stored manifest is the recipe as
+    // written, read by the gameworld reader, whose teaching errors are the refusal.
+    finalized = gameworldManifest(manifest);
+  } else if (isMotionComicKind(manifest?.kind)) {
     // Motion comics (the click-gated presentation, motion-comic.plan.md)
     // bypass the diagram pipeline like image-outcomes kinds: the stored
     // manifest is the normalized fold document. Refs and page bubbleZones are
@@ -909,6 +923,8 @@ export async function updateSketchHandler(input) {
         + '(slices: character | inventory | party | progression | flags; events: typed-events).',
       );
     }
+  } else if (manifest !== undefined && isGameworldKind(manifest?.kind)) {
+    nextManifest = gameworldManifest(manifest);   // the same gate as at mint
   } else if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
     // Same gate as mintSketch — update is the accrete-cheaply surface, so it
     // pays the same normalization + store checks.

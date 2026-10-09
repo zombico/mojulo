@@ -10,6 +10,7 @@ export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT
 export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
 export { suggestKit, RAILS, ELEMENT_GEM } from './adornment-kit.js';
 export { readEquipment, resolveEquipment, equipmentOrders, equippedHero, HOLD_STAND, CLASS_SLOTS } from './equipment.js';
+export { GAMEWORLD_KIND, isGameworldKind, gameworldOf, normalizeGameworldManifest } from './gameworld-kind.js';
 export { readMechanics, resolveMechanics, mechanicsOrders, SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 export { ELEMENT_WORDS } from './element-words.js';
 export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './hero-vibe.js';
