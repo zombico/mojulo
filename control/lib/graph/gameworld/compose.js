@@ -30,7 +30,7 @@ export const LEXICON = Object.freeze({
   // the kit: the look the whole ground is drawn in
   meadow: { kit: 'isekai-meadow' }, pastoral: { kit: 'isekai-meadow' }, green: { kit: 'isekai-meadow' }, valley: { kit: 'isekai-meadow', 'land.landscape': ['downs', 0.5] },
   bamboo: { kit: 'isekai-bamboo' }, forest: { kit: 'isekai-bamboo' },
-  blossom: { kit: 'isekai-sakura' }, sakura: { kit: 'isekai-sakura' }, spring: { kit: 'isekai-sakura' },
+  blossom: { kit: 'isekai-sakura', weather: 'spring-blossom' }, sakura: { kit: 'isekai-sakura', weather: 'spring-blossom' }, spring: { kit: 'isekai-sakura', weather: 'spring-blossom' },
   night: { kit: 'alien-night', 'land.cloud': [null, 0] }, alien: { kit: 'alien-night' }, moon: { kit: 'alien-night' }, glowing: { kit: 'alien-night' },
   garden: { kit: 'isekai-garden' }, zen: { kit: 'isekai-garden', 'land.rock': ['balanced', 0.25] },
   // who builds: a building language and a fortification
@@ -47,14 +47,17 @@ export const LEXICON = Object.freeze({
   rocky: { 'land.rock': ['boulders', 0.75] }, boulders: { 'land.rock': ['boulders', 1] }, tor: { 'land.rock': ['tor', 0.5] }, crags: { 'land.face': ['crag', 0.75] },
   cliffs: { 'land.face': ['blocky', 0.5] }, basalt: { 'land.face': ['columnar', 0.75] }, columns: { 'land.face': ['columnar', 0.75] },
   layered: { 'land.strata': ['layered', 0.5] }, sandstone: { 'land.strata': ['layered', 0.75], 'land.landmark': ['butte', 0.25] }, folded: { 'land.strata': ['folded', 0.5] },
-  canyon: { 'land.strata': ['tilted', 0.5], 'land.landmark': ['butte', 0.5], 'land.face': ['slabby', 0.5] }, desert: { 'land.landmark': ['butte', 0.5], 'land.cloud': ['cirrus', 0.25], 'land.rock': ['hoodoo', 0.5] },
+  canyon: { 'land.strata': ['tilted', 0.5], 'land.landmark': ['butte', 0.5], 'land.face': ['slabby', 0.5] }, desert: { 'land.landmark': ['butte', 0.5], 'land.cloud': ['cirrus', 0.25], 'land.rock': ['hoodoo', 0.5], weather: 'desert' },
   coast: { 'land.rock': ['stack', 0.5], 'land.landmark': ['arch', 0.25] }, shore: { 'land.rock': ['stack', 0.25] }, sea: { 'land.rock': ['stack', 0.5] },
   // landmarks
   arch: { 'land.landmark': ['arch', 0.25] }, arches: { 'land.landmark': ['arch', 0.75] }, spire: { 'land.landmark': ['spire', 0.25] }, spires: { 'land.landmark': ['spire', 0.75] },
   monolith: { 'land.landmark': ['monolith', 0] }, waterfall: { 'land.landmark': ['falls', 0] }, falls: { 'land.landmark': ['falls', 0] }, mesa: { 'land.landmark': ['butte', 0.25] },
   // the sky
-  clear: { 'land.cloud': [null, 0] }, fair: { 'land.cloud': ['cumulus', 0.25] }, cloudy: { 'land.cloud': ['cumulus', 0.75] }, overcast: { 'land.cloud': ['stratus', 1] },
-  misty: { 'land.cloud': ['stratus', 0.75] }, foggy: { 'land.cloud': ['stratus', 1] }, stormy: { 'land.cloud': ['towering', 0.75] }, windy: { 'land.cloud': ['cirrus', 0.5] }, lenticular: { 'land.cloud': ['lenticular', 0.25] },
+  clear: { 'land.cloud': [null, 0] }, fair: { 'land.cloud': ['cumulus', 0.25] }, cloudy: { 'land.cloud': ['cumulus', 0.75] }, overcast: { 'land.cloud': ['stratus', 1], weather: { overcast: 4, haze: 1, drizzle: 0.5 } },
+  misty: { 'land.cloud': ['stratus', 0.75], weather: { mist: 4, fog: 1, overcast: 1, clear: 1 } }, foggy: { 'land.cloud': ['stratus', 1], weather: { fog: 4, mist: 2, overcast: 1 } }, stormy: { 'land.cloud': ['towering', 0.75], weather: 'storm-coast' }, windy: { 'land.cloud': ['cirrus', 0.5] }, lenticular: { 'land.cloud': ['lenticular', 0.25] },
+  // what falls
+  rainy: { weather: { drizzle: 2, rain: 3, overcast: 2, mist: 1 } }, wet: { weather: { drizzle: 2, rain: 3, overcast: 2, mist: 1 } }, monsoon: { weather: 'monsoon' },
+  snowy: { weather: 'alpine' }, snow: { weather: 'alpine' }, alpine: { weather: 'alpine' }, dusty: { weather: 'desert' }, autumn: { weather: 'autumn' },
   // how big
   small: { levels: 2 }, short: { levels: 2 }, epic: { levels: 5 }, vast: { levels: 5 }, long: { levels: 4 },
 });
@@ -77,7 +80,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('gameworld: compose needs a prompt: a few words about the world');
   const P = readPrompt(prompt), rand = mulberry32((seed * 2654435761) >>> 0 || 1);
   const style = { trail: {}, land: {} }, langs = [];
-  let fort = null, meru = null, kit = null, count = null;
+  let fort = null, meru = null, kit = null, count = null, weather = null;
   for (const { word } of P.read) {
     const r = LEXICON[word] ?? LEXICON[word.replace(/s$/, '')];
     for (const [k, v] of Object.entries(r)) {
@@ -85,6 +88,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       else if (k === 'anchor') { if (!langs.includes(v)) langs.push(v); }
       else if (k === 'fort') fort ??= v;
       else if (k === 'meru') meru ??= v;
+      else if (k === 'weather') weather ??= typeof v === 'string' ? v : { climate: v };
       else if (k === 'levels') count ??= v;
       // the first word to decide a thing decides it (the more particular word comes first: basalt cliffs)
       else if (k.startsWith('trail.')) style.trail[k.slice(6)] ??= v;
@@ -95,6 +99,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   style.kit = kit ?? 'isekai-meadow';
   if (!langs.length) langs.push(pick(rand, ['timber-hall', 'tiered', 'shell']));
   for (const f of ['rock', 'landmark']) if (!style.land[f]) style.land[f] = { variant: pick(rand, Object.keys(LAND_FORMS[f].variants).filter((v) => v !== 'falls')), many: pick(rand, [0, 0.25, 0.5]) };
+  if (weather) style.weather = weather;
   style.meru = { preset: meru ?? pick(rand, ['mountain-lookout', 'stacked-lookout', 'terraced-mountain']) };
   if (!Object.keys(style.trail).length) delete style.trail;
   const n = Math.max(1, Math.min(6, levels ?? count ?? 3));

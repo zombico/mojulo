@@ -14,4 +14,5 @@ export { tunnelTech, techDomain, composeThing, TECH_TRAITS } from './tunnel-tech
 export { tunnelLand, landDomain, composeLook, LAND_TRAITS, LOOK_LAWS, COLOURS } from './tunnel-land.js';
 export { techIndexHtml } from './tech-html.js';
 export { reviewParts, reviewState, readReview, approve, fingerprint, MODES, REVIEW_STATUSES, STAMPS } from './review.js';
+export { weatherCardHtml, stateStill, weatherStrip } from './weather-card.js';
 export { composeGameworld, readPrompt, LEXICON } from './compose.js';

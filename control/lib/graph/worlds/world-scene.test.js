@@ -305,3 +305,19 @@ describe('world-scene — painted-landscape raymarch forest', () => {
     expect(payload.raymarch.customUniforms.uTreeCount).toBeGreaterThan(0);
   });
 });
+
+describe('world-scene — generic opt-in weather channel', () => {
+  const orbit = (more = {}) => sketch({ kind: 'orbit-view', scenario: 'circular', ...more });
+  it('carries a read weather and a seed to the page, and emits nothing without one', async () => {
+    const none = await resolveWorldScene(orbit());
+    expect(none.payload.weather).toBeUndefined();
+    const { payload } = await resolveWorldScene(orbit({ seed: 9, weather: 'monsoon' }));
+    expect(payload.weather.seed).toBe(9);
+    expect(payload.weather.weather.climate).toMatchObject({ rain: 3, downpour: 3 });
+    expect(emitThreeWorld(payload)).toContain('window.__mojWeather');
+    expect(emitThreeWorld(none.payload)).not.toContain('window.__mojWeather');
+  });
+  it('refuses a weather it cannot read, saying what the climates are', async () => {
+    await expect(resolveWorldScene(orbit({ weather: 'sleet' }))).rejects.toThrow(/neither a climate/);
+  });
+});

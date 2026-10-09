@@ -37,6 +37,8 @@ import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
+import { readWeather } from '@/lib/graph/weather/weather';
+import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
@@ -941,6 +943,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { resolveSpriteSfxLayers } = await import('@/lib/graph/game/glyph-sfx-sprites');
     const layers = resolveSpriteSfxLayers(sketch.manifest.sfx, sketch.manifest.entities);
     if (layers.length) payload.spriteSfx = layers;
+  }
+
+  // generic, opt-in WEATHER channel: the world's sky (weather/weather.js). A manifest may carry `weather` (a climate's
+  // name, or { climate, dwell?, blend?, start?, surface? }): the page eases its fog, falls rain, snow, dust or petals
+  // round the camera and lights the storms, every moment a pure function of the world clock and the seed (the
+  // manifest's, else the sketch ref's). Live only (the stills ignore it, and are not degraded: no frame is missing).
+  // Additive; absent ⇒ the emitted page is byte-identical.
+  if (payload && sketch.manifest.weather !== undefined) {
+    const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
+    payload.weather = { weather: readWeather(sketch.manifest.weather, 'weather'), seed };
   }
 
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient

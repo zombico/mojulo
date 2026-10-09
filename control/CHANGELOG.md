@@ -12,6 +12,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### World weather: a climate in the bible, fog that moves, rain on camera
+
+- **Why.** Weather was a status a body wore (a rain cloud over the hero) or a moment at a spot (a strike). The world's air was fixed when it was built: one fog, day or night, and "stormy" in a prompt only chose a cloud.
+- **States in values.** `weather/weather.js` names what the sky can do: clear, haze, overcast, mist, fog, drizzle, rain, downpour, thunderstorm, snow, blizzard, dust, duststorm, petals, leaves.
+  - Each state is designed in values, never hue: how thick the fog, the value it takes, how dim the light, what falls (its glyph, rate, size, speed, slant, and what it does when it lands), the wind, the lightning.
+  - The style guide colours it, as it colours everything else.
+- **A climate on a dice roll.** A climate weighs states (or names a preset: temperate, monsoon, alpine, desert, spring-blossom, autumn, storm-coast).
+  - `weatherAt(W, seed, t)` cuts time into slots, rolls each slot's dwell and state with its own dice, and blends into the next. The same seed gives the same sky at every moment, in node and on the page.
+- **In the bible.** `style.weather` is a climate's name or `{ climate, dwell?, blend?, start?, surface? }`; a level may name its own and the ledger records it.
+  - Prompt words (rainy, foggy, stormy, snowy, dusty, monsoon, autumn, blossom…) set it beside the clouds.
+  - The Natural world section gains a Weather card (each state as a grey still, and the first twenty minutes of the dice) when the world has a climate.
+- **On the page.** A world recipe's `weather` (a climate's name or the same object) plays on the live World page, a pure function of the world clock and the seed.
+  - The fog thickens and thins and takes the state's value, the light dims, rain streaks and snow, dust and petals fall round the camera, landings ring on the ground, storms flash.
+  - Absent `weather` adds not a byte to the page.
+- **Cues.** `then: { weather: 'blizzard' }` (or `{ is, for?, blend? }`) forces a state, for `for` seconds or until the cue ends; `when: { every: 300 }` is a heartbeat the bus lacked.
+  - "Entering the pass starts a blizzard until you leave" and "every 300 s the fog rolls in" are one cue each. The sky eases in from what was showing and back out to its schedule.
+
 ### Realistic ground: the opposite pole of the isekai look
 
 - **Why.** The isekai look carries its ground on grass cards and pixel tiles. On bare ground (a desert, a clay plain) the mesh underneath showed through:
