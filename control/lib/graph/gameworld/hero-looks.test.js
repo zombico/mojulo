@@ -69,6 +69,19 @@ describe('the underlayer', () => {
     expect(C.tones).toEqual({});
   });
 
+  it('the clothes wear the direction: the leading element on the top, the supporting on the bottom, the ramps behind', () => {
+    const ramps = underlayerFor(world({ direction: { tradition: 'anime' } }));
+    const both = underlayerFor(world({ direction: { tradition: 'anime', primary: 'wind', secondary: 'brass' } }));
+    expect(both.tones).toEqual({ Top: ELEMENT_TINT.wind, Bottom: ELEMENT_TINT.brass });
+    expect(both.toneFrom).toEqual({ Top: 'the leading element, wind', Bottom: 'the supporting element, brass' });
+    // a word with no tint leaves its group to the kit's ramps
+    const one = underlayerFor(world({ direction: { tradition: 'anime', primary: 'wind', secondary: 'velvet' } }));
+    expect(one.tones).toEqual({ Top: ELEMENT_TINT.wind, Bottom: ramps.tones.Bottom });
+    expect(one.toneFrom.Bottom).toBe('the kit\'s ramps');
+    // a custom direction has no ramps, but its elements still dress it
+    expect(underlayerFor(world({ direction: { tradition: 'anime', from: 'custom', primary: 'fire' } })).tones).toEqual({ Top: ELEMENT_TINT.fire });
+  });
+
   it('the creator\'s own underlayer wins, stays at ornament 0 and is ledgered', () => {
     const G = anime({ looks: { underlayer: { type: 'outfit', style: 'office', dials: { ornament: 3 } } } });
     const U = underlayerFor(G);

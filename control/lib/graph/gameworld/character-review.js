@@ -63,7 +63,7 @@ export function characterParts(world, B = resolveBook(world)) {
     'hero:adornment': A && { items: A.items, bodily: A.bodily, open: A.open },
     equipment: { rows: E.rows, ledger: E.ledger },
     'mechanics:stats': B.mechanics && { stats: B.mechanics.play.stats, powers: B.mechanics.powers, ledger: B.mechanics.ledger },
-    'mechanics:hud': B.mechanics && { parts: B.mechanics.play.parts ?? [], cues: B.mechanics.play.cues ?? [], menus: B.mechanics.play.menus ?? [], ui: B.mechanics.play.ui },
+    'mechanics:hud': B.mechanics && { parts: B.mechanics.play.parts ?? [], cues: B.mechanics.play.cues ?? [], menus: B.mechanics.play.menus ?? [], inputs: B.mechanics.inputs, ui: B.mechanics.play.ui },
   };
   return CHARACTER_PART_IDS.map((id) => ({ id, name: NAMES[id], content: content[id], print: fingerprint(content[id]) }));
 }

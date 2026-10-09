@@ -59,13 +59,20 @@ describe('the character bible', () => {
     expect(html).not.toMatch(/variation/i);
   });
 
+  it('says where the underlayer\'s colours come from: the direction\'s elements', () => {
+    expect(html).toContain('Top: the leading element, wind · Bottom: the supporting element, brass');
+  });
+
   it('draws the systems: the stats, the escalation numbered, how each power is used, the HUD; and the gear tiers\' gives', () => {
     expect(html).toContain('id="mechanics-stats"');
     expect(html).toMatch(/<td><b>hp<\/b><\/td><td>100<\/td>/);
     expect(html).toMatch(/<span class="eyebrow">mid · level 5<\/span><p><b>wind-orb<\/b> <span class="muted">free/);
     expect(html).toMatch(/wind-orb \(mid\): found in the world/);
     expect(html).toContain('id="mechanics-hud"');
-    expect(html).toMatch(/Banners: Level up · The mid stage · The late stage/);
+    expect(html).toMatch(/Banners: Level up · The mid stage · The late stage\./);
+    expect(html).toMatch(/<td><b>2<\/b><\/td><td><b>wind-orb<\/b><\/td><td><span class="muted">—<\/span><\/td><td>look wind<\/td>/);
+    expect(html).toMatch(/A status page \(I\)/);
+    expect(html).toMatch(/Not yet: a power fires on its key whether/);
     expect(html).toContain('mid · ornament 2, mass 1.1 · power +3');
     expect(html).toContain('&quot;tool&quot;: &quot;create_sketch&quot;');
     const { mechanics, ...without } = MEADOWMARK_HERO;

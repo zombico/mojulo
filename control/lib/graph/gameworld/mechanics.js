@@ -8,7 +8,8 @@
  *   power            →  a tech node in its stage's epoch, gained as the system gains powers (GAINED)
  *   system resource  →  a resource the powers spend (ki, mana, stamina)
  *   equipment class  →  what equipping it raises, by tier (GEAR_STAT, GEAR_BY): tree nodes, or offers to buy
- *   the systems      →  the HUD: hp, the resource, the level, a banner on each level and epoch, a status page
+ *   the systems      →  the HUD: hp, the resource, the level, a banner on each level and epoch, a status page (I)
+ *   each power       →  a key (1, 2, 3 …): it spends its cost and shows its look on the hero (KEYS)
  *
  *   mechanics?: {
  *     stats?: { <play.stats fields> },          // the creator's own, laid over the derived (lists by id, objects by key)
@@ -19,10 +20,11 @@
  *   }
  *
  * Pure: no dice, no clock. `readMechanics` reads the shape (the world reader calls it); `resolveMechanics` derives the
- * play block from the resolved book; `mechanicsOrders` the tool call that realizes it. How a power is USED (what it
- * spends, how hard it lands) is carried as data on `powers`: it binds to the bus once the powers have an input.
+ * play block, its keys and their legend from the resolved book; `mechanicsOrders` the tool call that realizes it. How
+ * hard a power lands (`powers[].hurt`) is carried as data until the powers have targets.
  */
-import { readStats, statVar, DEFAULT_HOLDER } from '../playscape/stats/stats.js';
+import { readStats, statVar } from '../playscape/stats/stats.js';
+import { LOOKS } from '../playscape/elements/elements.js';
 import { readPart } from '../playscape/ui/parts.js';
 import { EQUIPMENT_ITEMS } from '../equipment/expand.js';
 import { playerWorld } from '../playscape/player.js';
@@ -46,6 +48,10 @@ export const GEAR_STAT = Object.freeze({ dagger: 'speed', sword: 'power', greats
 export const GEAR_BY = Object.freeze({ power: [2, 3, 5], guard: [2, 3, 5], speed: [0.05, 0.05, 0.1] });
 /** Systems whose gear and upgrades are bought as offers with a currency, not grown on the tree. */
 const OFFERED = Object.freeze(['stamina', 'equip']);
+/** Who carries the stats: the player world's pilot (playscape/player.js), so a bound stat (hp) reaches its body. */
+export const HOLDER = 'hero';
+/** The keys: the status page, and the powers in the page's order (1 … 9). */
+export const KEYS = Object.freeze({ status: 'i', powers: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] });
 
 const ID = /^[a-z][a-z0-9-]*$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -107,7 +113,8 @@ function overList(derived = [], own, at, ledger) {
 }
 
 /**
- * The play block the loop calls for: `{ play: { stats, parts?, cues?, menus?, ui }, powers, reasons, ledger, open }`.
+ * The play block the loop calls for: `{ play: { stats, parts?, cues?, menus?, ui }, inputs, legend, powers, reasons, ledger,
+ * open, limits }`; `open` is what the creator can settle, `limits` what the runtime cannot do yet.
  * `book` carries the resolved actions (`actions`), the equipment table (`equipment`) and the adornment (`adornment`, or
  * null); a world with no mechanics has none (null). Throws only when the creator's own numbers are refused by the
  * stats kernel (its words quoted); what the derivation cannot place goes to `open`.
@@ -184,7 +191,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     reasons.push('vigor and might: the sparse upgrades, bought at a rest');
   }
 
-  const derived = { holders: [DEFAULT_HOLDER], stats, resources, level, epochs, tree, offers, bodies: { hpMax: 'hp' } };
+  const derived = { holders: [HOLDER], stats, resources, level, epochs, tree, offers, bodies: { hpMax: 'hp' } };
   for (const k of ['resources', 'epochs', 'tree', 'offers']) if (!derived[k].length) delete derived[k];
   // the creator's numbers, over the derived: lists by id, the level and the bodies by key
   const own = M.stats ?? {}, statsOut = { ...derived };
@@ -197,29 +204,42 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
   }
   try { readStats({ stats: statsOut }); } catch (e) { throw fail(`the stats, with the creator's own laid over: ${e.message}`); }
 
-  // how each power is used: what it spends and how hard it lands, carried until the powers have an input
-  const powers = seed.verbs.map((v) => {
+  // how each power is used: its key, what it spends, how it shows on the hero (its look; an attack with none, the look
+  // of its element), and how hard it lands (carried until the powers have targets)
+  const powers = seed.verbs.map((v, i) => {
     const ix = stageIx(stageOf.get(v.id)), p = actions.powers.find((x) => x.id === v.id) ?? {};
-    return { id: v.id, ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(p.attack ? { hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
+    const look = LOOKS[p.look] ? p.look : LOOKS[p.element?.toLowerCase()] ? p.element.toLowerCase() : null;
+    return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
   });
+  for (const p of powers) if (!p.key) open.push(`power '${p.id}' has no key: only ${KEYS.powers.length} powers are on the keys`);
+  // what the runtime cannot do yet: said on the page, never an advice the creator could act on
+  const limits = ['a power fires on its key whether it has been gained or can be afforded: the bus has no such guard yet (the resource is held at 0)', 'how hard a power lands is carried as data: the powers have no targets yet', 'the HP bar is designed on the UI board: the page draws it once the body publishes its hp to the bus (only the piloted shooter does today)'];
 
   const play = { stats: statsOut, ui: M.ui ?? 'propose' };
   const hud = M.hud ?? 'derive';
   if (Array.isArray(hud)) play.parts = hud;
-  else if (hud === 'derive') Object.assign(play, deriveHud(statsOut, res, epochs, S));
-  return { play, powers, reasons, ledger, open };
+  else if (hud === 'derive') Object.assign(play, deriveHud(statsOut, res, epochs));
+  // the keys: each power, and the status page when the HUD has one
+  const inputs = [...powers.filter((p) => p.key).map((p) => ({ on: 'key', key: p.key, emit: { type: `power-${p.id}` } })), ...(play.menus ? [{ on: 'key', key: KEYS.status, emit: { type: 'status' } }] : [])];
+  play.cues = [...(play.cues ?? []), ...powers.filter((p) => p.key).map((p) => ({
+    id: `power-${p.id}`, when: { on: `power-${p.id}` },
+    then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []), { say: p.id, as: 'toast' }],
+  })), ...(play.menus ? [{ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } }] : [])];
+  const legend = [...powers.filter((p) => p.key).map((p) => `${p.key} ${p.id}`), ...(play.menus ? [`${KEYS.status.toUpperCase()} status`] : [])].join(' · ');
+  return { play, inputs, legend, powers, reasons, ledger, open, limits };
 }
 
 /** The readouts the systems call for, the banners on each level and epoch, and a status page of the stats. */
-function deriveHud(stats, res, epochs, S) {
-  const v = (k) => statVar(DEFAULT_HOLDER, k), cap = stats.resources?.find((r) => r.id === res)?.cap;
+function deriveHud(stats, res, epochs) {
+  const v = (k) => statVar(HOLDER, k), cap = stats.resources?.find((r) => r.id === res)?.cap;
   const parts = [
-    { part: 'readout', id: 'hp', variant: 'bar', bind: { from: 'body', field: 'hp' }, at: 'bottom-left', label: 'HP', max: S.hp, color: 'harm' },
+    // the bar's max is the hp stat itself, so it grows with every level
+    { part: 'readout', id: 'hp', variant: 'bar', bind: { from: 'body', field: 'hp' }, at: 'bottom-left', label: 'HP', max: v('hp'), color: 'harm' },
     ...(res ? [{ part: 'readout', id: res, variant: 'bar', bind: { var: v(res) }, at: 'bottom-left', label: res.toUpperCase(), max: cap ?? 100 }] : []),
     { part: 'readout', id: 'level', variant: 'counter', bind: { var: v('level') }, at: 'top-left', label: 'LV' },
   ];
   const cues = [
-    { id: 'level-up', when: { levelled: DEFAULT_HOLDER }, then: { say: 'Level up', as: 'banner' } },
+    { id: 'level-up', when: { levelled: HOLDER }, then: { say: 'Level up', as: 'banner' } },
     ...epochs.slice(1).map((e) => ({ id: `epoch-${e.id}`, when: { epoch: e.id }, then: { say: `The ${e.id} stage`, as: 'banner' } })),
   ];
   const rows = [...stats.stats.map((s) => ({ label: s.id, var: v(s.id) })), ...(stats.resources ?? []).map((r) => ({ label: r.id, var: v(r.id) })), { label: 'level', var: v('level') }];
@@ -228,10 +248,13 @@ function deriveHud(stats, res, epochs, S) {
 
 /**
  * The tool call that realizes the systems while the world's levels are not yet minted as games: a `create_sketch` of a
- * player world (playscape/player.js) with the hero (`heroRef`, the base the hero orders mint) and the play block, so
- * the numbers can be played; the door resolves its `play.ui` when it mints. `R` is resolveMechanics'. Null without it.
+ * player world (playscape/player.js, its pilot the stats' holder) with the hero (`heroRef`, the base the hero orders
+ * mint), the play block, and the keys (`events.inputs`) the legend names, so the numbers can be played; the door
+ * resolves its `play.ui` when it mints. `R` is resolveMechanics'. Null without it.
  */
 export function mechanicsOrders(G, R, { heroRef = '<ref of the hero mint>' } = {}) {
   if (!R) return null;
-  return { tool: 'create_sketch', part: 'mechanics:stats', args: { title: `${G.name} · systems`, manifest: { ...playerWorld({ heroRef, title: `${G.name} · systems` }), play: R.play } } };
+  const W = playerWorld({ heroRef, id: HOLDER, title: `${G.name} · systems`, controls: `W / S  run · A / D  turn · Space  jump · ${R.legend}` });
+  const events = { ...(W.events || {}), ...(R.inputs.length ? { inputs: [...(W.events?.inputs ?? []), ...R.inputs] } : {}) };
+  return { tool: 'create_sketch', part: 'mechanics:stats', args: { title: `${G.name} · systems`, manifest: { ...W, events, play: R.play } } };
 }

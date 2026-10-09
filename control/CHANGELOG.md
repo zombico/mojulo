@@ -17,7 +17,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 The game book's second concern, beside the world bible: the `characters` slot a gameworld held open. Its first page
 is the hero, in two halves. Looks are visual only, with each element (body, head, hair, colour) designed and
 reviewed on its own page, then composed through the hero door into a base version. The base wears only an
-underlayer chosen to fit the world's setting, and it is kept as a pinned revision. Each page also yields the tool
+underlayer chosen to fit the world's setting and dressed in the direction's leading and supporting elements (the
+kit's ramps fill what they leave), and it is kept as a pinned revision. Each page also yields the tool
 calls that realize it, so a gameworld can drive the tools in place of the create-game tools. Actions are what the hero
 can do beyond platforming: the power system, the main power set, and an early-to-mid escalation, or an idiom read as
 "x-like". Western or anime is chosen explicitly. A crossing between them
@@ -80,8 +81,12 @@ Equipment is made once the stats stand: each class of gear raises a stat by tier
   gear tier raises.
 - **Fixed: a world's stats reach the page when it has events of its own.** The play block's `play.stats` was dropped
   in the merge with a manifest's own `events` (a player world's controls legend), so the stats kernel never ran there.
-- Not yet: the eyes gate on the numbers in play; the HP bar's max is the starting health (it does not follow levels);
-  nothing opens the status page yet.
+- **Played on keys.** Each power is on a key (1, 2, 3 …): it spends its cost and shows its look on the hero, an attack
+  the look of its element. I opens the status page; the legend names the keys. The stats ride the player world's pilot,
+  so the bound health reaches its body, and the HP bar's max is the health stat, so it follows the levels.
+- Not yet: the eyes gate on the numbers in play; a power fires whether it has been gained or can be afforded (the bus
+  has no such guard); how hard a power lands waits for targets; the page draws the HP bar once the body publishes its
+  health to the bus.
 
 ### Realistic ground: the opposite pole of the isekai look
 

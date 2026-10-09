@@ -45,7 +45,8 @@ export const UNDERLAYERS = Object.freeze({
 });
 const FALLBACK = Object.freeze({ style: 'casual', language: {}, read: 'plain casual clothes: the world\'s kit names no setting of its own' });
 
-/** The tones an underlayer takes off a kit's ramps: the first ramp's middle stop for the top, the second's for the bottom. */
+/** The tones an underlayer takes off a kit's ramps when the direction's elements leave them: the first ramp's middle
+ * stop for the top, the second's for the bottom. */
 function rampTones(ramps = []) {
   const mid = (r) => r?.stops?.[Math.floor(r.stops.length / 2)];
   const out = {};
@@ -57,7 +58,8 @@ function rampTones(ramps = []) {
 /**
  * What the base wears: the outfit build the world's setting chooses, at ornament 0, plus the ledger of where it came
  * from. `looks.underlayer` as an outfit build overrides the rail (and is ledgered); `null` or absent takes the rail.
- * → { build, read, ledger }
+ * Its tones are the direction's elements, then the kit's ramps (`toneFrom` says which each came from).
+ * → { build, read, ledger, tones?, toneFrom? }
  */
 export function underlayerFor(G, D = resolveDirection(G)) {
   const own = G.characters?.hero?.looks?.underlayer ?? null;
@@ -67,7 +69,14 @@ export function underlayerFor(G, D = resolveDirection(G)) {
     return { build: { ...own, dials: { ...(own.dials || {}), ornament: 0 } }, read: 'the creator\'s own underlayer', ledger };
   }
   const build = { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: { ...rail.language } } : {}) };
-  return { build, read: rail.read, ledger, tones: D?.from === 'world' ? rampTones(D.ramps) : {} };
+  // the clothes wear the direction: the leading element's tint on the top, the supporting one's on the bottom; the
+  // kit's ramps dress whatever the elements leave (a word with no tint, or no element named)
+  const tones = { ...(D?.from === 'world' ? rampTones(D.ramps) : {}) }, toneFrom = Object.fromEntries(Object.keys(tones).map((g) => [g, 'the kit\'s ramps']));
+  for (const [group, k] of [['Top', 'primary'], ['Bottom', 'secondary']]) {
+    const hex = D?.[k] ? ELEMENT_TINT[D[k].toLowerCase()] : undefined;
+    if (hex) { tones[group] = hex; toneFrom[group] = `the ${k === 'primary' ? 'leading' : 'supporting'} element, ${D[k]}`; }
+  }
+  return { build, read: rail.read, ledger, tones, toneFrom };
 }
 
 /** The leading and supporting elements as palette tints; a word with no tint is returned unread. */

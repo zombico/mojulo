@@ -78,10 +78,20 @@ describe('the game\'s systems', () => {
     expect(aa.tree.find((n) => n.id === 'gust-step').requires).toBeUndefined();
   });
 
-  it('how each power is used is carried as data: what it spends, and how hard an attack lands by stage', () => {
+  it('each power on a key: it spends its cost and shows its look on the hero (an attack, its element\'s); how hard it lands is data', () => {
     const M = book(idiom('shonen-like')).mechanics;
-    expect(M.powers.find((p) => p.id === 'wind-orb')).toEqual({ id: 'wind-orb', spends: { ki: 20 }, hurt: { stat: 'power', per: 1.2 } });
-    expect(M.powers.find((p) => p.id === 'gust-step')).toEqual({ id: 'gust-step', spends: { ki: 10 } });
+    expect(M.powers.find((p) => p.id === 'wind-orb')).toEqual({ id: 'wind-orb', key: '2', spends: { ki: 20 }, look: 'wind', hurt: { stat: 'power', per: 1.2 } });
+    expect(M.powers.find((p) => p.id === 'gust-step')).toEqual({ id: 'gust-step', key: '1', spends: { ki: 10 }, look: 'spiral' });
+    expect(M.inputs).toEqual([
+      { on: 'key', key: '1', emit: { type: 'power-gust-step' } }, { on: 'key', key: '2', emit: { type: 'power-wind-orb' } },
+      { on: 'key', key: '3', emit: { type: 'power-cyclone' } }, { on: 'key', key: 'i', emit: { type: 'status' } },
+    ]);
+    expect(M.play.cues.find((c) => c.id === 'power-wind-orb')).toEqual({ id: 'power-wind-orb', when: { on: 'power-wind-orb' }, then: [{ grant: { res: 'ki', by: -20 } }, { status: { who: 'hero', is: 'wind-orb', look: 'wind', for: 1.5 } }, { say: 'wind-orb', as: 'toast' }] });
+    expect(M.play.cues.find((c) => c.id === 'open-status')).toEqual({ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } });
+    expect(M.legend).toBe('1 gust-step · 2 wind-orb · 3 cyclone · I status');
+    // what the runtime cannot do yet is said, but never advised
+    expect(M.limits.join('\n')).toMatch(/no such guard yet/);
+    expect(M.open).toEqual([]);
   });
 
   it('the dials scale the derivation; the creator\'s numbers lay over it by id and key, ledgered; the kernel judges them', () => {
@@ -108,8 +118,10 @@ describe('the game\'s systems', () => {
   it('the HUD: hp, the resource and the level, banners on each level and epoch, a status page; none, or the creator\'s own', () => {
     const M = book(idiom('shonen-like')).mechanics;
     expect(M.play.parts.map((p) => p.id)).toEqual(['hp', 'ki', 'level']);
+    // the hp bar's max is the hp stat, so it grows with the levels
+    expect(M.play.parts[0].max).toBe('hero.hp');
     M.play.parts.forEach((p, i) => expect(() => readPart(p, i)).not.toThrow());
-    expect(M.play.cues.map((c) => c.id)).toEqual(['level-up', 'epoch-mid', 'epoch-late']);
+    expect(M.play.cues.map((c) => c.id)).toEqual(['level-up', 'epoch-mid', 'epoch-late', 'power-gust-step', 'power-wind-orb', 'power-cyclone', 'open-status']);
     expect(M.play.menus[0]).toMatchObject({ id: 'status', kind: 'list' });
     expect(M.play.ui).toBe('propose');
     const L = lowers(M.play);
@@ -118,7 +130,7 @@ describe('the game\'s systems', () => {
     const none = book({ ...MEADOWMARK_HERO, mechanics: { hud: false, ui: 'auto' } }).mechanics.play;
     expect(none).not.toHaveProperty('parts');
     expect(none.ui).toBe('auto');
-    const own = [{ part: 'readout', variant: 'bar', bind: { var: 'player.power' }, at: 'top-right', label: 'POW', max: 50 }];
+    const own = [{ part: 'readout', variant: 'bar', bind: { var: 'hero.power' }, at: 'top-right', label: 'POW', max: 50 }];
     expect(book({ ...MEADOWMARK_HERO, mechanics: { hud: own } }).mechanics.play.parts).toEqual(own);
   });
 
@@ -126,6 +138,10 @@ describe('the game\'s systems', () => {
     const B = book({ ...MEADOWMARK_HERO, mechanics: {} }), O = mechanicsOrders(B.G, B.mechanics);
     expect(O).toMatchObject({ tool: 'create_sketch', part: 'mechanics:stats', args: { title: 'Meadowmark · systems', manifest: { kind: 'controllable', play: B.mechanics.play } } });
     expect(O.args.manifest.figures.hero).toMatchObject({ heroRef: '<ref of the hero mint>' });
+    // the pilot is the stats' holder, so the bound hp reaches its body; the keys ride the world's inputs, the legend says them
+    expect(O.args.manifest.entities[0].id).toBe(B.mechanics.play.stats.holders[0]);
+    expect(O.args.manifest.events.inputs).toEqual(B.mechanics.inputs);
+    expect(JSON.stringify(O.args.manifest.events.hud)).toContain('jump · 1 gust-step · 2 wind-orb');
     expect(mechanicsOrders(B.G, null)).toBeNull();
   });
 
