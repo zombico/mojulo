@@ -10,7 +10,7 @@ import { NATURE_STYLES } from '../era/nature.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { JUNGLE_STYLES } from '../era/jungle.js';
 import { swatchesOf } from '../era/style/swatches.js';
-import { structureStyle } from '../era/out-structures.js';
+import { structureStyle, hasStructureRails } from '../era/out-structures.js';
 import { townLanguage } from '../era/out-town.js';
 import { composeFort } from '../era/out-fortress.js';
 import { influenceOf } from '../era/out-castle.js';
@@ -19,6 +19,11 @@ import { OUT_TRAIL } from '../era/out-trail.js';
 const SHELLS = { nature: NATURE_STYLES, isekai: ISEKAI_STYLES, jungle: JUNGLE_STYLES };
 const hex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 const RAMPS = ['grass', 'soil', 'rock', 'foliage', 'sky', 'timber', 'stone'];
+
+/** Whether a kit has an outdoor style card: a room kit (a nave, a plaza, a lab) has none, so no ramps or ornament. */
+export const hasKitCard = (kit) => !!SHELLS[stageKit(kit).shell];
+/** Whether a kit's towns speak a building language (languageCard): a trail kit has ramps but builds nothing. */
+export const hasLanguageCard = (kit) => hasStructureRails(kit);
 
 /** The kit's card: its style card's principles and its palette's ramps, shadow to light. */
 export function kitCard(kit) {

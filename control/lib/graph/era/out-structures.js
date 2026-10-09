@@ -116,6 +116,8 @@ export const STRUCTURE_RAILS = Object.freeze({
   'alien-night': { chunk: [1.1, 1.3], anchor: 'shell' },
 });
 export const STRUCTURE_KITS = Object.freeze(Object.keys(STRUCTURE_RAILS));
+/** Whether a kit's buildings are indexed (it, or the kit it varies), so it speaks a building language. */
+export const hasStructureRails = (kitId) => !!(STRUCTURE_RAILS[kitId] ?? STRUCTURE_RAILS[baseOf(kitId)]);
 const kitRails = (kitId) => {
   const R = STRUCTURE_RAILS[kitId] ?? STRUCTURE_RAILS[baseOf(kitId)];
   if (!R) throw new Error(`structures: buildings are indexed for the outdoor kits ${STRUCTURE_KITS.join(', ')} (got '${kitId}')`);

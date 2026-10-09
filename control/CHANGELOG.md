@@ -18,8 +18,9 @@ The game book's second concern, beside the world bible: the `characters` slot a 
 is the hero, in two halves. Looks are visual only, with each element (body, head, hair, colour) designed and
 reviewed on its own page, then composed through the hero door into a base version. The base wears only an
 underlayer chosen to fit the world's setting, and it is kept as a pinned revision. Each page also yields the tool
-calls that realize it, so a gameworld can drive the tools in place of the create-game tools. Actions are what the hero can do beyond platforming: the power system, the main power set, and an
-early-to-mid escalation, or an idiom read as "x-like". Western or anime is chosen explicitly. A crossing between them
+calls that realize it, so a gameworld can drive the tools in place of the create-game tools. Actions are what the hero
+can do beyond platforming: the power system, the main power set, and an early-to-mid escalation, or an idiom read as
+"x-like". Western or anime is chosen explicitly. A crossing between them
 is a named bridge, ledgered. The direction (motif, primary and secondary elements) is inherited from the world or
 set custom. Animation is assigned by vibe, and custom edits are saved as revisions from that baseline.
 
@@ -35,12 +36,25 @@ set custom. Animation is assigned by vibe, and custom edits are saved as revisio
   draws wire views and the live World page. Not yet done: the eyes gate on every plate and on the motion's table, the
   vibe table run through the rig's deep sweep, and the adornment and systems pages.
 
-### Character book: adornment
+### Character book: adornment and equipment
 
 The character book's third page, over the pinned base. Equipment is derived from the hero's actions, the main loop's
-final design: an item exists because a power needs it, grows with the stage that unlocks it, may serve a second power
-as an alternate use, and is shown scaled up or down. A variation is a sibling hero forked from the base with the gear
-added, so the bare base is never overwritten. In progress: the reader first.
+final design: an item exists because a power needs it, grows with the stage that unlocks it, and may serve a second
+power as an alternate use. What the page conceives is the template of its class in the world's equipment table.
+
+- **From the loop to the kit.** A table reads each power's verb, attack or look as an item and a hand, or as the body's
+  own (a dash, a rise). It reads whole words and their forms ("stabbing", "flies"), and the verb's first word it knows
+  decides. The leading element picks a staff's stone, the motif the base ornament, and the progression the tiers. It is
+  a proposal with its reasons: a power it cannot read is left to the creator.
+- **Equipment, a concern of the world.** `equipment.classes` has one row per class of gear the equipment kernel holds.
+  The hero's adornment item of a class seeds its row (its build, hand and tiers); a row the world writes wins and is
+  ledgered; the rest are left empty, the creator's to fill. Gear is made once the stats exist: its orders wait on the
+  systems step and on `mechanics`, so for now the table is the design.
+- **Reviewed like the rest.** The adornment and the equipment are parts of the review gate. The loop leaves open an
+  item that serves no power and a final-design power that nothing serves; an empty class is a task, not a fault.
+- **On the sheet.** The character bible draws the adornment (the items, their tiers by stage, their alternate uses, or
+  the proposal while none is adopted) and the equipment table with its rows to fill.
+- Not yet: the eyes gate on every item and tier, worn armour and paint, and the table's calibration.
 
 ### Realistic ground: the opposite pole of the isekai look
 

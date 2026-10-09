@@ -12,6 +12,7 @@
  *                   civilization builds is here; its people are left open with the world's characters
  *   CHARACTERS      who walks it (characters.js): the character book, its direction and its hero; read here,
  *                   resolved there
+ *   EQUIPMENT       what can be equipped (equipment.js): a row per class of gear, read here, resolved there
  *
  * Every level inherits both. A level is a local lord: it executes the world's style in place and interprets it, and
  * may override any part of it (its own kit, a steeper trail, another civilization); a section or a place may override
@@ -30,6 +31,7 @@
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
  *     characters?: { direction, hero? },  // the character book (characters.js)
+ *     equipment?: { classes? },           // the gear classes, seeded by the hero's adornment (equipment.js)
  *     mechanics?,                         // reserved: what is not on the ground is left open
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
  *   }
@@ -50,6 +52,7 @@ import { composeLook } from './tunnel-land.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
+import { readEquipment } from './equipment.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -86,7 +89,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -278,9 +281,10 @@ export function readGameworld(W) {
   });
   const start = W.start ?? ids[0];
   if (!levels[start]) throw new Error(`gameworld: start '${start}' is not a level (levels: ${ids.join(', ')})`);
-  // the character book: read here, so a world says what is wrong with it at once; kept only when the world has one
+  // the character book and the equipment: read here, so a world says what is wrong with them at once; kept only when present
   const characters = W.characters === undefined || W.characters === null ? null : readCharacters(W.characters);
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), [READ]: true };
+  const equipment = W.equipment === undefined || W.equipment === null ? null : readEquipment(W.equipment);
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), [READ]: true };
 }
 
 /**

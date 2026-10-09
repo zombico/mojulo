@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readGameworld, heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT } from './index.js';
+import { readGameworld, heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT, MEADOWMARK_HERO } from './index.js';
 import { validateHeroSpec } from '../../mcp/tools/layered.js';
+import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { validateOutfitBuild } from '../outfit/expand.js';
 
 const world = (characters, style) => readGameworld({ id: 'w', seed: 8, ...(style ? { style } : {}), levels: { a: { walk: { nodes: { t: { trail: true } } } } }, characters });
@@ -106,5 +107,11 @@ describe('the composed hero', () => {
     expect(O.patches.map((p) => p.part)).toEqual(['hero:body', 'hero:head', 'hero:hair', 'hero:colour']);
     expect(O.patches[0].args.patch).toEqual([{ op: 'set', path: '/hero/cast', value: 'female' }, { op: 'set', path: '/hero/tune', value: { legs: 1.04 } }, { op: 'set', path: '/hero/proportions', value: 'anime' }]);
     expect(heroOrders(world({ direction: { tradition: 'western' } })).mint.args).not.toHaveProperty('toon');
+  });
+
+  it('re-applying any page over the minted hero leaves it as composed: the colour page keeps the underlayer\'s tones', () => {
+    const H = readGameworld(MEADOWMARK_HERO), C = composeHero(H), O = heroOrders(H);
+    expect(Object.keys(C.spec.palette)).toEqual(expect.arrayContaining(['Top', 'Bottom', 'Trim', 'Hair']));
+    for (const p of O.patches) expect(applyManifestPatch({ hero: O.mint.args.spec }, p.args.patch).manifest.hero, p.part).toEqual(C.spec);
   });
 });

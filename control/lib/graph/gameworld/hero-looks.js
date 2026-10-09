@@ -9,9 +9,9 @@
  *   composeHero(G)   the fragments merged, top down, into ONE `via: 'hero'` spec with no adornment, paint or gear: it
  *                    wears only the UNDERLAYER, an outfit build at ornament 0 fitted to the world's setting. The base
  *                    version; adornment (a later page) layers over it and never replaces it
- *   heroOrders(G)    the tool calls that realize the page: `mint_solid` with the composed spec, then one `update_sketch`
- *                    patch per element, then the motion's (hero-vibe.js), so a gameworld can drive the tools in place
- *                    of a creator prompting each one
+ *   heroOrders(G)    the tool calls that realize the page: `mint_solid` with the composed spec, then the motion's
+ *                    (hero-vibe.js), so a gameworld can drive the tools in place of a creator prompting each one; and
+ *                    one `update_sketch` patch per element, to re-apply that page alone once it changes
  *
  * Pure. `G` is a read world (readGameworld's) whose `characters` is present. The tradition decides the head and the
  * proportions (resolveDirection); the character light (`toon`) is a top-level `mint_solid` argument, not a spec field,
@@ -19,16 +19,10 @@
  */
 import { resolveDirection, LOOKS_ELEMENTS } from './characters.js';
 import { resolveMotion, motionOrders } from './hero-vibe.js';
+import { ELEMENT_TINT } from './element-words.js';
 
-/** What the leading and supporting elements tint: a word → the hero palette group it lands on, and its colour. */
-export const ELEMENT_TINT = Object.freeze({
-  flame: '#d4572a', fire: '#d4572a', ember: '#d4572a', lava: '#d4572a',
-  wind: '#9fd6c8', air: '#9fd6c8', storm: '#7f93b8',
-  water: '#3f86c4', tide: '#3f86c4', ice: '#a9d4ea', frost: '#a9d4ea',
-  earth: '#8a6a43', stone: '#8a6a43', forest: '#4f7a3f', leaf: '#4f7a3f',
-  lightning: '#e8cf4a', thunder: '#e8cf4a', light: '#f2e7b0', sun: '#f2e7b0',
-  shadow: '#4a3a6a', dark: '#4a3a6a', moon: '#b8c0dc', brass: '#b58a3a', gold: '#c9a23a', iron: '#6a6f78',
-});
+export { ELEMENT_TINT };
+
 /** The palette group each tint lands on: the leading element is the Trim, the supporting one the hair's highlight. */
 const TINT_GROUP = Object.freeze({ primary: 'Trim', secondary: 'HairHighlight' });
 
@@ -120,10 +114,9 @@ function paletteOfDirection(list) {
 /**
  * The fragments merged, top down, into one hero-door spec. Order is the loop's: body, head, hair, colour, then the
  * underlayer. No `adorn`, `paint`, `gear` or `detail`: the base is bare but for what the setting wears.
- * → { spec, toon, underlayer, elements, unread, ledger }; null when the world has no characters.
+ * `looks` is heroLooks', if at hand. → { spec, toon, underlayer, elements, unread, ledger }; null without characters.
  */
-export function composeHero(G) {
-  const looks = heroLooks(G);
+export function composeHero(G, looks = heroLooks(G)) {
   if (!looks) return null;
   const { elements, direction: D } = looks;
   const U = underlayerFor(G, D);
@@ -137,17 +130,21 @@ export function composeHero(G) {
 }
 
 /**
- * The tool calls that realize the page, in order: `mint_solid` with the composed spec (and the character light when the
- * tradition has one), then `update_sketch` patches per element against `ref`, to run once the sketch exists. A
- * creator, or later a gameworld runner, runs them; nothing here runs a tool.
+ * The tool calls that realize the page: `mint_solid` with the composed spec (and the character light when the tradition
+ * has one), then `motion`, the feel patched over the minted base. `patches` are NOT run after the mint (it already
+ * carries every page, and each patch would only write a revision): each re-applies one element's page against `ref`
+ * once that page changes. The colour page sets its palette group by group, so re-applying it keeps the underlayer's
+ * tones. A creator, or later a gameworld runner, runs them; nothing here runs a tool.
  */
-export function heroOrders(G, { title } = {}) {
-  const C = composeHero(G);
+export function heroOrders(G, { title, composed } = {}) {
+  const C = composed ?? composeHero(G);
   if (!C) return null;
   const mint = { tool: 'mint_solid', args: { kind: 'layered', via: 'hero', title: title ?? `${G.name} hero`, spec: C.spec, ...(C.toon ? { toon: { light: true } } : {}) } };
   const patches = Object.entries(C.elements).map(([key, E]) => ({
     tool: 'update_sketch', part: E.part,
-    args: { ref: '<ref of the mint>', patch: Object.entries(E.spec).map(([field, value]) => ({ op: 'set', path: `/hero/${field}`, value })) },
+    args: { ref: '<ref of the mint>', patch: Object.entries(E.spec).flatMap(([field, value]) => (field === 'palette'
+      ? Object.entries(value).map(([group, hex]) => ({ op: 'set', path: `/hero/palette/${group}`, value: hex }))
+      : [{ op: 'set', path: `/hero/${field}`, value }])) },
   })).filter((o) => o.args.patch.length);
   // the feel, once the hero stands: its gaits and stand, then any custom clips, as patches of the same sketch
   const hero = G.characters.hero ?? {}, motion = hero.motion ? motionOrders(resolveMotion(hero.motion)) : null;

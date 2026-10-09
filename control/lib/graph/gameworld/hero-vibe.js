@@ -139,14 +139,15 @@ export function readMotion(M) {
 
 /**
  * The tool call that realizes a resolved motion page against the hero's sketch: `update_sketch` patches that set the
- * gaits (`/hero/motion`), the stand (`/hero/gesture`) and each custom clip (`/hero/clips/<name>`). A patch lands as a
+ * gaits (`/hero/motion`), the stand (`/hero/gesture`) and the custom clips (`/hero/clips`, the page's whole set: a
+ * patch creates only its last segment, and a freshly minted base has no clips to set one into). A patch lands as a
  * revision of the sketch, so a custom edit is kept beside the base it branched from. Null when there is nothing to set.
  */
 export function motionOrders(R, ref = '<ref of the mint>') {
   const patch = [
     ...(R.motion ? [{ op: 'set', path: '/hero/motion', value: R.motion }] : []),
     ...(R.gesture ? [{ op: 'set', path: '/hero/gesture', value: R.gesture }] : []),
-    ...Object.entries(R.clips ?? {}).map(([name, value]) => ({ op: 'set', path: `/hero/clips/${name}`, value })),
+    ...(R.clips ? [{ op: 'set', path: '/hero/clips', value: R.clips }] : []),
   ];
   return patch.length ? { tool: 'update_sketch', part: 'hero:motion', args: { ref, patch }, ...(R.from ? { branchedFrom: R.from } : {}) } : null;
 }

@@ -1,7 +1,8 @@
 /**
  * THE CHARACTER BIBLE — the binder for the creator who makes the hero: the direction every page reads (the tradition,
  * where it comes from, the motif, the leading and supporting elements, every departure ledgered), one plate for each
- * looks element, the composed hero in its bare base, the base pinned, the motion, the actions, and what is left open.
+ * looks element, the composed hero in its bare base, the base pinned, the motion, the actions, the adornment, the
+ * world's equipment table it seeds, and what is left open.
  *
  * It is the APPROVAL GATE (character-review.js) as the world's bible is: each part carries its stamp, the cover lists
  * them with what to look at next, and says which later steps (adornment, the game's systems) may start. What the
@@ -12,11 +13,13 @@
  * `renders: { front, three, back }` (SVG strings); without them the page shows the orders to run. Each plate is fenced
  * `<!--plate:name-->…<!--/plate-->` so `out-sheet.mjs characters --raster` can swap its SVG for an image.
  */
-import { readGameworld } from './world.js';
-import { characterState, characterReady } from './character-review.js';
-import { heroLooks, composeHero, heroOrders } from './hero-looks.js';
-import { resolveActions, SYSTEM_KINDS } from './actions.js';
-import { resolveMotion, AXES, VIBES } from './hero-vibe.js';
+import { resolveBook, characterState, characterReady } from './character-review.js';
+import { heroOrders } from './hero-looks.js';
+import { SYSTEM_KINDS, STAGES } from './actions.js';
+import { AXES, VIBES } from './hero-vibe.js';
+import { buildAt } from './adornment.js';
+import { suggestKit } from './adornment-kit.js';
+import { equipmentOrders } from './equipment.js';
 import { TRADITIONS, FROM } from './characters.js';
 import { MODES, STAMPS } from './review.js';
 import { esc, plate, CSS } from './bible-html.js';
@@ -42,10 +45,10 @@ table.powers{border-collapse:collapse;width:100%;font-size:13.5px}table.powers t
 
 /** The character book of a world, as one page. */
 export function characterBibleHtml(world, { renders = {}, lookup } = {}) {
-  const G = readGameworld(world);
-  if (!G.characters) throw new Error('characters: the world has no character book (characters: { direction, hero? }); the world bible names it open');
-  const L = heroLooks(G), C = composeHero(G), D = L.direction, hero = G.characters.hero ?? {}, orders = heroOrders(G);
-  const R = resolveActions(hero.actions ?? {}, D), state = characterState(world, { lookup }), ready = characterReady(world, { lookup });
+  const B = resolveBook(world);
+  if (!B) throw new Error('characters: the world has no character book (characters: { direction, hero? }); the world bible names it open');
+  const { G, D, looks: L, composed: C, hero, actions: R } = B, orders = heroOrders(G, { composed: C });
+  const state = characterState(world, { lookup, book: B }), ready = characterReady(world, { state });
   const stampOf = (id) => state.find((x) => x.id === id);
   const stamp = (id) => { const x = stampOf(id); return x ? `<span class="stamp st-${x.status}" title="${esc(STAMPS[x.status])}">${esc(x.status)}</span>` : ''; };
   const note = (id) => { const x = stampOf(id); return x?.note ? `<div class="review-note"><span class="eyebrow">${x.status === 'revise' ? 'Sent back' : 'Note'}</span><p>${esc(x.note)}</p></div>` : ''; };
@@ -90,7 +93,7 @@ ${dl([['outfit', json(U.build)], ['pinned base', hero.looks?.base ? json(hero.lo
 ${machine('hero:base')}
 <details><summary>The orders that realize it</summary><pre>${esc(JSON.stringify(orders, null, 2))}</pre></details></div></section>`;
 
-  const MO = hero.motion ? resolveMotion(hero.motion) : null;
+  const MO = B.motion;
   const bar = (v) => `<span class="bar" title="${v}"><i style="left:${50 + v * 50}%"></i></span>`;
   const motion = `<section class="part" id="hero-motion"><div class="part-h"><span class="eyebrow">The hero · motion ${stamp('hero:motion')}</span><h2>How it moves</h2><p class="muted">Assigned by vibe from the base. A custom edit starts from this baseline and is saved as a revision of the sketch.</p></div><div class="card">${note('hero:motion')}
 ${MO ? `${dl([['vibe', MO.vibe.length ? list(MO.vibe) : '—'], ['not read', MO.unread.length ? list(MO.unread) : undefined], ['stand', MO.gesture ? esc(MO.gesture) : undefined], ['branched from', MO.from ? `${esc(MO.from.ref)} · rev ${MO.from.rev}` : undefined]])}
@@ -110,17 +113,42 @@ ${S ? dl([['system', `<b>${esc(S.kind)}</b>: ${esc(SYSTEM_KINDS[S.kind])}`], ['r
 ${R.open.length ? `<h4>Still open</h4><ul class="principles">${R.open.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}${machine('hero:actions')}
 <details><summary>The mechanics seed (data only, nothing numbered)</summary><pre>${esc(JSON.stringify(R.mechanicsSeed, null, 2))}</pre></details></div></section>`;
 
-  const step = (name, what, r) => `<article class="card open"><div class="card-h"><span class="eyebrow">Next · ${r.ready ? 'may start' : 'waiting'}</span><h3>${esc(name)}</h3></div><p class="muted">${esc(what)}</p><div class="ready"><b class="${r.ready ? 'yes' : 'no'}">${r.ready ? 'ready' : 'waiting on'}</b>${r.waiting.map((w) => `<span><a href="${anchor(w.id)}">${esc(w.id)}</a> · ${esc(w.status)}</span>`).join('')}</div></article>`;
+  // adornment: the page as the creator wrote it, or what the loop proposes while none is adopted
+  const AD = B.adornment, proposal = AD ? null : suggestKit(R, D);
+  const dialsAt = (it, s) => { const d = buildAt(it, s).dials || {}; return `${s} · ornament ${d.ornament ?? 0}, mass ${d.mass ?? 1}`; };
+  const itemRows = (items) => `<table class="powers"><tr><th>item</th><th>hand</th><th>serves</th><th>by stage</th><th>alternate uses</th></tr>${items.map((it) => `<tr><td><b>${esc(it.id)}</b><br><span class="muted">${esc(it.build.item)}${it.build.gem ? ` · ${esc(it.build.gem)}` : ''}</span></td><td>${esc(it.slot)}</td><td>${list(it.serves)}</td><td>${STAGES.map((s) => esc(dialsAt(it, s))).join('<br>')}</td><td>${it.alt?.length ? it.alt.map((a) => `<b>${esc(a.id)}</b> ${esc(a.use)}${a.serves ? ` (serves ${list(a.serves)})` : ''}`).join('<br>') : '<span class="muted">none</span>'}</td></tr>`).join('')}</table>`;
+  const adornment = `<section class="part" id="hero-adornment"><div class="part-h"><span class="eyebrow">The hero · adornment ${stamp('hero:adornment')}</span><h2>What it carries</h2><p class="muted">Equipment from the main loop's final design: an item exists because a power needs it, grows with the stage that unlocks it, and may serve another power as an alternate use. Each item is the template of its class in the equipment table.</p></div><div class="card">${note('hero:adornment')}
+${AD ? `${AD.bodily.length ? dl([['the body carries', list(AD.bodily)]]) : ''}${AD.items.length ? itemRows(AD.items) : '<p class="muted">No item: the body carries the whole loop.</p>'}
+${AD.open.length ? `<h4>Still open</h4><ul class="principles">${AD.open.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}`
+    : `<p class="read">Nothing is laid out yet. Proposed from the loop (not adopted):</p>${proposal.adornment.bodily?.length ? dl([['the body carries', list(proposal.adornment.bodily)]]) : ''}${proposal.adornment.items.length ? itemRows(proposal.adornment.items) : '<p class="muted">No item is called for.</p>'}
+<ul class="principles">${proposal.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>${proposal.unread.length ? `<p class="muted">Not read: ${proposal.unread.map((u) => `<b>${esc(u.id)}</b> (${esc(u.verb)})`).join(', ')}.</p>` : ''}`}
+${machine('hero:adornment')}</div></section>`;
+
+  // the equipment table: a row per class of gear, seeded by the adornment or the world's own, the rest the creator's
+  const E = B.equipment, EO = equipmentOrders(G, ready.equipment);
+  const statusOf = { authored: 'the world\'s own', seeded: 'from the hero', empty: 'to fill' };
+  const buildCell = (r) => (r.build ? `${esc(r.build.item)}${r.build.style ? ` · ${esc(typeof r.build.style === 'string' ? r.build.style : 'own style')}` : ''}${r.build.gem ? ` · ${esc(r.build.gem)}` : ''}<br><span class="muted">${esc(r.slot)} hand</span>` : '<span class="muted">—</span>');
+  const tierCell = (r) => (r.build ? STAGES.map((st) => esc(dialsAt(r, st))).join('<br>') : '<span class="muted">—</span>');
+  const equipment = `<section class="part" id="equipment"><div class="part-h"><span class="eyebrow">Equipment ${stamp('equipment')}</span><h2>What can be equipped</h2><p class="muted">The world's gear, one row per class. What the hero's adornment conceived is the template of its class; the empty rows are yours to fill. Gear is made once the stats exist: until then this is the design.</p></div><div class="card">${note('equipment')}
+<table class="powers"><tr><th>class</th><th>status</th><th>template</th><th>by stage</th><th>from</th></tr>${E.rows.map((r) => `<tr><td><b>${esc(r.class)}</b></td><td class="${r.status === 'empty' ? 'muted' : ''}">${esc(statusOf[r.status])}</td><td>${buildCell(r)}</td><td>${tierCell(r)}</td><td>${r.from ? `${esc(r.from)}${r.also ? `<br><span class="muted">also ${list(r.also)}</span>` : ''}` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>
+${E.tasks.length ? `<h4>To fill</h4><p class="muted">${list(E.tasks)}: write each as <code>equipment.classes.&lt;class&gt; = { build, slot?, tiers? }</code>, or <code>null</code> to leave it empty on purpose.</p>` : ''}
+${E.ledger.length ? `<h4>Where it departs</h4><ul class="ledger">${E.ledger.map((o) => `<li><b>${esc(o.key)}</b> ${esc(o.local)} <span>over ${esc(o.world)}</span></li>`).join('')}</ul>` : ''}
+${machine('equipment')}
+<p class="muted">${EO.mints.length ? `Ready: ${EO.mints.length} mint${EO.mints.length === 1 ? '' : 's'} below.` : `Not made yet: waiting on ${EO.waiting.map((w) => `${esc(w.id)} (${esc(w.status)})`).join(', ')}.`}</p>
+${EO.mints.length ? `<details><summary>The orders that make them</summary><pre>${esc(JSON.stringify(EO.mints, null, 2))}</pre></details>` : ''}</div></section>`;
+
+  const step = (name, what, r) => `<article class="card open"><div class="card-h"><span class="eyebrow">Next · ${r.ready ? 'may start' : 'waiting'}</span><h3>${esc(name)}</h3></div><p class="muted">${esc(what)}</p><div class="ready"><b class="${r.ready ? 'yes' : 'no'}">${r.ready ? 'ready' : 'waiting on'}</b>${r.waiting.map((w) => `<span>${stampOf(w.id) ? `<a href="${anchor(w.id)}">${esc(w.id)}</a>` : esc(w.id)} · ${esc(w.status)}</span>`).join('')}</div></article>`;
   const open = `<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the hero</h2></div><div class="cards">
 ${step('Adornment', 'Equipment shaped to the main loop\'s final design, scaled up and down, with alternate uses.', ready.adornment)}
 ${step('Systems', 'The game\'s systems: the numbers and the UI, over the actions\' mechanics seed.', ready.systems)}
+${step('Equipment', 'The gear classes made, once the stats exist to give them a reason to be equipped.', ready.equipment)}
 <article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>Cast</h3></div><p class="muted">The other characters and the people of its civilizations are left open for now.</p></article></div></section>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Character bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
 <style>${CSS}${EXTRA_CSS}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Character bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
-<nav class="tabs" aria-label="Sections"><a href="#cover">Hero</a><a href="#gate">Gate</a><a href="#characters-direction">Direction</a><a href="#hero-looks">Looks</a><a href="#hero-base">Base</a><a href="#hero-motion">Motion</a><a href="#hero-actions">Actions</a><a href="#open">Open</a></nav>
+<nav class="tabs" aria-label="Sections"><a href="#cover">Hero</a><a href="#gate">Gate</a><a href="#characters-direction">Direction</a><a href="#hero-looks">Looks</a><a href="#hero-base">Base</a><a href="#hero-motion">Motion</a><a href="#hero-actions">Actions</a><a href="#hero-adornment">Adornment</a><a href="#equipment">Equipment</a><a href="#open">Open</a></nav>
 <section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${esc(D.tradition)} · ${esc(D.from === 'world' ? G.style.kit : 'its own direction')}${D.primary ? ` · ${esc(D.primary)}${D.secondary ? ` and ${esc(D.secondary)}` : ''}` : ''}</p></div></div>
 ${gate}</section>
 ${direction}
@@ -128,6 +156,8 @@ ${looks}
 ${base}
 ${motion}
 ${actions}
+${adornment}
+${equipment}
 ${open}
 <footer><span class="eyebrow">Every page read from its recipe</span><span class="eyebrow">Character book</span></footer>
 </div></body></html>`;

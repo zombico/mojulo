@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { readGameworld, readMotion, resolveMotion, motionOrders, heroOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './index.js';
 import { validateHeroMotion } from '../polygonizer/hero-motion.js';
 
@@ -106,8 +107,10 @@ describe('the hero\'s motion, by vibe', () => {
     const R = resolveMotion({ vibe: ['cocky'], from: { ref: 'h1', rev: 1 }, clips });
     const O = motionOrders(R, 'h1');
     expect(O).toMatchObject({ tool: 'update_sketch', part: 'hero:motion', branchedFrom: { ref: 'h1', rev: 1 }, args: { ref: 'h1' } });
-    expect(O.args.patch.map((p) => p.path)).toEqual(['/hero/motion', '/hero/gesture', '/hero/clips/greet']);
-    expect(O.args.patch[2]).toEqual({ op: 'set', path: '/hero/clips/greet', value: clips.greet });
+    expect(O.args.patch.map((p) => p.path)).toEqual(['/hero/motion', '/hero/gesture', '/hero/clips']);
+    expect(O.args.patch[2]).toEqual({ op: 'set', path: '/hero/clips', value: clips });
+    // the patch applies to a freshly minted base, which has no clips yet (update_sketch creates only the last segment)
+    expect(applyManifestPatch({ hero: { cast: 'female' } }, O.args.patch).manifest.hero.clips).toEqual(clips);
     const G = readGameworld(world({ vibe: ['cocky'] }));
     expect(heroOrders(G).motion.args.patch[0].path).toBe('/hero/motion');
   });

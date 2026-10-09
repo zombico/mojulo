@@ -38,6 +38,35 @@ describe('the character bible', () => {
     expect(bare).toMatch(/Not laid out yet\. Say how it should feel/);
   });
 
+  it('draws the adornment: the body\'s powers, the item with the powers it serves, its tiers by stage and its alternate use', () => {
+    expect(html).toContain('id="hero-adornment"');
+    expect(html).toMatch(/the body carries<\/dt><dd>gust-step, cyclone/);
+    expect(html).toContain('<b>wind-staff</b>');
+    expect(html).toMatch(/staff · quartz/);
+    expect(html).toContain('late · ornament 3, mass 1.25');
+    expect(html).toContain('<b>vault-pole</b> a pole to vault gaps with');
+    expect(html).not.toMatch(/Nothing is laid out yet\. Proposed from the loop/);
+  });
+
+  it('draws the equipment table: the staff seeded from the hero, the other classes the creator\'s to fill, made once the stats exist', () => {
+    expect(html).toContain('id="equipment"');
+    expect(html).toMatch(/<td><b>staff<\/b><\/td><td class="">from the hero<\/td>/);
+    expect(html).toContain('hero:wind-staff');
+    expect(html).toMatch(/<td><b>sword<\/b><\/td><td class="muted">to fill<\/td>/);
+    expect(html).toMatch(/To fill<\/h4><p class="muted">dagger, sword, greatsword, bow, shield/);
+    expect(html).toMatch(/Not made yet: waiting on .*mechanics \(not built\)/);
+    expect(html).not.toMatch(/The orders that make them/);
+    expect(html).not.toMatch(/variation/i);
+  });
+
+  it('a hero with no adornment page shows what the loop proposes, not adopted', () => {
+    const bare = characterBibleHtml({ ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, hero: { ...MEADOWMARK_HERO.characters.hero, adornment: undefined } } });
+    expect(bare).toMatch(/Nothing is laid out yet\. Proposed from the loop \(not adopted\)/);
+    expect(bare).toMatch(/staff: the leading element wind → a quartz/);
+    // nothing adopted: no class is seeded, so every row is the creator's
+    expect(bare).toMatch(/<td><b>staff<\/b><\/td><td class="muted">to fill<\/td>/);
+  });
+
   it('is the approval gate: every part waits; the eyes gate is left to the creator; a later step waits on its parts', () => {
     expect((html.match(/class="stamp st-proposed"/g) || []).length).toBeGreaterThanOrEqual(8);
     expect(html).toMatch(/whether each plate reads right is yours to judge/);

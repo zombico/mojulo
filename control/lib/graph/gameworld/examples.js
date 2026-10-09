@@ -57,6 +57,18 @@ export const MEADOWMARK_HERO = Object.freeze({
         colour: { palette: { Hair: '#e8cf7a' } },
       },
       motion: { vibe: ['bouncy', 'bold'] },
+      // the kit the loop calls for: the dash and the rise are the body's; the thrown wind is a staff with the wind's stone,
+      // richer at each stage, and as a plain pole it is a vault. The staff is the template of its class in the world's
+      // equipment table; the other classes are left for the creator
+      adornment: {
+        bodily: ['gust-step', 'cyclone'],
+        items: [{
+          id: 'wind-staff', slot: 'right', serves: ['wind-orb'],
+          build: { item: 'staff', parts: { head: 'claw' }, dials: { focus: 'head', ornament: 1, mass: 1 }, gem: 'quartz' },
+          tiers: { mid: { dials: { ornament: 2, mass: 1.1 } }, late: { dials: { ornament: 3, mass: 1.25 } } },
+          alt: [{ id: 'vault-pole', use: 'a pole to vault gaps with', serves: ['gust-step'], build: { parts: { head: 'plain' }, dials: { focus: 'none', mass: 1.4 }, gem: null } }],
+        }],
+      },
       actions: {
         idiom: 'metroidvania-like',
         powers: [

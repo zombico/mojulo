@@ -23,11 +23,8 @@ export async function renderHeroViews(world, { size = 640, elevation = 10, focal
   const ref = 'character-bible-hero';
   // the base is minted bare; the motion page's gaits and stand are applied to this throwaway copy so the live page plays
   // the feel the creator asked for (the stored orders apply them as patches after the real mint)
-  const spec = { ...orders.mint.args.spec };
-  for (const p of orders.motion?.args.patch ?? []) {
-    const [, , field, name] = p.path.split('/');   // /hero/<field>[/<clip name>]
-    if (name) spec[field] = { ...(spec[field] || {}), [name]: p.value }; else spec[field] = p.value;
-  }
+  const { applyManifestPatch } = await import('../lib/mcp/tools/manifest-patch.js');
+  const spec = orders.motion ? applyManifestPatch({ hero: orders.mint.args.spec }, orders.motion.args.patch).manifest.hero : orders.mint.args.spec;
   const minted = await mintSolidHandler({ ...orders.mint.args, spec, ref });
   if (!minted?.ok) throw new Error(`the hero door did not mint the composed hero: ${JSON.stringify(minted).slice(0, 300)}`);
 

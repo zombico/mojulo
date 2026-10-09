@@ -19,7 +19,7 @@ describe('the character book\'s review', () => {
   it('the parts are the direction, four looks pages, the base, the motion and the actions, each with a print', () => {
     const P = characterParts(world({}));
     expect(P.map((p) => p.id)).toEqual(CHARACTER_PART_IDS);
-    expect(CHARACTER_PART_IDS).toEqual(['characters:direction', 'hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base', 'hero:motion', 'hero:actions']);
+    expect(CHARACTER_PART_IDS).toEqual(['characters:direction', 'hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment']);
     for (const p of P) expect(p.print).toMatch(/^[0-9a-f]{8}$/);
     expect(JSON.stringify(characterParts(world({})))).toBe(JSON.stringify(characterParts(world({}))));
   });
@@ -68,6 +68,25 @@ describe('the character book\'s review', () => {
     expect(stamp(characterState(world({ motion: { vibe: ['cocky'] } }, { mode: 'autonomous' })), 'hero:motion').status).toBe('auto');
   });
 
+  it('the adornment and the equipment are parts: none laid out advises; a page with nothing open holds; a changed item goes stale', () => {
+    const w = world({ actions: complete }, { mode: 'autonomous' });
+    expect(stamp(characterState(w), 'hero:adornment')).toMatchObject({ status: 'revise', machine: ['no adornment is laid out yet'] });
+    expect(stamp(characterState(w), 'equipment').machine).toEqual(['no class has a template yet']);
+    const sword = { id: 'blade', slot: 'right', build: { item: 'sword' }, serves: ['burst'] };
+    const kit = { items: [sword] };
+    const S = characterState(world({ actions: complete, adornment: kit }, { mode: 'autonomous' }));
+    expect(stamp(S, 'hero:adornment').status).toBe('auto');
+    // the sword seeds its class; the empty classes are the creator's tasks, not faults
+    expect(stamp(S, 'equipment')).toMatchObject({ status: 'auto', machine: [] });
+    // an approval of the adornment goes stale when an item changes, and so does the equipment it seeds
+    const gated = world({ actions: complete, adornment: kit });
+    const review = { ...approveCharacter(gated, 'hero:adornment'), ...approveCharacter(gated, 'equipment') };
+    expect(stamp(characterState({ ...gated, review }), 'hero:adornment').status).toBe('approved');
+    const changed = world({ actions: complete, adornment: { items: [{ ...sword, build: { item: 'sword', dials: { mass: 1.5 } } }] } });
+    expect(stamp(characterState({ ...changed, review }), 'hero:adornment').status).toBe('changed');
+    expect(stamp(characterState({ ...changed, review }), 'equipment').status).toBe('changed');
+  });
+
   it('a pinned base that has drifted advises, as measured through the lookup', () => {
     const w = world({ looks: { base: pin } }, { mode: 'autonomous' });
     expect(stamp(characterState(w, { lookup: () => ({ hero: { cast: 'female' } }) }), 'hero:base').status).toBe('auto');
@@ -88,6 +107,9 @@ describe('the character book\'s review', () => {
     expect(ready(w2).systems).toEqual({ ready: false, waiting: [{ id: 'hero:motion', status: 'proposed' }] });
     const w3 = { ...w0, review: approveCharacter(w2, 'hero:motion') };
     expect(ready(w3).systems.ready).toBe(true);
+    // the equipment waits on the stats as well: `mechanics` is not built while it is reserved
+    expect(ready(w3).equipment).toEqual({ ready: false, waiting: [{ id: 'mechanics', status: 'not built' }] });
+    expect(ready(w0).equipment.waiting.map((x) => x.id)).toEqual(['hero:base', 'hero:actions', 'hero:motion', 'mechanics']);
     // the actions page changing after approval puts adornment back to waiting
     expect(ready({ ...w3, characters: { ...w3.characters, hero: { actions: complete } } }).adornment.waiting).toEqual([{ id: 'hero:actions', status: 'changed' }]);
   });

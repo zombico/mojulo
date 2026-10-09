@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readAdornment, resolveAdornment, resolveActions, readGameworld, applyDiff, buildAt, SCALES } from './index.js';
+import { readAdornment, resolveAdornment, resolveActions, readGameworld, applyDiff, buildAt } from './index.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 
 const look = Object.keys(LOOKS)[0];
@@ -16,7 +16,7 @@ const world = (adornment) => ({ id: 'w', seed: 8, levels: { a: { walk: { nodes: 
 
 describe('the hero\'s adornment', () => {
   it('says what is wrong', () => {
-    bad([], /is \{ items, variations\? \}/);
+    bad([], /is \{ items, bodily\? \}/);
     bad({ gear: [] }, /\.gear is not part of the adornment page/);
     bad({ items: [] }, /a list of \{ id, slot, build, serves \}/);
     bad({ items: [{ ...sword, id: 'Blade' }] }, /lowercase id/);
@@ -34,16 +34,8 @@ describe('the hero\'s adornment', () => {
     bad({ items: [{ ...sword, alt: [{ id: 'x', use: 'a pole' }, { id: 'x', use: 'a pole' }] }] }, /alt\[1\].id 'x' appears twice/);
   });
 
-  it('says what is wrong with a variation', () => {
-    const items = [sword, shield, { id: 'second-blade', slot: 'right', build: { item: 'dagger' }, serves: ['step'] }];
-    bad({ items, variations: [{ id: 'k', items: [] }] }, /variations\[0\].items is a list of item ids/);
-    bad({ items, variations: [{ id: 'k', items: ['nope'] }] }, /'nope' is not an item/);
-    bad({ items, variations: [{ id: 'k', items: ['blade', 'second-blade'] }] }, /two items fill the right slot/);
-    bad({ items, variations: [{ id: 'k', items: ['blade'], stage: 'final' }] }, /stage is 'early' \| 'mid' \| 'late'/);
-    bad({ items, variations: [{ id: 'k', items: ['blade'], scale: 'huge' }] }, /scale is 'down', 'up', or a number above 0/);
-    bad({ items, variations: [{ id: 'k', items: ['blade'], scale: -1 }] }, /scale is/);
-    bad({ items, variations: [{ id: 'k', items: ['blade'], use: { aegis: 'x' } }] }, /not an item this variation carries/);
-    bad({ items, variations: [{ id: 'k', items: ['blade'], use: { blade: 'pole' } }] }, /'pole' is not an alternate use of it \(it has none\)/);
+  it('variations are retired: the page says where the loadouts went', () => {
+    bad({ items: [sword], variations: [{ id: 'k', items: ['blade'] }] }, /loadouts are retired; each item is the template of its class in the world's equipment table/);
   });
 
   it('is read through the hero page of a world, which names the same errors', () => {
@@ -68,32 +60,19 @@ describe('the hero\'s adornment', () => {
     expect(buildAt(it, 'mid', 'pry')).toMatchObject({ item: 'greatsword', dials: { mass: 1, ornament: 1 } });
   });
 
-  it('a variation resolves to the door\'s gear and scale, at the stage it wears; the final design is the default', () => {
-    const R = resolveAdornment({
-      items: [{ ...sword, tiers: { mid: { dials: { ornament: 2 } } } }, shield],
-      variations: [{ id: 'final-kit', items: ['blade', 'aegis'], scale: 'up' }, { id: 'mid-kit', items: ['blade'], stage: 'mid', scale: 0.9 }, { id: 'plain' , items: ['blade'], stage: 'mid' }],
-    }, actions);
-    expect(R.variations[0]).toMatchObject({ id: 'final-kit', stage: 'late', scale: SCALES.up });
-    expect(Object.keys(R.variations[0].gear).sort()).toEqual(['left', 'right']);
-    expect(R.variations[0].gear.right.dials.ornament).toBe(2);
-    expect(R.variations[1]).toMatchObject({ stage: 'mid', scale: 0.9 });
-    expect(R.variations[2].scale).toBeNull();
-    expect(R.open).toEqual([]);
+  it('a loop the items serve leaves nothing open', () => {
+    expect(resolveAdornment({ items: [sword, shield], bodily: ['step'] }, actions).open).toEqual([]);
   });
 
-  it('the loop leaves things open: a power that is not one, an item before its power, a final power nothing serves', () => {
-    const R = resolveAdornment({
-      items: [{ ...sword, serves: ['strike', 'blink'] }],
-      variations: [{ id: 'early-kit', items: ['blade'], stage: 'early' }],
-    }, actions);
+  it('the loop leaves things open: a power that is not one, a final power nothing serves', () => {
+    const R = resolveAdornment({ items: [{ ...sword, serves: ['strike', 'blink'] }] }, actions);
     const o = R.open.join('\n');
     expect(o).toMatch(/item 'blade' serves 'blink', which is not a power/);
     expect(o).toMatch(/the final design's power 'ward' \(late\) is served by no item/);
-    expect(o).toMatch(/variation 'early-kit' \(early\) carries 'blade', which serves 'strike', gained at mid/);
   });
 
   it('pure: the same page resolves to the same bytes', () => {
-    const A = { items: [sword, shield], variations: [{ id: 'k', items: ['blade', 'aegis'] }] };
+    const A = { items: [sword, shield] };
     expect(JSON.stringify(resolveAdornment(A, actions))).toBe(JSON.stringify(resolveAdornment(A, actions)));
   });
 });

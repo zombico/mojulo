@@ -4,10 +4,13 @@
  */
 export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
 export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
-export { characterParts, characterState, approveCharacter, characterReady } from './character-review.js';
+export { resolveBook, characterParts, characterState, approveCharacter, characterReady } from './character-review.js';
 export { readActions, resolveActions, IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
 export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT } from './hero-looks.js';
-export { readAdornment, resolveAdornment, applyDiff, buildAt, SCALES } from './adornment.js';
+export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
+export { suggestKit, RAILS, ELEMENT_GEM } from './adornment-kit.js';
+export { readEquipment, resolveEquipment, equipmentOrders, CLASS_SLOTS } from './equipment.js';
+export { ELEMENT_WORDS } from './element-words.js';
 export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './hero-vibe.js';
 export { basePrint, pinBase, verifyBase, revisionLookup } from './hero-base.js';
 export { gameworldGraph, graphOutline, graphMermaid } from './graph.js';

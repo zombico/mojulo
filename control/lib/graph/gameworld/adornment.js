@@ -1,32 +1,30 @@
 /**
  * THE HERO'S ADORNMENT — the third page of the hero, over the pinned base: equipment based on the main loop's final
  * design. The loop is the actions page (actions.js): the power set and its escalation. So an item exists because a power
- * needs it (`serves`), grows with the stage that unlocks it (`tiers`), may serve a second power as an alternate use
- * (`alt`), and is shown scaled up or down. A VARIATION is a named loadout, resolved to a hero-door fragment (`gear`, and
- * `scale`) that is forked over the base's spec; the bare base is never overwritten.
+ * needs it (`serves`), grows with the stage that unlocks it (`tiers`), and may serve a second power as an alternate use
+ * (`alt`). What the page conceives is the TEMPLATE of its class of gear: the world's equipment table (equipment.js) is
+ * seeded from it, and equipped once the game's stats exist. The bare base is never overwritten.
  *
  *   adornment: {
  *     items: [{
- *       id, slot: 'right' | 'left' | 'back' | 'hip',          // a held item (polygonizer/hero-gear.js)
+ *       id, slot: 'right' | 'left' | 'back' | 'hip',          // where the hero carries it (polygonizer/hero-gear.js)
  *       build: { item, style?, dials?, parts?, gem?, seed? },  // an equipment build, without its `type`
  *       serves: [power ids],                                   // what it exists for
  *       tiers?: { early?, mid?, late? },                       // build diffs, cumulative: each stage keeps the last's
  *       alt?: [{ id, use, serves?: [power ids], build? }],     // alternate uses: a build diff, tied to another power
  *     }],
- *     variations?: [{ id, items: [item ids], stage?, scale?: 'down' | 'up' | <number>, use?: { <item id>: <alt id> } }],
+ *     bodily?: [power ids],                                    // powers the body carries: they need no item
  *   }
  *
  * Pure. `readAdornment` reads the shape and refuses what the equipment kernel refuses (every build, every tier and every
- * alternate use is judged by `validateGear`, as the door judges it). `resolveAdornment` resolves the variations against
- * the resolved actions page and says what the loop leaves open: a power's item that does not exist, an item that arrives
- * before the power it serves, and the final design's powers that nothing carried serves. It advises; nothing refuses.
+ * alternate use is judged by `validateGear`, as the door judges it). `resolveAdornment` reads the page against the
+ * resolved actions page and says what the loop leaves open: a power an item serves that is not a power, and the final
+ * design's powers that nothing carried serves. It advises; nothing refuses.
  */
 import { validateGear, GEAR_SLOTS } from '../polygonizer/hero-gear.js';
 import { EQUIPMENT_ITEMS } from '../equipment/expand.js';
 import { STAGES } from './actions.js';
 
-/** The words a variation's `scale` may be, as the hero door's `scale`; a number is taken as it is. */
-export const SCALES = Object.freeze({ down: 0.8, up: 1.25 });
 const BUILD_KEYS = ['item', 'style', 'dials', 'parts', 'gem', 'seed'];
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -49,15 +47,36 @@ export function buildAt(item, stage, altId) {
   return b;
 }
 
-function readDiff(d, at, what) {
-  if (!isObj(d)) throw err(`${at} is ${what}: { ${BUILD_KEYS.join(', ')} }, only what it changes`);
-  for (const k of Object.keys(d)) if (!BUILD_KEYS.includes(k)) throw err(`${at}.${k} is not an equipment build word (${BUILD_KEYS.join(', ')})`);
+function readDiff(d, at, what, fail = err) {
+  if (!isObj(d)) throw fail(`${at} is ${what}: { ${BUILD_KEYS.join(', ')} }, only what it changes`);
+  for (const k of Object.keys(d)) if (!BUILD_KEYS.includes(k)) throw fail(`${at}.${k} is not an equipment build word (${BUILD_KEYS.join(', ')})`);
   return { ...d };
 }
 
-function checkBuild(slot, build, at) {
+function checkBuild(slot, build, at, fail = err) {
   const errs = validateGear({ [slot]: build });
-  if (errs.length) throw err(`${at}: ${errs.join('; ')}`);
+  if (errs.length) throw fail(`${at}: ${errs.join('; ')}`);
+}
+
+/**
+ * A held build and its tiers, read and judged by the equipment kernel at `slot` (each tier over the last's): what an
+ * adornment item and an equipment class share. `fail(message)` makes the page's own error. → { build, tiers? }
+ */
+export function readGearBuild({ build: b, tiers: t }, slot, at, fail = err) {
+  const build = readDiff(b, `${at}.build`, 'an equipment build', fail);
+  if (!EQUIPMENT_ITEMS.includes(build.item)) throw fail(`${at}.build.item is ${EQUIPMENT_ITEMS.join(', ')}`);
+  checkBuild(slot, build, `${at}.build`, fail);
+  if (t === undefined) return { build };
+  if (!isObj(t)) throw fail(`${at}.tiers is { ${STAGES.join(', ')} }, each a build diff`);
+  for (const k of Object.keys(t)) if (!STAGES.includes(k)) throw fail(`${at}.tiers.${k} is not a stage (${STAGES.join(', ')})`);
+  const tiers = {};
+  let grown = build;
+  for (const s of STAGES) if (t[s] !== undefined) {
+    tiers[s] = readDiff(t[s], `${at}.tiers.${s}`, 'a tier', fail);
+    grown = applyDiff(grown, tiers[s]);
+    checkBuild(slot, grown, `${at}.tiers.${s}`, fail);
+  }
+  return { build, tiers };
 }
 
 const powerIds = (v, at) => {
@@ -67,9 +86,11 @@ const powerIds = (v, at) => {
 
 /** Read the adornment page's shape and say what is wrong; every build is judged by the equipment kernel. */
 export function readAdornment(A) {
-  if (!isObj(A)) throw err(' is { items, variations? }');
-  for (const k of Object.keys(A)) if (!['items', 'variations'].includes(k)) throw err(`.${k} is not part of the adornment page (items, variations)`);
-  if (!Array.isArray(A.items) || !A.items.length) throw err('.items is a list of { id, slot, build, serves }: the equipment the main loop calls for');
+  if (!isObj(A)) throw err(' is { items, bodily? }');
+  if (A.variations !== undefined) throw err('.variations: loadouts are retired; each item is the template of its class in the world\'s equipment table (equipment.js), equipped once the stats exist');
+  for (const k of Object.keys(A)) if (!['items', 'bodily'].includes(k)) throw err(`.${k} is not part of the adornment page (items, bodily)`);
+  if (A.bodily !== undefined && !(Array.isArray(A.bodily) && A.bodily.every((x) => typeof x === 'string' && x))) throw err('.bodily is a list of power ids the body carries, which need no item');
+  if (!Array.isArray(A.items) || (!A.items.length && !A.bodily?.length)) throw err('.items is a list of { id, slot, build, serves }: the equipment the main loop calls for');
   const seen = new Set();
   const items = A.items.map((it, i) => {
     const at = `.items[${i}]`;
@@ -79,21 +100,8 @@ export function readAdornment(A) {
     if (seen.has(it.id)) throw err(`${at}.id '${it.id}' appears twice`);
     seen.add(it.id);
     if (!GEAR_SLOTS.includes(it.slot)) throw err(`${at}.slot is ${GEAR_SLOTS.map((s) => `'${s}'`).join(', ')}`);
-    const build = readDiff(it.build, `${at}.build`, 'an equipment build');
-    if (!EQUIPMENT_ITEMS.includes(build.item)) throw err(`${at}.build.item is ${EQUIPMENT_ITEMS.join(', ')}`);
-    checkBuild(it.slot, build, `${at}.build`);
-    const out = { id: it.id, slot: it.slot, build, serves: powerIds(it.serves, `${at}.serves`) };
-    if (it.tiers !== undefined) {
-      if (!isObj(it.tiers)) throw err(`${at}.tiers is { ${STAGES.join(', ')} }, each a build diff`);
-      out.tiers = {};
-      let grown = build;
-      for (const s of STAGES) if (it.tiers[s] !== undefined) {
-        out.tiers[s] = readDiff(it.tiers[s], `${at}.tiers.${s}`, 'a tier');
-        grown = applyDiff(grown, out.tiers[s]);
-        checkBuild(it.slot, grown, `${at}.tiers.${s}`);
-      }
-      for (const k of Object.keys(it.tiers)) if (!STAGES.includes(k)) throw err(`${at}.tiers.${k} is not a stage (${STAGES.join(', ')})`);
-    }
+    const { build, tiers } = readGearBuild(it, it.slot, at);
+    const out = { id: it.id, slot: it.slot, build, serves: powerIds(it.serves, `${at}.serves`), ...(tiers ? { tiers } : {}) };
     if (it.alt !== undefined) {
       if (!Array.isArray(it.alt)) throw err(`${at}.alt is a list of { id, use, serves?, build? }`);
       const altSeen = new Set();
@@ -113,78 +121,27 @@ export function readAdornment(A) {
     }
     return out;
   });
-  const out = { items };
-  if (A.variations !== undefined) {
-    if (!Array.isArray(A.variations)) throw err('.variations is a list of { id, items, stage?, scale?, use? }');
-    const vseen = new Set();
-    out.variations = A.variations.map((v, i) => {
-      const at = `.variations[${i}]`;
-      if (!isObj(v)) throw err(`${at} is { id, items, stage?, scale?, use? }`);
-      for (const k of Object.keys(v)) if (!['id', 'items', 'stage', 'scale', 'use'].includes(k)) throw err(`${at}.${k} is not part of a variation (id, items, stage, scale, use)`);
-      if (!ID.test(v.id ?? '')) throw err(`${at}.id is a lowercase id ("early-kit")`);
-      if (vseen.has(v.id)) throw err(`${at}.id '${v.id}' appears twice`);
-      vseen.add(v.id);
-      if (!Array.isArray(v.items) || !v.items.length) throw err(`${at}.items is a list of item ids (${items.map((x) => x.id).join(', ')})`);
-      const slots = new Set();
-      for (const id of v.items) {
-        const it = items.find((x) => x.id === id);
-        if (!it) throw err(`${at}.items: '${id}' is not an item (${items.map((x) => x.id).join(', ')})`);
-        if (slots.has(it.slot)) throw err(`${at}.items: two items fill the ${it.slot} slot`);
-        slots.add(it.slot);
-      }
-      const o = { id: v.id, items: [...v.items] };
-      if (v.stage !== undefined) { if (!STAGES.includes(v.stage)) throw err(`${at}.stage is ${STAGES.map((s) => `'${s}'`).join(' | ')}`); o.stage = v.stage; }
-      if (v.scale !== undefined) {
-        if (!(v.scale in SCALES) && !(typeof v.scale === 'number' && Number.isFinite(v.scale) && v.scale > 0)) throw err(`${at}.scale is ${Object.keys(SCALES).map((s) => `'${s}'`).join(', ')}, or a number above 0`);
-        o.scale = v.scale;
-      }
-      if (v.use !== undefined) {
-        if (!isObj(v.use)) throw err(`${at}.use is { <item id>: <alternate use id> }`);
-        for (const [id, altId] of Object.entries(v.use)) {
-          const it = items.find((x) => x.id === id);
-          if (!it || !v.items.includes(id)) throw err(`${at}.use.${id}: not an item this variation carries`);
-          if (!it.alt?.some((a) => a.id === altId)) throw err(`${at}.use.${id}: '${altId}' is not an alternate use of it (${(it.alt ?? []).map((a) => a.id).join(', ') || 'it has none'})`);
-        }
-        o.use = { ...v.use };
-      }
-      return o;
-    });
-  }
-  return out;
+  return { items, ...(A.bodily?.length ? { bodily: [...A.bodily] } : {}) };
 }
 
 /**
- * The page resolved against the actions page (`actions`: resolveActions' result): each variation as `{ id, items, stage,
- * scale, gear, use }` where `gear` is the hero door's (slot → build words, tiers and the chosen alternate use laid over)
- * and `scale` the number for the door's `scale` (null when the variation names none); and `open`, what the loop leaves
- * open: a power an item serves that is not a power, an item carried before the stage that gains what it serves, and the
- * final design's powers (the last stage laid out) that no item serves.
+ * The page read against the actions page (`actions`: resolveActions' result) → `{ items, bodily, open }`, where `open` is
+ * what the loop leaves open: a power an item serves that is not a power, and the final design's powers (the last stage
+ * laid out) that no item serves and the body does not carry.
  */
 export function resolveAdornment(A, actions) {
   const a = readAdornment(A), open = [];
   const ids = new Set((actions?.powers ?? []).map((p) => p.id));
-  const gainedAt = new Map();
-  for (const s of actions?.progression ?? []) for (const g of s.gains) if (!gainedAt.has(g)) gainedAt.set(g, s.stage);
-  const served = new Set();
+  const none = () => [...ids].join(', ') || 'the hero has none yet';
+  const served = new Set(a.bodily ?? []);
+  for (const p of a.bodily ?? []) if (!ids.has(p)) open.push(`bodily '${p}' is not a power (${none()})`);
   for (const it of a.items) {
     for (const p of [...it.serves, ...(it.alt ?? []).flatMap((x) => x.serves ?? [])]) {
       served.add(p);
-      if (!ids.has(p)) open.push(`item '${it.id}' serves '${p}', which is not a power (${[...ids].join(', ') || 'the hero has none yet'})`);
+      if (!ids.has(p)) open.push(`item '${it.id}' serves '${p}', which is not a power (${none()})`);
     }
   }
   const last = [...(actions?.progression ?? [])].reverse().find((s) => s.gains.length);
   for (const p of last?.gains ?? []) if (!served.has(p)) open.push(`the final design's power '${p}' (${last.stage}) is served by no item: carry something for it, or leave it bodily`);
-  const variations = (a.variations ?? []).map((v) => {
-    const stage = v.stage ?? STAGES[STAGES.length - 1], gear = {};
-    for (const id of v.items) {
-      const it = a.items.find((x) => x.id === id);
-      gear[it.slot] = buildAt(it, stage, v.use?.[id]);
-      for (const p of it.serves) {
-        const at = gainedAt.get(p);
-        if (at && STAGES.indexOf(at) > STAGES.indexOf(stage)) open.push(`variation '${v.id}' (${stage}) carries '${id}', which serves '${p}', gained at ${at}`);
-      }
-    }
-    return { id: v.id, items: v.items, stage, scale: v.scale === undefined ? null : (SCALES[v.scale] ?? v.scale), gear, use: v.use ?? {} };
-  });
-  return { items: a.items, variations, open };
+  return { items: a.items, bodily: a.bodily ?? [], open };
 }

@@ -33,7 +33,7 @@
  * Pure. `readCharacters` reads the shape alone (the world reader calls it, so it never reads the world back);
  * `resolveDirection(G)` hands the world's direction down onto a read world.
  */
-import { kitCard, languageCard } from './style-guide.js';
+import { kitCard, languageCard, hasKitCard, hasLanguageCard } from './style-guide.js';
 import { poleOf } from '../era/style/pole.js';
 import { readActions } from './actions.js';
 import { readMotion } from './hero-vibe.js';
@@ -80,8 +80,9 @@ const NOT_LOOKS = Object.freeze({
   statue: 'a statue is not a character',
 });
 /** The parts the character book is reviewed in, in order (character-review.js): the direction, the four looks pages,
- * the pinned base, the motion and the actions. They share the world's `review` field with the world's own parts. */
-export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions']);
+ * the pinned base, the motion, the actions, the adornment, and the world's equipment table it seeds (equipment.js).
+ * They share the world's `review` field with the world's own parts. */
+export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment']);
 const HERO_KEYS = ['looks', 'motion', 'actions', 'adornment'];
 const KEYS = ['direction', 'hero', 'cast'];
 
@@ -201,9 +202,8 @@ export function resolveDirection(G) {
   if (D.from === 'world') {
     const kit = G.style.kit, pole = poleOf(kit);
     const anchor = G.civilizations[G.style.civilization]?.anchor;
-    // a room kit (a nave, a plaza, a lab) has no outdoor style card: no ramps and no building ornament to hand down
-    let card = { ramps: [] }, ornament = [];
-    try { card = kitCard(kit); ornament = languageCard(kit, anchor, G.seed).vocab.ornaments; } catch { /* a kit with no card */ }
+    // a room kit (a nave, a plaza, a lab) has no outdoor style card, so no ramps; a trail kit builds nothing, so no ornament
+    const card = hasKitCard(kit) ? kitCard(kit) : { ramps: [] }, ornament = hasLanguageCard(kit) ? languageCard(kit, anchor, G.seed).vocab.ornaments : [];
     const worldTradition = Object.keys(TRADITIONS).find((t) => TRADITIONS[t].pole === pole);
     if (worldTradition !== D.tradition) ledger.push({ scope: 'world', at, key: 'tradition', world: worldTradition, local: D.tradition });
     Object.assign(out, { kit, pole, ramps: card.ramps });
