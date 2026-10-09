@@ -33,7 +33,9 @@ set custom. Animation is assigned by vibe, and custom edits are saved as revisio
   walk, jog and sprint dials through a fixed table; a hero with no vibe has no motion and is unchanged. The `snap` axis
   is not built.
 - **The sheet.** `out-sheet.mjs characters [--render]` draws the character bible; `--render` mints the hero in memory and
-  draws wire views and the live World page. Not yet done: the eyes gate on every plate and on the motion's table, the
+  draws it in colour (the World page's own render, photographed front, three-quarter and back on the sheet's paper),
+  with the wire views folded beneath as its construction, and the live World page. Without a Chromium the colour
+  plates are left out and the wire views stand alone. Not yet done: the eyes gate on every plate and on the motion's table, the
   vibe table run through the rig's deep sweep, and the adornment and systems pages.
 
 ### Character book: adornment and equipment

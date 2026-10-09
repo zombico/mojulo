@@ -34,6 +34,7 @@ const dl = (rows) => `<dl class="vocab">${rows.filter(([, v]) => v !== undefined
 const EXTRA_CSS = `
 .sws{display:flex;flex-wrap:wrap;gap:8px}.sw{display:inline-flex;align-items:center;gap:6px;font:11px var(--mono);color:var(--muted)}.sw i{width:22px;height:22px;border-radius:3px;border:1px solid var(--rule)}.sw b{font-weight:500;color:var(--ink)}
 .turn{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.turn figure{background:#fff;border:1px solid var(--rule);border-radius:3px;padding:6px}.turn figcaption{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
+.turn.colour figure{padding:0;overflow:hidden}.turn.colour img{display:block;width:100%;height:auto}.turn.colour figcaption{padding:4px 6px}details.wire{margin-top:10px}details.wire summary{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);cursor:pointer}details.wire .turn{margin-top:8px}
 .live iframe{width:100%;height:520px;border:1px solid var(--rule);border-radius:3px;background:#fff}.live figcaption{font:10.5px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px}
 .norender{border:1.5px dashed var(--rule);border-radius:4px;padding:16px;display:grid;gap:8px}
 .ready{display:grid;gap:4px}.ready b{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase}.yes{color:var(--c-trail)}.no{color:var(--local)}
@@ -86,9 +87,12 @@ ${L.unread.length ? `<p class="muted">Not placed: ${L.unread.map((u) => `<b>${es
   const U = C.underlayer;
   // the live view: the page the dashboard's World serves for the minted hero, baked to a string (character-renders.mjs)
   const live = renders.world ? `<figure class="live"><iframe sandbox="allow-scripts" title="${esc(G.name)} hero, live" srcdoc="${esc(renders.world)}"></iframe><figcaption>Live view · drag to orbit · the page's controls play the hero's clips (idle, walk, and the feel set on the motion page)</figcaption></figure>` : '';
+  // the turnaround: in colour (the World page's own render, photographed) when the renders carry it, and as wire views
+  const colour = views.some(([k]) => renders.color?.[k]) ? `<div class="turn colour">${views.map(([k, name]) => `<figure>${renders.color?.[k] ? `<img alt="${esc(G.name)} hero, ${esc(name)}" src="${esc(renders.color[k])}">` : '<div class="norender">not drawn</div>'}<figcaption>${esc(name)} · colour</figcaption></figure>`).join('')}</div>` : '';
+  const wire = `<div class="turn">${views.map(([k, name]) => `<figure>${renders[k] ? plate(`hero-${k}`, renders[k]) : '<div class="norender">not drawn</div>'}<figcaption>${esc(name)}</figcaption></figure>`).join('')}</div>`;
   const base =`<section class="part" id="hero-base"><div class="part-h"><span class="eyebrow">The hero · base ${stamp('hero:base')}</span><h2>Composed, and bare</h2><p class="muted">The elements merged top down: no adornment, paint or gear. It wears only what its world's setting would.</p></div><div class="card">${note('hero:base')}
 ${live}
-${views.some(([k]) => renders[k]) ? `<div class="turn">${views.map(([k, name]) => `<figure>${renders[k] ? plate(`hero-${k}`, renders[k]) : '<div class="norender">not drawn</div>'}<figcaption>${esc(name)}</figcaption></figure>`).join('')}</div>` : `<div class="norender"><span class="eyebrow">Not drawn yet</span><p class="muted">The hero door draws it: run the orders below, then draw the front, three-quarter and back views (export-wire-svg.mjs --ref &lt;ref&gt; --views 180,150,0).</p></div>`}
+${colour}${views.some(([k]) => renders[k]) ? (colour ? `<details class="wire"><summary>The wire views: its construction</summary>${wire}</details>` : wire) : colour ? '' : `<div class="norender"><span class="eyebrow">Not drawn yet</span><p class="muted">The hero door draws it: run the orders below, then draw the front, three-quarter and back views (export-wire-svg.mjs --ref &lt;ref&gt; --views 180,150,0), or render the sheet with --render.</p></div>`}
 <h4>The underlayer</h4><p class="read">${esc(U.read)}</p>${U.tones && Object.keys(U.tones).length ? swatches(U.tones) : ''}
 ${dl([['outfit', json(U.build)], ['pinned base', hero.looks?.base ? json(hero.looks.base) : 'not pinned: mint the orders, settle a revision, and pin it (hero-base.js)']])}
 ${machine('hero:base')}

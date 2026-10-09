@@ -1,14 +1,18 @@
 /**
  * The character bible's turnaround: mint the world's composed hero through the hero door in a throwaway in-memory
- * database and draw it as hidden-line wire views (the same camera and drawing as export-wire-svg.mjs): front, three-
- * quarter and back. Returns `{ front, three, back }` SVG strings for characterBibleHtml's `renders`.
+ * database and draw it front, three-quarter and back, twice over: in COLOUR, the World page's own render (its palette,
+ * its toon light) photographed in headless Chromium, and as hidden-line WIRE views of the compiled mesh (the same
+ * camera and drawing as export-wire-svg.mjs), which show its construction. Returns `{ front, three, back }` wire SVG
+ * strings, `color: { front, three, back }` PNG data URIs, and `world`, the live page, for characterBibleHtml's `renders`.
  *
- * Nothing is kept: the sketch lives only in memory for the run. The views are wire drawings of the compiled mesh, not a
- * lit render; whether the hero reads right in them is the creator's to judge. Used by `out-sheet.mjs characters --render`.
+ * Chromium is an optional worker: without one (resolveChromium finds none, and nothing is fetched here) the colour
+ * plates are left out and the wire views stand alone. Nothing is kept: the sketch lives only in memory for the run.
+ * Whether the hero reads right in any of them is the creator's to judge. Used by `out-sheet.mjs characters --render`.
  */
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
+const PAPER = '#eef1f4';   // the binder's paper (bible-html.js --paper), so a colour plate sits on the sheet
 const VIEWS = { front: 180, three: 150, back: 0 };   // az 0 looks north (+y): the hero faces +y, so its front is az 180
 
 export async function renderHeroViews(world, { size = 640, elevation = 10, focal = 1400 } = {}) {
@@ -43,9 +47,18 @@ export async function renderHeroViews(world, { size = 640, elevation = 10, focal
     out.world = emitThreeWorld({ ...payload, wireframe: false, walk: false, spin: false, decollide: true, hud: true, inline: true, xr: null });
     console.error(`character-renders: the live page is ${Math.round(out.world.length / 1024)} KB; its payload carries ${Object.keys(payload).join(', ')}`);
   } catch (e) { console.error(`character-renders: the live view was not baked (${e.message}); the wire views stand alone`); }
-  for (const [name, az] of Object.entries(VIEWS)) {
-    const cam = orbitCamera({ azimuthDegrees: az, elevationDegrees: elevation, target, distance, focalPixels: focal, size });
-    out[name] = wireSvg(source, cam, { features: [], title: `${world.name ?? world.id} hero — ${name}`, embedSource: false });
-  }
+  const cams = Object.entries(VIEWS).map(([name, az]) => [name, orbitCamera({ azimuthDegrees: az, elevationDegrees: elevation, target, distance, focalPixels: focal, size })]);
+  for (const [name, cam] of cams) out[name] = wireSvg(source, cam, { features: [], title: `${world.name ?? world.id} hero — ${name}`, embedSource: false });
+  // the colour plates: the World page in capture mode (no HUD, no loop), each view from the wire view's own camera,
+  // the hero alone on the sheet's paper (the studio floor and grid, and the studio's dark sky, are left out)
+  try {
+    const { emitThreeWorld } = await import('../lib/graph/scene/scene-three.js');
+    const { renderWorldFrames } = await import('../lib/motion/world-frames.js');
+    const page = emitThreeWorld({ ...payload, faces, sky: null, bg: PAPER, wireframe: false, walk: false, spin: false, decollide: true, hud: false, inline: true, capture: true, xr: null });
+    const vfov = 2 * Math.atan((size / 2) / focal) * 180 / Math.PI;
+    const { pngs } = await renderWorldFrames(page, cams.map(([, cam]) => ({ pos: cam.position, target, vfov })), { width: size, height: size, deviceScaleFactor: 2 });
+    out.color = Object.fromEntries(cams.map(([name], i) => [name, `data:image/png;base64,${pngs[i].toString('base64')}`]));
+    console.error(`character-renders: the colour plates are ${Math.round(pngs.reduce((n, b) => n + b.length, 0) / 1024)} KB`);
+  } catch (e) { console.error(`character-renders: no colour plates (${e.message.split('\n')[0]}); the wire views stand alone`); }
   return out;
 }

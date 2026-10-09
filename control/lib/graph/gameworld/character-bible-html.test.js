@@ -93,6 +93,11 @@ describe('the character bible', () => {
     const drawn = characterBibleHtml(MEADOWMARK_HERO, { renders: { front: '<svg id="f"/>', three: '<svg id="t"/>', back: '<svg id="b"/>' } });
     expect(drawn).toContain('<!--plate:hero-front--><svg id="f"/><!--/plate-->');
     expect(drawn).not.toMatch(/Not drawn yet/);
+    // in colour, the photographed plates lead and the wire views fold beneath them; colour alone needs no wire
+    const coloured = characterBibleHtml(MEADOWMARK_HERO, { renders: { front: '<svg id="f"/>', color: { front: 'data:image/png;base64,AAAA' } } });
+    expect(coloured).toContain('<img alt="Meadowmark hero, Front" src="data:image/png;base64,AAAA">');
+    expect(coloured).toMatch(/<details class="wire"><summary>The wire views: its construction<\/summary><div class="turn"><figure><!--plate:hero-front-->/);
+    expect(characterBibleHtml(MEADOWMARK_HERO, { renders: { color: { front: 'data:image/png;base64,AAAA' } } })).not.toMatch(/Not drawn yet/);
     // the live view rides in an iframe, its page escaped into srcdoc so the bible stays one file
     const live = characterBibleHtml(MEADOWMARK_HERO, { renders: { world: '<html a="b">&</html>' } });
     expect(live).toContain('<iframe sandbox="allow-scripts"');
