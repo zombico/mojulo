@@ -12,6 +12,69 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Rise and sit
+
+- Getting up out of every rest pose, and sitting or lying down into it (`polygonizer/hero-rise.js`):
+  `heroRise(rest, R, { down, seconds })` returns the clip (`fn(t)`, keys at 30 per second), its states and their
+  times, its beats, the rest's props and its checks.
+- A clip is a route of contact states timed in seconds. The words flow through the states; the contacts are re-solved
+  every frame:
+  - a planted foot holds its spot;
+  - a stepping foot is lifted on a min-jerk arc; one carried a long way swings round beside the body while it is up;
+  - a held hand keeps its hold, its arm solved step by step from the last so it never flips;
+  - the sit bones keep the seat;
+  - the body is lifted off the floor by whatever of it would go through.
+- From a chair or a couch, by the phases of sit-to-stand: sit up off the backrest, scoot forward, draw the feet back,
+  flex forward and leave the seat, the transfer, extend.
+  - The flexion at seat-off is solved: the least for which the body's momentum carries its centre of mass over the
+    feet (the extrapolated centre of mass, x + v / ω₀).
+  - The hands push off the thighs, the couch seat or an armrest.
+  - Sitting down plays the states back, slower; a lounge is let down onto the backrest on the arms.
+- From the floor: uncross into a knees-up sit, lean over the right knee, the left leg comes under onto its knee (a deep
+  half kneel), the back knee lifts on tucked toes, push over the front foot, the back foot steps up.
+- From lying: sit up off the back or the side, propped on the hands, into the knees-up sit, then the floor route. A
+  knocked-out body gets up slower.
+- Knocked down (`knockedOut`, `yamcha` with `down`): the knees buckle, then the body falls about its feet as a rod
+  under gravity (θ'' = 3g / 2L · sin θ), lands, and the limbs settle.
+- Checks:
+  - the ends equal the rest pose and the stand;
+  - nothing through the floor or the seat; planted feet hold;
+  - balance: the extrapolated centre of mass inside what bears the body (feet, sit bones and thighs on a seat, knees,
+    bearing hands), out of it no longer than a step takes (0.3 s);
+  - the knees and hips in range;
+  - no joint faster than 4 m/s outside a fall; in a fall, under half again the rod's own tip speed.
+- `hero-rest.js` exports the seat, sit-bone, turn, flesh and flat-hand helpers it already had; `hero-jump.js` exports
+  its monotone curve. Neither changes what it returns.
+- `render-motion.mjs --rise <rest>[Down]` draws a clip with its seat.
+
+### At rest
+
+- Sitting and lying, solved from what the body rests on (`polygonizer/hero-rest.js`): `heroRest(name, R)` returns the
+  held pose, its seat drawn as boxes, the face it wears and its checks.
+- Seated: the sit bones placed on the seat. A pose that rests its back reclines the whole trunk about the hips
+  (bisected) until the upper back meets the backrest. A planted foot is turned back flat against the recline.
+- Feet reach their contacts by the rig's leg solve:
+  - flat under the knees, out ahead, or crossed at the ankles;
+  - tucked in a cross-legged sit (the knees out by the foot's turn);
+  - flat by the seat with the knee up;
+  - folded flat on the floor.
+- A leg that isn't planted is searched over the rig's own hip and knee words.
+- Hands rest on the thighs, the lap, the knees, an armrest, along a backrest, on the floor behind, or with a forearm
+  over a raised knee. A hand on the floor is laid flat (its wrist searched).
+- Lying: the body turned onto its back or side and let down until its lowest flesh meets the floor. The limbs are
+  laid on the floor; a knocked-out body rests every limb.
+- Poses (`RESTS`): `chairUpright`, `chairSlouch` (slid forward, rounded, leaning on the back), `couchSit`,
+  `couchLounge`, `crossLegged`, `lotus`, `kneeUp`, `lieBack`, `lieSide`, `knockedOut`, and `yamcha` (curled on the
+  side in a crater).
+- Seats (`SEATS`): a chair at popliteal height (about a quarter of the stature), a couch (lower, deeper and reclined
+  further, the body by its right armrest), and the floor.
+- Checks: every contact held, nothing through the floor, the knees and hips in range, an upright sitter balanced over
+  its sit bones and feet, and a limp body resting each limb.
+- Effort counts only what the body holds up itself: none lying; the arms only when the back rests on a backrest.
+- The lotus is approximate on this rig (`approx: 'lotus'`). The hip turns out 45° and the leg solve bends the knee
+  toward a level pole, so each foot rests into the other shin rather than up on the thigh.
+- `render-motion.mjs --rest <pose>` draws a pose with its seat.
+
 ### Carrying
 
 - Holding things in a mode, solved from the thing (`polygonizer/hero-carry.js`): `heroHold(name, R, { kg, regime })`

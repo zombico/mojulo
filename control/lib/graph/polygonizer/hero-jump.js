@@ -214,7 +214,7 @@ function flatten(o, pre = '', out = {}) { for (const [k, v] of Object.entries(o 
 function unflatten(m) { const o = {}; for (const [p, v] of Object.entries(m)) { const ks = p.split('.'); let c = o; ks.slice(0, -1).forEach((k) => { c = c[k] || (c[k] = {}); }); c[ks[ks.length - 1]] = v; } return o; }
 
 /** a cubic through (t, v) keys — Catmull-Rom on non-uniform times, flat at both ends, never overshooting a key pair's range */
-function curve(keys) {
+export function curve(keys) {
   const n = keys.length;
   const slope = keys.map((k, i) => (i === 0 || i === n - 1 ? 0 : (keys[i + 1].v - keys[i - 1].v) / (keys[i + 1].t - keys[i - 1].t)));
   // monotone limit (Fritsch–Carlson): a slope never pushes past the neighbours, so no key is overshot
