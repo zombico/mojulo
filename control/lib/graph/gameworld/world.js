@@ -35,6 +35,7 @@
  *     equipment?: { classes? },           // the gear classes, seeded by the hero's adornment (equipment.js)
  *     mechanics?: { stats?, scale?, hud?, ui?, gear? },   // the game's systems, numbered from the actions (mechanics.js)
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
+ *     made?,                              // what a run made, and the prints it made it from (made.js; the runner writes it)
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
@@ -54,6 +55,7 @@ import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
 import { readEquipment } from './equipment.js';
+import { readMade } from './made.js';
 import { readMechanics } from './mechanics.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
@@ -91,7 +93,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -287,6 +289,7 @@ export function readGameworld(W) {
   const characters = W.characters === undefined || W.characters === null ? null : readCharacters(W.characters);
   const equipment = W.equipment === undefined || W.equipment === null ? null : readEquipment(W.equipment);
   const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
+  if (W.made !== undefined && W.made !== null) readMade(W.made);   // the runner's record: read, never carried
   return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), [READ]: true };
 }
 

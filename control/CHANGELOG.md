@@ -23,8 +23,18 @@ the creator's to change after. The older game tools stay, behind it: the rail ca
   refusal. An approval is a patch on its `review`. It is read, not played: its sketch page shows its bible (the
   character bible when it has a character book, else the world bible) from `/api/sketches/<ref>/bible`, resolved
   from the recipe on every read; it has no PNG and never appears in the Arcade.
-- Not yet: the `design_game` door, the runner, the reworked `get_game_vocab`, synthetic browsing and the comparison
-  after creation (this theme's next steps).
+- **The rail's door and its runner.** `design_game` writes a gameworld (`world` to start or replace it, `patch` to
+  edit it by part), takes the creator's verdicts (`approve`, `revise` with a note), and runs it (`run: true`): every
+  step that is ready is made through the same handlers an agent would call. The hero goes through the hero door, the
+  systems world through `create_sketch`, each class of gear through the equipment door, all at refs derived from the
+  gameworld's own. The hero's base is pinned as the revision it was made at, and the motion branches from it. What a
+  run made is recorded in the recipe (`made`) with the prints of its order and of what it left. A run with nothing
+  changed makes nothing; a page that moved is remade in place, byte for byte what a fresh mint would store. What the
+  creator edited by hand since is left as it is unless `force`. Gated worlds wait for verdicts; an autonomous world
+  makes everything that settles in one run. Its answer is each part's stamp, which steps may start, what was made, and
+  the next moves.
+- Not yet: `design_game` registered as an MCP tool (the handler stands; the surface comes with the reworked
+  `get_game_vocab`), the compile to `create_game`, synthetic browsing and the comparison after creation.
 
 ### Character book: the hero, looks and actions
 
