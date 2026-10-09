@@ -40,11 +40,31 @@ export const MEADOWMARK = Object.freeze({
 });
 
 /**
+ * The meadow's gear language: the anime hero's card in the direction's colours, a jade blade and staff, brass
+ * fittings, a clear stone. Every class of the world's equipment wears it unless its row names its own style.
+ */
+const WIND_BRASS_GEAR = {
+  id: 'wind-brass', dials: { stylize: 0.85, mass: 1.05, focus: 'guard', ornament: 2 }, lean: {},
+  language: {
+    blade: 'hero', guard: 'winged', pommel: 'ring', grip: 'wire',
+    staff: { head: 'crescent', wings: true, focus: 'head', shaft: ['satin', '#2f7f6e'] },
+    bow: { limb: 'recurve', tips: 'wing', focus: 'riser', shaft: ['satin', '#2f7f6e'] },
+    shield: { outline: 'heater', device: 'wings', focus: 'boss', board: ['satin', '#3a9e8a'] },
+  },
+  edge: { fuller: 0, bevel: 0.62, twoTone: true },
+  roles: { blade: ['satin', '#3a9e8a'], edge: { metal: 'chrome', finish: 'mirror' }, fittings: { metal: 'brass', finish: 'polished' }, accent: { metal: 'gold', finish: 'mirror' }, wrap: ['matte', '#6b4a2f'] },
+  gem: { gem: 'quartz', glow: 0.5, cut: 'brilliant' },
+};
+// a class's tiers as the staff's: richer at each stage
+const GROWS = { early: { dials: { ornament: 1 } }, mid: { dials: { ornament: 2 } }, late: { dials: { ornament: 3 } } };
+
+/**
  * The same world with its character book begun: an anime hero in the meadow's own direction, led by wind and
  * supported by brass, with a spiral motif. Its looks are four pages, its power set a metroidvania-like traversal set
- * (a step, a thrown ball of wind, a rising column), laid out early, mid and late, and a bouncy, bold walk. Nothing in it
- * is reviewed and the base is not pinned: every part of the character book waits for the creator. Its systems are
- * laid out but hold nothing of their own: every number is the one the loop derives.
+ * (a step, a thrown ball of wind, a rising column), laid out early, mid and late, and a bouncy, bold walk. She wears a ponytail and a fitted cut of the meadow's tunic.
+ * Nothing in it is reviewed and the base is not pinned: every part of the character book waits for the creator. Its
+ * systems are laid out but hold nothing of their own: every number is the one the loop derives. Its equipment table is
+ * filled, every class in one wind-and-brass gear language, the staff seeded by the hero's own.
  */
 export const MEADOWMARK_HERO = Object.freeze({
   ...MEADOWMARK,
@@ -52,10 +72,12 @@ export const MEADOWMARK_HERO = Object.freeze({
     direction: { tradition: 'anime', primary: 'wind', secondary: 'brass', motif: ['spiral'] },
     hero: {
       looks: {
-        body: { cast: 'female', tune: { legs: 1.04, shoulders: 1.03 } },
-        head: { look: ['heroine', 'soft'] },
-        hair: { length: 1.5, fringe: 0.85 },
-        colour: { palette: { Hair: '#e8cf7a' } },
+        body: { cast: 'female', tune: { legs: 1.06, shoulders: 1.03 } },
+        head: { look: ['heroine', 'tsurime', 'determined'] },
+        hair: ['frieda-pony', 'swept-bangs'],
+        colour: { palette: { Hair: '#f2d36b' } },
+        // the meadow's tunic, cut close: the rail's adventurer at fit 0.25, sleeves long, the hem at the hip
+        underlayer: { type: 'outfit', style: 'adventurer', dials: { fit: 0.25, stylize: 0.6 }, language: { top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' }, feet: 'boots' } },
       },
       motion: { vibe: ['bouncy', 'bold'] },
       // the kit the loop calls for: the dash and the rise are the body's; the thrown wind is a staff with the wind's stone,
@@ -79,6 +101,17 @@ export const MEADOWMARK_HERO = Object.freeze({
         ],
         progression: [{ stage: 'early', gains: ['gust-step'] }, { stage: 'mid', gains: ['wind-orb'] }, { stage: 'late', gains: ['cyclone'] }],
       },
+    },
+  },
+  // the gear: one language for every class, the staff seeded by the hero's (equipment.js)
+  equipment: {
+    style: WIND_BRASS_GEAR,
+    classes: {
+      dagger: { build: { parts: { blade: 'leaf' } }, tiers: GROWS },
+      sword: { build: {}, tiers: GROWS },
+      greatsword: { build: { parts: { blade: 'flamberge' }, dials: { mass: 1.3 } }, tiers: GROWS },
+      bow: { build: {}, tiers: GROWS },
+      shield: { build: {}, tiers: GROWS },
     },
   },
   // the systems, every number derived from the actions above (mechanics.js): nothing of its own yet

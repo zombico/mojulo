@@ -87,6 +87,10 @@ describe('the underlayer', () => {
     const U = underlayerFor(G);
     expect(U.build).toEqual({ type: 'outfit', style: 'office', dials: { ornament: 0 } });
     expect(U.ledger).toEqual([expect.objectContaining({ scope: 'looks', key: 'underlayer', local: 'office' })]);
+    // the cut is the creator's, the colours still the direction's
+    const D = underlayerFor(anime({ looks: { underlayer: { type: 'outfit', style: 'adventurer' } } }, { primary: 'wind', secondary: 'brass' }));
+    expect(D.tones).toMatchObject({ Top: ELEMENT_TINT.wind, Bottom: ELEMENT_TINT.brass });
+    expect(D.read).toBe('the creator\'s own underlayer');
   });
 });
 

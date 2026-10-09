@@ -49,14 +49,32 @@ describe('the character bible', () => {
   });
 
   it('draws the equipment table: the staff seeded from the hero, the other classes the creator\'s to fill, made once the stats exist', () => {
-    expect(html).toContain('id="equipment"');
-    expect(html).toMatch(/<td><b>staff<\/b><\/td><td class="">from the hero<\/td>/);
-    expect(html).toContain('hero:wind-staff');
-    expect(html).toMatch(/<td><b>sword<\/b><\/td><td class="muted">to fill<\/td>/);
-    expect(html).toMatch(/To fill<\/h4><p class="muted">dagger, sword, greatsword, bow, shield/);
-    expect(html).toMatch(/Not made yet: waiting on .*mechanics:stats \(proposed\)/);
-    expect(html).not.toMatch(/The orders that make them/);
-    expect(html).not.toMatch(/variation/i);
+    const bare = characterBibleHtml({ ...MEADOWMARK_HERO, equipment: undefined });
+    expect(bare).toContain('id="equipment"');
+    expect(bare).toMatch(/<td><b>staff<\/b><\/td><td class="">from the hero<\/td>/);
+    expect(bare).toContain('hero:wind-staff');
+    expect(bare).toMatch(/<td><b>sword<\/b><\/td><td class="muted">to fill<\/td>/);
+    expect(bare).toMatch(/To fill<\/h4><p class="muted">dagger, sword, greatsword, bow, shield/);
+    expect(bare).toMatch(/Not made yet: waiting on .*mechanics:stats \(proposed\)/);
+    expect(bare).not.toMatch(/The orders that make them/);
+    expect(bare).not.toMatch(/variation/i);
+  });
+
+  it('the filled example: one gear language, every class the world\'s own, the mints it will make listed while it waits', () => {
+    expect(html).toMatch(/The world's gear language: <b>wind-brass<\/b> \(its own card\)/);
+    expect(html).toMatch(/<td><b>sword<\/b><\/td><td class="">the world's own<\/td><td>sword · wind-brass/);
+    expect(html).not.toMatch(/To fill<\/h4>/);
+    expect(html).toMatch(/The 6 mints it will make once ready/);
+    expect(html).toContain('&quot;style&quot;: &quot;&lt;the wind-brass card&gt;&quot;');
+  });
+
+  it('draws the hero equipped and each class\'s photo when the renders carry them; nothing of either without', () => {
+    expect(html).not.toMatch(/Equipped, at the last stage|img class="gear"/);
+    const png = 'data:image/png;base64,AAAA';
+    const drawn = characterBibleHtml(MEADOWMARK_HERO, { renders: { equipped: { front: png, right: png }, gear: { staff: png } } });
+    expect(drawn).toMatch(/Equipped, at the last stage/);
+    expect(drawn).toMatch(/hero equipped, three-quarter, from the right/);
+    expect(drawn).toMatch(/<td><b>staff<\/b><img class="gear" alt="staff"/);
   });
 
   it('says where the underlayer\'s colours come from: the direction\'s elements', () => {

@@ -58,17 +58,15 @@ function rampTones(ramps = []) {
 /**
  * What the base wears: the outfit build the world's setting chooses, at ornament 0, plus the ledger of where it came
  * from. `looks.underlayer` as an outfit build overrides the rail (and is ledgered); `null` or absent takes the rail.
- * Its tones are the direction's elements, then the kit's ramps (`toneFrom` says which each came from).
- * → { build, read, ledger, tones?, toneFrom? }
+ * Its tones, the creator's cut or the rail's, are the direction's elements, then the kit's ramps (`toneFrom` says which
+ * each came from). → { build, read, ledger, tones, toneFrom }
  */
 export function underlayerFor(G, D = resolveDirection(G)) {
   const own = G.characters?.hero?.looks?.underlayer ?? null;
   const rail = (D?.from === 'world' ? UNDERLAYERS[D.kit] : null) ?? FALLBACK, ledger = [];
-  if (own) {
-    ledger.push({ scope: 'looks', at: 'hero.looks.underlayer', key: 'underlayer', world: rail.style, local: own.style ?? 'casual' });
-    return { build: { ...own, dials: { ...(own.dials || {}), ornament: 0 } }, read: 'the creator\'s own underlayer', ledger };
-  }
-  const build = { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: { ...rail.language } } : {}) };
+  if (own) ledger.push({ scope: 'looks', at: 'hero.looks.underlayer', key: 'underlayer', world: rail.style, local: own.style ?? 'casual' });
+  const build = own ? { ...own, dials: { ...(own.dials || {}), ornament: 0 } }
+    : { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: { ...rail.language } } : {}) };
   // the clothes wear the direction: the leading element's tint on the top, the supporting one's on the bottom; the
   // kit's ramps dress whatever the elements leave (a word with no tint, or no element named)
   const tones = { ...(D?.from === 'world' ? rampTones(D.ramps) : {}) }, toneFrom = Object.fromEntries(Object.keys(tones).map((g) => [g, 'the kit\'s ramps']));
@@ -76,7 +74,7 @@ export function underlayerFor(G, D = resolveDirection(G)) {
     const hex = D?.[k] ? ELEMENT_TINT[D[k].toLowerCase()] : undefined;
     if (hex) { tones[group] = hex; toneFrom[group] = `the ${k === 'primary' ? 'leading' : 'supporting'} element, ${D[k]}`; }
   }
-  return { build, read: rail.read, ledger, tones, toneFrom };
+  return { build, read: own ? 'the creator\'s own underlayer' : rail.read, ledger, tones, toneFrom };
 }
 
 /** The leading and supporting elements as palette tints; a word with no tint is returned unread. */

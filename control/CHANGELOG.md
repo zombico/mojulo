@@ -39,6 +39,10 @@ set custom. Animation is assigned by vibe, and custom edits are saved as revisio
   plates are left out and the wire views stand alone. Not yet done: the eyes gate on every plate and on the motion's table, the
   vibe table run through the rig's deep sweep, and the adornment and systems pages.
 
+- **More oomph for the example hero.** A ponytail, sharp determined eyes and swept bangs, and a fitted cut of the
+  meadow's tunic. The wind's tint is a jade that holds on cloth, not a pastel. The creator's own underlayer keeps the
+  direction's tones (it dropped them before).
+
 ### Character book: adornment and equipment
 
 The character book's third page, over the pinned base. Equipment is derived from the hero's actions, the main loop's
@@ -57,6 +61,13 @@ power as an alternate use. What the page conceives is the template of its class 
   item that serves no power and a final-design power that nothing serves; an empty class is a task, not a fault.
 - **On the sheet.** The character bible draws the adornment (the items, their tiers by stage, their alternate uses, or
   the proposal while none is adopted) and the equipment table with its rows to fill.
+- **One gear language.** `equipment.style` is a style card (a sample or an inline card) every class wears unless its
+  row names its own, so a world's gear reads as one set. A seeded row wears it too, unless it would break the template
+  (said on the page, never thrown). The meadow's example fills every class from one wind-and-brass card.
+- **Drawn.** The sheet photographs each filled class at its last tier and the hero equipped at the final stage, holding
+  the table's gear for each item it carries; the equipment step lists the mints it will make once ready.
+- Fixed: the equipment orders put the build where `mint_solid` reads it (`spec`); before, every one would have been
+  refused.
 - Not yet: the eyes gate on every item and tier, worn armour and paint, and the table's calibration.
 
 ### Character book: the game's systems

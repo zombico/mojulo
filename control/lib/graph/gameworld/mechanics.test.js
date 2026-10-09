@@ -6,7 +6,9 @@ import { readPart } from '../playscape/ui/parts.js';
 
 const bad = (m, re) => expect(() => readMechanics(m)).toThrow(re);
 const hero = MEADOWMARK_HERO.characters.hero;
-const withActions = (actions, mechanics = {}, adornment = hero.adornment) => ({ ...MEADOWMARK_HERO, mechanics, characters: { ...MEADOWMARK_HERO.characters, hero: { ...hero, actions, adornment } } });
+// the laws below read the hero's staff alone: the example without its filled equipment table
+const STAFF_ONLY = { ...MEADOWMARK_HERO, equipment: undefined };
+const withActions = (actions, mechanics = {}, adornment = hero.adornment) => ({ ...STAFF_ONLY, mechanics, characters: { ...MEADOWMARK_HERO.characters, hero: { ...hero, actions, adornment } } });
 const idiom = (name, more = {}) => withActions({ idiom: name, powers: hero.actions.powers, progression: hero.actions.progression }, more);
 const book = (w) => resolveBook(w);
 const lowers = (play) => lowerPlay({ kind: 'controllable', play: { ...play, ui: undefined } });
@@ -37,7 +39,7 @@ describe('the game\'s systems', () => {
   });
 
   it('the example (metroidvania-like): the stages are epochs by level, the powers free nodes found in the world, the staff a tier per stage', () => {
-    const M = book({ ...MEADOWMARK_HERO, mechanics: {} }).mechanics, S = M.play.stats;
+    const M = book({ ...STAFF_ONLY, mechanics: {} }).mechanics, S = M.play.stats;
     expect(S.epochs).toEqual([{ id: 'early' }, { id: 'mid', level: EPOCH_LEVEL.mid }, { id: 'late', level: EPOCH_LEVEL.late }]);
     expect(S.tree.filter((n) => !n.gives)).toEqual([{ id: 'gust-step', epoch: 'early' }, { id: 'wind-orb', epoch: 'mid' }, { id: 'cyclone', epoch: 'late' }]);
     expect(S.tree.find((n) => n.id === 'staff-mid')).toEqual({ id: 'staff-mid', epoch: 'mid', requires: { has: 'staff-early' }, gives: { raise: { power: 3 } } });
@@ -45,6 +47,15 @@ describe('the game\'s systems', () => {
     expect(S.bodies).toEqual({ hpMax: 'hp' });
     expect(M.open).toEqual([]);
     expect(M.reasons.join('\n')).toMatch(/wind-orb \(mid\): found in the world/);
+    expect(() => readStats({ stats: S })).not.toThrow();
+  });
+
+  it('the filled example: every class a tier per stage, the dagger the speed it raises, the shield the guard', () => {
+    const S = book(MEADOWMARK_HERO).mechanics.play.stats;
+    expect(S.stats.map((x) => x.id)).toEqual(['hp', 'power', 'guard', 'speed']);
+    for (const cls of ['dagger', 'sword', 'greatsword', 'staff', 'bow', 'shield']) for (const st of ['early', 'mid', 'late']) expect(S.tree.some((n) => n.id === `${cls}-${st}`), `${cls}-${st}`).toBe(true);
+    expect(S.tree.find((n) => n.id === 'dagger-late').gives).toEqual({ raise: { speed: 0.1 } });
+    expect(S.tree.find((n) => n.id === 'shield-mid').gives).toEqual({ raise: { guard: 3 } });
     expect(() => readStats({ stats: S })).not.toThrow();
   });
 
