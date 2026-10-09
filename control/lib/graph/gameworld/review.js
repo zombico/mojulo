@@ -14,6 +14,7 @@
  */
 import { readGameworld, resolveLevel } from './world.js';
 import { landFor } from './nature.js';
+import { CHARACTER_PART_IDS } from './characters.js';
 
 export const MODES = Object.freeze({
   gated: 'every part waits for the creator\'s approval before the next step builds on it',
@@ -48,17 +49,31 @@ export function reviewParts(world) {
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 
-/** Read a world's review and mode, and say what is wrong. */
+/** One review entry's shape: the creator's verdict on a part, and what is wrong with it. */
+export function checkReviewEntry(id, r) {
+  if (!r || typeof r !== 'object' || !REVIEW_STATUSES.includes(r.status)) throw new Error(`gameworld: review.${id}.status is ${REVIEW_STATUSES.join(', ')}`);
+  for (const k of Object.keys(r)) if (!['status', 'print', 'note'].includes(k)) throw new Error(`gameworld: review.${id}.${k} is not a review setting (status, print, note)`);
+  if (r.status === 'approved' && typeof r.print !== 'string') throw new Error(`gameworld: review.${id}: an approval keeps the print it was given on (approve(world, '${id}') writes it)`);
+}
+
+/** Read a world's review and mode, and say what is wrong. The character book's parts (characters.js) are reviewed in
+ * the same recipe field, and stamped by their own page (character-review.js). */
 export function readReview(world, parts = reviewParts(world)) {
   const review = world.review ?? {}, ids = parts.map((p) => p.id);
   if (typeof review !== 'object' || Array.isArray(review)) throw new Error('gameworld: review is { <part>: { status, print?, note? } }');
   for (const [id, r] of Object.entries(review)) {
-    if (!ids.includes(id)) throw new Error(`gameworld: review.${id} is not a part (parts: ${ids.join(', ')})`);
-    if (!r || typeof r !== 'object' || !REVIEW_STATUSES.includes(r.status)) throw new Error(`gameworld: review.${id}.status is ${REVIEW_STATUSES.join(', ')}`);
-    for (const k of Object.keys(r)) if (!['status', 'print', 'note'].includes(k)) throw new Error(`gameworld: review.${id}.${k} is not a review setting (status, print, note)`);
-    if (r.status === 'approved' && typeof r.print !== 'string') throw new Error(`gameworld: review.${id}: an approval keeps the print it was given on (approve(world, '${id}') writes it)`);
+    if (!ids.includes(id) && !CHARACTER_PART_IDS.includes(id)) throw new Error(`gameworld: review.${id} is not a part (parts: ${ids.join(', ')})`);
+    checkReviewEntry(id, r);
   }
   return review;
+}
+
+/** One part's stamp, from the creator's verdict `r` (if any), the part, the world's mode and the laws that advise. */
+export function stampPart(p, r, mode, laws = []) {
+  let status = r?.status ?? (mode === 'autonomous' ? (laws.length ? 'revise' : 'auto') : 'proposed');
+  if (status === 'approved' && r.print !== p.print) status = 'changed';
+  const note = r?.note ?? (!r && mode === 'autonomous' && laws.length ? `the machine gate advises: ${laws.join(', ')}` : undefined);
+  return { id: p.id, name: p.name, print: p.print, status, ...(note ? { note } : {}), machine: laws };
 }
 
 /**
@@ -68,13 +83,7 @@ export function readReview(world, parts = reviewParts(world)) {
 export function reviewState(world, { machine = {} } = {}) {
   const parts = reviewParts(world), review = readReview(world, parts), mode = world.mode ?? 'gated';
   if (!MODES[mode]) throw new Error(`gameworld: mode is ${Object.keys(MODES).join(' or ')}`);
-  return parts.map((p) => {
-    const r = review[p.id], laws = machine[p.id] ?? [];
-    let status = r?.status ?? (mode === 'autonomous' ? (laws.length ? 'revise' : 'auto') : 'proposed');
-    if (status === 'approved' && r.print !== p.print) status = 'changed';
-    const note = r?.note ?? (!r && mode === 'autonomous' && laws.length ? `the machine gate advises: ${laws.join(', ')}` : undefined);
-    return { id: p.id, name: p.name, print: p.print, status, ...(note ? { note } : {}), machine: laws };
-  });
+  return parts.map((p) => stampPart(p, review[p.id], mode, machine[p.id] ?? []));
 }
 
 /** The creator's approval of a part, on what it resolves to now: the review entry to write into the recipe. */

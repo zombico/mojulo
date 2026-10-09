@@ -38,8 +38,8 @@ import { drawStructures } from '../era/out-structures-draw.js';
 import { buildBlock, blockPaint } from '../era/blocks.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
 
-const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
+export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
 
 // what a tunnel did, in a line or two: the traits it read, the passes it took, what it tweaked, what it could not say
 const tunnelLog = (T) => `<p class="muted"><b>${esc(T.intent)}</b> · read as ${esc(T.traits.join(', ') || 'nothing')}${T.unread.length ? ` · unread: ${esc(T.unread.join(', '))}` : ''} · ${T.passes} pass${T.passes === 1 ? '' : 'es'}${T.tweaks.length ? `, tweaked: ${esc(T.tweaks.join('; '))}` : ''} · ${T.complete ? 'every trait and law holds' : T.held ? 'holds, with gaps' : '<b>advises</b>'}</p>${T.gaps.map((g) => `<p class="muted">Gap · <b>${esc(g.trait)}</b>: ${esc(g.why)}. Would close it: ${esc(g.proposal)}.</p>`).join('')}`;
@@ -228,7 +228,8 @@ ${levels}
 </div></body></html>`;
 }
 
-const CSS = `
+/** The binder's stylesheet, shared by the character book's bible (character-bible-html.js). */
+export const CSS = `
 :root{--paper:#eef1f4;--sheet:#fff;--ink:#17202e;--muted:#5b6676;--rule:#d3d9e0;--dot:#c3cad3;--c-trail:#3a8a57;--c-meru:#b9822a;--c-place:#b14f39;--local:#b14f39;
 --display:"Big Shoulders Display","Arial Narrow",sans-serif;--body:"Public Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
 @media (prefers-color-scheme:dark){:root{--paper:#0f141b;--sheet:#171e28;--ink:#e6eaf0;--muted:#99a4b3;--rule:#2b3543;--dot:#2b3543;--c-trail:#5cb57c;--c-meru:#dba44a;--c-place:#dd7a62;--local:#dd7a62;color-scheme:dark}}

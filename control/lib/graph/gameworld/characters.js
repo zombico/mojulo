@@ -23,7 +23,9 @@
  *     },
  *     hero?: {
  *       looks?: { body?, head?, hair?, colour?, underlayer?, base? },
- *       motion?, actions?,                       // read by their own pages as they are built
+ *       motion?,                                 // the feel (hero-vibe.js): vibe words, axes, custom clips
+ *       actions?,                                // what it can do (actions.js)
+ *       adornment?,                              // the equipment the main loop calls for (adornment.js)
  *     },
  *     cast?,                                     // reserved: the other characters are left open
  *   }
@@ -34,6 +36,8 @@
 import { kitCard, languageCard } from './style-guide.js';
 import { poleOf } from '../era/style/pole.js';
 import { readActions } from './actions.js';
+import { readMotion } from './hero-vibe.js';
+import { readAdornment } from './adornment.js';
 
 /** Western and anime: the two traditions every character and world is tuned to; a hero is drawn in one of them. */
 export const TRADITIONS = Object.freeze({
@@ -75,7 +79,10 @@ const NOT_LOOKS = Object.freeze({
   blink: 'the blink is motion\'s (hero.motion)',
   statue: 'a statue is not a character',
 });
-const HERO_KEYS = ['looks', 'motion', 'actions'];
+/** The parts the character book is reviewed in, in order (character-review.js): the direction, the four looks pages,
+ * the pinned base, the motion and the actions. They share the world's `review` field with the world's own parts. */
+export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions']);
+const HERO_KEYS = ['looks', 'motion', 'actions', 'adornment'];
 const KEYS = ['direction', 'hero', 'cast'];
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -167,13 +174,13 @@ export function readCharacters(C) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {
       if (!HERO_KEYS.includes(k)) throw err(`hero.${k} is not part of the hero's page (${HERO_KEYS.join(', ')})${NOT_LOOKS[k] ? `; ${NOT_LOOKS[k]}` : LOOKS_ELEMENTS[k] ? `; ${k} is a looks page (hero.looks.${k})` : ''}`);
-      if (k !== 'looks' && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
+      if (k !== 'looks' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
     }
     out.hero = {};
     if (C.hero.looks !== undefined) out.hero.looks = readLooks(C.hero.looks);
-    // motion is read by its own page when it is built; carried as given until then
-    if (C.hero.motion !== undefined) out.hero.motion = C.hero.motion;
+    if (C.hero.motion !== undefined) out.hero.motion = readMotion(C.hero.motion);
     if (C.hero.actions !== undefined) out.hero.actions = readActions(C.hero.actions);
+    if (C.hero.adornment !== undefined) out.hero.adornment = readAdornment(C.hero.adornment);
   }
   return out;
 }

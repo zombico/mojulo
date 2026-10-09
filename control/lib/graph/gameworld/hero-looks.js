@@ -10,13 +10,15 @@
  *                    wears only the UNDERLAYER, an outfit build at ornament 0 fitted to the world's setting. The base
  *                    version; adornment (a later page) layers over it and never replaces it
  *   heroOrders(G)    the tool calls that realize the page: `mint_solid` with the composed spec, then one `update_sketch`
- *                    patch per element, so a gameworld can drive the tools in place of a creator prompting each one
+ *                    patch per element, then the motion's (hero-vibe.js), so a gameworld can drive the tools in place
+ *                    of a creator prompting each one
  *
  * Pure. `G` is a read world (readGameworld's) whose `characters` is present. The tradition decides the head and the
  * proportions (resolveDirection); the character light (`toon`) is a top-level `mint_solid` argument, not a spec field,
  * so it rides on the orders. A word the page cannot place is returned in `unread`, never dropped silently.
  */
 import { resolveDirection, LOOKS_ELEMENTS } from './characters.js';
+import { resolveMotion, motionOrders } from './hero-vibe.js';
 
 /** What the leading and supporting elements tint: a word → the hero palette group it lands on, and its colour. */
 export const ELEMENT_TINT = Object.freeze({
@@ -147,5 +149,7 @@ export function heroOrders(G, { title } = {}) {
     tool: 'update_sketch', part: E.part,
     args: { ref: '<ref of the mint>', patch: Object.entries(E.spec).map(([field, value]) => ({ op: 'set', path: `/hero/${field}`, value })) },
   })).filter((o) => o.args.patch.length);
-  return { mint, patches, unread: C.unread };
+  // the feel, once the hero stands: its gaits and stand, then any custom clips, as patches of the same sketch
+  const hero = G.characters.hero ?? {}, motion = hero.motion ? motionOrders(resolveMotion(hero.motion)) : null;
+  return { mint, patches, ...(motion ? { motion } : {}), unread: C.unread };
 }

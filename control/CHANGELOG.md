@@ -21,7 +21,26 @@ underlayer chosen to fit the world's setting, and it is kept as a pinned revisio
 calls that realize it, so a gameworld can drive the tools in place of the create-game tools. Actions are what the hero can do beyond platforming: the power system, the main power set, and an
 early-to-mid escalation, or an idiom read as "x-like". Western or anime is chosen explicitly. A crossing between them
 is a named bridge, ledgered. The direction (motif, primary and secondary elements) is inherited from the world or
-set custom. Animation is assigned by vibe, and custom edits are saved as revisions from that baseline. In progress.
+set custom. Animation is assigned by vibe, and custom edits are saved as revisions from that baseline.
+
+- **Reviewed like the world.** The direction, the four looks pages, the pinned base, the motion and the actions are
+  parts of the same review gate (approved, changed since, sent back, waiting, or `auto` in an autonomous world, never
+  approved by the agent). `characterReady` says when adornment and the game's systems may start; it advises.
+- **A layered hero keeps its history.** `layered` joins the revisioned kinds, so a hero edit archives the manifest
+  before it; the base is pinned as `{ ref, rev, print }` and reads as pinned, drifted or missing.
+- **Motion by vibe.** Words (cocky, heavy, floaty) sum into four axes (energy, weight, poise, confidence), which move the
+  walk, jog and sprint dials through a fixed table; a hero with no vibe has no motion and is unchanged. The `snap` axis
+  is not built.
+- **The sheet.** `out-sheet.mjs characters [--render]` draws the character bible; `--render` mints the hero in memory and
+  draws wire views and the live World page. Not yet done: the eyes gate on every plate and on the motion's table, the
+  vibe table run through the rig's deep sweep, and the adornment and systems pages.
+
+### Character book: adornment
+
+The character book's third page, over the pinned base. Equipment is derived from the hero's actions, the main loop's
+final design: an item exists because a power needs it, grows with the stage that unlocks it, may serve a second power
+as an alternate use, and is shown scaled up or down. A variation is a sibling hero forked from the base with the gear
+added, so the bare base is never overwritten. In progress: the reader first.
 
 ### Realistic ground: the opposite pole of the isekai look
 

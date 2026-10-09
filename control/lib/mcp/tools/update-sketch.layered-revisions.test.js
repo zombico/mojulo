@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository, REVISIONED_KINDS } from '@/lib/db/repositories/sketch-revisions';
 import { createLayeredHandler } from './layered.js';
 import { updateSketchHandler } from './sketches.js';
+import { pinBase, verifyBase, revisionLookup } from '@/lib/graph/gameworld/index';
 
 // The character book pins the hero's bare base as a revision: motion and adornment branch from it and never overwrite
 // it. That needs the layered kind to keep history, as the other solid kinds do; it changes no render bytes.
@@ -46,6 +47,19 @@ describe('a layered row keeps its history', () => {
     expect(SketchRevisionRepository.get('lay-base', 1).manifest).toEqual(base);
     expect(SketchRevisionRepository.get('lay-base', 2).manifest.dials.lift).toBeDefined();
     expect(SketchRepository.getByRef('lay-base').manifest).not.toEqual(base);
+  });
+
+  it('a pinned base verifies against the real archive across edits, and a hand-edited head reads as drifted when pinned', async () => {
+    await createLayeredHandler({ recipe, ref: 'lay-pin' });
+    const pin = pinBase({ ref: 'lay-pin', rev: 1, manifest: SketchRepository.getByRef('lay-pin').manifest });
+    const lookup = () => {
+      const head = SketchRevisionRepository.list('lay-pin').length + 1;
+      return revisionLookup({ ref: 'lay-pin', headRev: head, head: SketchRepository.getByRef('lay-pin').manifest, get: (r, rev) => SketchRevisionRepository.get(r, rev)?.manifest ?? null });
+    };
+    expect(verifyBase(pin, lookup()).status).toBe('pinned'); // rev 1 is HEAD: the row itself
+    await updateSketchHandler({ ref: 'lay-pin', patch: [{ op: 'set', path: '/dials/lift', value: 0.3 }] });
+    expect(verifyBase(pin, lookup()).status).toBe('pinned'); // rev 1 is now archived, and unchanged
+    expect(verifyBase({ ...pin, rev: 2 }, lookup()).status).toBe('drifted'); // HEAD is not the base
   });
 
   it('a title-only edit writes no revision', async () => {

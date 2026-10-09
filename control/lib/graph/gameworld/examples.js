@@ -40,6 +40,37 @@ export const MEADOWMARK = Object.freeze({
 });
 
 /**
+ * The same world with its character book begun: an anime hero in the meadow's own direction, led by wind and
+ * supported by brass, with a spiral motif. Its looks are four pages, its power set a metroidvania-like traversal set
+ * (a step, a thrown ball of wind, a rising column), laid out early, mid and late, and a bouncy, bold walk. Nothing in it
+ * is reviewed and the base is not pinned: every part of the character book waits for the creator.
+ */
+export const MEADOWMARK_HERO = Object.freeze({
+  ...MEADOWMARK,
+  characters: {
+    direction: { tradition: 'anime', primary: 'wind', secondary: 'brass', motif: ['spiral'] },
+    hero: {
+      looks: {
+        body: { cast: 'female', tune: { legs: 1.04, shoulders: 1.03 } },
+        head: { look: ['heroine', 'soft'] },
+        hair: { length: 1.5, fringe: 0.85 },
+        colour: { palette: { Hair: '#e8cf7a' } },
+      },
+      motion: { vibe: ['bouncy', 'bold'] },
+      actions: {
+        idiom: 'metroidvania-like',
+        powers: [
+          { id: 'gust-step', verb: 'dash through the air', look: 'spiral' },
+          { id: 'wind-orb', verb: 'throw a ball of wind', attack: 'orb' },
+          { id: 'cyclone', verb: 'rise on a spinning column', look: 'column' },
+        ],
+        progression: [{ stage: 'early', gains: ['gust-step'] }, { stage: 'mid', gains: ['wind-orb'] }, { stage: 'late', gains: ['cyclone'] }],
+      },
+    },
+  },
+});
+
+/**
  * A frontier, composed from words: nothing in it was written as a kit or a building language. Its look is tunnelled
  * from the meadow's facets ("realism but stylized and detailed …": a grounded palette of seven stops a ramp, bare
  * basalt, sparse scrub, a gas giant in a pale day sky, dust in the air); the survey corps' habitats are tunnelled from
