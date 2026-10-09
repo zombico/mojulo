@@ -177,8 +177,8 @@ function mirrorPart(p) { return { ...p, ...(p.slotT ? { slotT: Object.fromEntrie
 /** A segment's bind: it belongs to `bone`; the overshoot ring at each joint is shared half and half with the
  * neighbour, and the cap beyond it belongs to the neighbour outright. */
 export const segmentBind = (prev, self, next) => ({ bone: self, blend: { ...(prev ? { back: { [prev]: 1 }, st0: { [prev]: 0.5, [self]: 0.5 } } : {}), ...(next ? { st2: { [self]: 0.5, [next]: 0.5 }, tip: { [next]: 1 } } : {}) } });
-// a point's blend (`station.slot`) names the slot, which the left part carries mirrored
-const mirrorBind = (b) => (typeof b === 'string' ? mirrorPartName(b) : { bone: mirrorPartName(b.bone), blend: Object.fromEntries(Object.entries(b.blend).map(([st, w]) => [st.includes('.') ? mirrorPid(st) : st, Object.fromEntries(Object.entries(w).map(([bone, x]) => [mirrorPartName(bone), x]))])) });
+// a point's blend (`station.slot`) names the slot, which the left part carries mirrored (and a hard limb's `zone`)
+const mirrorBind = (b) => (typeof b === 'string' ? mirrorPartName(b) : { bone: mirrorPartName(b.bone), blend: Object.fromEntries(Object.entries(b.blend).map(([st, w]) => [st.includes('.') ? mirrorPid(st) : st, Object.fromEntries(Object.entries(w).map(([bone, x]) => [mirrorPartName(bone), x]))])), ...(b.zone !== undefined ? { zone: b.zone } : {}) });
 const resolveBind = (bind, self) => (bind == null ? undefined : typeof bind === 'string' ? bind : bind.blend ? bind : bind.bone || bind.prev || bind.next ? segmentBind(bind.prev || null, bind.bone || self, bind.next || null) : fail(`bind of '${self}' must be a bone name, { bone, prev?, next? } or { bone, blend }`));
 
 // ── `$S` templates: a name carrying `$S` stands for its R and L twins ──
@@ -397,10 +397,17 @@ export function expandPlan(plan) {
     }
     const bones = (R.bones || []).flatMap((b) => (b.perSide ? ['R', 'L'].flatMap((S) => b.perSide.map((x) => sideDeep(x, S))) : [b]));
     const chains = Object.fromEntries(Object.entries(R.chains || {}).map(([k, c]) => [k, { ...c, links: (c.links || []).flatMap((l) => (l.perSide ? ['R', 'L'].flatMap((S) => sideDeep(l.perSide, S)) : [l])) }]));
-    recipe.rig = { ...R, joints, bones, ...(R.chains ? { chains } : {}) };
+    // folds (station-loft-rig.js): a `$S` fold expands to its R and L twins
+    // (the left twin's directions mirrored across the plane: its `inAxis` and `front`)
+    const foldOf = (f, S) => { const o = sideDeep(f, S); if (S === 'L') for (const v of ['inAxis', 'front']) if (Array.isArray(o[v])) o[v] = mirrorX(o[v]); return o; };
+    const folds = R.folds ? Object.fromEntries(Object.entries(R.folds).flatMap(([k, f]) => (hasS(k) ? ['R', 'L'].map((S) => [side(k, S), foldOf(f, S)]) : [[k, f]]))) : null;
+    recipe.rig = { ...R, joints, bones, ...(R.chains ? { chains } : {}), ...(folds ? { folds } : {}) };
   }
   if (plan.clips) recipe.clips = plan.clips;
   // motion (opt-in, fauna/rig.js): a minted animal's gaits, packed at read time from its skeleton; absent ⇒ byte-identical
   if (plan.motion) recipe.motion = plan.motion;
+  // locomotion (opt-in, hero-motion.js): a hero's gaits from the door's `motion`, compiled on the rig where its clips are
+  // packed; absent ⇒ byte-identical
+  if (plan.locomotion) recipe.locomotion = plan.locomotion;
   return recipe;
 }

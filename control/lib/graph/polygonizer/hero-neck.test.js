@@ -23,15 +23,17 @@ const inside = (tris, q) => { let c = 0; for (const [A, B, C] of tris) { const e
 // the head. Every hero plan carries the clip, so the plan, the recipe and the pages move with it and with nothing else
 // (with the old wave restored these pins pass unchanged).
 describe('the neck form: absent ⇒ the plan as it was', () => {
+  // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
+  // `hands`, `handWidth`): the hand alone moved
   it('reaches only the anime head on anime proportions; every other path keeps the segment, byte for byte', () => {
     // pinned from the code before the neck form existed (sha256(JSON.stringify(plan)), first 16 hex digits), on the
     // streamlined core (the structured core, DEFAULT_CORE, came after and moves the body, not the neck)
     const old = { core: 'streamlined' };
-    expect(h(heroPlan({ cast: 'male', proportions: 'anime', ...old }))).toBe('7df808760df93813');
-    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly', ...old }))).toBe('d5582c1b5d57b926');
+    expect(h(heroPlan({ cast: 'male', proportions: 'anime', ...old }))).toBe('bcfc15865844cf83');
+    expect(h(heroPlan({ cast: 'female', proportions: 'anime', register: 'lowpoly', ...old }))).toBe('35b3e4f866eee105');
     expect(heroPlan({ cast: 'male', proportions: 'anime', neckForm: null })).toEqual(heroPlan({ cast: 'male', proportions: 'anime' }));
-    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('2dcf97b30b015f33');   // the landmark head on anime proportions (re-pinned: the fitted forehead upright, the brow's end on its landmark; the ear, head-ear.js; the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis); the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull))
-    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('ee397c1c282ed919');
+    expect(h(humanoidPlan({ preset: 'male', proportions: 'anime', ...old }))).toBe('7389d02911b1d90f');   // the landmark head on anime proportions (re-pinned: the fitted forehead upright, the brow's end on its landmark; the ear, head-ear.js; the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis); the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull))
+    expect(h(heroPlanOf(heroRecord({ cast: 'female', proportions: 'anime', ...old })))).toBe('f9433194e9e069d4');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'male', head: 'anime', proportions: 'hero', ...old }))).kind).toBe('segment');
     expect(neckOf(heroPlanOf(heroRecord({ cast: 'stout', head: 'anime', ...old }))).kind).toBe('segment');   // a figure cast has none
     // the structured core gives every worn head without a neck form of its own the nape loft at its cast's radius

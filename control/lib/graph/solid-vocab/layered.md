@@ -325,9 +325,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   look is another character); a ratio the head does not allow measuring is null and says so. The table reads the face
   at the studio's carriage, so a `headPitch` word never moves it.
   THE CORE: every hero's midsection is built on the vajra core (`core: 'structured'`, the default): the `pelvis` bone is the basin, turned by the
-  hip line alone, and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or side bend (and the
-  hinge) bends the lower back over a still pelvis; the hem and the top of the thighs blend the two, and a hip-slung blade
-  rides the basin. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
+  hip line and TIPPED by the hip hinge (the pelvis rocks over the thighs with the trunk, so nothing opens at the waist
+  when the figure bends at the hips), and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or
+  side bend bends the lower back over a still pelvis; a `clavicle` bone each side from the shoulder line to the shoulder
+  RISES with a raised arm (past 30° a third of the further raise, at most 25°: the shoulder blade's rhythm), the top of the
+  shoulder's skin and the arm's cap riding it, so the shoulder lifts with the arm instead of the chest's corner standing; the hem and the top of the thighs blend the two, and a hip-slung blade
+  rides the basin. The limbs are HARD: each bone's rings are rigid on it, a joint's blend only within about a limb's radius of
+  the joint (`bind.zone`), so a limb bends at its joints and its bones stay straight. The hip, the knee and the elbow
+  each have a FOLD bone (`hipFold`, `kneeFold`, `elbowFold`, a side): the rings at the joint ride it, turned half the
+  bend and pushed to its convex side (the kneecap, the point of the elbow) as the bend grows, so a deep crouch or a bent
+  arm keeps its volume instead of folding flat, and a turned-out thigh comes out of the hip. Its midsection is BUILT on the vajra basket: a `pelvis` part from the crotch up into the hem, its back
   the seat, the hip one curve out from the waist (the female's widest at the trochanter, the male's straight), the front
   receding to the pubis, and the thigh rooted at the hip socket inside it, so it comes out of the pelvis along the groin's
   diagonal. Its TORSO is built on the vajra rib cage: a waist above the hem, the ribs widening to a lifted chest, the male's
@@ -366,8 +373,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the realistic cast; `'herobot'` is the hero ROBOT's toy-hero body, about 4.4 heads tall — a big head, a short torso,
   short arms and neck, longer shins, big feet and bigger, puffed white cartoon gloves (`Glove`), the neck in the body stocking (`Top`); adult limbs, never
   child-coded): about 6.5 heads tall on the female and 7 on the male (the realistic casts are ~7.6), the inseam
-  at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller hands and feet, the
-  overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The
+  at about half the height, narrower shoulders, a slender neck, slimmer waist and limbs, smaller feet, hands at an adult hand's share
+  of the height (wrist to fingertip about 0.10 of it, the palm broad enough to read from behind), the overall height kept. A `tune` is a percentage of THAT baseline. The readout says `proportions` and `headsTall`. The
   anime casts wear a NECK FORM: the neck a ring loft that leans forward a little and whose back rises through a nape ring
   into the occiput (no shelf under the skull); the male's column is broader (about 0.75–0.8 of W) over a trapezius ring
   that breaks the shoulder line, the female's keeps her own radius (about 0.4 of W); `body.neck` still sizes both. The
@@ -446,10 +453,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   out), CONSTRUCTION (a woven placket), ORNAMENT (from the focal out: collar or rib, buttons, belt; cuffs, hems,
   waistband; seams), TONE (the card's over derived Trim, Placket, Button, Seam, Waistband), LEDGER (the readout's
   `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Skirts and dresses:
-  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full }` is one hull round the hips
+  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full, rigidity? }` is one hull round the hips
   and both legs (garment `fit: 'skirt'`): each ring the support of everything at its height, never narrowing below the
   hips, flaring by its cut, two-faced (folded at the hem, so it is open beneath), each point skinned by nearness (the
-  cloth over a leg follows that leg, the cloth between and behind the legs the pelvis); `dress: true` makes the skirt the
+  cloth over a leg follows that leg; over the seat the cloth goes with the pelvis, below it the cloth between the legs
+  hangs from both thighs, so a hip hinge never swings it into them); `rigidity` (`shell` the default: locked; `stiff`, `crisp`,
+  `soft`, `flowing` or 0 … 1; any garment piece takes it too) says how it moves: below a shell it flows on control strings,
+  swinging with the stride, the stop and the wind against the locked body (the motion card's `--hair`, `--wind`); `dress: true` makes the skirt the
   top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
   Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
@@ -542,6 +552,49 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   false` turns it off (stored only when false; any other head refuses it). The drawings are a frame each at 30 fps:
   play the GLB at 30 fps or more (at 24, Blender's default scene rate, a one-frame drawing can fall between two
   samples). The readout's `hero.clips` adds `seconds` (every clip played) and `face` (the door clips carrying one).
+  THE MOTION. `motion: { walk?, jog?, sprint? }` gives the hero locomotion that travels: each gait `true` (as studied)
+  or an object of the gait's own dials plus `tilt` (degrees, 0 … 35: the body leaning into it from the hips, the spine
+  straight, the head taking most of it back so the gaze runs ahead) and `seconds` (a cycle, 0.25 … 10). A walk takes the
+  walk's dials (`strideLength`, `swingLift`, `armSwing`, `elbowBase`, `pelvisRot`, `shoulderRot`, `spineTwist`,
+  `weightShift`, `hipSway`, `lean`, `headTilt`, `headLevel`, `ankleRoll`, `toeRoll`, `handCurl`, `wristGive`,
+  `stanceKnee`, `cross`, `cadence`, `vault`, …; upright, 1.1 s); a jog and a sprint take the run's (`dutyFactor` under ½
+  for a flight, `strideLength`, `hipDrive`, `swingTuck`, `armSwing`, `armBack`, `elbowBend`, `lean`, `flightLift`,
+  `anklePoint`, `toeFlick`, …). The jog is soft: a half-length flight, loose arms, tilted 10°, 0.7 s. The sprint is
+  effort: tilted 18°, the knee driven high and the heel tucked tight, the arms pumping at a right angle with the elbows
+  driving back, a long stride with little ground and more flight, a hard push off the forefoot, 0.55 s. An unknown gait
+  or dial refuses naming it. Each gait is baked on THIS rig: every toe on the gait's own path, on the floor through its
+  stance and sliding back at one constant speed, the swing clearing the floor, the heel rolling up to push off, and the
+  root sinking to reach a long stride along one smooth curve over the cycle (the head bobs; it never drops in a frame,
+  so a camera on the head does not shake). The clip walks in place and carries its GROUND SPEED (`v`, metres a second
+  at its seconds): the speed at which its planted feet stay put. A gait REPLACES the hero's own clip of that name (the
+  stock walk) and a new name joins the clips; it rides the World's clip picker, the skinned GLB (24 keys a cycle; the
+  animation's `extras['moj:speed']`) and the engine score (the player's `locomotion.walkSpeed`), where Godot and Unity
+  play the walk at the walker's planar speed ÷ walkSpeed. JUMPS ride the same field: `jump` (standing, straight up,
+  1.1 s), `jumpForward` and `jumpBack` (1.2 s: leaning into it or off the toes, the planted feet falling behind the
+  travelling body at the push and landing ahead of it, or behind for the back jump, the body then rolling over them) and
+  `doubleJump` (1.7 s: a first jump, a kick down off the air with the arms sweeping, a deeper second tuck) and
+  `runningJump` (0.82 s: a hurdler's leap out of the sprint and back into it — the lead leg reaching out, the trail leg
+  round at the side, the trunk diving over the lead, the opposite arm reaching; its planted feet slide at the hero's
+  sprint speed, `air.speed`, so it plays between sprint cycles), each `true` or `{ seconds }` (0.5 … 3; the poses are
+  studied). ROLLS ride it too: `rollForward` (1.5 s: the combat roll — down onto the hands, over the RIGHT shoulder and
+  diagonally across the back to the hip, up through a crouch; the head never takes the floor) and `rollSide` (1.35 s: a
+  tucked barrel roll to the right, shoulder to back to shoulder), and their mirrors `rollForwardLeft` and `rollSideLeft`
+  (over the left shoulder, to the left; `roll.side` says which). A roll turns the whole body (the rig's `body`
+  rotation), set down each moment so its lowest part rests on the floor, in place; its ground rides the clip (`roll`:
+  axis, side, start and end in seconds, the travel and the speed it rolls at without slipping) — the GLB's
+  `extras['moj:roll']` and the engine score's `locomotion.rolls`. STOPS ride it too: `walkStop`, `jogStop`, `sprintStop`
+  (0.6 / 0.75 / 0.9 s), for when forward is let go. The game stops the character dead; the clip shows the momentum,
+  starting from the gait's own frame: the swinging foot brakes under the body, the trunk pitches past the feet with the
+  arms swinging forward, the trail foot steps up beside it, and the trunk recoils just past upright onto the stand. The
+  feet never slide, and the lurch grows with the gait. Each gives two clips, `<name>` (the right foot brakes) and
+  `<name>Left`, each with its `stop` (`from`, `lead`, the gait `phase` it starts at; the GLB's `extras['moj:stop']`, the
+  engine score's `locomotion.stops`): on release, play the one whose phase is nearest the gait's. A jump is ONE-SHOT and IN PLACE: the load, the push onto the toes, the
+  tuck and reach in the air, the absorb; the engine's physics flies the arc. Its timing rides the clip (`air`: take-off,
+  touch-down and apex in seconds, and the height a ballistic flight of that air time reaches; a double jump's `kick`,
+  the height it happens at, the upward speed it adds and the second apex) — the skinned GLB's `extras['moj:jump']` and
+  the engine score's `locomotion.jumps`. In every gait and jump a raised, bent arm folds with its ELBOW DOWN (the
+  shoulder rolls with the raise; never the forearm across the chest). Absent, the hero and every export are as before.
+  Patch `/hero/motion` (set it to an object first), then `/hero/motion/<gait or jump>`.
   THE GEAR. `gear: { right?, left?, back?, hip? }`, each slot an item's build words, the same an equipment item takes
   (`{ item, style?, dials?, parts?, gem?, seed? }`, the equipment card): `gear: { right: { item: 'sword', style: 'dwarven' },
   left: { item: 'shield', style: 'dwarven' } }`. Stored with the laws stamped; patch `/hero/gear/right/dials/stylize`.
@@ -652,7 +705,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   mode: 'shell' | 'band' | 'strap', part, over?, side?, s, t: 'wrap' | [t0, t1] | path, mugen, thick, rad?, support?,
   ramp?, width?, rigid?, pin?: [s, t, side, part?], signature: { kind, group, … } }]` (`station-loft-adorn.js`: a point
   of an adornment is an address lifted by the smoothed hull of EVERYTHING beneath it plus its mugen, so adornments stack;
-  signatures from the library `boss`, `spike`, `buckle`, `ring`, `medallion`, `plume`, `bell`, `studs`). `expandPlan`
+  signatures from the library `boss`, `spike`, `buckle`, `ring`, `medallion`, `plume`, `ribbon`, `bell`, `studs`; a `ribbon` is
+  a cloth strand built as the anime hair's sections are, `{ spine, spread?, width, thick, taper?, ridge?, flute?, twist?, tip:
+  'square' | 'point' | 'swallow', notch? }`: a bow's tails, a streamer; any signature's `rigidity` (rigidity.js) makes its
+  elements flow, each hung on a strand from where it is tied). `expandPlan`
   bakes both as pinned parts on the refined rest carrier (detail L2, adornment L3): they ride the dials and inherit their
   pin face's skin weights, and refinement extends the parts' bind blends so skinning is unchanged. An adornment and its
   signature share one pin, so a rigid adornment rides one bone (`pin` may name another carrier: a pauldron shaped over the

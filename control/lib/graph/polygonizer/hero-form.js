@@ -22,11 +22,13 @@
  * lab's comfortable exploration limits: `tuneWarnings` advises past them, nothing refuses (docs/bicycles.md).
  *
  * The canonical JSON lives at docs/examples/ring-plans/hero.plan.json, written by hero.plan.mjs (a re-export of this). */
-import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, shapeId } from './station-loft-plan.js';
+import { PLAN_SCHEMA, r6, SLOT_FAMILIES, ringPoints, segmentShape, segmentBind, shapeId } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight, breastSpan } from './breast-field.js';
 import { heroHand } from './hero-hand.js';
 import { heroFoot } from './hero-foot.js';
+import { CLAVICLE_IN } from './figure-vajra.js';
 import { mirrorPid } from './station-loft.js';
+import { settle } from './station-loft-body.js';
 import { castArmature, resolveCast, validateCast } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
 import * as dmath from '../../util/dmath.js';
@@ -215,12 +217,14 @@ export const BUST_MAX_OF_CHEST = 0.4;
  * realistic casts, baked into the anime casts below so a tune stays a percentage of THEIR baseline. The head is larger
  * relative to the body (about 6.5 heads tall on the female, 7 on the male, where the realistic casts are ~7.6), the legs
  * a little longer and the torso shorter (the inseam at about half the height), the shoulders narrower (about 1.6 and
- * 2 heads), the neck, waist and limbs slimmer, the hands and feet smaller (`extremities`: lengths and widths; a foot
- * keeps its height, so the sole stays on the ground). Measured, not asserted (hero-form.test.js). The overall height stays
- * within a centimetre of the realistic cast's. */
+ * 2 heads), the neck, waist and limbs slimmer, the feet smaller (`extremities`: lengths and widths; a foot
+ * keeps its height, so the sole stays on the ground). The HANDS keep an adult hand's share of the height, the anime
+ * head notwithstanding: `hands` lengthens them back past the extremities (wrist to fingertip ~0.10 of the height on the
+ * female, ~0.105 on the male) and `handWidth` broadens the palm past it (a slim girth narrows it twice). Measured, not
+ * asserted (hero-form.test.js). The overall height stays within a centimetre of the realistic cast's. */
 export const ANIME_PROPORTIONS = Object.freeze({
-  female: Object.freeze({ head: 1.14, legs: 1.03, torso: 0.86, neck: 0.95, shoulders: 0.93, waist: 0.93, upperArm: 0.86, thigh: 0.92, calf: 0.9, neckGirth: 0.82, extremities: 0.85 }),
-  male: Object.freeze({ head: 1.08, legs: 1.03, torso: 0.9, neck: 0.95, shoulders: 0.93, waist: 0.95, upperArm: 0.9, thigh: 0.95, calf: 0.92, neckGirth: 0.88, extremities: 0.9 }),
+  female: Object.freeze({ head: 1.14, legs: 1.03, torso: 0.86, neck: 0.95, shoulders: 0.93, waist: 0.93, upperArm: 0.86, thigh: 0.92, calf: 0.9, neckGirth: 0.82, extremities: 0.85, hands: 1.2, handWidth: 1.17 }),
+  male: Object.freeze({ head: 1.08, legs: 1.03, torso: 0.9, neck: 0.95, shoulders: 0.93, waist: 0.95, upperArm: 0.9, thigh: 0.95, calf: 0.92, neckGirth: 0.88, extremities: 0.9, hands: 1.2, handWidth: 1.25 }),
 });
 /** a hero cast re-proportioned: the lengths and the shoulder span on its resolved dials, the radii on its body, the head
  * on its head scale (the forearm follows the arm, as on the realistic casts) */
@@ -231,7 +235,7 @@ function animeCast(c, a, word = 'anime') {
   if (a.shank !== undefined) dials.shank *= a.shank;
   const b = { ...BODY_DEFAULTS, ...c.body };
   const body = { ...c.body, waist: r6(b.waist * a.waist), arm: r6(b.arm * a.upperArm), thigh: r6(b.thigh * a.thigh), calf: r6(b.calf * a.calf), neck: r6(b.neck * a.neckGirth) };
-  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, ...(a.hands !== undefined ? { hands: a.hands } : {}), ...(a.puff !== undefined ? { puff: a.puff } : {}), ...(a.glove ? { glove: true } : {}), ...(a.suitNeck ? { suitNeck: true } : {}), proportions: word };
+  return { ...c, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((c.headScale ?? 1) * a.head), extremities: a.extremities, ...(a.hands !== undefined ? { hands: a.hands } : {}), ...(a.handWidth !== undefined ? { handWidth: a.handWidth } : {}), ...(a.puff !== undefined ? { puff: a.puff } : {}), ...(a.glove ? { glove: true } : {}), ...(a.suitNeck ? { suitNeck: true } : {}), proportions: word };
 }
 /** the anime casts (`heroPlan({ proportions: 'anime' })`): the hero casts re-proportioned for the anime head */
 export const ANIME_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female, ANIME_PROPORTIONS.female), male: animeCast(HERO_CASTS.male, ANIME_PROPORTIONS.male) });
@@ -501,6 +505,22 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
           const dy = id === 'st4' ? w * Math.min(0, yNeck(zt) + 0.002 - ((st.yc ?? 0) + st.r[1] + (st.push?.[sl]?.[1] ?? 0))) : 0; push[sl] = [0, r6(dy), r6(w * (zt - st.z))]; });
         addPush(st, push); }); }
   }
+  // the SHOULDER over the collarbone (structured): the chest's ring slots out at the side, from the armpit up through the
+  // shoulder ring to the trapezius, share the collarbone's lift (most at the shoulder's side, less at its front and back),
+  // so a raised arm takes the top of the shoulder with it instead of leaving the chest's corner standing beside it
+  if (structured) {
+    const fam = SLOT_FAMILIES[trunkFam] ?? trunkFam;
+    const share = { st2_st3_50: 0.2, st3: 0.55, st3_st4_50: 0.3 };
+    for (const [id, top] of Object.entries(share)) {
+      if (!torso.stations.some((x) => x.id === id)) continue;
+      fam.forEach((sl, k) => {
+        const side = dmath.sin((2 * Math.PI * k) / fam.length); if (Math.abs(side) < 0.3) return;   // the front and the back stay the chest's
+        const w = r6(top * Math.abs(side) ** 2), S = side > 0 ? 'R' : 'L';
+        const base = torso.bind.blend[id] ?? { torso: 1 }, tot = Object.values(base).reduce((t, x) => t + x, 0);
+        torso.bind.blend[`${id}.${sl}`] = { ...Object.fromEntries(Object.entries(base).map(([b, x]) => [b, r6(x / tot * (1 - w))])), [`clavicle${S}`]: w };
+      });
+    }
+  }
   const hs = (k, r, yc) => ({ z: r6(hb + k * H), r: r.map((x) => r6(x * H)), ...(yc ? { yc: r6(yc * H) } : {}) });
   const blankHead = { name: 'head', kind: 'trunk', stations: [
     hs(-0.25, [0.48, 0.5], 0.04), hs(0.35, [0.70, 0.74], 0.06), hs(0.9, [0.74, 0.78], 0.04), hs(1.35, [0.66, 0.70]), hs(1.65, [0.42, 0.46]),
@@ -709,7 +729,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   }
   // the BARE structured hero's feet (hero-foot.js); footwear replaces the foot, so a shod hero keeps the shoe
   const foot = structured && bare ? heroFoot({ ankle: J.ankle, toeBase: J.toeBase, X, girth: g0, female: femaleMass }) : null;
-  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}) }) : null;
+  const hand = structured ? heroHand({ wrist: J.wrist, elbow: J.elbow, len: 0.09 * X * handSize, X: X * handSize, girth: g0 * handPuff, wide: preset?.handWidth ?? 1, female: femaleMass, ...(preset?.glove ? { group: 'Glove' } : {}) }) : null;
   const limb = (name, from, to, rA, rB, over, group, prev, next, extra = {}) => ({ name, kind: 'segment', from, to, rA, rB, ...extra, over, group, mirror: 'name', bind: { bone: name, prev, next } });
   const segments = [torso, ...bust, ...pelvisParts, neck, ...(head ? [] : [blankHead]),
     // the structured core's DELTOID (NECK_ROOT.deltoid): the arm's top ring a little under the joint, its cap taller, so
@@ -719,7 +739,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     // arm's top is a dome over the joint and the shoulder's widest point sits where the deltoid's does
     // the structured core's ARM (ARM_FORM): the triceps behind and the biceps in front under the deltoid, into an elbow
     // wider across than through (the cone ran straight from the deltoid to an elbow deeper than wide)
-    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), structured ? g(AF.elbow.map((x) => b.arm * x)) : g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', 'torso', 'foreArmR',
+    limb('upperArmR', 'shoulder', 'elbow', structured ? g([b.arm * NECK_ROOT.deltoid.top, b.arm * 1.08 * NECK_ROOT.deltoid.top]) : g([b.arm, b.arm * 1.08]), structured ? g(AF.elbow.map((x) => b.arm * x)) : g([b.arm * 0.74, b.arm * 0.82]), structured ? [NECK_ROOT.deltoid.over, 0.36] : [0.03, 0.36], 'Top', structured ? 'clavicleR' : 'torso', 'foreArmR',
       structured ? { cap: [NECK_ROOT.deltoid.cap, 0.45], mid: NECK_ROOT.deltoid.mid, rMid: g([b.arm, b.arm * 1.08]), shape: ['triceps', 'biceps'].map((k) => ({ at: AF[k].at, r: g(AF[k].r.map((x) => b.arm * x)), yc: g(b.arm * AF[k].yc * soft), xc: g(b.arm * AF[k].xc * soft) })) } : {}),
     // the structured core's forearm ends on the hand's own section at the wrist (hero-hand.js: wide across, narrower
     // through, × extremities), so it tapers into the hand instead of stepping down onto it; it is fullest across below
@@ -739,6 +759,21 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
     ...(foot ? foot.segments : [limb('footR', 'ankle', 'toeBase', [r6(0.046 * X), 0.038], [r6(0.056 * X), 0.028], [1.1, 0.2], 'Shoes', 'shankR', 'toesR', { e: Math.max(reg.e, 3) }),   // the width scales; the height keeps the sole
       limb('toesR', 'toeBase', 'toeTip', [r6(0.056 * X), 0.028], [r6(0.05 * X), 0.02], [0.2, 0.35], 'Shoes', 'footR', null, { e: Math.max(reg.e, 3) })]),
   ];
+  // the structured core's FOLDS (station-loft-rig.js): the rings at the knee and the elbow ride a helper bone turned half
+  // the bend and pushed out to its outside (the kneecap, the point of the elbow), not a blend of the limb's two bones
+  // (which draws a bent hinge's ring inside the joint: the paper fold)
+  if (structured) {
+    const fold = (name, ends) => { const seg = segments.find((x) => x.name === name); const sb = segmentBind(seg.bind.prev, seg.bind.bone, seg.bind.next); for (const st of ends) sb.blend[st] = { [`${name.startsWith('upperArm') || name.startsWith('foreArm') ? 'elbow' : 'knee'}FoldR`]: 1 }; seg.bind = sb; };
+    // (the end rings only: each tube's pinched cap stays inside the other limb, on that limb's bone, as before)
+    fold('upperArmR', ['st2']); fold('foreArmR', ['st0']); fold('shankR', ['st0']);
+    // the hip ring half the pelvis's, half the hip fold's (a quarter of the thigh's turn), the thigh rigid below it: the
+    // basin and the thigh met in one blend (the top of a turned-out thigh read as a tube's end stuck in the pelvis)
+    Object.assign(thigh.bind.blend, { st1: { pelvis: 0.5, hipFoldR: 0.5 }, st2: { thighR: 1 }, st4: { kneeFoldR: 1 } });
+    // HARD limbs: each bone rigid, its joint's blend only within about a limb's radius of the joint ring
+    // (station-loft-body.js extendBinds `zone`): the bones stay straight, the bend is the hinge's
+    thigh.bind.zone = r6(1.3 * b.calf);
+    for (const x of segments) if (/^(shank|upperArm|foreArm)R$/.test(x.name)) x.bind.zone = r6(1.3 * (x.name === 'shankR' ? b.calf : g(x.name === 'foreArmR' ? b.forearm : b.arm)));   // each its own limb's radius
+  }
 
   // ── dials: silhouette-scale moves only; posing is the rig's ──
   const all = (w) => ({ st0: w, st1: w, st2: w, st3: w, st4: w, back: w, tip: w });
@@ -761,11 +796,21 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   for (const P of segments.filter((p) => (p.kind === 'trunk' || p.kind === 'loft') && p.stations.some((st) => st.u !== undefined && !Number.isInteger(st.u)))) {
     const at = (blend, i, own) => blend[`st${i}`] ?? own;
     const lerpW = (lo, hi, t) => { const w = {}; for (const k of [...new Set([...Object.keys(lo), ...Object.keys(hi)])].sort()) { const v = r6((lo[k] ?? 0) * (1 - t) + (hi[k] ?? 0) * t); if (v > 0) w[k] = v; } return w; };
+    // (a HARD limb's, `bind.zone`: the joint's share only within the zone of the joint's ring, as extendBinds)
+    const ints = P.stations.filter((st) => st.u === undefined || Number.isInteger(st.u));
+    const zoned = (i, t, st) => {
+      const z = P.bind?.zone, own = { [P.bind?.bone]: 1 }, lo = at(P.bind?.blend || {}, i, own), hi = at(P.bind?.blend || {}, i + 1, own);
+      const rigid = (w) => Object.keys(w).length === 1 && w[P.bind.bone] === 1; if (!(z > 0) || rigid(lo) === rigid(hi) || !st.at) return t;
+      const j = ints[rigid(lo) ? i + 1 : i]?.at; if (!j) return t;
+      const x = Math.max(0, Math.min(1, 1 - Math.hypot(st.at[0] - j[0], st.at[1] - j[1], st.at[2] - j[2]) / z)), sm = x * x * (3 - 2 * x);
+      return rigid(lo) ? sm : 1 - sm;
+    };
     for (const st of P.stations) {
       if (st.u === undefined || Number.isInteger(st.u)) continue;
       const i = Math.floor(st.u), t = st.u - i, id = st.id ?? shapeId(st.u);
       if (P.bind && typeof P.bind === 'object' && P.bind.blend && P.bind.blend[id] === undefined) {
-        const w = lerpW(at(P.bind.blend, i, { [P.bind.bone]: 1 }), at(P.bind.blend, i + 1, { [P.bind.bone]: 1 }), t);
+        const w = lerpW(at(P.bind.blend, i, { [P.bind.bone]: 1 }), at(P.bind.blend, i + 1, { [P.bind.bone]: 1 }), zoned(i, t, st));
+        if (P.bind.zone > 0) settle(w);
         if (!(Object.keys(w).length === 1 && w[P.bind.bone] === 1)) P.bind.blend[id] = w;
       }
       for (const d of Object.values(dials)) if (d.blend && d.parts?.some((n) => n.replace('$S', 'R') === P.name) && d.blend[id] === undefined) d.blend[id] = r6((d.blend[`st${i}`] ?? 0) * (1 - t) + (d.blend[`st${i + 1}`] ?? 0) * t);
@@ -780,28 +825,42 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   // ── the rig: the vajra core IS the joint table; hands and feet ride or plant ──
   const rig = {
-    joints: { pelvisHub: { at: J.pelvisHub }, navel: { at: J.navel }, neckHub: { at: J.neckHub }, headBase: { at: J.headBase }, headTop: { at: J.headTop },
+    joints: { pelvisHub: { at: J.pelvisHub }, ...(structured ? { pelvisTilt: { at: [J.pelvisHub[0], r6(J.pelvisHub[1] + 0.1), J.pelvisHub[2]] } } : {}),
+      // the structured core's SHOULDER GIRDLE: a collarbone each side from its inner end on the shoulder line (figure-vajra.js) to
+      // the shoulder, lifting with a raised arm; `girdle$S` where the shoulder sits before it lifts (the chest's line)
+      ...(structured ? { girdle$S: { at: J.shoulder }, clavicle$S: { at: [r6((1 - 2 * CLAVICLE_IN) * J.shoulder[0]), J.shoulder[1], J.shoulder[2]] } } : {}),
+      navel: { at: J.navel }, neckHub: { at: J.neckHub }, headBase: { at: J.headBase }, headTop: { at: J.headTop },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
       ...(jawed ? { jawHinge: { at: shifted(head.joints.jawHinge), rides: 'head' }, jawTip: { at: shifted(head.joints.jawTip), rides: 'head' } } : {}), ...bustJoints, ...(hand ? hand.joints : {}) },
     bones: [
       ...(structured
-        // the basin turns with the hip line alone (figure-vajra.js articulateTransforms' pelvis rides hipL); the lumbar is
-        // the old pelvis frame, the pelvis hub to the navel, so a spine curl bends it over a still basin
-        ? [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', align: ['hipR', 'hipL'] }, { id: 'lumbar', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]
+        // the basin turns with the hip line and TIPS with the hip hinge (its `pelvisTilt` forward of the hub, carried by
+        // the vajra with the pelvis, never by the spine); the lumbar is the old pelvis frame, the pelvis hub to the navel,
+        // so a spine curl bends it over a still basin and a hinge carries basin and trunk over the thighs together
+        ? [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', align: ['hipR', 'hipL'], aux: ['pelvisHub', 'pelvisTilt'] }, { id: 'lumbar', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]
         : [{ id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }]),
-      { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
+      { id: 'torso', head: 'navel', tail: 'neckHub', aux: structured ? ['girdleL', 'girdleR'] : ['shoulderL', 'shoulderR'] },
       // the jaw's frame takes the head's axis as its second direction, so it is the head's exactly (plus the hinge): read
       // from its two joints alone, a turn of the head about its own axis reached it otherwise and opened the jaw seam
       { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, ...(jawed ? [{ id: 'jaw', head: 'jawHinge', tail: 'jawTip', aux: ['headBase', 'headTop'] }] : []),
       { perSide: [
+        ...(structured ? [{ id: 'clavicle$S', head: 'clavicle$S', tail: 'shoulder$S' }] : []),
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S', ...(hand ? { aux: ['littleMcp$S', 'indexMcp$S'] } : {}) }, ...(hand ? hand.bones : []),
         ...(bustJoints.bustRoot$S ? [{ id: 'bust$S', head: 'bustRoot$S', tail: 'bustTip$S' }] : []),
-        { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shank$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'foot$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
+        { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shank$S', head: 'knee$S', tail: 'ankle$S' },
+        ...(structured ? ['hip', 'knee', 'elbow'].map((h) => ({ id: `${h}Fold$S`, head: `${h}Fold$S`, tail: `${h}FoldTip$S`, aux: [`${h}Fold$S`, `${h}FoldAim$S`] })) : []), { id: 'foot$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
       ] },
     ],
     ...(jawed ? { chains: { jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] } } } : {}),
     legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
+    // the knee's outside is its front, the elbow's its back; each pushed by the limb's radius there
+    ...(structured ? { folds: {
+      // the hip: a ball joint, the thigh's rest line carried by the pelvis into it (the socket's axis)
+      hipFold$S: { joint: 'hip$S', inAxis: [0, 1, 2].map((k) => r6(J.knee[k] - J.hip[k])), to: 'knee$S', front: [0, 1, 0], push: r6(0.5 * b.thigh), bones: ['pelvis', 'thigh$S'], head: 'hipFold$S', tail: 'hipFoldTip$S', aim: 'hipFoldAim$S' },
+      kneeFold$S: { joint: 'knee$S', from: 'hip$S', to: 'ankle$S', front: [0, 1, 0], push: r6(b.calf), bones: ['thigh$S', 'shank$S'], head: 'kneeFold$S', tail: 'kneeFoldTip$S', aim: 'kneeFoldAim$S' },
+      elbowFold$S: { joint: 'elbow$S', from: 'shoulder$S', to: 'wrist$S', front: [0, -1, 0], push: r6(g(b.arm * AF.elbow[1])), bones: ['upperArm$S', 'foreArm$S'], head: 'elbowFold$S', tail: 'elbowFoldTip$S', aim: 'elbowFoldAim$S' },
+    } } : {}),
     reach: 'reject',
     ...(hand ? { hands: hand.hands } : {}),
   };

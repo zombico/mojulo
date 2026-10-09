@@ -28,6 +28,7 @@ import { layeredExposure } from './station-loft-exposure.js';
 import { frameAt, loftParts, ringLoft, sweep, ringAt, projectOnto, address, vec } from './station-loft-detail.js';
 import { dominance, bakePart } from './station-loft-body.js';
 import * as dmath from '../../util/dmath.js';
+import { rigidityErrors } from './rigidity.js';
 
 const { sub, add, mul, dot, cross, unit, mean } = vec;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -95,6 +96,44 @@ export function hang(beneath, anchor, { links, len, clear, r, surfaces = [], out
   return { P, meshes }; }
 /** a flat disc (medallion, boss, buckle plate) facing n: two rings and a raised face */
 export function disc(c, n, r, h, m = 12, rim = 0.8) { const ring = (rr, z) => ringAt(add(c, mul(n, z)), n, rr, m); return loftParts([ring(r, 0), ring(r, h * 0.6), ring(r * rim, h)], sub(c, mul(n, 0.002)), add(c, mul(n, h * 1.15))); }
+
+// ─── ribbons: the hair's tessellation for cloth strands ───
+/**
+ * A RIBBON along `spine` (world points), tessellated as an anime hair section is (anime-form.js): a sheet of `cols`
+ * columns across its `width`, an outer and an inner face `thick` apart, `rows` rows along it; `ridge` raises the outer
+ * face to a spine down its centre (a tent across the columns: it shades as two planes), `flute` a crease down each
+ * column; `taper` narrows it toward the end (a share of its width lost by the tip), `twist` turns it about its own line
+ * (degrees by the end); `tip` cuts its end square, to a `point`, or into a `swallow` tail (the V a ribbon is cut with),
+ * `notch` the cut's depth (a share of the length). `across` the direction its width lies (default: level, across the
+ * line). A closed loft (loftParts): each ring the section's outline, outer face across then inner face back.
+ */
+export function ribbonMesh(spine, { width = 0.03, thick = 0.004, cols = 5, rows = 12, taper = 0, ridge = 0, flute = 0, twist = 0, tip = 'square', notch = 0.15, across = null } = {}) {
+  // the spine as one smooth curve by arc length (Catmull-Rom through its points)
+  const P = spine, n = P.length - 1;
+  const cr = (i, t) => { const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[Math.min(n, i + 1)], p3 = P[Math.min(n, i + 2)], t2 = t * t, t3 = t2 * t;
+    return [0, 1, 2].map((a) => 0.5 * (2 * p1[a] + (-p0[a] + p2[a]) * t + (2 * p0[a] - 5 * p1[a] + 4 * p2[a] - p3[a]) * t2 + (-p0[a] + 3 * p1[a] - 3 * p2[a] + p3[a]) * t3)); };
+  const dense = []; for (let i = 0; i < n; i++) for (let k = 0; k < 8; k++) dense.push(cr(i, k / 8)); dense.push(P[n]);
+  const acc = [0]; for (let i = 1; i < dense.length; i++) acc.push(acc[i - 1] + dmath.hypot(...sub(dense[i], dense[i - 1])));
+  const L = acc[acc.length - 1] || 1e-9;
+  const at = (s) => { const d = Math.max(0, Math.min(1, s)) * L; let i = 1; while (i < acc.length - 1 && acc[i] < d) i++; const f = (d - acc[i - 1]) / Math.max(1e-12, acc[i] - acc[i - 1]);
+    return { c: add(dense[i - 1], mul(sub(dense[i], dense[i - 1]), f)), T: unit(sub(dense[i], dense[i - 1])) }; };
+  const xs = Array.from({ length: cols }, (_, c) => -1 + (2 * c) / (cols - 1));
+  // each column's own length: the cut at the end
+  const lenOf = (x) => (tip === 'swallow' ? 1 - notch * (1 - Math.abs(x)) : tip === 'point' ? 1 - notch * Math.abs(x) : 1);
+  const tent = (x) => Math.max(0, 1 - Math.abs(x)), fl = (c) => (c % 2 ? -1 : 1);
+  const point = (x, c, t, outer) => {
+    const s = t * lenOf(x), { c: C, T } = at(s);
+    let A = across ? sub(across, mul(T, dot(across, T))) : cross(T, [0, 0, 1]); if (dmath.hypot(...A) < 1e-6) A = cross(T, [0, 1, 0]); A = unit(A);
+    let N = unit(cross(T, A));
+    if (twist) { const a = (twist * s * Math.PI) / 180, ca = dmath.cos(a), sa = dmath.sin(a); [A, N] = [add(mul(A, ca), mul(N, sa)), sub(mul(N, ca), mul(A, sa))]; }
+    const w = width * (1 - taper * s) / 2, h = thick / 2;
+    const lift = outer ? h * (1 + ridge * tent(x) + flute * fl(c)) : -h;
+    return add(add(C, mul(A, x * w)), mul(N, lift));
+  };
+  const rings = Array.from({ length: rows + 1 }, (_, r) => [...xs.map((x, c) => point(x, c, r / rows, true)), ...[...xs].reverse().map((x, i) => point(x, cols - 1 - i, r / rows, false))]);
+  const back = sub(at(0).c, mul(at(0).T, thick)), end = at(lenOf(0)).c;
+  return loftParts(rings, back, tip === 'swallow' ? add(end, mul(at(lenOf(0)).T, -thick * 0.5)) : end);
+}
 
 // ─── the signature library: one recognizable element, as data ───
 /** a grid point of a shell: `k` a row index (a number, 'mid', or negative from the end), or `{ t, side, tol }` / `{ after, side }`
@@ -220,6 +259,11 @@ export const SIGNATURES = {
   medallion: (fig, g, beneath, S) => { const [k, j] = gridAt(g, { k: 0, j: 0, ...S }, S.side); const a = g.outer[k][j]; const surfaces = (S.surfaces || []).map((n) => fig.mesh.parts[n]); const out = S.out ?? [0, 1, 0];
     const { P, meshes } = hang(beneath, add(a, S.anchor ?? [0, 0.01, -0.01]), { links: S.links, len: S.len, clear: S.clear, r: S.link, surfaces, out }); const c = clearOf(add(P[P.length - 1], [0, 0, -S.drop]), surfaces, out, S.dropClear);
     return { links: meshes, element: disc(c, unit(S.face ?? [0, 1, 0.15]), S.r, S.h, S.m ?? 14, S.rim ?? 0.6) }; },
+  /** RIBBONS from one grid point, tessellated as the anime hair's sections are (ribbonMesh): { spine: [[x,y,z]…] (x scaled
+   * by each `spread`), spread?, width, thick, cols?, rows?, taper?, ridge?, flute?, twist?, tip?: 'square' | 'point' |
+   * 'swallow', notch?, across? } — a bow's tails, a streamer, a hair ribbon */
+  ribbon: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
+    return (S.spread ?? [1]).map((x) => ({ ...ribbonMesh(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), { ...S, across: S.across ? [S.across[0] * x, S.across[1], S.across[2]] : null }), root: p.map((v) => +v.toFixed(6)) })); },
   /** a fan of flattened sweeps from one grid point: { spine: [[x,y,z]…] (x scaled by each `spread`), spread, r, m?, squash? } */
   plume: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
     return S.spread.map((x) => sweep(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), S.r, S.m ?? 6, { squash: S.squash ?? [1, 0.45] })); },
@@ -542,7 +586,9 @@ export function wear(fig, kit, { recipe } = {}) { const out = {}; const record =
     const sig = make(fig, g, beneath, { side, carrier: A.part, ...A.signature });
     // a signature is its ELEMENT (what must read) plus whatever carries it (chain links), named apart
     // an element may carry its own group (a board's lacing cords); absent, the signature's
-    const el = sig.element ? sig.element : sig; (Array.isArray(el) ? el : [el]).forEach((m, i) => { out[`adorn.${A.id}.sig${i}`] = { ...m, group: m.group ?? A.signature.group, layer: 3 }; });
+    // a signature with a `rigidity` (rigidity.js) flows (hero-flow.js): each element carries it, and where it is tied (`root`)
+    const flows = A.signature.rigidity !== undefined ? { rigidity: A.signature.rigidity } : {};
+    const el = sig.element ? sig.element : sig; (Array.isArray(el) ? el : [el]).forEach((m, i) => { const { root, ...mm } = m; out[`adorn.${A.id}.sig${i}`] = { ...mm, group: m.group ?? A.signature.group, layer: 3, ...flows, ...(flows.rigidity !== undefined && root ? { root } : {}) }; });
     (sig.links || []).forEach((m, i) => { out[`adorn.${A.id}.link${i}`] = { ...m, group: A.signature.group, layer: 3 }; });
     const dom = A.rigid && recipe && A.s ? dominance(recipe.parts[A.part]) : null; const bones = dom ? A.s.map((s) => dom(s)) : null;   // a strap has no window: it rides its pin
     record.push({ id: A.id, mode: A.mode, carrier: A.part, over: A.over || [], mugen: A.mugen, signature: A.signature.kind, rigid: !!A.rigid, bone: bones ? bones.map((b) => `${b.bone}@${b.w.toFixed(2)}`).join('..') : 'skin (inherits)' });
@@ -574,7 +620,7 @@ function pinAddress(L1, A) {
  * adornment, its signature and its links share ONE pin (the adornment's carrier address), so they ride together. */
 export function bakeAdorn(recipe, fig, kit, { source } = {}) {
   const worn = wear(fig, kit, { recipe: source ?? recipe }); const L1 = compileLayered(recipe, {}, { details: false, creases: false }).parts;
-  for (const A of kit) { const pin = pinAddress(L1, A); for (const [name, part] of Object.entries(worn.parts)) if (name === `adorn.${A.id}` || name.startsWith(`adorn.${A.id}.`)) recipe.parts[name] = bakePart(L1, part, pin, 3, { follow: true }); }
+  for (const A of kit) { const pin = pinAddress(L1, A); for (const [name, part] of Object.entries(worn.parts)) if (name === `adorn.${A.id}` || name.startsWith(`adorn.${A.id}.`)) recipe.parts[name] = { ...bakePart(L1, part, pin, 3, { follow: true }), ...(part.rigidity !== undefined ? { rigidity: part.rigidity, ...(part.root ? { root: part.root } : {}) } : {}) }; }   // a flowing signature says so (hero-flow.js)
   return { recipe, worn };
 }
 
@@ -594,6 +640,7 @@ export function validateKit(kit, parts) {
     if (A.rim !== undefined && (typeof A.rim !== 'object' || typeof A.rim.group !== 'string' || (A.rim.at !== undefined && !['low', 'high', 'both'].includes(A.rim.at)))) errs.push(`${at}.rim: { group, at?: 'low' | 'high' | 'both', w?, wt?, ends? } (a shell's painted edge)`);
     if (A.stack !== undefined && typeof A.stack !== 'boolean') errs.push(`${at}.stack: true | false (false: later adornments are not lifted over it)`);
     if (!A.signature || typeof A.signature !== 'object' || !SIGNATURES[A.signature.kind]) errs.push(`${at}.signature: { kind: ${Object.keys(SIGNATURES).join(' | ')}, group, …numbers } — every adornment names the one element that justifies it`);
+    else errs.push(...rigidityErrors(A.signature.rigidity, `${at}.signature.rigidity`));
   }
   return errs;
 }

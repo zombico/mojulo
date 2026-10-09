@@ -42,12 +42,14 @@ describe('the structured core', () => {
   for (const opts of [{ cast: 'male' }, { cast: 'female' }, { cast: 'male', proportions: 'anime' }, { cast: 'female', proportions: 'anime' }]) {
     const label = `${opts.cast}${opts.proportions ? ' anime' : ''}`;
     const S = rigged({ ...opts, core: 'structured' }), D = rigged({ ...opts, core: 'streamlined' });
-    it(`${label}: the basin turns with the hip line alone; the lumbar carries what the old pelvis did`, () => {
+    // the basin turns with the hip line and TIPS with the hip hinge (the pelvis over the thighs, the trunk with it: no
+    // seam opening at the waist when the figure bends at the hips); the spine's own bends leave it still
+    it(`${label}: the basin turns with the hip line and tips with the hinge, never with the spine; the lumbar carries what the old pelvis did`, () => {
       expect(S.R.bones.slice(0, 3).map((b) => b.id)).toEqual(['pelvis', 'lumbar', 'torso']);
       for (const [name, pose] of Object.entries(POSES)) {
         const s = frames(S.R, pose), d = frames(D.R, pose);
         expect(turn(s.lumbar), name).toBeCloseTo(turn(d.pelvis), 9);
-        expect(turn(s.pelvis), name).toBeCloseTo(name === 'pelvis' ? 15 : 0, 6);
+        expect(turn(s.pelvis), name).toBeCloseTo(name === 'pelvis' ? 15 : name === 'hinge' ? 30 : 0, 6);
       }
     });
     it(`${label}: the legs converge: the knee inside the hip joint, clear of the other knee, the ankle under it`, () => {

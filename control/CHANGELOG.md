@@ -275,6 +275,7 @@ Outdoor towns for scapeshift, drawn first as a sheet: nothing is placed in a wor
   routes and levels, paving, the interceptors, the vocabulary, the laws, roofs by covering, every kit. The drawer is
   `era/out-structures-draw.js`, the town's cards `era/out-town-html.js`. `node scripts/out-sheet.mjs
   <index|flora|structures> [out.html] [--seed N] [--kit id]` writes any of the outdoor sheets to disk.
+
 ### UI controls
 
 A game reads what the player means (jump, rotate clockwise, accept), never a key. A control scheme says which
@@ -724,6 +725,341 @@ This step builds the contract and the approval gate. No rung is served yet.
   path are pushed now too (on the ground plane), so the walker and the cast don't pass through each other.
   `body.heavy` holds still. Laws: `cast-known` (an effect names someone the world doesn't have), `cast-places` (a
   place it doesn't carry), `spawn-asleep` (a spawn of someone already up and never sent away).
+
+### Aura poses
+
+- Standing showcase poses (`polygonizer/hero-aura.js`): `heroAura(name, R, { body, seconds })` returns the performance
+  clip from the stand to the held pose (`clip.fn(t)`), its keys, the held pose, the face track (the anime channels per
+  beat), the beats and the checks. `auraBody(R, mesh, skin)` gives the body the hands rest on: each bone's surface as a
+  radial profile of the skinned mesh, and the face's landmarks from the head's own parts.
+- The poses, each right-handed with a `<name>Left` mirror, in four families:
+  - aura: `hairToss`, `ojouLaugh`, `fistCrush`, `crossedArms`, `heroHips`, `niceGuy`, `pocketsCool`, `glassesPush`,
+    `fingerGuns`, `fistToSky`, `peaceWink`;
+  - jojo: `dioBack`, `jotaroPoint`, `killerQueen`, `josuke`, `giorno`, `josephPoint`, `jonathanArch`;
+  - squad: `sentaiRoll`, `henshin`, `ginyu`, `recoome`;
+  - meme: `tPose`.
+- A pose is design words per beat, never keyed angle by angle:
+  - the feet and the weight (`FOOTINGS`, from `together` to `crane`);
+  - the trunk (turn, chest, bend, curl, hinge);
+  - the look and the head;
+  - each hand placed at a body landmark (on its surface) or aimed from the shoulder, with the part of the hand that
+    goes there, its shape (`SHAPES`: the rig's hand words, plus `flat`, `vee`, `thumb`, `claw`, `gun`, `pinch`,
+    `cup`), the way the palm faces and the fingers point, and the elbow's bend.
+
+  The solver sinks the hips until the legs reach. It carries the core over the feet, turns the neck and head to the
+  look, then reaches each arm with the wrist turned to its words and the hand's own point brought onto its goal.
+- The performance: a foot that moves between beats steps, with the weight over the other foot. Where a transition
+  would pass a hand or forearm through the body, a via key carries that arm round the front of it.
+- Checks:
+  - the balance (one foot is an area, not a line);
+  - the legs' reach and the knees;
+  - each hand on its goal and turned within its aim;
+  - no hand or forearm inside the body, with a resting hand excused only against what it rests on, to a resting depth;
+  - the forearms clear of each other;
+  - the gaze;
+  - over the clip: the planted toes, the fastest hand, and the clearance through every transition.
+
+  `hero-aura.deep.test.js` sweeps every pose and its mirror on both anime casts.
+- `render-motion.mjs --auras name,…` draws the performance.
+
+### Free run
+
+- Clearing a low box out of the run (`polygonizer/hero-vault.js`): `heroVault(name, R, { h, d, w, from, seconds })` returns
+  the clip in place (`fn(t)`, keys at 30 per second), its root track (`root.y`, `root.z`: the engine carries the
+  character along it), the entry (the gait's phase, the take-off foot, the take-off distance to the near face), the
+  exit (the phase it hands back to, the landing past the far face), the flights, the beats, the box and its checks.
+- The moves, each from either foot (`<name>Left` takes off from the right): `hurdle` (a thin bar), `stepVault` (a hand
+  and a foot on the top, out of the jog), `speedVault` (a rail, out of the sprint), `kongVault` (a table, out of the
+  sprint).
+- A clip is a route of contact states between two of the gait's own frames: the take-off foot's touchdown and the
+  landing foot's toe-off, so the run plays into it and out of it with nothing to blend.
+  - The flights are ballistic: the centre of mass flies a parabola under g; the take-off speed follows.
+  - Where it takes off is solved from where the hands land on the top; the hurdle's air time is the least that clears.
+  - Each support state's height is solved between clearing the box and the held hands reaching their points.
+- `freeRun(state, obstacle, R)` picks the move for a box from the frame the runner is in (`{ gait, phase }`): the band
+  (the box's height as a share of the hip height, its depth, the gait), the take-off foot and the stretch of the next
+  footfalls (within ±20 %) that puts the take-off toe on its spot. A box under the swing's clearance is `stride`; one
+  out of every band, or too near, returns `move: null` and why.
+- Rig: `seatL` / `seatR` carry one free leg past the hip's swivel cone (`seat` for that leg alone). Absent, nothing
+  changes.
+- Checks: the ends on the gait's frames; clear of the box by 3 cm; feet and hands hold; the floor; the take-off under
+  3.2 m/s up; the landing a foot past the far face; knees and hips in range; the fastest limb under 1.5× the gait's
+  own; the clearance lift off the parabolas under 8 cm. `hero-vault.deep.test.js` sweeps every move across its band,
+  from each foot, on both anime casts.
+- `render-motion.mjs --vaults name:h:d[:gait]` draws the box passing under the figure.
+
+### Rise and sit
+
+- Getting up out of every rest pose, and sitting or lying down into it (`polygonizer/hero-rise.js`):
+  `heroRise(rest, R, { down, seconds })` returns the clip (`fn(t)`, keys at 30 per second), its states and their
+  times, its beats, the rest's props and its checks.
+- A clip is a route of contact states timed in seconds. The words flow through the states; the contacts are re-solved
+  every frame:
+  - a planted foot holds its spot;
+  - a stepping foot is lifted on a min-jerk arc; one carried a long way swings round beside the body while it is up;
+  - a held hand keeps its hold, its arm solved step by step from the last so it never flips;
+  - the sit bones keep the seat;
+  - the body is lifted off the floor by whatever of it would go through.
+- From a chair or a couch, by the phases of sit-to-stand: sit up off the backrest, scoot forward, draw the feet back,
+  flex forward and leave the seat, the transfer, extend.
+  - The flexion at seat-off is solved: the least for which the body's momentum carries its centre of mass over the
+    feet (the extrapolated centre of mass, x + v / ω₀).
+  - The hands push off the thighs, the couch seat or an armrest.
+  - Sitting down plays the states back, slower; a lounge is let down onto the backrest on the arms.
+- From the floor: uncross into a knees-up sit, lean over the right knee, the left leg comes under onto its knee (a deep
+  half kneel), the back knee lifts on tucked toes, push over the front foot, the back foot steps up.
+- From lying: sit up off the back or the side, propped on the hands, into the knees-up sit, then the floor route. A
+  knocked-out body gets up slower.
+- Knocked down (`knockedOut`, `yamcha` with `down`): the knees buckle, then the body falls about its feet as a rod
+  under gravity (θ'' = 3g / 2L · sin θ), lands, and the limbs settle.
+- Checks:
+  - the ends equal the rest pose and the stand;
+  - nothing through the floor or the seat; planted feet hold;
+  - balance: the extrapolated centre of mass inside what bears the body (feet, sit bones and thighs on a seat, knees,
+    bearing hands), out of it no longer than a step takes (0.3 s);
+  - the knees and hips in range;
+  - no joint faster than 4 m/s outside a fall; in a fall, under half again the rod's own tip speed.
+- `hero-rest.js` exports the seat, sit-bone, turn, flesh and flat-hand helpers it already had; `hero-jump.js` exports
+  its monotone curve. Neither changes what it returns.
+- `render-motion.mjs --rise <rest>[Down]` draws a clip with its seat.
+
+### At rest
+
+- Sitting and lying, solved from what the body rests on (`polygonizer/hero-rest.js`): `heroRest(name, R)` returns the
+  held pose, its seat drawn as boxes, the face it wears and its checks.
+- Seated: the sit bones placed on the seat. A pose that rests its back reclines the whole trunk about the hips
+  (bisected) until the upper back meets the backrest. A planted foot is turned back flat against the recline.
+- Feet reach their contacts by the rig's leg solve:
+  - flat under the knees, out ahead, or crossed at the ankles;
+  - tucked in a cross-legged sit (the knees out by the foot's turn);
+  - flat by the seat with the knee up;
+  - folded flat on the floor.
+- A leg that isn't planted is searched over the rig's own hip and knee words.
+- Hands rest on the thighs, the lap, the knees, an armrest, along a backrest, on the floor behind, or with a forearm
+  over a raised knee. A hand on the floor is laid flat (its wrist searched).
+- Lying: the body turned onto its back or side and let down until its lowest flesh meets the floor. The limbs are
+  laid on the floor; a knocked-out body rests every limb.
+- Poses (`RESTS`): `chairUpright`, `chairSlouch` (slid forward, rounded, leaning on the back), `couchSit`,
+  `couchLounge`, `crossLegged`, `lotus`, `kneeUp`, `lieBack`, `lieSide`, `knockedOut`, and `yamcha` (curled on the
+  side in a crater).
+- Seats (`SEATS`): a chair at popliteal height (about a quarter of the stature), a couch (lower, deeper and reclined
+  further, the body by its right armrest), and the floor.
+- Checks: every contact held, nothing through the floor, the knees and hips in range, an upright sitter balanced over
+  its sit bones and feet, and a limp body resting each limb.
+- Effort counts only what the body holds up itself: none lying; the arms only when the back rests on a backrest.
+- The lotus is approximate on this rig (`approx: 'lotus'`). The hip turns out 45° and the leg solve bends the knee
+  toward a level pole, so each foot rests into the other shin rather than up on the thigh.
+- `render-motion.mjs --rest <pose>` draws a pose with its seat.
+
+### Carrying
+
+- Holding things in a mode, solved from the thing (`polygonizer/hero-carry.js`): `heroHold(name, R, { kg, regime })`
+  places the thing by what the mode is for, then closes each hand on its station with hero-grip's arm solve.
+  `heroCarry(item, mode, R, { hands })` picks the hold.
+- Things (`CARRIED`): pistol, carbine, shotgun, lmg, box, suitcase, lantern, sack (generic proxies with true sizes,
+  masses and stations: grips, a support hand's handguard and magazine, a butt, a sight line, a rest point), and the
+  sword and greatsword from gear. Mass is a word.
+- Holds (`HOLDS`), relax and aim, one hand, two hands and dual:
+  - Relax: hung from a straight arm under gravity, out until it clears the thigh (pistol, suitcase, lantern, the
+    trail carry of a long gun at its balance, the lmg by its handle, a sword); low ready; hugged (box, pulled in as
+    the effort rises); rested (a sack on the shoulder, a greatsword's point planted before the feet).
+  - Aim: a long gun's cheek weld (the butt in the shoulder pocket, the sight line from the dominant eye to the
+    mark, the neck, head and the butt's place in the pocket solved together, and the support hand kept in reach); a
+    pistol's sights on the eye's line at the arms' reach (isosceles, one hand); two pistols pointed at the mark; a
+    lantern held out.
+  - A support hand slides along its handguard and turns round it to where the wrist sits easiest, and grips the
+    magazine when its arm cannot hold the handguard; a rested thing spins about its length the same way.
+- Perceived effort (`effortOf`): the static moments at each shoulder, elbow and wrist and at the low back, from the
+  arms' own segments (de Leva) and the thing's weight shared between its supports by the lever rule, over adult
+  strengths scaled by body mass (female upper limb about 0.6 of male), read as Borg CR10 (10 × %MVC) and as
+  Rohmert's endurance time.
+- The body answers the effort: a hold eases the thing in toward the trunk; the trunk bends back or aside, and the
+  ankles take the rest, so the body and the load stand where the body alone stood (an aim leans into the gun, never
+  back); the free arm swings out against a one-sided load; the knees soften by the load's share of body mass; relax
+  keeps the hold whose effort plus its style cost is least. The weightless regime perceives none of it.
+- Checks per hold: hands on stations, wrists in their anatomical range (how far past the functional range each
+  strays is reported), humerus, arms clear of the trunk, the thing clear of the body (touching only where it rests),
+  aim (eye on the sight line, the line on the mark, the butt in the pocket), balance, and the load held.
+- Every hold passes on both anime casts (`hero-carry.deep.test.js`).
+- `render-motion.mjs --carry <hold>[:kg][~]` draws a hold with the thing in hand.
+- `heroStance` takes stance words as well as a name. `holdArm` takes `range` and `clear` weights (defaults are the
+  guards' own). `hero-grip` exports `landmark`, `mountOf`, `stationsOf`, `withTrunk` and `liteOf`. Output is
+  unchanged when none of these are used.
+
+### Action faces
+
+- The anime hero's face acting an action (`polygonizer/hero-face-action.js`). `actionFace(action, { seed })` takes a
+  solved strike, jump, roll or guard and returns a face sequence on the face tracks' 30-fps grid, in the four
+  expression channels, timed to the action's own beats (load, contact, follow; take-off, apex, touch-down, kick;
+  a roll's start and end; a guard's arms closing and set).
+- Each family has a few samples: strikes kiai, grit, focus, cocky and flinch; jumps effort, joy and startle; rolls
+  tuck and brave; guards resolve, calm, smirk and fire. The seed picks one, weighted by the action's intensity (a
+  cross shouts more often than a jab, a lunge holds a fencer's stillness, a weightless guard smirks), and shifts
+  each drawing's frame and channels within the sample's ranges. `after` makes the previous take's sample a quarter
+  as likely.
+- Timing rules: the set face leads the load; the shout or clench starts a frame or two before the contact so it is on
+  screen at it; a jump's hup lands on the take-off and its lids squash on the touch-down; no eye shuts from a
+  strike's load to the end of its follow; blinks come after. Drawings hold at least two frames, eyes are drawn only at
+  their knots with their in-betweens, a one-shot ends back on the authored face and a guard on its held one.
+  `preroll` reports how many frames the face wanted to lead the clip's first frame.
+- `actionFaceTrack(take)` gives the take as face-track keys (half a frame early, the weights in the hero's targets).
+  Nothing calls it yet: no clip or export changes.
+
+### Sword holding
+
+- Sword guards solved from the sword (`polygonizer/hero-grip.js`). A guard names the sword's frame in the target's
+  frame: where the grip sits (a landmark of the posed body), where the point aims (a mark on an opponent of the
+  figure's own size, or a direction) and which way the edge faces. Each hand then closes on its station of the grip
+  with gear's own hold, the arm reaches the wrist and the wrist turns the rest of the way.
+- Twelve guards, each with its exact mirror (`chudanLeft`, …):
+  - Skilled two-hand: `chudan`, `jodan`, `hasso`, `gedan`, `waki`.
+  - Skilled one-hand: `terza`, `hanging`.
+  - Dual: `niten`.
+  - Sword and shield: `shield`.
+  - Weightless (the anime holds): `challenge`, `reverse`, `trailing`.
+- `GRIPS` sets the blade's angle off the hand's long axis: `hammer` (45°, gear's own hold) and `handshake` (25°, the
+  hilt rolled toward the heel of the palm), each with a reverse.
+- The arm's elbow swivel is solved by Levenberg–Marquardt from several seeds, weighing the wrist against the elbow.
+- Wrists are read against an anatomical forearm frame (the elbow's flexion plane), not the rig's shortest-arc
+  forearm. They must stay inside the anatomical range; skilled guards must also stay inside the functional range
+  daily tasks use.
+- The upper arm's turn about its own axis (read from the elbow's flexion plane) stays within a shoulder's ±90°, so an
+  elbow never folds backward.
+- The upper arm and forearm stay clear of the trunk: a third of the shoulder span plus an arm's radius. A guard can
+  set its own trunk (`trunk: { turn, lean, bow }` on its stance's spine); waki turns and bows toward the sword with
+  its back elbow lifted out.
+- A strapped shield is held in the hand, its wrist locked by the straps.
+- Checks per guard: hands on the hilt, wrist range, point, edge, the blade's clearance of the body, balance with the
+  sword's mass, and (skilled only) the sword's lever on each holding shoulder.
+- `render-motion.mjs --guards` draws the held sword and shield on the card.
+- `hero-stance` exports `hull` and `margin`, and `reachArm` takes an optional `pole`. `mirrored()` now swaps
+  `fingers<S>`. Output is unchanged when none of these are used.
+
+### Ready stances
+
+- Straight strikes out of the stances (`polygonizer/hero-strike.js`): `jab` and `cross` from `guard`, `thrust` (a
+  fencer's lunge) from `fencing`, each with its exact mirror (`jabLeft`, …). A strike is design words (the hand, its
+  reach, how far the hips and chest turn, the weight at contact, the rear foot's pivot, a lunge, the other hand's
+  counter, the timing) solved from principles: the hand's contact point on the target line at its shoulder's height,
+  reached along a straight path; a body-led strike drives up the chain (the weight, then the hips, then the chest, each
+  peaking and braking as the next takes over, the hand alone fastest into contact), a hand-led one extends the arm first
+  and lunges after; the weight moves toward the lead foot over the planted feet (a new rig channel, `shift`: the core
+  carried over the floor, absent ⇒ byte-identical); a small load the other way first; the eyes on the target; the guard
+  hand riding the chest, a counter swinging in joint space. One-shot clips from the stance's held pose back to it, with
+  checks (the hand on its point, the path's straightness, the chain's order, balance, planted feet, the elbow at
+  contact). The motion card draws them (`render-motion.mjs --strikes`). Not yet on the hero door or in exports.
+- Hard limbs: the structured core's limbs bend at their joints and nowhere else. Each bone's rings are rigid on it; a
+  joint's blend eases in only within about a limb's radius of the joint (`bind.zone`, metres, on the thigh, shin, upper
+  arm and forearm: the refine pass and the shaping rings ease by the rings' distance from the joint's ring instead of
+  spreading linearly over the span), where it ran up to 23 cm into the bone and bowed a bent arm or leg like a hose.
+  The hip, knee and elbow each have a FOLD bone (`hipFold<S>`, `kneeFold<S>`, `elbowFold<S>`: station-loft-rig.js
+  `folds`) carrying the rings at the joint, turned half the bend (the mitre of the two tubes; the hip's half the
+  thigh's turn off the pelvis) and pushed to the bend's convex side by the mitre's own growth (at most 0.6 of the limb's
+  radius), so a crouch's knees and a guard's elbows keep their volume instead of folding flat, and a turned-out thigh
+  comes out of the hip instead of standing in the pelvis like a tube. Six more joints in the skinned export (57); the
+  streamlined core is unchanged.
+- Ready stances for the main actions (`polygonizer/hero-stance.js`), sorted by where the feet stand and so how the body
+  faces: SQUARE (`athletic`, `low`, `centre`: the body facing the target) and BLADED (`guard`, `fencing`, `hitting`: side
+  on), each bladed or staggered stance with its exact mirror (`guardLeft`, …). A stance is design words (the feet's
+  spread and line, each toe's turn, the sink, the lean, the weight between the feet, the hands' places in the target's
+  frame) solved from principles: the body's facing follows from the feet, squared to the foot line only as far as each
+  hip can keep its knee over its toes; the centre of mass is set over the feet at the weight asked; the neck and head
+  turn the eyes back to the target; each arm reaches its hand's place with the elbow down. Each stance gives its held
+  pose, an enter clip from the stand (the feet stepping into place one at a time, the body turning over them) and its
+  checks (balance margin, knees over toes, hip turnout, gaze, reach). The rig takes two new pose channels, `facing` (the
+  body turned over planted feet) and `splay<S>` (a planted foot turned on its ball, its knee with it); absent, every
+  pose and export is byte-identical (a planted leg under a `facing` reads its bones from its own solve). Not yet on the hero door or in exports. The motion card draws them
+  (`render-motion.mjs --stances`, with `--views front,side,top`).
+
+### Character rig presets
+
+- `motion` on the hero door (`hero.motion: { walk?, jog?, sprint? }`, each `true` or the gait's own dials plus `tilt`
+  and `seconds`): locomotion that travels instead of walking in place. The jog leans 10° and runs soft; the sprint
+  leans 18° with effort (knee drive, heel tuck, a right-angled arm pump, a long stride, more flight). `tilt` leans the
+  body from the hips with the spine straight and the gaze held ahead. Each gait is the vajra stick figure's walk or run
+  baked on the hero's own rig (`polygonizer/hero-motion.js`): every toe on the gait's path, on the floor through its
+  stance and sliding back at one constant speed, the swing clearing the floor, the trailing heel rising at push-off and
+  the root sinking to reach a long stride along ONE smooth curve planned over the whole cycle (its first four
+  harmonics, never below any phase's need), so the head bobs and never drops in a frame as a foot lands — no shake for a
+  camera on the head. A gait replaces the hero's clip of its name (the stock walk, four
+  keys in place) as a 24-key clip carrying its ground speed `v`. Unknown gaits and dials refuse by name; absent,
+  every hero and export is byte-identical. Documented in the layered manual (THE MOTION).
+- Jumps on the hero door's `motion` (`polygonizer/hero-jump.js`): `jump`, `jumpForward`, `jumpBack`, `doubleJump` and
+  `runningJump` (a hurdler's leap between sprint strides, its planted feet sliding at the hero's sprint speed), each
+  `true` or `{ seconds }`. One-shot clips in place (the engine flies the arc), timed key poses on smooth monotone
+  curves (no stop at a key), the planted feet blending into the air pose at take-off and touch-down without a pop, a
+  directional jump's feet landing ahead (or behind) and the body rolling over them; a toe touches the floor only once its
+  blend from the swing is whole, so no foot skates at touch-down. Each carries its `air` timing
+  (take-off, touch-down, apex, the designed height; a double jump's kick and second apex): the packed clip's `once` and
+  `air`, the GLB animation's `extras['moj:jump']`, the engine score's `locomotion.jumps`.
+- Rolls on the hero door's `motion`: `rollForward` (the combat roll over the right shoulder, the head never on the floor)
+  and `rollSide` (a tucked barrel roll to the right), and their exact mirrors `rollForwardLeft` and `rollSideLeft`, each
+  `true` or `{ seconds }`. The rig takes a whole-body turn
+  (`body: { roll, pitch, at, up }`; each bone's frame is the upright solve's turned by it, so a head or a hand is never
+  spun by a shortest arc), the roll set down so its lowest part rests on the floor along a smooth envelope, the turn
+  waiting for the feet to leave. Each carries its `roll` ground (axis, side, start, end, travel, speed): the packed clip's `roll`,
+  the GLB's `extras['moj:roll']`, the engine score's `locomotion.rolls`.
+- Stops on the hero door's `motion`: `walkStop`, `jogStop` and `sprintStop`, each `true` or `{ seconds }`, play when
+  forward is let go. The game halts the character on the spot; the clip shows the momentum it had. Starting from the
+  gait's own frame, the swinging foot sets down as a brake, the trunk pitches past the feet with the arms swinging
+  forward, the trailing foot steps up beside it, and the trunk recoils just past upright onto the stand. The feet never
+  slide, and the lurch grows with the gait's speed. Each bakes two clips, one per braking foot (`jogStop`,
+  `jogStopLeft`), each carrying its `stop` (the gait it leaves, the lead, the gait phase it starts at) so an engine
+  picks the one nearest the cycle: the packed clip's `stop`, the GLB's `extras['moj:stop']`, the engine score's
+  `locomotion.stops`.
+- Anime hands at adult size: the anime casts' hands were about 25–35 % short and 40 % narrow for the figure (a critic
+  reading the proportions sheet, and two blind judges preferring the change on the heroine and the tough). They now
+  keep an adult hand's share of the height (wrist to fingertip about 0.10 on the female, 0.105 on the male) through the
+  cast's `hands` (1.2), and a broader palm through a new `handWidth` (1.17 female, 1.25 male: the palm's width, the
+  knuckles' spread and the digits' width across, their depth by its root). The feet are unchanged. Every anime hero's
+  mesh moves at the hand; its pins are re-pinned.
+- Ribbons, bows and streamers: a `ribbon` adornment signature, a cloth strand tessellated as the anime hair's sections
+  are (a sheet of columns across, an outer and an inner face, a `ridge` or `flute`, a `taper`, a `twist`, its end cut
+  `square`, to a `point` or into a `swallow` tail). Any signature takes a `rigidity`: its elements then flow, each hung on a
+  strand from where it is tied (`root`, carried on the part), swinging with the stride, the stop and the wind like the
+  hair (`polygonizer/hero-flow.js`). Without it every adornment is as it was.
+- The shoulders rise with the arms: the structured core has a SHOULDER GIRDLE, a collarbone each side from the shoulder
+  line to the shoulder, that lifts with a raised arm (past 30° of raise a third of the further raise, at most 25°: the
+  scapulohumeral rhythm), the arm carried up with it in its own direction. The arm's cap and the chest's skin at the side
+  of the shoulder ride it, so an arm overhead takes the top of the shoulder with it instead of leaving the chest's
+  square corner beside it. The chest takes its roll from where the shoulders sat, so one arm raised never rolls it.
+  Garment rings now carry the body's own slot weights (the shoulder's over the collarbone, a pectoral's), so the cloth
+  bends as the skin under it. The skinned export has two more joints; structured pins re-pinned.
+- The hips bend as one piece: on the structured core the pelvis bone now TIPS with the hip hinge (a `pelvisTilt`
+  reference the vajra carries with the pelvis, never with the spine), so the basin, the waistband and the belt go over
+  the thighs with the trunk instead of staying upright under it (the waist opened a gap, a shelf at the back, whenever
+  the figure bent at the hips: a lean, a stop, a jump's load). A skirt's cloth below the seat now hangs from both
+  thighs evenly instead of the pelvis, so the tipping pelvis never swings it into the legs. Every hinged pose of a
+  structured hero moves; their pins are re-pinned. The streamlined core is as it was.
+- What flows, on control strings (`polygonizer/hero-flow.js`, a spike: not yet on the door's bake or in the exports).
+  RIGIDITY (`polygonizer/rigidity.js`), the garment canon's long-named fourth axis, is now a word: `shell` (locked, the
+  default), `stiff`, `crisp`, `soft`, `flowing`, or 0 … 1. A garment piece takes it (`rigidity` on a garment, or an
+  outfit build's `language.bottom.rigidity` for a skirt); it rides the part and leaves the mesh as it was. Each
+  section of the anime hair carries its own (the back soft, the fringe stiff, the ahoge springy). What flows hangs on
+  strings: a STRAND (one chain: a hair section from the skull) or a CURTAIN (a chain every 22.5° round a hanging edge,
+  neighbours coupled: a skirt). Each joint is pulled toward where the piece's own skin would carry it (a skirt still
+  follows the legs) and swings with inertia, gravity as its carrier tilts, and the air (the world's seeded gust field,
+  `vegetation/wind.js`, less the body's own motion: a sprint streams it back, a stop throws it forward). Everything
+  locked (the body and its shell pieces) is one COLLISION FORM of tapered capsules; what flows stays out of it, leaving
+  a limb on its own side (a leg sweeping through a skirt does not catch it), and above the floor. The rig's `flow`
+  channel places a string joint in its carrier's frame (absent ⇒ the rig as it was). The motion card takes `--hair`,
+  `--flow <part>=<rigidity>` and `--wind speed,dir,gust`.
+- Elbows down (`polygonizer/hero-elbow.js`): in every gait and jump a raised, bent arm rolls at the shoulder so the
+  forearm folds up with the elbow beneath it, never sideways across the chest; the roll follows the raise smoothly and
+  leaves hanging and back-swung arms alone.
+- `locomotionCameraCurve` (hero-motion.js): a hero gait's first-person bob in the shape the World walk reads
+  (`walk.bob`, as gait-camera.js bakes from the stick figure), read off that hero's own baked gait.
+- The rig's leg solve takes `feet` (a toe target per leg) and `sink` (the root lowered, metres) as pose channels, and
+  `packLayeredRig` a key count per function clip and `speeds` (the packed clip's `v`); absent, as before.
+- Exports carry the ground speed engine-neutrally: the skinned GLB's animation `extras['moj:speed']` and the engine
+  score's `locomotion.walkSpeed` (engine metres a second). The Godot kernel (0.6.0) and the Unity kernel play the
+  player's walk at planar speed ÷ walkSpeed (clamped ¼ … 3×), so its planted feet stay put; the Godot probe's dump
+  prints the rate.
+- `docs/examples/humanoid/MOTION.md`: the motion loop, what good motion looks like, the motion critic and the blind
+  judge. `render-motion.mjs` beside it: the motion card — a hero's clips (its own, its `motion` gaits, or any vajra
+  motion spec) posed on the skinned mesh from the side, the three-quarter and the rear three-quarter gameplay camera
+  with the stick figure and a foot trace, an eight-phase strip, and the measures (stance, planted slide, stride, lift,
+  ground speed, bob).
 
 ### Handedness
 

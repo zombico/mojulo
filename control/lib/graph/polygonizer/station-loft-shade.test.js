@@ -546,16 +546,21 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // smooth shading under the studio light (STUDIO_SMOOTH_CREASE: the key at each face's corners), every hero here, the
   // plain and toon pins, the unshaded one unchanged; then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis): every jawed hero, all three
   // pins (the rig rides in the recipe and the pack), head-none unchanged; then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull): the same
+  // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
+  // `hands`, `handWidth`): the hand alone moved
+  // and again when the structured pelvis took the hip hinge's tilt (`pelvisTilt`) and a skirt's cloth below the seat hung
+  // from both thighs, and again for the shoulder girdle (the collarbones rising with a raised arm), and again for the knee
+  // and elbow folds (the hinge's rings on a helper bone turned half the bend, pushed to its outside)
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['14b1447baccfad73', '2fbb270f54d6c463', 'd36a970c8e01181b']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['c98838e2a805d2d8', '2172a469f9bff055', 'b5b9086ef71717f1']],
-      headNone: [{ cast: 'female', head: 'none' }, ['0cffd2cd855cb54f', 'd14954ec5db3cfe3', '9ae3db683a366a18']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['18f176ff1e68bcb0', '1bd0df4a668c503a', 'ead79ab6becce2f4']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['9efa52c5b3bc29d7', 'ef1b5e46e64d655f', '4e2f71ac83c4cd41']],
+      headNone: [{ cast: 'female', head: 'none' }, ['393258b4cc1b1efc', 'fb714fb98c0b198e', '727eb907a02e7cd4']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
     }
     // the anime heroes re-pinned for the sideburn patches before the ears (every anime head wears them)
-    for (const [cast, pin] of [['female', 'd46e24aeeb3ae642'], ['male', 'ef724304b37b8f24']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
+    for (const [cast, pin] of [['female', '81ba463d89053ba0'], ['male', 'c75efdee8cc90098']]) expect(h(await world(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime' }) }))), `anime ${cast}`).toBe(pin);
   }, 90000);
   for (const [name, [make, [plain, toon, unshaded]]] of Object.entries(PINS)) {
     it(`${name}: plain, toon and unshaded`, async () => {
@@ -576,6 +581,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     return expandLayeredManifest({ kind: 'layered', hero, plan: { ...plan, clips: { ...plan.clips, wave: FORM_WAVE } } }, { from: 'plan' });
   };
   const lightBefore = { thresholds: { Hair: 0.25 }, shade: { Hair: rgbToHex(hexToRgb('#644634').map((v, k) => v * [0.62, 0.62, 0.76][k])) }, highlight: false };
+  // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
+  // `hands`, `handWidth`): the hand alone moved
   it('the anime hero: unshaded and toon.light false are the old bake; the default steps', async () => {
     // standing at rest (`gesture: 'rest'`: no stand clip, the bind pose). Re-pinned for the anime hero's own PALETTE
     // (layered.js ANIME_HERO_PALETTE: the hair lifted, the strokes darker): these are the values the code before the
@@ -586,32 +593,32 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // with the segment neck in its place the hero gives 5327a5ac4e4635a5 / e37584fef73693f7, the values before it.
     // Re-pinned for the female hair base (anime-head ANIME_HAIR_BASE: the lifted, thicker ridge-section form and the
     // side-parted cut) and her hair colour (#3b4859, layered.js ANIME_HERO_PALETTE): the hero as the door made it before
-    // them (beforeHairBase) gives d858d1d6cadb027f / 51e4eefea75616cd, the values before them, still.
+    // them (beforeHairBase) gives 5e90ec5cf67c37ce / b2d5af3a7d88771a, the values before them, still.
     // Re-pinned for her hair colour lifted to L* 35 (#465365, layered.js ANIME_HERO_PALETTE, so her shade side parts from
-    // the World's backdrop): with #3b4859 passed as her operator palette she gives c16d3acc16734fe0 / 35129cb4f44fbfa9,
+    // the World's backdrop): with #3b4859 passed as her operator palette she gives c5845d0f1866fa2c / c12be20c4cb05032,
     // the values before it, still.
     // Re-pinned for CLIP TIMING (hero-gesture.js heroClipSeconds: every packed clip of the anime hero carries its designed
     // duration `s`, station-loft-rig packLayeredRig `seconds`): `untimed` drops exactly that, and each payload here
     // hashes the value before it, still (f3aec022ea5b2d63 / 437cd1cd36b08c58).
     // Re-pinned for the ANIME WAVE (hero-form.js ANIME_WAVE: the packed `wave` clip): with the form's wave back in its
-    // place (formWave) each payload hashes the value before it, still (1250a1cbac4236fb / 24463c917185beff).
+    // place (formWave) each payload hashes the value before it, still (88639bab2606a538 / 844b93cd33a54fed).
     // Re-pinned for the hero's `wave` clip keeping its elbow at the shoulder line (hero-form.js): the form's wave that
-    // formWave puts back is that one now, so untimed each payload hashes the values that re-pin gave (18dff01520b76f45 /
-    // 38459eab564f0c59), still; the anime hero's own payloads never move with it (ANIME_WAVE replaces the form's).
+    // formWave puts back is that one now, so untimed each payload hashes the values that re-pin gave (480bf3bb44f1d27c /
+    // 12773edda172d343), still; the anime hero's own payloads never move with it (ANIME_WAVE replaces the form's).
     // (on the streamlined core: the chain above predates the structured core, DEFAULT_CORE, pinned below)
     const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' };
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
     const plainBake = await world(m, { unshaded: true });
-    expect(h(plainBake)).toBe('8db4752aa0a9aeab'); expect(h(untimed(plainBake))).toBe('30241f05d62c9767');
+    expect(h(plainBake)).toBe('566fc7ae1db75385'); expect(h(untimed(plainBake))).toBe('860084be16ac6686');
     const off = await world({ ...m, toon: { light: false } });
-    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('416ac14651e8c972'); expect(h(untimed(off))).toBe('aaeffc4e34d81ef7');
+    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('1441f1dd914996c6'); expect(h(untimed(off))).toBe('28ab9948297876e3');
     const plainWas = await world(formWave(m), { unshaded: true }), offWas = await world({ ...formWave(m), toon: { light: false } });
-    expect(h(plainWas)).toBe('1250a1cbac4236fb'); expect(h(untimed(plainWas))).toBe('18dff01520b76f45');
-    expect(h(offWas)).toBe('24463c917185beff'); expect(h(untimed(offWas))).toBe('38459eab564f0c59');
+    expect(h(plainWas)).toBe('88639bab2606a538'); expect(h(untimed(plainWas))).toBe('480bf3bb44f1d27c');
+    expect(h(offWas)).toBe('844b93cd33a54fed'); expect(h(untimed(offWas))).toBe('12773edda172d343');
     const was = formWave(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ ...spec, palette: { Hair: '#3b4859' } }) }));
-    expect(h(untimed(await world(was, { unshaded: true })))).toBe('c16d3acc16734fe0'); expect(h(untimed(await world({ ...was, toon: { light: false } })))).toBe('35129cb4f44fbfa9');
+    expect(h(untimed(await world(was, { unshaded: true })))).toBe('c5845d0f1866fa2c'); expect(h(untimed(await world({ ...was, toon: { light: false } })))).toBe('c12be20c4cb05032');
     const before = beforeHairBase(spec);
-    expect(h(untimed(await world(before, { unshaded: true })))).toBe('d858d1d6cadb027f'); expect(h(untimed(await world({ ...before, toon: { light: false } })))).toBe('51e4eefea75616cd');
+    expect(h(untimed(await world(before, { unshaded: true })))).toBe('5e90ec5cf67c37ce'); expect(h(untimed(await world({ ...before, toon: { light: false } })))).toBe('b2d5af3a7d88771a');
     const lit = await world(m);
     expect(h(lit)).not.toBe('c07a8da432d22b96'); expect(lit.faces.length).toBeGreaterThan(off.faces.length);
     // the packed rig figure takes the same pieces (station-loft-rig characterRigParts): the skeleton and the clips
@@ -689,11 +696,13 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // Re-pinned for DMATH (the anime head, the hero form and the station-loft modules take their transcendentals from
   // util/dmath.js, and the shared figure rig runs under withMath): the female chain moved, from values only macOS
   // arm64 on Node 24 produced; the male chain and the hair-base pins did not.
+  // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
+  // `hands`, `handWidth`): the hand alone moved
   it('the anime hero default, pinned (female and male)', async () => {
-    const PINS = [['female', ['4d9e3506fe8ecd4d', '4425aa820a6ff4f1'], ['16d72cb5d0b31245', 'f1f9aaf7909c93bc'], ['b5be469aeb43c642', 'c0a0b8eb33cef21e']],
-      ['male', ['fe1794468ac369dc', '294b5f021196b93a'], ['c863c3edaefc7baf', 'b89f1f6f773624df'], ['4a8c17672cdc9881', '05e343aaf95515fa']]];
-    const TIMED = { female: ['5304bc95bf6fe2c2', '6429d8c4145b0878', '8a09e3853580d18b'], male: ['0b7df8ba1694f40e', 'b157c740f33f727b', 'dcbfa51c16de03c7'] };
-    const WAVED = { female: ['104821675e90ff55', '5ba3ff29ca243b58', 'c82035d2398a2ac0'], male: ['b4da4f8b3d42bc38', '6bf25e0552b1b9c1', 'f984ef983fc4bc25'] };
+    const PINS = [['female', ['fbff17e8095de846', 'b4ca455246032404'], ['54f4a99fb1d4125b', '9d6463fd92dd88dd'], ['8988c27047a6c25d', 'e7b4e2cf5e44dc68']],
+      ['male', ['91f3b2354f133d86', '00bdf07380f7942c'], ['a5abfbc4911d6429', '1bc907d15bff40e6'], ['ad06578cc9ad18e1', '9aa7790d1a92c0e6']]];
+    const TIMED = { female: ['97fbd22dbf7139b9', 'a6c657460b4b5439', 'd9e9404e089440d4'], male: ['5e4411467d7563bc', '45e38bdcd28f4d74', 'b8c3b445eaf322ad'] };
+    const WAVED = { female: ['9f36d6995392f166', '9beefa2f8e1af42e', 'ad7e199e07b9a4e2'], male: ['ef57e6b8c5fad2d1', '4c1c1d085e162381', '9a7d9cad5a073cf9'] };
     for (const [cast, pin, rest, studio] of PINS) {
       for (const [i, [spec, [full, undone], label]] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]].entries()) {
         // (on the streamlined core: the chain predates the structured core, DEFAULT_CORE, pinned below)
@@ -704,7 +713,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
         expect(h(untimed(payload)), `${label}, untimed`).toBe(full); expect(h(unlayered(untimed(payload))), `${label}, untimed, the layers undone`).toBe(undone);
       }
     }
-    for (const [cast, before] of [['female', '842ecd45d655c5b4'], ['male', 'b56f376a90fb600c']]) {
+    for (const [cast, before] of [['female', 'ba01252ac9730142'], ['male', '2c90e1dadbb03df0']]) {
       const m = beforeHairBase({ cast, head: 'anime', core: 'streamlined' });
       expect(h(unlayered(untimed(await world({ ...m, toon: { light: lightBefore } })))), `${cast} before the hair bases, untimed, the layers undone`).toBe(before);
     }

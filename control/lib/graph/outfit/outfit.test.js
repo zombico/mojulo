@@ -108,12 +108,14 @@ describe('the passes', () => {
       expect(Object.entries(auditLayered(mesh)).filter(([, r2]) => !r2.pass).map(([n]) => n)).toEqual([]);
     }
   });
-  it('the skirt skins by nearness: its weights sum to one, the cloth over a leg follows that leg, the cloth between them the pelvis', () => {
+  it('the skirt skins by nearness: its weights sum to one, the cloth over a leg follows that leg, over the seat the pelvis, below it the cloth between them hangs from both thighs', () => {
     const { recipe } = wear({ cast: 'female', outfit: build('sundress', { language: { bottom: { leg: 'midi' } } }) });
     const B = recipe.parts.skirt_skirt.bind.blend;
     for (const [k, w] of Object.entries(B)) expect(Object.values(w).reduce((a, b) => a + b, 0), k).toBeCloseTo(1, 9);
     expect(B['st9.sideR'].thighR ?? 0).toBeGreaterThan(B['st9.sideR'].pelvis ?? 0);
-    expect(B['st9.back'].pelvis ?? 0).toBeGreaterThan(Math.max(B['st9.back'].thighR ?? 0, B['st9.back'].thighL ?? 0));
+    expect((B['st9.back'].thighR ?? 0) + (B['st9.back'].thighL ?? 0)).toBeGreaterThan(B['st9.back'].pelvis ?? 0);   // a hip hinge never swings it into the legs
+    expect(B['st9.back'].thighR).toBeCloseTo(B['st9.back'].thighL, 6);   // between them: evenly
+    expect(B['st2.back'].pelvis ?? 0).toBeGreaterThan(0.9);   // over the seat it goes back with the pelvis
     expect(B['st0.front']).toEqual({ pelvis: 1 });
   });
   it('a dress is one garment: the skirt in the top\'s cloth, no waistband, no placket, the belt its focal', () => {

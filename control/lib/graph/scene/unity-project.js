@@ -249,7 +249,7 @@ namespace Mojulo
         // "has a row" is Any(), never a null test.
         [Serializable] public class Locomotion
         {
-            public string idle; public string walk; public string boost;
+            public string idle; public string walk; public string boost; public float walkSpeed;
             public bool Any() { return !string.IsNullOrEmpty(idle) || !string.IsNullOrEmpty(walk); }
         }
         [Serializable] public class Entity { public string id; public string figure; public float[] translation; public Locomotion locomotion; }
@@ -323,6 +323,7 @@ namespace Mojulo
         float suitBaseYaw;
         bool suitMoving;
         AnimationClip suitIdle, suitWalk;
+        float suitWalkSpeed;
         int suitLayer = -1;
 
         interface IRig
@@ -331,6 +332,8 @@ namespace Mojulo
             void Add(AnimationClip clip, int layer, float weight);
             /// <summary>Rule 6: hand the layer from one cycle to the other — never a stop.</summary>
             void Swap(AnimationClip from, AnimationClip to, float fade);
+            /// <summary>The playing cycle's rate (a walk matched to the walker's speed).</summary>
+            void Speed(AnimationClip clip, float speed);
             void Dispose();
         }
 
@@ -362,6 +365,7 @@ namespace Mojulo
                 anim[to.name].speed = 1f;
                 anim.CrossFade(to.name, fade, PlayMode.StopSameLayer);
             }
+            public void Speed(AnimationClip clip, float speed) { var st = anim[clip.name]; if (st != null && st.speed > 0f) st.speed = speed; }
             public void Dispose() { }
         }
 
@@ -405,6 +409,7 @@ namespace Mojulo
                 playable[from].Pause(); playable[to].Play();
                 layers.SetInputWeight(a, 0f); layers.SetInputWeight(b, 1f);
             }
+            public void Speed(AnimationClip clip, float speed) { AnimationClipPlayable p; if (playable.TryGetValue(clip, out p)) p.SetSpeed(speed); }
             public void Dispose() { if (graph.IsValid()) graph.Destroy(); }
         }
 
@@ -512,6 +517,7 @@ namespace Mojulo
             suitBaseYaw = walker.transform.eulerAngles.y;
             suitIdle = Clip(player.locomotion.idle);
             suitWalk = Clip(player.locomotion.walk);
+            suitWalkSpeed = player.locomotion.walkSpeed;
             suitLayer = 0; // the suit owns layer 0; ambient idles stack above on disjoint paths
             if (suitIdle != null) rig.Add(suitIdle, suitLayer, 1f);
             if (suitWalk != null) rig.Add(suitWalk, suitLayer, suitIdle == null ? 1f : 0f);
@@ -545,7 +551,10 @@ namespace Mojulo
             suit.rotation = Quaternion.AngleAxis(walker.transform.eulerAngles.y - suitBaseYaw, Vector3.up) * suitBaseRot;
             if (rig == null || suitWalk == null || suitIdle == null) return;
             var v = walker.Velocity;
-            var moving = new Vector2(v.x, v.z).magnitude > 0.6f * eyeScale;
+            var planar = new Vector2(v.x, v.z).magnitude;
+            var moving = planar > 0.6f * eyeScale;
+            // the walk at the walker's speed: its ground speed (walkSpeed) is where its planted feet stay put
+            if (moving && suitWalkSpeed > 0f) rig.Speed(suitWalk, Mathf.Clamp(planar / suitWalkSpeed, 0.25f, 3f));
             if (moving == suitMoving) return;
             suitMoving = moving;
             // Rule 6: the parked cycle keeps its phase — a hand-over, never a stop.

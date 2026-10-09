@@ -50,6 +50,7 @@ var suit: Node3D = null              # the player's figure wrapper, driven by th
 var suit_player: AnimationPlayer = null
 var suit_idle := ""
 var suit_walk := ""
+var suit_walk_speed := 0.0
 var suit_base_basis := Basis.IDENTITY
 var suit_base_yaw := 0.0
 var suit_moving := false
@@ -548,6 +549,7 @@ func _spawn_suit(imported: AnimationPlayer, ent: Dictionary) -> void:
 	suit_player = _new_player(imported, "suit")
 	suit_idle = _anim_name(suit_player, s_(loco.get("idle")))
 	suit_walk = _anim_name(suit_player, s_(loco.get("walk")))
+	suit_walk_speed = float(loco.get("walkSpeed", 0.0))
 	_loop(suit_player, suit_idle)
 	_loop(suit_player, suit_walk)
 	if suit_idle != "":
@@ -584,7 +586,10 @@ func _follow_suit() -> void:
 	suit.global_transform.basis = Basis(Vector3.UP, walker.rotation.y - suit_base_yaw) * suit_base_basis
 	if suit_idle == "" or suit_walk == "":
 		return
-	var moving := Vector2(walker.velocity.x, walker.velocity.z).length() > 0.6 * eye_scale
+	var planar := Vector2(walker.velocity.x, walker.velocity.z).length()
+	var moving := planar > 0.6 * eye_scale
+	# the walk at the walker's speed: its ground speed (walkSpeed) is where its planted feet stay put
+	suit_player.speed_scale = clampf(planar / suit_walk_speed, 0.25, 3.0) if moving and suit_walk_speed > 0.0 else 1.0
 	if moving == suit_moving:
 		return
 	suit_moving = moving
@@ -616,9 +621,10 @@ func _dump(tag: String) -> void:
 		var part := suit.get_child(0) if suit.get_child_count() > 0 else null
 		# upright: a mojulo figure is z-up under the GLB's y-up root, so the
 		# wrapper's local Z is its up — 1.0 when standing, ~0 face-down.
-		line += " suit=%s(%.2f,%.2f,%.2f) upright=%.3f anim=%s moving=%s" % [
+		line += " suit=%s(%.2f,%.2f,%.2f) upright=%.3f anim=%s moving=%s rate=%.2f" % [
 			suit.name, sp.x, sp.y, sp.z, suit.global_transform.basis.z.y,
-			suit_player.current_animation if suit_player != null else "", str(suit_moving)]
+			suit_player.current_animation if suit_player != null else "", str(suit_moving),
+			suit_player.speed_scale if suit_player != null else 1.0]
 		if part is Node3D:
 			var pp: Vector3 = (part as Node3D).global_position
 			line += " part0=%s(%.2f,%.2f,%.2f)" % [part.name, pp.x, pp.y, pp.z]
