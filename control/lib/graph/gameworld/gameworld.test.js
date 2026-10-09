@@ -18,7 +18,8 @@ describe('gameworld', () => {
   it('says what is wrong', () => {
     const bad = (w, re) => expect(() => resolveWorld(w)).toThrow(re);
     bad(W({ colour: 1 }), /'colour' is not a world setting/);
-    bad(W({ characters: [{ name: 'hero' }] }), /characters are not on the ground/);
+    bad(W({ characters: [{ name: 'hero' }] }), /characters is \{ direction, hero, cast \}/);
+    bad(W({ mechanics: { jump: 1 } }), /mechanics are not on the ground/);
     bad(W({ style: { kit: 'gothic-stone' } }), /not an outdoor stage kit/);
     bad(W({ style: { trail: { beats: [] } } }), /trail.beats is not a trail setting a world hands down/);
     bad(W({ style: { weather: 'rain' } }), /not part of the style/);

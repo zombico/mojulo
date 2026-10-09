@@ -64,7 +64,7 @@ describe('update_sketch on layered rows — strokes', () => {
     expect(stored.strokes[0].solved).toMatchObject({ iou: S.iou, before: S.before }); expect(stored.ledger.strokes.s1.solved.iou).toBe(S.iou);
     // the moved dials' earlier values ride the record (a layered row keeps no revisions)
     expect(stored.strokes[0].solved.dialsBefore).toEqual(Object.fromEntries(Object.keys(S.dials).map((n) => [n, { width: 1, lift: 0 }[n]])));
-    // (the layered kind keeps no revision history today — REVISIONED_KINDS is a decision, not a default; the stroke record is the trail)
+    // (the layered kind keeps revisions since the character book pins a base; the stroke record is the finer trail)
     // a later dial edit keeps the stroke and its solve, and re-stamps the resolve
     const r2 = await updateSketchHandler({ ref: 'lay-solve', patch: [{ op: 'set', path: '/dials/lift', value: 0.2 }] });
     expect(r2.stats.strokes.s1.solved.iou).toBe(S.iou); expect(SketchRepository.getByRef('lay-solve').manifest.strokes[0].solved.iou).toBe(S.iou);

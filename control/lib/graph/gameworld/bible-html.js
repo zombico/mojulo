@@ -17,7 +17,7 @@
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
-import { readGameworld, resolveLevel, RESERVED, civLibrary } from './world.js';
+import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
 import { natureCard, colorKey, landFor } from './nature.js';
@@ -206,7 +206,7 @@ ${world.brief ? `<details class="brief" open><summary>The prompt it was composed
 <div class="level-grid"><div><h4>The walk</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
-  const open = RESERVED.map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
+  const open = OPEN_SLOTS.filter((k) => k !== 'characters' || !G.characters).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">

@@ -2,7 +2,10 @@
  * Gameworlds: a world above its levels (world.js), its graph (graph.js), its style guide (style-guide.js) and its
  * bible (bible-html.js).
  */
-export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, LINK_KINDS, RESERVED, NATIVE } from './world.js';
+export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
+export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS } from './characters.js';
+export { readActions, resolveActions, IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
+export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT } from './hero-looks.js';
 export { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 export { styleGuide, kitCard, languageCard, fortCard, groundCard, civilizationCard } from './style-guide.js';
 export { natureCard, colorKey, landOfKit, landFor, RAMP_KEY } from './nature.js';

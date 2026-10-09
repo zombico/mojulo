@@ -19,6 +19,9 @@ import { getDb } from '../index.js';
 export const REVISIONED_KINDS = new Set([
   'workbench', 'assembler', 'carved-solid', 'css3d-turntable', 'vehicle-instance',
   'figure', 'animal', 'manji-tree', 'edifice',
+  // the hero door's kind: a gameworld's character book pins the bare base as a revision, and motion and adornment
+  // branch from it (they never overwrite it); no render bytes change
+  'layered',
 ]);
 
 // update-sketch-patch: when an edit arrived as a `patch`, the ops ride the ARCHIVED revision's

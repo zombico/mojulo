@@ -12,6 +12,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character book: the hero, looks and actions
+
+The game book's second concern, beside the world bible: the `characters` slot a gameworld held open. Its first page
+is the hero, in two halves. Looks are visual only, with each element (body, head, hair, colour) designed and
+reviewed on its own page, then composed through the hero door into a base version. The base wears only an
+underlayer chosen to fit the world's setting, and it is kept as a pinned revision. Each page also yields the tool
+calls that realize it, so a gameworld can drive the tools in place of the create-game tools. Actions are what the hero can do beyond platforming: the power system, the main power set, and an
+early-to-mid escalation, or an idiom read as "x-like". Western or anime is chosen explicitly. A crossing between them
+is a named bridge, ledgered. The direction (motif, primary and secondary elements) is inherited from the world or
+set custom. Animation is assigned by vibe, and custom edits are saved as revisions from that baseline. In progress.
+
 ### Realistic ground: the opposite pole of the isekai look
 
 - **Why.** The isekai look carries its ground on grass cards and pixel tiles. On bare ground (a desert, a clay plain) the mesh underneath showed through:
