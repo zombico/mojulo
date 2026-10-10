@@ -108,6 +108,8 @@ export const FIXTURE = [
 export const COLLISION_FIXTURE = [
   // a playable artifact vs the walkability audit — both are "walk in a world"
   ['a playable dungeon crawler I can actually walk around in', 'create_game'],
+  ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
+  ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],
   ['put a health bar and a countdown on screen in my level', 'get_play_vocab'],
   // ...while the audit itself must still win its own turf (the control)

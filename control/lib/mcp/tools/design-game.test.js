@@ -87,6 +87,29 @@ describe('design_game', () => {
     expect(stored('gw-gear-sword').build.dials).toBeUndefined();
   }, 300_000);
 
+  it('the advice rides every readout: how much is the creator\'s, and a world that reads as the fixture is told so', async () => {
+    const out = await designGameHandler({ world: { ...GATED, id: 'copy' }, ref: 'gw' });
+    expect(out.advice.authorship).toMatch(/pages written/);
+    expect(out.advice.sameness.join('\n')).toMatch(/reads as the test fixture 'meadowmark'/);
+    expect(out.next.join('\n')).toMatch(/read the advice/);
+  });
+
+  it('a reference is made only when asked for, at its own ref; the comparison only after the world has made its own', async () => {
+    const ex = await designGameHandler({ example: 'meadowmark' });
+    expect(ex.ref).toBe('example-meadowmark');
+    expect(ex.example).toMatch(/made because it was asked for/);
+    expect(SketchRepository.getByRef('example-meadowmark').title).toMatch(/^Reference example/);
+    await expect(designGameHandler({ example: 'zelda' })).rejects.toThrow(/example is one of meadowmark/);
+    await expect(designGameHandler({ example: 'meadowmark', ref: 'gw' })).rejects.toThrow(/made on its own/);
+    // a world of its own: comparing before it has made anything is refused, after is answered
+    const own = { ...MEADOWMARK, id: 'own', mode: 'autonomous', characters: { direction: { tradition: 'western', primary: 'sun', secondary: 'earth' }, hero: {} } };
+    await designGameHandler({ world: own, ref: 'own' });
+    await expect(designGameHandler({ ref: 'own', compare: 'meadowmark' })).rejects.toThrow(/compare after you have made your own world/);
+    const after = await designGameHandler({ ref: 'own', run: true, compare: 'meadowmark' });
+    expect(after.comparison.reference).toBe('meadowmark');
+    expect(after.comparison.differs.find((r) => r.choice === 'primary')).toMatchObject({ world: 'sun' });
+  }, 120_000);
+
   it('says what is wrong: an unknown part, a send-back without a note, a sketch that is not a gameworld', async () => {
     await designGameHandler({ world: GATED, ref: 'gw' });
     await expect(designGameHandler({ ref: 'gw', approve: 'hero:cape' })).rejects.toThrow(/'hero:cape' is not a part/);

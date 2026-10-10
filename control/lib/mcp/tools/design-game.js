@@ -10,6 +10,8 @@
  * In one call, in order: the recipe (`world` creates or replaces it, `patch` edits it by part), then the verdicts
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
  */
+import { registerTool } from '@/lib/mcp/server';
+import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
@@ -20,6 +22,7 @@ import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, reviewState, approve as approveWorldPart, reviewParts,
   characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, decide, childRef,
 } from '@/lib/graph/gameworld/index';
+import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -97,8 +100,13 @@ function readout(ref, world) {
   if (mode === 'gated' && open.length) next.push(`look at the bible, then approve or send back: ${open.map((p) => p.id).join(', ')} (design_game { ref, approve: [...] } or { ref, revise: { part, note } })`);
   if (mode === 'autonomous' && parts.some((p) => p.status === 'revise')) next.push(`the machine gate advises on ${parts.filter((p) => p.status === 'revise').map((p) => p.id).join(', ')}: change the page, or approve it as it stands`);
   if (world.characters) next.push(world.made?.hero ? 'run again after a change: what moved is remade, what you edited by hand is left (force: true overwrites it)' : 'run: true makes the hero, and every step that is ready');
+  if (world.characters?.hero?.actions && !world.characters.hero.adornment) next.push('the adornment page is empty: the bible proposes what the hero carries from the power verbs, with its reasons; write your own (patch /characters/hero/adornment), and its items seed the equipment table');
   if (steps) for (const [k, s] of Object.entries(steps)) if (!s.ready) next.push(`${k} waits on ${s.waiting.map((w) => `${w.id} (${w.status})`).join(', ')}`);
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), next };
+  // the advice: measured, never a verdict on the design
+  const same = sameness(world), questions = grounding(world), own = authorship(world);
+  const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
+  if (same.length || questions.length) next.push('read the advice: a choice the brief does not explain, or one that reads as a fixture or a sample, is the creator\'s to confirm');
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, advice, bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -121,8 +129,16 @@ function reviewWith(world, { approve, revise, note }) {
 }
 
 export async function designGameHandler(input) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, patch?, approve?, revise?, note?, run?, force? }');
-  const { ref: given, title, world, patch, approve, revise, note, run, force } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
+  const { ref: given, title, world, patch, approve, revise, note, run, force, example, compare } = input;
+  // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
+  if (example !== undefined) {
+    if (!REFERENCES[example]) throw new Error(`design_game: example is one of ${Object.keys(REFERENCES).join(', ')} (a reference made only when the creator asks to see one)`);
+    if (world !== undefined || patch !== undefined || given !== undefined) throw new Error('design_game: an example is made on its own, at its own ref; it takes no world, patch or ref');
+    const at = `example-${example}`;
+    const out = SketchRepository.getByRef(at) ? await designGameHandler({ ref: at, run }) : await designGameHandler({ world: REFERENCES[example], ref: at, title: `Reference example: ${REFERENCES[example].name}`, run });
+    return { ...out, example: `a reference, made because it was asked for: compare your own world with it after you have made yours (design_game({ ref, compare: '${example}' })), never as a start` };
+  }
   if (world !== undefined && patch !== undefined) throw new Error('design_game: `world` replaces the recipe whole, `patch` edits it by part: one or the other');
   let ref = given;
   // the recipe
@@ -162,5 +178,45 @@ export async function designGameHandler(input) {
       W = out.world;
     }
   }
-  return { ok: true, ...readout(ref, W), ...(ran ? { ran } : {}) };
+  // the comparison, after creation only: a world that has made nothing has nothing of its own to compare
+  let comparison;
+  if (compare !== undefined) {
+    if (!REFERENCES[compare]) throw new Error(`design_game: compare is one of ${Object.keys(REFERENCES).join(', ')}`);
+    if (!W.made?.hero) throw new Error('design_game: compare after you have made your own world (run it first): a reference read before the design is a template, and this one is not');
+    comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
+  }
+  return { ok: true, ...readout(ref, W), ...(ran ? { ran } : {}), ...(comparison ? { comparison } : {}) };
+}
+
+export function registerDesignGameTools() {
+  registerTool({
+    name: 'design_game',
+    // a run mints the hero, the systems world and the gear in one call
+    timeoutMs: RENDER_TOOL_TIMEOUT_MS,
+    description:
+      'The GAME rail: design a game top down and let mojulo make it. A gameworld (levels, a hero, its gear, the systems) is '
+      + 'a sketch; this writes it (`world`, `patch`), takes the creator\'s verdicts (`approve`, `revise` { part, note }) and, '
+      + 'with `run: true`, makes every ready step through the real doors, keeping what did not move and leaving hand edits '
+      + '(`force` overwrites). Answers each part\'s stamp, the steps, what was made, the advice, the next moves. Read '
+      + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
+      + '`compare` reads one against a world once made.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string' },
+        title: { type: 'string' },
+        world: { type: 'object', description: 'The recipe (get_game_vocab).' },
+        patch: { type: 'array', items: { type: 'object' }, description: 'JSON Pointer ops.' },
+        approve: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'Part id(s).' },
+        revise: { type: 'object', description: '{ part, note }' },
+        note: { type: 'string' },
+        run: { type: 'boolean' },
+        force: { type: 'boolean' },
+        example: { type: 'string' },
+        compare: { type: 'string' },
+      },
+      required: [],
+    },
+    handler: designGameHandler,
+  });
 }

@@ -224,9 +224,9 @@ export function registerGameTools() {
       + "hazard-damage / fail-on-death + a `fall` policy; find them via semantic_search({ kinds: ['game_mechanic'] }) "
       + '+ get_game_vocab) and the world behavior + contract are SYNTHESIZED. Design the store first: '
       + "find slice kinds by intent via semantic_search({ kinds: ['game_vocab'] }) and read manuals via "
-      + "get_game_vocab — OR start from a game KIT (semantic_search({ kinds: ['game_kit'] }): dungeon-crawler / "
-      + 'collectathon / survival-arena) that hands you a ready store + level template + progression, so you '
-      + 'only fill in level geometry. VERIFICATION GATE: every level must pass a contract dry-run (always) and be '
+      + 'get_game_vocab; a game KIT (dungeon-crawler / collectathon / survival-arena) shows how a type is wired: '
+      + 'machinery, not a design. A game with a hero, powers and systems is designed on the rail first '
+      + '(design_game). VERIFICATION GATE: every level must pass a contract dry-run (always) and be '
       + 'shown COMPLETABLE — pass `audits: { <levelRef>: { motion_ref } }`, where motion_ref is a '
       + 'forge_motion traversal of that level whose run reached the win condition; a level with no '
       + 'audit is refused unless `allow_unaudited: true`. Played at /sketches/<ref>. Reach for '

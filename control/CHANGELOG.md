@@ -48,8 +48,19 @@ the creator's to change after. The older game tools stay, behind it: the rail ca
 - **The hero door's manual in sections.** The `layered` vocab card opens at its base with a menu of the hero door's
   parts (`hero-looks`, `hero-hair`, `hero-outfit`, `hero-gear`, `hero-motion` …), so a reader pulls kilobytes, not the
   whole card; its body, which search indexes, is unchanged.
-- Not yet: `design_game` registered as an MCP tool and the game form re-led around it, the compile to `create_game`,
-  and the comparison after creation.
+- **The rail fronts the game form.** `design_game` is registered first in the game cluster and the game pack. The game
+  form's list, the studio's GAME row and a new `game-design` routing card lead with it; `create_game` stays the door
+  for composing levels already made into one playable whole, and its description now calls a kit machinery.
+- **Advice in every readout, measured, never a verdict.** How much of the world is the creator's (the pages written
+  and the pages left to the book's first reading). A world that reads as a test fixture on most of its distinctive
+  choices is told so. A tradition, an idiom or a kit is shared by many worlds, so these are named but not counted. A
+  page that is a synthetic sample verbatim is also told so, with its seed. Where the recipe has a `brief`, the
+  elements, motif and feel it does not explain come back as questions (words only, a heuristic, said to be one).
+- **A reference on request, a comparison after.** `design_game({ example })` makes a reference world at its own ref
+  only when asked. `design_game({ ref, compare })` compares a world with it page by page, and is refused until the
+  world has made its own (a reference read before the design is a template).
+- Not yet: the compile from a gameworld to `create_game`, a cold-start agent's run on two briefs (the plan's proof),
+  and the rail's cards in `semantic_search`.
 
 ### Character book: the hero, looks and actions
 

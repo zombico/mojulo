@@ -605,6 +605,7 @@ async function registerAllTools() {
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
+  const { registerDesignGameTools } = await import('@/lib/mcp/tools/design-game');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
   const { registerGameProjectTools } = await import('@/lib/mcp/tools/game-projects');
   const { registerPixelizerGameTools } = await import('@/lib/mcp/tools/pixelizer-game');
@@ -828,6 +829,9 @@ async function registerAllTools() {
   // typed store + levels that are worlds minted with a `game:` contract channel.
   // Registers after beats so the visual-mint cluster (world → view → motion →
   // sound → game) reads adjacent in tools/list. See game-metacontext.plan.md.
+  // The game rail (design_game) leads the game cluster: a game designed top down (a hero, its gear, the systems) and
+  // made through the doors below, which it calls.
+  registerDesignGameTools();
   registerGameTools();
   // Game projects register immediately after the game mint — the project
   // layer that ties one game's artifacts together (game-developer.plan.md).

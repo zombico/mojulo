@@ -113,8 +113,9 @@ export const PACKS = [
     form: 'game',
     title: 'Game',
     description:
-      "GAMES — playable standalone artifacts composed over media: create_game (levels are worlds minted with a game contract), pixelizer 2D reducer games, sprite sheets (create + bake), game projects (create / get / update / bind / list), game-vocab and play cards, and export_game (self-contained folder). Open for 'a playable dungeon crawler I can actually walk around in', 'a roguelike where my gear persists across floors', 'a pixel-art game with sprites', 'a pixel-art cutscene of my hero', 'export my game so a friend can play it'.",
+      "GAMES — the game rail first: design_game designs a game top down (a hero, its powers, gear and systems) and makes it. Then the doors it calls and the rest: create_game (levels are worlds with a game contract), pixelizer 2D games, sprite sheets, game projects, the game and play drawers, export_game. Open for 'a game where my hero gains powers', 'a playable dungeon crawler I can walk around in', 'a roguelike where my gear persists', 'a pixel-art game with sprites', 'export my game so a friend can play it'.",
     members: [
+      'design_game',
       'create_game',
       'create_pixelizer_game',
       'create_sprite_sheet',
@@ -129,10 +130,9 @@ export const PACKS = [
       'export_game',
     ],
     // The Claude plugin profile leaves out the sprite sheets, painted through the image-render
-    // handoff, and the painted pixel-art cutscene (lib/mcp/plugin-profile.js).
+    // handoff (lib/mcp/plugin-profile.js).
     profileEdits: [
-      [' sprite sheets (create + bake),', ''],
-      [" 'a pixel-art cutscene of my hero',", ''],
+      [' sprite sheets,', ''],
     ],
   },
   {

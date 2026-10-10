@@ -225,6 +225,8 @@ export const TOOL_ANNOTATIONS = {
   get_voice_vocab: ['Voice vocabulary cards', READ],
 
   // ── games (create-game.js, game-projects.js, pixelizer, sprites, export) ───
+  // writes and runs a gameworld: a run remakes what it made in place when the book moved (never a hand edit unless forced)
+  design_game: ['Design and make a game', DESTRUCTIVE],
   create_game: ['Create a game', ADDITIVE],
   get_game_vocab: ['Game vocabulary cards', READ],
   get_play_vocab: ['Play vocabulary cards', READ],
