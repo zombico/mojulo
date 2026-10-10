@@ -6,11 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 From `3.0.0` the media, game, connected-service and app loops and the recipe
 format are the stable surface, and the chatbot factory is no longer part of
-mojulo. The dashboard package, `mojulo-ui`, is released at the same version.
+mojulo. From `3.1.0` the connected-service and app tools are no longer listed:
+they still answer by name (the CLI, plan steps, skills that name them). The dashboard package, `mojulo-ui`, is released at the same version.
 Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 [CHANGELOG-2.x.md](CHANGELOG-2.x.md).
 
 ## [Unreleased]
+
+## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest
 
@@ -1401,8 +1404,6 @@ This step builds the contract and the approval gate. No rung is served yet.
   climbs counter-clockwise from above, so D turned the walker left and A right; `platform` and `drive` already
   negated it. A is a left turn now, D a right one. Re-pinned: the controllable rows of `emit-channels.char` (the
   rule ships in the page) and the walk world's golden trace.
-
-## [3.1.0] - 2026-10-07
 
 ### Anime game hero
 
