@@ -59,8 +59,41 @@ the creator's to change after. The older game tools stay, behind it: the rail ca
 - **A reference on request, a comparison after.** `design_game({ example })` makes a reference world at its own ref
   only when asked. `design_game({ ref, compare })` compares a world with it page by page, and is refused until the
   world has made its own (a reference read before the design is a template).
-- Not yet: the compile from a gameworld to `create_game`, a cold-start agent's run on two briefs (the plan's proof),
-  and the rail's cards in `semantic_search`.
+- **Proved from a cold start, then fixed where it bit.** Two agents with no context and only the command line each
+  designed an original game from a contrasting brief (a lighthouse keeper's daughter holding back the sea; a cocky
+  scrap-robot courier). Both wrote every page themselves, copied nothing, and the rail made their heroes, systems
+  worlds and gear. Each also took 10 to 12 refusals, and both read the numbers outside the tools. Fixed from their
+  reports:
+  - The guide carries the recipe's skeleton: where each page lives, the level walk's nodes and edges, the patch ops
+    (`set | remove | add`), and how each looks page is written (the tune's names, the head's look words, the hair
+    words by head, the palette groups, the underlayer as the outfit build itself).
+  - The world card says which kits take a look in words and which take civilizations, and that a civilization is a
+    name and what it builds in words, the rest best left out. The equipment card lists the role materials, the metals
+    and the finishes, each metal-only finish with its metal.
+  - A page the hero door would refuse is refused when it is written, in the door's words, not first when a run makes
+    the hero. A failure after the world was stored names its ref, so the next call patches it rather than starting a
+    new world.
+  - The readout carries `numbers`: the stats, the resource, the levels and epochs, each power's key, spend and look,
+    and the HUD's parts.
+  - `mechanics.powers.<id>.spends` sets what one power spends of the resource (0: free, a guard that costs nothing),
+    ledgered.
+  - A brief may be `{ text, why: { <choice word>: '<the brief words it answers>' } }`: an answered choice closes its
+    question. The world bible renders any brief shape (a plain string brief no longer breaks it).
+  - A run makes `hero-equipped` too: the base holding what it carries, in the stand that shows it. The base stays
+    bare.
+  - `forward_context`'s worked-example line says a trace shows how the calls go, never what to make.
+- **Levels made playable, the book compiled into a game.** A run makes each stage of each level as a world the hero
+  pilots (holding its gear when the equipped hero is made), with the systems' HUD and powers, then `create_game` over
+  them with the store compiled from the book. Walkable by construction; beatability is the creator's, in play, and
+  the game records its levels as unaudited.
+- **The quick path.** `design_game({ quick: { goal, ... } })` (goal: reach, collect, survive, avoid) writes a one-level
+  gameworld, places the goal on the stage's own anchors and makes the game in one call, with no hero (first person) or
+  any hero-door hero, the ground in words and the shell's theme. It stays a gameworld, so adding the hero's pages
+  turns it into the book in place. The guide opens with "Size the ask"; the `gameworld-quick` card is all a quick ask
+  reads.
+- Not yet: the rail's cards in `semantic_search`. Found and left
+  for a decision: the systems HUD wears its own tokens, not the direction's colours; a resource only drains; and a
+  power that comes from what the hero bolts on cannot be gear (the equipment kernel holds weapons only).
 
 ### Character book: the hero, looks and actions
 

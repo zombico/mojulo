@@ -36,6 +36,7 @@
  *     mechanics?: { stats?, scale?, hud?, ui?, gear? },   // the game's systems, numbered from the actions (mechanics.js)
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
  *     made?,                              // what a run made, and the prints it made it from (made.js; the runner writes it)
+ *     quick?,                             // a quick game: one level, one goal, any hero or none (quick.js)
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
@@ -56,6 +57,7 @@ import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
+import { readQuick } from './quick.js';
 import { readMechanics } from './mechanics.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
@@ -93,7 +95,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -290,6 +292,7 @@ export function readGameworld(W) {
   const equipment = W.equipment === undefined || W.equipment === null ? null : readEquipment(W.equipment);
   const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
   if (W.made !== undefined && W.made !== null) readMade(W.made);   // the runner's record: read, never carried
+  if (W.quick !== undefined && W.quick !== null) readQuick(W.quick);   // a quick game's goal (quick.js): read, never carried
   return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), [READ]: true };
 }
 

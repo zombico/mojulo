@@ -14,6 +14,7 @@
  *   mechanics?: {
  *     stats?: { <play.stats fields> },          // the creator's own, laid over the derived (lists by id, objects by key)
  *     scale?: { hp?, power?, cost?, curve? },   // the coarse dials the derivation reads (SCALE)
+ *     powers?: { <power id>: { spends } },      // a power's own spend of the resource over the derived (0: free; ledgered)
  *     hud?: 'derive' | false | [part],          // the readouts: derived (default), none, or the creator's own
  *     ui?: 'propose' | 'auto' | <direction>,    // play.ui (playscape/ui/direction.js), resolved when the world is minted
  *     gear?: { <class>: { stat?, by?: [early, mid, late] } },   // what a class raises, over GEAR_STAT / GEAR_BY
@@ -62,8 +63,8 @@ const STATS_LISTS = ['holders', 'stats', 'resources', 'epochs', 'tree', 'offers'
 
 /** Read a world's mechanics and say what is wrong. The numbers are judged by the stats kernel once laid over. */
 export function readMechanics(M) {
-  if (!isObj(M)) throw fail('mechanics is { stats?, scale?, hud?, ui?, gear? }: the game\'s systems, derived from the hero\'s actions');
-  for (const k of Object.keys(M)) if (!['stats', 'scale', 'hud', 'ui', 'gear'].includes(k)) throw fail(`${k} is not part of the mechanics (stats, scale, hud, ui, gear)`);
+  if (!isObj(M)) throw fail('mechanics is { stats?, scale?, powers?, hud?, ui?, gear? }: the game\'s systems, derived from the hero\'s actions');
+  for (const k of Object.keys(M)) if (!['stats', 'scale', 'powers', 'hud', 'ui', 'gear'].includes(k)) throw fail(`${k} is not part of the mechanics (stats, scale, powers, hud, ui, gear)`);
   const out = {};
   if (M.stats !== undefined) {
     if (!isObj(M.stats)) throw fail('stats is { <play.stats fields> }: holders, stats, resources, level, epochs, tree, offers, bodies');
@@ -76,6 +77,17 @@ export function readMechanics(M) {
       if (!(num(v) && v > 0) || (k === 'curve' && v < 1)) throw fail(`scale.${k} is a number above 0${k === 'curve' ? ', 1 or more' : ''}`);
     }
     out.scale = { ...M.scale };
+  }
+  // a power's own numbers over the derived: what it spends of the resource (0: free, a guard that costs nothing)
+  if (M.powers !== undefined) {
+    if (!isObj(M.powers)) throw fail('powers is { <power id>: { spends } }: what a power spends of the resource, over the derived');
+    out.powers = {};
+    for (const [id, p] of Object.entries(M.powers)) {
+      if (!isObj(p)) throw fail(`powers.${id} is { spends }`);
+      for (const k of Object.keys(p)) if (k !== 'spends') throw fail(`powers.${id}.${k} is not a power's number (spends)`);
+      if (p.spends !== undefined && !(num(p.spends) && p.spends >= 0)) throw fail(`powers.${id}.spends is a number, 0 or more (0: the power is free)`);
+      out.powers[id] = { ...p };
+    }
   }
   if (M.hud !== undefined) {
     if (M.hud !== 'derive' && M.hud !== false && !Array.isArray(M.hud)) throw fail('hud is \'derive\' (the default), false, or a list of play.parts');
@@ -212,6 +224,15 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     return { id: v.id, ...(KEYS.powers[i] ? { key: KEYS.powers[i] } : {}), ...(res ? { spends: { [res]: 10 * S.cost * (ix + 1) } } : {}), ...(look ? { look } : {}), ...(p.attack ? { hurt: { stat: 'power', per: r2(1 + 0.2 * ix) } } : {}) };
   });
   for (const p of powers) if (!p.key) open.push(`power '${p.id}' has no key: only ${KEYS.powers.length} powers are on the keys`);
+  // the creator's own spend over the derived, ledgered; a power the actions do not have is open, never thrown
+  for (const [id, own] of Object.entries(M.powers ?? {})) {
+    const p = powers.find((x) => x.id === id);
+    if (!p) { open.push(`mechanics.powers.${id}: not a power of the hero's (${powers.map((x) => x.id).join(', ') || 'none'})`); continue; }
+    if (own.spends === undefined) continue;
+    ledger.push({ scope: 'mechanics', at: `mechanics.powers.${id}.spends`, key: id, world: p.spends?.[res] ?? 'none', local: own.spends });
+    if (!res) { open.push(`mechanics.powers.${id}.spends: the system has no resource to spend`); continue; }
+    if (own.spends === 0) delete p.spends; else p.spends = { [res]: own.spends };
+  }
   // what the runtime cannot do yet: said on the page, never an advice the creator could act on
   const limits = ['a power fires on its key whether it has been gained or can be afforded: the bus has no such guard yet (the resource is held at 0)', 'how hard a power lands is carried as data: the powers have no targets yet', 'the HP bar is designed on the UI board: the page draws it once the body publishes its hp to the bus (only the piloted shooter does today)'];
 

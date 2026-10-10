@@ -15,7 +15,7 @@ const lowers = (play) => lowerPlay({ kind: 'controllable', play: { ...play, ui: 
 
 describe('the game\'s systems', () => {
   it('says what is wrong', () => {
-    bad([], /mechanics is \{ stats\?, scale\?, hud\?, ui\?, gear\? \}/);
+    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\? \}/);
     bad({ numbers: {} }, /numbers is not part of the mechanics/);
     bad({ scale: { hp: -1 } }, /scale.hp is a number above 0/);
     bad({ scale: { curve: 0.5 } }, /scale.curve is a number above 0, 1 or more/);
@@ -87,6 +87,17 @@ describe('the game\'s systems', () => {
     const aa = S('action-adventure-like');
     expect(aa.tree.find((n) => n.id === 'wind-orb').requires).toEqual({ has: 'staff-early' });
     expect(aa.tree.find((n) => n.id === 'gust-step').requires).toBeUndefined();
+  });
+
+  it('a power\'s own spend over the derived: 0 makes it free, a number replaces it, both ledgered; an unknown power is open', () => {
+    const M = book(idiom('shonen-like', { powers: { 'gust-step': { spends: 0 }, 'wind-orb': { spends: 35 }, nope: { spends: 1 } } })).mechanics;
+    expect(M.powers.find((p) => p.id === 'gust-step').spends).toBeUndefined();
+    expect(M.powers.find((p) => p.id === 'wind-orb').spends).toEqual({ ki: 35 });
+    expect(M.play.cues.find((c) => c.id === 'power-gust-step').then.some((x) => x.grant)).toBe(false);
+    expect(M.ledger.filter((l) => l.at.startsWith('mechanics.powers.')).map((l) => l.local)).toEqual([0, 35]);
+    expect(M.open.join('\n')).toMatch(/mechanics.powers.nope: not a power of the hero's/);
+    bad({ powers: { x: { spends: -1 } } }, /powers.x.spends is a number, 0 or more/);
+    bad({ powers: { x: { cost: 1 } } }, /powers.x.cost is not a power's number \(spends\)/);
   });
 
   it('each power on a key: it spends its cost and shows its look on the hero (an attack, its element\'s); how hard it lands is data', () => {

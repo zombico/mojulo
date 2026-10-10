@@ -127,6 +127,9 @@ function playOrder(G) {
 
 
 /** The bible of a gameworld, as one page. */
+/** A brief's words, however it was written: a string, the composer's { prompt }, or a creator's { text, why? }. */
+export const briefText = (b) => (typeof b === 'string' ? b : b?.prompt ?? b?.text ?? '');
+
 export function gameworldBibleHtml(world) {
   resetTownIds();
   const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
@@ -191,7 +194,7 @@ export function gameworldBibleHtml(world) {
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${stamps.map((x) => `<li><a href="${anchorOf(x.id)}">${esc(x.name)}</a>${stamp(x.id)}<code>${esc(x.print)}</code>${x.note ? `<p class="muted">${esc(x.note)}</p>` : ''}</li>`).join('')}</ol>
 <p class="muted">${waiting.length ? `Next to look at: ${waiting.map((x) => `<a href="${anchorOf(x.id)}">${esc(x.name)}</a>`).join(', ')}.` : 'Nothing is waiting on you.'}</p>
-${world.brief ? `<details class="brief" open><summary>The prompt it was composed from</summary><p class="prompt">“${esc(world.brief.prompt)}”</p><ul class="decided">${world.brief.read.map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
+${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
 
   const levels = order.map((id, i) => {
     const b = built[id], R = b.R, own = R.ledger;

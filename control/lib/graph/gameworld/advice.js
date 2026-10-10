@@ -16,6 +16,7 @@
  */
 import { gameworldSamples, SAMPLE_PAGES } from './samples.js';
 import { MEADOWMARK_HERO } from './examples.js';
+import { briefText } from './bible-html.js';
 
 /** The reference worlds the creator may ask to see (made on request, compared after creation): the test fixtures. */
 export const REFERENCES = Object.freeze({ meadowmark: MEADOWMARK_HERO });
@@ -73,12 +74,14 @@ const served = (page, seed) => { const k = `${page}:${seed}`; if (!SERVED.has(k)
 
 /** The choices a brief does not explain, as questions. → [question lines] (none without a brief) */
 export function grounding(world) {
-  const brief = typeof world.brief === 'string' ? world.brief : world.brief?.prompt ?? world.brief?.text;
+  const brief = briefText(world.brief), why = world.brief?.why && typeof world.brief.why === 'object' ? world.brief.why : {};
   if (typeof brief !== 'string' || !brief.trim()) return [];
   const words = new Set(brief.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2));
   const explained = (w) => String(w).toLowerCase().split(/[^a-z]+/).filter(Boolean).some((part) => [...words].some((b) => b === part || (part.length >= 4 && b.length >= 4 && b.slice(0, 4) === part.slice(0, 4))));
   const S = signature(world), out = [];
-  const ask = (what, w) => { if (w && !explained(w)) out.push(`${what} '${w}': nothing in the brief says so; where does it come from?`); };
+  // a choice the creator answered (brief.why: { <word>: '<the brief words it answers>' }) is closed
+  const answered = (w) => Object.keys(why).some((k) => k.toLowerCase() === String(w).toLowerCase());
+  const ask = (what, w) => { if (w && !explained(w) && !answered(w)) out.push(`${what} '${w}': nothing in the brief says so; where does it come from? (record it: brief.why.${w})`); };
   ask('the leading element', S.primary); ask('the supporting element', S.secondary);
   for (const m of S.motif ?? []) ask('the motif', m);
   for (const v of S.vibe ?? []) ask('the feel', v);

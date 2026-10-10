@@ -37,12 +37,15 @@ describe('the rail\'s advice', () => {
   it('grounding asks about the choices the brief does not explain, and only where there is a brief', () => {
     // 'ice' is asked about: the brief says "freezes", and a words-only reading does not know they meet
     expect(grounding(OWN)).toEqual([
-      "the leading element 'ice': nothing in the brief says so; where does it come from?",
-      "the motif 'wave': nothing in the brief says so; where does it come from?",
-      "the feel 'graceful': nothing in the brief says so; where does it come from?",
-      "the feel 'stoic': nothing in the brief says so; where does it come from?",
+      "the leading element 'ice': nothing in the brief says so; where does it come from? (record it: brief.why.ice)",
+      "the motif 'wave': nothing in the brief says so; where does it come from? (record it: brief.why.wave)",
+      "the feel 'graceful': nothing in the brief says so; where does it come from? (record it: brief.why.graceful)",
+      "the feel 'stoic': nothing in the brief says so; where does it come from? (record it: brief.why.stoic)",
     ]);
     expect(grounding({ ...OWN, brief: undefined })).toEqual([]);
+    // a reason recorded closes the question; the composer's { prompt } and a creator's { text } read the same
+    expect(grounding({ ...OWN, brief: { text: OWN.brief, why: { ice: 'freezes the tide', wave: 'a drowned city', stoic: 'sullen', graceful: 'a witch' } } })).toEqual([]);
+    expect(grounding({ ...OWN, brief: { prompt: OWN.brief } })).toHaveLength(4);
   });
 
   it('authorship says how much is the creator\'s and what was left to the book', () => {

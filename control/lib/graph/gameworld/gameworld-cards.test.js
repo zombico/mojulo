@@ -20,7 +20,7 @@ describe('the rail\'s cards', () => {
 
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-quick', 'gameworld-world', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems']);
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(4096);
   });
 

@@ -7,8 +7,12 @@
  *
  *   runSteps(world, { ref, lookup })   → [{ key, ref, ready, waiting?, order, print }]
  *     hero       always ready once the world has a hero: the base must be made to be seen and pinned
+ *     hero-equipped   when the adornment step is: the base holding what it carries at the last stage (a second
+ *                sketch, a picture of the page; the base itself stays bare)
  *     systems    when the systems step is (characterReady): the player world with the stats and the HUD
  *     gear-<c>   when the equipment step is: one per filled class of the table
+ *     level-<level>-<n>   when the systems step is: each stage of each level, a world the hero pilots (levels.js)
+ *     game       when the systems step is, after every level: create_game over them, the store from the book
  *   decide(step, record, storedNow, { force }) → what to do with one step:
  *     'waiting'  the step is not ready (its `waiting` says on what)
  *     'make'     nothing is at its ref
@@ -24,7 +28,9 @@ import { readGameworld } from './world.js';
 import { resolveBook, characterReady } from './character-review.js';
 import { heroOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
-import { equipmentOrders } from './equipment.js';
+import { equipmentOrders, equippedHero } from './equipment.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels } from './levels.js';
+import { goalMechanics, quickStore } from './quick.js';
 
 const REF_MAX = 64;
 
@@ -39,20 +45,66 @@ export function childRef(ref, part) {
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
 export function runSteps(world, { ref, lookup } = {}) {
   if (typeof ref !== 'string' || !ref) throw new Error('runner: the steps are made at refs derived from the gameworld\'s own ref');
-  const G = readGameworld(world), O = heroOrders(G);
+  const G = readGameworld(world);
+  if (world.quick) return quickSteps(world, G, ref);
+  const O = heroOrders(G);
   if (!O) return [];
   const heroRef = childRef(ref, 'hero');
   const hero = { spec: O.mint.args.spec, mint: O.mint.args, motion: O.motion?.args.patch ?? null };
   const steps = [{ key: 'hero', ref: heroRef, ready: true, order: hero, print: fingerprint({ spec: hero.spec, motion: hero.motion, toon: hero.mint.toon ?? null }) }];
   const ready = characterReady(world, { lookup }), B = resolveBook(world);
   const waits = (r) => (r.ready ? {} : { waiting: r.waiting });
+  const Q = equippedHero(G, { composed: { spec: hero.spec } });
+  if (Q) {
+    // the motion's gaits and clips ride; the stand that shows the gear (HOLD_STAND) wins over the motion's own
+    const spec = { ...Q.spec, ...(hero.motion ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}) };
+    steps.push({ key: 'hero-equipped', ref: childRef(ref, 'hero-equipped'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...hero.mint, title: `${hero.mint.title} · equipped`, spec }, spec }, print: fingerprint({ spec, toon: hero.mint.toon ?? null }) });
+  }
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
   if (MO) steps.push({ key: 'systems', ref: childRef(ref, 'systems'), ready: ready.systems.ready, ...waits(ready.systems), order: MO.args, print: fingerprint(MO.args) });
   const EO = equipmentOrders(G, ready.equipment);
   for (const m of EO.mints.length ? EO.mints : EO.planned ?? []) {
     steps.push({ key: `gear-${m.class}`, ref: childRef(ref, `gear-${m.class}`), ready: ready.equipment.ready, ...waits(ready.equipment), order: m.args, print: fingerprint(m.args) });
   }
+  // the levels: each stage a world the hero pilots (holding its gear when the equipped hero is made), with the systems'
+  // play block; then the game over them, its store compiled from the book. Walkable by construction; beatability is
+  // the creator's, in play (create_game records the levels as unaudited).
+  const pilot = steps.some((s) => s.key === 'hero-equipped') ? childRef(ref, 'hero-equipped') : heroRef;
+  const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
+  stages.forEach((s, i) => {
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
+  });
+  if (stages.length) {
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs), allow_unaudited: true };
+    steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
+  }
   return steps;
+}
+
+/** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the
+ * goal placed on its anchors, piloted by the hero or in first person, then the game. Nothing waits: a quick game has
+ * no book to review. */
+function quickSteps(world, G, ref) {
+  const Q = world.quick, steps = [];
+  const heroRef = Q.hero ? childRef(ref, 'hero') : null;
+  if (Q.hero) {
+    const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec: Q.hero, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
+    steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec: Q.hero, mint, motion: null }, print: fingerprint({ spec: Q.hero, toon: mint.toon ?? null }) });
+  }
+  const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
+  stages.forEach((s, i) => {
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
+  });
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}) };
+  steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) });
+  return steps;
+}
+
+/** The fields a motion page's patch sets on the hero (/hero/<field>), as a spec fragment. */
+function motionFields(patch) {
+  return Object.fromEntries(patch.filter((op) => op.op === 'set' && /^\/hero\/[a-zA-Z]+$/.test(op.path)).map((op) => [op.path.slice(6), op.value]));
 }
 
 /** What to do with one step. `record` is made[key], if any; `storedNow` the print of the manifest at its ref now, or

@@ -16,13 +16,15 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
 import { mintSolidHandler } from './mint-solid.js';
+import { createGameHandler } from './create-game.js';
 import { heroRecord } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
-  GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, reviewState, approve as approveWorldPart, reviewParts,
+  GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
   characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, decide, childRef,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
+import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -56,6 +58,24 @@ async function realize(step, action) {
     if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: 'design_game: the motion page' });
     return { pin };
   }
+  if (key === 'hero-equipped') {
+    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
+    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: the hero equipped' });
+    return {};
+  }
+  if (key.startsWith('level-')) {
+    // a stage as a level: create_sketch at mint, its manifest whole in place
+    if (action === 'make') await createSketchHandler({ ...order, ref });
+    else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
+    return {};
+  }
+  if (key === 'game') {
+    // the game over the levels: create_game (the levels unaudited, recorded), its manifest whole in place
+    const { title, store, levels } = order;
+    if (action === 'make') await createGameHandler({ ...order, ref });
+    else await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels } });
+    return {};
+  }
   if (key === 'systems') {
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
@@ -77,7 +97,7 @@ async function runWorld(ref, world, { force = false } = {}) {
     if (action !== 'make' && action !== 'remake') return;
     const { pin } = await realize(step, action);
     made[step.key] = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
-    if (pin) W = withPin(W, pin);
+    if (pin && W.characters) W = withPin(W, pin);   // a quick game's hero has no book to pin it in
   };
   // the hero first: the systems and the gear wait on its pinned base
   const heroRef = childRef(ref, 'hero');
@@ -99,14 +119,25 @@ function readout(ref, world) {
   const open = parts.filter((p) => p.status === 'proposed' || p.status === 'changed' || p.status === 'revise');
   if (mode === 'gated' && open.length) next.push(`look at the bible, then approve or send back: ${open.map((p) => p.id).join(', ')} (design_game { ref, approve: [...] } or { ref, revise: { part, note } })`);
   if (mode === 'autonomous' && parts.some((p) => p.status === 'revise')) next.push(`the machine gate advises on ${parts.filter((p) => p.status === 'revise').map((p) => p.id).join(', ')}: change the page, or approve it as it stands`);
+  if (world.made?.game) next.push(`play it: /api/sketches/${encodeURIComponent(world.made.game.ref)}/game. Its levels are walkable by construction (the hero spawns on each stage's ground and its exit is the stage's own end); whether they can be beaten is yours to judge in play: nothing proved it`);
   if (world.characters) next.push(world.made?.hero ? 'run again after a change: what moved is remade, what you edited by hand is left (force: true overwrites it)' : 'run: true makes the hero, and every step that is ready');
   if (world.characters?.hero?.actions && !world.characters.hero.adornment) next.push('the adornment page is empty: the bible proposes what the hero carries from the power verbs, with its reasons; write your own (patch /characters/hero/adornment), and its items seed the equipment table');
   if (steps) for (const [k, s] of Object.entries(steps)) if (!s.ready) next.push(`${k} waits on ${s.waiting.map((w) => `${w.id} (${w.status})`).join(', ')}`);
+  // the numbers the systems derive, readable without the bible (the sheet needs a browser)
+  const M = world.characters ? resolveBook(world).mechanics : null, S = M?.play.stats;
+  const numbers = S ? {
+    stats: Object.fromEntries(S.stats.map((x) => [x.id, x.base ?? x.value ?? null])),
+    ...(S.resources?.length ? { resources: Object.fromEntries(S.resources.map((r) => [r.id, r.cap ?? r.start ?? null])) } : {}),
+    ...(S.level ? { level: { max: S.level.max, each: S.level.each?.raise ?? null } } : {}),
+    ...(S.epochs?.length ? { epochs: Object.fromEntries(S.epochs.map((e) => [e.id, e.level ?? 1])) } : {}),
+    powers: M.powers.map((p) => ({ id: p.id, ...(p.key ? { key: p.key } : {}), ...(p.spends ? { spends: p.spends } : {}), ...(p.look ? { shows: p.look } : {}) })),
+    hud: (M.play.parts ?? []).map((p) => p.id ?? p.kind),
+  } : null;
   // the advice: measured, never a verdict on the design
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push('read the advice: a choice the brief does not explain, or one that reads as a fixture or a sample, is the creator\'s to confirm');
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, advice, bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -130,7 +161,11 @@ function reviewWith(world, { approve, revise, note }) {
 
 export async function designGameHandler(input) {
   if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
-  const { ref: given, title, world, patch, approve, revise, note, run, force, example, compare } = input;
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick } = input;
+  // the quick path: one level, one goal; its gameworld is written here, and it is run at once (nothing to review)
+  if (quick !== undefined && written !== undefined) throw new Error('design_game: `quick` writes the world itself; pass the world\'s own settings (id, name, style …) beside the goal as quick.world, or a whole `world` without quick');
+  const world = quick !== undefined ? quickWorld({ ...(isObj(quick.world) ? quick.world : {}), quick: Object.fromEntries(Object.entries(quick).filter(([k]) => k !== 'world')) }) : written;
+  const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {
     if (!REFERENCES[example]) throw new Error(`design_game: example is one of ${Object.keys(REFERENCES).join(', ')} (a reference made only when the creator asks to see one)`);
@@ -160,6 +195,15 @@ export async function designGameHandler(input) {
     if (!isGameworldKind(row.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${row.manifest?.kind}', not a gameworld`);
     if (patch !== undefined) await updateSketchHandler({ ref, patch, ...(title ? { title } : {}) });
   }
+  try {
+    return await afterWrite(ref, { approve, revise, note, run, force, compare });
+  } catch (err) {
+    // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
+    throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
+  }
+}
+
+async function afterWrite(ref, { approve, revise, note, run, force, compare }) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
@@ -214,6 +258,7 @@ export function registerDesignGameTools() {
         force: { type: 'boolean' },
         example: { type: 'string' },
         compare: { type: 'string' },
+        quick: { type: 'object', description: 'One level, one goal (gameworld-quick).' },
       },
       required: [],
     },

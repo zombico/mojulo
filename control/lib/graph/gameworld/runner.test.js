@@ -5,12 +5,15 @@ describe('the runner\'s plan', () => {
   it('a world without a hero makes nothing; with one, the hero first, the systems and every filled class after', () => {
     expect(runSteps(MEADOWMARK, { ref: 'gw' })).toEqual([]);
     const S = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
-    expect(S.map((s) => s.key)).toEqual(['hero', 'systems', 'gear-dagger', 'gear-sword', 'gear-greatsword', 'gear-staff', 'gear-bow', 'gear-shield']);
+    expect(S.map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'systems', 'gear-dagger', 'gear-sword', 'gear-greatsword', 'gear-staff', 'gear-bow', 'gear-shield', 'level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1', 'game']);
     expect(S[0]).toMatchObject({ ref: 'gw-hero', ready: true });
     // the systems world names the hero at the ref the run makes it at
-    expect(JSON.stringify(S[1].order)).toContain('gw-hero');
+    expect(JSON.stringify(S[2].order)).toContain('gw-hero');
     // gated, nothing reviewed: the systems and the gear wait, and say on what
-    expect(S[1]).toMatchObject({ ready: false, waiting: expect.arrayContaining([{ id: 'hero:base', status: 'proposed' }]) });
+    expect(S[2]).toMatchObject({ ready: false, waiting: expect.arrayContaining([{ id: 'hero:base', status: 'proposed' }]) });
+    // the equipped hero holds the table's staff in the stand that shows it, not the motion's guard
+    expect(S[1].order.spec.gear.right).toMatchObject({ item: 'staff' });
+    expect(S[1].order.spec.gesture).toBe('relaxed');
     expect(() => runSteps(MEADOWMARK_HERO, {})).toThrow(/derived from the gameworld's own ref/);
   });
 

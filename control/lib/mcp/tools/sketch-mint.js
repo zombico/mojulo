@@ -59,7 +59,8 @@ import {
 } from '@/lib/graph/motion-comic/motion-comic-manifest';
 import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polygonizer/floorplan-bim.js';
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
-import { isGameworldKind, normalizeGameworldManifest } from '@/lib/graph/gameworld/gameworld-kind.js';
+import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
+import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext } from '@/lib/mcp/tools/building-next';
 import { scadNext } from '@/lib/mcp/tools/scad-next';
@@ -304,13 +305,23 @@ function newHouseSeed(m, ref) {
   return { ...m, seed };
 }
 
-/** A gameworld manifest read and returned as written, or the reader's refusal. */
+/** A gameworld manifest read and returned as written, or the reader's refusal. The hero its pages compose (and its
+ * motion) is judged by the hero door here, so a page the door would refuse is refused when it is written, not first
+ * when a run makes the hero. */
 function gameworldManifest(manifest) {
+  let out;
   try {
-    return normalizeGameworldManifest(manifest);
+    out = normalizeGameworldManifest(manifest);
   } catch (err) {
     throw new Error(`Invalid manifest: ${err.message}`);
   }
+  const O = heroOrders(readGameworld(gameworldOf(out)));
+  if (O) {
+    const spec = O.motion ? applyManifestPatch({ hero: O.mint.args.spec }, O.motion.args.patch).manifest.hero : O.mint.args.spec;
+    const errs = validateHeroSpec(spec);
+    if (errs.length) throw new Error(`Invalid manifest: the hero the looks and motion pages compose is refused by the hero door:\n - ${errs.join('\n - ')}\n— the pages: characters.hero.looks (body, head, hair, colour, underlayer) and characters.hero.motion; the door's words: get_solid_vocab({ id: 'layered' }) (its hero-* sections).`);
+  }
+  return out;
 }
 
 export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {

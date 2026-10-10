@@ -57,12 +57,23 @@ describe('design_game', () => {
     const gear = await designGameHandler({ ref: 'gw', approve: 'mechanics:stats', run: true });
     expect(gear.ran.filter((r) => r.key.startsWith('gear-')).map((r) => r.action)).toEqual(Array(6).fill('make'));
     expect(stored('gw-gear-staff').build).toMatchObject({ type: 'equipment', item: 'staff', laws: 1 });
-    expect(Object.keys(gear.made)).toHaveLength(8);
+    expect(Object.keys(gear.made)).toHaveLength(15);
+    expect(stored('gw-hero-equipped').hero.gear.right).toMatchObject({ item: 'staff' });
+    expect(stored('gw-hero').hero.gear).toBeUndefined();
   }, 240_000);
 
   it('autonomous: one run makes everything that settles on its own', async () => {
     const out = await designGameHandler({ world: AUTO, ref: 'gw', run: true });
-    expect(out.ran.map((r) => r.action)).toEqual(Array(8).fill('make'));
+    expect(out.ran.map((r) => r.action)).toEqual(Array(15).fill('make'));
+    // the levels and the game: each stage a level the equipped hero pilots, the game over them, unaudited and said so
+    expect(out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.key)).toEqual(['level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1']);
+    expect(stored('gw-level-meadow-ascent-0')).toMatchObject({ kind: 'stage', game: { levelRef: 'gw-level-meadow-ascent-0' }, figures: { hero: { heroRef: 'gw-hero-equipped' } } });
+    expect(stored('gw-game')).toMatchObject({ kind: 'game', store: { slices: expect.arrayContaining([expect.objectContaining({ kind: 'character' })]) } });
+    expect(stored('gw-game').levels.map((l) => l.ref)).toHaveLength(5);
+    expect(out.next.join('\n')).toMatch(/walkable by construction.*whether they can be beaten is yours to judge in play/);
+    // the numbers, readable without the bible
+    expect(out.numbers.stats).toMatchObject({ hp: 100, power: 10, guard: 5 });
+    expect(out.numbers.powers.map((p) => p.key)).toEqual(['1', '2', '3']);
     expect(out.steps).toEqual({ adornment: 'ready', systems: 'ready', equipment: 'ready' });
   }, 240_000);
 
@@ -72,7 +83,8 @@ describe('design_game', () => {
     // the colour page moves: the hero is remade in place, the systems world and the gear are kept
     const moved = await designGameHandler({ ref: 'gw', patch: [{ op: 'set', path: '/characters/hero/looks/colour', value: { palette: { Hair: '#2a2a2a' } } }], run: true });
     expect(action(moved, 'hero')).toBe('remake');
-    expect(moved.ran.filter((r) => r.key !== 'hero').every((r) => r.action === 'keep')).toBe(true);
+    expect(action(moved, 'hero-equipped')).toBe('remake');   // she wears the same colours
+    expect(moved.ran.filter((r) => !r.key.startsWith('hero')).every((r) => r.action === 'keep')).toBe(true);
     expect(stored('gw-hero').hero.palette.Hair).toBe('#2a2a2a');
     expect(stored('gw-hero')).not.toEqual(heroRev);
     // the creator edits the sword by hand, then the world's gear language moves: the sword is left, the rest remade
@@ -109,6 +121,14 @@ describe('design_game', () => {
     expect(after.comparison.reference).toBe('meadowmark');
     expect(after.comparison.differs.find((r) => r.choice === 'primary')).toMatchObject({ world: 'sun' });
   }, 120_000);
+
+  it('a page the hero door would refuse is refused when written; a failure after the write names the stored ref', async () => {
+    const bad = { ...GATED, characters: { ...GATED.characters, hero: { ...GATED.characters.hero, looks: { ...GATED.characters.hero.looks, body: { cast: 'female', tune: { height: 1.1 } } } } } };
+    await expect(designGameHandler({ world: bad, ref: 'gw' })).rejects.toThrow(/the hero the looks and motion pages compose is refused by the hero door/);
+    expect(SketchRepository.getByRef('gw')).toBeFalsy();
+    await designGameHandler({ world: GATED, ref: 'gw' });
+    await expect(designGameHandler({ ref: 'gw', approve: 'hero:cape' })).rejects.toThrow(/stored at 'gw' as written; fix it with design_game\(\{ ref: 'gw', patch \}\)/);
+  });
 
   it('says what is wrong: an unknown part, a send-back without a note, a sketch that is not a gameworld', async () => {
     await designGameHandler({ world: GATED, ref: 'gw' });
