@@ -27,7 +27,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   `docs/STATUS.md` is the maintainer's gitignored ledger; regenerate it from tree state, never trust it.
 - Version: `package.json` says 3.1.0, not yet published (npm has 3.0.0, no `v3.1.0` tag): the dated 3.1.0 section and Unreleased ship together as 3.1.0 (3.0.0 was released 2026-10-01; 3.0.1 was prepared and never released, and its work ships in 3.1.0; 2.1.0 was released 2026-09-23; 2.2 was prepared and never released, and its work ships in 3.0.0; the plugin, `glama.json` and `server.json` pin the same version, checked by `control/scripts/check-plugin-version.mjs`; `mojulo orient` is the shell's `initialize` since 2.1.0; the exported World page is self-contained by default again since 3.0.0 (2.0.9 through 2.1 loaded three.js from the pinned CDN) — `cdn: true` for the CDN build an artifact host needs; 2.0.5 is broken on fresh installs, see `CHANGELOG-2.x.md`; the embedding runtime is the opt-in `recall` group since 2.0.7; the chatbot factory left in 3.0.0).
   Unreleased is empty at the tag; new work goes under it as `###` themes.
-- Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (substrate, rings, data, daemons),
+- Deep maps: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) (rings and packs, workflows, substrate, data),
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
   [docs/install-capabilities.md](docs/install-capabilities.md) (kernel + packs + install groups),
   [CONTRIBUTING.md](CONTRIBUTING.md) (recipe book vs core), [AGENTS.md](AGENTS.md) (non-Claude hosts).
@@ -59,7 +59,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 - Never read or echo `.env` secrets from generated app directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
 - Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
-  Absence degrades a loop, never breaks one.
+  Absence degrades a loop, never breaks one. Search orders live in `control/lib/workers/find.js` (`version({ workers: true })`).
 - Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 
 ## MCP tool surface (the tests that bite)
@@ -69,7 +69,7 @@ live in `tool-descriptions.test.js`; the packs payload pin lives in `packs.test.
 addition crosses a pin, re-pin it in the same commit with a comment saying why. New tool checklist: register in ring order in
 `server.js`; exactly one pack home in `packs.js`; one line and a verb in `tool-lines.js` (the tool index, the form
 bodies and the pack menus are generated from it), plus its form's `tools` in `context.js` if creative; a routing card (ceiling in `routing-cards/loader.js`) plus a `routing-eval.fixture.js` row if creative; the
-`RING10_TOOLS` list in `context.test.js`. `forward_context` is a routing index, not a glossary; its bodies
+`RING10_TOOLS` list in `context.test.js`; its row in `tool-annotations.js`. An unlisted tool is unreachable from the agent (CLI and plan steps only), so a fold rewrites every pointer to the old name. `forward_context` is a routing index, not a glossary; its bodies
 have their own byte ceilings. Full map: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#mcp-control-surface).
 
 ## Commands

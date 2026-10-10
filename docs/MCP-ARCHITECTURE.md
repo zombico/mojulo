@@ -10,7 +10,7 @@ This doc covers the control surface: transport, gating, session binding, the del
 
 ## 1. Topology
 
-The MCP surface is a single Next.js route ([api/mcp/route.js](../control/app/api/mcp/route.js)) that owns transport + auth and forwards parsed JSON-RPC into [server.js](../control/lib/mcp/server.js), which owns protocol semantics + tool dispatch. Tools live under [control/lib/mcp/tools/](../control/lib/mcp/tools/), grouped for the agent into **wings and packs** (§2).
+The MCP surface is a single Next.js route ([api/mcp/route.js](../control/app/api/mcp/route.js)) that owns transport + auth and forwards parsed JSON-RPC into [server.js](../control/lib/mcp/server.js), which owns protocol semantics + tool dispatch. Tools live under [control/lib/mcp/tools/](../control/lib/mcp/tools/), grouped for the agent into **rings and packs** (§2).
 
 ```
    MCP client agent                Control plane (Next.js, port 3001)
@@ -49,95 +49,64 @@ Key invariants:
 
 - **Auth is opt-in.** With `CONTROL_PLANE_MCP_KEY` unset the route returns `404` (not `401`) so external probes can't fingerprint whether MCP is "off" vs "wrong key". Same single-operator posture as the rest of the control plane — never expose `/api/mcp` to the public internet.
 - **Tool execution failures return as MCP `tool_result` with `isError:true`**, not JSON-RPC errors — per spec, so the connecting model sees the failure and can react inside its loop.
-- **Lazy tool registration.** `ensureToolsRegistered()` (in [server.js](../control/lib/mcp/server.js)) fires on first request; the registration order is **deliberate** because most MCP clients surface `tools/list` to the model as a list — the natural reading order surfaces orientation first, then the creative mints, then the automation backend. Don't reorder casually.
+- **Lazy tool registration.** `ensureToolsRegistered()` (in [server.js](../control/lib/mcp/server.js)) fires on first request; the registration order is **deliberate** because most MCP clients surface `tools/list` to the model as a list — the natural reading order surfaces orientation first, then the creative mints by ring, then the workflows. Don't reorder casually.
 - **GET on `/api/mcp` is reserved** by the Streamable HTTP spec for server-initiated SSE; we 405 it for now. The wire shape currently in use is "POST a JSON-RPC message, get one back" plus batch arrays.
 
 ---
 
-## 2. Wings, packs, and gating
+## 2. Rings, packs, and gating
 
-What the connecting agent actually sees is **two wings over the packs declared in `packs.js`**, gated by what is installed on the host. (The ring numbering below predates this and survives as registration order — read it second, not first.)
-
-A **wing** is taxonomy and routing: `forward_context()` opens the STUDIO wing by default, `forward_context({mode:'office'})` opens the automation backend. A **pack** is the unit of install and the unit the agent opens. Each pack declares a `wing`, and either an `installGroup` (`creative`) or none — a pack declaring none is unconditional, like the kernel.
+What the connecting agent sees is **the packs declared in `packs.js`, grouped by ring**, gated by what is installed on the host. A **ring** is what a thing is for: orientation, Characters, Solids (Print), Worlds, Games (Play), Read, Audio (Hear), Observe (`kernel` in code) and Workflows (`RING_TITLES` in [tool-lines.js](../control/lib/mcp/tool-lines.js)). A **pack** is the unit of install and the unit the agent opens; it declares its `ring`, its creative `form`, and either an `installGroup` (`creative`) or none, in which case it is unconditional like the kernel. The spine (`SPINE`) is always listed directly.
 
 ```
-                       ┌──────────────────────────────────────┐
-                       │  Ring 0 — orientation (always on)    │
-                       │  forward_context · get_adapter       │
-                       │  get_tool_index · get_substrate · …  │
-                       │  + the KERNEL: mint_diagram          │
-                       └──────────────┬───────────────────────┘
-                                      │
-        forward_context()  ◄──────────┴──────────►  forward_context({mode:'office'})
-        ┌───────────────────────────┐         ┌────────────────────────────────────┐
-        │  STUDIO — the 3D compiler │         │  OFFICE — automation backend       │
-        │  (the DEFAULT read)       │         │                                    │
-        │                           │         │  installGroup: none (always on)    │
-        │  installGroup: 'creative' │         │   pack_connected_services          │
-        │   pack_diagram            │         │   pack_runtime                     │
-        │   pack_illustration       │         │   pack_plan                        │
-        │   pack_reference          │         │   pack_research                    │
-        │   pack_image_render       │         │   pack_stash                       │
-        │   pack_object             │         │   pack_catalysts                   │
-        │   pack_world              │         │                                    │
-        │   pack_view               │         │                                    │
-        │   pack_motion             │         │                                    │
-        │   pack_audio              │         │                                    │
-        │   pack_voice              │         │                                    │
-        │   pack_game               │         │                                    │
-        │                           │         │                                    │
-        │  always installed         │         │                                    │
-        └───────────────────────────┘         └────────────────────────────────────┘
+   spine (always listed)       forward_context · semantic_search · get_tool_index · get_register_kit · get_substrate
+                               · get_ui_map · version · … · mint_diagram (the kernel)
+   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   characters   pack_character                         │  games      pack_game
+   solids       pack_object · pack_building            │  read       pack_view · pack_illustration · pack_reference · pack_diagram
+   worlds       pack_world                             │  audio      pack_audio · pack_voice
+   kernel       pack_motion (Observe)                  │  workflows  pack_plan · pack_research · pack_stash · pack_catalysts
+                                                       │             · pack_image_render (the worker handoffs)
+   ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   retired (3.1.0): pack_runtime · pack_connected_services   — registered, never listed, never routed
 ```
 
-| Wing | Install group | Pack | What it makes |
-|---|---|---|---|
-| studio | creative | `pack_diagram` | Diagrams & charts |
-| studio | creative | `pack_illustration` | Scene & figure illustration |
-| studio | creative | `pack_reference` | Visual reference (from a photo) |
-| studio | creative | `pack_image_render` | AI-image render pipeline (the director layer) |
-| studio | creative | `pack_object` | 3D solids, figures & objects |
-| studio | creative | `pack_world` | Worlds (traversable) |
-| studio | creative | `pack_view` | Study views (science / math / bio) |
-| studio | creative | `pack_motion` | Motion, film & motion-comic |
-| studio | creative | `pack_audio` | Audio — Mojulo Beats |
-| studio | creative | `pack_voice` | Voice — Mojulo Voice |
-| studio | creative | `pack_game` | Game |
-| office | *(none)* | `pack_connected_services` | MCP deliberation & binding |
-| office | *(none)* | `pack_runtime` | Apps, daemons & agent tasks |
-| office | *(none)* | `pack_plan` | Plan mode |
-| office | *(none)* | `pack_research` | Research mode |
-| office | *(none)* | `pack_stash` | Gather / stash / cook / publish |
-| office | *(none)* | `pack_catalysts` | Catalysts, adapters & extension |
+Roster, membership and each pack's ring and install group: [packs.js](../control/lib/mcp/packs.js) (the diagram above is a picture of it; the file is the truth).
 
-Roster and membership: [packs.js](../control/lib/mcp/packs.js).
+**Every listed tool has one line and one verb.** `TOOL_LINES` in [tool-lines.js](../control/lib/mcp/tool-lines.js) holds a line and a verb (`create` · `update` · `compose` · `observe` · `maintain` · `orient`) per listed tool; `get_tool_index`, the `get_creative_toolset` form bodies and the pack menus are generated from it. The sweep in `context.test.js` holds its keys equal to the listed tools.
 
 **Install is PACK-grain, and derived from disk.** State comes from what is physically present on the host, with `MOJULO_PACKS` as an explicit override. The creative stack ships with every install (only a `MOJULO_PACKS` override gates it off; its heavy helpers are optional dependencies that fail in-band when missing); the embedding runtime is the opt-in `recall` group, which no pack joins. The kernel alone can still mint a diagram: `mint_diagram` is spine, not pack. See [install-capabilities.md](install-capabilities.md).
+
+**The office wing left the surface in 3.1.0.** Its packs moved to `RETIRED_PACKS`: apps and daemons, the contextmap, declared skills, the mcp-orbit composer, and primitive and trigger binding. Their tools stay registered but never list and are never routed to; the code and tables stay. The MCP inventory and capability reads and the agent-task queue stayed, in `pack_catalysts`, for the Workflows that reach the operator's other workers and MCPs. `forward_context({ mode: 'office' })` answers with the one studio body and a line saying so. §4 and §6 describe the retired surfaces as they still work by name.
+
+**Listed is reachable; unlisted is not, for the agent.** A host that defers schemas (Claude Code) gets the flat registry; others get packs mode. In both, the agent can call only what is listed (or a listed pack's members). An unlisted tool — a retired pack's member, a deprecated alias such as the per-op render handoff names behind `render_handoff` — runs on the CLI and in `execute_plan` steps (with a deprecation warning at compile), not from the agent's own tool call. Folding tools into a wider one therefore rewrites every pointer to the old names.
 
 **The chatbot factory left.** The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its own project. Earlier 2.x versions that include it are unmaintained and have known security issues. Its tool names never list, but a call to one (directly, through a pack, in a plan step or on the CLI) answers in-band with that notice ([bot-factory-moved.js](../control/lib/mcp/bot-factory-moved.js)); `mojulo install chatbot` installs nothing and prints it; a 2.x `packs/chatbot` marker or `MOJULO_PACKS=chatbot` is ignored, and `mojulo tools` / `mojulo packs` say so.
 
 **The iron wall is execution, not information.** An uninstalled pack's tools do not list and do not run, and refuse with an advisory naming the install rather than pretending not to exist. `mojulo tools` / `mojulo packs` list only installed packs with a `not installed: … add with: …` footer. Knowledge is never hidden; only execution is walled.
 
-**Packs mode.** On hosts that do not already defer tool schemas client-side, `tools/list` carries a small spine plus **one tool per pack** — a result-shaped bundle whose description says what it makes. The agent calls a pack with no arguments to open it: the orientation and a menu of members, where a small member carries its manual (description and input schema) inline and a larger one names its manual's size. `pack_x({ manual: '<name>' })` reads a member's manual (a list reads several), and members run through the pack: `pack_audio({ tool: 'create_beats', args: { … } })`. A member's error through a pack ends with where its manual is. Packs are additive — open what the session needs, no more. Hosts that defer schemas natively get the flat registry instead ([server.js](../control/lib/mcp/server.js), `clientDefersSchemas`).
+**Packs mode.** On hosts that do not already defer tool schemas client-side, `tools/list` carries a small spine plus **one tool per pack** — a result-shaped bundle whose description says what it makes. The agent calls a pack with no arguments to open it: the orientation and a menu of members (each its line from `tool-lines.js`), where a small member carries its manual (description and input schema) inline and a larger one names its manual's size; a member shared from another pack shows its line and a pointer to its home pack's manual. `pack_x({ manual: '<name>' })` reads a member's manual (a list reads several), and members run through the pack: `pack_audio({ tool: 'create_beats', args: { … } })`. A member's error through a pack ends with where its manual is. Packs are additive — open what the session needs, no more. Hosts that defer schemas natively get the flat registry instead ([server.js](../control/lib/mcp/server.js), `clientDefersSchemas`).
+
+**Workflows: the agent hands over a list once.** `execute_plan` runs a chain written once (`{ $step, path }` references, [plan-refs.js](../control/lib/mcp/plan-refs.js)); `run_experiment_sweep({ ref, path, values })` mints variations of any recipe into one folder; `cook({ items })` gathers and publishes in one call; `design_game` answers with `next` step ids; `render_handoff({ medium, op })` is the external worker loop; `version({ workers: true })` says which optional workers this host has ([lib/workers/find.js](../control/lib/workers/find.js)).
 
 ### Rings — registration order (legacy vocabulary)
 
-Rings are the order tools register in, and the vocabulary much of the code and prose still uses. They are **not** how the agent orients — that is the wing/pack split above. Read them when you are working *inside* the server.
+Rings are the order tools register in, and the vocabulary much of the code and prose still uses. They are **not** how the agent orients — that is the ring/pack split above (the named rings in `tool-lines.js` replaced the numbers for that). Read them when you are working *inside* the server.
 
 | Ring | Purpose | Source |
 |---|---|---|
 | 0 | Orientation — routing index + drawers | [context.js](../control/lib/mcp/tools/context.js), [adapters.js](../control/lib/mcp/tools/adapters.js) |
 | 1–4 | *Retired in 3.0.0* — the chatbot factory's build, jobs, operate and fleet lanes left with it. The numbers are not reused. | — |
 | 5 | Curated workflow recipes (catalysts) | [catalysts.js](../control/lib/mcp/tools/catalysts.js) |
-| 6 | Deliberation about structure — the surfaces listed in §4, all paradigm-independent | see §4 |
-| 7 | Runtime: app lifecycle + the agent-task queue | [runner.js](../control/lib/mcp/tools/runner.js), [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) |
+| 6 | Deliberation about structure — the surfaces listed in §4; mostly retired from the surface in 3.1.0 (semantic recall, the inventory and capability reads stay listed) | see §4 |
+| 7 | Runtime: app lifecycle (retired from the surface in 3.1.0) + the agent-task queue (listed, `pack_catalysts`) | [runner.js](../control/lib/mcp/tools/runner.js), [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js) |
 | 8 | Plan mode — proposed/speculative, compiles against the live registry | [plan-mode.js](../control/lib/mcp/tools/plan-mode.js) |
 | 9 | Research mode — accretive exploratory drawer upstream of plans | [research-mode.js](../control/lib/mcp/tools/research-mode.js) |
 | 10 | **Creative mints — the whole studio.** Re-cut by FORM rather than listed flat: `get_creative_toolset` (no arg → the form map; `{ form }` → that form's tools) is the reader, and `get_tool_index` points at it instead of enumerating. | [creative-forms.js](../control/lib/mcp/creative-forms.js), [context.js](../control/lib/mcp/tools/context.js) |
 
-Ring number is a poor proxy for weight — Ring 10 carries eleven packs behind one folded reader, while Rings 1–4 are empty. **Ring 11** ("operations view") is deprecated; it survives only as internal naming in [ops-tags.js](../control/lib/db/repositories/ops-tags.js).
+Ring number is a poor proxy for weight — Ring 10 carries most packs behind one folded reader, while Rings 1–4 are empty. **Ring 11** ("operations view") is deprecated; it survives only as internal naming in [ops-tags.js](../control/lib/db/repositories/ops-tags.js).
 
-**Why `forward_context` matters.** The `initialize` preamble surfaced to the connecting model is deliberately *tiny* — it names the paradigms with their entry tools — Media and Game leading — says in one line that chatbots are not built here, then points at `forward_context`. `forward_context` is itself a **thin routing index** (pinned by the body-ceiling test in `context.test.js`, ~2.5K tokens), not a full briefing: a lean opener, a `user-framing → entry-tool` table, a directory of drawers, and the standing safety + commitment rules. Its Create-things section is a **mini segmented index** — one row per FORM (picture / object / world / motion / audio / game / publication) naming recognizers + entry tool; the full per-family routing rows (recognizer quotes + fork sentences) live as **routing cards** under [lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/), indexed as `routing` in semantic recall and returned *whole* by `semantic_search({kinds:['routing']})` (no follow-up reader). The rest of the heavy content drawerizes behind sibling Ring 0 tools the agent pulls only when a task needs depth — `get_register_kit` (concept glossary + narration register), `get_tool_index` (the full one-line-per-tool index), `get_deliberation_overview` (the Ring 6 structural model), `get_creative_toolset` (one creative FORM's tools), `get_ui_map` (dashboard pages), `get_substrate` (what mojulo is, what it can claim, posture and costs). Most tool descriptions in `tools/list` self-route, so the agent often routes from the outer layers (preamble + tool descriptions + this index) without drilling further. **When you add a tool, give it a line in [tool-lines.js](../control/lib/mcp/tool-lines.js)** (the tool index, the form bodies and the pack menus are generated from it) and, if it is an entry point, a routing row in [context.js](../control/lib/mcp/tools/context.js) — a missing entry leaves the connecting agent flying blind; the registry-sweep test in `context.test.js` enforces this (every listed tool has exactly one line; unlisted deprecated aliases are exempt). A new `create_view` kind or `compose_world` base is NOT a new tool — it needs a view-vocab card under [lib/graph/views/view-vocab/](../control/lib/graph/views/view-vocab/), not an index row; a kind contributed by an attached recipe book needs neither, since its card travels with it. A new **creative capability** needs a routing card + fixture rows in the retrieval eval ([routing-eval.integration.test.js](../control/lib/mcp/routing-cards/routing-eval.integration.test.js) — paraphrased phrasings → expected entry tool against the real local embedder), NOT a new fat Create-things row. See tool-list-drawerization.plan.md.
+**Why `forward_context` matters.** The `initialize` preamble surfaced to the connecting model is deliberately *tiny* — it names what mojulo makes by use (Play · Print · Read · Hear · Observe) with the entry tools, then Workflows, says in one line that chatbots are not built here, then points at `forward_context`. `forward_context` is itself a **thin routing index** (its byte ceilings are pinned in `context.test.js`), not a full briefing: a lean opener, a `user-framing → entry-tool` table, a directory of drawers, and the standing safety + commitment rules. Its Create-things section is a **mini segmented index** — one row per FORM (picture / object / world / motion / audio / game / publication) naming recognizers + entry tool; the full per-family routing rows (recognizer quotes + fork sentences) live as **routing cards** under [lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/), indexed as `routing` in semantic recall and returned *whole* by `semantic_search({kinds:['routing']})` (no follow-up reader). The rest of the heavy content drawerizes behind sibling Ring 0 tools the agent pulls only when a task needs depth — `get_register_kit` (concept glossary + narration register), `get_tool_index` (the full one-line-per-tool index, by ring), `get_creative_toolset` (one creative FORM's tools), `get_ui_map` (dashboard pages), `get_substrate` (what mojulo is, what it can claim, posture and costs). Most tool descriptions in `tools/list` self-route, so the agent often routes from the outer layers (preamble + tool descriptions + this index) without drilling further. **When you add a tool, give it a line in [tool-lines.js](../control/lib/mcp/tool-lines.js)** (the tool index, the form bodies and the pack menus are generated from it) and, if it is an entry point, a routing row in [context.js](../control/lib/mcp/tools/context.js) — a missing entry leaves the connecting agent flying blind; the registry-sweep test in `context.test.js` enforces this (every listed tool has exactly one line; unlisted deprecated aliases are exempt). A new `create_view` kind or `compose_world` base is NOT a new tool — it needs a view-vocab card under [lib/graph/views/view-vocab/](../control/lib/graph/views/view-vocab/), not an index row; a kind contributed by an attached recipe book needs neither, since its card travels with it. A new **creative capability** needs a routing card + fixture rows in the retrieval eval ([routing-eval.integration.test.js](../control/lib/mcp/routing-cards/routing-eval.integration.test.js) — paraphrased phrasings → expected entry tool against the real local embedder), NOT a new fat Create-things row.
 
 **Standing secrets rule.** The initialize preamble also tells the connecting agent: treat `.env` files under `$MOJULO_HOME` and inside any generated app directory as user secrets. `list_env` names an app's keys without their values and `set_env` / `delete_env` change them. The agent must never `cat`, `Read`, or echo raw `.env` contents.
 
@@ -206,6 +175,8 @@ The `tool.handler(input, ctx)` step above is wrapped by a single instrumentation
 ---
 
 ## 4. Ring 6 in detail
+
+*Since 3.1.0 most of this ring is off the tool surface (`pack_connected_services` is in `RETIRED_PACKS`): the contextmap, the composer, primitive and trigger binding still answer by name on the CLI and in plan steps, and are never listed or routed to. Semantic recall (§4g) and the inventory and capability reads (§4b, §4c) stay listed. The design below is kept as the description of what still runs.*
 
 Ring 6 is the deliberation layer. Where Ring 5 and the rings after 6 do work (recommend recipes, run apps, plan, mint), Ring 6 records **why** structural decisions were made, what the operator's environment looks like, what vendors are known to support what, what compositions have been proposed, what artifacts have been bound — and lets the agent recall any of it.
 
@@ -298,6 +269,8 @@ Source: [semantic-search.js](../control/lib/mcp/tools/semantic-search.js).
 ---
 
 ## 6. The two MCP-to-MCP composition flows
+
+*Retired from the tool surface in 3.1.0 with the rest of the office wing; both flows still run by name. A flow across mojulo and another MCP now lives in a catalyst the host runs as a Skill (§7).*
 
 mcp-orbit and primitive-binding (both in Ring 6) are **sibling composers**, not replacements. They synthesize the same downstream — a host-adapter materialization sealed via `meta_context_commit` — but differ in what flows into the synthesis.
 
@@ -412,7 +385,7 @@ Migration is in the migration block in [db/index.js](../control/lib/db/index.js)
 | [control/lib/db/repositories/embeddings.js](../control/lib/db/repositories/embeddings.js) | Split sync/async helpers that keep `meta_embeddings` in lockstep with source writes |
 | [control/scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js) | Manual recovery / body-composition-change path |
 | [control/lib/mcp/tools/runner.js](../control/lib/mcp/tools/runner.js) | Ring 7 — app lifecycle tools (`install_scaffold`, `start_app`, `stop_app`, `status_app`, `list_running`, env CRUD) |
-| [control/lib/mcp/packs.js](../control/lib/mcp/packs.js) | The 20-pack roster — wing, installGroup, members. The grouping the agent sees (§2) |
+| [control/lib/mcp/packs.js](../control/lib/mcp/packs.js) | The pack roster — ring, form, installGroup, members — and `RETIRED_PACKS`. The grouping the agent sees (§2) |
 | [control/lib/mcp/creative-forms.js](../control/lib/mcp/creative-forms.js) | The creative-mint FORM enum behind `get_creative_toolset` (Ring 10) |
 | [control/lib/mcp/routing-cards/](../control/lib/mcp/routing-cards/) | Per-capability routing cards, returned whole by `semantic_search({kinds:['routing']})` |
 | [control/lib/runners/local.js](../control/lib/runners/local.js) | Loopback HTTP client; lifecycle verbs proxy to the daemon, env CRUD stays local filesystem |

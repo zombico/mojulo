@@ -112,6 +112,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   still happens without it. It launches nothing (a found path is a file; the script that uses it still checks it).
   The search orders now live in one place, `lib/workers/find.js`, and the export, bake and verify scripts use it;
   `blender-bake`, `bake-world-gi` and `audit-figure-mesh` now also find a `blender` on PATH, as the export scripts did.
+- **The docs follow the surface.** `docs/AGENT-REFERENCE.md` and `docs/MCP-ARCHITECTURE.md` lead with ring → pack →
+  tool line and the Workflows rails, drop the wing split (packs no longer declare `wing`), and mark the office
+  surfaces as retired but callable by name. They also say plainly that an unlisted tool is reachable from the CLI and
+  plan steps, not from the agent's own tool call. The README, the plugin README and the plugin skill's trigger
+  description carry the 3.1 position (a 3D factory with a media studio).
 
 ### Gameworlds: a door for agents
 

@@ -2,9 +2,7 @@
 
 Mojulo is a **kernel** plus **always-present packs** plus **install groups**, one of them opt-in. This doc is the
 source of truth for that shape: what's always present, what's optional, how mojulo knows which it is, and
-how an operator grows a lean install into the full workshop. The build log, rationale, and audit evidence
-live in install-capabilities.plan.md;
-this is the orientation layer.
+how an operator grows a lean install into the full workshop.
 
 ## The shape in one paragraph
 
@@ -12,13 +10,13 @@ There is a small, always-present **kernel** — "what mojulo *is*" — surrounde
 `installGroup` and is gatable, or declares none and is unconditional like the kernel. The groups are
 **creative** (the render / media / games stack — the flagship default, always installed) and **recall** (the
 embedding runtime behind vector `semantic_search`; opt-in, no pack of its own).
-Everything else — connected services, catalysts, triggers, apps/daemons, plan, research, stash — declares
-no group and is always present. The kernel alone can already mint a diagram.
+Everything else — the Workflows packs (plan, research, stash, catalysts) — declares no group and is always
+present, as are the retired office packs (apps/daemons, connected services; registered, never listed since 3.1.0).
+The kernel alone can already mint a diagram.
 
-> **Install is PACK-grain, not wing-grain (2.0).** Until 2.0 a pack's install state was a function of its
-> `wing`, which tied the whole office wing's fate to the chatbot factory's. `wing` is now the
-> taxonomy/routing field only; install is orthogonal. See
-> `mojulo-2.0-pure-creative.plan.md` (Phase 1a).
+> **Install is PACK-grain (2.0).** Until 2.0 a pack's install state was a function of its wing, which tied the
+> whole office wing's fate to the chatbot factory's. Packs now declare a `ring` (what a thing is for) and, separately,
+> an install group; the `wing` field is gone.
 
 ## What lives where
 
@@ -204,6 +202,4 @@ render identically through both paths, plus the **standard diagram patterns** �
 activation bars, self-messages), swimlane lanes, ERD/UML entities, containment/C4 boundaries,
 timeline/Gantt on a numeric scale, and richer edge notation (arrowhead styles, multiplicities,
 self-loops). These are validated in [control/lib/diagram-core.js](../control/lib/diagram-core.js) and
-covered by the `diagram-core.*` suites. Design history and the per-pattern rationale live in
-diagram-patterns-spike.plan.md
-and kernel-diagram-surface.plan.md.
+covered by the `diagram-core.*` suites.

@@ -93,7 +93,7 @@ For comparison, Claude Code uses `claude mcp add --transport http mojulo http://
 Everything below is host-neutral. Start with [CLAUDE.md](CLAUDE.md), then use [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md) for denser agent-facing detail:
 
 - Repo shape and the creative substrate (one table, one row per recipe).
-- MCP tool rings (Ring 0 orientation through Ring 10 creative mints) and the wing / pack split.
+- How the tool surface is organized: rings (Characters, Solids, Worlds, Games, Read, Audio, Observe, Workflows), packs, and one line per tool.
 - The deliberation surfaces (contextmap, inventory, mcp-orbit, semantic recall) and the runtime (apps, the agent-task queue).
 - Native-dependency landmines and data layout.
 

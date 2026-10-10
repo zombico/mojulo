@@ -2,7 +2,36 @@
 
 Dense agent-facing reference for details that used to live in `CLAUDE.md`. This doc is intentionally more specific than the fast orientation file, but still points to source-of-truth docs and code for the deepest details.
 
-Mojulo is a **3D compiler for agents** (a compiler, not a generator: the recipe is the source, renders are derived): the creative substrate is the main line, and the automation backend sits behind it. The chatbot factory is no longer part of mojulo (see [The chatbot factory](#the-chatbot-factory)).
+Mojulo is a **3D factory with a media studio**: the agent makes things to **Play**, **Print**, **Read**, **Hear** and **Observe** by conversation, and each one is a deterministic recipe (the recipe is the source, renders are derived). **Workflows** orchestrate the rest for batches and variations. The canonical self-description is the `get_substrate` drawer in [context.js](../control/lib/mcp/tools/context.js). The office wing (apps, daemons, the contextmap, MCP-to-MCP binding) left the tool surface in 3.1.0 (see [The retired office surface](#the-retired-office-surface)); the chatbot factory left in 3.0.0 (see [The chatbot factory](#the-chatbot-factory)).
+
+## How the surface is organized: ring → pack → tool line
+
+**Rings are what a thing is for.** Each pack in [packs.js](../control/lib/mcp/packs.js) carries a `ring`; `RING_TITLES` in [tool-lines.js](../control/lib/mcp/tool-lines.js) names them in index order: orientation, Characters, Solids (Print), Worlds, Games (Play), Read (pictures, diagrams, study views, publications), Audio (Hear), Observe (motion; the ring is called `kernel` in code, named before the rings were), and Workflows. Worlds are the testbed the others show up in; Workflows orchestrate.
+
+**Packs are the unit of install and of opening.** A pack declares its `ring`, a `form` (the creative-form key `get_creative_toolset` reads), and either an `installGroup` (`creative`) or none, in which case it is always present like the kernel. The spine (`SPINE` in packs.js) is always listed directly. Retired packs (`RETIRED_PACKS`) keep their tools registered but never listed.
+
+**Every listed tool has one line and one verb.** `TOOL_LINES` in [tool-lines.js](../control/lib/mcp/tool-lines.js) is the single source: `get_tool_index`, the form bodies of `get_creative_toolset` and the pack menus are generated from it. The verbs are `create` (a new thing at a ref), `update` (revise one in place), `compose` (put made things together), `observe` (measure, compare, record), `maintain` (keep, list, organize, hand over work) and `orient` (a map or a manual). A line that names a door the Claude plugin profile closes carries a `plugin` variant.
+
+**Entry tools by outcome:**
+
+- **Characters**: `create_character` (`as` hero, creature or animal; the `mint_solid` layered and animal recipes, rigged).
+- **Print**: `mint_solid` / `edit_solid` (`kind:'scad'` stores an OpenSCAD program as the recipe), `mint_building`, `fabricate_solid` (what each part must do → standard parts and their cuts), `measure_solid`, `export_model`.
+- **Worlds**: `compose_world`.
+- **Play**: `design_game` (the rail: stamps, steps and `next` step ids), `create_game`.
+- **Read**: `create_sketch` (diagrams, charts, illustrations), `create_view` (study objects), `cook` / `forge_publications` (publications).
+- **Hear**: `create_beats`, `create_voice`.
+- **Observe**: `forge_motion` / `stitch_motion`.
+
+Recipes are **starters**: `update_sketch` iterates in place on the same ref rather than re-minting; its `patch` form edits a stored recipe by monomer `id` or JSON Pointer `path` (applier in [manifest-patch.js](../control/lib/mcp/tools/manifest-patch.js)), and `readout:'changed'` reports only the parts that moved.
+
+## Workflows: the agent hands over a list once
+
+- **Plans**: `forge_plan` → `compile_plan` → `execute_plan` (confirm-gated). A step takes an earlier step's result as `{ $step, path }`, a JSON Pointer into it ([plan-refs.js](../control/lib/mcp/plan-refs.js)), so a chain (mint → vary → measure → export) is written once.
+- **Variations**: `run_experiment_sweep({ ref, path, values })` copies a stored recipe once per value at a JSON Pointer and mints each copy through `create_sketch`'s gates into one new folder. The mechanics form (`research_ref`, `base`, `param`) binds SI-honest experiments into a research book with a plot.
+- **Stash → cook**: `cook({ items, aim, report_md })` gathers intake-checked items into a new stash and publishes it in one call; `mint_stash` → `gather` → `cook({ slices })` is the path for material collected over many turns.
+- **The game rail**: `design_game` answers each stamp and the `next` step ids (meanings on the `gameworld-next` card); `readout:'changed'` returns only what moved, and a no-op writes nothing.
+- **Worker handoffs**: `render_handoff({ medium: 'image' | 'mesh', op })` is the durable request → pull → submit → accept | reject loop for an external generator. The ten per-op names (`request_image_render` … `reject_mesh_render`) stay registered for worker scripts, unlisted.
+- **Catalysts**: curated recipes ([catalysts/](../control/lib/mcp/catalysts/)) that reach the operator's other workers and MCPs, e.g. Blender MCP first with mojulo's `blender-bake` as the fallback.
 
 ## The creative substrate
 
@@ -10,72 +39,47 @@ Mojulo is a **3D compiler for agents** (a compiler, not a generator: the recipe 
 
 **Recipes, not renders — and what that obliges.** A kernel in the control plane regenerates the artifact on *every* read, so a kernel's output for given params is a compatibility promise over already-minted rows. Seeded dice only (`mulberry32`); never `Math.random` or `Date.now` in a builder. A byte-identical re-render is the baseline test for any change to a kernel.
 
-**Entry tools by form** — `create_sketch` (2D diagrams/charts), `create_view` (study objects; the kinds enumerated in `create-view.js` across science/math/bio), `compose_world` (generated worlds), `mint_solid` / `edit_solid` (objects, figures, vehicles, manji-trees; `kind:'scad'` stores an OpenSCAD program as the recipe), `edifice` (authored buildings), `forge_motion` / `stitch_motion` (camera shots and clips), `create_beats` (audio), `create_voice`, `create_game`, `cook` / `forge_publications`, `request_image_render` (the director layer for external painting). Recipes are **starters**: `update_sketch` iterates in place on the same ref rather than re-minting; its `patch` form edits a stored recipe by monomer `id` or JSON Pointer `path` (applier in [manifest-patch.js](../control/lib/mcp/tools/manifest-patch.js)), and `readout:'changed'` reports only the parts that moved.
-
 **Render and export dispatch.** `sketchRenderMode` in [sketch-manifest.js](../control/lib/graph/sketch/sketch-manifest.js) routes a stored manifest kind to its render path; `WORLD_KINDS` in [world-scene.js](../control/lib/graph/worlds/world-scene.js) resolves world geometry. One geometry spec serves several emitters off a single ref — SVG ([scene-png.js](../control/lib/graph/scene/scene-png.js)), dependency-free CSS-3D ([scene-css3d.js](../control/lib/graph/scene/scene-css3d.js)), traversable WebGL ([scene-three.js](../control/lib/graph/scene/scene-three.js)), `.glb` ([scene-gltf.js](../control/lib/graph/scene/scene-gltf.js)), `.stl` ([scene-stl.js](../control/lib/graph/scene/scene-stl.js)), and a Godot project ([godot-project.js](../control/lib/graph/scene/godot-project.js)); pixelizer reducer games have no scene and take the arcade leg instead ([godot-arcade.js](../control/lib/graph/scene/godot-arcade.js), its own kernel, a replay probe as the gate). Each emitter owns its own frame and unit conversion; the shared engine-agnostic digest is [engine-score.js](../control/lib/graph/scene/engine-score.js), in z-up at 1 unit = 1 meter.
 
 **Every handoff carries an honest ledger, and every gate is advisory.** `engine-score` emits what did *not* travel; [engine-portability.js](../control/lib/graph/scene/engine-portability.js) flags gameplay outside the shared mechanics vocabulary; STL export stamps a closure audit. None of them refuse — suitability is the operator's call ([docs/responsibility-model.md](responsibility-model.md)). Two gates, never conflated: a **machine gate** (measured, automated) and an **eyes gate** (a human looks). See [docs/bicycles.md](bicycles.md).
 
-**Vocab cards are the discovery layer.** Each family ships markdown cards with JSON frontmatter (`id/name/family/entry/summary/when`) under `*-vocab/` directories, read by `get_view_vocab` / `get_solid_vocab` / `get_beats_vocab` / `get_motion_vocab` / `get_sketch_vocab` / `get_game_vocab` and indexed into `meta_embeddings` under matching source kinds (`view_vocab`, `solid_vocab`, `beats_vocab`, `motion_vocab`, `sketch_vocab`, `game_vocab`, plus `routing` for the routing cards). A new kind needs a **card**, not a new tool or index row.
+**Readouts say ids, not sentences.** A repeat `measure_solid` of the same recipe and params in one MCP session answers `same_as` the earlier reading ([print-readings.js](../control/lib/mcp/print-readings.js)); a vocab reader with no `id` lists one short row per card (`detail: true` for the full rows, [vocab-listing.js](../control/lib/mcp/vocab-listing.js)).
+
+**Vocab cards are the discovery layer.** Each family ships markdown cards with JSON frontmatter (`id/name/family/entry/summary/when`) under `*-vocab/` directories, read by the `get_*_vocab` readers (and `list_world_themes`) and indexed into `meta_embeddings` under matching source kinds (`view_vocab`, `solid_vocab`, `beats_vocab`, `motion_vocab`, `sketch_vocab`, `game_vocab`, plus `routing` for the routing cards). A new kind needs a **card**, not a new tool or index row. A card line computed from a kernel at load (an animal's behaviors, a historic city's statue slots) is read from a generated table held equal to the live build by a deep test ([gen-fauna-does.mjs](../control/scripts/gen-fauna-does.mjs), [gen-historic-slots.mjs](../control/scripts/gen-historic-slots.mjs)), so a first read stays fast.
 
 **The kind roster is extensible without touching core.** The [recipe book](../control/book/), bundled with the package, contributes Door-1 recipes as pure data and Door-2 **builders** as new `create_view` kinds, dynamically imported at boot by [recipe-book/loader.js](../control/lib/graph/views/recipe-book/loader.js). Book builders import nothing — core injects `ctx.toolkit` (versioned, frozen, append-only; [toolkit.js](../control/lib/graph/views/recipe-book/toolkit.js)). The operator's own **cookbook** (`<data dir>/cookbook`, `MOJULO_COOKBOOK`) is the same format, written by `save_recipe`, Door-1 only, its own git repo with no remote. Precedence is first-wins: **core > cookbook > attached clone > bundled book**. An attached clone (`MOJULO_RECIPE_BOOK`) is deprecated since 3.1.0 and warns. `MOJULO_BUNDLED_BOOK=off` leaves the bundled book unattached. Everything is local disk; nothing is ever fetched at runtime.
 
-**Optional local workers** are operator-hosted and never dependencies — Blender for GI bakes ([local-blender-worker.md](local-blender-worker.md)), ComfyUI for painted images ([local-image-worker.md](local-image-worker.md)), Kokoro for voice ([local-voice-worker.md](local-voice-worker.md)), a PrusaSlicer-family slicer for the print machine gate ([local-slicer-worker.md](local-slicer-worker.md)), Godot for the engine leg. The substrate holds no binaries, keys, or worker state; absence of a worker degrades the loop, never breaks it.
+**Optional local workers** are operator-hosted and never dependencies. `version({ workers: true })` reports which this host has — Blender, Godot, Unity, Unreal, a slicer, OpenSCAD, ffmpeg, Chromium — with the path found, the env var that points at each, and what still happens without it. The search orders live in one place, [lib/workers/find.js](../control/lib/workers/find.js), shared with the export, bake and verify scripts. Worker guides: [local-blender-worker.md](local-blender-worker.md), [local-image-worker.md](local-image-worker.md), [local-voice-worker.md](local-voice-worker.md), [local-slicer-worker.md](local-slicer-worker.md). Image models, image-to-mesh services and speech models are driven by the agent; mojulo never calls one, and their work arrives through `render_handoff` and `bind_voice_sample`. Absence of a worker degrades the loop, never breaks it.
 
-## Packs, wings, and install gating
+## Install gating
 
-Install is **pack-grain**. Each pack in [packs.js](../control/lib/mcp/packs.js) declares a `wing` (`studio` | `office` — taxonomy and routing only) and either an `installGroup` (`creative`) or none. A pack declaring none is unconditional, like the kernel; the orchestration plumbing (connected services, catalysts, triggers, apps, plan/research/stash) is in that category. Install state is derived from disk, with `MOJULO_PACKS` as an explicit override. The kernel alone can still mint a diagram. See [install-capabilities.md](install-capabilities.md).
+Install is **pack-grain**. Install state is derived from disk, with `MOJULO_PACKS` as an explicit override; the creative stack ships with every install, and the embedding runtime is the opt-in `recall` group, which no pack joins. The kernel alone can still mint a diagram (`mint_diagram` is spine). See [install-capabilities.md](install-capabilities.md).
 
 Execution is walled; knowledge is not. `mojulo tools` / `mojulo packs` list only installed packs with a `not installed: … add with: …` footer, and an uninstalled pack's tools refuse with an advisory naming the install rather than pretending not to exist.
 
 ## MCP control surface
 
-The control plane exposes an HTTP MCP server at `/api/mcp` with bearer auth. Protocol dispatch lives in [control/lib/mcp/server.js](../control/lib/mcp/server.js); tools are registered lazily in [control/lib/mcp/tools/](../control/lib/mcp/tools/).
+The control plane exposes an HTTP MCP server at `/api/mcp` with bearer auth. Protocol dispatch lives in [control/lib/mcp/server.js](../control/lib/mcp/server.js); tools are registered lazily in [control/lib/mcp/tools/](../control/lib/mcp/tools/). Transport, sessions and the request lifecycle: [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md).
 
-Tool registration order matters. `forward_context` is first, catalysts follow the orientation drawers, Ring 6 registers in the order contextmap -> inventory -> capabilities -> composer -> primitive-binding -> trigger-binding -> semantic-search, then Ring 7 runtime tools, Ring 8 plan mode, and Ring 9 research mode. When adding a main-flow MCP tool, slot it into the right ring, give it a line in [tool-lines.js](../control/lib/mcp/tool-lines.js) (`get_tool_index`, the form bodies and the pack menus are generated from it) and, if it is an entry point, a row in the routing index in [context.js](../control/lib/mcp/tools/context.js). Low-prominence optional drawers such as sketches and research mode deliberately stay out of the routing index.
+**What a Claude Code agent can reach is what is listed.** Claude Code defers tool schemas and lists the flat registry; other hosts get packs mode (a spine plus one dispatcher per pack). Either way an unlisted tool (a retired pack's member, a deprecated alias) is callable by name only on the CLI (`node scripts/mcp-stdio.mjs call <tool>`) and in `execute_plan` steps, never by the agent's own tool call. A tool merged into a wider one therefore needs every pointer to its old name rewritten.
+
+**Adding a tool** (the checklist in [CLAUDE.md](../CLAUDE.md#mcp-tool-surface-the-tests-that-bite)): register it in ring order in `server.js`; give it exactly one pack home in `packs.js`; one line and a verb in `tool-lines.js`, plus its form's `tools` in `context.js` if creative; a routing card plus a `routing-eval.fixture.js` row if it is a creative entry point; and its annotation in [tool-annotations.js](../control/lib/mcp/tool-annotations.js). `tools/list` is budgeted: the per-description ceiling and the flat payload pin live in `tool-descriptions.test.js`, the packs pin in `packs.test.js`.
+
+**Orientation.** `forward_context` is a lean routing index (FORM rows → the tool to call, the export dispatch, the Workflows row, the guards, a drawer directory), with its own byte ceilings in `context.test.js`. Depth sits behind drawers: `get_tool_index`, `get_creative_toolset`, `get_register_kit`, `get_ui_map`, `get_substrate`, and the routing cards returned whole by `semantic_search({ kinds: ['routing'] })`.
+
+**Rings as registration order.** The old ring numbers survive in code comments and registration order: Ring 0 orientation, Ring 5 catalysts, Ring 8 plan mode, Ring 9 research and stash, Ring 10 the creative mints. Rings 1–4 were the chatbot factory's lanes (empty since 3.0.0); Rings 6–7 are mostly the retired office surface (semantic recall, the inventory and the agent-task queue stayed). Read the numbers when working inside `server.js`, not when orienting.
 
 Auth is local-user only. MCP calls are scoped to the single control-plane user: the MCP route ([app/api/mcp/route.js](../control/app/api/mcp/route.js)) mints the execution context's `userId` — `'local'` for the operator's key, or a delegate's id when the opt-in roles pack resolves an operator-issued key ([lib/roles/keys.js](../control/lib/roles/keys.js)). There is no multi-tenant identity model.
-
-### Ring map
-
-- Ring 0, orientation: [context.js](../control/lib/mcp/tools/context.js). `forward_context` is a lean routing index. Heavy material belongs behind drawers such as `get_register_kit`, `get_tool_index`, `get_deliberation_overview`, `get_ui_map`, and `get_substrate`.
-- Rings 1–4: retired in 3.0.0 with the chatbot factory (its build, jobs, operate and fleet lanes). The numbers are not reused.
-- Ring 5, catalysts: [catalysts.js](../control/lib/mcp/tools/catalysts.js). Curated workflow recipes from [control/lib/mcp/catalysts/](../control/lib/mcp/catalysts/).
-- Ring 6, deliberation: contextmap, inventory, capabilities, mcp-orbit composer, primitive binding, trigger binding, and semantic recall.
-- Ring 7, runtime: app runner plus agent-task queue.
-- Ring 8, plan mode: proposed/speculative layer for executable plans.
-- Ring 9, research mode: accretive exploratory layer upstream of plans.
-- Ring 10, creative mints: the studio's make-something tools. **Re-cut by FORM, not listed flat** — `get_creative_toolset` (no arg → the form map; `{ form }` → that form's tools) is the reader, and `get_tool_index` points at it rather than enumerating them. Form enum in [creative-forms.js](../control/lib/mcp/creative-forms.js).
-
-**The rings predate the studio; read them as registration order.** Rings 1–4 were the chatbot factory's lanes and are empty since it left. Ring 10 carries the whole creative substrate behind one folded reader, so ring number is a poor proxy for weight. Ring 11 ("operations view") is deprecated — surviving only as naming inside [ops-tags.js](../control/lib/db/repositories/ops-tags.js). What the connecting agent actually sees is grouped by **wing and pack** ([packs.js](../control/lib/mcp/packs.js)); `forward_context` splits on wing (`mode:'studio'` default, `mode:'office'`), not on ring.
-
-## Ring 6 deliberation surfaces
-
-- Contextmap: [meta-context.js](../control/lib/mcp/tools/meta-context.js), [docs/meta-context.md](meta-context.md). `meta_context_brief` / `meta_context_commit` record durable structural decisions. Structural commits land at deliberation rate; outcome-rate principles use source events such as `app_inference` and `trigger_firing`.
-- Inventory: [mcp-inventory.js](../control/lib/mcp/tools/mcp-inventory.js). `meta_context_declare_inventory` is a replace-semantic cache of the connecting agent's current MCP servers and tools. It is present environment, not sealed history.
-- Capabilities: [mcp-capabilities.js](../control/lib/mcp/tools/mcp-capabilities.js). `record_mcp_capabilities` / `get_mcp_capabilities` store vendor research on a shared provider identity layer. Seeded bodies live under [control/lib/mcp/seeds/](../control/lib/mcp/seeds/).
-- mcp-orbit composer: [mcp-orbit.js](../control/lib/mcp/tools/mcp-orbit.js), [docs/mcp-orbit.md](mcp-orbit.md). Components are typed by kind, while `source` and `destination` are composition roles. Recommendations persist as proposed compositions for auditability.
-- Primitive binding: [mcp-primitive-binding.js](../control/lib/mcp/tools/mcp-primitive-binding.js). `bind_primitives` generates provider artifacts from the operator's actual MCP inventory and schemas, not curated guesses.
-- Trigger binding: [mcp-trigger-binding.js](../control/lib/mcp/tools/mcp-trigger-binding.js). `bind_trigger` persists activation artifacts. Scheduled triggers are backed by [control/lib/triggers/scheduler.js](../control/lib/triggers/scheduler.js) and gated by `MOJULO_TRIGGER_RUNTIME=enabled`.
-- Semantic recall: [semantic-search.js](../control/lib/mcp/tools/semantic-search.js). `semantic_search` indexes durable mojulo state in `meta_embeddings`, lexically (FTS5 `meta_fts`) on a default install and by vector with the opt-in `recall` group (`mojulo install recall`; [lib/embedder/local.js](../control/lib/embedder/local.js)). Results are retrieve-not-resolve: pair hits with structured readers for full bodies. Manual recovery is [control/scripts/reindex-embeddings.js](../control/scripts/reindex-embeddings.js).
-
-## Runtime surfaces
-
-### App runner
-
-Runner tools live in [runner.js](../control/lib/mcp/tools/runner.js): `install_scaffold`, `start_app`, `stop_app`, `status_app`, `list_runners`, `list_running`, `list_env`, `set_env`, and `delete_env`.
-
-The runner is a standalone daemon (`mojulo-app-runtime`, gated by `MOJULO_APP_RUNTIME=enabled`) so app lifecycle can survive control-plane restarts. The engine lives in [control/lib/runners/engine.js](../control/lib/runners/engine.js); [control/lib/runners/local.js](../control/lib/runners/local.js) is a loopback client used by MCP tools. Env CRUD stays local filesystem work. See [docs/app-runtime.md](app-runtime.md).
-
-### Agent-task queue
-
-Agent-task tools live in [agent-tasks.js](../control/lib/mcp/tools/agent-tasks.js): `pull_agent_task`, `submit_envelope_inference`, and `cancel_agent_task`. The queue is in-memory FIFO single-claim in [queue.js](../control/lib/mcp/agent-tasks/queue.js). Current entry points are HTTP `/api/app-inference/envelope` and the scheduler daemon. The fulfiller stack is invariant to who parked the task; audit principles distinguish scheduler-fired and app-inference outcomes.
 
 ## Plan and research modes
 
 Plan mode lives in [plan-mode.js](../control/lib/mcp/tools/plan-mode.js). Plans are rows in the `plans` table: proposed reality, not contextmap commits. `compile_plan` validates manifest tool calls against the live registry; `execute_plan` requires confirmation and invokes registered tools through the same handler path as remote MCP calls. When execution materializes artifacts, [plan-release.js](../control/lib/mcp/meta-context/plan-release.js) writes `plan_release` principles onto artifact histories and archives the plan.
 
-Research mode lives in [research-mode.js](../control/lib/mcp/tools/research-mode.js). It is an optional accretive drawer upstream of plans, storing broad research items and append-only abstracts. `synthesize_abstract` can evaluate through the research-to-plan bridge in [evaluate.js](../control/lib/research/evaluate.js); a draft plan is forged only when the recommendation is `forge`.
+Research mode lives in [research-mode.js](../control/lib/mcp/tools/research-mode.js). It is an accretive book upstream of plans, storing research items and append-only abstracts; the `numerical-experiment-notebook` catalyst runs it as a lab notebook over `run_experiment_sweep`. `synthesize_abstract` can evaluate through the research-to-plan bridge in [evaluate.js](../control/lib/research/evaluate.js); a draft plan is forged only when the recommendation is `forge`. New gatherings should prefer the typed-intake stash path.
+
+## The retired office surface
+
+The office wing's packs (`RETIRED_PACKS` in packs.js) left the tool surface in 3.1.0: the app runner and runtime daemons, the contextmap (`meta_context_*`), declared skills, the mcp-orbit composer, and primitive and trigger binding. The MCP inventory and capability reads and the agent-task queue stayed, in `pack_catalysts`, for the Workflows that reach other workers and MCPs. Their tools stay registered, unlisted and unrouted (see above for what that means for reach; a plan step that names one compiles with a deprecation warning), and their code and tables stay. `forward_context({ mode: 'office' })` answers with the studio body and a line saying so. Their design notes stay in the docs that describe them: [app-runtime.md](app-runtime.md), [meta-context.md](meta-context.md), [mcp-orbit.md](mcp-orbit.md), and [MCP-ARCHITECTURE.md](MCP-ARCHITECTURE.md) §4 and §6.
 
 ## The chatbot factory
 
@@ -92,10 +96,10 @@ What stays behind in mojulo, and why:
 ## Data layout
 
 - Control plane SQLite: [control/data/mojulo-lite.db](../control/data/), schema/migrations in [control/lib/db/index.js](../control/lib/db/index.js).
-- **Creative tables:** `sketches` (one row per recipe — `ref`, `title`, `manifest_json`) and `sketch_folders`; `beats_revisions` / `beats_annotations`; `image_render_requests` (the durable render handoff). Domain layers ride on `sketches` rather than forking it — that is deliberate.
+- **Creative tables:** `sketches` (one row per recipe — `ref`, `title`, `manifest_json`) and `sketch_folders` (a variation sweep's variants share one); `beats_revisions` / `beats_annotations`; `image_render_requests` (the durable render handoff, image and mesh). Domain layers ride on `sketches` rather than forking it — that is deliberate.
 - **The cookbook is not a table.** Kept recipes are plain `card.md` + `recipe.json` folders under `<data dir>/cookbook`, a local git repo with no remote.
-- Deliberation tables: `meta_nodes`, `meta_edges`, `meta_principles`, `meta_mcp_inventory`, `meta_mcp_providers`, `meta_mcp_capabilities`, `mcp_orbit_components`, `mcp_orbit_compositions`, `mcp_orbit_provider_artifacts`, `mcp_orbit_trigger_artifacts`, and `meta_embeddings`.
-- Plan/research tables: `plans`, `research_sessions`, `research_items`, and `research_abstracts`.
-- Derived outcomes (painted PNGs, baked meshes, render sidecars): `MOJULO_OUTCOMES_DIR`, default `<data dir>/outcomes`.
+- Workflow tables: `plans`, `research_sessions`, `research_items`, `research_abstracts`, and the stash tables (`stashes`, `stash_drawers`, `stash_items`, `stash_bindings`, `stash_cooks`).
+- Deliberation tables: `meta_mcp_inventory`, `meta_mcp_providers` and `meta_mcp_capabilities` (live, through `pack_catalysts`); `meta_nodes`, `meta_edges` and `meta_principles` (the contextmap: its tools are retired, and plan execution still writes `plan_release` principles into it); `mcp_orbit_*` (retired, kept); `meta_embeddings` (semantic recall, live).
+- Derived outcomes (painted PNGs, baked meshes, render sidecars, cook folders): `MOJULO_OUTCOMES_DIR`, default `<data dir>/outcomes`.
 
 SQLite runs with WAL and foreign keys. Repositories live in [control/lib/db/repositories/](../control/lib/db/repositories/).

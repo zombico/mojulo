@@ -1,8 +1,9 @@
 # Mojulo
 
-**Mojulo is a 3D compiler for Claude.** Describe an object, a walkable world or a small game, and
-Claude builds it through mojulo's tools as a deterministic recipe: a few hundred bytes of JSON, or
-an OpenSCAD program, that compiles back to the same geometry every time. You edit and diff the
+**Mojulo is a 3D factory with a media studio for Claude.** Describe a character, an object, a walkable
+world, a small game, a diagram or a piece of music, and Claude builds it through mojulo's tools as a
+deterministic recipe: a few hundred bytes of JSON, or
+an OpenSCAD program, that compiles back to the same result every time. You edit and diff the
 recipe like code; every render is derived from it. From the recipe mojulo exports print-ready STL
 and 3MF at true scale, glTF, OpenUSD, a self-contained HTML page you can walk offline, and Godot,
 Blender, Unity and Unreal packs. Everything stays on your machine under `~/.mojulo/`.
