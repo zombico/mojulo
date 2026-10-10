@@ -27,7 +27,7 @@ describe('ChatGPT adapter tool entry points', () => {
 
   it('composes the same card into shell catalyst workflows', async () => {
     vi.stubEnv('MOJULO_HOST', 'chatgpt');
-    const result = await getCatalystHandler({ id: 'refresh-connected-services' });
+    const result = await getCatalystHandler({ id: 'make-stuffy' });
     expect(result.adapter.id).toBe('chatgpt');
     expect(result.body).toContain('## Preserve and resume');
   });

@@ -6,7 +6,7 @@
   "version": 1,
   "artifactTarget": "A portable recipe with Mojulo version and a workflow in the current session\u2019s supported workspace or file delivery surface",
   "schedulingMechanism": "Only a scheduler explicitly available in this session",
-  "secretsPosture": "Use list_env for key names; never read .env or embed tokens in recipes or workflow files",
+  "secretsPosture": "Never read .env or embed tokens in recipes or workflow files",
   "supportsClientInfoHint": [
     "chatgpt"
   ]
@@ -88,7 +88,7 @@ available. A reference/render is derived; the recipe stays authoritative.
 For reusable workflows, save instructions and provenance in an explicitly available
 workspace or downloadable file; do not invent a global skill installation directory.
 For recurring external actions, demonstrate a read-only dry run before the configured
-live run. Use list_env/set_env for secrets; never read .env or embed bearer tokens.
+live run. Never read .env or embed bearer tokens.
 
 ## Connected MCP Apps preview
 

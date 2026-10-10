@@ -2,11 +2,11 @@
 {
   "id": "claude-code",
   "name": "Claude Code",
-  "summary": "When the user asks for a workflow, materializes the catalyst as a user-owned skill under .claude/skills/, scheduled via /schedule; secrets never read (list_env names an app's keys), with a deny block the user may add to .claude/settings.json if they ask.",
+  "summary": "When the user asks for a workflow, materializes the catalyst as a user-owned skill under .claude/skills/, scheduled via /schedule; secrets never read, with a deny block the user may add to .claude/settings.json if they ask.",
   "version": 1,
   "artifactTarget": ".claude/skills/<slug>/SKILL.md",
   "schedulingMechanism": "/schedule",
-  "secretsPosture": "never read a .env (list_env names an app's keys, never values); an optional .claude/settings.json deny block the user adds themselves, shown only when they ask",
+  "secretsPosture": "never read a .env; an optional .claude/settings.json deny block the user adds themselves, shown only when they ask",
   "supportsClientInfoHint": ["claude-code", "claude-ai", "claude"]
 }
 ---
@@ -57,7 +57,7 @@ Surface the per-record decision log declared in the catalyst's `outputContract` 
 
 ## Secrets posture
 
-Mojulo's standing rule is "never `cat` `.env`": an app's keys are named by `list_env`, and values are never read. **Only when the user asks** how to keep an agent away from those secrets (or asks you to harden their Claude Code settings), show them this deny rule, which Claude Code's harness enforces, for them to add to `.claude/settings.json` themselves. Do not raise it unprompted and do not edit `.claude/settings.json` yourself: Claude's permission settings are the user's to change.
+Mojulo's standing rule is "never `cat` `.env`": values are never read. **Only when the user asks** how to keep an agent away from those secrets (or asks you to harden their Claude Code settings), show them this deny rule, which Claude Code's harness enforces, for them to add to `.claude/settings.json` themselves. Do not raise it unprompted and do not edit `.claude/settings.json` yourself: Claude's permission settings are the user's to change.
 
 ```json
 {
@@ -71,7 +71,7 @@ Mojulo's standing rule is "never `cat` `.env`": an app's keys are named by `list
 }
 ```
 
-Inside the skill itself: never `cat` or `Read` a `.env` directly. When a skill needs to know which keys an app has, it calls `list_env` (key names only); it never needs the values.
+Inside the skill itself: never `cat` or `Read` a `.env` directly.
 
 ## Hand-off to the user
 
@@ -91,109 +91,6 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (compositions over installed MCPs)
+## Reaching other MCPs and workers
 
-Everything above describes the **catalyst** flow — vendor-shaped, curated body. There's a parallel flow mojulo supports for **primitive-shaped** workflows: the agent declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, and `meta_context_commit` seals the materialization. This is the supported path for MCP-to-MCP outcomes — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
-
-### Why Claude Code is well-suited as the introspection host
-
-Claude Code surfaces every connected MCP's tools in your session: pre-loaded tools appear as `<function>{...}</function>` blocks at the top of the prompt, deferred tools appear by name in `<system-reminder>` blocks. Tool names follow the convention `mcp__<server>__<tool_name>` — for example, `mcp__claude_ai_Google_Drive__search_files` belongs to server `claude_ai_Google_Drive`, tool `search_files`. That naming convention is your enumeration affordance — no separate `tools/list` call is needed; you already see the surface.
-
-### Step 1 — Enumerate MCPs from your tool surface
-
-Scan your visible tools (pre-loaded + deferred). For each tool name matching `mcp__<server>__<tool>`:
-
-- Parse out `server` (everything between `mcp__` and the second `__`).
-- Group tools by server.
-- Note which tools' schemas are already loaded (visible in `<function>{...}</function>` blocks) vs deferred (just a name in the system reminder).
-
-### Step 2 — Load schemas for the tools that will bind primitive affordances
-
-For each MCP server you plan to bind a primitive against, load schemas for every tool whose name you'll cite in `bindings`. Two affordances:
-
-- **Pre-loaded tools** — the schema is already in your context as `<function>{..., "parameters": {...}}</function>`. The `parameters` field IS the input schema.
-- **Deferred tools** — call `ToolSearch` with `query: "select:<tool_name>"` (or a comma-separated list) to fetch the schemas inline. The response contains the same `parameters` block.
-
-If you ship a snapshot that references a deferred tool whose schema you never loaded, you can't honestly declare `tools_list_full` for that tool — drop it to `agent_inferred` (you knew the name, you guessed the schema from prior training-data knowledge of that API) or `names_only` (you knew only the name).
-
-### Step 3 — Ship the snapshot via `meta_context_declare_inventory` in richer-snapshot mode
-
-Build the call's `servers` array with one entry per MCP, and one entry per tool with the schema you just loaded. Example:
-
-```json
-{
-  "servers": [
-    {
-      "name": "claude_ai_Google_Drive",
-      "tools": [
-        {
-          "name": "search_files",
-          "description": "Search files by query",
-          "inputSchema": { "type": "object", "properties": { "query": { "type": "string" } }, "required": ["query"] },
-          "introspectionConfidence": "tools_list_full"
-        },
-        {
-          "name": "create_file",
-          "inputSchema": { "type": "object", "properties": { "name": { "type": "string" }, "mime_type": { "type": "string" } }, "required": ["name", "mime_type"] },
-          "introspectionConfidence": "tools_list_full"
-        }
-      ]
-    }
-  ]
-}
-```
-
-REPLACE semantics still apply — the latest declaration is authoritative; tools not in the call are wiped. So include every MCP + tool that could plausibly play a primitive role in any composition you might compose this session, not just the ones for the immediate workflow. Re-declaration is cheap; an incomplete declaration limits which primitives can bind.
-
-### Step 4 — Bind primitives per composition slot
-
-For each primitive slot the user's intent implies (e.g. `document-store/destination` for "weekly digest into Drive"), call `bind_primitives`:
-
-```json
-{
-  "primitive": "document-store",
-  "role": "destination",
-  "server": "claude_ai_Google_Drive",
-  "bindings": {
-    "create-with-mime": { "tool": "create_file", "confidence": "agent-inferred" },
-    "find-by-key-in-scope": { "tool": "search_files", "confidence": "agent-inferred" }
-  }
-}
-```
-
-The response carries a `prov_<id>` ref plus the inline `body` — a runtime-generated markdown artifact with the actual bound tool names + schemas filled into the primitive's role template. **Read the body in full** before composing further; it's the primitive's full guidance with this MCP's reality baked in.
-
-The `confidence` per binding is `agent-inferred` by default. Bump to `operator-confirmed` after asking the user to confirm a specific binding (typically when two tools could plausibly satisfy one affordance and you ask the operator which to use).
-
-### Step 5 — Materialize as a `.claude/skills/<slug>/SKILL.md` skill
-
-Same artifact target as the catalyst flow above, under the same rule: only for a workflow the user asked you to set up, with the path named before the write. Differences in the skill's content:
-
-- The skill embeds the **bound tool calls by name** (e.g. `search_files`, `create_file`) from the `bind_primitives` response, not generic affordance names.
-- The skill references the generated provider body's mapping intent for pitfalls + integration specifics — copy the relevant sections directly into the SKILL.md (the provider body is session-scoped; the skill needs to be self-contained at run time).
-- The dry-run pattern + `/schedule` guidance from the catalyst flow still apply unchanged. The state-storage two-layer (cursor + destination-side dedupe) still applies — the primitive's role template will name the cursor affordance and the dedupe affordance for you.
-
-### Step 6 — Seal with `meta_context_commit` (primitive_artifact_materialization)
-
-After the skill is written + verified existing on disk, commit:
-
-```json
-{
-  "type": "primitive_artifact_materialization",
-  "adapter_id": "claude-code",
-  "artifact": { "locator": "<absolute path to SKILL.md>", "label": "Weekly Drive digest of Linear issues" },
-  "composition_intent": "Weekly digest of open Linear issues into a Google Drive folder, Monday 9am.",
-  "provider_artifact_refs": ["<every prov_xxx from bind_primitives this session>"],
-  "principles": [
-    { "scope": "artifact", "body_md": "Operator confirmed Monday 9am cadence and the gdrive-projects folder scope." }
-  ]
-}
-```
-
-The commit auto-writes a summary principle on the artifact node that records the composition intent + every binding (primitive / role / affordance / bound tool / confidence). Future sessions reading the contextmap can recover the composition's shape from that single principle.
-
-If the commit fails (artifact verification or scope rejection), delete the skill file before retrying — a successful materialization with no commit is worse than a failed one (unauditable artifact lying in the user's `.claude/skills/`).
-
-### Inventory freshness
-
-The snapshot you ship in step 3 carries a `declaredAt` timestamp. `bind_primitives` returns `snapshot_stale` in `warnings` when the snapshot is more than 24h old. When that fires, re-run step 1–3 — your tool surface in the current Claude Code session is authoritative, not what mojulo cached. Re-declaration is cheap; stale schemas baked into a materialized skill are not.
+A catalyst that reaches past mojulo (`make-stuffy`: the body from mojulo, the fur from the operator's Blender) runs as a skill under `.claude/skills/<slug>/`, beside the operator's other MCPs: call their tools by name from it. Mojulo hands files out (`export_model` writes the file, and its `handoff` names this host's door) and takes finished work back as outcomes under `data/outcomes/<ref>/`. Record which MCPs this host has with `meta_context_declare_inventory` only when the operator wants mojulo to know, never at session start. Until 3.1.0 this section bound primitives and sealed the composition in the contextmap; that flow left the tool surface with the office wing.

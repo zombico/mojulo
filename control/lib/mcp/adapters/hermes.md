@@ -6,7 +6,7 @@
   "version": 1,
   "artifactTarget": "<dir>/workflow.md + <dir>/config.json (Hermes' native skills layout is unconfirmed — see 'Unverified' below)",
   "schedulingMechanism": "out-of-band (system cron / launchd invoking a headless Hermes session)",
-  "secretsPosture": "never cat .env — list_env names an app's keys, never values",
+  "secretsPosture": "never cat .env",
   "supportsClientInfoHint": ["hermes"]
 }
 ---
@@ -45,7 +45,7 @@ Materialize the workflow as **two files** in a directory the user picks:
 1. **Preflight (mojulo MCP).** Verify the mojulo tools this workflow calls are visible. If missing, say "mojulo MCP not bound" and stop.
 2. **Preflight (destination MCP).** Verify the destination tools are visible. If missing, name the missing server and stop.
 3. **Drift check.** Re-read the source shape and compare against the snapshot in `config.json`. Refresh before writing if it moved.
-4. **Secrets posture.** Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`; `list_env` names keys, never values. Same rule on error paths.
+4. **Secrets posture.** Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`. Same rule on error paths.
 5. **Dry-run gate.** Read `liveMode` from `config.json`. If `false`, render the destination payload and stop. If `true`, proceed to the live write.
 ```
 
@@ -78,13 +78,13 @@ The per-record decision log from the catalyst's `outputContract` to stdout, with
 
 ## Secrets posture
 
-- Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`; `list_env` names keys, never values.
+- Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`.
 - Never inline secret values into `workflow.md` or `config.json`; prefer Hermes' secret-injection mechanism if it has one.
 - No path may log raw `.env` contents, including error paths.
 
-## Primitive binding flow (compositions over installed MCPs)
+## Reaching other MCPs and workers
 
-Same shape as the other adapters: `meta_context_declare_inventory` (richer snapshot, REPLACE semantics) → `bind_primitives` per slot → materialize as `workflow.md` + `config.json` → seal with `meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: 'hermes', ... })`. Call bound tool names from the snapshot directly, not affordance names, and copy each binding's mapping intent + pitfalls into `workflow.md` — the provider body is session-scoped, the file has to stand alone at run time. Re-declare when `bind_primitives` warns `snapshot_stale`.
+A catalyst that reaches past mojulo (`make-stuffy`: the body from mojulo, the fur from the operator's Blender) runs as `workflow.md` + `config.json`, beside the operator's other MCPs: call their tools by name from it. Mojulo hands files out (`export_model` writes the file, and its `handoff` names this host's door) and takes finished work back as outcomes under `data/outcomes/<ref>/`. Record which MCPs this host has with `meta_context_declare_inventory` only when the operator wants mojulo to know, never at session start. Until 3.1.0 this section bound primitives and sealed the composition in the contextmap; that flow left the tool surface with the office wing.
 
 ---
 

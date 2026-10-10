@@ -6,7 +6,7 @@
   "version": 1,
   "artifactTarget": "~/workspace/skills/<slug>/SKILL.md",
   "schedulingMechanism": "cron (in-agent scheduler)",
-  "secretsPosture": "never read a .env directly — list_env names an app's keys, never values",
+  "secretsPosture": "never read a .env directly",
   "supportsClientInfoHint": []
 }
 ---
@@ -61,7 +61,7 @@ Then the doors:
 
 ## Dry-run, secrets, scheduling
 
-A materialized skill demonstrates its dry run as its first step: pull one real record, render the full destination payload, write nothing; `liveMode: true` in `<skill-dir>/config.json` goes live. Never read a `.env` directly — `list_env` names an app's keys, never values. Long render pipelines go on the in-agent cron scheduler.
+A materialized skill demonstrates its dry run as its first step: pull one real record, render the full destination payload, write nothing; `liveMode: true` in `<skill-dir>/config.json` goes live. Never read a `.env` directly. Long render pipelines go on the in-agent cron scheduler.
 
 ## Handoff note
 

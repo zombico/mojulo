@@ -233,22 +233,18 @@ describe('listCatalysts', () => {
     expect(workflows.every((c) => c.kind === 'workflow')).toBe(true);
   });
 
-  it('loads the shipped local-storage technique from the techniques shelf', () => {
-    const techniques = listCatalysts({ kind: 'technique' });
-    const local = techniques.find((c) => c.id === 'technique-local-storage');
-    expect(local).toBeDefined();
-    expect(local.kind).toBe('technique');
-    expect(local.category).toBe('runtime-primitive');
+  it('ships no technique since 3.1.0 (local-storage left the shelf with the office wing)', () => {
+    expect(listCatalysts({ kind: 'technique' }).filter((c) => c.origin !== 'local')).toEqual([]);
   });
 });
 
 describe('getCatalyst', () => {
   it('returns the full catalyst including body', () => {
-    const catalyst = getCatalyst('refresh-connected-services');
+    const catalyst = getCatalyst('make-stuffy');
     expect(catalyst).not.toBeNull();
-    expect(catalyst.id).toBe('refresh-connected-services');
+    expect(catalyst.id).toBe('make-stuffy');
     expect(typeof catalyst.body).toBe('string');
-    expect(catalyst.body).toMatch(/## Idempotency/);
+    expect(catalyst.body).toMatch(/## 2\. Find the Blender road/);
   });
 
   it('returns null for unknown id', () => {
@@ -256,7 +252,7 @@ describe('getCatalyst', () => {
   });
 
   it('does not expose internal _file field', () => {
-    const catalyst = getCatalyst('refresh-connected-services');
+    const catalyst = getCatalyst('make-stuffy');
     expect(catalyst).not.toHaveProperty('_file');
   });
 });

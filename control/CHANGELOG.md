@@ -44,6 +44,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   mojulo: catalysts landed as Skills beside the host's other MCPs, the inventory and provider-capability reads, and
   the agent-task queue (`pull_agent_task`, `submit_envelope_inference`, `cancel_agent_task`). The routing index has a
   WORKFLOW row, so a chain written once (`execute_plan`), a sweep and a catalyst are one hop from the first read.
+- **The office catalysts leave the shelf.** `refresh-connected-services` and the `local-storage` technique sealed
+  their work in the contextmap; `get_catalyst` on either says where they went and points at `make-stuffy` and
+  `research-mcp-vendor`. `make-stuffy` is the exemplar `custom_catalyst` teaches from now, and the author's guide
+  speaks of creative destinations (`dcc-like`: Blender, Houdini; `engine-like`; `image-like`; `slicer-like`) in place
+  of CRMs and ticket queues. Every host adapter card loses its primitive-binding flow for a short "Reaching other
+  MCPs and workers" section, and no card points at `list_env` or the contextmap any more.
 - The commitment floor names states the studio has: proposed vs made, dry run vs promoted, machine gate vs eyes gate,
   advisory vs refused.
 - Under the Claude plugin profile the `g-series` card no longer names the skin tools.

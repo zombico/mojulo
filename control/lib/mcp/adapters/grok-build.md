@@ -6,7 +6,7 @@
   "version": 2,
   "artifactTarget": "~/.grok/skills/<slug>/SKILL.md",
   "schedulingMechanism": "system cron / launchd invoking a headless grok session (verify Grok's native scheduler before preferring it)",
-  "secretsPosture": "Grok-config-held secrets — never cat .env (list_env names an app's keys, never values)",
+  "secretsPosture": "Grok-config-held secrets — never cat .env",
   "supportsClientInfoHint": ["grok-shell", "grok-build", "grok"]
 }
 ---
@@ -56,8 +56,8 @@ A skill is the only thing guaranteed to be read at run time, so the standing mov
 
 1. **Preflight (mojulo MCP).** Verify the mojulo tools this workflow calls are visible. If missing, say "mojulo MCP not bound" and stop.
 2. **Preflight (destination MCP).** Verify the destination tools are visible. If missing, name the missing server and stop.
-3. **Drift check.** Re-read the source shape (the mojulo read tool the skill names, or the declared inventory via `meta_context_brief`) and compare against the snapshot recorded in this skill's config. Refresh before writing if it moved.
-4. **Secrets posture.** Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`; `list_env` names keys, never values. Same rule on error paths.
+3. **Drift check.** Re-read the source shape (the mojulo read tool the skill names) and compare against the snapshot recorded in this skill's config. Refresh before writing if it moved.
+4. **Secrets posture.** Never `cat` or read `~/.mojulo/**/.env*` or an app's `.env`. Same rule on error paths.
 5. **Dry-run gate.** Read `liveMode` from `config.json`. If `false`, render the destination payload and stop. If `true`, proceed to the live write.
 ```
 
@@ -95,7 +95,7 @@ Print the per-record decision log from the catalyst's `outputContract`, and pers
 
 ## Secrets posture
 
-- Never `cat` or read `~/.mojulo/**/.env*` directly; `list_env` names an app's keys, never values.
+- Never `cat` or read `~/.mojulo/**/.env*` directly.
 - Never inline secret values into the SKILL.md or `config.json`. If Grok has a secret-injection mechanism, reference secrets through it; otherwise leave them out entirely and let the destination MCP's auth surface hold them.
 - No path may log raw `.env` contents — error handlers that dump the environment for debugging are the common leak.
 
@@ -115,13 +115,6 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (compositions over installed MCPs)
+## Reaching other MCPs and workers
 
-The parallel flow for **primitive-shaped** workflows: declare your installed MCPs as a richer-snapshot inventory (`meta_context_declare_inventory`, REPLACE semantics), call `bind_primitives` once per primitive slot, materialize as a skill in the same layout as above, and seal with `meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: 'grok-build', ... })`.
-
-Two Grok-specific notes:
-
-- **Introspect from the interactive session.** Declare what your session can actually see; label confidence honestly (`names_only` when you have a name but no schema). A fabricated `tools_list_full` snapshot poisons the audit trail — an honest `names_only` one still produces a working generated body.
-- **The snapshot is large; your cap is not.** Declare inventory in one call, but pull `bind_primitives` bodies one slot at a time and copy the mapping intent + pitfalls into the skill as you go. The provider body is session-scoped; the skill has to be self-contained at run time.
-
-`bind_primitives` returns `snapshot_stale` when the inventory is over 24h old — re-declare before binding rather than shipping a skill against a stale tool surface.
+A catalyst that reaches past mojulo (`make-stuffy`: the body from mojulo, the fur from the operator's Blender) runs as a skill, beside the operator's other MCPs: call their tools by name from it. Mojulo hands files out (`export_model` writes the file, and its `handoff` names this host's door) and takes finished work back as outcomes under `data/outcomes/<ref>/`. Record which MCPs this host has with `meta_context_declare_inventory` only when the operator wants mojulo to know, never at session start. Until 3.1.0 this section bound primitives and sealed the composition in the contextmap; that flow left the tool surface with the office wing.

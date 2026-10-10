@@ -89,7 +89,7 @@ This catalyst is a **starting point, not a contract.** The library is non-exhaus
 - **Adapt freely.** Combine elements across catalysts, skip sections that don't apply to the user's situation, add steps the catalyst didn't anticipate. The value is its *thinking* — mapping intent, idempotency strategy, pitfalls — not its literal prose.
 - **No catalyst fits the user's intent? Write from scratch.** Don't force a mismatched pattern onto the user's request. Synthesize directly from their goal and the shape of the source the workflow reads, drawing on judgment absorbed from any catalysts you've read.
 - **Pitfalls in the body still apply when you adapt.** The PII-through-the-LLM warnings, rate-limit notes, irreversible-write cautions, and calibration advice generalize across patterns — they're not catalyst-specific gotchas. Carry them forward even when you deviate from the catalyst's prescribed flow.
-- **Safety defaults are standing posture, not negotiable.** Regardless of path: (1) default \`dryRun: true\` for any external write, requiring explicit per-run opt-in for live mode; (2) include mojulo trace (the source record's id — a stash item, a cook, a contextmap node, a source MCP's record — and captured-at) in every destination payload so reviewers can walk back to the source.
+- **Safety defaults are standing posture, not negotiable.** Regardless of path: (1) default \`dryRun: true\` for any external write, requiring explicit per-run opt-in for live mode; (2) include mojulo trace (the source record's id — a sketch ref, a stash item, a cook, a source MCP's record — and captured-at) in every destination payload so reviewers can walk back to the source.
 - **Encode the dry-run as a concrete artifact step, not a conversational promise.** Mojulo synthesizes; it does not certify (see the verification posture in \`forward_context\`). The dry-run / inspect / promote sequence belongs *inside the materialized artifact* — your host adapter (below) names the exact shape. A workflow that defaults \`dryRun: true\` but doesn't *demonstrate* dry-run as its first step gets skipped under deadline pressure.
 
 ---
@@ -133,6 +133,13 @@ export async function listCatalystsHandler(input, _ctx) {
   return { total: catalysts.length, catalysts };
 }
 
+// Catalysts that left the shelf with the office wing (3.1.0): they sealed connected services and filesystem bindings
+// through the contextmap, which is no longer on the tool surface. A caller that names one is told where to go.
+export const RETIRED_CATALYSTS = Object.freeze({
+  'refresh-connected-services': 'it audited and refreshed connected services through the contextmap',
+  'technique-local-storage': 'it bound a filesystem folder as a document-store primitive through the contextmap',
+});
+
 export async function getCatalystHandler(input, ctx) {
   const { id, host, rev } = input || {};
   if (!id) throw new Error('id is required');
@@ -147,6 +154,11 @@ export async function getCatalystHandler(input, ctx) {
         `Catalyst '${id}' is a local catalyst that has been archived. mint_catalyst with this id (and a note) revives it.`,
       );
     }
+    if (RETIRED_CATALYSTS[id]) {
+      throw new Error(
+        `Catalyst '${id}' left the shelf with the office wing in 3.1.0: ${RETIRED_CATALYSTS[id]}. For a loop that reaches other workers and MCPs, read get_catalyst("make-stuffy") or get_catalyst("research-mcp-vendor").`,
+      );
+    }
     throw new Error(`Catalyst not found: ${id}`);
   }
 
@@ -157,8 +169,8 @@ export async function getCatalystHandler(input, ctx) {
       ? { fileText: serializeCatalystFile(catalyst), revisions: LocalCatalystRepository.listRevisions(id) }
       : {};
 
-  // Technique catalysts bind a runtime primitive directly via `bind_primitives`
-  // + `meta_context_commit`; they don't produce a host-adapter-materialized
+  // Technique catalysts bound a runtime primitive directly (bind_primitives + meta_context_commit, both off the
+  // surface since 3.1.0; none ship now, a local one can still be minted); they don't produce a host-adapter-materialized
   // artifact, so the workflow-shaped preamble and adapter section would
   // mis-orient the agent. Return the technique body as-is.
   if (catalyst.kind === 'technique') {
@@ -274,8 +286,8 @@ A catalyst is *not* a Claude Code skill, *not* a new mojulo capability (a tool o
 Before you write a single line, anchor on what the bar looks like. Call:
 
 1. \`list_catalysts\` — see every shipped pattern (id, summary, category).
-2. \`get_catalyst("refresh-connected-services")\` — the canonical six-section exemplar. Study its mapping section, idempotency section, and pitfalls section specifically. That is the density you have to match.
-3. \`get_catalyst("<closest existing id>")\` — whichever catalyst is closest in shape to the user's intent. If the user wants a vendor-knowledge pattern, read \`research-mcp-vendor\`. If a teaching sequence, read \`explain-the-internet\`. Etc.
+2. \`get_catalyst("make-stuffy")\` — the canonical exemplar of a loop that reaches past mojulo: mojulo makes the thing, an outside worker finishes it. Study its road section (the operator's MCP first, mojulo's own script as the fallback, and what happens with neither), its knobs table, and its two gates. That is the density you have to match.
+3. \`get_catalyst("<closest existing id>")\` — whichever catalyst is closest in shape to the user's intent. If the user wants a vendor-knowledge pattern, read \`research-mcp-vendor\`. If a teaching sequence, read \`explain-the-internet\`. If a print loop, \`print-object\`. Etc.
 
 The body you draft is a **prompt that has to teach a future Claude how to synthesize a working skill on first try.** It is not documentation for a human reader. The exemplars show what that looks like. Don't skim them.
 
@@ -288,21 +300,21 @@ A catalyst is the **wrong tool** in these cases. If any apply, stop and tell the
 1. **The request changes what mojulo itself can do** — a new tool, a new recipe kind, a new export. That's a code change (or a recipe-book builder), not a contributor catalyst. Catalysts compose what mojulo and the installed MCPs already do.
 2. **The workflow writes back into its own source.** Forbidden by body principle 4 below. Catalysts read from a source and write to *destinations* only — never back into what they read.
 3. **The request is one-off.** Catalysts are shipped library entries — reusable across users. If it's bespoke, the user should have you synthesize a runnable artifact directly (per the active host adapter) with no catalyst — that's already a supported path.
-4. **The destination is one specific MCP, not a category.** A catalyst's value is destination-agnostic mapping intent (\`crm-like\`, \`calendar-like\`, \`actuator-like\`, etc.). "Sync to my specific Notion database with this exact schema" is a skill, not a catalyst.
+4. **The destination is one specific MCP, not a category.** A catalyst's value is destination-agnostic mapping intent (\`dcc-like\`, \`engine-like\`, \`image-like\`, etc.). "Send this one model to my Blender scene with this exact collection layout" is a skill, not a catalyst.
 5. **The "mapping intent" is generic.** If the user can't articulate at least one non-obvious, opinionated decision the catalyst encodes — a specific field-mapping choice, a default behavior, a calibration heuristic — the catalyst won't pay rent.
-   - **Bad mapping insight:** "map the form fields to the CRM contact fields by name." (The synthesizer would already do this without a catalyst.)
-   - **Good mapping insight:** "HubSpot splits identity into \`firstname\`/\`lastname\` while Salesforce uses \`FirstName\`/\`LastName\` and Attio uses object/attribute pairs — synthesize the right shape from the destination MCP's surface, never assume a flat \`name\` field." (Specific, opinionated, would be guessed wrong by default.)
+   - **Bad mapping insight:** "export the character as a GLB and import it in Blender." (The synthesizer would already do this without a catalyst.)
+   - **Good mapping insight:** "a mojulo export is z-up metres with one node per palette group; import it with vertex merging off and keep each group as its own object, because fur, materials and UV seams key off the groups — merging welds the eyes into the face." (Specific, opinionated, would be guessed wrong by default.)
 6. **No clear idempotency story.** Without a cursor field AND a dedupe key, the Idempotency section becomes hand-waving and the materialized artifact will double-write or skip records under real conditions.
    - **Bad idempotency story:** "the workflow should be idempotent." (Aspiration, not mechanism.)
-   - **Good idempotency story:** "cursor on the source record's \`updated_at\` via a \`since\` parameter; dedupe on the user-configured \`dedupeKey\` (typically an email or the source record's id) with a search-before-create against the destination — two layers because the cursor doesn't catch a user re-running an old window."
+   - **Good idempotency story:** "key the finish on the recipe: write it under \`outcomes/<ref>/<finish>/\` with the source export's sha256 and the parameters in its record; skip the outside run when both match, re-run when either changed — two layers because a revised recipe changes the hash while a re-run with new knobs changes only the parameters."
 
 When pushing back, name the specific failure and suggest the right alternative (a mojulo code change or recipe-book builder, a local-only skill, a more specific request). Don't soften — a thin catalyst won't pay rent even on the user's private shelf, and it dilutes the curated library if it ever graduates.
 
 **Example pushback exchange (do this, don't fudge):**
 
-> User: "I want a catalyst that automatically emails me a weekly summary of my Linear issues."
+> User: "I want a catalyst that sends my dragon to my Blender MCP and renders it."
 >
-> You: That's not catalyst-shaped as you described it — the destination is "email me" (one specific surface) and the mapping insight is "summarize the week's issues" (generic). Two options: (a) we synthesize a personal skill for you that reads Linear and emails the digest via Gmail — no catalyst, no PR needed; (b) if you want to *contribute* a digest pattern, the value-add would need to be a specific decision a generic digest doesn't make, like "group by cycle and flag anything reopened twice" or "lead with issues whose estimate grew." Which fits?
+> You: That's not catalyst-shaped as you described it — the destination is your one Blender scene and the mapping insight is "import and render" (generic). Two options: (a) I just do it now through your Blender MCP, no catalyst, no PR needed; (b) if you want to *contribute* a pattern, the value-add would need a specific decision a generic import doesn't make, like "keep the rig and retarget its clips to Rigify bone names" or "light by the recipe's own sun so the render matches the World page." Which fits?
 
 ---
 
@@ -311,8 +323,8 @@ When pushing back, name the specific failure and suggest the right alternative (
 If the posture-check passes, ask the user the following in one message. Don't drip questions out one at a time. Skip questions the user already answered in their intent.
 
 1. **Workflow intent in one paragraph.** What source data → what destination concept, and the user's motivation.
-2. **Source surface.** Where does the workflow read from? Either mojulo state through its read tools (\`get_stash\`, \`get_cook\`, \`list_cooks\`, \`meta_context_brief\`, \`semantic_search\`, …), or an installed MCP (declared through \`meta_context_declare_inventory\`), with mojulo as the audit trail. Name the tools the materialized artifact calls.
-3. **Destination MCP category.** Pick from existing categories where possible: \`crm-like\`, \`calendar-like\`, \`ticketing-like\`, \`actuator-like\`, \`doc-or-channel-like\`, \`data-store-like\`. If proposing a new category, the user must justify why none fit — don't proliferate categories.
+2. **Source surface.** What does the workflow start from? Usually a mojulo ref and the tools that make or read it (\`create_character\`, \`mint_solid\`, \`export_model\`, \`get_stash\`, \`get_cook\`, \`semantic_search\`, …); sometimes an installed MCP (declared through \`meta_context_declare_inventory\`). Name the tools the materialized artifact calls.
+3. **Destination MCP category.** Pick from existing categories where possible: \`dcc-like\` (Blender, Houdini, Maya), \`engine-like\` (Godot, Unity, Unreal), \`image-like\` (ComfyUI, an image model), \`slicer-like\` (a print slicer), \`doc-or-channel-like\`, \`data-store-like\`. If proposing a new category, the user must justify why none fit — don't proliferate categories.
 4. **Catalyst category (the \`category\` frontmatter field).** Use a category \`list_catalysts\` already shows where one fits. Same discipline — ask before adding a new one.
 5. **Mapping insight — the value-add.** What's the specific, opinionated decision this catalyst encodes that a future Claude would otherwise have to guess at? Apply the bad-vs-good rubric from posture rule 5.
 6. **Idempotency strategy.** Cursor field (usually a source timestamp via a \`since\` input) AND dedupe key (usually a destination-side search-before-create on a stable id). Apply the bad-vs-good rubric from posture rule 6.
@@ -326,7 +338,7 @@ If the posture-check passes, ask the user the following in one message. Don't dr
 The \`id\` is the file slug and frontmatter \`id\`. Conventions:
 
 - kebab-case, descriptive, ≤ ~40 chars
-- shape: \`<source>-to-<destination>\` (e.g. \`gmail-support-thread-to-linear-issue\`, \`weekly-linear-digest-to-drive\`) or \`<verb>-<source>-<modifier>\` (e.g. \`refresh-connected-services\`, \`research-mcp-vendor\`)
+- shape: \`<source>-to-<destination>\` (e.g. \`character-to-blender-rig\`, \`level-to-godot-scene\`) or \`<verb>-<thing>-<modifier>\` (e.g. \`make-stuffy\`, \`print-object\`, \`research-mcp-vendor\`)
 - must not collide with an existing id — check \`list_catalysts\` output before committing
 
 ---
@@ -342,7 +354,7 @@ Draft the same two parts a shelf file has — the frontmatter fields and a markd
 - \`id\` — kebab-case slug, matches the filename.
 - \`name\` — human-readable title.
 - \`summary\` — one line, implementation-shaped. Used in \`list_catalysts\`.
-- \`valueHook\` — one sentence in **user-outcome** terms. Read aloud by \`recommend_catalysts\` to position the catalyst *before* the user has decided to read the body. Outcome-shaped ("CRM contacts overnight, deduped and scored"), not implementation-shaped — don't just restate the \`summary\`.
+- \`valueHook\` — one sentence in **user-outcome** terms. Read aloud by \`recommend_catalysts\` to position the catalyst *before* the user has decided to read the body. Outcome-shaped ("a cuddly toy you can see and keep working on"), not implementation-shaped — don't just restate the \`summary\`.
 
 **Optional fields:**
 
@@ -350,7 +362,7 @@ Draft the same two parts a shelf file has — the frontmatter fields and a markd
 - \`category\` (string — see Step 2.4)
 - \`requires.destinationMcpCategory\` (one of the categories from Step 2.3)
 - (\`requires.protocols\` named chatbot capabilities on the 2.x line; leave it out. A catalyst that lists one is not recommended.)
-- \`requires.destinationExamples\` — **required if \`destinationMcpCategory\` is set.** Array of 3-5 named MCPs that satisfy the category (e.g., for \`crm-like\`: \`["HubSpot", "Salesforce", "Pipedrive", "Attio", "Close"]\`). The \`recommend_catalysts\` tool surfaces these as consultation suggestions ("you could install HubSpot to unlock this") — missing or empty is a hole in the consultation posture.
+- \`requires.destinationExamples\` — **required if \`destinationMcpCategory\` is set.** Array of 3-5 named MCPs that satisfy the category (e.g., for \`dcc-like\`: \`["Blender MCP", "Houdini MCP", "Maya MCP"]\`). The \`recommend_catalysts\` tool surfaces these as consultation suggestions ("you could connect a Blender MCP to unlock this") — missing or empty is a hole in the consultation posture.
 - \`parameters\` (array of \`{ name, prompt, default? }\`)
 - \`mcpTools.mojulo\` (array of mojulo tool names the artifact calls)
 - \`mcpTools.destination.description\` — *abstract* prose describing the shape of MCP needed plus 2-4 example MCPs. Do not bind to a specific MCP.
@@ -428,7 +440,7 @@ This tool returns the workflow catalysts on the shelf (shipped and the operator'
 Cross-reference \`destinationExamples\` against the MCPs available in this session:
 
 - **Example IS installed** → present as something the user can do now. Lead with the \`valueHook\`. Ask if they want to read the catalyst.
-- **No example installed** → present as a soft suggestion, not a blocker. Lead with the \`valueHook\` and add: "you'd need a CRM MCP — HubSpot, Salesforce, Pipedrive, Attio — wired into your runtime for this." Never gatekeep ("can't do this") — frame as an opt-in upgrade.
+- **No example installed** → present as a soft suggestion, not a blocker. Lead with the \`valueHook\` and add: "you'd need a Blender MCP (or another of its destination examples) connected for this." Never gatekeep ("can't do this") — frame as an opt-in upgrade.
 - **No destination at all** (\`destinationCategory: null\`) → a session workflow: it runs in this conversation against mojulo itself (a creative loop, a research sweep). Offer it as something to do now.
 
 Lead with the user's outcome (\`valueHook\`), not the catalyst's name. The catalyst id is a handle to fetch the recipe with \`get_catalyst\`; it's not how you describe the value to the user.
@@ -545,13 +557,13 @@ export function registerCatalystTools() {
   registerTool({
     name: 'list_catalysts',
     description:
-      "List catalyst recipes — the curated shelf shipped with mojulo plus the operator's local shelf (minted via `mint_catalyst`, `origin: 'local'`). Two kinds: `workflow` (the default — run in the session, or materialized through a host adapter against a source + a destination MCP) and `technique` (recipes that bind a runtime substrate like the filesystem or a local SQL store to an artifact, recorded as a contextmap principle). Returns id, name, summary, kind, category, origin, and requirements (notably the destination MCP category); a local entry flagged `eclipsed: true` lost its id to a newly shipped curated catalyst and needs a re-slug. Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound (workflow only — techniques bind via `bind_primitives`).",
+      "List catalyst recipes — the curated shelf shipped with mojulo plus the operator's local shelf (minted via `mint_catalyst`, `origin: 'local'`). Two kinds: `workflow` (the default — run in the session, or materialized through a host adapter against a source + a destination MCP) and `technique` (binds a runtime substrate to an artifact; none ship since 3.1.0, a local one can still be minted). Returns id, name, summary, kind, category, origin, and requirements (notably the destination MCP category); a local entry flagged `eclipsed: true` lost its id to a newly shipped curated catalyst and needs a re-slug. Read the full body with `get_catalyst`; see `list_adapters` for how host-specific materialization is bound (workflow only — techniques bind via `bind_primitives`).",
     inputSchema: {
       type: 'object',
       properties: {
         category: {
           type: 'string',
-          description: 'Optional filter (e.g., crm-sync, itsm, calendar, digest, analysis, rag-curation, runtime-primitive).',
+          description: 'Optional filter (e.g., object-design, world-building, explainer, research-science, substrate).',
         },
         kind: {
           type: 'string',
@@ -611,7 +623,7 @@ export function registerCatalystTools() {
           enum: ['workflow', 'technique'],
           description: "Default 'workflow'. Local catalysts declare kind explicitly (no shelf directory to infer from).",
         },
-        category: { type: 'string', description: 'Optional category (e.g. crm-sync, digest, analysis).' },
+        category: { type: 'string', description: 'Optional category (e.g. object-design, world-building, explainer).' },
         requires: {
           type: 'object',
           description:

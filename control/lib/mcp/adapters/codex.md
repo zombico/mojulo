@@ -6,7 +6,7 @@
   "version": 1,
   "artifactTarget": "Codex automation (preferred for recurrence) OR workspace ./mojulo-workflows/<slug>/ (workflow + helpers Codex follows interactively)",
   "schedulingMechanism": "automation_update cron",
-  "secretsPosture": "automation-level secrets; never read a .env (list_env names an app's keys, never values)",
+  "secretsPosture": "automation-level secrets; never read a .env",
   "supportsClientInfoHint": ["codex", "openai-codex", "codex-cli"]
 }
 ---
@@ -49,7 +49,7 @@ The corollary: don't write discovery breadcrumbs (`AGENTS.md`, `.codex/procedure
    }
    ```
 
-   Don't re-bootstrap when this file exists. Primitive compositions dock under `.codex/mojulo/compositions/` when they are materialized (see the primitive binding flow below), not at bootstrap.
+   Don't re-bootstrap when this file exists.
 
 That's the entire bootstrap. Don't pre-create `tools/mojulo/`, `tests/mojulo/`, `verification/`, `AGENTS.md`, or any other stub — none of them pay rent.
 
@@ -60,10 +60,10 @@ Because Codex won't auto-load a procedure file from the workspace, the standing 
 ```md
 ## Standing moves — run every time, before this workflow's main steps
 
-1. **Preflight (mojulo MCP).** Verify mojulo MCP tools are visible (e.g. `version`, `meta_context_brief`). If missing, log "mojulo MCP not bound" and exit non-zero.
+1. **Preflight (mojulo MCP).** Verify mojulo MCP tools are visible (e.g. `version`, `get_stash`). If missing, log "mojulo MCP not bound" and exit non-zero.
 2. **Preflight (destination MCP).** Verify destination MCP tools are visible. If missing, log "destination MCP <name> not bound" and exit non-zero.
-3. **Drift check.** Re-read the source's shape (the mojulo read tool this artifact names, or the declared inventory via `meta_context_brief`) and compare it against this artifact's `provenance.json`. If different, refresh the snapshot and bump `capturedAt` before continuing — otherwise yesterday's schema bakes into today's writes.
-4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly — `list_env` names an app's keys, never values. Same rule on error/exception paths.
+3. **Drift check.** Re-read the source's shape (the mojulo read tool this artifact names) and compare it against this artifact's `provenance.json`. If different, refresh the snapshot and bump `capturedAt` before continuing — otherwise yesterday's schema bakes into today's writes.
+4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly. Same rule on error/exception paths.
 5. **Dry-run gate.** Read `liveMode` from this artifact's config / parameters. If `false`, render the destination payload to the log and exit. If `true`, proceed to the live write.
 ```
 
@@ -99,7 +99,7 @@ Ask the catalyst's `parameters` questions in one batched round before materializ
 **Detached automations may not see your current tool surface.** Codex tool schemas load lazily, destination MCPs may not be wired, and an automation executing on a schedule starts from a fresh tool registry. Bake a preflight into every materialized artifact as its **first step**:
 
 ```
-1. Verify mojulo MCP tools are visible (e.g. version, meta_context_brief). If missing: log "mojulo MCP not bound" and exit non-zero.
+1. Verify mojulo MCP tools are visible (e.g. version, get_stash). If missing: log "mojulo MCP not bound" and exit non-zero.
 2. Verify destination MCP tools are visible (e.g. the CRM's contact-create tool). If missing: log "destination MCP <name> not bound" and exit non-zero.
 3. Only then proceed to the workflow.
 ```
@@ -144,7 +144,7 @@ Shape: at minimum `recordId`, `action` (`inserted | updated | skipped-* | failed
 
 Translate mojulo's "never `cat` `.env`" standing rule into Codex behavior:
 
-- Don't `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly. `list_env` names an app's keys (never values); the values stay where the operator set them.
+- Don't `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env` directly; the values stay where the operator set them.
 - Don't echo secrets into the automation prompt as plain text. If the user has Codex's secret-injection mechanism wired, reference secrets through that interface; otherwise leave secret values out of the prompt entirely and let the destination MCP's auth surface handle them.
 - The materialized artifact (automation prompt or workflow file) must never log raw `.env` contents on any execution path, including error/exception paths. Error handlers that dump environment for debugging are a common leak vector — explicitly redact.
 
@@ -169,98 +169,6 @@ Every written export (`export_model`, `export_game`, `cook`) returns a `handoff`
 
 ---
 
-## Primitive binding flow (compositions over installed MCPs)
+## Reaching other MCPs and workers
 
-Everything above describes the **catalyst** flow — vendor-shaped, curated body. There's a parallel flow mojulo supports for **primitive-shaped** workflows: an interactive Codex session declares its installed MCPs as a richer-snapshot inventory, calls `bind_primitives` per primitive slot, materializes via the same automation / workflow-file / inline modes as the catalyst flow, and seals via `meta_context_commit({type: 'primitive_artifact_materialization', ...})`. This is the supported path for MCP-to-MCP outcomes — the generated provider artifact reflects the operator's actual installed MCP (tool names, schemas) rather than a curated guess. The vendor-shaped `recommend_mcp_orbit_compositions` flow remains as a seed-reasoning surface for first-encounter scaffolding when runtime tool-schema knowledge is missing.
-
-### Why an interactive session has to do the binding (not the automation)
-
-Codex automations execute in a fresh tool registry per invocation — they may not see the MCP tools wired into your current interactive session. **Introspection has to happen at materialization time, in an interactive session that can see the MCPs**; the snapshot then persists in mojulo (`meta_context_declare_inventory` stores it server-side), and the materialized automation references the bound tools by name from the snapshot rather than re-introspecting on every run.
-
-This is the inverse of the standing-moves preamble pattern (which assumes the automation can re-verify tools at run time): for primitive binding, **the snapshot is the source of truth at materialization time, and the automation's standing-moves preamble verifies the specific bound tool names exist** (rather than re-discovering the surface).
-
-### Step 1 — Enumerate MCPs from your interactive session's tool surface
-
-In your current interactive Codex session, list the connected MCP tools. Codex's exact discovery affordance varies by version — use whichever of these your session exposes:
-
-- A tool list visible in your session context (the equivalent of Claude Code's `<function>` blocks and `<system-reminder>` deferred-tool list).
-- An explicit `tool_search` or similar inventory call that returns connected MCPs + their tools.
-- The MCP client's `tools/list` response if exposed directly in your tooling surface.
-
-For each MCP tool you can see, identify the server name (the tool's MCP server prefix) and group tools by server. Note which tools have visible schemas vs which you'd only have the name for.
-
-If your Codex session has a more constrained discovery surface than expected, declare what you can with the appropriate confidence label (`names_only` is honest when no schema is available; don't fabricate schemas).
-
-### Step 2 — Load schemas for tools you'll cite in bindings
-
-For each tool whose name you'll reference in `bind_primitives`, load its input schema:
-
-- If the schema is already in your session's tool surface, extract it directly.
-- If it's deferred / unloaded, use whatever Codex affordance loads schemas on demand (`tool_search`, schema discovery, etc.).
-- If neither works for a particular MCP, declare it `names_only` and live without the schema — the generator will fall back to "(no schema available)" in the rendered body, and downstream consumers know to treat bindings as `agent_inferred` only.
-
-### Step 3 — Ship the snapshot via `meta_context_declare_inventory` in richer-snapshot mode
-
-Same call shape as the Claude Code adapter documents. REPLACE semantics; include every MCP + tool that could plausibly play a primitive role this session. The snapshot persists in mojulo and is what the materialized automation will reference.
-
-### Step 4 — Bind primitives per composition slot
-
-Call `bind_primitives` once per primitive slot (e.g. one for `document-store/destination` on `claude_ai_Google_Drive`, another for `structured-record-store/source` on `claude_ai_Linear`). Each call returns a `prov_<id>` ref + inline `body`. Read each body in full — its mapping intent and pitfalls sections drive how you write the artifact in step 5.
-
-The `confidence` per binding is `agent-inferred` by default. Bump to `operator-confirmed` after asking the user to confirm a binding (when two tools could plausibly satisfy one affordance and you want their explicit pick).
-
-### Step 5 — Materialize the artifact (same three modes as the catalyst flow)
-
-Same artifact target options as catalyst materialization: **automation** (mode 1, preferred for recurring), **workspace workflow file** (mode 2, version-controlled), or **inline** (mode 3, one-shot fallback). Differences for primitive composition artifacts:
-
-**Inline the bound tool names from the snapshot, not affordance names.** The artifact says "call `search_files`" / "call `create_file`" — not "call the `find-by-key-in-scope` affordance." Affordance names are mojulo-side abstractions; the runtime needs concrete tool names.
-
-**Copy the relevant mapping intent + pitfalls from each `bind_primitives` body into the artifact's prompt or `workflow.md`.** The provider body is session-scoped; the artifact has to be self-contained at run time because future Codex invocations won't have access to the same provider artifact.
-
-**Adapt the standing-moves preamble** so the tool-discovery preflight verifies the SPECIFIC bound tool names exist — not a vague "destination MCP is bound" check. Example:
-
-```md
-## Standing moves — run every time, before this workflow's main steps
-
-1. **Preflight (mojulo MCP).** Verify mojulo MCP tools are visible. If missing: log + exit non-zero.
-2. **Preflight (bound MCP tools).** Verify EACH of these specific bound tools is visible:
-   - `claude_ai_Google_Drive.search_files`
-   - `claude_ai_Google_Drive.create_file`
-   - `claude_ai_Linear.list_issues`
-   If any missing: log "bound tool <name> not available" and exit non-zero.
-3. **Snapshot freshness (optional, advisory).** This artifact was materialized against a snapshot from <ISO>. If significantly later, the bound MCP may have drifted — log a warning but proceed.
-4. **Secrets posture.** Never `cat` or `Read` `~/.mojulo/**/.env*` or an app's `.env`; `list_env` names keys, never values.
-5. **Dry-run gate.** Read `liveMode` from this artifact's config / parameters. If `false`, render destination payload to log and exit.
-```
-
-Step 3 (snapshot freshness) is advisory — there's no contextmap call to refresh from at run time. Phase B may add a programmatic refresh affordance; for now, treat drift detection as the operator's responsibility (re-materialize when MCPs change significantly).
-
-**Dock into the workspace substrate (modes 1 and 2):** for primitive compositions, the substrate entry differs from the catalyst-shaped one. Write `<workspace>/.codex/mojulo/compositions/<slug>/` containing:
-
-- `provider-artifacts.json` — the array of provider artifact refs + full bodies returned by `bind_primitives`. This is the durable copy a future session can read to understand what this composition was built from.
-- `provenance.json` — composition_intent + snapshot timestamps + bound tool list. Mirror of what mojulo's contextmap will record on commit; carrying it in the workspace too means a session that lost MCP-bound mojulo connectivity can still recover the artifact's provenance from the filesystem.
-
-(The `compositions/` directory is the workspace substrate for the primitive flow.)
-
-### Step 6 — Seal with `meta_context_commit` (primitive_artifact_materialization)
-
-After the artifact exists at its `locator` (the workspace file path for mode 2, an automation ref / identifier for mode 1):
-
-```json
-{
-  "type": "primitive_artifact_materialization",
-  "adapter_id": "codex",
-  "artifact": { "locator": "<absolute path to workflow.md OR codex automation locator>", "label": "Weekly Drive digest" },
-  "composition_intent": "...",
-  "provider_artifact_refs": ["<every prov_xxx>"],
-  "principles": [...]
-}
-```
-
-**Codex-specific verification note:** mojulo's adapter-delegated verification for codex accepts opaque locators on the agent's assertion (no `existsSync` check, unlike claude-code and generic). That means YOU are the trust anchor for "the artifact exists at this locator" — if you commit and the locator is wrong, the contextmap records a phantom artifact. Verify with a workspace `ls` or an `automation_get` call before committing.
-
-If the commit fails after the artifact is materialized, roll back via Codex's own affordances — delete the workflow file, cancel the automation, etc. Unauditable artifacts are worse than failed materializations.
-
-### Inventory freshness in Codex's substrate
-
-`bind_primitives` returns `snapshot_stale` in `warnings` when the snapshot is more than 24h old. When that fires, re-run steps 1–3 in the current interactive session (your tool surface is authoritative). Don't reuse a stale snapshot — schemas baked into a materialized automation are very hard to change once the automation is running on cron.
+A catalyst that reaches past mojulo (`make-stuffy`: the body from mojulo, the fur from the operator's Blender) runs as the automation this card describes, beside the operator's other MCPs: call their tools by name from it. Mojulo hands files out (`export_model` writes the file, and its `handoff` names this host's door) and takes finished work back as outcomes under `data/outcomes/<ref>/`. Record which MCPs this host has with `meta_context_declare_inventory` only when the operator wants mojulo to know, never at session start. Until 3.1.0 this section bound primitives and sealed the composition in the contextmap; that flow left the tool surface with the office wing.

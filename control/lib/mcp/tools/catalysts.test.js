@@ -29,8 +29,9 @@ import {
 import { _resetCatalogForTests } from '@/lib/mcp/catalysts/loader';
 import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
 
-// A shipped workflow catalyst every test below can rely on (six-section, no destination).
-const CURATED_ID = 'refresh-connected-services';
+// A shipped workflow catalyst every test below can rely on (no destination). refresh-connected-services held this
+// slot until it left the shelf with the office wing in 3.1.0.
+const CURATED_ID = 'make-stuffy';
 const OTHER_CURATED_ID = 'research-mcp-vendor';
 
 describe('CATALYST_CORE_PREAMBLE — vocabulary disambiguation', () => {
@@ -350,7 +351,9 @@ describe('CUSTOM_CATALYST_GUIDE — author posture for remote contributors', () 
   it('points the remote agent at the existing exemplars via get_catalyst', () => {
     // The body is self-contained but tells the agent to anchor on exemplars
     // (which it can pull through MCP) rather than inlining 500 lines of prose.
-    expect(CUSTOM_CATALYST_GUIDE).toMatch(/get_catalyst\("refresh-connected-services"\)/);
+    expect(CUSTOM_CATALYST_GUIDE).toMatch(/get_catalyst\("make-stuffy"\)/);
+    // the retired exemplar is named nowhere in the guide
+    expect(CUSTOM_CATALYST_GUIDE).not.toMatch(/refresh-connected-services/);
     expect(CUSTOM_CATALYST_GUIDE).toMatch(/list_catalysts/);
   });
 
@@ -821,5 +824,15 @@ describe('recommendCatalystsHandler — priorMaterializations surfacing', () => 
     const out = await recommendCatalystsHandler({});
     expect(recFor(out, CURATED_ID).priorMaterializations).toEqual([]);
     expect(recFor(out, OTHER_CURATED_ID).priorMaterializations).toHaveLength(1);
+  });
+});
+
+describe('retired catalysts (the office wing, 3.1.0)', () => {
+  it('a retired id says where it went and what to read instead, and is on no shelf', async () => {
+    const { RETIRED_CATALYSTS } = await import('./catalysts.js');
+    for (const id of Object.keys(RETIRED_CATALYSTS)) {
+      await expect(getCatalystHandler({ id })).rejects.toThrow(/left the shelf with the office wing in 3\.1\.0.*make-stuffy/);
+      expect((await listCatalystsHandler({})).catalysts.map((c) => c.id)).not.toContain(id);
+    }
   });
 });
