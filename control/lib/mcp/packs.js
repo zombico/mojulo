@@ -312,7 +312,7 @@ export const PACKS = [
     title: 'Plan mode (Ring 8)',
     description:
       "PLAN MODE — the speculative layer over sealed reality: enter plan mode, forge and revise plans, read and list them, compile a plan to a manifest of tool calls and execute it under per-execution operator approval, sketch a plan visual. Open for 'let's plan this out', 'turn this session into a plan', 'execute the plan'.",
-    body: 'Plans are the PROPOSED layer; contextmap is sealed reality. A plan compiles to a manifest of tool calls that executes through the exact same handler path as operator-typed calls.',
+    body: 'Plans are the PROPOSED layer; contextmap is sealed reality. A plan compiles to a manifest of tool calls that executes through the exact same handler path as operator-typed calls. A step takes an earlier step\'s result as `{ $step: n, path: \'/ref\' }`, so a chain is written once.',
     members: [
       'enter_plan_mode',
       'forge_plan',
@@ -347,11 +347,12 @@ export const PACKS = [
     wing: 'office',
     title: 'Gather / stash / cook / publish',
     description:
-      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes (gather, mint / get / list / rename a stash, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
+      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes and their drawers (gather, mint / get / list / rename a stash, mint_drawer, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
     body: 'The typed-intake collection layer (seven item types, required-per-type metadata validated at the gate) and the multi-input collider on top of it. Cook files the report the AGENT authors — no server-side LLM call; outcomes land under data/outcomes/<cook_ref>/.',
     members: [
       'gather',
       'mint_stash',
+      'mint_drawer',
       'get_stash',
       'list_stashes',
       'rename_stash',
@@ -376,7 +377,7 @@ export const PACKS = [
     wing: 'office',
     title: 'Catalysts, adapters & extension',
     description:
-      "CATALYSTS & EXTENSION — curated workflow recipes shipped via MCP: get / list / recommend catalysts, the meta-catalyst, mint a custom catalyst or drawer, and host-adapter info (get / list adapters — how a recipe lands as a Skill on this host). Open for 'is there a recipe for X', 'install this workflow as a skill', 'extend mojulo with a new drawer'.",
+      "CATALYSTS & EXTENSION — curated workflow recipes shipped via MCP: get / list / recommend catalysts, the meta-catalyst, mint a custom catalyst, and host-adapter info (get / list adapters — how a recipe lands as a Skill on this host). Open for 'is there a recipe for X', 'install this workflow as a skill'.",
     body: 'A catalyst is a curated workflow recipe the host adapter synthesizes into a Skill; adapters describe the host so the synthesis lands in the right shape. Minting tools extend the shelf.',
     members: [
       'get_catalyst',
@@ -385,7 +386,6 @@ export const PACKS = [
       'mint_catalyst',
       'custom_catalyst',
       'get_meta_catalyst',
-      'mint_drawer',
       'get_adapter',
       'list_adapters',
     ],

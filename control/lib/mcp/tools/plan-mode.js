@@ -43,6 +43,7 @@ import { CookRepository } from '@/lib/db/repositories/cooks';
 import { recordPlanReleases, isReleaseCommitType } from '@/lib/mcp/meta-context/plan-release';
 import { mintSketch } from '@/lib/mcp/tools/sketches';
 import { planToSketchManifest } from '@/lib/sketch-derive';
+import { stepRefErrors, resolveStepRefs } from '@/lib/mcp/plan-refs';
 
 // Plan-mode meta-tools may never appear inside a plan's manifest — that would
 // let a plan forge/compile/execute other plans, defeating the per-execution
@@ -106,7 +107,9 @@ Flow: forge_plan (Draft) → revise_plan (loop) → compile_plan (Draft→Action
 
 ## Manifest shape
 
-\`manifest\` is an ordered array of \`{ "tool": "<live_tool_name>", "args": { ... }, "note": "<optional why>" }\`. Plan-mode meta-tools (forge_plan, compile_plan, execute_plan, …) may not appear in a manifest.`;
+\`manifest\` is an ordered array of \`{ "tool": "<live_tool_name>", "args": { ... }, "note": "<optional why>" }\`. Plan-mode meta-tools (forge_plan, compile_plan, execute_plan, …) may not appear in a manifest.
+
+A later step takes an earlier step's result with a reference anywhere in its args: \`{ "$step": 0, "path": "/ref" }\` is the value at that JSON Pointer in step 0's result (no \`path\`: the whole result). So a chain is written once — \`[{ tool: 'mint_solid', args: {…} }, { tool: 'export_model', args: { ref: { $step: 0, path: '/ref' }, format: '3mf' } }]\` — and the executor carries the refs. Compile refuses a reference to the same or a later step; execution stops at a pointer that finds nothing, naming what was there. The execution log records each reference's value.`;
 
 export async function enterPlanModeHandler(_input, _ctx) {
   return { brief: PLAN_MODE_BRIEF };
@@ -334,6 +337,12 @@ function validateManifest(manifest) {
     if (!isToolListed(tool)) {
       deprecatedTools.push(tool);
     }
+    // { $step, path } references to an earlier step's result (lib/mcp/plan-refs.js)
+    const refErrors = stepRefErrors(args || {}, i);
+    if (refErrors.length) {
+      errors.push(...refErrors);
+      return;
+    }
     calls.push({ step: i, tool, args: args || {}, note: entry.note });
   });
   return { calls, unknownTools, illegalTools, deprecatedTools, errors };
@@ -472,30 +481,37 @@ export async function executePlanHandler(input, ctx) {
   PlanRepository.setStatus(plan_ref, 'executing');
 
   const executionLog = [];
+  // Each step's result by step index, for later steps' { $step, path } references.
+  const results = [];
   // Artifact materializations this manifest produced — the "a service was
   // registered" signal that closes the loop (release principle + archive).
   const materializations = [];
   let failed = false;
   for (const call of calls) {
     const startedAt = Math.floor(Date.now() / 1000);
+    let refs = null;
     try {
-      const result = await invokeRegisteredTool(call.tool, call.args, ctx);
+      const { args, resolved } = resolveStepRefs(call.args, results, call.step);
+      if (Object.keys(resolved).length) refs = Object.fromEntries(Object.entries(resolved).map(([at, v]) => [at, snippet(v)]));
+      const result = await invokeRegisteredTool(call.tool, args, ctx);
+      results[call.step] = result;
       if (
         call.tool === 'meta_context_commit' &&
         result &&
         result.ok === true &&
         Number.isInteger(result.artifactNodeId) &&
-        isReleaseCommitType(call.args?.type)
+        isReleaseCommitType(args?.type)
       ) {
         materializations.push({
           artifactNodeId: result.artifactNodeId,
-          commitType: call.args.type,
+          commitType: args.type,
         });
       }
       executionLog.push({
         step: call.step,
         tool: call.tool,
         ok: true,
+        ...(refs ? { refs } : {}),
         result_snippet: snippet(result),
         ran_at: startedAt,
       });
@@ -504,6 +520,7 @@ export async function executePlanHandler(input, ctx) {
         step: call.step,
         tool: call.tool,
         ok: false,
+        ...(refs ? { refs } : {}),
         error: err?.message || String(err),
         ran_at: startedAt,
       });

@@ -82,6 +82,9 @@ const EFFECT_MOTIONS = {
 };
 const EFFECT_MOTION_NAMES = Object.keys(EFFECT_MOTIONS);
 const EFFECT_BG = '#070a11';
+// A world motion's GIF preview: the MP4 carries the full capture (720×540 at the shot's fps).
+const WORLD_GIF_WIDTH = 480;
+const WORLD_GIF_MAX_FPS = 12;
 
 function motionRef() {
   return `mo_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
@@ -509,9 +512,12 @@ export async function forgeMotionHandler(input) {
     wantGif = exportFormat !== 'mp4';
     const wantMp4 = exportFormat === 'mp4' || exportFormat === 'both';
     if (wantGif) {
+      // A world's GIF is the preview (the MP4 is the full-size download): 480 wide, at most 12 fps, unless
+      // shot.params.gif_width asks otherwise. Painted scenes and cels keep their own size and timing.
       gifInfo = await encodeGifBuffers(result.framePngs, path.join(dir, 'motion.gif'), {
         fps: result.meta.fps,
         loop: 0,
+        ...(isWorld ? { width: shot.params?.gif_width || WORLD_GIF_WIDTH, maxFps: WORLD_GIF_MAX_FPS } : {}),
       });
     }
     if (wantMp4) {

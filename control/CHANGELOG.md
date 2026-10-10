@@ -12,6 +12,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Drawer alignment: the agent supplies the words, the server the rest
+
+- The first card read of a process no longer stalls about 6 s. The animal entry cards' DOES lines came from solving every
+  species' behaviors on its skeleton at catalog load. They are read from a generated table now
+  (`fauna/behavior/does-table.js`, written by `node scripts/gen-fauna-does.mjs`, held equal to the live solve by
+  `does-table.deep.test.js`), and a species not in it is still solved live. The cards are byte-identical. The stall
+  fell on the first `get_solid_vocab`, `semantic_search` or `sketch_what_possible` of every session.
+- A world motion's GIF is a preview: 480 wide and at most 12 fps (each kept frame held so the run keeps its length),
+  `shot.params.gif_width` to change the width. The MP4 still carries the full capture. A seven-second traversal's GIF
+  fell from 19.5 MB to 5.1 MB. Painted scenes and cels keep their own size and timing.
+- **A plan carries its own refs.** Anywhere in a manifest step's args, `{ "$step": n, "path": "/ref" }` is the value at
+  that JSON Pointer in step n's result (no `path`: the whole result), so mint → export → measure is one manifest
+  written once instead of a call per step with the ref copied by hand (`lib/mcp/plan-refs.js`). Compile refuses a
+  reference to the same or a later step. Execution stops at a pointer that finds nothing, naming the keys that were
+  there, and the execution log records the value each reference took. The manual is in `enter_plan_mode` and the plan
+  pack's body; tools/list is unchanged.
+- `mint_drawer` lives in `pack_stash` beside the stash it sub-groups; `pack_catalysts` no longer offers "a new drawer".
+
 ### Gameworlds: a door for agents
 
 The gameworld and its character book become what an agent builds a game with: a rail in front of the game tools that
@@ -120,7 +138,7 @@ set custom. Animation is assigned by vibe, and custom edits are saved as revisio
   draws it in colour (the World page's own render, photographed front, three-quarter and back on the sheet's paper),
   with the wire views folded beneath as its construction, and the live World page. Without a Chromium the colour
   plates are left out and the wire views stand alone. Not yet done: the eyes gate on every plate and on the motion's table, the
-  vibe table run through the rig's deep sweep, and the adornment and systems pages.
+  vibe table run through the rig's deep sweep (the adornment and systems pages followed, below).
 
 - **More oomph for the example hero.** A ponytail, sharp determined eyes and swept bangs, and a fitted cut of the
   meadow's tunic. The wind's tint is a jade that holds on cloth, not a pastel. The creator's own underlayer keeps the
@@ -139,7 +157,7 @@ power as an alternate use. What the page conceives is the template of its class 
 - **Equipment, a concern of the world.** `equipment.classes` has one row per class of gear the equipment kernel holds.
   The hero's adornment item of a class seeds its row (its build, hand and tiers); a row the world writes wins and is
   ledgered; the rest are left empty, the creator's to fill. Gear is made once the stats exist: its orders wait on the
-  systems step and on `mechanics`, so for now the table is the design.
+  systems step and on `mechanics` (a `design_game` run makes each class through the equipment door, below).
 - **Reviewed like the rest.** The adornment and the equipment are parts of the review gate. The loop leaves open an
   item that serves no power and a final-design power that nothing serves; an empty class is a task, not a fault.
 - **On the sheet.** The character bible draws the adornment (the items, their tiers by stage, their alternate uses, or
@@ -198,7 +216,7 @@ Equipment is made once the stats stand: each class of gear raises a stat by tier
   - Absent `weather` adds not a byte to the page.
 - **Cues.** `then: { weather: 'blizzard' }` (or `{ is, for?, blend? }`) forces a state, for `for` seconds or until the cue ends; `when: { every: 300 }` is a heartbeat the bus lacked.
   - "Entering the pass starts a blizzard until you leave" and "every 300 s the fog rolls in" are one cue each. The sky eases in from what was showing and back out to its schedule.
-- **The air is the style's.** The style guide owns an air card per kit (`era/air.js`, `airOfKit`): the fog's hue, the world's shade (the style's ambient, never black), how the fog is drawn (smooth, banded in flat planes, or dithered), what a dust storm or a blizzard is in that style, and how strong cast shadows are. The weather asks the card and holds no colour; `weather.air` tunes it.
+- **The air is the style's.** The style guide owns an air card per kit (`era/air.js` reads it, `airOfKit` in `gameworld/style-guide.js` picks it): the fog's hue, the world's shade (the style's ambient, never black), how the fog is drawn (smooth, banded in flat planes, or dithered), what a dust storm or a blizzard is in that style, and how strong cast shadows are. The weather asks the card and holds no colour; `weather.air` tunes it.
   - A cel kit gets banded fog in its own steps and a blue shade; a painted kit a smooth gradient. A dust storm is the style's ochre, and the light a storm takes off is multiplied in as the shade, never black. Cast shadows fade with the sun and the fog, and the sky gives way to the fog.
   - The bible's Weather card draws each state in the style's air.
 - **A level's sky.** A level recipe and each of its nodes take `weather`; every section's stage page carries it, and a gameworld level hands its inherited or overridden sky down (the ledger records a section's own). A level's sections share one sky, seeded by the level's seed.
@@ -208,6 +226,9 @@ Equipment is made once the stats stand: each class of gear raises a stat by tier
 - **Sound from principles.** `audio: { weather: true }` rolls the sky's sound on the page (`beats/weather-audio.js`, card `beats-weather`), with no sampled audio and no kernel change.
   - A bed, a rain of small drops and rare thunder. Intensity is the rate of drops, size is their band, the surface (leaf, stone, tin, water, sand, snow) is the resonance, and distance is lowpass, delay and length.
   - The world's seed picks this world's rain; each event jitters round it, so two storms sound alike and never the same.
+  - Levels set by measuring: each bank carries a gain so its bed lands at a measured loudness (the first levels spread
+    over 30 dB and snow was silent), the rings sit under the drops, and a test renders every bank offline and pins
+    the levels, their order and the thunder over the bed.
 
 ### Realistic ground: the opposite pole of the isekai look
 
@@ -727,7 +748,7 @@ This step builds the contract and the approval gate. No rung is served yet.
   - `rung` returns what that rung admits; `id` returns one card. The cards (`play-guide`, `ui-board`,
     `ui-register`, `ui-motion`, `ui-layout`, `ui-part-<part>`) are generated in `cards.js`.
   - The tool lives in `pack_game`. Studio routing gets a PLAY row, and a `play` routing card is added. The
-    tools/list payload is re-pinned to 241,700.
+    tools/list payload is re-pinned (242,400 since `design_game`).
 - **Cues: one primitive for the UI answering the game (`playscape/ui/cues.js`).** A cue says, in game words, when
   the UI acts, what it does and until when:
   - when: the figure enters, leaves or comes near a zone, uses a thing, takes an item, a value crosses a line, any
@@ -925,6 +946,7 @@ This step builds the contract and the approval gate. No rung is served yet.
 
 ### Aura poses
 
+- Not yet on the hero door or in exports: the library and its tests only.
 - Standing showcase poses (`polygonizer/hero-aura.js`): `heroAura(name, R, { body, seconds })` returns the performance
   clip from the stand to the held pose (`clip.fn(t)`), its keys, the held pose, the face track (the anime channels per
   beat), the beats and the checks. `auraBody(R, mesh, skin)` gives the body the hands rest on: each bone's surface as a
@@ -961,6 +983,7 @@ This step builds the contract and the approval gate. No rung is served yet.
 
 ### Free run
 
+- Not yet on the hero door or in exports: the library and its tests only.
 - Clearing a low box out of the run (`polygonizer/hero-vault.js`): `heroVault(name, R, { h, d, w, from, seconds })` returns
   the clip in place (`fn(t)`, keys at 30 per second), its root track (`root.y`, `root.z`: the engine carries the
   character along it), the entry (the gait's phase, the take-off foot, the take-off distance to the near face), the
@@ -987,6 +1010,7 @@ This step builds the contract and the approval gate. No rung is served yet.
 
 ### Rise and sit
 
+- Not yet on the hero door or in exports: the library and its tests only.
 - Getting up out of every rest pose, and sitting or lying down into it (`polygonizer/hero-rise.js`):
   `heroRise(rest, R, { down, seconds })` returns the clip (`fn(t)`, keys at 30 per second), its states and their
   times, its beats, the rest's props and its checks.
@@ -1022,6 +1046,7 @@ This step builds the contract and the approval gate. No rung is served yet.
 
 ### At rest
 
+- Not yet on the hero door or in exports: the library and its tests only.
 - Sitting and lying, solved from what the body rests on (`polygonizer/hero-rest.js`): `heroRest(name, R)` returns the
   held pose, its seat drawn as boxes, the face it wears and its checks.
 - Seated: the sit bones placed on the seat. A pose that rests its back reclines the whole trunk about the hips
@@ -1050,6 +1075,7 @@ This step builds the contract and the approval gate. No rung is served yet.
 
 ### Carrying
 
+- Not yet on the hero door or in exports: the library and its tests only.
 - Holding things in a mode, solved from the thing (`polygonizer/hero-carry.js`): `heroHold(name, R, { kg, regime })`
   places the thing by what the mode is for, then closes each hand on its station with hero-grip's arm solve.
   `heroCarry(item, mode, R, { hands })` picks the hold.

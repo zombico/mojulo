@@ -23,15 +23,23 @@ import { FAMILY_ABOUT, FAMILY_WANTED } from './families.js';
 import { locomotionFor, TAILS, TAIL_BUILDS } from './locomotion/index.js';
 import { BEHAVIORS } from './behavior/index.js';
 import { posable } from './behavior/pose.js';
+import { DOES_TABLE } from './behavior/does-table.js';
 import { BUG_SPECIES } from '../bugs/species.js';
 import { about as BUG_ABOUT, wanted as BUG_WANTED, classOf, stanceOfOrder } from '../bugs/about.js';
+
+/** What species `id` can be minted doing, solved live: `{ <behavior>: <strategy> }` for each posable behavior. Each
+ * solve builds the species' skeleton, ~6 s across the roster, so the catalog reads DOES_TABLE (generated from this by
+ * `node scripts/gen-fauna-does.mjs`, held equal by does-table.deep.test.js) and solves live only a species not in it. */
+export function liveDoes(id) {
+  return Object.fromEntries(Object.keys(BEHAVIORS).map((b) => [b, posable(id, b)]).filter(([, p]) => p.ok).map(([b, p]) => [b, p.strategy]));
+}
 
 /** The rosters the encyclopedia reads. */
 export const ROSTERS = [
   { id: 'fauna', species: SPECIES, about: FAMILY_ABOUT, wanted: FAMILY_WANTED,
     familyOf: (id) => SPECIES[id].family, stanceOf, spec: (id) => ({ species: id }),
     movesOf: (id) => locomotionFor(SPECIES[id].family, id),
-    doesOf: (id) => Object.fromEntries(Object.keys(BEHAVIORS).map((b) => [b, posable(id, b)]).filter(([, p]) => p.ok).map(([b, p]) => [b, p.strategy])) },
+    doesOf: (id) => DOES_TABLE[id] ?? liveDoes(id) },
   // the arthropods (../bugs): assembled from part forms, not family tables; the family is the class, the lede its read
   { id: 'bugs', species: BUG_SPECIES, about: BUG_ABOUT, wanted: BUG_WANTED,
     familyOf: (id) => classOf(BUG_SPECIES[id].order), kinOf: (k, id) => BUG_SPECIES[k].order === BUG_SPECIES[id].order, stanceOf: (id) => stanceOfOrder(BUG_SPECIES[id].order), spec: (id) => ({ species: id }),

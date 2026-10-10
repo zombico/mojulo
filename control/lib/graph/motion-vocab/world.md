@@ -17,7 +17,7 @@ WORLD motions apply the SAME camera motions (turntable / orbit / push_in / dolly
 
 ## Shot — camera
 
-`shot.motion`: same names as the camera family. `shot.params`: same camera params, plus `{ width, height }` for the render canvas. A World is RASTER-NATIVE — there is NO durable flipbook SVG; it exports a looping `.gif` (preview) and, on `export:'mp4'|'both'`, a downloadable `.mp4`/H.264 (the better form for a smooth fly-through). Heavier than the SVG paths (headless Chromium + SwiftShader renders each frame), so keep frame counts modest.
+`shot.motion`: same names as the camera family. `shot.params`: same camera params, plus `{ width, height }` for the render canvas. A World is RASTER-NATIVE — there is NO durable flipbook SVG; it exports a looping `.gif` (the preview: 480 wide and at most 12 fps, `gif_width` to change the width) and, on `export:'mp4'|'both'`, a downloadable `.mp4`/H.264 (the better form for a smooth fly-through). Heavier than the SVG paths (headless Chromium + SwiftShader renders each frame), so keep frame counts modest.
 
 ## Shot — traversal (an input-script run)
 
