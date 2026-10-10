@@ -31,6 +31,7 @@ import { depthText } from './depth.js';
 import { relationsOf, lineageTree, KINDS } from './lineage.js';
 import { historicSoundtrack, soundtrackMood } from './soundtrack.js';
 import { landOf } from './cultures/index.js';
+import { SLOT_TABLE } from './slot-table.js';
 
 export { REGIONS };
 
@@ -98,23 +99,21 @@ export function lineageCard() {
     body: lines.join('\n') };
 }
 
-/** A city's statue slots for its card (historic/statues.js): each id, with its figure count where it stands several and
- * `equestrian` where a mounted statue (horse and rider) goes, an asset's numbered slots as a range; planned once per culture. A
- * ring-canal town has none. */
-const SLOT_TEXT = new Map();
-function statueSlotText(id) {
-  if (!SLOT_TEXT.has(id)) {
-    const K = HISTORIC_CULTURES[id], S = K.layout && K.layout !== 'ring-canal' ? statueSlots(planHistoricCity({ culture: id, seed: 1 })) : {};
-    // a slot a library form fits (statue/forms.js) says so: the agent need mint nothing
-    const FORM_AT = { 'gz-sphinx': 'sphinx', 'eg-sphinx-row': 'criosphinx', guardians: 'bull' };
-    const named = Object.entries(S).filter(([k]) => !k.includes(':')).map(([k, v]) => `${k}${v.figures.some((f) => f.equestrian) ? ' (equestrian)' : v.figures.length > 1 ? ` (${v.figures.length})` : ''}`);
-    // an asset's numbered slots as one range ('ln-statue:0–13'), or listed where the numbering has gaps (an empty base)
-    const numbered = {}; for (const k of Object.keys(S).filter((q) => q.includes(':'))) { const [a, n] = k.split(':'); (numbered[a] ??= []).push(+n); }
-    const eq = (a) => Object.entries(S).some(([k, v]) => k.startsWith(`${a}:`) && v.figures.some((f) => f.equestrian));
-    SLOT_TEXT.set(id, [...named, ...Object.entries(numbered).map(([a, ns]) => `${a}:${ns.length > 1 && Math.max(...ns) - Math.min(...ns) === ns.length - 1 ? `${Math.min(...ns)}–${Math.max(...ns)}` : ns.join(', ')}${eq(a) ? ' (equestrian)' : ''}${FORM_AT[a] ? ` (form ${FORM_AT[a]})` : ''}`)].join(', '));
-  }
-  return SLOT_TEXT.get(id);
+/** A city's statue slots for its card (historic/statues.js), planned live: each id, with its figure count where it stands
+ * several and `equestrian` where a mounted statue (horse and rider) goes, an asset's numbered slots as a range. A ring-canal
+ * town has none. Planning every city costs ~0.5 s, so the catalog reads SLOT_TABLE (generated from this by
+ * `node scripts/gen-historic-slots.mjs`, held equal by slot-table.deep.test.js) and plans live only a culture not in it. */
+export function liveSlotText(id) {
+  const K = HISTORIC_CULTURES[id], S = K.layout && K.layout !== 'ring-canal' ? statueSlots(planHistoricCity({ culture: id, seed: 1 })) : {};
+  // a slot a library form fits (statue/forms.js) says so: the agent need mint nothing
+  const FORM_AT = { 'gz-sphinx': 'sphinx', 'eg-sphinx-row': 'criosphinx', guardians: 'bull' };
+  const named = Object.entries(S).filter(([k]) => !k.includes(':')).map(([k, v]) => `${k}${v.figures.some((f) => f.equestrian) ? ' (equestrian)' : v.figures.length > 1 ? ` (${v.figures.length})` : ''}`);
+  // an asset's numbered slots as one range ('ln-statue:0–13'), or listed where the numbering has gaps (an empty base)
+  const numbered = {}; for (const k of Object.keys(S).filter((q) => q.includes(':'))) { const [a, n] = k.split(':'); (numbered[a] ??= []).push(+n); }
+  const eq = (a) => Object.entries(S).some(([k, v]) => k.startsWith(`${a}:`) && v.figures.some((f) => f.equestrian));
+  return [...named, ...Object.entries(numbered).map(([a, ns]) => `${a}:${ns.length > 1 && Math.max(...ns) - Math.min(...ns) === ns.length - 1 ? `${Math.min(...ns)}–${Math.max(...ns)}` : ns.join(', ')}${eq(a) ? ' (equestrian)' : ''}${FORM_AT[a] ? ` (form ${FORM_AT[a]})` : ''}`)].join(', ');
 }
+const statueSlotText = (id) => SLOT_TABLE[id] ?? liveSlotText(id);
 
 /** One culture's entry card. */
 export function entryCard(id) {

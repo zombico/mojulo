@@ -58,6 +58,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (`fauna/behavior/does-table.js`, written by `node scripts/gen-fauna-does.mjs`, held equal to the live solve by
   `does-table.deep.test.js`), and a species not in it is still solved live. The cards are byte-identical. The stall
   fell on the first `get_solid_vocab`, `semantic_search` or `sketch_what_possible` of every session.
+- The first `get_view_vocab` of a process no longer takes about 0.6 s. The historic entry cards' statue-slot lines came
+  from planning every city at load; they are read from a generated table now (`historic/slot-table.js`, written by
+  `node scripts/gen-historic-slots.mjs`, held equal to the live plan by `slot-table.deep.test.js`), and a culture not in
+  it is still planned live. The cards are byte-identical. Every vocab reader's first read is now under 0.1 s.
 - A world motion's GIF is a preview: 480 wide and at most 12 fps (each kept frame held so the run keeps its length),
   `shot.params.gif_width` to change the width. The MP4 still carries the full capture. A seven-second traversal's GIF
   fell from 19.5 MB to 5.1 MB. Painted scenes and cels keep their own size and timing.
