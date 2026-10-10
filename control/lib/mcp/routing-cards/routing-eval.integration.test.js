@@ -59,15 +59,10 @@ const CARD_FIXTURE = [
 // crawler I walk around in" landing on the walkability-audit card instead of
 // create_game.
 
-// Office wing (App / Connected Service) — the paradigm-disambiguation
-// cards. Same top-K entry-membership contract as FIXTURE. Business phrasings
-// are less messy than creative ones (concrete nouns: CRM, submissions, folder),
-// so these route cleanly; the genuinely-ambiguous asks live in COVERAGE below.
-const OFFICE_FIXTURE = [
-  ['every Monday summarize qualified leads into our CRM', 'meta_context_declare_inventory'],
-  ['sync new form submissions to a google sheet nightly', 'meta_context_declare_inventory'],
-  ['watch this folder and process new invoices as they arrive', 'install_scaffold'],
-  ['a background worker on my machine that reacts to events', 'install_scaffold'],
+// Questions about mojulo itself. Same top-K entry-membership contract as FIXTURE. (Until 3.1.0
+// this was the office wing's fixture, with the App / Connected Service paradigm rows; those cards
+// left the tool surface with the office wing.)
+const SELF_FIXTURE = [
   // Substrate self-description (0816 post-install persona sims): these exact
   // question families dead-ended in semantic_search — "phone home" and
   // "uninstall" retrieved declared vendor tools (gmail.untrash_thread) because
@@ -77,18 +72,6 @@ const OFFICE_FIXTURE = [
   ['how do I completely remove this thing from my laptop', 'get_substrate'],
   ['can I safely put patient information into this', 'get_substrate'],
   ['is there a subscription or do I need to buy an api key', 'get_substrate'],
-];
-
-// The TWO-STEP contract. For an ask that genuinely spans paradigms ("triage
-// support emails" — chat surface, or silent inbox automation?), a top-1 gate is
-// wrong: the design wants the candidate SET to CONTAIN the viable paradigms so
-// step-2 (crisp who-touches-it criteria + ask-the-user) can decide. This pins
-// SET COVERAGE — ≥2 of the expected paradigm cards present in the top-SET_K —
-// which is the assertion the app/connected-service two-step is built on. (Until 3.0 the
-// chatbot was the third paradigm here; it left with the chatbot factory.)
-const SET_K = 5;
-const COVERAGE_FIXTURE = [
-  ['triage incoming support emails and route them to the right team', ['app', 'connected-service']],
 ];
 
 const TOP_K = 3;
@@ -219,10 +202,10 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
   );
 
   it(
-    `every OFFICE phrasing surfaces its paradigm entry tool in the top-${TOP_K} cards`,
+    `every question about mojulo itself surfaces get_substrate in the top-${TOP_K} cards`,
     async () => {
       const misses = [];
-      for (const [phrasing, expectedEntry] of OFFICE_FIXTURE) {
+      for (const [phrasing, expectedEntry] of SELF_FIXTURE) {
         const results = await EmbeddingsRepository.search(phrasing, {
           kinds: ['routing'],
           limit: TOP_K,
@@ -236,31 +219,7 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
           );
         }
       }
-      expect(misses, `office routing misses:\n${misses.join('\n')}`).toEqual([]);
-    },
-    120_000,
-  );
-
-  it(
-    `every ambiguous OFFICE ask surfaces ≥2 viable paradigms in the top-${SET_K} SET (two-step coverage)`,
-    async () => {
-      const misses = [];
-      for (const [phrasing, expectedCards] of COVERAGE_FIXTURE) {
-        const results = await EmbeddingsRepository.search(phrasing, {
-          kinds: ['routing'],
-          limit: SET_K,
-        });
-        const refs = new Set(results.map((r) => r.source_ref));
-        const covered = expectedCards.filter((c) => refs.has(c));
-        if (covered.length < 2) {
-          misses.push(
-            `"${phrasing}" → wanted ≥2 of [${expectedCards.join(', ')}] in the SET, got [${results
-              .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
-              .join(', ')}]`,
-          );
-        }
-      }
-      expect(misses, `two-step coverage misses:\n${misses.join('\n')}`).toEqual([]);
+      expect(misses, `self-description routing misses:\n${misses.join('\n')}`).toEqual([]);
     },
     120_000,
   );
@@ -379,7 +338,7 @@ describe.skipIf(!modelPresent)('pack routing eval (derived from the fixtures abo
     `every derived phrasing surfaces its home pack in the top-${PACK_TOP_K} of ${20} recognizers`,
     async () => {
       const { generateEmbeddings } = await import('@/lib/embedder/local');
-      const rows = deriveRows([...FIXTURE, ...OFFICE_FIXTURE], packs);
+      const rows = deriveRows([...FIXTURE, ...SELF_FIXTURE], packs);
       const queries = await generateEmbeddings(
         rows.map(([phrasing]) => phrasing),
         { inputType: 'search_query' },

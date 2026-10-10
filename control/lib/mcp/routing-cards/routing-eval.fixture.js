@@ -62,39 +62,41 @@ export const FIXTURE = [
   ['present the graphic novel like a slideshow I click through', 'create_sketch'],
   ['I want the narrator to sound deeper and more sure of herself', 'create_voice'],
   ['give my app a japanese female announcer voice', 'create_voice'],
+  // 3.1.0: the animal, creature, hero and armour rows below enter on create_character, the Characters
+  // ring's door (the same recipes mint_solid makes).
   // The animal realm of the figure system (figure-inception-quality.plan.md
   // phase 4). The PICTURE row already routes a non-humanoid creature here, so
   // these pin that a NAMED real animal lands on the solid family rather than
   // drifting to the painted-picture or part-graph neighbours.
-  ['a wolf I can 3D print', 'mint_solid'],
-  ['a deer with antlers standing in profile', 'mint_solid'],
+  ['a wolf I can 3D print', 'create_character'],
+  ['a deer with antlers standing in profile', 'create_character'],
   // creature (layered): an invented body with a rig, kept editable by dials
-  ['a hulking dragon with a detailed head that I can rig and animate', 'mint_solid'],
-  ['invent a swamp monster whose jaw and tail I can keep tweaking', 'mint_solid'],
+  ['a hulking dragon with a detailed head that I can rig and animate', 'create_character'],
+  ['invent a swamp monster whose jaw and tail I can keep tweaking', 'create_character'],
   // stroke (layered): a drawn outline / line / brush on an existing creature or hero becomes a recipe op
   ['I sketched the outline I want for the dragon head, make it match my drawing', 'update_sketch'],
   ['let me draw a ridge along the brow instead of guessing station numbers', 'update_sketch'],
   // hero (layered): a human character as a rigged mesh in one art-style register
-  ['a low-poly hero for my game with a face and a ponytail I can rig', 'mint_solid'],
-  ['a boxy pixel knight that walks and exports skinned', 'mint_solid'],
+  ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
+  ['a boxy pixel knight that walks and exports skinned', 'create_character'],
   // hero tune: proportion by word and percentage on an existing hero (hero-tune)
-  ['make her shoulders broader and her legs a bit longer', 'mint_solid'],
-  ['a stockier version of the same hero, fuller arms and thighs', 'mint_solid'],
-  ['tune my character\'s body proportions by percent, smaller head', 'mint_solid'],
+  ['make her shoulders broader and her legs a bit longer', 'create_character'],
+  ['a stockier version of the same hero, fuller arms and thighs', 'create_character'],
+  ['tune my character\'s body proportions by percent, smaller head', 'create_character'],
   // face tune: the face proportion lab's words on the hero's fitted head (face-tune)
-  ['give my hero a broader jaw and larger eyes', 'mint_solid'],
-  ['a longer face with a smaller nose and a bob haircut on the same character', 'mint_solid'],
+  ['give my hero a broader jaw and larger eyes', 'create_character'],
+  ['a longer face with a smaller nose and a bob haircut on the same character', 'create_character'],
   // hair library: a hairstyle by word and its controls (hair-library)
-  ['give my hero an undercut, then try a ponytail with a longer tail', 'mint_solid'],
+  ['give my hero an undercut, then try a ponytail with a longer tail', 'create_character'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
-  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'mint_solid'],
+  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'create_character'],
   // anime form: the Anime Form Studio's head worn by the hero (`head: 'anime'`), its clumps directed by name
-  ['an anime heroine with a long layered cut and one bang swept over her eye', 'mint_solid'],
+  ['an anime heroine with a long layered cut and one bang swept over her eye', 'create_character'],
   // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
-  ['start from the rival look, then give him droopy eyes and messy hair', 'mint_solid'],
+  ['start from the rival look, then give him droopy eyes and messy hair', 'create_character'],
   // armor (layered hero adorn build): worn armour from a style and dials (armor)
-  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'mint_solid'],
-  ['only armour the shoulders and chest for now, full plate later', 'mint_solid'],
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'create_character'],
+  ['only armour the shoulders and chest for now, full plate later', 'create_character'],
   // world weather: a climate for any world's sky (weather)
   ['make it rain in my world and let a thunderstorm roll in now and then', 'compose_world'],
   ['a snowy pass where a blizzard starts when I walk in, with a dust storm world elsewhere', 'compose_world'],

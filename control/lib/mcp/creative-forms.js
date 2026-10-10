@@ -13,6 +13,8 @@ export const CREATIVE_FORMS = [
   'illustration',
   'reference',
   'image-render',
+  // 'character' (3.1.0): the Characters ring's form, a hero, a creature or an animal (create_character).
+  'character',
   'object',
   'world',
   'building',

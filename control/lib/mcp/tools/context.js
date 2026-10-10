@@ -80,8 +80,8 @@ import {
 //   - concept glossary           → get_register_kit (active vocabulary_register)
 //   - what mojulo is / self-description (phone home? my data? uninstall?) → get_substrate
 //   - full one-line-per-tool idx → get_tool_index
-//   - Ring 6 structural model    → get_deliberation_overview
 //   - dashboard page map         → get_ui_map
+// (get_deliberation_overview, the Ring 6 model, left the surface with the office wing in 3.1.0.)
 // The body is register-INVARIANT except the disclosure directive (axis 2 =
 // procedural_disclosure) — an index is agent-facing routing and needs no
 // register voice. The communication-settings notice still reports the active
@@ -94,36 +94,27 @@ import {
 
 const HEADER = '# Mojulo, oriented';
 
-// --- Orientation wings (orientation-containment.plan.md C1) ---
+// --- One body (3.1.0) ---
 //
-// Two forward_context bodies behind one tool: the STUDIO (the DEFAULT — the
-// creative FORM recognizer rows + creative drawers) and the OFFICE (connected
-// services, apps, deliberation, operate-what-exists), reached with
-// `mode:'office'`. Office/Studio is the user- and agent-facing vocabulary (it
-// matches the Studio mode on Workshop Home); do not resurrect "operations mode"
-// (deprecated Ring 11 internal naming). `mode` is stateless per call — it
-// selects which body composes, never session state.
-//
-// STUDIO IS THE DEFAULT (mojulo-2.0-pure-creative.plan.md, Phase 1f). Mojulo 2.0
-// is a 3D factory; an agent arriving with no mode should be told that first. The
-// office wing is retained in full as the workflow-automation backend — recessed,
-// not removed — which is a ROUTING posture, not a capability change.
-export const FORWARD_CONTEXT_MODES = ['office', 'studio'];
+// forward_context had two wings, the STUDIO (default) and the OFFICE (connected
+// services, apps, deliberation) behind `mode:'office'`. The office wing left the
+// tool surface in 3.1.0 (RETIRED_PACKS in packs.js), so there is one body. A
+// caller that still passes `mode:'office'` gets it, with one line saying where
+// the office went; `mode` is otherwise stateless and selects nothing.
+export const FORWARD_CONTEXT_MODES = ['studio'];
+export const RETIRED_FORWARD_CONTEXT_MODES = ['office'];
 export const DEFAULT_FORWARD_CONTEXT_MODE = 'studio';
-const OFFICE_HEADER = '# Mojulo office, oriented';
+const OFFICE_RETIRED_LINE = "*The office wing (apps, daemons, connected services, the contextmap) left the tool surface in 3.1.0. Its tools still answer by name; nothing routes to them. Workers and other MCPs are reached through Workflows: `pack_catalysts`.*";
 
-// The creatable artifact paradigms — THE single source for the sweep test
-// in context.test.js that asserts every orientation surface (initialize
-// preamble, lean opener, get_substrate, register-kit glossary) names all of
-// them. The "three vs four artifacts" drift class is caught by that sweep,
-// not by hand. Adding a paradigm: add it here and the sweep tells you
-// every surface that needs the mention. Order is doctrinal twice over: Media
-// (creative artifacts as deterministic recipes) sits BEFORE Game because a game
-// is COMPOSITION — Media levels/music/art over a typed store with rules; and the
-// creative pair leads the whole list because mojulo is a 3D compiler (Connected
-// Service / App are the retained automation backend, not the headline). Bot was
-// a paradigm until the chatbot factory left in 3.0.0 (lib/mcp/bot-factory-moved.js).
-export const PARADIGMS = ['Media', 'Game', 'Connected Service', 'App'];
+// What mojulo makes, named by what people do with it — THE single source for
+// the sweep test in context.test.js that asserts every orientation surface
+// (initialize preamble, forward_context, get_substrate, register-kit glossary)
+// names all of them. Adding an outcome: add it here and the sweep tells you
+// every surface that needs the mention. A game is composition over the rest,
+// so Play leads; Observe (motion: turntables, flythroughs, recorded runs)
+// applies to all of them. Until 3.1.0 this list was the paradigms Media,
+// Game, Connected Service and App; Bot left in 3.0.0.
+export const PARADIGMS = ['Play', 'Print', 'Read', 'Hear', 'Observe'];
 
 // Communication settings notice — tells the agent which register/disclosure
 // cells are active for this session. Generated per call from operator anchor
@@ -137,18 +128,6 @@ function communicationSettingsNotice({ register, disclosure, source }) {
         : 'defaults — no operator anchor and no per-call override';
   return `*Active communication settings: \`vocabulary_register: ${register}\`, \`procedural_disclosure: ${disclosure}\` (${sourceNote}). \`procedural_disclosure\` shapes how you narrate state gates (the disclosure directive below); \`vocabulary_register\` shapes the concept glossary's user-facing phrasing — that glossary lives in \`get_register_kit\`, pull it when you need to define a term. Concept names and tool descriptions are invariant.*`;
 }
-
-// --- Lean opener (register-invariant) ---
-//
-// One paragraph, tool-shaped. The reader is an agent ALREADY CONNECTED to the
-// substrate — identity (what mojulo is, what it can claim, where inference
-// runs) is not re-explained here; it lives behind get_substrate
-// and get pulled when the operator asks. The opener says only what this body
-// is (the office routing index), how to use it, and where the other wing and
-// the drawers are. The paradigm names stay because the sweep test pins them
-// on every orientation surface.
-
-const LEAN_OPENER = `This is the office **routing index** — mojulo's automation backend, reached with \`forward_context({mode:'office'})\`: user-framing → entry-tool rows, plus a directory of drawers to pull when a task needs depth. It covers solutions composed over the operator's installed MCPs (CRM, calendar, drive, ticketing, warehouse) and operating what already exists — Connected Service and App. Everything in this wing is always present. (Chatbots are not built here; the chatbot factory left mojulo in 3.0.0.) The creative wing (Media / Game) is \`forward_context()\` with no mode, the DEFAULT. Match the user's framing to a row, reach for the entry tool, and read a drawer only when you need it. When unsure whether the work needs a resident process, ask — that answer routes the session. Substrate positioning and self-description (what mojulo is, posture, costs, uninstall) live behind \`get_substrate\` — pull them when the operator asks, not to orient.`;
 
 // --- Workshop pulse (R1, orientation-ramp.plan.md) ---
 //
@@ -174,9 +153,6 @@ function readWorkshopPulse() {
     const stashes = count("SELECT COUNT(*) AS n FROM stashes WHERE status = 'open'");
     const cooks = count('SELECT COUNT(*) AS n FROM stash_cooks WHERE archived_at IS NULL');
     const unseenPlans = count('SELECT COUNT(*) AS n FROM plans WHERE seen = 0');
-    const triggers = count(
-      'SELECT COUNT(*) AS n FROM mcp_orbit_trigger_artifacts WHERE enabled = 1 AND superseded_by IS NULL',
-    );
 
     // Last activity: max updated/created stamp across the mint surfaces.
     // Units may be mixed by table (ms or unixepoch seconds) — normalize to ms
@@ -197,7 +173,7 @@ function readWorkshopPulse() {
       maxStamp('SELECT MAX(updated_at) AS m FROM plans'),
     );
 
-    return { sketches, stashes, cooks, unseenPlans, triggers, lastActivityMs };
+    return { sketches, stashes, cooks, unseenPlans, lastActivityMs };
   } catch {
     return null;
   }
@@ -214,8 +190,8 @@ function fmtPulseAge(lastActivityMs) {
 
 function buildWorkshopPulseLine(pulse) {
   if (!pulse) return null;
-  const { sketches, stashes, cooks, unseenPlans, triggers, lastActivityMs } = pulse;
-  const total = sketches + stashes + cooks + unseenPlans + triggers;
+  const { sketches, stashes, cooks, unseenPlans, lastActivityMs } = pulse;
+  const total = sketches + stashes + cooks + unseenPlans;
   if (total === 0) {
     return '*Workshop pulse: empty — nothing minted yet. The cheapest first proof is a sketch (`create_sketch`) or a cook (`mint_stash` → `gather` → `cook`).*';
   }
@@ -224,7 +200,6 @@ function buildWorkshopPulseLine(pulse) {
   if (stashes) parts.push(`${stashes} open stash${stashes === 1 ? '' : 'es'}`);
   if (cooks) parts.push(`${cooks} open cook${cooks === 1 ? '' : 's'}`);
   if (unseenPlans) parts.push(`${unseenPlans} unseen plan${unseenPlans === 1 ? '' : 's'} (\`list_plans\`)`);
-  if (triggers) parts.push(`${triggers} active trigger${triggers === 1 ? '' : 's'}`);
   const age = fmtPulseAge(lastActivityMs);
   if (age) parts.push(`last activity ${age}`);
   return `*Workshop pulse: ${parts.join(' · ')}.*`;
@@ -248,25 +223,21 @@ const BOX_CLAUDE_CODE = distribution() === 'claude-plugin'
 
 const SUBSTRATE_POSITIONING = `## What mojulo is — the working description
 
-**The one-breath answer** (when the operator asks "what is mojulo?"): *a **3D compiler for agents** — an agent builds worlds, objects, and games by conversation, stored as editable recipes on your machine (the source, compiled back to the same geometry), that ship as a game or as a printed object. A compiler, not a generator.* Media (worlds, views, films, audio, publications — deterministic recipes, never renders) and Game (composed over the rest) are the headline. Behind them mojulo retains an automation backend — Connected Service and App — for operators who want to wire the creative loop into their own MCPs. All four paradigms are the same category underneath: **durable bindings minted from a conversation**. If the operator asks "what is this really?", answer plainly: Node.js, SQLite, and MCP, composed by typed bindings and an audit trail, on the operator's host, with the connecting agent supplying all judgment.
+**The one-breath answer** (when the operator asks "what is mojulo?"): *a **3D factory with a media studio** for agents. An agent makes things by conversation, stored as editable recipes on your machine, things you can **Play** (games), **Print** (solids at true scale), **Read** (diagrams, illustrations, science views, publications), **Hear** (scores, sound effects, voices) and **Observe** (any of them watched: turntables, flythroughs, recorded runs). The recipe is the source; renders are derived.* Every tool creates, maintains, updates or composes one of those things. **Characters** are their own ring: a hero, a creature or an animal, rigged, made with \`create_character\`. A game is the composition: worlds, characters, gear and sound under rules (\`design_game\`). **Workflows** orchestrate the rest for batches and variations: plans that chain calls, sweeps, stash → cook, and catalysts that reach the operator's other workers and MCPs. If the operator asks "what is this really?", answer plainly: Node.js, SQLite and MCP on the operator's host, with the connecting agent supplying all judgment.
 
 **Two pipelines, one honesty rule.** DIGITAL: worlds / games / scenes feed Godot, Unity, Unreal, and Blender. Godot is first-class (a real project plus a headless machine gate); the Unity and Unreal legs ship as a data pack plus an importer (Unreal adds a C++ kernel plugin), each with an advisory gate that runs only when \`MOJULO_UNITY\` / \`MOJULO_UNREAL\` names a binary; Blender takes an art-pass pack and an optional GI bake into vertex colours. Ladder honestly ("Godot first, Unity and Unreal as gated legs"), never "identical across all four." PHYSICAL: the literal profile (workbench / assembler / carved wordmark / turntable / vehicle) exports as print-purposed STL or 3MF at true scale — mm, z-up, slicer-ready; figures, worlds and views print as maquettes fit to a target size (default 120 mm), so say "true scale" only for the literal profile. Claim **"print-ready STL at true scale"**, NOT "guaranteed watertight manifold" (it emits honest triangle soup and relies on slicer repair, which is standard practice). Sharp edges live IN the recipe: \`exact: true\` on a workbench field or cut composes the same terms with Manifold instead of the sampled grid (a bore has a true circular lip in /world, the .glb, the engine packs and the print; curves are faceted by \`segments\`), and \`mint_solid kind:'scad'\` takes an OpenSCAD program AS the recipe, meshed in-process by OpenSCAD itself. Say **"an OpenSCAD program is a recipe"** and **"exact booleans in the recipe"**; never "mojulo replaces OpenSCAD", and never "parametric CAD" or "toleranced" (no B-rep, no threads, no fits — \`translate_modeler_lingo\` routes those to precision CAD). The seam runs both ways: \`mojulo_field("<id>")\` inside a scad source reaches a field solid for what OpenSCAD cannot say (a blend, a stroke, noise); \`format: 'scad'\` transpiles a workbench recipe into an OpenSCAD program with a coverage ledger naming any term that arrived as a frozen \`polyhedron()\` (a scad row returns its source verbatim); and \`bind_mesh_render\` takes an STL or 3MF made outside back into a world. The connective tissue is scale-honesty plus \`verify_machina\`, which checks work conservation, force capacity, rate and storage margins over a mechanism chain — statics, not collisions or joint limits.
 
-**"3D" is a PIPELINE-POSITION claim, never a fidelity claim.** Mojulo is the agent-driven upstream that FEEDS the tools professionals already use; it does not rival them on rendering. Never enter a fidelity contest with a game engine — and never describe mojulo as "just an exporter" either: the recipe is where the thing is born and lives (and runs standalone in-browser); the engine or printer is where it is optionally *finished*.
+**"3D" is a PIPELINE-POSITION claim, never a fidelity claim.** Mojulo is the agent-driven upstream that FEEDS the tools professionals already use; it does not rival them on rendering. Never enter a fidelity contest with a game engine — and never describe mojulo as "just an exporter" either: the recipe is where the thing is born and lives (and runs standalone in-browser); the engine or printer is where it is optionally *finished*. "Factory" names the output, not the fidelity: things come off the line as recipes, ready to finish elsewhere.
 
-**Chatbots are not part of mojulo.** ${BOT_FACTORY_MOVED} The embedding model behind vector \`semantic_search\` is the one opt-in install group (\`recall\`, \`${mojuloCommand('install recall')}\`): without it search still answers, ranking lexically, and a result's \`mode\` says which ran. Everything else — the kernel, the creative studio, and the automation backend — is always present, on the operator's machine or in the agent's own temporary box (Claude Code on the web ${BOX_CLAUDE_CODE}, or a shell-only sandbox such as Grok chat's with \`${npxMojulo('call')}\`, at this server's version so a recipe re-mints identically; results handed back as files — every written export carries a \`handoff\` naming this host's door, and \`format: 'bundle'\` is the one-zip handoff). Do not describe mojulo as a bot factory.
+**Chatbots are not part of mojulo.** ${BOT_FACTORY_MOVED} The embedding model behind vector \`semantic_search\` is the one opt-in install group (\`recall\`, \`${mojuloCommand('install recall')}\`): without it search still answers, ranking lexically, and a result's \`mode\` says which ran. Everything else — the kernel, the studio and the workflows — is always present, on the operator's machine or in the agent's own temporary box (Claude Code on the web ${BOX_CLAUDE_CODE}, or a shell-only sandbox such as Grok chat's with \`${npxMojulo('call')}\`, at this server's version so a recipe re-mints identically; results handed back as files — every written export carries a \`handoff\` naming this host's door, and \`format: 'bundle'\` is the one-zip handoff). Do not describe mojulo as a bot factory, and do not offer to build apps, daemons or MCP-to-MCP automations: those left the tool surface in 3.1.0.
 
-**Inference runs on you.** Mojulo holds state, runtime, and the audit trail, and no LLM credentials of its own: apps park inference on the agent-tasks queue and you fulfil it (\`pull_agent_task\` → \`submit_envelope_inference\`), photo references are read by your eyes (\`reference_protocol\`), cooks are agent-authored, games are verified by agent-compiled traversals. Serve the operator's intent against the substrate; do not try to make mojulo run without you.
+**Inference runs on you.** Mojulo holds state and recipes, and no LLM credentials of its own: photo references are read by your eyes (\`reference_protocol\`), cooks are agent-authored, games are verified by agent-compiled traversals, and work parked for an outside worker waits on the agent-task queue (\`pull_agent_task\` → \`submit_envelope_inference\`). Serve the operator's intent against the substrate; do not try to make mojulo run without you.
 
-**Recipes are the source; renders and gates are how they prove out.** Everything the workshop mints is a tiny seeded deterministic recipe regenerated on render — diffable, replayable; the GIFs / PNGs / MP4s under \`data/outcomes/\` are derived files bound to it, disposable. Artifacts verify before promotion: a world's physics is probe-asserted tick by tick (\`forge_motion\` traversal returns the probe stream), and \`create_game\` refuses an unaudited level unless waived. The skill dry-run is a discipline the adapter asks of YOU (one real input before promotion), not a gate the code enforces. With a skeptical operator, point at these gates instead of adjectives.
+**Recipes are the source; renders and gates are how they prove out.** Everything the workshop mints is a tiny seeded deterministic recipe regenerated on render — diffable, replayable; the GIFs / PNGs / MP4s under \`data/outcomes/\` are derived files bound to it, disposable. Artifacts verify before promotion: a world's physics is probe-asserted tick by tick (\`forge_motion\` traversal returns the probe stream), and \`create_game\` refuses an unaudited level unless waived. With a skeptical operator, point at these gates instead of adjectives.
 
-**Always-on means a runtime is up.** Bindings are durable rows; they *execute* while the operator sleeps only if a runtime is running — triggers fire on cadence once the daemon host runs (\`MOJULO_DAEMONS=enabled\`, or the in-process \`MOJULO_TRIGGER_RUNTIME=enabled\` fallback), and the agent-tasks queue drains only while a fulfiller polls it (you, or \`MOJULO_AGENT_RUNTIME=claude-code-headless\`). Nothing ships as a launch agent or system service; the operator wires launchd / systemd. When the operator asks for "always-on" / "scheduled" / "daily" / "every N", reach for trigger bindings + the agent-tasks pull loop, not a one-shot. "Local" in technique names (e.g. \`local-storage\`) refers to **mojulo's host**, not the operator's laptop; a single-operator remote host works the same way over MCP-over-HTTP.
+**Workers and other MCPs.** Optional workers (Blender, ComfyUI, TripoSR, Kokoro, a slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies: absence degrades a loop, never breaks one. Work for them is parked as a handoff (the render handoffs, the agent-task queue), and a flow that spans mojulo and another MCP on the host is a catalyst landed as a Skill (\`recommend_catalysts\` → \`get_catalyst\`), because the Skill runs where those MCPs live.
 
-**What remembers what.** Every office-wing binding (connected service, app, skill, trigger, primitive) is sealed beside an append-only record of intent (the contextmap) by \`meta_context_commit\`, so a fresh session reconstructs prior decisions and improves the existing outcome instead of minting a stranger next to it. Creative mints do NOT write the contextmap: a studio artifact is recalled by ref, by \`semantic_search\`, and by the cookbook card \`save_recipe\` writes; seal a creative decision only when you call \`meta_context_commit\` yourself.
-
-**Office-wing routing by ask shape.** "Bind a folder / database / API" → \`bind_primitives\` over the shipped primitive vocabulary (\`document-store\`, \`structured-record-store\`, \`messaging-channel\`, \`message-thread\`, each bound as source or destination; \`local-storage\` is a technique catalyst, not a primitive). "Do this kind of workflow" → \`recommend_catalysts\` / \`get_catalyst\`. "Help me build a thing that does X" → you compose it from those parts.
-
-**Cloud comparison — what is and is not claimed.** Mojulo shares these properties with cloud platforms: composition over typed surfaces, always-on triggers, an audit trail, vendor-interchangeable providers behind a shape. It does NOT have auto-scaling, multi-region, multi-tenancy, IAM, or per-call billing; do not claim them. When the operator compares mojulo to Lambda / Cloud Run / Temporal, name the shared properties and the missing ones, and say that a real cloud is one wire-hop away if that is what they actually need. Shape mapping when asked: Skill ~ a function; App ~ a local worker with parked inference steps; Game ~ a shipped build with save state; a recipe ~ infrastructure-as-code for media (manifest is the source, render is disposable).
+**Cloud comparison — what is and is not claimed.** Mojulo is not a cloud platform: no auto-scaling, multi-region, multi-tenancy, IAM or per-call billing; do not claim them. Shape mapping when asked: a recipe ~ infrastructure-as-code for media (the manifest is the source, the render is disposable); a game ~ a shipped build with save state; a catalyst ~ a function the host runs.
 `;
 
 // --- Substrate facts (self-description axioms, appended to get_substrate) ---
@@ -284,10 +255,10 @@ const SUBSTRATE_FACTS = `## Substrate facts — derive posture answers from thes
 
 When the operator asks a meta-question about mojulo itself — "does it phone home?", "what does it log?", "where does my data live?", "is my customers' data safe?", "do I have to pay for anything?", "how do I uninstall?" — derive the answer from these invariants rather than guessing. Each names its own check.
 
-1. **Process.** One local control-plane process; the dashboard and this MCP are two faces over the same state. Two MCP transports: stdio (the npm-package default) has no auth — the parent process is the boundary; the HTTP route \`/api/mcp\` is bearer-gated on \`CONTROL_PLANE_MCP_KEY\` and 404s while that key is unset, by design. The packaged dashboard entry binds 127.0.0.1; a repo checkout's \`npm run dev\` does not pin a host. Either way the dashboard refuses requests addressed to a non-loopback Host (unless \`MOJULO_UI_HOST\`, the bind address, or \`MOJULO_UI_ALLOWED_HOSTS\`, names it reaches it by, lists it) and writes from another origin. Runtime daemons (triggers, app supervision) are opt-in and off by default (*check: \`list_daemons\`, \`list_running\`*).
-2. **State.** One SQLite under \`$MOJULO_HOME\` (\`~/.mojulo/\` on an npm install; \`version\` reports the active home), plus \`data/cookbook/\` (kept recipes, as plain files in a local git repo), \`data/outcomes/\` (derived renders and exports), the bake caches (\`data/scene-png/\`, \`data/turntable/\`, \`data/figure-specs/\`), a browser or ffmpeg fetched on demand (\`chromium/\`, \`ffmpeg/\`), \`secret.key\`, the opt-in recall runtime and model (\`recall/\`, \`models/\`), and \`data/storage/\` (stash media). A home a 2.x install used may also hold \`data/artifacts/\` (bot zips) and the chatbot factory's tables; 3.0 leaves them in place and never reads them. Outside it: work folders under the OS temp directory while an MP4 encode or a headless browser runs (removed afterwards; the Blender bake scripts leave their \`moj-bake-*\` / \`moj-worldgi-*\` folders), a folder the caller names (\`install_scaffold\` writes an app there, \`.env\` included), and the MCP host configs \`mojulo init\` edits after a yes (never from the Claude plugin). No launch agents, no system services.
+1. **Process.** One local control-plane process; the dashboard and this MCP are two faces over the same state. Two MCP transports: stdio (the npm-package default) has no auth — the parent process is the boundary; the HTTP route \`/api/mcp\` is bearer-gated on \`CONTROL_PLANE_MCP_KEY\` and 404s while that key is unset, by design. The packaged dashboard entry binds 127.0.0.1; a repo checkout's \`npm run dev\` does not pin a host. Either way the dashboard refuses requests addressed to a non-loopback Host (unless \`MOJULO_UI_HOST\`, the bind address, or \`MOJULO_UI_ALLOWED_HOSTS\`, names it reaches it by, lists it) and writes from another origin. Runtime daemons are opt-in and off by default.
+2. **State.** One SQLite under \`$MOJULO_HOME\` (\`~/.mojulo/\` on an npm install; \`version\` reports the active home), plus \`data/cookbook/\` (kept recipes, as plain files in a local git repo), \`data/outcomes/\` (derived renders and exports), the bake caches (\`data/scene-png/\`, \`data/turntable/\`, \`data/figure-specs/\`), a browser or ffmpeg fetched on demand (\`chromium/\`, \`ffmpeg/\`), \`secret.key\`, the opt-in recall runtime and model (\`recall/\`, \`models/\`), and \`data/storage/\` (stash media). A home a 2.x install used may also hold \`data/artifacts/\` (bot zips) and the chatbot factory's tables; 3.0 leaves them in place and never reads them. Outside it: work folders under the OS temp directory while an MP4 encode or a headless browser runs (removed afterwards; the Blender bake scripts leave their \`moj-bake-*\` / \`moj-worldgi-*\` folders), a folder the caller names when it asks for one, and the MCP host configs \`mojulo init\` edits after a yes (never from the Claude plugin). No launch agents, no system services.
 3. **Network.** No external telemetry: nothing is sent to the maintainer or to any analytics service, and starting the server makes no network call unless the opt-in recall group is installed and its search model is missing from \`~/.mojulo/models\` (then the start downloads it from huggingface.co, ~130 MB). Outbound traffic happens only on these actions: \`check_for_updates\` (registry.npmjs.org, when called); the first explicit render that needs a browser on a host with no Chrome, Chromium, Edge or Brave (\`forge_motion\` on a world, \`export_game\` hangar portraits, \`create_game\` with \`auto_audit\`, the dashboard's PNG download: a one-time ~500 MB Chrome for Testing download from storage.googleapis.com, unpacked by running the system \`unzip\` (Windows: \`tar.exe\`, then PowerShell), named in the result's \`browser_download\`; mint-time previews and thumbnails never download it); the first MP4 encode with no ffmpeg installed (ffmpeg-static from github.com, SHA-256 pinned); \`${mojuloCommand('install recall')}\` (npm, then the embedding model from huggingface.co); launching the dashboard without the separate \`${UI_PACKAGE_NAME}\` package (a one-time npm download); an HTML export with \`cdn: true\` (the page loads three.js from cdn.jsdelivr.net when opened; the default page is self-contained); and \`mint_solid\` \`via:'prompt'\` (the LLM provider the caller names, fact 4). Whatever the apps and services the operator builds call is theirs. **The local tool-call log** stays in the SQLite under \`$MOJULO_HOME\`: per call the tool name, start time, duration, status, the argument key names and byte size (never their values, unless the operator sets the off-by-default debug flag \`MOJULO_MCP_TELEMETRY_CAPTURE=full\`, which also keeps arguments and results up to 4 KB each), truncated error text, the MCP client's name and version and the session id; rows older than 30 days or beyond 50,000 are pruned at startup, each call also writes one line to stderr (which the host may keep in its MCP log), \`get_tool_ledger\` and the dashboard read it, and \`MOJULO_MCP_TELEMETRY=off\` stops the row and the line (*check: \`get_tool_ledger\`*).
-4. **The one LLM flow that leaves the machine** is an opt-in studio door: \`mint_solid\` \`via:'prompt'\` (and its retired alias \`create_polygonized_sketch\`) sends the prompt to the provider the caller names (\`provider\` is required, nothing is picked for you) with the operator's key for it; the polygonizer's \`via:'packet'\` door is key-free. Everything else in the studio and the automation backend parks inference on the connecting agent.
+4. **The one LLM flow that leaves the machine** is an opt-in studio door: \`mint_solid\` \`via:'prompt'\` (and its retired alias \`create_polygonized_sketch\`) sends the prompt to the provider the caller names (\`provider\` is required, nothing is picked for you) with the operator's key for it; the polygonizer's \`via:'packet'\` door is key-free. Everything else parks inference on the connecting agent.
 5. **Credentials.** The substrate stores nothing it isn't handed: provider keys the operator explicitly saves are AES-256-GCM encrypted at rest under a random per-install key in \`$MOJULO_HOME/secret.key\` (mode 0600), or under \`API_KEY_ENCRYPTION_KEY\` when that is set; deleting the key file makes saved keys unreadable. No artifact mojulo mints needs an LLM key of its own.
 6. **Money.** Mojulo is free, Apache-2.0, no account, no subscription. Operating costs are the operator's: LLM provider usage when they use \`mint_solid\`'s prompt door (fact 4), and whatever their own agent host costs. The open-source mojulo stays open source with no external telemetry (its only log is the local one in fact 3); a separately offered mojulo cloud on standard hosted services may be explored if there is demand, as its own opt-in product that changes nothing about the local install (TERMS.md, "The open-source commitment").
 7. **Artifacts.** Everything minted is a tiny seeded deterministic recipe; exports are plain files (zip, HTML, glb, stl, WAV, MIDI, a Godot project) that run without mojulo. Nothing is locked to the runtime. **A recipe that carries a \`program\`** (\`mint_solid\` kind \`code\`, a workbench \`program\`) is JavaScript that runs inside this process with the operator's privileges when it is minted, edited, rendered or exported: the \`node:vm\` realm it runs in keeps it deterministic, it is not a sandbox. Treat a shared recipe that carries a program as code.
@@ -307,8 +278,8 @@ When the operator asks a meta-question about mojulo itself — "does it phone ho
 
 const SAFETY_ONELINERS = `## Standing safety rules
 
-- **Secrets.** An app scaffold's \`.env\` holds its bearer and whatever keys the operator set. Never \`cat\` or \`Read\` a \`.env\` under \`$MOJULO_HOME\` or in an app directory — \`list_env\` names the keys without their values.
-- **Synthesize ≠ certify.** Every artifact mojulo emits is LLM output and inherits LLM failure modes (hallucinated field names, optimistic mappings). Before any artifact graduates from one-shot to recurring / fleet-wide: dry-run on one *real* input → inspect the result by reading → only then promote. Re-validate even a workflow you've run before — schema drift invalidates prior passes silently.`;
+- **Secrets.** Never \`cat\` or \`Read\` a \`.env\` under \`$MOJULO_HOME\` or in any directory mojulo generated: it holds keys the operator set.
+- **Synthesize ≠ certify.** Everything mojulo emits through you inherits LLM failure modes (a wrong field name, an optimistic mapping). Before a recipe, plan or catalyst graduates from a one-off to something run again: one dry run on a *real* input, read the result, only then promote. A machine gate that passed is not an eyes gate.`;
 
 // --- Standing rule: floor (shared) + disclosure directive (axis 2) ---
 //
@@ -322,18 +293,18 @@ const STANDING_RULE_FLOOR = `## Commitment-level vocabulary (standing rule)
 
 Keep these distinctions legible in every register and disclosure cell — they track real state:
 
-- *proposed* vs *materialized* → candidate workflow under consideration vs workflow now wired up and running
-- *dry-run* vs *promoted* → trial pass against one real input vs live, recurring
-- *watched* vs *read-once* → ongoing observation going forward vs read right now
-- *recorded in the audit trail* vs *not recorded* → when you write to contextmap, say so plainly so the user knows the decision is sealed and durable
+- *proposed* vs *made* → a plan, variation or design still under consideration vs a recipe that now exists at a ref
+- *dry-run* vs *promoted* → a trial pass against one real input vs something run again, on a batch or a schedule
+- *machine gate* vs *eyes gate* → measured and stamped by the server vs a person looked at it; never claim the eyes gate passed
+- *advisory* vs *refused* → findings stamped and shipped anyway vs a no that changed nothing (the refusal legend says what it protects)
 
 In \`plain\` register the right-hand-side phrasing is what the user hears; in \`mojulo\` register either side works.`;
 
-const DISCLOSURE_TERSE = `**Procedural disclosure: terse.** Act and report — one-line summary at the end. Do not narrate intermediate state unless the user asks. The four gates above still apply; when you cross one, name the gate in one short clause ("done, sealed in the audit trail" / "dry-run looks clean — going live now") and move on. Don't elaborate on what the gate means in the absence of a user question.`;
+const DISCLOSURE_TERSE = `**Procedural disclosure: terse.** Act and report — one-line summary at the end. Do not narrate intermediate state unless the user asks. The distinctions above still apply; when you cross one, name it in one short clause ("made — ref sk_…" / "dry run looks clean, running the batch") and move on.`;
 
-const DISCLOSURE_REFLECTIVE = `**Procedural disclosure: reflective.** Name the gate before each commit step. Say "still a suggestion" / "now wired up" / "trial pass" / "live, recurring" / "sealed in the audit trail" explicitly so the user can always point at the current state without having to ask. Don't lecture on what each gate *means* — naming it is enough at this disclosure level.`;
+const DISCLOSURE_REFLECTIVE = `**Procedural disclosure: reflective.** Name the state before each step that commits: say "still a proposal" / "now made" / "trial pass" / "running the batch" / "the machine gate passed; the eyes gate is yours" explicitly so the user can always point at the current state without having to ask. Don't lecture on what each state *means* — naming it is enough at this disclosure level.`;
 
-const DISCLOSURE_PEDAGOGICAL = `**Procedural disclosure: pedagogical.** Before each gate, explain what crossing it means and why it matters. Reference the *proposed vs materialized* distinction explicitly: "right now this is a candidate — nothing's wired up yet"; "now I'm sealing it as materialized, which means a real artifact lives on disk and the decision lands in the audit trail." Teach the model as you go — the user is building their mental model of mojulo through your narration, and crossing a gate without naming its meaning leaves them less able to course-correct next time.`;
+const DISCLOSURE_PEDAGOGICAL = `**Procedural disclosure: pedagogical.** Before each step that commits, explain what crossing it means and why it matters: "right now this is a proposal — nothing is made yet"; "now it's made: a recipe at a ref you can revise, re-render and export"; "the machine gate measured it; only you can pass the eyes gate." Teach the model as you go — the user is building their picture of mojulo through your narration.`;
 
 const DISCLOSURE_DIRECTIVE_VARIANTS = {
   terse: DISCLOSURE_TERSE,
@@ -349,47 +320,41 @@ const DISCLOSURE_DIRECTIVE_VARIANTS = {
 
 const GLOSSARY_MIXED = `## Concepts
 
-- **App** — a local long-running process the control plane spawns on the operator's machine, paired with its own MCP sidecar. Runner-managed (one shipping runner: \`local\`). Parks inference back on the operator's agent via the agent-tasks queue — no per-app LLM credentials, no inference on the deployed runtime. Distinct from a Skill (one-shot, synthesized into the host adapter). Lifecycle: \`install_scaffold\` → \`meta_context_commit({type:'app_materialization'})\` → \`start_app\`.
-- **Running ref** — the runner's handle for a currently-running app instance. Issued by \`start_app\`; used by \`status_app\` / \`stop_app\` to address one specific running instance. Distinct from the artifact ref (the app's durable identity in the contextmap) — a single artifact can be started and stopped many times, each getting a new running ref. App MCP inventory rows FK to it via \`running_ref\` so \`stop_app\` knows which inventory entries to remove.
-- **Agent-tasks queue** — in-memory FIFO single-claim queue where running apps park inference requests for the operator's agent to fulfill. The app POSTs to \`/api/app-inference/envelope\`; the parked promise resolves when an agent calls \`submit_envelope_inference\`. One task kind ships today (\`envelope_inference\`); the substrate generalizes. Parked promises reject with \`INFERENCE_PARKED_LOST\` on control-plane restart.
-- **Skill** — a workflow synthesized into the user's host adapter as a runnable artifact, in whatever form that host uses (a skill file, a scheduled automation, a workflow file + runner). \`get_adapter\` names YOUR host's form; don't assume another host's. Composed from a catalyst body + the user's installed MCPs. The host-neutral catalyst is the recipe; the host adapter is the bridge that materializes it on the user's substrate.
-- **Catalyst** — a host-neutral workflow recipe shipped with mojulo. Two kinds: **workflow catalysts** (run in the session, or combine a source + destination MCP + host adapter to materialize a Skill) and **technique catalysts** (bind a runtime substrate to an artifact — e.g. \`local-storage\` binds a filesystem folder as a document-store primitive). Read one with \`get_catalyst\`; the catalyst is a starting point — adapt freely, or skip it and synthesize from scratch. *See the texture preview below.*
-- **Host adapter** — bridge between a host-neutral catalyst recipe and the host-specific runnable artifact (Skill). One card per host mojulo knows, plus \`generic\` as the always-available fallback — \`list_adapters\` for the current set; never assume the roster from memory. Auto-resolved from your client's \`clientInfo.name\` on first connect; pass an explicit \`host\` (or \`clientInfoHint\`) to override when the resolver guessed wrong or your host has no card yet. Read your adapter once via \`get_adapter\` before making or synthesizing. The card is guidance for your substrate, not a constraint on it: if your runtime has a better native form, use it and tell the operator what you chose.
-- **Connected Service** — a workflow composed over the operator's installed MCPs. Two forms: a Skill synthesized into the host adapter, or a materialized mcp-orbit composition. Mojulo is the deliberation anchor + audit trail here, not the runtime.
-- **Media** — the creatable paradigm for creative artifacts: diagrams, illustrations, 3D objects, walkable worlds, scientific views, figures, films, music/SFX, voice registers, publications — each minted as a recipe artifact (below), never a render. Entry by FORM via \`get_creative_toolset\`; painted images and WAVs are bound derived files with provenance, the recipe stays sovereign.
-- **Game** — a creatable paradigm, and it is composition: Media levels-as-worlds + music/art bound to a standalone playable artifact — a shell owning a typed store (five slice kinds: character / inventory / party / progression / flags) plus levels that are worlds carrying a \`game:\` contract. State persists across levels; play data never enters mojulo.
-- **Stash / Gather / Cook** — the publication pipeline: \`mint_stash\` makes a typed bucket, \`gather\` binds typed items (validated at intake, rejected when malformed), \`cook\` nucleates ONE outcome per singular aim into a self-contained folder at \`/outcomes/<cook_ref>/\` (14 publication kinds, essay → comic → site). The agent authors the prose — no server-side LLM.
-- **Recipe artifact** — any creative minting (sketch, view, world, figure, motion, beats, game level): a tiny deterministic manifest stored in the DB and regenerated on render — never a stored render. Seeded, diffable, replayable; viewable at \`/sketches/<ref>\`.`;
+- **Play / Print / Read / Hear / Observe** — what mojulo makes, named by what people do with it. **Play**: a game (below), or a world walked as a level. **Print**: a solid exported at true scale (STL / 3MF, mm, z-up). **Read**: diagrams, illustrations, science views, covers and publications. **Hear**: scores, sound effects, voice registers. **Observe**: any of them watched over time (a turntable, a flythrough, a recorded traversal); the GIF or MP4 is a derived file. Entry by FORM via \`get_creative_toolset\`; painted images and WAVs are bound derived files with provenance, the recipe stays sovereign.
+- **Recipe artifact** — any minting (sketch, view, world, figure, motion, beats, game level): a tiny deterministic manifest stored in the DB and regenerated on render — never a stored render. Seeded, diffable, replayable; viewable at \`/sketches/<ref>\`. Revise it in place (\`update_sketch\`); don't re-mint.
+- **Game** — composition: worlds as levels, figures, gear and sound bound into a standalone playable artifact — a shell owning a typed store (five slice kinds: character / inventory / party / progression / flags) plus levels that are worlds carrying a \`game:\` contract. \`design_game\` is the rail: a gameworld designed top down, made through the other tools. State persists across levels; play data never enters mojulo.
+- **Workflows** — orchestration over the rest, for batches and variations: a **plan** (\`forge_plan\` → \`compile_plan\` → \`execute_plan\`, a chain written once; a step takes an earlier step's result as \`{ $step, path }\`), a **sweep** (one recipe varied over a value, \`run_experiment_sweep\`), and **stash → cook**.
+- **Stash / Gather / Cook** — \`mint_stash\` makes a typed bucket, \`gather\` binds typed items (validated at intake, rejected when malformed), \`cook\` nucleates ONE outcome per singular aim into a self-contained folder at \`/outcomes/<cook_ref>/\` (14 publication kinds, essay → comic → site): a Read outcome. The agent authors the prose — no server-side LLM.
+- **Catalyst** — a host-neutral workflow recipe shipped with mojulo: a loop run in the session, or one that reaches past mojulo (another MCP, an outside worker) and lands as a Skill on the host. Read one with \`get_catalyst\`; it is a starting point — adapt freely, or skip it and synthesize from scratch.
+- **Skill** — a catalyst materialized into the user's host, in whatever form that host uses (a skill file, a scheduled automation, a workflow file). It runs in the host, beside the operator's other MCPs. \`get_adapter\` names YOUR host's form; don't assume another host's.
+- **Host adapter** — the bridge between a host-neutral catalyst and the host's runnable form. One card per host mojulo knows, plus \`generic\` as the fallback — \`list_adapters\` for the current set. Auto-resolved from your client's \`clientInfo.name\`; pass \`host\` (or \`clientInfoHint\`) when the resolver guessed wrong. Read your adapter once via \`get_adapter\` before making. The card is guidance, not a constraint: if your runtime has a better native form, use it and say what you chose.
+- **Agent-task queue** — where work parked for an outside fulfiller waits (\`pull_agent_task\` → \`submit_envelope_inference\`, or \`cancel_agent_task\`): single-claim, in memory, lost on restart. The render handoffs are its durable sibling for image and mesh workers.`;
 
 const GLOSSARY_PLAIN = `## Concepts
 
 *Everything in this section is for your cognitive grounding — these are the nouns you use to call mojulo's tools. **Don't surface the bold terms to the user**; the parenthesized phrasing is what to say in their place.*
 
-- **App** *(to the user: "a tool that runs on your computer" or "a local app")* — a process mojulo spawns on the user's machine with its own little MCP. Does work in the background; when it needs you (the agent) to do some thinking, it parks the question on a queue and you pick it up. Different from an automation (which is one workflow the user's own agent runs on demand).
-- **Running ref** *(to the user: just "the running app" or "the live instance")* — the handle for a running app, issued each time it starts. Different from the app's permanent record — same app, multiple starts, different running refs each time. You use it to stop the right instance or check its status.
-- **Agent-tasks queue** *(to the user: "where the app asks for the agent's help" — or don't surface; just say "the app needs me to do some thinking")* — when an app on the user's machine needs you (the agent) to reason about something, it leaves the question on a queue. You pick it up, answer, the app continues. No separate LLM credentials needed because you're the inference.
-- **Skill** *(to the user: "an automation" or "a workflow you can run again")* — a workflow built from a recipe and saved into the user's own agent, in whatever form that agent uses, so they can run it again later. The recipe (catalyst) plus the tools they've connected = the saved automation.
-- **Catalyst** *(to the user: "workflow recipe" or "an automation")* — a workflow recipe shipped with mojulo. Read one with \`get_catalyst\`, combine it with a tool the user has connected (their CRM, Drive, calendar) → an automation, or follow a creative one in the session. Adapt freely; the recipe is a starting point.
-- **Host adapter** *(to the user: "how the automation gets built for your setup" — then name the form YOUR host actually uses: "as a skill file," "as a scheduled automation," "as a workflow file")* — bridge from the host-neutral recipe to the host-specific runnable artifact. \`list_adapters\` for the current set; auto-resolved from your client. Read your adapter once via \`get_adapter\` before making or synthesizing.
-- **Connected Service** *(to the user: "an automation between your connected tools")* — a workflow over tools the user already has connected (their Gmail, Drive, CRM). Mojulo keeps the record of what was set up and why; the automation itself runs on the user's own agent or schedule.
-- **Media** *(to the user: "the things mojulo makes — drawings, worlds, music, videos, booklets")* — creative pieces stored as tiny recipes mojulo can always re-render identically. Everything a game is made of, minus the rules.
-- **Game** *(to the user: "a playable game")* — a game composed from media pieces (level worlds, music, art) plus rules and saved progress, built as its own artifact: levels are little 3D worlds, progress (character, items, unlocks) carries between levels, and a level isn't accepted until a recorded playthrough proves it can actually be beaten. What happens in play stays on the player's side.
+- **Play / Print / Read / Hear / Observe** *(to the user: "games, things to print, things to read, things to listen to, and videos of any of them")* — what mojulo makes, named by what people do with it.
+- **Recipe artifact** *(to the user: "a drawing / object / world / tune mojulo can always remake")* — every piece is stored as a tiny recipe rather than a picture or audio file; mojulo remakes it identically on demand, which keeps it small, editable, and comparable. To change it, edit it; don't start over.
+- **Game** *(to the user: "a playable game")* — a game composed from the other pieces (level worlds, characters, gear, music) plus rules and saved progress: levels are little 3D worlds, progress carries between levels, and a level isn't accepted until a recorded playthrough proves it can be beaten. What happens in play stays on the player's side.
+- **Workflows** *(to the user: "doing many at once" or "a set of steps you can run again")* — a plan of steps written once and run together, a batch of variations of one thing, or collected material turned into a finished piece.
 - **Stash / Gather / Cook** *(to the user: "collect material, then turn it into a finished piece")* — collect notes, images, and links into a bucket (the stash), then cook them into one finished thing — an essay, a slide deck, a picture book, a small website — saved as a folder the user can open, share, or host.
-- **Recipe artifact** *(to the user: "a drawing / world / animation mojulo can always redraw")* — every visual or audio piece is stored as a tiny recipe rather than a picture file; mojulo redraws it identically on demand, which keeps it small, editable, and comparable.`;
+- **Catalyst** *(to the user: "a workflow recipe")* — a recipe shipped with mojulo, run in the session or saved into the user's own agent so it can reach their other connected tools. Adapt freely; the recipe is a starting point.
+- **Skill** *(to the user: "a workflow you can run again")* — a recipe saved into the user's own agent, in whatever form that agent uses.
+- **Host adapter** *(to the user: "how the workflow gets built for your setup" — then name the form YOUR host uses)* — \`list_adapters\` for the current set; auto-resolved from your client. Read your adapter once via \`get_adapter\` before making.
+- **Agent-task queue** *(to the user: don't surface; say "a waiting job")* — work parked for an outside helper to pick up and answer.`;
 
 const GLOSSARY_MOJULO = `## Concepts
 
-- **App** — local process; runner-managed; own MCP sidecar; inference parked on agent-tasks queue. \`kind='artifact'\` row in \`meta_nodes\` with \`payload.app.{name, bindings}\`. Four bindings: \`runner\` / \`durability\` / \`inference\` / \`mcp_self\`. Materialized via \`meta_context_commit({type:'app_materialization'})\` after \`install_scaffold\`; lifecycled by \`start_app\` / \`stop_app\`.
-- **Running ref** — runner handle for a live app instance. FK from \`meta_mcp_inventory.running_ref\`; distinct from \`meta_nodes.ref\` (durable artifact identity). Issued by \`start_app\`; consumed by \`status_app\` / \`stop_app\`.
-- **Agent-tasks queue** — in-memory FIFO single-claim. Parked HTTPs reject on restart with \`INFERENCE_PARKED_LOST\`. Kinds: \`envelope_inference\` (today). Tools: \`pull_agent_task\` / \`submit_envelope_inference\` / \`cancel_agent_task\`.
-- **Skill** — host-adapter-materialized runnable artifact synthesized from a catalyst body + bound destination MCP(s). Form is per-host (skill file / automation / workflow file) — \`get_adapter\` for yours.
-- **Catalyst** — host-neutral workflow recipe in \`control/lib/mcp/catalysts/\`. Two kinds: \`workflow\` (a session loop, or combined with a source + destination MCP + host adapter → Skill, sealed via \`primitive_artifact_materialization\`) and \`technique\` (binds runtime substrate to artifact — \`local-storage\` ships).
-- **Host adapter** — catalyst → runnable bridge, one card per known host + \`generic\` fallback (\`list_adapters\` for the set). Auto-resolved from \`clientInfo.name\`; \`get_adapter\` for the full body once before making; \`clientInfoHint\` to self-identify when the resolver missed.
-- **Connected Service** — no-runtime paradigm, two forms: host-adapter Skill (\`get_catalyst\` → materialize → \`declare_skills\` mirrors it) or mcp-orbit composition (\`meta_context_declare_inventory\` → \`bind_primitives\` / the composer → \`primitive_artifact_materialization\`). Deliberation anchor + audit trail only.
-- **Media** — the Ring 10 paradigm: sketches-table rows dispatched per kind (\`world-kinds.js\` seam, \`create_view\` kinds, beats/voice/figure/motion); FORM subdrawers via \`get_creative_toolset\`; derived renders append-only under \`data/outcomes/<ref>/\`. A game manifest composes these by ref.
-- **Game** — composition paradigm. \`create_game\`: shell + typed store (\`store.slices\` from character | inventory | party | progression | flags, 8 typed events, atomic outcome application) + promoted levels (worlds with a \`game:\` channel: \`{levelRef, consumes, produces}\`). Level audits at mint (\`audits\` / \`auto_audit:true\` / \`allow_unaudited:true\`, recorded per level). Play state stays client-side.
+- **Play / Print / Read / Hear / Observe** — the outcome rings (\`ring\` in packs.js): games / solids / read (2D, views, publications) / audio / kernel motion. Worlds are the testbed ring; workflows orchestrate. \`PARADIGMS\` in context.js is the list.
+- **Recipe artifact** — a sketches-table row; the per-kind assembler regenerates geometry/audio deterministically on render (\`world-kinds.js\` dispatch seam; \`create_view\` kinds, beats/voice/figure/motion). Renders (.glb / GIF / MP4) are exports or caches under \`data/outcomes/<ref>/\`, never the source. Iterate via \`update_sketch\` patch.
+- **Game** — \`create_game\`: shell + typed store (\`store.slices\` from character | inventory | party | progression | flags, 8 typed events, atomic outcome application) + promoted levels (worlds with a \`game:\` channel: \`{levelRef, consumes, produces}\`). Level audits at mint (\`audits\` / \`auto_audit:true\` / \`allow_unaudited:true\`). \`design_game\` fronts it: make / keep / remake by fingerprint. Play state stays client-side.
+- **Workflows** — \`execute_plan\` (registry runner, confirm-gated; \`{ $step, path }\` JSON Pointer refs, lib/mcp/plan-refs.js), \`run_experiment_sweep\`, stash → cook, catalysts.
 - **Stash / Gather / Cook** — \`mint_stash\` → \`gather\` (8 item types, intake-validated) → \`cook\` (ONE aim, ≥1 stash slice, 14 kinds; \`site\` is whole-stash) → \`/outcomes/<cook_ref>/\`. Multi-kind preview via \`forge_publications\`; \`recommend_kind\` is rules-based.
-- **Recipe artifact** — a sketches-table row; the per-kind assembler regenerates geometry/audio deterministically on render (\`world-kinds.js\` dispatch seam). Renders (.glb / GIF / MP4) are exports or caches, never the source.`;
+- **Catalyst** — host-neutral workflow recipe in \`control/lib/mcp/catalysts/\`; run in the session or materialized through the host adapter into a Skill that runs beside the host's other MCPs.
+- **Skill** — host-adapter-materialized runnable artifact. Form is per-host (skill file / automation / workflow file) — \`get_adapter\` for yours.
+- **Host adapter** — catalyst → runnable bridge, one card per known host + \`generic\` fallback (\`list_adapters\`). Auto-resolved from \`clientInfo.name\`; \`clientInfoHint\` to self-identify.
+- **Agent-task queue** — in-memory FIFO single-claim; parked requests reject on restart with \`INFERENCE_PARKED_LOST\`. Kind: \`envelope_inference\`. Tools: \`pull_agent_task\` / \`submit_envelope_inference\` / \`cancel_agent_task\`.`;
 
 const CONCEPT_GLOSSARY_VARIANTS = {
   plain: GLOSSARY_PLAIN,
@@ -415,11 +380,8 @@ A refusal is state protection, not a dead end. The families:
 | **Typed-intake rejection** (\`gather\` / \`update_item\` reject malformed items) | The stash's per-type contract — cook slices cite items, so a corrupt item poisons every downstream outcome | Fix the listed fields and re-gather; nothing was stored |
 | **Promotion gate** (\`create_game\` refuses an unproven level) | The paradigm's completability guarantee — a shipped level that can't be beaten is a broken artifact | Supply a \`forge_motion\` traversal that reaches the win condition in \`audits\`, use \`auto_audit:true\` for mechanic levels, or record the skip with \`allow_unaudited:true\` |
 | **Compile failure** (\`compile_plan\` → \`unknown_tools\` / \`illegal_tools\` / malformed) | The Actionable status — an executable plan must resolve every call against the live registry | \`revise_plan\` to remove or replace the failing calls; \`unknown_tools\` is roadmap signal, not a bug |
-| **Two-step confirm** (\`archive_item\` when referenced; \`execute_plan\` requires \`confirm:true\`) | Cited atoms and real side effects — the first call is a dry-run by design | Read the returned references / manifest, then re-call with \`confirm: true\` |
-| **Composer warning states** (\`seed_capabilities\` / \`no_capabilities_recorded\` / \`not_installed\` per provider) | Composition quality — a workflow built on stale or missing provider knowledge fails silently later | Each tag routes its own remediation: research tags → the \`research-mcp-vendor\` catalyst; \`not_installed\` → \`meta_context_declare_inventory\` |
-| **Daemon-down degradation** (\`start_app\` / \`stop_app\` throw; \`list_running\` → \`[]\`; \`status_app\` → \`unknown\`; bound triggers don't fire) | Honesty about what's actually running — bindings stay durable, execution waits for the runtime | Start the daemon host (\`MOJULO_DAEMONS=enabled\`, per-daemon gates) and retry; the durable rows are intact |
+| **Two-step confirm** (\`archive_item\` when referenced; \`execute_plan\` requires \`confirm:true\`) | Cited atoms and real side effects (a plan's steps mint, export and write) — the first call is a dry-run by design | Read the returned references / manifest, then re-call with \`confirm: true\` |
 | **Diff refusal** (\`diff_sketches\` → \`too_different\`) | Diff legibility — a diagram of pure churn communicates nothing | Re-call with \`force: true\` if you really want it, or diff nearer revisions |
-| **Materialize-before-commit** (\`meta_context_commit\` verification fails when the artifact doesn't exist) | The audit trail's meaning — contextmap seals reality, never intention | Materialize first (\`install_scaffold\`, write the skill file, bind the trigger), then commit |
 
 If a refusal you hit isn't in this table, the tool's own message carries the remediation — recent refusals end with a \`next:\` clause.`;
 
@@ -434,87 +396,50 @@ If a refusal you hit isn't in this table, the tool's own message carries the rem
 const TOOL_INDEX = `## Tool index (one line each)
 
 ### Orientation
-- \`forward_context\` — the routing index, two wings behind one tool: the no-mode read is the STUDIO, the DEFAULT (the creative wing's FORM recognizer rows + drawers); \`mode:'office'\` is the automation backend (connected services / apps / operate). A lean opener, user-framing → entry-tool rows, a drawer directory, and the standing safety + commitment rules. Call FIRST when unsure what mojulo is or which tool fits. A thin map, not a manual — depth lives in the drawers below.
+- \`forward_context\` — the routing index: what mojulo makes (Play · Print · Read · Hear · Observe) as FORM recognizer rows → entry tool, the export dispatch, the guards, and a drawer directory. Call FIRST when unsure which tool fits. A thin map, not a manual — depth lives in the drawers below.
 - \`get_tool_index\` — (you are reading its output) the full one-line-per-tool index across every ring. Call when \`forward_context\`'s routing index isn't specific enough.
-- \`get_creative_toolset\` — the per-tool list for one creative FORM (diagram · illustration · reference · image-render · object · world · view · motion · motion-comic · audio · voice · game). No arg → the form map. The Ring 10 mint tools moved here; call it to MAKE something visual / audible / playable.
+- \`get_creative_toolset\` — the per-tool list for one creative FORM (diagram · illustration · reference · image-render · character · object · world · view · motion · motion-comic · audio · voice · game). No arg → the form map. The Ring 10 mint tools moved here; call it to MAKE something visual / audible / playable.
 - \`mint_diagram\` — the KERNEL diagram maker (spine; always on, even in an install without the creative pack — a diagram is just SVG). Mint a flow-chart or data-chart (stations+edges and/or chart marks) → \`/sketches/<ref>\`. \`create_sketch\` is the creative superset (recipes, worlds, illustration); both share the one diagram core so they can't drift.
-- \`get_register_kit\` — the concept glossary (App, Skill, Catalyst, Connected Service, Media, Game, …) in the operator's active \`vocabulary_register\`, plus the refusal legend (what each family of "no" protects · the next move), the active disclosure directive, and the invariant commitment-level floor. **This is where the vocabulary lives** — pull it to define a term, phrase something for the user, or decode a refusal. Optional per-call \`register\` / \`disclosure\` override.
-- \`get_worked_example\` — an annotated end-to-end trace of one successful flight for a paradigm (\`connected-service\` / \`app\` / \`media\` / \`game\`): the real call sequence with args, the gate moments marked in place, one refusal + recovery. No arg → index of available traces. Pull before your first build of a paradigm.
-- \`get_deliberation_overview\` — the why-it's-structured-this-way explainer for the Ring 6 deliberation surfaces plus the daemon runtime-gating posture. Call only when doing structural work.
+- \`get_register_kit\` — the concept glossary (Play / Print / Read / Hear / Observe, recipe artifact, game, workflows, catalyst, …) in the operator's active \`vocabulary_register\`, plus the refusal legend (what each family of "no" protects · the next move), the active disclosure directive, and the invariant commitment-level floor. **This is where the vocabulary lives** — pull it to define a term, phrase something for the user, or decode a refusal. Optional per-call \`register\` / \`disclosure\` override.
+- \`get_worked_example\` — an annotated end-to-end trace of one successful flight (\`game\` / \`media\`): the real call sequence with args, the gate moments marked in place, one refusal + recovery. No arg → index of available traces. Pull before your first build of a kind.
 - \`get_ui_map\` — the page-by-page map of the \`mojulo-ui\` dashboard (one line per page + when to point the user there). Call when the user wants to look / browse / click and you need to name the right page.
-- \`get_substrate\` — what mojulo is and what it can honestly claim (pipelines, inference posture, always-on, cloud properties it lacks) plus the substrate facts: the architecture invariants (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE self-description answers from. Call when the user compares mojulo to cloud primitives, asks "what is this really?", or asks about mojulo itself — "does it phone home?", "where does my data live?", "do I have to pay?", "how do I uninstall?".
+- \`get_substrate\` — what mojulo is (a 3D factory with a media studio) and what it can honestly claim (pipelines, inference posture, workers, cloud properties it lacks) plus the substrate facts: the architecture invariants (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE self-description answers from. Call when the user asks "what is this really?" or about mojulo itself — "does it phone home?", "where does my data live?", "do I have to pay?", "how do I uninstall?".
 - \`version\` — runtime versions: server, install distribution, MCP protocol, Node, platform, MOJULO_HOME. Local, no network. Use to diagnose version mismatches.
 - \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) against its latest published version. Returns \`{ controlPlane, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
 - \`get_tool_ledger\` — the substrate's own tool-call telemetry. No args → per-tool aggregate table (calls, error rate, p50/p95, last-called) over the last N days + recent errors/timeouts; \`{ tool }\` → that tool's recent calls; \`{ orientation: true }\` → the orientation-gap cut (weak searches, drawer misses, oriented-then-abandoned sessions — "is the lexicon working?"). Records shapes only, never values. Mirrors the \`/observability\` page.
 - \`list_adapters\` — list the host adapters mojulo ships, whatever they are on this version (the roster grows; \`generic\` is always there as the fallback). An adapter is the host's first-session card (studio ride + catalyst materialization). Read \`get_adapter\` once before making or synthesizing.
 - \`get_adapter\` — full body of one adapter: how you ride this substrate, plus artifact target, dry-run, scheduling, state, secrets. Pull once before making or synthesizing. Pass \`id\` or auto-resolve from clientInfo.
+- \`semantic_search\` — **fuzzy recall over durable mojulo state** (principles, capability bodies, mcp-orbit components / compositions / provider artifacts, declared MCP inventory tools, shipped catalysts, and the vocab card libraries — sketch / view / beats / game). Use when you have an intent or topic but not a specific ref — \`meta_context_brief\` and the other Ring 6 readers answer "give me the full row at this ref"; \`semantic_search\` answers "which refs are relevant to this intent at all?" Returns ranked \`{ source_kind, source_ref, score, snippet }\` rows; snippets cap at ~280 chars and the agent is expected to pair this with the typed structured readers to pull full bodies for any row worth the context cost. Optional \`kinds\` filter restricts to one or more of \`principle | mcp_tool | mcp_capability | orbit_component | orbit_composition | orbit_artifact | catalyst | sketch_vocab | sketch_method | manji_program | painted_landscape | view_vocab | beats_vocab | game_vocab | game_mechanic\`. Capability rows that have been superseded never appear — the index quietly filters against the current row per provider. Query in English. Lexical (FTS5) on a default install; the opt-in \`recall\` group (\`${mojuloCommand('install recall')}\`) adds the embedding model and vector ranking — a result's \`mode\` says which ran. Read-only.
 
-### Catalysts (consult on outcomes; recipes for workflows and creative loops)
+### Workflows — catalysts, workers & connected MCPs
 
-Mojulo is a **consultation surface**, not a strict executor. When the user asks what they could automate, be ready to suggest workflows even when they require an integration the user doesn't yet have installed — framed as opt-in upgrades, never as blockers.
+For flows that reach past mojulo. A catalyst lands as a Skill on the host, beside the operator's other MCPs, so a flow across mojulo and another MCP (a Blender or Drive MCP, say) lives there; the inventory and capability reads tell it what those MCPs can do; the agent-task queue parks work for an outside fulfiller. Mojulo is a **consultation surface** here: suggest a workflow even when it needs an integration the user doesn't have yet, framed as an opt-in upgrade, never a blocker.
 
 - \`recommend_catalysts\` — the workflow shelf (shipped + local mints), optionally narrowed by \`category\`, each annotated with a \`valueHook\` (one-sentence user-outcome), \`destinationCategory\` (kind of MCP needed, or null for a session workflow), \`destinationExamples\` (named MCPs that satisfy it) and \`priorMaterializations\`. Response includes a \`consultationPosture\` block with framing rules — read it. **This is the entry point for "what can I automate?" / "is there a recipe for this?"** Cross-reference \`destinationExamples\` against MCPs available in this session: examples installed → "you can do this now"; examples not installed → soft suggestion.
 - \`list_catalysts\` — flat catalog of every shipped recipe plus the operator's local mints (\`origin: 'local'\`), filterable by category and kind. Use to browse what mojulo offers.
 - \`get_catalyst\` — read one recipe's full body. The response composes three parts: a host-neutral catalyst-core preamble (posture, vocabulary, safety defaults), the bound **host adapter** body (artifact target, scheduling, dry-run encoding, secrets), and the catalyst's host-neutral recipe (mapping intent, idempotency, pitfalls). Pass \`host\` to override the auto-resolved adapter; \`rev\` reads a local revision.
 - \`custom_catalyst\` — author's guide for **writing a new catalyst**. Use when the user wants to mint / propose / contribute a catalyst (not to automate something once for themselves — that's a local skill). Read it BEFORE \`mint_catalyst\`.
 - \`mint_catalyst\` — persist a drafted catalyst on the operator's **local shelf** (DB row, revision history, immediately live in list/get/recommend/search). Upsert by id; \`archive: true\` shelves it; response \`fileText\` is the ready-to-PR file for graduation.
+- \`meta_context_declare_inventory\` — record the MCP servers this host has (names, tools, optionally their schemas) so a catalyst can be matched against them. Replace semantics: the latest declaration is the whole truth. Never at session start or unprompted: it records the user's other MCP servers.
+- \`record_mcp_capabilities\` / \`get_mcp_capabilities\` — a provider's knowledge body (what its MCP can do, with cited sources), written from research and read back by canonical \`provider_ref\` (\`gmail\`, \`notion\`, …); history kept (\`asOf\`). The method is the \`research-mcp-vendor\` catalyst.
+- \`pull_agent_task\` — long-poll for work parked for an outside fulfiller. Optional \`wait_ms\` (default 0) and \`kinds\` filter (one shipping kind: \`envelope_inference\`). Returns \`{ task_id, kind, payload }\` or null. Single-claim. The loop body is the \`run-inference-worker\` catalyst.
+- \`submit_envelope_inference\` — deliver the response envelope for one pulled \`envelope_inference\` task; validated against the envelope schema in the task payload before the parked request resolves.
+- \`cancel_agent_task\` — release a pulled task with a typed error (\`INFERENCE_CANCELLED\`) when it can't be fulfilled. Use sparingly.
 
-### Deliberation (Ring 6 — the substrate for structural reasoning: contextmap, inventory, capabilities, composer, primitive + trigger binding, semantic recall)
+### Workflows — plans (a chain written once, run under approval)
 
-Mojulo separates *what fired* (a conversation, an automation run — outcome-rate, never written here) from *why it was bound this way* (a catalyst materialized through a host adapter into an artifact — deliberation-rate, append-only). It also separates both of those from *what materials the operator has available right now* (their installed MCPs — present-state, replaceable). And it separates *what gets composed from those materials* (mcp-orbit workflows — recommendation + composition log, replaceable in-flight, sealed at materialization). \`meta_context\` is the writeable, durable layer for the why; \`meta_context_declare_inventory\` records the present-state MCP environment via introspection; \`record_mcp_capabilities\` records vendor knowledge via primary-source research. Both write into provider rows on a shared identity layer (one logical "Gmail" in mojulo regardless of which path arrived at it), and the composer reads both as one consolidated picture. Rare-call by design — expect 0–3 contextmap calls per session; declare inventory when the user asks for connected-service work (and again only if the environment changes during it); research a vendor when the agent's first encounter with a provider warrants it; the composer fires whenever the user wants an MCP-to-MCP workflow, not on a lifecycle cadence.
-
-- \`meta_context_brief\` — read the contextmap subgraph + principles for a scope (\`{ kind: 'fleet' }\` for the whole graph, or \`{ kind: 'artifact' | 'catalyst' | 'adapter' | 'bot', ref: '<id>' }\` for a 1-hop neighborhood; \`bot\` reads nodes a 2.x install recorded). Call when wondering *"has the fleet already committed to something related to what I'm about to do?"* or when the user asks "why does this digest route field X to tool Y?" / "why is this a Codex automation and not a skill?" — the \`materialized_by\` and \`binds\` edges carry principles that record the reasoning. Also call BEFORE materializing a new artifact (app, skill, trigger): if a related artifact already exists, improve it rather than minting a sibling — the before-build check is how prior decisions survive fresh sessions. The fleet brief response also includes \`inventory\` (the operator's currently declared MCP environment, see \`meta_context_declare_inventory\` below) plus \`meta: { empty, suggest_kyc, capped }\` hints. An empty fleet brief with no operator anchor → surface the KYC. Do NOT call for routine orientation (that's \`forward_context\`).
-- \`meta_context_commit\` — seal a structural decision. **Event types:** (1) \`operator_kyc\` — optional one-time bootstrap (role + primary_goal + locked-in constraints) that anchors future suggestions; subsequent commits need \`revise: true\` to attach a new principle. (2) \`operator_workspace_setup\` — append-only flat principles on the operator node recording \`workspace_root\` (absolute path) and optional \`workspace_conventions\`. Required for technique catalysts (e.g. \`local-storage\`) that bind a filesystem sub-path. Rejects relative paths and \`..\` segments. (3) \`artifact_materialization\` — the 2.x seal of a catalyst materialized for a deployed bot; it left with the chatbot factory and now answers with a notice (earlier events stay readable). (4) \`primitive_artifact_materialization\` — the seal for runtime-introspected primitive-binding artifacts (a Skill or mcp-orbit composition over installed MCPs); records the artifact → bound MCP tools audit chain with per-binding payloads. (5) \`app_materialization\` — atomic seal for an App: adapter_id + artifact + app_name + the four bindings (\`runner\` / \`durability\` / \`inference\` / \`mcp_self\`). Verification additionally requires the scaffolded \`<locator>/app-mcp/server.js\` to exist — call \`install_scaffold\` FIRST. Adapter-delegated verification runs BEFORE the write (claude-code/generic → existsSync; codex accepts opaque locators on assertion). (6) \`trigger_artifact_materialization\` — atomic seal for an activation binding. Resolves a \`trigger_ref\` returned by \`bind_trigger\` and attaches an audit principle to the target artifact node summarizing the binding (component_ref, binding_params, payload_template). Phase 1 requires the trigger to carry an \`artifact_ref\`; composition-only triggers are deferred. **Call ONLY AFTER materializing the artifact** — never to declare an intention. If commit fails, roll back via the host adapter's own affordance (delete file / cancel automation / \`stop_app\` then remove the scaffold dir / \`unbind_trigger\` to disable an orphan binding).
-- \`meta_context_declare_inventory\` — **the entry point for connected-service work**: MCP-orchestrated workflows synthesized over the user's installed MCPs (Gmail/Drive/Calendar/Linear/HubSpot/etc.) directly, with mojulo as the deliberation anchor and audit trail rather than the runtime. **Call this first** when the user asks for operator-side workflows, MCP-to-MCP wiring, scheduled digests or signal-triggered automations. Never at session start or unprompted: it records the user's other MCP servers. REPLACE semantics — mojulo can't introspect your client, so the latest declaration is authoritative and previously declared tools not in the new call are wiped. Each declared server is canonicalized (e.g. \`claude_ai_Gmail\` → \`gmail\`) and upserts a row on the providers identity layer; the snapshot rides on \`meta_context_brief({kind:'fleet'})\`.
-- \`meta_context_analyze\` — **the drift-audit arbiter for connected services** (read-only, deterministic, no LLM). One lens ships: \`stale-bindings\` cross-references every sealed \`binds\` edge against the currently declared inventory + the researched capability layer, classifying each binding \`missing\` (bound tool no longer in the environment — the service will fail at runtime), \`stale-capability\` (tool present but vendor knowledge aged past the freshness window), \`no-capability\` (present but never researched), \`unknown\` (inventory never declared — never a false \`missing\`), or \`ok\`. Returns findings ranked most-actionable-first with a per-finding re-research recommendation, an \`inventory\` freshness block, a \`summary\` (severity counts + \`providersToRefresh\`), and re-declare \`nudges\`. This is how you add version control to one-time-created services: re-declare inventory, call this to see what rotted, then refresh the flagged providers via the \`research-mcp-vendor\` catalyst. Scope: \`{ kind: 'fleet' }\` audits everything; \`{ kind: 'artifact', ref }\` scopes to one service.
-- \`declare_skills\` — **mirror the host adapter's skills into mojulo as Connected Services** (sibling to \`meta_context_declare_inventory\`, same replace-semantic posture, for the \`skill\` member rather than the MCP environment). A Skill is a workflow synthesized into your host (e.g. \`.claude/skills/<name>/SKILL.md\`); the host owns it, mojulo only reflects it for observation — it never writes to your host. Call after you synthesize or change a skill for the user (e.g. after \`get_catalyst\` materializes one), never at session start. Declare the MCP servers each skill \`calls\` (resolved against declared inventory so the viewer marks wired vs missing) and any unbound capability \`needs\`. REPLACE semantics — the latest declaration is the whole mirror; skills not in the call are dropped (you are the trust anchor, mojulo can't introspect the host). The \`skill\` form plus the materialized mcp-orbit form make up the Connected Services paradigm.
-- \`record_mcp_capabilities\` / \`get_mcp_capabilities\` — **the research facet** of a provider, sibling to inventory's introspection facet. \`record_mcp_capabilities\` writes a vendor knowledge body (frontmatter + prose + cited URLs) for one canonical \`provider_ref\`; supersedes any prior current row in one transaction, preserving full history (\`asOf\` walks the chain). \`get_mcp_capabilities\` reads the current row (or a historical one via \`asOf\`). The agent-side methodology lives in the \`research-mcp-vendor\` catalyst — fetch via \`get_catalyst('research-mcp-vendor')\` for source-discipline, triangulation rules, and the canonical body shape. Mojulo ships four seeded vendor bodies on first install (gmail, notion, linear, google_drive) honestly attributed via \`source_urls[0]=mojulo://CHANGELOG#v0.5.0\`; the catalyst refreshes them when drift bites, and the composer's warning tags (\`seed_capabilities\` / \`no_capabilities_recorded\`) tell the agent when to run it.
-- \`recommend_mcp_orbit_compositions\` / \`get_meta_catalyst\` / \`list_mcp_orbit_components\` / \`get_mcp_orbit_component\` — **the mcp-orbit composer** reads providers + capabilities + inventory through a consolidated view, enumerating every MCP mojulo knows about (whichever path put it there). Five composer states per chosen provider — \`research\` (both facets, agent-researched body), \`seed\` (both facets, build-time seed body), \`inventory_only\` (installed but no body recorded), \`capabilities_only\` (body recorded but not installed), \`none\` (defensive). Each non-\`research\` state surfaces as a constraint warning tagged with the provider_ref so the agent can route remediation: \`seed_capabilities:<ref>\` and \`no_capabilities_recorded:<ref>\` point at the research catalyst; \`not_installed:<ref>\` points at \`meta_context_declare_inventory\`. The five typed component kinds (\`mcp\` × \`trigger\` × \`pattern\` × \`idempotency\` × \`render\`) still describe the composition shape; non-mcp kinds ship through the component loader, the \`mcp\` kind is served from the providers identity layer. The flow is fixed: \`recommend_mcp_orbit_compositions\` (logs candidates as audit-able \`proposed\` rows; surfaces \`rationale.catalystHint\` when any chosen provider isn't research-grade) → \`get_meta_catalyst\` (composition rulebook, read once per session) → \`get_mcp_orbit_component\` per chosen ref → assemble + dry-run + \`meta_context_commit\`.
-- \`semantic_search\` — **fuzzy recall over durable mojulo state** (principles, capability bodies, mcp-orbit components / compositions / provider artifacts, declared MCP inventory tools, shipped catalysts, and the vocab card libraries — sketch / view / beats / game). Use when you have an intent or topic but not a specific ref — \`meta_context_brief\` and the other Ring 6 readers answer "give me the full row at this ref"; \`semantic_search\` answers "which refs are relevant to this intent at all?" Returns ranked \`{ source_kind, source_ref, score, snippet }\` rows; snippets cap at ~280 chars and the agent is expected to pair this with the typed structured readers to pull full bodies for any row worth the context cost. Optional \`kinds\` filter restricts to one or more of \`principle | mcp_tool | mcp_capability | orbit_component | orbit_composition | orbit_artifact | catalyst | sketch_vocab | sketch_method | manji_program | painted_landscape | view_vocab | beats_vocab | game_vocab | game_mechanic\`. Capability rows that have been superseded never appear — the index quietly filters against the current row per provider. Query in English. Lexical (FTS5) on a default install; the opt-in \`recall\` group (\`${mojuloCommand('install recall')}\`) adds the embedding model and vector ranking — a result's \`mode\` says which ran. Read-only.
-- \`bind_primitives\` — **the primitive-binding composer for MCP-to-MCP workflows.** Given a vendor-agnostic primitive (\`document-store\`, \`structured-record-store\`, \`messaging-channel\`, \`message-thread\`, ...), a composition role (\`source\` | \`destination\`), and a server from declared inventory, runs a deterministic generator that fills a role-specific template with the **actual bound tool names + schemas from the operator's installed MCP**. Returns a session-scoped provider artifact (\`prov_<id>\`) + structured binding manifest (which affordances mapped to which tools, with confidence labels). Use when inventory was declared in "richer-snapshot mode" (per-tool \`inputSchema\` + \`introspectionConfidence\`); thin inventory declarations downgrade to \`names_only\` confidence with no schemas in the generated artifact. The bound provider artifacts then graduate via \`meta_context_commit({type:'primitive_artifact_materialization', adapter_id, artifact, composition_intent, provider_artifact_refs:[...]})\` — recording the audit chain (artifact → bound MCP tools, with per-binding payloads) without requiring a catalyst. This is the runtime-introspected composer mojulo recommends for MCP-to-MCP workflows — the generated artifact reflects the operator's actual installed MCP rather than a curated guess. The vendor-shaped \`recommend_mcp_orbit_compositions\` flow remains as a seed-reasoning surface for first-encounter scaffolding when the agent lacks confident tool-schema knowledge.
-- \`bind_trigger\` / \`unbind_trigger\` / \`list_triggers\` / \`get_trigger\` — **composer-anchored activation binding** (sibling to \`bind_primitives\`, same shape for the \`trigger\` axis). \`bind_trigger\` takes a typed \`component_ref\` from the composer (Phase 1 ships \`trigger/scheduled@0.1.0\`; webhook + watch components may exist in \`mcp-orbit-components/trigger/\` but their runtimes are deferred to later phases), \`binding_params\` validated against the component (cron parsed via croner upfront so invalid expressions reject at bind time, not at first fire), a \`payload_template\` parked into the agent-tasks queue at fire time with flat-key substitution (\`{{fired_at}}\` / \`{{fired_at_date}}\` / \`{{scheduled_at}}\` / \`{{fired_at_unix}}\`), and an \`artifact_ref\` to a materialized contextmap node (Phase 1 requirement). Returns \`{ trigger_ref, component_ref, artifact_ref, principle_id, next_fire_at }\`. Persists in \`mcp_orbit_trigger_artifacts\`; graduates via \`meta_context_commit({type:'trigger_artifact_materialization', trigger_ref})\`. The scheduler daemon fires registered triggers when the runtime host is up (\`mojulo-daemons\` with \`MOJULO_DAEMONS=enabled\`, per-daemon gate \`MOJULO_TRIGGER_RUNTIME=enabled\`); without that, bind calls still succeed and the binding rows stay durable but nothing fires until a later boot enables the runtime. Each fire writes a \`trigger_firing\` principle on the target artifact node — walking the principles yields a \`trigger_firing → app_inference → trigger_firing → app_inference\` chain telling the full story of each autonomous run. Same composer-anchored discipline as \`bind_primitives\` — adding a new trigger kind means shipping a typed component + its runtime daemon; the bind tool needs no per-kind code branch.
-
-### Ring 7 — Apps (local runner + agent-tasks queue)
-
-The app paradigm: local long-running processes the control plane spawns on the operator's machine, paired with their own MCP sidecar, parking inference back on the operator's agent via an in-process queue. **No per-app LLM credentials, no inference on the deployed runtime.** Distinct from a Connected Service (one-shot Skill synthesized into the host adapter, or a materialized mcp-orbit composition). Call after recognizing an app-shaped ask — the Quick orientation rules in \`forward_context\` list the trigger phrases; the dashboard's \`/graph\` page renders the App composition map.
-
-The shipping path: \`install_scaffold\` (lay down the starter files) → \`meta_context_commit({type:'app_materialization'})\` (record the app with its four bindings) → \`start_app\` (spawn the process + sidecar atomically). Once running, the app POSTs inference requests to \`/api/app-inference/envelope\`, the agent pulls them via \`pull_agent_task\`, and submits responses via \`submit_envelope_inference\`. The canonical pull → dispatch → submit loop body is the \`run-inference-worker\` catalyst — call \`get_catalyst('run-inference-worker')\` and drive it with whatever repeat affordance YOUR host has (in Claude Code that's \`/loop\`; elsewhere a session loop, a watch command, or cron against a headless session all work). For fulfillment with no session at all, \`MOJULO_AGENT_RUNTIME=claude-code-headless\` runs an in-process Node fulfiller that spawns one-shot \`claude --print\` subprocesses — that adapter is Claude-Code-only today, so on other hosts the session loop is the path.
-
-#### Runner — app lifecycle
-- \`install_scaffold\` — write the \`app-mcp/server.js\` template + bearer-bearing \`.env\` into an artifact directory. Returns \`{ scaffold_dir, env_path, bearer_generated, reused }\`. Call BEFORE \`meta_context_commit({type:'app_materialization'})\` — the commit's adapter verification requires the scaffold to exist. Bearer NOT returned (it's in the .env on disk; read via \`list_env\` if needed).
-- \`start_app\` — spawn the app + its sidecar atomically (10s startup timeout); parse URLs from stdout (\`APP_URL=...\` and either \`APP_MCP_URL=...\` or Vite's "Local: ..."); auto-declare the app's MCP to inventory under \`server_kind='app'\` with a \`running_ref\` FK. Requires the app-runtime daemon (\`mojulo-daemons\` or standalone \`mojulo-app-runtime\`). Returns \`{ running_ref, url, mcp_url, inventory_tools_registered }\`. Bearer intentionally NOT returned in tool output to avoid surfacing a secret in agent transcripts.
-- \`stop_app\` — kill both processes by \`running_ref\`; remove inventory entries tied to that running_ref (FK delete); drop in-memory runner state. Idempotent — stopping an unknown running_ref returns a no-op result.
-- \`status_app\` — read the runner's current state for one running_ref: \`{ status, url, mcp_url, artifact_ref, started_at }\`. \`status\` ∈ \`'running' | 'crashed' | 'stopped' | 'unknown'\`. \`unknown\` means the runtime daemon has no record (or is down).
-- \`list_running\` — list all running_refs known to the runtime daemon: \`[{ running_ref, artifact_ref, status, url, mcp_url, started_at }]\`. When the daemon is down, the list is empty.
-- \`list_runners\` — list available runner implementations (one ships: \`local\`). Forward-compatible affordance for Fly / Docker / Vercel substitutes that may land later; not pluggable yet.
-
-#### Runner — per-app env management
-- \`list_env\` / \`set_env\` / \`delete_env\` — read/write the artifact's \`.env\` file. Comments and blank lines preserved on round-trip. Use \`set_env\` to inject operator-set values the app reads at startup (API keys for services the app calls, runtime config). The bearer is written once at scaffold-time by \`install_scaffold\`; **don't rotate it through these tools** unless you also restart the app and re-declare the MCP inventory entry. \`list_env\` returns the key NAMES only, never values — the values never enter the control plane.
-
-#### Runtime daemons — host lifecycle
-- \`list_daemons\` — list runtime daemons managed by the unified host: \`[{ name, status, detail? }]\`.
-- \`status_daemon\` — read one daemon's status (e.g. \`scheduler\`, \`app-runtime\`).
-- \`start_daemon\` / \`stop_daemon\` / \`restart_daemon\` — lifecycle the daemon host's services. The host must be running (\`mojulo-daemons\` with \`MOJULO_DAEMONS=enabled\`).
-
-#### Agent-tasks queue
-- \`pull_agent_task\` — long-poll for parked inference tasks from running apps. Optional \`wait_ms\` (default 0 = return immediately if empty) and \`kinds\` filter (one shipping kind: \`envelope_inference\`). Returns \`{ task_id, kind, payload }\` or null. Single-claim — each task goes to at most one puller. The canonical loop body is the \`run-inference-worker\` catalyst.
-- \`submit_envelope_inference\` — deliver a response envelope for one parked \`envelope_inference\` task. Validates the response against the envelope schema embedded in the task payload before resolving the parked HTTP. Records an \`app_inference\` principle on the calling app's artifact node so future audit walks can recover what each inference cost / produced.
-- \`cancel_agent_task\` — release a parked HTTP with a typed error (\`INFERENCE_CANCELLED\`). Escape hatch when the agent can't or won't fulfill — the app receives the error and can decide what to do (retry, fall back, surface to the user). Use sparingly; the loop body should handle most failure modes by submitting an envelope with appropriate machine_state, not by canceling.
-
-### Ring 8 — Plan mode (deliberation → execution)
-
-The PROPOSED layer of the deliberation model — the speculative counterpart to the contextmap's committed reality. Most sessions stay sessions; a few accumulate enough signal to become **Plans**: sealed cognitive units that draw the schematic of one vertical slice (a "spike") and, once tractable, compile to a manifest of tool calls the operator can execute under per-execution approval. A plan is NOT a contextmap commit — contextmap is sealed reality, a plan is pre-reality. Call \`enter_plan_mode\` to load the deliberation discipline (four lenses, shadow scratchpad, introspection-on-signal, the frame). v0: no cross-plan context; subplans live inside the prime plan's manifest. The dashboard's \`/plan\` page is a read-only inbox view; New Plan opens a fresh host-agent session that drives these tools.
+The PROPOSED layer of the deliberation model — the speculative counterpart to the contextmap's committed reality. Most sessions stay sessions; a few accumulate enough signal to become **Plans**: sealed cognitive units that draw the schematic of one vertical slice (a "spike") and, once tractable, compile to a manifest of tool calls the operator can execute under per-execution approval. A step takes an earlier step's result as \`{ "$step": n, "path": "/ref" }\`, so mint → export → measure is one manifest. Call \`enter_plan_mode\` to load the deliberation discipline (four lenses, shadow scratchpad, introspection-on-signal, the frame). v0: no cross-plan context; subplans live inside the prime plan's manifest. The dashboard's \`/plan\` page is a read-only inbox view; New Plan opens a fresh host-agent session that drives these tools.
 
 - \`enter_plan_mode\` — return the plan-mode discipline (the four lenses held loosely: spike / segment-expansion / vertical-reinforcement / collider; the shadow-scratchpad step-0 where you DRAFT but never FIRE tool calls while deliberating; introspection-on-signal that grounds the frame against committed reality only once the gem reveals; the frame-for-approval moment; the forge → revise → compile → execute lifecycle). Call FIRST when the operator wants to plan non-trivial work — it primes you to push gently toward an outcome. Read-only.
 - \`forge_plan\` — seal a Draft plan from a session: \`{ title, goal, lens?, frame?, manifest?, analysis?, source? }\`. \`manifest\` is the ordered candidate \`{ tool, args, note? }\` calls (the projected shadow scratchpad); \`analysis\` is the un-shared provenance (lens weights, discarded lenses, introspection refs). A plan can start goal-only and accrete its manifest via \`revise_plan\`. Optional \`source: { kind: 'cook', cook_ref }\` seeds the plan from a previously-materialized Cook outcome (the cook's aim → seeded goal, suggested_lens → seeded lens; source ref recorded in analysis for the triangle backlink). Returns \`{ plan_ref, status:'draft', lens, has_manifest, source? }\`. Forging executes nothing.
 - \`revise_plan\` — append a \`{ note, revised_at }\` to the revision log and optionally patch goal / lens / frame / manifest / analysis. Mode-switching ("this is a reinforcement, not a spike") is a normal revision. ALWAYS resets status to \`draft\` — touching the schematic un-commits the compile. Returns \`{ plan_ref, status:'draft', lens, revisions }\`.
 - \`sketch_plan\` — preview the current manifest as a pipeline diagram WITHOUT compiling (same derivation \`compile_plan\` auto-mints). Links the sketch to the plan as the current diagram (unpinned — a later compile will redraw it). No status change. Refuses if a hand-authored sketch is pinned or the manifest is empty. Returns \`{ ok, plan_ref, sketch_ref, sketch_url, steps, message }\`.
 - \`compile_plan\` — attempt Draft → Actionable. A COMPILE STEP, not a status flip: validates the manifest against the LIVE tool registry. Tractable iff every call resolves to a shipped tool (none plan-mode meta-tools, none malformed). Success → \`status:'actionable'\`. Failure → stays Draft with a structured reason: \`unknown_tools\` (mojulo can't do this deterministically yet → roadmap signal), \`illegal_tools\`, or malformed \`errors\`. Returns \`{ ok, compiled, status, steps?, unknown_tools?, illegal_tools?, errors?, message }\`.
-- \`execute_plan\` — run an Actionable plan's manifest. THE PER-EXECUTION GATE: requires \`confirm:true\` and \`status:'actionable'\`. Runs each call in order through the same handler path a remote tools/call hits (executed steps behave identically to operator-typed calls), re-validating the manifest first. STOPS ON FIRST FAILURE — completed steps recorded, plan marked \`failed\`, operator re-forges the remainder; full success marks \`executed\`. Returns \`{ ok, status, steps_run, steps_total, execution_log, message }\`. Manifest calls can be mutating (app starts, env writes) — the confirm gate is the only thing between Actionable and real side effects.
+- \`execute_plan\` — run an Actionable plan's manifest. THE PER-EXECUTION GATE: requires \`confirm:true\` and \`status:'actionable'\`. Runs each call in order through the same handler path a remote tools/call hits (executed steps behave identically to operator-typed calls), re-validating the manifest first. STOPS ON FIRST FAILURE — completed steps recorded, plan marked \`failed\`, operator re-forges the remainder; full success marks \`executed\`. Returns \`{ ok, status, steps_run, steps_total, execution_log, message }\`. Manifest calls can be mutating (mints, exports, file writes) — the confirm gate is the only thing between Actionable and real side effects.
 - \`list_plans\` — list plans (the inbox); optional \`status\` filter. Returns \`{ total, plans: [{ plan_ref, title, lens, status, seen, steps, revisions, created_at, updated_at }] }\`. Read-only; does not flip read/unread.
 - \`get_plan\` — fetch one plan in full (goal, lens, frame, manifest, analysis, revision_log, execution_log). Opening flips its \`seen\` flag to read — the light inbox gate, not a formal review.
 
-### Ring 9 — Stash · Gather · Cook (typed-intake → publication outcomes, plus legacy research)
+### Workflows — Stash · Gather · Cook (typed intake → a Read outcome), sweeps, and legacy research
 
 The publication paradigm: typed items into stashes, then nucleate them into a self-contained outcome folder filed at \`/outcomes/<cook_ref>/\` (essay / picture_book / slide_deck / flyer / brief / resume / newsletter / field_guide / pamphlet / textbook / novel / visual_guide / comic). Stash is the typed corpus; Cook is the singular-aim collider; the AGENT authors \`report_md\` (no server-side LLM). **Cook stops at cook** — plan mode can later seed from a cook via \`forge_plan({ source: { kind: 'cook', cook_ref } })\`, but that's a plan-side decision. The legacy diffuse-research tools (\`start_research\` etc.) still ship alongside under \`enter_research_mode\` — option-3 coexistence with stash mode.
 
@@ -548,7 +473,7 @@ The publication paradigm: typed items into stashes, then nucleate them into a se
 - \`get_research\` — fetch a full research book: session + all bound items + all synthesized abstracts (with \`plan_ref\` / \`assessment\` if evaluated).
 - \`list_research\` — list research sessions (optional \`status\` filter), most-recently-active first.
 
-### Ring 10 — Creative mints (make a picture / object / world / view / motion / audio / game)
+### Make — Play · Print · Read · Hear · Observe (the FORM mints)
 
 The FORM families — the drawing surface plus the world / view / motion / motion-comic / audio / voice / game mints. Orthogonal to contextmap (creative recipes, not structural decisions); mintings persist at \`/sketches/<ref>\` (audio at \`/beats/<ref>\`, voice at \`/maker/voice\`) and embed into cook outcomes. Per-tool lists live behind \`get_creative_toolset({ form })\` — call it no-arg for the form map. Forms: diagram · illustration · reference · image-render · object · world · view · motion · motion-comic · audio · voice · game.
 `;
@@ -601,6 +526,11 @@ export const FORM_TOOLSETS = {
 - \`submit_mesh_render\` — hand ONE .glb back: decoded at the door, size-checked against the greybox (0.5×–2× per axis), closure-audited, stored as an append-only \`meshRef\` slot with provenance; moves to \`submitted\`.
 - \`accept_mesh_render\` — the eyes gate for a submitted mesh; refuses a self-accept and a failed size gate (\`accept_audit.override_size\` to override). Accepted = the latest \`meshRef\`.
 - \`reject_mesh_render\` — reject a submitted mesh with the reason; the worker re-sculpts against the same request.`,
+  },
+  'character': {
+    title: "Characters",
+    makes: "heroes, creatures and animals: bodies with a rig you can play, print or watch",
+    body: `- \`create_character\` — make a CHARACTER, \`as\`: \`hero\` (a person on the vajra rest skeleton: \`spec { cast: 'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }\`, tune and face as percentages, hair by library word, dress last), \`creature\` (an invented body: a dragon, a monster, a plush toy; \`spec.plan\` is a ring plan expanded at mint, or a full layered recipe of stations × slots with dials and an optional rig), or \`animal\` (a real species by id or the name people say, or a bare \`archetype\` body). The same recipes \`mint_solid\` makes (kinds \`layered\` and \`animal\`), named as characters. Served as a still, an orbitable World that plays its clips, and a skinned \`.glb\`. Iterate in place with \`update_sketch\` (\`/hero/tune/<control>\`, \`/hero/face/…\`, \`/plan/…\`, \`/dials/<name>\`); never re-mint. Manuals: \`get_solid_vocab({ id: 'layered' })\` (hero, creature), \`({ id: 'animal' })\`; the loops are the \`create-hero\` and \`creature-from-plan\` catalysts.`,
   },
   'object': {
     title: "3D solids, figures & objects",
@@ -707,58 +637,6 @@ function buildCreativeToolsetMap(profile = pluginProfileActive()) {
 
 
 
-// --- Routing index (the core) ---
-//
-// User framing → entry tool. The single largest block in the old body
-// (QUICK_ORIENTATION_RULES, ~1.9K tok) compressed into a terse table. The
-// entry tool is the START of a flow, not the whole flow — `get_tool_index`
-// carries the full ring-grouped list when this isn't specific enough.
-//
-// Create-things carries the operate paradigm rows + ONE studio hook row
-// (orientation-containment C1): creative recognition lives in the studio
-// call grammar (STUDIO_ROUTING_INDEX below), pulled via
-// forward_context({mode:'studio'}) only when a creative ask appears. The
-// full per-family routing rows (recognizer quotes + forks) stay retired in
-// routing cards under lib/mcp/routing-cards/, retrieved whole via
-// semantic_search({kinds:['routing']}). Adding a creative capability = a
-// routing card + a grammar dispatch entry — NEVER a new office-body row.
-// The per-mode body-ceiling tests in context.test.js pin the aggregates; the
-// row lint pins each row in both bodies.
-
-const ROUTING_INDEX = `## Routing index — recognize the path, reach for the entry tool
-
-Match the user's framing to a row. The named tool is the starting point; pull \`get_tool_index\` for the full ring-grouped list when a row isn't specific enough.
-
-**Create things** — the paradigms. Match the framing → call the entry tool.
-- SOLUTION (App / Connected Service) — recognize the shape by what runs: a process runs locally and calls back for inference → **App** (\`install_scaffold\`); no resident process, just wiring installed MCPs once or on a schedule → **Connected Service** (\`meta_context_declare_inventory\`). Underdetermined ("triage support emails" — a local watcher or a scheduled inbox job?) → ask; that answer routes the session. A chatbot for end-users is not built here (the chatbot factory left mojulo in 3.0.0) — say so. Get the candidate set + each shape's build flow (the discriminating tell · materialize steps) → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` (returns the \`app\` / \`connected-service\` cards whole). First flight of a paradigm → \`get_worked_example({ paradigm })\`.
-- STUDIO — create something media-shaped: a Media artifact (picture / object / world / building / motion / audio / voice / publication) or a Game → \`forward_context({mode:'studio'})\`, the studio call grammar (six verbs + the FORM mint dispatch + the creative drawers). Already know the form → \`get_creative_toolset({form})\`; fuzzy route → \`semantic_search({kinds:['routing'], query:'<the user's ask>'})\`.
-- Schedule / activate an existing artifact ("every morning", "on a cadence") → \`bind_trigger\` (binding persists; it only *fires* when the trigger runtime daemon is enabled).
-
-**Operate what exists**
-- "What could I automate?" / "is there a recipe for this?" → \`recommend_catalysts\` → \`get_catalyst\` (read the host-adapter section to materialize the runnable artifact).
-- Running apps → \`list_running\` / \`status_app\`; an app's \`.env\` keys → \`list_env\` (never \`cat\`). Did a sealed service rot? → \`meta_context_analyze\`.
-- Edit / revise / tweak a minted creative artifact ("mute bar 2's kick", "slow the tune down", "answer the studio notes") → the studio wing: \`get_creative_toolset({form:'audio'})\` for beats editing, or \`forward_context({mode:'studio'})\` for the full creative routing index.
-
-**Reason about structure**
-- "Why was X bound this way?" / "what have I materialized?" → \`meta_context_brief\` (the \`materialized_by\` / \`binds\` edges carry the reasoning principles).
-- Have an intent but not a ref → \`semantic_search\`, then pull full bodies with the structured readers.
-- Plan non-trivial work → \`enter_plan_mode\`. For publication-shaped gathering use stash mode (see "Publish an outcome" above — \`mint_stash\` → \`gather\` → \`cook\`); for the older diffuse-research drawer → \`enter_research_mode\` (legacy track: \`start_research\` / \`bind_research_item\` / \`synthesize_abstract\`; option-3 coexistence with stash mode). A cook outcome can later seed plan mode via \`forge_plan({ source: { kind: 'cook', cook_ref } })\` — cook stops at cook; the bridge is plan-side.
-
-**Extend mojulo itself**
-- A reusable recipe of your own → \`custom_catalyst\` (guide), then \`mint_catalyst\` (local shelf; PR = graduation). (One-off self-automation is a Skill — don't mint.)`;
-
-// --- Drawer directory (where to go deeper) ---
-
-const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
-
-- \`get_tool_index\` — the full one-line-per-tool index across every ring (incl. runners, daemons, the agent-tasks queue). When a routing row isn't specific enough.
-- \`get_register_kit\` — the **concept glossary** (App, Skill, Catalyst, Connected Service, Media, Game, …) in the operator's active \`vocabulary_register\`, plus the **refusal legend** (what each family of "no" protects and the next move), your narration disclosure + the commitment floor. The vocabulary lives here — pull it to define a term, phrase something for the user, or decode a refusal.
-- \`get_worked_example\` — an annotated end-to-end trace of one successful flight per paradigm (\`connected-service\` / \`app\` / \`media\` / \`game\`): real call sequence, the gate moments marked, one refusal + recovery included. Pull before your FIRST build of a paradigm — it replaces trial-and-error against per-tool descriptions.
-- \`get_deliberation_overview\` — the why-it's-structured model for the Ring 6 surfaces + daemon runtime gating. Pull before structural work.
-- \`get_ui_map\` — the \`mojulo-ui\` dashboard page map; pull when the user wants to look / browse / click and you need to name the right page.
-- \`get_substrate\` — what mojulo is and can claim + the substrate facts (posture / costs / uninstall invariants); pull when the user compares mojulo to cloud primitives, asks "what is this really?", or asks a meta-question about mojulo itself (phone home? my data? pay? uninstall?).
-- \`get_adapter\` — your host's first-session card. Pull once before making or synthesizing; omit \`id\` to auto-resolve.`;
-
 // --- Studio body (forward-context-grammar.plan.md, phase 1) ---
 //
 // The creative wing's orientation, the DEFAULT read. GRAMMAR, NOT NARRATION:
@@ -777,9 +655,9 @@ const DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 // shared spine so an agent that jumps straight here is never missing the
 // standing rules.
 
-const STUDIO_OPENER = `The studio **call grammar** — mojulo's creative wing and the DEFAULT read. A **3D compiler for agents**: one store of refs, and a Media artifact or Game IS its seeded deterministic recipe — renders are derived, byte-identical per read — shipping as a game (Godot first-class today) or a printed object (STL at true scale). Inputs are words and images (a photo you can see → \`reference_protocol\`). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
+const STUDIO_OPENER = `The **call grammar**, mojulo's routing index. A **3D factory with a media studio**: one store of refs, and every thing it makes IS its seeded deterministic recipe — renders are derived, byte-identical per read. Things to **Play** (Godot first-class), **Print** (STL / 3MF at true scale), **Read**, **Hear** and **Observe**; **Workflows** orchestrate the rest. Inputs are words and images (a photo you can see → \`reference_protocol\`). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
 
-const STUDIO_ROUTING_INDEX = `## Studio routing index — the call grammar
+const STUDIO_ROUTING_INDEX = `## Routing index — the call grammar
 
 Verbs — a verb is the grammar; the TOOL on its row is what you call (verbs are never tool names):
 
@@ -795,6 +673,7 @@ Verb overrides (closed list): audio revises via \`update_beats\` · voice never 
 Outcomes — a call lands one of four ways (classes to recognize, not wire types): ok(ref, url) · advisory(ref, findings — stamped, shipped anyway) · needs-vocab(the reply names the \`get_*_vocab\` drawer to read) · no(reason + next move — \`get_register_kit\` legend).
 
 mint dispatch — match the ask to a FORM:
+  CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal)
   GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · made levels, one store → \`create_game\` · project → \`create_game_project\`
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure / non-humanoid creature (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
@@ -802,11 +681,12 @@ mint dispatch — match the ask to a FORM:
   WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
   HOUSE    a house / apartment / cottage / townhouse / office floor plan / ONE furnished room — walkable, furnished, stacked with \`storeys: N\`, framed, exported as IFC → \`mint_building\` (its \`next\` names each step's card; NOT compose_world, NOT edifice)
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
-  MOTION   animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\`
+  OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\`
   MOTION COMIC  click-by-click reveal, one self-contained HTML file → \`create_sketch\` kind 'motion-comic'
   AUDIO    soundtrack / tune / beat / sfx → \`create_beats\` · revise → \`update_beats\` · notes → \`annotate_beats\` · what changed → \`diff_beats\`
   VOICE    how a voice SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (an external worker speaks it)
   PUBLICATION  essay / picture book / deck / brief from gathered material → \`mint_stash\` → \`gather\` → \`cook\` · multi-kind preview → \`forge_publications\`
+  WORKFLOW many at once: a chain written once, each step taking the last's ref (mint → export → measure) → \`enter_plan_mode\` → \`forge_plan\` → \`compile_plan\` → \`execute_plan\` · variations of one recipe over a value → \`run_experiment_sweep\` · a flow through another MCP or worker on this host (Blender, ComfyUI) → \`recommend_catalysts\` → \`get_catalyst\`
 
 export dispatch: object/figure → \`export_model\` (print-ready 3MF | STL, mm, z-up | glTF | USD) · game/world → \`export_game\` (Godot first-class) · audio → \`export_beats\` (WAV/MIDI) · sprites → \`bake_sprite_sheet\`
 
@@ -814,16 +694,14 @@ Guards:
   - revise the same ref — never re-mint to change a thing
   - underdetermined form → ask one question; the answer routes
   - speaks 3D-modeler ("retopo", "blockout", "kitbash") → \`translate_modeler_lingo\`
-  - fuzzy ask → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` returns the family card whole
+  - fuzzy ask → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` returns the family card whole`;
 
-Wire or operate something instead of making media (app / connected service / schedule) → \`forward_context({mode:'office'})\`.`;
+const STUDIO_DRAWER_DIRECTORY = `## Drawers — pull on demand, don't front-load
 
-const STUDIO_DRAWER_DIRECTORY = `## Studio drawers — pull on demand, don't front-load
-
-- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · object · world · building · view · motion · motion-comic · audio · voice · game (the dispatch FORMs above are recognizers; this enum is the argument). No arg → the form map with a tool count each.
+- \`get_creative_toolset({ form })\` — the per-FORM tool list; form ∈ diagram · illustration · reference · image-render · character · object · world · building · view · motion · motion-comic · audio · voice · game (the dispatch FORMs above are recognizers; this enum is the argument). No arg → the form map with a tool count each.
 - \`semantic_search({ kinds: ['routing'] })\` — a creative family's full routing card (recognizer quotes + forks + flow). Vocab manuals ride the same tool: kinds \`sketch_vocab\` / \`view_vocab\` / \`beats_vocab\` / \`game_vocab\` / \`game_mechanic\` / \`game_kit\` / \`manji_program\`, read in full via the \`get_*_vocab\` readers.
-- \`get_worked_example({ paradigm: 'media' | 'game' })\` — an annotated end-to-end trace of one successful creative flight, the gate moments marked; pull before your FIRST mint of a paradigm: how the calls go, never what to make (a game on the rail reads its guide instead; the ask still routes to its FORM entry tool).
-- The office drawers (\`get_tool_index\`, \`get_register_kit\`, \`get_deliberation_overview\`, \`get_ui_map\`, \`get_adapter\`) stay available from either mode — host card once before making.
+- \`get_worked_example({ paradigm: 'media' | 'game' })\` — an annotated end-to-end trace of one successful flight, the gate moments marked; pull before your FIRST mint of a kind: how the calls go, never what to make (a game on the rail reads its guide instead; the ask still routes to its FORM entry tool).
+- \`get_tool_index\` (every tool), \`get_register_kit\` (the glossary and the refusal legend), \`get_ui_map\` (dashboard pages), \`get_adapter\` (your host's card — read once before making).
 - \`get_substrate\` — mojulo's own positioning + the substrate facts. Pull for meta-questions about mojulo itself ("what is this really?", phone home? my data? pay? uninstall?) — answer those from its facts, never from guesswork.`;
 
 // --- Deliberation overview (Ring 6 deep block, promoted to its own tool) ---
@@ -908,6 +786,9 @@ const PROFILE_TOOL_INDEX = profileEdit(TOOL_INDEX, [
 
 // Per-form edits on top of the line filter (dropHiddenToolLines drops a bullet naming a hidden tool).
 const PROFILE_FORM_EDITS = {
+  'character': [
+    ["; the loops are the `create-hero` and `creature-from-plan` catalysts.", "; the loop is the `create-hero` catalyst."],
+  ],
   'motion-comic': [
     ['; the image worker NEVER letters, placement', '; placement'],
     [' The trick protocol (approach / recede / quick-cut beat / impact frame / expression swap / held flurry — the animation cheat shelf transposed to the click) is the `motion-comic-tricks` sketch_vocab card.', ''],
@@ -958,15 +839,11 @@ const PROFILE_STUDIO_ROUTING_INDEX = profileEdit(STUDIO_ROUTING_INDEX, [
 
 const PROFILE_STUDIO_DRAWER_DIRECTORY = profileEdit(STUDIO_DRAWER_DIRECTORY, HIDDEN_FORM_LIST_EDITS, 'STUDIO_DRAWER_DIRECTORY');
 
-const PROFILE_ROUTING_INDEX = profileEdit(ROUTING_INDEX, [
-  ['(picture / object / world / building / motion / audio / voice / publication)', '(picture / object / world / building / motion / audio / publication)'],
-], 'ROUTING_INDEX');
-
 const PROFILE_CONCEPT_GLOSSARY_VARIANTS = Object.fromEntries(
   Object.entries(CONCEPT_GLOSSARY_VARIANTS).map(([key, body]) => [
     key,
     profileEdit(body, key === 'mixed'
-      ? [['music/SFX, voice registers, publications', 'music/SFX, publications'], ['painted images and WAVs are bound derived files', 'renders and WAVs are bound derived files']]
+      ? [['scores, sound effects, voice registers', 'scores and sound effects'], ['painted images and WAVs are bound derived files', 'renders and WAVs are bound derived files']]
       : key === 'mojulo'
         ? [['beats/voice/figure/motion', 'beats/figure/motion']]
         : [], `CONCEPT_GLOSSARY.${key}`),
@@ -990,7 +867,7 @@ const PROFILE_SUBSTRATE_FACTS = profileEdit(SUBSTRATE_FACTS, [
   ['; an HTML export with `cdn: true` (the page loads three.js from cdn.jsdelivr.net when opened; the default page is self-contained); and `mint_solid` `via:\'prompt\'` (the LLM provider the caller names, fact 4).', '. An exported World page is always the self-contained one.'],
   [
     /4\. \*\*The one LLM flow that leaves the machine\*\*[^\n]*/,
-    "4. **No LLM flow leaves the machine.** The studio has no keyed LLM door in this build: `mint_solid`'s natural-language door is `via:'packet'`, key-free. Everything in the studio and the automation backend parks inference on the connecting agent.",
+    "4. **No LLM flow leaves the machine.** The studio has no keyed LLM door in this build: `mint_solid`'s natural-language door is `via:'packet'`, key-free. Everything else parks inference on the connecting agent.",
   ],
   ["Operating costs are the operator's: LLM provider usage when they use `mint_solid`'s prompt door (fact 4), and whatever their own agent host costs.", "Operating costs are the operator's: whatever their own agent host costs."],
 ], 'SUBSTRATE_FACTS');
@@ -1018,42 +895,23 @@ const SECTION_DIVIDER = '\n\n---\n\n';
 // (like the operator anchor), never here — this builder must stay pure so the
 // module-load-time FORWARD_CONTEXT_BODY export never touches the DB.
 export function buildForwardContextBody({ register, disclosure, source, pulse, mode, profile = pluginProfileActive() } = {}) {
-  const m = FORWARD_CONTEXT_MODES.includes(mode) ? mode : DEFAULT_FORWARD_CONTEXT_MODE;
   const r = VOCABULARY_REGISTERS.includes(register) ? register : DEFAULT_VOCABULARY_REGISTER;
   const d = PROCEDURAL_DISCLOSURES.includes(disclosure) ? disclosure : DEFAULT_PROCEDURAL_DISCLOSURE;
   const standingRulesSection = `${STANDING_RULE_FLOOR}\n\n${DISCLOSURE_DIRECTIVE_VARIANTS[d]}`;
-  if (m === 'studio') {
-    // The pulse is workshop-wide onboarding state, so it rides the DEFAULT read
-    // — which is now the studio one.
-    const studioPulseLine = buildWorkshopPulseLine(pulse);
-    return [
-      HEADER,
-      '',
-      communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
-      '',
-      STUDIO_OPENER,
-      ...(studioPulseLine ? ['', studioPulseLine] : []),
-      SECTION_DIVIDER.trim(),
-      profile ? PROFILE_STUDIO_ROUTING_INDEX : STUDIO_ROUTING_INDEX,
-      SECTION_DIVIDER.trim(),
-      profile ? PROFILE_STUDIO_DRAWER_DIRECTORY : STUDIO_DRAWER_DIRECTORY,
-      SECTION_DIVIDER.trim(),
-      standingRulesSection,
-      SECTION_DIVIDER.trim(),
-      SAFETY_ONELINERS,
-      '',
-    ].join('\n');
-  }
+  // The pulse is workshop-wide onboarding state, so it rides the one read.
+  const pulseLine = buildWorkshopPulseLine(pulse);
   return [
-    OFFICE_HEADER,
+    HEADER,
     '',
     communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
+    ...(RETIRED_FORWARD_CONTEXT_MODES.includes(mode) ? ['', OFFICE_RETIRED_LINE] : []),
     '',
-    LEAN_OPENER,
+    STUDIO_OPENER,
+    ...(pulseLine ? ['', pulseLine] : []),
     SECTION_DIVIDER.trim(),
-    profile ? PROFILE_ROUTING_INDEX : ROUTING_INDEX,
+    profile ? PROFILE_STUDIO_ROUTING_INDEX : STUDIO_ROUTING_INDEX,
     SECTION_DIVIDER.trim(),
-    DRAWER_DIRECTORY,
+    profile ? PROFILE_STUDIO_DRAWER_DIRECTORY : STUDIO_DRAWER_DIRECTORY,
     SECTION_DIVIDER.trim(),
     standingRulesSection,
     SECTION_DIVIDER.trim(),
@@ -1115,7 +973,7 @@ function resolveRegisterPrefs(input) {
 
 export async function forwardContextHandler(input, _ctx) {
   const mode = input?.mode;
-  if (mode !== undefined && !FORWARD_CONTEXT_MODES.includes(mode)) {
+  if (mode !== undefined && !FORWARD_CONTEXT_MODES.includes(mode) && !RETIRED_FORWARD_CONTEXT_MODES.includes(mode)) {
     throw new Error(
       `\`mode\` must be one of: ${FORWARD_CONTEXT_MODES.join(', ')} (got '${mode}')`,
     );
@@ -1126,13 +984,14 @@ export async function forwardContextHandler(input, _ctx) {
     disclosure,
     source,
     mode,
-    pulse: mode === 'office' ? null : readWorkshopPulse(),
+    pulse: readWorkshopPulse(),
   });
   // Plain text content (not JSON-stringified) so the agent reads it as prose.
   // The mode signal (routing-context-weaving.plan.md A1) is what lets the
-  // first-hop cut in orientationGaps tell office reads from studio reads;
-  // stripped from the wire by instrumentedInvoke.
-  const resolvedMode = FORWARD_CONTEXT_MODES.includes(mode) ? mode : DEFAULT_FORWARD_CONTEXT_MODE;
+  // first-hop cut in orientationGaps tell the reads apart (an 'office' read
+  // since 3.1.0 is a caller that has not caught up); stripped from the wire by
+  // instrumentedInvoke.
+  const resolvedMode = RETIRED_FORWARD_CONTEXT_MODES.includes(mode) ? mode : DEFAULT_FORWARD_CONTEXT_MODE;
   return { content: [{ type: 'text', text: body }], _telemetrySignal: { mode: resolvedMode } };
 }
 
@@ -1462,7 +1321,7 @@ export function registerContextTools() {
   registerTool(withPluginProfile({
     name: 'forward_context',
     description:
-      "Forward the agent mojulo's routing index — two wings behind one tool. No `mode` is the STUDIO, the DEFAULT: the creative wing's per-FORM recognizer rows (picture / object / world / building / motion / motion-comic / audio / voice / publication / game) plus the creative drawers (`get_creative_toolset`, routing cards, vocab kinds). `mode:'office'` is the automation backend: `user-framing → entry-tool` rows for connected services / apps / operate-what-exists. Both carry a lean opener, a drawer directory (`get_tool_index`, `get_register_kit`, `get_deliberation_overview`, `get_ui_map`, `get_substrate`), and the standing safety + commitment-level rules. Call FIRST when unsure what mojulo is or which tool fits; open the office when the ask is to WIRE or OPERATE, not to make. A thin map, not a manual — depth lives in the drawers. The disclosure directive branches on the operator's `procedural_disclosure`; optional per-call `register` / `disclosure` override the anchor for this read. Read-only, idempotent.",
+      "Forward the agent mojulo's routing index: what it makes, named by use (Play · Print · Read · Hear · Observe) as FORM recognizer rows → the tool to call, the export dispatch, the Workflows row (plans, sweeps, catalysts), the guards, and a drawer directory (`get_creative_toolset`, routing cards, `get_tool_index`, `get_register_kit`, `get_ui_map`, `get_substrate`). Call FIRST when unsure which tool fits. A thin map, not a manual. Optional per-call `register` / `disclosure` override the operator anchor for this read. Read-only, idempotent.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1470,7 +1329,7 @@ export function registerContextTools() {
           type: 'string',
           enum: FORWARD_CONTEXT_MODES,
           description:
-            "'studio' (the DEFAULT when omitted — the creative wing: Media FORM routing + Game) or 'office' (connected services, apps, deliberation, operate). Stateless per call — pull the wing the ask lives in.",
+            "'studio', the one body (the default). The office wing left in 3.1.0; 'office' still answers with this body and a line saying so.",
         },
         register: {
           type: 'string',
@@ -1487,12 +1346,12 @@ export function registerContextTools() {
       },
     },
     handler: forwardContextHandler,
-  }, { edits: [[' / audio / voice / publication / game)', ' / audio / publication / game)']] }));
+  }));
 
   registerTool({
     name: 'get_tool_index',
     description:
-      "One-line-per-tool index across every ring — call when a `forward_context` row isn't specific enough (Media tools live behind `get_creative_toolset`). **~48k**: a host declaring a smaller output cap gets the compact rules card fitted to that cap instead; `full: true` returns the whole index regardless. Read-only, idempotent.",
+      "One-line-per-tool index across every ring — call when a `forward_context` row isn't specific enough (the FORM mints live behind `get_creative_toolset`). **~48k**: a host declaring a smaller output cap gets the compact rules card fitted to that cap instead; `full: true` returns the whole index regardless. Read-only, idempotent.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1576,7 +1435,7 @@ export function registerContextTools() {
   registerTool({
     name: 'get_substrate',
     description:
-      "Return what mojulo is and what it can honestly claim — a 3D compiler for agents: Media (objects, worlds, views, audio) and Game as re-runnable recipes on the operator's machine; the digital (Godot, Unity, Unreal, Blender) and physical (STL / 3MF) pipelines; where inference runs; what the retained automation backend (Connected Service, App) adds — PLUS the SELF-DESCRIPTION facts (process, state, network posture, credentials, costs, uninstall, source) to DERIVE meta-answers from. Call for 'what is this really?' or questions about mojulo ITSELF: 'does it phone home?', 'where does my data live?', 'do I have to pay?', 'how do I uninstall?'. Read-only, no inputs, idempotent.",
+      "Return what mojulo is and what it can honestly claim — a 3D factory with a media studio: things to Play, Print, Read, Hear and Observe, kept as re-runnable recipes on the operator's machine; the digital (Godot, Unity, Unreal, Blender) and physical (STL / 3MF) pipelines; where inference runs; how outside workers and MCPs are reached — PLUS the SELF-DESCRIPTION facts (process, state, network posture, credentials, costs, uninstall, source) to DERIVE meta-answers from. Call for 'what is this really?' or questions about mojulo ITSELF: 'does it phone home?', 'where does my data live?', 'do I have to pay?', 'how do I uninstall?'. Read-only, no inputs, idempotent.",
     inputSchema: { type: 'object', properties: {} },
     handler: substrateHandler,
   });

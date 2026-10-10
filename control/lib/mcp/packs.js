@@ -27,10 +27,15 @@
  *    tiny (composition normally rides refs-in-args, not shared dispatch);
  *  - pack descriptions fit PACK_DESCRIPTION_CEILING (the house 700 ratchet).
  *
- * Studio pack bodies are NOT authored here — `form` names the FORM_TOOLSETS
- * entry (lib/mcp/tools/context.js) whose body the unveil serves, so the
- * prose has one source. Office packs carry a short `body` here; the
- * generated member menu (and `manual` on demand) is the meat either way.
+ * Each pack sits in a `ring`, named for what its tools make: characters (a body
+ * with a rig: heroes, creatures, animals), solids (Print),
+ * audio (Hear), read (2D + publications), worlds (the testbed), games (Play),
+ * kernel (Observe: motion), workflows (orchestration: plans, sweeps, stash and
+ * cook, catalysts, worker handoffs). A pack with a `form` takes its body from
+ * that FORM_TOOLSETS entry (lib/mcp/tools/context.js), so the prose has one
+ * source; a pack without one carries a short `body` here. The generated member
+ * menu (and `manual` on demand) is the meat either way. RETIRED_PACKS (the
+ * office wing, 3.1.0) still dispatch but never list.
  */
 
 import { mojuloCommand, runMojulo } from '../version/distribution.js';
@@ -67,9 +72,21 @@ export const PACKS = [
   // ── studio (bodies from FORM_TOOLSETS via `form`) ─────────────────────────
   // Listed FIRST, 3D packs leading: tools/list and `npx mojulo tools` read this
   // order, and a stranger's first screen should be the factory, not the office.
+  // Characters lead (3.1.0): the Characters ring's one door.
+  {
+    id: 'pack_character',
+    ring: 'characters',
+    installGroup: 'creative',
+    form: 'character',
+    title: 'Characters: heroes, creatures & animals',
+    description:
+      "CHARACTERS — a body with a rig you can play, print or watch: create_character as a hero (a person by cast word, proportions, face, hair, clothes and armour), a creature (a dragon, a monster, a plush toy, any invented body) or an animal (a real species). Plays its clips on the World page and exports skinned. Open for 'a hero for my game', 'a low-poly knight I can rig', 'a cute plush bear', 'a dragon I can animate', 'a wolf I can 3D print', 'give her a ponytail and broader shoulders'.",
+    members: ['create_character'],
+    shared: ['get_solid_vocab'],
+  },
   {
     id: 'pack_object',
-    wing: 'studio',
+    ring: 'solids',
     installGroup: 'creative',
     form: 'object',
     title: '3D solids, figures & objects',
@@ -85,7 +102,7 @@ export const PACKS = [
   },
   {
     id: 'pack_world',
-    wing: 'studio',
+    ring: 'worlds',
     installGroup: 'creative',
     form: 'world',
     title: 'Worlds (traversable)',
@@ -97,7 +114,7 @@ export const PACKS = [
   },
   {
     id: 'pack_building',
-    wing: 'studio',
+    ring: 'solids',
     installGroup: 'creative',
     form: 'building',
     title: 'Buildings (houses)',
@@ -108,7 +125,7 @@ export const PACKS = [
   },
   {
     id: 'pack_game',
-    wing: 'studio',
+    ring: 'games',
     installGroup: 'creative',
     form: 'game',
     title: 'Game',
@@ -137,7 +154,7 @@ export const PACKS = [
   },
   {
     id: 'pack_view',
-    wing: 'studio',
+    ring: 'read',
     installGroup: 'creative',
     form: 'view',
     title: 'Study views (science / math / bio)',
@@ -147,7 +164,7 @@ export const PACKS = [
   },
   {
     id: 'pack_motion',
-    wing: 'studio',
+    ring: 'kernel',
     installGroup: 'creative',
     form: 'motion',
     forms: ['motion', 'motion-comic'],
@@ -159,7 +176,7 @@ export const PACKS = [
   },
   {
     id: 'pack_audio',
-    wing: 'studio',
+    ring: 'audio',
     installGroup: 'creative',
     form: 'audio',
     title: 'Audio — Mojulo Beats',
@@ -177,7 +194,7 @@ export const PACKS = [
   },
   {
     id: 'pack_voice',
-    wing: 'studio',
+    ring: 'audio',
     installGroup: 'creative',
     form: 'voice',
     title: 'Voice — Mojulo Voice',
@@ -187,7 +204,7 @@ export const PACKS = [
   },
   {
     id: 'pack_illustration',
-    wing: 'studio',
+    ring: 'read',
     installGroup: 'creative',
     form: 'illustration',
     title: 'Scene & figure illustration',
@@ -198,7 +215,7 @@ export const PACKS = [
   },
   {
     id: 'pack_reference',
-    wing: 'studio',
+    ring: 'read',
     installGroup: 'creative',
     form: 'reference',
     title: 'Visual reference (from a photo)',
@@ -208,7 +225,7 @@ export const PACKS = [
   },
   {
     id: 'pack_image_render',
-    wing: 'studio',
+    ring: 'workflows',
     installGroup: 'creative',
     form: 'image-render',
     title: 'AI-image render pipeline',
@@ -235,7 +252,7 @@ export const PACKS = [
   },
   {
     id: 'pack_diagram',
-    wing: 'studio',
+    ring: 'read',
     installGroup: 'creative',
     form: 'diagram',
     title: 'Diagrams & charts',
@@ -251,64 +268,11 @@ export const PACKS = [
   },
   // ── office — the retained automation backend, listed after the studio ────
   // (the chatbot factory's three packs left in 3.0.0; lib/mcp/bot-factory-moved.js answers for them)
-  {
-    id: 'pack_runtime',
-    wing: 'office',
-    title: 'Apps, daemons & agent tasks',
-    description:
-      "APPS & RUNTIME — local apps (install_scaffold → start / stop / status, the running list, per-app .env keys), runtime daemons (list / status / start / stop / restart), and the agent-task loop (pull_agent_task → submit_envelope_inference → cancel). Open for 'scaffold and run a local app', 'watch a folder and process new files as they arrive', 'a background worker that reacts to events', 'restart the daemon', 'work the task queue'.",
-    body: 'Ring 7. An app is a local process plus an MCP sidecar with inference parked back on the agent; daemons are the supervisor\'s long-lived hosts; agent tasks are the pull → submit → cancel work loop (the long-poll pull_agent_task parks up to ~25s and does not block other calls).',
-    members: [
-      'install_scaffold',
-      'start_app',
-      'stop_app',
-      'status_app',
-      'list_runners',
-      // list_running and the .env trio act on local apps (lib/runners/local.js). Until 3.0 they sat
-      // in the chatbot factory's operate pack, so an install without that pack could not reach them.
-      'list_running',
-      'list_env',
-      'set_env',
-      'delete_env',
-      'list_daemons',
-      'start_daemon',
-      'stop_daemon',
-      'restart_daemon',
-      'status_daemon',
-      'pull_agent_task',
-      'submit_envelope_inference',
-      'cancel_agent_task',
-    ],
-  },
-  {
-    id: 'pack_connected_services',
-    wing: 'office',
-    title: 'Connected services — MCP deliberation & binding',
-    description:
-      "CONNECTED SERVICES — deliberate over the operator's installed MCP servers and bind workflows over them: declare inventory & skills, record/read provider capabilities, browse mcp-orbit components, get composition recommendations, bind primitives and triggers, read the deliberation overview and the contextmap (brief / commit). Open for 'wire Gmail + Calendar into a routine', 'every Monday summarize new leads into our CRM', 'sync submissions to a sheet nightly', 'what MCPs do I have', 'automate X across my services'.",
-    body: 'The Ring 6 deliberation surfaces. Mojulo is the anchor and audit trail here, not the runtime: the contextmap is sealed reality (append-only commits), inventory and skills are replace-semantic declarations about the present host, and bindings materialize session-scoped artifacts from the composer\'s component store.',
-    members: [
-      'get_deliberation_overview',
-      'meta_context_brief',
-      'meta_context_commit',
-      'meta_context_analyze',
-      'meta_context_declare_inventory',
-      'declare_skills',
-      'record_mcp_capabilities',
-      'get_mcp_capabilities',
-      'list_mcp_orbit_components',
-      'get_mcp_orbit_component',
-      'recommend_mcp_orbit_compositions',
-      'bind_primitives',
-      'bind_trigger',
-      'unbind_trigger',
-      'get_trigger',
-      'list_triggers',
-    ],
-  },
+
+
   {
     id: 'pack_plan',
-    wing: 'office',
+    ring: 'workflows',
     title: 'Plan mode (Ring 8)',
     description:
       "PLAN MODE — the speculative layer over sealed reality: enter plan mode, forge and revise plans, read and list them, compile a plan to a manifest of tool calls and execute it under per-execution operator approval, sketch a plan visual. Open for 'let's plan this out', 'turn this session into a plan', 'execute the plan'.",
@@ -326,7 +290,7 @@ export const PACKS = [
   },
   {
     id: 'pack_research',
-    wing: 'office',
+    ring: 'workflows',
     title: 'Research mode (Ring 9)',
     description:
       "RESEARCH MODE — accretive gathering upstream of plans: enter research mode, start a research book, bind items into it, read and list books, synthesize an abstract (with deterministic review), run a parameter experiment sweep with auto-plotted outcomes, sketch the research. Open for 'research this', 'gather sources into a book', 'sweep the parameter and plot the outcome'.",
@@ -344,7 +308,7 @@ export const PACKS = [
   },
   {
     id: 'pack_stash',
-    wing: 'office',
+    ring: 'workflows',
     title: 'Gather / stash / cook / publish',
     description:
       "GATHER / STASH / COOK / PUBLISH — typed collection into stashes and their drawers (gather, mint / get / list / rename a stash, mint_drawer, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
@@ -374,23 +338,89 @@ export const PACKS = [
   },
   {
     id: 'pack_catalysts',
-    wing: 'office',
-    title: 'Catalysts, adapters & extension',
+    ring: 'workflows',
+    title: 'Catalysts, workers & connected MCPs',
     description:
-      "CATALYSTS & EXTENSION — curated workflow recipes shipped via MCP: get / list / recommend catalysts, the meta-catalyst, mint a custom catalyst, and host-adapter info (get / list adapters — how a recipe lands as a Skill on this host). Open for 'is there a recipe for X', 'install this workflow as a skill'.",
-    body: 'A catalyst is a curated workflow recipe the host adapter synthesizes into a Skill; adapters describe the host so the synthesis lands in the right shape. Minting tools extend the shelf.',
+      "CATALYSTS, WORKERS & CONNECTED MCPs — for flows that reach past mojulo: curated workflow recipes (get / list / recommend catalysts, mint a custom one) that land as a Skill on this host beside its other MCPs (get / list adapters), what those MCPs can do (declare the inventory, record / read a provider's capabilities), and the agent-task queue an outside worker drains (pull_agent_task → submit_envelope_inference → cancel). Open for 'is there a recipe for X', 'install this workflow as a skill', 'send this mesh to my Blender MCP', 'work the task queue'.",
+    body: 'A catalyst is a curated workflow recipe the host adapter synthesizes into a Skill, which runs in the host beside the operator\'s other MCPs, so a flow across mojulo and another MCP lives there. The inventory and capability reads tell it what those MCPs can do. The agent-task queue parks work for an outside fulfiller (the long-poll pull_agent_task waits up to ~25s and does not block other calls).',
     members: [
       'get_catalyst',
       'list_catalysts',
       'recommend_catalysts',
       'mint_catalyst',
       'custom_catalyst',
-      'get_meta_catalyst',
       'get_adapter',
       'list_adapters',
+      'meta_context_declare_inventory',
+      'record_mcp_capabilities',
+      'get_mcp_capabilities',
+      'pull_agent_task',
+      'submit_envelope_inference',
+      'cancel_agent_task',
     ],
   },
 ];
+
+// The office wing left the tool surface in 3.1.0 (mojulo makes things to Play, Print, Read, Hear and
+// Observe; apps, daemons, the contextmap and MCP-to-MCP binding are not that). These dispatchers and
+// their members stay registered and callable by name, listed:false, so a compiled plan or a skill that
+// names one keeps working; nothing lists, indexes or routes to them. The tools a power user needs to
+// reach other workers and MCPs moved to pack_catalysts.
+export const RETIRED_PACKS = [
+  {
+    id: 'pack_runtime',
+    ring: 'retired',
+    retired: '3.1.0',
+    title: 'Apps, daemons & agent tasks',
+    description:
+      "APPS & RUNTIME — local apps (install_scaffold → start / stop / status, the running list, per-app .env keys), runtime daemons (list / status / start / stop / restart), and the agent-task loop (pull_agent_task → submit_envelope_inference → cancel). Open for 'scaffold and run a local app', 'watch a folder and process new files as they arrive', 'a background worker that reacts to events', 'restart the daemon', 'work the task queue'.",
+    body: 'Ring 7. An app is a local process plus an MCP sidecar with inference parked back on the agent; daemons are the supervisor\'s long-lived hosts; agent tasks are the pull → submit → cancel work loop (the long-poll pull_agent_task parks up to ~25s and does not block other calls).',
+    members: [
+      'install_scaffold',
+      'start_app',
+      'stop_app',
+      'status_app',
+      'list_runners',
+      // list_running and the .env trio act on local apps (lib/runners/local.js). Until 3.0 they sat
+      // in the chatbot factory's operate pack, so an install without that pack could not reach them.
+      'list_running',
+      'list_env',
+      'set_env',
+      'delete_env',
+      'list_daemons',
+      'start_daemon',
+      'stop_daemon',
+      'restart_daemon',
+      'status_daemon',
+    ],
+  },  {
+    id: 'pack_connected_services',
+    ring: 'retired',
+    retired: '3.1.0',
+    title: 'Connected services — MCP deliberation & binding',
+    description:
+      "CONNECTED SERVICES — deliberate over the operator's installed MCP servers and bind workflows over them: declare inventory & skills, record/read provider capabilities, browse mcp-orbit components, get composition recommendations, bind primitives and triggers, read the deliberation overview and the contextmap (brief / commit). Open for 'wire Gmail + Calendar into a routine', 'every Monday summarize new leads into our CRM', 'sync submissions to a sheet nightly', 'what MCPs do I have', 'automate X across my services'.",
+    body: 'The Ring 6 deliberation surfaces. Mojulo is the anchor and audit trail here, not the runtime: the contextmap is sealed reality (append-only commits), inventory and skills are replace-semantic declarations about the present host, and bindings materialize session-scoped artifacts from the composer\'s component store.',
+    members: [
+      'get_deliberation_overview',
+      'meta_context_brief',
+      'meta_context_commit',
+      'meta_context_analyze',
+      'declare_skills',
+      'list_mcp_orbit_components',
+      'get_mcp_orbit_component',
+      'recommend_mcp_orbit_compositions',
+      'bind_primitives',
+      'bind_trigger',
+      'unbind_trigger',
+      'get_trigger',
+      'list_triggers',
+      'get_meta_catalyst',
+    ],
+  },];
+
+/** Every tool the office wing took off the surface: the retired packs' members. */
+export const RETIRED_OFFICE_TOOLS = Object.freeze(RETIRED_PACKS.flatMap((p) => p.members));
 
 // ── lookups ─────────────────────────────────────────────────────────────────
 
@@ -398,7 +428,7 @@ const HOME_BY_TOOL = new Map();
 const PACK_BY_ID = new Map();
 // A pack's description under the Claude plugin profile, where its `profileEdits` name one.
 const PROFILE_DESCRIPTION = new Map();
-for (const pack of PACKS) {
+for (const pack of [...PACKS, ...RETIRED_PACKS]) {
   PACK_BY_ID.set(pack.id, pack);
   if (pack.profileEdits) PROFILE_DESCRIPTION.set(pack.id, profileEdit(pack.description, pack.profileEdits, pack.id));
   for (const name of pack.members) {
@@ -497,8 +527,8 @@ export function packsModeEnabled(env = process.env, { clientDefers = false } = {
 //              and the rest of the pack works. Only an explicit MOJULO_PACKS override
 //              gates it off.
 //   recall   — the embedding runtime, below. No pack joins it.
-// The orchestration plumbing (connected-services / catalysts / triggers / runtime /
-// plan / research / stash) declares no group and is therefore ALWAYS present.
+// The workflows ring (plan / research / stash / catalysts) and the retired office
+// packs declare no group and are therefore ALWAYS present.
 // The chatbot group (2.0 to 2.x) left with the chatbot factory in 3.0.0: see
 // RETIRED_GROUP_TOKENS below for what happens to an install that still names it.
 //

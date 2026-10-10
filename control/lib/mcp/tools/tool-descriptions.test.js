@@ -32,15 +32,17 @@ const DESCRIPTION_CEILING = 700;
 // (forge_motion → motion vocab cards; create_manji_tree → manji_program cards;
 // dna/energy/turntable → create_view kinds).
 const DESCRIPTION_ALLOWLIST = {
+  // 2026-10-10 (3.1.0): the office wing left the tool surface (RETIRED_PACKS in packs.js), so
+  // bind_primitives, bind_trigger, declare_skills, install_scaffold, meta_context_commit and
+  // recommend_mcp_orbit_compositions are unlisted and their entries are deleted; forward_context's
+  // description lost its two-wing paragraph (now 541, under the ceiling) and leaves the list.
   // Ratcheted 2026-09-28 for the chatbot carve-out (3.0.0): these descriptions stopped naming the
   // bot factory (bot scopes, fleet modes, chat_turn, the bot trace, the bot-bound commit), so each
   // pin drops to its new length: forward_context 1081 -> 1012, get_worked_example 946 -> 903,
   // list_catalysts 833 -> 805, meta_context_brief 972 -> 963, meta_context_commit 2635 -> 2586,
   // meta_context_declare_inventory 1405 -> 1387, pull_agent_task 762 -> 718,
   // recommend_catalysts 1042 -> 1027.
-  bind_primitives: 1904,
   bind_research_item: 1233,
-  bind_trigger: 1227,
   capture_reference: 1523,
   compile_plan: 841,
   // compose_world / create_sketch / get_game_vocab re-pinned 2026-07-10 to
@@ -91,7 +93,6 @@ const DESCRIPTION_ALLOWLIST = {
   // route curated + local origins and the mint author-guide hand-off.
   // Shrink-only from these snapshots.
   custom_catalyst: 764,
-  declare_skills: 1041,
   diff_sketches: 875,
   execute_plan: 1314,
   export_beats: 1124,
@@ -114,7 +115,6 @@ const DESCRIPTION_ALLOWLIST = {
   forge_motion: 1560,
   forge_plan: 1167,
   forge_publications: 955,
-  forward_context: 1012,
   gather: 1181,
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
   // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
@@ -127,20 +127,17 @@ const DESCRIPTION_ALLOWLIST = {
   get_register_kit: 731,
   get_tool_ledger: 937,
   get_worked_example: 903,
-  install_scaffold: 1317,
   list_catalysts: 805,
   // measure_view re-pinned 2026-08-24: rocket-view landed as a measurable
   // kind (full-mission SI telemetry) and the description gained its one-line
   // column note. Shrink-only from here.
   measure_view: 1423,
   mint_catalyst: 850,
-  meta_context_commit: 803,
   meta_context_declare_inventory: 1387,
   // pull_agent_task 810 -> 762 (2026-09-27): the dead host_chat kind left its description.
   pull_agent_task: 718,
   recommend_catalysts: 1027,
   recommend_kind: 922,
-  recommend_mcp_orbit_compositions: 1056,
   record_mcp_capabilities: 1301,
   reference_protocol: 1708,
   run_experiment_sweep: 866,
@@ -331,7 +328,12 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-09 (241_700 -> 242_400; measured 242,317) for the game rail: one new tool, design_game (~1,385 bytes,
 // its schema cut to bare names), net of get_game_vocab shrinking ~800 the same day. Its guide, page cards and samples are
 // off-payload (get_game_vocab's rail).
-const PAYLOAD_CEILING = 242_400;
+// Re-pinned 2026-10-10 (242_400 -> 208_300; measured 208,224) for 3.1.0's positioning: the office wing left the
+// tool surface (apps, daemons, contextmap, mcp-orbit, triggers, primitive binding: RETIRED_PACKS in packs.js, still
+// callable by name) and forward_context's description lost its two-wing paragraph.
+// Re-pinned 2026-10-10 (208_300 -> 209_800; measured 209,691) for the Characters ring: one new tool, create_character
+// (a door over mint_solid's layered and animal kinds), its description at routing grade; its manuals stay off-payload.
+const PAYLOAD_CEILING = 209_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

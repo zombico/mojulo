@@ -69,6 +69,13 @@ export const PROFILE_CARD_EDITS = Object.freeze({
         ],
       ],
     },
+    // The g-series register's last bullet but two paints a skin through the skin op.
+    'g-series': {
+      body: [[
+        /\n- \*\*Paint a skin \(patterns\/decals\/weathering\):\*\*[\s\S]*?back wraps front colours\./,
+        '',
+      ]],
+    },
     'reploid': {
       body: [[
         '\n- **Skin seam:** the assembled unit takes the polygomer skin seam\n  (`get_skin_packet` → paint → `skin_polygomer`) for decals and finish;\n  single-view limitation applies (front/¾ strong, side/back weak).',

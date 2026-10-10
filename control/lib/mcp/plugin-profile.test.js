@@ -270,7 +270,7 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
 
   it('keeps the voice registers out of the initialize preamble', () => {
     for (const s of [flat, packs]) {
-      expect(s.init.instructions).toMatch(/motion, audio, publications/);
+      expect(s.init.instructions).toMatch(/scores and sound effects: `create_beats`\./);
       expect(hiddenIn(s.init.instructions)).toEqual([]);
     }
   });
@@ -479,7 +479,7 @@ describe('the CLI under the profile', () => {
     expect(packList.code).toBe(0);
     expect(hiddenIn(packList.stdout)).toEqual([]);
     const orient = cli(['orient']);
-    expect(orient.stdout).toMatch(/motion, audio, publications/);
+    expect(orient.stdout).toMatch(/scores and sound effects: `create_beats`\./);
 
     const call = cli(['call', 'bind_image_render', '--json', '{}']);
     expect(call.code).toBe(1);

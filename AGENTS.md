@@ -85,7 +85,7 @@ For comparison, Claude Code uses `claude mcp add --transport http mojulo http://
 
 ## Secrets posture
 
-- Don't `cat` or read `~/.mojulo/**/.env*` directly once connected — `list_env` names an app's keys without their values, and `set_env` / `delete_env` change them. The repo's own [control/.env](control/.env) is a one-time read for the bearer token during registration; after that, prefer MCP tools.
+- Don't `cat` or read `~/.mojulo/**/.env*` directly once connected. The repo's own [control/.env](control/.env) is a one-time read for the bearer token during registration; after that, prefer MCP tools.
 - Never echo the `CONTROL_PLANE_MCP_KEY` into materialized artifacts (automation prompts, workflow files) as plain text. Use Codex's secret-injection mechanism if available; otherwise leave the value out and let the host's stored config supply it at run time.
 
 ## Architecture pointers

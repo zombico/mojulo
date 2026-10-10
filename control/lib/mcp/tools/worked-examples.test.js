@@ -29,7 +29,7 @@ describe('get_worked_example — the transcript drawer', () => {
     const { content } = await workedExampleHandler({ paradigm: 'spaceship' });
     const text = content[0].text;
     expect(text).toContain('next:');
-    expect(text).toContain('connected-service');
+    expect(text).toContain('game');
   });
 
   it("'bot' names where the chatbot factory went instead of a trace", async () => {
@@ -56,8 +56,9 @@ describe('get_worked_example — the transcript drawer', () => {
     let m;
     while ((m = re.exec(ALL_TRACE_TEXT)) !== null) mentioned.add(m[1]);
 
-    // Sanity: the sweep actually found the traces' call mentions.
-    expect(mentioned.size).toBeGreaterThan(20);
+    // Sanity: the sweep actually found the traces' call mentions (two traces since 3.1.0, when the
+    // connected-service and app traces left with the office wing).
+    expect(mentioned.size).toBeGreaterThan(8);
 
     const fictional = [...mentioned].filter((name) => !registered.has(name));
     expect(fictional).toEqual([]);

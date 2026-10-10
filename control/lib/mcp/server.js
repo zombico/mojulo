@@ -29,7 +29,7 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
+import { PACKS, SPINE, RETIRED_OFFICE_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
@@ -63,35 +63,37 @@ export { getServerVersion };
 
 // Surfaced to the connecting model on `initialize`. Most MCP clients hand this
 // to the agent as a system-prompt-style preamble — it has to fit and stick
-// even on clients that truncate aggressively. We lead with mojulo's software
-// primitives (stateful MCP server + process supervisor) and name the four
-// creatable artifacts with their entry tools, then point at `forward_context`
-// as a cheap routing index. The heavy lifting (concept glossary + register,
-// deliberation surfaces, full tool index, dashboard map, self-description)
-// lives behind the sibling drawers (`get_register_kit`, `get_tool_index`,
-// `get_deliberation_overview`, `get_ui_map`, `get_substrate`) so the agent only
-// pays each context cost when a task actually needs it.
+// even on clients that truncate aggressively. It says what mojulo is (a 3D
+// factory with a media studio), names what it makes by what people do with it
+// (the PARADIGMS outcomes: Play, Print, Read, Hear, Observe) with an entry
+// tool each, and points at `forward_context` as a cheap routing index. The
+// depth (glossary, full tool index, dashboard map, self-description) lives
+// behind the drawers so the agent pays for it only when a task needs it; the
+// canonical self-description is get_substrate's, and this follows it.
 // Budget ~230–260 words; paid once per session by every connecting agent.
 // Exported for the paradigm-coverage sweep in context.test.js (every PARADIGMS
 // member must be named here — the preamble is the first orientation surface).
-export const SERVER_INSTRUCTIONS = `Mojulo is a **3D compiler for agents** on the operator's host (a compiler, not a generator: the recipe is the source, renders are derived) — a stateful MCP server over a SQLite + graph database the agent reads and writes through tools, plus a process supervisor for local runtimes. Unlike vendor MCPs (Gmail, Linear, Drive) that proxy a remote service, mojulo's tool calls mutate mojulo's own database. The agent builds worlds, objects, and games by conversation, as editable deterministic recipes on the operator's machine, that ship as a game (Godot first-class today) or as a printed object (print-ready STL at true scale). Mojulo is the agent-driven UPSTREAM that feeds the tools professionals already use — it does not rival them on rendering, and it is not merely an exporter: the recipe is where the thing is born, lives, and re-renders.
+export const SERVER_INSTRUCTIONS = `Mojulo is a **3D factory with a media studio** on the operator's machine: a stateful MCP server over its own SQLite store. The agent makes things by conversation, and each one is a tiny deterministic recipe: the recipe is the source, renders are derived and regenerate on every read. Mojulo is the agent-driven upstream that feeds Godot, Unity, Unreal, Blender and the slicer. It does not rival them on rendering, and it is not merely an exporter.
 
-What the agent can create — **Media and Game lead; the rest is the automation backend:**
-- **Media** — creative artifacts minted as tiny deterministic recipes, never renders: pictures, objects, worlds, buildings, motion, audio, voice, publications. Entry: \`forward_context()\` — the studio routing index, which is the DEFAULT read.
-- **Game** — composition over Media, playable standalone. Entry: \`create_game\` (routing: the studio).
-- **Connected Service** — a workflow over the operator's installed MCPs. Two forms: a Skill synthesized into the host adapter (entry: \`get_catalyst\`), or a materialized mcp-orbit composition (entry: \`meta_context_declare_inventory\` → \`recommend_mcp_orbit_compositions\` or \`bind_primitives\`). Mojulo is the deliberation anchor + audit trail here, not the runtime.
-- **App** — local process + MCP sidecar; inference is parked back on the agent (no per-app LLM key). Entry: \`install_scaffold\` → commit → \`start_app\`.
+What it makes, by what people do with it:
+- **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. Godot first-class.
+- **Print**: solids at true scale, \`mint_solid\` then \`export_model\` (STL or 3MF, mm, z-up); a house is \`mint_building\`.
+- **Read**: diagrams, illustrations, science views, covers and publications: \`create_sketch\`, \`create_view\`, \`cook\`.
+- **Hear**: scores, sound effects and voices: \`create_beats\`, \`create_voice\`.
+- **Observe**: any of them watched: turntables, flythroughs, recorded runs: \`forge_motion\`.
+
+**Workflows** orchestrate the rest for batches and variations: a plan that chains calls once (\`execute_plan\`), sweeps, stash → cook, and catalysts that reach the other workers and MCPs on this host.
 
 **Chatbots are not built here.** ${BOT_FACTORY_MOVED}
 
-**Standing secrets rule:** treat \`.env\` files under \`$MOJULO_HOME\` and inside any app scaffold as user secrets: never \`cat\` or \`Read\` them. \`list_env\` names an app's keys without their values.
+**Secrets:** never \`cat\` or \`Read\` a \`.env\` under \`$MOJULO_HOME\` or in any directory mojulo generated.
 
-Most tool descriptions in \`tools/list\` self-route — match the user's framing to a tool and call it. When you're unsure which entry point fits, call \`forward_context\`: it's a cheap routing index (\`user-framing → entry-tool\` rows + a directory of drawers), not a full briefing — the STUDIO (creative) wing by default; \`forward_context({mode:'office'})\` opens the automation backend when the ask is to wire or operate something rather than to make something. Pull a drawer only when a task needs depth — \`get_register_kit\` (concept glossary + narration register), \`get_tool_index\` (every tool), \`get_deliberation_overview\` (the structural surfaces), \`get_ui_map\` (dashboard pages), \`get_substrate\` (what mojulo is, posture, costs).`;
+Tool descriptions self-route. When unsure, call \`forward_context()\`, a cheap routing index rather than a briefing. Pull a drawer only when a task needs depth: \`get_tool_index\` (every tool), \`get_register_kit\` (the glossary), \`get_ui_map\` (dashboard pages), \`get_substrate\` (what mojulo is, posture, costs).`;
 
 // The preamble under the Claude plugin profile: the voice registers are not in that build.
 const PLUGIN_PROFILE_INSTRUCTIONS = profileEdit(
   SERVER_INSTRUCTIONS,
-  [['motion, audio, voice, publications', 'motion, audio, publications']],
+  [['scores, sound effects and voices: `create_beats`, `create_voice`', 'scores and sound effects: `create_beats`']],
   'SERVER_INSTRUCTIONS',
 );
 
@@ -129,6 +131,7 @@ export function cliInstructionsAddendum({ hostIds, cmd = 'mojulo' } = {}) {
 }
 
 const registeredTools = new Map();
+const RETIRED_OFFICE = new Set(RETIRED_OFFICE_TOOLS);
 
 export function registerTool(tool) {
   if (!tool || !tool.name || typeof tool.handler !== 'function') {
@@ -138,6 +141,9 @@ export function registerTool(tool) {
   // that legitimately run long (heavy render bakes, gif encodes). See the soft
   // timeout in lib/mcp/telemetry.js. Optional `aliasOf` names the tool a
   // deprecated alias forwards to; the alias takes that tool's annotations.
+  // The office wing's tools left the surface in 3.1.0 (RETIRED_PACKS in packs.js): still callable
+  // by name, never listed.
+  if (RETIRED_OFFICE.has(tool.name)) tool.listed = false;
   registeredTools.set(tool.name, tool);
 }
 
@@ -586,6 +592,7 @@ async function registerAllTools() {
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
+  const { registerCreateCharacterTools } = await import('@/lib/mcp/tools/create-character');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
   const { registerMeasureSolidTool } = await import('@/lib/mcp/tools/measure-solid');
   const { registerFabricateTools } = await import('@/lib/mcp/tools/fabricate');
@@ -763,6 +770,9 @@ async function registerAllTools() {
   // retired per-type names remain callable as unlisted aliases. Mints into
   // SketchRepository unchanged — only the tools/list surface consolidated.
   // See mint-solid-consolidation.plan.md.
+  // create_character (3.1.0) — the Characters ring's door: a hero, a creature or an animal, dispatched to
+  // the same mints mint_solid makes (create-character.js), so a character is not hunted for among solids.
+  registerCreateCharacterTools();
   registerMintSolidTools();
   // measure_solid — read a number back off a solid (cad-aid C1 / continuous-guardrails G2):
   // export_model's probe, closure audit, scale seam, and Manifold volume, without the file.

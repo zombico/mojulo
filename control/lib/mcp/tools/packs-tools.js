@@ -24,7 +24,7 @@
 import { registerTool, getRegisteredTool, runToolSerialized } from '@/lib/mcp/server';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
-import { PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
+import { PACKS, RETIRED_PACKS, SPINE, packToolEntry, dispatchTargets, homePackForTool, packInstallNotice, installNotice } from '@/lib/mcp/packs';
 import { authNotice } from '@/lib/roles/enforce';
 import { isRemovedBotTool, botToolMovedNotice } from '@/lib/mcp/bot-factory-moved';
 import { formToolset } from '@/lib/mcp/tools/context';
@@ -57,7 +57,7 @@ function memberIndex(body) {
 }
 
 function packBody(pack) {
-  if (pack.wing !== 'studio') return pack.body || '';
+  if (!pack.form && !pack.forms) return pack.body || '';
   // Studio bodies come from the FORM_TOOLSETS prose — one source with
   // get_creative_toolset. `forms` covers a pack serving several forms
   // (pack_motion carries motion + motion-comic). The unveil carries the form's
@@ -213,7 +213,8 @@ async function dispatch(pack, input, context) {
 }
 
 export function registerPackTools() {
-  for (const pack of PACKS) {
+  // Retired packs (the office wing, 3.1.0) keep their dispatcher for callers that name one.
+  for (const pack of [...PACKS, ...RETIRED_PACKS]) {
     registerTool({
       ...packToolEntry(pack),
       // Never listed from the registry: flat mode must stay byte-identical,

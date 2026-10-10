@@ -31,62 +31,10 @@ const EXAMPLE_INDEX = `# Worked examples — one successful flight per paradigm
 
 Pass \`paradigm\` to read one annotated trace (real call sequence, gate moments marked, one refusal + recovery included):
 
-- \`connected-service\` — declare inventory → bind a primitive → dry-run → seal. MCP-to-MCP, mojulo as the audit trail.
-- \`app\` — scaffold → commit → start → fulfill parked inference. The local-runner paradigm.
 - \`game\` — mint a level world → watch the promotion gate refuse it → prove it completable → mint the game. The flagship verification-gate trace.
 - \`media\` — stash → gather typed items (one rejection shown) → cook a publication.
 
 Each trace is illustrative (your refs and values will differ) but the call sequence, gate order, and refusal shapes are real.`;
-
-const TRACE_CONNECTED_SERVICE = `# Worked example — Connected Service (inventory → primitive binding → seal)
-
-**The shape:** no conversational runtime. The operator wants "every Friday, digest this week's invoices folder into a summary doc." Mojulo is the deliberation anchor + audit trail; the runtime is the operator's own MCPs + your host.
-
-**1. Declare what's installed.** *(present-state, replace-semantic — the latest declaration is the whole truth)*
-\`meta_context_declare_inventory({ servers: [{ name: 'claude_ai_Google_Drive', tools: [{ name: 'search_files', inputSchema: {…} }, …] }] })\`
-→ canonicalized provider rows (\`google_drive\`). Declare with per-tool \`inputSchema\` (richer-snapshot mode) — thin declarations downgrade every later binding to \`names_only\` confidence.
-
-**2. Find the shape.** \`semantic_search({ query: 'recurring folder digest into a document', kinds: ['catalyst'] })\` → ranked refs; or go straight to the primitive if you know it.
-
-**3. Bind the primitive.** *(session-scoped artifact — still proposed)*
-\`bind_primitives({ primitive: 'document-store', role: 'source', server: 'google_drive', bindings: { 'list-documents': 'search_files', 'read-document': 'read_file_content' } })\`
-→ \`{ artifact: { ref: 'prov_…', body, manifest } }\` — **read \`body\` in full**: it carries the operator's actual tool names + schemas, not a curated guess. \`manifest.unbound\` flags what you left unbound (often fine).
-
-**4. The refusal + recovery.** Sealing first — \`meta_context_commit({ type: 'primitive_artifact_materialization', … })\` with an \`artifact\` that doesn't exist yet — fails adapter verification. The contextmap seals *reality, never intention*. Recovery: materialize first. Read your adapter once (\`get_adapter({})\`), synthesize the skill/workflow file on the host, THEN commit.
-
-**5. Dry-run before promoting.** *(dry-run vs promoted — the standing rule)* Run the synthesized workflow once against one real week of files; read the output yourself. Only then schedule it.
-
-**6. Seal.** *(the audit gate — append-only, say so plainly)*
-\`meta_context_commit({ type: 'primitive_artifact_materialization', adapter_id: '<your adapter id from get_adapter>', artifact: 'skill:invoice-digest', composition_intent: '…', provider_artifact_refs: ['prov_…'] })\`
-→ the artifact → bound-tools audit chain is now durable. Mirror the skill for observation: \`declare_skills({ skills: [{ name: 'invoice-digest', calls: ['google_drive'] }] })\`.
-
-**7. Cadence (optional).** \`bind_trigger({ component_ref: 'trigger/scheduled@0.1.0', binding_params: { cron: '0 8 * * FRI' }, payload_template: {…}, artifact_ref: '…' })\` → persists durably, **fires only when the scheduler daemon is enabled** — say that to the operator (watched vs read-once).`;
-
-const TRACE_APP = `# Worked example — App (scaffold → commit → start → fulfill)
-
-**The shape:** a long-running local process with its own MCP sidecar, parking inference back on YOU. No per-app LLM key exists anywhere in this flight.
-
-**1. Scaffold.** *(files on disk — materialized, not yet recorded)*
-\`install_scaffold({ artifact_ref: 'app:receipt-watcher', app_name: 'receipt-watcher', materialization_ref: '…' })\`
-→ \`{ scaffold_dir, env_path, bearer_generated: true }\` — the bearer is in the \`.env\` on disk, deliberately NOT in this tool output.
-
-**2. The refusal + recovery.** Committing BEFORE scaffolding fails: \`meta_context_commit({ type: 'app_materialization', … })\` runs adapter verification that requires \`<locator>/app-mcp/server.js\` to exist. The commit gate is ordered on purpose — scaffold first, then seal. Recovery: step 1, then re-commit.
-
-**3. Seal the materialization.** *(audit gate)*
-\`meta_context_commit({ type: 'app_materialization', adapter_id: '<your adapter id from get_adapter>', artifact: 'app:receipt-watcher', app_name: 'receipt-watcher', bindings: { runner: 'local', durability: '…', inference: 'agent-tasks', mcp_self: '…' } })\`
-
-**4. Start.** *(now it's running — a watched thing, not a read)*
-\`start_app({ artifact_ref: 'app:receipt-watcher', app_name: 'receipt-watcher', materialization_ref: '…' })\`
-→ \`{ running_ref, url, mcp_url }\` — app + sidecar spawned atomically; the app's MCP is auto-declared to inventory under this \`running_ref\`.
-If this throws "runtime daemon not available": that's the daemon-down family, not a broken app — the host isn't up (\`MOJULO_DAEMONS=enabled\`). \`list_daemons({})\` / \`start_daemon({ name: 'app-runtime' })\`, then retry.
-
-**5. Fulfill inference.** *(you ARE the inference layer)*
-The app POSTs an envelope request; you drain the queue:
-\`pull_agent_task({ wait_ms: 25000 })\` → \`{ task_id, kind: 'envelope_inference', payload }\` (single-claim)
-…reason about \`payload\` yourself…
-\`submit_envelope_inference({ task_id, envelope: {…} })\` → validated against the schema in the payload, resolves the app's parked HTTP, and records an \`app_inference\` principle. The canonical loop body is the \`run-inference-worker\` catalyst — \`get_catalyst({ id: 'run-inference-worker' })\` and wrap it in a loop.
-
-**6. Lifecycle.** \`status_app({ running_ref })\` / \`stop_app({ running_ref })\` (idempotent; removes the running_ref's inventory rows). Per-app config: \`set_env({ artifact_ref: 'app:receipt-watcher', key: 'WATCH_DIR', value: '/Users/…/receipts' })\` then restart.`;
 
 const TRACE_GAME = `# Worked example — Game (the promotion-gate flagship)
 
@@ -136,13 +84,12 @@ Add a visual: \`create_sketch({ title: 'Yield by plot', manifest: { marks: […]
 **5. Afterlife.** The cook is a first-class deliberation node: \`get_cook({ cook_ref })\` from any ring; if it later reads as tractable work, plan mode seeds from it (\`forge_plan({ source: { kind: 'cook', cook_ref } })\`) — a plan-side decision, not a cook outlet. Housekeeping: \`archive_cook({ cook_ref })\` clears the inbox without touching the folder.`;
 
 const TRACES = {
-  'connected-service': TRACE_CONNECTED_SERVICE,
-  app: TRACE_APP,
   game: TRACE_GAME,
   media: TRACE_CREATIVE_MINT,
 };
 
 export const WORKED_EXAMPLE_PARADIGMS = Object.keys(TRACES);
+const RETIRED_TRACES = ['connected-service', 'app'];
 
 // Exported for the honesty-gate test: every `tool_name(...)` mention across
 // all traces must resolve in the live registry.
@@ -160,6 +107,13 @@ export async function workedExampleHandler(input, _ctx) {
   if (paradigm === 'bot') {
     return {
       content: [{ type: 'text', text: `No worked example for 'bot' in this version. ${BOT_FACTORY_MOVED}` }],
+      _telemetrySignal: { id_requested: true, found: false },
+    };
+  }
+  // The connected-service and app traces left with the office wing in 3.1.0; say so.
+  if (RETIRED_TRACES.includes(paradigm)) {
+    return {
+      content: [{ type: 'text', text: `No worked example for '${paradigm}' in this version: the office wing (apps, connected services) left the tool surface in 3.1.0. Available: ${WORKED_EXAMPLE_PARADIGMS.join(', ')}.` }],
       _telemetrySignal: { id_requested: true, found: false },
     };
   }
@@ -189,7 +143,7 @@ export function registerWorkedExampleTools() {
   registerTool({
     name: 'get_worked_example',
     description:
-      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs materialized, dry-run vs promoted, sealed vs not recorded), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `connected-service` (inventory → primitive binding → seal), `app` (scaffold → commit → start → fulfill inference), `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
+      "Return one annotated end-to-end trace of a successful flight for a paradigm — the real call sequence with realistic args, abbreviated return shapes, the commitment gates named where they happen (proposed vs made, dry-run vs promoted, machine gate vs eyes gate), and one deliberate refusal + recovery so the first 'no' you meet in the wild is a recognized shape. Paradigms: `game` (the promotion-gate flagship: watch a level get refused, prove it completable, re-mint), `media` (stash → gather → cook). Omit `paradigm` for the index. Pull BEFORE your first build of a paradigm — one read replaces trial-and-error against per-tool descriptions. Traces are illustrative (refs and values will differ) but the call sequence, gate order, and refusal shapes are real. Read-only, idempotent.",
     inputSchema: {
       type: 'object',
       properties: {

@@ -16,6 +16,8 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 
 import {
   PACKS,
+  RETIRED_PACKS,
+  RETIRED_OFFICE_TOOLS,
   SPINE,
   FOLDED,
   PACK_DESCRIPTION_CEILING,
@@ -52,7 +54,11 @@ import { join } from 'node:path';
 // input schema gained `manual` and paid for it by shortening the `tool` / `args` wording.
 // Merged with the building ladder 2026-10-06 (33_400 -> 33_900; measured 33,263 -> 33,840): pack_building's
 // entry, less the house redirects it let three pack descriptions drop.
-const PACKS_PAYLOAD_CEILING = 33_900;
+// Re-pinned 2026-10-10 (33_900 -> 31_300; measured 31,248) for 3.1.0's positioning: pack_runtime and
+// pack_connected_services left the connect surface (RETIRED_PACKS), and pack_catalysts grew to carry the
+// worker and connected-MCP tools power users keep.
+// Re-pinned 2026-10-10 (31_300 -> 32_400; measured 32,335) for the Characters ring: pack_character, listed first.
+const PACKS_PAYLOAD_CEILING = 32_400;
 
 let server;
 let listTools;
@@ -110,15 +116,19 @@ describe('pack registry shape', () => {
     }
   });
 
-  it('studio packs name a form; office packs carry a body', () => {
+  it('every pack names its ring, and carries a form or a body', () => {
+    const RINGS = ['characters', 'kernel', 'solids', 'audio', 'read', 'worlds', 'games', 'workflows'];
     for (const pack of PACKS) {
-      if (pack.wing === 'studio') {
-        expect(pack.form, `${pack.id} missing form`).toBeTruthy();
-      } else {
-        expect(pack.wing).toBe('office');
-        expect(pack.body, `${pack.id} missing body`).toBeTruthy();
-      }
+      expect(RINGS, `${pack.id} ring '${pack.ring}'`).toContain(pack.ring);
+      expect(pack.form || pack.forms || pack.body, `${pack.id} has neither a form nor a body`).toBeTruthy();
     }
+  });
+
+  it('the retired office packs never list, and none of their members is homed in a live pack', () => {
+    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services']);
+    const live = new Set(PACKS.flatMap((p) => [p.id, ...p.members]));
+    for (const name of RETIRED_OFFICE_TOOLS) expect(live.has(name), name).toBe(false);
+    for (const pack of RETIRED_PACKS) expect(live.has(pack.id), pack.id).toBe(false);
   });
 
   it('shared entries are homed in a DIFFERENT pack', () => {
@@ -372,8 +382,7 @@ describe('install axis (MOJULO_PACKS) — PACK-grain: kernel + always-on packs +
   it('packs declaring NO install group are always present — plumbing is not gatable', () => {
     const ungrouped = PACKS.filter((p) => !p.installGroup);
     expect(ungrouped.map((p) => p.id).sort()).toEqual([
-      'pack_catalysts', 'pack_connected_services', 'pack_plan',
-      'pack_research', 'pack_runtime', 'pack_stash',
+      'pack_catalysts', 'pack_plan', 'pack_research', 'pack_stash',
     ]);
     for (const env of [{ MOJULO_PACKS: 'creative' }, { MOJULO_PACKS: 'recall' }]) {
       for (const pack of ungrouped) expect(isPackInstalled(pack, env)).toBe(true);

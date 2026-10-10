@@ -7,12 +7,14 @@ comments, docs, or the changelog: plans are working documents that move to
 
 ## What this is
 
-A local MCP server with a dashboard. The agent builds worlds, objects, games, audio, and publications by
-conversation; each one is a tiny deterministic recipe (a `sketches` row) that regenerates on every read and
-exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Mojulo is the agent-driven upstream that feeds
-those tools, never a fidelity rival and never "just an exporter." The canonical self-description is the
+A local MCP server with a dashboard: a 3D factory with a media studio. The agent makes things to Play, Print,
+Read, Hear and Observe by conversation, characters (`create_character`) first among them; each one is a tiny deterministic recipe (a `sketches` row) that
+regenerates on every read and exports to Godot, Unity, Unreal, Blender, GLB, STL, 3MF, USD. Workflows (plans,
+sweeps, stash and cook, catalysts) orchestrate the rest. Mojulo is the agent-driven upstream that feeds those
+tools, never a fidelity rival and never "just an exporter." The canonical self-description is the
 `get_substrate` drawer in [control/lib/mcp/tools/context.js](control/lib/mcp/tools/context.js); keep
-user-facing copy consistent with it.
+user-facing copy consistent with it. The office wing (apps, daemons, contextmap, MCP-to-MCP binding) left the
+tool surface in 3.1.0: `RETIRED_PACKS` in `packs.js`, callable by name, never listed or routed to.
 
 One package. [control/](control/) is the product (Next.js 16 on 3001, ESM, vitest); all work happens here.
 The chatbot factory and its bot runtime left in 3.0.0 for their own project; the unmaintained 2.x line still carries them.

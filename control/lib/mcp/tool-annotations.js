@@ -194,6 +194,7 @@ export const TOOL_ANNOTATIONS = {
   translate_modeler_lingo: ['Translate 3D-modeler terms', READ],
 
   // ── solids, worlds, views (mint-solid.js, compose-world.js, create-view.js) ─
+  create_character: ['Create a character', ADDITIVE],
   mint_solid: ['Mint a 3D solid', hints(false, false, false, true)], // via:'prompt' calls the user's LLM provider
   edit_solid: ['Skin or emote a solid', ADDITIVE], // skins append a slot; emotes add a GIF or mint
   get_solid_vocab: ['Solid vocabulary cards', READ],

@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { closeDb } from '@/lib/db/index';
 import { LocalRunner } from '@/lib/runners/local';
 import { startDaemonServer } from '@/lib/runners/daemon/server';
-import { dispatchMcpRequest, ensureToolsRegistered } from '@/lib/mcp/server';
+import { dispatchMcpRequest, ensureToolsRegistered, isToolListed, hasRegisteredTool } from '@/lib/mcp/server';
 import { briefHandler, commitAppMaterialization } from '@/lib/mcp/tools/meta-context';
 
 let tmpRoot;
@@ -104,24 +104,20 @@ afterEach(async () => {
 });
 
 describe('runner MCP — registered with the dispatcher', () => {
-  it('tools/list includes the runner surface', async () => {
-    // Asserts the flat connect surface (packs mode, now the default, folds these
-    // into pack_runtime). listTools reads the env per call, so force flat here.
+  it('the runner surface left tools/list in 3.1.0 (the office wing) and still answers by name', async () => {
+    // Flat connect surface: listTools reads the env per call, so force flat here.
     const prevPacks = process.env.MOJULO_TOOL_PACKS;
     process.env.MOJULO_TOOL_PACKS = 'off';
     const reply = await rpc('tools/list', {});
     if (prevPacks === undefined) delete process.env.MOJULO_TOOL_PACKS;
     else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const names = reply.result.tools.map((t) => t.name);
-    expect(names).toContain('install_scaffold');
-    expect(names).toContain('list_runners');
-    expect(names).toContain('start_app');
-    expect(names).toContain('stop_app');
-    expect(names).toContain('status_app');
-    expect(names).toContain('list_running');
-    expect(names).toContain('list_env');
-    expect(names).toContain('set_env');
-    expect(names).toContain('delete_env');
+    const RUNNER = ['install_scaffold', 'list_runners', 'start_app', 'stop_app', 'status_app', 'list_running', 'list_env', 'set_env', 'delete_env'];
+    for (const name of RUNNER) {
+      expect(names, name).not.toContain(name);
+      expect(isToolListed(name), name).toBe(false);
+      expect(hasRegisteredTool(name), name).toBe(true);
+    }
   });
 
   it('list_runners returns the local runner', async () => {

@@ -22,7 +22,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, posix } from 'node:path';
-import { PACKS } from '@/lib/mcp/packs';
+import { PACKS, RETIRED_PACKS } from '@/lib/mcp/packs';
 
 const CONTROL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -153,7 +153,11 @@ describe('pack boundary — engine orthogonality (kernel + ops/creative)', () =>
   // + advisory, which the static-import scan (correctly) does not see. Wing is
   // resolved from packs.js membership, so this generalizes beyond the C hardcode.
   const WING_BY_TOOL = new Map();
-  for (const pack of PACKS) for (const name of pack.members) WING_BY_TOOL.set(name, pack.wing);
+  // An orchestration pack has no creative form: the workflows ring's plain packs and the retired
+  // office packs (3.1.0), whose code stays. A pack with a form is studio.
+  for (const pack of [...PACKS, ...RETIRED_PACKS]) {
+    for (const name of pack.members) WING_BY_TOOL.set(name, pack.form || pack.forms ? 'studio' : 'office');
+  }
   const TOOL_NAME_RE = /name:\s*['"]([a-z_]+)['"]/g;
   it('D: no office tool file statically imports the creative engine (sim or render)', () => {
     const toolsDir = join(CONTROL_ROOT, 'lib/mcp/tools');

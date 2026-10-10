@@ -14,6 +14,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Drawer alignment: the agent supplies the words, the server the rest
 
+- **A 3D factory with a media studio.** Mojulo describes itself by what it makes, named by what people do with it:
+  things to **Play** (games), **Print** (solids at true scale), **Read** (diagrams, illustrations, views,
+  publications), **Hear** (scores, sound, voices) and **Observe** (any of them watched: turntables, flythroughs,
+  recorded runs). **Workflows** (plans, sweeps, stash and cook, catalysts) orchestrate the rest. `get_substrate` holds
+  the words; the initialize preamble (back inside its word budget), `forward_context`, the register-kit glossary and
+  the tool index follow it. Packs carry a `ring` (solids, audio, read, worlds, games, kernel, workflows) in place of
+  the studio and office wings.
+- **The office wing leaves the tool surface.** Apps and their env, the runtime daemons, the contextmap, mcp-orbit,
+  triggers and primitive binding are no longer listed, indexed or routed to (`RETIRED_PACKS` in `packs.js`).
+  `pack_runtime` and `pack_connected_services` still dispatch and every one of their tools still answers by name,
+  so a compiled plan or a skill that names one keeps working. `forward_context` has one body; `mode: 'office'` gets
+  it with a line saying where the office went. The connected-service and app worked examples and routing cards are
+  gone. The flat tools/list fell from 242,317 to 208,224 bytes, packs mode from 33,840 to 31,248.
+- **A Characters ring.** `create_character({ as: 'hero' | 'creature' | 'animal', spec })` is its own door, listed
+  first (`pack_character`, form `character`): a person by cast word, proportions, face, hair, clothes and armour; an
+  invented body from a ring plan; a real species. It mints the same recipes `mint_solid` makes (kinds `layered` and
+  `animal`), byte for byte (`create-character.test.js`), and `mint_solid` keeps every kind. The hero, creature,
+  animal and armour routing cards enter on it, and a CHARACTER row heads the mint dispatch.
+- **Workers and other MCPs stay reachable.** `pack_catalysts` now carries what a power user needs to reach past
+  mojulo: catalysts landed as Skills beside the host's other MCPs, the inventory and provider-capability reads, and
+  the agent-task queue (`pull_agent_task`, `submit_envelope_inference`, `cancel_agent_task`). The routing index has a
+  WORKFLOW row, so a chain written once (`execute_plan`), a sweep and a catalyst are one hop from the first read.
+- The commitment floor names states the studio has: proposed vs made, dry run vs promoted, machine gate vs eyes gate,
+  advisory vs refused.
+- Under the Claude plugin profile the `g-series` card no longer names the skin tools.
 - The first card read of a process no longer stalls about 6 s. The animal entry cards' DOES lines came from solving every
   species' behaviors on its skeleton at catalog load. They are read from a generated table now
   (`fauna/behavior/does-table.js`, written by `node scripts/gen-fauna-does.mjs`, held equal to the live solve by

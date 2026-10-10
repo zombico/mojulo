@@ -40,14 +40,16 @@ beforeEach(() => {
 // Phrases that must appear in every register × disclosure cell — they're
 // the four-gate floor rule and the dual-purpose preamble. If any cell drops
 // these, the design contract is broken.
+// Rewritten for 3.1.0: the office wing's watched/read-once and audit-trail
+// gates left with it; the eyes gate (a golden rule) and advisory-vs-refused joined.
 const FLOOR_PHRASES = [
   'proposed',
-  'materialized',
+  'made',
   'dry-run',
   'promoted',
-  'watched',
-  'read-once',
-  'audit trail',
+  'machine gate',
+  'eyes gate',
+  'advisory',
 ];
 
 describe('buildForwardContextBody — variant composition', () => {
@@ -75,10 +77,9 @@ describe('buildForwardContextBody — variant composition', () => {
   it('is a thin routing index, not a manual: routing rows + drawer directory, heavy prose drawerized', () => {
     for (const register of VOCABULARY_REGISTERS) {
       for (const disclosure of PROCEDURAL_DISCLOSURES) {
-        // Checked per WING: no-mode is the studio read (the 2.0 default), and
-        // the office read is the explicit one. Both must stay thin.
+        // One body since 3.1.0; a retired 'office' read gets the same body.
         for (const [mode, indexHeading, drawerHeading] of [
-          [undefined, 'Studio routing index', 'Studio drawers'],
+          [undefined, 'Routing index', 'Drawers'],
           ['office', 'Routing index', 'Drawers'],
         ]) {
         const body = buildForwardContextBody({ register, disclosure, mode });
@@ -91,7 +92,7 @@ describe('buildForwardContextBody — variant composition', () => {
         expect(body).toContain('`get_substrate`');
         expect(body).toContain('`get_adapter`');
         // The full one-line-per-tool index no longer lives inline.
-        expect(body).not.toContain('the primitive-binding composer for MCP-to-MCP workflows');
+        expect(body).not.toContain('a provider\'s knowledge body (what its MCP can do');
         // The concept glossary moved to get_register_kit — its section header
         // and the "don't surface" plain-register marker are both gone.
         expect(body).not.toContain('## Concepts');
@@ -102,12 +103,12 @@ describe('buildForwardContextBody — variant composition', () => {
     }
   });
 
-  it('opener is register-invariant: same opener in every register, in both wings', () => {
-    // One register-invariant opener per wing — no per-register ramp prose, no
+  it('opener is register-invariant: same opener in every register', () => {
+    // One register-invariant opener — no per-register ramp prose, no
     // "don't surface" plain marker (that machinery lives in get_register_kit).
     for (const [mode, marker] of [
-      [undefined, 'The studio **call grammar**'],
-      ['office', 'This is the office **routing index**'],
+      [undefined, 'The **call grammar**'],
+      ['office', 'The **call grammar**'],
     ]) {
       for (const register of ['plain', 'mojulo']) {
         const body = buildForwardContextBody({ register, disclosure: 'reflective', mode });
@@ -173,16 +174,18 @@ describe('buildForwardContextBody — variant composition', () => {
     // thread C) — paradigm parity means the glossary covers every arm, not just
     // the service/app one. (Bot, Deployment, Protocol and Chain left with the
     // chatbot factory in 3.0.0.)
+    // (App, Running ref and Connected Service left with the office wing in 3.1.0; Media became
+    // the outcomes Play / Print / Read / Hear / Observe.)
     const names = [
-      'App',
+      'Play / Print / Read / Hear / Observe',
       'Skill',
       'Catalyst',
       'Host adapter',
-      'Connected Service',
-      'Media',
       'Game',
+      'Workflows',
       'Stash / Gather / Cook',
       'Recipe artifact',
+      'Agent-task queue',
     ];
     for (const register of VOCABULARY_REGISTERS) {
       const kit = buildRegisterKitBody({ register, disclosure: 'reflective' });
@@ -195,7 +198,7 @@ describe('buildForwardContextBody — variant composition', () => {
   it('full tool index is promoted to get_tool_index and is register-invariant', async () => {
     // The full one-line-per-tool index moved out of forward_context into its
     // own tool. Pick a representative tool one-liner that should appear there.
-    const marker = '`bind_primitives` — **the primitive-binding composer';
+    const marker = '`record_mcp_capabilities` / `get_mcp_capabilities` — a provider\'s knowledge body';
     const { content } = await toolIndexHandler({});
     const indexText = content[0].text;
     expect(indexText).toContain(marker);
@@ -273,18 +276,19 @@ describe('forwardContextHandler — register resolution', () => {
     expect(text).toMatch(/procedural_disclosure: pedagogical/);
   });
 
-  it('mode selects the wing: STUDIO is the default, office is opt-in, invalid mode rejected', async () => {
-    // The 2.0 reposition: an agent arriving with no mode is told about the 3D
-    // factory, not the office. Phase 1f.
+  it('one body: studio is the default and the only mode, a retired office read gets it with a notice, invalid mode rejected', async () => {
     const byDefault = await forwardContextHandler({});
     expect(byDefault.content[0].text).toContain('# Mojulo, oriented');
-    expect(byDefault.content[0].text).toContain('## Studio routing index');
+    expect(byDefault.content[0].text).toContain('## Routing index');
     expect(byDefault._telemetrySignal.mode).toBe('studio');
     const explicitStudio = await forwardContextHandler({ mode: 'studio' });
     expect(explicitStudio.content[0].text).toBe(byDefault.content[0].text);
+    // The office wing left in 3.1.0: a caller that still asks for it is told so, over the one body.
     const office = await forwardContextHandler({ mode: 'office' });
-    expect(office.content[0].text).toContain('# Mojulo office, oriented');
-    expect(office.content[0].text).not.toContain('## Studio routing index');
+    expect(office.content[0].text).toContain('left the tool surface in 3.1.0');
+    expect(office.content[0].text).toContain('## Routing index');
+    expect(office._telemetrySignal.mode).toBe('office');
+    expect(FORWARD_CONTEXT_MODES).toEqual(['studio']);
     await expect(forwardContextHandler({ mode: 'atelier' })).rejects.toThrow(/mode/);
   });
 
@@ -310,14 +314,12 @@ describe('forwardContextHandler — register resolution', () => {
       ['mode parameter description', tool.inputSchema.properties.mode.description],
       ['get_tool_index row', indexRow],
     ];
-    // "default … office" in either order is the drift class this catches.
-    const teachesOfficeDefault = /default[^.]{0,60}office|office[^.]{0,25}\(\s*default/i;
-    const teachesStudioDefault = /default[^.]{0,90}studio|studio[^.]{0,90}default/i;
+    // Since 3.1.0 there is one body: no surface may teach `mode:'office'` as a way in.
+    const teachesOffice = /mode:\s*'office'|office[^.]{0,25}\(\s*default|open the office/i;
     for (const [label, text] of surfaces) {
-      expect(text, `${label} still teaches office as the default`).not.toMatch(teachesOfficeDefault);
-      expect(text, `${label} does not name ${DEFAULT_FORWARD_CONTEXT_MODE} as the default`)
-        .toMatch(teachesStudioDefault);
+      expect(text, `${label} still teaches the office wing`).not.toMatch(teachesOffice);
     }
+    expect(tool.inputSchema.properties.mode.description).toMatch(/studio[^.]{0,60}default/i);
   });
 
   it('rejects invalid register override', async () => {
@@ -382,7 +384,7 @@ describe('get_register_kit — isolated register surface', () => {
   });
 });
 
-describe('get_deliberation_overview — Ring 6 deep block', () => {
+describe('get_deliberation_overview — Ring 6 deep block (unlisted since 3.1.0, still answers by name)', () => {
   it('explains the deliberation surfaces and the daemon runtime gating', async () => {
     const { content } = await deliberationOverviewHandler({});
     const text = content[0].text;
@@ -421,8 +423,11 @@ describe('get_substrate — the working description', () => {
     // Every section is something the agent acts on: claims, inference, always-on, cloud gaps.
     expect(text).toMatch(/Two pipelines, one honesty rule/);
     expect(text).toMatch(/Inference runs on you/);
-    expect(text).toMatch(/Always-on means a runtime is up/);
-    expect(text).toMatch(/does NOT have auto-scaling, multi-region, multi-tenancy, IAM, or per-call billing/);
+    expect(text).toMatch(/Workers and other MCPs/);
+    expect(text).toMatch(/3D factory with a media studio/);
+    expect(text).toMatch(/no auto-scaling, multi-region, multi-tenancy, IAM or per-call billing/);
+    // The office wing left the surface in 3.1.0: the description offers none of it.
+    expect(text).not.toMatch(/Connected Service|install_scaffold|bind_primitives|bind_trigger|meta_context_commit/);
     // The framing devices are gone — no acronym, no staff/grip metaphor, no borrowed-verbs essay.
     expect(text).not.toMatch(/PLAYful|Agent-Yoked|tri-staff|grip|verbs that travel/);
     // The description is reached on demand, not in forward_context.
@@ -503,6 +508,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
   const RING10_TOOLS = [
     'create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches',
     'sketch_what_possible', 'create_cover',
+    // create_character (3.1.0) — the Characters ring's door, its own form drawer
+    'create_character',
     'mint_solid', 'edit_solid', 'get_solid_vocab',
     // measure_solid (continuous-guardrails.plan.md G2) — the object drawer's read-back sibling
     'measure_solid',
@@ -543,12 +550,12 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     expect([...homes.keys()].sort()).toEqual([...RING10_TOOLS].sort());
   });
 
-  it('no-arg returns the form map naming all 13 forms', async () => {
+  it('no-arg returns the form map naming all 14 forms', async () => {
     const { content } = await creativeToolsetHandler({});
     for (const form of CREATIVE_FORMS) {
       expect(content[0].text, `form map names ${form}`).toContain(`\`${form}\``);
     }
-    expect(CREATIVE_FORMS.length).toBe(13);
+    expect(CREATIVE_FORMS.length).toBe(14);
   });
 
   it('a valid form returns its title + body; an unknown form throws', async () => {
@@ -640,8 +647,7 @@ describe('paradigm coverage sweep (orientation-diet thread E) — the "three vs 
     await ensureToolsRegistered();
     const surfaces = {
       'initialize preamble (SERVER_INSTRUCTIONS)': SERVER_INSTRUCTIONS,
-      'lean opener (office forward_context body)': buildForwardContextBody({}),
-      'studio forward_context body': buildForwardContextBody({ mode: 'studio' }),
+      'forward_context body': buildForwardContextBody({}),
       'get_substrate description': listTools().find((t) => t.name === 'get_substrate').description,
       'get_substrate body': (await substrateHandler({})).content[0].text,
     };
@@ -668,14 +674,11 @@ describe('routing index row lint (orientation-diet thread B) — "index, not glo
   // the detail into the tool description, a vocab card, or get_tool_index.
   const ROUTING_ROW_CEILING = 1000;
 
-  it(`no routing bullet exceeds ${ROUTING_ROW_CEILING} chars (both wings)`, () => {
+  it(`no routing bullet exceeds ${ROUTING_ROW_CEILING} chars`, () => {
     const sections = {
-      office: buildForwardContextBody({ mode: 'office' })
+      body: buildForwardContextBody({})
         .split('## Routing index')[1]
         .split('## Drawers')[0],
-      studio: buildForwardContextBody({ mode: 'studio' })
-        .split('## Studio routing index')[1]
-        .split('## Studio drawers')[0],
     };
     for (const [wing, section] of Object.entries(sections)) {
       const offenders = section
@@ -745,7 +748,10 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // to the institutional one-off, and the PICTURE row's facade-vs-place clause. A web session
   // followed the old rows to edifice for "a house"; the row is the fix. Measured 8_713
   // widest cell (plain+pedagogical, with pulse); pinned 8_800.
-  const MODE_CEILINGS = { office: 9_600, studio: 8_800 };
+  // 3.1.0: one body (the office wing left the tool surface); the office pin is gone.
+  // Grown 2026-10-10 (8_800 -> 9_000; measured 8,943 widest cell, plain+reflective with pulse): the CHARACTER row, a new
+  // FORM heading the mint dispatch (create_character), the one case that legitimately grows this body.
+  const MODE_CEILINGS = { studio: 9_000 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.
@@ -770,12 +776,7 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   });
 });
 
-describe('studio containment (orientation-containment C1) — office pays no creative orientation', () => {
-  // The office body's only creative content is the STUDIO hook row (+ the
-  // opener's wing sentence). Entry tools for creative mints must not leak
-  // back — a new creative capability is a studio row + routing card, never
-  // an office-body mention. (`create_sketch` can appear via the live pulse
-  // line's first-win hint, so containment is asserted on the pulseless body.)
+describe('the one body (3.1.0): no office wing, no bot, every FORM and entry tool', () => {
   const STUDIO_ENTRY_TOOLS = [
     'create_sketch',
     'sketch_what_possible',
@@ -791,23 +792,14 @@ describe('studio containment (orientation-containment C1) — office pays no cre
     'forge_publications',
   ];
 
-  it('office body names no creative entry tool, but carries the studio hook row', () => {
-    const office = buildForwardContextBody({ mode: 'office' });
-    for (const tool of STUDIO_ENTRY_TOOLS) {
-      expect(office, `office body leaks creative entry tool \`${tool}\``).not.toContain(tool);
+  it('routes to no retired office tool and no chatbot-factory tool, even for a retired office read', async () => {
+    const { RETIRED_OFFICE_TOOLS } = await import('@/lib/mcp/packs');
+    for (const mode of [undefined, 'office']) {
+      const body = buildForwardContextBody({ mode });
+      for (const name of RETIRED_OFFICE_TOOLS) expect(body, name).not.toContain(`\`${name}\``);
+      for (const name of REMOVED_BOT_TOOLS) expect(body, name).not.toContain(`\`${name}`);
+      expect(body).not.toContain("forward_context({mode:'office'})");
     }
-    // The studio is the DEFAULT read now, so the office hook points at the
-    // no-mode call rather than at an explicit mode.
-    expect(office).toContain('forward_context()');
-    expect(office).toContain('get_creative_toolset');
-  });
-
-  it('the office wing says chatbots are not built here and names no bot tool', () => {
-    // Routing honesty: the chatbot factory left mojulo in 3.0.0, so an agent must not
-    // promise a bot, and no row may send it to a removed tool.
-    const office = buildForwardContextBody({ mode: 'office' });
-    expect(office).toMatch(/Chatbots are not built here|chatbot factory left mojulo/i);
-    for (const name of REMOVED_BOT_TOOLS) expect(office, name).not.toContain(`\`${name}`);
   });
 
   it('studio body is standalone: spine (floor + safety) present in every cell', () => {
@@ -820,8 +812,9 @@ describe('studio containment (orientation-containment C1) — office pays no cre
           );
         }
         expect(body).toContain('## Standing safety rules');
-        // Pointer across to the office wing (now the explicit-mode one).
-        expect(body).toContain("forward_context({mode:'office'})");
+        // The Workflows row: the chain written once reaches execute_plan from the body.
+        expect(body).toContain('WORKFLOW');
+        expect(body).toContain('`execute_plan`');
       }
     }
   });
