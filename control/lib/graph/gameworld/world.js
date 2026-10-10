@@ -21,7 +21,7 @@
  *
  *   gameworld: {
  *     id, name?, seed?,
- *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, land?: { <form>: variant | many | { variant?, many? } } },
+ *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, weather?: '<climate>' | {…}, land?: { <form>: variant | many | { variant?, many? } } },
  *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…}, builds?, technology? } },
  *     levels: { '<id>': {
  *       name?, seed?,                     // the seed derives from the world's and the level's id unless named
@@ -59,6 +59,7 @@ import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick } from './quick.js';
 import { readMechanics } from './mechanics.js';
+import { readWeather } from '../weather/weather.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -67,6 +68,7 @@ export const WORLD_STYLE = Object.freeze({
   trail: 'the ground\'s character on a trail: run, heartbeat, bumpiness',
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
+  weather: 'what the sky does: a climate\'s name or { climate, dwell?, blend?, start?, surface? } (weather/weather.js); a level and a section may name their own',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit into a look of its own, which the ground is drawn in',
 });
 /** A civilization: what it builds, and how. */
@@ -124,6 +126,7 @@ function readStyle(s, at) {
       if (!stageKit(id) || !stageKit(id).shell) throw new Error(`gameworld: ${at}.kit '${v}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].shell).join(', ')})`);
       out.kit = id;
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
+    else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
@@ -321,8 +324,10 @@ export function resolveLevel(world, id) {
     if (section === 'trail') readOutTrail(recipe); else readLocalMeru(recipe);
     nodes[nid] = { ...n, [section]: recipe };
   }
-  const level = { ...L.walk, kit: style.kit, seed, nodes };
-  readLevel(level);
+  // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
+  const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}) };
+  const lv = readLevel(level);
+  for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 
   // the places: the town built by its civilization, its castle raised by its own (the town's unless named)
   let town = null, built = null;

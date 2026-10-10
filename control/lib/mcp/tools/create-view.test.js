@@ -47,8 +47,11 @@ describe('view-vocab cards ↔ VIEW_KINDS / compose_world bases', () => {
       expect(card.entry).toBe('compose_world');
     }
     // the generated stage cards (era/entries.js) share the family but not the entry: a stage is minted as a recipe
-    const worldCards = [...catalog.values()].filter((c) => c.family === 'world' && !c.generated);
+    // (and the cards for a kind-generic CHANNEL any base takes through `overrides`: a manual, not a base; each is named here)
+    const CHANNEL_CARDS = ['weather'];
+    const worldCards = [...catalog.values()].filter((c) => c.family === 'world' && !c.generated && !CHANNEL_CARDS.includes(c.id));
     expect(worldCards.map((c) => c.id).sort()).toEqual([...WORLD_BASES].sort());
+    for (const id of CHANNEL_CARDS) expect(catalog.get(id), `channel card '${id}'`).toMatchObject({ family: 'world', entry: 'compose_world' });
   });
 
   it('card families match VIEW_KINDS families', () => {
@@ -137,10 +140,10 @@ describe('get_view_vocab reader', () => {
     const entries = generated.filter((c) => c.family === 'entry').length, stage = generated.filter((c) => c.family === 'world').length;
     expect(entries).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(0);
-    expect(all.cards.length).toBe(63 + entries + stage);
+    expect(all.cards.length).toBe(64 + entries + stage);   // (64: weather, a channel card, 2026-10-09)
     const world = await getViewVocabHandler({ family: 'world' });
-    expect(world.cards.length).toBe(10 + stage);
-    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(10);
+    expect(world.cards.length).toBe(11 + stage);
+    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(11);   // the bases and the weather channel card
     expect(world.cards.filter((c) => c.entry !== 'compose_world').every((c) => c.entry === 'create_sketch')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();

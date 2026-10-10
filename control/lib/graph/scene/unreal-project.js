@@ -240,10 +240,12 @@ def light_rig(score=None):
             sun.light_component.set_editor_property('light_color', unreal.Color(r=255, g=190, b=140, a=255))
     except Exception as e:
         unreal.log_warning('[mojulo] sun setup: ' + str(e))
+    fog_comp = None
     if preset and preset != 'interior':
         try:
             fog = spawn(unreal.ExponentialHeightFog, unreal.Vector(0, 0, 0), 'MojuloFog')
             comp = fog.get_editor_property('component')
+            fog_comp = comp
             comp.set_editor_property('fog_density', 0.008 if preset == 'night' else 0.004)
             comp.set_editor_property('fog_height_falloff', 0.2)
             if preset == 'night':
@@ -251,6 +253,28 @@ def light_rig(score=None):
             unreal.log('[mojulo] sky preset ' + str(preset) + ': sun pitch ' + str(pitch) + ', height fog')
         except Exception as e:
             unreal.log_warning('[mojulo] height fog: ' + str(e))
+    # the world's weather (score.weather, weather-score.js): the state the schedule opens in, as the editor-time rig can hold
+    # it: the height fog thickened by the state's factor and tinted its colour, the sun dimmed by the light the state takes
+    # off. The schedule's timeline rides the score for a Blueprint to play; falls and lightning stay the web build's.
+    wx = score.get('weather') if isinstance(score, dict) else None
+    if isinstance(wx, dict) and preset != 'interior':
+        try:
+            now = wx.get('now')
+            st = next((s for s in (wx.get('states') or []) if s.get('name') == now), None)
+            if st:
+                if fog_comp is None:
+                    fog = spawn(unreal.ExponentialHeightFog, unreal.Vector(0, 0, 0), 'MojuloFog')
+                    fog_comp = fog.get_editor_property('component')
+                    fog_comp.set_editor_property('fog_height_falloff', 0.2)
+                fog_comp.set_editor_property('fog_density', 0.004 * float(st.get('fog', 1.0)))
+                c = st.get('color') or [0.7, 0.75, 0.8]
+                lin = [max(0.0, float(v)) ** 2.2 for v in c[:3]]
+                fog_comp.set_editor_property('fog_inscattering_luminance', unreal.LinearColor(lin[0], lin[1], lin[2], 1.0))
+                off = 1.0 - min(0.7, float(st.get('dim', 0.0)) * 0.7)
+                sun.light_component.set_editor_property('intensity', float(sun.light_component.get_editor_property('intensity')) * off)
+                unreal.log('[mojulo] weather ' + str(now) + ': fog x' + str(st.get('fog')) + ', light x' + str(round(off, 2)))
+        except Exception as e:
+            unreal.log_warning('[mojulo] weather: ' + str(e))
     if preset in ('night', 'interior'):
         # auto-exposure would lift a moonlit street or a fire-lit cave to daylight; an unbound post
         # volume biases it down so dark READS as dark (the one documented default; the operator dials it)

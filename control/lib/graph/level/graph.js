@@ -17,6 +17,7 @@
  * `id` and `after`: the node's key is its id, and the graph says what it follows.
  */
 import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
+import { readWeather } from '../weather/weather.js';
 
 export const LEVEL_LAYOUTS = Object.freeze(['sequential']);
 export const LEVEL_SECTIONS = Object.freeze(['trail', 'meru']);
@@ -24,7 +25,7 @@ export const LEVEL_EDGES = Object.freeze({ seam: 'the next section starts where 
 export const SPAWN_AT = Object.freeze(['entry']);
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const KEYS = ['layout', 'kit', 'seed', 'root', 'nodes', 'edges', 'spawn'];
+const KEYS = ['layout', 'kit', 'seed', 'root', 'nodes', 'edges', 'spawn', 'weather'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** A kit id as the level reads it: known, and resolved from any older name. */
@@ -43,6 +44,9 @@ export function readLevel(L) {
   const kit = L.kit === undefined ? 'isekai-meadow' : kitOf('level', L.kit);
   if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error('level: seed is a number');
   const seed = L.seed === undefined ? 1 : L.seed;
+  // the sky (weather/weather.js): the level's, a node's own over it; every section's stage takes it, and so shares the level's
+  // seed, hence its sky: the level's own clock, seeded from the world's through the level's seed
+  const weather = L.weather === undefined ? null : readWeather(L.weather, 'level.weather');
 
   // NODES: each one section, keyed by its id
   if (!isObj(L.nodes) || !Object.keys(L.nodes).length) throw new Error('level: nodes is { <id>: { trail | meru, kit?, seed? } }, at least one');
@@ -53,13 +57,14 @@ export function readLevel(L) {
     if (!isObj(n)) throw new Error(`level: ${at} is { ${LEVEL_SECTIONS.join(' | ')}, kit?, seed? }`);
     const sections = LEVEL_SECTIONS.filter((s) => n[s] !== undefined);
     if (sections.length !== 1) throw new Error(`level: ${at} is one section: ${LEVEL_SECTIONS.join(' or ')}${sections.length ? ` (it names ${sections.join(' and ')})` : ''}`);
-    for (const k of Object.keys(n)) if (!['kit', 'seed', ...LEVEL_SECTIONS].includes(k)) throw new Error(`level: ${at}.${k} is not a node setting (settings: ${LEVEL_SECTIONS.join(' | ')}, kit, seed)`);
+    for (const k of Object.keys(n)) if (!['kit', 'seed', 'weather', ...LEVEL_SECTIONS].includes(k)) throw new Error(`level: ${at}.${k} is not a node setting (settings: ${LEVEL_SECTIONS.join(' | ')}, kit, seed, weather)`);
     const section = sections[0], raw = n[section];
     if (raw !== true && !isObj(raw)) throw new Error(`level: ${at}.${section} is its section's recipe (or true)`);
     const recipe = raw === true ? {} : { ...raw };
     for (const k of ['id', 'after']) if (recipe[k] !== undefined) throw new Error(`level: ${at}.${section}.${k}: the graph owns it (the node's key is its id; an edge says what it follows)`);
     if (n.seed !== undefined && !Number.isFinite(n.seed)) throw new Error(`level: ${at}.seed is a number`);
-    nodes[id] = { id, section, recipe, kit: n.kit === undefined ? kit : kitOf(at, n.kit), seed: n.seed === undefined ? seed : n.seed };
+    const sky = n.weather === undefined ? weather : readWeather(n.weather, `${at}.weather`);
+    nodes[id] = { id, section, recipe, kit: n.kit === undefined ? kit : kitOf(at, n.kit), seed: n.seed === undefined ? seed : n.seed, ...(sky ? { weather: sky } : {}) };
   }
 
   // ROOT: node 0
@@ -96,7 +101,7 @@ export function readLevel(L) {
     spawn = { node: L.spawn.node, at };
   }
 
-  return { layout, kit, seed, root, nodes, ids, edges, spawn };
+  return { layout, kit, seed, root, nodes, ids, edges, spawn, ...(weather ? { weather } : {}) };
 }
 
 /** The look a kit draws its open ground in (a trail followed is planned in its follower's look). */

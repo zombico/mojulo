@@ -159,7 +159,7 @@ export function audioFeatures(audio) {
   addGestures(set, audio.jump && audio.jump.land);
   addGestures(set, audio.dodge);
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
-  if (audio.vary) set.add('sfx');
+  if (audio.vary || audio.weather) set.add('sfx');
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
 }

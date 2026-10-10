@@ -182,6 +182,33 @@ Equipment is made once the stats stand: each class of gear raises a stat by tier
   has no such guard); how hard a power lands waits for targets; the page draws the HP bar once the body publishes its
   health to the bus.
 
+### World weather: a climate in the bible, fog that moves, rain on camera
+
+- **Why.** Weather was a status a body wore (a rain cloud over the hero) or a moment at a spot (a strike). The world's air was fixed when it was built: one fog, day or night, and "stormy" in a prompt only chose a cloud.
+- **States in values.** `weather/weather.js` names what the sky can do: clear, haze, overcast, mist, fog, drizzle, rain, downpour, thunderstorm, snow, blizzard, dust, duststorm, petals, leaves.
+  - Each state is designed in values, never hue: how thick the fog, the value it takes, how dim the light, what falls (its glyph, rate, size, speed, slant, and what it does when it lands), the wind, the lightning.
+  - The style guide colours it, as it colours everything else.
+- **A climate on a dice roll.** A climate weighs states (or names a preset: temperate, monsoon, alpine, desert, spring-blossom, autumn, storm-coast).
+  - `weatherAt(W, seed, t)` cuts time into slots, rolls each slot's dwell and state with its own dice, and blends into the next. The same seed gives the same sky at every moment, in node and on the page.
+- **In the bible.** `style.weather` is a climate's name or `{ climate, dwell?, blend?, start?, surface? }`; a level may name its own and the ledger records it.
+  - Prompt words (rainy, foggy, stormy, snowy, dusty, monsoon, autumn, blossom…) set it beside the clouds.
+  - The Natural world section gains a Weather card (each state as a grey still, and the first twenty minutes of the dice) when the world has a climate.
+- **On the page.** A world recipe's `weather` (a climate's name or the same object) plays on the live World page, a pure function of the world clock and the seed.
+  - The fog thickens and thins and takes the state's value, the light dims, rain streaks and snow, dust and petals fall round the camera, landings ring on the ground, storms flash.
+  - Absent `weather` adds not a byte to the page.
+- **Cues.** `then: { weather: 'blizzard' }` (or `{ is, for?, blend? }`) forces a state, for `for` seconds or until the cue ends; `when: { every: 300 }` is a heartbeat the bus lacked.
+  - "Entering the pass starts a blizzard until you leave" and "every 300 s the fog rolls in" are one cue each. The sky eases in from what was showing and back out to its schedule.
+- **The air is the style's.** The style guide owns an air card per kit (`era/air.js`, `airOfKit`): the fog's hue, the world's shade (the style's ambient, never black), how the fog is drawn (smooth, banded in flat planes, or dithered), what a dust storm or a blizzard is in that style, and how strong cast shadows are. The weather asks the card and holds no colour; `weather.air` tunes it.
+  - A cel kit gets banded fog in its own steps and a blue shade; a painted kit a smooth gradient. A dust storm is the style's ochre, and the light a storm takes off is multiplied in as the shade, never black. Cast shadows fade with the sun and the fog, and the sky gives way to the fog.
+  - The bible's Weather card draws each state in the style's air.
+- **A level's sky.** A level recipe and each of its nodes take `weather`; every section's stage page carries it, and a gameworld level hands its inherited or overridden sky down (the ledger records a section's own). A level's sections share one sky, seeded by the level's seed.
+- **Engine handoff.** The engine score carries the sky (`score.weather`: the schedule's first half hour and each state in the style's air, in metres). The Godot kernel (0.7.0) and the Unity runtime play its fog, colour and light through the schedule; Unreal's rig opens in its first state; Blender and a bare GLB carry it as data. Falling rain, snow and lightning stay the web build's, and the ledger says so.
+- **Reachable by an agent.** `compose_world` takes `overrides.weather` on any base (a bad climate refuses the mint, teaching), `update_sketch` refuses a bad one the same way, and the intent routes through a `weather` card to its manual (`get_view_vocab({ id: 'weather' })`).
+- **A gallery.** `node scripts/weather-gallery.mjs <dir>` writes standalone pages (a cel, a painted, an alien-night and a dithered pixel style) and an index: every state held, every climate played a minute a second.
+- **Sound from principles.** `audio: { weather: true }` rolls the sky's sound on the page (`beats/weather-audio.js`, card `beats-weather`), with no sampled audio and no kernel change.
+  - A bed, a rain of small drops and rare thunder. Intensity is the rate of drops, size is their band, the surface (leaf, stone, tin, water, sand, snow) is the resonance, and distance is lowpass, delay and length.
+  - The world's seed picks this world's rain; each event jitters round it, so two storms sound alike and never the same.
+
 ### Realistic ground: the opposite pole of the isekai look
 
 - **Why.** The isekai look carries its ground on grass cards and pixel tiles. On bare ground (a desert, a clay plain) the mesh underneath showed through:

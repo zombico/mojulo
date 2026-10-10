@@ -318,3 +318,29 @@ describe('world-scene — the play block on a world with its own events', () => 
     }
   });
 });
+
+describe('world-scene — generic opt-in weather channel', () => {
+  const orbit = (more = {}) => sketch({ kind: 'orbit-view', scenario: 'circular', ...more });
+  it('carries a read weather and a seed to the page, and emits nothing without one', async () => {
+    const none = await resolveWorldScene(orbit());
+    expect(none.payload.weather).toBeUndefined();
+    const { payload } = await resolveWorldScene(orbit({ seed: 9, weather: 'monsoon' }));
+    expect(payload.weather.seed).toBe(9);
+    expect(payload.weather.weather.climate).toMatchObject({ rain: 3, downpour: 3 });
+    expect(emitThreeWorld(payload)).toContain('window.__mojWeather');
+    expect(emitThreeWorld(none.payload)).not.toContain('window.__mojWeather');
+  });
+  it('the air is the style\'s: a kit\'s card, tuned by weather.air, else made of the haze at emit', async () => {
+    const { payload } = await resolveWorldScene(orbit({ kit: 'isekai-meadow', weather: { climate: 'temperate', air: { shade: '#223344', cast: 0.5 } } }));
+    expect(payload.weather.air).toMatchObject({ body: 'banded', hue: '#b4d8f0', shade: '#223344', cast: 0.5 });
+    const bare = await resolveWorldScene(orbit({ weather: 'temperate' }));
+    expect(bare.payload.weather.air).toBeUndefined();
+    expect(emitThreeWorld({ ...bare.payload, haze: { color: '#445566', density: 0.01 } })).toContain('"hue":"#445566"');
+  });
+  it('a weather of null or false is no weather (the channel drops, the world still renders)', async () => {
+    for (const weather of [null, false]) expect((await resolveWorldScene(orbit({ weather }))).payload.weather).toBeUndefined();
+  });
+  it('refuses a weather it cannot read, saying what the climates are', async () => {
+    await expect(resolveWorldScene(orbit({ weather: 'sleet' }))).rejects.toThrow(/neither a climate/);
+  });
+});

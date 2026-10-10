@@ -37,6 +37,8 @@ import { speak } from '../era/out-anchor-structure.js';
 import { drawStructures } from '../era/out-structures-draw.js';
 import { buildBlock, blockPaint } from '../era/blocks.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
+import { weatherCardHtml } from './weather-card.js';
+import { airOfKit } from './style-guide.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
@@ -222,7 +224,7 @@ ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><d
 <details><summary>The graph as an outline</summary><pre>${esc(graphOutline(graph))}</pre></details>
 <details><summary>The graph as a flowchart (Mermaid)</summary><pre>${esc(graphMermaid(graph))}</pre></details>
 <script type="application/json" id="gameworld-graph">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script></section>
-<section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}</div></section>
+<section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}${G.style.weather ? weatherCardHtml(G.style.weather, G.seed, airOfKit(G.style.kit, G.style.weather.air)) : ''}</div></section>
 <section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civHtml}</section>
 <section class="part" id="key"><div class="part-h"><span class="eyebrow">Style and color key ${stamp('key')}</span><h2>Every ramp, and what it paints</h2></div><div class="cards">${keyHtml}</div></section>
 ${levels}
@@ -288,6 +290,7 @@ pre{font:12px/1.5 var(--mono);white-space:pre;overflow-x:auto;margin:10px 0 0}
 .ledger{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:14px}.ledger b{font:500 12px var(--mono);color:var(--local)}.ledger span{color:var(--muted);font-size:12.5px}.ledger em{font:normal 11px var(--mono);color:var(--muted)}
 .own{display:grid;gap:8px;border-top:1px dashed var(--rule);padding-top:12px}
 .card.open{border-style:dashed;background:transparent}
+.sw{display:inline-block;width:11px;height:11px;border:1px solid var(--rule);margin:0 4px -1px 2px}.wxs{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}.wx{margin:0;display:grid;gap:6px;font-size:13px}.wx svg{width:100%;display:block;border:1px solid var(--rule)}
 .gate{background:var(--sheet);border:1px solid var(--rule);border-top:3px solid var(--ink);border-radius:4px;padding:14px 16px;display:grid;gap:10px}.gate-h{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline}
 .mode{font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:3px;border:1.5px solid var(--ink)}.mode-autonomous{background:var(--ink);color:var(--sheet)}
 .parts{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:6px 18px}.parts li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--rule)}.parts a{color:inherit;font-weight:500}.parts code{font:10px var(--mono);color:var(--muted);margin-left:auto}.parts p{flex-basis:100%;font-size:12.5px}

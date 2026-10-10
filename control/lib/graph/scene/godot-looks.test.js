@@ -48,8 +48,9 @@ describe('the score carries the looks', () => {
 });
 
 describe('the kernel', () => {
-  it('ships looks.gd and look_coat.gdshader at 0.6.0, and level.gd makes the Looks node from the score', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.6.0');
+  it('ships looks.gd and look_coat.gdshader (since 0.6.0), and level.gd makes the Looks node from the score', () => {
+    // the kernel is at 0.7.0 (weather.gd: the sky's fog, colour and light, 2026-10-09); looks arrived at 0.6.0
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.7.0');
     const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8'), looks = fs.readFileSync(path.join(KERNEL, 'looks.gd'), 'utf8');
     expect(level).toContain('load("res://kernel/looks.gd")');
     expect(level).toMatch(/score\.has\("looks"\) or score\.has\("transits"\)/);
@@ -71,4 +72,13 @@ describe('the kernel', () => {
     expect(lines[1]).toMatch(/worn=0 overlays=0 lit=0 billboards=0 runs=0 fade=0\.00 visible=true gone=4/);
     fs.rmSync(dir, { recursive: true, force: true });
   }, 120000);
+});
+
+describe('the kernel plays the weather', () => {
+  it('level.gd builds the weather node from score.weather, and weather.gd eases fog, colour and light through the timeline', () => {
+    const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8'), wx = fs.readFileSync(path.join(KERNEL, 'weather.gd'), 'utf8');
+    expect(level).toContain('preload("res://kernel/weather.gd")');
+    expect(level).toContain('score.get("weather")');
+    for (const f of ['func state_at(', 'func look_at(', 'env.fog_density', 'env.fog_light_color', 'light_energy']) expect(wx).toContain(f);
+  });
 });

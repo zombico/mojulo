@@ -37,6 +37,9 @@ import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
+import { readWeather } from '@/lib/graph/weather/weather';
+import { airCard } from '@/lib/graph/era/air';
+import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
 import { declaredUnits, metersPerUnitFor } from '@/lib/graph/scene/world-units';
@@ -944,6 +947,26 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { resolveSpriteSfxLayers } = await import('@/lib/graph/game/glyph-sfx-sprites');
     const layers = resolveSpriteSfxLayers(sketch.manifest.sfx, sketch.manifest.entities);
     if (layers.length) payload.spriteSfx = layers;
+  }
+
+  // generic, opt-in WEATHER channel: the world's sky (weather/weather.js). A manifest may carry `weather` (a climate's
+  // name, or { climate, dwell?, blend?, start?, surface? }): the page eases its fog, falls rain, snow, dust or petals
+  // round the camera and lights the storms, every moment a pure function of the world clock and the seed (the
+  // manifest's, else the sketch ref's). Live only (the stills ignore it, and are not degraded: no frame is missing).
+  // Additive; absent ⇒ the emitted page is byte-identical.
+  if (payload && sketch.manifest.weather != null && sketch.manifest.weather !== false) {
+    const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
+    const W = readWeather(sketch.manifest.weather, 'weather');
+    // the air is the STYLE's (era/air.js: fog colour and body, the shade, what a state's air is): a kit's style card, or a
+    // sixth-gen look's reference; a world with neither gets one made of its haze at emit. `weather.air` tunes either.
+    const kit = sketch.manifest.kit ?? (sketch.manifest.stage && sketch.manifest.stage.kit);
+    let air = null;
+    if (kit) air = (await import('@/lib/graph/gameworld/style-guide')).airOfKit(kit, W.air);
+    if (!air && sketch.manifest.look) {
+      const ref = resolveLookSpec(sketch.manifest.look).ref;
+      air = airCard({ air: ref.air, light: ref.light }, W.air);
+    }
+    payload.weather = { weather: W, seed, ...(air ? { air } : {}) };
   }
 
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient

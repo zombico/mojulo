@@ -42,12 +42,12 @@ export function sequentialLevel(recipe) {
         if (styleOfKit(prev.kit) !== styleOfKit(n.kit)) throw new Error(`level: sequential: '${prev.node}' (${prev.kit}) to '${id}' (${n.kit}): two trails in a row are drawn in one look; a seam between looks is not drawn yet`);
         recipe.after = { ...prev.recipe, seed: prev.seed };
       }
-      manifest = { kind: 'stage', kit: n.kit, seed: n.seed, trail: recipe };
+      manifest = { kind: 'stage', kit: n.kit, seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}) };
       prev = { node: id, section: 'trail', recipe, kit: n.kit, seed: n.seed };
     } else {
       const meru = { ...n.recipe, id };
       if (prev) meru.after = { trail: prev.recipe, kit: styleOfKit(prev.kit), seed: prev.seed };
-      manifest = { kind: 'stage', kit: n.kit, seed: n.seed, meru };
+      manifest = { kind: 'stage', kit: n.kit, seed: n.seed, meru, ...(n.weather ? { weather: n.weather } : {}) };
       prev = { node: id, section: n.section };
     }
     stages.push({ node: id, section: n.section, manifest });

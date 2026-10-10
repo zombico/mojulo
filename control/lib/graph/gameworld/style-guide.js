@@ -15,6 +15,7 @@ import { townLanguage } from '../era/out-town.js';
 import { composeFort } from '../era/out-fortress.js';
 import { influenceOf } from '../era/out-castle.js';
 import { OUT_TRAIL } from '../era/out-trail.js';
+import { airCard } from '../era/air.js';
 
 const SHELLS = { nature: NATURE_STYLES, isekai: ISEKAI_STYLES, jungle: JUNGLE_STYLES };
 const hex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
@@ -33,6 +34,14 @@ export function kitCard(kit) {
     if (Array.isArray(r) && Array.isArray(r[0])) ramps.push({ name, stops: r.map(hex) });
   }
   return { kind: 'kit', id: kit, look: K.style, shell: K.shell, principles: [...(card.principles || [])], ramps };
+}
+
+/** A kit's AIR card (era/air.js): how its style draws fog and the world's shade, a tuning (`style.weather.air`) laid over.
+ *  null for a kit with no style card. The weather asks this; the weather itself holds no colour. */
+export function airOfKit(kit, tuning = {}) {
+  let S = null;
+  try { const K = stageKit(kit); S = SHELLS[K.shell]?.[K.style] ?? lookOf(kit)?.card ?? null; } catch { S = null; }
+  return S ? airCard(S, tuning) : null;
 }
 
 /** The language's card: how its houses read, and the elements its town is built of. */

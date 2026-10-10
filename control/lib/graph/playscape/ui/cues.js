@@ -14,6 +14,7 @@
  *          | { var: '<name>', gte | gt | lte | lt | eq | ne }               a value crosses a line
  *          | { on: '<event>', match? }                                      any bus event
  *          | { start: true }                                                the level starts
+ *          | { every: <seconds> }                                           a heartbeat: each time that many seconds pass
  *          | { down | gone | spawned | stuck: '<who>' } | { arrive: '<who>' | { who, at? } }   the cast (cast.js)
  *          | { levelled | bought | denied | epoch | opened: … }              the stats (stats/stats.js)
  *     then:  effect | [effect, …]:
@@ -23,6 +24,7 @@
  *            { phase: '<phase>' }                                              the level's phase
  *            { open: '<menu id>' } | { close: '<menu id>' | true }             a menu (menus.js) comes up or goes
  *            { set: '<var>', to } | { emit: '<event>' }                        the game's own state, for its rules to read
+ *            { weather: '<state>' | { is, for?, blend? } }                     the sky takes a state (weather/weather.js) for `for` seconds, or until the cue ends
  *            { spawn | vanish | kill | hurt | heal | walk | stop: … }        the cast: a character (cast.js)
  *            { raise | grant | xp | level | buy: … }                       the stats (stats/stats.js); a cast number may be a scaling
  *     until?: a when | { ttl },                                             the effects end (shown → hidden, a prompt goes)
@@ -44,6 +46,7 @@
  *                            in a later step)
  */
 import { UI_STATES } from './parts.js';
+import { STATE_NAMES } from '../../weather/weather.js';
 import { regionOf, HUD_REGIONS } from './regions.js';
 import { CAST_WHEN, CAST_THEN, readCastWhen, readCastEffect, castFire, lowerCastEffect } from './cast.js';
 import { readLooks } from '../elements/elements.js';
@@ -60,6 +63,7 @@ export const CUE_WHEN = Object.freeze({
   var: 'a value crosses a line: { var, gte | gt | lte | lt | eq | ne }, each time it becomes true',
   on: 'any bus event (a glob), with match: { field: pattern }',
   start: 'the level starts',
+  every: 'a heartbeat: each time that many seconds pass, for as long as the level runs (the loop the bus lacked: "every 300 s the fog rolls in")',
   ...CAST_WHEN,
   ...STAT_WHEN,
 });
@@ -73,12 +77,18 @@ export const CUE_THEN = Object.freeze({
   close: 'a menu goes (by id, or true for whichever is up)',
   set: 'a game var takes a value ({ set: var, to }), for the game\'s rules to read',
   emit: 'a bus event, for the game\'s rules to react to',
+  weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
   ...STAT_THEN,
 });
 export const SAY_AS = Object.freeze(['banner', 'toast', 'prompt']);
 export const PROMPT_TTL = 4;
 export const PHASE_VAR = 'phase';
+/** The bus vars the page's sky reads: the state a cue forces ('' = the schedule's own), and how long the change takes. Each
+ *  cue has its own pair (`weather-force:<event>`), so one cue's end or timer never clears another's; the page takes the
+ *  newest force that is still set. */
+export const WEATHER_VAR = 'weather-force', WEATHER_BLEND_VAR = 'weather-blend';
+export const weatherVar = (on) => `${WEATHER_VAR}:${on}`, weatherBlendVar = (on) => `${WEATHER_BLEND_VAR}:${on}`;
 export const cueVar = (part, state = false) => `ui-${part}${state ? '-state' : ''}`;
 export const menuVar = (menu) => `ui-menu-${menu}`;
 export const ANCHOR_REACH = 1.5;   // m round an anchor named with no r: arm's length and a step
@@ -132,6 +142,10 @@ function readWhen(w, where, ctx = {}) {
     if (w.match !== undefined && !isObj(w.match)) throw new Error(`${where}.match is { field: pattern }`);
     return { kind: 'on', on: w.on, match: w.match || null };
   }
+  if (k === 'every') {
+    if (!(Number.isFinite(w.every) && w.every >= 1)) throw new Error(`${where}.every is seconds, 1 or more`);
+    return { kind: 'every', every: w.every };
+  }
   if (w.start !== true) throw new Error(`${where}.start is true`);
   return { kind: 'start' };
 }
@@ -180,6 +194,14 @@ export function readEffect(t, where, ctx = {}) {
     if (!(typeof t.to === 'number' || typeof t.to === 'string' || typeof t.to === 'boolean')) throw new Error(`${where}.to is a number, a word or true / false`);
     return { kind: 'set', var: t.set, to: t.to, page: true };
   }
+  if (k === 'weather') {
+    const o = typeof t.weather === 'string' ? { is: t.weather } : t.weather;
+    if (!isObj(o)) throw new Error(`${where}.weather is a state (${STATE_NAMES.join(', ')}) or { is, for?, blend? }`);
+    for (const x of Object.keys(o)) if (!['is', 'for', 'blend'].includes(x)) throw new Error(`${where}.weather.${x} is not a weather effect setting (is, for, blend)`);
+    if (!STATE_NAMES.includes(o.is)) throw new Error(`${where}.weather.is '${o.is}' is not a state (${STATE_NAMES.join(', ')})`);
+    for (const x of ['for', 'blend']) if (o[x] !== undefined && !(Number.isFinite(o[x]) && o[x] >= (x === 'for' ? 1 : 0))) throw new Error(`${where}.weather.${x} is seconds${x === 'for' ? ', 1 or more' : ''}`);
+    return { kind: 'weather', is: o.is, for: o.for ?? null, blend: o.blend ?? null, page: true };
+  }
   if (k === 'emit') {
     if (!isStr(t.emit)) throw new Error(`${where}.emit is a bus event's name`);
     return { kind: 'emit', event: t.emit, page: true };
@@ -220,6 +242,7 @@ export function readCues(play, phases = (play && play.phases) || ['playing']) {
     const when = readWhen(c.when, `${where}.when`, ctx);
     const then = (Array.isArray(c.then) ? c.then : [c.then]).map((t, k) => readEffect(t, `${where}.then${Array.isArray(c.then) ? `[${k}]` : ''}`, ctx));
     if (!then.length) throw new Error(`${where}.then is one effect or a list of them`);
+    if (then.filter((t) => t.kind === 'weather').length > 1) throw new Error(`${where}.then forces one weather: a cue that changes the sky twice is two cues`);
     let until = null;
     if (c.until !== undefined) {
       if (isObj(c.until) && Object.keys(c.until).length === 1 && c.until.ttl !== undefined) {
@@ -250,7 +273,7 @@ function usePlace(w, zoneId, anchors) {
 
 // the bus side of a happening: the events that fire it, as reactions emitting `type`, plus the sources it needs
 function fire(w, type, zoneId, anchors, player = null) {
-  const out = { sources: [], reactions: [], watches: [], initial: [] };
+  const out = { sources: [], reactions: [], watches: [], initial: [], timers: [] };
   if (w.kind === 'enter' || w.kind === 'near' || w.kind === 'leave') {
     const zone = w.zone || zoneId;
     // an anchor's zone is a disc round it, where the built map put it (unplaced, nothing fires: the laws say so)
@@ -270,12 +293,13 @@ function fire(w, type, zoneId, anchors, player = null) {
   else if (w.kind === 'on') out.reactions.push({ on: w.on, ...(w.match ? { match: w.match } : {}), do: 'emit', type });
   else if (w.kind === 'var') out.watches.push({ type, when: Object.fromEntries(['var', ...CMP].filter((k) => w[k] !== undefined).map((k) => [k, w[k]])) });
   else if (w.kind === 'start') out.initial.push({ type });
+  else if (w.kind === 'every') out.timers.push({ every: w.every, emit: { type } });
   else if (CAST_WHEN[w.kind]) out.reactions.push(castFire(w, type));
   else if (STAT_WHEN[w.kind]) out.reactions.push(statFire(w, type));
   return out;
 }
 
-const emptyFrag = () => ({ vars: {}, sources: [], reactions: [], watches: [], initial: [], sequences: [], hud: [] });
+const emptyFrag = () => ({ vars: {}, sources: [], reactions: [], watches: [], initial: [], sequences: [], hud: [], timers: [] });
 const shown = UI_STATES.indexOf('shown');
 
 /**
@@ -301,6 +325,15 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     }
     if (t.kind === 'set') { frag.reactions.push({ on, do: 'set', var: t.var, to: t.to }); continue; }
     if (t.kind === 'emit') { frag.reactions.push({ on, do: 'emit', type: t.event }); continue; }
+    if (t.kind === 'weather') {
+      // the page's sky reads two vars: the state forced, and the change's length; cleared after `for`, or when the cue ends
+      const fv = weatherVar(on), bv = weatherBlendVar(on);
+      frag.vars[fv] ??= ''; frag.vars[bv] ??= -1;
+      frag.reactions.push({ on, do: 'set', var: bv, to: t.blend ?? -1 }, { on, do: 'set', var: fv, to: t.is });
+      if (t.for) frag.sequences.push({ id: `weather-${on}`, scope: `weather-${on}`, trigger: { on }, steps: [{ await: { timer: t.for } }, { do: 'set', var: fv, to: '' }] });
+      if (end) frag.reactions.push({ on: end, do: 'set', var: fv, to: '' });
+      continue;
+    }
     if (t.kind === 'close' && !t.menu) {
       for (const m of menuIds) { if (!(menuVar(m) in frag.vars)) frag.vars[menuVar(m)] = 0; frag.reactions.push({ on, do: 'set', var: menuVar(m), to: 0 }); }
       continue;
@@ -324,7 +357,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
   const cues = readCues(play, phases);
   if (!cues.length) return null;
   const { menuIds } = effectContext(play, phases), frag = emptyFrag();
-  const add = (f) => { for (const k of ['sources', 'reactions', 'watches', 'initial']) frag[k].push(...f[k]); };
+  const add = (f) => { for (const k of ['sources', 'reactions', 'watches', 'initial', 'timers']) frag[k].push(...f[k]); };
   for (const c of cues) {
     const on = `cue:${c.id}`, end = `cue-end:${c.id}`, zone = `cue-${c.id}`;
     // once: the happening fires a hit; a watch on the count of hits fires the cue the first time only

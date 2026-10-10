@@ -2,6 +2,7 @@ import { emitBeatsKernel } from '../../beats/beats-kernel.js';
 import { audioFeatures, pagePatches } from '../../beats/beats-features.js';
 import { MSG_AUDIO as GAME_MSG_AUDIO } from '../../game/level-contract.js';
 import { safeJson } from '../emit-util.js';
+import { weatherAudioScript } from '../../beats/weather-audio.js';
 
 // audio channel (beats.plan.md): synthesized WebAudio presence over the live World — an ambient
 // soundtrack, bus-event SFX stingers, gait/walk footsteps, and wind. Emitted ONLY when the payload
@@ -355,7 +356,7 @@ if (__AUDIO.jump) {
     else __jn.chuffPh = 0;
   })();
 }
-// world bindings (B5.3): sim-state selectors → soundtrack channel macros, evaluated per frame.
+${audio.weather ? weatherAudioScript() + '\n' : ''}// world bindings (B5.3): sim-state selectors → soundtrack channel macros, evaluated per frame.
 // Read-only and one-directional — the binding READS the camera / controllable entities and writes
 // only into the audio engine's B5.2 macro state (tone / level / transpose); nothing flows back into
 // sim state, so bus determinism and capture byte-identity are untouched (capture never emits audio).

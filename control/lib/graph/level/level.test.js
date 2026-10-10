@@ -64,3 +64,21 @@ describe('level graph', () => {
     expect(JSON.stringify(top)).toContain('out-trail:path');
   }, 120000);
 });
+
+describe('a level carries a sky', () => {
+  const nodes = { a: { trail: true }, b: { trail: true }, c: { trail: { heartbeat: 0.5 }, weather: 'alpine' } };
+  it('the level\'s weather is every section\'s, a node\'s own over it, each stage carrying it as its manifest\'s `weather`', () => {
+    const sky = layLevel({ nodes, weather: 'monsoon', seed: 9 }).stages.map((s) => s.manifest.weather.climate);
+    expect(sky[0]).toMatchObject({ rain: 3, downpour: 3 });
+    expect(sky[1]).toMatchObject({ rain: 3, downpour: 3 });
+    expect(sky[2]).toMatchObject({ snow: 3 });
+  });
+  it('a level with none is as it was: no key anywhere', () => {
+    const L = layLevel({ nodes: { a: { trail: true }, b: { trail: true } } });
+    expect(JSON.stringify(L)).not.toContain('weather');
+  });
+  it('says what is wrong with a sky', () => {
+    expect(() => readLevel({ nodes, weather: 'sleet' })).toThrow(/level.weather 'sleet' is neither a climate/);
+    expect(() => readLevel({ nodes: { a: { trail: true, weather: { climate: { hail: 1 } } } } })).toThrow(/nodes.a.weather.climate.hail is not a state/);
+  });
+});

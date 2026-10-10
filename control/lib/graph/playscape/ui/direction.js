@@ -199,7 +199,7 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   const stats = lowerStats(play);
   const vars = { ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };
   if (Object.keys(vars).length) out.vars = vars;
-  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences']) { const v = [...(cues[k] || []), ...(menus[k] || [])]; if (v.length) out[k] = v; }
+  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || [])]; if (v.length) out[k] = v; }
   const pages = menuPages(play);
   if (pages.length) out.menus = pages;
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them

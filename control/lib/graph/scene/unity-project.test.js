@@ -30,7 +30,7 @@ describe('unity emitters', () => {
     expect(a.files.map((f) => f.text)).toEqual(b.files.map((f) => f.text));
     expect(a.files.map((f) => f.file)).toEqual([
       'Editor/MojuloImport.cs',
-      'Runtime/MojuloWalker.cs', 'Runtime/MojuloLevel.cs', 'Runtime/MojuloGame.cs', 'Runtime/MojuloMenu.cs',
+      'Runtime/MojuloWalker.cs', 'Runtime/MojuloLevel.cs', 'Runtime/MojuloWeather.cs', 'Runtime/MojuloGame.cs', 'Runtime/MojuloMenu.cs',
       'Runtime/MojuloRim.shader',
       'IMPORT-GUIDE.md', 'README.md',
     ]);

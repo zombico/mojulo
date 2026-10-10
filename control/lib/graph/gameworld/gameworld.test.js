@@ -22,7 +22,9 @@ describe('gameworld', () => {
     bad(W({ mechanics: { jump: 1 } }), /mechanics: jump is not part of the mechanics/);
     bad(W({ style: { kit: 'gothic-stone' } }), /not an outdoor stage kit/);
     bad(W({ style: { trail: { beats: [] } } }), /trail.beats is not a trail setting a world hands down/);
-    bad(W({ style: { weather: 'rain' } }), /not part of the style/);
+    bad(W({ style: { weather: 'sleet' } }), /gameworld: style.weather 'sleet' is neither a climate/);
+    bad(W({ style: { weather: { climate: { rain: 1, hail: 2 } } } }), /style.weather.climate.hail is not a state/);
+    bad(W({ levels: { a: { style: { weather: { climate: 'monsoon', dwell: [1, 2] } }, walk: { nodes: { t: { trail: true } } } } } }), /a.style.weather.dwell|levels.a.style.weather.dwell/);
     bad(W({ style: { anchor: 'shell' } }), /anchor belongs to a civilization/);
     bad(W({ civilizations: {} }), /at least one/);
     bad(W({ civilizations: { elves: { people: [] } } }), /its people are left open/);
@@ -186,3 +188,47 @@ describe('gameworld', () => {
     expect((a.match(/<figure class="mark">/g) || []).length).toBe(12);
   }, 120000);
 });
+
+describe('gameworld weather', () => {
+  it('a world hands its climate down, a level overrides it and the ledger says so', () => {
+    const w = W({ style: { weather: 'monsoon' }, levels: { a: { walk: { nodes: { t: { trail: true } } } }, b: { style: { weather: 'alpine' }, walk: { nodes: { t: { trail: true } } } } } });
+    const G = readGameworld(w);
+    expect(G.style.weather.climate).toMatchObject({ rain: 3, downpour: 3 });
+    expect(resolveLevel(G, 'a').style.weather).toEqual(G.style.weather);
+    expect(resolveLevel(G, 'a').ledger).toEqual([]);
+    const B = resolveLevel(G, 'b');
+    expect(B.style.weather.climate).toMatchObject({ snow: 3 });
+    expect(B.ledger).toEqual([expect.objectContaining({ scope: 'level', at: 'b', key: 'weather' })]);
+  });
+  it('words in a prompt set the climate; none leaves it out', () => {
+    expect(composeGameworld({ prompt: 'a foggy coast', seed: 2 }).style.weather.climate.fog).toBe(4);
+    expect(composeGameworld({ prompt: 'stormy cliffs', seed: 2 }).style.weather).toBe('storm-coast');
+    expect(composeGameworld({ prompt: 'rolling hills', seed: 2 }).style.weather).toBeUndefined();
+  });
+  it('the bible has a Weather card only when the world has a climate, and it is the same page every time', () => {
+    const w = W({ style: { weather: 'temperate' } });
+    const a = gameworldBibleHtml(w), b = gameworldBibleHtml(w);
+    expect(a).toBe(b);
+    expect(a).toContain('id="guide-weather"');
+    expect(gameworldBibleHtml(W())).not.toContain('guide-weather');
+  });
+});
+
+describe('a level\'s sky reaches its pages', () => {
+  const w = W({ style: { weather: 'monsoon' }, levels: { a: { walk: { nodes: { t: { trail: true }, u: { trail: true, weather: 'alpine' } } } }, b: { style: { weather: 'desert' }, walk: { nodes: { t: { trail: true } } } } } });
+  it('the level recipe carries the sky it inherits or overrides, and the ledger says where a section differs', () => {
+    const G = readGameworld(w), A = resolveLevel(G, 'a'), B = resolveLevel(G, 'b');
+    expect(A.level.weather.climate).toMatchObject({ rain: 3 });
+    expect(B.level.weather.climate).toMatchObject({ clear: 5, dust: 2 });
+    expect(A.ledger).toEqual([expect.objectContaining({ scope: 'section', at: 'a/u', key: 'weather' })]);
+    expect(layLevel(A.level).stages.map((s) => Object.keys(s.manifest.weather.climate)[0])).toEqual(['overcast', 'clear']);   // monsoon, then the section's alpine
+  });
+  it('a stage page minted from it plays the sky in its kit\'s air, seeded by the level', async () => {
+    const { resolveWorldScene } = await import('../worlds/world-scene.js');
+    const R = resolveLevel(readGameworld(w), 'a'), m = layLevel(R.level).stages[0].manifest;
+    const { payload } = await resolveWorldScene({ manifest: m, title: 'a', ref: 'sk_a' });
+    expect(payload.weather.seed).toBe(R.seed);
+    expect(payload.weather.air).toMatchObject({ body: 'banded', hue: '#b4d8f0' });
+  });
+});
+

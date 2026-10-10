@@ -18,7 +18,7 @@ export { ELEMENT_WORDS } from './element-words.js';
 export { readMotion, resolveMotion, motionOrders, AXES, VIBES, AXIS_SPANS, GAIT_BASE } from './hero-vibe.js';
 export { basePrint, pinBase, verifyBase, revisionLookup } from './hero-base.js';
 export { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
-export { styleGuide, kitCard, languageCard, fortCard, groundCard, civilizationCard } from './style-guide.js';
+export { styleGuide, airOfKit, kitCard, languageCard, fortCard, groundCard, civilizationCard } from './style-guide.js';
 export { natureCard, colorKey, landOfKit, landFor, RAMP_KEY } from './nature.js';
 export { gameworldBibleHtml } from './bible-html.js';
 export { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH } from './examples.js';
@@ -29,4 +29,5 @@ export { tunnelTech, techDomain, composeThing, TECH_TRAITS } from './tunnel-tech
 export { tunnelLand, landDomain, composeLook, LAND_TRAITS, LOOK_LAWS, COLOURS } from './tunnel-land.js';
 export { techIndexHtml } from './tech-html.js';
 export { reviewParts, reviewState, readReview, approve, fingerprint, MODES, REVIEW_STATUSES, STAMPS } from './review.js';
+export { weatherCardHtml, stateStill, weatherStrip } from './weather-card.js';
 export { composeGameworld, readPrompt, LEXICON } from './compose.js';
