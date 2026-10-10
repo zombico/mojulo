@@ -67,8 +67,8 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 `tools/list` cannot be drawerized, so it is budgeted. The per-description ceiling and the flat payload pin
 live in `tool-descriptions.test.js`; the packs payload pin lives in `packs.test.js`. If a legitimate
 addition crosses a pin, re-pin it in the same commit with a comment saying why. New tool checklist: register in ring order in
-`server.js`; exactly one pack home in `packs.js`; a `TOOL_INDEX` row or one `FORM_TOOLSETS` bullet in
-`context.js`; a routing card (ceiling in `routing-cards/loader.js`) plus a `routing-eval.fixture.js` row if creative; the
+`server.js`; exactly one pack home in `packs.js`; one line and a verb in `tool-lines.js` (the tool index, the form
+bodies and the pack menus are generated from it), plus its form's `tools` in `context.js` if creative; a routing card (ceiling in `routing-cards/loader.js`) plus a `routing-eval.fixture.js` row if creative; the
 `RING10_TOOLS` list in `context.test.js`. `forward_context` is a routing index, not a glossary; its bodies
 have their own byte ceilings. Full map: [docs/AGENT-REFERENCE.md](docs/AGENT-REFERENCE.md#mcp-control-surface).
 

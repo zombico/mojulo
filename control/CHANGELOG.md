@@ -68,6 +68,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   there, and the execution log records the value each reference took. The manual is in `enter_plan_mode` and the plan
   pack's body; tools/list is unchanged.
 - `mint_drawer` lives in `pack_stash` beside the stash it sub-groups; `pack_catalysts` no longer offers "a new drawer".
+- **One line per tool.** Every listed tool has one short line and a verb (create, update, compose, observe,
+  maintain, orient) in `lib/mcp/tool-lines.js`, and `get_tool_index`, each `get_creative_toolset({ form })` body and
+  the pack menus are generated from it; the tool's description stays its manual. `get_tool_index` now lists every
+  tool by ring (the creative tools were only in the form drawers) and ends with its body hash: 17.8 KB, so a host
+  capped at 20 KB reads it whole instead of the compact card. The form bodies shrank by about two thirds, the
+  drawer reads by 30% in all, and no tool-to-tool pointer was lost. The plugin build drops hidden tools by name
+  instead of editing prose. A pack's menu no longer repeats the spine list, and a member homed in another pack
+  is one line pointing at its manual there. `forward_context` keeps the commitment floor as one standing line
+  (the table is in `get_register_kit`) and puts the per-call settings, the disclosure directive and the pulse
+  last.
 
 ### Gameworlds: a door for agents
 

@@ -8,6 +8,7 @@ import { closeDb } from '@/lib/db/index';
 import { commitOperatorKyc } from './meta-context.js';
 import { getRegisteredTool } from '@/lib/mcp/server';
 import { BOT_FACTORY_MOVED, REMOVED_BOT_TOOLS } from '@/lib/mcp/bot-factory-moved';
+import { TOOL_LINES, LINE_MAX, VERBS } from '@/lib/mcp/tool-lines';
 import {
   PARADIGMS,
   FORWARD_CONTEXT_MODES,
@@ -197,8 +198,8 @@ describe('buildForwardContextBody — variant composition', () => {
 
   it('full tool index is promoted to get_tool_index and is register-invariant', async () => {
     // The full one-line-per-tool index moved out of forward_context into its
-    // own tool. Pick a representative tool one-liner that should appear there.
-    const marker = '`record_mcp_capabilities` / `get_mcp_capabilities` — a provider\'s knowledge body';
+    // own tool, generated from TOOL_LINES: `name` · verb — line, under its ring.
+    const marker = `- \`record_mcp_capabilities\` · maintain — ${TOOL_LINES.record_mcp_capabilities.line}`;
     const { content } = await toolIndexHandler({});
     const indexText = content[0].text;
     expect(indexText).toContain(marker);
@@ -238,7 +239,7 @@ describe('forwardContextHandler — register resolution', () => {
     expect(text).toMatch(/read from the operator anchor/);
     // The notice points the agent at get_register_kit for the register glossary.
     expect(text).toContain('`get_register_kit`');
-    // pedagogical disclosure should appear (disclosure still branches inline).
+    // pedagogical disclosure should appear (the operator's directive rides inline, at the end).
     expect(text).toMatch(/Procedural disclosure: pedagogical/);
   });
 
@@ -501,6 +502,45 @@ describe('TOOL_INDEX registry sweep — the golden-rule enforcer', () => {
     else process.env.MOJULO_TOOL_PACKS = prevPacks;
     const missing = listed.filter((name) => !corpus.includes(`\`${name}\``));
     expect(missing).toEqual([]);
+    // One source: every listed tool has exactly one TOOL_LINES entry, and nothing else does.
+    expect(Object.keys(TOOL_LINES).sort()).toEqual([...listed].sort());
+  });
+
+  it('each line fits LINE_MAX, carries a known verb, and names only registered tools', async () => {
+    const { ensureToolsRegistered, getRegisteredTool } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    for (const [name, { verb, line, plugin }] of Object.entries(TOOL_LINES)) {
+      expect(VERBS, `${name} verb`).toContain(verb);
+      for (const text of [line, plugin].filter(Boolean)) {
+        expect(Buffer.byteLength(text), `${name} line bytes`).toBeLessThanOrEqual(LINE_MAX);
+        // a backticked snake_case word is a tool name, except the argument names listed here
+        for (const m of text.matchAll(/`([a-z]+_[a-z_]+)`/g)) {
+          if (['provider_ref'].includes(m[1])) continue;
+          expect(getRegisteredTool(m[1]), `${name} names \`${m[1]}\``).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('the generated index lists each tool once, under its ring, and ends with its body hash', async () => {
+    const text = (await toolIndexHandler({ full: true })).content[0].text;
+    for (const name of Object.keys(TOOL_LINES)) {
+      expect(text.split(`\n- \`${name}\` · `).length - 1, name).toBe(1);
+    }
+    expect(text).toMatch(/\n_index [0-9a-f]{12}_\n$/);
+  });
+
+  it('every tool the routing dispatch names has a line, and every making ring is reachable from it', async () => {
+    const { homePackForTool } = await import('@/lib/mcp/packs');
+    const { ensureToolsRegistered, getRegisteredTool } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    const body = buildForwardContextBody({});
+    const named = [...body.matchAll(/`([a-z]+_[a-z_]+)`/g)].map((m) => m[1]).filter((n) => !n.startsWith('pack_') && getRegisteredTool(n));
+    for (const n of named) expect(TOOL_LINES[n], `routing names \`${n}\``).toBeTruthy();
+    const reached = new Set(named.map((n) => homePackForTool(n)?.ring).filter(Boolean));
+    for (const ring of ['characters', 'solids', 'worlds', 'games', 'read', 'audio', 'kernel', 'workflows']) {
+      expect(reached.has(ring), `no routing row reaches the ${ring} ring`).toBe(true);
+    }
   });
 });
 
@@ -751,7 +791,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // 3.1.0: one body (the office wing left the tool surface); the office pin is gone.
   // Grown 2026-10-10 (8_800 -> 9_000; measured 8,943 widest cell, plain+reflective with pulse): the CHARACTER row, a new
   // FORM heading the mint dispatch (create_character), the one case that legitimately grows this body.
-  const MODE_CEILINGS = { studio: 9_000 };
+  // Lowered 2026-10-10 (9_000 -> 8_600; measured 8,450 widest cell): the commitment floor's table moved to
+  // get_register_kit, leaving one standing line; the disclosure directive stays (the operator's setting).
+  const MODE_CEILINGS = { studio: 8_600 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

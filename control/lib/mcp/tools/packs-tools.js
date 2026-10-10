@@ -28,6 +28,7 @@ import { PACKS, RETIRED_PACKS, SPINE, packToolEntry, dispatchTargets, homePackFo
 import { authNotice } from '@/lib/roles/enforce';
 import { isRemovedBotTool, botToolMovedNotice } from '@/lib/mcp/bot-factory-moved';
 import { formToolset } from '@/lib/mcp/tools/context';
+import { TOOL_LINES } from '@/lib/mcp/tool-lines';
 import { hiddenInPluginProfile, pluginProfileToolNotice, toolFace } from '@/lib/mcp/plugin-profile';
 
 // One line per member for the unveil's index: the FORM_TOOLSETS row cut at
@@ -92,13 +93,23 @@ function sizeLabel(bytes) {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+// What a member is, in one line: its TOOL_LINES line (the source get_tool_index and the form bodies
+// read), else its description's first sentence.
+function whatLine(name) {
+  return TOOL_LINES[name]?.line || firstSentence(toolFace(getRegisteredTool(name)).description || '');
+}
+
 // A heavy member's menu entry: what it is (unless the pack body's index already
 // says, as studio packs do), and the size of the manual it will cost to read.
-function heavyMenuEntry(pack, name, entry, { shared, indexed }) {
-  const home = shared ? homePackForTool(name) : null;
-  const homeNote = home ? ` _(homed in ${home.id}; dispatchable here)_` : '';
-  const what = indexed ? '' : `\n${firstSentence(toolFace(getRegisteredTool(name)).description || '')}`;
-  return `### ${name}${homeNote}${what}\nManual ${sizeLabel(entry.length)}: \`${pack.id}({ manual: '${name}' })\``;
+function heavyMenuEntry(pack, name, entry, { indexed }) {
+  const what = indexed ? '' : `\n${whatLine(name)}`;
+  return `### ${name}${what}\nManual ${sizeLabel(entry.length)}: \`${pack.id}({ manual: '${name}' })\``;
+}
+
+// A shared member is homed in another pack: one line and where its manual lives, never a second copy.
+function sharedMenuEntry(name) {
+  const home = homePackForTool(name);
+  return `### ${name} _(homed in ${home ? home.id : 'the spine'}; dispatchable here)_\n${whatLine(name)}${home ? `\nManual: \`${home.id}({ manual: '${name}' })\`` : ''}`;
 }
 
 function unveil(pack) {
@@ -108,17 +119,17 @@ function unveil(pack) {
   const menu = dispatchTargets(pack)
     .filter((name) => !hiddenInPluginProfile(name))
     .map((name) => {
-      const shared = !memberSet.has(name);
-      const entry = memberManualEntry(name, { shared });
+      if (!memberSet.has(name)) return sharedMenuEntry(name);
+      const entry = memberManualEntry(name);
       if (entry.length <= INLINE_MANUAL_MAX) return entry;
-      return heavyMenuEntry(pack, name, entry, { shared, indexed: body.includes(`- \`${name}\` — `) });
+      return heavyMenuEntry(pack, name, entry, { indexed: body.includes(`- \`${name}\` — `) });
     })
     .join('\n\n');
   return [
     `# ${pack.title} (${pack.id})`,
     body,
     `## Members — dispatch THROUGH this pack`,
-    `Call \`${pack.id}({ tool: '<name>', args: { … } })\`. A small member's manual is inline below; read a larger one first with \`${pack.id}({ manual: '<name>' })\` (a list reads several). Spine tools (${SPINE.join(', ')}) are called directly, not through a pack.`,
+    `Call \`${pack.id}({ tool: '<name>', args: { … } })\`. A small member's manual is inline below; read a larger one first with \`${pack.id}({ manual: '<name>' })\` (a list reads several).`,
     menu,
   ]
     .filter(Boolean)

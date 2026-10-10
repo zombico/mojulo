@@ -81,29 +81,32 @@ describe('rules card fits its budget', () => {
 });
 
 describe('get_tool_index routing', () => {
-  it('an uncapped host still gets the full index — unchanged behavior', async () => {
+  it('an uncapped host gets the full index', async () => {
     const body = text(await toolIndexHandler({}, {}));
-    expect(bytes(body)).toBeGreaterThan(DEFAULT_RULES_BUDGET);
+    expect(body).toContain('## Tool index');
     expect(body).not.toContain('rules card (compact)');
   });
 
-  it('a capped host gets the card automatically, and is told why', async () => {
+  // Since 3.1.0 the index is generated at one line per tool and fits grok's 20k cap, so grok reads it whole.
+  it('a capped host whose cap the index fits gets the index itself', async () => {
     const body = text(await toolIndexHandler({}, cappedCtx('grok-shell-mojulo')));
-    expect(body).toContain('rules card (compact)');
     expect(bytes(body)).toBeLessThanOrEqual(20_000);
+    expect(body).not.toContain('rules card (compact)');
+    expect(body).toBe(text(await toolIndexHandler({}, {})));
+  });
+
+  it('a budget below the index gets the card, and is told why', async () => {
+    const body = text(await toolIndexHandler({ budget_bytes: 8000 }, {}));
+    expect(body).toContain('rules card (compact)');
+    expect(bytes(body)).toBeLessThanOrEqual(8000);
     expect(body).toContain('nothing was refused');
   });
 
-  it('never blocks: full:true returns the whole index even on a capped host', async () => {
-    const capped = text(await toolIndexHandler({}, cappedCtx('grok-shell-mojulo')));
-    const forced = text(await toolIndexHandler({ full: true }, cappedCtx('grok-shell-mojulo')));
+  it('never blocks: full:true returns the whole index whatever the budget', async () => {
+    const carded = text(await toolIndexHandler({ budget_bytes: 8000 }, {}));
+    const forced = text(await toolIndexHandler({ full: true, budget_bytes: 8000 }, {}));
     const uncapped = text(await toolIndexHandler({}, {}));
     expect(forced).toBe(uncapped);
-    expect(bytes(forced)).toBeGreaterThan(bytes(capped));
-  });
-
-  it('any host can ask for the card explicitly', async () => {
-    const body = text(await toolIndexHandler({ budget_bytes: 20000 }, {}));
-    expect(body).toContain('rules card (compact)');
+    expect(bytes(forced)).toBeGreaterThan(bytes(carded));
   });
 });

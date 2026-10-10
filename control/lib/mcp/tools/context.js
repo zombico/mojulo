@@ -14,19 +14,12 @@
  *   glossary lives behind `get_register_kit` — don't reintroduce it here. The
  *   agent routes from the outer layers (the `initialize` preamble + the per-tool
  *   descriptions in tools/list + this index) and pulls a drawer on demand.
- * - The routing index and tool index have to stay in sync with the actual tool
- *   registrations across catalysts.js, adapters.js, meta-context.js,
- *   mcp-inventory.js, skills.js, mcp-capabilities.js, mcp-orbit.js,
- *   mcp-primitive-binding.js, mcp-trigger-binding.js, semantic-search.js,
- *   agent-tasks.js, runner.js, runtime-daemons.js, plan-mode.js, research-mode.js,
- *   stash-mode.js, cook.js, sketches.js, what-possible.js, manji-trees.js,
- *   figure.js, carved-solid.js, solid-turntable-tool.js, compose-world.js,
- *   create-view.js, visual-reference.js, motion.js, beats.js,
- *   worked-examples.js, and this file. If you add or remove a tool, update the relevant rows here
- *   (and `get_tool_index`). The registry-sweep test in context.test.js
- *   enforces this: every LISTED tool name must appear in TOOL_INDEX
- *   (unlisted deprecated aliases are exempt). A new create_view kind or
- *   compose_world base needs a view-vocab card, not an index row.
+ * - The tool index, the form bodies and the pack menus are GENERATED from one line per tool in
+ *   lib/mcp/tool-lines.js. A new tool needs its line there (and its form's `tools` here if creative);
+ *   the registry-sweep test in context.test.js fails until every LISTED tool has exactly one line
+ *   (unlisted deprecated aliases are exempt). The routing index below stays hand-written: its rows
+ *   are measured recognizers, and the same test checks every tool it names has a line. A new
+ *   create_view kind or compose_world base needs a view-vocab card, not a line.
  * - Creative-mint routing detail lives in ROUTING CARDS (lib/mcp/routing-cards/,
  *   retrieved via semantic_search({kinds:['routing']})), not in Create-things
  *   rows — the body names FORMS + entry tools only. A new creative capability
@@ -50,15 +43,18 @@ import {
   isSourceClone,
 } from '@/lib/version/local';
 import { fetchLatestNpmVersion, compareSemver } from '@/lib/version/remote';
+import { createHash } from 'node:crypto';
 import { getDb } from '@/lib/db/index';
 import { MetaNodeRepository } from '@/lib/db/repositories/meta-context';
 import { McpToolCallRepository } from '@/lib/db/repositories/mcpToolCalls';
 import { getRoutingCardCatalog } from '@/lib/mcp/routing-cards/loader';
+import { TOOL_LINES, RING_TITLES } from '@/lib/mcp/tool-lines';
+import { homePackForTool } from '@/lib/mcp/packs';
 import {
+  PLUGIN_PROFILE_HIDDEN_TOOLS,
   pluginProfileActive,
   pluginProfileNotice,
   profileEdit,
-  dropHiddenToolLines,
   withPluginProfile,
   hiddenRowInPluginProfile,
   PLUGIN_PROFILE_HIDDEN_FORMS,
@@ -74,9 +70,9 @@ import {
 // forward_context — the routing index
 //
 // A thin map, not a manual: a lean opener, the routing index (user framing →
-// entry tool), a drawer directory (where to go deeper), the commitment-level
-// floor + the active procedural-disclosure directive, and two standing safety
-// one-liners. The heavy prose drawerizes:
+// entry tool), a drawer directory (where to go deeper), the standing safety
+// one-liners, then the per-call tail: a one-line commitment floor, the
+// settings notice and the active procedural-disclosure directive. The heavy prose drawerizes:
 //   - concept glossary           → get_register_kit (active vocabulary_register)
 //   - what mojulo is / self-description (phone home? my data? uninstall?) → get_substrate
 //   - full one-line-per-tool idx → get_tool_index
@@ -300,6 +296,9 @@ Keep these distinctions legible in every register and disclosure cell — they t
 
 In \`plain\` register the right-hand-side phrasing is what the user hears; in \`mojulo\` register either side works.`;
 
+// forward_context's one-line form of the floor; get_register_kit carries the full table and directive.
+const STANDING_LINE = `**Standing rule.** Keep *proposed* vs *made*, *dry-run* vs *promoted*, *machine gate* vs *eyes gate* and *advisory* vs *refused* legible in every reply; never claim the eyes gate passed. The full vocabulary: \`get_register_kit\`.`;
+
 const DISCLOSURE_TERSE = `**Procedural disclosure: terse.** Act and report — one-line summary at the end. Do not narrate intermediate state unless the user asks. The distinctions above still apply; when you cross one, name it in one short clause ("made — ref sk_…" / "dry run looks clean, running the batch") and move on.`;
 
 const DISCLOSURE_REFLECTIVE = `**Procedural disclosure: reflective.** Name the state before each step that commits: say "still a proposal" / "now made" / "trial pass" / "running the batch" / "the machine gate passed; the eyes gate is yours" explicitly so the user can always point at the current state without having to ask. Don't lecture on what each state *means* — naming it is enough at this disclosure level.`;
@@ -387,239 +386,171 @@ If a refusal you hit isn't in this table, the tool's own message carries the rem
 
 // --- Catalyst texture preview (shared) ---
 
-// --- Tool index (shared, ring-organized) ---
+// --- Tool index + creative toolsets: generated from lib/mcp/tool-lines.js ---
 //
-// Tool descriptions are agent-facing and stay in mojulo idiom regardless of
-// the operator's vocabulary_register — the agent uses them to disambiguate
-// which tool to call. Register branching applies to user-facing prose only.
+// One line per listed tool, written once in TOOL_LINES; the ring comes from the tool's home pack
+// (packs.js), the order from TOOL_LINES. get_tool_index lists every tool by ring; a FORM is a list of
+// tool names plus `notes` for rows that are not one tool (a kind-qualified call, a pointer to another
+// form). A tool's description stays its manual. Under the Claude plugin profile a hidden tool drops
+// out by name and a line naming a closed door serves its `plugin` variant: no prose edits here.
 
-const TOOL_INDEX = `## Tool index (one line each)
+function lineFor(name, profile) {
+  const entry = TOOL_LINES[name];
+  if (!entry) return null;
+  if (profile && PLUGIN_PROFILE_HIDDEN_TOOLS.includes(name)) return null;
+  return (profile && entry.plugin) || entry.line;
+}
 
-### Orientation
-- \`forward_context\` — the routing index: what mojulo makes (Play · Print · Read · Hear · Observe) as FORM recognizer rows → entry tool, the export dispatch, the guards, and a drawer directory. Call FIRST when unsure which tool fits. A thin map, not a manual — depth lives in the drawers below.
-- \`get_tool_index\` — (you are reading its output) the full one-line-per-tool index across every ring. Call when \`forward_context\`'s routing index isn't specific enough.
-- \`get_creative_toolset\` — the per-tool list for one creative FORM (diagram · illustration · reference · image-render · character · object · world · view · motion · motion-comic · audio · voice · game). No arg → the form map. The Ring 10 mint tools moved here; call it to MAKE something visual / audible / playable.
-- \`mint_diagram\` — the KERNEL diagram maker (spine; always on, even in an install without the creative pack — a diagram is just SVG). Mint a flow-chart or data-chart (stations+edges and/or chart marks) → \`/sketches/<ref>\`. \`create_sketch\` is the creative superset (recipes, worlds, illustration); both share the one diagram core so they can't drift.
-- \`get_register_kit\` — the concept glossary (Play / Print / Read / Hear / Observe, recipe artifact, game, workflows, catalyst, …) in the operator's active \`vocabulary_register\`, plus the refusal legend (what each family of "no" protects · the next move), the active disclosure directive, and the invariant commitment-level floor. **This is where the vocabulary lives** — pull it to define a term, phrase something for the user, or decode a refusal. Optional per-call \`register\` / \`disclosure\` override.
-- \`get_worked_example\` — an annotated end-to-end trace of one successful flight (\`game\` / \`media\`): the real call sequence with args, the gate moments marked in place, one refusal + recovery. No arg → index of available traces. Pull before your first build of a kind.
-- \`get_ui_map\` — the page-by-page map of the \`mojulo-ui\` dashboard (one line per page + when to point the user there). Call when the user wants to look / browse / click and you need to name the right page.
-- \`get_substrate\` — what mojulo is (a 3D factory with a media studio) and what it can honestly claim (pipelines, inference posture, workers, cloud properties it lacks) plus the substrate facts: the architecture invariants (process, state location, network posture, credentials, costs, uninstall, source repo) to DERIVE self-description answers from. Call when the user asks "what is this really?" or about mojulo itself — "does it phone home?", "where does my data live?", "do I have to pay?", "how do I uninstall?".
-- \`version\` — runtime versions: server, install distribution, MCP protocol, Node, platform, MOJULO_HOME. Local, no network. Use to diagnose version mismatches.
-- \`check_for_updates\` — compare the running control-plane package (\`mojulo\` on npm) against its latest published version. Returns \`{ controlPlane, warnings }\` with current, latest, \`updateAvailable\`, and a one-line install hint. Read-only; never performs the upgrade. Call when the user asks "am I up to date?" or after a long gap between sessions.
-- \`get_tool_ledger\` — the substrate's own tool-call telemetry. No args → per-tool aggregate table (calls, error rate, p50/p95, last-called) over the last N days + recent errors/timeouts; \`{ tool }\` → that tool's recent calls; \`{ orientation: true }\` → the orientation-gap cut (weak searches, drawer misses, oriented-then-abandoned sessions — "is the lexicon working?"). Records shapes only, never values. Mirrors the \`/observability\` page.
-- \`list_adapters\` — list the host adapters mojulo ships, whatever they are on this version (the roster grows; \`generic\` is always there as the fallback). An adapter is the host's first-session card (studio ride + catalyst materialization). Read \`get_adapter\` once before making or synthesizing.
-- \`get_adapter\` — full body of one adapter: how you ride this substrate, plus artifact target, dry-run, scheduling, state, secrets. Pull once before making or synthesizing. Pass \`id\` or auto-resolve from clientInfo.
-- \`semantic_search\` — **fuzzy recall over durable mojulo state** (principles, capability bodies, mcp-orbit components / compositions / provider artifacts, declared MCP inventory tools, shipped catalysts, and the vocab card libraries — sketch / view / beats / game). Use when you have an intent or topic but not a specific ref — \`meta_context_brief\` and the other Ring 6 readers answer "give me the full row at this ref"; \`semantic_search\` answers "which refs are relevant to this intent at all?" Returns ranked \`{ source_kind, source_ref, score, snippet }\` rows; snippets cap at ~280 chars and the agent is expected to pair this with the typed structured readers to pull full bodies for any row worth the context cost. Optional \`kinds\` filter restricts to one or more of \`principle | mcp_tool | mcp_capability | orbit_component | orbit_composition | orbit_artifact | catalyst | sketch_vocab | sketch_method | manji_program | painted_landscape | view_vocab | beats_vocab | game_vocab | game_mechanic\`. Capability rows that have been superseded never appear — the index quietly filters against the current row per provider. Query in English. Lexical (FTS5) on a default install; the opt-in \`recall\` group (\`${mojuloCommand('install recall')}\`) adds the embedding model and vector ranking — a result's \`mode\` says which ran. Read-only.
+function ringOf(name) {
+  return homePackForTool(name)?.ring || 'orientation';
+}
 
-### Workflows — catalysts, workers & connected MCPs
+function buildToolIndex(profile) {
+  const sections = Object.entries(RING_TITLES).map(([ring, title]) => {
+    const rows = Object.keys(TOOL_LINES)
+      .filter((name) => ringOf(name) === ring)
+      .map((name) => {
+        const line = lineFor(name, profile);
+        return line ? `- \`${name}\` · ${TOOL_LINES[name].verb} — ${line}` : null;
+      })
+      .filter(Boolean);
+    return rows.length ? `### ${title}\n${rows.join('\n')}` : null;
+  });
+  const body = [
+    '## Tool index (one line each)',
+    '',
+    "Every listed tool, by ring: `name` · verb — what it is for. Verbs: create · update · compose · observe · maintain · orient. A tool's description is its manual; one FORM's tools: `get_creative_toolset({ form })`.",
+    '',
+    sections.filter(Boolean).join('\n\n'),
+  ].join('\n');
+  const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
+  return `${body}\n\n_index ${hash}_\n`;
+}
 
-For flows that reach past mojulo. A catalyst lands as a Skill on the host, beside the operator's other MCPs, so a flow across mojulo and another MCP (a Blender or Drive MCP, say) lives there; the inventory and capability reads tell it what those MCPs can do; the agent-task queue parks work for an outside fulfiller. Mojulo is a **consultation surface** here: suggest a workflow even when it needs an integration the user doesn't have yet, framed as an opt-in upgrade, never a blocker.
-
-- \`recommend_catalysts\` — the workflow shelf (shipped + local mints), optionally narrowed by \`category\`, each annotated with a \`valueHook\` (one-sentence user-outcome), \`destinationCategory\` (kind of MCP needed, or null for a session workflow), \`destinationExamples\` (named MCPs that satisfy it) and \`priorMaterializations\`. Response includes a \`consultationPosture\` block with framing rules — read it. **This is the entry point for "what can I automate?" / "is there a recipe for this?"** Cross-reference \`destinationExamples\` against MCPs available in this session: examples installed → "you can do this now"; examples not installed → soft suggestion.
-- \`list_catalysts\` — flat catalog of every shipped recipe plus the operator's local mints (\`origin: 'local'\`), filterable by category and kind. Use to browse what mojulo offers.
-- \`get_catalyst\` — read one recipe's full body. The response composes three parts: a host-neutral catalyst-core preamble (posture, vocabulary, safety defaults), the bound **host adapter** body (artifact target, scheduling, dry-run encoding, secrets), and the catalyst's host-neutral recipe (mapping intent, idempotency, pitfalls). Pass \`host\` to override the auto-resolved adapter; \`rev\` reads a local revision.
-- \`custom_catalyst\` — author's guide for **writing a new catalyst**. Use when the user wants to mint / propose / contribute a catalyst (not to automate something once for themselves — that's a local skill). Read it BEFORE \`mint_catalyst\`.
-- \`mint_catalyst\` — persist a drafted catalyst on the operator's **local shelf** (DB row, revision history, immediately live in list/get/recommend/search). Upsert by id; \`archive: true\` shelves it; response \`fileText\` is the ready-to-PR file for graduation.
-- \`meta_context_declare_inventory\` — record the MCP servers this host has (names, tools, optionally their schemas) so a catalyst can be matched against them. Replace semantics: the latest declaration is the whole truth. Never at session start or unprompted: it records the user's other MCP servers.
-- \`record_mcp_capabilities\` / \`get_mcp_capabilities\` — a provider's knowledge body (what its MCP can do, with cited sources), written from research and read back by canonical \`provider_ref\` (\`gmail\`, \`notion\`, …); history kept (\`asOf\`). The method is the \`research-mcp-vendor\` catalyst.
-- \`pull_agent_task\` — long-poll for work parked for an outside fulfiller. Optional \`wait_ms\` (default 0) and \`kinds\` filter (one shipping kind: \`envelope_inference\`). Returns \`{ task_id, kind, payload }\` or null. Single-claim. The loop body is the \`run-inference-worker\` catalyst.
-- \`submit_envelope_inference\` — deliver the response envelope for one pulled \`envelope_inference\` task; validated against the envelope schema in the task payload before the parked request resolves.
-- \`cancel_agent_task\` — release a pulled task with a typed error (\`INFERENCE_CANCELLED\`) when it can't be fulfilled. Use sparingly.
-
-### Workflows — plans (a chain written once, run under approval)
-
-The PROPOSED layer of the deliberation model — the speculative counterpart to the contextmap's committed reality. Most sessions stay sessions; a few accumulate enough signal to become **Plans**: sealed cognitive units that draw the schematic of one vertical slice (a "spike") and, once tractable, compile to a manifest of tool calls the operator can execute under per-execution approval. A step takes an earlier step's result as \`{ "$step": n, "path": "/ref" }\`, so mint → export → measure is one manifest. Call \`enter_plan_mode\` to load the deliberation discipline (four lenses, shadow scratchpad, introspection-on-signal, the frame). v0: no cross-plan context; subplans live inside the prime plan's manifest. The dashboard's \`/plan\` page is a read-only inbox view; New Plan opens a fresh host-agent session that drives these tools.
-
-- \`enter_plan_mode\` — return the plan-mode discipline (the four lenses held loosely: spike / segment-expansion / vertical-reinforcement / collider; the shadow-scratchpad step-0 where you DRAFT but never FIRE tool calls while deliberating; introspection-on-signal that grounds the frame against committed reality only once the gem reveals; the frame-for-approval moment; the forge → revise → compile → execute lifecycle). Call FIRST when the operator wants to plan non-trivial work — it primes you to push gently toward an outcome. Read-only.
-- \`forge_plan\` — seal a Draft plan from a session: \`{ title, goal, lens?, frame?, manifest?, analysis?, source? }\`. \`manifest\` is the ordered candidate \`{ tool, args, note? }\` calls (the projected shadow scratchpad); \`analysis\` is the un-shared provenance (lens weights, discarded lenses, introspection refs). A plan can start goal-only and accrete its manifest via \`revise_plan\`. Optional \`source: { kind: 'cook', cook_ref }\` seeds the plan from a previously-materialized Cook outcome (the cook's aim → seeded goal, suggested_lens → seeded lens; source ref recorded in analysis for the triangle backlink). Returns \`{ plan_ref, status:'draft', lens, has_manifest, source? }\`. Forging executes nothing.
-- \`revise_plan\` — append a \`{ note, revised_at }\` to the revision log and optionally patch goal / lens / frame / manifest / analysis. Mode-switching ("this is a reinforcement, not a spike") is a normal revision. ALWAYS resets status to \`draft\` — touching the schematic un-commits the compile. Returns \`{ plan_ref, status:'draft', lens, revisions }\`.
-- \`sketch_plan\` — preview the current manifest as a pipeline diagram WITHOUT compiling (same derivation \`compile_plan\` auto-mints). Links the sketch to the plan as the current diagram (unpinned — a later compile will redraw it). No status change. Refuses if a hand-authored sketch is pinned or the manifest is empty. Returns \`{ ok, plan_ref, sketch_ref, sketch_url, steps, message }\`.
-- \`compile_plan\` — attempt Draft → Actionable. A COMPILE STEP, not a status flip: validates the manifest against the LIVE tool registry. Tractable iff every call resolves to a shipped tool (none plan-mode meta-tools, none malformed). Success → \`status:'actionable'\`. Failure → stays Draft with a structured reason: \`unknown_tools\` (mojulo can't do this deterministically yet → roadmap signal), \`illegal_tools\`, or malformed \`errors\`. Returns \`{ ok, compiled, status, steps?, unknown_tools?, illegal_tools?, errors?, message }\`.
-- \`execute_plan\` — run an Actionable plan's manifest. THE PER-EXECUTION GATE: requires \`confirm:true\` and \`status:'actionable'\`. Runs each call in order through the same handler path a remote tools/call hits (executed steps behave identically to operator-typed calls), re-validating the manifest first. STOPS ON FIRST FAILURE — completed steps recorded, plan marked \`failed\`, operator re-forges the remainder; full success marks \`executed\`. Returns \`{ ok, status, steps_run, steps_total, execution_log, message }\`. Manifest calls can be mutating (mints, exports, file writes) — the confirm gate is the only thing between Actionable and real side effects.
-- \`list_plans\` — list plans (the inbox); optional \`status\` filter. Returns \`{ total, plans: [{ plan_ref, title, lens, status, seen, steps, revisions, created_at, updated_at }] }\`. Read-only; does not flip read/unread.
-- \`get_plan\` — fetch one plan in full (goal, lens, frame, manifest, analysis, revision_log, execution_log). Opening flips its \`seen\` flag to read — the light inbox gate, not a formal review.
-
-### Workflows — Stash · Gather · Cook (typed intake → a Read outcome), sweeps, and legacy research
-
-The publication paradigm: typed items into stashes, then nucleate them into a self-contained outcome folder filed at \`/outcomes/<cook_ref>/\` (essay / picture_book / slide_deck / flyer / brief / resume / newsletter / field_guide / pamphlet / textbook / novel / visual_guide / comic). Stash is the typed corpus; Cook is the singular-aim collider; the AGENT authors \`report_md\` (no server-side LLM). **Cook stops at cook** — plan mode can later seed from a cook via \`forge_plan({ source: { kind: 'cook', cook_ref } })\`, but that's a plan-side decision. The legacy diffuse-research tools (\`start_research\` etc.) still ship alongside under \`enter_research_mode\` — option-3 coexistence with stash mode.
-
-#### Stash + Gather (the typed corpus)
-- \`mint_stash\` — mint a renameable bucket. → \`{ stash_ref, title, status }\`. The successor to \`start_research\` with a strict per-item type contract.
-- \`gather\` — the GATHER verb: bind a typed item into a stash. Types: \`text\` / \`markdown\` / \`image\` / \`svg\` / \`script\` / \`pointer\` / \`link\` / \`sketch\`. Per-type required fields are validated at intake — malformed items are REJECTED, not silently stored. \`pointer\` targets must be contextmap node-refs; \`sketch\` items reference a \`sk_…\` ref minted by \`create_sketch\` (resolved live, so edits propagate).
-- \`mint_drawer\` — idempotently mint a drawer (sub-grouping) inside a stash. Drawers map to chapters / sections in many publication kinds.
-- \`rename_stash\` — relabel a stash; \`stash_ref\` is stable.
-- \`list_stashes\` — list stashes (optional \`status: open | archived\`), most-recently-active first.
-- \`get_stash\` — fetch a stash in full (drawers + every gathered item grouped by drawer). Items carry their typed contract fields; the UI dispatches on \`type\` to render.
-- \`update_item\` — mutate an item in place. Items are citable atoms across cook slices and future plan refs, so edits propagate live; the intake gate **re-runs on merged state** so the type contract can't be corrupted. \`type\` is not mutable — archive + re-gather to change kind.
-- \`archive_item\` — soft-delete an item. Two-step gate when referenced by any cook: first call returns a dry-run \`{ pending_confirm: true, references }\`; re-call with \`confirm: true\` to proceed. Idempotent.
-- \`bind_stash\` / \`unbind_stash\` / \`list_stash_bindings\` — adjacency layer linking a stash to \`app\` / \`plan\` / \`cook\` / \`contextmap_node\` (a \`bot\` binding from a 2.x install stays listable and removable) with an optional \`role\` (\`corpus\` / \`working_memory\` / \`ingredient\` / \`reference\`). v0 navigational only — agents do NOT auto-read linked stashes mid-conversation; \`bound_ref\` is not validated against the target repo (dangling refs are tolerated).
-- \`sketch_stash\` — vibe-to-items scaffold: given a free-form intent + optional target publication kind, return a PROPOSED stash structure (drawers + item slots) plus an executable script (\`mint_stash\` → \`mint_drawer\` → \`create_sketch\`/\`gather\` → \`cook\`). Companion to \`sketch_plan\`; no DB writes; no LLM call.
-
-#### Cook + publish (the collider)
-- \`recommend_kind\` — rules-based recommendation (no LLM): scan a stash, return ranked publication kinds for \`cook()\`. Scores against per-kind rules from PUBLISHER.plan.md (picture_book needs ≥1 sketch; resume rewards an \`identity\` drawer; pamphlet hits its ideal at exactly 4 markdown items). Use BEFORE \`cook\` when the operator's intent doesn't pin a kind.
-- \`cook\` — the COOK verb: nucleate one Outcome Artifact from ≥1 stash slice + ONE singular aim. The binding vow: one aim per cook; refuse to compound. Returns \`{ cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }\`. The static \`index.html\` is self-contained. Publication kinds + their ideal shapes are documented inline in the tool description.
-- \`forge_publications\` — cook the same stash into 2–4 candidate publication kinds in one call. Convenience verb for the multi-kind preview pattern (gather → forge candidates → operator picks the winner → \`archive_cook\` the rejects). Each forged cook is a real DB row + outcome folder grouped by \`forge_id\`.
-- \`get_cook\` — fetch a cook row (the index pointing at its outcome folder). Any ring can read this — it's a first-class deliberation node.
-- \`list_cooks\` — list cooks (most-recent first), optional \`status: open | archived | all\`. The outcomes inbox.
-- \`archive_cook\` — soft-delete a cook row (removes from default \`/outputs\` inbox). The outcome folder on disk is NOT touched — citations still resolve. \`unarchive: true\` to restore.
-
-#### Research (legacy track — option-3 coexistence with stash mode)
-- \`enter_research_mode\` — return the light research discipline: no goal but to assist; bind broadly; trust your natural research strength; never force convergence. Optional drawer, NOT main flow. Call only when the user explicitly asks to research / gather / look into something. Read-only.
-- \`start_research\` — auto-save a research book. Low-ceremony: the book exists the moment research begins. Bind items with \`bind_research_item\`.
-- \`bind_research_item\` — core accretion verb. Kinds: \`link\` / \`article\` / \`summary\` / \`screencap\` / \`note\` / \`quote\` / \`snippet\` / \`sketch\`. Bind summaries you generate as their own items so the book remembers what it concluded.
-- \`run_experiment_sweep\` — Ring 9: a PARAMETER SWEEP as one deterministic call ("what happens to X as I vary Y?"). Per swept value it mints a mechanics-view world, derives SI outcomes (flightTime/range/maxHeight/maxSpeed), binds a provenance-carrying \`experiment\` item into the research book, auto-plots param-vs-outcome, and returns the comparative table + refs. v0 sweeps mechanics-view DYNAMICS recipes.
-- \`synthesize_abstract\` — distill the book into a tight thesis. Records the abstract (append-only history) AND auto-mints a hub-spoke DIAGRAM of the book (items → thesis). With \`evaluate: true\`, sends to plan mojulo for evaluation against the plans paradigm: supply \`suggested_lens\` + \`recommendation\` (\`forge\` or \`keep_researching\` with \`missing\` list).
-- \`sketch_research\` — preview the book as a hub-spoke diagram WITHOUT synthesizing. Standalone (not bound to the book or any abstract). Useful while gathering. Refuses on empty book.
-- \`get_research\` — fetch a full research book: session + all bound items + all synthesized abstracts (with \`plan_ref\` / \`assessment\` if evaluated).
-- \`list_research\` — list research sessions (optional \`status\` filter), most-recently-active first.
-
-### Make — Play · Print · Read · Hear · Observe (the FORM mints)
-
-The FORM families — the drawing surface plus the world / view / motion / motion-comic / audio / voice / game mints. Orthogonal to contextmap (creative recipes, not structural decisions); mintings persist at \`/sketches/<ref>\` (audio at \`/beats/<ref>\`, voice at \`/maker/voice\`) and embed into cook outcomes. Per-tool lists live behind \`get_creative_toolset({ form })\` — call it no-arg for the form map. Forms: diagram · illustration · reference · image-render · object · world · view · motion · motion-comic · audio · voice · game.
-`;
+const TOOL_INDEX_BY_PROFILE = new Map();
+function toolIndex(profile = pluginProfileActive()) {
+  if (!TOOL_INDEX_BY_PROFILE.has(profile)) TOOL_INDEX_BY_PROFILE.set(profile, buildToolIndex(profile));
+  return TOOL_INDEX_BY_PROFILE.get(profile);
+}
 
 // ---------------------------------------------------------------------------
-// Creative toolsets — Ring 10 re-cut by FORM, reached via get_creative_toolset.
-// See creative-toolsets.plan.md. Each form is a coherent make-this-thing family;
-// the keys match the routing index Create-things FORMs (one taxonomy, two surfaces).
-// The registry-sweep test walks the UNION of these bodies + the base index, so a
-// tool named here counts as covered. Add a new creative tool to exactly one form.
+// Creative toolsets — the tools re-cut by FORM, reached via get_creative_toolset and the studio pack
+// unveils. The keys match the routing index FORMs (one taxonomy, two surfaces). Add a new creative tool
+// to exactly one form's `tools`; its line comes from TOOL_LINES. A note is a string or { line, plugin }.
 // ---------------------------------------------------------------------------
 
-export const FORM_TOOLSETS = {
+const FORM_DEFS = {
   'diagram': {
-    title: "Diagrams & charts",
-    makes: "flow charts + data charts + scene sketches you view in the dashboard",
-    body: `- \`create_sketch\` — mint a flow-chart / data-chart / scene illustration the operator can view in the dashboard. Manifest accepts \`stations[]\` + \`edges[]\` (flow vocab), \`marks[]\` (chart primitives — stacked bars, donut/ring, KPI tile, polygon, blob, sphere, cylinder, plane, solid, partition, array, cubieLattice, form, text), and/or \`recipe: { kind, ...knobs }\` (deterministic family compilation — \`architecturalConstruction\` / \`portraitBust\` / others). Optional \`grid\`, \`depiction\`, \`scene.perspective\`. Before chart work: \`semantic_search({ kinds: ['sketch_vocab'] })\` then read the matched card via \`get_sketch_vocab\` for layout math. Returns \`{ ok, ref, url }\`.
-- \`update_sketch\` — revise an existing sketch in place (rename, replace manifest, move folder) so the index doesn't accumulate near-duplicate refs. The ITERATE surface for every recipe stored as a sketch: diagrams (same validation as \`create_sketch\`), worlds / solids / figures / edifices / views (validated by resolving through the world registry — the render contract), and \`kind:'game'\` manifests (create_game's structural gate; newly added levels are noted as unaudited). Beats/voice refuse and point at their domain tools. Iterate with \`patch\` (ordered set / remove / add ops by monomer \`id\` or JSON Pointer \`path\`, gated like a full replace; \`readout:'changed'\` answers "what moved" without the whole parts list) or a full \`manifest\` replace.
-- \`get_sketch_vocab\` — read a sketch-vocab card in full (layout math + example marks for one paradigm: \`donut-ring\`, \`stacked-bar\`, \`stat-tile\`, \`grid-layout\`, \`z-layering\`, \`pipeline\`, …). Pair with \`semantic_search({ kinds: ['sketch_vocab'] })\`. Omit \`id\` to list available cards.
-- \`get_style_vocab\` — read the STYLE presets (drawing-discipline templates: \`steamboat\`, \`ukiyo-e\`, \`photo-realism\`, \`louvrijks\`, …, plus \`clay-render\` — the untextured grey-model register the dream/reconstruction loops default to) that \`renderBrief\` locks on image / keyframe-animation / scene-motion sketches. Omit \`id\` to list. Presets are TEMPLATES — fork via \`renderBrief.overrides\` or author a custom style inline. Applying one style to a scene's cast clips + plate is its cohesion (the plate inherits the cast style by default).
-- \`diff_sketches\` — scratch visual diff between two sketch refs. Matches stations/marks structurally; highlights green (added) / red (removed) / amber (changed) / blue (moved). Returns \`{ ok, ref, url, verdict, similarity, summary }\` or \`verdict: 'too_different'\` (refuses to mint without \`force: true\`).
-- Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the "object" toolset (kind \`manji-tree\`: \`via:'packet'\` is key-free; \`via:'prompt'\` calls an LLM API with the user's key and needs \`provider\`). for the marks turn.`,
+    title: 'Diagrams & charts',
+    makes: 'flow charts + data charts + scene sketches you view in the dashboard',
+    tools: ['create_sketch', 'update_sketch', 'get_sketch_vocab', 'get_style_vocab', 'diff_sketches'],
+    notes: [{
+      line: "- Natural-language → sketch (the polygonizer) is an authoring door of the 3D-solid mint in the \"object\" form: kind `manji-tree`, `via:'packet'` key-free or `via:'prompt'` with the user's LLM key and a `provider`.",
+      plugin: "- Natural-language → sketch (the polygonizer) is an authoring door of the 3D-solid mint in the \"object\" form: kind `manji-tree` with `via:'packet'`, key-free.",
+    }],
   },
   'illustration': {
-    title: "Scene & figure illustration",
-    makes: "painted scene sketches + publication covers",
-    body: `- \`sketch_what_possible\` — **VISUAL ONLY** despite the name. The inverse-stable-diffusion knob-resolution loop that feeds \`create_sketch\` for scene/figure illustrations (recipe families like \`architecturalConstruction\`). Retrieves methods (family + knob values) for the current intent, narrates underdetermined knobs to the user, accumulate decisions across turns, only call \`create_sketch({ recipe: { kind, ...accumulated } })\` when \`hint.ready_to_create_sketch === true\`. Conceptual ideation routes to \`enter_research_mode\` / \`enter_plan_mode\` instead. Charts/infographics go through \`semantic_search({ kinds: ['sketch_vocab'] })\` + \`get_sketch_vocab\`.
-- Posed human figures, non-humanoid creatures, and the manji-tree IR are minted via the 3D-solid mint in the "object" toolset (kinds \`figure\` / \`manji-tree\`; painting + emotes via the skin / emote ops) — pull that form for the manual.
-- \`create_cover\` — mint a publication COVER (kind \`cover\`): illustration + title + subtext + metadata composed under one art direction, ready to bind onto a publication (\`for_kind\` seeds aspect/archetype/slots from a cook). Renders immediately with NO worker (palette placeholder + carved title); painted layers swap in later via the render bicycle, the recipe unchanged. mojulo always owns the letter SHAPES (\`title_realizer\`: painted / carved / flat). SVG face at \`/svg\`, raster composite at \`/cover.png\`. Reach for "make a cover for this book / picture book", "key art with the title on it".`,
+    title: 'Scene & figure illustration',
+    makes: 'painted scene sketches + publication covers',
+    tools: ['sketch_what_possible', 'create_cover'],
+    notes: ['- Posed human figures, non-humanoid creatures and the manji-tree IR are 3D solids: the "object" form (kinds `figure` / `manji-tree`), or the "character" form for a body with a rig.'],
   },
   'reference': {
-    title: "Visual reference (from a photo)",
-    makes: "read a photo YOU can see into mojulo dials — scene or pose",
-    body: `- \`reference_protocol\` — Visual Reference (step 1): get the extraction protocol for reading a photo YOU can see into mojulo's dials. \`target:'scene'\` (perspective: horizon / vanishing points / floor → two-point camera) or \`'pose'\` (gesture: skeletal key lines → figure pose dials). You are the vision adapter — no key, no image sent to mojulo. Returns key lines, dial schema, fidelity contract (thematic/gesture default vs faithful), expressive ceiling, multi-pass hint, and the \`capture_reference\` call to make next.
-- \`capture_reference\` — Visual Reference (step 2): file the \`insights\` you extracted from a photo into a stash. Mints a CAGE sketch you can see/preload/re-camera (scene → a perspective-frame diagram; pose → a posed figure dummy) and gathers it as a \`sketch\` item carrying \`metadata.insights\`. Pass \`stash_ref\` to REFINE with a second view (multi-pass triangulation — one photo is the normalized anchor, not the creation driver). Consume via preload / \`mint_solid({ kind:'figure', spec:{ pose } })\` / \`forge_motion\` / \`cook\`; anchor with \`bind_stash({role:'reference'})\`. Returns \`{ stash_ref, cage_ref, cage_url, item_id, passes }\`.`,
+    title: 'Visual reference (from a photo)',
+    makes: 'read a photo YOU can see into mojulo dials — scene or pose',
+    tools: ['reference_protocol', 'capture_reference'],
   },
   'image-render': {
-    title: "AI-image render pipeline",
-    makes: "direct / queue / gate an externally-painted image or comic page",
-    body: `- \`get_image_render_packet\` — pull the render packet for a minted \`image-outcome\` / \`sequential-art\` / \`character-sheet\` sketch: worker instructions (camera/pose phrasings, Style Lock from \`renderBrief.preset\`, art-layer-only rule), the normalized manifest, scaffold URLs (page + \`?panel=\` crops), per-character reference-sheet briefs, and bound sheet PNGs as conditioning references. For the external image-capable render worker; one call per \`target\`.
-- \`bind_character_sheet\` — save the worker-generated character-sheet PNG onto its \`character-sheet\` sketch (append-only, \`data/outcomes/<ref>/\`; served at \`/api/sketches/<ref>/sheet.png\`). From then on every comic casting that character by ref (\`characters: [{ ref }]\`) gets the PNG in its render packet — identity persists across artifacts.
-- \`bind_image_render\` — save a worker-generated page/panel PNG onto its \`image-outcome\` / \`sequential-art\` sketch, one render \`target\` at a time. Once every target is bound, \`/api/sketches/<ref>/final.png\` composites the finished page (borders, gutters, bubbles, lettering re-imposed deterministically) and the comic cook publishes THAT as the page — AI-painted pages in any comic format.
-- \`request_image_render\` — park a DURABLE render request for a minted \`image-outcome\` / \`sequential-art\` sketch (one row per target, survives a control-plane restart) — the start of the render handoff bicycle. Idempotent per (ref, target, head-manifest). A worker then drains the queue.
-- \`pull_image_render\` — worker-mode: claim the oldest pending render request (marks it in_flight) and get the render packet + \`request_id\` + submit tool. Pass \`ref\` to drain one sketch, omit to take from the whole queue. Returns \`{ request: null }\` when idle.
-- \`submit_image_render\` — hand a worker-generated PNG back for a pulled \`request_id\` (append-only via the render store, records the worker's audit claim); moves the request to \`submitted\`. Does NOT accept — a separate gate does.
-- \`accept_image_render\` — the audit gate: accept a submitted render after verifying the non-overlayable surface (beat/pose, strict forms, blank bubble zones, identity). The submitter should not self-accept; only accepted renders feed \`final.png\`.
-- \`reject_image_render\` — the gate's other verdict: reject a submitted render with the reason so the worker repaints and re-submits against the same request.
-- \`request_mesh_render\` — the MESH sibling of the loop above on the same durable table: park an object / figure / world sketch for an external image-to-mesh worker (Meshy / Tripo / Hunyuan3D…). Idempotent per (ref, head manifest). The manual half is \`bind_mesh_render\`.
-- \`pull_mesh_render\` — worker-mode: claim the oldest pending mesh request and get the packet — the greybox GLB (the printable set, the SHAPE PRIOR), still / turntable URLs, declared size + units, triangle budget, instructions.
-- \`submit_mesh_render\` — hand ONE .glb back: decoded at the door, size-checked against the greybox (0.5×–2× per axis), closure-audited, stored as an append-only \`meshRef\` slot with provenance; moves to \`submitted\`.
-- \`accept_mesh_render\` — the eyes gate for a submitted mesh; refuses a self-accept and a failed size gate (\`accept_audit.override_size\` to override). Accepted = the latest \`meshRef\`.
-- \`reject_mesh_render\` — reject a submitted mesh with the reason; the worker re-sculpts against the same request.`,
+    title: 'AI-image render pipeline',
+    makes: 'direct / queue / gate an externally-painted image, comic page or mesh',
+    tools: [
+      'get_image_render_packet', 'bind_character_sheet', 'bind_image_render',
+      'request_image_render', 'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',
+      'request_mesh_render', 'pull_mesh_render', 'submit_mesh_render', 'accept_mesh_render', 'reject_mesh_render',
+    ],
   },
   'character': {
-    title: "Characters",
-    makes: "heroes, creatures and animals: bodies with a rig you can play, print or watch",
-    body: `- \`create_character\` — make a CHARACTER, \`as\`: \`hero\` (a person on the vajra rest skeleton: \`spec { cast: 'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }\`, tune and face as percentages, hair by library word, dress last), \`creature\` (an invented body: a dragon, a monster, a plush toy; \`spec.plan\` is a ring plan expanded at mint, or a full layered recipe of stations × slots with dials and an optional rig), or \`animal\` (a real species by id or the name people say, or a bare \`archetype\` body). The same recipes \`mint_solid\` makes (kinds \`layered\` and \`animal\`), named as characters. Served as a still, an orbitable World that plays its clips, and a skinned \`.glb\`. Iterate in place with \`update_sketch\` (\`/hero/tune/<control>\`, \`/hero/face/…\`, \`/plan/…\`, \`/dials/<name>\`); never re-mint. Manuals: \`get_solid_vocab({ id: 'layered' })\` (hero, creature), \`({ id: 'animal' })\`; the loops are the \`create-hero\` and \`creature-from-plan\` catalysts.`,
+    title: 'Characters',
+    makes: 'heroes, creatures and animals: bodies with a rig you can play, print or watch',
+    tools: ['create_character'],
+    notes: ["- `as: 'hero'` a person on the rest skeleton (cast, register, tune, face, hair, dress last) · `as: 'creature'` an invented body from a ring `plan` · `as: 'animal'` a species by id or common name. Manuals: `get_solid_vocab({ id: 'layered' })`, `({ id: 'animal' })`. Revise in place: `/hero/tune/<control>`, `/plan/…`, `/dials/<name>`."],
   },
   'object': {
-    title: "3D solids, figures & objects",
-    makes: "figures, creatures, objects, buildings, wordmarks — the unified 3D-solid mint",
-    body: `- \`mint_solid\` — mint a 3D SOLID of \`kind\`: \`figure\` (a posed vexar-lit male/female human), \`manji-tree\` (a non-humanoid creature/object as a bonded part-graph, with \`via\` authoring doors ir / parts / prompt / packet), \`workbench\` (a measured everyday object as a polygomer of lathes/extrudes/sweeps/lofts/fields/reliefs — \`fields\` take \`expr\` distance expressions and domain ops), \`code\` (a PROGRAM that returns a workbench spec or faces, run in a no-reach seeded realm), \`scad\` (an OpenSCAD program AS the recipe — exact booleans, sharp edges, meshed in-process), \`assembler\` (several workbench parts composed into one worldspace), \`carved-solid\` (a carved / metalified wordmark, logo, or icon), \`solid-turntable\` (a single convex solid spinning live in CSS-3D), \`edifice\` (a bespoke inhabitable building — a graph of masses + concourses), \`vehicle\` (a vehicle-family instance), \`layered\` (a creature / invented body or head as stations × slots with pinned detail and dials, optionally rigged with clips). Per-kind params go in \`spec\`; find a kind by intent via \`semantic_search({ kinds: ['solid_vocab'] })\` and read its manual via \`get_solid_vocab({ id: '<kind>' })\` before composing spec. Served as an SVG still + orbitable \`/world\` + \`.glb\`. The mint is a STARTER — iterate the stored recipe in place via \`update_sketch { ref, patch }\` (set / remove / add by part id; or a full \`manifest\` replace — both validated by the render contract); re-mint only for a side-by-side variant. On a \`layered\` row a drawn line is data too: \`set /strokes/-\` stores a stroke, \`{ op:'solve', from:'/strokes/<id>' }\` turns it into dials (silhouette), a strip (contour) or a brush dial, with the RESIDUAL it could not hold.
-- \`edit_solid\` — operate on an already-minted family solid's DERIVED renders (recipe edits go through \`update_sketch\`): \`op:'skin'\` makes a manji-tree / workbench / assembler polygomer or a figure WEAR a painted skin (two-phase: \`spec.phase:'packet'\` hands back the paint scaffold, then \`'apply'\` binds the painted PNG); \`op:'emote'\` applies a named body-language emote to a stored figure and renders a looping GIF. Pass the target \`ref\`; op params in \`spec\`.
-- \`measure_solid\` — read numbers back off a stored solid without exporting: bounds, printed mm size (export_model's scale seam), per-monomer sizes, closure audit, Manifold volume, print advisories. Advisory — the sanity check before \`export_model\`.
-- \`fabricate_solid\` — make an object buildable from real parts: \`needs\` (what each part must do: fasten / hinge / spin / seal / mount …) → the standard parts, the bill of materials, and the cuts (a scad \`source\`) or furniture joints (a workbench \`frames\` entry) that take them. Two calls: the plan, then the mint.
-- \`get_solid_vocab\` — read a solid-vocab card (the depiction prose + parameter manual for one \`mint_solid\` kind or \`edit_solid\` op; a long one opens to a \`sections\` menu). Pair with \`semantic_search({ kinds: ['solid_vocab'] })\`; omit \`id\` to list cards (optional \`family\` filter: figure / creature / object / structure / vehicle / edit).
-- \`verify_machina\` — Machina: state a materials-handling problem (\`demand\` load + \`mechanism\` + \`capacity\` limits) and get a CHECKED feasibility verdict (not a picture) — can this mechanism move this load within these limits?`,
+    title: '3D solids, figures & objects',
+    makes: 'figures, creatures, objects, buildings, wordmarks — the unified 3D-solid mint',
+    tools: ['mint_solid', 'edit_solid', 'measure_solid', 'fabricate_solid', 'get_solid_vocab', 'verify_machina'],
+    notes: ["- On a `layered` row a drawn line is data: `set /strokes/-` stores a stroke; `{ op:'solve', from:'/strokes/<id>' }` turns it into dials (silhouette), a strip (contour) or a brush dial, with the residual it could not hold."],
   },
   'world': {
-    title: "Worlds (traversable)",
-    makes: "walkable/drivable/flyable three.js environments + glTF export",
-    body: `- \`compose_world\` — THE world entry point: a BASE (geometry generator) × a THEME (flavor pack) × \`overrides\` (the base's own knobs). Bases: \`city\` (generated 3D cityscape), \`transport-hub\` (airport / train-station / bus-terminal / subway via \`overrides.mode\`), \`controllable\` (a LIVE world the user DRIVES — walk / fly / platformer), \`action\` (a live world with RULES — a game with score / timer / spawns / pickups via an \`idioms\` recipe), \`planetary\` (a space-accurate body in a full celestial sphere), \`painted-landscape\` (painterly glyph-composed terrain SVG), \`math\` (a finite group as a walkable Cayley city — plazas are elements, generators are street types, walking a relation returns you home), \`school\` (a generated K-12 campus with walkable interiors), \`dungeon\` (a torch-lit cave INTERIOR from a chambers + tunnels graph). FIRE in a world — a campfire, torches, braziers, candles, a fireball trap or spell, a grass fire running with the wind, coloured or magic flame — is \`overrides.fire\` (the 'Fire' section of the dungeon and terrain cards): live flames that move with the air and light the world around them. Reach for it over the carved-solid \`flame\` fx or a sketch's fire, which are a logo effect and a flat picture. Each base's parameter manual + routing phrases live in its view-vocab card — \`get_view_vocab({ id: '<base>' })\`; find a base by intent via \`semantic_search({ kinds: ['view_vocab'] })\`. Themes via \`list_world_themes\` (theme lowering ships for \`city\`). Recipe-only, regenerate-on-render; served at \`/api/sketches/<ref>/scene\` and/or \`/world\` per base. Reach for "make a city / an airport / a walkable world / a game where… / a painted landscape / show me my services as a world".
-- \`list_world_themes\` — list the theme packs available to \`compose_world\` (and the composer bases). Optional family filter (\`earth\` / \`scifi\` / \`fantasy\`). Call before composing a themed world.
-- \`export_model\` — export a stored sketch's traversable World as a binary glTF (\`.glb\`) for Blender / Unreal / three.js / Quick Look, or as a print file: \`format:'stl'\` (bare triangles) / \`format:'3mf'\` (slicer-preferred — mm declared in-file, colours, instanced repeats), or as OpenUSD \`format:'usda'|'usdz'\` (DCC interchange + AR Quick Look at true scale), or a house as an IFC4 building model \`format:'ifc'\` (BIM tools). Baked-unlit fidelity (the depiction IS the asset). Diagrams / CSS-3D-only kinds return \`eligible:false\`.
-- \`bind_mesh_render\` — bind an externally refined \`.glb\` (a DCC pass over an \`export_model\` file) back onto its sketch as an append-only DERIVED artifact (\`data/outcomes/<ref>/mesh-<n>.glb\` + provenance sidecar; GLB-validated at the door). Worlds place it via a figures \`meshRef\` entry — lowered server-side to faces, recipe stays sovereign.
-- \`translate_modeler_lingo\` — translate 3D-modeler vocabulary (blockout, kitbash, retopo, bake, rig, LOD…) into mojulo execution + the \`export_model\` handoff — the modeler-facing sibling of \`forward_context\`. Honest about what mojulo does NOT do (retopo/UV/bake/rig → your DCC).
-- A house / apartment / cottage / one furnished room is NOT a base — it is \`mint_building\` (the building form). \`export_model\` above exports it (\`format: 'ifc'\` for BIM tools; \`lit: true\` gives real PBR materials an engine lights).`,
+    title: 'Worlds (traversable)',
+    makes: 'walkable/drivable/flyable three.js environments + glTF export',
+    tools: ['compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo'],
+    notes: ["- A house / apartment / cottage / one furnished room is NOT a base: it is `mint_building` (the building form)."],
   },
   'building': {
-    title: "Buildings (houses)",
-    makes: "walkable houses, apartments and furnished rooms, built up in steps: layout → dwelling → construction → BIM",
-    body: `- \`mint_building\` — mint a walkable house / apartment / one furnished room from a \`seed\` or a \`rooms[]\` plan. A house climbs in steps — dwelling (furnishing, \`storeys\`), construction (\`framing\`, \`roof\`, \`drainage\`), BIM (\`export_model\` format \`'ifc'\`) — and each result's \`next\` names the steps open from here with the card for each (\`get_sketch_vocab({ id })\`). Iterate with \`update_sketch\`. Returns \`{ ok, ref, url, next }\`.`,
+    title: 'Buildings (houses)',
+    makes: 'walkable houses, apartments and furnished rooms, built up in steps: layout → dwelling → construction → BIM',
+    tools: ['mint_building'],
   },
   'view': {
-    title: "Views (science / math / bio study)",
-    makes: "animated 3D study objects that teach a phenomenon",
-    body: `- \`create_view\` — mint an animated 3D STUDY OBJECT: one tool spanning physics (\`rocket\`, \`airplane\`, \`fission\`, \`fusion\`, \`double-slit\`, \`black-hole\`, \`galaxy\`, \`orbit\`, \`mechanics\`, \`ocean\`, \`atmosphere\`, …), math explainers (\`derivative\`, \`conics\`, \`trig-circle\`, \`complex\`, \`series\`, …), and biology (\`dna\`, \`cellular\`, \`molecule\`). Pick \`kind\` from the enum; the kind's own knobs go in \`params\` — find a kind by intent via \`semantic_search({ kinds: ['view_vocab'] })\` and read its parameter manual via \`get_view_vocab\` before passing params. Orbit-camera Worlds at \`/api/sketches/<ref>/world\`; recipe-only, regenerate-on-render. Reach for "show/teach me <phenomenon> / an animated demo of X / a 3D explainer for my student".
-- \`get_view_vocab\` — read a view-vocab card in full: the depiction prose + routing phrases + parameter manual for one \`create_view\` kind or \`compose_world\` base (family \`world\`). Omit \`id\` for the index rows; optional \`family\` filter (\`science\` / \`math\` / \`bio\` / \`world\`). Pair with \`semantic_search({ kinds: ['view_vocab'] })\`.
-- \`measure_view\` — read the physical TIME-SERIES back out of a science-view sketch in DECLARED REAL UNITS (the measurement channel the render never exposes). Re-plans deterministically from the stored recipe.
-- \`save_recipe\` — KEEP a tuned study object, beats loop, or workbench solid (expr / code programs included): promote a sketch into the operator's own COOKBOOK as a named, intent-recallable catalog entry (recalled later via \`semantic_search\` over the family's vocab kind / its \`get_*_vocab\` reader, re-minted via the family's entry tool). Write \`when\` from the conversation's intent. Reach for "save this / keep this setup / remember this view".`,
+    title: 'Views (science / math / bio study)',
+    makes: 'animated 3D study objects that teach a phenomenon',
+    tools: ['create_view', 'get_view_vocab', 'measure_view', 'save_recipe'],
   },
   'motion': {
-    title: "Motion & film",
-    makes: "add time to a static subject; stitch clips into a film",
-    body: `- \`forge_motion\` — put a mojulo subject IN MOTION and render an animated artifact (self-contained CSS flipbook SVG + GIF). An OUTPUT concern, sibling to illustration/cook: it CONSUMES static subjects and adds time. Families behind one door: (1) CAMERA motions (\`turntable\` / \`orbit\` / \`push_in\` / \`dolly_zoom\` / \`flythrough\`) over a single manji-tree (figure rig, terrain world, or stored \`sk_…\` sketch) — the subject's own camera is the base shot, the motion perturbs it; (2) DECK motion (\`deck\`) over an ORDERED set of sketches/charts played as a SLIDESHOW — the info-transfer path for content that needs no figure/scene animation (chart decks, KPI walkthroughs, explainers, a report in motion). Deck slides via \`subject.deck\` (ordered sketch refs and/or inline manifests, ≥2) or \`subject.stash_ref\` (a stash's \`sketch\`-typed items, in gather order); (3) WORLD motions over \`subject.world_ref\` (a traversable three.js world — city/hub/room/terrain/planet), baked via headless WebGL to .gif/.mp4 — the same camera motions, plus \`traversal\`: \`shot.ticks\` is an INPUT SCRIPT driving the world's live entities/physics/events (a recorded, deterministic run with a per-tick probe stream + final probe for assertions like "the player reached the exit"). Filed as a "Motion Project" resource group — an ops tag binds a subject/recipe stash + the rendered motion outcome folder. Returns \`{ motion_ref, tag_ref, stash_ref, url }\`; the \`.svg\` is durable, the \`.gif\` is a cache. Chem / structure modeling for the deck-vs-camera fork: ball-and-stick = lathes (ball = dome-profile lathe, rod = constant-radius lathe; \`style.fill:'vexar'\` per lathe for LIT shaded solids, default wireframe); the bond is the \`vajra\` primitive (o-o-o, two spheres + hub); chirality / double-helix / DNA is the \`taiji\` primitive (a SIGNED \`twist\` = handedness) — both INTERPENETRATE / self-fold so they stay BAKED via the camera family, never the live turntable.
-- \`get_motion_vocab\` — read a motion-vocab card in full: the parameter manual for one \`forge_motion\` / \`stitch_motion\` subject family (\`camera\` / \`deck\` / \`effect\` / \`world\` / \`stitch\`). Omit \`id\` for the index rows. Pair with \`semantic_search({ kinds: ['motion_vocab'] })\`.
-- \`stitch_motion\` — concatenate N already-forged motions (\`mo_…\` refs) end-to-end into ONE long-form, downloadable MP4/H.264. The multi-clip sibling of \`forge_motion\` (forge makes one clip; stitch plays many as a film). A stitch is itself a motion outcome (its own \`mo_…\` folder, same Motion Project ops tag, same /motion gallery) but plays as \`<video>\`. Snapshot-at-build (clip frames baked in, survives source deletion); differently-sized clips letterbox into one canvas; each clip resampled to the output fps keeping real-time duration. CUT-only transitions; MP4-only (no GIF); WARNS but never refuses on large builds. Returns \`{ motion_ref, url, mp4_path, clips, frames, duration_seconds, warning }\`.`,
+    title: 'Motion & film',
+    makes: 'add time to a static subject; stitch clips into a film',
+    tools: ['forge_motion', 'get_motion_vocab', 'stitch_motion'],
   },
   'motion-comic': {
-    title: "Motion comic — click-gated comic presentation",
-    makes: "a comic pieced out click by click in a fixed box — the powerpoint of comics",
-    // A form with NO tools of its own — "a new kind costs a vocab card, not a
-    // new tool registration" taken to its FORM-level conclusion. The bullets
-    // carry kind-qualified call forms so the Ring 10 partition stays clean
-    // (create_sketch's home drawer is 'diagram'); the vocab card is the manual.
-    body: `- \`create_sketch { kind: 'motion-comic' }\` — mint a comic presented as a CLICK-GATED story (motion-comic.plan.md). First authored fact is the BOX (\`box.screen\`: \`phone-upright\` / \`phone-wide\` / \`square\` / \`desktop\` / freeform \`{width,height}\`, plus a \`matte\` color that holds whatever the art doesn't fill — composition never reflows). A motion comic has NO PAGES — it is bound by PANELS: each scene frames one PANEL CROP (\`source: {pageRef, panel}\`) into the box and its \`events\` piecemeal it out one click at a time; deltas \`show\` (the panel crop — the showcase — or any sketch's face as a companion) / \`say\` (the panel's bubbleZone by \`{of, zone}\` — panel implicit through a crop — or inline \`{text}\`) / \`swap\` (DIRECT SINGLE PANEL ACTION: same frame, new art — an action beat / impact frame, CUT by default; the reader's mind interpolates the in-between) / \`move\` (the camera cheat: shrink = depth/falling, grow = coming in fast) / \`letter\` (SFX lettering — "CRASH!" — as a mojulo-drawn Z-INDEX overlay, slam-in default; the image worker NEVER letters, placement + treatment are the composer's job) / \`focus\` (rack focus — all else dims) / \`hold\` (the held beat — an authored empty click) / \`hide\` / \`clear\`; balloon \`tail\`s point (the foreshadow grammar). The grammar is TURBOMEDIA (Balak / Marvel Infinite Comics lineage). Scene \`layout\`: \`full-spread\` (bleed) | \`splash\` (the 80% showcase) | \`two-panel\` (long-axis division; placements take \`slot: 1|2\`, aspect-fitted at mint). The trick protocol (approach / recede / quick-cut beat / impact frame / expression swap / held flurry — the animation cheat shelf transposed to the click) is the \`motion-comic-tricks\` sketch_vocab card. Two lettering modes over the SAME says: \`bubbles\` (drawn balloons, accreting in reading order) or \`subtitles\` (a movie-style band — direct font/color/bg styling + \`fade\`/\`type-on\`/\`cut\` transitions; each click reads like a scene with subs, or a cut gif). State is a pure fold — insert/reorder events freely, nothing invalidates. Plays at \`/api/sketches/<ref>/play\` (four moves: next event / final page state / prev event / scene start; deep-link \`?s=&e=\`).
-- \`update_sketch { ref, manifest }\` — the accrete-cheaply surface: revise the story in place; same normalization + ref/zone gates as the mint.
-- \`get_sketch_vocab { id: 'motion-comic' }\` — the manual (manifest contract, delta vocabulary, box discipline, worked example); read before your first mint. The EXPORT is one self-contained HTML file — \`/play?download=1\` (player + all art inlined as data URIs, opens from disk, no server).`,
+    title: 'Motion comic — click-gated comic presentation',
+    makes: 'a comic pieced out click by click in a fixed box — the powerpoint of comics',
+    // A form with no tools of its own: a new kind costs a vocab card, not a registration. The rows are
+    // kind-qualified calls, so create_sketch keeps its one home (diagram).
+    tools: [],
+    notes: [
+      "- `create_sketch { kind: 'motion-comic' }` — a comic as a CLICK-GATED story: a fixed `box`, scenes that each frame one panel crop, and `events` revealed one click at a time (show, say, swap, move, letter, focus, hold). Plays at `/api/sketches/<ref>/play`.",
+      '- `update_sketch { ref, manifest }` — revise the story in place; same gates as the mint.',
+      "- `get_sketch_vocab { id: 'motion-comic' }` — the manual (manifest, deltas, box discipline, a worked example); read before your first mint. The export is one self-contained HTML file: `/play?download=1`.",
+    ],
   },
   'audio': {
-    title: "Audio — Mojulo Beats",
-    makes: "synthesized soundtracks / tunes / grooves / sfx as seeded recipes",
-    body: `- \`create_beats\` — mint a MUSICAL artifact (Mojulo Beats — the AUDIO mint, sibling to the visual mints): synthesized WebAudio from a tiny deterministic recipe, played at its \`/beats/<ref>\` studio (no media bytes; every sound computed at play time). Four kinds: \`beats-ambient\` (a SEEDED generative music loop — tempo/progression/channels of patch → effects chain; the world-soundtrack primitive), \`beats-composition\` (an explicit note-event score — a specific melody/jingle/fanfare, no dice), \`beats-pattern\` (a step-sequencer groove — tracks × sixteenth velocity masks with note contours; drum machine / house / garage / techno beats), \`beats-sfx\` (named foley cues: chiptune sweep/flutter/burst/thump, grain/ring foley, a held \`tone\` — pickups, lasers, impacts, charge-ups, beams). Find a kind by intent via \`semantic_search({ kinds: ['beats_vocab'] })\`, read its manual via \`get_beats_vocab\`, then pass \`params\`. New work leads with the fidelity shelf — \`grand-piano\`, the \`-2\` sections, \`drum-kit\`, \`pan\` + a shared \`room\`, cue \`variant\`; unsuffixed names stay for existing recipes. Wire into a world via the world manifest's \`audio\` channel. Reach for "give this world music / a soundtrack", "compose a tune", "make a beat / drum pattern", "make a pickup/laser sound".
-- \`get_beats_vocab\` — read a beats-vocab card in full: recipe shape + patch shelf + effects chains + gesture vocabulary + musical guidance for one \`create_beats\` kind. Omit \`id\` for the index rows. Pair with \`semantic_search({ kinds: ['beats_vocab'] })\`.
-- \`export_beats\` — render a stored beats artifact to a file (the audio sibling of \`export_model\`): \`format:'wav'\` (default) is the deterministic audio render; \`format:'midi'\` is the SCORE as a Standard MIDI File — the musician handoff (opens in any DAW; MuseScore renders it as sheet music; swing/feel/velocities travel, timbre doesn't — pair with the .wav; sfx is wav-only). Export-only, never imported back; URLs \`/api/beats/<ref>.wav\` / \`.mid\` (+\`?rev=\`) regenerate per request. Duration per kind: composition = its own score length; ambient = \`bars\`; pattern = \`loops\`; sfx = one \`cue\`. Returns url + bytes plus an on-disk \`path\` (default \`write:true\`). Reach for "export this beat / the audio file / the MIDI / sheet music / bring it into my DAW".
-- \`get_beats\` — read a beats artifact back: the full recipe (head or \`rev\`), the revision index, and its annotations (open first). The read-modify-write anchor — call before any \`update_beats\`. Read-only.
-- \`update_beats\` — revise a beats artifact: full-manifest replace through the same musical validation as \`create_beats\`; every manifest change snapshots a revision (\`note\` = the message; old revisions stay playable via \`?rev=\`); \`resolveAnnotations: [ids]\` closes the marks the edit answers. Reach for "edit / revise / tweak / fix the tune", "mute that track". (\`update_sketch\` on a beats ref refuses and points here.)
-- \`annotate_beats\` — mark a beats artifact in musical terms: \`add\` commentary at an anchor (artifact / track / \`{ bar, step?, track? }\` time / cue — seeded performances make bar N reproducible), \`resolve\` by id, \`list\` open-first. The ONLY write surface for marks — the \`/beats/<ref>\` studio renders them read-only; pass \`author:'operator'\` when relaying the user's own note.
-- \`diff_beats\` — structured MUSICAL diff between two beats refs (each optionally \`ref@rev\`): tempo/track/patch/macro deltas, pattern grids cell-wise ("kick: bar 2 steps 12, 14 removed"), progression + cue changes. A report, not a picture — \`diff_sketches\` refuses beats refs and points here. Read-only.`,
+    title: 'Audio — Mojulo Beats',
+    makes: 'synthesized soundtracks / tunes / grooves / sfx as seeded recipes',
+    tools: ['create_beats', 'get_beats_vocab', 'export_beats', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats'],
   },
   'voice': {
-    title: "Voice — Mojulo Voice",
-    makes: "voice registers — deterministic recipes for how a voice sounds, rendered by an external speech worker",
-    body: `- \`create_voice\` — mint a VOICE REGISTER (Mojulo Voice — the SPEECH mint, sibling to beats): two operator-framed axes (\`confidence\`: meek → authoritative; \`depth\`: native timbre → darker via a bounded cross-gender anchor) over a calibrated BANK of stock Kokoro voice embeddings, resolved to blend weights by a pure lerp — same manifest → same waveform, no dice. Mojulo designs the voice and never speaks: the returned \`resolved.voiceArg\` is the handoff an external speech worker renders (native TTS, or the optional local Kokoro backend — docs/local-voice-worker.md). Banks are language-agnostic; \`jp-female\` ships first. Reach for "make / tune a voice", "a deeper / more confident / meeker voice", "a Japanese female narrator".
-- \`get_voice\` — read a voice register back: manifest (bank, axes, speed, direction) + the resolved blend (\`weights\`, \`voiceArg\`, render hint) + the bound sample URL if one exists. The read anchor before minting a variant. Read-only.
-- \`bind_voice_sample\` — bind a worker-rendered WAV onto a register (append-only, provenance sidecar) so the /maker/voice shelf can PLAY it; served at \`/api/sketches/<ref>/voice-sample.wav\`. The sample is a derived render, never the artifact.
-- \`get_voice_vocab\` — the capability drawer: recipe shape, banks + the calibration workflow, why embedding blends are legitimate deterministic recipes, and the worker capability ladder. Pull before your first \`create_voice\`.`,
+    title: 'Voice — Mojulo Voice',
+    makes: 'voice registers — deterministic recipes for how a voice sounds, rendered by an external speech worker',
+    tools: ['create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab'],
   },
   'game': {
-    title: "Game",
-    makes: "a playable standalone artifact — a typed store + levels that are worlds",
-    body: `- \`design_game\` — THE GAME RAIL, first: design a game top down and let mojulo make it. A gameworld (levels, a hero, its gear, the systems) is a sketch; \`design_game\` writes it (\`world\`, \`patch\`), takes the creator's verdicts (\`approve\`, \`revise\`) and \`run: true\` makes every ready step through the doors below (the hero door, the equipment door, create_sketch), keeping what did not move and leaving hand edits. Read \`get_game_vocab({ id: 'gameworld-guide' })\` first: the loop and the principles; \`get_game_vocab({ samples })\` browses random fragments of a page. A reference is made only when the creator asks (\`example\`) and compared after creation (\`compare\`). Reach for "make a game where my hero gains powers", "design my hero and her abilities", "a skill tree and a HUD for my hero".
-- \`create_game\` — mint a GAME, the fifth creatable paradigm — COMPOSITION over Media (levels-as-worlds, music, sprites, covers): a standalone playable artifact = a SHELL owning a typed STORE + promoted LEVELS (worlds minted with a \`game:\` contract channel). Persistent state — a character's level, an inventory/loadout, a customizable army, story flags, campaign unlocks — lives in the store and carries between levels; the shell renders each level's pre-level setup screen, hosts it, and applies its ONE outcome to the store. Play data never enters mojulo. \`store.slices\` from five kinds (character | inventory | party | progression | flags); \`levels\` are refs in play order, each optionally \`gate\`d. Design the store first via \`semantic_search({ kinds: ['game_vocab'] })\` + \`get_game_vocab\`. Mint checks: each level passes a contract dry-run (always) plus a level audit via \`audits:{<ref>:{motion_ref}}\` (a \`forge_motion\` traversal that reached the win condition) — \`allow_unaudited:true\` records a skip. Played at \`/sketches/<ref>\`. Iterate the minted game in place via \`update_sketch { ref, manifest }\` (levels / music / theme / difficulty — same structural gate; added levels noted as unaudited). Reach for "make a game", "a tactics game with a persistent army", "a dungeon crawler where loot carries between levels", "a campaign with level unlocks".
-- \`create_pixelizer_game\` — mint a self-contained 2D REDUCER game (the arcade register beside \`create_game\`'s world/level games): brickster & kin, a pure \`step(state,action)\` reducer + skin landed as a \`kind:'game'\` sketch, so it joins the Arcade (\`/arcade\`) + the Maker gallery and plays at \`/api/sketches/<ref>/game\`. NO world / store / level audits (a reducer game has no levels). Pass \`reducer\` (a built reducer) + optional \`title\`/\`tagline\`/\`theme\`/\`music\`/\`register\`; \`project_ref\` binds it as a project's rules member. Reach for "add brickster to the arcade", "mint the falling-blocks game".
-- \`create_sprite_sheet\` — mint a 2D game SPRITE SHEET as a director recipe (a \`kind:'sprite-sheet'\` image-outcome): declare \`frames\` (idle / walk-1 / jump per direction; one \`base\`) laid on a grid, each a per-frame render target on the shared image-render handoff (request → pull → submit → accept, one sprite per frame). \`project_ref\` binds it as a game project's \`graphic\` art. Reach for "make a sprite sheet for my 2D game", "a walk-cycle atlas".
-- \`bake_sprite_sheet\` — finish the sprite-sheet loop: once every frame is accepted, quantize the painted cells into pixelizer \`{size,palette,cells}\` sprites under ONE shared palette (with per-frame alignment health vs the base) and write the sovereign payload back onto the manifest as \`baked.sprites\`. Reach for "bake the sprite sheet".
-- \`get_game_vocab\` — the GAME drawer, led by the rail: \`gameworld-guide\` (the loop and the principles of designing a game top down) and a card per page (world, direction, looks, motion, actions, adornment, equipment, systems), words generated from the reader's tables, examples shown as contrast pairs; \`samples\` draws random fragments of a page with what each derives (to learn the space, never to copy). Then the machinery: STORE slices, LEVEL-MECHANIC verbs, KITS (what a game type compiles from: dungeon-crawler / collectathon / survival-arena; machinery, not a design to adopt), glyphs, sfx, hud and idiom cards. Omit \`id\` for the index (\`scope\` filters).
-- \`get_play_vocab\` — the PLAY drawer: make a world interactive (a door that opens, a lever, a HUD, a level, a game that is only its UI), scaled to the ask — the ladder (board / click / level / systems / game), a rung's set, or one card (\`play-guide\` first). A world opts in with a \`play\` block (update_sketch); \`play.ui: 'propose'\` answers with a UI board (style guide, motion, parts, layout, wireframes) to approve before the UI is drawn. Read-only.
-- \`create_game_project\` — start a GAME PROJECT: the single home tying one game's artifacts together (rules / levels / characters / audio / graphics / animation / references), rendered read-only at \`/games/<ref>\`. A grouping object with a charter (embedded for recall) — never a mint gate, never an editor. Reach for "start a game project", "keep these game pieces together".
-- \`get_game_project\` — read one project in full: charter, members by role (resolved navigationally, dangling reads \`missing\`), the ACTIVE rules member + play URL, per-level promotion status (promoted / contract / candidate), audio split soundtrack-vs-SFX by beats kind, and IMPLIED members derived from the rules manifest (its levels + music — shown, never stored). Read-only.
-- \`update_game_project\` — rename / revise the charter / move the status machine (active → shipped → archived). \`shipped\` is the arcade's finished-cabinet signal. Members move via \`bind_to_game_project\`.
-- \`bind_to_game_project\` — add/remove typed members with a game-facing role (rules | level | character | audio | graphic | animation | reference); adds are idempotent per (ref, role). Don't bind what the game manifest already names — those surface as implied members.
-- \`list_game_projects\` — the project index: ref, title, status, per-role counts, \`playable\`. The /maker/games gallery renders this shape. Read-only.
-- \`export_game\` — materialize a stored game as a SELF-CONTAINED folder under \`data/outcomes/<ref>/\` (the game sibling of \`export_model\` / \`export_beats\`, game-publish phase 2): \`game.html\` + \`levels/*.html\` (three.js + world geometry inlined; the heavy rigged-figure bank is hoisted into shared content-deduped \`assets/figures/*.json\` so no file tops static-host limits — the folder needs an HTTP server, file:// does not load levels) + \`assets/*.wav\` score + hangar portraits/previews + \`recipe/*.json\` (the sovereign manifests — re-mintable on any mojulo host) + a provenance README (refs, manifest hash, how to play/re-mint). Deterministic: same rows → same folder. Previews at \`/outcomes/<ref>/game.html\`; the folder is \`git init && gh repo create\` away from a GitHub-Pages public playable URL (files over 25MB are flagged for host limits). Reach for "export / share / publish this game", "make it playable outside mojulo".`,
+    title: 'Game',
+    makes: 'a playable standalone artifact — a typed store + levels that are worlds',
+    tools: [
+      'design_game', 'create_game', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'get_game_vocab',
+      'get_play_vocab', 'create_game_project', 'get_game_project', 'update_game_project', 'bind_to_game_project',
+      'list_game_projects', 'export_game',
+    ],
   },
 };
+
+const FORM_FOOTER = "A tool's description is its full manual (through a pack: `pack_<x>({ manual: '<tool>' })`).";
+
+function formBody(def, profile) {
+  const rows = def.tools.map((name) => {
+    const line = lineFor(name, profile);
+    return line ? `- \`${name}\` — ${line}` : null;
+  });
+  const notes = (def.notes || []).map((note) => (typeof note === 'string' ? note : (profile && note.plugin) || note.line));
+  return [...rows, ...notes].filter(Boolean).join('\n') + (def.tools.length ? `\n\n${FORM_FOOTER}` : '');
+}
+
+// The served shape ({ title, makes, body }); readers (get_creative_toolset, packs-tools.js, tests) see
+// only this. A context.test.js pin asserts Object.keys(FORM_TOOLSETS) deep-equals CREATIVE_FORMS.
+export const FORM_TOOLSETS = Object.fromEntries(
+  Object.entries(FORM_DEFS).map(([key, def]) => [key, { title: def.title, makes: def.makes, tools: def.tools, body: formBody(def, false) }]),
+);
 
 // Re-exported from the shared enum module (single source of truth); the order
 // here drives buildCreativeToolsetMap + the handler. A context.test.js pin
@@ -778,53 +709,16 @@ const HIDDEN_FORM_LIST_EDITS = [
   [/ · voice(?= · )/g, ''],
 ];
 
-const PROFILE_TOOL_INDEX = profileEdit(TOOL_INDEX, [
-  ...HIDDEN_FORM_LIST_EDITS,
-  [' / audio / voice / game mints', ' / audio / game mints'],
-  [', voice at `/maker/voice`', ''],
-], 'TOOL_INDEX');
-
-// Per-form edits on top of the line filter (dropHiddenToolLines drops a bullet naming a hidden tool).
-const PROFILE_FORM_EDITS = {
-  'character': [
-    ["; the loops are the `create-hero` and `creature-from-plan` catalysts.", "; the loop is the `create-hero` catalyst."],
-  ],
-  'motion-comic': [
-    ['; the image worker NEVER letters, placement', '; placement'],
-    [' The trick protocol (approach / recede / quick-cut beat / impact frame / expression swap / held flurry — the animation cheat shelf transposed to the click) is the `motion-comic-tricks` sketch_vocab card.', ''],
-  ],
-  'diagram': [[
-    "- Natural-language → sketch (the polygonizer, keyed or key-free) is now an authoring door of the 3D-solid mint in the \"object\" toolset (kind `manji-tree`: `via:'packet'` is key-free; `via:'prompt'` calls an LLM API with the user's key and needs `provider`). for the marks turn.",
-    "- Natural-language → sketch (the polygonizer) is now an authoring door of the 3D-solid mint in the \"object\" toolset: kind `manji-tree` with `via:'packet'`, key-free.",
-  ]],
-  'illustration': [
-    ['(kinds `figure` / `manji-tree`; painting + emotes via the skin / emote ops)', '(kinds `figure` / `manji-tree`; emotes via the emote op)'],
-    [
-      'Renders immediately with NO worker (palette placeholder + carved title); painted layers swap in later via the render bicycle, the recipe unchanged. mojulo always owns the letter SHAPES (`title_realizer`: painted / carved / flat).',
-      'Renders immediately: a palette illustration and a title set from mojulo\'s own letter SHAPES (`title_realizer`: flat / carved).',
-    ],
-  ],
-  'object': [
-    ['with `via` authoring doors ir / parts / prompt / packet)', 'with `via` authoring doors ir / parts / packet)'],
-    [
-      "`op:'skin'` makes a manji-tree / workbench / assembler polygomer or a figure WEAR a painted skin (two-phase: `spec.phase:'packet'` hands back the paint scaffold, then `'apply'` binds the painted PNG); `op:'emote'` applies",
-      "`op:'emote'` applies",
-    ],
-  ],
-};
-
-// A FORM_TOOLSETS entry as this process serves it: the source, or under the profile its bullets
-// minus hidden tools plus the form's edits. Null for a form the profile hides.
+// The tool index and the form bodies need no edits: they are generated per profile from TOOL_LINES
+// (hidden tools drop by name, a closed door's line has a `plugin` variant). Null for a hidden form.
 const PROFILE_FORM_TOOLSETS = Object.fromEntries(
-  Object.entries(FORM_TOOLSETS).map(([key, form]) => [
+  Object.entries(FORM_DEFS).map(([key, def]) => [
     key,
-    PLUGIN_PROFILE_HIDDEN_FORMS.includes(key)
-      ? null
-      : { ...form, body: profileEdit(dropHiddenToolLines(form.body), PROFILE_FORM_EDITS[key] || [], `FORM_TOOLSETS.${key}`) },
+    PLUGIN_PROFILE_HIDDEN_FORMS.includes(key) ? null : { title: def.title, makes: def.makes, tools: def.tools, body: formBody(def, true) },
   ]),
 );
 
-/** One creative form's { title, makes, body }, as get_creative_toolset and the pack unveils serve it. */
+/** One creative form's { title, makes, tools, body }, as get_creative_toolset and the pack unveils serve it. */
 export function formToolset(key, profile = pluginProfileActive()) {
   return profile ? PROFILE_FORM_TOOLSETS[key] ?? null : FORM_TOOLSETS[key] ?? null;
 }
@@ -897,25 +791,29 @@ const SECTION_DIVIDER = '\n\n---\n\n';
 export function buildForwardContextBody({ register, disclosure, source, pulse, mode, profile = pluginProfileActive() } = {}) {
   const r = VOCABULARY_REGISTERS.includes(register) ? register : DEFAULT_VOCABULARY_REGISTER;
   const d = PROCEDURAL_DISCLOSURES.includes(disclosure) ? disclosure : DEFAULT_PROCEDURAL_DISCLOSURE;
-  const standingRulesSection = `${STANDING_RULE_FLOOR}\n\n${DISCLOSURE_DIRECTIVE_VARIANTS[d]}`;
-  // The pulse is workshop-wide onboarding state, so it rides the one read.
+  // The static part leads and the per-call part (settings, retired-mode line, pulse) closes the body,
+  // so every call shares one prefix. The floor's table lives in get_register_kit; the standing line
+  // keeps its four distinctions and the eyes-gate rule here, and the operator's disclosure directive
+  // rides along because it is their setting for this session.
   const pulseLine = buildWorkshopPulseLine(pulse);
   return [
     HEADER,
     '',
-    communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
-    ...(RETIRED_FORWARD_CONTEXT_MODES.includes(mode) ? ['', OFFICE_RETIRED_LINE] : []),
-    '',
     STUDIO_OPENER,
-    ...(pulseLine ? ['', pulseLine] : []),
     SECTION_DIVIDER.trim(),
     profile ? PROFILE_STUDIO_ROUTING_INDEX : STUDIO_ROUTING_INDEX,
     SECTION_DIVIDER.trim(),
     profile ? PROFILE_STUDIO_DRAWER_DIRECTORY : STUDIO_DRAWER_DIRECTORY,
     SECTION_DIVIDER.trim(),
-    standingRulesSection,
-    SECTION_DIVIDER.trim(),
     SAFETY_ONELINERS,
+    SECTION_DIVIDER.trim(),
+    STANDING_LINE,
+    '',
+    communicationSettingsNotice({ register: r, disclosure: d, source: source || 'defaults' }),
+    '',
+    DISCLOSURE_DIRECTIVE_VARIANTS[d],
+    ...(RETIRED_FORWARD_CONTEXT_MODES.includes(mode) ? ['', OFFICE_RETIRED_LINE] : []),
+    ...(pulseLine ? ['', pulseLine] : []),
     '',
   ].join('\n');
 }
@@ -1031,7 +929,7 @@ export async function registerKitHandler(input, _ctx) {
 // Mitigate and tell; never refuse, never silently reshape. (Capability comes
 // from the host profile, so a second capped host needs no change here.)
 export async function toolIndexHandler(input, ctx) {
-  const index = pluginProfileActive() ? PROFILE_TOOL_INDEX : TOOL_INDEX;
+  const index = toolIndex();
   const fullBytes = Buffer.byteLength(index, 'utf8');
   if (input?.full === true) {
     return { content: [{ type: 'text', text: index }] };
