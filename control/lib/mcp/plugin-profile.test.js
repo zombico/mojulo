@@ -556,10 +556,16 @@ describe('in-process', () => {
     await context.toolIndexHandler({ full: true });
     for (const adapter of listAdapters()) getAdapter(adapter.id);
     await getSketchVocabHandler({});
-    const { PROFILE_CARD_EDITS } = await import('./plugin-profile-cards.js');
+    const { PROFILE_CARD_EDITS, CONTENT_PACK_CARDS } = await import('./plugin-profile-cards.js');
     const { getSolidVocabHandler } = await import('./tools/mint-solid.js');
     const { getCatalystHandler, listCatalystsHandler } = await import('./tools/catalysts.js');
-    for (const id of Object.keys(PROFILE_CARD_EDITS.sketch_vocab)) await getSketchVocabHandler({ id });
+    // a content-pack card (the operator-local pack) is read only where the pack is installed
+    const { getSketchVocabCatalog } = await import('../graph/sketch-vocab/loader.js');
+    const held = getSketchVocabCatalog();
+    for (const id of Object.keys(PROFILE_CARD_EDITS.sketch_vocab)) {
+      if (CONTENT_PACK_CARDS.sketch_vocab.includes(id) && !held.has(id)) continue;
+      await getSketchVocabHandler({ id });
+    }
     await getSolidVocabHandler({});
     for (const id of Object.keys(PROFILE_CARD_EDITS.solid_vocab)) await getSolidVocabHandler({ id });
     await listCatalystsHandler({});

@@ -69,7 +69,8 @@ export const PROFILE_CARD_EDITS = Object.freeze({
         ],
       ],
     },
-    // The g-series register's last bullet but two paints a skin through the skin op.
+    // The g-series register's last bullet but two paints a skin through the skin op. The card ships only in the
+    // operator-local content pack (CONTENT_PACK_CARDS below); the edit applies when the pack is installed.
     'g-series': {
       body: [[
         /\n- \*\*Paint a skin \(patterns\/decals\/weathering\):\*\*[\s\S]*?back wraps front colours\./,
@@ -174,6 +175,10 @@ export const PROFILE_CARD_EDITS = Object.freeze({
 export function hasProfileCardEdits(sourceKind, id, env = process.env) {
   return Boolean(PROFILE_CARD_EDITS[sourceKind]?.[id]) && pluginProfileActive(env);
 }
+
+/** Edited cards that live only in the operator-local content pack (lib/graph/content-pack.js), never in a release:
+ * absent on a clean checkout, so the edit-coverage check skips them when the pack is not installed. */
+export const CONTENT_PACK_CARDS = Object.freeze({ sketch_vocab: Object.freeze(['g-series']) });
 
 /**
  * A card or catalyst as the profile serves it: a shallow copy with its edited fields, or the same
