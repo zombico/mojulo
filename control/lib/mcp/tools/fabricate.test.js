@@ -137,6 +137,19 @@ describe('fabricate_solid', () => {
     expect(r.stats.triangles ?? r.stats.faces, 'the cuts add faces to the solid').toBeGreaterThan(plain.stats.triangles ?? plain.stats.faces);
   });
 
+  it.skipIf(!hasWasm)('`bodies` alone: the server writes the parts, each cut where its needs say, the same solid as the hand-written source', async () => {
+    const plan = await fabricateSolidHandler({ host: 'printed', needs: PLACED });
+    expect(plan.next).toMatch(/bodies: \{ <part>: '<its OpenSCAD shape>' \}` \(base, lid\)/);
+    const r = await fabricateSolidHandler({ host: 'printed', needs: PLACED, bodies: { base: 'cube([40, 40, 20]);', lid: 'translate([0, 0, 20]) cube([40, 40, 10]);' }, ref: 'sk_fab_bodies' });
+    expect(r.stats.fabrication).toMatchObject({ placementWritten: true, unplaced: [] });
+    const hand = SketchRepository.getByRef('sk_fab_placed').manifest, made = SketchRepository.getByRef('sk_fab_bodies').manifest;
+    expect(made.parts).toEqual({ base: 'base();', lid: 'lid();' });
+    expect(made.ledger.faces).toBe(hand.ledger.faces);
+    await expect(fabricateSolidHandler({ host: 'printed', needs: PLACED, bodies: { base: 'cube(1);' } })).rejects.toThrow(/place cuts in 'lid', which `bodies` does not shape/);
+    await expect(fabricateSolidHandler({ host: 'printed', needs: PLACED, bodies: { base: 'cube(1);', lid: 'cube(1);' }, source: 'cube(1);' })).rejects.toThrow(/not both/);
+    await expect(fabricateSolidHandler({ host: 'printed', needs: PLACED, bodies: { '2nd': 'cube(1);' } })).rejects.toThrow(/must be an OpenSCAD name/);
+  });
+
   it.skipIf(!hasWasm)('a re-plan by ref alone keeps the needs, and with new needs rewrites the plan, the placement and the bill in place', async () => {
     const same = await fabricateSolidHandler({ ref: 'sk_fab_placed' });
     expect(same).toMatchObject({ ok: true, phase: 'replan', minted: false, changes: { needs: [], bom: [] } });

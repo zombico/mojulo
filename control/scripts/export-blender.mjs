@@ -27,9 +27,10 @@
 import { parseArgs } from 'node:util';
 import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findBlender } from '../lib/workers/find.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
@@ -52,9 +53,7 @@ function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: 
 const log = (msg) => process.stderr.write(`[export-blender] ${msg}\n`);
 if (!args.ref) fail('need --ref <sketch>');
 
-const which = (name) => { const r = spawnSync('which', [name], { encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : null; };
-const blenderBin = args.blender || process.env.MOJULO_BLENDER
-  || (existsSync('/Applications/Blender.app/Contents/MacOS/Blender') ? '/Applications/Blender.app/Contents/MacOS/Blender' : which('blender'));
+const blenderBin = args.blender || findBlender();
 
 register(pathToFileURL(path.join(here, 'mcp-stdio-loader.mjs')).href);
 resolveMojuloPaths();

@@ -90,6 +90,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   that measure instead of reading it out (the README beside the file keeps it whole). The vocab readers' no-id
   listings are one short row per card (`id`, `when`, and its family, entry or scope; `detail: true` for the full
   rows): 188 KB to 93 KB across the six. `sketch_stash` stops repeating each hint in its steps.
+- **Variations of any recipe.** `run_experiment_sweep({ ref, path, values })` copies the stored recipe once per value
+  with that value set at the JSON Pointer `path`, mints each copy through `create_sketch`'s gates as a new sketch, and
+  puts the variants in one new folder; the source is unchanged. 2–12 values; it stops at the first copy its kind
+  refuses and answers what it minted. The mechanics experiment (`research_ref`, `base`, `param`) is unchanged.
+- **The fabricator's second call takes shapes.** `fabricate_solid({ needs, bodies: { base: 'cube([40, 40, 20]);', … } })`
+  writes the source and its `parts`: each part is its body minus the cuts its needs place in it (`at`, `axis`,
+  `parts`), plus its adds. The agent no longer writes the `fab_cuts` / `fab_adds` wiring; a part a need names without
+  a body is refused by name. `source` works as before.
+- **Stash and cook in one call.** `cook({ items, aim, report_md, … })` takes gather-shaped items instead of `slices`:
+  every item is checked against the intake contract before any is stored, then a stash (titled `stash_title`, else
+  the aim) is minted with the drawers the items name, the items are gathered, and that stash is cooked. The answer
+  carries `gathered: { stash_ref, item_ids }`; if the cook itself fails, the error names the stash to cook again.
+  `mint_stash` → `gather` → `cook({ slices })` stays for material collected over many turns.
+- **One render handoff door.** `render_handoff({ medium: 'image' | 'mesh', op: 'request' | 'pull' | 'submit' | 'accept' | 'reject', … })`
+  is the listed tool for the external worker loop. The ten per-op tools (`request_image_render` … `reject_mesh_render`)
+  stay registered and callable by name, unlisted, so worker scripts, packets and catalysts that name them keep working.
+  The flat `tools/list` payload falls from about 210.2 KB to 202.4 KB with this phase's other additions.
+- **Which workers this host has.** `version({ workers: true })` lists Blender, Godot, Unity, Unreal, a slicer,
+  OpenSCAD, ffmpeg and Chromium: the path found or `null`, the env var that points at each, what it runs, and what
+  still happens without it. It launches nothing (a found path is a file; the script that uses it still checks it).
+  The search orders now live in one place, `lib/workers/find.js`, and the export, bake and verify scripts use it;
+  `blender-bake`, `bake-world-gi` and `audit-figure-mesh` now also find a `blender` on PATH, as the export scripts did.
 
 ### Gameworlds: a door for agents
 

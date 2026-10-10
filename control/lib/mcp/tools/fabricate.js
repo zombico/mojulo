@@ -7,7 +7,8 @@
  * fittings), an OpenSCAD source for printed, metal, sheet and extrusion work (the `mj_*` cuts). A key-free two-call
  * handshake:
  *   1. `needs` alone → the plan (lib/graph/fabricator/plan.js). Nothing is minted.
- *   2. `needs` + `source` → a scad row; `needs` + `frames` → a workbench row. The plan rides beside the recipe as
+ *   2. `needs` + `source` → a scad row; `needs` + `frames` → a workbench row; `needs` + `bodies` (each part's shape) →
+ *      a scad row whose source this file writes: each part its body minus its placed cuts plus its adds. The plan rides beside the recipe as
  *      `fabricate`, stamped with the fabricator version (frozen, like the assembler's sources). A planned cut or joint
  *      the recipe never makes, and a need planned for the other executor, are warned about, never refused. On a frames
  *      mint the bill of materials is the frame's own hardware report, not the plan's estimate.
@@ -27,6 +28,7 @@ const NEEDS_KEYS = ['needs', 'host', 'loadN', 'cycles', 'access', 'tags'];
 const nextFor = (plan) => {
   const how = [];
   if (plan.executors.includes('frames')) how.push('`frames`: a workbench frames entry (members as boxes), writing each planned `joints` row as a frame joint between the two members it joins; the frame places and counts the fittings');
+  if (plan.executors.includes('scad') && plan.placement) how.push('`bodies`: each part\'s shape');
   if (plan.executors.includes('scad')) how.push('`source`: an OpenSCAD program with each planned `cuts` call translated to the face it enters (cutters run from z = 0 down) and each printed part its own `parts` entry');
   if (!how.length) how.push('`source` or `frames` for the body; every planned part is bought and fitted by hand');
   const notes = [];
@@ -38,7 +40,7 @@ const nextFor = (plan) => {
   if (grips.length) notes.push(`Bolt lengths assume a grip (mm of material under the head) of ${grips.join(', ')}: pass \`grip\` on a need when yours differs, and plan again.`);
   if (plan.overlaps.length) notes.push(`Counted twice: ${plan.overlaps.map((o) => o.why).join('; ')}.`);
   if (plan.suggestions.length) notes.push(`Also needed, and not in your needs: ${plan.suggestions.map((s) => `{ function: '${s.function}'${s.through ? `, through: '${s.through}'` : ''}${s.rim ? `, rim: [${s.rim.join(', ')}]` : ''}${s.shaftD ? `, shaftD: ${s.shaftD}` : ''} } (${s.why})`).join('; ')}. Add them and plan again, or say why not.`);
-  if (plan.placement) notes.push(`Placed: ${plan.placement.placed.map((x) => `${x.need} ${x.call.replace(/\(.*/, '')} ×${x.n} in ${x.part}`).join(', ')}. In the source, cut each part with fab_cuts("<part>") inside its difference() and add fab_adds("<part>") to its union; the block defining them is written in at mint.${plan.placement.manual.length ? ` By hand: ${plan.placement.manual.map((x) => `${x.need} ${x.call} (${x.why})`).join('; ')}.` : ''}`);
+  if (plan.placement) notes.push(`Placed: ${plan.placement.placed.map((x) => `${x.need} ${x.call.replace(/\(.*/, '')} ×${x.n} in ${x.part}`).join(', ')}. Pass \`bodies: { <part>: '<its OpenSCAD shape>' }\` (${[...new Set(plan.placement.placed.map((x) => x.part))].join(', ')}) and the source is written for you; or in your own source cut each part with fab_cuts("<part>") inside its difference() and add fab_adds("<part>") to its union.${plan.placement.manual.length ? ` By hand: ${plan.placement.manual.map((x) => `${x.need} ${x.call} (${x.why})`).join('; ')}.` : ''}`);
   else if (plan.executors.includes('scad')) notes.push('Each cut says `where` it goes; or give a need `at` points (with `axis` and `parts`) and the cuts are written for you.');
   else notes.push('Each cut says `where` it goes.');
   return `Call fabricate_solid again with the same needs and ${how.join('; or ')}. One executor per row: mint the other's needs as their own row. The bom is what to buy; carry the notices with the object. ${notes.join(' ')}`;
@@ -109,13 +111,42 @@ async function replan(input, sketch) {
   };
 }
 
+const PART_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * `bodies` → { source, parts }: each part a module, its body minus the cuts placed in it plus the adds, so the agent says
+ * only the shapes and never writes the fab_cuts / fab_adds wiring. Every part the placement cuts must have a body.
+ */
+export function sourceFromBodies(bodies, plan) {
+  if (!bodies || typeof bodies !== 'object' || Array.isArray(bodies) || !Object.keys(bodies).length) {
+    throw new Error("fabricate_solid: `bodies` is { <part>: '<its OpenSCAD shape>' }, at least one part.");
+  }
+  for (const [name, body] of Object.entries(bodies)) {
+    if (!PART_NAME.test(name)) throw new Error(`fabricate_solid: part '${name}' must be an OpenSCAD name (letters, digits, _; not first a digit).`);
+    if (typeof body !== 'string' || !body.trim()) throw new Error(`fabricate_solid: bodies.${name} must be its OpenSCAD shape, e.g. 'cube([40, 40, 20]);'.`);
+  }
+  const placed = plan.placement ? [...new Set(plan.placement.placed.map((x) => x.part))] : [];
+  const missing = placed.filter((p) => !(p in bodies));
+  if (missing.length) throw new Error(`fabricate_solid: the needs place cuts in ${missing.map((p) => `'${p}'`).join(', ')}, which \`bodies\` does not shape. Add ${missing.length === 1 ? 'it' : 'them'}, or change the needs' \`parts\`.`);
+  const lines = [];
+  for (const [name, body] of Object.entries(bodies)) {
+    lines.push(`module ${name}_body() { ${body.trim()} }`);
+    lines.push(plan.placement
+      ? `module ${name}() union() { difference() { ${name}_body(); fab_cuts(${JSON.stringify(name)}); } fab_adds(${JSON.stringify(name)}); }`
+      : `module ${name}() ${name}_body();`);
+  }
+  return { source: lines.join('\n'), parts: Object.fromEntries(Object.keys(bodies).map((n) => [n, `${n}();`])) };
+}
+
 export async function fabricateSolidHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('fabricate_solid needs { needs: [{ function, … }], host?, source? | frames? }.');
-  const { source, frames, title, ref, folder_ref: folderRef, ...rest } = input;
+  const { source: sourceIn, frames, bodies, title, ref, folder_ref: folderRef, ...rest } = input;
   const knobs = Object.fromEntries(Object.entries(rest).filter(([k]) => !NEEDS_KEYS.includes(k)));
-  const hasSource = typeof source === 'string';
+  const hasBodies = bodies !== undefined;
+  const hasSource = typeof sourceIn === 'string' || hasBodies;
   const hasFrames = Array.isArray(frames) && frames.length > 0;
-  if (hasSource && hasFrames) throw new Error('fabricate_solid: pass `source` (a scad row) or `frames` (a workbench row), not both — one executor per row; mint the other needs as their own row.');
+  if (hasBodies && (typeof sourceIn === 'string' || knobs.parts !== undefined)) throw new Error('fabricate_solid: `bodies` writes the source and its `parts`; pass `bodies` or `source` (with `parts`), not both.');
+  if (hasSource && hasFrames) throw new Error('fabricate_solid: pass `source` or `bodies` (a scad row) or `frames` (a workbench row), not both — one executor per row; mint the other needs as their own row.');
   const stored = typeof ref === 'string' ? SketchRepository.getByRef(ref) : null;
   if (stored && !hasSource && !hasFrames) return replan(input, stored);
   if (stored) throw new Error(`fabricate_solid: '${ref}' already exists — call fabricate_solid({ ref: '${ref}', needs? }) without a body to re-plan it in place, or edit its body with update_sketch / edit_solid first.`);
@@ -131,6 +162,8 @@ export async function fabricateSolidHandler(input) {
   let fabrication;
   let placement = null;
   if (executor === 'scad') {
+    let source = sourceIn;
+    if (hasBodies) ({ source, parts: knobs.parts } = sourceFromBodies(bodies, plan));
     placement = withPlacement(source, plan.placement);
     out = await mintScad({ ...knobs, title, ref, folderRef, source: placement.source, fabricate });
     const unplaced = unplacedModules(plan, placement.source);
@@ -158,7 +191,7 @@ export function registerFabricateTools() {
     description:
       'Make a physical object buildable from real parts: `needs` say what each part must DO (fasten, hinge, spin, seal, '
       + 'mount …); get the standard parts, what to buy, and the cuts or joints that take them. `needs` alone → the plan; '
-      + 'then + `source` (OpenSCAD) or + `frames` (a wood workbench frame) → the row; `ref` alone re-plans it. Placing parts in a scene is '
+      + 'then + `bodies` (each part\'s shape), `source` (OpenSCAD) or `frames` (a wood workbench frame) → the row; `ref` alone re-plans it. Placing parts in a scene is '
       + "the assembler. Manual: get_solid_vocab({ id: 'fabricate' }).",
     inputSchema: {
       type: 'object',
@@ -167,6 +200,7 @@ export function registerFabricateTools() {
         host: { type: 'string', description: 'printed | wood | metal | sheet | extrusion.' },
         tags: { type: 'array', items: { type: 'string' } },
         source: { type: 'string', description: 'OpenSCAD program (second call).' },
+        bodies: { type: 'object', description: '{ <part>: OpenSCAD shape } (second call); the source is written for you.' },
         frames: { type: 'array', items: { type: 'object' }, description: 'Workbench frames (second call).' },
         title: { type: 'string' },
         ref: { type: 'string' },

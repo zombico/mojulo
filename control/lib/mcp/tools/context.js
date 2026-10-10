@@ -464,9 +464,7 @@ const FORM_DEFS = {
     title: 'AI-image render pipeline',
     makes: 'direct / queue / gate an externally-painted image, comic page or mesh',
     tools: [
-      'get_image_render_packet', 'bind_character_sheet', 'bind_image_render',
-      'request_image_render', 'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',
-      'request_mesh_render', 'pull_mesh_render', 'submit_mesh_render', 'accept_mesh_render', 'reject_mesh_render',
+      'get_image_render_packet', 'bind_character_sheet', 'bind_image_render', 'render_handoff',
     ],
   },
   'character': {
@@ -1010,7 +1008,18 @@ export const FORWARD_CONTEXT_BODY = buildForwardContextBody({
 // reported the chatbot image pin and the offline-build flag; both left with
 // the chatbot factory).
 
-export async function versionHandler(_input, _ctx) {
+/** `version({ workers: true })`: the optional workers this host has (lib/workers/find.js). Loaded on demand. */
+async function workersSection() {
+  const [{ workersPresent }, { findSlicer }, { systemCandidates }, { cachedFfmpegPath }] = await Promise.all([
+    import('@/lib/workers/find'), import('@/lib/graph/scene/print-gate'), import('@/lib/graph/scene/chromium'), import('@/lib/motion/ffmpeg'),
+  ]);
+  return {
+    workers: workersPresent({ findSlicer, chromiumCandidates: systemCandidates(), ffmpegCached: cachedFfmpegPath() }),
+    driven: 'Image models, image-to-mesh services and speech models are driven by the agent; mojulo never calls one. Their work arrives through render_handoff and bind_voice_sample.',
+  };
+}
+
+export async function versionHandler(input, _ctx) {
   const payload = {
     server: { name: SERVER_NAME, version: getServerVersion() },
     // How this copy was installed ('claude-plugin' | 'source' | 'npm'); install and update advice follows it.
@@ -1021,6 +1030,7 @@ export async function versionHandler(_input, _ctx) {
     node: process.version,
     platform: { os: process.platform, arch: process.arch },
     mojuloHome: process.env.MOJULO_HOME || null,
+    ...(input?.workers ? await workersSection() : {}),
   };
   return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
 }
@@ -1341,8 +1351,8 @@ export function registerContextTools() {
   registerTool({
     name: 'version',
     description:
-      'Report runtime versions: server name + version (from package.json), how it was installed, MCP protocol version, Node version, platform os/arch, and the active MOJULO_HOME. Local only, no network call. Use this to diagnose version mismatches between a user-reported issue and what their control plane is actually running, or to confirm a version bump landed after a publish. Read-only, no inputs, idempotent.',
-    inputSchema: { type: 'object', properties: {} },
+      'Report runtime versions: server name + version (from package.json), how it was installed, MCP protocol version, Node version, platform os/arch, and the active MOJULO_HOME. `workers: true` adds the optional workers this host has (Blender, Godot, Unity, Unreal, a slicer, OpenSCAD, ffmpeg, Chromium): each one\'s path or null, the env var that points at it, and what still happens without it. Local only, no network call. Read-only, idempotent.',
+    inputSchema: { type: 'object', properties: { workers: { type: 'boolean' } } },
     handler: versionHandler,
   });
 

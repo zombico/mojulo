@@ -44,12 +44,13 @@ import { parseArgs } from 'node:util';
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { findBlender, BLENDER_APP } from '../lib/workers/find.js';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { buildAnimal, ZOO_BUILDS } from '../lib/graph/polygonizer/figure-animal-build.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const BLENDER = process.env.MOJULO_BLENDER || '/Applications/Blender.app/Contents/MacOS/Blender';
+const BLENDER = findBlender() ?? BLENDER_APP;
 
 // Bare archetypes worth auditing — the cheap protoSkull/overlap-flesh path. (The full
 // archetype roster lives in QUADRUPED_ARCHETYPES; these six span the silhouette range.)

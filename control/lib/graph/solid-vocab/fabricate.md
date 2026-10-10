@@ -115,7 +115,8 @@ Give a need the points it happens at, and its cuts are written into the source f
 
 - **Two-part joints:** the points sit on the mating plane and `axis` is the bolt's way, head toward tip. The pilot goes into the `into` part at the point. The counterbore enters the `head` part from its outer face, its depth back from the mating plane.
 - **Located pairs:** a pin's slip hole, and the second of two magnets, run the other way into the `head` part. Each point may carry its own `axis` (a shaft's two bearings face apart).
-- **Calling the block:** write each part as `difference() { …; fab_cuts("base"); }`, and add `fab_adds("base")` to its union for built geometry (a board's standoffs). At mint, the block defining `fab_cuts` and `fab_adds` is written at the top of the source, between `// <fabricate placement>` marker lines.
+- **Shapes only:** pass `bodies: { base: 'cube([40, 40, 20]);', lid: 'translate([0, 0, 20]) cube([40, 40, 10]);' }` instead of `source`. Each part's source and its `parts` entry are written for you: the body, minus the cuts placed in it, plus its adds. Every part a need names must have a body.
+- **Calling the block:** in your own `source`, write each part as `difference() { …; fab_cuts("base"); }`, and add `fab_adds("base")` to its union for built geometry (a board's standoffs). At mint, the block defining `fab_cuts` and `fab_adds` is written at the top of the source, between `// <fabricate placement>` marker lines.
 - `fabrication.placement` lists what was `placed`, and what is `manual` with why: a nut trap's far face, a seal following a rim, too few points, a side with no part named. Nothing is guessed.
 
 ## Re-plan in place

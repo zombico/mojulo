@@ -25,11 +25,12 @@
  */
 import { parseArgs } from 'node:util';
 import { promises as fs } from 'node:fs';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import * as fsSync from 'node:fs';
 import { spawn } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findUnity } from '../lib/workers/find.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
@@ -38,17 +39,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // 7.x is still -exp. Override with MOJULO_GLTFAST_VERSION when the pin ages.
 const GLTFAST_VERSION = process.env.MOJULO_GLTFAST_VERSION || '6.9.1';
 
-function findUnity() {
-  if (process.env.MOJULO_UNITY) return process.env.MOJULO_UNITY;
-  const hub = '/Applications/Unity/Hub/Editor';
-  if (!existsSync(hub)) return null;
-  const versions = readdirSync(hub).filter((v) => /^\d/.test(v)).sort();
-  for (const v of versions.reverse()) {
-    const bin = path.join(hub, v, 'Unity.app', 'Contents', 'MacOS', 'Unity');
-    if (existsSync(bin)) return bin;
-  }
-  return null;
-}
 
 const { values: args } = parseArgs({ options: {
   ref: { type: 'string' },

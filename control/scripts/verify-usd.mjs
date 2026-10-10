@@ -32,6 +32,7 @@ import { existsSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findBlender } from '../lib/workers/find.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
@@ -103,7 +104,7 @@ if (!args['no-gate'] && !args.glb) {
 
 // ── 3. Blender headless import ────────────────────────────────────────────────
 if (!args['no-gate']) {
-  const blender = process.env.MOJULO_BLENDER || (existsSync('/Applications/Blender.app/Contents/MacOS/Blender') ? '/Applications/Blender.app/Contents/MacOS/Blender' : which('blender'));
+  const blender = findBlender();
   if (!blender) gate.readers.blender = { skipped: true, reason: 'Blender not found — install Blender or set MOJULO_BLENDER (docs/local-blender-worker.md)' };
   else {
     const reportPath = path.join(dir, 'blender-import.json');

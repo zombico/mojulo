@@ -324,6 +324,7 @@ export const rejectImageRenderHandler = (input) => resolveGate(input, false);
 export function registerRenderHandoffTools() {
   registerTool({
     name: 'request_image_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       "Park a DURABLE render request for a minted `image-outcome` / `sequential-art` sketch — the start of the render handoff (a bicycle: request → pull → submit → accept). One row per render target (page, or one per panel), idempotent per (ref, target, head-manifest). Unlike the ad-hoc bind path, a parked request survives a control-plane restart until a worker fulfils it. Pass `target` to park just one; omit it to park every target of the sketch's render strategy. Returns the parked `request_id`s and the next action (a worker drains them with `pull_image_render`).",
     inputSchema: {
@@ -339,6 +340,7 @@ export function registerRenderHandoffTools() {
 
   registerTool({
     name: 'pull_image_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       "Worker-mode claim: take the oldest pending render request off the durable queue (marks it in_flight so concurrent workers don't double-claim) and get everything needed to paint it — the render packet (instructions, workerProtocol, scaffold URLs, localParams, character sheets), plus the `request_id` and the submit tool. Pass `ref` to drain one sketch's requests, or omit it to take from the whole queue; pass `request_id` to re-pull a specific one. Returns `{ request: null }` when nothing is pending. INVOKE your image generator conditioned on the scaffold — a returned wireframe is traced, not generated — then call `submit_image_render`.",
     inputSchema: {
@@ -353,6 +355,7 @@ export function registerRenderHandoffTools() {
 
   registerTool({
     name: 'submit_image_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       "Hand a worker-generated PNG back for a pulled render request. The PNG is snapshotted append-only into the sketch's outcome folder (via the render store), the request moves to `submitted`, and the worker's audit claim is recorded. Provide exactly one of `image_path` (same-host file, primary) or `image_base64` (remote fallback). `worker_audit` is what the worker attests — e.g. `{ conditioned: 'scaffold'|'prompt-only', invoked_generator: true, scaffold_echo: false, notes }` (for keyframe cels it also carries the deterministic meru numbers). Submitting does NOT accept the render — a separate `accept_image_render` pass gates it.",
     inputSchema: {
@@ -371,6 +374,7 @@ export function registerRenderHandoffTools() {
 
   registerTool({
     name: 'accept_image_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       "The audit gate: accept a submitted render after verifying it against the non-overlayable surface (did the panel carry its beat/pose, are strict forms placed, is the bubble zone still blank, does identity hold). Records `accept_audit` under its own author — the same worker that submitted should not self-accept. Only `accepted` renders feed the final composite; once every target of a page is accepted, `/api/sketches/<ref>/final.png` is the finished page. Returns the remaining unaccepted targets (or the final_url when none remain).",
     inputSchema: {
@@ -387,6 +391,7 @@ export function registerRenderHandoffTools() {
 
   registerTool({
     name: 'reject_image_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       "The audit gate's other verdict: reject a submitted render (records `accept_audit` with the reason) so the worker repaints and re-submits against the same request. Use when the render fails the non-overlayable checks (wrong beat, traced scaffold, moved strict form, painted-in bubble text, identity drift).",
     inputSchema: {

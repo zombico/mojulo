@@ -140,6 +140,26 @@ describe('cook handler — end to end', () => {
     expect(result.handoff.caveats).toEqual(["the operator's Library cannot carry a folder, and no courier page carries it: tell the operator where it is in the box"]);
   });
 
+  it('items: one call mints the stash, its drawers and the items, then cooks it; a bad item stores nothing', async () => {
+    const stashes = () => StashRepository.list({ status: 'all' }).length;
+    const before = stashes();
+    await expect(cookHandler({ aim: 'q', report_md: '# r', items: [{ type: 'text', body: 'ok' }, { type: 'link', title: 'no url' }] }))
+      .rejects.toThrow(/items\[1\]: .*Nothing was stored/);
+    expect(stashes()).toBe(before);
+    await expect(cookHandler({ aim: 'q', report_md: '# r', items: [{ type: 'text', body: 'a' }], slices: [{ stash_ref: 'x' }] })).rejects.toThrow(/not both/);
+    const result = await cookHandler({
+      aim: 'What do the notes share?',
+      report_md: '# They share a fox.',
+      items: [{ type: 'text', body: 'a fox at dawn', drawer: 'morning' }, { type: 'markdown', body_md: '*a fox at dusk*' }],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.gathered.item_ids).toHaveLength(2);
+    const stash = StashRepository.getByRef(result.gathered.stash_ref);
+    expect(stash.title).toBe('What do the notes share?');
+    expect(StashRepository.listItems(result.gathered.stash_ref, { drawer: 'morning' }).map((it) => it.body)).toEqual(['a fox at dawn']);
+    expect(CookRepository.getByRef(result.cook_ref).stashRefs ?? CookRepository.getByRef(result.cook_ref).stash_refs).toEqual([result.gathered.stash_ref]);
+  });
+
   it('refuses to cook against an unknown stash_ref', async () => {
     await expect(
       cookHandler({

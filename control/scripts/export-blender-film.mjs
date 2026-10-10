@@ -26,6 +26,7 @@ import { promises as fs, existsSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findBlender } from '../lib/workers/find.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
@@ -46,9 +47,7 @@ const motions = args.motion || [];
 if (!motions.length) fail('need --motion <mo_…> (repeat for several shots of one world)');
 if (args.render && !['draft', 'final'].includes(args.render)) fail('--render must be draft or final');
 
-const which = (name) => { const r = spawnSync('which', [name], { encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : null; };
-const blenderBin = args.blender || process.env.MOJULO_BLENDER
-  || (existsSync('/Applications/Blender.app/Contents/MacOS/Blender') ? '/Applications/Blender.app/Contents/MacOS/Blender' : which('blender'));
+const blenderBin = args.blender || findBlender();
 
 /** The git working tree that contains `dir`, or null. */
 function workTreeOf(dir) {

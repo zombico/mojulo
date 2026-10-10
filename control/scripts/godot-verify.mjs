@@ -22,12 +22,13 @@ import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import { findGodot, GODOT_APP } from '../lib/workers/find.js';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const controlRoot = path.resolve(here, '..');
-const GODOT = process.env.MOJULO_GODOT || '/Applications/Godot.app/Contents/MacOS/Godot';
+const GODOT = findGodot() ?? GODOT_APP;
 
 const { values: opts } = parseArgs({
   options: {

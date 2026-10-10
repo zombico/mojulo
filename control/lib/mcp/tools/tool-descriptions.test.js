@@ -140,7 +140,6 @@ const DESCRIPTION_ALLOWLIST = {
   recommend_kind: 922,
   record_mcp_capabilities: 1301,
   reference_protocol: 1708,
-  run_experiment_sweep: 866,
   semantic_search: 2049,
   sketch_plan: 774,
   sketch_research: 712,
@@ -336,7 +335,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-10 (209_800 -> 210_300; measured 210,234) for readouts that become ids: `detail` on the six vocab
 // readers (their no-id listings fell from 188 KB to 93 KB in all), `full` on measure_solid (a repeat in a session names
 // the earlier reading) and `readout` on design_game. Each word buys back far more than it costs, off this payload.
-const PAYLOAD_CEILING = 210_300;
+// Re-pinned 2026-10-10 (210_300 -> 202_500; measured 202,411) for the Workflows phase: render_handoff({ medium, op })
+// is the one listed door over the image and mesh worker loops (the ten per-op names stay callable, unlisted), net of
+// run_experiment_sweep's variations form, fabricate_solid's `bodies` and cook's `items`.
+const PAYLOAD_CEILING = 202_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

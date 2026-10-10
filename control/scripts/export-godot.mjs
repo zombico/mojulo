@@ -27,11 +27,12 @@ import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findGodot, GODOT_APP } from '../lib/workers/find.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const GODOT = process.env.MOJULO_GODOT || '/Applications/Godot.app/Contents/MacOS/Godot';
+const GODOT = findGodot() ?? GODOT_APP;
 
 const { values: args } = parseArgs({ options: {
   ref: { type: 'string' },

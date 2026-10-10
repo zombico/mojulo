@@ -88,7 +88,7 @@ export function chromiumCacheDir() {
 
 // Well-known system-browser locations by platform. First one that exists AND
 // launches wins, so an operator who already has Chrome never triggers a fetch.
-function systemCandidates() {
+export function systemCandidates() {
   if (process.platform === 'darwin') {
     return [
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',

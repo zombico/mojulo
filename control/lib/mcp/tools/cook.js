@@ -28,7 +28,7 @@ import { randomUUID } from 'node:crypto';
 import { registerTool } from '@/lib/mcp/server';
 import { editSchemaDescriptions, withPluginProfile } from '@/lib/mcp/plugin-profile';
 import { CookRepository } from '@/lib/db/repositories/cooks';
-import { StashRepository } from '@/lib/db/repositories/stashes';
+import { StashRepository, validateItemContract } from '@/lib/db/repositories/stashes';
 import { outcomeUrlFor } from '@/lib/outcomes-paths';
 import { handoffForContext } from '@/lib/mcp/hosts/handoff';
 import { writeOutcome } from '@/lib/outcomes/kinds/essay';
@@ -233,10 +233,44 @@ function resolvePublicationKind({ publication, template }) {
   return 'essay';
 }
 
+/**
+ * Stash → cook in one call: `items` (gather's shape, each `{ type, drawer?, title?, body?, body_md?, … }`) are checked
+ * against the intake contract first, all of them, so a bad item stores nothing. Then a stash is minted (titled
+ * `stash_title`, else the aim), the drawers the items name are minted, the items gathered, and that stash is the one
+ * slice. The ritual (mint_stash → gather → cook({ slices })) stays for material collected over many turns.
+ */
+function gatherItems(items, title) {
+  if (!Array.isArray(items) || !items.length) throw new Error('items is a non-empty array of gather items ({ type, … })');
+  const shaped = items.map((it, i) => {
+    if (!it || typeof it !== 'object') throw new Error(`items[${i}] must be a gather item ({ type, … })`);
+    const item = { drawer: it.drawer, type: it.type, title: it.title, sourceUrl: it.source_url, body: it.body, bodyMd: it.body_md, bodySvg: it.body_svg, mediaRef: it.media_ref, metadata: it.metadata };
+    try { validateItemContract(item); } catch (err) { throw new Error(`items[${i}]: ${err.message} Nothing was stored.`); }
+    return item;
+  });
+  const stash = StashRepository.mint({ title });
+  for (const name of new Set(shaped.map((it) => it.drawer).filter(Boolean))) StashRepository.mintDrawer({ stashRef: stash.stashRef, name });
+  const ids = shaped.map((it) => StashRepository.gather({ stashRef: stash.stashRef, ...it }).id);
+  return { stash_ref: stash.stashRef, item_ids: ids };
+}
+
 export async function cookHandler(input, _ctx = {}) {
   if (!input || typeof input !== 'object') {
-    throw new Error('cook requires an object with slices, aim, and report_md');
+    throw new Error('cook requires an object with slices (or items), aim, and report_md');
   }
+  if (input.items === undefined) return cookSlices(input, _ctx);
+  if (input.slices !== undefined) throw new Error('cook takes `items` (gathered into a new stash) or `slices` (stashes you have), not both');
+  if (!input.aim || typeof input.aim !== 'string') throw new Error('aim is required (the one question the outcome answers)');
+  const gathered = gatherItems(input.items, input.stash_title || input.aim);
+  const { items: _items, stash_title: _title, ...rest } = input;
+  try {
+    return { ...(await cookSlices({ ...rest, slices: [{ stash_ref: gathered.stash_ref }] }, _ctx)), gathered };
+  } catch (err) {
+    err.message += ` The items are gathered in ${gathered.stash_ref}: cook again with slices: [{ stash_ref: '${gathered.stash_ref}' }].`;
+    throw err;
+  }
+}
+
+async function cookSlices(input, _ctx = {}) {
   const {
     slices,
     aim,
@@ -1463,12 +1497,12 @@ export function registerCookTools() {
   registerTool(withPluginProfile({
     name: 'cook',
     description:
-      "Ring 9 — COOK: publish cleaved stash slices as ONE outcome around ONE question. You author `report_md` (and any `visuals`); cook only materializes the folder (report.md + a self-contained index.html). No server-side LLM call.\n\n" +
-      "  1. CLEAVE — `slices`: deliberate cuts { stash_ref, item_ids? }; several, across stashes, is fine.\n" +
-      "  2. AIM — one interrogative, pattern-seeking question ('what unifies these?'). Two outcomes are two cooks.\n" +
+      "COOK: publish stash material as ONE outcome around ONE question. You author `report_md` (and any `visuals`); cook writes the folder (report.md + a self-contained index.html).\n\n" +
+      "  1. CLEAVE — `slices`: { stash_ref, item_ids? }, across stashes is fine; or `items` (gather's shape), gathered into a new stash in this call.\n" +
+      "  2. AIM — one pattern-seeking question ('what unifies these?'). Two outcomes are two cooks.\n" +
       "  3. NUCLEATE — the slices flavor the prose; they are not quoted or cited.\n\n" +
-      "`publication: { kind }` picks the outcome's shape (default `essay`). Before any other kind, call `sketch_stash({ intent, target_kind })`: it returns that kind's layout guide (how items, drawers and metadata map onto pages, and the least content that renders well) with a stash recipe. `recommend_kind` picks a kind for a stash you already have.\n\n" +
-      "A cook is a deliberation node other rings read; `forge_plan({ source: { kind: 'cook', cook_ref } })` can seed a plan from one later. Returns { cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }.",
+      "`publication: { kind }` picks the shape (default `essay`). Before any other kind, `sketch_stash({ intent, target_kind })` returns its layout guide and a stash recipe; `recommend_kind` picks a kind for a stash you have.\n\n" +
+      "`forge_plan({ source: { kind: 'cook', cook_ref } })` seeds a plan from a cook. Returns { cook_ref, outcome_url, outcome_dir, template_version, file_count, suggested_lens?, message }.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -1484,6 +1518,8 @@ export function registerCookTools() {
           },
           description: 'Cleaved slices (≥1): { stash_ref, item_ids? }. Omitting item_ids takes the whole stash; prefer naming the items you chose.',
         },
+        items: { type: 'array', items: { type: 'object' }, description: "Instead of slices: gather items ({ type, drawer?, … }), all checked before any is stored." },
+        stash_title: { type: 'string', description: "The new stash's title (default: the aim)." },
         aim: {
           type: 'string',
           description: 'The one question the outcome answers (the title on paginated kinds).',
@@ -1541,7 +1577,7 @@ export function registerCookTools() {
           required: ['kind'],
         },
       },
-      required: ['slices', 'aim'],
+      required: ['aim'],
     },
     handler: cookHandler,
   }, {

@@ -140,3 +140,42 @@ describe('experimentsToChartManifest — the pure auto-plot derive', () => {
     expect(() => experimentsToChartManifest({ param: 'g', outcome: 'range', points: [{ x: 1, y: 2 }] })).toThrow(/>= 2/);
   });
 });
+
+describe('run_experiment_sweep — variations of a stored recipe', () => {
+  const diagram = (w) => ({ title: 'box', viewBox: { width: 320, height: 200 }, stations: [{ id: 's', kind: 'input', label: 'in', x: 40, y: 60, w, h: 80 }], edges: [] });
+  async function stored() {
+    const { createSketchHandler: create } = await import('./sketch-mint.js');
+    return (await create({ title: 'box', manifest: diagram(240) })).ref;
+  }
+
+  it('one variant per value, each the stored recipe with that value set, in one new folder; the source unchanged', async () => {
+    const ref = await stored();
+    const out = await runExperimentSweepHandler({ ref, path: '/stations/0/w', values: [120, 180, 260] });
+    expect(out).toMatchObject({ ok: true, from: ref, path: '/stations/0/w', was: 240 });
+    expect(out.variants.map((v) => v.value)).toEqual([120, 180, 260]);
+    out.variants.forEach((v) => {
+      const row = SketchRepository.getByRef(v.ref);
+      expect(row.manifest.stations[0].w).toBe(v.value);
+      expect(row.folderRef ?? row.folder_ref).toBe(out.folder_ref);
+    });
+    expect(SketchRepository.getByRef(ref).manifest.stations[0].w).toBe(240);
+  });
+
+  it('refuses a path the recipe does not set, repeated values, and a count out of range, minting nothing', async () => {
+    const ref = await stored();
+    const before = SketchRepository.list?.().length;
+    await expect(runExperimentSweepHandler({ ref, path: '/stations/0/depth', values: [1, 2] })).rejects.toThrow(/has nothing at '\/stations\/0\/depth'/);
+    await expect(runExperimentSweepHandler({ ref, path: '/stations/0/w', values: [1, 1] })).rejects.toThrow(/values repeat/);
+    await expect(runExperimentSweepHandler({ ref, path: '/stations/0/w', values: [1] })).rejects.toThrow(/2–12 values/);
+    await expect(runExperimentSweepHandler({ ref, research_ref: 'r', path: '/x', values: [1, 2] })).rejects.toThrow(/Pass one form/);
+    if (before !== undefined) expect(SketchRepository.list().length).toBe(before);
+  });
+
+  it('stops at the first variant its kind refuses and says what it minted', async () => {
+    const ref = await stored();
+    const out = await runExperimentSweepHandler({ ref, path: '/stations/0/kind', values: ['input', 'not-a-station-kind', 'input-2'] });
+    expect(out.ok).toBe(false);
+    expect(out.variants).toHaveLength(1);
+    expect(out.refused.value).toBe('not-a-station-kind');
+  });
+});

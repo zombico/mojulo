@@ -260,6 +260,7 @@ export const rejectMeshRenderHandler = (input) => resolveGate(input, false);
 export function registerMeshHandoffTools() {
   registerTool({
     name: 'request_mesh_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       'Park a DURABLE mesh request for an object / figure / world sketch — the start of the mesh handoff bicycle (request → pull → submit → accept / reject) that hands the greybox to an external image-to-mesh worker (Meshy / Tripo / Hunyuan3D…). Idempotent per (ref, head manifest). Survives a restart.',
     inputSchema: { type: 'object', properties: { ref: { type: 'string', description: 'The sketch ref (`sk_…`) to sculpt — any kind export_model can greybox.' } }, required: ['ref'] },
@@ -267,6 +268,7 @@ export function registerMeshHandoffTools() {
   });
   registerTool({
     name: 'pull_mesh_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       'Worker-mode claim: take the oldest pending MESH request (marks it in_flight) and get the packet — the greybox GLB path/URL (the shape prior), still + turntable URLs, declared size, triangle budget, instructions, and the submit tool. Pass `ref` to drain one sketch; `{}` drains the queue.',
     inputSchema: { type: 'object', properties: { ref: { type: 'string' }, request_id: { type: 'string', description: 'Re-pull a specific request (e.g. after a reject).' } } },
@@ -274,6 +276,7 @@ export function registerMeshHandoffTools() {
   });
   registerTool({
     name: 'submit_mesh_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description:
       'Hand a worker-generated .glb back for a pulled `request_id`: GLB-validated + decoded at the door, size-checked against the greybox (0.5×–2× per axis), closure-audited, then stored as an append-only mesh slot with a provenance sidecar; moves the request to `submitted`. Does NOT accept — a separate gate does.',
     inputSchema: {
@@ -292,12 +295,14 @@ export function registerMeshHandoffTools() {
   });
   registerTool({
     name: 'accept_mesh_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description: 'The eyes gate: accept a submitted mesh after looking at it (silhouette, proportions, no artefacts). Refuses a self-accept and a failed size gate (override with accept_audit.override_size). Accepted meshes are the latest `meshRef` slot.',
     inputSchema: { type: 'object', properties: { request_id: { type: 'string' }, accept_audit: { type: 'object' }, source: { type: 'string', description: "The accepting agent's identity." } }, required: ['request_id'] },
     handler: acceptMeshRenderHandler,
   });
   registerTool({
     name: 'reject_mesh_render',
+    listed: false, // render_handoff({ medium, op }) is the listed door (render-door.js)
     description: "The gate's other verdict: reject a submitted mesh with the reason so the worker re-sculpts and re-submits against the same request.",
     inputSchema: { type: 'object', properties: { request_id: { type: 'string' }, accept_audit: { type: 'object' } }, required: ['request_id'] },
     handler: rejectMeshRenderHandler,

@@ -41,6 +41,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findBlender, BLENDER_APP } from '../lib/workers/find.js';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -50,7 +51,7 @@ import { tagFurFaces, furSkip } from '../lib/graph/scene/fur-groups.js';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const BLENDER = process.env.MOJULO_BLENDER || '/Applications/Blender.app/Contents/MacOS/Blender';
+const BLENDER = findBlender() ?? BLENDER_APP;
 const OUTCOMES = process.env.MOJULO_OUTCOMES_DIR || path.join(process.cwd(), 'data', 'outcomes');
 
 // Light-rig presets. Each lamp: { energy, color, size?, dir:[dx,dy,dz] } (dir = offset from

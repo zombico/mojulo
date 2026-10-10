@@ -181,6 +181,7 @@ export const TOOL_ANNOTATIONS = {
   bind_mesh_render: ['Bind a refined mesh', ADDITIVE],
   mint_diagram: ['Mint a diagram', ADDITIVE],
   mint_building: ['Mint a building', ADDITIVE],
+  render_handoff: ['Run the render worker loop', DESTRUCTIVE], // the union of its ops: pull claims, reject overturns
   request_image_render: ['Queue an image render', ADDITIVE_IDEMPOTENT], // deduped per manifest hash
   pull_image_render: ['Claim an image render', ADDITIVE],
   submit_image_render: ['Submit an image render', ADDITIVE],

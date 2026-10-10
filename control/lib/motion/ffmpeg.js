@@ -77,6 +77,9 @@ function staticAsset() {
   };
 }
 
+/** Where a fetched static ffmpeg lives on this host (it may not be there yet). */
+export const cachedFfmpegPath = () => path.join(ffmpegCacheDir(), staticAsset().binName);
+
 function noFfmpegMessage(detail) {
   return [
     'No usable ffmpeg found and the static-binary fetch did not succeed.',

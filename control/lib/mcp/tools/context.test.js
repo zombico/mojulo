@@ -556,10 +556,9 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     // fabricate_solid (1006-fabricator) — needs → standard parts, executed by scad or a workbench frame
     'fabricate_solid',
     'reference_protocol', 'capture_reference',
-    'get_image_render_packet', 'bind_character_sheet', 'bind_image_render', 'request_image_render',
-    'pull_image_render', 'submit_image_render', 'accept_image_render', 'reject_image_render',
-    // the mesh sibling (interchange-seams.plan.md seam 5) — same drawer, same table
-    'request_mesh_render', 'pull_mesh_render', 'submit_mesh_render', 'accept_mesh_render', 'reject_mesh_render',
+    'get_image_render_packet', 'bind_character_sheet', 'bind_image_render',
+    // render_handoff (3.1.0): one door over the image and mesh worker loops; the ten per-op names are unlisted aliases
+    'render_handoff',
     'verify_machina',
     'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
     'mint_building',

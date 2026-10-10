@@ -233,17 +233,8 @@ export const PACKS = [
       "AI-IMAGE + MESH RENDER pipeline — direct, queue, and gate externally-painted images and externally-sculpted meshes (the mesh quartet parks a greybox for Meshy / Tripo / Hunyuan3D…): render packets for image-outcome / comic / character-sheet sketches, the durable request → pull → submit → accept / reject worker loop, and binding finished PNGs and character sheets back onto their sketches. Open for 'have the image model paint this', 'an AI-painted portrait rendered by an image model', 'run the render queue', 'accept that render'.",
     members: [
       'get_image_render_packet',
-      'request_image_render',
-      'pull_image_render',
-      'submit_image_render',
-      'accept_image_render',
-      'reject_image_render',
+      'render_handoff',
       'bind_image_render',
-      'request_mesh_render',
-      'pull_mesh_render',
-      'submit_mesh_render',
-      'accept_mesh_render',
-      'reject_mesh_render',
       'bind_character_sheet',
     ],
     // The loop STARTS with a create_sketch mint (image-outcome / sequential-art

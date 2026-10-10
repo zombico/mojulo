@@ -43,6 +43,7 @@ export function pluginProfileActive(env = process.env) {
 // Tools the profile removes. Grouped by why; the pack homes are in lib/mcp/packs.js.
 const IMAGE_RENDER_TOOLS = [
   'get_image_render_packet',
+  'render_handoff',
   'request_image_render',
   'pull_image_render',
   'submit_image_render',

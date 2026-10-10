@@ -591,6 +591,7 @@ async function registerAllTools() {
   const { registerBuildingTools } = await import('@/lib/mcp/tools/building');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
+  const { registerRenderDoorTools } = await import('@/lib/mcp/tools/render-door');
   const { registerModelerLingoTools } = await import('@/lib/mcp/tools/modeler-lingo');
   const { registerCreateCharacterTools } = await import('@/lib/mcp/tools/create-character');
   const { registerMintSolidTools } = await import('@/lib/mcp/tools/mint-solid');
@@ -758,6 +759,8 @@ async function registerAllTools() {
   registerRenderHandoffTools();
   // the mesh sibling (interchange-seams.plan.md seam 5): same table, medium 'mesh'
   registerMeshHandoffTools();
+  // render_handoff: the one listed door over both loops; the ten per-op names stay callable, unlisted
+  registerRenderDoorTools();
   // translate_modeler_lingo — routes 3D-modeler vocabulary (blockout, retopo, kitbash,
   // bake, rig…) to mojulo execution + the export_model handoff, the modeler-facing
   // sibling of forward_context. Adjacent to registerSketchTools (its routes point at the

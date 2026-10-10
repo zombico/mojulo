@@ -44,12 +44,13 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findBlender, BLENDER_APP } from '../lib/workers/find.js';
 import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const BLENDER = process.env.MOJULO_BLENDER || '/Applications/Blender.app/Contents/MacOS/Blender';
+const BLENDER = findBlender() ?? BLENDER_APP;
 const MIGRATION_ID = 'probe+floor-v1';
 
 // ── per-archetype light presets (the middle gear — chosen by the world's look) ──

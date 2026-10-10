@@ -1,5 +1,8 @@
 /**
- * run_experiment_sweep — the parameter sweep as a first-class research object (Ring 9).
+ * run_experiment_sweep — variations in one call (Workflows).
+ *
+ * Two forms. `{ ref, path, values }` varies any stored recipe at one JSON Pointer: a new sketch per value, all in one
+ * new folder (variationSweep below). `{ research_ref, base, param, values }` is the mechanics experiment, below.
  *
  * A parameter sweep is what every quantitative question actually is ("what happens to X as
  * I vary Y?"), and before this verb it lived as N manual mints + N manual binds with the
@@ -31,6 +34,9 @@ import { bindResearchItemHandler } from '@/lib/mcp/tools/research-mode';
 // on the creative render engine — install-capabilities.plan.md P3b.
 import { mintSketch } from '@/lib/mcp/tools/sketches';
 import { experimentsToChartManifest } from '@/lib/sketch-derive';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
+import { applyManifestPatch, parsePointer } from '@/lib/mcp/tools/manifest-patch';
 
 // Lazy creative-side loader (P3b): mint + sample a mechanics-view. Absent creative
 // install → advisory, so run_experiment_sweep neither lists nor loads render code.
@@ -72,9 +78,66 @@ const OUTCOMES = {
 };
 const OUTCOME_UNITS = { flightTime: 's', range: 'm', maxHeight: 'm', maxSpeed: 'm/s', curl: 'm' };
 
+/** The value at a JSON Pointer in `doc`, or undefined. */
+function valueAt(doc, segments) {
+  let node = doc;
+  for (const seg of segments) {
+    if (node === null || typeof node !== 'object') return undefined;
+    node = node[Array.isArray(node) ? Number(seg) : seg];
+  }
+  return node;
+}
+
+/**
+ * Variations: one stored recipe varied over one value. Per value the stored manifest is copied, the value is set at the
+ * JSON Pointer `path`, and the copy is minted through create_sketch's own gates as a new sketch; the variants land in one
+ * new folder, which the gallery shows together. The source sketch is never written. A kind gates in its own mint, so
+ * the sweep stops at the first variant its gate refuses and answers what it minted and what was refused.
+ */
+async function variationSweep({ ref, path, values, title }) {
+  const base = SketchRepository.getByRef(ref);
+  if (!base) throw new Error(`No sketch exists at ref '${ref}'`);
+  const manifest = base.manifest;
+  if (!manifest || typeof manifest !== 'object') throw new Error(`'${ref}' has no stored manifest to vary`);
+  // loaded here, not at the top: this office file carries no static creative import (pack-boundary.test.js)
+  const [{ isBeatsKind }, { isVoiceRegisterKind }] = await Promise.all([import('@/lib/graph/beats/beats-manifest'), import('@/lib/graph/voice/voice-register')]);
+  if (isBeatsKind(manifest.kind) || isVoiceRegisterKind(manifest.kind)) {
+    throw new Error(`'${ref}' is a ${manifest.kind}; vary it with its own tool (update_beats / create_voice), which validates it`);
+  }
+  const segments = parsePointer(path, 'run_experiment_sweep');
+  const was = valueAt(manifest, segments);
+  if (was === undefined) throw new Error(`'${ref}' has nothing at '${path}': a sweep varies a value the recipe already sets`);
+  if (!Array.isArray(values) || values.length < MIN_POINTS || values.length > MAX_POINTS) {
+    throw new Error(`values must be ${MIN_POINTS}–${MAX_POINTS} values (got ${Array.isArray(values) ? values.length : 'none'})`);
+  }
+  const keys = values.map((v) => JSON.stringify(v));
+  if (new Set(keys).size !== keys.length) throw new Error('values repeat: each value mints one variant');
+  const { createSketchHandler } = await import('@/lib/mcp/tools/sketch-mint');
+  const name = title ?? `${base.title} · ${path}`;
+  const folder = SketchFolderRepository.create({ name: name.slice(0, 120) });
+  const variants = [];
+  for (const [i, value] of values.entries()) {
+    const next = applyManifestPatch(manifest, [{ op: 'set', path, value }]).manifest;
+    try {
+      const made = await createSketchHandler({ title: `${base.title} · ${path} = ${keys[i]}`.slice(0, 200), manifest: next, folder_ref: folder.ref });
+      variants.push({ value, ref: made.ref, url: made.url });
+    } catch (err) {
+      return { ok: false, from: ref, path, was, folder_ref: folder.ref, variants, refused: { value, error: err.message },
+        note: `Minted ${variants.length} of ${values.length}; the variant at ${keys[i]} was refused by its kind's gate. Nothing after it was minted.` };
+    }
+  }
+  return { ok: true, from: ref, path, was, folder_ref: folder.ref, variants,
+    note: `${variants.length} variants of '${ref}' in folder ${folder.ref}; '${ref}' is unchanged. Keep one with update_sketch on its ref.` };
+}
+
 export async function runExperimentSweepHandler(input, _ctx) {
   if (!input || typeof input !== 'object') {
-    throw new Error('run_experiment_sweep requires an object with research_ref, base, param, values');
+    throw new Error('run_experiment_sweep requires { ref, path, values } (variations) or { research_ref, base, param, values } (a mechanics experiment)');
+  }
+  if (input.ref !== undefined) {
+    if (typeof input.ref !== 'string' || !input.ref) throw new Error('`ref` is a sketch ref');
+    if (input.research_ref !== undefined || input.base !== undefined) throw new Error('`ref` varies a stored recipe; `research_ref` + `base` run a mechanics experiment. Pass one form.');
+    return variationSweep(input);
   }
   const { research_ref, base, param, values, outcome } = input;
   if (!research_ref || typeof research_ref !== 'string') throw new Error('research_ref is required');
@@ -153,26 +216,25 @@ export function registerResearchSweepTools() {
   registerTool({
     name: 'run_experiment_sweep',
     description:
-      "Ring 9 — run a PARAMETER SWEEP as one deterministic call: 'what happens to X as I vary Y?'. "
-      + 'Per swept value it mints a mechanics-view world, derives SI outcomes (flightTime s, range m, '
-      + 'maxHeight m, maxSpeed m/s, curl m), and binds one provenance-carrying `experiment` item; then '
-      + 'auto-plots param-vs-outcome as a chart sketch and binds the figure. Returns the comparative '
-      + 'table + all refs. Dynamics scenarios only (projectile / free-fall / inclined-plane / pendulum / '
-      + 'spring / circular / flight; params: v0, angle, g, mu, length, height, mass, k, amplitude, '
-      + 'radius, curl, spin, diameter, density; 2–12 points) — the SI-honesty boundary measure_view '
-      + 'enforces; flight makes aerodynamics sweepable (curl vs curl = Magnus saturation). Gates up '
-      + 'front, so a bad recipe never half-binds. Follow with a `summary` item and '
-      + 'synthesize_abstract({ review: true }).',
+      "Variations of one thing in a call. `{ ref, path, values }`: the stored recipe at `ref` copied once per value with "
+      + "that value set at the JSON Pointer `path` (e.g. '/levels/0/height'), each copy minted through create_sketch's gates "
+      + 'as a new sketch in one new folder; `ref` is unchanged. 2–12 values; stops at the first copy its kind refuses. '
+      + '`{ research_ref, base, param, values }`: a mechanics-view experiment, per value a world and its SI outcomes '
+      + '(flightTime s, range m, maxHeight m, maxSpeed m/s, curl m) bound into the research session, then a plot of '
+      + 'param vs `outcome`; dynamics scenarios only, gated up front so a bad recipe never half-binds.',
     inputSchema: {
       type: 'object',
       properties: {
-        research_ref: { type: 'string', description: 'The research session (lab notebook) to bind the sweep into.' },
-        base: { type: 'object', description: "The mechanics-view recipe held constant, e.g. { scenario: 'projectile', v0: 18, angle: 45 }. The swept param may be omitted here." },
-        param: { type: 'string', enum: ['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius', 'curl', 'spin', 'diameter', 'density'], description: 'The knob to vary.' },
-        values: { type: 'array', items: { type: 'number' }, description: 'The 2–12 values to sweep (each mints one world + binds one experiment).' },
-        outcome: { type: 'string', enum: ['flightTime', 'range', 'maxHeight', 'maxSpeed', 'curl'], description: "Which outcome the auto-plot charts (default 'flightTime'). The table always carries all five." },
+        ref: { type: 'string', description: 'The sketch to vary (variations).' },
+        path: { type: 'string', description: 'JSON Pointer to the value to vary; the recipe must already set it.' },
+        title: { type: 'string', description: 'Folder name.' },
+        research_ref: { type: 'string', description: 'The research session to bind the experiment into.' },
+        base: { type: 'object', description: "The mechanics-view recipe held constant, e.g. { scenario: 'projectile', v0: 18, angle: 45 }." },
+        param: { type: 'string', enum: ['v0', 'angle', 'g', 'mu', 'length', 'height', 'mass', 'k', 'amplitude', 'radius', 'curl', 'spin', 'diameter', 'density'], description: 'The mechanics knob to vary.' },
+        values: { type: 'array', description: '2–12 values, one variant each.' },
+        outcome: { type: 'string', enum: ['flightTime', 'range', 'maxHeight', 'maxSpeed', 'curl'], description: "What the experiment's plot charts (default 'flightTime')." },
       },
-      required: ['research_ref', 'base', 'param', 'values'],
+      required: ['values'],
     },
     handler: runExperimentSweepHandler,
   });

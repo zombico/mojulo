@@ -33,22 +33,12 @@ import { existsSync, readdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { register } from 'node:module';
 import path from 'node:path';
+import { findUnreal } from '../lib/workers/find.js';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-function findUnreal() {
-  if (process.env.MOJULO_UNREAL) return process.env.MOJULO_UNREAL;
-  const hub = '/Users/Shared/Epic Games';
-  if (!existsSync(hub)) return null;
-  const versions = readdirSync(hub).filter((v) => /^UE_\d/.test(v)).sort();
-  for (const v of versions.reverse()) {
-    const bin = path.join(hub, v, 'Engine', 'Binaries', 'Mac', 'UnrealEditor-Cmd');
-    if (existsSync(bin)) return bin;
-  }
-  return null;
-}
 
 /** "…/UE_5.6/Engine/…" → "5.6"; null when the path carries no version. */
 function engineAssociation(bin) {
