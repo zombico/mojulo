@@ -33,8 +33,23 @@ the creator's to change after. The older game tools stay, behind it: the rail ca
   creator edited by hand since is left as it is unless `force`. Gated worlds wait for verdicts; an autonomous world
   makes everything that settles in one run. Its answer is each part's stamp, which steps may start, what was made, and
   the next moves.
-- Not yet: `design_game` registered as an MCP tool (the handler stands; the surface comes with the reworked
-  `get_game_vocab`), the compile to `create_game`, synthetic browsing and the comparison after creation.
+- **The drawer leads with the rail.** `get_game_vocab` opens on the game book's guide (`gameworld-guide`: the loop,
+  page by page, and the principles: ask before deriving, the derivation is a floor and not a design, laws not presets,
+  fragments not worlds) and a card per page (world, direction, looks, motion, actions, adornment, equipment, systems).
+  Each card's words are generated from the tables the reader reads. Where a card needs an example it shows a contrast
+  pair: two fragments answering the same question from two briefs, each with what the book derives from it, computed
+  when the card is read. No test fixture appears in any card or sample, checked by a test. The store, mechanic, kit,
+  glyph, sfx, hud and idiom cards follow as the machinery; the kit cards say they are what a game type compiles from,
+  not a design to adopt. Its description shrank from 1,650 to 858 characters.
+- **Synthetic samples.** `get_game_vocab({ samples: 'direction' | 'actions' | 'motion' | 'gear', n?, seed? })` draws
+  random fragments of a page from the same tables, without the brief, each with what the book derives from it (a
+  direction's palette and clothes, a power set's items, system and costs, a feel's stand and gaits, a gear language's
+  classes and stats). Seeded and never stored: the same seed draws the same samples again.
+- **The hero door's manual in sections.** The `layered` vocab card opens at its base with a menu of the hero door's
+  parts (`hero-looks`, `hero-hair`, `hero-outfit`, `hero-gear`, `hero-motion` …), so a reader pulls kilobytes, not the
+  whole card; its body, which search indexes, is unchanged.
+- Not yet: `design_game` registered as an MCP tool and the game form re-led around it, the compile to `create_game`,
+  and the comparison after creation.
 
 ### Character book: the hero, looks and actions
 

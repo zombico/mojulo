@@ -119,8 +119,9 @@ const DESCRIPTION_ALLOWLIST = {
   // get_game_vocab re-pinned 2026-09-14 to bless the sixth family clause (hud cards —
   // the screen-space UI language of hud-widgets.js: readouts / banners / legends in
   // slots + the style tokens), then again the same day for the toast (damage numbers)
-  // naming in that clause. Shrink-only from here.
-  get_game_vocab: 1650,
+  // naming in that clause. Shrink-only from here. Shrunk 2026-10-09 (1650 -> 858) when the game book's rail took
+  // the lead: the families became one clause of machinery, and the rail's guide, page cards and samples are off-payload.
+  get_game_vocab: 858,
   get_image_render_packet: 708,
   get_mcp_capabilities: 890,
   get_register_kit: 731,

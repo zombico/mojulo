@@ -36,11 +36,15 @@ function renderCard(id) {
   const kit = KITS[id];
   const ex = exampleFor(id);
   const body = [
+    // machinery, not a starting point: a game is designed on the game book's rail, and a type compiles through its kit
+    '> A kit is MACHINERY: the store, the level wiring and the progression a game type compiles from. Design the game',
+    '> on the rail first (get_game_vocab({ id: \'gameworld-guide\' })); read a kit to see how a type is wired, or to',
+    '> build one by hand past the rail. It is not a design to adopt whole.', '',
     '## What it is', '', kit.summary, '',
     '## Store', '', '```json', JSON.stringify(kit.store, null, 2), '```', '',
     `## Progression`, '', `\`${kit.progression}\`` + (kit.progression === 'gated' ? ' — each level unlocks the next on completion.' : ' — levels play in order, all reachable.'), '',
     `## Fall policy`, '', '```json', JSON.stringify(kit.fall), '```', '',
-    '## Worked example (two levels)', '',
+    '## How it is wired (two levels)', '',
     'Mint each world with its `game` channel, then call `create_game`:', '',
     '```json', JSON.stringify({
       per_level_game_channels: ex.levelChannels,

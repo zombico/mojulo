@@ -98,6 +98,21 @@ describe('get_game_vocab', () => {
     expect(card.card.body).toMatch(/roster/);
   });
 
+  it('the drawer leads with the game book\'s rail: its guide first, then the page cards; samples on request; the machinery after', async () => {
+    const index = await getGameVocabHandler({});
+    expect(index.rail.cards[0].id).toBe('gameworld-guide');
+    expect(index.rail.cards.every((c) => c.scope === 'rail')).toBe(true);
+    expect(index.rail.read).toMatch(/gameworld-guide first/);
+    expect(index.machinery).toMatch(/what the rail is built on/);
+    expect(index.cards.some((c) => c.scope === 'rail')).toBe(false);
+    expect((await getGameVocabHandler({ id: 'gameworld-guide' })).card.body).toMatch(/THE LOOP/);
+    expect((await getGameVocabHandler({ scope: 'rail' })).cards.map((c) => c.id)).toContain('gameworld-actions');
+    const S = await getGameVocabHandler({ samples: 'actions', n: 2, seed: 5 });
+    expect(S).toMatchObject({ ok: true, page: 'actions', seed: 5, n: 2 });
+    expect(S.samples).toHaveLength(2);
+    await expect(getGameVocabHandler({ samples: 'weather' })).rejects.toThrow(/not a page that can be sampled/);
+  });
+
   it('every slice-card + typed-events card is registered (mirror of the kernel vocabulary)', () => {
     const cat = getGameVocabCatalog();
     for (const id of ['slice-character', 'slice-inventory', 'slice-party', 'slice-progression', 'slice-flags', 'typed-events']) {

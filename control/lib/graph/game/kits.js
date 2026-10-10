@@ -1,8 +1,9 @@
 /**
- * game kits — curated store-schema + level-template bundles built from mechanics
- * (game-mechanics.plan.md, M4). A kit is the "don't design the store from scratch" layer: it
- * hands you a working store, a per-level `game` channel recipe (mechanics + fall), and a
- * progression convention, so authoring a whole game shape is fill-in-the-blanks.
+ * game kits — curated store-schema + level-template bundles built from mechanics. A kit is
+ * MACHINERY: the working store, the per-level `game` channel recipe (mechanics + fall) and the
+ * progression convention a game TYPE compiles from. A game is designed on the game book's rail
+ * (gameworld/, get_game_vocab's guide); its kit cards say so, and are read to see how a type is
+ * wired or to build one by hand, never as a design to adopt whole.
  *
  * A kit is a curated COMPOSITION of mechanics (M0–M3), nothing new under the hood: its level
  * channels lower through composeMechanics, its store validates like any store, its gates ride the

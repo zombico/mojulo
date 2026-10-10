@@ -85,9 +85,13 @@ describe('the workbench card', () => {
 });
 
 describe('the other cards', () => {
-  it('only scad and workbench are sectioned; every other card reads its body whole', async () => {
+  it('only layered, scad and workbench are sectioned; every other card reads its body whole', async () => {
     const catalog = getSolidVocabCatalog();
-    expect([...catalog.values()].filter((c) => c.sections).map((c) => c.id).sort()).toEqual(['scad', 'workbench']);
+    // layered joined 2026-10-09: the hero door's parts are sections (hero-looks, hero-outfit …) so the game book's cards
+    // point an agent at kilobytes, not the 88 KB card; its body (what search indexes) is unchanged
+    expect([...catalog.values()].filter((c) => c.sections).map((c) => c.id).sort()).toEqual(['layered', 'scad', 'workbench']);
+    const layered = await getSolidVocabHandler({ id: 'layered' });
+    expect(layered.card.sections.map((s) => s.name)).toEqual(expect.arrayContaining(['hero-looks', 'hero-hair', 'hero-outfit', 'hero-gear', 'hero-motion']));
     for (const c of catalog.values()) {
       if (c.sections) continue;
       const r = await getSolidVocabHandler({ id: c.id });

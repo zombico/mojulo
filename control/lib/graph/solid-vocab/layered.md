@@ -168,6 +168,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   and its advice. A `/plan` patch is honoured and kept until the next `/hero` edit, which regenerates and SAYS it replaced
   those hand edits (the archived revision keeps them). The live dials (`bulk`, `stance`, `lean`, a worn head's `jawOpen`)
   are post-expansion moves under `/dials`; a tune is authored proportion. The `create-hero` catalyst is the loop.
+<!-- section: hero-face | The face | the landmark head by default, the face moves and dials, the head's landmarks in the readout -->
   THE FACE. A hero wears the fitted LANDMARK HEAD by default (`head: 'landmark'`; `'none'` is a blank head trunk; a
   baked include is worn as given). `face` is the face proportion lab's contract on the fitted head, ratios about the fit
   (1 = as fitted), in groups: `skull` (`skullWidth` the vault, `faceWidth` from the cheekbones forward, `faceLength` the
@@ -181,6 +182,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   such as `chibi` wears the male by default) ride beside it. Patch `/hero/face/<control>`, `/hero/expression` and the
   head, the plan and the recipe regenerate; a face never moves a joint. The readout's `hero.face*` answers in metres off
   the head's landmarks (`head_m` crown to chin, `cheekbones_m`, `jaw_m`, `pupils_m`).
+<!-- /section -->
+<!-- section: hero-hair | The hair (landmark head) | the library of hair styles that ride the skull, their dials, and the Hair palette group -->
   THE HAIR. A LIBRARY of styles as closed masses whose perimeter follows the skull by address (they ride every face
   control and never sink into the skull), the hairstyle lab's words: the male collection `animeShort` (pointed locks:
   bangs, side locks to the cheek, crown spikes), `buzz`, `crew`, `taper`, `undercut`, `crop`, `quiff`, `swept`, `curtains`;
@@ -200,6 +203,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   or `/hero/hair/<control>`. The readout's `hero.hair`, `hairMoved` and `hairMeasures` (`top_m` above the crown, `hem_m`
   below the chin, negative when it hangs past it, `back_m` behind the occiput) answer in the operator's terms. Hair colour
   is the palette's `Hair`.
+<!-- /section -->
+<!-- section: hero-anime-head | The anime head | head: anime, its cap, its hair forms (bob, long, hime) and the hair bases -->
   THE ANIME HEAD. `head: 'anime'` wears the Anime Form Studio's head instead: an original anime construction (one
   designed surface, eye and mouth apertures, a tall iris clipped by the lids, a modelled upper lash and a thin lower rim,
   a brow ribbon, ears; clump hair along root → control → tip curves), ported from the studio bit for bit and registered
@@ -324,6 +329,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `pupilOfIris`. Each outside its base's band advises in `warnings`, naming the word that moves it (not under a look: a
   look is another character); a ratio the head does not allow measuring is null and says so. The table reads the face
   at the studio's carriage, so a `headPitch` word never moves it.
+<!-- /section -->
+<!-- section: hero-core | The core | the structured midsection every hero is built on: pelvis, waist and how the trunk bends -->
   THE CORE: every hero's midsection is built on the vajra core (`core: 'structured'`, the default): the `pelvis` bone is the basin, turned by the
   hip line and TIPPED by the hip hinge (the pelvis rocks over the thighs with the trunk, so nothing opens at the waist
   when the figure bends at the hips), and a `lumbar` bone carries the pelvis hub to the navel, so a spine curl, arch or
@@ -369,6 +376,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   before it, byte for byte: one `pelvis` bone from the hub to the navel, the thigh lofts carrying the hips, the cast's
   legs, the five-ring torso, a bust only when the body names one (as two mounds). (A rig bone's `align` names two joints
   whose line orients it in place of head → tail; it still sits at its head.)
+<!-- /section -->
+<!-- section: hero-anime-body | Anime proportions | the anime body by default on the anime head, the herobot, the neck form -->
   ANIME PROPORTIONS: a hero wearing the anime head wears an anime body by default (`proportions: 'anime'`; `'hero'` keeps
   the realistic cast; `'herobot'` is the hero ROBOT's toy-hero body, about 4.4 heads tall — a big head, a short torso,
   short arms and neck, longer shins, big feet and bigger, puffed white cartoon gloves (`Glove`), the neck in the body stocking (`Top`); adult limbs, never
@@ -382,6 +391,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   neck and `ofW`. The anime head is
   denser than the landmark head (every studio vertex is a pinned offset; `register: 'lowpoly'` is the studio's coarse
   sampling).
+<!-- /section -->
+<!-- section: hero-looks | Looks | the anime head's preset words: archetypes, face, graphic-face and hair traits, hair cuts and characters, poses -->
   LOOKS (the anime head's presets). `look` is ONE list of words that compose, the conversational surface for a
   character: ARCHETYPES `heroine`, `lead`, `rival`, `princess`, `mentor`, `kid`, `stoic` (each a face, a family and hair
   traits, a pose, and where it needs one a body `tune`: a bigger head, a shorter stature — never palette, cast,
@@ -402,6 +413,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   set whole). The row keeps the words and a resolved STAMP (`lookResolved`): a later re-tuning of a word never changes a
   stored hero until its list is edited. The readout says `look`, `lookFrom`, the effective head and tune, and the own
   layer apart. Every preset stays inside the studio's ranges on both bases.
+<!-- /section -->
+<!-- section: hero-genki | Genki | the shonen spirit as one amount over the look -->
   GENKI (the anime head only). `genki: 0 … 1` is the shonen spirit translated onto the character, one amount over the
   look and the own layer (`anime-genki.js`): broader shoulders, a narrower waist and stronger forearms and calves; on the
   male bigger, rounder eyes, on the female a narrower opening; a heavier, lower brow set into a V; more taper and crown
@@ -409,6 +422,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   Ratios at amount s are ratio^s, offsets × s, so `/hero/genki 0.5` is halfway; absent or 0 changes nothing and stores
   nothing. It composes with every other word (the dress, the gear and the clips fit the body it makes; read the
   clearance warnings as for any tune). The readout says `genki`.
+<!-- /section -->
+<!-- section: hero-dress | The dress and second skin | detail and adorn passes, and paint: skintight garments as colour -->
   THE DRESS. `detail` and `adorn` put the dragon's BODY DETAIL and ADORNMENT passes on the hero, the same operators with
   the hero's parameters (`hero-dress.js`). `detail: 'clothed'` is a garment read: elbows and knees refined, the masses a
   jerkin and trousers keep, soft sleeve folds at the elbows, a QUILTED jerkin (front panels either side of a bare placket,
@@ -430,6 +445,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   share of the ring half (0 front, 1 back); `only` repaints just the bands in those groups. Words wear the figure's Top,
   Bottom and Shoes tones and Glove; best over `detail: 'swimsuit'`, whose forms they keep (a word over the hips clears the
   swimwear beneath). Patch `/hero/paint`.
+<!-- /section -->
+<!-- section: hero-outfit | Outfits | garments with volume, and the outfit build: a styled look with dials (stylize, fit, coverage, ornament) -->
   OUTFIT. `outfit` puts on garments WITH VOLUME that follow the body's own geometry (`body-garment.js`; words in
   `hero-dress.js` OUTFIT_WORDS: `tee`, `shirt`, `trousers`, `shorts`, `boots`). Each piece copies its body part's rings
   over a window, carried out by its `ease` and lifted over the layers beneath it (the chest's, the garments already on
@@ -463,6 +480,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
   Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
+<!-- /section -->
+<!-- section: hero-statue | Statues | the hero as a period statue: card, material, crop, losses, base -->
   STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the
   hero as sculpture (`lib/graph/statue/`), on the landmark head or `head: 'none'` (the anime head and held gear refuse by
   name; an armour build is carved with the figure). Period cards, plain JSON: `archaic` (kouros and kore), `classical`
@@ -498,6 +517,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   and that the body is authored from a cast and a tune. The ledger says an adornment is seen,
   not that it is wanted. Tones the detail needs (`TopFold`, `Quilt`, `Cuff`, `Patch`, …) derive from `Top` / `Bottom` /
   `Shoes`; any tone the operator names wins.
+<!-- /section -->
+<!-- section: hero-stand | The stand | gesture: the pose the figure holds -->
   THE STAND. `gesture` is the pose the figure holds, in the rig's own pose words: `relaxed` (weight on the left leg,
   hips and chest counter-turned, the shoulder line dropping to the support side, the head tilted toward the high
   shoulder, chin a little down; the far arm hanging, the near arm curved, its forearm carried forward), `hand-on-hip`
@@ -516,6 +537,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hero.gesture` says the word, the support, the hand and forearm against the torso, bust, thighs, neck and head
   (`clearance`, millimetres past their rest overlap) and the free sole against the floor; past 5 mm it advises, as does
   `lean` or `stance` off rest beside a stand (the rig poses the rest joints, so the dial is posed twice).
+<!-- /section -->
+<!-- section: hero-clips | Clips | the operator's motion as keys, durations, the ambient blink -->
   THE CLIPS. `clips: { <name>: [keys] | false }` adds the operator's motion to the hero's own (`idle`, `walk`, `wave`;
   the stand first when it stands): each key an object of the rig's pose words — the stand's, every number
   range-checked, plus `head` / `neck` as a direction to aim, `heelL` / `heelR` (degrees, ±90), `lift` (metres, 0 … 1,
@@ -552,6 +575,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   false` turns it off (stored only when false; any other head refuses it). The drawings are a frame each at 30 fps:
   play the GLB at 30 fps or more (at 24, Blender's default scene rate, a one-frame drawing can fall between two
   samples). The readout's `hero.clips` adds `seconds` (every clip played) and `face` (the door clips carrying one).
+<!-- /section -->
+<!-- section: hero-motion | Motion | locomotion that travels: walk, jog, sprint, jumps, rolls, stops, and their dials -->
   THE MOTION. `motion: { walk?, jog?, sprint? }` gives the hero locomotion that travels: each gait `true` (as studied)
   or an object of the gait's own dials plus `tilt` (degrees, 0 … 35: the body leaning into it from the hips, the spine
   straight, the head taking most of it back so the gaze runs ahead) and `seconds` (a cycle, 0.25 … 10). A walk takes the
@@ -595,6 +620,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the engine score's `locomotion.jumps`. In every gait and jump a raised, bent arm folds with its ELBOW DOWN (the
   shoulder rolls with the raise; never the forearm across the chest). Absent, the hero and every export are as before.
   Patch `/hero/motion` (set it to an object first), then `/hero/motion/<gait or jump>`.
+<!-- /section -->
+<!-- section: hero-gear | Gear and the swing | held and carried items by slot, and a swing word as the stand -->
   THE GEAR. `gear: { right?, left?, back?, hip? }`, each slot an item's build words, the same an equipment item takes
   (`{ item, style?, dials?, parts?, gem?, seed? }`, the equipment card): `gear: { right: { item: 'sword', style: 'dwarven' },
   left: { item: 'shield', style: 'dwarven' } }`. Stored with the laws stamped; patch `/hero/gear/right/dials/stylize`.
@@ -613,6 +640,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   cock, a greatsword (or a `mass` ≥ 1.2, or an item past three quarters of the figure) strikes late from a held, higher
   cock. The readout's `hero.gear.<hand>.swing` gives the impact's phase, the contact `window`, `reachM` and `cone` for
   a game's hit test. No bow draw yet: the hand has no wrist, so a bow raised to draw would point at the archer.
+<!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and

@@ -29,6 +29,8 @@ import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
+import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES } from '@/lib/graph/gameworld/gameworld-cards';
+import { gameworldSamples } from '@/lib/graph/gameworld/samples';
 import { getMechanicVocabCatalog } from '@/lib/graph/game/mechanic-cards/loader';
 import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
 import { getGlyphVocabCatalog } from '@/lib/graph/game/glyph-cards/loader';
@@ -142,7 +144,13 @@ export async function createGameHandler(input) {
 }
 
 export async function getGameVocabHandler(input) {
-  const { id, scope } = input && typeof input === 'object' ? input : {};
+  const { id, scope, samples, n, seed } = input && typeof input === 'object' ? input : {};
+  // the rail leads: the game book's guide and its page cards, and its synthetic samples (gameworld/)
+  const rail = gameworldCards();
+  if (samples !== undefined) {
+    return { ok: true, ...gameworldSamples(samples, { ...(n !== undefined ? { n } : {}), ...(seed !== undefined ? { seed } : {}) }), _telemetrySignal: { id_requested: true, found: true } };
+  }
+  if (id && rail.has(id)) return { ok: true, card: rail.get(id), _telemetrySignal: { id_requested: true, found: true } };
   const slices = getGameVocabCatalog();
   const mechanics = getMechanicVocabCatalog();
   const kits = getKitVocabCatalog();
@@ -153,11 +161,13 @@ export async function getGameVocabHandler(input) {
   if (id) {
     const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
   const row = (cat, cardScope) => [...cat.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when, scope: cardScope }));
+  const railRows = scope && scope !== 'rail' ? [] : row(rail, 'rail');
+  if (scope === 'rail') return { ok: true, cards: railRows, _telemetrySignal: { id_requested: false, found: true } };
   const cards = [
     ...(scope && scope !== 'slice' ? [] : row(slices, 'slice')),
     ...(scope && scope !== 'mechanic' ? [] : row(mechanics, 'mechanic')),
@@ -167,7 +177,14 @@ export async function getGameVocabHandler(input) {
     ...(scope && scope !== 'hud' ? [] : row(hud, 'hud')),
     ...(scope && scope !== 'idiom' ? [] : row(idioms, 'idiom')),
   ];
-  return { ok: true, cards, _telemetrySignal: { id_requested: false, found: true } };
+  if (scope) return { ok: true, cards, _telemetrySignal: { id_requested: false, found: true } };
+  return {
+    ok: true,
+    rail: { read: `${GAMEWORLD_CARD_IDS[0]} first: the loop and the principles; then a page card by id; samples: '<${Object.keys(SAMPLE_PAGES).join(' | ')}>' to browse random fragments`, cards: railRows },
+    machinery: 'the rows below are what the rail is built on: read one when going past it (a store slice, a level mechanic, a kit the compiler builds a game type from, a glyph, an sfx verb, a hud card, an idiom rule)',
+    cards,
+    _telemetrySignal: { id_requested: false, found: true },
+  };
 }
 
 // THE PLAY DRAWER (playscape/ui/cards.js): playscape served scaled to the ask — the ladder with no argument, a rung's
@@ -268,27 +285,22 @@ export function registerGameTools() {
   registerTool({
     name: 'get_game_vocab',
     description:
-      'Read a game-vocab card in full — seven families. STORE (scope:slice): one store SLICE KIND '
-      + '(slice-character / inventory / party / progression / flags: state shape, accepted events) or the '
-      + 'typed-events reference. MECHANIC (scope:mechanic): one level verb for a world\'s `game.mechanics` '
-      + '(reach-exit / survive / collect / hazard-damage / fail-on-death, the fall policy, mechanics-guide). '
-      + 'KIT (scope:kit): a whole game TYPE — ready store + level template + progression + worked example '
-      + '(dungeon-crawler / collectathon / survival-arena); start here to skip designing the store. GLYPH '
-      + '(scope:glyph): an icon-grade pickup/marker FORM (glyph-gem / coin / key / heart / star / orb / flag / '
-      + "skull) an entity uses via body:{type:'glyph', form}. SFX (scope:sfx): a raymarch \"juice\" verb "
-      + '(sfx-sparkle / heal / ward / kokusen / …) a world\'s `sfx` channel anchors at an entity or point. '
-      + 'HUD (scope:hud): SCREEN-space UI — readouts, banners, toasts, legends in seven slots via `events.hud`, '
-      + 'and the style tokens a game `theme` shares with every level (hud-guide / readout / banner / style). '
-      + 'IDIOM (scope:idiom): a reusable RULE a world lists in `idioms` (deed / pickup / scoreCounter / …), '
-      + 'tiered click / walk / level / game (idiom-guide). Pass `id` for one card; omit for index rows '
-      + '{ id, name, summary, when, scope }; `scope` filters. Discover via semantic_search kinds '
-      + "['game_vocab'] store, ['game_mechanic'], ['game_kit'], ['game_glyph'], ['game_sfx'], ['game_hud'], "
-      + "['game_idiom']. Read-only.",
+      'The GAME drawer, led by the game book\'s rail. No argument → the rail first (gameworld-guide: the loop and the '
+      + 'principles for designing a game top down, then a card per page: world, direction, looks, motion, actions, adornment, '
+      + 'equipment, systems), then the machinery rows. `id` → one card in full. `samples` (direction | actions | motion | '
+      + 'gear, with `n` and `seed`) → random fragments of that page drawn without the brief, each with what the book derives '
+      + 'from it: browse to learn how a choice propagates, never to copy. The machinery, read when going past the rail: store '
+      + 'slices (slice-<kind>, typed-events), level mechanics (reach-exit … mechanics-guide), kits (dungeon-crawler / '
+      + 'collectathon / survival-arena: what a game type compiles from), glyph forms, sfx verbs, hud cards (hud-guide …), '
+      + 'idiom rules (idiom-guide). `scope` filters the rows. Read-only.',
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: 'Card id: a store card (slice-<kind> / typed-events), a mechanic card (reach-exit / … / fall-policy / mechanics-guide), a kit card (dungeon-crawler / collectathon / survival-arena), a glyph card (glyph-gem / … / glyph-skull), an sfx card (sfx-sparkle / … / sfx-kokusen), a hud card (hud-guide / hud-readout / hud-banner / hud-style), or an idiom card (idiom-guide / idiom-<kind>).' },
-        scope: { type: 'string', enum: ['slice', 'mechanic', 'kit', 'glyph', 'sfx', 'hud', 'idiom'], description: 'Optional list filter: store slice cards, level-mechanic cards, game-kit cards, glyph form cards, sfx verb cards, hud (screen UI) cards, or idiom (rule) cards. Omit to list all.' },
+        id: { type: 'string', description: 'Card id: gameworld-guide / gameworld-<page>, or a machinery card (slice-<kind>, a mechanic, a kit, glyph-<form>, sfx-<verb>, hud-<card>, idiom-<kind>).' },
+        scope: { type: 'string', enum: ['rail', 'slice', 'mechanic', 'kit', 'glyph', 'sfx', 'hud', 'idiom'], description: 'List only one family of rows.' },
+        samples: { type: 'string', enum: ['direction', 'actions', 'motion', 'gear'], description: 'Draw random fragments of this page, each with what it derives.' },
+        n: { type: 'integer', minimum: 1, maximum: 12, description: 'How many samples (default 6).' },
+        seed: { type: 'integer', description: 'The draw (default 1): the same seed draws the same samples.' },
       },
       required: [],
     },
