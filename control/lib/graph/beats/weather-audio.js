@@ -29,19 +29,22 @@ export function buildWeatherAudio() {
   const hashName = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; };
   const lerp = (a, b, u) => a + (b - a) * u;
 
+  // gain: the bank's loudness (its bed at full share lands near the dBFS RMS the table below was set to by measuring the offline
+  //   render: still −50 … breeze −42, drizzle −40, rustle −40, hush −46, dust −36, rain −34, downpour −29, storm and gale −28);
+  //   intensity is still RATE (share scales the grains, never a grain's volume), this is only how loud a bank is at all
   // bed: band [lo, hi] Hz, per-grain vol, density (grains a second at full share), gust (0…1, how far the LFOs swell it)
   // drops: events a second at full share, size [small, big] (0…1)
   const BANKS = {
-    still: { bed: { band: [180, 900], vol: 0.07, density: 6 } },
-    breeze: { bed: { band: [300, 1800], vol: 0.09, density: 10 }, gust: 0.35 },
-    drizzle: { bed: { band: [3500, 9000], vol: 0.07, density: 16 }, drops: { rate: 4, size: [0.05, 0.25] } },
-    rain: { bed: { band: [2400, 8000], vol: 0.1, density: 26 }, drops: { rate: 14, size: [0.2, 0.5] }, gust: 0.15 },
-    downpour: { bed: { band: [1300, 7000], vol: 0.13, density: 38 }, drops: { rate: 32, size: [0.45, 0.9] }, gust: 0.25 },
-    storm: { bed: { band: [900, 6500], vol: 0.14, density: 38 }, drops: { rate: 34, size: [0.5, 0.95] }, gust: 0.6 },
-    hush: { bed: { band: [150, 1300], vol: 0.05, density: 6 }, gust: 0.15 },
-    gale: { bed: { band: [260, 2600], vol: 0.15, density: 30 }, gust: 1 },
-    dust: { bed: { band: [420, 3300], vol: 0.08, density: 16 }, gust: 0.5 },
-    rustle: { bed: { band: [1800, 7000], vol: 0.06, density: 8 }, drops: { rate: 6, size: [0.02, 0.2] }, gust: 0.4 },
+    still: { gain: 13.0, bed: { band: [180, 900], vol: 0.07, density: 6 } },
+    breeze: { gain: 10.9, bed: { band: [300, 1800], vol: 0.09, density: 10 }, gust: 0.35 },
+    drizzle: { gain: 5.4, bed: { band: [3500, 9000], vol: 0.07, density: 16 }, drops: { rate: 4, size: [0.05, 0.25] } },
+    rain: { gain: 5.5, bed: { band: [2400, 8000], vol: 0.1, density: 26 }, drops: { rate: 14, size: [0.2, 0.5] }, gust: 0.15 },
+    downpour: { gain: 7.1, bed: { band: [1300, 7000], vol: 0.13, density: 38 }, drops: { rate: 32, size: [0.45, 0.9] }, gust: 0.25 },
+    storm: { gain: 7.6, bed: { band: [900, 6500], vol: 0.14, density: 38 }, drops: { rate: 34, size: [0.5, 0.95] }, gust: 0.6 },
+    hush: { gain: 21.7, bed: { band: [150, 1300], vol: 0.05, density: 6 }, gust: 0.15 },
+    gale: { gain: 16.4, bed: { band: [260, 2600], vol: 0.15, density: 30 }, gust: 1 },
+    dust: { gain: 17.7, bed: { band: [420, 3300], vol: 0.08, density: 16 }, gust: 0.5 },
+    rustle: { gain: 6.2, bed: { band: [1800, 7000], vol: 0.06, density: 8 }, drops: { rate: 6, size: [0.02, 0.2] }, gust: 0.4 },
   };
   // the surface a fall lands on: what a drop sounds like there
   //   hi: a lowpass on the drop's band (soft); click: a highpass lift (dry); ring: { material, hz: [lo, hi], decay, share }
@@ -75,24 +78,25 @@ export function buildWeatherAudio() {
   function sliceCues(bank, share, voice, surface, t, n, worldSeed) {
     const B = BANKS[bank], S = SURFACES[surface] || SURFACES.stone, out = [];
     if (!B || share <= 0.01) return out;
+    const G = B.gain || 1;
     const seed = (Math.imul(worldSeed >>> 0, 2654435761) ^ Math.imul(n + 1, 40503) ^ hashName(bank)) >>> 0;
     const oct = Math.pow(2, voice.tone), g = B.gust ? 1 + B.gust * (gustAt(voice, t + SLICE / 2) * 2 - 1) : 1;
     // the bed: a dense train of small grains; intensity is how many
     // (a surface that closes the bed's top may not close it below its own floor: the band stays a band)
     const hi = Math.min(S.bed || 1e9, B.bed.band[1] * oct), lo = Math.min(B.bed.band[0] * oct, hi * 0.6);
     const grains = Math.round(B.bed.density * share * g * SLICE);
-    if (grains > 0) out.push({ type: 'grain', at: 0, grains, over: SLICE, decay: [0.05, 0.14], band: { lo, hi }, vol: B.bed.vol, spread: 0.5, seed });
+    if (grains > 0) out.push({ type: 'grain', at: 0, grains, over: SLICE, decay: [0.05, 0.14], band: { lo, hi }, vol: B.bed.vol * G, spread: 0.5, seed });
     // the drops: size is band (bigger lower, longer), the surface its resonance
     if (B.drops && S.drops > 0) {
       const size = voice.size, c = 5400 - 4300 * size, rate = B.drops.rate * share * S.drops;
       const count = Math.round(rate * SLICE + roll(seed, 1, 1) - 0.5);
       const dHi = Math.min(S.hi || 1e9, c * 1.7), dLo = Math.min(Math.max(150, (c / 1.7) * (S.click || 1)), dHi * 0.6);
-      if (count > 0) out.push({ type: 'grain', at: 0, grains: count, over: SLICE, decay: [0.012 + 0.03 * size, 0.03 + 0.07 * size], band: { lo: dLo, hi: dHi }, vol: 0.32, spread: 0.7, seed: seed ^ 0x51ED });
+      if (count > 0) out.push({ type: 'grain', at: 0, grains: count, over: SLICE, decay: [0.012 + 0.03 * size, 0.03 + 0.07 * size], band: { lo: dLo, hi: dHi }, vol: 0.32 * G, spread: 0.7, seed: seed ^ 0x51ED });
       if (S.ring) {
         const rings = Math.round(rate * S.ring.share * SLICE * 0.5 + roll(seed, 2, 2) - 0.5);
         for (let i = 0; i < Math.min(rings, 6); i++) {
           const at = roll(seed, 3, i) * SLICE, hz = lerp(S.ring.hz[0], S.ring.hz[1], fr(voice.pitch + 0.37 * roll(seed, 4, i)));
-          out.push({ type: 'ring', at, material: S.ring.material, hz, decay: S.ring.decay * (0.6 + 0.8 * size), vol: 0.07 + 0.06 * roll(seed, 5, i) });
+          out.push({ type: 'ring', at, material: S.ring.material, hz, decay: S.ring.decay * (0.6 + 0.8 * size), vol: (0.07 + 0.06 * roll(seed, 5, i)) * G * 0.4 });   // (a ring sits in the drops, it does not outshout them)
         }
       }
     }

@@ -119,4 +119,20 @@ describe('weather audio', () => {
     const thunders = played.filter((a) => a[0].some((x) => x.type === 'burst' && x.lowpass));
     expect(thunders.length).toBe(1);
   });
+
+  it('is audible and in proportion: each bank\'s bed lands near its measured level, rain on tin is not twice the rain, thunder stands over it', async () => {
+    const { renderBeatsOffline } = await import('./beats-render.js');
+    const rms = (wav) => { const b = Buffer.from(wav), d = new Int16Array(b.buffer.slice(b.byteOffset + 44, b.byteOffset + b.byteLength)); let s = 0; for (const x of d) s += x * x; return 20 * Math.log10(Math.sqrt(s / d.length) / 32768 + 1e-9); };
+    const peak = (wav) => { const b = Buffer.from(wav), d = new Int16Array(b.buffer.slice(b.byteOffset + 44, b.byteOffset + b.byteLength)); let m = 0; for (const x of d) m = Math.max(m, Math.abs(x)); return 20 * Math.log10(m / 32768 + 1e-9); };
+    const render = async (gestures) => (await renderBeatsOffline({ kind: 'beats-sfx', title: 'w', cues: { c: gestures } }, { cue: 'c', tail: 0.5 })).wav;
+    const bed = (bank, surface, secs = 6, share = 1) => { const v = voiceFor(7, bank), out = []; for (let n = 0; n * SLICE < secs; n++) for (const g of sliceCues(bank, share, v, surface, n * SLICE, n, 7)) out.push({ ...g, at: (g.at || 0) + n * SLICE }); return out; };
+    const TARGET = { still: -50, breeze: -42, drizzle: -40, rain: -34, downpour: -29, storm: -28, hush: -46, gale: -28, dust: -36, rustle: -40 };
+    const lv = {};
+    for (const bank of Object.keys(BANKS)) { lv[bank] = rms(await render(bed(bank, 'stone'))); expect(Math.abs(lv[bank] - TARGET[bank]), `${bank} ${lv[bank].toFixed(1)}`).toBeLessThan(3); }
+    expect(lv.drizzle).toBeLessThan(lv.rain); expect(lv.rain).toBeLessThan(lv.downpour); expect(lv.hush).toBeLessThan(lv.drizzle);   // intensity is audible
+    expect(rms(await render(bed('rain', 'tin'))) - lv.rain).toBeLessThan(5);                                   // a ringing roof is rain, louder, not a bell
+    const th = thunderCues({ near: true, dist: 400, seed: 9 }, 7), storm = [...bed('storm', 'stone', 6), ...th.gestures.map((g) => ({ ...g, at: (g.at || 0) + 2 }))];
+    expect(peak(await render(storm))).toBeGreaterThan(peak(await render(bed('storm', 'stone', 6))) + 1);       // thunder stands over the bed
+    expect(peak(await render(storm))).toBeLessThan(-1);                                                         // and does not clip
+  }, 120000);
 });
