@@ -83,13 +83,13 @@ function guide() {
     '      hero: { looks?: { body?, head?, hair?, colour?, underlayer? }, motion?, actions?, adornment? } },',
     '    equipment?: { style?, classes? }, mechanics?: { scale?, powers?, stats?, hud?, ui? } }',
     '  patch ops are { op: \'set\' | \'remove\' | \'add\', path: \'/characters/hero/motion\', value } (JSON Pointer paths; no \'replace\').',
-    '  A refusal names the field, the shape it wants, and the ref if the world was already stored.',
+    '  A refusal names the field, the shape it wants, and the ref once stored.',
     '',
     'THE DOOR (design_game): { world } starts a gameworld (a sketch: update_sketch works on it too); { ref, patch } edits it by',
     '  part; { ref, approve, revise } are the creator\'s verdicts (revise { part, note } sends one back); { ref, run: true }',
     '  makes every ready step. A run keeps what did not move, remakes what did in place, leaves hand edits (force: true',
-    '  overwrites). Its answer is each stamp, the steps, what was made and the next moves; the bible is the sketch page\'s.',
-    '  `mode`: ' + Object.entries(MODES).map(([k, v]) => `${k} (${v})`).join('; ') + '.',
+    '  overwrites). It answers each stamp, the steps, what was made and `next` step ids (gameworld-next); `readout:',
+    '  \'changed\'` only what moved. `mode`: ' + Object.entries(MODES).map(([k, v]) => `${k} (${v})`).join('; ') + '.',
   );
 }
 
@@ -252,6 +252,26 @@ function quickCard() {
   );
 }
 
+function nextCard() {
+  return lines(
+    'THE NEXT MOVES — design_game\'s readout ends with `next`: step ids, each with what it needs. What each asks:',
+    '',
+    '  review     gated: show the creator the bible, then approve or send back those `parts` ({ ref, approve: [...] } or',
+    '             { ref, revise: { part, note } }). The verdicts are theirs, never yours.',
+    '  advised    autonomous: the machine gate advises on those `parts`: change the page, or approve it as it stands.',
+    '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
+    '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
+    '             proved it (`gate: eyes`).',
+    '  run        run: true makes the hero, and every step that is ready.',
+    '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
+    '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
+    '             your own at `path` (gameworld-adornment); its items seed the equipment table.',
+    '  wait       step `on` waits on those parts (their stamps in brackets).',
+    '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
+    '             creator\'s to confirm.',
+  );
+}
+
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a quick game', quickCard],
@@ -263,6 +283,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, run, rerun, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

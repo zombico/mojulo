@@ -78,6 +78,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   is one line pointing at its manual there. `forward_context` keeps the commitment floor as one standing line
   (the table is in `get_register_kit`) and puts the per-call settings, the disclosure directive and the pulse
   last.
+- **Readouts say ids, not sentences.** `design_game`'s `next` is step ids (`review`, `play`, `run`, `rerun`, `wait`,
+  `advice`, …) with the parts or URL each needs; what each asks is the new `gameworld-next` card. `readout: 'changed'`
+  answers only the parts whose stamp moved and the steps run. A run that makes nothing, the same recipe written again,
+  or a verdict already held writes no revision. Within one MCP session, `measure_solid` of the same recipe and params
+  names the reading the agent already has (`same_as`, `full: true` to measure again), and a print `export_model` names
+  that measure instead of reading it out (the README beside the file keeps it whole). The vocab readers' no-id
+  listings are one short row per card (`id`, `when`, and its family, entry or scope; `detail: true` for the full
+  rows): 188 KB to 93 KB across the six. `sketch_stash` stops repeating each hint in its steps.
 
 ### Gameworlds: a door for agents
 

@@ -85,9 +85,12 @@ describe('the scad card', () => {
   });
 
   it('the index rows carry no base or sections', async () => {
+    // the listing is one short row per card (id · when, plus its family and entry); `detail` gives the full row
     const list = await getSolidVocabHandler({});
     const scad = list.cards.find((c) => c.id === 'scad');
-    expect(Object.keys(scad).sort()).toEqual(['entry', 'family', 'id', 'name', 'summary', 'when']);
+    expect(Object.keys(scad).sort()).toEqual(['entry', 'family', 'id', 'when']);
+    const full = (await getSolidVocabHandler({ detail: true })).cards.find((c) => c.id === 'scad');
+    expect(Object.keys(full).sort()).toEqual(['entry', 'family', 'id', 'name', 'summary', 'when']);
   });
 });
 

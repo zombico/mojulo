@@ -126,3 +126,33 @@ describe('measure_solid on a layered solid', () => {
     expect(none.motion.skipped).toBe(true);
   }, 120000);
 });
+
+// Phase 2 (readouts become ids): within one MCP session, a repeat measure of the same recipe and params names the
+// reading the agent already has, and a print export of it names that measure instead of reading it out again.
+describe('measure_solid — a repeat in the same session names the earlier reading', () => {
+  it('the second measure is the same_as stub; full: true, a new param or an edit measures again; export names it', async () => {
+    SketchRepository.create({ ref: 'ms_again', title: 'cylinder', manifest: { kind: 'workbench', units: 'cm', lathes: [CYLINDER] } });
+    const ctx = { mcpSessionId: 'session-measure-again' };
+    const first = await measureSolidHandler({ ref: 'ms_again' }, ctx);
+    expect(first.print_measure).toBeTruthy();
+    const again = await measureSolidHandler({ ref: 'ms_again' }, ctx);
+    expect(again.same_as).toMatchObject({ tool: 'measure_solid' });
+    expect(again.size_mm).toEqual([40, 40, 60]);
+    expect(again.print_measure).toBeUndefined();
+    expect(again.note).toMatch(/full: true measures again/);
+    // another session, full: true, or another scale: measured whole
+    expect((await measureSolidHandler({ ref: 'ms_again' }, { mcpSessionId: 'another' })).same_as).toBeUndefined();
+    expect((await measureSolidHandler({ ref: 'ms_again', full: true }, ctx)).same_as).toBeUndefined();
+    expect((await measureSolidHandler({ ref: 'ms_again', scale: 5 }, ctx)).size_mm).toEqual([20, 20, 30]);
+    // the export at the measured scale names the measure; the README beside the file keeps the full numbers
+    const out = await exportModelHandler({ ref: 'ms_again', format: 'stl' }, ctx);
+    expect(out.print_measure).toEqual({ same_as: { tool: 'measure_solid', at: expect.any(String) } });
+    expect(out.note).toMatch(/as your measure_solid at/);
+    // an edit is a new recipe: measured again
+    SketchRepository.update({ ref: 'ms_again', manifest: { kind: 'workbench', units: 'mm', lathes: [CYLINDER] } });
+    expect((await measureSolidHandler({ ref: 'ms_again' }, ctx)).same_as).toBeUndefined();
+    // no session (the CLI): never remembered
+    await measureSolidHandler({ ref: 'ms_again' });
+    expect((await measureSolidHandler({ ref: 'ms_again' })).same_as).toBeUndefined();
+  }, 120_000);
+});

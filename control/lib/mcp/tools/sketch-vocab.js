@@ -7,6 +7,7 @@
 // Vocabulary drawers for the sketch + style surfaces.
 
 
+import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { STYLE_VOCAB, STYLE_PRESETS, isStylePreset, resolveStyle } from '@/lib/graph/image-outcomes/styles';
 import {
   getSketchVocabCard,
@@ -28,7 +29,7 @@ function servedCards() {
 export async function getSketchVocabHandler(input) {
   const id = input && typeof input === 'object' ? input.id : undefined;
   if (id === undefined || id === null || id === '') {
-    return { cards: servedCards(), _telemetrySignal: { id_requested: false, found: true } };
+    return { cards: listingRows(servedCards(), { detail: input?.detail === true }), _telemetrySignal: { id_requested: false, found: true } };
   }
   if (typeof id !== 'string') {
     throw new Error('`id` must be a string (a sketch_vocab source_ref)');

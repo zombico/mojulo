@@ -333,7 +333,10 @@ const DESCRIPTION_ALLOWLIST = {
 // callable by name) and forward_context's description lost its two-wing paragraph.
 // Re-pinned 2026-10-10 (208_300 -> 209_800; measured 209,691) for the Characters ring: one new tool, create_character
 // (a door over mint_solid's layered and animal kinds), its description at routing grade; its manuals stay off-payload.
-const PAYLOAD_CEILING = 209_800;
+// Re-pinned 2026-10-10 (209_800 -> 210_300; measured 210,234) for readouts that become ids: `detail` on the six vocab
+// readers (their no-id listings fell from 188 KB to 93 KB in all), `full` on measure_solid (a repeat in a session names
+// the earlier reading) and `readout` on design_game. Each word buys back far more than it costs, off this payload.
+const PAYLOAD_CEILING = 210_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

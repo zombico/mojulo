@@ -30,13 +30,14 @@ import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/p
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
 import { measureScadMotion } from '@/lib/graph/scad/scad-render';
 import { strengthReading } from '@/lib/graph/strength/index';
+import { readingKey, lastReading, keepReading } from '@/lib/mcp/print-readings';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-export async function measureSolidHandler(input) {
+export async function measureSolidHandler(input, ctx = {}) {
   if (!input || typeof input !== 'object') throw new Error('measure_solid requires { ref }');
-  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false, strength: strengthInput = null } = input;
+  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false, strength: strengthInput = null, full = false } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) throw new Error('`scale` must be a positive number if provided');
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) throw new Error('`target_mm` must be a positive number if provided');
@@ -47,6 +48,19 @@ export async function measureSolidHandler(input) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
   if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+
+  // A repeat in the same session (same recipe, same params) names the reading the agent already has; `full: true`
+  // measures again. Nothing is remembered without a session id (print-readings.js).
+  const session = ctx?.mcpSessionId ?? null;
+  const asked = readingKey(ref, sketch.manifest, { scale: scaleInput, target_mm: targetMm, printer, volume, exposure: exposureInput, motion: motionInput, strength: strengthInput });
+  const before = full ? null : lastReading(session, asked);
+  if (before) {
+    return {
+      ok: true, ref, same_as: { tool: before.tool, at: before.at }, size_mm: before.size_mm, scale: before.scale,
+      closure: before.closure, print_advisories: before.advisories,
+      note: `Unchanged since your ${before.tool} at ${before.at}: the same recipe, scale and printer, so those numbers stand (prints ${before.size_mm.join(' × ')} mm). full: true measures again.`,
+    };
+  }
 
   const { payload, kind } = await resolveWorldScene(sketch);
   const probe = payload ? facesToStl(payload, { scale: 1 }) : null;
@@ -148,6 +162,10 @@ export async function measureSolidHandler(input) {
   const closureLine = closure.audited
     ? (closure.closed ? 'closed' : `${closure.holes} open rim${closure.holes === 1 ? '' : 's'}, widest ≈${closure.widest}${units ? ` ${units}` : ' world units'}`)
     : `not audited (${closure.reason})`;
+  // kept under the asked params and under the resolved ones a print export of the same recipe would use
+  keepReading(session, [asked, readingKey(ref, sketch.manifest, { scale, printer, union: false })], {
+    tool: 'measure_solid', size_mm: sizeMm, scale, closure: closureLine, advisories: advisories.map((a) => `${a.kind} — ${a.detail}`),
+  });
   return {
     ok: true,
     ref,
@@ -198,6 +216,7 @@ export function registerMeasureSolidTool() {
         target_mm: { type: 'number', description: 'Fit longest dimension to mm.' },
         printer: { type: 'object', description: '{ process?: fdm|sla|sls|mjf, nozzle_mm?, min_wall_mm?, bed_mm? }.' },
         volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
+        full: { type: 'boolean', description: 'Re-measure a reading this session has.' },
         exposure: { type: 'boolean', description: 'layered: per-detail exposure ledger (default true).' },
         motion: { type: 'boolean', description: 'scad mechanism: cycle numbers + collision sweep.' },
         strength: { type: 'object', description: 'Rigidity sensor: { material, build?, checks:[{ element, … }] } → margin, confidence, weak spot. Defaults to the row\'s stored `strength`. get_solid_vocab scad.' },

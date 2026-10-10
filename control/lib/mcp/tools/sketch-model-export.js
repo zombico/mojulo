@@ -44,6 +44,7 @@ import { existsSync } from 'node:fs';
 import { auditClosure } from '@/lib/graph/polygonizer/face-closure';
 import { printAdvisories, advisoryLines, resolvePrinter } from '@/lib/graph/scene/print-advisory';
 import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
+import { readingKey, lastReading, keepReading } from '@/lib/mcp/print-readings';
 import { unitMillimetres, declaredUnits } from '@/lib/graph/scene/world-units';
 import { assessWorldTier } from '@/lib/graph/worlds/world-contract';
 import { WALKABLE_WORLD_KINDS } from '@/lib/graph/sketch/sketch-manifest';
@@ -884,6 +885,7 @@ async function exportModel(input, context = {}) {
     payload = { ...payload, figures };
   }
   let unionResult = null;
+  let printSeen = null;   // the session's reading of this same recipe and params, when it has one (print-readings.js)
   if (union && payload) {
     const shells = printableShells(payload);
     if (shells) {
@@ -1206,8 +1208,15 @@ async function exportModel(input, context = {}) {
     const soup = printSoup(payload, { scale });
     result.print_measure = soup ? measurePrintability({ positions: soup, printer }) : null;
     result.print_advisories = printAdvisories({ manifest: sketch.manifest, scale, sizeMm: result.size_mm, printer, measure: result.print_measure });
-    const measureNote = ` ${measureLine(result.print_measure)[0].toUpperCase()}${measureLine(result.print_measure).slice(1)}.`;
-    const advisoryNote = measureNote + (result.print_advisories.length
+    // A measure_solid (or print export) of this same recipe, scale, printer and union this session: name it instead of
+    // reading the numbers out again. The README beside the file keeps the full measure either way.
+    const readKey = readingKey(ref, sketch.manifest, { scale, printer, union: !!union });
+    printSeen = lastReading(context?.mcpSessionId, readKey);
+    keepReading(context?.mcpSessionId, readKey, { tool: `export_model (${format})`, size_mm: result.size_mm, scale, closure: closureLine, advisories: result.print_advisories.map((a) => `${a.kind} — ${a.detail}`) });
+    const measureNote = printSeen
+      ? ` Overhang, walls and advisories: as your ${printSeen.tool} at ${printSeen.at} read them (same recipe, scale and printer; ${result.print_advisories.length} advisor${result.print_advisories.length === 1 ? 'y' : 'ies'}, listed in \`print_advisories\`).`
+      : ` ${measureLine(result.print_measure)[0].toUpperCase()}${measureLine(result.print_measure).slice(1)}.`;
+    const advisoryNote = printSeen ? measureNote : measureNote + (result.print_advisories.length
       ? ` Print advisories (${result.print_advisories.length}): ${result.print_advisories.map((r) => `${r.kind} — ${r.detail}`).join('; ')}.`
       : ' Print advisories: none — declared features clear the wall floor, the sampled walls and overhang clear the profile, and the part fits the bed.');
     result.note = (format === '3mf'
@@ -1291,6 +1300,8 @@ async function exportModel(input, context = {}) {
         + 'or set MOJULO_DATA_DIR (or MOJULO_OUTCOMES_DIR) so exports land under your mojulo home.';
     }
   }
+  // the measure the session already read is named, not repeated (the README carries it whole)
+  if (printSeen) result.print_measure = { same_as: { tool: printSeen.tool, at: printSeen.at } };
   // The world contract (world-contract-tiers W1): a walkable world's export echoes the tier its
   // payload declares and what the next tier needs — the same row the engine packs carry.
   if (payload && WALKABLE_WORLD_KINDS.includes(kind ?? sketch.manifest.kind)) {

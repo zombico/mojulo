@@ -1390,20 +1390,20 @@ export async function sketchStashHandler(input, _ctx) {
   const stashTitle = trimmedIntent.length > 80 ? `${trimmedIntent.slice(0, 77)}…` : trimmedIntent;
   steps.push(`mint_stash({ title: ${JSON.stringify(stashTitle)} })  // returns { stash_ref }`);
   for (const d of recipe.drawers) {
-    steps.push(`mint_drawer({ stash_ref, name: ${JSON.stringify(d.name)} })  // ${d.hint}`);
+    steps.push(`mint_drawer({ stash_ref, name: ${JSON.stringify(d.name)} })`);
   }
   for (const item of recipe.items) {
     if (item.type === 'sketch') {
       steps.push(`create_sketch({ title: ${JSON.stringify(`for ${item.role}`)}, manifest: { ... } })  // returns { ref }`);
-      steps.push(`gather({ stash_ref, type: 'sketch', metadata: { sketch_ref: ref, label: '…' }, body_md: '…'${item.drawer ? `, drawer: ${JSON.stringify(item.drawer)}` : ''} })  // ${item.hint}`);
+      steps.push(`gather({ stash_ref, type: 'sketch', metadata: { sketch_ref: ref, label: '…' }, body_md: '…'${item.drawer ? `, drawer: ${JSON.stringify(item.drawer)}` : ''} })`);
     } else if (item.type === 'markdown') {
-      steps.push(`gather({ stash_ref, type: 'markdown', body_md: '# Title\\n\\nBody.'${item.drawer ? `, drawer: ${JSON.stringify(item.drawer)}` : ''} })  // ${item.hint}`);
+      steps.push(`gather({ stash_ref, type: 'markdown', body_md: '# Title\\n\\nBody.'${item.drawer ? `, drawer: ${JSON.stringify(item.drawer)}` : ''} })`);
     } else if (item.type === 'text') {
-      steps.push(`gather({ stash_ref, type: 'text', body: '…' })  // ${item.hint}`);
+      steps.push(`gather({ stash_ref, type: 'text', body: '…' })`);
     } else if (item.type === 'link') {
-      steps.push(`gather({ stash_ref, type: 'link', source_url: 'https://…', title: '…' })  // ${item.hint}`);
+      steps.push(`gather({ stash_ref, type: 'link', source_url: 'https://…', title: '…' })`);
     } else if (item.type === 'image') {
-      steps.push(`gather({ stash_ref, type: 'image', media_ref: '…', body_md: '…' })  // ${item.hint}`);
+      steps.push(`gather({ stash_ref, type: 'image', media_ref: '…', body_md: '…' })`);
     }
   }
   steps.push(`cook({ slices: [{ stash_ref }], aim: ${JSON.stringify(trimmedIntent)}, publication: { kind: ${JSON.stringify(kind)} } })  // materializes the outcome at /outcomes/<cook_ref>/`);
@@ -1419,14 +1419,9 @@ export async function sketchStashHandler(input, _ctx) {
     },
     suggested_steps: steps,
     notes: [...recipe.notes],
-    next_actions: [
-      'Operator approves or amends the proposed structure',
-      'Agent executes the suggested_steps (mint_stash → mint_drawer → create_sketch/gather → cook)',
-      `Operator browses the outcome at /outcomes/<cook_ref>/ (route serves the static folder)`,
-      target_kind === undefined
-        ? "If you weren't sure about the kind, consider calling recommend_kind after gathering — it can suggest alternatives based on what actually landed in the stash."
-        : `Consider forge_publications to materialize this alongside one or two other kinds for comparison.`,
-    ],
+    // the steps' hints are the proposed drawers' and items' own; the next moves are tools, not sentences
+    next_actions: ['the operator approves or amends `proposed`', 'run suggested_steps', 'the outcome is /outcomes/<cook_ref>/',
+      target_kind === undefined ? 'recommend_kind once gathered (alternatives from what landed)' : 'forge_publications to compare kinds'],
   };
 }
 

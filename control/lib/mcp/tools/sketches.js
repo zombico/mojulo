@@ -26,6 +26,7 @@
 // importers of this path keep working unchanged. New code should import from the
 // specific sibling rather than from this barrel.
 
+import { DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { registerTool } from '@/lib/mcp/server';
 import { withPluginProfile } from '@/lib/mcp/plugin-profile';
 
@@ -196,6 +197,7 @@ export function registerSketchTools() {
     inputSchema: {
       type: 'object',
       properties: {
+        detail: DETAIL_PROPERTY,
         id: {
           type: 'string',
           description:

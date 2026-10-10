@@ -31,6 +31,7 @@
  * See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
  */
 
+import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -835,9 +836,9 @@ export async function getMotionVocabHandler(input) {
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
-    cards: cards.map(({ id: cid, name, family: fam, entry, summary, when }) => ({
+    cards: listingRows(cards.map(({ id: cid, name, family: fam, entry, summary, when }) => ({
       id: cid, name, family: fam, entry, summary, when,
-    })),
+    })), { detail: input?.detail === true }),
     _telemetrySignal: { id_requested: false, found: true },
   };
 }
@@ -962,6 +963,7 @@ export function registerMotionTools() {
     inputSchema: {
       type: 'object',
       properties: {
+        detail: DETAIL_PROPERTY,
         id: { type: 'string', description: 'Card id (a motion subject family: camera / deck / effect / world / stitch).' },
         family: { type: 'string', description: 'Optional list filter (all cards are family `motion`).' },
       },

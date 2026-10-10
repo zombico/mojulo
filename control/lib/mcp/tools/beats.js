@@ -14,6 +14,7 @@
  * Errors teach: a failed mint points at the kind's card.
  */
 
+import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import fs from 'node:fs/promises';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import path from 'node:path';
@@ -146,7 +147,7 @@ export async function getBeatsVocabHandler(input) {
   }
   return {
     ok: true,
-    cards: [...catalog.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when })),
+    cards: listingRows([...catalog.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when })), { detail: input?.detail === true }),
     _telemetrySignal: { id_requested: false, found: true },
   };
 }
@@ -528,6 +529,7 @@ export function registerBeatsTools() {
     inputSchema: {
       type: 'object',
       properties: {
+        detail: DETAIL_PROPERTY,
         id: { type: 'string', description: 'Card id (= the create_beats kind).' },
       },
       required: [],

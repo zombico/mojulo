@@ -27,6 +27,7 @@
  * retired. See mint-solid-consolidation.plan.md.
  */
 
+import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { registerTool } from '@/lib/mcp/server';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import {
@@ -266,9 +267,9 @@ export async function getSolidVocabHandler(input) {
   if (family) cards = cards.filter((c) => c.family === family);
   return {
     ok: true,
-    cards: cards.map(({ id: cid, name, family: fam, entry, summary, when }) => ({
+    cards: listingRows(cards.map(({ id: cid, name, family: fam, entry, summary, when }) => ({
       id: cid, name, family: fam, entry, summary, when,
-    })),
+    })), { detail: input?.detail === true }),
     _telemetrySignal: { id_requested: false, found: true },
   };
 }
@@ -353,6 +354,7 @@ export function registerMintSolidTools() {
     inputSchema: {
       type: 'object',
       properties: {
+        detail: DETAIL_PROPERTY,
         id: { type: 'string', description: 'Card id (= the mint_solid kind or edit_solid op).' },
         family: { type: 'string', enum: ['figure', 'creature', 'object', 'structure', 'vehicle', 'edit'], description: 'Optional list filter.' },
         section: { description: 'With `id`: a section name, or a list.' },

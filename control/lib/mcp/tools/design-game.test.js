@@ -5,6 +5,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK, MEADOWMARK_HERO, gameworldOf } from '@/lib/graph/gameworld/index';
@@ -15,6 +16,8 @@ beforeEach(() => { closeDb(); });
 
 const stored = (ref) => SketchRepository.getByRef(ref)?.manifest;
 const action = (out, key) => out.ran.find((r) => r.key === key)?.action;
+const step = (out, id) => out.next.find((n) => n.step === id);
+const revs = (ref) => SketchRevisionRepository.head(ref)?.rev ?? 0;
 const GATED = { ...MEADOWMARK_HERO, mode: 'gated' };
 const AUTO = { ...MEADOWMARK_HERO, mode: 'autonomous' };
 
@@ -23,8 +26,9 @@ describe('design_game', () => {
     const out = await designGameHandler({ world: GATED, ref: 'gw' });
     expect(out).toMatchObject({ ok: true, ref: 'gw', bible: '/api/sketches/gw/bible', mode: 'gated', steps: { adornment: 'waiting', systems: 'waiting', equipment: 'waiting' } });
     expect(out.parts.find((p) => p.id === 'hero:base')).toMatchObject({ status: 'proposed', advises: ['no base is pinned'] });
-    expect(out.next.join('\n')).toMatch(/approve or send back/);
-    expect(out.next.join('\n')).toMatch(/run: true makes the hero/);
+    // the next moves are step ids; the gameworld-next card says what each means
+    expect(step(out, 'review')).toMatchObject({ card: 'gameworld-next', parts: expect.arrayContaining(['hero:base']) });
+    expect(step(out, 'run')).toEqual({ step: 'run', card: 'gameworld-next' });
     expect(stored('gw').kind).toBe('gameworld');
     // a world without a hero runs nothing
     const ground = await designGameHandler({ world: MEADOWMARK, ref: 'gw-ground', run: true });
@@ -42,8 +46,24 @@ describe('design_game', () => {
     expect(W.characters.hero.looks.base).toMatchObject({ ref: 'gw-hero', rev: 1 });
     // the pinned base verifies: the base no longer advises
     expect(out.parts.find((p) => p.id === 'hero:base').advises).toBeUndefined();
+    const written = revs('gw');
     const again = await designGameHandler({ ref: 'gw', run: true });
     expect(action(again, 'hero')).toBe('keep');
+    // a run that makes nothing writes nothing: no new revision of the gameworld
+    expect(revs('gw')).toBe(written);
+    expect(step(again, 'rerun')).toBeTruthy();
+    // readout: 'changed': nothing moved, so no parts and nothing run; the next moves still come
+    const quiet = await designGameHandler({ ref: 'gw', run: true, readout: 'changed' });
+    expect(quiet).toMatchObject({ ok: true, readout: 'changed', parts: [], ran: [] });
+    expect(quiet.numbers).toBeUndefined();
+    expect(quiet.next.length).toBeGreaterThan(0);
+    // a verdict moves one stamp, and the changed readout names only that part
+    const approved = await designGameHandler({ ref: 'gw', approve: 'hero:motion', readout: 'changed' });
+    expect(approved.parts.map((p) => p.id)).toEqual(['hero:motion']);
+    // the same verdict again writes nothing
+    const held = revs('gw');
+    await designGameHandler({ ref: 'gw', approve: 'hero:motion' });
+    expect(revs('gw')).toBe(held);
   }, 120_000);
 
   it('the verdicts open the steps: the systems world is made over the hero, then every class of gear', async () => {
@@ -70,7 +90,7 @@ describe('design_game', () => {
     expect(stored('gw-level-meadow-ascent-0')).toMatchObject({ kind: 'stage', game: { levelRef: 'gw-level-meadow-ascent-0' }, figures: { hero: { heroRef: 'gw-hero-equipped' } } });
     expect(stored('gw-game')).toMatchObject({ kind: 'game', store: { slices: expect.arrayContaining([expect.objectContaining({ kind: 'character' })]) } });
     expect(stored('gw-game').levels.map((l) => l.ref)).toHaveLength(5);
-    expect(out.next.join('\n')).toMatch(/walkable by construction.*whether they can be beaten is yours to judge in play/);
+    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', gate: 'eyes', card: 'gameworld-next' });
     // the numbers, readable without the bible
     expect(out.numbers.stats).toMatchObject({ hp: 100, power: 10, guard: 5 });
     expect(out.numbers.powers.map((p) => p.key)).toEqual(['1', '2', '3']);
@@ -103,7 +123,7 @@ describe('design_game', () => {
     const out = await designGameHandler({ world: { ...GATED, id: 'copy' }, ref: 'gw' });
     expect(out.advice.authorship).toMatch(/pages written/);
     expect(out.advice.sameness.join('\n')).toMatch(/reads as the test fixture 'meadowmark'/);
-    expect(out.next.join('\n')).toMatch(/read the advice/);
+    expect(step(out, 'advice')).toBeTruthy();
   });
 
   it('a reference is made only when asked for, at its own ref; the comparison only after the world has made its own', async () => {

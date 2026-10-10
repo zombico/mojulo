@@ -18,6 +18,7 @@
  * to find, get_game_vocab to read. Errors teach: a failed mint points at the cards.
  */
 
+import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { registerTool } from '@/lib/mcp/server';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
@@ -165,7 +166,7 @@ export async function getGameVocabHandler(input) {
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
-  const row = (cat, cardScope) => [...cat.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when, scope: cardScope }));
+  const row = (cat, cardScope) => listingRows([...cat.values()].map(({ id: cid, name, summary, when }) => ({ id: cid, name, summary, when, scope: cardScope })), { detail: input?.detail === true });
   const railRows = scope && scope !== 'rail' ? [] : row(rail, 'rail');
   if (scope === 'rail') return { ok: true, cards: railRows, _telemetrySignal: { id_requested: false, found: true } };
   const cards = [
@@ -296,6 +297,7 @@ export function registerGameTools() {
     inputSchema: {
       type: 'object',
       properties: {
+        detail: DETAIL_PROPERTY,
         id: { type: 'string', description: 'Card id: gameworld-guide / gameworld-<page>, or a machinery card (slice-<kind>, a mechanic, a kit, glyph-<form>, sfx-<verb>, hud-<card>, idiom-<kind>).' },
         scope: { type: 'string', enum: ['rail', 'slice', 'mechanic', 'kit', 'glyph', 'sfx', 'hud', 'idiom'], description: 'List only one family of rows.' },
         samples: { type: 'string', enum: ['direction', 'actions', 'motion', 'gear'], description: 'Draw random fragments of this page, each with what it derives.' },
