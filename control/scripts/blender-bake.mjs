@@ -28,6 +28,8 @@
  *   node scripts/blender-bake.mjs --glb <path> --hero gframe_mk2_multi --bind-to sk_gframe_mk2_unit_v1_multi --clip gframe_mk2_multi:forward
  *   node scripts/blender-bake.mjs --ref sk_foo --preview            # also write a flat vertex-colour still
  *   node scripts/blender-bake.mjs --glb <path> --no-bind            # bake only, print the out path (dry run)
+ *   node scripts/blender-bake.mjs --ref sk_bear --fur               # FUR: a plush finish rendered from three views
+ *   node scripts/blender-bake.mjs --ref sk_bear --fur --fur-length 0.03 --turntable 24 --blend
  *
  * Prints one JSON result line: { ok, bound_ref?, n?, out_glb, triangles, sha256, preview_png? }.
  */
@@ -44,6 +46,7 @@ import { fileURLToPath } from 'node:url';
 
 import { glbToFaces } from '../lib/graph/scene/scene-gltf-read.js';
 import { nextMeshPath } from '../lib/graph/scene/mesh-store.js';
+import { tagFurFaces, furSkip } from '../lib/graph/scene/fur-groups.js';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -124,8 +127,23 @@ const { values: args } = parseArgs({
     unshaded: { type: 'boolean', default: true }, // generate a flat-albedo source from --ref (clean GI base)
     shaded: { type: 'boolean', default: false }, // opt out: bake the sketch's own shaded export instead
     blender: { type: 'string' },
+    // FUR (1010 drawer-alignment Phase D, the stuffy finish): render mode with particle hair grown on the
+    // character's palette groups, the eyes / mouth / brows left bare. A Blender-side finish, never a recipe change:
+    // stills (and a turntable) under outcomes/<ref>/fur/, a provenance fur.json, and with --blend the .blend.
+    fur: { type: 'boolean', default: false },
+    'fur-length': { type: 'string' },   // strand length as a fraction of the subject's span (default 0.02)
+    'fur-density': { type: 'string' },  // guide strands per span² of furred surface (default 9000)
+    'fur-clump': { type: 'string' },    // 0 loose → 1 tufted (default 0.15)
+    'fur-fuzz': { type: 'string' },     // strand waviness, a fraction of span (default 0.012)
+    'fur-children': { type: 'string' }, // interpolated strands rendered per guide (default 6)
+    'fur-short': { type: 'string' },    // palette groups given a short felt nap (a third of the length): a doll's face and hands
+    'fur-skip': { type: 'string' },     // palette groups left bare, comma-separated (default: eyes, lids, brows, mouth, nose, claws, hooves, horns)
+    views: { type: 'string' },          // "name:az[:el],…" degrees around the subject, az 0 = its front (fur default: front, three-quarter, back)
+    turntable: { type: 'string' },      // N frames around the subject, joined into turntable.gif
+    blend: { type: 'boolean', default: false }, // also save the furred scene as a .blend to keep working in
   },
 });
+
 
 // unshaded is ON by default (a clean bake is the whole point); --shaded overrides it. Only
 // affects the --ref source-generation path — an operator-supplied --glb is always used as-is.
@@ -139,7 +157,9 @@ function fail(msg) {
 const preset = PRESETS[args.preset];
 if (!preset) fail(`unknown --preset '${args.preset}' (have: ${Object.keys(PRESETS).join(', ')})`);
 
-const renderMode = !!args.render;
+const furMode = !!args.fur;
+const renderMode = !!args.render || furMode;
+if (furMode && !args.ref) fail('--fur needs --ref <character sketch>: the palette names which parts grow fur');
 const bindRef = args['bind-to'] || args.ref;
 if (!renderMode && !args['no-bind'] && !bindRef) fail('need --ref (or --bind-to with --glb) to bind the result; or pass --no-bind for a dry run');
 if (renderMode && !args.ref && !args.glb) fail('--render needs --ref <sketch> (or --glb <path>)');
@@ -155,7 +175,8 @@ const work = await fs.mkdtemp(path.join(os.tmpdir(), 'moj-bake-'));
 //                        sketch's recipe — the clean GI base. NOT the shaded data/outcomes export.
 //   --ref + --shaded     read the sketch's own shaded export at data/outcomes/<ref>/model.glb.
 let srcGlb;
-let unitScale = 1;   // the kind's metersPerUnit (the floorplan: feet) — render mode keeps it, so --camera/--look (recipe units) scale below
+let unitScale = 1;
+let furPalette = null;  // fur mode: the palette groups that grow fur, group → hex   // the kind's metersPerUnit (the floorplan: feet) — render mode keeps it, so --camera/--look (recipe units) scale below
 if (args.glb) {
   srcGlb = path.resolve(args.glb);
   if (!existsSync(srcGlb)) fail(`source GLB not found: ${srcGlb}`);
@@ -179,10 +200,19 @@ if (args.glb) {
   // recipe units; a render is a Cycles frame with physical lights, so it goes out in metres.
   if (renderMode) unitScale = Number(payload.metersPerUnit) > 0 ? Number(payload.metersPerUnit) : 1;
   else delete payload.metersPerUnit;
+  if (furMode) {
+    // the studio floor stays out of a portrait; every other face is tagged by its palette group (an unshaded face
+    // carries its group's colour exactly), `fur:<Group>` or `bare:<Group>`, one glTF node each
+    const palette = (sketch.manifest && sketch.manifest.recipe && sketch.manifest.recipe.palette) || {};
+    const tagged = tagFurFaces(payload.faces, palette, furSkip(args['fur-skip']));
+    payload.faces = tagged.faces;
+    furPalette = tagged.palette;
+    if (!payload.faces.some((f) => f.group.startsWith('fur:'))) fail(`sketch '${args.ref}' has no palette groups left to fur (its palette: ${Object.keys(palette).join(', ') || 'none'})`);
+  }
   if (renderMode && args.open && Array.isArray(payload.faces)) {
     payload.faces = payload.faces.filter((f) => !(typeof f.group === 'string' && (f.group.startsWith('shell:ceiling') || f.group.startsWith('roof'))));
   }
-  const { bytes } = facesToGlb(payload, { clips: '_all', generator: `mojulo ${args.ref} (unshaded${renderMode ? ', lit' : ''})`, ...(renderMode ? { lit: true, roughness: args.roughness ? Number(args.roughness) : 0.85 } : {}) });
+  const { bytes } = facesToGlb(payload, { clips: furMode ? null : '_all', generator: `mojulo ${args.ref} (unshaded${renderMode ? ', lit' : ''})`, ...(renderMode ? { lit: true, roughness: args.roughness ? Number(args.roughness) : 0.85 } : {}) });
   srcGlb = path.join(work, 'unshaded-src.glb');
   await fs.writeFile(srcGlb, bytes);
 } else if (args.ref) {
@@ -198,27 +228,66 @@ if (renderMode) {
   const triple = (v, name) => { if (!v) return null; const a = v.split(',').map(Number); if (a.length !== 3 || a.some((x) => !Number.isFinite(x))) fail(`--${name} wants "x,y,z"`); return a; };
   const res = (args.res || '1600x1000').split('x').map(Number);
   if (res.length !== 2 || res.some((x) => !(x > 0))) fail('--res wants "WxH"');
-  const lightMode = args.light || 'sun';
-  if (!['sun', 'studio'].includes(lightMode)) fail("--light is 'sun' or 'studio'");
-  const outDir = args.ref ? path.join(OUTCOMES, args.ref) : work;
+  const lightMode = args.light || (furMode ? 'plush' : 'sun');
+  if (!['sun', 'studio', 'plush'].includes(lightMode)) fail("--light is 'sun', 'studio' or 'plush'");
+  const outDir = args.ref ? path.join(OUTCOMES, args.ref, ...(furMode ? ['fur'] : [])) : work;
   await fs.mkdir(outDir, { recursive: true });
   const png = args.out ? path.resolve(args.out) : path.join(outDir, `render-${lightMode}${args.open ? '-open' : ''}.png`);
   const rcfg = {
     src_glb: srcGlb,
     render: {
       png, camera: toMetres(triple(args.camera, 'camera')), look: toMetres(triple(args.look, 'look')),
-      fov: args.fov ? Number(args.fov) : 60, res, samples: args.samples ? Number(args.samples) : 256,
+      fov: args.fov ? Number(args.fov) : (furMode ? 40 : 60), res, samples: args.samples ? Number(args.samples) : 256,
       light: lightMode, rig: lightMode === 'studio' ? preset.light : null,
-      sun: (args.sun || '35,30').split(',').map(Number), exposure: args.exposure ? Number(args.exposure) : 1.2, sky: args.sky ? Number(args.sky) : 3, open: !!args.open,
+      sun: (args.sun || '35,30').split(',').map(Number), exposure: args.exposure ? Number(args.exposure) : (lightMode === 'plush' ? -0.7 : 1.2), sky: args.sky ? Number(args.sky) : 3, open: !!args.open,
     },
   };
+  // views: named angles around the subject (az 0 = its front); a turntable is N evenly spaced unnamed ones
+  const parseViews = (spec) => spec.split(',').map((v) => { const [name, az, el] = v.split(':'); return { name, az: Number(az), el: el === undefined ? 12 : Number(el) }; });
+  let views = args.views ? parseViews(args.views) : furMode ? parseViews('front:0,three-quarter:35,back:180') : null;
+  if (views && views.some((v) => !v.name || !Number.isFinite(v.az) || !Number.isFinite(v.el))) fail('--views wants "name:az[:el],…" in degrees');
+  const frames = args.turntable ? Number(args.turntable) : 0;
+  if (args.turntable && !(Number.isInteger(frames) && frames >= 4 && frames <= 120)) fail('--turntable wants a frame count between 4 and 120');
+  if (views) views = views.map((v) => ({ ...v, png: path.join(outDir, `${v.name}.png`) }));
+  const turn = frames ? Array.from({ length: frames }, (_, i) => ({ name: `turn-${String(i).padStart(3, '0')}`, az: (360 * i) / frames, el: 12, png: path.join(work, `turn-${String(i).padStart(3, '0')}.png`) })) : [];
+  if (views || turn.length) rcfg.render.views = [...(views || []), ...turn];
+  if (furMode) rcfg.render.distance = 1.6;   // a portrait: the subject fills the frame at fov 40
+  if (furMode) {
+    const num = (k, d) => (args[k] != null ? Number(args[k]) : d);
+    rcfg.render.fur = {
+      length: num('fur-length', 0.02), density: num('fur-density', 9000), clump: num('fur-clump', 0.15),
+      fuzz: num('fur-fuzz', 0.012), children: num('fur-children', 6), seed: 7, colors: furPalette,
+      short: args['fur-short'] ? args['fur-short'].split(',').map((g) => g.trim()).filter(Boolean) : [],
+    };
+    for (const [k, v] of Object.entries(rcfg.render.fur)) if (k !== 'colors' && k !== 'short' && !(Number.isFinite(v) && v >= 0)) fail(`--fur-${k} wants a number ≥ 0`);
+  }
+  if (args.blend) rcfg.render.blend = path.join(outDir, furMode ? 'stuffy.blend' : 'render.blend');
   const rcfgPath = path.join(work, 'render-config.json');
   await fs.writeFile(rcfgPath, JSON.stringify(rcfg, null, 2));
   const rcode = await new Promise((resolve) => {
     const proc = spawn(blenderBin, ['-b', '-P', path.join(here, 'blender-bake.py'), '--', rcfgPath], { stdio: ['ignore', 'inherit', 'inherit'] });
     proc.on('close', resolve);
   });
-  if (rcode !== 0 || !existsSync(png)) fail(`Blender render failed (exit ${rcode})`);
+  const outputs = rcfg.render.views ? rcfg.render.views.map((v) => v.png) : [png];
+  if (rcode !== 0 || outputs.some((p) => !existsSync(p))) fail(`Blender render failed (exit ${rcode})`);
+  if (rcfg.render.views) {
+    let gif = null;
+    if (turn.length) {
+      const { encodeGifBuffers } = await import('../lib/motion/encode-gif.js');
+      gif = await encodeGifBuffers(await Promise.all(turn.map((t) => fs.readFile(t.png))), path.join(outDir, 'turntable.gif'), { fps: 12, width: 480 });
+    }
+    // provenance beside the renders: the source, the parameters and the worker, so the finish can be re-made
+    const sourceSha = createHash('sha256').update(await fs.readFile(srcGlb)).digest('hex');
+    const result = {
+      ok: true, mode: furMode ? 'fur' : 'render', ref: args.ref || null, worker: 'blender-bake', blender: blenderBin,
+      stills: (views || []).map((v) => v.png), turntable: gif ? gif.outPath : null, blend: rcfg.render.blend || null,
+      fur: rcfg.render.fur || null, light: lightMode, samples: rcfg.render.samples, res, source_glb_sha256: sourceSha,
+      note: furMode ? 'A Blender-side finish: the recipe is unchanged, and glTF cannot carry the strands.' : undefined,
+    };
+    await fs.writeFile(path.join(outDir, furMode ? 'fur.json' : 'render.json'), JSON.stringify({ ...result, made_at: new Date().toISOString() }, null, 2));
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exit(0);
+  }
   process.stdout.write(`${JSON.stringify({ ok: true, mode: 'render', ref: args.ref || null, png, source_glb: srcGlb, lit: true, units_scale: unitScale, light: lightMode, sun: rcfg.render.sun, exposure: rcfg.render.exposure, open: rcfg.render.open, samples: rcfg.render.samples, res, camera: rcfg.render.camera, look: rcfg.render.look, fov: rcfg.render.fov })}\n`);
   process.exit(0);
 }

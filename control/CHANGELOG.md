@@ -32,6 +32,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   invented body from a ring plan; a real species. It mints the same recipes `mint_solid` makes (kinds `layered` and
   `animal`), byte for byte (`create-character.test.js`), and `mint_solid` keeps every kind. The hero, creature,
   animal and armour routing cards enter on it, and a CHARACTER row heads the mint dispatch.
+- **A stuffy, furred in Blender.** `blender-bake --fur` grows particle fur on a character's palette groups and
+  leaves the eyes, mouth, nose, claws and horns smooth (`lib/graph/scene/fur-groups.js` names which), with a
+  matte-sheen strand in each group's colour, a span-scaled `plush` light rig and stills from three angles under
+  `outcomes/<ref>/fur/`, plus an optional turntable and `.blend`. `--fur-short Skin` gives a doll a felt face. The
+  `make-stuffy` catalyst drives it: a plush body from `create_character`, then the operator's Blender MCP when one is
+  connected, this script when not. The recipe never changes, and glTF cannot carry the strands, so the export, the
+  game and the print keep the smooth body. Machine gate: a real headless Blender furs a minted character (skipped
+  without one); the eyes gate is the operator's.
 - **Workers and other MCPs stay reachable.** `pack_catalysts` now carries what a power user needs to reach past
   mojulo: catalysts landed as Skills beside the host's other MCPs, the inventory and provider-capability reads, and
   the agent-task queue (`pull_agent_task`, `submit_envelope_inference`, `cancel_agent_task`). The routing index has a

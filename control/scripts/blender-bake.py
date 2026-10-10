@@ -51,7 +51,16 @@ if cfg.get("render"):
     # light
     world = bpy.data.worlds.new("render-world"); sc.world = world; world.use_nodes = True
     bg = world.node_tree.nodes["Background"]
-    if r.get("light") == "studio" and r.get("rig"):
+    if r.get("light") == "plush":
+        # a soft toy-photo rig: a big warm key, a cool fill, a rim to light the fur's edge, energies scaled by the
+        # subject's span so a 30 cm toy and a 1.8 m hero expose alike; a pale backdrop
+        for key, e, c, size, d in (("key", 380, (1.0, 0.96, 0.92), 1.6, (1.2, 1.3, 1.1)), ("fill", 120, (0.88, 0.92, 1.0), 2.2, (-1.5, 1.0, 0.4)), ("rim", 300, (1.0, 1.0, 1.0), 0.9, (0.2, -1.6, 1.4))):
+            dl = bpy.data.lights.new(key, "AREA"); dl.energy = e * span * span; dl.color = c; dl.size = size * span
+            o = bpy.data.objects.new(key, dl); sc.collection.objects.link(o)
+            o.location = (cx + span*d[0], cy + span*d[1], cz + span*d[2])
+            o.rotation_euler = (mathutils.Vector((cx, cy, cz)) - o.location).to_track_quat("-Z", "Y").to_euler()
+        bg.inputs["Color"].default_value = (0.8, 0.78, 0.76, 1.0); bg.inputs["Strength"].default_value = 0.35
+    elif r.get("light") == "studio" and r.get("rig"):
         rig = r["rig"]
         for key in ("key", "fill", "rim"):
             if key in rig:
@@ -70,6 +79,83 @@ if cfg.get("render"):
         d = mathutils.Vector((math.cos(math.radians(elev)) * math.sin(math.radians(azim)), math.cos(math.radians(elev)) * math.cos(math.radians(azim)), math.sin(math.radians(elev))))
         so.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()      # the sun shines along -Z of its own frame
         bg.inputs["Color"].default_value = (0.6, 0.66, 0.78, 1.0); bg.inputs["Strength"].default_value = float(r.get("sky", 3.0))
+    # FUR (the stuffy finish, lit-handoff + 1010 drawer-alignment Phase D): particle hair grown on the meshes the
+    # driver named `fur:<Group>`, coloured from that group's palette entry; `bare:<Group>` meshes (eyes, mouth) stay
+    # smooth. A Blender-side finish only: the recipe is untouched and glTF cannot carry the strands, so the outputs are
+    # stills, an optional turntable and the .blend. Lengths are fractions of the subject's span, so a 30 cm toy and a
+    # 1.8 m hero take the same numbers. Seeded, so a re-run grows the same pile.
+    fur = r.get("fur")
+    if fur:
+        def _hex(h):
+            h = h.lstrip("#"); c = [int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4)]
+            return [((x + 0.055) / 1.055) ** 2.4 if x > 0.04045 else x / 12.92 for x in c]   # sRGB → linear
+        colors = fur.get("colors") or {}
+        mats = {}
+        grown = []
+        for m in meshes:
+            name = m.name.split(".")[0]
+            if not name.startswith("fur:"):
+                continue
+            group = name[4:]
+            col = _hex(colors.get(group, "#c8b49a"))
+            if group not in mats:
+                hm = bpy.data.materials.new("fur-" + group); hm.use_nodes = True
+                nt = hm.node_tree; out = nt.nodes["Material Output"]
+                for n in list(nt.nodes):
+                    if n != out: nt.nodes.remove(n)
+                # plush pile (minky, felt) reads as matte fibres with a soft sheen, not as hair: a Principled BSDF on the
+                # strands keeps the palette colour true, where the hair BSDF's absorption model lifts it toward beige
+                hb = nt.nodes.new("ShaderNodeBsdfPrincipled")
+                hb.inputs["Base Color"].default_value = (*col, 1.0)
+                hb.inputs["Roughness"].default_value = float(fur.get("roughness", 0.75))
+                for sheen in ("Sheen Weight", "Sheen"):
+                    if sheen in hb.inputs: hb.inputs[sheen].default_value = float(fur.get("sheen", 0.6)); break
+                nt.links.new(hb.outputs[0], out.inputs["Surface"])
+                mats[group] = hm
+            m.data.materials.append(mats[group])
+            slot = len(m.data.materials)
+            area = sum(p.area for p in m.data.polygons) * (m.matrix_world.to_scale().x ** 2)
+            count = int(max(50, min(int(fur.get("max_guides", 60000)), float(fur.get("density", 9000)) * area / (span * span))))
+            # particle lengths live in the object's own space; the glTF import leaves a scale on the node, so divide
+            # it out to keep the pile a true fraction of the subject's span
+            ws = max(1e-9, m.matrix_world.to_scale().x)
+            mod = m.modifiers.new("fur", "PARTICLE_SYSTEM")
+            psys = m.particle_systems[-1]; psys.seed = int(fur.get("seed", 7))
+            st = psys.settings
+            # attribute names drift across Blender versions (child_nbr became child_percent): set what exists, log the rest
+            for _k, _v in (
+                ("type", "HAIR"),
+                ("use_advanced_hair", False),   # simple hair: hair_length is the length (advanced takes it from the emit velocity)
+                ("count", count),
+                ("hair_length", span * float(fur.get("length", 0.02)) * (0.33 if group in (fur.get("short") or []) else 1.0) / ws),
+                ("emit_from", "FACE"),
+                ("use_even_distribution", True),
+                ("distribution", "RAND"),
+                ("use_rotations", True),
+                ("child_type", "INTERPOLATED"),
+                ("child_percent", 2),
+                ("rendered_child_count", int(fur.get("children", 6))),
+                ("clump_factor", float(fur.get("clump", 0.15))),
+                ("clump_shape", 0.3),
+                ("roughness_1", float(fur.get("fuzz", 0.012)) * span / ws),
+                ("roughness_1_size", 0.5),
+                ("roughness_endpoint", float(fur.get("fuzz", 0.012)) * span * 0.5 / ws),
+                ("radius_scale", span * float(fur.get("thickness", 0.0009)) / ws),
+                ("root_radius", 1.0),
+                ("tip_radius", 0.25),
+                ("use_close_tip", True),
+                ("render_type", "PATH"),
+                ("render_step", 3),
+                ("display_step", 2),
+            ):
+                if hasattr(st, _k): setattr(st, _k, _v)
+                else: print("MOJ_FUR_SKIP_SETTING", _k)
+            st.material = slot
+            grown.append({"mesh": name, "guides": count, "scale": round(ws, 4)})
+        print("MOJ_FUR", json.dumps(grown))
+        sc.cycles.use_denoising = True
+    if r.get("blend"):
+        bpy.ops.wm.save_as_mainfile(filepath=r["blend"], copy=True)
     # camera
     cam_data = bpy.data.cameras.new("render"); cam = bpy.data.objects.new("render", cam_data)
     sc.collection.objects.link(cam); sc.camera = cam
@@ -92,10 +178,23 @@ if cfg.get("render"):
     sc.cycles.use_denoising = True
     sc.view_settings.exposure = float(r.get("exposure", 1.2))
     sc.view_settings.view_transform = "Filmic" if "Filmic" in [i.identifier for i in sc.view_settings.bl_rna.properties["view_transform"].enum_items] else "AgX"
+    if r.get("light") == "plush":
+        sc.view_settings.view_transform = "Standard"   # a toy photo keeps its palette; the filmic curves lift and grey it
     res = r.get("res") or [1600, 1000]
     sc.render.resolution_x, sc.render.resolution_y = int(res[0]), int(res[1])
     sc.render.resolution_percentage = 100
     sc.render.image_settings.file_format = "PNG"
+    views = r.get("views")   # [{ name, az, el }] around the subject (degrees; az 0 = the subject's front, +y)
+    if views:
+        dist = float(r.get("distance", 1.9)) * span
+        for v in views:
+            az, el = math.radians(v["az"]), math.radians(v.get("el", 12))
+            cam.location = (cx + dist * math.cos(el) * math.sin(az), cy + dist * math.cos(el) * math.cos(az), cz + dist * math.sin(el))
+            cam.rotation_euler = (mathutils.Vector((cx, cy, cz)) - cam.location).to_track_quat("-Z", "Y").to_euler()
+            sc.render.filepath = v["png"]
+            bpy.ops.render.render(write_still=True)
+            print("MOJ_RENDER_DONE", v["png"])
+        sys.exit(0)
     sc.render.filepath = r["png"]
     bpy.ops.render.render(write_still=True)
     print("MOJ_RENDER_DONE", r["png"])

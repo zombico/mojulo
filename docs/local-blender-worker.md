@@ -5,7 +5,7 @@ produces **bound derived artifacts** — the same posture as the [local image
 worker](local-image-worker.md) and [local voice worker](local-voice-worker.md).
 Mojulo holds no Blender, no keys, no state for this; it is a seam, not a dependency.
 
-## Three Blender paths
+## Blender paths
 
 - **Render (keep the frame)** — `scripts/blender-bake.mjs --ref <ref> --render`: the lit
   unshaded export (real PBR materials, tiles as albedo) under a sun + sky (or the studio
@@ -13,6 +13,15 @@ Mojulo holds no Blender, no keys, no state for this; it is a seam, not a depende
   --look x,y,z --fov --res WxH --samples --sun elev,az --exposure --sky --open --roughness
   --out`. A derived outcome with provenance; the recipe is untouched. This is the "Astra
   frame" path: the same room the World walks unlit, rendered per pixel with real light.
+
+- **Fur (the stuffy finish)** — `scripts/blender-bake.mjs --ref <character> --fur`: render mode with particle
+  hair grown on the character's palette groups (the eyes, mouth, nose, claws and horns left smooth), a matte-sheen
+  material in each group's colour, a soft span-scaled `plush` light rig, and stills from three angles under
+  `outcomes/<ref>/fur/` with a `fur.json` (source hash, parameters, worker). `--fur-length`, `--fur-density`,
+  `--fur-short <groups>` (a felt nap), `--fur-skip`, `--views`, `--turntable N`, `--blend`. A finish, never a recipe
+  change: glTF cannot carry the strands, so the export, the game and the print keep the smooth body. The loop that
+  drives it is the `make-stuffy` catalyst; its machine gate is `scripts/blender-bake.fur.integration.test.js`
+  (skipped without a Blender).
 
 ## Two Blender bake paths
 
