@@ -56,5 +56,12 @@ A livability pass is the two together:
 { "storeys": 2, "seed": 4, "design": { "repair": true, "clearance": true } }
 ```
 
+A new house is minted with `windows: true`, a new stack with the livability pass, and a `levels[]`
+stack with `stairs: true`, when the recipe leaves them out. Each inferred value is written into the recipe with its reason in
+`notes.inferred` (the book's Cover lists them), so `update_sketch` changes it like any other; set
+`design.clearance: false` or `design.repair: false` to build it the old way. A framed single floor
+is minted as `levels: [{ index: 0 }]`, and a roof style that names a form (`gable`) as that form
+on the bungalow style.
+
 Next steps: the structure `house-construction` (framing needs a stack) · BIM and export
 `house-bim`.

@@ -77,6 +77,7 @@ import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-fac
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { strengthSpecErrors } from '@/lib/graph/strength/index';
+import { inferHouse } from '@/lib/graph/structure/infer';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -393,7 +394,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   // ...and, when it leaves its plan to the generator, its program, storeys, footprint and front, drawn from that seed
   // (floorplan-draw.js) and stamped as ordinary knobs, so the program generator builds it and the grader leaves it be
   const drawn = seeded?.kind === 'floorplan' ? drawNewHouse(seeded) : {};
-  const expanded = Object.keys(drawn).length ? { ...seeded, ...drawn } : seeded;
+  const drawnHouse = Object.keys(drawn).length ? { ...seeded, ...drawn } : seeded;
+  // ...and given the laws a new house is built by (structure/infer.js): a stair to every floor, the livability pass on a
+  // stack, a stack for a framed floor. Each fills only a field left out, written as an ordinary value with its reason in
+  // `notes.inferred`, so the creator revises it like any other; before the grader, so the grade judges the house built.
+  const expanded = drawnHouse?.kind === 'floorplan' ? inferHouse(drawnHouse).manifest : drawnHouse;
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
   // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
   // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,

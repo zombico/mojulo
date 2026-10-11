@@ -48,6 +48,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **The structure book** walks every stack and flags furniture within the clearance of a stair in its own room.
     Its Plan tab shows the rules in force and how to override them, and a waived finding stays visible as waived.
   - **Existing rows:** a recipe without `clearance` builds exactly as before.
+- **New houses are minted by laws** (`structure/infer.js`), on both doors. Each law fills only a field the recipe leaves
+  out, writes an ordinary value, and gives its reason in `notes.inferred`, which the book's Cover lists. An explicit
+  value, even `false`, is kept. The laws only run at mint, so stored rows keep their bytes.
+  - A house without `windows` gets `windows: true`. A recipe laid out by hand had no windows, so every bedroom failed
+    egress (the drawer already gave windows to the houses it lays out).
+  - A `levels[]` stack gets `stairs: true`.
+  - A stack gets `design: { repair: true, clearance: true }`, and a given `design` without `clearance` gets
+    `clearance: true`.
+  - A framed single floor becomes a stack of one (`levels: [{ index: 0 }]`), since framing needs a stack.
+  - A roof style that names a form, such as `gable`, becomes the bungalow style with that form. Before, it silently
+    drew a hip roof.
 
 ## [3.1.0] - 2026-10-10
 

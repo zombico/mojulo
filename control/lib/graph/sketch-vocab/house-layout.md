@@ -36,7 +36,8 @@ is a `manifest`.
   knob in the stored recipe: "add a bedroom" is `tier.beds`, "make it one floor" is `levels: [{ role: 'ground' }]`.
   Anything given wins; `program: false` keeps the single-floor generator below.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
-- Openings are opt-in: `windows`, `entryDoor`, `ceilings` (each default off on a generated plan).
+- Openings: a new house is minted with `windows: true` (every bedroom needs one for egress; `false` for none);
+  `entryDoor` and `ceilings` are opt-in on a plan you give.
 - Walkable at `/world`.
 
 ## Your own rooms

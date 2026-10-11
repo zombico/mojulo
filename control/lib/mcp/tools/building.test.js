@@ -104,3 +104,17 @@ describe('the house cards — every example mints', () => {
     }, 300_000);
   }
 });
+
+describe('mint_building — the laws a new house is built by', () => {
+  it('writes each inferred value into the recipe with its reason, and keeps what the creator set', () => {
+    mintBuilding({ title: 'stack', manifest: { seed: 7, levels: [{ index: 0 }, { index: 1 }] }, ref: 'mb-infer' });
+    const m = SketchRepository.getByRef('mb-infer').manifest;
+    expect(m.stairs).toBe(true);
+    expect(m.design).toEqual({ repair: true, clearance: true });
+    expect(m.notes.inferred.map((x) => x.field)).toEqual(['windows', 'stairs', 'design']);
+    mintBuilding({ title: 'kept', manifest: { seed: 7, levels: [{ index: 0 }, { index: 1 }], windows: false, stairs: [{ from: 0, to: 1 }], design: { clearance: false } }, ref: 'mb-kept' });
+    const k = SketchRepository.getByRef('mb-kept').manifest;
+    expect(k.design).toEqual({ clearance: false });
+    expect(k.notes).toBeUndefined();
+  }, 120_000);
+});
