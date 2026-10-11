@@ -51,8 +51,10 @@ export const CARD_CATALOGS = {
 /** Entry types. `recipe` and `builder` are the two doors; `garment` and `outfit`
  *  are the WARDROBE lane (mojulo's outfit plan): data-only entries read by name
  *  from `create_figure`'s `outfit`, a `garment.json` (a wardrobe spec, exactly
- *  what an inline garment is) or an `outfit.json` (`{ fit?, layers }`). */
-export const ENTRY_TYPES = ['recipe', 'builder', 'garment', 'outfit'];
+ *  what an inline garment is) or an `outfit.json` (`{ fit?, layers }`). `part` is the solids' code lane: a
+ *  pure `builder.js` exporting `{ part: { id, title, params }, source }` that writes an OpenSCAD program
+ *  from named params, minted by `mint_solid` kind `scad` with `spec.part`. */
+export const ENTRY_TYPES = ['recipe', 'builder', 'garment', 'outfit', 'part'];
 
 /** Per-catalog family rules, as applied at MERGE time by each vocab loader.
  *  `required: false` + `fallback` mirrors motion-vocab's `card.family ?? 'motion'`;
@@ -218,7 +220,7 @@ export async function validateBook(root = BOOK_ROOT) {
 
   // ---- per entry ---------------------------------------------------------
   const seenIds = new Map();   // `${catalog}:${id}` → where — mirrors the loader's per-catalog dedupe
-  const stats = { entries: entries.length, recipes: 0, builders: 0, wardrobe: 0, byChapter: {}, byEntry: {} };
+  const stats = { entries: entries.length, recipes: 0, builders: 0, parts: 0, wardrobe: 0, byChapter: {}, byEntry: {} };
 
   for (const [i, entry] of entries.entries()) {
     const at = `manifest.json entries[${i}]`;
@@ -242,7 +244,7 @@ export async function validateBook(root = BOOK_ROOT) {
     }
     if (!existsSync(dir)) { err(at, `declares ${rel}/ but that folder does not exist`); continue; }
 
-    stats[entry.type === 'builder' ? 'builders' : entry.type === 'recipe' ? 'recipes' : 'wardrobe']++;
+    stats[entry.type === 'builder' ? 'builders' : entry.type === 'recipe' ? 'recipes' : entry.type === 'part' ? 'parts' : 'wardrobe']++;
     stats.byChapter[entry.chapter] = (stats.byChapter[entry.chapter] || 0) + 1;
 
     // ---- card.md ---------------------------------------------------------
@@ -328,6 +330,40 @@ export async function validateBook(root = BOOK_ROOT) {
       continue;
     }
 
+    // ---- The part lane: builder.js writing an OpenSCAD program ----------
+    // The same purity as a view builder, and the shape loader.js checks: every param names a `default`, and the
+    // defaults write a program (a string, or { source, parts? }).
+    if (entry.type === 'part') {
+      if (card.entry !== 'mint_solid') err(`${rel}/card.md`, `a part's card must route to 'mint_solid' (got '${card.entry}')`);
+      const builderPath = join(dir, 'builder.js');
+      if (!existsSync(builderPath)) { err(rel, "builder.js is missing — a 'part' entry is card + code"); continue; }
+      if (!existsSync(join(dir, 'builder.test.js'))) err(rel, 'builder.test.js is missing — a new part ships with the tests that are its machine gate');
+      const src = stripComments(readFileSync(builderPath, 'utf8'));
+      for (const [re, why] of IMPURITIES) if (re.test(src)) err(`${rel}/builder.js`, `not pure: ${why}`);
+      let mod;
+      try {
+        mod = await import(pathToFileURL(builderPath).href);
+      } catch (e) {
+        err(`${rel}/builder.js`, `failed to import — ${e.message} — the loader skips it the same way`);
+        continue;
+      }
+      const meta = mod.part;
+      if (!isPlainObject(meta) || meta.id !== entry.id || !isPlainObject(meta.params) || typeof mod.source !== 'function') {
+        err(`${rel}/builder.js`, `must export { part: { id: '${entry.id}', title, params }, source }`);
+        continue;
+      }
+      const missing = Object.entries(meta.params).filter(([, p]) => !isPlainObject(p) || p.default === undefined).map(([k]) => k);
+      if (missing.length) { err(`${rel}/builder.js`, `params without a default: ${missing.join(', ')} — a look names no params, so every one needs one`); continue; }
+      try {
+        const out = mod.source(Object.fromEntries(Object.entries(meta.params).map(([k, p]) => [k, p.default])));
+        const program = typeof out === 'string' ? out : out?.source;
+        if (!isFilledString(program)) err(`${rel}/builder.js`, 'source(defaults) wrote no program');
+      } catch (e) {
+        err(`${rel}/builder.js`, `source(defaults) threw — ${e.message}`);
+      }
+      continue;
+    }
+
     // ---- Door 2: builder.js ---------------------------------------------
     // Only the VIEW lane exists: loader.js skips a builder declaring any other
     // entry tool ("no Door-2 lane exists for that family yet").
@@ -378,7 +414,7 @@ export function formatReport({ errors, warnings, stats }, root = BOOK_ROOT) {
   for (const { where, message } of warnings) lines.push(`  warn   ${where}: ${message}`);
   if (lines.length) lines.push('');
   const counted = stats?.entries !== undefined
-    ? `${stats.entries} entries (${stats.recipes} recipes, ${stats.builders} builders, ${stats.wardrobe ?? 0} wardrobe)`
+    ? `${stats.entries} entries (${stats.recipes} recipes, ${stats.builders} builders, ${stats.parts ?? 0} parts, ${stats.wardrobe ?? 0} wardrobe)`
     : 'no entries read';
   lines.push(
     errors.length

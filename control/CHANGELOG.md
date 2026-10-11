@@ -34,6 +34,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The workbench has a `next`.** A workbench, code, equipment or furniture row returns the open steps once it is
   meant to be made (frames, a fabricate plan, a strength spec, or mm units off a `build`), or whenever it carries an
   `ask`: the print check, fabricate and the bill for frames, the strength rail, 3MF. A plain look returns none, as before.
+- **Parts by name, from the recipe book.** `mint_solid({ kind: 'scad', spec: { part: 'wall-hook' } })` is a finished,
+  printable hook; `params` fit it (`{ reach: 60, screw: 'M5' }`). A part is a new recipe-book entry type, `part`: a
+  pure `builder.js` that writes an OpenSCAD program over the `mj_*` library from named params, each with a default
+  and a range. The program is stamped on the row beside `part` and `params` and rewritten when `/params` change; a
+  hand edit under `/source` detaches the row into a plain scad part. Three to start: `wall-hook` (countersunk ISO
+  screws, filleted inside), `phone-stand` (a groove sized to the device in its case, a cable slot) and `lidded-box`
+  (sized by the inside, the lid's lip at a printed fit). The book validator checks the lane (`npm run test:book`),
+  and each part mints closed through OpenSCAD in `scad-part.test.js`. Book 0.9.0.
 
 ### Drawer alignment: the agent supplies the words, the server the rest
 

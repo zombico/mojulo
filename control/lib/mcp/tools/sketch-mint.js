@@ -64,6 +64,7 @@ import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
+import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
@@ -554,6 +555,14 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
   // an edited scad row re-resolved through the registry but answered with no stats at all.
   if (manifest.kind === 'scad') {
+    // A recipe-book part re-writes its program from `/params` (./scad-part.js); a hand edit under `/source` detaches it.
+    if (manifest.part !== undefined && !restore) {
+      try {
+        ({ manifest } = await expandPartManifest(manifest, { touched, patch }));
+      } catch (err) {
+        throw new Error(`Invalid world manifest (kind 'scad'): ${err.message}`);
+      }
+    }
     try {
       scadStats = (await planScad(manifest)).stats;
     } catch (err) {

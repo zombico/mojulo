@@ -16,10 +16,11 @@ Why this kind exists beside the workbench: OpenSCAD's booleans are EXACT. A `dif
 ## Spec shape
 
 ```
-{ source, parts?, units?, fn?, facing?, viewBox?, grid?, movers?, mechanism?, title? }
+{ source | part + params?, parts?, units?, fn?, facing?, viewBox?, grid?, movers?, mechanism?, ask?, title? }
 ```
 
 - `source` (required, ≤ 64 KB) — one OpenSCAD program. Author in **millimetres, z up, lowest z = 0** (the measured floor). `$fn` inside the source is honoured; `fn` on the spec overrides it for a finer print. **The fence:** `include`, `use`, `import()` and `surface()` are refused at mint — the recipe carries its own geometry, so it renders the same on every host.
+- `part`, `params` — a recipe-book part by name in place of `source`: `wall-hook`, `phone-stand`, `lidded-box` (more: `semantic_search({ kinds: ['solid_vocab'] })`). Its builder writes the program, stored beside them; patch `/params` to rewrite it. Each part's card lists its params; none are required.
 - `color()` — becomes the face `tint`; the studio light shades it exactly as a workbench `tint`. Uncoloured geometry is a neutral grey, and the faces an uncoloured cutter leaves in a one-colour part wear that part's colour (OpenSCAD's own yellow / green defaults never reach the World; a deliberate `color("#f9d72c")` or `color("#9dcb51")` is read as a default, so pick another shade). Two parts overlapping (a hinge inside both halves) are two closed shells in the World and the `.glb`; `export_model { union: true }` welds them into one solid for the print. (OpenSCAD's own STL drops colour; mojulo's mesh keeps it, and the `.glb` carries it as vertex colour.)
 - `parts` — `{ <name>: '<statement>' }`. Absent, the program's top level is the object, one render group `body`. Present, **the source must only define modules** (no top-level geometry; the mint checks) and each part renders `source + statement` on its own as a render group named `<name>` — the workbench's `group`, expressed the way OpenSCAD can. A `movers` hinge names a part.
 - `units` (`'mm'` default, or `'cm'` / `'m'` / `'in'` / `'ft'`) — the print scale, the USD `metersPerUnit`, the glTF root scale. Declare it when the source is not in mm.

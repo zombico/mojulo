@@ -1,8 +1,16 @@
 {
   "book": "mojulo-recipe-book",
-  "bookVersion": "0.8.0",
+  "bookVersion": "0.9.0",
   "requiresMojulo": ">=1.4.2",
-  "chapters": ["science", "math", "beats", "solids", "worlds", "motion", "wardrobe"],
+  "chapters": [
+    "science",
+    "math",
+    "beats",
+    "solids",
+    "worlds",
+    "motion",
+    "wardrobe"
+  ],
   "entries": [
     {
       "type": "builder",
@@ -395,6 +403,27 @@
       "dir": "sandal",
       "id": "sandal",
       "since": "0.8.0"
+    },
+    {
+      "type": "part",
+      "chapter": "solids",
+      "dir": "wall-hook",
+      "id": "wall-hook",
+      "since": "0.9.0"
+    },
+    {
+      "type": "part",
+      "chapter": "solids",
+      "dir": "phone-stand",
+      "id": "phone-stand",
+      "since": "0.9.0"
+    },
+    {
+      "type": "part",
+      "chapter": "solids",
+      "dir": "lidded-box",
+      "id": "lidded-box",
+      "since": "0.9.0"
     }
   ]
 }

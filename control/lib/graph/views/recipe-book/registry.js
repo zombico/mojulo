@@ -26,6 +26,9 @@ const EMPTY = () => ({
   // the WARDROBE lane (outfit.plan.md P5): id → { kind: 'garment' | 'outfit', spec, source }.
   // Data only (garment.json / outfit.json); create_figure resolves names by value at mint.
   wardrobe: new Map(),
+  // the PART lane (solid-powerscale): part id → { id, title, params, source }. A pure builder that writes an OpenSCAD
+  // program from named params; mint_solid kind 'scad' with `spec.part` expands it (lib/mcp/tools/scad-part.js).
+  parts: new Map(),
   // human-readable load warnings (skipped entries, version skew) — surfaced
   // to the operator/agent by the loader's consumers.
   warnings: [],
@@ -43,6 +46,7 @@ export function bookWorldKind(manifestKind) { return state.worldKinds.get(manife
 export function isBookRenderKind(manifestKind) { return state.renderKinds.has(manifestKind); }
 export function bookCards() { return state.cards; }
 export function bookWardrobe() { return state.wardrobe; }
+export function bookParts() { return state.parts; }
 export function bookWarnings() { return state.warnings; }
 
 // Test seam.

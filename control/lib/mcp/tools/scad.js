@@ -15,13 +15,24 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planScad, persistedScadLedger, DEFAULT_UNITS } from '@/lib/graph/scad/scad-render';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
+import { partProgram } from '@/lib/mcp/tools/scad-part';
 
-export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, fabricate, ask, ref, folderRef } = {}) {
+export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, fabricate, ask, part, params, ref, folderRef } = {}) {
+  // A recipe-book part (./scad-part.js): its builder writes the program from the params, stamped beside them.
+  if (part !== undefined) {
+    if (source !== undefined) throw new Error('The scad kind takes `source` (your own program) or `part` (a recipe-book part and its `params`), not both.');
+    const program = await partProgram(part, params);
+    source = program.source;
+    if (program.parts) parts = program.parts;
+  } else if (params !== undefined) {
+    throw new Error('`params` belongs to a recipe-book `part`; name the part, or write the program in `source`.');
+  }
   if (typeof source !== 'string') {
     throw new Error("The scad kind needs `source` — an OpenSCAD program (mm, z up; `color()` is the tint; with `parts: { name: 'module();' }` each part is a render group a `movers` hinge can swing). Read get_solid_vocab({ id: 'scad' }) for the contract.");
   }
   const manifest = {
     kind: 'scad',
+    ...(part !== undefined ? { part, ...(params !== undefined ? { params } : {}) } : {}),
     source,
     ...(parts !== undefined ? { parts } : {}),
     ...(fields !== undefined ? { fields } : {}),
@@ -43,7 +54,7 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
   const { stats } = await planScad(manifest);
   manifest.ledger = persistedScadLedger(stats.ledger);
   const sketch = SketchRepository.create({
-    title: title || `scad · ${stats.parts.length} part${stats.parts.length === 1 ? '' : 's'}`,
+    title: title || (part !== undefined ? String(part).replace(/-/g, ' ') : `scad · ${stats.parts.length} part${stats.parts.length === 1 ? '' : 's'}`),
     manifest, ref, folderRef: folderRef ?? null,
   });
   warmScenePng(sketch);
@@ -60,6 +71,6 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
 
 export async function createScadHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('The scad kind needs a spec object with `source`.');
-  const { title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ask, ref, folder_ref: folderRef } = input;
-  return mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ask, ref, folderRef });
+  const { title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ask, part, params, ref, folder_ref: folderRef } = input;
+  return mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ask, part, params, ref, folderRef });
 }

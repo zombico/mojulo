@@ -34,7 +34,9 @@ It lives at [control/book/](control/book/) and ships in the npm package, so it l
 | `forge_motion`, `stitch_motion` | motion vocab | `motion/` |
 | `create_figure` | wardrobe (`garment.json` / `outfit.json`) | `wardrobe/` |
 
-**Door 2 — `builder` (code).** `card.md` + `builder.js` (+ `builder.test.js`): a **new view kind that lands without touching core**. The loader imports the builder at boot and registers it into the `create_view` enum and the world render dispatch. `create_view` is the only Door-2 lane today; other families' lanes get built when someone actually wants to author a kind outside core.
+**Door 2 — `builder` (code).** `card.md` + `builder.js` (+ `builder.test.js`): a **new view kind that lands without touching core**. The loader imports the builder at boot and registers it into the `create_view` enum and the world render dispatch. `create_view` is the only Door-2 *kind* lane today; other families' lanes get built when someone actually wants to author a kind outside core.
+
+**The part lane (solids).** `card.md` + `builder.js` (+ `builder.test.js`), manifest `type: "part"`: a printable part by name (a wall hook, a phone stand, a box with a lid) over the `scad` kind core already ships. The builder exports `part = { id, title, params }` and `source(params)`, which writes an OpenSCAD program, a string or `{ source, parts }`, using the `mj_*` library. Every param names a `default`, plus `min` / `max` / `unit` or a `one_of` list, so `mint_solid({ kind: 'scad', spec: { part: '<id>' } })` alone is a finished part and `params` fit it. The program is stamped on the row beside `part` and `params`, rewritten when `/params` change, so refining a builder never moves a part already minted. The purity rules are the view builders' rules; the card lists the params and says how to print it. `wall-hook`, `phone-stand` and `lidded-box` are the worked examples.
 
 ### Entry format
 
