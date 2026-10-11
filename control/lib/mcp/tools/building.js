@@ -43,7 +43,7 @@ export function registerBuildingTools() {
   registerTool({
     name: 'mint_building',
     description:
-      "Mint a walkable house, apartment or one furnished room → { ok, ref, url, next }. manifest: a floorplan from a `seed` (width / height in feet) or `rooms[]` { x, y, w, h, glyph }; `view`: 'exterior' | 'cutaway' | 'interior'. `next` names what is open by outcome (concept, layout, drawings, build): the field or export for each, and its card (get_sketch_vocab). Iterate with update_sketch.",
+      "Mint a walkable house, apartment or one furnished room with its structure book (plans, sections, schedules, frame) → { ok, ref, url, design, next }. manifest: a floorplan from a `seed` (width / height in feet) or `rooms[]` { x, y, w, h, glyph }; `view`: 'exterior' | 'cutaway' | 'interior'. `next` names what is open by outcome (concept, layout, drawings, build): the field or export for each, and its card (get_sketch_vocab). Iterate with update_sketch.",
     inputSchema: {
       type: 'object',
       properties: {

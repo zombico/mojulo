@@ -5,13 +5,13 @@
   "family": "structure",
   "entry": "mint_solid",
   "summary": "Mint a bespoke inhabitable BUILDING — a graph of MASSES joined by CONCOURSES, placed by relation; walkable + .glb; livability surfaced but never enforced.",
-  "when": "Reach for this on 'design/build a bespoke building / a campus / a connected building complex / a custom <building type>'."
+  "when": "Reach for this on 'an institutional building for a world / a campus block / a connected complex of masses joined by halls'. A house, apartment or furnished room, its plans, sheets or frame, is mint_building."
 }
 ---
 
 Mint a BESPOKE inhabitable building authored as a GRAPH. An edifice is the building-scale sibling of the object workbench: where the workbench bonds object monomers, an edifice composes MASSES (footprint + floors + facade + roof + interior) connected by CONCOURSES (halls), placed by RELATION — a root mass anchored absolutely, the rest sitting *on* a neighbour (mass B east of mass A). It is the "workbench for buildings": the metaprinciple (recipe → plan → baked faces) applied to the one-off buildings the frozen generators (fractal-city / school / hub) don't produce. The substrate stores ONLY the recipe (`kind === 'edifice'`, no geometry) and regenerates it deterministically on render — a walkable, dependency-free World at `/api/sketches/<ref>/world` plus a `.glb` export. The recipe is validated by PLANNING it at mint: a bad placement, or a concourse between two masses that don't face each other, throws at mint rather than failing at render. Livability and reachability are ASSESSED and SURFACED in the mint response, but the building is minted regardless — a user's building is theirs (advisory, never gated).
 
-Reach for this on 'design/build a bespoke building / a campus / a connected building complex / a custom <building type>'.
+Reach for this on 'an institutional building for a world / a campus block / a connected complex of masses joined by halls'. A house, apartment or furnished room, its plans, sheets or frame, is `mint_building`: an edifice has no slabs, windows, stairs or rooms to draw.
 
 ## Spec shape
 

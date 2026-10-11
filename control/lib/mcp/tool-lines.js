@@ -62,7 +62,7 @@ export const TOOL_LINES = {
   fabricate_solid: L('compose', 'Make an object buildable: what each part must do → standard parts, a bill of materials and the cuts or joints that take them. Plan, then mint.'),
   verify_machina: L('observe', 'A checked feasibility verdict for a materials-handling problem: can this mechanism move this load within these limits?'),
   get_solid_vocab: L('orient', 'A `mint_solid` kind or `edit_solid` op manual (long ones open to `sections`). Omit `id` to list; find one with `semantic_search` kind solid_vocab.'),
-  mint_building: L('create', 'A walkable house, apartment or furnished room; `next` names each step (storeys, framing, IFC) and its `get_sketch_vocab` card. Revise: `update_sketch`.'),
+  mint_building: L('create', 'A walkable house, apartment or furnished room with its structure book; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
 
   // ── worlds ────────────────────────────────────────────────────────────────
   compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.'),

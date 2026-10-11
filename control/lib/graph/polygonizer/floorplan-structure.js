@@ -2236,51 +2236,6 @@ export function renderSplitMirrorToThreeWorld(input = {}, opts = {}) {
   return emitThreeWorld(assembleSplitMirrorWorld(input, opts));
 }
 
-// ── Stage 1: top-down blueprint SVG (room tints + thick walls + glyphs) ──────
-/** Render the structurized plan as a top-down blueprint SVG string. */
-export function renderFloorplanPlanSvg(structure, opts = {}) {
-  const o = { ...FLOORPLAN_DEFAULTS, ...opts };
-  const fp = structure.footprint;
-  const pad = 6, scale = opts.scale || 6;
-  const W = (fp.x1 - fp.x0 + pad * 2) * scale, H = (fp.y1 - fp.y0 + pad * 2) * scale;
-  const tx = (x) => ((x - fp.x0 + pad) * scale).toFixed(1);
-  const ty = (y) => ((y - fp.y0 + pad) * scale).toFixed(1);
-  const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(0)}" height="${H.toFixed(0)}" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">`];
-  parts.push(`<rect width="${W.toFixed(0)}" height="${H.toFixed(0)}" fill="#1b2230"/>`);
-  // cells, tinted by archetype glyph
-  for (const c of structure.cells) {
-    const fill = (ARCHETYPES[c.glyph] || ARCHETYPES.S).tint;
-    parts.push(`<rect x="${tx(c.x)}" y="${ty(c.y)}" width="${(c.w * scale).toFixed(1)}" height="${(c.h * scale).toFixed(1)}" fill="${fill}" opacity="0.82"/>`);
-    if (c.kind === 'room') {
-      parts.push(`<text x="${tx(c.x + c.w / 2)}" y="${ty(c.y + c.h / 2)}" fill="#23303f" font-family="monospace" font-size="${(Math.min(c.w, c.h) * scale * 0.4).toFixed(0)}" text-anchor="middle" dominant-baseline="central">${c.glyph}</text>`);
-    }
-  }
-  // walls, drawn at true thickness (skip opening spans → piers/lintels read as gaps).
-  // Exterior envelope draws heavier than interior partitions, matching the 3D mass.
-  for (const run of structure.wallGraph.runs) {
-    const t = runThickness(run, o);
-    const color = run.interior ? '#3a4660' : '#0c1018';
-    const [A, B] = run.along;
-    const ops = (run.openings || []).slice().sort((p, q) => p.a - q.a);
-    const piers = [];
-    let cursor = A;
-    for (const op of ops) { if (op.a > cursor) piers.push([cursor, op.a]); cursor = Math.max(cursor, op.b); }
-    if (cursor < B) piers.push([cursor, B]);
-    if (!ops.length) piers.push([A, B]);
-    for (const [s0, s1] of piers) {
-      const r = spanRect(run, s0, s1, t);
-      parts.push(`<rect x="${tx(r.x0)}" y="${ty(r.y0)}" width="${((r.x1 - r.x0) * scale).toFixed(1)}" height="${((r.y1 - r.y0) * scale).toFixed(1)}" fill="${color}"/>`);
-    }
-  }
-  // stair voids ("open slots") punched through this level's slab
-  for (const h of structure.slabHoles || []) {
-    parts.push(`<rect x="${tx(h.x0)}" y="${ty(h.y0)}" width="${((h.x1 - h.x0) * scale).toFixed(1)}" height="${((h.y1 - h.y0) * scale).toFixed(1)}" fill="#11161f" stroke="#37e0e6" stroke-width="2" stroke-dasharray="6 4"/>`);
-    parts.push(`<text x="${tx((h.x0 + h.x1) / 2)}" y="${ty((h.y0 + h.y1) / 2)}" fill="#37e0e6" font-family="monospace" font-size="${(Math.min(h.x1 - h.x0, h.y1 - h.y0) * scale * 0.35).toFixed(0)}" text-anchor="middle" dominant-baseline="central">▤ stair</text>`);
-  }
-  parts.push('</svg>');
-  return parts.join('\n');
-}
-
 // ════════════════════════════════════════════════════════════════════════════
 // THE MERU — the house's shared vertical ruler. In the substrate the meru is the
 // metamandala that owns world units + cross-element gravity; here it is the datum
@@ -3005,52 +2960,3 @@ export function renderHouseToHtml(input = {}, opts = {}) {
   });
 }
 
-/**
- * Stage-3 SECTION/ELEVATION: the meru drawn as stacked storey bands with the
- * ground datum line. Shows the vertical relationship (basement/ground/second)
- * the top-down plan can't. Terrain stays off; the ground line is the only datum.
- */
-export function renderHouseElevationSvg(house, opts = {}) {
-  const fp = house.footprint;
-  const scale = opts.scale || 6, pad = 8;
-  const worldW = fp.x1 - fp.x0;
-  const zs = house.levels.flatMap((l) => [l.baseZ - house.meru.floorDrop, l.baseZ + l.height]);
-  const zMin = Math.min(...zs), zMax = Math.max(...zs);
-  const W = (worldW + pad * 2) * scale, H = (zMax - zMin + pad * 2) * scale;
-  const sx = (x) => ((x - fp.x0 + pad) * scale).toFixed(1);
-  const sz = (z) => ((zMax - z + pad) * scale).toFixed(1);     // z up → svg y down
-  const p = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(0)}" height="${H.toFixed(0)}" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">`];
-  p.push(`<rect width="${W.toFixed(0)}" height="${H.toFixed(0)}" fill="#11161f"/>`);
-  for (const lvl of house.levels) {
-    const z0 = lvl.baseZ, z1 = lvl.baseZ + lvl.height;
-    // floor slab
-    p.push(`<rect x="${sx(fp.x0)}" y="${sz(z0)}" width="${(worldW * scale).toFixed(1)}" height="${(house.meru.floorDrop * scale).toFixed(1)}" fill="#6e6450"/>`);
-    // storey envelope band (exterior), tinted by sign (below/at/above ground)
-    const tint = lvl.index < 0 ? '#5a5240' : '#b6a684';
-    p.push(`<rect x="${sx(fp.x0)}" y="${sz(z1)}" width="${(worldW * scale).toFixed(1)}" height="${((z1 - z0) * scale).toFixed(1)}" fill="${tint}" opacity="0.5" stroke="#0c1018" stroke-width="2"/>`);
-    p.push(`<text x="${sx(fp.x0 + 1)}" y="${sz((z0 + z1) / 2)}" fill="#dfe7f0" font-family="monospace" font-size="${(lvl.height * scale * 0.32).toFixed(0)}" dominant-baseline="central">${lvl.role} · L${lvl.index >= 0 ? '+' : ''}${lvl.index} · ${lvl.height.toFixed(1)}ft</text>`);
-  }
-  // GROUND DATUM helper line at z = groundZ
-  const gy = sz(house.meru.groundZ);
-  p.push(`<line x1="0" y1="${gy}" x2="${W.toFixed(0)}" y2="${gy}" stroke="#37e0e6" stroke-width="2.5" stroke-dasharray="10 6"/>`);
-  p.push(`<text x="6" y="${(+gy - 6).toFixed(1)}" fill="#37e0e6" font-family="monospace" font-size="${(scale * 2.4).toFixed(0)}">ground · z=0</text>`);
-  // meru axis (centre)
-  const ax = sx((fp.x0 + fp.x1) / 2);
-  p.push(`<line x1="${ax}" y1="${sz(zMax)}" x2="${ax}" y2="${sz(zMin)}" stroke="#2a6f86" stroke-width="1.5" stroke-dasharray="3 4"/>`);
-  // stair flights climbing the section (only x-running flights project cleanly here)
-  for (const st of house.stairs || []) {
-    if (!st.direction || !st.direction.includes('x')) continue;
-    const sign = st.direction === '-x' ? -1 : 1;
-    const x0 = st.anchor[0];
-    const pts = [`${sx(x0)},${sz(st.topZ - st.steps * st.rise)}`];
-    for (let i = 1; i <= st.steps; i += 1) {
-      const xPrev = x0 + sign * (i - 1) * st.going, xCur = x0 + sign * i * st.going;
-      const z = (st.topZ - st.steps * st.rise) + i * st.rise;
-      pts.push(`${sx(xPrev)},${sz(z)}`, `${sx(xCur)},${sz(z)}`);
-    }
-    p.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="#9a8f78" stroke-width="3"/>`);
-    p.push(`<text x="${sx(x0)}" y="${(+sz(st.topZ) - 8).toFixed(1)}" fill="#9a8f78" font-family="monospace" font-size="${(scale * 2.2).toFixed(0)}">stair L${st.fromIndex}→L${st.toIndex}</text>`);
-  }
-  p.push('</svg>');
-  return p.join('\n');
-}

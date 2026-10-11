@@ -72,6 +72,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **The roof step** names a style (`roof: 'bungalow'`, `form: 'gable'`). Before, the Open tab offered
     `roof: 'gable'`, which is a form, not a style.
   - **A framed house with a roof and no covering** gets a Build step for `roof.covering`.
+- **One path for buildings.** Building asks now route to `mint_building` and nothing else.
+  - **The `house` routing card** is the one routing prose for buildings. It leads with the structure book and the four
+    outcome cards. The studio's HOUSE line, the building form, the tool line and the `mint_building` description
+    point to it. Two `routing-eval` rows pin drawings and a framing takeoff asked for without the word "house".
+  - **The picture recipes no longer alias buildings.** `house`, `home`, `building`, `buildingHouse`, `architecture`
+    and `interior` answer with `mint_building` and name the two illustration families by their own names.
+  - **The blockout lingo** routes a house massing to `mint_building`.
+  - **The polygonizer's blueprint style** says it never draws a building's sheets.
+  - **Edifice is out of the building path** (it has no slabs, windows, stairs or rooms to draw). Its card is for an
+    institutional block for a world.
+  - **Removed, with no callers:** the orphaned `floorplan-office.js`, `renderFloorplanPlanSvg`,
+    `renderHouseElevationSvg` and `renderSitePlanSvg`. The A-, C- and S-sheets draw what they drew.
+  - **The house cards** name `mint_building` as the door, with `create_sketch` still accepting `kind: 'floorplan'`.
+    `floor-plan` indexes the outcome cards ahead of the manuals.
 
 ## [3.1.0] - 2026-10-10
 

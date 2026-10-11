@@ -51,7 +51,7 @@ const LEXICON = [
     support: NATIVE,
     routes: [
       { tool: 'compose_world', when: 'an urban / environment massing', args: { base: 'city', overrides: { depth: 1 } } },
-      { tool: 'create_sketch', when: 'architectural massing (recipe: architecturalConstruction)' },
+      { tool: 'mint_building', when: 'a house massing: storeys, footprint and roof, walkable, with elevations and sections (card house-concept)' },
       { tool: 'mint_solid', when: 'a single object or figure blockout', args: { kind: 'manji-tree', via: 'packet', spec: { prompt: '<subject>' } } },
       { tool: 'create_workbench', when: 'an object study on a measured studio grid' },
     ],

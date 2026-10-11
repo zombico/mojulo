@@ -4,7 +4,7 @@
  * Each face is drawn as its viewer sees it (the north elevation is seen from the north, so east is on its left):
  * the storey bands and their floor lines, every window and door on that face at its sill and head, the roof planes
  * painted far to near, the ground line heavy, a level head at each floor, the overall height dimensioned.
- * It absorbs `renderHouseElevationSvg`'s storey bands into a drawing a set would print.
+ * It replaces the storey-band elevation the floorplan kernel once drew with a drawing a set would print.
  */
 
 import { n2, esc, dimension, lengthText, titleBlock, drawingTitle, sheetSvg, SCALES } from './kit.js';

@@ -15,7 +15,7 @@ intent and the substrate fills the detail. Three properties hold by construction
 ## Minting
 
 `mint_building({ title, manifest })` — `kind: 'floorplan'` and the manifest's own `title` may be
-left out (`create_sketch` with `kind: 'floorplan'` mints the same row). The reply is
+left out. The reply is
 `{ ok, ref, url, design, inferred, next }`: `next` names what is open by outcome (concept,
 layout, drawings, build), the field or export for each, and its outcome card (`house-concept`,
 `house-livability`, `house-drawings`, `house-build`); read that card before adding the step. The recipe is a STARTER: iterate in place with
