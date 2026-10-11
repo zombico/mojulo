@@ -48,6 +48,7 @@ import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
+import { withGeocube } from './geocube.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
@@ -304,6 +305,10 @@ export function planStage(m = {}) {
   // IVY (`ivy: 0…1`): how much ivy has taken the bare walls (era/crypt.js ivyGrowth); a dressing without walls takes none
   if (m.ivy !== undefined && !(typeof m.ivy === 'number' && m.ivy >= 0 && m.ivy <= 1)) throw new Error('stage: ivy is a number from 0 (none) to 1 (overgrown)');
   if (m.ivy !== undefined && kitG.dress && kitG.dress.niches) kitG = { ...kitG, dress: { ...kitG.dress, ivy: { ...IVY, ...(kitG.dress.ivy || {}), amount: m.ivy } } };
+  // DRESS (`dress: false`): the kit's bones only, its dressing left out: no set piece, no accent, no doodads, no blends.
+  // A specimen of a room's structure and light, before anything is placed in it. Absent ⇒ the kit as dressed.
+  if (m.dress !== undefined && m.dress !== false) throw new Error('stage: dress is false (the kit\'s bones only), or left out (the kit as dressed)');
+  if (m.dress === false) kitG = { ...kitG, dress: null };
   const kit = kitG.dress && kitG.dress.moss && earthAt > 0 ? { ...kitG, dress: { ...kitG.dress, earth: { ...EARTH, ...(kitG.dress.earth || {}), amount: earthAt } } }
     : kitG.dress && kitG.dress.earth ? { ...kitG, dress: { ...kitG.dress, earth: undefined } } : kitG;
   // TONE (`tone`, tone.js): colour as its own concern; the build is drained to its values and the page colours them
@@ -748,6 +753,8 @@ function splitCard(f, nu, nv) {
 
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
+  // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
+  if (manifest.geocube !== undefined) return assembleStageScene(withGeocube(manifest), ctx);
   const kit = stageKit(resolveKitId(manifest.kit));
   if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder

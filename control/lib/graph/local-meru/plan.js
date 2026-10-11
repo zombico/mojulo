@@ -62,7 +62,60 @@ export const LOCAL_MERU = Object.freeze({
   tiers: [{ form: 'mound' }, { form: 'tower' }],
 });
 
-const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1 };
+const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1 };
+
+/**
+ * ISLAND (`island: true | { … }`, opt-in): the plain becomes an island in a sea. Past `shore` metres from the first
+ * tier's centre the ground falls to a seabed `depth` under the water, gently over `beach` metres, so the shore is a
+ * sand beach; on the `high` side the land stands `height` metres up and drops straight in, so the shore is a cliff.
+ *   shore   metres from the centre to the waterline (null: the widest foot + 9)
+ *   beach   how far the beach runs from dry sand to the seabed, metres
+ *   sea     how far the water stands under the plain, metres
+ *   depth   how far the seabed lies under the water, metres
+ *   high    { azimuth (degrees; null: to the left of the wide view, so it sees both shores), height (metres), span
+ *           (degrees of shore it holds) }
+ *   geology true: the raised land (the mountain, the high shore) goes through the card's landform (joints, talus:
+ *           polygonizer/landform.js), and every face of it that is not a flat bench or top is rock
+ *   walk    'all' (every way up drawn) or 'base' (only the approach to the foot: the mountain as land, not a climb)
+ */
+/**
+ * SHADING (`shading: true | { … }`, opt-in): the land lit by polygons. Cliffs and boulders are baked like the ground,
+ * not drawn as a lit and a shaded tile; rock is lit once per facet; ground, sand and trail are smoothed across the
+ * grid (each corner lit by the mean normal round it); the land keeps its continuous light (no lock to the card's
+ * bands); the grass cards stay out. Three rules from the land's own shape go into its corner colours, each 0..1:
+ * `crevice` darkens what is concave toward `shade` (a colour, never black), `ridge` lifts a convex lip, `blend`
+ * carries a neighbouring surface's colour a corner or two over a seam (rock keeps its own).
+ */
+export const SHADING = Object.freeze({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6, shade: '#4c68b2' });
+function readShading(v) {
+  if (v === undefined || v === false) return null;
+  if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade }');
+  const o = v === true ? {} : v;
+  for (const k of Object.keys(o)) if (!(k in SHADING)) throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')})`);
+  const S = { ...SHADING, ...o };
+  if (typeof S.smooth !== 'boolean') throw new Error('local-meru: shading.smooth is true (ground smoothed across the grid) or false (every quad its own facet)');
+  for (const k of ['crevice', 'ridge', 'blend']) if (!(typeof S[k] === 'number' && S[k] >= 0 && S[k] <= 1)) throw new Error(`local-meru: shading.${k} is 0..1`);
+  if (!/^#[0-9a-f]{6}$/i.test(S.shade)) throw new Error("local-meru: shading.shade is a '#rrggbb' colour (the hue a crevice darkens toward)");
+  return S;
+}
+export const ISLAND = Object.freeze({ shore: null, beach: 9, sea: 0.7, depth: 3, high: Object.freeze({ azimuth: null, height: 4.5, span: 110 }), geology: false, walk: 'all' });
+function readIsland(v) {
+  if (v === undefined || v === false || v === null) return null;
+  if (v !== true && (typeof v !== 'object' || Array.isArray(v))) throw new Error('local-meru: island is true or { shore, beach, sea, depth, high }');
+  const o = v === true ? {} : v, hi = o.high || {};
+  for (const k of Object.keys(o)) if (!(k in ISLAND)) throw new Error(`local-meru: island.${k} is not a setting (island: ${Object.keys(ISLAND).join(', ')})`);
+  for (const k of Object.keys(hi)) if (!(k in ISLAND.high)) throw new Error(`local-meru: island.high.${k} is not a setting (high: ${Object.keys(ISLAND.high).join(', ')})`);
+  const I = { ...ISLAND, ...o, high: { ...ISLAND.high, ...hi } };
+  const pos = (x, k) => { if (!(typeof x === 'number' && x > 0)) throw new Error(`local-meru: island.${k} must be metres above 0`); };
+  if (I.shore !== null) pos(I.shore, 'shore');
+  pos(I.beach, 'beach'); pos(I.sea, 'sea'); pos(I.depth, 'depth');
+  if (!(typeof I.high.height === 'number' && I.high.height >= 0)) throw new Error('local-meru: island.high.height must be metres at or above 0 (0: no high side)');
+  if (!(typeof I.high.span === 'number' && I.high.span > 0 && I.high.span <= 360)) throw new Error('local-meru: island.high.span is degrees of shore, above 0 and at most 360');
+  if (I.high.azimuth !== null && !Number.isFinite(I.high.azimuth)) throw new Error('local-meru: island.high.azimuth is degrees, or null');
+  if (typeof I.geology !== 'boolean') throw new Error('local-meru: island.geology is true (the card\'s landform on the raised land) or false');
+  if (!['all', 'base'].includes(I.walk)) throw new Error("local-meru: island.walk is 'all' (every way up) or 'base' (only the approach to the foot)");
+  return I;
+}
 
 // the older words: one mound (`mound`), its spiral (`path`, `approach` on it) and a tower (`tower`, `link` on it)
 function tiersOfOld(recipe) {
@@ -72,7 +125,8 @@ function tiersOfOld(recipe) {
 
 /** A recipe read against the defaults; anything it does not know is refused with what it does. */
 export function readLocalMeru(recipe = {}) {
-  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers)`);
+  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading)`);
+  if (recipe.island !== undefined && recipe.after) throw new Error('local-meru: an island stands alone in its sea; it follows no trail (drop after, or island)');
   const old = recipe.mound || recipe.path || recipe.tower;
   if (old && recipe.tiers) throw new Error('local-meru: say the level as `tiers`, or as mound/path/tower, not both');
   if (recipe.preset !== undefined && !LOCAL_MERU_PRESETS[recipe.preset]) throw new Error(`local-meru: preset '${recipe.preset}' is not one (presets: ${Object.keys(LOCAL_MERU_PRESETS).join(', ')})`);
@@ -117,7 +171,8 @@ export function readLocalMeru(recipe = {}) {
   }
   const approach = o.approach ?? null;
   if (approach !== null && !(approach >= 0)) throw new Error("local-meru: approach must be metres at or above 0 (null: clear of the first tier's foot)");
-  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers };
+  const island = readIsland(recipe.island), shading = readShading(recipe.shading);
+  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}) };
 }
 
 /**

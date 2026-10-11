@@ -8,9 +8,9 @@ import { getViewVocabHandler } from '../../mcp/tools/create-view.js';
 const starterOf = (body) => JSON.parse(body.split('\n').find((l) => /^ {2}\{"kind":"stage"/.test(l)).trim());
 
 describe('stage entries: generated kit and look cards', () => {
-  it('gives the stage a hub, every kit a card and every reference a look', () => {
+  it('gives the stage a hub, the geocube its card, every kit a card and every reference a look', () => {
     const ids = stageEntryCards().map((c) => c.id);
-    expect(ids.slice(0, 3)).toEqual(['stage', 'sixth-gen-laws', 'stage-rails']);
+    expect(ids.slice(0, 4)).toEqual(['stage', 'geocube', 'sixth-gen-laws', 'stage-rails']);
     for (const k of Object.keys(STAGE_KITS)) expect(ids).toContain(`stage/${k}`);
     for (const l of SIXTH_GEN_LOOK_IDS) expect(ids).toContain(`look/${l}`);
     expect(Object.values(SIXTH_GEN_LOOKS).sort()).toEqual(Object.keys(SIXTH_GEN_REFERENCES).sort());

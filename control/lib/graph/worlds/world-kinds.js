@@ -24,6 +24,7 @@ import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-sch
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
+import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
@@ -446,6 +447,14 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,   // corners, the junction band and under the cornice darken by occlusion (dirt.js leaves AO to this)
     resolve: (m, ctx) => assembleStageScene(m, { title: ctx.title, unshaded: ctx.unshaded }),
+  },
+  // a geocube (era/geocube.js): one style for a level's inside and outside, shown as one of its two specimens, the
+  // bare room or the island landform, each built by the stage. A level is then a stage recipe with `geocube`.
+  geocube: {
+    title: 'mojulo geocube',
+    walk: true,
+    ao: true,
+    resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
   },
   // a culture at its period (historic/historic-kind.js): the town, its land, a farmstead or the works, on the
   // World page. The builder's own title ('mojulo historic city · New Kingdom Thebes') unless the row names one.

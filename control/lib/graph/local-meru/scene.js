@@ -27,7 +27,8 @@ import { madeStyle } from '../era/out-made.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { P, r5, hexRgb, rgbHex, crossed } from '../era/geom.js';
 import { obox } from '../era/props.js';
-import { gridX, gridY } from '../polygonizer/landform.js';
+import { gridX, gridY, landformGrid, bakeGrid, applyLandform, gridSample } from '../polygonizer/landform.js';
+import { bakeLand, ruleLand } from './shading.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor } from './plan.js';
 
 const TAU = Math.PI * 2;
@@ -75,10 +76,75 @@ function groundOf(p, seed) {
   };
 }
 
+/**
+ * The island (`island` on the recipe, plan.js ISLAND): the plain sinks to a seabed past the shore, over the beach's
+ * width on the low side and at once on the high side, where the land stands up first, so the cliff rule paints that
+ * drop as rock and the low side as a beach. The high side is a sector of the shore, eased in and out at its ends.
+ */
+function islandOf(p, I, wideAz) {
+  const c = p.tiers[0].centre, z0 = p.join.at[2];
+  const feet = p.tiers.map((t) => (t.form === 'mound' ? t.foot * (t.sides >= 3 ? 1 / Math.cos(Math.PI / t.sides) : 1) : t.half * 1.5));
+  const shore = I.shore ?? Math.max(...feet) + 9, az = ((I.high.azimuth ?? (wideAz * 180) / Math.PI - 60) * Math.PI) / 180;
+  return { ...I, c, z0, shore, az, sea: z0 - I.sea, bed: z0 - I.sea - I.depth, reach: shore + I.beach + 14 };
+}
+function islandGround(heightAt, S) {
+  const half = (S.high.span * Math.PI) / 360, ease = Math.min(half, Math.PI / 9);
+  return (x, y) => {
+    const dx = x - S.c[0], dy = y - S.c[1], r = Math.hypot(dx, dy);
+    const off = Math.abs(((Math.atan2(dy, dx) - S.az + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+    const w = S.high.span >= 360 ? 1 : 1 - smooth(half - ease, half, off);   // 1 on the high side, 0 on the beach
+    // the high ground rises off the plain short of the shore and holds to the lip; the plain inside is the land's own
+    const land = heightAt(x, y) + w * S.high.height * smooth(S.shore - 10, S.shore - 4, r);
+    // the fall to the seabed: the beach's width on the low side, under a metre on the high one (a cliff)
+    const run = S.beach + (0.8 - S.beach) * w, fall = smooth(S.shore - run * 0.35, S.shore + run * 0.65, r);
+    return land + (S.bed - land) * fall;
+  };
+}
+/**
+ * The island's geology (`island.geology`): the raised land through the card's landform, as the nature shell runs its
+ * cliff (era/nature.js natureSite), without the beds: joints break it into planar facets and talus sheds its apron, so
+ * the mountain, the high shore and the boulders are one faceted rock. The level plain, the beach and the seabed keep
+ * their own height.
+ */
+function islandGeology(st, S, heightAt, seed) {
+  const L = st.landform, R = S.reach, raised = (x, y) => smooth(S.z0 + 0.4, S.z0 + 2, heightAt(x, y));
+  const g = landformGrid({ x0: S.c[0] - R, x1: S.c[0] + R, y0: S.c[1] - R, y1: S.c[1] + R, res: Math.round((2 * R) / L.cell) + 1 });
+  bakeGrid(g, heightAt);
+  applyLandform(g, [
+    { op: 'joints', rock: 'granite', spacing: L.joint, steep: 40 },
+    { op: 'talus', angle: 34, cliff: 50, retreat: L.retreat, scree: L.scree, rmin: 0.25, rmax: 1.3 },
+  ], { seed: `island-${seed}` });
+  for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+    const x = gridX(g, i), y = gridY(g, j), w = raised(x, y), q = j * g.nx + i;
+    g.z[q] = heightAt(x, y) + (g.z[q] - heightAt(x, y)) * w;
+  }
+  const ground = (x, y) => gridSample(g, x, y);
+  return { ground, raised: (x, y) => raised(x, y) > 0.5, scree: g.scree.filter((r) => raised(r.x, r.y) > 0.5).slice(0, 24).map((r) => ({ ...r, z0: ground(r.x, r.y) })) };
+}
+
+/** The sea: a sheet of quads at the waterline, clear over the shallows and deep where the bed falls away. */
+function seaFaces(st, S, heightAt, grid) {
+  const W = st.water, fill = typeof W === 'string' ? W : W && W.fill ? W.fill : rgbHex(st.palette.far[Math.min(1, st.palette.far.length - 1)].map((v) => v / 255));
+  const cell = 2, out = [], x0 = grid.x0, y0 = grid.y0, x1 = grid.x0 + (grid.nx - 1) * grid.dx, y1 = grid.y0 + (grid.ny - 1) * grid.dx;
+  const alpha = (x, y) => r5(Math.max(0.18, Math.min(0.9, 0.18 + ((S.sea - heightAt(x, y)) / S.depth) * 0.72)));
+  for (let y = y0; y < y1 - 1e-9; y += cell) for (let x = x0; x < x1 - 1e-9; x += cell) {
+    const cs = [[x, y], [x + cell, y], [x + cell, y + cell], [x, y + cell]];
+    if (cs.every(([qx, qy]) => heightAt(qx, qy) > S.sea + 0.05)) continue;   // dry land: no sea over it
+    out.push({ corners: cs.map(([qx, qy]) => P([qx, qy, S.sea])), normal: [0, 0, 1], outNormal: [0, 0, 1], fill, water: true, cornerAlpha: cs.map(([qx, qy]) => alpha(qx, qy)), group: 'isekai:water' });
+  }
+  // the open sea round the grid, out to where the fog takes it: four deep strips, so the sheet has no edge in view
+  const F = 1200, deep = [0.9, 0.9, 0.9, 0.9], strip = (a, b, c, d) => out.push({ corners: [a, b, c, d].map(([qx, qy]) => P([qx, qy, S.sea])), normal: [0, 0, 1], outNormal: [0, 0, 1], fill, water: true, cornerAlpha: deep, group: 'isekai:water' });
+  strip([x0 - F, y0 - F], [x1 + F, y0 - F], [x1 + F, y0], [x0 - F, y0]);
+  strip([x0 - F, y1], [x1 + F, y1], [x1 + F, y1 + F], [x0 - F, y1 + F]);
+  strip([x0 - F, y0], [x0, y0], [x0, y1], [x0 - F, y1]);
+  strip([x1, y0], [x1 + F, y0], [x1 + F, y1], [x1, y1]);
+  return out;
+}
+
 /** The ground grid's faces on the followed trail's lattice (or a plain one standing alone), cliff and grass. */
-function groundFaces(st, p, heightAt) {
+function groundFaces(st, p, heightAt, S = null) {
   const site = p.join.site, c = p.tiers[0].centre;
-  const reach = Math.max(...p.tiers.map((t) => (t.form === 'mound' ? t.foot * (t.sides >= 3 ? 1 / Math.cos(Math.PI / t.sides) : 1) : t.half * 1.5))) + APRON;
+  const reach = Math.max(Math.max(...p.tiers.map((t) => (t.form === 'mound' ? t.foot * (t.sides >= 3 ? 1 / Math.cos(Math.PI / t.sides) : 1) : t.half * 1.5))) + APRON, S ? S.reach : 0);
   const dx = site ? site.grid.dx : 0.5, xg0 = site ? site.grid.x0 : c[0] - reach;
   const xa = Math.min(site ? site.grid.x0 : Infinity, c[0] - reach), xb = Math.max(site ? site.W : -Infinity, c[0] + reach);
   const i0 = Math.floor((xa - xg0) / dx), i1 = Math.ceil((xb - xg0) / dx), y0 = site ? site.D : Math.min(p.join.at[1] - 4, c[1] - reach), j1 = Math.ceil((c[1] + reach - y0) / dx);
@@ -88,16 +154,19 @@ function groundFaces(st, p, heightAt) {
   const at = (i, j) => [gridX(g, i), gridY(g, j), z[j * g.nx + i]], sc = st.tiles.cliff.scale, out = [];
   for (let j = 0; j + 1 < g.ny; j++) for (let i = 0; i + 1 < g.nx; i++) {
     const cs = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], n = facet(cs, [0, 0, 1]);
-    if (n[2] < st.slope.rock) {
+    // the cliff rule: steeper than the card's slope.rock is cliff; on a geology island, so is every face of the raised
+    // land that is not a flat bench or top, so a mountain reads as rock, never as a turned (lathed) mound
+    if (n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1]))) {
       const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0;
       out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, uv: cs.map((q) => [r5(q[h] / sc), r5(q[2] / sc)]), group: 'isekai:cliff' });
-    } else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground', flat: n[2] });
+    } else if (S && mean(cs)[2] < S.sea + 0.6) out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:sand', flat: n[2] });   // the beach and the seabed
+    else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground', flat: n[2] });
   }
   return { faces: out, grid: g };
 }
 
 /** The walks: the approach, a path across each terrace, every spiral's shelf and wall, every stair's blocks. */
-function walkFaces(st, p, heightAt, made) {
+function walkFaces(st, p, heightAt, made, baseOnly = false) {
   const out = [], wall = [], sc = st.tiles.cliff.scale;
   const trail = (cs) => { const n = facet(cs, [0, 0, 1]); out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:trail' }); };
   // a path on the ground from a to b, its half-width easing from h0 to h1
@@ -112,6 +181,7 @@ function walkFaces(st, p, heightAt, made) {
   };
   const J = p.join, first = p.links[0], hw0 = J.site ? J.site.halfWAt(J.site.D) : 0.8;
   ribbon(J.at, p.route[1].at, hw0, (first.width || 1.6) / 2);
+  if (baseOnly) return { faces: out, wall: [] };   // island.walk 'base': the approach to the foot, the mountain left as land
   // across each terrace: from where the way up the tier below arrives to where this tier's way up leaves
   p.tiers.forEach((t, k) => {
     if (!k || p.tiers[k - 1].form !== 'mound') return;
@@ -213,7 +283,11 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   // `after` reads the stage's own kit and seed unless it names others: the trail this page follows
   const after = M.after ? { kit: st.id, seed, ...M.after } : null, p = planLocalMeru({ ...M, after });
   const made = madeOf(manifest.kit || st.id, seed);
-  const heightAt = groundOf(p, seed), ground = groundFaces(st, p, heightAt), walk = walkFaces(st, p, heightAt, made);
+  // the island, when the recipe has one: its high side by default to the left of the wide view, which sees both shores
+  const S = p.recipe.island ? islandOf(p, p.recipe.island, Math.atan2(-p.join.N[0], p.join.N[1])) : null;
+  const shore = S ? islandGround(groundOf(p, seed), S) : null;
+  if (S && S.geology) S.geo = islandGeology(st, S, shore, seed);
+  const heightAt = S ? (S.geo ? S.geo.ground : shore) : groundOf(p, seed), ground = groundFaces(st, p, heightAt, S), walk = walkFaces(st, p, heightAt, made, !!S && S.walk === 'base');
   const built = [...p.tiers.filter((t) => t.form === 'tower').flatMap((t) => towerFaces(t, made, seed)), ...p.links.filter((L) => L.via === 'climb').flatMap((L) => ladderFaces(L.climb, made))];
   // a few boulders round the first tier's foot, off the approach
   const t0 = p.tiers[0], c = t0.centre, foot = t0.form === 'mound' ? t0.foot : t0.half * 2, rocks = [];
@@ -223,19 +297,30 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     if (toSeam < 3 || (p.join.site && y < p.join.site.D + 2)) continue;
     rocks.push(boulderFaces(st, { x: r5(x), y: r5(y), z0: heightAt(x, y), size: 2 + Math.floor(3 * hash3(i, 7, seed + 405)), v: i }, seed));
   }
+  // the talus's scree on a geology island: the fragments the faces shed, small boulders on the apron
+  if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed)));
   const solid = [...ground.faces, ...walk.faces, ...walk.wall, ...built, ...rocks.flatMap((b) => [...b.sides, ...b.cap])];
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), shadow = makeSunShadow(solid, dir, { cell: 0.6 });
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const reach = (q, nn) => Math.max(0, dot(nn, dir)) * shadow(add(q, mul(nn, 0.05)), nn), lit = (q, nn) => reach(q, nn) >= st.cel;
+  // the polygon land (`shading`): no tiles on the land, rock baked flat per facet, the rest smoothed, then the rules
+  const SH = p.recipe.shading || null;
+  const mid = (ramp) => ramp[Math.floor(ramp.length / 2)].map((v) => v / 255);
+  const landTint = SH ? { 'isekai:cliff': mid(st.palette.rock), 'isekai:rock': mid(st.palette.rock), 'isekai:ground': mid(st.palette.grass), 'isekai:sand': mid(st.palette.sand || st.palette.soil), 'isekai:trail': mid(st.palette.soil) } : null;
+  const asRock = (f) => { const { cel: _c, celN: _n, size: _s, uv: _u, ...rest } = f; return { ...rest, tint: landTint[f.group] }; };
   // the pixel-locked faces: the cel band is the choice of tile
   const cel = [];
   const draw = (f, tile, isLit) => { const { cel: _c, celN: _n, size: _s, ...rest } = f; cel.push({ ...rest, texture: isekaiKeyOf(st, tile, isLit), fill: stopFill(st, tile, isLit) }); };
-  for (const f of [...ground.faces, ...walk.wall]) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN));
-  for (const b of rocks) { for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal)); for (const f of b.cap) draw(f, 'hat', lit(mean(f.corners), f.normal)); }
+  const rockFaces = [];
+  if (SH) for (const f of [...ground.faces.filter((g) => g.cel === 'cliff'), ...walk.wall.filter((g) => g.cel === 'cliff'), ...rocks.flatMap((b) => [...b.sides, ...b.cap])]) rockFaces.push(asRock(f));
+  else {
+    for (const f of [...ground.faces, ...walk.wall]) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN));
+    for (const b of rocks) { for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal)); for (const f of b.cap) draw(f, 'hat', lit(mean(f.corners), f.normal)); }
+  }
   // grass: crossed blade cards on the level ground, the band by the shadow at the root
   const G = st.grass.cards;
   ground.faces.forEach((f, i) => {
-    if (f.cel || f.flat < 0.9 || hash3(i, 11, seed + 421) > 0.3) return;
+    if (SH || f.cel || f.group !== 'isekai:ground' || f.flat < 0.9 || hash3(i, 11, seed + 421) > 0.3) return;
     const q = mean(f.corners), h = G.height * (0.6 + 0.6 * hash3(i, 13, seed + 423)), raw = [], lt = shadow([q[0], q[1], q[2] + 0.3], [0, 0, 1]) > 0;
     crossed(raw, [q[0], q[1], q[2] - 0.03], Math.PI * hash3(i, 17, seed + 427), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
     for (const { tint, textureLit, ...g } of raw) cel.push({ ...g, fill: stopFill(st, 'blades', lt) });
@@ -243,8 +328,16 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   // the bake, then the lock: the land to the card's ramps, what people build to the kit's made ramps
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   const plain = [...ground.faces.filter((f) => !f.cel).map(({ flat, ...f }) => f), ...walk.faces, ...built];
-  const baked = bakeStageLight(plain, [], ambient, undefined, sun);
-  const faces = lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (st.lock[f.group] ? st.palette[st.lock[f.group]] : null));
+  let baked, land = [];
+  if (SH) {
+    const isLand = (f) => f.group in landTint;
+    const soft = plain.filter(isLand).map((f) => ({ ...f, tint: landTint[f.group] }));
+    land = ruleLand(bakeLand([...soft, ...rockFaces], ambient, sun, SH), SH, landTint);
+    baked = bakeStageLight(plain.filter((f) => !isLand(f)), [], ambient, undefined, sun);
+  } else baked = bakeStageLight(plain, [], ambient, undefined, sun);
+  // sand takes the trail's ramp: a card has no sand of its own yet
+  const lockOf = (g) => st.lock[g === 'isekai:sand' ? 'isekai:trail' : g];
+  const faces = [...land, ...lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (lockOf(f.group) ? st.palette[lockOf(f.group)] : null)), ...(S ? seaFaces(st, S, heightAt, ground.grid) : [])];
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(blades)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // the frames: from the seam to the top; the whole level from off its flank; at each climb; from the top back
   const J = p.join, eye = [J.at[0], J.at[1], J.at[2] + 1.7], top = p.top, sky = st.palette.sky;

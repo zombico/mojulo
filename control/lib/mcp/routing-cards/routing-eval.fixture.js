@@ -30,6 +30,9 @@ export const FIXTURE = [
   ['build me a little town I can wander around in', 'compose_world'],
   ['turn my mountain painting into a world I can walk and fly over', 'compose_world'],
   ['a continent with a huge river running to the sea that I can fly over', 'compose_world'],
+  // geocube: a level's look forged first, its room and island checked, then the level built on it
+  ['I want a moody castle level where the halls and the grounds outside feel like the same game', 'create_sketch'],
+  ['before we build the level, lock down its lighting and colours so the inside and outside match', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],

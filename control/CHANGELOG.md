@@ -13,6 +13,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Geocube: one style for a level's inside and outside, and the front door for building one
+
+- **`geocube`, a world kind.** A cube is a level's core look as data: its light (a sixth-gen reference, the moon for a night outside, the outside's fog), its key colours (each a ramp), its register, its surfaces' patterns, the bones of its inside, the base of its outside and its principles, one line each. `{ kind: 'geocube', cube, show: 'room' | 'land' }` shows one of its two specimens: a bare room (the bones, an accent wall) or an island landform. `cube` is a preset (`gothic-night`, `island-noon`, `jungle-haze`) or a whole document; a document is checked key by key.
+- **A stage builds on a cube.** A `stage` recipe's `geocube` lowers the cube under the recipe's own keys: the kit, reference, tone and tiles of the inside, or (with `meru`) the outside's look card, its land ramps, light and air. What the recipe says wins, so the next step varies the cube instead of restyling the level.
+- **`meru.shading`: the land lit by polygons.** Cliffs and boulders are baked, not drawn as lit and shaded tiles; rock is lit once per facet; ground and sand are smoothed across the grid; the land keeps its continuous light instead of the card's bands; and three rules read from the land's own shape go into its corner colours: `crevice` darkens what is concave toward the cube's shade colour (never black), `ridge` lifts a convex lip, `blend` carries a neighbouring surface's colour over a seam. A cube's outside has it on. Absent, the land builds as before.
+- **Routing.** A level with its own look (rooms, open land, an island) starts from a geocube: the studio index, the world card and a new `geocube` card say so.
+
+### Geocube specimens: a room's bare bones and an island to check terrain on
+
+- **`dress: false` on a stage** builds the kit's bones only: the walls, floor, vault, trim and torch seats, with no set
+  piece, accent wall, doodads or blends. A room specimen of structure and light before anything is placed in it.
+  Absent, the kit is dressed as before.
+- **`island` on a local meru** sets it in a sea. Past the shore the plain falls to a seabed under a translucent water
+  sheet, clear over the shallows and deep over the bed. On the low side the shore is a sand beach; on the `high` side
+  the land stands up and drops straight in, and the cliff rule paints the drop as rock. `island: true` takes the
+  defaults (`shore`, `beach`, `sea`, `depth`, `high: { azimuth, height, span }`). Without it, a meru builds byte for
+  byte as before.
+- **`island.geology: true`** runs the raised land (the mountain and the high shore) through the card's landform, as
+  the nature shell runs its cliff, without the beds: joints break it into planar facets and talus sheds scree, so the
+  mountain, the shore and the boulders are one faceted rock.
+  Every face of the raised land that is not a flat bench or top is rock, so a mountain never reads as a turned mound.
+  **`island.walk: 'base'`** draws only the approach to the mountain's foot, no way up it.
+
 ### Cosmos cube: a game as six facets, and a dry run of what the builder can make
 
 - **Six facets.** A cosmos cube describes a game as six facets:
