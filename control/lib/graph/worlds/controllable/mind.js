@@ -109,7 +109,7 @@ export function buildMind(E) {
     if (e.phaseShiftT != null) {
       e.phaseShiftT -= dt;
       if (e.phaseShiftT > 0) { e.moving = false; e.invincible = true; e.locomotion = 'phase_shift'; return true; }
-      e.phaseShiftT = null; if (e.cineT == null) e.invincible = false;
+      e.phaseShiftT = null; e.locomotion = 'forward'; if (e.cineT == null) e.invincible = false;
     }
     const ps = phasesOf(r.mind);
     if (!ps.length || !(e.hpMax > 0) || !e.body || e.downed) return false;
@@ -320,6 +320,7 @@ export function buildMind(E) {
     const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
     if (world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.colliders)) return false;
     e.lastSeen = { pos: [q[0], q[1], q[2]], t: now, id: target.id };
+    if (e.searchT != null && e.locomotion === 'search') e.locomotion = 'forward';
     e.searchT = null;
     return true;
   }
@@ -337,7 +338,7 @@ export function buildMind(E) {
       return true;
     }
     e.searchT = (e.searchT || 0) + dt;
-    if (e.searchT > (r.searchTime ?? 3)) { e.lastSeen = null; e.searchT = null; return false; }
+    if (e.searchT > (r.searchTime ?? 3)) { e.lastSeen = null; e.searchT = null; e.locomotion = 'forward'; return false; }
     turnToward(t, (e.searchFrom ?? t.heading) + Math.sin(e.searchT * 2.1) * 1.4, r, dt);
     e.moving = false; e.locomotion = 'search';
     return true;
@@ -393,7 +394,11 @@ export function buildMind(E) {
   // speed, a pause between legs (`pause` [lo, hi] s); during a pause it holds `pauseLoco` when one is given.
   function wanderStep(e, r, dt, world, o) {
     const t = e.transform, home = homeOf(e, r);
-    if (e.wanderPauseT > 0) { e.wanderPauseT -= dt; e.moving = false; if (o.pauseLoco) e.locomotion = o.pauseLoco; return; }
+    if (e.wanderPauseT > 0) {
+      e.wanderPauseT -= dt; e.moving = false;
+      if (o.pauseLoco) e.locomotion = e.wanderPauseT > 0 ? o.pauseLoco : 'forward';
+      return;
+    }
     if (!e.wanderGoal) {
       const n = e.wanderN = (e.wanderN || 0) + 1;
       const a = hash01(e.id, 2 * n) * TAU, d = Math.sqrt(hash01(e.id, 2 * n + 1)) * (r.wanderRadius ?? 12);
@@ -415,7 +420,7 @@ export function buildMind(E) {
     const t = e.transform, now = (world && world.time) || 0;
     if (e.grazeT > 0) {
       e.grazeT -= dt; e.moving = false; e.locomotion = 'graze';
-      if (e.grazeT <= 0 && e.grazeFood) { (e.grazed || (e.grazed = {}))[e.grazeFood] = now; e.grazeFood = null; }
+      if (e.grazeT <= 0) { e.locomotion = 'forward'; if (e.grazeFood) { (e.grazed || (e.grazed = {}))[e.grazeFood] = now; e.grazeFood = null; } }
       return;
     }
     const home = homeOf(e, r);
@@ -575,6 +580,7 @@ export function buildMind(E) {
         e.moving = false; e.locomotion = 'warn'; e.aiFire = 0; e.reactionEnded = false;
         return;
       }
+      if (e.locomotion === 'warn') e.locomotion = 'forward';   // the warning is over: back to the fighting clips
     }
     if (e.adapt && e.adapt.foeId !== target.id) { e.adapt.foeId = target.id; e.adapt.foeHp = target.body ? target.body.hp : null; }
     // PATHING: no line to the target → walk the path round what is in the way, trigger cold

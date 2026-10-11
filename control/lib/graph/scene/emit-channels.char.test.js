@@ -87,6 +87,8 @@ import { emitThreeWorld } from './scene-three.js';
 // target, both gated on `rule.mind.perception`. Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (idle motion): the mind's idle by motivation (wander, graze, escort, the territorial warning)
 // and a `food` entity tag, all gated on `rule.mind` or the tag. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (behaviour poses end): a warning, a search, grazing and a boss's phase beat hand the clip back
+// when they end (found playing the Mind demo headless). Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

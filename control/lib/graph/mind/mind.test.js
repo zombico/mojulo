@@ -401,3 +401,24 @@ describe('idle motion: wander, graze, escort, warn (MX8)', () => {
     expect(Math.hypot(out.byId.m.transform.pos[0], out.byId.m.transform.pos[1])).toBeLessThan(13);   // it stays home
   });
 });
+
+describe('a behaviour pose ends with the behaviour (MX8 eyes-pass fix)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  it('warn, search and a boss shift hand the clip back when they end', () => {
+    const w = E.createWorld({ entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [10, 0, 0], heading: 0 } },
+      { id: 'm', rule: { type: 'ai', speed: 0, turn: 4, standoff: 6, territory: 16, warnTime: 0.5, mind: { motivation: 'territorial', aggressiveness: 'bold', rank: 'boss' } }, weapon: { fireClass: 'sight', magazine: 99, cooldown: 0.1, damage: 0, range: 200 }, body: { type: 'mesh', hittable: true, hp: 300, radius: 1 }, transform: { pos: [0, 0, 0], heading: 0 } },
+    ] });
+    const m = w.byId.m;
+    for (let i = 0; i < 10; i++) E.stepWorld(w, {}, 1 / 60, hooks);
+    expect(m.locomotion).toBe('warn');
+    for (let i = 0; i < 60; i++) E.stepWorld(w, {}, 1 / 60, hooks);
+    expect(m.locomotion).not.toBe('warn');
+    m.body.hp = 150;
+    E.stepWorld(w, {}, 1 / 60, hooks);
+    expect(m.locomotion).toBe('phase_shift');
+    for (let i = 0; i < 90; i++) E.stepWorld(w, {}, 1 / 60, hooks);
+    expect(m.locomotion).not.toBe('phase_shift');
+  });
+});
