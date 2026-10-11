@@ -37,7 +37,12 @@ export function buildingSays(read) {
   if (!read) return {};
   if (read.occupancy) {
     const g = read.grade || {};
-    return { subject: read.subject, occupancy: read.occupancy.id, grade: { score: g.score, ...(g.violations?.length ? { findings: g.violations.slice(0, 6) } : {}) } };
+    return {
+      subject: read.subject, occupancy: read.occupancy.id,
+      grade: { score: g.score, ...(g.violations?.length ? { findings: g.violations.slice(0, 6), ...(g.violations.length > 6 ? { more: g.violations.length - 6 } : {}) } : {}) },
+      ...(read.capacity?.seats ? { seats: read.capacity.seats, occupantLoad: read.capacity.occupantLoad } : {}),
+      rooms: read.rooms.length,
+    };
   }
   return { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) };
 }

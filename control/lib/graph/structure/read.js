@@ -188,7 +188,10 @@ export function readStructure(m = {}) {
   const opening = (x, extra) => ({
     id: x.id, host: wallTag.get(x.host), storey: storeyIndex.get(x.storey), width: x.width, height: x.height, sill: r2(x.sill),
     exterior: x.exterior, at: { x: r2(x.at.x), y: r2(x.at.y) },
-    connects: x.connects.map((id) => roomTag.get(id)).filter(Boolean), ...extra,
+    connects: x.connects.map((id) => roomTag.get(id)).filter(Boolean),
+    // a commercial building's cased openings (a storefront, a kitchen pass) are openings, not leaves that swing
+    ...(!isHouse && x.type === 'door' && (x.style === 'cased' || x.width > 8) ? { cased: true } : {}),
+    ...extra,
   });
   const doors = doorsRaw.map((x) => opening(x, { tag: doorTags.get(x.id).tag, serves: roomTag.get(doorTags.get(x.id).serves) ?? null, entry: x.entry }));
   const windows = windowsRaw.map((x) => opening(x, { tag: windowTypes.typeOf.get(x.id), mark: `WN${++winSeq}` }));
@@ -213,10 +216,15 @@ export function readStructure(m = {}) {
   });
 
   // ── rooms as cards: their bounding elements, openings and objects ──
+  // a mall's rooms say whose they are: the bay (the index `cards` takes) and its card
+  const units = P?.extra?.units || [];
+  const unitOf = (s) => { const L = storeyIndex.get(s.storey), c = { x: s.footprint.x + s.footprint.w / 2, y: s.footprint.y + s.footprint.h / 2 }; return units.find((u) => u.level === L && inRect(c, u.rect)) || null; };
   const rooms = model.spaces.map((s) => {
     const tag = roomTag.get(s.id);
+    const unit = unitOf(s);
     return {
-      tag, id: s.id, storey: storeyIndex.get(s.storey), name: s.name, role: s.role, glyph: s.glyph ?? null,
+      tag, id: s.id, storey: storeyIndex.get(s.storey), name: unit ? `${unit.card.toLowerCase()} ${s.name} (bay ${unit.bay})` : s.name, role: s.role, glyph: s.glyph ?? null,
+      ...(unit ? { unit: { bay: unit.bay, kind: unit.kind, card: unit.card } } : {}),
       rect: { x: r2(s.footprint.x), y: r2(s.footprint.y), w: r2(s.footprint.w), h: r2(s.footprint.h) }, area: s.area,
       needsWindow: s.needsWindow,
       walls: s.bounds.map((id) => wallTag.get(id)),
@@ -289,13 +297,24 @@ export function readStructure(m = {}) {
     }),
     roof: isHouse ? roofOf(m, house, o) : null,
     // the escalators and lifts a commercial stack climbs by (a house climbs by its stairs)
-    ...(!isHouse && model.verticals.length ? { verticals: model.verticals.map((v, i) => ({ tag: `${v.kind === 'elevator' ? 'EL' : 'ES'}${i + 1}`, kind: v.kind, from: storeyIndex.get(v.fromStorey), to: storeyIndex.get(v.toStorey), links: [...v.links.lower, ...v.links.upper].map((id) => roomTag.get(id)).filter(Boolean) })) } : {}),
+    ...(!isHouse && model.verticals.length ? { verticals: model.verticals.map((v, i) => {
+      const at = P.extra.verticalRects?.[v.kind];
+      return {
+        tag: `${v.kind === 'elevator' ? 'EL' : 'ES'}${i + 1}`, kind: v.kind, from: storeyIndex.get(v.fromStorey), to: storeyIndex.get(v.toStorey),
+        links: [...v.links.lower, ...v.links.upper].map((id) => roomTag.get(id)).filter(Boolean),
+        // where it stands in plan: the escalator pair (each with its direction), the lift shafts
+        ...(at ? { rects: at.map((r) => ({ ...rectOf(r), ...(r.dir ? { dir: r.dir } : {}) })) } : {}),
+      };
+    }) } : {}),
+    ...(!isHouse && P.extra.verticalRects?.void ? { voids: [{ tag: 'AT1', name: 'atrium', from: 0, to: 1, rect: rectOf(P.extra.verticalRects.void) }] } : {}),
   };
 
   const fp = house.footprint;
   const out = {
     units: FLOORPLAN_UNITS, title: m.title ?? null, stacked,
     ...(!isHouse ? { occupancy: { id: occ.id, label: occ.label, group: occ.group, name: occ.name } } : {}),
+    ...(!isHouse && P.extra.capacity ? { capacity: P.extra.capacity } : {}),
+    ...(!isHouse && P.extra.parcel ? { parcel: P.extra.parcel } : {}),
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
     subject, storeys, rooms, elements,
     ...(program ? { program } : {}),

@@ -69,6 +69,7 @@ export const escAttr = (s) => esc(s).replace(/"/g, '&quot;');
 
 /** Architectural scales: the name a set prints and its ratio (1/4" = 1'-0" is 1:48). */
 export const SCALES = {
+  '1/32': { name: '1/32" = 1\'-0"', ratio: 384 },
   '1/16': { name: '1/16" = 1\'-0"', ratio: 192 },
   '3/32': { name: '3/32" = 1\'-0"', ratio: 128 },
   '1/8': { name: '1/8" = 1\'-0"', ratio: 96 },
@@ -79,11 +80,13 @@ export const SCALES = {
   '1:50': { name: '1:50', ratio: 50, metric: true },
   '1:100': { name: '1:100', ratio: 100, metric: true },
   '1:200': { name: '1:200', ratio: 200, metric: true },
+  '1:500': { name: '1:500', ratio: 500, metric: true },
 };
 
 /** The largest standard scale at which `extentFt` (w, h) fits `boxMm` (w, h) on the sheet. */
 export function fitScale(extentFt, boxMm, units = 'imperial') {
-  const keys = units === 'metric' ? ['1:50', '1:100', '1:200'] : ['1/2', '3/8', '1/4', '3/16', '1/8', '3/32', '1/16'];
+  // the smallest (1/32", 1:500) is for a building the size of a mall: a house fits long before it
+  const keys = units === 'metric' ? ['1:50', '1:100', '1:200', '1:500'] : ['1/2', '3/8', '1/4', '3/16', '1/8', '3/32', '1/16', '1/32'];
   for (const k of keys) {
     const mmPerFt = 304.8 / SCALES[k].ratio;
     if (extentFt[0] * mmPerFt <= boxMm[0] && extentFt[1] * mmPerFt <= boxMm[1]) return k;

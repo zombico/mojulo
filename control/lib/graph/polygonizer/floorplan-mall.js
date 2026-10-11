@@ -341,7 +341,7 @@ function buildGlassElevator(rect, z0, z1, cabZ) {
  * escalator pair and the elevator bank, both landing on the concourse): the level-stack shape buildElementModel reads,
  * for the structure reader. The world reads only the faces.
  *
- * @returns {{ faces, footprint, plans, bays, voidRect, levels, transports }}
+ * @returns {{ faces, footprint, plans, bays, voidRect, levels, transports, verticalRects }}
  */
 export function buildMallTwoLevel(input = {}, opts = {}) {
   const o = { ...MALL_OPTS, ...opts };
@@ -404,6 +404,12 @@ export function buildMallTwoLevel(input = {}, opts = {}) {
       { fromStorey: 0, toStorey: 1, role: 'concourse', kind: 'escalator' },
       { fromStorey: 0, toStorey: 1, role: 'concourse', kind: 'elevator' },
     ],
+    // where they stand in plan (feet): the escalator pair (up, down), the lift shafts, the atrium void
+    verticalRects: {
+      escalator: [{ x0: cxm - 4.6, x1: cxm - 0.7, y0: yBot, y1: yTop, dir: 'up' }, { x0: cxm + 0.7, x1: cxm + 4.6, y0: yBot, y1: yTop, dir: 'down' }],
+      elevator: elevRects,
+      void: voidRect,
+    },
   };
 }
 

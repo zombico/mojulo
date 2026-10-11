@@ -50,10 +50,11 @@ describe('a commercial building, read as what it is', () => {
       for (const house of ['dwelling', 'egress', 'fixture-clearance', 'walkway']) expect(rules.has(house), house).toBe(false);
     });
 
-    it(`${k}: rooms named by role, the costume glyph never shown`, () => {
+    it(`${k}: rooms named by role (a mall's by its bay and card too), the costume glyph never shown`, () => {
       for (const room of r.rooms) {
         expect(room.name, room.tag).not.toMatch(HOUSE_WORDS);
-        expect(room.name).toBe(roleName(room.role, room.name));
+        const role = roleName(room.role, room.name);
+        expect(room.name).toBe(room.unit ? `${room.unit.card.toLowerCase()} ${role} (bay ${room.unit.bay})` : role);
       }
     });
 
@@ -96,6 +97,64 @@ describe('a commercial building, read as what it is', () => {
 
   it("a carded mall's shop keeps its own restroom: it is not a unit without a storefront", () => {
     expect(reads.mall.grade.findings.filter((f) => f.id === 'storefront-on-concourse')).toEqual([]);
+  });
+});
+
+describe('what the cold agents could not see, said', () => {
+  it("a fit-out that gave fixtures up to fit says so: the grade advises, never a silent 100%", () => {
+    const fit = reads.mall.grade.findings.filter((f) => f.id === 'fit-out');
+    expect(fit.length).toBeGreaterThan(0);
+    expect(fit[0].detail).toMatch(/^bay \d+: .+ (left out|downsized to .+|shortened|split in two) to fit \(|^bay \d+: the .+ cell did not fit$/);
+    expect(reads.mall.grade.score).toBeLessThan(1);
+  });
+
+  it("a mall's rooms say whose they are: the bay `cards` takes, its kind and its card", () => {
+    const anchors = reads.mall.rooms.filter((r) => r.unit?.kind === 'anchor');
+    expect(new Set(anchors.map((r) => r.unit.bay))).toEqual(new Set([0, 1]));
+    const wine = readStructure({ ...BUILDINGS.mall, cards: { 3: 'wine-bar' } }).rooms.filter((r) => r.unit?.bay === 3);
+    expect(wine.length).toBeGreaterThan(0);
+    for (const r of wine) expect(r.unit.card).toBe('Wine bar');
+  });
+
+  it('a two-level mall draws its escalators, lifts and atrium, tagged, and lists them with its elements', () => {
+    const r = reads.mall2;
+    expect(r.elements.verticals.map((v) => v.rects.length)).toEqual([2, 2]);
+    expect(r.elements.voids).toMatchObject([{ tag: 'AT1', from: 0, to: 1 }]);
+    const [l1, l2] = drawingSet(r).filter((s) => /^A-10/.test(s.id));
+    for (const sh of [l1, l2]) expect(sh.svg).toMatch(/data-tag="ES1"[\s\S]*data-tag="EL2"/);
+    expect(l1.svg).toContain('>UP<');
+    expect(l2.svg).toContain('AT1 OPEN TO BELOW');
+    expect(structureBookHtml(BUILDINGS.mall2, { read: r })).toContain('Slabs, voids, escalators and lifts');
+  });
+
+  it("a storefront is drawn as a cased opening, not a leaf that swings across the floor", () => {
+    const entry = reads.store.elements.doors.find((d) => d.width > 8);
+    expect(entry.cased).toBe(true);
+    const plan = drawingSet(reads.store).find((s) => s.id === 'A-101').svg;
+    expect(plan).toContain(`class="s-door s-cased" data-tag="${entry.tag}"`);
+  });
+
+  it('a restaurant says its seats as laid and the occupant load, and the lot its walls stand in from', () => {
+    const r = reads.restaurant;
+    expect(r.capacity.seats).toBeGreaterThan(0);
+    expect(r.capacity.occupantLoad).toBeGreaterThan(r.capacity.seats);
+    expect(r.parcel).toEqual({ width: 48, height: 64, inset: 2 });
+    const html = structureBookHtml(BUILDINGS.restaurant, { read: r });
+    expect(html).toContain(`${r.capacity.seats} seats as laid`);
+    expect(html).toContain('lot, the walls 2&#39;-0&quot; in from it'.replace('&#39;', "'"));
+  });
+
+  it("a commercial book offers no IFC, and a room that needs no window is never told it needs one", () => {
+    const html = structureBookHtml(BUILDINGS.store, { read: reads.store });
+    expect(html).not.toContain("format: 'ifc'");
+    expect(html).not.toContain('needs one');
+  });
+
+  it('fixtures carry one mark each and are named in words', () => {
+    const r = readStructure({ kind: 'store', card: 'wine-bar' });
+    const marks = new Map(r.objects.types.map((t) => [t.type, t.tag.split('-')[0]]));
+    expect(marks.get('back-bar')).toBe('BB');
+    expect(marks.get('banquette')).toBe('BQ');
   });
 });
 
@@ -150,8 +209,8 @@ describe('the book, the sheets and the tables read it', () => {
 
 describe('Open and next: what the program adds, taught by one card', () => {
   it('a one-level mall offers its upper floor; a bare mall its cards; a store its cast; all the drawing set', () => {
-    expect(nextSteps(BUILDINGS.mall, reads.mall).map((s) => s.id)).toEqual(['upper-floor', 'sheets']);
-    expect(nextSteps(BUILDINGS.mall2, reads.mall2).map((s) => s.id)).toEqual(['sheets']);
+    expect(nextSteps(BUILDINGS.mall, reads.mall).map((s) => s.id)).toEqual(['upper-floor', 'program-rules', 'sheets']);   // its small bays gave fixtures up
+    expect(nextSteps(BUILDINGS.mall2, reads.mall2).map((s) => s.id)).toEqual(['program-rules', 'sheets']);
     const bare = { ...BUILDINGS.mall, cards: false };
     expect(openConcerns(bare, readStructure(bare)).map((c) => c.id)).toContain('fit-out');
     const noCast = { ...BUILDINGS.apparel, cast: false };

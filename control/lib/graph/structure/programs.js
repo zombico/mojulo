@@ -55,10 +55,22 @@ export const ROLE_NAMES = Object.freeze({
 
 export const roleName = (role, fallback) => ROLE_NAMES[role] ?? (role ? String(role).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase() : fallback);
 
+/**
+ * A store card's fixture archetypes as a schedule names them: the item in words and its mark (two or three letters,
+ * one per archetype, so a back bar and a banquette never share one). An archetype not listed reads as its own words.
+ */
+export const FIXTURE_MARKS = Object.freeze({
+  backBar: 'BB', banquette: 'BQ', counter: 'CO', gondola: 'GO', rackRun: 'RR', hangerRun: 'HR', shelfWall: 'SW',
+  fridgeCase: 'FC', queueRail: 'QR', pendantRow: 'PR', wallArt: 'WA', podium: 'PO', tableSet: 'TS', stool: 'ST',
+  plant: 'PL', tillPoint: 'TP', stockShelf: 'SS', fittingBench: 'FB', mirror: 'MI', boothSeat: 'BS', toilet: 'WC',
+  vanity: 'LAV', mannequin: 'MQ',
+});
+const kebab = (s) => String(s).replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+
 // a fit-out placement (a rect in its frame's local feet) as a plan piece on its storey
-const framed = (frame, p, type, baseZ, extra = {}) => {
+const framed = (frame, p, archetype, baseZ) => {
   const w = frame.aabb(p);
-  return { source: 'fixture', type, rect: { x: r2(w.x0), y: r2(w.y0), w: r2(w.x1 - w.x0), h: r2(w.y1 - w.y0) }, baseZ, ...extra };
+  return { source: 'fixture', type: kebab(archetype), ...(FIXTURE_MARKS[archetype] ? { code: FIXTURE_MARKS[archetype] } : {}), rect: { x: r2(w.x0), y: r2(w.y0), w: r2(w.x1 - w.x0), h: r2(w.y1 - w.y0) }, baseZ };
 };
 
 /** A store's fit-out (from a concept card): the sales-floor fixtures, the furnished back cells, the cast. */
@@ -70,6 +82,30 @@ function fitOutPieces(store, baseZ = 0) {
   for (const p of fitOut.cellPlacements || []) out.push(framed(p.frame, p, p.archetype, baseZ));
   for (const c of fitOut.cast || []) out.push(framed(salesFrame, c, c.archetype, baseZ));
   return out;
+}
+
+/**
+ * What fitting a card into its unit cost, as advisories: each fixture the degrade pass shed, downsized, trimmed or
+ * split, and each back cell that did not fit. The card's assessment grades what was built; these say what was given
+ * up to build it, so a clean grade never hides a fixture that is gone. `at` names the unit (a mall's bay).
+ */
+function fitFindings(store, sub, at = '') {
+  const out = [];
+  const where = at ? `${at}: ` : '';
+  for (const a of store?.fitOut?.report?.degraded || []) {
+    if (a.action === 'shift') continue;   // moved, still there
+    const what = a.action === 'shed' ? 'left out' : a.action === 'downsize' ? `downsized to ${a.to}` : a.action === 'trim' ? 'shortened' : 'split in two';
+    out.push({ id: 'fit-out', register: 'retail', severity: 'preferential', at, detail: `${where}${kebab(a.archetype).replace(/-/g, ' ')} ${what} to fit (${a.why})` });
+  }
+  for (const c of sub?.shed || []) out.push({ id: 'fit-out', register: 'retail', severity: 'preferential', at, detail: `${where}the ${kebab(c).replace(/-/g, ' ')} cell did not fit` });
+  return out;
+}
+
+const BAY_KIND = { anchor: 'anchor', tenant: 'shop', foodCourt: 'food court' };
+
+/** A mall's units: each carded bay on its level, by the index `cards` takes, with its card. */
+function mallUnits(bays, level) {
+  return bays.map((b) => ({ level, bay: b.index, kind: BAY_KIND[b.room.role] || b.room.role, card: b.card.label || b.card.id, rect: { x: b.unitRect.x0, y: b.unitRect.y0, w: b.unitRect.x1 - b.unitRect.x0, h: b.unitRect.y1 - b.unitRect.y0 } }));
 }
 
 const level = (index, role, baseZ, height, s) => ({ index, role, baseZ, height, structure: { wallGraph: s.wallGraph, cells: s.cells, slabHoles: s.slabHoles || [] } });
@@ -94,7 +130,7 @@ export function buildProgram(m) {
       objects: fitOutPieces(s, 0),
       stacked: false,
       opts: { ...FLOORPLAN_DEFAULTS, wallHeight: s.height },
-      extra: { assessment: assessStoreConcept(cardUsed, s), card: card.id },
+      extra: { assessment: assessStoreConcept(cardUsed, s), fit: fitFindings(s, s.sub), card: card.id },
     };
   }
 
@@ -107,7 +143,14 @@ export function buildProgram(m) {
       objects: held.objects.map((p) => ({ source: 'fixture', type: p.type, code: p.code, rect: { x: r2(p.rect.x0), y: r2(p.rect.y0), w: r2(p.rect.x1 - p.rect.x0), h: r2(p.rect.y1 - p.rect.y0) }, baseZ: p.baseZ })),
       stacked: false,
       opts: { ...FLOORPLAN_DEFAULTS, ...held.opts },
-      extra: { seats: r.program?.seats ?? null },
+      extra: {
+        // the seats as laid (the kernel's own count: a chair, a stool, a banquette place) and the occupant load the
+        // floor would be posted for: IBC Table 1004.5, assembly unconcentrated (tables and chairs) at 15 sq ft net per
+        // person in the dining room, kitchens at 200 gross
+        capacity: { seats: r.program?.seats ?? null, occupantLoad: Math.ceil((r.rooms.dining.w * r.rooms.dining.h) / 15) + Math.ceil((r.rooms.kitchen.w * r.rooms.kitchen.h) / 200), basis: 'IBC 1004.5: dining 15 sq ft net per person (tables and chairs), kitchen 200 gross' },
+        // the lot it was asked for, and how far its walls stand in from it
+        parcel: { width: m.width ?? 48, height: m.height ?? 64, inset: m.inset ?? 2 },
+      },
     };
   }
 
@@ -119,7 +162,11 @@ export function buildProgram(m) {
       objects: b.levels.flatMap((l) => l.bays.flatMap((bay) => fitOutPieces(bay.store, l.baseZ))),
       stacked: true,
       opts: { ...FLOORPLAN_DEFAULTS, ...m, wallHeight: b.levels[0].height },
-      extra: {},
+      extra: {
+        units: b.levels.flatMap((l) => mallUnits(l.bays, l.index)),
+        fit: b.levels.flatMap((l) => l.bays.flatMap((bay) => fitFindings(bay.store, bay.sub, `L${l.index + 1} bay ${bay.index}`))),
+        verticalRects: b.verticalRects,
+      },
     };
   }
   const b = buildMall(m, { ...m });
@@ -129,7 +176,7 @@ export function buildProgram(m) {
     objects: (b.bays || []).flatMap((bay) => fitOutPieces(bay.store, 0)),
     stacked: false,
     opts: o,
-    extra: {},
+    extra: { units: mallUnits(b.bays || [], 0), fit: (b.bays || []).flatMap((bay) => fitFindings(bay.store, bay.sub, `bay ${bay.index}`)) },
   };
 }
 
@@ -138,7 +185,7 @@ export function buildProgram(m) {
 export function nameSpacesByRole(model) {
   for (const s of model.spaces) {
     s.name = roleName(s.role, s.name);
-    s.needsWindow = 'no';
+    s.needsWindow = null;
   }
   return model;
 }
@@ -161,6 +208,7 @@ export function programGrade(model, schedules, occ, extra = {}) {
   const prog = occ.program && PROGRAMS[occ.program];
   if (prog) for (const rule of prog.rules) { const f = rule(model); if (f) findings.push({ id: f.id, register: f.register, severity: f.severity, detail: f.detail }); }
   for (const f of extra.assessment?.findings || []) findings.push({ id: f.id, register: f.register, severity: f.severity, detail: f.detail });
+  for (const f of extra.fit || []) findings.push(f);
   const rules = findings.filter((f) => f.id !== 'reachability');
   const inv = rules.filter((f) => f.severity === 'invariant').length, pref = rules.length - inv;
   const n = model.spaces.length;

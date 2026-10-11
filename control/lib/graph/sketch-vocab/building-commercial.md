@@ -14,6 +14,13 @@ no egress windows, no "is it livable".
    (default 48 × 64), a mall's `width` × `height` (default 64 × 120).
 3. **Fitted out?** A store and each mall bay are fit out from cards (`card`, `cards`; `cards: false` leaves the
    bays bare). The restaurant furnishes its dining room, kitchen and restroom itself.
+   - A mall's `cards` takes a store type (`apparel`, `electronics`, `cafe`, `bookstore`, `homewares`, `food`,
+     `department`) or a bay index. The book names every room by its bay: the anchors are bays 0 and 1, the shops
+     follow. One index sets that bay on both levels.
+   - A small bay or lot fits a card by giving fixtures up. Each one given up is a `fit-out` advisory in the grade
+     (and the readout's `grade.findings`): grow the `width` / `height`, or set `degrade: false` on a store to see the
+     raw card graded.
+   - The seeded cards (`bookstore`, `wine-bar`, …) are data the `store` card describes, not vocab cards of their own.
 
 ```json
 { "kind": "store", "title": "Pages", "card": "bookstore", "width": 26, "depth": 44 }
@@ -23,7 +30,8 @@ no egress windows, no "is it livable".
 
 ## What the book shows
 
-- **Cover**: the occupancy (store and mall: mercantile, M; restaurant: assembly, A-2), levels, rooms, the grade.
+- **Cover**: the occupancy (store and mall: mercantile, M; restaurant: assembly, A-2), levels, rooms, the grade; a
+  restaurant's seats as laid and its occupant load (IBC 1004.5), and the lot its walls stand 2 ft in from.
 - **Plan**: A-10x per level; the grade is reachability (a door into every space) and the program's rules, in words:
   - restaurant: the restroom is reached without walking through the kitchen; the kitchen has its own service exit;
   - mall: every unit has a storefront on the concourse; the restrooms are reached without walking through a shop;
@@ -32,15 +40,15 @@ no egress windows, no "is it livable".
   - store: the card's own assessment (entry decompression, aisles, the cash wrap's sightline, fixture overlap).
 - **Rooms**: named by role: sales floor, stock room, fitting room, booth, restroom; dining room, kitchen; concourse,
   tenant bay, anchor store, food court.
-- **Elements**: walls by type, doors tagged by the room they serve, windows, slabs; a mall's escalators (ES) and
-  lifts (EL).
+- **Elements**: walls by type, doors tagged by the room they serve (a storefront drawn as a cased opening),
+  windows, slabs; a two-level mall's atrium (AT), escalators (ES) and lifts (EL), drawn on its plans.
 - **Objects**: the fit-out as tagged pieces (gondolas, racks, counters, podiums, tables, chairs, the cook line,
   stalls), each in its room, on the plan sheet and in the FF&E schedule.
 
 ## Getting them out
 
 - `export_model({ ref, format: 'sheets' })`: the drawing set as SVG; `format: 'schedules'`: every table as CSV and
-  JSON; `format: 'glb'`: the walkable model.
+  JSON; `format: 'glb'`: the walkable model. No IFC yet: that is a house's.
 
 ## Laws
 

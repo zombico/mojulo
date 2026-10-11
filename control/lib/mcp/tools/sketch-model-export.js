@@ -272,7 +272,7 @@ async function structureExport(input, context, format) {
     files = set.files;
     result = {
       ok: true, ref, kind, format, sheets: set.index, framed: !!read.construction,
-      note: `${set.index.length} sheets as SVG at ANSI B (17 x 11 in), NCS sheet ids, bound civil, structural, architectural, plumbing, electrical; sheets/INDEX.md lists them. A sheet appears when the recipe has what it draws (framing adds S-, wiring E-, drainage P-sheets). Print at 100%. PDF is not written.`,
+      note: `${set.index.length} sheets as SVG at ANSI B (17 x 11 in), NCS sheet ids, bound by discipline (${[['C', 'civil'], ['S', 'structural'], ['A', 'architectural'], ['P', 'plumbing'], ['E', 'electrical']].filter(([d]) => set.index.some((x) => x.id.startsWith(`${d}-`))).map(([, w]) => w).join(', ')}); sheets/INDEX.md lists them. A sheet appears when the recipe has what it draws (framing adds S-, wiring E-, drainage P-sheets). Print at 100%. PDF is not written.`,
     };
   } else {
     files = scheduleFiles(named);

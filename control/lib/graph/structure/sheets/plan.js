@@ -6,6 +6,8 @@
  *   doors      the leaf at 90° and its swing arc, into the room the door serves
  *   windows    the jambs and two glass lines across the wall
  *   stairs     the flight under the void it rises through (UP), the void above it on the next storey (DN)
+ *   verticals  a commercial stack's escalators (UP / DN by direction) and lift shafts (a crossed shaft), and the
+ *              atrium void on the level it opens (OPEN TO BELOW); each tagged (ES1, EL2, AT1)
  *   objects    projected outlines (a rug hidden), tagged by FF&E type
  *   tags       room (name, number, area), door (101A), window type (A), wall type (1)
  *   dimensions three strings a side: the openings at their centrelines, the partitions, the overall
@@ -72,6 +74,26 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
       + `<text class="s-tb" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">${up ? 'UP' : 'DN'}</text></g>`);
   }
 
+  // ── a commercial stack's escalators, lifts and atrium ──
+  for (const v of read.elements.verticals || []) {
+    if (!v.rects || (v.from !== storeyIndex && v.to !== storeyIndex)) continue;
+    const top = v.to === storeyIndex;
+    const marks = v.rects.map((r) => {
+      const c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
+      if (v.kind === 'elevator') return `${R(r, 's-proj')}${L(r.x, r.y, r.x + r.w, r.y + r.h, 's-hid')}${L(r.x + r.w, r.y, r.x, r.y + r.h, 's-hid')}`;
+      const along = r.h >= r.w, n = Math.max(4, Math.round((along ? r.h : r.w) / 1.4));
+      const steps = Array.from({ length: n - 1 }, (_, i) => { const f = (i + 1) / n; return along ? L(r.x, r.y + f * r.h, r.x + r.w, r.y + f * r.h, top ? 's-hid' : 's-proj') : L(r.x + f * r.w, r.y, r.x + f * r.w, r.y + r.h, top ? 's-hid' : 's-proj'); });
+      return `${R(r, top ? 's-hid' : 's-proj')}${steps.join('')}<text class="s-tb" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">${r.dir === 'down' ? 'DN' : r.dir === 'up' ? 'UP' : ''}</text>`;
+    });
+    const r0 = v.rects[0];
+    out.stairs.push(`<g class="s-vertical" data-tag="${esc(v.tag)}">${marks.join('')}<text class="s-tb" text-anchor="middle" x="${n2(view.x(r0.x + r0.w / 2))}" y="${n2(view.y(r0.y) - 1.2)}">${esc(v.tag)}</text></g>`);
+  }
+  for (const a of read.elements.voids || []) {
+    if (a.to !== storeyIndex) continue;
+    const r = a.rect, c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
+    out.stairs.push(`<g class="s-void" data-tag="${esc(a.tag)}">${R(r, 's-hid')}${L(r.x, r.y, r.x + r.w, r.y + r.h, 's-hid')}${L(r.x + r.w, r.y, r.x, r.y + r.h, 's-hid')}<text class="s-tb" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">${esc(a.tag)} OPEN TO BELOW</text></g>`);
+  }
+
   // ── objects: their outlines, a rug hidden ──
   if (opts.objects !== false) {
     for (const p of read.objects.pieces.filter((x) => x.storey === storeyIndex)) {
@@ -99,6 +121,12 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
         const g = [jamb(sp.a), jamb(sp.b), R(rectAlong(w, sp.a, sp.b, t), 's-proj'),
           ...[-0.08, 0.08].map((d) => (w.orientation === 'h' ? L(sp.a, w.at + d, sp.b, w.at + d, 's-dim') : L(w.at + d, sp.a, w.at + d, sp.b, 's-dim')))];
         out.openings.push(`<g class="s-window" data-mark="${esc(o.mark)}" data-tag="${esc(o.tag)}">${g.join('')}</g>`);
+        continue;
+      }
+      // a cased opening (a storefront, a pass): the jambs and the head above it, dashed, and no leaf
+      if (o.cased) {
+        const head = w.orientation === 'h' ? L(sp.a, w.at, sp.b, w.at, 's-hid') : L(w.at, sp.a, w.at, sp.b, 's-hid');
+        out.openings.push(`<g class="s-door s-cased" data-tag="${esc(o.tag)}">${jamb(sp.a)}${jamb(sp.b)}${head}</g>`);
         continue;
       }
       // a door: the leaf open at 90° into the room it serves, hinged at its start, and the swing arc
@@ -145,7 +173,8 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
     const tagBox = (c, r) => { const w = Math.max(String(r.name).length * 1.75, 16) / view.mmPerFt, h = 7 / view.mmPerFt; return { x: c[0] - w / 2, y: c[1] - h / 2 - 1 / view.mmPerFt, w, h }; };
     const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     const roomTagAt = new Map();
-    const stairRects = read.elements.stairs.filter((st) => st.slot && (st.from === storeyIndex || st.to === storeyIndex)).map((st) => st.slot);
+    const stairRects = [...read.elements.stairs.filter((st) => st.slot && (st.from === storeyIndex || st.to === storeyIndex)).map((st) => st.slot),
+      ...(read.elements.verticals || []).filter((v) => v.rects && (v.from === storeyIndex || v.to === storeyIndex)).flatMap((v) => v.rects)];
     for (const r of rooms) {
       const { x, y, w, h } = r.rect;
       const spots = [[0.5, 0.5], [0.5, 0.3], [0.5, 0.7], [0.3, 0.5], [0.7, 0.5], [0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7], [0.5, 0.15], [0.5, 0.85]];
