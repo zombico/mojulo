@@ -29,6 +29,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **A dry run over game types.** Fixtures and seeded sweeps resolve game types against the registry and report each
   one as makeable, makeable with gaps (naming the facet and the setting) or blocked. Nothing is built, and every
   existing world, character and game is byte-identical.
+- **An unlock ranking.** The sweep recounts its rolled cubes as if one value, or one whole facet, were built, and
+  ranks them by how many games that would lift. `node scripts/cosmos-sweep.mjs` prints the map; `--fixture <id>`
+  shows one game type row by row; `--json` gives the whole report.
 
 ## [3.1.0] - 2026-10-10
 
