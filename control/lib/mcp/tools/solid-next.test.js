@@ -93,3 +93,27 @@ describe('the doors', () => {
     expect(SketchRepository.getByRef(out.ref).manifest.ask).toBe('fit');
   });
 });
+
+describe('measure_solid follows the ask', async () => {
+  const { measureSolidHandler } = await import('./measure-solid.js');
+
+  it('a row with no ask measures as before: volume on, no ask block', async () => {
+    const { ref } = await createWorkbenchHandler({ ...cup });
+    const out = await measureSolidHandler({ ref });
+    expect(out.volume.skipped).toBeUndefined();
+    expect(out).not.toHaveProperty('ask');
+  });
+
+  it('a look skips the volume union unless asked; a function names the strength it still wants', async () => {
+    const look = await createWorkbenchHandler({ ...cup, ask: 'look' });
+    const a = await measureSolidHandler({ ref: look.ref });
+    expect(a.volume.skipped).toBe(true);
+    expect(a.ask).toEqual({ level: 'look', ran: ['size', 'closure', 'print'] });
+    expect((await measureSolidHandler({ ref: look.ref, volume: true, full: true })).volume.skipped).toBeUndefined();
+
+    const fn = await createWorkbenchHandler({ ...cup, ask: 'function' });
+    const b = await measureSolidHandler({ ref: fn.ref });
+    expect(b.ask.ran).toContain('volume');
+    expect(b.ask.wants).toEqual([{ add: 'strength', card: 'scad', section: 'strength' }]);
+  });
+});

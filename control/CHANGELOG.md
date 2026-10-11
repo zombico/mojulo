@@ -42,6 +42,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   screws, filleted inside), `phone-stand` (a groove sized to the device in its case, a cable slot) and `lidded-box`
   (sized by the inside, the lid's lip at a printed fit). The book validator checks the lane (`npm run test:book`),
   and each part mints closed through OpenSCAD in `scad-part.test.js`. Book 0.9.0.
+- **`measure_solid` reads the ask.** On a row with an `ask`, the readings left unnamed follow it: a look skips the
+  Manifold volume union (the slow leg), and an engineered scad part with a `mechanism` runs its motion and collision
+  sweep. The reading carries `ask: { level, ran, wants }`. `wants` is the ladder's `add` steps, what the recipe still
+  lacks for that ask (a strength spec for a function, printed walls or a material for engineered). A reading passed
+  in always wins, and a row without `ask` measures exactly as before.
 
 ### Drawer alignment: the agent supplies the words, the server the rest
 
