@@ -42,13 +42,16 @@ no egress windows, no "is it livable".
   - store: the card's own assessment (entry decompression, aisles, the cash wrap's sightline, fixture overlap).
 - **A school** is a campus: its buildings (admin, academic, commons, gym), their floors, its classrooms. The kernel
   plans the ground floor; each room reaches the wall it stands 2 ft off and meets its neighbour mid-gap, the
-  corridor is what is left, upper floors are shells (Open says so), and each building's core is a stair core (ST)
-  through its floors. Its grade is the school's own: egress, daylight by window wall, proportion, the walk from the
-  bus loop, the site. Occupancy educational (E).
+  corridor is what is left, upper floors are shells (Open and the sheet titles say so), each building's core is a
+  stair core (ST) through its floors, and the covered walks are drawn between the buildings. Its grade is the
+  school's own (egress, daylight by window wall, proportion, the walk from the bus loop, the site) and its program:
+  a library, a cafeteria and a gym, classroom and gym size against common planning figures, the entrance opening
+  into circulation, a core standing in it. The pattern sets the program (spine: a gym; courtyard and cluster: a
+  library and cafeteria), so the grade names what a pattern leaves out. Occupancy educational (E).
 - **Rooms**: named by role: sales floor, stock room, fitting room, booth, restroom; dining room, kitchen; concourse,
   tenant bay, anchor store, food court.
-- **Elements**: walls by type, doors tagged by the room they serve (a storefront drawn as a cased opening),
-  windows, slabs; a two-level mall's atrium (AT), escalators (ES) and lifts (EL), drawn on its plans.
+- **Elements**: walls by type, doors tagged by the room they serve (a storefront or wide opening drawn cased),
+  windows (a school's where its facade paints them), slabs; a two-level mall's atrium (AT), escalators (ES) and lifts (EL), drawn on its plans.
 - **Objects**: the fit-out as tagged pieces (gondolas, racks, counters, podiums, tables, chairs, the cook line,
   stalls), each in its room, on the plan sheet and in the FF&E schedule.
 

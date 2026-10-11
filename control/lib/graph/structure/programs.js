@@ -234,6 +234,46 @@ export function programGrade(model, schedules, occ, extra = {}) {
 // lift). The rooms, their doors (where the World cuts them) and the walls go into the same element model as a house.
 
 const SNAP_WALL = 2.5, SNAP_GAP = 1.2;
+
+// The school's facade paints its windows (fractal-school.js facadeCardWall → facade-card.js buildFacadeCard): one per
+// 7 ft bay of each wall segment between its openings, in rows (at least two) over the building's height, the pane
+// inset by the rhythm's gaps. The book places a window where each pane is, so daylight and the window schedule are the
+// World's. Kept equal to those tables: the facade per school facade, and the rhythm's gaps.
+const SCHOOL_RHYTHM = { 'brick-civic': { gu: 0.36, gv: 0.34 }, 'timber-warm': { gu: 0.36, gv: 0.34 }, 'concrete-frame': { gu: 0.40, gv: 0.12 }, 'glass-modern': { gu: 0.12, gv: 0.10 } };
+const CARD_U = [0.04, 0.96], CARD_V = [0.06, 0.97];
+
+/** The facade's panes on one wall segment [a, b] of a building, as windows on the storeys they fall in. */
+function facadeWindows(plan, bd, a, b, storeys) {
+  if (b - a <= 2) return [];
+  const g = SCHOOL_RHYTHM[bd.facade] || SCHOOL_RHYTHM['brick-civic'];
+  const bays = Math.max(1, Math.round((b - a) / 7)), rows = Math.max(2, bd.floors ?? 1);
+  const z0 = plan.baseZ, top = plan.baseZ + plan.height + ((bd.floors ?? 1) - 1) * (plan.upperFloorH ?? UPPER_FLOOR_H), H = top - z0;
+  const su = (CARD_U[1] - CARD_U[0]) / bays, sv = (CARD_V[1] - CARD_V[0]) / rows;
+  const out = [];
+  for (let k = 0; k < rows; k++) {
+    const p0 = z0 + (CARD_V[0] + k * sv + (sv * g.gv) / 2) * H, ph = sv * (1 - g.gv) * H, mid = p0 + ph / 2;
+    const st = storeys.find((x) => mid >= x.baseZ && mid < x.baseZ + x.height);
+    if (!st) continue;
+    for (let i = 0; i < bays; i++) {
+      const c = a + (CARD_U[0] + (i + 0.5) * su) * (b - a), w = su * (1 - g.gu) * (b - a);
+      const win = { storey: st.index, a: c - w / 2, b: c + w / 2, sill: p0 - st.baseZ, top: Math.min(st.height, p0 + ph - st.baseZ) };
+      // two rows of panes on one storey are one window in plan, sill to head (a tall window and its transom)
+      const same = out.find((o) => o.storey === win.storey && Math.abs(o.a - win.a) < 1e-6);
+      if (same) { same.sill = Math.min(same.sill, win.sill); same.top = Math.max(same.top, win.top); } else out.push(win);
+    }
+  }
+  return out;
+}
+
+/** A wall's segments between its openings (the World's own split). */
+function segmentsAround(lo, hi, gaps) {
+  const gs = gaps.map((g) => [g.center - g.width / 2, g.center + g.width / 2]).sort((x, y) => x[0] - y[0]);
+  const out = [];
+  let cur = lo;
+  for (const [a, b] of gs) { if (a > cur) out.push([cur, Math.min(a, hi)]); cur = Math.max(cur, b); }
+  if (cur < hi) out.push([cur, hi]);
+  return out.filter(([a, b]) => b - a > 0.2);
+}
 const rr = (r) => ({ x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1 });
 
 /** The rooms of one building snapped to its walls and to each other (a drawing's reading of the kernel's insets). */
@@ -315,7 +355,7 @@ function cutDoor(runs, orientation, at, p, w, extra = {}) {
   return true;
 }
 
-function schoolLevel(plan, index) {
+function schoolLevel(plan, index, storeys) {
   const cells = [], runs = [], slabHoles = [], named = [];
   for (const bd of plan.buildings) {
     if ((bd.floors ?? 1) <= index) continue;
@@ -356,6 +396,13 @@ function schoolLevel(plan, index) {
       cells.push({ x: R.x0, y: R.y0, w: R.x1 - R.x0, h: R.y1 - R.y0, kind: 'room', role: 'unplanned', building: bd.id });
       if (bd.core?.rect) slabHoles.push({ ...bd.core.rect });
     }
+    // the facade's windows on this storey, on every wall segment the World cards
+    for (const r of ext) {
+      const gaps = (bd.openings || []).filter((o) => o.wall === r._wall);
+      for (const [a, b] of segmentsAround(r.along[0], r.along[1], gaps)) {
+        for (const w of facadeWindows(plan, bd, a, b, storeys)) if (w.storey === index) r.openings.push({ a: w.a, b: w.b, sill: w.sill, top: w.top });
+      }
+    }
     runs.push(...ext.map(({ _wall, ...r }) => r));
   }
   return { cells, runs, slabHoles, named };
@@ -368,15 +415,29 @@ function buildSchool(m) {
   for (const b of plan.buildings) fp = fp ? { x0: Math.min(fp.x0, b.rect.x0), y0: Math.min(fp.y0, b.rect.y0), x1: Math.max(fp.x1, b.rect.x1), y1: Math.max(fp.y1, b.rect.y1) } : rr(b.rect);
   const levels = [];
   let named = [];
+  const storeys = Array.from({ length: floors }, (_, i) => ({ index: i, baseZ: i === 0 ? plan.baseZ : plan.baseZ + plan.height + (i - 1) * (plan.upperFloorH ?? UPPER_FLOOR_H), height: i === 0 ? plan.height : plan.upperFloorH ?? UPPER_FLOOR_H }));
   for (let i = 0; i < floors; i++) {
-    const L = schoolLevel(plan, i);
+    const L = schoolLevel(plan, i, storeys);
     if (i === 0) named = L.named;
-    const baseZ = i === 0 ? plan.baseZ : plan.baseZ + plan.height + (i - 1) * (plan.upperFloorH ?? UPPER_FLOOR_H);
-    const height = i === 0 ? plan.height : plan.upperFloorH ?? UPPER_FLOOR_H;
+    const { baseZ, height } = storeys[i];
     levels.push({ index: i, role: i === 0 ? 'ground' : 'upper', baseZ, height, structure: { wallGraph: { runs: L.runs, cells: L.cells, footprint: fp }, cells: L.cells, slabHoles: L.slabHoles } });
   }
   const faces = buildFractalSchoolFaces(plan).faces;
   const pr = assessSchoolPrinciples(plan, { faces });
+  // what the school's own assessors leave unsaid: its program (the school manual promises a commons of library and
+  // cafeteria and a gym), the size of its rooms against common planning figures, and where its entrance and cores land
+  // sizes are the rooms as the sheets draw them (snapped to their walls), so the finding and the schedule agree
+  const ground = levels[0].structure.cells;
+  const has = (k) => ground.some((c) => c.role === k);
+  const gymOf = ground.find((c) => ['small-gym', 'gym', 'fieldhouse'].includes(c.role));
+  const a = /^[aeiou]/.test(plan.program) ? 'an' : 'a';
+  const program = [];
+  for (const k of ['library', 'cafeteria']) if (!has(k)) program.push({ id: 'program-space', register: 'program', severity: 'invariant', detail: `no ${k}: ${a} ${plan.program} campus wants one (this ${plan.pattern} plan has none)` });
+  if (!gymOf) program.push({ id: 'program-space', register: 'program', severity: 'invariant', detail: `no gym: ${a} ${plan.program} campus wants one (this ${plan.pattern} plan has none)` });
+  const sf = (c) => c.w * c.h;
+  const rooms = ground.filter((c) => c.role === 'classroom'), small = rooms.filter((c) => sf(c) < 700);
+  if (small.length) program.push({ id: 'classroom-size', register: 'program', severity: 'preferential', detail: `${small.length} of ${rooms.length} classrooms under 700 SF (${Math.round(Math.min(...small.map(sf)))}–${Math.round(Math.max(...small.map(sf)))} SF; a common planning figure is 900–1,000 SF, about 30 SF a pupil)` });
+  if (gymOf && sf(gymOf) < 4700) program.push({ id: 'gym-size', register: 'program', severity: 'preferential', detail: `the ${gymOf.role.replace(/-/g, ' ')} is ${Math.round(sf(gymOf))} SF, under one basketball court with its run-off (about 4,700 SF)` });
   const area = (r) => (r.x1 - r.x0) * (r.y1 - r.y0);
   const bim = schoolBim(plan);
   return {
@@ -387,12 +448,17 @@ function buildSchool(m) {
     extra: {
       // the school's own assessors are its grade (they read the campus graph, the walk from the bus loop, daylight by
       // window wall, egress by core); per-storey door reachability would count the campus's separate buildings as cut off
-      assessment: { findings: pr.findings.map((f) => ({ id: f.rule, register: f.register, severity: f.severity, detail: f.detail })) },
+      assessment: { findings: [...pr.findings.map((f) => ({ id: f.rule, register: f.register, severity: f.severity, detail: f.detail })), ...program] },
+      // checked on the read, where rooms carry tags: the entrance should open into circulation, a core should stand in it
+      placement: true,
       ownReachability: true,
       // the kernel's own ids in its findings, said the way the book says them (structure/read.js `says`)
       roomAt: named, buildingWord: (id) => `the ${id.replace(/^building:/, '').replace(/-/g, ' ')} building`,
       cores: plan.buildings.filter((b) => (b.floors ?? 1) > 1 && b.core?.rect).map((b) => ({ building: b.id, floors: b.floors, lift: !!b.core.lift, rect: b.core.rect })),
       slabAreas: Array.from({ length: floors }, (_, i) => plan.buildings.filter((b) => (b.floors ?? 1) > i).reduce((a, b) => a + area(b.rect), 0)),
+      // a walk runs centre to centre in the plan; what is drawn is its stretch in the open between the buildings
+      walks: plan.connectors.flatMap((c) => remainder(c.rect, plan.buildings.map((b) => ({ x0: Math.max(c.rect.x0, b.rect.x0), x1: Math.min(c.rect.x1, b.rect.x1), y0: Math.max(c.rect.y0, b.rect.y0), y1: Math.min(c.rect.y1, b.rect.y1) })).filter((q) => q.x1 > q.x0 && q.y1 > q.y0))
+        .filter((q) => q.x1 - q.x0 > 1 && q.y1 - q.y0 > 1).map((q) => ({ id: c.id.replace(/^walk:/, ''), rect: { x: q.x0, y: q.y0, w: q.x1 - q.x0, h: q.y1 - q.y0 } }))),
       campus: { pattern: plan.pattern, program: plan.program, facade: plan.facade, buildings: plan.buildings.map((b) => ({ id: b.id.replace(/^building:/, ''), role: b.role, floors: b.floors ?? 1 })), classrooms: plan.rooms.filter((r) => r.kind === 'classroom').length, seats: bim.seats, outdoor: plan.outdoor.map((o) => o.kind) },
     },
   };

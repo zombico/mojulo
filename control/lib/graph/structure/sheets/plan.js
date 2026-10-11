@@ -55,6 +55,9 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
   const R = (r, cls) => `<rect class="${cls}" x="${n2(view.x(r.x))}" y="${n2(view.y(r.y))}" width="${n2(view.len(r.w))}" height="${n2(view.len(r.h))}"/>`;
   const L = (x1, y1, x2, y2, cls) => `<line class="${cls}" x1="${n2(view.x(x1))}" y1="${n2(view.y(y1))}" x2="${n2(view.x(x2))}" y2="${n2(view.y(y2))}"/>`;
   const out = { walls: [], openings: [], stairs: [], objects: [], tags: [], dims: [] };
+  // a commercial plan drawn at a campus scale (1/16" and smaller) keeps its window marks off: the window schedule
+  // lists them, and at that scale a tag per pane is noise; its opening strings likewise
+  const small = !!read.occupancy && view.mmPerFt <= 304.8 / 192 + 1e-9;
 
   // ── stairs: the flight below its void (UP), the void on the storey it reaches (DN) ──
   for (const st of read.elements.stairs) {
@@ -87,6 +90,15 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
     });
     const r0 = v.rects[0];
     out.stairs.push(`<g class="s-vertical" data-tag="${esc(v.tag)}">${marks.join('')}<text class="s-tb" text-anchor="middle" x="${n2(view.x(r0.x + r0.w / 2))}" y="${n2(view.y(r0.y) - 1.2)}">${esc(v.tag)}</text></g>`);
+  }
+  // a campus's covered walks between its buildings, on the ground floor: dashed, under their roof
+  const walks = storeyIndex === 0 ? read.campus?.walks || [] : [];
+  // one label per walk, on its largest stretch
+  const named = new Map();
+  for (const k of walks) { const cur = named.get(k.id); if (!cur || k.rect.w * k.rect.h > cur.rect.w * cur.rect.h) named.set(k.id, k); }
+  for (const k of walks) {
+    const r = k.rect, c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
+    out.stairs.push(`<g class="s-walk" data-tag="${esc(k.id)}">${R(r, 's-hid')}${named.get(k.id) === k ? `<text class="s-t" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">COVERED WALK</text>` : ''}</g>`);
   }
   for (const a of read.elements.voids || []) {
     if (a.to !== storeyIndex) continue;
@@ -185,7 +197,7 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
       const roomMm = view.len(w) * 0.92, tight = !!read.occupancy && String(r.name).length * 1.75 > roomMm;
       out.tags.push(roomTag([view.x(c[0]), view.y(c[1])], { name: tight ? '' : r.name, number: r.tag, area: tight && `${Math.round(r.area)} SF`.length * 1.3 > roomMm ? null : r.area, units }));
     }
-    for (const w of windows) {
+    for (const w of small ? [] : windows) {
       const host = walls.find((x) => x.tag === w.host);
       const outSide = host && host.exteriorSide ? host.exteriorSide : -1;
       const off = 5;
@@ -236,7 +248,7 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
       const toSheet = (s) => (sd.h ? [view.x(s), view.y(sd.face)] : [view.x(sd.face), view.y(s)]);
       const onSide = (w) => !w.interior && w.orientation === (sd.h ? 'h' : 'v') && Math.abs(w.at - sd.at) < 0.5;
       const sideWalls = walls.filter(onSide);
-      const centres = [...doors, ...windows].filter((o) => sideWalls.some((w) => w.tag === o.host)).map((o) => (sd.h ? o.at.x : o.at.y));
+      const centres = small ? [] : [...doors, ...windows].filter((o) => sideWalls.some((w) => w.tag === o.host)).map((o) => (sd.h ? o.at.x : o.at.y));
       const parts = walls.filter((w) => w.interior && w.orientation === (sd.h ? 'v' : 'h') && Math.abs((sd.h ? (sd.name === 'N' ? w.along[0] : w.along[1]) : (sd.name === 'W' ? w.along[0] : w.along[1])) - sd.at) < 0.6).map((w) => w.at);
       // offset sign: the kit's offset is to the left of a→b; for N (a→b left to right) left is up (outside) → +;
       // for S, outside is down → −; for W (a→b top to bottom) left is east (inside) → so outside is −; E → +
@@ -266,7 +278,9 @@ export function planSheet(read, storeyIndex, { units = 'imperial', project, size
   const storey = read.storeys.find((s) => s.index === storeyIndex);
   if (!storey || !read.footprint) return null;
   const id = planSheetId(storeyIndex);
-  const title = STOREY_TITLE(storey);
+  // a storey the kernel stands but does not plan (a school's upper floors) says so in its title
+  const shell = read.rooms.some((r) => r.storey === storey.index) && read.rooms.filter((r) => r.storey === storey.index).every((r) => r.role === 'unplanned');
+  const title = `${STOREY_TITLE(storey)}${shell ? ' (shell, not planned)' : ''}`;
   const probe = titleBlock({ size });
   const [dx, dy, dw, dh] = probe.drawing;
   const fp = read.footprint;

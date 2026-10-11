@@ -282,6 +282,36 @@ describe('a school: a campus read by its own plan', () => {
     });
   }
 
+  it('has the windows its facade paints, so its rooms are daylit and scheduled', () => {
+    for (const r of Object.values(sr)) {
+      expect(r.elements.windows.length).toBeGreaterThan(0);
+      const classrooms = r.rooms.filter((x) => x.role === 'classroom');
+      expect(classrooms.filter((x) => x.windows.length > 0).length).toBeGreaterThan(classrooms.length / 2);
+      // one whose window wall a walk's doorway takes is dark in the World too, and the grade says so
+      for (const x of classrooms.filter((y) => !y.windows.length)) expect(r.grade.findings.some((f) => f.id === 'no-daylight' && f.detail.startsWith(`${x.tag} `))).toBe(true);
+    }
+  });
+
+  it('names what its pattern leaves out of the program, and rooms under common planning sizes', () => {
+    const spine = sr.spine.grade.findings;
+    expect(spine.filter((f) => f.id === 'program-space').map((f) => f.detail)).toEqual(expect.arrayContaining([expect.stringMatching(/^no library/), expect.stringMatching(/^no cafeteria/)]));
+    expect(sr.courtyard.grade.findings.some((f) => f.id === 'program-space' && /^no gym/.test(f.detail))).toBe(true);
+    expect(spine.some((f) => f.id === 'classroom-size')).toBe(true);
+    expect(sr.spine.grade.score).toBeLessThan(0.9);
+  });
+
+  it('says where its entrance and cores land when they land in a room', () => {
+    const ids = new Set(sr.cluster.grade.findings.map((f) => f.id));
+    expect(ids.has('entry-into-room') || ids.has('core-in-room')).toBe(true);
+    for (const f of sr.cluster.grade.findings.filter((x) => x.id === 'core-in-room')) expect(f.detail).toMatch(/^the stair core of the .+ building stands in \d{3} /);
+  });
+
+  it('titles a shell floor as a shell and draws the covered walks between the buildings', () => {
+    const sheets = drawingSet(sr.cluster);
+    expect(sheets.find((x) => x.id === 'A-102').title).toBe('Second floor plan (shell, not planned)');
+    expect(sheets.find((x) => x.id === 'A-101').svg).toContain('COVERED WALK');
+  });
+
   it("names what it cannot plan: the upper floors are the school's shells", () => {
     expect(openConcerns(SCHOOLS.cluster, sr.cluster).map((c) => c.id)).toContain('upper-floors');
   });

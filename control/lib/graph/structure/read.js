@@ -277,6 +277,32 @@ export function readStructure(m = {}) {
     const say = (d) => String(d).replace(/room:[a-z0-9-]+:[a-z0-9-]+/g, (id) => byId.get(id) ?? id).replace(/building:[a-z0-9-]+/g, (id) => P.extra.buildingWord(id));
     grade = { ...grade0, violations: grade0.violations.map(say), findings: grade0.findings.map((f) => ({ ...f, detail: say(f.detail) })) };
   }
+  // where a campus's entrance and cores land: the way in should open into circulation, and a stair core stand in it
+  if (!isHouse && P.extra.placement) {
+    const add = [];
+    const roomAt = (x, y, st = 0) => rooms.find((r) => r.storey === st && x >= r.rect.x - 0.01 && x <= r.rect.x + r.rect.w + 0.01 && y >= r.rect.y - 0.01 && y <= r.rect.y + r.rect.h + 0.01);
+    const isCircRoom = (r) => r && r.role === 'circulation';
+    for (const d of doors.filter((x) => x.entry)) {
+      const r = rooms.find((x) => x.tag === d.serves);
+      if (r && !isCircRoom(r)) add.push({ id: 'entry-into-room', register: 'flow', severity: 'preferential', detail: `the main entrance ${d.tag} opens into ${r.tag} ${r.name}, not a corridor or lobby` });
+    }
+    // a learning room with no window (the school's own rule: a windowless classroom is flagged), as the facade paints them
+    for (const r of rooms.filter((x) => ['classroom', 'science', 'art', 'music', 'media', 'library'].includes(x.role) && !x.windows.length)) {
+      add.push({ id: 'no-daylight', register: 'livability', severity: 'invariant', detail: `${r.tag} ${r.name} has no window: its window wall is taken by a doorway or another building` });
+    }
+    for (const c of P.extra.cores || []) {
+      const r = roomAt((c.rect.x0 + c.rect.x1) / 2, (c.rect.y0 + c.rect.y1) / 2);
+      if (r && !isCircRoom(r)) add.push({ id: 'core-in-room', register: 'flow', severity: 'preferential', detail: `the stair core of ${P.extra.buildingWord(c.building)} stands in ${r.tag} ${r.name}, not in circulation` });
+    }
+    if (add.length) {
+      const findings = [...grade.findings, ...add];
+      const rules = findings.filter((f) => f.id !== 'reachability');
+      const inv = rules.filter((f) => f.severity === 'invariant').length, pref = rules.length - inv;
+      const key = Object.keys(grade.breakdown).find((k) => k !== 'reachability');
+      const breakdown = { ...grade.breakdown, [key]: r2(Math.max(0, 1 - 0.2 * inv - 0.04 * pref)) };
+      grade = { ...grade, findings, violations: findings.map((f) => f.detail), breakdown, score: r2((breakdown.reachability + breakdown[key]) / 2) };
+    }
+  }
 
   const elements = {
     walls,
@@ -327,7 +353,7 @@ export function readStructure(m = {}) {
     ...(!isHouse ? { occupancy: { id: occ.id, label: occ.label, group: occ.group, name: occ.name } } : {}),
     ...(!isHouse && P.extra.capacity ? { capacity: P.extra.capacity } : {}),
     ...(!isHouse && P.extra.parcel ? { parcel: P.extra.parcel } : {}),
-    ...(!isHouse && P.extra.campus ? { campus: P.extra.campus } : {}),
+    ...(!isHouse && P.extra.campus ? { campus: { ...P.extra.campus, walks: P.extra.walks || [] } } : {}),
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
     subject, storeys, rooms, elements,
     ...(program ? { program } : {}),
