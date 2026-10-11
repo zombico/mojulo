@@ -13,6 +13,42 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Structure rails: the structure book
+
+- A house (`floorplan` row) is getting **the structure book**, one tabbed HTML view of the whole building in the game
+  designer's idiom. It has a tab per component concern: Cover, Site, Massing, Plan, Rooms, Elements, Objects,
+  Structure, Services, Quantities, Checks, Walk and Open.
+  - Elements (walls, slabs, openings, members) and objects (furniture, fixtures) carry one tag. The tag links a
+    sheet, its schedule, its room card and the live walk.
+  - Tabs appear as the building deepens, through four outcomes: Concept, Layout, Drawings and Build (the frame,
+    trades, takeoff, checks and IFC).
+  - The path stays short: `mint_building`, `update_sketch`, `export_model` (adding `sheets` and `schedules`) and the
+    existing Workflows.
+- Built so far, as primitives with no route or tool yet (`lib/graph/structure/`):
+  - **The read model** (`readStructure`) reads the building from the recipe as tagged data. Framed, it also gives
+    the frame's members, marks and fields, the wiring and the rainwater. The worlds are byte-identical.
+  - **The drawing set** (`drawingSet`) is in NCS conventions and discipline order, and each sheet appears only when
+    the recipe has what it draws:
+    - C-101 site;
+    - S-101… foundation, storey and roof framing plans with framing keys;
+    - A-10x plans, A-20x elevations, A-301 sections and A-60x schedules;
+    - P-101 roof drainage;
+    - E-10x electrical plans with circuit schedules.
+- **Stairs:** `stairs: true` on an authored `levels[]` stack now joins every level from the ground: up to each floor
+  and down to each basement. Before, it always ran one flight down to a basement, even when there was none, so a
+  ground-and-second house (every multi-storey house the drawer makes) had no way up.
+  - A ground with its basement keeps the flight it had.
+  - The book flags a level no stair reaches and names the field that adds one.
+  - Sections draw the flights, and framing plans mark the stair opening.
+- **Livability around the stair:**
+  - **`design.clearance`** (`true` for the passage, feet, or `false`) keeps furniture off the flight, its landing,
+    and the well upstairs.
+  - **`design.waive`** accepts a finding as built.
+  - **`{ repair: true, clearance: true }`** is a livability pass: walkways clear the stair, and nothing crowds it.
+  - **The structure book** walks every stack and flags furniture within the clearance of a stair in its own room.
+    Its Plan tab shows the rules in force and how to override them, and a waived finding stays visible as waived.
+  - **Existing rows:** a recipe without `clearance` builds exactly as before.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest
