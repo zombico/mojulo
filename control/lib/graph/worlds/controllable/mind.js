@@ -24,7 +24,7 @@
  * `rule.mind` it reads the world's tier untouched.
  *
  * BUILDER CONTRACT (compose.js): import-free inside the function; maneuvers.js precedes it (`armSwitchReady`, the
- * loadout switch's ready time).
+ * loadout switch's ready time), and nav.js (`navPath`, `navClear`).
  * Field ownership: the e.ai- family (aiFire, aiClock, the wobble/juke/boost clocks, ranged rotation picks, the combo
  * chain), the melee commit and give-up clocks, the tackle fields shared with the platform tackle (so stepTackle
  * adjudicates a mind's charge identically), state.aiTuning / aiEnabled.
@@ -33,7 +33,7 @@
 export function buildMind(E) {
   const {
     clamp, fwdXY, rightXY, fwd3, TAU, sightBlocked, resolveBlocking, RULES,
-    meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, armSwitchReady,
+    meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, armSwitchReady, navPath, navClear,
   } = E;
 
   // ── TUNING ────────────────────────────────────────────────────────────────────────────
@@ -276,14 +276,36 @@ export function buildMind(E) {
     else e.moving = false;
     return step;
   }
+  // navTo(e, r, dt, world, goal, speed) — PATHING `navmesh` (`rule.mind.pathing`): when the grid line to the goal is
+  // blocked it walks the path's next corner (replanned every `navReplan` s, 0.5, or when the goal moves a cell) and
+  // returns true; with a clear line, no colliders or no path at all it returns false and the caller goes direct.
+  function navTo(e, r, dt, world, goal, speed) {
+    if (!(r.mind && r.mind.pathing === 'navmesh') || !world || !world.colliders || !navPath) return false;
+    const t = e.transform, eye = r.eye ?? 0;
+    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35 };
+    if (navClear(world, t.pos, goal, opts)) { e.navPath = null; return false; }
+    const cell = world.navCell || Math.max(1, opts.radius);
+    e.navT = (e.navT || 0) - dt;
+    const moved = !e.navGoal || Math.hypot(goal[0] - e.navGoal[0], goal[1] - e.navGoal[1]) > cell;
+    if (!e.navPath || e.navT <= 0 || moved) {
+      e.navPath = navPath(world, t.pos, goal, opts); e.navGoal = [goal[0], goal[1]]; e.navT = r.navReplan ?? 0.5;
+    }
+    const path = e.navPath;
+    if (!path || !path.length) return false;
+    while (path.length > 1 && Math.hypot(path[0][0] - t.pos[0], path[0][1] - t.pos[1]) < Math.max(1, opts.radius)) path.shift();
+    const wp = path[0];
+    walkToward(e, r, Math.atan2(wp[1] - t.pos[1], wp[0] - t.pos[0]), dt, world, speed);
+    e.aiFire = 0;
+    return true;
+  }
   // a guard's post: `rule.post`, else where it was placed
   const postOf = (e, r) => (Array.isArray(r.post) ? r.post : e.spawn ? e.spawn.pos : e.transform.pos);
   // returnToPost(e, r, dt, world) — walk back to the post and stand there (LOST, for a guard)
   function returnToPost(e, r, dt, world) {
     const t = e.transform, p = postOf(e, r);
     const dx = p[0] - t.pos[0], dy = p[1] - t.pos[1];
-    if (Math.hypot(dx, dy) > (r.arrive ?? 1.5)) walkToward(e, r, Math.atan2(dy, dx), dt, world, r.speed ?? 6);
-    else e.moving = false;
+    if (Math.hypot(dx, dy) <= (r.arrive ?? 1.5)) { e.moving = false; return; }
+    if (!navTo(e, r, dt, world, p, r.speed ?? 6)) walkToward(e, r, Math.atan2(dy, dx), dt, world, r.speed ?? 6);
   }
 
   // SPACING by the tool in hand: [standoffMul, close, weave]. Rush drives in and weaves little, siege holds back and
@@ -399,6 +421,8 @@ export function buildMind(E) {
       }
     }
     if (e.adapt && e.adapt.foeId !== target.id) { e.adapt.foeId = target.id; e.adapt.foeHp = target.body ? target.body.hp : null; }
+    // PATHING: no line to the target → walk the path round what is in the way, trigger cold
+    if (navTo(e, r, dt, world, target.transform.pos, speed)) { e.reactionEnded = false; return; }
     const dx = target.transform.pos[0] - t.pos[0], dy = target.transform.pos[1] - t.pos[1];
     const dist2d = Math.hypot(dx, dy) || 1e-6;
 

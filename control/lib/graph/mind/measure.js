@@ -44,7 +44,7 @@ export function capabilityOf(entity) {
     route: Array.isArray(rule.waypoints) && rule.waypoints.length > 0,
     sight: true,
     memory: false,
-    navmesh: false,
+    navmesh: !!(rule.mind && rule.mind.pathing === 'navmesh'),
     commanded: !!rule.commanded,
     speed: Number.isFinite(rule.speed) ? rule.speed : null,
     hp: Number.isFinite(body.hp) ? body.hp : null,

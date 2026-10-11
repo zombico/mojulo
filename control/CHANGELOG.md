@@ -78,6 +78,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Minds find their way round walls.** With `rule.mind.pathing: 'navmesh'` a mind with no line to its target, or to
+  its post, walks a path round what is in the way instead of pressing against it, and holds its fire until it can
+  see. The path comes from `worlds/controllable/nav.js`: a walk grid baked from the world's colliders for the body's
+  size, rebuilt when they change, searched with A* and pulled tight to its corners. One floor at the body's height;
+  space and stairs are not covered.
 - **Bosses change as they lose health, and adapt.** A boss (`rule.mind.rank: 'boss'`) crosses health phases: under
   two thirds it turns one step more aggressive, under a third relentless, and it closes to the blade when it holds one.
   Each crossing holds a short planted, invincible beat so the change reads, and a heal never undoes one.

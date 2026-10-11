@@ -102,7 +102,7 @@ export const CAPABILITY = Object.freeze({
   route:   'has waypoints to walk',
   sight:   'sees in a facing cone with a line of sight',
   memory:  'remembers where it last saw a target (planned)',
-  navmesh: 'finds paths round obstacles (planned: today it slides along them)',
+  navmesh: 'finds paths round obstacles (rule.mind.pathing: navmesh); without it, it slides along them',
   commanded: 'a commander sets its posture at strategy rate (rule.commanded)',
 });
 

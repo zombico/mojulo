@@ -31,7 +31,7 @@ export const MIND = Object.freeze({
     pathing: {
       values: {
         direct: { status: 'built', lowers: MIND_RULE, note: 'straight at the target, sliding along colliders' },
-        navmesh: { status: 'absent', effort: 'M', note: 'no pathfinding found (10-10); the walk grid is server side only' },
+        navmesh: { status: 'built', lowers: 'lib/graph/worlds/controllable/nav.js', note: 'A* over a walk grid baked from the colliders; one floor, ground only' },
       },
     },
     squad: {
