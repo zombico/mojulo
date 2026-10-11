@@ -74,6 +74,8 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-11 (the maneuvers): the pack's other behavior module, its maneuvers (dodge, tackle, loadout
 // cycling, boost inertia), joined the engine as controllable/maneuvers.js, ahead of the mind; EMISSION is now the engine
 // alone. Same proof: the 13 fixtures emitted before and after with the engine source cut out are byte-identical.
+// Re-pinned 2026-10-11 (guards and prey): the mind gains two motivations on `rule.mind` — a guard engages only near
+// its post and walks back to it, prey flees a threat inside its fear radius. Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

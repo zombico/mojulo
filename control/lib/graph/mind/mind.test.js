@@ -51,7 +51,7 @@ describe('resolveMind', () => {
 
   it('gives a minion the first strategy it qualifies for, and says why', () => {
     const r = resolveMind({ motivation: 'guard', aggressiveness: 'bold' }, SWORD);
-    expect(r.situations.idle).toEqual({ strategy: 'post', status: 'absent', why: 'guard' });
+    expect(r.situations.idle).toEqual({ strategy: 'post', status: 'built', why: 'guard' });
     expect(r.situations.strike).toMatchObject({ strategy: 'melee-commit', status: 'built' });
     expect(r.situations.lost.strategy).toBe('return-to-post');
     expect(r.switches).toEqual([]);
@@ -159,5 +159,43 @@ describe('the engine runs the matrix (worlds/controllable/mind.js)', () => {
     expect(run(w, 120)).toBe(0);
     w.byId.m.body.hp -= 10;
     expect(run(w, 180)).toBeGreaterThan(0);
+  });
+});
+
+describe('the mind outside the arena: a guard and prey (MX3)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const world = (mindEntity, playerAt) => E.createWorld({
+    entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: playerAt, heading: 0 } },
+      mindEntity,
+    ],
+  });
+  const run = (w, n, id = 'm') => { let fired = 0; for (let i = 0; i < n; i++) { E.stepWorld(w, {}, 1 / 60, hooks); fired += w.byId[id].aiFire || 0; } return fired; };
+  const guard = (pos) => ({ id: 'm', rule: { type: 'ai', speed: 6, turn: 3, standoff: 8, guardRadius: 20, mind: { motivation: 'guard', aggressiveness: 'bold' } }, weapon: { fireClass: 'sight', magazine: 99, cooldown: 0.1, damage: 1, range: 200 }, body: { type: 'mesh', hittable: true, hp: 90, radius: 1 }, transform: { pos, heading: 0 } });
+
+  it('a guard engages an intruder near its post', () => {
+    expect(run(world(guard([0, 0, 0]), [15, 0, 0]), 180)).toBeGreaterThan(0);
+  });
+
+  it('a guard leaves alone what is far from its post, and walks back to the post', () => {
+    const w = world(guard([0, 0, 0]), [60, 0, 0]);
+    expect(run(w, 180)).toBe(0);
+    expect(w.byId.m.transform.pos[0]).toBe(0);   // stayed on its post
+    w.byId.m.transform.pos = [10, 6, 0];          // pushed off it
+    run(w, 300);
+    expect(Math.hypot(w.byId.m.transform.pos[0], w.byId.m.transform.pos[1])).toBeLessThan(1.6);
+  });
+
+  it('prey runs from a threat inside its fear radius and never fights', () => {
+    const deer = { id: 'm', rule: { type: 'ai', speed: 5, turn: 4, dodge: false, fearRadius: 18, mind: { motivation: 'flee', aggressiveness: 'passive' } }, body: { type: 'mesh', hittable: true, hp: 40, radius: 1 }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const near = world({ ...deer }, [8, 0, 0]);
+    expect(run(near, 240)).toBe(0);
+    const d = 8 - near.byId.m.transform.pos[0];
+    expect(near.byId.m.transform.pos[0]).toBeLessThan(-8);   // ran the other way
+    expect(d).toBeGreaterThan(17.5);                          // until it was out of the fear radius (18), then stopped
+    const far = world({ ...deer, transform: { pos: [0, 0, 0], heading: 0 } }, [40, 0, 0]);
+    run(far, 120);
+    expect(far.byId.m.transform.pos).toEqual([0, 0, 0]);       // no threat inside the radius: it stays
   });
 });

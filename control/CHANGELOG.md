@@ -63,6 +63,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Maneuvers are engine verbs.** The acrobatic dodge, the tackle, loadout cycling with its switch ready time, and
   boost inertia left the mobile-suit pack too, as `worlds/controllable/maneuvers.js`. Any rule can opt into them, and
   a mind can carry a loadout without the pack. Nothing in `lib/graph/mobile-suit/` is tracked or published any more.
+- **Guards and prey.** `rule.mind.motivation` shapes a mind outside the arena:
+  - **A guard** engages only intruders within `guardRadius` of its post (where it was placed, or `rule.post`). It
+    walks back to the post once they leave.
+  - **Prey** turns and runs from a threat inside `fearRadius` and never fights.
+
+  Every species' mind runs on the engine's rule, so prey animals flee with no authoring.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 

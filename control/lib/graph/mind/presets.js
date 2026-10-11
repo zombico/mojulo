@@ -46,7 +46,8 @@ export function faunaMind(id) {
   const has = (t) => tags.includes(t);
   const motivation = has('predator') ? 'hunt' : has('prey') ? 'flee' : (has('grazer') || has('browser') || has('roots') || has('filter')) ? 'forage' : 'wander';
   const aggressiveness = has('predator') ? 'bold' : has('prey') ? 'passive' : 'defensive';
-  // no fauna body holds a combat verb yet: a predator's hunt resolves to what its body can do, which today is nothing
-  const body = { rule: { type: cap.wings ? 'fly' : 'walk', ...(cap.swimmer ? { swimmer: true } : {}) } };
+  // an animal runs the engine's mind (worlds/controllable/mind.js) and does not roll. No fauna body holds a combat verb
+  // yet: a predator's hunt resolves to what its body can do, which today is nothing
+  const body = { rule: { type: 'ai', dodge: false, ...(cap.wings ? { flier: true } : {}), ...(cap.swimmer ? { swimmer: true } : {}) } };
   return { mind: { motivation, aggressiveness, rank: 'minion', skill: 'regular' }, body, tags };
 }

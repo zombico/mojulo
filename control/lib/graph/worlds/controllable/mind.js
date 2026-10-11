@@ -12,7 +12,8 @@
  *   strike       the counter (charge beats swing), the blade commit with its timeout and give-up, the trigger
  *   engage       spacing by the tool in hand (rush · skirmish · siege) and the juke cadence
  *   lost         the give-up: no blade landed in time, guns a while
- * A `rule.mind` temperament gates the whole engagement: passive never engages, defensive only once hurt.
+ * A `rule.mind` temperament gates the whole engagement: passive never engages, defensive only once hurt. Its motivation
+ * shapes it: a guard engages only near its post and walks back to it; prey flees a threat inside its fear radius.
  * then the detune: aim wobble after every decision.
  *
  * TUNING is two tables, the matrix's own (held equal to lib/graph/mind/vocab.js by mind.test.js):
@@ -186,6 +187,33 @@ export function buildMind(E) {
     if (e.aiJukeClock >= jp) { e.aiJukeClock = 0; e.aiJukeSide = e.aiJukeSide === 1 ? -1 : 1; }
     return e.aiJukeSide || 1;
   }
+  // walkToward(e, r, want, dt, world, speed) — turn toward heading `want` and walk on when roughly facing it, solid and
+  // on the ground, with the walk gait. Returns the distance moved.
+  function walkToward(e, r, want, dt, world, speed) {
+    const t = e.transform, eye = r.eye ?? 0;
+    const rem = turnToward(t, want, r, dt);
+    let step = 0;
+    if (Math.abs(rem) < 1.1) {
+      const f = fwdXY(t.heading);
+      step = speed * dt;
+      t.pos[0] += f[0] * step; t.pos[1] += f[1] * step;
+    }
+    if (world && world.colliders) block(t, r, eye, world);
+    standOnGround(t, r, eye, world);
+    if (step > 0) { e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + step / (r.stride ?? 2.4); e.moving = true; }
+    else e.moving = false;
+    return step;
+  }
+  // a guard's post: `rule.post`, else where it was placed
+  const postOf = (e, r) => (Array.isArray(r.post) ? r.post : e.spawn ? e.spawn.pos : e.transform.pos);
+  // returnToPost(e, r, dt, world) — walk back to the post and stand there (LOST, for a guard)
+  function returnToPost(e, r, dt, world) {
+    const t = e.transform, p = postOf(e, r);
+    const dx = p[0] - t.pos[0], dy = p[1] - t.pos[1];
+    if (Math.hypot(dx, dy) > (r.arrive ?? 1.5)) walkToward(e, r, Math.atan2(dy, dx), dt, world, r.speed ?? 6);
+    else e.moving = false;
+  }
+
   // SPACING by the tool in hand: [standoffMul, close, weave]. Rush drives in and weaves little, siege holds back and
   // weaves wide, skirmish holds the base. Rotating tools makes the mind press in and fall back in turns.
   const SPACING = { rush: [0.48, 1.0, 0.45], skirmish: [1.0, 0.7, 1.0], siege: [1.55, 0.6, 1.15] };
@@ -265,13 +293,35 @@ export function buildMind(E) {
     // stands down where it is, trigger cold, and drops a recovery edge so a stagger taken while passive doesn't fire
     // a stale roll when the switch comes back on.
     if (world && world.aiEnabled === false) { e.moving = false; e.reactionEnded = false; return; }
+    // Motivation (`rule.mind.motivation`). FLEE: inside `fearRadius` (18) of the threat it turns and runs, faster than
+    // it walks (`fleeSpeed`, else 1.6× its speed), whatever its temperament; outside it, it stands. Prey never fights.
+    const motive = r.mind && r.mind.motivation;
+    if (motive === 'flee') {
+      e.reactionEnded = false;
+      const threat = pickTarget(e, world, r.target);
+      if (!threat || threat === e) { e.moving = false; return; }
+      const fx = t.pos[0] - threat.transform.pos[0], fy = t.pos[1] - threat.transform.pos[1];
+      if (Math.hypot(fx, fy) < (r.fearRadius ?? 18)) walkToward(e, r, Math.atan2(fy, fx), dt, world, r.fleeSpeed ?? speed * 1.6);
+      else e.moving = false;
+      return;
+    }
     // Temperament (`rule.mind.aggressiveness`): a passive mind never engages; a defensive one only once it has been
     // hurt (its hp under the max it spawned with). Without `rule.mind` this never applies.
     const temper = r.mind && r.mind.aggressiveness;
     if (temper === 'passive' || (temper === 'defensive' && !(e.hpMax > 0 && e.body && e.body.hp < e.hpMax))) { e.moving = false; e.reactionEnded = false; return; }
     // NOTICE.
     const target = pickTarget(e, world, r.target);
-    if (!target || target === e) { e.moving = false; e.reactionEnded = false; return; }
+    if (!target || target === e) { e.reactionEnded = false; if (motive === 'guard') returnToPost(e, r, dt, world); else e.moving = false; return; }
+    // GUARD: it holds its post. A target farther than `guardRadius` (20) from the post is not its business: it goes
+    // back to the post (LOST: return-to-post) and stands there (IDLE: post).
+    if (motive === 'guard') {
+      const p = postOf(e, r);
+      if (Math.hypot(target.transform.pos[0] - p[0], target.transform.pos[1] - p[1]) > (r.guardRadius ?? 20)) {
+        e.reactionEnded = false; e.aiClock = dif && dif.reactDelay ? -dif.reactDelay : 0;   // disengaged, like any mind
+        returnToPost(e, r, dt, world);
+        return;
+      }
+    }
     const dx = target.transform.pos[0] - t.pos[0], dy = target.transform.pos[1] - t.pos[1];
     const dist2d = Math.hypot(dx, dy) || 1e-6;
 
