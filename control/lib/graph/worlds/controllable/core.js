@@ -444,7 +444,7 @@ export function buildCore(E) {
     hooks = hooks || {};
     if (hooks.physics) hooks.physics(dt);
     for (const p of PRE_STEPS) { const ov = p.fn(state, input, dt, hooks); if (ov) input = ov; }
-    const world = { byId: state.byId, ground: hooks.ground || null, colliders: state.colliders || null, pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
+    const world = { byId: state.byId, ground: hooks.ground || null, colliders: state.colliders || null, pilotId: state.pilotId || null, aiEnabled: state.aiEnabled !== false && !(state.match && state.match.over), aiTuning: state.aiTuning || null, get time() { return state.time; }, get cinematic() { return state.cinematic; }, get lock() { return state.lock || null; } };
     for (const e of state.entities) {
       if (e.isCamera) continue;
       for (const t of ENTITY_TIMERS) t.fn(e, dt, state);

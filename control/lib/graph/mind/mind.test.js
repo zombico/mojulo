@@ -530,3 +530,43 @@ describe('animals live in packs and herds (MX11)', () => {
     expect(new Set(bearings).size).toBeGreaterThan(2);                       // and not all the same way
   });
 });
+
+describe('minds read the world clock (fix: world.time was missing from the rule facade)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const gun = { fireClass: 'sight', magazine: 99, cooldown: 0.1, damage: 0, range: 200 };
+  const steps = (w, n) => { for (let i = 0; i < n; i++) E.stepWorld(w, {}, 1 / 60, hooks); };
+
+  it('a sighting is stamped with the time, and memory forgets after memorySpan even mid-walk', () => {
+    const w = E.createWorld({ entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [100, 0, 0], heading: 0 } },
+      { id: 'm', rule: { type: 'ai', speed: 2, turn: 4, standoff: 5, memorySpan: 2, sightRange: 120, mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory' } }, weapon: { ...gun }, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [0, 0, 0], heading: 0 } },
+    ] });
+    steps(w, 60);
+    expect(w.byId.m.lastSeen.t).toBeGreaterThan(0.9);
+    w.byId.p.transform.pos = [900, 900, 0];   // gone; the last-seen spot is 100 away at speed 2: 50 s of walking
+    steps(w, 60 * 3);
+    expect(w.byId.m.lastSeen).toBeNull();     // forgotten after 2 s, not after the walk
+  });
+
+  it('grazed food regrows', () => {
+    const w = E.createWorld({ entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [900, 900, 0], heading: 0 } },
+      { id: 'grass', food: true, rule: { type: 'static' }, transform: { pos: [1, 0, 0] } },
+      { id: 'm', rule: { type: 'ai', speed: 3, turn: 4, regrow: 2, grazeTime: 1, mind: { motivation: 'forage', aggressiveness: 'passive' } }, body: { type: 'mesh', hittable: true, hp: 60, radius: 1 }, transform: { pos: [0, 0, 0], heading: 0 } },
+    ] });
+    let grazes = 0, was = false;
+    for (let i = 0; i < 60 * 12; i++) { E.stepWorld(w, {}, 1 / 60, hooks); const g = w.byId.m.grazeFood === 'grass'; if (g && !was) grazes++; was = g; }
+    expect(grazes).toBeGreaterThan(1);       // back to the same patch once it regrew
+  });
+
+  it('a group keeps its target past 8 s of world time', () => {
+    const cfg = { id: 'g', plan: [{ pattern: 'encircle', radius: 10 }], spacing: 3 };
+    const w = E.createWorld({ entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [20, 0, 0], heading: 0 } },
+      ...['a', 'b'].map((id, i) => ({ id, team: 't', rule: { type: 'ai', speed: 8, turn: 4, mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'sight', group: i ? 'g' : cfg } }, weapon: { ...gun }, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [0, i * 4, 0], heading: 0 } })),
+    ] });
+    steps(w, 60 * 12);
+    expect(w.groups.g.engaged).toBe(true);
+  });
+});

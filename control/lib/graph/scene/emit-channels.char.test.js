@@ -96,6 +96,8 @@ import { emitThreeWorld } from './scene-three.js';
 // fixtures.
 // Re-pinned 2026-10-11 (herds): a group of kind 'herd' keeps cohesion and breaks together at an alarm, and prey
 // in a herd run on the alarm. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the rule facade's clock): `world.time` reaches the rules, so a mind's sightings, memory,
+// regrowth and a group's shared sight read the real time (they read 0). Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
