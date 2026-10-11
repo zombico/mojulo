@@ -37,6 +37,8 @@ import { openConcerns, OUTCOMES } from './open.js';
 export { openConcerns };
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// the tabs a house reaches and a room never offers (a room shows them only if its recipe has them anyway)
+const HOUSE_TABS = new Set(['site', 'structure', 'services', 'quantities']);
 const inchesText = (ft) => `${Math.round(ft * 12 * 4) / 4} in`;
 const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -162,12 +164,16 @@ export function structureBookHtml(manifest, { read = readStructure(manifest), re
 
   // ── Cover ──
   const gross = read.schedules.grossArea;
+  // a room and a house are different things, said everywhere: a room is one space, furnished and walked; a house is
+  // rooms that make a home, judged livable or not
+  const isRoom = read.subject === 'room';
+  const bookName = isRoom ? 'Room book' : 'Structure book';
   const stateOf = (t) => (t.on ? (inferred.some((x) => String(x.tab || '').toLowerCase() === t.id) ? 'inferred' : 'given') : 'open-st');
-  const cover = `<section class="part" id="cover"><div class="grid2" style="align-items:end"><div style="display:grid;gap:10px"><span class="eyebrow">Structure book · G-001</span><h1>${esc(name)}</h1>
-<p class="muted">${read.storeys.length} level${read.storeys.length === 1 ? '' : 's'} · ${esc(areaText(gross, units))} gross · ${read.rooms.length} rooms · footprint ${esc(ftIn(fp.x1 - fp.x0))} × ${esc(ftIn(fp.y1 - fp.y0))}${read.construction ? ` · ${esc(read.construction.system)} frame` : ''}</p></div>
-<div class="nums"><div class="num"><b>${esc(areaText(gross, units))}</b><span>gross area</span></div><div class="num"><b>${read.storeys.length}</b><span>levels</span></div><div class="num"><b>${read.rooms.length}</b><span>rooms</span></div><div class="num"><b>${read.grade ? pct(read.grade.score) : '—'}</b><span>plan grade</span></div><div class="num"><b>${sheets.length}</b><span>sheets</span></div></div></div>
+  const cover = `<section class="part" id="cover"><div class="grid2" style="align-items:end"><div style="display:grid;gap:10px"><span class="eyebrow">${bookName} · G-001</span><h1>${esc(name)}</h1>
+<p class="muted">${isRoom ? `A room, not a house: ${esc(title(read.rooms.find((r) => r.glyph !== 'H')?.name || 'one space'))}, furnished and walked, never judged as a home · ` : read.dwelling?.missing.length ? `A house, not yet a home: no ${esc(read.dwelling.missing.join(', no '))} · ` : read.dwelling ? 'A house: a kitchen, a bathroom and a bedroom · ' : ''}${read.storeys.length} level${read.storeys.length === 1 ? '' : 's'} · ${esc(areaText(gross, units))} gross · ${read.rooms.length} room${read.rooms.length === 1 ? '' : 's'} · footprint ${esc(ftIn(fp.x1 - fp.x0))} × ${esc(ftIn(fp.y1 - fp.y0))}${read.construction ? ` · ${esc(read.construction.system)} frame` : ''}</p></div>
+<div class="nums"><div class="num"><b>${esc(areaText(gross, units))}</b><span>gross area</span></div><div class="num"><b>${read.storeys.length}</b><span>levels</span></div><div class="num"><b>${read.rooms.length}</b><span>rooms</span></div><div class="num"><b>${read.grade ? pct(read.grade.score) : '—'}</b><span>plan grade${read.dwelling ? ' (rooms, not the home)' : ''}</span></div>${read.dwelling ? `<div class="num"><b class="${read.dwelling.missing.length ? 'advise' : 'pass'}">${read.dwelling.missing.length ? 'no' : 'yes'}</b><span>a home${read.dwelling.missing.length ? `: no ${esc(read.dwelling.missing.join(', '))}` : ''}</span></div>` : ''}<div class="num"><b>${sheets.length}</b><span>sheets</span></div></div></div>
 <div class="grid2"><div class="card"><h4>Sheet index</h4>${table([{ key: 'id', label: 'Sheet' }, { key: 'title', label: 'Title' }, { key: 'tab', label: 'Tab' }], sheetIndex(sheets).map((s) => ({ id: a(`sh-${s.id}`, s.id), title: esc(s.title), tab: a(tabFor(s.id), title(tabFor(s.id))) })))}</div>
-<div class="card"><h4>How deep the building goes</h4><ul class="states">${TABS.filter((t) => !['cover', 'open'].includes(t.id)).map((t) => `<li>${t.on ? a(t.id, t.name) : `<span class="muted">${esc(t.name)}</span>`}<span class="pill ${stateOf(t)}">${stateOf(t) === 'open-st' ? 'open' : stateOf(t)}</span></li>`).join('')}</ul>
+<div class="card"><h4>${isRoom ? 'What the room has' : 'How deep the building goes'}</h4><ul class="states">${TABS.filter((t) => !['cover', 'open'].includes(t.id) && !(isRoom && !t.on && HOUSE_TABS.has(t.id))).map((t) => `<li>${t.on ? a(t.id, t.name) : `<span class="muted">${esc(t.name)}</span>`}<span class="pill ${stateOf(t)}">${stateOf(t) === 'open-st' ? 'open' : stateOf(t)}</span></li>`).join('')}</ul>
 ${inferred.length ? `<h4>Inferred</h4><ul class="muted">${inferred.map((x) => `<li><b>${esc(x.field ?? x.key ?? '')}</b> ${esc(x.reason ?? x.why ?? '')}</li>`).join('')}</ul>` : ''}
 <p class="muted">An open tab is a field the recipe has not set: ${a('open', 'Open')} names it. Every page is read from the recipe; nothing here is stored.</p></div></div></section>`;
 
@@ -193,10 +199,11 @@ ${dl([['lot', `${esc(ftIn(read.site.lot.x1 - read.site.lot.x0))} × ${esc(ftIn(r
   const sayIn = (ft) => (RL.units === 'mm' ? `${Math.round(ft * 304.8 / 10) * 10} mm` : `${Math.round(ft * 12)} in`);
   const livRows = checks.filter((c) => c.source === 'livability' || c.source === 'design');
   const livBad = livRows.filter((c) => c.ok === false && !c.waived);
-  const livCard = read.storeys.length > 1 || read.elements.stairs.length ? `<div class="card" id="livability"><h4>Livability · ${livBad.length ? `${livBad.length} advise` : 'clear'}</h4>
+  const livCard = isRoom ? `<div class="card" id="livability"><h4>A room, not a house</h4><p class="muted">One space: it is furnished, lit, walked and drawn, and graded as the room it is. Livability (a kitchen, a bathroom and a bedroom; walkways; a stair kept clear) is read for a house. More rooms (<code>rooms[]</code>, or a seed with no <code>rooms</code>, which the mint draws as a home) make it one.</p></div>`
+    : `<div class="card" id="livability"><h4>Livability · ${livBad.length ? `${livBad.length} advise` : 'clear'}</h4>
 ${livRows.length ? `<ul class="muted">${livRows.map((c) => `<li><span class="pill ${c.ok ? 'pass' : c.waived ? 'waived' : 'advise'}">${c.ok ? 'pass' : c.waived ? 'waived' : 'advise'}</span> ${c.subject && roomBy.has(c.subject) ? a(anchors.room(c.subject), c.subject) : esc(c.subject)} ${esc(c.detail)}</li>`).join('')}</ul>` : ''}
 ${dl([['tradition', esc(RL.tradition || '—')], ['passage', esc(sayIn(RL.passage || 3))], ['stair clearance', RL.clearance > 0 ? esc(sayIn(RL.clearance)) : '<span class="muted">the flight only (checked against the passage)</span>'], ['repair', RL.repair ? 'on: the plan keeps a passage past the stair' : '<span class="muted">off</span>'], ['waived', RL.waive?.length ? RL.waive.map((w) => `<code>${esc(w)}</code>`).join(' ') : '<span class="muted">none</span>']])}
-<p class="muted">Yours to set with <code>update_sketch</code>: <code>design: { repair: true }</code> reshapes the plan so walkways clear the stair; <code>clearance: true</code> keeps furniture a passage off it (or feet, or <code>false</code>); <code>passage</code> in feet; <code>waive: ['stair-clearance:101']</code> accepts a finding as built.</p></div>` : '';
+<p class="muted">Yours to set with <code>update_sketch</code>: <code>design: { repair: true }</code> reshapes the plan so walkways clear the stair; <code>clearance: true</code> keeps furniture a passage off it (or feet, or <code>false</code>); <code>passage</code> in feet; <code>waive: ['stair-clearance:101']</code> accepts a finding as built.</p></div>`;
 
   // ── Plan ──
   const g = read.grade;
@@ -306,9 +313,9 @@ ${live ? `<figure class="live">${live}<p class="muted">Drag to orbit; walk where
 ${opens.length ? `<div class="grid2">${opens.map((o) => `<article class="card open" id="open-${esc(o.id)}"><span class="eyebrow">${esc(OUTCOMES.find((x) => x.id === o.outcome).name)} · ${esc(o.tab)}</span><p><code>${esc(o.field)}</code></p><p class="muted">Adds ${esc(o.adds)}. Card <code>${esc(o.card)}</code>.</p></article>`).join('')}</div>` : '<p class="muted">Every tab is reached.</p>'}</section>`;
 
   const nav = TABS.filter((t) => t.on).map((t) => `<a href="#${t.id}">${esc(t.name)}<i>${esc(t.sheet)}</i></a>`).join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} · Structure book</title>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} · ${bookName}</title>
 <style>${CSS}</style></head><body><div class="wrap">
-<div class="mast"><b>Structure book</b><span class="eyebrow">${esc(ref || name)} · ${sheets.length} sheets · ${read.units || 'ft'}</span></div>
+<div class="mast"><b>${bookName}</b><span class="eyebrow">${esc(ref || name)} · ${sheets.length} sheets · ${read.units || 'ft'}</span></div>
 <nav class="tabs" aria-label="Tabs">${nav}</nav>
 ${cover}${site}${massing}${plan}${rooms}${elements}${objects}${structure}${services}${quantities}${checksPart}${walk}${open}
 <footer><span class="eyebrow">Every page read from its recipe</span><span class="eyebrow">Advisory drawings, not an engineered design</span></footer>

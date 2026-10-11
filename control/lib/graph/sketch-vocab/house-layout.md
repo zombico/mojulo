@@ -61,8 +61,10 @@ the glyph you mean. Each glyph carries a furniture recipe (furnishing: `house-dw
 | `W`   | bathroom | toilet, vanity and sink |
 | `H`   | hallway | corridor (connective) |
 
-**One room** is a ONE-CELL plan through this same kind — a room is a part of a building, not a
-separate primitive:
+**One room** is a ONE-CELL plan through this same kind. A room is not a house: its book is a
+Room book and its readout says `subject: 'room'`. It is furnished, walked and drawn, and never
+judged as a home (no livability verdict, no site, stair or frame steps). Use it for a showroom or a
+set:
 
 ```json
 { "width": 24, "height": 28, "rooms": [{ "x": 2, "y": 2, "w": 20, "h": 24, "glyph": "L" }], "furnish": true, "view": "cutaway", "seed": 7 }

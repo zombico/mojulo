@@ -69,7 +69,9 @@ export function stairCrowding(read) {
 }
 
 /** Is a check waived by the recipe (`design.waive`: a rule, or `rule:subject`)? */
-export const isWaived = (read, rule, subject) => (read.rules?.waive || []).some((w) => w === rule || (subject && w === `${rule}:${subject}`));
+// a house without a kitchen, a bathroom or a bedroom is not a home, and no waiver says otherwise
+const UNWAIVABLE = new Set(['dwelling']);
+export const isWaived = (read, rule, subject) => !UNWAIVABLE.has(rule) && (read.rules?.waive || []).some((w) => w === rule || (subject && w === `${rule}:${subject}`));
 
 /** Every check, flat: [{ source, rule, ok, subject, detail, waived? }]. A failed check advises; none refuses; a waived
  *  one is the operator's call, recorded. */
@@ -82,9 +84,16 @@ function checkRowsRaw(read) {
   const rows = [];
   const tagOf = new Map(read.rooms.map((r) => [r.id, r.tag]));
   const g = read.grade;
+  // a room is graded as the room it is: adjacency (what it must touch, a hall, the kitchen) is a house's question
+  const room = read.subject === 'room';
   if (g) {
-    for (const [k, v] of Object.entries(g.breakdown || {})) rows.push({ source: 'plan', rule: `grade:${k}`, ok: v >= 0.75, subject: '', detail: `${Math.round(v * 100)}%` });
-    for (const v of g.violations || []) rows.push({ source: 'plan', rule: 'grade', ok: false, subject: '', detail: v });
+    for (const [k, v] of Object.entries(g.breakdown || {})) if (!(room && k === 'adjacency')) rows.push({ source: 'plan', rule: `grade:${k}`, ok: v >= 0.75, subject: '', detail: `${Math.round(v * 100)}%` });
+    for (const v of g.violations || []) if (!(room && /mustTouch|must touch/i.test(String(v)))) rows.push({ source: 'plan', rule: 'grade', ok: false, subject: '', detail: v });
+  }
+  // a house is livable with a kitchen, a bathroom and a bedroom; without one it is rooms, not a home
+  if (read.dwelling) {
+    const miss = read.dwelling.missing;
+    rows.push({ source: 'livability', rule: 'dwelling', ok: !miss.length, subject: '', detail: miss.length ? `not livable as a home: it has no ${miss.join(', no ')}` : 'a kitchen, a bathroom and a bedroom: a home' });
   }
   // every level above or below the ground is reached by a flight (an authored stack without `stairs` has none)
   for (const lv of unreachedLevels(read)) rows.push({ source: 'plan', rule: 'stair-reach', ok: false, subject: `L${lv.number}`, detail: `no stair reaches this level: add stairs: true (one flight from the ground) or stairs: [{ from, to }]` });

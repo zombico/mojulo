@@ -473,6 +473,8 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     ok: true,
     ref: sketch.ref,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
+    // a room (one space) or a house, said in every reply; a house says what it lacks to be a home
+    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
     ...(design ? { design } : {}),
     ...(inferred?.length ? { inferred } : {}),
     ...(next ? { next } : {}),
@@ -500,8 +502,11 @@ function houseDesignReadout(manifest, read = null) {
   const repairPatch = manifest.design && typeof manifest.design === 'object'
     ? "{ op: 'set', path: '/design/repair', value: true }"
     : "{ op: 'set', path: '/design', value: { repair: true } }";
+  // a house that is not a home (no kitchen, bathroom or bedroom) is never ok, whatever its walkways
+  const home = read?.dwelling ? { ok: !read.dwelling.missing.length, ...(read.dwelling.missing.length ? { missing: read.dwelling.missing } : {}) } : null;
   return {
-    ok: d.ok,
+    ok: d.ok && (!home || home.ok) && (!clearance || clearance.ok),
+    ...(home ? { home } : {}),
     tradition: d.tradition,
     rules: d.rules,
     ...(d.findings.length ? { findings: d.findings.slice(0, 8), ...(d.findings.length > 8 ? { more: d.findings.length - 8 } : {}) } : {}),
@@ -1035,6 +1040,7 @@ export async function updateSketchHandler(input) {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
+    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),

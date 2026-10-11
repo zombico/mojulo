@@ -56,7 +56,7 @@ describe('next — what is open, by outcome', () => {
 
   it('a bare layout names every outcome, in order, ending in the exports', () => {
     const next = buildingNext({ kind: 'floorplan', seed: 7 });
-    expect(ids({ kind: 'floorplan', seed: 7 })).toEqual(['site', 'roof', 'windows', 'furnishing', 'sheets', 'framing', 'drainage', 'ifc']);
+    expect(ids({ kind: 'floorplan', seed: 7 })).toEqual(['site', 'roof', 'dwelling', 'windows', 'furnishing', 'sheets', 'framing', 'drainage', 'ifc']);   // the single-floor generator draws no kitchen or bath
     const order = next.map((s) => OUTCOMES.indexOf(s.outcome));
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(next.find((s) => s.id === 'sheets')).toEqual({ id: 'sheets', outcome: 'drawings', export: 'sheets', card: 'house-drawings' });
@@ -139,5 +139,20 @@ describe('mint_building — the laws a new house is built by', () => {
     const k = SketchRepository.getByRef('mb-kept').manifest;
     expect(k.design).toEqual({ clearance: false });
     expect(k.notes).toBeUndefined();
+  }, 120_000);
+});
+
+describe('the readout never calls a house without a kitchen, bathroom or bedroom ok', () => {
+  it('says not a home, and design.ok is false whatever the walkways say', async () => {
+    // a stack of authored rooms with no kitchen and no bathroom
+    const rooms = [{ x: 0, y: 0, w: 14, h: 12, glyph: 'L' }, { x: 14, y: 0, w: 14, h: 12, glyph: 'B' }, { x: 0, y: 12, w: 28, h: 6, glyph: 'H' }];
+    const made = mintBuilding({ title: 'no home', manifest: { seed: 3, width: 28, height: 18, levels: [{ index: 0, rooms }, { index: 1, rooms }] }, ref: 'not-home' });
+    expect(made.subject).toBe('house');
+    expect(made.notAHome).toMatch(/no kitchen, no bathroom/);
+    if (made.design) expect(made.design).toMatchObject({ ok: false, home: { ok: false } });
+    expect(made.next.map((s) => s.id)).toContain('dwelling');
+    const room = mintBuilding({ title: 'a room', manifest: { seed: 7, width: 24, height: 20, rooms: [{ x: 2, y: 2, w: 20, h: 16, glyph: 'L' }] }, ref: 'a-room' });
+    expect(room.subject).toBe('room');
+    expect(room.notAHome).toBeUndefined();
   }, 120_000);
 });

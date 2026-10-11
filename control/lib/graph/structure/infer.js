@@ -16,7 +16,7 @@ const LAWS = [
   // A house without windows fails every bedroom's egress and every room's daylight: the drawer gives a house it lays out
   // windows, and so does a house laid out by hand.
   (m) => (m.windows === undefined
-    ? { field: 'windows', value: true, tab: 'plan', reason: 'every bedroom needs a window for egress and every room daylight; set windows to false for none' }
+    ? { field: 'windows', value: true, tab: 'plan', reason: 'daylight in every room, and in a bedroom a window to escape by; set windows to false for none' }
     : null),
   // A stack authored as levels[] gets no stair unless it names one (`storeys: N` gets its own): chain every level to
   // the ground, so each floor is reached.

@@ -18,7 +18,12 @@ structure book's tabs: Plan, Rooms, Objects.
 
 ## The livability laws
 
-The book checks every house; each check advises, none refuses.
+The book checks every house; each check advises, none refuses. A room (one space) is not a
+house, and none of these is read for it.
+
+- **A home**: a house is livable only with a kitchen (its own `K` room or the open core's), a
+  bathroom (`W`) and a bedroom (`B`). Without one, the book says "a house, not yet a home", the
+  readout carries `notAHome` and `design.ok: false`, and no `waive` makes it pass.
 
 - **Reach**: a stair reaches every floor. `stairs: true` chains each level from the ground.
 - **Walkway**: every door and stair connects through a passage at least the tradition's width

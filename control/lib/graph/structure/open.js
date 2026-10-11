@@ -30,6 +30,8 @@ function livabilityFindings(m, read) {
   return out;
 }
 
+const ROOM_GLYPH = { kitchen: "a 'K' kitchen", bathroom: "a 'W' bathroom", bedroom: "a 'B' bedroom" };
+
 const hasDesignPass = (m) => !!(m.design && typeof m.design === 'object' && m.design.repair && m.design.clearance);
 
 /**
@@ -47,14 +49,17 @@ const CONCERNS = [
   { id: 'livability', outcome: 'layout', tab: 'Plan', when: (m, r) => livabilityFindings(m, r).length > 0,
     add: (m) => (hasDesignPass(m) ? "design.waive: ['stair-clearance:<room>' | 'walkway'] (the repair could not clear it in this footprint; or widen the house)" : 'design: { repair: true, clearance: true }'),
     adds: (m, r) => { const f = livabilityFindings(m, r); return `a walkway past the stair and furniture kept clear of it (${f.length} finding${f.length === 1 ? '' : 's'} now: ${f.slice(0, 2).map((x) => (x.rule === 'stair-clearance' ? `${x.what} ${Math.round(x.gapFt * 12)} in from ${x.stair}` : x.finding)).join('; ')})`; } },
+  { id: 'dwelling', outcome: 'layout', tab: 'Plan', when: (m, r) => !!r.dwelling?.missing.length,
+    add: (m, r) => (r.program ? `tier: { core: ['L', 'K', …] } for a kitchen, or levels[i].rooms with ${r.dwelling.missing.map((k) => ROOM_GLYPH[k]).join(', ')}` : `rooms[] (or levels[i].rooms) with ${r.dwelling.missing.map((k) => ROOM_GLYPH[k]).join(', ')}; or leave the plan to the mint, which draws a program`),
+    adds: (m, r) => `what makes it a home: it has no ${r.dwelling.missing.join(', no ')} now` },
   { id: 'program', outcome: 'layout', tab: 'Rooms', when: (m, r) => !!r.program?.given && r.program.beds.built < r.program.beds.asked,
     add: (m, r) => (r.program.studyTakesBed && r.program.beds.built === r.program.beds.asked - 1 ? 'tier.study: false (upstairs, a study takes the last bedroom of three or more)' : 'a larger width / height, or leave storeys and levels out so the mint fits the footprint to the program'),
     adds: (m, r) => `the bedrooms asked for: ${r.program.beds.asked} asked, ${r.program.beds.built} built in this footprint` },
-  { id: 'windows', outcome: 'layout', tab: 'Plan', when: (m) => m.windows === undefined || m.windows === null,
+  { id: 'windows', outcome: 'layout', rooms: true, tab: 'Plan', when: (m) => m.windows === undefined || m.windows === null,
     add: 'windows: true', adds: 'a window in every exterior room: egress for the bedrooms, daylight, the window schedule' },
-  { id: 'furnishing', outcome: 'layout', tab: 'Objects', when: (m, r) => !r.objects.pieces.length,
+  { id: 'furnishing', outcome: 'layout', rooms: true, tab: 'Objects', when: (m, r) => !r.objects.pieces.length,
     add: 'furnish: true, or rooms[].items [{ type } | { ref }]', adds: 'the furniture, fixtures and appliances, the FF&E schedule, a custom piece by its own ref' },
-  { id: 'sheets', outcome: 'drawings', tab: 'Elements', when: () => true, export: 'sheets',
+  { id: 'sheets', outcome: 'drawings', rooms: true, tab: 'Elements', when: () => true, export: 'sheets',
     add: "export_model({ ref, format: 'sheets' }) · format: 'schedules'", adds: 'the drawing set as SVG sheets, and every schedule as CSV and JSON' },
   { id: 'framing', outcome: 'build', tab: 'Structure', when: (m, r) => !r.construction,
     add: (m, r) => `framing: { system: 'platform' }${r.stacked ? '' : ' with levels: [{ index: 0 }] (the frame needs a stack)'}`, adds: 'the frame: foundation, floor, wall and roof framing plans, the member schedule, the takeoff and cut list' },
@@ -74,7 +79,8 @@ export const CONCERN_IDS = Object.freeze(CONCERNS.map((c) => c.id));
 const val = (x, m, r) => (typeof x === 'function' ? x(m, r) : x);
 
 const ORDER = new Map(OUTCOMES.map((o, i) => [o.id, i]));
-const open = (m, read) => CONCERNS.filter((c) => c.when(m, read))
+// a room (one space) is furnished, lit, walked and drawn; the site, roof, stair, frame and services are a house's
+const open = (m, read) => CONCERNS.filter((c) => (read.subject !== 'room' || c.rooms) && c.when(m, read))
   .map((c) => ({ id: c.id, outcome: c.outcome, tab: c.tab, field: val(c.add, m, read), adds: val(c.adds, m, read), card: cardOf(c.outcome), ...(c.export ? { export: c.export } : {}), ...(c.follows ? { follows: c.follows } : {}) }))
   .sort((a, b) => ORDER.get(a.outcome) - ORDER.get(b.outcome));
 

@@ -105,6 +105,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - the furnishing defaults no longer contradict the mint's (`windows: true`, `furnishing: 'composed'`,
       `furnish` off);
     - "walk at `/world`" is now the Walk tab and its walk button.
+- **A room and a house are different things,** and every surface says which one it is.
+  - **A room** is one space, not counting halls: a showroom, a set. Its book is a Room book. It is furnished, walked
+    and drawn, and graded as a room, with no adjacency advice. It never gets a livability verdict, and it is
+    offered only furnishing, windows and drawings, never site, roof, stair or frame steps.
+  - **A house is livable only with a kitchen, a bathroom and a bedroom.** The kitchen can be its own room or the
+    open core's. Without one, the Cover says "a house, not yet a home", the Checks tab advises "not livable as a
+    home", and `next` names a `dwelling` step.
+  - **The readout carries `subject: 'room' | 'house'`,** and `notAHome` when a house lacks one of the three.
+  - **A house that is not a home is never ok.** The home check cannot be waived. `design.ok` is false for such a
+    house whatever its walkways, and the Cover shows "a home: no" beside the plan grade, which grades rooms, not the
+    home.
 
 ## [3.1.0] - 2026-10-10
 

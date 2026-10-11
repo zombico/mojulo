@@ -238,6 +238,16 @@ export function readStructure(m = {}) {
     };
   }
 
+  // ── a room or a house. One space (halls aside) is a room: a showroom, a set, a studio piece; it is furnished and
+  // walked, never judged as a home. More is a house, and a house is livable only with a kitchen (its own room, or the
+  // open core's), a bathroom and a bedroom ──
+  const subject = rooms.filter((r) => r.glyph !== 'H').length <= 1 ? 'room' : 'house';
+  let dwelling = null;
+  if (subject === 'house') {
+    const has = { kitchen: rooms.some((r) => r.glyph === 'K') || !!program?.core.includes('K'), bathroom: rooms.some((r) => r.glyph === 'W'), bedroom: rooms.some((r) => r.glyph === 'B') };
+    dwelling = { ...has, missing: Object.keys(has).filter((k) => !has[k]) };
+  }
+
   const elements = {
     walls,
     wallTypes: wallTypes.types.map((t) => {
@@ -271,8 +281,9 @@ export function readStructure(m = {}) {
   const out = {
     units: FLOORPLAN_UNITS, title: m.title ?? null, stacked,
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
-    storeys, rooms, elements,
+    subject, storeys, rooms, elements,
     ...(program ? { program } : {}),
+    ...(dwelling ? { dwelling } : {}),
     objects: { pieces, types: objectTypes },
     schedules: {
       ...schedules,
