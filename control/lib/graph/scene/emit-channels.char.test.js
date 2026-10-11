@@ -79,6 +79,8 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-11 (the commander): the mind reads a posture's spacing off the rule's own `approach` when the
 // weapon slot names none, so a commander's posture spaces the whole body. The commander itself is page-only and gated
 // on a `rule.commanded` body, which no fixture holds. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (boss phases): the mind gains a duelist's health phases and adapting ledger, both gated on
+// `rule.mind` (rank boss, authored phases, or adapt). Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

@@ -78,6 +78,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Bosses change as they lose health, and adapt.** A boss (`rule.mind.rank: 'boss'`) crosses health phases: under
+  two thirds it turns one step more aggressive, under a third relentless, and it closes to the blade when it holds one.
+  Each crossing holds a short planted, invincible beat so the change reads, and a heal never undoes one.
+  `rule.mind.phases: [{ below, aggressiveness, skill, tune, rule, shift }]` authors them for any mind.
+  - A boss also adapts: it books the damage it took and dealt to the mode it was fighting in, melee or ranged, and
+    every few seconds it benches the mode that lost the trade for the next window. A miniboss adapts when asked
+    (`adapt: true`).
+  - Minds without a rank or phases are unchanged, and every arena bout steps byte-identically.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 

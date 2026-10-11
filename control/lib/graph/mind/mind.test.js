@@ -199,3 +199,83 @@ describe('the mind outside the arena: a guard and prey (MX3)', () => {
     expect(far.byId.m.transform.pos).toEqual([0, 0, 0]);       // no threat inside the radius: it stays
   });
 });
+
+describe('a duelist switches: boss health phases and adapting (MX6)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const gun = { fireClass: 'sight', magazine: 99, cooldown: 0.1, damage: 1, range: 200 };
+  const world = (mind, hp = 300) => E.createWorld({
+    entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [40, 0, 0], heading: 0 } },
+      { id: 'm', rule: { type: 'ai', speed: 6, turn: 3, standoff: 20, mind }, weapon: { ...gun }, body: { type: 'mesh', hittable: true, hp, radius: 1 }, transform: { pos: [0, 0, 0], heading: 0 } },
+    ],
+  });
+  const step = (w, n = 1) => { for (let i = 0; i < n; i++) E.stepWorld(w, {}, 1 / 60, hooks); };
+
+  it('a boss crosses its default phases once each: bolder, then relentless and closing to the blade', () => {
+    const w = world({ rank: 'boss', aggressiveness: 'bold' }), m = w.byId.m;
+    step(w, 30);
+    expect(m.mindPhase).toBeUndefined();
+    m.body.hp = 190;   // under 2/3 of 300
+    step(w);
+    expect(m.mindPhase).toBe(0);
+    expect(m.invincible).toBe(true);                 // the shift beat: planted and untouchable
+    expect(m.locomotion).toBe('phase_shift');
+    expect(E.mindTuning(m, w)).toMatchObject(E.MIND_AGGRESSIVENESS.opportunist);
+    step(w, 70);
+    expect(m.phaseShiftT).toBeNull();
+    expect(m.invincible).toBe(false);
+    m.body.hp = 90;    // under 1/3
+    step(w);
+    expect(m.mindPhase).toBe(1);
+    expect(m.rule.meleeSeek).toBe(true);
+    expect(E.mindTuning(m, w)).toMatchObject(E.MIND_AGGRESSIVENESS.relentless);
+    m.body.hp = 300;   // a heal never un-phases
+    step(w, 120);
+    expect(m.mindPhase).toBe(1);
+    expect(m.phaseShifts).toBe(2);
+  });
+
+  it('a big drop crosses every phase it passes in one beat; authored phases carry skill, tune and rule', () => {
+    const w = world({ rank: 'miniboss', phases: [
+      { below: 0.8, skill: 'novice' },
+      { below: 0.5, skill: 'ace', tune: { reactDelay: 0.05 }, rule: { standoff: 60 }, shift: 0 },
+    ] }, 100);
+    const m = w.byId.m;
+    m.body.hp = 40;
+    step(w);
+    expect(m.mindPhase).toBe(1);
+    expect(m.phaseShiftT ?? null).toBeNull();        // shift 0: no beat
+    expect(m.rule.standoff).toBe(60);
+    expect(E.mindTuning(m, w)).toMatchObject({ ...E.MIND_SKILL.ace, reactDelay: 0.05 });
+  });
+
+  it('no phases without a boss or authored phases; a passive boss wakes when its phase turns it bold', () => {
+    const minion = world({ rank: 'minion' }, 100);
+    minion.byId.m.body.hp = 10; step(minion, 10);
+    expect(minion.byId.m.mindPhase).toBeUndefined();
+    const sleeper = world({ rank: 'boss', aggressiveness: 'passive' });
+    let fired = 0;
+    for (let i = 0; i < 120; i++) { step(sleeper); fired += sleeper.byId.m.aiFire; }
+    expect(fired).toBe(0);
+    sleeper.byId.m.body.hp = 150;
+    for (let i = 0; i < 240; i++) { step(sleeper); fired += sleeper.byId.m.aiFire; }
+    expect(sleeper.byId.m.mindPhase).toBe(0);
+    expect(fired).toBeGreaterThan(0);
+  });
+
+  it('adapting benches the mode that lost the trade for one window, then forgives it', () => {
+    const w = world({ rank: 'boss', aggressiveness: 'bold', phases: [] }), m = w.byId.m;
+    for (let i = 0; i < 60 * 6 + 2; i++) { step(w); m.body.hp -= 0.05; w.byId.p.body.hp = 100; }   // shooting, punished, landing nothing
+    expect(m.adapt.benched).toBe('ranged');
+    expect(m.adapt.log).toEqual(['ranged']);
+    for (let i = 0; i < 60 * 6 + 2; i++) step(w);   // an even window: nothing benched
+    expect(m.adapt.benched).toBeNull();
+    const mini = world({ rank: 'miniboss' });
+    step(mini, 30);
+    expect(mini.byId.m.adapt).toBeUndefined();       // a miniboss adapts only when asked
+    const asked = world({ rank: 'miniboss', adapt: true });
+    step(asked, 30);
+    expect(asked.byId.m.adapt).toBeDefined();
+  });
+});

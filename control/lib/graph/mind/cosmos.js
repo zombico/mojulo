@@ -39,7 +39,7 @@ function rowFor(mind) {
   }
   // a duelist's switching ways
   for (const w of r.switches) {
-    const st = w === 'rotate' ? 'built' : 'absent';   // rotation runs in the engine's mind; phases and adapting exist nowhere yet
+    const st = 'built';   // rotate, phase and adapt all run in the engine's mind
     short.push(`switch: ${w} (${st})`);
     if (SEVERITY[st] > SEVERITY[status]) status = st;
   }

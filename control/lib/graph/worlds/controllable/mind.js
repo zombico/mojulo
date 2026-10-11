@@ -71,7 +71,79 @@ export function buildMind(E) {
       Object.assign(t, MIND_AGGRESSIVENESS[m.aggressiveness] || {});
     }
     if (m.tune) Object.assign(t, m.tune);
+    // a crossed health phase layers on top (its skill, aggressiveness and tune), for the rest of this life
+    const ph = e.mindPhase != null ? phasesOf(m)[e.mindPhase] : null;
+    if (ph) {
+      if (ph.skill && MIND_SKILL[ph.skill]) Object.assign(t, MIND_SKILL[ph.skill]);
+      if (ph.aggressiveness && ph.aggressiveness in MIND_AGGRESSIVENESS) {
+        for (const k of ['dodgeCdMul', 'standoffMul', 'closeMul', 'boostBurstMul', 'boostRestMul', 'noTopple', 'tackleGuard']) delete t[k];
+        Object.assign(t, MIND_AGGRESSIVENESS[ph.aggressiveness] || {});
+      }
+      if (ph.tune) Object.assign(t, ph.tune);
+    }
     return t;
+  }
+
+  // ── PHASES and ADAPTING: a duelist's ways of switching (rank miniboss / boss) ─────────────────
+  // phasesOf(mind) — `mind.phases` ([{ below, aggressiveness?, skill?, tune?, rule?, shift? }], health fractions), else
+  // a boss's default: under 2/3 one step bolder, under 1/3 relentless and closing to the blade when it holds one.
+  const TEMPERS = ['passive', 'defensive', 'wary', 'bold', 'opportunist', 'relentless'];
+  function phasesOf(m) {
+    if (!m) return [];
+    if (Array.isArray(m.phases)) return m.phases;
+    if (m.rank !== 'boss') return [];
+    const at = Math.max(TEMPERS.indexOf(m.aggressiveness || 'bold'), 1);
+    return [
+      { below: 2 / 3, aggressiveness: TEMPERS[Math.min(at + 1, TEMPERS.length - 1)], shift: 1 },
+      { below: 1 / 3, aggressiveness: 'relentless', rule: { meleeSeek: true }, shift: 1.2 },
+    ];
+  }
+  // stepPhase(e, r, dt) — cross every phase whose threshold the health has fallen under (once per life: a heal never
+  // un-phases), patch the rule, and hold the SHIFT beat: planted and invincible so the change reads. True while the
+  // shift owns the body.
+  function stepPhase(e, r, dt) {
+    if (e.phaseShiftT != null) {
+      e.phaseShiftT -= dt;
+      if (e.phaseShiftT > 0) { e.moving = false; e.invincible = true; e.locomotion = 'phase_shift'; return true; }
+      e.phaseShiftT = null; if (e.cineT == null) e.invincible = false;
+    }
+    const ps = phasesOf(r.mind);
+    if (!ps.length || !(e.hpMax > 0) || !e.body || e.downed) return false;
+    const frac = e.body.hp / e.hpMax;
+    let next = e.mindPhase != null ? e.mindPhase + 1 : 0, crossed = false;
+    while (next < ps.length && frac < ps[next].below) {
+      e.mindPhase = next; crossed = true;
+      if (ps[next].rule) Object.assign(r, ps[next].rule);
+      next++;
+    }
+    if (crossed && ps[e.mindPhase].shift > 0) {
+      e.phaseShiftT = ps[e.mindPhase].shift; e.phaseShifts = (e.phaseShifts || 0) + 1;
+      e.aiFire = 0; e.moving = false; e.invincible = true; e.locomotion = 'phase_shift';
+      return true;
+    }
+    return false;
+  }
+  // stepAdapt(e, r, dt, world) — book the hp it took and dealt to the mode it was in (melee while committed or
+  // swinging, else ranged); every `adaptEvery` s (6) a mode that lost the trade by `adaptMargin` (8) is benched for
+  // the next window: melee benched → guns only; ranged benched → it closes to the blade (when it holds one).
+  // Deterministic (hp deltas only). On for a boss; a miniboss opts in with `mind.adapt: true`.
+  function adapts(m) { return !!m && (m.adapt === true || (m.rank === 'boss' && m.adapt !== false)); }
+  function stepAdapt(e, r, dt, world) {
+    const a = e.adapt || (e.adapt = { clock: 0, melee: [0, 0], ranged: [0, 0], foeId: null, foeHp: null, hp: e.body ? e.body.hp : 0, benched: null, benchT: 0, log: [] });
+    const mode = (e.swingT != null || (e.meleeCommitT || 0) > 0) ? 'melee' : 'ranged';
+    if (e.body) { if (e.body.hp < a.hp) a[mode][1] += a.hp - e.body.hp; a.hp = e.body.hp; }
+    const foe = a.foeId && world && world.byId ? world.byId[a.foeId] : null;
+    if (foe && foe.body && a.foeHp != null && foe.body.hp < a.foeHp) a[mode][0] += a.foeHp - foe.body.hp;
+    a.foeHp = foe && foe.body ? foe.body.hp : null;
+    if (a.benchT > 0) { a.benchT -= dt; if (a.benchT <= 0) a.benched = null; }
+    a.clock += dt;
+    if (a.clock >= (r.adaptEvery ?? 6)) {
+      const margin = r.adaptMargin ?? 8, net = (k) => a[k][0] - a[k][1];
+      const loser = net('melee') < -margin && net('melee') < net('ranged') ? 'melee'
+        : net('ranged') < -margin && net('ranged') < net('melee') ? 'ranged' : null;
+      if (loser) { a.benched = loser; a.benchT = r.adaptEvery ?? 6; a.log.push(loser); }
+      a.clock = 0; a.melee = [0, 0]; a.ranged = [0, 0];
+    }
   }
 
   // ── STRIKE: the blade ──────────────────────────────────────────────────────────────────
@@ -230,6 +302,9 @@ export function buildMind(E) {
     const r = e.rule;
     const t = e.transform;
     const speed = r.speed ?? 6, strideLen = r.stride ?? 2.4, eye = r.eye ?? 0;
+    // a duelist's switching: health phases (a crossing may hold the shift beat) and the adapting ledger
+    if (r.mind && (r.mind.phases || r.mind.rank === 'boss') && stepPhase(e, r, dt)) { e.aiFire = 0; return; }
+    if (r.mind && adapts(r.mind)) stepAdapt(e, r, dt, world);
     const dif = tuningOf(e, world);
     e.aiFire = 0;
     e.thrust = 0; e.thrustYaw = 0; e.boosting = false;   // reset per frame; a boost burst (opt-in r.boost) re-arms them
@@ -307,7 +382,8 @@ export function buildMind(E) {
     }
     // Temperament (`rule.mind.aggressiveness`): a passive mind never engages; a defensive one only once it has been
     // hurt (its hp under the max it spawned with). Without `rule.mind` this never applies.
-    const temper = r.mind && r.mind.aggressiveness;
+    const livePh = r.mind && e.mindPhase != null ? phasesOf(r.mind)[e.mindPhase] : null;
+    const temper = r.mind && ((livePh && livePh.aggressiveness) || r.mind.aggressiveness);
     if (temper === 'passive' || (temper === 'defensive' && !(e.hpMax > 0 && e.body && e.body.hp < e.hpMax))) { e.moving = false; e.reactionEnded = false; return; }
     // NOTICE.
     const target = pickTarget(e, world, r.target);
@@ -322,6 +398,7 @@ export function buildMind(E) {
         return;
       }
     }
+    if (e.adapt && e.adapt.foeId !== target.id) { e.adapt.foeId = target.id; e.adapt.foeHp = target.body ? target.body.hp : null; }
     const dx = target.transform.pos[0] - t.pos[0], dy = target.transform.pos[1] - t.pos[1];
     const dist2d = Math.hypot(dx, dy) || 1e-6;
 
@@ -379,7 +456,8 @@ export function buildMind(E) {
     // LOST: the give-up. Committed but no swing landed within `meleeTimeout` (5 s) → guns only for `meleeGiveUp` (4 s),
     // so it never loops chasing an evasive or unreachable target.
     if (e.meleeGiveUpT > 0) e.meleeGiveUpT = Math.max(0, e.meleeGiveUpT - dt);
-    const meleeCfg = (r.meleeSeek && lo && (e.strikeCdT || 0) <= 0 && !(e.meleeGiveUpT > 0))
+    const bench = e.adapt && e.adapt.benched;   // adapting: melee benched → guns only; ranged benched → the blade
+    const meleeCfg = ((r.meleeSeek || bench === 'ranged') && bench !== 'melee' && lo && (e.strikeCdT || 0) <= 0 && !(e.meleeGiveUpT > 0))
       ? lo.find((c) => c && c.strike === 'melee') : null;
     const meleeReach = meleeCfg ? (meleeCfg.strikeReach ?? r.strikeReach ?? speed) : 0;
     const targetReeling = !!target.staggerT && !target.downed;   // mid-stagger / toppling, still a live body
