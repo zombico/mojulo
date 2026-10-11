@@ -50,7 +50,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Mojulo supplies the speaker, the text box, the advance and the camera. The lines are a slot it never writes.
   Playscape's cues, menus and cast and the motion comic already cover most of Time. What remains is sized as three
   packages (chapter overlays, quests, the 3D shot), plus passage values of their own; only day and night, and eras,
-  are absent. Time values are marked as lost on a Godot export, which carries only linear progression. A
+  are absent. Gated progression is built: a cue's `emit`, mapped by the level's `game.on` to a `setFlag`, opens a flag
+  gate. Time values are marked as lost on a Godot export, which carries only linear progression. A
   story-adventure probe joins the fixtures.
 - **A value builds what it needs.** A registry value may name the values it `requires`. The sweep credits a value,
   a facet or a package with everything its closure builds, and prices a package at the effort of every package in
@@ -62,8 +63,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   blind.
 - **The progression check.** `checkProgression` (`lib/graph/game/progression-check.js`) reads a game's level gates
   and each level's contract, and names every level a player could never open: a gate on a missing level, on itself,
-  on a cycle, or on a flag no reachable level may set. A flag gate opened only by a contract's permission is
-  reported as unproven, because no level runtime emits `setFlag` yet. It is pure and advisory, and nothing calls it yet.
+  on a cycle, or on a flag no reachable level may set. A flag gate counts as set when a reachable level's `game.on`
+  maps a bus event to that flag. When a contract only permits the flag, the gate is reported as unproven. It is pure
+  and advisory, and nothing calls it yet.
 
 ## [3.1.0] - 2026-10-10
 

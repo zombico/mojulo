@@ -4,6 +4,8 @@ import { checkProgression } from './progression-check.js';
 const STORE = { slices: [{ name: 'campaign', kind: 'progression' }, { name: 'world', kind: 'flags' }] };
 const game = (levels) => ({ store: STORE, levels });
 const FLAGGER = { produces: { events: [{ type: 'setFlag', slice: 'world' }] } };
+// a level whose cue emits `mayor-met` on the bus, mapped by game.on to the flag itself
+const SETTER = { ...FLAGGER, on: { 'mayor-met': { emit: { type: 'setFlag', slice: 'world', key: 'met-mayor', value: true } } } };
 
 describe('checkProgression', () => {
   it('reaches every level of a clean campaign, in play order', () => {
@@ -41,11 +43,19 @@ describe('checkProgression', () => {
     expect(noSlice.locked[0].why).toMatch(/no flags slice/);
   });
 
-  it('opens a flag gate a reachable contract may set, as unproven', () => {
+  it('opens a flag gate a reachable level sets through game.on, as proven', () => {
+    const r = checkProgression(game([{ ref: 'a' }, { ref: 'b', gate: { flag: 'met-mayor' } }]), { a: SETTER });
+    expect(r).toEqual({ ok: true, reachable: ['a', 'b'], locked: [], unproven: [] });
+    // the same level setting another key only allows this one
+    const other = checkProgression(game([{ ref: 'a' }, { ref: 'b', gate: { flag: 'saw-ending' } }]), { a: SETTER });
+    expect(other.unproven.map((u) => u.ref)).toEqual(['b']);
+  });
+
+  it('opens a flag gate a reachable contract only allows, as unproven', () => {
     const levels = [{ ref: 'a' }, { ref: 'b', gate: { flag: 'met-mayor' } }];
     const r = checkProgression(game(levels), { a: FLAGGER });
     expect(r.ok).toBe(true);
-    expect(r.unproven).toEqual([{ ref: 'b', why: "flag 'met-mayor' is allowed by 'a''s contract, not shown set: no level runtime emits setFlag yet" }]);
+    expect(r.unproven).toEqual([{ ref: 'b', why: "flag 'met-mayor' is allowed by 'a''s contract, but no level's game.on sets it" }]);
     // a flag set only by an unreachable level opens nothing
     const r2 = checkProgression(game([{ ref: 'a' }, { ref: 'b', gate: { flag: 'k' } }, { ref: 'z', gate: { completed: 'ghost' } }]), { z: FLAGGER });
     expect(r2.locked.map((l) => l.ref)).toEqual(['b', 'z']);
