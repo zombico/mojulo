@@ -552,36 +552,6 @@ export function buildSplitMirrorPerimeter(lot, splitX, fpA, fpB, baseZ = 0, opts
   return { faces, lot, splitX, units };
 }
 
-// ── top-down site-plan SVG (visual review) ──────────────────────────────────
-
-/** Render a top-down site plan: lot, paved areas, house, carport, shed, fence. */
-export function renderSitePlanSvg(site, opts = {}) {
-  const { lot, footprint: fp } = site;
-  const pad = 4, scale = opts.scale || 7;
-  const W = (lot.x1 - lot.x0 + pad * 2) * scale, H = (lot.y1 - lot.y0 + pad * 2) * scale;
-  const tx = (x) => ((x - lot.x0 + pad) * scale).toFixed(1);
-  const ty = (y) => ((y - lot.y0 + pad) * scale).toFixed(1);
-  const rect = (r, fill, op = 1) => r
-    ? `<rect x="${tx(r.x0)}" y="${ty(r.y0)}" width="${((r.x1 - r.x0) * scale).toFixed(1)}" height="${((r.y1 - r.y0) * scale).toFixed(1)}" fill="${fill}" opacity="${op}"/>`
-    : '';
-  const o = { ...PERIMETER_DEFAULTS, ...opts };
-  const p = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(0)}" height="${H.toFixed(0)}" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">`];
-  p.push(rect(lot, o.grassTint));                                   // lawn
-  p.push(rect(site.driveRect, o.driveTint));                        // driveway
-  p.push(rect(site.pathRect, o.pathTint));                          // path
-  p.push(rect(site.patioRect, o.patioTint));                        // patio
-  p.push(rect(site.carportRect, o.carportRoofTint, 0.6));           // carport (roof)
-  p.push(rect(site.garageRect, o.garageTint));                      // garage
-  p.push(rect(site.shedRect, o.shedTint));                          // shed
-  p.push(rect(fp, '#c9c2b0'));                                      // house footprint
-  // fence outline (side + back solid, front dashed = lower/gapped)
-  p.push(`<rect x="${tx(lot.x0)}" y="${ty(lot.y0)}" width="${((lot.x1 - lot.x0) * scale).toFixed(1)}" height="${((lot.y1 - lot.y0) * scale).toFixed(1)}" fill="none" stroke="${o.fenceTint}" stroke-width="2"/>`);
-  p.push(`<line x1="${tx(lot.x0)}" y1="${ty(lot.y0)}" x2="${tx(lot.x1)}" y2="${ty(lot.y0)}" stroke="#1b2230" stroke-width="3" stroke-dasharray="6 5"/>`); // street edge
-  p.push(`<text x="${tx((lot.x0 + lot.x1) / 2)}" y="${(ty(lot.y0) - 4)}" fill="#9fb0c0" font-family="monospace" font-size="11" text-anchor="middle">street</text>`);
-  p.push('</svg>');
-  return p.join('');
-}
-
 /** Top-down site plan for a split-mirror pair (lawn, both houses, garages, paths, party line). */
 export function renderSplitSitePlanSvg(s, opts = {}) {
   const { lot, splitX } = s;

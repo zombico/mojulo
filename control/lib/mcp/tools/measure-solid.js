@@ -13,6 +13,7 @@
  * Posture: read-only, advisory. Nothing here refuses a shape; it reports one.
  */
 
+import { ASKS, solidNext } from '@/lib/mcp/tools/solid-next';
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
@@ -25,7 +26,7 @@ import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance
 import { strokesReadout } from '@/lib/mcp/tools/layered-strokes';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
-import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
+import { printAdvisories, printsWhole, resolvePrinter } from '@/lib/graph/scene/print-advisory';
 import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
 import { measureScadMotion } from '@/lib/graph/scad/scad-render';
@@ -37,17 +38,23 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export async function measureSolidHandler(input, ctx = {}) {
   if (!input || typeof input !== 'object') throw new Error('measure_solid requires { ref }');
-  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume = true, exposure: exposureInput = true, motion: motionInput = false, strength: strengthInput = null, full = false } = input;
+  const { ref, scale: scaleInput = null, target_mm: targetMm = null, printer: printerInput = null, volume: volumeInput, exposure: exposureInput = true, motion: motionArg, strength: strengthInput = null, full = false } = input;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
   if (scaleInput != null && (!Number.isFinite(scaleInput) || scaleInput <= 0)) throw new Error('`scale` must be a positive number if provided');
   if (targetMm != null && (!Number.isFinite(targetMm) || targetMm <= 0)) throw new Error('`target_mm` must be a positive number if provided');
-  if (volume !== true && volume !== false) throw new Error('`volume` must be a boolean if provided');
-  if (motionInput !== true && motionInput !== false) throw new Error('`motion` must be a boolean if provided');
+  if (volumeInput !== undefined && volumeInput !== true && volumeInput !== false) throw new Error('`volume` must be a boolean if provided');
+  if (motionArg !== undefined && motionArg !== true && motionArg !== false) throw new Error('`motion` must be a boolean if provided');
   const printer = resolvePrinter(printerInput);
 
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
   if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+
+  // The size of the ask (solid-next.js) sets the readings left unnamed: a look skips the volume union, an engineered
+  // part with a mechanism runs its motion. A reading passed in always wins; a row with no `ask` measures as before.
+  const ask = ASKS.includes(sketch.manifest.ask) ? sketch.manifest.ask : null;
+  const volume = volumeInput ?? ask !== 'look';
+  const motionInput = motionArg ?? (ask === 'engineered' && sketch.manifest.kind === 'scad' && !!sketch.manifest.mechanism);
 
   // A repeat in the same session (same recipe, same params) names the reading the agent already has; `full: true`
   // measures again. Nothing is remembered without a session id (print-readings.js).
@@ -192,6 +199,7 @@ export async function measureSolidHandler(input, ctx = {}) {
     print_advisories: advisories,
     ...(warnings && warnings.length ? { warnings } : {}),
     ...(strength ? { strength } : {}),
+    ...(ask ? { ask: askReadout(sketch.manifest, ask, { volume, motion: motionInput, strength: !!strength, whole: printsWhole({ advisories, sizeMm, printer }) }) } : {}),
     note: `${probe.bounds.size.map(r3).join(' × ')}${units ? ` ${units}` : ' world units'} → prints ${sizeMm.join(' × ')} mm at ×${r3(scale)} (${scaleNote}). Closure: ${closureLine}. `
       + (vol.applied ? `Volume ${vol.volume_mm3} mm³ (Manifold union of ${vol.unioned} shell${vol.unioned === 1 ? '' : 's'}, genus ${vol.genus}). ` : `Volume not measured: ${vol.reason}. `)
       + `${measureLine(measure)[0].toUpperCase()}${measureLine(measure).slice(1)}. `
@@ -199,6 +207,14 @@ export async function measureSolidHandler(input, ctx = {}) {
       + (strength ? ` Strength (a sensor, not a guarantee): ${strength.line}` : '')
       + ' Advisory throughout — export_model({ ref, format: \'stl\' }) ships the same numbers beside the file.',
   };
+}
+
+// What the ask's defaults ran, and the steps it still wants that only the recipe can add (the ladder's `add` steps).
+// `prints_whole` is the size at which nothing the print advisories name falls under the floor (print-advisory.js).
+function askReadout(manifest, ask, { volume, motion, strength, whole }) {
+  const ran = ['size', 'closure', 'print', ...(volume ? ['volume'] : []), ...(motion ? ['motion'] : []), ...(strength ? ['strength'] : [])];
+  const wants = (solidNext(manifest) || []).filter((s) => s.add);
+  return { level: ask, ran, ...(wants.length ? { wants } : {}), ...(whole ? { prints_whole: whole } : {}) };
 }
 
 export function registerMeasureSolidTool() {
@@ -215,10 +231,10 @@ export function registerMeasureSolidTool() {
         scale: { type: 'number', description: 'World units → mm.' },
         target_mm: { type: 'number', description: 'Fit longest dimension to mm.' },
         printer: { type: 'object', description: '{ process?: fdm|sla|sls|mjf, nozzle_mm?, min_wall_mm?, bed_mm? }.' },
-        volume: { type: 'boolean', description: 'Manifold volume/genus (default true).' },
+        volume: { type: 'boolean', description: 'Manifold volume/genus (default true; a look row: false).' },
         full: { type: 'boolean', description: 'Re-measure a reading this session has.' },
         exposure: { type: 'boolean', description: 'layered: per-detail exposure ledger (default true).' },
-        motion: { type: 'boolean', description: 'scad mechanism: cycle numbers + collision sweep.' },
+        motion: { type: 'boolean', description: 'scad mechanism: cycle numbers + collision sweep. On by default for an engineered row.' },
         strength: { type: 'object', description: 'Rigidity sensor: { material, build?, checks:[{ element, … }] } → margin, confidence, weak spot. Defaults to the row\'s stored `strength`. get_solid_vocab scad.' },
       },
       required: ['ref'],

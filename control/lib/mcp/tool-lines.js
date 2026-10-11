@@ -56,13 +56,13 @@ export const TOOL_LINES = {
   create_character: L('create', 'A character `as` hero, creature or animal: the `mint_solid` layered and animal recipes, rigged. Revise with `update_sketch`; manuals `get_solid_vocab`.'),
 
   // ── solids ────────────────────────────────────────────────────────────────
-  mint_solid: L('create', "A 3D solid by `kind`: workbench, assembler, scad, code, carved-solid, edifice, vehicle, figure, manji-tree, layered. Manual: `get_solid_vocab`; revise: `update_sketch`."),
+  mint_solid: L('create', "A 3D solid by `kind`: characters, equipment, furniture, scad parts, workbench objects, assemblies, vehicles and more. Manual: `get_solid_vocab`; revise: `update_sketch`."),
   edit_solid: L('update', "Operate on a minted solid's derived renders: `op:'skin'` paints it, `op:'emote'` poses a figure. Recipe edits go through `update_sketch`.", "Operate on a minted solid's derived renders: `op:'emote'` poses a figure in a looping GIF. Recipe edits go through `update_sketch`."),
   measure_solid: L('observe', 'Numbers off a stored solid: bounds, printed mm size, per-part sizes, closure, volume, print advisories. The check before `export_model`.'),
   fabricate_solid: L('compose', 'Make an object buildable: what each part must do → standard parts, a bill of materials and the cuts or joints that take them. Plan, then mint.'),
   verify_machina: L('observe', 'A checked feasibility verdict for a materials-handling problem: can this mechanism move this load within these limits?'),
   get_solid_vocab: L('orient', 'A `mint_solid` kind or `edit_solid` op manual (long ones open to `sections`). Omit `id` to list; find one with `semantic_search` kind solid_vocab.'),
-  mint_building: L('create', 'A walkable house, apartment or furnished room; `next` names each step (storeys, framing, IFC) and its `get_sketch_vocab` card. Revise: `update_sketch`.'),
+  mint_building: L('create', 'A walkable house, apartment or furnished room with its structure book; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
 
   // ── worlds ────────────────────────────────────────────────────────────────
   compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.'),

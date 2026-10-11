@@ -4,13 +4,13 @@
  * (framing, roof, drainage), then a BIM model (export_model format 'ifc'). The
  * door takes the floorplan manifest create_sketch takes, unchanged, mints it
  * through the same mintSketch (so both doors store the same row), and answers
- * with `next`: the steps the recipe can take from here, each naming the card
- * that teaches it.
+ * with `next`: the house's open concerns by outcome (Concept, Layout, Drawings,
+ * Build), each naming the field or export and the outcome card that teaches it.
  */
 
 import { registerTool } from '@/lib/mcp/server';
 import { mintSketch } from '@/lib/mcp/tools/sketch-mint';
-import { BUILDING_KINDS, buildingNext } from '@/lib/mcp/tools/building-next';
+import { BUILDING_KINDS } from '@/lib/mcp/tools/building-next';
 
 export function mintBuilding({ title, manifest, ref, folderRef } = {}) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
@@ -29,8 +29,8 @@ export function mintBuilding({ title, manifest, ref, folderRef } = {}) {
       "A bespoke institutional building is mint_solid kind 'edifice'; a store, mall or restaurant is create_sketch; a city or campus is compose_world."
     );
   }
-  const result = mintSketch({ title, manifest: m, ref, folderRef });
-  return { ...result, next: buildingNext(m) };
+  // the readout (design, inferred, next) comes from the recipe as stored, the same as create_sketch's
+  return mintSketch({ title, manifest: m, ref, folderRef });
 }
 
 async function mintBuildingHandler(input) {
@@ -43,7 +43,7 @@ export function registerBuildingTools() {
   registerTool({
     name: 'mint_building',
     description:
-      "Mint a walkable house, apartment or one furnished room → { ok, ref, url, next }. manifest: a floorplan from a `seed` (width / height in feet) or `rooms[]` { x, y, w, h, glyph }; `view`: 'exterior' | 'cutaway' | 'interior'. A house climbs in steps (furnish, storeys → framing, roof, drainage → IFC via export_model); `next` names the steps open from here and the card to read for each (get_sketch_vocab). Iterate with update_sketch.",
+      "Mint a walkable house, apartment or one furnished room with its structure book (plans, sections, schedules, frame) → { ok, ref, url, design, next }. manifest: a floorplan from a `seed` (width / height in feet) or `rooms[]` { x, y, w, h, glyph }; `view`: 'exterior' | 'cutaway' | 'interior'. `next` names what is open by outcome (concept, layout, drawings, build): the field or export for each, and its card (get_sketch_vocab). Iterate with update_sketch.",
     inputSchema: {
       type: 'object',
       properties: {

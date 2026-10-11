@@ -21,12 +21,18 @@ const RECIPE_FAMILIES = new Set([
   'roomInteriorTwoPoint',
 ]);
 
+// The words that once aliased the building pictures. A building ask is answered with the door that builds one.
+const BUILDING_ASKS = new Set(['house', 'home', 'building', 'buildingHouse', 'architecture', 'interior']);
+
 export function compileSketchRecipe(input = {}) {
   const recipe = input?.recipe || input;
   if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe)) {
     throw new Error('compileSketchRecipe requires a recipe object');
   }
   const family = normalizeRecipeKind(recipe.kind || recipe.family);
+  if (BUILDING_ASKS.has(family)) {
+    throw new Error(`'${family}' is a building, not a picture: mint_building makes a house to walk, with its plans, sections and schedules (card house-concept). A drawing of a facade is the recipe family 'architecturalConstruction'; of a room, 'roomInteriorTwoPoint'.`);
+  }
   if (!RECIPE_FAMILIES.has(family)) {
     throw new Error(`Unknown sketch recipe family '${recipe.kind || recipe.family || '(missing)'}'`);
   }
@@ -74,11 +80,6 @@ function normalizeRecipeKind(kind) {
     blueprintSpec: 'blueprintSpec',
     garment: 'garmentPattern',
     garmentPattern: 'garmentPattern',
-    house: 'architecturalConstruction',
-    home: 'architecturalConstruction',
-    building: 'architecturalConstruction',
-    buildingHouse: 'architecturalConstruction',
-    architecture: 'architecturalConstruction',
     architecturalConstruction: 'architecturalConstruction',
     vehicle: 'vehicleGlyphLanguage',
     vehicles: 'vehicleGlyphLanguage',
@@ -95,7 +96,6 @@ function normalizeRecipeKind(kind) {
     'room-interior-two-point': 'roomInteriorTwoPoint',
     roomInterior: 'roomInteriorTwoPoint',
     twoPointRoom: 'roomInteriorTwoPoint',
-    interior: 'roomInteriorTwoPoint',
   };
   return aliases[value] || value;
 }

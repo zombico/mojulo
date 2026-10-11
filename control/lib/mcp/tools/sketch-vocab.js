@@ -28,6 +28,13 @@ function servedCards() {
 
 export async function getSketchVocabHandler(input) {
   const id = input && typeof input === 'object' ? input.id : undefined;
+  // an argument this tool does not take is named, never read as "list everything": a card asked for under the wrong
+  // name (`paradigm`, `card`, `name`) would otherwise come back as the whole shelf
+  const stray = input && typeof input === 'object' ? Object.keys(input).filter((k) => k !== 'id' && k !== 'detail') : [];
+  if (stray.length && (id === undefined || id === null || id === '')) {
+    const guess = stray.map((k) => input[k]).find((v) => typeof v === 'string');
+    throw new Error(`get_sketch_vocab takes \`id\` (a card id) and \`detail\`; it does not take ${stray.map((k) => `\`${k}\``).join(', ')}.${guess ? ` For that card: get_sketch_vocab({ id: '${guess}' }).` : ''} With no id it lists the cards.`);
+  }
   if (id === undefined || id === null || id === '') {
     return { cards: listingRows(servedCards(), { detail: input?.detail === true }), _telemetrySignal: { id_requested: false, found: true } };
   }

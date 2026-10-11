@@ -289,6 +289,172 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   held, using the shortest-form spelling both engines print. The bus keeps JS's `undefined` apart from `null`, so a
   var set from a missing field compares the same on both sides.
 
+### Structure rails: the structure book
+
+- A house (`floorplan` row) is getting **the structure book**, one tabbed HTML view of the whole building in the game
+  designer's idiom. It has a tab per component concern: Cover, Site, Massing, Plan, Rooms, Elements, Objects,
+  Structure, Services, Quantities, Checks, Walk and Open.
+  - Elements (walls, slabs, openings, members) and objects (furniture, fixtures) carry one tag. The tag links a
+    sheet, its schedule, its room card and the live walk.
+  - Tabs appear as the building deepens, through four outcomes: Concept, Layout, Drawings and Build (the frame,
+    trades, takeoff, checks and IFC).
+  - The path stays short: `mint_building`, `update_sketch`, `export_model` (adding `sheets` and `schedules`) and the
+    existing Workflows.
+- Built in `lib/graph/structure/`, served at `/api/sketches/<ref>/bible` and exported by `export_model`:
+  - **The read model** (`readStructure`) reads the building from the recipe as tagged data. Framed, it also gives
+    the frame's members, marks and fields, the wiring and the rainwater. The worlds are byte-identical.
+  - **The drawing set** (`drawingSet`) is in NCS conventions and discipline order, and each sheet appears only when
+    the recipe has what it draws:
+    - C-101 site;
+    - S-101… foundation, storey and roof framing plans with framing keys;
+    - A-10x plans, A-20x elevations, A-301 sections and A-60x schedules;
+    - P-101 roof drainage;
+    - E-10x electrical plans with circuit schedules.
+- **Stairs:** `stairs: true` on an authored `levels[]` stack now joins every level from the ground: up to each floor
+  and down to each basement. Before, it always ran one flight down to a basement, even when there was none, so a
+  ground-and-second house (every multi-storey house the drawer makes) had no way up.
+  - A ground with its basement keeps the flight it had.
+  - The book flags a level no stair reaches and names the field that adds one.
+  - Sections draw the flights, and framing plans mark the stair opening.
+- **Livability around the stair:**
+  - **`design.clearance`** (`true` for the passage, feet, or `false`) keeps furniture off the flight, its landing,
+    and the well upstairs.
+  - **`design.waive`** accepts a finding as built.
+  - **`{ repair: true, clearance: true }`** is a livability pass: walkways clear the stair, and nothing crowds it.
+  - **The structure book** walks every stack and flags furniture within the clearance of a stair in its own room.
+    Its Plan tab shows the rules in force and how to override them, and a waived finding stays visible as waived.
+  - **Existing rows:** a recipe without `clearance` builds exactly as before.
+- **New houses are minted by laws** (`structure/infer.js`), on both doors. Each law fills only a field the recipe leaves
+  out, writes an ordinary value, and gives its reason in `notes.inferred`, which the book's Cover lists. An explicit
+  value, even `false`, is kept. The laws only run at mint, so stored rows keep their bytes.
+  - A house without `windows` gets `windows: true`. A recipe laid out by hand had no windows, so every bedroom failed
+    egress (the drawer already gave windows to the houses it lays out).
+  - A `levels[]` stack gets `stairs: true`.
+  - A stack gets `design: { repair: true, clearance: true }`, and a given `design` without `clearance` gets
+    `clearance: true`.
+  - A framed single floor becomes a stack of one (`levels: [{ index: 0 }]`), since framing needs a stack.
+  - A roof style that names a form, such as `gable`, becomes the bungalow style with that form. Before, it silently
+    drew a hip roof.
+- **`next` is by outcome.** `mint_building`, `create_sketch` and `update_sketch` answer a house with what it has not
+  reached, from the recipe as stored. Concerns are grouped into four outcomes: Concept, Layout, Drawings and Build.
+  Each concern names the field that adds it, or the export that takes the house out, and the outcome card that
+  teaches it. Before, it named a ladder of rungs and offered "add roof" to a house that had one.
+  - **New cards:** `house-concept`, `house-livability`, `house-drawings` and `house-build`. Each has the questions to
+    ask from zero, the laws, and the fields that open each of the book's tabs.
+  - **One table** (`structure/open.js`) feeds both `next` and the book's Open tab. The tab now groups its cards by
+    outcome and names each card; exports are steps, not open tabs, so only `next` lists them.
+  - **The `design` readout** carries the stair clearance beside the walkway, with the patch that keeps it or how to
+    waive it. A crowded stair is a `livability` step under Layout.
+  - **The roof step** names a style (`roof: 'bungalow'`, `form: 'gable'`). Before, the Open tab offered
+    `roof: 'gable'`, which is a form, not a style.
+  - **A framed house with a roof and no covering** gets a Build step for `roof.covering`.
+- **One path for buildings.** Building asks now route to `mint_building` and nothing else.
+  - **The `house` routing card** is the one routing prose for buildings. It leads with the structure book and the four
+    outcome cards. The studio's HOUSE line, the building form, the tool line and the `mint_building` description
+    point to it. Two `routing-eval` rows pin drawings and a framing takeoff asked for without the word "house".
+  - **The picture recipes no longer alias buildings.** `house`, `home`, `building`, `buildingHouse`, `architecture`
+    and `interior` answer with `mint_building` and name the two illustration families by their own names.
+  - **The blockout lingo** routes a house massing to `mint_building`.
+  - **The polygonizer's blueprint style** says it never draws a building's sheets.
+  - **Edifice is out of the building path** (it has no slabs, windows, stairs or rooms to draw). Its card is for an
+    institutional block for a world.
+  - **Removed, with no callers:** the orphaned `floorplan-office.js`, `renderFloorplanPlanSvg`,
+    `renderHouseElevationSvg` and `renderSitePlanSvg`. The A-, C- and S-sheets draw what they drew.
+  - **The house cards** name `mint_building` as the door, with `create_sketch` still accepting `kind: 'floorplan'`.
+    `floor-plan` indexes the outcome cards ahead of the manuals.
+- **Fixes from cold-agent runs.** Five fresh agents each worked a brief: one per outcome, plus a showroom with two
+  custom pieces placed by `ref`. Every brief was met at least in large part. What they tripped on:
+  - **Stacks named by role** (`levels: [{ role: 'ground' }, { role: 'second' }]`) now get the stair and the
+    livability pass at mint. They were counted as one level.
+  - **The open core is named for what shares it** (`living / kitchen / dining`). Agents read "lounge" as a missing
+    kitchen.
+  - **A tier that builds fewer bedrooms than it asks** becomes a Layout step. It names `tier.study: false` when an
+    upstairs study took the slot, else a larger footprint.
+  - **The stair schedule shows the width built,** with its risers and going. The card says `design.stair.width` is
+    the rule checked against and `stairs[].width` builds a wider flight.
+  - **The Walk tab no longer offers a game-level handoff** that `create_game` refuses for a house. It offers the
+    world's walk and fly modes and a `forge_motion` film.
+  - **`get_sketch_vocab` names an argument it does not take** and points at `{ id }`, instead of listing every card.
+  - **Card corrections:**
+    - the bathroom glyph `W` is in the glyph table;
+    - `roof.pitch` is documented;
+    - the furnishing defaults no longer contradict the mint's (`windows: true`, `furnishing: 'composed'`,
+      `furnish` off);
+    - "walk at `/world`" is now the Walk tab and its walk button.
+- **A room and a house are different things,** and every surface says which one it is.
+  - **A room** is one space, not counting halls: a showroom, a set. Its book is a Room book. It is furnished, walked
+    and drawn, and graded as a room, with no adjacency advice. It never gets a livability verdict, and it is
+    offered only furnishing, windows and drawings, never site, roof, stair or frame steps.
+  - **A house is livable only with a kitchen, a bathroom and a bedroom.** The kitchen can be its own room or the
+    open core's. Without one, the Cover says "a house, not yet a home", the Checks tab advises "not livable as a
+    home", and `next` names a `dwelling` step.
+  - **The readout carries `subject: 'room' | 'house'`,** and `notAHome` when a house lacks one of the three.
+  - **A house that is not a home is never ok.** The home check cannot be waived. `design.ok` is false for such a
+    house whatever its walkways, and the Cover shows "a home: no" beside the plan grade, which grades rooms, not the
+    home.
+
+### Fitted furnishings: true-size fixtures and furniture in a house
+
+- **A house can be furnished at true size** with `furnishing: 'fitted'`. Pieces are built in mm at their catalogue
+  size and placed by the rules about the room: a wet wall, the clearances an inspector wants, nothing in a door's
+  way. They are never stretched to a share of the room. Without it, a house renders as before, byte for byte. The
+  bathroom comes first; the kitchen and the rest of the furniture follow.
+- **The fitted bathroom** (`furnishings/fixtures.js`, `furnishings/bathroom.js`):
+  - Fixtures: a water closet (pan, seat, cistern, flush), a basin on a vanity (a double one in a wide room), a bathtub
+    with its filler on the wet wall, a shower beside the tub in a big room, a mirror over each basin, a towel rail
+    and a bath mat.
+  - Layouts: the tub along a side wall with the WC and vanity down the wet wall, or the tub across the wet wall of a
+    narrow room, or a WC and basin where no tub fits.
+  - Each fixture is a roster row (`rooms[].items: [{ type: 'bathtub' }]` places one anywhere).
+- **The book reads them:**
+  - The Objects tab and the schedules carry a plumbing fixture schedule, marked WC, LAV, TUB, SHR, MIR and TR, at
+    catalogue size.
+  - A livability check, `fixture-clearance`, checks each clearance (21 in before the WC and basin, 15 in each side of
+    the WC, room to step into the tub, 24 in before the shower) and says when a bathroom holds no basin or no tub or
+    shower.
+
+### Solid powerscale: solids routed by what they are for
+
+- **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words
+  (equipment, furniture), hard-edged or fitted parts (scad and its `mj_*` library, with `fabricate_solid` for the
+  standard parts), and measured or organic objects (workbench, code). It used to leave scad, equipment and furniture
+  unnamed, and its tool line listed only some of the kinds.
+- **Fitted parts stay home.** The workbench and scad routing cards no longer send threaded, toleranced or geared
+  parts to a B-rep handoff: the `scad` kind's `mj_*` library prints them. Only STEP, GD&T or a constraint solver
+  still goes through `translate_modeler_lingo({ lingo: 'precision cad' })`. The workbench card names all of its
+  primitives, not "rotational primitives only".
+- **Furniture has a routing card.** A sofa, chair, table or piece of casework by style lands on `mint_solid` kind
+  `furniture`, not on the house or the workbench.
+- **The routing eval checks the kind.** `mint_solid` is the entry for every solid, so new card rows pin a fitted part
+  to the scad card, a measured form to the workbench card and a styled piece to the furniture card.
+- **The size of the ask caps the ladder.** A solid's `spec.ask` names how serious the ask is: `look` (it reads
+  right), `fit` (it fits a thing: true size and the print check), `function` (standard parts, strength, a bill of
+  materials) or `engineered` (motion, materials, printed walls and coupons). The agent judges it; nothing infers it.
+  It is stored on the recipe, patched at `/ask` to climb, and caps `next` at its rung, so a trinket is not walked
+  toward a tensile coupon (`lib/mcp/tools/solid-next.js`). Without it, a scad part's `next` is unchanged byte for byte.
+- **The workbench has a `next`.** A workbench, code, equipment or furniture row returns the open steps once it is
+  meant to be made (frames, a fabricate plan, a strength spec, or mm units off a `build`), or whenever it carries an
+  `ask`: the print check, fabricate and the bill for frames, the strength rail, 3MF. A plain look returns none, as before.
+- **Parts by name, from the recipe book.** `mint_solid({ kind: 'scad', spec: { part: 'wall-hook' } })` is a finished,
+  printable hook; `params` fit it (`{ reach: 60, screw: 'M5' }`). A part is a new recipe-book entry type, `part`: a
+  pure `builder.js` that writes an OpenSCAD program over the `mj_*` library from named params, each with a default
+  and a range. The program is stamped on the row beside `part` and `params` and rewritten when `/params` change; a
+  hand edit under `/source` detaches the row into a plain scad part. Three to start: `wall-hook` (countersunk ISO
+  screws, filleted inside), `phone-stand` (a groove sized to the device in its case, a cable slot) and `lidded-box`
+  (sized by the inside, the lid's lip at a printed fit). The book validator checks the lane (`npm run test:book`),
+  and each part mints closed through OpenSCAD in `scad-part.test.js`. Book 0.9.0.
+- **`measure_solid` reads the ask.** On a row with an `ask`, the readings left unnamed follow it: a look skips the
+  Manifold volume union (the slow leg), and an engineered scad part with a `mechanism` runs its motion and collision
+  sweep. The reading carries `ask: { level, ran, wants }`. `wants` is the ladder's `add` steps, what the recipe still
+  lacks for that ask (a strength spec for a function, printed walls or a material for engineered). A reading passed
+  in always wins, and a row without `ask` measures exactly as before.
+- **The size a keepsake prints whole at.** Under an `ask`, `measure_solid` also returns `ask.prints_whole`:
+  `{ at_mm, fine, over_bed? }`, the print size at which every feature the advisories name as under the printer's
+  floor reaches it (`printsWhole` in `print-advisory.js`). The features are thin walls, tiny sections and bores, and
+  the sampled walls. Detail scales as a size, never a cut: the recipe is untouched. `over_bed` says thickening the
+  detail is the move, not a bigger print. Any solid row takes `ask` by an `update_sketch` patch at `/ask`, a
+  character included.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest

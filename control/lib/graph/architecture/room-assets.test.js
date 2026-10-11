@@ -98,7 +98,10 @@ describe('room-assets registry', () => {
       const manifest = asset.buildManifest(floorElement(0.9, 0.9, 0.8));
       const { stats } = planWorkbench(manifest);
       expect(stats.faces).toBeGreaterThan(0);
-      expect(stats.warnings, `${asset.id} should sit on the grid`).toBeUndefined();
+      // a wall-mounted piece (a mirror, a towel rail) hangs at its mounting height by design: it may float, nothing else
+      const hung = asset.tags?.placement?.includes('wall');
+      const warnings = hung ? (stats.warnings || []).filter((w) => !/^Object floats /.test(w)) : stats.warnings;
+      expect(hung && !warnings.length ? undefined : warnings, `${asset.id} should sit on the grid`).toBeUndefined();
     }
   });
 });

@@ -20,6 +20,7 @@
 
 // ── seeded RNG (mulberry32) — deterministic per seed ────────────────────────
 import { ROOM_SCENE_ELEMENT_PRESETS } from './room-scene-elements.js';
+import { arrangeBathroom } from '../furnishings/bathroom.js';
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -694,6 +695,8 @@ export function arrangeStorage(rng = Math.random, { w = 8, h = 8, scale = 'feet'
 export function furnishElements(glyph, seed = 1, dims = {}) {
   const rng = mulberry32((seed >>> 0) || 1);
   if (glyph === 'K') return arrangeKitchen(rng, dims);      // feet in every mode (see makeSizer)
+  // `furnishing: 'fitted'`: the bathroom's fixtures at true size, placed by rule (furnishings/bathroom.js)
+  if (glyph === 'W' && dims.fitted) return arrangeBathroom(dims);
   const share = dims.scale === 'share';
   const post = (els) => (share ? applyFurnishBudget(els, glyph, dims) : els);
   // `layout: 'varied'`: a seeded variant, mirror and quarter-turn of the arranger's layout (variedLayout)

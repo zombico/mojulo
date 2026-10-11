@@ -88,6 +88,18 @@ describe('resolveDisplayModes', () => {
     expect(r.modes.map((m) => m.key)).toEqual(DISPLAY_MODES);
   });
 
+  it('reads a house as its structure book first, the four looks after it; the gallery default stays the world', () => {
+    const r = resolveDisplayModes({ manifest: { kind: 'floorplan', seed: 3 }, ref: 'sk_house' });
+    expect(r.modes.map((m) => m.key)).toEqual(['book', ...DISPLAY_MODES]);
+    expect(r.modes[0].view).toEqual({ kind: 'iframe', src: '/api/sketches/sk_house/bible', aspect: '4 / 5', protocol: false });
+    expect(r.readingMode).toBe('book');
+    expect(r.defaultMode).toBe('shaded');
+    expect(pickMode(r, r.readingMode).key).toBe('book');
+    // a summary (the gallery) carries the kind in place of the manifest, and gets the same answer
+    expect(resolveDisplayModes({ renderMode: 'world', kind: 'floorplan', ref: 'sk_house' }).readingMode).toBe('book');
+    expect(resolveDisplayModes({ manifest: { kind: 'fractal-city' }, ref: 'sk_j' }).readingMode).toBeUndefined();
+  });
+
   it('carries no control for heard, spoken, played, or clicked-through kinds', () => {
     for (const kind of ['beats-ambient', 'voice-register', 'game', 'motion-comic']) {
       expect(resolveDisplayModes({ manifest: { kind }, ref: 'sk_k' })).toBeNull();

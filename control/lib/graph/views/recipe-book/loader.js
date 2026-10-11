@@ -179,9 +179,41 @@ async function loadBooks({ dir: upstreamOverride, cookbook: cookbookOverride } =
     }
   }
 
+  // THE PART LANE (solid-powerscale): `part` entries are CODE — builder.js writes an OpenSCAD program from named
+  // params — so, like the view builders, never from the cookbook. A part is { part: { id, title, params }, source };
+  // each param names its `default`, and `source(defaults)` must return a program. The first book wins; a malformed
+  // part is warned and skipped, never thrown.
+  const parts = new Map();
+  for (const { dir, source } of dirs) {
+    const manifest = readBookManifest(dir);
+    if (!manifest || (source !== 'bundled' && manifest.requiresMojulo && !satisfiesMin(manifest.requiresMojulo, installed))) continue;
+    for (const entry of Array.isArray(manifest.entries) ? manifest.entries : []) {
+      if (entry.type !== 'part') continue;
+      const id = String(entry.id || '');
+      if (source === 'cookbook') { warn(`cookbook entry '${id}' is a part — the cookbook is Door-1 only (recipes); skipped`); continue; }
+      const file = join(dir, 'chapters', String(entry.chapter || ''), String(entry.dir || ''), 'builder.js');
+      if (!existsSync(file)) { warn(`part '${id}' declares a builder but ${file} is missing — skipped`); continue; }
+      if (parts.has(id)) { warn(`part '${id}' in ${source} shadowed by a higher-precedence book — skipped`); continue; }
+      let mod;
+      try {
+        mod = await importExternal(pathToFileURL(file).href);
+      } catch (err) {
+        warn(`part '${id}': builder failed to import — ${err.message} — skipped`);
+        continue;
+      }
+      const meta = mod.part;
+      const params = meta && meta.params && typeof meta.params === 'object' ? meta.params : null;
+      if (!meta || meta.id !== id || !params || typeof mod.source !== 'function' || Object.values(params).some((p) => !p || p.default === undefined)) {
+        warn(`part '${id}': builder must export { part: { id: '${id}', title, params: { <name>: { default, … } } }, source } — skipped`);
+        continue;
+      }
+      parts.set(id, { id, title: typeof meta.title === 'string' && meta.title ? meta.title : id, params, source: mod.source, chapter: entry.chapter });
+    }
+  }
+
   const cards = readBookCards({ dirs });
-  setBookSnapshot({ kinds, worldKinds, renderKinds, cards, wardrobe, warnings });
-  return { kinds: kinds.size, wardrobe: wardrobe.size, warnings };
+  setBookSnapshot({ kinds, worldKinds, renderKinds, cards, wardrobe, parts, warnings });
+  return { kinds: kinds.size, wardrobe: wardrobe.size, parts: parts.size, warnings };
 }
 
 // Test seam — clears the memo, the card cache, and the published registry.

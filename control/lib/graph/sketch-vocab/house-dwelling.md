@@ -2,9 +2,11 @@
 { "id": "house-dwelling", "name": "House dwelling — furnishing, your own items, finishes and styles", "summary": "a house's rooms as lived in: furnish by glyph, furniture sized to the room or built on the workbench, items you place, wall and floor finishes, pot lights, and house styles", "when": "furnishing a house or one room, sizing or building its furniture, placing your own pieces or minted objects in a room, a condo unit's items, wall / floor finishes, recessed lights, baking light, or choosing a house style (cottage, brick, modern, tofu, mission, metal cladding)", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
-Every furnishing knob defaults OFF on a generated plan: `furnish`, `windows`, `ceilings`,
-`wallDecor`, `facadeDecor`, `entryDoor`, `porch` / `stoop`. Set `furnish: true` (or `view:
-'cutaway'`, which implies it) to fill each room from its glyph (the glyph table is in
+A new house is minted with `windows: true`, `furnishing: 'composed'` and `layout: 'varied'` (how
+rooms are filled once they are), but empty: `furnish` is off, as are `ceilings`, `wallDecor`,
+`facadeDecor`, and, on a plan you give, `entryDoor` and `porch` / `stoop` (a drawn house gets its
+door and front). Set `furnish: true` (or `view: 'cutaway'`, which implies it) to fill each room
+from its glyph (the glyph table is in
 `house-layout`). New room archetypes are fill recipes (data), not new mark kinds.
 
 ```json
@@ -25,6 +27,13 @@ Every furnishing knob defaults OFF on a generated plan: `furnish`, `windows`, `c
   a house style's finish colours their cloth and wood. Any item can name one: `asset:
   'constructed-sofa'` (`-armchair`, `-chesterfield`, `-coffee-table`, `-dining-table`, `-chair`,
   `-bookcase`, `-media-console`, `-sideboard`, `-chest`, `-nightstand`).
+- `furnishing: 'fitted'` — composed furniture, and the bathroom fitted at true size: a water closet, a basin on a
+  vanity (a double one in a wide room), a bathtub, and in a big room a shower beside it, a mirror over each basin, a
+  towel rail and a bath mat, placed by the clearances an inspector wants (21 in before the WC and basin, 15 in each
+  side of the WC, room to step into the tub, 24 in before the shower). The tub runs along a side wall, or across the
+  wet wall of a narrow room. The book schedules them as plumbing fixtures (WC, LAV, TUB, SHR) and checks each
+  clearance. One fixture by name in any room: `rooms[].items: [{ type: 'bathtub' | 'shower' | 'vanity' | 'mirror'
+  | 'towel-rail' }]`.
 - `furnishing: 'composed'` — the same pieces become composed furniture (`get_solid_vocab({ id: 'furniture' })`)
   in the house style's furniture language: a cottage gets roll-arm sofas, turned legs and linen, a brick house
   chesterfields and club chairs in velvet and tweed, a modern one tapered legs and bouclé. Each room picks per role,

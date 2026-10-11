@@ -22,6 +22,9 @@ export const FIXTURE = [
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
   ['what bearings and screws should my printed spool holder use, list what I need to buy', 'fabricate_solid'],
+  // solid-powerscale: a fitted part by words, and furniture (no card until then)
+  ['a little knob that screws onto an M6 bolt', 'mint_solid'],
+  ['a green linen loveseat on hairpin legs for my den', 'mint_solid'],
   ['design this lamp so it can be built from hardware store parts', 'fabricate_solid'],
   ['I need a glowing crystal staff for my forest mage', 'mint_solid'],
   ['give my paladin a shield with a sun on it and make it chunky and stylized', 'mint_solid'],
@@ -56,6 +59,9 @@ export const FIXTURE = [
   ['design me a two-storey house with a porch', 'mint_building'],
   ['a furnished apartment I can walk through', 'mint_building'],
   ['frame the house and give me an IFC model for Revit', 'mint_building'],
+  // the structure book's outcomes: drawings and a build, asked for without the word "house" leading
+  ['draw me the floor plans, elevations and a section of a two-bedroom cottage', 'mint_building'],
+  ['a cut list and lumber takeoff for framing my bungalow', 'mint_building'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

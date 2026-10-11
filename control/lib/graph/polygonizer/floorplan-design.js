@@ -12,7 +12,12 @@
 // tradition's width, riser and going.
 //
 // The rules are data (DESIGN_RULES, by tradition), named in the recipe by `design: { tradition?, passage?, door?,
-// stair?: { width, riser, going }, repair? }` in feet; every finding is advisory.
+// stair?: { width, riser, going }, repair?, clearance?, waive? }` in feet; every finding is advisory.
+//
+// Two of them are the operator's to set, not the tradition's: `clearance` keeps furniture that far off a stair (its
+// flight on the floor it climbs in, its well on the floor it reaches) — `true` for the tradition's passage, a number of
+// feet, `false` (the default) for the flight's footprint only, as before; `waive` lists the checks the operator accepts
+// as built (a rule, or `rule:subject`), which a reader shows as waived rather than advising.
 import { ARCHETYPES } from './floorplan-glyphs.js';
 
 const IN = 1 / 12, MM = 1 / 304.8;
@@ -41,6 +46,8 @@ export function validateDesign(v, at = 'design') {
     else for (const k of ['width', 'riser', 'going']) if (v.stair[k] !== undefined && !(Number.isFinite(v.stair[k]) && v.stair[k] > 0 && v.stair[k] < 20)) e.push(`${at}.stair.${k}: feet, a positive number`);
   }
   if (v.repair !== undefined && typeof v.repair !== 'boolean') e.push(`${at}.repair: a boolean`);
+  if (v.clearance !== undefined && typeof v.clearance !== 'boolean' && !(Number.isFinite(v.clearance) && v.clearance >= 0 && v.clearance < 20)) e.push(`${at}.clearance: true (the passage), false, or feet`);
+  if (v.waive !== undefined && !(Array.isArray(v.waive) && v.waive.every((w) => typeof w === 'string' && w.length > 0 && w.length < 120))) e.push(`${at}.waive: a list of checks accepted as built ('stair-clearance', 'walkway:upstairs' …)`);
   return e;
 }
 
@@ -49,7 +56,10 @@ export function designRules(v, tradition = null) {
   const spec = v && typeof v === 'object' ? v : {};
   const tk = spec.tradition || tradition || 'north-american';
   const base = DESIGN_RULES[tk] || DESIGN_RULES['north-american'];
-  return { tradition: tk, units: base.units, passage: spec.passage ?? base.passage, door: spec.door ?? base.door, stair: { ...base.stair, ...(spec.stair || {}) }, repair: !!spec.repair };
+  const passage = spec.passage ?? base.passage;
+  // the furniture kept off a stair: the passage when asked for (true), the operator's feet when given, none otherwise
+  const clearance = spec.clearance === true ? passage : Number.isFinite(spec.clearance) ? spec.clearance : 0;
+  return { tradition: tk, units: base.units, passage, door: spec.door ?? base.door, stair: { ...base.stair, ...(spec.stair || {}) }, repair: !!spec.repair, clearance, waive: Array.isArray(spec.waive) ? spec.waive : [] };
 }
 
 /** A length in the tradition's units, for a finding. */

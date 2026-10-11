@@ -9,6 +9,7 @@
 import { workbenchAssetFaces } from '../worlds/workbench.js';
 import { facadeFaces, lockedFurnitureFaces } from '../construction/facades.js';
 import { resolveFurniture } from '../furnishings/forms.js';
+import { FIXTURES, fixtureManifest } from '../furnishings/fixtures.js';
 import { buildLeg, buildSlab } from './room-parts.js';
 import {
   buildBookcaseWorkbenchManifest, buildBorderedRugWorkbenchManifest, buildClubArmchairWorkbenchManifest,
@@ -1035,6 +1036,13 @@ function rectangularModernCouchManifest(el) {
 }
 
 export const ROOM_FURNITURE_ASSETS = {
+  // the fitted bathroom's fixtures (furnishings/fixtures.js): built at their catalogue size in the house's feet, placed
+  // on a footprint of that size by the bathroom arranger, so the map onto it never stretches them
+  ...Object.fromEntries(Object.entries(FIXTURES).map(([id, f]) => [`fixture-${id}`, {
+    id: `fixture-${id}`, class: 'room-furniture', local: true, aliases: [], ...(f.wall ? { contact: false } : {}),
+    tags: { rooms: ['bathroom'], roles: [f.mark.toLowerCase()], placement: [f.wall ? 'wall' : 'floor', 'wall-hugging'] },
+    buildManifest: () => fixtureManifest(id, 304.8),
+  }])),
   chair: {
     id: 'chair',
     class: 'room-furniture',

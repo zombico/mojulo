@@ -15,9 +15,10 @@ intent and the substrate fills the detail. Three properties hold by construction
 ## Minting
 
 `mint_building({ title, manifest })` — `kind: 'floorplan'` and the manifest's own `title` may be
-left out (`create_sketch` with `kind: 'floorplan'` mints the same row). The reply is
-`{ ok, ref, url, next }`: `next` names the steps the house can take from here and the card for
-each — read that card before adding the step. The recipe is a STARTER: iterate in place with
+left out. The reply is
+`{ ok, ref, url, design, inferred, next }`: `next` names what is open by outcome (concept,
+layout, drawings, build), the field or export for each, and its outcome card (`house-concept`,
+`house-livability`, `house-drawings`, `house-build`); read that card before adding the step. The recipe is a STARTER: iterate in place with
 `update_sketch({ ref, patch })`, re-mint only for a side-by-side variant. Every JSON block below
 is a `manifest`.
 
@@ -36,8 +37,10 @@ is a `manifest`.
   knob in the stored recipe: "add a bedroom" is `tier.beds`, "make it one floor" is `levels: [{ role: 'ground' }]`.
   Anything given wins; `program: false` keeps the single-floor generator below.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
-- Openings are opt-in: `windows`, `entryDoor`, `ceilings` (each default off on a generated plan).
-- Walkable at `/world`.
+- Openings: a new house is minted with `windows: true` (every bedroom needs one for egress; `false` for none);
+  `entryDoor` and `ceilings` are opt-in on a plan you give.
+- Walkable in its World (the book's Walk tab, `/api/sketches/<ref>/world`): the **walk** button
+  walks it at eye height.
 
 ## Your own rooms
 
@@ -55,10 +58,13 @@ the glyph you mean. Each glyph carries a furniture recipe (furnishing: `house-dw
 | `B`   | bedroom | bed, nightstand, dresser, window, picture |
 | `O`   | office  | standing-desk, computer-chair, rack-shelf, bookshelf |
 | `S`   | storage | dresser, cabinet, rack-shelf |
+| `W`   | bathroom | toilet, vanity and sink |
 | `H`   | hallway | corridor (connective) |
 
-**One room** is a ONE-CELL plan through this same kind — a room is a part of a building, not a
-separate primitive:
+**One room** is a ONE-CELL plan through this same kind. A room is not a house: its book is a
+Room book and its readout says `subject: 'room'`. It is furnished, walked and drawn, and never
+judged as a home (no livability verdict, no site, stair or frame steps). Use it for a showroom or a
+set:
 
 ```json
 { "width": 24, "height": 28, "rooms": [{ "x": 2, "y": 2, "w": 20, "h": 24, "glyph": "L" }], "furnish": true, "view": "cutaway", "seed": 7 }
@@ -75,7 +81,7 @@ rooms, halls, doors }`; `fillRoom(room, seed)` expands a room's glyph into box-n
 - **Top-down map** — `rooms` tinted by glyph, `halls`, and `doors` as dots on corridor edges.
 - **3D dollhouse** — every room under one high camera; the camera-facing front wall skipped for
   an open cutaway, each room's furniture through `box-net`.
-- **The World** — walk it at `/world`; `export_model` ships it (`house-bim`).
+- **The World** — walk it from the book's Walk tab; `export_model` ships it (`house-bim`).
 
 Next steps: furnishing and finishes `house-dwelling` · more floors `house-storeys` · the
 structure `house-construction` · BIM and export `house-bim`.

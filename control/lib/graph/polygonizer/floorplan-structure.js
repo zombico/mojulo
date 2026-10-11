@@ -723,7 +723,9 @@ function relocateWallPieces(elements, { x0, x1, y0, y1 }, exclude, windowWalls) 
 // Structural openings (window/door) are dropped — the house cuts those for real.
 function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, windowWalls = null) {
   if (!glyph || glyph === 'H') return [];
-  const pad = Math.max(o.wallThickness, 0.4);           // keep furniture off the walls
+  // a fitted bathroom's fixtures stand on the wall's face (the wet wall), not off it like loose furniture
+  const fitted = o.furnishing === 'fitted';
+  const pad = fitted && glyph === 'W' ? o.wallThickness / 2 + 0.02 : Math.max(o.wallThickness, 0.4);   // keep furniture off the walls
   const x0 = rect.x + pad, x1 = rect.x + rect.w - pad, y0 = rect.y + pad, y1 = rect.y + rect.h - pad;
   if (x1 - x0 < 3 || y1 - y0 < 3) return [];
   const place = Math.round(rect.x * 131.1 + rect.y * 17.7 + baseZ * 7.3);
@@ -735,7 +737,7 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // layout's depth runs the room's real width after the turn (see orientElementsToDoor)
   const quarter = doorEdge === 'E' || doorEdge === 'W';
   const [cw, ch] = quarter ? [H, W] : [W, H];
-  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale, ...(varied ? { varied } : {}) })
+  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale, ...(varied ? { varied } : {}), ...(fitted ? { fitted } : {}) })
     .filter((e) => e.type !== 'window' && e.type !== 'door');
   // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
   // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
@@ -790,8 +792,11 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // `furnishing: 'constructed'`: the pieces built on the workbench, as facades, in place of the simpler ones
   if (o.furnishing === 'constructed') elements = elements.map(constructedPiece);
   // `furnishing: 'composed'`: each piece a composed role names, in the house's furniture language (composedPieces)
-  else if (o.furnishing === 'composed') elements = composedPieces(elements, rect, seed, o);
+  // `furnishing: 'fitted'` composes the same pieces, and its fixtures are already built at true size
+  else if (o.furnishing === 'composed' || fitted) elements = composedPieces(elements, rect, seed, o);
   if (!elements.length) return [];
+  // a reader's collector (structure/read.js): the pieces as data, beside the faces; absent, nothing reads it
+  if (o._objects) o._objects.push({ source: o.furnishing === 'composed' || fitted ? (fitted ? 'fitted' : 'composed') : o.furnishing === 'constructed' ? 'constructed' : 'archetype', glyph, baseZ, interior: { x0, x1, y0, y1 }, elements });
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
 }
 
@@ -1798,7 +1803,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     : generatePlan(input.seed ?? 1, { width: input.width, height: input.height, maxDepth: input.maxDepth, corridors: input.corridors ?? false, minRoom: input.minRoom });
   // composed furnishing: the language and every override checked once (a bad one fails the mint, never falls back
   // to a mesh in silence), and the house's seed kept for the per-room picks
-  if (o.furnishing === 'composed') {
+  if (o.furnishing === 'composed' || o.furnishing === 'fitted') {
     const errs = composedFurnishingErrors(o, plan.rooms);
     if (errs.length) throw new Error(`composed furnishing:\n- ${errs.join('\n- ')}`);
     if (o._composeSeed == null) o._composeSeed = plan.seed ?? input.seed ?? 1;
@@ -1878,6 +1883,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   }
   // the operator's placed items (rooms[i].items) claim their footprints first
   const placed = plan.rooms.flatMap((room) => roomItemPlacements(room, baseZ, o));
+  if (o._objects && placed.length) o._objects.push({ source: 'item', baseZ, placed });   // the reader's collector, as above
   // populate each registered room with its archetype furniture (the open core is
   // split into its program zones so living/kitchen/dining each read as themselves).
   if (o.furnish) {
@@ -2233,51 +2239,6 @@ export function renderSplitMirrorToThreeWorld(input = {}, opts = {}) {
   return emitThreeWorld(assembleSplitMirrorWorld(input, opts));
 }
 
-// ── Stage 1: top-down blueprint SVG (room tints + thick walls + glyphs) ──────
-/** Render the structurized plan as a top-down blueprint SVG string. */
-export function renderFloorplanPlanSvg(structure, opts = {}) {
-  const o = { ...FLOORPLAN_DEFAULTS, ...opts };
-  const fp = structure.footprint;
-  const pad = 6, scale = opts.scale || 6;
-  const W = (fp.x1 - fp.x0 + pad * 2) * scale, H = (fp.y1 - fp.y0 + pad * 2) * scale;
-  const tx = (x) => ((x - fp.x0 + pad) * scale).toFixed(1);
-  const ty = (y) => ((y - fp.y0 + pad) * scale).toFixed(1);
-  const parts = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(0)}" height="${H.toFixed(0)}" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">`];
-  parts.push(`<rect width="${W.toFixed(0)}" height="${H.toFixed(0)}" fill="#1b2230"/>`);
-  // cells, tinted by archetype glyph
-  for (const c of structure.cells) {
-    const fill = (ARCHETYPES[c.glyph] || ARCHETYPES.S).tint;
-    parts.push(`<rect x="${tx(c.x)}" y="${ty(c.y)}" width="${(c.w * scale).toFixed(1)}" height="${(c.h * scale).toFixed(1)}" fill="${fill}" opacity="0.82"/>`);
-    if (c.kind === 'room') {
-      parts.push(`<text x="${tx(c.x + c.w / 2)}" y="${ty(c.y + c.h / 2)}" fill="#23303f" font-family="monospace" font-size="${(Math.min(c.w, c.h) * scale * 0.4).toFixed(0)}" text-anchor="middle" dominant-baseline="central">${c.glyph}</text>`);
-    }
-  }
-  // walls, drawn at true thickness (skip opening spans → piers/lintels read as gaps).
-  // Exterior envelope draws heavier than interior partitions, matching the 3D mass.
-  for (const run of structure.wallGraph.runs) {
-    const t = runThickness(run, o);
-    const color = run.interior ? '#3a4660' : '#0c1018';
-    const [A, B] = run.along;
-    const ops = (run.openings || []).slice().sort((p, q) => p.a - q.a);
-    const piers = [];
-    let cursor = A;
-    for (const op of ops) { if (op.a > cursor) piers.push([cursor, op.a]); cursor = Math.max(cursor, op.b); }
-    if (cursor < B) piers.push([cursor, B]);
-    if (!ops.length) piers.push([A, B]);
-    for (const [s0, s1] of piers) {
-      const r = spanRect(run, s0, s1, t);
-      parts.push(`<rect x="${tx(r.x0)}" y="${ty(r.y0)}" width="${((r.x1 - r.x0) * scale).toFixed(1)}" height="${((r.y1 - r.y0) * scale).toFixed(1)}" fill="${color}"/>`);
-    }
-  }
-  // stair voids ("open slots") punched through this level's slab
-  for (const h of structure.slabHoles || []) {
-    parts.push(`<rect x="${tx(h.x0)}" y="${ty(h.y0)}" width="${((h.x1 - h.x0) * scale).toFixed(1)}" height="${((h.y1 - h.y0) * scale).toFixed(1)}" fill="#11161f" stroke="#37e0e6" stroke-width="2" stroke-dasharray="6 4"/>`);
-    parts.push(`<text x="${tx((h.x0 + h.x1) / 2)}" y="${ty((h.y0 + h.y1) / 2)}" fill="#37e0e6" font-family="monospace" font-size="${(Math.min(h.x1 - h.x0, h.y1 - h.y0) * scale * 0.35).toFixed(0)}" text-anchor="middle" dominant-baseline="central">▤ stair</text>`);
-  }
-  parts.push('</svg>');
-  return parts.join('\n');
-}
-
 // ════════════════════════════════════════════════════════════════════════════
 // THE MERU — the house's shared vertical ruler. In the substrate the meru is the
 // metamandala that owns world units + cross-element gravity; here it is the datum
@@ -2615,7 +2576,12 @@ export function structurizeHouse(input = {}, opts = {}) {
   // Open-space-first generator by default; fall back to the fractal BSP on `bsp`/`corridors`.
   const useProgram = input.program !== false && input.corridors !== true && !input.bsp;
   const hasUpper = resolved.some((r) => r.index > 0);
-  const stairSpecs = input.stairs === true ? [{ from: 0, to: -1 }]
+  // `stairs: true` chains the stack from the ground: down to each basement, then up to each floor (a ground and a
+  // basement keep the one flight they always had; before, a stack with no basement got a flight down to nothing and
+  // its upper floors none)
+  const stackIdx = [...new Set(resolved.map((r) => r.index))];
+  const stairSpecs = input.stairs === true
+    ? [...stackIdx.filter((i) => i < 0).sort((a, b) => b - a).map((i) => ({ from: i + 1, to: i })), ...stackIdx.filter((i) => i > 0).sort((a, b) => a - b).map((i) => ({ from: i - 1, to: i }))]
     : Array.isArray(input.stairs) ? input.stairs : input.stairs ? [input.stairs] : [];
   // program houses default to a SWITCHBACK (U-return) stair; it needs a wider open zone,
   // so the reserved stair span (and the upper landing that must cover it) grows to fit.
@@ -2689,10 +2655,15 @@ export function structurizeHouse(input = {}, opts = {}) {
   });
   const slabHolesByIndex = {};
   const stairExcludeByIndex = {};   // the flight's footprint per level → keep furniture off it
+  // design.clearance: furniture also keeps that far off the flight, and off the well on the floor it reaches
+  // (absent or false: the footprint only, as it always was)
+  const clear = o.design ? designRules(o.design, framing ? framing.tradition : null).clearance : 0;
+  const grown = (r) => (clear > 0 ? { x0: r.x0 - clear, x1: r.x1 + clear, y0: r.y0 - clear, y1: r.y1 + clear } : r);
   for (const st of stairs) {
     (slabHolesByIndex[st.upperIndex] ||= []).push(st.slot);
     const lower = Math.min(st.fromIndex, st.toIndex);   // the flight climbs in the lower volume
-    (stairExcludeByIndex[lower] ||= []).push(st.slot);
+    (stairExcludeByIndex[lower] ||= []).push(grown(st.slot));
+    if (clear > 0) (stairExcludeByIndex[st.upperIndex] ||= []).push(grown(st.slot));
   }
 
   // exterior view: roofed solid massing on the ground, basement below grade hidden.
@@ -2992,52 +2963,3 @@ export function renderHouseToHtml(input = {}, opts = {}) {
   });
 }
 
-/**
- * Stage-3 SECTION/ELEVATION: the meru drawn as stacked storey bands with the
- * ground datum line. Shows the vertical relationship (basement/ground/second)
- * the top-down plan can't. Terrain stays off; the ground line is the only datum.
- */
-export function renderHouseElevationSvg(house, opts = {}) {
-  const fp = house.footprint;
-  const scale = opts.scale || 6, pad = 8;
-  const worldW = fp.x1 - fp.x0;
-  const zs = house.levels.flatMap((l) => [l.baseZ - house.meru.floorDrop, l.baseZ + l.height]);
-  const zMin = Math.min(...zs), zMax = Math.max(...zs);
-  const W = (worldW + pad * 2) * scale, H = (zMax - zMin + pad * 2) * scale;
-  const sx = (x) => ((x - fp.x0 + pad) * scale).toFixed(1);
-  const sz = (z) => ((zMax - z + pad) * scale).toFixed(1);     // z up → svg y down
-  const p = [`<svg xmlns="http://www.w3.org/2000/svg" width="${W.toFixed(0)}" height="${H.toFixed(0)}" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}">`];
-  p.push(`<rect width="${W.toFixed(0)}" height="${H.toFixed(0)}" fill="#11161f"/>`);
-  for (const lvl of house.levels) {
-    const z0 = lvl.baseZ, z1 = lvl.baseZ + lvl.height;
-    // floor slab
-    p.push(`<rect x="${sx(fp.x0)}" y="${sz(z0)}" width="${(worldW * scale).toFixed(1)}" height="${(house.meru.floorDrop * scale).toFixed(1)}" fill="#6e6450"/>`);
-    // storey envelope band (exterior), tinted by sign (below/at/above ground)
-    const tint = lvl.index < 0 ? '#5a5240' : '#b6a684';
-    p.push(`<rect x="${sx(fp.x0)}" y="${sz(z1)}" width="${(worldW * scale).toFixed(1)}" height="${((z1 - z0) * scale).toFixed(1)}" fill="${tint}" opacity="0.5" stroke="#0c1018" stroke-width="2"/>`);
-    p.push(`<text x="${sx(fp.x0 + 1)}" y="${sz((z0 + z1) / 2)}" fill="#dfe7f0" font-family="monospace" font-size="${(lvl.height * scale * 0.32).toFixed(0)}" dominant-baseline="central">${lvl.role} · L${lvl.index >= 0 ? '+' : ''}${lvl.index} · ${lvl.height.toFixed(1)}ft</text>`);
-  }
-  // GROUND DATUM helper line at z = groundZ
-  const gy = sz(house.meru.groundZ);
-  p.push(`<line x1="0" y1="${gy}" x2="${W.toFixed(0)}" y2="${gy}" stroke="#37e0e6" stroke-width="2.5" stroke-dasharray="10 6"/>`);
-  p.push(`<text x="6" y="${(+gy - 6).toFixed(1)}" fill="#37e0e6" font-family="monospace" font-size="${(scale * 2.4).toFixed(0)}">ground · z=0</text>`);
-  // meru axis (centre)
-  const ax = sx((fp.x0 + fp.x1) / 2);
-  p.push(`<line x1="${ax}" y1="${sz(zMax)}" x2="${ax}" y2="${sz(zMin)}" stroke="#2a6f86" stroke-width="1.5" stroke-dasharray="3 4"/>`);
-  // stair flights climbing the section (only x-running flights project cleanly here)
-  for (const st of house.stairs || []) {
-    if (!st.direction || !st.direction.includes('x')) continue;
-    const sign = st.direction === '-x' ? -1 : 1;
-    const x0 = st.anchor[0];
-    const pts = [`${sx(x0)},${sz(st.topZ - st.steps * st.rise)}`];
-    for (let i = 1; i <= st.steps; i += 1) {
-      const xPrev = x0 + sign * (i - 1) * st.going, xCur = x0 + sign * i * st.going;
-      const z = (st.topZ - st.steps * st.rise) + i * st.rise;
-      pts.push(`${sx(xPrev)},${sz(z)}`, `${sx(xCur)},${sz(z)}`);
-    }
-    p.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="#9a8f78" stroke-width="3"/>`);
-    p.push(`<text x="${sx(x0)}" y="${(+sz(st.topZ) - 8).toFixed(1)}" fill="#9a8f78" font-family="monospace" font-size="${(scale * 2.2).toFixed(0)}">stair L${st.fromIndex}→L${st.toIndex}</text>`);
-  }
-  p.push('</svg>');
-  return p.join('\n');
-}

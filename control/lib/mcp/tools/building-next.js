@@ -1,21 +1,15 @@
 /**
- * The building ladder's `next`: the steps a stored house can take from here,
- * computed from what its recipe already has. Names and card ids only — the card
- * teaches the step, so a call that never climbs never pays for it. Returned by
- * mint_building and by update_sketch on a building; never stored.
- *
- * Kept dependency-free so both doors can import it without a cycle.
+ * A building's readout: what mint_building, create_sketch and update_sketch answer with for a house, read from the
+ * recipe as stored. `next` is the house's open concerns by outcome (Concept, Layout, Drawings, Build), each naming the
+ * field that adds it, or the export that takes it out, and the outcome card that teaches it (structure/open.js, the
+ * table the structure book's Open tab reads, so the readout and the book name the same steps). `design` gains the
+ * stair clearance beside the walkway. Never stored.
  */
 
-// The card that teaches each step. One map, so splitting the house card per
-// step changes only this.
-export const RUNG_CARDS = Object.freeze({
-  layout: 'house-layout',
-  dwelling: 'house-dwelling',
-  storeys: 'house-storeys',
-  construction: 'house-construction',
-  bim: 'house-bim',
-});
+import { readStructure } from '@/lib/graph/structure/read';
+import { nextSteps, clearanceReadout, OUTCOME_CARDS } from '@/lib/graph/structure/open';
+
+export { OUTCOME_CARDS };
 
 export const BUILDING_KINDS = Object.freeze(['floorplan']);
 
@@ -23,24 +17,20 @@ export function isBuildingManifest(manifest) {
   return !!manifest && typeof manifest === 'object' && BUILDING_KINDS.includes(manifest.kind);
 }
 
-const present = (v) => v !== undefined && v !== null && v !== false;
+/** The structure read of a house, or null for any other recipe (or one the reader cannot read). Never throws. */
+export function buildingRead(manifest) {
+  if (!isBuildingManifest(manifest)) return null;
+  try { return readStructure(manifest); } catch { return null; }
+}
 
-export function buildingNext(manifest) {
-  if (!isBuildingManifest(manifest)) return undefined;
-  const m = manifest;
-  const next = [];
-  if (!present(m.furnish) && !present(m.furnishing) && m.view !== 'cutaway') {
-    next.push({ add: 'furnishing', card: RUNG_CARDS.dwelling });
-  }
-  if (!present(m.storeys) && !present(m.floors) && !(Array.isArray(m.levels) && m.levels.length)) {
-    next.push({ add: 'storeys', card: RUNG_CARDS.storeys });
-  }
-  if (!present(m.framing)) {
-    next.push({ add: 'framing', card: RUNG_CARDS.construction });
-  } else {
-    if (!present(m.roof?.covering)) next.push({ add: 'roof', card: RUNG_CARDS.construction });
-    if (!present(m.drainage)) next.push({ add: 'drainage', card: RUNG_CARDS.construction });
-  }
-  next.push({ export: 'ifc', card: RUNG_CARDS.bim });
-  return next;
+/** The steps open from here, or undefined for anything that is not a building. */
+export function buildingNext(manifest, read = buildingRead(manifest)) {
+  if (!isBuildingManifest(manifest) || !read) return undefined;
+  return nextSteps(manifest, read);
+}
+
+/** The stair clearance for the design readout, or null where there is no stair. */
+export function buildingClearance(read) {
+  if (!read) return null;
+  try { return clearanceReadout(read); } catch { return null; }
 }

@@ -26,6 +26,8 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
 
 `title`, `ref`, `folder_ref` are top-level mint params. Everything below lives in `spec`. Provide at least one monomer (any of `lathes` / `extrudes` / `sweeps` / `lofts` / `fields` / `drapes` / `reliefs` / `shells` / `frames` / `assembly`).
 
+**Size the ask** with `ask` in `spec`: `look` (it reads right), `fit` (true size and the print check, `measure_solid`), `function` (standard parts, strength, a bill of materials) or `engineered` (printed walls, coupons). The mint and `update_sketch` return `next`, the open steps capped at that rung; patch `/ask` to climb. Without `ask`, `next` appears once the recipe is meant to be made: frames, a fabricate plan, a strength spec, or mm units off a `build`.
+
 ```
 {
   lathes?:   [ { axisFrom, axisTo, profile[], tint?, material?, harmonics?,

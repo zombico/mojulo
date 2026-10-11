@@ -487,7 +487,7 @@ const FORM_DEFS = {
   },
   'building': {
     title: 'Buildings (houses)',
-    makes: 'walkable houses, apartments and furnished rooms, built up in steps: layout → dwelling → construction → BIM',
+    makes: 'walkable houses, apartments and furnished rooms, each with its structure book: concept, layout, drawings, build',
     tools: ['mint_building'],
   },
   'view': {
@@ -608,7 +608,7 @@ mint dispatch — match the ask to a FORM:
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure / non-humanoid creature (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
   OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · measure one → \`measure_solid\` · which screws / bearings / hinges it needs, what to buy → \`fabricate_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)
   WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
-  HOUSE    a house / apartment / cottage / townhouse / office floor plan / ONE furnished room — walkable, furnished, stacked with \`storeys: N\`, framed, exported as IFC → \`mint_building\` (its \`next\` names each step's card; NOT compose_world, NOT edifice)
+  HOUSE    a house / apartment / cottage / townhouse / ONE furnished room, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice)
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
   OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\`
   MOTION COMIC  click-by-click reveal, one self-contained HTML file → \`create_sketch\` kind 'motion-comic'

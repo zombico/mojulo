@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Mode tampilan",
     "mode": {
+      "book": "Buku",
       "wire": "Rangka",
       "shaded": "Berbayang",
       "baked": "Dipanggang",
       "painted": "Dilukis"
     },
     "hint": {
+      "book": "Rumah sebagai buku strukturnya: gambar, jadwal, pemeriksaan, dan jelajah.",
       "wire": "Hanya garis konstruksi — geometri tanpa balutan.",
       "shaded": "Warna verteks dan material prosedural milik Mojulo sendiri.",
       "baked": "Iluminasi global Blender Cycles yang dipanggang ke dalam warna verteks.",

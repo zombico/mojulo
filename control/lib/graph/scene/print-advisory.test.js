@@ -127,3 +127,25 @@ describe('declaredFeatures / printAdvisories — cuts (B4)', () => {
     expect(rows.some((r) => /bore 'bore'/.test(r.at || ''))).toBe(false);
   });
 });
+
+describe('printsWhole — the size an object prints whole at', async () => {
+  const { printsWhole } = await import('./print-advisory.js');
+
+  it('lifts the thinnest named feature onto the floor, scaling the longest side with it', () => {
+    const advisories = [
+      { kind: 'thin_wall', at: 'lathes.ear', mm: 0.4 },
+      { kind: 'thin_wall_measured', mm: 0.6 },
+      { kind: 'overhang', mm: 120 },
+    ];
+    // fdm floor 0.8 mm: the 0.4 mm ear needs ×2, so a 60 mm figure prints whole at 120 mm
+    expect(printsWhole({ advisories, sizeMm: [30, 20, 60] })).toEqual({
+      at_mm: 120,
+      fine: [{ at: 'lathes.ear', mm: 0.4 }, { at: 'sampled walls', mm: 0.6 }],
+    });
+  });
+
+  it('says when that size will not fit the bed, and is null when nothing is under the floor', () => {
+    expect(printsWhole({ advisories: [{ kind: 'tiny_feature', at: 'x', mm: 0.1 }], sizeMm: [60, 60, 60] }).over_bed).toBe(true);
+    expect(printsWhole({ advisories: [{ kind: 'overhang', mm: 3 }], sizeMm: [10, 10, 10] })).toBeNull();
+  });
+});

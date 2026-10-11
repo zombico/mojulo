@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { reflectFace, planToWorld } from './floorplan-world.js';
-import { assembleFloorWorldScene, assembleFloorplanScene, assembleHouseWorldScene, renderFloorplanPlanSvg, structurizeFloorplan } from './floorplan-structure.js';
+import { assembleFloorWorldScene, assembleFloorplanScene, assembleHouseWorldScene, structurizeFloorplan } from './floorplan-structure.js';
 import { projectTwoPoint } from './pure-mandala.js';
 import { manifestToIfc } from '../construction/ifc.js';
 
@@ -81,11 +81,9 @@ describe('the house is the plan, not its mirror', () => {
     expect(Math.min(...ys)).toBeGreaterThan(-31);
   });
 
-  it('the plan card still draws the plan as authored (north at the top)', () => {
-    const svg = renderFloorplanPlanSvg(structurizeFloorplan(PLAN, {}));
+  it('the plan keeps the orientation it was authored in (north at the top; the A-101 sheet draws it so)', () => {
     const rect = (glyph) => { const s = structurizeFloorplan(PLAN, {}).cells.find((c) => c.glyph === glyph); return s; };
     expect(rect('B').y).toBeLessThan(rect('K').y);         // B above K on the card
-    expect(svg).toMatch(/<svg/);
   });
 
   it('the default aerial, still and World alike, reads as the plan card: bedroom upper right, kitchen lower right, lounge left', () => {

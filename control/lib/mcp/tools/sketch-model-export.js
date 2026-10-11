@@ -33,6 +33,8 @@ import { facesToUsda, facesToUsdz } from '@/lib/graph/scene/scene-usd';
 import { scadExport } from '@/lib/graph/scene/scene-scad';
 import { renderScad2d, SCAD_2D_FORMATS } from '@/lib/graph/scad/scad-render';
 import { manifestToIfc } from '@/lib/graph/construction/ifc';
+import { readStructure } from '@/lib/graph/structure/read';
+import { scheduleFiles, sheetFiles, allTables } from '@/lib/graph/structure/tables';
 import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
 import { glbToScene } from '@/lib/graph/scene/scene-gltf-read';
@@ -239,6 +241,62 @@ async function ifcExport(input, context) {
     result.dir = dir;
     result.download_url = `${outcomeUrlFor(ref)}${fileName}`;
     attachHandoff(result, context, { kind: 'file', name: fileName, path: file, dir, bytes: bytes.byteLength, download_url: result.download_url, recipe: 'recipe.json' });
+  }
+  return result;
+}
+
+// ── formats: 'sheets' and 'schedules' — a house as its drawing set and its schedules (lib/graph/structure) ─────────
+// The 2D legs of the building: the set an architect hands on (sheets/<id>.svg per sheet, in NCS order, and an index)
+// and the tables a spreadsheet or a takeoff reads (schedules/<id>.csv per table and schedules.json). Any floorplan row,
+// one floor or a stack; framed, the S-, E- and P-sheets and the trades' tables join. Same recipe, same bytes. SVG only:
+// nothing in the export stack writes PDF.
+async function structureExport(input, context, format) {
+  const { ref, write = true } = input;
+  const sketch = SketchRepository.getByRef(ref);
+  if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
+  if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
+  const kind = sketch.manifest.kind;
+  const read = kind === 'floorplan' ? readStructure(sketch.manifest) : null;
+  if (!read || !read.footprint) {
+    return {
+      ok: false, eligible: false, ref, kind: kind ?? null, format,
+      reason: `The ${format === 'sheets' ? 'drawing set' : 'schedules'} cover houses (the floorplan kind, minted by mint_building); '${kind}' is not one. For a mesh, \`format: 'glb'\`.`,
+    };
+  }
+  const title = sketch.title || sketch.manifest.title || ref;
+  const named = { ...read, title };
+  let files, result;
+  if (format === 'sheets') {
+    const set = sheetFiles(named);
+    files = set.files;
+    result = {
+      ok: true, ref, kind, format, sheets: set.index, framed: !!read.construction,
+      note: `${set.index.length} sheets as SVG at ANSI B (17 x 11 in), NCS sheet ids, bound civil, structural, architectural, plumbing, electrical; sheets/INDEX.md lists them. A sheet appears when the recipe has what it draws (framing adds S-, wiring E-, drainage P-sheets). Print at 100%. PDF is not written.`,
+    };
+  } else {
+    files = scheduleFiles(named);
+    const tables = allTables(named);
+    result = {
+      ok: true, ref, kind, format, tables: tables.map((t) => ({ id: t.id, title: t.title, rows: t.rows.length })), framed: !!read.construction,
+      note: 'One CSV per schedule (RFC 4180) under schedules/, and schedules.json with every table. Tags are the drawing set\'s: a door 101A here is 101A on A-101. Checks advise; none refuses.',
+    };
+  }
+  if (write) {
+    const dir = outcomeDirFor(ref);
+    for (const f of files) {
+      await fs.mkdir(path.dirname(path.join(dir, f.name)), { recursive: true });
+      await fs.writeFile(path.join(dir, f.name), f.text);
+    }
+    await fs.writeFile(path.join(dir, 'recipe.json'), `${JSON.stringify(sketch.manifest, null, 2)}\n`);
+    const main = format === 'sheets' ? 'sheets/INDEX.md' : 'schedules/schedules.json';
+    result.path = path.join(dir, main);
+    result.dir = dir;
+    result.files = files.map((f) => f.name);
+    result.download_url = `${outcomeUrlFor(ref)}${main}`;
+    attachHandoff(result, context, { kind: 'file', name: main, path: result.path, dir, bytes: files.reduce((a, f) => a + Buffer.byteLength(f.text), 0), download_url: result.download_url, recipe: 'recipe.json' });
+  } else {
+    result.files = files.map((f) => f.name);
+    if (format === 'schedules') result.json = JSON.parse(files[files.length - 1].text);
   }
   return result;
 }
@@ -789,9 +847,9 @@ async function exportModel(input, context = {}) {
   if (typeof write !== 'boolean') {
     throw new Error('`write` must be a boolean if provided');
   }
-  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', ...SCAD_2D_FORMATS, 'bom'];
+  const FORMATS = ['glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', ...SCAD_2D_FORMATS, 'bom'];
   if (!FORMATS.includes(format)) {
-    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'blender', 'dxf', 'svg', 'bom' if provided");
+    throw new Error("`format` must be one of 'glb', 'stl', '3mf', 'usda', 'usdz', 'scad', 'html', 'bundle', 'ifc', 'sheets', 'schedules', 'blender', 'dxf', 'svg', 'bom' if provided");
   }
   if (('slice_z' in input || 'part' in input) && !SCAD_2D_FORMATS.includes(format)) throw new Error("`slice_z` and `part` apply to `format: 'dxf' | 'svg'` only");
   // Only an EXPLICIT `cdn` on a non-html format is a mistake worth throwing on — the default must
@@ -801,6 +859,8 @@ async function exportModel(input, context = {}) {
   if (format === 'bundle') return bundleExport(input, context);
   // ifc is the building model, not the World's faces: it reads the house the recipe builds.
   if (format === 'ifc') return ifcExport(input, context);
+  // the drawing set and the schedules are the building read as 2D: they read the house, not the World's faces
+  if (format === 'sheets' || format === 'schedules') return structureExport(input, context, format);
   if (format === 'blender') return blenderExport(input);
   // bom is what to buy: read off the plan and the frames, not the faces.
   if (format === 'bom') return bomExport(input, context);

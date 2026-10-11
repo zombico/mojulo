@@ -62,8 +62,9 @@ import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
-import { buildingNext } from '@/lib/mcp/tools/building-next';
-import { scadNext } from '@/lib/mcp/tools/scad-next';
+import { buildingNext, buildingRead, buildingClearance } from '@/lib/mcp/tools/building-next';
+import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
+import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
@@ -77,6 +78,7 @@ import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-fac
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { strengthSpecErrors } from '@/lib/graph/strength/index';
+import { inferHouse } from '@/lib/graph/structure/infer';
 import {
   classifyPromptForCards,
   polygonizePrompt,
@@ -393,7 +395,11 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   // ...and, when it leaves its plan to the generator, its program, storeys, footprint and front, drawn from that seed
   // (floorplan-draw.js) and stamped as ordinary knobs, so the program generator builds it and the grader leaves it be
   const drawn = seeded?.kind === 'floorplan' ? drawNewHouse(seeded) : {};
-  const expanded = Object.keys(drawn).length ? { ...seeded, ...drawn } : seeded;
+  const drawnHouse = Object.keys(drawn).length ? { ...seeded, ...drawn } : seeded;
+  // ...and given the laws a new house is built by (structure/infer.js): a stair to every floor, the livability pass on a
+  // stack, a stack for a framed floor. Each fills only a field left out, written as an ordinary value with its reason in
+  // `notes.inferred`, so the creator revises it like any other; before the grader, so the grade judges the house built.
+  const expanded = drawnHouse?.kind === 'floorplan' ? inferHouse(drawnHouse).manifest : drawnHouse;
   // House plans are graded + auto-improved at authoring time (a no-op for every other kind):
   // pick the best-scoring seed / cut a door into a stranded room. The grade itself is NOT
   // stored: it is derived, `gradeFloorplanManifest` recomputes it from the recipe on demand,
@@ -452,7 +458,12 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
 
 function persistSketch({ title, manifest, ref, folderRef, bucket }) {
   const sketch = SketchRepository.create({ title, manifest, ref, folderRef: folderRef ?? null, bucket: bucket ?? null });
-  const design = houseDesignReadout(manifest);
+  // a house reads out from the recipe as stored (after the mint's draw and laws): its design, the steps open from here,
+  // and the fields the mint inferred (their reasons ride notes.inferred)
+  const read = buildingRead(manifest);
+  const design = houseDesignReadout(manifest, read);
+  const next = buildingNext(manifest, read);
+  const inferred = read && Array.isArray(manifest.notes?.inferred) ? manifest.notes.inferred.map((x) => x.field) : null;
 
   // Most sketches minted here are diagrams/illustrations (cheap on-demand SVG),
   // but a world/scene-kind manifest can arrive via create_sketch / the POST API
@@ -463,7 +474,11 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     ok: true,
     ref: sketch.ref,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
+    // a room (one space) or a house, said in every reply; a house says what it lacks to be a home
+    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
     ...(design ? { design } : {}),
+    ...(inferred?.length ? { inferred } : {}),
+    ...(next ? { next } : {}),
   };
 }
 
@@ -472,20 +487,31 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
  * refusal (the house is the operator's). Only the findings travel, with the rules they were measured against and the
  * next move; a single-floor plan or any other kind reads nothing. Never throws.
  */
-function houseDesignReadout(manifest) {
+function houseDesignReadout(manifest, read = null) {
   let d;
   try { d = assessHouseManifest(manifest); } catch { return null; }
   if (!d) return null;
+  // the stair clearance beside the walkway: furniture within it of a flight, its landing or the well (structure/open.js)
+  const clearance = buildingClearance(read);
+  const clearanceNext = clearance && !clearance.ok
+    ? (manifest.design && manifest.design.clearance
+      ? "the clearance could not be kept in this room: move the piece (rooms[].items), widen the house, or accept it with design.waive: ['stair-clearance:<room>']"
+      : `design.clearance: true keeps furniture ${clearance.clearIn} in off the flight, landing and well — update_sketch({ ref, patch: [{ op: 'set', path: '/design/clearance', value: true }] })`)
+    : null;
   const repairing = manifest.design && manifest.design.repair;
   // the repair joins the design the house already names (its tradition, a passage), never replaces it
   const repairPatch = manifest.design && typeof manifest.design === 'object'
     ? "{ op: 'set', path: '/design/repair', value: true }"
     : "{ op: 'set', path: '/design', value: { repair: true } }";
+  // a house that is not a home (no kitchen, bathroom or bedroom) is never ok, whatever its walkways
+  const home = read?.dwelling ? { ok: !read.dwelling.missing.length, ...(read.dwelling.missing.length ? { missing: read.dwelling.missing } : {}) } : null;
   return {
-    ok: d.ok,
+    ok: d.ok && (!home || home.ok) && (!clearance || clearance.ok),
+    ...(home ? { home } : {}),
     tradition: d.tradition,
     rules: d.rules,
     ...(d.findings.length ? { findings: d.findings.slice(0, 8), ...(d.findings.length > 8 ? { more: d.findings.length - 8 } : {}) } : {}),
+    ...(clearance ? { clearance: clearanceNext ? { ...clearance, next: clearanceNext } : clearance } : {}),
     ...(!d.ok ? { next: repairing
       ? 'repair could not make the room within this footprint: widen the house (width/height), try another seed, or author the storey with levels[i].rooms and place the stair with stairs[].'
       : `design: { repair: true } sizes the upstairs hall and the stair's core to keep the passage — update_sketch({ ref, patch: [${repairPatch}] }); or author the storey with levels[i].rooms.` } : {}),
@@ -554,6 +580,14 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
   // an edited scad row re-resolved through the registry but answered with no stats at all.
   if (manifest.kind === 'scad') {
+    // A recipe-book part re-writes its program from `/params` (./scad-part.js); a hand edit under `/source` detaches it.
+    if (manifest.part !== undefined && !restore) {
+      try {
+        ({ manifest } = await expandPartManifest(manifest, { touched, patch }));
+      } catch (err) {
+        throw new Error(`Invalid world manifest (kind 'scad'): ${err.message}`);
+      }
+    }
     try {
       scadStats = (await planScad(manifest)).stats;
     } catch (err) {
@@ -657,10 +691,8 @@ export async function createSketchHandler(input) {
     const { nextManifest } = await prepareWorldRecipe({ manifest, ref, title, restore: true });
     result = persistSketch({ title, manifest: nextManifest, ref, folderRef, bucket });
   } else {
+    // A house minted here answers with the same readout as through mint_building (its next steps among it).
     result = mintSketch({ title, manifest, ref, folderRef, bucket });
-    // A house minted here climbs the same ladder as through mint_building.
-    const next = buildingNext(manifest);
-    if (next) result.next = next;
   }
   if (priors) {
     if (!Array.isArray(preload)) {
@@ -961,6 +993,7 @@ export async function updateSketchHandler(input) {
   ) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
       await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
+    if (nextManifest && 'ask' in nextManifest) checkedAsk(nextManifest.ask);   // as at mint; any solid may carry the size of its ask
   } else if (manifest !== undefined) {
     // the same diagram lowering as at mint: sequence / gantt / lanes / boundaries, auto layout
     const expanded = expandDiagramManifest(manifest);
@@ -1009,13 +1042,15 @@ export async function updateSketchHandler(input) {
   }
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
-  const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
-  // The next steps of a ladder (a building's, a scad part's), from the recipe as stored. Never stored.
-  const next = nextManifest !== undefined ? (buildingNext(nextManifest) ?? scadNext(nextManifest)) : undefined;
+  const read = nextManifest !== undefined ? buildingRead(nextManifest) : null;
+  const design = nextManifest !== undefined ? houseDesignReadout(nextManifest, read) : null;
+  // The next steps (a building's open concerns, a solid's ladder), from the recipe as stored. Never stored.
+  const next = nextManifest !== undefined ? (buildingNext(nextManifest, read) ?? solidNext(nextManifest)) : undefined;
   return {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
+    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),

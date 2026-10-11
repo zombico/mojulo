@@ -12,10 +12,12 @@ process.env.MOJULO_OUTCOMES_DIR = mkdtempSync(path.join(os.tmpdir(), 'mojulo-des
 
 import { describe, expect, it } from 'vitest';
 import { createSketchHandler, updateSketchHandler } from './sketch-mint.js';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 
 describe('design considerations at mint and update', () => {
   it('reads a house out, and the repair clears it', async () => {
-    const made = await createSketchHandler({ title: 'two storeys', ref: 'sk_design_house', manifest: { kind: 'floorplan', title: 'two storeys', storeys: 2, seed: 4, tier: 'house' } });
+    // a new stack is minted repaired (structure/infer.js); a creator who turns the repair off reads the findings
+    const made = await createSketchHandler({ title: 'two storeys', ref: 'sk_design_house', manifest: { kind: 'floorplan', title: 'two storeys', storeys: 2, seed: 4, tier: 'house', design: { repair: false } } });
     expect(made.ok).toBe(true);
     expect(made.design.ok).toBe(false);
     expect(made.design.tradition).toBe('north-american');
@@ -33,9 +35,12 @@ describe('design considerations at mint and update', () => {
     expect(made.design.next).toContain("patch: [{ op: 'set', path: '/design/repair', value: true }]");
     const fixed = await updateSketchHandler({ ref: 'sk_design_japanese', patch: [{ op: 'set', path: '/design/repair', value: true }] });
     expect(fixed.design.tradition).toBe('japanese');
-    // a house naming no design is told to set one
+    // a house naming no design is minted with the livability pass, and says so in its notes
     const plain = await createSketchHandler({ title: 'plain', manifest: { kind: 'floorplan', title: 'plain', storeys: 2, seed: 4, tier: 'house' } });
-    expect(plain.design.next).toContain("patch: [{ op: 'set', path: '/design', value: { repair: true } }]");
+    expect(plain.design.ok).toBe(true);
+    const stored = SketchRepository.getByRef(plain.ref).manifest;
+    expect(stored.design).toEqual({ repair: true, clearance: true });
+    expect(stored.notes.inferred.map((x) => x.field)).toEqual(['windows', 'design']);
   });
 
   it('refuses a framing, drainage, roof covering or furnishing the house does not know, by field, at mint and on an edit', async () => {

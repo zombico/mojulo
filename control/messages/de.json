@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Darstellungsmodus",
     "mode": {
+      "book": "Buch",
       "wire": "Drahtgitter",
       "shaded": "Schattiert",
       "baked": "Gebacken",
       "painted": "Gemalt"
     },
     "hint": {
+      "book": "Das Haus als Baubuch: Zeichnungen, Listen, Prüfungen und der Rundgang.",
       "wire": "Nur Konstruktionslinien — die Geometrie entkleidet.",
       "shaded": "Mojulos eigene Vertex-Farben und prozedurale Materialien.",
       "baked": "Blender-Cycles-Global-Illumination, in die Vertex-Farben gebacken.",

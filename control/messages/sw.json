@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Hali ya kuonyesha",
     "mode": {
+      "book": "Kitabu",
       "wire": "Waya",
       "shaded": "Yenye kivuli",
       "baked": "Iliyookwa",
       "painted": "Iliyopakwa rangi"
     },
     "hint": {
+      "book": "Nyumba kama kitabu chake cha muundo: michoro, ratiba, ukaguzi na matembezi.",
       "wire": "Mistari ya ujenzi pekee — jiometri ikiwa uchi.",
       "shaded": "Rangi za vertex na nyenzo za kiutaratibu za Mojulo yenyewe.",
       "baked": "Mwangaza wa jumla wa Blender Cycles uliookwa katika rangi za vertex.",

@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Modalità di visualizzazione",
     "mode": {
+      "book": "Libro",
       "wire": "Wireframe",
       "shaded": "Ombreggiato",
       "baked": "Precalcolato",
       "painted": "Dipinto"
     },
     "hint": {
+      "book": "La casa come libro di cantiere: disegni, abachi, verifiche e la visita.",
       "wire": "Solo linee di costruzione — la geometria spogliata.",
       "shaded": "I colori dei vertici e i materiali procedurali di Mojulo.",
       "baked": "Illuminazione globale di Blender Cycles precalcolata nei colori dei vertici.",

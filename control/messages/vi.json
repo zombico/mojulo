@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Chế độ hiển thị",
     "mode": {
+      "book": "Sổ",
       "wire": "Khung dây",
       "shaded": "Đổ bóng",
       "baked": "Đã bake",
       "painted": "Đã tô vẽ"
     },
     "hint": {
+      "book": "Ngôi nhà dưới dạng sổ kết cấu: bản vẽ, bảng kê, kiểm tra và đi xem.",
       "wire": "Chỉ các đường dựng hình — hình học trần trụi.",
       "shaded": "Màu đỉnh và vật liệu thủ tục của chính Mojulo.",
       "baked": "Chiếu sáng toàn cục Blender Cycles được bake vào màu đỉnh.",

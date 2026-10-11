@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Mode d'affichage",
     "mode": {
+      "book": "Livre",
       "wire": "Filaire",
       "shaded": "Ombré",
       "baked": "Précalculé",
       "painted": "Peint"
     },
     "hint": {
+      "book": "La maison en cahier de construction : plans, nomenclatures, vérifications et la visite.",
       "wire": "Lignes de construction seules — la géométrie déshabillée.",
       "shaded": "Les couleurs de sommets et les matériaux procéduraux propres à Mojulo.",
       "baked": "Illumination globale Blender Cycles précalculée dans les couleurs de sommets.",

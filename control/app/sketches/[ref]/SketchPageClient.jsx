@@ -159,7 +159,8 @@ export default function SketchPageClient({
     () => resolveDisplayModes({ manifest, ref, giVariantRef, hasBoundRender }),
     [manifest, ref, giVariantRef, hasBoundRender],
   );
-  const activeMode = pickMode(displayModes, displayMode ?? displayModes?.defaultMode);
+  // a kind with a reading of its own (a house's structure book) opens on it; the gallery keeps the default
+  const activeMode = pickMode(displayModes, displayMode ?? displayModes?.readingMode ?? displayModes?.defaultMode);
   const view = activeMode?.view || null;
 
   // Loading/error state for the one live frame this page can mount (a world/scene
@@ -337,7 +338,7 @@ export default function SketchPageClient({
             className="w-full h-auto block"
           />
         ) : view?.kind === 'iframe' ? (
-          <div className="relative w-full" style={{ aspectRatio: '1120 / 780' }}>
+          <div className="relative w-full" style={{ aspectRatio: view.aspect || '1120 / 780' }}>
             {/* Keyed on src so switching mode remounts the frame rather than
                 leaving the previous world's WebGL context running behind it. */}
             <iframe
@@ -349,7 +350,7 @@ export default function SketchPageClient({
               onError={() => setFrameFailed(true)}
               className="absolute inset-0 h-full w-full border-0"
             />
-            <WorldViewStrip ready={world.ready} send={world.send} />
+            {view.protocol !== false && <WorldViewStrip ready={world.ready} send={world.send} />}
             {!frameLoaded && !frameFailed && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
                 <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[color:var(--text-muted)] border-t-transparent motion-reduce:animate-none" />

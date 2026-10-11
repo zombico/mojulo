@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Weergavemodus",
     "mode": {
+      "book": "Boek",
       "wire": "Draadmodel",
       "shaded": "Gearceerd",
       "baked": "Gebakken",
       "painted": "Geschilderd"
     },
     "hint": {
+      "book": "Het huis als bouwboek: tekeningen, staten, controles en de rondgang.",
       "wire": "Alleen constructielijnen — de geometrie ontkleed.",
       "shaded": "Mojulo's eigen vertexkleuren en procedurele materialen.",
       "baked": "Blender Cycles global illumination gebakken in de vertexkleuren.",
