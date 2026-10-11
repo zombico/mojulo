@@ -26,7 +26,7 @@ import { layeredClearance } from '@/lib/graph/polygonizer/station-loft-clearance
 import { strokesReadout } from '@/lib/mcp/tools/layered-strokes';
 import { facesToStl, printableShells, applyTransform } from '@/lib/graph/scene/scene-stl';
 import { unionShells, shellsToInstances } from '@/lib/graph/scene/manifold-union';
-import { printAdvisories, resolvePrinter } from '@/lib/graph/scene/print-advisory';
+import { printAdvisories, printsWhole, resolvePrinter } from '@/lib/graph/scene/print-advisory';
 import { printSoup, measurePrintability, measureLine } from '@/lib/graph/scene/print-measure';
 import { printProfileFor, auditStlClosure, resolvePrintScale } from '@/lib/mcp/tools/sketch-model-export';
 import { measureScadMotion } from '@/lib/graph/scad/scad-render';
@@ -199,7 +199,7 @@ export async function measureSolidHandler(input, ctx = {}) {
     print_advisories: advisories,
     ...(warnings && warnings.length ? { warnings } : {}),
     ...(strength ? { strength } : {}),
-    ...(ask ? { ask: askReadout(sketch.manifest, ask, { volume, motion: motionInput, strength: !!strength }) } : {}),
+    ...(ask ? { ask: askReadout(sketch.manifest, ask, { volume, motion: motionInput, strength: !!strength, whole: printsWhole({ advisories, sizeMm, printer }) }) } : {}),
     note: `${probe.bounds.size.map(r3).join(' × ')}${units ? ` ${units}` : ' world units'} → prints ${sizeMm.join(' × ')} mm at ×${r3(scale)} (${scaleNote}). Closure: ${closureLine}. `
       + (vol.applied ? `Volume ${vol.volume_mm3} mm³ (Manifold union of ${vol.unioned} shell${vol.unioned === 1 ? '' : 's'}, genus ${vol.genus}). ` : `Volume not measured: ${vol.reason}. `)
       + `${measureLine(measure)[0].toUpperCase()}${measureLine(measure).slice(1)}. `
@@ -210,10 +210,11 @@ export async function measureSolidHandler(input, ctx = {}) {
 }
 
 // What the ask's defaults ran, and the steps it still wants that only the recipe can add (the ladder's `add` steps).
-function askReadout(manifest, ask, { volume, motion, strength }) {
+// `prints_whole` is the size at which nothing the print advisories name falls under the floor (print-advisory.js).
+function askReadout(manifest, ask, { volume, motion, strength, whole }) {
   const ran = ['size', 'closure', 'print', ...(volume ? ['volume'] : []), ...(motion ? ['motion'] : []), ...(strength ? ['strength'] : [])];
   const wants = (solidNext(manifest) || []).filter((s) => s.add);
-  return { level: ask, ran, ...(wants.length ? { wants } : {}) };
+  return { level: ask, ran, ...(wants.length ? { wants } : {}), ...(whole ? { prints_whole: whole } : {}) };
 }
 
 export function registerMeasureSolidTool() {

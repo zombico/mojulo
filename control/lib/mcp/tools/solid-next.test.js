@@ -108,7 +108,8 @@ describe('measure_solid follows the ask', async () => {
     const look = await createWorkbenchHandler({ ...cup, ask: 'look' });
     const a = await measureSolidHandler({ ref: look.ref });
     expect(a.volume.skipped).toBe(true);
-    expect(a.ask).toEqual({ level: 'look', ran: ['size', 'closure', 'print'] });
+    expect(a.ask).toMatchObject({ level: 'look', ran: ['size', 'closure', 'print'] });
+    expect(a.ask).not.toHaveProperty('wants');
     expect((await measureSolidHandler({ ref: look.ref, volume: true, full: true })).volume.skipped).toBeUndefined();
 
     const fn = await createWorkbenchHandler({ ...cup, ask: 'function' });
@@ -116,4 +117,22 @@ describe('measure_solid follows the ask', async () => {
     expect(b.ask.ran).toContain('volume');
     expect(b.ask.wants).toEqual([{ add: 'strength', card: 'scad', section: 'strength' }]);
   });
+});
+
+describe('a keepsake asks the size it prints whole at', async () => {
+  const { measureSolidHandler } = await import('./measure-solid.js');
+  const { createEquipmentHandler } = await import('./workbench.js');
+
+  it('a small sword names its fine parts and the size where none drop out; without ask, no key', async () => {
+    const look = await createEquipmentHandler({ item: 'sword', style: 'elven', ask: 'look' });
+    const small = await measureSolidHandler({ ref: look.ref, target_mm: 40 });
+    const whole = small.ask.prints_whole;
+    expect(whole.fine.length).toBeGreaterThan(0);
+    expect(whole.at_mm).toBeGreaterThan(40);
+    const big = await measureSolidHandler({ ref: look.ref, target_mm: whole.at_mm });
+    expect(big.print_advisories.filter((a) => ['tiny_feature', 'thin_wall'].includes(a.kind))).toEqual([]);
+
+    const plain = await createEquipmentHandler({ item: 'sword', style: 'elven' });
+    expect(await measureSolidHandler({ ref: plain.ref, target_mm: 40 })).not.toHaveProperty('ask');
+  }, 120000);
 });

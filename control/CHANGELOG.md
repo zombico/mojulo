@@ -47,6 +47,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   sweep. The reading carries `ask: { level, ran, wants }`. `wants` is the ladder's `add` steps, what the recipe still
   lacks for that ask (a strength spec for a function, printed walls or a material for engineered). A reading passed
   in always wins, and a row without `ask` measures exactly as before.
+- **The size a keepsake prints whole at.** Under an `ask`, `measure_solid` also returns `ask.prints_whole`:
+  `{ at_mm, fine, over_bed? }`, the print size at which every feature the advisories name as under the printer's
+  floor reaches it (`printsWhole` in `print-advisory.js`). The features are thin walls, tiny sections and bores, and
+  the sampled walls. Detail scales as a size, never a cut: the recipe is untouched. `over_bed` says thickening the
+  detail is the move, not a bigger print. Any solid row takes `ask` by an `update_sketch` patch at `/ask`, a
+  character included.
 
 ### Drawer alignment: the agent supplies the words, the server the rest
 

@@ -970,7 +970,7 @@ export async function updateSketchHandler(input) {
   ) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
       await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
-    if (nextManifest?.kind === 'workbench' || nextManifest?.kind === 'scad') checkedAsk(nextManifest.ask);   // as at mint
+    if (nextManifest && 'ask' in nextManifest) checkedAsk(nextManifest.ask);   // as at mint; any solid may carry the size of its ask
   } else if (manifest !== undefined) {
     // the same diagram lowering as at mint: sequence / gantt / lanes / boundaries, auto layout
     const expanded = expandDiagramManifest(manifest);
