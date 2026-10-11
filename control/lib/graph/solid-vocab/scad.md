@@ -28,6 +28,8 @@ Why this kind exists beside the workbench: OpenSCAD's booleans are EXACT. A `dif
 
 Returns `{ ok, ref, worldUrl, sceneUrl, url, stats, next }`. `next` (here and from `update_sketch`) names the steps open from the recipe as stored, each with the section of this card that teaches it. `stats.parts[]` gives each part's faces, colour count, size and base/top z; `stats.log` carries OpenSCAD's own WARNING lines; `stats.warnings` flags a floating object, an open shell, or a mover naming no part; `stats.ledger.openscad` is the version that meshed it.
 
+**Size the ask:** `spec.ask` look|fit|function|engineered caps `next` (fit adds the print check); patch `/ask` to climb.
+
 ## Idioms worth knowing
 
 - **A stadium or fully-rounded rectangle:** `hull() for (sx = [-1, 1], sy = [-1, 1]) translate([sx*(w/2 - r), sy*(h/2 - r)]) circle(r = r);`. Never `offset(r = r) square([w - 2*r, h - 2*r])` when a side equals `2r` — the square has zero area and OpenSCAD silently drops the whole part.

@@ -63,7 +63,7 @@ import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext } from '@/lib/mcp/tools/building-next';
-import { scadNext } from '@/lib/mcp/tools/scad-next';
+import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
@@ -961,6 +961,7 @@ export async function updateSketchHandler(input) {
   ) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
       await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
+    if (nextManifest?.kind === 'workbench' || nextManifest?.kind === 'scad') checkedAsk(nextManifest.ask);   // as at mint
   } else if (manifest !== undefined) {
     // the same diagram lowering as at mint: sequence / gantt / lanes / boundaries, auto layout
     const expanded = expandDiagramManifest(manifest);
@@ -1010,8 +1011,8 @@ export async function updateSketchHandler(input) {
   if (workbenchStats) rememberStats(ref, nextManifest, workbenchStats);
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
   const design = nextManifest !== undefined ? houseDesignReadout(nextManifest) : null;
-  // The next steps of a ladder (a building's, a scad part's), from the recipe as stored. Never stored.
-  const next = nextManifest !== undefined ? (buildingNext(nextManifest) ?? scadNext(nextManifest)) : undefined;
+  // The next steps of a ladder (a building's, a solid's), from the recipe as stored. Never stored.
+  const next = nextManifest !== undefined ? (buildingNext(nextManifest) ?? solidNext(nextManifest)) : undefined;
   return {
     ok: true,
     ref: updated.ref,

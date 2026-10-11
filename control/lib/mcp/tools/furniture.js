@@ -30,7 +30,7 @@ export function furnitureFrame(locked, id) {
 
 export async function createFurnitureHandler(input) {
   if (!input || typeof input !== 'object' || (!input.like && !input.piece)) throw new Error(USAGE);
-  const { like, piece, forms, finish, size, buildable = false, title, ref, folder_ref: folderRef } = input;
+  const { like, piece, forms, finish, size, buildable = false, title, ask, ref, folder_ref: folderRef } = input;
   if (typeof buildable !== 'boolean') throw new Error('furniture: buildable is true (the jointed build) or false (a display piece, the default)');
   const r = resolveFurniture({ like: like || null, kind: piece || null, forms: forms || {}, finish: finish || {}, size: size || null });
   const name = title || (like ? FURNITURE_STYLES[like].label : r.locked.kind);
@@ -38,7 +38,7 @@ export async function createFurnitureHandler(input) {
     piece: r.locked.kind, basis: r.basis, worn: r.worn, forms: r.forms, finish: r.finish, size_mm: r.locked.sizeMm, buildable,
   };
   if (!buildable) {
-    const out = await mintWorkbench({ title: name, build: furnitureAssetBuild(r.locked), units: 'mm', ref, folderRef });
+    const out = await mintWorkbench({ title: name, build: furnitureAssetBuild(r.locked), units: 'mm', ask, ref, folderRef });
     return {
       ...out,
       furniture: {
@@ -50,7 +50,7 @@ export async function createFurnitureHandler(input) {
     };
   }
   await ensureExactKernel();                       // a frame's joints need Manifold loaded before the sync lowering
-  const out = await mintWorkbench({ title: name, frames: [furnitureFrame(r.locked, like || r.locked.kind)], units: 'mm', ref, folderRef });
+  const out = await mintWorkbench({ title: name, frames: [furnitureFrame(r.locked, like || r.locked.kind)], units: 'mm', ask, ref, folderRef });
   // the build holds some sizes to what it can make (a sofa's back runs 680–1000 mm): say so, axis by axis
   const asked = r.locked.sizeMm;
   const built = out.stats && out.stats.size ? [out.stats.size.w, out.stats.size.d, out.stats.size.h] : null;

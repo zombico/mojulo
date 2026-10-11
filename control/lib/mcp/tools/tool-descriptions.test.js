@@ -338,7 +338,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-10 (210_300 -> 202_500; measured 202,411) for the Workflows phase: render_handoff({ medium, op })
 // is the one listed door over the image and mesh worker loops (the ten per-op names stay callable, unlisted), net of
 // run_experiment_sweep's variations form, fabricate_solid's `bodies` and cook's `items`.
-const PAYLOAD_CEILING = 202_500;
+// Re-pinned 2026-10-11 (202_500 -> 202_600; measured 202,532) for the solid ladder: mint_solid's description names
+// `spec.ask` (look | fit | function | engineered), which caps `next`; its kinds are grouped by purpose the same day.
+const PAYLOAD_CEILING = 202_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

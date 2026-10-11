@@ -26,6 +26,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `furniture`, not on the house or the workbench.
 - **The routing eval checks the kind.** `mint_solid` is the entry for every solid, so new card rows pin a fitted part
   to the scad card, a measured form to the workbench card and a styled piece to the furniture card.
+- **The size of the ask caps the ladder.** A solid's `spec.ask` names how serious the ask is: `look` (it reads
+  right), `fit` (it fits a thing: true size and the print check), `function` (standard parts, strength, a bill of
+  materials) or `engineered` (motion, materials, printed walls and coupons). The agent judges it; nothing infers it.
+  It is stored on the recipe, patched at `/ask` to climb, and caps `next` at its rung, so a trinket is not walked
+  toward a tensile coupon (`lib/mcp/tools/solid-next.js`). Without it, a scad part's `next` is unchanged byte for byte.
+- **The workbench has a `next`.** A workbench, code, equipment or furniture row returns the open steps once it is
+  meant to be made (frames, a fabricate plan, a strength spec, or mm units off a `build`), or whenever it carries an
+  `ask`: the print check, fabricate and the bill for frames, the strength rail, 3MF. A plain look returns none, as before.
 
 ### Drawer alignment: the agent supplies the words, the server the rest
 

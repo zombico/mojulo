@@ -14,9 +14,9 @@
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { planScad, persistedScadLedger, DEFAULT_UNITS } from '@/lib/graph/scad/scad-render';
 import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
-import { scadNext } from '@/lib/mcp/tools/scad-next';
+import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 
-export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, fabricate, ref, folderRef } = {}) {
+export async function mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, fabricate, ask, ref, folderRef } = {}) {
   if (typeof source !== 'string') {
     throw new Error("The scad kind needs `source` — an OpenSCAD program (mm, z up; `color()` is the tint; with `parts: { name: 'module();' }` each part is a render group a `movers` hinge can swing). Read get_solid_vocab({ id: 'scad' }) for the contract.");
   }
@@ -34,6 +34,8 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
     ...(mechanism !== undefined ? { mechanism } : {}),
     // fabricate_solid: the needs and the plan they resolved to, frozen beside the source (./fabricate.js).
     ...(fabricate !== undefined ? { fabricate } : {}),
+    // the size of the ask (./solid-next.js): caps `next`; absent → no key
+    ...(checkedAsk(ask) ? { ask } : {}),
     ...(title ? { title } : {}),
   };
   // Render once here to validate (the fence, the parts contract, OpenSCAD's own errors) and to
@@ -52,12 +54,12 @@ export async function mintScad({ title, source, parts, fields, units, fn, viewBo
     sceneUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/scene`,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     stats,
-    next: scadNext(manifest),
+    next: solidNext(manifest),
   };
 }
 
 export async function createScadHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('The scad kind needs a spec object with `source`.');
-  const { title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ref, folder_ref: folderRef } = input;
-  return mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ref, folderRef });
+  const { title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ask, ref, folder_ref: folderRef } = input;
+  return mintScad({ title, source, parts, fields, units, fn, viewBox, facing, grid, movers, mechanism, ask, ref, folderRef });
 }
