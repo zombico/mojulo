@@ -220,7 +220,8 @@ describe('the emitter without a figure (the text before the figure pack)', () =>
   it('writes the kernel stub and the presets byte for byte', () => {
     const score = { ref: 'w', title: 'fixture', units: '1 mojulo unit = 1 meter', ground: 0, eye: 1.7, colliders: [], cameras: [], entities: [], mechanics: [], soundtrack: null, ledger: {} };
     const { files } = emitGodotProject({ ref: 'w', score, manifestHash: 'h', kernelVersion: '0.2.3' });
-    expect(files.map((f) => f.file)).toEqual(['project.godot', 'level.tscn', 'export_presets.cfg', '.gitignore', 'README.md']);
+    // since kernel 0.13.0 the pack seeds the developer's game/hooks.gd (written only where missing: godot-pack.js writePack)
+    expect(files.map((f) => f.file)).toEqual(['project.godot', 'level.tscn', 'export_presets.cfg', '.gitignore', 'game/hooks.gd', 'README.md']);
     expect(files.find((f) => f.file === 'level.tscn').text).toBe(KERNEL_STUB);
     expect(files.find((f) => f.file === 'export_presets.cfg').text).toBe(PRESETS_W);
   });

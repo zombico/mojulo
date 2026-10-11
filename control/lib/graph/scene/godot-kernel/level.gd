@@ -54,6 +54,13 @@ var banner_layer: CanvasLayer = null
 # metres, the bus is not) and the interact key at a usable place (E: use-<place>). Out: warps, the score's HUD banners,
 # toasts and readouts, the reach prompt, and bus_event for every event, the seam a project's own scripts hook.
 signal bus_event(type: String, event: Dictionary)
+# the named seams (since 0.13.0) a project's own scripts take (game/hooks.gd is attached to every level):
+signal chapter_turned(id: String, carried: bool)
+signal cue_fired(id: String)
+signal menu_opened(id: String)
+signal menu_picked(id: String, n: int)
+signal line_requested(who: String, text: String, menu: String, i: int)
+signal character_event(type: String, id: String, event: Dictionary)
 var bus = null
 var bus_state: Dictionary = {}
 var bus_units := 1.0
@@ -149,6 +156,7 @@ func _ready() -> void:
 	_build_bus()
 	_start_music()
 	_build_hud()
+	_attach_hooks()
 	_read_probe_args()
 
 
@@ -1131,7 +1139,10 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 		if me != null:
 			me["pos"] = _bus_pos(pos)
 		cast.step(cast_state, minf(delta, 0.05))
-		incoming.append_array(cast.facts(cast_state))
+		var facts: Array = cast.facts(cast_state)
+		for ev in facts:
+			character_event.emit(String(ev["type"]), String(ev["entity"]), ev)
+		incoming.append_array(facts)
 	for ev in z["events"]:
 		if bus_uses.has(ev["zone"]):
 			bus_reach.erase(ev["zone"])
@@ -1168,6 +1179,7 @@ func _drain_bus(delta: float) -> void:
 		if not e.has("type"):
 			continue
 		bus_event.emit(String(e["type"]), e)
+		_announce(String(e["type"]), e)
 		# the contract's on: the first pattern that matches maps the event (scene/channels/game.js, the same rule)
 		for pat in on:
 			if not bus.glob(e["type"], pat):
@@ -1286,6 +1298,34 @@ func _sync_weather() -> void:
 	wx.force(top)
 
 
+# game/hooks.gd, the developer's (it survives a re-mint): loaded beside the level, attach(level) called
+func _attach_hooks() -> void:
+	if not ResourceLoader.exists("res://game/hooks.gd"):
+		return
+	var h = load("res://game/hooks.gd").new()
+	if h is Node:
+		h.name = "GameHooks"
+		add_child(h)
+	if h.has_method("attach"):
+		h.attach(self)
+
+
+# a bus event, as the named seams: a cue fired, a chapter turned (live or carried in), a menu's pick (a character's
+# happening is announced where the cast reports it: the bus's log keeps only an event's type)
+func _announce(type: String, e: Dictionary) -> void:
+	if type.begins_with("cue:"):
+		cue_fired.emit(type.substr(4))
+	elif type.begins_with("menu-pick:"):
+		var parts := type.split(":")
+		if parts.size() == 3:
+			menu_picked.emit(parts[1], int(parts[2]))
+	elif type.begins_with("chapter-"):
+		var carried := type.ends_with("-carried")
+		var id := type.substr(8, type.length() - 8 - (8 if carried else 0))
+		if bus_state["vars"].has("chapter-%s-n" % id):
+			chapter_turned.emit(id, carried)
+
+
 func _sync_menus() -> void:
 	var open = null
 	for m in score.get("menus", []) if score.get("menus") is Array else []:
@@ -1295,6 +1335,12 @@ func _sync_menus() -> void:
 		menu_open = open
 		menu_focus = 0
 		menu_page = 0
+		if open != null:
+			menu_opened.emit(s_(open["id"]))
+			if open.get("kind") == "talk":
+				var lines: Array = open.get("lines", [])
+				for i in lines.size():
+					line_requested.emit(s_(lines[i].get("who")), s_(lines[i].get("say")), s_(open["id"]), i)
 	walker.frozen = menu_open != null
 	_draw_menu()
 

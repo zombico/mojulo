@@ -7,11 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { extractBus, extractEngineScore, BUS_VERSION } from './engine-score.js';
-import { emitGodotProject } from './godot-project.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { chapterContract, chapterKey } from '../playscape/ui/chapters.js';
 import { validateLevelContract } from '../game/level-contract.js';
-import { emitGodotGame } from './godot-project.js';
+import { emitGodotGame, emitGodotProject, GAME_HOOKS_GD } from './godot-project.js';
+import { writePack, OWNED_DIR } from './godot-pack.js';
 import { readWeather } from '../weather/weather.js';
 
 const KERNEL = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
@@ -117,7 +117,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.12.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.13.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
@@ -241,5 +241,68 @@ describe('a cue forces the sky', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  }, 120000);
+});
+
+// the developer's folder: game/ survives a re-mint, its seed is written once; the kernel attaches game/hooks.gd to every
+// level and its named signals fire (kernel 0.13.0)
+const PRINT_HOOKS = `extends Node
+func attach(l: Node) -> void:
+	l.chapter_turned.connect(func(id, carried): print("[mojulo-hooks] chapter %s %s" % [id, carried]))
+	l.cue_fired.connect(func(id): print("[mojulo-hooks] cue %s" % id))
+	l.menu_opened.connect(func(id): print("[mojulo-hooks] menu %s" % id))
+	l.menu_picked.connect(func(id, n): print("[mojulo-hooks] pick %s %d" % [id, n]))
+	l.line_requested.connect(func(who, text, menu, i): print("[mojulo-hooks] line %s|%s|%s|%d" % [who, text, menu, i]))
+	l.character_event.connect(func(type, id, event): print("[mojulo-hooks] character %s %s" % [type, id]))
+`;
+
+describe('the developer\'s folder', () => {
+  it('a re-mint keeps game/ whole and seeds hooks.gd only where it is missing', async () => {
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-owned-'));
+    const kernelSrc = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-kernel-'));
+    try {
+      fs.writeFileSync(path.join(kernelSrc, 'VERSION'), '0.13.0\n');
+      const emitted = emitGodotProject({ ref: 'town', score: extractEngineScore({ ref: 'town', manifest: {} }, town()), manifestHash: 'h', kernelVersion: '0.13.0' });
+      expect(emitted.files.find((f) => f.file === 'game/hooks.gd')).toMatchObject({ seed: true, text: GAME_HOOKS_GD });
+      await writePack({ outDir: out, binaries: [{ rel: 'score.json', bytes: '{}' }], emitted, kernelSrc });
+      expect(fs.readFileSync(path.join(out, OWNED_DIR, 'hooks.gd'), 'utf8')).toBe(GAME_HOOKS_GD);
+      fs.writeFileSync(path.join(out, OWNED_DIR, 'hooks.gd'), '# mine\n');
+      fs.writeFileSync(path.join(out, OWNED_DIR, 'boss.tscn'), '[gd_scene]\n');
+      fs.writeFileSync(path.join(out, 'stale.txt'), 'gone after a re-mint');
+      await writePack({ outDir: out, binaries: [{ rel: 'score.json', bytes: '{}' }], emitted, kernelSrc });
+      expect(fs.readFileSync(path.join(out, OWNED_DIR, 'hooks.gd'), 'utf8')).toBe('# mine\n');
+      expect(fs.existsSync(path.join(out, OWNED_DIR, 'boss.tscn'))).toBe(true);
+      expect(fs.existsSync(path.join(out, 'stale.txt'))).toBe(false);
+      expect(fs.readFileSync(path.join(out, 'README.md'), 'utf8')).toContain('## Yours: `game/`');
+    } finally {
+      fs.rmSync(out, { recursive: true, force: true });
+      fs.rmSync(kernelSrc, { recursive: true, force: true });
+    }
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot attaches game/hooks.gd and fires the named signals (MOJULO_GODOT)', () => {
+    const run = (payload, args) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-hooks-'));
+      try {
+        fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+        fs.mkdirSync(path.join(dir, 'game'));
+        fs.writeFileSync(path.join(dir, 'game', 'hooks.gd'), PRINT_HOOKS);
+        fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="hooks-probe"\n');
+        fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'town', manifest: {} }, payload)));
+        fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload)));
+        fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-bus-probe.gd'), path.join(dir, 'probe.gd'));
+        const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        return out.split('\n').filter((l) => l.startsWith('[mojulo-hooks]'));
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    const town = run({ entities, events: lowerPlay({ entities, play: PLAY }, { player: 'hero' }) }, ['4', '0']);
+    expect(town).toEqual(expect.arrayContaining([
+      '[mojulo-hooks] chapter warned false', '[mojulo-hooks] chapter siege false', '[mojulo-hooks] cue siege-says',
+      '[mojulo-hooks] menu mayor', '[mojulo-hooks] line Mayor|[mayor: warning heard]|mayor|0', '[mojulo-hooks] pick mayor 1',
+    ]));
+    const cast = run({ entities: CAST_ENTITIES, events: lowerPlay({ entities: CAST_ENTITIES, play: CAST_PLAY }, { player: 'hero' }) }, ['4', '0', '90']);
+    expect(cast).toEqual(expect.arrayContaining(['[mojulo-hooks] character spawned soldier-1', '[mojulo-hooks] character gone merchant', '[mojulo-hooks] character arrive soldier-1', '[mojulo-hooks] character down soldier-1']));
   }, 120000);
 });

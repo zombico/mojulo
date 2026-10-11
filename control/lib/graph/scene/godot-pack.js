@@ -134,12 +134,19 @@ export function levelContract(manifest) {
   return game && typeof game === 'object' ? normalizeLevelContract(game) : null;
 }
 
+export const OWNED_DIR = 'game';
+
 /** Clean-emit a pack folder: binaries + emitted text + (optional) portability
  * + a kernel dir copied verbatim. Shared with the arcade leg (godot-arcade.js),
  * which brings its own kernel and no engine-score portability. */
 export async function writePack({ outDir, binaries, emitted, portability = null, kernelSrc = kernelDir() }) {
+  // `game/` is the developer's (OWNED_DIR): a re-mint keeps it whole, and writes its seed files only where missing
+  const owned = path.join(outDir, OWNED_DIR), kept = `${outDir}.${OWNED_DIR}-${process.pid}`;
+  const hasOwned = await fs.stat(owned).then((st) => st.isDirectory(), () => false);
+  if (hasOwned) { await fs.rm(kept, { recursive: true, force: true }); await fs.rename(owned, kept); }
   await fs.rm(outDir, { recursive: true, force: true });
   await fs.mkdir(outDir, { recursive: true });
+  if (hasOwned) await fs.rename(kept, owned);
   const written = [];
   const writeOut = async (rel, data) => {
     const abs = path.join(outDir, rel);
@@ -148,7 +155,10 @@ export async function writePack({ outDir, binaries, emitted, portability = null,
     written.push({ file: rel, bytes: Buffer.byteLength(data) });
   };
   for (const b of binaries) await writeOut(b.rel, b.bytes);
-  for (const f of emitted.files) await writeOut(f.file, f.text);
+  for (const f of emitted.files) {
+    if (f.seed && await fs.stat(path.join(outDir, f.file)).then(() => true, () => false)) continue;   // the developer's copy wins
+    await writeOut(f.file, f.text);
+  }
   if (portability) await writeOut('portability.json', JSON.stringify(portability, null, 2));
   const src = kernelSrc;
   await fs.cp(src, path.join(outDir, 'kernel'), { recursive: true });

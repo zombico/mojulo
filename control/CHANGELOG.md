@@ -123,6 +123,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **A cue forces the sky in Godot (kernel 0.12.0).** The score's weather row now lists the states a cue can force.
   `level.gd` hands the newest `weather-force:<cue>` still set to `weather.gd`, which eases fog, colour and light to it
   over the cue's blend, holds it, and eases back to the schedule when no force is left: the web page's rule.
+- **A pack a developer can build on (kernel 0.13.0).**
+  - The level emits named signals: `chapter_turned(id, carried)`, `cue_fired`, `menu_opened`, `menu_picked`,
+    `line_requested(who, text, menu, i)` (a talk's line, where a dialogue tool plugs in), `character_event` and
+    `bus_event`.
+  - `game/` is the developer's: a re-mint keeps it whole, and writes its seed `game/hooks.gd` only when it is missing.
+    The kernel attaches `game/hooks.gd` to every level.
+  - Both pack READMEs say which part of the folder is theirs.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The
