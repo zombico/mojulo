@@ -84,17 +84,19 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  * grid (each corner lit by the mean normal round it); the land keeps its continuous light (no lock to the card's
  * bands); the grass cards stay out. Three rules from the land's own shape go into its corner colours, each 0..1:
  * `crevice` darkens what is concave toward `shade` (a colour, never black), `ridge` lifts a convex lip, `blend`
- * carries a neighbouring surface's colour a corner or two over a seam (rock keeps its own).
+ * carries a neighbouring surface's colour a corner or two over a seam (rock keeps its own). `sun` is the key's soft
+ * edge in degrees (0 hard), so a cast shadow falls off over a cell or two.
  */
-export const SHADING = Object.freeze({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6, shade: '#4c68b2' });
+export const SHADING = Object.freeze({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6, shade: '#4c68b2', sun: 1.5 });
 function readShading(v) {
   if (v === undefined || v === false) return null;
-  if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade }');
+  if (v !== true && (typeof v !== 'object' || v === null || Array.isArray(v))) throw new Error('local-meru: shading is true or { smooth, crevice, ridge, blend, shade, sun }');
   const o = v === true ? {} : v;
   for (const k of Object.keys(o)) if (!(k in SHADING)) throw new Error(`local-meru: shading.${k} is not a setting (shading: ${Object.keys(SHADING).join(', ')})`);
   const S = { ...SHADING, ...o };
   if (typeof S.smooth !== 'boolean') throw new Error('local-meru: shading.smooth is true (ground smoothed across the grid) or false (every quad its own facet)');
   for (const k of ['crevice', 'ridge', 'blend']) if (!(typeof S[k] === 'number' && S[k] >= 0 && S[k] <= 1)) throw new Error(`local-meru: shading.${k} is 0..1`);
+  if (!(typeof S.sun === 'number' && S.sun >= 0 && S.sun <= 5)) throw new Error('local-meru: shading.sun is the sun\'s soft edge in degrees, 0 (hard) to 5');
   if (!/^#[0-9a-f]{6}$/i.test(S.shade)) throw new Error("local-meru: shading.shade is a '#rrggbb' colour (the hue a crevice darkens toward)");
   return S;
 }

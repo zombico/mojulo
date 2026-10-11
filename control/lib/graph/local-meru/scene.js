@@ -21,7 +21,7 @@
 import { lookOf } from '../era/style/looks.js';
 import { ISEKAI_STYLES, isekaiKeyOf, boulderFaces } from '../era/isekai.js';
 import { bakeStageLight } from '../era/stage.js';
-import { makeSunShadow, sunDir } from '../era/sun.js';
+import { makeSunShadow, makeSoftSunShadow, sunDir } from '../era/sun.js';
 import { lockFaces } from '../era/palette.js';
 import { madeStyle } from '../era/out-made.js';
 import { hash3, vnoise } from '../era/dirt.js';
@@ -300,7 +300,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   // the talus's scree on a geology island: the fragments the faces shed, small boulders on the apron
   if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed)));
   const solid = [...ground.faces, ...walk.faces, ...walk.wall, ...built, ...rocks.flatMap((b) => [...b.sides, ...b.cap])];
-  const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), shadow = makeSunShadow(solid, dir, { cell: 0.6 });
+  const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), soft = p.recipe.shading ? p.recipe.shading.sun : 0;
+  const shadow = soft ? makeSoftSunShadow(solid, dir, soft, { cell: 0.6 }) : makeSunShadow(solid, dir, { cell: 0.6 });
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const reach = (q, nn) => Math.max(0, dot(nn, dir)) * shadow(add(q, mul(nn, 0.05)), nn), lit = (q, nn) => reach(q, nn) >= st.cel;
   // the polygon land (`shading`): no tiles on the land, rock baked flat per facet, the rest smoothed, then the rules

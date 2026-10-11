@@ -2,8 +2,9 @@
  * GEOCUBE — one style for a level's inside and its outside, as data, so the two cannot clash: a gothic night's land
  * is the same stone, the same shade and the same air as its hall. A cube holds the core look and nothing placed:
  *
- *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), and
- *             how thick the outside's air is against the reference's (`outsideFog`)
+ *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
+ *             thick the outside's air is against the reference's (`outsideFog`), and the inside's `shadows` (the
+ *             stage's: torch, sun, cells; the gen-6.0 upgrades by default)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   register  the tone's bands (`steps`, 0 continuous) and its key
@@ -32,6 +33,9 @@ const STONE = { gen: 'stone-brick', stone: [150, 150, 150], mortar: [88, 88, 88]
 const FLAGS = { gen: 'flagstone', stone: [140, 140, 140], mortar: [58, 58, 58], gravel: [96, 96, 96], cells: 5, mortarThick: 0.05, wobble: 2.2, vary: 22, grain: 12, lost: 0.04, cracked: 0.2, seed: 17 };
 const ROCK = { gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 };
 const LAND = { smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 };
+// the gen-6.0 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
+// torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
+const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
 
 /** The cubes to start from. A cube is a starter: copy one with `from` and change what the level needs. */
 export const GEOCUBE_PRESETS = Object.freeze({
@@ -110,7 +114,8 @@ export function readGeocube(spec) {
   if (typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(c.id)) no('id is a lowercase slug');
   c.title ??= c.id; c.reads ??= ''; c.rung ??= 'gen-6.0';
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows'], 'light');
+  c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   const ref = SIXTH_GEN_REFERENCES[resolveLook(c.light.reference)];
   if (!ref.light.key && !c.light.moon) no(`light.moon is needed: '${c.light.reference}' has no sun, so the outside is lit by a moon { color, elevation, azimuth, gain }`);
@@ -144,7 +149,7 @@ export function readGeocube(spec) {
   if (!ISEKAI_STYLES[c.outside.base] || !SWATCHES[c.outside.base]) no(`outside.base '${c.outside.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
   c.outside.tiers ??= TWO_BASES; c.outside.island ??= ISLE; c.outside.land ??= LAND;
   if (!Array.isArray(c.outside.tiers) || !c.outside.tiers.length) no('outside.tiers is the landform\'s tiers (local meru), one or more');
-  if (c.outside.land !== false) only(c.outside.land, ['smooth', 'crevice', 'ridge', 'blend'], 'outside.land');
+  if (c.outside.land !== false) only(c.outside.land, ['smooth', 'crevice', 'ridge', 'blend', 'sun'], 'outside.land');
   // why
   if (!Array.isArray(c.why) || !c.why.length || !c.why.every((w) => typeof w === 'string' && w.length && w.length <= 200)) no('why is the principles, one line each (200 characters at most)');
   return c;
@@ -172,7 +177,7 @@ function lowerInside(cube) {
     groups: { 'stage:floor': 'floor', 'stage:gutter': 'floor', 'stage:rubble': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:kick': 'trim', 'stage:skirt': 'trim', 'stage:column': 'trim', 'stage:accent': 'accent' },
     keep: ['stage:fixture', 'stage:lamp'],
   };
-  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false,
+  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
     tiles: { wall: cube.surfaces.wall, floor: cube.surfaces.floor }, tone,
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
