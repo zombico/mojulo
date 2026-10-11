@@ -40,6 +40,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   games they lift per unit of work, so the build order is recomputed on every run.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
+- **Time is progression, not text.** The Time facet now reads as three layers:
+  - **Chapters:** the same world at a later point. `passage` says how the world aged in between: day and night,
+    seasons, growth, aftermath or eras.
+  - **Advance:** what moves play on (cues, steps, quests).
+  - **Shots:** the directed camera that presents a turn (in-world, staged, or a face-to-face banter screen), with
+    `framing` read from the floormap's shot table.
+
+  Mojulo supplies the speaker, the text box, the advance and the camera. The lines are a slot it never writes.
+  Playscape's cues, menus and cast and the motion comic already cover most of Time. What remains is sized as three
+  packages (chapter overlays, quests, the 3D shot), plus passage values of their own; only day and night, and eras,
+  are absent. Time values are marked as lost on a Godot export, which carries only linear progression. A
+  story-adventure probe joins the fixtures.
+- **A value builds what it needs.** A registry value may name the values it `requires`. The sweep credits a value,
+  a facet or a package with everything its closure builds, and prices a package at the effort of every package in
+  that closure (`cost`, `needs`). A quest needs a character who talks; a passage needs chapters. An unknown
+  requirement throws.
+- **A fair roll, and sweeps near the probes.** By default every facet gets about the same number of settings in a
+  rolled cube, whatever its size, so a facet no longer leads the map by having more settings (`--roll flat` keeps
+  the old draw). `--around <fixture>|probes` nudges real game types one or two settings at a time instead of rolling
+  blind.
+- **The progression check.** `checkProgression` (`lib/graph/game/progression-check.js`) reads a game's level gates
+  and each level's contract, and names every level a player could never open: a gate on a missing level, on itself,
+  on a cycle, or on a flag no reachable level may set. A flag gate opened only by a contract's permission is
+  reported as unproven, because no level runtime emits `setFlag` yet. It is pure and advisory, and nothing calls it yet.
 
 ## [3.1.0] - 2026-10-10
 

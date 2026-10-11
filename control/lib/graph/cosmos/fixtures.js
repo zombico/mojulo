@@ -23,7 +23,7 @@ export const FIXTURES = Object.freeze([
       power: { kit: 'dungeon-crawler', mechanics: ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death'], combat: ['melee'], rules: ['walk', 'follow'] },
       soul: { hero: 'hero', cast: 'heroic', equipment: ['sword', 'shield'] },
       mind: { idle: 'patrol' },
-      time: { story: 'none' },
+      time: { progression: 'linear' },
     },
   },
   {
@@ -37,7 +37,7 @@ export const FIXTURES = Object.freeze([
       power: { kit: 'collectathon', mechanics: ['collect', 'reach-exit'], rules: ['walk', 'glide', 'platform', 'follow'] },
       soul: { hero: 'hero', cast: 'chibi', vibe: 'bouncy' },
       mind: { target: 'none' },
-      time: { story: 'none' },
+      time: { progression: 'linear' },
     },
   },
   {
@@ -51,7 +51,7 @@ export const FIXTURES = Object.freeze([
       power: { idiom: 'action-adventure-like', combat: ['melee'], systems: ['unlock'] },
       soul: { hero: 'hero', equipment: ['sword', 'shield', 'bow'] },
       mind: { target: 'player', idle: 'patrol' },
-      time: { progression: 'gated', objectives: 'steps' },
+      time: { progression: 'gated', advance: 'steps' },
     },
   },
   {
@@ -65,7 +65,7 @@ export const FIXTURES = Object.freeze([
       power: { combat: ['ranged'], mechanics: ['defeat-all', 'hp-pool'] },
       soul: { hero: 'hero' },
       mind: { target: 'player', perception: 'sight', posture: 'skirmish', reflexes: ['dodge-on-hit'], pathing: 'navmesh', squad: 'team-aware' },
-      time: { progression: 'linear', story: 'beats', cutscenes: 'scripted' },
+      time: { progression: 'linear', advance: 'cues', shots: ['in-world'] },
     },
   },
   {
@@ -79,7 +79,7 @@ export const FIXTURES = Object.freeze([
       power: { combat: ['turn-based'], stats: ['xp', 'level', 'buy'], systems: ['equip'] },
       soul: { hero: 'hero', party: 'party', equipment: ['sword', 'staff'] },
       mind: { social: 'talk' },
-      time: { progression: 'gated', story: 'quests', flags: 'flags', cutscenes: 'scripted' },
+      time: { progression: 'gated', chapters: 'overlays', advance: 'quests', shots: ['banter', 'staged'] },
     },
   },
   {
@@ -93,21 +93,34 @@ export const FIXTURES = Object.freeze([
       power: { idiom: 'metroidvania-like', rules: ['platform'], systems: ['unlock'], combat: ['melee'] },
       soul: { hero: 'hero', gaits: ['jump', 'doubleJump'] },
       mind: { target: 'player' },
-      time: { progression: 'gated', flags: 'flags' },
+      time: { progression: 'gated', advance: 'cues' },
     },
   },
   {
     id: 'survival-horror',
     name: 'Survival horror',
     anchor: false,
-    why: 'fixed cameras through a mapped house, scarce resources, a pursuer, a story told in beats',
+    why: 'fixed cameras through a mapped house, scarce resources, a pursuer, the house changing as it goes',
     cube: {
       reality: { medium: '3d', look: 'lab-dark' },
       space: { camera: 'fixed', topology: 'interconnected', levelForm: 'floormap', links: 'door' },
       power: { combat: ['ranged'], systems: ['resource'] },
       soul: { hero: 'hero' },
       mind: { target: 'player', perception: 'sight', pathing: 'navmesh' },
-      time: { progression: 'gated', story: 'beats', flags: 'flags', cutscenes: 'scripted' },
+      time: { progression: 'gated', chapters: 'overlays', advance: 'cues', shots: ['staged'] },
+    },
+  },
+  {
+    id: 'story-adventure',
+    name: 'Story adventure',
+    anchor: false,
+    why: 'one town that changes chapter by chapter; people give quests, talk face to face, and the camera directs the turns',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'hub' },
+      soul: { hero: 'hero' },
+      mind: { idle: 'patrol', social: 'talk' },
+      time: { progression: 'linear', chapters: 'overlays', passage: 'seasons', advance: 'quests', shots: ['in-world', 'banter'], framing: ['wide'] },
     },
   },
   {
@@ -132,7 +145,7 @@ export const FIXTURES = Object.freeze([
       reality: { medium: 'pixel' },
       space: { camera: 'top-down', topology: 'linear' },
       power: { mechanics: ['collect', 'reach-exit'] },
-      time: { story: 'none' },
+      time: { progression: 'linear' },
     },
   },
 ]);

@@ -8,7 +8,7 @@ const CRAWLER = {
   power: { kit: 'dungeon-crawler', mechanics: ['reach-exit', 'hp-pool'], combat: ['melee'] },
   soul: { hero: 'hero', cast: 'heroic' },
   mind: { idle: 'patrol' },
-  time: { story: 'none' },
+  time: { progression: 'linear' },
 };
 
 describe('validateCube', () => {

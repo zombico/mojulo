@@ -6,7 +6,8 @@ import { dryRun } from '../lib/graph/cosmos/cosmos.js';
 
 describe('cosmos-sweep CLI', () => {
   it('parses its flags, and names them on an unknown one', () => {
-    expect(parseArgs([])).toEqual({ n: 500, seed: 1, density: 0.2, top: 15, fixture: null, json: false });
+    expect(parseArgs([])).toEqual({ n: 500, seed: 1, density: 0.2, roll: 'fair', around: null, top: 15, fixture: null, json: false });
+    expect(parseArgs(['--roll', 'flat', '--around', 'probes'])).toMatchObject({ roll: 'flat', around: 'probes' });
     expect(parseArgs(['--n', '40', '--seed', '9', '--fixture', 'jrpg', '--json'])).toMatchObject({ n: 40, seed: 9, fixture: 'jrpg', json: true });
     expect(() => parseArgs(['--n', 'many'])).toThrow(/--n takes a number/);
     expect(() => parseArgs(['--size'])).toThrow(/unknown argument '--size' \(known: --n/);
@@ -14,7 +15,8 @@ describe('cosmos-sweep CLI', () => {
 
   it('prints the fixtures, the verdict counts and both rankings', () => {
     const text = formatSweep(sweep({ n: 50, seed: 2 }), { top: 5 });
-    expect(text).toMatch(/^cosmos sweep · n 50 · seed 2 · density 0.2/);
+    expect(text).toMatch(/^cosmos sweep · n 50 · seed 2 · density 0.2 · fair roll/);
+    expect(formatSweep(sweep({ n: 20, seed: 2, around: 'jrpg' }))).toMatch(/^cosmos sweep · n 20 · seed 2 · around jrpg/);
     expect(text).toMatch(/◆ dungeon-crawler\s+makeable/);
     expect(text).toMatch(/unlock by facet/);
     expect(text).toMatch(/build order: work packages/);

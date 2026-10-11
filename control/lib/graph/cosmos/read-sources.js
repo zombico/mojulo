@@ -1,10 +1,11 @@
 /**
  * Reads every facet's SOURCE tables live: the values the tree defines today, in the table's own order. Used by the
- * generator (scripts/gen-cosmos-registry.mjs) and by registry.deep.test.js, which holds the generated file equal to
+ * generator (scripts/gen-cosmos-registry.mjs) and by registry.test.js, which holds the generated file equal to
  * this read. Modules are imported by their path under control/, so a branch can name a new table without a code edit
  * here. Under plain Node the caller registers the `@/` loader first (scripts/mcp-stdio-loader.mjs).
  *
  *   readSources() → { 'facet.setting': { lowers, values: [...], godot?: [...the values that survive a Godot export] } }
+ *   (a source's `godot: false` says no value survives; the registry reads it, so there is no table to read here)
  */
 import { FACETS } from './facets/index.js';
 
@@ -38,7 +39,7 @@ export async function readSources() {
       const src = spec.source, lowers = `${src.module}#${src.read || src.table}`;
       const values = await read(src);
       const row = { lowers, values };
-      if (src.godot) { const exported = new Set(await read(src.godot)); row.godot = values.filter((v) => exported.has(v)); }
+      if (src.godot && typeof src.godot === 'object') { const exported = new Set(await read(src.godot)); row.godot = values.filter((v) => exported.has(v)); }
       out[`${facet.id}.${setting}`] = row;
     }
   }
