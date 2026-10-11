@@ -324,6 +324,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   does (a key by the character it types, as `KeyboardEvent.key` names it): a power fires on its number, the status
   page opens on `i`. A pick or a shot on what the pointer is over stays the page's; the bus contract names it
   (`fact:aim`).
+- **Beams and explosions travel to Godot.** A cue's beam and blast are moments on the cast's clock in
+  `kernel/cast.gd`, as on the web:
+  - a beam leaves the hand (or rises over the head for a charge) toward a character or a place, lands after its
+    distance by the web's land rule, sets off its impact and shake there, and its target hears `struck`;
+  - an explosion puffs at a place or a character's feet; a chain scatters its blasts by the web's own dice and
+    staggers them, with a shake.
+
+  Held equal to the web by the combat corpus (every kind of each). `level.gd` draws them simpler than the page: a
+  bolt that grows to where it lands, a glowing ball that swells and fades, in the spec's colour. The cast rows carry
+  where each character stands below its position (`foot`). `fact:struck` is performed in Godot.
 - **Numbers read and print exactly in Godot.** `kernel/json_exact.gd` reads a small number's late digits (Godot's
   own reader dropped them, so about one double in two hundred arrived as its neighbour) and `js_number` prints a
   double as JS does: the fewest digits, the even one on a tie, the exponent forms and the subnormals included. The

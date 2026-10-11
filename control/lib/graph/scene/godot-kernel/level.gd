@@ -1295,6 +1295,81 @@ func _draw_rounds() -> void:
 			round_nodes[i].global_position = to_yup(combat.projectiles[i]["pos"]) * bus_units
 
 
+# the cast's moments, simpler than the page's: a beam is a bolt grown from the hand to where it lands and fading after;
+# a puff or a blast a glowing ball swelling over its time and fading (a chain's blasts each in their place and turn).
+# The colour is the spec's. What they do (the struck, the shake) is the cast's, equal to the web
+var moment_nodes: Array = []
+func _moment_node(i: int) -> MeshInstance3D:
+	while moment_nodes.size() <= i:
+		var m := MeshInstance3D.new()
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.material_override = mat
+		add_child(m)
+		moment_nodes.append(m)
+	return moment_nodes[i]
+
+
+static func _moment_color(m: Dictionary, fallback: Color) -> Color:
+	var c = m.get("color")
+	if not (c is Array) and m.get("spec") is Dictionary:
+		c = m["spec"].get("color")
+	if c is Array and c.size() >= 3:
+		return Color(float(c[0]), float(c[1]), float(c[2]))
+	if c is String and c.begins_with("#"):
+		return Color.html(c)
+	return fallback
+
+
+func _draw_moments() -> void:
+	var t: float = cast_state["time"]
+	var n := 0
+	for m in cast_state["moments"]:
+		if m["is"] == "shake" or t < float(m["t0"]):
+			continue
+		var node := _moment_node(n)
+		var mat: StandardMaterial3D = node.material_override
+		if m["is"] == "beam":
+			var hit := float(m["hit"])
+			var grow := clampf((t - float(m["t0"])) / maxf(1e-3, hit - float(m["t0"])), 0.0, 1.0)
+			var fade := 1.0 - clampf((t - hit) / 0.35, 0.0, 1.0)
+			if fade <= 0.0:
+				continue
+			var a := to_yup(m["from"]) * bus_units
+			var b := a.lerp(to_yup(m["to"]) * bus_units, grow)
+			var len := a.distance_to(b)
+			if len < 1e-3:
+				continue
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.06 * bus_units
+			cyl.bottom_radius = 0.06 * bus_units
+			cyl.height = len
+			node.mesh = cyl
+			node.global_position = (a + b) / 2.0
+			var dir := (b - a) / len
+			node.global_transform.basis = Basis(Quaternion(Vector3.UP, dir)) if absf(dir.dot(Vector3.UP)) < 0.999 else Basis()
+			var col := _moment_color(m, Color(0.45, 0.75, 1.0))
+			mat.albedo_color = Color(col.r, col.g, col.b, fade)
+		else:
+			var dur := float(m["spec"].get("dur", 0.8)) if m.get("spec") is Dictionary else 0.6
+			var age := (t - float(m["t0"])) / maxf(0.05, dur)
+			if age >= 1.0:
+				continue
+			var sp := SphereMesh.new()
+			var r := (0.3 + 1.2 * age) * float(m.get("scale", 1.0)) * bus_units
+			sp.radius = r
+			sp.height = 2.0 * r
+			node.mesh = sp
+			node.global_position = to_yup(m["at"]) * bus_units + Vector3(0, r * 0.5, 0)
+			var col := _moment_color(m, Color(1.0, 0.55, 0.2) if m.get("spec") != null else Color(0.8, 0.8, 0.8))
+			mat.albedo_color = Color(col.r, col.g, col.b, 0.85 * (1.0 - age))
+		node.visible = true
+		n += 1
+	for i in range(n, moment_nodes.size()):
+		moment_nodes[i].visible = false
+
+
 # the hero's input in the web's words: fire (the left mouse button, or the probe's hold), forward (W / S) and strafe
 # (D / A); a frozen walker (a menu is up) swings nothing
 func _combat_input() -> Dictionary:
@@ -1418,6 +1493,7 @@ func _draw_cast() -> void:
 	if cast == null:
 		return
 	_draw_rounds()
+	_draw_moments()
 	for id in cast_nodes:
 		var c: Dictionary = cast_nodes[id]
 		var e: Dictionary = cast_state["byId"][id]

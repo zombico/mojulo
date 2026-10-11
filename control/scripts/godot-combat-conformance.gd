@@ -29,6 +29,7 @@ func _init() -> void:
 			hero["heading"] = float(f["hero"]["heading"])
 			hero["pitch"] = float(f["hero"]["pitch"])
 			K.step(st, hero, f["input"], float(f["dt"]), bool(f["hero"]["grounded"]))
+			C.step(st, float(f["dt"]))
 			snaps.append(_snapshot(st, K, sc["bodies"], C.facts(st)))
 			if f.get("ops") is Array:
 				C.ops(st, f["ops"])
@@ -65,7 +66,7 @@ func _snapshot(st: Dictionary, K, ids: Array, events: Array) -> String:
 	var facts := []
 	for ev in events:
 		var x := {"type": ev["type"], "entity": ev["entity"]}
-		if String(ev["type"]).begins_with("hit:"):
+		if String(ev["type"]).begins_with("hit:") or ev["type"] == "struck":
 			x["by"] = ev.get("by")
 		facts.append(x)
 	var hero := {"swingT": h.get("swingT"), "clip": h.get("swingClip"), "cd": h.get("strikeCdT", 0), "combo": h.get("comboT", 0), "chain": Bus.truthy(h.get("swingCombo")), "dir": h.get("lastSwingDir"), "swings": h.get("swingCount", 0), "dealt": h.get("meleeHitCount", 0)}
@@ -77,4 +78,20 @@ func _snapshot(st: Dictionary, K, ids: Array, events: Array) -> String:
 	var rounds := []
 	for p in K.projectiles:
 		rounds.append([(p["pos"] as Array).map(_nano), (p["vel"] as Array).map(_nano), p["age"]])
-	return Bus.ss({"hero": hero, "bodies": bodies, "rounds": rounds, "facts": facts})
+	var moments := []
+	for m in st["moments"]:
+		var x := {"is": m["is"], "t0": m["t0"], "at": (m["at"] as Array).map(_nano)}
+		if m.get("until") != null:
+			x["until"] = m["until"]
+		if m.get("hit") != null:
+			x["hit"] = m["hit"]
+			x["to"] = (m["to"] as Array).map(_nano)
+			x["target"] = m.get("target")
+			x["struck"] = Bus.truthy(m.get("struck"))
+		if m.get("k") != null:
+			x["k"] = m["k"]
+			x["for"] = m["for"]
+		if m.get("scale") != null:
+			x["scale"] = m["scale"]
+		moments.append(x)
+	return Bus.ss({"hero": hero, "bodies": bodies, "rounds": rounds, "moments": moments, "facts": facts})

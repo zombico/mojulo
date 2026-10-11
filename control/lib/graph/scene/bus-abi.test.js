@@ -65,9 +65,10 @@ describe('the bus contract', () => {
     expect(busCoverage(m.events).used).not.toContain('fact:cast');
   });
 
-  it('names a cue on a beam striking as lost, the other cast facts as performed', () => {
+  it('reads a cue on a beam striking as its own fact (performed since kernel 0.18.0), apart from the other cast facts', () => {
     const ev = lowered({ cues: [{ id: 'a', when: { struck: 'hero' }, then: { say: 'ow' } }] });
-    expect(busCoverage(ev).godot.absent).toEqual(['fact:struck']);
+    expect(busCoverage(ev).godot.built).toContain('fact:struck');
+    expect(busCoverage(ev).godot.absent).toEqual([]);
     expect(busCoverage(ev).used).not.toContain('fact:cast');
     const down = lowered({ cues: [{ id: 'a', when: { down: 'hero' }, then: { say: 'ow' } }] });
     expect(busCoverage(down).godot.built).toContain('fact:cast');

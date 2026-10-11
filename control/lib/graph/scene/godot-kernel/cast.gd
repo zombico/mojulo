@@ -3,15 +3,16 @@ extends RefCounted
 # the web's character world (lib/graph/worlds/controllable/cast.js castOps / castFacts / stepRoute) over plain data, in
 # the bus's frame (z-up, recipe units, heading in radians); level.gd draws each character from it. What the port leaves
 # to the web: a walk's collider push-out and ground snap (a character walks its straight lines on the ground it stands
-# on), puffs, beams and transits (the look of a coming or going). Stuck is still found (a second closing less than a
-# sixth of the pace).
+# on) and transits (the look of a coming or going). Stuck is still found (a second closing less than a sixth of the
+# pace). Puffs, explosions (a chain scattered by the web's own dice) and beams are moments on the cast's clock, as the
+# web keeps them: a beam lands at its hit time and its target hears `struck` (since 0.18.0).
 #
 #   var C = preload("res://kernel/cast.gd").new()
 #   var st = C.create(rows)              rows: [{ id, pos, heading?, dormant?, hp?, speed? }]
 #   C.ops(st, ops)                       the bus's queued `ctrl` intents (bus.take_ctrl), in order
 #   C.step(st, dt)                       routes walk; the world clock moves
 #   C.facts(st) → [event]                down · gone · spawned · arrive { at, last, pose? } · stuck · hit:<id> { by }
-#                                        (once per hit kernel/combat.gd counted) · faded { is }
+#                                        (once per hit kernel/combat.gd counted) · faded { is } · struck { by, beam? }
 
 const Bus := preload("res://kernel/bus.gd")
 const DEG := PI / 180.0
@@ -34,6 +35,7 @@ func create(rows: Array) -> Dictionary:
 		if Bus.finite(r.get("hp")):
 			e["hp"] = float(r["hp"])
 			e["hpMax"] = float(r["hp"])
+		e["foot"] = float(r["foot"]) if Bus.finite(r.get("foot")) else 0.0
 		st["entities"].append(e)
 		st["byId"][e["id"]] = e
 	return st
@@ -49,10 +51,19 @@ func ops(st: Dictionary, list: Array) -> void:
 			continue
 		var op = o.get("op")
 		if op == "shake":
-			st["moments"].append({"is": "shake", "k": float(o["k"]) if Bus.finite(o.get("k")) else 0.5, "for": float(o["for"]) if Bus.finite(o.get("for")) else 0.4, "t0": st["time"]})
+			_moment(st, {"is": "shake", "at": [0.0, 0.0, 0.0], "k": float(o["k"]) if Bus.finite(o.get("k")) else 0.5, "for": float(o["for"]) if Bus.finite(o.get("for")) else 0.4})
+			continue
+		if op == "puff" and not Bus.truthy(o.get("who")) and o.get("at") is Array:
+			_puff(st, o, _pt3(o["at"], 0.0), st["time"])
 			continue
 		var e = st["byId"].get(Bus.js_string(o.get("who", Bus.UNDEF)))
 		if e == null:
+			continue
+		if op == "puff":
+			_puff(st, o, _pt3(o["at"], 0.0) if o.get("at") is Array else _feet(e), st["time"])
+			continue
+		if op == "beam":
+			_beam(st, e, o)
 			continue
 		if op == "transfigure":
 			var b = st["byId"].get(Bus.js_string(o.get("into", Bus.UNDEF)))
@@ -182,8 +193,97 @@ func step(st: Dictionary, dt: float) -> void:
 				e["route"] = null
 			else:
 				_step_route(e, dt)
+
+
+# ── moments (the web's cast.js moment / puff / beam) ─────────────────────────────────────────────────────────────
+# a moment, kept until its `until` (else 3 s); the old ones go when a new one comes, as on the web
+static func _moment(st: Dictionary, m: Dictionary) -> void:
 	var t: float = st["time"]
-	st["moments"] = (st["moments"] as Array).filter(func(m): return t < m["t0"] + maxf(3.0, m.get("for", 0.0)))
+	var kept := []
+	for x in st["moments"]:
+		if t < (float(x["until"]) if x.get("until") != null else float(x["t0"]) + 3.0):
+			kept.append(x)
+	var row := {"t0": t}
+	for k in m:
+		row[k] = m[k]
+	kept.append(row)
+	st["moments"] = kept
+
+
+# where a character stands: its pos less its foot
+static func _feet(e: Dictionary) -> Array:
+	var p: Array = e["pos"]
+	return [float(p[0]), float(p[1]), float(p[2]) - float(e.get("foot", 0.0))]
+
+
+# a puff, or an explosion (o.spec): a chain is count blasts scattered round the spot by the web's own dice (a sine
+# hash), one after another; a scale sizes it and its spread
+static func _puff(st: Dictionary, o: Dictionary, at: Array, t0: float) -> void:
+	var X = o.get("spec") if o.get("spec") is Dictionary else null
+	var sc := float(o["scale"]) if Bus.finite(o.get("scale")) else 1.0
+	var C = X.get("chain") if X != null and X.get("chain") is Dictionary else null
+	var n := int(C["count"]) if C != null else 1
+	for j in n:
+		var d := func(k: int) -> float:
+			var x := sin(j * 12.9898 + k * 78.233 + 5.1) * 43758.5453
+			return x - floor(x)
+		var a: float = d.call(1) * TAU
+		var r: float = float(C["spread"]) * sc * sqrt(d.call(2)) if j > 0 and C != null else 0.0
+		var tj := t0 + (j * float(C["stagger"]) if C != null else 0.0)
+		var m := {"is": o["is"] if o.get("is") is String else "smoke", "at": [at[0] + cos(a) * r, at[1] + sin(a) * r, at[2]], "t0": tj}
+		if X != null:
+			m["spec"] = X
+			m["until"] = tj + float(X["dur"]) + 0.2
+		if sc != 1.0:
+			m["scale"] = sc
+		if o.has("color"):
+			m["color"] = o["color"]
+		_moment(st, m)
+	var k := 0.0
+	if Bus.finite(o.get("shake")) and float(o["shake"]) > 0.0:
+		k = float(o["shake"])
+	elif X != null and Bus.truthy(X.get("shake")):
+		k = float(X["shake"])
+	if k != 0.0:
+		_moment(st, {"is": "shake", "at": at.duplicate(), "k": minf(1.0, k * sqrt(sc)), "for": 0.4 + float(C["stagger"]) * (n - 1) if C != null else 0.4, "t0": t0})
+
+
+# a beam from the hand (or over the head) at a character's middle or a point: it lands at hit, its impact and shake
+# are moments then, and its target hears struck
+static func _beam(st: Dictionary, e: Dictionary, o: Dictionary) -> void:
+	if e["gone"] or not (o.get("spec") is Dictionary):
+		return
+	var spec: Dictionary = o["spec"]
+	var f := _feet(e)
+	var h := float(e["heading"])
+	var above: bool = spec.get("charge") is Dictionary and spec["charge"].get("at") == "above"
+	var from := [f[0], f[1], f[2] + 2.7] if above else [f[0] + cos(h) * 0.45, f[1] + sin(h) * 0.45, f[2] + 1.15]
+	var T = st["byId"].get(o["to"]) if o.get("to") is String else null
+	if o.get("to") is String and (T == null or T["gone"]):
+		return
+	var to: Array = (T["pos"] as Array).duplicate() if T != null else _pt3(o["to"], 0.0)
+	var D := sqrt((to[0] - from[0]) * (to[0] - from[0]) + (to[1] - from[1]) * (to[1] - from[1]) + (to[2] - from[2]) * (to[2] - from[2]))
+	var land_rule: Array = o["land"] if o.get("land") is Array and not (o["land"] as Array).is_empty() else [[0, 0]]
+	var best := INF
+	for ab in land_rule:
+		best = minf(best, float(ab[0]) + float(ab[1]) * D)
+	var hit: float = st["time"] + best
+	var m := {"is": "beam", "at": from, "from": from, "to": to, "by": e["id"], "name": o["name"] if o.get("name") is String and o["name"] != "" else null, "spec": spec, "hit": hit, "until": hit + 8.0}
+	if T != null:
+		m["target"] = T["id"]
+	if o.has("color"):
+		m["color"] = o["color"]
+	_moment(st, m)
+	var land := _feet(T) if T != null else to
+	if Bus.truthy(spec.get("impact")):
+		var imp := {"is": spec["impact"]}
+		if spec.get("impactSpec") is Dictionary:
+			imp["spec"] = spec["impactSpec"]
+		if o.has("color"):
+			imp["color"] = o["color"]
+		_puff(st, imp, land, hit)
+	if Bus.truthy(spec.get("shake")):
+		_moment(st, {"is": "shake", "at": land, "k": spec["shake"], "for": 0.4, "t0": hit})
 
 
 # edge-detected happenings, as bus events with `entity` (the first read seeds: nothing a world was minted with fires)
@@ -220,5 +320,14 @@ func facts(st: Dictionary) -> Array:
 		for k in e["faded"]:
 			events.append({"type": "faded", "entity": e["id"], "is": k})
 		e["faded"] = []
+	# a beam that has reached its character
+	for M in st["moments"]:
+		if M["is"] == "beam" and M.get("target") != null and not Bus.truthy(M.get("struck")) and st["time"] >= float(M["hit"]):
+			M["struck"] = true
+			if not seed:
+				var ev := {"type": "struck", "entity": M["target"], "by": M["by"]}
+				if M.get("name") != null:
+					ev["beam"] = M["name"]
+				events.append(ev)
 	_prev = next
 	return events

@@ -28,7 +28,7 @@ export const BUS_ABI = Object.freeze({
     aim: { about: 'a pick or a shot naming what the pointer is over (events.inputs on pick / fire)', web: B, godot: A, how: 'the page raycasts its markers; the Godot kernel has no markers to pick' },
     cast: { about: 'a character\'s happenings: down, gone, spawned, arrive, stuck, faded', web: B, godot: B, how: 'kernel/cast.gd castFacts' },
     hit: { about: 'a character takes a hit: a blade, a round, a splash (hit:<id>, what hp-pool counts)', web: B, godot: B, how: 'kernel/combat.gd deals the hero\'s hits (its blade, its rounds, their splash; a fall\'s blast hits nobody) and kernel/cast.gd tells the bus' },
-    struck: { about: 'a beam reaches a character (struck)', web: B, godot: A, how: 'beams stay on the web: kernel/cast.gd drops the beam op, so nothing strikes' },
+    struck: { about: 'a beam reaches a character (struck)', web: B, godot: B, how: 'kernel/cast.gd: a beam is a moment that lands after its distance (the web\'s land rule), and its target hears struck' },
     stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: B, how: 'kernel/stats.gd, conformance-tested equal to the web\'s stats kernel' },
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B, godot: B, how: 'level.gd: arrows or W / S, Enter / Space / E, Esc' },
   }),
@@ -41,7 +41,7 @@ export const BUS_ABI = Object.freeze({
     parts: { about: 'a HUD part shown, hidden or restated by a cue (ui-<part>, ui-<part>-state)', web: B, godot: B, how: 'kernel/hud.gd gates a row by its part id and draws its state (disabled, alert, focus, active)' },
     phase: { about: 'the play\'s phase (title, playing, …): a part stands in its phases only', web: B, godot: B, how: 'kernel/hud.gd reads the phase var against a row\'s when' },
     weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: B, how: 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)' },
-    cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake; a walk has no collider push-out or ground snap; puffs, beams and transits stay on the web' },
+    cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web' },
     stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
   }),
 });

@@ -15,6 +15,8 @@
 import { mulberry32 } from '../vegetation/grow.js';
 import { composeLive } from '../worlds/controllable/compose.js';
 import { extractBus } from './engine-score.js';
+import { readBeam, beamLanding, BEAM_NAMES } from '../playscape/elements/beams.js';
+import { readExplosion, EXPLOSION_NAMES } from '../playscape/elements/explosions.js';
 
 const DT = 1 / 60;
 const FLAT = { ground: () => 0 };
@@ -31,7 +33,11 @@ const frames = (...runs) => runs.flatMap(([n, input]) => Array.from({ length: n 
 const press = (n = 2, input = {}) => [n, { fire: true, ...input }];
 const idle = (n) => [n, {}];
 // a frame that also hands the cast ops (the bus's ctrl verb), after the step and the facts as the page does
-const withOps = (fr, at, ops) => { fr[at] = { ...fr[at], ops }; return fr; };
+const withOps = (fr, at, ops) => { fr[at] = { ...fr[at], ops: [...(fr[at].ops || []), ...ops] }; return fr; };
+// a beam and an explosion as a cue lowers them (playscape/ui/cast.js lowerCastEffect)
+const beam = (who, to, is = 'orb') => { const spec = readBeam(is, 'beam'); return { op: 'beam', who, to, spec, land: beamLanding(spec), name: is }; };
+const explode = (where, is = 'blast', scale) => ({ op: 'puff', ...(typeof where === 'string' ? { who: where } : { at: where }), is, spec: readExplosion(is, 'explode'), ...(scale ? { scale } : {}) });
+const quiet = (n) => frames(idle(n));
 
 export const SCENARIOS = [
   {
@@ -117,6 +123,18 @@ export const SCENARIOS = [
     frames: frames(press(), idle(30)),
   },
   {
+    id: 'beams',
+    about: 'a beam of every kind from a character at another or at a place: it lands after its distance, its impact and shake are moments then, its target hears struck once; one at a body sent away is not fired',
+    entities: [hero({}), foe('caster', [0, 3, 0], { hp: 20 }), foe('a', [6, 3, 0], { hp: 20 }), foe('b', [2, -5, 0], { hp: 20 }), foe('gone', [4, 4, 0], {}, { dormant: true })],
+    frames: BEAM_NAMES.reduce((fr, is, i) => withOps(fr, 5 + i * 25, [beam('caster', i % 3 === 2 ? [3 + i, -2, 0] : i % 2 ? 'a' : 'b', is)]), withOps(quiet(BEAM_NAMES.length * 25 + 200), 2, [beam('caster', 'gone')])),
+  },
+  {
+    id: 'explosions',
+    about: 'an explosion of every kind at a place and at a character\'s feet, some scaled: a chain scatters its blasts by the web\'s dice and staggers them, a shake rides each',
+    entities: [hero({}), foe('target', [3, 1, 0], { hp: 20 })],
+    frames: EXPLOSION_NAMES.reduce((fr, is, i) => withOps(fr, 5 + i * 20, [explode(i % 2 ? 'target' : [i, -i, 0], is, i % 3 ? undefined : 1.5)]), quiet(EXPLOSION_NAMES.length * 20 + 120)),
+  },
+  {
     id: 'asleep',
     about: 'a body minted asleep is not hittable',
     entities: [hero({ strikeReach: 1.6, strikeDamage: 2, strikeDur: 0.4 }), foe('sleeper', [1.3, 0, 0], {}, { dormant: true }), foe('woke', [1.3, 0.5, 0])],
@@ -200,7 +218,9 @@ function snapshot(world, ids, events) {
     // a round's flight to 1e-9: its launch is a sine and a cosine, which the two engines' libraries agree on to the
     // last bit almost, not quite, always (an integrator, held to a stated tolerance)
     rounds: (world.projectiles || []).map((p) => [p.pos.map(nano), p.vel.map(nano), p.age]),
-    facts: events.map((ev) => ({ type: ev.type, entity: ev.entity, ...(ev.type.startsWith('hit:') ? { by: ev.by } : {}) })),
+    // the cast's moments (puffs, blasts, beams, shakes), their places to 1e-9 (a chain's dice are a sine)
+    moments: (world.moments || []).map((m) => ({ is: m.is, t0: m.t0, at: m.at.map(nano), ...(m.until != null ? { until: m.until } : {}), ...(m.hit != null ? { hit: m.hit, to: m.to.map(nano), target: m.target ?? null, struck: !!m.struck } : {}), ...(m.k != null ? { k: m.k, for: m.for } : {}), ...(m.scale != null ? { scale: m.scale } : {}) })),
+    facts: events.map((ev) => ({ type: ev.type, entity: ev.entity, ...(ev.type.startsWith('hit:') || ev.type === 'struck' ? { by: ev.by } : {}) })),
   });
 }
 

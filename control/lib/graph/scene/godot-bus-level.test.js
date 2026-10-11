@@ -330,7 +330,8 @@ describe('the cast travels', () => {
   it('bus.json carries the cast rows in the bus\'s units, and the contract marks the character rows built', () => {
     const bus = extractBus(payload());
     expect(bus.cast.map((r) => r.id)).toEqual(['hero', 'soldier-1', 'merchant']);
-    expect(bus.cast[1]).toEqual({ id: 'soldier-1', pos: [6, 2, 0.5], dormant: true, hp: 30 });
+    // foot: half its box, where a beam lands (since 0.18.0)
+    expect(bus.cast[1]).toEqual({ id: 'soldier-1', pos: [6, 2, 0.5], dormant: true, hp: 30, foot: 0.85 });
     const s = extractEngineScore({ ref: 'r', manifest: {} }, payload());
     expect(s.ledger.bus_carried.godot.built).toEqual(expect.arrayContaining(['fact:cast']));
     expect(s.ledger.bus_carried.godot.partial).toEqual(expect.arrayContaining(['effect:cast']));
@@ -497,6 +498,48 @@ describe('the systems travel', () => {
       // i opens the status page
       expect(line('bus', 'after-i')).toMatch(/"ui-menu-status":1/);
       expect(line('bus', 'after-i')).toMatch(/menu=status:0/);
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// beams and explosions (kernel 0.18.0): a cue's beam is a moment that lands after its distance and its target hears
+// struck; a blast is moments (a chain scattered and staggered) and a shake. Held equal by the combat corpus; here a
+// real level fires them from cues and hears the struck
+const SHOW = [
+  { id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } },
+  { id: 'caster', rule: { type: 'static' }, transform: { pos: [2, 3, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } },
+  { id: 'target', rule: { type: 'static' }, transform: { pos: [8, 3, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7], hp: 10 } },
+];
+const SHOW_PLAY = { cues: [
+  { id: 'open', when: { start: true }, then: [{ beam: { who: 'caster', to: 'target', is: 'orb' } }, { explode: { at: [4, -2], is: 'chain' } }] },
+  { id: 'ow', when: { struck: 'target' }, then: [{ set: 'struck', to: 1 }, { hurt: { who: 'target', by: 4 } }] },
+] };
+
+describe('beams and explosions travel', () => {
+  it('bus.json carries where each character stands below its pos, and the contract marks struck built', () => {
+    const payload = { entities: SHOW, events: lowerPlay({ entities: SHOW, play: SHOW_PLAY }, { player: 'hero' }) };
+    expect(extractBus(payload).cast.map((r) => r.foot)).toEqual([0.85, 0.85, 0.85]);
+    expect(extractEngineScore({ ref: 'show', manifest: {} }, payload).ledger.bus_carried.godot.built).toEqual(expect.arrayContaining(['fact:struck']));
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot fires a beam and a chain from a cue, and the target hears struck when it lands (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-show-'));
+    try {
+      const payload = { entities: SHOW, events: lowerPlay({ entities: SHOW, play: SHOW_PLAY }, { player: 'hero' }) };
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="show-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'show', manifest: {} }, payload)));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload)));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-keys-probe.gd'), path.join(dir, 'probe.gd'));
+      // no key matters here: the probe runs to frame 130 (a key nothing binds) and dumps
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', 'z@110'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      if (process.env.MOJULO_KEEP_PACK) console.log(out);
+      const line = (k, tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-${k}] ${tag} `)) || '';
+      expect(line('bus', 'start')).not.toMatch(/"struck":1/);
+      expect(line('bus', 'end')).toMatch(/"struck":1/);
+      expect(line('cast', 'end')).toMatch(/target:here\([^)]*\):hp6/);
     } finally {
       if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
     }

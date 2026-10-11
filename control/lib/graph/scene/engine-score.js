@@ -153,6 +153,9 @@ export function extractBus(payload) {
     ...(e.dormant ? { dormant: true } : {}),
     ...(Number.isFinite(e.body?.hp) ? { hp: e.body.hp } : {}),
     ...(Number.isFinite(e.rule?.speed) ? { speed: e.rule.speed } : {}),
+    // where it stands below its pos (the web's feet: its rule's eye, else half its box, else its radius): a beam
+    // leaves its hand and lands at its feet
+    ...((f) => (f ? { foot: f } : {}))(Number.isFinite(e.rule?.eye) ? e.rule.eye : Array.isArray(e.body?.size) ? e.body.size[2] / 2 : Number.isFinite(e.body?.radius) ? e.body.radius : 0),
   })) : null;
   // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
   // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.
