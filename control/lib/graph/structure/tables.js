@@ -16,6 +16,57 @@ import { scheduleTables, tableCsv } from './sheets/schedules.js';
 import { drawingSet, sheetIndex } from './sheets/index.js';
 import { ROLES } from './trades.js';
 import { ftIn } from './sheets/kit.js';
+import { FIXTURES } from '../furnishings/fixtures.js';
+
+// a fixture's front in plan coordinates, by the facing the house stores (the arrangers' naming: y runs south)
+const FRONT = { N: [0, 1], S: [0, -1], E: [1, 0], W: [-1, 0] };
+// what stands on the floor in the way: not a rug or mat, nor anything hung on a wall
+const OFF_FLOOR = new Set(['rug', 'runner', 'picture', 'sconce', 'fixture-mirror', 'fixture-towel-rail', 'tv']);
+const fixtureOf = (p) => { const m = /^fixture-(.+)$/.exec(p.type || ''); return m && FIXTURES[m[1]] ? m[1] : null; };
+
+/**
+ * Each fitted fixture's clearance (FIXTURES: 21 in before a WC, basin, tub or shower; the WC's 30 in width), against
+ * the room's walls and what stands on its floor; and a bathroom that holds no basin, or no tub or shower.
+ * @returns {Array<{ room, tag, fixture, problem, with? }>}
+ */
+export function fixtureClearance(read) {
+  const out = [];
+  const pieces = read.objects.pieces;
+  for (const p of pieces) {
+    const id = fixtureOf(p), f = id && FIXTURES[id];
+    if (!f || f.wall || !(f.front > 0)) continue;
+    const room = read.rooms.find((r) => r.tag === p.room), dir = FRONT[p.facing];
+    if (!room || !dir) continue;
+    const front = f.front / 304.8, r = p.rect;
+    // the zone in front: across the fixture's width; the WC's whole 30 in zone, centred on it; a tub's 30 in stretch
+    // to step in by, at either end (one clear end is enough)
+    const R = room.rect, tol = 0.05;
+    const across = id === 'wc' ? f.zone / 304.8 : f.access ? f.access / 304.8 : null;
+    const spans = (lo, len) => (!across ? [[lo, lo + len]] : f.access ? [[lo + len - across, lo + len], [lo, lo + across]] : [[lo + len / 2 - across / 2, lo + len / 2 + across / 2]]);
+    const zones = dir[1]
+      ? spans(r.x, r.w).map(([x0, x1]) => ({ x0, x1, y0: dir[1] > 0 ? r.y + r.h : r.y - front, y1: dir[1] > 0 ? r.y + r.h + front : r.y }))
+      : spans(r.y, r.h).map(([y0, y1]) => ({ y0, y1, x0: dir[0] > 0 ? r.x + r.w : r.x - front, x1: dir[0] > 0 ? r.x + r.w + front : r.x }));
+    const blocked = (z) => {
+      if (z.x0 < R.x - tol || z.x1 > R.x + R.w + tol || z.y0 < R.y - tol || z.y1 > R.y + R.h + tol) return { problem: 'wall' };
+      for (const o of pieces) {
+        if (o === p || o.room !== p.room || o.storey !== p.storey || OFF_FLOOR.has(o.type)) continue;
+        const q = o.rect;
+        if (Math.min(z.x1, q.x + q.w) - Math.max(z.x0, q.x) > tol && Math.min(z.y1, q.y + q.h) - Math.max(z.y0, q.y) > tol) return { problem: 'piece', with: { tag: o.tag, type: o.type } };
+      }
+      return null;
+    };
+    const why = zones.map(blocked);
+    if (why.every(Boolean)) out.push({ room: room.tag, tag: p.tag, fixture: id, ...why[0] });
+  }
+  // a bathroom with fixtures but no basin, or no tub or shower, is short of one
+  for (const room of read.rooms.filter((r) => r.glyph === 'W')) {
+    const here = new Set(pieces.filter((p) => p.room === room.tag).map(fixtureOf).filter(Boolean));
+    if (!here.size) continue;
+    if (!here.has('vanity') && !here.has('double-vanity')) out.push({ room: room.tag, problem: 'missing', fixture: 'basin' });
+    if (!here.has('bathtub') && !here.has('shower')) out.push({ room: room.tag, problem: 'missing', fixture: 'bathtub or shower' });
+  }
+  return out;
+}
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const material = (m) => String(m || '').replace(/^[a-z]+:/, '').replace(/-/g, ' ').toUpperCase();
@@ -104,6 +155,14 @@ function checkRowsRaw(read) {
     const crowd = stairCrowding(read);
     for (const c of crowd) rows.push({ source: 'livability', rule: 'stair-clearance', ok: false, subject: c.room ?? '', detail: `${c.type.replace(/-/g, ' ')}${c.marks.length > 1 ? ` ×${c.marks.length}` : ''} (${c.tag}) is ${say(c.gapFt)} from the ${c.where} of ${c.stair}; it wants ${say(c.wantFt)} clear` });
     if (!crowd.length) rows.push({ source: 'livability', rule: 'stair-clearance', ok: true, subject: '', detail: `furniture keeps ${say(read.rules?.clearance > 0 ? read.rules.clearance : read.rules?.passage ?? 3)} off every flight, landing and well` });
+  }
+  // a fitted bathroom's fixtures, each with the clearance a plumber and an inspector want
+  if (read.objects.pieces.some((p) => fixtureOf(p))) {
+    const found = fixtureClearance(read);
+    const say = (x) => (x.problem === 'missing' ? `no ${x.fixture} fits in this bathroom`
+      : `${FIXTURES[x.fixture].label} (${x.tag}) wants ${Math.round(FIXTURES[x.fixture].front / 25.4)} in clear ${x.fixture === 'bathtub' ? 'beside it to step in by' : 'in front'}${x.fixture === 'wc' ? ' and 15 in each side of its centre' : ''}; ${x.problem === 'wall' ? 'a wall stands in it' : `the ${String(x.with.type).replace(/^fixture-/, '').replace(/-/g, ' ')} (${x.with.tag}) stands in it`}`);
+    for (const x of found) rows.push({ source: 'livability', rule: 'fixture-clearance', ok: false, subject: x.room, detail: say(x) });
+    if (!found.length) rows.push({ source: 'livability', rule: 'fixture-clearance', ok: true, subject: '', detail: 'every fixture keeps its clearance: 21 in before the WC and basin, 15 in each side of the WC, 21 in to step into the tub, 24 in before the shower' });
   }
   for (const e of read.schedules.egress || []) rows.push({ source: 'plan', rule: 'egress', ok: !!e.ok, subject: tagOf.get(e.id) ?? e.name, detail: `${e.requires}; ${e.windows} window${e.windows === 1 ? '' : 's'}` });
   // the walkway check (floorplan-design.js): each finding a narrow passage, door or stair, said in words

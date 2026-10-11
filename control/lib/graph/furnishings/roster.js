@@ -106,7 +106,14 @@ export const FURNISHINGS = {
   tv: { label: 'television', role: 'screen', aliases: ['flat screen', 'flatscreen'], type: 'tv', spellings: ['television'] },
 
   // ── plumbing and the kitchen run ──
-  toilet: { label: 'toilet', role: 'fixture', aliases: ['commode', 'lavatory'], type: 'toilet' },
+  toilet: { label: 'toilet', role: 'fixture', aliases: ['commode', 'lavatory', 'water closet'], type: 'toilet', fitted: 'fixture-wc' },
+  // the fitted bathroom's fixtures at true size (furnishings/fixtures.js); `items: [{ type: 'bathtub' }]` places one too
+  vanity: { label: 'vanity', role: 'fixture', aliases: ['washbasin', 'wash basin', 'basin', 'bathroom vanity'], asset: 'fixture-vanity' },
+  'double-vanity': { label: 'double vanity', role: 'fixture', aliases: ['double basin', 'his and hers vanity'], asset: 'fixture-double-vanity' },
+  bathtub: { label: 'bathtub', role: 'fixture', aliases: ['bath', 'tub'], asset: 'fixture-bathtub' },
+  shower: { label: 'shower', role: 'fixture', aliases: ['shower stall', 'shower cubicle'], asset: 'fixture-shower' },
+  mirror: { label: 'mirror', role: 'wall-art', aliases: ['bathroom mirror', 'vanity mirror'], asset: 'fixture-mirror' },
+  'towel-rail': { label: 'towel rail', role: 'fixture', aliases: ['towel bar', 'towel rack'], asset: 'fixture-towel-rail' },
   'kitchen-counter': { label: 'kitchen counter', role: 'kitchen-unit', aliases: ['countertop', 'worktop'], asset: 'kitchen-counter' },
   'kitchen-sink': { label: 'kitchen sink', role: 'kitchen-unit', aliases: [], asset: 'kitchen-sink' },
   'kitchen-stove': { label: 'stove', role: 'kitchen-unit', aliases: ['hob'], asset: 'kitchen-stove' },
@@ -197,7 +204,7 @@ export function handlesOf(id) {
   if (!row) return null;
   return {
     types: [row.type, ...(row.spellings || [])].filter(Boolean),
-    meshes: [row.asset, row.wears, row.constructed].filter(Boolean),
+    meshes: [row.asset, row.wears, row.constructed, row.fitted].filter(Boolean),
   };
 }
 

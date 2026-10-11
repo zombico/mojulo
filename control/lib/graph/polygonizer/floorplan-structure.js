@@ -723,7 +723,9 @@ function relocateWallPieces(elements, { x0, x1, y0, y1 }, exclude, windowWalls) 
 // Structural openings (window/door) are dropped — the house cuts those for real.
 function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, windowWalls = null) {
   if (!glyph || glyph === 'H') return [];
-  const pad = Math.max(o.wallThickness, 0.4);           // keep furniture off the walls
+  // a fitted bathroom's fixtures stand on the wall's face (the wet wall), not off it like loose furniture
+  const fitted = o.furnishing === 'fitted';
+  const pad = fitted && glyph === 'W' ? o.wallThickness / 2 + 0.02 : Math.max(o.wallThickness, 0.4);   // keep furniture off the walls
   const x0 = rect.x + pad, x1 = rect.x + rect.w - pad, y0 = rect.y + pad, y1 = rect.y + rect.h - pad;
   if (x1 - x0 < 3 || y1 - y0 < 3) return [];
   const place = Math.round(rect.x * 131.1 + rect.y * 17.7 + baseZ * 7.3);
@@ -735,7 +737,7 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // layout's depth runs the room's real width after the turn (see orientElementsToDoor)
   const quarter = doorEdge === 'E' || doorEdge === 'W';
   const [cw, ch] = quarter ? [H, W] : [W, H];
-  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale, ...(varied ? { varied } : {}) })
+  let elements = furnishElements(glyph, seed, { w: cw, h: ch, wall, scale: o.furnishScale, ...(varied ? { varied } : {}), ...(fitted ? { fitted } : {}) })
     .filter((e) => e.type !== 'window' && e.type !== 'door');
   // command position (movement-flow kernel #2): rotate the canonical layout so the anchor
   // piece backs a solid wall and faces the room's ACTUAL door, not the assumed front 'S'.
@@ -790,10 +792,11 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // `furnishing: 'constructed'`: the pieces built on the workbench, as facades, in place of the simpler ones
   if (o.furnishing === 'constructed') elements = elements.map(constructedPiece);
   // `furnishing: 'composed'`: each piece a composed role names, in the house's furniture language (composedPieces)
-  else if (o.furnishing === 'composed') elements = composedPieces(elements, rect, seed, o);
+  // `furnishing: 'fitted'` composes the same pieces, and its fixtures are already built at true size
+  else if (o.furnishing === 'composed' || fitted) elements = composedPieces(elements, rect, seed, o);
   if (!elements.length) return [];
   // a reader's collector (structure/read.js): the pieces as data, beside the faces; absent, nothing reads it
-  if (o._objects) o._objects.push({ source: o.furnishing === 'composed' ? 'composed' : o.furnishing === 'constructed' ? 'constructed' : 'archetype', glyph, baseZ, interior: { x0, x1, y0, y1 }, elements });
+  if (o._objects) o._objects.push({ source: o.furnishing === 'composed' || fitted ? (fitted ? 'fitted' : 'composed') : o.furnishing === 'constructed' ? 'constructed' : 'archetype', glyph, baseZ, interior: { x0, x1, y0, y1 }, elements });
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
 }
 
@@ -1800,7 +1803,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
     : generatePlan(input.seed ?? 1, { width: input.width, height: input.height, maxDepth: input.maxDepth, corridors: input.corridors ?? false, minRoom: input.minRoom });
   // composed furnishing: the language and every override checked once (a bad one fails the mint, never falls back
   // to a mesh in silence), and the house's seed kept for the per-room picks
-  if (o.furnishing === 'composed') {
+  if (o.furnishing === 'composed' || o.furnishing === 'fitted') {
     const errs = composedFurnishingErrors(o, plan.rooms);
     if (errs.length) throw new Error(`composed furnishing:\n- ${errs.join('\n- ')}`);
     if (o._composeSeed == null) o._composeSeed = plan.seed ?? input.seed ?? 1;

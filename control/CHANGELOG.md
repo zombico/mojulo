@@ -117,6 +117,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     house whatever its walkways, and the Cover shows "a home: no" beside the plan grade, which grades rooms, not the
     home.
 
+### Fitted furnishings: true-size fixtures and furniture in a house
+
+- **A house can be furnished at true size** with `furnishing: 'fitted'`. Pieces are built in mm at their catalogue
+  size and placed by the rules about the room: a wet wall, the clearances an inspector wants, nothing in a door's
+  way. They are never stretched to a share of the room. Without it, a house renders as before, byte for byte. The
+  bathroom comes first; the kitchen and the rest of the furniture follow.
+- **The fitted bathroom** (`furnishings/fixtures.js`, `furnishings/bathroom.js`):
+  - Fixtures: a water closet (pan, seat, cistern, flush), a basin on a vanity (a double one in a wide room), a bathtub
+    with its filler on the wet wall, a shower beside the tub in a big room, a mirror over each basin, a towel rail
+    and a bath mat.
+  - Layouts: the tub along a side wall with the WC and vanity down the wet wall, or the tub across the wet wall of a
+    narrow room, or a WC and basin where no tub fits.
+  - Each fixture is a roster row (`rooms[].items: [{ type: 'bathtub' }]` places one anywhere).
+- **The book reads them:**
+  - The Objects tab and the schedules carry a plumbing fixture schedule, marked WC, LAV, TUB, SHR, MIR and TR, at
+    catalogue size.
+  - A livability check, `fixture-clearance`, checks each clearance (21 in before the WC and basin, 15 in each side of
+    the WC, room to step into the tub, 24 in before the shower) and says when a bathroom holds no basin or no tub or
+    shower.
+
 ### Solid powerscale: solids routed by what they are for
 
 - **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words

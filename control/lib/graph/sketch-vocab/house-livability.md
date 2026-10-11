@@ -31,6 +31,9 @@ house, and none of these is read for it.
 - **Stair clearance**: no piece in the stair's room stands within the clearance of the flight,
   its landing or the well. `design: { clearance: true }` (the passage) or feet.
 - **Egress and daylight**: every bedroom has a window to the outside (`windows: true`).
+- **Fixture clearance** (a fitted house, `furnishing: 'fitted'`): 21 in clear before the water closet and the basin,
+  15 in from the WC's centre to each side, 21 in to step into the tub, 24 in before the shower; a bathroom that holds
+  no basin, or no tub or shower, says so. Waivable as `fixture-clearance:<room>`.
 - **Override**: `design.waive: ['stair-clearance:101', 'walkway']` accepts a finding as built;
   the book shows it waived. `clearance: false` keeps furniture off the flight's footprint only.
 

@@ -79,8 +79,8 @@ export function validateHouseConstruction(m) {
     const covering = m.roof && typeof m.roof === 'object' ? m.roof.covering : undefined;
     if (covering != null && covering !== false) e.push(...validateCovering(covering, 'roof.covering'));
   }
-  if (m.kind === 'floorplan' && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed' && m.furnishing !== 'composed') {
-    e.push(`furnishing: 'composed' (composed furniture in the house style's language), 'constructed' (the pieces built on the workbench), or leave it out`);
+  if (m.kind === 'floorplan' && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed' && m.furnishing !== 'composed' && m.furnishing !== 'fitted') {
+    e.push(`furnishing: 'composed' (composed furniture in the house style's language), 'constructed' (the pieces built on the workbench), 'fitted' (composed, with the bathroom fitted at true size), or leave it out`);
   }
   if (m.kind === 'condo-complex' && m.furnishing != null && m.furnishing !== false && m.furnishing !== 'constructed') {
     e.push(`furnishing: 'constructed' (the pieces built on the workbench), or leave it out`);

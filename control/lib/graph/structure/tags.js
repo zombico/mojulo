@@ -11,6 +11,7 @@
  * same thing a set does when a room is added; a resize that keeps the reading order keeps every tag.
  */
 
+import { FIXTURES } from '../furnishings/fixtures.js';
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // I and O are skipped, as door and window letters skip them (they read as 1 and 0)
 const letter = (i) => (i < LETTERS.length ? LETTERS[i] : `${letter(Math.floor(i / LETTERS.length) - 1)}${LETTERS[i % LETTERS.length]}`);
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -104,6 +105,9 @@ export const wallKey = (w) => `${w.interior ? 'b' : 'a'}:${String(r2(w.thickness
 
 /** A furniture code: two letters from the type's name (CH for chair, SO for sofa); a ref piece is RF. */
 export function objectCode(type) {
+  // a fitted fixture takes the mark a plumber reads (WC, LAV, TUB, SHR …)
+  const fx = /^fixture-(.+)$/.exec(String(type || ''));
+  if (fx && FIXTURES[fx[1]]) return FIXTURES[fx[1]].mark;
   const s = String(type || '').replace(/[^a-z]/gi, '').toUpperCase();
   return s.length >= 2 ? s.slice(0, 2) : (s || 'OB').padEnd(2, 'X');
 }

@@ -15,6 +15,7 @@
 
 import { n2, esc, ftIn, mmOf, areaText, titleBlock, sheetSvg } from './kit.js';
 import { inches } from '../tags.js';
+import { FIXTURES } from '../../furnishings/fixtures.js';
 
 const inchText = (n, units) => (units === 'metric' ? String(Math.round(n * 25.4)) : ftIn(n / 12));
 const len = (ft, units) => (units === 'metric' ? mmOf(ft) : ftIn(ft));
@@ -60,6 +61,16 @@ export function scheduleTables(read, { units = 'imperial' } = {}) {
         style: t.source === 'ref' ? `ref ${t.ref}` : t.like ? `${t.like}` : t.asset ? t.asset : t.source,
         count: String(t.count), rooms: t.rooms.join(' '),
       })),
+    });
+  }
+  // a fitted house's plumbing fixtures, as a plumber's schedule: the mark, the fixture, its size, where
+  const fixtures = read.objects.types.filter((t) => /^fixture-/.test(t.type) && FIXTURES[t.type.slice(8)]);
+  if (fixtures.length) {
+    const sz = (mm) => inchText(mm / 25.4, units);
+    tables.push({
+      id: 'fixtures', title: 'Plumbing fixture schedule',
+      columns: [{ key: 'tag', label: 'MARK', w: 14 }, { key: 'item', label: 'FIXTURE', w: 30 }, { key: 'size', label: 'W × D × H', w: 40 }, { key: 'count', label: 'QTY', w: 10, align: 'end' }, { key: 'rooms', label: 'ROOMS', w: 24 }],
+      rows: fixtures.map((t) => { const f = FIXTURES[t.type.slice(8)]; return { tag: t.tag, item: f.label.toUpperCase(), size: `${sz(f.size.w)} × ${sz(f.size.d)} × ${sz(f.size.h)}`, count: String(t.count), rooms: t.rooms.join(' ') }; }),
     });
   }
   return tables;

@@ -30,7 +30,7 @@ import { drawingSet, sheetIndex } from './sheets/index.js';
 import { planDrawing } from './sheets/plan.js';
 import { makeView, ftIn, areaText, sheetStyle } from './sheets/kit.js';
 import { tradeTables, checkRows, stairCrowding } from './tables.js';
-import { tableCsv } from './sheets/schedules.js';
+import { tableCsv, scheduleTables } from './sheets/schedules.js';
 import { ROLES } from './trades.js';
 import { openConcerns, OUTCOMES } from './open.js';
 
@@ -262,9 +262,12 @@ ${roof ? `<div class="tblock"><h4>Roof planes</h4>${table([{ key: 'key', label: 
 
   // ── Objects ──
   const srcCell = (t) => (t.source === 'ref' ? `<a href="/sketches/${encodeURIComponent(t.ref)}">${esc(lookup?.(t.ref)?.title || t.ref)}</a> <span class="muted">its own page</span>` : t.source === 'composed' ? `composed${t.like ? ` · like ${esc(t.like)}` : ''}` : t.source === 'item' ? 'placed by the recipe' : esc(t.source));
+  // a fitted house's plumbing fixtures, scheduled as a plumber reads them (sheets/schedules.js)
+  const fixtureTable = scheduleTables(read, { units }).find((t) => t.id === 'fixtures');
   const objects = on('objects') ? `<section class="part" id="objects"><div class="part-h"><span class="eyebrow">Objects · FF&amp;E</span><h2>What the structure holds</h2><p class="muted">Furniture, fixtures and appliances, by type. A piece with a ref is another row: it opens on its own page.</p></div>
 ${table([{ key: 'tag', label: 'Tag' }, { key: 'item', label: 'Item' }, { key: 'src', label: 'Source' }, { key: 'n', label: 'Qty', align: 'end' }, { key: 'rooms', label: 'Rooms' }],
     read.objects.types.map((t) => ({ tag: esc(t.tag), item: esc(t.type === 'ref' ? 'custom piece' : t.type), src: srcCell(t), n: t.count, rooms: links(t.rooms, anchors.room) })), { id: (r) => anchors.objectType(r.tag) })}
+${fixtureTable ? `<div class="tblock"><h4>${esc(fixtureTable.title)}</h4>${table([{ key: 'tag', label: 'Mark' }, { key: 'item', label: 'Fixture' }, { key: 'size', label: 'W × D × H' }, { key: 'count', label: 'Qty', align: 'end' }, { key: 'rooms', label: 'Rooms' }], fixtureTable.rows.map((x) => ({ tag: a(anchors.objectType(x.tag), x.tag), item: esc(x.item.toLowerCase()), size: esc(x.size), count: esc(x.count), rooms: links(x.rooms.split(' ').filter(Boolean), anchors.room) })))}</div>` : ''}
 <details><summary>Every piece (${read.objects.pieces.length})</summary>${table([{ key: 'mark', label: 'Mark' }, { key: 'tag', label: 'Type' }, { key: 'room', label: 'Room' }, { key: 'size', label: 'Size', align: 'end' }],
     read.objects.pieces.map((p) => ({ mark: esc(p.mark), tag: a(anchors.objectType(p.tag), p.tag), room: p.room ? a(anchors.room(p.room), p.room) : '<span class="muted">unplaced</span>', size: `${esc(ftIn(p.rect.w))} × ${esc(ftIn(p.rect.h))}` })), { id: (r) => anchors.piece(r.mark) })}</details></section>` : '';
 
