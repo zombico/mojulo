@@ -996,9 +996,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // envelope from the probe stream.
   if (payload && sketch.manifest.game && typeof sketch.manifest.game === 'object') {
     const { validateLevelContract, normalizeLevelContract } = await import('@/lib/graph/game/level-contract.js');
-    const v = validateLevelContract(sketch.manifest.game);
+    // chapters that carry add their setFlag rows (idempotent over a mechanics-synthesized contract)
+    const { chapterContract } = await import('@/lib/graph/playscape/ui/chapters.js');
+    const game = chapterContract(sketch.manifest.game, sketch.manifest.play);
+    const v = validateLevelContract(game);
     if (!v.ok) throw new Error(`game channel contract is invalid:\n- ${v.errors.join('\n- ')}`);
-    payload.game = normalizeLevelContract(sketch.manifest.game);
+    payload.game = normalizeLevelContract(game);
   }
 
   // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade

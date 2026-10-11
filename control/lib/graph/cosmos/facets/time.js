@@ -10,10 +10,10 @@
  * The camera you play through is Space's (`space.camera`); the camera that directs is Time's (`shots`, `framing`).
  * They hand off.
  *
- * Sized 10-11. What exists: playscape cues (when → then) and menus (`talk`, and `list` for a quest log), the cast's
- * walks and spots (pose `talk`), stats epochs, the game store's level gates, the tutorial step director, the pixelizer
- * cutscene (a camera track, layers and typewriter captions, pixel only) and the motion comic (click-gated scenes,
- * type-on subtitles: time is the click). Flags carry a fact between levels by composition: a cue emits a bus event,
+ * Sized 10-11; chapters built 10-11 (playscape/ui/chapters.js). What exists: playscape cues (when → then) and menus
+ * (`talk`, and `list` for a quest log), the cast's walks and spots (pose `talk`), stats epochs, the game store's level
+ * gates, the tutorial step director, the pixelizer cutscene (a camera track, layers and typewriter captions, pixel
+ * only) and the motion comic (click-gated scenes, type-on subtitles: time is the click). Flags carry a fact between levels by composition: a cue emits a bus event,
  * the level's `game.on` maps it to a `setFlag`, and the store opens the gate that waits on it. Godot: cues stay on the
  * web and flag gates export as unlocked, so only linear progression survives an export.
  */
@@ -21,11 +21,10 @@ const CUES = 'lib/graph/playscape/ui/cues.js';
 const MENUS = 'lib/graph/playscape/ui/menus.js';
 const COMIC = 'lib/graph/motion-comic/motion-comic-manifest.js';
 const WEB = { godot: false };
-// one change per package: chapters (the world overlaid and carried), quests (steps bound to a giver), the 3D shot
-const CHAPTERS = { status: 'partial', effort: 'M', pkg: 'chapters', ...WEB };
+// one change per package: quests (steps bound to a giver), the 3D shot
 const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', ...WEB };
 const SHOT = { status: 'partial', effort: 'L', pkg: 'shot', ...WEB };
-// a passage ages the world between chapters, so it is built on them
+// a passage ages the world between chapters, so it is built on them (built: playscape/ui/chapters.js)
 const AGED = { requires: ['time.chapters=overlays'], ...WEB };
 
 export const TIME = Object.freeze({
@@ -42,7 +41,7 @@ export const TIME = Object.freeze({
     chapters: {
       values: {
         none: { status: 'built' },
-        overlays: { ...CHAPTERS, lowers: CUES, note: 'cues change a live level (set, spawn, vanish, weather) and flags carry a fact between levels; nothing declares the world at chapter N as a difference against the base' },
+        overlays: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/chapters.js', note: 'play.chapters: a world difference turned by a happening, lowered to cues, carried between levels as a chapter flag; a menu presents the turn until shots exist' },
       },
     },
     passage: {

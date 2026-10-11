@@ -67,6 +67,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   maps a bus event to that flag. When a contract only permits the flag, the gate is reported as unproven. It is pure
   and advisory, and nothing calls it yet.
 
+### Chapters: the same world at a later point
+
+- **`play.chapters`.** Each chapter is a difference against the base world (spawn, vanish, set, weather, or any cue
+  effect) that a happening turns, or that turns right after another chapter (`{ after }`). A menu can present the
+  turn. A chapter turns once. It lowers to ordinary cues and two bus counters, so the runtime gains nothing new, and
+  the UI board shows chapters as cue rows.
+- **Carried between levels.** With `play.carry: '<flags slice>'`, a turn writes the store flag `chapter:<id>` through
+  the level contract (`game.on`), and a game can gate a level on it. A later level that holds the flag starts with
+  that world applied. Nothing is presented again, and meeting the same happening again turns nothing.
+- **The play drawer teaches it.** There is a `ui-chapters` card and a line in the play guide. The lines of dialogue
+  are a slot: mojulo supplies the speaker, the box and the turn, never the words.
+- A world without `chapters` is byte-identical.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest

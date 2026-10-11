@@ -51,6 +51,7 @@ function guideCard() {
     `  phases  at most ${MAX_PHASES} names; a part's \`when\` lists the phases it lives in (drawn as wireframes today)`,
     '  cues    the UI answering the game: when a happening, then an effect, until another (card \'ui-cues\')',
     '  menus   what comes up from a thing in the map: a sign, a talk, a shop, a chest (card \'ui-menus\')',
+    '  chapters  the same world later: a difference turned by a happening, carried to the next level (card \'ui-chapters\')',
     '  ui      the direction gate (card \'ui-board\'): \'propose\' → a board to approve item by item; \'auto\' is hands off;',
     '          { register, pin, border, pixel, pace } tune it (cards ui-register, ui-border, ui-pixel, ui-pace)',
     '',
@@ -192,6 +193,23 @@ function menusCard() {
   );
 }
 
+function chaptersCard() {
+  return lines(
+    'CHAPTERS — the same world at a later point. Story here is progression, not text: a happening turns a chapter, the',
+    'world changes by a difference, and the next level opens on the world as it was left. The lines a character says are',
+    'a slot you or another tool fill; a placeholder (\'[mayor: warning]\') keeps it playable.',
+    'play.chapters: [{ id, when, world?, open? }], play.carry?: \'<flags slice>\'',
+    '  when    a cue\'s when (card ui-cues: use, take, arrive, down, a var, any bus event), or { after: \'<chapter>\' }',
+    '  world   { spawn: [who], vanish: [who], set: { var: value }, weather: state, do: [cue effect, …] }: the difference',
+    '  open    a menu that presents the turn (card ui-menus): a read for a title card, a talk for a word from someone',
+    '  carry   the game store\'s flags slice. A turn writes flag chapter:<id>; a later level that holds it starts with that',
+    '          world applied (no presentation). Gate a level on it: { ref, gate: { flag: \'chapter:<id>\' } }.',
+    'A chapter turns once, and not again in a level that carried it in. A chapter after another turns on that one\'s live',
+    'turn. It lowers to cues, so the board shows it as cue rows named chapter-<id>.',
+    `example: ${JSON.stringify({ chapters: [{ id: 'warned', when: { use: 'gate', prompt: 'talk' }, world: { set: { gate: 'shut' } } }, { id: 'siege', when: { after: 'warned' }, world: { spawn: ['soldier-*'], vanish: ['merchant'], weather: 'thunderstorm' }, open: 'siege-banner' }], carry: 'world' })}`,
+  );
+}
+
 function pixelCard() {
   return lines(
     `PIXELATED — a tuning beside the register, not on it. play.ui.pixel: ${PIXEL_SIZES.join(' | ')} (0 off; else the pixel size) or true (3).`,
@@ -286,6 +304,7 @@ export function playCards() {
     ['ui-shared', 'Shared status', 'whose value a part shows (of) and who may see it (audience)', 'multiplayer: nameplates, scoreboards, team status', sharedCard()],
     ['ui-cues', 'Cues', 'the UI answering the game: when a happening, then an effect, until another', 'a prompt near a door, a pickup toast, an area name, a low-health alert, a hint', cuesCard()],
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
+    ['ui-chapters', 'Chapters', 'the same world later: a difference turned by a happening, carried to the next level', 'a story that moves on, a town after the siege, a level that remembers what you did', chaptersCard()],
     ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, drifting particles, bolts, fire, ice, water, steam) is drawn on the body; moments (puffs, splashes, impacts, lightning, fireworks, shake) play once', 'a shield, a heal, poison, on fire, frozen, soaked, rained on, electrified, a black flash, an impact, a lightning strike, any status you design', elementsCard()],
     ['play-beams', 'Beams and attacks', 'an attack is strands (rays and bolts, one function of time each) fired from a hand, landing with struck', 'a ki wave, a fireball, a fire dragon, a death ball, a laser barrage, braided beams, any attack you design', beamsCard()],
     ['play-explosions', 'Explosions', 'an explosion is parts (flash, fireball, smoke, debris, rings, scorch, a comic burst, a chain), set off at a spot or a beam\'s landing', 'a grenade, a mushroom cloud, a comic BOOM, a chain of blasts, an implosion, any blast you design', explosionsCard()],
@@ -315,7 +334,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-chapters', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }

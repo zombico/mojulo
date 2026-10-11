@@ -118,10 +118,12 @@ describe('sweep', () => {
     const reg = capabilityRegistry(), talk = reg.mind.social.values.talk;
     const q = sweep({ n: 300, seed: 1, around: 'story-adventure' }).unlock.packages.find((p) => p.id === 'quests');
     expect(q).toMatchObject({ needs: ['mind.social=talk'], cost: 3 + EFFORT_WEIGHT[talk.effort] });
-    // a passage ages the world between chapters, so it carries chapters with it, transitively priced
+    // a passage requires chapters, which are built: a built prerequisite is neither needed nor priced
+    expect(reg.time.passage.values.seasons.requires).toEqual(['time.chapters=overlays']);
+    expect(reg.time.chapters.values.overlays.status).toBe('built');
     const r2 = sweep({ n: 300, seed: 1, around: 'story-adventure' });
     const seasons = r2.unlock.packages.find((p) => p.id === 'time.passage=seasons');
-    if (seasons) expect(seasons).toMatchObject({ needs: ['chapters'], cost: 1 + 3 });
+    expect(seasons).toMatchObject({ needs: [], cost: 1 });
   });
 
   it('sweeps near the probes, deterministically, and names its draw', () => {

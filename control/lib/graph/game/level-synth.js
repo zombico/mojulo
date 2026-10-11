@@ -6,10 +6,12 @@
  *     the game's store, so a mechanics-authored level assembles into a game like a hand-authored one.
  *
  * A level sketch stores the RECIPE (mechanics), not the rendered contract — so any reader that needs
- * the contract must synthesize it here. Deterministic + pure.
+ * the contract must synthesize it here. Chapters that carry (play.chapters with play.carry) add their rows here too,
+ * for the same reason. Deterministic + pure.
  */
 
 import { composeMechanics } from './mechanics.js';
+import { chapterContract } from '../playscape/ui/chapters.js';
 
 const EV_ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -65,7 +67,9 @@ export function mergeEventManifests(a, b) {
 export function synthesizeLevel(manifest) {
   const game = manifest && manifest.game;
   if (!game || typeof game !== 'object') return { game: game || null, mechEvents: null };
-  if (!Array.isArray(game.mechanics) || !game.mechanics.length) return { game, mechEvents: null };
+  // chapters that carry between levels add their setFlag rows (playscape/ui/chapters.js); none ⇒ the same object
+  const play = manifest.play;
+  if (!Array.isArray(game.mechanics) || !game.mechanics.length) return { game: chapterContract(game, play), mechEvents: null };
   const { player, spawn } = deriveLevelPlayer(manifest);
   let composed;
   try {
@@ -73,5 +77,5 @@ export function synthesizeLevel(manifest) {
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }
-  return { game: mergeContract(game, composed), mechEvents: composed.events };
+  return { game: chapterContract(mergeContract(game, composed), play), mechEvents: composed.events };
 }

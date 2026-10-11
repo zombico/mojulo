@@ -31,6 +31,7 @@ import { borderCss, BORDER_ELEMENTS } from './borders.js';
 import { UI_ITEMS, GREYBOX_TOKENS, phasesOf } from './direction.js';
 import { uiAdvice, DEFAULT_REGION, MOMENTS, FOCUS } from './laws.js';
 import { readCues } from './cues.js';
+import { withChapterCues } from './chapters.js';
 import { CAST_WHEN } from './cast.js';
 import { readMenus, openers, MENU_KINDS, menuPages, menuHtml } from './menus.js';
 
@@ -342,7 +343,7 @@ const usedParts = (play) => {
 
 /** The ids a world's board is assembled from, in board order. */
 export function boardPieceIds(manifest) {
-  const play = manifest.play || {};
+  const play = withChapterCues(manifest.play || {});
   return ['ui:guide', 'ui:motion', ...usedParts(play).map((x) => `ui:part:${x.part}.${x.variant}${x.of ? `:${x.of}` : ''}`), ...(play.cues && play.cues.length ? ['ui:cues'] : []), ...readMenus(play).map((m) => `ui:menu:${m.id}`), 'ui:layout', ...phasesOf(play).flatMap((ph) => viewsOf(play).map((v) => `ui:wireframe:${ph}${v ? `:${v}` : ''}`))];
 }
 
@@ -355,7 +356,7 @@ const specs = (rows) => `<div class="specs"><div></div>${UI_STATES.map((s) => `<
 
 /** The board for a world whose play block carries a UI direction, as one self-contained HTML document. */
 export function uiBoardHtml(manifest) {
-  const play = manifest.play || {}, ui = play.ui || {}, g = ui.guide, status = ui.status || {};
+  const play = withChapterCues(manifest.play || {}), ui = play.ui || {}, g = ui.guide, status = ui.status || {};
   if (!g) throw new Error('uiBoardHtml: the world has no UI direction yet (play.ui: \'propose\' makes one)');
   const parts = usedParts(play), phases = phasesOf(play);
   return page(`UI direction · ${manifest.title || manifest.kind || 'world'}`, `${ui.seed ? `seed ${ui.seed} · ` : ''}approve each item or send the guide or the motion back to be drawn again`, `

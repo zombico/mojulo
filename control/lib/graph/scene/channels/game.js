@@ -103,7 +103,14 @@ const __GAME = ${safeJson(game)};
       return out;
     };
   }
-  // handshake: hosted levels announce and await params; standalone/capture runs fall back to
+${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapter whose flag the store already holds is applied at
+  // once. The bus takes it as an input on its first frame (deferred: the events channel may load after this block).
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.chapters.slice], flags = (s && s.flags) || {};
+    const due = __GAME.chapters.carried.filter((c) => flags[c.key]).map((c) => ({ type: c.event }));
+    if (due.length) setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, due); } catch (e) { console.error('chapters carried', e); } }, 0);
+  });
+` : ''}  // handshake: hosted levels announce and await params; standalone/capture runs fall back to
   // the contract's default preset (1.5s grace for a slow shell; capture never waits).
   function fallback() { start((__GAME.presets && __GAME.presets.default) || {}, 1); }
   if (hosted && !capture) {
