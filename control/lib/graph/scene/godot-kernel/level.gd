@@ -104,6 +104,8 @@ var cast = null
 var combat = null
 var combat_doc = null
 var combat_fire := false             # a held fire the probe sets (no mouse in a headless run)
+# THE KEYS (since 0.18.0): bus.json's `inputs`, a key or a click bound to an event (a power's key, the status page)
+var bus_inputs: Array = []
 var combat_swings := 0               # the hero's swings drawn so far (a new one plays its clip)
 var suit_idle_glb := ""              # the suit's idle as the GLB names it (<figure>:idle): its swings sit beside it
 var suit_swinging := false           # a swing clip is playing: idle / walk wait for it
@@ -1147,6 +1149,8 @@ func _build_bus() -> void:
 	bus_sources = frag.get("sources", []) if frag.get("sources") is Array else []
 	if doc.get("combat") is Dictionary:
 		combat_doc = doc["combat"]
+	if doc.get("inputs") is Array:
+		bus_inputs = doc["inputs"]
 	if doc.get("cast") is Array and not (doc["cast"] as Array).is_empty():
 		cast_rows = doc["cast"]
 		_build_cast()
@@ -1757,6 +1761,10 @@ func _reset() -> void:
 # a gamepad on an open menu: the d-pad or the left stick moves, A (or start) accepts, B (or back) closes
 var menu_stick := 0
 func _unhandled_input(event: InputEvent) -> void:
+	if bus != null and event is InputEventMouseButton and event.pressed:
+		for inp in bus_inputs:
+			if inp.get("on") == "pointer":
+				bus_pending.append((inp["emit"] as Dictionary).duplicate(true))
 	if menu_open == null:
 		return
 	var act := ""
@@ -1778,6 +1786,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+# a key the way the page names it (KeyboardEvent.key): the character it types, else its name
+const JS_KEYS := {KEY_ENTER: "Enter", KEY_KP_ENTER: "Enter", KEY_ESCAPE: "Escape", KEY_TAB: "Tab", KEY_BACKSPACE: "Backspace", KEY_DELETE: "Delete", KEY_UP: "ArrowUp", KEY_DOWN: "ArrowDown", KEY_LEFT: "ArrowLeft", KEY_RIGHT: "ArrowRight", KEY_SHIFT: "Shift", KEY_CTRL: "Control", KEY_ALT: "Alt", KEY_META: "Meta", KEY_HOME: "Home", KEY_END: "End", KEY_PAGEUP: "PageUp", KEY_PAGEDOWN: "PageDown"}
+static func js_key(event: InputEventKey) -> String:
+	if event.unicode > 0:
+		return String.chr(event.unicode)
+	if JS_KEYS.has(event.keycode):
+		return JS_KEYS[event.keycode]
+	return OS.get_keycode_string(event.keycode)
+
+
+# a key pressed: every input bound to it (or to any key) queues its event for the bus's next frame
+func press_key(key: String) -> void:
+	for inp in bus_inputs:
+		if inp.get("on") == "key" and (not (inp.get("key") is String) or inp["key"] == "" or inp["key"] == key):
+			bus_pending.append((inp["emit"] as Dictionary).duplicate(true))
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed):
 		return
@@ -1791,6 +1816,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				view.make_current()
 	if event.physical_keycode == KEY_M and _game() != null:
 		_game().to_menu()
+	if bus != null and not event.echo:
+		press_key(js_key(event))
 	if menu_open != null:
 		match event.physical_keycode:
 			KEY_UP, KEY_W, KEY_LEFT, KEY_A: menu_do("up")

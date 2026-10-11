@@ -58,12 +58,12 @@ describe('dryRun', () => {
     expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.commander=partial']);
   });
   it('says what would not survive a Godot export', () => {
-    // win-when travels since the Godot kernel runs the bus, and defeat-all with the fight whose hits it counts (kernel
-    // 0.17.0); the systems stay on the web
-    expect(dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['melee', 'ranged'], mechanics: ['reach-exit', 'win-when', 'defeat-all'] } }).godot).toEqual({ ok: true, lost: [] });
-    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, systems: ['stamina'] } });
+    // win-when travels since the Godot kernel runs the bus, defeat-all with the fight whose hits it counts (kernel
+    // 0.17.0), and the systems with their keys (0.18.0); beams stay on the web
+    expect(dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['melee', 'ranged'], systems: ['stamina'], mechanics: ['reach-exit', 'win-when', 'defeat-all'] } }).godot).toEqual({ ok: true, lost: [] });
+    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, beams: ['orb'] } });
     expect(r.godot.ok).toBe(false);
-    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'systems', value: 'stamina' }]);
+    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'beams', value: 'orb' }]);
   });
   it('checks only what is set: an empty cube is makeable at depth 0', () => {
     const r = dryRun({});

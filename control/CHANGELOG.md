@@ -318,6 +318,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   round's flight, which is held to 1e-9 because the two engines' sine and cosine can differ in the last bit. What
   stays on the web: the combo's stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred
   wreck finisher, a loadout's other slots and every AI's attack. The portability flags say so.
+- **A game's systems travel to Godot (kernel 0.18.0).** Resource, stamina, unlock, transform and equip already
+  lowered to stats, cues, HUD rows and a status page, which the Godot kernel runs; what it lacked was their keys.
+  `bus.json` now carries `events.inputs` bound to a key or a click, and `level.gd` feeds them to the bus as the page
+  does (a key by the character it types, as `KeyboardEvent.key` names it): a power fires on its number, the status
+  page opens on `i`. A pick or a shot on what the pointer is over stays the page's; the bus contract names it
+  (`fact:aim`).
 - **Numbers read and print exactly in Godot.** `kernel/json_exact.gd` reads a small number's late digits (Godot's
   own reader dropped them, so about one double in two hundred arrived as its neighbour) and `js_number` prints a
   double as JS does: the fewest digits, the even one on a tie, the exponent forms and the subnormals included. The

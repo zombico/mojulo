@@ -268,7 +268,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.17.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.18.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
@@ -446,6 +446,57 @@ describe('the fight travels', () => {
       expect(fight('swing-1')).toMatch(/grub-1:hits1:hittable grub-2:hits0:hittable/);
       expect(cast('swing-2')).toMatch(/grub-1:here:down\([^)]*\):hp0/);
       expect(cast('end')).toMatch(/grub-2:here\([^)]*\):hp6/);
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// the systems (kernel 0.18.0): a game's powers, resource, levels and status page lower to stats, cues, HUD and menus
+// the kernel already runs; what it lacked was the keys. bus.json carries events.inputs (a key, a click) and level.gd
+// feeds them to the bus as the page does
+const systemsWorld = async () => {
+  const G = await import('../gameworld/index.js');
+  const B = G.resolveBook({ ...G.MEADOWMARK_HERO, mechanics: {} }), m = G.mechanicsOrders(B.G, B.mechanics).args.manifest;
+  return { entities: m.entities, events: { ...lowerPlay(m, { player: m.entities[0].id }), inputs: m.events.inputs } };
+};
+
+describe('the systems travel', () => {
+  it('bus.json carries the keys a game binds; a pick or a shot stays the page\'s', async () => {
+    const payload = await systemsWorld(), bus = extractBus(payload);
+    expect(bus.inputs).toEqual([
+      { on: 'key', key: '1', emit: { type: 'power-gust-step' } }, { on: 'key', key: '2', emit: { type: 'power-wind-orb' } },
+      { on: 'key', key: '3', emit: { type: 'power-cyclone' } }, { on: 'key', key: 'i', emit: { type: 'status' } },
+    ]);
+    const s = extractEngineScore({ ref: 'sys', manifest: {} }, payload);
+    expect(s.ledger.bus_carried.godot.built).toContain('fact:input');
+    expect(s.ledger.bus_carried.godot.absent).toEqual([]);
+    const aimed = { ...payload, events: { ...payload.events, inputs: [{ on: 'pick', emit: { type: 'chose' } }] } };
+    expect(extractBus(aimed)).not.toHaveProperty('inputs');
+    expect(extractEngineScore({ ref: 'sys', manifest: {} }, aimed).ledger.bus_carried.godot.absent).toEqual(['fact:aim']);
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot fires a power on its key and opens the status page on i (MOJULO_GODOT)', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-keys-'));
+    try {
+      const payload = await systemsWorld();
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="keys-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'sys', manifest: {} }, payload)));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload)));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-keys-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '1@10', '9@40', 'i@70'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      if (process.env.MOJULO_KEEP_PACK) console.log(out);
+      const line = (k, tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-${k}] ${tag} `)) || '';
+      const events = (tag) => Number(line('bus', tag).match(/events=(\d+)/)[1]);
+      // the power's key reaches the bus: its cue fires and its toast shows
+      expect(events('after-1')).toBeGreaterThan(events('start'));
+      expect(line('hud', 'after-1')).toMatch(/gust-step/);
+      // a key nothing binds does nothing
+      expect(events('after-9')).toBe(events('after-1'));
+      // i opens the status page
+      expect(line('bus', 'after-i')).toMatch(/"ui-menu-status":1/);
+      expect(line('bus', 'after-i')).toMatch(/menu=status:0/);
     } finally {
       if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
     }
