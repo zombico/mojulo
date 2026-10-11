@@ -212,3 +212,26 @@ export function advisoryLines(rows, printer = null) {
   if (!rows || !rows.length) return [`${head}: none — every declared feature clears the floor and the part fits the bed`];
   return [`${head}:`, ...rows.map((r) => `  - ${r.kind}: ${r.detail}`)];
 }
+
+/**
+ * printsWhole({ advisories, sizeMm, printer }) → { at_mm, fine, over_bed? } | null — the size the object prints whole
+ * at: every feature an advisory names as under the floor (a thin wall, a tiny section or bore, the sampled walls)
+ * scales with the print, so the longest side that lifts the thinnest of them onto the floor is where nothing drops
+ * out. Detail as a size, never a cut: the recipe is untouched; a keepsake asks it before choosing `target_mm`.
+ * `over_bed` says the answer will not fit the printer's bed, where thickening the detail is the move instead.
+ * Null when nothing is under the floor.
+ */
+const FINE_KINDS = new Set(['tiny_feature', 'thin_wall', 'thin_wall_measured']);
+export function printsWhole({ advisories = [], sizeMm = null, printer = null } = {}) {
+  const p = resolvePrinter(printer);
+  const fine = advisories.filter((a) => FINE_KINDS.has(a.kind) && Number.isFinite(a.mm) && a.mm > 0);
+  if (!fine.length || !Array.isArray(sizeMm) || !sizeMm.every(Number.isFinite)) return null;
+  const factor = Math.max(...fine.map((a) => p.min_wall_mm / a.mm));
+  const longest = Math.max(...sizeMm);
+  const atMm = Math.ceil(longest * factor);
+  return {
+    at_mm: atMm,
+    fine: fine.map((a) => ({ ...(a.at ? { at: a.at } : { at: 'sampled walls' }), mm: a.mm })),
+    ...(atMm > Math.max(...p.bed_mm) ? { over_bed: true } : {}),
+  };
+}

@@ -24,7 +24,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     trades, takeoff, checks and IFC).
   - The path stays short: `mint_building`, `update_sketch`, `export_model` (adding `sheets` and `schedules`) and the
     existing Workflows.
-- Built so far, as primitives with no route or tool yet (`lib/graph/structure/`):
+- Built in `lib/graph/structure/`, served at `/api/sketches/<ref>/bible` and exported by `export_model`:
   - **The read model** (`readStructure`) reads the building from the recipe as tagged data. Framed, it also gives
     the frame's members, marks and fields, the wiring and the rainwater. The worlds are byte-identical.
   - **The drawing set** (`drawingSet`) is in NCS conventions and discipline order, and each sheet appears only when
@@ -116,6 +116,48 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **A house that is not a home is never ok.** The home check cannot be waived. `design.ok` is false for such a
     house whatever its walkways, and the Cover shows "a home: no" beside the plan grade, which grades rooms, not the
     home.
+
+### Solid powerscale: solids routed by what they are for
+
+- **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words
+  (equipment, furniture), hard-edged or fitted parts (scad and its `mj_*` library, with `fabricate_solid` for the
+  standard parts), and measured or organic objects (workbench, code). It used to leave scad, equipment and furniture
+  unnamed, and its tool line listed only some of the kinds.
+- **Fitted parts stay home.** The workbench and scad routing cards no longer send threaded, toleranced or geared
+  parts to a B-rep handoff: the `scad` kind's `mj_*` library prints them. Only STEP, GD&T or a constraint solver
+  still goes through `translate_modeler_lingo({ lingo: 'precision cad' })`. The workbench card names all of its
+  primitives, not "rotational primitives only".
+- **Furniture has a routing card.** A sofa, chair, table or piece of casework by style lands on `mint_solid` kind
+  `furniture`, not on the house or the workbench.
+- **The routing eval checks the kind.** `mint_solid` is the entry for every solid, so new card rows pin a fitted part
+  to the scad card, a measured form to the workbench card and a styled piece to the furniture card.
+- **The size of the ask caps the ladder.** A solid's `spec.ask` names how serious the ask is: `look` (it reads
+  right), `fit` (it fits a thing: true size and the print check), `function` (standard parts, strength, a bill of
+  materials) or `engineered` (motion, materials, printed walls and coupons). The agent judges it; nothing infers it.
+  It is stored on the recipe, patched at `/ask` to climb, and caps `next` at its rung, so a trinket is not walked
+  toward a tensile coupon (`lib/mcp/tools/solid-next.js`). Without it, a scad part's `next` is unchanged byte for byte.
+- **The workbench has a `next`.** A workbench, code, equipment or furniture row returns the open steps once it is
+  meant to be made (frames, a fabricate plan, a strength spec, or mm units off a `build`), or whenever it carries an
+  `ask`: the print check, fabricate and the bill for frames, the strength rail, 3MF. A plain look returns none, as before.
+- **Parts by name, from the recipe book.** `mint_solid({ kind: 'scad', spec: { part: 'wall-hook' } })` is a finished,
+  printable hook; `params` fit it (`{ reach: 60, screw: 'M5' }`). A part is a new recipe-book entry type, `part`: a
+  pure `builder.js` that writes an OpenSCAD program over the `mj_*` library from named params, each with a default
+  and a range. The program is stamped on the row beside `part` and `params` and rewritten when `/params` change; a
+  hand edit under `/source` detaches the row into a plain scad part. Three to start: `wall-hook` (countersunk ISO
+  screws, filleted inside), `phone-stand` (a groove sized to the device in its case, a cable slot) and `lidded-box`
+  (sized by the inside, the lid's lip at a printed fit). The book validator checks the lane (`npm run test:book`),
+  and each part mints closed through OpenSCAD in `scad-part.test.js`. Book 0.9.0.
+- **`measure_solid` reads the ask.** On a row with an `ask`, the readings left unnamed follow it: a look skips the
+  Manifold volume union (the slow leg), and an engineered scad part with a `mechanism` runs its motion and collision
+  sweep. The reading carries `ask: { level, ran, wants }`. `wants` is the ladder's `add` steps, what the recipe still
+  lacks for that ask (a strength spec for a function, printed walls or a material for engineered). A reading passed
+  in always wins, and a row without `ask` measures exactly as before.
+- **The size a keepsake prints whole at.** Under an `ask`, `measure_solid` also returns `ask.prints_whole`:
+  `{ at_mm, fine, over_bed? }`, the print size at which every feature the advisories name as under the printer's
+  floor reaches it (`printsWhole` in `print-advisory.js`). The features are thin walls, tiny sections and bores, and
+  the sampled walls. Detail scales as a size, never a cut: the recipe is untouched. `over_bed` says thickening the
+  detail is the move, not a bigger print. Any solid row takes `ask` by an `update_sketch` patch at `/ask`, a
+  character included.
 
 ## [3.1.0] - 2026-10-10
 

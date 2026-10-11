@@ -281,12 +281,12 @@ export function registerMintSolidTools() {
   registerTool(withPluginProfile({
     name: 'mint_solid',
     description:
-      'Mint a 3D SOLID — a posed human figure, an ANIMAL, a part-graph creature/object, a measured object '
-      + 'study, a `code` program returning one, an assembly, a carved metal wordmark/logo, a spinning solid, a '
-      + 'bespoke INSTITUTIONAL building (edifice), or a vehicle-family instance. A house / apartment / one furnished '
-      + "room is NOT a solid: mint_building. "
-      + 'Served as an SVG still + orbitable World + `.glb`; a tiny deterministic '
-      + 'recipe, regenerated on render. Pick `kind` from the enum; per-kind params go '
+      'Mint a 3D SOLID (a recipe; served as still, World and `.glb`). '
+      + 'Characters: figure, layered, animal, manji-tree. From words: equipment (gear), furniture. '
+      + 'Hard-edged or fitted parts: scad (OpenSCAD with an `mj_*` library of threads, fits, gears, '
+      + 'enclosures; which standard parts → fabricate_solid). Measured or organic objects: workbench, code. '
+      + 'Also assembler, carved-solid (metal wordmark), solid-turntable, edifice (an institution), '
+      + 'vehicle. A house or room is mint_building. Size the ask: `spec.ask` look|fit|function|engineered caps `next`. Params go '
       + 'in `spec`; `via` picks an authoring door (manji-tree: ir/parts/prompt/packet; layered: '
       + "plan, hero — a human by cast word + proportion tune). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
       + "manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the stored "

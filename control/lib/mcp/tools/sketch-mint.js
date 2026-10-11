@@ -63,7 +63,8 @@ import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance } from '@/lib/mcp/tools/building-next';
-import { scadNext } from '@/lib/mcp/tools/scad-next';
+import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
+import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
 import { drawNewHouse } from '@/lib/graph/polygonizer/floorplan-draw.js';
 import { roofMetalError } from '@/lib/graph/architecture/roof.js';
@@ -579,6 +580,14 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // the embedded fields' audit, OpenSCAD's own errors) and hands back its readout; before this
   // an edited scad row re-resolved through the registry but answered with no stats at all.
   if (manifest.kind === 'scad') {
+    // A recipe-book part re-writes its program from `/params` (./scad-part.js); a hand edit under `/source` detaches it.
+    if (manifest.part !== undefined && !restore) {
+      try {
+        ({ manifest } = await expandPartManifest(manifest, { touched, patch }));
+      } catch (err) {
+        throw new Error(`Invalid world manifest (kind 'scad'): ${err.message}`);
+      }
+    }
     try {
       scadStats = (await planScad(manifest)).stats;
     } catch (err) {
@@ -984,6 +993,7 @@ export async function updateSketchHandler(input) {
   ) {
     ({ nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats } =
       await prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched, readout, solveOps }));
+    if (nextManifest && 'ask' in nextManifest) checkedAsk(nextManifest.ask);   // as at mint; any solid may carry the size of its ask
   } else if (manifest !== undefined) {
     // the same diagram lowering as at mint: sequence / gantt / lanes / boundaries, auto layout
     const expanded = expandDiagramManifest(manifest);
@@ -1034,8 +1044,8 @@ export async function updateSketchHandler(input) {
   if (scadStats) rememberStats(ref, nextManifest, scadStats);
   const read = nextManifest !== undefined ? buildingRead(nextManifest) : null;
   const design = nextManifest !== undefined ? houseDesignReadout(nextManifest, read) : null;
-  // The next steps (a building's open concerns, a scad part's ladder), from the recipe as stored. Never stored.
-  const next = nextManifest !== undefined ? (buildingNext(nextManifest, read) ?? scadNext(nextManifest)) : undefined;
+  // The next steps (a building's open concerns, a solid's ladder), from the recipe as stored. Never stored.
+  const next = nextManifest !== undefined ? (buildingNext(nextManifest, read) ?? solidNext(nextManifest)) : undefined;
   return {
     ok: true,
     ref: updated.ref,

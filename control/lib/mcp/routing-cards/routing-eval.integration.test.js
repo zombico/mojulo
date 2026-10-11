@@ -48,6 +48,12 @@ const CARD_FIXTURE = [
   ['make a pixel-art cutscene of my hero character', 'pixel-art'],
   ['I want my comic to reveal one speech bubble per tap on my phone', 'motion-comic'],
   ['present the graphic novel like a slideshow I click through', 'motion-comic'],
+  // mint_solid is the entry for every solid kind, so these pin the KIND's card: a fitted part is
+  // scad (its mj_* library), a measured form is the workbench, a styled piece is furniture.
+  ['a little knob that screws onto an M6 bolt', 'scad-object'],
+  ['print me a gear that meshes with a 20 tooth one', 'scad-object'],
+  ['a turned brass candlestick true to size', 'workbench-object'],
+  ['a green linen loveseat on hairpin legs for my den', 'furniture'],
 ];
 
 // Adjacency collisions (COLLISION_FIXTURE, imported above): pairs of cards

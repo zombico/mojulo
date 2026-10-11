@@ -53,7 +53,8 @@ describe('the scad card', () => {
 
   it('splits into a short base and the six deeper steps, losing no line', () => {
     expect(Object.keys(card.sections)).toEqual(['mechlib', 'standards', 'outputs', 'mechanism', 'dynamics', 'strength']);
-    expect(bytes(card.base)).toBeLessThan(10_000);
+    // 10_000 at the ladder; 10_500 with the solid ladder's `ask` line and the recipe-book `part` door (solid-powerscale).
+    expect(bytes(card.base)).toBeLessThan(10_500);
     for (const [name, s] of Object.entries(card.sections)) expect(bytes(s.body), name).toBeLessThan(9_000);
     expect(card.body).not.toMatch(/<!--/);
     // every line of the body is in the base or in exactly one section, in order

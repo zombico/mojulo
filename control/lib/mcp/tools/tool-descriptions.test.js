@@ -338,9 +338,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-10 (210_300 -> 202_500; measured 202,411) for the Workflows phase: render_handoff({ medium, op })
 // is the one listed door over the image and mesh worker loops (the ten per-op names stay callable, unlisted), net of
 // run_experiment_sweep's variations form, fabricate_solid's `bodies` and cook's `items`.
-// Re-pinned 2026-10-11 (202_500 -> 202_700; measured 202,584) for the structure book: export_model's `sheets` and
-// `schedules` formats (a house's drawing set and its schedules), two enum words and one clause; no new tool.
-const PAYLOAD_CEILING = 202_700;
+// Re-pinned 2026-10-11 (202_500 -> 202_800; measured 202,722) for two branches merged the same day: the structure
+// book (export_model's `sheets` and `schedules` formats; mint_building's description led on the book and its outcome
+// `next`) and the solid ladder (mint_solid names `spec.ask`, look | fit | function | engineered, which caps `next`,
+// with its kinds grouped by purpose). No new tool.
+const PAYLOAD_CEILING = 202_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
