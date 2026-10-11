@@ -100,6 +100,15 @@ describe('resolveDisplayModes', () => {
     expect(resolveDisplayModes({ manifest: { kind: 'fractal-city' }, ref: 'sk_j' }).readingMode).toBeUndefined();
   });
 
+  it('reads a store, a restaurant and a mall as their structure books too; any other kind keeps the four looks', () => {
+    for (const kind of ['store', 'restaurant', 'mall']) {
+      const r = resolveDisplayModes({ renderMode: 'world', kind, ref: `sk_${kind}` });
+      expect(r.modes[0].key).toBe('book');
+      expect(r.readingMode).toBe('book');
+    }
+    expect(resolveDisplayModes({ renderMode: 'world', kind: 'condo-complex', ref: 'sk_c' }).readingMode).toBeUndefined();
+  });
+
   it('carries no control for heard, spoken, played, or clicked-through kinds', () => {
     for (const kind of ['beats-ambient', 'voice-register', 'game', 'motion-comic']) {
       expect(resolveDisplayModes({ manifest: { kind }, ref: 'sk_k' })).toBeNull();

@@ -337,7 +337,11 @@ function buildGlassElevator(rect, z0, z1, cabZ) {
  * the void, a glass balustrade ringing the upper edge, and a glass skylight at the very top so light
  * pours down the atrium. The walkable-graph logic lives in buildMallLevels (this is the geometry).
  *
- * @returns {{ faces, footprint, plans, voidRect }}
+ * The structure the faces were built from rides beside them as `levels` (each with its own bays) and `transports` (the
+ * escalator pair and the elevator bank, both landing on the concourse): the level-stack shape buildElementModel reads,
+ * for the structure reader. The world reads only the faces.
+ *
+ * @returns {{ faces, footprint, plans, bays, voidRect, levels, transports }}
  */
 export function buildMallTwoLevel(input = {}, opts = {}) {
   const o = { ...MALL_OPTS, ...opts };
@@ -390,7 +394,17 @@ export function buildMallTwoLevel(input = {}, opts = {}) {
   faces.push(...buildGlassElevator(elevRects[0], 0, elevTop, H));
   faces.push(...buildGlassElevator(elevRects[1], 0, elevTop, 0));
 
-  return { faces, footprint: g.footprint, plans: { ground, upper }, bays: [...g0.bays, ...u0.bays], voidRect };
+  return {
+    faces, footprint: g.footprint, plans: { ground, upper }, bays: [...g0.bays, ...u0.bays], voidRect,
+    levels: [
+      { index: 0, role: 'ground', baseZ: 0, height: H, structure: g, bays: g0.bays },
+      { index: 1, role: 'upper', baseZ: H, height: H, structure: u, bays: u0.bays },
+    ],
+    transports: [
+      { fromStorey: 0, toStorey: 1, role: 'concourse', kind: 'escalator' },
+      { fromStorey: 0, toStorey: 1, role: 'concourse', kind: 'elevator' },
+    ],
+  };
 }
 
 /** Render the two-level mall (atrium + escalators) to a navigable three.js World. */

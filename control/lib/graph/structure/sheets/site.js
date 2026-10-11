@@ -69,6 +69,6 @@ export function siteSheet(read, { units = 'imperial', project, size = 'ANSI B', 
     northArrow([dx + dw - 12, dy + 14], 0),
     scaleBar([dx + dw - 80, dy + dh - 9], view, units),
   ].join('');
-  const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale, revision });
+  const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale, revision });
   return { id, title, scale, svg: sheetSvg({ size, body, block }) };
 }

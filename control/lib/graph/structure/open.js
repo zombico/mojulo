@@ -5,6 +5,10 @@
 // The four outcomes are what people come to a house for: Concept (what does it look like, does it sit right), Layout
 // (does it live well), Drawings (can I show or hand this on), Build (can it be built, what does it take). Each has a
 // card holding its questions from zero, its laws, and the fields that open each tab.
+//
+// A store, a restaurant or a mall (a read with `occupancy`) has its own short list: what its program adds (a mall's
+// upper floor, its bays' cards, a store's cast), its program's findings, and the drawing set. One card teaches all
+// three, `building-commercial`. The frame, the trades, the site and the IFC are a house's, and its book says so.
 
 import { unreachedLevels, stairCrowding, isWaived } from './tables.js';
 
@@ -15,7 +19,8 @@ export const OUTCOMES = Object.freeze([
   { id: 'build', name: 'Build', card: 'house-build', question: 'can it be built, and what does it take', tabs: ['Structure', 'Services', 'Quantities', 'Checks'] },
 ]);
 export const OUTCOME_CARDS = Object.freeze(Object.fromEntries(OUTCOMES.map((o) => [o.id, o.card])));
-const cardOf = (outcome) => OUTCOME_CARDS[outcome];
+export const COMMERCIAL_CARD = 'building-commercial';
+const cardOf = (outcome, read) => (read && read.occupancy ? COMMERCIAL_CARD : OUTCOME_CARDS[outcome]);
 
 // The walkway and stair-clearance findings a house's own rules have not waived.
 function livabilityFindings(m, read) {
@@ -74,14 +79,35 @@ const CONCERNS = [
   { id: 'ifc', outcome: 'build', tab: 'Checks', when: () => true, export: 'ifc',
     add: "export_model({ ref, format: 'ifc' })", adds: 'the house as an IFC4 building model for Bonsai, Revit or ArchiCAD' },
 ];
-export const CONCERN_IDS = Object.freeze(CONCERNS.map((c) => c.id));
+
+const occ = (r) => r.occupancy?.id;
+const findingsOf = (r) => (r.grade?.findings || []).filter((f) => f.id !== 'reachability');
+
+/** A commercial building's concerns (a read with `occupancy`), in the same shape. */
+const COMMERCIAL = [
+  { id: 'upper-floor', outcome: 'concept', tab: 'Plan', when: (m, r) => occ(r) === 'mall' && m.levels !== 2,
+    add: 'levels: 2', adds: 'an upper floor of shops around an atrium, reached by an escalator pair and a lift bank; a second set of plans' },
+  { id: 'reachability', outcome: 'layout', tab: 'Plan', when: (m, r) => (r.grade?.findings || []).some((f) => f.id === 'reachability'),
+    add: 'a door into each space it names (the card\'s cells, or rooms[] where the kind takes them)', adds: (m, r) => `a way into every space: ${(r.grade.findings || []).filter((f) => f.id === 'reachability').map((f) => f.detail).slice(0, 2).join('; ')}` },
+  { id: 'program-rules', outcome: 'layout', tab: 'Plan', when: (m, r) => findingsOf(r).length > 0,
+    add: (m, r) => (occ(r) === 'store' ? "the card's cells, zones or fixtures (card: { … }), or a larger width / depth" : occ(r) === 'mall' ? 'cards per bay (cards: { <type | bay>: <card> }), or a larger width / height' : 'a larger width / height, kitchenDepth or restroomWidth'),
+    adds: (m, r) => { const f = findingsOf(r); return `what its program asks (${f.length} finding${f.length === 1 ? '' : 's'} now: ${f.slice(0, 2).map((x) => x.detail).join('; ')})`; } },
+  { id: 'fit-out', outcome: 'layout', tab: 'Objects', when: (m, r) => occ(r) === 'mall' && m.cards === false,
+    add: "cards: { <store type | bay index>: '<seeded card>' | { …inline } } (or leave cards out: each bay takes its type's card)", adds: 'every bay fit out as a shop: its fixtures, back rooms and the FF&E schedule' },
+  { id: 'cast', outcome: 'layout', tab: 'Objects', when: (m, r) => occ(r) === 'store' && m.cast === false,
+    add: 'leave cast out (the card\'s mannequins)', adds: 'the card\'s mannequins in the window and on the floor' },
+  { id: 'sheets', outcome: 'drawings', tab: 'Elements', when: () => true, export: 'sheets',
+    add: "export_model({ ref, format: 'sheets' }) · format: 'schedules'", adds: 'the drawing set as SVG sheets, and every schedule (rooms, doors, FF&E) as CSV and JSON' },
+];
+
+export const CONCERN_IDS = Object.freeze([...new Set([...CONCERNS, ...COMMERCIAL].map((c) => c.id))]);
 
 const val = (x, m, r) => (typeof x === 'function' ? x(m, r) : x);
 
 const ORDER = new Map(OUTCOMES.map((o, i) => [o.id, i]));
 // a room (one space) is furnished, lit, walked and drawn; the site, roof, stair, frame and services are a house's
-const open = (m, read) => CONCERNS.filter((c) => (read.subject !== 'room' || c.rooms) && c.when(m, read))
-  .map((c) => ({ id: c.id, outcome: c.outcome, tab: c.tab, field: val(c.add, m, read), adds: val(c.adds, m, read), card: cardOf(c.outcome), ...(c.export ? { export: c.export } : {}), ...(c.follows ? { follows: c.follows } : {}) }))
+const open = (m, read) => (read.occupancy ? COMMERCIAL : CONCERNS).filter((c) => (read.subject !== 'room' || c.rooms) && c.when(m, read))
+  .map((c) => ({ id: c.id, outcome: c.outcome, tab: c.tab, field: val(c.add, m, read), adds: val(c.adds, m, read), card: cardOf(c.outcome, read), ...(c.export ? { export: c.export } : {}), ...(c.follows ? { follows: c.follows } : {}) }))
   .sort((a, b) => ORDER.get(a.outcome) - ORDER.get(b.outcome));
 
 /** Each tab the house has not reached, in outcome order: { id, outcome, tab, field, adds, card, follows? }. The book's

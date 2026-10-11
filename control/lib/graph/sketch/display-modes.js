@@ -22,15 +22,21 @@
  * agent for one" is a better empty state than a button that isn't there.
  *
  * One reading is a kind's own, not a look every artifact could take: `book`, a
- * house (kind 'floorplan') read as its structure book (the sheets, schedules and
- * checks, the World in its Walk tab). It is listed only for houses, and the detail
- * page opens on it (`readingMode`); the gallery keeps the world as its default.
+ * building (a house, kind 'floorplan', or a store, restaurant or mall) read as its
+ * structure book (the sheets, schedules and checks, the World in its Walk tab). It
+ * is listed only for those kinds (`BOOK_KINDS`, the structure book's own list), and
+ * the detail page opens on it (`readingMode`); the gallery keeps the world as its
+ * default.
  *
  * Design: components/3d-factory-ui.plan.md §4.
  */
 
 import { sketchRenderMode } from './sketch-manifest';
 
+
+// The kinds read as a structure book: kept equal to structure/programs.js STRUCTURE_KINDS (a test holds them together;
+// this module imports nothing).
+export const BOOK_KINDS = new Set(['floorplan', 'store', 'restaurant', 'mall']);
 export const DISPLAY_MODES = ['wire', 'shaded', 'baked', 'painted'];
 
 /** Kinds whose finished form is painted by an external worker, not by mojulo. */
@@ -113,13 +119,13 @@ export function resolveDisplayModes({
     },
   ];
 
-  // a house's own reading: its structure book, served by /bible (lib/graph/structure/book-html.js)
-  if (kind === 'floorplan') {
+  // a building's own reading: its structure book, served by /bible (lib/graph/structure/book-html.js)
+  if (BOOK_KINDS.has(kind)) {
     modes.unshift({ key: 'book', available: true, reason: null, view: { kind: 'iframe', src: `/api/sketches/${encodeURIComponent(ref)}/bible`, aspect: '4 / 5', protocol: false } });
   }
 
   const defaultMode = bakedInPlace ? 'baked' : 'shaded';
-  return { modes, defaultMode, ...(kind === 'floorplan' ? { readingMode: 'book' } : {}) };
+  return { modes, defaultMode, ...(BOOK_KINDS.has(kind) ? { readingMode: 'book' } : {}) };
 }
 
 /** The plain, undressed reading — this is what the page renders today. */

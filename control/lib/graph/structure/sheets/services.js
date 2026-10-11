@@ -98,7 +98,7 @@ export function electricalSheets(read, { units = 'imperial', project, size = 'AN
       failed.length ? `${failed.length} OF ${mine.length} CHECKS ADVISE: ${failed.slice(0, 3).map((c) => `${c.rule}${c.room ? ` (${c.room})` : ''}`).join(', ')}.` : `ALL ${mine.length} CHECKS PASS (RECEPTACLE SPACING, SWITCH AT DOOR, BORED HOLES).`,
       'DRAWN AS ROUGHED IN; ADVISORY, NOT AN ENGINEERED DESIGN.',
     ]);
-    const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale: L.scale, revision });
+    const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale: L.scale, revision });
     const body = [
       `<g class="s-screen" opacity="0.35">${planDrawing(read, si, V, { units, tags: false, dims: false, objects: false })}</g>`,
       roomNames(read, si, V), `<g class="s-cables">${cables}</g>`, `<g class="s-devices">${marks.join('')}</g>`,
@@ -178,7 +178,7 @@ export function drainageSheet(read, { units = 'imperial', project, size = 'ANSI 
     [(p) => slopeArrow([p[0] - 2.5, p[1]], [p[0] + 2.5, p[1]], ''), 'ROOF FALL (RISE:12)'],
   ]);
   const id = 'P-101', title = 'Roof drainage plan';
-  const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale: L.scale, revision });
+  const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale: L.scale, revision });
   const body = [
     `<g class="s-drainage">${out.join('')}</g>`, overallDims(read, V, units), t.svg, nt.svg, lg.svg,
     drawingTitle(L.titleAt, { detail: '1', title, scale: L.scale, sheet: id }),

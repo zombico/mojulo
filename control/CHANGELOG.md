@@ -413,6 +413,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     the WC, room to step into the tub, 24 in before the shower) and says when a bathroom holds no basin or no tub or
     shower.
 
+### Structure rails, broadened: the structure book for a store, a restaurant and a mall
+
+- **`mint_building` is getting more than houses.** A store, a restaurant and a mall (one or two levels) mint through
+  it with the manifests `create_sketch` takes, and each gets the structure book, sheets and schedules a house has.
+- **Each is read as the building it is, not as a home.** Rooms are named by what they are for (sales floor, stock
+  room, dining room, kitchen, concourse, tenant bay), and the building carries its occupancy (mercantile or
+  assembly).
+  - Its grade is its program's rules: front and back of house kept apart, storefronts on the concourse, upper levels
+    reached by escalator, the store card's own assessment.
+  - Bedroom egress, "a home" and the bathroom fixture checks no longer apply to it.
+- **Fit-outs become schedules.** Fixtures, racks, displays, booths, tables and kitchen blocks are tagged objects in
+  the FF&E schedule, on the plan sheets and in the room cards.
+- **Framing and trades stay house-only for now**, and a non-house book says so. Houses read and render as before,
+  and store, restaurant and mall worlds are unchanged byte for byte.
+
 ### Solid powerscale: solids routed by what they are for
 
 - **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words

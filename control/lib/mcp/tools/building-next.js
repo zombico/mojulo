@@ -8,16 +8,18 @@
 
 import { readStructure } from '@/lib/graph/structure/read';
 import { nextSteps, clearanceReadout, OUTCOME_CARDS } from '@/lib/graph/structure/open';
+import { STRUCTURE_KINDS } from '@/lib/graph/structure/programs';
 
 export { OUTCOME_CARDS };
 
-export const BUILDING_KINDS = Object.freeze(['floorplan']);
+// a house and the commercial programs the structure book reads (structure/programs.js)
+export const BUILDING_KINDS = STRUCTURE_KINDS;
 
 export function isBuildingManifest(manifest) {
   return !!manifest && typeof manifest === 'object' && BUILDING_KINDS.includes(manifest.kind);
 }
 
-/** The structure read of a house, or null for any other recipe (or one the reader cannot read). Never throws. */
+/** The structure read of a building, or null for any other recipe (or one the reader cannot read). Never throws. */
 export function buildingRead(manifest) {
   if (!isBuildingManifest(manifest)) return null;
   try { return readStructure(manifest); } catch { return null; }
@@ -27,6 +29,17 @@ export function buildingRead(manifest) {
 export function buildingNext(manifest, read = buildingRead(manifest)) {
   if (!isBuildingManifest(manifest) || !read) return undefined;
   return nextSteps(manifest, read);
+}
+
+/** What a building says in every reply: a room or a house (and what a house lacks to be a home), or, for a store,
+ *  restaurant or mall, its occupancy and its program's grade with the findings in words. */
+export function buildingSays(read) {
+  if (!read) return {};
+  if (read.occupancy) {
+    const g = read.grade || {};
+    return { subject: read.subject, occupancy: read.occupancy.id, grade: { score: g.score, ...(g.violations?.length ? { findings: g.violations.slice(0, 6) } : {}) } };
+  }
+  return { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) };
 }
 
 /** The stair clearance for the design readout, or null where there is no stair. */

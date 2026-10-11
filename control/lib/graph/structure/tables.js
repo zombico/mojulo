@@ -71,14 +71,16 @@ export function fixtureClearance(read) {
 const r1 = (v) => Math.round(v * 10) / 10;
 const material = (m) => String(m || '').replace(/^[a-z]+:/, '').replace(/-/g, ' ').toUpperCase();
 
-/** The levels no flight reaches from the ground (walking the stairs both ways from level 0). */
+/** The levels no flight reaches from the ground (walking the stairs, and a commercial building's escalators and lifts,
+ *  both ways from level 0). */
 export function unreachedLevels(read) {
   if (read.storeys.length < 2) return [];
   const ground = read.storeys.some((s) => s.index === 0) ? 0 : read.storeys[0].index;
   const reached = new Set([ground]);
+  const climbs = [...read.elements.stairs, ...(read.elements.verticals || [])];
   for (let grew = true; grew;) {
     grew = false;
-    for (const st of read.elements.stairs) for (const [a, b] of [[st.from, st.to], [st.to, st.from]]) if (reached.has(a) && !reached.has(b)) { reached.add(b); grew = true; }
+    for (const st of climbs) for (const [a, b] of [[st.from, st.to], [st.to, st.from]]) if (reached.has(a) && !reached.has(b)) { reached.add(b); grew = true; }
   }
   return read.storeys.filter((s) => !reached.has(s.index));
 }
@@ -148,7 +150,12 @@ function checkRowsRaw(read) {
   }
   // every level above or below the ground is reached by a flight (an authored stack without `stairs` has none)
   for (const lv of unreachedLevels(read)) rows.push({ source: 'plan', rule: 'stair-reach', ok: false, subject: `L${lv.number}`, detail: `no stair reaches this level: add stairs: true (one flight from the ground) or stairs: [{ from, to }]` });
-  if (read.storeys.length > 1 && !unreachedLevels(read).length) rows.push({ source: 'plan', rule: 'stair-reach', ok: true, subject: '', detail: `${read.elements.stairs.length} flight${read.elements.stairs.length === 1 ? '' : 's'} reach every level` });
+  if (read.storeys.length > 1 && !unreachedLevels(read).length) {
+    const n = read.elements.stairs.length, v = read.elements.verticals || [];
+    const say = (k, word) => { const c = v.filter((x) => x.kind === k).length; return c ? [`${c} ${word}${c === 1 ? '' : 's'}`] : []; };
+    const by = v.length ? [...(n ? [`${n} flight${n === 1 ? '' : 's'}`] : []), ...say('escalator', 'escalator'), ...say('elevator', 'lift')].join(', ') : `${n} flight${n === 1 ? '' : 's'}`;
+    rows.push({ source: 'plan', rule: 'stair-reach', ok: true, subject: '', detail: `${by} reach every level` });
+  }
   // furniture that crowds a stair (the livability of its approaches)
   if (read.elements.stairs.length) {
     const say = (ft) => `${Math.round(ft * 12)} in`;

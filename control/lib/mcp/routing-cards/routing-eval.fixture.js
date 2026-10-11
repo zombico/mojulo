@@ -62,6 +62,9 @@ export const FIXTURE = [
   // the structure book's outcomes: drawings and a build, asked for without the word "house" leading
   ['draw me the floor plans, elevations and a section of a two-bedroom cottage', 'mint_building'],
   ['a cut list and lumber takeoff for framing my bungalow', 'mint_building'],
+  // a commercial program on the same rail: its drawing set and its fit-out schedule
+  ['floor plans and an FF&E schedule for a corner café', 'mint_building'],
+  ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

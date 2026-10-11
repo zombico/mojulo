@@ -8,6 +8,10 @@
  * data: rooms, elements (what the structure is made of) and objects (what it holds), each with one tag
  * (structure/tags.js), plus the schedules, grade, design checks and, framed, the construction model.
  *
+ * A house is one program among several (structure/programs.js): a store, a restaurant and a mall are read the same
+ * way from their own kernels, named by what their rooms are for and graded by their program's rules, never as a home.
+ * Their read carries `occupancy`; a house's read is exactly what it always was.
+ *
  * Pure: the same manifest gives the same read. It adds nothing to any world, GLB or IFC (the collectors are read
  * only here). Feet, like every floorplan number (`units`).
  */
@@ -21,6 +25,7 @@ import { buildPerimeter } from '../polygonizer/floorplan-perimeter.js';
 import { planHouseFraming, framingOf } from '../construction/house-frame.js';
 import { readFraming, readWiring, readDrainage } from './trades.js';
 import { tagRooms, tagDoors, tagTypes, windowKey, wallKey, objectCode, tagObjectTypes, storeyNumber, inches } from './tags.js';
+import { occupancyOf, buildProgram, nameSpacesByRole, programGrade } from './programs.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -132,15 +137,22 @@ function objectsOf(collected) {
  * { units, title, footprint, storeys, rooms, elements: { walls, wallTypes, doors, windows, windowTypes, slabs, stairs,
  *   roof }, objects: { pieces, types }, schedules, grade, design?, construction? (with frames and memberTypes),
  *   wiring?, drainage?, lot? }
- * Null for a manifest that is not a floorplan.
+ * A commercial program (store, restaurant, mall) adds `occupancy` and `elements.verticals`, and has no `program`,
+ * `dwelling`, roof, site or construction. Null for a manifest the book does not read.
  */
 export function readStructure(m = {}) {
-  if (!m || m.kind !== 'floorplan') return null;
-  const o = { ...FLOORPLAN_DEFAULTS, ...m };
-  const { house, objects: collected, spans, stacked, opts } = build(m);
+  const occ = occupancyOf(m);
+  if (!occ) return null;
+  const isHouse = occ.id === 'house';
+  const P = isHouse ? null : buildProgram(m);
+  const o = isHouse ? { ...FLOORPLAN_DEFAULTS, ...m } : P.opts;
+  const { house, objects: collected, spans, stacked, opts } = isHouse ? build(m) : { ...P, spans: {} };
   const model = buildElementModel(house, o);
+  if (!isHouse) nameSpacesByRole(model);
   const schedules = deriveSchedules(model);
-  const grade = scoreHouse(model);
+  // a commercial building's egress is its exits (reachability), and its adjacency is its program's rules, not a home's
+  if (!isHouse) { schedules.egress = []; schedules.adjacency = []; }
+  const grade = isHouse ? scoreHouse(model) : programGrade(model, schedules, occ, P.extra);
 
   const storeyIndex = new Map(model.storeys.map((s) => [s.id, s.index]));
   const storeys = model.storeys.map((s) => ({ id: s.id, index: s.index, number: storeyNumber(s.index), role: s.role, baseZ: r2(s.baseZ ?? 0), height: r2(s.height) }));
@@ -182,10 +194,10 @@ export function readStructure(m = {}) {
   const windows = windowsRaw.map((x) => opening(x, { tag: windowTypes.typeOf.get(x.id), mark: `WN${++winSeq}` }));
 
   // ── objects ──
-  const pieces0 = objectsOf(collected);
+  const pieces0 = isHouse ? objectsOf(collected) : collected;
   const storeyAt = (z) => model.storeys.reduce((best, s) => (Math.abs((s.baseZ ?? 0) - z) < Math.abs((best.baseZ ?? 0) - z) ? s : best), model.storeys[0]);
   const keyOf = (p) => (p.source === 'ref' ? `ref:${p.ref}` : `${p.type}|${p.like ?? p.asset ?? ''}`);
-  const codeOf = (p) => (p.source === 'ref' ? 'RF' : objectCode(p.type));
+  const codeOf = (p) => (p.source === 'ref' ? 'RF' : p.code ?? objectCode(p.type));
   const typeTag = tagObjectTypes(pieces0.map((p) => ({ key: keyOf(p), code: codeOf(p) })));
   const pieces = pieces0.map((p, i) => {
     const st = storeyAt(p.baseZ);
@@ -219,7 +231,7 @@ export function readStructure(m = {}) {
   // kernel names the lounge) and its bedrooms, asked and built, so the book names the core and says when fewer fit ──
   const authored = (Array.isArray(m.rooms) && m.rooms.length) || (Array.isArray(m.levels) && m.levels.some((l) => l && Array.isArray(l.rooms) && l.rooms.length));
   let program = null;
-  if (stacked && !authored && m.program !== false) {
+  if (isHouse && stacked && !authored && m.program !== false) {
     const t = resolveTier(m.tier);
     const has = (g) => rooms.some((r) => r.glyph === g);
     const core = (t.core || ['L']).filter((g) => g === 'L' || !has(g));
@@ -241,7 +253,8 @@ export function readStructure(m = {}) {
   // ── a room or a house. One space (halls aside) is a room: a showroom, a set, a studio piece; it is furnished and
   // walked, never judged as a home. More is a house, and a house is livable only with a kitchen (its own room, or the
   // open core's), a bathroom and a bedroom ──
-  const subject = rooms.filter((r) => r.glyph !== 'H').length <= 1 ? 'room' : 'house';
+  // a commercial program is a building, judged by its program's rules, never as a home
+  const subject = !isHouse ? 'building' : rooms.filter((r) => r.glyph !== 'H').length <= 1 ? 'room' : 'house';
   let dwelling = null;
   if (subject === 'house') {
     const has = { kitchen: rooms.some((r) => r.glyph === 'K') || !!program?.core.includes('K'), bathroom: rooms.some((r) => r.glyph === 'W'), bedroom: rooms.some((r) => r.glyph === 'B') };
@@ -274,12 +287,15 @@ export function readStructure(m = {}) {
         ...(fl?.flights?.length ? { width: r2(Math.min(...fl.flights.map((f) => Math.min(f.rect.w, f.rect.h)))) } : {}),
       };
     }),
-    roof: roofOf(m, house, o),
+    roof: isHouse ? roofOf(m, house, o) : null,
+    // the escalators and lifts a commercial stack climbs by (a house climbs by its stairs)
+    ...(!isHouse && model.verticals.length ? { verticals: model.verticals.map((v, i) => ({ tag: `${v.kind === 'elevator' ? 'EL' : 'ES'}${i + 1}`, kind: v.kind, from: storeyIndex.get(v.fromStorey), to: storeyIndex.get(v.toStorey), links: [...v.links.lower, ...v.links.upper].map((id) => roomTag.get(id)).filter(Boolean) })) } : {}),
   };
 
   const fp = house.footprint;
   const out = {
     units: FLOORPLAN_UNITS, title: m.title ?? null, stacked,
+    ...(!isHouse ? { occupancy: { id: occ.id, label: occ.label, group: occ.group, name: occ.name } } : {}),
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
     subject, storeys, rooms, elements,
     ...(program ? { program } : {}),
@@ -299,7 +315,7 @@ export function readStructure(m = {}) {
     floorDrop: r2(o.floorDrop),
   };
   // the site: the lot and what stands on it, as the perimeter builds them (its rects; the faces are the World's)
-  if (m.perimeter && fp) {
+  if (isHouse && m.perimeter && fp) {
     const peri = buildPerimeter(fp, 0, typeof m.perimeter === 'object' ? m.perimeter : {});
     const rect = (r) => (r ? { x0: r2(r.x0), y0: r2(r.y0), x1: r2(r.x1), y1: r2(r.y1) } : null);
     out.site = {
@@ -307,7 +323,7 @@ export function readStructure(m = {}) {
       ...Object.fromEntries(['drive', 'carport', 'garage', 'path', 'patio', 'shed'].map((k) => [k, rect(peri[`${k}Rect`])]).filter(([, v]) => v)),
     };
   }
-  if (house.framing || house.construction) {
+  if (isHouse && (house.framing || house.construction)) {
     out.construction = {
       ...(house.framing ? { report: house.framing } : {}),
       ...(house.construction ? { summary: house.construction.summary, schedules: house.construction.schedules, checks: house.construction.checks } : {}),
@@ -315,7 +331,7 @@ export function readStructure(m = {}) {
     };
   }
   // the trades as data (structure/trades.js): the frame's members and fields, the wiring, the rainwater
-  if (house.framing && m.framing) {
+  if (isHouse && house.framing && m.framing) {
     const fo = { ...o, ...opts };
     const plan = planHouseFraming(house, m.framing, fo);
     const fr = readFraming(house, m.framing, fo, plan);
@@ -334,7 +350,7 @@ export function readStructure(m = {}) {
     const wiring = readWiring(house, m.framing, plan.frames, fo, cellRoom);
     if (wiring) out.wiring = wiring;
   }
-  if (m.drainage && stacked) {
+  if (isHouse && m.drainage && stacked) {
     const dr = readDrainage(house, m.drainage, { ...o, ...opts, tradition: m.framing ? framingOf(m.framing).tradition : null });
     if (dr) out.drainage = dr;
   }

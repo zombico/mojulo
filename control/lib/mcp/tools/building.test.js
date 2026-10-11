@@ -45,9 +45,27 @@ describe('mint_building — the door', () => {
   }, 120_000);
 
   it('refuses a kind that is not a building, naming where it goes', () => {
-    expect(() => mintBuilding({ title: 'x', manifest: { kind: 'store', concept: 'bakery' } })).toThrow(/edifice|create_sketch|compose_world/);
+    expect(() => mintBuilding({ title: 'x', manifest: { kind: 'condo-complex' } })).toThrow(/edifice|compose_world/);
     expect(() => mintBuilding({ title: 'x' })).toThrow(/requires \{ title, manifest \}/);
   });
+});
+
+describe('mint_building — a store, a restaurant, a mall', () => {
+  const SHOPS = {
+    store: { kind: 'store', title: 's', card: 'bookstore' },
+    restaurant: { kind: 'restaurant', title: 'r', seed: 1 },
+    mall: { kind: 'mall', title: 'm', levels: 2 },
+  };
+  for (const [name, manifest] of Object.entries(SHOPS)) {
+    it(`stores the row create_sketch stores, and reads out its occupancy and grade: ${name}`, async () => {
+      await createSketchHandler({ title: name, manifest, ref: `cs-shop-${name}` });
+      const res = mintBuilding({ title: name, manifest, ref: `mb-shop-${name}` });
+      expect(stored(`mb-shop-${name}`)).toBe(stored(`cs-shop-${name}`));
+      expect(res).toMatchObject({ ok: true, subject: 'building', occupancy: manifest.kind, grade: { score: expect.any(Number) } });
+      expect(res.notAHome).toBeUndefined();
+      expect(res.next.at(-1)).toEqual({ id: 'sheets', outcome: 'drawings', export: 'sheets', card: 'building-commercial' });
+    }, 120_000);
+  }
 });
 
 describe('next — what is open, by outcome', () => {

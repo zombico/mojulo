@@ -62,7 +62,7 @@ import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
-import { buildingNext, buildingRead, buildingClearance } from '@/lib/mcp/tools/building-next';
+import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
@@ -474,8 +474,9 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     ok: true,
     ref: sketch.ref,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
-    // a room (one space) or a house, said in every reply; a house says what it lacks to be a home
-    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
+    // a room (one space) or a house, said in every reply; a house says what it lacks to be a home; a store, restaurant
+    // or mall says its occupancy and its program's grade
+    ...buildingSays(read),
     ...(design ? { design } : {}),
     ...(inferred?.length ? { inferred } : {}),
     ...(next ? { next } : {}),
@@ -1050,7 +1051,7 @@ export async function updateSketchHandler(input) {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
-    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
+    ...buildingSays(read),
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),

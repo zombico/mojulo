@@ -248,7 +248,7 @@ export function planSheet(read, storeyIndex, { units = 'imperial', project, size
   const wMm = (ext.x1 - ext.x0) * view0.mmPerFt, hMm = (ext.y1 - ext.y0) * view0.mmPerFt;
   const at = [dx + (dw - wMm) / 2, dy + Math.max(0, (dh - titleRoom - hMm) / 2)];
   const view = makeView({ scale, origin: [ext.x0, ext.y0], at });
-  const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale, revision, sheetOf });
+  const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale, revision, sheetOf });
   const body = [
     planDrawing(read, storeyIndex, view, { units }),
     drawingTitle([dx + 4, dy + dh - 8], { detail: '1', title, scale, sheet: id }),

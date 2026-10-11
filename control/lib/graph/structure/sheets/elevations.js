@@ -137,7 +137,7 @@ export function elevationsSheets(read, { units = 'imperial', project, size = 'AN
       body.push(elevationDrawing(read, sd, at, scale, { units }));
       body.push(drawingTitle([dx + 6, cy + cellH - 9], { detail: String(i + 1), title: FACES[sd].name, scale, sheet: id }));
     });
-    const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale, revision, sheetOf: null });
+    const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale, revision, sheetOf: null });
     return { id, title, scale, sides, svg: sheetSvg({ size, body: body.join(''), block }) };
   });
 }
