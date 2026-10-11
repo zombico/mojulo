@@ -31,6 +31,9 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   [docs/MCP-ARCHITECTURE.md](docs/MCP-ARCHITECTURE.md) (transport, sessions, deliberation),
   [docs/install-capabilities.md](docs/install-capabilities.md) (kernel + packs + install groups),
   [CONTRIBUTING.md](CONTRIBUTING.md) (recipe book vs core), [AGENTS.md](AGENTS.md) (non-Claude hosts).
+- What games can be made, and what to build next: [docs/tool-surface/hillclimb.md](docs/tool-surface/hillclimb.md)
+  (generated from the cosmos registry and sweep; internal, not an MCP surface). Read it before picking game work;
+  after changing the registry, `npm run tool-surface` (a critical test fails on a stale page). Skill: `/hillclimb`.
 - Never hardcode an enumerable count in docs (kinds, packs, tools, locales, test files). Point at the
   list that defines it; counts drift the day after they are written.
 - "graph" means three things: `control/lib/graph/` is the geometry library; the contextmap is the
