@@ -20,7 +20,8 @@
  *   UI_STATES      the appearance states every part is drawn in on the board (the UI's t)
  *   OWNERS, AUDIENCES, MARKS
  *   readPart(p, i) a part → { part, variant, region, row, page, of, audience, mark, binds } or throws, teaching
- *   lowerParts(ps) parts → hud rows for the parts the page draws, in order
+ *   lowerParts(ps, phases)  parts → hud rows for the parts the page draws, in order; a row keeps the part's id (the
+ *                  ui-<id> vars a cue sets) and its `when` as phase indices
  */
 import { HUD_KINDS } from '../../game/hud-widgets.js';
 import { UI_REGIONS, HUD_REGIONS, regionOf } from './regions.js';
@@ -204,12 +205,25 @@ export function readPart(p, i = 0) {
     else if (p.part === 'banner') row = { on: b.on, ...pass(['text']), ...slot, ...pass(['ttl', 'color']) };
     else if (p.part === 'toast') row = variant === 'change' ? { var: b.var, as: 'toast', ...pass(['text']), ...slot, ...pass(['ttl', 'color']) } : { on: b.on, as: 'toast', ...pass(['text']), ...slot, ...pass(['ttl', 'color']) };
     else row = { ...pass(['text']), ...slot, ...pass(['ttl', 'color']) };
+    // a part a cue names (show / hide / state: the ui-<id> vars) keeps its id on the row, so the page gates it
+    if (p.id !== undefined) row.id = p.id;
   }
   const binds = b.var || b.on || (Array.isArray(p.rows) ? p.rows.map((r) => r.var).join('+') : '') || (from ? `${from}${b.field || p.field ? `.${b.field || p.field}` : ''}` : '');
   return { part: p.part, id: p.id ?? null, variant, region, row, page, of, audience, mark, binds, from, layers: p.part === 'reticle' ? (p.layers || ['core']) : null };
 }
 
-/** Parts → their events.hud rows, in order, for the parts the page draws (the others are the board's). */
-export function lowerParts(parts) {
-  return (Array.isArray(parts) ? parts : []).map((p, i) => readPart(p, i)).filter((x) => x.row).map((x) => x.row);
+/** Parts → their events.hud rows, in order, for the parts the page draws (the others are the board's). A part's
+ *  `when` (phase names) rides as the phases' indices in `phases` (the `phase` var holds an index); a name that is no
+ *  phase throws, teaching. */
+export function lowerParts(parts, phases = ['playing']) {
+  const list = Array.isArray(parts) ? parts : [];
+  return list.map((p, i) => [p, readPart(p, i), i]).filter(([, x]) => x.row).map(([p, x, i]) => {
+    if (p.when === undefined) return x.row;
+    const when = p.when.map((n) => {
+      const k = phases.indexOf(n);
+      if (k < 0) throw new Error(`play.parts[${i}].when names '${n}', which is no phase (play.phases: ${phases.join(', ')})`);
+      return k;
+    });
+    return { ...x.row, when };
+  });
 }

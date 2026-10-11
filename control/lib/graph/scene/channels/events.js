@@ -2,6 +2,7 @@ import { buildBus } from '../../worlds/event-bus.js';
 import { colorCss, fmtDelta, hudSubst, normalizeHud, styleVars } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
+import { UI_STATES } from '../../playscape/ui/parts.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
@@ -43,6 +44,14 @@ export const HUD_CSS = [
   '.moj-w-legend{font-size:12px;font-weight:500;opacity:.85;letter-spacing:.3px}',
   '.moj-hidden{opacity:0}',
 ].join('');
+// a part a cue hid (ui-<id> = 0, or the state hidden) or one out of its phase, and the states a cue restates it to;
+// emitted only when a row carries a part id or phases (a HUD without them is byte-identical)
+const GATE_CSS = [
+  '.moj-off{display:none}',
+  '.moj-w[data-st=disabled]{opacity:.4}',
+  '.moj-w[data-st=alert]{color:var(--moj-harm)!important;border-color:var(--moj-harm)}',
+  '.moj-w[data-st=focus],.moj-w[data-st=active]{border-color:var(--moj-accent);box-shadow:0 0 0 1px var(--moj-accent)}',
+].join('');
 
 // the in-page widget block. Widgets arrive normalized (kind / slot / as filled); each carries a
 // pre-resolved `css` color so the page never interprets an author string as CSS. Banners watch
@@ -56,12 +65,15 @@ function hudScript(widgets, style, register, menus = null) {
   // takes NONE here — the page picks harm / goal by the sign of the change at fire time.
   const accentDefault = (w) => w.kind === 'banner' || (w.kind === 'toast' && !w.var) || (w.kind === 'readout' && w.as === 'bar');
   const rows = widgets.map((w) => ({ ...w, css: colorCss(w.color, accentDefault(w) ? 'var(--moj-accent)' : '') }));
+  const gated = widgets.some((w) => w.id || w.when);
+  const on = (x) => (gated ? ` && __hudOn(${x})` : '');
   return `// HUD: the screen-space widget layer (hud-widgets.js) — a column per slot, a widget per row.
 const __HUD = ${safeJson(rows)};
-const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};
+const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hudLive = [], __hudCols = {};${gated ? `
+const __hudGated = [], __UI_STATES = ${JSON.stringify(UI_STATES)};` : ''}
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
-  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${gated ? GATE_CSS : ''}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
   const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };
@@ -80,11 +92,19 @@ const __TOAST_CAP = 8, __TOAST_RISE = 28;
     } else if (w.kind === 'banner') { el.textContent = w.text; el.classList.add('moj-hidden'); __hudBanners.push({ w: w, el: el, until: 0 }); }
     else if (w.kind === 'toast') { col(w.slot); __hudToasts.push({ w: w, prev: null, n: 0 }); return; }   // spawns per firing; no standing element
     else { el.textContent = w.text; if (w.ttl) __hudTimed.push({ el: el, until: w.ttl * 1000 }); }
-    col(w.slot).appendChild(el);
+${gated ? `    if (w.id || w.when) __hudGated.push({ w: w, el: el });
+` : ''}    col(w.slot).appendChild(el);
   });
   wrap.appendChild(layer);
 })();
-function __hudClock(n) { const s = Math.max(0, Math.ceil(n)); const m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+${gated ? `// a gated row stands while its part is not hidden (ui-<id>, ui-<id>-state) and the phase is one of its own
+function __hudOn(w) {
+  const v = __busState.vars;
+  if (w.id && (v['ui-' + w.id] === 0 || v['ui-' + w.id + '-state'] === 0)) return false;
+  if (w.when && w.when.indexOf(typeof v.phase === 'number' ? v.phase : 0) < 0) return false;
+  return true;
+}
+` : ''}function __hudClock(n) { const s = Math.max(0, Math.ceil(n)); const m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
 ${hudSubst.toString()}
 ${fmtDelta.toString()}
 function __hudSubst(text, ctx) { return hudSubst(text, __busState.vars, ctx); }   // "{name}" reads a bus var — "TIME! {score}" at game over
@@ -109,7 +129,12 @@ function __hudGlob(str, pat) {   // the game.on / fx.on glob: '*' spans, literal
 }
 let __hudLogN = __busState.log ? __busState.log.length : 0, __hudT0 = -1;
 function __syncHud(t, incoming) {
-  if (__hudT0 < 0) __hudT0 = t || 0;
+  if (__hudT0 < 0) __hudT0 = t || 0;${gated ? `
+  for (const g of __hudGated) {
+    g.el.classList.toggle('moj-off', !__hudOn(g.w));
+    const st = g.w.id ? __UI_STATES[__busState.vars['ui-' + g.w.id + '-state']] : null;
+    if (st) g.el.dataset.st = st; else delete g.el.dataset.st;
+  }` : ''}
   for (const h of __hudEls) {
     const raw = __busState.vars[h.w.var], n = raw != null ? raw : 0;
     if (h.fill) {
@@ -122,8 +147,8 @@ function __syncHud(t, incoming) {
   if (log.length < __hudLogN) __hudLogN = 0;
   for (let i = __hudLogN; i < log.length; i++) {
     const ev = log[i]; if (!ev || !ev.type) continue;
-    for (const b of __hudBanners) if (__hudGlob(ev.type, b.w.on)) { b.el.textContent = __hudSubst(b.w.text); b.el.classList.remove('moj-hidden'); b.until = (t || 0) + b.w.ttl * 1000; }
-    for (const tw of __hudToasts) if (tw.w.on && __hudGlob(ev.type, tw.w.on)) {
+    for (const b of __hudBanners) if (__hudGlob(ev.type, b.w.on)${on('b.w')}) { b.el.textContent = __hudSubst(b.w.text); b.el.classList.remove('moj-hidden'); b.until = (t || 0) + b.w.ttl * 1000; }
+    for (const tw of __hudToasts) if (tw.w.on && __hudGlob(ev.type, tw.w.on)${on('tw.w')}) {
       let src = null; const inc = incoming || [];   // the firing event's fields: the last incoming of that type this frame
       for (let k = inc.length - 1; k >= 0; k--) if (inc[k] && inc[k].type === ev.type) { src = inc[k]; break; }
       __hudToast(tw, __hudSubst(tw.w.text, { event: src || {} }), t, 0);
@@ -133,7 +158,7 @@ function __syncHud(t, incoming) {
   for (const tw of __hudToasts) if (tw.w.var) {   // the var toast: fires on change, seeds silently on the first frame
     const raw = __busState.vars[tw.w.var], v = typeof raw === 'number' ? raw : 0;
     if (tw.prev === null) tw.prev = v;
-    else if (v !== tw.prev) { const d = v - tw.prev; tw.prev = v; __hudToast(tw, __hudSubst(tw.w.text, { delta: fmtDelta(d), value: v }), t, d < 0 ? -1 : 1); }
+    else if (v !== tw.prev) { const d = v - tw.prev; tw.prev = v; ${gated ? 'if (__hudOn(tw.w)) ' : ''}__hudToast(tw, __hudSubst(tw.w.text, { delta: fmtDelta(d), value: v }), t, d < 0 ? -1 : 1); }
   }
   for (let i = __hudLive.length - 1; i >= 0; i--) {   // rise + fade on the frame clock, reap past ttl
     const l = __hudLive[i], p = Math.min(1, ((t || 0) - l.born) / (l.until - l.born || 1));

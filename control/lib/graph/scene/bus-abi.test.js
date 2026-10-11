@@ -30,8 +30,8 @@ describe('the bus contract', () => {
     });
     const { used, godot } = busCoverage(ev);
     for (const id of ['fact:use', 'fact:cast', 'effect:logic', 'effect:hud', 'effect:menus', 'effect:weather', 'effect:cast']) expect(used, id).toContain(id);
-    expect(godot.built).toEqual(expect.arrayContaining(['fact:use', 'effect:logic']));
-    expect(godot.partial).toEqual(expect.arrayContaining(['effect:hud', 'effect:menus']));
+    // the HUD and the menus are whole since kernel 0.14.0 (kernel/hud.gd, menus by pad and pointer)
+    expect(godot.built).toEqual(expect.arrayContaining(['fact:use', 'effect:logic', 'effect:hud', 'effect:menus']));
     expect(godot.built).toContain('fact:cast');
     expect(godot.partial).toContain('effect:cast');
     expect(godot.built).toContain('effect:weather');
@@ -48,12 +48,13 @@ describe('the bus contract', () => {
 
   it('rides the ledger and the portability flags', () => {
     const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], parts: [{ part: 'readout', id: 'gauge', bind: { var: 'hp' } }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: [{ open: 'sign' }, { hide: 'gauge' }] }] });
-    const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events });
-    expect(score.ledger.bus_carried.godot.absent).toEqual(['effect:parts']);
-    expect(score.ledger.bus_carried.godot.partial).toContain('effect:menus');
+    // a key bound to an event is what the kernel does not feed in yet (the parts a cue hides are drawn since 0.14.0)
+    const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events: { ...events, inputs: [{ key: 'KeyF', emit: 'flare' }] } });
+    expect(score.ledger.bus_carried.godot.absent).toEqual(['fact:input']);
+    expect(score.ledger.bus_carried.godot.built).toEqual(expect.arrayContaining(['effect:menus', 'effect:parts']));
     expect(score.menus.map((m) => m.id)).toEqual(['sign']);
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score }] });
-    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: effect:parts/);
+    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: fact:input/);
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
   });
 });

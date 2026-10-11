@@ -196,7 +196,7 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // spots are places like the map's anchors (and the stand points at their doors): a cue's zone, the cast's walks and spawns
   const stood = withStands(anchors || []), spots = readSpots(play), places = [...spots, ...stood];
   const cues = lowerCues(play, { anchors: [...spotAnchors(play), ...stood], player, places }) || {}, menus = lowerMenus(play, { places }) || {};
-  const hud = [...lowerParts(play.parts), ...(cues.hud || []), ...(menus.hud || [])];
+  const hud = [...lowerParts(play.parts, phasesOf(play)), ...(cues.hud || []), ...(menus.hud || [])];
   const out = hud.length ? { hud } : {};
   const stats = lowerStats(play);
   const vars = { ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };

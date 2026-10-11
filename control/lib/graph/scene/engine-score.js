@@ -13,7 +13,8 @@
 import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
-import { normalizeHud } from '@/lib/graph/game/hud-widgets';
+import { normalizeHud, styleTokens, STYLE_TOKENS, FONT_IDS } from '@/lib/graph/game/hud-widgets';
+import { cleanDials } from '@/lib/graph/playscape/ui/register';
 import { shineOptics } from '@/lib/graph/polygonizer/crystal-shine.js';
 import { crystalRigFor, rigForScore } from './crystal-rig.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
@@ -172,8 +173,16 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   };
   const hudWidgets = normalizeHud(payload.events?.hud).widgets;
   if (hudWidgets.length) {
-    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel paints its banners, toasts, readouts and legends as plain text (no slots, bars or style); otherwise the kernels paint their own readout from `mechanics`' };
+    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel draws them as the page does (kernel/hud.gd: slots, text / counter / bar / clock, banners, stacking toasts, legends, a part\'s show / hide / state and its phases) in the guide\'s tokens, font and frame and plate dials (`hudStyle`); the register\'s motion, sound, cursor and light stay the web\'s; without a bus the kernels paint their own readout from `mechanics`' };
   }
+  // the HUD's look (the guide's tokens resolved, its font's id, the register's dials) for an engine's HUD; absent a
+  // style and a register ⇒ no key (an engine draws the defaults, as the page does)
+  const evStyle = payload.events?.style, evReg = payload.events?.register;
+  const hudStyle = hudWidgets.length && (evStyle || evReg) ? {
+    ...Object.fromEntries(STYLE_TOKENS.map((k) => [k, styleTokens(evStyle)[k]])),
+    font: FONT_IDS.includes(evStyle?.font) ? evStyle.font : 'system',
+    ...(Object.keys(cleanDials(evReg)).length ? { register: cleanDials(evReg) } : {}),
+  } : null;
   // Units: a kind authored in other-than-metres (the floorplan: feet) declares
   // `metersPerUnit`; the GLB root scales by it, so every positional field here scales
   // too — the score and the mesh agree in metres. Absent ⇒ every field byte-identical.
@@ -319,6 +328,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // the HUD widget list (hud-widgets.js): slots / kinds / banners / legends as DATA, so an
     // engine arm can lay the readout out as authored. Absent rows ⇒ no key, byte-identical.
     ...(hudWidgets.length ? { hud: hudWidgets } : {}),
+    ...(hudStyle ? { hudStyle } : {}),
     // the menus a world's play declares (playscape/ui/menus.js menuPages: words and pick labels; the picks' effects
     // ride the bus), so an engine kernel draws the open one (ui-menu-<id> = 1) and sends its picks back. Absent ⇒ no key.
     ...(Array.isArray(payload.events?.menus) && payload.events.menus.length ? { menus: payload.events.menus } : {}),

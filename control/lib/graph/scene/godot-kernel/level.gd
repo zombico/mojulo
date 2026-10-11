@@ -22,6 +22,7 @@ const WalkerScript := preload("res://kernel/walker.gd")
 const WeatherScript := preload("res://kernel/weather.gd")
 const BusScript := preload("res://kernel/bus.gd")
 const CastScript := preload("res://kernel/cast.gd")
+const HudScript := preload("res://kernel/hud.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
 const HAZARD_COOLDOWN := 0.8
 
@@ -70,9 +71,9 @@ var bus_uses: Dictionary = {}        # zone → {id, prompt}: a cue's usable pla
 var bus_reach: Array = []            # the usable zones the walker stands in, the last entered on top
 var bus_interact := false            # E since the last frame
 var bus_seen := 0                    # log entries already announced
-var bus_hud: Label = null            # readouts and legends
-var bus_banner: Label = null         # the last banner, until its ttl
-var bus_banner_left := 0.0
+var hud_ui = null                    # kernel/hud.gd: the score's HUD widgets, gated by the parts' vars and the phase
+var bus_clock := 0.0                 # the bus's own time (the HUD's ttls and toasts run on it)
+var bus_incoming: Array = []         # the frame's incoming events (an event toast reads its fields)
 var bus_prompt: Label = null
 # THE CONTRACT (since 0.9.0): levels/<ref>/contract.json, the level's game contract as the web shell reads it. Its `on`
 # maps bus events to typed store events (kept for the outcome) or ends the level; its `chapters` name the flags whose
@@ -88,7 +89,10 @@ var menu_open = null
 var menu_focus := 0
 var menu_page := 0
 var menu_panel: PanelContainer = null
-var menu_label: Label = null
+var menu_label: Label = null        # unused since 0.14.0 (the menu is a column of rows: menu_rows); kept for scripts that read it
+var menu_rows: VBoxContainer = null
+var menu_sig := ""
+var menu_mouse := -1                 # the mouse mode a menu found, given back when it closes
 # THE CAST (since 0.11.0): bus.json's cast rows, run by kernel/cast.gd (the web's character world, ported): the bus's
 # ctrl ops in, the characters' happenings (down, gone, spawned, arrive, stuck, faded) out as facts; each character's
 # node follows its row (shown or not, where it stands, its heading, lying when felled, its statuses worn as looks).
@@ -723,7 +727,10 @@ func _dump(tag: String) -> void:
 			rows.append("%s:%s%s(%.2f,%.2f)%s" % [e["id"], "gone" if e["gone"] else "here", ":down" if e["downed"] else "", e["pos"][0], e["pos"][1], (":hp%d" % int(e["hp"])) if e.has("hp") else ""])
 		print("[mojulo-cast] %s %s" % [tag, " ".join(rows)])
 	if bus != null:
-		print("[mojulo-bus] %s events=%d vars=%s menu=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), ("%s:%d" % [s_(menu_open["id"]), menu_focus]) if menu_open != null else "", bus_banner.text if bus_banner != null and bus_banner.visible else ""])
+		print("[mojulo-bus] %s events=%d vars=%s menu=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), ("%s:%d" % [s_(menu_open["id"]), menu_focus]) if menu_open != null else "", hud_ui.banner_text() if hud_ui != null else ""])
+		print("[mojulo-hud] %s %s" % [tag, hud_ui.dump() if hud_ui != null else ""])
+		if menu_open != null:
+			print("[mojulo-menu] %s %s" % [tag, menu_text()])
 	for fp in figure_players:
 		var n: Node3D = fp["node"]
 		var np := n.global_position
@@ -1072,28 +1079,34 @@ func _build_bus() -> void:
 		if src is Dictionary and src.get("type") == "zone" and src.has("use"):
 			bus_uses[src["zone"]] = {"id": s_(src["use"]), "prompt": s_(src.get("prompt", ""))}
 	var layer := CanvasLayer.new()
-	bus_hud = Label.new()
-	bus_hud.position = Vector2(16, 44)
-	bus_hud.add_theme_font_size_override("font_size", 18)
-	bus_banner = Label.new()
-	bus_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	bus_banner.position.y = 72
-	bus_banner.add_theme_font_size_override("font_size", 30)
-	bus_banner.visible = false
+	hud_ui = HudScript.new()
+	hud_ui.build(layer, score.get("hud", []) if score.get("hud") is Array else [], score.get("hudStyle", {}) if score.get("hudStyle") is Dictionary else {}, bus)
 	bus_prompt = Label.new()
-	bus_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	bus_prompt.position.y = -72
+	bus_prompt.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bus_prompt.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bus_prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 64)
+	bus_prompt.add_theme_stylebox_override("normal", hud_ui.plate_style())
 	bus_prompt.add_theme_font_size_override("font_size", 18)
+	bus_prompt.add_theme_font_override("font", hud_ui.font(600))
+	bus_prompt.add_theme_color_override("font_color", hud_ui.tok["ink"])
 	bus_prompt.visible = false
+	# the web's menu: centred over the HUD, 300 px wide, on the solid panel colour
 	menu_panel = PanelContainer.new()
-	menu_panel.set_anchors_preset(Control.PRESET_CENTER)
-	menu_panel.custom_minimum_size = Vector2(340, 0)
+	menu_panel.custom_minimum_size = Vector2(300, 0)
+	menu_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	menu_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	menu_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	var solid: StyleBoxFlat = hud_ui.plate_style()
+	solid.bg_color = hud_ui.tok["panel"]
+	solid.content_margin_top = 12
+	solid.content_margin_bottom = 12
+	menu_panel.add_theme_stylebox_override("panel", solid)
 	menu_panel.visible = false
 	menu_label = Label.new()
-	menu_label.add_theme_font_size_override("font_size", 18)
-	menu_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	menu_panel.add_child(menu_label)
-	for n in [bus_hud, bus_banner, bus_prompt, menu_panel]:
+	menu_rows = VBoxContainer.new()
+	menu_rows.add_theme_constant_override("separation", 4)
+	menu_panel.add_child(menu_rows)
+	for n in [bus_prompt, menu_panel]:
 		layer.add_child(n)
 	add_child(layer)
 	_start_bus()
@@ -1134,6 +1147,8 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	bus_zone_prev = z["prev"]
 	var incoming: Array = bus_pending + z["events"]
 	bus_pending = []
+	bus_incoming = incoming
+	bus_clock += minf(delta, 0.05)
 	if cast != null:
 		var me = cast_state["byId"].get(who if who != "" else "player")
 		if me != null:
@@ -1168,10 +1183,11 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	_sync_weather()
 
 
-# announce the new events, fire the score's banners and toasts on them, refresh the readouts
-func _drain_bus(delta: float) -> void:
+# announce the new events, map them through the contract, and hand the HUD the frame (its banners and toasts fire on
+# the log's new events; its readouts and gates read the vars)
+func _drain_bus(_delta: float) -> void:
 	var log: Array = bus_state["log"]
-	var widgets: Array = score.get("hud", []) if score.get("hud") is Array else []
+	var from := bus_seen
 	var on: Dictionary = contract.get("on", {}) if contract.get("on") is Dictionary else {}
 	var end_with := ""
 	for i in range(bus_seen, log.size()):
@@ -1191,33 +1207,14 @@ func _drain_bus(delta: float) -> void:
 			elif act is Dictionary and act.has("end") and end_with == "":
 				end_with = String(act["end"])
 			break
-		for w in widgets:
-			if w is Dictionary and (w.get("kind") == "banner" or w.get("kind") == "toast") and w.has("on") and bus.glob(e["type"], w["on"]):
-				bus_banner.text = s_(w.get("text"))
-				bus_banner.visible = true
-				bus_banner_left = float(w.get("ttl", 2.0)) if w.get("ttl") != null else 2.0
 	bus_seen = log.size()
 	if end_with != "" and state == "playing":
 		if end_with == "success":
 			_complete()
 		else:
 			_fail(end_with)
-	if bus_banner_left > 0.0:
-		bus_banner_left -= delta
-		if bus_banner_left <= 0.0:
-			bus_banner.visible = false
-	var rows: Array = []
-	for w in widgets:
-		if not (w is Dictionary):
-			continue
-		if w.has("var") and w.get("kind") != "toast":
-			var v = bus_state["vars"].get(w["var"])
-			rows.append("%s %s" % [s_(w.get("label", w["var"])).to_upper(), bus.num_str(float(v)) if bus.is_num(v) else bus.js_string(v) if v != null else "-"])
-		elif w.get("kind") == "legend":
-			rows.append(s_(w.get("text")))
-	var text := "\n".join(rows)
-	if bus_hud.text != text:
-		bus_hud.text = text
+	if hud_ui != null:
+		hud_ui.sync(bus_state["vars"], log, from, bus_incoming, bus_clock)
 
 
 func _build_cast() -> void:
@@ -1342,6 +1339,12 @@ func _sync_menus() -> void:
 				for i in lines.size():
 					line_requested.emit(s_(lines[i].get("who")), s_(lines[i].get("say")), s_(open["id"]), i)
 	walker.frozen = menu_open != null
+	if menu_open != null and menu_mouse < 0:
+		menu_mouse = Input.mouse_mode
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif menu_open == null and menu_mouse >= 0:
+		Input.mouse_mode = menu_mouse
+		menu_mouse = -1
 	_draw_menu()
 
 
@@ -1378,61 +1381,134 @@ func menu_do(action: String) -> void:
 	_draw_menu()
 
 
-# the open menu as plain text, its {var} words filled from the bus (no UI guide yet: see the README)
+# the open menu as a column on the HUD's plate: its words, then a row per choice (a click picks it, the pointer focuses
+# it); its {var} words filled from the bus, as the web's menu does
+func _menu_entries(m: Dictionary) -> Array:
+	var out: Array = []   # [text, row index or -1]
+	if s_(m.get("title")) != "":
+		out.append([s_(m["title"]).to_upper(), -1])
+	match String(m.get("kind", "")):
+		"read":
+			var pages: Array = m.get("pages", [])
+			var p := mini(menu_page, pages.size() - 1)
+			out.append([s_(pages[p]), -1])
+			out.append(["%d / %d · %s" % [p + 1, pages.size(), "next ▸" if p + 1 < pages.size() else "close"] if pages.size() > 1 else "close", -1])
+		"talk":
+			for l in (m.get("lines", []) as Array).slice(0, 3):
+				out.append([("%s: " % s_(l.get("who")) if s_(l.get("who")) != "" else "") + s_(l.get("say")), -1])
+		"confirm":
+			out.append([s_(m.get("ask")), -1])
+		"shop":
+			var stock: Array = m.get("stock", [])
+			for i in stock.size():
+				out.append(["%s  %s" % [s_(stock[i].get("item")), bus.js_string(stock[i].get("price"))], i])
+			out.append([s_(m.get("currency")), -1])
+		"chest":
+			var holds: Array = m.get("holds", [])
+			for i in holds.size():
+				out.append(["%s  ×%s" % [s_(holds[i].get("item")), bus.js_string(holds[i].get("count", 1))], i])
+		"save":
+			for i in _menu_count(m):
+				out.append(["Slot %d" % (i + 1), i])
+		"list":
+			var rows: Array = m.get("rows", [])
+			for i in rows.size():
+				var v = bus_state["vars"].get(rows[i].get("var"))
+				out.append(["%s  %s" % [s_(rows[i].get("label")), bus.js_string(v) if v != null else "0"], i])
+		"map":
+			out.append(["(the map)", -1])
+	if m.get("picks") is Array:
+		var picks: Array = m["picks"]
+		for i in picks.size():
+			out.append([s_(picks[i]), i])
+	var rx := RegEx.new()
+	rx.compile("\\{([^}]+)\\}")
+	for e in out:
+		for hit in rx.search_all(e[0]):
+			var v = bus_state["vars"].get(hit.get_string(1))
+			e[0] = (e[0] as String).replace(hit.get_string(0), bus.js_string(v) if v != null else "0")
+	return out
+
+
+func _menu_row_style(on: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	var a: Color = hud_ui.tok["accent"]
+	sb.bg_color = Color(a.r, a.g, a.b, 0.22) if on else Color(0, 0, 0, 0)
+	sb.border_color = a
+	sb.border_width_left = 3 if on else 0
+	sb.set_corner_radius_all(3)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+
 func _draw_menu() -> void:
 	if menu_panel == null:
 		return
 	var m = menu_open
 	menu_panel.visible = m != null
 	if m == null:
+		menu_sig = ""
 		return
-	var lines: Array = []
-	if s_(m.get("title")) != "":
-		lines.append(s_(m["title"]).to_upper())
-	var mark := func(i: int, text: String) -> String: return ("▸ " if i == menu_focus else "   ") + text
-	match String(m.get("kind", "")):
-		"read":
-			var pages: Array = m.get("pages", [])
-			var p := mini(menu_page, pages.size() - 1)
-			lines.append(s_(pages[p]))
-			lines.append("%d / %d · %s" % [p + 1, pages.size(), "next ▸" if p + 1 < pages.size() else "close"] if pages.size() > 1 else "close")
-		"talk":
-			for l in (m.get("lines", []) as Array).slice(0, 3):
-				lines.append(("%s: " % s_(l.get("who")) if s_(l.get("who")) != "" else "") + s_(l.get("say")))
-		"confirm":
-			lines.append(s_(m.get("ask")))
-		"shop":
-			var stock: Array = m.get("stock", [])
-			for i in stock.size():
-				lines.append(mark.call(i, "%s  %s" % [s_(stock[i].get("item")), bus.js_string(stock[i].get("price"))]))
-			lines.append(s_(m.get("currency")))
-		"chest":
-			var holds: Array = m.get("holds", [])
-			for i in holds.size():
-				lines.append(mark.call(i, "%s  ×%s" % [s_(holds[i].get("item")), bus.js_string(holds[i].get("count", 1))]))
-		"save":
-			for i in _menu_count(m):
-				lines.append(mark.call(i, "Slot %d" % (i + 1)))
-		"list":
-			var rows: Array = m.get("rows", [])
-			for i in rows.size():
-				var v = bus_state["vars"].get(rows[i].get("var"))
-				lines.append(mark.call(i, "%s  %s" % [s_(rows[i].get("label")), bus.js_string(v) if v != null else "0"]))
-		"map":
-			lines.append("(the map)")
-	if m.get("picks") is Array:
-		var picks: Array = m["picks"]
-		for i in picks.size():
-			lines.append(mark.call(i, s_(picks[i])))
-	var text := "\n".join(lines)
-	# {var} fills from the bus, as the web's menu does
-	var rx := RegEx.new()
-	rx.compile("\\{([^}]+)\\}")
-	for hit in rx.search_all(text):
-		var v = bus_state["vars"].get(hit.get_string(1))
-		text = text.replace(hit.get_string(0), bus.js_string(v) if v != null else "0")
-	if menu_label.text != text:
-		menu_label.text = text
+	var entries := _menu_entries(m)
+	var sig := str(entries)
+	if sig != menu_sig:
+		menu_sig = sig
+		for c in menu_rows.get_children():
+			menu_rows.remove_child(c)
+			c.queue_free()
+		var ink: Color = hud_ui.tok["ink"]
+		for e in entries:
+			var i: int = e[1]
+			if i < 0:
+				var l := Label.new()
+				l.text = e[0]
+				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				l.add_theme_font_override("font", hud_ui.font(500))
+				l.add_theme_font_size_override("font_size", 18)
+				l.add_theme_color_override("font_color", ink)
+				menu_rows.add_child(l)
+				continue
+			var b := Button.new()
+			b.text = e[0]
+			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			b.focus_mode = Control.FOCUS_NONE   # the level's keys and pad move the focus, not Godot's GUI focus
+			b.add_theme_font_override("font", hud_ui.font(600))
+			b.add_theme_font_size_override("font_size", 18)
+			for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+				b.add_theme_color_override(c, ink)
+			b.set_meta("row", i)
+			b.mouse_entered.connect(_menu_hover.bind(i))
+			b.pressed.connect(_menu_click.bind(i))
+			menu_rows.add_child(b)
+	for c in menu_rows.get_children():
+		if c is Button:
+			var on: bool = int(c.get_meta("row")) == menu_focus
+			for k in ["normal", "hover", "pressed"]:
+				c.add_theme_stylebox_override(k, _menu_row_style(on))
+
+
+func _menu_hover(i: int) -> void:
+	if menu_focus != i:
+		menu_focus = i
+		_draw_menu()
+
+
+func _menu_click(i: int) -> void:
+	menu_focus = i
+	menu_do("accept")
+
+
+# what the open menu shows, for the probes: its rows, the focused one marked
+func menu_text() -> String:
+	if menu_open == null:
+		return ""
+	var out := []
+	for e in _menu_entries(menu_open):
+		out.append(("▸ " if e[1] == menu_focus else "  ") + e[0] if e[1] >= 0 else e[0])
+	return " / ".join(out)
 
 
 func _banner(text: String, color: Color) -> void:
@@ -1504,6 +1580,30 @@ func _reset() -> void:
 			_build_cast()
 		_start_bus()
 	_update_hud()
+
+
+# a gamepad on an open menu: the d-pad or the left stick moves, A (or start) accepts, B (or back) closes
+var menu_stick := 0
+func _unhandled_input(event: InputEvent) -> void:
+	if menu_open == null:
+		return
+	var act := ""
+	if event is InputEventJoypadButton and event.pressed:
+		match event.button_index:
+			JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_LEFT: act = "up"
+			JOY_BUTTON_DPAD_DOWN, JOY_BUTTON_DPAD_RIGHT: act = "down"
+			JOY_BUTTON_A, JOY_BUTTON_START: act = "accept"
+			JOY_BUTTON_B, JOY_BUTTON_BACK: act = "back"
+	elif event is InputEventJoypadMotion and event.axis == JOY_AXIS_LEFT_Y:
+		# the stick moves one row per push past half way
+		var dir := 1 if event.axis_value > 0.5 else -1 if event.axis_value < -0.5 else 0
+		if dir != 0 and dir != menu_stick:
+			act = "down" if dir > 0 else "up"
+		menu_stick = dir
+	if act == "":
+		return
+	menu_do(act)
+	get_viewport().set_input_as_handled()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

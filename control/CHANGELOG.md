@@ -130,6 +130,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `game/` is the developer's: a re-mint keeps it whole, and writes its seed `game/hooks.gd` only when it is missing.
     The kernel attaches `game/hooks.gd` to every level.
   - Both pack READMEs say which part of the folder is theirs.
+- **Parts a cue shows or hides, and phases, on the page.** A cue's `show`, `hide`, `state` and `phase` set bus vars
+  that nothing drew. Now a part keeps its `id` on its HUD row, and its `when` rides as phase indices; the page hides a
+  row while its part is hidden or out of phase, and draws its state (disabled, alert, focus, active). A hidden banner
+  or toast does not fire. A HUD without ids or phases emits the same bytes as before.
+- **The HUD in Godot (kernel 0.14.0).** `kernel/hud.gd` draws the page's widgets: a column per slot, readouts as text,
+  counters, bars or clocks, banners with their `{var}` words, toasts that stack and rise, legends that fade. It gates
+  parts and phases as the page does. The score's new `hudStyle` (only when the world declares a look) carries the
+  guide's colours, its font and the register's frame and plate; motion, sound, cursor and light stay the web's.
+  - Menus sit centred on the guide's panel, a row per choice. Keys, a gamepad (d-pad or stick, A, B) and the
+    pointer drive them; the mouse is freed while one is open.
+  - The reach prompt sits centred on the same plate.
+  - In a headless Godot, a bell rung at a place hides its hint, restates the purse to alert, fills a banner from a
+    var and raises the gold's change as a toast. The mayor's talk is picked by keys, a pad and a click alike.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The

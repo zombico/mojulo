@@ -11,6 +11,10 @@
  *            { var, as: 'toast', text?: '{delta}', slot?, ttl?, color? }     — fires when the var changes
  *   legend   { text, slot?: 'bottom', ttl? }
  *
+ * Any row may carry `id` (a part's: a cue shows, hides or restates it through the bus vars ui-<id> = 0 | 1 and
+ * ui-<id>-state = a UI_STATES index) and `when` (the phase indices it stands in: the bus var `phase`). The page draws
+ * a gated row only while both allow it; a hidden banner or toast does not fire.
+ *
  * A toast is the damage number: each firing is its own rising, fading element (banners replace,
  * toasts queue). The event form substitutes `{event.<field>}` from the firing event (a
  * `hitConfirm({ damage })` shot carries `damage` + `target`); the var form substitutes `{delta}`
@@ -148,11 +152,15 @@ export function normalizeHud(rows) {
     const slot = slotGiven && HUD_SLOTS.includes(r.slot) ? r.slot : null;
     const ttlBad = r.ttl !== undefined && !(Number.isFinite(r.ttl) && r.ttl > 0);
     const ttl = (dflt) => (Number.isFinite(r.ttl) && r.ttl > 0 ? r.ttl : dflt);
+    // the gate: a part's id (its ui-<id> vars) and the phases it stands in
+    if (r.id !== undefined && !(isStr(r.id) && /^[a-z][a-z0-9-]*$/.test(r.id))) errors.push(`${where}.id is a lower-case word (a cue names a part by it)`);
+    if (r.when !== undefined && !(Array.isArray(r.when) && r.when.every((k) => Number.isInteger(k) && k >= 0))) errors.push(`${where}.when is a list of phase indices`);
+    const gate = { id: isStr(r.id) && /^[a-z][a-z0-9-]*$/.test(r.id) ? r.id : undefined, when: Array.isArray(r.when) && r.when.every((k) => Number.isInteger(k) && k >= 0) ? [...r.when] : undefined };
 
     if (isStr(r.var) && r.as === 'toast') {   // the var toast: its own widget, never merged with the readout
       if (r.text !== undefined && !isStr(r.text)) errors.push(`${where}.text must be a string (default '{delta}')`);
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
-      widgets.push({ kind: 'toast', var: r.var, text: isStr(r.text) ? r.text : '{delta}', slot: slot || 'center', ttl: ttl(TOAST_TTL), color: isHudColor(r.color) ? r.color : undefined });
+      widgets.push({ kind: 'toast', var: r.var, text: isStr(r.text) ? r.text : '{delta}', slot: slot || 'center', ttl: ttl(TOAST_TTL), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
     if (isStr(r.var)) {
@@ -167,10 +175,11 @@ export function normalizeHud(rows) {
         slot, as: kind !== null && HUD_KINDS.includes(kind) ? kind : null,
         max: r.max !== undefined ? r.max : undefined,
         color: isHudColor(r.color) ? r.color : undefined,
+        ...gate,
       };
       const prev = byVar.get(r.var);
       if (prev) {   // merge: first declared wins per field, later rows fill the gaps
-        for (const k of ['label', 'slot', 'as', 'max', 'color']) {
+        for (const k of ['label', 'slot', 'as', 'max', 'color', 'id', 'when']) {
           if ((prev[k] === undefined || prev[k] === null) && fields[k] !== undefined && fields[k] !== null) prev[k] = fields[k];
         }
         return;
@@ -185,12 +194,12 @@ export function normalizeHud(rows) {
       if (!isStr(r.text)) errors.push(`${where}: a ${kind === 'toast' ? 'toast' : 'banner'} needs text (shown when the bus emits '${r.on}')`);
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
       const k = MOMENT_KINDS.includes(kind) ? kind : 'banner';
-      widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined });
+      widgets.push({ kind: k, on: r.on, text: isStr(r.text) ? r.text : '', slot: slot || 'center', ttl: ttl(k === 'toast' ? TOAST_TTL : 2), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
     if (isStr(r.text)) {
       if (ttlBad) errors.push(`${where}.ttl must be a positive number of seconds`);
-      widgets.push({ kind: 'legend', text: r.text, slot: slot || 'bottom', ttl: ttl(null), color: isHudColor(r.color) ? r.color : undefined });
+      widgets.push({ kind: 'legend', text: r.text, slot: slot || 'bottom', ttl: ttl(null), color: isHudColor(r.color) ? r.color : undefined, ...gate });
       return;
     }
     errors.push(`${where} must be a readout { var, label? }, a banner { on, text } or a legend { text }`);
@@ -199,7 +208,7 @@ export function normalizeHud(rows) {
   const out = widgets.map((w) => {
     if (w.kind !== 'readout') return strip(w);
     const as = w.as || 'text';
-    return strip({ kind: 'readout', var: w.var, label: w.label !== undefined ? w.label : w.var, slot: w.slot || 'top-left', as, max: w.max, color: w.color });
+    return strip({ kind: 'readout', var: w.var, label: w.label !== undefined ? w.label : w.var, slot: w.slot || 'top-left', as, max: w.max, color: w.color, id: w.id, when: w.when });
   });
   return { widgets: out, errors };
 }

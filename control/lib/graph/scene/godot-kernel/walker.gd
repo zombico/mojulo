@@ -70,12 +70,12 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not frozen:
 		rotate_y(-event.relative.x * MOUSE_SENS)
 		if pitch_node != null:
 			pitch_node.rotate_x(-event.relative.y * MOUSE_SENS)
 			pitch_node.rotation.x = clampf(pitch_node.rotation.x, -1.5, 1.5)
-	elif event is InputEventMouseButton and event.pressed:
+	elif event is InputEventMouseButton and event.pressed and not frozen:   # a click on an open menu is the menu's
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

@@ -47,7 +47,7 @@ describe('the bus beside the score', () => {
     const readme = emitGodotProject({ ref: 'town', score: s, manifestHash: 'h', kernelVersion: '0.8.0' }).files.find((f) => f.file === 'README.md').text;
     expect(readme).toContain('## Behaviour');
     expect(readme).toMatch(/- performed: `fact:use`, `fact:menu`, `effect:logic`/);
-    expect(readme).toMatch(/- in part: `effect:hud`, `effect:menus`/);
+    expect(readme).toMatch(/- performed: `fact:use`, `fact:menu`, `effect:logic`, `effect:hud`, `effect:menus`/);
     expect(readme).toContain('$Level.bus_event.connect(');
     const plain = emitGodotProject({ ref: 'r', score: extractEngineScore({ ref: 'r', manifest: {} }, { entities }), manifestHash: 'h', kernelVersion: '0.8.0' }).files.find((f) => f.file === 'README.md').text;
     expect(plain).not.toContain('## Behaviour');
@@ -90,6 +90,70 @@ describe('the kernel runs it', () => {
       expect(lines[3]).toMatch(/"guard":"armed"/);
       expect(lines[3]).toMatch(/"ui-menu-mayor":0/);
       expect(lines[3]).toMatch(/menu= /);
+      // the menu as drawn: the talk's words, then its rows, the focused one marked
+      expect(out).toMatch(/^\[mojulo-menu\] after Mayor: \[mayor: warning heard\] \/ ▸ Ring the bell \/   Arm the guard$/m);
+      // a gamepad (the d-pad and A, as input events) and the pointer (the row's button) pick the same choice
+      for (const how of ['pad', 'click']) {
+        const o = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '4', '0', '30', how], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        const last = o.split('\n').filter((l) => l.startsWith('[mojulo-bus]')).at(-1);
+        expect(last, how).toMatch(/"guard":"armed"/);
+        expect(last, how).toMatch(/"ui-menu-mayor":0/);
+      }
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// the HUD (kernel 0.14.0): the page's widgets in their slots and the guide's look; a cue hides a part, restates one,
+// moves the phase, and a banner and a toast fire on the bus
+const HUD_PLAY = {
+  phases: ['title', 'playing', 'won'],
+  parts: [
+    { part: 'readout', id: 'purse', variant: 'bar', bind: { var: 'gold' }, at: 'bottom-left', label: 'Gold', max: 10, color: 'value' },
+    { part: 'readout', variant: 'clock', bind: { var: 'time' }, at: 'top', label: 'Time' },
+    { part: 'readout', variant: 'counter', bind: { var: 'bells' }, at: 'top-right', label: 'Bells' },
+    { part: 'legend', id: 'hint', text: 'Ring the bell', at: 'bottom' },
+    { part: 'legend', text: 'Press start', when: ['title'] },
+    { part: 'banner', bind: { on: 'cue:ring' }, text: 'Rung {bells}', when: ['playing'] },
+    { part: 'toast', bind: { var: 'gold' }, at: 'top-right' },
+  ],
+  cues: [
+    { id: 'go', when: { start: true }, then: [{ phase: 'playing' }, { set: 'gold', to: 3 }, { set: 'time', to: 75 }] },
+    { id: 'ring', when: { use: { at: [4, 0], r: 1.5 }, prompt: 'ring' }, then: [{ hide: 'hint' }, { set: 'bells', to: 1 }, { state: 'purse', to: 'alert' }, { set: 'gold', to: 7 }] },
+  ],
+};
+const hudTown = () => {
+  const events = lowerPlay({ entities, play: HUD_PLAY }, { player: 'hero' });
+  return { entities, events: { ...events, style: { accent: '#ff8800', font: 'serif' }, register: { frame: 'rule', plate: 'solid', motion: 'snap' } } };
+};
+
+describe('the HUD travels', () => {
+  it('the score carries the widgets with their gates and the HUD\'s look; no look declared, no key', () => {
+    const s = extractEngineScore({ ref: 'hud', manifest: {} }, hudTown());
+    expect(s.hud.find((w) => w.id === 'hint')).toMatchObject({ kind: 'legend', slot: 'bottom' });
+    expect(s.hud.find((w) => w.text === 'Press start')).toMatchObject({ when: [0] });
+    expect(s.hudStyle).toMatchObject({ accent: '#ff8800', ink: '#ffffff', font: 'serif', register: { frame: 'rule', plate: 'solid', motion: 'snap' } });
+    expect(extractEngineScore({ ref: 'hud', manifest: {} }, town())).not.toHaveProperty('hudStyle');
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot draws it, and the cue moves it (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-hud-'));
+    try {
+      const payload = hudTown();
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="hud-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'hud', manifest: {} }, payload), null, 2));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload)));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-bus-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '4', '0'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(out).not.toMatch(/SCRIPT ERROR|Parse Error/);
+      const hud = Object.fromEntries(out.split('\n').filter((l) => l.startsWith('[mojulo-hud]')).map((l) => { const [, tag, ...rest] = l.split(' '); return [tag, rest.join(' ').split(' | ')]; }));
+      // the start: the phase is playing (the title's legend is down), the hint stands, the bar, the clock, the counter
+      expect(hud.start).toEqual(['bottom-left:readout#purse:Gold=3/10', 'top:readout:Time=1:15', 'top-right:readout:Bells=0', 'bottom:legend#hint:Ring the bell']);
+      // rung: the hint goes, the purse is restated to alert, the banner fills its var, the gold's change rises
+      expect(hud.after).toEqual(['bottom-left:readout#purse:Gold=7/10@alert', 'top:readout:Time=1:15', 'top-right:readout:Bells=1', 'center:banner:Rung 1', 'top-right:toast:+4']);
+      expect(out).toMatch(/\[mojulo-bus\] after .* banner=Rung 1$/m);
     } finally {
       if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -117,7 +181,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.13.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.14.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
