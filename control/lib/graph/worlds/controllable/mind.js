@@ -33,8 +33,12 @@
 export function buildMind(E) {
   const {
     clamp, fwdXY, rightXY, fwd3, TAU, sightBlocked, resolveBlocking, RULES,
-    meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, armSwitchReady, navPath, navClear,
+    meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, registerNormalize, armSwitchReady, navPath, navClear,
   } = E;
+
+  // entity dressing: a body tagged `food: true` is what a forager grazes (absent → no field: every other world is
+  // byte-identical)
+  registerNormalize((ent, raw) => { if (raw.food === true) ent.food = true; });
 
   // ── TUNING ────────────────────────────────────────────────────────────────────────────
   const MIND_SKILL = {
@@ -215,7 +219,8 @@ export function buildMind(E) {
   // itself (a free-for-all: the pilot is one more contender). `'enemy'`: the same, skipping its own team. Nearest by
   // flat distance, ties by entity order; downed wrecks and i-frame bodies are skipped, so a fresh respawn keeps its
   // protection window.
-  function pickTarget(e, world, policy) {
+  // `skip` is one body never to target (an escort's ward).
+  function pickTarget(e, world, policy, skip) {
     let target = null;
     if (world && world.byId) {
       if (policy === 'all' || policy === 'enemy') {
@@ -224,13 +229,13 @@ export function buildMind(E) {
         let bd = Infinity;
         for (const id in world.byId) {
           const o = world.byId[id];
-          if (o === e || o.isCamera || o.downed || o.invincible || !(o.body && o.body.hittable)) continue;
+          if (o === e || o === skip || o.isCamera || o.downed || o.invincible || !(o.body && o.body.hittable)) continue;
           if (teamAware && o.team && o.team === e.team) continue;   // TEAM: never hunt an ally
           const ddx = o.transform.pos[0] - t.pos[0], ddy = o.transform.pos[1] - t.pos[1];
           const dd = ddx * ddx + ddy * ddy;
           if (dd < bd) { bd = dd; target = o; }
         }
-      } else if (world.pilotId) target = world.byId[world.pilotId];
+      } else if (world.pilotId && world.byId[world.pilotId] !== skip) target = world.byId[world.pilotId];
     }
     return target;
   }
@@ -338,13 +343,107 @@ export function buildMind(E) {
     return true;
   }
   // a guard's post: `rule.post`, else where it was placed
-  const postOf = (e, r) => (Array.isArray(r.post) ? r.post : e.spawn ? e.spawn.pos : e.transform.pos);
-  // returnToPost(e, r, dt, world) — walk back to the post and stand there (LOST, for a guard)
+  // An ESCORT's post is its ward: `rule.escort` (an id), else the nearest ally on its team, else the pilot.
+  function wardOf(e, r, world) {
+    if (!world || !world.byId) return null;
+    if (r.escort && world.byId[r.escort]) return world.byId[r.escort];
+    if (e.team) {
+      let best = null, bd = Infinity;
+      for (const id in world.byId) {
+        const o = world.byId[id];
+        if (o === e || o.isCamera || o.team !== e.team) continue;
+        const d = Math.hypot(o.transform.pos[0] - e.transform.pos[0], o.transform.pos[1] - e.transform.pos[1]);
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (best) return best;
+    }
+    const p = world.pilotId ? world.byId[world.pilotId] : null;
+    return p && p !== e ? p : null;
+  }
+  // home: `rule.post`, else where it was placed (kept the first time it is asked)
+  const homeOf = (e, r) => (Array.isArray(r.post) ? r.post : (e.home || (e.home = (e.spawn ? e.spawn.pos : e.transform.pos).slice())));
+  const postOf = (e, r, world) => {
+    if (r.mind && r.mind.motivation === 'escort') { const w = wardOf(e, r, world); if (w) return w.transform.pos; }
+    return Array.isArray(r.post) ? r.post : e.spawn ? e.spawn.pos : e.transform.pos;
+  };
+  // returnToPost(e, r, dt, world) — walk back to the post and stand there (LOST, for a guard; for an escort, back to
+  // within `followDist` (6) of its ward)
   function returnToPost(e, r, dt, world) {
-    const t = e.transform, p = postOf(e, r);
+    const t = e.transform, p = postOf(e, r, world);
     const dx = p[0] - t.pos[0], dy = p[1] - t.pos[1];
-    if (Math.hypot(dx, dy) <= (r.arrive ?? 1.5)) { e.moving = false; return; }
+    const arrive = r.mind && r.mind.motivation === 'escort' ? (r.followDist ?? 6) : (r.arrive ?? 1.5);
+    if (Math.hypot(dx, dy) <= arrive) { e.moving = false; return; }
     if (!navTo(e, r, dt, world, p, r.speed ?? 6)) walkToward(e, r, Math.atan2(dy, dx), dt, world, r.speed ?? 6);
+  }
+
+  // ── IDLE MOTION: what a mind does with no one to fight, by motivation ─────────────────────
+  // seeded per body (its id and a counter through an FNV-style hash): the same world wanders the same way every run
+  function hash01(id, n) {
+    const s = String(id) + ':' + n;
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+    return (h >>> 0) / 4294967296;
+  }
+  function goTo(e, r, dt, world, goal, speed) {
+    const t = e.transform;
+    if (!navTo(e, r, dt, world, goal, speed)) walkToward(e, r, Math.atan2(goal[1] - t.pos[1], goal[0] - t.pos[0]), dt, world, speed);
+  }
+  // wanderStep — WANDER: legs to seeded points within `wanderRadius` (12) of home at `wanderSpeedMul` (0.5) of its
+  // speed, a pause between legs (`pause` [lo, hi] s); during a pause it holds `pauseLoco` when one is given.
+  function wanderStep(e, r, dt, world, o) {
+    const t = e.transform, home = homeOf(e, r);
+    if (e.wanderPauseT > 0) { e.wanderPauseT -= dt; e.moving = false; if (o.pauseLoco) e.locomotion = o.pauseLoco; return; }
+    if (!e.wanderGoal) {
+      const n = e.wanderN = (e.wanderN || 0) + 1;
+      const a = hash01(e.id, 2 * n) * TAU, d = Math.sqrt(hash01(e.id, 2 * n + 1)) * (r.wanderRadius ?? 12);
+      e.wanderGoal = [home[0] + Math.cos(a) * d, home[1] + Math.sin(a) * d, home[2] || 0]; e.wanderLegT = 0;
+    }
+    const g = e.wanderGoal;
+    e.wanderLegT += dt;
+    if (Math.hypot(g[0] - t.pos[0], g[1] - t.pos[1]) < 1 || e.wanderLegT > 20) {
+      e.wanderGoal = null;
+      e.wanderPauseT = o.pause[0] + hash01(e.id, -e.wanderN) * (o.pause[1] - o.pause[0]);
+      e.moving = false; return;
+    }
+    goTo(e, r, dt, world, g, (r.speed ?? 6) * o.speedMul);
+  }
+  // grazeStep — FORAGE: the nearest food (a body with `food: true`) within `forageRadius` (20) of home it has not
+  // grazed in `regrow` s (30): walk there and graze (`locomotion: 'graze'`) for `grazeTime` (4 s). No food: drift
+  // slowly and graze in place between legs.
+  function grazeStep(e, r, dt, world) {
+    const t = e.transform, now = (world && world.time) || 0;
+    if (e.grazeT > 0) {
+      e.grazeT -= dt; e.moving = false; e.locomotion = 'graze';
+      if (e.grazeT <= 0 && e.grazeFood) { (e.grazed || (e.grazed = {}))[e.grazeFood] = now; e.grazeFood = null; }
+      return;
+    }
+    const home = homeOf(e, r);
+    let food = null, bd = Infinity;
+    if (world && world.byId) {
+      for (const id in world.byId) {
+        const o = world.byId[id];
+        if (o === e || !o.food || !o.transform) continue;
+        if (e.grazed && e.grazed[o.id] != null && now - e.grazed[o.id] < (r.regrow ?? 30)) continue;
+        const q = o.transform.pos;
+        if (Math.hypot(q[0] - home[0], q[1] - home[1]) > (r.forageRadius ?? 20)) continue;
+        const d = Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]);
+        if (d < bd) { bd = d; food = o; }
+      }
+    }
+    if (food) {
+      if (bd < 2) { e.grazeT = r.grazeTime ?? 4; e.grazeFood = food.id; e.moving = false; e.locomotion = 'graze'; return; }
+      goTo(e, r, dt, world, food.transform.pos, (r.speed ?? 6) * 0.6);
+      return;
+    }
+    wanderStep(e, r, dt, world, { speedMul: 0.35, pause: [4, 7], pauseLoco: 'graze' });
+  }
+  // idle(e, r, dt, world, motive) — IDLE by motivation; a mind without one stands
+  function idle(e, r, dt, world, motive) {
+    if (motive === 'guard' || motive === 'escort') return returnToPost(e, r, dt, world);
+    if (motive === 'wander' || motive === 'territorial') return wanderStep(e, r, dt, world, { speedMul: r.wanderSpeedMul ?? 0.5, pause: [r.wanderPause ?? 2, (r.wanderPause ?? 2) * 2] });
+    if (motive === 'forage') return grazeStep(e, r, dt, world);
+    e.moving = false;
   }
 
   // SPACING by the tool in hand: [standoffMul, close, weave]. Rush drives in and weaves little, siege holds back and
@@ -445,22 +544,35 @@ export function buildMind(E) {
     // hurt (its hp under the max it spawned with). Without `rule.mind` this never applies.
     const livePh = r.mind && e.mindPhase != null ? phasesOf(r.mind)[e.mindPhase] : null;
     const temper = r.mind && ((livePh && livePh.aggressiveness) || r.mind.aggressiveness);
-    if (temper === 'passive' || (temper === 'defensive' && !(e.hpMax > 0 && e.body && e.body.hp < e.hpMax))) { e.moving = false; e.reactionEnded = false; return; }
+    if (temper === 'passive' || (temper === 'defensive' && !(e.hpMax > 0 && e.body && e.body.hp < e.hpMax))) { e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
     // NOTICE.
-    let target = pickTarget(e, world, r.target);
+    const ward = motive === 'escort' ? wardOf(e, r, world) : null;
+    let target = pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
     const percept = r.mind && r.mind.perception;
     if (percept && target && target !== e && !perceive(e, r, target, world)) {
       target = null;
       if (percept === 'memory' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
     }
-    if (!target || target === e) { e.reactionEnded = false; if (motive === 'guard') returnToPost(e, r, dt, world); else e.moving = false; return; }
+    if (!target || target === e) { e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
     // GUARD: it holds its post. A target farther than `guardRadius` (20) from the post is not its business: it goes
     // back to the post (LOST: return-to-post) and stands there (IDLE: post).
-    if (motive === 'guard') {
-      const p = postOf(e, r);
+    if (motive === 'guard' || motive === 'escort') {
+      const p = postOf(e, r, world);
       if (Math.hypot(target.transform.pos[0] - p[0], target.transform.pos[1] - p[1]) > (r.guardRadius ?? 20)) {
         e.reactionEnded = false; e.aiClock = dif && dif.reactDelay ? -dif.reactDelay : 0;   // disengaged, like any mind
         returnToPost(e, r, dt, world);
+        return;
+      }
+    }
+    // TERRITORIAL: an intruder inside `territory` (16) of home is WARNED first (it faces them, `locomotion: 'warn'`,
+    // for `warnTime` 1.2 s), then attacked; outside the territory it is left alone and the mind idles.
+    if (motive === 'territorial') {
+      const home = homeOf(e, r), q = target.transform.pos;
+      if (Math.hypot(q[0] - home[0], q[1] - home[1]) > (r.territory ?? 16)) { e.warnFor = null; e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
+      if (e.warnFor !== target.id) { e.warnFor = target.id; e.warnT = 0; }
+      if (e.warnT < (r.warnTime ?? 1.2)) {
+        e.warnT += dt; turnToward(t, Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]), r, dt);
+        e.moving = false; e.locomotion = 'warn'; e.aiFire = 0; e.reactionEnded = false;
         return;
       }
     }

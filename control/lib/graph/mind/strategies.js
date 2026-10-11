@@ -19,14 +19,14 @@ export const STRATEGIES = Object.freeze({
   idle: [
     { id: 'post', line: 'holds its post', when: { motivation: ['guard'] }, status: 'built', lowers: MIND },
     { id: 'patrol', line: 'walks its waypoints', needs: ['route'], status: 'built', lowers: TUTORIAL },
-    { id: 'graze', line: 'wanders from food to food', when: { motivation: ['forage'] }, status: 'absent' },
-    { id: 'follow-ally', line: 'keeps to its ally', when: { motivation: ['escort'] }, status: 'absent' },
-    { id: 'wander', line: 'roams', when: { motivation: ['wander', 'territorial'] }, status: 'absent' },
+    { id: 'graze', line: 'wanders from food to food', when: { motivation: ['forage'] }, status: 'built', lowers: MIND },
+    { id: 'follow-ally', line: 'keeps to its ally', when: { motivation: ['escort'] }, status: 'built', lowers: MIND },
+    { id: 'wander', line: 'roams', when: { motivation: ['wander', 'territorial'] }, status: 'built', lowers: MIND },
     { id: 'stand', line: 'stays where it is', status: 'built', lowers: TUTORIAL },
   ],
   notice: [
     { id: 'flee', line: 'turns and runs inside its fear radius', when: { motivation: ['flee'] }, status: 'built', lowers: MIND },
-    { id: 'warn', line: 'warns before it attacks', when: { motivation: ['territorial'] }, status: 'absent' },
+    { id: 'warn', line: 'warns before it attacks', when: { motivation: ['territorial'] }, status: 'built', lowers: MIND },
     { id: 'open-fire', line: 'opens with fire, after its reaction time', needs: ['ranged'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
     { id: 'close-in', line: 'closes to blade range', needs: ['melee'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
     { id: 'ignore', line: 'pays it no mind', status: 'built' },

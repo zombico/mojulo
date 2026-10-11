@@ -333,3 +333,71 @@ describe('a mind sees, and remembers (MX7)', () => {
     expect(m.moving).toBe(false);
   });
 });
+
+describe('idle motion: wander, graze, escort, warn (MX8)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const gun = { fireClass: 'sight', magazine: 99, cooldown: 0.1, damage: 0, range: 200 };
+  const body = (hp = 60) => ({ type: 'mesh', hittable: true, hp, radius: 1 });
+  const player = (pos) => ({ id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: body(100), transform: { pos, heading: 0 } });
+  const steps = (w, n, each) => { for (let i = 0; i < n; i++) { E.stepWorld(w, {}, 1 / 60, hooks); if (each) each(i); } };
+
+  it('a wanderer roams within its radius of home, pausing, the same way every run', () => {
+    const make = () => E.createWorld({ entities: [player([500, 500, 0]),
+      { id: 'm', rule: { type: 'ai', speed: 4, turn: 4, wanderRadius: 10, mind: { motivation: 'wander', aggressiveness: 'passive' } }, body: body(), transform: { pos: [0, 0, 0], heading: 0 } }] });
+    const w = make(), b = make();
+    let far = 0, paused = 0;
+    steps(w, 60 * 30, () => { const p = w.byId.m.transform.pos; far = Math.max(far, Math.hypot(p[0], p[1])); if (!w.byId.m.moving) paused++; });
+    steps(b, 60 * 30);
+    expect(far).toBeGreaterThan(3);          // it went somewhere
+    expect(far).toBeLessThan(10 + 1);        // and stayed home
+    expect(paused).toBeGreaterThan(60);      // with pauses between legs
+    expect(b.byId.m.transform.pos).toEqual(w.byId.m.transform.pos);
+  });
+
+  it('a forager walks to food and grazes there; with no food it drifts and grazes in place', () => {
+    const w = E.createWorld({ entities: [player([500, 500, 0]),
+      { id: 'grass', food: true, rule: { type: 'static' }, transform: { pos: [12, 0, 0] } },
+      { id: 'm', rule: { type: 'ai', speed: 3, turn: 4, mind: { motivation: 'forage', aggressiveness: 'passive' } }, body: body(), transform: { pos: [0, 0, 0], heading: 0 } }] });
+    let grazedAt = null;
+    steps(w, 60 * 12, () => { if (!grazedAt && w.byId.m.locomotion === 'graze') grazedAt = w.byId.m.transform.pos.slice(); });
+    expect(grazedAt).not.toBeNull();
+    expect(Math.hypot(grazedAt[0] - 12, grazedAt[1])).toBeLessThan(3);
+    const bare = E.createWorld({ entities: [player([500, 500, 0]),
+      { id: 'm', rule: { type: 'ai', speed: 3, turn: 4, mind: { motivation: 'forage', aggressiveness: 'passive' } }, body: body(), transform: { pos: [0, 0, 0], heading: 0 } }] });
+    let grazed = 0;
+    steps(bare, 60 * 20, () => { if (bare.byId.m.locomotion === 'graze') grazed++; });
+    expect(grazed).toBeGreaterThan(60);
+  });
+
+  it('an escort keeps to its ward and fights only what comes near the ward', () => {
+    const w = E.createWorld({ entities: [player([0, 0, 0]),
+      { id: 'm', rule: { type: 'ai', speed: 8, turn: 4, standoff: 6, followDist: 6, guardRadius: 20, mind: { motivation: 'escort', aggressiveness: 'bold' } }, weapon: { ...gun }, body: body(), transform: { pos: [3, 0, 0], heading: 0 } },
+      { id: 'x', team: 'raiders', rule: { type: 'walk', speed: 0 }, body: body(), transform: { pos: [80, 0, 0], heading: 0 } }] });
+    let fired = 0;
+    steps(w, 60 * 3, () => { fired += w.byId.m.aiFire || 0; });
+    expect(fired).toBe(0);                                  // the raider is far from the ward: not its business
+    w.byId.p.transform.pos = [-30, 0, 0];                    // the ward walks off
+    steps(w, 60 * 6);
+    const m = w.byId.m.transform.pos;
+    expect(Math.hypot(m[0] + 30, m[1])).toBeLessThan(7);    // the escort followed, to within followDist
+    w.byId.x.transform.pos = [-40, 6, 0];                    // the raider comes near the ward
+    steps(w, 60 * 4, () => { fired += w.byId.m.aiFire || 0; });
+    expect(fired).toBeGreaterThan(0);
+  });
+
+  it('a territorial mind warns an intruder first, then attacks; outside its territory it leaves them be', () => {
+    const make = (at) => E.createWorld({ entities: [player(at),
+      { id: 'm', rule: { type: 'ai', speed: 6, turn: 4, standoff: 6, territory: 16, warnTime: 1.2, mind: { motivation: 'territorial', aggressiveness: 'bold' } }, weapon: { ...gun }, body: body(), transform: { pos: [0, 0, 0], heading: 0 } }] });
+    const w = make([10, 0, 0]);
+    let warned = 0, firstShot = null;
+    steps(w, 60 * 4, (i) => { if (w.byId.m.locomotion === 'warn') warned++; if (firstShot == null && w.byId.m.aiFire) firstShot = i; });
+    expect(warned).toBeGreaterThan(60);
+    expect(firstShot).toBeGreaterThan(60);                  // no shot during the warning
+    const out = make([40, 0, 0]);
+    let fired = 0;
+    steps(out, 60 * 4, () => { fired += out.byId.m.aiFire || 0; });
+    expect(fired).toBe(0);
+    expect(Math.hypot(out.byId.m.transform.pos[0], out.byId.m.transform.pos[1])).toBeLessThan(13);   // it stays home
+  });
+});

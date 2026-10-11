@@ -78,6 +78,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Idle minds move.** Motivations that used to stand still now have something to do:
+  - **Wander** roams near home, pausing between legs. Territorial minds idle the same way.
+  - **Forage** walks to bodies tagged as food and grazes there, or drifts and grazes when there is none.
+  - **Escort** keeps to its ward (`rule.escort`, else the pilot) and fights only what comes near the ward.
+  - **Territorial** warns an intruder inside its territory before it attacks, and leaves alone what stays outside.
+
+  The walks are seeded by the body's id, so a world plays the same way every run.
 - **Minds see, and remember.** `rule.mind.perception: 'sight'` limits a mind to what it can see: in range, in its
   facing cone, with a clear line past the walls. Out of sight it forgets. `'memory'` adds a last-seen record: it walks
   to where it last saw the target, searches there, and gives up after a while (a guard goes back to its post). Minds
