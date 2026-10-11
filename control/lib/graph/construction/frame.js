@@ -58,6 +58,7 @@ import { worldBox } from './furniture-joints.js';
 import { coverLayout, coverSummary, coverStamps } from './covers.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
+import { teardownError, teardownOf } from '../playscape/destruct/teardown-spec.js';
 
 export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1, in: 0.0254, ft: 0.3048 });
 export const FIGURE_MODES = Object.freeze(['full', 'coarse', 'flat']);
@@ -111,6 +112,8 @@ export function validateFrames(frames) {
     errors.push(...validateMasonry(f, at));
     units += masonryUnits(f, FRAME_UNITS[f.unit || 'cm']);
     if (f.layout !== undefined && f.layout !== 'kit') errors.push(`${at}.layout: 'kit' (every part laid flat to print), or leave it out`);
+    const te = teardownError(f0.teardown, `${at}.teardown`); if (te) errors.push(te);
+    if (teardownOf(f0.teardown) && f.layout === 'kit') errors.push(`${at}.teardown: a kit lays every part flat; give the frame a teardown or a kit layout, not both`);
     if (f.kitGap !== undefined && !(Number.isFinite(f.kitGap) && f.kitGap >= 0)) errors.push(`${at}.kitGap: a distance in the frame's unit, ≥ 0`);
     if (f.shelfLoad !== undefined && !(Number.isFinite(f.shelfLoad) && f.shelfLoad >= 0)) errors.push(`${at}.shelfLoad: kg per metre, a number ≥ 0`);
     if (fabricError(f.fabric)) errors.push(`${at}.${fabricError(f.fabric)}`);

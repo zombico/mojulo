@@ -60,7 +60,7 @@ The room facades: `sofa`, `armchair`, `chesterfield`, `coffee-table`, `dining-ta
 A display piece is stored as `{ kind: 'workbench', units: 'mm', build: { type: 'furniture', piece, dials: { type, …the build's dials }, legs?, size, fabric?, tint? } }`. The dials are the truth; restyle in place with `update_sketch`:
 `set /build/dials/arms 'rolled'`, `set /build/dials/back 'tufted'`, `set /build/dials/seats 2`, `set /build/legs 'turned'`, `set /build/fabric 'linen'`, `set /build/tint '#5a3a22'`, `set /build/size [1600, 850, 780]` (filled exactly). The build's own dials (the workbench card) are all open: `seatH`, `backH`, `armH`, `legH`, `pillows`, `piping` on a sofa; `top`, `leg`, `apron`, `overhang` on a table; `shelves`, `doors`, `drawers`, `drawerHeight` on casework.
 
-A buildable piece is `{ frames: [{ id, unit: 'mm', build: { type, …dials }, fabric?, tint?, legs? }] }`: the same edits on `/frames/0/build/<dial>`, `/frames/0/fabric`, `/frames/0/legs`.
+A buildable piece is `{ frames: [{ id, unit: 'mm', build: { type, …dials }, fabric?, tint?, legs? }] }`: the same edits on `/frames/0/build/<dial>`, `/frames/0/fabric`, `/frames/0/legs`. To show it exploded or going together, set `/frames/0/teardown`: `true` (the exploded still) or `'assemble'` (played in the World, in the manual's order).
 
 To compose again from a style (a different `like`, a size that re-derives the seats or the drawers), mint again. A minted piece never moves when the styles are retuned: it holds the dials, not the style's name.
 

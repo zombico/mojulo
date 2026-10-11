@@ -443,6 +443,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
+  // a textured group a mover moves carries its texture sub-meshes as children, so the wood goes with the part (a
+  // teardown's members, a labelled lid on a hinge); no mover on a textured group → not emitted, byte-identical
+  const movedGroups = new Set((movers || []).map((mv) => mv && mv.group).filter((g) => typeof g === 'string'));
+  const movedTex = groups.some((g) => g.tex.length && movedGroups.has(g.name));
   // Any single-sided (bound-mesh) group? Only then does the render script reference
   // grp.singleSide — so a world without one emits the exact prior `side: THREE.DoubleSide`
   // string and stays byte-identical (the emit char-net holds; the feature is opt-in).
@@ -947,7 +951,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const GROUPS = ${safeJson(groups)};
 const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
-const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
+const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
 function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
@@ -1004,7 +1008,7 @@ for (const grp of GROUPS) {
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow
-    ${swayBlock || grassBlock || toneBlock ? 'tm.userData.g = grp.name; ' : ''}scene.add(tm); ${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock ? 'tm.userData.g = grp.name; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 

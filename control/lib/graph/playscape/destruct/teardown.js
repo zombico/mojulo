@@ -25,7 +25,9 @@
 import { manualPlan } from '../../construction/manual.js';
 import { explodeParts } from '../../construction/frame.js';
 
-export const TEARDOWN_SHOWS = Object.freeze(['exploded', 'disassemble', 'assemble']);
+import { TEARDOWN_SHOWS, teardownOf } from './teardown-spec.js';
+
+export { TEARDOWN_SHOWS };
 export const TEARDOWN_DEFAULTS = Object.freeze({ share: 0.12, seconds: 0.6, hold: 0.25, sample: 1 / 30 });
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
@@ -107,9 +109,8 @@ export function teardownTracks(plan, { show = 'disassemble', seconds = TEARDOWN_
   const slot = new Map(order.map((s, j) => [s.n, j * (seconds + hold)]));
   const T = show === 'exploded' ? seconds + hold : order.length * (seconds + hold);
   const at = (t) => offsets(plan, (n) => ease(Math.min(1, Math.max(0, (t - (slot.get(n) ?? 0)) / seconds))));
-  const times = [];
-  for (let i = 0; i * sample < T - 1e-9; i++) times.push(i * sample);
-  times.push(T);
+  // evenly over the whole clock (about `sample` apart): a path read at equal time steps plays at the true pace
+  const n = Math.max(1, Math.ceil(T / sample - 1e-9)), times = Array.from({ length: n + 1 }, (_, i) => (T * i) / n);
   const ids = [...offsets(plan, () => 1).keys()];
   const frames = new Map(ids.map((id) => [id, []]));
   for (const t of times) {
@@ -121,4 +122,54 @@ export function teardownTracks(plan, { show = 'disassemble', seconds = TEARDOWN_
     return { n: s.n, t0: r5(t0), t1: r5(t0 + seconds) };
   });
   return { show, seconds: r5(T), steps, tracks: ids.map((id) => ({ id, frames: frames.get(id) })) };
+}
+
+// ── the workbench's door: a frames entry with `teardown` ──────────────────────────────────────────────────────────
+
+const MEMO = new Map(), MEMO_MAX = 16;
+const bare = (spec) => { const { teardown: _t, explode: _e, legs: _l, ...rest } = spec; return rest; };
+/** The plan for a frames entry, memoised on the entry without its view keys (one lowering per piece and distance). */
+export function frameTeardown(spec) {
+  const td = teardownOf(spec.teardown); if (!td) return null;
+  const key = JSON.stringify([bare(spec), td.distance ?? null]);
+  if (!MEMO.has(key)) {
+    if (MEMO.size >= MEMO_MAX) MEMO.delete(MEMO.keys().next().value);
+    MEMO.set(key, teardownPlan(bare(spec), { distance: td.distance }));
+  }
+  return { td, plan: MEMO.get(key) };
+}
+
+/** A still teardown's faces: the piece's faces at rest, moved by the pose (all steps undone, or `at`). */
+export function teardownStillFaces(spec, faces) {
+  const T = frameTeardown(spec); if (!T || !T.td.still) return faces;
+  return poseFaces(faces, teardownPose(T.plan, T.td.show === 'exploded' && T.td.at === undefined ? {} : { at: T.td.at }), T.plan.owners);
+}
+
+/**
+ * A played teardown's World movers: one per face group of a moving part (its cushion's cord and buttons, its rebar,
+ * ride with it), each walking the part's offsets on the shared clock, played once then held `tail` seconds.
+ */
+export function teardownMovers(frames, faces, { tail = 1.5 } = {}) {
+  const groups = [...new Set(faces.map((f) => f.group).filter((g) => typeof g === 'string'))];
+  const out = [];
+  for (const spec of frames || []) {
+    const T = spec && frameTeardown(spec); if (!T || T.td.still) continue;
+    const run = teardownTracks(T.plan, { show: T.td.show, ...(T.td.seconds ? { seconds: T.td.seconds } : {}) });
+    const byId = new Map(run.tracks.map((t) => [t.id, t]));
+    for (const g of groups) {
+      const tr = byId.get(T.plan.owners[g] || g) || byId.get(g.replace(/:rebar$/, '')); if (!tr) continue;
+      out.push({ group: g, path: tr.frames.map((f) => f.off), basePos: [0, 0, 0], period: run.seconds, hold: tail, loop: false, teardown: T.td.show });
+    }
+  }
+  return out;
+}
+
+/** The faces as far apart as a played teardown takes them (every step undone): what a camera must hold. */
+export function teardownReach(frames, faces) {
+  let out = faces;
+  for (const spec of frames || []) {
+    const T = spec && frameTeardown(spec); if (!T || T.td.still) continue;
+    out = poseFaces(out, teardownPose(T.plan), T.plan.owners);
+  }
+  return out;
 }

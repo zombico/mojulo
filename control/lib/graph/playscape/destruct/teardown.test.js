@@ -98,3 +98,88 @@ describe('teardown: a frame taken apart in its manual\'s order', () => {
     expect(() => teardownTracks(plans.table, { show: 'melt' })).toThrow(/exploded, disassemble, assemble/);
   });
 });
+
+describe('teardown: the word on a workbench frames entry', () => {
+  let W, V, table, sofa;
+  beforeAll(async () => {
+    await ensureExactKernel();
+    W = await import('../../worlds/workbench.js');
+    V = await import('../../construction/frame.js');
+    table = PIECES.table; sofa = PIECES.sofa;
+  });
+  const faces = (frames) => W.assembleWorkbenchScene({ frames }).faces;
+  const sha = (x) => JSON.stringify(x);
+
+  it('absent or false: the scene is byte-identical, and carries no movers', () => {
+    const plain = W.assembleWorkbenchScene({ frames: [table] });
+    expect(sha(W.assembleWorkbenchScene({ frames: [{ ...table, teardown: false }] }))).toBe(sha(plain));
+    expect(plain.movers).toBeUndefined();
+  });
+
+  it('true is the exploded still: the frame\'s own explode at the default distance, nothing played', () => {
+    const p = teardownPlan(table);
+    const s = W.assembleWorkbenchScene({ frames: [{ ...table, teardown: true }] });
+    expect(sha(s.faces)).toBe(sha(faces([{ ...table, teardown: 'exploded' }])));
+    const want = faces([{ ...table, explode: p.k }]);
+    let worst = 0; s.faces.forEach((f, i) => f.corners.forEach((c, j) => c.forEach((v, a) => { worst = Math.max(worst, Math.abs(v - want[i].corners[j][a])); })));
+    expect(worst).toBeLessThan(1e-9);
+    expect(s.movers).toBeUndefined();
+  });
+
+  it('a teardown supersedes explode; { at } is a still part way', () => {
+    expect(sha(faces([{ ...table, teardown: true, explode: 500 }]))).toBe(sha(faces([{ ...table, teardown: true }])));
+    expect(sha(faces([{ ...table, teardown: { show: 'disassemble', at: 0 } }]))).toBe(sha(faces([table])));
+  });
+
+  it('a played show rests in place and moves every part\'s face groups on one clock', () => {
+    for (const show of ['assemble', 'disassemble']) {
+      const s = W.assembleWorkbenchScene({ frames: [{ ...sofa, teardown: show }] });
+      const piece = (fs) => fs.filter((f) => !f.studio);   // the floor grid grows to hold the piece apart
+      expect(sha(piece(s.faces))).toBe(sha(piece(faces([sofa]))));
+      const groups = new Set(s.faces.map((f) => f.group));
+      expect(s.movers.length).toBeGreaterThan(10);
+      for (const mv of s.movers) {
+        expect(groups.has(mv.group)).toBe(true);
+        expect(mv.period).toBe(s.movers[0].period);
+        expect(mv.loop).toBe(false);
+      }
+      const ends = s.movers.map((mv) => (show === 'assemble' ? mv.path[0] : mv.path.at(-1)));
+      expect(ends.some((o) => o.some((x) => Math.abs(x) > 1))).toBe(true);   // apart at the far end
+      expect(s.movers.every((mv) => (show === 'assemble' ? mv.path.at(-1) : mv.path[0]).every((x) => x === 0))).toBe(true);
+    }
+    // the cushions' extras (cord, buttons) ride with their cushion
+    const s = W.assembleWorkbenchScene({ frames: [{ ...sofa, teardown: 'assemble' }] }), p = teardownPlan(sofa);
+    for (const [g, owner] of Object.entries(p.owners)) {
+      const a = s.movers.find((m) => m.group === g), b = s.movers.find((m) => m.group === owner);
+      if (a && b) expect(a.path).toEqual(b.path);
+    }
+  });
+
+  it('the validator names what a teardown can be', () => {
+    expect(V.validateFrames([{ ...table, teardown: 'melt' }]).join()).toMatch(/exploded, disassemble, assemble/);
+    expect(V.validateFrames([{ ...table, teardown: { show: 'assemble', speed: 2 } }]).join()).toMatch(/speed: not a teardown key/);
+    expect(V.validateFrames([{ ...table, teardown: { at: -1 } }]).join()).toMatch(/at: a whole number/);
+    expect(V.validateFrames([{ ...table, teardown: true, layout: 'kit' }]).join()).toMatch(/not both/);
+    for (const ok of [true, false, 'assemble', { show: 'disassemble', seconds: 1, distance: 80 }, { at: 2 }]) expect(V.validateFrames([{ ...table, teardown: ok }])).toEqual([]);
+  });
+});
+
+describe('teardown: the World page', () => {
+  let W, emit;
+  beforeAll(async () => {
+    await ensureExactKernel();
+    W = await import('../../worlds/workbench.js');
+    ({ emitThreeWorld: emit } = await import('../../scene/scene-three.js'));
+  });
+
+  it('a played teardown carries its wood with each part, and frames the cameras to hold the piece apart', () => {
+    const rest = W.assembleWorkbenchScene({ frames: [PIECES.table] });
+    const played = W.assembleWorkbenchScene({ frames: [{ ...PIECES.table, teardown: 'assemble' }] });
+    const tex = { 'timber:x': 'data:,' };   // any texture map: the page only needs to know the groups are textured
+    expect(emit({ ...played, inline: false, textures: tex })).toMatch(/const __MOVED = /);
+    expect(emit({ ...rest, inline: false, textures: tex })).not.toMatch(/__MOVED/);
+    // the three-quarter camera stands further off when the piece comes apart
+    const dist = (s) => { const c = s.cameras.find((x) => x.name === 'three-quarter').worldFraming; return Math.hypot(...c.cameraPosition.map((v, i) => v - c.lookAt[i])); };
+    expect(dist(played)).toBeGreaterThan(dist(rest));
+  });
+});
