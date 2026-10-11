@@ -64,7 +64,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The joint bends as one surface, with the elbow's and the kneecap's point on the outside.
   - The shin takes the thigh's ring8 so the knee's rings match. A bridge takes every dial and every split its limbs
     take: the dress's, and a target's, which now splits a bridged joint's two limbs and bridge together.
-  - The bare tiered figure is 4,308 triangles against 5,196: the chest 3,988, the four bridges and the shin's ring 320.
+  - The wrist is bridged too (`wristBridge`, no fold: the two bones' halves at its middle). The palm's rings are framed
+    from the back of the hand, so the bridge turns the forearm's slots to line up with them; the arm takes the palm's
+    ring8 throughout, and a split takes a whole chain (arm, bridges, hand). A segment that stops short keeps its shaping
+    rings at their addresses (a cuff at `st1_st2_50` still finds its ring).
+  - The SOCKETS (`tieredSockets`): a shoulder or a hip meets the trunk's surface, not a ring, so it takes no bridge. The
+    arm's root now turns whole with the arm (its blend with the collarbone left a raised arm on a thin stalk); a new
+    `shoulderFold` (turned half the arm's swing) carries a share of the torso's shoulder and a BALL, the vajra's
+    ball-in-socket: a sphere at the joint as wide as the arm's root, which fills between the shoulder's corner and the
+    arm at any angle. The hip's ring rides its fold whole; its head sits deep in the pelvis, so it has no ball.
+  - The bare tiered figure is 4,740 triangles against 5,196: the chest 3,988, the bridges, balls and ring8 limbs 752.
   - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
 - **Critics.**
   - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head

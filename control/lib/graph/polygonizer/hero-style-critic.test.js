@@ -46,15 +46,15 @@ describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
     const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
-    expect(tiered.mesh.faces.length).toBe(4308);   // the domes' 1,280 gone, the chest band's three rings added; the four joint bridges (and the shin's ring8) 320
+    expect(tiered.mesh.faces.length).toBe(4740);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
     const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
   }, 120000);
 
   it('a male, a child-coded figure or a bust of 0 takes no profile; the form is checked by name', () => {
-    // the male's tiered form is today's and the joints' bridges alone (the female's 320)
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(320);
+    // the male's tiered form is today's and the joints' bridges and balls alone (the female's 752)
+    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(752);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });
@@ -63,14 +63,16 @@ describe('the tiered joints', () => {
   // a ring's points by slot, off the compiled (or skinned) mesh
   const ring = (mesh, V, part, st) => { const o = {}; mesh.pointIds.forEach((id, i) => { const m = id.match(/^([^/]+)\/([^.]+)\.(.+)$/); if (m && m[1] === part && m[2] === st) o[m[3]] = V[i]; }); return o; };
   const lastSt = (mesh, part) => { let last = null; mesh.pointIds.forEach((id) => { const m = id.match(/^([^/]+)\/([^.]+)\./); if (m && m[1] === part) last = m[2]; }); return last; };
-  const gap = (a, b) => Math.max(...Object.keys(b).map((sl) => (a[sl] ? Math.hypot(a[sl][0] - b[sl][0], a[sl][1] - b[sl][1], a[sl][2] - b[sl][2]) : Infinity)));
+  // the two rings as point sets (a bridge's slots may be turned against the lower part's): every point of each on the other
+  const gap = (a, b) => { const A = Object.values(a), B = Object.values(b); if (!A.length || A.length !== B.length) return Infinity;
+    const near = (P, Q) => Math.max(...P.map((p) => Math.min(...Q.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))))); return Math.max(near(A, B), near(B, A)); };
   const seams = (mesh, V) => TIERED_JOINTS.flatMap((J) => ['R', 'L'].flatMap((S) => { const br = J.bridge.replace(/R$/, S), up = J.upper.replace(/R$/, S), lo = J.lower.replace(/R$/, S);
     return [gap(ring(mesh, V, up, lastSt(mesh, up)), ring(mesh, V, br, 'st0')), gap(ring(mesh, V, br, lastSt(mesh, br)), ring(mesh, V, lo, 'st0'))]; }));
   it('each limb stops short of its joint and a bridge spans it, its ends the limbs\' own rings at rest and bent, bare, clothed and split', () => {
     for (const spec of [{}, { detail: 'clothed' }, { target: '1080p' }]) {
       const { m, mesh } = built({ cast: 'female', form: 'tiered', ...spec });
       expect(Math.max(...seams(mesh, mesh.vertices)), JSON.stringify(spec)).toBeLessThan(1e-6);
-      const R = validateRig(m.recipe.rig), bent = poseLayered(mesh, m.recipe, { ...(standPose(m.recipe, R) ?? {}), elbowR: 140, elbowL: 90 }, { R });
+      const R = validateRig(m.recipe.rig), bent = poseLayered(mesh, m.recipe, { ...(standPose(m.recipe, R) ?? {}), elbowR: 140, elbowL: 90, wristR: -70, wristL: { flex: 50, deviation: 20 } }, { R });
       expect(Math.max(...seams(mesh, bent.mesh.vertices)), JSON.stringify(spec)).toBeLessThan(1e-6);
     }
     // the upper arm no longer runs past the elbow: every point on the shoulder's side of it
@@ -78,6 +80,25 @@ describe('the tiered joints', () => {
     const along = (v) => ((v[0] - J.shoulder[0]) * d[0] + (v[1] - J.shoulder[1]) * d[1] + (v[2] - J.shoulder[2]) * d[2]) / L;
     expect(Math.max(...mesh.vertices.filter((_, i) => mesh.provenance[i].part === 'upperArmR').map(along))).toBeLessThan(L);
   }, 240000);
+});
+
+describe('the tiered sockets', () => {
+  // the arm's root ring, posed with the arm overhead: its mean radius over its rest radius (a stalk is well under 1)
+  const rootGirth = (spec) => { const { m, mesh } = built({ cast: 'female', ...spec }), R = validateRig(m.recipe.rig);
+    const posed = poseLayered(mesh, m.recipe, { ...(standPose(m.recipe, R) ?? {}), armR: 'up' }, { R }).mesh.vertices;
+    const idx = mesh.pointIds.map((id, i) => [id, i]).filter(([id]) => /^upperArmR\/st0\./.test(id)).map(([, i]) => i);
+    const r = (V) => { const c = [0, 1, 2].map((k) => idx.reduce((t, i) => t + V[i][k], 0) / idx.length); return idx.reduce((t, i) => t + Math.hypot(...V[i].map((x, k) => x - c[k])), 0) / idx.length; };
+    return r(posed) / r(mesh.vertices); };
+  it('the arm turns whole in its socket: a raised arm keeps its root\'s girth, the torso\'s shoulder takes a share of the fold', () => {
+    expect(rootGirth({ form: 'tiered' })).toBeGreaterThan(0.98);
+    expect(rootGirth({})).toBeLessThan(rootGirth({ form: 'tiered' }));
+    const { m } = built({ cast: 'female', form: 'tiered' });
+    expect(m.recipe.rig.folds.shoulderFoldR.bones).toEqual(['clavicleR', 'upperArmR']);
+    expect(m.recipe.parts.torso.bind.blend['st3.sideR'].shoulderFoldR).toBeGreaterThan(0.3);
+    expect(m.recipe.parts.thighR.bind.blend.st1).toEqual({ hipFoldR: 1 });
+    // the shoulder's ball (the vajra's ball-in-socket) rides the fold; the hip's sits deep in the pelvis, none
+    expect([m.recipe.parts.shoulderBallR?.bind, m.recipe.parts.shoulderBallL?.bind, m.recipe.parts.hipBallR]).toEqual(['shoulderFoldR', 'shoulderFoldL', undefined]);
+  }, 120000);
 });
 
 describe('the chest critic', () => {

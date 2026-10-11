@@ -11,7 +11,8 @@
  * each is from the sternal notch), turned a little out, the pair meeting low at the sternum.
  *
  *   tieredChest(plan, size)   the plan with the field on its torso (size: the bust radius in metres; 0 none)
- *   tieredJoints(plan)        the plan with a BRIDGE over the elbows and the knees
+ *   tieredJoints(plan)        the plan with a BRIDGE over the elbows, the knees and the wrists
+ *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
  *
  * The second piece is the JOINT. A limb's two segments each run past their joint and cross there, each on its own
  * bone: bent, the two tubes scissor (the outside of the knee a beak, the elbow two crossed sticks) and even straight
@@ -87,32 +88,45 @@ export function tieredChest(plan, size) {
 }
 
 // ─── the joints ─────────────────────────────────────────────────────────────
-/** The bridged joints (right-hand; the left mirrors by name): the bridge's part, the two limb parts and the fold. */
+/** The bridged joints (right-hand; the left mirrors by name): the bridge's part, the two limb parts, the fold (null: the
+ * joint has none, the bridge's middle ring is the two bones' halves) and how far each limb stops short of the joint, in
+ * its end ring's radii. The wrist's span is longer: the hand turns through its whole run. */
 export const TIERED_JOINTS = Object.freeze([
-  Object.freeze({ bridge: 'elbowBridgeR', upper: 'upperArmR', lower: 'foreArmR', fold: 'elbowFoldR' }),
-  Object.freeze({ bridge: 'kneeBridgeR', upper: 'thighR', lower: 'shankR', fold: 'kneeFoldR' }),
+  Object.freeze({ bridge: 'elbowBridgeR', upper: 'upperArmR', lower: 'foreArmR', fold: 'elbowFoldR', reach: 0.6 }),
+  Object.freeze({ bridge: 'kneeBridgeR', upper: 'thighR', lower: 'shankR', fold: 'kneeFoldR', reach: 0.6 }),
+  Object.freeze({ bridge: 'wristBridgeR', upper: 'foreArmR', lower: 'handR', fold: null, reach: 1.2 }),
 ]);
-/** how far each segment stops short of its joint, in its end ring's radii */
-export const BRIDGE_REACH = 0.6;
 /** the bridge's inner rings along the run (0 the upper end, 1 the lower) and each one's weights: upper, fold, lower */
 const BRIDGE_RUN = Object.freeze([[0.25, [0.5, 0.5, 0]], [0.5, [0, 1, 0]], [0.75, [0, 0.5, 0.5]]]);
 const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const unit3 = (a) => { const l = Math.hypot(...a); return a.map((x) => x / l); };
-const tmpl = (n) => n.replace(/R$/, '$S');
+const tmpl = (n) => n.replace(/[RL]$/, '$S');
 const twins = (n) => [n, n.replace(/R$/, 'L')];
+const centre = (pts) => { const v = Object.values(pts); return [0, 1, 2].map((k) => v.reduce((t, p) => t + p[k], 0) / v.length); };
 
-/** A segment's or a loft's rings and caps as the plan expands them (station-loft-plan.js expandPlan), unrounded. */
+/** A part's rings and caps as the plan expands them (station-loft-plan.js expandPlan), unrounded; a rings part's its own. */
 function partRings(plan, seg) {
+  if (seg.kind === 'rings') return { stations: seg.stations, caps: seg.caps };
   const families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) }, style = { slots: 'ring8', limbSlots: 'limb6', e: 2, ...(plan.style || {}) };
   const slots = seg.slots == null ? families[style.limbSlots] : typeof seg.slots === 'string' ? families[seg.slots] : seg.slots, e = seg.e ?? style.e;
   if (seg.kind === 'loft') return loftPart(seg.stations, seg.caps, slots, e, { keep: seg.frame === 'keep' });
   const J = plan.joints;
   return segmentPart(J[seg.from], J[seg.to], seg.rA, seg.rB, { slots, e, over: seg.over, mid: seg.mid, rMid: seg.rMid, ...(seg.cap ? { cap: seg.cap } : {}), ...(seg.shape ? { shape: seg.shape } : {}) });
 }
-/** the id of a limb's last ring: a segment's st2, a loft's last integer station */
-const seamId = (seg) => (seg.kind === 'loft' ? `st${seg.stations.filter((st) => st.u === undefined || Number.isInteger(st.u)).length - 1}` : 'st2');
-const familyOf = (plan, seg) => seg.slots ?? (seg.kind === 'loft' ? plan.style?.slots ?? 'ring8' : plan.style?.limbSlots ?? 'limb6');
+const familyOf = (plan, seg) => seg.slots ?? (seg.kind === 'segment' ? plan.style?.limbSlots ?? 'limb6' : plan.style?.slots ?? 'ring8');
+/** the id of a limb's last ring: a segment's st2, a loft's or a rings part's last integer station */
+const seamId = (seg) => (seg.kind === 'segment' ? 'st2' : seg.stations[seg.stations.length - 1].id ?? `st${seg.stations.filter((st) => st.u === undefined || Number.isInteger(st.u)).length - 1}`);
+
+/** A segment with new overshoots, its shaping rings kept at their addresses: each slides within its span as the span
+ * moves, so a cuff or a wrap named at `st1_st2_50` still finds its ring. */
+function overshoot(plan, seg, over) {
+  if (!seg.shape?.length) return { ...seg, over };
+  const J = plan.joints, L = Math.hypot(...sub3(J[seg.to], J[seg.from])), mid = seg.mid ?? 0.5;
+  const T = (o) => [-o[0] * rad(seg.rA), mid * L, L + o[1] * rad(seg.rB)], T0 = T(seg.over ?? [0.6, 0.6]), T1 = T(over);
+  const shape = seg.shape.map((sh) => { const t = sh.at * L, i = t < T0[1] ? 0 : 1, f = (t - T0[i]) / (T0[i + 1] - T0[i]); return { ...sh, at: r6((T1[i] + f * (T1[i + 1] - T1[i])) / L) }; });
+  return { ...seg, over, shape };
+}
 
 /** A segment's bind as a blend (its { bone, prev, next } shorthand resolved), copied. */
 function blendOf(seg) {
@@ -124,46 +138,151 @@ function blendOf(seg) {
   return { bone: b.bone, blend };
 }
 
-/** The plan with its elbows and knees bridged; a joint whose parts are missing, or not a segment or a loft, as it was. */
+/** The lower ring's slot for each of the upper's: the turn (and the sense) round the ring that lines their points up
+ * best, so a ring framed from the back of the hand meets one framed from the front of the arm. Same names when they line
+ * up (the elbow, the knee). */
+function slotMap(a, b, family) {
+  const ca = centre(a), cb = centre(b), n = family.length, dir = (p, c) => unit3(sub3(p, c));
+  const A = family.map((sl) => dir(a[sl], ca)), B = family.map((sl) => dir(b[sl], cb));
+  let best = null;
+  for (const sense of [1, -1]) for (let k = 0; k < n; k++) {
+    let cost = 0; for (let i = 0; i < n; i++) { const j = (((k + sense * i) % n) + n) % n; cost += A[i].reduce((t, x, q) => t + (x - B[j][q]) ** 2, 0); }
+    if (!best || cost < best.cost - 1e-9) best = { cost, k, sense };
+  }
+  return Object.fromEntries(family.map((sl, i) => [sl, family[(((best.k + best.sense * i) % n) + n) % n]]));
+}
+
+/** The limb chains the bridges join (elbow and wrist: the arm; the knee: the leg), each a list of right-hand part names. */
+function chainsOf(joints) {
+  const of = new Map();
+  for (const J of joints) { const c = [...new Set([...(of.get(J.upper) ?? [J.upper]), ...(of.get(J.lower) ?? [J.lower]), J.bridge])]; for (const p of c) of.set(p, c); }
+  return of;
+}
+/** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one. */
+export function bridgedChains(plan) {
+  const names = new Set((plan.segments || []).map((s) => s.name));
+  return chainsOf(TIERED_JOINTS.filter((J) => names.has(J.bridge)));
+}
+
+/** The plan with its elbows, knees and wrists bridged; a joint whose parts are missing or of a kind it cannot meet, as it was. */
 export function tieredJoints(plan) {
-  let segments = plan.segments.map((s) => ({ ...s }));
+  const segments = plan.segments.map((s) => ({ ...s, ...(s.stations ? { stations: s.stations.map((st) => ({ ...st })) } : {}) }));
   const byName = (n) => segments.find((s) => s.name === n);
-  const folds = plan.rig?.folds || {}, added = [];
-  for (const J of TIERED_JOINTS) {
-    const U = byName(J.upper), D = byName(J.lower);
-    if (!U || !D || !['segment', 'loft'].includes(U.kind) || D.kind !== 'segment') continue;
-    // the lower segment in the upper's ring family, so the rings match slot to slot
-    const fam = familyOf(plan, U); if (familyOf(plan, D) !== fam) D.slots = fam;
-    // each stops short of the joint on a flat end
-    if (U.kind === 'segment') { U.over = [U.over?.[0] ?? 0.6, -BRIDGE_REACH]; U.cap = [U.cap?.[0] ?? 0.45, 0]; }
+  const folds = plan.rig?.folds || {}, families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
+  const joints = TIERED_JOINTS.filter((J) => { const U = byName(J.upper), D = byName(J.lower); return U && D && ['segment', 'loft'].includes(U.kind) && ['segment', 'rings'].includes(D.kind); });
+  if (!joints.length) return plan;
+  // one ring family per chain: a part given point by point (the palm) or a loft (the thigh) sets it; the segments take it
+  for (const chain of new Set(chainsOf(joints).values())) {
+    const parts = chain.map(byName).filter(Boolean), fixed = parts.find((g) => g.kind !== 'segment'), fam = familyOf(plan, fixed ?? parts[0]);
+    for (const g of parts) if (g.kind === 'segment' && familyOf(plan, g) !== fam) g.slots = fam;
+  }
+  const added = [];
+  for (const J of joints) {
+    const U = byName(J.upper), D = byName(J.lower), fam = familyOf(plan, U);
+    // each stops short of the joint on a flat end (a part given point by point keeps its rings, its back cap flat)
+    if (U.kind === 'segment') { Object.assign(U, overshoot(plan, U, [U.over?.[0] ?? 0.6, -J.reach])); U.cap = [U.cap?.[0] ?? 0.45, 0]; }
     else {
-      const S = U.stations.map((s) => ({ ...s })), last = S[S.length - 1], prev = S[S.length - 2], d = unit3(sub3(last.at, prev.at));
-      const at = plan.joints[D.from].map((x, k) => r6(x - d[k] * BRIDGE_REACH * rad(last.r)));
-      S[S.length - 1] = { ...last, at }; U.stations = S; U.caps = { ...U.caps, tip: at };
+      const S = U.stations, last = S[S.length - 1], prev = S[S.length - 2], d = unit3(sub3(last.at, prev.at));
+      const at = plan.joints[D.from ?? J.lower.replace(/R$/, '')].map((x, k) => r6(x - d[k] * J.reach * rad(last.r)));
+      S[S.length - 1] = { ...last, at }; U.caps = { ...U.caps, tip: at };
     }
-    D.over = [-BRIDGE_REACH, D.over?.[1] ?? 0.6]; D.cap = [0, D.cap?.[1] ?? 0.45];
+    if (D.kind === 'segment') { Object.assign(D, overshoot(plan, D, [-J.reach, D.over?.[1] ?? 0.6])); D.cap = [0, D.cap?.[1] ?? 0.45]; }
+    else D.caps = { ...D.caps, back: centre(D.stations[0].points).map(r6) };
     // their end rings their own bones'
-    const ub = blendOf(U), db = blendOf(D), across = (blend, other) => { for (const [k, x] of Object.entries(blend)) if (x[J.fold] || x[other]) delete blend[k]; };
+    const ub = blendOf(U), db = blendOf(D), across = (blend, other) => { for (const [k, x] of Object.entries(blend)) if ((J.fold && x[J.fold]) || x[other]) delete blend[k]; };
     across(ub.blend, J.lower); across(db.blend, J.upper); U.bind = ub; D.bind = db;
-    // the bridge: the upper's last ring to the lower's first, the rings between interpolated slot by slot
-    const A = partRings(plan, U), B = partRings(plan, D), a = A.stations[A.stations.length - 1].points, b = B.stations[0].points;
-    const slots = Object.keys(a), fold = folds[tmpl(J.fold)] ? J.fold : null;
+    // the bridge: the upper's last ring to the lower's first (its slots turned to line up), the rings between interpolated
+    const A = partRings(plan, U), B = partRings(plan, D), a = A.stations[A.stations.length - 1].points, b0 = B.stations[0].points;
+    const slots = typeof fam === 'string' ? families[fam] : fam, turn = slotMap(a, b0, slots), b = Object.fromEntries(slots.map((sl) => [sl, b0[turn[sl]]]));
+    const fold = J.fold && folds[tmpl(J.fold)] ? J.fold : null;
     const w = ([u, f, l]) => { const o = {}; if (u + (fold ? 0 : f / 2) > 0) o[J.upper] = u + (fold ? 0 : f / 2); if (fold && f > 0) o[fold] = f; if (l + (fold ? 0 : f / 2) > 0) o[J.lower] = l + (fold ? 0 : f / 2); return o; };
-    const rings = [a, ...BRIDGE_RUN.map(([t]) => Object.fromEntries(slots.map((sl) => [sl, a[sl].map((x, k) => r6(x + (b[sl][k] - x) * t))]))), b];
+    const rings = [a, ...BRIDGE_RUN.map(([t]) => Object.fromEntries(slots.map((sl) => [sl, a[sl].map((x, k) => x + (b[sl][k] - x) * t)]))), b];
     added.push({ name: J.bridge, kind: 'rings', slots: fam, stations: rings.map((pts, i) => ({ id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, pts[sl].map(r6)])) })),
-      caps: { back: A.caps.tip.map(r6), tip: B.caps.back.map(r6) }, group: U.group, mirror: 'name',
+      caps: { back: (U.kind === 'segment' ? A.caps.tip : U.caps.tip).map(r6), tip: (D.kind === 'segment' ? B.caps.back : D.caps.back).map(r6) }, group: U.group, mirror: 'name',
       bind: { bone: fold ?? J.upper, blend: { back: { [J.upper]: 1 }, st0: { [J.upper]: 1 }, ...Object.fromEntries(BRIDGE_RUN.map(([, ws], i) => [`st${i + 1}`, w(ws)])), [`st${rings.length - 1}`]: { [J.lower]: 1 }, tip: { [J.lower]: 1 } } } });
   }
-  if (!added.length) return plan;
-  // each bridge after its lower part; it takes every dial and every split (slots refined) its limb takes
+  // each bridge after its lower part
   for (const g of added) { const J = TIERED_JOINTS.find((x) => x.bridge === g.name), i = segments.findIndex((s) => s.name === J.lower); segments.splice(i + 1, 0, g); }
-  const limbOf = new Map(TIERED_JOINTS.flatMap((J) => [J.upper, J.lower].flatMap((p) => [[tmpl(p), tmpl(J.bridge)], ...twins(p).map((n, k) => [n, twins(J.bridge)[k]])])));
-  const withBridges = (parts) => { const out = [...parts]; for (const p of parts) { const br = limbOf.get(p); if (br && added.some((g) => tmpl(g.name) === br.replace(/[RL]$/, '$S')) && !out.includes(br)) out.push(br); } return out; };
+  // a bridge takes every dial its limbs take; a split (slots refined) takes the whole chain, so its seams stay shut
+  const chains = chainsOf(joints), sideOf = (n) => (n.endsWith('$S') ? '$S' : n.endsWith('L') ? 'L' : 'R'), asSide = (r, S) => r.replace(/R$/, S);
+  const withChain = (parts, all) => { const out = [...parts]; for (const p of parts) { const S = sideOf(p), r = p.replace(/(\$S|[RL])$/, 'R'), c = chains.get(r); if (!c) continue;
+    for (const q of all ? c : c.filter((x) => added.some((g) => g.name === x))) { const n = asSide(q, S); if (!out.includes(n)) out.push(n); } } return out; };
+  const withBridges = (parts) => { const out = [...parts]; for (const p of parts) { const S = sideOf(p), r = p.replace(/(\$S|[RL])$/, 'R');
+    for (const J of joints) if (J.upper === r || J.lower === r) { const n = asSide(J.bridge, S); if (!out.includes(n)) out.push(n); } } return out; };
   const dials = plan.dials && Object.fromEntries(Object.entries(plan.dials).map(([k, d]) => [k, Array.isArray(d.parts) ? { ...d, parts: withBridges(d.parts) } : d]));
-  const refine = plan.body?.refine?.map((e) => (e.slots !== false && Array.isArray(e.parts) ? { ...e, parts: withBridges(e.parts) } : e));
-  // a volume (the dress's calf, its quadriceps) leaves a limb's ring at the bridge where it is, so the seam stays shut
-  const seamOf = new Map(TIERED_JOINTS.filter((J) => added.some((g) => g.name === J.bridge)).flatMap((J) => [J.upper, J.lower].flatMap((p) => twins(p).map((n) => [n, p === J.lower ? 'st0' : seamId(segments.find((x) => x.name === J.upper))]))));
-  const volume = plan.body?.volume?.map((v) => { const st = seamOf.get(v[0]); if (!st || !(st in (v[2] || {}))) return v; const { [st]: _gone, ...rest } = v[2]; return [v[0], v[1], rest, ...v.slice(3)]; });
+  const refine = plan.body?.refine?.map((e) => (e.slots !== false && Array.isArray(e.parts) ? { ...e, parts: withChain(e.parts, true) } : e));
+  // a volume (the dress's calf, its quadriceps) leaves a limb's ring at a bridge where it is, so the seam stays shut
+  const seamOf = new Map(joints.flatMap((J) => [...twins(J.lower).map((n) => [n, ['st0']]), ...twins(J.upper).map((n) => [n, [seamId(byName(J.upper))]])]));
+  const volume = plan.body?.volume?.map((v) => { const keep = Object.fromEntries(Object.entries(v[2] || {}).filter(([st]) => !(seamOf.get(v[0]) || []).includes(st))); return Object.keys(keep).length === Object.keys(v[2] || {}).length ? v : [v[0], v[1], keep, ...v.slice(3)]; });
   const body = refine || volume ? { body: { ...plan.body, ...(refine ? { refine } : {}), ...(volume ? { volume } : {}) } } : {};
   return { ...plan, segments, ...(dials ? { dials } : {}), ...body };
+}
+
+// ─── the sockets ────────────────────────────────────────────────────────────
+/** The ball joints, where a limb leaves the trunk: no ring of the trunk to meet, so no bridge. The limb's root rings
+ * ride a FOLD (the helper the elbow's and the knee's are: turned half the limb's swing from its rest line, pushed out to
+ * the convex side) instead of a blend of the trunk's bone and the limb's, which draws the swung root inside the joint (an
+ * arm raised over the head thinned to a stalk, a thigh raised to the chest crumpled at the groin). The shoulder gains its
+ * fold; the hip has one, and its ring rides it whole. `rings`: the limb's ring ids and each one's weights. */
+export const TIERED_SOCKETS = Object.freeze([
+  Object.freeze({ limb: 'upperArmR', trunk: 'clavicleR', fold: 'shoulderFoldR', joint: 'shoulder', to: 'elbow', front: [1, 0, 0], push: 0.3,
+    rings: Object.freeze({ back: { trunk: 0.2, limb: 0.8 }, st0: { limb: 1 } }), shell: 'torso', ball: 0.85, forward: 0.1 }),
+  Object.freeze({ limb: 'thighR', trunk: 'pelvis', fold: 'hipFoldR', joint: 'hip', to: 'knee', front: [0, 1, 0], push: null,
+    rings: Object.freeze({ st1: { fold: 1 } }) }),
+]);
+
+/** The plan with its sockets' folds: a fold the rig lacks is added (its rest line the limb's), the limb's root rings bound. */
+export function tieredSockets(plan) {
+  const folds = plan.rig?.folds; if (!folds || !plan.rig.joints) return plan;
+  const J = plan.joints, newFolds = { ...folds }; let any = false;
+  const segments = plan.segments.map((seg) => {
+    const K = TIERED_SOCKETS.find((x) => x.limb === seg.name); if (!K || !seg.bind?.blend) return seg;
+    const ft = tmpl(K.fold), S = (n) => `${n}$S`;
+    if (newFolds[ft] && K.push != null) newFolds[ft] = { ...newFolds[ft], push: r6(K.push * rad(seg.rA ?? seg.stations?.[1]?.r ?? 0.04)) };
+    if (!newFolds[ft]) {
+      if (!J[K.joint] || !J[K.to] || K.push == null) return seg;
+      newFolds[ft] = { joint: S(K.joint), inAxis: J[K.to].map((x, k) => r6(x - J[K.joint][k])), to: S(K.to), front: [...K.front], push: r6(K.push * rad(seg.rA ?? seg.stations?.[0]?.r ?? 0.04)),
+        bones: [tmpl(K.trunk) === K.trunk ? K.trunk : tmpl(K.trunk), tmpl(K.limb)], head: ft, tail: ft.replace('$S', 'Tip$S'), aim: ft.replace('$S', 'Aim$S') };
+    }
+    const name = (role) => (role === 'trunk' ? K.trunk : role === 'limb' ? K.limb : K.fold);
+    const blend = { ...seg.bind.blend };
+    for (const [st, ws] of Object.entries(K.rings)) blend[st] = Object.fromEntries(Object.entries(ws).map(([role, x]) => [name(role), x]));
+    any = true;
+    return { ...seg, bind: { ...seg.bind, blend } };
+  });
+  if (!any) return plan;
+  // the BALL (the vajra's ball-in-socket): a shoulder is a large head on a shallow socket, so its ball shows. A sphere
+  // at the joint, as wide as the arm at its root, rides the fold (half the arm's swing): whichever way the arm goes, it
+  // fills between the shoulder's corner and the arm. The hip's head sits deep in its socket (the pelvis hides it): none.
+  const balls = [];
+  for (const K of TIERED_SOCKETS.filter((x) => x.ball)) {
+    const seg = segments.find((g) => g.name === K.limb); if (!seg || !newFolds[tmpl(K.fold)] || !J[K.joint] || !J[K.to]) continue;
+    const r = r6(K.ball * rad(seg.rMid ?? seg.rA)), d = unit3(sub3(J[K.to], J[K.joint])), c = J[K.joint].map((x, k) => x + (K.forward ?? 0) * r * (k === 1 ? 1 : 0));
+    const slots = SLOT_FAMILIES.ring8, lat = [-60, -30, 0, 30, 60];
+    const stations = lat.map((deg, i) => { const t = (deg * Math.PI) / 180, P = ringPoints(c.map((x, k) => x + d[k] * r * Math.sin(t)), d, r * Math.cos(t), slots);
+      return { id: `st${i}`, points: Object.fromEntries(slots.map((sl) => [sl, P[sl].map(r6)])) }; });
+    balls.push({ name: K.ball && K.limb.replace(/^upperArm/, 'shoulderBall'), kind: 'rings', slots: 'ring8', stations, caps: { back: c.map((x, k) => r6(x - d[k] * r)), tip: c.map((x, k) => r6(x + d[k] * r)) },
+      group: seg.group, mirror: 'name', bind: K.fold });
+  }
+  if (balls.length) { const i = segments.findIndex((g) => g.name === balls[0].name.replace(/^shoulderBall/, 'upperArm')); segments.splice(i + 1, 0, ...balls); }
+  // the SHELL round a socket (the torso's shoulder): a point that shares the trunk bone's lift (the collarbone's) keeps
+  // half of that share and gives the fold as much again from the torso's, so the shoulder's corner goes up with a raised
+  // arm instead of standing beside its root
+  for (const K of TIERED_SOCKETS.filter((x) => x.shell)) {
+    const i = segments.findIndex((g) => g.name === K.shell), g = segments[i]; if (!g?.bind?.blend || !newFolds[tmpl(K.fold)]) continue;
+    const blend = { ...g.bind.blend };
+    for (const S of ['R', 'L']) { const trunk = K.trunk.replace(/R$/, S), fold = K.fold.replace(/R$/, S);
+      for (const [k, w] of Object.entries(blend)) { const t = w[trunk]; if (!k.includes('.') || !t) continue;
+        const rest = Object.entries(w).filter(([b]) => b !== trunk), sum = rest.reduce((a, [, x]) => a + x, 0), keep = 1 - 1.5 * t;
+        const o = Object.fromEntries(rest.map(([b, x]) => [b, r6((x / sum) * keep)])); o[trunk] = r6(t / 2); o[fold] = r6(1 - Object.values(o).reduce((a, x) => a + x, 0)); blend[k] = o; } }
+    segments[i] = { ...g, bind: { ...g.bind, blend } };
+  }
+  // a fold the rig gained is a bone too (its head, tail and aim the fold's own joints), after the rig's own
+  const gained = Object.keys(newFolds).filter((ft) => !folds[ft]).map((ft) => ({ id: ft, head: newFolds[ft].head, tail: newFolds[ft].tail, aux: [newFolds[ft].head, newFolds[ft].aim] }));
+  const bones = [...plan.rig.bones, ...(gained.length ? [{ perSide: gained }] : [])];
+  // a ball takes the dials and the splits its arm takes
+  const withBall = (parts) => { const out = [...parts]; for (const b of balls) for (const S of ['R', 'L', '$S']) { const arm = b.name.replace(/^shoulderBall/, 'upperArm').replace(/R$/, S), n = b.name.replace(/R$/, S); if (out.includes(arm) && !out.includes(n)) out.push(n); } return out; };
+  const dials = plan.dials && Object.fromEntries(Object.entries(plan.dials).map(([k, x]) => [k, Array.isArray(x.parts) ? { ...x, parts: withBall(x.parts) } : x]));
+  const refine = plan.body?.refine?.map((e) => (e.slots !== false && Array.isArray(e.parts) ? { ...e, parts: withBall(e.parts) } : e));
+  return { ...plan, segments, rig: { ...plan.rig, folds: newFolds, bones }, ...(dials ? { dials } : {}), ...(refine ? { body: { ...plan.body, refine } } : {}) };
 }
