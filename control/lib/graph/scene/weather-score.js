@@ -19,7 +19,9 @@ export function weatherScore(payload, { unitScale = 1, span = WEATHER_SCORE_SPAN
   if (!P || !P.weather) return null;
   const W = readWeather(P.weather), air = P.air || airFromHaze(payload.haze, W.air), seed = P.seed >>> 0;
   const runs = weatherRuns(W, seed, span).map((r) => ({ is: r.is, from: r3(r.from), to: r3(r.to) }));
-  const names = [...new Set([...runs.map((r) => r.is), ...Object.keys(W.climate)])].filter((n) => STATE_NAMES.includes(n));
+  // the states the schedule plays, the climate's, and the ones a cue can force (weather-force:<cue>, set by the bus)
+  const forced = ((payload.events && payload.events.reactions) || []).filter((r) => r && r.do === 'set' && typeof r.var === 'string' && r.var.startsWith('weather-force') && typeof r.to === 'string').map((r) => r.to);
+  const names = [...new Set([...runs.map((r) => r.is), ...Object.keys(W.climate), ...forced])].filter((n) => STATE_NAMES.includes(n));
   // (an array of { name, … }, not a map: the score is read by engines whose JSON readers have no dictionaries)
   const states = [];
   for (const n of names) {

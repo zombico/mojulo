@@ -37,7 +37,7 @@ export const BUS_ABI = Object.freeze({
     menus: { about: 'a menu over the play (ui-menu-<id>)', web: B, godot: P, how: 'level.gd draws the open one as a plain panel, its {var} words filled; no UI guide style, no pad or pointer' },
     parts: { about: 'a HUD part shown, hidden or restated by a cue (ui-<part>)', web: B, godot: A },
     phase: { about: 'the play\'s phase (title, playing, …)', web: B, godot: A },
-    weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: A, how: 'kernel/weather.gd plays the schedule, not a cue\'s change' },
+    weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: B, how: 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)' },
     cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake; a walk has no collider push-out or ground snap; puffs, beams and transits stay on the web' },
     stats: { about: 'stats: raise, grant, xp, level, buy', web: B, godot: A },
   }),

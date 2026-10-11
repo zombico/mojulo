@@ -12,6 +12,7 @@ import { lowerPlay } from '../playscape/ui/direction.js';
 import { chapterContract, chapterKey } from '../playscape/ui/chapters.js';
 import { validateLevelContract } from '../game/level-contract.js';
 import { emitGodotGame } from './godot-project.js';
+import { readWeather } from '../weather/weather.js';
 
 const KERNEL = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
@@ -116,7 +117,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.11.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.12.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
@@ -203,6 +204,40 @@ describe('the cast travels', () => {
       expect(bus.at(-1)).toMatch(/"merchant-left":1/);
       expect(bus.at(-1)).toMatch(/"posted":1/);
       expect(bus.at(-1)).toMatch(/"woke":1/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// forced weather: the warning darkens the sky to a thunderstorm (a cue's weather), eased in over its blend and held; the
+// web's newest-force-wins rule (kernel 0.12.0, weather.gd force())
+describe('a cue forces the sky', () => {
+  const WX_PLAY = { chapters: [{ id: 'warned', when: { use: { at: [4, 0], r: 1.5 } }, world: { weather: { is: 'thunderstorm', blend: 0 } } }] };
+  const payload = () => ({ entities, haze: { color: '#b4d8f0', density: 0.012 }, weather: { weather: readWeather('temperate'), seed: 4 }, events: lowerPlay({ entities, play: WX_PLAY }, { player: 'hero' }) });
+
+  it('the score carries the states a cue can force, and the contract marks the weather built', () => {
+    const s = extractEngineScore({ ref: 'r', manifest: {} }, payload());
+    expect(s.weather.states.map((x) => x.name)).toContain('thunderstorm');
+    expect(s.ledger.bus_carried.godot.built).toContain('effect:weather');
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot eases to the forced storm (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-wx-'));
+    try {
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="wx-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'town', manifest: {} }, payload())));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload())));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-bus-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '4', '0'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const wx = out.split('\n').filter((l) => l.startsWith('[mojulo-weather]'));
+      expect(wx[0]).toMatch(/start .* forced=$/);
+      // a blend of 0: the storm at once, its fog thicker and its light dimmer than the schedule's
+      expect(wx.at(-1)).toMatch(/->thunderstorm mix=1\.00 .* forced=thunderstorm$/);
+      const num = (l, k) => Number(l.match(new RegExp(`${k}=([\\d.]+)`))[1]);
+      expect(num(wx.at(-1), 'fog')).toBeGreaterThan(num(wx[0], 'fog'));
+      expect(num(wx.at(-1), 'dim')).toBeGreaterThan(num(wx[0], 'dim'));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

@@ -34,7 +34,8 @@ describe('the bus contract', () => {
     expect(godot.partial).toEqual(expect.arrayContaining(['effect:hud', 'effect:menus']));
     expect(godot.built).toContain('fact:cast');
     expect(godot.partial).toContain('effect:cast');
-    expect(godot.absent).toEqual(['effect:weather']);
+    expect(godot.built).toContain('effect:weather');
+    expect(godot.absent).toEqual([]);
   });
 
   it('finds a mechanics level whole in the Godot kernel but its painting', () => {
@@ -46,13 +47,13 @@ describe('the bus contract', () => {
   });
 
   it('rides the ledger and the portability flags', () => {
-    const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: [{ open: 'sign' }, { weather: 'rain' }] }] });
+    const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], parts: [{ part: 'readout', id: 'gauge', bind: { var: 'hp' } }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: [{ open: 'sign' }, { hide: 'gauge' }] }] });
     const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events });
-    expect(score.ledger.bus_carried.godot.absent).toEqual(['effect:weather']);
+    expect(score.ledger.bus_carried.godot.absent).toEqual(['effect:parts']);
     expect(score.ledger.bus_carried.godot.partial).toContain('effect:menus');
     expect(score.menus.map((m) => m.id)).toEqual(['sign']);
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score }] });
-    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: effect:weather/);
+    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: effect:parts/);
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
   });
 });

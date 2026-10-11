@@ -90,6 +90,10 @@ var cast_state: Dictionary = {}
 var cast_rows: Array = []
 var cast_nodes: Dictionary = {}      # id → {node, rot0, heading0, worn: {status: true}}
 var shake_cam: Camera3D = null
+# FORCED WEATHER (since 0.12.0): the newest weather-force:<cue> still set, handed to the weather node (the web's rule)
+var wx_seen: Dictionary = {}
+var wx_live: Dictionary = {}
+var wx_order := 0
 
 # rigs (walking-suit-backport G-L1..G-L5)
 var suit: Node3D = null              # the player's figure wrapper, driven by the walker
@@ -689,8 +693,8 @@ func _read_probe_args() -> void:
 func _dump(tag: String) -> void:
 	var wx := get_node_or_null("MojuloWeather")
 	if wx != null:
-		var wl: Dictionary = wx.look_at(wx.t)
-		print("[mojulo-weather] %s state=%s->%s mix=%.2f fog=%.4f dim=%.2f enabled=%s" % [tag, wl["a"], wl["b"], wl["mix"], wl["density"], wl["dim"], str(wx.env.fog_enabled)])
+		var wl: Dictionary = wx.last if not (wx.last as Dictionary).is_empty() else wx.look_at(wx.t)   # the sky applied
+		print("[mojulo-weather] %s state=%s->%s mix=%.2f fog=%.4f dim=%.2f enabled=%s forced=%s" % [tag, wl["a"], wl["b"], wl["mix"], wl["density"], wl["dim"], str(wx.env.fog_enabled), wx.forced["n"] if wx.forced != null else ""])
 	var w := walker.global_position
 	var line := "[mojulo-dump] %s walker=(%.2f,%.2f,%.2f)" % [tag, w.x, w.y, w.z]
 	if suit != null:
@@ -1150,6 +1154,7 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	_drain_bus(delta)
 	_sync_menus()
 	_draw_cast()
+	_sync_weather()
 
 
 # announce the new events, fire the score's banners and toasts on them, refresh the readouts
@@ -1257,6 +1262,28 @@ func _draw_cast() -> void:
 	if cam != null:
 		cam.h_offset = randf_range(-1, 1) * 0.08 * k if k > 0 else 0.0
 		cam.v_offset = randf_range(-1, 1) * 0.08 * k if k > 0 else 0.0
+
+
+func _sync_weather() -> void:
+	var wx := get_node_or_null("MojuloWeather")
+	if wx == null:
+		return
+	var v: Dictionary = bus_state["vars"]
+	var top = null
+	for k in v:
+		if not String(k).begins_with("weather-force"):
+			continue
+		var now := String(v[k]) if v[k] is String else ""
+		if now != String(wx_seen.get(k, "")):
+			wx_seen[k] = now
+			if now != "":
+				wx_order += 1
+				wx_live[k] = {"n": now, "k": k, "at": wx_order, "bl": v.get("weather-blend" + String(k).substr(13))}
+			else:
+				wx_live.erase(k)
+		if wx_live.has(k) and (top == null or wx_live[k]["at"] > top["at"]):
+			top = wx_live[k]
+	wx.force(top)
 
 
 func _sync_menus() -> void:

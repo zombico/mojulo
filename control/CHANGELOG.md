@@ -120,6 +120,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - A walk has no collider push-out or ground snap in Godot. Puffs, beams and transits stay on the web.
   - In a headless Godot, a warning wakes a soldier at the gate; he walks to his post, is felled there, and the bus
     hears each step. The merchant is sent away.
+- **A cue forces the sky in Godot (kernel 0.12.0).** The score's weather row now lists the states a cue can force.
+  `level.gd` hands the newest `weather-force:<cue>` still set to `weather.gd`, which eases fog, colour and light to it
+  over the cue's blend, holds it, and eases back to the schedule when no force is left: the web page's rule.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The
