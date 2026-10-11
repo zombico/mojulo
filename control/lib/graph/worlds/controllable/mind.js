@@ -164,6 +164,10 @@ export function buildMind(E) {
     e.lastSwingDir = dir;       // combo-string memory stays coherent if the pilot takes this body over
     e.swingDur = sc.strikeDur ?? r.strikeDur ?? 0.9;
     e.swingCd = sc.strikeCooldown ?? r.strikeCooldown ?? 0;
+    // a LUNGE (opt-in `strikeLunge`, units/s): the strike carries the body forward until its contact window closes,
+    // so a bite reaches a fleeing target. Absent: the swing is planted, as every arena cut is.
+    const lunge = sc.strikeLunge ?? r.strikeLunge;
+    if (lunge) e.swingLunge = lunge; else if (e.swingLunge) e.swingLunge = 0;
     breakGuards(e);   // attacking spends any protection (spawn shield / wake guard / dodge i-frames)
   }
   // beginSwing(e, sc, r, dif) — the mind opens a melee attack. By default a TWO-HIT string: an OPENER (a neutral or
@@ -238,6 +242,22 @@ export function buildMind(E) {
       } else if (world.pilotId && world.byId[world.pilotId] !== skip) target = world.byId[world.pilotId];
     }
     return target;
+  }
+
+  // threatOf(e, world) — what PREY runs from: the nearest of the pilot and every hunting mind (`motivation: 'hunt'`)
+  // not on its own team. Without hunting minds in the world this is the pilot, as before.
+  function threatOf(e, world) {
+    if (!world || !world.byId) return null;
+    let best = world.pilotId && world.byId[world.pilotId] !== e ? world.byId[world.pilotId] : null;
+    let bd = best ? Math.hypot(best.transform.pos[0] - e.transform.pos[0], best.transform.pos[1] - e.transform.pos[1]) : Infinity;
+    for (const id in world.byId) {
+      const o = world.byId[id];
+      if (o === e || o.downed || !o.rule || !o.rule.mind || o.rule.mind.motivation !== 'hunt') continue;
+      if (e.team && o.team === e.team) continue;
+      const d = Math.hypot(o.transform.pos[0] - e.transform.pos[0], o.transform.pos[1] - e.transform.pos[1]);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
   }
 
   // ── shared moves ──────────────────────────────────────────────────────────────────────
@@ -515,6 +535,11 @@ export function buildMind(E) {
     if (e.swingT != null) {
       e.swingT += dt / (e.swingDur || 0.9);
       e.locomotion = e.swingClip || 'swing_neutral'; e.moving = true; e.gaitPhase = Math.min(1, e.swingT); e.aiFire = 0;
+      if (e.swingLunge && e.strikeParams && e.swingT < e.strikeParams.to) {
+        const lf = fwdXY(t.heading), ls = e.swingLunge * dt;
+        t.pos[0] += lf[0] * ls; t.pos[1] += lf[1] * ls;
+        if (!r.space && world && world.colliders) block(t, r, eye, world);
+      }
       if (!r.space) standOnGround(t, r, r.eye ?? 0, world);
       if (e.swingT >= 1) {
         if (e.aiComboWant && !e.swingCombo && e.aiComboCfg) {
@@ -538,7 +563,7 @@ export function buildMind(E) {
     const motive = r.mind && r.mind.motivation;
     if (motive === 'flee') {
       e.reactionEnded = false;
-      const threat = pickTarget(e, world, r.target);
+      const threat = r.target ? pickTarget(e, world, r.target) : threatOf(e, world);
       if (!threat || threat === e) { e.moving = false; return; }
       const fx = t.pos[0] - threat.transform.pos[0], fy = t.pos[1] - threat.transform.pos[1];
       if (Math.hypot(fx, fy) < (r.fearRadius ?? 18)) walkToward(e, r, Math.atan2(fy, fx), dt, world, r.fleeSpeed ?? speed * 1.6);
@@ -709,7 +734,10 @@ export function buildMind(E) {
     const aSlot = lo ? lo[e.loadoutIdx || 0] : null;
     const aOv = (aSlot && aSlot.approach) || r.approach || null;
     const aProf = SPACING[spacingOf(w, aOv)] || [1.0, 0.7, 1.0];
-    const baseStandoff = r.standoff != null ? r.standoff : (w ? (w.range || 400) * 0.42 : speed * 8);
+    // a body that holds only blades (a predator's bite) has nothing to shoot from range: it closes to its reach
+    const bladeOnly = !w && !!lo && lo.length > 0 && lo.every((c) => !c || c.strike === 'melee');
+    const bladeReach = bladeOnly ? ((lo.find((c) => c && c.strike === 'melee') || {}).strikeReach ?? r.strikeReach ?? speed) : 0;
+    const baseStandoff = r.standoff != null ? r.standoff : (w ? (w.range || 400) * 0.42 : bladeOnly ? bladeReach * 0.8 : speed * 8);
     const standoff = (w ? (Number.isFinite(aOv && aOv.standoff) ? aOv.standoff : baseStandoff * aProf[0]) : baseStandoff) * (dif ? dif.standoffMul : 1);
     const closeBias = (Number.isFinite(aOv && aOv.close) ? aOv.close : aProf[1]) * (dif ? dif.closeMul : 1);
     const weaveMul = Number.isFinite(aOv && aOv.weave) ? aOv.weave : aProf[2];

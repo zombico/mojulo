@@ -78,6 +78,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Predators hunt.** Every predator species' mind now carries a natural weapon: a bite whose reach and damage scale
+  with the animal's size, which staggers without knocking down. A predator hunts any body not of its own kind, so a
+  pack never bites itself. Prey flee the nearest threat, which is the player or any hunting mind, so deer run from
+  wolves with no player near.
 - **Idle minds move.** Motivations that used to stand still now have something to do:
   - **Wander** roams near home, pausing between legs. Territorial minds idle the same way.
   - **Forage** walks to bodies tagged as food and grazes there, or drifts and grazes when there is none.

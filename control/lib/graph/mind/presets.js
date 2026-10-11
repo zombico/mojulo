@@ -39,6 +39,8 @@ export const PRESETS = Object.freeze({
   'practice-dummy': { line: 'walks its route and never fights', mind: { motivation: 'ambient', aggressiveness: 'passive', rank: 'minion', skill: 'novice' }, body: DUMMY },
 });
 
+const round2 = (v) => Math.round(v * 100) / 100;
+
 export function faunaMind(id) {
   const s = SPECIES[id];
   if (!s) throw new Error(`mind: no species '${id}'`);
@@ -46,8 +48,19 @@ export function faunaMind(id) {
   const has = (t) => tags.includes(t);
   const motivation = has('predator') ? 'hunt' : has('prey') ? 'flee' : (has('grazer') || has('browser') || has('roots') || has('filter')) ? 'forage' : 'wander';
   const aggressiveness = has('predator') ? 'bold' : has('prey') ? 'passive' : 'defensive';
-  // an animal runs the engine's mind (worlds/controllable/mind.js) and does not roll. No fauna body holds a combat verb
-  // yet: a predator's hunt resolves to what its body can do, which today is nothing
-  const body = { rule: { type: 'ai', dodge: false, ...(cap.wings ? { flier: true } : {}), ...(cap.swimmer ? { swimmer: true } : {}) } };
+  // an animal runs the engine's mind (worlds/controllable/mind.js) and does not roll. A PREDATOR carries a natural
+  // weapon: one melee slot (a bite) sized by the species' scale, which staggers but never floors; its species is its
+  // team, so it hunts anything not of its kind (`target: 'enemy'`) and a pack never bites itself
+  const rule = { type: 'ai', dodge: false, ...(cap.wings ? { flier: true } : {}), ...(cap.swimmer ? { swimmer: true } : {}) };
+  let team;
+  if (has('predator')) {
+    const size = Number.isFinite(s.scale) ? s.scale : 1;
+    Object.assign(rule, {
+      meleeSeek: true, meleeCombo: false, target: 'enemy',
+      loadout: [{ name: 'bite', strike: 'melee', swingSet: 'bite', strikeReach: round2(1 + 1.4 * size), strikeDamage: Math.round(6 + 12 * size), strikeCooldown: 1.2, strikeDur: 0.6, strikeLunge: round2(10 + 8 * size), strikeVerbs: { back: { topple: false } } }],
+    });
+    team = id;
+  }
+  const body = { rule, ...(team ? { team } : {}) };
   return { mind: { motivation, aggressiveness, rank: 'minion', skill: 'regular' }, body, tags };
 }

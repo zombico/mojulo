@@ -422,3 +422,45 @@ describe('a behaviour pose ends with the behaviour (MX8 eyes-pass fix)', () => {
     expect(m.locomotion).not.toBe('phase_shift');
   });
 });
+
+describe('predators hunt (MX9)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const animal = (id, species, pos, extra = {}) => {
+    const f = faunaMind(species);
+    return { id, ...(f.body.team ? { team: f.body.team } : {}), rule: { ...f.body.rule, mind: f.mind, collideRadius: 0.6, eye: 0, ...extra }, body: { type: 'mesh', hittable: true, hp: 60, radius: 0.6 }, transform: { pos, heading: 0 } };
+  };
+  const steps = (w, n) => { for (let i = 0; i < n; i++) E.stepWorld(w, {}, 1 / 60, hooks); };
+
+  it('a predator mind carries a bite sized by its species, and its species as its team', () => {
+    const wolf = faunaMind('wolf'), tiger = faunaMind('tiger');
+    expect(actionsOf({ rule: { ...wolf.body.rule, mind: wolf.mind } }).melee).toBe(true);
+    expect(wolf.body.team).toBe('wolf');
+    expect(tiger.body.rule.loadout[0].strikeDamage).toBeGreaterThan(wolf.body.rule.loadout[0].strikeDamage);
+    expect(faunaMind('deer').body.rule.loadout).toBeUndefined();
+    const r = resolveMind(wolf.mind, { rule: { ...wolf.body.rule, mind: wolf.mind } });
+    expect(r.situations.engage.strategy).not.toBe('stand');
+  });
+
+  it('a wolf chases a deer down and bites it; the deer runs from the wolf with no player near', () => {
+    const w = E.createWorld({ entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [500, 500, 0], heading: 0 } },
+      animal('wolf', 'wolf', [0, 0, 0], { speed: 14, turn: 5 }),
+      animal('deer', 'deer', [12, 0, 0], { speed: 6, fearRadius: 18 }),
+    ] });
+    steps(w, 30);
+    expect(w.byId.deer.transform.pos[0]).toBeGreaterThan(12);   // ran away from the wolf
+    steps(w, 60 * 10);
+    expect(w.byId.deer.body.hp).toBeLessThan(60);                // caught and bitten
+    expect(w.byId.p.body.hp).toBe(100);
+  });
+
+  it('a pack never bites itself', () => {
+    const w = E.createWorld({ entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [500, 500, 0], heading: 0 } },
+      animal('w1', 'wolf', [0, 0, 0]), animal('w2', 'wolf', [2, 0, 0]), animal('w3', 'wolf', [0, 2, 0]),
+    ] });
+    steps(w, 60 * 5);
+    for (const id of ['w1', 'w2', 'w3']) expect(w.byId[id].body.hp).toBe(60);
+  });
+});
