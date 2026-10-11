@@ -47,7 +47,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -183,7 +183,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   const commanderStep = commandedIds.length ? '__mojCmd.step(__world);\n    ' : '';
   return `
 const __CW = ${emissionSource()};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
 ${commanderBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -2436,7 +2436,13 @@ function __msHookParams() {
   });
 }
 if (__ctrlOwnsCamera) __driveCamera();
-stepControllable = (dt, inputOverride) => {
+${breakables ? `// breakability: a block that broke (the runtime's state.breaks) leaves the scene: its render group (break:<id>) hides
+let __breaksSeen = 0;
+function __updateBreaks() {
+  const B = __world.breaks || [];
+  for (; __breaksSeen < B.length; __breaksSeen++) { const m = meshes['break:' + B[__breaksSeen].id]; if (m) m.visible = false; }
+}
+` : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0) {
     ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
@@ -2445,7 +2451,8 @@ ${hangarHook}  __msHookParams();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(dt);${shadowHook}${smokeHook}
+    __updateThrusters(dt);${shadowHook}${smokeHook}${breakables ? `
+    __updateBreaks();` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame

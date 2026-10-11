@@ -346,6 +346,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   shatter, blast, burn, dice, sever). A blow's cut is the thing's own (glass shatters whatever hits it), else the
   blow's, else its element's (fire burns, ice shatters, wind slashes, shock cleaves, dusty severs), else its source's
   (a swing slashes, a round chips, a burst blasts, a beam by its kind). Tables, not code.
+- **What breaks is a game's convention, by degree.** Nothing breaks by default. A level says how much does with
+  `destruction`: `none`, `objects` (the action-game default: crates, barrels, amphorae, pots, glass, planks, bones,
+  a lid; buildings and fixtures hold), `cover` (furniture, doors, boulders and coffins too) or `world` (walls,
+  pilasters and set pieces as well); a thing's own `breakable` wins over it. A thing's class is the name it already
+  has. Each breakable solid thing becomes a block the runtime breaks (a swing in reach, a round that stops on it, a
+  burst over it), its faces their own render group, and the World page hides it when it breaks. Today the gothic and
+  catacomb kits' props carry what this needs; a thing not yet named on its faces (a pooled rock) or blocking nothing
+  (planks, bones) stays as it is. Absent, a page is byte-identical.
 
 ### Structure rails: the structure book
 
