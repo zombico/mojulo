@@ -91,6 +91,9 @@ import { emitThreeWorld } from './scene-three.js';
 // when they end (found playing the Mind demo headless). Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (predators): prey run from the nearest hunting mind as well as the pilot; a blade-only body
 // closes to its reach; an opt-in `strikeLunge` carries a strike forward. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (groups): the engine gains group.js after the mind (slots from traversal patterns, shared
+// sight, attack tokens; a no-op without `rule.mind.group`), and a lunge stops at half its reach. Same proof, same 13
+// fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

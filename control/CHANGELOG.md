@@ -78,6 +78,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Groups: N minds as one.** Minds that share `rule.mind.group` act together (`worlds/controllable/group.js`):
+  - **Shared focus, spacing and sight.** They share a target and keep a spacing between members, and one member's
+    sighting is the whole group's.
+  - **Traversal patterns** give every member a slot:
+    - travelling: column, line and wedge;
+    - closing in: fan-out, encircle, pincer and close;
+    - breaking: scatter.
+  - **Plans** chain patterns on triggers: distance to the target, time, or how many members have arrived. Named plans
+    are `pack-hunt`, `squad` and `herd`.
+  - **Attack tokens** let only K members press in at once while the rest hold their slots.
+
+  A group with no target travels in formation behind its leader. Worlds without groups are unchanged.
 - **Predators hunt.** Every predator species' mind now carries a natural weapon: a bite whose reach and damage scale
   with the animal's size, which staggers without knocking down. A predator hunts any body not of its own kind, so a
   pack never bites itself. Prey flee the nearest threat, which is the player or any hunting mind, so deer run from

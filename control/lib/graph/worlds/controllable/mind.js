@@ -465,6 +465,12 @@ export function buildMind(E) {
   }
   // idle(e, r, dt, world, motive) — IDLE by motivation; a mind without one stands
   function idle(e, r, dt, world, motive) {
+    // GROUP (group.js): a member out of the fight keeps its formation slot behind the leader
+    if (e.groupId && e.groupSlot) {
+      const gs = e.groupSlot, d = Math.hypot(gs[0] - e.transform.pos[0], gs[1] - e.transform.pos[1]);
+      if (d > 1.5) goTo(e, r, dt, world, [gs[0], gs[1], e.transform.pos[2]], r.speed ?? 6); else e.moving = false;
+      return;
+    }
     if (motive === 'guard' || motive === 'escort') return returnToPost(e, r, dt, world);
     if (motive === 'wander' || motive === 'territorial') return wanderStep(e, r, dt, world, { speedMul: r.wanderSpeedMul ?? 0.5, pause: [r.wanderPause ?? 2, (r.wanderPause ?? 2) * 2] });
     if (motive === 'forage') return grazeStep(e, r, dt, world);
@@ -535,7 +541,9 @@ export function buildMind(E) {
     if (e.swingT != null) {
       e.swingT += dt / (e.swingDur || 0.9);
       e.locomotion = e.swingClip || 'swing_neutral'; e.moving = true; e.gaitPhase = Math.min(1, e.swingT); e.aiFire = 0;
-      if (e.swingLunge && e.strikeParams && e.swingT < e.strikeParams.to) {
+      const lungeTo = e.lungeTo && world && world.byId ? world.byId[e.lungeTo] : null;
+      const lungeRoom = !lungeTo || Math.hypot(lungeTo.transform.pos[0] - t.pos[0], lungeTo.transform.pos[1] - t.pos[1]) > (e.strikeParams ? e.strikeParams.reach : 1) * 0.5;
+      if (e.swingLunge && e.strikeParams && e.swingT < e.strikeParams.to && lungeRoom) {   // it stops at half its reach
         const lf = fwdXY(t.heading), ls = e.swingLunge * dt;
         t.pos[0] += lf[0] * ls; t.pos[1] += lf[1] * ls;
         if (!r.space && world && world.colliders) block(t, r, eye, world);
@@ -579,7 +587,7 @@ export function buildMind(E) {
     const ward = motive === 'escort' ? wardOf(e, r, world) : null;
     let target = pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
     const percept = r.mind && r.mind.perception;
-    if (percept && target && target !== e && !perceive(e, r, target, world)) {
+    if (percept && target && target !== e && !perceive(e, r, target, world) && e.groupFocus !== target.id) {
       target = null;
       if (percept === 'memory' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
     }
@@ -681,7 +689,7 @@ export function buildMind(E) {
     // The opportunist's RESTRAINT: it fears the mirror, so it draws the blade only when the target can't charge back
     // (mid-roll, or reeling). Every other tuning commits as before.
     const targetSafeMelee = !(dif && dif.tackleGuard) || target.dodgeT != null || targetReeling;
-    const meleeCommit = !!meleeCfg && !target.downed && !targetHigh && targetSafeMelee
+    const meleeCommit = !!meleeCfg && !target.downed && !targetHigh && targetSafeMelee && (!e.groupId || e.groupToken)
       && (meleeDist < meleeReach * 3 || (targetReeling && meleeDist < meleeReach * 9));
     if (meleeCommit) {
       e.meleeCommitT = (e.meleeCommitT || 0) + dt;
@@ -767,7 +775,27 @@ export function buildMind(E) {
         }
       } else if (facing && (e.readyT || 0) <= 0) {
         beginSwing(e, meleeCfg, r, dif);
+        e.lungeTo = target.id;          // a lunge carries in toward this body and stops short of it
         e.meleeCommitT = 0;             // a swing landed the commit: restart the give-up clock for the next approach
+      }
+    } else if (e.groupId && e.groupSlot && !isSpace && !(e.groupToken && bladeOnly)) {
+      // GROUP: hold the slot the plan gives it (facing the target, firing if it can), kept apart from its mates; a
+      // blade holding an attack token leaves its slot to press in
+      const gx = e.groupSlot[0] - t.pos[0], gy = e.groupSlot[1] - t.pos[1], gd = Math.hypot(gx, gy);
+      const sp = e.groupSpacing ?? 3;
+      let sx = 0, sy = 0;
+      if (world && world.byId) {
+        for (const id in world.byId) {
+          const o = world.byId[id];
+          if (o === e || o.groupId !== e.groupId) continue;
+          const ox = t.pos[0] - o.transform.pos[0], oy = t.pos[1] - o.transform.pos[1], od = Math.hypot(ox, oy);
+          if (od > 1e-6 && od < sp) { sx += (ox / od) * (sp - od) / sp; sy += (oy / od) * (sp - od) / sp; }
+        }
+      }
+      if (gd > 0.6 || sx || sy) {
+        const mx = (gd > 0.6 ? gx / gd : 0) + sx * 1.5, my = (gd > 0.6 ? gy / gd : 0) + sy * 1.5, mn = Math.hypot(mx, my) || 1;
+        const step = Math.min(speed * dt, gd + 0.5);
+        t.pos[0] += (mx / mn) * step; t.pos[1] += (my / mn) * step; moveMag = step; clip = 'forward';
       }
     } else if (isSpace) {
       const ux = dx / dist3d, uy = dy / dist3d, uz = dz / dist3d;
@@ -848,5 +876,5 @@ export function buildMind(E) {
     state.aiTuning = AI_DIFFICULTY[spec.aiDifficulty] || null;
   });
 
-  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf });
+  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget });
 }

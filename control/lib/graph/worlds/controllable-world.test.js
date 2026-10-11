@@ -1126,7 +1126,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // and breakable terrain: the 'break' pass (this tick's shots, bursts and swings take hp off the blocks they reach).
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
-      preSteps: ['match-over-zero', 'ai-toggle', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
+      preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
       entityTimers: ['weapon-and-cooldowns'],
       bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],

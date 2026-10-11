@@ -38,7 +38,8 @@ export const MIND = Object.freeze({
       values: {
         none: { status: 'built' },
         'free-for-all': { status: 'built', lowers: MIND_RULE, note: 'targets the nearest live body (`target: all`)' },
-        'team-aware': { status: 'partial', effort: 'M', lowers: MIND_RULE, note: 'skips allies when targeting (`target: enemy`); no group tactics' },
+        'team-aware': { status: 'built', lowers: 'lib/graph/worlds/controllable/group.js', note: 'skips allies when targeting; a group shares focus, sight, spacing, patterns and attack tokens' },
+        pack: { status: 'built', lowers: 'lib/graph/worlds/controllable/group.js', note: 'a group plan: fan-out, encircle, close; K attackers at a time' },
       },
     },
     social: {
