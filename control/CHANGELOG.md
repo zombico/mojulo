@@ -354,6 +354,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   burst over it), its faces their own render group, and the World page hides it when it breaks. Today the gothic and
   catacomb kits' props carry what this needs; a thing not yet named on its faces (a pooled rock) or blocking nothing
   (planks, bones) stays as it is. Absent, a page is byte-identical.
+- **A broken thing comes apart.** Each breakable is cut ahead of time, once for each cut it can take (a swing slashes
+  it in two, a round or a fall chips it, a burst blasts it; its own `cut` wins), and when it breaks on the World page
+  a flash and a ring cover the swap to those pieces. They part the cut's way, carry the thing's own texture with a
+  darker inside, fall, tumble, bounce off the walls, settle on the floor it stood on, then sink away. The box is what is
+  cut, so a barrel breaks as a box would; a severing cut plays the chip for now.
 
 ### Structure rails: the structure book
 

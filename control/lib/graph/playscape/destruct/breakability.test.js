@@ -81,10 +81,36 @@ describe('a level that lets things break, end to end', () => {
       expect(payload.breakables.length, JSON.stringify(extra)).toBeGreaterThan(0);
       const html = emitThreeWorld(payload);
       expect(html).toContain('breakables: [{"id":"');
-      expect(html).toContain('__updateBreaks();');
+      expect(html).toContain('__updateBreaks(dt);');
+      expect(html).toContain(`const __breakPieces = {"`);
+      expect(Object.keys(payload.breakPieces).sort()).toEqual(payload.breakables.map((b) => b.id).sort());
       expect(html).toMatch(/"name":"break:crate-1"/);
     }
     expect((await resolveWorldScene(level({ destruction: 'none' }))).payload.breakables).toBeUndefined();
     await expect(resolveWorldScene(level({ destruction: 'lots' }))).rejects.toThrow(/none, objects, cover, world/);
   }, 120000);
+});
+
+describe('the pieces a broken thing becomes', () => {
+  it('each breakable is pre-cut once per cut it can take: a swing slashes, a shot chips, a burst blasts', async () => {
+    const { piecesOf } = await import('./breakability.js');
+    const r = breakablesOf(gothic, 'objects'), show = piecesOf(r.breakables, r.faces);
+    expect(Object.keys(show).sort()).toEqual(r.breakables.map((b) => b.id).sort());
+    const crate = show[r.breakables.find((b) => b.id.startsWith('crate')).id];
+    expect(crate.cuts).toEqual({ swing: 'slash', shot: 'chip', burst: 'blast', fall: 'chip', crush: 'chip', call: 'chip' });
+    expect(Object.keys(crate.pieces).sort()).toEqual(['blast', 'chip', 'slash']);
+    expect(crate.pieces.slash.style).toBe('blade');
+    expect(crate.pieces.slash.chunks.length).toBe(2);
+    expect(crate.pieces.blast.chunks.length).toBeGreaterThan(crate.pieces.chip.chunks.length);
+    expect(crate.fill).toMatch(/^#[0-9a-f]{6}$/i);
+    // every chunk has an inside, and its corners sit about its own centre
+    for (const k of crate.pieces.chip.chunks) {
+      expect(k.faces.some((f) => f.cut)).toBe(true);
+      expect(k.faces.every((f) => f.pts.every((p) => Math.hypot(...p) < 2))).toBe(true);
+    }
+    // a thing's own cut wins over every blow; the same thing cuts the same way forever
+    const glass = piecesOf([{ ...r.breakables[0], cut: 'shatter' }]);
+    expect(new Set(Object.values(glass[r.breakables[0].id].cuts))).toEqual(new Set(['shatter']));
+    expect(JSON.stringify(piecesOf(r.breakables, r.faces))).toBe(JSON.stringify(show));
+  });
 });

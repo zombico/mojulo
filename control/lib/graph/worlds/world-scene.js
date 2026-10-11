@@ -18,7 +18,7 @@
  * with no traversable form (the caller then points the user back at /scene or /svg).
  */
 
-import { readDegree, breakablesOf } from '@/lib/graph/playscape/destruct/breakability';
+import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -567,11 +567,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (sketch.manifest.wreckExplodes) payload.wreckExplodes = sketch.manifest.wreckExplodes;
     // breakability (playscape/destruct/breakability.js): how much the game lets break, a convention by degree
     // (`destruction` on the level; a game's degree is copied onto its levels when they are composed); the breakable
-    // things become the runtime's blocks, their faces their own render group, their colliders the blocks'. Absent or
+    // things become the runtime's blocks, their faces their own render group, their colliders the blocks'; each is
+    // pre-cut into the pieces the page swaps in when it breaks. Absent or
     // 'none' ⇒ nothing breaks, byte-identical.
     const destruction = readDegree(sketch.manifest.destruction, 'destruction');
     const broken = breakablesOf(payload, destruction);
-    if (broken && broken.breakables.length) { payload.faces = broken.faces; payload.colliders = broken.colliders; payload.breakables = broken.breakables; }
+    if (broken && broken.breakables.length) { payload.faces = broken.faces; payload.colliders = broken.colliders; payload.breakables = broken.breakables; payload.breakPieces = piecesOf(broken.breakables, broken.faces); }
     // tutorial (tutorial-mode.plan.md T1): the scripted teaching layer — ordered prompt+goal steps
     // the engine director advances by edge-detecting the sim; the director is the level terminal
     // (tutorial levels run no match). Opt-in; absent ⇒ byte-identical.
