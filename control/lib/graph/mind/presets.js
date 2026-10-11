@@ -20,12 +20,13 @@ export const ARENA_TIERS = Object.freeze({
 
 // the arena's seat body (match-modes seatRule): boost, melee seek, a spray gun and a rifle
 const ARENA_BODY = Object.freeze({
-  rule: { type: 'ai', boost: true, meleeSeek: true, loadout: [{ name: 'mg', weapon: { fireClass: 'area' } }, { name: 'rifle', weapon: { fireClass: 'sight' } }] },
+  rule: { type: 'ai', boost: true, meleeSeek: true, loadout: [{ name: 'saber', strike: 'melee' }, { name: 'mg', weapon: { fireClass: 'area' } }, { name: 'rifle', weapon: { fireClass: 'sight' } }] },
   body: { hp: 140 },
 });
-const KNIGHT = Object.freeze({ rule: { type: 'walk', melee: true, dodge: true }, body: { hp: 90 } });
-const ARCHER = Object.freeze({ rule: { type: 'walk', loadout: [{ name: 'bow', weapon: { fireClass: 'lob' } }] }, body: { hp: 50 } });
-const CHAMPION = Object.freeze({ rule: { type: 'walk', melee: true, dodge: true, tackle: true, boost: true, loadout: [{ name: 'spear', weapon: { fireClass: 'sight' } }] }, body: { hp: 420 } });
+// minds on the engine's rule: a knight with a blade, a wall archer, a champion with a blade, a spear and a dash
+const KNIGHT = Object.freeze({ rule: { type: 'ai', meleeSeek: true, loadout: [{ name: 'sword', strike: 'melee' }] }, body: { hp: 90 } });
+const ARCHER = Object.freeze({ rule: { type: 'ai', dodge: false }, weapon: { fireClass: 'lob' }, body: { hp: 50 } });
+const CHAMPION = Object.freeze({ rule: { type: 'ai', meleeSeek: true, boost: true, loadout: [{ name: 'blade', strike: 'melee' }, { name: 'spear', weapon: { fireClass: 'sight' } }] }, body: { hp: 420 } });
 const DUMMY = Object.freeze({ rule: { type: 'patrol', waypoints: [[0, 0, 0], [10, 0, 0]] }, body: { hp: 60 } });
 
 export const PRESETS = Object.freeze({

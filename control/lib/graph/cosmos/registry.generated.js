@@ -10,7 +10,7 @@ export const GENERATED = Object.freeze({
   "space.traversal": Object.freeze({"lowers":"lib/graph/playscape/objects/index.js#ENTRIES","values":["door","platform","lift","catapult","bridge","ladder","stairs"]}),
   "power.mechanics": Object.freeze({"lowers":"lib/graph/game/mechanics.js#MECHANIC_KINDS","values":["reach-exit","survive","collect","hazard-damage","fail-on-death","win-when","hp-pool","defeat-all"],"godot":["reach-exit","survive","collect","hazard-damage","fail-on-death"]}),
   "power.kit": Object.freeze({"lowers":"lib/graph/game/kits.js#KITS","values":["dungeon-crawler","collectathon","platformer","survival-arena"]}),
-  "power.rules": Object.freeze({"lowers":"lib/graph/worlds/controllable/compose.js#engineRules","values":["glide","walk","follow","clock","mover","launcher","platform","drive","fly","patrol"]}),
+  "power.rules": Object.freeze({"lowers":"lib/graph/worlds/controllable/compose.js#engineRules","values":["glide","walk","follow","clock","mover","launcher","platform","drive","fly","patrol","ai"]}),
   "power.beams": Object.freeze({"lowers":"lib/graph/playscape/elements/beams.js#BEAMS","values":["orb","serpent","ray","nova","barrage","braid","laser"]}),
   "power.explosions": Object.freeze({"lowers":"lib/graph/playscape/elements/explosions.js#EXPLOSIONS","values":["pop","blast","mushroom","comic","chain","implode"]}),
   "power.systems": Object.freeze({"lowers":"lib/graph/gameworld/actions.js#SYSTEM_KINDS","values":["resource","stamina","unlock","transform","equip"]}),

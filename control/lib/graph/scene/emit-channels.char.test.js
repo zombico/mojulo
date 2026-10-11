@@ -66,6 +66,11 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-08 (explosions): the engine's puff carries an explosion's parts (a chain is several, scattered by
 // seeded dice and staggered) and a scale, and a beam's impact may be one. Pages that set none off are unchanged in
 // their moment code; the controllable trace pins hold.
+// Re-pinned 2026-10-11 (the mind): the arena's ai brain left the mobile-suit pack and joined the engine as
+// controllable/mind.js (the same rule, its helpers named by situation, its difficulty tiers built from skill ×
+// aggressiveness, plus an opt-in per-character `rule.mind`). Only the embedded engine source moved: every one of the 13
+// fixtures that embeds it was emitted before and after with that source cut out, and the rest is byte-identical. The
+// controllable trace pins hold, the three arena bouts included.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

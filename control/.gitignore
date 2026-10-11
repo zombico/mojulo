@@ -27,14 +27,14 @@ spike-output/
 # lite-template/integration/archive-mobile-suit/. The substrate reaches it only
 # through guarded seams (extraction.plan.md). Never committed.
 #
-# Exceptions: two import-free *behavior* modules the general controllable engine
-# depends on directly (dodge/tackle maneuvers + the AI opponent brain). They carry
-# tracked test coverage in controllable-world.test.js and must resolve on a clean
-# checkout — behavior, not content — so they are tracked while the rest of the
-# pack stays out. See controllable/compose.js EMISSION.
+# Exception: one import-free *behavior* module the general controllable engine
+# depends on directly (the dodge/tackle maneuvers). It carries tracked test
+# coverage in controllable-world.test.js and must resolve on a clean checkout —
+# behavior, not content — so it is tracked while the rest of the pack stays out.
+# See controllable/compose.js EMISSION. (The AI opponent brain moved into the
+# engine as controllable/mind.js.)
 lib/graph/mobile-suit/*
 !lib/graph/mobile-suit/ms-maneuvers.js
-!lib/graph/mobile-suit/ms-ai.js
 
 # Scratch prototyping scripts (underscore-prefixed) are local-only; they carried
 # absolute home-directory paths and were never load-bearing.

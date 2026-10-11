@@ -103,6 +103,7 @@ export const CAPABILITY = Object.freeze({
   sight:   'sees in a facing cone with a line of sight',
   memory:  'remembers where it last saw a target (planned)',
   navmesh: 'finds paths round obstacles (planned: today it slides along them)',
+  commanded: 'a commander sets its posture at strategy rate (planned)',
 });
 
 /** A rank's typical health floor: a boss under it is advised, never refused. Relative to the hero's 100. */

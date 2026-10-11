@@ -4,31 +4,34 @@
  * or not by its rule, loadout and body.
  *
  *   actionsOf(entity)     → { melee, ranged, lob, area, dash, dodge, tackle, jump }   (./vocab.js ACTIONS)
- *   capabilityOf(entity)  → { flier, swimmer, route, sight, memory, navmesh, speed, hp }   (./vocab.js CAPABILITY)
+ *   capabilityOf(entity)  → { flier, swimmer, route, sight, memory, navmesh, commanded, speed, hp }   (./vocab.js CAPABILITY)
  *
- * An entity is a controllable world entity spec: `{ rule, body, ... }`. The arena's `ai` rule always rolls and
- * body-checks (ms-ai.js writes them itself), so its rule type counts as holding dodge and tackle.
+ * An entity is a controllable world entity spec: `{ rule, body, weapon?, ... }`, read the way the runtime reads it. A
+ * mind's rule (`ai`, worlds/controllable/mind.js) rolls unless `dodge: false` and can always charge (the counter is
+ * the opportunist's), and draws a blade only when it seeks melee and its loadout holds a `strike: 'melee'` slot.
  *
  * Pure and deterministic.
  */
-const weaponsOf = (rule) => [
+const weaponsOf = (entity, rule) => [
   ...(Array.isArray(rule.loadout) ? rule.loadout.map((s) => s && s.weapon).filter(Boolean) : []),
-  ...(rule.weapon ? [rule.weapon] : []),
+  ...(entity && entity.weapon ? [entity.weapon] : []),
 ];
-const isBlade = (slot) => !!(slot && (slot.melee || slot.blade));
+// a blade is a loadout slot that strikes in melee; the mind draws it when its rule seeks melee (meleeSeek)
+const isBlade = (slot) => !!(slot && slot.strike === 'melee');
 
 export function actionsOf(entity) {
   const rule = (entity && entity.rule) || {};
-  const weapons = weaponsOf(rule);
-  const arena = rule.type === 'ai';
+  const weapons = weaponsOf(entity, rule);
+  const mind = rule.type === 'ai';
+  const blade = Array.isArray(rule.loadout) && rule.loadout.some(isBlade);
   return {
-    melee: !!(rule.meleeSeek || rule.strikeDur || rule.melee || (Array.isArray(rule.loadout) && rule.loadout.some(isBlade))),
+    melee: mind ? !!(rule.meleeSeek && blade) : !!(blade || rule.strikeDur),
     ranged: weapons.length > 0,
     lob: weapons.some((w) => w.fireClass === 'lob'),
     area: weapons.some((w) => w.fireClass === 'area'),
     dash: !!rule.boost,
-    dodge: !!(rule.dodge || arena),
-    tackle: !!(rule.tackle || arena),
+    dodge: mind ? rule.dodge !== false : !!rule.dodge,
+    tackle: mind ? true : !!rule.tackle,
     jump: !!(rule.jumpSpeed || rule.type === 'platform'),
   };
 }
@@ -42,6 +45,7 @@ export function capabilityOf(entity) {
     sight: true,
     memory: false,
     navmesh: false,
+    commanded: false,
     speed: Number.isFinite(rule.speed) ? rule.speed : null,
     hp: Number.isFinite(body.hp) ? body.hp : null,
   };

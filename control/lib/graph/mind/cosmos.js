@@ -15,7 +15,7 @@ import { resolveMind } from './resolve.js';
 // a body that holds every verb (and no patrol route, which would win idle first), so a value's status reflects the
 // mind, not one body's limits
 const ARMED = Object.freeze({
-  rule: { type: 'walk', melee: true, dodge: true, tackle: true, boost: true, jumpSpeed: 1, loadout: [{ weapon: { fireClass: 'lob' } }, { weapon: { fireClass: 'area' } }] },
+  rule: { type: 'ai', meleeSeek: true, boost: true, jumpSpeed: 1, loadout: [{ strike: 'melee' }, { weapon: { fireClass: 'lob' } }, { weapon: { fireClass: 'area' } }] },
 });
 const BASE = Object.freeze({ motivation: 'hunt', aggressiveness: 'bold', rank: 'minion' });
 // a motivation is judged at its natural temperament: the fighting goals at bold, the rest at passive, so a forager's
@@ -37,9 +37,9 @@ function rowFor(mind) {
       if (SEVERITY[st] > SEVERITY[status]) status = st;
     }
   }
-  // a duelist's switching ways: rotation runs in the arena only; phases and adapting exist nowhere yet
+  // a duelist's switching ways
   for (const w of r.switches) {
-    const st = w === 'rotate' ? 'local' : 'absent';
+    const st = w === 'rotate' ? 'built' : 'absent';   // rotation runs in the engine's mind; phases and adapting exist nowhere yet
     short.push(`switch: ${w} (${st})`);
     if (SEVERITY[st] > SEVERITY[status]) status = st;
   }
@@ -55,7 +55,7 @@ export function mindAxisValues() {
   for (const m of Object.keys(MOTIVATIONS)) out.motivation[m] = rowFor({ ...BASE, motivation: m, aggressiveness: NATURAL[m] || 'passive' });
   for (const a of Object.keys(AGGRESSIVENESS)) out.aggressiveness[a] = rowFor({ ...BASE, aggressiveness: a });
   for (const k of Object.keys(RANKS)) out.rank[k] = rowFor({ ...BASE, rank: k });
-  // skill knobs detune after deciding: data any mind can carry, run today by the arena brain only
-  for (const s of Object.keys(SKILLS)) out.skill[s] = { status: 'local', effort: 'M', pkg: 'mind-lift', lowers: 'lib/graph/mind/vocab.js', note: 'accuracy and latency knobs; only the arena brain applies them' };
+  // skill knobs detune after deciding: the engine's mind applies them, for a class (aiDifficulty) or one character
+  for (const s of Object.keys(SKILLS)) out.skill[s] = { status: 'built', lowers: 'lib/graph/worlds/controllable/mind.js' };
   return out;
 }

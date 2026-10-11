@@ -7,11 +7,11 @@
  *   when       { motivation?: [...], aggr?: [min, max] } on the authored axes (aggr: AGGRESSIVENESS levels, inclusive)
  *   unless     { motivation?: [...] }
  *   status     what makes it today, as the cosmos registry says it: built · local (inside one game only) · absent
- *   lowers     the module that makes it, when one does
+ *   lowers     the module that makes it, when one does (the engine's mind for every fighting strategy)
  *
  * Pure data.
  */
-const ARENA = 'lib/graph/mobile-suit/ms-ai.js';
+const MIND = 'lib/graph/worlds/controllable/mind.js';
 const TUTORIAL = 'lib/graph/worlds/controllable/tutorial.js';
 const ATTACKS = [1, 5];   // defensive and up: everyone but the passive strikes back
 
@@ -27,36 +27,36 @@ export const STRATEGIES = Object.freeze({
   notice: [
     { id: 'flee', line: 'turns and runs', when: { motivation: ['flee'] }, status: 'absent' },
     { id: 'warn', line: 'warns before it attacks', when: { motivation: ['territorial'] }, status: 'absent' },
-    { id: 'open-fire', line: 'opens with fire, after its reaction time', needs: ['ranged'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'local', lowers: ARENA },
-    { id: 'close-in', line: 'closes to blade range', needs: ['melee'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'local', lowers: ARENA },
+    { id: 'open-fire', line: 'opens with fire, after its reaction time', needs: ['ranged'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
+    { id: 'close-in', line: 'closes to blade range', needs: ['melee'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
     { id: 'ignore', line: 'pays it no mind', status: 'built' },
   ],
   engage: [
     { id: 'keep-away', line: 'keeps its distance from the threat', when: { motivation: ['flee'] }, status: 'absent' },
-    { id: 'circle', line: 'circles in three dimensions', needs: ['flier'], needsAny: ['ranged', 'melee'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
-    { id: 'siege', line: 'holds back and lobs', needs: ['lob'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
-    { id: 'rush', line: 'presses in with a spray weapon', needs: ['area'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
-    { id: 'kite', line: 'backs off while it shoots (the arena commander\'s posture)', needs: ['ranged'], when: { aggr: [1, 1] }, status: 'local', lowers: ARENA },
-    { id: 'skirmish', line: 'holds mid range and weaves', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
-    { id: 'brawl', line: 'fights at blade range', needs: ['melee'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
+    { id: 'circle', line: 'circles in three dimensions', needs: ['flier'], needsAny: ['ranged', 'melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'siege', line: 'holds back and lobs', needs: ['lob'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'rush', line: 'presses in with a spray weapon', needs: ['area'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'kite', line: 'backs off while it shoots (the arena commander\'s posture)', needs: ['ranged', 'commanded'], when: { aggr: ATTACKS }, status: 'local', note: 'the untracked arena commander sets it; the engine spacing has no kite' },
+    { id: 'skirmish', line: 'holds mid range and weaves', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'brawl', line: 'fights at blade range', needs: ['melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'hold', line: 'stands its ground', status: 'built' },
   ],
   strike: [
-    { id: 'counter', line: 'charges a raw swing (charge beats swing)', needs: ['tackle'], when: { aggr: [4, 4] }, status: 'local', lowers: ARENA },
-    { id: 'melee-commit', line: 'commits to a blade string, with a timeout', needs: ['melee'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
-    { id: 'fire-burst', line: 'fires in bursts when aimed and clear', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
+    { id: 'counter', line: 'charges a raw swing (charge beats swing)', needs: ['tackle'], when: { aggr: [4, 4] }, status: 'built', lowers: MIND },
+    { id: 'melee-commit', line: 'commits to a blade string, with a timeout', needs: ['melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'fire-burst', line: 'fires in bursts when aimed and clear', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'none', line: 'does not attack', status: 'built' },
   ],
   pressed: [
     { id: 'break-and-flee', line: 'breaks off and runs', when: { motivation: ['flee'] }, status: 'absent' },
-    { id: 'dodge', line: 'rolls off the line when it recovers', needs: ['dodge'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
-    { id: 'retreat', line: 'dashes back off a clash and switches to guns', needs: ['dash', 'ranged'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
+    { id: 'dodge', line: 'rolls off the line when it recovers', needs: ['dodge'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
+    { id: 'retreat', line: 'dashes back off a clash and switches to guns', needs: ['dash', 'ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'fight-on', line: 'takes it and carries on', status: 'built' },
   ],
   lost: [
     { id: 'return-to-post', line: 'goes back to its post', when: { motivation: ['guard'] }, status: 'absent' },
     { id: 'search-last-seen', line: 'searches where it last saw the target', needs: ['memory'], status: 'absent' },
-    { id: 'switch-tools', line: 'gives up the blade for guns a while', needs: ['melee', 'ranged'], when: { aggr: ATTACKS }, status: 'local', lowers: ARENA },
+    { id: 'switch-tools', line: 'gives up the blade for guns a while', needs: ['melee', 'ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'forget', line: 'lets it go', status: 'built' },
   ],
 });

@@ -51,7 +51,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   The arena's three difficulty tiers are exactly three skill × aggressiveness pairs. Every species gets a mind from
   the tags it already carries. `scripts/gen-mind-table.mjs` writes the table of what each named mind and each
-  species does. The Mind facet now reads these axes. Nothing plays differently yet.
+  species does. The Mind facet now reads these axes.
+- **The arena's brain is the engine's mind.** The `ai` rule left the mobile-suit pack and joined the controllable
+  engine as `worlds/controllable/mind.js`. It is organised by situation, and its difficulty tiers are built from skill
+  and aggressiveness. Every arena bout steps byte-identically.
+  - A world's `aiDifficulty` still tunes every mind in it.
+  - A character can now tune itself on top with `rule.mind: { skill, aggressiveness, tune }`, so a boss can be
+    sharper than its troops.
+  - A passive mind never engages; a defensive one engages only once hurt.
+  - Pages that embed the controllable engine changed only in that embedded source.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 

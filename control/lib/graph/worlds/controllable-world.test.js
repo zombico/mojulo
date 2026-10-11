@@ -1148,13 +1148,15 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
   });
 
   it('a pack-less compose (EMISSION_ENGINE) still runs walk + basic platform worlds (S4)', () => {
-    // The engine without the mobile-suit pack: basic rules + the base platformer + combat. The
-    // pack's phases are simply empty; `ai` is not a known rule; melee strike still works (it is
-    // combat, not pack). This is the "pack absent → basic worlds run" gate.
+    // The engine without the mobile-suit pack: basic rules + the base platformer + combat + the mind.
+    // The pack's phases are simply empty; melee strike still works (it is combat, not pack); and the
+    // mind (`ai`, mind.js) is engine since it was lifted out of the pack. This is the "pack absent →
+    // basic worlds run" gate.
     const cw = composeControllable(EMISSION_ENGINE);
     expect(cw.RULES.platform).toBeDefined();
-    expect(cw.RULES.ai).toBeUndefined();          // the ai brain is pack content
-    expect(cw.AI_DIFFICULTY).toBeUndefined();     // so is the difficulty table
+    expect(cw.RULES.ai).toBeDefined();            // the mind is engine
+    expect(Object.keys(cw.AI_DIFFICULTY)).toEqual(['easy', 'medium', 'max']);
+    expect(cw.armSwitchReady).toBeUndefined();    // the loadout switch ready-time stays pack content
     const w = cw.createWorld({ entities: [{ id: 'h', rule: { type: 'platform', speed: 6, jumpSpeed: 8 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     const hooks = { ground: () => 0 };
     for (let i = 0; i < 90; i++) {
@@ -1162,6 +1164,24 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     }
     expect(w.byId.h.transform.pos[0]).toBeGreaterThan(5);   // walked forward
     expect(w.byId.h.grounded).toBe(true);                   // jumped and landed
+  });
+
+  it('a mind runs without the suit pack: it turns, closes and fires on its own trigger', () => {
+    const cw = composeControllable(EMISSION_ENGINE);
+    const w = cw.createWorld({
+      entities: [
+        { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [60, 0, 0], heading: 0 } },
+        // a plain weapon: loadouts are expanded by the suit pack's normalizer, so a pack-less mind holds one gun
+        { id: 'm', rule: { type: 'ai', speed: 8, turn: 3, standoff: 20 }, weapon: { fireClass: 'sight', magazine: 30, cooldown: 0.2, damage: 1, range: 200 }, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [0, 0, 0], heading: Math.PI } },
+      ],
+    });
+    const hooks = { ground: () => 0 };
+    let fired = 0;
+    for (let i = 0; i < 240; i++) { cw.stepWorld(w, {}, 1 / 60, hooks); fired += w.byId.m.aiFire; }
+    const m = w.byId.m;
+    expect(Math.abs(Math.atan2(Math.sin(m.transform.heading), Math.cos(m.transform.heading)))).toBeLessThan(0.15);   // turned to face the pilot
+    expect(m.transform.pos[0]).toBeGreaterThan(20);   // closed toward the standoff (20 short of the pilot)
+    expect(fired).toBeGreaterThan(0);                 // and worked its trigger
   });
 });
 

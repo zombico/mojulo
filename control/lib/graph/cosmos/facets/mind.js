@@ -7,14 +7,11 @@
  * and Soul give it, so a cube cannot author a mind its body cannot carry out. The authored axes' statuses are found
  * by resolving each value (mind/cosmos.js), never written here.
  *
- * Most of it runs today only inside the arena's hunter brain (mobile-suit/ms-ai.js): `local`, the mind-lift package.
+ * The fighting strategies run in the engine's mind (worlds/controllable/mind.js), lifted whole from the arena.
  */
 import { mindAxisValues } from '../../mind/cosmos.js';
 
-const ARENA = 'lib/graph/mobile-suit/ms-ai.js';
-const MODES = 'lib/graph/worlds/match-modes.js';
-// one change fills every arena-local value: lifting the hunter brain into a general mind
-const LIFT = { status: 'local', effort: 'M', pkg: 'mind-lift' };
+const MIND_RULE = 'lib/graph/worlds/controllable/mind.js';
 const AXES = mindAxisValues();
 
 export const MIND = Object.freeze({
@@ -27,21 +24,21 @@ export const MIND = Object.freeze({
     skill: { values: AXES.skill },
     perception: {
       values: {
-        sight: { ...LIFT, lowers: ARENA, note: 'a facing cone and a line of sight, in the arena brain only' },
+        sight: { status: 'built', lowers: MIND_RULE, note: 'a facing cone for the counter and a line of sight to fire' },
         memory: { status: 'absent', effort: 'M', note: 'no memory of where a target was last seen; no search' },
       },
     },
     pathing: {
       values: {
-        direct: { ...LIFT, lowers: ARENA, note: 'straight at the target, sliding along colliders' },
+        direct: { status: 'built', lowers: MIND_RULE, note: 'straight at the target, sliding along colliders' },
         navmesh: { status: 'absent', effort: 'M', note: 'no pathfinding found (10-10); the walk grid is server side only' },
       },
     },
     squad: {
       values: {
         none: { status: 'built' },
-        'free-for-all': { ...LIFT, lowers: MODES, note: 'targets the nearest live body; the arena brain only' },
-        'team-aware': { ...LIFT, lowers: MODES, note: 'skips allies when targeting; no group tactics' },
+        'free-for-all': { status: 'built', lowers: MIND_RULE, note: 'targets the nearest live body (`target: all`)' },
+        'team-aware': { status: 'partial', effort: 'M', lowers: MIND_RULE, note: 'skips allies when targeting (`target: enemy`); no group tactics' },
       },
     },
     social: {
