@@ -798,6 +798,7 @@ export function houseFramingFaces(house, framing, o = {}) {
     }
     const r = out.report;
     reports[spec.id] = r;
+    if (o._spans && r.span) o._spans[spec.id] = r.span;   // a reader's collector (structure/read.js); absent, nothing reads it
     details[spec.id] = r.detail;
     jointCount += (r.joints || []).length;
     if (r.degraded) degraded = r.degraded;

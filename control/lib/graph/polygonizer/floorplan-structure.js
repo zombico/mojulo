@@ -792,6 +792,8 @@ function furnishCell(rect, glyph, baseZ, o, wall = null, doorEdge = null, window
   // `furnishing: 'composed'`: each piece a composed role names, in the house's furniture language (composedPieces)
   else if (o.furnishing === 'composed') elements = composedPieces(elements, rect, seed, o);
   if (!elements.length) return [];
+  // a reader's collector (structure/read.js): the pieces as data, beside the faces; absent, nothing reads it
+  if (o._objects) o._objects.push({ source: o.furnishing === 'composed' ? 'composed' : o.furnishing === 'constructed' ? 'constructed' : 'archetype', glyph, baseZ, interior: { x0, x1, y0, y1 }, elements });
   return roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o);
 }
 
@@ -1878,6 +1880,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   }
   // the operator's placed items (rooms[i].items) claim their footprints first
   const placed = plan.rooms.flatMap((room) => roomItemPlacements(room, baseZ, o));
+  if (o._objects && placed.length) o._objects.push({ source: 'item', baseZ, placed });   // the reader's collector, as above
   // populate each registered room with its archetype furniture (the open core is
   // split into its program zones so living/kitchen/dining each read as themselves).
   if (o.furnish) {
@@ -2615,7 +2618,12 @@ export function structurizeHouse(input = {}, opts = {}) {
   // Open-space-first generator by default; fall back to the fractal BSP on `bsp`/`corridors`.
   const useProgram = input.program !== false && input.corridors !== true && !input.bsp;
   const hasUpper = resolved.some((r) => r.index > 0);
-  const stairSpecs = input.stairs === true ? [{ from: 0, to: -1 }]
+  // `stairs: true` chains the stack from the ground: down to each basement, then up to each floor (a ground and a
+  // basement keep the one flight they always had; before, a stack with no basement got a flight down to nothing and
+  // its upper floors none)
+  const stackIdx = [...new Set(resolved.map((r) => r.index))];
+  const stairSpecs = input.stairs === true
+    ? [...stackIdx.filter((i) => i < 0).sort((a, b) => b - a).map((i) => ({ from: i + 1, to: i })), ...stackIdx.filter((i) => i > 0).sort((a, b) => a - b).map((i) => ({ from: i - 1, to: i }))]
     : Array.isArray(input.stairs) ? input.stairs : input.stairs ? [input.stairs] : [];
   // program houses default to a SWITCHBACK (U-return) stair; it needs a wider open zone,
   // so the reserved stair span (and the upper landing that must cover it) grows to fit.
@@ -2689,10 +2697,15 @@ export function structurizeHouse(input = {}, opts = {}) {
   });
   const slabHolesByIndex = {};
   const stairExcludeByIndex = {};   // the flight's footprint per level → keep furniture off it
+  // design.clearance: furniture also keeps that far off the flight, and off the well on the floor it reaches
+  // (absent or false: the footprint only, as it always was)
+  const clear = o.design ? designRules(o.design, framing ? framing.tradition : null).clearance : 0;
+  const grown = (r) => (clear > 0 ? { x0: r.x0 - clear, x1: r.x1 + clear, y0: r.y0 - clear, y1: r.y1 + clear } : r);
   for (const st of stairs) {
     (slabHolesByIndex[st.upperIndex] ||= []).push(st.slot);
     const lower = Math.min(st.fromIndex, st.toIndex);   // the flight climbs in the lower volume
-    (stairExcludeByIndex[lower] ||= []).push(st.slot);
+    (stairExcludeByIndex[lower] ||= []).push(grown(st.slot));
+    if (clear > 0) (stairExcludeByIndex[st.upperIndex] ||= []).push(grown(st.slot));
   }
 
   // exterior view: roofed solid massing on the ground, basement below grade hidden.
