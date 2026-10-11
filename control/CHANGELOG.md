@@ -213,6 +213,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - a gate can be `{ has: <item> }`;
     - the shell travels and arrives (`arrive`).
   - A list game, and a gameworld without the setting, are unchanged.
+- **Powers that open the way: a hero's power can be a key.** In a map world, a link's `key` can name one of the hero's
+  powers. The power lies in another level; picking it up opens the door and gives the hero the move.
+  - A power can name its move: `double-jump`, `glide` or `high-jump`. The move works from the moment it is picked up,
+    and in every level after.
+  - The platform rule gains `airJumps` (jumps in the air, reset on landing) and `glideFall` (a held jump slows the
+    fall). Without them it moves as before.
+  - Underneath: a level's `game.powers` names the slice, the hero and each power's rule change; the game applies the
+    ones held at start and the one picked up.
+  - Item keys, and worlds without power keys, are unchanged.
   - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
 
 ### Chapters: the same world at a later point

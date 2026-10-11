@@ -115,6 +115,28 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     const due = __GAME.chapters.carried.filter((c) => flags[c.key]).map((c) => ({ type: c.event }));
     if (due.length) setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, due); } catch (e) { console.error('chapters carried', e); } }, 0);
   });
+` : ''}${game.powers ? `  // POWERS (a map game's power keys): a power gives its holder a move, a change to its rule. The ones the consumed slice
+  // holds apply at start; one picked up here applies the moment the bus hears pickup:<power>. Reads only from the bus.
+  const __pw = { on: {} };
+  function __grant(id) {
+    const g = __GAME.powers.grants[id], w = window.__mojCtrl && window.__mojCtrl.world, e = w && w.byId[__GAME.powers.target];
+    if (!g || !e || __pw.on[id]) return;
+    __pw.on[id] = true;
+    if (e.rule) Object.assign(e.rule, g);
+    if (e.pilotRule && e.pilotRule !== e.rule) Object.assign(e.pilotRule, g);
+  }
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.powers.slice], items = (s && s.items) || {};
+    setTimeout(function () { for (const id in items) if (items[id] > 0) { try { __grant(id); } catch (e) { console.error('power', e); } } }, 0);
+  });
+  if (typeof __BUS !== 'undefined') {
+    const prevP = __BUS.processEvents;
+    __BUS.processEvents = function (state, events) {
+      const n0 = state.log.length, out = prevP(state, events);
+      for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && typeof ev.type === 'string' && ev.type.indexOf('pickup:') === 0) __grant(ev.type.slice(7)); }
+      return out;
+    };
+  }
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame
   // and the level's own events move the pilot to that end (deferred, as chapters are: the events channel may load later).
   st.onStart.push(function (params) {

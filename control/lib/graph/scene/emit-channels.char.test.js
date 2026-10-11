@@ -103,6 +103,8 @@ import { emitThreeWorld } from './scene-three.js';
 // fixtures are byte-identical to before: the first-person body-hiding splice is gated at emit time. Same 13 fixtures.
 // Re-pinned 2026-10-11 (side camera): the `side` camera rule, `platform` move: 'lane' and core `laneNear`, each gated on
 // its own key; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (power moves): `platform` airJumps and glideFall, each gated on its own key; the trace pins hold
+// and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

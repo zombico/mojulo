@@ -7,14 +7,15 @@
  *   actions: {
  *     idiom?: '<convention>-like',             // read through IDIOMS into a system and a progression template
  *     system?: { kind, resource?, source?, rule? },   // what powers run on and where they come from
- *     powers?: [ { id, verb, element?, look?, attack? } ],
+ *     powers?: [ { id, verb, element?, look?, attack?, move? } ],
  *     progression?: [ { stage: 'early' | 'mid' | 'late', gains: [power ids], gate?: '<what unlocks it>' } ],
  *   }
  *
  * An idiom is a design convention a genre is known by, never a title: "-like" names a pattern, and mojulo extracts
  * no assets from any game. A word the lexicon does not know is not an error; it goes to `open`, for the creator.
  * Powers name a `look` (playscape/elements LOOKS) or an `attack` (playscape/elements beams); a power with neither is
- * held as words and listed open. Without an idiom the system, a power list and early and mid stages are all the
+ * held as words and listed open. A power's `move` (TRAVERSAL_MOVES) is what it lets the hero do on the ground it opens: in
+ * a map world, a power that keys a door gives the hero that move when it is picked up. Without an idiom the system, a power list and early and mid stages are all the
  * creator's to state.
  *
  * Pure. `readActions(A)` reads the shape and says what is wrong; `resolveActions(A, direction)` expands the idiom,
@@ -32,6 +33,13 @@ export const SYSTEM_KINDS = Object.freeze({
   equip: 'powers come from what the hero carries',
 });
 export const STAGES = Object.freeze(['early', 'mid', 'late']);
+
+/** The moves a power can give the hero: each a change to the platform rule, made from the level's own rule. */
+export const TRAVERSAL_MOVES = Object.freeze({
+  'double-jump': { read: 'a second jump in the air', rule: () => ({ airJumps: 1 }) },
+  glide: { read: 'a held jump slows the fall', rule: () => ({ glideFall: 2.5 }) },
+  'high-jump': { read: 'jumps half as high again', rule: (base) => ({ jumpSpeed: Math.round((base?.jumpSpeed ?? 8.5) * Math.sqrt(1.5) * 1000) / 1000 }) },
+});
 
 /** Genre conventions, by the word they are known by. Each: a system, and a progression template of stage → gate. */
 export const IDIOMS = Object.freeze({
@@ -85,12 +93,13 @@ export function readActions(A) {
   }
   if (A.system !== undefined) out.system = readSystem(A.system, '.system');
   if (A.powers !== undefined) {
-    if (!Array.isArray(A.powers)) throw err('.powers is a list of { id, verb, element?, look?, attack? }');
+    if (!Array.isArray(A.powers)) throw err('.powers is a list of { id, verb, element?, look?, attack?, move? }');
     const seen = new Set();
     out.powers = A.powers.map((p, i) => {
       const at = `.powers[${i}]`;
-      if (!isObj(p)) throw err(`${at} is { id, verb, element?, look?, attack? }`);
-      for (const k of Object.keys(p)) if (!['id', 'verb', 'element', 'look', 'attack'].includes(k)) throw err(`${at}.${k} is not part of a power (id, verb, element, look, attack)`);
+      if (!isObj(p)) throw err(`${at} is { id, verb, element?, look?, attack?, move? }`);
+      for (const k of Object.keys(p)) if (!['id', 'verb', 'element', 'look', 'attack', 'move'].includes(k)) throw err(`${at}.${k} is not part of a power (id, verb, element, look, attack, move)`);
+      if (p.move !== undefined && !TRAVERSAL_MOVES[p.move]) throw err(`${at}.move is one of ${Object.keys(TRAVERSAL_MOVES).map((m) => `'${m}'`).join(', ')}: what the power lets the hero do`);
       if (!ID.test(p.id ?? '')) throw err(`${at}.id is a lowercase id ("fire-lance")`);
       if (seen.has(p.id)) throw err(`${at}.id '${p.id}' appears twice`);
       seen.add(p.id);
@@ -100,6 +109,7 @@ export function readActions(A) {
         if (!word(p[k])) throw err(`${at}.${k} is a word`);
         q[k] = p[k].trim();
       }
+      if (p.move !== undefined) q.move = p.move;
       return q;
     });
   }

@@ -205,6 +205,15 @@ export function buildRulesPlatform(E) {
         e.gaitPhase = (1 - Math.max(0, e.jumpWind) / windup) * 0.9;   // quick dip down the same squat ramp
         if (e.jumpWind <= 0) { e.jumpWind = 0; e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; jumped = true; }
       }
+      // AIR JUMPS (opt-in `airJumps`, a power's double jump): a press in the air, past the coyote grace, launches again at
+      // once (no wind-up) at `airJumpMult` of the jump speed; the count resets on the ground. Absent → nothing here runs.
+      const airJumps = r.airJumps ?? 0;
+      if (airJumps > 0) {
+        if (e.grounded) e.airJumpsUsed = 0;
+        else if (input.jump && !jumped && !(e.jumpWind > 0) && e.coyote >= coyoteT && (e.airJumpsUsed ?? 0) < airJumps) {
+          e.vel[2] = jumpV * (r.airJumpMult ?? 0.9); e.airJumpsUsed = (e.airJumpsUsed ?? 0) + 1; e.jumpBuf = 0; jumped = true;
+        }
+      }
       // variable height: releasing jump while still rising caps the climb (short hop vs full jump).
       // A rider thrown by a launcher (`launchedBy`, cleared on landing) is not jumping: its climb is the throw's.
       if (e.vel[2] > 0 && !input.jumpHeld && !e.launchedBy) e.vel[2] = Math.min(e.vel[2], cutV);
@@ -323,7 +332,9 @@ export function buildRulesPlatform(E) {
         e.vel[2] = 0; e.grounded = false; e.hovering = true;
       } else {
         const footZ0 = t.pos[2] - eye;   // pre-fall foot height (the swept-probe origin)
-        e.vel[2] = Math.max(-maxFall, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
+        // GLIDE (opt-in `glideFall`, a power's glide): jump held while falling caps the fall at that speed. Absent → maxFall.
+        const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 ? Math.min(maxFall, r.glideFall) : maxFall;
+        e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * dt);
         t.pos[2] += e.vel[2] * dt;
         // SWEEP the touchdown probe from the HIGHER of the pre/post foot, not the post-fall foot. A fast
         // fall (low framerate / big dt, a knockback launch, the drop-in settle over the wavy drape) moves

@@ -118,6 +118,18 @@ export function validateLevelContract(game, schema) {
     }
   }
 
+  // POWERS: what a power key gives its holder in a map game. { slice, target, grants: { <power>: { <rule knob>: number } } }:
+  // the held ones apply at start, one picked up applies when the bus hears pickup:<power>.
+  if (game.powers !== undefined) {
+    const p = game.powers, num = (o) => o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length && Object.values(o).every((v) => typeof v === 'number' && Number.isFinite(v));
+    if (!p || typeof p !== 'object' || typeof p.slice !== 'string' || !p.slice || typeof p.target !== 'string' || !p.target || !p.grants || typeof p.grants !== 'object' || Array.isArray(p.grants)) {
+      errors.push('game.powers is { slice, target, grants: { <power>: { <rule knob>: number } } }: the slice the powers are held in, the entity they move, and what each changes');
+    } else {
+      for (const [id, g] of Object.entries(p.grants)) if (!num(g)) errors.push(`game.powers.grants.${id} is { <rule knob>: number } (airJumps, glideFall, jumpSpeed…)`);
+      if (!(game.consumes || []).some((c) => c && c.slice === p.slice)) errors.push(`game.powers.slice '${p.slice}' is not consumed: add { slice: '${p.slice}' } to game.consumes, or the level never hears what is held`);
+    }
+  }
+
   // ARRIVE: the levels a map game travels in from. The shell's `arrive` param names one, the level hears `arrive:<ref>`
   // on its first frame, and its own events move the pilot to that end of the level.
   if (game.arrive !== undefined && !(Array.isArray(game.arrive) && game.arrive.length && game.arrive.every((r) => typeof r === 'string' && r))) {

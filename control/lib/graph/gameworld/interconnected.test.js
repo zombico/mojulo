@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 
 import { MEADOWMARK_HERO } from './examples.js';
 import { readGameworld } from './world.js';
-import { gameStages, stageLevelOrder, gameLevels, gameStore, mapPlan } from './levels.js';
+import { gameStages, stageLevelOrder, gameLevels, gameStore, mapPlan, powerKeys } from './levels.js';
+import { readActions } from './actions.js';
+import { validateLevelContract } from '../game/level-contract.js';
+import { gameChannelScript } from '../scene/channels/game.js';
 import { validateGameManifest } from '../game/game-manifest.js';
 import { buildGameStoreKernel } from '../game/store-kernel.js';
 import { composeMechanics } from '../game/mechanics.js';
@@ -123,5 +126,72 @@ describe('teaching', () => {
     expect(errs([{ ref: 'a', exits: [{ id: 'on', to: 'a' }] }])).toMatch(/leads back into its own level/);
     expect(errs([{ ref: 'a', exits: [{ id: 'on', to: 'b', gate: { has: 'rune' } }] }, { ref: 'b' }])).toMatch(/needs a inventory slice/);
     expect(errs([{ ref: 'a', exits: [{ id: 'on', to: 'b' }] }, { ref: 'b' }], [])).toMatch(/store needs a progression slice/);
+  });
+});
+
+// POWER KEYS: a link keyed by one of the hero's powers. The power lies in the cave; picking it up opens the keep and,
+// as the power names a move, gives the hero a second jump in every level after (and the moment it is picked up).
+describe('an interconnected world, keyed by a power', () => {
+  const hero = base.characters.hero;
+  const withMove = (move) => ({
+    ...MAP,
+    characters: { ...base.characters, hero: { ...hero, actions: { ...hero.actions, powers: hero.actions.powers.map((p) => (p.id === 'gust-step' ? { ...p, move } : p)) } } },
+    links: [{ from: 'hub', to: 'cave' }, { from: 'hub', to: 'keep', kind: 'gate', key: 'gust-step', keyAt: 'cave' }],
+  });
+  const P = withMove('double-jump'), PG = readGameworld(P), ps = gameStages(P), pr = ps.map((s) => `p-${s.level}-${s.node}`), pp = mapPlan(PG, ps, pr);
+  const po = ps.map((s, i) => stageLevelOrder(PG, s, { ref: pr[i], heroRef: 'h', map: pp[i] }));
+  const pat = (lvl, node) => ps.findIndex((s) => s.level === lvl && s.node === node);
+
+  it('the power is found in the cave, held in powers, and locks the keep by that slice; there is no bag', () => {
+    expect(powerKeys(PG)).toEqual([{ id: 'gust-step', move: 'double-jump' }]);
+    expect(pp[pat('cave', 'mouth')]).toMatchObject({ keys: [], powers: ['gust-step'] });
+    expect(pp[pat('hub', 'yard')].on[1].gate).toEqual({ has: 'gust-step', slice: 'powers' });
+    expect(gameStore(P, null).slices.map((s) => s.name)).toEqual(['hero', 'gear', 'campaign', 'powers']);
+    const cave = po[pat('cave', 'mouth')].args.manifest;
+    expect(cave.game.mechanics.find((m) => m.kind === 'collect')).toMatchObject({ into: 'powers', pickups: [{ item: 'gust-step' }] });
+  }, 120_000);
+
+  it('every stage hears what is held and carries the move as a change to the hero\'s rule; the contract holds', () => {
+    for (const o of po) {
+      const g = o.args.manifest.game;
+      expect(g.consumes).toEqual([{ slice: 'powers' }]);
+      expect(g.powers).toEqual({ slice: 'powers', target: 'hero', grants: { 'gust-step': { airJumps: 1 } } });
+    }
+    const store = gameStore(P, null);
+    const yard = po[pat('hub', 'yard')].args.manifest;
+    const contract = { ...yard.game, produces: { events: [] } };
+    expect(validateLevelContract(contract, store).errors).toEqual([]);
+    expect(validateLevelContract({ ...contract, consumes: [] }, store).errors.join(' ')).toMatch(/powers\.slice 'powers' is not consumed/);
+  }, 120_000);
+
+  it('high-jump is made from the level\'s own jump; a power with no move locks the door and changes nothing', () => {
+    const H = withMove('high-jump'), HG = readGameworld(H), hs = gameStages(H), hr = hs.map((s) => `h-${s.node}`), hp = mapPlan(HG, hs, hr);
+    const o = stageLevelOrder(HG, hs[0], { ref: hr[0], heroRef: 'h', map: hp[0] });
+    const jump = o.args.manifest.entities[0].rule.jumpSpeed;
+    expect(o.args.manifest.game.powers.grants['gust-step'].jumpSpeed).toBeCloseTo(jump * Math.sqrt(1.5), 3);
+    const N = withMove(undefined), NG = readGameworld(N), ns = gameStages(N), nr = ns.map((s) => `n-${s.node}`), np = mapPlan(NG, ns, nr);
+    const n = stageLevelOrder(NG, ns[0], { ref: nr[0], heroRef: 'h', map: np[0] });
+    expect(n.args.manifest.game.consumes).toEqual([{ slice: 'powers' }]);
+    expect(n.args.manifest.game.powers).toBeUndefined();
+  }, 120_000);
+
+  it('the keep opens on the power, not on a bag item of the same name', () => {
+    const store = gameStore(P, null), levels = gameLevels(ps, pr, pp);
+    let s = K.createStore(store);
+    s = K.applyEvents(store, s, [{ type: 'promote', slice: 'campaign', ref: pr[pat('hub', 'gate')], result: 'success' }, { type: 'promote', slice: 'campaign', ref: pr[pat('hub', 'yard')], result: 'success' }]).state;
+    expect(K.travel(store, s, levels, pr[pat('hub', 'yard')], 'on-2')).toBeNull();
+    s = K.applyEvents(store, s, [{ type: 'grant', slice: 'powers', item: 'gust-step', count: 1 }]).state;
+    expect(K.travel(store, s, levels, pr[pat('hub', 'yard')], 'on-2')).toBe(pr[pat('keep', 'door')]);
+  }, 120_000);
+
+  it('the page carries the powers block only when the level has powers', () => {
+    const yard = po[pat('hub', 'yard')].args.manifest.game;
+    expect(gameChannelScript(yard)).toContain('function __grant(id)');
+    expect(gameChannelScript({ ...yard, powers: undefined })).not.toContain('__grant');
+  }, 120_000);
+
+  it('a power\'s move is one the hero can be given', () => {
+    expect(() => readActions({ powers: [{ id: 'gust-step', verb: 'dash', move: 'teleport' }] })).toThrow(/move is one of 'double-jump', 'glide', 'high-jump'/);
+    expect(readActions({ powers: [{ id: 'gust-step', verb: 'dash', move: 'glide' }] }).powers[0].move).toBe('glide');
   });
 });

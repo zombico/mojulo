@@ -294,11 +294,12 @@ export function readGameworld(W) {
     if (e.from === e.to) throw new Error(`gameworld: links[${i}] leads '${e.from}' to itself`);
     const kind = e.kind ?? 'road';
     if (!LINK_KINDS[kind]) throw new Error(`gameworld: links[${i}].kind '${kind}' is not a link (${Object.keys(LINK_KINDS).join(', ')})`);
-    // a KEY locks the way from `from` to `to` in a map world: an item, laid as a pickup in level `keyAt` (a level other
+    // a KEY locks the way from `from` to `to` in a map world: an item or one of the hero's powers (levels.js tells them
+    // apart), laid as a pickup in level `keyAt` (a level other
     // than `to`), carried in the bag; going back the other way is never locked
     if (e.key !== undefined || e.keyAt !== undefined) {
       if (W.topology !== 'interconnected') throw new Error(`gameworld: links[${i}].key locks a door in a map world: set topology: 'interconnected', or leave the key out`);
-      if (typeof e.key !== 'string' || !/^[a-z][a-z-]{0,23}$/.test(e.key)) throw new Error(`gameworld: links[${i}].key is one lower-case word, the item that opens it (key, rune, lantern…)`);
+      if (typeof e.key !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(e.key)) throw new Error(`gameworld: links[${i}].key is one lower-case id, what opens it: an item (key, rune, lantern…) or one of the hero's powers`);
       if (!levels[e.keyAt]) throw new Error(`gameworld: links[${i}].keyAt names the level the ${e.key} is found in (levels: ${ids.join(', ')})`);
       if (e.keyAt === e.to) throw new Error(`gameworld: links[${i}].keyAt is behind its own door: lay the ${e.key} in a level reached without it`);
     }

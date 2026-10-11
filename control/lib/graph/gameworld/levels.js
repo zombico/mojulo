@@ -24,6 +24,7 @@ import { assembleStageScene } from '../era/stage.js';
 import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
+import { TRAVERSAL_MOVES } from './actions.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -132,6 +133,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const moves = ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: pilot, to: lane ? onLane({ at: a.at }, lane).at : a.at }));
     pilotPart = { ...pilotPart, events: { ...ev, reactions: [...(Array.isArray(ev.reactions) ? ev.reactions : []), ...moves] } };
   }
+  // POWER KEYS (a map world): every stage hears what the hero holds, and a held power with a move changes the hero's rule
+  const pk = map ? powerKeys(G) : [];
+  if (pk.length) {
+    game.consumes = [{ slice: 'powers' }];
+    const base = heroRef ? pilotPart.entities[0].rule : null;
+    const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
+    if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
+  }
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(mechanics?.play ? { play: mechanics.play } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
@@ -174,8 +183,17 @@ function onLane(m, lane) {
  * a keyed link locks the way from `from` to `to` with `{ has: key }`, and lays the key on `keyAt`'s last stage.
  *   mapPlan(G, stages, refs) → [{ on: [way], back: [way], keys: [item] }]   way: { id, to: ref, gate? }
  */
+/** A map world's keys that are the hero's powers (picked up into `powers`, not the bag), each with its move, or null. */
+export function powerKeys(G) {
+  if (G.topology !== 'interconnected') return [];
+  const powers = G.characters?.hero?.actions?.powers ?? [];
+  const keyed = new Set(G.links.filter((l) => l.key).map((l) => l.key));
+  return powers.filter((p) => keyed.has(p.id)).map((p) => ({ id: p.id, move: p.move ?? null }));
+}
+
 export function mapPlan(G, stages, refs) {
-  const plan = stages.map(() => ({ on: [], back: [], keys: [] }));
+  const plan = stages.map(() => ({ on: [], back: [], keys: [], powers: [] }));
+  const isPower = new Set(powerKeys(G).map((p) => p.id));
   const of = (lvl) => stages.map((s, i) => (s.level === lvl ? i : -1)).filter((i) => i >= 0);
   for (const id of G.ids) {
     const ix = of(id);
@@ -185,9 +203,10 @@ export function mapPlan(G, stages, refs) {
     const a = of(l.from), b = of(l.to);
     if (!a.length || !b.length) continue;
     const last = a[a.length - 1], first = b[0];
-    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice: 'bag' } } : {}) });
+    const slice = isPower.has(l.key) ? 'powers' : 'bag';
+    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice } } : {}) });
     plan[first].back.push({ to: refs[last] });
-    if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]].keys.push(l.key); }
+    if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]][slice === 'powers' ? 'powers' : 'keys'].push(l.key); }
   }
   for (const p of plan) {
     p.on.forEach((w, j) => { w.id = j ? `on-${j + 1}` : 'on'; });
@@ -216,10 +235,16 @@ function stageWays(stage, ends, plan) {
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }) });
     if (s.arrive) arrive.push({ from: w.to, at: s.arrive });
   }
-  if (plan.keys.length) {
+  // the keys found here, on a beat of their own: items into the bag, powers into `powers` (one row of pickups)
+  const found = [...plan.keys.map((item) => ({ item, into: 'bag' })), ...(plan.powers ?? []).map((item) => ({ item, into: 'powers' }))];
+  if (found.length) {
     const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
     const beat = free[Math.floor(free.length / 2)] ?? ends.beats[Math.floor(ends.beats.length / 2)];
-    mechanics.push({ kind: 'collect', into: 'bag', pickups: plan.keys.map((item, j) => ({ item, at: [beat.at[0] + j * 1.5, beat.at[1], beat.at[2]], radius: 1.6 })) });
+    const at = (j) => [beat.at[0] + j * 1.5, beat.at[1], beat.at[2]];
+    for (const into of ['bag', 'powers']) {
+      const row = found.map((f, j) => ({ ...f, j })).filter((f) => f.into === into);
+      if (row.length) mechanics.push({ kind: 'collect', into, pickups: row.map((f) => ({ item: f.item, at: at(f.j), radius: 1.6 })) });
+    }
   }
   return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }
@@ -235,8 +260,10 @@ export function gameStore(world, book) {
   const slices = [{ name: 'hero', kind: 'character', ...(Object.keys(stats).length ? { init: { stats } } : {}) }];
   if (resolveEquipment(G).rows.some((r) => r.build)) slices.push({ name: 'gear', kind: 'inventory' });
   slices.push({ name: 'campaign', kind: 'progression' });
-  // a map world whose doors are keyed carries the keys in a bag
-  if (G.topology === 'interconnected' && G.links.some((l) => l.key)) slices.push({ name: 'bag', kind: 'inventory' });
+  // a map world whose doors are keyed carries the items in a bag and the hero's powers in `powers`
+  const pk = new Set(powerKeys(G).map((p) => p.id));
+  if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
+  if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
   return { slices };
 }
 
