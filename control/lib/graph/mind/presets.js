@@ -11,6 +11,7 @@
  */
 import { SPECIES } from '../fauna/species.js';
 import { tagsOf, capabilitiesOf } from '../fauna/behavior/index.js';
+import { socialOf } from './social.js';
 
 export const ARENA_TIERS = Object.freeze({
   easy:   { skill: 'novice', aggressiveness: 'wary' },
@@ -62,5 +63,18 @@ export function faunaMind(id) {
     team = id;
   }
   const body = { rule, ...(team ? { team } : {}) };
-  return { mind: { motivation, aggressiveness, rank: 'minion', skill: 'regular' }, body, tags };
+  return { mind: { motivation, aggressiveness, rank: 'minion', skill: 'regular' }, body, tags, social: socialOf(id, s.family) };
+}
+
+// faunaGroup(species, id) — the group settings a species lives in (./social.js), for `rule.mind.group`: a PACK hunts
+// (`pack-hunt`, two attackers at a time); a HERD, FLOCK or SCHOOL keeps together and runs together; SOLITARY is null.
+// Spacing scales with the species' size.
+export function faunaGroup(species, id) {
+  const s = SPECIES[species];
+  if (!s) throw new Error(`mind: no species '${species}'`);
+  const social = socialOf(species, s.family), size = Number.isFinite(s.scale) ? s.scale : 1;
+  const spacing = round2(2 + 3 * size);
+  if (social === 'pack') return { id, plan: 'pack-hunt', attackers: 2, spacing };
+  if (social === 'herd' || social === 'flock' || social === 'school') return { id, kind: 'herd', spacing, cohesion: round2(spacing * 3) };
+  return null;
 }

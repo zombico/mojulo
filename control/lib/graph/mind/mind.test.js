@@ -5,7 +5,8 @@ const SKILLS_OF = () => JSON.parse(JSON.stringify(SKILLS));
 import { STRATEGIES } from './strategies.js';
 import { actionsOf, capabilityOf } from './measure.js';
 import { validateMind, resolveMind, resolveSkill, tuningOf } from './resolve.js';
-import { PRESETS, ARENA_TIERS, faunaMind } from './presets.js';
+import { PRESETS, ARENA_TIERS, faunaMind, faunaGroup } from './presets.js';
+import { socialOf, SOCIAL } from './social.js';
 import { composeLive } from '../worlds/controllable/compose.js';
 
 const SWORD = { rule: { type: 'ai', meleeSeek: true, loadout: [{ name: 'sword', strike: 'melee' }] }, body: { hp: 90 } };
@@ -462,5 +463,70 @@ describe('predators hunt (MX9)', () => {
     ] });
     steps(w, 60 * 5);
     for (const id of ['w1', 'w2', 'w3']) expect(w.byId[id].body.hp).toBe(60);
+  });
+});
+
+describe('animals live in packs and herds (MX11)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const animal = (id, species, pos, group, extra = {}) => {
+    const f = faunaMind(species);
+    return { id, ...(f.body.team ? { team: f.body.team } : {}), rule: { ...f.body.rule, mind: { ...f.mind, ...(group ? { group } : {}) }, collideRadius: 0.6, eye: 0, ...extra }, body: { type: 'mesh', hittable: true, hp: 60, radius: 0.6 }, transform: { pos, heading: 0 } };
+  };
+  const far = { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [900, 900, 0], heading: 0 } };
+  const steps = (w, n, each) => { for (let i = 0; i < n; i++) { E.stepWorld(w, {}, 1 / 60, hooks); if (each) each(i); } };
+
+  it('every species has a social structure; wolves run in packs, deer in herds, cats alone', () => {
+    expect(socialOf('wolf', 'canine')).toBe('pack');
+    expect(socialOf('deer', 'cervid')).toBe('herd');
+    expect(socialOf('tiger', 'feline')).toBe('solitary');
+    expect(socialOf('lion', 'feline')).toBe('pack');
+    for (const k of ['pack', 'herd', 'flock', 'school', 'solitary']) expect(SOCIAL[k]).toBeDefined();
+    expect(faunaGroup('wolf', 'w')).toMatchObject({ id: 'w', plan: 'pack-hunt', attackers: 2 });
+    expect(faunaGroup('deer', 'd')).toMatchObject({ id: 'd', kind: 'herd' });
+    expect(faunaGroup('tiger', 't')).toBeNull();
+  });
+
+  it('a wolf pack fans out, rings a deer and bites it, two at a time', () => {
+    const cfg = faunaGroup('wolf', 'pack');
+    const ids = ['w1', 'w2', 'w3', 'w4'];
+    const w = E.createWorld({ entities: [far,
+      ...ids.map((id, i) => animal(id, 'wolf', [-40, -6 + i * 4, 0], i ? 'pack' : cfg, { speed: 12, turn: 5 })),
+      animal('deer', 'deer', [0, 0, 0], null, { speed: 0, fearRadius: 0 })] });
+    const patterns = new Set(); let maxBiting = 0;
+    steps(w, 60 * 14, () => {
+      patterns.add(w.byId.w1.groupPattern);
+      maxBiting = Math.max(maxBiting, ids.filter((id) => w.byId[id].swingT != null).length);
+    });
+    expect([...patterns]).toEqual(expect.arrayContaining(['fan-out', 'encircle']));
+    expect(maxBiting).toBeGreaterThan(0);
+    expect(maxBiting).toBeLessThanOrEqual(2);
+    expect(w.byId.deer.body.hp).toBeLessThan(60);
+  });
+
+  it('a herd keeps together while it grazes', () => {
+    const cfg = faunaGroup('deer', 'herd');
+    const ids = ['d1', 'd2', 'd3', 'd4'];
+    const w = E.createWorld({ entities: [far, ...ids.map((id, i) => animal(id, 'deer', [i * 3, 0, 0], i ? 'herd' : cfg, { speed: 4, wanderRadius: 40 }))] });
+    let spread = 0;
+    steps(w, 60 * 40, () => {
+      const L = w.byId.d1.transform.pos;
+      for (const id of ids) spread = Math.max(spread, Math.hypot(w.byId[id].transform.pos[0] - L[0], w.byId[id].transform.pos[1] - L[1]));
+    });
+    expect(spread).toBeLessThan(cfg.cohesion + 6);
+  });
+
+  it('one frightened member sets the whole herd running, each on its own bearing', () => {
+    const cfg = faunaGroup('deer', 'herd');
+    const ids = ['d1', 'd2', 'd3', 'd4'];
+    const start = [[0, 0], [8, 6], [8, -6], [16, 0]];
+    const w = E.createWorld({ entities: [far,
+      ...ids.map((id, i) => animal(id, 'deer', [...start[i], 0], i ? 'herd' : cfg, { speed: 5, fearRadius: 12 })),
+      animal('wolf', 'wolf', [-10, 0, 0], null, { speed: 0 })] });   // only d1 is inside its fear radius
+    steps(w, 60 * 2);
+    const moved = ids.map((id, i) => Math.hypot(w.byId[id].transform.pos[0] - start[i][0], w.byId[id].transform.pos[1] - start[i][1]));
+    for (const m of moved) expect(m).toBeGreaterThan(4);                    // all of them ran, d4 26 from the wolf too
+    const bearings = ids.map((id, i) => Math.atan2(w.byId[id].transform.pos[1] - start[i][1], w.byId[id].transform.pos[0] - start[i][0]).toFixed(1));
+    expect(new Set(bearings).size).toBeGreaterThan(2);                       // and not all the same way
   });
 });

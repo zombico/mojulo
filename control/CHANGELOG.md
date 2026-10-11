@@ -78,6 +78,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Animals live in packs and herds.** Every species has a social structure: pack, herd, flock, school or solitary
+  (`lib/graph/mind/social.js`). `faunaGroup(species, id)` gives its group.
+  - **Packs** (wolves, lions, raptors) fan out, ring their prey and bite two at a time.
+  - **Herds, flocks and schools** graze as before, but stray no farther than a few body lengths from the leader. When
+    any member is frightened the whole group runs, each animal on its own bearing, until all are clear of the threat.
 - **Groups: N minds as one.** Minds that share `rule.mind.group` act together (`worlds/controllable/group.js`):
   - **Shared focus, spacing and sight.** They share a target and keep a spacing between members, and one member's
     sighting is the whole group's.

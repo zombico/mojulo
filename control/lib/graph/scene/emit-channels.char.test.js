@@ -94,6 +94,8 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-11 (groups): the engine gains group.js after the mind (slots from traversal patterns, shared
 // sight, attack tokens; a no-op without `rule.mind.group`), and a lunge stops at half its reach. Same proof, same 13
 // fixtures.
+// Re-pinned 2026-10-11 (herds): a group of kind 'herd' keeps cohesion and breaks together at an alarm, and prey
+// in a herd run on the alarm. Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

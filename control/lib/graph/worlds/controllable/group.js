@@ -94,6 +94,35 @@ export function buildGroup(E) {
     for (const m of members) m.groupSlot = slots[g.assign[m.id]];
   }
 
+  // HERD (also a flock or a school): COHESION, a member farther than `cohesion` (spacing × 3) from its leader walks
+  // back toward it, else it keeps its own idle (grazing); ALARM, when any member's threat is inside its fear radius
+  // the whole group runs, each member along its own seeded scatter bearing, until every member is beyond the alarm
+  // radius (`alarmRadius`, its fear radius × 1.5) of the threat.
+  function stepHerd(state, g, cfg, members, leader, spacing) {
+    let threat = g.alarm ? state.byId[g.alarm] : null;
+    if (threat && (threat.downed || members.every((m) => Math.hypot(threat.transform.pos[0] - m.transform.pos[0], threat.transform.pos[1] - m.transform.pos[1]) > (cfg.alarmRadius ?? (m.rule.fearRadius ?? 18) * 1.5)))) threat = null;
+    if (!threat && E.mindThreatOf) {
+      for (const m of members) {
+        const t = E.mindThreatOf(m, state);
+        if (t && Math.hypot(t.transform.pos[0] - m.transform.pos[0], t.transform.pos[1] - m.transform.pos[1]) < (m.rule.fearRadius ?? 18)) { threat = t; break; }
+      }
+    }
+    g.alarm = threat ? threat.id : null;
+    const cohesion = cfg.cohesion ?? spacing * 3;
+    for (const m of members) {
+      m.groupId = g.id; m.groupToken = false; m.groupFocus = null; m.groupSpacing = spacing;
+      if (threat) {
+        const F = [threat.transform.pos[0], threat.transform.pos[1]];
+        m.groupAlarm = threat.id; m.groupPattern = 'scatter';
+        m.groupSlot = PATTERNS.scatter({ members: [m], F, p: { dist: 30 } })[0];
+      } else {
+        m.groupAlarm = null; m.groupPattern = 'cohere';
+        const d = m === leader ? 0 : Math.hypot(leader.transform.pos[0] - m.transform.pos[0], leader.transform.pos[1] - m.transform.pos[1]);
+        m.groupSlot = d > cohesion ? [leader.transform.pos[0], leader.transform.pos[1]] : null;
+      }
+    }
+  }
+
   function stepGroups(state, dt) {
     if (!state.entities.some((e) => e.rule && e.rule.mind && e.rule.mind.group)) return;   // no groups: nothing at all
     const groups = state.groups || (state.groups = {});
@@ -111,6 +140,7 @@ export function buildGroup(E) {
       const g = groups[id] || (groups[id] = { id, stage: 0, stageT: 0, tokenT: 0, assign: {}, assignN: 0, seen: null });
       const leader = (cfg.leader && members.find((m) => m.id === cfg.leader)) || members[0];
       const spacing = cfg.spacing ?? 3;
+      if (cfg.kind === 'herd') { stepHerd(state, g, cfg, members, leader, spacing); continue; }
       // the focus: the target of the first member willing to fight (the leader first): a passive member never picks
       // one, a defensive one only once hurt
       let focus = null;

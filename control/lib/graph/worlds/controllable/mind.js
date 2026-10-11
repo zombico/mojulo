@@ -571,10 +571,17 @@ export function buildMind(E) {
     const motive = r.mind && r.mind.motivation;
     if (motive === 'flee') {
       e.reactionEnded = false;
+      // a HERD's alarm (group.js) sets every member running along its scatter bearing, near the threat or not
+      if (e.groupAlarm && e.groupSlot) {
+        const gs = e.groupSlot;
+        walkToward(e, r, Math.atan2(gs[1] - t.pos[1], gs[0] - t.pos[0]), dt, world, r.fleeSpeed ?? speed * 1.6);
+        return;
+      }
       const threat = r.target ? pickTarget(e, world, r.target) : threatOf(e, world);
-      if (!threat || threat === e) { e.moving = false; return; }
+      if (!threat || threat === e) { if (e.groupId && e.groupSlot) idle(e, r, dt, world, motive); else e.moving = false; return; }
       const fx = t.pos[0] - threat.transform.pos[0], fy = t.pos[1] - threat.transform.pos[1];
       if (Math.hypot(fx, fy) < (r.fearRadius ?? 18)) walkToward(e, r, Math.atan2(fy, fx), dt, world, r.fleeSpeed ?? speed * 1.6);
+      else if (e.groupId && e.groupSlot) idle(e, r, dt, world, motive);   // a herd member out of reach keeps to the herd
       else e.moving = false;
       return;
     }
@@ -876,5 +883,5 @@ export function buildMind(E) {
     state.aiTuning = AI_DIFFICULTY[spec.aiDifficulty] || null;
   });
 
-  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget });
+  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget, mindThreatOf: threatOf });
 }
