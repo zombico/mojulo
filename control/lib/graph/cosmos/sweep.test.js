@@ -5,6 +5,7 @@ import { capabilityRegistry } from './registry.js';
 import { EFFORT_WEIGHT } from './packages.js';
 import { validateCube, dryRun } from './cosmos.js';
 import { FIXTURES } from './fixtures.js';
+import { capabilityRegistry } from './registry.js';
 
 describe('rollCube', () => {
   it('rolls valid cubes, and the same seed rolls the same cube', () => {
@@ -101,16 +102,23 @@ describe('sweep', () => {
 
   it('prices packages: one per change, ranked by lifts per unit of work, unsized last', () => {
     const pk = r.unlock.packages;
-    const lift = pk.find((p) => p.id === 'mind-lift');
-    expect(lift).toMatchObject({ name: 'Lift the arena brain into a general mind', effort: 'M' });
-    expect(lift).toMatchObject({ needs: [], cost: 3 });
-    expect(lift.perEffort).toBe(Math.round((100 * lift.lifts) / 3) / 100);
     const sized = pk.filter((p) => p.perEffort != null);
+    expect(sized.length).toBeGreaterThan(0);
+    const weight = { S: 1, M: 3, L: 8 };
+    // the cost is the package's own weight plus what it needs built first (priced once Mind sizes them)
+    for (const p of sized) {
+      expect(p.cost, p.id).toBeGreaterThanOrEqual(weight[p.effort]);
+      expect(p.perEffort, p.id).toBe(Math.round((100 * p.lifts) / p.cost) / 100);
+    }
     for (let i = 1; i < sized.length; i++) expect(sized[i - 1].perEffort).toBeGreaterThanOrEqual(sized[i].perEffort);
     expect(pk.slice(sized.length).every((p) => p.perEffort == null)).toBe(true);
     // a package credits at least what any one of its values does
-    const sight = r.unlock.values.find((v) => v.key === 'mind.perception=sight');
-    if (sight) expect(lift.lifts).toBeGreaterThanOrEqual(sight.lifts);
+    const reg = capabilityRegistry();
+    for (const v of r.unlock.values) {
+      const [, facet, setting, value] = v.key.match(/^([^.]+)\.([^=]+)=(.+)$/);
+      const pkg = reg[facet][setting].values[value].pkg;
+      if (pkg) expect(pk.find((p) => p.id === pkg).lifts, v.key).toBeGreaterThanOrEqual(v.lifts);
+    }
   });
 
   it('builds what a value requires with it, and prices the closure', () => {

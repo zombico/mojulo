@@ -135,7 +135,7 @@ export function arenaGeometry(m, space, frac) {
 // ai ambient (or a donor's, for seats whose proving ground keeps clock ambients), plus boost/juke,
 // melee-seek, the solid footprint, and a target policy: undefined = hunt the pilot (a solo enemy),
 // 'all' = free-for-all, 'enemy' = team-aware (allies are skipped). Policies land in ai targeting
-// (the engine's target branch; the arena's ms-ai.js is the reference consumer).
+// (the engine's target branch: worlds/controllable/mind.js, pickTarget).
 export function seatRule(srcSuit, { space, aiSource, target }) {
   let rule = clone(srcSuit.ambient || {});
   if (rule.type !== 'ai' && aiSource) {

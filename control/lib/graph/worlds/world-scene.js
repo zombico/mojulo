@@ -571,6 +571,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // aiDifficulty: mint-time tier seed ('easy' | 'medium' | 'max') for worlds whose difficulty is
     // authored rather than shell-picked (tutorial levels); the game-params seam still overrides.
     if (typeof sketch.manifest.aiDifficulty === 'string') payload.aiDifficulty = sketch.manifest.aiDifficulty;
+    // commander: who drives the bodies marked `rule.commanded` ({ port, period, url, hook };
+    // worlds/controllable/commander.js). Page-only; no commanded body ⇒ byte-identical.
+    if (sketch.manifest.commander && typeof sketch.manifest.commander === 'object') payload.commander = sketch.manifest.commander;
     payload.nonBakeable = true;
     const figs = sketch.manifest.figures;
     if (figs && typeof figs === 'object') {

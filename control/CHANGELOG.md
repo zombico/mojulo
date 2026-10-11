@@ -38,6 +38,91 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The map prices its gaps.** Every missing or partial value in Space, Power, Soul and Mind carries a rough effort
   (S, M or L), and values that one change fills are grouped into a work package. The sweep ranks packages by the
   games they lift per unit of work, so the build order is recomputed on every run.
+- **A mind is a matrix.** Every non-player character meets six situations: idle, notice, engage, strike, pressed and
+  lost. Each one resolves, as fauna behaviors do, from four axes:
+  - motivation and aggressiveness, which are authored;
+  - the actions and capability its body measures, which are never authored. So a mind cannot ask for a verb its body
+    does not hold.
+
+  Two more authored dials sit beside them:
+  - **Rank.** Minibosses and bosses duel: they hold a repertoire and rotate through it. Bosses also shift at health
+    phases and adapt.
+  - **Skill.** It is set for a whole class of minds and tuned per character.
+
+  The arena's three difficulty tiers are exactly three skill × aggressiveness pairs. Every species gets a mind from
+  the tags it already carries. `scripts/gen-mind-table.mjs` writes the table of what each named mind and each
+  species does. The Mind facet now reads these axes.
+- **The arena's brain is the engine's mind.** The `ai` rule left the mobile-suit pack and joined the controllable
+  engine as `worlds/controllable/mind.js`. It is organised by situation, and its difficulty tiers are built from skill
+  and aggressiveness. Every arena bout steps byte-identically.
+  - A world's `aiDifficulty` still tunes every mind in it.
+  - A character can now tune itself on top with `rule.mind: { skill, aggressiveness, tune }`, so a boss can be
+    sharper than its troops.
+  - A passive mind never engages; a defensive one engages only once hurt.
+  - Pages that embed the controllable engine changed only in that embedded source.
+- **Maneuvers are engine verbs.** The acrobatic dodge, the tackle, loadout cycling with its switch ready time, and
+  boost inertia left the mobile-suit pack too, as `worlds/controllable/maneuvers.js`. Any rule can opt into them, and
+  a mind can carry a loadout without the pack. Nothing in `lib/graph/mobile-suit/` is tracked or published any more.
+- **Guards and prey.** `rule.mind.motivation` shapes a mind outside the arena:
+  - **A guard** engages only intruders within `guardRadius` of its post (where it was placed, or `rule.post`). It
+    walks back to the post once they leave.
+  - **Prey** turns and runs from a threat inside `fearRadius` and never fights.
+
+  Every species' mind runs on the engine's rule, so prey animals flee with no authoring.
+- **A commander can drive a mind.** The arena's live commander joined the engine as
+  `worlds/controllable/commander.js`. Every few seconds it reads a digest of the fight and sets the mind's posture
+  (rush, skirmish, siege or kite), its boost, melee and dodge, and which gun it leads with, while the mind keeps its
+  reflexes.
+  - A body opts in with `rule.commanded: true`. The world's `commander: { port, period, url, hook }` picks who
+    commands: the built-in reference commander, a page hook (`__mojCommander` by default) or an HTTP endpoint, so
+    any model can play.
+  - A page with no commanded body is byte-identical.
+  - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Animals live in packs and herds.** Every species has a social structure: pack, herd, flock, school or solitary
+  (`lib/graph/mind/social.js`). `faunaGroup(species, id)` gives its group.
+  - **Packs** (wolves, lions, raptors) fan out, ring their prey and bite two at a time.
+  - **Herds, flocks and schools** graze as before, but stray no farther than a few body lengths from the leader. When
+    any member is frightened the whole group runs, each animal on its own bearing, until all are clear of the threat.
+- **Groups: N minds as one.** Minds that share `rule.mind.group` act together (`worlds/controllable/group.js`):
+  - **Shared focus, spacing and sight.** They share a target and keep a spacing between members, and one member's
+    sighting is the whole group's.
+  - **Traversal patterns** give every member a slot:
+    - travelling: column, line and wedge;
+    - closing in: fan-out, encircle, pincer and close;
+    - breaking: scatter.
+  - **Plans** chain patterns on triggers: distance to the target, time, or how many members have arrived. Named plans
+    are `pack-hunt`, `squad` and `herd`.
+  - **Attack tokens** let only K members press in at once while the rest hold their slots.
+
+  A group with no target travels in formation behind its leader. Worlds without groups are unchanged.
+- **Predators hunt.** Every predator species' mind now carries a natural weapon: a bite whose reach and damage scale
+  with the animal's size, which staggers without knocking down. A predator hunts any body not of its own kind, so a
+  pack never bites itself. Prey flee the nearest threat, which is the player or any hunting mind, so deer run from
+  wolves with no player near.
+- **Idle minds move.** Motivations that used to stand still now have something to do:
+  - **Wander** roams near home, pausing between legs. Territorial minds idle the same way.
+  - **Forage** walks to bodies tagged as food and grazes there, or drifts and grazes when there is none.
+  - **Escort** keeps to its ward (`rule.escort`, else the pilot) and fights only what comes near the ward.
+  - **Territorial** warns an intruder inside its territory before it attacks, and leaves alone what stays outside.
+
+  The walks are seeded by the body's id, so a world plays the same way every run.
+- **Minds see, and remember.** `rule.mind.perception: 'sight'` limits a mind to what it can see: in range, in its
+  facing cone, with a clear line past the walls. Out of sight it forgets. `'memory'` adds a last-seen record: it walks
+  to where it last saw the target, searches there, and gives up after a while (a guard goes back to its post). Minds
+  without a perception setting are unchanged.
+- **Minds find their way round walls.** With `rule.mind.pathing: 'navmesh'` a mind with no line to its target, or to
+  its post, walks a path round what is in the way instead of pressing against it, and holds its fire until it can
+  see. The path comes from `worlds/controllable/nav.js`: a walk grid baked from the world's colliders for the body's
+  size, rebuilt when they change, searched with A* and pulled tight to its corners. One floor at the body's height;
+  space and stairs are not covered.
+- **Bosses change as they lose health, and adapt.** A boss (`rule.mind.rank: 'boss'`) crosses health phases: under
+  two thirds it turns one step more aggressive, under a third relentless, and it closes to the blade when it holds one.
+  Each crossing holds a short planted, invincible beat so the change reads, and a heal never undoes one.
+  `rule.mind.phases: [{ below, aggressiveness, skill, tune, rule, shift }]` authors them for any mind.
+  - A boss also adapts: it books the damage it took and dealt to the mode it was fighting in, melee or ranged, and
+    every few seconds it benches the mode that lost the trade for the next window. A miniboss adapts when asked
+    (`adapt: true`).
+  - Minds without a rank or phases are unchanged, and every arena bout steps byte-identically.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 - **Time is progression, not text.** The Time facet now reads as three layers:

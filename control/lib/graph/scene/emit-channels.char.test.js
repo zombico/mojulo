@@ -66,6 +66,38 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-08 (explosions): the engine's puff carries an explosion's parts (a chain is several, scattered by
 // seeded dice and staggered) and a scale, and a beam's impact may be one. Pages that set none off are unchanged in
 // their moment code; the controllable trace pins hold.
+// Re-pinned 2026-10-11 (the mind): the arena's ai brain left the mobile-suit pack and joined the engine as
+// controllable/mind.js (the same rule, its helpers named by situation, its difficulty tiers built from skill ×
+// aggressiveness, plus an opt-in per-character `rule.mind`). Only the embedded engine source moved: every one of the 13
+// fixtures that embeds it was emitted before and after with that source cut out, and the rest is byte-identical. The
+// controllable trace pins hold, the three arena bouts included.
+// Re-pinned 2026-10-11 (the maneuvers): the pack's other behavior module, its maneuvers (dodge, tackle, loadout
+// cycling, boost inertia), joined the engine as controllable/maneuvers.js, ahead of the mind; EMISSION is now the engine
+// alone. Same proof: the 13 fixtures emitted before and after with the engine source cut out are byte-identical.
+// Re-pinned 2026-10-11 (guards and prey): the mind gains two motivations on `rule.mind` — a guard engages only near
+// its post and walks back to it, prey flees a threat inside its fear radius. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the commander): the mind reads a posture's spacing off the rule's own `approach` when the
+// weapon slot names none, so a commander's posture spaces the whole body. The commander itself is page-only and gated
+// on a `rule.commanded` body, which no fixture holds. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (boss phases): the mind gains a duelist's health phases and adapting ledger, both gated on
+// `rule.mind` (rank boss, authored phases, or adapt). Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (pathfinding): the engine gains nav.js (a walk grid from the colliders, A*, a string pull)
+// ahead of the mind, which walks it only on `rule.mind.pathing: 'navmesh'`. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (perception): the mind can be limited to what it sees and remember where it last saw a
+// target, both gated on `rule.mind.perception`. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (idle motion): the mind's idle by motivation (wander, graze, escort, the territorial warning)
+// and a `food` entity tag, all gated on `rule.mind` or the tag. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (behaviour poses end): a warning, a search, grazing and a boss's phase beat hand the clip back
+// when they end (found playing the Mind demo headless). Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (predators): prey run from the nearest hunting mind as well as the pilot; a blade-only body
+// closes to its reach; an opt-in `strikeLunge` carries a strike forward. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (groups): the engine gains group.js after the mind (slots from traversal patterns, shared
+// sight, attack tokens; a no-op without `rule.mind.group`), and a lunge stops at half its reach. Same proof, same 13
+// fixtures.
+// Re-pinned 2026-10-11 (herds): a group of kind 'herd' keeps cohesion and breaks together at an alarm, and prey
+// in a herd run on the alarm. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the rule facade's clock): `world.time` reaches the rules, so a mind's sightings, memory,
+// regrowth and a group's shared sight read the real time (they read 0). Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

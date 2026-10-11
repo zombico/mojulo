@@ -1,0 +1,80 @@
+/**
+ * NAMED MINDS: a mind (the authored axes) on a reference body (an entity spec its measured axes are read from).
+ *
+ *   ARENA_TIERS   the arena's three difficulty tiers, each exactly a (skill, aggressiveness) pair: tuningOf() of the
+ *                 pair equals the arena's AI_DIFFICULTY row (mind.test.js holds it)
+ *   PRESETS       { [id]: { mind, body, line } }: the arena hunters, dungeon minds, the practice dummy
+ *   faunaMind(id) a species' mind from the tags it already carries (fauna/behavior/tags.js): predators hunt, prey
+ *                 flee, grazers and browsers forage; its body from its measured capabilities. No authoring per species
+ *
+ * Pure.
+ */
+import { SPECIES } from '../fauna/species.js';
+import { tagsOf, capabilitiesOf } from '../fauna/behavior/index.js';
+import { socialOf } from './social.js';
+
+export const ARENA_TIERS = Object.freeze({
+  easy:   { skill: 'novice', aggressiveness: 'wary' },
+  medium: { skill: 'regular', aggressiveness: 'bold' },
+  max:    { skill: 'ace', aggressiveness: 'opportunist' },
+});
+
+// the arena's seat body (match-modes seatRule): boost, melee seek, a spray gun and a rifle
+const ARENA_BODY = Object.freeze({
+  rule: { type: 'ai', boost: true, meleeSeek: true, loadout: [{ name: 'saber', strike: 'melee' }, { name: 'mg', weapon: { fireClass: 'area' } }, { name: 'rifle', weapon: { fireClass: 'sight' } }] },
+  body: { hp: 140 },
+});
+// minds on the engine's rule: a knight with a blade, a wall archer, a champion with a blade, a spear and a dash
+const KNIGHT = Object.freeze({ rule: { type: 'ai', meleeSeek: true, loadout: [{ name: 'sword', strike: 'melee' }] }, body: { hp: 90 } });
+const ARCHER = Object.freeze({ rule: { type: 'ai', dodge: false }, weapon: { fireClass: 'lob' }, body: { hp: 50 } });
+const CHAMPION = Object.freeze({ rule: { type: 'ai', meleeSeek: true, boost: true, loadout: [{ name: 'blade', strike: 'melee' }, { name: 'spear', weapon: { fireClass: 'sight' } }] }, body: { hp: 420 } });
+const DUMMY = Object.freeze({ rule: { type: 'patrol', waypoints: [[0, 0, 0], [10, 0, 0]] }, body: { hp: 60 } });
+
+export const PRESETS = Object.freeze({
+  ...Object.fromEntries(Object.entries(ARENA_TIERS).map(([tier, axes]) => [`arena-${tier}`, {
+    line: `the arena hunter at ${tier}`, mind: { motivation: 'hunt', rank: 'miniboss', ...axes }, body: ARENA_BODY,
+  }])),
+  'dungeon-guard': { line: 'holds a door; fights intruders at blade range', mind: { motivation: 'guard', aggressiveness: 'bold', rank: 'elite', skill: 'regular' }, body: KNIGHT },
+  sentry: { line: 'a wall archer that keeps its distance', mind: { motivation: 'guard', aggressiveness: 'defensive', rank: 'minion', skill: 'novice' }, body: ARCHER },
+  'champion-boss': { line: 'a boss with a blade, a spear, a charge and a dash, switching between them', mind: { motivation: 'hunt', aggressiveness: 'opportunist', rank: 'boss', skill: 'veteran' }, body: CHAMPION },
+  'practice-dummy': { line: 'walks its route and never fights', mind: { motivation: 'ambient', aggressiveness: 'passive', rank: 'minion', skill: 'novice' }, body: DUMMY },
+});
+
+const round2 = (v) => Math.round(v * 100) / 100;
+
+export function faunaMind(id) {
+  const s = SPECIES[id];
+  if (!s) throw new Error(`mind: no species '${id}'`);
+  const tags = tagsOf(s.family, id) || [], cap = capabilitiesOf(id);
+  const has = (t) => tags.includes(t);
+  const motivation = has('predator') ? 'hunt' : has('prey') ? 'flee' : (has('grazer') || has('browser') || has('roots') || has('filter')) ? 'forage' : 'wander';
+  const aggressiveness = has('predator') ? 'bold' : has('prey') ? 'passive' : 'defensive';
+  // an animal runs the engine's mind (worlds/controllable/mind.js) and does not roll. A PREDATOR carries a natural
+  // weapon: one melee slot (a bite) sized by the species' scale, which staggers but never floors; its species is its
+  // team, so it hunts anything not of its kind (`target: 'enemy'`) and a pack never bites itself
+  const rule = { type: 'ai', dodge: false, ...(cap.wings ? { flier: true } : {}), ...(cap.swimmer ? { swimmer: true } : {}) };
+  let team;
+  if (has('predator')) {
+    const size = Number.isFinite(s.scale) ? s.scale : 1;
+    Object.assign(rule, {
+      meleeSeek: true, meleeCombo: false, target: 'enemy',
+      loadout: [{ name: 'bite', strike: 'melee', swingSet: 'bite', strikeReach: round2(1 + 1.4 * size), strikeDamage: Math.round(6 + 12 * size), strikeCooldown: 1.2, strikeDur: 0.6, strikeLunge: round2(10 + 8 * size), strikeVerbs: { back: { topple: false } } }],
+    });
+    team = id;
+  }
+  const body = { rule, ...(team ? { team } : {}) };
+  return { mind: { motivation, aggressiveness, rank: 'minion', skill: 'regular' }, body, tags, social: socialOf(id, s.family) };
+}
+
+// faunaGroup(species, id) — the group settings a species lives in (./social.js), for `rule.mind.group`: a PACK hunts
+// (`pack-hunt`, two attackers at a time); a HERD, FLOCK or SCHOOL keeps together and runs together; SOLITARY is null.
+// Spacing scales with the species' size.
+export function faunaGroup(species, id) {
+  const s = SPECIES[species];
+  if (!s) throw new Error(`mind: no species '${species}'`);
+  const social = socialOf(species, s.family), size = Number.isFinite(s.scale) ? s.scale : 1;
+  const spacing = round2(2 + 3 * size);
+  if (social === 'pack') return { id, plan: 'pack-hunt', attackers: 2, spacing };
+  if (social === 'herd' || social === 'flock' || social === 'school') return { id, kind: 'herd', spacing, cohesion: round2(spacing * 3) };
+  return null;
+}
