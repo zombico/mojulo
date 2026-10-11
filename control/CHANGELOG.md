@@ -339,6 +339,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   double as JS does: the fewest digits, the even one on a tie, the exponent forms and the subnormals included. The
   bus prints with it, so a var a HUD shows and the state the conformance corpus compares read the same on both sides.
 
+### Destruction: every blow breaks things its own way
+
+- **The cut.** `playscape/destruct/cuts.js` names how a blow breaks what it breaks: a pattern (cleave's slice, grid or
+  voronoi, or dismantle's severed joints) and a style (blade, laser, anime, impact), as presets (slash, cleave, chip,
+  shatter, blast, burn, dice, sever). A blow's cut is the thing's own (glass shatters whatever hits it), else the
+  blow's, else its element's (fire burns, ice shatters, wind slashes, shock cleaves, dusty severs), else its source's
+  (a swing slashes, a round chips, a burst blasts, a beam by its kind). Tables, not code.
+
 ### Structure rails: the structure book
 
 - A house (`floorplan` row) is getting **the structure book**, one tabbed HTML view of the whole building in the game
