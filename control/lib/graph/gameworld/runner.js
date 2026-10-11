@@ -29,7 +29,7 @@ import { resolveBook, characterReady } from './character-review.js';
 import { heroOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, mapPlan } from './levels.js';
 import { goalMechanics, quickStore } from './quick.js';
 
 const REF_MAX = 64;
@@ -71,12 +71,13 @@ export function runSteps(world, { ref, lookup } = {}) {
   // the creator's, in play (create_game records the levels as unaudited).
   const pilot = steps.some((s) => s.key === 'hero-equipped') ? childRef(ref, 'hero-equipped') : heroRef;
   const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
+  const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   stages.forEach((s, i) => {
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, ...(map ? { map: map[i] } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
   });
   if (stages.length) {
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs), allow_unaudited: true };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs, map), allow_unaudited: true };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -93,11 +94,12 @@ function quickSteps(world, G, ref) {
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec: Q.hero, mint, motion: null }, print: fingerprint({ spec: Q.hero, toon: mint.toon ?? null }) });
   }
   const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
+  const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   stages.forEach((s, i) => {
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs, map), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}) };
   steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) });
   return steps;
 }

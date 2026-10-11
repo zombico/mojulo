@@ -58,6 +58,7 @@ import { readCharacters } from './characters.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick } from './quick.js';
+import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 
@@ -87,6 +88,11 @@ const GROUPS = Object.freeze({
   town: ['length', 'sway', 'branches', 'levels', 'back', 'farms', 'heartbeat', 'secondary'],
   castle: ['size', 'wards', 'rise'],
 });
+// how a world's levels join in play (cosmos space.topology); absent: a line, each level after the one before it
+export const TOPOLOGIES = Object.freeze({
+  linear: 'a line: each level opens when the one before it is beaten, picked from the list',
+  interconnected: 'a map: every link runs both ways, a level is left by one of its exits and the game travels on; a link can be locked by a key found in another level',
+});
 export const LINK_KINDS = Object.freeze({ road: 'the walk goes on: the next level starts where this one leaves', gate: 'a door between them: a portal, a stair down, a boat' });
 /** Not on the ground and not built yet: named so a world can say it, left open (none today). */
 export const RESERVED = Object.freeze([]);
@@ -97,7 +103,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -241,6 +247,8 @@ export function readGameworld(W) {
   if (typeof W.id !== 'string' || !ID.test(W.id)) throw new Error('gameworld: id is a short lower-case name (letters, digits, hyphens)');
   if (W.seed !== undefined && !Number.isFinite(W.seed)) throw new Error('gameworld: seed is a number');
   const seed = W.seed ?? 1;
+  if (W.topology !== undefined && !TOPOLOGIES[W.topology]) throw new Error(`gameworld: topology is one of ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}`);
+  if (W.camera !== undefined && !CAMERAS[W.camera]) throw new Error(`gameworld: camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
 
   // CIVILIZATIONS: as many as the world keeps; the kit's own when it keeps none
   if (W.civilizations !== undefined && (!isObj(W.civilizations) || !Object.keys(W.civilizations).length)) throw new Error('gameworld: civilizations is { <id>: { name?, anchor?, fort?, town?, castle?, builds?, technology? } }, at least one (or leave it out)');
@@ -281,12 +289,21 @@ export function readGameworld(W) {
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
-    for (const k of Object.keys(e)) if (!['from', 'to', 'kind'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind)`);
+    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt)`);
     for (const k of ['from', 'to']) if (!levels[e[k]]) throw new Error(`gameworld: links[${i}].${k} '${e[k]}' is not a level (levels: ${ids.join(', ')})`);
     if (e.from === e.to) throw new Error(`gameworld: links[${i}] leads '${e.from}' to itself`);
     const kind = e.kind ?? 'road';
     if (!LINK_KINDS[kind]) throw new Error(`gameworld: links[${i}].kind '${kind}' is not a link (${Object.keys(LINK_KINDS).join(', ')})`);
-    return { from: e.from, to: e.to, kind };
+    // a KEY locks the way from `from` to `to` in a map world: an item or one of the hero's powers (levels.js tells them
+    // apart), laid as a pickup in level `keyAt` (a level other
+    // than `to`), carried in the bag; going back the other way is never locked
+    if (e.key !== undefined || e.keyAt !== undefined) {
+      if (W.topology !== 'interconnected') throw new Error(`gameworld: links[${i}].key locks a door in a map world: set topology: 'interconnected', or leave the key out`);
+      if (typeof e.key !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(e.key)) throw new Error(`gameworld: links[${i}].key is one lower-case id, what opens it: an item (key, rune, lantern…) or one of the hero's powers`);
+      if (!levels[e.keyAt]) throw new Error(`gameworld: links[${i}].keyAt names the level the ${e.key} is found in (levels: ${ids.join(', ')})`);
+      if (e.keyAt === e.to) throw new Error(`gameworld: links[${i}].keyAt is behind its own door: lay the ${e.key} in a level reached without it`);
+    }
+    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}) };
   });
   const start = W.start ?? ids[0];
   if (!levels[start]) throw new Error(`gameworld: start '${start}' is not a level (levels: ${ids.join(', ')})`);
@@ -296,7 +313,7 @@ export function readGameworld(W) {
   const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
   if (W.made !== undefined && W.made !== null) readMade(W.made);   // the runner's record: read, never carried
   if (W.quick !== undefined && W.quick !== null) readQuick(W.quick);   // a quick game's goal (quick.js): read, never carried
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), [READ]: true };
 }
 
 /**

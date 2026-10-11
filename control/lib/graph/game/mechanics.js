@@ -59,9 +59,10 @@ const MECHANICS = {
       return {
         world: {
           sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
-          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: 'goal:reached' }],
+          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: p.exit ? `goal:reached:${p.exit}` : 'goal:reached' }],
         },
-        on: { 'goal:reached': { end: 'success' } },
+        // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
+        on: p.exit ? { [`goal:reached:${p.exit}`]: { end: 'success', exit: p.exit } } : { 'goal:reached': { end: 'success' } },
         audit: { kind: 'walkto', target: at },
       };
     },

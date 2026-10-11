@@ -22,3 +22,8 @@ at 0 is deleted (absence = none).
 `consumes: [{ "slice": "bag", "pick": { "max": 4 } }]` renders a loadout picker
 on the shell's setup screen — the chosen subset reaches the level as params.
 Loot found in-level comes back as `grant` events in the outcome envelope.
+
+## Gates on what is carried
+
+`{ "has": "rune", "count"?: 1, "slice"?: "bag" }` holds once the inventory carries at least `count` of the item. It
+gates a level or one of a map's exits (a door that opens with a key found in another level).
