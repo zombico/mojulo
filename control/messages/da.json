@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Visningstilstand",
     "mode": {
+      "book": "Bog",
       "wire": "Trådramme",
       "shaded": "Skyggelagt",
       "baked": "Bagt",
       "painted": "Malet"
     },
     "hint": {
+      "book": "Huset som konstruktionsbog: tegninger, skemaer, kontroller og gennemgangen.",
       "wire": "Kun konstruktionslinjer — geometrien afklædt.",
       "shaded": "Mojulos egne vertexfarver og procedurale materialer.",
       "baked": "Blender Cycles global belysning bagt ind i vertexfarverne.",

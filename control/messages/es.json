@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Modo de visualización",
     "mode": {
+      "book": "Libro",
       "wire": "Alambre",
       "shaded": "Sombreado",
       "baked": "Horneado",
       "painted": "Pintado"
     },
     "hint": {
+      "book": "La casa como libro de obra: planos, cuadros, comprobaciones y el recorrido.",
       "wire": "Solo líneas de construcción — la geometría al desnudo.",
       "shaded": "Los colores de vértice y materiales procedurales propios de Mojulo.",
       "baked": "Iluminación global de Blender Cycles horneada en los colores de vértice.",

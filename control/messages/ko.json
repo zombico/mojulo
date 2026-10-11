@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "표시 모드",
     "mode": {
+      "book": "북",
       "wire": "와이어",
       "shaded": "셰이딩",
       "baked": "베이크",
       "painted": "페인팅"
     },
     "hint": {
+      "book": "집을 구조 북으로 보여줘요: 도면, 일람표, 점검, 둘러보기.",
       "wire": "구성선만 — 벗겨낸 지오메트리예요.",
       "shaded": "Mojulo 자체 버텍스 컬러와 절차적 머티리얼이에요.",
       "baked": "Blender Cycles 전역 조명을 버텍스 컬러에 구워 넣었어요.",

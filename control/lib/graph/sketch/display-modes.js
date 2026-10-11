@@ -21,6 +21,11 @@
  * disabled `baked` button carrying `reason: 'noBake'` — "no bake yet, ask the
  * agent for one" is a better empty state than a button that isn't there.
  *
+ * One reading is a kind's own, not a look every artifact could take: `book`, a
+ * house (kind 'floorplan') read as its structure book (the sheets, schedules and
+ * checks, the World in its Walk tab). It is listed only for houses, and the detail
+ * page opens on it (`readingMode`); the gallery keeps the world as its default.
+ *
  * Design: components/3d-factory-ui.plan.md §4.
  */
 
@@ -108,8 +113,13 @@ export function resolveDisplayModes({
     },
   ];
 
+  // a house's own reading: its structure book, served by /bible (lib/graph/structure/book-html.js)
+  if (kind === 'floorplan') {
+    modes.unshift({ key: 'book', available: true, reason: null, view: { kind: 'iframe', src: `/api/sketches/${encodeURIComponent(ref)}/bible`, aspect: '4 / 5', protocol: false } });
+  }
+
   const defaultMode = bakedInPlace ? 'baked' : 'shaded';
-  return { modes, defaultMode };
+  return { modes, defaultMode, ...(kind === 'floorplan' ? { readingMode: 'book' } : {}) };
 }
 
 /** The plain, undressed reading — this is what the page renders today. */

@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "显示模式",
     "mode": {
+      "book": "图册",
       "wire": "线框",
       "shaded": "着色",
       "baked": "烘焙",
       "painted": "绘制"
     },
     "hint": {
+      "book": "以结构图册呈现房屋：图纸、明细表、检查与漫游。",
       "wire": "仅构造线 — 几何体的裸态。",
       "shaded": "Mojulo 自己的顶点色与程序化材质。",
       "baked": "烘焙进顶点色的 Blender Cycles 全局光照。",

@@ -285,12 +285,14 @@
   "displayModes": {
     "label": "Tryb wyświetlania",
     "mode": {
+      "book": "Księga",
       "wire": "Szkielet",
       "shaded": "Cieniowany",
       "baked": "Wypalony",
       "painted": "Malowane"
     },
     "hint": {
+      "book": "Dom jako księga budowlana: rysunki, zestawienia, kontrole i spacer.",
       "wire": "Tylko linie konstrukcyjne — geometria bez pokrycia.",
       "shaded": "Własne kolory wierzchołków i materiały proceduralne Mojulo.",
       "baked": "Globalne oświetlenie Blender Cycles wypalone w kolorach wierzchołków.",
