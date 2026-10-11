@@ -100,8 +100,8 @@ describe('resolveDisplayModes', () => {
     expect(resolveDisplayModes({ manifest: { kind: 'fractal-city' }, ref: 'sk_j' }).readingMode).toBeUndefined();
   });
 
-  it('reads a store, a restaurant and a mall as their structure books too; any other kind keeps the four looks', () => {
-    for (const kind of ['store', 'restaurant', 'mall']) {
+  it('reads a store, a restaurant, a mall and a school as their structure books too; any other kind keeps the four looks', () => {
+    for (const kind of ['store', 'restaurant', 'mall', 'school-complex']) {
       const r = resolveDisplayModes({ renderMode: 'world', kind, ref: `sk_${kind}` });
       expect(r.modes[0].key).toBe('book');
       expect(r.readingMode).toBe('book');

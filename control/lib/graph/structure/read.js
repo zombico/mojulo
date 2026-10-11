@@ -152,7 +152,7 @@ export function readStructure(m = {}) {
   const schedules = deriveSchedules(model);
   // a commercial building's egress is its exits (reachability), and its adjacency is its program's rules, not a home's
   if (!isHouse) { schedules.egress = []; schedules.adjacency = []; }
-  const grade = isHouse ? scoreHouse(model) : programGrade(model, schedules, occ, P.extra);
+  const grade0 = isHouse ? scoreHouse(model) : programGrade(model, schedules, occ, P.extra);
 
   const storeyIndex = new Map(model.storeys.map((s) => [s.id, s.index]));
   const storeys = model.storeys.map((s) => ({ id: s.id, index: s.index, number: storeyNumber(s.index), role: s.role, baseZ: r2(s.baseZ ?? 0), height: r2(s.height) }));
@@ -269,6 +269,15 @@ export function readStructure(m = {}) {
     dwelling = { ...has, missing: Object.keys(has).filter((k) => !has[k]) };
   }
 
+  // a kernel that names its rooms and buildings by its own ids (the school) has them said by tag and name
+  let grade = grade0;
+  if (!isHouse && P.extra.roomAt) {
+    const q2 = (n) => Math.round(n * 100) / 100;
+    const byId = new Map(P.extra.roomAt.map((x) => { const t = roomTag.get(`space:L0:${q2(x.x)},${q2(x.y)}`); const r = rooms.find((y) => y.tag === t); return [x.id, r ? `${r.tag} ${r.name}` : x.id]; }));
+    const say = (d) => String(d).replace(/room:[a-z0-9-]+:[a-z0-9-]+/g, (id) => byId.get(id) ?? id).replace(/building:[a-z0-9-]+/g, (id) => P.extra.buildingWord(id));
+    grade = { ...grade0, violations: grade0.violations.map(say), findings: grade0.findings.map((f) => ({ ...f, detail: say(f.detail) })) };
+  }
+
   const elements = {
     walls,
     wallTypes: wallTypes.types.map((t) => {
@@ -282,7 +291,8 @@ export function readStructure(m = {}) {
       // nominal, in whole inches: what the type was keyed on (each window keeps its fitted size, in feet, on its own row)
       return { type: t.type, widthIn: inches(w.width), heightIn: inches(w.height), sillIn: inches(w.sill), count: t.ids.length };
     }),
-    slabs: model.slabs.map((s) => ({ tag: `SL${storeyNumber(storeyIndex.get(s.storey))}`, storey: storeyIndex.get(s.storey), area: s.area, holes: s.holes.map(rectOf) })),
+    // a campus's slab on a storey is the buildings standing on it, not the campus footprint
+    slabs: model.slabs.map((s) => ({ tag: `SL${storeyNumber(storeyIndex.get(s.storey))}`, storey: storeyIndex.get(s.storey), area: P?.extra?.slabAreas ? r2(P.extra.slabAreas[storeyIndex.get(s.storey)] ?? s.area) : s.area, holes: s.holes.map(rectOf) })),
     // a stair's slot is the void it rises through in the upper slab; the flight stands under it
     stairs: model.stairs.map((s, i) => {
       // the kernel's own flight (its steps, rise, run and turn), matched by the void it rises through
@@ -306,6 +316,8 @@ export function readStructure(m = {}) {
         ...(at ? { rects: at.map((r) => ({ ...rectOf(r), ...(r.dir ? { dir: r.dir } : {}) })) } : {}),
       };
     }) } : {}),
+    // a school building's core: its stair (and its lift) through every floor it stands
+    ...(!isHouse && P.extra.cores?.length ? { verticals: P.extra.cores.map((c, i) => ({ tag: `ST${i + 1}`, kind: 'stair', lift: c.lift, from: 0, to: c.floors - 1, building: c.building.replace(/^building:/, ''), links: [], rects: [rectOf(c.rect)] })) } : {}),
     ...(!isHouse && P.extra.verticalRects?.void ? { voids: [{ tag: 'AT1', name: 'atrium', from: 0, to: 1, rect: rectOf(P.extra.verticalRects.void) }] } : {}),
   };
 
@@ -315,6 +327,7 @@ export function readStructure(m = {}) {
     ...(!isHouse ? { occupancy: { id: occ.id, label: occ.label, group: occ.group, name: occ.name } } : {}),
     ...(!isHouse && P.extra.capacity ? { capacity: P.extra.capacity } : {}),
     ...(!isHouse && P.extra.parcel ? { parcel: P.extra.parcel } : {}),
+    ...(!isHouse && P.extra.campus ? { campus: P.extra.campus } : {}),
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
     subject, storeys, rooms, elements,
     ...(program ? { program } : {}),

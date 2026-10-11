@@ -1,8 +1,8 @@
 ---
-{ "id": "building-commercial", "name": "A store, restaurant or mall as a building — its structure book", "summary": "the structure book for a commercial program: a store (from a concept card), a restaurant or a mall (one or two levels), read as the building it is: its occupancy, rooms named by role, its program's grade, the fit-out as an FF&E schedule, plans, elevations, sections and schedules", "when": "someone wants plans, a drawing set, an FF&E or fixture schedule, or a check of a shop, store, boutique, café, bar, restaurant or shopping mall; or a mint_building `next` names card 'building-commercial'", "tier": "render-primitive", "marks": [], "phase": "p1" }
+{ "id": "building-commercial", "name": "A store, restaurant, mall or school as a building — its structure book", "summary": "the structure book for a commercial or civic program: a store (from a concept card), a restaurant, a mall (one or two levels) or a school campus, read as the building it is: its occupancy, rooms named by role, its program's grade, the fit-out as an FF&E schedule, plans, elevations, sections and schedules", "when": "someone wants plans, a drawing set, an FF&E or fixture schedule, or a check of a shop, store, boutique, café, bar, restaurant, shopping mall or school campus; or a mint_building `next` names card 'building-commercial'", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
-A store, a restaurant and a mall are buildings on the same rail as a house. `mint_building` takes the manifest
+A store, a restaurant, a mall and a school are buildings on the same rail as a house. `mint_building` takes the manifest
 `create_sketch` takes; the page is the structure book. Each is read as what it is, never as a home: no bedrooms,
 no egress windows, no "is it livable".
 
@@ -12,6 +12,8 @@ no egress windows, no "is it livable".
    (`kind: 'restaurant'`, with a `seed`), or a mall (`kind: 'mall'`, one level or `levels: 2` around an atrium).
 2. **How big?** Feet: a store's `width` × `depth` (default 24 × 40), a restaurant's `width` × `height`
    (default 48 × 64), a mall's `width` × `height` (default 64 × 120).
+   A school is `kind: 'school-complex'` with `seed`, `pattern` (`courtyard` | `spine` | `cluster`), `program`
+   (`elementary` | `middle` | `high-school`), `facade` and `floors`, the same recipe `compose_world`'s school takes.
 3. **Fitted out?** A store and each mall bay are fit out from cards (`card`, `cards`; `cards: false` leaves the
    bays bare). The restaurant furnishes its dining room, kitchen and restroom itself.
    - A mall's `cards` takes a store type (`apparel`, `electronics`, `cafe`, `bookstore`, `homewares`, `food`,
@@ -38,6 +40,11 @@ no egress windows, no "is it livable".
     the anchors cap the ends; each level's concourse is one walkway; the upper level is reached by escalator or
     lift;
   - store: the card's own assessment (entry decompression, aisles, the cash wrap's sightline, fixture overlap).
+- **A school** is a campus: its buildings (admin, academic, commons, gym), their floors, its classrooms. The kernel
+  plans the ground floor; each room reaches the wall it stands 2 ft off and meets its neighbour mid-gap, the
+  corridor is what is left, upper floors are shells (Open says so), and each building's core is a stair core (ST)
+  through its floors. Its grade is the school's own: egress, daylight by window wall, proportion, the walk from the
+  bus loop, the site. Occupancy educational (E).
 - **Rooms**: named by role: sales floor, stock room, fitting room, booth, restroom; dining room, kitchen; concourse,
   tenant bay, anchor store, food court.
 - **Elements**: walls by type, doors tagged by the room they serve (a storefront drawn as a cased opening),

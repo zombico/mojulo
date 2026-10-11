@@ -77,7 +77,8 @@ export function unreachedLevels(read) {
   if (read.storeys.length < 2) return [];
   const ground = read.storeys.some((s) => s.index === 0) ? 0 : read.storeys[0].index;
   const reached = new Set([ground]);
-  const climbs = [...read.elements.stairs, ...(read.elements.verticals || [])];
+  // a core climbs through every level between its ends; a stair or an escalator joins its two
+  const climbs = [...read.elements.stairs, ...(read.elements.verticals || []).flatMap((v) => Array.from({ length: Math.max(1, v.to - v.from) }, (_, k) => ({ from: v.from + k, to: v.from + k + 1 })))];
   for (let grew = true; grew;) {
     grew = false;
     for (const st of climbs) for (const [a, b] of [[st.from, st.to], [st.to, st.from]]) if (reached.has(a) && !reached.has(b)) { reached.add(b); grew = true; }
@@ -153,7 +154,7 @@ function checkRowsRaw(read) {
   if (read.storeys.length > 1 && !unreachedLevels(read).length) {
     const n = read.elements.stairs.length, v = read.elements.verticals || [];
     const say = (k, word) => { const c = v.filter((x) => x.kind === k).length; return c ? [`${c} ${word}${c === 1 ? '' : 's'}`] : []; };
-    const by = v.length ? [...(n ? [`${n} flight${n === 1 ? '' : 's'}`] : []), ...say('escalator', 'escalator'), ...say('elevator', 'lift')].join(', ') : `${n} flight${n === 1 ? '' : 's'}`;
+    const by = v.length ? [...(n ? [`${n} flight${n === 1 ? '' : 's'}`] : []), ...say('stair', 'stair core'), ...say('escalator', 'escalator'), ...say('elevator', 'lift')].join(', ') : `${n} flight${n === 1 ? '' : 's'}`;
     rows.push({ source: 'plan', rule: 'stair-reach', ok: true, subject: '', detail: `${by} reach every level` });
   }
   // furniture that crowds a stair (the livability of its approaches)

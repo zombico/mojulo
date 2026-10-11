@@ -22,6 +22,7 @@ import { buildRestaurant } from '../polygonizer/floorplan-restaurant.js';
 import { buildMall, buildMallTwoLevel } from '../polygonizer/floorplan-mall.js';
 import { FLOORPLAN_DEFAULTS } from '../polygonizer/floorplan-structure.js';
 import { PROGRAMS } from '../polygonizer/floorplan-principles.js';
+import { planFractalSchoolComplex, buildFractalSchoolFaces, assessSchoolPrinciples, schoolBim, ROOM_DOOR_OFF, ROOM_DOOR_W, UPPER_FLOOR_H } from '../architecture/fractal-school.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -35,6 +36,7 @@ export const OCCUPANCIES = Object.freeze({
   store: Object.freeze({ id: 'store', label: 'store', group: 'M', name: 'mercantile', program: null }),
   restaurant: Object.freeze({ id: 'restaurant', label: 'restaurant', group: 'A-2', name: 'assembly (food and drink)', program: 'restaurant' }),
   mall: Object.freeze({ id: 'mall', label: 'mall', group: 'M', name: 'mercantile', program: 'mall' }),
+  'school-complex': Object.freeze({ id: 'school', label: 'school', group: 'E', name: 'educational', program: null }),
 });
 
 /** The kinds the structure book reads: a house and the commercial programs. */
@@ -51,6 +53,9 @@ export const ROLE_NAMES = Object.freeze({
   dining: 'dining room', kitchenBOH: 'kitchen',
   concourse: 'concourse', tenant: 'tenant bay', anchor: 'anchor store', foodCourt: 'food court',
   circulation: 'corridor', storage: 'storage', office: 'office', openOffice: 'open office', meetingRoom: 'meeting room', reception: 'reception',
+  classroom: 'classroom', science: 'science lab', art: 'art room', music: 'music room', media: 'media lab', shop: 'shop',
+  library: 'library', cafeteria: 'cafeteria', 'small-gym': 'gym', gym: 'gym', fieldhouse: 'fieldhouse',
+  admin: 'office', nurse: "nurse's room", staff: 'staff room', unplanned: 'floor, not planned',
 });
 
 export const roleName = (role, fallback) => ROLE_NAMES[role] ?? (role ? String(role).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase() : fallback);
@@ -154,6 +159,8 @@ export function buildProgram(m) {
     };
   }
 
+  if (occ.id === 'school') return buildSchool(m);
+
   // the mall: one level, or two around an atrium (the World's own switch)
   if (m.levels === 2) {
     const b = buildMallTwoLevel(m, { ...m });
@@ -199,7 +206,7 @@ const clamp01 = (n) => Math.max(0, Math.min(1, n));
 export function programGrade(model, schedules, occ, extra = {}) {
   const findings = [];
   let isolated = 0;
-  for (const r of schedules.reachability || []) {
+  for (const r of extra.ownReachability ? [] : schedules.reachability || []) {
     for (const s of r.isolated) {
       isolated += 1;
       findings.push({ id: 'reachability', register: 'code', severity: 'invariant', detail: `${s.name} on level ${r.storey + 1} has no door into the ${occ.label}` });
@@ -215,4 +222,178 @@ export function programGrade(model, schedules, occ, extra = {}) {
   const breakdown = { reachability: r2(n ? 1 - isolated / n : 1), [occ.program || occ.id]: r2(clamp01(1 - 0.2 * inv - 0.04 * pref)) };
   const score = r2((breakdown.reachability + breakdown[occ.program || occ.id]) / 2);
   return { score, breakdown, violations: findings.map((f) => f.detail), findings };
+}
+
+// ── the school: a campus read by its own plan ────────────────────────────────────────────────────────────────────
+//
+// The school kernel (architecture/fractal-school.js) plans a campus of buildings joined by covered walks; it plans
+// rooms on the ground floor only, each standing 2 ft in from the walls behind half-height partitions, and draws the
+// upper floors as bands. Its cells do not tile a floor, so it is not read through the floor kernel. It is read the
+// way a drawing set reads it: each room reaches the wall it stands off and meets its neighbour mid-gap, the corridor
+// is what is left, an upper floor is one unplanned cell per building, and each building's core is its stair (and its
+// lift). The rooms, their doors (where the World cuts them) and the walls go into the same element model as a house.
+
+const SNAP_WALL = 2.5, SNAP_GAP = 1.2;
+const rr = (r) => ({ x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1 });
+
+/** The rooms of one building snapped to its walls and to each other (a drawing's reading of the kernel's insets). */
+function snapRooms(R, rooms) {
+  const out = rooms.map((x) => ({ ...x, cut: rr(x.rect) }));
+  for (const x of out) {
+    const c = x.cut;
+    if (c.x0 - R.x0 <= SNAP_WALL) c.x0 = R.x0;
+    if (R.x1 - c.x1 <= SNAP_WALL) c.x1 = R.x1;
+    if (c.y0 - R.y0 <= SNAP_WALL) c.y0 = R.y0;
+    if (R.y1 - c.y1 <= SNAP_WALL) c.y1 = R.y1;
+  }
+  const over = (a0, a1, b0, b1) => Math.min(a1, b1) - Math.max(a0, b0) > 0.1;
+  for (const a of out) for (const b of out) {
+    if (a === b) continue;
+    const A = a.cut, B = b.cut;
+    const gx = B.x0 - A.x1, gy = B.y0 - A.y1;
+    if (gx > 0 && gx <= SNAP_GAP && over(A.y0, A.y1, B.y0, B.y1)) { const m = (A.x1 + B.x0) / 2; A.x1 = m; B.x0 = m; }
+    if (gy > 0 && gy <= SNAP_GAP && over(A.x0, A.x1, B.x0, B.x1)) { const m = (A.y1 + B.y0) / 2; A.y1 = m; B.y0 = m; }
+  }
+  return out;
+}
+
+/** The part of R no room covers, as rectangles (a grid on every edge, merged along rows, then rows merged). */
+function remainder(R, cuts) {
+  const xs = [...new Set([R.x0, R.x1, ...cuts.flatMap((c) => [c.x0, c.x1])])].filter((v) => v >= R.x0 && v <= R.x1).sort((a, b) => a - b);
+  const ys = [...new Set([R.y0, R.y1, ...cuts.flatMap((c) => [c.y0, c.y1])])].filter((v) => v >= R.y0 && v <= R.y1).sort((a, b) => a - b);
+  const covered = (x, y) => cuts.some((c) => x > c.x0 && x < c.x1 && y > c.y0 && y < c.y1);
+  let rows = [];
+  for (let j = 0; j < ys.length - 1; j++) {
+    const ym = (ys[j] + ys[j + 1]) / 2;
+    let start = null;
+    for (let i = 0; i <= xs.length - 1; i++) {
+      const free = i < xs.length - 1 && !covered((xs[i] + xs[i + 1]) / 2, ym);
+      if (free && start === null) start = xs[i];
+      if (!free && start !== null) { rows.push({ x0: start, x1: xs[i], y0: ys[j], y1: ys[j + 1] }); start = null; }
+    }
+  }
+  // merge vertically: a strip with the same span as the one below it extends it
+  const merged = [];
+  for (const r of rows) {
+    const below = merged.find((m) => Math.abs(m.x0 - r.x0) < 1e-6 && Math.abs(m.x1 - r.x1) < 1e-6 && Math.abs(m.y1 - r.y0) < 1e-6);
+    if (below) below.y1 = r.y1; else merged.push({ ...r });
+  }
+  return merged.filter((r) => r.x1 - r.x0 > 0.05 && r.y1 - r.y0 > 0.05);
+}
+
+/** Interior segments → runs: each line's intervals unioned. */
+function runsOf(segments) {
+  const byLine = new Map();
+  for (const g of segments) {
+    const k = `${g.orientation}|${Math.round(g.at * 100) / 100}`;
+    if (!byLine.has(k)) byLine.set(k, { orientation: g.orientation, at: g.at, spans: [] });
+    byLine.get(k).spans.push([g.s0, g.s1]);
+  }
+  const out = [];
+  for (const L of byLine.values()) {
+    const spans = L.spans.sort((a, b) => a[0] - b[0]);
+    let cur = null;
+    for (const [a, b] of spans) {
+      if (cur && a <= cur[1] + 1e-6) cur[1] = Math.max(cur[1], b);
+      else { if (cur) out.push({ orientation: L.orientation, at: L.at, along: cur, interior: true, exteriorSide: null, openings: [] }); cur = [a, b]; }
+    }
+    if (cur) out.push({ orientation: L.orientation, at: L.at, along: cur, interior: true, exteriorSide: null, openings: [] });
+  }
+  return out;
+}
+
+const edgesOf = (c) => [
+  { orientation: 'h', at: c.y0, s0: c.x0, s1: c.x1 }, { orientation: 'h', at: c.y1, s0: c.x0, s1: c.x1 },
+  { orientation: 'v', at: c.x0, s0: c.y0, s1: c.y1 }, { orientation: 'v', at: c.x1, s0: c.y0, s1: c.y1 },
+];
+
+/** Put a door (centre p along a line, width w) into the run that holds it. */
+function cutDoor(runs, orientation, at, p, w, extra = {}) {
+  const run = runs.find((r) => r.orientation === orientation && Math.abs(r.at - at) < 0.05 && p >= r.along[0] - 1e-6 && p <= r.along[1] + 1e-6);
+  if (!run) return false;
+  run.openings.push({ a: Math.max(run.along[0], p - w / 2), b: Math.min(run.along[1], p + w / 2), sill: 0, ...extra });
+  return true;
+}
+
+function schoolLevel(plan, index) {
+  const cells = [], runs = [], slabHoles = [], named = [];
+  for (const bd of plan.buildings) {
+    if ((bd.floors ?? 1) <= index) continue;
+    const R = bd.rect;
+    // the perimeter: four exterior runs (exteriorSide: -1 on the low edge, +1 on the high)
+    const ext = [
+      { orientation: 'h', at: R.y0, along: [R.x0, R.x1], exteriorSide: -1, wall: 'S' }, { orientation: 'h', at: R.y1, along: [R.x0, R.x1], exteriorSide: 1, wall: 'N' },
+      { orientation: 'v', at: R.x0, along: [R.y0, R.y1], exteriorSide: -1, wall: 'W' }, { orientation: 'v', at: R.x1, along: [R.y0, R.y1], exteriorSide: 1, wall: 'E' },
+    ].map(({ wall, ...r }) => ({ ...r, interior: false, openings: [], _wall: wall }));
+    const inner = [];
+    if (index === 0) {
+      const rooms = snapRooms(R, plan.rooms.filter((x) => x.building === bd.id));
+      for (const x of rooms) {
+        cells.push({ x: x.cut.x0, y: x.cut.y0, w: x.cut.x1 - x.cut.x0, h: x.cut.y1 - x.cut.y0, kind: 'room', role: x.kind, building: bd.id });
+        named.push({ id: x.id, x: x.cut.x0, y: x.cut.y0 });
+        for (const e of edgesOf(x.cut)) if (!(e.orientation === 'h' ? (Math.abs(e.at - R.y0) < 1e-6 || Math.abs(e.at - R.y1) < 1e-6) : (Math.abs(e.at - R.x0) < 1e-6 || Math.abs(e.at - R.x1) < 1e-6))) inner.push(e);
+      }
+      for (const c of remainder(R, rooms.map((x) => x.cut))) cells.push({ x: c.x0, y: c.y0, w: c.x1 - c.x0, h: c.y1 - c.y0, kind: 'hall', role: 'circulation', building: bd.id });
+      const innerRuns = runsOf(inner);
+      // each room's door where the World cuts it: on its corridor wall (opposite its windows), 4 ft in from the corner
+      for (const x of rooms) {
+        const east = x.windowWall === 'W';
+        if (east) cutDoor([...innerRuns, ...ext], 'v', x.cut.x1, x.rect.y0 + ROOM_DOOR_OFF, ROOM_DOOR_W);
+        else cutDoor([...innerRuns, ...ext], 'h', x.cut.y1, x.rect.x0 + ROOM_DOOR_OFF, ROOM_DOOR_W);
+      }
+      // the building's own openings: the entrance and the covered walks' doors
+      // two walks that meet a wall at the same point are one doorway (the kernel lists it once per walk)
+      const seen = new Set();
+      for (const o of bd.openings || []) {
+        const k = `${o.wall}|${o.center}|${o.width}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const run = ext.find((r) => r._wall === o.wall);
+        run.openings.push({ a: o.center - o.width / 2, b: o.center + o.width / 2, sill: 0, ...(bd.id === plan.entranceId && o.wall === 'S' ? { entry: true } : {}) });
+      }
+      runs.push(...innerRuns);
+    } else {
+      cells.push({ x: R.x0, y: R.y0, w: R.x1 - R.x0, h: R.y1 - R.y0, kind: 'room', role: 'unplanned', building: bd.id });
+      if (bd.core?.rect) slabHoles.push({ ...bd.core.rect });
+    }
+    runs.push(...ext.map(({ _wall, ...r }) => r));
+  }
+  return { cells, runs, slabHoles, named };
+}
+
+function buildSchool(m) {
+  const plan = planFractalSchoolComplex(m);
+  const floors = Math.max(...plan.buildings.map((b) => b.floors ?? 1));
+  let fp = null;
+  for (const b of plan.buildings) fp = fp ? { x0: Math.min(fp.x0, b.rect.x0), y0: Math.min(fp.y0, b.rect.y0), x1: Math.max(fp.x1, b.rect.x1), y1: Math.max(fp.y1, b.rect.y1) } : rr(b.rect);
+  const levels = [];
+  let named = [];
+  for (let i = 0; i < floors; i++) {
+    const L = schoolLevel(plan, i);
+    if (i === 0) named = L.named;
+    const baseZ = i === 0 ? plan.baseZ : plan.baseZ + plan.height + (i - 1) * (plan.upperFloorH ?? UPPER_FLOOR_H);
+    const height = i === 0 ? plan.height : plan.upperFloorH ?? UPPER_FLOOR_H;
+    levels.push({ index: i, role: i === 0 ? 'ground' : 'upper', baseZ, height, structure: { wallGraph: { runs: L.runs, cells: L.cells, footprint: fp }, cells: L.cells, slabHoles: L.slabHoles } });
+  }
+  const faces = buildFractalSchoolFaces(plan).faces;
+  const pr = assessSchoolPrinciples(plan, { faces });
+  const area = (r) => (r.x1 - r.x0) * (r.y1 - r.y0);
+  const bim = schoolBim(plan);
+  return {
+    house: { footprint: fp, stairs: [], levels },
+    objects: [],
+    stacked: floors > 1,
+    opts: { ...FLOORPLAN_DEFAULTS, wallHeight: plan.height, exteriorThickness: 0.55 },
+    extra: {
+      // the school's own assessors are its grade (they read the campus graph, the walk from the bus loop, daylight by
+      // window wall, egress by core); per-storey door reachability would count the campus's separate buildings as cut off
+      assessment: { findings: pr.findings.map((f) => ({ id: f.rule, register: f.register, severity: f.severity, detail: f.detail })) },
+      ownReachability: true,
+      // the kernel's own ids in its findings, said the way the book says them (structure/read.js `says`)
+      roomAt: named, buildingWord: (id) => `the ${id.replace(/^building:/, '').replace(/-/g, ' ')} building`,
+      cores: plan.buildings.filter((b) => (b.floors ?? 1) > 1 && b.core?.rect).map((b) => ({ building: b.id, floors: b.floors, lift: !!b.core.lift, rect: b.core.rect })),
+      slabAreas: Array.from({ length: floors }, (_, i) => plan.buildings.filter((b) => (b.floors ?? 1) > i).reduce((a, b) => a + area(b.rect), 0)),
+      campus: { pattern: plan.pattern, program: plan.program, facade: plan.facade, buildings: plan.buildings.map((b) => ({ id: b.id.replace(/^building:/, ''), role: b.role, floors: b.floors ?? 1 })), classrooms: plan.rooms.filter((r) => r.kind === 'classroom').length, seats: bim.seats, outdoor: plan.outdoor.map((o) => o.kind) },
+    },
+  };
 }

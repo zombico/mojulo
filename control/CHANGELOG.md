@@ -413,7 +413,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     the WC, room to step into the tub, 24 in before the shower) and says when a bathroom holds no basin or no tub or
     shower.
 
-### Structure rails, broadened: the structure book for a store, a restaurant and a mall
+### Structure rails, broadened: the structure book for a store, a restaurant, a mall and a school
 
 - **`mint_building` is getting more than houses.** A store, a restaurant and a mall (one or two levels) mint through
   it with the manifests `create_sketch` takes, and each gets the structure book, sheets and schedules a house has.
@@ -425,6 +425,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Bedroom egress, "a home" and the bathroom fixture checks no longer apply to it.
 - **Fit-outs become schedules.** Fixtures, racks, displays, booths, tables and kitchen blocks are tagged objects in
   the FF&E schedule, on the plan sheets and in the room cards.
+- **A school campus joins the rail** (`kind: 'school-complex'`, the recipe `compose_world`'s school takes). It is
+  read by its own plan, not the floor kernel:
+  - Its rooms, as the school draws them, reach the wall they stand 2 ft off and meet their neighbour mid-gap. The
+    corridor is what is left, each upper floor is a shell the book names as not planned, and each building's core is
+    a stair core through its floors.
+  - It is graded by the school's own assessors (egress, daylight, proportion, the walk from the bus loop, the site),
+    said by room tag and building name. It is drawn as a plan per level at a campus scale.
 - **Framing and trades stay house-only for now**, and a non-house book says so. Houses read and render as before,
   and store, restaurant and mall worlds are unchanged byte for byte.
 

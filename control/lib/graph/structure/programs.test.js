@@ -14,6 +14,7 @@ import { STRUCTURE_KINDS, OCCUPANCIES, programGrade, roleName } from './programs
 import { BOOK_KINDS } from '../sketch/display-modes.js';
 import { buildRestaurant } from '../polygonizer/floorplan-restaurant.js';
 import { buildMallTwoLevel } from '../polygonizer/floorplan-mall.js';
+import { planFractalSchoolComplex } from '../architecture/fractal-school.js';
 
 const BUILDINGS = {
   store: { kind: 'store', title: 'Pages', card: 'bookstore' },
@@ -27,7 +28,7 @@ const HOUSE_WORDS = /^(lounge|storage|bathroom|hallway|dining|bedroom|living)$/;
 
 describe('the programs the book reads', () => {
   it('are the house and the three commercial kinds, the same list the dashboard opens as a book', () => {
-    expect([...STRUCTURE_KINDS].sort()).toEqual(['floorplan', 'mall', 'restaurant', 'store']);
+    expect([...STRUCTURE_KINDS].sort()).toEqual(['floorplan', 'mall', 'restaurant', 'school-complex', 'store']);
     expect([...BOOK_KINDS].sort()).toEqual([...STRUCTURE_KINDS].sort());
     expect(OCCUPANCIES.restaurant.group).toBe('A-2');
     expect(readStructure({ kind: 'condo-complex' })).toBeNull();
@@ -234,5 +235,66 @@ describe('reading changes nothing a kernel builds', () => {
     const b = buildMallTwoLevel({}, {});
     expect(b.levels.map((l) => l.index)).toEqual([0, 1]);
     expect(b.levels[1].structure.slabHoles.length).toBe(3);   // the atrium void and the two lift shafts
+  });
+});
+
+describe('a school: a campus read by its own plan', () => {
+  const SCHOOLS = { cluster: { kind: 'school-complex', seed: 1 }, courtyard: { kind: 'school-complex', seed: 2, pattern: 'courtyard' }, spine: { kind: 'school-complex', seed: 3, pattern: 'spine' } };
+  const sr = Object.fromEntries(Object.entries(SCHOOLS).map(([k, m]) => [k, readStructure(m)]));
+  const plans = Object.fromEntries(Object.entries(SCHOOLS).map(([k, m]) => [k, planFractalSchoolComplex(m)]));
+
+  for (const [k, r] of Object.entries(sr)) {
+    it(`${k}: educational, a building of its campus's rooms, each named by kind`, () => {
+      expect(r.occupancy).toMatchObject({ id: 'school', group: 'E' });
+      expect(r.subject).toBe('building');
+      const kinds = new Set(plans[k].rooms.map((x) => roleName(x.kind)));
+      for (const name of kinds) expect(r.rooms.some((x) => x.name === name), name).toBe(true);
+      expect(r.rooms.filter((x) => x.storey === 0 && x.role !== 'circulation').length).toBe(plans[k].rooms.length);
+    });
+
+    it(`${k}: each building's floor is tiled exactly by its rooms and corridors, and each upper floor by one shell`, () => {
+      for (const bd of plans[k].buildings) {
+        const R = bd.rect, area = (R.x1 - R.x0) * (R.y1 - R.y0);
+        for (let L = 0; L < (bd.floors ?? 1); L++) {
+          const inside = r.rooms.filter((x) => x.storey === L && x.rect.x >= R.x0 - 0.01 && x.rect.x + x.rect.w <= R.x1 + 0.01 && x.rect.y >= R.y0 - 0.01 && x.rect.y + x.rect.h <= R.y1 + 0.01);
+          expect(inside.reduce((a, x) => a + x.rect.w * x.rect.h, 0), `${bd.id} L${L}`).toBeCloseTo(area, 0);
+          if (L > 0) expect(inside.map((x) => x.role)).toEqual(['unplanned']);
+        }
+      }
+      // a storey's slab is the buildings standing on it
+      expect(r.elements.slabs[0].area).toBeCloseTo(plans[k].buildings.reduce((a, b) => a + (b.rect.x1 - b.rect.x0) * (b.rect.y1 - b.rect.y0), 0), 0);
+    });
+
+    it(`${k}: one tag per door, even where two walks meet a wall at one point`, () => {
+      const tags = r.elements.doors.map((d) => d.tag);
+      expect(new Set(tags).size).toBe(tags.length);
+    });
+
+    it(`${k}: every room has a door, and every level is reached by a stair core`, () => {
+      for (const room of r.rooms.filter((x) => x.storey === 0)) expect(room.doors.length, `${room.tag} ${room.name}`).toBeGreaterThan(0);
+      expect(unreachedLevels(r)).toEqual([]);
+      for (const v of r.elements.verticals) expect(v).toMatchObject({ kind: 'stair', from: 0 });
+    });
+
+    it(`${k}: graded by the school's own assessors, said by tag and name, never by the kernel's ids`, () => {
+      expect(Object.keys(r.grade.breakdown)).toEqual(['reachability', 'school']);
+      for (const v of r.grade.violations) expect(v).not.toMatch(/room:|building:/);
+    });
+  }
+
+  it("names what it cannot plan: the upper floors are the school's shells", () => {
+    expect(openConcerns(SCHOOLS.cluster, sr.cluster).map((c) => c.id)).toContain('upper-floors');
+  });
+
+  it('a book and a drawing set: a plan per level at a campus scale, its stair cores drawn and tagged', () => {
+    const sheets = drawingSet(sr.cluster);
+    const plansA = sheets.filter((s) => /^A-10/.test(s.id));
+    expect(plansA.length).toBe(sr.cluster.storeys.length);
+    expect(plansA[0].svg).toMatch(/data-tag="ST1"/);
+    const html = structureBookHtml(SCHOOLS.cluster, { read: sr.cluster, ref: 'sk_school' });
+    expect(html).toContain('A school: educational occupancy (E)');
+    expect(html).toContain('campus (elementary) of 5 buildings');
+    const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((x) => x[1]));
+    for (const [, h] of html.matchAll(/href="#([^"]+)"/g)) expect(ids.has(h), h).toBe(true);
   });
 });

@@ -487,7 +487,7 @@ const FORM_DEFS = {
   },
   'building': {
     title: 'Buildings (houses and shops)',
-    makes: 'walkable houses, apartments, furnished rooms, stores, restaurants and malls, each with its structure book: concept, layout, drawings, build',
+    makes: 'walkable houses, apartments, furnished rooms, stores, restaurants, malls and school campuses, each with its structure book: concept, layout, drawings, build',
     tools: ['mint_building'],
   },
   'view': {

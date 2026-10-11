@@ -228,6 +228,8 @@ export function wallTag([x, y], type) {
 /** A room tag: the name over a rule over the number and the area (no box, as a plan writes it). */
 export function roomTag([x, y], { name, number, area, units = 'imperial' }) {
   const N = String(name || '').toUpperCase();
+  // a room too narrow for its name on the sheet keeps its number (and its area when that fits); the schedule names it
+  if (!N) return tagG('room', number, `<text class="s-tb" text-anchor="middle" x="${n2(x)}" y="${n2(y + 1)}">${esc(number)}</text>${area != null ? `<text class="s-t" text-anchor="middle" x="${n2(x)}" y="${n2(y + 4)}">${esc(areaText(area, units))}</text>` : ''}`);
   const w = Math.max(N.length * 1.75, 10);
   return tagG('room', number,
     `<text class="s-tb" text-anchor="middle" x="${n2(x)}" y="${n2(y - 1.2)}">${esc(N)}</text>`

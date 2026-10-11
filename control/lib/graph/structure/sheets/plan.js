@@ -76,7 +76,7 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
 
   // ── a commercial stack's escalators, lifts and atrium ──
   for (const v of read.elements.verticals || []) {
-    if (!v.rects || (v.from !== storeyIndex && v.to !== storeyIndex)) continue;
+    if (!v.rects || storeyIndex < v.from || storeyIndex > v.to) continue;
     const top = v.to === storeyIndex;
     const marks = v.rects.map((r) => {
       const c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
@@ -174,14 +174,16 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
     const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     const roomTagAt = new Map();
     const stairRects = [...read.elements.stairs.filter((st) => st.slot && (st.from === storeyIndex || st.to === storeyIndex)).map((st) => st.slot),
-      ...(read.elements.verticals || []).filter((v) => v.rects && (v.from === storeyIndex || v.to === storeyIndex)).flatMap((v) => v.rects)];
+      ...(read.elements.verticals || []).filter((v) => v.rects && storeyIndex >= v.from && storeyIndex <= v.to).flatMap((v) => v.rects)];
     for (const r of rooms) {
       const { x, y, w, h } = r.rect;
       const spots = [[0.5, 0.5], [0.5, 0.3], [0.5, 0.7], [0.3, 0.5], [0.7, 0.5], [0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7], [0.5, 0.15], [0.5, 0.85]];
       const free = spots.map(([u, v]) => [x + u * w, y + v * h]).find((c) => !pieces.some((p) => p.room === r.tag && hits(tagBox(c, r), p.rect)) && !doorBoxes.some((b) => hits(tagBox(c, r), b)) && !stairRects.some((b) => hits(tagBox(c, r), b)));
       const c = free || [x + w / 2, y + h / 2];
       roomTagAt.set(r.tag, tagBox(c, r));
-      out.tags.push(roomTag([view.x(c[0]), view.y(c[1])], { name: r.name, number: r.tag, area: r.area, units }));
+      // a commercial plan at a campus or mall scale: a name wider than its room gives way to the number
+      const roomMm = view.len(w) * 0.92, tight = !!read.occupancy && String(r.name).length * 1.75 > roomMm;
+      out.tags.push(roomTag([view.x(c[0]), view.y(c[1])], { name: tight ? '' : r.name, number: r.tag, area: tight && `${Math.round(r.area)} SF`.length * 1.3 > roomMm ? null : r.area, units }));
     }
     for (const w of windows) {
       const host = walls.find((x) => x.tag === w.host);
