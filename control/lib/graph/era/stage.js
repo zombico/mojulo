@@ -43,11 +43,12 @@ import { labDress } from './lab-dress.js';
 import { readDecay, pickDecay } from './decay.js';
 import { cardMask } from './leaf-cards.js';
 import { plazaWall } from './plaza.js';
-import { makeSunShadow, sunDir } from './sun.js';
+import { makeSunShadow, makeSoftSunShadow, makePointShadow, sunDir } from './sun.js';
 import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
+import { withGeocube } from './geocube.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
@@ -304,6 +305,16 @@ export function planStage(m = {}) {
   // IVY (`ivy: 0…1`): how much ivy has taken the bare walls (era/crypt.js ivyGrowth); a dressing without walls takes none
   if (m.ivy !== undefined && !(typeof m.ivy === 'number' && m.ivy >= 0 && m.ivy <= 1)) throw new Error('stage: ivy is a number from 0 (none) to 1 (overgrown)');
   if (m.ivy !== undefined && kitG.dress && kitG.dress.niches) kitG = { ...kitG, dress: { ...kitG.dress, ivy: { ...IVY, ...(kitG.dress.ivy || {}), amount: m.ivy } } };
+  // SHADOWS (`shadows: { torch, sun, cells }`, opt-in): the gen-6.0 shadow upgrades. `torch` 'hard' or 'soft' gives every
+  // placed light a shadow test (a torch no longer lights what a column hides from it); `sun` is the key's soft edge in
+  // degrees (0 hard); `cells` the finest a surface is cut for light to land on (metres), so a shadow has corners to
+  // fall on. Absent ⇒ today's bake: no torch shadows, a hard sun, the kit's cells.
+  const shadows = m.shadows !== undefined ? readShadows(m.shadows) : null;
+  if (shadows && shadows.cells) kitG = { ...kitG, cells: Object.fromEntries(Object.entries(kitG.cells).map(([k, v]) => [k, Math.min(v, shadows.cells)])) };
+  // DRESS (`dress: false`): the kit's bones only, its dressing left out: no set piece, no accent, no doodads, no blends.
+  // A specimen of a room's structure and light, before anything is placed in it. Absent ⇒ the kit as dressed.
+  if (m.dress !== undefined && m.dress !== false) throw new Error('stage: dress is false (the kit\'s bones only), or left out (the kit as dressed)');
+  if (m.dress === false) kitG = { ...kitG, dress: null };
   const kit = kitG.dress && kitG.dress.moss && earthAt > 0 ? { ...kitG, dress: { ...kitG.dress, earth: { ...EARTH, ...(kitG.dress.earth || {}), amount: earthAt } } }
     : kitG.dress && kitG.dress.earth ? { ...kitG, dress: { ...kitG.dress, earth: undefined } } : kitG;
   // TONE (`tone`, tone.js): colour as its own concern; the build is drained to its values and the page colours them
@@ -373,7 +384,17 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}) };
+  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}) };
+}
+const SHADOWS = { torch: 'off', sun: 0, cells: null };
+function readShadows(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new Error('stage: shadows is { torch, sun, cells }');
+  for (const k of Object.keys(v)) if (!(k in SHADOWS)) throw new Error(`stage: shadows.${k} is not a setting (shadows: torch, sun, cells)`);
+  const S = { ...SHADOWS, ...v };
+  if (!['off', 'hard', 'soft'].includes(S.torch)) throw new Error("stage: shadows.torch is 'off', 'hard' or 'soft' (a placed light's shadow, its edge soft over the flame's size)");
+  if (!(typeof S.sun === 'number' && S.sun >= 0 && S.sun <= 5)) throw new Error('stage: shadows.sun is the sun\'s soft edge in degrees, 0 (hard) to 5');
+  if (S.cells !== null && !(typeof S.cells === 'number' && S.cells >= 0.25 && S.cells <= 1)) throw new Error('stage: shadows.cells is the finest cut for light to land on, 0.25 to 1 metre');
+  return S;
 }
 
 /** Every kit face for the plan (untinted, unlit), plus the torch seats the kit offers. */
@@ -658,7 +679,16 @@ const shoulder = (v) => (v <= KNEE ? v : KNEE + (1 - KNEE) * (1 - Math.exp(-(v -
 /** Bake ambient + every light into each corner: Lambert (half-wrapped, so pools spill round corners) × a smooth radius falloff. */
 export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], sun = null) {
   const L = lights.map((l) => ({ ...l, rgb: hexRgb(l.color) }));
-  const at = (f, c) => {
+  // a soft light's shadow (sun.js makePointShadow `hard`): a quad all of whose corners agree on the flame's centre
+  // takes that; one a shadow's edge crosses takes the soft test at each corner
+  const edge = (f) => L.map((l) => {
+    if (!l.shadow || !l.shadow.hard || f.corners.length !== 4) return null;
+    // only the corners the light reaches and faces (the bake asks no others)
+    const h = f.corners.map((c) => { const d = sub(l.at, c), r = Math.hypot(d[0], d[1], d[2]); return r < l.radius && (r < 1e-6 || dot(f.normal, d) / r > -0.25) ? l.shadow.hard(c, f.normal) : 1; });
+    return h.every((v) => v === h[0]) ? h : null;
+  });
+  let hardAt = null;
+  const at = (f, c, k = -1) => {
       const lit = [...ambient];
       if (sun) {
         // daylight: the sun's Lambert where the shadow test reaches it, plus warm bounce off the ground onto faces that look down or sideways
@@ -667,13 +697,17 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
         const down = Math.max(0, 0.5 - 0.5 * f.normal[2]);
         for (let k = 0; k < 3; k++) lit[k] += sun.bounce[k] * sun.bounceGain * down;
       }
-      for (const l of L) {
+      for (let li = 0; li < L.length; li++) {
+        const l = L[li];
         const to = sub(l.at, c), dist = Math.hypot(to[0], to[1], to[2]);
         if (dist >= l.radius) continue;
         const ndl = dist > 1e-6 ? dot(f.normal, mul(to, 1 / dist)) : 1;
         // the falloff holds flat inside NEAR_LIGHT: a flame doesn't burn the stone behind it white
         const lam = Math.max(0, (ndl + 0.25) / 1.25), fall = (1 - Math.max(dist, NEAR_LIGHT) / l.radius) ** 2;
-        for (let k = 0; k < 3; k++) lit[k] += l.rgb[k] * l.intensity * lam * fall;
+        // a light with a shadow test (the recipe's `shadows.torch`) reaches only the corners it can see
+        const reach = l.shadow && lam > 0 ? (k >= 0 && hardAt && hardAt[li] ? hardAt[li][k] : l.shadow(c, f.normal)) : 1;
+        if (reach === 1) for (let k = 0; k < 3; k++) lit[k] += l.rgb[k] * l.intensity * lam * fall;
+        else for (let k = 0; k < 3; k++) lit[k] += l.rgb[k] * l.intensity * lam * fall * reach;
       }
       const grime = dirt(f, c);
       return lit.map((v, k) => shoulder(v) * f.tint[k] * grime[k]);
@@ -686,7 +720,8 @@ export function bakeStageLight(faces, lights, ambient, dirt = () => [1, 1, 1], s
       const c = [0, 1, 2].map((k) => f.corners.reduce((s, p) => s + p[k], 0) / f.corners.length);
       return { ...rest, fill: rgbHex(at(f, c)) };
     }
-    const cols = f.corners.map((c) => at(f, c));
+    hardAt = L.length && L.some((l) => l.shadow && l.shadow.hard) ? edge(f) : null;
+    const cols = f.corners.map((c, k) => at(f, c, k));
     const mean = [0, 1, 2].map((k) => cols.reduce((s, v) => s + v[k], 0) / cols.length);
     return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   });
@@ -748,6 +783,8 @@ function splitCard(f, nu, nv) {
 
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
+  // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
+  if (manifest.geocube !== undefined) return assembleStageScene(withGeocube(manifest), ctx);
   const kit = stageKit(resolveKitId(manifest.kit));
   if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder
@@ -794,16 +831,22 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     // a painted card stops the sun only where it is painted (an awning's stripes, washing, flowers)
     const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
     return { dir, rgb: hexRgb(key.color), gain: sk.sunGain, bounce: sk.bounce, bounceGain: sk.bounceGain,
-      shadow: makeSunShadow(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
+      shadow: (plan.shadows && plan.shadows.sun ? (fs, d, o) => makeSoftSunShadow(fs, d, plan.shadows.sun, o) : makeSunShadow)(base.filter((f) => f.group !== 'stage:glass' && !(dress && dress.shadowSkip(f))), dir, dress ? { maskOf: (f) => (isCard(f) ? cardMask(f.texture) : null) } : {}) };
   })() : null;
   // the blends come after the sun: they lie on the faces they blend, and must not shade them
   const raw0 = dress ? [...base, ...dress.blends(base)] : base;
   // a tone drains the colour before the bake: the light lands on greys, and the page colours the lit value
   const raw = plan.tone ? drainFaces(raw0, plan.tone) : raw0;
   const ambient = daylight ? hexRgb(plan.ref.light.ambient).map((v) => v * plan.kit.sky.fill) : ambientOf(plan.ref);
+  // torch shadows (`shadows.torch`): each placed light and brazier tests what stands between it and a corner; the
+  // occluders are what the sun's are, and a painted card stops nothing (its alpha is not tested from a point)
+  const shadowed = (ls) => (plan.shadows && plan.shadows.torch !== 'off' && !ctx.unshaded ? (() => {
+    const occ = base.filter((f) => f.group !== 'stage:glass' && !(typeof f.texture === 'string' && f.texture.startsWith('card:')) && !(dress && dress.shadowSkip(f)));
+    return ls.map((l) => ({ ...l, shadow: makePointShadow(occ, l.at, { soft: plan.shadows.torch === 'soft' ? 0.12 : 0, radius: l.radius }) }));
+  })() : ls);
   const lit = ctx.unshaded
     ? raw.map(({ tint, top, ...f }) => (tint ? { ...f, fill: rgbHex(tint) } : f))
-    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...lights, ...braziers, ...(dress ? dress.pools : [])] : lights, ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt), sun);
+    : bakeStageLight(raw, (dress && dress.pools.length) || braziers.length ? [...shadowed([...lights, ...braziers]), ...(dress ? dress.pools : [])] : shadowed(lights), ambient, makeDirt(plan, lights, dress && dress.dirt ? { ...(manifest.grime !== undefined ? dirtAtGrime(manifest.grime) : {}), ...dress.dirt, ...(manifest.dirt || {}) } : manifest.grime !== undefined ? { ...dirtAtGrime(manifest.grime), ...(manifest.dirt || {}) } : manifest.dirt), sun);
   // live fire (`manifest.fire`, the fire channel): the torches go to the page as fires its bake already holds, so it
   // only flickers their light; the stage keeps their iron and leaves the flames to the channel
   const torches = lights.filter((l) => l.fixture === 'torch');

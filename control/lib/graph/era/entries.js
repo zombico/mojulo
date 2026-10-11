@@ -18,6 +18,7 @@ import { STAGE_KITS, STAGE_KIT_PROPORTIONS } from './stage.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } from './sixth-gen.js';
 import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
 import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
+import { GEOCUBE_PRESETS } from './geocube.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
@@ -164,6 +165,7 @@ export function stageHubCard() {
   const lines = [
     '# Stage: a level built the sixth-gen way', '',
     `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
+    'GEOCUBE FIRST  forge the level\'s look as a cube (card geocube), then build here with "geocube".', '',
     'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], … } — rooms only for a room kit; an open-ground kit takes none',
     '', `ART FIRST (room kits ${ART_KITS.join(', ')})  "art": "propose" mints with a direction (palette, materials, architecture, motifs, plan) and answers with its board as an image: show it, then per item update_sketch patch /art/status/<item> "approved", or /art/<item> "reroll". "art": "auto" is hands off.`,
     '', `OUT-TRAIL (open ground: ${kits.filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')})  "trail": true or { run, heartbeat, bumpiness, beats } builds the trail from principles: a spine run in "run" seconds (12, the meadow\'s 72 m, by default), beats along it, its height by "heartbeat", its ground by "bumpiness". The answer carries outTrail (its laws, measured) and anchors (every beat and hazard); the landform board shows the land in black and white before anything grows on it.`,
@@ -221,7 +223,37 @@ export function railsCard() {
   };
 }
 
-/** Every generated card: the hub, the laws, the rails, each kit, each look. */
+/** The geocube: one style for a level's inside and outside, forged and checked before the level is built. */
+export function geocubeCard() {
+  const P = GEOCUBE_PRESETS;
+  const lines = [
+    '# Geocube: a level\'s look, forged first', '',
+    'A cube is the core look of a level as data: its light, its key colours, its register, its surfaces\' patterns, the bones of its inside, the base of its outside and its principles. Both sides are lowered from the one cube, so the hall and the land cannot clash. Forge the cube, look at its two specimens, change the cube until both read right, then build the level on it.', '',
+    'FORGE      create_sketch { "kind": "geocube", "cube": <preset id | document | { "from": <preset>, …changes }>, "show": "room" | "land" }',
+    '           room: the bare bones in the cube\'s light, its accent wall. land: an island (a cliff side and a beach side) lit by polygons, no texture on the rock.',
+    'UPDATE     update_sketch the cube; both specimens re-lower from it. Show the other with "show".',
+    'BUILD ON   a stage recipe with "geocube": the same cube. Without "meru": the inside (the cube\'s bones, reference, tone and tiles; your rooms, the kit\'s dress). With "meru": the outside (its look card, land ramps, light, air and polygon land; your tiers over the cube\'s). Your keys win: vary the cube, never restyle it. A level copies its cube: a changed or new cube rebuilds nothing; re-create the level from it by hand.', '',
+    'THE CUBE',
+    '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below) }',
+    '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
+    '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
+    '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
+    '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
+    '  outside   { base (an isekai card), tiers? (local meru), island?, land? { smooth, crevice, ridge, blend } or false }',
+    '  why       [principles, one line each]: carried into the outside\'s look card for whatever builds next', '',
+    'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
+    'LAND RULES polygon only, from the land\'s shape: crevice darkens what is concave toward the cube\'s shade colour (never black); ridge lifts a convex lip; blend carries a neighbouring surface\'s colour over a seam. Rock takes no pixels.', '',
+    'PRESETS', ...Object.values(P).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`),
+  ];
+  return {
+    id: 'geocube', name: 'Geocube (a level\'s look, forged first)', family: 'world', entry: 'create_sketch', generated: true,
+    summary: 'One style for a level\'s inside and outside: forge the cube, check its room and island specimens, then build the level on it.',
+    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen"',
+    body: lines.join('\n'),
+  };
+}
+
+/** Every generated card: the hub, the geocube, the laws, the rails, each kit, each look. */
 export function stageEntryCards() {
-  return [stageHubCard(), lawsCard(), railsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
+  return [stageHubCard(), geocubeCard(), lawsCard(), railsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
 }

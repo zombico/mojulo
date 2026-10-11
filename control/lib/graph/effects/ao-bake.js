@@ -512,7 +512,20 @@ function bakeSkyUncached(faces = [], { reach = null, strength = 0.6, minAo = 0.2
   return out;
 }
 
+// a face marked `aoFlat` (a rock facet lit once, local-meru `shading`) takes one occlusion on every corner, the mean of
+// its own, so its light stays a function of its plane; in place, so the list keeps its aoStats
+function flattenMarked(out) {
+  for (let i = 0; i < out.length; i++) {
+    const f = out[i];
+    if (f.aoFlat && Array.isArray(f.vao)) { const m = f.vao.reduce((a, v) => a + v, 0) / f.vao.length; out[i] = { ...f, vao: f.vao.map(() => m) }; }
+  }
+  return out;
+}
+
 export function bakeAmbientOcclusion(faces = [], opts = {}) {
+  return flattenMarked(bakeAmbientOcclusion0(faces, opts));
+}
+function bakeAmbientOcclusion0(faces = [], opts = {}) {
   const { subdivide = false, extraOccluders = [] } = opts;
   if (subdivide) return bakeAoUncached(faces, opts);   // tessellation reshapes the list — uncached
   const key = aoCacheKey(faces, Array.isArray(extraOccluders) ? extraOccluders : [],

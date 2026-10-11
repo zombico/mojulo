@@ -1,0 +1,264 @@
+/**
+ * GEOCUBE — one style for a level's inside and its outside, as data, so the two cannot clash: a gothic night's land
+ * is the same stone, the same shade and the same air as its hall. A cube holds the core look and nothing placed:
+ *
+ *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
+ *             thick the outside's air is against the reference's (`outsideFog`), and the inside's `shadows` (the
+ *             stage's: torch, sun, cells; the gen-6.0 upgrades by default)
+ *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
+ *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
+ *   register  the tone's bands (`steps`, 0 continuous) and its key
+ *   surfaces  the patterns of the wall, the floor and the accent (surface-textures.js tile specs)
+ *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
+ *   outside   the base (an isekai card), the landform's tiers and island, and `land`: the polygon land's rules
+ *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *
+ *   readGeocube(spec)          a preset id, a document, or { from: preset, …changes } → the cube, checked
+ *   lowerGeocube(cube, side)   'inside' | 'outside' → a stage manifest
+ *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' } → its specimen
+ *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
+ */
+import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
+import { rampFrom, resample } from './look-facets.js';
+import { ISEKAI_STYLES } from './isekai.js';
+import { SWATCHES } from './style/swatches.js';
+import { registerLook } from './style/looks.js';
+import { STAGE_KITS } from './stage.js';
+import { tileFamilyOf } from './tile-specs.js';
+import { fingerprint } from '../gameworld/review.js';
+
+const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
+const ISLE = { geology: true, walk: 'base' };
+const STONE = { gen: 'stone-brick', stone: [150, 150, 150], mortar: [88, 88, 88], rows: 6, cols: 4, mortarThick: 0.1, vary: 28, grain: 11, bevel: 0.2, accent: 0.14, accentDark: 40, accentLight: 26, seed: 13 };
+const FLAGS = { gen: 'flagstone', stone: [140, 140, 140], mortar: [58, 58, 58], gravel: [96, 96, 96], cells: 5, mortarThick: 0.05, wobble: 2.2, vary: 22, grain: 12, lost: 0.04, cracked: 0.2, seed: 17 };
+const ROCK = { gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 };
+const LAND = { smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 };
+// the gen-6.0 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
+// torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
+const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
+
+/** The cubes to start from. A cube is a starter: copy one with `from` and change what the level needs. */
+export const GEOCUBE_PRESETS = Object.freeze({
+  'gothic-night': {
+    id: 'gothic-night', title: 'Gothic night', reads: 'A cold stone night lit by fire',
+    light: { reference: 'gothic-night', moon: { color: '#9fb0e0', elevation: 34, azimuth: 300, gain: 0.8 }, outsideFog: 0.22 },
+    colour: { stone: '#5c6272', floor: '#4f4b4a', trim: '#6c707c', accent: '#8a1c1c', grass: '#3d5a4c', foliage: '#2f4a42', water: '#22324a', sand: '#5e5c5a' },
+    register: { steps: 0, key: 0.3 },
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    why: [
+      'Stone is cool blue-grey, never warm: the only warm light is fire.',
+      'One accent, a deep red, on one wall inside; outside it lives only in the light.',
+      'Shade is a colour, never black: the deepest stop leans blue.',
+      'Depth is air: blue-black fog inside, thinner over the water.',
+      'Inside, the torches are the key; outside, the moon is.',
+    ],
+  },
+  'island-noon': {
+    id: 'island-noon', title: 'Island noon', reads: 'Stucco, terracotta and a hard sun',
+    light: { reference: 'island-noon', outsideFog: 1 },
+    colour: { stone: '#e2cba0', floor: '#c4875a', trim: '#efe4cc', accent: '#3a80d0', grass: '#7cbf48', foliage: '#4a983a', water: '#3a9cc6', sand: '#e6d3a4' },
+    register: { steps: 0, key: 0.55 },
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    why: [
+      'A hard high sun: what is lit is warm and pale, what is in shade is sky blue.',
+      'Stucco and terracotta inside and out; the accent is the sea\'s blue.',
+      'Air barely there: you see across the bay.',
+      'Saturated, never neon: every colour stays on its ramp.',
+    ],
+  },
+  'jungle-haze': {
+    id: 'jungle-haze', title: 'Jungle haze', reads: 'Olive concrete, mud and a soft hazy sun',
+    light: { reference: 'jungle-haze', outsideFog: 0.5 },
+    colour: { stone: '#767a64', floor: '#5a5242', trim: '#686856', accent: '#8a5f34', grass: '#566c3c', foliage: '#3c5630', water: '#4a5848', sand: '#7a6e56' },
+    register: { steps: 0, key: 0.4 },
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
+    inside: { bones: 'research-lab', size: [12, 12, 7], accentWall: '+y' },
+    outside: { base: 'isekai-bamboo', tiers: TWO_BASES, island: ISLE, land: { ...LAND, crevice: 0.4, ridge: 0.2 } },
+    why: [
+      'One family of olives and muds: concrete, ground and leaf share it.',
+      'The light is soft and filmic through haze; contrast stays low.',
+      'Rust is the only accent.',
+      'Distance turns grey-green in the air.',
+    ],
+  },
+});
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
+const WALLS = ['+x', '-x', '+y', '-y'];
+const KEYS = { id: 1, title: 1, reads: 1, rung: 1, light: 1, colour: 1, register: 1, surfaces: 1, inside: 1, outside: 1, why: 1 };
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
+const no = (msg) => { throw new Error(`geocube: ${msg}`); };
+const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includes(k)) no(`${at}.${k} is not a setting (${at}: ${keys.join(', ')})`); };
+
+/** A preset id, a whole document, or { from: preset, …changes } (merged key by key; arrays are replaced) → the cube. */
+export function readGeocube(spec) {
+  if (typeof spec === 'string') {
+    if (!GEOCUBE_PRESETS[spec]) no(`'${spec}' is not a preset (presets: ${Object.keys(GEOCUBE_PRESETS).join(', ')}); or write the cube`);
+    return readGeocube({ ...GEOCUBE_PRESETS[spec] });
+  }
+  if (!isObj(spec)) no('a cube is a preset id or a document { light, colour, register, surfaces, inside, outside, why }');
+  if (spec.from !== undefined) {
+    const { from, ...rest } = spec;
+    if (!GEOCUBE_PRESETS[from]) no(`from: '${from}' is not a preset (presets: ${Object.keys(GEOCUBE_PRESETS).join(', ')})`);
+    return readGeocube(merge(structuredClone(GEOCUBE_PRESETS[from]), { id: `${from}-variant`, ...rest }));
+  }
+  only(spec, Object.keys(KEYS), 'cube');
+  const c = structuredClone(spec);
+  for (const k of ['light', 'colour', 'register', 'surfaces', 'inside', 'outside', 'why']) if (c[k] === undefined) no(`${k} is missing`);
+  if (typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(c.id)) no('id is a lowercase slug');
+  c.title ??= c.id; c.reads ??= ''; c.rung ??= 'gen-6.0';
+  // light
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows'], 'light');
+  c.light.shadows ??= SHADOWS;
+  if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(c.light.reference)];
+  if (!ref.light.key && !c.light.moon) no(`light.moon is needed: '${c.light.reference}' has no sun, so the outside is lit by a moon { color, elevation, azimuth, gain }`);
+  if (c.light.moon) {
+    only(c.light.moon, ['color', 'elevation', 'azimuth', 'gain'], 'light.moon');
+    if (!HEX.test(c.light.moon.color ?? '')) no('light.moon.color is a #rrggbb colour');
+    for (const k of ['elevation', 'azimuth', 'gain']) if (!Number.isFinite(c.light.moon[k])) no(`light.moon.${k} is a number`);
+  }
+  c.light.outsideFog ??= 1;
+  if (!(c.light.outsideFog > 0 && c.light.outsideFog <= 4)) no('light.outsideFog is the outside\'s fog against the reference\'s, above 0 and at most 4');
+  // colour
+  only(c.colour, [...COLOURS, 'sand', 'shade'], 'colour');
+  for (const k of COLOURS) if (!HEX.test(c.colour[k] ?? '')) no(`colour.${k} is a #rrggbb colour`);
+  if (c.colour.sand !== undefined && !HEX.test(c.colour.sand)) no('colour.sand is a #rrggbb colour');
+  if (c.colour.shade !== undefined && !(Number.isFinite(c.colour.shade) && c.colour.shade >= 0 && c.colour.shade < 360)) no('colour.shade is a hue in degrees, 0..359');
+  // register
+  only(c.register, ['steps', 'key'], 'register');
+  if (!(Number.isInteger(c.register.steps) && c.register.steps >= 0 && c.register.steps <= 8)) no('register.steps is the tone\'s bands, 0 (continuous) to 8');
+  if (!(c.register.key > 0 && c.register.key < 1)) no('register.key is the median value the tone brings the light to, 0..1');
+  // surfaces
+  only(c.surfaces, ['wall', 'floor', 'accent'], 'surfaces');
+  for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
+  // inside
+  only(c.inside, ['bones', 'size', 'accentWall'], 'inside');
+  if (!STAGE_KITS[c.inside.bones] || ['nature', 'jungle', 'isekai'].includes(STAGE_KITS[c.inside.bones].shell)) no(`inside.bones '${c.inside.bones}' is not a room kit (${Object.keys(STAGE_KITS).filter((k) => !['nature', 'jungle', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')})`);
+  c.inside.size ??= [12, 12, 6]; c.inside.accentWall ??= '+y';
+  if (!(Array.isArray(c.inside.size) && c.inside.size.length === 3 && c.inside.size.every((v) => v >= 3 && v <= 40))) no('inside.size is [w, d, h] metres, each 3..40');
+  if (!WALLS.includes(c.inside.accentWall)) no(`inside.accentWall is one of ${WALLS.join(', ')}`);
+  // outside
+  only(c.outside, ['base', 'tiers', 'island', 'land'], 'outside');
+  if (!ISEKAI_STYLES[c.outside.base] || !SWATCHES[c.outside.base]) no(`outside.base '${c.outside.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
+  c.outside.tiers ??= TWO_BASES; c.outside.island ??= ISLE; c.outside.land ??= LAND;
+  if (!Array.isArray(c.outside.tiers) || !c.outside.tiers.length) no('outside.tiers is the landform\'s tiers (local meru), one or more');
+  if (c.outside.land !== false) only(c.outside.land, ['smooth', 'crevice', 'ridge', 'blend', 'sun'], 'outside.land');
+  // why
+  if (!Array.isArray(c.why) || !c.why.length || !c.why.every((w) => typeof w === 'string' && w.length && w.length <= 200)) no('why is the principles, one line each (200 characters at most)');
+  return c;
+}
+
+const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const hexOf = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const shadeHue = (cube) => cube.colour.shade ?? 222;
+// the shade colour a crevice darkens toward: the cube's shade hue at a soft saturation
+function shadeHex(hue) {
+  const s = 0.4, l = 0.5, a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + hue / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return hexOf([f(0), f(8), f(4)].map((v) => v * 255));
+}
+/** Each key colour as a ramp of `n` stops, dark to light, every dark end leaning to the cube's shade hue. */
+export function geocubeRamps(cube, n = 5) {
+  const shadow = shadeHue(cube);
+  return Object.fromEntries(Object.entries(cube.colour).filter(([k]) => k !== 'shade').map(([k, h]) => [k, rampFrom(rgbOf(h), n, { shadow }).map(hexOf)]));
+}
+
+function lowerInside(cube) {
+  const R = geocubeRamps(cube), [w, d, h] = cube.inside.size;
+  const tone = {
+    texture: 'value', steps: cube.register.steps, key: cube.register.key, gain: 1, detail: 0.45, default: 'stone',
+    ramps: { stone: R.stone, floor: R.floor, trim: R.trim, accent: R.accent },
+    groups: { 'stage:floor': 'floor', 'stage:gutter': 'floor', 'stage:rubble': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:kick': 'trim', 'stage:skirt': 'trim', 'stage:column': 'trim', 'stage:accent': 'accent' },
+    keep: ['stage:fixture', 'stage:lamp'],
+  };
+  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
+    tiles: { wall: cube.surfaces.wall, floor: cube.surfaces.floor }, tone,
+    rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
+}
+
+function lowerOutside(cube) {
+  const base = cube.outside.base, card = ISEKAI_STYLES[base], sw = SWATCHES[base], land0 = sw.land;
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], shadow = shadeHue(cube);
+  const fit = (hex, name) => resample(rampFrom(rgbOf(hex), 7, { shadow }), land0[name].length);
+  const dome = ref.air.dome, sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
+  const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
+    foliage: fit(cube.colour.foliage, 'foliage'), far: resample(sky.slice(1).concat([dome.horizon]), land0.far.length), sky: resample(sky, land0.sky.length),
+    ...(cube.colour.sand ? { sand: resample(rampFrom(rgbOf(cube.colour.sand), 7, { shadow }), land0.soil.length) } : {}) };
+  const key = ref.light.key ? { color: ref.light.key.color, elevation: ref.light.key.elevation, azimuth: ref.light.key.azimuth ?? 225 } : { color: cube.light.moon.color, elevation: cube.light.moon.elevation, azimuth: cube.light.moon.azimuth };
+  const light = { ...card.light, key, ambient: ref.light.ambient, ...(ref.light.key ? {} : { sunGain: cube.light.moon.gain }) };
+  const air = { ...card.air, fog: { color: ref.air.fog.color, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
+  const lookCard = { ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why };
+  // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
+  const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
+  registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land } });
+  const L = cube.outside.land;
+  return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
+    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)) } }) } };
+}
+
+/** The cube lowered into one side: 'inside' (the bare room) or 'outside' (the landform). */
+export function lowerGeocube(cube, side) {
+  if (side === 'inside') return lowerInside(cube);
+  if (side === 'outside') return lowerOutside(cube);
+  return no(`side is 'inside' or 'outside', not '${side}'`);
+}
+
+/**
+ * A stage recipe's `geocube`: the cube lowered under the recipe's own keys, which win. With `meru` it is the outside
+ * (the look card, the land's ramps, light and air, the polygon land; the recipe's `meru` keys over the cube's); without,
+ * the inside (the bones, reference, tone and tiles; the recipe's rooms, and the kit's dress unless the recipe says).
+ */
+export function withGeocube(manifest) {
+  const { geocube, ...m } = manifest, cube = readGeocube(geocube);
+  if (m.meru !== undefined) {
+    const low = lowerGeocube(cube, 'outside');
+    if (m.kit !== undefined) no('a stage on a geocube takes its kit from the cube; drop kit');
+    return { ...low, ...m, kit: low.kit, meru: { ...low.meru, ...(m.meru === true ? {} : m.meru) } };
+  }
+  const { dress: _d, rooms, ...low } = lowerGeocube(cube, 'inside');
+  if (m.kit !== undefined && m.kit !== low.kit) no(`a stage on a geocube takes its kit from the cube's bones ('${low.kit}'); drop kit`);
+  return { ...low, ...m, rooms: m.rooms ?? rooms, tone: m.tone ?? low.tone, tiles: m.tiles ?? low.tiles };
+}
+
+// the accent wall: the cube's wall re-tiled in the accent's pattern (a toned room keeps its value twins, so it does too)
+const INWARD = { '-y': [0, 1], '+x': [-1, 0], '+y': [0, -1], '-x': [1, 0] };
+function withAccent(payload, wall, tile) {
+  const fam = tileFamilyOf(tile, 'geocube accent'), [nx, ny] = INWARD[wall];
+  let n = 0;
+  payload.faces = payload.faces.map((f) => {
+    if (f.group !== 'stage:wall' || !Array.isArray(f.normal) || typeof f.texture !== 'string') return f;
+    if (Math.abs(f.normal[0] - nx) > 0.05 || Math.abs(f.normal[1] - ny) > 0.05) return f;
+    n++;
+    return { ...f, texture: `${f.texture.startsWith('value:') ? 'value:' : ''}${fam}-${f.texture.slice(-1)}`, group: 'stage:accent' };
+  });
+  if (!n) no(`no wall faces on ${wall} to make the accent`);
+}
+// the island seen whole: the wide camera pulled back and up, first so the page opens on it
+function withIslandCamera(payload) {
+  const wide = payload.cameras.find((c) => c.name === 'wide');
+  if (!wide) return;
+  const { cameraPosition: p, lookAt: t } = wide.worldFraming, back = p.map((v, k) => t[k] + (v - t[k]) * 1.55);
+  back[2] += 6;
+  payload.cameras = [{ name: 'island', worldFraming: { ...wide.worldFraming, cameraPosition: back.map((v) => Math.round(v * 100) / 100), horizontalFov: 58 } }, ...payload.cameras];
+}
+
+const SHOW = ['room', 'land'];
+/** The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene. */
+export function assembleGeocubeScene(manifest, ctx, assemble) {
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk'].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show); build a level on a cube with a stage recipe's geocube`);
+  const cube = readGeocube(manifest.cube ?? no('cube is a preset id or a document')), show = manifest.show ?? 'room';
+  if (!SHOW.includes(show)) no(`show is ${SHOW.map((s) => `'${s}'`).join(' or ')}`);
+  const title = ctx.title || `${cube.title} · ${show === 'room' ? 'room' : 'landform'}`;
+  const low = lowerGeocube(cube, show === 'room' ? 'inside' : 'outside');
+  const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
+  if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
+  else withIslandCamera(payload);
+  payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube) };
+  return payload;
+}
