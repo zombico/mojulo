@@ -28,7 +28,7 @@
  *
  * The GODOT rows are the same recount for the export: a cube survives it when it holds no value Godot loses. A value
  * travelling credits the cubes whose every loss it is; a setting travelling (all its values) credits the cubes whose
- * every loss is in it. Combat carries the mechanics that wait on its hits (HIT_MECHANICS): they travel with it.
+ * every loss is in it.
  *   values, settings  { key | setting, survives, touches }, by survives
  *   ladders           per facet, its settings added one at a time, the largest gain first, the other facets' losses
  *                     kept: { [facet]: [{ setting, gain, survives }] }, `survives` counting every setting above it too
@@ -41,7 +41,6 @@ import { capabilityRegistry } from './registry.js';
 import { dryRun } from './cosmos.js';
 import { FIXTURES, fixture } from './fixtures.js';
 import { PACKAGES, EFFORT_WEIGHT } from './packages.js';
-import { HIT_MECHANICS } from '../scene/engine-portability.js';
 
 const key = (i) => `${i.facet}.${i.setting}=${i.value}`;
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
@@ -131,9 +130,7 @@ function rank(rows) {
     .sort((a, b) => b.lifts - a.lifts || b.makeable - a.makeable || b.touches - a.touches || (a.key || a.facet).localeCompare(b.key || b.facet));
 }
 
-// the setting a lost value travels with: its own, or combat for a mechanic that waits on hits
-const godotGroup = (x) => (x.facet === 'power' && x.setting === 'mechanics' && HIT_MECHANICS.includes(x.value) ? 'power.combat' : `${x.facet}.${x.setting}`);
-const HIT_KEYS = HIT_MECHANICS.map((m) => `power.mechanics=${m}`);
+const godotGroup = (x) => `${x.facet}.${x.setting}`;
 const byKey = (a, b) => b.survives - a.survives || b.touches - a.touches || (a.key || a.setting).localeCompare(b.key || b.setting);
 
 // the Godot counterfactual over each cube's losses (a list of lost-value lists, one per cube that does not survive)
@@ -142,10 +139,9 @@ function godotUnlock(losses, survive) {
   for (const lost of losses) {
     const keys = lost.map(key), groups = new Set(lost.map(godotGroup));
     for (const k of new Set(keys)) {
-      const carried = new Set([k, ...(k.startsWith('power.combat=') ? HIT_KEYS : [])]);
       const row = (values[k] ||= { key: k, survives: 0, touches: 0 });
       row.touches++;
-      if (keys.every((x) => carried.has(x))) row.survives++;
+      if (keys.every((x) => x === k)) row.survives++;
     }
     for (const g of groups) {
       const row = (settings[g] ||= { setting: g, survives: 0, touches: 0 });

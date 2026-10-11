@@ -39,9 +39,10 @@ describe('the bus conformance corpus', () => {
     for (const k of ['"ne":', '"lte":', '"gt":', '"entity":', '"all":', '"any":', '"count":', '"do":"spawn"', '"do":"impulse"', '"do":"ctrl"', '"await":{"timer"', '"while":', '"walkers":', '"budget":', '"depthCap":', 'event.missing']) {
       expect(text, k).toContain(k);
     }
-    expect(SCENARIOS.map((s) => s.id)).toEqual(['billiards', 'vault', 'storm', 'verbs', 'floats', 'undefined']);
+    expect(SCENARIOS.map((s) => s.id)).toEqual(['billiards', 'vault', 'storm', 'verbs', 'floats', 'undefined', 'numbers']);
     // the corpus reaches the caps it names, prints a sum in full, and keeps an undefined as null
     const snap = (id) => runScenario(all.find((s) => s.id === id));
+    expect(snap('numbers').join('')).toMatch(/e-324|e\+21|e-7/);
     expect(snap('storm').at(-1)).toMatch(/"op":"cap","reason":"(depth|budget)"/);
     expect(snap('floats').join('')).toMatch(/\d\.\d{15,}/);
     expect(snap('undefined')[1]).toMatch(/"p":null/);

@@ -13,9 +13,9 @@ describe('cosmos fixtures', () => {
     }
   });
 
-  // Godot (marks checked 10-11 against kernel 0.16.0): the crawler's melee and the collectathon's glide are the
-  // controllable runtime's, which does not travel; everything else in them does
-  const GODOT_LOST = { 'dungeon-crawler': ['power.combat=melee'], collectathon: ['power.rules=glide'] };
+  // Godot (marks checked 10-11 against kernel 0.17.0): the crawler's melee travels (kernel/combat.gd); the
+  // collectathon's glide is the controllable runtime's, which does not travel yet; everything else in them does
+  const GODOT_LOST = { 'dungeon-crawler': [], collectathon: ['power.rules=glide'] };
   it('hold the anchors makeable, and name what a Godot export loses', () => {
     const anchors = FIXTURES.filter((f) => f.anchor);
     expect(anchors.map((f) => f.id)).toEqual(['dungeon-crawler', 'collectathon']);

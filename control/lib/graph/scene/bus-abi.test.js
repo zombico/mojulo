@@ -58,6 +58,12 @@ describe('the bus contract', () => {
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
   });
 
+  it('reads a hit listener (hp-pool) as the hit fact', () => {
+    const m = composeMechanics([{ kind: 'hp-pool', entities: [{ id: 'a' }] }, { kind: 'defeat-all' }]);
+    expect(busCoverage(m.events).used).toContain('fact:hit');
+    expect(busCoverage(m.events).used).not.toContain('fact:cast');
+  });
+
   it('names a cue on a beam striking as lost, the other cast facts as performed', () => {
     const ev = lowered({ cues: [{ id: 'a', when: { struck: 'hero' }, then: { say: 'ow' } }] });
     expect(busCoverage(ev).godot.absent).toEqual(['fact:struck']);

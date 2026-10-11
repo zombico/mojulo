@@ -98,6 +98,10 @@ import { emitThreeWorld } from './scene-three.js';
 // in a herd run on the alarm. Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (the rule facade's clock): `world.time` reaches the rules, so a mind's sightings, memory,
 // regrowth and a group's shared sight read the real time (they read 0). Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the hit loop): melee's contact test is lifted out of stepMelee as meleeContacts (it reads, the
+// apply loop writes, in the same order), and castFacts counts a body's hits as `hit:<id>` facts (what hp-pool reads).
+// A page reads the facts when its cues reach the cast or a reaction listens for a hit; no fixture's does newly. Same
+// proof, same 13 fixtures; the controllable trace pins hold.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

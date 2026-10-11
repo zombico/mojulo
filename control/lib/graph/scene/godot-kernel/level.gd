@@ -22,6 +22,7 @@ const WalkerScript := preload("res://kernel/walker.gd")
 const WeatherScript := preload("res://kernel/weather.gd")
 const BusScript := preload("res://kernel/bus.gd")
 const CastScript := preload("res://kernel/cast.gd")
+const CombatScript := preload("res://kernel/combat.gd")
 const HudScript := preload("res://kernel/hud.gd")
 const StatsScript := preload("res://kernel/stats.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
@@ -98,6 +99,14 @@ var menu_mouse := -1                 # the mouse mode a menu found, given back w
 # ctrl ops in, the characters' happenings (down, gone, spawned, arrive, stuck, faded) out as facts; each character's
 # node follows its row (shown or not, where it stands, its heading, lying when felled, its statuses worn as looks).
 var cast = null
+# THE FIGHT (since 0.17.0): bus.json's `combat`, run by kernel/combat.gd over the cast: the hero swings with the left
+# mouse button (the held WASD picks the cut), its hits count on the bodies, and the cast tells the bus (hit:<id>).
+var combat = null
+var combat_doc = null
+var combat_fire := false             # a held fire the probe sets (no mouse in a headless run)
+var combat_swings := 0               # the hero's swings drawn so far (a new one plays its clip)
+var suit_idle_glb := ""              # the suit's idle as the GLB names it (<figure>:idle): its swings sit beside it
+var suit_swinging := false           # a swing clip is playing: idle / walk wait for it
 var cast_state: Dictionary = {}
 var cast_rows: Array = []
 var cast_nodes: Dictionary = {}      # id → {node, rot0, heading0, worn: {status: true}}
@@ -681,6 +690,7 @@ func _spawn_suit(imported: AnimationPlayer, ent: Dictionary) -> void:
 	suit_base_yaw = walker.rotation.y
 	suit_player = _new_player(imported, "suit")
 	suit_idle = _anim_name(suit_player, s_(loco.get("idle")))
+	suit_idle_glb = s_(loco.get("idle"))
 	suit_walk = _anim_name(suit_player, s_(loco.get("walk")))
 	suit_walk_speed = float(loco.get("walkSpeed", 0.0))
 	_loop(suit_player, suit_idle)
@@ -721,6 +731,12 @@ func _follow_suit() -> void:
 		return
 	var planar := Vector2(walker.velocity.x, walker.velocity.z).length()
 	var moving := planar > 0.6 * eye_scale
+	if suit_swinging:
+		var me = cast_state["byId"].get(s_(score.get("player"))) if cast != null else null
+		if me != null and me.get("swingT") != null:
+			return
+		suit_swinging = false
+		suit_moving = not moving   # hand idle / walk back below
 	# the walk at the walker's speed: its ground speed (walkSpeed) is where its planted feet stay put
 	suit_player.speed_scale = clampf(planar / suit_walk_speed, 0.25, 3.0) if moving and suit_walk_speed > 0.0 else 1.0
 	if moving == suit_moving:
@@ -765,6 +781,13 @@ func _dump(tag: String) -> void:
 		if part is Node3D:
 			var pp: Vector3 = (part as Node3D).global_position
 			line += " part0=%s(%.2f,%.2f,%.2f)" % [part.name, pp.x, pp.y, pp.z]
+	if combat != null:
+		var me = cast_state["byId"].get(s_(score.get("player")))
+		var hits := []
+		for e in cast_state["entities"]:
+			if e.has("hittable"):
+				hits.append("%s:hits%d%s" % [e["id"], int(e.get("hits", 0)), ":hittable" if e["hittable"] else ""])
+		print("[mojulo-combat] %s swings=%d dealt=%d swing=%s %s" % [tag, int(me.get("swingCount", 0)) if me != null else 0, int(me.get("meleeHitCount", 0)) if me != null else 0, str(me.get("swingT")) if me != null else "", " ".join(hits)])
 	if cast != null:
 		var rows := []
 		for e in cast_state["entities"]:
@@ -1122,6 +1145,8 @@ func _build_bus() -> void:
 	bus_units = float(doc.get("metersPerUnit", 1.0))
 	bus_state = bus.create_bus_state(frag, frag.get("entities", []) if frag.get("entities") is Array else [])
 	bus_sources = frag.get("sources", []) if frag.get("sources") is Array else []
+	if doc.get("combat") is Dictionary:
+		combat_doc = doc["combat"]
 	if doc.get("cast") is Array and not (doc["cast"] as Array).is_empty():
 		cast_rows = doc["cast"]
 		_build_cast()
@@ -1203,7 +1228,18 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 		var me = cast_state["byId"].get(who if who != "" else "player")
 		if me != null:
 			me["pos"] = _bus_pos(pos)
+			if combat_doc is Dictionary:
+				me["pos"][2] += float(combat_doc.get("eye", 0.0))   # where the web's platform rule stands its hero
+			# the walker faces -Z: its heading in the bus's frame (x, -z)
+			var bz := walker.global_transform.basis.z
+			me["heading"] = atan2(bz.z, -bz.x)
+			# a mouse-look rule aims with the look's pitch; a tank-turning one aims level
+			if combat != null:
+				me["pitch"] = walker.pitch_node.rotation.x if combat.look and walker.pitch_node != null else 0.0
 		cast.step(cast_state, minf(delta, 0.05))
+		if combat != null and me != null:
+			combat.step(cast_state, me, _combat_input(), minf(delta, 0.05), walker.is_on_floor())
+			_draw_swing(me)
 		var facts: Array = cast.facts(cast_state)
 		for ev in facts:
 			character_event.emit(String(ev["type"]), String(ev["entity"]), ev)
@@ -1233,6 +1269,55 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	_sync_menus()
 	_draw_cast()
 	_sync_weather()
+
+
+# the rounds in flight (kernel/combat.gd's lob projectiles), a small sphere each
+var round_nodes: Array = []
+func _draw_rounds() -> void:
+	if combat == null:
+		return
+	while round_nodes.size() < combat.projectiles.size():
+		var m := MeshInstance3D.new()
+		var sp := SphereMesh.new()
+		sp.radius = 0.12 * bus_units
+		sp.height = 0.24 * bus_units
+		m.mesh = sp
+		add_child(m)
+		round_nodes.append(m)
+	for i in round_nodes.size():
+		var on: bool = i < combat.projectiles.size()
+		round_nodes[i].visible = on
+		if on:
+			round_nodes[i].global_position = to_yup(combat.projectiles[i]["pos"]) * bus_units
+
+
+# the hero's input in the web's words: fire (the left mouse button, or the probe's hold), forward (W / S) and strafe
+# (D / A); a frozen walker (a menu is up) swings nothing
+func _combat_input() -> Dictionary:
+	if walker.frozen:
+		return {"fire": false, "forward": 0.0, "strafe": 0.0, "turn": 0.0}
+	var key := func(a: int, b: int) -> bool: return Input.is_physical_key_pressed(a) or Input.is_physical_key_pressed(b)
+	var fwd := (1.0 if key.call(KEY_W, KEY_UP) else 0.0) - (1.0 if key.call(KEY_S, KEY_DOWN) else 0.0)
+	var side := (1.0 if key.call(KEY_D, KEY_RIGHT) else 0.0) - (1.0 if key.call(KEY_A, KEY_LEFT) else 0.0)
+	var fire := combat_fire or (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT))
+	return {"fire": fire, "forward": fwd, "strafe": side, "turn": 0.0}
+
+
+# a new swing plays its clip on the suit when the figure carries it (swing_<dir>, beside its idle); the suit's
+# idle / walk takes back over when it ends
+func _draw_swing(me: Dictionary) -> void:
+	var n := int(me.get("swingCount", 0))
+	if n == combat_swings:
+		return
+	combat_swings = n
+	if suit_player == null or suit_idle_glb == "" or not (me.get("swingClip") is String):
+		return
+	var at := suit_idle_glb.rfind(":")
+	var clip := _anim_name(suit_player, suit_idle_glb.substr(0, at + 1) + String(me["swingClip"]))
+	if clip != "":
+		suit_player.speed_scale = 1.0
+		suit_player.play(clip, 0.05)
+		suit_swinging = true
 
 
 # the bound stats that changed onto the bodies (the web's applyStatBodies): the cast's characters, and the walker's
@@ -1300,14 +1385,35 @@ func _build_cast() -> void:
 					looks.lift(node, k)
 			node.rotation = cast_nodes[e["id"]]["rot0"]
 		cast_nodes[e["id"]] = {"node": node, "rot0": node.rotation, "heading0": e["heading"], "worn": {}}
+	if combat_doc is Dictionary:
+		combat = CombatScript.new()
+		combat.arm(cast_state, combat_doc)
+		combat_swings = 0
 	cast.facts(cast_state)   # the first read seeds: nothing the world was minted with fires
 	_draw_cast()
 
 
 # each character's node follows its row: shown or sent away, where it stands, its heading, lying when felled
+# how far a character leans over (0 upright, PI/2 lying): a fall lies down, a topple goes over through its fall, lies
+# flat and rises through its getup, a stagger rocks (kernel/combat.gd's reaction, the web's clips as a lean)
+static func _lean(e: Dictionary) -> float:
+	if e["downed"]:
+		return PI / 2
+	var t = e.get("staggerT")
+	if t == null:
+		return 0.0
+	match e.get("reactClip"):
+		"topple":
+			return PI / 2 * minf(1.0, float(t))
+		"getup":
+			return PI / 2 * (1.0 - minf(1.0, float(t)))
+	return 0.3 * sin(PI * minf(1.0, float(t)))
+
+
 func _draw_cast() -> void:
 	if cast == null:
 		return
+	_draw_rounds()
 	for id in cast_nodes:
 		var c: Dictionary = cast_nodes[id]
 		var e: Dictionary = cast_state["byId"][id]
@@ -1315,8 +1421,7 @@ func _draw_cast() -> void:
 		node.visible = not e["gone"]
 		node.global_position = to_yup(e["pos"]) * bus_units
 		var rot: Vector3 = c["rot0"] + Vector3(0, e["heading"] - c["heading0"], 0)
-		if e["downed"]:
-			rot.z += PI / 2
+		rot.z += _lean(e)
 		node.rotation = rot
 		if looks != null:
 			for k in e["statuses"]:

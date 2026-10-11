@@ -259,7 +259,22 @@ const UNDEFINED = {
   frames: [{ dt: 0.5 }, { events: [{ type: 'clear' }], dt: 0.5 }, { dt: 0.5 }, { dt: 0.5 }],
 };
 
-export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED];
+// doubles Godot's own read and print got wrong (found by the combat port): a small number's late digits (to_float drops
+// them), 17-digit prints where 16 name the double, a tie printed toward the odd digit, the exponent forms and the
+// subnormals. Each is read from the fragment, carried, summed and printed back in the state.
+const DOUBLES = [0.0029523809523809424, 0.00003093738464768203, 0.3299999999999986, 0.006666666666665592, 590.46173095703125, 0.770952380952381, 1e21, 1.5e-7, 2.7755575615628914e-17, 5e-324, 1.7976931348623157e308, 123e-20];
+const NUMBERS = {
+  id: 'numbers',
+  about: 'doubles at the edges of the exact read and the JS print: late digits, ties, exponent forms, subnormals',
+  config: {
+    vars: Object.fromEntries(DOUBLES.map((x, i) => [`d${i}`, x])),
+    reactions: DOUBLES.map((x, i) => ({ on: 'step', do: 'inc', var: `d${i}`, by: DOUBLES[(i + 1) % DOUBLES.length] })),
+  },
+  entities: [],
+  frames: Array.from({ length: 3 }, () => ({ events: [{ type: 'step' }] })),
+};
+
+export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS];
 
 // ── seeded scenarios over a small vocabulary ──────────────────────────────────────────────────────────────────────
 export function randomScenarios(n = 24, seed = 7) {

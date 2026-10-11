@@ -14,6 +14,7 @@ import { emitGodotGame, emitGodotProject, GAME_HOOKS_GD } from './godot-project.
 import { writePack, OWNED_DIR } from './godot-pack.js';
 import { readWeather } from '../weather/weather.js';
 import { assessPortability } from './engine-portability.js';
+import { composeMechanics } from '../game/mechanics.js';
 
 const KERNEL = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
@@ -267,7 +268,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.16.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.17.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
@@ -356,6 +357,97 @@ describe('the cast travels', () => {
       expect(bus.at(-1)).toMatch(/"woke":1/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// the fight (kernel 0.17.0): a platform hero's melee rides bus.json `combat`; kernel/combat.gd swings it over the cast,
+// each hit is a hit:<id> fact, hp-pool counts them down and defeat-all ends the level through its contract
+const CRAWL = [
+  { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5, strike: 'melee', strikeReach: 1.6, strikeDamage: 2, strikeDur: 0.5 }, transform: { pos: [0, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } },
+  { id: 'grub-1', rule: { type: 'static' }, transform: { pos: [1.8, 0.3, 0] }, body: { type: 'mesh', shape: 'box', size: [0.8, 0.8, 0.8], hittable: true, hp: 4, poise: 20, radius: 0.5 } },
+  { id: 'grub-2', rule: { type: 'static' }, transform: { pos: [1.8, -0.3, 0] }, body: { type: 'mesh', shape: 'box', size: [0.8, 0.8, 0.8], hittable: true, hp: 6, radius: 0.5 } },
+  { id: 'far', rule: { type: 'static' }, transform: { pos: [9, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.8, 0.8, 0.8], hittable: true, hp: 4, radius: 0.5 } },
+];
+const crawl = () => {
+  const m = composeMechanics([{ kind: 'hp-pool', entities: [{ id: 'grub-1', hp: 2 }, { id: 'grub-2', hp: 2 }] }, { kind: 'defeat-all' }]);
+  return { payload: { entities: CRAWL, events: m.events }, on: m.on };
+};
+
+describe('the fight travels', () => {
+  it('bus.json carries the hero\'s swings and what it can hit, with a ledger line', () => {
+    const { payload } = crawl(), bus = extractBus(payload);
+    expect(bus.combat).toMatchObject({ version: 'combat/1', hero: 'hero', eye: 0, strike: { dur: 0.5, cooldown: 0, combo: 0 } });
+    expect(Object.keys(bus.combat.strike.swings)).toEqual(['neutral', 'forward', 'back', 'left', 'right']);
+    expect(bus.combat.strike.swings.left.params.aimYaw).toBeCloseTo((50 * Math.PI) / 180);
+    // a reacting body carries its poise and the reaction's timings as the web normalizes them
+    expect(bus.combat.bodies['grub-1']).toMatchObject({ radius: 0.5, hpMax: 4, poise: 20, poiseMax: 20, staggerDur: 1.3, downPause: 2 });
+    expect(bus.combat.bodies['grub-2']).toEqual({ radius: 0.5, hpMax: 6 });
+    expect(bus.combat.bodies.far).toEqual({ radius: 0.5, hpMax: 4 });
+    expect(bus.cast.map((r) => r.id)).toEqual(['hero', 'grub-1', 'grub-2', 'far']);
+    const s = extractEngineScore({ ref: 'crawl', manifest: {} }, payload);
+    expect(s.ledger.combat_carried).toMatchObject({ hero: 'hero', bodies: 3, version: 'combat/1' });
+    // a walking hero swings nothing on the web (the strike is the platform rule's), and nothing travels
+    const walking = CRAWL.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, type: 'walk' } } : e));
+    expect(extractBus({ entities: walking, events: {} })).toBeNull();
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot swings, counts the hits, fells a reacting body and ends the level (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-fight-'));
+    try {
+      const { payload, on } = crawl();
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="fight-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'crawl', manifest: {} }, payload)));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload)));
+      fs.writeFileSync(path.join(dir, 'contract.json'), JSON.stringify({ on }));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-combat-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '0', '0', '1.8', '0', '3'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      if (process.env.MOJULO_KEEP_PACK) console.log(out);
+      const fight = (tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-combat] ${tag} `));
+      const cast = (tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-cast] ${tag} `));
+      expect(fight('start')).toMatch(/swings=0 dealt=0 .*grub-1:hits0:hittable grub-2:hits0:hittable far:hits0:hittable/);
+      // one swing meets both grubs in front, never the one far off
+      expect(fight('swing-1')).toMatch(/swings=1 dealt=2 .*grub-1:hits1:hittable grub-2:hits1:hittable far:hits0:hittable/);
+      expect(cast('swing-1')).toMatch(/grub-1:here\([^)]*\):hp2 grub-2:here\([^)]*\):hp4/);
+      // the second fells the reacting grub (poise) at 0; the other stands at 0 hp, as on the web
+      expect(cast('swing-2')).toMatch(/grub-1:here:down\([^)]*\):hp0 grub-2:here\([^)]*\):hp2/);
+      // hp-pool counted every hit: both pools (two hits each) ran out on the second swing, defeat-all fired, the
+      // contract ended the level, and nothing swings after it
+      expect(out).toMatch(/^moj: level complete$/m);
+      expect(out.indexOf('moj: level complete')).toBeLessThan(out.indexOf('[mojulo-combat] swing-2 '));
+      expect(fight('end')).toMatch(/swings=2 dealt=4/);
+      const bus = out.split('\n').filter((l) => l.startsWith('[mojulo-bus] '));
+      expect(bus.at(-1)).toMatch(/"__hp_grub-1":0/);
+      expect(bus.at(-1)).toMatch(/"__hp_grub-2":0/);
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot fires a rifle: the nearest body on the line takes the rounds and falls (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-rifle-'));
+    try {
+      const shooter = { id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5 }, weapon: { fireClass: 'sight', damage: 2, cooldown: 0.3, magazine: 8, eye: 0.5 }, transform: { pos: [0, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
+      const payload = { entities: [shooter, ...CRAWL.slice(1).map((e) => (e.id === 'grub-1' ? { ...e, transform: { pos: [4, 0, 0] } } : e.id === 'grub-2' ? { ...e, transform: { pos: [7, 0, 0] } } : e))], events: {} };
+      const bus = extractBus(payload);
+      expect(bus.combat).toMatchObject({ hero: 'hero', weapon: { fireClass: 'sight', damage: 2, magazine: 8, ammo: 8 } });
+      expect(bus.combat).not.toHaveProperty('strike');
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="rifle-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'range', manifest: {} }, payload)));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(bus));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-combat-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '0', '0', '4', '0', '3'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      if (process.env.MOJULO_KEEP_PACK) console.log(out);
+      const fight = (tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-combat] ${tag} `));
+      const cast = (tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-cast] ${tag} `));
+      // grub-1 stands in front of grub-2 on the line: it takes every round, and falls on the second (hp 4, 2 a round)
+      expect(fight('swing-1')).toMatch(/grub-1:hits1:hittable grub-2:hits0:hittable/);
+      expect(cast('swing-2')).toMatch(/grub-1:here:down\([^)]*\):hp0/);
+      expect(cast('end')).toMatch(/grub-2:here\([^)]*\):hp6/);
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
     }
   }, 120000);
 });

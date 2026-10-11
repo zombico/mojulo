@@ -293,11 +293,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 - **The sweep measures what Godot would gain.** `sweep()` returns `unlock.godot`: for each value a Godot export
   loses, and for each setting as a group, how many of the rolled cubes would survive the export if it travelled. A
-  ladder adds the groups one at a time, largest gain first. Combat travels together with `hp-pool` and `defeat-all`,
-  which wait on its hits. `cosmos-sweep.mjs` prints both.
+  ladder adds a facet's settings one at a time, largest gain first. `cosmos-sweep.mjs` prints both.
 - **A beam striking is named as lost on Godot.** `struck` has its own bus row. Before, it counted as one of the cast
   facts the Godot kernel performs, so a level whose cue waits on a beam reported as covered and never fired. The
   ledger and the portability flags now name `fact:struck`.
+- **Hits reach the bus.** Every hit a character takes (a blade, a round, a splash, a tackle) is a `hit:<id>` fact,
+  carrying who dealt it. That is the event `hp-pool` counts, so a level's health pools and `defeat-all` now run on
+  the hits its combat deals; before, nothing in the runtime produced them. A page reads its characters' facts when a
+  reaction listens for a hit, as it already did when a cue reaches the cast.
+- **Melee's contact test stands on its own.** `meleeContacts` says who a swing meets this step (an ally, a clash, a
+  hit) before anything is done to them; `stepMelee` applies it in the same order, so play is unchanged. An engine
+  kernel holds its own adjudication equal to it.
+- **The fight travels to Godot (kernel 0.17.0).** A platform hero's fight rides `bus.json` as `combat`: its five
+  swings, its weapon, the world's cover and every hittable body. `kernel/combat.gd` runs it over the cast:
+  - the strike: the fire press, the cut the held keys pick, the cooldown and the two-hit combo;
+  - the trigger: semi, automatic, burst, charge, magazine and reload, heat; the ray against eggs and spheres, cover,
+    frontal shields; lobbed rounds swept along their flight, the proximity fuze and the splash;
+  - what a hit does: a reacting body staggers, topples, lies flat, gets up untouchable (with its wake guard), and a
+    killing blow floors it; its fall blasts a stagger around it.
+
+  Each hit is a `hit:<id>` fact, so `hp-pool` and `defeat-all` travel too. A level shows a stagger and a topple as
+  a lean and draws the rounds in flight. It is held equal to the web frame by frame
+  (`scripts/godot-combat-conformance.mjs`, its Godot leg when `MOJULO_GODOT` is set): every number is equal but a
+  round's flight, which is held to 1e-9 because the two engines' sine and cosine can differ in the last bit. What
+  stays on the web: the combo's stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred
+  wreck finisher, a loadout's other slots and every AI's attack. The portability flags say so.
+- **Numbers read and print exactly in Godot.** `kernel/json_exact.gd` reads a small number's late digits (Godot's
+  own reader dropped them, so about one double in two hundred arrived as its neighbour) and `js_number` prints a
+  double as JS does: the fewest digits, the even one on a tie, the exponent forms and the subnormals included. The
+  bus prints with it, so a var a HUD shows and the state the conformance corpus compares read the same on both sides.
 
 ### Structure rails: the structure book
 

@@ -58,10 +58,12 @@ describe('dryRun', () => {
     expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.commander=partial']);
   });
   it('says what would not survive a Godot export', () => {
-    // win-when travels since the Godot kernel runs the bus; defeat-all waits on hits only the web's combat deals
-    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, mechanics: ['reach-exit', 'win-when', 'defeat-all'] } });
+    // win-when travels since the Godot kernel runs the bus, and defeat-all with the fight whose hits it counts (kernel
+    // 0.17.0); the systems stay on the web
+    expect(dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['melee', 'ranged'], mechanics: ['reach-exit', 'win-when', 'defeat-all'] } }).godot).toEqual({ ok: true, lost: [] });
+    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, systems: ['stamina'] } });
     expect(r.godot.ok).toBe(false);
-    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'mechanics', value: 'defeat-all' }, { facet: 'power', setting: 'combat', value: 'melee' }]);
+    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'systems', value: 'stamina' }]);
   });
   it('checks only what is set: an empty cube is makeable at depth 0', () => {
     const r = dryRun({});

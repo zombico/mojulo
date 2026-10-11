@@ -142,23 +142,24 @@ describe('sweep', () => {
     expect(() => sweep({ n: 1, around: 'mmo' })).toThrow(/no fixture 'mmo'/);
   });
 
-  it('recounts the Godot counterfactual by hand: combat carries the hit mechanics, a ladder climbs to its facet', () => {
-    // blind rolls, and nudges of the brawler (combat with a hit mechanic: the carry is exercised)
-    const brawler = FIXTURES.find((f) => f.id === 'arena-brawler').cube;
-    for (const [args, roll] of [[{ n: 200, seed: 3 }, (rand) => rollCube(rand)], [{ n: 200, seed: 3, around: 'arena-brawler' }, (rand) => nudgeCube(rand, brawler)]]) {
-      const s = sweep(args), g = s.unlock.godot, rand = mulberry32(3), lost = [];
-      for (let i = 0; i < 200; i++) {
-        const d = dryRun(roll(rand));
-        if (!d.godot.ok) lost.push(d.godot.lost);
+  it('recounts the Godot counterfactual by hand: a value, a setting, a ladder that climbs to its facet', () => {
+    for (const [args, roll] of [[{ n: 200, seed: 3 }, (rand) => rollCube(rand)], [{ n: 200, seed: 3, around: 'probes' }, null]]) {
+      const s = sweep(args), g = s.unlock.godot, lost = [];
+      if (roll) {
+        const rand = mulberry32(3);
+        for (let i = 0; i < 200; i++) { const d = dryRun(roll(rand)); if (!d.godot.ok) lost.push(d.godot.lost); }
+      } else {
+        const bases = FIXTURES.filter((f) => !f.anchor).map((f) => f.cube), rand = mulberry32(3);
+        for (let i = 0; i < 200; i++) { const d = dryRun(nudgeCube(rand, bases[i % bases.length])); if (!d.godot.ok) lost.push(d.godot.lost); }
       }
       expect(lost.length).toBe(200 - s.godotOk);
-      const hit = (x) => x.setting === 'mechanics' && ['hp-pool', 'defeat-all'].includes(x.value);
-      const inCombat = (x) => x.facet === 'power' && (x.setting === 'combat' || hit(x));
-      expect(g.settings.find((x) => x.setting === 'power.combat').survives).toBe(lost.filter((l) => l.every(inCombat)).length);
-      // melee alone: the cubes that lose melee, and nothing but melee or a hit mechanic
-      const melee = (x) => (x.setting === 'combat' && x.value === 'melee') || hit(x);
-      const holdsMelee = (l) => l.some((x) => x.setting === 'combat' && x.value === 'melee');
-      expect(g.values.find((v) => v.key === 'power.combat=melee').survives).toBe(lost.filter((l) => holdsMelee(l) && l.every(melee)).length);
+      const key = (x) => `${x.facet}.${x.setting}=${x.value}`, set = (x) => `${x.facet}.${x.setting}`;
+      // the top setting: the cubes whose every loss is in it
+      const top = g.settings[0];
+      expect(top.survives).toBe(lost.filter((l) => l.every((x) => set(x) === top.setting)).length);
+      // the top value: the cubes that lose it and nothing else
+      const v = g.values[0];
+      expect(v.survives).toBe(lost.filter((l) => l.some((x) => key(x) === v.key) && l.every((x) => key(x) === v.key)).length);
       for (const row of [...g.values, ...g.settings]) expect(row.survives).toBeLessThanOrEqual(row.touches);
       for (const [facet, ladder] of Object.entries(g.ladders)) {
         expect(ladder[0].survives - ladder[0].gain).toBe(s.godotOk);

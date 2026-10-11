@@ -21,6 +21,7 @@ import { statusElements, transitKinds } from './channels/status-channel.js';
 import { lookRGB } from '../playscape/elements/elements.js';
 import { weatherScore } from './weather-score.js';
 import { busCoverage } from './bus-abi.js';
+import { extractCombat } from './combat-score.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -133,15 +134,20 @@ function locomotionFor(figures, figKey, unitScale = 1) {
 export const BUS_VERSION = 'bus/1';
 const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
 
+const playerOf = (payload) => (payload?.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null;
+
 export function extractBus(payload) {
-  const ev = payload && payload.events;
-  if (!ev || !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
+  const ev = (payload && payload.events) || {};
+  // the fight (combat-score.js): a melee hero and what it can hit ride beside the cast, which they need; a level with
+  // a fight and no other behaviour carries an empty fragment
+  const combat = payload ? extractCombat(payload, playerOf(payload)) : null;
+  if (!combat && !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
   const fragment = Object.fromEntries(BUS_CHANNELS.filter((k) => ev[k] !== undefined).map((k) => [k, ev[k]]));
   const mpu = Number(payload.metersPerUnit);
   // the characters the behaviour moves (its cues reach the cast: events.cast), in the bus's own units: where each
   // stands, its heading, asleep or not, its hp and pace. An engine kernel's cast adapter (Godot: kernel/cast.gd)
   // starts from these. Absent cast ⇒ no rows.
-  const cast = ev.cast === true ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
+  const cast = ev.cast === true || combat ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
     id: e.id, pos: Array.isArray(e.transform?.pos) ? e.transform.pos : [0, 0, 0],
     ...(Number.isFinite(e.transform?.heading) ? { heading: e.transform.heading } : {}),
     ...(e.dormant ? { dormant: true } : {}),
@@ -151,7 +157,7 @@ export function extractBus(payload) {
   // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
   // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.
   const stats = ev.stats && typeof ev.stats === 'object' ? ev.stats : null;
-  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}) };
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}) };
 }
 
 // A primitive body (`mesh`: a box or a sphere, centred on the entity) bakes no geometry into the GLB: its node is an
@@ -281,6 +287,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const walkable = Boolean(payload.walk) || (payload.entities ?? []).some((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform');
   ledger.contract = contractLedgerEntry(assessWorldTier(payload, { walkable }));
   const bus = extractBus(payload);
+  if (bus?.combat) {
+    ledger.combat_carried = { hero: bus.combat.hero, bodies: Object.keys(bus.combat.bodies).length, version: bus.combat.version, note: 'the hero\'s fight rides bus.json `combat`: its five swings (reach, cone, contact window, damage), its weapon (the trigger, the rounds, their splash), the cover, and every hittable body with its reaction and shield; an engine kernel adjudicates them in recipe units (Godot: kernel/combat.gd, held equal to the web frame by frame) and each hit is a hit:<id> fact. The combo\'s stun, scaling and juggle, the clash and the other set pieces, the deferred wreck finisher, a loadout\'s other slots and every AI\'s attack stay the web\'s' };
+  }
   if (bus) {
     const n = (k) => (Array.isArray(bus.fragment[k]) ? bus.fragment[k].length : 0);
     // what the behaviour takes and gives, and what the Godot kernel performs of it (bus-abi.js)
@@ -353,7 +362,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.
-    player: (payload.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null,
+    player: playerOf(payload),
     game: extras['moj:game'] ?? null,
     soundtrack: payload.audio?.soundtrack?.beatsRef ?? manifest.audio?.soundtrack?.beatsRef ?? null,
     ledger,

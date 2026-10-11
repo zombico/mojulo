@@ -1,8 +1,9 @@
 /**
  * POWER: the verbs and rules, whoever holds them. Shape as in reality.js. `multi` settings take a list.
  * `godot` names the list of values that survive a Godot export, or is false where none does. Checked 10-11 against
- * the Godot kernel 0.16.0 (scene/bus-abi.js): the bus, the stats and the walker travel; the controllable runtime's
- * combat, systems, beams and explosions stay on the web.
+ * the Godot kernel 0.17.0 (scene/bus-abi.js): the bus, the stats, the walker and the hero's fight (melee and ranged,
+ * and the reactions of what it hits) travel, with the mechanics that count its hits; the controllable runtime's
+ * systems, beams and explosions stay on the web.
  */
 const PORT = 'lib/graph/scene/engine-portability.js';
 const WEB = { godot: false };
@@ -22,8 +23,10 @@ export const POWER = Object.freeze({
     combat: {
       multi: true,
       values: {
-        melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js', ...WEB },
-        ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js', ...WEB },
+        // the hero's swings and rounds, adjudicated by kernel/combat.gd (held equal to the web's); the set pieces, the
+        // combo's juggle and every AI's attack stay on the web
+        melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
+        ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
         'turn-based': { status: 'absent', effort: 'L', note: 'no turn or initiative model found (10-10)' },
       },
     },

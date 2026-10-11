@@ -10,7 +10,8 @@ extends RefCounted
 #   var st = C.create(rows)              rows: [{ id, pos, heading?, dormant?, hp?, speed? }]
 #   C.ops(st, ops)                       the bus's queued `ctrl` intents (bus.take_ctrl), in order
 #   C.step(st, dt)                       routes walk; the world clock moves
-#   C.facts(st) → [event]                down · gone · spawned · arrive { at, last, pose? } · stuck · faded { is }
+#   C.facts(st) → [event]                down · gone · spawned · arrive { at, last, pose? } · stuck · hit:<id> { by }
+#                                        (once per hit kernel/combat.gd counted) · faded { is }
 
 const Bus := preload("res://kernel/bus.gd")
 const DEG := PI / 180.0
@@ -64,12 +65,14 @@ func ops(st: Dictionary, list: Array) -> void:
 				e["dormant"] = false; e["gone"] = false; e["downed"] = false; e["castDown"] = false; e["route"] = null; e["held"] = false; e["pose"] = null
 				if e.has("hpMax"):
 					e["hp"] = e["hpMax"]
+					e["hittable"] = true
 				if o.get("at") is Array:
 					e["pos"] = _pt3(o["at"], e["pos"][2])
 				if Bus.finite(o.get("face")):
 					e["heading"] = float(o["face"]) * DEG
 			"vanish":
 				e["gone"] = true; e["dormant"] = true; e["route"] = null; e["held"] = false; e["moving"] = false
+				e["hittable"] = false
 			"kill", "hurt":
 				if e["downed"] or e["gone"]:
 					continue
@@ -189,7 +192,7 @@ func facts(st: Dictionary) -> Array:
 	var next := {}
 	var events := []
 	for e in st["entities"]:
-		var cur := {"d": e["downed"], "g": e["gone"], "a": e["arrivals"], "s": e["stucks"]}
+		var cur := {"d": e["downed"], "g": e["gone"], "a": e["arrivals"], "s": e["stucks"], "h": int(e.get("hits", 0))}
 		next[e["id"]] = cur
 		var p = null if seed else _prev.get(e["id"])
 		if p == null:
@@ -207,6 +210,8 @@ func facts(st: Dictionary) -> Array:
 			events.append(ev)
 		if cur["s"] > p["s"]:
 			events.append({"type": "stuck", "entity": e["id"]})
+		for k in range(int(p.get("h", 0)), cur["h"]):
+			events.append({"type": "hit:" + String(e["id"]), "entity": e["id"], "by": e.get("lastHitBy")})
 		for k in (e["statuses"] as Dictionary).keys():
 			var u = e["statuses"][k]["until"]
 			if u != null and st["time"] >= u:

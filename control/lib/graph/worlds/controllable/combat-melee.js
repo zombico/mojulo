@@ -128,15 +128,20 @@ export function buildCombatMelee(E) {
     return true;
   }
 
-  function stepMelee(e, dt, state) {
-    const P = e.strikeParams;
-    if (e.swingT == null || !P) return;
-    if (e.swingT < P.from || e.swingT > P.to) return;
+  // meleeContacts(e, entities) — WHO this swing meets this step, before anything is done to them: the pure half of
+  // stepMelee (it reads, never writes), so an engine kernel can hold its own adjudication equal to it. Inside the
+  // contact window, every hittable target IN FRONT and within reach, once per swing, in entity order, as
+  // { tg, kind: 'ally' | 'clash' | 'hit', v, flat } (v: origin → target, flat: its XY length). A clash consumes the
+  // swing, so the list stops there. No target's test reads what an earlier one's outcome changes.
+  function meleeContacts(e, entities) {
+    const P = e.strikeParams, out = [];
+    if (e.swingT == null || !P) return out;
+    if (e.swingT < P.from || e.swingT > P.to) return out;
     // aim = forward, YAWED toward the swing side for left/right cuts (P.aimYaw) so
     // the hitbox lands where the blade travels, not straight ahead.
     const t = e.transform, aim = fwdXY(t.heading + (P.aimYaw || 0));
     const origin = [t.pos[0], t.pos[1], t.pos[2] + P.eye];
-    for (const tg of state.entities) {
+    for (const tg of entities) {
       if (tg === e || tg.invincible || !(tg.body && tg.body.hittable)) continue;   // i-frames (dodge / getup) take no hits
       if (e.struckThisSwing[tg.id]) continue;
       const v = sub(tg.transform.pos, origin);
@@ -146,20 +151,31 @@ export function buildCombatMelee(E) {
       if ((v[0] * aim[0] + v[1] * aim[1]) / flat < P.cosCone) continue;   // the swing lands in FRONT of the suit
       // TEAM friendly stagger: a swing that catches an ally rocks them (no damage, no clash, no
       // attribution) — friendly fire is off, but a wild blade still staggers a teammate in the arc.
-      if (e.team && tg.team && tg.team === e.team) {
-        e.struckThisSwing[tg.id] = true;
-        if (Number.isFinite(tg.poise) && tg.staggerT == null) armReaction(tg, 'stagger');
-        continue;
-      }
+      if (e.team && tg.team && tg.team === e.team) { out.push({ tg, kind: 'ally', v, flat }); continue; }
       // CLASH EVENT (2026-07-28): the struck target is ITSELF mid-melee — a live swing carrying
       // strike params (a throw's swing carries none) and not already reeling. The blades MEET
       // instead of landing: no damage either way — beginClash locks the pair, and the lock
       // consumes THIS swing outright (no further targets this swing).
-      if (tg.swingT != null && tg.strikeParams && tg.staggerT == null) {
+      if (tg.swingT != null && tg.strikeParams && tg.staggerT == null) { out.push({ tg, kind: 'clash', v, flat }); break; }
+      out.push({ tg, kind: 'hit', v, flat });
+    }
+    return out;
+  }
+
+  function stepMelee(e, dt, state) {
+    const P = e.strikeParams;
+    for (const { tg, kind, v, flat } of meleeContacts(e, state.entities)) {
+      if (kind === 'ally') {
+        e.struckThisSwing[tg.id] = true;
+        if (Number.isFinite(tg.poise) && tg.staggerT == null) armReaction(tg, 'stagger');
+        continue;
+      }
+      if (kind === 'clash') {
         e.struckThisSwing[tg.id] = true;
         beginClash(e, tg, state);
         break;
       }
+      const origin = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + P.eye];
       e.struckThisSwing[tg.id] = true;
       e.meleeHitCount = (e.meleeHitCount || 0) + 1;
       e.lastStrike = { targetId: tg.id, t: state.time };
@@ -578,5 +594,5 @@ export function buildCombatMelee(E) {
   registerBodyOwner('clash', (e, input, dt, state) => stepClash(e, dt, state), 20);
   registerBodyOwner('cine', (e, input, dt, state) => stepTackleCine(e, dt, state), 30);
 
-  Object.assign(E, { meleeSwingSpec, beginClash, stepClash, stepMelee, stepTackle, beginTackleCounter, stepTackleCine });
+  Object.assign(E, { meleeSwingSpec, meleeContacts, beginClash, stepClash, stepMelee, stepTackle, beginTackleCounter, stepTackleCine });
 }

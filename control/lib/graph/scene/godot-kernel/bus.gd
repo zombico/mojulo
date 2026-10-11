@@ -9,7 +9,7 @@ extends RefCounted
 # the way JSON.stringify prints them, and hashed over UTF-16 code units. Read the fragment with kernel/json_exact.gd:
 # Godot's own JSON parser rounds some decimals to a neighbouring double, and the bus would then diverge. A key the reducer never wrote reads as
 # UNDEF (JS undefined), which is distinct from null where JS tells them apart (match wildcards, `!== undefined`).
-# Numbers below 1e-6 or from 1e21 up print in decimal here and in exponent form in JS: keep scores clear of them.
+# Numbers print as JS prints them (kernel/json_exact.gd js_number: the shortest digits, exponent forms included).
 #
 #   var bus = preload("res://kernel/bus.gd").new()
 #   var st = bus.create_bus_state(config, entities)
@@ -17,6 +17,7 @@ extends RefCounted
 #   bus.frame(st, incoming, dt)     the web page's frame order (scene/channels/events.js), for a driver
 #   bus.hash_state(st)              the canonical snapshot the conformance corpus compares
 
+const JsonExact := preload("res://kernel/json_exact.gd")
 const UNDEF := "\uE000undef"   # a private-use mark no score spells
 const RESERVED := {"do": 1, "type": 1, "source": 1, "scope": 1, "on": 1, "match": 1, "await": 1, "target": 1, "template": 1, "at": 1, "to": 1, "vector": 1, "dir": 1, "gain": 1, "var": 1, "by": 1}
 const DIRS := {"up": [0, 0, 1], "down": [0, 0, -1], "left": [-1, 0, 0], "right": [1, 0, 0], "forward": [0, 1, 0], "back": [0, -1, 0]}
@@ -112,13 +113,12 @@ static func js_string(v) -> String:
 	return str(v)
 
 # a number the way JS prints it: integers whole, the rest as the shortest decimal that names the double
-# (String.num_scientific prints that form; decimal range only, see the header)
 static func num_str(x: float, nan_as: String = "null") -> String:
 	if is_nan(x) or is_inf(x):
 		return nan_as
-	if x == floor(x) and absf(x) < 1e21:
+	if x == floor(x) and absf(x) < 9007199254740992.0:
 		return str(int(x))
-	return String.num_scientific(x)
+	return JsonExact.js_number(x)
 
 static func js_quote(s: String) -> String:
 	var out := "\""
