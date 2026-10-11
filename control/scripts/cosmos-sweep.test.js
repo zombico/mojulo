@@ -17,6 +17,7 @@ describe('cosmos-sweep CLI', () => {
     expect(text).toMatch(/^cosmos sweep · n 50 · seed 2 · density 0.2/);
     expect(text).toMatch(/◆ dungeon-crawler\s+makeable/);
     expect(text).toMatch(/unlock by facet/);
+    expect(text).toMatch(/build order: work packages/);
     expect(text).toMatch(/unlock by value: the top 5/);
   });
 

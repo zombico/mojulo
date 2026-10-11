@@ -3,7 +3,9 @@
  * their values from registry.generated.js (the tables, read by the generator); hand settings take them from the facet
  * file. Pure and light: it imports no source module.
  *
- *   capabilityRegistry() → { [facet]: { [setting]: { multi, values: { [value]: { status, lowers?, note?, godot? } } } } }
+ *   capabilityRegistry() → { [facet]: { [setting]: { multi, values: { [value]: { status, lowers?, note?, effort?, pkg?, godot? } } } } }
+ *
+ * `effort` and `pkg` price a gap (packages.js); a built value carries neither.
  */
 import { FACETS, STATUSES } from './facets/index.js';
 import { GENERATED } from './registry.generated.js';
@@ -20,9 +22,9 @@ export function capabilityRegistry() {
       if (spec.source) {
         const gen = GENERATED[`${facet.id}.${setting}`];
         if (!gen) throw new Error(`cosmos: ${facet.id}.${setting} has no generated values; run node scripts/gen-cosmos-registry.mjs`);
-        const status = spec.source.status || 'built';
+        const { status = 'built', note, effort, pkg } = spec.source;
         for (const v of gen.values) {
-          values[v] = { status, lowers: gen.lowers, ...(spec.source.note ? { note: spec.source.note } : {}), ...(gen.godot ? { godot: gen.godot.includes(v) } : {}) };
+          values[v] = { status, lowers: gen.lowers, ...(note ? { note } : {}), ...(effort ? { effort } : {}), ...(pkg ? { pkg } : {}), ...(gen.godot ? { godot: gen.godot.includes(v) } : {}) };
         }
       } else {
         for (const [v, row] of Object.entries(spec.values)) values[v] = { ...row };

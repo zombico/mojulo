@@ -8,6 +8,7 @@ import { FACETS, STATUSES } from './facets/index.js';
 import { GENERATED } from './registry.generated.js';
 import { readSources } from './read-sources.js';
 import { capabilityRegistry } from './registry.js';
+import { PACKAGES, EFFORT_WEIGHT } from './packages.js';
 
 const CONTROL = new URL('../../../', import.meta.url);
 const exists = (module) => existsSync(fileURLToPath(new URL(module.split('#')[0], CONTROL)));
@@ -42,5 +43,22 @@ describe('cosmos registry', () => {
   it('holds the six facets in order, each with a question', () => {
     expect(FACETS.map((f) => f.id)).toEqual(['reality', 'space', 'power', 'soul', 'mind', 'time']);
     for (const f of FACETS) expect(f.asks).toMatch(/\?$/);
+  });
+
+  it('prices every gap in the facets this branch owns, and every package it names', () => {
+    const reg = capabilityRegistry();
+    for (const fid of ['space', 'power', 'soul', 'mind']) {
+      for (const [setting, s] of Object.entries(reg[fid])) {
+        for (const [v, row] of Object.entries(s.values)) {
+          const at = `${fid}.${setting}=${v}`;
+          if (row.status === 'built') { expect(row.effort, at).toBeUndefined(); continue; }
+          expect(Object.keys(EFFORT_WEIGHT), at).toContain(row.effort);
+          if (row.pkg) {
+            expect(PACKAGES[row.pkg], at).toBeTruthy();
+            expect(row.effort, at).toBe(PACKAGES[row.pkg].effort);
+          }
+        }
+      }
+    }
   });
 });

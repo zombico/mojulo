@@ -10,18 +10,18 @@ export const SPACE = Object.freeze({
     camera: {
       values: {
         'third-person': { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the `follow` chase camera' },
-        fixed: { status: 'partial', lowers: 'lib/graph/era/floormap-cameras.js', note: 'the floormap places cameras; walkmesh plates do not reach the World page yet' },
-        'top-down': { status: 'absent', note: NO_MODE },
-        side: { status: 'absent', note: NO_MODE },
-        'first-person': { status: 'absent', note: NO_MODE },
+        fixed: { status: 'partial', effort: 'L', lowers: 'lib/graph/era/floormap-cameras.js', note: 'the floormap places cameras; walkmesh plates do not reach the World page yet' },
+        'top-down': { status: 'absent', effort: 'M', note: `${NO_MODE}; needs world-relative movement too` },
+        side: { status: 'absent', effort: 'L', note: `${NO_MODE}; needs a plane constraint too` },
+        'first-person': { status: 'partial', effort: 'S', lowers: 'lib/graph/gameworld/levels.js', note: 'a heroless walker plays it (a follow camera at the eye); no named mode, no pitch, no body hiding' },
       },
     },
     topology: {
       values: {
         linear: { status: 'built', lowers: 'lib/graph/level/graph.js', note: "LEVEL_LAYOUTS is 'sequential'" },
         hub: { status: 'built', lowers: 'lib/graph/gameworld/world.js', note: 'a gameworld joins its levels by road and gate' },
-        open: { status: 'partial', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and world streaming exist; no open-world game structure' },
-        interconnected: { status: 'partial', lowers: 'lib/graph/gameworld/world.js', note: 'gates exist, but levels lay out in sequence only; no backtracking map' },
+        open: { status: 'partial', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and world streaming exist; no open-world game structure' },
+        interconnected: { status: 'partial', effort: 'L', lowers: 'lib/graph/gameworld/world.js', note: 'gates exist, but levels lay out in sequence only; no backtracking map' },
       },
     },
     levelForm: {

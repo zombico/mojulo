@@ -33,6 +33,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   ranks them by how many games that would lift. `node scripts/cosmos-sweep.mjs` prints the map; `--fixture <id>`
   shows one game type row by row; `--json` gives the whole report.
 
+### Cosmos gaps: what the sweep found missing, filled in the order it pays
+
+- **The map prices its gaps.** Every missing or partial value in Space, Power, Soul and Mind carries a rough effort
+  (S, M or L), and values that one change fills are grouped into a work package. The sweep ranks packages by the
+  games they lift per unit of work, so the build order is recomputed on every run.
+- **First person was already there.** A level with no hero plays in first person, so the registry now records it as
+  partial (no named mode, no pitch, no body hiding) instead of absent.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest

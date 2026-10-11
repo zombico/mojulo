@@ -20,7 +20,7 @@ export const POWER = Object.freeze({
       values: {
         melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
         ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
-        'turn-based': { status: 'absent', note: 'no turn or initiative model found (10-10)' },
+        'turn-based': { status: 'absent', effort: 'L', note: 'no turn or initiative model found (10-10)' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },

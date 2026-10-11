@@ -60,4 +60,17 @@ describe('sweep', () => {
     }
     expect(r.unlock.facets.find((f) => f.facet === 'mind').lifts).toBe(lifts);
   });
+
+  it('prices packages: one per change, ranked by lifts per unit of work, unsized last', () => {
+    const pk = r.unlock.packages;
+    const lift = pk.find((p) => p.id === 'mind-lift');
+    expect(lift).toMatchObject({ name: 'Lift the arena brain into a general mind', effort: 'M' });
+    expect(lift.perEffort).toBe(Math.round((100 * lift.lifts) / 3) / 100);
+    const sized = pk.filter((p) => p.perEffort != null);
+    for (let i = 1; i < sized.length; i++) expect(sized[i - 1].perEffort).toBeGreaterThanOrEqual(sized[i].perEffort);
+    expect(pk.slice(sized.length).every((p) => p.perEffort == null)).toBe(true);
+    // a package credits at least what any one of its values does
+    const sight = r.unlock.values.find((v) => v.key === 'mind.perception=sight');
+    if (sight) expect(lift.lifts).toBeGreaterThanOrEqual(sight.lifts);
+  });
 });

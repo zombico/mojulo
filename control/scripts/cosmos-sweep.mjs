@@ -43,6 +43,8 @@ export function formatSweep(r, { top = 15 } = {}) {
   out.push('', `rolled  makeable ${makeable} (${pct(makeable, r.n)}) · gaps ${gaps} (${pct(gaps, r.n)}) · blocked ${blocked} (${pct(blocked, r.n)}) · survive Godot ${r.godotOk} (${pct(r.godotOk, r.n)})`);
   out.push('', 'unlock by facet: built whole, how many rolled cubes step up (and how many become makeable)');
   for (const f of r.unlock.facets) out.push(`  ${pad(f.facet, 9)} lifts ${pad(f.lifts, 5)} makeable ${pad(f.makeable, 5)} touches ${f.touches}`);
+  out.push('', 'build order: work packages by lifts per unit of work (effort S 1 · M 3 · L 8; unsized last)');
+  for (const p of r.unlock.packages.slice(0, top)) out.push(`  ${pad(p.name, 44)} ${pad(p.effort || '?', 2)} per-effort ${pad(p.perEffort ?? '—', 6)} lifts ${pad(p.lifts, 5)} makeable ${p.makeable}`);
   out.push('', `unlock by value: the top ${top}`);
   for (const v of r.unlock.values.slice(0, top)) out.push(`  ${pad(v.key, 36)} ${pad(v.status, 8)} lifts ${pad(v.lifts, 5)} makeable ${pad(v.makeable, 5)} touches ${v.touches}`);
   return out.join('\n') + '\n';
