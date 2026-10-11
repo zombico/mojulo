@@ -21,6 +21,7 @@ extends Node3D
 const WalkerScript := preload("res://kernel/walker.gd")
 const WeatherScript := preload("res://kernel/weather.gd")
 const BusScript := preload("res://kernel/bus.gd")
+const CastScript := preload("res://kernel/cast.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
 const HAZARD_COOLDOWN := 0.8
 
@@ -81,6 +82,14 @@ var menu_focus := 0
 var menu_page := 0
 var menu_panel: PanelContainer = null
 var menu_label: Label = null
+# THE CAST (since 0.11.0): bus.json's cast rows, run by kernel/cast.gd (the web's character world, ported): the bus's
+# ctrl ops in, the characters' happenings (down, gone, spawned, arrive, stuck, faded) out as facts; each character's
+# node follows its row (shown or not, where it stands, its heading, lying when felled, its statuses worn as looks).
+var cast = null
+var cast_state: Dictionary = {}
+var cast_rows: Array = []
+var cast_nodes: Dictionary = {}      # id → {node, rot0, heading0, worn: {status: true}}
+var shake_cam: Camera3D = null
 
 # rigs (walking-suit-backport G-L1..G-L5)
 var suit: Node3D = null              # the player's figure wrapper, driven by the walker
@@ -696,6 +705,11 @@ func _dump(tag: String) -> void:
 		if part is Node3D:
 			var pp: Vector3 = (part as Node3D).global_position
 			line += " part0=%s(%.2f,%.2f,%.2f)" % [part.name, pp.x, pp.y, pp.z]
+	if cast != null:
+		var rows := []
+		for e in cast_state["entities"]:
+			rows.append("%s:%s%s(%.2f,%.2f)%s" % [e["id"], "gone" if e["gone"] else "here", ":down" if e["downed"] else "", e["pos"][0], e["pos"][1], (":hp%d" % int(e["hp"])) if e.has("hp") else ""])
+		print("[mojulo-cast] %s %s" % [tag, " ".join(rows)])
 	if bus != null:
 		print("[mojulo-bus] %s events=%d vars=%s menu=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), ("%s:%d" % [s_(menu_open["id"]), menu_focus]) if menu_open != null else "", bus_banner.text if bus_banner != null and bus_banner.visible else ""])
 	for fp in figure_players:
@@ -1039,6 +1053,9 @@ func _build_bus() -> void:
 	bus_units = float(doc.get("metersPerUnit", 1.0))
 	bus_state = bus.create_bus_state(frag, frag.get("entities", []) if frag.get("entities") is Array else [])
 	bus_sources = frag.get("sources", []) if frag.get("sources") is Array else []
+	if doc.get("cast") is Array and not (doc["cast"] as Array).is_empty():
+		cast_rows = doc["cast"]
+		_build_cast()
 	for src in bus_sources:
 		if src is Dictionary and src.get("type") == "zone" and src.has("use"):
 			bus_uses[src["zone"]] = {"id": s_(src["use"]), "prompt": s_(src.get("prompt", ""))}
@@ -1105,6 +1122,12 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	bus_zone_prev = z["prev"]
 	var incoming: Array = bus_pending + z["events"]
 	bus_pending = []
+	if cast != null:
+		var me = cast_state["byId"].get(who if who != "" else "player")
+		if me != null:
+			me["pos"] = _bus_pos(pos)
+		cast.step(cast_state, minf(delta, 0.05))
+		incoming.append_array(cast.facts(cast_state))
 	for ev in z["events"]:
 		if bus_uses.has(ev["zone"]):
 			bus_reach.erase(ev["zone"])
@@ -1119,11 +1142,14 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 		bus_prompt.text = "[E] " + (String(top["prompt"]) if String(top["prompt"]) != "" else "use")
 	bus.frame(bus_state, incoming, minf(delta, 0.05))
 	var ctrl: Dictionary = bus.take_ctrl(bus_state)
+	if cast != null and not (ctrl["ops"] as Array).is_empty():
+		cast.ops(cast_state, ctrl["ops"])
 	var warp = ctrl["warps"].get(who)
 	if warp is Array:
 		walker.global_position = to_yup(warp) * bus_units
 	_drain_bus(delta)
 	_sync_menus()
+	_draw_cast()
 
 
 # announce the new events, fire the score's banners and toasts on them, refresh the readouts
@@ -1175,6 +1201,62 @@ func _drain_bus(delta: float) -> void:
 	var text := "\n".join(rows)
 	if bus_hud.text != text:
 		bus_hud.text = text
+
+
+func _build_cast() -> void:
+	cast = CastScript.new()
+	cast_state = cast.create(cast_rows)
+	var who := s_(score.get("player"))
+	for e in cast_state["entities"]:
+		if e["id"] == who:
+			continue
+		var node := _entity_node(e["id"])
+		if node == null:
+			continue
+		if cast_nodes.has(e["id"]):
+			for k in cast_nodes[e["id"]]["worn"]:
+				if looks != null:
+					looks.lift(node, k)
+			node.rotation = cast_nodes[e["id"]]["rot0"]
+		cast_nodes[e["id"]] = {"node": node, "rot0": node.rotation, "heading0": e["heading"], "worn": {}}
+	cast.facts(cast_state)   # the first read seeds: nothing the world was minted with fires
+	_draw_cast()
+
+
+# each character's node follows its row: shown or sent away, where it stands, its heading, lying when felled
+func _draw_cast() -> void:
+	if cast == null:
+		return
+	for id in cast_nodes:
+		var c: Dictionary = cast_nodes[id]
+		var e: Dictionary = cast_state["byId"][id]
+		var node: Node3D = c["node"]
+		node.visible = not e["gone"]
+		node.global_position = to_yup(e["pos"]) * bus_units
+		var rot: Vector3 = c["rot0"] + Vector3(0, e["heading"] - c["heading0"], 0)
+		if e["downed"]:
+			rot.z += PI / 2
+		node.rotation = rot
+		if looks != null:
+			for k in e["statuses"]:
+				if not c["worn"].has(k):
+					looks.wear(node, k)
+					c["worn"][k] = true
+			for k in (c["worn"] as Dictionary).keys():
+				if not (e["statuses"] as Dictionary).has(k):
+					looks.lift(node, k)
+					c["worn"].erase(k)
+	# a shake: the camera trembles while one is on, k fading over its `for`
+	var k := 0.0
+	for m in cast_state["moments"]:
+		if m["is"] == "shake":
+			var age: float = cast_state["time"] - m["t0"]
+			if age < m["for"]:
+				k = maxf(k, m["k"] * (1.0 - age / m["for"]))
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		cam.h_offset = randf_range(-1, 1) * 0.08 * k if k > 0 else 0.0
+		cam.v_offset = randf_range(-1, 1) * 0.08 * k if k > 0 else 0.0
 
 
 func _sync_menus() -> void:
@@ -1345,6 +1427,8 @@ func _reset() -> void:
 		bus_seen = 0
 		bus_zone_prev = null
 		bus_reach = []
+		if cast != null:
+			_build_cast()
 		_start_bus()
 	_update_hud()
 

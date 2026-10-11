@@ -137,7 +137,17 @@ export function extractBus(payload) {
   if (!ev || !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
   const fragment = Object.fromEntries(BUS_CHANNELS.filter((k) => ev[k] !== undefined).map((k) => [k, ev[k]]));
   const mpu = Number(payload.metersPerUnit);
-  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment };
+  // the characters the behaviour moves (its cues reach the cast: events.cast), in the bus's own units: where each
+  // stands, its heading, asleep or not, its hp and pace. An engine kernel's cast adapter (Godot: kernel/cast.gd)
+  // starts from these. Absent cast ⇒ no rows.
+  const cast = ev.cast === true ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
+    id: e.id, pos: Array.isArray(e.transform?.pos) ? e.transform.pos : [0, 0, 0],
+    ...(Number.isFinite(e.transform?.heading) ? { heading: e.transform.heading } : {}),
+    ...(e.dormant ? { dormant: true } : {}),
+    ...(Number.isFinite(e.body?.hp) ? { hp: e.body.hp } : {}),
+    ...(Number.isFinite(e.rule?.speed) ? { speed: e.rule.speed } : {}),
+  })) : null;
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}) };
 }
 
 export function extractEngineScore(sketch, payload, { posture = null } = {}) {

@@ -110,6 +110,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The walker waits while a menu is up.
   - A talk opened by a chapter's turn picks its second choice in a headless Godot, and that choice's effect reaches
     the bus.
+- **Characters in Godot (kernel 0.11.0).** `kernel/cast.gd` ports the web's character world (`castOps`, `castFacts`,
+  the route walk).
+  - `bus.json` carries the cast rows: where each character stands, its heading, asleep or not, its hp and pace.
+  - The ops: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure and shake.
+  - The facts sent back: down, gone, spawned, arrive and stuck. A status that runs out reports `faded`.
+  - Each character's node follows its row: shown or not, where it stands, its heading, lying down when felled, its
+    statuses worn as looks.
+  - A walk has no collider push-out or ground snap in Godot. Puffs, beams and transits stay on the web.
+  - In a headless Godot, a warning wakes a soldier at the gate; he walks to his post, is felled there, and the bus
+    hears each step. The merchant is sent away.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The

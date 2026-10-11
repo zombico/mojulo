@@ -32,7 +32,9 @@ describe('the bus contract', () => {
     for (const id of ['fact:use', 'fact:cast', 'effect:logic', 'effect:hud', 'effect:menus', 'effect:weather', 'effect:cast']) expect(used, id).toContain(id);
     expect(godot.built).toEqual(expect.arrayContaining(['fact:use', 'effect:logic']));
     expect(godot.partial).toEqual(expect.arrayContaining(['effect:hud', 'effect:menus']));
-    expect(godot.absent).toEqual(expect.arrayContaining(['fact:cast', 'effect:weather', 'effect:cast']));
+    expect(godot.built).toContain('fact:cast');
+    expect(godot.partial).toContain('effect:cast');
+    expect(godot.absent).toEqual(['effect:weather']);
   });
 
   it('finds a mechanics level whole in the Godot kernel but its painting', () => {

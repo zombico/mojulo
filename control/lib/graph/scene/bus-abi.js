@@ -25,7 +25,7 @@ export const BUS_ABI = Object.freeze({
     timer: { about: 'heartbeats and a sequence\'s timed waits', web: B, godot: B },
     contact: { about: 'physics contact and rest', web: B, godot: A, how: 'Godot runs its own physics; no body reports to the bus yet' },
     input: { about: 'a key or pointer bound to an event (events.inputs)', web: B, godot: A },
-    cast: { about: 'a character\'s happenings: down, gone, spawned, arrive, stuck, faded, struck', web: B, godot: A, how: 'needs the character adapter' },
+    cast: { about: 'a character\'s happenings: down, gone, spawned, arrive, stuck, faded, struck', web: B, godot: B, how: 'kernel/cast.gd castFacts (struck waits on beams)' },
     stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: A },
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B, godot: B, how: 'level.gd: arrows or W / S, Enter / Space / E, Esc' },
   }),
@@ -38,7 +38,7 @@ export const BUS_ABI = Object.freeze({
     parts: { about: 'a HUD part shown, hidden or restated by a cue (ui-<part>)', web: B, godot: A },
     phase: { about: 'the play\'s phase (title, playing, …)', web: B, godot: A },
     weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: A, how: 'kernel/weather.gd plays the schedule, not a cue\'s change' },
-    cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: A, how: 'needs the character adapter; queued ops are dropped' },
+    cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake; a walk has no collider push-out or ground snap; puffs, beams and transits stay on the web' },
     stats: { about: 'stats: raise, grant, xp, level, buy', web: B, godot: A },
   }),
 });

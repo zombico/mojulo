@@ -116,7 +116,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.10.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.11.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
@@ -150,6 +150,61 @@ describe('the store travels', () => {
       expect(lines[3]).toMatch(/"chapter-siege-n":100/);
     } finally {
       if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// the cast: the warning wakes a sleeping soldier at the gate, who walks to his post and is felled there; the merchant
+// is sent away. The bus hears it all back: spawned, arrive, down, gone (kernel 0.11.0, kernel/cast.gd)
+const CAST_ENTITIES = [
+  ...entities,
+  { id: 'soldier-1', dormant: true, rule: { type: 'static' }, transform: { pos: [6, 2, 0.5] }, body: { type: 'mesh', shape: 'box', size: [0.5, 0.5, 1.7], hp: 30 } },
+  { id: 'merchant', rule: { type: 'static' }, transform: { pos: [3, -2, 0.5] }, body: { type: 'mesh', shape: 'sphere', radius: 0.5 } },
+];
+const CAST_PLAY = {
+  spots: [{ id: 'gate', at: [4, 0] }, { id: 'post', at: [8, 8] }],
+  cues: [
+    { id: 'posted', when: { arrive: { who: 'soldier-1', at: 'post' } }, then: [{ set: 'posted', to: 1 }, { hurt: { who: 'soldier-1', by: 30 } }] },
+    { id: 'fell', when: { down: 'soldier-*' }, then: { set: 'fallen', to: 1 } },
+    { id: 'left', when: { gone: 'merchant' }, then: { set: 'merchant-left', to: 1 } },
+    { id: 'woke', when: { spawned: 'soldier-1' }, then: { set: 'woke', to: 1 } },
+  ],
+  chapters: [{ id: 'warned', when: { use: { at: [4, 0], r: 1.5 }, prompt: 'warn the mayor' }, world: { spawn: [], do: [{ spawn: { who: 'soldier-1', at: 'gate' } }, { walk: { who: 'soldier-1', to: 'post', speed: 20 } }, { vanish: 'merchant' }] } }],
+};
+
+describe('the cast travels', () => {
+  const payload = () => ({ entities: CAST_ENTITIES, events: lowerPlay({ entities: CAST_ENTITIES, play: CAST_PLAY }, { player: 'hero' }) });
+
+  it('bus.json carries the cast rows in the bus\'s units, and the contract marks the character rows built', () => {
+    const bus = extractBus(payload());
+    expect(bus.cast.map((r) => r.id)).toEqual(['hero', 'soldier-1', 'merchant']);
+    expect(bus.cast[1]).toEqual({ id: 'soldier-1', pos: [6, 2, 0.5], dormant: true, hp: 30 });
+    const s = extractEngineScore({ ref: 'r', manifest: {} }, payload());
+    expect(s.ledger.bus_carried.godot.built).toEqual(expect.arrayContaining(['fact:cast']));
+    expect(s.ledger.bus_carried.godot.partial).toEqual(expect.arrayContaining(['effect:cast']));
+    expect(extractBus(town())).not.toHaveProperty('cast');
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot wakes, walks, fells and sends away, and hears it back (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-cast-'));
+    try {
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="cast-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'town', manifest: {} }, payload())));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload())));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-bus-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '4', '0', '90'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const cast = out.split('\n').filter((l) => l.startsWith('[mojulo-cast]'));
+      const bus = out.split('\n').filter((l) => l.startsWith('[mojulo-bus]'));
+      expect(cast[0]).toMatch(/start .*soldier-1:gone\(6\.00,2\.00\):hp30 merchant:here\(3\.00,-2\.00\)/);
+      // he stops within reach (0.3) of the post at (8, 8), and lies there
+      expect(cast.at(-1)).toMatch(/soldier-1:here:down\([78]\.\d\d,[78]\.\d\d\):hp0 merchant:gone/);
+      expect(bus.at(-1)).toMatch(/"fallen":1/);
+      expect(bus.at(-1)).toMatch(/"merchant-left":1/);
+      expect(bus.at(-1)).toMatch(/"posted":1/);
+      expect(bus.at(-1)).toMatch(/"woke":1/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   }, 120000);
 });
