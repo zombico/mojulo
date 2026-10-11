@@ -440,9 +440,10 @@ export function buildMind(E) {
     const dist3d = Math.hypot(dx, dy, dz) || 1e-6;
     const rangeD = isSpace ? dist3d : dist2d;
     // spacing over a BASE standoff (the rule's `standoff`, else 0.42 of the weapon's range); a slot's
-    // `approach:{style,standoff,close,weave}` wins; the tuning's aggressiveness scales it.
+    // `approach:{style,standoff,close,weave}` wins, else the rule's own (a commander's posture); the tuning's
+    // aggressiveness scales it.
     const aSlot = lo ? lo[e.loadoutIdx || 0] : null;
-    const aOv = (aSlot && aSlot.approach) || null;
+    const aOv = (aSlot && aSlot.approach) || r.approach || null;
     const aProf = SPACING[spacingOf(w, aOv)] || [1.0, 0.7, 1.0];
     const baseStandoff = r.standoff != null ? r.standoff : (w ? (w.range || 400) * 0.42 : speed * 8);
     const standoff = (w ? (Number.isFinite(aOv && aOv.standoff) ? aOv.standoff : baseStandoff * aProf[0]) : baseStandoff) * (dif ? dif.standoffMul : 1);

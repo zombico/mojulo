@@ -1,5 +1,6 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
+import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
 import { projectileSmokeBlock } from './projectile-smoke.js';
@@ -46,7 +47,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, key = null, toonInk = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -162,10 +163,28 @@ const __rimPatch = (m, rim) => {
   const smokeHook = sm ? '\n    __updateSmoke();' : '';
   const hangarBlock = hangar ? hangarStepperBlock(hangar) : '';
   const hangarHook = hangar ? '  window.__mojHangar.sync();\n  if (inputOverride) { if (inputOverride.hangarStep) window.__mojHangar.step(inputOverride.hangarStep); if (inputOverride.liverySet != null) window.__mojHangar.livery(inputOverride.liverySet); if (inputOverride.equipSlot != null) window.__mojHangar.equip(inputOverride.equipSlot); }\n' : '';
+  // COMMANDER (worlds/controllable/commander.js): a body marked `rule.commanded` is driven at strategy rate by
+  // a commander port (builtin | hook | http; the world's `commander` picks it), with one HUD line showing its
+  // current intent. No commanded body ⇒ both blocks are '' (byte-identical).
+  const commandedIds = (entities || []).filter((e) => e && e.id && e.rule && e.rule.commanded).map((e) => e.id);
+  const cmdCfg = commander && typeof commander === 'object' ? commander : {};
+  const commanderBlock = commandedIds.length ? `const __mojCmd = (function () {
+${commanderSource()}
+  var ports = ${safeJson(commandedIds)}.map(function (id) { return createCommanderPort({ commandedId: id, foeId: ${safeJson(cmdCfg.foe || null)}, port: ${safeJson(cmdCfg.port || 'builtin')}, period: ${Number(cmdCfg.period) || 5}, url: ${safeJson(cmdCfg.url || null)}, hook: ${safeJson(cmdCfg.hook || null)} }); });
+  var hud = document.createElement('div');
+  hud.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:80;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9cc4ff;background:rgba(11,18,32,.72);border:1px solid #24324a;border-radius:6px;padding:6px 10px;max-width:62vw;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  var label = document.createElement('div'); label.style.cssText = 'color:#5f7fb0;letter-spacing:1px'; label.textContent = 'COMMANDER · ' + ${safeJson(commandedIds.join(', '))} + ' · ' + ${safeJson(cmdCfg.port || 'builtin')};
+  var line = document.createElement('div'); line.textContent = 'awaiting first read';
+  hud.appendChild(label); hud.appendChild(line); document.body.appendChild(hud);
+  return { ports: ports, step: function (w) { for (var i = 0; i < ports.length; i++) ports[i].onFrame(w); line.textContent = ports.map(function (p) { return p.currentNote(); }).join(' | '); } };
+})();
+window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + current notes
+` : '';
+  const commanderStep = commandedIds.length ? '__mojCmd.step(__world);\n    ' : '';
   return `
 const __CW = ${emissionSource()};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
-${(() => {
+${commanderBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
@@ -2420,7 +2439,7 @@ if (__ctrlOwnsCamera) __driveCamera();
 stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0) {
-    __CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();
     __updateChargeRings();

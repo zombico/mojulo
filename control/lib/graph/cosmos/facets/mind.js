@@ -51,8 +51,8 @@ export const MIND = Object.freeze({
     commander: {
       values: {
         none: { status: 'built' },
-        builtin: { status: 'local', effort: 'L', pkg: 'commander', note: 'mobile-suit/agent-commander.js is untracked: a 0807 spike' },
-        agent: { status: 'local', effort: 'L', pkg: 'commander', note: 'the hook and http transports of the untracked commander' },
+        builtin: { status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'the reference commander, on rule.commanded' },
+        agent: { status: 'partial', effort: 'S', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'hook and http ports are wired; no live model has driven one yet' },
       },
     },
   },

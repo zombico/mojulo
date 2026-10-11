@@ -76,6 +76,9 @@ import { emitThreeWorld } from './scene-three.js';
 // alone. Same proof: the 13 fixtures emitted before and after with the engine source cut out are byte-identical.
 // Re-pinned 2026-10-11 (guards and prey): the mind gains two motivations on `rule.mind` — a guard engages only near
 // its post and walks back to it, prey flees a threat inside its fear radius. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the commander): the mind reads a posture's spacing off the rule's own `approach` when the
+// weapon slot names none, so a commander's posture spaces the whole body. The commander itself is page-only and gated
+// on a `rule.commanded` body, which no fixture holds. Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

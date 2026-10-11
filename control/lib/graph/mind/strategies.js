@@ -36,7 +36,7 @@ export const STRATEGIES = Object.freeze({
     { id: 'circle', line: 'circles in three dimensions', needs: ['flier'], needsAny: ['ranged', 'melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'siege', line: 'holds back and lobs', needs: ['lob'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'rush', line: 'presses in with a spray weapon', needs: ['area'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
-    { id: 'kite', line: 'backs off while it shoots (the arena commander\'s posture)', needs: ['ranged', 'commanded'], when: { aggr: ATTACKS }, status: 'local', note: 'the untracked arena commander sets it; the engine spacing has no kite' },
+    { id: 'kite', line: 'backs off while it shoots (the arena commander\'s posture)', needs: ['ranged', 'commanded'], when: { aggr: ATTACKS }, status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'a commander\'s kite posture, spaced by the mind' },
     { id: 'skirmish', line: 'holds mid range and weaves', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'brawl', line: 'fights at blade range', needs: ['melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'hold', line: 'stands its ground', status: 'built' },

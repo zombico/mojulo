@@ -8,5 +8,4 @@ export const EFFORT_WEIGHT = Object.freeze({ S: 1, M: 3, L: 8 });
 
 export const PACKAGES = Object.freeze({
   'mind-lift': { name: 'Lift the arena brain into a general mind', effort: 'M' },
-  commander: { name: 'Track and generalise the arena commander', effort: 'L' },
 });

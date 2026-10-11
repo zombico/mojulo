@@ -50,11 +50,12 @@ describe('dryRun', () => {
     expect(r.verdict).toBe('blocked');
     expect(r.blocked).toEqual([{ facet: 'power', setting: 'combat', value: 'turn-based', status: 'absent', note: expect.any(String) }]);
   });
-  it('counts a mind that fights as built, and a part from one game as a gap', () => {
+  it('counts a mind that fights, and its built-in commander, as built; an untried transport as a gap', () => {
     expect(dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold' } }).verdict).toBe('makeable');
-    const r = dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold', commander: 'builtin' } });
+    expect(dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold', commander: 'builtin' } }).verdict).toBe('makeable');
+    const r = dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold', commander: 'agent' } });
     expect(r.verdict).toBe('gaps');
-    expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.commander=local']);
+    expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.commander=partial']);
   });
   it('says what would not survive a Godot export', () => {
     const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, mechanics: ['reach-exit', 'win-when'] } });

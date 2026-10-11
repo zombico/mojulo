@@ -45,7 +45,7 @@ export function capabilityOf(entity) {
     sight: true,
     memory: false,
     navmesh: false,
-    commanded: false,
+    commanded: !!rule.commanded,
     speed: Number.isFinite(rule.speed) ? rule.speed : null,
     hp: Number.isFinite(body.hp) ? body.hp : null,
   };

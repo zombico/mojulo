@@ -69,6 +69,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **Prey** turns and runs from a threat inside `fearRadius` and never fights.
 
   Every species' mind runs on the engine's rule, so prey animals flee with no authoring.
+- **A commander can drive a mind.** The arena's live commander joined the engine as
+  `worlds/controllable/commander.js`. Every few seconds it reads a digest of the fight and sets the mind's posture
+  (rush, skirmish, siege or kite), its boost, melee and dodge, and which gun it leads with, while the mind keeps its
+  reflexes.
+  - A body opts in with `rule.commanded: true`. The world's `commander: { port, period, url, hook }` picks who
+    commands: the built-in reference commander, a page hook (`__mojCommander` by default) or an HTTP endpoint, so
+    any model can play.
+  - A page with no commanded body is byte-identical.
+  - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 

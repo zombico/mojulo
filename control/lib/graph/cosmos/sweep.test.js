@@ -3,6 +3,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { rollCube, sweep } from './sweep.js';
 import { validateCube, dryRun } from './cosmos.js';
 import { FIXTURES } from './fixtures.js';
+import { capabilityRegistry } from './registry.js';
 
 describe('rollCube', () => {
   it('rolls valid cubes, and the same seed rolls the same cube', () => {
@@ -70,7 +71,11 @@ describe('sweep', () => {
     for (let i = 1; i < sized.length; i++) expect(sized[i - 1].perEffort).toBeGreaterThanOrEqual(sized[i].perEffort);
     expect(pk.slice(sized.length).every((p) => p.perEffort == null)).toBe(true);
     // a package credits at least what any one of its values does
-    const cmd = pk.find((p) => p.id === 'commander'), builtin = r.unlock.values.find((v) => v.key === 'mind.commander=builtin');
-    if (cmd && builtin) expect(cmd.lifts).toBeGreaterThanOrEqual(builtin.lifts);
+    const reg = capabilityRegistry();
+    for (const v of r.unlock.values) {
+      const [, facet, setting, value] = v.key.match(/^([^.]+)\.([^=]+)=(.+)$/);
+      const pkg = reg[facet][setting].values[value].pkg;
+      if (pkg) expect(pk.find((p) => p.id === pkg).lifts, v.key).toBeGreaterThanOrEqual(v.lifts);
+    }
   });
 });
