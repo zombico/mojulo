@@ -12,6 +12,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Solid powerscale: solids routed by what they are for
+
+- **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words
+  (equipment, furniture), hard-edged or fitted parts (scad and its `mj_*` library, with `fabricate_solid` for the
+  standard parts), and measured or organic objects (workbench, code). It used to leave scad, equipment and furniture
+  unnamed, and its tool line listed only some of the kinds.
+- **Fitted parts stay home.** The workbench and scad routing cards no longer send threaded, toleranced or geared
+  parts to a B-rep handoff: the `scad` kind's `mj_*` library prints them. Only STEP, GD&T or a constraint solver
+  still goes through `translate_modeler_lingo({ lingo: 'precision cad' })`. The workbench card names all of its
+  primitives, not "rotational primitives only".
+- **Furniture has a routing card.** A sofa, chair, table or piece of casework by style lands on `mint_solid` kind
+  `furniture`, not on the house or the workbench.
+- **The routing eval checks the kind.** `mint_solid` is the entry for every solid, so new card rows pin a fitted part
+  to the scad card, a measured form to the workbench card and a styled piece to the furniture card.
+
 ### Drawer alignment: the agent supplies the words, the server the rest
 
 - **A 3D factory with a media studio.** Mojulo describes itself by what it makes, named by what people do with it:

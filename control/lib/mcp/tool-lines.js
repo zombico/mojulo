@@ -56,7 +56,7 @@ export const TOOL_LINES = {
   create_character: L('create', 'A character `as` hero, creature or animal: the `mint_solid` layered and animal recipes, rigged. Revise with `update_sketch`; manuals `get_solid_vocab`.'),
 
   // ── solids ────────────────────────────────────────────────────────────────
-  mint_solid: L('create', "A 3D solid by `kind`: workbench, assembler, scad, code, carved-solid, edifice, vehicle, figure, manji-tree, layered. Manual: `get_solid_vocab`; revise: `update_sketch`."),
+  mint_solid: L('create', "A 3D solid by `kind`: characters, equipment, furniture, scad parts, workbench objects, assemblies, vehicles and more. Manual: `get_solid_vocab`; revise: `update_sketch`."),
   edit_solid: L('update', "Operate on a minted solid's derived renders: `op:'skin'` paints it, `op:'emote'` poses a figure. Recipe edits go through `update_sketch`.", "Operate on a minted solid's derived renders: `op:'emote'` poses a figure in a looping GIF. Recipe edits go through `update_sketch`."),
   measure_solid: L('observe', 'Numbers off a stored solid: bounds, printed mm size, per-part sizes, closure, volume, print advisories. The check before `export_model`.'),
   fabricate_solid: L('compose', 'Make an object buildable: what each part must do → standard parts, a bill of materials and the cuts or joints that take them. Plan, then mint.'),
