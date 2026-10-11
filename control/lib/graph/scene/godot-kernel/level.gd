@@ -20,6 +20,8 @@ extends Node3D
 
 const WalkerScript := preload("res://kernel/walker.gd")
 const WeatherScript := preload("res://kernel/weather.gd")
+const BusScript := preload("res://kernel/bus.gd")
+const JsonExact := preload("res://kernel/json_exact.gd")
 const HAZARD_COOLDOWN := 0.8
 
 var score: Dictionary = {}
@@ -45,6 +47,25 @@ var triggers: Array = []             # {id, kind, box: AABB, to, locked, inside}
 
 var hud: Label = null
 var banner_layer: CanvasLayer = null
+
+# THE BUS (since 0.8.0): the world's behaviour from bus.json beside the score (engine-score.js extractBus), run by
+# kernel/bus.gd, the port held equal to the web's reducer. Facts in: the walker's zones (in recipe units: the score is in
+# metres, the bus is not) and the interact key at a usable place (E: use-<place>). Out: warps, the score's HUD banners,
+# toasts and readouts, the reach prompt, and bus_event for every event, the seam a project's own scripts hook.
+signal bus_event(type: String, event: Dictionary)
+var bus = null
+var bus_state: Dictionary = {}
+var bus_units := 1.0
+var bus_sources: Array = []
+var bus_zone_prev = null
+var bus_uses: Dictionary = {}        # zone → {id, prompt}: a cue's usable places
+var bus_reach: Array = []            # the usable zones the walker stands in, the last entered on top
+var bus_interact := false            # E since the last frame
+var bus_seen := 0                    # log entries already announced
+var bus_hud: Label = null            # readouts and legends
+var bus_banner: Label = null         # the last banner, until its ttl
+var bus_banner_left := 0.0
+var bus_prompt: Label = null
 
 # rigs (walking-suit-backport G-L1..G-L5)
 var suit: Node3D = null              # the player's figure wrapper, driven by the walker
@@ -96,6 +117,7 @@ func _ready() -> void:
 	_build_rigs()
 	_build_looks()
 	_build_mechanics()
+	_build_bus()
 	_start_music()
 	_build_hud()
 	_read_probe_args()
@@ -658,6 +680,8 @@ func _dump(tag: String) -> void:
 		if part is Node3D:
 			var pp: Vector3 = (part as Node3D).global_position
 			line += " part0=%s(%.2f,%.2f,%.2f)" % [part.name, pp.x, pp.y, pp.z]
+	if bus != null:
+		print("[mojulo-bus] %s events=%d vars=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), bus_banner.text if bus_banner != null and bus_banner.visible else ""])
 	for fp in figure_players:
 		var n: Node3D = fp["node"]
 		var np := n.global_position
@@ -954,6 +978,7 @@ func _process(delta: float) -> void:
 		return
 	var pos := walker.global_position
 	_step_address(pos)
+	_step_bus(delta, pos)
 	for z in exit_zones:
 		if _zone_hit(z, pos):
 			_complete()
@@ -982,6 +1007,109 @@ func _process(delta: float) -> void:
 				_fail()
 				return
 	_update_hud()
+
+
+func _build_bus() -> void:
+	var p := score_path.get_base_dir().path_join("bus.json")
+	if not FileAccess.file_exists(p):
+		return
+	var doc = JsonExact.parse(FileAccess.get_file_as_string(p))
+	if not (doc is Dictionary) or doc.get("version") != "bus/1" or not (doc.get("fragment") is Dictionary):
+		push_warning("moj: bus.json is not a bus/1 document; the world's behaviour does not run")
+		return
+	var frag: Dictionary = doc["fragment"]
+	bus = BusScript.new()
+	bus_units = float(doc.get("metersPerUnit", 1.0))
+	bus_state = bus.create_bus_state(frag, frag.get("entities", []) if frag.get("entities") is Array else [])
+	bus_sources = frag.get("sources", []) if frag.get("sources") is Array else []
+	for src in bus_sources:
+		if src is Dictionary and src.get("type") == "zone" and src.has("use"):
+			bus_uses[src["zone"]] = {"id": s_(src["use"]), "prompt": s_(src.get("prompt", ""))}
+	var layer := CanvasLayer.new()
+	bus_hud = Label.new()
+	bus_hud.position = Vector2(16, 44)
+	bus_hud.add_theme_font_size_override("font_size", 18)
+	bus_banner = Label.new()
+	bus_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	bus_banner.position.y = 72
+	bus_banner.add_theme_font_size_override("font_size", 30)
+	bus_banner.visible = false
+	bus_prompt = Label.new()
+	bus_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	bus_prompt.position.y = -72
+	bus_prompt.add_theme_font_size_override("font_size", 18)
+	bus_prompt.visible = false
+	for n in [bus_hud, bus_banner, bus_prompt]:
+		layer.add_child(n)
+	add_child(layer)
+	if frag.get("initial") is Array and not (frag["initial"] as Array).is_empty():
+		bus.process_events(bus_state, frag["initial"])
+	_drain_bus(0.0)
+
+
+# the walker in the bus's frame: y-up metres back to z-up recipe units
+func _bus_pos(pos: Vector3) -> Array:
+	return [pos.x / bus_units, -pos.z / bus_units, pos.y / bus_units]
+
+
+func _step_bus(delta: float, pos: Vector3) -> void:
+	if bus == null:
+		return
+	var who := s_(score.get("player"))
+	var z: Dictionary = bus.derive_zone_events([{"id": who if who != "" else "player", "position": _bus_pos(pos)}], bus_zone_prev, bus_sources)
+	bus_zone_prev = z["prev"]
+	var incoming: Array = z["events"]
+	for ev in z["events"]:
+		if bus_uses.has(ev["zone"]):
+			bus_reach.erase(ev["zone"])
+			if ev["type"] == "enter":
+				bus_reach.append(ev["zone"])
+	var top = bus_uses[bus_reach[-1]] if not bus_reach.is_empty() else null
+	if bus_interact and top != null:
+		incoming.append({"type": "use-" + String(top["id"])})
+	bus_interact = false
+	bus_prompt.visible = top != null
+	if top != null:
+		bus_prompt.text = "[E] " + (String(top["prompt"]) if String(top["prompt"]) != "" else "use")
+	bus.frame(bus_state, incoming, minf(delta, 0.05))
+	var ctrl: Dictionary = bus.take_ctrl(bus_state)
+	var warp = ctrl["warps"].get(who)
+	if warp is Array:
+		walker.global_position = to_yup(warp) * bus_units
+	_drain_bus(delta)
+
+
+# announce the new events, fire the score's banners and toasts on them, refresh the readouts
+func _drain_bus(delta: float) -> void:
+	var log: Array = bus_state["log"]
+	var widgets: Array = score.get("hud", []) if score.get("hud") is Array else []
+	for i in range(bus_seen, log.size()):
+		var e: Dictionary = log[i]
+		if not e.has("type"):
+			continue
+		bus_event.emit(String(e["type"]), e)
+		for w in widgets:
+			if w is Dictionary and (w.get("kind") == "banner" or w.get("kind") == "toast") and w.has("on") and bus.glob(e["type"], w["on"]):
+				bus_banner.text = s_(w.get("text"))
+				bus_banner.visible = true
+				bus_banner_left = float(w.get("ttl", 2.0)) if w.get("ttl") != null else 2.0
+	bus_seen = log.size()
+	if bus_banner_left > 0.0:
+		bus_banner_left -= delta
+		if bus_banner_left <= 0.0:
+			bus_banner.visible = false
+	var rows: Array = []
+	for w in widgets:
+		if not (w is Dictionary):
+			continue
+		if w.has("var") and w.get("kind") != "toast":
+			var v = bus_state["vars"].get(w["var"])
+			rows.append("%s %s" % [s_(w.get("label", w["var"])).to_upper(), bus.num_str(float(v)) if bus.is_num(v) else bus.js_string(v) if v != null else "-"])
+		elif w.get("kind") == "legend":
+			rows.append(s_(w.get("text")))
+	var text := "\n".join(rows)
+	if bus_hud.text != text:
+		bus_hud.text = text
 
 
 func _banner(text: String, color: Color) -> void:
@@ -1050,3 +1178,5 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				view.make_current()
 	if event.physical_keycode == KEY_M and _game() != null:
 		_game().to_menu()
+	if event.physical_keycode == KEY_E and bus != null:
+		bus_interact = true

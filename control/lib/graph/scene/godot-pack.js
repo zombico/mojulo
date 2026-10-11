@@ -17,7 +17,7 @@ import { manifestIdentity } from './engine-score.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { extractEngineScore } from './engine-score.js';
+import { extractEngineScore, extractBus } from './engine-score.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
 
@@ -122,7 +122,7 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false, f
   const fig = found && figureClipNames(clips, found[1]).length ? found : null;
   const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
-  return { kind, exported, score, fig };
+  return { kind, exported, score, fig, bus: extractBus(payload) };
 }
 
 /** Clean-emit a pack folder: binaries + emitted text + (optional) portability
@@ -162,7 +162,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score, fig } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
+  const { kind, exported, score, fig, bus } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
   // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
   // score's 'three-quarter' camera, else its first). The ANIME hero's figure adds its clips' designed durations (`s` on
   // the packed clip; hero-gesture heroClipSeconds) and whether its mesh carries the face (anime-face-rig.js; its scene is
@@ -184,6 +184,8 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
     { rel: 'score.json', bytes: JSON.stringify(score, null, 2) },
+    // the world's behaviour, beside its score (engine-score.js extractBus): absent behaviour ⇒ no file
+    ...(bus ? [{ rel: 'bus.json', bytes: JSON.stringify(bus) }] : []),
     { rel: `recipe/${ref}.json`, bytes: JSON.stringify(manifest, null, 2) },
   ];
   let audioFile = null;
@@ -248,12 +250,13 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     const spec = levelSpecs[i];
     const lvSketch = SketchRepository.getByRef(spec.ref);
     if (!lvSketch) throw new Error(`level '${spec.ref}' not found`);
-    const { exported, score } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
+    const { exported, score, bus } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}' — GLB ${exported.byteLength} bytes`);
     const own = score.soundtrack;
     const audioFile = await bed(own ?? battle[i % Math.max(battle.length, 1)]);
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
     binaries.push({ rel: `levels/${spec.ref}/score.json`, bytes: JSON.stringify(score, null, 2) });
+    if (bus) binaries.push({ rel: `levels/${spec.ref}/bus.json`, bytes: JSON.stringify(bus) });
     binaries.push({ rel: `recipe/${spec.ref}.json`, bytes: JSON.stringify(lvSketch.manifest, null, 2) });
     levels.push({ ref: spec.ref, title: spec.title ?? spec.ref, gate: spec.gate ?? null, score, audioFile, audioDb: own ? null : battleDb });
     glbStats.levels[spec.ref] = { bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0 };

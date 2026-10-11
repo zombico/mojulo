@@ -17,7 +17,7 @@ extends RefCounted
 #   bus.frame(st, incoming, dt)     the web page's frame order (scene/channels/events.js), for a driver
 #   bus.hash_state(st)              the canonical snapshot the conformance corpus compares
 
-const UNDEF := "\u0000undef"
+const UNDEF := "\uE000undef"   # a private-use mark no score spells
 const RESERVED := {"do": 1, "type": 1, "source": 1, "scope": 1, "on": 1, "match": 1, "await": 1, "target": 1, "template": 1, "at": 1, "to": 1, "vector": 1, "dir": 1, "gain": 1, "var": 1, "by": 1}
 const DIRS := {"up": [0, 0, 1], "down": [0, 0, -1], "left": [-1, 0, 0], "right": [1, 0, 0], "forward": [0, 1, 0], "back": [0, -1, 0]}
 

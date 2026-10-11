@@ -26,7 +26,7 @@ describe('the score carries the looks', () => {
     expect(s.looks.cursed.color).toEqual(expect.arrayContaining([expect.any(Number)]));
     expect(s.transits).toEqual(['hologram']);
     expect(s.ledger.looks_carried).toMatchObject({ count: 3, names: ['soaked', 'struck', 'cursed'], transits: ['hologram'], drawn: ['coat', 'motes', 'drift'], not_drawn: ['bolts'] });
-    expect(s.ledger.looks_carried.note).toMatch(/Cues do not travel/);
+    expect(s.ledger.looks_carried.note).toMatch(/no adapter wears a look yet/);
   });
 
   it('no looks, no key: a world that puts none on is unchanged', () => {
@@ -49,8 +49,8 @@ describe('the score carries the looks', () => {
 
 describe('the kernel', () => {
   it('ships looks.gd and look_coat.gdshader (since 0.6.0), and level.gd makes the Looks node from the score', () => {
-    // the kernel is at 0.7.0 (weather.gd: the sky's fog, colour and light, 2026-10-09); looks arrived at 0.6.0
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.7.0');
+    // the kernel is at 0.8.0 (bus.gd: the world's behaviour, 2026-10-11); looks arrived at 0.6.0
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.8.0');
     const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8'), looks = fs.readFileSync(path.join(KERNEL, 'looks.gd'), 'utf8');
     expect(level).toContain('load("res://kernel/looks.gd")');
     expect(level).toMatch(/score\.has\("looks"\) or score\.has\("transits"\)/);

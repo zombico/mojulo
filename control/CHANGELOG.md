@@ -84,8 +84,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 - **`kernel/bus.gd`.** The Godot kernel now holds a port of the web's event-bus reducer: reactions, watches,
   sequences, timers, vars and zone facts. Every behaviour mojulo lowers (cues, chapters, menu picks, mechanics) is a
-  fragment of that bus, so it can travel to Godot as data rather than one feature at a time. The pack's levels do not
-  run it yet: wiring it into `level.gd` is the next step.
+  fragment of that bus, so it can travel to Godot as data rather than one feature at a time.
+- **Levels run it (kernel 0.8.0).** A world with behaviour exports `bus.json` beside its score: the bus fragment,
+  versioned `bus/1`, in recipe units. `level.gd` runs it every frame:
+  - Facts in: the walker's zones and the interact key at a usable place (E, with the place's prompt).
+  - Effects out: warps move the walker, and the score's banners, toasts, readouts and legends paint as text.
+  - Every event is a `bus_event` signal a project's own scripts can connect to.
+
+  A chapter town turns its chapters at the gate in a headless Godot. A world without behaviour exports exactly as
+  before.
+- **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
+  with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
+  adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The
+  portability check names the rows it does not perform yet (menus, cast ops, forced weather, stats) instead of
+  calling every runtime behaviour lost. The pack README gains a Behaviour section.
 - **Proven equal, frame by frame.** `scripts/godot-bus-conformance.mjs` runs a corpus through both reducers and
   compares the canonical state string (`hashState`) after every frame. The corpus has hand scenarios, real
   chapters and mechanics lowered as a world lowers them, and seeded scenarios over every predicate and verb. A

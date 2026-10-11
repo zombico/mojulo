@@ -14,8 +14,9 @@
  * (`talk`, and `list` for a quest log), the cast's walks and spots (pose `talk`), stats epochs, the game store's level
  * gates, the tutorial step director, the pixelizer cutscene (a camera track, layers and typewriter captions, pixel
  * only) and the motion comic (click-gated scenes, type-on subtitles: time is the click). Flags carry a fact between levels by composition: a cue emits a bus event,
- * the level's `game.on` maps it to a `setFlag`, and the store opens the gate that waits on it. Godot: cues stay on the
- * web and flag gates export as unlocked, so only linear progression survives an export.
+ * the level's `game.on` maps it to a `setFlag`, and the store opens the gate that waits on it. Godot runs the cues on its
+ * bus (kernel/bus.gd, scene/bus-abi.js says what it feeds and draws), but the store does not travel yet: flag gates
+ * export as unlocked and chapters do not carry, so those stay web-only.
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const MENUS = 'lib/graph/playscape/ui/menus.js';
@@ -57,7 +58,7 @@ export const TIME = Object.freeze({
     advance: {
       values: {
         none: { status: 'built' },
-        cues: { status: 'built', lowers: CUES, ...WEB, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line' },
+        cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd), feeding zones and use, painting banners' },
         steps: { ...QUESTS, status: 'local', lowers: 'lib/graph/worlds/controllable/tutorial.js', note: 'the tutorial director orders steps, but its facts are arena maneuvers; playscape cues have no order' },
         quests: { ...QUESTS, requires: ['mind.social=talk'], lowers: MENUS, note: 'a giver (a talk menu), a log (a list menu) and a reward (cue effects) exist apart; nothing binds them to a character' },
       },

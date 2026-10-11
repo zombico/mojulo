@@ -19,6 +19,7 @@ import { crystalRigFor, rigForScore } from './crystal-rig.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
 import { lookRGB } from '../playscape/elements/elements.js';
 import { weatherScore } from './weather-score.js';
+import { busCoverage } from './bus-abi.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -123,6 +124,22 @@ function locomotionFor(figures, figKey, unitScale = 1) {
   };
 }
 
+// THE BUS (godot-bus): a world's behaviour as the event-bus fragment every cue, chapter, menu pick and mechanic lowers
+// to. It travels beside the score as `bus.json`, versioned and in recipe units (the kernels convert a walker's metres
+// back), and an engine kernel runs it with its port of the one reducer (Godot: kernel/bus.gd, held equal to the web's by
+// scripts/godot-bus-conformance.mjs). Only the bus's own channels ride: the page's (hud, menus, style, stats) are read
+// elsewhere. Absent behaviour (no reactions, watches, sequences or timers) ⇒ null, and no file.
+export const BUS_VERSION = 'bus/1';
+const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
+
+export function extractBus(payload) {
+  const ev = payload && payload.events;
+  if (!ev || !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
+  const fragment = Object.fromEntries(BUS_CHANNELS.filter((k) => ev[k] !== undefined).map((k) => [k, ev[k]]));
+  const mpu = Number(payload.metersPerUnit);
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment };
+}
+
 export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const manifest = sketch?.manifest ?? {};
   const extras = levelSceneExtras(payload) ?? {};
@@ -145,7 +162,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   };
   const hudWidgets = normalizeHud(payload.events?.hud).widgets;
   if (hudWidgets.length) {
-    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; the pack kernels paint their own default readout from `mechanics` until an engine arm reads the widget list' };
+    ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel paints its banners, toasts, readouts and legends as plain text (no slots, bars or style); otherwise the kernels paint their own readout from `mechanics`' };
   }
   // Units: a kind authored in other-than-metres (the floorplan: feet) declares
   // `metersPerUnit`; the GLB root scales by it, so every positional field here scales
@@ -218,7 +235,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     const DRAWN = ['coat', 'motes', 'drift'], dropped = [...new Set(worn.flatMap((n) => ['bolts', 'fire', 'ice', 'water', 'steam'].filter((k) => looks[n][k])))];
     ledger.looks_carried = {
       count: worn.length, names: worn, ...(transits.length ? { transits } : {}), drawn: DRAWN, ...(dropped.length ? { not_drawn: dropped } : {}),
-      note: 'score.looks carries each status\'s look as data; kernel/looks.gd wears it (the coat as a material_overlay, waves and drift as billboards from the same closed forms) and plays transits as animation clips. Cues do not travel: nothing wears a look until a script calls $Level.looks.wear(node, name)',
+      note: 'score.looks carries each status\'s look as data; kernel/looks.gd wears it (the coat as a material_overlay, waves and drift as billboards from the same closed forms) and plays transits as animation clips. The cues run on the bus, but no adapter wears a look yet: nothing wears one until a script calls $Level.looks.wear(node, name)',
     };
   }
 
@@ -227,6 +244,13 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   // lib/ instead of found at the most expensive gate that happens to be open.
   const walkable = Boolean(payload.walk) || (payload.entities ?? []).some((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform');
   ledger.contract = contractLedgerEntry(assessWorldTier(payload, { walkable }));
+  const bus = extractBus(payload);
+  if (bus) {
+    const n = (k) => (Array.isArray(bus.fragment[k]) ? bus.fragment[k].length : 0);
+    // what the behaviour takes and gives, and what the Godot kernel performs of it (bus-abi.js)
+    const { godot } = busCoverage(payload.events);
+    ledger.bus_carried = { reactions: n('reactions'), watches: n('watches'), sequences: n('sequences'), timers: n('timers'), version: BUS_VERSION, godot, note: 'the world\'s behaviour (cues, chapters, menu picks, mechanics) rides bus.json; an engine kernel runs it with its port of the bus (Godot: kernel/bus.gd, conformance-tested equal to the web). `godot` lists the facts it takes and the effects it gives: built is performed, partial in part, absent not (the logic still runs; nothing feeds or draws that row)' };
+  }
 
   return {
     ref: sketch?.ref ?? null,

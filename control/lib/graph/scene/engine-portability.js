@@ -24,6 +24,9 @@ export function assessPortability({ manifest, levels }) {
     }
     if (score.ledger?.skipped_movers) lf.push('mover/platform integrator channels do not travel');
     if (score.ledger?.skipped_physics) lf.push('live physics channels do not travel');
+    // the behaviour travels as the bus (bus-abi.js): a row the kernel does not perform is named, the logic still runs
+    const bus = score.ledger?.bus_carried?.godot;
+    if (bus?.absent?.length) lf.push(`behaviour the Godot kernel does not perform yet: ${bus.absent.join(', ')} (the bus runs; nothing feeds or draws these)`);
     // world-contract-tiers W5: the T1 advisory — an enclosed volume with nothing to light it.
     // Reported, never gated: the operator adds fixtures, opens the roof, or exports unlit.
     if (score.ledger?.contract?.advisories?.includes('imports_dark')) {

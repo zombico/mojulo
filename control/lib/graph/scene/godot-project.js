@@ -55,7 +55,7 @@ const GITIGNORE = '.godot/\nbuild/\n';
 const looksSection = (score) => (score.looks || score.transits ? `## Looks
 
 The world's cues put these looks on its characters: ${Object.keys(score.looks || {}).map((n) => `\`${n}\``).join(', ') || 'none'}${score.transits ? `; they come and go by ${score.transits.map((n) => `\`${n}\``).join(', ')}` : ''}.
-Cues do not travel, so wear them from your own script (kernel/looks.gd):
+No adapter wears them yet, so wear them from your own script (kernel/looks.gd):
 
     $Level.looks.wear($Level.find_child("hero"), "${Object.keys(score.looks || {})[0] || 'name'}")   # lift(node, name?) takes it off
     $Level.looks.transit(node, "${(score.transits || ['hologram'])[0]}", "in")            # or "out"
@@ -64,6 +64,30 @@ The coat lies over the body as a material_overlay; orbiting lights and drifting 
 Headless probe: \`godot --headless --path . res://level.tscn -- --mojulo-wear=<node>:<look>\`.
 
 ` : '');
+
+// The world's behaviour (bus.json; engine-score.js extractBus): the kernel runs it, the README says what it performs
+// and how a project's own scripts hear it. Absent ⇒ no section, byte-identical.
+const busSection = (score) => {
+  const b = score.ledger && score.ledger.bus_carried;
+  if (!b) return '';
+  const list = (ids) => (ids && ids.length ? ids.map((x) => `\`${x}\``).join(', ') : 'none');
+  return `## Behaviour
+
+The world's cues, chapters and mechanics travel as \`bus.json\` (${b.version}), and kernel/bus.gd runs them: the same
+reducer as the web build, held equal to it event by event. The walker's zones and the interact key (E) feed it; its
+banners and readouts paint from the score's HUD list.
+
+- performed: ${list(b.godot && b.godot.built)}
+- in part: ${list(b.godot && b.godot.partial)}
+- not yet (the logic runs; nothing feeds or draws these): ${list(b.godot && b.godot.absent)}
+
+Every event the bus processes is a signal your scripts can take:
+
+    $Level.bus_event.connect(func(type, event): print(type))   # e.g. chapter-<id>, cue:<id>, use-<place>
+    $Level.bus_state["vars"]                                    # the bus's vars, read live
+
+`;
+};
 
 // Godot 4 requires `exclude_filter` in every preset (without it the import logs one ERROR per preset); emitted with a
 // figure only, so every other pack stays byte-identical.
@@ -434,7 +458,7 @@ Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
 its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
 
-${looksSection(score)}## What travelled, what didn't
+${looksSection(score)}${busSection(score)}## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,
