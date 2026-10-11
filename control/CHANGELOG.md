@@ -80,6 +80,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   are a slot: mojulo supplies the speaker, the box and the turn, never the words.
 - A world without `chapters` is byte-identical.
 
+### Godot plays the bus: behaviour travels as data, one reducer on both sides
+
+- **`kernel/bus.gd`.** The Godot kernel now holds a port of the web's event-bus reducer: reactions, watches,
+  sequences, timers, vars and zone facts. Every behaviour mojulo lowers (cues, chapters, menu picks, mechanics) is a
+  fragment of that bus, so it can travel to Godot as data rather than one feature at a time. The pack's levels do not
+  run it yet: wiring it into `level.gd` is the next step.
+- **Proven equal, frame by frame.** `scripts/godot-bus-conformance.mjs` runs a corpus through both reducers and
+  compares the canonical state string (`hashState`) after every frame. The corpus has hand scenarios, real
+  chapters and mechanics lowered as a world lowers them, and seeded scenarios over every predicate and verb. A
+  vitest gate runs it when `MOJULO_GODOT` is set. Planted bugs are caught.
+- **Exact numbers.** Godot's JSON parser rounds some decimals to a neighbouring double. A 60 Hz step, for one,
+  arrives one unit off, enough to flip a timer. `kernel/json_exact.gd` reads each number back to the double the web
+  held, using the shortest-form spelling both engines print. The bus keeps JS's `undefined` apart from `null`, so a
+  var set from a missing field compares the same on both sides.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest
