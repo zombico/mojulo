@@ -38,6 +38,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The map prices its gaps.** Every missing or partial value in Space, Power, Soul and Mind carries a rough effort
   (S, M or L), and values that one change fills are grouped into a work package. The sweep ranks packages by the
   games they lift per unit of work, so the build order is recomputed on every run.
+- **A mind is a matrix.** Every non-player character meets six situations: idle, notice, engage, strike, pressed and
+  lost. Each one resolves, as fauna behaviors do, from four axes:
+  - motivation and aggressiveness, which are authored;
+  - the actions and capability its body measures, which are never authored. So a mind cannot ask for a verb its body
+    does not hold.
+
+  Two more authored dials sit beside them:
+  - **Rank.** Minibosses and bosses duel: they hold a repertoire and rotate through it. Bosses also shift at health
+    phases and adapt.
+  - **Skill.** It is set for a whole class of minds and tuned per character.
+
+  The arena's three difficulty tiers are exactly three skill × aggressiveness pairs. Every species gets a mind from
+  the tags it already carries. `scripts/gen-mind-table.mjs` writes the table of what each named mind and each
+  species does. The Mind facet now reads these axes. Nothing plays differently yet.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 

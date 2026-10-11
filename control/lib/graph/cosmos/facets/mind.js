@@ -1,78 +1,61 @@
 /**
  * MIND: what the other characters decide, relative to Power and Soul. Shape as in reality.js.
  *
- * Seeded from the mobile-suit arena (10-10). Its hunter brain (`ai`, mobile-suit/ms-ai.js) ships in the controllable
- * emission but was built for that one game: suit fields, an arena genre. So most values here are `local`: a mine to
- * lift into a general mind, not a capability yet. The commander (agent-commander.js) is not tracked at all.
+ * The mind matrix (lib/graph/mind/): a mind meets six situations, resolved per character from four axes. Two are
+ * authored and live here, motivation and aggressiveness, beside rank (minibosses and bosses duel) and skill (a base
+ * for a class, tuned per character). The other two, actions and capability, are MEASURED from the body that Power
+ * and Soul give it, so a cube cannot author a mind its body cannot carry out. The authored axes' statuses are found
+ * by resolving each value (mind/cosmos.js), never written here.
+ *
+ * Most of it runs today only inside the arena's hunter brain (mobile-suit/ms-ai.js): `local`, the mind-lift package.
  */
+import { mindAxisValues } from '../../mind/cosmos.js';
+
 const ARENA = 'lib/graph/mobile-suit/ms-ai.js';
-const HUNTER = 'the arena hunter brain only: built for suits, not a general mind';
+const MODES = 'lib/graph/worlds/match-modes.js';
 // one change fills every arena-local value: lifting the hunter brain into a general mind
 const LIFT = { status: 'local', effort: 'M', pkg: 'mind-lift' };
+const AXES = mindAxisValues();
 
 export const MIND = Object.freeze({
   id: 'mind',
   asks: 'how do the others decide?',
   settings: {
-    target: {
-      values: {
-        none: { status: 'built', note: 'nothing to decide' },
-        player: { ...LIFT, lowers: ARENA, note: HUNTER },
-        nearest: { ...LIFT, lowers: 'lib/graph/worlds/match-modes.js', note: `free-for-all targeting; ${HUNTER}` },
-        'enemy-team': { ...LIFT, lowers: 'lib/graph/worlds/match-modes.js', note: `team-aware targeting; ${HUNTER}` },
-      },
-    },
-    idle: {
-      values: {
-        none: { status: 'built' },
-        patrol: { status: 'built', lowers: 'lib/graph/worlds/controllable/tutorial.js', note: 'a waypoint walker that never targets' },
-        dormant: { status: 'built', lowers: 'lib/graph/worlds/controllable/tutorial.js', note: 'absent until a step wakes it' },
-      },
-    },
+    motivation: { values: AXES.motivation },
+    aggressiveness: { values: AXES.aggressiveness },
+    rank: { values: AXES.rank },
+    skill: { values: AXES.skill },
     perception: {
       values: {
-        omniscient: { ...LIFT, lowers: ARENA, note: 'the hunter always knows its target' },
-        sight: { ...LIFT, lowers: ARENA, note: 'a facing cone for the counter and a sightline to fire; no hearing, no memory, no search' },
-      },
-    },
-    posture: {
-      values: Object.fromEntries(['rush', 'skirmish', 'siege', 'kite'].map((p) => [p, { ...LIFT, lowers: ARENA, note: `${HUNTER}; kite is the commander's` }])),
-    },
-    reflexes: {
-      multi: true,
-      values: {
-        'dodge-on-hit': { ...LIFT, lowers: ARENA, note: HUNTER },
-        'retreat-on-clash': { ...LIFT, lowers: ARENA, note: HUNTER },
-        counter: { ...LIFT, lowers: ARENA, note: 'charge beats swing (the max tier); the counter table belongs to Power' },
-      },
-    },
-    commit: { values: { 'timeout-give-up': { ...LIFT, lowers: ARENA, note: HUNTER } } },
-    difficulty: { source: { module: 'lib/graph/worlds/controllable/compose.js', read: 'aiDifficulty', ...LIFT, note: `accuracy, latency and aggression detunes; ${HUNTER}` } },
-    commander: {
-      values: {
-        none: { status: 'built' },
-        builtin: { status: 'local', effort: 'L', pkg: 'commander', note: 'mobile-suit/agent-commander.js is untracked: a 0807 spike' },
-        agent: { status: 'local', effort: 'L', pkg: 'commander', note: 'the hook and http transports of the untracked commander' },
-      },
-    },
-    squad: {
-      values: {
-        none: { status: 'built' },
-        'team-aware': { ...LIFT, lowers: 'lib/graph/worlds/match-modes.js', note: 'teams skip allies when targeting; no group tactics' },
+        sight: { ...LIFT, lowers: ARENA, note: 'a facing cone and a line of sight, in the arena brain only' },
+        memory: { status: 'absent', effort: 'M', note: 'no memory of where a target was last seen; no search' },
       },
     },
     pathing: {
       values: {
         direct: { ...LIFT, lowers: ARENA, note: 'straight at the target, sliding along colliders' },
-        navmesh: { status: 'absent', effort: 'M', note: 'no pathfinding found (10-10)' },
+        navmesh: { status: 'absent', effort: 'M', note: 'no pathfinding found (10-10); the walk grid is server side only' },
+      },
+    },
+    squad: {
+      values: {
+        none: { status: 'built' },
+        'free-for-all': { ...LIFT, lowers: MODES, note: 'targets the nearest live body; the arena brain only' },
+        'team-aware': { ...LIFT, lowers: MODES, note: 'skips allies when targeting; no group tactics' },
       },
     },
     social: {
       values: {
         none: { status: 'built' },
         talk: { status: 'partial', effort: 'M', lowers: 'lib/graph/era/floormap.js', note: 'a talk hotspot verb; no dialogue' },
-        flee: { status: 'absent', effort: 'M' },
-        schedule: { status: 'absent', effort: 'L' },
+        schedule: { status: 'absent', effort: 'L', note: 'no daily routines' },
+      },
+    },
+    commander: {
+      values: {
+        none: { status: 'built' },
+        builtin: { status: 'local', effort: 'L', pkg: 'commander', note: 'mobile-suit/agent-commander.js is untracked: a 0807 spike' },
+        agent: { status: 'local', effort: 'L', pkg: 'commander', note: 'the hook and http transports of the untracked commander' },
       },
     },
   },

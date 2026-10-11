@@ -7,7 +7,7 @@ const CRAWLER = {
   space: { camera: 'third-person', topology: 'linear', levelForm: 'rooms', links: 'door' },
   power: { kit: 'dungeon-crawler', mechanics: ['reach-exit', 'hp-pool'], combat: ['melee'] },
   soul: { hero: 'hero', cast: 'heroic' },
-  mind: { idle: 'patrol' },
+  mind: { motivation: 'ambient', aggressiveness: 'passive' },
   time: { story: 'none' },
 };
 
@@ -51,9 +51,9 @@ describe('dryRun', () => {
     expect(r.blocked).toEqual([{ facet: 'power', setting: 'combat', value: 'turn-based', status: 'absent', note: expect.any(String) }]);
   });
   it('counts a mind from one game as a gap, not a capability', () => {
-    const r = dryRun({ ...CRAWLER, mind: { target: 'player', posture: 'skirmish' } });
+    const r = dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold' } });
     expect(r.verdict).toBe('gaps');
-    expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.target=local', 'mind.posture=local']);
+    expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.motivation=local', 'mind.aggressiveness=local']);
   });
   it('says what would not survive a Godot export', () => {
     const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, mechanics: ['reach-exit', 'win-when'] } });
