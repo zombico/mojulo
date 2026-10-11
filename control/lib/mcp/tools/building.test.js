@@ -9,7 +9,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketches';
 import { mintBuilding } from '@/lib/mcp/tools/building';
-import { buildingNext, RUNG_CARDS } from '@/lib/mcp/tools/building-next';
+import { buildingNext, OUTCOME_CARDS } from '@/lib/mcp/tools/building-next';
 
 beforeEach(() => {
   closeDb();
@@ -50,45 +50,68 @@ describe('mint_building — the door', () => {
   });
 });
 
-describe('next — the steps open from here', () => {
-  const steps = (m) => buildingNext(m).map((s) => s.add || `export:${s.export}`);
+describe('next — what is open, by outcome', () => {
+  const ids = (m) => buildingNext(m).map((s) => s.id);
+  const OUTCOMES = ['concept', 'layout', 'drawings', 'build'];
 
-  it('a bare layout can take every step', () => {
-    expect(steps({ kind: 'floorplan', seed: 7 })).toEqual(['furnishing', 'storeys', 'framing', 'export:ifc']);
+  it('a bare layout names every outcome, in order, ending in the exports', () => {
+    const next = buildingNext({ kind: 'floorplan', seed: 7 });
+    expect(ids({ kind: 'floorplan', seed: 7 })).toEqual(['site', 'roof', 'windows', 'furnishing', 'sheets', 'framing', 'drainage', 'ifc']);
+    const order = next.map((s) => OUTCOMES.indexOf(s.outcome));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(next.find((s) => s.id === 'sheets')).toEqual({ id: 'sheets', outcome: 'drawings', export: 'sheets', card: 'house-drawings' });
   });
 
-  it('steps already taken drop out; a framed house offers its roof covering and drainage', () => {
-    expect(steps({ kind: 'floorplan', seed: 7, furnish: true, storeys: 2 })).toEqual(['framing', 'export:ifc']);
-    expect(steps({ kind: 'floorplan', seed: 7, view: 'cutaway', levels: [{ role: 'ground' }], framing: { system: 'steel' } }))
-      .toEqual(['roof', 'drainage', 'export:ifc']);
-    expect(steps(HOUSES.framed)).toEqual(['furnishing', 'storeys', 'export:ifc']);
+  it('steps taken drop out; a roof is offered as a style, never as a form; a framed roof offers its covering', () => {
+    expect(ids({ kind: 'floorplan', seed: 7, windows: true, furnish: true, storeys: 2, design: { repair: true, clearance: true }, roof: 'bungalow', perimeter: true })).toEqual(['sheets', 'framing', 'drainage', 'ifc']);
+    expect(buildingNext({ kind: 'floorplan', seed: 7 }).find((s) => s.id === 'roof').add).toMatch(/^roof: 'bungalow'/);
+    expect(ids(HOUSES.framed)).not.toContain('covering');   // it has one
+    expect(ids({ ...HOUSES.framed, roof: { style: 'bungalow' }, levels: [{ index: 0 }] })).toContain('covering');
+    expect(ids({ ...HOUSES.framed, levels: [{ index: 0 }] })).not.toContain('framing');
   });
 
-  it('every step names the card that teaches it; anything that is not a building has no ladder', () => {
-    for (const s of buildingNext({ kind: 'floorplan', seed: 7 })) expect(Object.values(RUNG_CARDS)).toContain(s.card);
+  it('names a crowded stair under layout, with the field that clears it', () => {
+    const crowded = { kind: 'floorplan', seed: 7, levels: [{ index: 0 }, { index: 1 }], stairs: true, roof: { style: 'bungalow' }, windows: true, furnish: true, style: 'auto', layout: 'varied', furnishing: 'composed' };
+    expect(buildingNext(crowded).find((s) => s.id === 'livability')).toMatchObject({ outcome: 'layout', add: 'design: { repair: true, clearance: true }', card: 'house-livability' });
+    expect(ids({ ...crowded, design: { repair: true, clearance: true } })).not.toContain('livability');
+    expect(ids({ ...crowded, design: { waive: ['stair-clearance', 'walkway'] } })).not.toContain('livability');
+  });
+
+  it('every step names its outcome card; anything that is not a building has no next', () => {
+    for (const s of buildingNext({ kind: 'floorplan', seed: 7 })) expect(s.card).toBe(OUTCOME_CARDS[s.outcome]);
     expect(buildingNext({ kind: 'store' })).toBeUndefined();
     expect(buildingNext({ title: 'flow', stations: [] })).toBeUndefined();
   });
 
-  it('mint_building, create_sketch and update_sketch all answer with next; a diagram does not', async () => {
+  it('mint_building, create_sketch and update_sketch all answer with next from the recipe as stored; a diagram does not', async () => {
     const minted = mintBuilding({ title: 'h', manifest: { seed: 7 }, ref: 'next-mb' });
-    expect(minted.next).toEqual(buildingNext({ kind: 'floorplan', seed: 7 }));
+    expect(minted.next).toEqual(buildingNext(SketchRepository.getByRef('next-mb').manifest));
+    expect(minted.next.map((s) => s.id)).not.toContain('windows');   // the draw gives a drawn house windows
+    expect(minted.inferred).toEqual(SketchRepository.getByRef('next-mb').manifest.notes?.inferred?.map((x) => x.field));
     const viaSketch = await createSketchHandler({ title: 'h', manifest: { kind: 'floorplan', title: 'h', seed: 7 }, ref: 'next-cs' });
     expect(viaSketch.next).toEqual(minted.next);
-    const updated = await updateSketchHandler({ ref: 'next-mb', manifest: { kind: 'floorplan', title: 'h', seed: 7, storeys: 2 } });
-    expect(updated.next.map((s) => s.add || s.export)).toEqual(['furnishing', 'framing', 'ifc']);
+    const updated = await updateSketchHandler({ ref: 'next-mb', patch: [{ op: 'set', path: '/perimeter', value: true }] });
+    expect(updated.next.map((s) => s.id)).not.toContain('site');
     expect(SketchRepository.getByRef('next-mb').manifest.next).toBeUndefined();   // never stored
     const flow = await createSketchHandler({ title: 'f', manifest: { title: 'f', stations: [{ id: 'a', kind: 'mcp_tool', label: 'A' }] } });
     expect(flow.next).toBeUndefined();
   }, 120_000);
+
+  it('the design readout carries the stair clearance beside the walkway', async () => {
+    const made = mintBuilding({ title: 'stack', manifest: { seed: 7, levels: [{ index: 0 }, { index: 1 }], furnish: true }, ref: 'clear-mb' });
+    expect(made.design.clearance).toMatchObject({ ok: true, clearIn: 36 });
+    const off = await updateSketchHandler({ ref: 'clear-mb', patch: [{ op: 'set', path: '/design', value: {} }] });
+    expect(off.design.clearance.clearIn).toBe(36);
+    if (!off.design.clearance.ok) expect(off.design.clearance.next).toMatch(/design\.clearance: true/);
+  }, 120_000);
 });
 
 describe('the house cards — every example mints', () => {
-  const CARDS = ['floor-plan', 'house-layout', 'house-dwelling', 'house-storeys', 'house-construction', 'house-bim'];
+  const CARDS = ['floor-plan', 'house-layout', 'house-dwelling', 'house-storeys', 'house-construction', 'house-bim', 'house-concept', 'house-livability', 'house-drawings', 'house-build'];
 
   it('next only names house cards that exist', async () => {
     const { getSketchVocabCard: getSketchVocab } = await import('@/lib/graph/sketch-vocab/loader');
-    for (const id of new Set(Object.values(RUNG_CARDS))) expect(getSketchVocab(id), id).toBeTruthy();
+    for (const id of new Set(Object.values(OUTCOME_CARDS))) expect(getSketchVocab(id), id).toBeTruthy();
   });
 
   for (const id of CARDS) {

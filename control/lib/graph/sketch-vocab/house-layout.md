@@ -16,8 +16,9 @@ intent and the substrate fills the detail. Three properties hold by construction
 
 `mint_building({ title, manifest })` — `kind: 'floorplan'` and the manifest's own `title` may be
 left out (`create_sketch` with `kind: 'floorplan'` mints the same row). The reply is
-`{ ok, ref, url, next }`: `next` names the steps the house can take from here and the card for
-each — read that card before adding the step. The recipe is a STARTER: iterate in place with
+`{ ok, ref, url, design, inferred, next }`: `next` names what is open by outcome (concept,
+layout, drawings, build), the field or export for each, and its outcome card (`house-concept`,
+`house-livability`, `house-drawings`, `house-build`); read that card before adding the step. The recipe is a STARTER: iterate in place with
 `update_sketch({ ref, patch })`, re-mint only for a side-by-side variant. Every JSON block below
 is a `manifest`.
 

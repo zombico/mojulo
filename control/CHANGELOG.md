@@ -59,6 +59,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - A framed single floor becomes a stack of one (`levels: [{ index: 0 }]`), since framing needs a stack.
   - A roof style that names a form, such as `gable`, becomes the bungalow style with that form. Before, it silently
     drew a hip roof.
+- **`next` is by outcome.** `mint_building`, `create_sketch` and `update_sketch` answer a house with what it has not
+  reached, from the recipe as stored. Concerns are grouped into four outcomes: Concept, Layout, Drawings and Build.
+  Each concern names the field that adds it, or the export that takes the house out, and the outcome card that
+  teaches it. Before, it named a ladder of rungs and offered "add roof" to a house that had one.
+  - **New cards:** `house-concept`, `house-livability`, `house-drawings` and `house-build`. Each has the questions to
+    ask from zero, the laws, and the fields that open each of the book's tabs.
+  - **One table** (`structure/open.js`) feeds both `next` and the book's Open tab. The tab now groups its cards by
+    outcome and names each card; exports are steps, not open tabs, so only `next` lists them.
+  - **The `design` readout** carries the stair clearance beside the walkway, with the patch that keeps it or how to
+    waive it. A crowded stair is a `livability` step under Layout.
+  - **The roof step** names a style (`roof: 'bungalow'`, `form: 'gable'`). Before, the Open tab offered
+    `roof: 'gable'`, which is a form, not a style.
+  - **A framed house with a roof and no covering** gets a Build step for `roof.covering`.
 
 ## [3.1.0] - 2026-10-10
 

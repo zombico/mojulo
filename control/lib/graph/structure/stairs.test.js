@@ -47,8 +47,8 @@ describe('a level no flight reaches', () => {
   });
 
   it('is named in Open with the field that adds the flight', () => {
-    expect(openConcerns({}, lost).find((o) => o.tab === 'Plan').field).toMatch(/^stairs: true/);
-    expect(openConcerns({}, found).some((o) => o.tab === 'Plan')).toBe(false);
+    expect(openConcerns({}, lost).find((o) => o.id === 'stairs')).toMatchObject({ tab: 'Plan', outcome: 'layout', field: expect.stringMatching(/^stairs: true/) });
+    expect(openConcerns({}, found).some((o) => o.id === 'stairs')).toBe(false);
   });
 });
 

@@ -8,7 +8,7 @@ import { readStructure } from './read.js';
 import { drawingSet } from './sheets/index.js';
 
 const HOUSES = {
-  full: { kind: 'floorplan', title: 'Full', seed: 7, levels: [{ index: 0 }, { index: 1 }], stairs: true, roof: { style: 'hip' }, windows: true, furnish: true, perimeter: true, framing: { system: 'platform' }, drainage: true },
+  full: { kind: 'floorplan', title: 'Full', seed: 7, levels: [{ index: 0 }, { index: 1 }], stairs: true, roof: { style: 'hip', covering: true }, windows: true, furnish: true, perimeter: true, framing: { system: 'platform' }, drainage: true, design: { repair: true, clearance: true } },
   layout: { kind: 'floorplan', title: 'Layout', seed: 5, storeys: 2, roof: 'hip', furnish: true, windows: true },
   bare: { kind: 'floorplan', title: 'Bare', seed: 3, windows: true },
 };
@@ -32,7 +32,10 @@ describe('structureBookHtml', () => {
     expect(tabsOf(books.bare)).toEqual(['cover', 'massing', 'plan', 'rooms', 'elements', 'checks', 'walk', 'open']);
     const open = openConcerns(HOUSES.bare, readStructure(HOUSES.bare)).map((o) => o.tab);
     for (const t of ['Site', 'Massing', 'Objects', 'Structure', 'Services', 'Quantities']) expect(open).toContain(t);
-    for (const o of openConcerns(HOUSES.bare, readStructure(HOUSES.bare))) expect(books.bare).toContain(`<code>${o.field}</code>`);
+    for (const o of openConcerns(HOUSES.bare, readStructure(HOUSES.bare))) {
+      expect(books.bare).toContain(`id="open-${o.id}"`);
+      expect(books.bare).toContain(`<code>${o.field.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</code>`);
+    }
     expect(openConcerns(HOUSES.full, readStructure(HOUSES.full))).toEqual([]);
   });
 

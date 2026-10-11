@@ -29,9 +29,12 @@ import { readStructure } from './read.js';
 import { drawingSet, sheetIndex } from './sheets/index.js';
 import { planDrawing } from './sheets/plan.js';
 import { makeView, ftIn, areaText, sheetStyle } from './sheets/kit.js';
-import { tradeTables, checkRows, unreachedLevels, stairCrowding } from './tables.js';
+import { tradeTables, checkRows, stairCrowding } from './tables.js';
 import { tableCsv } from './sheets/schedules.js';
 import { ROLES } from './trades.js';
+import { openConcerns, OUTCOMES } from './open.js';
+
+export { openConcerns };
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
@@ -63,19 +66,6 @@ function dataTable(t, { first = (v) => esc(v), idOf } = {}) {
 const sheetPlate = (s) => `<figure class="sheet" id="sh-${esc(s.id)}">${plate(s.id, s.svg)}<figcaption><b>${esc(s.id)}</b> ${esc(s.title)}</figcaption></figure>`;
 
 /** The concerns the recipe has not reached: [{ tab, field, adds }]. */
-export function openConcerns(m, read) {
-  const out = [];
-  const lost = unreachedLevels(read);
-  if (lost.length) out.push({ tab: 'Plan', field: 'stairs: true (or stairs: [{ from, to }])', adds: `a flight to ${lost.map((s) => `L${s.number}`).join(', ')}, which nothing reaches now: its stairwell in the slab, the flight on the plans and sections, the trimmed opening in the frame` });
-  if (!read.site) out.push({ tab: 'Site', field: 'perimeter: true', adds: 'the lot, setbacks, street, drive and garden; the site plan C-101' });
-  if (!read.elements.roof) out.push({ tab: 'Massing', field: "roof: 'gable' (or hip, mission, bungalow …)", adds: 'a roof on the elevations and sections, and the roof framing and drainage that hang on it' });
-  if (!read.objects.pieces.length) out.push({ tab: 'Objects', field: "furnish: true, or rooms[].items [{ type } | { ref }]", adds: 'the furniture, fixtures and appliances, the FF&E schedule, a custom piece by its own ref' });
-  if (!read.construction) out.push({ tab: 'Structure', field: `framing: { system: 'platform' }${read.stacked ? '' : ' with levels: [{ index: 0 }] (the frame needs a stack)'}`, adds: 'the frame: foundation, floor, wall and roof framing plans, the member schedule, the takeoff and cut list' });
-  if (!read.wiring) out.push({ tab: 'Services', field: "framing (the wiring is roughed into the frame)", adds: 'the electrical plans and the panel schedule' });
-  if (!read.drainage) out.push({ tab: 'Services', field: `drainage: true${read.elements.roof ? '' : ' (with a roof)'}${read.stacked ? '' : ' and levels: [{ index: 0 }]'}`, adds: 'gutters, downspouts and outlets; the roof drainage plan P-101' });
-  if (!read.construction) out.push({ tab: 'Quantities', field: 'framing', adds: 'what it takes: cut list, sheet goods to buy, takeoff by material' });
-  return out;
-}
 
 const CSS = `
 :root{--paper:#f4f4f1;--sheet:#fff;--ink:#16181d;--muted:#5f6670;--rule:#d9dad6;--accent:#c2410c;--pass:#2f7d4f;--advise:#b45309;
@@ -312,7 +302,7 @@ ${live ? `<figure class="live">${live}<p class="muted">Drag to orbit; walk where
 
   // ── Open ──
   const open = `<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>What is left</h2><p class="muted">Each concern the recipe has not reached, and the field that adds it with <code>update_sketch</code>.</p></div>
-${opens.length ? `<div class="grid2">${opens.map((o) => `<article class="card open"><span class="eyebrow">${esc(o.tab)}</span><p><code>${esc(o.field)}</code></p><p class="muted">Adds ${esc(o.adds)}.</p></article>`).join('')}</div>` : '<p class="muted">Every tab is reached.</p>'}</section>`;
+${opens.length ? `<div class="grid2">${opens.map((o) => `<article class="card open" id="open-${esc(o.id)}"><span class="eyebrow">${esc(OUTCOMES.find((x) => x.id === o.outcome).name)} · ${esc(o.tab)}</span><p><code>${esc(o.field)}</code></p><p class="muted">Adds ${esc(o.adds)}. Card <code>${esc(o.card)}</code>.</p></article>`).join('')}</div>` : '<p class="muted">Every tab is reached.</p>'}</section>`;
 
   const nav = TABS.filter((t) => t.on).map((t) => `<a href="#${t.id}">${esc(t.name)}<i>${esc(t.sheet)}</i></a>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} · Structure book</title>
