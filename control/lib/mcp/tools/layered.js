@@ -73,6 +73,14 @@ import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swi
 import { expandEquipment } from '@/lib/graph/equipment/expand';
 import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_SWING_BASE, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateHeroMotion, motionPlan, locomotionClips } from '../../graph/polygonizer/hero-motion.js';
+import { targetError, RESOLUTIONS, FRAMINGS } from '../../graph/era/target.js';
+import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
+import { eraCastConventions } from '../../graph/era/eras.js';
+import { readGeocube } from '../../graph/era/geocube.js';
+import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
+import { castSpend } from '../../graph/era/cast-spend.js';
+import { tieredChest } from '../../graph/polygonizer/tiered-form.js';
+import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -187,7 +195,9 @@ export function normalizeHero(hero) {
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion'];
+/** the base forms a hero may name: 'tiered' (tiered-form.js) */
+export const HERO_FORMS = Object.freeze(['tiered']);
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -273,6 +283,10 @@ export function validateHeroSpec(spec) {
   if (isSwing(spec.gesture) && !spec.gear?.[SWING_HAND[spec.gesture]]) errs.push(`gesture '${spec.gesture}' swings the ${SWING_HAND[spec.gesture]} hand's gear: add gear.${SWING_HAND[spec.gesture]} (an item's build words, e.g. { item: '${spec.gesture === 'bash' ? 'shield' : spec.gesture === 'plant' ? 'staff' : 'sword'}' })`);
   if (spec.proportions !== undefined && !PROPORTION_WORDS.includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head), 'hero' (the realistic casts: the default with the landmark head) or 'herobot' (the hero robot's toy-hero body, about 4.5 heads tall: a big head, short arms and torso, big hands and feet)`);
   if (spec.core !== undefined && !HERO_CORES.includes(spec.core)) errs.push(`core: 'structured' (the default: the vajra core, a pelvis bone turned by the hip line alone and a lumbar bone, the pelvis part, converged legs) or 'streamlined' (the hero before it)`);
+  // what the hero is drawn for (era/target.js) and the level's look (era/geocube.js): a cube is checked as a stage checks one
+  if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
+  if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
+  if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base: triangles spent where the eye reads them, detail added by tier; absent is today's form)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   if (!wearsHead) for (const k of ['face', 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
   return errs;
@@ -283,7 +297,7 @@ export function validateHeroSpec(spec) {
  * a later re-tuning of a move never changes a stored row's meaning. */
 export function heroRecord(spec) {
   const errs = validateHeroSpec(spec);
-  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds } }, blink?: false }`);
+  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds } }, blink?: false, target?: ${Object.keys(RESOLUTIONS).join(' | ')} | { resolution, framing?: ${Object.keys(FRAMINGS).join(' | ')}, error? }, geocube?: a cube (its light, era and target unless target is named) }`);
   const { from, ...tune } = resolveTune(spec.tune);
   const hero = { cast: spec.cast ?? 'male', register: spec.register ?? 'round', tune, ...(from ? { from } : {}), head: spec.head ?? 'landmark' };
   if (hero.head === 'landmark') {
@@ -304,7 +318,7 @@ export function heroRecord(spec) {
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
   }
-  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
+  for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
   if (Number.isFinite(spec.genki) && spec.genki > 0) hero.genki = spec.genki;
   // the stand, stored AS GIVEN (a word re-resolves for the cast on every regeneration, so a /hero/cast edit carries the
@@ -341,7 +355,7 @@ export function heroPlanOf(hero) {
   // clip listed first; the anime hero's default is read here, so a /hero/head switch takes it on or drops it; neither ⇒
   // the plan as it was
   // a swing word (hero-swing.js): the stand is the swing's ready key and the swing rides as its own looping clip after it
-  const own = withHeroClips(heroFormPlan(hero), hero.clips);
+  const own = withHeroClips(targetPlan(heroFormPlan(hero), hero), hero.clips);
   let swing = heroSwing(hero, { expand: expandEquipment, gearBuild });
   // the structured core's legs converge at rest, so a swing's planted feet take a base of their own (STRUCTURED_SWING_BASE):
   // narrower than the guard's, because a swing's keys crouch little and a straight leg cannot reach a wide foot; every key
@@ -350,6 +364,12 @@ export function heroPlanOf(hero) {
   if (swing) { const p = withGestureClip(own, swing.keys[0]); return withLocomotion(hero, gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero)); }
   // genki moves the resolved stand (the stance, the chest, the chin); a swing's keys are its own and stay as they are
   return withLocomotion(hero, gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE }), hero)), hero));
+}
+/** The hero's target on its plan (era/cast-density.js): each body part whose outline misses by more than the target's
+ * error takes one split, after the dress's refine. No target ⇒ the plan as it was. */
+function targetPlan(plan, hero) {
+  const target = heroTarget(hero);
+  return target ? densityPlan(plan, target) : plan;
 }
 /** the door's MOTION (hero-motion.js) on a rigged plan: its gaits as `plan.locomotion` (compiled where the clips are
  * packed); absent ⇒ the plan as it was */
@@ -373,7 +393,21 @@ function gripHands(plan, hero) {
 const ANIME_HERO_PALETTE = Object.freeze({ male: Object.freeze({ Hair: '#644634', Ink: '#16181c' }), female: Object.freeze({ Hair: '#465365', Ink: '#16181c' }) });
 /** the hair base the door applied to an anime hero, resolved: its form, and its cut when worn (`eff.hairCut`) */
 const animeHairBaseOf = (hero, eff) => { const B = ANIME_HAIR_BASE[headPoleOf(hero)]; return resolveAnimeHair([B.form, ...(eff.hairCut ? [eff.hairCut] : [])]); };
+/** The bust the tiered form profiles into the torso (metres): the body's own, else the adult female's default (a share of
+ * her chest, as hero-form.js BUST_FORM); none on a child-coded figure. */
+function tieredBust(hero) {
+  if (childCoding(hero)) return 0;
+  if (hero.body?.bust !== undefined) return hero.body.bust;
+  if (!femaleOf(hero)) return 0;
+  return Math.round(0.27 * (castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.body?.chest ?? BODY_DEFAULTS.chest) * 1e6) / 1e6;
+}
+/** The hero's form plan: today's, or with `form: 'tiered'` the tiered base (tiered-form.js): the bust as a profile on
+ * the torso's rings in place of its own domes. */
 function heroFormPlan(hero) {
+  if (hero.form !== 'tiered') return heroFormPlanOf(hero);
+  return tieredChest(heroFormPlanOf({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }), tieredBust(hero));
+}
+function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
   const common = { register: hero.register, tune: hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
@@ -570,6 +604,14 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
       if (sw && out[sw.hand]) out[sw.hand].swing = { word: sw.word, class: sw.cls, strike: sw.strike, window: sw.window, reachM: out[sw.hand].lengthM, cone: 70 };
       return out; })() } : {}),
     ...(budget ? { budget } : {}),
+    // the style critics (hero-style-critic.js): the proportions in head heights against the western and the anime canon,
+    // the hero's own style named; and with a target, where its triangles go against the tier's reserve (cast-spend.js)
+    // (an adult female figure's chest is read too: its spacing, its height and the gap at the sternum)
+    ...((sm) => (sm ? { critic: { style: anime || hero.proportions === 'anime' ? 'anime' : 'western', measures: sm, western: styleCritic(sm, 'western', coreBody), anime: styleCritic(sm, 'anime', coreBody),
+      ...(coreBody === 'female' && !childCoding(hero) ? ((cm) => (cm ? { chest: { measures: cm, ...chestCritic(cm) } } : {}))(chestMeasures(plan, mesh, sm.head_m)) : {}) } } : {}))(mesh ? styleMeasures(plan, mesh) : null),
+    ...(mesh && heroTarget(hero) ? { spend: castSpend(mesh, plan, heroTarget(hero)) } : {}),
+    ...(budget && heroTarget(hero) ? { density: { ...castDensityReadout(plan, heroTarget(hero), budget.triangles), era: heroEra(hero), ...(hero.geocube ? { geocube: readGeocube(hero.geocube).id } : {}),
+      ...((pl) => (pl.length ? { planned: pl } : {}))(eraCastConventions(heroEra(hero)).filter((c) => c.status === 'planned').map((c) => c.id)) } } : {}),
     ...(warnings.length ? { warnings } : {}) };
 }
 

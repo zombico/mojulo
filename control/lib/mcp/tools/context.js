@@ -470,8 +470,8 @@ const FORM_DEFS = {
   'character': {
     title: 'Characters',
     makes: 'heroes, creatures and animals: bodies with a rig you can play, print or watch',
-    tools: ['create_character'],
-    notes: ["- `as: 'hero'` a person on the rest skeleton (cast, register, tune, face, hair, dress last) · `as: 'creature'` an invented body from a ring `plan` · `as: 'animal'` a species by id or common name. Manuals: `get_solid_vocab({ id: 'layered' })`, `({ id: 'animal' })`. Revise in place: `/hero/tune/<control>`, `/plan/…`, `/dials/<name>`."],
+    tools: ['create_character', 'update_character'],
+    notes: ["- `as: 'hero'` a person on the rest skeleton (cast, register, tune, face, hair, dress last) · `as: 'creature'` an invented body from a ring `plan` · `as: 'animal'` a species by id or common name. Manuals: `get_solid_vocab({ id: 'layered' })`, `({ id: 'animal' })`. Revise in place with `update_character`: a hero's `spec` by word, `target` (a resolution and framing: the rings each part's outline needs), `geocube` (the level's light); `patch` for `/plan/…`, `/dials/<name>`."],
   },
   'object': {
     title: '3D solids, figures & objects',
@@ -602,7 +602,7 @@ Verb overrides (closed list): audio revises via \`update_beats\` · voice never 
 Outcomes — a call lands one of four ways (classes to recognize, not wire types): ok(ref, url) · advisory(ref, findings — stamped, shipped anyway) · needs-vocab(the reply names the \`get_*_vocab\` drawer to read) · no(reason + next move — \`get_register_kit\` legend).
 
 mint dispatch — match the ask to a FORM:
-  CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal)
+  CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal); revise, its target resolution, a level's light → \`update_character\`
   GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · made levels, one store → \`create_game\` · project → \`create_game_project\`
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure / non-humanoid creature (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'

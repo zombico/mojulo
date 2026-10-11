@@ -342,7 +342,10 @@ const DESCRIPTION_ALLOWLIST = {
 // book (export_model's `sheets` and `schedules` formats; mint_building's description led on the book and its outcome
 // `next`) and the solid ladder (mint_solid names `spec.ask`, look | fit | function | engineered, which caps `next`,
 // with its kinds grouped by purpose). No new tool.
-const PAYLOAD_CEILING = 202_800;
+// Re-pinned 2026-10-11 (202_800 -> 204_400; measured 204,282) for character harmonization: one new tool,
+// update_character (the Characters ring's revise door over update_sketch: a hero's words, its target resolution, the geocube
+// whose light bakes it), its description at routing grade; the density rule and the cube stay off-payload.
+const PAYLOAD_CEILING = 204_400;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

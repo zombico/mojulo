@@ -643,6 +643,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 <!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
+  THE TARGET. `target` (`'720p'` … `'4k'`, or `{ resolution, framing: close | third-person | wide | top-down, error }`)
+  is what the hero is drawn for: pixels per metre at that framing make each body part's radius a pixel radius, and a
+  ring of N sides misses its circle by r·(1 − cos π/N). A part (trunk, pelvis, neck, limbs, feet) missing by more than
+  `error` px (1) takes one split, twice the sides; a part the dress already split keeps it. Today's hero holds 720p
+  third-person within a pixel; 1080p splits its trunk and limbs. The head, hands and fingers carry features, not
+  outline, and are left as they are. `geocube` (a cube preset, document or `{ from, … }`) bakes the hero in the cube's
+  light: the key (its sun, or its moon), the shade in the cube's ambient colour, warm bounce off its floor, a rim from
+  its sky, the cube's bands; the cube's target when `target` is not named. Absent: today's studio light and mesh.
+  `hero.density` on the readout: each part's radius in pixels, sides, the sides it wants and its error, the worst, the
+  parts still over after a split, and the era's conventions still `planned`. Revise either with `update_character`.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

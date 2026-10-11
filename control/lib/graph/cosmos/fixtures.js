@@ -18,7 +18,7 @@ export const FIXTURES = Object.freeze([
     anchor: true,
     why: 'room to room, reach the exit, loot and hazards; the kit gates the campaign itself',
     cube: {
-      reality: { rung: 'gen-6.0', look: 'gothic-night', kit: 'catacomb', medium: '3d' },
+      reality: { era: 'gen-6', look: 'gothic-night', kit: 'catacomb', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'rooms', links: 'door' },
       power: { kit: 'dungeon-crawler', mechanics: ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death'], combat: ['melee'], rules: ['walk', 'follow'] },
       soul: { hero: 'hero', cast: 'heroic', equipment: ['sword', 'shield'] },
@@ -32,7 +32,7 @@ export const FIXTURES = Object.freeze([
     anchor: true,
     why: 'gather the loot, reach the exit; non-lethal, a linear set of stages',
     cube: {
-      reality: { rung: 'gen-6.0', look: 'island-noon', kit: 'island-plaza', medium: '3d' },
+      reality: { era: 'gen-6', look: 'island-noon', kit: 'island-plaza', medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'trail', traversal: 'platform' },
       power: { kit: 'collectathon', mechanics: ['collect', 'reach-exit'], rules: ['walk', 'glide', 'platform', 'follow'] },
       soul: { hero: 'hero', cast: 'chibi', vibe: 'bouncy' },
@@ -60,7 +60,7 @@ export const FIXTURES = Object.freeze([
     anchor: false,
     why: 'a first-person camera, ranged combat, enemies that see, take cover and duel',
     cube: {
-      reality: { rung: 'gen-7.0', medium: '3d' },
+      reality: { era: 'gen-7', medium: '3d' },
       space: { camera: 'first-person', topology: 'linear', levelForm: 'arena' },
       power: { combat: ['ranged'], mechanics: ['defeat-all', 'hp-pool'] },
       soul: { hero: 'hero' },

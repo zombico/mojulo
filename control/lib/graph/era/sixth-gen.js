@@ -14,7 +14,9 @@
 export const SIXTH_GEN = Object.freeze({
   id: 'sixth-gen',
   title: 'sixth generation (PS2, GameCube, Xbox)',
-  // the frame: 640×448 (PS2 NTSC) is the common floor; a readout taken here weighs detail the way the era's screen did
+  // the frame: 640×448 (PS2 NTSC) is the common floor; a readout taken here weighs detail the way the era's screen did.
+  // The page itself draws gen-6 at the target's resolution (eras.js, target.js): this frame is the research record and the
+  // readout's, not the display's.
   frame: Object.freeze({ width: 640, height: 448, fovY: 55 }),
   // surface tiles: 128–256 px painted tiles, magnified on screen near the camera (≤ ~1 texel per pixel at the spawn)
   texture: Object.freeze({ tilePx: [128, 256], texelsPerMetre: [48, 128], maxTexelsPerPixelAtSpawn: 1.25 }),

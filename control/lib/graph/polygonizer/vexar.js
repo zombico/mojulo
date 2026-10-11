@@ -285,10 +285,27 @@ export function litFactor(normal, light = DEFAULT_LIGHT) {
   if (light.fillDiffuse) f += light.fillDiffuse * Math.max(0, dot3(normal, light.fillToLight));
   return light.bands ? bandFactor(f, light.ambient, light.diffuse + (light.fillDiffuse || 0), light.bands) : f;
 }
-/** Scale a flat fill by the Lambert factor — the per-cell shade. */
+/** Scale a flat fill by the Lambert factor — the per-cell shade. A CAST light (castLightFactor) shades per channel. */
 export function shadeHex(hex, normal, light = DEFAULT_LIGHT) {
   if (light.flat) return hex; // FLAT_LIGHT: raw albedo, no directional term
+  if (light.cast) { const f = castLightFactor(normal, light); return rgbToHex(hexToRgb(hex).map((v, k) => v * f[k])); }
   return scaleHex(hex, litFactor(normal, light));
+}
+
+// ---- the cast light: a figure lit by its level's light, per channel --------
+// A light carrying `cast: { key, ambient, bounce }` (each [r, g, b], 0..1; era/cast-light.js makes one from a geocube)
+// shades a figure the way the stage bakes a level: the tinted ambient (shade is a colour, never black), the key's
+// Lambert in its own colour, warm bounce off the ground on faces that look down, then the stage's shoulder (linear to
+// 0.75, rolling off toward 1) so a lit face never clips. `bands` steps the key's Lambert (a banded register). Its
+// `ambient` / `diffuse` scalars are the same light as grey, for readers of one number (the studio's grid).
+const CAST_KNEE = 0.75;
+const castShoulder = (v) => (v <= CAST_KNEE ? v : CAST_KNEE + (1 - CAST_KNEE) * (1 - Math.exp(-(v - CAST_KNEE) / (1 - CAST_KNEE))));
+/** The [r, g, b] factor a cast light gives an outward normal. */
+export function castLightFactor(normal, light) {
+  const c = light.cast; let lam = Math.max(0, dot3(normal, light.toLight));
+  if (light.bands) { const n = light.bands - 1; lam = Math.round(lam * n) / n; }
+  const down = Math.max(0, 0.5 - 0.5 * normal[2]);
+  return [0, 1, 2].map((k) => castShoulder(c.ambient[k] + c.key[k] * lam + c.bounce[k] * down));
 }
 /**
  * One-call surface shade: from a face's world `corners` + base `hex`, compute the

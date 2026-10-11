@@ -13,6 +13,68 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
+
+- **The look and the density are separate.**
+  - **The look is the era.** `era/eras.js` holds `gen-6` and `gen-7`: a console generation's light and surface
+    conventions, drawn at any resolution. gen-6 is the sixth generation's principles at today's resolution, not a
+    640×448 frame.
+  - **The density is the target** (`era/target.js`): the resolution a game is exported to (`480p` … `4k`, or a height
+    in pixels), how the camera frames a standing figure (`close`, `third-person`, `wide`, `top-down`, or a share of
+    the screen) and an outline error in pixels.
+  - **The geocube** carries both: `era` (gen-6) and `target` (1080p third-person). The specimen's `geocube.density`
+    readout names pixels per metre, the texels a metre wants against what the tiles paint, and the shadow cell in
+    pixels. The cosmos reality facet reads `era` for the world and `cast` for characters.
+- **A hero's rings come from its target** (`era/cast-density.js`). A ring of N sides misses a circle of r pixels by
+  r·(1 − cos π/N), so an outline within e pixels wants about π·√(r / 2e) sides.
+  - Each body part (trunk, pelvis, neck, limbs, feet) whose outline misses by more than the error takes one split
+    (twice the sides, a ring between each pair). A part the dress already split keeps its split.
+  - The head, hands and fingers carry features, not outline, and are left as they are.
+  - Today's hero holds 720p third-person within a pixel except its feet. At 1080p its trunk and limbs split
+    (5,196 → 7,724 triangles on the female cast); 4K third-person holds with the same split.
+  - `hero.density` on the readout gives each part's radius in pixels, sides, the sides it wants and its error, the
+    worst part, the parts one split cannot hold (a 4K close-up), and the era's conventions still planned. A target
+    that wants far fewer sides names the lighter register. It never refuses.
+- **A hero in its level's light.** `hero.geocube` (a cube preset, a document or `{ from, … }`) bakes the figure in the
+  cube's light (`era/cast-light.js`), the stage's daylight rules applied to a figure:
+  - the key is the cube's sun, or its moon;
+  - the shade takes the cube's ambient colour (the sky's fill of it under a sun), never black;
+  - faces that look down get warm bounce off the cube's floor;
+  - the rim comes from its sky;
+  - its register bands the key.
+  - The static faces, held gear and the packed rig all take it, and the World page's rim patch draws the rim.
+  - An anime hero on a cube is lit by the cube, not by its read-time cel light; a `toon.light` the manifest names
+    still wins.
+  - The hero takes the cube's target unless it names its own.
+  - Absent, nothing changes: every hero pin is byte-identical.
+- **The tiered base form, first piece: the chest.** `hero.form: 'tiered'` (opt-in, `polygonizer/tiered-form.js`) samples
+  the breast's own field (`breast-field.js`) onto the torso's rings in place of the two ring20 lens layers. Three rings
+  are added through the chest band, and every front slot takes the field's height at its place.
+  - It is placed as the unsupported chest: the apexes about as far apart as each is from the sternal notch, turned a
+    little out, low (about 0.72 of the height), the pair meeting in a low valley at the sternum. Today's default sets
+    them 0.6 of that apart, with a filled midline, a garment's shape.
+  - It costs 3,988 triangles against 5,196 on the bare figure, deforms and refines with the torso, and its body's colour
+    groups are shaded smooth like the skin (`TIERED_SMOOTH_CREASE`), so the form reads as one.
+  - Of the field's gates, nine pass; `meridian` (the apex outward of the mound's middle) is the placement's, kept.
+  - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
+- **Critics.**
+  - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head
+    heights: heads tall, inseam, shoulders, hips over shoulders, wrist, hand, foot. It reads them against the
+    **western** and the **anime** canon for its body, with the hero's own style named and one advice line per measure
+    out of band. An adult female figure's chest is read too (`critic.chest`): spacing (apart over notch to apex, the
+    equilateral rule), the apex's height, and the gap at the sternum (a filled midline reads as a garment's cleavage).
+  - `hero.spend` with a target (`era/cast-spend.js`) picks the tier (T0 … T4 by the figure's pixel height), the
+    budget (about 0.05·H²) and each region's share (body, head, hair, hands, clothing) against the tier's reserve.
+  - Both are advice, never refusals. Their bands are starting points to tune at the eyes gate.
+- **`update_character`.** The Characters ring's revise door: a thin door over `update_sketch`, as `create_character`
+  is over `mint_solid`.
+  - A hero's `spec` merges key by key, and null removes a key. `target` and `geocube` are named on the door.
+  - `patch` takes update_sketch ops for a creature's plan or an animal.
+  - An edit through it stores exactly what the equivalent patch stores.
+  - It refuses a row that is not a character, and a hero's words on a creature by name.
+  - The routing card is `character-fidelity`. The hero card, the studio index and `create_character` now point at it.
+    The flat tools/list pin was re-pinned for the new tool.
+
 ### Geocube: one style for a level's inside and outside, and the front door for building one
 
 - **`geocube`, a world kind.** A cube is a level's core look as data: its light (a sixth-gen reference, the moon for a night outside, the outside's fog), its key colours (each a ramp), its register, its surfaces' patterns, the bones of its inside, the base of its outside and its principles, one line each. `{ kind: 'geocube', cube, show: 'room' | 'land' }` shows one of its two specimens: a bare room (the bones, an accent wall) or an island landform. `cube` is a preset (`gothic-night`, `island-noon`, `jungle-haze`) or a whole document; a document is checked key by key.
@@ -20,7 +82,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **`meru.shading`: the land lit by polygons.** Cliffs and boulders are baked, not drawn as lit and shaded tiles; rock is lit once per facet; ground and sand are smoothed across the grid; the land keeps its continuous light instead of the card's bands; and three rules read from the land's own shape go into its corner colours: `crevice` darkens what is concave toward the cube's shade colour (never black), `ridge` lifts a convex lip, `blend` carries a neighbouring surface's colour over a seam. A cube's outside has it on. Absent, the land builds as before.
 - **Routing.** A level with its own look (rooms, open land, an island) starts from a geocube: the studio index, the world card and a new `geocube` card say so.
 - **A level copies its cube.** Building on a cube copies it into the level's recipe; a changed or new cube rebuilds nothing until the level is re-created from it, by hand.
-- **`shadows` on a stage: the gen-6.0 shadow upgrades.** `torch: 'hard' | 'soft'` gives every placed light and brazier a shadow test, so a torch no longer lights what a pilaster hides from it (`soft` spreads the flame over a small cross of taps, for about four times the bake); `sun` is the key's soft edge in degrees; `cells` cuts the surfaces finer (to 0.25 m) so a shadow has corners to land on. A cube's inside takes hard torch shadows, a 1.5° sun and half-metre cells. `meru.shading.sun` softens the land's sun the same way (1.5° by default). Absent, the bake is as before.
+- **`shadows` on a stage: the gen-6 shadow upgrades.** `torch: 'hard' | 'soft'` gives every placed light and brazier a shadow test, so a torch no longer lights what a pilaster hides from it (`soft` spreads the flame over a small cross of taps, for about four times the bake); `sun` is the key's soft edge in degrees; `cells` cuts the surfaces finer (to 0.25 m) so a shadow has corners to land on. A cube's inside takes hard torch shadows, a 1.5° sun and half-metre cells. `meru.shading.sun` softens the land's sun the same way (1.5° by default). Absent, the bake is as before.
 
 ### Geocube specimens: a room's bare bones and an island to check terrain on
 

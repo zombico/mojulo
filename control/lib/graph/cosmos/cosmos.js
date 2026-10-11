@@ -1,7 +1,7 @@
 /**
  * THE COSMOS CUBE: a game as six facets (facets/index.js), each a small seed:
  *
- *   { reality: { extends?, samples?, rung, look, … }, space: { … }, power, soul, mind, time }
+ *   { reality: { extends?, samples?, era, look, … }, space: { … }, power, soul, mind, time }
  *
  * A facet may be absent or partial; an unset setting falls back to the default and is not checked. Three reads:
  *

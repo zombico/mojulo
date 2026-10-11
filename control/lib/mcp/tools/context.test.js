@@ -550,6 +550,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'sketch_what_possible', 'create_cover',
     // create_character (3.1.0) — the Characters ring's door, its own form drawer
     'create_character',
+    // update_character (1011) — the Characters ring's revise door, the same drawer
+    'update_character',
     'mint_solid', 'edit_solid', 'get_solid_vocab',
     // measure_solid (continuous-guardrails.plan.md G2) — the object drawer's read-back sibling
     'measure_solid',

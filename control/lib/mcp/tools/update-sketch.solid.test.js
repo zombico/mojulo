@@ -828,7 +828,9 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
 // rest whatever dial the mint turned, and the character light's toon fields — the anime hero's outline opt-out kept at
 // the door, an invalid light refused by field at the door and on a /toon edit.
 describe('the hero door: readouts and the character light fields', () => {
-  it('the non-anime readout keys: the old set plus `budget` and `core` (the midsection, hero-core-measures.js)', async () => {
+  // `critic` (1011): the style critics, the proportions against the western and the anime canon (hero-style-critic.js),
+  // measured in head heights: a hero with no head has none
+  it('the non-anime readout keys: the old set plus `budget`, `core` (the midsection, hero-core-measures.js) and `critic`', async () => {
     const keys = {
       landmark: [{ cast: 'male' }, ['cast', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune']],
       none: [{ cast: 'female', head: 'none' }, ['cast', 'evidence', 'head', 'measures', 'moved', 'register', 'tune']],
@@ -836,9 +838,9 @@ describe('the hero door: readouts and the character light fields', () => {
     };
     for (const [k, [spec, before]] of Object.entries(keys)) {
       const out = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: `keys-${k}`, spec });
-      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget', 'core'].sort());
+      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget', 'core', ...(spec.head === 'none' ? [] : ['critic'])].sort());
       const ed = await updateSketchHandler({ ref: `keys-${k}`, patch: [{ op: 'set', path: '/hero/tune/limbs', value: 1.1 }] });
-      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget', 'core'].sort());
+      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget', 'core', ...(spec.head === 'none' ? [] : ['critic'])].sort());
     }
   });
   it('a dressed hero minted with a dial: the dress ledgers read the figure at rest, as without the dial', async () => {

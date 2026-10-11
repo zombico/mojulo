@@ -1,7 +1,8 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect } from 'vitest';
-import { createCharacterHandler, CHARACTER_KINDS } from './create-character.js';
+import { createCharacterHandler, updateCharacterHandler, CHARACTER_KINDS } from './create-character.js';
+import { updateSketchHandler } from './sketch-mint.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 
@@ -45,4 +46,47 @@ describe('create_character mints what mint_solid mints', () => {
   it("a failed mint keeps mint_solid's pointer at the kind's card", async () => {
     await expect(createCharacterHandler({ as: 'animal', spec: { species: 'no-such-beast' } })).rejects.toThrow(/get_solid_vocab\(\{ id: 'animal' \}\)/);
   });
+});
+
+// update_character is the same door the other way round: a character's words become update_sketch patch ops, so an
+// edit through it stores what the equivalent patch stores.
+describe('update_character revises what update_sketch revises', () => {
+  const twin = async (name, spec = { cast: 'female' }) => {
+    await createCharacterHandler({ as: 'hero', spec, title: name, ref: `uc_${name}_door` });
+    await createCharacterHandler({ as: 'hero', spec, title: name, ref: `uc_${name}_sketch` });
+  };
+
+  it('a hero\'s words, its target and its cube merge key by key and equal the patch', async () => {
+    await twin('words');
+    const a = await updateCharacterHandler({ ref: 'uc_words_door', spec: { register: 'chamfer', hair: 'braid' }, target: '1080p', geocube: 'island-noon', note: 'for 1080p' });
+    await updateSketchHandler({ ref: 'uc_words_sketch', note: 'for 1080p', patch: [
+      { op: 'set', path: '/hero/register', value: 'chamfer' }, { op: 'set', path: '/hero/hair', value: 'braid' },
+      { op: 'set', path: '/hero/target', value: '1080p' }, { op: 'set', path: '/hero/geocube', value: 'island-noon' }] });
+    expect(a.ok).toBe(true);
+    expect(manifestOf('uc_words_door')).toBe(manifestOf('uc_words_sketch'));
+    const hero = SketchRepository.getByRef('uc_words_door').manifest.hero;
+    expect(hero).toMatchObject({ register: 'chamfer', target: '1080p', geocube: 'island-noon' });
+  }, 240_000);
+
+  it('the readout gives each part\'s outline at the target; null removes a word', async () => {
+    await twin('readout');
+    const a = await updateCharacterHandler({ ref: 'uc_readout_door', target: '1080p', readout: 'full' });
+    expect(JSON.stringify(a)).toMatch(/"density":\{"target":\{"resolution":"1080p","framing":"third-person","error":1,"figurePx":360\},"pxPerMetre":217\.58,"triangles":7724/);
+    await updateCharacterHandler({ ref: 'uc_readout_door', target: null });
+    expect(SketchRepository.getByRef('uc_readout_door').manifest.hero.target).toBeUndefined();
+  }, 240_000);
+
+  it('a creature takes patch ops, and refuses a hero\'s words by name', async () => {
+    await createCharacterHandler({ as: 'creature', spec: { plan: RING_PLAN }, title: 'beast', ref: 'uc_beast' });
+    await expect(updateCharacterHandler({ ref: 'uc_beast', target: '1080p' })).rejects.toThrow(/'uc_beast' is a creature; spec, target and geocube are a hero's words today.*\/plan\//);
+    const r = await updateCharacterHandler({ ref: 'uc_beast', title: 'renamed beast' });
+    expect(r.ok).toBe(true);
+  }, 120_000);
+
+  it('refuses a row that is not a character, an unknown ref and an empty edit', async () => {
+    await expect(updateCharacterHandler({ ref: 'uc_nope' })).rejects.toThrow(/no sketch 'uc_nope'/);
+    await twin('empty');
+    await expect(updateCharacterHandler({ ref: 'uc_empty_door' })).rejects.toThrow(/at least one of spec, target, geocube, patch, title/);
+    await expect(updateCharacterHandler({ ref: 'uc_empty_door', target: '8k' })).rejects.toThrow(/resolution is a word/);
+  }, 120_000);
 });
