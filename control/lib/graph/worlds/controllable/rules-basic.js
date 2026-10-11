@@ -46,7 +46,12 @@ export function buildRulesBasic(E) {
     const speed = r.speed ?? 6, turn = r.turn ?? 2.2, stride = r.stride ?? 2.4, strafe = r.strafe ?? 0;
     const t = e.transform;
     if ((r.turnMode ?? 'tank') === 'tank') t.heading = (t.heading - input.turn * turn * dt) % TAU;   // A=left, D=right (heading+ is a LEFT turn)
-    else t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+    else {
+      t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+      // `keyTurn`: a mouse-look walker that still turns on A/D and the arrows (a building level: the mouse looks
+      // once captured, the keys turn without it, and the audit steers it by turning). Absent ⇒ unchanged.
+      if (r.keyTurn) t.heading = (t.heading - input.turn * turn * dt) % TAU;
+    }
     const f = fwdXY(t.heading), rt = rightXY(t.heading);
     const moveF = input.forward * speed * dt;
     const moveS = input.strafe * strafe * speed * dt;

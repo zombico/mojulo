@@ -140,7 +140,8 @@ export function compileMechanicAudit(contract, { fps = 12 } = {}) {
   const audits = (contract && Array.isArray(contract.audits)) ? contract.audits : [];
   const walkto = audits.find((a) => a && a.kind === 'walkto' && Array.isArray(a.target));
   if (walkto) {
-    return { ok: true, plan: { motion: 'traversal', fps, waypoints: [[walkto.target[0], walkto.target[1]]], expect: 'success', via: walkto.mechanic || 'reach-exit' } };
+    const legs = Array.isArray(walkto.via) ? walkto.via.map((p) => [p[0], p[1]]) : [];
+    return { ok: true, plan: { motion: 'traversal', fps, waypoints: [...legs, [walkto.target[0], walkto.target[1]]], expect: 'success', via: walkto.mechanic || 'reach-exit' } };
   }
   const idle = audits.find((a) => a && a.kind === 'idle' && Number.isFinite(a.seconds));
   if (idle) {

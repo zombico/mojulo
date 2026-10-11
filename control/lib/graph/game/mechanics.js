@@ -62,7 +62,8 @@ const MECHANICS = {
           reactions: [{ on: 'enter', match: { zone }, do: 'emit', type: 'goal:reached' }],
         },
         on: { 'goal:reached': { end: 'success' } },
-        audit: { kind: 'walkto', target: at },
+        // `via`: the waypoints the audit walks first (a building level's stairs); absent, the straight walk
+        audit: { kind: 'walkto', target: at, ...(Array.isArray(p.via) && p.via.length ? { via: p.via } : {}) },
       };
     },
   },

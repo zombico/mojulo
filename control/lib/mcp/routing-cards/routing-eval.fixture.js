@@ -65,6 +65,8 @@ export const FIXTURE = [
   // a commercial program on the same rail: its drawing set and its fit-out schedule
   ['floor plans and an FF&E schedule for a corner café', 'mint_building'],
   ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
+  // a building as a game level: designed as a building, played as a level
+  ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

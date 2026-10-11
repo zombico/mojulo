@@ -20,6 +20,7 @@ import { resolveCard } from '../retail/store-cards.js';
 import { validateStoreManifest, STORE_WORLD_DEFAULTS } from '../retail/store-world.js';
 import { buildRestaurant } from '../polygonizer/floorplan-restaurant.js';
 import { buildMall, buildMallTwoLevel } from '../polygonizer/floorplan-mall.js';
+import { stackBuilding, officeInput, validateOfficeManifest } from '../polygonizer/floorplan-building.js';
 import { FLOORPLAN_DEFAULTS } from '../polygonizer/floorplan-structure.js';
 import { PROGRAMS } from '../polygonizer/floorplan-principles.js';
 import { planFractalSchoolComplex, buildFractalSchoolFaces, assessSchoolPrinciples, schoolBim, ROOM_DOOR_OFF, ROOM_DOOR_W, UPPER_FLOOR_H } from '../architecture/fractal-school.js';
@@ -37,6 +38,7 @@ export const OCCUPANCIES = Object.freeze({
   restaurant: Object.freeze({ id: 'restaurant', label: 'restaurant', group: 'A-2', name: 'assembly (food and drink)', program: 'restaurant' }),
   mall: Object.freeze({ id: 'mall', label: 'mall', group: 'M', name: 'mercantile', program: 'mall' }),
   'school-complex': Object.freeze({ id: 'school', label: 'school', group: 'E', name: 'educational', program: null }),
+  office: Object.freeze({ id: 'office', label: 'office building', group: 'B', name: 'business', program: 'office' }),
 });
 
 /** The kinds the structure book reads: a house and the commercial programs. */
@@ -55,6 +57,7 @@ export const ROLE_NAMES = Object.freeze({
   circulation: 'corridor', storage: 'storage', office: 'office', openOffice: 'open office', meetingRoom: 'meeting room', reception: 'reception',
   classroom: 'classroom', science: 'science lab', art: 'art room', music: 'music room', media: 'media lab', shop: 'shop',
   library: 'library', cafeteria: 'cafeteria', 'small-gym': 'gym', gym: 'gym', fieldhouse: 'fieldhouse',
+  lobby: 'lobby', cafe: 'café', core: 'core', 'open-office': 'open office',
   admin: 'office', nurse: "nurse's room", staff: 'staff room', unplanned: 'floor, not planned',
 });
 
@@ -160,6 +163,7 @@ export function buildProgram(m) {
   }
 
   if (occ.id === 'school') return buildSchool(m);
+  if (occ.id === 'office') return buildOffice(m);
 
   // the mall: one level, or two around an atrium (the World's own switch)
   if (m.levels === 2) {
@@ -461,5 +465,27 @@ function buildSchool(m) {
         .filter((q) => q.x1 - q.x0 > 1 && q.y1 - q.y0 > 1).map((q) => ({ id: c.id.replace(/^walk:/, ''), rect: { x: q.x0, y: q.y0, w: q.x1 - q.x0, h: q.y1 - q.y0 } }))),
       campus: { pattern: plan.pattern, program: plan.program, facade: plan.facade, buildings: plan.buildings.map((b) => ({ id: b.id.replace(/^building:/, ''), role: b.role, floors: b.floors ?? 1 })), classrooms: plan.rooms.filter((r) => r.kind === 'classroom').length, seats: bim.seats, outdoor: plan.outdoor.map((o) => o.kind) },
     },
+  };
+}
+
+// ── the office: floor plates stacked over one core (polygonizer/floorplan-building.js) ────────────────────────────
+// Each plate is one tenancy (named by its use: lobby, open office, café) and the core strip (lifts, the egress stair,
+// a riser); the core stair between each pair of floors is the kernel's own switchback.
+const USE_ROLE = { office: 'openOffice', lobby: 'lobby', cafe: 'cafe' };
+function buildOffice(m) {
+  const errs = validateOfficeManifest(m);
+  if (errs.length) throw new Error(errs.join('; '));
+  const held = {};
+  const b = stackBuilding(officeInput(m), { _read: held });
+  const levels = held.floors.map((f) => {
+    const cells = f.structure.cells.map((c) => ({ ...c, role: c.glyph === 'S' ? 'core' : USE_ROLE[f.use] || f.use }));
+    return { index: f.index, role: f.index === 0 ? 'ground' : 'upper', baseZ: f.baseZ, height: f.height, structure: { wallGraph: { ...f.structure.wallGraph, cells }, cells, slabHoles: f.structure.slabHoles || [] } };
+  });
+  return {
+    house: { footprint: b.footprint, levels, stairs: b.stairs.map((st) => ({ ...st, fromIndex: st.lowerIndex, toIndex: st.upperIndex })) },
+    objects: held.floors.flatMap((f) => (f.objects || []).map((p) => ({ source: 'fixture', type: p.type, code: p.code, rect: { x: r2(p.rect.x0), y: r2(p.rect.y0), w: r2(p.rect.x1 - p.rect.x0), h: r2(p.rect.y1 - p.rect.y0) }, baseZ: p.baseZ }))),
+    stacked: levels.length > 1,
+    opts: { ...FLOORPLAN_DEFAULTS },
+    extra: {},
   };
 }

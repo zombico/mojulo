@@ -28,7 +28,7 @@ const HOUSE_WORDS = /^(lounge|storage|bathroom|hallway|dining|bedroom|living)$/;
 
 describe('the programs the book reads', () => {
   it('are the house and the three commercial kinds, the same list the dashboard opens as a book', () => {
-    expect([...STRUCTURE_KINDS].sort()).toEqual(['floorplan', 'mall', 'restaurant', 'school-complex', 'store']);
+    expect([...STRUCTURE_KINDS].sort()).toEqual(['floorplan', 'mall', 'office', 'restaurant', 'school-complex', 'store']);
     expect([...BOOK_KINDS].sort()).toEqual([...STRUCTURE_KINDS].sort());
     expect(OCCUPANCIES.restaurant.group).toBe('A-2');
     expect(readStructure({ kind: 'condo-complex' })).toBeNull();

@@ -345,7 +345,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-11 (202_800 -> 203_000; measured 202,872) for the structure book broadened: mint_building's
 // description and its manifest's schema line name the store, restaurant and mall it now mints (kind and the one field
 // each needs). No new tool.
-const PAYLOAD_CEILING = 203_000;
+// Re-pinned 2026-10-11 (203_000 -> 203_300; measured 203,145) for buildings as game levels: mint_building names the
+// office kind and `level: { goal }` (any building played as a level), create_game's levels say a building with
+// `level` is one. No new tool.
+const PAYLOAD_CEILING = 203_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

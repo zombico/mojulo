@@ -435,6 +435,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Framing and trades stay house-only for now**, and a non-house book says so. Houses read and render as before,
   and store, restaurant and mall worlds are unchanged byte for byte.
 
+### Buildings as game levels: any building on the rail, played at game depth
+
+- **A building is a level with one field.** `level: { goal }` on any `mint_building` recipe (a house, store,
+  restaurant, mall, school or office) makes it playable; `create_game` promotes it with `auto_audit`.
+  - Read from the building: a first-person walker just inside the entry door, a goal in a room, box colliders on
+    every wall with the doors open, and the stair route the audit walks.
+  - The goal is `'top'` (the deepest room on the highest storey a stair reaches), a room tag from the book, or a
+    role.
+  - Lowered on every read, never stored: edit the building and its level follows. No frame, trades or IFC is asked
+    of a level.
+- **An office is a building on the rail** (`kind: 'office'`): a concierge lobby and open-plan office floors (bench
+  desks, task chairs, a meeting table) stacked over one lift-and-stair core, from the existing floor-plate stack and
+  office assets. It gets the structure book like the others. Three storeys is `{ kind: 'office', storeys: 3 }`.
+- `reach-exit` takes an optional `via` route, which the completability audit walks before the goal. Without it,
+  the audit is unchanged.
+
 ### Solid powerscale: solids routed by what they are for
 
 - **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words

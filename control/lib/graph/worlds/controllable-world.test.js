@@ -4141,3 +4141,16 @@ describe('assembleControllableScene — the bare stage', () => {
     expect(faces.map((f) => f.fill)).toEqual(origin.map((f) => f.fill));
   });
 });
+
+describe('rule: walk, mouse look with keyTurn (a building level)', () => {
+  const mk = (rule) => createWorld({ entities: [{ id: 'p', rule: { type: 'walk', speed: 6, turn: 4, ...rule }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+  it('a look walker with keyTurn turns on the keys and on the mouse', () => {
+    const keys = run(mk({ turnMode: 'look', keyTurn: true }), { turn: 1, lookDX: 0 }, 30);
+    expect(keys.byId.p.transform.heading).toBeLessThan(-1);
+    const mouse = run(mk({ turnMode: 'look', keyTurn: true }), { turn: 0, lookDX: 100 }, 1);
+    expect(mouse.byId.p.transform.heading).toBeCloseTo(0.25, 6);
+  });
+  it('without keyTurn a look walker ignores the turn keys, as before', () => {
+    expect(run(mk({ turnMode: 'look' }), { turn: 1, lookDX: 0 }, 30).byId.p.transform.heading).toBe(0);
+  });
+});

@@ -36,7 +36,7 @@ import { sketchRenderMode } from './sketch-manifest';
 
 // The kinds read as a structure book: kept equal to structure/programs.js STRUCTURE_KINDS (a test holds them together;
 // this module imports nothing).
-export const BOOK_KINDS = new Set(['floorplan', 'store', 'restaurant', 'mall', 'school-complex']);
+export const BOOK_KINDS = new Set(['floorplan', 'store', 'restaurant', 'mall', 'school-complex', 'office']);
 export const DISPLAY_MODES = ['wire', 'shaded', 'baked', 'painted'];
 
 /** Kinds whose finished form is painted by an external worker, not by mojulo. */
