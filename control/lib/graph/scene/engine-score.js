@@ -309,6 +309,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // the HUD widget list (hud-widgets.js): slots / kinds / banners / legends as DATA, so an
     // engine arm can lay the readout out as authored. Absent rows ⇒ no key, byte-identical.
     ...(hudWidgets.length ? { hud: hudWidgets } : {}),
+    // the menus a world's play declares (playscape/ui/menus.js menuPages: words and pick labels; the picks' effects
+    // ride the bus), so an engine kernel draws the open one (ui-menu-<id> = 1) and sends its picks back. Absent ⇒ no key.
+    ...(Array.isArray(payload.events?.menus) && payload.events.menus.length ? { menus: payload.events.menus } : {}),
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.

@@ -73,6 +73,14 @@ var contract: Dictionary = {}
 var outcome_events: Array = []
 var bus_pending: Array = []          # events for the bus's first frame (chapters carried in)
 var bus_frag: Dictionary = {}
+# MENUS (since 0.10.0): score.menus, the pages a world's play declares. The open one is the last whose bus var
+# (ui-menu-<id>) is 1, as on the web; arrows or W / S move the focus, Enter / Space / E accept (a read turns its pages,
+# a pick sends menu-pick:<menu>:<n>, else it closes), Esc or Backspace close (menu-close:<menu>). The walker waits.
+var menu_open = null
+var menu_focus := 0
+var menu_page := 0
+var menu_panel: PanelContainer = null
+var menu_label: Label = null
 
 # rigs (walking-suit-backport G-L1..G-L5)
 var suit: Node3D = null              # the player's figure wrapper, driven by the walker
@@ -689,7 +697,7 @@ func _dump(tag: String) -> void:
 			var pp: Vector3 = (part as Node3D).global_position
 			line += " part0=%s(%.2f,%.2f,%.2f)" % [part.name, pp.x, pp.y, pp.z]
 	if bus != null:
-		print("[mojulo-bus] %s events=%d vars=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), bus_banner.text if bus_banner != null and bus_banner.visible else ""])
+		print("[mojulo-bus] %s events=%d vars=%s menu=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), ("%s:%d" % [s_(menu_open["id"]), menu_focus]) if menu_open != null else "", bus_banner.text if bus_banner != null and bus_banner.visible else ""])
 	for fp in figure_players:
 		var n: Node3D = fp["node"]
 		var np := n.global_position
@@ -1048,7 +1056,15 @@ func _build_bus() -> void:
 	bus_prompt.position.y = -72
 	bus_prompt.add_theme_font_size_override("font_size", 18)
 	bus_prompt.visible = false
-	for n in [bus_hud, bus_banner, bus_prompt]:
+	menu_panel = PanelContainer.new()
+	menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+	menu_panel.custom_minimum_size = Vector2(340, 0)
+	menu_panel.visible = false
+	menu_label = Label.new()
+	menu_label.add_theme_font_size_override("font_size", 18)
+	menu_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	menu_panel.add_child(menu_label)
+	for n in [bus_hud, bus_banner, bus_prompt, menu_panel]:
 		layer.add_child(n)
 	add_child(layer)
 	_start_bus()
@@ -1095,10 +1111,10 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 			if ev["type"] == "enter":
 				bus_reach.append(ev["zone"])
 	var top = bus_uses[bus_reach[-1]] if not bus_reach.is_empty() else null
-	if bus_interact and top != null:
+	if bus_interact and top != null and menu_open == null:
 		incoming.append({"type": "use-" + String(top["id"])})
 	bus_interact = false
-	bus_prompt.visible = top != null
+	bus_prompt.visible = top != null and menu_open == null
 	if top != null:
 		bus_prompt.text = "[E] " + (String(top["prompt"]) if String(top["prompt"]) != "" else "use")
 	bus.frame(bus_state, incoming, minf(delta, 0.05))
@@ -1107,6 +1123,7 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	if warp is Array:
 		walker.global_position = to_yup(warp) * bus_units
 	_drain_bus(delta)
+	_sync_menus()
 
 
 # announce the new events, fire the score's banners and toasts on them, refresh the readouts
@@ -1158,6 +1175,109 @@ func _drain_bus(delta: float) -> void:
 	var text := "\n".join(rows)
 	if bus_hud.text != text:
 		bus_hud.text = text
+
+
+func _sync_menus() -> void:
+	var open = null
+	for m in score.get("menus", []) if score.get("menus") is Array else []:
+		if m is Dictionary and bus.strict_eq(bus_state["vars"].get(m.get("var")), 1):
+			open = m
+	if open != menu_open:
+		menu_open = open
+		menu_focus = 0
+		menu_page = 0
+	walker.frozen = menu_open != null
+	_draw_menu()
+
+
+static func _menu_count(m: Dictionary) -> int:
+	if m.get("picks") is Array:
+		return (m["picks"] as Array).size()
+	match String(m.get("kind", "")):
+		"save": return mini(int(m.get("slots", 3)), 4)
+		"shop": return (m.get("stock", []) as Array).size()
+		"chest": return (m.get("holds", []) as Array).size()
+		"list": return (m.get("rows", []) as Array).size()
+	return 0
+
+
+# a key's action on the open menu (the web's __menuDo): the events it sends reach the bus next frame
+func menu_do(action: String) -> void:
+	var m = menu_open
+	if m == null:
+		return
+	var n := _menu_count(m)
+	if action == "up" and n > 0:
+		menu_focus = (menu_focus + n - 1) % n
+	elif action == "down" and n > 0:
+		menu_focus = (menu_focus + 1) % n
+	elif action == "accept":
+		if m.get("kind") == "read" and menu_page + 1 < (m.get("pages", []) as Array).size():
+			menu_page += 1
+		elif m.get("picks") is Array and not (m["picks"] as Array).is_empty():
+			bus_pending.append({"type": "menu-pick:%s:%d" % [s_(m["id"]), menu_focus]})
+		else:
+			bus_pending.append({"type": "menu-close:" + s_(m["id"])})
+	elif action == "back":
+		bus_pending.append({"type": "menu-close:" + s_(m["id"])})
+	_draw_menu()
+
+
+# the open menu as plain text, its {var} words filled from the bus (no UI guide yet: see the README)
+func _draw_menu() -> void:
+	if menu_panel == null:
+		return
+	var m = menu_open
+	menu_panel.visible = m != null
+	if m == null:
+		return
+	var lines: Array = []
+	if s_(m.get("title")) != "":
+		lines.append(s_(m["title"]).to_upper())
+	var mark := func(i: int, text: String) -> String: return ("▸ " if i == menu_focus else "   ") + text
+	match String(m.get("kind", "")):
+		"read":
+			var pages: Array = m.get("pages", [])
+			var p := mini(menu_page, pages.size() - 1)
+			lines.append(s_(pages[p]))
+			lines.append("%d / %d · %s" % [p + 1, pages.size(), "next ▸" if p + 1 < pages.size() else "close"] if pages.size() > 1 else "close")
+		"talk":
+			for l in (m.get("lines", []) as Array).slice(0, 3):
+				lines.append(("%s: " % s_(l.get("who")) if s_(l.get("who")) != "" else "") + s_(l.get("say")))
+		"confirm":
+			lines.append(s_(m.get("ask")))
+		"shop":
+			var stock: Array = m.get("stock", [])
+			for i in stock.size():
+				lines.append(mark.call(i, "%s  %s" % [s_(stock[i].get("item")), bus.js_string(stock[i].get("price"))]))
+			lines.append(s_(m.get("currency")))
+		"chest":
+			var holds: Array = m.get("holds", [])
+			for i in holds.size():
+				lines.append(mark.call(i, "%s  ×%s" % [s_(holds[i].get("item")), bus.js_string(holds[i].get("count", 1))]))
+		"save":
+			for i in _menu_count(m):
+				lines.append(mark.call(i, "Slot %d" % (i + 1)))
+		"list":
+			var rows: Array = m.get("rows", [])
+			for i in rows.size():
+				var v = bus_state["vars"].get(rows[i].get("var"))
+				lines.append(mark.call(i, "%s  %s" % [s_(rows[i].get("label")), bus.js_string(v) if v != null else "0"]))
+		"map":
+			lines.append("(the map)")
+	if m.get("picks") is Array:
+		var picks: Array = m["picks"]
+		for i in picks.size():
+			lines.append(mark.call(i, s_(picks[i])))
+	var text := "\n".join(lines)
+	# {var} fills from the bus, as the web's menu does
+	var rx := RegEx.new()
+	rx.compile("\\{([^}]+)\\}")
+	for hit in rx.search_all(text):
+		var v = bus_state["vars"].get(hit.get_string(1))
+		text = text.replace(hit.get_string(0), bus.js_string(v) if v != null else "0")
+	if menu_label.text != text:
+		menu_label.text = text
 
 
 func _banner(text: String, color: Color) -> void:
@@ -1242,5 +1362,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				view.make_current()
 	if event.physical_keycode == KEY_M and _game() != null:
 		_game().to_menu()
+	if menu_open != null:
+		match event.physical_keycode:
+			KEY_UP, KEY_W, KEY_LEFT, KEY_A: menu_do("up")
+			KEY_DOWN, KEY_S, KEY_RIGHT, KEY_D: menu_do("down")
+			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_E: menu_do("accept")
+			KEY_ESCAPE, KEY_BACKSPACE: menu_do("back")
+		get_viewport().set_input_as_handled()
+		return
 	if event.physical_keycode == KEY_E and bus != null:
 		bus_interact = true

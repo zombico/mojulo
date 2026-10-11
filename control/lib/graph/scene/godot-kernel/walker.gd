@@ -16,6 +16,7 @@ var gravity := 9.8
 var kill_y := -100.0
 var spawn := Vector3.ZERO
 var auto_walk := false
+var frozen := false  # a menu is up: the figure waits (level.gd), falling still but taking no steps
 var head: Camera3D = null
 var pitch_node: Node3D = null  # Head itself (first person) or the boom pivot (suit)
 
@@ -94,6 +95,8 @@ func _physics_process(delta: float) -> void:
 		dir -= transform.basis.x
 	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT):
 		dir += transform.basis.x
+	if frozen:
+		dir = Vector3.ZERO
 	dir = dir.normalized()
 	velocity.x = dir.x * speed
 	velocity.z = dir.z * speed

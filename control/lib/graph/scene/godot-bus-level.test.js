@@ -16,9 +16,10 @@ import { emitGodotGame } from './godot-project.js';
 const KERNEL = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
 const PLAY = {
+  menus: [{ id: 'mayor', kind: 'talk', who: 'Mayor', lines: ['[mayor: warning heard]'], choices: [{ say: 'Ring the bell' }, { say: 'Arm the guard', then: { set: 'guard', to: 'armed' } }] }],
   cues: [{ id: 'siege-says', when: { on: 'chapter-siege' }, then: { say: 'The siege begins' } }],
   chapters: [
-    { id: 'warned', when: { use: { at: [4, 0], r: 1.5 }, prompt: 'warn the mayor' }, world: { set: { gate: 'shut' } } },
+    { id: 'warned', when: { use: { at: [4, 0], r: 1.5 }, prompt: 'warn the mayor' }, world: { set: { gate: 'shut' } }, open: 'mayor' },
     { id: 'siege', when: { after: 'warned' }, world: { set: { alarm: 'ringing' } } },
   ],
 };
@@ -44,7 +45,8 @@ describe('the bus beside the score', () => {
     const s = extractEngineScore({ ref: 'town', manifest: {} }, town());
     const readme = emitGodotProject({ ref: 'town', score: s, manifestHash: 'h', kernelVersion: '0.8.0' }).files.find((f) => f.file === 'README.md').text;
     expect(readme).toContain('## Behaviour');
-    expect(readme).toMatch(/- performed: `fact:use`, `effect:logic`/);
+    expect(readme).toMatch(/- performed: `fact:use`, `fact:menu`, `effect:logic`/);
+    expect(readme).toMatch(/- in part: `effect:hud`, `effect:menus`/);
     expect(readme).toContain('$Level.bus_event.connect(');
     const plain = emitGodotProject({ ref: 'r', score: extractEngineScore({ ref: 'r', manifest: {} }, { entities }), manifestHash: 'h', kernelVersion: '0.8.0' }).files.find((f) => f.file === 'README.md').text;
     expect(plain).not.toContain('## Behaviour');
@@ -60,7 +62,7 @@ describe('the bus beside the score', () => {
 describe('the kernel runs it', () => {
   it('level.gd reads bus.json exactly and steps the bus from the walker (since kernel 0.8.0)', () => {
     const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
-    for (const f of ['preload("res://kernel/bus.gd")', 'preload("res://kernel/json_exact.gd")', '"bus.json"', 'signal bus_event', 'func _step_bus(', 'derive_zone_events', '"use-"', 'KEY_E']) expect(level).toContain(f);
+    for (const f of ['preload("res://kernel/bus.gd")', 'preload("res://kernel/json_exact.gd")', '"bus.json"', 'signal bus_event', 'func _step_bus(', 'derive_zone_events', '"use-"', 'KEY_E', 'func _sync_menus(', 'func menu_do(', '"menu-pick:%s:%d"']) expect(level).toContain(f);
   });
 
   it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot turns the chapter at the gate (MOJULO_GODOT)', () => {
@@ -74,13 +76,19 @@ describe('the kernel runs it', () => {
       fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-bus-probe.gd'), path.join(dir, 'probe.gd'));
       const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '4', '0'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
       const lines = out.split('\n').filter((l) => l.startsWith('[mojulo-bus]'));
-      expect(lines).toHaveLength(3);
-      expect(lines[0]).toMatch(/^\[mojulo-bus\] start events=\d+ vars=\{\}/);
-      expect(lines[1]).not.toMatch(/gate/);
+      expect(lines).toHaveLength(4);
+      expect(lines[0]).toMatch(/^\[mojulo-bus\] start events=\d+ vars=\{[^}]*\} menu= banner=$/);
+      expect(lines[1]).not.toMatch(/"gate"/);
       expect(lines[2]).toMatch(/"alarm":"ringing"/);
       expect(lines[2]).toMatch(/"chapter-siege":1/);
       expect(lines[2]).toMatch(/"gate":"shut"/);
-      expect(lines[2]).toMatch(/banner=The siege begins$/);
+      // the warning opens the mayor's talk: the menu is up (focus 0) and the banner shows
+      expect(lines[2]).toMatch(/"ui-menu-mayor":1/);
+      expect(lines[2]).toMatch(/menu=mayor:0 banner=The siege begins$/);
+      // down, accept: the second choice's effect lands on the bus and the menu closes
+      expect(lines[3]).toMatch(/"guard":"armed"/);
+      expect(lines[3]).toMatch(/"ui-menu-mayor":0/);
+      expect(lines[3]).toMatch(/menu= /);
     } finally {
       if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -107,8 +115,8 @@ describe('the store travels', () => {
     expect(without.ledger).toHaveProperty('gate_approximated');
   });
 
-  it('the kernel carries the store (0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.9.0');
+  it('the kernel carries the store (since 0.9.0)', () => {
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.10.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);

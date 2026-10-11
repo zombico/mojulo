@@ -1,6 +1,7 @@
 extends SceneTree
 # The bus inside a real level (kernel/level.gd), headless: the level is built from <pack>/score.json and its bus.json,
-# the walker is set down at a place, the interact key is pressed there, and the bus is dumped before and after.
+# the walker is set down at a place, the interact key is pressed there, and the bus is dumped before and after; then
+# the open menu's focus moves down and accepts, and the bus is dumped once more.
 # lib/graph/scene/godot-bus-level.test.js writes the pack and reads the [mojulo-bus] lines.
 #
 #   godot --headless --path <pack> --script res://probe.gd -- <x> <y>      (the place, in the score's z-up metres)
@@ -30,5 +31,10 @@ func _process(_delta: float) -> bool:
 		level.bus_interact = true
 	elif f == 20:
 		level._dump("after")
+		level.menu_do("down")
+	elif f == 22:
+		level.menu_do("accept")
+	elif f == 30:
+		level._dump("picked")
 		quit(0)
 	return false

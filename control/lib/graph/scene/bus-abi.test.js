@@ -31,8 +31,8 @@ describe('the bus contract', () => {
     const { used, godot } = busCoverage(ev);
     for (const id of ['fact:use', 'fact:cast', 'effect:logic', 'effect:hud', 'effect:menus', 'effect:weather', 'effect:cast']) expect(used, id).toContain(id);
     expect(godot.built).toEqual(expect.arrayContaining(['fact:use', 'effect:logic']));
-    expect(godot.partial).toContain('effect:hud');
-    expect(godot.absent).toEqual(expect.arrayContaining(['fact:cast', 'effect:menus', 'effect:weather', 'effect:cast']));
+    expect(godot.partial).toEqual(expect.arrayContaining(['effect:hud', 'effect:menus']));
+    expect(godot.absent).toEqual(expect.arrayContaining(['fact:cast', 'effect:weather', 'effect:cast']));
   });
 
   it('finds a mechanics level whole in the Godot kernel but its painting', () => {
@@ -44,11 +44,13 @@ describe('the bus contract', () => {
   });
 
   it('rides the ledger and the portability flags', () => {
-    const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: { open: 'sign' } }] });
+    const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: [{ open: 'sign' }, { weather: 'rain' }] }] });
     const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events });
-    expect(score.ledger.bus_carried.godot.absent).toContain('effect:menus');
+    expect(score.ledger.bus_carried.godot.absent).toEqual(['effect:weather']);
+    expect(score.ledger.bus_carried.godot.partial).toContain('effect:menus');
+    expect(score.menus.map((m) => m.id)).toEqual(['sign']);
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score }] });
-    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: .*fact:menu.*effect:menus/);
+    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: effect:weather/);
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
   });
 });

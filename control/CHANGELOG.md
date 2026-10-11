@@ -103,6 +103,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   A two-level game plays through in a headless Godot: the town's chapter opens the walls, and the walls start with the
   town's world. Games without a store schema keep completion-only progress, as before.
+- **Menus in Godot (kernel 0.10.0).** The score carries the play's menus, and `level.gd` draws the open one (the last
+  whose `ui-menu-<id>` var is 1, as on the web) as a plain panel with its `{var}` words filled from the bus.
+  - Keys: arrows or W / S move the focus. Enter, Space or E accept: a read turns its pages, a pick sends
+    `menu-pick:<menu>:<n>`, anything else closes. Esc closes.
+  - The walker waits while a menu is up.
+  - A talk opened by a chapter's turn picks its second choice in a headless Godot, and that choice's effect reaches
+    the bus.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The
