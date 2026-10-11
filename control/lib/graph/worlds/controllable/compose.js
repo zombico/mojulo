@@ -31,8 +31,8 @@ import { buildRulesFly } from './rules-fly.js';
 import { buildLock } from './lock.js';
 import { buildTutorial } from './tutorial.js';
 import { buildCast } from './cast.js';
+import { buildManeuvers } from './maneuvers.js';
 import { buildMind } from './mind.js';
-import { buildMsManeuvers } from '../../mobile-suit/ms-maneuvers.js';
 
 export function composeControllable(builders) {
   const E = {};
@@ -42,11 +42,12 @@ export function composeControllable(builders) {
 
 // The ordered builder lists — the SINGLE source of composition + emission order. Core FIRST
 // (later builders destructure its helpers at build time). ENGINE is the pack-less composition
-// (basic rules + platform + combat + the mind — runs any world); EMISSION appends the mobile-suit
-// content pack (maneuvers riding the platform seam). S4: all.js is dissolved. The mind (mind.js) was
-// the pack's ai brain until it was lifted into the engine whole.
-export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildMind];
-export const EMISSION = [...EMISSION_ENGINE, buildMsManeuvers];
+// (basic rules + platform + combat + maneuvers + the mind — runs any world). EMISSION is the same list:
+// the mobile-suit pack's two behavior modules were lifted into the engine whole (maneuvers.js, the
+// pack's ms-maneuvers; mind.js, its ai brain), so no pack content composes in any more. Kept as its
+// own export for the callers that name it. S4: all.js is dissolved.
+export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRulesPlatform, buildRulesDrive, buildRulesFly, buildCombatHit, buildCombatMatch, buildCombatRanged, buildCombatMelee, buildLock, buildTutorial, buildCast, buildManeuvers, buildMind];
+export const EMISSION = [...EMISSION_ENGINE];
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

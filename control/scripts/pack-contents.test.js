@@ -23,9 +23,9 @@ describe.skipIf(!isCheckout)('npm package contents', () => {
     expect(ignored).toEqual([]);
   });
 
-  it('still carries the one tracked mobile-suit behavior module and nothing else from that tree', () => {
+  it('carries nothing from the mobile-suit tree (its behavior modules are engine: controllable/maneuvers.js, mind.js)', () => {
     const pack = spawnSync(NPM, ['pack', '--dry-run', '--json', '--ignore-scripts'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     const suit = JSON.parse(pack.stdout)[0].files.map((f) => f.path).filter((p) => p.startsWith('lib/graph/mobile-suit/'));
-    expect(suit.sort()).toEqual(['lib/graph/mobile-suit/ms-maneuvers.js']);   // the ai brain moved into the engine (worlds/controllable/mind.js)
+    expect(suit).toEqual([]);
   });
 });

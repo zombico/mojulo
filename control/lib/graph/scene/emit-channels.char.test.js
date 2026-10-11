@@ -71,6 +71,9 @@ import { emitThreeWorld } from './scene-three.js';
 // aggressiveness, plus an opt-in per-character `rule.mind`). Only the embedded engine source moved: every one of the 13
 // fixtures that embeds it was emitted before and after with that source cut out, and the rest is byte-identical. The
 // controllable trace pins hold, the three arena bouts included.
+// Re-pinned 2026-10-11 (the maneuvers): the pack's other behavior module, its maneuvers (dodge, tackle, loadout
+// cycling, boost inertia), joined the engine as controllable/maneuvers.js, ahead of the mind; EMISSION is now the engine
+// alone. Same proof: the 13 fixtures emitted before and after with the engine source cut out are byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

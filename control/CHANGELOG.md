@@ -60,6 +60,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     sharper than its troops.
   - A passive mind never engages; a defensive one engages only once hurt.
   - Pages that embed the controllable engine changed only in that embedded source.
+- **Maneuvers are engine verbs.** The acrobatic dodge, the tackle, loadout cycling with its switch ready time, and
+  boost inertia left the mobile-suit pack too, as `worlds/controllable/maneuvers.js`. Any rule can opt into them, and
+  a mind can carry a loadout without the pack. Nothing in `lib/graph/mobile-suit/` is tracked or published any more.
 - **First person was already there.** A level with no hero plays in first person, so the registry now records it as
   partial (no named mode, no pitch, no body hiding) instead of absent.
 

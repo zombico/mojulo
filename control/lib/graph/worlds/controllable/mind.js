@@ -22,8 +22,8 @@
  * character tunes its own on top with `rule.mind: { skill?, aggressiveness?, tune? }` (a boss fine-tuned). Without
  * `rule.mind` it reads the world's tier untouched.
  *
- * BUILDER CONTRACT (compose.js): import-free inside the function. `armSwitchReady` (the loadout switch's ready time)
- * belongs to the suit maneuvers pack, so it is read through E at call time; without the pack, a switch is ready at once.
+ * BUILDER CONTRACT (compose.js): import-free inside the function; maneuvers.js precedes it (`armSwitchReady`, the
+ * loadout switch's ready time).
  * Field ownership: the e.ai- family (aiFire, aiClock, the wobble/juke/boost clocks, ranged rotation picks, the combo
  * chain), the melee commit and give-up clocks, the tackle fields shared with the platform tackle (so stepTackle
  * adjudicates a mind's charge identically), state.aiTuning / aiEnabled.
@@ -32,9 +32,8 @@
 export function buildMind(E) {
   const {
     clamp, fwdXY, rightXY, fwd3, TAU, sightBlocked, resolveBlocking, RULES,
-    meleeSwingSpec, breakGuards, registerPreStep, registerStateInit,
+    meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, armSwitchReady,
   } = E;
-  const armSwitchReady = (e, r, sc) => (E.armSwitchReady ? E.armSwitchReady(e, r, sc) : undefined);
 
   // ── TUNING ────────────────────────────────────────────────────────────────────────────
   const MIND_SKILL = {

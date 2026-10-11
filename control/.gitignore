@@ -26,15 +26,10 @@ spike-output/
 # liveries) — game content lives OUTSIDE the repo; canonical home is
 # lite-template/integration/archive-mobile-suit/. The substrate reaches it only
 # through guarded seams (extraction.plan.md). Never committed.
-#
-# Exception: one import-free *behavior* module the general controllable engine
-# depends on directly (the dodge/tackle maneuvers). It carries tracked test
-# coverage in controllable-world.test.js and must resolve on a clean checkout —
-# behavior, not content — so it is tracked while the rest of the pack stays out.
-# See controllable/compose.js EMISSION. (The AI opponent brain moved into the
-# engine as controllable/mind.js.)
+# The pack's two behavior modules (the maneuvers and the AI opponent brain) were
+# lifted into the engine as controllable/maneuvers.js and controllable/mind.js,
+# so nothing in this tree is tracked.
 lib/graph/mobile-suit/*
-!lib/graph/mobile-suit/ms-maneuvers.js
 
 # Scratch prototyping scripts (underscore-prefixed) are local-only; they carried
 # absolute home-directory paths and were never load-bearing.

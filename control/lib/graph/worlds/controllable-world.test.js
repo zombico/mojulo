@@ -1148,15 +1148,14 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
   });
 
   it('a pack-less compose (EMISSION_ENGINE) still runs walk + basic platform worlds (S4)', () => {
-    // The engine without the mobile-suit pack: basic rules + the base platformer + combat + the mind.
-    // The pack's phases are simply empty; melee strike still works (it is combat, not pack); and the
-    // mind (`ai`, mind.js) is engine since it was lifted out of the pack. This is the "pack absent →
-    // basic worlds run" gate.
+    // The engine is the whole composition now: basic rules + the base platformer + combat + the maneuvers + the mind,
+    // both lifted out of the mobile-suit pack, so EMISSION adds nothing to it. This is the "no pack → worlds run" gate.
     const cw = composeControllable(EMISSION_ENGINE);
+    expect(EMISSION).toEqual(EMISSION_ENGINE);
     expect(cw.RULES.platform).toBeDefined();
     expect(cw.RULES.ai).toBeDefined();            // the mind is engine
     expect(Object.keys(cw.AI_DIFFICULTY)).toEqual(['easy', 'medium', 'max']);
-    expect(cw.armSwitchReady).toBeUndefined();    // the loadout switch ready-time stays pack content
+    expect(typeof cw.armSwitchReady).toBe('function');   // the loadout switch ready-time is engine too
     const w = cw.createWorld({ entities: [{ id: 'h', rule: { type: 'platform', speed: 6, jumpSpeed: 8 }, transform: { pos: [0, 0, 0], heading: 0 } }] });
     const hooks = { ground: () => 0 };
     for (let i = 0; i < 90; i++) {
@@ -1166,12 +1165,11 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     expect(w.byId.h.grounded).toBe(true);                   // jumped and landed
   });
 
-  it('a mind runs without the suit pack: it turns, closes and fires on its own trigger', () => {
+  it('a mind runs on the engine alone: it turns, closes and fires on its own trigger', () => {
     const cw = composeControllable(EMISSION_ENGINE);
     const w = cw.createWorld({
       entities: [
         { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [60, 0, 0], heading: 0 } },
-        // a plain weapon: loadouts are expanded by the suit pack's normalizer, so a pack-less mind holds one gun
         { id: 'm', rule: { type: 'ai', speed: 8, turn: 3, standoff: 20 }, weapon: { fireClass: 'sight', magazine: 30, cooldown: 0.2, damage: 1, range: 200 }, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [0, 0, 0], heading: Math.PI } },
       ],
     });

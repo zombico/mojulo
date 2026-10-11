@@ -1,19 +1,18 @@
 /**
- * ms-maneuvers.js — the mobile-suit MANEUVER pack (controllable-split.plan.md, S4). The arena
- * verbs that ride the platform rule's maneuver seam: the ACROBATIC DODGE (double-tap F, i-frame
- * tumble, thruster overheat), the TACKLE (invincible shoulder-charge), LOADOUT weapon cycling
- * (R / 1–N, per-slot figures + switch ready-time), their committed dashes and locomotion claims —
- * plus the arena entity dressing (seat / liveries / loadout hoists). A composition without this
- * pack runs the base platformer + combat unchanged: every hook here is opt-in per rule, and the
- * phases are simply empty.
+ * maneuvers.js — the body's committed MANEUVERS, Power verbs any rule may opt into: the ACROBATIC DODGE (double-tap
+ * F, i-frame tumble, thruster overheat), the TACKLE (invincible shoulder-charge), LOADOUT weapon cycling (R / 1–N,
+ * per-slot figures + switch ready-time), BOOST INERTIA, their committed dashes and locomotion claims — plus the
+ * entity dressing that rides them (seat / liveries / loadout hoists). They ride the platform rule's maneuver seam;
+ * the mind (mind.js) uses the loadout and the switch ready-time too. Lifted from the mobile-suit pack whole: every
+ * hook is opt-in per rule, so a world that names none of them steps byte-identically.
  *
- * BUILDER CONTRACT (compose.js): import-free inside the function; engine builders precede this
- * in EMISSION. Field ownership: the e.dodge-, e.tackle- and e.inertia- families (fTapWin,
- * tacklePrev, tackleT, tackleDir, inertiaT/inertiaDir/inertiaLocal/inertiaStep/inertiaPrev/
- * inertiaCap), e.loadoutIdx/loadoutWeapons/switched/readyT/readyMax, e.seat/liveries.
+ * BUILDER CONTRACT (compose.js): import-free inside the function; the platform rule and combat precede this, the
+ * mind follows it. Field ownership: the e.dodge-, e.tackle- and e.inertia- families (fTapWin, tacklePrev, tackleT,
+ * tackleDir, inertiaT/inertiaDir/inertiaLocal/inertiaStep/inertiaPrev/inertiaCap), e.loadoutIdx/loadoutWeapons/
+ * switched/readyT/readyMax, e.seat/liveries.
  */
 
-export function buildMsManeuvers(E) {
+export function buildManeuvers(E) {
   const { fwdXY, rightXY, TAU, beginDodge, initWeapon, registerPlatformManeuver, registerNormalize } = E;
 
   // armSwitchReady(e, r, sc) — SWITCH READY-TIME (2026-07-28): every weapon SWITCH (loadout cycle /
@@ -258,7 +257,7 @@ export function buildMsManeuvers(E) {
     return true;
   }, 30);
 
-  // arena entity dressing — the pack's normalize extension (runs after combat-hit's hoists):
+  // entity dressing — the maneuvers' normalize extension (runs after combat-hit's hoists):
   registerNormalize((ent, raw) => {
     // arena M3: an optional SEAT tag ('player' | 'opponent') the game-params seam reads — a level
     // world authors its FULL roster and the launcher's picks despawn the unpicked opponent seats.
