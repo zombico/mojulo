@@ -2,7 +2,7 @@
 // (the corpus is deterministic and covers every predicate and verb); the Godot side runs when MOJULO_GODOT names an
 // engine, as every engine gate does (CI has none).
 import { describe, it, expect } from 'vitest';
-import { corpus, runScenario, SCENARIOS, randomScenarios } from './bus-conformance.js';
+import { corpus, runScenario, runStoreScenario, SCENARIOS, STORE_SCENARIOS, randomScenarios, randomStoreScenarios } from './bus-conformance.js';
 
 const GODOT = process.env.MOJULO_GODOT;
 
@@ -15,12 +15,23 @@ describe('the bus conformance corpus', () => {
     for (const sc of all) expect(JSON.parse(JSON.stringify(sc)), sc.id).toEqual(sc);
   });
 
-  it('gives every frame a snapshot, the same on every run', () => {
+  it('gives every frame (every store op) a snapshot, the same on every run', () => {
     for (const sc of all) {
-      const a = runScenario(sc);
-      expect(a, sc.id).toHaveLength(sc.frames.length);
-      expect(runScenario(sc), sc.id).toEqual(a);
+      const run = sc.store ? runStoreScenario : runScenario;
+      const a = run(sc);
+      expect(a, sc.id).toHaveLength(sc.store ? sc.ops.length : sc.frames.length);
+      expect(run(sc), sc.id).toEqual(a);
     }
+  });
+
+  it('holds the store to its words: refusals, atomic writes, gates', () => {
+    expect(STORE_SCENARIOS.map((s) => s.id)).toEqual(['store-campaign']);
+    expect(randomStoreScenarios(3, 1).every((s) => s.store && s.ops.length)).toBe(true);
+    const snaps = runStoreScenario(STORE_SCENARIOS[0]);
+    expect(snaps.slice(0, 3)).toEqual(['false', 'false', 'true']);
+    expect(snaps.join('\n')).toMatch(/does not accept \\"setFlag\\"/);
+    expect(snaps.join('\n')).toMatch(/exceeds produces max for grant→bag \(max 2\)/);
+    expect(snaps.join('\n')).toMatch(/contractVersion 2 ≠ shell contract version 1/);
   });
 
   it('exercises what the port has to get right', () => {

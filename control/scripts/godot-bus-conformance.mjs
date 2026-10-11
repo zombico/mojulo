@@ -21,7 +21,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONTROL = path.resolve(HERE, '..');
 register(pathToFileURL(path.join(HERE, 'mcp-stdio-loader.mjs')).href, pathToFileURL(`${CONTROL}/`).href);
 
-const { corpus, runScenario } = await import('../lib/graph/scene/bus-conformance.js');
+const { corpus, runScenario, runStoreScenario } = await import('../lib/graph/scene/bus-conformance.js');
 const { findGodot } = await import('../lib/workers/find.js');
 
 export function firstDifference(a, b) {
@@ -36,7 +36,7 @@ export function runGodotBus(scenarios, godot) {
   try {
     mkdirSync(path.join(dir, 'kernel'));
     writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="bus-conformance"\n');
-    for (const f of ['bus.gd', 'json_exact.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
+    for (const f of ['bus.gd', 'json_exact.gd', 'store.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
     copyFileSync(path.join(HERE, 'godot-bus-conformance.gd'), path.join(dir, 'conformance.gd'));
     const inFile = path.join(dir, 'corpus.json'), outFile = path.join(dir, 'out.json');
     writeFileSync(inFile, JSON.stringify(scenarios));
@@ -53,7 +53,7 @@ export function runGodotBus(scenarios, godot) {
 export function compare(scenarios, godotOut) {
   const rows = [];
   for (const sc of scenarios) {
-    const web = runScenario(sc), gd = (godotOut && godotOut[sc.id]) || [];
+    const web = sc.store ? runStoreScenario(sc) : runScenario(sc), gd = (godotOut && godotOut[sc.id]) || [];
     let bad = null;
     for (let f = 0; f < web.length; f++) {
       if (web[f] !== gd[f]) { bad = { frame: f, ...firstDifference(web[f], gd[f] || '') }; break; }

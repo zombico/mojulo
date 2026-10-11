@@ -66,6 +66,13 @@ var bus_hud: Label = null            # readouts and legends
 var bus_banner: Label = null         # the last banner, until its ttl
 var bus_banner_left := 0.0
 var bus_prompt: Label = null
+# THE CONTRACT (since 0.9.0): levels/<ref>/contract.json, the level's game contract as the web shell reads it. Its `on`
+# maps bus events to typed store events (kept for the outcome) or ends the level; its `chapters` name the flags whose
+# chapters are carried in from the store; a level ends with ONE envelope that Game applies atomically.
+var contract: Dictionary = {}
+var outcome_events: Array = []
+var bus_pending: Array = []          # events for the bus's first frame (chapters carried in)
+var bus_frag: Dictionary = {}
 
 # rigs (walking-suit-backport G-L1..G-L5)
 var suit: Node3D = null              # the player's figure wrapper, driven by the walker
@@ -117,6 +124,7 @@ func _ready() -> void:
 	_build_rigs()
 	_build_looks()
 	_build_mechanics()
+	_build_contract()
 	_build_bus()
 	_start_music()
 	_build_hud()
@@ -1018,6 +1026,7 @@ func _build_bus() -> void:
 		push_warning("moj: bus.json is not a bus/1 document; the world's behaviour does not run")
 		return
 	var frag: Dictionary = doc["fragment"]
+	bus_frag = frag
 	bus = BusScript.new()
 	bus_units = float(doc.get("metersPerUnit", 1.0))
 	bus_state = bus.create_bus_state(frag, frag.get("entities", []) if frag.get("entities") is Array else [])
@@ -1042,9 +1051,29 @@ func _build_bus() -> void:
 	for n in [bus_hud, bus_banner, bus_prompt]:
 		layer.add_child(n)
 	add_child(layer)
-	if frag.get("initial") is Array and not (frag["initial"] as Array).is_empty():
-		bus.process_events(bus_state, frag["initial"])
+	_start_bus()
+
+
+func _start_bus() -> void:
+	if bus_frag.get("initial") is Array and not (bus_frag["initial"] as Array).is_empty():
+		bus.process_events(bus_state, bus_frag["initial"])
+	# a chapter the store already holds is applied at once, with no presentation (the web's game channel does the same)
+	var ch = contract.get("chapters")
+	if ch is Dictionary and _game() != null:
+		var slice = (_game().params_for(contract) as Dictionary).get(ch.get("slice"), {})
+		var flags: Dictionary = slice.get("flags", {}) if slice is Dictionary else {}
+		for c in ch.get("carried", []):
+			if c is Dictionary and bus.truthy(flags.get(c.get("key"))):
+				bus_pending.append({"type": c["event"]})
 	_drain_bus(0.0)
+
+
+func _build_contract() -> void:
+	var p := score_path.get_base_dir().path_join("contract.json")
+	if FileAccess.file_exists(p):
+		var c = JsonExact.parse(FileAccess.get_file_as_string(p))
+		if c is Dictionary:
+			contract = c
 
 
 # the walker in the bus's frame: y-up metres back to z-up recipe units
@@ -1058,7 +1087,8 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	var who := s_(score.get("player"))
 	var z: Dictionary = bus.derive_zone_events([{"id": who if who != "" else "player", "position": _bus_pos(pos)}], bus_zone_prev, bus_sources)
 	bus_zone_prev = z["prev"]
-	var incoming: Array = z["events"]
+	var incoming: Array = bus_pending + z["events"]
+	bus_pending = []
 	for ev in z["events"]:
 		if bus_uses.has(ev["zone"]):
 			bus_reach.erase(ev["zone"])
@@ -1083,17 +1113,35 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 func _drain_bus(delta: float) -> void:
 	var log: Array = bus_state["log"]
 	var widgets: Array = score.get("hud", []) if score.get("hud") is Array else []
+	var on: Dictionary = contract.get("on", {}) if contract.get("on") is Dictionary else {}
+	var end_with := ""
 	for i in range(bus_seen, log.size()):
 		var e: Dictionary = log[i]
 		if not e.has("type"):
 			continue
 		bus_event.emit(String(e["type"]), e)
+		# the contract's on: the first pattern that matches maps the event (scene/channels/game.js, the same rule)
+		for pat in on:
+			if not bus.glob(e["type"], pat):
+				continue
+			var act = on[pat]
+			if act is Dictionary and act.get("emit") is Dictionary:
+				if state == "playing":
+					outcome_events.append((act["emit"] as Dictionary).duplicate(true))
+			elif act is Dictionary and act.has("end") and end_with == "":
+				end_with = String(act["end"])
+			break
 		for w in widgets:
 			if w is Dictionary and (w.get("kind") == "banner" or w.get("kind") == "toast") and w.has("on") and bus.glob(e["type"], w["on"]):
 				bus_banner.text = s_(w.get("text"))
 				bus_banner.visible = true
 				bus_banner_left = float(w.get("ttl", 2.0)) if w.get("ttl") != null else 2.0
 	bus_seen = log.size()
+	if end_with != "" and state == "playing":
+		if end_with == "success":
+			_complete()
+		else:
+			_fail(end_with)
 	if bus_banner_left > 0.0:
 		bus_banner_left -= delta
 		if bus_banner_left <= 0.0:
@@ -1127,22 +1175,31 @@ func _game() -> Node:
 	return get_node_or_null("/root/Game")
 
 
+# the level's one outcome: what its bus mapped (contract.on), with the result (level-contract.js, the envelope)
+func outcome_envelope(result: String) -> Dictionary:
+	return {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": 1, "result": result, "events": outcome_events.duplicate(true)}
+
+
 func _complete() -> void:
+	if state != "playing":
+		return
 	state = "complete"
 	print("moj: level complete")
 	_banner("LEVEL COMPLETE", Color(1, 1, 1))
 	var game := _game()
 	if game != null:
-		game.level_complete()
+		game.level_finish(outcome_envelope("success"), contract)
 
 
-func _fail() -> void:
+func _fail(result: String = "fail") -> void:
+	if state != "playing":
+		return
 	state = "failed"
 	print("moj: level failed")
 	_banner("FAILED", Color(1, 0.35, 0.3))
 	var game := _game()
 	if game != null:
-		game.level_failed()
+		game.level_finish(outcome_envelope(result), contract)
 	else:
 		await get_tree().create_timer(1.5).timeout
 		_reset()
@@ -1162,6 +1219,13 @@ func _reset() -> void:
 	walker.global_position = walker.spawn
 	walker.velocity = Vector3.ZERO
 	state = "playing"
+	outcome_events = []
+	if bus != null:
+		bus_state = bus.create_bus_state(bus_frag, bus_frag.get("entities", []) if bus_frag.get("entities") is Array else [])
+		bus_seen = 0
+		bus_zone_prev = null
+		bus_reach = []
+		_start_bus()
 	_update_hud()
 
 

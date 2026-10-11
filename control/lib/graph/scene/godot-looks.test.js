@@ -49,8 +49,8 @@ describe('the score carries the looks', () => {
 
 describe('the kernel', () => {
   it('ships looks.gd and look_coat.gdshader (since 0.6.0), and level.gd makes the Looks node from the score', () => {
-    // the kernel is at 0.8.0 (bus.gd: the world's behaviour, 2026-10-11); looks arrived at 0.6.0
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.8.0');
+    // the kernel is at 0.9.0 (store.gd: the game store, 2026-10-11); looks arrived at 0.6.0
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.9.0');
     const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8'), looks = fs.readFileSync(path.join(KERNEL, 'looks.gd'), 'utf8');
     expect(level).toContain('load("res://kernel/looks.gd")');
     expect(level).toMatch(/score\.has\("looks"\) or score\.has\("transits"\)/);

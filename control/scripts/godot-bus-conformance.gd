@@ -11,7 +11,11 @@ func _init() -> void:
 	var corpus = load("res://kernel/json_exact.gd").parse(FileAccess.get_file_as_string(args[0]))
 	var Bus = load("res://kernel/bus.gd")
 	var results := {}
+	var Store = load("res://kernel/store.gd")
 	for sc in corpus:
+		if sc.get("store", false):
+			results[sc["id"]] = _run_store(Store.new(), Bus, sc)
+			continue
 		var bus = Bus.new()
 		var st: Dictionary = bus.create_bus_state(sc.get("config", {}), sc.get("entities", []))
 		var sources: Array = sc.get("config", {}).get("sources", []) if typeof(sc.get("config", {}).get("sources")) == TYPE_ARRAY else []
@@ -31,3 +35,22 @@ func _init() -> void:
 	out.store_string(JSON.stringify(results))
 	out.close()
 	quit(0)
+
+
+# a store scenario: each op's result (a gate's bool; a write's ok, errors and the state after), the state carried on ok
+func _run_store(K, Bus, sc: Dictionary) -> Array:
+	var schema: Dictionary = sc["schema"]
+	var state: Dictionary = K.create_store(schema)
+	var out := []
+	for op in sc["ops"]:
+		if op.has("gate"):
+			out.append(Bus.ss(K.eval_gate(schema, state, op["gate"])))
+			continue
+		var r: Dictionary = K.apply_events(schema, state, op["events"]) if op.has("events") else K.apply_outcome(schema, state, op["outcome"]["contract"], op["outcome"]["envelope"])
+		if r["ok"]:
+			state = r["state"]
+		var snap := {"ok": r["ok"], "state": state}
+		if not r["ok"]:
+			snap["errors"] = r["errors"]
+		out.append(Bus.ss(snap))
+	return out

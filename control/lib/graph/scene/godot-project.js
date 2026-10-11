@@ -473,12 +473,12 @@ ${ledgerLines(ledger)}
  * The driver ships kernel/, game.json, per-level model.glb/score.json,
  * recipe/, audio/. levels: [{ ref, title, gate, score, audioFile, audioDb }].
  */
-export function emitGodotGame({ ref, title, manifestHash, levels, music = {}, shellExtras = [], kernelVersion = '?', remint = null }) {
+export function emitGodotGame({ ref, title, manifestHash, levels, music = {}, shellExtras = [], kernelVersion = '?', remint = null, store = false }) {
   const files = [];
-  const ledger = {
-    skipped_store: { note: 'store slices (character/inventory state) do not travel — only completion progression is kept (user://progress.cfg)' },
-    levels: {},
-  };
+  // the store travels when the game declares one (kernel 0.9.0: kernel/store.gd, held equal to the web's store)
+  const ledger = store
+    ? { store_carried: { note: 'the store travels: kernel/store.gd (the web store, conformance-tested equal) applies each level\'s outcome envelope against its contract (levels/<ref>/contract.json), opens flag and completion gates, carries chapters in, and saves to user://store.json. Setup picks (the hangar, a roster pick) stay on the web' }, levels: {} }
+    : { skipped_store: { note: 'store slices (character/inventory state) do not travel — only completion progression is kept (user://progress.cfg)' }, levels: {} };
   if (shellExtras.length) {
     ledger.skipped_shell = {
       kinds: shellExtras,
@@ -486,7 +486,7 @@ export function emitGodotGame({ ref, title, manifestHash, levels, music = {}, sh
     };
   }
   const oddGates = levels.filter((lv) => lv.gate && !lv.gate.completed);
-  if (oddGates.length) {
+  if (oddGates.length && !store) {
     ledger.gate_approximated = {
       count: oddGates.length,
       note: 'non-completion gates (store flags) approximated as unlocked — flag state does not travel',
@@ -522,7 +522,7 @@ ${music.menuFile ? `
   files.push({ file: '.gitignore', text: GITIGNORE });
 
   const levelList = levels
-    .map((lv, i) => `${i + 1}. ${lv.title ?? lv.ref} (\`${lv.ref}\`)${lv.gate?.completed ? ` — unlocks after \`${lv.gate.completed}\`` : ''}`)
+    .map((lv, i) => `${i + 1}. ${lv.title ?? lv.ref} (\`${lv.ref}\`)${lv.gate?.completed ? ` — unlocks after \`${lv.gate.completed}\`` : lv.gate?.flag ? ` — unlocks on the flag \`${lv.gate.flag}\`` : ''}`)
     .join('\n');
   const perLevelLedgers = levels
     .map((lv) => `### \`${lv.ref}\`\n\n${ledgerLines(ledger.levels[lv.ref])}`)
@@ -562,7 +562,7 @@ breathe their idle.` : ''}
 
 ## What travelled, what didn't
 
-${ledgerLines({ skipped_store: ledger.skipped_store, ...(ledger.skipped_shell ? { skipped_shell: ledger.skipped_shell } : {}), ...(ledger.gate_approximated ? { gate_approximated: ledger.gate_approximated } : {}) })}
+${ledgerLines({ ...(ledger.store_carried ? { store_carried: ledger.store_carried } : { skipped_store: ledger.skipped_store }), ...(ledger.skipped_shell ? { skipped_shell: ledger.skipped_shell } : {}), ...(ledger.gate_approximated ? { gate_approximated: ledger.gate_approximated } : {}) })}
 
 ${perLevelLedgers}
 `,

@@ -10,11 +10,18 @@
  *   randomScenarios(n, seed)    seeded scenarios over a small vocabulary (globs, refs, sagas, caps, float sums)
  *   corpus({ random })          every scenario, as plain JSON
  *   runScenario(sc)             → [snapshot per frame], on the web reducer
+ *
+ * STORE scenarios (`store: true`) hold the Godot store (godot-kernel/store.gd) equal to the web's (game/store-kernel.js)
+ * the same way: a schema and a list of ops ({ events } | { outcome: { contract, envelope } } | { gate }), each op's
+ * result snapshotted (ok, the errors word for word, the state after), the state carried only when a write is ok.
+ *
+ *   STORE_SCENARIOS, randomStoreScenarios(n, seed), runStoreScenario(sc)
  */
 import { mulberry32 } from '../vegetation/grow.js';
 import { buildBus } from '../worlds/event-bus.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { composeMechanics } from '../game/mechanics.js';
+import { buildGameStoreKernel } from '../game/store-kernel.js';
 
 // a scenario's frame: { events?: [...], dt?: seconds, walkers?: [{ id, position }] }
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -208,8 +215,77 @@ export function randomScenarios(n = 24, seed = 7) {
   return out;
 }
 
+// ── the store ────────────────────────────────────────────────────────────────────────────────────────────────────
+const SCHEMA = { slices: [
+  { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } },
+  { name: 'bag', kind: 'inventory', init: { items: { coin: 2 } } },
+  { name: 'crew', kind: 'party', init: { roster: { ana: { name: 'Ana', stats: { hp: 30 } } } } },
+  { name: 'campaign', kind: 'progression' },
+  { name: 'world', kind: 'flags' },
+] };
+const CONTRACT = { produces: { results: ['success', 'fail'], events: [{ type: 'setFlag', slice: 'world' }, { type: 'grant', slice: 'bag', max: 2 }, { type: 'promote', slice: 'campaign', max: 1 }] } };
+const env = (events, result = 'success', extra = {}) => ({ contractVersion: 1, levelRef: 'town', seed: 1, result, events, ...extra });
+
+export const STORE_SCENARIOS = [{
+  id: 'store-campaign', store: true,
+  about: 'every slice kind written, a chapter flag carried, gates on flags and completions, atomic refusals word for word',
+  schema: SCHEMA,
+  ops: [
+    { gate: { flag: 'chapter:siege' } }, { gate: { completed: 'town' } }, { gate: null },
+    { outcome: { contract: CONTRACT, envelope: env([{ type: 'setFlag', slice: 'world', key: 'chapter:siege', value: true }, { type: 'grant', slice: 'bag', item: 'key' }]) } },
+    { gate: { flag: 'chapter:siege' } }, { gate: { flag: 'chapter:siege', equals: 1 } }, { gate: { flag: 'chapter:siege', equals: true } },
+    { events: [{ type: 'promote', slice: 'campaign', ref: 'town' }] }, { gate: { completed: 'town' } }, { gate: { completed: 'walls', slice: 'campaign' } },
+    { events: [{ type: 'consume', slice: 'bag', item: 'coin', count: 2 }, { type: 'setStat', slice: 'hero', stat: 'hp', delta: -12.5 }, { type: 'levelUp', slice: 'hero', by: 2, xp: 40 }] },
+    { events: [{ type: 'consume', slice: 'bag', item: 'coin' }] },
+    { events: [{ type: 'recruit', slice: 'crew', member: { id: 'bo', stats: { hp: 20 } } }, { type: 'setStat', slice: 'crew', id: 'bo', stat: 'hp', value: 0.1 }, { type: 'dismiss', slice: 'crew', id: 'ana' }] },
+    { events: [{ type: 'teleport', slice: 'bag' }, { type: 'grant', slice: 'nowhere' }, { type: 'setFlag', slice: 'bag' }, { type: 'grant', slice: 'bag', item: 'x', count: 1.5 }, { type: 'setFlag', slice: 'world', key: 'k', value: { no: 1 } }, { type: 'promote', slice: 'campaign', ref: 'town', result: 'maybe' }, { type: 'levelUp', slice: 'hero', by: 0 }, { type: 'recruit', slice: 'crew', member: { id: 'bo' } }, { type: 'dismiss', slice: 'crew', id: 'zed' }, { type: 'setStat', slice: 'crew', id: 'zed', stat: 'hp', value: 1 }, { type: 'setStat', slice: 'hero', stat: 'hp' }] },
+    { events: 'not a list' },
+    { outcome: { contract: CONTRACT, envelope: env([{ type: 'grant', slice: 'bag', item: 'a' }, { type: 'grant', slice: 'bag', item: 'b' }, { type: 'grant', slice: 'bag', item: 'c' }]) } },
+    { outcome: { contract: CONTRACT, envelope: env([{ type: 'setStat', slice: 'hero', stat: 'hp', value: 1 }], 'abort') } },
+    { outcome: { contract: CONTRACT, envelope: { ...env([]), contractVersion: 2, events: 'none' } } },
+    { outcome: { contract: { produces: { events: [] } }, envelope: env([], 'abort') } },
+    { gate: { flag: 'k', slice: 'missing' } },
+  ],
+}];
+
+export function randomStoreScenarios(n = 12, seed = 5) {
+  const rand = mulberry32(seed), pick = (l) => l[Math.floor(rand() * l.length)];
+  const EV = () => pick([
+    { type: 'setFlag', slice: 'world', key: pick(['a', 'b', 'chapter:x']), value: pick([true, false, 1, 0.5, 'yes', undefined]) },
+    { type: 'grant', slice: 'bag', item: pick(['coin', 'key']), count: pick([1, 2, 3, 0, -1, undefined]) },
+    { type: 'consume', slice: 'bag', item: pick(['coin', 'key']), count: pick([1, 2]) },
+    { type: 'setStat', slice: 'hero', stat: 'hp', delta: pick([-10, 0.25, 5]) },
+    { type: 'levelUp', slice: 'hero', by: pick([1, 2, undefined]) },
+    { type: 'promote', slice: 'campaign', ref: pick(['town', 'walls']), result: pick(['success', 'fail', undefined]) },
+    { type: 'recruit', slice: 'crew', member: { id: pick(['bo', 'cy']) } },
+    { type: 'dismiss', slice: 'crew', id: pick(['ana', 'bo']) },
+    { type: pick(['setFlag', 'grant']), slice: pick(['world', 'bag', 'hero']) },
+  ]);
+  const GATE = () => pick([{ flag: pick(['a', 'b', 'chapter:x']) }, { flag: 'a', equals: pick([true, 1, 'yes']) }, { completed: pick(['town', 'walls']) }, null]);
+  return Array.from({ length: n }, (_, s) => ({
+    id: `store-random-${s}`, store: true, about: 'seeded', schema: SCHEMA,
+    ops: Array.from({ length: 14 }, () => {
+      const r = rand(), evs = Array.from({ length: 1 + Math.floor(rand() * 3) }, EV);
+      if (r < 0.4) return { events: evs };
+      if (r < 0.75) return { outcome: { contract: CONTRACT, envelope: env(evs, pick(['success', 'fail', 'abort'])) } };
+      return { gate: GATE() };
+    }),
+  }));
+}
+
+export function runStoreScenario(sc) {
+  const K = buildGameStoreKernel();
+  let state = K.createStore(clone(sc.schema));
+  return sc.ops.map((op) => {
+    if ('gate' in op) return JSON.stringify(K.evalGate(sc.schema, state, clone(op.gate)));
+    const r = 'events' in op ? K.applyEvents(sc.schema, state, clone(op.events)) : K.applyOutcome(sc.schema, state, clone(op.outcome.contract), clone(op.outcome.envelope));
+    if (r.ok) state = r.state;
+    return JSON.stringify(sortedKeys({ ok: r.ok, ...(r.ok ? {} : { errors: r.errors }), state }));
+  });
+}
+
 export function corpus({ random = 24, seed = 7 } = {}) {
-  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), ...randomScenarios(random, seed)]);
+  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
 }
 
 // ── the web side ─────────────────────────────────────────────────────────────────────────────────────────────────

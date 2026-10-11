@@ -15,8 +15,8 @@
  * gates, the tutorial step director, the pixelizer cutscene (a camera track, layers and typewriter captions, pixel
  * only) and the motion comic (click-gated scenes, type-on subtitles: time is the click). Flags carry a fact between levels by composition: a cue emits a bus event,
  * the level's `game.on` maps it to a `setFlag`, and the store opens the gate that waits on it. Godot runs the cues on its
- * bus (kernel/bus.gd, scene/bus-abi.js says what it feeds and draws), but the store does not travel yet: flag gates
- * export as unlocked and chapters do not carry, so those stay web-only.
+ * bus (kernel/bus.gd; scene/bus-abi.js says what it feeds and draws) and carries the store (kernel/store.gd): flag gates
+ * and chapters travel. Quests, shots, banter and passage stay web-only until they are built.
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const MENUS = 'lib/graph/playscape/ui/menus.js';
@@ -36,13 +36,13 @@ export const TIME = Object.freeze({
       values: {
         none: { status: 'built', note: 'one level' },
         linear: { status: 'built', lowers: 'lib/graph/game/game-manifest.js', note: 'levels in play order; the shell records each completed' },
-        gated: { status: 'built', ...WEB, lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; no test runs the flag chain end to end' },
+        gated: { status: 'built', lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; Godot carries the store (kernel/store.gd)' },
       },
     },
     chapters: {
       values: {
         none: { status: 'built' },
-        overlays: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/chapters.js', note: 'play.chapters: a world difference turned by a happening, lowered to cues, carried between levels as a chapter flag; a menu presents the turn until shots exist' },
+        overlays: { status: 'built', lowers: 'lib/graph/playscape/ui/chapters.js', note: 'play.chapters: a world difference turned by a happening, lowered to cues, carried between levels as a chapter flag; a menu presents the turn until shots exist' },
       },
     },
     passage: {

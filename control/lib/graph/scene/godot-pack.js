@@ -18,6 +18,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
 import { extractEngineScore, extractBus } from './engine-score.js';
+import { synthesizeLevel } from '../game/level-synth.js';
+import { normalizeLevelContract } from '../game/level-contract.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
 
@@ -123,6 +125,13 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false, f
   const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
   return { kind, exported, score, fig, bus: extractBus(payload) };
+}
+
+/** A level's game contract, as game-resolve.js reads it: synthesized from its mechanics (and its chapters' carry rows),
+ * normalized; null when the level carries no `game` channel. */
+export function levelContract(manifest) {
+  const { game } = synthesizeLevel(manifest || {});
+  return game && typeof game === 'object' ? normalizeLevelContract(game) : null;
 }
 
 /** Clean-emit a pack folder: binaries + emitted text + (optional) portability
@@ -257,6 +266,10 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
     binaries.push({ rel: `levels/${spec.ref}/score.json`, bytes: JSON.stringify(score, null, 2) });
     if (bus) binaries.push({ rel: `levels/${spec.ref}/bus.json`, bytes: JSON.stringify(bus) });
+    // the level's contract as the web shell reads it (synthesized from mechanics, with its chapters' rows): Game
+    // applies the level's outcome against it, and the level maps its bus through its `on` (kernel 0.9.0)
+    const contract = levelContract(lvSketch.manifest);
+    if (contract) binaries.push({ rel: `levels/${spec.ref}/contract.json`, bytes: JSON.stringify(contract) });
     binaries.push({ rel: `recipe/${spec.ref}.json`, bytes: JSON.stringify(lvSketch.manifest, null, 2) });
     levels.push({ ref: spec.ref, title: spec.title ?? spec.ref, gate: spec.gate ?? null, score, audioFile, audioDb: own ? null : battleDb });
     glbStats.levels[spec.ref] = { bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0 };
@@ -269,6 +282,7 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
   const portability = assessPortability({ manifest, levels: levels.map((l) => ({ ref: l.ref, score: l.score })) });
   const emitted = emitGodotGame({
     ref, title: manifest.title ?? ref, manifestHash: hashOf(manifest), levels,
+    store: Array.isArray(manifest.store?.slices) && manifest.store.slices.length > 0,
     music: { menuFile, menuDb: toDb(music.menuVolume) },
     shellExtras: ['menu', 'setup', 'difficulty', 'theme'].filter((k) => manifest[k] != null),
     kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`,

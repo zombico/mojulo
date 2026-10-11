@@ -93,6 +93,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
   A chapter town turns its chapters at the gate in a headless Godot. A world without behaviour exports exactly as
   before.
+- **The store travels (kernel 0.9.0).** `kernel/store.gd` ports the web's game store, held equal by the same
+  conformance corpus (error messages compared word for word).
+  - Each game level ships its contract (`levels/<ref>/contract.json`). Its `on` maps the level's bus events to typed
+    store events or ends the level, and the level finishes with one outcome envelope that `Game` applies atomically.
+  - Beating a level records it in the progression slice. Flag and completion gates open the level list.
+  - A level starts with the slices it consumes, so a chapter turned earlier is applied as the next level opens.
+  - The store saves as the web's save does.
+
+  A two-level game plays through in a headless Godot: the town's chapter opens the walls, and the walls start with the
+  town's world. Games without a store schema keep completion-only progress, as before.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The

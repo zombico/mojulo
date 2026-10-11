@@ -9,6 +9,9 @@ import { execFileSync } from 'node:child_process';
 import { extractBus, extractEngineScore, BUS_VERSION } from './engine-score.js';
 import { emitGodotProject } from './godot-project.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
+import { chapterContract, chapterKey } from '../playscape/ui/chapters.js';
+import { validateLevelContract } from '../game/level-contract.js';
+import { emitGodotGame } from './godot-project.js';
 
 const KERNEL = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
@@ -19,8 +22,8 @@ const PLAY = {
     { id: 'siege', when: { after: 'warned' }, world: { set: { alarm: 'ringing' } } },
   ],
 };
-const town = () => {
-  const events = lowerPlay({ entities, play: PLAY }, { player: 'hero' });
+const town = (play = PLAY) => {
+  const events = lowerPlay({ entities, play }, { player: 'hero' });
   events.hud = [...(events.hud || []), { var: 'gate', label: 'gate' }];
   return { entities, events };
 };
@@ -55,8 +58,7 @@ describe('the bus beside the score', () => {
 });
 
 describe('the kernel runs it', () => {
-  it('level.gd reads bus.json exactly and steps the bus from the walker (kernel 0.8.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.8.0');
+  it('level.gd reads bus.json exactly and steps the bus from the walker (since kernel 0.8.0)', () => {
     const level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/bus.gd")', 'preload("res://kernel/json_exact.gd")', '"bus.json"', 'signal bus_event', 'func _step_bus(', 'derive_zone_events', '"use-"', 'KEY_E']) expect(level).toContain(f);
   });
@@ -80,7 +82,66 @@ describe('the kernel runs it', () => {
       expect(lines[2]).toMatch(/"gate":"shut"/);
       expect(lines[2]).toMatch(/banner=The siege begins$/);
     } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
+// a two-level game: the town turns its chapters and ends on the siege's word; the walls open on the chapter's flag and
+// start with the town's world carried in. The store travels (kernel 0.9.0).
+const STORE = { slices: [{ name: 'campaign', kind: 'progression' }, { name: 'world', kind: 'flags' }] };
+const CARRY = { ...PLAY, carry: 'world' };
+const contractOf = (ref) => chapterContract({ levelRef: ref, produces: { events: [] }, on: { 'cue:siege-says': { end: 'success' } } }, CARRY);
+const LEVELS = [{ ref: 'town', title: 'Town' }, { ref: 'walls', title: 'Walls', gate: { flag: chapterKey('siege') } }];
+
+describe('the store travels', () => {
+  it('each level ships its contract, valid against the game\'s store, and the game ledger says so', () => {
+    for (const { ref } of LEVELS) expect(validateLevelContract(contractOf(ref), STORE), ref).toMatchObject({ ok: true });
+    const lv = LEVELS.map((l) => ({ ...l, score: extractEngineScore({ ref: l.ref, manifest: {} }, town()) }));
+    const withStore = emitGodotGame({ ref: 'g', title: 'G', manifestHash: 'h', levels: lv, kernelVersion: '0.9.0', store: true });
+    expect(withStore.ledger).toHaveProperty('store_carried');
+    expect(withStore.ledger).not.toHaveProperty('gate_approximated');
+    expect(withStore.files.find((f) => f.file === 'README.md').text).toContain('unlocks on the flag `chapter:siege`');
+    const without = emitGodotGame({ ref: 'g', title: 'G', manifestHash: 'h', levels: lv, kernelVersion: '0.9.0' });
+    expect(without.ledger).toHaveProperty('skipped_store');
+    expect(without.ledger).toHaveProperty('gate_approximated');
+  });
+
+  it('the kernel carries the store (0.9.0)', () => {
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.9.0');
+    const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
+    for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
+    for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot plays the town, saves the flag, opens the walls and carries the chapter in (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-game-'));
+    try {
+      // the bus and the contract come from the same play, as a level's export does
+      const payload = town(CARRY);
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-game-probe.gd'), path.join(dir, 'probe.gd'));
+      fs.writeFileSync(path.join(dir, 'project.godot'), `config_version=5\n\n[application]\nconfig/name="game-probe-${path.basename(dir)}"\nrun/main_scene="res://menu.tscn"\n\n[autoload]\nGame="*res://kernel/game.gd"\nProbe="*res://probe.gd"\n`);
+      fs.writeFileSync(path.join(dir, 'menu.tscn'), '[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://kernel/menu.gd" id="m"]\n\n[node name="Menu" type="Control"]\nscript = ExtResource("m")\n');
+      fs.writeFileSync(path.join(dir, 'game.json'), JSON.stringify({ kind: 'game', title: 'Siege', store: STORE, levels: LEVELS }));
+      for (const { ref } of LEVELS) {
+        const lv = path.join(dir, 'levels', ref);
+        fs.mkdirSync(lv, { recursive: true });
+        fs.writeFileSync(path.join(lv, 'level.tscn'), `[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://kernel/level.gd" id="k"]\n\n[node name="Level" type="Node3D"]\nscript = ExtResource("k")\nscore_path = "res://levels/${ref}/score.json"\n`);
+        fs.writeFileSync(path.join(lv, 'score.json'), JSON.stringify(extractEngineScore({ ref, manifest: {} }, payload)));
+        fs.writeFileSync(path.join(lv, 'bus.json'), JSON.stringify(extractBus(payload)));
+        fs.writeFileSync(path.join(lv, 'contract.json'), JSON.stringify(contractOf(ref)));
+      }
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--', '4', '0'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const lines = out.split('\n').filter((l) => l.startsWith('[mojulo-game]'));
+      expect(lines).toHaveLength(4);
+      expect(lines[0]).toBe('[mojulo-game] start gates=town:true,walls:false');
+      expect(lines[1]).toMatch(/^\[mojulo-game\] played state=complete events=\[.*"key":"chapter:warned".*"key":"chapter:siege".*\]$/);
+      expect(lines[2]).toMatch(/after gates=town:true,walls:true store=.*"completed":\{"town":"success"\}.*"chapter:siege":true.* saved=true/);
+      expect(lines[3]).toMatch(/carried vars=.*"alarm":"ringing".*"gate":"shut"/);
+      expect(lines[3]).toMatch(/"chapter-siege-n":100/);
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
     }
   }, 120000);
 });
