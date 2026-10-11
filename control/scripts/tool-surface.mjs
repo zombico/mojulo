@@ -115,7 +115,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const page = buildPage(opts);
   const current = existsSync(opts.out) ? readFileSync(opts.out, 'utf8') : '';
   if (opts.check) {
-    if (page !== current) {
+    // the head stamp names the commit the page was built from, so committing the page moves it: compare without it
+    const unstamped = (html) => html.replace(/"head":\{[^}]*\}/, '"head":{}');
+    if (unstamped(page) !== unstamped(current)) {
       process.stderr.write(`${opts.out} is stale: run node scripts/tool-surface.mjs\n`);
       process.exit(1);
     }
