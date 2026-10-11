@@ -79,7 +79,7 @@ import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
-import { tieredChest } from '../../graph/polygonizer/tiered-form.js';
+import { tieredChest, tieredJoints } from '../../graph/polygonizer/tiered-form.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -405,7 +405,7 @@ function tieredBust(hero) {
  * the torso's rings in place of its own domes. */
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
-  return tieredChest(heroFormPlanOf({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }), tieredBust(hero));
+  return tieredJoints(tieredChest(heroFormPlanOf({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }), tieredBust(hero)));
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0

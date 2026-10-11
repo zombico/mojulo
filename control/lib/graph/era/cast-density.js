@@ -12,6 +12,7 @@
  *   densityPlan(plan, target)   the plan with that refine after the dress's (a part is split once)
  */
 import { SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
+import { TIERED_JOINTS } from '../polygonizer/tiered-form.js';
 import { readTarget, pxPerMetre, sidesFor, outlineError } from './target.js';
 
 /** the body parts the rule sets, right-hand names (a limb's left twin follows its right) */
@@ -48,6 +49,12 @@ export function castDensity(plan, targetSpec) {
     const rPx = radiusOf(g) * ppm, split = how.get(name) === 'split', sides = split ? base * 2 : base, errorPx = outlineError(rPx, sides);
     parts.push({ part: name, radiusPx: r2(rPx), sides, wants: Math.ceil(sidesFor(rPx, target.error)), errorPx: r2(errorPx), split });
     if (!split && errorPx > target.error) (how.get(name) === 'stations' ? splitOnly : fresh).push(...twin(name));
+  }
+  // a bridged joint (tiered-form.js) splits as one: its two limbs and its bridge share their end rings
+  for (const J of TIERED_JOINTS) {
+    if (!byName[J.bridge]) continue;
+    const chain = [J.upper, J.lower, J.bridge], split = (p) => how.get(p) === 'split' || fresh.includes(p) || splitOnly.includes(p);
+    if (chain.some(split)) for (const p of chain) if (!split(p)) (how.get(p) === 'stations' ? splitOnly : fresh).push(...twin(p));
   }
   const refine = [...(fresh.length ? [{ parts: fresh, slots: 'halve' }] : []), ...(splitOnly.length ? [{ parts: splitOnly, stations: false, slots: 'halve' }] : [])];
   return { target, heightM: r2(heightM), pxPerMetre: r2(ppm), parts, refine };

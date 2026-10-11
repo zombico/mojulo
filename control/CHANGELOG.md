@@ -53,9 +53,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - It is placed as the unsupported chest: the apexes about as far apart as each is from the sternal notch, turned a
     little out, low (about 0.72 of the height), the pair meeting in a low valley at the sternum. Today's default sets
     them 0.6 of that apart, with a filled midline, a garment's shape.
-  - It costs 3,988 triangles against 5,196 on the bare figure, deforms and refines with the torso, and its body's colour
-    groups are shaded smooth like the skin (`TIERED_SMOOTH_CREASE`), so the form reads as one.
+  - It deforms and refines with the torso, and its body's colour groups are shaded smooth like the skin
+    (`TIERED_SMOOTH_CREASE`), so the form reads as one.
   - Of the field's gates, nine pass; `meridian` (the apex outward of the mound's middle) is the placement's, kept.
+- **The tiered base form, second piece: the joints.** Today a limb's two segments each run past the elbow or the knee
+  and cross there, so a bent joint scissors (the outside of the knee a beak, the elbow two crossed tubes) and even a
+  straight one shows a saw-toothed seam. In the tiered form (`tieredJoints`) each segment stops short of its joint on a
+  flat end, and a BRIDGE part (`elbowBridge`, `kneeBridge`) spans the gap: its end rings are the limbs' own, its rings
+  between them matched slot to slot, weighted from the upper bone through the joint's fold to the lower bone.
+  - The joint bends as one surface, with the elbow's and the kneecap's point on the outside.
+  - The shin takes the thigh's ring8 so the knee's rings match. A bridge takes every dial and every split its limbs
+    take: the dress's, and a target's, which now splits a bridged joint's two limbs and bridge together.
+  - The bare tiered figure is 4,308 triangles against 5,196: the chest 3,988, the four bridges and the shin's ring 320.
   - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
 - **Critics.**
   - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head
