@@ -118,6 +118,12 @@ export function validateLevelContract(game, schema) {
     }
   }
 
+  // ARRIVE: the levels a map game travels in from. The shell's `arrive` param names one, the level hears `arrive:<ref>`
+  // on its first frame, and its own events move the pilot to that end of the level.
+  if (game.arrive !== undefined && !(Array.isArray(game.arrive) && game.arrive.length && game.arrive.every((r) => typeof r === 'string' && r))) {
+    errors.push('game.arrive is [<level ref>, …]: the levels a map game travels in from (each heard as arrive:<ref> on the first frame)');
+  }
+
   if (game.on !== undefined) {
     if (!game.on || typeof game.on !== 'object' || Array.isArray(game.on)) errors.push('game.on must be { "<busEventPattern>": { emit: <typed event> } | { end: result } }');
     else for (const [pat, action] of Object.entries(game.on)) {
@@ -126,6 +132,8 @@ export function validateLevelContract(game, schema) {
       const keys = ['emit', 'end'].filter((k) => action[k] !== undefined);
       if (keys.length !== 1) { errors.push(`${where} needs exactly one of emit | end`); continue; }
       if (action.end !== undefined && !RESULTS.includes(action.end)) errors.push(`${where}.end must be one of: ${RESULTS.join(', ')}`);
+      // a level left by one of several ways names it: the envelope carries `exit`, and a map game travels by it
+      if (action.exit !== undefined && (action.end === undefined || typeof action.exit !== 'string' || !/^[a-z0-9][a-z0-9:_-]{0,63}$/.test(action.exit))) errors.push(`${where}.exit names the way the level was left (a short lower-case id), beside end`);
       if (action.emit !== undefined) {
         // an emitted event must itself be allowed by produces — check the pair here so the
         // authoring error surfaces at mint time, not as a rejected envelope at play time.

@@ -98,6 +98,11 @@ import { emitThreeWorld } from './scene-three.js';
 // in a herd run on the alarm. Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (the rule facade's clock): `world.time` reaches the rules, so a mind's sightings, memory,
 // regrowth and a group's shared sight read the real time (they read 0). Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (cameras): two camera rules (`eye`, `overhead`), `walk` lookPitch and `platform` move: 'world',
+// each gated on its own key, so the controllable trace pins hold. With the embedded engine source set aside, all 64
+// fixtures are byte-identical to before: the first-person body-hiding splice is gated at emit time. Same 13 fixtures.
+// Re-pinned 2026-10-11 (side camera): the `side` camera rule, `platform` move: 'lane' and core `laneNear`, each gated on
+// its own key; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

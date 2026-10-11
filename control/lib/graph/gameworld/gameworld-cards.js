@@ -21,7 +21,7 @@ import { IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
 import { CLASS_SLOTS } from './equipment.js';
 import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
-import { WORLD_STYLE, CIVILIZATION, LINK_KINDS } from './world.js';
+import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
@@ -95,7 +95,7 @@ function guide() {
 
 function worldCard() {
   return lines(
-    'THE WORLD — where the game happens: { id, name?, seed?, style?, civilizations?, levels, links?, start?, mode?, brief? }.',
+    'THE WORLD — where the game happens: { id, name?, seed?, style?, civilizations?, levels, links?, start?, topology?, camera?, mode?, brief? }.',
     '',
     `style: ${Object.entries(WORLD_STYLE).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'kits (the outdoor stage kits a world is drawn in), and what each takes:',
@@ -105,6 +105,8 @@ function worldCard() {
     `levels: { <id>: { name?, style?, walk: { nodes: { <id>: { ${LEVEL_SECTIONS.join(': {} } | { ')}: {} } }, edges?: [{ from, to }] }, places? } }:`,
     '  a walk is one line of sections (a trail, then a climb), joined by edges in order; a level overrides its world where it says.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
+    `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
+    '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
     '',
     'ANSWER FROM: the brief\'s places and their moods. One level that is a promise of the rest is a better first',
     'reading than many; the world bible (the sketch page) draws every level as it resolves.',
@@ -241,6 +243,7 @@ function quickCard() {
     `  climb: true        a climb after the trail (reach: the exit is its top); pickup: '<word>' for collect (coin, key, star…); seconds: n for survive`,
     `  hero: { <hero-door words> } the hero's looks, hair, outfit, gear in hand, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
     '                     absent or false: first person, you are the camera',
+    `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: third person with a hero, first person without; top-down (¾, north up) and side (A / D run the trail's line, no climb) need a hero`,
     `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
     `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world says what each takes)`,
     '',

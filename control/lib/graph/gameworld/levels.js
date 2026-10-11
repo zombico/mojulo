@@ -23,8 +23,13 @@ import { layLevel } from '../level/index.js';
 import { assembleStageScene } from '../era/stage.js';
 import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
+import { outTrailOf } from '../era/out-trail-board.js';
 
 const EYE_FALLBACK = 1.7;
+// a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
+const HERO_EYE = 1.6;
+// the ¾ overhead camera: north up the screen, 60° below the horizon, far enough back to read a trail's next turn
+const OVERHEAD = Object.freeze({ yaw: Math.PI / 2, tilt: Math.PI / 3, dist: 14, lookH: 1 });
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** Every stage of every level, the start level first, then the rest in the world's order. */
@@ -83,27 +88,140 @@ function readEnds(manifest) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null } = {}) {
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
-  const controls = `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const game = { levelRef: ref, mechanics: goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }) }], fall: { mode: 'respawn' } };
+  // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
+  // fingerprints hold: third person with a hero, the old first-person walker without one.
+  const cam = G.camera ?? null;
+  if (cam === 'top-down' && !heroRef) throw new Error('levels: a top-down camera watches a hero; give the world a hero (quick.hero, or its characters), or play it first-person');
+  if (cam === 'side' && !heroRef) throw new Error('levels: a side camera watches a hero run its lane; give the world a hero, or play it first-person');
+  if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
+  const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
+  const moveWords = lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
+  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const placed0 = goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }) }];
+  // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
+  const ways = map ? stageWays(stage, ends, map) : null;
+  const placed = ways ? [...placed0.filter((m) => m.kind !== 'reach-exit'), ...ways.mechanics] : placed0;
+  const game = { levelRef: ref, mechanics: lane ? placed.map((m) => onLane(m, lane)) : placed, fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
   if (heroRef) {
-    const P = playerWorld({ heroRef, id: 'hero', title: name, controls });
+    // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
+    const rule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
+    const P = playerWorld({ heroRef, id: 'hero', title: name, controls, ...(rule ? { rule } : {}) });
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
-    pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera: P.camera, events };
+    const camera = look ? { rule: 'eye', target: 'hero', height: HERO_EYE, mouseLook: true, hideTarget: true }
+      : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
+        : lane ? { rule: 'side', target: 'hero' }
+        : P.camera;
+    pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
   } else {
-    // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height
+    // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height. Asked for by name, it
+    // looks with the mouse (yaw and pitch) through an `eye` camera; unnamed, it keeps the old tank-turn walker.
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });   // for its legend only: no figure is kept
+    const rule = { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(look ? { turnMode: 'look', lookPitch: true, strafe: 1 } : {}) };
     pilotPart = {
-      entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK }, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
-      camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2 },
+      entities: [{ id: 'player', pilotable: true, rule, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
+      camera: look ? { rule: 'eye', target: 'player', height: 0, mouseLook: true } : { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2 },
       events: P.events || {},
     };
   }
+  if (ways && ways.arrive.length) {
+    const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
+    const moves = ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: pilot, to: lane ? onLane({ at: a.at }, lane).at : a.at }));
+    pilotPart = { ...pilotPart, events: { ...ev, reactions: [...(Array.isArray(ev.reactions) ? ev.reactions : []), ...moves] } };
+  }
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(mechanics?.play ? { play: mechanics.play } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
+}
+
+/**
+ * A side-scroller's lane on a stage: the trail's own spine, one point a metre on the ground plane, the way the trail
+ * runs (spawn to exit), and the ground under it. A climb has no spine to run, so a side camera refuses it by name.
+ */
+function stageLane(stage) {
+  if (stage.manifest.trail === undefined) throw new Error(`levels: a side camera runs a trail's lane, and the stage '${stage.level}/${stage.node}' is a climb with no trail to run; play this world top-down or third-person, or leave the climb out`);
+  const { site } = outTrailOf(stage.manifest), line = [];
+  for (let y = 0; y <= site.D + 1e-9; y += 1) line.push([r3(site.trailX(y)), r3(y)]);
+  return { line, ground: (x, y) => site.ground(x, y) };
+}
+
+/** A goal's placed points moved onto the lane (pockets and landmarks sit off the trail, where a lane cannot reach), each
+ * at the height it stood above its own ground. */
+function onLane(m, lane) {
+  const move = (at) => {
+    let best = Infinity, q = at;
+    for (let i = 1; i < lane.line.length; i++) {
+      const [ax, ay] = lane.line[i - 1], dx = lane.line[i][0] - ax, dy = lane.line[i][1] - ay, L2 = dx * dx + dy * dy || 1e-12;
+      const u = Math.max(0, Math.min(1, ((at[0] - ax) * dx + (at[1] - ay) * dy) / L2)), x = ax + dx * u, y = ay + dy * u;
+      const d2 = (at[0] - x) ** 2 + (at[1] - y) ** 2;
+      if (d2 < best) { best = d2; q = [x, y]; }
+    }
+    return [r3(q[0]), r3(q[1]), r3(lane.ground(q[0], q[1]) + (at[2] - lane.ground(at[0], at[1])))];
+  };
+  return {
+    ...m,
+    ...(Array.isArray(m.at) ? { at: move(m.at) } : {}),
+    ...(Array.isArray(m.pickups) ? { pickups: m.pickups.map((pk) => ({ ...pk, at: move(pk.at) })) } : {}),
+    ...(Array.isArray(m.hazards) ? { hazards: m.hazards.map((h) => ({ ...h, at: move(h.at) })) } : {}),
+  };
+}
+
+/**
+ * THE MAP of an interconnected world: for each stage (in gameStages order), the ways out of it and where they lead. The
+ * stages of one level join both ways; a link joins its `from` level's last stage and its `to` level's first, both ways;
+ * a keyed link locks the way from `from` to `to` with `{ has: key }`, and lays the key on `keyAt`'s last stage.
+ *   mapPlan(G, stages, refs) → [{ on: [way], back: [way], keys: [item] }]   way: { id, to: ref, gate? }
+ */
+export function mapPlan(G, stages, refs) {
+  const plan = stages.map(() => ({ on: [], back: [], keys: [] }));
+  const of = (lvl) => stages.map((s, i) => (s.level === lvl ? i : -1)).filter((i) => i >= 0);
+  for (const id of G.ids) {
+    const ix = of(id);
+    for (let k = 0; k + 1 < ix.length; k++) { plan[ix[k]].on.push({ to: refs[ix[k + 1]] }); plan[ix[k + 1]].back.push({ to: refs[ix[k]] }); }
+  }
+  for (const l of G.links) {
+    const a = of(l.from), b = of(l.to);
+    if (!a.length || !b.length) continue;
+    const last = a[a.length - 1], first = b[0];
+    plan[last].on.push({ to: refs[first], ...(l.key ? { gate: { has: l.key, slice: 'bag' } } : {}) });
+    plan[first].back.push({ to: refs[last] });
+    if (l.key) { const at = of(l.keyAt); plan[at[at.length - 1]].keys.push(l.key); }
+  }
+  for (const p of plan) {
+    p.on.forEach((w, j) => { w.id = j ? `on-${j + 1}` : 'on'; });
+    p.back.forEach((w, j) => { w.id = j ? `back-${j + 1}` : 'back'; });
+  }
+  return plan;
+}
+
+/** A stage's ways out laid on its own ground: the first way on at the trail's exit, the first way back just behind
+ * the spawn, any more at its pockets then its landmarks; a key on a beat of its own; and for each way, the point a pilot
+ * coming in by it arrives at, a few metres inside (the way back's arrival is the spawn itself). */
+function stageWays(stage, ends, plan) {
+  if (stage.manifest.trail === undefined) throw new Error(`levels: a map world's stages are trails, whose ends and pockets carry its ways; '${stage.level}/${stage.node}' is a climb`);
+  const side = ends.beats.filter((b) => b.beat === 'pocket').concat(ends.beats.filter((b) => b.beat === 'landmark'));
+  const h = ends.heading, behind = [r3(ends.spawn[0] - 2.4 * Math.cos(h)), r3(ends.spawn[1] - 2.4 * Math.sin(h)), ends.spawn[2]];
+  const toward = (p, q, d) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, t = Math.min(1, d / L); return [r3(p[0] + (q[0] - p[0]) * t), r3(p[1] + (q[1] - p[1]) * t), r3(p[2] + (q[2] - p[2]) * t + 1)]; };
+  const extra = [...plan.on.slice(1), ...plan.back.slice(1)];
+  if (extra.length > side.length) throw new Error(`levels: '${stage.level}/${stage.node}' has ${extra.length + 2} ways out and room for ${side.length + 2} (its exit, its start, ${side.length} pocket or landmark beat${side.length === 1 ? '' : 's'}): link fewer levels to it`);
+  const spot = new Map();
+  if (plan.on[0]) spot.set(plan.on[0], { at: ends.exit, arrive: toward(ends.exit, ends.spawn, 4) });
+  if (plan.back[0]) spot.set(plan.back[0], { at: behind, arrive: null });
+  extra.forEach((w, j) => spot.set(w, { at: side[j].at, arrive: toward(side[j].at, ends.spawn, 3) }));
+  const mechanics = [], arrive = [];
+  for (const w of [...plan.on, ...plan.back]) {
+    const s = spot.get(w);
+    mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }) });
+    if (s.arrive) arrive.push({ from: w.to, at: s.arrive });
+  }
+  if (plan.keys.length) {
+    const free = ends.beats.filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !extra.some((_, j) => side[j] === b));
+    const beat = free[Math.floor(free.length / 2)] ?? ends.beats[Math.floor(ends.beats.length / 2)];
+    mechanics.push({ kind: 'collect', into: 'bag', pickups: plan.keys.map((item, j) => ({ item, at: [beat.at[0] + j * 1.5, beat.at[1], beat.at[2]], radius: 1.6 })) });
+  }
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })) };
 }
 
 /**
@@ -117,11 +235,20 @@ export function gameStore(world, book) {
   const slices = [{ name: 'hero', kind: 'character', ...(Object.keys(stats).length ? { init: { stats } } : {}) }];
   if (resolveEquipment(G).rows.some((r) => r.build)) slices.push({ name: 'gear', kind: 'inventory' });
   slices.push({ name: 'campaign', kind: 'progression' });
+  // a map world whose doors are keyed carries the keys in a bag
+  if (G.topology === 'interconnected' && G.links.some((l) => l.key)) slices.push({ name: 'bag', kind: 'inventory' });
   return { slices };
 }
 
 /** The create_game `levels` list: the stages' level refs in walking order, each after the first unlocked by the one
  * before it (`refs` in the order of gameStages). */
-export function gameLevels(stages, refs) {
+export function gameLevels(stages, refs, plan = null) {
+  // a map world (`plan`: mapPlan's): no chain of gates; each level lists its exits, and the first level is where it starts
+  if (plan) {
+    return stages.map((s, i) => {
+      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) }));
+      return { ref: refs[i], title: `${s.level} · ${s.node}`, ...(exits.length ? { exits } : {}) };
+    });
+  }
   return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(i > 0 ? { gate: { completed: refs[i - 1] } } : {}) }));
 }

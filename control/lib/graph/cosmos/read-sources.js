@@ -15,8 +15,11 @@ const CONTROL = new URL('../../../', import.meta.url);
 const valuesOf = (t) => (Array.isArray(t) ? t.map(String) : t && typeof t === 'object' ? Object.keys(t) : typeof t === 'string' ? [t] : null);
 
 // tables that are assembled, not written: read by composing what assembles them
+const SPACE_CAMERA_RULES = ['eye', 'overhead', 'side'];
 const READERS = {
-  engineRules: (m) => Object.keys(m.composeControllable(m.EMISSION_ENGINE).RULES),
+  // the camera rules that lower space.camera (eye, overhead, side) are Space's, not Power's verbs. `follow` predates the
+  // split and stays: power.rules' Godot list names it.
+  engineRules: (m) => Object.keys(m.composeControllable(m.EMISSION_ENGINE).RULES).filter((k) => !SPACE_CAMERA_RULES.includes(k)),
   aiDifficulty: (m) => Object.keys(m.composeLive().AI_DIFFICULTY || {}),
 };
 

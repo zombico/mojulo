@@ -19,7 +19,7 @@
 
 export function buildRulesPlatform(E) {
   const {
-    add, scl, clamp, smooth, fwdXY, rightXY, fwd3, TAU, HALF_PI,
+    add, scl, clamp, smooth, fwdXY, rightXY, fwd3, laneNear, TAU, HALF_PI,
     resolveBlocking, resolveBlocking3D, RULES, registerSuppressedTick,
   } = E;
 
@@ -83,7 +83,32 @@ export function buildRulesPlatform(E) {
     // shy of straight up/down and drives ONLY the camera, never the (horizontal-plane) movement.
     const lookMode = space || (r.turnMode ?? 'tank') !== 'tank', lookSens = r.lookSens ?? 0.0025;   // space is always 6DoF mouse-look
     let turnAmt;   // heading delta THIS frame — drives the turn-in-place step below
-    if (lookMode) {
+    // WORLD MOVEMENT (opt-in `move: 'world'`, ground only): W/A/S/D make one vector in the frame of a fixed camera
+    // (`moveYaw`, the way up the screen points; π/2 is north). The body moves along it and turns toward it at
+    // `faceRate` rad/s, so W walks up the screen whichever way the hero faces. The `overhead` camera's partner.
+    // LANE MOVEMENT (opt-in `move: 'lane'` with `lane`, a polyline [[x, y], …] on the ground plane): the side-scroller's
+    // rule. D runs along the lane the way it was drawn, A back, W/S do nothing; the body faces its run and is held on the
+    // line after every step (below), however the line bends. The `side` camera's partner.
+    const laneMove = !space && r.move === 'lane' && Array.isArray(r.lane) && r.lane.length >= 2;
+    const worldMove = !space && (r.move === 'world' || laneMove);
+    let wmX = 0, wmY = 0, wmMag = 0;
+    if (worldMove) {
+      const side = clamp(input.strafe + input.turn, -1, 1);
+      if (laneMove) {
+        const L = laneNear(r.lane, t.pos[0], t.pos[1], side);
+        wmX = L.tx * side; wmY = L.ty * side;
+      } else {
+        const my = r.moveYaw ?? HALF_PI, wf = fwdXY(my), wr = rightXY(my);
+        wmX = wf[0] * input.forward + wr[0] * side; wmY = wf[1] * input.forward + wr[1] * side;
+      }
+      wmMag = Math.min(1, Math.hypot(wmX, wmY));
+      turnAmt = 0;
+      if (wmMag > 1e-3) {
+        const d = ((Math.atan2(wmY, wmX) - t.heading + Math.PI) % TAU + TAU) % TAU - Math.PI, mx = (r.faceRate ?? 12) * dt;
+        turnAmt = clamp(d, -mx, mx);
+        t.heading = (t.heading + turnAmt) % TAU;
+      }
+    } else if (lookMode) {
       turnAmt = input.lookDX * lookSens;
       t.heading = (t.heading + turnAmt) % TAU;
       t.pitch = clamp((t.pitch || 0) + input.lookDY * lookSens, -HALF_PI + 0.05, HALF_PI - 0.05);
@@ -114,8 +139,12 @@ export function buildRulesPlatform(E) {
     }
 
     // movement basis (needed by the jump block below for directed charge leaps)
-    const sideIn = clamp(input.strafe + (lookMode ? input.turn : 0), -1, 1);
-    const f = fwdXY(t.heading), rt = rightXY(t.heading), ctl = e.grounded ? 1 : air;
+    // under world movement the whole input is one forward push along the input vector (no strafe), so every reader
+    // below (the dash, the boost, the clips) sees a body running where the stick points
+    const fwdIn = worldMove ? wmMag : input.forward;
+    const sideIn = worldMove ? 0 : clamp(input.strafe + (lookMode ? input.turn : 0), -1, 1);
+    const wmH = worldMove && wmMag > 1e-3 ? Math.atan2(wmY, wmX) : null;
+    const f = fwdXY(wmH ?? t.heading), rt = rightXY(wmH ?? t.heading), ctl = e.grounded ? 1 : air;
 
     // jump — two opt-in shapes on top of the default snappy launch:
     // `jumpWindup` (seconds) inserts a brief SQUAT between press and launch;
@@ -150,12 +179,12 @@ export function buildRulesPlatform(E) {
             e.grounded = false; e.coyote = coyoteT; jumped = true;
             if (frac >= 1) {
               // full charge: leap toward the held direction (normalized, world-space)
-              const dn = Math.hypot(input.forward, sideIn);
+              const dn = Math.hypot(fwdIn, sideIn);
               if (dn > 1e-3) {
                 const dashSpd = r.chargeDash ?? speed * 1.6;
                 e.dashVel = [
-                  (f[0] * input.forward + rt[0] * sideIn) / dn * dashSpd,
-                  (f[1] * input.forward + rt[1] * sideIn) / dn * dashSpd,
+                  (f[0] * fwdIn + rt[0] * sideIn) / dn * dashSpd,
+                  (f[1] * fwdIn + rt[1] * sideIn) / dn * dashSpd,
                 ];
               }
             }
@@ -225,7 +254,7 @@ export function buildRulesPlatform(E) {
     // is unarmored — you're planted and swinging, not thrusting).
     e.boosting = boosting;
     // boost thrust vector from the held direction keys (normalized; plain F = forward)
-    let bf = boosting ? input.forward : 0, bs = boosting ? sideIn : 0;
+    let bf = boosting ? fwdIn : 0, bs = boosting ? sideIn : 0;
     if (boosting && Math.abs(bf) + Math.abs(bs) < 1e-3) bf = 1;
     const bn = Math.hypot(bf, bs) || 1;
     // STOP-AND-CHARGE (and the kneel, the melee strike, the dodge) root the
@@ -241,7 +270,7 @@ export function buildRulesPlatform(E) {
       const sAccel = (r.spaceAccel ?? speed * 4) * boostK;
       const sMax = boosting ? (r.spaceBoostMax ?? boostSpeed) : (r.spaceMaxSpeed ?? speed * 2);
       const f3 = fwd3(t.heading, t.pitch || 0), rt3 = rightXY(t.heading);
-      let inF = input.forward, inS = sideIn, inV = (ascend ? 1 : 0) - (descend ? 1 : 0);
+      let inF = fwdIn, inS = sideIn, inV = (ascend ? 1 : 0) - (descend ? 1 : 0);
       if (boosting && Math.abs(inF) + Math.abs(inS) + Math.abs(inV) < 1e-3) inF = 1;
       let a = [0, 0, 0];
       a = add(a, scl(f3, inF * sAccel * halt));
@@ -253,7 +282,7 @@ export function buildRulesPlatform(E) {
       e.vel = v;
       t.pos = add(t.pos, scl(v, dt));
     } else {
-      fwdMove = (boosting ? (bf / bn) * boostSpeed * ctl * dt : input.forward * speed * ctl * dt) * halt;
+      fwdMove = (boosting ? (bf / bn) * boostSpeed * ctl * dt : fwdIn * speed * ctl * dt) * halt;
       sideMove = (boosting ? (bs / bn) * boostSpeed * ctl * dt : sideIn * strafe * speed * ctl * dt) * halt;
       t.pos = add(t.pos, add(scl(f, fwdMove), scl(rt, sideMove)));
     }
@@ -268,6 +297,8 @@ export function buildRulesPlatform(E) {
       if (space) resolveBlocking3D(t.pos, e.vel, r.collideRadius ?? 0, world.colliders);   // 3D solid — the station + rocks stop the suit
       else resolveBlocking(t.pos, footZ, r.collideHeight ?? (eye || 24), r.collideRadius ?? 0, world.colliders, step);
     }
+    // the lane holds: after every horizontal write, the body goes back onto its line
+    if (laneMove) { const L = laneNear(r.lane, t.pos[0], t.pos[1]); t.pos[0] = L.px; t.pos[1] = L.py; }
 
     // vertical — gravity (asymmetric), terminal clamp, integrate, then LAND on the surface below.
     // SPACE integrated its own z above (Newtonian, no gravity), so this whole block is ground-only.
@@ -357,11 +388,11 @@ export function buildRulesPlatform(E) {
       if (swinging) { e.locomotion = e.swingClip || 'swing_neutral'; e.gaitPhase = Math.min(e.swingT, 0.999); e.moving = true; }
       else {
         e.gaitPhase = (e.gaitPhase || 0) + Math.hypot(e.vel[0], e.vel[1], e.vel[2]) * dt / strideLen;
-        const movingXY = Math.abs(input.forward) + Math.abs(sideIn) > 1e-3;
+        const movingXY = Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3;
         if (boosting) e.locomotion = boostClip();
         else if (ascend && !descend) e.locomotion = 'ascend';
         else if (descend && !ascend) e.locomotion = 'descend';
-        else if (movingXY) e.locomotion = Math.abs(sideIn) > Math.abs(input.forward) ? 'strafe' : 'forward';
+        else if (movingXY) e.locomotion = Math.abs(sideIn) > Math.abs(fwdIn) ? 'strafe' : 'forward';
         else e.locomotion = 'idle';
         e.moving = boosting || ascend || descend || movingXY;   // idle float plays via the baked idle when false
       }
@@ -372,7 +403,7 @@ export function buildRulesPlatform(E) {
       // vertical jump holds 'leap' with the phase frozen. Bodies without
       // those clips fall back to 'forward' in the renderer.
       if (boosting) { e.locomotion = boostClip(); boostPhase(); }
-      else if (input.forward > 0) { e.locomotion = 'boost'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; }
+      else if (fwdIn > 0) { e.locomotion = 'boost'; e.gaitPhase = (e.gaitPhase || 0) + fwdMove / strideLen; }
       else e.locomotion = 'leap';
       e.moving = true;
     } else if (e.jumpWind > 0 || charging) {
@@ -412,8 +443,8 @@ export function buildRulesPlatform(E) {
     // SPACE floors the plume nonzero — there is ALWAYS thrust: idle float ~0.25 → walk ~0.5 →
     // ascend/descend ~0.6 → full boost 1. Ground keeps the old 0-floor (boost / airborne-glide only).
     e.thrust = space
-      ? (boosting || tackling ? 1 : (ascend || descend ? 0.6 : (Math.abs(input.forward) + Math.abs(sideIn) > 1e-3 ? 0.5 : 0.25)))
-      : (boosting || tackling ? 1 : (!e.grounded && input.forward > 0 ? 0.6 : 0));
+      ? (boosting || tackling ? 1 : (ascend || descend ? 0.6 : (Math.abs(fwdIn) + Math.abs(sideIn) > 1e-3 ? 0.5 : 0.25)))
+      : (boosting || tackling ? 1 : (!e.grounded && fwdIn > 0 ? 0.6 : 0));
     // thrust DIRECTION as a body-frame yaw (0 = forward, + = toward the right,
     // ±π = back): the renderer VECTORS the backpack jets to exhaust opposite
     // the dash, so a left dash blows the flames out to the right.

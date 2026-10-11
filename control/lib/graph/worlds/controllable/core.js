@@ -20,6 +20,21 @@ export function buildCore(E) {
   // headed basis on the XY plane (z-up). forward = facing; right = forward × up.
   const fwdXY = (h) => [Math.cos(h), Math.sin(h), 0];
   const rightXY = (h) => [Math.sin(h), -Math.cos(h), 0];
+  // the nearest point on a ground-plane polyline [[x, y], …] (a side-scroller's lane) and the line's unit direction there,
+  // the way it was drawn: { px, py, tx, ty }. A point past an end holds at that end. At a corner both segments are
+  // equally near: `bias` > 0 (running forward) takes the later one and < 0 (running back) the earlier, so a runner
+  // turns the corner instead of being held on it.
+  const laneNear = (lane, x, y, bias = 0) => {
+    let best = Infinity, px = lane[0][0], py = lane[0][1], tx = 1, ty = 0;
+    for (let i = 1; i < lane.length; i++) {
+      const ax = lane[i - 1][0], ay = lane[i - 1][1], dx = lane[i][0] - ax, dy = lane[i][1] - ay, L2 = dx * dx + dy * dy;
+      if (L2 < 1e-12) continue;
+      const u = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)), qx = ax + dx * u, qy = ay + dy * u;
+      const d2 = (x - qx) * (x - qx) + (y - qy) * (y - qy);
+      if (d2 < best - 1e-12 || (bias > 0 && d2 <= best + 1e-12)) { const L = Math.sqrt(L2); best = d2; px = qx; py = qy; tx = dx / L; ty = dy / L; }
+    }
+    return { px, py, tx, ty };
+  };
   // full forward including pitch (for free-flight / look-driven rules).
   const fwd3 = (h, p) => [Math.cos(p) * Math.cos(h), Math.cos(p) * Math.sin(h), Math.sin(p)];
 
@@ -520,7 +535,7 @@ export function buildCore(E) {
 
   Object.assign(E, {
     RULES,
-    add, sub, scl, clamp, vcopy, smooth, lerp3, fwdXY, rightXY, fwd3, TAU, HALF_PI,
+    add, sub, scl, clamp, vcopy, smooth, lerp3, fwdXY, rightXY, fwd3, laneNear, TAU, HALF_PI,
     resolveBlocking, resolveBlocking3D, segAabbT, sightBlocked, nearestWallT, normalizeColliders, eggRadius,
     stepBodyCollisions, stepCarry,
     registerNormalize, registerStateInit, runNormalizers, runStateInits,

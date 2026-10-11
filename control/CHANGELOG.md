@@ -185,6 +185,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The two anchors stay makeable; the crawler's melee and the collectathon's glide are named as what Godot loses.
   - The portability check's bus and store exemptions apply to Godot only; Unity and Unreal keep their warnings.
 
+- **Three more cameras: first person, top-down and side.** A gameworld (or a quick game) names its `camera`:
+  `third-person`, `first-person`, `top-down` or `side`. Left out, nothing changes.
+  - **First person** rides the hero's eye (the `eye` camera). The mouse looks up, down and around, A and D step
+    aside, and the hero's body is hidden so the view is not inside its head. With no hero, the walker looks and
+    pitches the same way.
+  - **Top-down** is a ¾ overhead camera (`overhead`) with north up the screen, 60° below the horizon and never
+    straight down. W walks up the screen whichever way the hero faces; the hero turns to face where it runs
+    (`platform` `move: 'world'`). It needs a hero to watch, and says so.
+  - **Side** is a side-scroller on the trail's own line (`side`, `platform` `move: 'lane'`): A and D run along it, and
+    the hero is held on the line round every bend while the camera swings with it, square on. The goal's pickups move
+    onto the line. A climb has no line to run, so a side game is trails only, and it says so.
+  - Each piece is opt-in on its own key, so existing worlds play exactly as before: the controllable trace pins hold.
+  - The cosmos marks `space.camera` first-person, top-down and side as built. Top-down and side are marked lost on a
+    Godot export, because Godot has no camera modes yet.
+
+- **Levels that join both ways: an interconnected world.** A gameworld with `topology: 'interconnected'` plays as a
+  map, not a list.
+  - Every link between its levels runs both ways, and so do the stages inside a level.
+  - A level is left by one of its exits: the trail's end, a side pocket, or the way back behind the spawn. The game
+    travels straight to the level that exit leads to, arriving at the matching end.
+  - A link can be locked by a key, an item laid as a pickup in another level and carried in the bag, so a door found
+    early is opened by going back.
+  - Underneath:
+    - a level exit names itself (`reach-exit` `exit`, `on` `{ end, exit }`, the envelope's `exit`);
+    - a level lists `exits` and their gates;
+    - a gate can be `{ has: <item> }`;
+    - the shell travels and arrives (`arrive`).
+  - A list game, and a gameworld without the setting, are unchanged.
+  - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
+
 ### Chapters: the same world at a later point
 
 - **`play.chapters`.** Each chapter is a difference against the base world (spawn, vanish, set, weather, or any cue
