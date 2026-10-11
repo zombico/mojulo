@@ -13,6 +13,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Cosmos cube: a game as six facets, and a dry run of what the builder can make
+
+- **Six facets.** A cosmos cube describes a game as six facets:
+  - **Reality:** the look and how assets are made. This facet is the geocube.
+  - **Space:** the levels and how they connect.
+  - **Power:** the verbs and rules.
+  - **Soul:** the characters.
+  - **Mind:** what the others decide.
+  - **Time:** the story.
+- **Each facet is a small seed with a depth.** The depth runs from 0 (a preset reference) to 3 (samples the operator
+  approved). It is measured, never claimed.
+- **A capability registry.** It is generated from the tables that already define what mojulo builds, with hand notes
+  where a table is silent. It says what each facet setting lowers to today.
+- **A dry run over game types.** Fixtures and seeded sweeps resolve game types against the registry and report each
+  one as makeable, makeable with gaps (naming the facet and the setting) or blocked. Nothing is built, and every
+  existing world, character and game is byte-identical.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest
