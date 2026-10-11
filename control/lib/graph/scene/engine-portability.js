@@ -9,18 +9,29 @@
  */
 
 export const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
+// what a Godot export keeps: the kernel's own mechanics, and those whose lowered events its bus runs whole (win-when is a
+// watch and the contract's end). hp-pool and defeat-all run on the bus too, but wait on hit:<id>, which only the web's
+// combat deals. The cosmos registry reads this list (power.mechanics).
+export const GODOT_MECHANICS = [...MECHANICS_VOCAB, 'win-when'];
+// the motion rules a Godot export keeps: kernel/walker.gd walks the pilot (and jumps it, the platform rule), and a suit
+// follows it on a spring arm (the follow camera); the controllable runtime's other rules (glide, fly, drive, patrol,
+// movers…) do not travel. The cosmos registry reads it.
+export const GODOT_RULES = ['walk', 'platform', 'follow'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
 
-export function assessPortability({ manifest, levels }) {
+// engine: 'godot' — its kernel runs the bus (a level's contract ends it) and carries the store (a flag gate holds);
+// the other engines do neither, so for them a bus level's win and a flag gate are still lost
+export function assessPortability({ manifest, levels, engine = null }) {
+  const godot = engine === 'godot';
   const flags = [];
   const perLevel = {};
   for (const { ref, score } of levels) {
     const lf = [];
     const kinds = (score.mechanics ?? []).map((m) => m?.kind).filter(Boolean);
-    const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k));
+    const unknown = kinds.filter((k) => !(godot ? GODOT_MECHANICS : MECHANICS_VOCAB).includes(k));
     if (unknown.length) lf.push(`mechanics outside the vocabulary: ${unknown.join(', ')}`);
     // a level whose behaviour rides the bus ends through its contract's `on` (an event mapped to end), which travels
-    if (!kinds.some((k) => COMPLETION_KINDS.includes(k)) && !score.ledger?.bus_carried) {
+    if (!kinds.some((k) => COMPLETION_KINDS.includes(k)) && !(godot && score.ledger?.bus_carried)) {
       lf.push('no completion mechanic (reach-exit / survive) — the win condition lives in runtime code, which does not travel');
     }
     if (score.ledger?.skipped_movers) lf.push('mover/platform integrator channels do not travel');
@@ -39,7 +50,7 @@ export function assessPortability({ manifest, levels }) {
   if (manifest?.kind === 'game') {
     for (const lv of manifest.levels ?? []) {
       // with a store, a flag gate is the store's (kernel/store.gd evaluates it); without one only completion gates hold
-      if (lv?.gate && !lv.gate.completed && !manifest.store) flags.push(`gate on '${lv.ref}' is not a completion gate — approximated as unlocked`);
+      if (lv?.gate && !lv.gate.completed && !(godot && manifest.store)) flags.push(`gate on '${lv.ref}' is not a completion gate — approximated as unlocked`);
     }
     for (const k of ['setup', 'difficulty']) {
       if (manifest[k] != null) flags.push(`'${k}' shell UI does not travel`);

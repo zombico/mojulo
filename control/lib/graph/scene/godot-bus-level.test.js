@@ -234,9 +234,13 @@ describe('a minted game, exported', () => {
   it('a bus level and a store\'s flag gate are not flagged as lost', () => {
     const score = extractEngineScore({ ref: 'town', manifest: {} }, town());
     const game = { kind: 'game', store: STORE, levels: LEVELS };
-    const p = assessPortability({ manifest: game, levels: [{ ref: 'town', score }] });
+    const p = assessPortability({ manifest: game, levels: [{ ref: 'town', score }], engine: 'godot' });
     expect(p.flags.join('\n')).not.toMatch(/no completion mechanic|approximated as unlocked/);
-    const bare = assessPortability({ manifest: { ...game, store: undefined }, levels: [{ ref: 'town', score: extractEngineScore({ ref: 'town', manifest: {} }, { entities }) }] });
+    // Unity and Unreal run no bus and carry no store: for them both are still lost
+    const other = assessPortability({ manifest: game, levels: [{ ref: 'town', score }] });
+    expect(other.flags.join('\n')).toMatch(/no completion mechanic/);
+    expect(other.flags.join('\n')).toMatch(/approximated as unlocked/);
+    const bare = assessPortability({ manifest: { ...game, store: undefined }, levels: [{ ref: 'town', score: extractEngineScore({ ref: 'town', manifest: {} }, { entities }) }], engine: 'godot' });
     expect(bare.flags.join('\n')).toMatch(/no completion mechanic/);
     expect(bare.flags.join('\n')).toMatch(/approximated as unlocked/);
   });

@@ -58,7 +58,7 @@ export const TIME = Object.freeze({
     advance: {
       values: {
         none: { status: 'built' },
-        cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd), feeding zones and use, painting banners' },
+        cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd): zones, use, menus, the cast and the stats in; the HUD, menus, the cast and a forced sky out' },
         steps: { ...QUESTS, status: 'local', lowers: 'lib/graph/worlds/controllable/tutorial.js', note: 'the tutorial director orders steps, but its facts are arena maneuvers; playscape cues have no order' },
         quests: { ...QUESTS, requires: ['mind.social=talk'], lowers: MENUS, note: 'a giver (a talk menu), a log (a list menu) and a reward (cue effects) exist apart; nothing binds them to a character' },
       },

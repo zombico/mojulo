@@ -66,6 +66,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   on a cycle, or on a flag no reachable level may set. A flag gate counts as set when a reachable level's `game.on`
   maps a bus event to that flag. When a contract only permits the flag, the gate is reported as unproven. It is pure
   and advisory, and nothing calls it yet.
+- **Godot marks, checked against what travels.** An unmarked value used to count as surviving a Godot export, so
+  web-only values passed. Checked against the Godot kernel 0.16.0:
+  - Travel: `win-when` (the bus runs it), every stat op, and the `walk`, `platform` and `follow` rules
+    (`GODOT_MECHANICS`, `GODOT_RULES` in `scene/engine-portability.js`, the stats kernel's `STAT_OPS`).
+  - Web only: melee and ranged combat, systems, beams, explosions, the other motion rules, and `hp-pool` and
+    `defeat-all` (they wait on hits only the web's combat deals).
+  - The two anchors stay makeable; the crawler's melee and the collectathon's glide are named as what Godot loses.
+  - The portability check's bus and store exemptions apply to Godot only; Unity and Unreal keep their warnings.
 
 ### Chapters: the same world at a later point
 

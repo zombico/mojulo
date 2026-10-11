@@ -13,13 +13,16 @@ describe('cosmos fixtures', () => {
     }
   });
 
-  it('hold the anchors makeable and Godot-safe', () => {
+  // Godot (marks checked 10-11 against kernel 0.16.0): the crawler's melee and the collectathon's glide are the
+  // controllable runtime's, which does not travel; everything else in them does
+  const GODOT_LOST = { 'dungeon-crawler': ['power.combat=melee'], collectathon: ['power.rules=glide'] };
+  it('hold the anchors makeable, and name what a Godot export loses', () => {
     const anchors = FIXTURES.filter((f) => f.anchor);
     expect(anchors.map((f) => f.id)).toEqual(['dungeon-crawler', 'collectathon']);
     for (const f of anchors) {
       const r = dryRun(f.cube);
       expect({ id: f.id, verdict: r.verdict, blocked: r.blocked, gaps: r.gaps }).toEqual({ id: f.id, verdict: 'makeable', blocked: [], gaps: [] });
-      expect(r.godot.ok, f.id).toBe(true);
+      expect(r.godot.lost.map((l) => `${l.facet}.${l.setting}=${l.value}`), f.id).toEqual(GODOT_LOST[f.id]);
     }
   });
 
