@@ -128,8 +128,8 @@ function locomotionFor(figures, figKey, unitScale = 1) {
 // THE BUS (godot-bus): a world's behaviour as the event-bus fragment every cue, chapter, menu pick and mechanic lowers
 // to. It travels beside the score as `bus.json`, versioned and in recipe units (the kernels convert a walker's metres
 // back), and an engine kernel runs it with its port of the one reducer (Godot: kernel/bus.gd, held equal to the web's by
-// scripts/godot-bus-conformance.mjs). Only the bus's own channels ride: the page's (hud, menus, style, stats) are read
-// elsewhere. Absent behaviour (no reactions, watches, sequences or timers) ⇒ null, and no file.
+// scripts/godot-bus-conformance.mjs). Only the bus's own channels ride, and the stats that run inside it: the page's
+// (hud, menus, style) are read elsewhere. Absent behaviour (no reactions, watches, sequences or timers) ⇒ null, and no file.
 export const BUS_VERSION = 'bus/1';
 const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
 
@@ -148,7 +148,10 @@ export function extractBus(payload) {
     ...(Number.isFinite(e.body?.hp) ? { hp: e.body.hp } : {}),
     ...(Number.isFinite(e.rule?.speed) ? { speed: e.rule.speed } : {}),
   })) : null;
-  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}) };
+  // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
+  // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.
+  const stats = ev.stats && typeof ev.stats === 'object' ? ev.stats : null;
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}) };
 }
 
 export function extractEngineScore(sketch, payload, { posture = null } = {}) {

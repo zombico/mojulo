@@ -724,12 +724,21 @@ func take_ctrl(state: Dictionary) -> Dictionary:
 	return {"ops": ops, "warps": warps}
 
 # ── one page frame, in the web order (scene/channels/events.js): input → process → watch fixpoint → timers → sagas
+# with stats (kernel/stats.gd, the page's __STATS) each pass first steps them over the ctrl queue: their events are
+# processed before the watches are read, and the loop ends only when neither has anything left
+var stats = null
+var stats_cfg = null
+
 func _watch_fix(state: Dictionary) -> void:
 	for g in 8:
+		var st: Array = stats.step(stats_cfg, state) if stats != null else []
+		if not st.is_empty():
+			process_events(state, st)
 		var w := watch_events(state)
-		if w.is_empty():
+		if w.is_empty() and st.is_empty():
 			break
-		process_events(state, w)
+		if not w.is_empty():
+			process_events(state, w)
 
 func frame(state: Dictionary, incoming: Array, dt: float) -> void:
 	if not incoming.is_empty():

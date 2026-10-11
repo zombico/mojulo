@@ -160,6 +160,60 @@ describe('the HUD travels', () => {
   }, 120000);
 });
 
+// the stats (kernel 0.15.0): a use gives xp and gold, the level-up fires its cue, the HUD reads the holder's vars, and
+// the player's pace is bound to a stat
+const STATS_PLAY = {
+  stats: {
+    holders: ['hero'],
+    stats: [{ id: 'pace', from: { stat: 'level', base: 5 } }],
+    bodies: { speed: 'pace' },
+    resources: [{ id: 'gold', start: 10 }],
+    level: { start: 1, xp: [100, 300], each: { grant: { gold: 5 } } },
+  },
+  parts: [
+    { part: 'readout', bind: { var: 'hero.gold' }, label: 'Gold', at: 'top-left' },
+    { part: 'banner', bind: { on: 'cue:up' }, text: 'Level {hero.level}' },
+  ],
+  cues: [
+    { id: 'shrine', when: { use: { at: [4, 0], r: 1.5 }, prompt: 'pray' }, then: [{ xp: { by: 150 } }, { grant: { res: 'gold', by: 20 } }] },
+    { id: 'up', when: { levelled: 'hero' }, then: { set: 'blessed', to: 1 } },
+  ],
+};
+
+describe('the stats travel', () => {
+  it('bus.json carries the stats beside the fragment, their vars in it', () => {
+    const bus = extractBus({ entities, events: lowerPlay({ entities, play: STATS_PLAY }, { player: 'hero' }) });
+    expect(bus.stats).toMatchObject({ holders: ['hero'], bodies: { speed: 'pace' } });
+    expect(bus.fragment.vars).toMatchObject({ 'hero.gold': 10, 'hero.level': 1 });
+    expect(extractBus(town())).not.toHaveProperty('stats');
+  });
+
+  it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot levels the hero at the shrine (MOJULO_GODOT)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-stats-'));
+    try {
+      const payload = { entities, events: lowerPlay({ entities, play: STATS_PLAY }, { player: 'hero' }) };
+      fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="stats-probe"\n');
+      fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(extractEngineScore({ ref: 'shrine', manifest: {} }, payload), null, 2));
+      fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(extractBus(payload)));
+      fs.copyFileSync(path.join(process.cwd(), 'scripts', 'godot-bus-probe.gd'), path.join(dir, 'probe.gd'));
+      const out = execFileSync(process.env.MOJULO_GODOT, ['--headless', '--fixed-fps', '60', '--path', dir, '--script', 'res://probe.gd', '--', '4', '0'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(out).not.toMatch(/SCRIPT ERROR|Parse Error/);
+      const line = (k, tag) => out.split('\n').find((l) => l.startsWith(`[mojulo-${k}] ${tag} `));
+      expect(line('stats', 'start')).toBe('[mojulo-stats] start pace=6.00');
+      expect(line('hud', 'start')).toBe('[mojulo-hud] start top-left:readout:Gold=10');
+      // prayed: 150 xp is one level (its 5 gold) and the 20 granted; the cue on the level-up; the pace follows the level
+      expect(line('bus', 'after')).toMatch(/"blessed":1/);
+      expect(line('bus', 'after')).toMatch(/"hero.level":2/);
+      expect(line('bus', 'after')).toMatch(/"hero.xp":150/);
+      expect(line('hud', 'after')).toBe('[mojulo-hud] after top-left:readout:Gold=35 | center:banner:Level 2');
+      expect(line('stats', 'after')).toBe('[mojulo-stats] after pace=7.00');
+    } finally {
+      if (process.env.MOJULO_KEEP_PACK) console.log('pack kept at', dir); else fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120000);
+});
+
 // a two-level game: the town turns its chapters and ends on the siege's word; the walls open on the chapter's flag and
 // start with the town's world carried in. The store travels (kernel 0.9.0).
 const STORE = { slices: [{ name: 'campaign', kind: 'progression' }, { name: 'world', kind: 'flags' }] };
@@ -181,7 +235,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.14.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.15.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);

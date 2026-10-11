@@ -18,6 +18,9 @@ func _init() -> void:
 			continue
 		var bus = Bus.new()
 		var st: Dictionary = bus.create_bus_state(sc.get("config", {}), sc.get("entities", []))
+		if sc.get("stats") is Dictionary:
+			bus.stats = load("res://kernel/stats.gd").new()
+			bus.stats_cfg = sc["stats"]
 		var sources: Array = sc.get("config", {}).get("sources", []) if typeof(sc.get("config", {}).get("sources")) == TYPE_ARRAY else []
 		var zone_prev = null
 		var snaps := []
@@ -29,7 +32,11 @@ func _init() -> void:
 				incoming.append_array(z["events"])
 			bus.frame(st, incoming, float(f.get("dt", 0.0)))
 			var ctrl: Dictionary = bus.take_ctrl(st)
-			snaps.append(bus.hash_state(st) + "|" + bus.ss(ctrl))
+			var bodies := ""
+			if bus.stats != null:
+				bodies = "|" + bus.ss(st.get("_statBodyOps", []))
+				st["_statBodyOps"] = []
+			snaps.append(bus.hash_state(st) + "|" + bus.ss(ctrl) + bodies)
 		results[sc["id"]] = snaps
 	var out := FileAccess.open(args[1], FileAccess.WRITE)
 	out.store_string(JSON.stringify(results))

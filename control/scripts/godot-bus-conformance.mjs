@@ -36,7 +36,7 @@ export function runGodotBus(scenarios, godot) {
   try {
     mkdirSync(path.join(dir, 'kernel'));
     writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="bus-conformance"\n');
-    for (const f of ['bus.gd', 'json_exact.gd', 'store.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
+    for (const f of ['bus.gd', 'json_exact.gd', 'store.gd', 'stats.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
     copyFileSync(path.join(HERE, 'godot-bus-conformance.gd'), path.join(dir, 'conformance.gd'));
     const inFile = path.join(dir, 'corpus.json'), outFile = path.join(dir, 'out.json');
     writeFileSync(inFile, JSON.stringify(scenarios));

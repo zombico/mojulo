@@ -22,6 +22,7 @@ import { buildBus } from '../worlds/event-bus.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { buildGameStoreKernel } from '../game/store-kernel.js';
+import { buildStats } from '../playscape/stats/kernel.js';
 
 // a scenario's frame: { events?: [...], dt?: seconds, walkers?: [{ id, position }] }
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -126,6 +127,86 @@ const chapterTown = () => ({
   ],
 });
 const chapterLive = () => ({ ...chapterTown(), id: 'chapter-live', about: 'a live turn and its chain', frames: [{ events: [{ type: 'mayor-warned' }] }, { events: [{ type: 'mayor-warned' }] }] });
+
+// stats, lowered by the play as a world does (playscape/stats/stats.js through lowerPlay): levels on xp, a tech tree
+// with ranks and a subtree, epochs by level and bought, offers, derived stats on every curve, buffs and their
+// removal, a scaled hurt on the cast, bound bodies; the cues hear levelled, bought, denied, opened and epoch
+const STATS_PLAY = {
+  stats: {
+    holders: ['hero'],
+    stats: [
+      { id: 'strength', base: 5, min: 0, max: 20 }, { id: 'vitality', base: 3 },
+      { id: 'might', from: { sum: [{ stat: 'strength', per: 2 }, { stat: 'level', per: 0.5 }], curve: { soft: 20 } } },
+      { id: 'guard', from: { stat: 'vitality', curve: { mitigate: 10 } } },
+      { id: 'swift', from: { stat: 'level', base: 1, curve: 'sqrt', max: 3 } },
+    ],
+    bodies: { hpMax: 'vitality', speed: 'swift' },
+    resources: [{ id: 'points' }, { id: 'gold', start: 10, cap: 500 }],
+    level: { start: 1, max: 10, xp: { base: 100, growth: 2 }, each: { grant: { points: 1 }, raise: { vitality: 1 } }, at: { 3: { grant: { gold: 50 } } } },
+    epochs: [{ id: 'hatchery' }, { id: 'lair', level: 3 }, { id: 'hive', cost: { gold: 100 }, requires: { level: 4 } }],
+    tree: [
+      { id: 'fireball', cost: { points: 1 }, ranks: 3, growth: 1.5, tree: [{ id: 'inferno', opens: 2, cost: { points: 1 } }] },
+      { id: 'burrow', epoch: 'lair', cost: { points: 1 } },
+      { id: 'carapace', epoch: 'hive', requires: { all: [{ has: 'burrow' }, { stat: 'strength', gte: 6 }] }, cost: { points: 1, gold: 20 } },
+    ],
+    offers: [{ id: 'train', cost: { points: 1 }, gives: { raise: { strength: 1 } }, max: 2 }],
+  },
+  cues: [
+    { id: 'kill', when: { on: 'kill' }, then: { xp: { by: 120 } } },
+    { id: 'slay', when: { on: 'slay' }, then: { xp: { by: { stat: 'level', per: 150 } } } },
+    { id: 'loot', when: { on: 'loot' }, then: { grant: { res: 'gold', by: 40 } } },
+    { id: 'tithe', when: { on: 'tithe' }, then: { grant: { res: 'points', by: 3 } } },
+    { id: 'ding', when: { on: 'ding' }, then: { level: { by: 1 } } },
+    { id: 'lift', when: { on: 'lift' }, then: { raise: { stat: 'strength', by: 2 } } },
+    { id: 'drink', when: { on: 'drink' }, then: { buff: { id: 'potion', mods: [{ stat: 'strength', add: 3 }, { stat: 'might', pct: 0.25 }] } } },
+    { id: 'brew', when: { on: 'brew' }, then: { buff: { id: 'potion-2', stat: 'vitality', mul: { stat: 'level', base: 1, per: 0.1 } } } },
+    { id: 'sober', when: { on: 'sober' }, then: { unbuff: 'potion*' } },
+    { id: 'hit', when: { on: 'hit' }, then: { hurt: { who: 'hero', by: { stat: 'might', per: 1.5 } } } },
+    ...['fireball', 'inferno', 'burrow', 'carapace', 'hive', 'lair', 'train'].map((id) => ({ id: `buy-${id}`, when: { on: `buy-${id}` }, then: { buy: id } })),
+    { id: 'up', when: { levelled: 'hero' }, then: { set: 'saw-level', to: 1 } },
+    { id: 'got', when: { bought: 'fireball' }, then: { emit: 'fire-ready' } },
+    { id: 'no', when: { denied: 'fireball' }, then: { set: 'refused', to: 1 } },
+    { id: 'era', when: { epoch: 'lair' }, then: { set: 'era', to: 'lair' } },
+    { id: 'new', when: { opened: 'inferno' }, then: { set: 'inferno-seen', to: 1 } },
+  ],
+};
+const STATS_EVENTS = ['kill', 'slay', 'loot', 'tithe', 'ding', 'lift', 'drink', 'brew', 'sober', 'hit', 'buy-fireball', 'buy-inferno', 'buy-burrow', 'buy-carapace', 'buy-hive', 'buy-lair', 'buy-train', 'buy-nothing'];
+const statsWorld = () => {
+  const ev = lowerPlay({ play: STATS_PLAY });
+  const { stats, ...config } = ev;
+  // an id nothing names (the reader refuses it; a hand-poked bus can still send it): the kernel's `unknown`
+  const fire = config.reactions.find((r) => r.do === 'ctrl' && r.op === 'buy' && r.id === 'fireball');
+  config.reactions.push({ ...fire, on: 'buy-nothing', id: 'nothing' });
+  return { config: clone(config), stats: clone(stats) };
+};
+const statsRun = () => ({
+  id: 'stats-run',
+  about: 'a stats play lowered by lowerPlay: every transaction, refusal, curve, buff and bound body',
+  ...statsWorld(),
+  entities: [],
+  frames: [
+    {},
+    { events: [{ type: 'buy-fireball' }, { type: 'buy-nothing' }, { type: 'buy-hive' }] },
+    { events: [{ type: 'kill' }, { type: 'kill' }, { type: 'kill' }] },
+    { events: [{ type: 'buy-fireball' }, { type: 'tithe' }, { type: 'buy-fireball' }, { type: 'buy-inferno' }] },
+    { events: [{ type: 'drink' }, { type: 'brew' }, { type: 'hit' }] },
+    { events: [{ type: 'slay' }, { type: 'loot' }, { type: 'loot' }, { type: 'loot' }] },
+    { events: [{ type: 'buy-burrow' }, { type: 'lift' }, { type: 'buy-hive' }, { type: 'buy-carapace' }] },
+    { events: [{ type: 'sober' }, { type: 'hit' }, { type: 'ding' }, { type: 'buy-train' }, { type: 'buy-train' }, { type: 'buy-train' }] },
+    // might past its soft cap (the curve's default slope), and strength held at its max
+    { events: [{ type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'hit' }] },
+  ],
+});
+/** Seeded runs over the stats play: random events per frame, so the transactions meet in orders no hand wrote. */
+export function randomStatsScenarios(n = 6, seed = 1) {
+  const rand = mulberry32(seed * 7919 + 3), world = statsWorld(), out = [];
+  for (let i = 0; i < n; i++) {
+    const frames = [];
+    for (let f = 0; f < 10; f++) frames.push({ events: Array.from({ length: Math.floor(rand() * 5) }, () => ({ type: STATS_EVENTS[Math.floor(rand() * STATS_EVENTS.length)] })) });
+    out.push({ id: `stats-random-${seed}-${i}`, about: 'seeded stats events', ...clone(world), entities: [], frames });
+  }
+  return out;
+}
 
 // a crawler level, lowered from mechanics as a level sketch is (game/mechanics.js), walked through its zones
 const STORE = { slices: [{ name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }, { name: 'bag', kind: 'inventory' }, { name: 'campaign', kind: 'progression' }] };
@@ -285,7 +366,7 @@ export function runStoreScenario(sc) {
 }
 
 export function corpus({ random = 24, seed = 7 } = {}) {
-  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
+  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), statsRun(), ...randomStatsScenarios(Math.ceil(random / 4), seed), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
 }
 
 // ── the web side ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -293,7 +374,17 @@ export function runScenario(sc) {
   const B = buildBus(), st = B.createBusState(clone(sc.config), clone(sc.entities || []));
   const sources = (sc.config && sc.config.sources) || [];
   let zonePrev, out = [];
-  const watchFix = () => { for (let g = 0; g < 8; g++) { const w = B.watchEvents(st); if (!w.length) break; B.processEvents(st, w); } };
+  // the page's __watchFix: with stats, each pass steps them over the ctrl queue before the watches are read
+  const S = sc.stats ? buildStats() : null, cfg = sc.stats ? clone(sc.stats) : null;
+  const watchFix = () => {
+    for (let g = 0; g < 8; g++) {
+      const s = S ? S.step(cfg, st) : [];
+      if (s.length) B.processEvents(st, s);
+      const w = B.watchEvents(st);
+      if (!w.length && !s.length) break;
+      if (w.length) B.processEvents(st, w);
+    }
+  };
   for (const f of sc.frames) {
     const incoming = clone(f.events || []);
     if (f.walkers) { const z = B.deriveZoneEvents(clone(f.walkers), zonePrev, sources); zonePrev = z.prev; incoming.push(...z.events); }
@@ -307,7 +398,10 @@ export function runScenario(sc) {
     watchFix();
     const ctrl = { ops: st._ctrlOps || [], warps: st._ctrlWarps || {} };
     st._ctrlOps = []; st._ctrlWarps = {};
-    out.push(B.hashState(st) + '|' + JSON.stringify(sortedKeys(ctrl)));
+    // with stats, the body changes they queued (what applyBodies hands the characters) close the snapshot
+    const bodies = S ? '|' + JSON.stringify(sortedKeys(st._statBodyOps || [])) : '';
+    if (S) st._statBodyOps = [];
+    out.push(B.hashState(st) + '|' + JSON.stringify(sortedKeys(ctrl)) + bodies);
   }
   return out;
 }

@@ -26,7 +26,7 @@ export const BUS_ABI = Object.freeze({
     contact: { about: 'physics contact and rest', web: B, godot: A, how: 'Godot runs its own physics; no body reports to the bus yet' },
     input: { about: 'a key or pointer bound to an event (events.inputs)', web: B, godot: A },
     cast: { about: 'a character\'s happenings: down, gone, spawned, arrive, stuck, faded, struck', web: B, godot: B, how: 'kernel/cast.gd castFacts (struck waits on beams)' },
-    stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: A },
+    stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: B, how: 'kernel/stats.gd, conformance-tested equal to the web\'s stats kernel' },
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B, godot: B, how: 'level.gd: arrows or W / S, Enter / Space / E, Esc' },
   }),
   effects: Object.freeze({
@@ -39,7 +39,7 @@ export const BUS_ABI = Object.freeze({
     phase: { about: 'the play\'s phase (title, playing, …): a part stands in its phases only', web: B, godot: B, how: 'kernel/hud.gd reads the phase var against a row\'s when' },
     weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: B, how: 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)' },
     cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake; a walk has no collider push-out or ground snap; puffs, beams and transits stay on the web' },
-    stats: { about: 'stats: raise, grant, xp, level, buy', web: B, godot: A },
+    stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
   }),
 });
 

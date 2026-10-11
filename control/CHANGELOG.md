@@ -143,6 +143,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The reach prompt sits centred on the same plate.
   - In a headless Godot, a bell rung at a place hides its hint, restates the purse to alert, fills a banner from a
     var and raises the gold's change as a toast. The mayor's talk is picked by keys, a pad and a click alike.
+- **Stats in Godot (kernel 0.15.0).** `kernel/stats.gd` ports the web's stats kernel: levels on xp, resources,
+  guarded purchases (tech nodes with ranks and subtrees, offers, epochs), derived stats on every curve, buffs, and
+  formulas on the cast's ops. It runs inside the bus's watch fixpoint, as on the web, and `bus.json` carries its
+  config. The conformance corpus gains a stats play and seeded runs over it, equal frame by frame (a planted curve bug
+  is caught). Bound bodies reach the cast and the walker's pace. In a headless Godot, praying at a shrine levels the
+  hero, fires the level-up cue, and the HUD shows the gold and the new level.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The

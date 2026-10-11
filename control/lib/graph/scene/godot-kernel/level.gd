@@ -23,6 +23,7 @@ const WeatherScript := preload("res://kernel/weather.gd")
 const BusScript := preload("res://kernel/bus.gd")
 const CastScript := preload("res://kernel/cast.gd")
 const HudScript := preload("res://kernel/hud.gd")
+const StatsScript := preload("res://kernel/stats.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
 const HAZARD_COOLDOWN := 0.8
 
@@ -731,6 +732,8 @@ func _dump(tag: String) -> void:
 		print("[mojulo-hud] %s %s" % [tag, hud_ui.dump() if hud_ui != null else ""])
 		if menu_open != null:
 			print("[mojulo-menu] %s %s" % [tag, menu_text()])
+		if bus.stats != null:
+			print("[mojulo-stats] %s pace=%.2f" % [tag, walker.speed])
 	for fp in figure_players:
 		var n: Node3D = fp["node"]
 		var np := n.global_position
@@ -1069,6 +1072,10 @@ func _build_bus() -> void:
 	var frag: Dictionary = doc["fragment"]
 	bus_frag = frag
 	bus = BusScript.new()
+	# the stats (kernel/stats.gd) run inside the bus's watch fixpoint, as the page's do
+	if doc.get("stats") is Dictionary:
+		bus.stats = StatsScript.new()
+		bus.stats_cfg = doc["stats"]
 	bus_units = float(doc.get("metersPerUnit", 1.0))
 	bus_state = bus.create_bus_state(frag, frag.get("entities", []) if frag.get("entities") is Array else [])
 	bus_sources = frag.get("sources", []) if frag.get("sources") is Array else []
@@ -1171,6 +1178,8 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	if top != null:
 		bus_prompt.text = "[E] " + (String(top["prompt"]) if String(top["prompt"]) != "" else "use")
 	bus.frame(bus_state, incoming, minf(delta, 0.05))
+	if bus.stats != null:
+		_stat_bodies()
 	var ctrl: Dictionary = bus.take_ctrl(bus_state)
 	if cast != null and not (ctrl["ops"] as Array).is_empty():
 		cast.ops(cast_state, ctrl["ops"])
@@ -1181,6 +1190,21 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	_sync_menus()
 	_draw_cast()
 	_sync_weather()
+
+
+# the bound stats that changed onto the bodies (the web's applyStatBodies): the cast's characters, and the walker's
+# pace when the player is a holder (its hp is the mechanics', not the bus's)
+func _stat_bodies() -> void:
+	var q = bus_state.get("_statBodyOps")
+	if not (q is Array) or q.is_empty():
+		return
+	var who := s_(score.get("player"))
+	for o in q:
+		if o.get("who") == who and bus.finite(o.get("speed")) and float(o["speed"]) > 0:
+			walker.speed = float(o["speed"])
+	if cast != null:
+		StatsScript.apply_bodies(bus_state, cast_state)
+	bus_state["_statBodyOps"] = []
 
 
 # announce the new events, map them through the contract, and hand the HUD the frame (its banners and toasts fire on
