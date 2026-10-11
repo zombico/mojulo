@@ -2,9 +2,11 @@
 { "id": "house-dwelling", "name": "House dwelling — furnishing, your own items, finishes and styles", "summary": "a house's rooms as lived in: furnish by glyph, furniture sized to the room or built on the workbench, items you place, wall and floor finishes, pot lights, and house styles", "when": "furnishing a house or one room, sizing or building its furniture, placing your own pieces or minted objects in a room, a condo unit's items, wall / floor finishes, recessed lights, baking light, or choosing a house style (cottage, brick, modern, tofu, mission, metal cladding)", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
-Every furnishing knob defaults OFF on a generated plan: `furnish`, `windows`, `ceilings`,
-`wallDecor`, `facadeDecor`, `entryDoor`, `porch` / `stoop`. Set `furnish: true` (or `view:
-'cutaway'`, which implies it) to fill each room from its glyph (the glyph table is in
+A new house is minted with `windows: true`, `furnishing: 'composed'` and `layout: 'varied'` (how
+rooms are filled once they are), but empty: `furnish` is off, as are `ceilings`, `wallDecor`,
+`facadeDecor`, and, on a plan you give, `entryDoor` and `porch` / `stoop` (a drawn house gets its
+door and front). Set `furnish: true` (or `view: 'cutaway'`, which implies it) to fill each room
+from its glyph (the glyph table is in
 `house-layout`). New room archetypes are fill recipes (data), not new mark kinds.
 
 ```json

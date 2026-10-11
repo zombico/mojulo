@@ -39,7 +39,8 @@ is a `manifest`.
 - `view` — `exterior` (default), `cutaway` (open-topped, and implies `furnish`), `interior`.
 - Openings: a new house is minted with `windows: true` (every bedroom needs one for egress; `false` for none);
   `entryDoor` and `ceilings` are opt-in on a plan you give.
-- Walkable at `/world`.
+- Walkable in its World (the book's Walk tab, `/api/sketches/<ref>/world`): the **walk** button
+  walks it at eye height.
 
 ## Your own rooms
 
@@ -57,6 +58,7 @@ the glyph you mean. Each glyph carries a furniture recipe (furnishing: `house-dw
 | `B`   | bedroom | bed, nightstand, dresser, window, picture |
 | `O`   | office  | standing-desk, computer-chair, rack-shelf, bookshelf |
 | `S`   | storage | dresser, cabinet, rack-shelf |
+| `W`   | bathroom | toilet, vanity and sink |
 | `H`   | hallway | corridor (connective) |
 
 **One room** is a ONE-CELL plan through this same kind — a room is a part of a building, not a
@@ -77,7 +79,7 @@ rooms, halls, doors }`; `fillRoom(room, seed)` expands a room's glyph into box-n
 - **Top-down map** — `rooms` tinted by glyph, `halls`, and `doors` as dots on corridor edges.
 - **3D dollhouse** — every room under one high camera; the camera-facing front wall skipped for
   an open cutaway, each room's furniture through `box-net`.
-- **The World** — walk it at `/world`; `export_model` ships it (`house-bim`).
+- **The World** — walk it from the book's Walk tab; `export_model` ships it (`house-bim`).
 
 Next steps: furnishing and finishes `house-dwelling` · more floors `house-storeys` · the
 structure `house-construction` · BIM and export `house-bim`.

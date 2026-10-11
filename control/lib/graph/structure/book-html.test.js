@@ -81,7 +81,7 @@ describe('structureBookHtml', () => {
   it('frames the World when given one, and says how to get it when not', () => {
     expect(structureBookHtml(HOUSES.bare, { ref: 'sk_b', world: { src: '/api/sketches/sk_b/world' } })).toContain('src="/api/sketches/sk_b/world"');
     expect(books.bare).toContain("format: 'html'");
-    expect(books.bare).toContain("levels: [{ ref: 'sk_bare' }]");
+    expect(books.bare).toContain("forge_motion({ subject: { world_ref: 'sk_bare' }");
   });
 
   it('a ref piece links its own page, titled by the lookup', () => {

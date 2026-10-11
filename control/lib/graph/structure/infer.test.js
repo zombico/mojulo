@@ -72,3 +72,11 @@ describe('a house built by the laws', () => {
     for (const c of rows) expect(c.ok, JSON.stringify(c)).not.toBe(false);
   }, 60_000);
 });
+
+describe('a stack named by roles', () => {
+  it('counts each role as a level, so it gets its stair and the livability pass', () => {
+    const r = inferHouse({ kind: 'floorplan', title: 'h', seed: 5, windows: true, levels: [{ role: 'ground' }, { role: 'second' }] });
+    expect(r.manifest.stairs).toBe(true);
+    expect(r.manifest.design).toEqual({ repair: true, clearance: true });
+  });
+});

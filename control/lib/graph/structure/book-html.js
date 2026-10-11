@@ -13,7 +13,7 @@
  *   Services    E-10x and the panel schedule, P-101 and the rainwater                        (framing / drainage)
  *   Quantities  cut list, sheet goods, takeoff, each a CSV                                   (framing)
  *   Checks      every check with its source; a failed check advises and never refuses
- *   Walk        the live world in a plate, the downloads, the level handoff
+ *   Walk        the live world in a plate, the downloads, walking and filming it
  *   Open        each concern the recipe has not reached, and the field that adds it
  *
  * Anchors: rooms `#rm-101`; elements `#el-W3` (wall), `#el-101A` (door), `#el-win-A` (window type), `#el-WN4`
@@ -37,6 +37,7 @@ import { openConcerns, OUTCOMES } from './open.js';
 export { openConcerns };
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const inchesText = (ft) => `${Math.round(ft * 12 * 4) / 4} in`;
 const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
 const r1 = (v) => Math.round(v * 10) / 10;
 const pct = (v) => `${Math.round(v * 100)}%`;
@@ -248,7 +249,7 @@ ${read.storeys.map((s) => `<h4>${esc(levelName(s.index))}</h4><div class="rooms"
     E.windows.map((w) => ({ mark: esc(w.mark), type: a(anchors.windowType(w.tag), w.tag), lvl: esc(levelName(w.storey)), host: a(anchors.wall(w.host), w.host), rooms: links(w.connects, anchors.room) })), { id: (r) => anchors.window(r.mark) })}</div></div>
 <div class="grid2"><div class="tblock"><h4>Slabs and stairs</h4>${table([{ key: 'tag', label: 'Tag' }, { key: 'what', label: 'Element' }, { key: 'detail', label: '' }],
     [...E.slabs.map((s) => ({ tag: esc(s.tag), what: `slab ${esc(levelName(s.storey))}`, detail: `${esc(areaText(s.area, units))}${s.holes.length ? ` · ${s.holes.length} void${s.holes.length === 1 ? '' : 's'}` : ''}` })),
-      ...E.stairs.map((s) => ({ tag: esc(s.tag), what: 'stair', detail: `${esc(levelName(s.from))} → ${esc(levelName(s.to))}` }))], { id: (r) => `el-${r.tag}` })}</div>
+      ...E.stairs.map((s) => ({ tag: esc(s.tag), what: 'stair', detail: `${esc(levelName(s.from))} → ${esc(levelName(s.to))}${s.width ? ` · ${esc(ftIn(s.width))} wide` : ''}${s.risers ? ` · ${s.risers} risers of ${esc(inchesText(s.rise))} · going ${esc(inchesText(s.going))}` : ''}${s.switchback ? ' · switchback' : ''}` }))], { id: (r) => `el-${r.tag}` })}</div>
 ${roof ? `<div class="tblock"><h4>Roof planes</h4>${table([{ key: 'key', label: 'Plane' }, { key: 'pts', label: 'Corners' }], roof.planes.map((p) => ({ key: esc(p.key), pts: p.corners.length })))}</div>` : ''}</div>
 <details><summary>The schedules as a sheet (A-60x)</summary><div class="sheets">${of(/^A-6/).map(sheetPlate).join('')}</div></details></section>`;
 
@@ -298,7 +299,7 @@ ${live ? `<figure class="live">${live}<p class="muted">Drag to orbit; walk where
     ['drawings', "<code>export_model({ format: 'sheets' })</code> · SVG per sheet"],
     ['schedules', "<code>export_model({ format: 'schedules' })</code> · CSV and JSON"],
     ['film', '<code>forge_motion</code> · a turntable or a walkthrough'],
-  ])}</div><div class="card"><h4>As a game level</h4><p class="muted">The house is a walkable world: a game takes it as a level by its ref.</p><pre>create_game({ title, store, levels: [{ ref: '${esc(ref || '<ref>')}' }] })</pre></div></div></section>`;
+  ])}</div><div class="card"><h4>Walk it, film it</h4><p class="muted">The world's <b>walk</b> button walks the house at eye height, with gravity and walls (WASD, mouse to look); <b>fly</b> floats through it. A film of it is a camera on the world:</p><pre>forge_motion({ subject: { world_ref: '${esc(ref || '<ref>')}' }, shot: { motion: 'orbit' } })</pre></div></div></section>`;
 
   // ── Open ──
   const open = `<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>What is left</h2><p class="muted">Each concern the recipe has not reached, and the field that adds it with <code>update_sketch</code>.</p></div>

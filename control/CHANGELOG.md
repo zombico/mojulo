@@ -86,6 +86,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `renderHouseElevationSvg` and `renderSitePlanSvg`. The A-, C- and S-sheets draw what they drew.
   - **The house cards** name `mint_building` as the door, with `create_sketch` still accepting `kind: 'floorplan'`.
     `floor-plan` indexes the outcome cards ahead of the manuals.
+- **Fixes from cold-agent runs.** Five fresh agents each worked a brief: one per outcome, plus a showroom with two
+  custom pieces placed by `ref`. Every brief was met at least in large part. What they tripped on:
+  - **Stacks named by role** (`levels: [{ role: 'ground' }, { role: 'second' }]`) now get the stair and the
+    livability pass at mint. They were counted as one level.
+  - **The open core is named for what shares it** (`living / kitchen / dining`). Agents read "lounge" as a missing
+    kitchen.
+  - **A tier that builds fewer bedrooms than it asks** becomes a Layout step. It names `tier.study: false` when an
+    upstairs study took the slot, else a larger footprint.
+  - **The stair schedule shows the width built,** with its risers and going. The card says `design.stair.width` is
+    the rule checked against and `stairs[].width` builds a wider flight.
+  - **The Walk tab no longer offers a game-level handoff** that `create_game` refuses for a house. It offers the
+    world's walk and fly modes and a `forge_motion` film.
+  - **`get_sketch_vocab` names an argument it does not take** and points at `{ id }`, instead of listing every card.
+  - **Card corrections:**
+    - the bathroom glyph `W` is in the glyph table;
+    - `roof.pitch` is documented;
+    - the furnishing defaults no longer contradict the mint's (`windows: true`, `furnishing: 'composed'`,
+      `furnish` off);
+    - "walk at `/world`" is now the Walk tab and its walk button.
 
 ## [3.1.0] - 2026-10-10
 

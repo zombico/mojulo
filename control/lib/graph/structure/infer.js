@@ -8,7 +8,8 @@ import { ROOF_STYLES } from '../architecture/roof.js';
 
 const FORMS = new Set(Object.values(ROOF_STYLES).map((s) => s.form));
 
-const levelCount = (m) => (Array.isArray(m.levels) && m.levels.length ? new Set(m.levels.map((l) => l?.index)).size : 0);
+// a level names its place by `index` or by `role` (basement, ground, second …); count the places, either way
+const levelCount = (m) => (Array.isArray(m.levels) && m.levels.length ? new Set(m.levels.map((l, i) => l?.index ?? l?.role ?? `#${i}`)).size : 0);
 const storeyCount = (m) => (levelCount(m) || (Number.isInteger(m.storeys ?? m.floors) ? (m.storeys ?? m.floors) : 1));
 
 const LAWS = [

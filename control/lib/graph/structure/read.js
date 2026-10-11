@@ -15,6 +15,7 @@
 import { structurizeHouse, structurizeFloorplan, storeyLevels, FLOORPLAN_DEFAULTS, FLOORPLAN_UNITS, STAIR_DEFAULTS } from '../polygonizer/floorplan-structure.js';
 import { buildElementModel, deriveSchedules, scoreHouse } from '../polygonizer/floorplan-bim.js';
 import { designRules } from '../polygonizer/floorplan-design.js';
+import { resolveTier } from '../polygonizer/floorplan-glyphs.js';
 import { roofPlanes, ROOF_STYLES } from '../architecture/roof.js';
 import { buildPerimeter } from '../polygonizer/floorplan-perimeter.js';
 import { planHouseFraming, framingOf } from '../construction/house-frame.js';
@@ -214,6 +215,29 @@ export function readStructure(m = {}) {
     };
   }).sort((a, b) => (a.storey - b.storey) || (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0));
 
+  // ── the program a generated stack is built to: its open core (living, kitchen, dining share one room, which the
+  // kernel names the lounge) and its bedrooms, asked and built, so the book names the core and says when fewer fit ──
+  const authored = (Array.isArray(m.rooms) && m.rooms.length) || (Array.isArray(m.levels) && m.levels.some((l) => l && Array.isArray(l.rooms) && l.rooms.length));
+  let program = null;
+  if (stacked && !authored && m.program !== false) {
+    const t = resolveTier(m.tier);
+    const has = (g) => rooms.some((r) => r.glyph === g);
+    const core = (t.core || ['L']).filter((g) => g === 'L' || !has(g));
+    if (core.length > 1) {
+      const coreName = ['living', ...(core.includes('K') ? ['kitchen'] : []), ...(core.includes('D') ? ['dining'] : [])].join(' / ');
+      for (const r of rooms) if (r.glyph === 'L') r.name = coreName;
+    }
+    const twoUp = storeys.length > 1;
+    program = {
+      core,
+      beds: { asked: t.beds, built: rooms.filter((r) => r.glyph === 'B').length },
+      study: !!t.study,
+      // the generator gives a study the last bedroom slot upstairs once a house asks three or more
+      studyTakesBed: twoUp && !!t.study && t.beds >= 3,
+      given: m.tier !== undefined,
+    };
+  }
+
   const elements = {
     walls,
     wallTypes: wallTypes.types.map((t) => {
@@ -236,6 +260,8 @@ export function readStructure(m = {}) {
       return {
         tag: `ST${i + 1}`, from: storeyIndex.get(s.fromStorey), to: storeyIndex.get(s.toStorey), ...(s.slot ? { slot: rectOf(s.slot) } : {}),
         ...(k ? { risers: k.steps, rise: r2(k.rise), going: r2(k.going), switchback: !!k.switchback } : {}), ...(fl || {}),
+        // the width built: a flight's short side (stairs[].width; design.stair.width is the rule it is checked against)
+        ...(fl?.flights?.length ? { width: r2(Math.min(...fl.flights.map((f) => Math.min(f.rect.w, f.rect.h)))) } : {}),
       };
     }),
     roof: roofOf(m, house, o),
@@ -246,6 +272,7 @@ export function readStructure(m = {}) {
     units: FLOORPLAN_UNITS, title: m.title ?? null, stacked,
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
     storeys, rooms, elements,
+    ...(program ? { program } : {}),
     objects: { pieces, types: objectTypes },
     schedules: {
       ...schedules,

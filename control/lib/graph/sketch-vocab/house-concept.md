@@ -13,6 +13,8 @@ Cover, Site, Massing, Walk.
    card `house-dwelling`) and a roof. A roof is a **style** (`bungalow`, `mission`, `pavilion`,
    `farmhouse`, `manor`, `modern-shed`, `standing-seam` …) and may take a `form` (`gable`, `hip`,
    `shed`); `roof: 'gable'` alone is a form, and the mint reads it as the bungalow style in that form.
+   A steeper or flatter roof is `pitch`, rise over run (`roof: { style: 'bungalow', form: 'gable',
+   pitch: 1 }` is 45°; the bungalow's own is 0.5).
 3. **Where does it sit?** `perimeter: true` adds the lot: setbacks, street, drive and garden, and
    the site plan C-101.
 
@@ -20,7 +22,8 @@ Cover, Site, Massing, Walk.
 
 - **Massing** (A-201 elevations, A-301 section): any house; `roof` puts the roof on them.
 - **Site** (C-101): `perimeter: true`.
-- **Walk**: every house walks at `/world`; `view: 'exterior'` (default) shows the shell.
+- **Walk**: every house has a World (the Walk tab, `/api/sketches/<ref>/world`); its **walk**
+  button walks it at eye height. `view: 'exterior'` (default) shows the shell.
 - Stills, a turntable and a GLB: `forge_motion` and `export_model({ ref, format: 'glb' })`.
 
 ```json

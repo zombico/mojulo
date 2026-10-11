@@ -14,7 +14,11 @@ Absent, the plan is the single floor it always was. Two ways to say "a two-store
   per-level plan or seed, per-level ceiling height. `stairs: true` joins every level from the
   ground (a flight down to each basement, up to each floor); `stairs: [{ from, to, switchback? }]` places each. Without
   `stairs`, an authored stack has no flight: nothing reaches its upper floors. `tier: 'cottage' | 'house' |
-  'villa'` bounds the room program and supplies a default footprint; `terrace: true` cuts the
+  'villa'` (or `{ base, beds, study, core }`) bounds the room program and supplies a default
+  footprint. Its core is open: living, kitchen and dining share one room, which the book names
+  `living / kitchen / dining`. Upstairs, a study takes the last bedroom of three or more
+  (`study: false` keeps them), and a footprint too small builds fewer bedrooms: the readout's
+  `next` names a shortfall; `terrace: true` cuts the
   deck door; `explode: <feet>` pulls a cutaway's levels apart (exterior is never exploded).
   `levels[]` wins over `storeys` when both are set.
 
@@ -36,7 +40,8 @@ says how wide the narrowest point is, where, what it lies between, and which doo
 Doors are measured against a clear width, stairs against a width, riser and going.
 
 - `design: { tradition?, passage?, door?, stair?: { width?, riser?, going? }, repair?, clearance?, waive? }` — the
-  rules, in feet. The tradition defaults from the framing, else `north-american` (passage 36 in,
+  rules, in feet. They are what the house is checked against: a wider flight is built by
+  `stairs: [{ from, to, width }]`, and the book's stair schedule shows the width built. The tradition defaults from the framing, else `north-american` (passage 36 in,
   door 30 in, stair 36 in with 7¾ in risers and 10 in goings); `british` (900 mm, Part K-like),
   `japanese` (780 mm), `metric` (900 mm).
 - `repair: true` builds the plan to keep the passage: the upstairs hall takes the stair's zone and
