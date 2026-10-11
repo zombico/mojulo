@@ -13,6 +13,8 @@ export const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-
 // watch and the contract's end). hp-pool and defeat-all run on the bus too, but wait on hit:<id>, which only the web's
 // combat deals. The cosmos registry reads this list (power.mechanics).
 export const GODOT_MECHANICS = [...MECHANICS_VOCAB, 'win-when'];
+// the mechanics that wait on hits: they travel when combat does (the cosmos sweep credits them together)
+export const HIT_MECHANICS = ['hp-pool', 'defeat-all'];
 // the motion rules a Godot export keeps: kernel/walker.gd walks the pilot (and jumps it, the platform rule), and a suit
 // follows it on a spring arm (the follow camera); the controllable runtime's other rules (glide, fly, drive, patrol,
 // movers…) do not travel. The cosmos registry reads it.

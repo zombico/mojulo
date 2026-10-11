@@ -21,6 +21,9 @@ describe('cosmos-sweep CLI', () => {
     expect(text).toMatch(/unlock by facet/);
     expect(text).toMatch(/build order: work packages/);
     expect(text).toMatch(/unlock by value: the top 5/);
+    expect(text).toMatch(/godot ladder, power: .*\n  now\s+\d+\n  \+ power\./);
+    expect(text).toMatch(/power\.combat \(\+ hit mechanics\)/);
+    expect(text).toMatch(/godot by value: /);
   });
 
   it('prints one fixture row by row, with what each value lowers to', () => {

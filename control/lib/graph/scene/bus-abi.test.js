@@ -57,4 +57,13 @@ describe('the bus contract', () => {
     expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: fact:input/);
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
   });
+
+  it('names a cue on a beam striking as lost, the other cast facts as performed', () => {
+    const ev = lowered({ cues: [{ id: 'a', when: { struck: 'hero' }, then: { say: 'ow' } }] });
+    expect(busCoverage(ev).godot.absent).toEqual(['fact:struck']);
+    expect(busCoverage(ev).used).not.toContain('fact:cast');
+    const down = lowered({ cues: [{ id: 'a', when: { down: 'hero' }, then: { say: 'ow' } }] });
+    expect(busCoverage(down).godot.built).toContain('fact:cast');
+    expect(busCoverage(down).used).not.toContain('fact:struck');
+  });
 });

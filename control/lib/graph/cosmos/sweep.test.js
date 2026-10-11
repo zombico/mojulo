@@ -141,4 +141,31 @@ describe('sweep', () => {
     expect(a.verdicts.makeable + a.verdicts.gaps + a.verdicts.blocked).toBe(100);
     expect(() => sweep({ n: 1, around: 'mmo' })).toThrow(/no fixture 'mmo'/);
   });
+
+  it('recounts the Godot counterfactual by hand: combat carries the hit mechanics, a ladder climbs to its facet', () => {
+    // blind rolls, and nudges of the brawler (combat with a hit mechanic: the carry is exercised)
+    const brawler = FIXTURES.find((f) => f.id === 'arena-brawler').cube;
+    for (const [args, roll] of [[{ n: 200, seed: 3 }, (rand) => rollCube(rand)], [{ n: 200, seed: 3, around: 'arena-brawler' }, (rand) => nudgeCube(rand, brawler)]]) {
+      const s = sweep(args), g = s.unlock.godot, rand = mulberry32(3), lost = [];
+      for (let i = 0; i < 200; i++) {
+        const d = dryRun(roll(rand));
+        if (!d.godot.ok) lost.push(d.godot.lost);
+      }
+      expect(lost.length).toBe(200 - s.godotOk);
+      const hit = (x) => x.setting === 'mechanics' && ['hp-pool', 'defeat-all'].includes(x.value);
+      const inCombat = (x) => x.facet === 'power' && (x.setting === 'combat' || hit(x));
+      expect(g.settings.find((x) => x.setting === 'power.combat').survives).toBe(lost.filter((l) => l.every(inCombat)).length);
+      // melee alone: the cubes that lose melee, and nothing but melee or a hit mechanic
+      const melee = (x) => (x.setting === 'combat' && x.value === 'melee') || hit(x);
+      const holdsMelee = (l) => l.some((x) => x.setting === 'combat' && x.value === 'melee');
+      expect(g.values.find((v) => v.key === 'power.combat=melee').survives).toBe(lost.filter((l) => holdsMelee(l) && l.every(melee)).length);
+      for (const row of [...g.values, ...g.settings]) expect(row.survives).toBeLessThanOrEqual(row.touches);
+      for (const [facet, ladder] of Object.entries(g.ladders)) {
+        expect(ladder[0].survives - ladder[0].gain).toBe(s.godotOk);
+        for (let i = 1; i < ladder.length; i++) expect(ladder[i].survives).toBe(ladder[i - 1].survives + ladder[i].gain);
+        // the top of a facet's ladder: every cube whose losses are all in that facet
+        expect(ladder.at(-1).survives, facet).toBe(s.godotOk + lost.filter((l) => l.every((x) => x.facet === facet)).length);
+      }
+    }
+  });
 });

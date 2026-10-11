@@ -289,6 +289,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   held, using the shortest-form spelling both engines print. The bus keeps JS's `undefined` apart from `null`, so a
   var set from a missing field compares the same on both sides.
 
+### Godot plays the fight: combat, the systems and the motion rules travel
+
+- **The sweep measures what Godot would gain.** `sweep()` returns `unlock.godot`: for each value a Godot export
+  loses, and for each setting as a group, how many of the rolled cubes would survive the export if it travelled. A
+  ladder adds the groups one at a time, largest gain first. Combat travels together with `hp-pool` and `defeat-all`,
+  which wait on its hits. `cosmos-sweep.mjs` prints both.
+- **A beam striking is named as lost on Godot.** `struck` has its own bus row. Before, it counted as one of the cast
+  facts the Godot kernel performs, so a level whose cue waits on a beam reported as covered and never fired. The
+  ledger and the portability flags now name `fact:struck`.
+
 ### Structure rails: the structure book
 
 - A house (`floorplan` row) is getting **the structure book**, one tabbed HTML view of the whole building in the game
