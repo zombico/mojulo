@@ -25,7 +25,7 @@ export const MIND = Object.freeze({
     perception: {
       values: {
         sight: { status: 'built', lowers: MIND_RULE, note: 'a facing cone for the counter and a line of sight to fire' },
-        memory: { status: 'absent', effort: 'M', note: 'no memory of where a target was last seen; no search' },
+        memory: { status: 'built', lowers: MIND_RULE, note: 'a last-seen record: it goes there, searches, then forgets' },
       },
     },
     pathing: {

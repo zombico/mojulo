@@ -78,6 +78,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     any model can play.
   - A page with no commanded body is byte-identical.
   - The arena's dodge, tackle and boost behaviour tests now live beside the engine's maneuvers.
+- **Minds see, and remember.** `rule.mind.perception: 'sight'` limits a mind to what it can see: in range, in its
+  facing cone, with a clear line past the walls. Out of sight it forgets. `'memory'` adds a last-seen record: it walks
+  to where it last saw the target, searches there, and gives up after a while (a guard goes back to its post). Minds
+  without a perception setting are unchanged.
 - **Minds find their way round walls.** With `rule.mind.pathing: 'navmesh'` a mind with no line to its target, or to
   its post, walks a path round what is in the way instead of pressing against it, and holds its fire until it can
   see. The path comes from `worlds/controllable/nav.js`: a walk grid baked from the world's colliders for the body's

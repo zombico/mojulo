@@ -83,6 +83,8 @@ import { emitThreeWorld } from './scene-three.js';
 // `rule.mind` (rank boss, authored phases, or adapt). Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (pathfinding): the engine gains nav.js (a walk grid from the colliders, A*, a string pull)
 // ahead of the mind, which walks it only on `rule.mind.pathing: 'navmesh'`. Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (perception): the mind can be limited to what it sees and remember where it last saw a
+// target, both gated on `rule.mind.perception`. Same proof, same 13 fixtures.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

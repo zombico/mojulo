@@ -101,7 +101,7 @@ export const CAPABILITY = Object.freeze({
   swimmer: 'lives suspended in water',
   route:   'has waypoints to walk',
   sight:   'sees in a facing cone with a line of sight',
-  memory:  'remembers where it last saw a target (planned)',
+  memory:  'remembers where it last saw a target, goes there and searches (rule.mind.perception: memory)',
   navmesh: 'finds paths round obstacles (rule.mind.pathing: navmesh); without it, it slides along them',
   commanded: 'a commander sets its posture at strategy rate (rule.commanded)',
 });

@@ -298,6 +298,45 @@ export function buildMind(E) {
     e.aiFire = 0;
     return true;
   }
+  // ── PERCEPTION (`rule.mind.perception`): 'sight' knows a target only while it sees it; 'memory' also keeps where it
+  // last saw it, goes there and searches. Without the setting a mind knows where its target is (the arena's brain).
+  // perceive(e, r, target, world) — in `sightRange` (120), in the facing cone `sightCone` (half-angle 1.2 rad; skipped
+  // while it saw the target in the last half second), and a clear line past the colliders, eye to eye. A sighting is
+  // recorded on `e.lastSeen` { pos, t, id }.
+  function perceive(e, r, target, world) {
+    const t = e.transform, q = target.transform.pos, now = (world && world.time) || 0;
+    const dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
+    if (Math.hypot(dx, dy) > (r.sightRange ?? 120)) return false;
+    const recent = e.lastSeen && e.lastSeen.id === target.id && now - e.lastSeen.t < 0.5;
+    if (!recent) {
+      const off = Math.atan2(dy, dx) - t.heading;
+      if (Math.abs(Math.atan2(Math.sin(off), Math.cos(off))) > (r.sightCone ?? 1.2)) return false;
+    }
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    if (world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.colliders)) return false;
+    e.lastSeen = { pos: [q[0], q[1], q[2]], t: now, id: target.id };
+    e.searchT = null;
+    return true;
+  }
+  // recall(e, r, dt, world) — MEMORY: walk to the last-seen spot (pathing when it paths), then SEARCH there, sweeping
+  // its gaze for `searchTime` (3 s). Past `memorySpan` (8 s) since the sighting, or once the search is done, it forgets.
+  // True while memory owns the body.
+  function recall(e, r, dt, world) {
+    const ls = e.lastSeen, now = (world && world.time) || 0;
+    if (!ls || now - ls.t > (r.memorySpan ?? 8)) { e.lastSeen = null; e.searchT = null; return false; }
+    const t = e.transform, dx = ls.pos[0] - t.pos[0], dy = ls.pos[1] - t.pos[1];
+    e.aiFire = 0;
+    if (e.searchT == null && Math.hypot(dx, dy) > Math.max(1.5, r.collideRadius || 0)) {
+      if (!navTo(e, r, dt, world, ls.pos, r.speed ?? 6)) walkToward(e, r, Math.atan2(dy, dx), dt, world, r.speed ?? 6);
+      e.searchFrom = t.heading;
+      return true;
+    }
+    e.searchT = (e.searchT || 0) + dt;
+    if (e.searchT > (r.searchTime ?? 3)) { e.lastSeen = null; e.searchT = null; return false; }
+    turnToward(t, (e.searchFrom ?? t.heading) + Math.sin(e.searchT * 2.1) * 1.4, r, dt);
+    e.moving = false; e.locomotion = 'search';
+    return true;
+  }
   // a guard's post: `rule.post`, else where it was placed
   const postOf = (e, r) => (Array.isArray(r.post) ? r.post : e.spawn ? e.spawn.pos : e.transform.pos);
   // returnToPost(e, r, dt, world) — walk back to the post and stand there (LOST, for a guard)
@@ -408,7 +447,12 @@ export function buildMind(E) {
     const temper = r.mind && ((livePh && livePh.aggressiveness) || r.mind.aggressiveness);
     if (temper === 'passive' || (temper === 'defensive' && !(e.hpMax > 0 && e.body && e.body.hp < e.hpMax))) { e.moving = false; e.reactionEnded = false; return; }
     // NOTICE.
-    const target = pickTarget(e, world, r.target);
+    let target = pickTarget(e, world, r.target);
+    const percept = r.mind && r.mind.perception;
+    if (percept && target && target !== e && !perceive(e, r, target, world)) {
+      target = null;
+      if (percept === 'memory' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
+    }
     if (!target || target === e) { e.reactionEnded = false; if (motive === 'guard') returnToPost(e, r, dt, world); else e.moving = false; return; }
     // GUARD: it holds its post. A target farther than `guardRadius` (20) from the post is not its business: it goes
     // back to the post (LOST: return-to-post) and stands there (IDLE: post).

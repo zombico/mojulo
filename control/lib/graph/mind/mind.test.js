@@ -279,3 +279,57 @@ describe('a duelist switches: boss health phases and adapting (MX6)', () => {
     expect(asked.byId.m.adapt).toBeDefined();
   });
 });
+
+describe('a mind sees, and remembers (MX7)', () => {
+  const E = composeLive();
+  const hooks = { ground: () => 0 };
+  const gun = { fireClass: 'sight', magazine: 99, cooldown: 0.1, damage: 0, range: 200 };
+  // a wall north-east of the hunter: (30, 0) is in plain view, (30, 30) is behind it
+  const WALL = [{ min: [10, 5, 0], max: [14, 40, 30] }];
+  const world = (perception, playerAt = [30, 0, 0], heading = 0) => E.createWorld({
+    colliders: WALL,
+    entities: [
+      { id: 'p', rule: { type: 'walk', speed: 0 }, pilotable: true, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: playerAt, heading: 0 } },
+      { id: 'm', rule: { type: 'ai', speed: 8, turn: 4, standoff: 12, collideRadius: 1, collideHeight: 20, eye: 0, mind: { motivation: 'hunt', aggressiveness: 'bold', ...(perception ? { perception } : {}) } }, weapon: { ...gun }, body: { type: 'mesh', hittable: true, hp: 100, radius: 1 }, transform: { pos: [0, 0, 0], heading } },
+    ],
+  });
+  const run = (w, n) => { let fired = 0; for (let i = 0; i < n; i++) { E.stepWorld(w, {}, 1 / 60, hooks); fired += w.byId.m.aiFire || 0; } return fired; };
+
+  it('the facing cone hides a target behind it; without perception the mind knows anyway', () => {
+    const blind = world('sight', [-30, 0, 0]);
+    expect(run(blind, 120)).toBe(0);
+    expect(blind.byId.m.transform.pos).toEqual([0, 0, 0]);
+    const knows = world(null, [-30, 0, 0]);
+    expect(run(knows, 180)).toBeGreaterThan(0);
+  });
+
+  it('sight alone forgets at once; memory walks to the last-seen spot and finds the target again', () => {
+    for (const perception of ['sight', 'memory']) {
+      const w = world(perception);
+      expect(run(w, 30)).toBeGreaterThan(0);              // seen and engaged
+      w.byId.p.transform.pos = [30, 30, 0];               // ducks behind the wall
+      const at = w.byId.m.transform.pos.slice();
+      const fired = run(w, 60 * 6);
+      if (perception === 'sight') {
+        expect(fired).toBe(0);
+        expect(Math.hypot(w.byId.m.transform.pos[0] - at[0], w.byId.m.transform.pos[1] - at[1])).toBeLessThan(0.5);
+      } else {
+        expect(w.byId.m.transform.pos[0]).toBeGreaterThan(20);   // went to where it last saw the target
+        expect(fired).toBeGreaterThan(0);                          // and, from there, saw it again
+      }
+    }
+  });
+
+  it('memory searches the last-seen spot, then gives up', () => {
+    const w = world('memory');
+    run(w, 30);
+    w.byId.p.transform.pos = [600, 600, 0];   // gone, out of range
+    let searched = false;
+    for (let i = 0; i < 60 * 10; i++) { E.stepWorld(w, {}, 1 / 60, hooks); if (w.byId.m.locomotion === 'search') searched = true; }
+    const m = w.byId.m;
+    expect(searched).toBe(true);
+    expect(m.lastSeen).toBeNull();
+    expect(Math.hypot(m.transform.pos[0] - 30, m.transform.pos[1])).toBeLessThan(3);
+    expect(m.moving).toBe(false);
+  });
+});

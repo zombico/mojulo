@@ -43,7 +43,7 @@ export function capabilityOf(entity) {
     swimmer: !!rule.swimmer,
     route: Array.isArray(rule.waypoints) && rule.waypoints.length > 0,
     sight: true,
-    memory: false,
+    memory: !!(rule.mind && rule.mind.perception === 'memory'),
     navmesh: !!(rule.mind && rule.mind.pathing === 'navmesh'),
     commanded: !!rule.commanded,
     speed: Number.isFinite(rule.speed) ? rule.speed : null,
