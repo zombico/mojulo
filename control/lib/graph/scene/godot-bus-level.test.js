@@ -13,6 +13,7 @@ import { validateLevelContract } from '../game/level-contract.js';
 import { emitGodotGame, emitGodotProject, GAME_HOOKS_GD } from './godot-project.js';
 import { writePack, OWNED_DIR } from './godot-pack.js';
 import { readWeather } from '../weather/weather.js';
+import { assessPortability } from './engine-portability.js';
 
 const KERNEL = path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk', eye: 0.85 }, transform: { pos: [0, 0, 0.85] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
@@ -214,6 +215,33 @@ describe('the stats travel', () => {
   }, 120000);
 });
 
+// what an exported game needs to be played, found exporting a minted chapter town (kernel 0.16.0): a primitive body
+// (a box, a sphere) bakes no geometry, so the score carries it and the kernel builds it; a level whose behaviour rides
+// the bus wins through its contract, and a flag gate is the store's, so neither is flagged as lost
+describe('a minted game, exported', () => {
+  const ents = [...entities, { id: 'mayor', rule: { type: 'static' }, transform: { pos: [4, 0, 0.9] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.8], color: '#d9b44a' } },
+    { id: 'bell', rule: { type: 'static' }, transform: { pos: [0, 4, 3] }, body: { type: 'mesh', shape: 'sphere', radius: 0.5 } }];
+
+  it('the score carries each primitive body; other bodies carry none', () => {
+    const s = extractEngineScore({ ref: 'town', manifest: {} }, { entities: ents });
+    const by = Object.fromEntries(s.entities.map((e) => [e.id, e.primitive]));
+    expect(by.mayor).toEqual({ shape: 'box', size: [0.6, 0.6, 1.8], color: '#d9b44a' });
+    expect(by.bell).toEqual({ shape: 'sphere', radius: 0.5 });
+    expect(extractEngineScore({ ref: 'town', manifest: {} }, { entities: ents, metersPerUnit: 0.5 }).entities.find((e) => e.id === 'mayor').primitive.size).toEqual([0.3, 0.3, 0.9]);
+    expect(fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8')).toContain('func _build_primitive(');
+  });
+
+  it('a bus level and a store\'s flag gate are not flagged as lost', () => {
+    const score = extractEngineScore({ ref: 'town', manifest: {} }, town());
+    const game = { kind: 'game', store: STORE, levels: LEVELS };
+    const p = assessPortability({ manifest: game, levels: [{ ref: 'town', score }] });
+    expect(p.flags.join('\n')).not.toMatch(/no completion mechanic|approximated as unlocked/);
+    const bare = assessPortability({ manifest: { ...game, store: undefined }, levels: [{ ref: 'town', score: extractEngineScore({ ref: 'town', manifest: {} }, { entities }) }] });
+    expect(bare.flags.join('\n')).toMatch(/no completion mechanic/);
+    expect(bare.flags.join('\n')).toMatch(/approximated as unlocked/);
+  });
+});
+
 // a two-level game: the town turns its chapters and ends on the siege's word; the walls open on the chapter's flag and
 // start with the town's world carried in. The store travels (kernel 0.9.0).
 const STORE = { slices: [{ name: 'campaign', kind: 'progression' }, { name: 'world', kind: 'flags' }] };
@@ -235,7 +263,7 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.15.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.16.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
     for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);

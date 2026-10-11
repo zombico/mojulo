@@ -19,7 +19,8 @@ export function assessPortability({ manifest, levels }) {
     const kinds = (score.mechanics ?? []).map((m) => m?.kind).filter(Boolean);
     const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k));
     if (unknown.length) lf.push(`mechanics outside the vocabulary: ${unknown.join(', ')}`);
-    if (!kinds.some((k) => COMPLETION_KINDS.includes(k))) {
+    // a level whose behaviour rides the bus ends through its contract's `on` (an event mapped to end), which travels
+    if (!kinds.some((k) => COMPLETION_KINDS.includes(k)) && !score.ledger?.bus_carried) {
       lf.push('no completion mechanic (reach-exit / survive) — the win condition lives in runtime code, which does not travel');
     }
     if (score.ledger?.skipped_movers) lf.push('mover/platform integrator channels do not travel');
@@ -37,7 +38,8 @@ export function assessPortability({ manifest, levels }) {
   }
   if (manifest?.kind === 'game') {
     for (const lv of manifest.levels ?? []) {
-      if (lv?.gate && !lv.gate.completed) flags.push(`gate on '${lv.ref}' is not a completion gate — approximated as unlocked`);
+      // with a store, a flag gate is the store's (kernel/store.gd evaluates it); without one only completion gates hold
+      if (lv?.gate && !lv.gate.completed && !manifest.store) flags.push(`gate on '${lv.ref}' is not a completion gate — approximated as unlocked`);
     }
     for (const k of ['setup', 'difficulty']) {
       if (manifest[k] != null) flags.push(`'${k}' shell UI does not travel`);

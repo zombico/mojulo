@@ -484,17 +484,60 @@ func _hide_player_double() -> void:
 		double.visible = false
 
 
-# Entities that baked no mesh (glyph/primitive bodies — export-side gap) get
-# a gold placeholder marker so gameplay anchors aren't invisible.
+# Entities that baked no mesh: a primitive body the score carries (a box or a sphere, since 0.15.0) is built at its
+# size and colour, centred and turned by the entity's heading; anything else (a glyph) gets a gold placeholder marker
+# so gameplay anchors aren't invisible.
 func _mark_meshless_entities() -> void:
 	var size := 0.7 * eye_scale
+	var prims := {}
+	for e in score.get("entities", []):
+		if e is Dictionary and e.get("primitive") is Dictionary:
+			prims[gd_name("entity:" + s_(e.get("id")))] = e
 	for ent in find_children("entity_*", "Node3D", true, false):
 		if ent.visible and ent.find_children("*", "MeshInstance3D", true, false).is_empty():
+			if prims.has(String(ent.name)):
+				_build_primitive(ent, prims[String(ent.name)])
+				continue
 			var marker := MeshInstance3D.new()
 			marker.mesh = _marker_mesh("entity")
 			marker.scale = Vector3(size, size, size)
 			marker.position = Vector3(0, size / 2, 0)
 			ent.add_child(marker)
+
+
+func _build_primitive(ent: Node3D, row: Dictionary) -> void:
+	var p: Dictionary = row["primitive"]
+	var mm := StandardMaterial3D.new()
+	mm.albedo_color = Color.html(p["color"]) if p.get("color") is String and Color.html_is_valid(p["color"]) else Color(0.7, 0.7, 0.7)
+	var mi := MeshInstance3D.new()
+	mi.name = "body"
+	if p.get("shape") == "sphere":
+		var sp := SphereMesh.new()
+		sp.radius = float(p["radius"])
+		sp.height = 2.0 * float(p["radius"])
+		mi.mesh = sp
+	else:
+		var bx := BoxMesh.new()
+		var sz: Array = p["size"]
+		bx.size = Vector3(float(sz[0]), float(sz[2]), float(sz[1]))   # z-up [w, d, h] → y-up
+		mi.mesh = bx
+	mi.material_override = mm
+	ent.add_child(mi)
+	# the node carries the figure yaw offset; a body faces by the heading alone
+	mi.global_basis = Basis(Vector3.UP, float(row.get("heading", 0.0)))
+	_primitive_sun()
+
+
+# a primitive body is shaded (a box reads as a box); an unlit export has no light, so the first one brings a soft sun
+# (the unlit ground and baked surfaces ignore it)
+func _primitive_sun() -> void:
+	if get_node_or_null("PrimitiveSun") != null or not find_children("*", "DirectionalLight3D", true, false).is_empty():
+		return
+	var sun := DirectionalLight3D.new()
+	sun.name = "PrimitiveSun"
+	sun.rotation = Vector3(deg_to_rad(-50), deg_to_rad(35), 0)
+	sun.light_energy = 0.9
+	add_child(sun)
 
 
 # One unit mesh + one material per marker KIND, built on first use and shared

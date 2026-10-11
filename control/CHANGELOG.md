@@ -149,6 +149,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   config. The conformance corpus gains a stats play and seeded runs over it, equal frame by frame (a planted curve bug
   is caught). Bound bodies reach the cast and the walker's pace. In a headless Godot, praying at a shrine levels the
   hero, fires the level-up cue, and the HUD shows the gold and the new level.
+- **An exported minted game plays (kernel 0.16.0).** Exporting a minted two-level chapter town found three gaps,
+  now closed:
+  - A primitive body (a box or a sphere) baked no geometry, so the kernel drew a gold placeholder. The score now
+    carries its shape, size and colour, and the kernel builds it, shaded, with a soft sun when the export has no light.
+  - The portability check said a bus level's win and a store's flag gate do not travel. Both do now; the flags are
+    gone for such games.
+  - The export passes the machine gate, and a headless run plays it through: the warning, the mayor's menu, the
+    town's end, the saved flags, the walls unlocked and starting with the carried chapter.
 - **The bus contract.** `scene/bus-abi.js` names the facts a world's behaviour takes and the effects it gives, each
   with a status per kernel. Because a page effect is mostly a bus var (an open menu is `ui-menu-<id>`), the next
   adapters are var watchers. The score's ledger lists what the Godot kernel performs, does in part, and does not. The

@@ -154,6 +154,20 @@ export function extractBus(payload) {
   return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}) };
 }
 
+// A primitive body (`mesh`: a box or a sphere, centred on the entity) bakes no geometry into the GLB: its node is an
+// empty placement. The score carries its shape, size and colour so an engine kernel builds it (Godot: level.gd, in
+// place of the gold placeholder). Any other body ⇒ null (no key).
+const HEX_BODY = /^#[0-9a-fA-F]{3,8}$/;
+function primitiveBody(list, id, sv, sn) {
+  const src = (Array.isArray(list) ? list : []).find((x) => x && String(x.id) === id);
+  const b = src && src.body;
+  if (!b || b.type !== 'mesh') return null;
+  const color = typeof b.color === 'string' && HEX_BODY.test(b.color) ? { color: b.color } : {};
+  if (b.shape === 'sphere' && Number.isFinite(b.radius) && b.radius > 0) return { shape: 'sphere', radius: sn(b.radius), ...color };
+  if (Array.isArray(b.size) && b.size.length >= 3 && b.size.slice(0, 3).every((x) => Number.isFinite(x) && x > 0)) return { shape: 'box', size: sv(b.size.slice(0, 3)), ...color };
+  return null;
+}
+
 export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const manifest = sketch?.manifest ?? {};
   const extras = levelSceneExtras(payload) ?? {};
@@ -323,7 +337,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     entities: (levelEntityNodes(payload) ?? []).map((e) => {
       const locomotion = locomotionFor(payload.figures, e.figure, unitScale || 1);
       const scaled = unitScale ? { ...e, translation: sv(e.translation) } : e;
-      return locomotion ? { ...scaled, locomotion } : scaled;
+      const prim = primitiveBody(payload.entities, e.id, sv, sn);
+      return { ...scaled, ...(locomotion ? { locomotion } : {}), ...(prim ? { primitive: prim } : {}) };
     }),
     // declarative mechanics: `at` + `radius` on a zone, a pickup, a hazard are RECIPE units, so
     // they scale with the mesh (a kernel reads them as metres × 100). Absent a unit ⇒ untouched.
