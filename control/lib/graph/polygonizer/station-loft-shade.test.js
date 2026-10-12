@@ -521,9 +521,9 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // (world-kinds.js, STUDIO_SMOOTH_CREASE: a hero off the anime head carries the key at its corners); the unshaded
     // export (FLAT_LIGHT) unchanged. The landmark pins, all three, re-pinned for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis), then for
     // the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull)
-    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['a57ed7221c368561', 'bc93b0a1aa4fff88', '89b884b7078272d9']],
-    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['a428898a3383402e', 'a28807c6bbd260d2', 'c86dbc99f89d6f66']],
-    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['bb3063a3a7ba1e28', 'd52f97e21ea62132', '0e6eb7d4107141c3']],
+    landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['05a75898275cf314', '5169832fc322f0e2', 'b0e4bcab7010485b']],
+    landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['a0d0b61ae03d1329', 'd81d789c4d7e5adc', '14f7d7276b284cf1']],
+    headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['d9dccbb353860437', '3acb7a0ba5e77a17', 'b1b8dbffa9754849']],
   };
   // THE STRUCTURED CORE (hero-form.js DEFAULT_CORE: the pelvis bone and part, converged legs, the stands' own base): the
   // default heroes' payloads, pinned; each one at core: 'streamlined' is the value pinned beside it above, still. Re-pinned
@@ -551,10 +551,14 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // and again when the structured pelvis took the hip hinge's tilt (`pelvisTilt`) and a skirt's cloth below the seat hung
   // from both thighs, and again for the shoulder girdle (the collarbones rising with a raised arm), and again for the knee
   // and elbow folds (the hinge's rings on a helper bone turned half the bend, pushed to its outside)
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
-    const S = { landmarkMale: [{ cast: 'male' }, ['18f176ff1e68bcb0', '1bd0df4a668c503a', 'ead79ab6becce2f4']],
-      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['9efa52c5b3bc29d7', 'ef1b5e46e64d655f', '4e2f71ac83c4cd41']],
-      headNone: [{ cast: 'female', head: 'none' }, ['393258b4cc1b1efc', 'fb714fb98c0b198e', '727eb907a02e7cd4']] };
+    const S = { landmarkMale: [{ cast: 'male' }, ['687f86ebaacab92a', '372cd6d3ff71c659', 'f1c4306588d44b80']],
+      landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['69a107df201dc590', '7a8b16383a2283bc', '23438c234c563b01']],
+      headNone: [{ cast: 'female', head: 'none' }, ['302064fea3cd69ba', '9419f34f0b7f1b7b', '0d1054fb6b869524']] };
     for (const [name, [spec, [plain, toon, unshaded]]] of Object.entries(S)) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
       expect(h(await world(m)), name).toBe(plain); expect(h(await world({ ...m, toon: { bands: 3, ink: true } })), name).toBe(toon); expect(h(await world(m, { unshaded: true })), name).toBe(unshaded);
@@ -583,6 +587,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   const lightBefore = { thresholds: { Hair: 0.25 }, shade: { Hair: rgbToHex(hexToRgb('#644634').map((v, k) => v * [0.62, 0.62, 0.76][k])) }, highlight: false };
   // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
   // `hands`, `handWidth`): the hand alone moved
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
   it('the anime hero: unshaded and toon.light false are the old bake; the default steps', async () => {
     // standing at rest (`gesture: 'rest'`: no stand clip, the bind pose). Re-pinned for the anime hero's own PALETTE
     // (layered.js ANIME_HERO_PALETTE: the hair lifted, the strokes darker): these are the values the code before the
@@ -609,16 +617,16 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' };
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
     const plainBake = await world(m, { unshaded: true });
-    expect(h(plainBake)).toBe('566fc7ae1db75385'); expect(h(untimed(plainBake))).toBe('860084be16ac6686');
+    expect(h(plainBake)).toBe('8bb81fbc01217f3d'); expect(h(untimed(plainBake))).toBe('166b556a4f602bd1');
     const off = await world({ ...m, toon: { light: false } });
-    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('1441f1dd914996c6'); expect(h(untimed(off))).toBe('28ab9948297876e3');
+    expect(off.toon).toBeUndefined(); expect(h(off)).toBe('d99a344a14998c88'); expect(h(untimed(off))).toBe('a890159f713e627a');
     const plainWas = await world(formWave(m), { unshaded: true }), offWas = await world({ ...formWave(m), toon: { light: false } });
-    expect(h(plainWas)).toBe('88639bab2606a538'); expect(h(untimed(plainWas))).toBe('480bf3bb44f1d27c');
-    expect(h(offWas)).toBe('844b93cd33a54fed'); expect(h(untimed(offWas))).toBe('12773edda172d343');
+    expect(h(plainWas)).toBe('f8eb55fa19362805'); expect(h(untimed(plainWas))).toBe('bf72df63f29e5188');
+    expect(h(offWas)).toBe('3a0125fda109f062'); expect(h(untimed(offWas))).toBe('c24a9c545e6f0bde');
     const was = formWave(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ ...spec, palette: { Hair: '#3b4859' } }) }));
-    expect(h(untimed(await world(was, { unshaded: true })))).toBe('c5845d0f1866fa2c'); expect(h(untimed(await world({ ...was, toon: { light: false } })))).toBe('c12be20c4cb05032');
+    expect(h(untimed(await world(was, { unshaded: true })))).toBe('67831cf7c69d9376'); expect(h(untimed(await world({ ...was, toon: { light: false } })))).toBe('5600dc146d2914c0');
     const before = beforeHairBase(spec);
-    expect(h(untimed(await world(before, { unshaded: true })))).toBe('5e90ec5cf67c37ce'); expect(h(untimed(await world({ ...before, toon: { light: false } })))).toBe('b2d5af3a7d88771a');
+    expect(h(untimed(await world(before, { unshaded: true })))).toBe('c31ff9b7c05dfe13'); expect(h(untimed(await world({ ...before, toon: { light: false } })))).toBe('1991b6662d8825ad');
     const lit = await world(m);
     expect(h(lit)).not.toBe('c07a8da432d22b96'); expect(lit.faces.length).toBeGreaterThan(off.faces.length);
     // the packed rig figure takes the same pieces (station-loft-rig characterRigParts): the skeleton and the clips

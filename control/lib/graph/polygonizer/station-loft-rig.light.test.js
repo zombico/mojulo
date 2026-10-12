@@ -335,14 +335,18 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
     const { emitThreeWorld } = await import('../scene/scene-three.js');
     expect(h(emitThreeWorld(await world({ ...m, toon: { ink: true } })))).toBe('c50b945673ec963c');
   });
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
   it('a landmark hero: the inked page; the skinned GLB with the baked ink', async () => {
     const { emitThreeWorld } = await import('../scene/scene-three.js');
     // (on the streamlined core: these pins predate the structured core, DEFAULT_CORE, whose payloads station-loft-shade pins;
     // re-pinned for the landmark head's forehead: upright, the brow's end on its own landmark; then for the ear, head-ear.js;
     // then for smooth shading under the studio light, STUDIO_SMOOTH_CREASE: the faces' and the pack's corners;
     // then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis); then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull))
-    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('3a7dc775cf557ddf');
+    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('da20c72d68975300');
     const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', core: 'streamlined' }) }), toon: { ink: { crease: 50 }, bake: true } });
-    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('4621195f5c88c92a');
+    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('500925b1d448a3d9');
   });
 });

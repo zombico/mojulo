@@ -211,9 +211,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - the rim comes from its sky;
   - its register bands the key.
   - The static faces, held gear and the packed rig all take it, and the World page's rim patch draws the rim.
-  - The packed rig takes the palette under it (`packLayeredRig` `palette`): its plain path coloured each face by its
-    part's `tint`, which a hero's parts never carry, so the moving figure (the clip preview, the skinned GLB, Godot)
-    was grey all over in its level.
+  - The packed rig takes the hero's palette (`packLayeredRig` `palette`): its plain path coloured each face by its
+    part's `tint`, which a hero's parts never carry, so the moving figure (the clip preview the World page shows, the
+    skinned GLB, Godot) was grey all over, in its level and in the studio alike, for every hero off the character
+    light (every western hero, and an anime hero's unshaded or `light: false` row). The World payload and rig pins of
+    those heroes are re-pinned for it.
   - An anime hero on a cube is lit by the cube, not by its read-time cel light; a `toon.light` the manifest names
     still wins.
   - The hero takes the cube's target unless it names its own.

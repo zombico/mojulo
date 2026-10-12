@@ -117,6 +117,10 @@ describe('the skinned GLB carries the anime face', () => {
     expect(worst).toBeLessThan(0.0003);
   });
 
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
   it('a landmark hero and the head-none hero resolve to the same skinned bytes with the face asked for, the bytes they wrote before the face', async () => {
     const cheer = { cheer: [{ support: 'both', crouch: 0.1 }, { support: 'both', armR: { x: 0.3, y: 0.15, z: 0.94 }, elbowR: 'slight' }] };
     // sha256 (first 16 hex) of each skinned GLB as the tree wrote it before the face and the clip timing: pinned, so a
@@ -126,7 +130,7 @@ describe('the skinned GLB carries the anime face', () => {
     // the brow's end on its own landmark), then for the ear (head-ear.js); the head-none pin unchanged. Both re-pinned
     // for smooth shading under the studio light (the pack's corners shaded from the welded normals, STUDIO_SMOOTH_CREASE). The landmark pin
     // re-pinned again for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis), then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull).
-    const PIN = { landmark: '1b56e397719b4acb', none: '6bb9c78313af5912' };
+    const PIN = { landmark: 'd0656344712b7f92', none: '2ac4fe6120c0ab4e' };
     // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });

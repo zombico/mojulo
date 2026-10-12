@@ -607,7 +607,8 @@ function faceRowOf(face) {
  * `pack`): every part carries `uv` (float32 [s, t] per vertex, t up, on the atlas), the pack its `paintTex` (the atlas:
  * { url, w, h }), and the face's shells their morph rows as `face`'s do.
  * `palette` (default null → byte-identical output; the plain path): each face's colour is its group's in it, as the
- * static faces' (layeredFaces), before the part's `tint` — a hero under a level's cast light (its parts carry no tint).
+ * static faces' (layeredFaces), before the part's `tint` — a hero on the plain path, in the studio or a level's cast
+ * light (its parts carry no tint: without it, the moving figure was the grey fallback all over).
  * `speeds` (default null → byte-identical output): a locomotion clip's GROUND SPEED (hero-motion.js, metres a second at its
  * seconds), carried as `v`: the speed the figure must move for a planted foot to stay put (an engine plays the clip at
  * planar speed ÷ v).
