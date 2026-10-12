@@ -587,7 +587,9 @@ function faceRowOf(face) {
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null } = {}) {
+  // `tint` (face-tint.js): per face, its corners' colour multipliers in sRGB, taken to linear here. Absent ⇒ byte-identical.
+  const tk = (fi, k, c) => (tint?.[fi] ? tint[fi][k][c] ** 2.2 : 1);
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
@@ -605,8 +607,8 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     const P = parts[bi]; P.faces++;
     // a CAST light (era/cast-light.js: the level's key, tinted ambient and bounce, per channel) in place of the studio
     // key's grey Lambert; the same normals choose the corner's shade. Absent ⇒ the line below, byte-identical.
-    if (cast && !lit) { tri.forEach((vi, k) => { const n = normals ? normals[fi][k] : vN && vN[vi] ? vN[vi] : nl > 1e-12 ? mul(nrm, 1 / nl) : [0, 0, 1]; const f = castLightFactor(n, cast); P.pos.push(...p[k]); P.col.push(base[0] * f[0], base[1] * f[1], base[2] * f[2]); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } }); return; }
-    tri.forEach((vi, k) => { const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s, base[1] * s, base[2] * s); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
+    if (cast && !lit) { tri.forEach((vi, k) => { const n = normals ? normals[fi][k] : vN && vN[vi] ? vN[vi] : nl > 1e-12 ? mul(nrm, 1 / nl) : [0, 0, 1]; const f = castLightFactor(n, cast); P.pos.push(...p[k]); P.col.push(base[0] * f[0] * tk(fi, k, 0), base[1] * f[1] * tk(fi, k, 1), base[2] * f[2] * tk(fi, k, 2)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } }); return; }
+    tri.forEach((vi, k) => { const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s * tk(fi, k, 0), base[1] * s * tk(fi, k, 1), base[2] * s * tk(fi, k, 2)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.

@@ -15,6 +15,7 @@
  *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
  *   TIERED_FACE[pole]         the landmark head's defaults by sex: face words, hair, features (humanoid-head.js)
  *   TIERED_FACE_SMOOTH        the landmark head's normals blended toward its ellipsoid
+ *   TIERED_FACE_TINT[pole]    the head skin's occlusion and blush (face-tint.js); tieredPole(hero) the head's sex
  *
  * The second piece is the JOINT. A limb's two segments each run past their joint and cross there, each on its own
  * bone: bent, the two tubes scissor (the outside of the knee a beak, the elbow two crossed sticks) and even straight
@@ -27,6 +28,7 @@
  * chest critic (hero-style-critic.js chestCritic). */
 import { SLOT_FAMILIES, ringPoints, segmentPart, loftPart } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight } from './breast-field.js';
+import { castOf } from './hero-form.js';
 
 /** The field as the unsupported chest places it: the apex `cleft` bust radii off the midline (the equilateral rule
  * against the hero's notch), the inner reach running just past the midline with a fuller profile, so the pair meet low
@@ -311,6 +313,15 @@ export const TIERED_FACE = Object.freeze({
     features: Object.freeze({ eye: 0.85, brow: 0.85, ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }) }),
   }),
 });
+/** The FACE TINT (face-tint.js): a soft occlusion in the skin's folds and a warm blush on the cheeks, the nose's tip
+ * and the ears, the female's warmer; the vertex colour a shipped face paints where a texture would. */
+export const TIERED_FACE_TINT = Object.freeze({
+  female: Object.freeze({ ao: Object.freeze({ k: 0.3, lo: 0.04, hi: 0.35 }), blush: Object.freeze({ amount: 0.9, tint: Object.freeze([1.0, 0.86, 0.85]) }) }),
+  male: Object.freeze({ ao: Object.freeze({ k: 0.32, lo: 0.04, hi: 0.35 }), blush: Object.freeze({ amount: 0.5, tint: Object.freeze([1.0, 0.88, 0.86]) }) }),
+});
+/** the head's sex for the tiered face: the head preset if named, else the cast's silhouette */
+export const tieredPole = (hero) => hero.headPreset ?? (castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male');
+
 /** the landmark head's normals toward its ellipsoid (station-loft-shade.js headEllipsoidNormals): 0.45 left the crease
  * down the forehead and the nose, 0.7 reads as one form */
 export const TIERED_FACE_SMOOTH = 0.7;

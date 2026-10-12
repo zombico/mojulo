@@ -91,6 +91,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     its ends (`strip(..., { end })`): the four-station strips stood a full 2 mm proud to the corner (a sliver past the
     mouth in three-quarter) and their 5 mm caps crossed at the midline into a zigzag. The female's chin is rounder
     (`chinPoint` 1.2): the flat shelf under it read as a box in three-quarter.
+  - The FACE TINT (`face-tint.js`, `TIERED_FACE_TINT`): a per-corner colour on the head's skin, read off its geometry —
+    a soft occlusion where the skin turns in (the eyes' corners, the nostrils, the mouth's corners) and a warm blush on
+    the cheeks, the nose's tip and the ears, the female's warmer. The vertex colour a shipped face paints where a
+    texture would; `layeredFaces` and the rig pack take it as `tint` (absent ⇒ byte-identical).
   - The head's normals lean 0.7 toward its ellipsoid (`layeredShadingNormals({ ellipsoid })`, the ears half), the way
     shipped faces edit their normals toward a sphere: the face reads as one form. The rig pack bakes the same.
   - Absent the tiered form every head is as before.

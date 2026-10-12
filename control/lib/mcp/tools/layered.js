@@ -79,7 +79,7 @@ import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
-import { tieredChest, tieredJoints, tieredSockets, tieredFace, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
+import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -407,7 +407,7 @@ function tieredBust(hero) {
  * the torso's rings in place of its own domes. */
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
-  const pole = hero.headPreset ?? (femaleOf(hero) ? 'female' : 'male');
+  const pole = tieredPole(hero);
   return tieredSockets(tieredJoints(tieredChest(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), tieredBust(hero))));
 }
 function heroFormPlanOf(hero) {
