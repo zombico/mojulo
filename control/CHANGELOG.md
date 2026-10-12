@@ -22,6 +22,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The blink** (`blink`, 0 open … 1 shut). The eye's stack (the white, the iris, the pupil, the lids) closes to a
   sliver under the lid and lowers a third of the eye's half-height, so the lids meet low; the face around it never
   moves and every part keeps its topology, so the face in motion can difference builds.
+- **The brow ridge** (the tiered face's `features.ridge`, `humanoid-head-fit.js` `midColumn`). The fitted head's eye
+  and brow rows had no point between the inner and outer brow, so the brow was flat over the iris and the socket flat
+  round the eye. A column now runs between them on the cranium and the jaw (`refineSlot`: every pin keeps its
+  address): on the brow row it reads the fitted brow and stands forward (female 3 mm, male 5 mm), on the eye row it sits
+  back (2 mm, 3 mm) so the eye sits under the ridge, and the brow row's side comes in (the temple). The face's
+  ellipsoid shading leaves the band round each eye and brow most of its own normals (`TIERED_FACE_SMOOTH.brow`), so
+  the socket shades under the ridge. The brows halve their spans again over the crest so it never shows through them.
+  The new cheek points carry the blush at its full authored strength, so its amounts drop to keep its coverage
+  (female 0.9 → 0.77, male 0.5 → 0.45, matched by the blush's area integral). The tiered face counts are re-pinned
+  (+148: the column 52, the brows 96); a head without the feature builds the same bytes.
 - **Not yet.** The face rig, the clips' face keys and the ambient blink on the western head (the plan's next phases).
 
 ### The painted face in motion: its eyes, mouth and brows drawn per state on a texture sheet

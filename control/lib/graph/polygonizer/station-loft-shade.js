@@ -233,7 +233,7 @@ function regionWeight(part, p, L) {
  * a sphere (the anime head's capsule proxy is the same idea on its own landmarks). The skin of the cranium and the jaw
  * takes the full weight, the ears half, everything else none; the ellipsoid is the two parts' box at rest, and a posed
  * face carries its rest direction by its own rotation, as the capsule does. No cranium or jaw ⇒ the weld as it was. */
-function headEllipsoidNormals(mesh, rest, out, w0, noseKeep = 1) {
+function headEllipsoidNormals(mesh, rest, out, w0, noseKeep = 1, browKeep = 1) {
   const RV = rest.vertices, acc = [0, 0, 0], lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; let n = 0;
   const head = (pt) => pt === 'cranium' || pt === 'jaw';
   mesh.faces.forEach((t, fi) => { if (!head(partOf(mesh, fi))) return; for (const vi of t) { const p = RV[vi]; for (let k = 0; k < 3; k++) { acc[k] += p[k]; lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); } n++; } });
@@ -245,7 +245,12 @@ function headEllipsoidNormals(mesh, rest, out, w0, noseKeep = 1) {
   const nr = nosePts(/^nostrilR$/), nl = nosePts(/^nostrilL$/);
   const nc = noseKeep < 1 && nr.length && nl.length ? [0, 1, 2].map((k) => (nr.reduce((t, p) => t + p[k], 0) / nr.length + nl.reduce((t, p) => t + p[k], 0) / nl.length) / 2) : null;
   const nR = nc ? 1.6 * Math.abs(nr[0][0] - nl[0][0]) : 0;
-  const keepAt = (p) => { if (!nc) return 1; const d = Math.hypot(p[0] - nc[0], (p[1] - nc[1]) * 0.7, (p[2] - nc[2]) * 0.6) / nR; const t = Math.min(1, Math.max(0, (d - 0.6) / 0.6)); return noseKeep + (1 - noseKeep) * t * t * (3 - 2 * t); };
+  // the BROW (`browKeep`, the same share round each eye up to its brow): the ridge over the eye and the socket under it
+  // (humanoid-head.js features.ridge) keep their own normals, so the brow shades over the eye
+  const eyeC = browKeep < 1 ? [nosePts(/^eyeR$/), nosePts(/^eyeL$/)].filter((a) => a.length).map((a) => [0, 1, 2].map((k) => a.reduce((t, p) => t + p[k], 0) / a.length + (k === 2 ? 0.01 : 0))) : [];
+  const ease = (d) => { const t = Math.min(1, Math.max(0, (d - 0.6) / 0.6)); return t * t * (3 - 2 * t); };
+  const browAt = (p) => { let k = 1; for (const c of eyeC) k = Math.min(k, browKeep + (1 - browKeep) * ease(Math.hypot((p[0] - c[0]) / 0.03, (p[1] - c[1]) / 0.04, (p[2] - c[2]) / 0.026))); return k; };
+  const keepAt = (p) => { const b = eyeC.length ? browAt(p) : 1; if (!nc) return b; const d = Math.hypot(p[0] - nc[0], (p[1] - nc[1]) * 0.7, (p[2] - nc[2]) * 0.6) / nR; return Math.min(b, noseKeep + (1 - noseKeep) * ease(d)); };
   mesh.faces.forEach((t, fi) => {
     const pt = partOf(mesh, fi), w = head(pt) && mesh.groups[fi] === 'Skin' ? w0 : /^ear/.test(pt) ? w0 / 2 : 0; if (!w) return;
     let fr = null;
@@ -308,7 +313,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
   const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
   const ew = typeof ellipsoid === 'object' && ellipsoid ? ellipsoid.w : ellipsoid;
-  if (!proxy && ew > 0) return headEllipsoidNormals(mesh, rest, out, ew, ellipsoid?.nose ?? 1);
+  if (!proxy && ew > 0) return headEllipsoidNormals(mesh, rest, out, ew, ellipsoid?.nose ?? 1, ellipsoid?.brow ?? 1);
   if (!proxy) return out;
   const L = headProxyLandmarks(rest); if (!L) return out;
   const C = L.centre, zLo = L.bottom; const wOf = new Map(); const RV = rest.vertices; const posed = rest !== mesh; const NA = L.neck && neckAxis(V, L.neck);

@@ -4,7 +4,7 @@
  * Facial accents and hair are closed lofts pinned to that surface. Expressions are baked; jawOpen is live.
  */
 import { compileLayered, pinFrame } from './station-loft.js';
-import { address, frameAt, loftParts, strip, sweep, vec } from './station-loft-detail.js';
+import { address, frameAt, loftParts, refineSlot, strip, sweep, vec } from './station-loft-detail.js';
 import { surfaceLocalOffset } from './surface-pin.js';
 import { headLandmarks, HEAD_KNOB_DEFAULTS } from './figure-head.js';
 import { DIMORPH } from './figure-rig.js';
@@ -212,9 +212,16 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     ala: pole.noseWidth * knobs.noseWidth, eye: knobs.eyeSize, brow: Math.sqrt(pole.brow) * knobs.browRidge, mouth: knobs.mouthWidth };
   const reg = HEAD_REGISTERS[register], ex = resolveWesternExpression(expression);
   // A fitted head owns its planes: its rows are read off the fitted surface, so the register only sets the eye sides.
-  const cage = fit ? fittedCage(preset, knobs, SLOTS) : null;
+  // the EYE-AND-BROW column (features.ridge: { f, h, socket, temple }, humanoid-head-fit.js midColumn): a `mid` slot
+  // between inner and outer on the cranium and the jaw (refineSlot: every address keeps its meaning), the brow's ridge,
+  // the eye's socket and the temple sculpted on it; absent ⇒ the rings as before
+  const R = fit && ft.ridge ? ft.ridge : null;
+  const cage = fit ? fittedCage(preset, knobs, SLOTS, R ? { mid: R } : {}) : null;
   const rowZ = fit ? cage.rowsZ : rows.map((r) => r[0]);
   const cranium = fit ? fittedRings(cage.cranium, cage.rowsZ, cage.crown) : rings(rows, sh, reg);
+  const midColumn = (part, pts) => { part.slots = [...part.slots]; refineSlot({ parts: { [part.name]: part } }, part.name, 'inner', 'outerR', 'mid', R.f);
+    part.stations.forEach((st, i) => { if (!pts[i]) return; const p = pts[i]; st.points.midR = p.map(r6); st.points.midL = [r6(-p[0]), r6(p[1]), r6(p[2])]; }); };
+  if (R) { cranium.name = 'cranium'; midColumn(cranium, cage.mid.cranium); delete cranium.name; }
   // The skull/jaw boundary follows the mandibular angle up to the condyles. It is not a
   // horizontal puppet cut: the mouth opens at the front while the hinge remains by the ear.
   for (let i = 0; i < 4; i++) {
@@ -231,7 +238,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   for (const st of cranium.stations) for (const [slot, p] of Object.entries(st.points)) {
     const side = /R$|L$/.test(slot), ax = Math.abs(p[0]);
     const cheekWeight = Math.max(0, 1 - Math.abs(p[2] - anchors.cheekR[2]) / 0.065) * Math.min(1, ax / 0.045);
-    if (side && ['innerR', 'innerL', 'outerR', 'outerL'].includes(slot)) {
+    if (side && ['innerR', 'innerL', 'outerR', 'outerL', 'midR', 'midL'].includes(slot)) {
       p[2] += ex.mouthCorner * cheekWeight * 0.75;
       p[1] += Math.max(0, ex.mouthCorner) * cheekWeight * 0.35;
       const browWeight = Math.max(0, 1 - Math.abs(p[2] - anchors.glabella[2]) / 0.038);
@@ -262,6 +269,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   }
   jaw.caps.back = [0, 0.025, anchors.menton[2] + 0.020];
   // Two coincident boundary rings hide the construction seam; both parts remain individually closed.
+  if (R) { jaw.name = 'jaw'; midColumn(jaw, cage.mid.jaw.slice(0, jaw.stations.length - 1)); delete jaw.name; }
   jaw.stations.at(-1).points = structuredClone(cranium.stations[0].points);
   jaw.caps.tip = [0, anchors.condyleR[1], anchors.condyleR[2]];
   cranium.capGroups = { back: 'Mouth', tip: 'Skin' }; jaw.capGroups = { back: 'Skin', tip: 'Mouth' };
@@ -318,7 +326,10 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     // `arch` rows into an arch, the head (`head`, by the nose) the thickest and tapering to a fine `tail`, lying `lift`
     // of the old height off the skin; absent ⇒ the four-station strip as before
     const B = ft.brows ?? null;
-    const browAddrs = B ? addrs.flatMap((a, i) => (i ? [[(addrs[i - 1][0] + a[0]) / 2, (addrs[i - 1][1] + a[1]) / 2], a] : [a])).map(([u, t], j, all) => [u + B.arch * Math.sin((Math.PI * j) / (all.length - 1)), t]) : addrs;
+    // over the ridge (features.ridge) the brow halves its spans again, so it bends over the crest instead of the crest
+    // showing through it
+    const halve = (as) => as.flatMap((a, i) => (i ? [[(as[i - 1][0] + a[0]) / 2, (as[i - 1][1] + a[1]) / 2], a] : [a]));
+    const browAddrs = B ? (R ? halve(halve(addrs)) : halve(addrs)).map(([u, t], j, all) => [u + B.arch * Math.sin((Math.PI * j) / (all.length - 1)), t]) : addrs;
     const browW = (j) => (B ? (() => { const x = j / (browAddrs.length - 1); return x < 0.3 ? B.head + (1 - B.head) * (x / 0.3) : 1 + (B.tail - 1) * ((x - 0.3) / 0.7); })() : [0.65, 1, 0.9, 0.35][j]);
     const browH = B ? B.lift : 1;
     const brow = strip(carrier, 'cranium', browAddrs, side, j => {

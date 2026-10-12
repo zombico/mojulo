@@ -44,3 +44,31 @@ describe('the western face\'s channels', () => {
     }
   });
 });
+
+describe('the brow ridge (features.ridge)', () => {
+  // the tiered female's: the eye-and-brow column, the ridge forward, the socket back, the temple in
+  const ridge = { f: 0.55, h: 0.003, socket: 0.002, temple: 0.002 };
+  const C = (h) => h.parts.cranium.stations.map((st) => st.points);
+  it('a column between inner and outer on the cranium and the jaw, every address as it was; absent, none', () => {
+    const plain = head('neutral'), r = head('neutral', { ridge });
+    expect(plain.parts.cranium.slots.includes('midR')).toBe(false);
+    for (const part of ['cranium', 'jaw']) {
+      const P = r.parts[part];
+      expect(P.slots.length).toBe(plain.parts[part].slots.length + 2);
+      expect(P.slotT.midR).toBeCloseTo(4 + ridge.f, 9);   // inner 4, outer 5: the rest keep their parameters
+      for (const st of P.stations) expect(st.points.midL).toEqual([-st.points.midR[0], st.points.midR[1], st.points.midR[2]]);
+    }
+    // the seam: the jaw's last ring is the cranium's first
+    expect(r.parts.jaw.stations.at(-1).points.midR).toEqual(r.parts.cranium.stations[0].points.midR);
+  });
+
+  it('the brow row\'s column stands forward of its chord, the eye row\'s behind; the brow row\'s side comes in', () => {
+    const r = C(head('neutral', { ridge })), plain = C(head('neutral'));
+    const off = (row) => row.midR[1] - (row.innerR[1] + (row.outerR[1] - row.innerR[1]) * ridge.f);
+    expect(off(r[5])).toBeGreaterThan(ridge.h * 0.9);   // the glabella row: the fitted brow over the chord, and the ridge
+    expect(off(r[4])).toBeLessThan(0);                   // the eye row: the socket
+    expect(plain[5].sideR[0] - r[5].sideR[0]).toBeCloseTo(ridge.temple, 4);
+    // the brows ride over it: no brow station sits under the skin's crest
+    expect(head('neutral', { ridge, brows: { arch: 0.07, head: 1.2, tail: 0.25, lift: 0.6 } }).parts.browR).toBeTruthy();
+  });
+});

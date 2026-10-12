@@ -314,19 +314,19 @@ export const TIERED_FACE = Object.freeze({
   female: Object.freeze({
     face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.003, chinPoint: 1.06, noseSize: 1.265, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
     hair: 'bob',
-    features: Object.freeze({ eye: 0.85, brow: 0.6, brows: Object.freeze({ arch: 0.07, head: 1.2, tail: 0.25, lift: 0.6, soft: 0.3 }), bridge: 2.2, wing: Object.freeze({ r: 0.0062, dome: 0.003 }), ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]), eyeDome: 0.003, lid: Object.freeze({ drop: 0.25, fold: 1.6, lower: 1 }) }),
+    features: Object.freeze({ eye: 0.85, brow: 0.6, brows: Object.freeze({ arch: 0.07, head: 1.2, tail: 0.25, lift: 0.6, soft: 0.3 }), bridge: 2.2, wing: Object.freeze({ r: 0.0062, dome: 0.003 }), ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]), eyeDome: 0.003, lid: Object.freeze({ drop: 0.25, fold: 1.6, lower: 1 }), ridge: Object.freeze({ f: 0.55, h: 0.003, socket: 0.002, temple: 0.002 }) }),
   }),
   male: Object.freeze({
     face: Object.freeze({ jawWidth: 1.08, chinProjection: 1.12, noseSize: 1.242, browRidge: 1.15, noseWidth: 1.05 }),
     hair: null,
-    features: Object.freeze({ eye: 0.85, brow: 1, brows: Object.freeze({ arch: 0.035, head: 1.3, tail: 0.35, lift: 0.7, soft: 0.18 }), bridge: 2.2, wing: Object.freeze({ r: 0.0062, dome: 0.003 }), ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }) }),
+    features: Object.freeze({ eye: 0.85, brow: 1, brows: Object.freeze({ arch: 0.035, head: 1.3, tail: 0.35, lift: 0.7, soft: 0.18 }), bridge: 2.2, wing: Object.freeze({ r: 0.0062, dome: 0.003 }), ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }), ridge: Object.freeze({ f: 0.55, h: 0.005, socket: 0.003, temple: 0.003 }) }),
   }),
 });
 /** The FACE TINT (face-tint.js): a soft occlusion in the skin's folds and a warm blush on the cheeks, the nose's tip
  * and the ears, the female's warmer; the vertex colour a shipped face paints where a texture would. */
 export const TIERED_FACE_TINT = Object.freeze({
-  female: Object.freeze({ ao: Object.freeze({ k: 0.3, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.9, tint: Object.freeze([1.0, 0.86, 0.85]) }) }),
-  male: Object.freeze({ ao: Object.freeze({ k: 0.32, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.5, tint: Object.freeze([1.0, 0.88, 0.86]) }) }),
+  female: Object.freeze({ ao: Object.freeze({ k: 0.3, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.77, tint: Object.freeze([1.0, 0.86, 0.85]) }) }),
+  male: Object.freeze({ ao: Object.freeze({ k: 0.32, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.45, tint: Object.freeze([1.0, 0.88, 0.86]) }) }),
 });
 /** the head's sex for the tiered face: the head preset if named, else the cast's silhouette */
 export const tieredPole = (hero) => hero.headPreset ?? (castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male');
@@ -334,7 +334,7 @@ export const tieredPole = (hero) => hero.headPreset ?? (castOf(hero.cast, hero.p
 /** the landmark head's normals toward its ellipsoid (station-loft-shade.js headEllipsoidNormals): 0.45 left the crease
  * down the forehead and the nose, 0.7 reads as one form; round the nose the blend falls to a quarter (`nose`), so its
  * sides and wings keep the light the sphere smoothed away */
-export const TIERED_FACE_SMOOTH = Object.freeze({ w: 0.7, nose: 0.25 });
+export const TIERED_FACE_SMOOTH = Object.freeze({ w: 0.7, nose: 0.25, brow: 0.35 });
 
 /** The tiers (era/cast-spend.js) whose figure is tall enough on screen to show the ear's fold and antihelix: below them
  * the ear is the lean one (head-ear.js), 80 triangles against 280, its outline, rim and bowl. A hero with no target is
