@@ -27,10 +27,10 @@
  * balance while both feet are down, the planted feet holding still, the elbow's extension at contact.
  * Pure and deterministic.
  */
-import { rigNodesAt } from './station-loft-rig.js';
+import { rigNodesAt, HAND_POSES } from './station-loft-rig.js';
 import { keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown } from './hero-elbow.js';
-import { stanceState, reachArm, handGoal, comOf } from './hero-stance.js';
+import { stanceState, reachArm, handGoal, comOf, STANCES } from './hero-stance.js';
 
 const GLANCE = 75, NECK_TURN = 35, HEAD_TURN = 45, TWIST_CAP = 35;
 const STEP = 1 / 40;       // the timeline's sampling (a share of the clip)
@@ -180,6 +180,8 @@ function solveStrike(K, R) {
   const toFeet = (b) => Object.fromEntries(['L', 'R'].flatMap((s) => [[`out${s}`, r4((b[s][0] - rest[legs[s].toeBase][0]) * Math.sign(rest[legs[s].hip][0]))], [`foot${s}`, r4(b[s][1] - rest[legs[s].toeBase][1])]]));
   const times = [...new Set([...Array.from({ length: Math.round(1 / STEP) + 1 }, (_, i) => r4(i * STEP)), tm.load, tc, tm.follow, at1(links.arm)].map(r4))].sort((a, b) => a - b);
   const pass = (contact, ext, counter) => {
+    // the hands its stance holds them in (hero-stance STANCES `hand`: the guard's fists, the fencer's grip), throughout
+    const fingers = Object.fromEntries(['L', 'R'].filter((h) => STANCES[K.from]?.hands?.[h]?.hand).map((h) => [`fingers${h}`, { ...HAND_POSES[STANCES[K.from].hands[h].hand] }]));
     const keys = [], shoulder = new Map(), bodies = new Map(); let seed = { R: { sh: st.arms.shR, elbow: st.arms.elbowR }, L: { sh: st.arms.shL, elbow: st.arms.elbowL } };
     let chamber = null, prevArms = st.arms;
     for (const t of times) {
@@ -219,7 +221,7 @@ function solveStrike(K, R) {
       prevArms = arms;
       // (the shoulder where this frame's arm leaves it: the collarbone rises with the arm)
       shoulder.set(t, rigNodesAt(R, elbowsDown(R, { ...body, ...arms })).nodes[`shoulder${K.hand}`]); bodies.set(t, body);
-      keys.push({ t, pose: { ...trunk, ...arms, ...legsPose, ...swing, shift: body.shift }, sink: r4(sink), ...toFeet(b), groundL: 1, groundR: r4(gR), heelL: r1(heel), heelR: 0 });
+      keys.push({ t, pose: { ...trunk, ...arms, ...legsPose, ...swing, shift: body.shift, ...fingers }, sink: r4(sink), ...toFeet(b), groundL: 1, groundR: r4(gR), heelL: r1(heel), heelR: 0 });
     }
     return { keys, shoulder, chamber, bodies };
   };
@@ -236,7 +238,8 @@ function solveStrike(K, R) {
   }
   const { keys, chamber } = run;
   // the ends are the stance's held key exactly (a strike plays from the ready pose and back to it)
-  const held = { t: 0, pose: { ...st.held }, ...toFeet(ball), sink: st.sink, groundL: 1, groundR: 1, heelL: S.heel, heelR: 0 };
+  const hands = Object.fromEntries(['L', 'R'].filter((h) => S.hands?.[h]?.hand).map((h) => [`fingers${h}`, { ...HAND_POSES[S.hands[h].hand] }]));   // (its stance's hands, as the stance holds them)
+  const held = { t: 0, pose: { ...st.held, ...hands }, ...toFeet(ball), sink: st.sink, groundL: 1, groundR: 1, heelL: S.heel, heelR: 0 };
   keys[0] = { ...held, t: 0 }; keys[keys.length - 1] = { ...held, t: 1 };
   return { keys, contact: contact2, chamber, ext, drive: [at0(links.arm), tc] };
 }

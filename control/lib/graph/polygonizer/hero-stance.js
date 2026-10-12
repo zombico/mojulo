@@ -28,7 +28,7 @@
  * footprint, the weight share, the knees over the toes, each hip's turnout, the gaze off the target, the legs' reach.
  * Pure and deterministic.
  */
-import { rigNodesAt, boneFrames, solveTwoBone } from './station-loft-rig.js';
+import { rigNodesAt, boneFrames, solveTwoBone, HAND_POSES } from './station-loft-rig.js';
 import { keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown } from './hero-elbow.js';
 import { MASS } from './figure-balance.js';
@@ -64,23 +64,23 @@ export const STANCES = Object.freeze({
   },
   centre: {
     family: 'square', spread: 0.3, line: 82, toes: { L: 4, R: 0 }, sink: 0.06, lean: 4, weight: 0.5, heel: 14, chest: 1,
-    hands: { R: { at: 'navel', fwd: 0.3, up: 0.06, side: 0.0, line: true }, L: { at: 'navel', fwd: 0.22, up: 0.0, side: -0.01, line: true } },
+    hands: { R: { at: 'navel', fwd: 0.3, up: 0.06, side: 0.0, line: true, hand: 'grip' }, L: { at: 'navel', fwd: 0.22, up: 0.0, side: -0.01, line: true, hand: 'grip' } },
     serves: ['two-handed cut', 'spear thrust', 'staff', 'polearm', 'overhead strike'],
   },
   // ── BLADED: a rear toe turned out; the body turns side on to the target ──
   guard: {
     family: 'bladed', spread: 0.5, line: 48, toes: { L: 48, R: 18 }, sink: 0.08, lean: 10, weight: 0.45, heel: 22, chest: 0.35,
-    hands: { R: { at: 'chin', fwd: 0.3, up: -0.06, side: 0.0, line: true }, L: { at: 'chin', fwd: 0.14, up: -0.09, side: -0.1, line: true } },   // the fists under the eyes
+    hands: { R: { at: 'chin', fwd: 0.3, up: -0.06, side: 0.0, line: true, hand: 'fist' }, L: { at: 'chin', fwd: 0.14, up: -0.09, side: -0.1, line: true, hand: 'fist' } },   // the fists under the eyes
     serves: ['jab', 'cross', 'hook', 'kick', 'knife', 'parry'],
   },
   fencing: {
     family: 'bladed', spread: 0.62, line: 88, toes: { L: 90, R: 0 }, sink: 0.13, lean: 2, weight: 0.5, heel: 0, chest: 0.15,
-    hands: { R: { at: 'leadShoulder', fwd: 0.5, up: -0.12, side: 0.0, line: true }, L: { at: 'rearShoulder', fwd: -0.08, up: 0.24, side: -0.04 } },
+    hands: { R: { at: 'leadShoulder', fwd: 0.5, up: -0.12, side: 0.0, line: true, hand: 'grip' }, L: { at: 'rearShoulder', fwd: -0.08, up: 0.24, side: -0.04 } },
     serves: ['thrust', 'lunge', 'one-handed sword', 'rapier', 'parry-riposte'],
   },
   hitting: {
     family: 'bladed', spread: 0.66, line: 90, toes: { L: 92, R: 75 }, sink: 0.1, lean: 18, weight: 0.4, heel: 0, chest: 0,
-    hands: { R: { at: 'rearShoulder', fwd: 0.02, up: -0.02, side: -0.18 }, L: { at: 'rearShoulder', fwd: 0.0, up: -0.08, side: -0.18 } },
+    hands: { R: { at: 'rearShoulder', fwd: 0.02, up: -0.02, side: -0.18, hand: 'grip' }, L: { at: 'rearShoulder', fwd: 0.0, up: -0.08, side: -0.18, hand: 'grip' } },
     serves: ['bat swing', 'golf swing', 'two-handed slash', 'axe chop', 'throw'],
   },
 });
@@ -216,14 +216,17 @@ function solveStance(S, R) {
   // hips have sunk at the lift, and 4 cm more)
   const step = (s, k) => { const L = legs[s], len = Math.hypot(...[0, 1, 2].map((i) => rest[L.knee][i] - rest[L.hip][i])) + Math.hypot(...[0, 1, 2].map((i) => rest[L.hock][i] - rest[L.knee][i]));
     const hip = deg(Math.acos(clamp(1 - (sink * k + 0.04) / len, -1, 1))); return { [`hip${s}`]: { pitch: r1(hip) }, [`knee${s}`]: r1(2 * hip) }; };
+  // each hand's word (`hand`: a fist in a boxing guard, a grip round a hilt or a bat) closes as the arms come up; absent,
+  // the hand stays relaxed (HAND_POSES' digits, so the clip blends them)
+  const fingers = Object.fromEntries(['L', 'R'].filter((h) => S.hands?.[h]?.hand).map((h) => [`fingers${h}`, { ...HAND_POSES[S.hands[h].hand] }]));
   const keys = [
     { t: 0, pose: {}, sink: 0, heel: 0, ground: 1 },
     { t: 0.14, pose: { ...lerpPose(0.15) }, ...toKey(restB, sink * 0.4), heel: 0, ground: 1 },
     { t: 0.3, pose: { ...lerpPose(0.4), ...splay(0.5, 0), ...step(first, 0.6) }, ...toKey(at(half(first), restB[second]), sink * 0.6), [`ground${first}`]: 0, [`ground${second}`]: 1, heel: 0 },
     { t: 0.44, pose: { ...lerpPose(0.6), ...splay(1, 0) }, ...toKey(at(ball[first], restB[second]), sink * 0.7), ground: 1, heel: 0 },
     { t: 0.58, pose: { ...lerpPose(0.8), ...splay(1, 0.5), ...step(second, 0.85) }, ...toKey(at(ball[first], half(second)), sink * 0.85), [`ground${first}`]: 1, [`ground${second}`]: 0, heel: 0 },
-    { t: 0.74, pose: { ...lerpPose(1), ...splay(1, 1), ...halfArms(arms, 0.7) }, ...toKey(ball, sink), ground: 1, heel: 0 },
-    { t: 1, pose: { ...held }, ...toKey(ball, sink), ground: 1, ...(S.heel ? { heelL: S.heel } : {}), heel: 0 },
+    { t: 0.74, pose: { ...lerpPose(1), ...splay(1, 1), ...halfArms(arms, 0.7), ...fingers }, ...toKey(ball, sink), ground: 1, heel: 0 },
+    { t: 1, pose: { ...held, ...fingers }, ...toKey(ball, sink), ground: 1, ...(S.heel ? { heelL: S.heel } : {}), heel: 0 },
   ];
   return { S, facing, keys, ball, sink, trunk, arms, held, legLen };
 }

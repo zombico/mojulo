@@ -30,7 +30,8 @@ const TILT = Object.freeze({ blade: 45, haft: 75, bow: 78 });
 const FLOOR = 0.03;   // m a lower end keeps above the rest floor
 const BLADES = new Set(['dagger', 'sword', 'greatsword']);
 /** the canonical cast's head top (m): gear scales with the figure's height over it */
-export const CANON_HEIGHT = 1.674;
+import { CANON_HEIGHT } from './hero-canon.js';
+export { CANON_HEIGHT };
 /** an anime hero's gear takes this stylize when its build names none (read at plan time, never stored) */
 export const ANIME_STYLIZE = 0.7;
 

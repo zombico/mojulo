@@ -668,9 +668,12 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   for (const [name, clip] of Object.entries(clips)) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
     // a function clip may also be ONE-SHOT (`once`: a jump's, sampled 0 … 1 inclusive) and carry its `air` (hero-jump.js)
+    // (the posed nodes, raised by dz, keep every turn rigNodesAt records — the body's, a stance's facing, the legs' splay —
+    // so each bone's frame here is the one the skin is posed with: dropping the facing left a turned stance's head and
+    // jaw on different spins, the seam under the chin open in the export)
     const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = typeof clip === 'function' && clip.once === true; const flat = [];
-    for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); if (nodes.$body) Object.defineProperty(shifted, '$body', { value: nodes.$body, enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}) };
+    for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const m of ['$body', '$facing', '$legYaw']) if (nodes[m]) Object.defineProperty(shifted, m, { value: nodes[m], enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
+    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}) };
   }
   let mnz = Infinity, mxz = -Infinity; for (const v of mesh.vertices) { if (v[2] + dz < mnz) mnz = v[2] + dz; if (v[2] + dz > mxz) mxz = v[2] + dz; }
   return {

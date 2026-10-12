@@ -31,7 +31,7 @@ import { elbowsDown } from './hero-elbow.js';
 import { reachArm, comOf, hull, margin } from './hero-stance.js';
 import { curve } from './hero-jump.js';
 import { heroRest, RESTS, REST_NAMES, heightOf, floorOf, ischOf, turnOf, frontOf, BODY_JOINTS, fleshAt, flatHand } from './hero-rest.js';
-import { CANON_HEIGHT } from './hero-gear.js';
+import { CANON_HEIGHT } from './hero-canon.js';
 import { MASS } from './figure-balance.js';
 import { liteOf } from './hero-grip.js';
 

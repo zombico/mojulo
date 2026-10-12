@@ -324,6 +324,8 @@ export function heroClipFaces(hero, clips) {
   return Object.fromEntries(Object.entries(clips || {}).map(([name, keys]) => {
     const door = hero?.clips && Object.hasOwn(hero.clips, name) ? doorKeys(hero.clips[name]) : null;
     const resolve = (hero?.head ?? 'landmark') === 'landmark' ? resolveWesternExpression : resolveAnimeExpression;   // the landmark head's channels (western-face-rig.js)
+    // (a compiled motion clip, hero-motion.js locomotionClips: a function, no keys; it holds the authored face)
+    if (!Array.isArray(keys)) return [name, [null]];
     return [name, keys.map((_, i) => { const f = door?.[i]?.face; return f === undefined || f === null ? null : resolve(f); })];
   }));
 }

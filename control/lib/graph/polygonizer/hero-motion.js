@@ -22,6 +22,9 @@ import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
 import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
+import { AURAS, heroAura } from './hero-aura.js';
+import { STANCES, STANCE_NAMES, heroStance } from './hero-stance.js';
+import { STRIKES, heroStrike } from './hero-strike.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
@@ -197,6 +200,13 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
 // A name here REPLACES the hero's own clip of that name (the stock walk). Stored as given; compiled on the hero's rig
 // where its clips are packed.
 
+/** the MOVE families the door's `motion` takes by word: each word's table, its seconds when the word names none, whether
+ * a word has a mirror (`…Left`), and its solve on a rig → { fn, seconds, laws } (the family's own machine gate) */
+const MOVE_FAMILIES = Object.freeze({
+  aura: { table: AURAS, seconds: 2, mirrors: () => true, solve: (name, R, seconds) => { const A = heroAura(name, R, { seconds }); return { fn: A.clip.fn, seconds: A.seconds, laws: A.checks?.laws }; } },
+  stance: { table: STANCES, seconds: 0.7, mirrors: (S, n) => STANCE_NAMES.includes(`${n}Left`), solve: (name, R, seconds) => { const S = heroStance(name, R, { seconds }); return { fn: S.clip.fn, seconds: S.clip.seconds ?? seconds, laws: S.checks?.laws }; } },
+  strike: { table: STRIKES, seconds: 0.5, mirrors: () => true, solve: (name, R, seconds) => { const K = heroStrike(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks?.laws, contact: K.contact, hand: K.hand }; } },
+});
 /** the gaits the door takes: the vajra motion each compiles to, the dials it starts from, its tilt and its seconds */
 export const MOTION_GAITS = Object.freeze({
   walk: Object.freeze({ motion: 'walk', base: Object.freeze({}), tilt: 0, seconds: 1.1 }),
@@ -208,6 +218,12 @@ export const MOTION_GAITS = Object.freeze({
   ...Object.fromEntries(Object.entries(JUMPS).map(([k, J]) => [k, Object.freeze({ motion: 'jump', seconds: J.seconds })])),
   // the stops (heroStop): one-shot, out of a gait when forward is let go
   ...Object.fromEntries(Object.entries({ walk: 0.6, jog: 0.75, sprint: 0.9 }).map(([g, sec]) => [`${g}Stop`, Object.freeze({ motion: 'stop', from: g, seconds: sec })])),
+  // the MOVES (MOVE_FAMILIES): the showcase poses (hero-aura), the ready stances (hero-stance) and the strikes
+  // (hero-strike), each a one-shot ending on the pose to hold, and each mirror (`…Left`)
+  ...Object.fromEntries(Object.entries(MOVE_FAMILIES).flatMap(([family, F]) => Object.entries(F.table).flatMap(([n, P]) => {
+    const sec = P.seconds ?? F.seconds, entry = Object.freeze({ motion: 'move', family, word: n, seconds: sec });
+    return F.mirrors(P, n) ? [[n, entry], [`${n}Left`, Object.freeze({ ...entry, left: true })]] : [[n, entry]];
+  }))),
 });
 
 // ─── the STOP: letting go of forward ───────────────────────────────────────
@@ -267,22 +283,29 @@ const GAZE_HOLD = 0.7;
 const TILT = [0, 35];
 const JUMP_SECONDS = [0.5, 3];
 const MOTION_SECONDS = [0.25, 10];
+const MOVE_SECONDS = [0.2, 6];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/** the door's motion words for a refusal: the gaits, jumps and stops by name, the moves by family (each with its mirror) */
+const MOTION_WORDS = (() => {
+  const plain = Object.entries(MOTION_GAITS).filter(([, g]) => g.motion !== 'move').map(([n]) => n);
+  const fam = (f) => Object.entries(MOTION_GAITS).filter(([n, g]) => g.motion === 'move' && g.family === f && !/Left$/.test(n)).map(([n]) => n).join(', ');
+  return `have ${plain.join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
+})();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
 export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint: SPRINT_DEFAULTS }) {
   if (motion === undefined) return [];
-  if (!isObj(motion)) return [`motion: an object of gaits (${Object.keys(MOTION_GAITS).join(', ')}), each true or { <the gait's dials>, tilt, seconds }`];
+  if (!isObj(motion)) return [`motion: an object of gaits and moves (${MOTION_WORDS}), each true or { <the gait's dials>, tilt, seconds } ({ seconds } for a jump, stop or move)`];
   const errs = [];
   for (const [name, g] of Object.entries(motion)) {
     const G = MOTION_GAITS[name];
-    if (!G) { errs.push(`motion.${name}: not a gait (have ${Object.keys(MOTION_GAITS).join(', ')})`); continue; }
+    if (!G) { errs.push(`motion.${name}: not a gait or a move (${MOTION_WORDS})`); continue; }
     if (g === true) continue;
-    if (G.motion === 'jump' || G.motion === 'stop') {
+    if (G.motion === 'jump' || G.motion === 'stop' || G.motion === 'move') {
       if (!isObj(g)) { errs.push(`motion.${name}: true, or { seconds }`); continue; }
       for (const [k, v] of Object.entries(g)) {
-        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${G.motion} takes only seconds (its poses are studied; tune them in hero-${G.motion === 'stop' ? 'motion' : 'jump'}.js)`);
-        else if (!(Number.isFinite(v) && v >= JUMP_SECONDS[0] && v <= JUMP_SECONDS[1])) errs.push(`motion.${name}.seconds: ${JUMP_SECONDS[0]} … ${JUMP_SECONDS[1]} seconds`);
+        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${G.motion === 'move' ? G.family : G.motion} takes only seconds (its poses are studied; tune them in hero-${G.motion === 'stop' ? 'motion' : G.motion === 'move' ? G.family : 'jump'}.js)`);
+        else if (!(Number.isFinite(v) && v >= (G.motion === 'move' ? MOVE_SECONDS : JUMP_SECONDS)[0] && v <= (G.motion === 'move' ? MOVE_SECONDS : JUMP_SECONDS)[1])) errs.push(`motion.${name}.seconds: ${(G.motion === 'move' ? MOVE_SECONDS : JUMP_SECONDS).join(' … ')} seconds`);
       }
       continue;
     }
@@ -305,6 +328,7 @@ export function motionPlan(motion) {
     const G = MOTION_GAITS[name];
     if (G.motion === 'jump') return [name, { jump: name, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'stop') return [name, { stop: G.from, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
+    if (G.motion === 'move') return [name, { move: G.family, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     const { seconds, tilt, ...own } = g === true ? {} : g;
     return [name, { spec: { [G.motion]: { ...G.base, ...own } }, seconds: seconds ?? G.seconds, tilt: tilt ?? G.tilt }];
   }));
@@ -316,7 +340,18 @@ export function motionPlan(motion) {
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump, stop }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move }] of Object.entries(locomotion || {})) {
+    if (move) {
+      // a move: one-shot (sampled 0 … 1 inclusive), ~30 keys a second, ending on the pose to hold; `move` rides the clip
+      // (its family, whether its own laws held, a strike's hand and contact time) for the GLB's `moj:move`
+      let M; try { M = MOVE_FAMILIES[move].solve(name, R, s); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const K = Math.max(keys, Math.round(M.seconds * 30) + 1);
+      try { for (let k = 0; k < K; k++) rigNodesAt(R, M.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const laws = M.laws && typeof M.laws === 'object' ? Object.values(M.laws).every(Boolean) : null;
+      const fn = (t) => M.fn(t); fn.keys = K; fn.once = true;
+      fn.move = { family: move, hold: true, ...(laws !== null ? { laws } : {}), ...(M.contact ? { hand: M.hand, contact: M.contact.t } : {}) };
+      clips[name] = fn; seconds[name] = M.seconds; continue;
+    }
     if (stop) {
       // a stop: two clips, the right foot braking (`<name>`) and the left (`<name>Left`), out of the hero's own gait (the
       // door's, else the gait as studied)

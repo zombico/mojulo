@@ -38,7 +38,7 @@ import { reachArm } from './hero-stance.js';
 import { curve, mirrored } from './hero-jump.js';
 import { heroLocomotion, motionPlan } from './hero-motion.js';
 import { heightOf, floorOf, BODY_JOINTS, fleshAt, flatHand } from './hero-rest.js';
-import { CANON_HEIGHT } from './hero-gear.js';
+import { CANON_HEIGHT } from './hero-canon.js';
 import { MASS } from './figure-balance.js';
 import { liteOf } from './hero-grip.js';
 

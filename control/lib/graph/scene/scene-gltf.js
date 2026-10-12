@@ -1002,7 +1002,9 @@ class GlbBuilder {
     // speed it rolls at without slipping (metres a second)
     const roll = clip.roll ? { ...clip.roll, travel: r4(clip.roll.travel * mpu), speed: r4(clip.roll.speed * mpu) } : null;
     // a stop (hero-motion.js heroStop) rides as `moj:stop`: the gait it leaves, the braking foot, the gait phase it starts at
-    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}) };
+    // a move (hero-motion.js MOVE_FAMILIES: a showcase pose, a stance, a strike) rides as `moj:move`: its family, that it
+    // ends on the pose to hold, whether its own laws held, and a strike's hand and contact time (seconds)
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }

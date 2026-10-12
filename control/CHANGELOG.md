@@ -13,6 +13,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The motion library on the door: showcase poses, ready stances and strikes
+
+- **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
+  one-shot clip compiled on the hero's own rig where its clips are packed (the World page, the GLB, the Godot pack): the
+  23 showcase poses (`hero-aura.js`: `hairToss`, `heroHips`, `jotaroPoint`, `fistToSky`, `henshin` …), the 6 ready
+  stances (`hero-stance.js`: `athletic`, `guard`, `fencing` …) and the 3 strikes (`hero-strike.js`: `jab`, `cross`,
+  `thrust`), and each one's mirror (`…Left`; a square stance is its own). `true` or `{ seconds }`; any other key and an
+  unknown word refuse by name, the words listed by family. A move ends on the pose to hold; the GLB carries it as
+  `moj:move` (its family, `hold`, whether the pose's own laws held, a strike's hand and contact time). The library's
+  machine gates advise: on the default western heroes 6 of the 23 poses fail a law of their own on the female and 3 on
+  the male (`crossedArms`, `giorno`, … arms through the body or a hand crossing it between beats); they still bake, and
+  `moj:move.laws` says so. `CANON_HEIGHT` moved to a leaf module (`hero-canon.js`, re-exported by `hero-gear.js`) so
+  the motion modules load without the gear's imports.
+- **Every clip the pack plays carries the face.** The face tracks ran over the recipe's own clips, so a `motion` clip
+  the hero did not already have (a jump, now a move) had none; they run over every packed clip now, a compiled clip
+  holding the authored face with its blinks. Godot figure gate (4.7.2) on a male with a walk and four moves: every
+  check passes, every clip a face track.
+- **A turned clip's export keeps its turn** (`station-loft-rig.js` packLayeredRig). Baking a clip's keys, the pack
+  copied the posed joints (raised by the floor offset) and kept only the body turn `rigNodesAt` records, dropping a
+  stance's `facing` and the legs' splay: each bone in the turned core then took its own shortest-arc spin instead of the
+  turn, and the jaw (framed by the head's axis) and the head came apart — the seam under the chin open, the dark mouth
+  showing, 3–4 cm at a jab. Every turn is carried now; through every key of every move the head and jaw skin agree
+  within 2e-4. Any clip with a facing or a splay exports differently (the stand's own clips included); no pinned export
+  carried one.
+- **Fists and grips in the ready stances and strikes** (`hero-stance.js`, `hero-strike.js`). The stances never set the
+  fingers, so a boxing guard held flat palms against the chin; each stance's hand now says its word (`hand`: the guard's
+  fists, a grip in fencing, centre and hitting), closing as the arms come up, and a strike holds its stance's hands
+  throughout, its ends the stance's held pose exactly.
+
 ### The western face in motion: the expression as channels, a blink, and its blend shapes in engines
 
 - **Channels** (`humanoid-head.js`). A western hero's `expression` takes a word, as before, or `{ word?, …channels }`:

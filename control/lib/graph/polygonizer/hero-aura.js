@@ -31,7 +31,7 @@ import { rigNodesAt, boneFrames, HAND_POSES } from './station-loft-rig.js';
 import { keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown } from './hero-elbow.js';
 import { reachArm, comOf, hull, margin } from './hero-stance.js';
-import { CANON_HEIGHT } from './hero-gear.js';
+import { CANON_HEIGHT } from './hero-canon.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
