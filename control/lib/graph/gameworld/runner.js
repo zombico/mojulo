@@ -91,7 +91,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
   });
   if (stages.length) {
@@ -101,6 +101,9 @@ export function runSteps(world, { ref, lookup } = {}) {
   }
   return steps;
 }
+
+// a city segment's neighbours' levels by segment id, so its portals lead to the levels made beside it
+const cityRefsOf = (stages, refs, s) => (s.section === 'city' ? { cityRefs: Object.fromEntries(stages.map((x, j) => [x, refs[j]]).filter(([x]) => x.level === s.level).map(([x, r]) => [x.node, r])) } : {});
 
 /** The story bound to the world as it lays now: { bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
  * unset? (with quests: the steps whose flag nothing in the story sets) }, or null when the world has no story and no
@@ -127,7 +130,7 @@ function quickSteps(world, G, ref) {
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
   const links = gameLinks(stages, levelRefs);

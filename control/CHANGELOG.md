@@ -145,6 +145,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - London and Tokyo grammars now drive on the left. The legacy flavours never recorded a side.
   - A four-segment Paris with cars, and its four insides, passed the headless auto-audit: all eight levels
     completable.
+- **A world bible's level can be a city** (`levels.<id>.city`, in place of `walk`). A planned city is built in its
+  civilization's language and painted by the level's geocube.
+  - **Played by its segments.** In a line of levels it is the route along the fewest portals from its way in
+    (`from`, the core's segment by default) to its way out (`to`, the farthest). Each segment opens only toward the
+    one before and after it, its walker starts at the portal it came in by, and the line's gates chain them. In a map
+    world every segment is a level joined to its neighbours at their portals, with the world's links at the way in
+    and way out.
+  - Segment levels take `level.route: { from?, to? }` and `level.ways: [{ id, to, at: 'start' | 'end' }]` for this.
+  - **A civilization at city scale** (`city/plan/civilization.js`). Its building language becomes a grammar
+    document: a hipped roof in its covering's colours where it caps with a gable or a hip, flat where it has no cap.
+    Arched, lensed or banded lights set the wall rhythm, and coursed walls bring brick. A shell language swells into
+    rippling masses and spires; a tiered one steps back as it rises. A level that names a grammar has the language
+    spoken over that grammar; a level that writes a grammar document keeps its own.
+  - Its buildings are walked into (lobbies) by default: a door's inside is not a level of a world bible yet.
+  - The world bible draws the city's plan sheet; the graph and the story binder know the new section.
+  - A city level made through `create_sketch` and promoted by `create_game` passed the headless auto-audit, in a
+    line and in a map.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

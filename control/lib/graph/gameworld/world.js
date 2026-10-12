@@ -32,6 +32,11 @@
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
  *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
  *                                         // civilization's language, entered at its way in, played to its goal room
+       city?: { grammar?, board?, sites?, segments?, cars?, …, civilization?, from?, to? },
+                                         // in place of `walk`: the level is a planned city (city/plan/) in its
+                                         // civilization's language, painted by the level's geocube, played by its
+                                         // segments from `from` (the core's) to `to` (the farthest): a line of them
+                                         // along the way in a linear world, all of them joined at their portals in a map
  *     } },
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
@@ -68,7 +73,8 @@ import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 import { PROGRAM_IDS } from '../era/programs.js';
-import { STRUCTURE_RAILS } from '../era/out-structures.js';
+import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
+import { civilizationGrammar } from '../city/plan/civilization.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -114,7 +120,9 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city'];
+// a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
+const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to'];
 const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -283,7 +291,17 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
-    if (L.building !== undefined) {
+    if (L.city !== undefined) {
+      // a city level: a planned city (city/plan/), built in its civilization's language, played by its segments
+      if (L.walk !== undefined || L.building !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building or a city, one of them`);
+      if (L.places !== undefined) throw new Error(`gameworld: ${at}.places: a city level holds its own buildings (a town stands on a walk)`);
+      const Cy = L.city;
+      if (!isObj(Cy)) throw new Error(`gameworld: ${at}.city is { ${CITY_LEVEL_KEYS.join(', ')} } (every one optional)`);
+      for (const k of Object.keys(Cy)) if (!CITY_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.city.${k} is not a city level setting (${CITY_LEVEL_KEYS.join(', ')})`);
+      if (Cy.civilization !== undefined) civ(Cy.civilization, `${at}.city.civilization`);
+      for (const k of ['from', 'to']) if (Cy[k] !== undefined && typeof Cy[k] !== 'string') throw new Error(`gameworld: ${at}.city.${k} names a segment ('r1c2': the city book's Segments sheet), where the level is ${k === 'from' ? 'entered' : 'left'}`);
+      // the plan itself is held to the city card where it is laid (levels.js cityStages)
+    } else if (L.building !== undefined) {
       // a building level: its rooms laid from a use (or a building already made, by ref), in place of a walk
       if (L.walk !== undefined) throw new Error(`gameworld: ${at}: a level is a walk or a building, not both`);
       if (L.places !== undefined) throw new Error(`gameworld: ${at}.places: a building level holds no town (a town stands on a walk)`);
@@ -393,6 +411,19 @@ export function resolveLevel(world, id) {
   if (!L) throw new Error(`gameworld: '${id}' is not a level (levels: ${G.ids.join(', ')})`);
   const style = over(G.style, L.style), seed = L.seed ?? levelSeed(G.seed, id);
   const ledger = differences(G.style, L.style, 'level', id);
+
+  // a city level: its plan, built in its civilization's language (unless it names a grammar document of its own), painted
+  // by the level's geocube, cut into the segments it is played by (levels.js lays them)
+  if (L.city) {
+    const { civilization, from, to, ...plan } = L.city, civId = civilization ?? style.civilization, C = G.civilizations[civId];
+    if (civId !== style.civilization) ledger.push({ scope: 'level', at: `${id}/city`, key: 'civilization', world: style.civilization, local: civId });
+    const kit = hasStructureRails(style.kit) ? style.kit : 'isekai-meadow', anchor = C.anchor ?? STRUCTURE_RAILS[kit]?.anchor ?? null;
+    const grammar = isObj(plan.grammar) ? plan.grammar : civilizationGrammar(anchor, kit, seed, typeof plan.grammar === 'string' ? { base: plan.grammar } : {});
+    // its buildings walked into, not entered by a door: a door's inside is not a level of this world yet
+    const sg = plan.segments === undefined || plan.segments === true ? {} : plan.segments;
+    const city = { ...plan, seed: plan.seed ?? seed, grammar, segments: { ...sg, enter: { walk: 2, door: 0, ...(sg.enter ?? {}) } }, ...(plan.paint === undefined && style.geocube !== undefined ? { paint: { geocube: style.geocube } } : {}) };
+    return { id, name: L.name ?? id, seed, style, built: { city: civId }, ledger, level: null, town: null, city: { plan: city, civilization: civId, ...(from !== undefined ? { from } : {}), ...(to !== undefined ? { to } : {}) } };
+  }
 
   // a building level: who built it, in what language, and the program it is laid from (levels.js lays it)
   if (L.building) {
