@@ -77,7 +77,7 @@ export function emitGameShell(manifest, levels = [], menu = null, music = null, 
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract };
+    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}) };
   });
 
   // theme (pure presentation): sanitize the accents into the CSS var block; `hud` style adds the
@@ -1059,14 +1059,22 @@ function renderLevels(back) {
   closeFrame();
   const heading = LEVELS_ENTRY ? LEVELS_ENTRY.title : 'levels';
   main.innerHTML = '<h2 style="font-size:14px;color:#9cc4ff">' + heading + '</h2>';
+  // a MAP game (levels with exits): a level is open once found through an open exit, and each row says where its exits
+  // lead and what locks them; a list game reads its gates alone, as before
+  const MAP = K.isMap(LEVELS), reach = MAP ? K.reachable(SCHEMA, state, LEVELS) : null;
+  const lastAt = MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
+  const titleOf = (ref) => { const l = LEVELS.find((x) => x.ref === ref); return l ? l.title : ref; };
+  const needs = (g) => g.completed ? 'complete ' + g.completed : g.has ? 'needs ' + g.has : 'needs ' + g.flag;
   for (const lv of LEVELS) {
-    const open = K.evalGate(SCHEMA, state, lv.gate);
+    const open = MAP ? reach[lv.ref] : K.evalGate(SCHEMA, state, lv.gate);
     const row = document.createElement('div');
     row.className = 'level';
     const done = completedResult(lv.ref);
     row.innerHTML = '<span class="name">' + lv.title + '</span>'
+      + (lastAt === lv.ref ? '<span class="done">last here</span>' : '')
       + (done ? '<span class="done">' + done + '</span>' : '')
-      + (open ? '' : '<span class="lock">locked — ' + (lv.gate.completed ? 'complete ' + lv.gate.completed : 'needs ' + lv.gate.flag) + '</span>');
+      + (open ? '' : '<span class="lock">' + (MAP && !(lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) ? 'not found yet' : 'locked — ' + needs(lv.gate)) + '</span>')
+      + (MAP && open && Array.isArray(lv.exits) ? '<div style="font-size:12px;color:#8fa5c8;flex-basis:100%">' + lv.exits.map((x) => '→ ' + titleOf(x.to) + (x.gate && !K.evalGate(SCHEMA, state, x.gate) ? ' (locked: ' + needs(x.gate) + ')' : '')).join(' · ') + '</div>' : '');
     const btn = document.createElement('button');
     btn.textContent = 'play';
     btn.disabled = !open;
@@ -1583,8 +1591,10 @@ function renderSetup(lv, opts) {
   showPickStep();
 }
 
-function startLevel(lv, pickers, difficulty) {
+function startLevel(lv, pickers, difficulty, arrive) {
   const params = {};
+  // a map game's travel: the level this one was entered from (the level moves the pilot to that end)
+  if (arrive) params.arrive = arrive;
   // the difficulty pick rides beside the slice params as a plain string — the level's params
   // seam maps it to the engine tuning tier; a level that never looks stays byte-identical.
   if (difficulty) params.difficulty = difficulty;
@@ -1664,6 +1674,16 @@ window.addEventListener('message', (e) => {
     }
     runLog.push(d.envelope);
     persist();
+    // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to, arriving at the
+    // matching end; its consumed slices go in whole (no setup screen between rooms)
+    const to = d.envelope.result === 'success' && d.envelope.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, d.envelope.exit) : null;
+    const next = to && LEVELS.find((l) => l.ref === to);
+    if (next) {
+      const from = session.level.ref;
+      toast(session.level.title + ' → ' + next.title);
+      startLevel(next, (next.contract.consumes || []).map((c) => ({ c })), undefined, from);
+      return;
+    }
     const stats = d.envelope.stats;
     if (stats && Array.isArray(stats.rows) && stats.rows.length) {
       // linger on the in-world result tableau (banner + final topple), then the score screen.

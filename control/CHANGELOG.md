@@ -13,6 +13,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Teardown: exploded views, disassembly and construction, in order
+
+- **A piece's teardown, read off what it already knows.** `teardownPlan` / `teardownTracks`
+  (`playscape/destruct/teardown.js`) turn a workbench `frames` entry into ordered steps: its instruction manual's
+  steps, each with the parts that move and the way they seat. They then turn the steps into per-part offset tracks:
+  `exploded` (held open), `disassemble`, and `assemble` (the same tracks reversed in time). The defaults need nothing
+  authored: the order is the manual's, the distance is 12% of the piece's largest side, and each step is 0.6 s with a
+  0.25 s hold. Pure, with the same bytes for the same piece.
+- **`teardown` on a workbench frame.** A `frames` entry (a buildable furniture piece's included) takes
+  `teardown: true | 'exploded' | 'assemble' | 'disassemble' | { show, at?, seconds?, distance? }`.
+  - The exploded still and any `at` move the faces: what `export_model` and the World show.
+  - `assemble` and `disassemble` play in the World on the mover channel, one mover per face group, so `forge_motion`
+    records them. The cameras and floor are framed to hold the piece apart as well as together.
+  - The frame validator names the shows. A teardown supersedes `explode`, and refuses a `kit` layout.
+  - Absent or `false`: byte-identical.
+- **A moved group carries its texture.** In the World page, a mover on a textured group now moves the group's
+  texture sub-meshes with it: the wood goes with the part, and a labelled lid swings with its label. This is emitted
+  only when a mover moves a textured group; every other page is byte-identical.
+- **One explode law.** A frame's static `explode` and the teardown's exploded pose are now the same function
+  (`explodeParts` in `construction/frame.js`), so the two agree to 1e-9. `explode` renders byte-for-byte as before.
+
 ### Geocube: one style for a level's inside and outside, and the front door for building one
 
 - **`geocube`, a world kind.** A cube is a level's core look as data: its light (a sixth-gen reference, the moon for a night outside, the outside's fog), its key colours (each a ramp), its register, its surfaces' patterns, the bones of its inside, the base of its outside and its principles, one line each. `{ kind: 'geocube', cube, show: 'room' | 'land' }` shows one of its two specimens: a bare room (the bones, an accent wall) or an island landform. `cube` is a preset (`gothic-night`, `island-noon`, `jungle-haze`) or a whole document; a document is checked key by key.
@@ -185,6 +206,45 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The two anchors stay makeable; the crawler's melee and the collectathon's glide are named as what Godot loses.
   - The portability check's bus and store exemptions apply to Godot only; Unity and Unreal keep their warnings.
 
+- **Three more cameras: first person, top-down and side.** A gameworld (or a quick game) names its `camera`:
+  `third-person`, `first-person`, `top-down` or `side`. Left out, nothing changes.
+  - **First person** rides the hero's eye (the `eye` camera). The mouse looks up, down and around, A and D step
+    aside, and the hero's body is hidden so the view is not inside its head. With no hero, the walker looks and
+    pitches the same way.
+  - **Top-down** is a ¾ overhead camera (`overhead`) with north up the screen, 60° below the horizon and never
+    straight down. W walks up the screen whichever way the hero faces; the hero turns to face where it runs
+    (`platform` `move: 'world'`). It needs a hero to watch, and says so.
+  - **Side** is a side-scroller on the trail's own line (`side`, `platform` `move: 'lane'`): A and D run along it, and
+    the hero is held on the line round every bend while the camera swings with it, square on. The goal's pickups move
+    onto the line. A climb has no line to run, so a side game is trails only, and it says so.
+  - Each piece is opt-in on its own key, so existing worlds play exactly as before: the controllable trace pins hold.
+  - The cosmos marks `space.camera` first-person, top-down and side as built. Top-down and side are marked lost on a
+    Godot export, because Godot has no camera modes yet.
+
+- **Levels that join both ways: an interconnected world.** A gameworld with `topology: 'interconnected'` plays as a
+  map, not a list.
+  - Every link between its levels runs both ways, and so do the stages inside a level.
+  - A level is left by one of its exits: the trail's end, a side pocket, or the way back behind the spawn. The game
+    travels straight to the level that exit leads to, arriving at the matching end.
+  - A link can be locked by a key, an item laid as a pickup in another level and carried in the bag, so a door found
+    early is opened by going back.
+  - Underneath:
+    - a level exit names itself (`reach-exit` `exit`, `on` `{ end, exit }`, the envelope's `exit`);
+    - a level lists `exits` and their gates;
+    - a gate can be `{ has: <item> }`;
+    - the shell travels and arrives (`arrive`).
+  - A list game, and a gameworld without the setting, are unchanged.
+- **Powers that open the way: a hero's power can be a key.** In a map world, a link's `key` can name one of the hero's
+  powers. The power lies in another level; picking it up opens the door and gives the hero the move.
+  - A power can name its move: `double-jump`, `glide` or `high-jump`. The move works from the moment it is picked up,
+    and in every level after.
+  - The platform rule gains `airJumps` (jumps in the air, reset on landing) and `glideFall` (a held jump slows the
+    fall). Without them it moves as before.
+  - Underneath: a level's `game.powers` names the slice, the hero and each power's rule change; the game applies the
+    ones held at start and the one picked up.
+  - Item keys, and worlds without power keys, are unchanged.
+  - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
+
 ### Chapters: the same world at a later point
 
 - **`play.chapters`.** Each chapter is a difference against the base world (spawn, vanish, set, weather, or any cue
@@ -289,7 +349,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   held, using the shortest-form spelling both engines print. The bus keeps JS's `undefined` apart from `null`, so a
   var set from a missing field compares the same on both sides.
 
-### Godot plays the fight: combat, the systems and the motion rules travel
+### Godot plays the fight: combat, the systems, beams and explosions travel
 
 - **The sweep measures what Godot would gain.** `sweep()` returns `unlock.godot`: for each value a Godot export
   loses, and for each setting as a group, how many of the rolled cubes would survive the export if it travelled. A

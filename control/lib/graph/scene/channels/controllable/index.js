@@ -54,6 +54,9 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // matching how specularChannelScript itself is gated in scene-three.js.
   const figHasSpec = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && (p.spec || p.spec8)));
+  // first person (an `eye` camera with `hideTarget`): the body it rides is never drawn, or the view would sit inside
+  // its own head. Absent → the emitted channel is byte-identical.
+  const hideId = camera && camera.rule === 'eye' && camera.hideTarget && typeof camera.target === 'string' ? camera.target : null;
   // indexed+quantized parts present (unit rigs since the level-load perf batch) — gates the
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
@@ -703,7 +706,8 @@ function __syncEntity(e, dt) {
   // wreck finisher: a respawn cleared the vanish — re-show the body. NOT while the hangar
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
-  if (!m.visible && !m.userData.hangarHidden) m.visible = true;
+  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}) m.visible = true;${hideId ? `
+  if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}
   m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
   // hit flash: a hittable target (invincible) whitens for a beat when a shot lands, then restores.
   if (e.body && e.body.hittable && m.material) {

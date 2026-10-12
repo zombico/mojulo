@@ -11,6 +11,7 @@
  *     pickup?: '<word>',                    // collect: what lies along the way (its word picks the glyph: coin, key, star…)
  *     seconds?: n,                          // survive: how long
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
+ *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side',   // written to the world's own `camera` (cameras.js)
  *   }
  *
  * The world around it is an ordinary gameworld: `style` (kit, look, land) and one level are written by `quickWorld`, so
@@ -20,6 +21,7 @@
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
 import { STAGE_KITS } from '../era/stage.js';
+import { CAMERAS } from './cameras.js';
 
 export const QUICK_GOALS = Object.freeze({
   reach: 'reach the stage\'s end: a trail\'s exit, or a climb\'s top',
@@ -27,7 +29,7 @@ export const QUICK_GOALS = Object.freeze({
   survive: 'stay on the stage until the clock runs out',
   avoid: 'reach the end past its hazards (the water a trail crosses), with hp to spare',
 });
-const KEYS = ['goal', 'hero', 'climb', 'pickup', 'seconds', 'theme'];
+const KEYS = ['goal', 'hero', 'climb', 'pickup', 'seconds', 'theme', 'camera'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -41,20 +43,23 @@ export function readQuick(Q) {
   if (Q.pickup !== undefined && !(typeof Q.pickup === 'string' && /^[a-z][a-z-]{0,23}$/.test(Q.pickup))) throw fail('.pickup is one lower-case word (coin, key, star, gem, shell…)');
   if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
+  if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive goal');
   return Q;
 }
 
 /** A quick game's gameworld: the creator's own settings (id, name, seed, style …) kept, one level written. */
-export function quickWorld({ quick, id, name, seed, style, ...rest } = {}) {
-  readQuick(quick);
+export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
+  readQuick(given);
+  // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
+  const { camera, ...quick } = given;
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
   const nodes = { path: { trail: {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
   return {
-    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest,
+    id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
     levels: { run: { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } },
     quick,

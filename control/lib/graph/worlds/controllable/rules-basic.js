@@ -12,7 +12,7 @@
  */
 
 export function buildRulesBasic(E) {
-  const { add, sub, scl, clamp, smooth, fwdXY, rightXY, fwd3, TAU, HALF_PI, RULES } = E;
+  const { add, sub, scl, clamp, smooth, fwdXY, rightXY, fwd3, laneNear, TAU, HALF_PI, RULES } = E;
 
   // ── the RULE shelf: each mutates entity.transform from (entity, input, dt, world) ──
 
@@ -47,6 +47,9 @@ export function buildRulesBasic(E) {
     const t = e.transform;
     if ((r.turnMode ?? 'tank') === 'tank') t.heading = (t.heading - input.turn * turn * dt) % TAU;   // A=left, D=right (heading+ is a LEFT turn)
     else t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+    // `lookPitch` (look mode, opt-in): the mouse's Y pitches the walker too, for an `eye` camera to look up and down.
+    // Pitch steers only the view; the walk stays on the ground plane.
+    if (r.lookPitch && (r.turnMode ?? 'tank') !== 'tank') t.pitch = clamp((t.pitch || 0) + input.lookDY * (r.lookSens ?? 0.0025), -HALF_PI + 0.05, HALF_PI - 0.05);
     const f = fwdXY(t.heading), rt = rightXY(t.heading);
     const moveF = input.forward * speed * dt;
     const moveS = input.strafe * strafe * speed * dt;
@@ -139,6 +142,57 @@ export function buildRulesBasic(E) {
     }
   }
 
+  // eye — the first-person camera: it rides the target `height` above its position (a person's eye over a hero whose
+  // position is its feet; 0 over a walker already held at the eye) and looks down the target's own heading and pitch.
+  // `lookAt` stays null, so the page aims along heading and pitch. No easing: the view never lags the head. The page
+  // hides the target's body when the camera says `hideTarget`.
+  function eye(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target];
+    if (!tgt) return;
+    const p = tgt.transform.pos;
+    e.transform.pos = [p[0], p[1], p[2] + (r.height ?? 0)];
+    e.transform.heading = tgt.transform.heading;
+    e.transform.pitch = tgt.transform.pitch || 0;
+    e.lookAt = null;
+  }
+
+  // overhead — the ¾ top-down camera: it eases to a pose `dist` back from the target along a FIXED `yaw` (the way the
+  // screen's up points; π/2 is north, +y) and raised by `tilt` (radians below the horizon, 60° by default), looking at
+  // the target `lookH` above its position. The yaw never follows the target, so north stays up the screen, and the
+  // tilt stays short of straight down, where a +Z up vector has no meaning. A pilot moving with `move: 'world'` and the
+  // same `moveYaw` reads W as up the screen.
+  function overhead(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target];
+    if (!tgt) return;
+    const yaw = r.yaw ?? HALF_PI, tilt = clamp(r.tilt ?? Math.PI / 3, 0.2, 1.45), dist = r.dist ?? 14, lookH = r.lookH ?? 1;
+    const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt), p = tgt.transform.pos;
+    const want = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
+    e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), smooth(r.lerp ?? 8, dt)));
+    e.transform.heading = yaw;
+    e.lookAt = [p[0], p[1], p[2] + lookH];
+  }
+
+  // side — the side-scroller's camera: it stands `dist` off the target's lane, square to it on the right of the way the
+  // lane was drawn, so running forward along the lane (D) runs right across the screen. Raised by `tilt` (radians,
+  // 0.2 by default) and looking at the target `lookH` above its position. On a bending lane it swings round with the
+  // bend at `turnLerp`/s, never snapping; a target with no lane is watched from a fixed `yaw`.
+  function side(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target];
+    if (!tgt) return;
+    const p = tgt.transform.pos, lane = tgt.rule && tgt.rule.lane;
+    let want = r.yaw ?? HALF_PI;
+    if (Array.isArray(lane) && lane.length >= 2) { const L = laneNear(lane, p[0], p[1]); want = Math.atan2(L.ty, L.tx) + HALF_PI; }
+    if (e._sideYaw == null) e._sideYaw = want;   // start square on: no swing on load
+    const d = ((want - e._sideYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    e._sideYaw += d * smooth(r.turnLerp ?? 2.5, dt);
+    const yaw = e._sideYaw, tilt = clamp(r.tilt ?? 0.2, 0, 1.2), dist = r.dist ?? 11, lookH = r.lookH ?? 1.2;
+    const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt);
+    const pos = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
+    e.transform.pos = add(e.transform.pos, scl(sub(pos, e.transform.pos), smooth(r.lerp ?? 8, dt)));
+    e.transform.heading = yaw;
+    e.lookAt = [p[0], p[1], p[2] + lookH];
+  }
+
   // clock — autonomous frame playback: advance the gait/anim phase by time, no input. Turns a
   // figure-frames body into a self-playing loop (a turntable / ambient walker). `rate` = cycles/sec.
   function clock(e, input, dt) {
@@ -213,7 +267,7 @@ export function buildRulesBasic(E) {
     const reload = e.rule.reload ?? 0.6;
     e._arm = e._cool > 0 ? Math.min(1, (reload - e._cool) / 0.08, e._cool / Math.max(1e-6, reload - 0.08)) : 0;
   }
-  Object.assign(RULES, { glide, walk, follow, clock, mover, launcher });
+  Object.assign(RULES, { glide, walk, follow, eye, overhead, side, clock, mover, launcher });
 
   // the launch: each rider's last tick (where it stood, how fast it fell) is kept on the pad, so a rider arriving this
   // tick is read by its approach: its run across the ground and its fall. Fixed throws one arc whatever the approach;

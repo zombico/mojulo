@@ -26,6 +26,8 @@ WORLD motions apply the SAME camera motions (turntable / orbit / push_in / dolly
 - `shot.waypoints` — an alternative `[x,y]` route ('walk to X, then Y'); each leg is COMPILED into ticks against the world's live walk/platform rule (no pathfinding — a blocked leg reports `{ stuck:true, atTick }`). This is also the WALKABILITY AUDIT: compile entrance→exit and check the final probe / legs for arrival.
 The run is DETERMINISTIC: ticks are stored in the recipe, the per-tick probe stream (entity positions, HUD vars, physics bodies) files as `probes.json` beside the video, and the final probe returns in the result — so a traversal is simultaneously the MP4 tour AND the assertion record ("the player reached the exit; score is 2"). Camera: a camera ENTITY in the world's manifest (follow/FPV) owns the view; `shot.params.camera` may inject one (`{ rule:'follow', target:'<entityId>', dist, height, … }`); otherwise the authored framing holds a static wide shot.
 
+A workbench piece whose frame carries `teardown: 'assemble'` (or `'disassemble'`) plays its steps on the World's clock, so any camera motion records it going together; give the motion at least the teardown's length (0.85 s a step).
+
 ## Worked example
 
 ```

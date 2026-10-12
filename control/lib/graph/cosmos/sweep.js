@@ -42,7 +42,7 @@ import { dryRun } from './cosmos.js';
 import { FIXTURES, fixture } from './fixtures.js';
 import { PACKAGES, EFFORT_WEIGHT } from './packages.js';
 
-const key = (i) => `${i.facet}.${i.setting}=${i.value}`;
+export const key = (i) => `${i.facet}.${i.setting}=${i.value}`;
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 export const ROLLS = Object.freeze(['fair', 'flat']);
 
@@ -85,7 +85,7 @@ const rowOf = (reg, k) => {
 };
 
 // every value key the registry holds, and each package's members (a value without `pkg` is its own package)
-function packageIndex(reg) {
+export function packageIndex(reg) {
   const members = {}, of = {};
   for (const [f, settings] of Object.entries(reg)) {
     for (const [s, { values }] of Object.entries(settings)) {
@@ -101,7 +101,7 @@ function packageIndex(reg) {
 }
 
 // the values building `keys` builds: themselves and every prerequisite not yet built, transitively
-function closure(reg, keys) {
+export function closure(reg, keys) {
   const out = new Set(), stack = [...keys];
   while (stack.length) {
     const k = stack.pop();
@@ -112,7 +112,7 @@ function closure(reg, keys) {
   return out;
 }
 
-function packageMeta(reg, id) {
+export function packageMeta(reg, id) {
   if (PACKAGES[id]) return { name: PACKAGES[id].name, effort: PACKAGES[id].effort };
   return { name: id, effort: rowOf(reg, id).effort || null };
 }
@@ -171,7 +171,7 @@ function godotUnlock(losses, survive) {
   return { values: Object.values(values).sort(byKey), settings: Object.values(settings).sort(byKey), ladders };
 }
 
-function baseCubes(around) {
+export function baseCubes(around) {
   if (around == null) return null;
   if (around === 'probes') return FIXTURES.filter((f) => !f.anchor).map((f) => f.cube);
   return [fixture(around).cube];

@@ -104,30 +104,46 @@ export function validateGameManifest(manifest) {
 
   const refs = new Set();
   if (!Array.isArray(manifest.levels) || !manifest.levels.length) {
-    errors.push('levels is required: [{ ref, title?, gate? }] — refs of promoted level sketches, in play order');
+    errors.push('levels is required: [{ ref, title?, gate?, exits? }] — refs of promoted level sketches, in play order (with exits, a map: the first level is where it starts)');
   } else {
     manifest.levels.forEach((lv, i) => {
       const where = `levels[${i}]`;
       if (!lv || typeof lv !== 'object' || !lv.ref || typeof lv.ref !== 'string') { errors.push(`${where} must be { ref, title?, gate? }`); return; }
       if (refs.has(lv.ref)) errors.push(`${where}.ref '${lv.ref}' is duplicated`);
       refs.add(lv.ref);
-      const gate = lv.gate;
-      if (gate !== undefined) {
-        if (!gate || typeof gate !== 'object') { errors.push(`${where}.gate must be { flag, equals?, slice? } or { completed: ref, slice? }`); return; }
-        const forms = ['flag', 'completed'].filter((k) => gate[k] !== undefined);
-        if (forms.length !== 1) errors.push(`${where}.gate needs exactly one of flag | completed`);
-        if (gate.completed !== undefined && typeof gate.completed !== 'string') errors.push(`${where}.gate.completed must be a level ref (string)`);
-        if (gate.slice !== undefined && !sliceNames.has(gate.slice)) errors.push(`${where}.gate.slice '${gate.slice}' is not a declared slice`);
-        else if (gate.slice !== undefined) {
-          const want = gate.flag !== undefined ? 'flags' : 'progression';
-          if (kindsByName.get(gate.slice) !== want) errors.push(`${where}.gate.slice '${gate.slice}' must be a ${want} slice`);
-        }
-        if (gate.slice === undefined) {
-          const want = gate.flag !== undefined ? 'flags' : 'progression';
-          if (![...kindsByName.values()].includes(want)) errors.push(`${where}.gate needs a ${want} slice in the store (none declared)`);
-        }
+      const checkGate = (gate, at) => {
+        if (!gate || typeof gate !== 'object') { errors.push(`${at} must be { flag, equals?, slice? }, { completed: ref, slice? } or { has: item, count?, slice? }`); return; }
+        const forms = ['flag', 'completed', 'has'].filter((k) => gate[k] !== undefined);
+        if (forms.length !== 1) errors.push(`${at} needs exactly one of flag | completed | has`);
+        if (gate.completed !== undefined && typeof gate.completed !== 'string') errors.push(`${at}.completed must be a level ref (string)`);
+        if (gate.has !== undefined && (typeof gate.has !== 'string' || !gate.has)) errors.push(`${at}.has must be an item (a word the inventory carries)`);
+        if (gate.count !== undefined && !(gate.has !== undefined && Number.isInteger(gate.count) && gate.count >= 1)) errors.push(`${at}.count belongs to a has gate: a whole number, at least 1`);
+        const want = gate.flag !== undefined ? 'flags' : gate.has !== undefined ? 'inventory' : 'progression';
+        if (gate.slice !== undefined && !sliceNames.has(gate.slice)) errors.push(`${at}.slice '${gate.slice}' is not a declared slice`);
+        else if (gate.slice !== undefined && kindsByName.get(gate.slice) !== want) errors.push(`${at}.slice '${gate.slice}' must be a ${want} slice`);
+        if (gate.slice === undefined && ![...kindsByName.values()].includes(want)) errors.push(`${at} needs a ${want} slice in the store (none declared)`);
+      };
+      if (lv.gate !== undefined) checkGate(lv.gate, `${where}.gate`);
+      // EXITS: the ways a level is left in a map game, each to another level, each maybe locked
+      if (lv.exits !== undefined) {
+        if (!Array.isArray(lv.exits) || !lv.exits.length) { errors.push(`${where}.exits is [{ id, to: <level ref>, gate? }], at least one (or leave it out)`); return; }
+        const ids = new Set();
+        lv.exits.forEach((x, j) => {
+          const at = `${where}.exits[${j}]`;
+          if (!x || typeof x !== 'object' || typeof x.id !== 'string' || !/^[a-z0-9][a-z0-9:_-]{0,63}$/.test(x.id) || typeof x.to !== 'string') { errors.push(`${at} must be { id: <short lower-case id>, to: <level ref>, gate? }`); return; }
+          if (ids.has(x.id)) errors.push(`${at}.id '${x.id}' is duplicated in this level`);
+          ids.add(x.id);
+          if (x.to === lv.ref) errors.push(`${at}.to leads back into its own level`);
+          if (x.gate !== undefined) checkGate(x.gate, `${at}.gate`);
+        });
       }
     });
+    // an exit must lead to a level of this game
+    manifest.levels.forEach((lv, i) => (Array.isArray(lv && lv.exits) ? lv.exits : []).forEach((x, j) => {
+      if (x && typeof x.to === 'string' && !refs.has(x.to)) errors.push(`levels[${i}].exits[${j}].to '${x.to}' is not a level of this game`);
+    }));
+    // a map game needs a progression slice: a level is found from the levels already completed
+    if (manifest.levels.some((lv) => Array.isArray(lv && lv.exits)) && ![...kindsByName.values()].includes('progression')) errors.push('levels with exits play as a map, which reads the levels completed: the store needs a progression slice');
     // gate.completed must reference a level in this game — a dangling ref can never unlock.
     manifest.levels.forEach((lv, i) => {
       if (lv && lv.gate && typeof lv.gate.completed === 'string' && !refs.has(lv.gate.completed)) {

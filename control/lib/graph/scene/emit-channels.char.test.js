@@ -102,6 +102,14 @@ import { emitThreeWorld } from './scene-three.js';
 // apply loop writes, in the same order), and castFacts counts a body's hits as `hit:<id>` facts (what hp-pool reads).
 // A page reads the facts when its cues reach the cast or a reaction listens for a hit; no fixture's does newly. Same
 // proof, same 13 fixtures; the controllable trace pins hold.
+// Re-pinned 2026-10-11 (cameras): two camera rules (`eye`, `overhead`), `walk` lookPitch and `platform` move: 'world',
+// each gated on its own key, so the controllable trace pins hold. With the embedded engine source set aside, all 64
+// fixtures are byte-identical to before: the first-person body-hiding splice is gated at emit time. Same 13 fixtures.
+// Re-pinned 2026-10-11 (side camera): the `side` camera rule, `platform` move: 'lane' and core `laneNear`, each gated on
+// its own key; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (power moves): `platform` airJumps and glideFall, each gated on its own key; the trace pins hold
+// and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (merge of the hit loop with the cameras): both changes to the embedded engine source at once.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
