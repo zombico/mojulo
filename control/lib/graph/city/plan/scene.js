@@ -16,6 +16,7 @@ import { strHash } from './dice.js';
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
+import { lobbyOf, doorFaces } from './doors.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
 import { resolveLookSpec } from '../../era/look.js';
@@ -67,6 +68,7 @@ function groundFaces(d, paint) {
     faces.push(strip(s.pts[k - 1], s.pts[k], s.road, 0.05, CITY_GROUND.road, 'city:road'));
   }
   for (const l of d.lots) if (l.use === 'parking') faces.push(flat(l.x0, l.y0, l.x1, l.y1, 0.02, CITY_GROUND.parking, 'city:parking'));
+  faces.push(...entryFaces(d));
   for (const t of d.transit) {
     if (t.mode === 'maglev') {
       const G = GUIDEWAY, z0 = G.z, z1 = G.z + G.deck;
@@ -87,15 +89,32 @@ function groundFaces(d, paint) {
   return faces;
 }
 
-/** Each built lot and site as a box the legacy facade pipeline reads, in units. */
+/** A lobby's colours: its floor, ceiling and walls lit stone and plaster, its front the lot's own facade body. */
+export const lobbyColours = (l, G) => ({ floor: '#c9c3b7', ceiling: '#ece8de', wall: '#bbb3a5', front: lotColours(l, G).wall, glass: '#2c3a45', counter: '#5a4636', stair: '#a19b90' });
+/** The entries' faces, in metres: every walk-in's lobby, every door scene's marked door. */
+function entryFaces(d) {
+  const lots = new Map(d.lots.map((l) => [l.id, l])), out = [];
+  for (const e of d.entries || []) {
+    const l = lots.get(e.lot);
+    if (!l || e.error) continue;
+    if (e.enter === 'walk') out.push(...lobbyOf(l, lobbyColours(l, d.grammar)).faces);
+    else out.push(...doorFaces(l, '#c9a24a'));
+  }
+  return out.map((f) => ({ ...f, fill: shade(f.fill, f.normal || [0, 0, 1], 0.1) }));
+}
+
+/** Each built lot and site as a box the legacy facade pipeline reads, in units. A walk-in lot's facade stands on its
+ *  lobby, from the lobby's ceiling up. */
 export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
-  const G = d.grammar, boxes = [];
+  const G = d.grammar, boxes = [], walk = new Map((d.entries || []).filter((e) => e.enter === 'walk' && !e.error).map((e) => [e.lot, e]));
   for (const l of d.lots) {
     if (l.use === 'parking') continue;
-    const { skin: worn, shape } = skinLot(l, G, d.plan.seed), skin = paintSkin(paint, worn), front = FACE[l.face];
+    const { skin: worn, shape } = skinLot(l, G, d.plan.seed), front = FACE[l.face];
+    const lobby = walk.has(l.id) ? lobbyOf(l, lobbyColours(l, G)) : null;
+    const skin = paintSkin(paint, lobby ? { ...worn, storefront: false, awning: false } : worn);
     boxes.push({
-      x: r3(l.x0 / U), y: r3(l.y0 / U), w: r3((l.x1 - l.x0) / U), d: r3((l.y1 - l.y0) / U), z0: 0, z1: r3(l.h / U),
-      kind: 'building', metro: true, floors: l.floors, floorH: r3(l.floorH / U), skin, shape, front, roadFaces: [front],
+      x: r3(l.x0 / U), y: r3(l.y0 / U), w: r3((l.x1 - l.x0) / U), d: r3((l.y1 - l.y0) / U), z0: lobby ? r3(lobby.height / U) : 0, z1: r3(l.h / U),
+      kind: 'building', metro: true, floors: lobby ? Math.max(1, l.floors - Math.round(lobby.height / l.floorH)) : l.floors, floorH: r3(l.floorH / U), skin, shape: lobby ? 'box' : shape, front, roadFaces: [front],
       ...(l.tower ? { tower: true } : {}), lot: l.id,
     });
   }

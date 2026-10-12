@@ -19,11 +19,15 @@ export function readSegments(s, play) {
   if (s === undefined || s === null || s === false) return null;
   if (s === true) return { across: SEGMENT_ACROSS[play] };
   if (typeof s !== 'object' || Array.isArray(s)) throw new Error('city: segments is true or { across?: [lo, hi] (metres), levels? }');
-  for (const k of Object.keys(s)) if (!['across', 'levels'].includes(k)) throw new Error(`city: segments.${k} is not a segments setting (across, levels)`);
+  for (const k of Object.keys(s)) if (!['across', 'levels', 'enter'].includes(k)) throw new Error(`city: segments.${k} is not a segments setting (across, levels, enter)`);
   const across = s.across ?? SEGMENT_ACROSS[play];
   if (!(Array.isArray(across) && across.length === 2 && across.every((v) => typeof v === 'number' && v >= 60 && v <= 3000) && across[0] < across[1])) throw new Error('city: segments.across is [lo, hi], metres across a segment, 60–3000');
   if (s.levels !== undefined && typeof s.levels !== 'boolean') throw new Error('city: segments.levels is true (mint a level per segment beside the city) or false');
-  return { across, ...(s.levels ? { levels: true } : {}) };
+  if (s.enter !== undefined) {
+    const e = s.enter;
+    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).some((k) => !['walk', 'door'].includes(k)) || !['walk', 'door'].every((k) => e[k] === undefined || (Number.isInteger(e[k]) && e[k] >= 0 && e[k] <= 6))) throw new Error('city: segments.enter is { walk?, door? }: how many of each segment\'s buildings are walked into (a lobby) and entered by a door (a level of its own), 0–6 each');
+  }
+  return { across, ...(s.levels ? { levels: true } : {}), ...(s.enter ? { enter: s.enter } : {}) };
 }
 
 /**

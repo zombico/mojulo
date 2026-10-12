@@ -23,6 +23,7 @@ import { resolveGrammar } from './grammars.js';
 import { evaluateLaws } from './laws.js';
 import { streamOf } from './dice.js';
 import { citySegments } from './segments.js';
+import { cityEntries } from './doors.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 export { streamOf };
@@ -477,6 +478,8 @@ export function designCity(recipe) {
   const design = { plan, grammar: G, frame: { W, D, cell, cols, rows }, field, raster: Rr, streets, districts: laidDistricts, reserved, blocks, lots, gore, sites, transit, walk };
   // 9 · the segments the city is played in (segments.js), cut along the streets just laid
   if (plan.segments) design.segments = citySegments(design, plan.segments);
+  // the ways into its buildings (doors.js): a lobby walked into, a door to a level of its own
+  design.entries = cityEntries(design);
   design.laws = evaluateLaws(design);
   design.stats = cityStats(design);
   return design;

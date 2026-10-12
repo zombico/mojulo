@@ -8,6 +8,8 @@
  *   - its arrivals: coming in from a neighbour's level, the walker stands a few metres inside that portal
  *     (`arrive:<that level's ref>`); a segment's neighbours' levels are `<city ref>-<segment id>` unless `refs` says
  *   - its spawn: the crossing nearest the segment's middle, facing along its street
+ *   - its buildings (doors.js): a walk-in's lobby is part of the map, walked into off the street; a door-scene's door is
+ *     a `door` zone on the walk before it, its inside a level of its own the game links to it
  *   - its walls: every built mass (lots and sites) in reach, and the segment's own edges, open only at its portals:
  *     the city goes on past them as the backdrop, and a walker leaves only by a street
  *   - a segment with no neighbours: its goal is the crossing farthest along the walk from its spawn
@@ -17,6 +19,7 @@
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { registerLevelKind } from '../../structure/level.js';
 import { designCity } from './design.js';
+import { lobbyOf, LOBBY } from './doors.js';
 
 const U = CITY_METERS_PER_UNIT;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -70,7 +73,24 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null } = {}) {
   const via = walkPath(g, start.id, target).path.map((i) => [g.nodes[i].x, g.nodes[i].y]);
   // the walls: every built mass within reach, and the segment's edges with a gap at each portal
   const reach = 40, colliders = [];
-  for (const l of d.lots) if (l.use !== 'parking' && l.h > 0 && !(l.x1 < R.x0 - reach || l.x0 > R.x1 + reach || l.y1 < R.y0 - reach || l.y0 > R.y1 + reach)) colliders.push({ min: [u(l.x0), u(l.y0), 0], max: [u(l.x1), u(l.y1), u(l.h)], of: `lot:${l.id}` });
+  // a walk-in lot is its lobby's walls and the building over it; a door-scene lot is solid, its door a zone before it
+  const entries = (d.entries || []).filter((e) => !e.error && e.segment === seg.id), walkIn = new Set(entries.filter((e) => e.enter === 'walk').map((e) => e.lot));
+  const toU = (c) => ({ ...c, min: c.min.map(u), max: c.max.map(u) });
+  for (const l of d.lots) {
+    if (l.use === 'parking' || !(l.h > 0) || l.x1 < R.x0 - reach || l.x0 > R.x1 + reach || l.y1 < R.y0 - reach || l.y0 > R.y1 + reach) continue;
+    if (walkIn.has(l.id)) {
+      const lb = lobbyOf(l, {});
+      colliders.push(...lb.colliders.filter((c) => !c.of.endsWith('stair')).map(toU), { min: [u(l.x0), u(l.y0), u(lb.height)], max: [u(l.x1), u(l.y1), u(l.h)], of: `lot:${l.id}:over` });
+      // the lobby's stair: one ramp of a box under its flight (a walker goes no higher than the level does)
+      const st = lb.colliders.filter((c) => c.of.endsWith('stair'));
+      if (st.length) colliders.push(toU({ min: [Math.min(...st.map((c) => c.min[0])), Math.min(...st.map((c) => c.min[1])), 0], max: [Math.max(...st.map((c) => c.max[0])), Math.max(...st.map((c) => c.max[1])), LOBBY.height], of: `lobby:${l.id}:stair` }));
+      // behind the lobby, the building's ground storey stays solid
+      continue;
+    }
+    colliders.push({ min: [u(l.x0), u(l.y0), 0], max: [u(l.x1), u(l.y1), u(l.h)], of: `lot:${l.id}` });
+  }
+  const doors = entries.filter((e) => e.enter === 'door').map((e) => ({ id: e.door.id, lot: e.lot, inside: e.inside, at: [u(e.door.at[0]), u(e.door.at[1]), 0], radius: u(1.4), spawn: [u(e.door.spawn[0]), u(e.door.spawn[1]), 0], heading: e.door.heading }));
+  const lobbies = entries.filter((e) => e.enter === 'walk').map((e) => e.lot);
   for (const s of d.sites) if (s.mass && !(s.mass.x1 < R.x0 - reach || s.mass.x0 > R.x1 + reach || s.mass.y1 < R.y0 - reach || s.mass.y0 > R.y1 + reach)) colliders.push({ min: [u(s.mass.x0), u(s.mass.y0), 0], max: [u(s.mass.x1), u(s.mass.y1), u(s.mass.h)], of: `site:${s.id}` });
   const T = 0.5, H = CITY_LEVEL.wall;
   const side = (name, a0, a1, fixed, horizontal) => {
@@ -88,7 +108,7 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null } = {}) {
     exits: exits.map((x) => ({ ...x, at: [u(x.at[0]), u(x.at[1]), 0], radius: u(x.radius), arrive: [u(x.arrive[0]), u(x.arrive[1]), 0] })),
     ...(goal ? { goal: { at: [u(goal.at[0]), u(goal.at[1]), 0] } } : {}),
     via: via.map((p) => [u(p[0]), u(p[1])]),
-    colliders,
+    colliders, doors, lobbies,
   };
 }
 
@@ -105,7 +125,10 @@ export function withCityLevel(m, d, ref) {
     ? [{ kind: 'reach-exit', at: L.goal.at, radius: u(4), ...(L.via.length ? { via: L.via } : {}) }]
     : L.exits.map((x, i) => ({ kind: 'reach-exit', exit: x.id, at: x.at, radius: x.radius, ...(i === 0 && L.via.length ? { via: L.via } : {}) }));
   const arrivals = L.exits.filter((x) => x.to);
-  const game = { levelRef: ref, mechanics, fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}) };
+  // each door-scene building's door: a zone on the walk before it, a walker coming back out standing on the walk
+  const eyeAt = (p) => [p[0], p[1], 0];
+  const doorMechs = L.doors.map((x) => ({ kind: 'door', id: x.id, at: eyeAt(x.at), radius: x.radius, spawn: eyeAt(x.spawn), heading: x.heading }));
+  const game = { levelRef: ref, mechanics: [...doorMechs, ...mechanics], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}) };
   return {
     ...m,
     game,

@@ -95,6 +95,9 @@ describe('a level reads its city by ref, and the game is ordered from the segmen
     const core = d.segments.find((s) => d.field.cx >= s.rect.x0 && d.field.cx < s.rect.x1 && d.field.cy >= s.rect.y0 && d.field.cy < s.rect.y1);
     expect(order.createGame.levels[0].ref).toBe(`sk_c-${core.id}`);
     expect(order.createGame.store.slices).toEqual([{ name: 'campaign', kind: 'progression' }]);
-    for (const lv of order.createGame.levels) for (const x of lv.exits) expect(order.createGame.levels.find((l) => l.ref === x.to).exits.map((y) => y.to)).toContain(lv.ref);
+    for (const lv of order.createGame.levels) for (const x of lv.exits ?? []) expect(order.createGame.levels.find((l) => l.ref === x.to).exits.map((y) => y.to)).toContain(lv.ref);
+    // the insides follow the segments, each linked from its lot's door to its own 'out'
+    expect(order.createGame.levels.slice(d.segments.length).map((l) => l.ref)).toEqual(order.interiors.map((x) => x.ref));
+    for (const lk of order.createGame.links) expect(lk.to.door).toBe('out');
   });
 });

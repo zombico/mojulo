@@ -21,6 +21,7 @@ import { resolveGrammar } from './grammars.js';
 import { readFacade } from './facades.js';
 import { readCityLook, readPaint } from './look.js';
 import { readSegments } from './segments.js';
+import { ENTER, readInside } from './doors.js';
 
 export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'waive', 'fidelity', 'notes', 'cityRef']);
 /** How the world draws it: every lot in its facade (the default), or the massing alone (a plan judged as a plan). */
@@ -139,7 +140,10 @@ export function readCityPlan(rec) {
   const lots = rec.lots ?? {};
   if (!isObj(lots)) no("lots is { '<lot id>': { use?, storeys?, facade? } } with ids the plan cut (read them off the book's Lots sheet)");
   for (const [id, o] of Object.entries(lots)) {
-    keys(o, `lots['${id}']`, ['use', 'storeys', 'facade']);
+    keys(o, `lots['${id}']`, ['use', 'storeys', 'facade', 'enter', 'inside']);
+    if (o.enter !== undefined && !ENTER.includes(o.enter)) no(`lots['${id}'].enter is 'walk' (its ground storey a lobby, part of the map) or 'door' (a door to a level of its own)`);
+    if (o.inside !== undefined && o.enter !== 'door') no(`lots['${id}'].inside is the level behind a door: give it enter: 'door'`);
+    readInside(o.inside, `lots['${id}'].inside`);
     if (o.facade !== undefined) readFacade(o.facade, `lots['${id}'].facade`);
     if (o.use !== undefined && !LOT_USES.includes(o.use)) no(`lots['${id}'].use is one of ${LOT_USES.join(', ')}`);
     if (o.storeys !== undefined && !whole(o.storeys, [1, 160])) no(`lots['${id}'].storeys is a whole number 1–160`);

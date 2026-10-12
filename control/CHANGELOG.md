@@ -107,6 +107,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     progression slice.
   - The book draws the segments and portals and lists them. `next` leads to `create_game`.
   - A four-segment Paris passed `create_game`'s headless auto-audit: every level reached its exit.
+- **Two ways into a city's buildings** (`city/plan/doors.js`).
+  - `walk`: the ground storey is a lobby, part of the map. A glazed front with a door gap, a counter, a stair
+    rising to the ceiling, the facade standing on it from its ceiling up. The level walls the lobby, not the lot.
+  - `door`: a marked door (a lit surround, a canopy) whose zone on the walk changes the scene. The inside is a
+    level of its own, minted through the building door: an office for an office or a tower, a store or
+    restaurant for a shop, or the lot's own `inside`.
+  - Structure buildings now take `level: { door }` as stages do (`structure/level.js`): a door zone just inside
+    the entry, the walker arriving two strides past it, the goal room still the end. `create_game` links each
+    lot's door to its inside's `out`.
+  - Chosen by hand (`lots: { <id>: { enter, inside? } }`) or per segment (`segments.enter`, default two
+    walk-ins and one door with levels), nearest the segment's middle, dice-free.
+  - A four-segment Paris with its four insides (two stores, two restaurants) passed the headless auto-audit: all
+    eight levels completable.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

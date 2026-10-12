@@ -16,8 +16,11 @@ describe('a city as a map game', () => {
     expect(r.game.levels.length).toBeGreaterThan(1);
     for (const ref of r.game.levels) expect(SketchRepository.getByRef(ref).manifest).toMatchObject({ kind: 'city', city: r.ref });
     const order = r.game.create_game;
-    expect(order.levels.map((l) => l.ref)).toEqual(r.game.levels);
-    for (const lv of order.levels) for (const x of lv.exits) expect(order.levels.find((l) => l.ref === x.to).exits.some((y) => y.to === lv.ref)).toBe(true);
+    expect(order.levels.slice(0, r.game.levels.length).map((l) => l.ref)).toEqual(r.game.levels);
+    for (const lv of order.levels) for (const x of lv.exits ?? []) expect(order.levels.find((l) => l.ref === x.to).exits.some((y) => y.to === lv.ref)).toBe(true);
+    // a door per segment by default, each to an inside minted through the building door
+    expect(r.game.interiors.length).toBe(r.game.levels.length);
+    for (const x of r.game.interiors) expect(['office', 'store', 'restaurant']).toContain(SketchRepository.getByRef(x.ref).manifest.kind);
   });
   it('every level resolves against the game\'s store: its exits named for its neighbours, its arrivals from them', () => {
     const order = r.game.create_game;
