@@ -13,7 +13,9 @@ import { DEVICES } from '../../controls/devices.js';
  *   menuScript(menus)       the open menu (the last whose ui-menu-<id> var is 1), drawn from the board's own markup,
  *                           driven by the `menu` control scheme: keys (codeMap, plus the pilot's interact as accept) and
  *                           the gamepad (per printed layout: confirm / cancel where the pad puts them). While a menu is
- *                           up, window.__mojMenuOpen tells the pilot runtime to take no input.
+ *                           up, window.__mojMenuOpen tells the pilot runtime to take no input, and window.__mojFreeze
+ *                           stops the world and the bus's clock (a scene holds input only: its cast walks on). A view
+ *                           (shop, chest, inventory) sends menu-act:<menu>:<row> for the row in focus and stays up.
  *   reachScript(uses)       which usable zone the walker stands in (window.__mojReach), the prompt beside the live key,
  *                           and the interact press (__mojCtrl.interacts) turned into use-<place> on the bus
  */
@@ -27,6 +29,7 @@ export const MENU_CSS = [
   '.moj-w-menu .pu-ch{display:block;padding:1px 0 1px 14px;position:relative;cursor:pointer}.moj-w-menu .pu-ch.on{color:var(--moj-accent)}',
   '.moj-w-menu .pu-ch.on::before{content:"▸";position:absolute;left:0}.moj-w-menu .pu-foot{display:flex;gap:14px;font-size:12px;opacity:.75;border-top:1px solid var(--moj-line);padding-top:5px}',
   '.moj-w-menu .pu-tab{border-collapse:collapse;font-size:13px}.moj-w-menu .pu-tab td{padding:1px 8px 1px 0}.moj-w-menu .pu-num{text-align:right;font-variant-numeric:tabular-nums}',
+  '.moj-w-menu .pu-tab tr[data-pick]{cursor:pointer}.moj-w-menu .pu-about,.moj-w-menu .pu-muted{font-size:12px;opacity:.75}',
   '.moj-w-menu .pu-map{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}.moj-w-menu .pu-map i{height:22px;border:1px solid var(--moj-line)}.moj-w-menu .pu-map i.here{background:var(--moj-accent)}',
 ].join('');
 
@@ -69,13 +72,17 @@ const __mPadLayout = ${K.padLayout.toString()};
 const __menuHud = document.createElement('div'); __menuHud.className = 'moj-hud moj-menu-hud'; wrap.appendChild(__menuHud);
 let __menuOpen = null, __menuF = 0, __menuPg = 0, __menuShown = '', __mpPrev = {};
 // only an actual change touches the DOM: a per-frame rewrite would swap the choice under the pointer between press and release, and no click would land
-function __menuDraw() { const h = __menuOpen ? menuHtml(__menuOpen, __menuF, __menuPg).replace(/\\{([^}]+)\\}/g, (_, k) => String(__busState.vars[k] != null ? __busState.vars[k] : 0)) : ''; if (h !== __menuShown) { __menuShown = h; __menuHud.innerHTML = h; } }
-function __menuCount(m) { return m.picks ? m.picks.length : m.kind === 'save' ? Math.min(m.slots, 4) : m.kind === 'shop' ? m.stock.length : m.kind === 'chest' ? m.holds.length : m.kind === 'list' ? m.rows.length : 0; }
+function __menuDraw() { const h = __menuOpen ? menuHtml(__menuOpen, __menuF, __menuPg, __busState.vars).replace(/\\{([^}]+)\\}/g, (_, k) => String(__busState.vars[k] != null ? __busState.vars[k] : 0)) : ''; if (h !== __menuShown) { __menuShown = h; __menuHud.innerHTML = h; } }
+// a view's live rows (menus.js menuHtml draws the same): each [row index, row], a holder holding none left out
+function __menuLive(m) { const out = []; m.rows.forEach((r, k) => { if (!r.count || (__busState.vars[r.count] || 0) > 0) out.push([k, r]); }); return out; }
+function __menuCount(m) { return m.picks ? m.picks.length : m.kind === 'save' ? Math.min(m.slots, 4) : m.kind !== 'list' && m.rows ? __menuLive(m).length : m.kind === 'list' ? m.rows.length : 0; }
 function __menuClose() { if (__menuOpen) __inputQueue.push({ type: 'menu-close:' + __menuOpen.id }); }
 function __menuAct() {
   const m = __menuOpen; if (!m) return;
   if (m.kind === 'read' && __menuPg + 1 < m.pages.length) { __menuPg++; __menuDraw(); return; }
-  if (m.picks && m.picks.length) __inputQueue.push({ type: 'menu-pick:' + m.id + ':' + __menuF }); else __menuClose();
+  if (m.picks && m.picks.length) __inputQueue.push({ type: 'menu-pick:' + m.id + ':' + __menuF });
+  else if (m.kind !== 'list' && m.rows) { const L = __menuLive(m), r = L[Math.min(__menuF, L.length - 1)]; if (r && r[1].verb) __inputQueue.push({ type: 'menu-act:' + m.id + ':' + r[0] }); }   // a view: the row's verb, the menu up
+  else __menuClose();
 }
 function __menuDo(a) {
   const n = __menuCount(__menuOpen);
@@ -106,7 +113,9 @@ function __syncMenus() {
   for (const m of __MENUS) if (__busState.vars[m.var] === 1) open = m;
   if (open !== __menuOpen) { __menuOpen = open; __menuF = 0; __menuPg = 0; __mpPrev = __menuPadNow(); }   // what is held as it opens doesn't act in it
   else if (open) { const now = __menuPadNow(); for (const a in now) if (!__mpPrev[a]) __menuDo(a); __mpPrev = now; }
+  if (__menuOpen && __menuOpen.kind !== 'list' && __menuOpen.rows) __menuF = Math.max(0, Math.min(__menuF, __menuLive(__menuOpen).length - 1));
   window.__mojMenuOpen = !!__menuOpen;
+  window.__mojFreeze = !!__menuOpen;   // a menu up freezes the world and its clock (controllable step, the bus timers)
   __menuDraw();
 }
 window.__mojMenus = { open: () => (__menuOpen ? __menuOpen.id : null), act: __menuAct, close: __menuClose, do: __menuDo };`;

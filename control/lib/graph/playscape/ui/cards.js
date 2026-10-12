@@ -194,7 +194,13 @@ function menusCard() {
     'A talk\'s choices and a confirm\'s yes / no do cue effects (say, show, hide, state, phase, open, close, set, emit);',
     'picking one closes its menu unless it opens another. A choice with no then just closes it.',
     'NO LOOK OF ITS OWN: the world\'s UI guide (play.ui) dresses every menu as it dresses the parts; style keys are refused.',
-    'The page draws them over the play and they answer the keys (arrows or W / S, Enter, Esc) and the pad; the figure waits.',
+    'The page draws them over the play and they answer the keys (arrows or W / S, Enter, Esc) and the pad; while one is up',
+    'the world and its clock stand still.',
+    'ITEMS: play.items: { <id>: { name?, form?, kind?, about?, use?: effects, value? } }; any word is an item (its name and',
+    '  glyph derived). What is held is counted on the bus, held:<holder>:<item> (the bag, a chest\'s or a counted shop\'s',
+    '  own), so a cue\'s if, a {var} and the HUD read it. shop, chest and inventory are VIEWS: live rows (none held, not',
+    '  drawn), accept does the row\'s verb (buy, take, use) and the menu stays up; a guard that fails says why (a toast).',
+    '  A collect\'s pickups count into the bag. Cue effects give and use move items too.',
     `example: ${JSON.stringify([MENU_KINDS.talk.example, MENU_KINDS.shop.example])}`,
   );
 }

@@ -51,6 +51,7 @@ import { UI_STATES } from './parts.js';
 import { STATE_NAMES } from '../../weather/weather.js';
 import { regionOf, HUD_REGIONS } from './regions.js';
 import { CAST_WHEN, CAST_THEN, readCastWhen, readCastEffect, castFire, lowerCastEffect } from './cast.js';
+import { itemKey, lowerMove, NOWHERE } from './items.js';
 import { readLooks } from '../elements/elements.js';
 import { readBeams } from '../elements/beams.js';
 import { readExplosions } from '../elements/explosions.js';
@@ -80,6 +81,8 @@ export const CUE_THEN = Object.freeze({
   set: 'a game var takes a value ({ set: var, to }), for the game\'s rules to read',
   add: 'a game var counts up or down ({ add: var, by, min?, max? }): gold spent, a score, lives',
   emit: 'a bus event, for the game\'s rules to react to',
+  give: 'items into the bag: { give: item | { item, n? } } (play.items names them; any word is an item)',
+  use: 'spend one of an item from the bag and do its use effects (play.items[item].use); when the bag has none it says so',
   weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
   ...STAT_THEN,
@@ -215,6 +218,16 @@ export function readEffect(t, where, ctx = {}) {
     if (!isStr(t.emit)) throw new Error(`${where}.emit is a bus event's name`);
     return { kind: 'emit', event: t.emit, page: true };
   }
+  if (k === 'give') {
+    const o = isStr(t.give) ? { item: t.give } : t.give;
+    if (!isObj(o) || !isStr(o.item)) throw new Error(`${where}.give is an item, or { item, n? }`);
+    if (o.n !== undefined && !(Number.isInteger(o.n) && o.n > 0)) throw new Error(`${where}.give.n is how many, 1 or more`);
+    return { kind: 'give', item: itemKey(o.item), n: o.n ?? 1, page: true };
+  }
+  if (k === 'use') {
+    if (!isStr(t.use)) throw new Error(`${where}.use is an item`);
+    return { kind: 'use', item: itemKey(t.use), page: true };
+  }
   if (k === 'phase') {
     if (!phases.includes(t.phase)) throw new Error(`${where}.phase '${t.phase}' is not a phase of this play (${phases.join(', ')})`);
     return { kind: 'phase', phase: t.phase, page: false };
@@ -348,6 +361,8 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     if (t.kind === 'set') { frag.reactions.push({ on, do: 'set', var: t.var, to: t.to }); continue; }
     if (t.kind === 'add') { frag.reactions.push({ on, do: 'inc', var: t.var, by: t.by, ...(t.min !== undefined ? { min: t.min } : {}), ...(t.max !== undefined ? { max: t.max } : {}) }); continue; }
     if (t.kind === 'emit') { frag.reactions.push({ on, do: 'emit', type: t.event }); continue; }
+    if (t.kind === 'give') { lowerMove({ item: t.item, n: t.n, from: NOWHERE, to: 'bag', on }, frag); continue; }
+    if (t.kind === 'use') { const { ok } = lowerMove({ item: t.item, from: 'bag', to: NOWHERE, on, deny: `No ${t.item.replace(/-/g, ' ')} left` }, frag); frag.reactions.push({ on: ok, do: 'emit', type: `used:${t.item}` }); continue; }
     if (t.kind === 'weather') {
       // the page's sky reads two vars: the state forced, and the change's length; cleared after `for`, or when the cue ends
       const fv = weatherVar(on), bv = weatherBlendVar(on);

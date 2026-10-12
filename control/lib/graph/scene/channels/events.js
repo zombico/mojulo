@@ -327,7 +327,7 @@ if (window.__mojSim) __BUS.linkPhysics(__busState, window.__mojSim.state);
 if (EVENTS.initial) __BUS.processEvents(__busState, EVENTS.initial);
 let __busPrev, __busPrevT = 0, __zonePrev;${facts ? ' let __castPrev;' : ''}
 stepEvents = (t) => {
-  const dtSec = __busPrevT ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0
+  const dtSec = __busPrevT && !window.__mojFreeze ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0; a menu up stops the clock
   if (window.__mojSim) __BUS.syncFromBodies(__busState, window.__mojSim.state);   // fresh body reads
   const incoming = [];
   while (__inputQueue.length) incoming.push(__inputQueue.shift());   // input → bus events this frame

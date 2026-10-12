@@ -15,6 +15,7 @@
  * fault, like the other game validators. Closed vocabulary: a mechanic lowers to existing primitives
  * or it doesn't ship (no runtime mechanic code, ever).
  */
+import { heldVar, itemKey } from '../playscape/ui/items.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -119,7 +120,8 @@ const MECHANICS = {
       const inv = ctx.resolve('inventory', p.into, `collect[${ctx.i}]`);
       const pickups = Array.isArray(p.pickups) ? p.pickups : [];
       if (!pickups.length) throw new Error(`collect[${ctx.i}]: needs pickups: [{ item, at, radius? }]`);
-      const world = { sources: [], reactions: [], entities: [] };
+      // each pickup counts into the bag on the bus too (playscape/ui/items.js: held:bag:<item>), on the HUD by name
+      const world = { vars: {}, sources: [], reactions: [], entities: [], hud: [] };
       const items = new Set();
       pickups.forEach((pk, j) => {
         const zone = `pk_${ctx.i}_${j}`;
@@ -130,7 +132,9 @@ const MECHANICS = {
         world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: ctx.player });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'pickup:' + item });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: heldVar('bag', item), by: 1 });
       });
+      for (const item of items) { world.vars[heldVar('bag', item)] = 0; world.hud.push({ var: heldVar('bag', item), label: itemKey(item).replace(/-/g, ' ') }); }
       const on = {};
       for (const item of items) on['pickup:' + item] = { emit: { type: 'grant', slice: inv, item, count: 1 } };
       return { world, produces: [{ type: 'grant', slice: inv, max: pickups.length }], on };

@@ -2528,7 +2528,7 @@ function __updateBreaks(dt) {
 }
 ` : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
-  if (dt > 0) {
+  if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();

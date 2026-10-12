@@ -257,15 +257,18 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   }
   // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
-  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? } }
+  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, posts?, pads?, inputs? }
   let extraPlay = null, blocks = null, posts = null, pads = null;
   if (extra) {
     const X = extra(ends), p0 = pilotPart.entities[0];
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
-    pilotPart = { ...pilotPart, figures: { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) }, entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])] };
+    const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
+    pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])] };
     extraPlay = X.play ?? null;
     blocks = X.blocks?.length ? X.blocks : null;
     posts = X.posts ?? null;
+    // keys it brings (a bag on I): the pilot's inputs
+    if (X.inputs?.length) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), inputs: [...(pilotPart.events?.inputs ?? []), ...X.inputs] } };
     pads = X.pads ?? null;
   }
   // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats

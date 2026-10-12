@@ -400,6 +400,16 @@ export function defendCast(quick, ends, refs) {
   return { figures, entities, pads, play: { cues } };
 }
 
+/** A collect's bag: what it picks up as an item, the inventory menu over the bag, opened on I (stageLevelOrder's
+ * `extra`: its play and its key). */
+export function bagPlay(quick) {
+  const item = quick.pickup ?? 'gem';
+  return {
+    play: { items: { [item]: {} }, menus: [{ id: 'bag', kind: 'inventory', title: 'Bag' }], cues: [{ id: 'open-bag', when: { on: 'bag' }, then: { open: 'bag' } }] },
+    inputs: [{ on: 'key', key: 'i', emit: { type: 'bag' } }],
+  };
+}
+
 /** The level's audio a goal needs: a rhythm game's music, its beat said on the bus (null: none). */
 export function goalAudio(quick) {
   return quick.goal === 'rhythm' ? { soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true } : null;

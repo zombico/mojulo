@@ -424,6 +424,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
     makeable on the web; seventh-generation rendering is a separate rung.
 
+### Menus: inventory, and the actions on what you hold
+
+- **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never
+  overdraws; every inventory menu is a view of a holder whose rows carry a verb (`playscape/ui/items.js`).
+  - A holder's counts are bus vars, `held:<holder>:<item>`: the bag, a chest's, or a counted shop's. A cue's `if`, a
+    menu's `{var}` and the HUD read the same numbers.
+  - `play.items` names items (`name`, `form`, `kind`, `about`, `use` effects, `value`). Any word is still an item,
+    with its name and glyph derived.
+- **The views.** `shop`, `chest` and the new `inventory` kind draw live rows: a row whose holder holds none is not
+  drawn, and the one in focus shows its words and its verb. Accept does the verb and the menu stays up:
+  - `buy` pays the price from the currency var, the item's value when the stock names none; a stock row's `count`
+    makes it run out.
+  - `take` moves one from the chest into the bag.
+  - `use` spends one and does the item's effects.
+  - A guard that fails says why in a toast (not enough gold, none left) and emits `denied:<item>`. Before, a shop's
+    buy and a chest's take only closed the menu.
+- **Cue effects** `give` (items into the bag) and `use`.
+- **Collecting counts.** A collect's pickups count into the bag on the bus and show on the HUD by name. The web now
+  shows what is carried, as Godot already did.
+- **The world freezes.** While a menu or the quest journal is up, the world and the bus's clock stand still, and
+  timers and walks wait. A scene still only holds input, because its cast walks on.
+- A quick collect game has a bag on I.
+
 ### Game intent: the cube as a gameworld's design contract
 
 - **Concerns keyed by cube value.** A gameworld can say what game it is (`intent: { cube, from? }`); each value of
