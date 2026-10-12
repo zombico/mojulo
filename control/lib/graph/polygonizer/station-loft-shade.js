@@ -222,6 +222,30 @@ function regionWeight(part, p, L) {
   return /^ear/.test(part) ? 0.3 : 0;   // the ears lean in a little; the neck, the hands and the core keep their weld
 }
 
+/** The landmark head's normals blended toward the ELLIPSOID round its cranium and jaw (`ellipsoid`: the weight, 0 none):
+ * the light falls across the face as one form instead of facet by facet, the way shipped faces edit their normals toward
+ * a sphere (the anime head's capsule proxy is the same idea on its own landmarks). The skin of the cranium and the jaw
+ * takes the full weight, the ears half, everything else none; the ellipsoid is the two parts' box at rest, and a posed
+ * face carries its rest direction by its own rotation, as the capsule does. No cranium or jaw ⇒ the weld as it was. */
+function headEllipsoidNormals(mesh, rest, out, w0) {
+  const RV = rest.vertices, acc = [0, 0, 0], lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; let n = 0;
+  const head = (pt) => pt === 'cranium' || pt === 'jaw';
+  mesh.faces.forEach((t, fi) => { if (!head(partOf(mesh, fi))) return; for (const vi of t) { const p = RV[vi]; for (let k = 0; k < 3; k++) { acc[k] += p[k]; lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); } n++; } });
+  if (!n) return out;
+  const C = acc.map((x) => x / n), R2 = [0, 1, 2].map((k) => ((hi[k] - lo[k]) / 2) ** 2), posed = rest !== mesh;
+  mesh.faces.forEach((t, fi) => {
+    const pt = partOf(mesh, fi), w = head(pt) && mesh.groups[fi] === 'Skin' ? w0 : /^ear/.test(pt) ? w0 / 2 : 0; if (!w) return;
+    let fr = null;
+    t.forEach((vi, k) => {
+      const p = RV[vi]; let s = unit([(p[0] - C[0]) / R2[0], (p[1] - C[1]) / R2[1], (p[2] - C[2]) / R2[2]]);
+      if (posed) { if (!fr) fr = [triFrame(RV, t), triFrame(mesh.vertices, t)]; const [R0, R1] = fr; if (!R0 || !R1) return;
+        const co = [dot(R0[0], s), dot(R0[1], s), dot(R0[2], s)]; s = [0, 1, 2].map((q) => co[0] * R1[0][q] + co[1] * R1[1][q] + co[2] * R1[2][q]); }
+      const nn = out[fi][k]; out[fi][k] = unit([nn[0] * (1 - w) + s[0] * w, nn[1] * (1 - w) + s[1] * w, nn[2] * (1 - w) + s[2] * w]);
+    });
+  });
+  return out;
+}
+
 /** The crease a hero under the STUDIO light is shaded smoothly at (world-kinds.js): the skin blends across edges up to
  * 70° (the face one form, the torso and the limbs muscle, not a grid), every other group at 35° (a hair lock, a cloth
  * edge and the swimsuit keep their edges), and CLOTH (`$cloth`: a garment part's faces, body-garment.js, and the faces a
@@ -257,9 +281,9 @@ function clothFaces(mesh, recipe) {
  * axis (NECK_WEIGHT), so its prism facets shade as one round column. A degenerate face takes its weld's unfiltered sum
  * (or +z when that is zero too), so every entry is unit length.
  */
-export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null } = {}) {
+export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null, ellipsoid = 0 } = {}) {
   if (rigid && rigid.size && rest !== mesh) {
-    const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy });
+    const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest, ellipsoid }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy, ellipsoid });
     return own.map((f, fi) => (rigid.has(partOf(mesh, fi)) ? still[fi] : f));
   }
   const V = mesh.vertices, F = mesh.faces, G = mesh.groups;
@@ -270,6 +294,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   const CW = cloth ? { ...crease, ...Object.fromEntries([...new Set(GW.filter((g) => g.startsWith('$cloth:')))].map((g) => [g, crease.$cloth])) } : crease;
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
   const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
+  if (!proxy && ellipsoid > 0) return headEllipsoidNormals(mesh, rest, out, ellipsoid);
   if (!proxy) return out;
   const L = headProxyLandmarks(rest); if (!L) return out;
   const C = L.centre, zLo = L.bottom; const wOf = new Map(); const RV = rest.vertices; const posed = rest !== mesh; const NA = L.neck && neckAxis(V, L.neck);

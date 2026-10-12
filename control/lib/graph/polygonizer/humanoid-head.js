@@ -100,6 +100,8 @@ function landmarkRows(a, pole, knobs) {
   ];
 }
 const tint = (hex, factor) => '#' + hex.slice(1).match(/../g).map(h => Math.min(255, Math.round(parseInt(h, 16) * factor)).toString(16).padStart(2, '0')).join('');
+/** a colour times a per-channel multiplier (the lips' tint of the skin: redder, a little darker) */
+const tintRgb = (hex, k) => `#${[1, 3, 5].map((i, c) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k[c]))).toString(16).padStart(2, '0')).join('')}`;
 export function headPalette(skin = '#d9a77e', hair = '#3b291e', overrides = {}) {
   return { Skin: skin, Lid: tint(skin, 0.68), Lip: tint(skin, 0.96), Mouth: '#6b4438', Brow: hair, Hair: hair,
     HairAlt: tint(hair, 1.13), Sclera: '#f5eee2', Iris: '#426479', Pupil: '#152532',
@@ -164,7 +166,10 @@ function nostrilFacet(origin, rx, rz, depth, normal) {
     add(origin, mul(normal, -0.0012)), add(origin, mul(normal, depth + 0.0004)));
 }
 export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly', hair = 'swept',
-  scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral' } = {}) {
+  scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral', features = null } = {}) {
+  // FEATURES (opt-in, the tiered form's: tiered-form.js TIERED_FACE): the eyes', brows' and ears' sizes, the ears set
+  // in, a lower lip and the lips' colour (`lipTint`: the skin times [r, g, b], so the lips follow any skin). Absent ⇒ every feature as before, byte-identical.
+  const ft = features || {};
   if (!HEAD_PRESETS[preset]) throw new Error(`humanoid: unknown head preset '${preset}'`);
   if (!HEAD_REGISTERS[register]) throw new Error(`humanoid: unknown register '${register}'`);
   const hairErrors = validateHair(hair); if (hairErrors.length) throw new Error(`humanoid: ${hairErrors.join('; ').replace(/unknown style/g, 'unknown hair style')}`);
@@ -254,24 +259,24 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     const at = [4, eyeT], f = frameAt(carrier, 'cranium', at, side);
     const normal = unit([f.normal[0], f.normal[1], 0]);
     const origin = add(f.origin, mul(normal, 0.002));
-    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(origin, 0.018 * sh.eye, 0.0105 * ex.aperture * sh.eye, 0.0009, reg.eyeSides, normal), 'Sclera');
-    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0010)), 0.0085 * sh.eye, 0.0095 * ex.aperture * sh.eye, 0.001, reg.eyeSides, normal), 'Iris');
-    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0021)), 0.0044 * sh.eye, 0.006 * ex.aperture * sh.eye, 0.0005, 8, normal), 'Pupil');
+    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(origin, 0.018 * sh.eye * (ft.eye ?? 1), 0.0105 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0009, reg.eyeSides, normal), 'Sclera');
+    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0010)), 0.0085 * sh.eye * (ft.eye ?? 1), 0.0095 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.001, reg.eyeSides, normal), 'Iris');
+    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0021)), 0.0044 * sh.eye * (ft.eye ?? 1), 0.006 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0005, 8, normal), 'Pupil');
     const across = unit([normal[1], -normal[0], 0]);
     const lidSpine = [[-0.018, 0], [-0.012, 0.0075], [0, 0.0105], [0.012, 0.0075], [0.018, 0]].map(([x, z]) =>
-      add(add(origin, mul(normal, 0.0015)), add(mul(across, x * sh.eye), [0, 0, z * ex.aperture * sh.eye])));
+      add(add(origin, mul(normal, 0.0015)), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * ex.aperture * sh.eye * (ft.eye ?? 1)])));
     const lid = sweep(lidSpine, [0.0007, 0.0010, 0.0011, 0.0008], 4);
     parts[`lid${side}`] = detail(carrier, 'cranium', at, side, lid, 'Lid');
     const addrs = [[5.12, 3.8], [5.24, 4.15], [5.20, 4.65], [5.08, 4.95]];
     const brow = strip(carrier, 'cranium', addrs, side, j => {
-      const w = 0.0037 * sh.brow * [0.65, 1, 0.9, 0.35][j];
+      const w = 0.0037 * sh.brow * (ft.brow ?? 1) * [0.65, 1, 0.9, 0.35][j];
       return [[-w, -0.0008], [-w, 0.0015], [w, 0.0015], [w, -0.0008]];
     });
     for (const p of Object.values(brow.points)) p[2] += ex.browRaise + ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6);
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
     // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner
-    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054, width: 0.97, style: 'western', lift: 0.2, inner: 'EarInner', sparse: register === 'lowpoly' });
+    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, inner: 'EarInner', sparse: register === 'lowpoly' });
     parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);
@@ -286,6 +291,14 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
       j => [[-0.0008, 0.0013], [-0.0008, 0.0023], [0.0008, 0.0023], [0.0008, 0.0013]]);
     for (const p of Object.values(mouth.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / 0.031);
     parts[`mouth${side}`] = detail(carrier, 'cranium', [0.18, 1.1], side, mouth, 'Mouth');
+    // the LOWER LIP (features.lowerLip, its fullness): a strip under the mouth line, fullest at the middle and thinning
+    // into the corner, in the lips' group; it follows the mouth's corners as the upper lip does
+    if (ft.lowerLip) {
+      const lower = strip(carrier, 'cranium', [[0.06, 0.03], [0.05, cupidT], [0.06, 2.05], [0.1, mouthT]], side,
+        j => { const w = [0.0026, 0.0024, 0.0017, 0.0008][j] * ft.lowerLip; return [[-w, 0.0006], [-w, 0.0016], [w, 0.0016], [w, 0.0006]]; });
+      for (const p of Object.values(lower.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / mouthHalf);
+      parts[`lowerLip${side}`] = detail(carrier, 'cranium', [0.08, 1.1], side, lower, 'Lip');
+    }
   }
   // hair: the library's closed masses (humanoid-hair.js), each pinned at the crown; the perimeter follows the skull by address
   const H = resolveHair(hair);
@@ -298,7 +311,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
       for (const [k, v] of Object.entries(p.caps)) p.caps[k] = round(mul(v, scale));
     } else for (const [k, v] of Object.entries(p.offsets)) p.offsets[k] = round(mul(v, scale));
   }
-  return { name: 'head', parts, dials, creases: {}, palette: headPalette(skin, hairColor, palette),
+  return { name: 'head', parts, dials, creases: {}, palette: headPalette(skin, hairColor, ft.lipTint && !palette.Lip ? { ...palette, Lip: tintRgb(skin, ft.lipTint) } : palette),
     bind: { cranium: 'head', jaw: 'jaw' },
     joints: { jawHinge: [...jaw.caps.tip], jawTip: [...jaw.stations[0].points.front] },
     faceVersion: FACE_VERSION, expression, preset, register, hair: H, hairMeasures: grown.measures, scale, shape: knobs,

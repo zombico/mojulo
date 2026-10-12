@@ -13,6 +13,8 @@
  *   tieredChest(plan, size)   the plan with the field on its torso (size: the bust radius in metres; 0 none)
  *   tieredJoints(plan)        the plan with a BRIDGE over the elbows, the knees and the wrists
  *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
+ *   TIERED_FACE[pole]         the landmark head's defaults by sex: face words, hair, features (humanoid-head.js)
+ *   TIERED_FACE_SMOOTH        the landmark head's normals blended toward its ellipsoid
  *
  * The second piece is the JOINT. A limb's two segments each run past their joint and cross there, each on its own
  * bone: bent, the two tubes scissor (the outside of the knee a beak, the elbow two crossed sticks) and even straight
@@ -285,4 +287,36 @@ export function tieredSockets(plan) {
   const dials = plan.dials && Object.fromEntries(Object.entries(plan.dials).map(([k, x]) => [k, Array.isArray(x.parts) ? { ...x, parts: withBall(x.parts) } : x]));
   const refine = plan.body?.refine?.map((e) => (e.slots !== false && Array.isArray(e.parts) ? { ...e, parts: withBall(e.parts) } : e));
   return { ...plan, segments, rig: { ...plan.rig, folds: newFolds, bones }, ...(dials ? { dials } : {}), ...(refine ? { body: { ...plan.body, refine } } : {}) };
+}
+
+// ─── the face ───────────────────────────────────────────────────────────────
+/** The landmark head's defaults on the tiered form, by the head's sex, read at the eyes gate on the character board
+ * (spikes 1–3): the FACE words under the operator's own (ratios compose by product, so a word the operator gives moves
+ * from here), the female's longer HAIR (the short swept cut was both sexes'), and the FEATURES the fitted head's words do
+ * not reach: eyes 0.85 (36 mm wide was past a real eye's 30), lighter brows, smaller ears set in (they stood out from a
+ * head they were a third of), a lower lip and the lips' tint of the skin (the lip was the skin at 0.96: no mouth).
+ * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
+ * behind her lips in profile) and a longer nose; the male: a broader jaw, a heavier brow, the chin forward. */
+export const TIERED_FACE = Object.freeze({
+  female: Object.freeze({
+    face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.06, noseSize: 1.1, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
+    hair: 'bob',
+    features: Object.freeze({ eye: 0.85, brow: 0.6, ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]) }),
+  }),
+  male: Object.freeze({
+    face: Object.freeze({ jawWidth: 1.08, chinProjection: 1.12, noseSize: 1.08, browRidge: 1.15, noseWidth: 1.05 }),
+    hair: null,
+    features: Object.freeze({ eye: 0.85, brow: 0.85, ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]) }),
+  }),
+});
+/** the landmark head's normals toward its ellipsoid (station-loft-shade.js headEllipsoidNormals): 0.45 left the crease
+ * down the forehead and the nose, 0.7 reads as one form */
+export const TIERED_FACE_SMOOTH = 0.7;
+
+/** The hero with the tiered face's defaults under its own words: the landmark head only (the anime head has its own).
+ * The hair default is the record's (layered.js heroRecord stores the female's `bob` when she names none). */
+export function tieredFace(hero, pole) {
+  if ((hero.head ?? 'landmark') !== 'landmark') return hero;
+  const F = TIERED_FACE[pole] ?? TIERED_FACE.male, own = hero.face == null ? [] : Array.isArray(hero.face) ? hero.face : [hero.face];
+  return { ...hero, face: [F.face, ...own], faceFeatures: F.features };
 }

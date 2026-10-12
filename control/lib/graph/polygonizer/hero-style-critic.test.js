@@ -4,7 +4,8 @@ import { castSpend, tierOf } from '../era/cast-spend.js';
 import { heroRecord, expandLayeredManifest, planLayered, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { validateRig } from './station-loft-rig.js';
 import { standPose, poseLayered } from './hero-gesture.js';
-import { TIERED_JOINTS } from './tiered-form.js';
+import { TIERED_JOINTS, TIERED_FACE } from './tiered-form.js';
+import { layeredShadingNormals } from './station-loft-shade.js';
 
 const built = (spec) => { const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }); return { m, mesh: planLayered(m).mesh }; };
 const chestY = (mesh, z) => { let y = -1; for (const v of mesh.vertices) if (Math.abs(v[2] - z) < 0.015 && Math.abs(v[0]) < 0.12) y = Math.max(y, v[1]); return y; };
@@ -46,15 +47,15 @@ describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
     const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
-    expect(tiered.mesh.faces.length).toBe(4740);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752
+    expect(tiered.mesh.faces.length).toBe(4804);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
     const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
   }, 120000);
 
   it('a male, a child-coded figure or a bust of 0 takes no profile; the form is checked by name', () => {
-    // the male's tiered form is today's and the joints' bridges and balls alone (the female's 752)
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(752);
+    // the male's tiered form is today's and the joints' bridges and balls and the lower lips alone
+    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(816);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });
@@ -98,6 +99,33 @@ describe('the tiered sockets', () => {
     expect(m.recipe.parts.thighR.bind.blend.st1).toEqual({ hipFoldR: 1 });
     // the shoulder's ball (the vajra's ball-in-socket) rides the fold; the hip's sits deep in the pelvis, none
     expect([m.recipe.parts.shoulderBallR?.bind, m.recipe.parts.shoulderBallL?.bind, m.recipe.parts.hipBallR]).toEqual(['shoulderFoldR', 'shoulderFoldL', undefined]);
+  }, 120000);
+});
+
+describe('the tiered face', () => {
+  it('pins the landmark head\'s defaults by sex under the operator\'s words; today\'s hero keeps today\'s head', () => {
+    const f = built({ cast: 'female', form: 'tiered' }), m = built({ cast: 'male', form: 'tiered' }), today = built({ cast: 'female' });
+    // the female's longer hair, stored on the record; the male keeps the swept cut; a named style wins
+    expect([f.m.hero.hair.style, m.m.hero.hair.style, today.m.hero.hair.style]).toEqual(['bob', 'swept', 'swept']);
+    expect(built({ cast: 'female', form: 'tiered', hair: 'ponytail' }).m.hero.hair.style).toBe('ponytail');
+    // a lower lip in the lips' tint of the skin; today none, and the lip the skin at 0.96
+    expect(Object.keys(f.m.recipe.parts).filter((k) => /^lowerLip/.test(k))).toEqual(['lowerLipR', 'lowerLipL']);
+    expect(Object.keys(today.m.recipe.parts).some((k) => /^lowerLip/.test(k))).toBe(false);
+    expect(f.m.recipe.palette.Lip).toBe('#bc6e60');
+    expect(built({ cast: 'female', form: 'tiered', palette: { Skin: '#8d5a3b' } }).m.recipe.palette.Lip).toBe('#7a3b2d');   // the tint follows the skin
+    expect(built({ cast: 'female', form: 'tiered', palette: { Lip: '#aa3344' } }).m.recipe.palette.Lip).toBe('#aa3344');   // the operator's wins
+    // the face words compose by product: the operator's jaw moves from the tiered default
+    const jaw = (spec) => { const { mesh: me } = built(spec); return Math.max(...me.vertices.filter((_, i) => me.provenance[i].part === 'jaw').map((v) => v[0])); };
+    expect(jaw({ cast: 'female', form: 'tiered', face: { jawWidth: 1.1 } })).toBeGreaterThan(jaw({ cast: 'female', form: 'tiered' }));
+    expect(TIERED_FACE.female.face.jawWidth).toBeLessThan(TIERED_FACE.male.face.jawWidth);
+  }, 240000);
+
+  it('the head\'s normals lean toward its ellipsoid: the skin of the cranium and the jaw, none elsewhere', () => {
+    const { m, mesh } = built({ cast: 'male', form: 'tiered' });
+    const a = layeredShadingNormals(mesh, m.recipe, { crease: 70, proxy: false }), b = layeredShadingNormals(mesh, m.recipe, { crease: 70, proxy: false, ellipsoid: 0.7 });
+    const moved = (part) => mesh.faces.some((t, fi) => mesh.provenance[t[0]].part === part && b[fi].some((n, k) => Math.hypot(n[0] - a[fi][k][0], n[1] - a[fi][k][1], n[2] - a[fi][k][2]) > 1e-6));
+    expect([moved('cranium'), moved('jaw'), moved('earR'), moved('torso')]).toEqual([true, true, true, false]);
+    expect(layeredShadingNormals(mesh, m.recipe, { crease: 70, proxy: false, ellipsoid: 0 })).toEqual(a);
   }, 120000);
 });
 

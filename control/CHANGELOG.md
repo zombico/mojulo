@@ -73,7 +73,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `shoulderFold` (turned half the arm's swing) carries a share of the torso's shoulder and a BALL, the vajra's
     ball-in-socket: a sphere at the joint as wide as the arm's root, which fills between the shoulder's corner and the
     arm at any angle. The hip's ring rides its fold whole; its head sits deep in the pelvis, so it has no ball.
-  - The bare tiered figure is 4,740 triangles against 5,196: the chest 3,988, the bridges, balls and ring8 limbs 752.
+  - The bare tiered figure is 4,804 triangles against 5,196: the chest 3,988, the bridges, balls and ring8 limbs 752,
+    the lower lips 64.
+- **The tiered base form, third piece: the face.** The landmark head was one face for both sexes: the same short cut,
+  eyes 36 mm wide (a real eye is about 30), a 2 mm upper lip the skin's colour, ears that stood out from a head they were
+  a third of, faceted cheeks and a hard crease down the forehead and nose. Measured on a spike board (each change alone,
+  then together, front, three-quarter and profile), the tiered form pins (`TIERED_FACE`, by the head's sex):
+  - FACE words under the operator's own (they compose by product): the female a narrower jaw and nose, a smaller
+    mouth, fuller cheekbones, the chin a little forward and a longer nose; the male a broader jaw, a heavier brow, the
+    chin forward. The female's default hair is `bob` (stored on the record; a named style wins).
+  - FEATURES (`humanoidHead({ features })`): eyes 0.85, lighter brows, smaller ears set in, a lower lip, and the lips a
+    tint of the skin (so they follow any skin; an operator's `Lip` wins).
+  - The head's normals lean 0.7 toward its ellipsoid (`layeredShadingNormals({ ellipsoid })`, the ears half), the way
+    shipped faces edit their normals toward a sphere: the face reads as one form. The rig pack bakes the same.
+  - Absent the tiered form every head is as before.
   - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
 - **Critics.**
   - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head

@@ -79,7 +79,7 @@ import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
-import { tieredChest, tieredJoints, tieredSockets } from '../../graph/polygonizer/tiered-form.js';
+import { tieredChest, tieredJoints, tieredSockets, tieredFace, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -302,7 +302,9 @@ export function heroRecord(spec) {
   const hero = { cast: spec.cast ?? 'male', register: spec.register ?? 'round', tune, ...(from ? { from } : {}), head: spec.head ?? 'landmark' };
   if (hero.head === 'landmark') {
     const { from: faceFrom, ...face } = resolveFace(spec.face);
-    Object.assign(hero, { face, ...(faceFrom ? { faceFrom } : {}), hair: resolveHair(spec.hair ?? 'swept'), expression: spec.expression ?? 'neutral' });
+    // the tiered form's female wears its longer default (tiered-form.js TIERED_FACE), stored as any style is
+    const tieredHair = spec.form === 'tiered' ? TIERED_FACE[spec.headPreset ?? (femaleOf({ cast: spec.cast ?? 'male', proportions: spec.proportions }) ? 'female' : 'male')]?.hair : null;
+    Object.assign(hero, { face, ...(faceFrom ? { faceFrom } : {}), hair: resolveHair(spec.hair ?? tieredHair ?? 'swept'), expression: spec.expression ?? 'neutral' });
     if (spec.headPreset !== undefined) hero.headPreset = spec.headPreset;
   } else if (hero.head === 'anime') {
     // the OWN layer, stored resolved like the landmark head's (every control at its value, so a patch by path finds it)
@@ -405,14 +407,15 @@ function tieredBust(hero) {
  * the torso's rings in place of its own domes. */
 function heroFormPlan(hero) {
   if (hero.form !== 'tiered') return heroFormPlanOf(hero);
-  return tieredSockets(tieredJoints(tieredChest(heroFormPlanOf({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }), tieredBust(hero))));
+  const pole = hero.headPreset ?? (femaleOf(hero) ? 'female' : 'male');
+  return tieredSockets(tieredJoints(tieredChest(heroFormPlanOf(tieredFace({ ...hero, body: { ...(hero.body ?? {}), bust: 0 } }, pole)), tieredBust(hero))));
 }
 function heroFormPlanOf(hero) {
   // a child-coded figure (childCoding) never takes the adult female's default bust (hero-form.js BUST_FORM): its body says 0
   const common = { register: hero.register, tune: hero.tune, body: childCoding(hero) ? { ...(hero.body ?? {}), bust: 0 } : hero.body ?? {}, girth: hero.girth ?? 1, headScale: hero.headScale, ...(hero.core !== undefined ? { core: hero.core } : {}) };
   const dress = { ...(hero.detail !== undefined ? { detail: hero.detail } : {}), ...(hero.adorn !== undefined ? { adorn: hero.adorn } : {}), ...(hero.paint !== undefined ? { paint: hero.paint } : {}), ...(hero.outfit !== undefined ? { outfit: hero.outfit } : {}), ...(childCoding(hero) ? { childCoded: true } : {}) };
   if ((hero.head ?? 'landmark') === 'landmark') {
-    return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: hero.cast, ...common, face: hero.face ?? {}, hair: hero.hair ?? 'swept', expression: hero.expression ?? 'neutral', palette: hero.palette ?? {}, ...(hero.faceFeatures ? { features: hero.faceFeatures } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
