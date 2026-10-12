@@ -21,6 +21,7 @@
  * and signature at 1. Hair colour is the palette's `Hair`. No dice anywhere: the asymmetry is a sine of the lock index. */
 import { frameAt, symmetricFrameAt, loftParts, sweep, vec } from './station-loft-detail.js';
 import { ratioControls } from './ratio-controls.js';
+import { lockSpine, lockB, spineAt, drapeSpine, keepOut, validateSpine, resolveSpine } from './hair-spine.js';
 import * as dmath from '../../util/dmath.js';
 
 const { add, mul, unit, sub, mean } = vec;
@@ -90,17 +91,18 @@ export const HAIR_COLLECTIONS = Object.freeze({
 /** `'ponytail'` | `{ style, length: 1.3 }` | `['ponytail', { length: 1.3 }, …]` → `{ style, …every control }` */
 export function resolveHair(spec) {
   const list = Array.isArray(spec) ? spec : [spec];
-  let style = null; const ratios = [];
+  let style = null, spine; const ratios = [];
   for (const entry of list) {
     if (entry === undefined || entry === null) continue;
     if (typeof entry === 'string') { style = entry; continue; }
     if (typeof entry !== 'object') throw new Error('hair: an entry must be a style word or a control object');
-    const { style: s, ...rest } = entry; if (typeof s === 'string') style = s; ratios.push(rest);
+    const { style: s, spine: sp, ...rest } = entry; if (typeof s === 'string') style = s; if (sp !== undefined) spine = sp; ratios.push(rest);
   }
   style = style ?? 'swept';
   if (!HAIR_LIBRARY[style]) throw new Error(`hair: unknown style '${style}' (have ${HAIR_STYLE_NAMES.join(', ')})`);
   const { from: _f, ...controls } = HAIR.resolve(ratios);
-  return { style, ...controls };
+  // the spine law (hair-spine.js): stored only when given, so every style without it is the bytes it was
+  return { style, ...controls, ...(spine !== undefined ? { spine: resolveSpine(spine) } : {}) };
 }
 /** Error strings (empty = valid): an unknown style, an unknown control, a ratio that is not a positive number. */
 export function validateHair(spec, label = 'hair') {
@@ -110,8 +112,9 @@ export function validateHair(spec, label = 'hair') {
     const at = list.length > 1 ? `${label}[${i}]` : label;
     if (typeof entry === 'string') { if (!HAIR_LIBRARY[entry]) errs.push(`${at}: unknown style '${entry}' (have ${HAIR_STYLE_NAMES.join(', ')})`); continue; }
     if (!entry || typeof entry !== 'object') { errs.push(`${at}: a style word ('${HAIR_STYLE_NAMES.slice(1, 6).join("', '")}' …), a control object ({ style?, ${HAIR_KEYS.join(', ')} }) or a list`); continue; }
-    const { style, ...rest } = entry;
+    const { style, spine, ...rest } = entry;
     if (style !== undefined && !HAIR_LIBRARY[style]) errs.push(`${at}.style: unknown style '${style}' (have ${HAIR_STYLE_NAMES.join(', ')})`);
+    if (spine !== undefined) errs.push(...validateSpine(spine, `${at}.spine`));
     errs.push(...HAIR.validate(rest, at));
   }
   return errs;
@@ -120,10 +123,12 @@ export function validateHair(spec, label = 'hair') {
 export function hairWarnings(resolved) {
   const style = HAIR_LIBRARY[resolved.style]; if (!style) return [];
   const idle = HAIR_KEYS.filter((k) => resolved[k] !== 1 && !style.controls.includes(k));
-  return [...HAIR.warnings(resolved), ...(idle.length ? [`hair.${idle.join(', hair.')} ${idle.length === 1 ? 'has' : 'have'} no effect on '${resolved.style}' (it takes ${style.controls.join(', ') || 'no controls'})`] : [])];
+  const spineIdle = resolved.spine && !style.fall && !(style.tail && style.tail.kind !== 'bun');
+  return [...HAIR.warnings(resolved), ...(idle.length ? [`hair.${idle.join(', hair.')} ${idle.length === 1 ? 'has' : 'have'} no effect on '${resolved.style}' (it takes ${style.controls.join(', ') || 'no controls'})`] : []),
+    ...(spineIdle ? [`hair.spine has no effect on '${resolved.style}' (it grows a fall's guides and a ponytail or braid; the falls are ${HAIR_STYLE_NAMES.filter((k) => HAIR_LIBRARY[k].fall).join(', ')})`] : [])];
 }
 /** the frame note's clause */
-export const describeHair = (resolved) => { const d = HAIR.describe(resolved); return resolved.style + (d ? ` (${d.replace(/^hair /, '')})` : ''); };
+export const describeHair = (resolved) => { const d = HAIR.describe(resolved); return resolved.style + (d ? ` (${d.replace(/^hair /, '')})` : '') + (resolved.spine ? `, grown (${resolved.spine.stiffness ?? 'soft'}${resolved.spine.wind?.R ? `, wind ${resolved.spine.wind.R}` : ''})` : ''); };
 
 // ─── the constructions ────────────────────────────────────────────────────
 const CROWN_ROW = 8, BROW_ROW = 5.3, N = 16, MID = N / 2;
@@ -210,14 +215,27 @@ function buildFall(carrier, style, c, lowK) {
   const F = style.fall, D = c.definition, drop = F.drop * c.length, steps = 5;
   const inner = Array.from({ length: N }, (_, k) => { const { t, side } = slotOf(k); const f = frameAt(carrier, 'cranium', [clampRow(style.low[t]), t], side); return { origin: f.origin, normal: f.normal }; });
   const fallOf = (k) => { const { t } = slotOf(k); if (t < F.frontGap) return F.front * (t / Math.max(1, F.frontGap)) / (F.open ? D : 1); return 1; };
+  const lengthOf = (k) => {
+    const front = frontOf(k), fall = fallOf(k);
+    let length = drop * fall;
+    if (F.graded) length += F.graded * c.graduation * front * fall;   // the angled bob: the falling strands beside the face longer
+    if (F.layers) length *= 0.85 + 0.15 * dmath.cos(k * 1.9) ** 2;
+    return length;
+  };
+  // grown (hair-spine.js): every slot is a GUIDE LOCK hanging from the hairline by the elastica; the curtain is the same
+  // closed loft stretched over the guides, its rings at equal arc down each guide
+  const head = c.spine ? headCollider(carrier, inner) : null;
+  const guides = head ? inner.map((at, k) => drapeSpine(fallGuide(at, lengthOf(k), c), head)) : null;
   const raw = [];
   for (let j = 0; j <= steps; j++) {
     const f = j / steps;
     raw.push(Array.from({ length: N }, (_, k) => {
-      const front = frontOf(k), fall = fallOf(k);
-      let length = drop * fall;
-      if (F.graded) length += F.graded * c.graduation * front * fall;   // the angled bob: the falling strands beside the face longer
-      if (F.layers) length *= 0.85 + 0.15 * dmath.cos(k * 1.9) ** 2;
+      const front = frontOf(k);
+      if (guides) {
+        const p = spineAt(guides[k], f), wave = F.wave ? F.wave * c.wave * dmath.sin(f * Math.PI * 2.5 + k * 0.4) * f : 0;
+        return wave ? add(p, [Math.sign(p[0] || 1) * wave, 0, 0]) : p;
+      }
+      const length = lengthOf(k);
       const wave = F.wave ? F.wave * c.wave * dmath.sin(f * Math.PI * 2.5 + k * 0.4) * f : 0;
       const base = add(inner[k].origin, mul(inner[k].normal, 0.003 + 0.008 * f * (0.7 + 0.3 * c.volume)));
       const swing = wave ? [Math.sign(base[0] || 1) * wave, 0, 0] : [0, 0, 0];
@@ -225,10 +243,76 @@ function buildFall(carrier, style, c, lowK) {
     }));
   }
   // separated panels: each pair of slots draws toward its centre as it falls
-  const rings = raw.map((ring, j) => { const f = j / steps, s = F.separate ? F.separate * D * f * f : 0;
+  let rings = raw.map((ring, j) => { const f = j / steps, s = F.separate ? F.separate * D * f * f : 0;
     return ring.map((p, k) => { if (!s) return p; const pair = k % 2 === 0 ? (k + 1) % N : k - 1; const centre = mean([p, ring[pair]]); return [p[0] + (centre[0] - p[0]) * s, p[1] + (centre[1] - p[1]) * s, p[2]]; }); });
+  // grown: the wave's swing and the panels' draw move points after the guides hung, so each slot's column is draped
+  // over the head once more: no point of the curtain ends inside the skin
+  if (head) {
+    const cols = Array.from({ length: N }, (_, k) => drapeSpine(rings.map((ring) => ring[k]), head)); rings = rings.map((ring, j) => ring.map((_, k) => cols[k][j]));
+    // the curtain's faces are chords: corners outside a curved cheek can still span a face that dips under it. The
+    // midpoint of every edge and diagonal and every face's centre is tested; one under the skin lifts its corners by its push
+    // (the root ring too: its chords between slots dip under the curved skull; the cap covers the lift)
+    for (let it = 0; it < 8; it++) {
+      let moved = false;
+      for (let j = 0; j <= steps; j++) for (let k = 0; k < N; k++) {
+        const k1 = (k + 1) % N;
+        const pairs = j === 0 ? [[[0, k], [0, k1]]] : [[[j, k], [j, k1]], [[j - 1, k], [j, k1]], [[j - 1, k1], [j, k]], [[j - 1, k], [j, k]]];
+        // the face's centre too: its four corners are lifted together
+        if (j > 0) pairs.push([[j - 1, k], [j - 1, k1], [j, k], [j, k1]]);
+        for (const at of pairs) {
+          const ps = at.map(([r, q]) => rings[r][q]), m = mean(ps), { p, hit } = keepOut(m, head);
+          if (!hit) continue;
+          const d = sub(p, m); moved = true;
+          at.forEach(([r, q], i) => { rings[r][q] = add(ps[i], d); });
+        }
+      }
+      if (!moved) break;
+    }
+  }
   const top = mean(rings[0]), hem = mean(rings[steps]);
   return loftParts(rings, add(top, [0, 0, 0.02]), add(hem, [0, 0, -0.012]));
+}
+
+/** the head and neck for the hair to keep off: the head's OWN skin sampled by address (the cranium's rows × slots, the
+ * jaw's when the carrier has one; every sample with its outward normal), so a lock never passes into the forehead, a
+ * cheek or the jaw, however it hangs or swings; and an upright neck column from the head's centre down, set behind it
+ * (under the occiput a short back slot roots where skull and jaw meet, inside both; the neck is the body's, so its
+ * column is the head's proportion). `gap` is the least stand-off of hair from skin. The ears are their own parts,
+ * pinned after the hair, and are not in it. */
+const HAIR_GAP = 0.003;
+function headCollider(carrier, inner) {
+  // one surface per part: the cranium and the jaw interpenetrate at the nape, and a nearest sample from the other
+  // part's inner side would read a point inside the skull as outside
+  const skins = [];
+  for (const name of ['cranium', 'jaw']) {
+    const P = carrier[name]; if (!P?.stations) continue;
+    const rows = P.stations.length - 1, pts = [], nrm = [];
+    for (let r = 0; r <= rows * 4; r++) for (let t = 0; t <= MID * 4; t++) for (const side of ['R', 'L']) {
+      if (side === 'L' && (t === 0 || t === MID * 4)) continue;
+      const f = frameAt(carrier, name, [r / 4, t / 4], side); pts.push(f.origin); nrm.push(f.normal);
+    }
+    skins.push({ surface: { pts, nrm, gap: HAIR_GAP, reach: 0.04, frame: true } });
+  }
+  const os = inner.map((a) => a.origin), ys = os.map((p) => p[1]), xs = os.map((p) => p[0]), cz = os.reduce((s, p) => s + p[2], 0) / os.length;
+  const top = frameAt(carrier, 'cranium', [CROWN_ROW, 0], 'R').origin;
+  const c = [0, (Math.max(...ys) + Math.min(...ys)) / 2, cz], r = [Math.max(...xs.map(Math.abs)), (Math.max(...ys) - Math.min(...ys)) / 2, Math.max(0.05, top[2] - cz)];
+  return [...skins, { axis: [0, c[1] - 0.25 * r[1]], r: 0.7 * r[0], top: cz, bottom: cz - 0.45 }];
+}
+
+/** one fall guide: rooted just off the hairline and combed straight down with a little lift out from the head (more
+ * with volume; never toward the face), held straight for the root zone, then hanging by the elastica at the spine's
+ * stiffness. The comb is gravity, not the scalp's slope: high on the skull "down the surface" runs outward, and the head
+ * below a hairline root is no wider than the root, so a lock that leaves straight down clears it (as today's fall does). */
+function fallGuide(at, L, c) {
+  const S = c.spine, n = at.normal;
+  const root = add(at.origin, mul(n, 0.003));
+  L = Math.max(L, 0.008);   // a slot that does not fall still stands off the scalp (as today's border does): no ring folds to a point
+  // the lift is small: a cantilever only ever bends toward its load, so an outward lean at the root survives to the tip
+  const loft = Math.max(0.02, Math.min(0.3, 0.07 + 0.12 * (c.volume - 1)));
+  const out = Math.hypot(n[0], Math.min(0, n[1])) > 1e-6 ? unit([n[0], Math.min(0, n[1]), 0]) : [0, 0, 0];
+  const aim = unit(add([0, 0, -1], mul(out, loft)));
+  const hold = S.hold ?? Math.min(0.3, 0.05 * c.volume);
+  return lockSpine({ root, aim, L, B: lockB(S.stiffness ?? 'soft', L), hold, wind: S.wind });
 }
 
 /** The TAIL family: a ponytail sweep from the tie point down the nape, a bun (a bell at the tie), a braid (a winding taper). */
@@ -241,11 +325,15 @@ function buildTail(carrier, style, c) {
     const spine = [add(o, mul(n, 0.004)), add(o, mul(n, 0.02)), add(o, mul(n, 0.038)), add(o, mul(n, 0.056)), add(o, mul(n, 0.07))];
     return sweep(spine, [R * 0.55, R * 0.95, R, R * 0.85, R * 0.4], 10, { squash: [1, 0.85] });
   }
-  const len = T.length * c.length, steps = T.kind === 'braid' ? 12 : 6, spine = [];
+  const len = T.length * c.length, steps = T.kind === 'braid' ? 12 : 6;
+  // grown: the tail hangs from the tie by the elastica, the tie holding its first stretch back and down. A tail is a
+  // bundle of loose strands, and loose strands add no stiffness to each other, so it is limp unless the spine says
+  const grown = c.spine ? lockSpine({ root: add(o, mul(n, 0.02)), aim: add(n, [0, 0, -0.6]), L: len, B: lockB(c.spine.stiffness ?? 'limp', len), hold: c.spine.hold ?? 0.15, wind: c.spine.wind, n: steps }) : null;
+  const spine = [];
   for (let j = 0; j <= steps; j++) {
     const s = j / steps;
     const out = 0.03 + 0.05 * dmath.sin(Math.min(1, s * 1.6) * Math.PI / 2) - 0.01 * s;   // back, then down the nape
-    let p = add(add(o, mul(n, out)), [0, 0, -len * s + 0.012 * dmath.sin(s * Math.PI)]);
+    let p = grown ? grown[j] : add(add(o, mul(n, out)), [0, 0, -len * s + 0.012 * dmath.sin(s * Math.PI)]);
     if (T.kind === 'braid') p = add(p, [dmath.sin(s * Math.PI * 4.5 * c.braid) * R * 0.75, dmath.cos(s * Math.PI * 4.5 * c.braid) * R * 0.35, 0]);
     spine.push(p);
   }

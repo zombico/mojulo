@@ -13,6 +13,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Hair studies: the lock grown like a grass blade
+
+- **One spine law for hair** (`polygonizer/hair-spine.js`). A lock is the grass blade's elastica: a cantilever under its
+  own weight, clamped at the scalp along its comb, solved in the plane of the load and the aim, with positions
+  integrated along the arc so the lock is exactly its length. One number, B (wL³/EI of the clump), sets how it carries:
+  low B stands, high B hangs; B grows with L³, so on one head the long locks droop and the short ones stand. Wind is the
+  same solve under a rotated load (drag of R weights beside the weight: B·√(1+R²) at atan R), so a windswept lock keeps
+  its length too. Past the self-buckling load the shooting problem has several roots (upright, drooped, looped); the
+  law keeps the one with the least potential energy, the shape a real lock settles into.
+- **The western fall as guide locks** (`hair.spine`, opt-in on the landmark library). Each of the fall's sixteen
+  slots hangs as one guide lock from the hairline and the curtain is the same closed loft stretched over the guides;
+  the ponytail and the braid hang from the tie by the same law (limp by default: loose strands add no stiffness to
+  each other). The comb is gravity with a small lift, never the scalp's slope, so a still fall hangs where today's
+  does; a wind streams it. **Grown hair never passes into the head**: the guides and then every curtain face (its
+  edges, diagonals and centre) are kept 3 mm off the head's own skin, sampled by address over the cranium and the jaw,
+  and off a neck column, keeping their length; where the skin faces forward the lift goes sideways and back, so the
+  hair frames the face instead of covering it. (Today's falls cut into the cheeks and the skull: measured, and left as
+  minted.) Stiffness as a word (`stiff`, `springy`, `soft`, `limp`) or a number, a held root zone, a still wind
+  (`{ R, dir }`). Same parts and face counts; absent, every style is byte-identical.
+
 ### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
 
 - **The look and the density are separate.**
