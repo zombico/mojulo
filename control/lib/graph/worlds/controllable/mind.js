@@ -327,7 +327,7 @@ export function buildMind(E) {
   // last saw it, goes there and searches. Without the setting a mind knows where its target is (the arena's brain).
   // perceive(e, r, target, world) — in `sightRange` (120), in the facing cone `sightCone` (half-angle 1.2 rad; skipped
   // while it saw the target in the last half second), and a clear line past the colliders, eye to eye. A sighting is
-  // recorded on `e.lastSeen` { pos, t, id }.
+  // recorded on `e.lastSeen` { pos, t, id }; a fresh one counts `e.sightings` (the bus's `seen`).
   function perceive(e, r, target, world) {
     const t = e.transform, q = target.transform.pos, now = (world && world.time) || 0;
     const dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
@@ -339,6 +339,8 @@ export function buildMind(E) {
     }
     const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
     if (world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.colliders)) return false;
+    // a FRESH sighting (not seen in the last half second) is counted: castFacts says it on the bus (`seen`)
+    if (!recent) { e.sightings = (e.sightings || 0) + 1; e.seenId = target.id; }
     e.lastSeen = { pos: [q[0], q[1], q[2]], t: now, id: target.id };
     if (e.searchT != null && e.locomotion === 'search') e.locomotion = 'forward';
     e.searchT = null;
@@ -393,7 +395,16 @@ export function buildMind(E) {
     const t = e.transform, p = postOf(e, r, world);
     const dx = p[0] - t.pos[0], dy = p[1] - t.pos[1];
     const arrive = r.mind && r.mind.motivation === 'escort' ? (r.followDist ?? 6) : (r.arrive ?? 1.5);
-    if (Math.hypot(dx, dy) <= arrive) { e.moving = false; return; }
+    if (Math.hypot(dx, dy) <= arrive) {
+      e.moving = false;
+      // a LOOKOUT (`rule.scan`, radians): at its post it sweeps its gaze either side of the heading it was placed with,
+      // over `scanPeriod` (6 s), so a sneak can time it
+      if (r.scan > 0) {
+        const base = e.scanFrom ?? (e.scanFrom = t.heading), now = (world && world.time) || 0;
+        turnToward(t, base + Math.sin((now * TAU) / (r.scanPeriod ?? 6)) * r.scan, r, dt);
+      }
+      return;
+    }
     if (!navTo(e, r, dt, world, p, r.speed ?? 6)) walkToward(e, r, Math.atan2(dy, dx), dt, world, r.speed ?? 6);
   }
 

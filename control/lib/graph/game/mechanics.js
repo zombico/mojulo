@@ -244,6 +244,136 @@ const MECHANICS = {
       };
     },
   },
+
+  // ── the genre snipe (10-12): stealth, racing and the kept number. Each lowers to zones, vars, guarded reactions
+  // (a reaction's `if`), timers and watches; the only new fact is the cast's `seen` (a sighting, worlds/controllable).
+
+  // seen by a watcher → fail (a terminal). A character with sight (rule.mind.perception) that newly sees its target
+  // says `seen` on the bus; `alarms` sightings end the level (1: the first). `who` globs the watchers (default all).
+  unseen: {
+    role: 'terminal', ends: ['fail'], requires: [],
+    lower(p, ctx) {
+      const alarms = Number.isInteger(p.alarms) && p.alarms > 0 ? p.alarms : 1;
+      const match = { entity: typeof p.who === 'string' && p.who ? p.who : '*' };
+      if (alarms === 1) {
+        return {
+          world: { reactions: [{ on: 'seen', match, do: 'emit', type: 'spotted' }], hud: [{ on: 'spotted', text: typeof p.text === 'string' && p.text ? p.text : 'Spotted!', ttl: 2 }] },
+          on: { spotted: { end: 'fail' } },
+        };
+      }
+      const v = `__seen_${ctx.i}`;
+      return {
+        world: {
+          vars: { [v]: 0 },
+          reactions: [{ on: 'seen', match, do: 'inc', var: v, by: 1 }],
+          watches: [{ type: 'spotted', when: { var: v, gte: alarms } }],
+          hud: [{ var: v, label: 'Seen', as: 'counter', max: alarms }, { on: 'seen', text: 'Seen!', as: 'toast', ttl: 1.2 }],
+        },
+        on: { spotted: { end: 'fail' } },
+      };
+    },
+  },
+
+  // pass the checkpoints in order, `laps` times → success, against the clock (a terminal). The last checkpoint is the
+  // finish line; one out of order does nothing. The run's time (tenths of a second) is the level's kept number: the
+  // shell remembers the lowest.
+  laps: {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const cps = Array.isArray(p.checkpoints) ? p.checkpoints : [];
+      if (!cps.length || !cps.every((c) => c && Array.isArray(c.at))) throw new Error(`laps[${ctx.i}]: needs checkpoints: [{ at, radius? }, …] in order, the last the finish`);
+      const laps = Number.isInteger(p.laps) && p.laps > 0 ? p.laps : 1, i = ctx.i, last = cps.length - 1;
+      const next = `__cp_${i}`, lap = `__lap_${i}`, t = `__race_${i}`, ts = `__race_s_${i}`, over = `__race_over_${i}`;
+      const world = {
+        vars: { [next]: 0, [lap]: 0, [t]: 0, [ts]: 0, [over]: 0 },
+        sources: [], reactions: [],
+        timers: [
+          { every: 0.1, emit: { type: `__race_tick_${i}` }, while: { var: over, eq: 0 } },
+          { every: 1, emit: { type: `__race_sec_${i}` }, while: { var: over, eq: 0 } },
+        ],
+        watches: [{ type: 'laps:done', when: { var: lap, gte: laps } }],
+        hud: [{ var: ts, label: 'Time', as: 'clock' }, ...(laps > 1 ? [{ var: lap, label: 'Lap', as: 'counter', max: laps }] : []), { on: 'checkpoint', text: 'checkpoint', as: 'toast', ttl: 1 }],
+      };
+      cps.forEach((c, j) => {
+        const zone = `cp_${i}_${j}`;
+        world.sources.push({ type: 'zone', zone, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: ctx.player });
+        const due = { var: next, eq: j };
+        if (j < last) {
+          // the emit first: the set after it moves the guard on
+          world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'checkpoint', at: j });
+          world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'set', var: next, to: j + 1 });
+        } else {
+          world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'lap' });
+        }
+      });
+      world.reactions.push(
+        { on: 'lap', do: 'inc', var: lap, by: 1 },
+        { on: 'lap', do: 'set', var: next, to: 0 },
+        { on: `__race_tick_${i}`, do: 'inc', var: t, by: 1 },
+        { on: `__race_sec_${i}`, do: 'inc', var: ts, by: 1 },
+        { on: 'laps:done', do: 'set', var: over, to: 1 },
+      );
+      return {
+        world,
+        on: { 'laps:done': { end: 'success' } },
+        keep: [{ var: t, label: typeof p.label === 'string' && p.label ? p.label : 'Time', best: 'low', scale: 0.1, unit: 's' }],
+        audit: { kind: 'walkto', target: cps[last].at, ...(last ? { via: cps.slice(0, last).map((c) => c.at) } : {}) },
+      };
+    },
+  },
+
+  // ON THE BEAT (an emitter): each `beat` on the bus (the music's: a level's audio.beat says them, `lead` early) opens a
+  // window `window` seconds wide; a press inside it is `beat:hit` (once a beat), one outside it `beat:miss`. `misses`
+  // ends the level in fail; pair with score (points on beat:hit) and a terminal. `key` is the press (Space: the jump).
+  'on-beat': {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const w = Number.isFinite(p.window) && p.window > 0.02 && p.window <= 0.5 ? p.window : 0.3, i = ctx.i;
+      const win = `__win_${i}`, press = `__press_${i}`, missed = `__miss_${i}`;
+      const misses = Number.isInteger(p.misses) && p.misses > 0 ? p.misses : null;
+      const world = {
+        vars: { [win]: 0, ...(misses ? { [missed]: 0 } : {}) },
+        inputs: [{ on: 'key', key: typeof p.key === 'string' && p.key ? p.key : ' ', once: true, emit: { type: press } }],
+        // the window: open on the beat, shut `window` later (a saga per beat; a beat's window ends before the next)
+        sequences: [{ id: `__beatwin_${i}`, trigger: { on: 'beat' }, steps: [{ do: 'set', var: win, to: 1, await: { timer: w } }, { do: 'set', var: win, to: 0 }] }],
+        reactions: [
+          { on: press, if: { var: win, eq: 1 }, do: 'emit', type: 'beat:hit' },
+          { on: press, if: { var: win, eq: 0 }, do: 'emit', type: 'beat:miss' },
+          { on: 'beat:hit', do: 'set', var: win, to: 2 },   // one hit a beat: a second press in its window is neither
+          ...(misses ? [{ on: 'beat:miss', do: 'inc', var: missed, by: 1 }] : []),
+        ],
+        ...(misses ? { watches: [{ type: 'offbeat', when: { var: missed, gte: misses } }] } : {}),
+        hud: [
+          { on: 'beat', text: '♪', as: 'toast', slot: 'bottom', ttl: 0.35 },
+          { on: 'beat:hit', text: 'on the beat!', as: 'toast', ttl: 0.6, color: 'goal' },
+          { on: 'beat:miss', text: 'off', as: 'toast', ttl: 0.6, color: 'harm' },
+          ...(misses ? [{ var: missed, label: 'Misses', as: 'counter', max: misses }] : []),
+        ],
+      };
+      return { world, emits: ['beat:hit', 'beat:miss'], ...(misses ? { on: { offbeat: { end: 'fail' } } } : {}) };
+    },
+  },
+
+  // a SCORE (an emitter): a var the level counts up, shown, and kept: the shell remembers the best (`best: 'high'`, or
+  // 'low' for a count to keep down). `points` scores bus events: [{ on: '<event>', by?: 1 }].
+  score: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const v = typeof p.var === 'string' && /^[a-z][a-z0-9_-]{0,31}$/.test(p.var) ? p.var : 'score';
+      const label = typeof p.label === 'string' && p.label ? p.label : 'Score';
+      const best = p.best === 'low' ? 'low' : 'high';
+      const points = Array.isArray(p.points) ? p.points : [];
+      if (!points.every((x) => x && typeof x.on === 'string' && x.on)) throw new Error(`score[${ctx.i}]: points are [{ on: '<bus event>', by?: n }]`);
+      return {
+        world: {
+          vars: { [v]: 0 },
+          reactions: points.map((x) => ({ on: x.on, ...(x.match ? { match: x.match } : {}), do: 'inc', var: v, by: Number.isFinite(x.by) ? x.by : 1 })),
+          hud: [{ var: v, label, as: 'counter' }],
+        },
+        keep: [{ var: v, label, best }],
+      };
+    },
+  },
 };
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
@@ -298,6 +428,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const requires = new Set();
   const audits = [];
   const doors = [];
+  const keep = [];
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -331,6 +462,7 @@ export function composeMechanics(mechanics, ctx = {}) {
       else on[k] = low.on[k];
     }
     for (const c of (low.consumes || [])) consumes.push(c);
+    for (const k of (low.keep || [])) { if (keep.some((x) => x.var === k.var)) errors.push(`mechanics[${i}] (${m.kind}): var '${k.var}' is kept twice`); else keep.push(k); }
     for (const d of (low.doors || [])) { if (doors.some((x) => x.id === d.id)) errors.push(`mechanics[${i}] (door): door id '${d.id}' is used twice`); else doors.push(d); }
     if (low.audit && low.role === 'terminal' && low.ends && low.ends.includes('success')) audits.push({ mechanic: m.kind, ...low.audit });
   });
@@ -385,5 +517,5 @@ export function composeMechanics(mechanics, ctx = {}) {
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}) };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}) };
 }

@@ -68,11 +68,69 @@ describe('design_game quick', () => {
     expect(payload.entities.filter((e) => e.id.startsWith('dec_pk_')).length).toBe(L.level.mechanics[0].pickups.length);
   }, 240_000);
 
+  it('race: the trail\'s beats are checkpoints in order, its end the finish, the time kept', async () => {
+    await designGameHandler({ quick: { goal: 'race', world: { id: 'dash', style: { kit: 'trail-valley' } } }, ref: 'r' });
+    const L = stored('r-level-run-0');
+    expect(mechanicsOf('r-level-run-0')).toEqual(['laps']);
+    const cps = L.game.mechanics[0].checkpoints;
+    expect(cps.length).toBeGreaterThan(2);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('r-level-run-0'));
+    expect(payload.game.keep).toEqual([{ var: '__race_0', label: 'Time', best: 'low', scale: 0.1, unit: 's' }]);
+    expect(payload.game.on['laps:done']).toEqual({ end: 'success' });
+    expect(payload.events.reactions.some((r) => r.if && r.if.var === '__cp_0')).toBe(true);
+  }, 240_000);
+
+  it('sneak: guards with sight keep the trail, sweeping; a sighting ends it', async () => {
+    const out = await designGameHandler({ quick: { goal: 'sneak', guards: 2, world: { id: 'creep', style: { kit: 'trail-valley' } } }, ref: 'k' });
+    expect(out.ran.map((r) => r.key)).toEqual(['guard', 'level-run-0', 'game']);
+    const L = stored('k-level-run-0');
+    expect(mechanicsOf('k-level-run-0')).toEqual(['unseen', 'reach-exit']);
+    const guards = L.entities.filter((e) => e.team === 'guards');
+    expect(guards.map((g) => g.id)).toEqual(['guard-1', 'guard-2']);
+    expect(guards[0].rule).toMatchObject({ type: 'ai', mind: { motivation: 'guard', perception: 'sight' }, scan: 1.3 });
+    expect(L.figures['guard-1'].heroRef).toBe('k-guard');
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('k-level-run-0'));
+    expect(payload.game.on.spotted).toEqual({ end: 'fail' });
+    expect(payload.events.reactions.some((r) => r.on === 'seen')).toBe(true);
+  }, 240_000);
+
+  it('rhythm: the music\'s beat on the bus, a press judged on it, the beats scored and kept', async () => {
+    await designGameHandler({ quick: { goal: 'rhythm', music: 'tavern', misses: 4, world: { id: 'pulse', style: { kit: 'trail-valley' } } }, ref: 'm' });
+    const L = stored('m-level-run-0');
+    expect(mechanicsOf('m-level-run-0')).toEqual(['on-beat', 'score', 'reach-exit']);
+    expect(L.audio).toEqual({ soundtrack: 'field:tavern', beat: true });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('m-level-run-0'));
+    expect(payload.audio.beat.lead).toBe(0.15);
+    expect(payload.audio.beat.every).toBeGreaterThan(0.3);
+    expect(payload.game.keep).toEqual([{ var: 'score', label: 'Beats', best: 'high' }]);
+    expect(payload.game.on.offbeat).toEqual({ end: 'fail' });
+    expect(payload.events.inputs.some((i) => i.once && i.key === ' ')).toBe(true);
+  }, 240_000);
+
+  it('ride: the hero is a car, its build minted, every stage driven on the rule it derives', async () => {
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', world: { id: 'rally', style: { kit: 'trail-valley' } } }, ref: 'v' });
+    expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
+    expect(stored('v-ride').kind).toBe('assembler');
+    const L = stored('v-level-run-0');
+    expect(L.entities[0]).toMatchObject({ id: 'car', pilotable: true, rule: { type: 'drive', horsepower: 160 }, body: { type: 'figure-rig', figure: 'ride' } });
+    expect(L.figures.ride).toEqual({ vehicleRef: 'v-ride', targetH: 1.5 });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('v-level-run-0'));
+    // the checkpoints watch the car
+    expect(payload.events.sources.find((z) => z.zone === 'cp_0_0').watch).toBe('car');
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);
     expect(() => readQuick({ goal: 'reach', hero: 'tall' })).toThrow(/hero is a hero-door spec/);
     expect(() => readQuick({ goal: 'avoid', building: { use: 'tavern' } })).toThrow(/no hazards/);
     expect(() => readQuick({ goal: 'reach', climb: true, building: { use: 'tavern' } })).toThrow(/not a climb/);
+    expect(() => readQuick({ goal: 'reach', guards: 2 })).toThrow(/guards belongs to the sneak goal/);
+    expect(() => readQuick({ goal: 'sneak', guards: 12 })).toThrow(/1 to 8/);
+    expect(() => readQuick({ goal: 'race', building: { use: 'tavern' } })).toThrow(/runs a trail/);
+    expect(() => readQuick({ goal: 'reach', music: 'tavern' })).toThrow(/music belongs to the rhythm goal/);
+    expect(() => readQuick({ goal: 'rhythm', music: 'chapel' })).toThrow(/steady beat/);
+    expect(() => readQuick({ goal: 'race', ride: 'tank' })).toThrow(/ride is one of car/);
+    expect(() => readQuick({ goal: 'race', ride: 'car', hero: { cast: 'male' } })).toThrow(/the ride is the hero/);
   });
 });

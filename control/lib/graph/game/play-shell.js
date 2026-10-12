@@ -466,6 +466,21 @@ export function playShellRuntime(cfg, K) {
     });
     return el('table', null, [el('thead', null, [head]), el('tbody', null, body)]);
   }
+  // the KEPT numbers (a level's game.keep, sent as stats.kept): each beside the best this save has seen, and a new best
+  // remembered. A low best (a time) counts only a cleared run; a high one (a score) any run.
+  function keptList(lv, env) {
+    const fmt = (k, v) => (Number.isInteger(v) ? String(v) : v.toFixed(1)) + (k.unit || '');
+    return el('ul', { cls: 'gains' }, env.stats.kept.map((k) => {
+      const key = SAVE_KEY + ':best:' + lv.ref + ':' + k.label, v = Number(k.value);
+      let prior = null;
+      try { const s = storage.getItem(key); prior = s === null ? null : Number(s); } catch (e) { /* no memory */ }
+      const counts = Number.isFinite(v) && (k.best === 'high' || env.result === 'success');
+      const better = counts && (prior === null || (k.best === 'high' ? v > prior : v < prior));
+      if (better) { try { storage.setItem(key, String(v)); } catch (e) { /* session only */ } }
+      const tail = better ? (prior === null ? '' : ' · new best!') : prior !== null ? ' · best ' + fmt(k, prior) : '';
+      return el('li', { text: k.label + ' ' + fmt(k, v) + tail });
+    }));
+  }
   function renderResult(lv, env, applied) {
     session = null;
     show('result');
@@ -480,6 +495,7 @@ export function playShellRuntime(cfg, K) {
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
       shut && shut.gate ? el('div', { cls: 'muted', text: 'The way to ' + levelTitle(shut.to) + ' is shut: ' + needs(shut.gate) + '.' }) : null,
       env.stats && Array.isArray(env.stats.rows) && env.stats.rows.length ? statsTable(env.stats) : null,
+      env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(lv, env) : null,
       el('div', { cls: 'row' }, [
         env.result === 'success' && next && isOpen(next) ? el('button', { cls: 'primary', text: 'next: ' + next.title, on: () => launch(next) }) : null,
         el('button', { cls: env.result === 'success' && next ? '' : 'primary', text: env.result === 'success' ? 'play again' : 'try again', on: () => launch(lv) }),

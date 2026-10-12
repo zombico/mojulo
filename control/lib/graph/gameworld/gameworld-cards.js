@@ -31,7 +31,8 @@ import { STAGE_KITS, resolveKitId } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
-import { QUICK_GOALS } from './quick.js';
+import { QUICK_GOALS, RHYTHM_MOODS } from './quick.js';
+import { RIDES } from './ride.js';
 import { LEVEL_SECTIONS } from '../level/graph.js';
 import { TUNE_KEYS, HERO_MOVE_NAMES, PALETTE as HERO_PALETTE, HERO_CASTS, PROPORTION_WORDS } from '../polygonizer/hero-form.js';
 import { LOOK_TABLES } from '../polygonizer/anime-looks.js';
@@ -253,6 +254,8 @@ function quickCard() {
     `goal: ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'levers, all optional:',
     `  climb: true        a climb after the trail (reach: the exit is its top); pickup: '<word>' for collect (coin, key, star…); seconds: n for survive`,
+    `  sneak: guards: n (3), guard: { <hero-door words> }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
+    `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle, driven (W / S / A / D); no hero, climb or building with it`,
     `  hero: { <hero-door words> } the hero's looks, hair, outfit, gear in hand, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
     '                     absent or false: first person, you are the camera',
     `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: third person with a hero, first person without; top-down (¾, north up) and side (A / D run the trail's line, no climb) need a hero`,
@@ -316,7 +319,7 @@ function nextCard() {
 
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
-  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a quick game', quickCard],
+  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid, race, sneak, rhythm', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a stealth level, a rhythm game, drive a car, a quick game', quickCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

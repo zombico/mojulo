@@ -278,7 +278,7 @@ function __updateAim() {   // park the aim dot where the character is looking (n
 }
 (EVENTS.inputs || []).forEach((inp) => {
   if (!inp || !inp.emit) return;
-  if (inp.on === 'key') window.addEventListener('keydown', (ev) => { if (!inp.key || ev.key === inp.key) __inputQueue.push(Object.assign({}, inp.emit)); });
+  if (inp.on === 'key') window.addEventListener('keydown', (ev) => { if ((inp.once && ev.repeat) || (inp.key && ev.key !== inp.key)) return; __inputQueue.push(Object.assign({}, inp.emit)); });
   else if (inp.on === 'pointer') renderer.domElement.addEventListener('pointerdown', () => __inputQueue.push(Object.assign({}, inp.emit)));
   // 'pick' raycasts the marker the pointer is over and stamps its id into the event (default 'target').
   else if (inp.on === 'pick') renderer.domElement.addEventListener('pointerdown', (ev) => {

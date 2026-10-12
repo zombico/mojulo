@@ -212,7 +212,7 @@ export function buildCast(E) {
     const seed = !prev, next = {}, events = [];
     for (const e of state.entities) {
       if (e.isCamera) continue;
-      const cur = { d: !!e.downed, g: !!e.gone, a: e.arrivals || 0, s: e.stucks || 0, h: e.hits || 0 };
+      const cur = { d: !!e.downed, g: !!e.gone, a: e.arrivals || 0, s: e.stucks || 0, h: e.hits || 0, n: e.sightings || 0 };
       next[e.id] = cur;
       const p = !seed && prev[e.id];
       if (!p) continue;
@@ -221,6 +221,7 @@ export function buildCast(E) {
       if (!cur.g && p.g) events.push({ type: 'spawned', entity: e.id });
       if (cur.a > p.a) events.push({ type: 'arrive', entity: e.id, at: e.arrivedAt, last: e.arrivedLast ? 1 : 0, ...(e.arrivedLast && e.pose ? { pose: e.pose } : {}) });
       if (cur.s > p.s) events.push({ type: 'stuck', entity: e.id });
+      if (cur.n > (p.n || 0)) events.push({ type: 'seen', entity: e.id, target: e.seenId || null });
       for (let k = p.h || 0; k < cur.h; k++) events.push({ type: `hit:${e.id}`, entity: e.id, by: e.lastHitBy || null });
       // statuses run out on the world clock; a lifted one was queued by the op
       if (e.statuses) for (const k of Object.keys(e.statuses)) { const u = e.statuses[k].until; if (u != null && (state.time || 0) >= u) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); } }

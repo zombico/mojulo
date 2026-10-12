@@ -26,6 +26,7 @@ import { playerWorld, playerStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
+import { RIDE_H } from './ride.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
@@ -134,7 +135,7 @@ function readEnds(manifest) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
@@ -156,7 +157,16 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   const placed = ways ? [...placed0.filter((m) => m.kind !== 'reach-exit'), ...ways.mechanics] : placed0;
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed)], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
-  if (heroRef) {
+  if (ride?.ref) {
+    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind
+    const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
+    pilotPart = {
+      figures: { ride: { vehicleRef: ride.ref, targetH: RIDE_H } },
+      entities: [{ id: 'car', pilotable: true, rule: ride.rule, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
+      camera: { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
+      events: P.events || {},
+    };
+  } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
     const rule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
     const P = playerWorld({ heroRef, id: 'hero', title: name, controls, ...(rule ? { rule } : {}) });
@@ -179,6 +189,17 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
       events: P.events || {},
     };
   }
+  // GUARDS (a sneak, quick.js): watchers with sight at their posts, sweeping their gaze (`scan`); a sighting is the bus's
+  // `seen`, which the `unseen` mechanic ends the level on. `guards`: { ref (their figure), posts(ends) → [{ id, at, heading }] }
+  if (guards?.ref) {
+    const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
+    for (const g of guards.posts(ends)) {
+      figures[g.id] = { heroRef: guards.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
+      entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
+    }
+    pilotPart = { ...pilotPart, figures, entities };
+  }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
     const moves = ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: pilot, to: lane ? onLane({ at: a.at }, lane).at : a.at }));
@@ -194,7 +215,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, mechanics?.play ?? null, { story, carryFrom, party }));
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
 

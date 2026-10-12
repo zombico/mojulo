@@ -41,6 +41,7 @@ export const TIME = Object.freeze({
         none: { status: 'built', note: 'one level' },
         linear: { status: 'built', lowers: 'lib/graph/game/game-manifest.js', note: 'levels in play order; the shell records each completed' },
         gated: { status: 'built', lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; Godot carries the store (kernel/store.gd)' },
+        runs: { status: 'partial', effort: 'M', ...WEB, lowers: 'lib/graph/game/game-shell.js', note: 'every level gets a seed (the run log) that nothing builds from, and a fail retries the same level; a run rolls its levels from the seed, a death ends it, and the store keeps what carries over (priced 10-12)' },
       },
     },
     chapters: {

@@ -159,6 +159,13 @@ export function validateLevelContract(game, schema) {
     else game.doors.forEach((d, i) => { if (!d || typeof d.id !== 'string' || !Array.isArray(d.spawn)) errors.push(`game.doors[${i}] must be { id, at, spawn: [x, y, z], heading }`); });
   }
 
+  // KEEP: the numbers a level reports at its end (a score, a time), each kept best by the shell: { var, label, best:
+  // 'high' | 'low', scale?, unit? } (the laps and score mechanics write them)
+  if (game.keep !== undefined) {
+    if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit? }]');
+    else game.keep.forEach((k, i) => { if (!k || typeof k.var !== 'string' || typeof k.label !== 'string' || (k.best !== 'high' && k.best !== 'low') || (k.scale !== undefined && !Number.isFinite(k.scale)) || (k.unit !== undefined && typeof k.unit !== 'string')) errors.push(`game.keep[${i}] is { var, label, best: 'high' | 'low', scale?, unit? }`); });
+  }
+
   if (game.on !== undefined) {
     if (!game.on || typeof game.on !== 'object' || Array.isArray(game.on)) errors.push('game.on must be { "<busEventPattern>": { emit: <typed event> } | { end: result } }');
     else for (const [pat, action] of Object.entries(game.on)) {

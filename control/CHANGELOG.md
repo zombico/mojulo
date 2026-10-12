@@ -340,6 +340,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Item keys, and worlds without power keys, are unchanged.
   - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
 
+### Genre snipe: stealth, racing, rhythm and the car, from the parts already there
+
+- **Seven more genres on the map.** Stealth, time-trial racing, a rhythm runner, a roguelike, a farming life sim,
+  tower defence and a block-pushing puzzle are cosmos genre probes. A sourced registry setting can name `planned`
+  values its table does not hold yet, so the sweep counts the gap; the random sweep rolls them too.
+- **The bus decides on state.** A reaction may carry `if`, a watch predicate (`{ var, eq | gte | … }`, a count, an
+  entity field): it fires only while that holds. Absent, a reaction fires as before.
+- **The bus hears more.** A character with sight (`rule.mind.perception`) that newly sees its target says `seen`
+  (its id, and the target) through the cast's facts; a cue can wait on it. A guard's `scan` (radians) sweeps its gaze
+  at its post over `scanPeriod` seconds. A level's music can say its beat: `audio.beat` puts `{ type: 'beat', n }` on
+  the bus from the music's own clock, `lead` seconds early (a quarter, a dotted quarter in 6/8). A key input may be
+  `once` (a held key does not repeat).
+- **Four mechanics.** Each lowers to zones, vars, guarded reactions, sequences and watches:
+  - `unseen`: a sighting (or the `alarms`-th) ends the level in fail.
+  - `laps`: checkpoints passed in order, `laps` times, against the clock; its time is kept.
+  - `on-beat`: a press inside a beat's window is `beat:hit`, outside it `beat:miss`; `misses` can end it.
+  - `score`: points from bus events, shown and kept.
+- **A level keeps a number.** `game.keep` names the vars a level reports at its end (a time, a score), sent as
+  `stats.kept`; the level's end card shows them, and the play shell shows each beside the best this save has seen
+  (a low best counts only a cleared run).
+- **Quick games: race, sneak, rhythm, and the ride.** `goal: 'race'` runs the trail's beats as checkpoints to its end;
+  `goal: 'sneak'` stands `guards` (3) with sight on the trail's beats, sweeping, and a sighting ends it (the guard's
+  looks: `guard`, minted once); `goal: 'rhythm'` runs to a field score (`music`) and scores the beats hit. `ride: 'car'
+  | 'coupe' | 'van'` makes the hero a vehicle: the run mints its build (vehicle designer parts, seated by the garage)
+  and every stage drives it on the `drive` rule, its feel derived from the build. All web only.
+
 ### Scene layer: a shot that takes the camera, and two characters talking
 
 - **A directing camera.** A camera rule `shot` frames named subjects by a word (`wide`, `low`, `profile`, `corner`,

@@ -31,7 +31,8 @@ import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { goalMechanics, quickStore } from './quick.js';
+import { goalMechanics, goalAudio, guardPosts, QUICK_GUARD, quickStore } from './quick.js';
+import { rideBuild, rideRule } from './ride.js';
 
 const REF_MAX = 64;
 
@@ -123,11 +124,25 @@ function quickSteps(world, G, ref) {
     const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec: Q.hero, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec: Q.hero, mint, motion: null }, print: fingerprint({ spec: Q.hero, toon: mint.toon ?? null }) });
   }
+  // a ride (ride.js): the vehicle's build, minted as its own sketch; every stage drives it
+  const rideRef = Q.ride ? childRef(ref, 'ride') : null;
+  if (rideRef) {
+    const seed = Number.isInteger(G.seed) ? G.seed : 1, build = rideBuild(Q.ride, seed);
+    steps.push({ key: 'ride', ref: rideRef, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ ride: Q.ride, seed }) });
+  }
+  const ride = rideRef ? { ref: rideRef, rule: rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1) } : null;
+  // a sneak's guards: one figure, minted as a hero is (the game's own spec, or a plain one)
+  const guardRef = Q.goal === 'sneak' ? childRef(ref, 'guard') : null;
+  if (guardRef) {
+    const spec = Q.guard ?? QUICK_GUARD, mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} guard`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+    steps.push({ key: 'guard', ref: guardRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, toon: mint.toon ?? null }) });
+  }
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}) });
+    const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...(guards ? { guards } : {}), ...(goalAudio(Q) ? { audio: goalAudio(Q) } : {}), ...(ride ? { ride } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
   const links = gameLinks(stages, levelRefs);

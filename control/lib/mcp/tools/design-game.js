@@ -65,6 +65,18 @@ async function realize(step, action) {
     if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: 'design_game: a cast member\'s motion' });
     return {};
   }
+  if (key === 'ride') {
+    // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
+    if (action === 'make') await createSketchHandler({ ...order, ref });
+    else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
+    return {};
+  }
+  if (key === 'guard') {
+    // a quick sneak's guard: one figure every guard wears, made as a hero is
+    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
+    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: the guard' });
+    return {};
+  }
   if (key === 'hero-equipped') {
     if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
     else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: the hero equipped' });

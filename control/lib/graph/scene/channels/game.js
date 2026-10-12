@@ -15,6 +15,8 @@ export function gameChannelScript(game) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
   const exits = !!(game && game.on && Object.values(game.on).some((a) => a && typeof a.exit === 'string'));
+  // the numbers it keeps (game.keep: a score, a time), read off the bus at the end and sent as stats.kept: only then
+  const keeps = !!(game && Array.isArray(game.keep) && game.keep.length);
   return `
 // ---- game channel (level contract bridge, opt-in) ----
 const __GAME = ${safeJson(game)};
@@ -62,7 +64,9 @@ const __GAME = ${safeJson(game)};
       const o = document.createElement('div');
       o.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,10,16,.55);z-index:40;pointer-events:none';
       o.innerHTML = '<div style="background:var(--moj-panel-a,rgba(12,16,26,.92));border:1px solid var(--moj-line,#2a3b58);border-radius:10px;padding:18px 28px;color:var(--moj-ink,#dfe8f8);font:15px var(--moj-font,system-ui);text-align:center"><span class="moj-complete"></span><br><span style="font-size:12px;color:var(--moj-accent,#8fa5c8)">' + st.events.length + ' event' + (st.events.length === 1 ? '' : 's') + ' → store</span></div>';
-      o.querySelector('.moj-complete').textContent = title;
+      o.querySelector('.moj-complete').textContent = title;${keeps ? `
+      const kp = st.envelope.stats && st.envelope.stats.kept;
+      if (kp) o.querySelector('.moj-complete').textContent = title + ' · ' + kp.map((k) => k.label + ' ' + k.value + (k.unit || '')).join(' · ');` : ''}
       document.body.appendChild(o);
     }
     return st.envelope;
@@ -107,7 +111,9 @@ ${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carry
       if (pat.indexOf('*') < 0) return String(str) === pat;
       return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
     };
-    const prev = __BUS.processEvents;
+${keeps ? `    // the KEPT numbers (game.keep), as the level ends: each var off the bus, scaled, beside how the shell keeps its best
+    const __kept = (state) => ({ kept: __GAME.keep.map((k) => ({ label: k.label, value: Math.round((Number(state.vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}) })) });
+` : ''}    const prev = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
       // Match against state.log's DELTA, not the incoming array: the reducer cascades
       // reaction-emitted events (goal:reached, pickup:*) INTERNALLY (frontier=next), so they
@@ -123,7 +129,7 @@ ${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carry
           if (!glob(ev.type, pat)) continue;
           const act = __GAME.on[pat];
           if (act.emit) emit(JSON.parse(JSON.stringify(act.emit)));
-          else if (act.end) end(act.end${exits ? ', undefined, act.exit' : ''});${game.doors ? `
+          else if (act.end) end(act.end${keeps ? ', __kept(state)' : exits ? ', undefined' : ''}${exits ? ', act.exit' : ''});${game.doors ? `
           else if (act.door) door(act.door);` : ''}
           break;
         }

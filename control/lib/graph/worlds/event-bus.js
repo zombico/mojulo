@@ -28,7 +28,7 @@ export function buildBus() {
     forward: [0, 1, 0], back: [0, -1, 0],
   };
   // verb/control keys that must NOT be copied into an emitted event's payload.
-  const RESERVED = { do: 1, type: 1, source: 1, scope: 1, on: 1, match: 1, await: 1, target: 1, template: 1, at: 1, to: 1, vector: 1, dir: 1, gain: 1, var: 1, by: 1 };
+  const RESERVED = { do: 1, type: 1, source: 1, scope: 1, on: 1, match: 1, await: 1, target: 1, template: 1, at: 1, to: 1, vector: 1, dir: 1, gain: 1, var: 1, by: 1, if: 1 };
 
   // ── deterministic stringify (sorted keys) — the basis of the content sort key + state hash ──
   function ss(v) {
@@ -238,7 +238,8 @@ export function buildBus() {
   }
   const sagasSorted = (state) => state.sagas.slice().sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 
-  const reactionMatch = (ev, r) => ev.type === r.on && matches(ev, r.match || {});
+  // a reaction's optional `if` is a watch predicate over state (vars, entities, counts): it fires only while that holds
+  const reactionMatch = (state, ev, r) => ev.type === r.on && matches(ev, r.match || {}) && (!r.if || evalPredicate(state, r.if));
   const triggerMatch = (ev, s) => s.trigger && ev.type === s.trigger.on && matches(ev, omit(s.trigger, 'on'));
 
   function drop(state, n, reason) {
@@ -334,7 +335,7 @@ export function buildBus() {
         const ev = frontier[i];
         state.metrics.processed++;
         state.log.push({ type: ev.type, source: ev.source, scope: ev.scope, depth });
-        for (const r of state.reactions) if (reactionMatch(ev, r)) for (const e of applyVerb(state, r, ev)) next.push(e);
+        for (const r of state.reactions) if (reactionMatch(state, ev, r)) for (const e of applyVerb(state, r, ev)) next.push(e);
         for (const s of state.seqDefs) if (triggerMatch(ev, s)) for (const e of instantiate(state, s, ev)) next.push(e);
         for (const saga of sagasSorted(state)) if (saga.awaiting && awaitMatchesEvent(saga.awaiting, ev)) for (const e of advanceSaga(state, saga)) next.push(e);
       }

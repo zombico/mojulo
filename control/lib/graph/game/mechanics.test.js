@@ -52,7 +52,7 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1 };
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -287,5 +287,67 @@ describe('the composed manifest actually drives the real bus (end to end)', () =
     // the fail-on-death watch edges true → dead → lost
     B.processEvents(state, B.watchEvents(state));
     expect(state.vars.lost).toBe(1);
+  });
+});
+
+// ── the genre snipe (10-12): stealth, racing, the kept number ─────────────────────────────────
+describe('unseen, laps and score on the bus', () => {
+  const B = buildBus();
+  const run = (composed, evs, ticks = 0) => {
+    const s = B.createBusState(composed.events, composed.events.entities);
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } };
+    pump([]);
+    for (let k = 0; k < ticks; k++) pump(B.tickTimers(s, 0.1));
+    for (const e of evs) pump([e]);
+    return s;
+  };
+  const types = (s) => s.log.map((r) => r.type);
+
+  it('a reaction with `if` fires only while its predicate holds', () => {
+    const s = B.createBusState({ vars: { gate: 0 }, reactions: [{ on: 'ping', if: { var: 'gate', eq: 1 }, do: 'inc', var: 'n', by: 1 }, { on: 'open', do: 'set', var: 'gate', to: 1 }] });
+    B.processEvents(s, [{ type: 'ping' }]);
+    expect(s.vars.n).toBeUndefined();
+    B.processEvents(s, [{ type: 'open' }]);
+    B.processEvents(s, [{ type: 'ping' }]);
+    expect(s.vars.n).toBe(1);
+  });
+
+  it('laps counts checkpoints only in order, and ends with its time kept', () => {
+    const c = composeMechanics([{ kind: 'laps', checkpoints: [{ at: [10, 0, 0] }, { at: [20, 0, 0] }, { at: [30, 0, 0] }], laps: 2 }], ctx());
+    expect(c.on['laps:done']).toEqual({ end: 'success' });
+    expect(c.keep).toEqual([{ var: '__race_0', label: 'Time', best: 'low', scale: 0.1, unit: 's' }]);
+    const enter = (j) => ({ type: 'enter', zone: `cp_0_${j}`, entity: 'hero' });
+    // out of order: the finish first, then the second: nothing counts
+    let s = run(c, [enter(2), enter(1)]);
+    expect(s.vars.__lap_0).toBe(0);
+    expect(s.vars.__cp_0).toBe(0);
+    // in order, twice round, after 4.2 s on the clock
+    s = run(c, [enter(0), enter(1), enter(2), enter(0), enter(1), enter(2)], 42);
+    expect(s.vars.__lap_0).toBe(2);
+    expect(types(s).filter((t) => t === 'checkpoint')).toHaveLength(4);
+    expect(types(s)).toContain('laps:done');
+    expect(s.vars.__race_0).toBe(42);
+    expect(s.vars.__race_over_0).toBe(1);
+  });
+
+  it('unseen ends on the first sighting, or counts to its alarms', () => {
+    const one = composeMechanics([{ kind: 'unseen' }, { kind: 'reach-exit', at: [9, 0, 0] }], ctx());
+    expect(one.on.spotted).toEqual({ end: 'fail' });
+    expect(types(run(one, [{ type: 'seen', entity: 'guard-1', target: 'hero' }]))).toContain('spotted');
+    const three = composeMechanics([{ kind: 'unseen', alarms: 3, who: 'guard-*' }, { kind: 'reach-exit', at: [9, 0, 0] }], ctx());
+    const seen = (who) => ({ type: 'seen', entity: who, target: 'hero' });
+    expect(types(run(three, [seen('guard-1'), seen('dog'), seen('guard-2')]))).not.toContain('spotted');
+    expect(types(run(three, [seen('guard-1'), seen('guard-2'), seen('guard-1')]))).toContain('spotted');
+  });
+
+  it('score counts its points and is kept; a var kept twice is an error', () => {
+    const c = composeMechanics([{ kind: 'score', points: [{ on: 'pickup:coin', by: 10 }, { on: 'enemy:down', by: 100 }] }, { kind: 'reach-exit', at: [9, 0, 0] }], ctx());
+    expect(c.keep).toEqual([{ var: 'score', label: 'Score', best: 'high' }]);
+    expect(run(c, [{ type: 'pickup:coin' }, { type: 'enemy:down' }, { type: 'pickup:coin' }]).vars.score).toBe(120);
+    expect(() => composeMechanics([{ kind: 'score' }, { kind: 'score' }, { kind: 'reach-exit', at: [9, 0, 0] }], ctx())).toThrow(/kept twice/);
+  });
+
+  it('a mechanic without keep leaves the composed level without the key', () => {
+    expect(composeMechanics([{ kind: 'reach-exit', at: [9, 0, 0] }], ctx())).not.toHaveProperty('keep');
   });
 });

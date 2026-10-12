@@ -15,6 +15,12 @@ export const POWER = Object.freeze({
     mechanics: {
       multi: true,
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', godot: { module: PORT, table: 'GODOT_MECHANICS' } },
+      // the genre snipe (10-12): unseen, laps, on-beat and score are built (game/mechanics.js, web only: not in
+      // GODOT_MECHANICS); what tower defence and block puzzles ask stays planned
+      planned: {
+        waves: { status: 'partial', effort: 'M', ...WEB, note: 'cue every and cast spawn exist, but spawn only wakes a pool minted dormant; a wave mints fighters from a roster and marches them on a goal that loses when reached (priced 10-12)' },
+        push: { status: 'absent', effort: 'M', ...WEB, note: 'blocks the hero pushes on a grid and plates they hold down; the physics actions push bodies by pointer only, and the walker never touches a body (priced 10-12)' },
+      },
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS' } },
     rules: {
@@ -34,7 +40,13 @@ export const POWER = Object.freeze({
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },
     explosions: { multi: true, source: { module: 'lib/graph/playscape/elements/explosions.js', table: 'EXPLOSIONS' } },
     // resource, stamina, unlock, transform, equip: stats, cues, HUD and menus on the bus, fired by their keys
-    systems: { multi: true, source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' } },
+    systems: {
+      multi: true,
+      source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' },
+      planned: {
+        place: { status: 'absent', effort: 'M', ...WEB, note: 'the player puts a thing down while playing (a tower, a crop, a wall) on a grid, paid from a resource; only the physics actions drop a body at the pointer (priced 10-12)' },
+      },
+    },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
     stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
     idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS' } },
