@@ -204,3 +204,31 @@ export function withProgram(m) {
     _program: { use: P.use, reads: P.reads, entry: P.entry, goal: P.goal, front: P.front, language: P.language, rooms: P.rooms.map((r) => r.id), findings: P.findings },
   };
 }
+
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/**
+ * The plan as a plate: each room a box with its name, a gap at each doorway, the way in marked on the entry's front,
+ * the goal room ringed. Ink only (currentColor), sized to `px` wide.
+ */
+export function programPlanSvg(P, px = 300) {
+  const W = Math.max(...P.rooms.map((r) => r.x + r.w)), D = Math.max(...P.rooms.map((r) => r.y + r.d)), pad = 1.5;
+  const k = px / (W + 2 * pad), H = (D + 2 * pad) * k, X = (x) => ((x + pad) * k).toFixed(1), Y = (y) => ((D - y + pad) * k).toFixed(1);
+  const o = [];
+  for (const r of P.rooms) {
+    const goal = r.id === P.goal;
+    o.push(`<rect x="${X(r.x)}" y="${Y(r.y + r.d)}" width="${(r.w * k).toFixed(1)}" height="${(r.d * k).toFixed(1)}" fill="${goal ? 'currentColor' : 'none'}" fill-opacity="${goal ? 0.12 : 0}" stroke="currentColor" stroke-width="1.6"/>`);
+    o.push(`<text x="${X(r.x + r.w / 2)}" y="${Y(r.y + r.d / 2)}" font-size="${Math.max(8, Math.min(12, r.w * k / 6)).toFixed(0)}" text-anchor="middle" dominant-baseline="middle" fill="currentColor">${esc(r.id)}</text>`);
+  }
+  const by = new Map(P.rooms.map((r) => [r.id, r]));
+  for (const l of P.links) {
+    const a = by.get(l.from), b = by.get(l.to);
+    if (!a || !b) continue;
+    const vertical = a.x + a.w === b.x || b.x + b.w === a.x;
+    const at = vertical ? (a.x + a.w === b.x ? b.x : a.x) : (a.y + a.d === b.y ? b.y : a.y);
+    const lo = vertical ? Math.max(a.y, b.y) : Math.max(a.x, b.x), hi = vertical ? Math.min(a.y + a.d, b.y + b.d) : Math.min(a.x + a.w, b.x + b.w), m = (lo + hi) / 2;
+    o.push(vertical ? `<line x1="${X(at)}" y1="${Y(m - 1)}" x2="${X(at)}" y2="${Y(m + 1)}" stroke="var(--sheet, #fff)" stroke-width="3"/>` : `<line x1="${X(m - 1)}" y1="${Y(at)}" x2="${X(m + 1)}" y2="${Y(at)}" stroke="var(--sheet, #fff)" stroke-width="3"/>`);
+  }
+  const e = by.get(P.entry);
+  if (e) o.push(`<path d="M${X(e.x + e.w / 2)} ${(Number(Y(e.y)) + 14).toFixed(1)} v-12" stroke="currentColor" stroke-width="1.6" marker-end="url(#pp-a)"/>`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${px} ${(H + 16).toFixed(0)}" width="${px}" height="${(H + 16).toFixed(0)}" role="img" aria-label="${esc(P.use)} plan"><defs><marker id="pp-a" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" fill="currentColor"/></marker></defs>${o.join('')}</svg>`;
+}

@@ -31,6 +31,15 @@ A building in a game is a plan, a language and a look. Name the use; the rest is
 
 `level: {}` makes it a game level (card building-level): you start in the way in, and the goal is the program's goal
 room. Then `create_game({ levels: [{ ref }], auto_audit: true })`.
+`level.mechanics` adds the level's own mechanics beside the goal (pickups in its rooms, a clock). `level.exit: false`
+leaves the goal out.
+
+**In the game designer:**
+- A `design_game` level is a building in place of a walk: `levels: { inn: { building: { use: 'tavern' } } }`, laid in
+  that level's civilization's language, the hero piloting it when there is one.
+- `building: { ref }` plays a building already made.
+- A quick game takes one too: `quick: { goal: 'collect', building: { use: 'keep' } }`. The pickups lie in its rooms
+  and the end is its goal room.
 
 ## What a cube recommends
 

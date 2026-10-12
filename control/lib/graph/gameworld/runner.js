@@ -70,8 +70,10 @@ export function runSteps(world, { ref, lookup } = {}) {
   // play block; then the game over them, its store compiled from the book. Walkable by construction; beatability is
   // the creator's, in play (create_game records the levels as unaudited).
   const pilot = steps.some((s) => s.key === 'hero-equipped') ? childRef(ref, 'hero-equipped') : heroRef;
-  const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
+  // a building by ref is played as it was made: its ref is the level, and no step makes it
+  const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   stages.forEach((s, i) => {
+    if (s.building?.ref) return;
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
   });
@@ -92,8 +94,9 @@ function quickSteps(world, G, ref) {
     const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec: Q.hero, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec: Q.hero, mint, motion: null }, print: fingerprint({ spec: Q.hero, toon: mint.toon ?? null }) });
   }
-  const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
+  const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   stages.forEach((s, i) => {
+    if (s.building?.ref) return;
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });

@@ -25,6 +25,8 @@ import { reviewState, MODES, STAMPS } from './review.js';
 import { landLaws } from '../era/out-land.js';
 import { designLand, manyStep, LAND_FORM_IDS } from '../era/out-land.js';
 import { drawLand, manyStrip, landFit } from '../era/out-land-html.js';
+import { withProgram, programPlanSvg } from '../era/programs.js';
+import { buildingStage } from './levels.js';
 import { layLevel } from '../level/index.js';
 import { outTrailPlanSvg } from '../era/out-trail-board.js';
 import { localMeruPlanSvg } from '../local-meru/premap.js';
@@ -59,7 +61,7 @@ function techHtml(C, cid, kit, seed) {
   return `<div class="tech"><h4>Its technology · ${esc(T.finish)}</h4><div class="things">${Object.entries(T.things).map(([id, t]) => { const b = buildBlock(t.block, { seed: t.seed ?? seed }); return `<figure>${plate(`civ-thing-${cid}-${id}`, drawStructures([b.faces], { paint, w: 240, h: 190 }))}<figcaption><b>${esc(id)}</b> · ${esc(t.block.tier)} · ${esc(t.block.functions.join(', '))}${tunnelLog(t.tunnel)}</figcaption></figure>`; }).join('')}</div></div>`;
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
-const SECTION_WORDS = { trail: 'trail', meru: 'climb' };
+const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building' };
 
 // the plates a world's parts are drawn as
 function castleAxon(c, paint, w = 1000, h = 700) {
@@ -77,7 +79,15 @@ function houseRow(L, kit, seed) {
 
 // a level, built: its stages, its town, its castle, its plates
 function buildLevel(G, id) {
-  const R = resolveLevel(G, id), laid = layLevel(R.level), st = structureStyle(R.style.kit, R.seed), paint = structurePaint(R.style.kit);
+  const R = resolveLevel(G, id), paint = structurePaint(R.style.kit);
+  // a building level: its plan, laid from its program in its civilization's language (or the building made, by ref)
+  if (R.building) {
+    const B = R.building, name = B.use ?? B.ref;
+    const svg = B.ref ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80"><text x="150" y="44" text-anchor="middle" fill="currentColor" font-size="13">the building ${esc(B.ref)}, as made</text></svg>`
+      : (() => { const m = withProgram(buildingStage(B)); return programPlanSvg({ use: B.use, rooms: m.rooms, links: m.links, entry: m._program.entry, goal: m._program.goal }, 300); })();
+    return { R, laid: { stages: [{ node: name, section: 'building' }], order: [name] }, town: null, paint, walk: [{ node: name, section: 'building', svg }] };
+  }
+  const laid = layLevel(R.level), st = structureStyle(R.style.kit, R.seed);
   const town = R.town ? designTown(st, R.seed, R.town) : null;
   const walk = laid.stages.map((s) => ({ node: s.node, section: s.section, svg: s.section === 'trail' ? outTrailPlanSvg(s.manifest, 300) : localMeruPlanSvg(s.manifest.meru, 360) }));
   return { R, laid, town, paint, walk };
@@ -141,7 +151,7 @@ export function gameworldBibleHtml(world) {
 
   // where each civilization builds: its places, and the kit it is first drawn in
   const builds = Object.fromEntries(G.civIds.map((c) => [c, []]));
-  for (const id of order) { const B = built[id].R.built; if (B) { builds[B.town].push([id, 'town']); if (B.castle) builds[B.castle].push([id, 'castle']); } }
+  for (const id of order) { const B = built[id].R.built; if (B?.town) { builds[B.town].push([id, 'town']); if (B.castle) builds[B.castle].push([id, 'castle']); } if (B?.building) builds[B.building].push([id, built[id].R.building.use ?? 'building']); }
 
   const strip = order.map((id, i) => {
     const b = built[id], thumb = b.town ? plate(`strip-${id}`, townMapSvg(b.town, b.paint, null, { px: 2, labels: false })) : b.walk[0].svg;
@@ -203,12 +213,12 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const ledger = own.length ? `<ul class="ledger">${own.map((o) => `<li><b>${esc(o.key)}</b> ${show(o.local)} <span>world: ${show(o.world)}</span>${o.scope !== 'level' ? ` <em>${esc(o.at.split('/')[1])}</em>` : ''}</li>`).join('')}</ul>` : '<p class="muted">Follows its world in everything.</p>';
     const ownStyle = [];
     if (R.style.kit !== G.style.kit) ownStyle.push(`<div class="own"><span class="eyebrow">Its own ground</span><p><a href="#nature-${esc(R.style.kit)}">${esc(R.style.kit)}</a>, its natural world</p></div>`);
-    const by = R.built ? [['town', R.built.town], ...(R.built.castle ? [['castle', R.built.castle]] : [])] : [];
+    const by = R.built?.building ? [[R.building.use ?? 'building', R.built.building]] : R.built ? [['town', R.built.town], ...(R.built.castle ? [['castle', R.built.castle]] : [])] : [];
     if (by.length) ownStyle.unshift(`<div class="own"><span class="eyebrow">Built by</span><ul class="ledger">${by.map(([what, c]) => `<li><b>${what}</b> <a href="#civ-${esc(c)}">${esc(G.civilizations[c].name)}</a></li>`).join('')}</ul></div>`);
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>The walk</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
   const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
@@ -235,9 +245,9 @@ ${levels}
 
 /** The binder's stylesheet, shared by the character book's bible (character-bible-html.js). */
 export const CSS = `
-:root{--paper:#eef1f4;--sheet:#fff;--ink:#17202e;--muted:#5b6676;--rule:#d3d9e0;--dot:#c3cad3;--c-trail:#3a8a57;--c-meru:#b9822a;--c-place:#b14f39;--local:#b14f39;
+:root{--paper:#eef1f4;--sheet:#fff;--ink:#17202e;--muted:#5b6676;--rule:#d3d9e0;--dot:#c3cad3;--c-trail:#3a8a57;--c-meru:#b9822a;--c-building:#6a58a8;--c-place:#b14f39;--local:#b14f39;
 --display:"Big Shoulders Display","Arial Narrow",sans-serif;--body:"Public Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
-@media (prefers-color-scheme:dark){:root{--paper:#0f141b;--sheet:#171e28;--ink:#e6eaf0;--muted:#99a4b3;--rule:#2b3543;--dot:#2b3543;--c-trail:#5cb57c;--c-meru:#dba44a;--c-place:#dd7a62;--local:#dd7a62;color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root{--paper:#0f141b;--sheet:#171e28;--ink:#e6eaf0;--muted:#99a4b3;--rule:#2b3543;--dot:#2b3543;--c-trail:#5cb57c;--c-meru:#dba44a;--c-building:#9c8ad8;--c-place:#dd7a62;--local:#dd7a62;color-scheme:dark}}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--body)}
 .wrap{max-width:1240px;margin-inline:auto;padding-inline:20px;padding-block:0 64px}
 h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:.01em;line-height:1;margin:0;text-transform:uppercase;text-wrap:balance}

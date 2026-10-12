@@ -491,6 +491,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   is laid in the cube's bones and speaks its builders' anchor.
 - `create_sketch` and `update_sketch` on a program stage say what was laid: the use, rooms, way in, goal, language
   and findings. Card `game-building`; the geocube and stage cards point at it.
+- **The game designer takes a building as a level.** A gameworld level may be `building: { use, seed?, goal?,
+  civilization?, kit? | geocube? }` in place of its `walk`.
+  - It is laid in that level's civilization's language (its anchor, else the kit's own), on a room kit (a lab's for a
+    shell language, else stone) or a cube.
+  - The runner makes it like a stage, the hero piloting from the way in when the world has one.
+  - `building: { ref }` plays a building already made, with no step.
+  - The bible draws its plan, and the graph gives it one section, built by its civilization.
+  - A quick game takes `quick.building`: its pickups lie in the rooms between the way in and the goal, and the end is
+    its goal room.
+  - A level's `level.mechanics` adds its own mechanics beside the goal; `level.exit: false` leaves the goal out. A
+    stage level with its own pilot keeps it, and only the game channel is added.
 
 ### Solid powerscale: solids routed by what they are for
 

@@ -52,9 +52,25 @@ describe('design_game quick', () => {
     if (kinds.includes('hazard-damage')) expect(stored('a-game').store.slices.map((s) => s.kind)).toContain('character');
   }, 240_000);
 
+  it('collect in a building, first person: the tavern laid from its use, pickups in its rooms, the end its cellar', async () => {
+    const out = await designGameHandler({ quick: { goal: 'collect', pickup: 'key', building: { use: 'tavern', seed: 2 }, world: { id: 'inn', name: 'Last orders' } }, ref: 'b' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-run-0', 'make'], ['game', 'make']]);
+    const L = stored('b-level-run-0');
+    expect(L.program.use).toBe('tavern');
+    expect(L.level.mechanics[0]).toMatchObject({ kind: 'collect' });
+    expect(L.level.mechanics[0].pickups.every((p) => p.item === 'key')).toBe(true);
+    // lowered as it is played: the pickups, then the cellar's goal routed through the doorways
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('b-level-run-0'));
+    expect(payload.program).toMatchObject({ use: 'tavern', goal: 'cellar' });
+    expect(payload.entities.some((e) => e.id.startsWith('dec_exit'))).toBe(true);
+    expect(payload.entities.filter((e) => e.id.startsWith('dec_pk_')).length).toBe(L.level.mechanics[0].pickups.length);
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);
     expect(() => readQuick({ goal: 'reach', hero: 'tall' })).toThrow(/hero is a hero-door spec/);
+    expect(() => readQuick({ goal: 'avoid', building: { use: 'tavern' } })).toThrow(/no hazards/);
+    expect(() => readQuick({ goal: 'reach', climb: true, building: { use: 'tavern' } })).toThrow(/not a climb/);
   });
 });

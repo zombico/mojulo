@@ -48,11 +48,13 @@ export function gameworldGraph(world) {
   edge('world', `civilization:${G.style.civilization}`, 'styled', { key: 'civilization' });
 
   for (const id of G.ids) {
-    const R = resolveLevel(G, id), lv = `level:${id}`, walk = readLevel(R.level);
+    const R = resolveLevel(G, id), lv = `level:${id}`;
+    // a building level: one section, the building, built by its civilization
+    const walk = R.building ? { ids: ['building'], root: 'building', edges: [], nodes: { building: { section: 'building', seed: R.seed, kit: R.style.kit } } } : readLevel(R.level);
     node(lv, 'level', R.name, { seed: R.seed, kit: R.style.kit, start: id === G.start });
     edge('world', lv, 'contains');
     edge(lv, kitN(R.style.kit), 'drawn-in');
-    edge(lv, `civilization:${R.style.civilization}`, 'settled-by');
+    edge(lv, `civilization:${R.building ? R.built.building : R.style.civilization}`, 'settled-by');
     for (const sid of walk.ids) {
       const n = walk.nodes[sid], s = `section:${id}/${sid}`;
       node(s, 'section', sid, { section: n.section, seed: n.seed, kit: n.kit, root: sid === walk.root });

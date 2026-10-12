@@ -23,6 +23,8 @@ import { layLevel } from '../level/index.js';
 import { assembleStageScene } from '../era/stage.js';
 import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
+import { withBuildingLevel } from '../structure/level.js';
+import { withProgram } from '../era/programs.js';
 
 const EYE_FALLBACK = 1.7;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -31,7 +33,10 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 export function gameStages(world) {
   const G = readGameworld(world), order = [G.start, ...G.ids.filter((id) => id !== G.start)], out = [];
   for (const level of order) {
-    const laid = layLevel(resolveLevel(G, level).level);
+    const R = resolveLevel(G, level);
+    // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
+    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : buildingStage(R.building) }); continue; }
+    const laid = layLevel(R.level);
     laid.stages.forEach((s, i) => out.push({ level, node: s.node, section: s.section, index: i, manifest: s.manifest }));
   }
   return out;
@@ -84,6 +89,7 @@ function readEnds(manifest) {
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
 export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal } = {}) {
+  if (stage.section === 'building') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal });
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   const controls = `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
@@ -124,4 +130,46 @@ export function gameStore(world, book) {
  * before it (`refs` in the order of gameStages). */
 export function gameLevels(stages, refs) {
   return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(i > 0 ? { gate: { completed: refs[i - 1] } } : {}) }));
+}
+
+/** The room kit a building is laid in when it names none: a lab's for a shell language, else the stone. */
+const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-stone');
+
+/** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
+export function buildingStage(B) {
+  const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  return {
+    kind: 'stage',
+    ...(geocube !== undefined ? { geocube } : { kit: kit ?? roomKitFor(anchor) }),
+    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}) },
+    level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
+  };
+}
+
+/**
+ * A building level's create_sketch call: the stage laid from its program, with `level` (lowered on every read into
+ * its game channel: the goal room, the route through its doorways). With a hero, the hero pilots it from the way in
+ * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
+ * made here: the game plays it as it was made.
+ */
+function buildingLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal = null } = {}) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
+  let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
+  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
+  const spawn = [walker.transform.pos[0], walker.transform.pos[1], r3(walker.transform.pos[2] - eye)], heading = walker.transform.heading;
+  // the rooms between the way in and the goal stand in for a trail's beats: a quick goal's pickups lie in them
+  const plan = withProgram(stage.manifest), beats = plan.rooms.filter((r) => r.id !== plan._program.entry && r.id !== plan._program.goal)
+    .map((r) => ({ beat: r.id, at: [r.x + r.w / 2, r.y + r.d / 2, 0] }));
+  const ends = { spawn, heading, exit: lowered.game.mechanics.at(-1).at, exitFrom: `the ${stage.building.use}'s goal room`, beats, planar: false };
+  // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
+  if (goal) {
+    const own = goal(ends), extra = own.filter((x) => x.kind !== 'reach-exit');
+    base = { ...base, level: { ...base.level, ...(extra.length ? { mechanics: extra } : {}), ...(own.some((x) => x.kind === 'reach-exit') ? {} : { exit: false }) } };
+  }
+  if (!heroRef) return { tool: 'create_sketch', args: { title: name, manifest: base }, ends };
+  const controls = `W / S  run · A / D  turn · Space  jump${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const P = playerWorld({ heroRef, id: 'hero', title: name, controls });
+  const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
+  const manifest = { ...base, figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }], camera: P.camera, events };
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

@@ -259,9 +259,14 @@ function withStageLevel(m, ref) {
   const L = stageLevel(m, { goal, from: m.level.from });
   if (L.error) throw new Error(`level: ${L.error}`);
   const radius = m.level.radius ?? 1.5;
+  // `mechanics`: the level's own beside the goal (pickups in its rooms, a clock); `exit: false` leaves the goal out
+  const exit = { kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], STAGE_EYE], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) };
+  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  // a recipe that brings its own pilot (a gameworld's hero) keeps it, its figures and its camera: only the game channel
+  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, game };
   return {
     ...m,
-    game: { levelRef: ref, mechanics: [{ kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], STAGE_EYE], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) }], fall: { mode: 'respawn' } },
+    game,
     // the stage's walls are its payload's colliders: the walker stops at them (no `colliders` here, which would replace them)
     entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3 }, body: { type: 'none' }, transform: { pos: [L.spawn[0], L.spawn[1], L.spawn[2] + STAGE_EYE], heading: L.heading } }],
     camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },

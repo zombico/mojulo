@@ -26,6 +26,7 @@ import { MODES, STAMPS } from './review.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
+import { PROGRAM_IDS } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
@@ -104,6 +105,9 @@ function worldCard() {
     '  and technology are structured, default from the kit, and are best left out (the world bible shows what they resolved to).',
     `levels: { <id>: { name?, style?, walk: { nodes: { <id>: { ${LEVEL_SECTIONS.join(': {} } | { ')}: {} } }, edges?: [{ from, to }] }, places? } }:`,
     '  a walk is one line of sections (a trail, then a climb), joined by edges in order; a level overrides its world where it says.',
+    `  or a building in place of the walk: building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? }`,
+    '  (its rooms laid from its use in its civilization\'s language, played from its way in to its goal room; card game-building),',
+    '  or building: { ref } to play a building already made (mint_building with level, or a stage) as it was made.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '',
     'ANSWER FROM: the brief\'s places and their moods. One level that is a promise of the rest is a better first',
