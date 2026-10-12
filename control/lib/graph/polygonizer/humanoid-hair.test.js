@@ -235,3 +235,87 @@ describe('the cap covers the skull', () => {
     });
   }
 });
+
+describe('grown: the fall and the tail hang by the spine law (hair-spine.js)', () => {
+  const GROWN = ['curtains', 'angled', 'layers', 'long', 'wavy', 'ponytail', 'braid'];
+  for (const preset of PRESETS) for (const style of GROWN) for (const spine of ['elastica', { stiffness: 'stiff' }, { stiffness: 'limp', hold: 0.3 }, { wind: { R: 2.5, dir: 30 } }]) {
+    it(`${preset} · ${style} · ${JSON.stringify(spine)}: closed, finite, the eyes read, the head unmoved`, () => {
+      const bare = humanoidHead({ preset, hair: 'none' }), head = humanoidHead({ preset, hair: [style, { spine }] });
+      expect(withoutHair(head)).toEqual(withoutHair(bare)); expect(head.joints).toEqual(bare.joints);
+      for (const part of Object.keys(head.parts).filter(isHair)) for (const o of Object.values(head.parts[part].offsets)) expect(o.every(Number.isFinite)).toBe(true);
+      expect(closed(head)).toEqual([]);
+      const ex = layeredExposure(compileLayered(head), { res: 256 });
+      for (const eye of ['eyeR', 'eyeL']) expect(ex.parts[eye].flag).toBe('reads');
+      expect(head.hair.spine.law).toBe('elastica');
+    });
+  }
+  it('the same parts and the same triangle count as today: the guides re-place the rings, they add none', () => {
+    for (const style of GROWN) {
+      const today = humanoidHead({ preset: 'female', hair: style }), grown = humanoidHead({ preset: 'female', hair: [style, { spine: 'elastica' }] });
+      expect(Object.keys(grown.parts)).toEqual(Object.keys(today.parts));
+      for (const k of Object.keys(today.parts).filter(isHair)) { const n = (p) => Object.keys(p.faces).length; expect(n(today.parts[k])).toBeGreaterThan(0); expect(n(grown.parts[k])).toBe(n(today.parts[k])); }
+    }
+  });
+  it('the cap and every style without a fall or tail are untouched by the word; the advisory names it idle', () => {
+    for (const style of ['crop', 'swept', 'bob', 'bun', 'animeBob']) {
+      const today = humanoidHead({ preset: 'female', hair: style }), grown = humanoidHead({ preset: 'female', hair: [style, { spine: 'elastica' }] });
+      expect(withoutHair({ parts: { ...grown.parts, hairCap: undefined } })).toEqual(withoutHair({ parts: { ...today.parts, hairCap: undefined } }));
+      expect(grown.parts.hairCap).toEqual(today.parts.hairCap);
+      expect(hairWarnings(resolveHair([style, { spine: 'elastica' }])).join(' ')).toMatch(/hair\.spine has no effect/);
+    }
+    expect(hairWarnings(resolveHair(['long', { spine: 'elastica' }]))).toEqual([]);
+  });
+  it('the word is stored only when given, and resolves through the list', () => {
+    expect(resolveHair('long').spine).toBeUndefined();
+    expect(resolveHair(['long', { spine: 'elastica' }, { length: 1.2 }])).toMatchObject({ style: 'long', length: 1.2, spine: { law: 'elastica' } });
+    expect(resolveHair(resolveHair(['long', { spine: { stiffness: 'limp' } }])).spine).toEqual({ law: 'elastica', stiffness: 'limp' });
+    expect(validateHair(['long', { spine: { stiffness: 'floppy' } }])[0]).toMatch(/hair\[1\]\.spine\.stiffness/);
+  });
+  for (const preset of PRESETS) it(`${preset}: wind streams the fall downwind and lifts its hem; a limp tail hangs lower than a stiff one`, () => {
+    const still = humanoidHead({ preset, hair: ['long', { spine: 'elastica' }] }), blown = humanoidHead({ preset, hair: ['long', { spine: { wind: { R: 2.5, dir: 0 } } }] });
+    expect(yMin(world(blown, 'hairFall'))).toBeLessThan(yMin(world(still, 'hairFall')) - 0.05);
+    expect(zMin(world(blown, 'hairFall'))).toBeGreaterThan(zMin(world(still, 'hairFall')) + 0.03);
+    const limp = humanoidHead({ preset, hair: ['ponytail', { spine: { stiffness: 'limp' } }] }), stiff = humanoidHead({ preset, hair: ['ponytail', { spine: { stiffness: 'stiff' } }] });
+    expect(zMin(world(limp, 'hairTail'))).toBeLessThan(zMin(world(stiff, 'hairTail')) - 0.02);
+  });
+  it('the hero wears a grown fall: the plan closes and the hair never moves a joint', () => {
+    const plain = humanoidPlan({ preset: 'female', hair: 'none' });
+    for (const hair of [['long', { spine: 'elastica' }], ['braid', { spine: { wind: { R: 1, dir: 90 } } }]]) {
+      const plan = humanoidPlan({ preset: 'female', hair });
+      expect(plan.joints).toEqual(plain.joints); expect(closed(expandPlan(plan))).toEqual([]);
+    }
+  });
+  // probes (every fall face's centre and edge midpoints) tested inside the head's skin by ray parity, three rays voting
+  const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const crossings = (o, d, tris) => tris.reduce((n, [a, b, c]) => { const e1 = sub3(b, a), e2 = sub3(c, a), h = cross3(d, e2), det = dot3(e1, h); if (Math.abs(det) < 1e-14) return n; const f = 1 / det, s = sub3(o, a), u = f * dot3(s, h); if (u < 0 || u > 1) return n; const q = cross3(s, e1), v = f * dot3(d, q); return v >= 0 && u + v <= 1 && f * dot3(e2, q) > 1e-9 ? n + 1 : n; }, 0);
+  const RAYS = [[0.577, 0.5775, 0.577], [-0.31, 0.2, 0.93], [0.83, -0.41, -0.38]];
+  const fallInSkin = (head) => {
+    const m = compileLayered(head), part = (i) => m.provenance[m.faces[i][0]].part, skins = { cranium: [], jaw: [] };
+    m.faces.forEach((f, i) => { if (m.groups[i] === 'Skin' && skins[part(i)]) for (let k = 1; k + 1 < f.length; k++) skins[part(i)].push([f[0], f[k], f[k + 1]].map((v) => m.vertices[v])); });
+    let n = 0;
+    m.faces.forEach((f, i) => {
+      if (part(i) !== 'hairFall' || f.some((v) => /\/(back|tip)$/.test(m.pointIds[v]))) return;   // the loft's closing points sit inside by design
+      const V = f.map((v) => m.vertices[v]), probes = [V.reduce((s, p) => s.map((x, k) => x + p[k] / V.length), [0, 0, 0]), ...V.map((p, k) => p.map((x, j) => (x + V[(k + 1) % V.length][j]) / 2))];
+      for (const p of probes) for (const tris of Object.values(skins)) if (RAYS.filter((d) => crossings(p, d, tris) % 2 === 1).length >= 2) n++;
+    });
+    return n;
+  };
+  for (const preset of PRESETS) it(`${preset}: a grown fall never passes into the skull or the jaw, where today's does`, () => {
+    for (const hair of [['wavy', { spine: 'elastica' }], ['long', { spine: { stiffness: 'stiff' } }], ['angled', { spine: 'elastica' }], ['layers', { spine: { wind: { R: 1.5, dir: 90 } } }]]) expect(fallInSkin(humanoidHead({ preset, hair }))).toBe(0);
+    expect(fallInSkin(humanoidHead({ preset, hair: 'wavy' }))).toBeGreaterThan(0);   // today's, measured, left as minted
+  });
+  for (const preset of PRESETS) it(`${preset}: a region cuts its own length and stiffness; a curl winds the tail into a ringlet and waves the fall, closed, off the skin`, () => {
+    const even = humanoidHead({ preset, hair: ['long', { spine: 'elastica' }] }), cut = humanoidHead({ preset, hair: ['long', { spine: { regions: { back: { length: 1.4 }, front: { length: 0.6 } } } }] });
+    expect(zMin(world(cut, 'hairFall'))).toBeLessThan(zMin(world(even, 'hairFall')) - 0.04);   // the back reaches lower
+    for (const hair of [['ponytail', { spine: { curl: { radius: 0.03, turns: 4 } } }], ['long', { spine: { curl: { radius: 0.01, turns: 2, from: 0.3 } } }], ['braid', { spine: { regions: { tail: { curl: { radius: 0.02, turns: 3 } } } } }]]) {
+      const h = humanoidHead({ preset, hair });
+      expect(closed(h)).toEqual([]);
+      for (const o of Object.values(h.parts.hairTail?.offsets ?? h.parts.hairFall.offsets)) expect(o.every(Number.isFinite)).toBe(true);
+      if (h.parts.hairFall) expect(fallInSkin(h)).toBe(0);
+    }
+    const ring = humanoidHead({ preset, hair: ['ponytail', { tail: 0.6 }, { spine: { curl: { radius: 0.03, turns: 4 } } }] }), plain = humanoidHead({ preset, hair: ['ponytail', { tail: 0.6 }, { spine: 'elastica' }] });
+    const w = (h) => { const p = world(h, 'hairTail'); return Math.max(...p.map((q) => q[0])) - Math.min(...p.map((q) => q[0])); };
+    expect(w(ring)).toBeGreaterThan(w(plain) + 0.03);   // the ringlet's coil is wider than the straight tail
+  });
+});
+

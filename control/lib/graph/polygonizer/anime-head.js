@@ -45,6 +45,7 @@
  * the ridge section, the crown accents off) worn under every family, and a CUT (a hair word — `swept-back` on the male,
  * `side-parted` on the female) worn when neither a look nor the operator names a family. Pure; no dice.
  */
+import { validateSpine } from './hair-spine.js';
 import { earMesh } from './head-ear.js';
 import { compileLayered, pinFrame } from './station-loft.js';
 import { address } from './station-loft-detail.js';
@@ -345,7 +346,7 @@ export const ANIME_HAIR_MOVES = Object.freeze({
  * shape, its hard limits (a value past them refuses) and, for the numbers, the comfortable range the advice reads. */
 /** the largest lock edit (construction units, either way) the door takes: the sweep fields' own bound */
 export const LOCK_EDIT_MAX = 3;
-export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail', 'shapes', 'sideburns', 'veil']);
+export const ANIME_HAIR_FORM_WORDS = Object.freeze(['lift', 'section', 'ridge', 'flute', 'crownAccents', 'sweepBack', 'hairline', 'sweepSides', 'fringeGroups', 'backNotch', 'fringeNotch', 'flip', 'spikes', 'sideTail', 'shapes', 'sideburns', 'veil', 'spine']);
 const LIFT_KEYS = Object.freeze(['crown', 'temple', 'fringe', 'nape']);
 const SWEEP_BACK_KEYS = Object.freeze(['amount', 'keep', 'rise', 'riseFall', 'controlX', 'controlZ', 'spread', 'tipY', 'tipZ', 'stagger', 'rootY', 'rootZ']);
 const SWEEP_SIDES_KEYS = Object.freeze(['amount', 'from', 'controlY', 'tipX', 'tipY', 'tipZ']);
@@ -384,6 +385,7 @@ function hairFormErrors(entry, at) {
     else if (k === 'ridge') num(k, v, 0, 2);
     else if (k === 'flute') num(k, v, 0, 1);
     else if (k === 'veil') num(k, v, 0, 1);
+    else if (k === 'spine') errs.push(...validateSpine(v, `${at}.spine`));
     else if (k === 'crownAccents') { if (!CROWN_ACCENTS.includes(v)) errs.push(`${at}.crownAccents: ${CROWN_ACCENTS.join(' | ')} (the short family's six crown accents)`); }
     else if (k === 'sweepBack' || k === 'sweepSides') {
       if (finite(v)) num(k, v, 0, 1);
@@ -486,6 +488,8 @@ export function animeHairForm(H) {
   if (on('fringeNotch')) out.fringeNotch = H.fringeNotch;
   if (on('shapes')) out.shapes = H.shapes;
   if (on('sideburns')) out.sideburns = finite(H.sideburns) ? { amount: H.sideburns } : H.sideburns;
+  // the spine law (hair-spine.js): the lock's fall true to its length, a still wind bending every lock as a rotated load
+  if (on('spine')) out.spine = H.spine === 'elastica' ? { law: 'elastica' } : { law: 'elastica', ...H.spine };
   return Object.keys(out).length ? out : null;
 }
 /** the studio's expression poses (its buttons) as words, and hero-looks' more; an object of amounts after a word

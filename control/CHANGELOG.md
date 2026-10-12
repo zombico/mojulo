@@ -98,6 +98,39 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   rig: the theme above.)
 - The `layered` vocab card has the look's section and `soft` in the light's fields.
 
+### Hair studies: the lock grown like a grass blade
+
+- **One spine law for hair** (`polygonizer/hair-spine.js`). A lock is the grass blade's elastica: a cantilever under its
+  own weight, clamped at the scalp along its comb, solved in the plane of the load and the aim, with positions
+  integrated along the arc so the lock is exactly its length. One number, B (wL³/EI of the clump), sets how it carries:
+  low B stands, high B hangs; B grows with L³, so on one head the long locks droop and the short ones stand. Wind is the
+  same solve under a rotated load (drag of R weights beside the weight: B·√(1+R²) at atan R), so a windswept lock keeps
+  its length too. Past the self-buckling load the shooting problem has several roots (upright, drooped, looped); the
+  law keeps the one with the least potential energy, the shape a real lock settles into.
+- **The western fall as guide locks** (`hair.spine`, opt-in on the landmark library). Each of the fall's sixteen
+  slots hangs as one guide lock from the hairline and the curtain is the same closed loft stretched over the guides;
+  the ponytail and the braid hang from the tie by the same law (limp by default: loose strands add no stiffness to
+  each other). The comb is gravity with a small lift, never the scalp's slope, so a still fall hangs where today's
+  does; a wind streams it. **Grown hair never passes into the head**: the guides and then every curtain face (its
+  edges, diagonals and centre) are kept 3 mm off the head's own skin, sampled by address over the cranium and the jaw,
+  and off a neck column, keeping their length; where the skin faces forward the lift goes sideways and back, so the
+  hair frames the face instead of covering it. (Today's falls cut into the cheeks and the skull: measured, and left as
+  minted.) Stiffness as a word (`stiff`, `springy`, `soft`, `limp`) or a number, a held root zone, a still wind
+  (`{ R, dir }`). Same parts and face counts; absent, every style is byte-identical.
+- **The anime head takes the same spine** (`hair.spine`, a hair form word). A still wind bends every lock, form shell
+  and shape piece past where it leaves the head, by the elastica's own change under the rotated load, read at each
+  vertex's place along its lock (the grass blade's bend table, per lock), and drapes it back off the head; clumps are
+  `springy` by default and `stiff` holds a spike's silhouette. A cap-lock fall is its length: a bent C ran past its
+  length word by up to a fifth (5.7% at bend 0.3), and the word rescales it so the arc is the length. Absent, every
+  anime head is the bytes it was.
+- **The spine by region, by clump, and curled** (both heads, one vocabulary). `regions` (`front`, `sides`, `back`,
+  `crown`, `tail`) override the head's stiffness, hold and curl, and on the landmark head scale that region's length
+  (a longer back, a shorter front); on the anime head `locks` override a named clump (`fringe-3`, `peel-4`); the most
+  specific word wins. `curl` (`radius`, `turns`, `hand`, `from`) winds a lock about its own centre line: the ponytail and
+  braid into ringlets, each anime lock or shape piece into a drill, a curled lock built with rings enough to draw its
+  coil; a western fall and an anime form shell, one surface over many guides, wave in their plane instead, each panel
+  out of step with the next. A lock's length is where it falls; a coil's own run is longer.
+
 ### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
 
 - **The look and the density are separate.**
