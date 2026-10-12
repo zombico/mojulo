@@ -47,6 +47,7 @@ export const GRAMMAR_SCHEMA = Object.freeze({
   },
   wear: 'facade',
   shapes: { box: num(0, 10), setback: num(0, 10), podium: num(0, 10), cylinder: num(0, 10), undulate: num(0, 10), spindle: num(0, 10), minFloors: int(1, 100) },
+  night: { windows: prob, shops: prob, palette: hexes },
   transit: { modes: words(TRANSIT_MODES), stop: num(50, 2000), reach: num(50, 3000) },
   walk: { crossing: num(40, 600), beat: num(20, 400), speed: num(0.5, 10) },
 });
@@ -94,6 +95,8 @@ export const WORLD_GRAMMAR_DOCS = Object.freeze({
     height: { core: 70, edge: 16, sigmaCore: 0.9, sigmaEdge: 0.6, slender: 12 },
     tower: { p: 1, second: 0.9, secondAt: 0.3, h: [160, 420], slender: [7, 11], shapes: [0.45, 0.6, 0.9] },
     shapes: { box: 6, setback: 2, podium: 2, cylinder: 0, minFloors: 10 },
+    // a sprawl that never sleeps: more of it lit, in screen light as much as lamplight
+    night: { windows: 0.45, shops: 1, palette: ['#9ff3ff', '#ff9ad0', '#fff3c4', '#c8b6ff', '#7fd9ff', '#ffd38a'] },
     transit: { modes: ['maglev', 'bus'] },
   },
   'xeno-garden': {
@@ -116,6 +119,8 @@ export const WORLD_GRAMMAR_DOCS = Object.freeze({
     tower: { p: 0.6, h: [60, 140], slender: [3, 5], shapes: [0.05, 0.1, 0.25], spindle: 0.75 },
     shapes: { box: 0.6, setback: 0.4, podium: 0.3, cylinder: 1.2, undulate: 4, spindle: 0.6, minFloors: 3 },
     lot: { front: [9, 20], wide: [22, 40], wideP: 0.3 },
+    // rooms lit by what grows in them
+    night: { windows: 0.35, shops: 0.9, palette: ['#9dffce', '#7ff0ff', '#e2ff9a', '#ffd6f4', '#b8fff0'] },
     transit: { modes: ['maglev', 'tram'] },
   },
 });

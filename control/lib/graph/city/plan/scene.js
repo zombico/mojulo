@@ -17,6 +17,7 @@ import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 import { lobbyOf, doorFaces } from './doors.js';
+import { nightFaces } from './night.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
 import { resolveLookSpec } from '../../era/look.js';
@@ -174,9 +175,13 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy }, { title, walk
     scene = { title: sheetTitle, faces: faces.map(toUnits), cameras, viewBox: { width: 1280, height: 720 } };
   } else {
     // the organic masses are built here (organic.js); every other the legacy pipeline draws
-    const boxes = cityBoxes(d, paint), organic = boxes.filter((b) => ORGANIC_SHAPES.includes(b.shape));
+    const night = lit && lit.night;
+    const boxes = cityBoxes(d, paint).map((b) => (night ? { ...b, neon: true } : b)), organic = boxes.filter((b) => ORGANIC_SHAPES.includes(b.shape));
     const grown = organic.flatMap((b) => organicFaces(b, undefined, LIT));
-    scene = assembleBoxCityScene({ boxes: boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape)), faces: [...ground.map(toUnits), ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT, ...(lit && lit.night ? { moonlight: true } : {}) });
+    const built = boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape));
+    scene = assembleBoxCityScene({ boxes: built, faces: [...ground.map(toUnits), ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
+    // at night the windows and signs are lit (night.js)
+    if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }
   const air = spec && spec.ref.air;
   return {

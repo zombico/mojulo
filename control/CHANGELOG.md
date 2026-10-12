@@ -125,6 +125,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a door's inside) is entered straight from the level list, with no empty setup screen and no "start battle".
   - Spot-checked in the browser: a four-segment Paris exported to a folder; the street played, a door led into
     its café and `out` led back to the walk.
+- **The city at night** (`city/plan/night.js`). Under a look with no sun, a share of every wall's windows is lit
+  (the grammar's `night: { windows, shops, palette }`, leant by the lot's use), laid on the wall's own window grid
+  between the recessed glass and the mullions, in colours no light shades. A storey's lit rooms run together, a
+  shop's ground storey is lit along its front, and blade signs burn in their own colours. Each lot rolls its own
+  dice. By day nothing is added.
+  - Neon sprawl lights its rooms in screen colours; xeno garden lights them in bioluminescent ones, its organic
+    walls included.
+  - The city no longer takes the legacy moonlight pass on top of the look's moon, which double-lit its ground and
+    roofs. The moonlit ambient is lower, so a lit window reads against it.
+  - `bladeSignBoxes` tags a sign with its tint only for a box that asks (`neon`); the legacy city keeps its bytes.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

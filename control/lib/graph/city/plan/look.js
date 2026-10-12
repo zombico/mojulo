@@ -47,12 +47,12 @@ const luma = (hex) => { const [r, g, b] = hexToRgb(hex); return (0.2126 * r + 0.
 const fromSky = (elevation, azimuth) => { const e = elevation * DEG, a = azimuth * DEG; return [-cos(e) * cos(a), -cos(e) * sin(a), -sin(e)]; };
 
 /** The city's light under a look: its sun, or with none the paint's cube's moon (else a cold one); its ambient lifted
- *  as the stage lifts a look's, never black. */
+ *  as the stage lifts a look's, never black, and by night low enough that a lit window (night.js) reads against it. */
 export function lookLight(spec, paint) {
   const R = spec.ref, key = R.light.key, amb = luma(R.light.ambient);
   if (key) return { light: makeLight({ direction: fromSky(key.elevation, key.azimuth ?? 225), ambient: Math.min(0.7, 0.3 + amb), diffuse: 0.55 }), night: false };
   const moon = paint?.cube.light.moon || MOON;
-  return { light: makeLight({ direction: fromSky(moon.elevation, moon.azimuth), ambient: Math.min(0.6, 0.34 + amb * 1.4), diffuse: 0.3 * (moon.gain ?? 0.8) }), night: true };
+  return { light: makeLight({ direction: fromSky(moon.elevation, moon.azimuth), ambient: Math.min(0.5, 0.3 + amb), diffuse: 0.3 * (moon.gain ?? 0.8) }), night: true };
 }
 
 /** The ground's colours under a paint: the cube's, leant by `amount`. */

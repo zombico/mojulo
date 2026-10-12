@@ -31,7 +31,7 @@ const BASE_SKIN = {
 };
 
 /** The fields every grammar carries. A grammar names each, in metres (heights and storeys in metres too). */
-export const GRAMMAR_FIELDS = Object.freeze(['label', 'locale', 'climate', 'traffic', 'layout', 'block', 'street', 'lot', 'height', 'tower', 'floorH', 'skin', 'facade', 'wear', 'shapes', 'transit', 'walk']);
+export const GRAMMAR_FIELDS = Object.freeze(['label', 'locale', 'climate', 'traffic', 'layout', 'block', 'street', 'lot', 'height', 'tower', 'floorH', 'skin', 'facade', 'wear', 'shapes', 'night', 'transit', 'walk']);
 /** The transit modes a grammar may run. A maglev rides an elevated guideway on pylons; a tram and a bus run at grade. */
 export const TRANSIT_MODES = Object.freeze(['tram', 'bus', 'maglev']);
 /** The street layouts a grammar may name. The plan lays 'grid' today; the others are the grammar's word for later. */
@@ -78,6 +78,8 @@ export function grammarFromFlavor(key) {
     // stand as ({ box, setback, podium, cylinder: weight, minFloors }): none for an Earth grammar
     wear: null,
     shapes: null,
+    // the city at night (night.js): the share of windows lit, of shop fronts lit, and the colours a lit room shows
+    night: { windows: 0.3, shops: 0.85, palette: ['#ffd38a', '#ffe0a8', '#fff0cf', '#ffc46e', '#e4ecff'] },
     // a stop every `stop` m along a line; every lot within `reach` m of one
     transit: { modes: ['tram', 'bus'], stop: 400, reach: 500 },
     // the walk: a crossing at least every `crossing` m of block face, something to meet (a shopfront, a place, a stop,
