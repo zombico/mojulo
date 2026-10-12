@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mulberry32 } from '../vegetation/grow.js';
-import { rollCube, nudgeCube, sweep } from './sweep.js';
+import { rollCube, nudgeCube, sweep, closure } from './sweep.js';
 import { capabilityRegistry } from './registry.js';
 import { EFFORT_WEIGHT } from './packages.js';
 import { validateCube, dryRun } from './cosmos.js';
@@ -122,10 +122,16 @@ describe('sweep', () => {
   });
 
   it('builds what a value requires with it, and prices the closure', () => {
-    // quests need a character who talks: the package carries talk with it, priced at both (Mind owns talk's size)
-    const reg = capabilityRegistry(), talk = reg.mind.social.values.talk;
-    const q = sweep({ n: 300, seed: 1, around: 'story-adventure' }).unlock.packages.find((p) => p.id === 'quests');
-    expect(q).toMatchObject({ needs: ['mind.social=talk'], cost: 3 + EFFORT_WEIGHT[talk.effort] });
+    // quests need a character who talks: an unbuilt prerequisite comes with it (both built 10-12, so a copy of the
+    // registry with talk unbuilt stands in), a built one does not
+    const reg = capabilityRegistry();
+    expect(reg.time.advance.values.quests.requires).toEqual(['mind.social=talk']);
+    expect([...closure(reg, ['time.advance=quests'])]).toEqual(['time.advance=quests']);
+    const unbuilt = JSON.parse(JSON.stringify(reg));
+    unbuilt.mind.social.values.talk = { status: 'partial', effort: 'M' };
+    expect([...closure(unbuilt, ['time.advance=quests'])].sort()).toEqual(['mind.social=talk', 'time.advance=quests']);
+    expect(EFFORT_WEIGHT.M).toBe(3);
+    expect(sweep({ n: 300, seed: 1, around: 'story-adventure' }).unlock.packages.find((p) => p.id === 'quests')).toBeUndefined();
     // a passage requires chapters, which are built: a built prerequisite is neither needed nor priced
     expect(reg.time.passage.values.seasons.requires).toEqual(['time.chapters=overlays']);
     expect(reg.time.chapters.values.overlays.status).toBe('built');

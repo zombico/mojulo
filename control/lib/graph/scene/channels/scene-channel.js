@@ -6,7 +6,8 @@
  * Each frame, after the bus settles: the runner hears the bus log since the last frame, steps (its events go to the
  * bus, its camera ops to the cast), and the page draws the letterbox bars and the text box. While a scene plays the
  * player's input is held through the menus' freeze (`window.__mojMenuOpen`). Space, Enter, E or a click advance a line;
- * holding the key skips, as does Esc.
+ * holding the key skips, as does Esc. A choice lists its answers under the question: the arrows (or W/S) move, a number
+ * picks, Space/Enter/E or a click takes one.
  */
 import { buildSceneRunner } from '../../playscape/ui/scene-runner.js';
 
@@ -17,6 +18,10 @@ export const SCENE_CSS = `
 .moj-scene-who{color:var(--moj-accent,#8fa5c8);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
 .moj-scene-more{position:absolute;right:12px;bottom:8px;font-size:12px;opacity:.7}
 .moj-scene-on .moj-hud{visibility:hidden}
+.moj-scene-opts{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.moj-scene-opt{padding:5px 10px;border-radius:6px;border:1px solid transparent;color:var(--moj-ink,#dfe8f8);opacity:.75}
+.moj-scene-opt.sel{border-color:var(--moj-accent,#8fa5c8);background:rgba(143,165,200,.14);opacity:1}
+.moj-scene-opt b{color:var(--moj-accent,#8fa5c8);margin-right:8px;font-weight:600}
 .moj-scene-hint{position:fixed;right:16px;z-index:31;font:11px var(--moj-font,system-ui);color:#9aa4b4;pointer-events:none;display:none}
 `;
 
@@ -29,27 +34,34 @@ const __scnSt = document.createElement('style'); __scnSt.textContent = ${JSON.st
 const __scnTop = document.createElement('div'); __scnTop.className = 'moj-scene-bar top'; document.body.appendChild(__scnTop);
 const __scnBot = document.createElement('div'); __scnBot.className = 'moj-scene-bar bottom'; document.body.appendChild(__scnBot);
 const __scnBox = document.createElement('div'); __scnBox.className = 'moj-scene-box';
-__scnBox.innerHTML = '<div class="moj-scene-who"></div><div class="moj-scene-say"></div><div class="moj-scene-more">\\u25b8</div>';
+__scnBox.innerHTML = '<div class="moj-scene-who"></div><div class="moj-scene-say"></div><div class="moj-scene-opts"></div><div class="moj-scene-more">\\u25b8</div>';
 document.body.appendChild(__scnBox);
 const __scnHint = document.createElement('div'); __scnHint.className = 'moj-scene-hint'; __scnHint.textContent = 'hold Space or Esc to skip'; document.body.appendChild(__scnHint);
-const __scnWho = __scnBox.querySelector('.moj-scene-who'), __scnSay = __scnBox.querySelector('.moj-scene-say'), __scnMore = __scnBox.querySelector('.moj-scene-more');
-const __SCN_KEYS = { Space: 1, Enter: 1, KeyE: 1 };
-let __scnSeen = 0, __scnNext = false, __scnHeld = false, __scnSkip = false, __scnHolding = false, __scnShown = '';
+const __scnWho = __scnBox.querySelector('.moj-scene-who'), __scnSay = __scnBox.querySelector('.moj-scene-say'), __scnMore = __scnBox.querySelector('.moj-scene-more'), __scnOpts = __scnBox.querySelector('.moj-scene-opts');
+const __SCN_KEYS = { Space: 1, Enter: 1, KeyE: 1 }, __SCN_MOVE = { ArrowUp: -1, KeyW: -1, ArrowDown: 1, KeyS: 1 };
+let __scnSeen = 0, __scnNext = false, __scnHeld = false, __scnSkip = false, __scnHolding = false, __scnShown = '', __scnMove = 0, __scnPick = -1;
 window.addEventListener('keydown', (ev) => {
   if (!__scnHolding) return;
+  const digit = /^Digit[1-4]$/.test(ev.code) ? +ev.code.slice(5) - 1 : -1;
   if (__SCN_KEYS[ev.code]) { ev.preventDefault(); ev.stopImmediatePropagation(); if (!ev.repeat) __scnNext = true; __scnHeld = true; }
   else if (ev.code === 'Escape') { ev.preventDefault(); ev.stopImmediatePropagation(); __scnSkip = true; }
+  else if (__SCN_MOVE[ev.code]) { ev.preventDefault(); ev.stopImmediatePropagation(); __scnMove = __SCN_MOVE[ev.code]; }
+  else if (digit >= 0) { ev.preventDefault(); ev.stopImmediatePropagation(); __scnPick = digit; }
 }, true);
 window.addEventListener('keyup', (ev) => { if (__SCN_KEYS[ev.code]) __scnHeld = false; }, true);
-window.addEventListener('pointerdown', () => { if (__scnHolding) __scnNext = true; }, true);
+window.addEventListener('pointerdown', (ev) => {
+  if (!__scnHolding) return;
+  const opt = ev.target && ev.target.closest ? ev.target.closest('.moj-scene-opt') : null;
+  if (opt) __scnPick = +opt.dataset.k; else __scnNext = true;
+}, true);
 function __stepScenes(dtSec) {
   const types = [];
   for (let i = __scnSeen; i < __busState.log.length; i++) { const ev = __busState.log[i]; if (ev && ev.type) types.push(ev.type); }
   __scnSeen = __busState.log.length;
   __SCN.hear(__scn, types);
   // the bus vars: a scene's conditions are read against them as its happening comes
-  const o = __SCN.step(__scn, dtSec, { next: __scnNext, held: __scnHeld, skip: __scnSkip, vars: __busState.vars });
-  __scnNext = false; __scnSkip = false;
+  const o = __SCN.step(__scn, dtSec, { next: __scnNext, held: __scnHeld, skip: __scnSkip, vars: __busState.vars, move: __scnMove, ...(__scnPick >= 0 ? { pick: __scnPick } : {}) });
+  __scnNext = false; __scnSkip = false; __scnMove = 0; __scnPick = -1;
   // the beats' events first, and the cast ops they queue (a walk) handed down, so a skip's finish lands them too
   if (o.fire.length) { __BUS.processEvents(__busState, o.fire.map((type) => ({ type }))); __watchFix(); if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities, window.__mojCtrl.cast); }
   if (o.ops.length && window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(o.ops);
@@ -58,17 +70,25 @@ function __stepScenes(dtSec) {
   __scnBox.style.bottom = 'calc(' + bar + ' + 16px)';
   __scnHint.style.top = 'calc(' + bar + ' + 8px)';
   __scnHint.style.display = v.on ? 'block' : 'none';
-  const key = v.line ? v.line.name + '|' + v.line.text + '|' + v.line.full : '';
+  const key = (v.line ? v.line.name + '|' + v.line.text + '|' + v.line.full : '') + (v.choice ? '|' + v.choice.sel + '|' + v.choice.options.join('|') : '');
   if (key !== __scnShown) {
     __scnShown = key;
-    __scnBox.style.display = v.line ? 'block' : 'none';
-    if (v.line) { __scnWho.textContent = v.line.name; __scnSay.textContent = v.line.text; __scnMore.style.visibility = v.line.full ? 'visible' : 'hidden'; }
+    __scnBox.style.display = v.line || v.choice ? 'block' : 'none';
+    __scnWho.textContent = v.line ? v.line.name : ''; __scnSay.textContent = v.line ? v.line.text : '';
+    __scnMore.style.visibility = v.line && v.line.full && !v.choice ? 'visible' : 'hidden';
+    __scnOpts.innerHTML = '';
+    if (v.choice) v.choice.options.forEach((t, k) => {
+      const d = document.createElement('div'); d.className = 'moj-scene-opt' + (k === v.choice.sel ? ' sel' : ''); d.dataset.k = k;
+      const b = document.createElement('b'); b.textContent = k + 1; d.appendChild(b); d.appendChild(document.createTextNode(t));
+      __scnOpts.appendChild(d);
+    });
   }
+  __scnHint.textContent = v.choice ? 'choose: \\u2191\\u2193 or 1\\u2013' + v.choice.options.length + ', then Space' : 'hold Space or Esc to skip';
   // the player's input is held while a scene plays (the menus' freeze); given back when it ends
   if (v.on) window.__mojMenuOpen = true; else if (__scnHolding) window.__mojMenuOpen = false;
   if (v.on !== __scnHolding) document.body.classList.toggle('moj-scene-on', v.on);   // the level's HUD steps aside
   if (!v.on) __scnHeld = false;
   __scnHolding = v.on;
 }
-window.__mojScenes = { on: () => __SCN.view(__scn).on, view: () => __SCN.view(__scn), next: () => { __scnNext = true; }, skip: () => { __scnSkip = true; } };`;
+window.__mojScenes = { on: () => __SCN.view(__scn).on, view: () => __SCN.view(__scn), next: () => { __scnNext = true; }, skip: () => { __scnSkip = true; }, pick: (k) => { __scnPick = k; } };`;
 }

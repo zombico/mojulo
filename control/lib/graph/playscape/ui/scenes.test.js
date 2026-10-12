@@ -250,6 +250,103 @@ describe('conditions and flags', () => {
   });
 });
 
+describe('choices', () => {
+  // the mayor asks; the answer sets a flag and plays its own beats; the scene goes on after either
+  const JOB = {
+    id: 'job', when: { on: 'ring' }, names: { mayor: 'Mayor Ilse' },
+    beats: [
+      { line: { who: 'mayor', say: 'Will you clear the cave?' } },
+      { choose: { options: [
+        { say: 'I will.', sets: ['took-job'], beats: [{ do: { emit: 'yes-said' } }, { line: { who: 'mayor', say: 'Thank you.' } }] },
+        { say: 'Not today.', sets: ['said-no'] },
+        {},
+      ] } },
+      { do: { emit: 'after' } },
+      { line: { who: 'mayor', say: 'Safe roads.' } },
+    ],
+  };
+  const ring = (L) => { processEvents(L.bus, [{ type: 'ring' }]); L.tick(); };
+  const press = (L, ctl) => { L.tick(ctl); };
+
+  it('reads and lowers: the options inline, each ending past the rest; placeholders for unsaid answers', () => {
+    const [P] = sceneProgram({ scenes: [JOB] });
+    const ch = P.beats.find((b) => b.kind === 'choose');
+    expect(ch.options.map((o) => o.text)).toEqual(['I will.', 'Not today.', '[Choice 3]']);
+    expect(ch.options[0].fire).toEqual(['flag:took-job']);
+    const jumps = P.beats.filter((b) => b.kind === 'jump');
+    expect(jumps).toHaveLength(3);
+    expect(new Set(jumps.map((j) => j.to)).size).toBe(1);
+    expect(P.beats[jumps[0].to]).toEqual({ kind: 'fire', event: 'scene:job:2' });
+    expect(P.beats.find((b) => b.event === 'scene:job:1-0-0')).toBeTruthy();   // a beat in an option, keyed by its path
+  });
+
+  it('the answer sets its flag at once and plays its beats; the scene goes on', () => {
+    const L = level([JOB]);
+    L.begin(); ring(L);
+    L.until(() => !!L.view().line && L.view().line.full, 200);
+    press(L, { next: true });
+    expect(L.view().choice).toEqual({ options: ['I will.', 'Not today.', '[Choice 3]'], sel: 0 });
+    expect(L.view().line.text).toBe('Will you clear the cave?');   // the question stays
+    press(L, { move: 1 }); press(L, { move: 1 }); press(L, { move: 1 });
+    expect(L.view().choice.sel).toBe(0);   // round
+    press(L, { pick: 0 });
+    expect(L.bus.vars['flag-took-job']).toBe(1);
+    expect(L.fired('yes-said')).toBe(1);
+    expect(L.view().line.text.length).toBeLessThan('Thank you.'.length + 1);
+    L.until(() => L.view().line && L.view().line.text === 'Thank you.', 200);
+    press(L, { next: true });
+    expect(L.fired('after')).toBe(1);
+    expect(L.bus.vars['flag-said-no']).toBe(0);
+  });
+
+  it('the other answer skips the first\'s beats', () => {
+    const L = level([JOB]);
+    L.begin(); ring(L);
+    L.until(() => L.view().line && L.view().line.full, 200); press(L, { next: true });
+    press(L, { move: 1 }); press(L, { next: true });
+    expect(L.bus.vars['flag-said-no']).toBe(1);
+    expect(L.fired('yes-said')).toBe(0);
+    expect(L.fired('after')).toBe(1);
+    expect(L.view().line.text.length).toBeLessThanOrEqual('Safe roads.'.length);
+  });
+
+  it('a skip stops at the choice (the answer is the player\'s); held keys and Esc wait there; after it a skip ends', () => {
+    const L = level([JOB]);
+    L.begin(); ring(L);
+    press(L, { skip: true });
+    expect(L.view().on).toBe(true);
+    expect(L.view().choice).not.toBeNull();
+    for (let i = 0; i < 40; i++) press(L, { held: true, skip: i === 20 });
+    expect(L.view().choice).not.toBeNull();
+    press(L, { pick: 1 });
+    press(L, { skip: true });
+    expect(L.view().on).toBe(false);
+    expect(L.fired('after')).toBe(1);
+    expect(L.fired('scene-end:job')).toBe(1);
+  });
+
+  it('the flags an answer sets are carried, as a scene\'s sets are; and read by a later scene', () => {
+    const play = { scenes: [JOB], carry: 'story' };
+    const g = sceneContract({ consumes: [], produces: { events: [] } }, play);
+    expect(Object.keys(g.on).sort()).toEqual(['flag:said-no', 'flag:took-job']);
+    const L = level([JOB, { id: 'thanks', when: { on: 'ring' }, if: { flag: 'took-job' }, beats: [{ wait: 0.1 }] }]);
+    L.begin(); ring(L);
+    L.until(() => L.view().line && L.view().line.full, 200); press(L, { next: true }); press(L, { pick: 0 });
+    L.until(() => !L.view().on, 400, { next: true });
+    ring(L); L.until(() => false, 10);
+    expect(L.fired('scene-end:thanks')).toBe(1);
+  });
+
+  it('teaches a bad choice', () => {
+    const bad = (choose) => () => readScenes({ scenes: [{ id: 'a', when: { start: true }, beats: [{ choose }] }] });
+    expect(bad({ options: [{}] })).toThrow(/options is 2 to 4 answers/);
+    expect(bad({ options: [{}, { go: 1 }] })).toThrow(/options\[1\]\.go is not part of an option/);
+    expect(bad({ say: 'Well?', options: [{}, {}] })).toThrow(/choose\.who is who asks/);
+    expect(bad({ options: [{ sets: ['Bad'] }, {}] })).toThrow(/sets is a list of flags/);
+    expect(bad({ options: [{ beats: [{ wait: 0 }] }, {}] })).toThrow(/options\[0\]\.beats\[0\]\.wait is seconds/);
+  });
+});
+
 describe('the shot camera', () => {
   // is a point inside the camera's view cone (the look direction, half the fov)?
   const seen = (cam, p, fov = 50) => {
@@ -337,7 +434,8 @@ describe('the shot camera', () => {
 
 describe('the page', () => {
   it('steps the runner with the bus vars, so conditions read the level (and what was carried in)', () => {
-    expect(sceneScript()).toMatch(/__SCN\.step\(__scn, dtSec, \{[^}]*vars: __busState\.vars \}\)/);
+    expect(sceneScript()).toMatch(/__SCN\.step\(__scn, dtSec, \{[^}]*vars: __busState\.vars,/);
+    expect(() => new Function(sceneScript())).not.toThrow();   // the page script parses
   });
   it('carries the scene runtime only when the events have scenes', () => {
     const ev = lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [ARRIVAL] } }, { player: 'hero' });

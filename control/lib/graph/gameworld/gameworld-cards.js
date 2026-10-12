@@ -277,6 +277,12 @@ function storyCard() {
     'The story names the world, never its coordinates: rebuild or reshape the world and each moment binds again. A moment',
     'that cannot find its level, stage, place or people is UNPLACED: design_game\'s readout lists it with what is missing',
     '(next: { step: \'story\' }) and the rest of the world builds. Fix the moment or the world, then run again.',
+    'A beat may be a CHOICE: { choose: { who?, say?, options: [{ say?, sets?: [flag], beats? }] } }: the player answers,',
+    '  the answer sets its flags at once and plays its beats; a later moment reads them (if: { flag }).',
+    'quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag, moments?: [moment id] }] }]: every level keeps',
+    '  the journal (J), its flags carried level to level. A moment in step n waits until step n - 1 is done (in step 1,',
+    '  until the quest begins); its own if holds besides. A step\'s flag is set by a moment\'s sets, an answer, or a cue',
+    '  (emit \'flag:<name>\'); one nothing in the story sets is listed in the readout\'s story.unset.',
   );
 }
 
@@ -311,7 +317,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
-  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where', storyCard],
+  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal', storyCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, run, rerun, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));

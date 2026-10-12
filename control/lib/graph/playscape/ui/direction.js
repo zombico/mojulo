@@ -36,6 +36,7 @@ import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
+import { questProgram } from './quests.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -207,6 +208,8 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || []), ...(flags[k] || [])]; if (v.length) out[k] = v; }
   // the scenes' program: the page's runner (scene-runner.js) paces their beats, frames their shots, draws the box
   if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
+  // the quests' journal (quests.js): the page keeps it over the flags
+  if (play.quests !== undefined) { const quests = questProgram(play); if (quests.length) out.quests = quests; }
   const pages = menuPages(play);
   if (pages.length) out.menus = pages;
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them

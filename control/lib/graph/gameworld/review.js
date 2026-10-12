@@ -49,6 +49,7 @@ export function reviewParts(world) {
   // the cast and the story (story.js), reviewed as the world's other pages; a world without them has neither part
   if (G.characters?.cast) parts.push({ id: 'cast', name: 'The cast', content: G.characters.cast });
   if (G.story) parts.push({ id: 'story', name: 'The story', content: G.story });
+  if (G.quests) parts.push({ id: 'quests', name: 'The quests', content: G.quests });
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 

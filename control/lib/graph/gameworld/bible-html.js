@@ -213,7 +213,7 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not
-  const cast = G.characters?.cast ?? null, told = G.story ? storyReport(world) : null;
+  const cast = G.characters?.cast ?? null, told = G.story || G.quests ? storyReport(world) : null;
   const words = (looks) => Object.entries(looks ?? {}).map(([k, v]) => `${k}: ${typeof v === 'object' ? Object.values(v).flat().map((x) => (typeof x === 'object' ? JSON.stringify(x) : x)).join(', ') : v}`).join(' · ');
   const castHtml = cast ? Object.entries(cast).map(([id, m]) => `<article class="card"><div class="card-h"><span class="eyebrow">Cast · ${esc(id)}</span><h3>${esc(m.name ?? id)}</h3></div><p class="muted">${esc(words(m.looks) || 'the direction alone')}</p></article>`).join('') : '';
   const where = (b) => `${b.level} · ${b.node}${b.place ? ` · ${b.place}` : ''}`;
@@ -221,7 +221,12 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const b = told.bound.find((x) => x.id === m.id), u = told.unplaced.find((x) => x.id === m.id);
     return `<article class="card${u ? ' open' : ''}"><div class="card-h"><span class="eyebrow">${u ? 'Unplaced' : `Bound · ${esc(where(b))}`}</span><h3>${esc(m.id)}</h3></div><p class="muted">${esc((m.who ?? []).map((w) => cast?.[w]?.name ?? w).join(', ') || 'the hero')}${m.sets?.length ? ` · sets ${esc(m.sets.join(', '))}` : ''}</p>${u ? `<p class="muted">${esc(u.why)}</p>` : ''}</article>`;
   }).join('') : '';
-  const storyPart = cast || told ? `<section class="part" id="story"><div class="part-h"><span class="eyebrow">The cast ${cast ? stamp('cast') : ''} · The story ${told ? stamp('story') : ''}</span><h2>Who else, and what happens where</h2></div><div class="cards">${castHtml}${momentHtml}</div></section>\n` : '';
+  // the quests: each step, the moments that wait on the one before, and a step whose flag nothing in the story sets
+  const questHtml = (G.quests ?? []).map((q) => `<article class="card"><div class="card-h"><span class="eyebrow">Quest · ${esc(q.id)}${q.starts ? ` · begins on ${esc(q.starts)}` : ''}</span><h3>${esc(q.name ?? q.id)}</h3></div><ol class="muted">${q.steps.map((st, j) => {
+    const loose = told?.unset?.some((u) => u.quest === q.id && u.step === j + 1);
+    return `<li>${esc(st.log ?? `step ${j + 1}`)} · done on ${esc(st.done)}${st.moments?.length ? ` · ${esc(st.moments.join(', '))}` : ''}${loose ? ' · nothing in the story sets it' : ''}</li>`;
+  }).join('')}</ol></article>`).join('');
+  const storyPart = cast || told ? `<section class="part" id="story"><div class="part-h"><span class="eyebrow">The cast ${cast ? stamp('cast') : ''} · The story ${G.story ? stamp('story') : ''}${G.quests ? ` · The quests ${stamp('quests')}` : ''}</span><h2>Who else, and what happens where</h2></div><div class="cards">${castHtml}${momentHtml}${questHtml}</div></section>\n` : '';
   const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>

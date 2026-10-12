@@ -97,14 +97,15 @@ export function runSteps(world, { ref, lookup } = {}) {
   return steps;
 }
 
-/** The story bound to the world as it lays now: { bound: [{ id, level, node, place? }], unplaced: [{ id, why }] }, or null
- * when the world has no story. What design_game and the bible report. */
+/** The story bound to the world as it lays now: { bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
+ * unset? (with quests: the steps whose flag nothing in the story sets) }, or null when the world has no story and no
+ * quests. What design_game and the bible report. */
 export function storyReport(world, { ref = 'gw' } = {}) {
   const G = readGameworld(world);
-  if (!G.story) return null;
+  if (!G.story && !G.quests) return null;
   const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
-  const { bound, unplaced } = bindStory(G, gameStages(world), { castRefs, layout: { stageEnds, stageSpots, stageLane } });
-  return { bound, unplaced };
+  const { bound, unplaced, unset } = bindStory(G, gameStages(world), { castRefs, layout: { stageEnds, stageSpots, stageLane } });
+  return { bound, unplaced, ...(unset ? { unset } : {}) };
 }
 
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the

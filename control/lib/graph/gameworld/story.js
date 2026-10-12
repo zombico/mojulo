@@ -17,14 +17,25 @@
  * A place is one of the stage's places by name (start, exit, pocket, pocket-2…, landmark…) or a kind, which takes the
  * first of it (pocket = the first pocket). The cast's names are the box's names.
  *
+ * QUESTS (gameworld `quests`) are a level's quests (playscape/ui/quests.js), kept in every level's journal, whose steps
+ * may name the moments that belong to them: a moment of step n waits (an `if`) until step n - 1 is done, and one of the
+ * first step until the quest begins (its `starts`). The moment's own conditions hold besides.
+ *
+ *   quests: [{ id, name?, starts?, steps: [{ log?, done: '<flag>', moments?: [moment id] }] }]
+ *
  *   readStory(S, where)          → the moments, their shape read (throws, teaching, on a malformed moment)
+ *   readGameQuests(Q, story)     → the quests, read; a step's moments must be the story's, each in one step at most
+ *   questGates(quests)           → { <moment id>: [condition] } the waits the quests put on their moments
+ *   levelQuests(quests)          → the quests as a level reads them (play.quests: no moments)
  *   storyScene(moment, cast)     → the scene a moment plays (scenes.js shape)
  *   bindStory(G, stages, { castRefs, layout }) → { byStage: { '<level>/<node>': { scenes, cast: [{ id, ref, at, heading }] } },
- *                                  bound: [{ id, level, node, place? }], unplaced: [{ id, why }] }
+ *                                  bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
+ *                                  unset: [{ quest, step, flag }] (a step's flag that no moment or answer sets: a cue may) }
  *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane } (handed in: levels.js reads
  *                                the world, which reads this)
  */
 import { readScenes } from '../playscape/ui/scenes.js';
+import { readQuests } from '../playscape/ui/quests.js';
 
 const ID = /^[a-z][a-z0-9-]*$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -65,6 +76,37 @@ export function readStory(S) {
   });
 }
 
+const qerr = (m) => new Error(`gameworld: quests${m}`);
+/** The quests, read as a level's are, and their moments checked against the story. */
+export function readGameQuests(Q, story = []) {
+  if (Q === undefined) return undefined;
+  if (!Array.isArray(Q)) throw qerr(' is a list of { id, name?, starts?, steps: [{ log?, done, moments? }] }');
+  const ids = new Set(story.map((m) => m.id)), owner = {};
+  Q.forEach((q, i) => (Array.isArray(q?.steps) ? q.steps : []).forEach((s, j) => {
+    if (!isObj(s) || s.moments === undefined) return;
+    const at = `[${i}].steps[${j}].moments`;
+    if (!Array.isArray(s.moments) || !s.moments.every((m) => typeof m === 'string')) throw qerr(`${at} is a list of the story's moment ids`);
+    for (const m of s.moments) {
+      if (!ids.has(m)) throw qerr(`${at}: '${m}' is not a moment of the story (${[...ids].join(', ') || 'none'})`);
+      if (owner[m]) throw qerr(`${at}: '${m}' is already in ${owner[m]}; a moment belongs to one step`);
+      owner[m] = `${q.id}, step ${j + 1}`;
+    }
+  }));
+  let read;
+  try { read = readQuests({ quests: levelQuests(Q) }); } catch (e) { throw qerr(e.message.replace(/^play\.quests/, '')); }
+  return read.map((q, i) => ({ ...q, steps: q.steps.map((s, j) => ({ ...s, ...(Q[i].steps[j].moments?.length ? { moments: [...Q[i].steps[j].moments] } : {}) })) }));
+}
+export const levelQuests = (Q) => (Q ?? []).map((q) => (isObj(q) && Array.isArray(q.steps) ? { ...q, steps: q.steps.map((s) => { if (!isObj(s)) return s; const { moments: _, ...rest } = s; return rest; }) } : q));
+export function questGates(quests) {
+  const out = {};
+  for (const q of quests ?? []) q.steps.forEach((s, j) => {
+    const wait = j ? s && q.steps[j - 1].done : q.starts;
+    if (!wait) return;
+    for (const m of s.moments ?? []) (out[m] ||= []).push({ flag: wait });
+  });
+  return out;
+}
+
 // a place in a stage by name, or by kind (the first of it)
 function placeIn(spots, name) {
   return spots.find((s) => s.id === name) ?? spots.find((s) => s.id.replace(/-\d+$/, '') === name) ?? null;
@@ -73,7 +115,7 @@ function placeIn(spots, name) {
 /** Bind the moments to the stages as laid. `castRefs`: { <cast id>: the ref of its made figure }. */
 export function bindStory(G, stages, { castRefs = {}, layout } = {}) {
   const { stageEnds, stageSpots, stageLane } = layout;
-  const moments = G.story ?? [], cast = G.characters?.cast ?? {};
+  const moments = G.story ?? [], cast = G.characters?.cast ?? {}, gates = questGates(G.quests);
   const byStage = {}, bound = [], unplaced = [];
   for (const m of moments) {
     const lv = stages.filter((s) => s.level === m.where.level);
@@ -102,6 +144,8 @@ export function bindStory(G, stages, { castRefs = {}, layout } = {}) {
     const key = `${stage.level}/${stage.node}`, slot = (byStage[key] ||= { scenes: [], cast: [] });
     // reach: the moment starts as the hero comes to it (its place, or where its first person stands)
     let scene = storyScene(m, cast);
+    // the quests' waits: a moment of a later step waits for the one before (its own conditions hold besides)
+    if (gates[m.id]) scene = { ...scene, if: [...[].concat(scene.if ?? []), ...gates[m.id]] };
     if (m.when && m.when.reach !== undefined) {
       const spot = place ? place.at : stands[0] ? stands[0].at : null;
       if (!spot) { unplaced.push({ id: m.id, why: `when: { reach } needs a place, or someone standing, to reach` }); continue; }
@@ -112,7 +156,12 @@ export function bindStory(G, stages, { castRefs = {}, layout } = {}) {
     for (const s of stands) if (!slot.cast.some((c) => c.id === s.id)) slot.cast.push({ ...s, ref: castRefs[s.id] ?? null });
     bound.push({ id: m.id, level: stage.level, node: stage.node, ...(place ? { place: place.id } : {}) });
   }
-  return { byStage, bound, unplaced };
+  // a step's flag that nothing in the story sets (a moment's sets, an answer's): a cue may set it; said, not refused
+  const sets = new Set(readScenes({ scenes: moments.map((m) => storyScene(m)) }).flatMap((sc) => [...sc.sets, ...answers(sc.beats)]));
+  const unset = [];
+  for (const q of G.quests ?? []) q.steps.forEach((s, j) => { if (!sets.has(s.done)) unset.push({ quest: q.id, step: j + 1, flag: s.done }); });
+  return { byStage, bound, unplaced, ...(G.quests ? { unset } : {}) };
 }
+const answers = (beats) => beats.flatMap((b) => (b.kind === 'choose' ? b.choose.options.flatMap((o) => [...o.sets, ...answers(o.beats)]) : []));
 
 const r3 = (v) => Math.round(v * 1000) / 1000;

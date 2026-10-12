@@ -26,6 +26,7 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
+import { storyScene, levelQuests } from './story.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -157,6 +158,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     pilotPart = { ...pilotPart, figures, entities };
   }
   let play = mechanics?.play ?? null;
+  // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
+  if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
   if (scenes.length) {
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
@@ -178,7 +181,7 @@ export function stageSpots(ends, lane = null) {
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */
 export const STORY_SLICE = 'story';
 export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0)
-  || (G.story ?? []).some((m) => (m.sets ?? []).length > 0 || [].concat(m.if ?? []).some((c) => c && (c.flag || c.not)));
+  || sceneFlags({ scenes: (G.story ?? []).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length;
 
 /**
  * A side-scroller's lane on a stage: the trail's own spine, one point a metre on the ground plane, the way the trail

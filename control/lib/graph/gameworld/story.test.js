@@ -169,3 +169,52 @@ describe('the story, reviewed and shown', () => {
   }, 240_000);
 });
 
+
+describe('choices and quests, cascaded', () => {
+  const stages = gameStages(W());
+  const castRefs = { mayor: 'gw-cast-mayor', guard: 'gw-cast-guard' };
+  const ASK = { ...WELCOME, sets: undefined, beats: [{ line: { who: 'mayor', say: 'Will you clear the cave?' } }, { choose: { options: [{ say: 'I will.', sets: ['took-job'] }, { say: 'No.' }] } }] };
+  const { sets: _s, ...ASKED } = ASK;
+  const DEEP = { id: 'deep', who: ['guard'], where: { level: 'cave' }, when: { reach: true }, sets: ['found-cave'], beats: [{ line: { who: 'guard' } }] };
+  const QUESTS = [{ id: 'clear-the-cave', starts: 'took-job', steps: [{ log: 'Find the cave', done: 'found-cave', moments: ['deep'] }, { done: 'cave-cleared' }] }];
+  const WQ = (extra = {}) => ({ ...W({ story: [ASKED, DEEP] }), quests: QUESTS, ...extra });
+
+  it('a moment\'s choice carries its flags: the story slice is kept', () => {
+    expect(gameStore(W({ story: [ASKED] }), null).slices.map((s) => s.name)).toContain('story');
+  });
+
+  it('a step\'s moments wait for the quest to begin (or the step before); every stage keeps the journal', () => {
+    const G = readGameworld(WQ());
+    const b = bindStory(G, stages, { castRefs, layout: LAYOUT });
+    expect(b.byStage['cave/mouth'].scenes[0].if).toEqual([{ flag: 'took-job' }]);
+    expect(b.byStage['gate/path'].scenes[0].if).toBeUndefined();
+    expect(b.unset).toEqual([{ quest: 'clear-the-cave', step: 2, flag: 'cave-cleared' }]);
+    for (const [i, s] of stages.entries()) {
+      const o = stageLevelOrder(G, s, { ref: `gw-level-${i}`, heroRef: 'gw-hero', story: b.byStage[`${s.level}/${s.node}`] });
+      expect(o.args.manifest.play.quests).toEqual([{ id: 'clear-the-cave', starts: 'took-job', steps: [{ log: 'Find the cave', done: 'found-cave' }, { done: 'cave-cleared' }] }]);
+      expect(o.args.manifest.play.carry).toBe('story');
+    }
+  }, 120_000);
+
+  it('teaches: a step\'s moments must be the story\'s, each in one step', () => {
+    const bad = (quests) => () => readGameworld({ ...W({ story: [ASKED, DEEP] }), quests });
+    expect(bad([{ id: 'q', steps: [{ done: 'x', moments: ['nowhere'] }] }])).toThrow(/'nowhere' is not a moment of the story \(welcome, deep\)/);
+    expect(bad([{ id: 'q', steps: [{ done: 'x', moments: ['deep'] }, { done: 'y', moments: ['deep'] }] }])).toThrow(/'deep' is already in q, step 1/);
+    expect(bad([{ id: 'q', steps: [{ log: 'x' }] }])).toThrow(/gameworld: quests\[0\]\.steps\[0\]\.done is the flag/);
+  });
+
+  it('reported and shown: the quests a review part, the unset step in the report and the bible', () => {
+    expect(reviewParts(WQ()).map((p) => p.id)).toContain('quests');
+    const r = storyReport(WQ());
+    expect(r.unset).toEqual([{ quest: 'clear-the-cave', step: 2, flag: 'cave-cleared' }]);
+    const html = gameworldBibleHtml(WQ());
+    expect(html).toContain('Quest · clear-the-cave');
+    expect(html).toContain('nothing in the story sets it');
+  }, 240_000);
+
+  it('design_game: the quests reach every stage; without them, no stage changes', () => {
+    const S = runSteps(WQ(), { ref: 'gw' }), S0 = runSteps(W({ story: [ASKED, DEEP] }), { ref: 'gw' });
+    const lv = (steps) => steps.filter((s) => s.key.startsWith('level-'));
+    for (const [i, s] of lv(S).entries()) expect(s.print).not.toBe(lv(S0)[i].print);
+  }, 240_000);
+});
