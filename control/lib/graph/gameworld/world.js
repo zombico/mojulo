@@ -77,10 +77,11 @@ export const WORLD_STYLE = Object.freeze({
   trail: 'the ground\'s character on a trail: run, heartbeat, bumpiness',
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
-  weather: 'what the sky does: a climate\'s name or { climate, dwell?, blend?, start?, surface? } (weather/weather.js); a level and a section may name their own',
-  geocube: 'a geocube that paints the level once (era/geocube.js): its outside\'s look on every section that names no kit of its own; the level\'s keys win after',
+  weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
+  geocube: 'a geocube that paints the level once (era/geocube.js): its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
-  look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit into a look of its own, which the ground is drawn in',
+  look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
+  pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
 });
 /** A civilization: what it builds, and how. */
 export const CIVILIZATION = Object.freeze({
@@ -145,6 +146,7 @@ function readStyle(s, at) {
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
+    else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
   }

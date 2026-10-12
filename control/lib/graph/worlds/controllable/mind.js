@@ -601,6 +601,30 @@ export function buildMind(E) {
     const livePh = r.mind && e.mindPhase != null ? phasesOf(r.mind)[e.mindPhase] : null;
     const temper = r.mind && ((livePh && livePh.aggressiveness) || r.mind.aggressiveness);
     if (temper === 'passive' || (temper === 'defensive' && !(e.hpMax > 0 && e.body && e.body.hp < e.hpMax))) { e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
+    // SENTRY: a body that never moves (a tower, a turret). The nearest live, hittable body on the team `rule.foes`
+    // (any team but its own, without one) inside `range` (else its weapon's, else 16) is turned to and fired on with its
+    // weapon; with nothing in range it stands, holding its fire.
+    if (motive === 'sentry') {
+      e.moving = false;
+      let best = null, bd = r.range ?? (e.weapon && e.weapon.range < 400 ? e.weapon.range : 16);
+      for (const id in (world && world.byId) || {}) {
+        const o = world.byId[id];
+        if (o === e || o.isCamera || o.downed || o.gone || !(o.body && o.body.hittable)) continue;
+        if (r.foes ? o.team !== r.foes : (e.team && o.team === e.team)) continue;
+        const d = Math.hypot(o.transform.pos[0] - t.pos[0], o.transform.pos[1] - t.pos[1]);
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (!best) { e.aiFire = 0; e.sentryPull = false; return; }
+      const q = best.transform.pos, rem = turnToward(t, Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]), r, dt);
+      const tb = best.body || {}, tcz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 1);
+      t.pitch = clamp(Math.atan2((q[2] + tcz) - (t.pos[2] + (e.weapon ? e.weapon.eye || 0 : 0)), bd || 1e-6), -1.2, 1.2);
+      // on aim it works the trigger, pulled and let go on alternate frames (a semi weapon fires on the pull), its
+      // cooldown the pace
+      const onAim = !!e.weapon && Math.abs(rem) <= ((r.fireArc ?? 6) * Math.PI) / 180;
+      e.sentryPull = onAim && !e.sentryPull;
+      e.aiFire = e.sentryPull ? 1 : 0;
+      return;
+    }
     // NOTICE.
     const ward = motive === 'escort' ? wardOf(e, r, world) : null;
     let target = pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);

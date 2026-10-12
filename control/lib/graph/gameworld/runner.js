@@ -31,7 +31,7 @@ import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { goalMechanics, goalAudio, guardPosts, QUICK_GUARD, quickStore } from './quick.js';
+import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, quickStore } from './quick.js';
 import { rideBuild, rideRule } from './ride.js';
 
 const REF_MAX = 64;
@@ -131,6 +131,21 @@ function quickSteps(world, G, ref) {
     steps.push({ key: 'ride', ref: rideRef, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ ride: Q.ride, seed }) });
   }
   const ride = rideRef ? { ref: rideRef, rule: rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1) } : null;
+  // a defence's foe and tower archer: one figure each, minted as a hero is
+  const figRefs = {};
+  if (Q.goal === 'defend') {
+    for (const [key, spec] of [['foe', Q.foe ?? QUICK_FOE], ['tower', Q.tower ?? QUICK_TOWER]]) {
+      figRefs[key] = childRef(ref, key);
+      const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${key}`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+      steps.push({ key, ref: figRefs[key], ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, toon: mint.toon ?? null }) });
+    }
+  }
+  // a farm's farmhands: one figure
+  if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) {
+    const spec = Q.farmhand ?? QUICK_FARMHAND, mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} farmhand`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
+    figRefs.farmhand = childRef(ref, 'farmhand');
+    steps.push({ key: 'farmhand', ref: figRefs.farmhand, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, toon: mint.toon ?? null }) });
+  }
   // a sneak's guards: one figure, minted as a hero is (the game's own spec, or a plain one)
   const guardRef = Q.goal === 'sneak' ? childRef(ref, 'guard') : null;
   if (guardRef) {
@@ -142,7 +157,7 @@ function quickSteps(world, G, ref) {
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...(guards ? { guards } : {}), ...(goalAudio(Q) ? { audio: goalAudio(Q) } : {}), ...(ride ? { ride } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...(guards ? { guards } : {}), ...(goalAudio(Q) ? { audio: goalAudio(Q) } : {}), ...(ride ? { ride } : {}), ...(figRefs.foe ? { extra: (ends) => defendCast(Q, ends, figRefs) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
   const links = gameLinks(stages, levelRefs);

@@ -354,6 +354,215 @@ const MECHANICS = {
     },
   },
 
+  // WAVES (a terminal: success and fail). Foes minted asleep (dormant) wake in waves and walk `path` to the base; one
+  // that arrives costs a life and is sent away, one that falls pays `bounty` into the purse. Every foe accounted for:
+  // success; no lives left: fail. `waves`: [{ after: s, foes: [id], every?: s }], after the previous wave's last foe.
+  waves: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const waves = Array.isArray(p.waves) ? p.waves : [];
+      const path = Array.isArray(p.path) ? p.path.filter((q) => Array.isArray(q) && q.length >= 2) : [];
+      if (!waves.length || !waves.every((w) => w && Array.isArray(w.foes) && w.foes.length && w.foes.every((f) => typeof f === 'string' && f))) throw new Error(`waves[${ctx.i}]: needs waves: [{ after?, foes: [id, …], every? }] (foes minted dormant)`);
+      if (!path.length) throw new Error(`waves[${ctx.i}]: needs path: [[x, y], …], the foes' walk to the base`);
+      const i = ctx.i, lives = Number.isInteger(p.lives) && p.lives > 0 ? p.lives : 5, total = waves.reduce((n, w) => n + w.foes.length, 0);
+      const L = `__lives_${i}`, done = `__done_${i}`, who = typeof p.who === 'string' && p.who ? p.who : 'foe-*';
+      const purse = p.purse && typeof p.purse.var === 'string' ? p.purse : null, bounty = Number.isFinite(p.bounty) ? p.bounty : 1;
+      const speed = Number.isFinite(p.speed) && p.speed > 0 ? p.speed : 2.2;
+      const steps = [];
+      waves.forEach((w, k) => {
+        steps.push({ await: { timer: Number.isFinite(w.after) ? w.after : k ? 8 : 4 } }, { do: 'emit', type: 'wave', n: k + 1, of: waves.length });
+        w.foes.forEach((f, j) => {
+          if (j) steps.push({ await: { timer: Number.isFinite(w.every) ? w.every : 1.6 } });
+          steps.push({ do: 'ctrl', op: 'spawn', who: f }, { do: 'ctrl', op: 'walk', who: f, points: path.map((q) => [q[0], q[1]]), speed, then: 'stay' });
+        });
+      });
+      const world = {
+        vars: { [L]: lives, [done]: 0, ...(purse ? { [purse.var]: Number.isFinite(purse.start) ? purse.start : 0 } : {}) },
+        initial: [{ type: `__waves_go_${i}` }],
+        sequences: [{ id: `__waves_${i}`, trigger: { on: `__waves_go_${i}` }, steps }],
+        reactions: [
+          { on: 'arrive', match: { entity: who, last: 1 }, do: 'emit', type: 'leak', entity: 'event.entity' },
+          { on: 'leak', do: 'inc', var: L, by: -1, min: 0 },
+          { on: 'leak', do: 'inc', var: done, by: 1 },
+          { on: 'leak', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+          { on: 'down', match: { entity: who }, do: 'inc', var: done, by: 1 },
+          ...(purse ? [{ on: 'down', match: { entity: who }, do: 'inc', var: purse.var, by: bounty }] : []),
+        ],
+        watches: [{ type: 'base:fallen', when: { var: L, lte: 0 } }, { type: 'waves:cleared', when: { var: done, gte: total } }],
+        hud: [
+          { var: L, label: 'Lives', as: 'counter', max: lives },
+          ...(purse ? [{ var: purse.var, label: typeof purse.label === 'string' ? purse.label : 'Gold', as: 'counter' }] : []),
+          { on: 'wave', text: 'Wave {event.n} of {event.of}', ttl: 2 },
+          { on: 'leak', text: 'one got through', as: 'toast', ttl: 1.2, color: 'harm' },
+        ],
+      };
+      return { world, on: { 'waves:cleared': { end: 'success' }, 'base:fallen': { end: 'fail' } } };
+    },
+  },
+
+  // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
+  // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in
+  // the grid, no wall, no boulder); else the walker is put back. Every plate under a boulder: success. All on the bus:
+  // a zone per cell, the walker's last cell a var, guarded reactions per cell and side, a marker per cell shown while
+  // a boulder stands there.
+  push: {
+    role: 'terminal', ends: ['success'], requires: [],
+    lower(p, ctx) {
+      const cols = p.cols, rows = p.rows, cell = Number.isFinite(p.cell) && p.cell > 0.5 ? p.cell : 2.5, o = p.origin;
+      const ok = (q) => Array.isArray(q) && Number.isInteger(q[0]) && Number.isInteger(q[1]) && q[0] >= 0 && q[1] >= 0 && q[0] < cols && q[1] < rows;
+      if (!(Number.isInteger(cols) && Number.isInteger(rows) && cols >= 2 && rows >= 2 && cols * rows <= 144) || !Array.isArray(o)) throw new Error(`push[${ctx.i}]: needs origin: [x, y, z], cols and rows (2 or more, 144 cells at most), cell?`);
+      for (const k of ['blocks', 'plates']) if (!Array.isArray(p[k]) || !p[k].length || !p[k].every(ok)) throw new Error(`push[${ctx.i}]: ${k} are cells [col, row] inside the grid`);
+      const walls = Array.isArray(p.walls) ? p.walls.filter(ok) : [];
+      if (p.plates.length > p.blocks.length) throw new Error(`push[${ctx.i}]: more plates than boulders can never all be held`);
+      const i = ctx.i, key = (q) => `${q[0]}_${q[1]}`, has = (list, q) => list.some((x) => x[0] === q[0] && x[1] === q[1]);
+      // `heights`: each cell's ground, row by row (a grid laid on uneven land), else the origin's
+      const hz = (q) => (Array.isArray(p.heights) && Array.isArray(p.heights[q[1]]) && Number.isFinite(p.heights[q[1]][q[0]]) ? p.heights[q[1]][q[0]] : o[2] ?? 0);
+      const at = (q) => [Math.round((o[0] + (q[0] + 0.5) * cell) * 1000) / 1000, Math.round((o[1] + (q[1] + 0.5) * cell) * 1000) / 1000, hz(q)];
+      const occ = (q) => `__occ_${i}_${key(q)}`, blk = (q) => `__blk_${i}_${key(q)}`, last = `__pc_${i}`, held = `__held_${i}`, idx = (q) => q[0] + q[1] * cols;
+      const world = { vars: { [last]: -1, [held]: p.plates.filter((q) => has(p.blocks, q)).length }, sources: [], reactions: [], entities: [], watches: [], hud: [] };
+      const cells = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (!has(walls, [c, r])) cells.push([c, r]);
+      const free = (q) => ok(q) && !has(walls, q);
+      for (const q of cells) {
+        world.vars[occ(q)] = has(p.blocks, q) ? 1 : 0;
+        world.entities.push({ id: blk(q), type: 'boulder', on: has(p.blocks, q), position: [at(q)[0], at(q)[1], at(q)[2] + cell * 0.36], radius: cell * 0.36, color: has(p.plates, q) ? '#c9a24a' : '#8a8178' });
+        world.sources.push({ type: 'zone', zone: `cell_${i}_${key(q)}`, at: at(q), half: [cell / 2, cell / 2, 4], planar: true, watch: ctx.player });
+      }
+      for (const q of cells) {
+        const zone = `cell_${i}_${key(q)}`;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const from = [q[0] - dx, q[1] - dy], to = [q[0] + dx, q[1] + dy];
+          if (!free(from)) continue;
+          const t1 = `__push_${i}_${key(q)}_${dx}_${dy}`, t2 = `${t1}:b`;
+          world.reactions.push({ on: 'enter', match: { zone }, if: { var: last, eq: idx(from) }, do: 'emit', type: t1 });
+          world.reactions.push({ on: t1, if: { var: occ(q), eq: 1 }, do: 'emit', type: t2 });
+          const bump = [{ on: t2, do: 'move', target: ctx.player, to: at(from) }, { on: t2, do: 'emit', type: 'bump' }];
+          if (!free(to)) { world.reactions.push(...bump); continue; }
+          world.reactions.push(
+            { on: t2, if: { var: occ(to), eq: 1 }, do: 'move', target: ctx.player, to: at(from) },
+            { on: t2, if: { var: occ(to), eq: 1 }, do: 'emit', type: 'bump' },
+            // the boulder moves on: the cell it leaves clears after its next one is taken (the guard reads the old value)
+            { on: t2, if: { var: occ(to), eq: 0 }, do: 'emit', type: `${t1}:go` },
+            { on: `${t1}:go`, do: 'set', var: occ(to), to: 1 },
+            { on: `${t1}:go`, do: 'set', var: occ(q), to: 0 },
+            { on: `${t1}:go`, do: 'toggle', target: blk(q), to: false },
+            { on: `${t1}:go`, do: 'toggle', target: blk(to), to: true },
+            { on: `${t1}:go`, do: 'emit', type: 'pushed' },
+            ...(has(p.plates, q) ? [{ on: `${t1}:go`, do: 'inc', var: held, by: -1 }] : []),
+            ...(has(p.plates, to) ? [{ on: `${t1}:go`, do: 'inc', var: held, by: 1 }] : []),
+          );
+        }
+        // after the pushes were tried (they read where the walker came from), this is its cell
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: last, to: idx(q) });
+      }
+      // the plates, drawn flat (a marker per plate under the grid's boulders), and the count held
+      p.plates.forEach((q, k) => world.entities.push({ id: `__plate_${i}_${k}`, type: 'plate', on: true, position: [at(q)[0], at(q)[1], at(q)[2] + 0.05], radius: cell * 0.18, color: '#e8c35a' }));
+      world.watches.push({ type: 'plates:held', when: { var: held, gte: p.plates.length } });
+      world.hud.push({ var: held, label: 'Plates', as: 'counter', max: p.plates.length }, { on: 'bump', text: 'it will not move', as: 'toast', ttl: 0.8 });
+      return { world, on: { 'plates:held': { end: 'success' } }, emits: ['pushed'] };
+    },
+  },
+
+  // THE CLOCK (an emitter): the world's time of day on the bus. `minute` (0 to 1439) runs `rate` game minutes a real
+  // second (2: a day in twelve minutes) from `start` (an hour, 8); `hour` and `day` (from 1) follow it; `dawn` at six,
+  // `dusk` at eighteen, `midnight` as a day turns. With `seasons` (days each, 4 names), `season` (0 to 3) turns with the
+  // days. What reads it: the sky (a level with a clock darkens at night: the weather channel), a cue on `hour`, crops.
+  clock: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const start = Number.isFinite(p.start) && p.start >= 0 && p.start < 24 ? p.start : 8, rate = Number.isFinite(p.rate) && p.rate > 0 && p.rate <= 60 ? p.rate : 2;
+      const m0 = Math.round(start * 60), seasons = Number.isInteger(p.seasons) && p.seasons > 0 ? p.seasons : 0;
+      const world = {
+        vars: { __clock: 1, minute: m0, hour: Math.floor(start), day: 1, ...(seasons ? { season: 0 } : {}) },
+        timers: [{ every: 1, emit: { type: '__tick_clock' } }],
+        reactions: [{ on: '__tick_clock', do: 'inc', var: 'minute', by: rate }],
+        watches: [],
+        hud: [{ var: 'day', label: 'Day' }, { var: 'hour', label: 'Hour' }, { on: 'dawn', text: 'Day {day}', ttl: 2 }],
+      };
+      // each hour as the minutes cross it (a watch fires once a day, on its edge)
+      for (let h = 1; h < 24; h++) {
+        world.watches.push({ type: `__hour_${h}`, when: { var: 'minute', gte: h * 60 } });
+        // (only the hour the minute is in: a clock set forward many hours at once crosses them all on one frame)
+        world.reactions.push({ on: `__hour_${h}`, if: { var: 'minute', lt: (h + 1) * 60 }, do: 'set', var: 'hour', to: h });
+      }
+      world.watches.push({ type: 'midnight', when: { var: 'minute', gte: 1440 } });
+      world.reactions.push(
+        { on: 'midnight', do: 'inc', var: 'minute', by: -1440 }, { on: 'midnight', do: 'inc', var: 'day', by: 1 },
+        // the hour the turned minute is in (a fast clock may run past midnight within a tick): midnight's own, then each
+        // hour it has already passed, each taking only if the minute is in it
+        { on: 'midnight', if: { var: 'minute', lt: 60 }, do: 'set', var: 'hour', to: 0 },
+        ...Array.from({ length: 23 }, (_, k) => ({ on: 'midnight', if: { var: 'minute', gte: (k + 1) * 60 }, do: 'emit', type: `__hour_${k + 1}` })),
+        { on: '__hour_6', do: 'emit', type: 'dawn' }, { on: '__hour_18', do: 'emit', type: 'dusk' },
+      );
+      if (seasons) {
+        // the season turns every `seasons` days: a count of days into it, back to 0 at each turn
+        world.vars.__sday = 0;
+        world.reactions.push({ on: 'midnight', do: 'inc', var: '__sday', by: 1 });
+        world.watches.push({ type: '__season_turn', when: { var: '__sday', gte: seasons } });
+        world.reactions.push({ on: '__season_turn', do: 'set', var: '__sday', to: 0 });
+        for (let s = 0; s < 4; s++) world.reactions.push({ on: '__season_turn', if: { var: 'season', eq: s }, do: 'emit', type: `__season_${(s + 1) % 4}` });
+        for (let s = 0; s < 4; s++) world.reactions.push({ on: `__season_${s}`, do: 'set', var: 'season', to: s }, { on: `__season_${s}`, do: 'emit', type: 'season' });
+      }
+      return { world, emits: ['dawn', 'dusk', 'midnight'] };
+    },
+  },
+
+  // CROPS (an emitter). Plots the walker uses (E): an empty one is planted for `cost` from the purse; at each dawn a
+  // crop grows a stage (sprout, grown, ripe: `days` dawns to ripen, 2 at least); a ripe one is harvested for `price`
+  // into the purse. `by` (a day): when it passes, fail. Needs a clock (its dawn); win it with win-when on the purse.
+  // Each stage is a marker on the plot.
+  crops: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const plots = Array.isArray(p.plots) ? p.plots.filter((x) => x && Array.isArray(x.at)) : [];
+      if (!plots.length) throw new Error(`crops[${ctx.i}]: needs plots: [{ at }, …]`);
+      const purse = p.purse && typeof p.purse.var === 'string' ? p.purse : { var: 'gold', start: 10 };
+      const cost = Number.isFinite(p.cost) ? p.cost : 2, price = Number.isFinite(p.price) ? p.price : 6, days = Number.isInteger(p.days) && p.days >= 2 ? p.days : 2, i = ctx.i;
+      const world = { vars: { [purse.var]: Number.isFinite(purse.start) ? purse.start : 10 }, sources: [], reactions: [], entities: [], watches: [], hud: [{ var: purse.var, label: purse.label || 'Gold', as: 'counter' }] };
+      // stages: 0 empty, 1 … days-1 growing, days ripe; the growing markers grow
+      plots.forEach((pl, k) => {
+        const id = `plot-${i}-${k + 1}`, st = `__crop_${i}_${k}`, at = pl.at;
+        world.vars[st] = 0;
+        world.sources.push({ type: 'zone', zone: `use-${id}`, at, radius: 1.6, planar: true, watch: ctx.player, use: id, prompt: `plant (${cost}) · harvest` });
+        world.entities.push({ id: `__soil_${i}_${k}`, type: 'soil', on: true, position: [at[0], at[1], (at[2] ?? 0) + 0.05], radius: 0.9, color: '#5a3d26' });
+        for (let s = 1; s <= days; s++) world.entities.push({ id: `__sprout_${i}_${k}_${s}`, type: 'crop', on: false, position: [at[0], at[1], (at[2] ?? 0) + 0.15 + 0.2 * s], radius: 0.15 + (0.35 * s) / days, color: s === days ? '#e8b923' : '#5fae3a' });
+        const use = `use-${id}`;
+        world.reactions.push(
+          // plant: an empty plot, the purse holding the cost
+          { on: use, if: { var: st, eq: 0 }, do: 'emit', type: `__plant_${i}_${k}` },
+          { on: `__plant_${i}_${k}`, if: { var: purse.var, gte: cost }, do: 'emit', type: `__planted_${i}_${k}` },
+          { on: `__plant_${i}_${k}`, if: { var: purse.var, lt: cost }, do: 'emit', type: 'crops:poor' },
+          { on: `__planted_${i}_${k}`, do: 'inc', var: purse.var, by: -cost },
+          { on: `__planted_${i}_${k}`, do: 'set', var: st, to: 1 },
+          { on: `__planted_${i}_${k}`, do: 'toggle', target: `__sprout_${i}_${k}_1`, to: true },
+          { on: `__planted_${i}_${k}`, do: 'emit', type: 'planted' },
+          // harvest: a ripe one
+          { on: use, if: { var: st, eq: days }, do: 'emit', type: `__harvest_${i}_${k}` },
+          { on: `__harvest_${i}_${k}`, do: 'set', var: st, to: 0 },
+          { on: `__harvest_${i}_${k}`, do: 'toggle', target: `__sprout_${i}_${k}_${days}`, to: false },
+          { on: `__harvest_${i}_${k}`, do: 'inc', var: purse.var, by: price },
+          { on: `__harvest_${i}_${k}`, do: 'emit', type: 'harvested' },
+        );
+        // each dawn a growing crop takes its next stage (the highest stage first: one step a dawn)
+        for (let s = days - 1; s >= 1; s--) {
+          world.reactions.push({ on: 'dawn', if: { var: st, eq: s }, do: 'emit', type: `__grow_${i}_${k}_${s}` });
+          world.reactions.push(
+            { on: `__grow_${i}_${k}_${s}`, do: 'set', var: st, to: s + 1 },
+            { on: `__grow_${i}_${k}_${s}`, do: 'toggle', target: `__sprout_${i}_${k}_${s}`, to: false },
+            { on: `__grow_${i}_${k}_${s}`, do: 'toggle', target: `__sprout_${i}_${k}_${s + 1}`, to: true },
+          );
+        }
+      });
+      world.hud.push({ on: 'planted', text: 'planted', as: 'toast', ttl: 0.8 }, { on: 'harvested', text: '+' + price, as: 'toast', ttl: 0.8, color: 'value' }, { on: 'crops:poor', text: `seed costs ${cost}`, as: 'toast', ttl: 1 });
+      const out = { world, emits: ['planted', 'harvested'], needs: ['dawn'] };
+      if (Number.isInteger(p.by)) {
+        world.watches.push({ type: 'crops:late', when: { var: 'day', gt: p.by } });
+        out.on = { 'crops:late': { end: 'fail' } };
+      }
+      return out;
+    },
+  },
+
   // a SCORE (an emitter): a var the level counts up, shown, and kept: the shell remembers the best (`best: 'high'`, or
   // 'low' for a count to keep down). `points` scores bus events: [{ on: '<event>', by?: 1 }].
   score: {

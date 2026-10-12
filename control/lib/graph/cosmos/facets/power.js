@@ -15,12 +15,8 @@ export const POWER = Object.freeze({
     mechanics: {
       multi: true,
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', godot: { module: PORT, table: 'GODOT_MECHANICS' } },
-      // the genre snipe (10-12): unseen, laps, on-beat and score are built (game/mechanics.js, web only: not in
-      // GODOT_MECHANICS); what tower defence and block puzzles ask stays planned
-      planned: {
-        waves: { status: 'partial', effort: 'M', ...WEB, note: 'cue every and cast spawn exist, but spawn only wakes a pool minted dormant; a wave mints fighters from a roster and marches them on a goal that loses when reached (priced 10-12)' },
-        push: { status: 'absent', effort: 'M', ...WEB, note: 'blocks the hero pushes on a grid and plates they hold down; the physics actions push bodies by pointer only, and the walker never touches a body (priced 10-12)' },
-      },
+      // the genre snipe (10-12): unseen, laps, on-beat, score, waves and push are built (game/mechanics.js), web only:
+      // not in GODOT_MECHANICS
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS' } },
     rules: {
@@ -43,8 +39,10 @@ export const POWER = Object.freeze({
     systems: {
       multi: true,
       source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' },
+      // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
+      // defence's towers. Free placement anywhere on a grid is not built.
       planned: {
-        place: { status: 'absent', effort: 'M', ...WEB, note: 'the player puts a thing down while playing (a tower, a crop, a wall) on a grid, paid from a resource; only the physics actions drop a body at the pointer (priced 10-12)' },
+        place: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)

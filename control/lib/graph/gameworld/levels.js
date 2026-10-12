@@ -127,7 +127,41 @@ function readEnds(manifest) {
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doors = anchors.filter((a) => a.door && a.enter === 'door').map((a) => ({ ...a.door, inside: a.inside }));
   const storeyed = anchors.some((a) => a.kind === 'building' && a.storeys);
-  return { spawn, heading, exit, exitFrom, planar: !!beat && !holds, beats, hazards, ...(via ? { via } : {}), ...(doors.length ? { doors } : {}), ...(storeyed ? { storeyed } : {}) };
+  const out = { spawn, heading, exit, exitFrom, planar: !!beat && !holds, beats, hazards, ...(via ? { via } : {}), ...(doors.length ? { doors } : {}), ...(storeyed ? { storeyed } : {}) };
+  // the land's height at a point (its top and ground faces, the highest there), for a goal laying things on it (a
+  // puzzle's grid); not data: a reader of the ends never sees it
+  Object.defineProperty(out, 'ground', { value: groundSampler(P.faces ?? []), enumerable: false });
+  return out;
+}
+
+// the stage's land as a height lookup: its walkable top faces bucketed by a 2 m grid, a point's height the highest face
+// over it (two triangles a quad), or null off the land
+function groundSampler(faces) {
+  let grid = null;
+  const build = () => {
+    grid = new Map();
+    for (const f of faces) {
+      if (!/:(top|ground)$/.test(f.group || '') || !Array.isArray(f.corners) || f.corners.length < 3) continue;
+      const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]);
+      for (let gx = Math.floor(Math.min(...xs) / 2); gx <= Math.floor(Math.max(...xs) / 2); gx++) for (let gy = Math.floor(Math.min(...ys) / 2); gy <= Math.floor(Math.max(...ys) / 2); gy++) {
+        const k = `${gx},${gy}`; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f.corners);
+      }
+    }
+  };
+  const tri = (a, b, c, x, y) => {
+    const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+    if (Math.abs(d) < 1e-12) return null;
+    const u = ((b[1] - c[1]) * (x - c[0]) + (c[0] - b[0]) * (y - c[1])) / d, v = ((c[1] - a[1]) * (x - c[0]) + (a[0] - c[0]) * (y - c[1])) / d, w = 1 - u - v;
+    return u >= -1e-9 && v >= -1e-9 && w >= -1e-9 ? u * a[2] + v * b[2] + w * c[2] : null;
+  };
+  return (x, y) => {
+    if (!grid) build();
+    let best = null;
+    for (const c of grid.get(`${Math.floor(x / 2)},${Math.floor(y / 2)}`) ?? []) {
+      for (let k = 1; k + 1 < c.length; k++) { const z = tri(c[0], c[k], c[k + 1], x, y); if (z != null && (best == null || z > best)) best = z; }
+    }
+    return best == null ? null : r3(best);
+  };
 }
 
 /**
@@ -135,7 +169,7 @@ function readEnds(manifest) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
@@ -200,6 +234,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
+  // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), and the play it
+  // brings (its cues). `extra(ends)` → { figures?, entities?, play? }
+  let extraPlay = null;
+  if (extra) {
+    const X = extra(ends);
+    pilotPart = { ...pilotPart, figures: { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) }, entities: [...pilotPart.entities, ...(X.entities ?? [])] };
+    extraPlay = X.play ?? null;
+  }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
     const moves = ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: pilot, to: lane ? onLane({ at: a.at }, lane).at : a.at }));
@@ -214,8 +256,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
   }
   let play;
-  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, mechanics?.play ?? null, { story, carryFrom, party }));
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), game };
+  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
 

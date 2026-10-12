@@ -365,6 +365,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   looks: `guard`, minted once); `goal: 'rhythm'` runs to a field score (`music`) and scores the beats hit. `ride: 'car'
   | 'coupe' | 'van'` makes the hero a vehicle: the run mints its build (vehicle designer parts, seated by the garage)
   and every stage drives it on the `drive` rule, its feel derived from the build. All web only.
+- **Cues decide.** A cue may carry `if` (a comparison on a var, or a list of them), read as it happens, and `else`
+  (the effects when one does not hold); `add: '<var>', by` counts a var up or down. A pad that builds for gold is a
+  cue: `use`, `if: { var: 'gold', gte: 5 }`, `then: [{ add: 'gold', by: -5 }, { spawn: 'tower-1' }]`.
+- **A sentry.** The mind's `sentry` motivation never moves: it turns to the nearest live, hittable body on the team
+  `rule.foes` inside `range` and fires its weapon.
+- **Waves and boulders.** `waves`: foes minted asleep wake in waves and walk a path to the base; one through costs a
+  life, one felled pays a bounty into a purse; all accounted for wins, no lives loses. `push`: a grid with boulders
+  and plates, a boulder pushed a cell when walked into from a side (else the walker is put back), every plate held
+  wins; all on the bus, a cell's height from the land.
+- **Quick games: defend and puzzle.** `goal: 'defend'` sends `waves` of foes down the trail to its start and stands a
+  sleeping archer's tower on each of `pads` beside it, built with E for gold. `goal: 'puzzle'` lays a 5 × 5 grid on
+  level land by the trail with `boulders` (2), each two pushes from its plate.
+- **A level played in Node.** `game/level-sim.js` steps a level's world and bus together as the page does, without
+  rendering, so a law can play a defence or a puzzle through.
+- **The world dial: a clock.** The `clock` mechanic puts the time of day on the bus (`minute`, `hour`, `day`, `dawn`,
+  `dusk`, and a `season` every few days). A level with one has a sky that turns with it: night darkens the light and
+  the air from 20:00 to 05:00, with two hours of dusk and dawn, and a season's turn swaps the weather's climate. A level
+  that names no weather takes clear air.
+- **Routines and crops.** `play.routines` walks each character to its place hour by hour on the clock (the cosmos's
+  schedule). The `crops` mechanic gives plots to plant for gold, a stage grown each dawn, a harvest that pays.
+- **Quick games: farm.** `goal: 'farm'` tills `plots` (6) on level land beside the trail, starts the clock at dawn, and
+  sets `target` gold (40) to make by day `days` (6); `folk` farmhands (2) walk out to the field at seven and home at six.
+- **The pixel look.** A world's `pixel` (true, or 2 to 8; a gameworld's `style.pixel` puts it on every level) draws the
+  page at that fraction of its size and blows it up without smoothing. Absent, the page is as it was.
 
 ### Scene layer: a shot that takes the camera, and two characters talking
 

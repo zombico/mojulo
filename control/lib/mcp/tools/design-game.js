@@ -71,10 +71,10 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key === 'guard') {
-    // a quick sneak's guard: one figure every guard wears, made as a hero is
+  if (key === 'guard' || key === 'foe' || key === 'tower' || key === 'farmhand') {
+    // a quick game's figure every guard (or foe, or tower archer) wears, made as a hero is
     if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
-    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: the guard' });
+    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: `design_game: the ${key}` });
     return {};
   }
   if (key === 'hero-equipped') {

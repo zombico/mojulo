@@ -140,3 +140,27 @@ describe('weather in the style\'s air', () => {
     expect(run({ ...AIRC, skyFollow: 0 }).opacity).toBe(1);
   });
 });
+
+describe('weather on a clock', () => {
+  const W = readWeather({ climate: { clear: 1 } });
+  it('a level with a clock darkens with the night; its seasons carry their climates\' states; without one, no clock code', () => {
+    const plain = weatherScript({ weather: W, seed: 1 });
+    expect(plain).not.toContain('night()');
+    const night = weatherScript({ weather: W, seed: 1, clock: true });
+    expect(night).toContain('const night = () =>');
+    expect(night).not.toContain('seasonNow');
+    const turned = weatherScript({ weather: W, seed: 1, clock: true, seasons: ['spring-blossom', 'temperate', 'autumn', 'alpine'].map((c) => readWeather(c)) });
+    expect(turned).toContain('seasonNow();');
+    expect(turned).toContain('"snow"');   // winter's states carried, though the level's own sky is clear
+  });
+});
+
+describe('the pixel look', () => {
+  it('draws the page small and blows it up unsmoothed; absent, the page\'s own resolution', () => {
+    const plain = emitThreeWorld({ faces: [face] }), pix = emitThreeWorld({ faces: [face], pixel: { scale: 4 } });
+    expect(plain).toContain('renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));');
+    expect(plain).not.toContain('pixelated');
+    expect(pix).toContain("renderer.setPixelRatio(1 / 4); canvas.style.imageRendering = 'pixelated';");
+    expect(pix).toContain('antialias: false');
+  });
+});

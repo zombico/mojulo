@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { readQuick } from '@/lib/graph/gameworld/quick.js';
+import { simLevel } from '@/lib/graph/game/level-sim.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -117,6 +118,78 @@ describe('design_game quick', () => {
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('v-level-run-0'));
     // the checkpoints watch the car
     expect(payload.events.sources.find((z) => z.zone === 'cp_0_0').watch).toBe('car');
+  }, 240_000);
+
+  it('defend: foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
+    const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });
+    expect(out.ran.map((r) => r.key)).toEqual(['foe', 'tower', 'level-run-0', 'game']);
+    const L = stored('d-level-run-0');
+    expect(mechanicsOf('d-level-run-0')).toEqual(['waves']);
+    expect(L.entities.filter((e) => e.team === 'wave')).toHaveLength(3);
+    expect(L.entities.filter((e) => e.team === 'defense').map((e) => e.id)).toEqual(['tower-1', 'tower-2']);
+    expect(L.play.cues.map((c) => c.id)).toEqual(['build-1', 'build-2']);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('d-level-run-0'));
+    expect(payload.events.cast).toBe(true);
+    // played through in Node: build the first tower at once, then let the wave come
+    const sim = simLevel({ entities: payload.entities, events: payload.events });
+    const pad = L.play.cues[0].when.use.at, hero = sim.world.byId[sim.world.pilotId];
+    hero.transform.pos = [pad[0], pad[1], hero.transform.pos[2]];
+    sim.run(1, { 0.2: [{ type: 'use-cue-build-1' }] });
+    expect(sim.world.byId['tower-1'].gone).toBe(false);
+    expect(sim.bus.vars.gold).toBe(5);
+    sim.run(90);
+    const log = sim.bus.log.map((r) => r.type);
+    expect(log.filter((t) => t === 'down').length + log.filter((t) => t === 'leak').length).toBe(3);
+    expect(log).toContain('down');
+  }, 240_000);
+
+  it('puzzle: boulders on a grid by the start, each two pushes from its plate; walked through, it is solved', async () => {
+    await designGameHandler({ quick: { goal: 'puzzle', boulders: 2, world: { id: 'rocks', style: { kit: 'trail-valley', pixel: true } } }, ref: 'z' });
+    const L = stored('z-level-run-0'), P = L.game.mechanics[0];
+    expect(L.pixel).toBe(4);   // the world's pixel look, on every level
+    expect(P).toMatchObject({ kind: 'push', cols: 5, rows: 5 });
+    expect(P.blocks).toHaveLength(2);
+    expect(P.heights).toHaveLength(5);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('z-level-run-0'));
+    expect(payload.pixel).toEqual({ scale: 4 });
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId];
+    const centre = (q) => [P.origin[0] + (q[0] + 0.5) * P.cell, P.origin[1] + (q[1] + 0.5) * P.cell];
+    // each lane: stand behind the boulder, walk through it twice (it rolls onto the plate)
+    for (let k = 0; k < P.blocks.length; k++) {
+      const b = P.blocks[k], d = [Math.sign(P.plates[k][0] - b[0]), Math.sign(P.plates[k][1] - b[1])];
+      for (const q of [[b[0] - d[0], b[1] - d[1]], b, [b[0] + d[0], b[1] + d[1]]]) { const c = centre(q); hero.transform.pos = [c[0], c[1], hero.transform.pos[2]]; sim.run(0.2); }
+      hero.transform.pos = [P.origin[0] - 5, P.origin[1] - 5, hero.transform.pos[2]]; sim.run(0.2);
+    }
+    expect(sim.bus.log.map((r) => r.type).filter((t) => t === 'pushed')).toHaveLength(4);
+    expect(sim.bus.log.map((r) => r.type)).toContain('plates:held');
+  }, 240_000);
+
+  it('farm: a clock, plots planted for gold that ripen over two dawns, farmhands keeping their day', async () => {
+    const out = await designGameHandler({ quick: { goal: 'farm', plots: 3, folk: 1, target: 20, world: { id: 'farm', style: { kit: 'trail-valley' } } }, ref: 'f' });
+    expect(out.ran.map((r) => r.key)).toEqual(['farmhand', 'level-run-0', 'game']);
+    const L = stored('f-level-run-0');
+    expect(mechanicsOf('f-level-run-0')).toEqual(['clock', 'crops', 'win-when']);
+    expect(L.play.routines).toEqual([{ who: 'farmhand-1', plan: [{ hour: 7, to: 'field-1' }, { hour: 18, to: 'home' }] }]);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('f-level-run-0'));
+    expect(payload.weather.clock).toBe(true);   // the sky turns with the clock (no weather named: clear air)
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId], v = sim.bus.vars;
+    expect(v.hour).toBe(6);
+    const plots = L.game.mechanics[1].plots.map((p) => p.at);
+    const use = (k) => { hero.transform.pos = [plots[k][0], plots[k][1], hero.transform.pos[2]]; sim.run(0.3, { 0: [{ type: `use-plot-1-${k + 1}` }] }); };
+    plots.forEach((_, k) => use(k));
+    expect(v.gold).toBe(6 - 3 * 2);
+    // the farmhand walks out at seven (an hour of game time: 15 s at four minutes a second)
+    const fh = W.byId['farmhand-1'], at0 = fh.transform.pos.slice();
+    sim.run(20);
+    expect(v.hour).toBe(7);
+    sim.run(10);
+    expect(Math.hypot(fh.transform.pos[0] - at0[0], fh.transform.pos[1] - at0[1])).toBeGreaterThan(1);
+    // two dawns later the crops are ripe: harvested, they pay
+    sim.run(2 * 360);
+    expect(v.day).toBe(3);
+    plots.forEach((_, k) => use(k));
+    expect(v.gold).toBe(3 * 6);
+    expect(sim.bus.log.map((r) => r.type).filter((t) => t === 'harvested')).toHaveLength(3);
   }, 240_000);
 
   it('says what is wrong', () => {

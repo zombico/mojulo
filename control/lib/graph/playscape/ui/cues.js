@@ -23,12 +23,14 @@
  *            { state: '<part id>', to: '<UI state>' }                          a part's appearance state
  *            { phase: '<phase>' }                                              the level's phase
  *            { open: '<menu id>' } | { close: '<menu id>' | true }             a menu (menus.js) comes up or goes
- *            { set: '<var>', to } | { emit: '<event>' }                        the game's own state, for its rules to read
+ *            { set: '<var>', to } | { add: '<var>', by, min?, max? } | { emit: '<event>' }   the game's own state
  *            { weather: '<state>' | { is, for?, blend? } }                     the sky takes a state (weather/weather.js) for `for` seconds, or until the cue ends
  *            { spawn | vanish | kill | hurt | heal | walk | stop: … }        the cast: a character (cast.js)
  *            { raise | grant | xp | level | buy: … }                       the stats (stats/stats.js); a cast number may be a scaling
  *     until?: a when | { ttl },                                             the effects end (shown → hidden, a prompt goes)
- *     once?:  true }]                                                       the first time only
+ *     once?:  true,                                                         the first time only
+ *     if?:    { var, gte | gt | lte | lt | eq | ne } | [ … ],               it fires only while each holds, read as it happens
+ *     else?:  effect | [effect, …] }]                                       what happens instead when an if does not hold
  *
  * Every cue fires one bus event, `cue:<id>` (and `cue-end:<id>` when it ends), so any part can bind { on: 'cue:<id>' }.
  * `near` is an enter whose until is leaving the same zone. A zone given as an area becomes the cue's own planar zone.
@@ -76,6 +78,7 @@ export const CUE_THEN = Object.freeze({
   open: 'a menu comes up (play.menus, by id): a sign to read, a talk, a shop, a chest, a save point…',
   close: 'a menu goes (by id, or true for whichever is up)',
   set: 'a game var takes a value ({ set: var, to }), for the game\'s rules to read',
+  add: 'a game var counts up or down ({ add: var, by, min?, max? }): gold spent, a score, lives',
   emit: 'a bus event, for the game\'s rules to react to',
   weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
@@ -194,6 +197,12 @@ export function readEffect(t, where, ctx = {}) {
     if (!(typeof t.to === 'number' || typeof t.to === 'string' || typeof t.to === 'boolean')) throw new Error(`${where}.to is a number, a word or true / false`);
     return { kind: 'set', var: t.set, to: t.to, page: true };
   }
+  if (k === 'add') {
+    if (!isStr(t.add)) throw new Error(`${where}.add is a var's name`);
+    if (!Number.isFinite(t.by)) throw new Error(`${where}.by is a number (negative counts down)`);
+    for (const x of ['min', 'max']) if (t[x] !== undefined && !Number.isFinite(t[x])) throw new Error(`${where}.${x} is a number`);
+    return { kind: 'add', var: t.add, by: t.by, ...(t.min !== undefined ? { min: t.min } : {}), ...(t.max !== undefined ? { max: t.max } : {}), page: true };
+  }
   if (k === 'weather') {
     const o = typeof t.weather === 'string' ? { is: t.weather } : t.weather;
     if (!isObj(o)) throw new Error(`${where}.weather is a state (${STATE_NAMES.join(', ')}) or { is, for?, blend? }`);
@@ -251,9 +260,22 @@ export function readCues(play, phases = (play && play.phases) || ['playing']) {
       } else until = readWhen(c.until, `${where}.until`, ctx);
     } else if (when.kind === 'near') until = { kind: 'leave', zone: when.zone, area: when.area, anchor: when.anchor, r: when.r, ...(when.who ? { who: when.who } : {}), same: true };
     if (c.once !== undefined && typeof c.once !== 'boolean') throw new Error(`${where}.once is true or false`);
-    return { id: c.id, when, then, until, once: c.once === true, page: then.every((t) => t.page) };
+    const guard = c.if === undefined ? null : (Array.isArray(c.if) ? c.if : [c.if]).map((g, k) => readGuard(g, `${where}.if${Array.isArray(c.if) ? `[${k}]` : ''}`));
+    if (guard && !guard.length) throw new Error(`${where}.if is a condition or a list of them`);
+    if (c.else !== undefined && !guard) throw new Error(`${where}.else goes with an if`);
+    const otherwise = c.else === undefined ? null : (Array.isArray(c.else) ? c.else : [c.else]).map((t, k) => readEffect(t, `${where}.else${Array.isArray(c.else) ? `[${k}]` : ''}`, ctx));
+    return { id: c.id, when, then, until, once: c.once === true, page: then.every((t) => t.page), ...(guard ? { guard } : {}), ...(otherwise ? { otherwise } : {}) };
   });
 }
+
+// a cue's condition: one comparison on a var, read as the cue happens (the bus's reaction if)
+const FLIP = { gte: 'lt', gt: 'lte', lte: 'gt', lt: 'gte', eq: 'ne', ne: 'eq' };
+function readGuard(g, where) {
+  const cmp = isObj(g) ? CMP.filter((k) => g[k] !== undefined) : [];
+  if (!isObj(g) || !isStr(g.var) || cmp.length !== 1 || Object.keys(g).length !== 2) throw new Error(`${where} is { var, ${CMP.join(' | ')}: value }: one comparison (a list for several)`);
+  return { var: g.var, [cmp[0]]: g[cmp[0]] };
+}
+const flipped = (g) => { const k = CMP.find((x) => g[x] !== undefined); return { var: g.var, [FLIP[k]]: g[k] }; };
 
 /** The anchors the cues name that the built map does not carry. */
 export function unplacedAnchors(play, anchors = []) {
@@ -324,6 +346,7 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
       continue;
     }
     if (t.kind === 'set') { frag.reactions.push({ on, do: 'set', var: t.var, to: t.to }); continue; }
+    if (t.kind === 'add') { frag.reactions.push({ on, do: 'inc', var: t.var, by: t.by, ...(t.min !== undefined ? { min: t.min } : {}), ...(t.max !== undefined ? { max: t.max } : {}) }); continue; }
     if (t.kind === 'emit') { frag.reactions.push({ on, do: 'emit', type: t.event }); continue; }
     if (t.kind === 'weather') {
       // the page's sky reads two vars: the state forced, and the change's length; cleared after `for`, or when the cue ends
@@ -360,11 +383,20 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
   const add = (f) => { for (const k of ['sources', 'reactions', 'watches', 'initial', 'timers']) frag[k].push(...f[k]); };
   for (const c of cues) {
     const on = `cue:${c.id}`, end = `cue-end:${c.id}`, zone = `cue-${c.id}`;
-    // once: the happening fires a hit; a watch on the count of hits fires the cue the first time only
-    if (c.once) {
-      add(fire(c.when, `cue-hit:${c.id}`, zone, anchors, player));
-      frag.watches.push({ type: on, when: { count: `cue-hit:${c.id}`, gte: 1 } });
-    } else add(fire(c.when, on, zone, anchors, player));
+    // if: the happening fires a try, and each condition hops it on while it holds (read once, as it happens, so the
+    // cue's own effects never undo it); the first that fails fires the else. once: what passes is a hit, and a watch on
+    // the count of hits fires the cue the first time only
+    const pass = c.once ? `cue-hit:${c.id}` : on, hit = c.guard ? `cue-try:${c.id}` : pass;
+    if (c.guard) {
+      c.guard.forEach((g, k) => {
+        const from = k ? `cue-try:${c.id}:${k}` : hit, to = k === c.guard.length - 1 ? pass : `cue-try:${c.id}:${k + 1}`;
+        frag.reactions.push({ on: from, if: g, do: 'emit', type: to });
+        if (c.otherwise) frag.reactions.push({ on: from, if: flipped(g), do: 'emit', type: `cue-else:${c.id}` });
+      });
+      if (c.otherwise) lowerEffects(c.otherwise, `cue-else:${c.id}`, frag, { phases, menuIds, places });
+    }
+    if (c.once) frag.watches.push({ type: on, when: { count: pass, gte: 1 } });
+    add(fire(c.when, hit, zone, anchors, player));
     // until a time: a sequence per cue waits it out after each firing, then ends the cue
     if (c.until && c.until.kind === 'ttl') frag.sequences.push({ id: `cue-${c.id}`, scope: c.id, trigger: { on }, steps: [{ await: { timer: c.until.ttl } }, { do: 'emit', type: end }] });
     else if (c.until) add(fire(c.until, end, c.until.same ? zone : `${zone}-end`, anchors, player));

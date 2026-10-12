@@ -53,9 +53,12 @@ export const TIME = Object.freeze({
     passage: {
       values: {
         none: { status: 'built' },
-        'day-night': { status: 'partial', effort: 'M', ...AGED, lowers: 'lib/graph/scene/sky-css.js', note: 'worlds pick day or night (manifest.time, sky presets, night style cards); no chapter or flag turns a level to its night bake (priced 10-12)' },
-        seasons: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/weather/weather.js', note: 'autumn and spring-blossom are climates; a chapter forces a weather state but cannot swap the climate (snow seasoning unmerged on 1003-city-eras)' },
-        growth: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/vegetation/grow.js', note: 'a tree grows by `years` (grow.js; the jungle hardcodes 22 to 24); no level or chapter sets its planting\'s age' },
+        // built 10-12 (the world dial): a level's clock (game mechanic `clock`: minute, hour, day, season on the bus) is the
+        // one number they read: the weather channel darkens the sky at night and swaps its climate by season; crops grow a
+        // stage each dawn. A world's baked night (manifest.time) and a planting's age between chapters stay as they were.
+        'day-night': { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'a level\'s clock: night darkens the sky and its air from 20:00 to 05:00, dusk and dawn two hours each (the weather channel); cues read hour' },
+        seasons: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'the clock\'s seasons (days each): season on the bus, the sky\'s climate swapped (spring-blossom, temperate, autumn, alpine, or its own four)' },
+        growth: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'crops grow a stage each dawn on the clock (planted, grown, ripe); a tree\'s planting age between chapters is still the bake\'s (grow.js years)' },
         aftermath: { status: 'partial', effort: 'M', ...AGED, lowers: 'lib/graph/playscape/destruct/collapse.js', note: 'destruction runs live (a level\'s destruction degree); no chapter or flag records or restores a world\'s damage' },
         eras: { status: 'absent', effort: 'L', ...AGED, note: 'no era dial: city eras are only a changelog plan on 1003-city-eras; lib/graph/era is art styles, historic one period per culture (priced 10-12)' },
       },
