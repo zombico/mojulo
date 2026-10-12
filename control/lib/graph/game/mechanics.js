@@ -63,7 +63,27 @@ const MECHANICS = {
         },
         // `exit`: one of a level's several ways out, named on the envelope (a map game travels by it)
         on: p.exit ? { [`goal:reached:${p.exit}`]: { end: 'success', exit: p.exit } } : { 'goal:reached': { end: 'success' } },
-        audit: { kind: 'walkto', target: at },
+        // `via`: the waypoints the audit walks first (a building level's stairs); absent, the straight walk
+        audit: { kind: 'walkto', target: at, ...(Array.isArray(p.via) && p.via.length ? { via: p.via } : {}) },
+      };
+    },
+  },
+
+  // a DOOR to another level (scene change): walking into its zone leaves this level by it, the game shell loading
+  // the level its link names, entered at the door that link pairs with. Not an end: the session carries on there.
+  // `spawn`/`heading`: where a walker entering BY this door stands and faces (inside, away from the door).
+  door: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const id = String(p.id ?? `door${ctx.i}`), zone = `door_${id}`, at = p.at || [0, 0, 0], type = `door:${id}`;
+      const shape = Array.isArray(p.half) ? { half: p.half } : { radius: p.radius != null ? p.radius : 1.2 };
+      return {
+        world: {
+          sources: [{ type: 'zone', zone, at, ...shape, planar: p.planar !== false, watch: ctx.player }],
+          reactions: [{ on: 'enter', match: { zone }, do: 'emit', type }],
+        },
+        on: { [type]: { door: id } },
+        doors: [{ id, at, spawn: Array.isArray(p.spawn) ? p.spawn : at, heading: Number.isFinite(p.heading) ? p.heading : 0 }],
       };
     },
   },
@@ -277,6 +297,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const consumes = [];
   const requires = new Set();
   const audits = [];
+  const doors = [];
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -310,6 +331,7 @@ export function composeMechanics(mechanics, ctx = {}) {
       else on[k] = low.on[k];
     }
     for (const c of (low.consumes || [])) consumes.push(c);
+    for (const d of (low.doors || [])) { if (doors.some((x) => x.id === d.id)) errors.push(`mechanics[${i}] (door): door id '${d.id}' is used twice`); else doors.push(d); }
     if (low.audit && low.role === 'terminal' && low.ends && low.ends.includes('success')) audits.push({ mechanic: m.kind, ...low.audit });
   });
 
@@ -363,5 +385,5 @@ export function composeMechanics(mechanics, ctx = {}) {
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}) };
 }

@@ -40,6 +40,7 @@ export function mergeContract(game, composed) {
     on: { ...(composed.on || {}), ...(game.on || {}) },
     consumes: [...(game.consumes || []), ...(composed.consumes || [])],
     audits: [...(game.audits || []), ...(composed.audits || [])],
+    ...(composed.doors ? { doors: [...(game.doors || []), ...composed.doors] } : {}),
   };
 }
 

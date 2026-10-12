@@ -87,10 +87,27 @@ export const GEOCUBE_PRESETS = Object.freeze({
   },
 });
 
+/**
+ * The buildings a cube's world plausibly has, as SEEDS: the language its builders speak (`anchor`, an anchor structure)
+ * and the uses that suit the look, each with how it is entered (`'door'`: the scene changes; `'walk'`: walked in as
+ * terrain). A recommendation, never a placement: a stage on the cube with `program: { use }` speaks the anchor, and a
+ * town or trail draws its uses from the list. Kept beside the presets so a preset's own bytes do not move; a cube
+ * document may carry its own `buildings`.
+ */
+export const GEOCUBE_BUILDINGS = Object.freeze({
+  'gothic-night': { anchor: 'tiered', uses: [{ use: 'crypt', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'keep', enter: 'door' }, { use: 'guardhouse', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
+  'island-noon': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'hall', enter: 'walk' }, { use: 'temple', enter: 'door' }] },
+  'jungle-haze': { anchor: 'timber-hall', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'dwelling', enter: 'door' }, { use: 'temple', enter: 'walk' }] },
+});
+/** A cube's building seeds: its own, else its preset's (a variant reads its preset's), else none. */
+export function cubeBuildings(cube) {
+  return cube.buildings ?? GEOCUBE_BUILDINGS[cube.id] ?? GEOCUBE_BUILDINGS[String(cube.id).replace(/-variant$/, '')] ?? null;
+}
+
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, rung: 1, light: 1, colour: 1, register: 1, surfaces: 1, inside: 1, outside: 1, why: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, rung: 1, light: 1, colour: 1, register: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -150,6 +167,12 @@ export function readGeocube(spec) {
   c.outside.tiers ??= TWO_BASES; c.outside.island ??= ISLE; c.outside.land ??= LAND;
   if (!Array.isArray(c.outside.tiers) || !c.outside.tiers.length) no('outside.tiers is the landform\'s tiers (local meru), one or more');
   if (c.outside.land !== false) only(c.outside.land, ['smooth', 'crevice', 'ridge', 'blend', 'sun'], 'outside.land');
+  // buildings (optional): the seeds a world on this cube builds from
+  if (c.buildings !== undefined) {
+    if (!isObj(c.buildings)) no('buildings is { anchor?, uses: [{ use, enter }] }');
+    only(c.buildings, ['anchor', 'uses'], 'buildings');
+    if (!Array.isArray(c.buildings.uses) || !c.buildings.uses.every((u) => isObj(u) && typeof u.use === 'string' && ['door', 'walk', false].includes(u.enter ?? 'door'))) no("buildings.uses is [{ use, enter: 'door' | 'walk' | false }]");
+  }
   // why
   if (!Array.isArray(c.why) || !c.why.length || !c.why.every((w) => typeof w === 'string' && w.length && w.length <= 200)) no('why is the principles, one line each (200 characters at most)');
   return c;

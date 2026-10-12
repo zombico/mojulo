@@ -8,6 +8,10 @@
  * data: rooms, elements (what the structure is made of) and objects (what it holds), each with one tag
  * (structure/tags.js), plus the schedules, grade, design checks and, framed, the construction model.
  *
+ * A house is one program among several (structure/programs.js): a store, a restaurant and a mall are read the same
+ * way from their own kernels, named by what their rooms are for and graded by their program's rules, never as a home.
+ * Their read carries `occupancy`; a house's read is exactly what it always was.
+ *
  * Pure: the same manifest gives the same read. It adds nothing to any world, GLB or IFC (the collectors are read
  * only here). Feet, like every floorplan number (`units`).
  */
@@ -21,6 +25,7 @@ import { buildPerimeter } from '../polygonizer/floorplan-perimeter.js';
 import { planHouseFraming, framingOf } from '../construction/house-frame.js';
 import { readFraming, readWiring, readDrainage } from './trades.js';
 import { tagRooms, tagDoors, tagTypes, windowKey, wallKey, objectCode, tagObjectTypes, storeyNumber, inches } from './tags.js';
+import { occupancyOf, buildProgram, nameSpacesByRole, programGrade } from './programs.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -132,15 +137,22 @@ function objectsOf(collected) {
  * { units, title, footprint, storeys, rooms, elements: { walls, wallTypes, doors, windows, windowTypes, slabs, stairs,
  *   roof }, objects: { pieces, types }, schedules, grade, design?, construction? (with frames and memberTypes),
  *   wiring?, drainage?, lot? }
- * Null for a manifest that is not a floorplan.
+ * A commercial program (store, restaurant, mall) adds `occupancy` and `elements.verticals`, and has no `program`,
+ * `dwelling`, roof, site or construction. Null for a manifest the book does not read.
  */
 export function readStructure(m = {}) {
-  if (!m || m.kind !== 'floorplan') return null;
-  const o = { ...FLOORPLAN_DEFAULTS, ...m };
-  const { house, objects: collected, spans, stacked, opts } = build(m);
+  const occ = occupancyOf(m);
+  if (!occ) return null;
+  const isHouse = occ.id === 'house';
+  const P = isHouse ? null : buildProgram(m);
+  const o = isHouse ? { ...FLOORPLAN_DEFAULTS, ...m } : P.opts;
+  const { house, objects: collected, spans, stacked, opts } = isHouse ? build(m) : { ...P, spans: {} };
   const model = buildElementModel(house, o);
+  if (!isHouse) nameSpacesByRole(model);
   const schedules = deriveSchedules(model);
-  const grade = scoreHouse(model);
+  // a commercial building's egress is its exits (reachability), and its adjacency is its program's rules, not a home's
+  if (!isHouse) { schedules.egress = []; schedules.adjacency = []; }
+  const grade0 = isHouse ? scoreHouse(model) : programGrade(model, schedules, occ, P.extra);
 
   const storeyIndex = new Map(model.storeys.map((s) => [s.id, s.index]));
   const storeys = model.storeys.map((s) => ({ id: s.id, index: s.index, number: storeyNumber(s.index), role: s.role, baseZ: r2(s.baseZ ?? 0), height: r2(s.height) }));
@@ -176,16 +188,19 @@ export function readStructure(m = {}) {
   const opening = (x, extra) => ({
     id: x.id, host: wallTag.get(x.host), storey: storeyIndex.get(x.storey), width: x.width, height: x.height, sill: r2(x.sill),
     exterior: x.exterior, at: { x: r2(x.at.x), y: r2(x.at.y) },
-    connects: x.connects.map((id) => roomTag.get(id)).filter(Boolean), ...extra,
+    connects: x.connects.map((id) => roomTag.get(id)).filter(Boolean),
+    // a commercial building's cased openings (a storefront, a kitchen pass) are openings, not leaves that swing
+    ...(!isHouse && x.type === 'door' && (x.style === 'cased' || x.width > 8) ? { cased: true } : {}),
+    ...extra,
   });
   const doors = doorsRaw.map((x) => opening(x, { tag: doorTags.get(x.id).tag, serves: roomTag.get(doorTags.get(x.id).serves) ?? null, entry: x.entry }));
   const windows = windowsRaw.map((x) => opening(x, { tag: windowTypes.typeOf.get(x.id), mark: `WN${++winSeq}` }));
 
   // ── objects ──
-  const pieces0 = objectsOf(collected);
+  const pieces0 = isHouse ? objectsOf(collected) : collected;
   const storeyAt = (z) => model.storeys.reduce((best, s) => (Math.abs((s.baseZ ?? 0) - z) < Math.abs((best.baseZ ?? 0) - z) ? s : best), model.storeys[0]);
   const keyOf = (p) => (p.source === 'ref' ? `ref:${p.ref}` : `${p.type}|${p.like ?? p.asset ?? ''}`);
-  const codeOf = (p) => (p.source === 'ref' ? 'RF' : objectCode(p.type));
+  const codeOf = (p) => (p.source === 'ref' ? 'RF' : p.code ?? objectCode(p.type));
   const typeTag = tagObjectTypes(pieces0.map((p) => ({ key: keyOf(p), code: codeOf(p) })));
   const pieces = pieces0.map((p, i) => {
     const st = storeyAt(p.baseZ);
@@ -201,10 +216,15 @@ export function readStructure(m = {}) {
   });
 
   // ── rooms as cards: their bounding elements, openings and objects ──
+  // a mall's rooms say whose they are: the bay (the index `cards` takes) and its card
+  const units = P?.extra?.units || [];
+  const unitOf = (s) => { const L = storeyIndex.get(s.storey), c = { x: s.footprint.x + s.footprint.w / 2, y: s.footprint.y + s.footprint.h / 2 }; return units.find((u) => u.level === L && inRect(c, u.rect)) || null; };
   const rooms = model.spaces.map((s) => {
     const tag = roomTag.get(s.id);
+    const unit = unitOf(s);
     return {
-      tag, id: s.id, storey: storeyIndex.get(s.storey), name: s.name, role: s.role, glyph: s.glyph ?? null,
+      tag, id: s.id, storey: storeyIndex.get(s.storey), name: unit ? `${unit.card.toLowerCase()} ${s.name} (bay ${unit.bay})` : s.name, role: s.role, glyph: s.glyph ?? null,
+      ...(unit ? { unit: { bay: unit.bay, kind: unit.kind, card: unit.card } } : {}),
       rect: { x: r2(s.footprint.x), y: r2(s.footprint.y), w: r2(s.footprint.w), h: r2(s.footprint.h) }, area: s.area,
       needsWindow: s.needsWindow,
       walls: s.bounds.map((id) => wallTag.get(id)),
@@ -219,7 +239,7 @@ export function readStructure(m = {}) {
   // kernel names the lounge) and its bedrooms, asked and built, so the book names the core and says when fewer fit ──
   const authored = (Array.isArray(m.rooms) && m.rooms.length) || (Array.isArray(m.levels) && m.levels.some((l) => l && Array.isArray(l.rooms) && l.rooms.length));
   let program = null;
-  if (stacked && !authored && m.program !== false) {
+  if (isHouse && stacked && !authored && m.program !== false) {
     const t = resolveTier(m.tier);
     const has = (g) => rooms.some((r) => r.glyph === g);
     const core = (t.core || ['L']).filter((g) => g === 'L' || !has(g));
@@ -241,11 +261,47 @@ export function readStructure(m = {}) {
   // ── a room or a house. One space (halls aside) is a room: a showroom, a set, a studio piece; it is furnished and
   // walked, never judged as a home. More is a house, and a house is livable only with a kitchen (its own room, or the
   // open core's), a bathroom and a bedroom ──
-  const subject = rooms.filter((r) => r.glyph !== 'H').length <= 1 ? 'room' : 'house';
+  // a commercial program is a building, judged by its program's rules, never as a home
+  const subject = !isHouse ? 'building' : rooms.filter((r) => r.glyph !== 'H').length <= 1 ? 'room' : 'house';
   let dwelling = null;
   if (subject === 'house') {
     const has = { kitchen: rooms.some((r) => r.glyph === 'K') || !!program?.core.includes('K'), bathroom: rooms.some((r) => r.glyph === 'W'), bedroom: rooms.some((r) => r.glyph === 'B') };
     dwelling = { ...has, missing: Object.keys(has).filter((k) => !has[k]) };
+  }
+
+  // a kernel that names its rooms and buildings by its own ids (the school) has them said by tag and name
+  let grade = grade0;
+  if (!isHouse && P.extra.roomAt) {
+    const q2 = (n) => Math.round(n * 100) / 100;
+    const byId = new Map(P.extra.roomAt.map((x) => { const t = roomTag.get(`space:L0:${q2(x.x)},${q2(x.y)}`); const r = rooms.find((y) => y.tag === t); return [x.id, r ? `${r.tag} ${r.name}` : x.id]; }));
+    const say = (d) => String(d).replace(/room:[a-z0-9-]+:[a-z0-9-]+/g, (id) => byId.get(id) ?? id).replace(/building:[a-z0-9-]+/g, (id) => P.extra.buildingWord(id));
+    grade = { ...grade0, violations: grade0.violations.map(say), findings: grade0.findings.map((f) => ({ ...f, detail: say(f.detail) })) };
+  }
+  // where a campus's entrance and cores land: the way in should open into circulation, and a stair core stand in it
+  if (!isHouse && P.extra.placement) {
+    const add = [];
+    const roomAt = (x, y, st = 0) => rooms.find((r) => r.storey === st && x >= r.rect.x - 0.01 && x <= r.rect.x + r.rect.w + 0.01 && y >= r.rect.y - 0.01 && y <= r.rect.y + r.rect.h + 0.01);
+    const isCircRoom = (r) => r && r.role === 'circulation';
+    for (const d of doors.filter((x) => x.entry)) {
+      const r = rooms.find((x) => x.tag === d.serves);
+      if (r && !isCircRoom(r)) add.push({ id: 'entry-into-room', register: 'flow', severity: 'preferential', detail: `the main entrance ${d.tag} opens into ${r.tag} ${r.name}, not a corridor or lobby` });
+    }
+    // a learning room with no window (the school's own rule: a windowless classroom is flagged), as the facade paints them
+    for (const r of rooms.filter((x) => ['classroom', 'science', 'art', 'music', 'media', 'library'].includes(x.role) && !x.windows.length)) {
+      add.push({ id: 'no-daylight', register: 'livability', severity: 'invariant', detail: `${r.tag} ${r.name} has no window: its window wall is taken by a doorway or another building` });
+    }
+    for (const c of P.extra.cores || []) {
+      const r = roomAt((c.rect.x0 + c.rect.x1) / 2, (c.rect.y0 + c.rect.y1) / 2);
+      if (r && !isCircRoom(r)) add.push({ id: 'core-in-room', register: 'flow', severity: 'preferential', detail: `the stair core of ${P.extra.buildingWord(c.building)} stands in ${r.tag} ${r.name}, not in circulation` });
+    }
+    if (add.length) {
+      const findings = [...grade.findings, ...add];
+      const rules = findings.filter((f) => f.id !== 'reachability');
+      const inv = rules.filter((f) => f.severity === 'invariant').length, pref = rules.length - inv;
+      const key = Object.keys(grade.breakdown).find((k) => k !== 'reachability');
+      const breakdown = { ...grade.breakdown, [key]: r2(Math.max(0, 1 - 0.2 * inv - 0.04 * pref)) };
+      grade = { ...grade, findings, violations: findings.map((f) => f.detail), breakdown, score: r2((breakdown.reachability + breakdown[key]) / 2) };
+    }
   }
 
   const elements = {
@@ -261,7 +317,8 @@ export function readStructure(m = {}) {
       // nominal, in whole inches: what the type was keyed on (each window keeps its fitted size, in feet, on its own row)
       return { type: t.type, widthIn: inches(w.width), heightIn: inches(w.height), sillIn: inches(w.sill), count: t.ids.length };
     }),
-    slabs: model.slabs.map((s) => ({ tag: `SL${storeyNumber(storeyIndex.get(s.storey))}`, storey: storeyIndex.get(s.storey), area: s.area, holes: s.holes.map(rectOf) })),
+    // a campus's slab on a storey is the buildings standing on it, not the campus footprint
+    slabs: model.slabs.map((s) => ({ tag: `SL${storeyNumber(storeyIndex.get(s.storey))}`, storey: storeyIndex.get(s.storey), area: P?.extra?.slabAreas ? r2(P.extra.slabAreas[storeyIndex.get(s.storey)] ?? s.area) : s.area, holes: s.holes.map(rectOf) })),
     // a stair's slot is the void it rises through in the upper slab; the flight stands under it
     stairs: model.stairs.map((s, i) => {
       // the kernel's own flight (its steps, rise, run and turn), matched by the void it rises through
@@ -274,12 +331,29 @@ export function readStructure(m = {}) {
         ...(fl?.flights?.length ? { width: r2(Math.min(...fl.flights.map((f) => Math.min(f.rect.w, f.rect.h)))) } : {}),
       };
     }),
-    roof: roofOf(m, house, o),
+    roof: isHouse ? roofOf(m, house, o) : null,
+    // the escalators and lifts a commercial stack climbs by (a house climbs by its stairs)
+    ...(!isHouse && model.verticals.length ? { verticals: model.verticals.map((v, i) => {
+      const at = P.extra.verticalRects?.[v.kind];
+      return {
+        tag: `${v.kind === 'elevator' ? 'EL' : 'ES'}${i + 1}`, kind: v.kind, from: storeyIndex.get(v.fromStorey), to: storeyIndex.get(v.toStorey),
+        links: [...v.links.lower, ...v.links.upper].map((id) => roomTag.get(id)).filter(Boolean),
+        // where it stands in plan: the escalator pair (each with its direction), the lift shafts
+        ...(at ? { rects: at.map((r) => ({ ...rectOf(r), ...(r.dir ? { dir: r.dir } : {}) })) } : {}),
+      };
+    }) } : {}),
+    // a school building's core: its stair (and its lift) through every floor it stands
+    ...(!isHouse && P.extra.cores?.length ? { verticals: P.extra.cores.map((c, i) => ({ tag: `ST${i + 1}`, kind: 'stair', lift: c.lift, from: 0, to: c.floors - 1, building: c.building.replace(/^building:/, ''), links: [], rects: [rectOf(c.rect)] })) } : {}),
+    ...(!isHouse && P.extra.verticalRects?.void ? { voids: [{ tag: 'AT1', name: 'atrium', from: 0, to: 1, rect: rectOf(P.extra.verticalRects.void) }] } : {}),
   };
 
   const fp = house.footprint;
   const out = {
     units: FLOORPLAN_UNITS, title: m.title ?? null, stacked,
+    ...(!isHouse ? { occupancy: { id: occ.id, label: occ.label, group: occ.group, name: occ.name } } : {}),
+    ...(!isHouse && P.extra.capacity ? { capacity: P.extra.capacity } : {}),
+    ...(!isHouse && P.extra.parcel ? { parcel: P.extra.parcel } : {}),
+    ...(!isHouse && P.extra.campus ? { campus: { ...P.extra.campus, walks: P.extra.walks || [] } } : {}),
     footprint: fp ? { x0: r2(fp.x0), y0: r2(fp.y0), x1: r2(fp.x1), y1: r2(fp.y1) } : null,
     subject, storeys, rooms, elements,
     ...(program ? { program } : {}),
@@ -299,7 +373,7 @@ export function readStructure(m = {}) {
     floorDrop: r2(o.floorDrop),
   };
   // the site: the lot and what stands on it, as the perimeter builds them (its rects; the faces are the World's)
-  if (m.perimeter && fp) {
+  if (isHouse && m.perimeter && fp) {
     const peri = buildPerimeter(fp, 0, typeof m.perimeter === 'object' ? m.perimeter : {});
     const rect = (r) => (r ? { x0: r2(r.x0), y0: r2(r.y0), x1: r2(r.x1), y1: r2(r.y1) } : null);
     out.site = {
@@ -307,7 +381,7 @@ export function readStructure(m = {}) {
       ...Object.fromEntries(['drive', 'carport', 'garage', 'path', 'patio', 'shed'].map((k) => [k, rect(peri[`${k}Rect`])]).filter(([, v]) => v)),
     };
   }
-  if (house.framing || house.construction) {
+  if (isHouse && (house.framing || house.construction)) {
     out.construction = {
       ...(house.framing ? { report: house.framing } : {}),
       ...(house.construction ? { summary: house.construction.summary, schedules: house.construction.schedules, checks: house.construction.checks } : {}),
@@ -315,7 +389,7 @@ export function readStructure(m = {}) {
     };
   }
   // the trades as data (structure/trades.js): the frame's members and fields, the wiring, the rainwater
-  if (house.framing && m.framing) {
+  if (isHouse && house.framing && m.framing) {
     const fo = { ...o, ...opts };
     const plan = planHouseFraming(house, m.framing, fo);
     const fr = readFraming(house, m.framing, fo, plan);
@@ -334,7 +408,7 @@ export function readStructure(m = {}) {
     const wiring = readWiring(house, m.framing, plan.frames, fo, cellRoom);
     if (wiring) out.wiring = wiring;
   }
-  if (m.drainage && stacked) {
+  if (isHouse && m.drainage && stacked) {
     const dr = readDrainage(house, m.drainage, { ...o, ...opts, tradition: m.framing ? framingOf(m.framing).tradition : null });
     if (dr) out.drainage = dr;
   }

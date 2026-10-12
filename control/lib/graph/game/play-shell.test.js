@@ -111,3 +111,18 @@ describe('the shell field', () => {
     expect(music.errors.join()).toMatch(/shell 'play' has no music/);
   });
 });
+
+describe('the play shell takes doors (game links), as the arena shell does', () => {
+  it('a game with links carries them and the door wire; one without is unchanged', async () => {
+    const { emitPlayShell } = await import('./play-shell.js');
+    const store = { slices: [{ name: 'campaign', kind: 'progression' }] };
+    const contract = { levelRef: 'a', consumes: [], produces: { events: [] } };
+    const levels = [{ ref: 'a', contract }, { ref: 'b', contract: { ...contract, levelRef: 'b' } }];
+    const M = { kind: 'game', title: 'T', store, levels: [{ ref: 'a' }, { ref: 'b' }] };
+    const plain = emitPlayShell(M, levels);
+    const doors = emitPlayShell({ ...M, links: [{ from: { ref: 'a', door: 'inn' }, to: { ref: 'b', door: 'out' } }] }, levels);
+    expect(plain).not.toContain('game-door');
+    expect(doors).toContain('"door":"game-door"');
+    expect(doors).toContain('"links":{"a":{"inn":{"ref":"b","door":"out"}},"b":{"out":{"ref":"a","door":"inn"}}}');
+  });
+});

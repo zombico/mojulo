@@ -41,7 +41,7 @@ import {
   buildCafeTable, buildCafeChair, buildBarStool, buildBarCounter, buildBackBar, assetFaces,
   buildConciergeDesk, buildLobbySofa, buildLobbyBench, buildHousePlant, buildWallArt, MARBLE,
   buildElevatorBank, buildFountain, buildFeatureTable, buildFloorMedallion, buildEntryScreen,
-  buildGlassEntrance,
+  buildGlassEntrance, buildOfficeBench, buildOfficeChair, buildConferenceTable,
 } from './floorplan-building-assets.js';
 import { planToWorld } from './floorplan-world.js';
 
@@ -90,6 +90,10 @@ export const FLOOR_USES = {
   lobby: {
     id: 'lobby', name: 'concierge lobby', height: 20, floorStyle: 'marble',
     coreRead: 'open', entry: true, fitOut: conciergeLobbyFitOut,
+  },
+  office: {
+    id: 'office', name: 'open-plan office', height: 11, floorStyle: 'plain',
+    coreRead: 'walled', entry: false, fitOut: officeFitOut,
   },
 };
 
@@ -311,7 +315,7 @@ function coreDoors(core, layout, use) {
  * @param spec { use, footprint:{x0,x1,y0,y1}, core, baseZ, height, seed, slabHoles, entry }
  * @returns { faces, footprint, core, tenancy, baseZ, height, use }
  */
-export function buildFloor(spec = {}, opts = {}) {
+export function buildFloor(spec = {}, { _read: read = null, ...opts } = {}) {
   const o = { ...BUILDING_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...opts };
   const use = resolveUse(spec.use);
   const fp = spec.footprint;
@@ -375,7 +379,11 @@ export function buildFloor(spec = {}, opts = {}) {
   const clearances = [coreOpening, ...(entryThroat ? [entryThroat] : []), ...(centralAisle ? [centralAisle] : [])];
   // expose the parts so a fit-out can relax the deep aisle (the lobby keeps an open bright
   // hall but anchors a central feature) while every use still honours the door + lift hall.
-  const ctx = { clearances, coreOpening, entryThroat, centralAisle, coreCy, openW, entryOn, entryX, facing: core.facing };
+  // `_read` (the structure reader, structure/programs.js) receives the plate as built and its fit-out as plan rects;
+  // the faces and the return are the same without it
+  const note = read ? (type, code, x0, x1, y0, y1) => read.objects.push({ type, code, rect: { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: Math.min(y0, y1), y1: Math.max(y0, y1) }, baseZ }) : null;
+  if (read) { read.structure = s; read.objects = []; }
+  const ctx = { clearances, coreOpening, entryThroat, centralAisle, coreCy, openW, entryOn, entryX, facing: core.facing, note };
 
   const faces = [...s.faces];
   const openCore = use.coreRead === 'open';
@@ -413,8 +421,9 @@ function coreStair(core, fromZ, toZ, o) {
  * @param input { floors:[{use,seed?,height?}], core?, width?, height?, inset?, groundZ?, seed? }
  * @returns { meru, levels, faces, footprint, core, stairs }
  */
-export function stackBuilding(input = {}, opts = {}) {
+export function stackBuilding(input = {}, { _read: read = null, ...opts } = {}) {
   const o = { ...BUILDING_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...opts };
+  if (read) read.floors = [];
   // scene-level styling can come via input too (material:'brick' → brick inside + out)
   if (input.material != null) o.material = input.material;
   if (input.facade !== undefined) o.facade = input.facade;
@@ -447,11 +456,13 @@ export function stackBuilding(input = {}, opts = {}) {
   const levels = [];
   let footprint = fp;
   for (const r of resolved) {
+    const held = read ? {} : null;
     const fl = buildFloor({
       use: r.use, footprint: fp, core, baseZ: r.floorZ, height: r.height,
       seed: r.seed ?? (input.seed ?? 1) + r.index,
       slabHoles: slabHolesByIndex[r.index] || [], entry: r.index === 0,
-    }, o);
+    }, held ? { ...o, _read: held } : o);
+    if (read) read.floors.push({ index: r.index, baseZ: r.floorZ, height: r.height, use: fl.use, ...held });
     faces.push(...fl.faces);
     levels.push({ index: r.index, baseZ: r.floorZ, height: r.height, use: fl.use, structure: fl });
     footprint = fl.footprint;
@@ -717,6 +728,96 @@ function conciergeLobbyFitOut(tenancy, core, baseZ, height, rng, o, ctx = {}) {
 
 // ── view / emit (CSS-3D + three.js), mirroring the house assemblers ───────────
 /** Slight-overhead aerial + corner cameras framing the footprint over a z-range. */
+/**
+ * The `office` kind's recipe → the stack: `storeys` (default 3) is a concierge lobby with office floors above, or
+ * `floors: [{ use }]` names each plate; width / height in feet (the lot; the walls stand `inset` in), seed, facade,
+ * material, interiorWall.
+ */
+export const OFFICE_DEFAULTS = { storeys: 3, width: 60, height: 40 };
+export function officeInput(m = {}) {
+  const n = Number.isInteger(m.storeys) && m.storeys >= 1 ? m.storeys : OFFICE_DEFAULTS.storeys;
+  const floors = Array.isArray(m.floors) && m.floors.length ? m.floors : [{ use: 'lobby' }, ...Array.from({ length: n - 1 }, () => ({ use: 'office' }))];
+  return {
+    floors, width: m.width ?? OFFICE_DEFAULTS.width, height: m.height ?? OFFICE_DEFAULTS.height, seed: m.seed ?? 1,
+    ...(m.inset !== undefined ? { inset: m.inset } : {}), ...(m.facade !== undefined ? { facade: m.facade } : {}),
+    ...(m.material !== undefined ? { material: m.material } : {}), ...(m.interiorWall !== undefined ? { interiorWall: m.interiorWall } : {}),
+  };
+}
+
+/** Named manifest errors ([] = valid) for the `office` kind. */
+export function validateOfficeManifest(m = {}) {
+  const errs = [];
+  if (m.storeys !== undefined && !(Number.isInteger(m.storeys) && m.storeys >= 1 && m.storeys <= 12)) errs.push('office.storeys: an integer 1–12');
+  if (m.floors !== undefined) {
+    if (!Array.isArray(m.floors) || !m.floors.length) errs.push(`office.floors: a list of { use } (${Object.keys(FLOOR_USES).join(', ')})`);
+    else m.floors.forEach((f, i) => { if (f && typeof f.use === 'string' && !FLOOR_USES[f.use]) errs.push(`office.floors[${i}].use: '${f.use}' is not one of ${Object.keys(FLOOR_USES).join(', ')}`); });
+  }
+  for (const k of ['width', 'height']) if (m[k] !== undefined && !(Number.isFinite(m[k]) && m[k] >= 30 && m[k] <= 240)) errs.push(`office.${k}: feet in [30, 240]`);
+  return errs;
+}
+
+// ── fit-out: the open-plan office ─────────────────────────────────────────────
+// Bench desking in rows across the floor (each bench seats both long sides, a chair per seat), a meeting table at
+// the far end from the core, all kept off the core opening (the lift hall) and its approach. Massing items, like the
+// café's: the floor reads as an office (benches, task chairs, a boardroom table) at its true area.
+const BENCH = { d: 4.8, aisle: 5.5, gutter: 4 };
+const BENCH_RUNS = [{ w: 14, seats: 4 }, { w: 10.5, seats: 3 }];   // a run of 4 a side, or of 3: whichever seats more
+function officeFitOut(tenancy, core, baseZ, height, rng, o, ctx = {}) {
+  const faces = [];
+  const pad = 1.6;
+  const t = { x0: tenancy.x0 + pad, x1: tenancy.x1 - pad, y0: tenancy.y0 + pad, y1: tenancy.y1 - pad };
+  const z = baseZ + 0.02;
+  const add = (frag) => { const fs = assetFaces(frag, { light: o.light }); for (let i = 0; i < fs.length; i += 1) faces.push(fs[i]); };
+  const note = ctx.note || null;
+  const keepClear = [...(ctx.clearances || [])];
+  const coreLeft = core.facing === 'E';
+  let seats = 0, benches = 0;
+
+  // MEETING — a conference table toward the far side from the core, its chairs round it
+  const cw = Math.min(12, (t.x1 - t.x0) * 0.32), cd = 3.4;
+  const mx = coreLeft ? t.x1 - cw / 2 - 3 : t.x0 + cw / 2 + 3, my = t.y1 - cd / 2 - 3.2;
+  add(buildConferenceTable({ x: mx, y: my, z, w: cw, d: cd }));
+  if (note) note('conference-table', 'CT', mx - cw / 2, mx + cw / 2, my - cd / 2, my + cd / 2);
+  const per = Math.max(2, Math.floor(cw / 2.6));
+  for (let i = 0; i < per; i += 1) {
+    const cx = mx - cw / 2 + (i + 0.5) * (cw / per);
+    for (const [cy, back] of [[my - cd / 2 - 1.1, '-y'], [my + cd / 2 + 1.1, '+y']]) {
+      add(buildOfficeChair({ x: cx, y: cy, z, back }));
+      if (note) note('task-chair', 'CH', cx - 0.78, cx + 0.78, cy - 0.78, cy + 0.78);
+    }
+  }
+  keepClear.push({ x0: mx - cw / 2 - 3, x1: mx + cw / 2 + 3, y0: my - cd / 2 - 3, y1: t.y1 });
+
+  // BENCHES — rows of double-sided bench desks, aisles between, kept off every clearance
+  // the field starts past the lift hall's approach on the core side, and the columns are centred in what is left
+  const hall = 7.5;
+  const fx0 = coreLeft ? t.x0 + hall : t.x0 + 1, fx1 = coreLeft ? t.x1 - 1 : t.x1 - hall;
+  const fit = (r) => Math.max(1, Math.floor((fx1 - fx0 + BENCH.gutter) / (r.w + BENCH.gutter)));
+  const run = BENCH_RUNS.reduce((best, r) => (fit(r) * r.seats > fit(best) * best.seats ? r : best));
+  const B = { ...BENCH, ...run };
+  const pitchY = B.d + 2 * 1.4 + B.aisle, pitchX = B.w + B.gutter;
+  const cols = fit(run);
+  const cx0 = (fx0 + fx1) / 2 - ((cols - 1) * pitchX) / 2;
+  for (let cy = t.y0 + 1.4 + B.d / 2 + 1.4; cy + B.d / 2 + 1.4 <= t.y1; cy += pitchY) {
+    for (let k = 0, cx = cx0; k < cols; k += 1, cx += pitchX) {
+      const bb = { x0: cx - B.w / 2, x1: cx + B.w / 2, y0: cy - B.d / 2 - 1.4, y1: cy + B.d / 2 + 1.4 };
+      if (keepClear.some((c) => overlaps(bb, c))) continue;
+      add(buildOfficeBench({ x: cx, y: cy, z, w: B.w, d: B.d, seats: B.seats }));
+      if (note) note('bench-desk', 'BD', bb.x0, bb.x1, cy - B.d / 2, cy + B.d / 2);
+      for (let i = 0; i < B.seats; i += 1) {
+        const sx = cx - B.w / 2 + (i + 0.5) * (B.w / B.seats);
+        for (const [sy, back] of [[cy - B.d / 2 - 0.8, '-y'], [cy + B.d / 2 + 0.8, '+y']]) {
+          add(buildOfficeChair({ x: sx, y: sy, z, back }));
+          if (note) note('task-chair', 'CH', sx - 0.78, sx + 0.78, sy - 0.78, sy + 0.78);
+          seats += 1;
+        }
+      }
+      benches += 1;
+    }
+  }
+  return { faces, report: { usable: rectArea(t), benches, seats } };
+}
+
 function buildingCameras(fp, zMin, zMax) {
   const cx = (fp.x0 + fp.x1) / 2, cy = (fp.y0 + fp.y1) / 2;
   const w = fp.x1 - fp.x0, d = fp.y1 - fp.y0, span = Math.max(w, d, zMax - zMin);

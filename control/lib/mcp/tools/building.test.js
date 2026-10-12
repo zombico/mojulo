@@ -9,6 +9,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketches';
 import { mintBuilding } from '@/lib/mcp/tools/building';
+import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
 import { buildingNext, OUTCOME_CARDS } from '@/lib/mcp/tools/building-next';
 
 beforeEach(() => {
@@ -45,9 +46,29 @@ describe('mint_building — the door', () => {
   }, 120_000);
 
   it('refuses a kind that is not a building, naming where it goes', () => {
-    expect(() => mintBuilding({ title: 'x', manifest: { kind: 'store', concept: 'bakery' } })).toThrow(/edifice|create_sketch|compose_world/);
+    expect(() => mintBuilding({ title: 'x', manifest: { kind: 'condo-complex' } })).toThrow(/edifice|compose_world/);
     expect(() => mintBuilding({ title: 'x' })).toThrow(/requires \{ title, manifest \}/);
   });
+});
+
+describe('mint_building — a store, a restaurant, a mall', () => {
+  const SHOPS = {
+    store: { kind: 'store', title: 's', card: 'bookstore' },
+    restaurant: { kind: 'restaurant', title: 'r', seed: 1 },
+    mall: { kind: 'mall', title: 'm', levels: 2 },
+    school: { kind: 'school-complex', title: 'k', seed: 1 },
+  };
+  for (const [name, manifest] of Object.entries(SHOPS)) {
+    it(`stores the row create_sketch stores, and reads out its occupancy and grade: ${name}`, async () => {
+      if (manifest.kind === 'school-complex') mintSchoolComplex({ ...manifest, ref: `cs-shop-${name}` });   // compose_world's school door
+      else await createSketchHandler({ title: name, manifest, ref: `cs-shop-${name}` });
+      const res = mintBuilding({ title: name, manifest, ref: `mb-shop-${name}` });
+      expect(stored(`mb-shop-${name}`)).toBe(stored(`cs-shop-${name}`));
+      expect(res).toMatchObject({ ok: true, subject: 'building', occupancy: manifest.kind === 'school-complex' ? 'school' : manifest.kind, grade: { score: expect.any(Number) } });
+      expect(res.notAHome).toBeUndefined();
+      expect(res.next.at(-1)).toEqual({ id: 'sheets', outcome: 'drawings', export: 'sheets', card: 'building-commercial' });
+    }, 120_000);
+  }
 });
 
 describe('next — what is open, by outcome', () => {

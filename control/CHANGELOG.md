@@ -621,6 +621,158 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     the WC, room to step into the tub, 24 in before the shower) and says when a bathroom holds no basin or no tub or
     shower.
 
+### Structure rails, broadened: the structure book for a store, a restaurant, a mall and a school
+
+- **`mint_building` is getting more than houses.** A store, a restaurant and a mall (one or two levels) mint through
+  it with the manifests `create_sketch` takes, and each gets the structure book, sheets and schedules a house has.
+- **Each is read as the building it is, not as a home.** Rooms are named by what they are for (sales floor, stock
+  room, dining room, kitchen, concourse, tenant bay), and the building carries its occupancy (mercantile or
+  assembly).
+  - Its grade is its program's rules: front and back of house kept apart, storefronts on the concourse, upper levels
+    reached by escalator, the store card's own assessment.
+  - Bedroom egress, "a home" and the bathroom fixture checks no longer apply to it.
+- **Fit-outs become schedules.** Fixtures, racks, displays, booths, tables and kitchen blocks are tagged objects in
+  the FF&E schedule, on the plan sheets and in the room cards.
+- **A school campus joins the rail** (`kind: 'school-complex'`, the recipe `compose_world`'s school takes). It is
+  read by its own plan, not the floor kernel:
+  - Its rooms, as the school draws them, reach the wall they stand 2 ft off and meet their neighbour mid-gap. The
+    corridor is what is left, each upper floor is a shell the book names as not planned, and each building's core is
+    a stair core through its floors.
+  - It is graded by the school's own assessors (egress, daylight, proportion, the walk from the bus loop, the site),
+    said by room tag and building name. It is drawn as a plan per level at a campus scale.
+- **Framing and trades stay house-only for now**, and a non-house book says so. Houses read and render as before,
+  and store, restaurant and mall worlds are unchanged byte for byte.
+
+### Buildings as game levels: any building on the rail, played at game depth
+
+- **A building is a level with one field.** `level: { goal }` on any `mint_building` recipe (a house, store,
+  restaurant, mall, school or office) makes it playable; `create_game` promotes it with `auto_audit`.
+  - Read from the building: a first-person walker just inside the entry door, a goal in a room, box colliders on
+    every wall with the doors open, and the stair route the audit walks.
+  - The goal is `'top'` (the deepest room on the highest storey a stair reaches), a room tag from the book, or a
+    role.
+  - Lowered on every read, never stored: edit the building and its level follows. No frame, trades or IFC is asked
+    of a level.
+- **An office is a building on the rail** (`kind: 'office'`): a concierge lobby and open-plan office floors (bench
+  desks, task chairs, a meeting table) stacked over one lift-and-stair core, from the existing floor-plate stack and
+  office assets. It gets the structure book like the others. Three storeys is `{ kind: 'office', storeys: 3 }`.
+- `reach-exit` takes an optional `via` route, which the completability audit walks before the goal. Without it,
+  the audit is unchanged.
+- The game itself reads the level the same way: `/game`, game updates and `export_game` lower a building's `level`
+  when they resolve their levels, as `create_game` does.
+
+### Game buildings: connected rooms as levels, in levels, and in towns
+
+- **A room-kit stage is a level with the same field.** `level: { goal }` on a `stage` of rooms and links (a crypt, a
+  nave, a lab) makes it playable, as on a building.
+  - The walker starts in the first room, or in the room `from` names.
+  - The goal is `'deepest'` (the room most doorways from the start) or a room id.
+  - The audit walks through each doorway on the way.
+  - The stage keeps its own colliders: walls, pilasters and set pieces.
+- **The walls stop the walker.** The `walk` rule takes an opt-in body (`collideRadius`, `collideHeight`, `step`) and
+  stops at the world's colliders, sliding along them; without it, it walks through as before. A building or stage
+  level's walker has one.
+- **A building level's route goes round the walls.** On each floor, from the door to the stair, between stairs and
+  from the stair to the goal room, the route follows the walkers' own pathfinder. A stair's approach stays inside a
+  room on its floor.
+- **A game building from its use.** `program: { use }` on a room-kit `stage` lays a building's rooms and doorways
+  from its use, with no livability pass.
+  - **Uses:** the town's six (dwelling, shop, workshop, barn, hall, tower), so a town lot's use is also its inside,
+    plus tavern, keep, temple, crypt, guardhouse, library and lab.
+  - Each has rooms by role, which opens off which, and a goal room (the tavern's cellar, the keep's treasury, the
+    crypt's tomb), packed on the kit's grid from a seed.
+  - **Your changes:** `program.rooms` resizes or drops a room, `program.add` adds one, and writing `rooms` and
+    `links` overrides the plan.
+  - **Findings** are advisory, never refusals: a room that could not be seated, a way in with no outside wall, a use
+    the cube would not build.
+- **A civilization's language sets the heights.** A program speaks an anchor (`program.civilization`: `timber-hall`,
+  `shell`, `tiered` or an anchor's elements). Its storey height, lifted for a game, sets each room's height, and a
+  tall use's main room (a hall, a nave, a work floor) takes the town's taller storey. Absent, the cube's builders or
+  the kit's own anchor speak.
+- **The goal room is where the walk ends.** Its doorway is the walk's last, so the kit's set piece (a tomb, an altar)
+  stands in the goal room, and goal rooms are 6 m or more across so it and the walker fit.
+  - A stage level's goal now stands a step through that doorway, not at the room's middle, where the set piece
+    stands.
+  - A stage with a program plays to the program's goal room.
+- **A geocube recommends its world's buildings.** `buildings: { anchor, uses: [{ use, enter: 'door' | 'walk' }] }`
+  on a cube. Each preset's seeds sit beside the preset, so a preset's own document is unchanged. A program on a cube
+  is laid in the cube's bones and speaks its builders' anchor.
+- `create_sketch` and `update_sketch` on a program stage say what was laid: the use, rooms, way in, goal, language
+  and findings. Card `game-building`; the geocube and stage cards point at it.
+- **The game designer takes a building as a level.** A gameworld level may be `building: { use, seed?, goal?,
+  civilization?, kit? | geocube? }` in place of its `walk`.
+  - It is laid in that level's civilization's language (its anchor, else the kit's own), on a room kit (a lab's for a
+    shell language, else stone) or a cube.
+  - The runner makes it like a stage, the hero piloting from the way in when the world has one.
+  - `building: { ref }` plays a building already made, with no step.
+  - The bible draws its plan, and the graph gives it one section, built by its civilization.
+  - A quick game takes `quick.building`: its pickups lie in the rooms between the way in and the goal, and the end is
+    its goal room.
+  - A level's `level.mechanics` adds its own mechanics beside the goal; `level.exit: false` leaves the goal out. A
+    stage level with its own pilot keeps it, and only the game channel is added.
+- **Buildings in open ground, walked into as terrain.** An outdoor stage takes `buildings: [{ use, at?, goal?,
+  civilization?, kit? }]`; the game designer's walk levels take `places: { buildings }`.
+  - **Where it stands:** on the flattest land beside the trail, its door to the trail. The places it looks at are
+    the trail's beats and pockets, scored against slope, cliff, the trail itself and the stage's bounds. It also
+    stands in a pocket it names, or at a point facing a way.
+  - **The inside:** the program's rooms on a room kit, with a way out through the entry's front wall (a stage's new
+    `ways`).
+  - **The outside:** outer walls, a plinth, and a roof per room in the language's cap and the kit's structure paint,
+    over the room's vault. A stoop runs down to the land.
+  - **Its place on the land:** its floor level with the land at its door. It is cut into its slope, so you walk in
+    level, never up a ramp onto a raised floor. The land (cliffs too), trees, rocks and grass inside its footprint
+    are cleared. Its colliders and lights join the stage's, and a building cut more than 2.5 m into its slope says
+    so.
+  - **Its anchor** names its door, rooms, goal room and the route in. `goal: true` ends the level in its goal room,
+    walked in at the door.
+- **A town's street stands along the trail.** An outdoor stage's `town: { houses?, enter?, goal? }` (the game
+  designer's `places.street`, beside `places.town`) designs the civilization's town on the kit and stands its first
+  houses in the town's own order: the hall, then the near ring, a counter before a dwelling.
+  - The first `enter` are walked into (their use's program inside); `goal: true` ends the level in the first.
+  - The rest stand as the town draws them, shells with a plinth and a collider.
+  - Each stands on the flattest land beside the trail, never on a beat of the trail or another building.
+  - A level ending in a building is routed up the trail's beats to the one nearest its door, then round the houses
+    to it.
+- **A building can change the scene at its door.** `enter: 'door'` stands a building's outside only (walls, roofs, a
+  stoop, its door shut), and its inside is a level of its own.
+  - **A door mechanic:** walking into its zone posts `game-door` with what the session gathered (result `transit`,
+    applied to the store). The game shell loads the level the game's new `links` pair it with, entered at the paired
+    door's spawn (`game-init` `params.__entry`).
+  - **Game links:** `create_game` takes `links: [{ from: { ref, door }, to: { ref, door } }]`, both ways, checked
+    against each level's doors.
+  - **An inside level:** a stage with `level: { door: 'out' }` gets a door in its way in's front wall, and you arrive a
+    few steps in.
+  - **In the game designer:** `places.buildings[].enter: 'door'` makes the inside a level after the walk's stages,
+    linked and ungated. On a street, households and shops change the scene at their doors.
+  - A game without links is unchanged.
+- **Buildings are planned before anything grows.** A stage's buildings and street are seated first, by a planning
+  pass over the land alone. Their footprints come back to the open-ground builders (nature, isekai, jungle) as
+  reserved ground, a crown's reach round each.
+  - Trees, flower arrangements and live grass are placed on the rest of the site; rocks, bamboo and the jungle's
+    giants are kept off it.
+  - Nothing stands half in a wall or hangs its crown through a roof.
+  - A stage without buildings lays exactly as before.
+- **Buildings have storeys.** A stage room's `storey` stands it over rooms of the storey below, and a link between
+  neighbouring storeys is a stair.
+  - **The floors:** a storey's floor is the tallest room it stands over, plus a half-metre slab. A room with a room
+    over it has a flat, beamed ceiling.
+  - **The stair:** a straight, steep flight (treads 0.3 m) laid in the lower room against a wall, clear of every
+    doorway. It is balustraded and climbs through a hole in the upper floor, railed on three sides. A stair that
+    finds no wall to climb along says how much floor it needs.
+  - **How it is built:** each storey is a stage of its own, dressed and lit by its own torches and lifted to its
+    floor. Its ids are tagged with the storey (`torch-1@1`), and only the storey the walk ends on holds the set piece.
+    The answer carries `storeys` and a `stair` anchor.
+  - **Programs:** the tower stands three storeys to its lookout, and the keep's solar and treasury are up a stair. A
+    room upstairs is its twin over a room below (`over`), and the plan plate draws each storey beside the one below.
+  - **The level:** the route climbs each stair and goes round the flights and rails. The goal stands on its storey,
+    and `goal: 'top'` is the deepest room on the highest storey.
+  - **The walk rule:** a new opt-in, `probe`, looks for ground that high over the feet instead of from the eye. A
+    storeyed level's walker climbs treads, never onto a bench or the floor above. The page's controllable runtime
+    gained it, so 13 emission pins were re-pinned.
+  - **In open ground:** a storeyed building's walls rise storey on storey (a door building's shell is shut to its
+    top), and its rooms, goal and the trail walker's probe follow.
+  - A stage without `storey` plans and builds as before.
+
 ### Solid powerscale: solids routed by what they are for
 
 - **`mint_solid` names its doors by purpose.** The description groups the kinds as characters, objects from words

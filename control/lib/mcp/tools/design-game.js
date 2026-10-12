@@ -78,9 +78,9 @@ async function realize(step, action) {
   }
   if (key === 'game') {
     // the game over the levels: create_game (the levels unaudited, recorded), its manifest whole in place
-    const { title, store, levels, theme, shell } = order;
+    const { title, store, levels, links, theme, shell } = order;
     if (action === 'make') await createGameHandler({ ...order, ref });
-    else await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(theme ? { theme } : {}), ...(shell ? { shell } : {}) } });
+    else await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(theme ? { theme } : {}), ...(shell ? { shell } : {}) } });
     return {};
   }
   if (key === 'systems') {

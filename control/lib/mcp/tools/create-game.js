@@ -42,7 +42,7 @@ import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscap
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
-export async function mintGame({ title, store, levels, menu, music, theme, setup, difficulty, shell, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -62,13 +62,14 @@ export async function mintGame({ title, store, levels, menu, music, theme, setup
     }
   }
 
-  const manifest = { kind: 'game', title, store, levels, ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}) };
+  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
   // Promotion discipline (structural): verify every level exists and carries a contract valid
   // against THIS game's store before the game row is written — a game never ships pointing at a
   // level that can't be played or whose events its store can't apply.
+  // (a building or room stage that asks to be a level is lowered inside resolveGame: structure/level.js)
   const { manifest: finalized, levels: resolved } = resolveGame(manifest, (r) => SketchRepository.getByRef(r), levelSrc);
 
   // Promotion GATE (verification, G4 + M3): each level must pass a contract dry-run (always) AND be
@@ -135,9 +136,9 @@ export async function createGameHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, menu, music, theme, setup, difficulty, shell, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, setup, difficulty, shell, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   try {
-    return await mintGame({ title, store, levels, menu, music, theme, setup, difficulty, shell, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    return await mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
   } catch (err) {
     if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the store-schema manuals.
@@ -246,7 +247,7 @@ export function registerGameTools() {
         },
         levels: {
           type: 'array',
-          description: 'Promoted levels in play order: [{ ref, title?, gate? }]. Each ref is a world minted with a `game:` contract channel. gate ∈ { flag, equals?, slice? } | { completed: <ref>, slice? }.',
+          description: 'Promoted levels in play order: [{ ref, title?, gate? }]. Each ref is a world minted with a `game:` contract channel, or a building minted with `level: { goal }` (mint_building). gate ∈ { flag, equals?, slice? } | { completed: <ref>, slice? }.',
           items: { type: 'object' },
         },
         menu: {
@@ -264,6 +265,10 @@ export function registerGameTools() {
         setup: {
           type: 'object',
           description: "Optional pre-level setup presentation, per party slice: { <sliceName>: { style: 'hangar', label?, cards?: { <memberId>: { portrait?: <sketchRef>, preview?: <sketchRef>, stats?: { <label>: value }, blurb? } } } | { style: 'count', label?, blurb? } }. 'hangar' renders the full-page single-pick selector (portrait card rail + the selected member's preview World self-rotating in a side panel beside its stats) — applies when a level consumes the slice with pick.max 1. 'count' asks only HOW MANY and draws that many members at random (seeded per session). Slices without presentation keep the plain picker. Refs resolve at serve time like menu/music refs.",
+        },
+        links: {
+          type: 'array',
+          description: "Optional door links between levels (a building entered by its door): [{ from: { ref, door }, to: { ref, door } }], each a pair both ways; the doors are the levels' `door` mechanics.",
         },
         difficulty: {
           type: 'object',

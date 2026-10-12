@@ -1,0 +1,68 @@
+---
+{ "id": "building-commercial", "name": "A store, restaurant, mall or school as a building — its structure book", "summary": "the structure book for a commercial or civic program: a store (from a concept card), a restaurant, a mall (one or two levels) or a school campus, read as the building it is: its occupancy, rooms named by role, its program's grade, the fit-out as an FF&E schedule, plans, elevations, sections and schedules", "when": "someone wants plans, a drawing set, an FF&E or fixture schedule, or a check of a shop, store, boutique, café, bar, restaurant, shopping mall or school campus; or a mint_building `next` names card 'building-commercial'", "tier": "render-primitive", "marks": [], "phase": "p1" }
+---
+
+A store, a restaurant, a mall and a school are buildings on the same rail as a house. `mint_building` takes the manifest
+`create_sketch` takes; the page is the structure book. Each is read as what it is, never as a home: no bedrooms,
+no egress windows, no "is it livable".
+
+## From zero, ask
+
+1. **Which building?** A shop from a concept card (`kind: 'store'`, card `store`), a restaurant
+   (`kind: 'restaurant'`, with a `seed`), or a mall (`kind: 'mall'`, one level or `levels: 2` around an atrium).
+2. **How big?** Feet: a store's `width` × `depth` (default 24 × 40), a restaurant's `width` × `height`
+   (default 48 × 64), a mall's `width` × `height` (default 64 × 120).
+   A school is `kind: 'school-complex'` with `seed`, `pattern` (`courtyard` | `spine` | `cluster`), `program`
+   (`elementary` | `middle` | `high-school`), `facade` and `floors`, the same recipe `compose_world`'s school takes.
+3. **Fitted out?** A store and each mall bay are fit out from cards (`card`, `cards`; `cards: false` leaves the
+   bays bare). The restaurant furnishes its dining room, kitchen and restroom itself.
+   - A mall's `cards` takes a store type (`apparel`, `electronics`, `cafe`, `bookstore`, `homewares`, `food`,
+     `department`) or a bay index. The book names every room by its bay: the anchors are bays 0 and 1, the shops
+     follow. One index sets that bay on both levels.
+   - A small bay or lot fits a card by giving fixtures up. Each one given up is a `fit-out` advisory in the grade
+     (and the readout's `grade.findings`): grow the `width` / `height`, or set `degrade: false` on a store to see the
+     raw card graded.
+   - The seeded cards (`bookstore`, `wine-bar`, …) are data the `store` card describes, not vocab cards of their own.
+
+```json
+{ "kind": "store", "title": "Pages", "card": "bookstore", "width": 26, "depth": 44 }
+{ "kind": "restaurant", "title": "Corner café", "seed": 3, "width": 40, "height": 56 }
+{ "kind": "mall", "title": "Arcade", "levels": 2, "cards": { "cafe": "wine-bar" } }
+```
+
+## What the book shows
+
+- **Cover**: the occupancy (store and mall: mercantile, M; restaurant: assembly, A-2), levels, rooms, the grade; a
+  restaurant's seats as laid and its occupant load (IBC 1004.5), and the lot its walls stand 2 ft in from.
+- **Plan**: A-10x per level; the grade is reachability (a door into every space) and the program's rules, in words:
+  - restaurant: the restroom is reached without walking through the kitchen; the kitchen has its own service exit;
+  - mall: every unit has a storefront on the concourse; the restrooms are reached without walking through a shop;
+    the anchors cap the ends; each level's concourse is one walkway; the upper level is reached by escalator or
+    lift;
+  - store: the card's own assessment (entry decompression, aisles, the cash wrap's sightline, fixture overlap).
+- **A school** is a campus: its buildings (admin, academic, commons, gym), their floors, its classrooms. The kernel
+  plans the ground floor; each room reaches the wall it stands 2 ft off and meets its neighbour mid-gap, the
+  corridor is what is left, upper floors are shells (Open and the sheet titles say so), each building's core is a
+  stair core (ST) through its floors, and the covered walks are drawn between the buildings. Its grade is the
+  school's own (egress, daylight by window wall, proportion, the walk from the bus loop, the site) and its program:
+  a library, a cafeteria and a gym, classroom and gym size against common planning figures, the entrance opening
+  into circulation, a core standing in it. The pattern sets the program (spine: a gym; courtyard and cluster: a
+  library and cafeteria), so the grade names what a pattern leaves out. Occupancy educational (E).
+- **Rooms**: named by role: sales floor, stock room, fitting room, booth, restroom; dining room, kitchen; concourse,
+  tenant bay, anchor store, food court.
+- **Elements**: walls by type, doors tagged by the room they serve (a storefront or wide opening drawn cased),
+  windows (a school's where its facade paints them), slabs; a two-level mall's atrium (AT), escalators (ES) and lifts (EL), drawn on its plans.
+- **Objects**: the fit-out as tagged pieces (gondolas, racks, counters, podiums, tables, chairs, the cook line,
+  stalls), each in its room, on the plan sheet and in the FF&E schedule.
+
+## Getting them out
+
+- `export_model({ ref, format: 'sheets' })`: the drawing set as SVG; `format: 'schedules'`: every table as CSV and
+  JSON; `format: 'glb'`: the walkable model. No IFC yet: that is a house's.
+
+## Laws
+
+- The book and the World are one building: the read asks the kernel for exactly the building the World builds.
+- Every check advises; none refuses.
+- The frame, the trades, the site plan and the IFC are a house's for now: a commercial book names them as not yet on
+  the rail for its type.

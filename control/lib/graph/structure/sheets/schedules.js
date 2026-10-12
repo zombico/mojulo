@@ -158,7 +158,7 @@ export function scheduleSheets(read, { units = 'imperial', project, size = 'ANSI
   }
   return pages.map((p, i) => {
     const id = `A-60${i + 1}`, title = pages.length > 1 ? `Schedules (${i + 1} of ${pages.length})` : 'Schedules';
-    const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale: 'NONE', revision });
+    const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale: 'NONE', revision });
     return { id, title, tables: [...p.tables], svg: sheetSvg({ size, body: p.body.join(''), block }) };
   });
 }

@@ -20,13 +20,17 @@
  */
 import { readGameworld, resolveLevel } from './world.js';
 import { layLevel } from '../level/index.js';
-import { assembleStageScene } from '../era/stage.js';
+import { assembleStageScene, planStage } from '../era/stage.js';
+import { withGeocube } from '../era/geocube.js';
 import { playerWorld, playerStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
+import { withBuildingLevel, PROBE } from '../structure/level.js';
+import { withProgram } from '../era/programs.js';
+import { buildNav } from '../worlds/controllable/nav.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -39,8 +43,27 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 export function gameStages(world) {
   const G = readGameworld(world), order = [G.start, ...G.ids.filter((id) => id !== G.start)], out = [];
   for (const level of order) {
-    const laid = layLevel(resolveLevel(G, level).level);
-    laid.stages.forEach((s, i) => out.push({ level, node: s.node, section: s.section, index: i, manifest: s.manifest }));
+    const R = resolveLevel(G, level);
+    // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
+    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : buildingStage(R.building) }); continue; }
+    const laid = layLevel(R.level);
+    // the level's buildings stand on the section they name, or on its first trail
+    const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
+    laid.stages.forEach((s, i) => {
+      const here = (R.buildings ?? []).filter((b) => home(b) === s.node).map(({ node: _n, ...b }) => b);
+      // the town's street stands on the first trail
+      const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
+      const manifest = here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest;
+      out.push({ level, node: s.node, section: s.section, index: i, manifest });
+    });
+    // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
+    // linked by its door (the outside's `door` ↔ the inside's `out`)
+    let k = laid.stages.length;
+    for (const st of out.filter((x) => x.level === level && (x.manifest?.buildings || x.manifest?.town))) {
+      for (const d of stageEnds(st.manifest).doors ?? []) {
+        out.push({ level, node: `${st.node}-${d.id}`, section: 'interior', index: k++, outside: { node: st.node, index: st.index, door: d.id }, building: { use: d.inside.use }, manifest: interiorStage(d.inside) });
+      }
+    }
   }
   return out;
 }
@@ -59,11 +82,28 @@ function readEnds(manifest) {
   const eye = Number.isFinite(walk.minEye) ? walk.minEye : EYE_FALLBACK;
   const spawn = [r3(walk.spawn[0]), r3(walk.spawn[1]), r3(walk.spawn[2] - eye)];
   const anchors = P.anchors ?? [];
-  let exit = null, exitFrom = null;
+  let exit = null, exitFrom = null, via = null;
+  // a building that holds the level's end: its goal room, reached through its door and doorways
+  const holds = anchors.find((a) => a.kind === 'building' && a.isGoal);
+  if (holds) {
+    exit = [holds.goalAt[0], holds.goalAt[1], holds.goalAt[2]]; exitFrom = `the ${holds.use}'s ${holds.goal}`;
+    // from the spawn up the trail (it climbs where the land does: a straight line would cross its cliffs) to the beat
+    // nearest the door, then round what stands between (the street's other houses) to the door: the walkers' own
+    // pathfinder, at the height of that beat
+    const own0 = manifest.trail ? `out-trail:${manifest.trail.id}` : null;
+    const line = anchors.filter((a) => a.kind === 'beat' && (!own0 || a.trail === own0) && Number.isFinite(a.s)).sort((a, b) => a.s - b.s);
+    const door = holds.route[0], d2 = (a) => (a.at[0] - door[0]) ** 2 + (a.at[1] - door[1]) ** 2;
+    const k = line.reduce((m, a, i) => (m < 0 || d2(a) < d2(line[m]) ? i : m), -1);
+    const up = k >= 0 ? line.slice(0, k + 1).map((a) => [r3(a.at[0]), r3(a.at[1])]) : [];
+    const from = k >= 0 ? line[k].at : spawn;
+    const N = {}; buildNav(N);
+    const path = N.navPath({ colliders: P.colliders ?? [] }, from, door, { radius: 0.7, height: 1.8, footZ: from[2], step: 0.35, cell: 0.5 });
+    via = [...up, ...(path && path.length ? path.slice(0, -1).map((q) => q.map(r3)) : []), ...holds.route];
+  }
   // a trail: the exit beat of its own trail (the pages after the first also carry the trail before it)
   const own = manifest.trail ? `out-trail:${manifest.trail.id}` : null;
   const beat = anchors.find((a) => a.kind === 'beat' && a.beat === 'exit' && (!own || a.trail === own));
-  if (beat) { exit = beat.at; exitFrom = 'the trail\'s exit beat'; }
+  if (beat && !holds) { exit = beat.at; exitFrom = 'the trail\'s exit beat'; }
   // a climb: its highest tier (the top it is climbed for)
   if (!exit) {
     const tiers = anchors.filter((a) => a.kind === 'tier' && Array.isArray(a.at));
@@ -83,7 +123,10 @@ function readEnds(manifest) {
   const beats = beat ? anchors.filter((a) => a.kind === 'beat' && a.trail === own && Number.isFinite(a.s)).sort((a, b) => a.s - b.s).map((a) => ({ beat: a.beat, at: a.at.map(r3) })) : [];
   const hazards = anchors.filter((a) => a.kind === 'hazard' && Array.isArray(a.at) && (!own || a.trail === own)).map((a) => ({ id: a.id, at: a.at.map(r3) }));
   // a climb's top is reached by climbing, so its zone is a volume: standing beneath the top is not reaching it
-  return { spawn, heading, exit, exitFrom, planar: !!beat, beats, hazards };
+  // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
+  const doors = anchors.filter((a) => a.door && a.enter === 'door').map((a) => ({ ...a.door, inside: a.inside }));
+  const storeyed = anchors.some((a) => a.kind === 'building' && a.storeys);
+  return { spawn, heading, exit, exitFrom, planar: !!beat && !holds, beats, hazards, ...(via ? { via } : {}), ...(doors.length ? { doors } : {}), ...(storeyed ? { storeyed } : {}) };
 }
 
 /**
@@ -92,6 +135,8 @@ function readEnds(manifest) {
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
 export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null } = {}) {
+  // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
@@ -103,11 +148,13 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
   const moveWords = lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const placed0 = goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }) }];
+  const placed0 = goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
+  // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
+  const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
   const ways = map ? stageWays(stage, ends, map) : null;
   const placed = ways ? [...placed0.filter((m) => m.kind !== 'reach-exit'), ...ways.mechanics] : placed0;
-  const game = { levelRef: ref, mechanics: lane ? placed.map((m) => onLane(m, lane)) : placed, fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
+  const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed)], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
   if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
@@ -120,10 +167,12 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
         : P.camera;
     pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
   } else {
-    // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height. Asked for by name, it
-    // looks with the mouse (yaw and pitch) through an `eye` camera; unnamed, it keeps the old tank-turn walker.
+    // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the walls of
+    // the stage's buildings stop, when it has any). Asked for by name, it looks with the mouse (yaw and pitch) through
+    // an `eye` camera; unnamed, it keeps the old tank-turn walker.
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });   // for its legend only: no figure is kept
-    const rule = { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(look ? { turnMode: 'look', lookPitch: true, strafe: 1 } : {}) };
+    // (a building on storeys: it looks for its ground over its feet, so it climbs the treads, never onto the floor above)
+    const rule = { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(look ? { turnMode: 'look', lookPitch: true, strafe: 1 } : {}), ...(stage.manifest.buildings ? { collideRadius: 0.3 } : {}), ...(ends.storeyed ? { probe: PROBE } : {}) };
     pilotPart = {
       entities: [{ id: 'player', pilotable: true, rule, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
       camera: look ? { rule: 'eye', target: 'player', height: 0, mouseLook: true } : { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2 },
@@ -143,6 +192,16 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
   }
+  let play;
+  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, mechanics?.play ?? null, { story, carryFrom, party }));
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), game };
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends };
+}
+
+/** The story's share of a stage, on its pilot and its play: the level's scenes and the story's moments (with their
+ * places as spots), the cast who stand in them, the party who join, the quests' journal. Nothing to add: the same
+ * pilot part and play back. */
+function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, carryFrom = null, party = null } = {}) {
   // SCENES (the level's, playscape/ui/scenes.js): the ones this stage plays, its places as spots to frame and walk to,
   // and the story slice carried when the world's scenes use flags
   const scenes = [...(G.scenes?.[stage.level] ?? []).filter((s) => (s.stage ?? (stage.index === 0 ? stage.node : null)) === stage.node).map(({ stage: _, ...s }) => s), ...(story?.scenes ?? [])];
@@ -180,7 +239,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     });
     pilotPart = { ...pilotPart, figures, entities };
   }
-  let play = mechanics?.play ?? null;
+  let play = basePlay;
   if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), carry: STORY_SLICE };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
   if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
@@ -190,8 +249,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
     play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}) };
   }
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), game };
-  return { tool: 'create_sketch', args: { title: name, manifest }, ends };
+  return { pilotPart, play };
 }
 
 /** A stage's places by name: its start (the spawn), its exit, its pockets and landmarks in trail order (pocket,
@@ -342,5 +400,74 @@ export function gameLevels(stages, refs, plan = null) {
       return { ref: refs[i], title: `${s.level} · ${s.node}`, ...(exits.length ? { exits } : {}) };
     });
   }
-  return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(i > 0 ? { gate: { completed: refs[i - 1] } } : {}) }));
+  // an inside is entered by its door, never gated; the walk's stages unlock each other in order, skipping insides
+  const prev = (i) => { for (let j = i - 1; j >= 0; j--) if (stages[j].section !== 'interior') return j; return -1; };
+  return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(s.section !== 'interior' && prev(i) >= 0 ? { gate: { completed: refs[prev(i)] } } : {}) }));
+}
+
+/** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which
+ *  leads back out) to its goal room. */
+export function interiorStage(inside) {
+  const anchor = typeof inside.civilization === 'string' ? inside.civilization : undefined;
+  return {
+    kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
+    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
+    level: { door: 'out' },
+  };
+}
+
+/** The game's door links: each inside's `out` paired with its building's door on the stage outside. */
+export function gameLinks(stages, refs) {
+  return stages.flatMap((s, i) => {
+    if (s.section !== 'interior') return [];
+    const o = stages.findIndex((x) => x.level === s.level && x.index === s.outside.index);
+    return o < 0 ? [] : [{ from: { ref: refs[o], door: s.outside.door }, to: { ref: refs[i], door: 'out' } }];
+  });
+}
+
+/** The room kit a building is laid in when it names none: a lab's for a shell language, else the stone. */
+const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-stone');
+
+/** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
+export function buildingStage(B) {
+  const { use, seed, rooms, add, kit, geocube, goal, from, anchor } = B;
+  return {
+    kind: 'stage',
+    ...(geocube !== undefined ? { geocube } : { kit: kit ?? roomKitFor(anchor) }),
+    program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}) },
+    level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
+  };
+}
+
+/**
+ * A building level's create_sketch call: the stage laid from its program, with `level` (lowered on every read into
+ * its game channel: the goal room, the route through its doorways). With a hero, the hero pilots it from the way in
+ * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
+ * made here: the game plays it as it was made.
+ */
+function buildingLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal = null, story = null, carryFrom = null, party = null } = {}) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
+  let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
+  const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
+  const spawn = [walker.transform.pos[0], walker.transform.pos[1], r3(walker.transform.pos[2] - eye)], heading = walker.transform.heading;
+  // the rooms between the way in and the goal stand in for a trail's beats: a quick goal's pickups lie in them
+  // (on storeys, each at its room's floor)
+  const plan = withProgram(stage.manifest), floors = plan.rooms.some((r) => r.storey) ? new Map(planStage(plan.geocube !== undefined ? withGeocube(plan) : plan).rooms.map((r) => [r.id, r.z0])) : null;
+  const beats = plan.rooms.filter((r) => r.id !== plan._program.entry && r.id !== plan._program.goal)
+    .map((r) => ({ beat: r.id, at: [r.x + r.w / 2, r.y + r.d / 2, floors ? floors.get(r.id) : 0] }));
+  const ends = { spawn, heading, exit: lowered.game.mechanics.at(-1).at, exitFrom: `the ${stage.building.use}'s goal room`, beats, planar: false };
+  // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
+  if (goal) {
+    const own = goal(ends), extra = own.filter((x) => x.kind !== 'reach-exit');
+    base = { ...base, level: { ...base.level, ...(extra.length ? { mechanics: extra } : {}), ...(own.some((x) => x.kind === 'reach-exit') ? {} : { exit: false }) } };
+  }
+  if (!heroRef) return { tool: 'create_sketch', args: { title: name, manifest: base }, ends };
+  const controls = `W / S  run · A / D  turn · Space  jump${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const P = playerWorld({ heroRef, id: 'hero', title: name, controls });
+  const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
+  const pilot0 = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }], camera: P.camera, events };
+  // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
+  const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party });
+  const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}) };
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

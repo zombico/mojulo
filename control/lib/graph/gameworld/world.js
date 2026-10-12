@@ -28,6 +28,9 @@
  *       style?: { … },                    // the level's overrides, the style's shape
  *       walk: { layout?, root?, nodes, edges?, spawn? },   // the level graph (level/graph.js) less its kit and seed
  *       places?: { town?: true | { civilization?, … }, castle?: true | false | { civilization?, … } },
+ *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
+ *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
+ *                                         // civilization's language, entered at its way in, played to its goal room
  *     } },
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
@@ -63,6 +66,8 @@ import { readQuick } from './quick.js';
 import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
+import { PROGRAM_IDS } from '../era/programs.js';
+import { STRUCTURE_RAILS } from '../era/out-structures.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -106,7 +111,8 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places', 'scenes'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places', 'scenes', 'building'];
+const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -274,16 +280,56 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
-    if (!isObj(L.walk)) throw new Error(`gameworld: ${at}.walk is the level's graph { nodes, edges?, … }`);
-    for (const k of ['kit', 'seed']) if (L.walk[k] !== undefined) throw new Error(`gameworld: ${at}.walk.${k}: a level's ${k} is its own (${k === 'kit' ? `${at}.style.kit` : `${at}.seed`}), handed to its sections`);
+    if (L.building !== undefined) {
+      // a building level: its rooms laid from a use (or a building already made, by ref), in place of a walk
+      if (L.walk !== undefined) throw new Error(`gameworld: ${at}: a level is a walk or a building, not both`);
+      if (L.places !== undefined) throw new Error(`gameworld: ${at}.places: a building level holds no town (a town stands on a walk)`);
+      const B = L.building;
+      if (!isObj(B)) throw new Error(`gameworld: ${at}.building is { use, seed?, rooms?, add?, kit? | geocube?, goal?, civilization? } or { ref, goal? }`);
+      for (const k of Object.keys(B)) if (!BUILDING_KEYS.includes(k)) throw new Error(`gameworld: ${at}.building.${k} is not a building setting (${BUILDING_KEYS.join(', ')})`);
+      if ((B.ref === undefined) === (B.use === undefined)) throw new Error(`gameworld: ${at}.building names a use (${PROGRAM_IDS.join(', ')}) or the ref of a building already made, one of them`);
+      if (B.ref !== undefined && typeof B.ref !== 'string') throw new Error(`gameworld: ${at}.building.ref is a sketch ref`);
+      if (B.ref !== undefined && Object.keys(B).some((k) => !['ref', 'goal'].includes(k))) throw new Error(`gameworld: ${at}.building: a building by ref is played as it was made (ref, goal?)`);
+      if (B.use !== undefined && !PROGRAM_IDS.includes(B.use)) throw new Error(`gameworld: ${at}.building.use '${B.use}' is not one (${PROGRAM_IDS.join(', ')})`);
+      if (B.kit !== undefined && B.geocube !== undefined) throw new Error(`gameworld: ${at}.building: a kit or a geocube dresses it, not both`);
+      if (B.kit !== undefined && !(STAGE_KITS[resolveKitId(B.kit)]?.grid)) throw new Error(`gameworld: ${at}.building.kit '${B.kit}' is not a room kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].grid).join(', ')})`);
+      if (B.civilization !== undefined) civ(B.civilization, `${at}.building.civilization`);
+    } else {
+      if (!isObj(L.walk)) throw new Error(`gameworld: ${at}.walk is the level's graph { nodes, edges?, … } (or a building: ${at}.building)`);
+      for (const k of ['kit', 'seed']) if (L.walk[k] !== undefined) throw new Error(`gameworld: ${at}.walk.${k}: a level's ${k} is its own (${k === 'kit' ? `${at}.style.kit` : `${at}.seed`}), handed to its sections`);
+    }
     if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error(`gameworld: ${at}.seed is a number`);
     const st = readStyle(L.style, `${at}.style`);
     if (st.look) Object.assign(st, lookFor(st.look, st.kit ?? style.kit, seed, `${W.id}-${id}`));
     if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
-      if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle? }`);
+      if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle?, buildings? }`);
       for (const k of Object.keys(L.places)) {
-        if (!['town', 'castle'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle)`);
+        if (!['town', 'castle', 'buildings', 'street'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle, buildings, street)`);
+        if (k === 'street') {
+          // the town's street on the walk (era/stage-buildings.js): its first houses standing beside the trail
+          const St = L.places.street;
+          if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal? }`);
+          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors)`);
+          if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);
+          if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4)) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into)`);
+          if (!L.places.town) throw new Error(`gameworld: ${at}.places.street is the town's street: give the level its town (places.town)`);
+          continue;
+        }
+        if (k === 'buildings') {
+          // buildings walked into as terrain (era/stage-buildings.js), each standing in a pocket of the walk
+          const Bs = L.places.buildings;
+          if (!Array.isArray(Bs) || !Bs.length) throw new Error(`gameworld: ${at}.places.buildings is [{ use, seed?, at?, node?, goal?, civilization?, kit? }], at least one`);
+          Bs.forEach((b, i) => {
+            if (!isObj(b) || !PROGRAM_IDS.includes(b.use)) throw new Error(`gameworld: ${at}.places.buildings[${i}].use is one of ${PROGRAM_IDS.join(', ')}`);
+            for (const kk of Object.keys(b)) if (!['use', 'seed', 'at', 'node', 'goal', 'enter', 'civilization', 'kit', 'id', 'rooms', 'add'].includes(kk)) throw new Error(`gameworld: ${at}.places.buildings[${i}].${kk} is not a building setting`);
+            if (b.enter !== undefined && !['walk', 'door'].includes(b.enter)) throw new Error(`gameworld: ${at}.places.buildings[${i}].enter is 'walk' (walked into as terrain) or 'door' (the scene changes at its door)`);
+            if (b.node !== undefined && !L.walk?.nodes?.[b.node]) throw new Error(`gameworld: ${at}.places.buildings[${i}].node '${b.node}' is not a section of the walk`);
+            if (b.civilization !== undefined) civ(b.civilization, `${at}.places.buildings[${i}].civilization`);
+          });
+          if (Bs.filter((b) => b.goal).length > 1) throw new Error(`gameworld: ${at}.places.buildings: one building holds the level's end (goal: true), at most`);
+          continue;
+        }
         if (isObj(L.places[k]) && L.places[k].civilization !== undefined) civ(L.places[k].civilization, `${at}.places.${k}.civilization`);
       }
     }
@@ -345,6 +391,16 @@ export function resolveLevel(world, id) {
   const style = over(G.style, L.style), seed = L.seed ?? levelSeed(G.seed, id);
   const ledger = differences(G.style, L.style, 'level', id);
 
+  // a building level: who built it, in what language, and the program it is laid from (levels.js lays it)
+  if (L.building) {
+    const B = L.building, civId = B.civilization ?? style.civilization, C = G.civilizations[civId];
+    if (civId !== style.civilization) ledger.push({ scope: 'level', at: `${id}/building`, key: 'civilization', world: style.civilization, local: civId });
+    const anchor = C.anchor ?? STRUCTURE_RAILS[style.kit]?.anchor ?? null;
+    const building = B.ref !== undefined ? { ref: B.ref, ...(B.goal !== undefined ? { goal: B.goal } : {}) }
+      : { ...B, seed: B.seed ?? seed, civilization: civId, ...(anchor !== null ? { anchor } : {}) };
+    return { id, name: L.name ?? id, seed, style, built: { building: civId }, ledger, level: null, town: null, building };
+  }
+
   // the walk: each section given the ground's character first, its own recipe over it
   const nodes = {};
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) {
@@ -386,7 +442,15 @@ export function resolveLevel(world, id) {
     }
     readTownPlan(town);
   }
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town };
+  // the buildings walked into: each in its builders' language (its civilization's anchor, else the kit's own)
+  const buildings = (P.buildings ?? []).map((b) => {
+    const C = G.civilizations[b.civilization ?? style.civilization], anchor = C.anchor ?? STRUCTURE_RAILS[style.kit]?.anchor;
+    const { civilization: _c, ...rest } = b;
+    return { ...rest, ...(anchor !== undefined ? { civilization: anchor } : {}) };
+  });
+  // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
+  const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

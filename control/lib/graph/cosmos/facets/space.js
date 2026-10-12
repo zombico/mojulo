@@ -37,6 +37,16 @@ export const SPACE = Object.freeze({
         trail: { status: 'built', lowers: 'lib/graph/era/out-trail.js' },
         meru: { status: 'built', lowers: 'lib/graph/local-meru/plan.js' },
         arena: { status: 'built', lowers: 'lib/graph/worlds/match-modes.js' },
+        // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use
+        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: false, note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
+      },
+    },
+    // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it
+    places: {
+      values: {
+        none: { status: 'built' },
+        buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: false, note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
+        street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: false, note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS' } },

@@ -27,7 +27,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -72,13 +72,19 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   for (const k of STYLE_TOKENS) { const v = safeColor(theme[k], null); if (v) levelTheme[k] = v; }
   if (FONT_IDS.includes(theme.font)) levelTheme.font = theme.font;
 
+  // DOOR LINKS (game-manifest.js links): a door end of one level → the level and door it opens into, both ways. Absent:
+  // no key, and the page is as it was
+  const links = Array.isArray(manifest.links) && manifest.links.length
+    ? manifest.links.reduce((m, lk) => { (m[lk.from.ref] ||= {})[lk.from.door] = lk.to; (m[lk.to.ref] ||= {})[lk.to.door] = lk.from; return m; }, {})
+    : null;
   const cfg = {
     manifest,
     levels: levelTable,
+    ...(links ? { links } : {}),
     theme: Object.keys(levelTheme).length ? levelTheme : null,
     playtest: !!playtest,
     startLevel,
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
   };
 
@@ -321,10 +327,11 @@ export function playShellRuntime(cfg, K) {
   }
 
   let veilCap = 0, ctlRows = null;
-  // `arrive`: the level a map game's travel came from (the level moves the player to that end of itself)
-  function launch(lv, arrive) {
+  // `arrive`: the level a map game's travel came from (the level moves the player to that end of itself); `carry`: the
+  // params a door brings in (the session's, and the door it enters by), in place of the level's own
+  function launch(lv, arrive, carry) {
     launches += 1;
-    const params = paramsFor(lv);
+    const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
     session = { level: lv, params, seed: (PLAYTEST ? launches : runLog.length + 1), ended: false };
     lastParams = session.params; lastErrors = null;
@@ -352,6 +359,22 @@ export function playShellRuntime(cfg, K) {
       if (d.contractVersion !== W.version) { toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
       post({ moj: W.init, contractVersion: W.version, params: session.params, seed: session.seed, theme: cfg.theme });
       pushPrefs();
+      return;
+    }
+    // a door crossed (a building whose scene changes at its door): what the session gathered applies, and the level
+    // the door opens into loads, entered by its own door
+    if (W.door && d.moj === W.door && !session.ended) {
+      const r = K.applyTransit(SCHEMA, state, session.level.contract, d.envelope || {});
+      if (!r.ok) { lastErrors = r.errors; toast('The door could not be taken; nothing changed.'); return; }
+      state = r.state;
+      if ((d.envelope && d.envelope.events || []).length) runLog.push(d.envelope);
+      persist();
+      const to = (cfg.links[session.level.ref] || {})[d.door], lv = to && LEVELS.find((l) => l.ref === to.ref);
+      if (!lv) { toast('That door leads nowhere.'); return; }
+      if (!PLAYTEST && lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) { toast(lv.title + ' is locked.'); return; }
+      const carry = JSON.parse(JSON.stringify(session.params || {}));
+      carry.__entry = { door: to.door, from: session.level.ref };
+      launch(lv, null, carry);
       return;
     }
     if (d.moj === W.outcome && !session.ended) {

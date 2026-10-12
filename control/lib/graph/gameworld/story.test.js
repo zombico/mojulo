@@ -255,3 +255,25 @@ describe('companions: a cast member who joins', () => {
     expect(gameStore(W({ cast: JOIN }), null).slices.map((s) => s.name)).toContain('story');
   }, 240_000);
 });
+
+describe('the story in a building level (structure rails merged in)', () => {
+  const WB = (extra = {}) => ({
+    ...base, characters: { ...base.characters, cast: { mayor: CAST.mayor, guard: { ...CAST.guard, joins: 'joined-guard' } } },
+    levels: { gate: { name: 'The gate', seed: 8, walk: { nodes: { path: { trail: true } } } }, inn: { name: 'The inn', building: { use: 'tavern', seed: 2 } } },
+    links: [{ from: 'gate', to: 'inn' }],
+    quests: [{ id: 'q', steps: [{ log: 'Find the cellar', done: 'cellar' }] }],
+    ...extra,
+  });
+
+  it('a building level keeps the journal and the party, as a walk\'s stage does', () => {
+    const S = runSteps(WB(), { ref: 'gw' });
+    const inn = S.find((s) => s.key.startsWith('level-inn')).order.manifest;
+    expect(inn.play).toMatchObject({ quests: [{ id: 'q' }], party: [{ who: 'guard', joins: 'joined-guard' }], carry: 'story' });
+    expect(inn.entities.find((e) => e.id === 'guard')).toMatchObject({ dormant: true, team: 'party', rule: { mind: { motivation: 'escort' } } });
+  }, 240_000);
+
+  it('a moment aimed at a building level is unplaced, said, not thrown', () => {
+    const r = storyReport(WB({ story: [{ ...WELCOME, where: { level: 'inn' } }] }));
+    expect(r.unplaced).toEqual([{ id: 'welcome', why: expect.stringMatching(/is a building: a moment binds to a walk's stages for now/) }]);
+  }, 240_000);
+});

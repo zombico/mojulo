@@ -17,7 +17,7 @@ Mojulo is a **3D factory with a media studio**: the agent makes things to **Play
 - **Characters**: `create_character` (`as` hero, creature or animal; the `mint_solid` layered and animal recipes, rigged).
 - **Print**: `mint_solid` / `edit_solid` (`kind:'scad'` stores an OpenSCAD program as the recipe), `mint_building`, `fabricate_solid` (what each part must do → standard parts and their cuts), `measure_solid`, `export_model`.
 - **Worlds**: `compose_world`.
-- **Buildings**: `mint_building` (a house, apartment or furnished room; its page is the structure book, and `next` names what is open by outcome: concept, layout, drawings, build), `update_sketch`, `export_model` (`sheets`, `schedules`, `ifc`). An `edifice` is an institutional block for a world, not a building to draw.
+- **Buildings**: `mint_building` (a house, apartment or furnished room, or a store, restaurant or mall read as that building by its program; its page is the structure book, and `next` names what is open by outcome: concept, layout, drawings, build), `update_sketch`, `export_model` (`sheets`, `schedules`; `ifc` for a house). An `edifice` is an institutional block for a world, not a building to draw.
 - **Play**: `design_game` (the rail: stamps, steps and `next` step ids), `create_game`.
 - **Read**: `create_sketch` (diagrams, charts, illustrations), `create_view` (study objects), `cook` / `forge_publications` (publications).
 - **Hear**: `create_beats`, `create_voice`.

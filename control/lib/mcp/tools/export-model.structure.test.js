@@ -42,6 +42,19 @@ describe('export_model sheets', () => {
   });
 });
 
+describe('export_model sheets and schedules for a store, a restaurant, a mall', () => {
+  it('draws a two-level mall level by level and schedules its fit-out', async () => {
+    SketchRepository.create({ ref: 'sk_set_mall', title: 'arcade', manifest: { kind: 'mall', levels: 2 } });
+    const set = await exportModelHandler({ ref: 'sk_set_mall', format: 'sheets', write: false });
+    expect(set.ok).toBe(true);
+    expect(set.sheets.map((s) => s.id).filter((id) => /^A-10/.test(id))).toEqual(['A-101', 'A-102']);
+    expect(set.framed).toBe(false);
+    const tables = await exportModelHandler({ ref: 'sk_set_mall', format: 'schedules', write: false });
+    expect(tables.json.tables.find((t) => t.id === 'objects').rows.length).toBeGreaterThan(0);
+  });
+
+});
+
 describe('export_model schedules', () => {
   it('writes a CSV per table and schedules.json, door tags as on the plan', async () => {
     SketchRepository.create({ ref: 'sk_sch_house', title: 'tables', manifest: HOUSE });

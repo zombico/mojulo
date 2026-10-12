@@ -70,6 +70,7 @@ import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleStoreWorldScene } from '../retail/store-world.js';
 import { assembleMallWorldScene } from '../polygonizer/floorplan-mall.js';
+import { assembleBuildingWorldScene, officeInput, validateOfficeManifest } from '../polygonizer/floorplan-building.js';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
 import { assemblePlanetaryScene } from '@/lib/graph/scene/scene-planetary';
 import { assembleMoleculeScene } from '@/lib/graph/views/bio/molecule-view';
@@ -522,6 +523,18 @@ export const WORLD_KINDS = {
     ownsWalk: true,   // the resolver reads m.walk (world-scene keeps its framed, reflected walk)
     ao: true,
     resolve: (m, ctx) => assembleStoreWorldScene(m, { walk: m.walk ?? true, title: ctx.title }),
+  },
+  // an office building: a lobby and office floors stacked over one lift-and-stair core
+  office: {
+    title: 'mojulo office',
+    walk: true,
+    ownsWalk: true,   // the resolver reads m.walk (world-scene keeps its framed, reflected walk)
+    ao: true,
+    resolve: (m, ctx) => {
+      const errs = validateOfficeManifest(m);
+      if (errs.length) throw new Error(errs.join('; '));
+      return assembleBuildingWorldScene(officeInput(m), { walk: m.walk ?? true, title: ctx.title });
+    },
   },
   mall: {
     title: 'mojulo mall',

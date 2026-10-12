@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY } from '../../game/level-contract.js';
+import { CONTRACT_VERSION as GAME_CONTRACT_VERSION, MSG_INIT as GAME_MSG_INIT, MSG_OUTCOME as GAME_MSG_OUTCOME, MSG_READY as GAME_MSG_READY, MSG_DOOR as GAME_MSG_DOOR } from '../../game/level-contract.js';
 import { FONTS } from '../../game/hud-widgets.js';
 import { safeJson } from '../emit-util.js';
 
@@ -67,8 +67,30 @@ const __GAME = ${safeJson(game)};
     }
     return st.envelope;
   }
-  window.__mojGame = {
-    contract: __GAME,
+${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carrying what the session gathered (result 'transit');
+  // the shell loads the level it links to. With no shell, the door stays shut and says so.
+  function door(id) {
+    if (st.ended || st.leaving) return;
+    const env = { contractVersion: __CV, levelRef: __GAME.levelRef, seed: st.seed, result: 'transit', events: st.events.slice() };
+    if (hosted && !capture) { st.leaving = true; try { window.parent.postMessage({ moj: '${GAME_MSG_DOOR}', levelRef: __GAME.levelRef, door: id, envelope: env }, '*'); } catch (e) { console.error('game door post', e); } }
+    else st.doorTried = id;
+  }
+  // entered BY a door (params.__entry): the pilot stands at that door's spawn, facing in (the controllable world
+  // is built after this block, so it is looked for until it is up)
+  st.onStart.push(function (params) {
+    const e = params && params.__entry, d = e && (__GAME.doors || []).find((x) => x.id === e.door);
+    if (!d) return;
+    (function place(n) {
+      const W = window.__mojCtrl && window.__mojCtrl.world, P = W && W.byId && W.byId[W.pilotId];
+      if (!P) { if (n < 100) setTimeout(function () { place(n + 1); }, 50); return; }
+      P.transform.pos = [d.spawn[0], d.spawn[1], d.spawn[2] + ((P.rule && P.rule.eye) || 0)];
+      P.transform.heading = d.heading;
+    })(0);
+  });
+` : ''}  window.__mojGame = {
+    contract: __GAME,${game.doors ? `
+    // the door this level was entered by (the shell's game-init params.__entry), and its end: where to stand
+    get entry() { const e = st.params && st.params.__entry; return (e && (__GAME.doors || []).find((d) => d.id === e.door)) || null; },` : ''}
     get params() { return st.params; },
     get seed() { return st.seed; },
     get events() { return st.events.slice(); },
@@ -101,7 +123,8 @@ const __GAME = ${safeJson(game)};
           if (!glob(ev.type, pat)) continue;
           const act = __GAME.on[pat];
           if (act.emit) emit(JSON.parse(JSON.stringify(act.emit)));
-          else if (act.end) end(act.end${exits ? ', undefined, act.exit' : ''});
+          else if (act.end) end(act.end${exits ? ', undefined, act.exit' : ''});${game.doors ? `
+          else if (act.door) door(act.door);` : ''}
           break;
         }
       }

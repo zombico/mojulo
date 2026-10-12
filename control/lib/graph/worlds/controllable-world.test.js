@@ -4141,3 +4141,34 @@ describe('assembleControllableScene — the bare stage', () => {
     expect(faces.map((f) => f.fill)).toEqual(origin.map((f) => f.fill));
   });
 });
+
+describe('rule: walk, mouse look with keyTurn (a building level)', () => {
+  const mk = (rule) => createWorld({ entities: [{ id: 'p', rule: { type: 'walk', speed: 6, turn: 4, ...rule }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+  it('a look walker with keyTurn turns on the keys and on the mouse', () => {
+    const keys = run(mk({ turnMode: 'look', keyTurn: true }), { turn: 1, lookDX: 0 }, 30);
+    expect(keys.byId.p.transform.heading).toBeLessThan(-1);
+    const mouse = run(mk({ turnMode: 'look', keyTurn: true }), { turn: 0, lookDX: 100 }, 1);
+    expect(mouse.byId.p.transform.heading).toBeCloseTo(0.25, 6);
+  });
+  it('without keyTurn a look walker ignores the turn keys, as before', () => {
+    expect(run(mk({ turnMode: 'look' }), { turn: 1, lookDX: 0 }, 30).byId.p.transform.heading).toBe(0);
+  });
+});
+
+describe('rule: walk, stopped by the world colliders when it has a body (collideRadius)', () => {
+  const wall = { min: [3, -5, 0], max: [3.5, 5, 3] };
+  const mk = (rule) => createWorld({ colliders: [wall], entities: [{ id: 'p', rule: { type: 'walk', speed: 6, eye: 1.7, ...rule }, transform: { pos: [0, 0, 1.7], heading: 0 } }] });
+  it('a walker with a body stops at the wall, its body clear of it', () => {
+    const w = run(mk({ collideRadius: 0.3 }), { forward: 1 }, 60);
+    expect(w.byId.p.transform.pos[0]).toBeCloseTo(2.7, 6);
+  });
+  it('a walker without one walks through, as before', () => {
+    expect(run(mk({}), { forward: 1 }, 60).byId.p.transform.pos[0]).toBeGreaterThan(4);
+  });
+  it('a wall it can step onto, or one it walks under, does not stop it', () => {
+    const low = createWorld({ colliders: [{ min: [3, -5, 0], max: [3.5, 5, 0.2] }], entities: [{ id: 'p', rule: { type: 'walk', speed: 6, eye: 1.7, collideRadius: 0.3 }, transform: { pos: [0, 0, 1.7], heading: 0 } }] });
+    expect(run(low, { forward: 1 }, 60).byId.p.transform.pos[0]).toBeGreaterThan(4);
+    const lintel = createWorld({ colliders: [{ min: [3, -5, 2.1], max: [3.5, 5, 3] }], entities: [{ id: 'p', rule: { type: 'walk', speed: 6, eye: 1.7, collideRadius: 0.3 }, transform: { pos: [0, 0, 1.7], heading: 0 } }] });
+    expect(run(lintel, { forward: 1 }, 60).byId.p.transform.pos[0]).toBeGreaterThan(4);
+  });
+});

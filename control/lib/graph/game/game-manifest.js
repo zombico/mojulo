@@ -153,6 +153,26 @@ export function validateGameManifest(manifest) {
     });
   }
 
+  // DOOR LINKS: each pairs a door end in one level with one in another, both ways (walk out of A by its door into B at
+  // its door, and back). The doors themselves are the levels' own (their `door` mechanics), checked at resolve.
+  if (manifest.links !== undefined) {
+    if (!Array.isArray(manifest.links)) errors.push('links must be [{ from: { ref, door }, to: { ref, door } }]');
+    else {
+      const ends = new Set();
+      manifest.links.forEach((lk, i) => {
+        const where = `links[${i}]`;
+        for (const side of ['from', 'to']) {
+          const e = lk && lk[side];
+          if (!e || typeof e.ref !== 'string' || typeof e.door !== 'string') { errors.push(`${where}.${side} must be { ref, door }`); continue; }
+          if (!refs.has(e.ref)) errors.push(`${where}.${side}.ref '${e.ref}' is not a level of this game`);
+          const k = `${e.ref}#${e.door}`;
+          if (ends.has(k)) errors.push(`${where}.${side}: the door '${e.door}' of '${e.ref}' is linked twice`);
+          ends.add(k);
+        }
+      });
+    }
+  }
+
   if (manifest.menu !== undefined) {
     const menu = manifest.menu;
     if (!menu || typeof menu !== 'object') errors.push("menu must be { tagline?, entries: [{ id, title, subtitle?, kind: 'levels'|'world', ref? }] }");

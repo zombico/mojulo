@@ -194,6 +194,15 @@ export function buildGameStoreKernel() {
     return errors.length ? { ok: false, errors: errors } : { ok: true };
   }
 
+  /** A door crossed: what the session gathered so far (an envelope whose result is 'transit') validated against the
+   *  contract's produces like any envelope, then applied atomically; the session goes on in the next level. */
+  function applyTransit(schema, state, contract, envelope) {
+    if (!envelope || envelope.result !== 'transit') return { ok: false, errors: ["a door's envelope has result 'transit'"] };
+    const v = validateEnvelope({ ...contract, produces: { ...(contract && contract.produces), results: ['transit'] } }, envelope);
+    if (!v.ok) return { ok: false, errors: v.errors };
+    return applyEvents(schema, state, envelope.events || []);
+  }
+
   /** The one write per session: validate the envelope against the contract, then apply atomically. */
   function applyOutcome(schema, state, contract, envelope) {
     const v = validateEnvelope(contract, envelope);
@@ -280,6 +289,7 @@ export function buildGameStoreKernel() {
     applyEvents: applyEvents,
     validateEnvelope: validateEnvelope,
     applyOutcome: applyOutcome,
+    applyTransit: applyTransit,
     evalGate: evalGate,
     isMap: isMap,
     reachable: reachable,

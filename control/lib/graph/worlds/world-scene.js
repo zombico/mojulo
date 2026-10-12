@@ -128,6 +128,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
+  // a building that asks to be a level (`level: { goal }`, structure/level.js): its game channel, walker, camera and
+  // colliders are lowered from the building on every read, before the game channel below reads them
+  if (sketch.manifest?.level && typeof sketch.manifest.level === 'object' && !sketch.manifest.game) {
+    const { withBuildingLevel } = await import('@/lib/graph/structure/level.js');
+    sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, sketch.ref) };
+  }
+
   // declarative scene lighting — same normalization the /scene route uses.
   const scene = sketch.manifest.scene && typeof sketch.manifest.scene === 'object' ? sketch.manifest.scene : {};
   const time = sketch.manifest.time ?? scene.time;

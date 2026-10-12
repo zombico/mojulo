@@ -90,9 +90,12 @@ const TABLE_KINDS = [
  * concern, furnished with workbench items + kitchen block-in.
  *
  * @param input { width?, height?, inset?, groundZ?, seed?, kitchenDepth?, restroomWidth? }
+ * @param opts._read  an optional holder the structure reader passes (structure/programs.js): it receives the plan as
+ *   built (`structure`) and each piece of furniture as a plan rect (`objects`). Read only there; the faces and the
+ *   return are the same with or without it.
  * @returns { faces, footprint, rooms, program, baseZ, height }
  */
-export function buildRestaurant(input = {}, opts = {}) {
+export function buildRestaurant(input = {}, { _read: read = null, ...opts } = {}) {
   const o = { ...RESTAURANT_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...opts };
   const W = input.width ?? 48, H = input.height ?? 64, inset = input.inset ?? 2;
   const fp = { x0: inset, x1: W - inset, y0: inset, y1: H - inset };
@@ -146,6 +149,8 @@ export function buildRestaurant(input = {}, opts = {}) {
   );
 
   const faces = [...s.faces];
+  if (read) { read.structure = s; read.objects = []; read.opts = o; }
+  const note = read ? (type, code, x0, x1, y0, y1) => read.objects.push({ type, code, rect: { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: Math.min(y0, y1), y1: Math.max(y0, y1) }, baseZ }) : null;
   // CLEARANCES — the plan's negative space: clear entry throat + service-door approaches.
   const clearances = [
     { x0: entryX - 4, x1: entryX + 4, y0: fp.y0, y1: fp.y0 + 9 },                 // entry throat
@@ -159,11 +164,11 @@ export function buildRestaurant(input = {}, opts = {}) {
   const diningRect = { x0: dining.x, x1: dining.x + dining.w, y0: dining.y, y1: dining.y + dining.h };
   const dr = furnishDining(diningRect, {
     z: baseZ + 0.02, height: o.wallHeight, seed: input.seed ?? 1, light: o.light,
-    clearances, backLimitX: kitchenDoorX - 3,
+    clearances, backLimitX: kitchenDoorX - 3, note,
   });
   for (const f of dr.faces) faces.push(f);
-  for (const f of furnishKitchen({ x0: kitchen.x, x1: kitchen.x + kitchen.w, y0: kitchen.y, y1: kitchen.y + kitchen.h }, baseZ, o, kitchenDoorX, serviceExitY)) faces.push(f);
-  for (const f of furnishWashroom({ x0: restroom.x, x1: restroom.x + restroom.w, y0: restroom.y, y1: restroom.y + restroom.h }, baseZ, o)) faces.push(f);
+  for (const f of furnishKitchen({ x0: kitchen.x, x1: kitchen.x + kitchen.w, y0: kitchen.y, y1: kitchen.y + kitchen.h }, baseZ, o, kitchenDoorX, serviceExitY, note)) faces.push(f);
+  for (const f of furnishWashroom({ x0: restroom.x, x1: restroom.x + restroom.w, y0: restroom.y, y1: restroom.y + restroom.h }, baseZ, o, note)) faces.push(f);
 
   // CEILING TREATMENT — wood slats / industrial beams + duct over the dining room, tagged
   // shell:ceiling so the cutaway fades them from above but they read in walk / interior views.
@@ -276,7 +281,10 @@ function diningWallArt(rect, backY, baseZ, o, doorXs = []) {
  *  entry, FIXED WALL BANQUETTES along both side walls (under the storefront windows) with
  *  a row of tables each, and varied free-standing 2-tops / 4-tops tiled into the centre —
  *  all clear of the entry throat and the back-of-house doors. */
-function furnishDining(rect, { z, height, seed, light, clearances = [], backLimitX }) {
+// `note(type, code, x0, x1, y0, y1)`, when the reader passes it, records each piece as a plan rect beside its faces.
+const centred = (note, type, code, x, y, w, d) => note && note(type, code, x - w / 2, x + w / 2, y - d / 2, y + d / 2);
+
+function furnishDining(rect, { z, height, seed, light, clearances = [], backLimitX, note = null }) {
   const faces = [];
   const rng = mulberry32((seed >>> 0) || 1);
   const pad = 1.4;
@@ -293,14 +301,17 @@ function furnishDining(rect, { z, height, seed, light, clearances = [], backLimi
   const bxc = segLo + barLen / 2;
   const by1 = t.y1, byBack = by1 - 1.2, byDie = byBack - 1.8;
   add(buildBackBar({ x: bxc, y: (byBack + by1) / 2, z, w: barLen, d: 1.2, h: Math.min(5.5, height - 1.5) }));
+  centred(note, 'back-bar', 'BB', bxc, (byBack + by1) / 2, barLen, 1.2);
   add(buildBarCounter({ x: bxc, y: (byDie + byBack) / 2, z, w: barLen, d: 1.8, h: 3.7, along: 'x', rail: true }));
-  for (let sx = bxc - barLen / 2 + 1.3; sx < bxc + barLen / 2 - 1; sx += 2.4) { add(buildBarStool({ x: sx, y: byDie - 1.0, z, h: 2.5 })); seats += 1; }
+  centred(note, 'bar-counter', 'BR', bxc, (byDie + byBack) / 2, barLen, 1.8);
+  for (let sx = bxc - barLen / 2 + 1.3; sx < bxc + barLen / 2 - 1; sx += 2.4) { add(buildBarStool({ x: sx, y: byDie - 1.0, z, h: 2.5 })); centred(note, 'bar-stool', 'ST', sx, byDie - 1.0, 1.3, 1.3); seats += 1; }
   keep.push({ x0: bxc - barLen / 2 - 0.5, x1: bxc + barLen / 2 + 0.5, y0: byDie - 2.6, y1: by1 });
 
   // SERVICE counter — front wall, right of the entry throat.
   const cLen = Math.max(4, Math.min(areas.counter / 3, 10));
   const ccx = t.x1 - cLen / 2 - 0.5;
   add(buildBarCounter({ x: ccx, y: t.y0 + 0.9, z, w: cLen, d: 1.6, h: 3.4, along: 'x', rail: false }));
+  centred(note, 'service-counter', 'SC', ccx, t.y0 + 0.9, cLen, 1.6);
   keep.push({ x0: ccx - cLen / 2 - 0.4, x1: t.x1, y0: t.y0, y1: t.y0 + 3.4 });
 
   // FIXED WALL SEATING — a banquette along each side wall (under the windows), with a row
@@ -311,11 +322,14 @@ function furnishDining(rect, { z, height, seed, light, clearances = [], backLimi
     const inward = wallSide === '-x' ? 1 : -1;                    // +x into the room off the left wall
     const benchX = wallX + inward * (banqD / 2);
     add(buildBanquette({ x: benchX, y: (yLo + yHi) / 2, z, w: yHi - yLo, d: banqD, h: 3.3, along: 'y', wallSide }));
+    centred(note, 'banquette', 'BQ', benchX, (yLo + yHi) / 2, banqD, yHi - yLo);
     keep.push({ x0: Math.min(wallX, benchX) - 0.1, x1: Math.max(wallX, benchX + inward * banqD / 2) + 0.1, y0: yLo, y1: yHi });
     const tableX = wallX + inward * (banqD + 0.5 + 1.3);
     for (let cy = yLo + 2.4; cy < yHi - 1.2; cy += 4.7) {
       add(buildCafeTable({ x: tableX, y: cy, z, w: 2.4, d: 2.4, h: 2.4 }));
+      centred(note, 'cafe-table', 'TB', tableX, cy, 2.4, 2.4);
       add(buildCafeChair({ x: tableX + inward * (1.2 + 0.85), y: cy, z, h: 2.9, back: inward > 0 ? '+x' : '-x' }));
+      centred(note, 'cafe-chair', 'CH', tableX + inward * (1.2 + 0.85), cy, 1.5, 1.5);
       keep.push({ x0: Math.min(tableX - 1.2, tableX + inward * 2.7) - 0.4, x1: Math.max(tableX + 1.2, tableX + inward * 2.7) + 0.4, y0: cy - 1.6, y1: cy + 1.6 });
       seats += 2;
     }
@@ -337,11 +351,16 @@ function furnishDining(rect, { z, height, seed, light, clearances = [], backLimi
       if (bb.x0 < field.x0 || bb.x1 > field.x1 || bb.y0 < field.y0 || bb.y1 > field.y1) continue;
       if (keep.some((c) => overlaps(bb, c))) continue;
       add(buildCafeTable({ x: cx, y: cy, z, w: k.d, d: k.d, h: 2.4 }));
+      centred(note, 'cafe-table', 'TB', cx, cy, k.d, k.d);
       add(buildCafeChair({ x: cx, y: cy - off, z, h: 2.9, back: '-y' }));
       add(buildCafeChair({ x: cx, y: cy + off, z, h: 2.9, back: '+y' }));
+      centred(note, 'cafe-chair', 'CH', cx, cy - off, 1.5, 1.5);
+      centred(note, 'cafe-chair', 'CH', cx, cy + off, 1.5, 1.5);
       if (k.seats === 4) {
         add(buildCafeChair({ x: cx - off, y: cy, z, h: 2.9, back: '-x' }));
         add(buildCafeChair({ x: cx + off, y: cy, z, h: 2.9, back: '+x' }));
+        centred(note, 'cafe-chair', 'CH', cx - off, cy, 1.5, 1.5);
+        centred(note, 'cafe-chair', 'CH', cx + off, cy, 1.5, 1.5);
       }
       keep.push(bb);
       budget -= k.module; seats += k.seats;
@@ -354,7 +373,7 @@ function furnishDining(rect, { z, height, seed, light, clearances = [], backLimi
  *  partition wall, a prep/sink line on the exterior wall (split around the service exit), a
  *  central ISLAND with an overhead pot rack, and a pass shelf split around the cased opening.
  *  Massing boxes for now (workbench kitchen items later). */
-function furnishKitchen(r, baseZ, o, passX, exitY) {
+function furnishKitchen(r, baseZ, o, passX, exitY, note = null) {
   const faces = [];
   const z = baseZ + 0.05, pad = 1.0;
   const x0 = r.x0 + pad, x1 = r.x1 - pad, y0 = r.y0 + pad, y1 = r.y1 - pad;
@@ -362,15 +381,16 @@ function furnishKitchen(r, baseZ, o, passX, exitY) {
   // COOK LINE + vent hood along the back wall
   faces.push(...box(x0, x1, y1 - 2.2, y1, z, z + 3.0, o.cookLineTint, o.light));
   faces.push(...box(x0, x1, y1 - 2.5, y1, z + 5.6, z + 6.4, o.hoodTint, o.light));
+  if (note) note('cook-line', 'CL', x0, x1, y1 - 2.2, y1);
 
   // REACH-IN refrigerators against the partition (right) wall
   for (let i = 0; i < 2; i += 1) {
     const fy = y0 + 0.5 + i * 3.4;
-    if (fy + 3.0 < y1 - 2.5) faces.push(...box(x1 - 2.6, x1, fy, fy + 3.0, z, z + 6.2, o.prepTint, o.light));
+    if (fy + 3.0 < y1 - 2.5) { faces.push(...box(x1 - 2.6, x1, fy, fy + 3.0, z, z + 6.2, o.prepTint, o.light)); if (note) note('reach-in', 'RF', x1 - 2.6, x1, fy, fy + 3.0); }
   }
 
   // PREP / SINK line on the exterior (left) wall, split around the service exit
-  const lcSeg = (ya, yb) => { if (yb - ya > 1.5) faces.push(...box(x0, x0 + 2.2, ya, yb, z, z + 3.0, o.steel, o.light)); };
+  const lcSeg = (ya, yb) => { if (yb - ya > 1.5) { faces.push(...box(x0, x0 + 2.2, ya, yb, z, z + 3.0, o.steel, o.light)); if (note) note('prep-line', 'PL', x0, x0 + 2.2, ya, yb); } };
   lcSeg(y0 + 0.5, exitY - 2.4);
   lcSeg(exitY + 2.4, y1 - 2.6);
 
@@ -378,6 +398,7 @@ function furnishKitchen(r, baseZ, o, passX, exitY) {
   const icx = (x0 + x1) / 2, icy = (y0 + y1) / 2;
   const iw = Math.min(x1 - x0 - 7, 8), id = Math.min(4.2, (y1 - y0) * 0.42);
   faces.push(...box(icx - iw / 2, icx + iw / 2, icy - id / 2, icy + id / 2, z, z + 3.0, o.steel, o.light));
+  if (note) note('prep-island', 'IS', icx - iw / 2, icx + iw / 2, icy - id / 2, icy + id / 2);
   faces.push(...box(icx - iw / 2 + 0.2, icx + iw / 2 - 0.2, icy - id / 2 + 0.25, icy + id / 2 - 0.25, z + 0.5, z + 0.8, o.prepTint, o.light)); // under-shelf
   faces.push(...box(icx - iw / 2, icx + iw / 2, icy - 0.12, icy + 0.12, z + 5.0, z + 5.4, o.beamTint, o.light));                          // pot rack
 
@@ -385,24 +406,28 @@ function furnishKitchen(r, baseZ, o, passX, exitY) {
   const px = passX ?? icx;
   faces.push(...box(x0, Math.max(x0, px - 2.6), y0, y0 + 1.2, z, z + 3.4, o.passTint, o.light));
   faces.push(...box(Math.min(x1, px + 2.6), x1, y0, y0 + 1.2, z, z + 3.4, o.passTint, o.light));
+  if (note && px - 2.6 > x0) note('pass-shelf', 'PS', x0, px - 2.6, y0, y0 + 1.2);
+  if (note && x1 > px + 2.6) note('pass-shelf', 'PS', px + 2.6, x1, y0, y0 + 1.2);
   return faces;
 }
 
 /** Washroom: a vanity with basins along the back wall, and a run of toilet STALLS (toilet +
  *  partitions) down the side wall. The door approach (front) is kept clear. */
-function furnishWashroom(r, baseZ, o) {
+function furnishWashroom(r, baseZ, o, note = null) {
   const faces = [];
   const z = baseZ + 0.05;
   const add = (frag) => { const fs = assetFaces(frag, { light: o.light }); for (let i = 0; i < fs.length; i += 1) faces.push(fs[i]); };
   const x0 = r.x0 + 1, x1 = r.x1 - 1, y0 = r.y0 + 1.5, y1 = r.y1 - 1;
   // vanity + basins along the back wall (faces into the room)
   add(buildVanity({ x: (x0 + x1) / 2, y: y1 - 1, z: baseZ, w: Math.min(x1 - x0 - 0.5, 7), d: 2, h: 2.7, along: 'x', counter: o.vanityTint, basin: o.basinTint }));
+  centred(note, 'vanity', 'LAV', (x0 + x1) / 2, y1 - 1, Math.min(x1 - x0 - 0.5, 7), 2);
   // toilet stalls down the side wall (tanks against −x), partitions between them
   const stallDepth = 3.4, stallLen = 3.2;
   faces.push(...box(x0, x0 + stallDepth, y0 - 0.08, y0 + 0.08, z, z + 5.5, o.stallTint, o.light));   // front divider
   let cy = y0 + stallLen / 2;
   for (let i = 0; i < 3 && cy + stallLen / 2 < y1 - 2.6; i += 1) {
     add(buildToilet({ x: x0 + 1.0, y: cy, z: baseZ, wall: '-x', tint: o.basinTint }));
+    centred(note, 'toilet-stall', 'WC', x0 + stallDepth / 2, cy, stallDepth, stallLen);
     faces.push(...box(x0, x0 + stallDepth, cy + stallLen / 2 - 0.08, cy + stallLen / 2 + 0.08, z, z + 5.5, o.stallTint, o.light));
     cy += stallLen;
   }

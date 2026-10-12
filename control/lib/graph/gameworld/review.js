@@ -45,7 +45,7 @@ export function reviewParts(world) {
   parts.push({ id: 'nature', name: 'Natural world', content: { style: { kit: G.style.kit, trail: G.style.trail, meru: G.style.meru }, land: Object.fromEntries(kits.map((k) => [k, landFor(k, (levels.find((R) => R.style.kit === k)?.style.land) ?? G.style.land ?? {})])) } });
   parts.push({ id: 'civilizations', name: 'Civilizations', content: G.civilizations });
   parts.push({ id: 'key', name: 'Color key', content: kits });
-  for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town } });
+  for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town, ...(R.building ? { building: R.building } : {}) } });
   // the cast and the story (story.js), reviewed as the world's other pages; a world without them has neither part
   if (G.characters?.cast) parts.push({ id: 'cast', name: 'The cast', content: G.characters.cast });
   if (G.story) parts.push({ id: 'story', name: 'The story', content: G.story });

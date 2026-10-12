@@ -8,6 +8,8 @@
  *     goal: 'reach' | 'collect' | 'survive' | 'avoid',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     climb?: true,                         // a climb after the trail, the exit at its top
+ *     building?: { use, seed?, goal?, … },  // the level is a building in place of the trail (gameworld building levels):
+ *                                           // entered at its way in, its goal room the end, pickups in its other rooms
  *     pickup?: '<word>',                    // collect: what lies along the way (its word picks the glyph: coin, key, star…)
  *     seconds?: n,                          // survive: how long
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
@@ -29,7 +31,7 @@ export const QUICK_GOALS = Object.freeze({
   survive: 'stay on the stage until the clock runs out',
   avoid: 'reach the end past its hazards (the water a trail crosses), with hp to spare',
 });
-const KEYS = ['goal', 'hero', 'climb', 'pickup', 'seconds', 'theme', 'camera'];
+const KEYS = ['goal', 'hero', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -44,6 +46,9 @@ export function readQuick(Q) {
   if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
   if (Q.camera !== undefined && !CAMERAS[Q.camera]) throw fail(`.camera is one of ${Object.entries(CAMERAS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
+  if (Q.building !== undefined && !isObj(Q.building)) throw fail('.building is a building level { use, seed?, goal?, … } (card game-building)');
+  if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
+  if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive goal');
   return Q;
@@ -61,7 +66,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
-    levels: { run: { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } },
+    levels: { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } },
     quick,
   };
 }

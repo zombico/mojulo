@@ -46,7 +46,12 @@ export function buildRulesBasic(E) {
     const speed = r.speed ?? 6, turn = r.turn ?? 2.2, stride = r.stride ?? 2.4, strafe = r.strafe ?? 0;
     const t = e.transform;
     if ((r.turnMode ?? 'tank') === 'tank') t.heading = (t.heading - input.turn * turn * dt) % TAU;   // A=left, D=right (heading+ is a LEFT turn)
-    else t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+    else {
+      t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+      // `keyTurn`: a mouse-look walker that still turns on A/D and the arrows (a building level: the mouse looks
+      // once captured, the keys turn without it, and the audit steers it by turning). Absent ⇒ unchanged.
+      if (r.keyTurn) t.heading = (t.heading - input.turn * turn * dt) % TAU;
+    }
     // `lookPitch` (look mode, opt-in): the mouse's Y pitches the walker too, for an `eye` camera to look up and down.
     // Pitch steers only the view; the walk stays on the ground plane.
     if (r.lookPitch && (r.turnMode ?? 'tank') !== 'tank') t.pitch = clamp((t.pitch || 0) + input.lookDY * (r.lookSens ?? 0.0025), -HALF_PI + 0.05, HALF_PI - 0.05);
@@ -54,7 +59,12 @@ export function buildRulesBasic(E) {
     const moveF = input.forward * speed * dt;
     const moveS = input.strafe * strafe * speed * dt;
     t.pos = add(t.pos, add(scl(f, moveF), scl(rt, moveS)));
-    const ground = world && world.ground ? world.ground(t.pos) : null;   // renderer hook (raycast)
+    // `collideRadius`: the walker stops at the world's colliders and slides along them (a level's walls), its body
+    // `collideHeight` tall from its feet, stepping onto anything `step` high. Absent ⇒ it walks through, as before.
+    if (r.collideRadius > 0 && world && world.colliders) E.resolveBlocking(t.pos, t.pos[2] - (r.eye ?? 0), r.collideHeight ?? (r.eye ?? 1.7), r.collideRadius, world.colliders, r.step ?? 0.35);
+    // `probe`: the ground is looked for from that high over the feet, not from the eye: a stair's treads are stepped
+    // up, a bench, a shelf or the floor of the storey above are not stood on. Absent ⇒ from the eye, as before.
+    const ground = world && world.ground ? world.ground(r.probe > 0 ? [t.pos[0], t.pos[1], t.pos[2] - (r.eye ?? 0) + r.probe] : t.pos) : null;   // renderer hook (raycast)
     if (ground != null) t.pos[2] = ground + (r.eye ?? 0);
     const dist = Math.hypot(moveF, moveS);
     e.gaitPhase = ((e.gaitPhase || 0) + (moveF < 0 ? -dist : dist) / stride);

@@ -26,6 +26,7 @@ import { MODES, STAMPS } from './review.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
+import { PROGRAM_IDS } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
@@ -107,6 +108,12 @@ function worldCard() {
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
+    `  or a building in place of the walk: building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? }`,
+    '  (its rooms laid from its use in its civilization\'s language, played from its way in to its goal room; card game-building),',
+    '  or building: { ref } to play a building already made (mint_building with level, or a stage) as it was made.',
+    '  places.buildings: [{ use, at?, node?, goal? }] stands buildings on a walk\'s trail, walked into as terrain; goal: true ends',
+    '  the level in its goal room; places.street: { houses?, enter?, goal? } stands the town\'s first houses on its first trail',
+    '  (the hall walked into, the rest as the town draws them; card game-building).',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',

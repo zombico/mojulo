@@ -181,6 +181,6 @@ export function sectionSheet(read, { units = 'imperial', project, size = 'ANSI B
     body.push(sectionDrawing(read, [dx + 18 + Math.max(0, (dw - 24 - w) / 2), cy + 6 + h + Math.max(0, (cellH - 22 - h) / 2)], scale, { cut: c, units }));
     body.push(drawingTitle([dx + 6, cy + cellH - 9], { detail: String(i + 1), title: c.axis === 'x' ? 'Longitudinal section' : 'Cross section', scale, sheet: id }));
   });
-  const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale, revision });
+  const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale, revision });
   return { id, title, scale, cuts, svg: sheetSvg({ size, body: body.join(''), block }) };
 }
