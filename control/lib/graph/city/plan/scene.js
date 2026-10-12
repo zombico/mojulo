@@ -13,11 +13,13 @@
 import { designCity } from './design.js';
 import { skinLot } from './facades.js';
 import { strHash } from './dice.js';
-import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
+import { CITY_METERS_PER_UNIT, METRO } from '../fractal-city.js';
 import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 import { lobbyOf, doorFaces } from './doors.js';
 import { nightFaces } from './night.js';
+import { cityTraffic, readCars } from './traffic.js';
+import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
 import { resolveLookSpec } from '../../era/look.js';
@@ -148,10 +150,11 @@ export function assembleCityScene(manifest, ctx = {}) {
   const lit = spec ? lookLight(spec, paint) : null;
   LIT = lit ? lit.light : CITY_LIGHT;
   const ox = seg ? seg.rect.x0 : 0, oy = seg ? seg.rect.y0 : 0;
-  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
+  const crop = seg ? { x0: seg.rect.x0 - ring, y0: seg.rect.y0 - ring, x1: seg.rect.x1 + ring, y1: seg.rect.y1 + ring } : null;
+  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy, crop }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
 }
 
-function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy }, { title, walkFlag, ctx }) {
+function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title, walkFlag, ctx }) {
   const ground = groundFaces(d, paint);
   // the walker starts on the walk nearest the height field's core, facing along its street
   const start = d.walk.nodes.reduce((b, n) => (!b || Math.hypot(n.x - d.field.cx, n.y - d.field.cy) < Math.hypot(b.x - d.field.cx, b.y - d.field.cy) ? n : b), null);
@@ -184,8 +187,15 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy }, { title, walk
     if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }
   const air = spec && spec.ref.air;
+  // the streets driven (traffic.js): lanes and signalled junctions the world path fills with its car bank, real-size
+  const T = d.plan.fidelity !== 'massing' && readCars(d.plan.cars) ? cityTraffic(d, crop) : null;
+  const traffic = T && T.carLanes.length ? {
+    carLanes: T.carLanes, junctions: T.junctions, trafficSeed: d.plan.seed, trafficRegion: { x: 0, y: 0, w: r3(d.frame.W / U), d: r3(d.frame.D / U) },
+    signals: buildSignals(T.junctions, d.plan.seed, { w: d.frame.W, d: d.frame.D }), cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight },
+  } : {};
   return {
     ...scene,
+    ...traffic,
     bg: '#cfd6dc',
     // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
     // by it: lookLit); a paint's cube's look is laid here

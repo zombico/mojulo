@@ -38,6 +38,8 @@ export const TRANSIT_MODES = Object.freeze(['tram', 'bus', 'maglev']);
 export const LAYOUTS = Object.freeze(['grid']);
 
 /** A legacy flavour (or none) read as a grammar, in metres. */
+// the flavours whose cities drive on the left (the legacy flavours never said; traffic.js reads it)
+const LEFT_HAND = Object.freeze(['london', 'tokyo']);
 export function grammarFromFlavor(key) {
   const F = key ? CITY_FLAVORS[key] : null;
   if (key && !F) throw new Error(`city grammar: '${key}' is not a city flavour (${Object.keys(CITY_FLAVORS).join(', ')})`);
@@ -47,7 +49,7 @@ export function grammarFromFlavor(key) {
     label: F?.label || 'North American downtown',
     locale: F?.locale || 'north-america',
     climate: F?.climate || 'temperate',
-    traffic: 'right',
+    traffic: LEFT_HAND.includes(key) ? 'left' : 'right',
     layout: 'grid',
     // the legacy recursion stops cutting a region narrower than `leaf` and refuses a child under `minBlock`
     block: { pitch: [m(METRO.leaf * 0.95), m(METRO.leaf * 1.4)], avenueEvery: 3 },

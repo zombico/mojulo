@@ -15,6 +15,7 @@
  *
  * Anything off the card is refused by name; nothing here rolls a die.
  */
+import { readCars } from './traffic.js';
 import { parseCell, cellName } from '../../level/ground.js';
 import { DEFAULT_GRAMMAR, PLAY_SCALES, PLAY_IDS } from './grammar.js';
 import { resolveGrammar } from './grammars.js';
@@ -23,7 +24,7 @@ import { readCityLook, readPaint } from './look.js';
 import { readSegments } from './segments.js';
 import { ENTER, readInside } from './doors.js';
 
-export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'waive', 'fidelity', 'notes', 'cityRef']);
+export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'cars', 'waive', 'fidelity', 'notes', 'cityRef']);
 /** How the world draws it: every lot in its facade (the default), or the massing alone (a plan judged as a plan). */
 export const FIDELITIES = Object.freeze(['facade', 'massing']);
 /** The channels every world kind wears (world-scene.js reads them; the plan never does). */
@@ -87,6 +88,7 @@ export function readCityPlan(rec) {
   const G = resolveGrammar(grammar);
   readCityLook(rec.look);
   readPaint(rec.paint);
+  if (rec.cars !== undefined) readCars(rec.cars);
   const fidelity = rec.fidelity ?? 'facade';
   if (!FIDELITIES.includes(fidelity)) no(`fidelity is ${FIDELITIES.join(' or ')} (got ${JSON.stringify(rec.fidelity)})`);
   const play = rec.play ?? 'game';
@@ -160,7 +162,7 @@ export function readCityPlan(rec) {
   const waive = list(rec.waive, 'waive');
   if (!waive.every((w) => typeof w === 'string' && w.length)) no("waive is a list of '<law>' or '<law>:<subject>'");
   if (rec.city !== undefined) no(`city: a segment level reads its city by ref ('${rec.city}'); resolve it first (plan/ref.js withCityRef)`);
-  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(segments ? { segments } : {}), ...(level ? { level } : {}), ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}) };
+  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(segments ? { segments } : {}), ...(level ? { level } : {}), ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}), ...(rec.cars !== undefined ? { cars: rec.cars } : {}) };
 }
 
 /**

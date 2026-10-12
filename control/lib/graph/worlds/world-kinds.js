@@ -416,7 +416,8 @@ export const WORLD_KINDS = {
   city: {
     title: 'mojulo city plan',
     walk: true,
-    resolve: (m, ctx) => assembleCityScene(m, { title: ctx.title }),
+    // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
+    resolve: async (m, ctx) => attachCityCars(assembleCityScene(m, { title: ctx.title })),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).

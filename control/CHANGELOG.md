@@ -135,6 +135,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The city no longer takes the legacy moonlight pass on top of the look's moon, which double-lit its ground and
     roofs. The moonlit ambient is lower, so a lit window reads against it.
   - `bladeSignBoxes` tags a sign with its tint only for a box that asks (`neon`); the legacy city keeps its bytes.
+- **Traffic** (`city/plan/traffic.js`). The city's straight streets become car lanes: a lane each way on a road
+  wide enough, a one-way lane alternating street by street on a narrower one, on the grammar's side. Every place
+  two streets meet becomes a signalled junction as wide as its carriageways.
+  - The world path fills them through the legacy city's car bank and signalled traffic model (`attachCityCars`):
+    real-size cars, exclusive phases, no two cars touching.
+  - A segment's level drives only its own crop.
+  - `cars: false` empties the streets; a massing city has none.
+  - London and Tokyo grammars now drive on the left. The legacy flavours never recorded a side.
+  - A four-segment Paris with cars, and its four insides, passed the headless auto-audit: all eight levels
+    completable.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.
