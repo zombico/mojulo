@@ -202,6 +202,29 @@ describe('design_game quick', () => {
     expect(stored('g-level-stretch-1-0').seed).not.toBe(stored('g-level-stretch-2-0').seed);
   }, 240_000);
 
+  it('battle: walk up to a foe and the fight is turn by turn; the foe answers each turn, and falls at no hp', async () => {
+    await designGameHandler({ quick: { goal: 'battle', foes: 2, world: { id: 'duel', style: { kit: 'trail-valley' } } }, ref: 'b2' });
+    const L = stored('b2-level-run-0');
+    expect(mechanicsOf('b2-level-run-0')).toEqual(['fail-on-death', 'win-when']);
+    expect(L.play.battle.foes.map((f) => [f.who, f.hp, f.atk])).toEqual([['foe-1', 4, 1], ['foe-2', 6, 2]]);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('b2-level-run-0'));
+    expect(payload.events.menus.map((m) => m.id)).toEqual(['battle-foe-1', 'battle-foe-2']);
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId], v = sim.bus.vars;
+    const f1 = L.play.battle.foes[0];
+    hero.transform.pos = [f1.at[0], f1.at[1], hero.transform.pos[2]];
+    sim.run(0.5);
+    expect(v.battle).toBe(1);
+    expect(v['ui-menu-battle-foe-1']).toBe(1);
+    const pick = (n) => sim.run(1.5, { 0: [{ type: `menu-pick:battle-foe-1:${n}` }] });
+    pick(0);   // attack: 4 → 2, the foe answers (20 → 19), the menu up again
+    expect([v['foe-hp-foe-1'], v.hp, v['ui-menu-battle-foe-1']]).toEqual([2, 19, 1]);
+    pick(1);   // guard: half its blow, rounded up
+    expect(v.hp).toBe(18);
+    pick(0);   // attack: it falls, and does not answer
+    expect([v['foe-hp-foe-1'], v.hp, v.battle, v.won]).toEqual([0, 18, 0, 1]);
+    expect(W.byId['foe-1'].downed).toBe(true);
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);

@@ -30,7 +30,8 @@ export const POWER = Object.freeze({
         // combo's juggle and every AI's attack stay on the web
         melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
         ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
-        'turn-based': { status: 'absent', effort: 'L', note: 'no turn or initiative model; party stats, menus and battle music could be reused, but the encounter switch, turn queue and command menus are new (priced 10-12)' },
+        // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars
+        'turn-based': { status: 'built', godot: false, lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },

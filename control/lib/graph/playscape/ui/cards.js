@@ -168,6 +168,7 @@ function cuesCard() {
     'IF: { var, gte | gt | lte | lt | eq | ne } (or a list): it fires only while each holds, read as it happens; else: the',
     '  effects when one does not (a pad that builds for gold: if: { var: \'gold\', gte: 5 }, then: [{ add: \'gold\', by: -5 }, …]).',
     'ROUTINES (a level with a clock): play.routines: [{ who, plan: [{ hour, to: place, pose? }, …] }] walk each to its place hour by hour.',
+    'BATTLE (turn-based): play.battle: { hero?: { atk, hp: var }, foes: [{ who, at, name?, hp?, atk? }] }: walk up, attack / guard / flee.',
     `example: ${JSON.stringify(ex.cues)}`,
     'Each cue fires the bus event cue:<id>, so any part can bind { on: \'cue:<id>\' }. The words draw on the page today;',
     'show, hide, state and phase are set on the bus (ui-<part>, ui-<part>-state, phase) and drawn on the board until the',

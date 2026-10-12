@@ -26,9 +26,9 @@ describe('cosmos-sweep CLI', () => {
   });
 
   it('prints one fixture row by row, with what each value lowers to', () => {
-    const f = fixture('jrpg');
+    const f = fixture('shooter');
     const text = formatFixture(f, dryRun(f.cube));
     expect(text).toMatch(/verdict blocked/);
-    expect(text).toMatch(/combat=turn-based\s+absent/);
+    expect(text).toMatch(/rung=gen-7\.0\s+absent/);
   });
 });

@@ -5,7 +5,7 @@
  * game's own decoration (glyph forms chosen by the pickup's word, sparkles, the exit's marker) and the shell's theme.
  *
  *   gameworld.quick: {
- *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm',
+ *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
  *     climb?: true,                         // a climb after the trail, the exit at its top
@@ -23,6 +23,7 @@
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
+ *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
@@ -54,7 +55,10 @@ export const QUICK_GOALS = Object.freeze({
   defend: 'foes walk the trail in waves to your base (its start); build archers\' towers on the pads beside it (E, for gold) and hold',
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
+  battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
 });
+// a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
+export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
 export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 6 });
@@ -66,7 +70,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run'];
+const KEYS = ['goal', 'hero', 'ride', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -100,7 +104,8 @@ export function readQuick(Q) {
   for (const k of ['music', 'misses']) if (Q.goal !== 'rhythm' && Q[k] !== undefined) throw fail(`.${k} belongs to the rhythm goal`);
   if (Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
-  for (const k of ['waves', 'lives', 'pads', 'foe', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
+  for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
+  if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle') throw fail('.foe belongs to the defend and battle goals');
   if (Q.waves !== undefined && !(Number.isInteger(Q.waves) && Q.waves >= 1 && Q.waves <= DEFEND.perWave.length)) throw fail(`.waves is 1 to ${DEFEND.perWave.length}`);
   if (Q.lives !== undefined && !(Number.isInteger(Q.lives) && Q.lives >= 1 && Q.lives <= 20)) throw fail('.lives is 1 to 20');
   if (Q.pads !== undefined && !(Number.isInteger(Q.pads) && Q.pads >= 1 && Q.pads <= 8)) throw fail('.pads is 1 to 8');
@@ -117,6 +122,9 @@ export function readQuick(Q) {
   if (Q.farmhand !== undefined && !isObj(Q.farmhand)) throw fail('.farmhand is a hero-door spec, as .hero is');
   if (Q.goal === 'farm' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.farm tills the land by a trail\'s start: no climb, building or ride');
   if (Q.run !== undefined && !(Number.isInteger(Q.run) && Q.run >= 2 && Q.run <= 8)) throw fail('.run is how many trails a run draws, 2 to 8');
+  if (Q.goal !== 'battle' && Q.foes !== undefined) throw fail('.foes belongs to the battle goal');
+  if (Q.foes !== undefined && !(Number.isInteger(Q.foes) && Q.foes >= 1 && Q.foes <= BATTLE.foeHp.length)) throw fail(`.foes is 1 to ${BATTLE.foeHp.length}`);
+  if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   return Q;
 }
@@ -179,6 +187,8 @@ export function goalMechanics(quick, ends) {
         { kind: 'win-when', when: { var: 'gold', gte: target }, event: 'farm:rich', hud: 'Gold' },
       ];
     }
+    case 'battle':
+      return [{ kind: 'fail-on-death', startHp: BATTLE.hp }, { kind: 'win-when', when: { var: 'won', gte: Math.min(quick.foes ?? 3, along.length || 1) }, event: 'battles:won', hud: 'Won' }];
     case 'sneak':
       return [{ kind: 'unseen', ...(quick.alarms > 1 ? { alarms: quick.alarms } : {}) }, exit];
     case 'avoid': {
@@ -273,6 +283,22 @@ export function farmCast(quick, ends, ref) {
   return { figures, entities, play: { spots, routines } };
 }
 
+/** A battle's foes: `foes` (3) standing on the trail's beats, facing back down it, each fought turn by turn when the
+ * hero walks up (play.battle, playscape/ui/battles.js). `ref`: their figure. → { figures, entities, play } */
+export function battleCast(quick, ends, ref) {
+  const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
+  const n = Math.min(quick.foes ?? 3, along.length);
+  const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
+  const figures = {}, entities = [], foes = [];
+  picks.forEach((b, k) => {
+    const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
+    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])) } });
+    foes.push({ who: id, at: [b.at[0], b.at[1]], name: `Foe ${k + 1}`, hp: BATTLE.foeHp[k], atk: BATTLE.foeAtk[k] });
+  });
+  return { figures, entities, play: { battle: { hero: { atk: BATTLE.atk, hp: 'hp' }, foes } } };
+}
+
 /** A defence's cast and its building, on a stage: the foes asleep at the trail's end (as many as its waves send), a
  * tower asleep on each pad (beside the trail's beats, alternate sides), and a cue per pad that builds it for gold.
  * `refs`: { foe, tower } (their figures). → { figures, entities, play } (levels.js stageLevelOrder's `extra`). */
@@ -321,7 +347,7 @@ export function goalAudio(quick) {
 export function quickStore(quick) {
   return {
     slices: [
-      ...(quick.goal === 'avoid' ? [{ name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }] : []),
+      ...(quick.goal === 'avoid' || quick.goal === 'battle' ? [{ name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }] : []),
       ...(quick.goal === 'collect' ? [{ name: 'bag', kind: 'inventory' }] : []),
       { name: 'campaign', kind: 'progression' },
     ],

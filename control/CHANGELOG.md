@@ -399,6 +399,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Aftermath.** The `aftermath` mechanic keeps each block that breaks as a flag (`broke:<id>`) in a flags slice the game
   carries, and a level entered again takes those blocks away at the start, with no shatter. A game's emitted store event
   may name itself (`key: '{event}'`). A gameworld whose `mechanics.destruction` lets things break gives every level this.
+- **Turn-based battles.** `play.battle` composes a fight from what the play block has: walking up to a foe opens its
+  battle (a talk menu with its hp and yours: Attack, Guard, Flee; the world held while it is up), a pick is the hero's
+  turn, the foe answers a beat later (a cue on the pick's end), and at no hp it falls. `goal: 'battle'` stands `foes`
+  (3) on the trail, tougher as they go, the hero's hp carried from fight to fight.
 
 ### Scene layer: a shot that takes the camera, and two characters talking
 
