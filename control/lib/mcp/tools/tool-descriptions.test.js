@@ -344,7 +344,9 @@ const DESCRIPTION_ALLOWLIST = {
 // with its kinds grouped by purpose). No new tool.
 // Re-pinned 2026-10-12 (202_800 -> 204_300; measured 204,250) for asset receipts: two new tools, sign_asset and
 // verify_asset (pack_stash), the creator's signed receipt for an exported file.
-const PAYLOAD_CEILING = 204_300;
+// Re-pinned 2026-10-12 (204_300 -> 204_500; measured 204,367) for create_game's `shell: 'play'`, the light play shell design_game's
+// games ship in (play-shell.js). No new tool.
+const PAYLOAD_CEILING = 204_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -78,9 +78,9 @@ async function realize(step, action) {
   }
   if (key === 'game') {
     // the game over the levels: create_game (the levels unaudited, recorded), its manifest whole in place
-    const { title, store, levels } = order;
+    const { title, store, levels, theme, shell } = order;
     if (action === 'make') await createGameHandler({ ...order, ref });
-    else await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels } });
+    else await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(theme ? { theme } : {}), ...(shell ? { shell } : {}) } });
     return {};
   }
   if (key === 'systems') {
@@ -128,7 +128,11 @@ function readout(ref, world) {
   const open = parts.filter((p) => p.status === 'proposed' || p.status === 'changed' || p.status === 'revise');
   if (mode === 'gated' && open.length) next.push({ step: 'review', parts: open.map((p) => p.id), card: 'gameworld-next' });
   if (mode === 'autonomous' && parts.some((p) => p.status === 'revise')) next.push({ step: 'advised', parts: parts.filter((p) => p.status === 'revise').map((p) => p.id), card: 'gameworld-next' });
-  if (world.made?.game) next.push({ step: 'play', url: `/api/sketches/${encodeURIComponent(world.made.game.ref)}/game`, gate: 'eyes', card: 'gameworld-next' });
+  if (world.made?.game) {
+    // the game as a player gets it, and the playtest: every level open, nothing saved, `?level=<ref>` for one
+    const game = encodeURIComponent(world.made.game.ref);
+    next.push({ step: 'play', url: `/api/sketches/${game}/game`, playtest: `/api/sketches/${game}/playtest`, gate: 'eyes', card: 'gameworld-next' });
+  }
   if (world.characters) next.push({ step: world.made?.hero ? 'rerun' : 'run', card: 'gameworld-next' });
   if (world.characters?.hero?.actions && !world.characters.hero.adornment) next.push({ step: 'adornment', path: '/characters/hero/adornment', card: 'gameworld-adornment' });
   if (steps) for (const [k, s] of Object.entries(steps)) if (!s.ready) next.push({ step: 'wait', on: k, waiting: s.waiting.map((w) => `${w.id} (${w.status})`), card: 'gameworld-next' });

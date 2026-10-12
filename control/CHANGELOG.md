@@ -13,6 +13,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The play shell: quick games end to end, and a playtest for the big loop
+
+- **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
+  level → result: no setup screen (consumed slices ride whole, a pick takes the first members), a pause with
+  resume, restart, the level's own controls and sound, and a result in plain words (cleared, failed, what was
+  gained, the stats table when the level sends one) with next, again and home. The store, params and envelopes
+  live in a debug drawer only. Same wire and same store kernel as the arena shell, so levels and saves behave the
+  same under either.
+- **`shell: 'play'` picks it.** A game manifest may say `shell: 'play'` (create_game takes it); without it a game
+  gets the arena shell, emitted exactly as before. The `/game` route and `export_game` choose through one
+  `emitShellFor`. A play-shell game carries no menu, music, setup or difficulty, and validation says so.
+- **design_game's games ship in it.** A run, quick or from the whole book, makes its game with `shell: 'play'`;
+  remaking the game in place now keeps its theme and shell. A game made before is remade on its next run.
+- **Playtest any game.** `GET /api/sketches/<game>/playtest[?level=<ref>]` plays a world/level game in the play
+  shell with every level open, nothing saved and the debug drawer open; `level` opens straight into one level.
+  design_game's `play` step and create_game's answer carry the link.
+
 ### Asset receipts: a creator's signed proof for an exported file
 
 - **`sign_asset` / `verify_asset` (pack_stash).** `sign_asset({ path })` hashes an exported file, signs the hash with

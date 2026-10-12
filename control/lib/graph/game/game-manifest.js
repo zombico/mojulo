@@ -21,7 +21,8 @@
  *     menu?:  { tagline?, attribution?, entries: [{ id, title, subtitle?, kind: 'levels'|'world'|'soon'|'about', ref? }] },
  *     music?: { menu?: <beatsRef>, about?: <beatsRef>, battle?: [<beatsRef>, …] },
  *     setup?: { <sliceName>: <presentation> },
- *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] } }
+ *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] },
+ *     shell?: 'play' }                     // the light shell (play-shell.js); absent: the arena shell
  *
  * `setup` is the optional PRE-LEVEL presentation, per party slice — how the setup screen renders
  * that slice's pick (the default is the plain radio/checkbox picker). Two styles:
@@ -239,6 +240,16 @@ export function validateGameManifest(manifest) {
         if (levelsEntries > 1) errors.push(`menu has ${levelsEntries} kind:'levels' entries — at most one is allowed (the flat level list)`);
         if (reachEntries === 0) errors.push(`menu needs a way to reach a level — one kind:'levels' entry or at least one kind:'mode' entry`);
       }
+    }
+  }
+
+  // shell: which page plays the game. 'play' is the light shell (play-shell.js: title, levels, result; no menus,
+  // music, setup or difficulty, so a manifest carrying those is told so); absent is the arena shell (game-shell.js).
+  if (manifest.shell !== undefined) {
+    if (manifest.shell !== 'play') errors.push("shell is 'play' (the light shell: title → levels → result) or absent (the arena shell)");
+    else {
+      const arena = ['menu', 'music', 'setup', 'difficulty'].filter((k) => manifest[k] !== undefined);
+      if (arena.length) errors.push(`shell 'play' has no ${arena.join(', ')}: drop ${arena.length === 1 ? 'it' : 'them'}, or drop shell for the arena shell`);
     }
   }
 

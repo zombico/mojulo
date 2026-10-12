@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
-import { emitGameShell } from '@/lib/graph/game/game-shell';
+import { emitShellFor } from '@/lib/graph/game/shell-for';
 
 // hud=0: game play screens present clean — the world page's dev-chrome strip (view cams,
 // wireframe, fly/walk, reverse view, AI attack) never shows inside the shell's iframes.
@@ -62,7 +62,7 @@ export async function GET(request, { params }) {
       // A level was deleted or its contract drifted after the game was minted — teach, don't 500.
       return NextResponse.json({ error: err.message }, { status: 422 });
     }
-    const html = emitGameShell(resolved.manifest, resolved.levels, resolved.menu, resolved.music, resolved.setup);
+    const html = emitShellFor(resolved);   // the play shell when the manifest says shell: 'play', else the arena's
     return new Response(html, {
       status: 200,
       headers: {
