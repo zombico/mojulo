@@ -29,10 +29,9 @@ describe('the solver, swept', () => {
         named.push(`${intent} ${motif} ${camera}`);
       }
     }
-    // designed at person scale, with a budget by use. What still names a conflict is a driven vehicle's organic hull seen
-    // flat-shaded from its own cockpit: its rounds need more points than the cap to read under the facet limit. Shading
-    // its soft edges smooth (pixels, not polygons) is what settles it
-    expect(named.every((x) => x.endsWith('first-person') && / organic /.test(x)), named.join(' | ')).toBe(true);
-    expect(held / n).toBeGreaterThan(0.99);
+    // designed at person scale, with a budget by use, its rounds shaded smooth and held to their outline: every one
+    // holds, a driven hull seen from its own cockpit included
+    expect(named, named.join(' | ')).toEqual([]);
+    expect(held).toBe(n);
   }, 600000);
 });

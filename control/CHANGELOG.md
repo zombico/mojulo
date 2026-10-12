@@ -55,9 +55,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   distance a thing is watched from, because a cockpit sees its own bonnet, not its outline. A smooth or organic
   section takes its points by its real outline, not by the circle of its half-sides. A round may take up to
   `FIT_MAX` points. The resolution dial now moves in small steps.
-- Across 17 briefs × 6 motifs × 3 cameras, every case holds except organic walkers driven in first person. Their
-  flat-shaded hulls at the cockpit's 2.5 m need more points than the cap allows, and the solver names that
-  conflict. Smooth shading across soft edges (pixels, not polygons) is what settles it.
+- **Smoothing groups: pixels, not polygons** (`gameworld/tech-shading.js`). A crafted thing's rounds are shaded
+  smooth. Inside a piece, an edge whose faces turn less than the style's crease (40°) shares its normals, and a
+  chamfer stays hard. Each face carries `cornerNormals`. `faceListToMesh` writes them as the GLB's per-vertex
+  normals when they are present (absent, zero bytes), and `bakeCorners` bakes light per corner into
+  `cornerFills` for the unlit path.
+- **On a smooth round, the facets law is outline error.** It measures how far the outline strays from the true
+  curve, in pixels on today's screen, not how wide a facet reads. A facet's band no longer shows once it is shaded
+  smooth, so the round spends points only where its curve is tight. Each round's points are sized to that error.
+  Flat-shaded faces keep the width law.
+- Across 17 briefs × 6 motifs × 3 cameras, every case now holds, the organic walkers driven in first person
+  included. They spend fewer triangles than they did flat.
 
 ### Technology design loop: chassis, adornment, skin
 

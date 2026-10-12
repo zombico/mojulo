@@ -13,12 +13,13 @@
  *                                         no more than three times as wide as its neighbours on the curve,
  *                                         its width across that edge in metres
  *   techReadout(faces, { tier, rank?, use?, camera?, style?, U? }) → { camera, tier, rank, use, distance, outside, triangles, ceiling,
- *     facetPx: { widest, median, band }, segments, segmentBand, emboss, renderGroups, atlases, atlas, advice }
+ *     facetPx: { widest, median, band }, facetLaw: { measure: 'outline' | 'width', value, limit }, segments, segmentBand, emboss, renderGroups, atlases, atlas, advice }
  *
  * Pure.
  */
 import { objectMeasures } from '../playscape/objects/measures.js';
 import { INTEREST, EMBOSS_STEP } from '../playscape/objects/laws.js';
+import { isSmooth } from './tech-shading.js';
 import { DEFAULT_TECH_CAMERA, DEFAULT_TECH_STYLE, TECH_STYLES, meetDistance, pxPerMetre, triangleCeiling, atlasPage } from './tech-eras.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -79,17 +80,22 @@ export function techReadout(faces, { tier, rank = 'interactable', use = 'watched
   const solid = faces.filter((f) => !f.tile && f.corners?.length >= 3);
   const triangles = solid.reduce((s, f) => s + f.corners.length - 2, 0);
   // the widest facet that reads (the 90th percentile: one odd face is not the look) and the median
-  const F = facets(solid).map((f) => f.width * k), facetPx = { widest: r3(pct(F, 0.9)), median: r3(pct(F, 0.5)), band, n: F.length, wasted: r3(F.filter((x) => x < band[0]).length / Math.max(1, triangles)) };
+  const FF = facets(solid), F = FF.map((f) => f.width * k), facetPx = { widest: r3(pct(F, 0.9)), median: r3(pct(F, 0.5)), band, n: F.length, wasted: r3(F.filter((x) => x < band[0]).length / Math.max(1, triangles)) };
+  // shaded smooth, a round shows its polygons only at its outline: how far a facet's chord strays from the curve it
+  // stands for (its width × its turn ÷ 8), in pixels; shaded flat, every facet's width shows as a band
+  const smooth = isSmooth(solid), outlinePx = TECH_STYLES[style].outlinePx;
+  const O = FF.map((f) => (f.width * k * f.angle * Math.PI) / 180 / 8);
+  const facetLaw = smooth ? { measure: 'outline', value: r3(pct(O, 0.9)), limit: outlinePx } : { measure: 'width', value: facetPx.widest, limit: band[1] };
   // the object laws read part roles; until adornment names a 33, every face is the 66
   // a silhouette is read from outside: at the distance it is watched from, even when its use brings the camera nearer
   // (a cockpit sees its own bonnet, not its outline)
   const outside = meetDistance(camera, tier);
   const m = objectMeasures(solid.map((f) => ({ corners: f.corners, part: 'body', value: valueOf(f) })), { U, distance: outside }, rank);
   const groups = new Set(solid.map((f) => f.texture ?? f.material?.id ?? f.material ?? 'vertex')), atlases = new Set(solid.map((f) => f.texture).filter(Boolean));
-  const out = { camera, style, tier, rank, use, distance, outside, triangles, ceiling, facetPx, segments: m.segments, segmentBand: INTEREST[rank].segments, emboss: m.emboss, renderGroups: groups.size, atlases: atlases.size, atlas: atlasPage(solid, distance), advice: [] };
+  const out = { camera, style, tier, rank, use, distance, outside, triangles, ceiling, facetPx, facetLaw, segments: m.segments, segmentBand: INTEREST[rank].segments, emboss: m.emboss, renderGroups: groups.size, atlases: atlases.size, atlas: atlasPage(solid, distance), advice: [] };
   const say = (law, line) => out.advice.push({ law, line });
   if (!F.length) say('rounds', `no curved surface at all: every face meets its neighbour square. A ${style} piece rounds its masses (a lathe, a loft, a bevel) so its outline is not a stack of boxes.`);
-  else if (facetPx.widest > band[1]) say('facets', `its facets read ${facetPx.widest} px wide at ${distance} m on today's screen; ${style} keeps them under ${band[1]} px: more sides on its rounds.`);
+  else if (facetLaw.value > facetLaw.limit) say('facets', smooth ? `its rounds stray ${facetLaw.value} px from their curves at ${distance} m on today's screen; ${style} keeps its outline within ${facetLaw.limit} px: more sides on its tight rounds.` : `its facets read ${facetPx.widest} px wide at ${distance} m on today's screen; ${style} keeps them under ${band[1]} px: more sides on its rounds.`);
   // narrow facets are wasted when they are a real share of what it spends (a whip's tip is not)
   if (F.length && facetPx.median < band[0] && facetPx.wasted > 0.25) say('facets', `half its facets read under ${facetPx.median} px at ${distance} m; under ${band[0]} px they are wasted: fewer sides.`);
   if (triangles > ceiling) say('budget', `${triangles} triangles; a ${use} ${rank} spends at most ${ceiling}.`);

@@ -39,6 +39,10 @@ export const TECH_STYLES = Object.freeze({
     // the facets: the widest a curved surface's flat face may read on today's screen at the meet distance (px), and the
     // narrowest worth its triangles
     facetPx: Object.freeze([4, 40]),
+    // smoothing groups (tech-shading.js): edges turning less than the crease are shaded smooth, and a smooth round is
+    // held to how far its outline strays from the true curve (px), the only place its polygons still show
+    crease: 40,
+    outlinePx: 1.5,
   }),
 });
 export const TECH_STYLE_IDS = Object.freeze(Object.keys(TECH_STYLES));
