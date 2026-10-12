@@ -294,19 +294,21 @@ export function tieredSockets(plan) {
  * (spikes 1–3): the FACE words under the operator's own (ratios compose by product, so a word the operator gives moves
  * from here), the female's longer HAIR (the short swept cut was both sexes'), and the FEATURES the fitted head's words do
  * not reach: eyes 0.85 (36 mm wide was past a real eye's 30), lighter brows, smaller ears set in (they stood out from a
- * head they were a third of), a lower lip and the lips' tint of the skin (the lip was the skin at 0.96: no mouth).
+ * head they were a third of), a lower lip and the lips' tint of the skin (the lip was the skin at 0.96: no mouth), and
+ * the EYE as an eyeball under a lid: the white a shallow dome sunk in its socket, the upper lid down over the iris's top
+ * and a lower lid (the flat stack read as a sticker), the male's lid the heavier.
  * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
  * behind her lips in profile) and a longer nose; the male: a broader jaw, a heavier brow, the chin forward. */
 export const TIERED_FACE = Object.freeze({
   female: Object.freeze({
     face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.06, noseSize: 1.1, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
     hair: 'bob',
-    features: Object.freeze({ eye: 0.85, brow: 0.6, ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]) }),
+    features: Object.freeze({ eye: 0.85, brow: 0.6, ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]), eyeDome: 0.003, lid: Object.freeze({ drop: 0.25, fold: 1.6, lower: 1 }) }),
   }),
   male: Object.freeze({
     face: Object.freeze({ jawWidth: 1.08, chinProjection: 1.12, noseSize: 1.08, browRidge: 1.15, noseWidth: 1.05 }),
     hair: null,
-    features: Object.freeze({ eye: 0.85, brow: 0.85, ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]) }),
+    features: Object.freeze({ eye: 0.85, brow: 0.85, ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }) }),
   }),
 });
 /** the landmark head's normals toward its ellipsoid (station-loft-shade.js headEllipsoidNormals): 0.45 left the crease

@@ -148,12 +148,14 @@ function detail(carrier, parent, at, side, mesh, group, labels) {
     ...(labels ? { groups: Object.fromEntries(labels.map((g, i) => [`f${i}`, g])) } : {}) };
 }
 // A shallow almond, embedded at its border. Width/height/depth are independent; no protruding eyeball.
-function oval(origin, rx, rz, depth, sides, normal = [0, 1, 0]) {
+function oval(origin, rx, rz, depth, sides, normal = [0, 1, 0], dome = 0) {
   const across = unit([normal[1], -normal[0], 0]);
   const ring = (scale, d) => Array.from({ length: sides }, (_, i) => {
     const a = i * 2 * Math.PI / sides;
     return add(add(origin, mul(normal, d)), add(mul(across, dmath.cos(a) * rx * scale), [0, 0, dmath.sin(a) * rz * scale]));
   });
+  // a DOME (`dome`, metres: the eyeball's bulge under the lids): two more rings rising to the crown, a sphere's cap
+  if (dome > 0) return loftParts([ring(0.88, -0.0015), ring(1, 0), ring(0.8, dome * 0.6), ring(0.45, dome * 0.92)], add(origin, mul(normal, -0.002)), add(origin, mul(normal, dome)));
   return loftParts([ring(0.88, -0.0015), ring(1, 0), ring(0.98, depth * 0.8)], add(origin, mul(normal, -0.002)), add(origin, mul(normal, depth)));
 }
 // A low triangular opening for the nostril seen from below. Unlike an oval
@@ -259,14 +261,27 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     const at = [4, eyeT], f = frameAt(carrier, 'cranium', at, side);
     const normal = unit([f.normal[0], f.normal[1], 0]);
     const origin = add(f.origin, mul(normal, 0.002));
-    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(origin, 0.018 * sh.eye * (ft.eye ?? 1), 0.0105 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0009, reg.eyeSides, normal), 'Sclera');
-    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0010)), 0.0085 * sh.eye * (ft.eye ?? 1), 0.0095 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.001, reg.eyeSides, normal), 'Iris');
-    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0021)), 0.0044 * sh.eye * (ft.eye ?? 1), 0.006 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0005, 8, normal), 'Pupil');
+    // the EYEBALL (features.eyeDome, metres): the white bulges as a dome under the lids and the iris and the pupil ride
+    // its crown, each its own shallow dome (absent ⇒ the flat stack)
+    // sunk (`ft.eyeSink` of the dome, default 0.75): the rim goes into the head and only the crown stands out of the
+    // skin, an eyeball in its socket (on the skin the dome stood proud of the face in profile)
+    const dome = ft.eyeDome ?? 0, sink = dome * (ft.eyeSink ?? 0.75), ride = (k) => (dome ? dome * k - sink : 0);
+    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, -sink)), 0.018 * sh.eye * (ft.eye ?? 1), 0.0105 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0009, reg.eyeSides, normal, dome), 'Sclera');
+    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0010 + ride(0.78))), 0.0085 * sh.eye * (ft.eye ?? 1), 0.0095 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.001, reg.eyeSides, normal, dome ? dome * 0.3 : 0), 'Iris');
+    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0021 + ride(1.02))), 0.0044 * sh.eye * (ft.eye ?? 1), 0.006 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0005, 8, normal), 'Pupil');
     const across = unit([normal[1], -normal[0], 0]);
-    const lidSpine = [[-0.018, 0], [-0.012, 0.0075], [0, 0.0105], [0.012, 0.0075], [0.018, 0]].map(([x, z]) =>
-      add(add(origin, mul(normal, 0.0015)), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * ex.aperture * sh.eye * (ft.eye ?? 1)])));
-    const lid = sweep(lidSpine, [0.0007, 0.0010, 0.0011, 0.0008], 4);
+    // the LID (features.lid: { drop, fold, lower }): the upper lid comes `drop` of the eye's height down over the iris's
+    // top and stands `fold` thick, out over the dome; `lower` draws the lower lid's line, that much of the upper's
+    const L = ft.lid ?? null, drop = L?.drop ?? 0, fold = L?.fold ?? 1, out = Math.max(0, dome * 0.75 - sink * 0.6);
+    const lidSpine = [[-0.018, 0], [-0.012, 0.0075 - drop * 0.006], [0, 0.0105 - drop * 0.0095], [0.012, 0.0075 - drop * 0.006], [0.018, 0]].map(([x, z], i) =>
+      add(add(origin, mul(normal, 0.0015 + (i % 4 ? out : out * 0.3))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * ex.aperture * sh.eye * (ft.eye ?? 1)])));
+    const lid = sweep(lidSpine, [0.0007, 0.0010, 0.0011, 0.0008].map((r) => r * fold), 4);
     parts[`lid${side}`] = detail(carrier, 'cranium', at, side, lid, 'Lid');
+    if (L?.lower) {
+      const lowSpine = [[-0.016, -0.001], [-0.009, -0.0072], [0, -0.0092], [0.009, -0.0072], [0.016, -0.001]].map(([x, z], i) =>
+        add(add(origin, mul(normal, 0.0012 + (i % 4 ? out * 0.7 : out * 0.2))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * ex.aperture * sh.eye * (ft.eye ?? 1)])));
+      parts[`lidLow${side}`] = detail(carrier, 'cranium', at, side, sweep(lowSpine, [0.0005, 0.0008, 0.0008, 0.0005].map((r) => r * L.lower), 4), 'Lid');
+    }
     const addrs = [[5.12, 3.8], [5.24, 4.15], [5.20, 4.65], [5.08, 4.95]];
     const brow = strip(carrier, 'cranium', addrs, side, j => {
       const w = 0.0037 * sh.brow * (ft.brow ?? 1) * [0.65, 1, 0.9, 0.35][j];

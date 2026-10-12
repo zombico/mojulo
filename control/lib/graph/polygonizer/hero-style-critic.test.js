@@ -47,15 +47,15 @@ describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
     const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
-    expect(tiered.mesh.faces.length).toBe(4804);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64
+    expect(tiered.mesh.faces.length).toBe(4964);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
     const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
   }, 120000);
 
   it('a male, a child-coded figure or a bust of 0 takes no profile; the form is checked by name', () => {
-    // the male's tiered form is today's and the joints' bridges and balls and the lower lips alone
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(816);
+    // the male's tiered form is today's and the joints' bridges and balls, the lower lips and the eyes' domes and lids alone
+    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(976);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });
@@ -111,6 +111,8 @@ describe('the tiered face', () => {
     // a lower lip in the lips' tint of the skin; today none, and the lip the skin at 0.96
     expect(Object.keys(f.m.recipe.parts).filter((k) => /^lowerLip/.test(k))).toEqual(['lowerLipR', 'lowerLipL']);
     expect(Object.keys(today.m.recipe.parts).some((k) => /^lowerLip/.test(k))).toBe(false);
+    // the eye under a lid: a lower lid on the tiered head, none today
+    expect([Object.keys(f.m.recipe.parts).filter((k) => /^lidLow/.test(k)).length, Object.keys(today.m.recipe.parts).filter((k) => /^lidLow/.test(k)).length]).toEqual([2, 0]);
     expect(f.m.recipe.palette.Lip).toBe('#bc6e60');
     expect(built({ cast: 'female', form: 'tiered', palette: { Skin: '#8d5a3b' } }).m.recipe.palette.Lip).toBe('#7a3b2d');   // the tint follows the skin
     expect(built({ cast: 'female', form: 'tiered', palette: { Lip: '#aa3344' } }).m.recipe.palette.Lip).toBe('#aa3344');   // the operator's wins
