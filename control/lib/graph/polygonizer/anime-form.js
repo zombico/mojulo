@@ -219,8 +219,10 @@ export function buildAnime(r, options = {}) {
   const xs1 = thin ? xs0.filter((x, k) => k % 2 === 0 || Math.abs(x) <= 0.16) : xs0;
   const ys1 = thin ? ys0.filter((y, k) => k % 2 === 0 || k === ys0.length - 1 || (y >= -0.35 && y <= -0.05)) : ys0;
   // the nose dials' own rows and columns (the stop, the tip, the underside, the chin; the wedge's edges), merged in
-  const merge = (a, extra, lo, hi) => [...new Set([...a, ...extra.filter((v) => v > lo && v < hi).map((v) => Math.round(v * 1e4) / 1e4)])].sort((p, q) => p - q);
-  const xs = ND ? merge(xs1, ND.cols, -1, 1) : xs1, ys = ND ? merge(ys1, ND.rows, ys1[0], ys1.at(-1)) : ys1;
+  // (an added ROW closer than `gap` to one kept is dropped: the strip between two near rows runs the whole face's width,
+  // folds its normals and inks as a crease line across the eyes and the cheeks; the wedge's columns stay, as they are)
+  const merge = (a, extra, lo, hi, gap = 0) => { const out = [...new Set(a)]; for (const v of extra.filter((x) => x > lo && x < hi).map((x) => Math.round(x * 1e4) / 1e4)) if (out.every((w) => (gap ? Math.abs(w - v) >= gap : w !== v))) out.push(v); return out.sort((p, q) => p - q); };
+  const xs = ND ? merge(xs1, ND.cols, -1, 1) : xs1, ys = ND ? merge(ys1, ND.rows, ys1[0], ys1.at(-1), 0.012) : ys1;
   // mouthWidth past the studio's aperture: the mouth box widens to the first lattice column that clears the smiling line
   const MB = S?.mouthWidth > 1 ? xs0.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
   const holes = [{ kind: 'eye', side: -1, x0: -0.8, x1: -0.12, y0: -0.22, y1: 0.32 }, { kind: 'eye', side: 1, x0: 0.12, x1: 0.8, y0: -0.22, y1: 0.32 }, { kind: 'mouth', side: 0, x0: MB ? -MB : -0.26, x1: MB ? MB : 0.26, y0: -0.66, y1: -0.40 }];

@@ -55,6 +55,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a wedge on that line. Under the dials the studio's soft nose is off; the anchor (tip, chin) is still the studio face's.
 - **`width`** sets the wedge's top and its underside: 0 a pointer (a sliver underneath), 1 a trapezoid, narrow at the
   tip and wide at the face. The underside is painted (`noseUnder`), darker as it widens.
+- **No crease line across the face.** The dials' own lattice rows sat within a hair of the face's (as near as 0.0001), and
+  the strip between two such rows, the face's whole width, folded its normals: the ink drew it as a line through the
+  eyes and the cheeks, and the rig as a light streak. A dial row nearer than 0.012 to a kept row is dropped (the wedge's
+  columns all stay): the profiles hold their targets as before, the face 5,300 triangles instead of 6,116.
 - **The nose keeps its own normals.** The face shades from its capsule stand-in; inside the wedge it keeps its own
   (`paint.noseKeep`), so the nose has a shade side and an underside at three-quarter.
 - **The jaw.** The studio's head ran flat underneath from the chin back to the neck (a narrow keel), so in profile there
