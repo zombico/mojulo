@@ -169,10 +169,10 @@ function readLooks(L) {
 }
 
 const CAST_ID = /^[a-z][a-z0-9-]{0,23}$/;
-const CAST_KEYS = ['name', 'looks', 'motion'];
+const CAST_KEYS = ['name', 'looks', 'motion', 'joins'];
 /** The cast: the other people, each { name?, looks?, motion? }. Their looks take the hero's pages but no pinned base. */
 function readCast(c) {
-  if (!isObj(c)) throw err('cast is { <id>: { name?, looks?, motion? } }: the other people, by a short id (mayor, guard)');
+  if (!isObj(c)) throw err('cast is { <id>: { name?, looks?, motion?, joins? } }: the other people, by a short id (mayor, guard)');
   const out = {};
   for (const [id, m] of Object.entries(c)) {
     const at = `cast.${id}`;
@@ -182,8 +182,10 @@ function readCast(c) {
     for (const k of Object.keys(m)) if (!CAST_KEYS.includes(k)) throw err(`${at}.${k} is not part of a cast member (${CAST_KEYS.join(', ')})${['actions', 'adornment'].includes(k) ? '; that is the player\'s, on the hero' : ''}`);
     if (m.name !== undefined && !(typeof m.name === 'string' && m.name.trim() && m.name.length <= 40)) throw err(`${at}.name is the name the box shows (Mayor Ilse)`);
     if (isObj(m.looks) && m.looks.base !== undefined) throw err(`${at}.looks.base: a cast member has no pinned base (the hero's alone)`);
+    // joins: the flag that makes them a companion (playscape/ui/party.js): from then on they follow the hero
+    if (m.joins !== undefined && !(typeof m.joins === 'string' && /^[a-z][a-z0-9-]{0,47}$/.test(m.joins))) throw err(`${at}.joins is the flag that makes them join the hero (a lowercase name: joined-${id})`);
     const looks = m.looks === undefined ? undefined : readLooks(m.looks);
-    out[id] = { ...(m.name !== undefined ? { name: m.name.trim() } : {}), ...(looks ? { looks } : {}), ...(m.motion !== undefined ? { motion: readMotion(m.motion) } : {}) };
+    out[id] = { ...(m.name !== undefined ? { name: m.name.trim() } : {}), ...(looks ? { looks } : {}), ...(m.motion !== undefined ? { motion: readMotion(m.motion) } : {}), ...(m.joins ? { joins: m.joins } : {}) };
   }
   return out;
 }

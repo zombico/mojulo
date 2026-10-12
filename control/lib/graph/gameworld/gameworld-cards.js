@@ -283,6 +283,9 @@ function storyCard() {
     '  the journal (J), its flags carried level to level. A moment in step n waits until step n - 1 is done (in step 1,',
     '  until the quest begins); its own if holds besides. A step\'s flag is set by a moment\'s sets, an answer, or a cue',
     '  (emit \'flag:<name>\'); one nothing in the story sets is listed in the readout\'s story.unset.',
+    'A COMPANION: characters.cast.<id>.joins: \'<flag>\'. Once the flag is set (an answer: { say: \'Come with me.\', sets:',
+    '  [\'joined-teodor\'] }) they follow the hero, there and in every level after (the escort behaviour: they keep near',
+    '  and fight what is hittable and not their own). Before it they stand where the story puts them, or are not there.',
   );
 }
 
@@ -317,7 +320,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
-  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal', storyCard],
+  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins', storyCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, run, rerun, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));

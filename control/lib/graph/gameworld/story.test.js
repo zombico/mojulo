@@ -218,3 +218,40 @@ describe('choices and quests, cascaded', () => {
     for (const [i, s] of lv(S).entries()) expect(s.print).not.toBe(lv(S0)[i].print);
   }, 240_000);
 });
+
+describe('companions: a cast member who joins', () => {
+  const stages = gameStages(W());
+  const castRefs = { mayor: 'gw-cast-mayor', guard: 'gw-cast-guard' };
+  const JOIN = { mayor: CAST.mayor, guard: { ...CAST.guard, joins: 'joined-guard' } };
+  const MEET = { id: 'meet', who: ['guard'], where: { level: 'cave' }, when: { reach: true }, beats: [{ choose: { who: 'guard', say: 'Shall I come?', options: [{ say: 'Come with me.', sets: ['joined-guard'] }, { say: 'Stay here.' }] } }] };
+  const party = [{ id: 'guard', ref: 'gw-cast-guard', joins: 'joined-guard' }];
+
+  it('is read and taught', () => {
+    expect(readGameworld(W({ cast: JOIN })).characters.cast.guard.joins).toBe('joined-guard');
+    expect(() => readGameworld(W({ cast: { guard: { joins: 'Joined' } } }))).toThrow(/cast\.guard\.joins is the flag that makes them join the hero/);
+  });
+
+  it('where the story stands them, they wait at their stand on the escort motive; elsewhere they sleep behind the start', () => {
+    const G = readGameworld(W({ cast: JOIN, story: [MEET] }));
+    const b = bindStory(G, stages, { castRefs, layout: LAYOUT });
+    const at = (s, i) => stageLevelOrder(G, s, { ref: `gw-level-${i}`, heroRef: 'gw-hero', story: b.byStage[`${s.level}/${s.node}`], party }).args.manifest;
+    const cave = at(stages.find((s) => s.level === 'cave'), 2), gate = at(stages[0], 0);
+    const g = cave.entities.find((e) => e.id === 'guard');
+    expect(g).toMatchObject({ team: 'party', rule: { type: 'ai', mind: { motivation: 'escort' }, escort: cave.entities[0].id } });
+    expect(g.dormant).toBeUndefined();
+    expect(cave.play.party).toEqual([{ who: 'guard', joins: 'joined-guard', at: 'stand-guard' }]);
+    expect(cave.play.spots.find((s) => s.id === 'stand-guard').at).toEqual(g.transform.pos.slice(0, 2));
+    const s = gate.entities.find((e) => e.id === 'guard');
+    expect(s).toMatchObject({ dormant: true, team: 'party', body: { type: 'figure-rig', figure: 'guard' } });
+    expect(gate.figures.guard).toMatchObject({ heroRef: 'gw-cast-guard' });
+    expect(gate.play).toMatchObject({ party: [{ who: 'guard', joins: 'joined-guard' }], carry: 'story' });
+  }, 120_000);
+
+  it('design_game: every level carries them and the story slice; the figures are made as before', () => {
+    const S = runSteps(W({ cast: JOIN }), { ref: 'gw' }), S0 = runSteps(W(), { ref: 'gw' });
+    const print = (steps, key) => steps.find((s) => s.key === key).print;
+    for (const k of ['cast-guard', 'cast-mayor', 'hero']) expect(print(S, k)).toBe(print(S0, k));
+    for (const k of S.filter((s) => s.key.startsWith('level-')).map((s) => s.key)) expect(print(S, k)).not.toBe(print(S0, k));
+    expect(gameStore(W({ cast: JOIN }), null).slices.map((s) => s.name)).toContain('story');
+  }, 240_000);
+});

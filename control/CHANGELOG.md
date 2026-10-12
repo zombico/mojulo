@@ -288,6 +288,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Conditions on the store.** A scene's `if` can also ask for an item held (`has`) or a level completed (`done`).
 - **In the bibles.** The cast has its page in the character bible, and the story its page in the world bible, each with
   a stamp to approve before it is built.
+- **Choices.** A scene beat `choose` lets the player answer (two to four options under the question): the answer sets
+  its flags at once and plays its own beats, then the scene goes on. Arrows or a number pick, Space or a click takes
+  it; a skip stops at a choice, since the answer is the player's.
+- **Quests.** `play.quests` keeps a level's errands: steps in order, each done by a flag. J opens a journal, and a word
+  shows at the top as a quest begins, a step is done and a quest ends. A gameworld's `quests` reach every level, and a
+  step can name its moments, which wait for the step before. design_game lists a step whose flag nothing in the story
+  sets.
+- **Companions.** A cast member with `joins: '<flag>'` joins the hero once that flag is set (an answer: "Come with
+  me."): from then on they follow, in that level and every level after, on the escort behaviour (they keep near, and
+  fight what is hittable and not their own). Before it, they stand where the story puts them, or are not there.
 - A world without cast or story is byte-identical, and its levels are not remade.
 
 ### Chapters: the same world at a later point
