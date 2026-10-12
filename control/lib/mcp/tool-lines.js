@@ -163,6 +163,8 @@ export const TOOL_LINES = {
   get_cook: L('maintain', 'A cook row and its outcome folder.'),
   list_cooks: L('maintain', 'Cooks, most recent first.'),
   archive_cook: L('maintain', 'Hide a cook from the inbox; its folder stays.'),
+  sign_asset: L('maintain', "Sign an exported file with the install's creator key: a `.proof.json` receipt beside it, the file unchanged. Opt-in, for licensing what you made."),
+  verify_asset: L('observe', 'Check a file against its creator receipt: bytes, signature, creator id, ref and dates.'),
 
   // ── workflows: sweeps and the research book ───────────────────────────────
   run_experiment_sweep: L('compose', 'Variations in one call: any recipe copied per value at a JSON Pointer, one folder of variants; or a mechanics experiment with its plot.'),

@@ -162,6 +162,9 @@ export const TOOL_ANNOTATIONS = {
   archive_cook: ['Archive a cook outcome', DESTRUCTIVE_IDEMPOTENT],
   forge_publications: ['Forge publications', ADDITIVE],
   recommend_kind: ['Recommend a publication kind', READ],
+  // the receipt lands beside a file that may sit outside $MOJULO_HOME
+  sign_asset: ['Sign an exported file', hints(false, false, false, true)],
+  verify_asset: ['Verify a creator receipt', READ_EXTERNAL],
 
   // ── visual reference (visual-reference.js) ─────────────────────────────────
   reference_protocol: ['Photo-reading protocol', READ],
