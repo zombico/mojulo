@@ -13,6 +13,75 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### City rails: a city planned first, tuned on rails, played as levels
+
+- **A city as a plan before a render.** `compose_world({ base: 'city', overrides: { plan } })` mints kind `city`
+  (`lib/graph/city/plan/`).
+  - The recipe is laid on a board of named cells ('C4', 'C4:H9', 'A5>P5') in layers, each reading only the
+    layers before it: main streets (`spine`), what each part is for (`districts`), ground reserved before
+    anything grows (`sites`), the street grid, the lots cut from each block's frontage, `transit`, and the walk.
+  - Anything off the card is refused by name (`readCityPlan`). What the recipe leaves out (play, board, a spine
+    clear of every site) is filled at mint and recorded in `notes.inferred`, and a seed is drawn and written when
+    none is given. A legacy city (no `plan`) is untouched.
+- **Each layer on its own dice.** The grid rolls per gap between fixed lines, the lots per block, the skin per
+  lattice square.
+  - A site moves only the streets its edges land on.
+  - A lot by hand (`lots: { <id>: { use, storeys } }`) changes that lot alone.
+  - Streets are named by where they run (`x340`), so nothing renames when a line is added elsewhere.
+- **Grammars read from the legacy metro city.** Every `CITY_FLAVORS` entry is a grammar in metres (block pitch,
+  right-of-way, lot cut, height field, tower rules, skin mix and its district lean, facade affectations),
+  derived from `METRO` and the flavour, never copied.
+  - `play: 'game' | 'real'`: game compresses what a walker covers (block pitch, right-of-way, lot depth, the
+    field's reach, the walk's rhythm) and never a storey, a frontage or a tower. It is timed at a player's run
+    (5 m/s), where real uses a person's walk (1.4 m/s).
+- **Walk laws.** Nine data rows (`CITY_LAWS`), advisory and waivable by `'<law>'` or `'<law>:<subject>'`:
+  - spine-first, reserved, fronts, connected;
+  - a crossing every so many metres;
+  - something to meet every so many metres (a shopfront, a place, a stop, a corner);
+  - transit reach, lines on streets;
+  - slender towers.
+
+  The plan builds a walk graph to judge them, with each lot's door on its street. A lot left behind the scrap a
+  diagonal cuts off goes green with it.
+- **One read model.** `readCity` feeds the mint's reply (census, every law, `next` by outcome: Layout, Walk,
+  Look, Play), the plan book at `/bible` (the plan sheet on its board, the laws, the lots by id, what is open),
+  and the walkable massing at `/world`.
+  - The `city-plan` card is generated from the same tables.
+  - The legacy `city` card now points to it.
+- **The reconstruction gate (machine).** On the legacy city's own census, every grammar lands within the legacy
+  city's seed spread: north-american, new-york, paris, tokyo.
+  - Measures: walk share, crossings, median and p90 height, lot frontage, skin mix.
+  - Block pitch is the loosest, about 120 m against 100–119 m, quantised by the board.
+  - Legacy `fractal-city` is frozen: its rows keep their bytes, and it retires once the metro view moves here.
+- **Facades.** Every lot wears a facade in the world (`city/plan/facades.js`), laid over the plan and never into
+  it: one stream per lot, so a facade or a grammar's look reworded moves no street, lot or storey.
+  - A lot's skin is the legacy metro city's (a material's family and shade, a stone rhythm, a roof).
+  - Its grammar's affectations go on through the legacy city's own `flavorFacade`, now exported and otherwise
+    unchanged.
+  - Then the grammar's `wear` (every lot), then the lot's own `facade` (`lots: { <id>: { facade } }`, the building
+    generator's descriptor, refused field by field).
+  - The plan's beats decide the shopfronts.
+  - The masses go to the legacy facade pipeline (`assembleBoxCityScene`) in city units (`metersPerUnit` 3.66), so
+    a Paris street here and there is one Paris street.
+  - `fidelity: 'massing'` keeps the plain massing.
+- **Grammars as documents.** `grammar: { from: <id>, …changes }` rewrites any field of the grammar it starts from;
+  objects merge, lists replace.
+  - It is held to `GRAMMAR_SCHEMA` and refused by name, and documents chain through `from`.
+  - New fields Earth grammars never use: `wear` (a facade every lot wears), `shapes` (box, setback, podium,
+    cylinder weights for a lot's mass), and `maglev` among the transit modes (an elevated guideway on pylons,
+    raised platforms).
+- **World grammars, written as documents over Earth ones:**
+  - `neon-sprawl` (cyberpunk, from tokyo): dark glass, neon blades and signs, slender towers, maglev.
+  - `xeno-garden` (alien, from mediterranean): ceramic skins, round masses, guideways.
+
+  Organic masses and vehicles on the guideways are not in the vocabulary yet, and the labels say what each
+  reaches for.
+- **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
+  and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
+  The measured gap is at most 0.07.
+- Pins moved on purpose: `WALK_KINDS` gains `city`; the `compose_world` card count gains the generated
+  `city-plan` card.
+
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →

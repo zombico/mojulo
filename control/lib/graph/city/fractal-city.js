@@ -2116,7 +2116,7 @@ function metroSkins(boxes, field, seed, flavor = null) {
 // (a zinc mansard, a terracotta hip) that takes the place of the rooftop kit and the crown, balconies
 // of the flavour's kind or none, fire escapes on brick, rooftop tanks by storeys, awnings, shopfronts,
 // a painted sign, vertical blade signs. Each rolls only when the flavour names it.
-function flavorFacade(skin, F, material, floors, short, r) {
+export function flavorFacade(skin, F, material, floors, short, r) {
   const pick = (xs) => xs[Math.floor(r() * xs.length)];
   if (F.roof && (!F.roof.on || F.roof.on.includes(material)) && floors <= F.roof.maxFloors && r() < F.roof.p) {
     const rise = F.roof.form === 'hip' ? Math.min(F.roof.rise, SM.tan(0.49) * short / 2) : Math.min(F.roof.rise, short * 0.3);

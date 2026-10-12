@@ -143,7 +143,7 @@ describe('get_view_vocab reader', () => {
     expect(all.cards.length).toBe(64 + entries + stage);   // (64: weather, a channel card, 2026-10-09)
     const world = await getViewVocabHandler({ family: 'world' });
     expect(world.cards.length).toBe(11 + stage);
-    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(11);   // the bases and the weather channel card
+    expect(world.cards.filter((c) => c.entry === 'compose_world')).toHaveLength(12);   // the bases, the weather channel card and the generated city-plan card (city rails, 2026-10-12)
     expect(world.cards.filter((c) => c.entry !== 'compose_world').every((c) => c.entry === 'create_sketch')).toBe(true);
     // Index rows are thin — no body.
     expect(all.cards[0].body).toBeUndefined();

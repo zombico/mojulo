@@ -26,6 +26,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
+import { assembleCityScene } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
@@ -409,6 +410,13 @@ export const WORLD_KINDS = {
     // `unshaded` (GI-bake raw-albedo export) forces plain lighting + FLAT_LIGHT inside the
     // assembler; absent it, every field is byte-identical to before.
     resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded, toon: ctx.toon }))),
+  },
+  // a city on rails (city/plan/): a plan laid layer by layer on a board of cells, shown as its massing and walked.
+  // The legacy 'fractal-city' above is frozen; new city work lands here.
+  city: {
+    title: 'mojulo city plan',
+    walk: true,
+    resolve: (m, ctx) => assembleCityScene(m, { title: ctx.title }),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).
