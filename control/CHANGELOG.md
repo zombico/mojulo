@@ -209,6 +209,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - In a segment's level a street tree's trunk and a planter stop the walker. A shrub, a crown, a park's trees and a
     median's do not: the walk graph and the audit run down the middle line. A level draws its trees under a lighter
     budget (60k faces, at most L1), because at full detail the headless audit timed out.
+- **Traffic you can watch: signal heads, and cars that turn.** In place of the planned human-motivations layer
+  (P5), the operator chose a simpler demo.
+  - Every junction shows its signal heads, a post and lamp per axis at its corners, lit green, amber or red by the
+    phase the cars obey. One axis runs, a clearance holds every signal red, then the other axis runs.
+  - Cars turn: a share of the junctions a car passes (`cars: { turn: 0…1 }`, 0.35 by default), only onto the near
+    side (right in right-hand traffic, left in left-hand), so a turn crosses neither the oncoming lane nor the far
+    one. A car turns only on its own green, only into room (the lane under its capacity, no car within a footprint
+    and a gap), cutting the corner so its rear clears its old line at once. The page eases its heading round.
+  - `traffic-model.js` gains `laneTurns`, `armTurns`, `turnTick` and `stepTrafficTurning`. They are embedded beside
+    the model only when a lane carries turns, so the legacy city's pages keep their bytes; the channel's output for
+    a page without turns was compared byte for byte.
+  - Machine gate: two minutes of a Paris and a London city, every step. No two cars' footprints touched, about 130
+    turns each, every turn inside the box its old lane was green through, no lane over capacity, no car left
+    standing, and the same clock replays the same cars.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

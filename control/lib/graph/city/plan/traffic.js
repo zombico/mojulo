@@ -3,7 +3,9 @@
  * model (scene/channels/traffic-model.js: stop lines, exclusive phases, following gaps, no two cars ever touching),
  * which the world path runs with its measured car bank (worlds/world-kinds.js attachCityCars).
  *
- *   cars: true | false                    on (the default) drives every straight street; false leaves them empty
+ *   cars: true | false | { turn?, heads? }  on (the default) drives every straight street; false leaves them empty;
+ *                                           turn the share of junctions a car turns at (its near side, on its green:
+ *                                           traffic-model.js laneTurns), heads the signal heads shown at the junctions
  *
  * A street wide enough for two cars abreast carries a lane each way, on the grammar's side (`traffic`); a narrower
  * one carries one lane, its direction alternating street by street along each axis (a one-way grid). Every place two
@@ -18,11 +20,18 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 // two lanes need the widest car and its margins between their lines (traffic-model pairLanes), in metres, with room
 const TWO_WAY = 7.5;
 
-/** A recipe's `cars`, checked. */
+/** What the cars do by default: the share of the junctions a car turns at (its near side), and the signal heads shown. */
+export const CAR_DEFAULTS = Object.freeze({ turn: 0.35, heads: true });
+/** A recipe's `cars`, checked → { turn, heads } (driven), or null (empty streets). */
 export function readCars(v) {
-  if (v === undefined) return true;
-  if (typeof v !== 'boolean') throw new Error('city: cars is true (the streets driven, the default) or false (empty streets)');
-  return v;
+  if (v === undefined || v === true) return { ...CAR_DEFAULTS };
+  if (v === false) return null;
+  const no = () => { throw new Error('city: cars is true (the streets driven, the default), false (empty streets), or { turn?: 0…1 (the share of junctions a car turns at, its near side), heads?: true | false (the signal heads shown) }'); };
+  if (!v || typeof v !== 'object' || Array.isArray(v)) no();
+  for (const k of Object.keys(v)) if (!['turn', 'heads'].includes(k)) no();
+  if (v.turn !== undefined && !(typeof v.turn === 'number' && v.turn >= 0 && v.turn <= 1)) no();
+  if (v.heads !== undefined && typeof v.heads !== 'boolean') no();
+  return { ...CAR_DEFAULTS, ...v };
 }
 
 /**

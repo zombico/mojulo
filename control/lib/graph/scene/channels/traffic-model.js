@@ -292,3 +292,96 @@ export function inBox(s, cx, T = TRAFFIC) { return s + T.CAR_LEN / 2 > cx.sIn &&
 
 // the source the cars channel embeds: the same functions, verbatim
 export const TRAFFIC_MODEL_SOURCE = [phaseAt, createTrafficModel, trafficTick, stepTraffic].map((f) => f.toString()).join('\n');
+
+// ── TURNS (opt-in: a lane that carries `turns`, the planned city's) ─────────────────────────────────────────────
+// A car may leave its lane for the perpendicular one at a junction, cutting the corner where the two lanes' lines cross
+// (handed over a little before the point, laid a little past it, its heading eased round by the page). Only the NEAR-SIDE turn: the perpendicular lane the
+// car's line meets first in the box, travelling away from the car's own road — a right turn in right-hand traffic, a
+// left in left-hand — which crosses neither the oncoming lane nor the far one. A car reaches that point only inside the
+// box, so only on its own green; the perpendicular lane is red then, and its cars wait at their line. A car turns when
+// its dice say (`share` of the junctions it passes), and only into room: the lane under its capacity, no car within a
+// footprint and a gap of the point. The legacy model (TRAFFIC_MODEL_SOURCE) is untouched: these are embedded only
+// beside it, when a lane carries turns.
+
+/** Each lane's turns: [{ s (on the lane), to (lane index), sTo (on it), sig }] in travel order, and its capacity. */
+export function laneTurns(lanes, signals, T = TRAFFIC, capMax = 6) {
+  const start = (L) => (L.dir >= 0 ? L.lo : L.hi);
+  return lanes.map((A, ai) => {
+    const turns = [];
+    for (const cx of A.crossings || []) for (const si of cx.sigs || [cx.sig]) {
+      const sig = signals[si], cA = A.axis === 'x' ? sig.y : sig.x;
+      const halfB = (A.axis === 'x' ? (sig.wx ?? sig.streetW) : (sig.wy ?? sig.streetW)) / 2;   // the box's extent along A
+      let best = null;
+      lanes.forEach((B, bi) => {
+        if (bi === ai || B.axis === A.axis) return;
+        const along = B.cross, at = A.cross;                              // where B's line crosses A's, along A and across it
+        if (Math.abs(along - (A.axis === 'x' ? sig.x : sig.y)) > halfB) return;   // B runs through this box
+        if (at < B.lo + T.CAR_LEN || at > B.hi - T.CAR_LEN) return;       // and is a lane there, with room either side
+        // away from A's own road: B's direction points from A's line out of the box's centre line
+        const away = A.cross - cA, sgn = B.dir >= 0 ? 1 : -1;
+        if (Math.abs(away) > 1e-6 && Math.sign(away) !== sgn) return;
+        const s = Math.abs(along - start(A)), sTo = Math.abs(at - start(B));
+        if (s <= 0 || s >= A.total || sTo <= 0 || sTo >= B.total) return;
+        if (!best || s < best.s) best = { s, to: bi, sTo, sig: si };     // the first it meets: the near side
+      });
+      if (best && !turns.some((t) => t.to === best.to)) turns.push(best);
+    }
+    turns.sort((p, q) => p.s - q.s);
+    return { turns, cap: laneCapacity(A.total, capMax, T, A.crossings) };
+  });
+}
+
+/** Arm a model for turns: `lanes` the lanes with their `turns` and `cap`, `share` 0…1 of the junctions a car turns at. */
+function armTurns(model, lanes, share) {
+  model.turn = { lanes: lanes.map((L) => ({ turns: L.turns || [], cap: L.cap || L.cars || 3, dir: L.dir, axis: L.axis })), share, init: model.cars.map((c) => c.lane) };
+  return model;
+}
+// the cars back on their first lanes (a capture clock that went backwards restarts from zero)
+function unturn(model) {
+  for (const L of model.lanes) L.cars.length = 0;
+  model.cars.forEach((c, i) => { c.lane = model.turn.init[i]; c.turned = 0; c.turnAt = undefined; model.lanes[c.lane].cars.push(c); });
+}
+// after a step: each car that passed a turn point this step turns there, when its dice say and there is room
+function turnTick(model, ps, pl) {
+  const M = model.turn, T = model.T;
+  for (const car of model.cars) {
+    if (car.lane !== pl[car.idx]) continue;
+    const a = ps[car.idx], b = car.s;
+    if (b < a) continue;   // wrapped this step
+    // the corner cut: handed over this far before the crossing point and laid as far past it on the new lane, so the
+    // car's rear clears its old line (and the oncoming lane beside it) the moment it turns
+    const cut = car.len / 2 + 2 * T.MARGIN + T.CAR_WID / 2;
+    for (const tn of M.lanes[car.lane].turns) {
+      if (!(a < tn.s - cut && tn.s - cut <= b)) continue;
+      car.turned = (car.turned || 0) + 1;
+      const h = ((Math.imul(car.idx + 1, 2654435761) + Math.imul(car.turned, 40503) + tn.to * 97) >>> 0) / 4294967296;
+      if (h >= M.share) break;
+      const L = model.lanes[tn.to];
+      if (L.cars.length >= M.lanes[tn.to].cap) break;
+      const at = tn.sTo + cut;
+      if (at >= L.total - car.len) break;
+      const ring = (x) => { const dd = Math.abs(x - at) % L.total; return Math.min(dd, L.total - dd); };
+      if (L.cars.some((o) => ring(o.s) < (car.len + o.len) / 2 + 2 * T.MARGIN + T.GAP + o.len)) break;
+      const src = model.lanes[car.lane], from = M.lanes[car.lane];
+      src.cars.splice(src.cars.indexOf(car), 1);
+      car.fromH = from.axis === 'x' ? (from.dir >= 0 ? 0 : Math.PI) : (from.dir >= 0 ? Math.PI / 2 : -Math.PI / 2);
+      car.lane = tn.to; car.s = Math.min(L.total - 1e-6, at + (b - (tn.s - cut))); car.v = Math.min(car.v, L.speed); car.turnAt = model.t;
+      L.cars.push(car);
+      break;
+    }
+  }
+}
+// stepTraffic with turns: each fixed step, then the turns it passed
+function stepTrafficTurning(model, t) {
+  const T = model.T;
+  if (t < model.t - 1e-9) { unturn(model); model.reset(); }
+  let n = 0;
+  while (model.t + T.DT <= t + 1e-9 && n < T.MAX_STEPS) {
+    const ps = model.cars.map((c) => c.s), pl = model.cars.map((c) => c.lane);
+    trafficTick(model, T.DT); turnTick(model, ps, pl); n += 1;
+  }
+  return model;
+}
+export { armTurns, unturn, turnTick, stepTrafficTurning };
+// the source the cars channel embeds beside the model's when a lane carries turns
+export const TRAFFIC_TURN_SOURCE = [armTurns, unturn, turnTick, stepTrafficTurning].map((f) => f.toString()).join('\n');

@@ -249,8 +249,9 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
   }
   const air = spec && spec.ref.air;
   // the streets driven (traffic.js): lanes and signalled junctions the world path fills with its car bank, real-size
-  const T = d.plan.fidelity !== 'massing' && readCars(d.plan.cars) ? cityTraffic(d, crop) : null;
+  const C = d.plan.fidelity !== 'massing' ? readCars(d.plan.cars) : null, T = C ? cityTraffic(d, crop) : null;
   const traffic = T && T.carLanes.length ? {
+    ...(C.turn > 0 || C.heads ? { trafficTurns: { share: C.turn, heads: C.heads } } : {}),
     carLanes: T.carLanes, junctions: T.junctions, trafficSeed: d.plan.seed, trafficRegion: { x: 0, y: 0, w: r3(d.frame.W / U), d: r3(d.frame.D / U) },
     signals: buildSignals(T.junctions, d.plan.seed, { w: d.frame.W, d: d.frame.D }), cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight },
   } : {};

@@ -46,7 +46,7 @@ describe('traffic: the streets as lanes and signalled junctions', () => {
     expect(payload.carLanes).toBeUndefined();
     expect(assembleCityScene(recipe({ cars: false })).carLanes).toBeUndefined();
     expect(assembleCityScene(recipe({ fidelity: 'massing' })).carLanes).toBeUndefined();
-    expect(() => readCityPlan({ cars: 'busy' })).toThrow(/cars is true .* or false/);
+    expect(() => readCityPlan({ cars: 'busy' })).toThrow(/cars is true .*, false .*, or \{ turn\?/);
   });
   it('a segment\'s level drives only the streets of its crop', () => {
     const r = recipe({ board: { cols: 14, rows: 10 }, segments: true }), ds = designCity(r), seg = ds.segments[0];

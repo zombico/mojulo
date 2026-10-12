@@ -17,7 +17,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
-import { pairLanes, laneCapacity, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
+import { pairLanes, laneCapacity, laneTurns, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
@@ -313,7 +313,11 @@ async function attachCityCars(scene) {
   for (const n of used) scene.carMeshes[n] = bank[n];
   if (signalised) {
     scene.signals = signals;
-    scene.trafficLanes = lanes.map((L, li) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, cars: laneCounts[li], ...(L.singled ? { singled: true } : {}) }));
+    // TURNS (opt-in, the planned city's `trafficTurns`: { share }): each lane's near-side turns and its capacity, and
+    // its path so the page can draw a car on whichever lane it has turned into; absent, every byte as before
+    const turning = scene.trafficTurns && (scene.trafficTurns.share > 0 || scene.trafficTurns.heads) ? laneTurns(lanes, signals, T) : null;
+    scene.trafficLanes = lanes.map((L, li) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, cars: laneCounts[li], ...(L.singled ? { singled: true } : {}),
+      ...(turning ? { turns: turning[li].turns, cap: Math.max(laneCounts[li], turning[li].cap), path: carLaneToPath(L), share: scene.trafficTurns.share, ...(scene.trafficTurns.heads ? { heads: true } : {}) } : {}) }));
     scene.trafficConstants = T;
     scene.carFootprints = Object.fromEntries(Object.entries(bank).map(([n, m]) => [n, { len: m.len, wid: m.wid }]));
     // STATIC CARS: a portal car-ant (frontage) that lies on any moving lane's swept strip is dropped —
@@ -331,7 +335,7 @@ async function attachCityCars(scene) {
       if (dropped.size) scene.staticCarsDropped = dropped.size;
     }
   } else delete scene.signals;
-  delete scene.junctions; delete scene.trafficSeed; delete scene.trafficRegion;
+  delete scene.junctions; delete scene.trafficSeed; delete scene.trafficRegion; delete scene.trafficTurns;
   delete scene.carLanes;   // consumed
   return scene;
 }
