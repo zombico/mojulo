@@ -298,10 +298,10 @@ export function tieredSockets(plan) {
  * the EYE as an eyeball under a lid: the white a shallow dome sunk in its socket, the upper lid down over the iris's top
  * and a lower lid (the flat stack read as a sticker), the male's lid the heavier.
  * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
- * behind her lips in profile) and a longer nose; the male: a broader jaw, a heavier brow, the chin forward. */
+ * behind her lips in profile) and rounder (chinPoint: the flat shelf under it read as a box in three-quarter), a longer nose; the male: a broader jaw, a heavier brow, the chin forward. */
 export const TIERED_FACE = Object.freeze({
   female: Object.freeze({
-    face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.06, noseSize: 1.1, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
+    face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.06, chinPoint: 1.2, noseSize: 1.1, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
     hair: 'bob',
     features: Object.freeze({ eye: 0.85, brow: 0.6, ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]), eyeDome: 0.003, lid: Object.freeze({ drop: 0.25, fold: 1.6, lower: 1 }) }),
   }),

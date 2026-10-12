@@ -124,12 +124,12 @@ function pinned(L1, name, at, side, local, group, extra = {}) {
 }
 /** SURFACE STRIP: stations are (s,t) addresses; cross-sections live in each station's own surface frame.
  * Convention: profile point 0 is the edge FACING the region the strip bounds (brow: down; pad: up). */
-function strip(L1, name, addrs, side, profile, handle = () => [0, 0, 0]) {
+function strip(L1, name, addrs, side, profile, handle = () => [0, 0, 0], { end: endLen = 0.005 } = {}) {   // `end`: how far each cap reaches past its ring
   const F = addrs.map((a) => frameAt(L1, name, a, side)); const O = F.map((f) => f.origin);
   const rings = F.map((f, j) => { const n = f.normal; const raw = sub(O[Math.min(j + 1, O.length - 1)], O[Math.max(j - 1, 0)]); const d = unit(sub(raw, mul(n, dot(raw, n))));
     const e = mul(cross(n, d), side === 'L' ? -1 : 1); const [hd, he, hn] = handle(j); const o = add(f.origin, add(add(mul(d, hd), mul(e, he)), mul(n, hn)));
     return profile(j).map(([a, h]) => add(o, add(mul(e, a), mul(n, h)))); });
-  const end = (j, sgn) => { const c = mean(rings[j]); const other = mean(rings[j + (sgn < 0 ? 1 : -1)]); return add(c, mul(unit(sub(c, other)), 0.005)); };
+  const end = (j, sgn) => { const c = mean(rings[j]); const other = mean(rings[j + (sgn < 0 ? 1 : -1)]); return add(c, mul(unit(sub(c, other)), endLen)); };
   const mesh = loftParts(rings, end(0, -1), end(rings.length - 1, 1)); mesh.edge0 = rings.map((r) => r[0]); mesh.normal = F[Math.floor(F.length / 2)].normal;
   const mid = addrs[Math.floor(addrs.length / 2)]; mesh.pin = address(L1, name, mid[0], mid[1], side);   // the strip's carrier address, for a bake
   return mesh;

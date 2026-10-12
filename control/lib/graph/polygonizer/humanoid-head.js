@@ -298,19 +298,28 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     parts[`nostril${side}`] = detail(carrier, 'cranium', nostrilAt, side,
       nostrilFacet(add(nf.origin, mul(nf.normal, 0.0008)), 0.0044, 0.0022, 0.0004, nf.normal), 'Nostrils');
     const lipAddrs = [[0.18, 0.03], [0.31, cupidT], [0.24, 2.05], [0.17, mouthT]];
-    const upperLip = strip(carrier, 'cranium', lipAddrs, side,
-      j => { const w = [0.0014, 0.0023, 0.0021, 0.0013][j]; return [[-w, 0.0012], [-w, 0.0022], [w, 0.0022], [w, 0.0012]]; });
+    // the tiered face's lips (features.lowerLip): each strip sinks into the skin at the mouth's corner and its caps stop
+    // at its ends (the 5 mm caps crossed at the midline into a zigzag, and a full-height corner read as a sliver past the
+    // mouth in three-quarter); absent ⇒ the strips as before
+    // DENSE: a station between each pair (the four-station strip ran straight between its stations, under a curving
+    // face once it thinned), its widths and heights interpolated (`lipW(arr, j)` reads a four-entry array at station j)
+    const soft = !!ft.lowerLip, lipEnd = soft ? { end: 0.0008 } : undefined;
+    const lipAt = (addrs) => (soft ? addrs.flatMap((a, i) => (i ? [[(addrs[i - 1][0] + a[0]) / 2, (addrs[i - 1][1] + a[1]) / 2], a] : [a])) : addrs);
+    const lipW = (arr, j) => { if (!soft) return arr[j]; const x = j / 2, i = Math.min(arr.length - 2, Math.floor(x)), f = x - i; return arr[i] + (arr[i + 1] - arr[i]) * f; };
+    const lipSink = (j, h) => (soft ? h * lipW([1, 1, 0.8, 0.45], j) : h);
+    const upperLip = strip(carrier, 'cranium', lipAt(lipAddrs), side,
+      j => { const w = lipW([0.0014, 0.0023, 0.0021, 0.0013], j); return [[-w, lipSink(j, 0.0012)], [-w, lipSink(j, 0.0022)], [w, lipSink(j, 0.0022)], [w, lipSink(j, 0.0012)]]; }, undefined, lipEnd);
     for (const p of Object.values(upperLip.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / mouthHalf);
     parts[`upperLip${side}`] = detail(carrier, 'cranium', [0.22, 1.5], side, upperLip, 'Lip');
-    const mouth = strip(carrier, 'cranium', [[0.12, 0.03], [0.13, cupidT], [0.13, 2.05], [0.12, mouthT]], side,
-      j => [[-0.0008, 0.0013], [-0.0008, 0.0023], [0.0008, 0.0023], [0.0008, 0.0013]]);
+    const mouth = strip(carrier, 'cranium', lipAt([[0.12, 0.03], [0.13, cupidT], [0.13, 2.05], [0.12, mouthT]]), side,
+      j => [[-0.0008, lipSink(j, 0.0013)], [-0.0008, lipSink(j, 0.0023)], [0.0008, lipSink(j, 0.0023)], [0.0008, lipSink(j, 0.0013)]], undefined, lipEnd);
     for (const p of Object.values(mouth.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / 0.031);
     parts[`mouth${side}`] = detail(carrier, 'cranium', [0.18, 1.1], side, mouth, 'Mouth');
     // the LOWER LIP (features.lowerLip, its fullness): a strip under the mouth line, fullest at the middle and thinning
     // into the corner, in the lips' group; it follows the mouth's corners as the upper lip does
     if (ft.lowerLip) {
-      const lower = strip(carrier, 'cranium', [[0.06, 0.03], [0.05, cupidT], [0.06, 2.05], [0.1, mouthT]], side,
-        j => { const w = [0.0026, 0.0024, 0.0017, 0.0008][j] * ft.lowerLip; return [[-w, 0.0006], [-w, 0.0016], [w, 0.0016], [w, 0.0006]]; });
+      const lower = strip(carrier, 'cranium', lipAt([[0.06, 0.03], [0.05, cupidT], [0.06, 2.05], [0.1, mouthT]]), side,
+        j => { const w = lipW([0.0026, 0.0024, 0.0017, 0.0008], j) * ft.lowerLip; return [[-w, lipSink(j, 0.0006)], [-w, lipSink(j, 0.0016)], [w, lipSink(j, 0.0016)], [w, lipSink(j, 0.0006)]]; }, undefined, lipEnd);
       for (const p of Object.values(lower.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / mouthHalf);
       parts[`lowerLip${side}`] = detail(carrier, 'cranium', [0.08, 1.1], side, lower, 'Lip');
     }
