@@ -31,13 +31,29 @@ const BASE_SKIN = {
 };
 
 /** The fields every grammar carries. A grammar names each, in metres (heights and storeys in metres too). */
-export const GRAMMAR_FIELDS = Object.freeze(['label', 'locale', 'climate', 'traffic', 'layout', 'block', 'street', 'lot', 'height', 'tower', 'floorH', 'skin', 'facade', 'wear', 'shapes', 'night', 'transit', 'walk']);
+export const GRAMMAR_FIELDS = Object.freeze(['label', 'locale', 'climate', 'traffic', 'layout', 'block', 'street', 'lot', 'height', 'tower', 'floorH', 'skin', 'facade', 'wear', 'shapes', 'night', 'green', 'transit', 'walk']);
 /** The transit modes a grammar may run. A maglev rides an elevated guideway on pylons; a tram and a bus run at grade. */
 export const TRANSIT_MODES = Object.freeze(['tram', 'bus', 'maglev']);
 /** The street layouts a grammar may name. The plan lays 'grid' today; the others are the grammar's word for later. */
 export const LAYOUTS = Object.freeze(['grid']);
 
 /** A legacy flavour (or none) read as a grammar, in metres. */
+// each flavour's green: Paris's boulevards of planes, London's squares, New York's thinner street trees, Tokyo's few,
+// the Mediterranean's and the tropics' palms
+// (its species the quick growers by default: beech, cherry, schefflera, the coconut and the date; oak, banyan and the
+// washingtonia grow 6–9 s on a page's first read, so a grammar names them when it wants them)
+const GREEN_OF = Object.freeze({
+  default: { street: 0.55, park: 0.8, plaza: 0.5, court: 0.5, stride: 9, walk: 2.4, palms: 0, conifers: 0, shrubs: 0.35, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  paris: { street: 0.9, park: 0.85, plaza: 0.7, court: 0.6, stride: 7.5, walk: 2.2, palms: 0, conifers: 0, shrubs: 0.3, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  london: { street: 0.6, park: 0.9, plaza: 0.6, court: 0.6, stride: 9, walk: 2.2, palms: 0, conifers: 0.1, shrubs: 0.4, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  'new-york': { street: 0.5, park: 0.85, plaza: 0.5, court: 0.3, stride: 8, walk: 2.6, palms: 0, conifers: 0, shrubs: 0.3, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  tokyo: { street: 0.25, park: 0.8, plaza: 0.4, court: 0.3, stride: 10, walk: 2.6, palms: 0, conifers: 0.15, shrubs: 0.5, trees: ['cherry', 'beech'], conifer: 'pine', palm: 'date' },
+  mediterranean: { street: 0.55, park: 0.7, plaza: 0.6, court: 0.5, stride: 9, walk: 2.2, palms: 0.35, conifers: 0, shrubs: 0.4, trees: ['beech'], conifer: 'pine', palm: 'date' },
+  'southeast-asia': { street: 0.6, park: 0.9, plaza: 0.6, court: 0.6, stride: 9, walk: 2.2, palms: 0.5, conifers: 0, shrubs: 0.45, trees: ['schefflera'], conifer: 'fir', palm: 'coconut' },
+  'latin-american': { street: 0.55, park: 0.85, plaza: 0.7, court: 0.5, stride: 9, walk: 2.2, palms: 0.25, conifers: 0, shrubs: 0.4, trees: ['schefflera', 'cherry'], conifer: 'fir', palm: 'coconut' },
+  gulf: { street: 0.5, park: 0.6, plaza: 0.6, court: 0.3, stride: 10, walk: 2.6, palms: 0.75, conifers: 0, shrubs: 0.3, trees: ['schefflera'], conifer: 'fir', palm: 'date' },
+});
+
 // the flavours whose cities drive on the left (the legacy flavours never said; traffic.js reads it)
 const LEFT_HAND = Object.freeze(['london', 'tokyo']);
 export function grammarFromFlavor(key) {
@@ -80,6 +96,8 @@ export function grammarFromFlavor(key) {
     // stand as ({ box, setback, podium, cylinder: weight, minFloors }): none for an Earth grammar
     wear: null,
     shapes: null,
+    // the city's green (green.js): how much of each kind it grows, its street trees' stride and least walk, its species
+    green: GREEN_OF[key] ?? GREEN_OF.default,
     // the city at night (night.js): the share of windows lit, of shop fronts lit, and the colours a lit room shows
     night: { windows: 0.3, shops: 0.85, palette: ['#ffd38a', '#ffe0a8', '#fff0cf', '#ffc46e', '#e4ecff'] },
     // a stop every `stop` m along a line; every lot within `reach` m of one

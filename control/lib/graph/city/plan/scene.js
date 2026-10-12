@@ -19,6 +19,8 @@ import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 import { lobbyOf, doorFaces } from './doors.js';
 import { nightFaces } from './night.js';
 import { SACRED, edificeFaces } from './landmarks.js';
+import { cityGreen, greenPlan } from './green.js';
+import { plantPool, plantRepeats } from '../../vegetation/pool.js';
 import { cityTraffic, readCars } from './traffic.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
@@ -36,6 +38,8 @@ const shade = (hex, n, lift = 0) => scaleHex(hex, Math.min(1.15, litFactor(n, LI
 const CITY_GROUND_BASE = Object.freeze({ ground: '#56643f', road: '#3b3d40', walk: '#a8a49a', plaza: '#a19f97', park: '#4f6b3a', water: '#3e6a84', parking: '#5c5e60', rail: '#6d6257', guideway: '#c9ccd1', pylon: '#9aa0a8', stop: '#d9b44a', landmark: '#c9c4b8', civic: '#bdb6a6' });
 export const CITY_GROUND = CITY_GROUND_BASE;
 // a maglev's guideway: its deck's underside this high, pylons this far apart
+// the faces the city's trees may draw between them (the pool spends it on the trees seen largest first)
+const CITY_PLANT_FACES = 240000;
 const GUIDEWAY = Object.freeze({ z: 8, deck: 1.1, w: 5.5, pylon: 30 });
 // lot faces (the plan's n/s/w/e) as the legacy city names a box's faces
 const FACE = { n: '-y', s: '+y', w: '-x', e: '+x' };
@@ -169,12 +173,14 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
   const street = d.streets.find((s) => s.id === edge.street), off = street.road / 2 + street.walk / 2;
   const dir = [far.x - start.x, far.y - start.y], L = Math.hypot(...dir) || 1, side = [-dir[1] / L * off, dir[0] / L * off];
   const eye = [start.x + side[0] + dir[0] / L * 6, start.y + side[1] + dir[1] / L * 6, 1.7];
+  // the street camera stands in the near lane (a walk is lined with trees at its kerb), seeing both rows down the street
+  const lane = (street.road / 4) / off, view = [start.x + side[0] * lane + dir[0] / L * 6, start.y + side[1] * lane + dir[1] / L * 6, 1.7];
   const top = Math.max(...d.lots.map((l) => l.h), 40), S = Math.max(W, D);
   const u = (p) => p.map((v) => r3(v / U));
   const cameras = [
     // the whole board from its south-east corner, high enough to read the street plan through the towers
     { name: 'over', worldFraming: { cameraPosition: u([ox + W / 2 + S * 0.62, oy + D / 2 + S * 0.95, S * 0.72 + top * 0.5]), lookAt: u([ox + W / 2, oy + D / 2, 0]), horizontalFov: 50 } },
-    { name: 'street', worldFraming: { cameraPosition: u(eye), lookAt: u([eye[0] + dir[0] / L * 40, eye[1] + dir[1] / L * 40, 6]), horizontalFov: 75 } },
+    { name: 'street', worldFraming: { cameraPosition: u(view), lookAt: u([view[0] + dir[0] / L * 40, view[1] + dir[1] / L * 40, 6]), horizontalFov: 75 } },
   ];
   const sheetTitle = ctx.title || title || `${G.label} · city`;
   let scene;
@@ -191,7 +197,10 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     // the operator's edifices, at their true scale on their sites (landmarks.js)
     const insets = d.sites.filter((x) => x.mass?.from && !x.mass.unread).map((x) => edificeFaces(d.plan.edifices[x.mass.from], x.mass, LIT));
     for (const e of insets) grown.push(...e.faces);
-    const built = boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape));
+    // the green (green.js): trees and shrubs the pipeline grows from plant boxes; a level grows only its own reach's
+    const inCrop = (p) => !crop || (p.x >= crop.x0 && p.x <= crop.x1 && p.y >= crop.y0 && p.y <= crop.y1);
+    const plants = greenPlan(d, cityGreen(d).filter(inCrop));
+    const built = [...boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape)), ...plants.boxes];
     const laid = ground.map(toUnits);
     scene = assembleBoxCityScene({ boxes: built, faces: [...laid, ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
     // the ground first: the World lifts a face stacked on another of its plane over it (face-mesh decollideFaces), so a
@@ -199,6 +208,20 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     const first = new Set(laid);
     scene.faces = [...scene.faces.filter((f) => first.has(f)), ...scene.faces.filter((f) => !first.has(f))];
     for (const e of insets) scene.textures = { ...(scene.textures || {}), ...(e.textures || {}) };
+    // the trees: a few grown variants of each species, stamped where they stand, each at the detail the cameras see it at
+    const species = Object.keys(plants.items);
+    if (species.length) {
+      const vw = scene.viewBox.width, eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: vw / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
+      let left = CITY_PLANT_FACES;
+      scene.repeats = [...(scene.repeats || [])];
+      for (const sp of species) {
+        const pool = plantPool({ species: sp, variants: 2, seed: `city::${sp}`, light: LIT, maxLevel: 'L2', group: `city:tree-${sp}` });
+        const placed = plantRepeats(pool, plants.items[sp], { eyes, level: 'L2', budget: Math.max(0, left), sink: 0, clamp: false });
+        left -= placed.stats.drawnFaces;
+        scene.repeats.push(...placed.repeats);
+        scene.textures = { ...(scene.textures || {}), ...(pool.textures || {}) };
+      }
+    }
     // at night the windows and signs are lit (night.js)
     if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }

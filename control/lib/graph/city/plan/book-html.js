@@ -4,6 +4,7 @@
  * walk's findings marked where they stand), the laws, the lots by id (the ids `lots` takes), and what is open, from the
  * same table the mint's `next` reads. Pure and self-contained: no script, no fetch.
  */
+import { cityGreen } from './green.js';
 import { readCity, openCityConcerns, CITY_OUTCOMES } from './read.js';
 import { cellName } from '../../level/ground.js';
 import { CITY_GROUND } from './scene.js';
@@ -35,6 +36,11 @@ export function cityPlanSvg(d, { width = 1100 } = {}) {
     out.push(`<rect x="${X(si.rect.x0)}" y="${Y(si.rect.y0)}" width="${r1((si.rect.x1 - si.rect.x0) * s)}" height="${r1((si.rect.y1 - si.rect.y0) * s)}" fill="${si.use === 'park' ? CITY_GROUND.park : CITY_GROUND.plaza}" stroke="#3b3d40" stroke-dasharray="4 3"/>`);
     if (si.mass) out.push(`<rect x="${X(si.mass.x0)}" y="${Y(si.mass.y0)}" width="${r1((si.mass.x1 - si.mass.x0) * s)}" height="${r1((si.mass.y1 - si.mass.y0) * s)}" fill="#3b3d40"/>`);
     out.push(`<text x="${X((si.rect.x0 + si.rect.x1) / 2)}" y="${Y(si.rect.y1) + 12}" class="lbl" text-anchor="middle">${esc(si.name || si.use)}</text>`);
+  }
+  // the green (green.js): a dot per plant, a street tree darker than a park's, a shrub small, a palm a star
+  for (const g of cityGreen(d)) {
+    const r = g.plant === 'shrub' ? 1.2 : 2.2, fill = g.plant === 'palm' ? '#7e9a3c' : g.plant === 'conifer' ? '#2f5a3a' : g.kind === 'street' ? '#3f6e3c' : '#5b8a48';
+    out.push(`<circle cx="${X(g.x)}" cy="${Y(g.y)}" r="${r}" fill="${fill}" fill-opacity="0.85"/>`);
   }
   for (const t of d.transit) {
     out.push(`<polyline points="${t.pts.map((p) => `${X(p[0])},${Y(p[1])}`).join(' ')}" fill="none" stroke="#b5452f" stroke-width="2.4" stroke-dasharray="7 4"/>`);

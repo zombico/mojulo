@@ -9,6 +9,8 @@ import { GEOCUBE_PRESETS } from '../../era/geocube.js';
 import { CITY_LAWS } from './laws.js';
 import { CITY_OUTCOMES } from './read.js';
 import { LANDMARK_IDS, SACRED } from './landmarks.js';
+import { GREEN_KINDS, GREEN_IDS } from './green.js';
+import { SPECIES } from '../../vegetation/species.js';
 
 export function cityPlanCard() {
   const lines = [
@@ -37,6 +39,8 @@ export function cityPlanCard() {
     'SEGMENTS   true | { across?: [lo, hi] (metres a side; game [180, 360], real [300, 600]), levels? }: the city cut along its spine and avenues into the pieces it is played in, each pair of neighbours joined by a portal on the most important street crossing their edge. levels: true mints a level per segment beside the city (<ref>-<segment id>, each { kind: "city", city: <ref>, level: { segment } }, reading the city by ref: an edit to the city moves them all) and returns game.create_game: the map, its exits and a progression slice.',
     'ENTER      two ways into a building. walk: its ground storey a lobby, part of the map (a door in a glazed front, a counter, a stair rising out of sight). door: a marked door whose zone changes the scene to a level of its own, a building on the rail (an office for an office or a tower, a store or a restaurant for a shop), linked back by its out door. lots: { <id>: { enter: "walk" | "door", inside?: { kind: office | store | restaurant, card?, storeys?, seed? } } }; segments.enter: { walk, door } each segment picks (default 2 and 1 with levels).',
     'LEVEL      a segment played: its exits (one reach-exit per neighbour, named for it, at its portal), its arrivals from them, a walker at its middle crossing, walls at its edges open only at its portals; a segment with no neighbours goes to its farthest crossing.',
+    `GREEN      0…1 | { ${GREEN_IDS.join(', ')} }: trees and shrubs grown after the city is laid, never walked into, each kind 0 (none) to 1 (every site); the grammar's green sets the defaults, the stride, the least walk a tree stands in and the species (trees, conifer, palm: ${Object.keys(SPECIES).filter((k) => ['tree', 'palm', 'conifer'].includes(SPECIES[k].kind)).join(', ')}):`,
+    ...Object.entries(GREEN_KINDS).map(([k, v]) => `  - ${k}: ${v}`),
     `FIDELITY   ${FIDELITIES.join(' | ')}: the world in every lot's facade (the default), or the massing alone.`,
     `LOOK       the world-wide look ('${SIXTH_GEN_LOOK_IDS.join("' | '")}', or { id, cell? }): its air and sky, its sun lighting the city (a look with no sun, a moon). Same streets, another place and hour.`,
     `PAINT      { geocube: <${Object.keys(GEOCUBE_PRESETS).join(' | ')} | a cube | { from, … }>, amount? (0–1, 0.5) }: the cube's colours over the ground, water, parks and walks, every skin leant toward its stone, trim and accent; without a look, the cube's own look lights it.`,
@@ -49,7 +53,7 @@ export function cityPlanCard() {
   return {
     id: 'city-plan', name: 'City plan (a city on rails, planned first)', family: 'world', entry: 'compose_world', generated: true,
     summary: 'A city planned on a board of cells before anything renders: main streets, districts, reserved sites, the grid and lots cut from them, transit, and walk laws, in a grammar from Paris to Tokyo, at game or real scale.',
-    when: '"plan a city", "city layout", "a city slice", "lay out the streets first", "a walkable city for a game", "GTA-like city", "a city like Paris / Tokyo / New York", "districts and a downtown", "a city plan I can edit", "place a landmark in the city", "the Eiffel Tower in my city", "a church on the square", "my own landmark building in the city", "a tram line through the city"',
+    when: '"plan a city", "city layout", "a city slice", "lay out the streets first", "a walkable city for a game", "GTA-like city", "a city like Paris / Tokyo / New York", "districts and a downtown", "a city plan I can edit", "place a landmark in the city", "the Eiffel Tower in my city", "a church on the square", "my own landmark building in the city", "a tram line through the city", "street trees", "a tree-lined boulevard", "trees in the park", "more greenery in the city"',
     body: lines.join('\n'),
   };
 }

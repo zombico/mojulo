@@ -177,6 +177,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     coplanar lift (`decollideFaces`) raise the whole ground over the streets.
   - The `city-plan` card lists the landmarks, buildings and variants; the `edifice` card says how to stand one in a
     city.
+- **A city's green** (`city/plan/green.js`). Trees and shrubs are grown on the laid city as an interceptor, the way
+  the room stage grows its moss and the town its dress.
+  - Each kind finds its own sites:
+    - street trees about a metre in from the kerb of every walk wide enough, at the grammar's stride, kept off
+      carriageways and clear of crossings, doors, driveways, lobbies and stops;
+    - parks grown loose, thinning toward a lawn in the middle;
+    - a ring of trees round each plaza;
+    - courts in the green the lots leave behind.
+  - `green: 0…1 | { street, park, plaza, court }` sets how many sites each kind takes, over its grammar's own (`green`
+    in the grammar schema: defaults, stride, the least walk a tree stands in, and its species). Each street and site
+    rolls its own dice, counts are capped, and none of it collides.
+  - The trees are the vegetation library's species, grown once and stamped through the World's repeats, each at the
+    level of detail the cameras see it at, under one budget. Paris has beech and flowering cherry, Tokyo cherry and
+    pine, the Gulf date palms and schefflera, Southeast Asia coconut palms, and the xeno garden tree ferns and
+    stranglers. The default species are the quick growers; oak, banyan and washingtonia are named when wanted.
+  - Shrubs are the legacy plant box at the world's scale. The legacy street tree is not used: sized for the old,
+    smaller city, it reads as a stick among real storeys.
+  - The book's plan sheet draws a dot per plant; the readout counts each kind.
+  - The street camera stands in the near lane, so a tree-lined walk does not put a trunk in the frame.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.
