@@ -24,7 +24,9 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
- *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side',   // written to the world's own `camera` (cameras.js)
+ *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
+ *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
+ *                                           // rolled order; a death ends the run (the play shell keeps the deepest)
  *   }
  *
  * The world around it is an ordinary gameworld: `style` (kit, look, land) and one level are written by `quickWorld`, so
@@ -64,7 +66,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand'];
+const KEYS = ['goal', 'hero', 'ride', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -114,6 +116,8 @@ export function readQuick(Q) {
   if (Q.folk !== undefined && !(Number.isInteger(Q.folk) && Q.folk >= 0 && Q.folk <= 6)) throw fail('.folk is 0 to 6');
   if (Q.farmhand !== undefined && !isObj(Q.farmhand)) throw fail('.farmhand is a hero-door spec, as .hero is');
   if (Q.goal === 'farm' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.farm tills the land by a trail\'s start: no climb, building or ride');
+  if (Q.run !== undefined && !(Number.isInteger(Q.run) && Q.run >= 2 && Q.run <= 8)) throw fail('.run is how many trails a run draws, 2 to 8');
+  if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   return Q;
 }
 
@@ -126,10 +130,15 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
   const nodes = { path: { trail: {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
+  // a run's pool: trails each laid from its own seed, two more than a run draws
+  const s0 = Number.isInteger(seed) ? seed : 1;
+  const levels = quick.run
+    ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
+    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } };
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
-    levels: { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } },
+    levels,
     quick,
   };
 }

@@ -192,6 +192,16 @@ describe('design_game quick', () => {
     expect(sim.bus.log.map((r) => r.type).filter((t) => t === 'harvested')).toHaveLength(3);
   }, 240_000);
 
+  it('run: a pool of trails, each its own seed; the game draws a run of them, none gated', async () => {
+    const out = await designGameHandler({ quick: { goal: 'reach', run: 2, world: { id: 'delve', style: { kit: 'trail-valley' } } }, ref: 'g' });
+    expect(out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.key)).toEqual(['level-stretch-1-0', 'level-stretch-2-0', 'level-stretch-3-0', 'level-stretch-4-0']);
+    const G = stored('g-game');
+    expect(G.run).toEqual({ length: 2 });
+    expect(G.levels.every((l) => !l.gate)).toBe(true);
+    // each its own land
+    expect(stored('g-level-stretch-1-0').seed).not.toBe(stored('g-level-stretch-2-0').seed);
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);

@@ -389,6 +389,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   sets `target` gold (40) to make by day `days` (6); `folk` farmhands (2) walk out to the field at seven and home at six.
 - **The pixel look.** A world's `pixel` (true, or 2 to 8; a gameworld's `style.pixel` puts it on every level) draws the
   page at that fraction of its size and blows it up without smoothing. Absent, the page is as it was.
+- **Fixed cameras.** The `fixed` camera rule stands at one of its stations, the one whose focus is nearest the target,
+  and cuts (never pans) when another is nearer by its `hold`; its look leans toward the target. A gameworld's
+  `camera: 'fixed'` lays a station over each place of the way, high off its side (needs a hero).
+- **Runs.** A game's `run: { length }` (the light shell) makes its levels a pool: each run draws `length` of them in an
+  order rolled from the run's number, a clear goes straight on, a death ends the run, the store carries over, and the
+  title keeps the deepest run. `create_game` takes it; a quick game's `run: n` lays a pool of n + 2 trails, each its
+  own seed.
 
 ### Scene layer: a shot that takes the camera, and two characters talking
 

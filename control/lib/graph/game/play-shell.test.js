@@ -126,3 +126,18 @@ describe('the play shell takes doors (game links), as the arena shell does', () 
     expect(doors).toContain('"links":{"a":{"inn":{"ref":"b","door":"out"}},"b":{"out":{"ref":"a","door":"inn"}}}');
   });
 });
+
+describe('runs: the levels a pool each run draws from', () => {
+  const RUNG = normalizeGameManifest({ ...GAME, levels: [{ ref: 'run-1' }, { ref: 'run-2' }], run: { length: 2 } });
+  it('validates in the light shell, a length the pool holds, no links', () => {
+    expect(validateGameManifest(RUNG)).toEqual({ ok: true, errors: [] });
+    expect(validateGameManifest({ ...RUNG, run: { length: 3 } }).errors.join(' ')).toMatch(/run must be \{ length: 1 to 2 \}/);
+    expect(validateGameManifest({ ...RUNG, shell: undefined }).errors.join(' ')).toMatch(/run plays in the light shell/);
+  });
+  it('the page carries the run and rolls its order from the run\'s number; without one, not a byte of it', () => {
+    const s = script(emitPlayShell(RUNG, LEVELS));
+    expect(s).toContain('"run":{"length":2}');
+    expect(() => new Function(s)).not.toThrow();
+    expect(script(emitPlayShell(GAME, LEVELS))).not.toContain('"run":');
+  });
+});

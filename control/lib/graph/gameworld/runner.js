@@ -161,7 +161,9 @@ function quickSteps(world, G, ref) {
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
   const links = gameLinks(stages, levelRefs);
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}), shell: 'play' };
+  // a run draws its levels: none waits on another
+  const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}), shell: 'play', ...(Q.run ? { run: { length: Q.run } } : {}) };
   steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) });
   return steps;
 }

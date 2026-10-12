@@ -10,7 +10,9 @@ export const SPACE = Object.freeze({
     camera: {
       values: {
         'third-person': { status: 'built', lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the `follow` chase camera' },
-        fixed: { status: 'partial', effort: 'M', lowers: 'lib/graph/era/floormap-cameras.js', note: 'the floormap places room cameras and the shot rule cuts; a fixed rule taking the pilot\'s room camera plays it on room stages (priced 10-12)' },
+        // built 10-12: the `fixed` camera rule (rules-basic.js: stations, the nearest focus holds the shot, a cut with a hold)
+        // and a gameworld's camera 'fixed' (a station over each place of the way). A floormap's room cameras are not yet fed in.
+        fixed: { status: 'built', godot: false, lowers: 'lib/graph/gameworld/levels.js', note: 'fixed cameras over the way, cutting as the hero passes (camera: fixed; needs a hero); a floormap\'s room cameras not yet fed in' },
         // built 10-11: the `overhead` camera and the `move: 'world'` pilot, chosen by a gameworld's `camera`. Godot carries no camera
         // mode yet (its walker is first person, or a spring arm behind a suit), so a top-down game loses it on export.
         'top-down': { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'the ¾ `overhead` camera (north up), the hero moving in the screen\'s frame', godot: false },

@@ -27,6 +27,7 @@ import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
+import { fixedStations } from './cameras.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
@@ -180,6 +181,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   if (cam === 'top-down' && !heroRef) throw new Error('levels: a top-down camera watches a hero; give the world a hero (quick.hero, or its characters), or play it first-person');
   if (cam === 'side' && !heroRef) throw new Error('levels: a side camera watches a hero run its lane; give the world a hero, or play it first-person');
   if (cam === 'third-person' && !heroRef) throw new Error('levels: a third-person camera follows a hero; give the world a hero, or play it first-person');
+  if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
   const moveWords = lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
   const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
@@ -208,6 +210,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const camera = look ? { rule: 'eye', target: 'hero', height: HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
         : lane ? { rule: 'side', target: 'hero' }
+        : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) }
         : P.camera;
     pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera, events };
   } else {

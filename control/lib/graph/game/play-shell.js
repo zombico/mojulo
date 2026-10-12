@@ -84,6 +84,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     theme: Object.keys(levelTheme).length ? levelTheme : null,
     playtest: !!playtest,
     startLevel,
+    ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
   };
@@ -256,7 +257,59 @@ export function playShellRuntime(cfg, K) {
     if (!playing) { setPaused(false); frame.removeAttribute('src'); veil.style.display = 'none'; }
     renderDebug();
   }
-  const home = () => (LEVELS.length > 1 ? renderLevels() : renderTitle());
+  const home = () => (RUN ? renderRunTitle() : LEVELS.length > 1 ? renderLevels() : renderTitle());
+
+  // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
+  // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
+  const RUN = cfg.run || null, RUNS_KEY = SAVE_KEY + ':runs', DEEP_KEY = SAVE_KEY + ':deepest';
+  let run = null;
+  const num = (k) => { try { return Number(storage.getItem(k)) || 0; } catch (e) { return 0; } };
+  const keep = (k, v) => { try { storage.setItem(k, String(v)); } catch (e) { /* this session only */ } };
+  function roll(n) {
+    let a = (n * 2654435761) >>> 0;
+    const rnd = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const pool = LEVELS.slice();
+    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); const x = pool[i]; pool[i] = pool[j]; pool[j] = x; }
+    return pool.slice(0, RUN.length);
+  }
+  function startRun() {
+    const n = num(RUNS_KEY) + 1;
+    keep(RUNS_KEY, n);
+    run = { n, order: roll(n), at: 0 };
+    launch(run.order[0]);
+  }
+  function renderRunTitle() {
+    show('title');
+    const deep = num(DEEP_KEY), runs = num(RUNS_KEY);
+    app.textContent = '';
+    app.appendChild(el('div', { cls: 'screen center' }, [
+      PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null,
+      el('h1', { text: M.title }),
+      el('div', { cls: 'muted', text: 'a run: ' + RUN.length + ' of ' + LEVELS.length + ' levels, drawn anew each time; fall, and it ends' }),
+      runs ? el('div', { cls: 'badge', text: 'deepest: ' + deep + ' of ' + RUN.length + ' · ' + runs + ' run' + (runs === 1 ? '' : 's') }) : null,
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary big', text: runs ? 'new run' : 'start a run', on: startRun })]),
+      !PLAYTEST && runLog.length ? resetLink() : null,
+    ]));
+  }
+  // a level of the run ended: on to the next, or the run's end
+  function runOutcome(env, applied) {
+    if (env.result === 'success') run.at += 1;
+    const deep = num(DEEP_KEY), won = run.at >= run.order.length;
+    if (run.at > deep) keep(DEEP_KEY, run.at);
+    if (env.result === 'success' && !won) { toast('cleared ' + run.at + ' of ' + run.order.length); launch(run.order[run.at]); return; }
+    const r = run, gains = applied ? (env.events || []).map(eventWords).filter(Boolean) : [];
+    run = null; session = null;
+    show('result');
+    app.textContent = '';
+    app.appendChild(el('div', { cls: 'screen center' }, [
+      el('div', { cls: 'result-mark' + (won ? '' : ' fail'), text: won ? 'run complete' : 'run over' }),
+      el('h1', { text: 'run ' + r.n + ': ' + r.at + ' of ' + r.order.length }),
+      el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
+      gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
+      env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: startRun }), el('button', { text: 'title', on: home })]),
+    ]));
+  }
 
   function renderTitle() {
     show('title');
@@ -333,7 +386,7 @@ export function playShellRuntime(cfg, K) {
     launches += 1;
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
-    session = { level: lv, params, seed: (PLAYTEST ? launches : runLog.length + 1), ended: false };
+    session = { level: lv, params, seed: (run ? run.n * 100 + run.at + 1 : PLAYTEST ? launches : runLog.length + 1), ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
@@ -392,6 +445,8 @@ export function playShellRuntime(cfg, K) {
         runLog.push(env);
         persist();
       }
+      // a RUN: on to its next level, or its end
+      if (run) { const sess = session; setTimeout(() => { if (session === sess) runOutcome(env, r.ok); }, 1400); return; }
       // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to
       const to = r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
       const onward = to && LEVELS.find((l) => l.ref === to);
