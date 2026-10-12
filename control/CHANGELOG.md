@@ -22,6 +22,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The Claude worker honours it.** The `claude-code-headless` runtime passes `--model` and `--effort` per tier
   (`fill` haiku/low, `judge` sonnet/medium, `design` opus/high; `ride` haiku/low), so a subscriber's usage goes to
   design and the rest runs light. An untiered task spawns the same command as before.
+- **A tier on every tool.** `lib/mcp/tool-tiers.js` gives each listed tool the tier its use needs (reads, lists and
+  exports ride; enum-and-card makers fill; recipe authors judge; `design_game`, `create_game`, `forge_plan`, `cook`,
+  `forge_publications`, `synthesize_abstract`, `verify_machina` and `mint_catalyst` design). A host whose profile
+  declares `capabilities.modelTiers` (Claude Code) sees it as `_meta["mojulo/tier"]` in tools/list; every other
+  host's list is byte-identical. Character tools are not tiered yet (`TIER_DEFERRED`).
 - **The model that ran is recorded again.** `claude --print --output-format json` (2.1.x) names the model only as a
   key of `modelUsage`, so the runtime recorded no model. It now reads that key (the one with the most output when a
   subagent ran too), so the principle shows the requested tier beside the model that answered.
