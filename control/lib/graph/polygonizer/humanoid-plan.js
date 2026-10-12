@@ -94,6 +94,20 @@ export function animeHeadAt(opts, expression, only) {
   return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
 }
 
+/** The landmark head's parts `only` (a list of names; all when absent) at another `expression`, as humanoidPlan with
+ * these options (`opts`: preset, face, register, tune, headScale, headPreset, proportions, features) would wear them —
+ * bald (hair rides the crown, which no channel moves), at the worn head's scale and then under the plan's own scale — so
+ * a part equals the include's part of that name. The western face rig's head builds (western-face-rig.js). */
+export function landmarkHeadAt(opts, expression, only) {
+  const props = opts.proportions ?? 'hero';
+  const { pole, scale } = wornHead({ preset: opts.preset, headPreset: opts.headPreset, headScale: opts.headScale, tune: opts.tune, props });
+  const { from: _faceFrom, ...shape } = resolveFace(opts.face ?? {});
+  const all = humanoidHead({ preset: pole, shape, register: opts.register ?? 'round', hair: 'none', expression, scale, ...(opts.features ? { features: opts.features } : {}) }).parts;
+  const parts = only ? Object.fromEntries(only.filter((n) => all[n]).map((n) => [n, all[n]])) : all;
+  const S = planScale({ cast: opts.preset, tune: opts.tune, proportions: props });
+  return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
+}
+
 /** the starter's own shirt torso over the hero plan's (broad panels, a sloping shoulder yoke, the collar's rise): applied to
  * the worn plan and to the head-less plan the anime head's hair keeps out of */
 function starterTorso(plan, { register, neckForm, heroCast }) {

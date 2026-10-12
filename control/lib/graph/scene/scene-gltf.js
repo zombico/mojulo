@@ -877,7 +877,7 @@ class GlbBuilder {
         about: fig.face.about ?? 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
         fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
-        brow: 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',
+        brow: fig.face.brow ?? 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',   // (the western face's own, western-face-rig.js)
         ...(fig.face.tracks ? {
           ambientClip: fig.face.ambient ? fig.face.ambient.name : null,
           ambientOver: fig.face.ambient ? tracked.filter((c) => fig.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [],

@@ -79,7 +79,8 @@ export function blinkTrack(blinks) {
  * knots strictly between) */
 const inBetweens = (a, b) => (b > a ? [0.5].filter((k) => k > a && k < b) : b < a ? [0.5, 0.2].filter((k) => k < a && k > b) : []);
 const EYES = ['eyeL', 'eyeR'];
-const same = (a, b) => a.eyeL === b.eyeL && a.eyeR === b.eyeR && a.smile === b.smile && a.open === b.open && a.brow === b.brow;
+// (every channel of the state: the anime face's eyes, smile, open and brow; the western face's own, western-face-rig.js)
+const same = (a, b) => Object.keys(a).every((k) => a[k] === b[k]);
 /** the targets an eye drawing moves (the lids and their correctives): the ambient layer's filter */
 const eyeTargets = (targets) => targets.map((n, i) => (n.startsWith('blink') ? i : -1)).filter((i) => i >= 0);
 
@@ -93,8 +94,8 @@ const eyeTargets = (targets) => targets.map((n, i) => (n.startsWith('blink') ? i
  */
 export function clipFaceDrawings({ faces, seconds, authored, seed = 0, blink = true, K = faceKnots(authored) }) {
   const n = faces.length, N = Math.max(1, Math.round(seconds * FACE_FPS));
-  const drawn = (F) => ({ ...F, eyeL: drawEye(F.eyeL, K.eyeKnots), eyeR: drawEye(F.eyeR, K.eyeKnots) });
-  const A = drawn(faceState(authored)), keyF = faces.map((c) => (c ? drawn(faceState(c)) : A)), at = faces.map((_, i) => Math.round((i * N) / n));
+  const drawn = (F) => ({ ...F, eyeL: drawEye(F.eyeL, K.eyeKnots), eyeR: drawEye(F.eyeR, K.eyeKnots) }), state = K.state ?? faceState;   // the western face's state (western-face-rig.js westernKnots)
+  const A = drawn(state(authored)), keyF = faces.map((c) => (c ? drawn(state(c)) : A)), at = faces.map((_, i) => Math.round((i * N) / n));
   // (1, 2) the base drawings, frames 0 … N − 1 (frame N is frame 0: the loop): each key held to the next, the eyes'
   // in-betweens right before it
   const base = new Array(N);
@@ -104,7 +105,7 @@ export function clipFaceDrawings({ faces, seconds, authored, seed = 0, blink = t
     const room = f1 - f0 - 1; if (room <= 0) continue;
     const lists = Object.fromEntries(EYES.map((e) => [e, inBetweens(F[e], G[e]).slice(0, room)])), len = Math.max(lists.eyeL.length, lists.eyeR.length);
     for (let j = 0; j < len; j++) {
-      const D = { ...F, smile: G.smile, open: G.open, brow: G.brow };
+      const D = { ...G, eyeL: F.eyeL, eyeR: F.eyeR };   // the mouth and brows already the next key's
       for (const e of EYES) { const k = j - (len - lists[e].length); if (k >= 0) D[e] = lists[e][k]; }
       base[f1 - len + j] = D;
     }

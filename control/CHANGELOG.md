@@ -13,7 +13,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### The western face in motion (spike): the expression as channels, and a blink
+### The western face in motion: the expression as channels, a blink, and its blend shapes in engines
 
 - **Channels** (`humanoid-head.js`). A western hero's `expression` takes a word, as before, or `{ word?, …channels }`:
   the word's channels (neutral's when absent) with the given ones over them — `browRaise`, `browTilt`, `mouthCorner`,
@@ -22,6 +22,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The blink** (`blink`, 0 open … 1 shut). The eye's stack (the white, the iris, the pupil, the lids) closes to a
   sliver under the lid and lowers a third of the eye's half-height, so the lids meet low; the face around it never
   moves and every part keeps its topology, so the face in motion can difference builds.
+- **The face as blend shapes** (`western-face-rig.js`). A landmark hero's skinned export and Godot pack now carry its face
+  as eleven morph targets: `blink`, `blinkLeft`, `blinkRight`, `eyeWide`, `eyeSquint`, `smile`, `frown`, `browRaise`,
+  `browLower`, `browAngry` and `browWorried`. Each is the head built with one channel at its range end, less the neutral
+  head (`landmarkHeadAt`, the head as the plan wears it), the skin included, since the western expressions move the cheeks
+  and the brow. The channels are linear in the head's points, so a word is a weighted sum (within 0.25 mm of its own build;
+  the blink and the aperture compose exactly) and no correctives are needed. The default weights are the authored face;
+  `jawOpen` stays the jaw bone. Guarded like the anime rig: a stored head the hero no longer builds is skipped by name.
+- **A key's face and the ambient blink on the landmark head.** A door clip's key may carry `face` (a word or the
+  channels; its `jawOpen` refuses, the jaw is the key's own `jaw`), drawn on the anime face's 30-fps step tracks
+  (`anime-face-tracks.js` now weighs through the rig's own state); `blink: false` turns the ambient blink off. The Godot
+  pack gives the landmark figure the face scene (`figure_face.gd`: the authored face on ready, the blink layered). Godot
+  figure gate (4.7.2) on a tiered female: every check passes, the 11 shapes by name, the authored face restored, a face
+  track per clip, the ambient layer. A landmark hero's export without the face writes the bytes it wrote before.
+- **Brows over the ridge in motion.** A brow lowered or tilted over the ridge's curved crest sank into it in pieces
+  (determined, on the tiered head); over the ridge the brow now also stands forward by 0.3 of each channel's move, its
+  own share per channel, so the face rig's targets still add up to any mix (0.24 mm worst). Heads without the ridge
+  build the same bytes.
 - **The brow ridge** (the tiered face's `features.ridge`, `humanoid-head-fit.js` `midColumn`). The fitted head's eye
   and brow rows had no point between the inner and outer brow, so the brow was flat over the iris and the socket flat
   round the eye. A column now runs between them on the cranium and the jaw (`refineSlot`: every pin keeps its

@@ -31,7 +31,7 @@ export const EXPRESSIONS = {
 /** the western face's CHANNELS: the words' five, and `blink` (0 open … 1 shut: the eye's stack closes, the lids meeting
  * low) — the face in motion's (western-face rig) */
 export const WESTERN_CHANNELS = Object.freeze(['browRaise', 'browTilt', 'mouthCorner', 'aperture', 'jawOpen', 'blink']);
-const CHANNEL_RANGES = Object.freeze({ browRaise: [-0.01, 0.015], browTilt: [-0.012, 0.012], mouthCorner: [-0.006, 0.01], aperture: [0.5, 1.4], jawOpen: [0, 25], blink: [0, 1] });
+export const CHANNEL_RANGES = Object.freeze({ browRaise: [-0.01, 0.015], browTilt: [-0.012, 0.012], mouthCorner: [-0.006, 0.01], aperture: [0.5, 1.4], jawOpen: [0, 25], blink: [0, 1] });
 /** An expression: a word (its channels, as before) or `{ word?, …channels }` (the word's, neutral's when absent, with
  * the channels given over it). */
 export function resolveWesternExpression(spec = 'neutral') {
@@ -330,13 +330,17 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     // showing through it
     const halve = (as) => as.flatMap((a, i) => (i ? [[(as[i - 1][0] + a[0]) / 2, (as[i - 1][1] + a[1]) / 2], a] : [a]));
     const browAddrs = B ? (R ? halve(halve(addrs)) : halve(addrs)).map(([u, t], j, all) => [u + B.arch * Math.sin((Math.PI * j) / (all.length - 1)), t]) : addrs;
+    // the brow's lift and tilt (browRaise, browTilt: metres up at each point); over the ridge (features.ridge) the brow also
+    // stands forward by a share of each channel's move, so a brow dropped or raised over the curved crest never sinks into
+    // it (each channel's share its own and linear in it: the face rig's targets add up to any mix)
+    const browLift = (x) => ex.browRaise + ex.browTilt * (Math.abs(x) / 0.065 - 0.6);
     const browW = (j) => (B ? (() => { const x = j / (browAddrs.length - 1); return x < 0.3 ? B.head + (1 - B.head) * (x / 0.3) : 1 + (B.tail - 1) * ((x - 0.3) / 0.7); })() : [0.65, 1, 0.9, 0.35][j]);
     const browH = B ? B.lift : 1;
     const brow = strip(carrier, 'cranium', browAddrs, side, j => {
       const w = 0.0037 * sh.brow * (ft.brow ?? 1) * browW(j);
       return [[-w, -0.0008 * browH], [-w, 0.0015 * browH], [w, 0.0015 * browH], [w, -0.0008 * browH]];
     }, undefined, B ? { end: 0.001 } : undefined);
-    for (const p of Object.values(brow.points)) p[2] += ex.browRaise + ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6);
+    for (const p of Object.values(brow.points)) { p[2] += browLift(p[0]); if (R) p[1] += 0.3 * (Math.abs(ex.browRaise) + Math.abs(ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6))); }
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
     // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner

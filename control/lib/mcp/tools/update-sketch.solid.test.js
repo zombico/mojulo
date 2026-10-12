@@ -807,16 +807,19 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
     expect('blink' in row().manifest.hero).toBe(false);
     // refused by name; the row untouched
     const before = JSON.stringify(row().manifest);
-    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: 'off' }] })).rejects.toThrow(/blink: false turns the anime hero's ambient blink off/);
+    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: 'off' }] })).rejects.toThrow(/blink: false turns the hero's ambient blink off/);
     await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/seconds', value: 100 }] })).rejects.toThrow(/clips\.cheer\.seconds: the clip's length in seconds, 0\.25 … 60/);
     await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/keys/1/face', value: 'grin' }] })).rejects.toThrow(/clips\.cheer\.keys\[1\]\.face: unknown anime pose 'grin'/);
     expect(JSON.stringify(row().manifest)).toBe(before);
   });
-  it('every other head refuses the face, the duration and the blink by name at the door', async () => {
+  it('the landmark head takes a key\'s face (its words) and the blink; every other head refuses them by name at the door', async () => {
     const cheer = [{ support: 'both', crouch: 0.1 }];
-    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: [{ ...cheer[0], face: 'happy' }] } } })).rejects.toThrow(/clips\.cheer\[0\]\.face: a facial track is the anime head's \(head: 'anime'\); this head's face is \/hero\/expression/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: [{ ...cheer[0], face: 'happy' }] } } })).rejects.toThrow(/clips\.cheer\[0\]\.face: one of neutral, smile, determined, surprised/);
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'none', register: 'lowpoly', clips: { cheer: { seconds: 2, keys: cheer } } } })).rejects.toThrow(/clips\.cheer\.seconds: a designed duration is the anime hero's/);
-    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', blink: false } })).rejects.toThrow(/blink: the ambient blink is the anime head's/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'none', register: 'lowpoly', blink: false } })).rejects.toThrow(/blink: the ambient blink is the anime or the landmark head's/);
+    const western = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'landmark-face', spec: { cast: 'male', register: 'lowpoly', blink: false, clips: { cheer: [{ ...cheer[0], face: 'smile' }] } } });
+    expect(western.ok).toBe(true); expect(western.hero.clips.face).toEqual(['cheer']);
+    expect(SketchRepository.getByRef('landmark-face').manifest.recipe.clips.cheer).toEqual(cheer);   // the plan's keys carry no face
     // a { keys } clip without a duration is a list on any head
     const ok = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'landmark-keys', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: { keys: cheer } } } });
     expect(ok.ok).toBe(true); expect(ok.hero.clips).toEqual({ plays: ['idle', 'walk', 'wave', 'cheer'], authored: ['cheer'] });

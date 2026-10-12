@@ -431,20 +431,25 @@ describe('the door clips on the anime head: facial tracks and designed durations
     expect(validateHeroClips({ greet: { seconds: 2, keys: [{ elbowR: 'kinked' }] } }, ANIME)[0]).toMatch(/^clips\.greet\.keys\[0\]\.elbowR: a bend word/);
     expect(validateHeroClips({ greet: [{ face: 'grin' }] }, ANIME)).toEqual([expect.stringMatching(/^clips\.greet\[0\]\.face: unknown anime pose 'grin' \(have neutral, blink, smile/)]);
     expect(validateHeroClips({ greet: [{ face: ['smile', { squint: 1 }] }] }, ANIME)).toEqual(['clips.greet[0].face[1].squint: not an expression amount (have blink, smile, open, brow)']);
-    // every other head: the face and the duration refused by name (pointing at /hero/expression only on a head that takes
-    // it: the landmark's); every other word's text as before
-    expect(validateHeroClips({ greet: [{ face: 'happy' }] }, { expression: true })).toEqual(["clips.greet[0].face: a facial track is the anime head's (head: 'anime'); this head's face is /hero/expression"]);
-    expect(validateHeroClips({ greet: [{ face: 'happy' }] })).toEqual(["clips.greet[0].face: a facial track is the anime head's (head: 'anime')"]);
+    // the landmark head's face (`western`): its words and channels; its jaw is the key's own `jaw`
+    expect(validateHeroClips({ greet: [{ face: 'smile' }, { face: { word: 'surprised', blink: 1 } }, { face: { browTilt: 0.01, mouthCorner: -0.004 } }] }, { western: true, expression: true })).toEqual([]);
+    expect(validateHeroClips({ greet: [{ face: 'happy' }] }, { western: true, expression: true })[0]).toMatch(/^clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
+    expect(validateHeroClips({ greet: [{ face: { jawOpen: 10 } }] }, { western: true })).toEqual(["clips.greet[0].face.jawOpen: the jaw is the key's own `jaw` (degrees), the jaw bone"]);
+    expect(validateHeroClips({ greet: [{ face: { blink: 2 } }] }, { western: true })).toEqual(['clips.greet[0].face.blink: a number in 0 … 1']);
+    // every other head: the face and the duration refused by name; every other word's text as before
+    expect(validateHeroClips({ greet: [{ face: 'happy' }] }, { expression: true })).toEqual(["clips.greet[0].face: a facial track is the anime or the landmark head's; this head's face is /hero/expression"]);
+    expect(validateHeroClips({ greet: [{ face: 'happy' }] })).toEqual(["clips.greet[0].face: a facial track is the anime or the landmark head's"]);
     expect(validateHeroClips({ greet: { seconds: 2, keys: [{}] } })).toEqual(["clips.greet.seconds: a designed duration is the anime hero's (head: 'anime'); this hero's clips play one second in an export and three on the World page"]);
     expect(validateHeroClips({ greet: [{ dance: 1 }, { wristR: 1 }] }, ANIME)).toEqual(validateHeroClips({ greet: [{ dance: 1 }, { wristR: 1 }] }));
     for (const spec of [{ cast: 'male', register: 'lowpoly' }, { cast: 'female', head: 'none', register: 'lowpoly' }]) {
       const at = spec.head ?? 'landmark';
-      expect(() => heroRecord({ ...spec, clips: { greet: [{ ...K, face: 'happy' }] } }), at).toThrow(spec.head ? /clips\.greet\[0\]\.face: a facial track is the anime head's \(head: 'anime'\)(?!; this head)/ : /clips\.greet\[0\]\.face: a facial track is the anime head's \(head: 'anime'\); this head's face is \/hero\/expression/);
+      expect(() => heroRecord({ ...spec, clips: { greet: [{ ...K, face: 'happy' }] } }), at).toThrow(spec.head ? /clips\.greet\[0\]\.face: a facial track is the anime or the landmark head's(?!; this head)/ : /clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
       expect(() => heroRecord({ ...spec, clips: { greet: { seconds: 2, keys: [K] } } }), at).toThrow(/clips\.greet\.seconds: a designed duration is the anime hero's \(head: 'anime'\)/);
-      expect(() => heroRecord({ ...spec, blink: false }), at).toThrow(/blink: the ambient blink is the anime head's \(head: 'anime'\)/);
+      if (spec.head) expect(() => heroRecord({ ...spec, blink: false }), at).toThrow(/blink: the ambient blink is the anime or the landmark head's/);
+      else { expect(heroRecord({ ...spec, blink: false }).blink).toBe(false); expect(heroRecord({ ...spec, clips: { greet: [{ ...K, face: 'smile' }] } }).clips.greet[0].face).toBe('smile'); }
       expect(heroRecord({ ...spec, clips: { greet: { keys: [K] } } }).clips).toEqual({ greet: { keys: [K] } });
     }
-    expect(() => heroRecord({ cast: 'female', head: 'anime', blink: 'off' })).toThrow(/blink: false turns the anime hero's ambient blink off \(true is the default and not stored\)/);
+    expect(() => heroRecord({ cast: 'female', head: 'anime', blink: 'off' })).toThrow(/blink: false turns the hero's ambient blink off \(true is the default and not stored\)/);
   });
   it('the plan carries the keys without their face: a { seconds, keys } clip merges its keys; the record keeps it as given', () => {
     const clips = { greet: { seconds: 2, keys: [{}, { ...K, face: ['happy', { open: 0.4 }] }] }, run: [{ support: 'L', face: 'determined' }], idle: [K] };

@@ -71,8 +71,8 @@ describe('the anime hero\'s clips in the GLB', () => {
   });
 });
 
-describe('every other hero: no duration, no face', () => {
-  it('a landmark hero and the head-none hero: packs without `s` (the option absent is the option null), every clip one second, no weights channel', async () => {
+describe('every other hero: no duration; the landmark hero\'s face', () => {
+  it('a landmark hero and the head-none hero: packs without `s` (the option absent is the option null), every clip one second; the landmark\'s skinned clips each a STEP weights channel (its face), the head-none hero\'s none', async () => {
     const cheer = { cheer: [{ support: 'both', crouch: 0.1 }, { support: 'both', armR: { x: 0.3, y: 0.15, z: 0.94 }, elbowR: 'slight' }] };
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) }), label = spec.head ?? 'landmark';
@@ -80,7 +80,14 @@ describe('every other hero: no duration, no face', () => {
       for (const c of Object.values(p.figures.body.clips)) expect(Object.keys(c), label).toEqual(['k', 'b']);
       for (const skinned of [true, false]) {
         const G = await glb(m, { skinned });
-        for (const a of G.json.animations) { expect(G_end(G, a), `${label} ${a.name}`).toBe(1); expect(a.samplers.every((s) => s.interpolation === 'LINEAR')).toBe(true); }
+        for (const a of G.json.animations) {
+          const face = a.channels.filter((c) => c.target.path === 'weights'), body = a.channels.filter((c) => c.target.path !== 'weights');
+          if (a.name === 'face:ambientBlink') { expect(label === 'landmark' && skinned).toBe(true); continue; }
+          expect(G_end(G, a), `${label} ${a.name}`).toBe(1);
+          expect(body.every((c) => a.samplers[c.sampler].interpolation === 'LINEAR')).toBe(true);
+          expect(face.length, `${label} ${a.name}`).toBe(label === 'landmark' && skinned ? 1 : 0);
+          for (const c of face) expect(a.samplers[c.sampler].interpolation).toBe('STEP');
+        }
       }
       const mesh = compileLayered(m.recipe, m.dials), R = validateRig(m.recipe.rig), skin = bindLayered(mesh, m.recipe, R);
       expect(packLayeredRig(mesh, skin, R, { clips: m.recipe.clips, seconds: null })).toEqual(packLayeredRig(mesh, skin, R, { clips: m.recipe.clips }));

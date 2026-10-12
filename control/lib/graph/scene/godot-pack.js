@@ -197,6 +197,9 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
       name, clip: figureClip(manifest.recipe?.clips, clipNames), clips: clipNames, view, viewName: score.cameras?.[view]?.name ?? `view ${view}`, joints: f.bones.length,
       // `ambientOver`: the exported clips the face-only ambient blink layers over (the GLB's names; scene-gltf writes the same)
       ...(anime ? { anime: true, seconds: Object.fromEntries(clipNames.map((c) => [c, f.clips[c].s ?? 1])), face: !!f.face, ambientOver: f.face?.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
+      // the LANDMARK hero's face (western-face-rig.js): the same face scene (figure_face.gd: the authored face on ready, the
+      // ambient blink layered); its clips keep their one second and its view as before
+      ...(!anime && f.face ? { face: true, ambientOver: f.face.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
     };
   })() : null;
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations${figure ? `, the figure '${figure.name}' skinned (${figure.joints} joints, plays ${figure.clip})` : ''}`);

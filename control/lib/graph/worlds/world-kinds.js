@@ -49,6 +49,7 @@ import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
+import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
@@ -676,7 +677,8 @@ export const WORLD_KINDS = {
         // authored weights and every word's weights ride the figure (`face`); a row the guards refuse says why
         // (`faceSkipped`) and exports without it. The World page never asks, so its payload is the one before the face.
         // (the PAINTED face, face-paint-rig.js: its drawings swapped on a texture atlas, the same targets' shape and tracks)
-        const face = ctx.face && rigged && m.hero?.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : null;
+        // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
+        const face = ctx.face && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview, the GLB and the Godot pack all play; every other row's clips
         // carry none (three seconds on the page, one in an export, as before). With the face, each clip's facial track
