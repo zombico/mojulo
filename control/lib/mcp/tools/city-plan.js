@@ -7,7 +7,8 @@
 import { randomInt } from 'node:crypto';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { inferCity } from '@/lib/graph/city/plan/card';
-import { cityReadout } from '@/lib/graph/city/plan/read';
+import { cityReadout, readCity } from '@/lib/graph/city/plan/read';
+import { cityGameOrder } from '@/lib/graph/city/plan/game';
 
 export function mintCityPlan({ plan, seed, title, ref, folderRef } = {}) {
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
@@ -22,6 +23,13 @@ export function mintCityPlan({ plan, seed, title, ref, folderRef } = {}) {
   const readout = cityReadout(manifest);
   const sketch = SketchRepository.create({ title: title || `city · ${readout.city.look} · ${manifest.seed}`, manifest, ref, folderRef: folderRef ?? null });
   const at = encodeURIComponent(sketch.ref);
+  // segments.levels: a level per segment beside the city, each reading it by ref, and the map game's order for create_game
+  let game = null;
+  if (manifest.segments && manifest.segments.levels) {
+    const { design } = readCity(manifest), order = cityGameOrder(design, sketch.ref, sketch.title);
+    for (const lv of order.sketches) SketchRepository.create({ title: lv.title, manifest: lv.manifest, ref: lv.ref, folderRef: folderRef ?? null });
+    game = { levels: order.sketches.map((x) => x.ref), create_game: order.createGame };
+  }
   return {
     ok: true,
     ref: sketch.ref,
@@ -31,5 +39,6 @@ export function mintCityPlan({ plan, seed, title, ref, folderRef } = {}) {
     recipe: manifest,
     ...(inferred.length ? { inferred } : {}),
     ...readout,
+    ...(game ? { game } : {}),
   };
 }

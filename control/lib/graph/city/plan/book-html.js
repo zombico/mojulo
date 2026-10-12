@@ -46,6 +46,12 @@ export function cityPlanSvg(d, { width = 1100 } = {}) {
     const A = d.walk.nodes[e.a], B = d.walk.nodes[e.b];
     if (e.len > d.grammar.walk.beat) out.push(`<line x1="${X(A.x)}" y1="${Y(A.y)}" x2="${X(B.x)}" y2="${Y(B.y)}" stroke="#d6336c" stroke-width="2" stroke-dasharray="2 3"/>`);
   }
+  // the segments a city is played in: each its outline and name, each portal a gate on its edge
+  for (const sg of d.segments || []) {
+    out.push(`<rect x="${X(sg.rect.x0)}" y="${Y(sg.rect.y0)}" width="${r1((sg.rect.x1 - sg.rect.x0) * s)}" height="${r1((sg.rect.y1 - sg.rect.y0) * s)}" fill="none" stroke="#7a3fb0" stroke-width="2.2" stroke-dasharray="10 5"/>`);
+    out.push(`<text x="${X(sg.rect.x0) + 6}" y="${Y(sg.rect.y0) + 16}" class="seg">${sg.id}</text>`);
+    for (const nb of sg.neighbours) if (nb.id > sg.id) out.push(`<rect x="${X(nb.portal.at[0]) - 5}" y="${Y(nb.portal.at[1]) - 5}" width="10" height="10" fill="#7a3fb0"><title>portal ${sg.id} ↔ ${nb.id} on ${nb.portal.street}</title></rect>`);
+  }
   out.push(`<circle cx="${X(d.field.cx)}" cy="${Y(d.field.cy)}" r="${r1(d.field.lambda * s)}" fill="none" stroke="#6f8fb0" stroke-dasharray="3 5"/>`);
   // the board: every cell line faint, named on the margins
   for (let c = 0; c <= cols; c++) out.push(`<line x1="${X(c * cell)}" y1="${Y(0)}" x2="${X(c * cell)}" y2="${Y(D)}" stroke="#000" stroke-opacity="0.07"/>`);
@@ -76,7 +82,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-app
 main{max-width:1180px;margin:0 auto;padding:24px 16px 64px}h1{font-size:28px;margin:0 0 4px}h2{margin:36px 0 10px;font-size:20px;border-bottom:1px solid var(--rule);padding-bottom:6px}
 .sub{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
 .stat{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:10px 12px}.stat b{display:block;font-size:20px}.stat span{color:var(--muted);font-size:13px}
-.sheet{width:100%;height:auto;background:#fff;border:1px solid var(--rule);border-radius:6px}.sheet .cell{font:11px system-ui;fill:#6b6d70}.sheet .lbl{font:11px system-ui;fill:#24262a}
+.sheet{width:100%;height:auto;background:#fff;border:1px solid var(--rule);border-radius:6px}.sheet .cell{font:11px system-ui;fill:#6b6d70}.sheet .lbl{font:11px system-ui;fill:#24262a}.sheet .seg{font:bold 13px system-ui;fill:#7a3fb0}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin:8px 0}.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px solid var(--rule);padding:7px 8px;text-align:left;vertical-align:top}tr.open td:first-child b{color:var(--open)}tr.ok td:first-child b{color:var(--ok)}
 .why{color:var(--muted);font-size:13px}ul{margin:4px 0;padding-left:18px}code{font-size:12.5px;word-break:break-word}.q{color:var(--muted);font-weight:400;font-size:14px}
@@ -93,13 +99,15 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{border-bottom:1px
 <div class="stat"><b>${d.laws.filter((l) => l.ok).length} / ${d.laws.length}</b><span>laws hold</span></div>
 </div>
 <h2>Plan</h2>
-<div class="legend">${legend}<span><i style="background:#cfdcbf"></i>left over</span><span><i style="border:2px dashed #6f8fb0;background:none"></i>height field's reach</span><span><i style="background:#d6336c"></i>walk finding</span></div>
+<div class="legend">${legend}<span><i style="background:#cfdcbf"></i>left over</span><span><i style="border:2px dashed #6f8fb0;background:none"></i>height field's reach</span><span><i style="background:#d6336c"></i>walk finding</span>${d.segments ? '<span><i style="border:2px dashed #7a3fb0;background:none"></i>segment, ■ portal</span>' : ''}</div>
 ${cityPlanSvg(d)}
 ${world ? `<h2>Walk</h2><iframe src="${esc(world.src)}" title="the city, walkable" loading="lazy"></iframe>` : ''}
 <h2>Laws</h2><div class="scroll"><table><tr><th>Law</th><th>Wants</th><th>Now</th></tr>${lawRows}</table></div>
 ${inferred.length ? `<h2>Given at mint</h2><ul>${inferred.map((i) => `<li><b>${esc(i.field)}</b>: ${esc(i.reason)}</li>`).join('')}</ul>` : ''}
 <h2>Lots</h2><p class="why">The tallest ${Math.min(60, d.lots.length)} of ${d.lots.length}. A lot by hand: <code>lots: { '&lt;id&gt;': { use?, storeys? } }</code>; the rest of its block keeps its dice.</p>
 <div class="scroll"><table><tr><th>Lot</th><th>Use</th><th>Storeys</th><th>Height</th><th>Footprint</th><th>Skin</th><th>Cell</th></tr>${lotRows}</table></div>
+${d.segments ? `<h2>Segments</h2><p class="why">The city as it is played: each segment a level, left by a portal on a street into its neighbour.${m.segments && m.segments.levels ? ' Each is minted beside the city as <code>&lt;city ref&gt;-&lt;id&gt;</code>.' : ' <code>segments.levels: true</code> mints a level for each.'}</p>
+<div class="scroll"><table><tr><th>Segment</th><th>Size</th><th>Lots</th><th>Ways out</th></tr>${d.segments.map((x) => `<tr><td><b>${x.id}</b></td><td>${Math.round(x.rect.x1 - x.rect.x0)} × ${Math.round(x.rect.y1 - x.rect.y0)} m</td><td>${x.lots.length}</td><td>${x.neighbours.map((n) => `${n.id} (${n.side}, by ${esc(n.portal.street)})`).join(', ') || 'none: its goal is its farthest crossing'}</td></tr>`).join('')}</table></div>` : ''}
 <h2>Open</h2>${openRows}
 </main></body></html>`;
 }

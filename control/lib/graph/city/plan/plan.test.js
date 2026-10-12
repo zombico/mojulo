@@ -146,7 +146,7 @@ describe('one read model for the reply, the book and next', () => {
     const ids = r.next.map((n) => n.id);
     expect(ids).toEqual(expect.arrayContaining(['spine', 'districts', 'sites', 'segments']));
     expect(ids.indexOf('spine')).toBeLessThan(ids.indexOf('segments'));
-    expect(r.next.find((n) => n.id === 'segments').add).toMatch(/^not yet/);
+    expect(r.next.find((n) => n.id === 'segments').add).toMatch(/^segments: \{ levels: true \}/);
   });
   it('a district laid by hand closes its concern', () => {
     const r = cityReadout({ ...m, districts: [{ at: 'D2:F4', use: 'core' }] });

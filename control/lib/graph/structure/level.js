@@ -24,6 +24,12 @@ import { buildNav } from '../worlds/controllable/nav.js';
 import { stageColliders } from '../era/anchors.js';
 import { stairColliders } from '../era/storeys.js';
 
+// the kinds that lower their own level (a city's segment registers itself: city/plan/level.js), so a building's level
+// never imports them
+const LEVEL_KINDS = new Map();
+/** A kind that lowers `level` itself: `lower(manifest, ref)` → the manifest with its game channel. */
+export function registerLevelKind(kind, lower) { LEVEL_KINDS.set(kind, lower); }
+
 // the walkers' own pathfinder (A* over the colliders, string-pulled), run once at lowering: the route goes round walls
 const NAV = {};
 buildNav(NAV);
@@ -343,6 +349,8 @@ export const asksLevel = (m) => !!(m && typeof m === 'object' && m.level && type
 export function withBuildingLevel(m, ref, read = null) {
   if (!asksLevel(m)) return m;
   if (m.kind === 'stage') return withStageLevel(m, ref);
+  // a kind that lowers its own (a city's segment, its city already merged in by ref: city/plan/ref.js)
+  if (LEVEL_KINDS.has(m.kind)) return LEVEL_KINDS.get(m.kind)(m, ref);
   const r = read || readStructure(m);
   if (!r) return m;
   const L = buildingLevel(r, { goal: m.level.goal });

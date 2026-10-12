@@ -128,6 +128,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
+  // a city segment's level reads its city by ref (city/plan/ref.js): merged before it is lowered as a level
+  if (sketch.manifest?.kind === 'city' && typeof sketch.manifest.city === 'string') {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { withCityRef } = await import('@/lib/graph/city/plan/ref.js');
+    sketch = { ...sketch, manifest: withCityRef(sketch.manifest, (r) => SketchRepository.getByRef(r)?.manifest) };
+  }
+
   // a building that asks to be a level (`level: { goal }`, structure/level.js): its game channel, walker, camera and
   // colliders are lowered from the building on every read, before the game channel below reads them
   if (sketch.manifest?.level && typeof sketch.manifest.level === 'object' && !sketch.manifest.game) {

@@ -16,6 +16,7 @@ import { strHash } from './dice.js';
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
+import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
 import { resolveLookSpec } from '../../era/look.js';
 import { rgbToHex } from '../../polygonizer/vexar.js';
@@ -113,17 +114,24 @@ export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
 
 /** The `city` world kind: the recipe → the city in its facades (or its massing), walkable, the design's readout attached. */
 export function assembleCityScene(manifest, ctx = {}) {
-  const { kind, title, walk: walkFlag, ...recipe } = manifest;
-  const d = designCity(recipe), G = d.grammar, { W, D } = d.frame;
+  // a level's lowered channels (level.js) are the world's, not the plan's
+  const { kind, title, walk: walkFlag, game: _g, entities: _e, camera: _c, events: _v, colliders: _k, ...recipe } = manifest;
+  const d0 = designCity(recipe), G = d0.grammar;
+  // a segment played as a level: its own masses and a ring of the city round it (the backdrop past its walls)
+  const seg = d0.plan.level ? (d0.segments || []).find((x) => x.id === d0.plan.level.segment) : null;
+  const ring = 140, near = (r) => !seg || !(r.x1 < seg.rect.x0 - ring || r.x0 > seg.rect.x1 + ring || r.y1 < seg.rect.y0 - ring || r.y0 > seg.rect.y1 + ring);
+  const d = seg ? { ...d0, lots: d0.lots.filter(near), sites: d0.sites.filter((x) => near(x.rect)) } : d0;
+  const W = seg ? seg.rect.x1 - seg.rect.x0 : d.frame.W, D = seg ? seg.rect.y1 - seg.rect.y0 : d.frame.D;
   // the look lights the city (the world-wide channel adds its air and sky after); with none, a paint's cube's look does,
   // and the city takes that look's air and sky itself
   const paint = readPaint(d.plan.paint), spec = readCityLook(d.plan.look) || (paint ? resolveLookSpec(paint.cube.light.reference) : null);
   const lit = spec ? lookLight(spec, paint) : null;
   LIT = lit ? lit.light : CITY_LIGHT;
-  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
+  const ox = seg ? seg.rect.x0 : 0, oy = seg ? seg.rect.y0 : 0;
+  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec, ox, oy }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
 }
 
-function assembleIn(d, G, W, D, { paint, spec, lit, own }, { title, walkFlag, ctx }) {
+function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy }, { title, walkFlag, ctx }) {
   const ground = groundFaces(d, paint);
   // the walker starts on the walk nearest the height field's core, facing along its street
   const start = d.walk.nodes.reduce((b, n) => (!b || Math.hypot(n.x - d.field.cx, n.y - d.field.cy) < Math.hypot(b.x - d.field.cx, b.y - d.field.cy) ? n : b), null);
@@ -135,7 +143,7 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own }, { title, walkFlag, ct
   const u = (p) => p.map((v) => r3(v / U));
   const cameras = [
     // the whole board from its south-east corner, high enough to read the street plan through the towers
-    { name: 'over', worldFraming: { cameraPosition: u([W / 2 + S * 0.62, D / 2 + S * 0.95, S * 0.72 + top * 0.5]), lookAt: u([W / 2, D / 2, 0]), horizontalFov: 50 } },
+    { name: 'over', worldFraming: { cameraPosition: u([ox + W / 2 + S * 0.62, oy + D / 2 + S * 0.95, S * 0.72 + top * 0.5]), lookAt: u([ox + W / 2, oy + D / 2, 0]), horizontalFov: 50 } },
     { name: 'street', worldFraming: { cameraPosition: u(eye), lookAt: u([eye[0] + dir[0] / L * 40, eye[1] + dir[1] / L * 40, 6]), horizontalFov: 75 } },
   ];
   const sheetTitle = ctx.title || title || `${G.label} · city`;

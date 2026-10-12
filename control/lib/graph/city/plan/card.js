@@ -20,8 +20,9 @@ import { DEFAULT_GRAMMAR, PLAY_SCALES, PLAY_IDS } from './grammar.js';
 import { resolveGrammar } from './grammars.js';
 import { readFacade } from './facades.js';
 import { readCityLook, readPaint } from './look.js';
+import { readSegments } from './segments.js';
 
-export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'waive', 'fidelity', 'notes']);
+export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'waive', 'fidelity', 'notes', 'cityRef']);
 /** How the world draws it: every lot in its facade (the default), or the massing alone (a plan judged as a plan). */
 export const FIDELITIES = Object.freeze(['facade', 'massing']);
 /** The channels every world kind wears (world-scene.js reads them; the plan never does). */
@@ -143,9 +144,19 @@ export function readCityPlan(rec) {
     if (o.use !== undefined && !LOT_USES.includes(o.use)) no(`lots['${id}'].use is one of ${LOT_USES.join(', ')}`);
     if (o.storeys !== undefined && !whole(o.storeys, [1, 160])) no(`lots['${id}'].storeys is a whole number 1–160`);
   }
+  const segments = readSegments(rec.segments, play);
+  let level = null;
+  if (rec.level !== undefined) {
+    keys(rec.level, 'level', ['segment', 'refs']);
+    if (!segments) no('level: a city is played by its segments: give it segments: true (or { across })');
+    if (typeof rec.level.segment !== 'string') no("level.segment is the segment this level plays ('r1c2': the book's Segments sheet names them)");
+    if (rec.level.refs !== undefined && !(isObj(rec.level.refs) && Object.values(rec.level.refs).every((v) => typeof v === 'string'))) no("level.refs is { <segment id>: <its level's ref> }, for neighbours whose levels are not '<city ref>-<segment id>'");
+    level = rec.level;
+  }
   const waive = list(rec.waive, 'waive');
   if (!waive.every((w) => typeof w === 'string' && w.length)) no("waive is a list of '<law>' or '<law>:<subject>'");
-  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}) };
+  if (rec.city !== undefined) no(`city: a segment level reads its city by ref ('${rec.city}'); resolve it first (plan/ref.js withCityRef)`);
+  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(segments ? { segments } : {}), ...(level ? { level } : {}), ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}) };
 }
 
 /**

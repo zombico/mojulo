@@ -49,8 +49,12 @@ const CONCERNS = [
     add: 'another line through the lots it misses', adds: (m, r) => lawOf(r, 'transit-reach').findings[0].detail },
   { id: 'transit-on-street', outcome: 'walk', tab: 'Transit', when: (m, r) => !lawOf(r, 'transit-on-street').ok,
     add: "a line's path along a street's cells (the spine's, or a grid street's)", adds: (m, r) => lawOf(r, 'transit-on-street').findings[0].detail },
-  { id: 'segments', outcome: 'play', tab: 'Segments', when: () => true,
-    add: 'not yet: segments cut along the spine and played as linked levels come next', adds: 'each segment a level: a spawn, an exit, beats along the way, doors into its lots, joined at the spine' },
+  { id: 'segments', outcome: 'play', tab: 'Segments', when: (m) => !m.segments,
+    add: 'segments: { levels: true } (or { across: [lo, hi] metres, levels })', adds: 'the city cut along its spine and avenues into pieces a level can hold, each joined to its neighbours at a portal on a street; with levels, a level per segment minted beside the city and the order create_game takes' },
+  { id: 'levels', outcome: 'play', tab: 'Segments', when: (m) => !!m.segments && !m.segments.levels,
+    add: 'segments.levels: true', adds: (m, r) => `a level per segment (${r.segments.length} now), each reading the city by ref, and the map game's order for create_game` },
+  { id: 'game', outcome: 'play', tab: 'Segments', when: (m) => !!(m.segments && m.segments.levels), export: 'create_game',
+    add: "create_game with the mint's game.create_game (its levels, their exits, a progression slice)", adds: 'the city played as a map: each segment a level, left by its streets into its neighbours' },
 ];
 
 const val = (x, m, r) => (typeof x === 'function' ? x(m, r) : x);
@@ -58,11 +62,11 @@ const ORDER = new Map(CITY_OUTCOMES.map((o, i) => [o.id, i]));
 
 /** What the city has not reached, in outcome order: { id, outcome, tab, field, adds, card }. */
 export function openCityConcerns(m, read) {
-  return CONCERNS.filter((c) => c.when(m, read)).map((c) => ({ id: c.id, outcome: c.outcome, tab: c.tab, field: val(c.add, m, read), adds: val(c.adds, m, read), card: CITY_CARD }))
+  return CONCERNS.filter((c) => c.when(m, read)).map((c) => ({ id: c.id, outcome: c.outcome, tab: c.tab, field: val(c.add, m, read), adds: val(c.adds, m, read), card: CITY_CARD, ...(c.export ? { export: c.export } : {}) }))
     .sort((a, b) => ORDER.get(a.outcome) - ORDER.get(b.outcome));
 }
 /** The readout's `next`: each open step once. */
-export const cityNextSteps = (m, read) => openCityConcerns(m, read).map((c) => ({ id: c.id, outcome: c.outcome, add: c.field, card: c.card }));
+export const cityNextSteps = (m, read) => openCityConcerns(m, read).map((c) => ({ id: c.id, outcome: c.outcome, ...(c.export ? { call: c.export } : {}), add: c.field, card: c.card }));
 
 /** A city recipe read whole: the design and its summary. `design` is kept for the book and the scene; the summary is
  *  what a reply carries. */
@@ -81,6 +85,7 @@ export function readCity(m) {
     sites: d.sites.map((s) => ({ id: s.id, use: s.use, ...(s.name ? { name: s.name } : {}), ...(s.mass ? { height: s.mass.h } : {}) })),
     transit: d.transit.map((t) => ({ id: t.id, mode: t.mode, km: Math.round(t.length) / 1000, stops: t.stops.length })),
     uses, stats: d.stats,
+    ...(d.segments ? { segments: d.segments.map((x) => ({ id: x.id, size: [Math.round(x.rect.x1 - x.rect.x0), Math.round(x.rect.y1 - x.rect.y0)], lots: x.lots.length, neighbours: x.neighbours.map((n) => ({ id: n.id, side: n.side, street: n.portal.street })) })) } : {}),
     laws: d.laws.map((l) => ({ id: l.id, layer: l.layer, ok: l.ok, findings: l.findings, ...(l.waived ? { waived: l.waived } : {}) })),
   };
   return { read, design: d };
@@ -94,6 +99,7 @@ export function cityReadout(m) {
       grammar: read.grammar.id, look: read.grammar.label, play: read.play, board: `${read.board.cols} × ${read.board.rows} cells of ${read.board.cell} m`, frame: `${read.frame.w} × ${read.frame.d} m`,
       blocks: read.stats.blocks, lots: read.stats.lots, towers: read.stats.towers, heights: read.stats.height, pitch: read.stats.pitch,
       walkAcross: read.stats.walkAcross, streetKm: read.stats.streetKm, stops: read.stats.stops,
+      ...(read.segments ? { segments: read.segments.map((x) => `${x.id} ${x.size[0]}×${x.size[1]} m, ${x.lots} lots, to ${x.neighbours.map((n) => n.id).join(' ')}`) } : {}),
     },
     laws: read.laws.map((l) => (l.ok ? { id: l.id, ok: true, ...(l.waived ? { waived: l.waived } : {}) } : { id: l.id, ok: false, findings: l.findings.length, first: l.findings.slice(0, 2).map((f) => f.detail), ...(l.waived ? { waived: l.waived } : {}) })),
     next: cityNextSteps(m, read),

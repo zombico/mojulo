@@ -91,6 +91,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `paint: { geocube, amount }` lays a geocube's colours over the ground, water, parks and walks, and leans
     every skin toward its stone, trim and accent. Without a look, the cube's own look lights it.
   - The same city is the same streets, lots and facades in another place and hour.
+- **A city played as a map game.** `segments: true | { across, levels }` cuts the city along its spine and avenues
+  (`city/plan/segments.js`), dice-free.
+  - Pieces are sized to a level's span: game 180–360 m a side, real 300–600 m. The spine always cuts.
+  - Each pair of neighbours is joined by a portal on the most important street crossing their edge.
+  - A segment is played as a building on the rail is: `level: { segment }` is lowered on every read
+    (`city/plan/level.js`, registered with `structure/level.js registerLevelKind`). It gets a named reach-exit per
+    neighbour at its portal, arrivals from each neighbour's level clear of the way back, a first-person walker at
+    its middle crossing, and walls at every built mass and along its edges, open only at its portals. A segment
+    with no neighbours is played to its farthest crossing.
+  - A level is `{ kind: 'city', city: <ref>, level: { segment } }`. It reads its city by ref (`city/plan/ref.js`,
+    merged in world-scene and game-resolve), so an edit to the city moves every level.
+  - `segments.levels: true` mints a level per segment beside the city (`<ref>-<segment id>`). The mint returns
+    `game.create_game`: the map from the segment holding the core, each exit answered from the other side, a
+    progression slice.
+  - The book draws the segments and portals and lists them. `next` leads to `create_game`.
+  - A four-segment Paris passed `create_game`'s headless auto-audit: every level reached its exit.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.
