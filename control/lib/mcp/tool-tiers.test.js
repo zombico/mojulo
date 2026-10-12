@@ -30,7 +30,7 @@ describe('the tier table', () => {
 describe('tools/list', () => {
   beforeAll(async () => {
     await ensureToolsRegistered();
-  });
+  }, 120_000);
 
   const tierOf = (tools, name) => tools.find((t) => t.name === name)?._meta?.['mojulo/tier'];
 

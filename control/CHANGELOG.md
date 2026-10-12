@@ -27,6 +27,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `forge_publications`, `synthesize_abstract`, `verify_machina` and `mint_catalyst` design). A host whose profile
   declares `capabilities.modelTiers` (Claude Code) sees it as `_meta["mojulo/tier"]` in tools/list; every other
   host's list is byte-identical. Character tools are not tiered yet (`TIER_DEFERRED`).
+- **What a plan saves.** For a host that declares `modelTiers`, `compile_plan` answers with the plan's steps by tier
+  (`tiers`, and a line in its message): `execute_plan` runs every one of them with no model in the loop, so one design
+  act replaces that many agent calls and a light model can start the run. Other hosts' compile answer is unchanged.
 - **Two subagents in the Claude plugin.** `plugins/mojulo/agents/`: `mojulo-runner` (Haiku, low effort) runs decided
   `ride` and `fill` calls in batches; `mojulo-maker` (Sonnet, medium) authors or revises one recipe. Each one's `tools`
   list is exact (with `ToolSearch`, without which a subagent cannot load Claude Code's deferred MCP tools and has

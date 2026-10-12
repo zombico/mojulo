@@ -36,7 +36,9 @@
  * See lite-template/integration/app-system/0527/plan-feature/PLAN_MODE.md.
  */
 
-import { registerTool, invokeRegisteredTool, hasRegisteredTool, isToolListed } from '@/lib/mcp/server';
+import { registerTool, invokeRegisteredTool, hasRegisteredTool, isToolListed, clientTakesModelTiers } from '@/lib/mcp/server';
+import { getClientInfo } from '@/lib/mcp/client-bindings';
+import { tierCounts } from '@/lib/mcp/tool-tiers';
 import { hiddenInPluginProfile } from '@/lib/mcp/plugin-profile';
 import { PlanRepository } from '@/lib/db/repositories/plans';
 import { CookRepository } from '@/lib/db/repositories/cooks';
@@ -348,7 +350,7 @@ function validateManifest(manifest) {
   return { calls, unknownTools, illegalTools, deprecatedTools, errors };
 }
 
-export async function compilePlanHandler(input, _ctx) {
+export async function compilePlanHandler(input, ctx) {
   if (!input || typeof input !== 'object') {
     throw new Error('compile_plan requires an object with plan_ref');
   }
@@ -409,12 +411,19 @@ export async function compilePlanHandler(input, _ctx) {
   }
 
   const deprecated = [...new Set(deprecatedTools)];
+  // A host that routes light work to a lighter model (capabilities.modelTiers) also learns what the plan saves:
+  // its steps by tier, every one of them run with no model by execute_plan. Other hosts' answer is unchanged.
+  const tiers = clientTakesModelTiers(getClientInfo(ctx?.mcpSessionId)) ? tierCounts(calls.map((c) => c.tool)) : null;
+  const tierLine = tiers
+    ? ` Steps by tier: ${Object.entries(tiers).map(([t, n]) => `${n} ${t}`).join(', ')}; execute_plan runs every one with no model in the loop, so a light model can start the run.`
+    : '';
   return {
     ok: true,
     compiled: true,
     plan_ref,
     status: updated.status,
     steps: calls.length,
+    ...(tiers ? { tiers } : {}),
     ...(sketchRef ? { sketch_ref: sketchRef, sketch_url: sketchUrl(sketchRef) } : {}),
     ...(sketchWarning ? { sketch_warning: sketchWarning } : {}),
     ...(deprecated.length
@@ -423,7 +432,7 @@ export async function compilePlanHandler(input, _ctx) {
           deprecation_warning: `Manifest references deprecated tool alias(es): ${deprecated.join(', ')}. They still execute, but will be dropped in a future release — migrate to the consolidated entry (see each alias's description).`,
         }
       : {}),
-    message: `Plan is Actionable: ${calls.length} step(s) resolve to live tools.${sketchRef ? ` Diagram at ${sketchUrl(sketchRef)}.` : ''} Awaiting operator approval — execute_plan with confirm:true to run.`,
+    message: `Plan is Actionable: ${calls.length} step(s) resolve to live tools.${tierLine}${sketchRef ? ` Diagram at ${sketchUrl(sketchRef)}.` : ''} Awaiting operator approval — execute_plan with confirm:true to run.`,
   };
 }
 

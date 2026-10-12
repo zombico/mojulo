@@ -159,3 +159,15 @@ export const TOOL_TIERS = Object.freeze({
   sign_asset: 'ride',
   verify_asset: 'ride',
 });
+
+/** Steps of a compiled plan counted by tier, lightest first; a tool with no tier counts as `untiered`. What the plan
+ * saves: `execute_plan` runs every step with no model in the loop, whatever tier the step would cost an agent. */
+export function tierCounts(tools) {
+  const counts = {};
+  for (const tier of ['ride', 'fill', 'judge', 'design', 'untiered']) {
+    const n = tools.filter((t) => (TOOL_TIERS[t] || 'untiered') === tier).length;
+    if (n) counts[tier] = n;
+  }
+  return counts;
+}
+
