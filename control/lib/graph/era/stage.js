@@ -50,6 +50,7 @@ import { assembleIsekaiScene } from './isekai.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
 import { withGeocube } from './geocube.js';
 import { withProgram } from './programs.js';
+import { withBuildings } from './stage-buildings.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
@@ -367,6 +368,20 @@ export function planStage(m = {}) {
     a.openings[wall.ax].push(op); b.openings[wall.bx].push(op);
     return { from: a.id, to: b.id, wall: wall.ax, at: wall.at, ...op };
   });
+  // WAYS (`ways: [{ room, side, width? }]`): a doorway out of a room through an outside wall, the middle of that side (a
+  // building standing in open ground is walked into by it); the side must face out (no room against it there)
+  const ways = (m.ways || []).map((w) => {
+    const r = byId.get(w.room);
+    if (!r) throw new Error(`stage: way out of '${w.room}', which is not a room`);
+    if (!['-x', '+x', '-y', '+y'].includes(w.side)) throw new Error(`stage: way out of '${w.room}' needs side, one of -x +x -y +y`);
+    const width = w.width ?? kit.door.width, height = Math.min(w.height ?? kit.door.height, r.h - 0.5), alongX = w.side.endsWith('y');
+    const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = Math.round((lo0 + hi0) / 2 / g) * g;
+    if (hi0 - lo0 < width + 2 * kit.door.frame) throw new Error(`stage: the ${w.side} wall of '${r.id}' is too short for a ${width} m way out`);
+    const at = w.side === '-y' ? r.box[1] : w.side === '+y' ? r.box[3] : w.side === '-x' ? r.box[0] : r.box[2];
+    const op = { lo: mid - width / 2, hi: mid + width / 2, top: height };
+    r.openings[w.side].push(op);
+    return { room: r.id, side: w.side, at, ...op };
+  });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
   const first = rooms[0];
   // `time: 'night'`: the style card's night takes the reference's light and air; its moon is the key (the bake's sun)
@@ -385,7 +400,7 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}) };
+  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
 function readShadows(v) {
@@ -795,11 +810,15 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a recipe's `meru` (local-meru/scene.js) builds a level that goes up, laid on from the trail it follows, on an isekai kit
   if (manifest.meru !== undefined) {
     if (!(kit && kit.shell === 'isekai')) throw new Error(`stage: meru: kit '${manifest.kit}' is not an isekai kit; a local meru is drawn in the isekai look (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell === 'isekai').join(', ')})`);
-    return assembleLocalMeruScene({ style: kit.style, ...manifest }, ctx);
+    const meruPayload = assembleLocalMeruScene({ style: kit.style, ...manifest }, ctx);
+    return manifest.buildings !== undefined ? withBuildings(meruPayload, { ...manifest, kit: resolveKitId(manifest.kit) }, ctx) : meruPayload;
   }
-  if (kit && kit.shell === 'nature') return assembleNatureScene({ style: kit.style, ...manifest }, ctx);
-  if (kit && kit.shell === 'jungle') return assembleJungleScene({ style: kit.style, ...manifest }, ctx);
-  if (kit && kit.shell === 'isekai') return assembleIsekaiScene({ style: kit.style, ...manifest }, ctx);
+  // a recipe's `buildings` (stage-buildings.js): game buildings seated on the open ground, walked into as terrain
+  const seat = (payload) => (manifest.buildings !== undefined ? withBuildings(payload, { ...manifest, kit: resolveKitId(manifest.kit) }, ctx) : payload);
+  if (kit && kit.shell === 'nature') return seat(assembleNatureScene({ style: kit.style, ...manifest }, ctx));
+  if (kit && kit.shell === 'jungle') return seat(assembleJungleScene({ style: kit.style, ...manifest }, ctx));
+  if (kit && kit.shell === 'isekai') return seat(assembleIsekaiScene({ style: kit.style, ...manifest }, ctx));
+  if (manifest.buildings !== undefined) throw new Error(`stage: buildings stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
   const plan = planStage(manifest);
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only

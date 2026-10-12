@@ -10,6 +10,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { mintBuilding } from '@/lib/mcp/tools/building';
 import { mintGame } from '@/lib/mcp/tools/create-game';
 import { createSketchHandler } from '@/lib/mcp/tools/sketch-mint';
+import { gameStages, stageLevelOrder } from '@/lib/graph/gameworld/levels';
+import { readGameworld, MEADOWMARK } from '@/lib/graph/gameworld/index';
 
 beforeEach(() => closeDb());
 
@@ -45,6 +47,17 @@ describe('a building as a level', () => {
   it('a tavern from its program, on the gothic-night cube: promoted, its audit walking to the cellar', async () => {
     await createSketchHandler({ title: 'Tavern', ref: 'lv_tavern', manifest: { kind: 'stage', geocube: 'gothic-night', title: 'Tavern', program: { use: 'tavern', seed: 2 }, level: {} } });
     const game = await mintGame({ title: 'Last orders', store: STORE, levels: [{ ref: 'lv_tavern' }], ref: 'gm_tavern', autoAudit: true });
+    expect(game.ok).toBe(true);
+  }, 300_000);
+
+  it('a tavern walked into off the meadow trail: the level ends in its cellar, the audit walking in at its door', async () => {
+    const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], places: { ...MEADOWMARK.levels['meadow-ascent'].places, buildings: [{ use: 'tavern', seed: 2, goal: true }] } } } };
+    const st = gameStages(W).find((s) => s.level === 'meadow-ascent' && s.manifest.buildings);
+    expect(st.manifest.buildings[0]).toMatchObject({ use: 'tavern', goal: true });
+    const order = stageLevelOrder(readGameworld(W), st, { ref: 'lv_meadow_inn' });
+    expect(order.ends.exitFrom).toMatch(/tavern's cellar/);
+    await createSketchHandler({ ...order.args, ref: 'lv_meadow_inn' });
+    const game = await mintGame({ title: 'To the inn', store: STORE, levels: [{ ref: 'lv_meadow_inn' }], ref: 'gm_meadow_inn', autoAudit: true });
     expect(game.ok).toBe(true);
   }, 300_000);
 

@@ -37,7 +37,12 @@ export function gameStages(world) {
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : buildingStage(R.building) }); continue; }
     const laid = layLevel(R.level);
-    laid.stages.forEach((s, i) => out.push({ level, node: s.node, section: s.section, index: i, manifest: s.manifest }));
+    // the level's buildings stand on the section they name, or on its first trail
+    const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
+    laid.stages.forEach((s, i) => {
+      const here = (R.buildings ?? []).filter((b) => home(b) === s.node).map(({ node: _n, ...b }) => b);
+      out.push({ level, node: s.node, section: s.section, index: i, manifest: here.length ? { ...s.manifest, buildings: here } : s.manifest });
+    });
   }
   return out;
 }
@@ -56,11 +61,14 @@ function readEnds(manifest) {
   const eye = Number.isFinite(walk.minEye) ? walk.minEye : EYE_FALLBACK;
   const spawn = [r3(walk.spawn[0]), r3(walk.spawn[1]), r3(walk.spawn[2] - eye)];
   const anchors = P.anchors ?? [];
-  let exit = null, exitFrom = null;
+  let exit = null, exitFrom = null, via = null;
+  // a building that holds the level's end: its goal room, reached through its door and doorways
+  const holds = anchors.find((a) => a.kind === 'building' && a.isGoal);
+  if (holds) { exit = [holds.goalAt[0], holds.goalAt[1], holds.goalAt[2]]; via = holds.route; exitFrom = `the ${holds.use}'s ${holds.goal}`; }
   // a trail: the exit beat of its own trail (the pages after the first also carry the trail before it)
   const own = manifest.trail ? `out-trail:${manifest.trail.id}` : null;
   const beat = anchors.find((a) => a.kind === 'beat' && a.beat === 'exit' && (!own || a.trail === own));
-  if (beat) { exit = beat.at; exitFrom = 'the trail\'s exit beat'; }
+  if (beat && !holds) { exit = beat.at; exitFrom = 'the trail\'s exit beat'; }
   // a climb: its highest tier (the top it is climbed for)
   if (!exit) {
     const tiers = anchors.filter((a) => a.kind === 'tier' && Array.isArray(a.at));
@@ -80,7 +88,7 @@ function readEnds(manifest) {
   const beats = beat ? anchors.filter((a) => a.kind === 'beat' && a.trail === own && Number.isFinite(a.s)).sort((a, b) => a.s - b.s).map((a) => ({ beat: a.beat, at: a.at.map(r3) })) : [];
   const hazards = anchors.filter((a) => a.kind === 'hazard' && Array.isArray(a.at) && (!own || a.trail === own)).map((a) => ({ id: a.id, at: a.at.map(r3) }));
   // a climb's top is reached by climbing, so its zone is a volume: standing beneath the top is not reaching it
-  return { spawn, heading, exit, exitFrom, planar: !!beat, beats, hazards };
+  return { spawn, heading, exit, exitFrom, planar: !!beat && !holds, beats, hazards, ...(via ? { via } : {}) };
 }
 
 /**
@@ -93,17 +101,18 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   const controls = `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const game = { levelRef: ref, mechanics: goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }) }], fall: { mode: 'respawn' } };
+  const game = { levelRef: ref, mechanics: goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }], fall: { mode: 'respawn' } };
   let pilotPart;
   if (heroRef) {
     const P = playerWorld({ heroRef, id: 'hero', title: name, controls });
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     pilotPart = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: ends.spawn, heading: ends.heading } }], camera: P.camera, events };
   } else {
-    // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height
+    // FIRST PERSON: no hero; you are the camera, a walker held at the stage's own eye height (with a body the
+    // walls of the stage's buildings stop, when it has any)
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });   // for its legend only: no figure is kept
     pilotPart = {
-      entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK }, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
+      entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(stage.manifest.buildings ? { collideRadius: 0.3 } : {}) }, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
       camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2 },
       events: P.events || {},
     };

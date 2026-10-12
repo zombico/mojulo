@@ -108,6 +108,8 @@ function worldCard() {
     `  or a building in place of the walk: building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? }`,
     '  (its rooms laid from its use in its civilization\'s language, played from its way in to its goal room; card game-building),',
     '  or building: { ref } to play a building already made (mint_building with level, or a stage) as it was made.',
+    '  places.buildings: [{ use, at?, node?, goal? }] stands buildings on a walk\'s trail, walked into as terrain; goal: true ends',
+    '  the level in its goal room (card game-building).',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '',
     'ANSWER FROM: the brief\'s places and their moods. One level that is a promise of the rest is a better first',

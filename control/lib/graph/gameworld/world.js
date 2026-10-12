@@ -293,9 +293,22 @@ export function readGameworld(W) {
     if (st.look) Object.assign(st, lookFor(st.look, st.kit ?? style.kit, seed, `${W.id}-${id}`));
     if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
-      if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle? }`);
+      if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle?, buildings? }`);
       for (const k of Object.keys(L.places)) {
-        if (!['town', 'castle'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle)`);
+        if (!['town', 'castle', 'buildings'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle, buildings)`);
+        if (k === 'buildings') {
+          // buildings walked into as terrain (era/stage-buildings.js), each standing in a pocket of the walk
+          const Bs = L.places.buildings;
+          if (!Array.isArray(Bs) || !Bs.length) throw new Error(`gameworld: ${at}.places.buildings is [{ use, seed?, at?, node?, goal?, civilization?, kit? }], at least one`);
+          Bs.forEach((b, i) => {
+            if (!isObj(b) || !PROGRAM_IDS.includes(b.use)) throw new Error(`gameworld: ${at}.places.buildings[${i}].use is one of ${PROGRAM_IDS.join(', ')}`);
+            for (const kk of Object.keys(b)) if (!['use', 'seed', 'at', 'node', 'goal', 'civilization', 'kit', 'id', 'rooms', 'add'].includes(kk)) throw new Error(`gameworld: ${at}.places.buildings[${i}].${kk} is not a building setting`);
+            if (b.node !== undefined && !L.walk?.nodes?.[b.node]) throw new Error(`gameworld: ${at}.places.buildings[${i}].node '${b.node}' is not a section of the walk`);
+            if (b.civilization !== undefined) civ(b.civilization, `${at}.places.buildings[${i}].civilization`);
+          });
+          if (Bs.filter((b) => b.goal).length > 1) throw new Error(`gameworld: ${at}.places.buildings: one building holds the level's end (goal: true), at most`);
+          continue;
+        }
         if (isObj(L.places[k]) && L.places[k].civilization !== undefined) civ(L.places[k].civilization, `${at}.places.${k}.civilization`);
       }
     }
@@ -384,7 +397,13 @@ export function resolveLevel(world, id) {
     }
     readTownPlan(town);
   }
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town };
+  // the buildings walked into: each in its builders' language (its civilization's anchor, else the kit's own)
+  const buildings = (P.buildings ?? []).map((b) => {
+    const C = G.civilizations[b.civilization ?? style.civilization], anchor = C.anchor ?? STRUCTURE_RAILS[style.kit]?.anchor;
+    const { civilization: _c, ...rest } = b;
+    return { ...rest, ...(anchor !== undefined ? { civilization: anchor } : {}) };
+  });
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

@@ -41,6 +41,22 @@ leaves the goal out.
 - A quick game takes one too: `quick: { goal: 'collect', building: { use: 'keep' } }`. The pickups lie in its rooms
   and the end is its goal room.
 
+## In open ground: walked into as terrain
+
+An outdoor stage (a trail on a nature or isekai kit, or a climb) takes `buildings: [{ use, seed?, at?, goal?,
+civilization?, kit? }]`.
+- **Where it stands:** absent `at`, on the flattest land beside the trail, its door to the trail. `at: 'pocket-1'`
+  stands it in that pocket, its door to the pocket's mouth. `at: { x, y, facing: '+x' | '-x' | '+y' | '-y' }`
+  places it exactly.
+- **What it is:** the inside is the program's rooms on a room kit, with a way out through the entry's front wall.
+- **The outside:** the outer walls, a plinth to the land, a roof per room in the language's cap, painted in the
+  kit's structure paint. A stoop runs down to the land.
+- **Its place on the land:** its floor is level with the land at its door (cut into its slope), and the land, trees,
+  rocks and grass in its footprint are cleared.
+- **No scene change:** you walk in off the trail.
+- **On a level:** in the game designer it is `places: { buildings: [...] }`. `goal: true` ends the level in its goal
+  room, and the route runs in at its door.
+
 ## What a cube recommends
 
 A geocube names the buildings its world plausibly has (`buildings: { anchor, uses: [{ use, enter }] }`).

@@ -83,3 +83,22 @@ describe('the bible and the graph draw it', () => {
     expect(gameworldBibleHtml(withInn(MEADOWMARK, { ref: 'sk_tower' }))).toContain('the building sk_tower, as made');
   });
 });
+
+describe('buildings walked into, on a walk level', () => {
+  const ML = MEADOWMARK.levels['meadow-ascent'];
+  const withPlace = (buildings) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...ML, places: { ...ML.places, buildings } } } });
+  it('read like any place; one holds the end at most; each stands on its section (the first trail unless named)', () => {
+    expect(() => readGameworld(withPlace([{ use: 'tavern', goal: true }, { use: 'shop' }]))).not.toThrow();
+    expect(() => readGameworld(withPlace([{ use: 'casino' }]))).toThrow(/use is one of/);
+    expect(() => readGameworld(withPlace([{ use: 'shop', node: 'nowhere' }]))).toThrow(/not a section/);
+    expect(() => readGameworld(withPlace([{ use: 'shop', goal: true }, { use: 'tavern', goal: true }]))).toThrow(/at most/);
+    const S = gameStages(withPlace([{ use: 'tavern', goal: true }, { use: 'shop', node: 'approach' }])).filter((s) => s.level === 'meadow-ascent');
+    expect(S.find((s) => s.node === 'trailhead').manifest.buildings.map((b) => b.use)).toEqual(['tavern']);
+    expect(S.find((s) => s.node === 'approach').manifest.buildings.map((b) => b.use)).toEqual(['shop']);
+    expect(S.find((s) => s.node === 'trailhead').manifest.buildings[0].civilization).toBe('timber-hall');
+  });
+  it('a world without them lays the same stages', () => {
+    expect(JSON.stringify(gameStages(MEADOWMARK))).toBe(JSON.stringify(gameStages({ ...MEADOWMARK })));
+    expect(gameStages(MEADOWMARK).some((s) => s.manifest?.buildings)).toBe(false);
+  });
+});

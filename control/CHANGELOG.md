@@ -502,6 +502,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     its goal room.
   - A level's `level.mechanics` adds its own mechanics beside the goal; `level.exit: false` leaves the goal out. A
     stage level with its own pilot keeps it, and only the game channel is added.
+- **Buildings in open ground, walked into as terrain.** An outdoor stage takes `buildings: [{ use, at?, goal?,
+  civilization?, kit? }]`; the game designer's walk levels take `places: { buildings }`.
+  - **Where it stands:** on the flattest land beside the trail, its door to the trail. The places it looks at are
+    the trail's beats and pockets, scored against slope, cliff, the trail itself and the stage's bounds. It also
+    stands in a pocket it names, or at a point facing a way.
+  - **The inside:** the program's rooms on a room kit, with a way out through the entry's front wall (a stage's new
+    `ways`).
+  - **The outside:** outer walls, a plinth, and a roof per room in the language's cap and the kit's structure paint,
+    over the room's vault. A stoop runs down to the land.
+  - **Its place on the land:** its floor level with the land at its door. It is cut into its slope, so you walk in
+    level, never up a ramp onto a raised floor. The land (cliffs too), trees, rocks and grass inside its footprint
+    are cleared. Its colliders and lights join the stage's, and a building cut more than 2.5 m into its slope says
+    so.
+  - **Its anchor** names its door, rooms, goal room and the route in. `goal: true` ends the level in its goal room,
+    walked in at the door.
 
 ### Solid powerscale: solids routed by what they are for
 
