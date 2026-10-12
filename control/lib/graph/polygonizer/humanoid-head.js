@@ -28,6 +28,30 @@ export const EXPRESSIONS = {
   determined: { browRaise: -0.002, browTilt: 0.009, mouthCorner: -0.001, aperture: 0.75, jawOpen: 0 },
   surprised: { browRaise: 0.009, browTilt: 0, mouthCorner: 0, aperture: 1.3, jawOpen: 9 },
 };
+/** the western face's CHANNELS: the words' five, and `blink` (0 open … 1 shut: the eye's stack closes, the lids meeting
+ * low) — the face in motion's (western-face rig) */
+export const WESTERN_CHANNELS = Object.freeze(['browRaise', 'browTilt', 'mouthCorner', 'aperture', 'jawOpen', 'blink']);
+const CHANNEL_RANGES = Object.freeze({ browRaise: [-0.01, 0.015], browTilt: [-0.012, 0.012], mouthCorner: [-0.006, 0.01], aperture: [0.5, 1.4], jawOpen: [0, 25], blink: [0, 1] });
+/** An expression: a word (its channels, as before) or `{ word?, …channels }` (the word's, neutral's when absent, with
+ * the channels given over it). */
+export function resolveWesternExpression(spec = 'neutral') {
+  if (typeof spec === 'string') return EXPRESSIONS[spec];
+  const { word = 'neutral', ...ch } = spec;
+  return { ...EXPRESSIONS[word], ...ch };
+}
+/** Error lines for an expression (a word or a channel object). */
+export function westernExpressionErrors(spec, at = 'expression') {
+  if (spec === undefined) return [];
+  if (typeof spec === 'string') return EXPRESSIONS[spec] ? [] : [`${at}: one of ${Object.keys(EXPRESSIONS).join(', ')}, or { word?, ${WESTERN_CHANNELS.join(', ')} }`];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${at}: a word (${Object.keys(EXPRESSIONS).join(', ')}) or { word?, ${WESTERN_CHANNELS.join(', ')} }`];
+  const errs = [];
+  for (const [k, v] of Object.entries(spec)) {
+    if (k === 'word') { if (!EXPRESSIONS[v]) errs.push(`${at}.word: one of ${Object.keys(EXPRESSIONS).join(', ')}`); continue; }
+    if (!WESTERN_CHANNELS.includes(k)) { errs.push(`${at}.${k}: not a channel (${WESTERN_CHANNELS.join(', ')})`); continue; }
+    const [lo, hi] = CHANNEL_RANGES[k]; if (!(Number.isFinite(v) && v >= lo && v <= hi)) errs.push(`${at}.${k}: a number in ${lo} … ${hi}`);
+  }
+  return errs;
+}
 /** the hair library's style words (humanoid-hair.js), `none` included; `hair` takes a word, `{ style, …controls }` or a list */
 export const HAIR_STYLES = HAIR_STYLE_NAMES;
 export const FACE_VERSION = 3;
@@ -178,7 +202,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   if (!HEAD_PRESETS[preset]) throw new Error(`humanoid: unknown head preset '${preset}'`);
   if (!HEAD_REGISTERS[register]) throw new Error(`humanoid: unknown register '${register}'`);
   const hairErrors = validateHair(hair); if (hairErrors.length) throw new Error(`humanoid: ${hairErrors.join('; ').replace(/unknown style/g, 'unknown hair style')}`);
-  if (!EXPRESSIONS[expression]) throw new Error(`humanoid: unknown expression '${expression}'`);
+  { const errs = westernExpressionErrors(expression); if (errs.length) throw new Error(`humanoid: ${errs.join('; ')}`); }
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('humanoid: head scale must be positive');
   for (const [k, v] of Object.entries(shape)) if (!(k in HEAD_SHAPE_DEFAULTS) || !(Number.isFinite(v) && v > 0)) throw new Error(`humanoid: invalid head shape '${k}' (have ${Object.keys(HEAD_SHAPE_DEFAULTS).join(', ')})`);
   const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}) }, pole = HEAD_PRESETS[preset];
@@ -186,7 +210,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   const rows = fit ? null : landmarkRows(anchors, pole, knobs);
   const sh = { width: HEAD_WIDTH[preset], jaw: 1, nose: 1.05,
     ala: pole.noseWidth * knobs.noseWidth, eye: knobs.eyeSize, brow: Math.sqrt(pole.brow) * knobs.browRidge, mouth: knobs.mouthWidth };
-  const reg = HEAD_REGISTERS[register], ex = EXPRESSIONS[expression];
+  const reg = HEAD_REGISTERS[register], ex = resolveWesternExpression(expression);
   // A fitted head owns its planes: its rows are read off the fitted surface, so the register only sets the eye sides.
   const cage = fit ? fittedCage(preset, knobs, SLOTS) : null;
   const rowZ = fit ? cage.rowsZ : rows.map((r) => r[0]);
@@ -269,20 +293,24 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     // sunk (`ft.eyeSink` of the dome, default 0.75): the rim goes into the head and only the crown stands out of the
     // skin, an eyeball in its socket (on the skin the dome stood proud of the face in profile)
     const dome = ft.eyeDome ?? 0, sink = dome * (ft.eyeSink ?? 0.75), ride = (k) => (dome ? dome * k - sink : 0);
-    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, -sink)), 0.018 * sh.eye * (ft.eye ?? 1), 0.0105 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0009, reg.eyeSides, normal, dome), 'Sclera');
-    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0010 + ride(0.78))), 0.0085 * sh.eye * (ft.eye ?? 1), 0.0095 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.001, reg.eyeSides, normal, dome ? dome * 0.3 : 0), 'Iris');
-    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0021 + ride(1.02))), 0.0044 * sh.eye * (ft.eye ?? 1), 0.006 * ex.aperture * sh.eye * (ft.eye ?? 1), 0.0005, 8, normal), 'Pupil');
+    // the BLINK (`blink`, 0 … 1): the stack's height closes to a sliver under the lids and the stack lowers a third of the
+    // eye's half-height, so the lids meet low as an eye shuts; absent or 0 ⇒ as before
+    const shut = ex.blink ?? 0, apt = shut ? ex.aperture * (1 - shut) + 0.05 * shut : ex.aperture;
+    const eyeAt = shut ? (o) => add(o, [0, 0, -0.0035 * shut * sh.eye * (ft.eye ?? 1)]) : (o) => o;
+    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(eyeAt(add(origin, mul(normal, -sink))), 0.018 * sh.eye * (ft.eye ?? 1), 0.0105 * apt * sh.eye * (ft.eye ?? 1), 0.0009, reg.eyeSides, normal, dome), 'Sclera');
+    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(eyeAt(add(origin, mul(normal, 0.0010 + ride(0.78)))), 0.0085 * sh.eye * (ft.eye ?? 1), 0.0095 * apt * sh.eye * (ft.eye ?? 1), 0.001, reg.eyeSides, normal, dome ? dome * 0.3 : 0), 'Iris');
+    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(eyeAt(add(origin, mul(normal, 0.0021 + ride(1.02)))), 0.0044 * sh.eye * (ft.eye ?? 1), 0.006 * apt * sh.eye * (ft.eye ?? 1), 0.0005, 8, normal), 'Pupil');
     const across = unit([normal[1], -normal[0], 0]);
     // the LID (features.lid: { drop, fold, lower }): the upper lid comes `drop` of the eye's height down over the iris's
     // top and stands `fold` thick, out over the dome; `lower` draws the lower lid's line, that much of the upper's
     const L = ft.lid ?? null, drop = L?.drop ?? 0, fold = L?.fold ?? 1, out = Math.max(0, dome * 0.75 - sink * 0.6);
     const lidSpine = [[-0.018, 0], [-0.012, 0.0075 - drop * 0.006], [0, 0.0105 - drop * 0.0095], [0.012, 0.0075 - drop * 0.006], [0.018, 0]].map(([x, z], i) =>
-      add(add(origin, mul(normal, 0.0015 + (i % 4 ? out : out * 0.3))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * ex.aperture * sh.eye * (ft.eye ?? 1)])));
+      eyeAt(add(add(origin, mul(normal, 0.0015 + (i % 4 ? out : out * 0.3))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * apt * sh.eye * (ft.eye ?? 1)]))));
     const lid = sweep(lidSpine, [0.0007, 0.0010, 0.0011, 0.0008].map((r) => r * fold), 4);
     parts[`lid${side}`] = detail(carrier, 'cranium', at, side, lid, 'Lid');
     if (L?.lower) {
       const lowSpine = [[-0.016, -0.001], [-0.009, -0.0072], [0, -0.0092], [0.009, -0.0072], [0.016, -0.001]].map(([x, z], i) =>
-        add(add(origin, mul(normal, 0.0012 + (i % 4 ? out * 0.7 : out * 0.2))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * ex.aperture * sh.eye * (ft.eye ?? 1)])));
+        eyeAt(add(add(origin, mul(normal, 0.0012 + (i % 4 ? out * 0.7 : out * 0.2))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * apt * sh.eye * (ft.eye ?? 1)]))));
       parts[`lidLow${side}`] = detail(carrier, 'cranium', at, side, sweep(lowSpine, [0.0005, 0.0008, 0.0008, 0.0005].map((r) => r * L.lower), 4), 'Lid');
     }
     const addrs = [[5.12, 3.8], [5.24, 4.15], [5.20, 4.65], [5.08, 4.95]];

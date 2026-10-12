@@ -13,6 +13,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The western face in motion (spike): the expression as channels, and a blink
+
+- **Channels** (`humanoid-head.js`). A western hero's `expression` takes a word, as before, or `{ word?, …channels }`:
+  the word's channels (neutral's when absent) with the given ones over them — `browRaise`, `browTilt`, `mouthCorner`,
+  `aperture`, `jawOpen` and the new `blink`. Each is range-checked at the head and the hero door. A word builds the
+  same bytes as before.
+- **The blink** (`blink`, 0 open … 1 shut). The eye's stack (the white, the iris, the pupil, the lids) closes to a
+  sliver under the lid and lowers a third of the eye's half-height, so the lids meet low; the face around it never
+  moves and every part keeps its topology, so the face in motion can difference builds.
+- **Not yet.** The face rig, the clips' face keys and the ambient blink on the western head (the plan's next phases).
+
 ### The painted face in motion: its eyes, mouth and brows drawn per state on a texture sheet
 
 - **Drawings, swapped** (`polygonizer/face-paint-rig.js`). A painterly hero's skinned GLB (and so the Godot pack)
