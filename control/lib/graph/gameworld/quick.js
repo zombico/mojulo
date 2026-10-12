@@ -41,6 +41,7 @@ import { CAMERAS } from './cameras.js';
 import { RIDES } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { beatPosts } from './lay-concerns.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -180,8 +181,11 @@ export function goalMechanics(quick, ends) {
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
     case 'race': {
-      // the trail's beats in order are the checkpoints, its end the finish
-      const checkpoints = [...along.map((b) => ({ at: b.at, radius: 3.5 })), { at: ends.exit, radius: 3, ...(ends.planar ? {} : { planar: false }) }];
+      // the trail's beats in order are the checkpoints, its end the finish; spaced when the intent asks (a beat nearer
+      // the last kept, or the start, than `ends.spacing` is passed by)
+      const kept = [];
+      for (const b of along) { const last = kept.length ? kept[kept.length - 1].at : ends.spawn; if (!ends.spacing || Math.hypot(b.at[0] - last[0], b.at[1] - last[1]) >= ends.spacing) kept.push(b); }
+      const checkpoints = [...kept.map((b) => ({ at: b.at, radius: 3.5 })), { at: ends.exit, radius: 3, ...(ends.planar ? {} : { planar: false }) }];
       return [{ kind: 'laps', checkpoints }];
     }
     case 'rhythm':
@@ -288,7 +292,8 @@ export function farmPlots(quick, ends) {
   // beside the way: off to the side of each beat, so the trail stays clear
   const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead').map((b) => b.at);
   const sites = along.flatMap((a, k) => { const prev = k ? along[k - 1] : s, hh = Math.atan2(a[1] - prev[1], a[0] - prev[0]); return [1, -1].map((side) => [a[0] - Math.sin(hh) * 6 * side, a[1] + Math.cos(hh) * 6 * side]); });
-  for (const c of [...sites, [s[0] + Math.cos(h) * 8, s[1] + Math.sin(h) * 8]]) { const got = lay(c); if (got) return got; }
+  // the field the intent flattened for them (lay-concerns.js), first
+  for (const c of [...(ends.field ? [ends.field] : []), ...sites, [s[0] + Math.cos(h) * 8, s[1] + Math.sin(h) * 8]]) { const got = lay(c); if (got) return got; }
   return lay([s[0] + Math.cos(h) * 8, s[1] + Math.sin(h) * 8]) ?? [[r3(s[0] + Math.cos(h) * 8), r3(s[1] + Math.sin(h) * 8), s[2]]];
 }
 
@@ -324,16 +329,9 @@ export function battleCast(quick, ends, ref) {
   return { figures, entities, play: { battle: { hero: { atk: BATTLE.atk, hp: 'hp' }, foes } } };
 }
 
-/** A shooter's posts: `foes` (4) on the trail's beats, spread from start to end, each facing back toward the one before
- * (the start for the first), with its approach (the unit step from that one to it). [{ id, at, heading, from }] */
+/** A shooter's posts: `foes` (4) on the trail's beats (lay-concerns.js beatPosts), each a foe's id. */
 export function shootPosts(quick, ends) {
-  const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
-  const n = Math.min(quick.foes ?? 4, along.length);
-  const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
-  return picks.map((b, k) => {
-    const back = k ? picks[k - 1].at : ends.spawn, d = Math.hypot(b.at[0] - back[0], b.at[1] - back[1]) || 1;
-    return { id: `foe-${k + 1}`, at: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])), from: [(b.at[0] - back[0]) / d, (b.at[1] - back[1]) / d], back };
-  });
+  return beatPosts(ends, quick.foes ?? 4).map((p, k) => ({ ...p, id: `foe-${k + 1}` }));
 }
 
 /** A shooter's supplies: half way between each post and the one before (the start for the first), a little off the
@@ -346,20 +344,12 @@ export function shootDrops(posts, ends) {
   });
 }
 
-/** A shooter's cast and cover, on a stage: each foe at its post, armed, hunting by sight and taking cover; at each post
- * a wall across the approach (taller than a person: cover is round its ends, not over it) 1.2 m in front of it and
- * starting half a metre to one side, so the foe sees down the way it holds and its cover is a sidestep away; a crate
- * stack on the other side; and a wall half way back for the player. Walls run square to the world (colliders are
- * boxes), across the approach's main axis. `ref`: their figure;
- * `hero`: the player has a body (its eye over its feet). → { figures, entities, blocks, pilot } (stageLevelOrder's
- * `extra`). */
+/** A shooter's cast, on a stage: each foe at its post, armed, hunting by sight and taking cover (the walls are the
+ * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
+ * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
 export function shootCast(quick, ends, ref, { hero = false } = {}) {
-  const posts = shootPosts(quick, ends), figures = {}, entities = [], blocks = [];
-  const at = (x, y, z0) => { const z = ends.ground ? ends.ground(x, y) : null; return [r3(x), r3(y), z ?? z0]; };
-  // the approach's main axis (N, the way it runs) and the axis across it (U): walls face N
-  const axes = (from) => { const N = Math.abs(from[0]) >= Math.abs(from[1]) ? [Math.sign(from[0]) || 1, 0] : [0, Math.sign(from[1]) || 1]; return [N, [-N[1], N[0]]]; };
-  const wall = (c, N, z0, length) => blocks.push({ form: 'wall', at: at(c[0], c[1], z0), N, length, height: 2, thick: 0.5, value: 0.5 });
-  posts.forEach((p, k) => {
+  const posts = shootPosts(quick, ends), figures = {}, entities = [];
+  posts.forEach((p) => {
     figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({
       id: p.id, team: 'foes',
@@ -368,12 +358,6 @@ export function shootCast(quick, ends, ref, { hero = false } = {}) {
       body: { type: 'figure-rig', figure: p.id, hittable: true, hp: SHOOT.foeHp, poise: 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
       transform: { pos: p.at, heading: p.heading },
     });
-    const [N, U] = axes(p.from), side = k % 2 ? -1 : 1, L = 3, off = (L / 2 + 0.5) * side;
-    wall([p.at[0] - N[0] * 1.2 + U[0] * off, p.at[1] - N[1] * 1.2 + U[1] * off], N, p.at[2], L);
-    blocks.push({ form: 'crate', at: at(p.at[0] - N[0] * 1.2 - U[0] * 2 * side, p.at[1] - N[1] * 1.2 - U[1] * 2 * side, p.at[2]), stack: 2, value: 0.42 });
-    // the player's own: half way back down the approach, off to the other side
-    const mid = [(p.at[0] + p.back[0]) / 2, (p.at[1] + p.back[1]) / 2];
-    wall([mid[0] - U[0] * 2.5 * side, mid[1] - U[1] * 2.5 * side], N, p.at[2], 2.5);
   });
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
   // (sight is eye to eye), the rifle at its eye
@@ -382,7 +366,7 @@ export function shootCast(quick, ends, ref, { hero = false } = {}) {
     weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0 },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
-  return { figures, entities, blocks, pilot };
+  return { figures, entities, posts, pilot };
 }
 
 /** A defence's cast and its building, on a stage: the foes asleep at the trail's end (as many as its waves send), a

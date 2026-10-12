@@ -28,6 +28,9 @@ import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations } from './cameras.js';
+import { cubeOfWorld } from './intent.js';
+import { concernIds } from './concerns.js';
+import { SPACING, beatPosts, coverBlocks, concernLaws } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
@@ -58,7 +61,9 @@ export function gameStages(world) {
       // the town's street stands on the first trail
       const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
       const manifest = here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest;
-      out.push({ level, node: s.node, section: s.section, index: i, manifest });
+      // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
+      const field = R.field && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { field: R.field } : {};
+      out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
     // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
     // linked by its door (the outside's `door` ↔ the inside's `out`)
@@ -176,6 +181,12 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
+  // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
+  // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
+  const concerns = concernIds(cubeOfWorld(G).cube);
+  // (set on every call, null when absent: a stage's anchors may be a cached object another stage read before)
+  Object.defineProperty(ends, 'field', { value: stage.field ?? null, enumerable: false, configurable: true });
+  Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.
@@ -244,13 +255,20 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
   // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? } }
-  let extraPlay = null, blocks = null;
+  let extraPlay = null, blocks = null, posts = null;
   if (extra) {
     const X = extra(ends), p0 = pilotPart.entities[0];
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     pilotPart = { ...pilotPart, figures: { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) }, entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])] };
     extraPlay = X.play ?? null;
     blocks = X.blocks?.length ? X.blocks : null;
+    posts = X.posts ?? null;
+  }
+  // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats
+  if (concerns.includes('cover') && stage.section === 'trail') {
+    posts ??= beatPosts(ends);
+    const cover = coverBlocks(posts, ends);
+    if (cover.length) blocks = [...(blocks ?? []), ...cover];
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -268,7 +286,9 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
-  return { tool: 'create_sketch', args: { title: name, manifest }, ends };
+  // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
+  const laws = concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], mechanics: game.mechanics }) : [];
+  return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 
 /** The story's share of a stage, on its pilot and its play: the level's scenes and the story's moments (with their

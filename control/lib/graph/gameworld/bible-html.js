@@ -17,6 +17,8 @@
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
+import { cubeOfWorld, intentReport, GENRES } from './intent.js';
+import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
@@ -143,6 +145,19 @@ function playOrder(G) {
 /** A brief's words, however it was written: a string, the composer's { prompt }, or a creator's { text, why? }. */
 export const briefText = (b) => (typeof b === 'string' ? b : b?.prompt ?? b?.text ?? '');
 
+// what game it is (intent.js): the genre it starts from, the values it said, and what each concern asks of the world,
+// laid or said only; a world that wrote no intent shows the cube it is read as, and its brief's suggestions
+function intentHtml(world) {
+  const C = cubeOfWorld(world), R = intentReport(world), cs = concernsOf(C.cube);
+  if (!R.written && !cs.length && !R.suggest) return '';
+  const vals = Object.entries(C.cube).flatMap(([f, st]) => Object.entries(st).map(([k, v]) => `${f}.${k} ${Array.isArray(v) ? v.join(', ') : v}`));
+  return `<details class="brief" id="intent" open><summary>What game it is${R.written ? '' : ' (read from the world, not yet said)'}</summary>
+<p>${C.from ? `Starts from <b>${esc(GENRES[C.from].name)}</b>: ${esc(GENRES[C.from].why)}.` : 'No genre: its own values only.'}${world.intent?.why ? ` “${esc(world.intent.why)}”` : ''}</p>
+${vals.length ? `<p class="muted">${vals.map((v) => esc(v)).join(' · ')}</p>` : ''}
+${cs.length ? `<ul class="decided">${cs.map((c) => `<li><b>${esc(c.name)}</b> ${esc(c.asks)} <span class="muted">(${c.laid ? 'laid by the world' : 'asked, not yet laid'}; raised by ${esc(c.by.join(', '))})</span></li>`).join('')}</ul>` : ''}
+${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) => `${esc(GENRES[g.id].name)} (${esc(g.matched.join(', '))})`).join('; ')}.</p>` : ''}</details>`;
+}
+
 export function gameworldBibleHtml(world) {
   resetTownIds();
   const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
@@ -201,13 +216,13 @@ export function gameworldBibleHtml(world) {
   for (const id of order) { const t = built[id].town; if (t) machine[`level:${id}`] = t.laws.filter((l) => !l.ok).map((l) => l.law); }
   machine.nature = kits.flatMap((k) => { const land = landOfKitHere(k); return Object.keys(land).flatMap((f) => landLaws(designLand(f, land[f].variant, G.seed, { level: 'near', many: land[f].many })).map((l) => `${f} ${l.law}`)); });
   const stamps = reviewState(world, { machine }), stampOf = (id) => stamps.find((x) => x.id === id);
-  const anchorOf = (id) => (id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : `#level-${id.slice(6)}`);
+  const anchorOf = (id) => (id === 'intent' ? '#intent' : id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : `#level-${id.slice(6)}`);
   const stamp = (id) => { const x = stampOf(id); return x ? `<span class="stamp st-${x.status}" title="${esc(STAMPS[x.status])}">${esc(x.status)}</span>` : ''; };
   const mode = world.mode ?? 'gated', waiting = stamps.filter((x) => ['changed', 'revise', 'proposed'].includes(x.status));
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${stamps.map((x) => `<li><a href="${anchorOf(x.id)}">${esc(x.name)}</a>${stamp(x.id)}<code>${esc(x.print)}</code>${x.note ? `<p class="muted">${esc(x.note)}</p>` : ''}</li>`).join('')}</ol>
 <p class="muted">${waiting.length ? `Next to look at: ${waiting.map((x) => `<a href="${anchorOf(x.id)}">${esc(x.name)}</a>`).join(', ')}.` : 'Nothing is waiting on you.'}</p>
-${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
+${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}${intentHtml(world)}</div>`;
 
   const levels = order.map((id, i) => {
     const b = built[id], R = b.R, own = R.ledger;

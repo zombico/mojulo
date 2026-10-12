@@ -93,7 +93,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}) });
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs);
@@ -158,7 +158,7 @@ function quickSteps(world, G, ref) {
     if (s.building?.ref) return;
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...(guards ? { guards } : {}), ...(goalAudio(Q) ? { audio: goalAudio(Q) } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef }), legend: 'click  fire' } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another

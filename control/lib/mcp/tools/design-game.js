@@ -24,6 +24,7 @@ import {
   characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, decide, childRef, storyReport,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
+import { intentReport } from '@/lib/graph/gameworld/intent.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 
 
@@ -112,7 +113,9 @@ async function runWorld(ref, world, { force = false } = {}) {
   const made = { ...(W.made ?? {}) }, ran = [];
   const act = async (step, lookup) => {
     const action = decide(step, made[step.key], storedPrint(step.ref), { force });
-    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}) });
+    // a level's intent laws that do not hold (lay-concerns.js): advice, never a refusal
+    const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
+    ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(advises.length ? { advises } : {}) });
     if (action !== 'make' && action !== 'remake') return;
     const { pin } = await realize(step, action);
     made[step.key] = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
@@ -162,10 +165,13 @@ function readout(ref, world) {
   const told = world.story || world.quests ? storyReport(world, { ref }) : null;
   if (told?.unplaced.length) next.push({ step: 'story', unplaced: told.unplaced, card: 'gameworld-story' });
   // the advice: measured, never a verdict on the design
+  // what game it is (gameworld/intent.js): the cube the world is, and what that asks of the world
+  const intent = intentReport(world);
+  if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, intent, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -279,7 +285,7 @@ function changedOnly(full, prev) {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const prevParts = new Map((prev?.parts ?? []).map((p) => [p.id, p]));
   const out = { ref: full.ref, url: full.url, parts: full.parts.filter((p) => !same(p, prevParts.get(p.id))) };
-  for (const k of ['advice', 'numbers', 'steps', 'made', 'mode']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
+  for (const k of ['intent', 'advice', 'numbers', 'steps', 'made', 'mode']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
   return { ...out, next: full.next };
 }
 

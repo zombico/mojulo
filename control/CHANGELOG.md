@@ -424,6 +424,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
     makeable on the web; seventh-generation rendering is a separate rung.
 
+### Game intent: the cube as a gameworld's design contract
+
+- **Concerns keyed by cube value.** A gameworld can say what game it is (`intent: { cube, from? }`); each value of
+  its cube says what it asks of the world, lays it in the level before any goal reads it, and checks it. A genre is
+  a preset cube (the cosmos probes), never a lock: a world's concerns are the union over its cube's values.
+- **Saying it.** `intent: { from?: '<genre>', cube?, why? }` on a gameworld (`gameworld/intent.js`). `from` starts
+  from a genre's cube and `cube` overrides it value by value. A world that writes no intent is read from what it
+  already says (its quick goal's genre, its camera, topology, ride, runs, pixel look). `suggestGenres(text)` reads a
+  brief's words and names the genres they point at. It is a word heuristic, it only suggests and refuses nothing, and
+  the agent reading the brief makes the choice.
+- **Seeing it.** `design_game`'s readout carries `intent` (genre, verdict, the concerns raised and whether each is laid
+  or checked yet, and the brief's suggestions while none is written), and a world without one gets the next step
+  `intent`. A written intent is the book's first review part. The bible shows "What game it is", with each concern's
+  words. The `gameworld-intent` card lists the genres and concerns, and the guide's loop starts at it.
+- **What it asks** (`gameworld/concerns.js`): one row per concern, each raised by the values it names, with words for
+  the creator. Every genre probe raises at least one.
+- **Laid by the world** (`gameworld/lay-concerns.js`), at two layers:
+  - **The ground**, in `resolveLevel`, so the bible, the survey and the run all see the same land. A field is flattened
+    beside the start, on the walk's open side (`fields`: crops or growth). A vehicle's ground is eased
+    (`drivable`). Intent edits are named `intent-<concern>` and go after the creator's; intent dials go under the
+    level's own `tune`.
+  - **The stage**, in `stageLevelOrder`, before any goal reads it. The farm's plots go on that field. A race's
+    checkpoints are spaced (`circuit`: none nearer the last than 12 m). Cover stands by the fighting posts, the goal's
+    own or else the trail's beats (`cover`: any ranged world, not only the shooter).
+  - The quick farm, race and shooter now read these instead of placing their own.
+- **Checked.** Each laid concern has a law measured on the laid stage: cover by every post, checkpoints spaced, plots
+  level, a drivable grade. A law that does not hold is listed under the level's `advises` in the run. It advises and
+  never refuses.
+
 ### Scene layer: a shot that takes the camera, and two characters talking
 
 - **A directing camera.** A camera rule `shot` frames named subjects by a word (`wide`, `low`, `profile`, `corner`,
