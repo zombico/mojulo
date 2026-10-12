@@ -26,7 +26,7 @@ export const REALITY = Object.freeze({
     medium: {
       values: {
         '3d': { status: 'built', lowers: 'lib/graph/scene/scene-three.js' },
-        pixel: { status: 'partial', lowers: 'lib/graph/pixelizer/pixelizer-games.js', note: 'the pixelizer plays only its bespoke reducers; the pixel rail is planned' },
+        pixel: { status: 'partial', effort: 'S', lowers: 'lib/graph/pixelizer/pixelizer-games.js', note: 'the World page renders full-res; a low-res target, a nearest upscale and a palette snap give the pixel look (S, priced 10-12); true 2D sprite levels are L' },
       },
     },
     climate: { source: { module: 'lib/graph/weather/weather.js', table: 'CLIMATES' } },

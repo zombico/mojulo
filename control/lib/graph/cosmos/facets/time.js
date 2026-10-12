@@ -52,11 +52,11 @@ export const TIME = Object.freeze({
     passage: {
       values: {
         none: { status: 'built' },
-        'day-night': { status: 'absent', effort: 'M', ...AGED, note: 'no time of day anywhere: the sky has weather, not hours' },
-        seasons: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/weather/weather.js', note: 'autumn and spring-blossom are climates of their own; nothing turns one world through them (snow seasoning is on the unmerged city-eras branch)' },
-        growth: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/vegetation/grow.js', note: 'a tree grows by `years`; no world ages its planting' },
-        aftermath: { status: 'partial', effort: 'M', ...AGED, lowers: 'lib/graph/playscape/destruct/collapse.js', note: 'destruction happens live in play; no recipe records a world\'s damage as a state' },
-        eras: { status: 'absent', effort: 'M', ...AGED, note: 'city eras live on the unmerged 1003-city-eras branch' },
+        'day-night': { status: 'partial', effort: 'M', ...AGED, lowers: 'lib/graph/scene/sky-css.js', note: 'worlds pick day or night (manifest.time, sky presets, night style cards); no chapter or flag turns a level to its night bake (priced 10-12)' },
+        seasons: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/weather/weather.js', note: 'autumn and spring-blossom are climates; a chapter forces a weather state but cannot swap the climate (snow seasoning unmerged on 1003-city-eras)' },
+        growth: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/vegetation/grow.js', note: 'a tree grows by `years` (grow.js; the jungle hardcodes 22 to 24); no level or chapter sets its planting\'s age' },
+        aftermath: { status: 'partial', effort: 'M', ...AGED, lowers: 'lib/graph/playscape/destruct/collapse.js', note: 'destruction runs live (a level\'s destruction degree); no chapter or flag records or restores a world\'s damage' },
+        eras: { status: 'absent', effort: 'L', ...AGED, note: 'no era dial: city eras are only a changelog plan on 1003-city-eras; lib/graph/era is art styles, historic one period per culture (priced 10-12)' },
       },
     },
     advance: {

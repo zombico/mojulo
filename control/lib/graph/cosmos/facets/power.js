@@ -28,7 +28,7 @@ export const POWER = Object.freeze({
         // combo's juggle and every AI's attack stay on the web
         melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
         ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
-        'turn-based': { status: 'absent', effort: 'L', note: 'no turn or initiative model found (10-10)' },
+        'turn-based': { status: 'absent', effort: 'L', note: 'no turn or initiative model; party stats, menus and battle music could be reused, but the encounter switch, turn queue and command menus are new (priced 10-12)' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },

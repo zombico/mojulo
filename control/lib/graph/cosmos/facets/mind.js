@@ -46,14 +46,14 @@ export const MIND = Object.freeze({
       values: {
         none: { status: 'built' },
         talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: false, note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
-        schedule: { status: 'absent', effort: 'L', note: 'no daily routines' },
+        schedule: { status: 'absent', effort: 'M', note: 'no game clock or routines; cues (every, var), cast walks and spots could carry one on a clock var; sky hours (day-night) optional (priced 10-12)' },
       },
     },
     commander: {
       values: {
         none: { status: 'built' },
         builtin: { status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'the reference commander, on rule.commanded' },
-        agent: { status: 'partial', effort: 'S', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'hook and http ports are wired; no live model has driven one yet' },
+        agent: { status: 'partial', effort: 'M', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'hook and http ports wired, sketch manifests only; design_game never sets a commander, no live model bridge or test (priced 10-12)' },
       },
     },
   },
