@@ -202,7 +202,10 @@ export function buildAnime(r, options = {}) {
   // (the jaw rises to under the ear's lobe: the ear ellipsoid below, its centre and radii)
   const EAR_C = [S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045], EAR_R = [0.205, 0.14];
   const ND = options.nose ? noseDial(surface0, options.nose, { anchorAt: (u, y) => surface0(u, y, false, false), widthAt: (y) => surface0(1, y)[0], pitch: (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, ear: { Y: EAR_C[0] - 0.8 * EAR_R[0], zFront: EAR_C[1] - EAR_R[1], zBack: EAR_C[1] + EAR_R[1] } }) : null;
-  function surface(u, y, back = false) { const p = surface0(u, y, back); return ND && !back ? ND.apply(p, u, y) : p; }
+  // (the dials move the face back and lift the head's underside; every point's studio place is kept, so the head is
+  // registered by the studio's extent and the dials never rescale it: `nose.floorY`)
+  const STUDIO = [];
+  function surface(u, y, back = false) { if (!ND) return surface0(u, y, back); const p = surface0(u, y, back); STUDIO.push(p[1], p[2]); return ND.jaw(ND.apply(p, u, y, back)); }
   // the underside's quad, for the painter (face-paint.js `noseUnder`): two triangles on the front plane
   if (ND && options.paint) { const [a, b, c, d] = ND.under.map(([x, Y]) => [x, Y, ND.tip[1]]); parts.noseUnder = [...a, ...b, ...c, ...a, ...c, ...d]; }
 
@@ -715,7 +718,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
-  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot, ...(ND ? { nose: { box: ND.box, width: ND.width, keep: ND.keep } } : {}) };
+  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot, ...(ND ? { nose: { box: ND.box, width: ND.width, keep: ND.keep, floorY: STUDIO.reduce((m, Y, i) => (i % 2 ? m : Math.min(m, pitched([0, Y, STUDIO[i + 1]])[1])), Infinity) } } : {}) };
 }
 
 /** The SCULPT's neutral values (buildAnime's own units): a word equal to its neutral is dropped before the build, so an

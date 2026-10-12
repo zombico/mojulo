@@ -64,7 +64,9 @@ export function noseDial(surface0, dials = {}, { widthAt, pitch = 0, ear = null,
   // offset from the tip is turned back by the pitch before it is placed)
   const c = Math.cos(pitch), sn = Math.sin(pitch);
   const T = E.map(([u, v]) => { const dY = -v * NC, dZ = u * NC; return [Ytip + c * dY + sn * dZ, Ztip - sn * dY + c * dZ]; });
-  const onLine = (L, Y) => { for (let i = 0; i + 1 < L.length; i++) { const [Ya, Za] = L[i], [Yb, Zb] = L[i + 1]; if (Y <= Ya && Y >= Yb) return Ya === Yb ? Za : lerp(Za, Zb, (Ya - Y) / (Ya - Yb)); } return null; };
+  // (below its last point the line holds that point's depth: the pitch lifts the target's bottom a little above the
+  // head's, and the rows between must not step back to the studio's chin)
+  const onLine = (L, Y) => { if (Y < L.at(-1)[0]) return L.at(-1)[1]; for (let i = 0; i + 1 < L.length; i++) { const [Ya, Za] = L[i], [Yb, Zb] = L[i + 1]; if (Y <= Ya && Y >= Yb) return Ya === Yb ? Za : lerp(Za, Zb, (Ya - Y) / (Ya - Yb)); } return null; };
   // the target in two: the FACE LINE (the profile with the nose taken out: straight from the stop to the subnasal),
   // carried wide across the face, and the NOSE (the target over the face line), carried narrow in its wedge
   const F = T.filter((_, i) => i <= STOP || i >= SUB);
@@ -77,12 +79,15 @@ export function noseDial(surface0, dials = {}, { widthAt, pitch = 0, ear = null,
   // takes the cheeks with it and none stands in front of it in profile
   const wide = (x, v) => 1 - (v < vStop ? smooth(0.3 * NC, 0.8 * NC, Math.abs(x)) : smooth(0.5 * NC, 1.2 * NC, Math.abs(x)));
   const narrow = (x, v) => clamp01((half(v) + side - Math.abs(x)) / side);
-  function apply(p, u, y) {
+  function apply(p, u, y, back = false) {
     const [x, Y, Z] = p, zt = zTarget(Y), zf = zFace(Y); if (zt === null || zf === null) return p;
     const v = (Ytip - Y) / NC, fade = smooth(vTop - 0.25, vTop, v);   // faded in under the forehead's top
-    // the face line, wide (faded to nothing at the side seam, where the face's shell meets the back's: the studio's own
-    // terms fade the same); the nose over it, in its wedge
-    const dFace = (zf - zMid(y)) * fade * wide(x, v) * (1 - smooth(0.7, 1, Math.abs(u)));
+    // the face line, wide, faded to nothing at the side seam where the face's shell meets the back's (the studio's own
+    // terms fade the same) — but for the chin's lowest rows, where the line goes back past the seam itself: there both
+    // shells move together, the same at the seam, so the chin's corner can stand behind the studio's
+    const low = 1 - smooth(y0 + 0.04, y0 + 0.14, y), seam = back ? low : low + (1 - low) * (1 - smooth(0.7, 1, Math.abs(u)));
+    const dFace = (zf - zMid(y)) * fade * wide(x, v) * seam;
+    if (back) return dFace ? [x, Y, Z + dFace] : p;
     const dNose = Math.min(0, zt - zf) * narrow(x, v);
     return [x, Y, Z + dFace + dNose];
   }
@@ -91,17 +96,25 @@ export function noseDial(surface0, dials = {}, { widthAt, pitch = 0, ear = null,
   const W = widthAt(tipRow[0]) || 1;
   const cols = [wTip, wTip + side * 0.5, wTip + side, wBack, wBack + side * 0.5, wBack + side].flatMap((x) => [x / W, -x / W]).filter((u) => Math.abs(u) < 0.98);
   const Ysub = Ytip - vSub * NC;
-  // the JAW (both shells): the head's underside rises at the dial's angle back from the chin's corner up to the ear's
-  // lobe, and stays there behind it; against the shaded neck that diagonal is the jaw line in profile.
-  // `ear`: { Y: the lobe's height, zFront, zBack } in the same output coordinates; absent, no jaw.
-  const jawDeg = lerp(32, 24, profile), Zcorner = T.at(-1)[1], Ybot0 = Ybot;
-  function jaw(p, y) {
+  // the JAW (both shells, the same move on each, so their seam stays shut). The head's underside runs flat from the chin
+  // back at the chin's height (a narrow keel, its bottom ring closed by one strip from the chin to its back); the jaw line
+  // is a FLOOR under it, a plane rising at the dial's angle back from the chin's front-bottom: a point under it comes up
+  // onto it (a soft max, tight), a point over it stays. The floor goes through the chin's front-bottom itself, so the
+  // keel's closing strip lies in it and nothing creases at the chin; the rows it gathers keep their order front to back.
+  // It fades out behind the keel's end, inside the neck, before the nape. In profile, against the shaded neck, the floor
+  // is the jaw line.
+  // `ear`: { Y: the lobe's height, zFront, zBack }; absent, no jaw.
+  const jawDeg = lerp(32, 24, profile), tj = Math.tan(jawDeg * Math.PI / 180 + pitch), soft = 0.012;
+  // (the floor rises to the keel's back end, the closing strip's far corner, so the strip lies in it; behind, it holds
+  // that height, under the studio's own jaw corner, and fades)
+  const Zchin = apply(surface0(0, y0), 0, y0)[2], Zkeel = apply(surface0(0, y0, true), 0, y0, true)[2], zEnd = Math.max(ear ? ear.zBack : 0, Zkeel + 0.03);
+  function jaw(p) {
     if (!ear) return p;
-    const [x, Y, Z] = p, band = smooth(-0.62, -1.02, y);   // the lowest rows, fading out up the lower face
-    if (!band || Z <= Zcorner) return p;
-    // (capped at the lobe's height: behind the ear the underside stays there, where the skull meets the neck)
-    const rise = Math.min((Z - Zcorner) * Math.tan(jawDeg * Math.PI / 180), ear.Y - Ybot0);
-    return [x, Y + rise * band, Z];
+    const [x, Y, Z] = p, w = 1 - smooth(zEnd, zEnd + 0.15, Z);
+    if (!w || Z <= Zchin) return p;
+    const fl = Math.min(Ybot + (Math.min(Z, Zkeel) - Zchin) * tj, ear.Y);
+    if (Y > fl + 4 * soft) return p;
+    return [x, Y + w * ((Y + fl + Math.sqrt((Y - fl) ** 2 + soft * soft)) / 2 - Y), Z];
   }
   return {
     apply, jaw, rows, cols, NC, tip: [Ytip, Ztip],

@@ -45,9 +45,12 @@ describe('the painted face', () => {
     expect(texOf([FACE_PAINT_WINDOW.x[0], FACE_PAINT_WINDOW.y[1]])).toEqual([0, 1]);
   }, 120000);
 
-  it('the features sit where the slab face puts them: the eyes, the mouth\'s width and the head the same (the nose dials move only the depth)', () => {
+  it('the features sit where the slab face puts them: the eyes, the mouth\'s width and the head the same (the nose dials move only the depth and the jaw)', () => {
     const fm = (x) => x.m.plan.include.find((i) => i.name === 'head').faceMeasures, a = fm(female), b = fm(slab);
-    for (const k of ['head_m', 'crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(a[k], k).toBe(b[k]);
+    for (const k of ['crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(a[k], k).toBe(b[k]);
+    // (the head is registered as before the jaw lifts its underside, so the crown stands where it stood; the head's height
+    // is now to the chin itself, the studio's flat keel no longer hanging below it)
+    expect(a.head_m).toBeLessThan(b.head_m); expect(a.head_m).toBeGreaterThan(b.head_m - 0.015);
     for (const k of ['eyeLevel', 'eyeWidth', 'mouthWidth']) expect(a.features[k], k).toBeCloseTo(b.features[k], 2);   // (ratios of the face's height, which the chin moves a hair; the brow and the lid are measured in depth, which the stop moves)
     const eye = female.m.recipe.parts.face.paint.layers.find((l) => l.kind === 'iris').tris;
     const s = eye.filter((_, i) => i % 2 === 0).map((q) => q / 4096);

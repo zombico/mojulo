@@ -430,7 +430,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (each 0..1, 0.5 by default): `profile` draws the face's side between the CAT edge (0: a deep stop, a long bridge to a
   sharp tip, the mouth a notch on one receding slope) and a ZELDA-like nose (1: a small distinct nose, a soft tip, the
   lips a little forward); `width` takes the nose from a POINTER (0, a sliver underneath) to a TRAPEZOID underside (1,
-  painted dark). Not yet: the painted face on the rig (the clip preview
+  painted dark). Under the dials the jaw rises from the chin's corner toward the ear (32° at the cat edge, 24° at the
+  Zelda-like), and the head keeps the slab head's size. Not yet: the painted face on the rig (the clip preview
   and the skinned GLB show the face blank, and its expression channels are skipped), and under a geocube's cast light.
 <!-- /section -->
 <!-- section: hero-genki | Genki | the shonen spirit as one amount over the look -->

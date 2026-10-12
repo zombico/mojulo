@@ -27,7 +27,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tip and wide at the face. The underside is painted (`noseUnder`), darker as it widens.
 - **The nose keeps its own normals.** The face shades from its capsule stand-in; inside the wedge it keeps its own
   (`paint.noseKeep`), so the nose has a shade side and an underside at three-quarter.
-- **Not yet.** The jaw line and the chin's corner under the dial; the male's pass.
+- **The jaw.** The studio's head ran flat underneath from the chin back to the neck (a narrow keel), so in profile there
+  was no jaw. Under the dials the jaw line is a floor rising back from the chin's front-bottom at the dial's angle
+  (`profile` 0: 32°, 1: 24°) to the keel's end, inside the neck; a point under it comes up onto it, a point over it
+  stays, both shells alike so their seam stays shut. The face line holds its last depth below the target's bottom, and
+  for the chin's lowest rows moves both shells, so the chin's corner stands behind the studio's without a crease.
+- **The head keeps its size.** A head is registered by its lowest point; under the dials that is the studio's surface
+  before any dial moves it, so the eyes, the mouth and the crown stand where the slab head's do. `head_m` reads to the
+  chin itself now (the keel no longer hangs below it).
+- **Both casts.** The female and the male take the same dials; the male's profile sits within 3 mm of the targets.
+- **Not yet.** The female's own jaw-corner crease under the ear (the studio's, in the plain head too) inks a little
+  darker where the new jaw meets the neck.
 
 ### Painted face: the anime hero's painterly look, a painted face on a smooth head and a soft edge to its light
 

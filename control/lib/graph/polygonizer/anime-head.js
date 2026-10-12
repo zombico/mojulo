@@ -929,6 +929,8 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
   let yLo = Infinity, yHi = -Infinity, zLo = Infinity, zHi = -Infinity;
   for (let i = 0; i < faceEnd; i += 3) { const y = skinFlat[i + 1], z = skinFlat[i + 2]; if (y < yLo) yLo = y; if (y > yHi) yHi = y; if (z < zLo) zLo = z; if (z > zHi) zHi = z; }
+  // (under the nose dials the jaw lifts the underside: the head is registered by the studio's extent, before the dials)
+  if (model.nose && Number.isFinite(model.nose.floorY)) yLo = model.nose.floorY;
   const R = REGISTRATION[preset], S = R.height / (yHi - yLo), TZ = R.menton - S * yLo, TY = R.midY - S * (-zLo + -zHi) / 2;
   const toM = (p) => [p[0] * S, -p[2] * S + TY, p[1] * S + TZ];
   const meshOf = (tris, labels) => { const m = weld(tris, labels); m.points = m.points.map(toM); return m; };
