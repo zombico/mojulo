@@ -231,6 +231,9 @@ function scenesCard() {
     '  stops at a choice: the answer is the player\'s.',
     'play.quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag }] }]: a journal (J) over the flags; a word at the top',
     '  shows as a quest begins, a step is done, a quest ends. With play.carry they ride between levels as the flags do.',
+    'play.party: [{ who, joins: flag, at?: spot }]: who joins the pilot once the flag is set (here or carried in). The',
+    '  entity runs the escort motive (rule { type: \'ai\', mind: { motivation: \'escort\' }, escort: <pilot id> }, a team',
+    '  of its own); with at it waits there until it joins, without it it is minted asleep (dormant: true) and wakes.',
     `example: ${JSON.stringify({ scenes: [{ id: 'arrival', when: { start: true }, names: { mayor: 'Mayor Ilse' }, beats: [{ shot: { frame: 'wide', on: ['hero', 'mayor'], move: 'push' }, for: 2 }, { do: { walk: { who: 'mayor', to: 'porch' } } }, { until: { arrive: 'mayor' } }, { banter: { with: ['mayor', 'hero'], lines: [{ who: 'mayor', say: 'You came up the old trail.' }, { who: 'hero' }] } }] }] })}`,
   );
 }

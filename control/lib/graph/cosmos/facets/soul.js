@@ -20,7 +20,7 @@ export const SOUL = Object.freeze({
     party: {
       values: {
         solo: { status: 'built', lowers: 'lib/graph/playscape/player.js' },
-        party: { status: 'partial', effort: 'S', lowers: 'lib/graph/worlds/controllable/mind.js', note: 'a cast member who joins on a flag and escorts the hero (the escort motive: follows, fights its foes, never its team); the joining is not lowered yet' },
+        party: { status: 'built', lowers: 'lib/graph/playscape/ui/party.js', godot: false, note: 'a cast member who joins on a flag (cast.<id>.joins) escorts the hero in every level after; no party roster stats or menus yet; web only' },
       },
     },
   },

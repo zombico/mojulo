@@ -55,6 +55,7 @@
  */
 import { readEffect, effectContext } from './cues.js';
 import { questFlags } from './quests.js';
+import { partyFlags } from './party.js';
 
 export const SHOT_FRAMES = Object.freeze({
   wide: 'the place and everyone in it',
@@ -235,12 +236,12 @@ function setsOf(sc) {
   return [...out];
 }
 
-// a play with flags to keep: scenes, or quests (quests.js) whose steps are flags
-const hasStory = (play) => !!play && (play.scenes !== undefined || play.quests !== undefined);
+// a play with flags to keep: scenes, quests (quests.js) whose steps are flags, a party (party.js) who join on one
+const hasStory = (play) => !!play && (play.scenes !== undefined || play.quests !== undefined || play.party !== undefined);
 
-/** Every flag the scenes read or set, and the quests read. */
+/** Every flag the scenes read or set, the quests read, and the party joins on. */
 export function sceneFlags(play) {
-  const out = new Set(questFlags(play));
+  const out = new Set([...questFlags(play), ...partyFlags(play)]);
   for (const sc of readScenes(play)) { for (const c of sc.if) if (c.flag) out.add(c.flag); for (const f of setsOf(sc)) out.add(f); }
   return [...out].sort();
 }
@@ -363,7 +364,7 @@ export function sceneContract(game, play) {
   let out = { ...game };
   if (C.flags) {
     // what is set here: the scenes' sets and answers, and the quests' flags (a cue may set those: emit 'flag:<name>')
-    const slice = C.flags.slice, sets = new Set([...readScenes(play).flatMap(setsOf), ...questFlags(play)]);
+    const slice = C.flags.slice, sets = new Set([...readScenes(play).flatMap(setsOf), ...questFlags(play), ...partyFlags(play)]);
     const produces = isObj(game.produces) ? game.produces : {};
     const events = Array.isArray(produces.events) ? produces.events : [];
     const on = { ...(game.on || {}) };

@@ -91,7 +91,7 @@ function readEnds(manifest) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null } = {}) {
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
@@ -157,7 +157,31 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
+  // THE PARTY (playscape/ui/party.js): each cast member who joins on a flag, in every stage, on the escort motive. One
+  // the story stands here waits at its stand until it joins; elsewhere it is minted asleep behind the start and wakes
+  // when the flag is set or carried in.
+  const joiners = (party ?? []).filter((p) => p.ref), members = [], stands = [];
+  if (joiners.length) {
+    const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
+    joiners.forEach((p, i) => {
+      figures[p.id] ??= { heroRef: p.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+      const rule = { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
+      const k = entities.findIndex((e) => e.id === p.id);
+      if (k >= 0) {
+        entities[k] = { ...entities[k], rule, team: 'party' };
+        stands.push({ id: `stand-${p.id}`, at: entities[k].transform.pos.slice(0, 2) });
+        members.push({ who: p.id, joins: p.joins, at: `stand-${p.id}` });
+      } else {
+        const back = 2 + i * 1.2, aside = (i % 2 ? -1 : 1) * 1.2, s = ends.spawn;
+        const at = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
+        entities.push({ id: p.id, rule, team: 'party', dormant: true, body: { type: 'figure-rig', figure: p.id }, transform: { pos: at, heading: h } });
+        members.push({ who: p.id, joins: p.joins });
+      }
+    });
+    pilotPart = { ...pilotPart, figures, entities };
+  }
   let play = mechanics?.play ?? null;
+  if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), carry: STORY_SLICE };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
   if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
   if (scenes.length) {
@@ -181,7 +205,8 @@ export function stageSpots(ends, lane = null) {
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */
 export const STORY_SLICE = 'story';
 export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0)
-  || sceneFlags({ scenes: (G.story ?? []).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length;
+  || sceneFlags({ scenes: (G.story ?? []).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length
+  || Object.values(G.characters?.cast ?? {}).some((m) => m.joins);
 
 /**
  * A side-scroller's lane on a stage: the trail's own spine, one point a metre on the ground plane, the way the trail
