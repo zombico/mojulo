@@ -31,7 +31,7 @@ describe('the painted face', () => {
   it('the face\'s lattice by tier: thinned below a close-up, whole at one; the texture the same either way', () => {
     const dense = built({ cast: 'female', painterly: true, target: { resolution: '1080p', framing: 'close' } });
     const n = (x) => x.mesh.faces.filter((t) => x.mesh.provenance[t[0]].part === 'face').length;
-    expect(n(female)).toBeLessThan(n(dense) / 2);
+    expect(n(female)).toBeLessThan(n(dense) * 0.6);   // (the nose dials' own rows and columns kept in both)
     expect(faceTexture(female.m.recipe.parts.face.paint, female.m.recipe.palette).key).toBe(faceTexture(dense.m.recipe.parts.face.paint, dense.m.recipe.palette).key);
   }, 120000);
 
@@ -45,9 +45,10 @@ describe('the painted face', () => {
     expect(texOf([FACE_PAINT_WINDOW.x[0], FACE_PAINT_WINDOW.y[1]])).toEqual([0, 1]);
   }, 120000);
 
-  it('the features sit where the slab face puts them: the same landmarks and measures', () => {
-    const fm = (x) => x.m.plan.include.find((i) => i.name === 'head').faceMeasures;
-    expect(fm(female)).toEqual(fm(slab));
+  it('the features sit where the slab face puts them: the eyes, the mouth\'s width and the head the same (the nose dials move only the depth)', () => {
+    const fm = (x) => x.m.plan.include.find((i) => i.name === 'head').faceMeasures, a = fm(female), b = fm(slab);
+    for (const k of ['head_m', 'crown_z', 'face_m', 'pupils_m', 'eye_m', 'eyeWidth_m']) expect(a[k], k).toBe(b[k]);
+    for (const k of ['eyeLevel', 'eyeWidth', 'mouthWidth']) expect(a.features[k], k).toBeCloseTo(b.features[k], 2);   // (ratios of the face's height, which the chin moves a hair; the brow and the lid are measured in depth, which the stop moves)
     const eye = female.m.recipe.parts.face.paint.layers.find((l) => l.kind === 'iris').tris;
     const s = eye.filter((_, i) => i % 2 === 0).map((q) => q / 4096);
     expect(Math.min(...s)).toBeLessThan(0.5); expect(Math.max(...s)).toBeGreaterThan(0.5);   // an iris either side of the middle
@@ -119,4 +120,34 @@ describe('the painterly look as data', () => {
     expect(r.planned).toEqual(expect.arrayContaining(['painted-albedo', 'ribbon-hair', 'painted-face-in-motion']));
     expect([...r.built, ...r.planned].length).toBe(LOOKS['painterly-toon'].conventions.length);
   });
+});
+
+describe('the nose dials (painterly.nose)', () => {
+  const side = (spec) => {   // the face's most forward point at a height (hero metres), per dial
+    const { mesh } = built({ cast: 'female', ...spec }), V = mesh.vertices, T = mesh.faces.filter((t) => mesh.provenance[t[0]].part === 'face');
+    return (z) => { let y = -Infinity; for (const t of T) { const P = t.map((v) => V[v]); for (let k = 0; k < 3; k++) { const p = P[k], q = P[(k + 1) % 3]; if ((p[2] - z) * (q[2] - z) > 0 || p[2] === q[2]) continue; y = Math.max(y, p[1] + (q[1] - p[1]) * (z - p[2]) / (q[2] - p[2])); } } return y; };
+  };
+  it('checked by name and range; stored on the record', () => {
+    expect(validateHeroSpec({ cast: 'female', head: 'anime', painterly: { nose: { profile: 2 } } })[0]).toMatch(/painterly.nose.profile: a number in 0..1/);
+    expect(validateHeroSpec({ cast: 'female', head: 'anime', painterly: { ears: 1 } })[0]).toMatch(/painterly.ears: not a painterly dial/);
+    expect(heroRecord({ cast: 'female', head: 'anime', painterly: { nose: { width: 1 } } }).painterly).toEqual({ nose: { width: 1 } });
+  });
+  it('profile: the cat edge recedes the lower face behind the Zelda-like edge, the nose\'s tip held', () => {
+    const cat = side({ painterly: { nose: { profile: 0 } } }), zel = side({ painterly: { nose: { profile: 1 } } }), slabSide = side({});
+    const { mesh } = slab, zs = mesh.vertices.map((v) => v[2]), faceZ = mesh.faces.filter((t) => mesh.provenance[t[0]].part === 'face').flatMap((t) => t.map((v) => mesh.vertices[v][2]));
+    const bot = Math.min(...faceZ);
+    // the mouth's height (about a third of the way up from the chin to the eyes) and the tip's (the slab's most forward point below the eyes)
+    expect(cat(bot + 0.03)).toBeLessThan(zel(bot + 0.03) - 0.008);
+    let tipZ = bot, tipY = -Infinity; for (let z = bot + 0.04; z < bot + 0.12; z += 0.001) { const y = slabSide(z); if (y > tipY) { tipY = y; tipZ = z; } }
+    expect(Math.abs(cat(tipZ) - tipY)).toBeLessThan(0.004); expect(Math.abs(zel(tipZ) - tipY)).toBeLessThan(0.004);
+    expect(zs.length).toBeGreaterThan(0);
+  }, 240000);
+  it('width: the underside painted darker as it widens; its faces carry the texture', () => {
+    const lum = (x) => { const P = x.m.recipe.parts.face.paint, L = P.layers.find((l) => l.kind === 'noseUnder'); return L.width; };
+    const thin = built({ cast: 'female', painterly: { nose: { width: 0 } } }), wide = built({ cast: 'female', painterly: { nose: { width: 1 } } });
+    expect(lum(thin)).toBe(0); expect(lum(wide)).toBe(1);
+    expect(faceTexture(thin.m.recipe.parts.face.paint, thin.m.recipe.palette).key).not.toBe(faceTexture(wide.m.recipe.parts.face.paint, wide.m.recipe.palette).key);
+    const spread = (x) => { const t = x.m.recipe.parts.face.paint.layers.find((l) => l.kind === 'noseUnder').tris.filter((_, i) => i % 2 === 0); return Math.max(...t) - Math.min(...t); };
+    expect(spread(wide)).toBeGreaterThan(2.5 * spread(thin));   // the trapezoid's back edge against the pointer's
+  }, 240000);
 });

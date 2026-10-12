@@ -909,7 +909,7 @@ function animeEar(studio, register, pivot, pitch) {
   const ids = Object.keys(e.points), at = Object.fromEntries(ids.map((id, i) => [id, i]));
   return { points: ids.map((id) => back(e.points[id])), faces: e.faces.map((f) => f.map((id) => at[id])), groups: e.groups };
 }
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false } = {}) {
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false, nose = null } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
@@ -923,7 +923,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}) });
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}), ...(nose ? { nose } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
@@ -954,14 +954,18 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // of the skin stays the skin's colour, the texture's own base. The layers: every feature part projected the same way.
   const painted = paint ? (() => {
     const flat = studioFace.map(unpitch), faces = [], uv = {};
+    // (and, under the nose dials, the nose's underside, which looks down: its paint is its dark, anime-nose.js)
+    const NB = model.nose?.box, underNose = (a, b, c) => { if (!NB) return false; const Y = (a[1] + b[1] + c[1]) / 3, X = Math.abs((a[0] + b[0] + c[0]) / 3); return Y <= NB.yTop && Y >= NB.yBot && X <= NB.half; };
     meshes.face.faces.forEach((f, i) => {
       const [a, b, c] = f.map((v) => flat[v]), n = vcross(vsub(b, a), vsub(c, a)), l = Math.hypot(...n) || 1;
-      if (n[2] / l > -0.25) return;
+      if (n[2] / l > -0.25 && !(n[2] / l < 0.3 && underNose(a, b, c))) return;
       const st = f.map((v) => texOf(flat[v]));
       if (st.some(([x, y]) => x < 0 || x > 1 || y < 0 || y > 1)) return;
       faces.push(`f${i}`); f.forEach((v, k) => { uv[`v${v}`] = st[k].map((x) => Math.round(x * 1e5) / 1e5); });
     });
-    return { size: FACE_PAINT_SIZE, faces, uv, layers: paintLayers(model.parts, (p) => unpitch(p)) };
+    // the nose's wedge keeps its own normals by this much (its sides take the light and the shade: a nose at an angle)
+    const noseKeep = model.nose ? Object.fromEntries(flat.map((p, v) => [`v${v}`, Math.round(model.nose.keep(p) * 100) / 100]).filter(([, w]) => w >= 0.05)) : null;
+    return { size: FACE_PAINT_SIZE, faces, uv, layers: paintLayers(model.parts, (p) => unpitch(p), { noseWidth: model.nose?.width }), ...(noseKeep ? { noseKeep } : {}) };
   })() : null;
   for (const ear of components(meshOf(trisOf(skinFlat, model.ears.start, model.ears.end), null))) { const m = outward(orientConsistently(ear)); m.groups = m.groups.map(() => 'Skin'); meshes[centroid(m)[0] > 0 ? 'earR' : 'earL'] = SCULPT ? animeEar(m, register, toM(model.pivot), model.pitch) : m; }
   const lens = (part, group, depth) => {
@@ -1026,7 +1030,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   const groupPts = (g) => meshes.face.faces.flatMap((f, i) => (meshes.face.groups[i] === g ? f.map((v) => skinPts[v]) : []));
   // the painted face has no white, mouth or slab to measure: its features are where its slab twin's are (the same build
   // with the slabs, bald and at scale 1), so its eye, mouth and brow landmarks and its feature measures are the twin's
-  const twin = paint ? animeHead({ preset, face, hair: 'none', expression, register, sculpt, hairFit: false }) : null;
+  const twin = paint ? animeHead({ preset, face, hair: 'none', expression, register, sculpt, hairFit: false, ...(nose ? { nose } : {}) }) : null;
   const scleraR = paint ? [] : groupPts('Sclera').filter((p) => p[0] > 0), mouthPts = paint ? [] : groupPts('Mouth');
   const eyeR = twin ? twin.landmarks.eyeR : meshes.irisR ? centroid(meshes.irisR) : centroid({ points: scleraR }), eyeL = [-eyeR[0], eyeR[1], eyeR[2]];
   const eyeBox = paint ? null : bboxOf(scleraR), faceBox = bboxOf(skinPts);

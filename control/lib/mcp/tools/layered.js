@@ -81,6 +81,7 @@ import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
 import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
 import { lookReadout } from '../../graph/era/looks.js';
+import { noseDialErrors, NOSE_DEFAULTS } from '../../graph/polygonizer/anime-nose.js';
 import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
@@ -258,7 +259,8 @@ export function validateHeroSpec(spec) {
     if (spec.headPreset !== undefined && !ANIME_PRESETS.includes(spec.headPreset)) errs.push(`headPreset: one of ${ANIME_PRESETS.join(', ')} (the anime head's design base; defaults to the cast when it is male / female, else male)`);
     errs.push(...validateLook(spec.look));
     errs.push(...validateAnimeSculpt(spec.sculpt));
-    if (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== true) errs.push('painterly: true is the painterly toon look: the face painted into a texture (the eyes, lashes, brows and mouth on a smooth face, in place of the feature slabs) and a soft edge between the light and the shade; null or absent is the slab face and the hard step');
+    if (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== true && !(spec.painterly && typeof spec.painterly === 'object' && !Array.isArray(spec.painterly))) errs.push('painterly: true is the painterly toon look: the face painted into a texture (the eyes, lashes, brows and mouth on a smooth face, in place of the feature slabs) and a soft edge between the light and the shade; { nose: { profile, width } } sets its nose dials; null or absent is the slab face and the hard step');
+    else if (spec.painterly && typeof spec.painterly === 'object') { for (const k of Object.keys(spec.painterly)) if (k !== 'nose') errs.push(`painterly.${k}: not a painterly dial (nose)`); errs.push(...noseDialErrors(spec.painterly.nose, 'painterly.nose')); }
   } else {
     if (spec.look !== undefined && spec.look !== null) errs.push(`look: the looks are the anime head's (head: 'anime')`);
     if (spec.sculpt !== undefined && spec.sculpt !== null) errs.push(`sculpt: the graphic face is the anime head's (head: 'anime')`);
@@ -325,6 +327,7 @@ export function heroRecord(spec) {
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
     // the painterly look (face-paint.js, the soft ramp): stored only when on
     if (spec.painterly === true) hero.painterly = true;
+    else if (spec.painterly && typeof spec.painterly === 'object') hero.painterly = { ...(spec.painterly.nose ? { nose: { ...spec.painterly.nose } } : {}) };
   }
   for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
@@ -425,7 +428,7 @@ function heroFormPlanOf(hero) {
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
-    return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)) } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)), nose: { ...NOSE_DEFAULTS, ...(hero.painterly.nose ?? {}) } } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
   const plan = heroPlan({ cast: hero.cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });

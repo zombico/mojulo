@@ -38,20 +38,21 @@ export const facePaintDense = (target) => FACE_PAINT_DENSE_TIERS.includes(tierOf
 /** the layers' quantum (texture units × Q, integers) */
 const Q = 4096;
 /** the feature parts buildAnime builds for the painter, in painting order */
-export const PAINT_KINDS = Object.freeze(['sclera', 'iris', 'pupil', 'catch', 'ink', 'lid', 'brow', 'nose', 'mouth']);
+export const PAINT_KINDS = Object.freeze(['noseUnder', 'sclera', 'iris', 'pupil', 'catch', 'ink', 'lid', 'brow', 'nose', 'mouth']);
 
 const W = FACE_PAINT_WINDOW;
 export const texOf = ([x, y]) => [(x - W.x[0]) / (W.x[1] - W.x[0]), (y - W.y[0]) / (W.y[1] - W.y[0])];
 
 /** The feature parts (flat xyz arrays, studio units) projected by `project(p) → [x, y]` onto the front plane: the
- * layers in PAINT_KINDS order, each `{ kind, tris }` (tris: flat [s, t] × 3 per triangle, × Q, integers). */
-export function paintLayers(parts, project) {
+ * layers in PAINT_KINDS order, each `{ kind, tris }` (tris: flat [s, t] × 3 per triangle, × Q, integers); the nose's
+ * underside carries the width dial (`noseWidth`), which sets how dark it is painted. */
+export function paintLayers(parts, project, { noseWidth } = {}) {
   const out = [];
   for (const kind of PAINT_KINDS) {
     const a = parts[kind]; if (!a?.length) continue;
     const tris = [];
     for (let i = 0; i + 8 < a.length; i += 9) for (let k = 0; k < 3; k++) { const [s, t] = texOf(project([a[i + 3 * k], a[i + 3 * k + 1], a[i + 3 * k + 2]])); tris.push(Math.round(s * Q), Math.round(t * Q)); }
-    out.push({ kind, tris });
+    out.push({ kind, tris, ...(kind === 'noseUnder' && Number.isFinite(noseWidth) ? { width: noseWidth } : {}) });
   }
   return out;
 }
@@ -105,6 +106,8 @@ function swatches(pal) {
     // the lower rim lighter than the lash: the ink toward the skin
     rim: mix(ink, skin, 0.35),
     nose: mul(skin, [0.80, 0.70, 0.68]),
+    // the nose's underside (the nose dials' width): a pointer's barely darker, a trapezoid's dark, as the Zelda still's
+    under: (w) => mix(skin, mul(skin, [0.62, 0.45, 0.42]), 0.15 + 0.7 * w),
     blush: mix(skin, [0.96, 0.52, 0.48], 0.55),
   };
 }
@@ -176,6 +179,9 @@ function paintRgb(layers, size, C) {
     }
   }
   // the WHITE, shaded under the lid: its top third toward a cool shade
+  // the nose's UNDERSIDE (anime-nose.js): its quad, darker by the width dial (the layer carries it)
+  const under = layers.find((l) => l.kind === 'noseUnder');
+  if (under) fill(under.tris, () => C.under(under.width ?? 0.5));
   if (by.sclera) fill(by.sclera, (x, y) => { const b = boxAt(whites, x), u = (y - b[1]) / Math.max(1, b[3] - b[1]); return u < 0.38 ? mix(mul(C.sclera, [0.80, 0.82, 0.90]), C.sclera, u / 0.38) : C.sclera; });
   // the IRIS: dark at its top (the lid's shadow), light at its bottom, its rim darker
   if (by.iris) {

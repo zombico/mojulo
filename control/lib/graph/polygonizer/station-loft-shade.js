@@ -120,7 +120,7 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   if (own === false) return null;
   const anime = manifest?.hero?.head === 'anime';
   // the painterly look (`hero.painterly`) steps over a soft edge (PAINTERLY_SOFT) unless the light names its own
-  const painterly = anime && manifest.hero.painterly === true;
+  const painterly = anime && !!manifest.hero.painterly;
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l; }
   return anime ? (painterly ? { ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT } : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
 }
@@ -310,6 +310,9 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   if (!proxy) return out;
   const L = headProxyLandmarks(rest); if (!L) return out;
   const C = L.centre, zLo = L.bottom; const wOf = new Map(); const RV = rest.vertices; const posed = rest !== mesh; const NA = L.neck && neckAxis(V, L.neck);
+  // the painted face's nose wedge (anime-nose.js, the face part's `paint.noseKeep` by vertex): it keeps its own normal by
+  // that much, so the nose's sides take the light and the shade; absent, the proxy as it was
+  const noseKeep = mesh.parts?.face?.paint?.noseKeep ?? null;
   F.forEach((t, fi) => {
     if (G[fi] !== 'Skin') return;
     const part = partOf(mesh, fi); let fr = null;
@@ -319,7 +322,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
         const s = unit(sub(p, [a[0] + d[0] * u, a[1] + d[1] * u, a[2] + d[2] * u])), n = out[fi][k], w = NECK_WEIGHT;
         out[fi][k] = unit([n[0] * (1 - w) + s[0] * w, n[1] * (1 - w) + s[1] * w, n[2] * (1 - w) + s[2] * w]); return;
       }
-      let w = wOf.get(vi); if (w === undefined) wOf.set(vi, w = regionWeight(part, RV[vi], L));
+      let w = wOf.get(vi); if (w === undefined) { w = regionWeight(part, RV[vi], L); const k = noseKeep && part === 'face' ? noseKeep[mesh.pointIds?.[vi]?.slice(5)] : 0; if (k) w *= 1 - k; wOf.set(vi, w); }
       if (!(w > 0)) return;
       const p = RV[vi]; let s = unit(sub(p, [C[0], C[1], p[2] > C[2] ? C[2] : p[2] < zLo ? zLo : p[2]]));   // off the capsule's axis, at rest
       if (posed) {   // carried onto the posed face by its own rest → posed rotation (exact for a face riding one bone)

@@ -66,6 +66,7 @@
  * its clump `tail`). Nothing here is written into the recipe.
  */
 import * as dmath from '../../util/dmath.js';
+import { noseDial } from './anime-nose.js';
 
 export const ANIME_SCHEMA = 'anime-form-studio-v3';
 export const ANIME_MALE_BASELINE = Object.freeze({ width: 0.99, lower: 1.03, jaw: 1, cheekVolume: 1.14, lowerCheekVolume: 1.17, chin: 1.3, depth: 1.14, backDepth: 1.14, occiput: 1.18, nape: 0.82, jawAngle: 0.79, jawDepth: 1.19, chinProjection: 1.21, chinHeight: 0.77, nose: 1.44, eyeWidth: 0.87, eyeHeight: 0.85, spacing: 0.98 });
@@ -156,7 +157,9 @@ export function buildAnime(r, options = {}) {
   function width(y) { return profile(y, [[-1.02, 0.10 * f.chin], [-0.90, 0.27 * f.chin], [-0.64, 0.51 * f.jaw], [-0.30, 0.69 * (1 + 0.25 * (f.jaw - 1))], [0.12, 0.78], [0.45, 0.79], [0.78, 0.69], [1.04, 0.41], [1.16, 0.18], [1.19, 0.009]]) * f.width; }
   function fy(y) { return y < -0.2 ? -0.2 + (y + 0.2) * f.lower : y; }
   // Separate vault/occiput/nape and jaw-to-chin profiles, informed by the fitted head landmarks.
-  function surface(u, y, back = false) {
+  // under the nose dials the studio's own nose is off: the dials build theirs on a smooth face (anime-nose.js)
+  const NOSE_OFF = !!options.nose;
+  function surface0(u, y, back = false, noseOff = NOSE_OFF) {
     let x = u * width(y); const g = (v, c, w) => dmath.exp(-(((v - c) / w) ** 2)), arc = dmath.pow(Math.max(0, 1 - u * u), 0.45);
     const seam = profile(y, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
     const front = profile(y, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
@@ -167,10 +170,10 @@ export function buildAnime(r, options = {}) {
       // the nose placed: the tip (pronasale) at its height with its own projection and width, the dorsum a ridge that
       // starts below the brow (dorsumStart) and ramps down to the tip; the muzzle bump follows the lip line
       const N = S.nose, ramp = y > N.dorsumStart ? 0 : y > N.pronasale ? dmath.pow((N.dorsumStart - y) / (N.dorsumStart - N.pronasale), 1.3) : dmath.exp(-(((y - N.pronasale) / 0.05) ** 2));
-      z -= f.nose * (N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
+      if (!noseOff) z -= f.nose * (N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
       z -= 0.025 * g(x, 0, 0.18) * g(y, S.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12);
     }
-    else { z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
+    else { if (!noseOff) z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
     // canthusSetback: the lateral canthus set back along the globe (eye-local; faded to zero at the side seam)
     if (!back && S?.canthusSetback) { const cl = 0.455 * f.spacing + 0.285 * f.eyeWidth * 0.95; z += S.canthusSetback * g(Math.abs(u), cl, 0.13) * g(y, EYE_Y, 0.14) * (1 - dmath.pow(Math.abs(u), 8)); }
     // Independent forehead and supraorbital depth; blend to the temple seam.
@@ -194,6 +197,14 @@ export function buildAnime(r, options = {}) {
     const chinLift = -0.40 * ((f.chinHeight ?? 1) - 1) * chinWeight * chinWeight;
     return [x, fy(y) + lift + chinLift, z];
   }
+  // the NOSE DIALS (`nose`, anime-nose.js): the face's front drawn to a target side profile, the nose a wedge on it;
+  // absent, the studio's surface
+  // (the jaw rises to under the ear's lobe: the ear ellipsoid below, its centre and radii)
+  const EAR_C = [S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045], EAR_R = [0.205, 0.14];
+  const ND = options.nose ? noseDial(surface0, options.nose, { anchorAt: (u, y) => surface0(u, y, false, false), widthAt: (y) => surface0(1, y)[0], pitch: (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, ear: { Y: EAR_C[0] - 0.8 * EAR_R[0], zFront: EAR_C[1] - EAR_R[1], zBack: EAR_C[1] + EAR_R[1] } }) : null;
+  function surface(u, y, back = false) { const p = surface0(u, y, back); return ND && !back ? ND.apply(p, u, y) : p; }
+  // the underside's quad, for the painter (face-paint.js `noseUnder`): two triangles on the front plane
+  if (ND && options.paint) { const [a, b, c, d] = ND.under.map(([x, Y]) => [x, Y, ND.tip[1]]); parts.noseUnder = [...a, ...b, ...c, ...a, ...c, ...d]; }
 
   const xs0 = options.coarse ? [-1, -0.8, -0.63, -0.46, -0.29, -0.26, -0.12, -0.06, 0, 0.06, 0.12, 0.26, 0.29, 0.46, 0.63, 0.8, 1] : [-1, -0.95, -0.9, -0.85, -0.8, -0.715, -0.63, -0.545, -0.46, -0.375, -0.29, -0.26, -0.205, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.205, 0.26, 0.29, 0.375, 0.46, 0.545, 0.63, 0.715, 0.8, 0.85, 0.9, 0.95, 1];
   const ys0 = options.coarse ? [-1.02, -0.98, -0.90, -0.74, -0.66, -0.53, -0.40, -0.30, -0.22, -0.085, 0.05, 0.185, 0.32, 0.50, 0.65, 0.78, 0.92, 1.04, 1.10, 1.16, 1.19] : [-1.02, -0.98, -0.94, -0.90, -0.86, -0.82, -0.78, -0.74, -0.70, -0.66, -0.6275, -0.595, -0.5625, -0.53, -0.4975, -0.465, -0.4325, -0.40, -0.35, -0.30, -0.26, -0.22, -0.1525, -0.085, -0.0175, 0.05, 0.1175, 0.185, 0.2525, 0.32, 0.38, 0.44, 0.50, 0.56, 0.62, 0.68, 0.74, 0.80, 0.86, 0.92, 0.98, 1.04, 1.10, 1.13, 1.16, 1.18, 1.19];
@@ -201,8 +212,11 @@ export function buildAnime(r, options = {}) {
   // column and row, keeping the nose's columns (|u| ≤ 0.16) and its rows (−0.35 ≤ y ≤ −0.05) whole, where its bump lives;
   // symmetric about the middle column, the ends kept
   const thin = options.paint && !options.paint.dense && !options.coarse;
-  const xs = thin ? xs0.filter((x, k) => k % 2 === 0 || Math.abs(x) <= 0.16) : xs0;
-  const ys = thin ? ys0.filter((y, k) => k % 2 === 0 || k === ys0.length - 1 || (y >= -0.35 && y <= -0.05)) : ys0;
+  const xs1 = thin ? xs0.filter((x, k) => k % 2 === 0 || Math.abs(x) <= 0.16) : xs0;
+  const ys1 = thin ? ys0.filter((y, k) => k % 2 === 0 || k === ys0.length - 1 || (y >= -0.35 && y <= -0.05)) : ys0;
+  // the nose dials' own rows and columns (the stop, the tip, the underside, the chin; the wedge's edges), merged in
+  const merge = (a, extra, lo, hi) => [...new Set([...a, ...extra.filter((v) => v > lo && v < hi).map((v) => Math.round(v * 1e4) / 1e4)])].sort((p, q) => p - q);
+  const xs = ND ? merge(xs1, ND.cols, -1, 1) : xs1, ys = ND ? merge(ys1, ND.rows, ys1[0], ys1.at(-1)) : ys1;
   // mouthWidth past the studio's aperture: the mouth box widens to the first lattice column that clears the smiling line
   const MB = S?.mouthWidth > 1 ? xs0.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
   const holes = [{ kind: 'eye', side: -1, x0: -0.8, x1: -0.12, y0: -0.22, y1: 0.32 }, { kind: 'eye', side: 1, x0: 0.12, x1: 0.8, y0: -0.22, y1: 0.32 }, { kind: 'mouth', side: 0, x0: MB ? -MB : -0.26, x1: MB ? MB : 0.26, y0: -0.66, y1: -0.40 }];
@@ -701,7 +715,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
-  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
+  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot, ...(ND ? { nose: { box: ND.box, width: ND.width, keep: ND.keep } } : {}) };
 }
 
 /** The SCULPT's neutral values (buildAnime's own units): a word equal to its neutral is dropped before the build, so an

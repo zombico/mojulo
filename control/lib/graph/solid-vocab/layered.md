@@ -426,7 +426,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the iris dark at the top and light at the bottom. Below a close-up's tier the face's skin is a thinned lattice (a
   `target` at T3 or T4, a close-up or 4K, keeps it whole). The soft edge is `toon.light.soft` (the band's width in N·L,
   0.24 by default here; 0 the hard step), on every group without a highlight. The readout's `painterly` names the
-  look's built conventions and the planned ones still missing. Not yet: the painted face on the rig (the clip preview
+  look's built conventions and the planned ones still missing. THE NOSE DIALS, `painterly: { nose: { profile, width } }`
+  (each 0..1, 0.5 by default): `profile` draws the face's side between the CAT edge (0: a deep stop, a long bridge to a
+  sharp tip, the mouth a notch on one receding slope) and a ZELDA-like nose (1: a small distinct nose, a soft tip, the
+  lips a little forward); `width` takes the nose from a POINTER (0, a sliver underneath) to a TRAPEZOID underside (1,
+  painted dark). Not yet: the painted face on the rig (the clip preview
   and the skinned GLB show the face blank, and its expression channels are skipped), and under a geocube's cast light.
 <!-- /section -->
 <!-- section: hero-genki | Genki | the shonen spirit as one amount over the look -->

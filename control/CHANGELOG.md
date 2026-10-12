@@ -13,6 +13,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Nose dials: the painterly face's side, from the cat read to a Zelda-like nose
+
+- **`painterly: { nose: { profile, width } }`** (each 0..1, defaults 0.5 / 0.5; `painterly: true` takes the defaults).
+  Validated at the hero door; stored only as given. Without `painterly`, every hero is byte-identical.
+- **`profile`** (`polygonizer/anime-nose.js`) draws the face's midline to a target side profile between two edges, in
+  nose-to-chin units from the nose tip: 0 the CAT edge (a deep stop, a long bridge to a sharp tip, the underside cut
+  back, the mouth a notch on one receding slope), 1 the ZELDA-like edge (a shallow stop, a small distinct nose, the lips
+  a little forward, a rounder chin). The target splits in two: the face line (the profile without the nose), carried
+  across the whole lower face so the cheeks recede with it and fading to nothing at the shell's side seam; and the nose,
+  a wedge on that line. Under the dials the studio's soft nose is off; the anchor (tip, chin) is still the studio face's.
+- **`width`** sets the wedge's top and its underside: 0 a pointer (a sliver underneath), 1 a trapezoid, narrow at the
+  tip and wide at the face. The underside is painted (`noseUnder`), darker as it widens.
+- **The nose keeps its own normals.** The face shades from its capsule stand-in; inside the wedge it keeps its own
+  (`paint.noseKeep`), so the nose has a shade side and an underside at three-quarter.
+- **Not yet.** The jaw line and the chin's corner under the dial; the male's pass.
+
 ### Painted face: the anime hero's painterly look, a painted face on a smooth head and a soft edge to its light
 
 - **`painterly: true`** on an anime hero (the hero door, `create_character` / `update_character`) draws it as a
