@@ -25,8 +25,9 @@ describe('the workbench card', () => {
   it('moved its text and rewrote none: the body is the card as it was before the marks', () => {
     // The pre-ladder card (76,695 bytes after its frontmatter). An intended edit to the card's text re-pins this.
     // 76_695 at the ladder; 76_972 with the furniture-fittings merge (the stagger and lone-cam dowel lines, in `furniture`);
-    // 77_434 with the solid ladder's `ask` paragraph under Spec shape.
-    expect(bytes(card.body)).toBe(77_434);
+    // 77_434 with the solid ladder's `ask` paragraph under Spec shape; 77_821 with a frame's `teardown` (the spec line
+    // and its sentence after `explode` in `frames`).
+    expect(bytes(card.body)).toBe(77_821);
     expect(createHash('sha256').update(card.body).digest('hex').slice(0, 16)).toBe(BODY_SHA);
     // and the marks are the only lines the file adds
     const raw = readFileSync(join(process.cwd(), 'lib/graph/solid-vocab/workbench.md'), 'utf8');
@@ -171,4 +172,4 @@ describe('the worked examples', () => {
 
 // sha256 of the card's body: '8967727614d0f567' at the ladder (git show HEAD:…/workbench.md before it); re-pinned on
 // merging 1006-furniture-collisions, whose furniture-section edits are the only change. Re-pin only on a deliberate text edit.
-const BODY_SHA = 'b3e88dbc7b0fc2cc';
+const BODY_SHA = '696208d6d42d9d79';

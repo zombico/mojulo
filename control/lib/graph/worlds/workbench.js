@@ -46,6 +46,8 @@ import { auditClosure } from '../polygonizer/face-closure.js';
 import { rasterSampler, analyzeSkin, bakeSkinOntoFaces } from '../polygonizer/skin-projection.js';
 import { scaffoldViewBox } from '../polygonizer/faces-scaffold-svg.js';
 import { mergeExactFaces } from '../scad/coplanar-merge.js';
+import { teardownStillFaces, teardownMovers, teardownReach } from '../playscape/destruct/teardown.js';
+import { teardownOf } from '../playscape/destruct/teardown-spec.js';
 import { lowerFrame, validateFrames, frameStamps, FRAME_UNITS } from '../construction/frame.js';
 import { expandBuild } from '../construction/furniture-builds.js';
 import { shapeLegs } from '../construction/legs.js';
@@ -170,6 +172,10 @@ export function lowerObjectFaces(manifest, light) {
 
 /** A frame's faces; a build's legs drawn in the frame's `legs` form (construction/legs.js), absent → as lowered. */
 function frameFaces(spec, light) {
+  // a `teardown` (playscape/destruct/teardown.js) is drawn from the piece at rest: a still moves its faces here, a
+  // played one rides the mover channel (assembleWorkbenchScene). It supersedes `explode`. Absent → as lowered.
+  const td = teardownOf(spec.teardown);
+  if (td) { const { teardown: _t, explode: _e, ...rest } = spec; return td.still ? teardownStillFaces(spec, frameFaces(rest, light)) : frameFaces(rest, light); }
   const { faces } = lowerFrame(spec, { light });
   if (!spec.legs || spec.legs === 'block' || !spec.build) return faces;
   const unit = spec.unit || 'cm';
@@ -356,7 +362,8 @@ function turntableCameras(bounds, yaw = 0) {
 const STUDIO_PANEL_INFLATE = 1.05;
 
 export function studioSceneFromFaces(objectFaces = [], opts = {}) {
-  const bounds = boundsOf(objectFaces) || { min: [-5, -5, 0], max: [5, 5, 5], center: [0, 0, 2.5], radius: 7 };
+  // `frameTo` (a played teardown's reach) frames the cameras and floor to more than the faces at rest; absent → the faces
+  const bounds = boundsOf(Array.isArray(opts.frameTo) ? opts.frameTo : objectFaces) || { min: [-5, -5, 0], max: [5, 5, 5], center: [0, 0, 2.5], radius: 7 };
   // `grid: false` drops the measured floor + grid (a bare studio for a product shot); default keeps the scale cue.
   const floor = opts.grid === false ? { faces: [], grounds: [] } : measuredFloor(bounds);
   const viewBox = opts.viewBox && typeof opts.viewBox === 'object' ? opts.viewBox : { width: 900, height: 900 };
@@ -408,7 +415,11 @@ export function assembleWorkbenchScene(opts = {}) {
   // AND the skin re-bake so a flat-albedo export carries no directional term.
   // `opts.toon` (world-scene ctx.toon) bands the key: withBands is a no-op on FLAT_LIGHT and absent bands.
   const light = withBands(opts.light || WORKBENCH_LIGHT, resolveToon(opts.toon)?.bands);
-  return studioSceneFromFaces(bakeBoundSkinFaces(lowerObjectFaces(opts, light), opts.skin, opts, light), opts);
+  const faces = bakeBoundSkinFaces(lowerObjectFaces(opts, light), opts.skin, opts, light);
+  // a frame's played teardown joins the authored movers; none → opts pass through untouched
+  const played = Array.isArray(opts.frames) ? teardownMovers(opts.frames, faces) : [];
+  // and the cameras and floor are framed to hold the piece both together and apart
+  return studioSceneFromFaces(faces, played.length ? { ...opts, movers: [...(Array.isArray(opts.movers) ? opts.movers : []), ...played], frameTo: [...faces, ...teardownReach(opts.frames, faces)] } : opts);
 }
 
 /** /scene + PNG path: CSS-3D preset-shot HTML. (The /world route calls assembleWorkbenchScene → emitThreeWorld.) */

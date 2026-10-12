@@ -58,6 +58,7 @@ import { worldBox } from './furniture-joints.js';
 import { coverLayout, coverSummary, coverStamps } from './covers.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
+import { teardownError, teardownOf } from '../playscape/destruct/teardown-spec.js';
 
 export const FRAME_UNITS = Object.freeze({ mm: 0.001, cm: 0.01, m: 1, in: 0.0254, ft: 0.3048 });
 export const FIGURE_MODES = Object.freeze(['full', 'coarse', 'flat']);
@@ -111,6 +112,8 @@ export function validateFrames(frames) {
     errors.push(...validateMasonry(f, at));
     units += masonryUnits(f, FRAME_UNITS[f.unit || 'cm']);
     if (f.layout !== undefined && f.layout !== 'kit') errors.push(`${at}.layout: 'kit' (every part laid flat to print), or leave it out`);
+    const te = teardownError(f0.teardown, `${at}.teardown`); if (te) errors.push(te);
+    if (teardownOf(f0.teardown) && f.layout === 'kit') errors.push(`${at}.teardown: a kit lays every part flat; give the frame a teardown or a kit layout, not both`);
     if (f.kitGap !== undefined && !(Number.isFinite(f.kitGap) && f.kitGap >= 0)) errors.push(`${at}.kitGap: a distance in the frame's unit, ≥ 0`);
     if (f.shelfLoad !== undefined && !(Number.isFinite(f.shelfLoad) && f.shelfLoad >= 0)) errors.push(`${at}.shelfLoad: kg per metre, a number ≥ 0`);
     if (fabricError(f.fabric)) errors.push(`${at}.${fabricError(f.fabric)}`);
@@ -502,20 +505,10 @@ function lowerFrameIn(spec0, { light = DEFAULT_LIGHT, eyes = null, instance = fa
   if (spec.layout === 'kit') { const k = layKit(faces, members, drawn, unitScale, Number.isFinite(spec.kitGap) ? spec.kitGap : 5 / (unitScale * 1000), { soft, ownerOf }); faces.length = 0; faces.push(...k.faces); kit = k.report; }
   // the exploded view: each member back along the way it seats; a piece with its host, then out along its own way
   if (!kit && Number.isFinite(spec.explode) && spec.explode > 0) {
-    const k = spec.explode; const off = new Map();
-    // later members pull back further, so two that seat the same way (a splice's halves) still come apart
-    let rank = 0;
-    for (const id of assembly.order || members.map((M) => M.id)) {
-      const v = (byId.has(id) || softIds.has(id)) && assembly.moves[id]; if (!v) continue;
-      const kk = k * (1 + 0.5 * Math.min(4, rank++)); off.set(id, v.map((x) => -x * kk));
-    }
-    // a sub-assembly pulls back as one, along the way it joins the rest
-    // (the one the rest join, first in the order, stays put)
-    for (const sa of assembly.subassemblies || []) { if (softSpecs.length && assembly.order && sa.parts.includes(assembly.order[0])) continue; for (const id of sa.parts) { const o = off.get(id) || [0, 0, 0]; off.set(id, o.map((x, i) => x - sa.dir[i] * k * 2)); } }
-    for (const p of drawn) {
-      const h = off.get(p.host.id) || [0, 0, 0]; const v = assembly.moves[p.id] || [0, 0, 0];
-      off.set(p.id, h.map((x, i) => x - v[i] * k * 1.2));
-    }
+    const off = explodeOffsets(explodeParts(assembly, {
+      k: spec.explode, order: assembly.order || members.map((M) => M.id), isPart: (id) => byId.has(id) || softIds.has(id),
+      pieces: drawn.map((p) => ({ id: p.id, host: p.host.id })), soft: softSpecs.length > 0,
+    }));
     for (const f of faces) { const o = off.get(ownerOf.get(f.group) || f.group) || off.get(String(f.group).replace(/:rebar$/, '')); if (o) f.corners = f.corners.map((c) => [c[0] + o[0], c[1] + o[1], c[2] + o[2]]); }
   }
   // the covers: the soft parts cut flat and laid on the roll, one layout for each cloth
@@ -569,6 +562,39 @@ function lowerFrameIn(spec0, { light = DEFAULT_LIGHT, eyes = null, instance = fa
     return { id: p.id, kind: p.kind, host: p.host.id, ...(p.code ? { code: p.code } : {}), ...(p.pre ? { pre: p.pre } : {}), needs: e && e.needs ? e.needs : [p.host.id] };
   });
   return { faces, repeats, report, seat: assembly.moves, parts, ...(covers.length ? { covers, clothSpecs } : {}), ...(Array.isArray(spec.supplied) ? { supplied: spec.supplied } : {}), ...(softSpecs.length ? { soft: soft.map((L) => ({ id: L.row.id, extras: L.extras, lightness: L.fabric.lightness, frame: L.frame, pleats: L.pleats, ...(L.row.kind ? { kind: L.row.kind } : {}), ...(softSpecs.find((s) => s.id === L.row.id).group ? { group: softSpecs.find((s) => s.id === L.row.id).group } : {}) })) } : {}) };
+}
+
+/**
+ * The exploded view's law, as its parts: each member back along the way it seats, later members further (so two that
+ * seat the same way, a splice's halves, still come apart); a sub-assembly back as one along the way it joins the rest
+ * (the one the rest join, first in the order, stays put when the frame has soft parts); a piece with its host, then
+ * out along its own way. `k` is the distance in the frame's unit; `order` the assembly order; `isPart(id)` whether an
+ * id is a member or soft part; `pieces` the drawn loose pieces [{ id, host }]. The terms are kept apart so a teardown
+ * can move each on its own step; explodeOffsets sums them in the order the static view always has.
+ *   → { self: Map id → offset, subs: [{ i, parts, d }], pieces: [{ id, host, d }] }   (`d` is subtracted)
+ */
+export function explodeParts(assembly, { k, order, isPart, pieces = [], soft = false }) {
+  const self = new Map();
+  let rank = 0;
+  for (const id of order) {
+    const v = isPart(id) && assembly.moves[id]; if (!v) continue;
+    const kk = k * (1 + 0.5 * Math.min(4, rank++)); self.set(id, v.map((x) => -x * kk));
+  }
+  const subs = [];
+  (assembly.subassemblies || []).forEach((sa, i) => {
+    if (soft && assembly.order && sa.parts.includes(assembly.order[0])) return;
+    subs.push({ i, parts: sa.parts, d: sa.dir.map((x) => x * k * 2) });
+  });
+  const out = pieces.map((p) => ({ id: p.id, host: p.host, d: (assembly.moves[p.id] || [0, 0, 0]).map((x) => x * k * 1.2) }));
+  return { self, subs, pieces: out };
+}
+
+/** Sum explodeParts' terms into one offset per part and piece: id → [x, y, z]. */
+export function explodeOffsets({ self, subs, pieces }) {
+  const off = new Map(self);
+  for (const sa of subs) for (const id of sa.parts) { const o = off.get(id) || [0, 0, 0]; off.set(id, o.map((x, i) => x - sa.d[i])); }
+  for (const p of pieces) { const h = off.get(p.host) || [0, 0, 0]; off.set(p.id, h.map((x, i) => x - p.d[i])); }
+  return off;
 }
 
 /**

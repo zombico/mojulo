@@ -13,6 +13,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Teardown: exploded views, disassembly and construction, in order
+
+- **A piece's teardown, read off what it already knows.** `teardownPlan` / `teardownTracks`
+  (`playscape/destruct/teardown.js`) turn a workbench `frames` entry into ordered steps: its instruction manual's
+  steps, each with the parts that move and the way they seat. They then turn the steps into per-part offset tracks:
+  `exploded` (held open), `disassemble`, and `assemble` (the same tracks reversed in time). The defaults need nothing
+  authored: the order is the manual's, the distance is 12% of the piece's largest side, and each step is 0.6 s with a
+  0.25 s hold. Pure, with the same bytes for the same piece.
+- **`teardown` on a workbench frame.** A `frames` entry (a buildable furniture piece's included) takes
+  `teardown: true | 'exploded' | 'assemble' | 'disassemble' | { show, at?, seconds?, distance? }`.
+  - The exploded still and any `at` move the faces: what `export_model` and the World show.
+  - `assemble` and `disassemble` play in the World on the mover channel, one mover per face group, so `forge_motion`
+    records them. The cameras and floor are framed to hold the piece apart as well as together.
+  - The frame validator names the shows. A teardown supersedes `explode`, and refuses a `kit` layout.
+  - Absent or `false`: byte-identical.
+- **A moved group carries its texture.** In the World page, a mover on a textured group now moves the group's
+  texture sub-meshes with it: the wood goes with the part, and a labelled lid swings with its label. This is emitted
+  only when a mover moves a textured group; every other page is byte-identical.
+- **One explode law.** A frame's static `explode` and the teardown's exploded pose are now the same function
+  (`explodeParts` in `construction/frame.js`), so the two agree to 1e-9. `explode` renders byte-for-byte as before.
+
 ### Geocube: one style for a level's inside and outside, and the front door for building one
 
 - **`geocube`, a world kind.** A cube is a level's core look as data: its light (a sixth-gen reference, the moon for a night outside, the outside's fog), its key colours (each a ramp), its register, its surfaces' patterns, the bones of its inside, the base of its outside and its principles, one line each. `{ kind: 'geocube', cube, show: 'room' | 'land' }` shows one of its two specimens: a bare room (the bones, an accent wall) or an island landform. `cube` is a preset (`gothic-night`, `island-noon`, `jungle-haze`) or a whole document; a document is checked key by key.
