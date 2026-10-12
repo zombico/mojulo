@@ -13,7 +13,7 @@
  *   ADORNMENT_PIECES                                  the kit: what each piece is and what it serves
  *   suggestAdornment(chassis, thing, { motif, rank }) → [{ piece, socket, serves, why }]   (a proposal, with its reasons)
  *   adornManifest(chassis, picks, { motif, fit })    → { monomers by kind, pieces }        (the pieces as monomers)
- *   buildAdorned(thing, { kind, direction, rank })   → the chassis with its adornment, read and held to every law
+ *   buildAdorned(thing, { kind, direction, rank, use }) → the chassis with its adornment, read and held to every law
  *
  * Pure; no dice.
  */
@@ -181,19 +181,19 @@ export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8 } = {}
  * when a quieter rank shows too many silhouette segments; what stands past the outline added, by motif, when a louder
  * rank shows too few.
  */
-export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', picks: given, passes = 8 } = {}) {
+export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', use = 'watched', picks: given, passes = 8 } = {}) {
   const motif = direction.motif ?? 'smooth', style = direction.style ?? 'wc3', camera = direction.camera ?? 'third-person';
-  const pxm = pxPerMetre(meetDistance(camera, t.block.tier)), limit = TECH_STYLES[style].facetPx;
-  const base = buildChassis(t, { kind, direction, rank });
+  const pxm = pxPerMetre(meetDistance(camera, t.block.tier, use)), limit = TECH_STYLES[style].facetPx;
+  const base = buildChassis(t, { kind, direction, rank, use });
   let res = base.res, thick = { ...base.thick }, tuck = 1, extra = [], out;
   const log = [];
   for (let p = 0; p < passes; p++) {
-    const c = chassisManifest(t, { kind, motif, style, camera, res, thick, tuck }), { fit } = fitter(pxm, limit[1], res);
+    const c = chassisManifest(t, { kind, motif, style, camera, use, res, thick, tuck }), { fit } = fitter(pxm, limit[1], res);
     const read = (picks) => {
       const A = adornManifest(c, picks, { motif, fit });
       const manifest = { ...c.manifest, extrudes: [...(c.manifest.extrudes ?? []), ...A.extrudes], lathes: [...(c.manifest.lathes ?? []), ...A.lathes], sweeps: [...(c.manifest.sweeps ?? []), ...A.sweeps] };
       const pieces = { ...c.pieces, ...A.pieces }, faces = lowerChassis(manifest, pieces);
-      return { manifest, pieces, faces, readout: techReadout(faces, { tier: t.block.tier, rank, camera, style }) };
+      return { manifest, pieces, faces, readout: techReadout(faces, { tier: t.block.tier, rank, use, camera, style }) };
     };
     let picks = given ?? [...suggestAdornment(c, t, { motif, rank }), ...extra.filter((e) => c.sockets.some((x) => x.id === e.socket))], r = read(picks);
     // under its rank's silhouette floor: what stands past the outline, by motif, until the floor is met
@@ -217,10 +217,10 @@ export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', p
     log.push(entry);
     if (!failed.length || p === passes - 1) break;
     const changed = [], F = readout.facetPx;
-    const bothWays = failed.some((l) => l.law === 'facets') && F.widest > limit[1] && failed.some((l) => l.law === 'hero-leads');
-    if (bothWays) { out.conflict = { laws: ['facets', 'hero-leads'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot round its masses under ${limit[1]} px and spend under ${readout.ceiling} triangles`, proposal: `a louder rank (${rank === 'prop' ? 'interactable' : 'focus'}), fewer rounds in its body plan, or a further camera` }; entry.changed = ['conflict named']; break; }
-    if (failed.some((l) => l.law === 'facets') && F.widest > limit[1] && res < 4) { res = Math.round(Math.min(4, res * Math.max(1.15, F.widest / limit[1])) * 1000) / 1000; changed.push(`res ${res} (facets ${F.widest} px)`); }
-    else if ((failed.some((l) => l.law === 'facets') && F.median < limit[0] && F.wasted > 0.25) || failed.some((l) => l.law === 'hero-leads')) { if (res > 0.4) { res = Math.round(Math.max(0.4, res * 0.8) * 1000) / 1000; changed.push(`res ${res} (${F.median < limit[0] ? 'facets wasted' : 'the hero leads'})`); } }
+    const bothWays = failed.some((l) => l.law === 'facets') && F.widest > limit[1] && failed.some((l) => l.law === 'budget');
+    if (bothWays) { out.conflict = { laws: ['facets', 'budget'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot round its masses under ${limit[1]} px and spend under ${readout.ceiling} triangles (a ${use} ${rank})`, proposal: `a louder rank (${rank === 'prop' ? 'interactable' : 'focus'}), a nearer use, fewer rounds in its body plan, or a further camera` }; entry.changed = ['conflict named']; break; }
+    if (failed.some((l) => l.law === 'facets') && F.widest > limit[1] && res < 4) { res = Math.round(Math.min(4, res * Math.max(1.05, F.widest / limit[1])) * 1000) / 1000; changed.push(`res ${res} (facets ${F.widest} px)`); }
+    else if ((failed.some((l) => l.law === 'facets') && F.median < limit[0] && F.wasted > 0.25) || failed.some((l) => l.law === 'budget')) { if (res > 0.4) { res = Math.round(Math.max(0.4, res * 0.8) * 1000) / 1000; changed.push(`res ${res} (${F.median < limit[0] ? 'facets wasted' : 'over budget'})`); } }
     if (failed.some((l) => l.law === 'one-leads')) { thick = { ...thick, [c.lead]: Math.round((thick[c.lead] ?? 1) * 1.12 * 1000) / 1000 }; changed.push(`${c.lead} × ${thick[c.lead]} (one leads)`); }
     if (readout.segments > readout.segmentBand[1]) {
       if (extra.length) { extra = extra.slice(0, -1); changed.push('one stander fewer (too many segments)'); }
@@ -229,8 +229,8 @@ export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', p
     entry.changed = changed;
     // two laws that pull the resolution against each other (facets up, the hero's lead down) cannot both hold for this
     // brief: the solver names it, and what would settle it, rather than swing between them
-    const swing = log.length >= 3 && log.slice(-3).every((e) => e.failed.includes('facets') || e.failed.includes('hero-leads')) && log.at(-1).failed.includes('hero-leads') !== log.at(-2).failed.includes('hero-leads');
-    if (swing) { out.conflict = { laws: ['facets', 'hero-leads'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot round its masses under ${limit[1]} px and spend under ${readout.ceiling} triangles`, proposal: `a louder rank (${rank === 'prop' ? 'interactable' : 'focus'}), fewer rounds in its body plan, or a further camera` }; break; }
+    const swing = log.length >= 3 && log.slice(-3).every((e) => e.failed.includes('facets') || e.failed.includes('budget')) && log.at(-1).failed.includes('budget') !== log.at(-2).failed.includes('budget');
+    if (swing) { out.conflict = { laws: ['facets', 'budget'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot round its masses under ${limit[1]} px and spend under ${readout.ceiling} triangles (a ${use} ${rank})`, proposal: `a louder rank (${rank === 'prop' ? 'interactable' : 'focus'}), a nearer use, fewer rounds in its body plan, or a further camera` }; break; }
     if (!changed.length) break;
   }
   return { ...out, passes: log };

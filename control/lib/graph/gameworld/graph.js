@@ -53,7 +53,7 @@ export function gameworldGraph(world) {
     edge(cn, fortN(C.fort), 'raises');
     for (const [tid, t] of Object.entries(C.technology?.things ?? {})) edge(cn, node(`thing:${cid}/${tid}`, 'thing', tid, { tier: t.block.tier, functions: t.block.functions, intent: t.intent }), 'makes');
     const TD = resolveTechDirection(G, cid);
-    for (const [list, [kind, verb]] of Object.entries(CRAFT_NODES)) for (const [tid, t] of Object.entries(C.technology?.[list] ?? {})) edge(cn, node(`${kind}:${cid}/${tid}`, kind, tid, { form: t.form, variant: t.variant, tier: t.block.tier, rank: TD.ranks[`${list}/${tid}`].rank, functions: t.block.functions, intent: t.intent, ...(t.carries ? { carries: t.carries } : {}) }), verb);
+    for (const [list, [kind, verb]] of Object.entries(CRAFT_NODES)) for (const [tid, t] of Object.entries(C.technology?.[list] ?? {})) edge(cn, node(`${kind}:${cid}/${tid}`, kind, tid, { form: t.form, variant: t.variant, tier: t.block.tier, rank: TD.ranks[`${list}/${tid}`].rank, use: TD.ranks[`${list}/${tid}`].use, functions: t.block.functions, intent: t.intent, ...(t.carries ? { carries: t.carries } : {}) }), verb);
   }
   edge('world', `civilization:${G.style.civilization}`, 'styled', { key: 'civilization' });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildAdorned } from './tech-adornment.js';
 import { craftTech } from './tech-crafter.js';
-import { rankOf, MOTIF_IDS } from './tech-direction.js';
+import { rankOf, useOf, MOTIF_IDS } from './tech-direction.js';
 import { BODY_PLANS } from './tech-bodyplan.js';
 
 // every body plan, by the words that reach it, through every motif and every camera: the solver's proof
@@ -16,21 +16,23 @@ describe('the solver, swept', () => {
     expect([...forms].sort()).toEqual(Object.keys(BODY_PLANS).sort());
   });
 
-  it('every brief × motif × camera holds every law, or names the conflict that stops it', () => {
+  it('every brief × motif × camera, met by its use, holds every law at person scale, or names the conflict that stops it', () => {
     let held = 0, n = 0;
     const named = [];
     for (const [kind, intent] of BRIEFS) {
-      const t = { ...craftTech(kind, intent).plan, intent }, rank = rankOf(LIST[kind], t).rank;
+      const t = { ...craftTech(kind, intent).plan, intent }, rank = rankOf(LIST[kind], t).rank, use = useOf(LIST[kind], t).use;
       for (const motif of MOTIF_IDS) for (const camera of ['third-person', 'top-down', 'first-person']) {
-        const a = buildAdorned(t, { kind, direction: { motif, camera }, rank });
+        const a = buildAdorned(t, { kind, direction: { motif, camera }, rank, use });
         n++;
         if (a.held) { held++; continue; }
         expect(a.conflict, `${intent} ${motif} ${camera}: ${JSON.stringify(a.laws.filter((l) => !l.ok))}`).toBeTruthy();
         named.push(`${intent} ${motif} ${camera}`);
       }
     }
-    // the conflicts are the close camera's: a walker met at arm's length cannot round its masses under the hero's lead
-    expect(named.every((x) => x.endsWith('first-person'))).toBe(true);
-    expect(held / n).toBeGreaterThan(0.97);
+    // designed at person scale, with a budget by use. What still names a conflict is a driven vehicle's organic hull seen
+    // flat-shaded from its own cockpit: its rounds need more points than the cap to read under the facet limit. Shading
+    // its soft edges smooth (pixels, not polygons) is what settles it
+    expect(named.every((x) => x.endsWith('first-person') && / organic /.test(x)), named.join(' | ')).toBe(true);
+    expect(held / n).toBeGreaterThan(0.99);
   }, 600000);
 });

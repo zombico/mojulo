@@ -51,7 +51,7 @@ describe('the adornment', () => {
   it('a brief that cannot hold names its conflict and what would settle it, rather than swing', () => {
     const a = buildAdorned(thing('vehicle', 'a cargo walker'), { kind: 'vehicle', direction: { motif: 'smooth', camera: 'first-person' }, rank: 'interactable' });
     expect(a.held).toBe(false);
-    expect(a.conflict).toMatchObject({ laws: ['facets', 'hero-leads'] });
+    expect(a.conflict).toMatchObject({ laws: ['facets', 'budget'] });
     expect(a.conflict.proposal).toMatch(/a louder rank \(focus\)/);
   }, 30000);
 

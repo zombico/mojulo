@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readTechDirection, resolveTechDirection, teamColour, rankOf, techCamera, motifOf, MOTIFS, MOTIF_IDS, TEAM_COLOURS } from './tech-direction.js';
+import { readTechDirection, resolveTechDirection, teamColour, rankOf, useOf, techCamera, motifOf, MOTIFS, MOTIF_IDS, TEAM_COLOURS, USES_BY_LIST } from './tech-direction.js';
 import { readGameworld, resolveWorld, HALDEN_REACH, MEADOWMARK, composeGameworld } from './index.js';
 import { reviewParts } from './review.js';
 import { gameworldGraph } from './graph.js';
@@ -38,7 +38,7 @@ describe('the technology direction: resolved, every default saying where it came
     const D = resolveTechDirection(readGameworld(W({ finish: 'iron-and-timber', vehicles: { cart: 'a cart' } })), 'folk');
     expect(D).toMatchObject({ style: 'wc3', camera: 'first-person', motif: 'riveted', elements: {}, tone: null, team: TEAM_COLOURS[0], ledger: [] });
     expect(D.from).toMatchObject({ style: 'default', motif: 'its finish (iron-and-timber)', team: 'the civilization\'s place (1 of 2)' });
-    expect(D.ranks['vehicles/cart']).toEqual({ rank: 'prop', why: 'a cart: it is drawn, not ridden' });
+    expect(D.ranks['vehicles/cart']).toEqual({ rank: 'prop', why: 'a cart: it is drawn, not ridden', use: 'watched', useWhy: 'a cart: drawn, not driven' });
     // with a hero, the world is met third person
     expect(techCamera({ characters: {} })).toBe('third-person');
     expect(techCamera({ camera: 'top-down' })).toBe('top-down');
@@ -52,7 +52,7 @@ describe('the technology direction: resolved, every default saying where it came
       { scope: 'civilization', at: 'folk/technology', key: 'motif', world: 'smooth', local: 'spiked' },
       { scope: 'civilization', at: 'folk/technology', key: 'team', world: TEAM_COLOURS[0], local: '#112233' },
     ]);
-    expect(D.ranks).toEqual({ 'structures/gate': { rank: 'focus', why: 'a gate: the level is read by it' }, 'weapons/blade': { rank: 'interactable', why: 'a weapon in the hand: it is used' } });
+    expect(D.ranks).toEqual({ 'structures/gate': { rank: 'focus', why: 'a gate: the level is read by it', use: 'watched', useWhy: 'a gate: the level shows it' }, 'weapons/blade': { rank: 'interactable', why: 'a weapon in the hand: it is used', use: 'held', useWhy: 'a weapon in the hand' } });
   });
 
   it('a team colour is a marker a placement may pass; the civilization\'s is the default', () => {
@@ -71,6 +71,20 @@ describe('the technology direction: resolved, every default saying where it came
     expect(rankOf('structures', t('bridge', 'bridge', 'landmark', ['pass'])).rank).toBe('interactable');
     expect(rankOf('things', t('x', 'x', 'machine', ['make'])).rank).toBe('prop');
   });
+
+  it('a thing is watched, held or driven, by what it is; a world may say otherwise, within what its list allows', () => {
+    const t = (form, variant, tier, functions) => ({ form, variant, block: { tier, functions } });
+    expect(useOf('weapons', t('blade', 'sword', 'held', ['strike'])).use).toBe('held');
+    expect(useOf('weapons', t('cannon', 'cannon', 'machine', ['strike'])).use).toBe('watched');
+    expect(useOf('vehicles', t('walker', 'walker', 'machine', ['move'])).use).toBe('driven');
+    expect(useOf('vehicles', t('drawn', 'cart', 'machine', ['move', 'carry'])).use).toBe('watched');
+    expect(useOf('structures', t('tower', 'tower', 'landmark', ['signal'])).use).toBe('watched');
+    expect(USES_BY_LIST.structures).toEqual(['watched']);
+    const D = resolveTechDirection(readGameworld(W({ vehicles: { v: { intent: 'an armoured walker', use: 'watched' } } })), 'folk');
+    expect(D.ranks['vehicles/v']).toMatchObject({ use: 'watched', useWhy: 'said' });
+    expect(D.ledger).toContainEqual({ scope: 'thing', at: 'folk/technology/vehicles/v', key: 'use', world: 'driven', local: 'watched' });
+    expect(() => readGameworld(W({ vehicles: { v: { intent: 'an armoured walker', use: 'held' } } }))).toThrow(/not a use for its vehicles \(driven, watched\)/);
+  });
 });
 
 describe('the technology direction in the world', () => {
@@ -79,10 +93,10 @@ describe('the technology direction in the world', () => {
     const S = resolveTechDirection(G, 'survey-corps'), D = resolveTechDirection(G, 'dome-growers');
     expect(S).toMatchObject({ motif: 'smooth', elements: { primary: 'lightning' }, team: TEAM_COLOURS[0] });
     expect(S.from.motif).toMatch(/^its builds/);
-    expect(S.ranks['vehicles/walker']).toEqual({ rank: 'focus', why: 'said' });
+    expect(S.ranks['vehicles/walker']).toEqual({ rank: 'focus', why: 'said', use: 'driven', useWhy: 'it can be ridden' });
     expect(D.team).toBe(TEAM_COLOURS[1]);
     expect(reviewParts(HALDEN_REACH).filter((p) => p.id.startsWith('tech:')).map((p) => p.id)).toEqual(['tech:survey-corps', 'tech:dome-growers']);
-    expect(gameworldGraph(HALDEN_REACH).nodes.find((n) => n.id === 'vehicle:survey-corps/walker')).toMatchObject({ rank: 'focus', form: 'walker' });
+    expect(gameworldGraph(HALDEN_REACH).nodes.find((n) => n.id === 'vehicle:survey-corps/walker')).toMatchObject({ rank: 'focus', use: 'driven', form: 'walker' });
     const a = gameworldBibleHtml(HALDEN_REACH);
     expect(a).toContain('id="tech-survey-corps"');
     expect(a).toContain('Its technology: the direction');

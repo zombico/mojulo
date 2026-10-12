@@ -1,8 +1,8 @@
 /**
  * TECH READOUT — a crafted thing read through the world's camera (tech-eras.js): how wide its facets read on today's
  * screen at the distance its tier is met at (the widest, against the style's limit: chunky is the look, crude is not;
- * the median, against the narrowest worth its triangles), its triangles under its rank's ceiling (the hero leads), its
- * silhouette segments at the meet distance against its rank (playscape/objects/laws.js), whether its main mass is shaded
+ * the median, against the narrowest worth its triangles), its triangles under the ceiling its use and rank allow, its
+ * silhouette segments at the distance it is watched from against its rank (playscape/objects/laws.js), whether its main mass is shaded
  * in, its render groups, and the atlas page its paint needs. The machine gate of the technology design loop: it advises,
  * never refuses.
  *
@@ -12,7 +12,7 @@
  *   facets(faces) → [{ width, angle }]   every facet of a round: a face between two soft edges (neighbours turned 4–40°)
  *                                         no more than three times as wide as its neighbours on the curve,
  *                                         its width across that edge in metres
- *   techReadout(faces, { tier, rank?, camera?, style?, U? }) → { camera, tier, rank, distance, triangles, ceiling,
+ *   techReadout(faces, { tier, rank?, use?, camera?, style?, U? }) → { camera, tier, rank, use, distance, outside, triangles, ceiling,
  *     facetPx: { widest, median, band }, segments, segmentBand, emboss, renderGroups, atlases, atlas, advice }
  *
  * Pure.
@@ -74,25 +74,28 @@ export function facets(faces) {
 }
 const pct = (xs, p) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
 
-export function techReadout(faces, { tier, rank = 'interactable', camera = DEFAULT_TECH_CAMERA, style = DEFAULT_TECH_STYLE, U = [1, 0, 0] } = {}) {
-  const distance = meetDistance(camera, tier), band = TECH_STYLES[style].facetPx, ceiling = triangleCeiling(rank), k = pxPerMetre(distance);
+export function techReadout(faces, { tier, rank = 'interactable', use = 'watched', camera = DEFAULT_TECH_CAMERA, style = DEFAULT_TECH_STYLE, U = [1, 0, 0] } = {}) {
+  const distance = meetDistance(camera, tier, use), band = TECH_STYLES[style].facetPx, ceiling = triangleCeiling(rank, use), k = pxPerMetre(distance);
   const solid = faces.filter((f) => !f.tile && f.corners?.length >= 3);
   const triangles = solid.reduce((s, f) => s + f.corners.length - 2, 0);
   // the widest facet that reads (the 90th percentile: one odd face is not the look) and the median
   const F = facets(solid).map((f) => f.width * k), facetPx = { widest: r3(pct(F, 0.9)), median: r3(pct(F, 0.5)), band, n: F.length, wasted: r3(F.filter((x) => x < band[0]).length / Math.max(1, triangles)) };
   // the object laws read part roles; until adornment names a 33, every face is the 66
-  const m = objectMeasures(solid.map((f) => ({ corners: f.corners, part: 'body', value: valueOf(f) })), { U, distance }, rank);
+  // a silhouette is read from outside: at the distance it is watched from, even when its use brings the camera nearer
+  // (a cockpit sees its own bonnet, not its outline)
+  const outside = meetDistance(camera, tier);
+  const m = objectMeasures(solid.map((f) => ({ corners: f.corners, part: 'body', value: valueOf(f) })), { U, distance: outside }, rank);
   const groups = new Set(solid.map((f) => f.texture ?? f.material?.id ?? f.material ?? 'vertex')), atlases = new Set(solid.map((f) => f.texture).filter(Boolean));
-  const out = { camera, style, tier, rank, distance, triangles, ceiling, facetPx, segments: m.segments, segmentBand: INTEREST[rank].segments, emboss: m.emboss, renderGroups: groups.size, atlases: atlases.size, atlas: atlasPage(solid, distance), advice: [] };
+  const out = { camera, style, tier, rank, use, distance, outside, triangles, ceiling, facetPx, segments: m.segments, segmentBand: INTEREST[rank].segments, emboss: m.emboss, renderGroups: groups.size, atlases: atlases.size, atlas: atlasPage(solid, distance), advice: [] };
   const say = (law, line) => out.advice.push({ law, line });
   if (!F.length) say('rounds', `no curved surface at all: every face meets its neighbour square. A ${style} piece rounds its masses (a lathe, a loft, a bevel) so its outline is not a stack of boxes.`);
   else if (facetPx.widest > band[1]) say('facets', `its facets read ${facetPx.widest} px wide at ${distance} m on today's screen; ${style} keeps them under ${band[1]} px: more sides on its rounds.`);
   // narrow facets are wasted when they are a real share of what it spends (a whip's tip is not)
   if (F.length && facetPx.median < band[0] && facetPx.wasted > 0.25) say('facets', `half its facets read under ${facetPx.median} px at ${distance} m; under ${band[0]} px they are wasted: fewer sides.`);
-  if (triangles > ceiling) say('hero-leads', `${triangles} triangles; the hero leads, and a ${rank} spends at most ${ceiling}.`);
+  if (triangles > ceiling) say('budget', `${triangles} triangles; a ${use} ${rank} spends at most ${ceiling}.`);
   const [lo, hi] = INTEREST[rank].segments;
-  if (m.segments < lo) say('inverse-interest', `${m.segments} silhouette segments at ${distance} m; a ${rank} shows at least ${lo}: let adornment stand past the outline.`);
-  if (m.segments > hi) say('inverse-interest', `${m.segments} silhouette segments at ${distance} m; a ${rank} shows at most ${hi}: merge pieces into the main mass.`);
+  if (m.segments < lo) say('inverse-interest', `${m.segments} silhouette segments at ${outside} m; a ${rank} shows at least ${lo}: let adornment stand past the outline.`);
+  if (m.segments > hi) say('inverse-interest', `${m.segments} silhouette segments at ${outside} m; a ${rank} shows at most ${hi}: merge pieces into the main mass.`);
   if (m.emboss < EMBOSS_STEP) say('emboss-fill', `the main mass steps ${m.emboss} in value; shade it in (panel lines, plates, wear) by at least ${EMBOSS_STEP}.`);
   if (groups.size > 2) say('render-groups', `${groups.size} render groups; an asset draws in at most 2: bake its materials into one atlas.`);
   return out;

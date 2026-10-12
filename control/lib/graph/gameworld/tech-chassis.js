@@ -16,7 +16,7 @@
  *   chassisManifest(thing, opts)        → { manifest, joints, sockets, pieces, lead, functions, promised }
  *   lowerChassis(manifest)              → faces, each tagged { piece, role } (lowered monomer by monomer)
  *   chassisLaws(faces, built, opts)     → [{ law, ok, value }]
- *   buildChassis(thing, { direction, rank, seed, passes }) → { …chassisManifest, faces, readout, laws, passes, held }
+ *   buildChassis(thing, { direction, rank, use, seed, passes }) → { …chassisManifest, faces, readout, laws, passes, held }
  *
  * Pure; no dice (a chassis is a function of its thing and its direction).
  */
@@ -64,15 +64,18 @@ export const hasChassis = (kind, form) => !!BODY_PLANS[`${kind}/${form}`];
  * Each round sized for where it is met: points round a radius r, and rings along a curved length, enough that a facet
  * reads under the style's limit at `pxPerM` pixels a metre (with a margin), `res` a tweak over all of them.
  */
+// the most points a round may take: enough for a tank's wheel seen from its own cockpit (2.5 m), where a round is
+// read across a third of the screen
+export const FIT_MAX = 96;
 export function fitter(pxPerM, limit, res = 1) {
   const lim = limit * 0.85;
-  return { fit: (r) => Math.max(6, Math.min(48, Math.ceil((2 * Math.PI * r * pxPerM * res) / lim))), fitLen: (len) => Math.max(2, Math.min(48, Math.ceil((len * pxPerM * res) / lim))) };
+  return { fit: (r) => Math.max(6, Math.min(FIT_MAX, Math.ceil((2 * Math.PI * r * pxPerM * res) / lim))), fitLen: (len) => Math.max(2, Math.min(FIT_MAX, Math.ceil((len * pxPerM * res) / lim))) };
 }
-export function chassisManifest(t, { kind, motif = 'smooth', style = 'wc3', camera = 'third-person', res = 1, thick = {}, tuck = 1 } = {}) {
+export function chassisManifest(t, { kind, motif = 'smooth', style = 'wc3', camera = 'third-person', use = 'watched', res = 1, thick = {}, tuck = 1 } = {}) {
   const row = BODY_PLANS[`${kind}/${t.form}`];
   if (!row) throw new Error(`chassis: no body plan for a ${kind} ${t.form} yet (${Object.keys(BODY_PLANS).join(', ')})`);
   const dials = t.dials ?? {}, scale = r3((dials.scale ?? 1) * (TECH_STYLES[style].exaggeration[t.block.tier] ?? 1));
-  const { fit, fitLen } = fitter(pxPerMetre(meetDistance(camera, t.block.tier)), TECH_STYLES[style].facetPx[1], res);
+  const { fit, fitLen } = fitter(pxPerMetre(meetDistance(camera, t.block.tier, use)), TECH_STYLES[style].facetPx[1], res);
   const out = solveBodyPlan(row, t, { motif, scale, fit, fitLen, thick, tuck });
   // what the words claimed that this chassis cannot show is the adornment's to show
   const promised = t.block.functions.filter((f) => !out.functions.includes(f));
@@ -111,8 +114,8 @@ export function chassisLaws(faces, c, readout) {
   const roles = new Set(faces.map((f) => f.role)), missing = [];
   for (const f of c.functions) for (const any of FUNCTIONS[f].reads) if (!any.some((r) => roles.has(r))) missing.push(`${f}: ${any.join(' or ')}`);
   law('functions-read', !missing.length, missing.length ? `missing ${missing.join('; ')}` : c.functions.join(', '));
-  for (const a of readout.advice) if (['facets', 'hero-leads'].includes(a.law)) law(a.law, false, a.line);
-  for (const id of ['facets', 'hero-leads']) if (!out.some((l) => l.law === id)) law(id, true, id === 'facets' ? `widest ${readout.facetPx.widest} px, median ${readout.facetPx.median} px` : `${readout.triangles} of ${readout.ceiling}`);
+  for (const a of readout.advice) if (['facets', 'budget'].includes(a.law)) law(a.law, false, a.line);
+  for (const id of ['facets', 'budget']) if (!out.some((l) => l.law === id)) law(id, true, id === 'facets' ? `widest ${readout.facetPx.widest} px, median ${readout.facetPx.median} px` : `${readout.triangles} of ${readout.ceiling}`);
   // the 66 alone stays inside its outline: too few segments is the adornment's to make (promised); too many is the chassis'
   const [lo, hi] = readout.segmentBand;
   law('inverse-interest', readout.segments <= hi, readout.segments < lo ? `${readout.segments} segments: ${lo - readout.segments} more promised to the adornment` : `${readout.segments} segments`);
@@ -124,22 +127,22 @@ export function chassisLaws(faces, c, readout) {
  * leads (more points round when its facets read too wide, fewer when too narrow, its lead grown when another piece takes
  * the picture), a bounded number of passes, every pass logged.
  */
-export function buildChassis(t, { kind, direction = {}, rank = 'interactable', passes = 6 } = {}) {
+export function buildChassis(t, { kind, direction = {}, rank = 'interactable', use = 'watched', passes = 6 } = {}) {
   const motif = direction.motif ?? 'smooth', style = direction.style ?? 'wc3', camera = direction.camera ?? 'third-person';
   let res = 1, thick = {}, last;
   const log = [];
   for (let p = 0; p < passes; p++) {
-    const c = chassisManifest(t, { kind, motif, style, camera, res, thick }), faces = lowerChassis(c.manifest, c.pieces);
-    const readout = techReadout(faces, { tier: t.block.tier, rank, camera, style }), laws = chassisLaws(faces, c, readout), failed = laws.filter((l) => !l.ok);
+    const c = chassisManifest(t, { kind, motif, style, camera, use, res, thick }), faces = lowerChassis(c.manifest, c.pieces);
+    const readout = techReadout(faces, { tier: t.block.tier, rank, use, camera, style }), laws = chassisLaws(faces, c, readout), failed = laws.filter((l) => !l.ok);
     last = { ...c, faces, readout, laws, res, thick };
     const entry = { pass: p + 1, res, triangles: readout.triangles, facetPx: readout.facetPx.widest, failed: failed.map((l) => l.law) };
     log.push(entry);
     if (!failed.length || p === passes - 1) break;
     const changed = [];
     for (const l of failed) {
-      if (l.law === 'facets' && readout.facetPx.widest > readout.facetPx.band[1] && res < 4) { res = r3(Math.min(4, res * Math.max(1.25, readout.facetPx.widest / readout.facetPx.band[1]))); changed.push(`res ${res} (facets ${readout.facetPx.widest} px)`); }
+      if (l.law === 'facets' && readout.facetPx.widest > readout.facetPx.band[1] && res < 4) { res = r3(Math.min(4, res * Math.max(1.05, readout.facetPx.widest / readout.facetPx.band[1]))); changed.push(`res ${res} (facets ${readout.facetPx.widest} px)`); }
       else if (l.law === 'facets' && readout.facetPx.median < readout.facetPx.band[0] && res > 0.5) { res = r3(Math.max(0.5, res * 0.75)); changed.push(`res ${res} (facets wasted)`); }
-      else if (l.law === 'hero-leads' && res > 0.5) { res = r3(Math.max(0.5, res * 0.8)); changed.push(`res ${res} (the hero leads)`); }
+      else if (l.law === 'budget' && res > 0.5) { res = r3(Math.max(0.5, res * 0.8)); changed.push(`res ${res} (over budget)`); }
       else if (l.law === 'one-leads') { thick = { ...thick, [c.lead]: r3((thick[c.lead] ?? 1) * 1.12) }; changed.push(`${c.lead} × ${thick[c.lead]} (one leads)`); }
     }
     entry.changed = changed;

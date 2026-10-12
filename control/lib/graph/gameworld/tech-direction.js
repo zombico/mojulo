@@ -11,7 +11,8 @@
  *     team?,                           // the team colour, '#rrggbb': a MARKER, painted as a mask so a placement or an
  *                                      // engine may pass its own; the civilization's place in TEAM_COLOURS if none
  *   }
- *   a crafted thing: words, or { intent, seed?, rank? }   // rank: its interest (playscape/objects/laws.js INTEREST)
+ *   a crafted thing: words, or { intent, seed?, rank?, use? }   // rank: its interest (playscape/objects/laws.js INTEREST);
+ *                                      // use: watched, held or driven (tech-eras.js TECH_USES)
  *
  * Every default says where it came from; every value the creator sets over a default is ledgered beside it.
  *
@@ -19,10 +20,13 @@
  *   resolveTechDirection(G, cid)       → { style, camera, motif, elements, tone, team, ranks, from, ledger } | null
  *   teamColour(direction, override?)   → the team colour a placement shows (a passed marker wins)
  *   rankOf(kind, thing)                → { rank, why }: the default interest of a crafted thing
+ *   useOf(kind, thing)                 → { use, why }: how the player meets it by default
+ *   USES_BY_LIST                       the uses each list may take
  *
  * Pure.
  */
 import { TECH_STYLES, TECH_STYLE_IDS, DEFAULT_TECH_STYLE, TECH_CAMERAS, DEFAULT_TECH_CAMERA } from './tech-eras.js';
+export { TECH_USES, TECH_USE_IDS } from './tech-eras.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { TONE_PRESETS, TONE_IDS } from '../era/tone.js';
 import { INTEREST } from '../playscape/objects/laws.js';
@@ -94,6 +98,17 @@ export function rankOf(kind, t) {
   return { rank: 'interactable', why: `a ${t.variant}: a work the level shows` };
 }
 
+/** The uses a list may take: a vehicle is ridden or watched, a weapon held or watched (emplaced, crewed, escorted). */
+export const USES_BY_LIST = Object.freeze({ vehicles: Object.freeze(['driven', 'watched']), structures: Object.freeze(['watched']), weapons: Object.freeze(['held', 'watched']), things: Object.freeze(['watched']) });
+/** How the player meets a crafted thing by default: what it is says whether it is held, ridden or watched. */
+export function useOf(kind, t) {
+  const B = t.block;
+  if (kind === 'weapons') return B.tier === 'held' ? { use: 'held', why: 'a weapon in the hand' } : { use: 'watched', why: 'emplaced or crewed: watched as it fires' };
+  if (kind === 'vehicles') return t.form === 'drawn' ? { use: 'watched', why: 'a cart: drawn, not driven' } : { use: 'driven', why: 'it can be ridden' };
+  if (kind === 'things') return { use: 'watched', why: 'a machine: it works in the background' };
+  return { use: 'watched', why: `a ${t.variant}: the level shows it` };
+}
+
 /** The camera a world's tech is met through: its own, else third person with a hero and first person without. */
 export function techCamera(G) {
   const c = G.camera ?? (G.characters ? 'third-person' : 'first-person');
@@ -121,9 +136,10 @@ export function resolveTechDirection(G, cid) {
   const ranks = {};
   for (const list of LISTS) for (const [id, t] of Object.entries(T[list] ?? {})) {
     if (!t.block) continue;
-    const r = rankOf(list, t);
-    if (t.rank) { if (t.rank !== r.rank) ledger.push({ scope: 'thing', at: `${at}/${list}/${id}`, key: 'rank', world: r.rank, local: t.rank }); ranks[`${list}/${id}`] = { rank: t.rank, why: 'said' }; }
-    else ranks[`${list}/${id}`] = r;
+    const r = rankOf(list, t), u = useOf(list, t), here = `${at}/${list}/${id}`;
+    if (t.rank && t.rank !== r.rank) ledger.push({ scope: 'thing', at: here, key: 'rank', world: r.rank, local: t.rank });
+    if (t.use && t.use !== u.use) ledger.push({ scope: 'thing', at: here, key: 'use', world: u.use, local: t.use });
+    ranks[`${list}/${id}`] = { ...(t.rank ? { rank: t.rank, why: 'said' } : r), ...(t.use ? { use: t.use, useWhy: 'said' } : { use: u.use, useWhy: u.why }) };
   }
   return { style, camera: techCamera(G), motif, motifRead: MOTIFS[motif].read, elements, tone, team, ranks, from, ledger };
 }

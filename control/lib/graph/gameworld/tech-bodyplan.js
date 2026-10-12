@@ -75,6 +75,8 @@ export function solveBodyPlan(row, t, { motif = 'smooth', scale = 1, fit, fitLen
   const s = scale, m = motif, d = t.dials ?? {}, fns = t.block?.functions ?? [];
   const lofts = [], lathes = [], sweeps = [], extrudes = [], joints = [], pieces = {}, masses = [];
   const k = (id) => thick[id] ?? 1;
+  // a section's points by its own outline: a squared round is longer than the circle its half-sides make
+  const fitS = (mm, w, h) => { const q = section(mm, w, h, 64); let per = 0; q.forEach((a, i) => { const b = q[(i + 1) % q.length]; per += Math.hypot(b[0] - a[0], b[1] - a[1]); }); return fit(per / (2 * Math.PI)); };
   // a monomer, its piece and role, and the mass the sockets are read off (a box, or a segment a → b of radius r)
   const mono = (arr, spec, piece, role, group, mass) => {
     const g = group ?? 'tech:frame';
@@ -91,12 +93,12 @@ export function solveBodyPlan(row, t, { motif = 'smooth', scale = 1, fit, fitLen
 
   // ── the core ──
   if (C.axis === 'x') {
-    const zc = lift + H / 2, fr = C.front ?? [0.8, 0.8, 0], re = C.rear ?? [0.9, 0.9, 0], n = fit((W + H) / 4);
+    const zc = lift + H / 2, fr = C.front ?? [0.8, 0.8, 0], re = C.rear ?? [0.9, 0.9, 0], n = fitS(m, W, H);
     const st = (tt, [ws, hs, dz]) => ({ t: tt, profile: { points: section(m, W * ws, H * hs, n).map(([u, v]) => [u, r3(v + dz * H)]) } });
     mono(lofts, { id: 'core', interp: 'smooth', segments: fitLen(L / 2), axisFrom: P([-L / 2, 0, zc]), axisTo: P([L / 2, 0, zc]), stations: [st(0, re), { t: 0.55, profile: { points: section(m, W, H, n) } }, st(1, fr)] }, 'core', coreRole, coreGroup, box([-L / 2, -W / 2, lift], [L / 2, W / 2, lift + H]));
     Object.assign(dims, { L, W, H, lift, zc });
   } else if (C.axis === 'y') {
-    const zc = lift + H / 2, n = fit((W + H) / 4);
+    const zc = lift + H / 2, n = fitS(m === 'smooth' ? 'faceted' : m, W, H);
     mono(lofts, { id: 'core', axisFrom: P([0, -L / 2, zc]), axisTo: P([0, L / 2, zc]), stations: [{ t: 0, profile: { points: section(m === 'smooth' ? 'faceted' : m, W, H, n) } }, { t: 1, profile: { points: section(m === 'smooth' ? 'faceted' : m, W, H, n) } }] }, 'core', coreRole, coreGroup, box([-W / 2, -L / 2, lift], [W / 2, L / 2, lift + H]));
     Object.assign(dims, { L, W, H, lift, zc });
   } else {
@@ -131,9 +133,9 @@ export function solveBodyPlan(row, t, { motif = 'smooth', scale = 1, fit, fitLen
         const fx = p.pairs === 1 ? 0 : i === 0 ? 1 : -1, leg = `${p.pairs === 1 ? '' : i === 0 ? 'f' : 'b'}${side}`, hip = [fx * dims.L * p.spread * tuck / 2, sy * dims.W * 0.45, dims.lift + 0.25 * s];
         const knee = add(hip, [fx * 0.25 * s * tuck, sy * p.out * s * tuck, p.up * s * tuck]), ankle = add(knee, [fx * 0.1 * s * tuck, sy * 0.35 * s * tuck, -(knee[2] - 0.35 * s)]), piece = `limb-${leg}`;
         lathe(`hip-${leg}`, add(hip, [0, -sy * 0.2 * s, 0]), add(hip, [0, sy * 0.35 * s, 0]), [[0, r * 0.9], [0.5, r * 1.25], [1, r * 0.9]], r * 1.25, piece, 'joint', 'tech:frame');
-        mono(lofts, { id: `upper-${leg}`, axisFrom: P(hip), axisTo: P(knee), stations: [{ t: 0, profile: { points: section(m, r * 1.6, r * 1.9, fit(r * 0.9)) } }, { t: 1, profile: { points: section(m, r * 1.25, r * 1.4, fit(r * 0.9)) } }] }, piece, 'running', 'tech:frame', { seg: [hip, knee], r, out: [0, sy, 0] });
+        mono(lofts, { id: `upper-${leg}`, axisFrom: P(hip), axisTo: P(knee), stations: [{ t: 0, profile: { points: section(m, r * 1.6, r * 1.9, fitS(m, r * 1.6, r * 1.9)) } }, { t: 1, profile: { points: section(m, r * 1.25, r * 1.4, fitS(m, r * 1.6, r * 1.9)) } }] }, piece, 'running', 'tech:frame', { seg: [hip, knee], r, out: [0, sy, 0] });
         lathe(`knee-${leg}`, add(knee, [-0.3 * s, 0, 0]), add(knee, [0.3 * s, 0, 0]), [[0, r * 0.8], [0.5, r * 1.05], [1, r * 0.8]], r * 1.05, piece, 'joint', 'tech:frame');
-        mono(lofts, { id: `lower-${leg}`, axisFrom: P(knee), axisTo: P(ankle), stations: [{ t: 0, profile: { points: section(m, r * 1.4, r * 1.6, fit(r * 0.75)) } }, { t: 0.7, profile: { points: section(m, r * 1.05, r * 1.15, fit(r * 0.75)) } }, { t: 1, profile: { points: section(m, r * 0.85, r * 0.9, fit(r * 0.75)) } }] }, piece, 'running', 'tech:frame', { seg: [knee, ankle], r, out: [fx || 1, 0, 0] });
+        mono(lofts, { id: `lower-${leg}`, axisFrom: P(knee), axisTo: P(ankle), stations: [{ t: 0, profile: { points: section(m, r * 1.4, r * 1.6, fitS(m, r * 1.4, r * 1.6)) } }, { t: 0.7, profile: { points: section(m, r * 1.05, r * 1.15, fitS(m, r * 1.4, r * 1.6)) } }, { t: 1, profile: { points: section(m, r * 0.85, r * 0.9, fitS(m, r * 1.4, r * 1.6)) } }] }, piece, 'running', 'tech:frame', { seg: [knee, ankle], r, out: [fx || 1, 0, 0] });
         const foot = [ankle[0], ankle[1], 0], fz = 0.3 * s, feet = [`foot-${leg}`];
         mono(extrudes, { id: `foot-${leg}`, profile: { points: [[-0.3, -0.25], [0.3, -0.25], [0.38, 0], [0.3, 0.25], [-0.3, 0.25], [-0.38, 0]].map(([u, v]) => [r3(foot[0] + u * s), r3(foot[1] + v * s)]) }, axisFrom: P([0, 0, 0]), axisTo: P([0, 0, fz]) }, piece, 'running', 'tech:trim');
         if (p.foot === 'claw') for (const [j, deg] of [[1, -38], [2, 0], [3, 38]]) {
@@ -162,7 +164,7 @@ export function solveBodyPlan(row, t, { motif = 'smooth', scale = 1, fit, fitLen
         joints.push({ id, parent: 'core', pivot: [r3(cx), r3(y), r3(r)], axis: [0, 1, 0], range: [0, 360], pieces: [id] });
       } });
     } else if (p.kind === 'skirt') {
-      const n = fit((dims.W + p.h * s) / 4), g = p.grow * k('skirt');
+      const g = p.grow * k('skirt'), n = fitS(m, dims.W * g, p.h * s);
       mono(lofts, { id: 'skirt', axisFrom: P([-dims.L * g / 2, 0, (p.h * s) / 2]), axisTo: P([dims.L * g / 2, 0, (p.h * s) / 2]), stations: [{ t: 0, profile: { points: section(m, dims.W * g, p.h * s, n) } }, { t: 1, profile: { points: section(m, dims.W * g * 0.8, p.h * s, n) } }] }, 'skirt', 'running', 'tech:frame', box([-dims.L * g / 2, -dims.W * g / 2, 0], [dims.L * g / 2, dims.W * g / 2, p.h * s]));
       onCore.push('skirt');
     } else if (p.kind === 'pods') {
@@ -171,7 +173,7 @@ export function solveBodyPlan(row, t, { motif = 'smooth', scale = 1, fit, fitLen
         lathe(id, [x0, y, z], [x0 + len, y, z], front ? [[0, r * 0.9], [0.45, r], [1, r * 0.4]] : [[0, r * 0.85], [0.5, r], [1, r * 0.9]], r, p.name ?? 'pod', p.role ?? 'running', p.group ?? 'tech:frame', box([x0, y - r, z - r], [x0 + len, y + r, z + r]));
         onCore.push(id); });
     } else if (p.kind === 'cabin') {
-      const [cl, cw, ch] = [p.dims[0] * dims.L * k('cabin'), p.dims[1] * dims.W, p.dims[2] * 2.4 * s * k('cabin')], cx = p.at * dims.L, z0 = dims.lift + dims.H, n = fit((cw + ch) / 4);
+      const [cl, cw, ch] = [p.dims[0] * dims.L * k('cabin'), p.dims[1] * dims.W, p.dims[2] * 2.4 * s * k('cabin')], cx = p.at * dims.L, z0 = dims.lift + dims.H, n = fitS(m, cw, ch);
       mono(lofts, { id: 'cabin', axisFrom: P([cx - cl / 2, 0, z0 + ch / 2]), axisTo: P([cx + cl / 2, 0, z0 + ch / 2]), stations: [{ t: 0, profile: { points: section(m, cw, ch, n) } }, { t: 1, profile: { points: section(m, cw * 0.9, ch * 0.9, n) } }] }, 'cabin', 'body', 'tech:skin', box([cx - cl / 2, -cw / 2, z0], [cx + cl / 2, cw / 2, z0 + ch]));
       onCore.push('cabin');
     } else if (p.kind === 'fin') {

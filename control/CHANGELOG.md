@@ -30,6 +30,35 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   shell with every level open, nothing saved and the debug drawer open; `level` opens straight into one level.
   design_game's `play` step and create_game's answer carry the link.
 
+### The mechanism kit: technology that reads at person scale
+
+- Under way. Crafted technology is designed for first- and third-person play first. RTS scale is derived from it
+  later, at the far camera, and is not designed for its own sake.
+- **Watched, held or driven.** Every crafted thing has a `use`, next to its interest rank:
+  - `watched`: set pieces, structures, emplacements, machines and siege engines you observe or escort.
+  - `held`: a weapon in the hand.
+  - `driven`: a vehicle you ride.
+
+  The default comes from what the thing is, so a cart or a siege engine is watched, not driven. A world may say
+  `{ intent, use }`, and the ledger records it when that differs from the default.
+- **Designed at its use's distance** (`gameworld/tech-eras.js`):
+  - A held weapon in first person is designed at the view model's 0.55 m, the nearest camera there is.
+  - A driven vehicle in first person is designed at the cockpit's view of its own hull.
+  - A watched thing is designed at its tier's meet distance.
+- **A budget by use, not a share capped under the hero.** At person scale few units are on screen, so each spends
+  more:
+  - A driven vehicle may spend up to one and a half heroes.
+  - A held weapon may spend half a hero.
+  - A watched focus may spend one hero.
+  - A typical person-scale scene (`PERSON_SCENE`) adds these up against one scene budget.
+- **Measured where it is read.** Facets are measured at the use's distance. Silhouette segments are measured at the
+  distance a thing is watched from, because a cockpit sees its own bonnet, not its outline. A smooth or organic
+  section takes its points by its real outline, not by the circle of its half-sides. A round may take up to
+  `FIT_MAX` points. The resolution dial now moves in small steps.
+- Across 17 briefs × 6 motifs × 3 cameras, every case holds except organic walkers driven in first person. Their
+  flat-shaded hulls at the cockpit's 2.5 m need more points than the cap allows, and the solver names that
+  conflict. Smooth shading across soft edges (pixels, not polygons) is what settles it.
+
 ### Technology design loop: chassis, adornment, skin
 
 - Under way, nothing ships yet. A civilization's crafted vehicles, tech-structures and weapons get a design loop like

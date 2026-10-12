@@ -9,16 +9,23 @@
  *            the distance each tier of tech is met at, and at that distance, on today's screen, the widest facet stays
  *            under the style's limit (chunky facets are the look; crude ones are not) and no facet is so narrow it is
  *            wasted. A walker beside a third-person hero rounds its masses more than the same walker seen top-down.
- *            The hero leads in count: each rank is capped at a share of the hero's triangles.
+ *   USE      how the player meets it, which sets where it is designed and what it may spend. The games are first and
+ *            third person: technology is designed to read at the hero's scale first, and an RTS camera is its LOD,
+ *            re-fitted at the far distance, never the target. WATCHED tech (set pieces, structures, emplacements,
+ *            machines, a siege engine you escort) is met at its tier's distance; HELD tech (a weapon in the hand) at
+ *            the view model's, the nearest camera there is; DRIVEN tech (a vehicle you ride) from its chase boom, or
+ *            in first person from its cockpit. Few units mill about at person scale, so each may spend more: the
+ *            budget is by use and rank, and a typical scene of them adds up under one scene budget.
  *
  * Matching the hero's density per pixel was tried and dropped: the layered hero (22,232 triangles) draws ~345
  * visible triangles a kpx at 6 m, and a hero-scale vehicle covers so much more screen that matching it asks for tens of
  * thousands of triangles, where this style puts the detail in the paint. Numbers are starting points, tuned at the eyes
  * gate; none is a measured fact about a shipped game.
  *
- *   TECH_STYLES, TECH_CAMERAS, HERO_REFERENCE, HERO_SHARE
- *   meetDistance(camera, tier) → m       heroDistance(camera) → m       pxPerMetre(distance) → on today's screen
- *   triangleCeiling(rank) → the most triangles a rank spends: its share of the hero's
+ *   TECH_STYLES, TECH_CAMERAS, TECH_USES, PERSON_CAMERAS, HERO_REFERENCE, USE_BUDGET, PERSON_SCENE
+ *   meetDistance(camera, tier, use?) → m   heroDistance(camera) → m   pxPerMetre(distance) → on today's screen
+ *   triangleCeiling(rank, use?) → the most triangles a thing spends, in heroes' worth by its use and rank
+ *   sceneLoad(counts?) → { triangles, budget, ok }: a scene's technology against the scene budget
  *   texelsPerMetre(distance) → texels a metre the paint needs at a distance, on today's screen
  *   atlasPage(faces, distance) → px       the square page a thing's paint needs, by its surface area
  *
@@ -48,13 +55,37 @@ export const TECH_CAMERAS = Object.freeze({
   'top-down': Object.freeze({ hero: 20, meet: M(20, 20, 20, 22, 22, 24, 26, 30) }),
 });
 export const TECH_CAMERA_IDS = Object.freeze(Object.keys(TECH_CAMERAS));
+/** The cameras technology is designed at; the rest (top-down) see its LOD. */
+export const PERSON_CAMERAS = Object.freeze(['third-person', 'first-person', 'side']);
+
+/** How the player meets a crafted thing. */
+export const TECH_USES = Object.freeze({
+  watched: 'you watch it, or walk beside it: set pieces, structures, emplacements, machines, a siege engine escorted',
+  held: 'you pick it up: a weapon in the hand, worked in front of the camera',
+  driven: 'you ride it: a vehicle, seen from its chase boom or its cockpit',
+});
+export const TECH_USE_IDS = Object.freeze(Object.keys(TECH_USES));
+// where a used thing is designed, where its use comes nearer than its tier: in first person a held weapon is the view
+// model (0.55 m from the eye) and a driven vehicle is its own hull seen from the cockpit (a machine's bonnet; a
+// vessel's deck, its hull below the eye); in third person both are seen from the chase boom, as their tier is
+const USE_MEET = Object.freeze({ 'first-person': Object.freeze({ held: 0.55, driven: Object.freeze({ machine: 2.5, vessel: 6 }) }) });
 /** A gameworld with a hero and no camera plays third person (gameworld/cameras.js). */
 export const DEFAULT_TECH_CAMERA = 'third-person';
 
 /** The hero the tech stands beside: the layered female anime hero (tech-readout.test.js re-counts it). */
 export const HERO_REFERENCE = Object.freeze({ hero: 'layered female anime round', triangles: 22232 });
-/** The most triangles a rank spends, as a share of the hero's: the hero leads; a focus comes closest. */
-export const HERO_SHARE = Object.freeze({ filler: 0.05, prop: 0.15, interactable: 0.3, focus: 0.5 });
+/** The most triangles a thing spends, in heroes' worth, by its use and rank: a driven vehicle may spend up to two
+ * heroes (it is met as near as the hero, walked up to and boarded, and has several times the hero's surface), a held
+ * weapon half (it fills a corner of the screen the whole game), a watched focus one, and the rest stay quiet. Starting
+ * numbers, tuned at the eyes gate; a typical scene of them still fits PERSON_SCENE. */
+const R = (filler, prop, interactable, focus) => Object.freeze({ filler, prop, interactable, focus });
+export const USE_BUDGET = Object.freeze({ watched: R(0.05, 0.15, 0.3, 1), held: R(0.5, 0.5, 0.5, 0.5), driven: R(0.5, 0.5, 1.5, 2) });
+/** A typical person-scale scene: how many of each are in view at once, and the technology budget they share (the
+ * hero's own triangles and the level's are apart). */
+export const PERSON_SCENE = Object.freeze({
+  heroes: 10,
+  counts: Object.freeze({ driven: Object.freeze({ focus: 2 }), held: Object.freeze({ interactable: 1 }), watched: Object.freeze({ focus: 2, interactable: 3, prop: 10, filler: 20 }) }),
+});
 
 // today's screen, where the paint is judged: at most `texelsPerPixel` texels across a pixel at the meet distance
 export const PAINT_FRAME = Object.freeze({ width: 2560, height: 1440, fovY: 55, texelsPerPixel: 1.25 });
@@ -65,17 +96,28 @@ const cam = (camera) => {
   if (!C) throw new Error(`tech eras: '${camera}' is not a camera (${TECH_CAMERA_IDS.join(', ')})`);
   return C;
 };
-export function meetDistance(camera, tier) {
+export function meetDistance(camera, tier, use = 'watched') {
+  useOk(use);
+  const u = USE_MEET[camera]?.[use], near = typeof u === 'object' ? u[tier] : u;
+  if (near !== undefined) return near;
   const d = cam(camera).meet[tier];
   if (d === undefined) throw new Error(`tech eras: '${tier}' is not a tier (${Object.keys(cam(camera).meet).join(', ')})`);
   return d;
 }
 export const heroDistance = (camera) => cam(camera).hero;
 
-export function triangleCeiling(rank = 'interactable') {
-  const k = HERO_SHARE[rank];
-  if (k === undefined) throw new Error(`tech eras: '${rank}' is not an interest rank (${Object.keys(HERO_SHARE).join(', ')})`);
+const useOk = (use) => { if (!TECH_USES[use]) throw new Error(`tech eras: '${use}' is not a use (${TECH_USE_IDS.join(', ')})`); return use; };
+export function triangleCeiling(rank = 'interactable', use = 'watched') {
+  const k = USE_BUDGET[useOk(use)][rank];
+  if (k === undefined) throw new Error(`tech eras: '${rank}' is not an interest rank (${Object.keys(USE_BUDGET.watched).join(', ')})`);
   return Math.round(HERO_REFERENCE.triangles * k);
+}
+/** A scene's technology, each at its ceiling, against the scene's budget. */
+export function sceneLoad(counts = PERSON_SCENE.counts) {
+  let triangles = 0;
+  for (const [use, ranks] of Object.entries(counts)) for (const [rank, n] of Object.entries(ranks)) triangles += n * triangleCeiling(rank, use);
+  const budget = Math.round(HERO_REFERENCE.triangles * PERSON_SCENE.heroes);
+  return { triangles, budget, ok: triangles <= budget };
 }
 
 /** Pixels a metre covers at a distance, on today's screen. */

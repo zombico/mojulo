@@ -61,7 +61,7 @@ import { LAND_FORMS, LAND_FORM_IDS } from '../era/out-land.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
 import { tunnelTech } from './tunnel-tech.js';
 import { craftTech } from './tech-crafter.js';
-import { readTechDirection } from './tech-direction.js';
+import { readTechDirection, USES_BY_LIST } from './tech-direction.js';
 import { INTEREST } from '../playscape/objects/laws.js';
 import { composeLook } from './tunnel-land.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
@@ -96,7 +96,7 @@ export const CIVILIZATION = Object.freeze({
   town: 'how it lays out a town: length, sway, branches, levels, back, farms, heartbeat, secondary',
   castle: 'how it raises a castle: size, wards, rise',
   builds: 'what it builds, in words ("a modular sci-fi habitat", or { intent, seed? }): tunnelled through its blocks into its building language, from its anchor when one is named',
-  technology: 'its technology: { finish?, blocks?: { <id>: block }, direction?, things?, vehicles?, structures?, weapons? }, each list a { <id>: words | { intent, seed?, rank? } }: its machines (things) tunnelled, its vehicles, tech-structures and weapons crafted, each into a block its library keeps; direction (tech-direction.js) the style, motif, elements, tone and team colour they share',
+  technology: 'its technology: { finish?, blocks?: { <id>: block }, direction?, things?, vehicles?, structures?, weapons? }, each list a { <id>: words | { intent, seed?, rank?, use? } }: its machines (things) tunnelled, its vehicles, tech-structures and weapons crafted, each into a block its library keeps; direction (tech-direction.js) the style, motif, elements, tone and team colour they share',
 });
 const GROUPS = Object.freeze({
   trail: ['run', 'heartbeat', 'bumpiness'],
@@ -196,11 +196,13 @@ function readCivilization(c, at) {
       if (!ID.test(id)) throw new Error(`gameworld: ${at}.technology.${k} '${id}': an id is a short lower-case name`);
       if (named.has(id) && (k !== 'things' || named.get(id) !== 'blocks')) throw new Error(`gameworld: ${at}.technology.${k} '${id}' is already named in ${named.get(id)}: an id names one thing in the civilization's library`);
       named.set(id, k);
-      // a crafted thing may say how much it matters (its interest rank); a machine is words, as it always was
-      if (k !== 'things' && isObj(v) && v.rank !== undefined) {
-        if (!INTEREST[v.rank]) throw new Error(`gameworld: ${at}.technology.${k}.${id}.rank '${v.rank}' is not an interest rank (${Object.keys(INTEREST).join(', ')})`);
-        const { rank, ...rest } = v;
-        return [id, { ...intentOf(rest, `${at}.technology.${k}.${id}`), rank }];
+      // a crafted thing may say how much it matters (its interest rank) and how it is met (its use); a machine is
+      // words, as it always was
+      if (k !== 'things' && isObj(v) && (v.rank !== undefined || v.use !== undefined)) {
+        if (v.rank !== undefined && !INTEREST[v.rank]) throw new Error(`gameworld: ${at}.technology.${k}.${id}.rank '${v.rank}' is not an interest rank (${Object.keys(INTEREST).join(', ')})`);
+        if (v.use !== undefined && !USES_BY_LIST[k].includes(v.use)) throw new Error(`gameworld: ${at}.technology.${k}.${id}.use '${v.use}' is not a use for its ${k} (${USES_BY_LIST[k].join(', ')})`);
+        const { rank, use, ...rest } = v;
+        return [id, { ...intentOf(rest, `${at}.technology.${k}.${id}`), ...(rank !== undefined ? { rank } : {}), ...(use !== undefined ? { use } : {}) }];
       }
       return [id, intentOf(v, `${at}.technology.${k}.${id}`)];
     }));

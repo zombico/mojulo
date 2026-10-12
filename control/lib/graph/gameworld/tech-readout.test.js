@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { TECH_STYLES, DEFAULT_TECH_STYLE, TECH_CAMERAS, TECH_CAMERA_IDS, DEFAULT_TECH_CAMERA, HERO_REFERENCE, HERO_SHARE, meetDistance, heroDistance, triangleCeiling, pxPerMetre, texelsPerMetre, atlasPage } from './tech-eras.js';
+import { TECH_STYLES, DEFAULT_TECH_STYLE, TECH_CAMERAS, TECH_CAMERA_IDS, DEFAULT_TECH_CAMERA, HERO_REFERENCE, USE_BUDGET, TECH_USE_IDS, PERSON_CAMERAS, PERSON_SCENE, sceneLoad, meetDistance, heroDistance, triangleCeiling, pxPerMetre, texelsPerMetre, atlasPage } from './tech-eras.js';
 import { techReadout, facets } from './tech-readout.js';
 import { craftTech } from './tech-crafter.js';
 import { buildBlock, TIER_IDS } from '../era/blocks.js';
@@ -14,15 +14,26 @@ describe('tech eras: style apart from density, density by the camera', () => {
     expect(DEFAULT_TECH_CAMERA).toBe('third-person');
     expect(Object.keys(TECH_STYLES.wc3.exaggeration).sort()).toEqual([...TIER_IDS].sort());
     for (const c of TECH_CAMERA_IDS) expect(Object.keys(TECH_CAMERAS[c].meet).sort()).toEqual([...TIER_IDS].sort());
-    expect(Object.keys(HERO_SHARE).sort()).toEqual(Object.keys(INTEREST).sort());
+    for (const u of TECH_USE_IDS) expect(Object.keys(USE_BUDGET[u]).sort(), u).toEqual(Object.keys(INTEREST).sort());
+    expect(PERSON_CAMERAS).not.toContain('top-down');
     expect(heroDistance('third-person')).toBe(6);
     expect(meetDistance('third-person', 'machine')).toBeLessThan(meetDistance('top-down', 'machine'));
     expect(() => meetDistance('isometric', 'machine')).toThrow(/not a camera/);
   });
 
-  it('the hero leads in count: a focus comes closest, and the hero is what it says it is', () => {
-    for (const k of Object.values(HERO_SHARE)) expect(k).toBeLessThan(1);
+  it('designed at person scale: a used thing is met nearer, and spends by its use; a scene of them fits its budget', () => {
+    // in first person the held weapon is the view model, the nearest camera there is; the driven vehicle its cockpit
+    expect(meetDistance('first-person', 'held', 'held')).toBe(0.55);
+    expect(meetDistance('first-person', 'machine', 'driven')).toBeLessThan(meetDistance('first-person', 'machine', 'watched'));
+    expect(meetDistance('third-person', 'machine', 'driven')).toBe(meetDistance('third-person', 'machine'));
+    expect(() => meetDistance('third-person', 'machine', 'ridden')).toThrow(/not a use/);
+    // a driven vehicle may outspend the hero; a watched filler stays quiet
+    expect(triangleCeiling('focus', 'driven')).toBeGreaterThan(HERO_REFERENCE.triangles);
+    expect(triangleCeiling('focus', 'watched')).toBe(HERO_REFERENCE.triangles);
+    expect(triangleCeiling('interactable', 'held')).toBe(Math.round(HERO_REFERENCE.triangles / 2));
     expect(triangleCeiling('focus')).toBeGreaterThan(triangleCeiling('prop'));
+    expect(sceneLoad()).toMatchObject({ ok: true });
+    expect(sceneLoad({ driven: { focus: PERSON_SCENE.heroes } }).ok).toBe(false);
     expect(pxPerMetre(6)).toBeCloseTo(2 * pxPerMetre(12), 6);
     const hero = planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', register: 'round' }) })).mesh;
     expect(hero.faces.length).toBe(HERO_REFERENCE.triangles);

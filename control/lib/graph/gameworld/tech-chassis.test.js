@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { buildChassis, chassisManifest, lowerChassis, section, fitter, hasChassis, CHASSIS_FORMS } from './tech-chassis.js';
+import { buildChassis, chassisManifest, lowerChassis, section, fitter, hasChassis, CHASSIS_FORMS, FIT_MAX } from './tech-chassis.js';
 import { BODY_PLANS, PART_KINDS, deriveSockets, SERVES_BY_FACE } from './tech-bodyplan.js';
 import { craftTech } from './tech-crafter.js';
 import { facets } from './tech-readout.js';
@@ -38,7 +38,7 @@ describe('the body-plan solver: a form is a row', () => {
     const near = fitter(300, 40), far = fitter(40, 40);
     expect(near.fit(1)).toBeGreaterThan(far.fit(1));
     expect(far.fit(0.01)).toBe(6);
-    expect(near.fit(100)).toBe(48);
+    expect(near.fit(100)).toBe(FIT_MAX);
     expect(near.fitLen(2)).toBeGreaterThan(far.fitLen(2));
   }, 30000);
 
