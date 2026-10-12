@@ -34,8 +34,12 @@ export const REGION_SHARES = Object.freeze({
 });
 export const REGIONS = Object.freeze(['body', 'head', 'hair', 'hands', 'clothing']);
 
-const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL])$/;
+// the tiered form's joints (tiered-form.js) are the body's: the bridges over the elbows, knees and wrists, the shoulders'
+// balls and folds
+const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold)[RL]|(elbow|knee|hip)Fold[RL])$/;
 const HANDS = /^(hand|thumb|index|middle|ring|little)[RL]$/;
+// the head's own parts that reach below its base (the jaw hangs about 4 cm under it)
+const HEAD = /^(cranium|jaw)$/;
 const HAIR = /^hair|lock|braid|ponytail|tail[RL]?$|fringe|bang|bun/i;
 
 export const tierOf = (figurePx) => TIERS.find((t) => figurePx < t.upTo);
@@ -45,6 +49,7 @@ function regionOf(part, minZ, headBaseZ) {
   if (BODY.test(part)) return 'body';
   if (HANDS.test(part)) return 'hands';
   if (HAIR.test(part)) return 'hair';
+  if (HEAD.test(part)) return 'head';
   if (headBaseZ != null && minZ >= headBaseZ - 0.02) return 'head';
   return 'clothing';
 }

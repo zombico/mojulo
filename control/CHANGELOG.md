@@ -73,8 +73,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `shoulderFold` (turned half the arm's swing) carries a share of the torso's shoulder and a BALL, the vajra's
     ball-in-socket: a sphere at the joint as wide as the arm's root, which fills between the shoulder's corner and the
     arm at any angle. The hip's ring rides its fold whole; its head sits deep in the pelvis, so it has no ball.
-  - The bare tiered figure is 5,348 triangles against 5,196: the chest 3,988 (a quarter fewer than the domes), the
-    bridges, balls and ring8 limbs 752, the lips 208, the eyes' domes and lids 160, the brows 48, the nose's wings 192.
+  - The bare tiered figure is 4,948 triangles against 5,196: the chest 3,988 (a quarter fewer than the domes), the
+    bridges, balls and ring8 limbs 752, the lips 208, the eyes' domes and lids 160, the brows 48, the nose's wings 192,
+    and the lean ears 400 fewer.
 - **The tiered base form, third piece: the face.** The landmark head was one face for both sexes: the same short cut,
   eyes 36 mm wide (a real eye is about 30), a 2 mm upper lip the skin's colour, ears that stood out from a head they were
   a third of, faceted cheeks and a hard crease down the forehead and nose. Measured on a spike board (each change alone,
@@ -115,7 +116,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     equilateral rule), the apex's height, and the gap at the sternum (a filled midline reads as a garment's cleavage).
   - `hero.spend` with a target (`era/cast-spend.js`) picks the tier (T0 … T4 by the figure's pixel height), the
     budget (about 0.05·H²) and each region's share (body, head, hair, hands, clothing) against the tier's reserve.
+  - The spend reads the jaw as the head's (it hangs below the head's base) and the tiered form's bridges and shoulder
+    balls as the body's: both fell to clothing, so a bare figure read 14% clothing and its body short.
   - Both are advice, never refusals. Their bands are starting points to tune at the eyes gate.
+- **The ear by tier.** An ear was 280 triangles, more than the torso, and a few pixels tall at the default target. The
+  tiered head's ear is the LEAN one (`earMesh({ lean })`, `features.earLean`): the outline on every other point, the rim
+  and the bowl, 80 triangles, the fold and the antihelix inside the rim dropped. A target whose figure is a T3 or T4
+  (`TIERED_FULL_EAR_TIERS`: a close-up, 4K) keeps the full ear. The tiered head at the default target spends 400 fewer
+  triangles; absent the tiered form every ear is as before.
 - **`update_character`.** The Characters ring's revise door: a thin door over `update_sketch`, as `create_character`
   is over `mint_solid`.
   - A hero's `spec` merges key by key, and null removes a key. `target` and `geocube` are named on the door.

@@ -41,21 +41,37 @@ describe('the spend critic', () => {
     expect(Object.values(s.regions).reduce((t, r) => t + r.triangles, 0)).toBe(5196);
     expect(s.heaviest[0]).toMatchObject({ part: expect.stringMatching(/^bust[RL]$/), region: 'body' });
   }, 60000);
+
+  it('a bare figure spends nothing on clothing: the jaw is the head\'s, the tiered form\'s bridges and balls the body\'s', () => {
+    for (const spec of [{ cast: 'female' }, { cast: 'female', form: 'tiered' }]) {
+      const { m, mesh } = built(spec), s = castSpend(mesh, m.plan, '1080p');
+      expect(s.regions.clothing.triangles, JSON.stringify(spec)).toBe(0);
+    }
+  }, 120000);
 });
 
 describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
     const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
-    expect(tiered.mesh.faces.length).toBe(5348);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144; the brows' 48; the nose's wings 192
+    expect(tiered.mesh.faces.length).toBe(4948);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144; the brows' 48; the nose's wings 192; the lean ears −400
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
     const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
   }, 120000);
 
+  it('the ear by tier: lean below a close-up (no target, 1080p third-person), the full ear at T3 and up', () => {
+    const ears = (spec) => { const { mesh } = built({ cast: 'female', form: 'tiered', ...spec }); return mesh.faces.filter((t) => /^ear[RL]$/.test(mesh.provenance[t[0]].part)).length; };
+    expect(ears({})).toBe(160);
+    expect(ears({ target: '1080p' })).toBe(160);
+    expect(ears({ target: { resolution: '1080p', framing: 'close' } })).toBe(560);
+    expect(ears({ target: '4k' })).toBe(560);
+  }, 120000);
+
   it('a male, a child-coded figure or a bust of 0 takes no profile; the form is checked by name', () => {
-    // the male's tiered form is today's and the joints' bridges and balls, the lips and the eyes' domes and lids alone
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(1360);
+    // the male's tiered form is today's and the joints' bridges and balls, the lips and the eyes' domes and lids, less
+    // the lean ears' 400 (two ears at 80 against 280)
+    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(960);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });

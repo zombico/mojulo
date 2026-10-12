@@ -29,6 +29,9 @@
 import { SLOT_FAMILIES, ringPoints, segmentPart, loftPart } from './station-loft-plan.js';
 import { BREAST_FIELD, breastHeight } from './breast-field.js';
 import { castOf } from './hero-form.js';
+import { heroTarget } from '../era/cast-light.js';
+import { readTarget } from '../era/target.js';
+import { tierOf } from '../era/cast-spend.js';
 
 /** The field as the unsupported chest places it: the apex `cleft` bust radii off the midline (the equilateral rule
  * against the hero's notch), the inner reach running just past the midline with a fuller profile, so the pair meet low
@@ -331,10 +334,17 @@ export const tieredPole = (hero) => hero.headPreset ?? (castOf(hero.cast, hero.p
  * sides and wings keep the light the sphere smoothed away */
 export const TIERED_FACE_SMOOTH = Object.freeze({ w: 0.7, nose: 0.25 });
 
+/** The tiers (era/cast-spend.js) whose figure is tall enough on screen to show the ear's fold and antihelix: below them
+ * the ear is the lean one (head-ear.js), 80 triangles against 280, its outline, rim and bowl. A hero with no target is
+ * drawn for the default (1080p third-person, T2). */
+export const TIERED_FULL_EAR_TIERS = Object.freeze(['T3', 'T4']);
+
 /** The hero with the tiered face's defaults under its own words: the landmark head only (the anime head has its own).
- * The hair default is the record's (layered.js heroRecord stores the female's `bob` when she names none). */
+ * The hair default is the record's (layered.js heroRecord stores the female's `bob` when she names none). The ear is the
+ * lean one unless the hero's target is a TIERED_FULL_EAR_TIERS tier. */
 export function tieredFace(hero, pole) {
   if ((hero.head ?? 'landmark') !== 'landmark') return hero;
   const F = TIERED_FACE[pole] ?? TIERED_FACE.male, own = hero.face == null ? [] : Array.isArray(hero.face) ? hero.face : [hero.face];
-  return { ...hero, face: [F.face, ...own], faceFeatures: F.features };
+  const target = heroTarget(hero), fullEar = !!target && TIERED_FULL_EAR_TIERS.includes(tierOf(readTarget(target).figurePx).id);
+  return { ...hero, face: [F.face, ...own], faceFeatures: fullEar ? F.features : { ...F.features, earLean: true } };
 }

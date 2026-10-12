@@ -172,7 +172,8 @@ function nostrilFacet(origin, rx, rz, depth, normal) {
 export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly', hair = 'swept',
   scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral', features = null } = {}) {
   // FEATURES (opt-in, the tiered form's: tiered-form.js TIERED_FACE): the eyes', brows' and ears' sizes, the ears set
-  // in, a lower lip and the lips' colour (`lipTint`: the skin times [r, g, b], so the lips follow any skin). Absent ⇒ every feature as before, byte-identical.
+  // in, a lower lip and the lips' colour (`lipTint`: the skin times [r, g, b], so the lips follow any skin), the lean ear
+  // (`earLean`, head-ear.js). Absent ⇒ every feature as before, byte-identical.
   const ft = features || {};
   if (!HEAD_PRESETS[preset]) throw new Error(`humanoid: unknown head preset '${preset}'`);
   if (!HEAD_REGISTERS[register]) throw new Error(`humanoid: unknown register '${register}'`);
@@ -300,7 +301,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
     // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner
-    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, inner: 'EarInner', sparse: register === 'lowpoly' });
+    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, inner: 'EarInner', sparse: register === 'lowpoly', lean: !!ft.earLean });
     parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);

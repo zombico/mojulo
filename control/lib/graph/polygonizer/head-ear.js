@@ -37,15 +37,21 @@ const FORM = {
   // the anime ear: the rim, one fold, the bowl's wall and floor
   anime: { rings: [[1, 0, false], [0.94, 0.05, false], [0.72, 0.02, true], [0.48, -0.005, true], [0.22, -0.03, true]], bowl: [0.06, -0.02, -0.035], lobe: -0.26, inner: 2 },
 };
+/** The LEAN ear (`lean`, the tiered form's below a close-up): the rim, the bowl's wall and its floor on every other
+ * outline point, 80 triangles against 280. An ear a few pixels tall shows its outline, its rim and a dark bowl; the
+ * fold and the antihelix inside the rim are a close-up's. */
+const LEAN_RINGS = [[1, 0, false], [0.93, 0.05, false], [0.4, -0.01, true]];
 
 /** earMesh({ origin, side, height, width, style, tilt, angle, thick, lift, inner, sparse }) → { points, faces, groups }:
  * the ear in hero metres. `origin` is the root's centre on the head, `side` +1 (right) or −1 (left), `height` the ear's
  * height, `width` its width over its height's outline width (1: the outline's own), `tilt` the lean back (radians),
  * `angle` the plate's angle off the head (radians), `thick` and `lift` (× height) the plate's thickness and its rise off
- * the head, `inner` the bowl's group, `sparse` every other outline point (a lighter register). */
-export function earMesh({ origin, side = 1, height, width = 1, style = 'western', tilt = 0.2, angle = 0.45, thick = 0.07, lift = 0.12, inner = 'Skin', skin = 'Skin', sparse = false }) {
-  const F = FORM[style]; if (!F) throw new Error(`head-ear: unknown style '${style}'`);
-  const outline = sparse ? OUTLINE.filter((_, i) => i % 2 === 0) : OUTLINE, n = outline.length;
+ * the head, `inner` the bowl's group, `sparse` every other outline point (a lighter register), `lean` the lean ear
+ * (LEAN_RINGS, sparse). */
+export function earMesh({ origin, side = 1, height, width = 1, style = 'western', tilt = 0.2, angle = 0.45, thick = 0.07, lift = 0.12, inner = 'Skin', skin = 'Skin', sparse = false, lean = false }) {
+  const F0 = FORM[style]; if (!F0) throw new Error(`head-ear: unknown style '${style}'`);
+  const F = lean ? { ...F0, rings: LEAN_RINGS } : F0;
+  const outline = sparse || lean ? OUTLINE.filter((_, i) => i % 2 === 0) : OUTLINE, n = outline.length;
   const ct = dmath.cos(tilt), st = dmath.sin(tilt);
   // the ear's frame (the right ear): out +x, forward +y, up +z leaning back by `tilt`
   const ta = dmath.tan(angle), plate = (u) => lift + Math.max(0, HINGE - u) * ta;
