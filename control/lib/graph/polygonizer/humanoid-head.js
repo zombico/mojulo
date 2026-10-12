@@ -304,8 +304,15 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);
+    const ns = ft.nostril ?? 1;   // the tiered face's nostrils (features.nostril): the openings that much larger
     parts[`nostril${side}`] = detail(carrier, 'cranium', nostrilAt, side,
-      nostrilFacet(add(nf.origin, mul(nf.normal, 0.0008)), 0.0044, 0.0022, 0.0004, nf.normal), 'Nostrils');
+      nostrilFacet(add(nf.origin, mul(nf.normal, 0.0008)), 0.0044 * ns, 0.0022 * ns, 0.0004, nf.normal), 'Nostrils');
+    // the WING (features.wing: { r, dome, at }): the nostril's ala as a bulb on the nose's side, a dome sunk in the skin
+    // (its crown stands `dome` out), so the nose has a side with an edge to the cheek instead of one wedge plane
+    if (ft.wing) {
+      const wingAt = ft.wing.at ?? [1.55, 3], wf = frameAt(carrier, 'cranium', wingAt, side), wn = unit([wf.normal[0], wf.normal[1], wf.normal[2] * 0.4]);
+      parts[`wing${side}`] = detail(carrier, 'cranium', wingAt, side, oval(add(wf.origin, mul(wn, -ft.wing.dome * 0.55)), ft.wing.r, ft.wing.r * 0.8, 0.001, reg.eyeSides, wn, ft.wing.dome), 'Skin');
+    }
     const lipAddrs = [[0.18, 0.03], [0.31, cupidT], [0.24, 2.05], [0.17, mouthT]];
     // the tiered face's lips (features.lowerLip): each strip sinks into the skin at the mouth's corner and its caps stop
     // at its ends (the 5 mm caps crossed at the midline into a zigzag, and a full-height corner read as a sliver past the

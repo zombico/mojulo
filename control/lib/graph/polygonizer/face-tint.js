@@ -17,8 +17,8 @@ const len = (a) => Math.hypot(a[0], a[1], a[2]);
 const smooth = (lo, hi, x) => { const t = Math.min(1, Math.max(0, (x - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
 const mean = (pts) => (pts.length ? [0, 1, 2].map((k) => pts.reduce((t, p) => t + p[k], 0) / pts.length) : null);
 
-export function faceTint(mesh, { ao = null, blush = null } = {}) {
-  if (!ao && !blush) return null;
+export function faceTint(mesh, { ao = null, blush = null, groove = null } = {}) {
+  if (!ao && !blush && !groove) return null;
   const V = mesh.vertices, F = mesh.faces, partOf = (fi) => mesh.provenance[F[fi][0]].part;
   const head = []; F.forEach((t, fi) => { if (SKIN.test(partOf(fi)) && mesh.groups[fi] === 'Skin') head.push(fi); });
   if (!head.length) return null;
@@ -51,9 +51,13 @@ export function faceTint(mesh, { ao = null, blush = null } = {}) {
     for (const s of spots) w = Math.max(w, s.w * (1 - smooth(0.4, 1, len(sub(p, s.c)) / s.r)));
     return w * blush.amount;
   };
+  // the ALAR GROOVE (`groove`: { k, r, band }): the crease round each nostril's wing into the cheek, a ring `r` round the
+  // wing's centre (over the nostril, out to its side), darkened on its cheek side (behind the wing's front)
+  const wings = groove ? [pts(/^nostrilR$/), pts(/^nostrilL$/)].filter((a) => a.length).map((a) => { const c = mean(a); return [c[0] * 1.35, c[1] - 0.002, c[2] + 0.004]; }) : [];
+  const crease = (p) => { let d = 0; for (const c of wings) { if (p[1] > c[1] + 0.003 || Math.sign(p[0]) !== Math.sign(c[0])) continue; const x = Math.abs(len(sub(p, c)) - groove.r) / groove.band; d = Math.max(d, 1 - smooth(0, 1, x)); } return 1 - groove.k * d; };
   const out = new Array(F.length).fill(null);
   head.forEach((fi, h) => { const part = partOf(fi);
-    out[fi] = W[h].map((i) => { const a = occ[i], b = warm(pos[i], part); return [0, 1, 2].map((k) => +(a * (1 + (blush ? blush.tint[k] - 1 : 0) * b)).toFixed(4)); });
+    out[fi] = W[h].map((i) => { const a = occ[i] * (groove ? crease(pos[i]) : 1), b = warm(pos[i], part); return [0, 1, 2].map((k) => +(a * (1 + (blush ? blush.tint[k] - 1 : 0) * b)).toFixed(4)); });
   });
   return out;
 }

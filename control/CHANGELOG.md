@@ -73,8 +73,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `shoulderFold` (turned half the arm's swing) carries a share of the torso's shoulder and a BALL, the vajra's
     ball-in-socket: a sphere at the joint as wide as the arm's root, which fills between the shoulder's corner and the
     arm at any angle. The hip's ring rides its fold whole; its head sits deep in the pelvis, so it has no ball.
-  - The bare tiered figure is 5,156 triangles against 5,196: the chest 3,988, the bridges, balls and ring8 limbs 752,
-    the lips 208, the eyes' domes and lids 160, the brows 48.
+  - The bare tiered figure is 5,348 triangles against 5,196: the chest 3,988 (a quarter fewer than the domes), the
+    bridges, balls and ring8 limbs 752, the lips 208, the eyes' domes and lids 160, the brows 48, the nose's wings 192.
 - **The tiered base form, third piece: the face.** The landmark head was one face for both sexes: the same short cut,
   eyes 36 mm wide (a real eye is about 30), a 2 mm upper lip the skin's colour, ears that stood out from a head they were
   a third of, faceted cheeks and a hard crease down the forehead and nose. Measured on a spike board (each change alone,
@@ -96,6 +96,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     front; the brows arch, thickest by the nose and tapering to a fine tail, on twice the stations, closer to the skin and
     a shade softer than the hair (`features.brows`). The female's chin is less pointed (a sharper point read too
     prominent in three-quarter and profile).
+  - The NOSE'S SIDE: the nostril's wing is a bulb on each side of the nose (`features.wing`), the crease round it into
+    the cheek is darkened (the tint's `groove`), and round the nose the head's normals keep three quarters of their own
+    (`ellipsoid: { w, nose }`): the nose was one wedge on a flat face, its sides smoothed away by the sphere.
   - The FACE TINT (`face-tint.js`, `TIERED_FACE_TINT`): a per-corner colour on the head's skin, read off its geometry —
     a soft occlusion where the skin turns in (the eyes' corners, the nostrils, the mouth's corners) and a warm blush on
     the cheeks, the nose's tip and the ears, the female's warmer. The vertex colour a shipped face paints where a

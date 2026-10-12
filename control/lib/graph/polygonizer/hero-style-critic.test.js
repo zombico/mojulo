@@ -47,7 +47,7 @@ describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
     const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
-    expect(tiered.mesh.faces.length).toBe(5156);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144; the brows' 48
+    expect(tiered.mesh.faces.length).toBe(5348);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144; the brows' 48; the nose's wings 192
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
     const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
@@ -55,7 +55,7 @@ describe('the tiered form', () => {
 
   it('a male, a child-coded figure or a bust of 0 takes no profile; the form is checked by name', () => {
     // the male's tiered form is today's and the joints' bridges and balls, the lips and the eyes' domes and lids alone
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(1168);
+    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(1360);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });
@@ -123,6 +123,8 @@ describe('the tiered face', () => {
     // the nose stands further off the eye: its tip's lead over the eye's front, pinned against today's
     const lead = (mm) => { const y = (re) => Math.max(...mm.vertices.filter((_, i) => re.test(mm.provenance[i].part)).map((v) => v[1])); return y(/^cranium$/) - y(/^eyeR$/); };
     expect(lead(f.mesh)).toBeGreaterThan(lead(today.mesh) + 0.004);
+    // the nose's wings, on the tiered head only
+    expect([Object.keys(f.m.recipe.parts).filter((k) => /^wing[RL]$/.test(k)).length, Object.keys(today.m.recipe.parts).filter((k) => /^wing[RL]$/.test(k)).length]).toEqual([2, 0]);
   }, 240000);
 
   it('the head\'s normals lean toward its ellipsoid: the skin of the cranium and the jaw, none elsewhere', () => {
@@ -131,6 +133,11 @@ describe('the tiered face', () => {
     const moved = (part) => mesh.faces.some((t, fi) => mesh.provenance[t[0]].part === part && b[fi].some((n, k) => Math.hypot(n[0] - a[fi][k][0], n[1] - a[fi][k][1], n[2] - a[fi][k][2]) > 1e-6));
     expect([moved('cranium'), moved('jaw'), moved('earR'), moved('torso')]).toEqual([true, true, true, false]);
     expect(layeredShadingNormals(mesh, m.recipe, { crease: 70, proxy: false, ellipsoid: 0 })).toEqual(a);
+    // round the nose the blend falls to its share: the nose's corners move less toward the sphere than the brow's
+    const c = layeredShadingNormals(mesh, m.recipe, { crease: 70, proxy: false, ellipsoid: { w: 0.7, nose: 0.25 } });
+    const nose = mesh.provenance.findIndex((pv) => pv.part === 'nostrilR'), at = mesh.vertices[nose];
+    const shift = (N) => { let s = 0; mesh.faces.forEach((t, fi) => { if (mesh.provenance[t[0]].part !== 'cranium') return; t.forEach((vi, k) => { const v = mesh.vertices[vi]; if (Math.hypot(v[0] - at[0], v[1] - at[1], v[2] - at[2]) < 0.01) s = Math.max(s, Math.hypot(...N[fi][k].map((x, q) => x - a[fi][k][q]))); }); }); return s; };
+    expect(shift(c)).toBeLessThan(shift(b));
   }, 120000);
 });
 

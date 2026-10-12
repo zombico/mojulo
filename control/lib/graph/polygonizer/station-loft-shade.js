@@ -227,12 +227,19 @@ function regionWeight(part, p, L) {
  * a sphere (the anime head's capsule proxy is the same idea on its own landmarks). The skin of the cranium and the jaw
  * takes the full weight, the ears half, everything else none; the ellipsoid is the two parts' box at rest, and a posed
  * face carries its rest direction by its own rotation, as the capsule does. No cranium or jaw ⇒ the weld as it was. */
-function headEllipsoidNormals(mesh, rest, out, w0) {
+function headEllipsoidNormals(mesh, rest, out, w0, noseKeep = 1) {
   const RV = rest.vertices, acc = [0, 0, 0], lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; let n = 0;
   const head = (pt) => pt === 'cranium' || pt === 'jaw';
   mesh.faces.forEach((t, fi) => { if (!head(partOf(mesh, fi))) return; for (const vi of t) { const p = RV[vi]; for (let k = 0; k < 3; k++) { acc[k] += p[k]; lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); } n++; } });
   if (!n) return out;
   const C = acc.map((x) => x / n), R2 = [0, 1, 2].map((k) => ((hi[k] - lo[k]) / 2) ** 2), posed = rest !== mesh;
+  // the NOSE keeps its own normals (`noseKeep`: the weight's share there): round its nostrils and its tip the blend
+  // falls to that share, so the nose's sides and wings catch the light the face's sphere would smooth away
+  const nosePts = (re) => { const o = []; mesh.provenance.forEach((pv, vi) => { if (re.test(pv.part)) o.push(RV[vi]); }); return o; };
+  const nr = nosePts(/^nostrilR$/), nl = nosePts(/^nostrilL$/);
+  const nc = noseKeep < 1 && nr.length && nl.length ? [0, 1, 2].map((k) => (nr.reduce((t, p) => t + p[k], 0) / nr.length + nl.reduce((t, p) => t + p[k], 0) / nl.length) / 2) : null;
+  const nR = nc ? 1.6 * Math.abs(nr[0][0] - nl[0][0]) : 0;
+  const keepAt = (p) => { if (!nc) return 1; const d = Math.hypot(p[0] - nc[0], (p[1] - nc[1]) * 0.7, (p[2] - nc[2]) * 0.6) / nR; const t = Math.min(1, Math.max(0, (d - 0.6) / 0.6)); return noseKeep + (1 - noseKeep) * t * t * (3 - 2 * t); };
   mesh.faces.forEach((t, fi) => {
     const pt = partOf(mesh, fi), w = head(pt) && mesh.groups[fi] === 'Skin' ? w0 : /^ear/.test(pt) ? w0 / 2 : 0; if (!w) return;
     let fr = null;
@@ -240,7 +247,7 @@ function headEllipsoidNormals(mesh, rest, out, w0) {
       const p = RV[vi]; let s = unit([(p[0] - C[0]) / R2[0], (p[1] - C[1]) / R2[1], (p[2] - C[2]) / R2[2]]);
       if (posed) { if (!fr) fr = [triFrame(RV, t), triFrame(mesh.vertices, t)]; const [R0, R1] = fr; if (!R0 || !R1) return;
         const co = [dot(R0[0], s), dot(R0[1], s), dot(R0[2], s)]; s = [0, 1, 2].map((q) => co[0] * R1[0][q] + co[1] * R1[1][q] + co[2] * R1[2][q]); }
-      const nn = out[fi][k]; out[fi][k] = unit([nn[0] * (1 - w) + s[0] * w, nn[1] * (1 - w) + s[1] * w, nn[2] * (1 - w) + s[2] * w]);
+      const wk = w * keepAt(p), nn = out[fi][k]; out[fi][k] = unit([nn[0] * (1 - wk) + s[0] * wk, nn[1] * (1 - wk) + s[1] * wk, nn[2] * (1 - wk) + s[2] * wk]);
     });
   });
   return out;
@@ -281,7 +288,7 @@ function clothFaces(mesh, recipe) {
  * axis (NECK_WEIGHT), so its prism facets shade as one round column. A degenerate face takes its weld's unfiltered sum
  * (or +z when that is zero too), so every entry is unit length.
  */
-export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null, ellipsoid = 0 } = {}) {
+export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null, ellipsoid = 0 } = {}) {   // `ellipsoid`: a weight, or { w, nose } (headEllipsoidNormals)
   if (rigid && rigid.size && rest !== mesh) {
     const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest, ellipsoid }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy, ellipsoid });
     return own.map((f, fi) => (rigid.has(partOf(mesh, fi)) ? still[fi] : f));
@@ -294,7 +301,8 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   const CW = cloth ? { ...crease, ...Object.fromEntries([...new Set(GW.filter((g) => g.startsWith('$cloth:')))].map((g) => [g, crease.$cloth])) } : crease;
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
   const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
-  if (!proxy && ellipsoid > 0) return headEllipsoidNormals(mesh, rest, out, ellipsoid);
+  const ew = typeof ellipsoid === 'object' && ellipsoid ? ellipsoid.w : ellipsoid;
+  if (!proxy && ew > 0) return headEllipsoidNormals(mesh, rest, out, ew, ellipsoid?.nose ?? 1);
   if (!proxy) return out;
   const L = headProxyLandmarks(rest); if (!L) return out;
   const C = L.centre, zLo = L.bottom; const wOf = new Map(); const RV = rest.vertices; const posed = rest !== mesh; const NA = L.neck && neckAxis(V, L.neck);

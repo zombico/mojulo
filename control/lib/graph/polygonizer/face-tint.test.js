@@ -16,6 +16,10 @@ describe('the face tint', () => {
     expect(all.some((c) => c[1] < c[0] * 0.95)).toBe(true);                       // a blush: green below red
     expect(Math.max(...all.flat())).toBeLessThanOrEqual(1);                       // a tint only ever darkens or warms down
     expect(faceTint(mesh, {})).toBeNull();
+    // the crease round the nose's wing darkens beyond the occlusion alone
+    const noGroove = faceTint(mesh, { ...TIERED_FACE_TINT.female, groove: null }).filter(Boolean).flat();
+    expect(Math.min(...all.map((x) => x[0]))).toBeLessThanOrEqual(Math.min(...noGroove.map((x) => x[0])));
+    expect(all.reduce((t, x) => t + x[0], 0)).toBeLessThan(noGroove.reduce((t, x) => t + x[0], 0));
     // the male's blush is the lighter
     const male = built({ cast: 'male', form: 'tiered' }), tm = faceTint(male.mesh, TIERED_FACE_TINT.male).filter(Boolean).flat();
     const warmth = (cs) => Math.max(...cs.map((c) => c[0] - c[1]));
