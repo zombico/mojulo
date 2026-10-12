@@ -40,6 +40,7 @@ import {
   AgentTaskError,
 } from '@/lib/mcp/agent-tasks/queue';
 import { recordInferenceOutcome } from '@/lib/mcp/agent-tasks/audit';
+import { normalizeTier } from '@/lib/agent-tasks/tiers';
 
 const TASK_KIND_ENVELOPE_INFERENCE = 'envelope_inference';
 
@@ -78,6 +79,9 @@ export async function pullAgentTaskHandler(input = {}, context = {}) {
     envelope_schema: payload.envelope_schema || ENVELOPE_SCHEMA,
     protocol_context: payload.protocol_context || null,
     caller_ref: payload.caller_ref || null,
+    // How much judgment the answer needs (ride | fill | judge | design); a
+    // worker may answer a light tier with a lighter model. null = untiered.
+    tier: normalizeTier(payload.tier),
     inputs: {
       text: typeof responseInputs.text === 'string' ? responseInputs.text : null,
       image_present: !!(responseInputs.image_base64 || responseInputs.image?.base64),
@@ -137,7 +141,11 @@ export async function submitEnvelopeInferenceHandler(input = {}) {
   // before the app sees its answer. Better-sqlite3 is synchronous; a
   // write failure logs and continues — we'd rather deliver the inference
   // and lose audit than fail the inference.
-  const fulfillerStamp = { kind: 'agent-mcp', model: model || undefined };
+  const fulfillerStamp = {
+    kind: 'agent-mcp',
+    model: model || undefined,
+    tier: normalizeTier(payload.tier) || undefined,
+  };
 
   let principleId = null;
   try {

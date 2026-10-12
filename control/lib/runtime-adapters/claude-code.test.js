@@ -7,13 +7,45 @@ import { describe, it, expect } from 'vitest';
 import { claudeCodeHeadlessAdapter, _internals } from './claude-code.js';
 import { AgentRuntimeError } from './errors.js';
 
-const { parseClaudeOutput, buildUserPrompt } = _internals;
+const { parseClaudeOutput, buildUserPrompt, buildArgs, TIER_RUNTIME } = _internals;
 
 describe('adapter shape', () => {
   it('declares its id, capabilities, and supportedKinds', () => {
     expect(claudeCodeHeadlessAdapter.id).toBe('claude-code-headless');
     expect(claudeCodeHeadlessAdapter.capabilities.vision).toBe(true);
     expect(claudeCodeHeadlessAdapter.supportedKinds).toContain('envelope_inference');
+  });
+});
+
+describe('buildArgs — tiers pick the model and effort', () => {
+  const base = { systemPrompt: 'SYS', userPrompt: 'USER' };
+
+  it('an untiered task spawns the pre-tier command, byte for byte', () => {
+    expect(buildArgs(base)).toEqual([
+      '--print', '--output-format', 'json', '--system-prompt', 'SYS', 'USER',
+    ]);
+  });
+
+  it('an unknown tier is ignored, never passed through as a model', () => {
+    expect(buildArgs({ ...base, tier: 'opus' })).toEqual(buildArgs(base));
+  });
+
+  it.each([
+    ['ride', 'haiku', 'low'],
+    ['fill', 'haiku', 'low'],
+    ['judge', 'sonnet', 'medium'],
+    ['design', 'opus', 'high'],
+  ])('%s → --model %s --effort %s', (tier, model, effort) => {
+    expect(buildArgs({ ...base, tier })).toEqual([
+      '--print', '--output-format', 'json', '--model', model, '--effort', effort,
+      '--system-prompt', 'SYS', 'USER',
+    ]);
+  });
+
+  it('maps every tier and uses aliases, never pinned model IDs', () => {
+    for (const { model } of Object.values(TIER_RUNTIME)) {
+      expect(['haiku', 'sonnet', 'opus']).toContain(model);
+    }
   });
 });
 
@@ -53,6 +85,17 @@ describe('parseClaudeOutput — happy path', () => {
     const out = parseClaudeOutput(stdout);
     expect(out.envelope).toEqual({ answer: 'blue' });
     expect(out.model).toBe('claude-opus-4-7');
+  });
+
+  it('reads the model from modelUsage when there is no top-level model (CLI 2.1.x)', () => {
+    const stdout = JSON.stringify({
+      result: '{"answer":"ok"}',
+      modelUsage: {
+        'claude-haiku-4-5-20251001': { outputTokens: 48 },
+        'claude-sonnet-x': { outputTokens: 3 },
+      },
+    });
+    expect(parseClaudeOutput(stdout).model).toBe('claude-haiku-4-5-20251001');
   });
 
   it('strips a JSON markdown fence before parsing', () => {

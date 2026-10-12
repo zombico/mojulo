@@ -13,6 +13,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Model tiering: the cheapest model that does the work well
+
+- **A tier on an agent task.** An inference task may carry `tier`: `ride`, `fill`, `judge` or `design`
+  (`lib/agent-tasks/tiers.js`), how much judgment the answer needs. The core names tiers only, never a model. The
+  `pull_agent_task` manifest echoes it, and the `app_inference` principle records it beside the model that ran. An
+  unknown tier is dropped; a task without one behaves exactly as before.
+- **The Claude worker honours it.** The `claude-code-headless` runtime passes `--model` and `--effort` per tier
+  (`fill` haiku/low, `judge` sonnet/medium, `design` opus/high; `ride` haiku/low), so a subscriber's usage goes to
+  design and the rest runs light. An untiered task spawns the same command as before.
+- **The model that ran is recorded again.** `claude --print --output-format json` (2.1.x) names the model only as a
+  key of `modelUsage`, so the runtime recorded no model. It now reads that key (the one with the most output when a
+  subagent ran too), so the principle shows the requested tier beside the model that answered.
+
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
