@@ -677,6 +677,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   its sky, the cube's bands; the cube's target when `target` is not named. Absent: today's studio light and mesh.
   `hero.density` on the readout: each part's radius in pixels, sides, the sides it wants and its error, the worst, the
   parts still over after a split, and the era's conventions still `planned`. Revise either with `update_character`.
+  THE TIERED DRESS (`form: 'tiered'`). What the hero wears and carries is drawn for its target too (the default target
+  when none is named), and only ever coarser than authored. An armour or kit shell takes the sides its radius wants,
+  never fewer than the skin's under it or than its standoff needs to clear it; a rolled edge or a lacing cord under 3 px
+  becomes painted rim, and a row of rivets under 2 px one rivet. A held item's lathes, sweeps and gems follow the pixels
+  it covers. Garments take their part's split, and a sleeve or trouser leg over both limbs of a joint covers the
+  bridge between them; a couter or poleyn rides its joint's bridge, and a torso or neck piece stands off the shoulder
+  balls. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

@@ -13,6 +13,8 @@
  *   tieredChest(plan, size)   the plan with the field on its torso (size: the bust radius in metres; 0 none)
  *   tieredJoints(plan)        the plan with a BRIDGE over the elbows, the knees and the wrists
  *   tieredSockets(plan)       the plan with the shoulders and the hips turning their limb's root through a fold
+ *   tieredGarments(plan)      the plan's garments over its bridges, and split wherever their body part is split
+ *   tieredKit(kit, plan)      an adornment kit over the joints: a piece over a joint rides its bridge, a pauldron its ball
  *   TIERED_FACE[pole]         the landmark head's defaults by sex: face words, hair, features (humanoid-head.js)
  *   TIERED_FACE_SMOOTH        the landmark head's normals blended toward its ellipsoid
  *   TIERED_FACE_TINT[pole]    the head skin's occlusion and blush (face-tint.js); tieredPole(hero) the head's sex
@@ -347,4 +349,74 @@ export function tieredFace(hero, pole) {
   const F = TIERED_FACE[pole] ?? TIERED_FACE.male, own = hero.face == null ? [] : Array.isArray(hero.face) ? hero.face : [hero.face];
   const target = heroTarget(hero), fullEar = !!target && TIERED_FULL_EAR_TIERS.includes(tierOf(readTarget(target).figurePx).id);
   return { ...hero, face: [F.face, ...own], faceFeatures: fullEar ? F.features : { ...F.features, earLean: true } };
+}
+
+/** The joints a garment crosses (upper limb, lower limb, the bridge between): a piece running to the upper limb's end
+ * over a piece starting at the lower limb's start covers the bridge too, so a sleeve and its cuff bend as one cloth. */
+export const GARMENT_BRIDGES = Object.freeze([['upperArm', 'foreArm', 'elbowBridge', 'Elbow'], ['thigh', 'shank', 'kneeBridge', 'Knee'], ['foreArm', 'hand', 'wristBridge', 'Wrist']]);
+const baseOf = (n) => n.replace(/[RL]$/, '');
+/** a garment's part names (a word or a list of them, as body-garment.js reads it) */
+const partsOf = (g) => (Array.isArray(g.part) ? g.part : [g.part]).filter((n) => typeof n === 'string');
+/** a garment copied ring by ring off its parts (not a shoe or a skirt, which are built hulls), and whether its window
+ * reaches the part's end (`end`) or starts at its start */
+const copied = (g) => !g.fit;
+const reaches = (g, end) => copied(g) && g.u === undefined && (!g.run || (end ? g.run[1] >= 1 - 1e-9 : g.run[0] <= 1e-9));
+
+/**
+ * The tiered form's garments (body-garment.js). A garment is a copy of its part's rings, so it should be drawn as that
+ * part is:
+ *   - a BRIDGE between two limbs a garment covers end to start takes a piece of its own (`<id><Joint>`, the upper
+ *     piece's group, the larger of the two eases at the joint), worn just after the upper piece; else the bridge's skin
+ *     shows between a sleeve and its cuff, a trouser leg and its shin;
+ *   - each garment joins every refine entry that names its part (the dress's, a bridged chain's, the target's split), so
+ *     it keeps its part's sides and the skin's extra ring never stands between two of the cloth's.
+ * No garments ⇒ the plan as it was.
+ */
+export function tieredGarments(plan) {
+  const G = plan.garments;
+  if (!G?.length) return plan;
+  const has = (n) => (plan.segments || []).some((s) => baseOf(s.name) === n);
+  const garments = [];
+  for (const g of G) {
+    garments.push(g);
+    for (const [up, low, bridge, joint] of GARMENT_BRIDGES) {
+      if (!partsOf(g).some((n) => baseOf(n) === up) || !reaches(g, true) || !has(bridge)) continue;
+      const h = G.find((x) => partsOf(x).some((n) => baseOf(n) === low) && reaches(x, false));
+      if (!h) continue;
+      const ease = Math.max(g.ease + (g.flare?.[1] ?? 0), h.ease + (h.flare?.[0] ?? 0));
+      garments.push({ id: `${g.id}${joint}`, part: [bridge], ease: r6(ease), group: g.group, ...(g.rigidity !== undefined ? { rigidity: g.rigidity } : {}) });
+    }
+  }
+  // the parts each garment copies: its part's twins as the compile names them (body-garment.js `<id>_<part>`)
+  const onPart = (p) => garments.filter((g) => copied(g) && partsOf(g).some((n) => n === p || n === baseOf(p))).map((g) => `${g.id}_${p}`);
+  const refine = plan.body?.refine?.map((e) => (e.parts ? { ...e, parts: [...new Set([...e.parts, ...e.parts.flatMap(onPart)])] } : e));
+  return { ...plan, garments, ...(refine ? { body: { ...plan.body, refine } } : {}) };
+}
+
+/**
+ * An adornment KIT (station-loft-adorn.js) on the tiered joints. A rigid piece over a joint (a couter on the upper arm
+ * standing off the forearm, a poleyn on the thigh off the shin) stands off the BRIDGE between them too, and is pinned at
+ * the bridge's middle, whose weights run through the joint's fold: it turns half the bend, as the cloth over the joint
+ * does, instead of riding the upper bone while the bridge bends under it. A piece on the torso or the neck (a pauldron,
+ * a gorget) stands off the shoulders' BALLS as well, which stand out of the torso there. A piece its author
+ * pinned keeps its pin. No bridges or balls ⇒ the kit as it was.
+ */
+export function tieredKit(kit, plan) {
+  if (!Array.isArray(kit) || !kit.length) return kit;
+  const seg = (n) => (plan.segments || []).find((s) => s.name === n.replace(/L$/, 'R'));
+  const sideOf = (n) => (/L$/.test(n) ? 'L' : /R$/.test(n) ? 'R' : null);
+  return kit.map((A) => {
+    const S = sideOf(A.part ?? ''), over = A.over || [];
+    let B = A;
+    for (const [up, low, bridge] of GARMENT_BRIDGES) {
+      if (!S || A.part !== `${up}${S}` || !over.includes(`${low}${S}`)) continue;
+      const br = seg(`${bridge}R`);
+      if (!br) continue;
+      const mid = r6(((br.stations?.length ?? 2) - 1) / 2), t = Array.isArray(A.t) ? r6((A.t[0] + A.t[1]) / 2) : null;
+      B = { ...B, over: [...new Set([...(B.over || []), `${bridge}${S}`])], ...(A.rigid && !A.pin && t != null ? { pin: [mid, t, A.side || S, `${bridge}${S}`] } : {}) };
+    }
+    // the balls stand out of the torso at the shoulder: what the torso or the neck carries stands off them
+    if ((A.part === 'torso' || A.part === 'neck') && seg('shoulderBallR')) B = { ...B, over: [...new Set([...(B.over || []), 'shoulderBallR', 'shoulderBallL'])] };
+    return B;
+  });
 }

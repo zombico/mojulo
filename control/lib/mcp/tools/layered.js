@@ -68,12 +68,12 @@ import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/r
 import { WINGBEATS } from '@/lib/graph/bugs/gait';
 import { prepareStrokes, strokesLedger } from '@/lib/mcp/tools/layered-strokes';
 import { packRecipe } from '@/lib/graph/sketch/manifest-store';
-import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild } from '@/lib/graph/polygonizer/hero-gear';
+import { validateGear, gearRecord, gearMounts, gearReadout, gearBuild, gearTriangles } from '@/lib/graph/polygonizer/hero-gear';
 import { isSwing, SWING_HAND, heroSwing } from '@/lib/graph/polygonizer/hero-swing';
 import { expandEquipment } from '@/lib/graph/equipment/expand';
 import { GESTURE_CLIP, GESTURE_WORDS, GESTURE_KEYS, STRUCTURED_SWING_BASE, heroGesture, validateGesture, resolveGesture, withGestureClip, gestureWord, standPose, poseLayered, gestureClearance, validateHeroClips, withHeroClips, heroClipSeconds, CLIP_KEYS } from '@/lib/graph/polygonizer/hero-gesture';
 import { validateHeroMotion, motionPlan, locomotionClips } from '../../graph/polygonizer/hero-motion.js';
-import { targetError, RESOLUTIONS, FRAMINGS } from '../../graph/era/target.js';
+import { targetError, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/era/target.js';
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
@@ -82,7 +82,8 @@ import { castSpend } from '../../graph/era/cast-spend.js';
 import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
 import { lookReadout } from '../../graph/era/looks.js';
 import { noseDialErrors, NOSE_DEFAULTS } from '../../graph/polygonizer/anime-nose.js';
-import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
+import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, tieredGarments, tieredKit, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
+import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
@@ -380,7 +381,15 @@ export function heroPlanOf(hero) {
  * error takes one split, after the dress's refine. No target ⇒ the plan as it was. */
 function targetPlan(plan, hero) {
   const target = heroTarget(hero);
-  return target ? densityPlan(plan, target) : plan;
+  return tieredDress(target ? densityPlan(plan, target) : plan, hero, target);
+}
+/** The tiered form's dress, on the plan its target split: its garments over the bridges and split with their parts
+ * (tiered-form.js tieredGarments), its kit over the joints (tieredKit), and that kit as the hero's target shows it (adorn-tier.js; the default target when it
+ * names none, as the tiered face reads it). Another form ⇒ the plan as it was. */
+function tieredDress(plan, hero, target) {
+  if (hero.form !== 'tiered') return plan;
+  const dressed = tieredGarments(plan);
+  return dressed.adorn?.length ? { ...dressed, adorn: tierKit(tieredKit(dressed.adorn, dressed), dressed, target ?? DEFAULT_TARGET).kit } : dressed;
 }
 /** the door's MOTION (hero-motion.js) on a rigged plan: its gaits as `plan.locomotion` (compiled where the clips are
  * packed); absent ⇒ the plan as it was */
@@ -621,7 +630,8 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     // (an adult female figure's chest is read too: its spacing, its height and the gap at the sternum)
     ...((sm) => (sm ? { critic: { style: anime || hero.proportions === 'anime' ? 'anime' : 'western', measures: sm, western: styleCritic(sm, 'western', coreBody), anime: styleCritic(sm, 'anime', coreBody),
       ...(coreBody === 'female' && !childCoding(hero) ? ((cm) => (cm ? { chest: { measures: cm, ...chestCritic(cm) } } : {}))(chestMeasures(plan, mesh, sm.head_m)) : {}) } } : {}))(mesh ? styleMeasures(plan, mesh) : null),
-    ...(mesh && heroTarget(hero) ? { spend: castSpend(mesh, plan, heroTarget(hero)) } : {}),
+    // the carried gear is drawn beside the figure's mesh (hero-gear.js): the spend counts it as its own region
+    ...(mesh && heroTarget(hero) ? { spend: castSpend(mesh, plan, heroTarget(hero), { gear: hero.gear && recipe?.rig ? gearTriangles(gearMounts(hero, validateRig(recipe.rig))) : null }) } : {}),
     // the painterly look (era/looks.js): its conventions built and still planned
     ...(hero.painterly ? { painterly: lookReadout('painterly-toon') } : {}),
     ...(budget && heroTarget(hero) ? { density: { ...castDensityReadout(plan, heroTarget(hero), budget.triangles), era: heroEra(hero), ...(hero.geocube ? { geocube: readGeocube(hero.geocube).id } : {}),
