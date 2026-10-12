@@ -123,8 +123,9 @@ export const MEADOWMARK_HERO = Object.freeze({
  * from the meadow's facets ("realism but stylized and detailed …": a grounded palette of seven stops a ramp, bare
  * basalt, sparse scrub, a gas giant in a pale day sky, dust in the air); the survey corps' habitats are tunnelled from
  * the building elements and the technology blocks; the dome growers start from the shell and make it theirs; each
- * civilization's machines are tunnelled into blocks. Three levels from the landing flats to a walled relay. Its review
- * has not begun: every part waits for the creator.
+ * civilization's machines are tunnelled into blocks, and its vehicles, tech-structures and weapons crafted (the
+ * crafter, tech-crafter.js). Three levels from the landing flats to a walled relay. Its review has not begun: every
+ * part waits for the creator.
  */
 export const HALDEN_REACH = Object.freeze({
   id: 'halden-reach', name: 'Halden Reach', seed: 7, mode: 'gated',
@@ -138,12 +139,23 @@ export const HALDEN_REACH = Object.freeze({
     'survey-corps': {
       name: 'The survey corps', fort: 'battered', town: { levels: 1, heartbeat: 'hamlet' },
       builds: 'a modular sci-fi habitat, raised, with a comms mast and solar',
-      technology: { finish: 'alloy', things: { hauler: 'a tracked ore hauler', relay: 'a wind turbine relay beacon', array: 'a solar power station', scanner: 'a portable survey scanner', fabricator: 'an automated fabricator' } },
+      technology: {
+        finish: 'alloy', things: { hauler: 'a tracked ore hauler', relay: 'a wind turbine relay beacon', array: 'a solar power station', scanner: 'a portable survey scanner', fabricator: 'an automated fabricator' },
+        direction: { elements: { primary: 'lightning' } },
+        vehicles: { walker: { intent: 'an armoured walker', rank: 'focus' }, crawler: 'an armoured tracked crawler', skimmer: 'a small scout hover skimmer', lifter: 'a cargo helicopter' },
+        structures: { mast: 'a tall lattice relay tower beacon', dish: 'a radio telescope dish', pad: 'a rocket launch gantry' },
+        weapons: { carbine: 'a laser carbine', sentry: 'a sentry turret', shield: 'a riot shield' },
+      },
     },
     'dome-growers': {
       name: 'The dome growers', anchor: 'shell', fort: 'crenellated', town: { levels: 2 },
       builds: 'pressurised domes, banded, with solar',
-      technology: { finish: 'composite', things: { greenhouse: 'a hydroponic greenhouse', cistern: 'a water tank', loader: 'a tracked crane loader' } },
+      technology: {
+        finish: 'composite', things: { greenhouse: 'a hydroponic greenhouse', cistern: 'a water tank', loader: 'a tracked crane loader' },
+        vehicles: { walker: 'a cargo walker', barge: 'a canal barge' },
+        structures: { cooler: 'a cooling tower', wall: 'a forcefield barrier' },
+        weapons: { lance: 'an arc lance', launcher: 'a missile launcher' },
+      },
     },
   },
   levels: {

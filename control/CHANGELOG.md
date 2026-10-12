@@ -30,6 +30,83 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   shell with every level open, nothing saved and the debug drawer open; `level` opens straight into one level.
   design_game's `play` step and create_game's answer carry the link.
 
+### Technology design loop: chassis, adornment, skin
+
+- Under way, nothing ships yet. A civilization's crafted vehicles, tech-structures and weapons get a design loop like
+  the hero's: direction, chassis (low-poly masses on a rigid rig), adornment (shells, plates, spikes and emitters on
+  sockets, each serving a function), skin (values, a painted atlas, a team-colour mask), effects (the glow is the
+  accent) and motion with tiers. Each page is reviewed in the bible. Built on the workbench, so crafted tech exports
+  to GLB and Godot. This section fills as phases land.
+- **Style apart from density** (`gameworld/tech-eras.js`). The style is Warcraft 3's: chunky masses, exaggeration where
+  small things must read, the detail in the paint. Density follows the world's camera, not the style. Each camera
+  (third person by default, first person, side, top-down) sets where the hero is seen and where each tier of tech is
+  met, so a walker beside a third-person hero rounds its masses more than the same walker seen top-down. The hero leads
+  in count: each interest rank is capped at a share of the hero's triangles. Atlas pages follow surface area and
+  distance on a 2560×1440 screen.
+- **The readout** (`gameworld/tech-readout.js`): the widest facet on a curve, read on today's screen at the meet
+  distance against the style's band (chunky reads, crude does not; too narrow is wasted); triangles under the rank's
+  ceiling; silhouette segments at the meet distance; whether the main mass is shaded in; render groups; the atlas page.
+- **The direction page** (`gameworld/tech-direction.js`): `technology.direction` gives a civilization's crafted things
+  a style, a motif (smooth, faceted, riveted, spiked, organic, ornate: the shape language their adornment will speak),
+  elements (the glow and the stones; the hero's when left out), a tone and a team colour. Every default says where it
+  came from (a motif from its words, its builds or its finish), and what is said over a default is ledgered. The team
+  colour is a marker a placement may pass; the civilization's place sets the default. A crafted thing may name its
+  interest rank (`{ intent, rank }`); otherwise what it does and how big it is decide it. Each civilization's direction
+  is a review part in the bible, the graph carries ranks, and autonomous mode reads a motif and elements from the prompt.
+- **The chassis, solved from a body plan** (`gameworld/tech-chassis.js`, `gameworld/tech-bodyplan.js`). A form is a row of
+  data: a core and its parts (limbs, tracks, wheels, a skirt, pods, a cabin, a fin, a plinth, a deck, a mast, piers, a
+  pedestal, barrels, a sail, a stack, oars), solved by one solver that names no form. Rows exist for the walker, tank,
+  hovercraft, ship, tower, gate, turret and cannon; other forms keep their blocks. Joints and sockets are derived from
+  the masses, never listed. A crafted thing's main masses are
+  built as workbench geometry (lofts, lathes, sweeps, extrudes) in values, on a rigid rig of named joints (a walker's
+  hips and knees, a tower's turning crown), with named sockets where the adornment will hang. The motif shapes the
+  sections. Each rounded piece gets just enough sides for where the world's camera meets it, so the same walker spends
+  about 3,800 triangles beside a third-person hero and about 1,400 seen top-down. What the words claim that the masses
+  cannot show (an armoured walker's plates) is promised to the adornment rather than failed. The bible draws these
+  things as their chassis and adornment, painted in the civilization's finish.
+- **The adornment** (`gameworld/tech-adornment.js`), whose rules read sockets by face and mass, never by name. Plates, panels, a visor, an eye,
+  vents, hoses, antennas, spikes, fins, rivets, a turret, a dish, a lantern room, bands: each piece serves something
+  and says why it is there. What the words promised comes first (an armoured walker's plates serve guard), then the
+  face a machine is read by, then the motif's own (rivets on riveted plates, spikes on a spiked hull, fins on a smooth
+  one), then whatever stands past the outline until the interest rank's silhouette floor is met. A lighthouse is
+  crowned by its lantern room and cap. Every thing carries its one status light. The solver loops until every law
+  holds; when two laws cannot both hold for a brief (a walker met at arm's length rounding its masses under the hero's
+  triangle ceiling), it names the conflict and what would settle it.
+  The object measures take an optional meet distance; without one they read as before.
+
+### World bible: technology, crafted
+
+- **A civilization's technology grows three lists.** `civilizations.<id>.technology` takes `vehicles`, `structures`
+  and `weapons` beside `things` (its machines), each `{ <id>: words | { intent, seed? } }`. The building tunnel makes
+  what a civilization lives in; the technology crafter (`gameworld/tech-crafter.js`) makes what it goes in, what it
+  raises to be seen and what it fights with. Every crafted block joins the civilization's library, so an id names one
+  thing across the lists. A world without them reads, resolves, graphs and draws byte-identically.
+- **The crafter.** One tunnel loop per kind (`craftTech(kind, intent)`): an intent is read into a form and its
+  variant, the functions it shows and how it looks doing them. A grammar per form lays a part for every read, the laws
+  assess it, and a tweak thickens what was lost, leads what should lead and lets the runner-up give way.
+  - A word that names a kind in general (a tower, a gun) gives way to one that names it. Of two that name it, the
+    last named is the thing ("a forcefield gate" is a gate with a field across it).
+  - **Vehicles**: wheeled, tracked, walkers, rail, hover, rotorcraft, winged craft, airships, ships (rowed unless under
+    sail or steam), drawn carts; armoured, armed, carrying cargo; a `vessel` tier for building-scale craft. A ship's
+    hull is 16 m and a boat's 6.5 m, at the hero's scale.
+  - **Tech-structures**: towers (and what they carry at the top: a beacon, a lantern, a dish, a gun, collectors),
+    gates and portals, bridges and aqueducts, windmills and watermills, cooling and furnace stacks, great dishes,
+    barriers and launch gantries. A `landmark` tier and a `stands-out` law: 8 m or more, the signature geometry at the
+    far ring.
+  - **Weapons**: blades, polearms, axes and hammers, bows and crossbows, staves, rifles and pistols, shields;
+    cannon and mortars, trebuchets and catapults, ballistae, launchers, turrets; energy, twin and many barrels,
+    sentries.
+  - A hand weapon takes the new `held` tier, judged at arm's length (at six metres a blade is a line). One a character
+    can carry names its equipment class (`carries`: sword, dagger, greatsword, bow, staff, shield). Crewed and
+    emplaced weapons are judged at near.
+- **Blocks** (`era/blocks.js`): the functions `strike`, `guard` and `pass`; the tiers `held` (a `reach` in metres in
+  place of a ring), `vessel` and `landmark`; the mounts `hand` and `water`. Existing blocks build byte-identically.
+- **In the world.** The graph gains `vehicle`, `tech-structure` and `weapon` nodes, reached by `drives`, `erects` and
+  `wields`. The bible draws each list in the civilization's finish, with its tunnel's log. Autonomous mode sends a
+  clause that names no machine but a crafted form ("war galleys", "a stargate") to the crafter. Halden Reach fields
+  crawlers, a hover skimmer, a cargo lifter, a relay mast, a dish and a launch gantry, carbines, sentries and shields.
+  The technology index (`out-sheet.mjs tech`) gains a card per kind.
+
 ### Asset receipts: a creator's signed proof for an exported file
 
 - **`sign_asset` / `verify_asset` (pack_stash).** `sign_asset({ path })` hashes an exported file, signs the hash with

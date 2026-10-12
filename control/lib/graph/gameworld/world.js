@@ -7,9 +7,11 @@
  *                   stands from little to many: its clouds, rocks, cliffs, landmarks), and which civilization builds
  *                   where no one else is named
  *   CIVILIZATIONS   who builds on it: each its building language, its fortification, how it lays out a town and
- *                   raises a castle. A world keeps as many as it likes; a level is settled by one, and any town or
- *                   castle on it may be built by another (a conqueror's castle over an older town). Only what a
- *                   civilization builds is here; its people are left open with the world's characters
+ *                   raises a castle, and its TECHNOLOGY: its machines, and what the crafter (tech-crafter.js) makes of
+ *                   its words: the vehicles it goes in, the tech-structures it raises, the weapons it fights with. A
+ *                   world keeps as many as it likes; a level is settled by one, and any town or castle on it may be
+ *                   built by another (a conqueror's castle over an older town). Only what a civilization builds and
+ *                   makes is here; its people are left open with the world's characters
  *   CHARACTERS      who walks it (characters.js): the character book, its direction and its hero; read here,
  *                   resolved there
  *   EQUIPMENT       what can be equipped (equipment.js): a row per class of gear, read here, resolved there
@@ -22,7 +24,8 @@
  *   gameworld: {
  *     id, name?, seed?,
  *     style?: { kit?, civilization?, trail?: {…}, meru?: {…}, weather?: '<climate>' | {…}, land?: { <form>: variant | many | { variant?, many? } } },
- *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…}, builds?, technology? } },
+ *     civilizations?: { '<id>': { name?, anchor?, fort?, town?: {…}, castle?: {…}, builds?,
+ *                                 technology?: { finish?, blocks?, things?, vehicles?, structures?, weapons? } } },
  *     levels: { '<id>': {
  *       name?, seed?,                     // the seed derives from the world's and the level's id unless named
  *       style?: { … },                    // the level's overrides, the style's shape
@@ -57,6 +60,9 @@ import { readLevel } from '../level/graph.js';
 import { LAND_FORMS, LAND_FORM_IDS } from '../era/out-land.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
 import { tunnelTech } from './tunnel-tech.js';
+import { craftTech } from './tech-crafter.js';
+import { readTechDirection } from './tech-direction.js';
+import { INTEREST } from '../playscape/objects/laws.js';
 import { composeLook } from './tunnel-land.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
@@ -90,7 +96,7 @@ export const CIVILIZATION = Object.freeze({
   town: 'how it lays out a town: length, sway, branches, levels, back, farms, heartbeat, secondary',
   castle: 'how it raises a castle: size, wards, rise',
   builds: 'what it builds, in words ("a modular sci-fi habitat", or { intent, seed? }): tunnelled through its blocks into its building language, from its anchor when one is named',
-  technology: 'its technology: { finish?, blocks?: { <id>: block }, things?: { <id>: words | { intent, seed? } } }, each thing tunnelled into a block its library keeps',
+  technology: 'its technology: { finish?, blocks?: { <id>: block }, direction?, things?, vehicles?, structures?, weapons? }, each list a { <id>: words | { intent, seed?, rank? } }: its machines (things) tunnelled, its vehicles, tech-structures and weapons crafted, each into a block its library keeps; direction (tech-direction.js) the style, motif, elements, tone and team colour they share',
 });
 const GROUPS = Object.freeze({
   trail: ['run', 'heartbeat', 'bumpiness'],
@@ -108,6 +114,9 @@ export const LINK_KINDS = Object.freeze({ road: 'the walk goes on: the next leve
 export const RESERVED = Object.freeze([]);
 /** The slots a world's bible names open while the world leaves them out: its characters and its systems. */
 export const OPEN_SLOTS = Object.freeze(['characters', 'mechanics', ...RESERVED]);
+/** What a civilization's technology lists: its machines (the technology tunnel), then what the crafter makes, by kind. */
+export const CRAFTED = Object.freeze({ vehicles: 'vehicle', structures: 'structure', weapons: 'weapon' });
+const TECH_LISTS = ['things', ...Object.keys(CRAFTED)];
 /** The civilization a world without any keeps: the kit's own language, crenellated. */
 export const NATIVE = 'native';
 
@@ -176,12 +185,27 @@ function readCivilization(c, at) {
   if (out.builds !== undefined) out.builds = intentOf(out.builds, `${at}.builds`);
   if (out.technology !== undefined) {
     const T = out.technology;
-    if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, things? }`);
-    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'things'].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, things)`);
+    if (!isObj(T)) throw new Error(`gameworld: ${at}.technology is { finish?, blocks?, direction?, ${TECH_LISTS.join('?, ')}? }`);
+    for (const k of Object.keys(T)) if (!['finish', 'blocks', 'direction', ...TECH_LISTS].includes(k)) throw new Error(`gameworld: ${at}.technology.${k} is not a technology setting (finish, blocks, direction, ${TECH_LISTS.join(', ')})`);
     if (T.finish !== undefined && !FINISHES[T.finish]) throw new Error(`gameworld: ${at}.technology.finish '${T.finish}' is not a finish (${Object.keys(FINISHES).join(', ')})`);
     if (T.blocks !== undefined && !isObj(T.blocks)) throw new Error(`gameworld: ${at}.technology.blocks is { <id>: block }`);
-    if (T.things !== undefined && !isObj(T.things)) throw new Error(`gameworld: ${at}.technology.things is { <id>: words | { intent, seed? } }`);
-    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: Object.fromEntries(Object.entries(T.things ?? {}).map(([id, v]) => { if (!ID.test(id)) throw new Error(`gameworld: ${at}.technology.things '${id}': an id is a short lower-case name`); return [id, intentOf(v, `${at}.technology.things.${id}`)]; })) };
+    // every list is { <id>: words }: one library, so a crafted thing's id names it alone (things keep their old
+    // standing: one may share a block's id and stand in for it)
+    const named = new Map(Object.keys(T.blocks ?? {}).map((id) => [id, 'blocks']));
+    const list = (k) => Object.fromEntries(Object.entries(T[k] ?? {}).map(([id, v]) => {
+      if (!ID.test(id)) throw new Error(`gameworld: ${at}.technology.${k} '${id}': an id is a short lower-case name`);
+      if (named.has(id) && (k !== 'things' || named.get(id) !== 'blocks')) throw new Error(`gameworld: ${at}.technology.${k} '${id}' is already named in ${named.get(id)}: an id names one thing in the civilization's library`);
+      named.set(id, k);
+      // a crafted thing may say how much it matters (its interest rank); a machine is words, as it always was
+      if (k !== 'things' && isObj(v) && v.rank !== undefined) {
+        if (!INTEREST[v.rank]) throw new Error(`gameworld: ${at}.technology.${k}.${id}.rank '${v.rank}' is not an interest rank (${Object.keys(INTEREST).join(', ')})`);
+        const { rank, ...rest } = v;
+        return [id, { ...intentOf(rest, `${at}.technology.${k}.${id}`), rank }];
+      }
+      return [id, intentOf(v, `${at}.technology.${k}.${id}`)];
+    }));
+    for (const k of TECH_LISTS) if (T[k] !== undefined && !isObj(T[k])) throw new Error(`gameworld: ${at}.technology.${k} is { <id>: words | { intent, seed? } }`);
+    out.technology = { finish: T.finish ?? 'alloy', blocks: { ...(T.blocks ?? {}) }, things: list('things'), ...Object.fromEntries(Object.keys(CRAFTED).filter((k) => T[k] !== undefined).map((k) => [k, list(k)])), ...(T.direction !== undefined ? { direction: readTechDirection(T.direction, `${at}.technology.direction`) } : {}) };
   }
   return out;
 }
@@ -228,6 +252,18 @@ function tunnelCivilization(C, cid, kit, seed) {
       library[id] = r.plan.block;
     }
     out.technology = { ...C.technology, things };
+    // what the crafter makes: each in its kind's grammar, kept in the same library
+    for (const [list, kind] of Object.entries(CRAFTED)) {
+      if (!C.technology[list]) continue;
+      const made = {};
+      for (const [id, t] of Object.entries(C.technology[list])) {
+        const r = once(JSON.stringify(['c', kind, id, t, Object.keys(library)]), () => craftTech(kind, t.intent, { seed: t.seed ?? seed, id, library }));
+        const { block, form, variant, dials, carries } = r.plan;
+        made[id] = { ...t, block, form, variant, dials, ...(carries ? { carries } : {}), tunnel: logOf(r) };
+        library[id] = block;
+      }
+      out.technology[list] = made;
+    }
   }
   return out;
 }
