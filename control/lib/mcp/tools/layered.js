@@ -79,6 +79,8 @@ import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
+import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
+import { lookReadout } from '../../graph/era/looks.js';
 import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
@@ -197,7 +199,7 @@ export function normalizeHero(hero) {
 // ─── The hero door ────────────────────────────────────────────────────────
 /** the base forms a hero may name: 'tiered' (tiered-form.js) */
 export const HERO_FORMS = Object.freeze(['tiered']);
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'painterly'];
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -256,9 +258,11 @@ export function validateHeroSpec(spec) {
     if (spec.headPreset !== undefined && !ANIME_PRESETS.includes(spec.headPreset)) errs.push(`headPreset: one of ${ANIME_PRESETS.join(', ')} (the anime head's design base; defaults to the cast when it is male / female, else male)`);
     errs.push(...validateLook(spec.look));
     errs.push(...validateAnimeSculpt(spec.sculpt));
+    if (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== true) errs.push('painterly: true is the painterly toon look: the face painted into a texture (the eyes, lashes, brows and mouth on a smooth face, in place of the feature slabs) and a soft edge between the light and the shade; null or absent is the slab face and the hard step');
   } else {
     if (spec.look !== undefined && spec.look !== null) errs.push(`look: the looks are the anime head's (head: 'anime')`);
     if (spec.sculpt !== undefined && spec.sculpt !== null) errs.push(`sculpt: the graphic face is the anime head's (head: 'anime')`);
+    if (spec.painterly !== undefined && spec.painterly !== null) errs.push(`painterly: the painterly look is the anime head's (head: 'anime')`);
     errs.push(...validateFace(spec.face));
     errs.push(...validateHair(spec.hair));
     if (spec.expression !== undefined && !EXPRESSIONS[spec.expression]) errs.push(`expression: one of ${Object.keys(EXPRESSIONS).join(', ')}`);
@@ -297,7 +301,7 @@ export function validateHeroSpec(spec) {
  * a later re-tuning of a move never changes a stored row's meaning. */
 export function heroRecord(spec) {
   const errs = validateHeroSpec(spec);
-  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds } }, blink?: false, target?: ${Object.keys(RESOLUTIONS).join(' | ')} | { resolution, framing?: ${Object.keys(FRAMINGS).join(' | ')}, error? }, geocube?: a cube (its light, era and target unless target is named) }`);
+  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), painterly?: true (the anime head's painterly look: the face painted, a soft edge), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds } }, blink?: false, target?: ${Object.keys(RESOLUTIONS).join(' | ')} | { resolution, framing?: ${Object.keys(FRAMINGS).join(' | ')}, error? }, geocube?: a cube (its light, era and target unless target is named) }`);
   const { from, ...tune } = resolveTune(spec.tune);
   const hero = { cast: spec.cast ?? 'male', register: spec.register ?? 'round', tune, ...(from ? { from } : {}), head: spec.head ?? 'landmark' };
   if (hero.head === 'landmark') {
@@ -319,6 +323,8 @@ export function heroRecord(spec) {
     // the graphic face: SPARSE (the words that differ from the base; absent when none, so the default is read at plan
     // time and never stored); `false` (the studio's face) is stored
     if (spec.sculpt !== undefined && spec.sculpt !== null) { const sc = sparseSculpt(resolveAnimeSculpt(spec.sculpt)); if (sc !== null) hero.sculpt = sc; }
+    // the painterly look (face-paint.js, the soft ramp): stored only when on
+    if (spec.painterly === true) hero.painterly = true;
   }
   for (const k of ['body', 'girth', 'headScale', 'scale', 'palette', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'core', 'target', 'geocube', 'form']) if (spec[k] !== undefined && spec[k] !== null) hero[k] = spec[k];
   // genki (anime-genki.js): stored only when it adds something (absent and 0 store nothing)
@@ -419,7 +425,7 @@ function heroFormPlanOf(hero) {
   }
   if (hero.head === 'anime') {
     const eff = animeEffective(hero);   // the look's stamp, the own layer on top, the hair base under them
-    return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
+    return humanoidPlan({ preset: hero.cast, ...common, tune: eff.tune, head: 'anime', face: eff.face, hair: eff.hair, expression: eff.expression, sculpt: eff.sculpt, palette: { ...ANIME_HERO_PALETTE[headPoleOf(hero)], ...(hero.palette ?? {}) }, ...(hero.painterly ? { facePaint: { dense: facePaintDense(heroTarget(hero)) } } : {}), ...(hero.headPreset ? { headPreset: hero.headPreset } : {}), ...(hero.proportions ? { proportions: hero.proportions } : {}), ...dress });
   }
   // the blank trunk and a baked include take `proportions` too (the anime casts), as the two worn heads do
   const plan = heroPlan({ cast: hero.cast, ...common, scale: hero.scale, palette: hero.palette || dress.adorn || isOutfitBuild(dress.outfit) ? { ...HERO_PALETTE, ...kitPalette(dress.adorn), ...outfitTones(dress.outfit), ...(hero.palette || {}) } : HERO_PALETTE, head: hero.head === 'none' ? null : hero.head, ...(hero.proportions ? { proportions: hero.proportions } : {}), ...(hero.detail === 'swimsuit' && !childCoding(hero) ? { bare: true } : {}) });
@@ -613,6 +619,8 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
     ...((sm) => (sm ? { critic: { style: anime || hero.proportions === 'anime' ? 'anime' : 'western', measures: sm, western: styleCritic(sm, 'western', coreBody), anime: styleCritic(sm, 'anime', coreBody),
       ...(coreBody === 'female' && !childCoding(hero) ? ((cm) => (cm ? { chest: { measures: cm, ...chestCritic(cm) } } : {}))(chestMeasures(plan, mesh, sm.head_m)) : {}) } } : {}))(mesh ? styleMeasures(plan, mesh) : null),
     ...(mesh && heroTarget(hero) ? { spend: castSpend(mesh, plan, heroTarget(hero)) } : {}),
+    // the painterly look (era/looks.js): its conventions built and still planned
+    ...(hero.painterly ? { painterly: lookReadout('painterly-toon') } : {}),
     ...(budget && heroTarget(hero) ? { density: { ...castDensityReadout(plan, heroTarget(hero), budget.triangles), era: heroEra(hero), ...(hero.geocube ? { geocube: readGeocube(hero.geocube).id } : {}),
       ...((pl) => (pl.length ? { planned: pl } : {}))(eraCastConventions(heroEra(hero)).filter((c) => c.status === 'planned').map((c) => c.id)) } } : {}),
     ...(warnings.length ? { warnings } : {}) };

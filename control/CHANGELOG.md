@@ -13,6 +13,39 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Painted face: the anime hero's painterly look, a painted face on a smooth head and a soft edge to its light
+
+- **`painterly: true`** on an anime hero (the hero door, `create_character` / `update_character`) draws it as a
+  painterly toon. It is stored only when on; absent, every hero is byte-identical.
+- **The painted face** (`polygonizer/face-paint.js`). The eyes, lashes, lids, brows, nose line and mouth are painted into
+  a texture on a smooth face, in place of the feature slabs.
+  - The features are the graphic face's own. buildAnime (`paint`) still builds every feature from the sculpt, face,
+    look and expression words, into its own part; each is projected onto the face's front plane (the head's pitch
+    undone) and stored on the `face` part as the painter's layers. So the paint sits where the slabs sit, and the
+    face's landmarks and measures are the slab face's (read off its slab twin).
+  - The texture (512²) is painted on read from those layers, never stored: the skin's base everywhere, a blush under
+    each eye, the white shaded under its lid, the iris dark at the top and light at the bottom with a darker rim, the
+    pupil, the catchlight, the lower rim, the lid, the brow in the hair's colour taken toward the ink (or `Brow`), the
+    nose line and the mouth. Pure JS, three samples a texel each way; the same layers and palette give the same bytes.
+  - The face's skin runs whole over the eyes and the mouth (no apertures). Below a close-up's tier it is the thinned
+    lattice: every other row and column, the nose's kept whole (`facePaintDense`: a target at T3 or T4 keeps the full
+    one). The female anime figure: 22,232 → 13,628 triangles (the face part 7,084 → 2,372).
+  - On the World page the face's forward-facing faces carry the texture and their corners' texture coordinates,
+    interpolated through the light's split; their colour is the light alone (the fill over the skin's base, in linear
+    light), so the painted face meets the unpainted skin with no seam. The page's mesh takes textured triangles and
+    triangles with per-corner colours (`face-mesh.js`).
+- **The soft edge** (`toon.light.soft`, station-loft-shade.js). The light meets the shade over a band of that width in
+  N·L instead of on one line: the band's two edges are cut conforming (the band's top rides the highlight's machinery as
+  a gloss line), and its pieces carry their corners' colours graded from the shade to the base. On every group without
+  a highlight or strands; 0 or absent is the hard step, byte-identical. The painterly hero takes `PAINTERLY_SOFT`
+  (0.24) unless its light names its own.
+- **The look as data** (`era/looks.js`). `painterly-toon`: its conventions one line each, `built` (painted face, soft
+  edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
+  motion). The hero readout's `painterly` names both.
+- **Not yet.** The painted face on the rig (the clip preview and the skinned GLB show the face blank; its expression
+  channels are skipped as stale), and under a geocube's cast light (the static faces take the studio bake there).
+- The `layered` vocab card has the look's section and `soft` in the light's fields.
+
 ### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
 
 - **The look and the density are separate.**

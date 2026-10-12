@@ -149,7 +149,8 @@ export function buildAnime(r, options = {}) {
   if (S?.noseLine) parts.nose = [];
   const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f) : null;
   const EYE_Y = S?.eyeLevel !== undefined ? S.eyeLevel : 0.055;
-  const LENS = options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };   // the lens resolution (a budget, never `coarse`)
+  // the lens resolution (a budget, never `coarse`); `paint`: the lenses are painted flat, so one ring holds their outline
+  const LENS = options.paint ? { seg: 40, rings: 1 } : options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };
   function tri(part, a, b, c) { if (dmath.hypot(...cross(sub(b, a), sub(c, a))) < 1e-10) return; parts[part].push(...a, ...b, ...c); }
   function quad(part, a, b, c, d, edge = false) { if (options.coarse && capture && part === 'skin') headPolygons.push([a, b, c, d]); tri(part, a, b, c); tri(part, a, c, d); if (edge) cage.push(...a, ...b, ...b, ...c, ...c, ...d, ...d, ...a); }
   function width(y) { return profile(y, [[-1.02, 0.10 * f.chin], [-0.90, 0.27 * f.chin], [-0.64, 0.51 * f.jaw], [-0.30, 0.69 * (1 + 0.25 * (f.jaw - 1))], [0.12, 0.78], [0.45, 0.79], [0.78, 0.69], [1.04, 0.41], [1.16, 0.18], [1.19, 0.009]]) * f.width; }
@@ -194,12 +195,21 @@ export function buildAnime(r, options = {}) {
     return [x, fy(y) + lift + chinLift, z];
   }
 
-  const xs = options.coarse ? [-1, -0.8, -0.63, -0.46, -0.29, -0.26, -0.12, -0.06, 0, 0.06, 0.12, 0.26, 0.29, 0.46, 0.63, 0.8, 1] : [-1, -0.95, -0.9, -0.85, -0.8, -0.715, -0.63, -0.545, -0.46, -0.375, -0.29, -0.26, -0.205, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.205, 0.26, 0.29, 0.375, 0.46, 0.545, 0.63, 0.715, 0.8, 0.85, 0.9, 0.95, 1];
-  const ys = options.coarse ? [-1.02, -0.98, -0.90, -0.74, -0.66, -0.53, -0.40, -0.30, -0.22, -0.085, 0.05, 0.185, 0.32, 0.50, 0.65, 0.78, 0.92, 1.04, 1.10, 1.16, 1.19] : [-1.02, -0.98, -0.94, -0.90, -0.86, -0.82, -0.78, -0.74, -0.70, -0.66, -0.6275, -0.595, -0.5625, -0.53, -0.4975, -0.465, -0.4325, -0.40, -0.35, -0.30, -0.26, -0.22, -0.1525, -0.085, -0.0175, 0.05, 0.1175, 0.185, 0.2525, 0.32, 0.38, 0.44, 0.50, 0.56, 0.62, 0.68, 0.74, 0.80, 0.86, 0.92, 0.98, 1.04, 1.10, 1.13, 1.16, 1.18, 1.19];
+  const xs0 = options.coarse ? [-1, -0.8, -0.63, -0.46, -0.29, -0.26, -0.12, -0.06, 0, 0.06, 0.12, 0.26, 0.29, 0.46, 0.63, 0.8, 1] : [-1, -0.95, -0.9, -0.85, -0.8, -0.715, -0.63, -0.545, -0.46, -0.375, -0.29, -0.26, -0.205, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.205, 0.26, 0.29, 0.375, 0.46, 0.545, 0.63, 0.715, 0.8, 0.85, 0.9, 0.95, 1];
+  const ys0 = options.coarse ? [-1.02, -0.98, -0.90, -0.74, -0.66, -0.53, -0.40, -0.30, -0.22, -0.085, 0.05, 0.185, 0.32, 0.50, 0.65, 0.78, 0.92, 1.04, 1.10, 1.16, 1.19] : [-1.02, -0.98, -0.94, -0.90, -0.86, -0.82, -0.78, -0.74, -0.70, -0.66, -0.6275, -0.595, -0.5625, -0.53, -0.4975, -0.465, -0.4325, -0.40, -0.35, -0.30, -0.26, -0.22, -0.1525, -0.085, -0.0175, 0.05, 0.1175, 0.185, 0.2525, 0.32, 0.38, 0.44, 0.50, 0.56, 0.62, 0.68, 0.74, 0.80, 0.86, 0.92, 0.98, 1.04, 1.10, 1.13, 1.16, 1.18, 1.19];
+  // the painted face's lattice (`paint` without `dense`: below a close-up's tier): no aperture to align to, so every other
+  // column and row, keeping the nose's columns (|u| ≤ 0.16) and its rows (−0.35 ≤ y ≤ −0.05) whole, where its bump lives;
+  // symmetric about the middle column, the ends kept
+  const thin = options.paint && !options.paint.dense && !options.coarse;
+  const xs = thin ? xs0.filter((x, k) => k % 2 === 0 || Math.abs(x) <= 0.16) : xs0;
+  const ys = thin ? ys0.filter((y, k) => k % 2 === 0 || k === ys0.length - 1 || (y >= -0.35 && y <= -0.05)) : ys0;
   // mouthWidth past the studio's aperture: the mouth box widens to the first lattice column that clears the smiling line
-  const MB = S?.mouthWidth > 1 ? xs.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
+  const MB = S?.mouthWidth > 1 ? xs0.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
   const holes = [{ kind: 'eye', side: -1, x0: -0.8, x1: -0.12, y0: -0.22, y1: 0.32 }, { kind: 'eye', side: 1, x0: 0.12, x1: 0.8, y0: -0.22, y1: 0.32 }, { kind: 'mouth', side: 0, x0: MB ? -MB : -0.26, x1: MB ? MB : 0.26, y0: -0.66, y1: -0.40 }];
-  for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) { const u = (xs[i] + xs[i + 1]) / 2, y = (ys[j] + ys[j + 1]) / 2; if (holes.some((q) => u > q.x0 && u < q.x1 && y > q.y0 && y < q.y1)) continue; quad('skin', surface(xs[i], ys[j]), surface(xs[i + 1], ys[j]), surface(xs[i + 1], ys[j + 1]), surface(xs[i], ys[j + 1]), true); }
+  // `paint` (the painted face, face-paint.js): the skin runs whole over the eyes and the mouth, and every feature below is
+  // still built, into its own part, for the painter to project; no aperture bridges are cut
+  const cut = options.paint ? [] : holes;
+  for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) { const u = (xs[i] + xs[i + 1]) / 2, y = (ys[j] + ys[j + 1]) / 2; if (cut.some((q) => u > q.x0 && u < q.x1 && y > q.y0 && y < q.y1)) continue; quad('skin', surface(xs[i], ys[j]), surface(xs[i + 1], ys[j]), surface(xs[i + 1], ys[j + 1]), surface(xs[i], ys[j + 1]), true); }
   // Rear shares the face's side seam. Caps close the top and bottom loops.
   for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) quad('skin', surface(xs[i], ys[j], true), surface(xs[i], ys[j + 1], true), surface(xs[i + 1], ys[j + 1], true), surface(xs[i + 1], ys[j], true), j % 3 === 0 && i % 2 === 0);
   for (const y of [ys[0], ys.at(-1)]) for (let i = 0; i < xs.length - 1; i++) quad('skin', surface(xs[i], y), surface(xs[i], y, true), surface(xs[i + 1], y, true), surface(xs[i + 1], y));
@@ -216,10 +226,11 @@ export function buildAnime(r, options = {}) {
   }
   for (const hole of holes) {
     const { x0, x1, y0, y1, side } = hole;
-    const outer = [...xs.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
+    // (the full lattice's points, so a thinned painted lattice keeps the features' own outline sampling)
+    const outer = [...xs0.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys0.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs0.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys0.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
     const ts = outer.map(([u, y]) => dmath.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
     for (let k = 0; k <= 3; k++) { const t = k / 3; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
-    for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
+    if (!options.paint) for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
     const centerUV = hole.kind === 'eye' ? eyeUV(side, 0, 0) : mouthUV(0, 0), center = surface(...centerUV); center[2] += hole.kind === 'eye' ? -0.025 : 0.035;
     for (let i = 0; i < outer.length; i++) {
       const n = (i + 1) % outer.length;

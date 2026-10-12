@@ -48,7 +48,7 @@ function wornHead({ preset, headPreset, headScale, tune, props }) {
  *               { shoulders, waist, hips, depth, torso, neck, legs, head, stature, upperArm, forearm, thigh, calf }, or a list).
  *               `head` here scales the WORN head: it is baked at the tuned scale (the form's own `head` only sizes a blank trunk)
  */
-export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, paint, outfit, head: headKind = 'landmark', proportions, sculpt, core, childCoded = false, features = null } = {}) {
+export function humanoidPlan({ preset = 'male', body = {}, face = {}, register = 'round', girth = 1, headScale, palette = {}, hair, expression = 'neutral', tune, headPreset, detail, adorn, paint, outfit, head: headKind = 'landmark', proportions, sculpt, core, childCoded = false, features = null, facePaint = false } = {}) {
   const props = proportions ?? (headKind === 'anime' ? 'anime' : 'hero');
   const worn = wornHead({ preset, headPreset, headScale, tune, props }), { heroCast, pole } = worn;
   if (!heroCast && (typeof preset !== 'string' || validateCast(preset).length)) throw new Error(`humanoid: unknown preset '${preset}' (have ${Object.keys(HERO_CASTS).join(', ')}, or a figure cast)`);
@@ -63,7 +63,7 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   // plan without a head (the head sits at the atlas, so the rings are taken about it, in the head's unscaled metres)
   const neckForm = anime && props !== 'hero' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
   const planArgs = { cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, body, tune, ...(props !== 'hero' ? { proportions: props } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) };
-  if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt, body: hair && hair !== 'none' ? bodyRingsAboutAtlas(heroPlan({ ...planArgs, head: null }), resolvedHeadScale) : null });
+  if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt, body: hair && hair !== 'none' ? bodyRingsAboutAtlas(heroPlan({ ...planArgs, head: null }), resolvedHeadScale) : null, ...(facePaint ? { paint: facePaint } : {}) });
   else { const { from: _faceFrom, ...shape } = resolveFace(face); head = humanoidHead({ preset: pole, shape, register, hair: hair ?? 'swept', expression, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, ...(features ? { features } : {}) }); }
   // the anime head on anime proportions wears its cast's NECK FORM (hero-form.js ANIME_NECK_FORMS: the ring loft rising
   // into the occiput, the trapezius ring); every other head and proportion keeps the segment neck

@@ -59,7 +59,8 @@ count?, width?, reach?, below?, tone? } | true | false }` (LINES INSIDE the grou
 the ink's black: `count` (22) lines about the head's vertical axis, each `width` (0.003 m), rising from the group's
 lowest edge to a top staggered across `reach` ([0.15, 0.5] of the head's height below the crown), none below `below`
 (1.15 head heights); the fill the face's lit or shade tone at `tone` (0.6) of its lightness, the hue kept and the
-saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing) `}`.
+saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing), `soft` (the width in N·L of a band where the light meets the shade, its corners graded from the shade to the
+base, on every group without a highlight or strands; absent or 0, the step on one line) `}`.
 The anime hero takes its base's hair highlight by default (the ring on the female, a fringe streak on the male) unless
 its light says `highlight`. Each face steps to its lit or shade swatch, and a face the terminator crosses is split
 along it (and its lit side again along the highlight's line), crisp in the World, the static GLB and the rig preview
@@ -145,7 +146,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   under `/dials` or `/recipe` edits as before. Refusals name the plan field.
 
 - **Hero door (a human by word and percentage).** `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune,
-  face?, hair?, expression?, sculpt?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
+  face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
   a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`) — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
@@ -413,6 +414,20 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   set whole). The row keeps the words and a resolved STAMP (`lookResolved`): a later re-tuning of a word never changes a
   stored hero until its list is edited. The readout says `look`, `lookFrom`, the effective head and tune, and the own
   layer apart. Every preset stays inside the studio's ranges on both bases.
+<!-- /section -->
+<!-- section: hero-painterly | The painterly look | painterly: true, the painted face and the soft edge -->
+  THE PAINTERLY LOOK (the anime head's). `painterly: true` draws the hero as a painterly toon: the face is PAINTED, its
+  eyes, lashes, lids, brows, nose line and mouth drawn into a texture on a smooth face in place of the feature slabs,
+  and the light meets the shade over a SOFT EDGE instead of on a line. The features are the graphic face's own: every
+  `sculpt`, `face` and `look` word and the expression move the paint as they move the slabs (the same builds, projected
+  onto the face's front plane), so the landmarks and the face's measures are the slab face's. The texture (512², the
+  palette's `Skin`, `Sclera`, `Iris`, `Pupil`, `Ink`, `Mouth` and `Hair`; the brow the hair taken toward the ink, or
+  `Brow`) is painted on read from the layers the row stores: a blush under each eye, the white shaded under its lid,
+  the iris dark at the top and light at the bottom. Below a close-up's tier the face's skin is a thinned lattice (a
+  `target` at T3 or T4, a close-up or 4K, keeps it whole). The soft edge is `toon.light.soft` (the band's width in N·L,
+  0.24 by default here; 0 the hard step), on every group without a highlight. The readout's `painterly` names the
+  look's built conventions and the planned ones still missing. Not yet: the painted face on the rig (the clip preview
+  and the skinned GLB show the face blank, and its expression channels are skipped), and under a geocube's cast light.
 <!-- /section -->
 <!-- section: hero-genki | Genki | the shonen spirit as one amount over the look -->
   GENKI (the anime head only). `genki: 0 … 1` is the shonen spirit translated onto the character, one amount over the

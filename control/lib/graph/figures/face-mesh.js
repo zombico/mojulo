@@ -543,10 +543,12 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     // (Gouraud) — the era-authentic "gradient per polygon" look, no texture needed. Parallel to `vao`
     // (which multiplies per corner) and composes with it. Absent → the single `fill` is used for all
     // corners, byte-identical to every existing scene.
-    const cornerCols = Array.isArray(f.cornerFills) && f.cornerFills.length >= 4
+    // (a triangle's three: the soft edge's graded pieces, station-loft-shade.js)
+    const cornerCols = Array.isArray(f.cornerFills) && f.cornerFills.length >= (isTri ? 3 : 4)
       ? f.cornerFills.map((h) => faceColorLinear({ fill: h }))
       : null;
-    if (!isTri && typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= 4) {
+    // a textured TRIANGLE (the painted face's pieces) takes its three corners' uv; a quad its four
+    if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= (isTri ? 3 : 4)) {
       const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false });
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
       // colour rides into the group so emitThreeWorld can do texel × bakedLight (vertexColors).
@@ -555,7 +557,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       const [tr, tg, tb] = faceColorLinear(f);
       const fs = Array.isArray(f.spec) && f.spec.length >= 2 ? f.spec : null;
       if (fs) grp.hasSpec = true;
-      for (const tri of TRIS) {
+      for (const tri of isTri ? TRI : TRIS) {
         for (const idx of tri) {
           const p = c[idx], uv = f.uv[idx], a = vao ? vao[idx] : 1;
           const cc = cornerCols ? cornerCols[idx] : [tr, tg, tb];
@@ -565,7 +567,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
           if (grp.specs) grp.specs.push(fs ? fs[0] : 0, fs ? fs[1] : 1);
         }
       }
-      for (let i = 0; i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
+      for (let i = 0; i < c.length; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
       continue;
     }
     const [lr, lg, lb] = faceColorLinear(f);

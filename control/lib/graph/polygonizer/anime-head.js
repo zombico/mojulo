@@ -56,6 +56,7 @@ import { buildAnime, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS
 import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
 import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
 import * as dmath from '../../util/dmath.js';
+import { paintLayers, texOf, FACE_PAINT_SIZE } from './face-paint.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
 export const ANIME_HAIR_STYLES = Object.freeze([...STUDIO_FAMILIES, 'hime']);
@@ -908,7 +909,7 @@ function animeEar(studio, register, pivot, pitch) {
   const ids = Object.keys(e.points), at = Object.fromEntries(ids.map((id, i) => [id, i]));
   return { points: ids.map((id) => back(e.points[id])), faces: e.faces.map((f) => f.map((id) => at[id])), groups: e.groups };
 }
-export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null } = {}) {
+export function animeHead({ preset = 'female', face = {}, hair, expression = 'neutral', register = 'round', scale = 1, skin, hairColor, palette = {}, hairFit = true, sculpt, only = null, body = null, paint = false } = {}) {
   if (!ANIME_PRESETS.includes(preset)) throw new Error(`anime head: unknown design base '${preset}' (have ${ANIME_PRESETS.join(', ')})`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('anime head: scale must be positive');
   const bald = hair === 'none';
@@ -922,7 +923,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // studio's separate clumps; the graphic face's lenses take the game budget on the lowpoly register
   // the hair form (the lift, the section, the cut's words) rides as its own option, never in the studio recipe
   const HAIR_FORM = bald ? null : animeHairForm(H);
-  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true });
+  const model = buildAnime(recipe, { coarse: register === 'lowpoly', weld: true, fitHair: hairFit, forms: !(H.strands > 0), ...(SCULPT ? { sculpt: recipe.sculpt, ...(register === 'lowpoly' ? { budget: 'game' } : {}) } : {}), ...(HAIR_FORM ? { hairForm: HAIR_FORM } : {}), ...(body && HAIR_FORM ? { body: { registration: REGISTRATION[preset], rings: body } } : {}), sideburnPatch: true, ...(paint ? { paint: typeof paint === 'object' ? paint : {} } : {}) });
 
   // registration: the studio's pitched head → hero metres, by the fitted heads' numbers for this pole
   const skinFlat = model.parts.skin, faceEnd = model.ears.start;
@@ -934,8 +935,10 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
 
   // the parts, each closed and outward, in hero metres (before the head's scale)
   const meshes = {}, H0 = [0, R.midY, R.menton + R.height * 0.55];   // a point inside the skull, for "outward" on open patches
-  const faceTris = [...trisOf(skinFlat, 0, faceEnd), ...trisOf(model.parts.sclera), ...trisOf(model.parts.mouth)];
-  const faceLabels = [...trisOf(skinFlat, 0, faceEnd).map(() => 'Skin'), ...trisOf(model.parts.sclera).map(() => 'Sclera'), ...trisOf(model.parts.mouth).map(() => 'Mouth')];
+  // the PAINTED face (`paint`, face-paint.js): the face is its skin alone, whole over the eyes and the mouth; the white and
+  // the mouth are painted with the other features
+  const faceTris = [...trisOf(skinFlat, 0, faceEnd), ...(paint ? [] : [...trisOf(model.parts.sclera), ...trisOf(model.parts.mouth)])];
+  const faceLabels = [...trisOf(skinFlat, 0, faceEnd).map(() => 'Skin'), ...(paint ? [] : [...trisOf(model.parts.sclera).map(() => 'Sclera'), ...trisOf(model.parts.mouth).map(() => 'Mouth')])];
   const welded = weld(faceTris, faceLabels);
   meshes.face = zip(welded, 0.003);
   // the SCALP: skin faces above the studio's hairline (measured unpitched), for the coverage ledger
@@ -943,8 +946,23 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // (the hair form's `hairline` raises its front edge, so a swept-back cut's forehead is not counted as scalp)
   const hairlineY = HAIR_FORM?.hairline ? (a) => 0.10 + (HAIR_FORM.hairline.front - 0.10) * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a)) : (a) => 0.10 + 0.43 * Math.max(0, dmath.cos(a)) - 0.48 * Math.max(0, -dmath.cos(a));
   const scalp = meshes.face.faces.flatMap((f, i) => { if (meshes.face.groups[i] !== 'Skin') return []; const c = unpitch(vmul(f.reduce((acc, v) => vadd(acc, meshes.face.points[v]), [0, 0, 0]), 1 / 3)); return c[1] > hairlineY(dmath.atan2(c[0], -(c[2] - 0.07))) + 0.02 ? [`f${i}`] : []; });
+  const studioFace = meshes.face.points;
   meshes.face.points = meshes.face.points.map(toM);
   meshes.face = outward(orientConsistently(meshes.face), [0, 1, 0]);
+  // the painted face's texture coordinates: each face that looks forward (its normal on the unpitched front plane's axis,
+  // studio z back) with every corner inside the painter's window takes the front plane's [s, t] at its corners; the rest
+  // of the skin stays the skin's colour, the texture's own base. The layers: every feature part projected the same way.
+  const painted = paint ? (() => {
+    const flat = studioFace.map(unpitch), faces = [], uv = {};
+    meshes.face.faces.forEach((f, i) => {
+      const [a, b, c] = f.map((v) => flat[v]), n = vcross(vsub(b, a), vsub(c, a)), l = Math.hypot(...n) || 1;
+      if (n[2] / l > -0.25) return;
+      const st = f.map((v) => texOf(flat[v]));
+      if (st.some(([x, y]) => x < 0 || x > 1 || y < 0 || y > 1)) return;
+      faces.push(`f${i}`); f.forEach((v, k) => { uv[`v${v}`] = st[k].map((x) => Math.round(x * 1e5) / 1e5); });
+    });
+    return { size: FACE_PAINT_SIZE, faces, uv, layers: paintLayers(model.parts, (p) => unpitch(p)) };
+  })() : null;
   for (const ear of components(meshOf(trisOf(skinFlat, model.ears.start, model.ears.end), null))) { const m = outward(orientConsistently(ear)); m.groups = m.groups.map(() => 'Skin'); meshes[centroid(m)[0] > 0 ? 'earR' : 'earL'] = SCULPT ? animeEar(m, register, toM(model.pivot), model.pitch) : m; }
   const lens = (part, group, depth) => {
     for (const c of components(meshOf(trisOf(model.parts[part]), null))) {
@@ -955,11 +973,12 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
       meshes[name] = solidify(o, depth, n);
     }
   };
-  lens('iris', 'Iris', 0.0015 * S); lens('pupil', 'Pupil', 0.0012 * S);
+  if (!paint) { lens('iris', 'Iris', 0.0015 * S); lens('pupil', 'Pupil', 0.0012 * S); }
   // the ink: per side the brow (highest), the upper lash and the lower rim (lowest), each a slab behind its ribbon
   const inkOf = (part) => components(meshOf(trisOf(model.parts[part]), null)).map((c) => { const o = orientConsistently(c); o.groups = o.groups.map(() => 'Ink'); outward(o, vunit(vsub(centroid(o), H0))); return o; });
-  const ink = inkOf('ink');
-  if (!SCULPT) for (const side of ['R', 'L']) {
+  const ink = paint ? [] : inkOf('ink');
+  if (paint) { /* the painted face: the features are the texture's (face-paint.js), no slab */ }
+  else if (!SCULPT) for (const side of ['R', 'L']) {
     const mine = ink.filter((m) => (centroid(m)[0] > 0) === (side === 'R')).sort((a, b) => centroid(b)[2] - centroid(a)[2]);
     mine.forEach((m, i) => { const n = vunit(m.faces.reduce((s, f) => vadd(s, faceNormal(m, f)), [0, 0, 0])); meshes[`${['brow', 'lash', 'lashLow'][i] ?? `ink${i}`}${side}`] = solidify(m, 0.004 * S, n); });
   }
@@ -994,7 +1013,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
     const { group, groups } = groupsOf(m);
     parts[name] = { layer: 2, closure: 'closed', pin, group,
       offsets: Object.fromEntries(m.points.map((p, i) => [`v${i}`, surfaceLocalOffset(frame, p).map(r6)])),
-      faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}), ...(SCULPT ? layerFlag(name) : {}) };
+      faces: Object.fromEntries(m.faces.map((f, i) => [`f${i}`, f.map((v) => `v${v}`)])), ...(groups ? { groups } : {}), ...(SCULPT ? layerFlag(name) : {}), ...(name === 'face' && painted ? { paint: painted } : {}) };
   }
   // `only`: just those parts, at the head's scale, and nothing measured (no coverage, no landmarks, no neutral twin) — the
   // face rig's head builds (anime-face-rig.js), which need the parts an expression moves and nothing else
@@ -1005,10 +1024,13 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   const skinPts = meshes.face.points, crown = skinPts.reduce((b, p) => (p[2] > b[2] ? p : b)), menton = skinPts.reduce((b, p) => (p[2] < b[2] ? p : b));
   const noseTip = skinPts.filter((p) => Math.abs(p[0]) < 0.004).reduce((b, p) => (p[1] > b[1] ? p : b)), occiput = skinPts.reduce((b, p) => (p[1] < b[1] ? p : b));
   const groupPts = (g) => meshes.face.faces.flatMap((f, i) => (meshes.face.groups[i] === g ? f.map((v) => skinPts[v]) : []));
-  const scleraR = groupPts('Sclera').filter((p) => p[0] > 0), mouthPts = groupPts('Mouth');
-  const eyeR = meshes.irisR ? centroid(meshes.irisR) : centroid({ points: scleraR }), eyeL = [-eyeR[0], eyeR[1], eyeR[2]];
-  const eyeBox = bboxOf(scleraR), faceBox = bboxOf(skinPts);
-  const landmarks = { crown, menton, noseTip, occiput, stomion: centroid({ points: mouthPts }), eyeR, eyeL, ...(meshes.browR ? { browR: centroid(meshes.browR), browL: centroid(meshes.browL) } : {}), ...(meshes.earR ? { earR: centroid(meshes.earR), earL: centroid(meshes.earL) } : {}) };
+  // the painted face has no white, mouth or slab to measure: its features are where its slab twin's are (the same build
+  // with the slabs, bald and at scale 1), so its eye, mouth and brow landmarks and its feature measures are the twin's
+  const twin = paint ? animeHead({ preset, face, hair: 'none', expression, register, sculpt, hairFit: false }) : null;
+  const scleraR = paint ? [] : groupPts('Sclera').filter((p) => p[0] > 0), mouthPts = paint ? [] : groupPts('Mouth');
+  const eyeR = twin ? twin.landmarks.eyeR : meshes.irisR ? centroid(meshes.irisR) : centroid({ points: scleraR }), eyeL = [-eyeR[0], eyeR[1], eyeR[2]];
+  const eyeBox = paint ? null : bboxOf(scleraR), faceBox = bboxOf(skinPts);
+  const landmarks = { crown, menton, noseTip, occiput, stomion: twin ? twin.landmarks.stomion : centroid({ points: mouthPts }), eyeR, eyeL, ...(twin?.landmarks.browR ? { browR: twin.landmarks.browR, browL: twin.landmarks.browL } : meshes.browR ? { browR: centroid(meshes.browR), browL: centroid(meshes.browL) } : {}), ...(meshes.earR ? { earR: centroid(meshes.earR), earL: centroid(meshes.earL) } : {}) };
   let hairMeasures = null;
   if (!bald) {
     const hp = Object.entries(meshes).filter(([k]) => k.startsWith('hair')).flatMap(([, m]) => all(m)), r3 = (x) => Math.round(x * scale * 1000) / 1000;
@@ -1016,11 +1038,11 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   }
   const hairCoverage = bald ? null : animeHairCoverage(parts, scalp);
   const r3 = (x) => Math.round(x * scale * 1000) / 1000;
-  const measures = { head_m: r3(crown[2] - menton[2]), crown_z: r3(crown[2]), face_m: r3(faceBox.hi[0] - faceBox.lo[0]), depth_m: r3(faceBox.hi[1] - faceBox.lo[1]), pupils_m: r3(2 * eyeR[0]), eye_m: r3(eyeBox.hi[2] - eyeBox.lo[2]), eyeWidth_m: r3(eyeBox.hi[0] - eyeBox.lo[0]),
+  const measures = { head_m: r3(crown[2] - menton[2]), crown_z: r3(crown[2]), face_m: r3(faceBox.hi[0] - faceBox.lo[0]), depth_m: r3(faceBox.hi[1] - faceBox.lo[1]), pupils_m: r3(2 * eyeR[0]), ...(twin ? { eye_m: r3(twin.measures.eye_m), eyeWidth_m: r3(twin.measures.eyeWidth_m) } : { eye_m: r3(eyeBox.hi[2] - eyeBox.lo[2]), eyeWidth_m: r3(eyeBox.hi[0] - eyeBox.lo[0]) }),
     // the feature spacing: ratios (the scale never moves them), always of the face at rest (an expression's closed lids or
     // open mouth would read as a design): a head at another expression measures its neutral twin, bald and unfitted; read
     // at the studio's carriage, so a base's rest carriage or a headPitch word never moves it
-    ...(SCULPT ? { features: EXPRESSION_KEYS.every((k) => !E[k]) ? sculptFeatures(meshes, preset, { carriage: model.pitch }) : neutralTwinFeatures({ preset, face: F, register, sculpt }) } : {}) };
+    ...(SCULPT ? { features: twin ? twin.measures.features : EXPRESSION_KEYS.every((k) => !E[k]) ? sculptFeatures(meshes, preset, { carriage: model.pitch }) : neutralTwinFeatures({ preset, face: F, register, sculpt }) } : {}) };
 
   // the head's scale, once: the core, the pin-local offsets and the anchors together
   scaleParts(parts, scale);

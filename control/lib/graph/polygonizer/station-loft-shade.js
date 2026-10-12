@@ -68,6 +68,8 @@ const animePole = (hero) => (hero.headPreset === 'female' || hero.headPreset ===
  * in one value group, about 10–13 CIE L* below its lit tone — skin shades warm (the hue moves toward red), anything else
  * a cool neutral. Hair derives its own by value (derivedShade). */
 export const DERIVED_SHADE = deepFreeze({ Skin: [0.90, 0.76, 0.76], other: [0.76, 0.76, 0.86] });
+/** the painterly look's soft edge (`light.soft`): the band between the shade and the base, in N·L */
+export const PAINTERLY_SOFT = 0.24;
 
 // ─── colour by value (CIE L*a*b* / LCh, D65, sRGB) ─────────────────────────
 const D65 = [0.95047, 1, 1.08883];
@@ -117,8 +119,10 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const own = toon?.light;
   if (own === false) return null;
   const anime = manifest?.hero?.head === 'anime';
-  if (own) return anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own;
-  return anime ? ANIME_LIGHT_OF[animePole(manifest.hero)] : null;
+  // the painterly look (`hero.painterly`) steps over a soft edge (PAINTERLY_SOFT) unless the light names its own
+  const painterly = anime && manifest.hero.painterly === true;
+  if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l; }
+  return anime ? (painterly ? { ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT } : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
 }
 
 // ─── shading normals ──────────────────────────────────────────────────────
@@ -456,11 +460,23 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  * notch, as the neck's front muscles carry the shade down to it (a band just under the chin hid behind the jaw: the
  * neck read lit); `k` the scalar's slope (per m), so the step's crossing falls on the line */
 const NECK_JAW_SHADOW = Object.freeze({ front: 0.06, side: 0.03, k: 40 });
+/** the soft edge's band, a fill no palette has (resolved to graded corners at emission) */
+const BAND = '#band';
+const linC = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), srgbC = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+/** `a` toward `b` by `k` in linear light, as hex */
+function mixLinear(a, b, k) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return rgbToHex(A.map((x, i) => 255 * srgbC(linC(x / 255) + (linC(B[i] / 255) - linC(x / 255)) * k)));
+}
 export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
   const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
   const Lv = light.toLight; const unlit = new Set(light.unlit || []); const thresholds = light.thresholds || {}; const t0 = Number.isFinite(light.threshold) ? light.threshold : 0;
+  // THE SOFT EDGE (`light.soft`, the painterly look): a group with no highlight and no strands steps over a BAND of that
+  // width in N·L about its threshold instead of on one line: the band's two edges are cut as the highlight's line is
+  // (conforming), and its pieces carry their corners' colours graded from the shade to the base by N·L (`soft`)
+  const SOFT = Number.isFinite(light.soft) && light.soft > 0 ? light.soft : 0;
   const neckInShade = !!neckShade, top = hairTop ? HAIR_TOP_PLANES : 0;   // THE NECK OCCLUSION RULE, THE HAIR'S TOP PLANES (see above)
   // the jaw line on the structured core's neck (rest positions): the neck's axis, the chin (the face shell's lowest
   // point in front of it), each neck corner's height over the line
@@ -587,23 +603,28 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     // the top planes' term only where it applies: every other corner keeps N·L as it was (no `+ 0`, which would turn a −0 to +0)
     const topLift = top && g === 'Hair', d0 = N[fi].map((c) => (topLift && c[2] > 0 ? dot(c, Lv) + top * c[2] : dot(c, Lv)));
     // the structured neck: in the jaw's shadow above its line, by N·L under it
-    const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t);
-    const H = HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
+    const St = ST.get(g), soft = SOFT && !HI.has(g) && !St && !jawNeck ? SOFT : 0;
+    const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t - soft / 2);
+    // the soft band's upper edge rides the highlight's machinery as a `gloss` line at the band's top: below it the band, above it the base
+    const H = soft ? { R: { kind: 'gloss', threshold: t + soft / 2 } } : HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
     // the strands: on a face the step leaves whole (all lit or all shade) and the highlight does not light, a band in its
     // own tone darkened
-    const St = ST.get(g);
     if (St && lit[0] === lit[1] && lit[1] === lit[2] && !(hi && tri.some((vi, j) => hiOf(H, d[j], rest.vertices[vi]) > 0))) {
       const sets = strandSets(St, tri);
       if (sets) { const own = lit[0] ? hex : shade; return { fi, tri, outNormal, partName, panel: { kind: 'strand', sets }, fills: [own, darker(own, St.R.tone)] }; }
     }
-    if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
+    if (soft && hi) colour = hex;   // above the band: the base
+    else if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
+    // on a soft face the lit side of the step is the band (BAND, graded at emission) until the band's top line
+    const own = soft ? BAND : hex;
     let f;
-    if (lit[0] === lit[1] && lit[1] === lit[2]) f = { fi, tri, outNormal, partName, fill: lit[0] ? hex : shade };
+    if (lit[0] === lit[1] && lit[1] === lit[2]) f = { fi, tri, outNormal, partName, fill: lit[0] ? own : shade };
     else {
       const k = lit[0] === lit[1] ? 2 : lit[0] === lit[2] ? 1 : 0;   // the odd corner
-      const A = tri[k], B = tri[(k + 1) % 3], C = tri[(k + 2) % 3];
-      f = { fi, tri, outNormal, partName, k, lit, P: crossing(A, B, d[k], d[(k + 1) % 3], t), Q: crossing(A, C, d[k], d[(k + 2) % 3], t), fills: lit[k] ? [hex, shade] : [shade, hex] };
+      const A = tri[k], B = tri[(k + 1) % 3], C = tri[(k + 2) % 3], tl = t - soft / 2;
+      f = { fi, tri, outNormal, partName, k, lit, P: crossing(A, B, d[k], d[(k + 1) % 3], tl), Q: crossing(A, C, d[k], d[(k + 2) % 3], tl), fills: lit[k] ? [own, shade] : [shade, own] };
     }
+    if (soft) f.soft = { d, lo: t - soft / 2, w: soft, shade, base: hex };
     if (!hi) return f;
     // the highlight: its scalar at the corners (the rest position rides the head), its crossings on the lit part of each
     // edge, and the point where its line meets the step's chord
@@ -624,7 +645,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
         else { const w = wP.map((x, j) => x + (wQ[j] - x) * mu), bary = tri.map((vi, j) => [vi, w[j]]); X = { p: baryPoint(mesh.vertices, bary, dz), bary }; }
       }
     }
-    return { ...f, hi: { sv, E, X, colour, hex } };
+    return { ...f, hi: { sv, E, X, colour, hex: own } };
   });
   for (const list of edges.values()) list.sort((x, y) => x.s - y.s);
   // the boundary ring of a face from corner `start`: each corner, then the registered points on its outgoing edge
@@ -638,7 +659,16 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   };
   // pass 2: emit — the plain triangle when nothing touches it, else the conforming pieces
   const pieces = [];
-  const emit = (tris, fill, f) => { for (const T of tris) pieces.push({ fi: f.fi, refs: T, fill, outNormal: f.outNormal, part: f.partName, mark: f.mark === true }); };
+  // a BAND piece (the soft edge) is graded: each corner's colour from the shade to the base by its N·L across the band (in
+  // linear light), its `fill` the band's middle (what a consumer without corner colours, the rig pack, shows)
+  const dAt = (f, r) => { if (r.mix) return r.mix.reduce((a, x) => a + dAt(f, x), 0) / r.mix.length; const w = baryOf(f.tri, r); return w[0] * f.soft.d[0] + w[1] * f.soft.d[1] + w[2] * f.soft.d[2]; };
+  const graded = (f, k) => mixLinear(f.soft.shade, f.soft.base, Math.min(1, Math.max(0, k)));
+  const emit = (tris, fill, f) => {
+    for (const T of tris) {
+      if (fill === BAND) pieces.push({ fi: f.fi, refs: T, fill: graded(f, 0.5), soft: T.map((r) => graded(f, (dAt(f, r) - f.soft.lo) / f.soft.w)), outNormal: f.outNormal, part: f.partName, mark: f.mark === true });
+      else pieces.push({ fi: f.fi, refs: T, fill, outNormal: f.outNormal, part: f.partName, mark: f.mark === true });
+    }
+  };
   // a lit ring of a highlit face: split on the highlight's line at its two crossings on the ring (its edge points, the
   // chord point), the s > 0 side in the highlight; one side with no area, or a line that misses, fills the whole ring by
   // the sign of s at its vertex centroid (s is linear across the face)
@@ -734,9 +764,11 @@ export function piecesAt(pieces, mesh, dz = 0) {
  * `pieces`: characterLitPieces built at this mesh's seat (`layeredSeat(mesh, seat)`), shared with the rig pack;
  * built here when absent. `normals`: per-face-corner normals (layeredShadingNormals); computed when absent.
  */
-export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_LIGHT, normals = null, seat = true, group = null, pieces = null, hairInk = false } = {}) {
+export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_LIGHT, normals = null, seat = true, group = null, pieces = null, hairInk = false, paint = null } = {}) {
   const P = pieces || characterLitPieces(mesh, { light, normals: normals || layeredShadingNormals(mesh, recipe), palette: recipe.palette, dz: layeredSeat(mesh, seat), glows: recipe.emissive });
-  return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: c.fill, group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}) }; });
+  // `paint` (face-paint.js facePaintOf): a piece of a painted face carries the texture, its corners' [s, t] and its fill as
+  // the light alone (texel × light on the page); absent ⇒ every face as before
+  return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }), tex = paint?.painted(c.fi); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: tex ? paint.light(c.fill) : c.fill, ...(c.soft ? { cornerFills: tex ? c.soft.map(paint.light) : c.soft } : {}), group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}), ...(tex ? { texture: paint.key, uv: c.refs.map(paint.uvAt), textureLit: true } : {}) }; });
 }
 
 // ─── the draw layers ──────────────────────────────────────────────────────

@@ -46,6 +46,7 @@ import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
+import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
@@ -620,8 +621,10 @@ export const WORLD_KINDS = {
       // 'hair' (a hair outline never draws over hair), so the World page splits the render group by layer and draws the
       // stencil rules (channels/draw-layers.js); the rig pack orders its parts the same way (`ranges`). A mesh with no
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
+      // the PAINTED FACE (face-paint.js): the anime head's features as a texture on its face; absent ⇒ null, byte-identical
+      const facePaint = character ? facePaintOf(mesh, m.recipe?.palette) : null;
       const faces = character
-        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink })
+        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
@@ -649,6 +652,7 @@ export const WORLD_KINDS = {
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark
+      if (facePaint) scene.textures = { ...(scene.textures || {}), [facePaint.key]: facePaint.url };
       // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
       // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
