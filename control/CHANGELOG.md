@@ -13,7 +13,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, and vaults
+### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, vaults, and the faces they act
 
 - **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
   one-shot clip compiled on the hero's own rig where its clips are packed (the World page, the GLB, the Godot pack): the
@@ -42,6 +42,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   foot, metres from the near face and past the far), the run it covers (the engine carries the character that far, 1.9
   to 4.5 m) and its flights. The solver's refusal on the rig (too high, too near) names the motion. The vaults' table
   moved to a leaf (`hero-vault-moves.js`) so the door lists them at load. Godot figure gate: every check passes.
+- **The face acts the move** (`anime-face-tracks.js`, `hero-face-action.js`). A strike's, a jump's and a roll's clip
+  carries its solved action (`act`), and its face track is that action acted: hero-face-action's take, seeded per hero
+  and clip — the set face leading the load, the shout or the clench on the contact, the "hup" on a take-off, the blink
+  after — on the 30-fps step grid, starting and ending on the authored face. A showcase pose plays its own faces (the
+  hero's hips: the confident smile). On the landmark head the take's four anime channels carry over (`western-face-rig`
+  `fromAnime`: the smile to the mouth corners, the brow to the tilt; the open mouth is the jaw bone's), so a western jab
+  grits its brow. An acted clip bakes no ambient blink of its own (the take has its blinks).
 - **Every clip the pack plays carries the face.** The face tracks ran over the recipe's own clips, so a `motion` clip
   the hero did not already have (a jump, now a move) had none; they run over every packed clip now, a compiled clip
   holding the authored face with its blinks. Godot figure gate (4.7.2) on a male with a walk and four moves: every

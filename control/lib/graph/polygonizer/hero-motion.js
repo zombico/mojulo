@@ -208,9 +208,9 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
 /** the MOVE families the door's `motion` takes by word: each word's table, its seconds when the word names none, whether
  * a word has a mirror (`…Left`), and its solve on a rig → { fn, seconds, laws } (the family's own machine gate) */
 const MOVE_FAMILIES = Object.freeze({
-  aura: { table: AURAS, seconds: 2, mirrors: () => true, solve: (name, R, seconds) => { const A = heroAura(name, R, { seconds }); return { fn: A.clip.fn, seconds: A.seconds, laws: A.checks?.laws }; } },
+  aura: { table: AURAS, seconds: 2, mirrors: () => true, solve: (name, R, seconds) => { const A = heroAura(name, R, { seconds }); return { fn: A.clip.fn, seconds: A.seconds, laws: A.checks?.laws, act: { family: 'aura', faces: A.faces } }; } },
   stance: { table: STANCES, seconds: 0.7, mirrors: (S, n) => STANCE_NAMES.includes(`${n}Left`), solve: (name, R, seconds) => { const S = heroStance(name, R, { seconds }); return { fn: S.clip.fn, seconds: S.clip.seconds ?? seconds, laws: S.checks?.laws }; } },
-  strike: { table: STRIKES, seconds: 0.5, mirrors: () => true, solve: (name, R, seconds) => { const K = heroStrike(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks?.laws, contact: K.contact, hand: K.hand }; } },
+  strike: { table: STRIKES, seconds: 0.5, mirrors: () => true, solve: (name, R, seconds) => { const K = heroStrike(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks?.laws, contact: K.contact, hand: K.hand, act: { family: 'strike', action: K } }; } },
 });
 /** solved moves and rests kept by their rig and word (a few dozen): a chair's getting down and up is seconds of solving,
  * and the World page compiles its clips on every read */
@@ -410,7 +410,7 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
       const K = Math.max(keys, Math.round(M.seconds * 30) + 1);
       try { for (let k = 0; k < K; k++) rigNodesAt(R, M.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const laws = M.laws && typeof M.laws === 'object' ? Object.values(M.laws).every(Boolean) : null;
-      const fn = (t) => M.fn(t); fn.keys = K; fn.once = true;
+      const fn = (t) => M.fn(t); fn.keys = K; fn.once = true; if (M.act) fn.act = M.act;   // (the face it acts: anime-face-tracks.js)
       fn.move = { family: move, hold: true, ...(laws !== null ? { laws } : {}), ...(M.contact ? { hand: M.hand, contact: M.contact.t } : {}) };
       clips[name] = fn; seconds[name] = M.seconds; continue;
     }
@@ -437,7 +437,7 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
       let J; try { J = heroJump(jump, R, { seconds: s, ...(speed ? { speed } : {}) }); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const K = Math.max(keys, Math.round(J.seconds * 30) + 1);
       try { for (let k = 0; k < K; k++) rigNodesAt(R, J.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
-      const fn = (t) => J.fn(t); fn.keys = K; fn.once = true; if (J.air) fn.air = J.air; if (J.roll) fn.roll = J.roll;
+      const fn = (t) => J.fn(t); fn.keys = K; fn.once = true; if (J.air) fn.air = J.air; if (J.roll) fn.roll = J.roll; fn.act = { family: 'jump', action: J, name: jump };   // (the face it acts: anime-face-tracks.js)
       clips[name] = fn; seconds[name] = J.seconds; continue;
     }
     let loco;

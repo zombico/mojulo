@@ -106,6 +106,19 @@ describe('the hero door\'s motion', () => {
     expect(anim.extras['moj:vault']).toEqual(clips.hurdle.vault);   // (a hero at 1 m a unit)
   });
 
+  it('a strike, a jump and a showcase pose act their faces (the anime head\'s channels, the landmark head\'s mapped), ending on the authored face', async () => {
+    const tracks = async (spec) => { const { payload } = await resolveWorldScene({ ref: 'act', title: 'act', manifest: heroManifest(spec) }, { face: true }); return payload.figures.body.face; };
+    const peak = (F, clip, target) => Math.max(...F.tracks[clip].w.map((w) => w[F.targets.indexOf(target)]));
+    const anime = await tracks({ cast: 'female', head: 'anime', motion: { jab: true, heroHips: true, jump: true } });
+    expect(peak(anime, 'jab', 'mouthOpen')).toBeGreaterThan(0);   // the shout on the contact (hero-face-action)
+    expect(peak(anime, 'jump', 'mouthOpen')).toBeGreaterThan(0);  // the take-off's "hup"
+    expect(peak(anime, 'heroHips', 'smile')).toBeGreaterThan(0);  // the pose's own face
+    const western = await tracks({ cast: 'male', motion: { jab: true, heroHips: true } });
+    expect(peak(western, 'jab', 'browAngry')).toBeGreaterThan(0.5);   // the gritted strike, its brow carried to the tilt
+    expect(peak(western, 'heroHips', 'smile')).toBeGreaterThan(0);
+    for (const F of [anime, western]) for (const c of ['jab', 'heroHips']) expect(F.tracks[c].w.at(-1), c).toEqual(F.weights);
+  });
+
   it('a turned clip exports its turn: through every key of a stance and a strike the head and the jaw skin together (the seam under the chin shut)', async () => {
     const bytes = glb(await resolve(heroManifest({ cast: 'female', motion: { guard: true, jab: true } }))), j = glbJson(bytes), bin = bytes.subarray(28 + bytes.readUInt32LE(12));
     const acc = (i) => { const a = j.accessors[i], bv = j.bufferViews[a.bufferView], n = { VEC3: 3, VEC4: 4, MAT4: 16, SCALAR: 1 }[a.type], o = (bv.byteOffset || 0) + (a.byteOffset || 0); return { n, count: a.count, at: (k) => Array.from({ length: n }, (_, c) => bin.readFloatLE(o + (k * n + c) * 4)) }; };

@@ -53,10 +53,16 @@ export function westernWeights(F, knots = WESTERN_EYE_KNOTS) {
     browAngry: pos(F.browTilt, R.browTilt[1]), browWorried: pos(-F.browTilt, -R.browTilt[0]) };
   return WESTERN_FACE_TARGETS.map((n) => +w[n].toFixed(6));
 }
+/** The anime face's four channels (blink, smile, open, brow: an acted take's, hero-face-action.js) on the western face
+ * and back: the smile its mouth corners (a frown below 0), the brow its tilt (+ the inner ends down), the blink its own;
+ * the open mouth is the jaw bone's, not the face's (dropped) */
+const clampTo = (x, [lo, hi]) => Math.max(lo, Math.min(hi, x));
+export const fromAnime = (a) => ({ ...EXPRESSIONS.neutral, blink: a.blink ?? 0, mouthCorner: clampTo((a.smile ?? 0) * R.mouthCorner[1], R.mouthCorner), browTilt: clampTo((a.brow ?? 0) * R.browTilt[1], R.browTilt) });
+export const toAnime = (w) => ({ blink: w.blink ?? 0, smile: Math.max(-1, Math.min(1, (w.mouthCorner ?? 0) / R.mouthCorner[1])), open: 0, brow: Math.max(-1, Math.min(1, (w.browTilt ?? 0) / R.browTilt[1])) });
 /** The knots and the weighing the tracks use for a western hero (anime-face-tracks K): its own closure is a knot too */
 export function westernKnots(authored) {
   const a = authored?.blink ?? 0, eyeKnots = a > 0 && a < 1 && !WESTERN_EYE_KNOTS.includes(a) ? [...WESTERN_EYE_KNOTS, a].sort((x, y) => x - y) : [...WESTERN_EYE_KNOTS];
-  return { own: null, eyeKnots, fixKnots: [], targets: [...WESTERN_FACE_TARGETS], state: westernState, resolve: resolveWesternExpression, weigh: (F) => westernWeights(F, eyeKnots) };
+  return { own: null, eyeKnots, fixKnots: [], targets: [...WESTERN_FACE_TARGETS], state: westernState, resolve: resolveWesternExpression, weigh: (F) => westernWeights(F, eyeKnots), toAnime, fromAnime };
 }
 /** every expression word's weights (EXPRESSIONS, in its order), then the hero's own */
 export function westernWords(authored) {
