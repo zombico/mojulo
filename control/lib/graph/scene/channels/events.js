@@ -8,6 +8,7 @@ import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
 import { momentKinds, momentScript } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
+import { listensForHits } from '../../playscape/ui/cast.js';
 import { buildStats } from '../../playscape/stats/kernel.js';
 
 export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
@@ -186,6 +187,7 @@ export function eventsChannelScript(events) {
   const { widgets } = normalizeHud(events.hud);
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
+  const facts = cast || listensForHits(events);   // the characters' happenings are read (a hit counts there too)
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
@@ -319,7 +321,7 @@ function __syncBus() {
 // first, so window.__mojSim is already present).
 if (window.__mojSim) __BUS.linkPhysics(__busState, window.__mojSim.state);
 if (EVENTS.initial) __BUS.processEvents(__busState, EVENTS.initial);
-let __busPrev, __busPrevT = 0, __zonePrev;${cast ? ' let __castPrev;' : ''}
+let __busPrev, __busPrevT = 0, __zonePrev;${facts ? ' let __castPrev;' : ''}
 stepEvents = (t) => {
   const dtSec = __busPrevT ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0
   if (window.__mojSim) __BUS.syncFromBodies(__busState, window.__mojSim.state);   // fresh body reads
@@ -335,8 +337,8 @@ stepEvents = (t) => {
     __zonePrev = z.prev;
     for (const ev of z.events) incoming.push(ev);${reach ? `
     __stepReach(z.events, incoming);` : ''}
-  }${cast ? `
-  if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck
+  }${facts ? `
+  if (window.__mojCtrl && window.__mojCtrl.facts) {   // CAST FACTS → down / gone / spawned / arrive / stuck / hit:<id>
     const c = window.__mojCtrl.facts(__castPrev);
     __castPrev = c.prev;
     for (const ev of c.events) incoming.push(ev);

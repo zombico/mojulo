@@ -40,6 +40,9 @@ export const CAST_WHEN = Object.freeze({
   faded: 'a status comes off a character: it ran out or was lifted: { faded: who } any, or { faded: { who, is } }',
   struck: 'a beam reaches a character (its id, a glob)',
 });
+// a world listens for hits when a reaction waits on `hit:<id>` (hp-pool lowers to one): the page then reads the
+// cast's facts, where a hit is counted, even when no cue reaches the cast
+export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && String(r.on).startsWith('hit:'));
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
   spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,

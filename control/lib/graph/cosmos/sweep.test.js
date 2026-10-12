@@ -141,4 +141,32 @@ describe('sweep', () => {
     expect(a.verdicts.makeable + a.verdicts.gaps + a.verdicts.blocked).toBe(100);
     expect(() => sweep({ n: 1, around: 'mmo' })).toThrow(/no fixture 'mmo'/);
   });
+
+  it('recounts the Godot counterfactual by hand: a value, a setting, a ladder that climbs to its facet', () => {
+    for (const [args, roll] of [[{ n: 200, seed: 3 }, (rand) => rollCube(rand)], [{ n: 200, seed: 3, around: 'probes' }, null]]) {
+      const s = sweep(args), g = s.unlock.godot, lost = [];
+      if (roll) {
+        const rand = mulberry32(3);
+        for (let i = 0; i < 200; i++) { const d = dryRun(roll(rand)); if (!d.godot.ok) lost.push(d.godot.lost); }
+      } else {
+        const bases = FIXTURES.filter((f) => !f.anchor).map((f) => f.cube), rand = mulberry32(3);
+        for (let i = 0; i < 200; i++) { const d = dryRun(nudgeCube(rand, bases[i % bases.length])); if (!d.godot.ok) lost.push(d.godot.lost); }
+      }
+      expect(lost.length).toBe(200 - s.godotOk);
+      const key = (x) => `${x.facet}.${x.setting}=${x.value}`, set = (x) => `${x.facet}.${x.setting}`;
+      // the top setting: the cubes whose every loss is in it
+      const top = g.settings[0];
+      expect(top.survives).toBe(lost.filter((l) => l.every((x) => set(x) === top.setting)).length);
+      // the top value: the cubes that lose it and nothing else
+      const v = g.values[0];
+      expect(v.survives).toBe(lost.filter((l) => l.some((x) => key(x) === v.key) && l.every((x) => key(x) === v.key)).length);
+      for (const row of [...g.values, ...g.settings]) expect(row.survives).toBeLessThanOrEqual(row.touches);
+      for (const [facet, ladder] of Object.entries(g.ladders)) {
+        expect(ladder[0].survives - ladder[0].gain).toBe(s.godotOk);
+        for (let i = 1; i < ladder.length; i++) expect(ladder[i].survives).toBe(ladder[i - 1].survives + ladder[i].gain);
+        // the top of a facet's ladder: every cube whose losses are all in that facet
+        expect(ladder.at(-1).survives, facet).toBe(s.godotOk + lost.filter((l) => l.every((x) => x.facet === facet)).length);
+      }
+    }
+  });
 });

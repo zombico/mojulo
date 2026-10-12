@@ -15,7 +15,8 @@ const lowers = (play) => lowerPlay({ kind: 'controllable', play: { ...play, ui: 
 
 describe('the game\'s systems', () => {
   it('says what is wrong', () => {
-    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\? \}/);
+    bad([], /mechanics is \{ stats\?, scale\?, powers\?, hud\?, ui\?, gear\?, destruction\? \}/);
+    bad({ destruction: 'lots' }, /mechanics.destruction is how much a game lets break: none, objects, cover, world/);
     bad({ numbers: {} }, /numbers is not part of the mechanics/);
     bad({ scale: { hp: -1 } }, /scale.hp is a number above 0/);
     bad({ scale: { curve: 0.5 } }, /scale.curve is a number above 0, 1 or more/);

@@ -349,6 +349,82 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   held, using the shortest-form spelling both engines print. The bus keeps JS's `undefined` apart from `null`, so a
   var set from a missing field compares the same on both sides.
 
+### Godot plays the fight: combat, the systems, beams and explosions travel
+
+- **The sweep measures what Godot would gain.** `sweep()` returns `unlock.godot`: for each value a Godot export
+  loses, and for each setting as a group, how many of the rolled cubes would survive the export if it travelled. A
+  ladder adds a facet's settings one at a time, largest gain first. `cosmos-sweep.mjs` prints both.
+- **A beam striking is named as lost on Godot.** `struck` has its own bus row. Before, it counted as one of the cast
+  facts the Godot kernel performs, so a level whose cue waits on a beam reported as covered and never fired. The
+  ledger and the portability flags now name `fact:struck`.
+- **Hits reach the bus.** Every hit a character takes (a blade, a round, a splash, a tackle) is a `hit:<id>` fact,
+  carrying who dealt it. That is the event `hp-pool` counts, so a level's health pools and `defeat-all` now run on
+  the hits its combat deals; before, nothing in the runtime produced them. A page reads its characters' facts when a
+  reaction listens for a hit, as it already did when a cue reaches the cast.
+- **Melee's contact test stands on its own.** `meleeContacts` says who a swing meets this step (an ally, a clash, a
+  hit) before anything is done to them; `stepMelee` applies it in the same order, so play is unchanged. An engine
+  kernel holds its own adjudication equal to it.
+- **The fight travels to Godot (kernel 0.17.0).** A platform hero's fight rides `bus.json` as `combat`: its five
+  swings, its weapon, the world's cover and every hittable body. `kernel/combat.gd` runs it over the cast:
+  - the strike: the fire press, the cut the held keys pick, the cooldown and the two-hit combo;
+  - the trigger: semi, automatic, burst, charge, magazine and reload, heat; the ray against eggs and spheres, cover,
+    frontal shields; lobbed rounds swept along their flight, the proximity fuze and the splash;
+  - what a hit does: a reacting body staggers, topples, lies flat, gets up untouchable (with its wake guard), and a
+    killing blow floors it; its fall blasts a stagger around it.
+
+  Each hit is a `hit:<id>` fact, so `hp-pool` and `defeat-all` travel too. A level shows a stagger and a topple as
+  a lean and draws the rounds in flight. It is held equal to the web frame by frame
+  (`scripts/godot-combat-conformance.mjs`, its Godot leg when `MOJULO_GODOT` is set): every number is equal but a
+  round's flight, which is held to 1e-9 because the two engines' sine and cosine can differ in the last bit. What
+  stays on the web: the combo's stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred
+  wreck finisher, a loadout's other slots and every AI's attack. The portability flags say so, and so does the Godot
+  pack's own ledger, which now lists `hp-pool` and `defeat-all` as running on the bus (`bus_mechanics`) instead of
+  as outside the kernel's vocabulary.
+- **A game's systems travel to Godot (kernel 0.18.0).** Resource, stamina, unlock, transform and equip already
+  lowered to stats, cues, HUD rows and a status page, which the Godot kernel runs; what it lacked was their keys.
+  `bus.json` now carries `events.inputs` bound to a key or a click, and `level.gd` feeds them to the bus as the page
+  does (a key by the character it types, as `KeyboardEvent.key` names it): a power fires on its number, the status
+  page opens on `i`. A pick or a shot on what the pointer is over stays the page's; the bus contract names it
+  (`fact:aim`).
+- **Beams and explosions travel to Godot.** A cue's beam and blast are moments on the cast's clock in
+  `kernel/cast.gd`, as on the web:
+  - a beam leaves the hand (or rises over the head for a charge) toward a character or a place, lands after its
+    distance by the web's land rule, sets off its impact and shake there, and its target hears `struck`;
+  - an explosion puffs at a place or a character's feet; a chain scatters its blasts by the web's own dice and
+    staggers them, with a shake.
+
+  Held equal to the web by the combat corpus (every kind of each). `level.gd` draws them simpler than the page: a
+  bolt that grows to where it lands, a glowing ball that swells and fades, in the spec's colour. The cast rows carry
+  where each character stands below its position (`foot`). `fact:struck` is performed in Godot.
+- **Numbers read and print exactly in Godot.** `kernel/json_exact.gd` reads a small number's late digits (Godot's
+  own reader dropped them, so about one double in two hundred arrived as its neighbour) and `js_number` prints a
+  double as JS does: the fewest digits, the even one on a tie, the exponent forms and the subnormals included. The
+  bus prints with it, so a var a HUD shows and the state the conformance corpus compares read the same on both sides.
+
+### Destruction: every blow breaks things its own way
+
+- **The cut.** `playscape/destruct/cuts.js` names how a blow breaks what it breaks: a pattern (cleave's slice, grid or
+  voronoi, or dismantle's severed joints) and a style (blade, laser, anime, impact), as presets (slash, cleave, chip,
+  shatter, blast, burn, dice, sever). A blow's cut is the thing's own (glass shatters whatever hits it), else the
+  blow's, else its element's (fire burns, ice shatters, wind slashes, shock cleaves, dusty severs), else its source's
+  (a swing slashes, a round chips, a burst blasts, a beam by its kind). Tables, not code.
+- **What breaks is a game's convention, by degree.** Nothing breaks by default. A level says how much does with
+  `destruction`: `none`, `objects` (the action-game default: crates, barrels, amphorae, pots, glass, planks, bones,
+  a lid; buildings and fixtures hold), `cover` (furniture, doors, boulders and coffins too) or `world` (walls,
+  pilasters and set pieces as well); a thing's own `breakable` wins over it. A thing's class is the name it already
+  has. Each breakable solid thing becomes a block the runtime breaks (a swing in reach, a round that stops on it, a
+  burst over it), its faces their own render group, and the World page hides it when it breaks. Today the gothic and
+  catacomb kits' props carry what this needs; a thing not yet named on its faces (a pooled rock) or blocking nothing
+  (planks, bones) stays as it is. Absent, a page is byte-identical. A game says it once, in its gameworld's
+  `mechanics.destruction`, and `design_game` copies it onto every level it makes; the gameworld's own stages place no
+  named things yet, so for now nothing on them breaks. An engine export holds what breaks whole: each breakable
+  travels back as a solid collider, and the ledger says so (`breakables_held`).
+- **A broken thing comes apart.** Each breakable is cut ahead of time, once for each cut it can take (a swing slashes
+  it in two, a round or a fall chips it, a burst blasts it; its own `cut` wins), and when it breaks on the World page
+  a flash and a ring cover the swap to those pieces. They part the cut's way, carry the thing's own texture with a
+  darker inside, fall, tumble, bounce off the walls, settle on the floor it stood on, then sink away. The box is what is
+  cut, so a barrel breaks as a box would; a severing cut plays the chip for now.
+
 ### Structure rails: the structure book
 
 - A house (`floorplan` row) is getting **the structure book**, one tabbed HTML view of the whole building in the game

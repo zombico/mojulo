@@ -98,6 +98,10 @@ import { emitThreeWorld } from './scene-three.js';
 // in a herd run on the alarm. Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (the rule facade's clock): `world.time` reaches the rules, so a mind's sightings, memory,
 // regrowth and a group's shared sight read the real time (they read 0). Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the hit loop): melee's contact test is lifted out of stepMelee as meleeContacts (it reads, the
+// apply loop writes, in the same order), and castFacts counts a body's hits as `hit:<id>` facts (what hp-pool reads).
+// A page reads the facts when its cues reach the cast or a reaction listens for a hit; no fixture's does newly. Same
+// proof, same 13 fixtures; the controllable trace pins hold.
 // Re-pinned 2026-10-11 (cameras): two camera rules (`eye`, `overhead`), `walk` lookPitch and `platform` move: 'world',
 // each gated on its own key, so the controllable trace pins hold. With the embedded engine source set aside, all 64
 // fixtures are byte-identical to before: the first-person body-hiding splice is gated at emit time. Same 13 fixtures.
@@ -105,6 +109,7 @@ import { emitThreeWorld } from './scene-three.js';
 // its own key; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
 // Re-pinned 2026-10-11 (power moves): `platform` airJumps and glideFall, each gated on its own key; the trace pins hold
 // and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (merge of the hit loop with the cameras): both changes to the embedded engine source at once.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

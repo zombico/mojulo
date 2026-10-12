@@ -54,6 +54,14 @@ export function formatSweep(r, { top = 15 } = {}) {
     const needs = p.needs.length ? `  + ${p.needs.join(', ')}` : '';
     out.push(`  ${pad(p.name, 56)} ${pad(p.effort || '?', 2)} cost ${pad(p.cost ?? '?', 3)} per-effort ${pad(p.perEffort ?? '—', 6)} lifts ${pad(p.lifts, 5)} makeable ${pad(p.makeable, 5)}${needs}`);
   }
+  const g = r.unlock.godot;
+  for (const [facet, ladder] of Object.entries(g.ladders)) {
+    out.push('', `godot ladder, ${facet}: its settings made to travel one at a time, largest gain first (cubes surviving the export, of ${r.n})`);
+    out.push(`  ${pad('now', 36)} ${r.godotOk}`);
+    for (const l of ladder) out.push(`  ${pad(`+ ${l.setting}`, 36)} ${pad(l.survives, 5)} +${l.gain}`);
+  }
+  out.push('', 'godot by value: cubes that would survive the export if this one value travelled');
+  for (const v of g.values.slice(0, top)) out.push(`  ${pad(v.key, 36)} survives ${pad(v.survives, 5)} touches ${v.touches}`);
   out.push('', `unlock by value: the top ${top}`);
   for (const v of r.unlock.values.slice(0, top)) out.push(`  ${pad(v.key, 36)} ${pad(v.status, 8)} lifts ${pad(v.lifts, 5)} makeable ${pad(v.makeable, 5)} touches ${v.touches}`);
   return out.join('\n') + '\n';

@@ -48,13 +48,30 @@ describe('the bus contract', () => {
 
   it('rides the ledger and the portability flags', () => {
     const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], parts: [{ part: 'readout', id: 'gauge', bind: { var: 'hp' } }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: [{ open: 'sign' }, { hide: 'gauge' }] }] });
-    // a key bound to an event is what the kernel does not feed in yet (the parts a cue hides are drawn since 0.14.0)
-    const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events: { ...events, inputs: [{ key: 'KeyF', emit: 'flare' }] } });
-    expect(score.ledger.bus_carried.godot.absent).toEqual(['fact:input']);
+    // a pick on what the pointer is over is what the kernel does not feed in (keys travel since 0.18.0; the parts a cue
+    // hides are drawn since 0.14.0)
+    const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events: { ...events, inputs: [{ on: 'pick', emit: { type: 'flare' } }] } });
+    expect(score.ledger.bus_carried.godot.absent).toEqual(['fact:aim']);
     expect(score.ledger.bus_carried.godot.built).toEqual(expect.arrayContaining(['effect:menus', 'effect:parts']));
     expect(score.menus.map((m) => m.id)).toEqual(['sign']);
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score }] });
-    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: fact:input/);
+    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: fact:aim/);
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
+  });
+
+  it('reads a hit listener (hp-pool) as the hit fact', () => {
+    const m = composeMechanics([{ kind: 'hp-pool', entities: [{ id: 'a' }] }, { kind: 'defeat-all' }]);
+    expect(busCoverage(m.events).used).toContain('fact:hit');
+    expect(busCoverage(m.events).used).not.toContain('fact:cast');
+  });
+
+  it('reads a cue on a beam striking as its own fact (performed since kernel 0.18.0), apart from the other cast facts', () => {
+    const ev = lowered({ cues: [{ id: 'a', when: { struck: 'hero' }, then: { say: 'ow' } }] });
+    expect(busCoverage(ev).godot.built).toContain('fact:struck');
+    expect(busCoverage(ev).godot.absent).toEqual([]);
+    expect(busCoverage(ev).used).not.toContain('fact:cast');
+    const down = lowered({ cues: [{ id: 'a', when: { down: 'hero' }, then: { say: 'ow' } }] });
+    expect(busCoverage(down).godot.built).toContain('fact:cast');
+    expect(busCoverage(down).used).not.toContain('fact:struck');
   });
 });

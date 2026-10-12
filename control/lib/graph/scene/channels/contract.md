@@ -138,6 +138,8 @@ OPTIONAL = consumed behind a `typeof`/null guard; the provider may be absent.
 | `shadowBlock` + `shadowHook` (suit contact blobs; `key` folded iff baked light usable) | `shadows` truthy |
 | `smokeBlock` + `smokeHook` (projectile smoke + dust) | `smoke` truthy |
 | `wreckExplodes`, `spectate` (createWorld arg, omitted when absent) | truthy |
+| `breakables` (createWorld arg, and the break hook; omitted when absent) | truthy |
+| `breakPieces` (each breakable's pre-cut pieces by cut, swapped in when it breaks) | `{ [id]: { fill, tex?, cuts, pieces } }` |
 | `match` / `pilot` / `ai` / `colliders` (createWorld args, null when absent) | data-gated at runtime |
 | `exposeBodies` (`bodies: __bodies` on `__mojCtrl`) | fx channel present |
 | `__MOUSELOOK` const | `camera.turnMode`/`mouseLook`, baked at emit time |

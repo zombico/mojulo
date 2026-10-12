@@ -3,9 +3,9 @@
  * of stages (level/sequential.js), and a stage is already a walkable world kind (`stage`, era/stage.js): its ground,
  * its colliders, its first-person spawn, the beats of its trail or the tiers of its climb. This puts the hero on it as
  * the pilot (playscape/player.js, without the player test's floor), spawned where the stage spawns a walker, facing the
- * way out, with the systems' play block (the stats, the HUD, the powers on their keys), and a `game` channel whose exit
- * is the stage's own end: a trail's exit beat, a climb's top tier. One game level per stage, in walking order; a level's
- * stages are not joined into one world.
+ * way out, with the systems' play block (the stats, the HUD, the powers on their keys) and the game's destruction degree,
+ * and a `game` channel whose exit is the stage's own end: a trail's exit beat, a climb's top tier. One game level per
+ * stage, in walking order; a level's stages are not joined into one world.
  *
  * WALKABLE, NOT BEATABLE. What a stage's construction gives is ground the hero stands on from the spawn; whether a level
  * can be beaten (the moves, the numbers, the obstacles, the timing) is the creator's to judge in play. Nothing here
@@ -141,7 +141,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
   }
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(mechanics?.play ? { play: mechanics.play } : {}), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(mechanics?.play ? { play: mechanics.play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
 

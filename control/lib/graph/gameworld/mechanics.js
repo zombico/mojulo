@@ -18,6 +18,8 @@
  *     hud?: 'derive' | false | [part],          // the readouts: derived (default), none, or the creator's own
  *     ui?: 'propose' | 'auto' | <direction>,    // play.ui (playscape/ui/direction.js), resolved when the world is minted
  *     gear?: { <class>: { stat?, by?: [early, mid, late] } },   // what a class raises, over GEAR_STAT / GEAR_BY
+ *     destruction?: 'none' | 'objects' | 'cover' | 'world',    // how much the game lets break (playscape/destruct/
+ *                                                              // breakability.js), copied onto every level it makes
  *   }
  *
  * Pure: no dice, no clock. `readMechanics` reads the shape (the world reader calls it); `resolveMechanics` derives the
@@ -30,6 +32,7 @@ import { readPart } from '../playscape/ui/parts.js';
 import { EQUIPMENT_ITEMS } from '../equipment/expand.js';
 import { playerWorld } from '../playscape/player.js';
 import { STAGES } from './actions.js';
+import { readDegree } from '../playscape/destruct/breakability.js';
 
 /** The coarse dials: a hero's starting health and power, the price unit, and the xp curve's growth per level. */
 export const SCALE = Object.freeze({ hp: 100, power: 10, cost: 1, curve: 1.5 });
@@ -63,9 +66,10 @@ const STATS_LISTS = ['holders', 'stats', 'resources', 'epochs', 'tree', 'offers'
 
 /** Read a world's mechanics and say what is wrong. The numbers are judged by the stats kernel once laid over. */
 export function readMechanics(M) {
-  if (!isObj(M)) throw fail('mechanics is { stats?, scale?, powers?, hud?, ui?, gear? }: the game\'s systems, derived from the hero\'s actions');
-  for (const k of Object.keys(M)) if (!['stats', 'scale', 'powers', 'hud', 'ui', 'gear'].includes(k)) throw fail(`${k} is not part of the mechanics (stats, scale, powers, hud, ui, gear)`);
+  if (!isObj(M)) throw fail('mechanics is { stats?, scale?, powers?, hud?, ui?, gear?, destruction? }: the game\'s systems, derived from the hero\'s actions');
+  for (const k of Object.keys(M)) if (!['stats', 'scale', 'powers', 'hud', 'ui', 'gear', 'destruction'].includes(k)) throw fail(`${k} is not part of the mechanics (stats, scale, powers, hud, ui, gear, destruction)`);
   const out = {};
+  if (M.destruction !== undefined) out.destruction = readDegree(M.destruction, 'mechanics.destruction');
   if (M.stats !== undefined) {
     if (!isObj(M.stats)) throw fail('stats is { <play.stats fields> }: holders, stats, resources, level, epochs, tree, offers, bodies');
     out.stats = M.stats;
@@ -247,7 +251,7 @@ export function resolveMechanics(G, { actions, equipment, adornment = null }) {
     then: [...(p.spends ? [{ grant: { res, by: -p.spends[res] } }] : []), ...(p.look ? [{ status: { who: HOLDER, is: p.id, look: p.look, for: 1.5 } }] : []), { say: p.id, as: 'toast' }],
   })), ...(play.menus ? [{ id: 'open-status', when: { on: 'status' }, then: { open: 'status' } }] : [])];
   const legend = [...powers.filter((p) => p.key).map((p) => `${p.key} ${p.id}`), ...(play.menus ? [`${KEYS.status.toUpperCase()} status`] : [])].join(' · ');
-  return { play, inputs, legend, powers, reasons, ledger, open, limits };
+  return { play, inputs, legend, powers, reasons, ledger, open, limits, ...(M.destruction ? { destruction: M.destruction } : {}) };
 }
 
 /** The readouts the systems call for, the banners on each level and epoch, and a status page of the stats. */

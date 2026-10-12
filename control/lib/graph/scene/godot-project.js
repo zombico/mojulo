@@ -23,6 +23,7 @@
  */
 
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
+import { GODOT_MECHANICS } from './engine-portability.js';
 
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
@@ -231,15 +232,22 @@ function levelLedger(score, { gameMode = false } = {}) {
     };
   }
   const kinds = (score.mechanics ?? []).map((m) => m?.kind).filter(Boolean);
+  // a level whose behaviour rides the bus runs the mechanics it lowers to (win-when, and hp-pool / defeat-all counting
+  // kernel/combat.gd's hits) and ends through its contract, as engine-portability.js credits them
+  const onBus = !!score.ledger?.bus_carried;
   const interpreted = kinds.filter((k) => MECHANICS_VOCAB.includes(k));
-  const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k));
+  const bused = onBus ? kinds.filter((k) => !MECHANICS_VOCAB.includes(k) && GODOT_MECHANICS.includes(k)) : [];
+  const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k) && !bused.includes(k));
   if (interpreted.length) {
     ledger.interpreted_mechanics = { count: interpreted.length, kinds: [...new Set(interpreted)], note: 'performed live by kernel/level.gd' };
+  }
+  if (bused.length) {
+    ledger.bus_mechanics = { count: bused.length, kinds: [...new Set(bused)], note: 'run on the bus by kernel/bus.gd (hp-pool and defeat-all count the hits kernel/combat.gd deals); the contract ends the level' };
   }
   if (unknown.length) {
     ledger.unknown_mechanics = { count: unknown.length, kinds: [...new Set(unknown)], note: 'outside the kernel vocabulary — do not travel' };
   }
-  if (gameMode && !kinds.some((k) => COMPLETION_KINDS.includes(k))) {
+  if (gameMode && !kinds.some((k) => COMPLETION_KINDS.includes(k)) && !onBus) {
     ledger.no_completion_path = {
       note: 'no completion mechanic — the authored win condition lives in the runtime, which does not travel; the level is an explorable arena (M returns to the menu)',
     };

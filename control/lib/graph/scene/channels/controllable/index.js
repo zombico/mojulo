@@ -47,7 +47,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -186,7 +186,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   const commanderStep = commandedIds.length ? '__mojCmd.step(__world);\n    ' : '';
   return `
 const __CW = ${emissionSource()};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
 ${commanderBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
@@ -2440,7 +2440,92 @@ function __msHookParams() {
   });
 }
 if (__ctrlOwnsCamera) __driveCamera();
-stepControllable = (dt, inputOverride) => {
+${breakables ? `// breakability: a block that broke (the runtime's state.breaks) leaves the scene: its render group (break:<id>) hides,
+// a flash and a ring cover the swap, and its pre-cut pieces (playscape/destruct/breakability.js piecesOf: the cut of
+// how it broke) take its place, parting the cut's way (impact bursts from the blow, a blade slips the halves apart,
+// anime holds the beat first), falling, tumbling and settling on the floor it stood on, then sinking away. Seeded by
+// the break's seq and stepped on sim dt, so a capture stays byte-identical.
+const __breakPieces = ${safeJson(breakPieces || {})};
+const __pieces = [];
+let __breaksSeen = 0;
+const __PART = { impact: { speed: 3.2, up: 2.2, blow: 1.6, hold: 0 }, blade: { speed: 0.9, up: 0.6, blow: 0.9, hold: 0.06 }, laser: { speed: 0.3, up: 0.2, blow: 0.2, hold: 0.25 }, anime: { speed: 1.2, up: 0.5, blow: 0.7, hold: 0.42 } };
+const __pieceLight = [0.35, -0.55, 0.76];
+function __spawnBreak(br) {
+  const blk = (__world.breakables || []).find((q) => q.id === br.id);
+  const ext = blk ? Math.max(blk.max[0] - blk.min[0], blk.max[1] - blk.min[1], blk.max[2] - blk.min[2]) : 1;
+  const floor = blk ? blk.min[2] : 0;
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
+  flash.position.set(br.at[0], br.at[1], br.at[2]); flash.raycast = function () {}; scene.add(flash);
+  __fx.push({ obj: flash, born: __world.time, ttl: 0.16, kind: 'burst', base: ext * 0.7, dim: 0.9 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 6, 24), __fxMat(0xffe2b0));
+  ring.position.set(br.at[0], br.at[1], floor + 0.05); ring.raycast = function () {}; scene.add(ring);
+  __fx.push({ obj: ring, born: __world.time, ttl: 0.3, kind: 'shock', base: ext * 0.8 });
+  const show = __breakPieces[br.id], set = show && show.pieces[show.cuts[br.how] || 'chip'];
+  if (!set) return;
+  const by = br.by && __world.entities.find((e) => e.id === br.by);
+  let bx = 0, byy = 0;
+  if (by) { bx = br.at[0] - by.transform.pos[0]; byy = br.at[1] - by.transform.pos[1]; const l = Math.hypot(bx, byy) || 1; bx /= l; byy /= l; }
+  const P = __PART[set.style] || __PART.impact, rnd = __clashRng(0xb4ea ^ Math.imul(br.seq + 1, 2654435761));
+  // a textured thing breaks into its own texture (box-projected, about a repeat per 1.2 units, the inside shaded
+  // darker); an untextured one into its colour
+  const own = meshes['break:' + br.id], tm = own && own.userData.tex && own.userData.tex[0], map = tm && tm.material.map;
+  const skin = new THREE.Color(show.fill).multiplyScalar(show.tex && !map ? 0.72 : 1), inside = skin.clone().multiplyScalar(0.62);
+  for (const k of set.chunks) {
+    const pos = [], col = [], uv = [];
+    let lo = 0, r = 0;
+    for (const f of k.faces) {
+      const a = f.pts[0], b = f.pts[1], c = f.pts[2];
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const nl = Math.hypot(nx, ny, nz) || 1;
+      const lit = (map ? 0.95 : 0.55) + (map ? 0.3 : 0.45) * Math.max(0, (nx * __pieceLight[0] + ny * __pieceLight[1] + nz * __pieceLight[2]) / nl);   // a texture is lit already
+      const base = f.cut ? inside : skin;
+      const ax = Math.abs(nx) >= Math.abs(ny) && Math.abs(nx) >= Math.abs(nz) ? 0 : Math.abs(ny) >= Math.abs(nz) ? 1 : 2, ua = ax === 0 ? 1 : 0, va = ax === 2 ? 1 : 2;
+      for (let i = 1; i < f.pts.length - 1; i++) for (const p of [f.pts[0], f.pts[i], f.pts[i + 1]]) { pos.push(p[0], p[1], p[2]); col.push(base.r * lit, base.g * lit, base.b * lit); uv.push((p[ua] + k.at[ua]) / 1.2, (p[va] + k.at[va]) / 1.2); }
+      for (const p of f.pts) { lo = Math.max(lo, -p[2]); r = Math.max(r, Math.hypot(p[0], p[1])); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    if (map) g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, ...(map ? { map } : {}) }));
+    m.position.set(k.at[0], k.at[1], k.at[2]); m.raycast = function () {}; scene.add(m);
+    let ox = k.at[0] - br.at[0], oy = k.at[1] - br.at[1], oz = k.at[2] - br.at[2]; const ol = Math.hypot(ox, oy, oz) || 1; ox /= ol; oy /= ol; oz /= ol;
+    const sp = P.speed * (0.7 + 0.6 * rnd());
+    __pieces.push({ m, born: __world.time, hold: P.hold, rest: floor + lo, r: r * 0.6,
+      v: [ox * sp + bx * P.blow, oy * sp + byy * P.blow, Math.max(0, oz) * sp + P.up * (0.6 + 0.8 * rnd())],
+      w: [(rnd() - 0.5) * 9 * P.speed / 3.2, (rnd() - 0.5) * 9 * P.speed / 3.2, (rnd() - 0.5) * 4], settled: false });
+  }
+}
+function __pieceBlocked(x, y, z, r) {
+  for (const c of (__world.colliders || [])) if (x > c.min[0] - r && x < c.max[0] + r && y > c.min[1] - r && y < c.max[1] + r && z > c.min[2] && z < c.max[2]) return true;
+  return false;
+}
+function __updateBreaks(dt) {
+  const B = __world.breaks || [];
+  for (; __breaksSeen < B.length; __breaksSeen++) {
+    const br = B[__breaksSeen], m = meshes['break:' + br.id];
+    if (m) { m.visible = false; for (const tm of (m.userData.tex || [])) tm.visible = false; }
+    __spawnBreak(br);
+  }
+  for (let i = __pieces.length - 1; i >= 0; i--) {
+    const q = __pieces[i], age = __world.time - q.born;
+    if (age > 4) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); __pieces.splice(i, 1); continue; }
+    if (age < q.hold) continue;   // the cut is drawn before anything parts
+    if (age > 3.2) { q.m.position.z -= dt * 0.25; continue; }   // sink away through the floor
+    if (q.settled) continue;
+    q.v[2] -= 9.8 * dt;
+    // the walls hold them: each horizontal step that would put a piece inside a collider bounces back off it instead
+    const x1 = q.m.position.x + q.v[0] * dt, y1 = q.m.position.y + q.v[1] * dt, z = q.m.position.z;
+    if (__pieceBlocked(x1, q.m.position.y, z, q.r)) q.v[0] *= -0.3; else q.m.position.x = x1;
+    if (__pieceBlocked(q.m.position.x, y1, z, q.r)) q.v[1] *= -0.3; else q.m.position.y = y1;
+    q.m.position.z += q.v[2] * dt;
+    q.m.rotation.x += q.w[0] * dt; q.m.rotation.y += q.w[1] * dt; q.m.rotation.z += q.w[2] * dt;
+    if (q.m.position.z <= q.rest && q.v[2] < 0) {   // land: bounce a little, drag along the floor, stop when slow
+      q.m.position.z = q.rest; q.v[2] *= -0.25; q.v[0] *= 0.55; q.v[1] *= 0.55; q.w[0] *= 0.5; q.w[1] *= 0.5; q.w[2] *= 0.5;
+      if (Math.abs(q.v[2]) < 0.4 && Math.hypot(q.v[0], q.v[1]) < 0.3) q.settled = true;
+    }
+  }
+}
+` : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0) {
     ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
@@ -2449,7 +2534,8 @@ ${hangarHook}  __msHookParams();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(dt);${shadowHook}${smokeHook}
+    __updateThrusters(dt);${shadowHook}${smokeHook}${breakables ? `
+    __updateBreaks(dt);` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);
   __updateWepHud();   // after the camera is positioned, so the reticle projects onto the current frame

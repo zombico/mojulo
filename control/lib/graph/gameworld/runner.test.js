@@ -17,6 +17,15 @@ describe('the runner\'s plan', () => {
     expect(() => runSteps(MEADOWMARK_HERO, {})).toThrow(/derived from the gameworld's own ref/);
   });
 
+  it('the game\'s destruction degree rides onto every level it makes; without one, no level says it', () => {
+    const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
+    expect(levels(MEADOWMARK_HERO).every((s) => s.order.manifest.destruction === undefined)).toBe(true);
+    const W = { ...MEADOWMARK_HERO, mechanics: { ...MEADOWMARK_HERO.mechanics, destruction: 'objects' } };
+    const L = levels(W);
+    expect(L.length).toBeGreaterThan(0);
+    expect(L.every((s) => s.order.manifest.destruction === 'objects')).toBe(true);
+  });
+
   it('pure: the same world, the same steps and prints', () => {
     expect(JSON.stringify(runSteps(MEADOWMARK_HERO, { ref: 'gw' }))).toBe(JSON.stringify(runSteps(MEADOWMARK_HERO, { ref: 'gw' })));
   });
