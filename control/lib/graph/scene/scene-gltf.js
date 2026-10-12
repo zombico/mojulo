@@ -1002,11 +1002,14 @@ class GlbBuilder {
     // speed it rolls at without slipping (metres a second)
     const roll = clip.roll ? { ...clip.roll, travel: r4(clip.roll.travel * mpu), speed: r4(clip.roll.speed * mpu) } : null;
     // a stop (hero-motion.js heroStop) rides as `moj:stop`: the gait it leaves, the braking foot, the gait phase it starts at
+    // a vault (hero-motion.js, hero-vault.js) rides as `moj:vault`: the gait it leaves, the box, where it takes off and lands
+    // (the gait's phase and foot, metres), the run it covers (the engine carries the character that far along its facing,
+    // the clip being in place) and its flights (shares of the clip, take-off speed); metres scaled by the units
     // a rest's getting down or up (hero-motion.js, hero-rise.js) rides as `moj:rest`: the rest, the phase, its beats
     // (seconds) and the props it needs (boxes in the figure's frame under the root's z-up → y-up, scaled by the units)
     // a move (hero-motion.js MOVE_FAMILIES: a showcase pose, a stance, a strike) rides as `moj:move`: its family, that it
     // ends on the pose to hold, whether its own laws held, and a strike's hand and contact time (seconds)
-    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}) };
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}), ...(clip.vault ? { 'moj:vault': vaultExtras(clip.vault, mpu) } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }
@@ -1122,6 +1125,8 @@ class GlbBuilder {
  * excluded exactly as before. When present the result additionally carries
  * `animationCount` + `animatedFigures`.
  */
+/** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
+const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
 export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85 } = {}) {
   const { faces = [], textures = {}, light = null, ao = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);

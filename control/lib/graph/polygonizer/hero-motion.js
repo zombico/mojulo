@@ -27,6 +27,8 @@ import { STANCES, STANCE_NAMES, heroStance } from './hero-stance.js';
 import { STRIKES, heroStrike } from './hero-strike.js';
 import { RESTS } from './hero-rest.js';
 import { GAITS } from './hero-gaits.js';
+import { VAULTS } from './hero-vault-moves.js';
+import { heroVault } from './hero-vault.js';
 import { heroRise } from './hero-rise.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -231,6 +233,10 @@ export const MOTION_GAITS = Object.freeze({
   // the RESTS (hero-rest, hero-rise): a rest word is two one-shots, getting down into it (`<rest>Down`) and up out of it
   // (`<rest>Up`), at the seconds the rise studies; the seat or the floor it needs rides the clips (`moj:rest`)
   ...Object.fromEntries(Object.keys(RESTS).map((n) => [n, Object.freeze({ motion: 'rest' })])),
+  // the VAULTS (hero-vault): over a box out of a gait, one-shot in place (the engine carries the character along the
+  // run); `…Left` takes off from the right foot. The box and the gait are the door's (`{ h, d, w, from }`), else the
+  // middle of the vault's own range
+  ...Object.fromEntries(Object.keys(VAULTS).flatMap((n) => [[n, Object.freeze({ motion: 'vault', vault: n })], [`${n}Left`, Object.freeze({ motion: 'vault', vault: n, left: true })]])),
 });
 
 // ─── the STOP: letting go of forward ───────────────────────────────────────
@@ -297,8 +303,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const MOTION_WORDS = (() => {
   const plain = Object.entries(MOTION_GAITS).filter(([, g]) => g.motion !== 'move').map(([n]) => n);
   const fam = (f) => Object.entries(MOTION_GAITS).filter(([n, g]) => g.motion === 'move' && g.family === f && !/Left$/.test(n)).map(([n]) => n).join(', ');
-  const plainNames = plain.filter((n) => MOTION_GAITS[n].motion !== 'rest'), rests = plain.filter((n) => MOTION_GAITS[n].motion === 'rest');
-  return `have ${plainNames.join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
+  const plainNames = plain.filter((n) => !['rest', 'vault'].includes(MOTION_GAITS[n].motion)), rests = plain.filter((n) => MOTION_GAITS[n].motion === 'rest');
+  return `have ${plainNames.join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
 })();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
 export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint: SPRINT_DEFAULTS }) {
@@ -310,6 +316,21 @@ export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint
     if (!G) { errs.push(`motion.${name}: not a gait or a move (${MOTION_WORDS})`); continue; }
     if (g === true) continue;
     if (G.motion === 'rest') { errs.push(`motion.${name}: true (a rest's getting down and up are studied, hero-rise.js; its clips are ${name}Down and ${name}Up)`); continue; }
+    if (G.motion === 'vault') {
+      // the box (metres: its top over the floor, its depth along the run, its width) and the gait it is taken out of; the
+      // solver says on the rig whether it can (too high, too near) when the clip is compiled
+      const V = VAULTS[G.vault];
+      if (!isObj(g)) { errs.push(`motion.${name}: true, or { h, d, w, from, seconds } (the box in metres and the gait: ${V.from.join(' or ')})`); continue; }
+      for (const [k, v] of Object.entries(g)) {
+        if (k === 'from') { if (!V.from.includes(v)) errs.push(`motion.${name}.from: ${V.from.join(' or ')} (the gait a ${G.vault} is taken out of)`); }
+        else if (k === 'h') { if (!(Number.isFinite(v) && v >= 0.1 && v <= 1.6)) errs.push(`motion.${name}.h: the box's top over the floor, 0.1 … 1.6 metres`); }
+        else if (k === 'd') { if (!(Number.isFinite(v) && v >= V.depth[0] && v <= V.depth[1])) errs.push(`motion.${name}.d: the box's depth along the run, ${V.depth[0]} … ${V.depth[1]} metres for a ${G.vault}`); }
+        else if (k === 'w') { if (!(Number.isFinite(v) && v >= 0.2 && v <= 6)) errs.push(`motion.${name}.w: the box's width, 0.2 … 6 metres`); }
+        else if (k === 'seconds') { if (!(Number.isFinite(v) && v >= MOVE_SECONDS[0] && v <= MOVE_SECONDS[1])) errs.push(`motion.${name}.seconds: ${MOVE_SECONDS.join(' … ')} seconds`); }
+        else errs.push(`motion.${name}.${k}: a vault takes h, d, w, from and seconds`);
+      }
+      continue;
+    }
     if (G.motion === 'jump' || G.motion === 'stop' || G.motion === 'move') {
       if (!isObj(g)) { errs.push(`motion.${name}: true, or { seconds }`); continue; }
       for (const [k, v] of Object.entries(g)) {
@@ -339,6 +360,7 @@ export function motionPlan(motion) {
     if (G.motion === 'stop') return [name, { stop: G.from, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'move') return [name, { move: G.family, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'rest') return [name, { rest: name }];
+    if (G.motion === 'vault') return [name, { vault: G.vault, left: !!G.left, ...(g === true ? {} : g) }];
     const { seconds, tilt, ...own } = g === true ? {} : g;
     return [name, { spec: { [G.motion]: { ...G.base, ...own } }, seconds: seconds ?? G.seconds, tilt: tilt ?? G.tilt }];
   }));
@@ -350,7 +372,21 @@ export function motionPlan(motion) {
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from }] of Object.entries(locomotion || {})) {
+    if (vault) {
+      // a vault: one-shot in place over its box out of its gait (the box and the gait the door's, else the middle of the
+      // vault's own range at this hero's hip); `vault` rides the clip — the gait, the box, where it takes off and lands
+      // (the gait's phase and foot, metres from the near face and past the far), the run it covers, the flights, its laws
+      const V = VAULTS[vault], gait = from ?? V.from[0], band = V.band[gait], hip = R.joints.pelvisHub[2], r3 = (x) => Math.round(x * 1e3) / 1e3;
+      const box = { h: h ?? r3(((band[0] + band[1]) / 2) * hip), d: d ?? r3((V.depth[0] + V.depth[1]) / 2), w: w ?? 1.5 };
+      let X; try { X = solvedOnce(`vault|${rigKey(R)}|${name}|${JSON.stringify([box, gait, s])}`, () => heroVault(left ? `${vault}Left` : vault, R, { ...box, from: gait, seconds: s })); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const K = Math.max(keys, Math.round(X.seconds * 30) + 1);
+      try { for (let k = 0; k < K; k++) rigNodesAt(R, X.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const laws = X.checks?.laws ? Object.values(X.checks.laws).every(Boolean) : null;
+      const fn = (t) => X.fn(t); fn.keys = K; fn.once = true;
+      fn.vault = { vault, from: gait, box, entry: X.entry, exit: X.exit, travel: r3(X.root.y(1) - X.root.y(0)), air: X.air, ...(laws !== null ? { laws } : {}) };
+      clips[name] = fn; seconds[name] = X.seconds; continue;
+    }
     if (rest) {
       // a rest: getting down (`<name>Down`) and up (`<name>Up`), each one-shot at the rise's own seconds; `rest` rides each
       // clip — the rest, which way, the beats (the seat taking or leaving the weight, a fall's impact; seconds), the props

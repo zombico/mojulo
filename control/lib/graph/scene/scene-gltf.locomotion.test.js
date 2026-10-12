@@ -14,7 +14,7 @@ const glb = (payload) => Buffer.from(facesToGlb(payload, { generator: 'mojulo lo
 
 describe('the hero door\'s motion', () => {
   it('refuses an unknown gait, an unknown dial and a seconds out of range, naming them', () => {
-    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the poses /);
+    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the vaults hurdle, stepVault, speedVault, kongVault; the poses /);
     expect(validateHeroSpec({ motion: { walk: { stride: 0.4 } } }).join(' ')).toMatch(/motion\.walk\.stride: not a walk dial/);
     expect(validateHeroSpec({ motion: { jog: { seconds: 40 } } }).join(' ')).toMatch(/motion\.jog\.seconds/);
     expect(validateHeroSpec({ motion: { walk: { strideLength: 0.4, vault: true, seconds: 1.2 }, jog: true, sprint: { tilt: 22 } } })).toEqual([]);
@@ -89,6 +89,21 @@ describe('the hero door\'s motion', () => {
     expect(clips.chairUpright).toBeUndefined();   // the word names its two clips, not one of its own
     const anim = glbJson(glb(payload)).animations.find((a) => a.name === 'body:chairUprightDown');
     expect(anim.extras['moj:rest']).toEqual(clips.chairUprightDown.rest);   // (a hero at 1 m a unit: the props as packed)
+  });
+
+  it('a vault packs one-shot over its box out of its gait (the door\'s, else the middle of its range); the GLB carries moj:vault; its words refuse by name', async () => {
+    expect(validateHeroSpec({ motion: { hurdle: { from: 'walk' } } }).join(' ')).toMatch(/motion\.hurdle\.from: jog or sprint/);
+    expect(validateHeroSpec({ motion: { kongVault: { d: 3 } } }).join(' ')).toMatch(/motion\.kongVault\.d: the box's depth along the run, 0\.5 … 1\.1 metres/);
+    expect(validateHeroSpec({ motion: { hurdle: { tilt: 3 } } }).join(' ')).toMatch(/motion\.hurdle\.tilt: a vault takes h, d, w, from and seconds/);
+    const payload = await resolve(heroManifest({ cast: 'female', motion: { jog: true, hurdle: true, speedVaultLeft: { h: 0.5, d: 0.2 } } }));
+    const clips = payload.figures.body.clips;
+    expect(clips.hurdle.once).toBe(true); expect(clips.hurdle.vault).toMatchObject({ vault: 'hurdle', from: 'jog', laws: true });
+    expect(clips.hurdle.vault.box.d).toBe(0.1);   // the middle of the hurdle's depth (0 … 0.2)
+    expect(clips.hurdle.vault.travel).toBeGreaterThan(1); expect(clips.hurdle.vault.air.length).toBeGreaterThan(0);
+    expect(clips.speedVaultLeft.vault).toMatchObject({ vault: 'speedVault', from: 'sprint', box: { h: 0.5, d: 0.2, w: 1.5 } });
+    expect(clips.speedVaultLeft.vault.entry.foot).toBe('R');   // the mirror takes off from the right foot
+    const anim = glbJson(glb(payload)).animations.find((a) => a.name === 'body:hurdle');
+    expect(anim.extras['moj:vault']).toEqual(clips.hurdle.vault);   // (a hero at 1 m a unit)
   });
 
   it('a turned clip exports its turn: through every key of a stance and a strike the head and the jaw skin together (the seam under the chin shut)', async () => {

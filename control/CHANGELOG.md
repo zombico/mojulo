@@ -13,7 +13,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### The motion library on the door: showcase poses, ready stances, strikes, and sitting down and getting up
+### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, and vaults
 
 - **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
   one-shot clip compiled on the hero's own rig where its clips are packed (the World page, the GLB, the Godot pack): the
@@ -35,6 +35,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   and rests are kept by rig and word, so a chair's seconds of solving are paid once (a World page re-read: 9.7 s →
   0.2 s). The gaits' numbers moved to a leaf module (`hero-gaits.js`) so the gameworld's vibes load without the motion
   library. Godot figure gate on a tiered female with a chair and lying down: every check passes.
+- **Vaults** (`hero-vault.js`). `hurdle`, `stepVault`, `speedVault` and `kongVault` (and `…Left`, the right foot
+  taking off) on `motion`: `true`, or `{ h, d, w, from, seconds }`, the box in metres and the gait it is taken out of;
+  absent, the middle of the vault's own range at the hero's hip (on the default heroes every vault holds its laws
+  there). One-shot in place; `moj:vault` carries the gait, the box, the take-off and landing (the gait's phase and
+  foot, metres from the near face and past the far), the run it covers (the engine carries the character that far, 1.9
+  to 4.5 m) and its flights. The solver's refusal on the rig (too high, too near) names the motion. The vaults' table
+  moved to a leaf (`hero-vault-moves.js`) so the door lists them at load. Godot figure gate: every check passes.
 - **Every clip the pack plays carries the face.** The face tracks ran over the recipe's own clips, so a `motion` clip
   the hero did not already have (a jump, now a move) had none; they run over every packed clip now, a compiled clip
   holding the authored face with its blinks. Godot figure gate (4.7.2) on a male with a walk and four moves: every
