@@ -49,6 +49,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   hero's hips: the confident smile). On the landmark head the take's four anime channels carry over (`western-face-rig`
   `fromAnime`: the smile to the mouth corners, the brow to the tilt; the open mouth is the jaw bone's), so a western jab
   grits its brow. An acted clip bakes no ambient blink of its own (the take has its blinks).
+- **A seated leg under a facing keeps its foot** (`station-loft-rig.js` rigNodesAt). An airborne leg turned further
+  forward by `seat<S>` (a vault's knee drive) moves its knee and hock after the stance's `facing` has turned the core,
+  but they stayed marked as the turned core's, so the shin's frame was read from their places before the seat and the
+  toes rode a shin the leg no longer had: the foot stretched from 8.7 to 14.5 cm, and the ankle's shared skin tore
+  between the shank and the foot (33.6 cm apart: the speed vault's shoes as spikes, its calves folded). The seated leg
+  leaves the turned core as a planted one does; the feet keep their length through every vault. The speed vault was
+  tuned against the misplaced toe (it cleared boxes the leg could not): its trailing knee now tucks to 75 in the gather
+  and on the hand, and its band tops out at 0.65 of the hip (0.8 before).
 - **Every clip the pack plays carries the face.** The face tracks ran over the recipe's own clips, so a `motion` clip
   the hero did not already have (a jump, now a move) had none; they run over every packed clip now, a compiled clip
   holding the authored face with its blinks. Godot figure gate (4.7.2) on a male with a walk and four moves: every

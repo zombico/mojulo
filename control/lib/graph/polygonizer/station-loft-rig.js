@@ -324,7 +324,12 @@ export function rigNodesAt(R, pose = {}) {
       // it) turns the free leg further forward about its hip, past the swivel's anatomical cone, so the thigh lies level;
       // `seat<S>` (a knee drive's: hero-vault.js) adds to it for that leg alone. Absent ⇒ as before.
       const seat = Math.max(0, Math.min(60, (Number.isFinite(pose.seat) ? pose.seat : 0) + (Number.isFinite(pose[`seat${S}`]) ? pose[`seat${S}`] : 0)));
-      if (seat) for (const j of [L.knee, L.hock]) nodes[j] = rotAxis(nodes[j], nodes[L.hip], 0, seat);
+      if (seat) {
+        for (const j of [L.knee, L.hock]) nodes[j] = rotAxis(nodes[j], nodes[L.hip], 0, seat);
+        // (a seated leg's knee and hock are no longer the turned core's, as a planted leg's are not: under a facing the
+        // shin's frame read their unturned places from before the seat, and the toes rode a shin the leg no longer had)
+        if (nodes.$facing) for (const j of [L.knee, L.hock]) nodes.$facing.keys.delete(j);
+      }
       const shin = boneFrame({ id: 'shin', head: L.knee, tail: L.hock }, rest, nodes);
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };

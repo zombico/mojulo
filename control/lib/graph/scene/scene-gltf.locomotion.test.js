@@ -119,6 +119,17 @@ describe('the hero door\'s motion', () => {
     for (const F of [anime, western]) for (const c of ['jab', 'heroHips']) expect(F.tracks[c].w.at(-1), c).toEqual(F.weights);
   });
 
+  it('a vault\'s feet keep their length: through a turned, seated flight each foot is the length it is at rest (a stale shin under the facing tore the shoes into spikes)', async () => {
+    const { validateRig, rigNodesAt } = await import('../polygonizer/station-loft-rig.js');
+    const { locomotionClips } = await import('../polygonizer/hero-motion.js');
+    const m = heroManifest({ cast: 'male', motion: { speedVault: true, hurdle: true, kongVault: true } }), R = validateRig(m.recipe.rig), L = locomotionClips(m.recipe.locomotion, R);
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    for (const clip of ['speedVault', 'hurdle', 'kongVault']) for (let k = 0; k <= 30; k++) {
+      const n = rigNodesAt(R, L.clips[clip](k / 30)).nodes;
+      for (const S of ['L', 'R']) { const G = R.legs[S]; expect(Math.abs(d(n[G.hock], n[G.toeBase]) - d(R.joints[G.hock], R.joints[G.toeBase])), `${clip} ${k / 30} ${S}`).toBeLessThan(1e-3); }
+    }
+  });
+
   it('a turned clip exports its turn: through every key of a stance and a strike the head and the jaw skin together (the seam under the chin shut)', async () => {
     const bytes = glb(await resolve(heroManifest({ cast: 'female', motion: { guard: true, jab: true } }))), j = glbJson(bytes), bin = bytes.subarray(28 + bytes.readUInt32LE(12));
     const acc = (i) => { const a = j.accessors[i], bv = j.bufferViews[a.bufferView], n = { VEC3: 3, VEC4: 4, MAT4: 16, SCALAR: 1 }[a.type], o = (bv.byteOffset || 0) + (a.byteOffset || 0); return { n, count: a.count, at: (k) => Array.from({ length: n }, (_, c) => bin.readFloatLE(o + (k * n + c) * 4)) }; };

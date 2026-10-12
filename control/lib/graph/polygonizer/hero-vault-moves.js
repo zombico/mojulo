@@ -49,12 +49,14 @@ export const VAULTS = Object.freeze({
   // THE SPEED VAULT: off the left foot, the right knee driving, the body turning to the right and reclining onto the
   // left hand on the top; the legs go over together beside it, the hand pushes off, the right foot lands and runs out.
   speedVault: {
-    from: ['sprint'], band: { sprint: [0.45, 0.8] }, depth: [0.1, 0.3], station: 0.05,
+    // (the trailing knee tucked to 75 in the gather and on the hand, and the band topped at 0.65 of the hip: measured once a
+    // seated leg's toes rode its own shin under the facing — before, a misplaced toe cleared boxes the leg could not)
+    from: ['sprint'], band: { sprint: [0.45, 0.65] }, depth: [0.1, 0.3], station: 0.05,
     push: { hinge: 14, facing: -10, ...legs(-20, 15, 78, 85), ...arms(55, 20, 25, 45), head: { pitch: 14 }, heelL: -30 },
     rise: [{ name: 'tuckIn', at: 0.3, words: { hinge: 10, facing: -18, ...legs(30, 85, 88, 60), ...arms(20, 30, 45, 40), head: { pitch: 12 } }, roll: -4, pitch: -12 },
-      { name: 'gather', at: 0.62, words: { hinge: 4, facing: -28, spine: { sagittal: -0.08, lateral: 0.06 }, ...legs(82, 60, 92, 35), ...arms(-10, 30, 60, 40), head: { pitch: 10 } }, roll: -12, pitch: -32 }],
+      { name: 'gather', at: 0.62, words: { hinge: 4, facing: -28, spine: { sagittal: -0.08, lateral: 0.06 }, ...legs(82, 75, 92, 35), ...arms(-10, 30, 60, 40), head: { pitch: 10 } }, roll: -12, pitch: -32 }],
     keys: [
-      { name: 'handOn', dt: 0.22, words: { hinge: 0, facing: -35, spine: { sagittal: -0.12, lateral: 0.12 }, ...legs(90, 60, 92, 8), ...arms(-35, 30, 70, 40, { R: { yaw: 30 } }), head: { pitch: 6 } }, roll: -18, pitch: -30, hands: { L: 'top' }, z: 'reach', v: 0.95, air: false },
+      { name: 'handOn', dt: 0.22, words: { hinge: 0, facing: -35, spine: { sagittal: -0.12, lateral: 0.12 }, ...legs(90, 75, 92, 8), ...arms(-35, 30, 70, 40, { R: { yaw: 30 } }), head: { pitch: 6 } }, roll: -18, pitch: -30, hands: { L: 'top' }, z: 'reach', v: 0.95, air: false },
       { name: 'over', dt: 0.13, words: { hinge: -4, facing: -45, spine: { sagittal: -0.16, lateral: 0.16 }, ...legs(90, 8, 92, 6), ...arms(-60, 10, 80, 40, { R: { yaw: 35 } }), head: { pitch: 8 } }, roll: -28, pitch: -35, z: { over: 0.3 }, v: 0.92, air: true },
     ],
     fall: 0.2,
