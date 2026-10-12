@@ -30,7 +30,9 @@ describe('design_game quick', () => {
     // the coins and the exit, dressed by the game's decoration (glyphs, baked to figure frames on the page)
     expect(payload.entities.filter((e) => e.id.startsWith('dec_pk_')).length).toBe(L.game.mechanics[0].pickups.length);
     expect(payload.entities.some((e) => e.id.startsWith('dec_exit'))).toBe(true);
-    expect(out.next.find((n) => n.step === 'play')).toMatchObject({ gate: 'eyes', card: 'gameworld-next' });
+    // the light play shell, and a playtest of the same game
+    expect(stored('q-game').shell).toBe('play');
+    expect(out.next.find((n) => n.step === 'play')).toMatchObject({ gate: 'eyes', card: 'gameworld-next', playtest: '/api/sketches/q-game/playtest' });
   }, 240_000);
 
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {

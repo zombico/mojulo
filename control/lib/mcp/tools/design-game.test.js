@@ -90,7 +90,8 @@ describe('design_game', () => {
     expect(stored('gw-level-meadow-ascent-0')).toMatchObject({ kind: 'stage', game: { levelRef: 'gw-level-meadow-ascent-0' }, figures: { hero: { heroRef: 'gw-hero-equipped' } } });
     expect(stored('gw-game')).toMatchObject({ kind: 'game', store: { slices: expect.arrayContaining([expect.objectContaining({ kind: 'character' })]) } });
     expect(stored('gw-game').levels.map((l) => l.ref)).toHaveLength(5);
-    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', gate: 'eyes', card: 'gameworld-next' });
+    expect(stored('gw-game').shell).toBe('play');
+    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', playtest: '/api/sketches/gw-game/playtest', gate: 'eyes', card: 'gameworld-next' });
     // the numbers, readable without the bible
     expect(out.numbers.stats).toMatchObject({ hp: 100, power: 10, guard: 5 });
     expect(out.numbers.powers.map((p) => p.key)).toEqual(['1', '2', '3']);

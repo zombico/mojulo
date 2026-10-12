@@ -73,7 +73,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     steps.push({ key: `gear-${m.class}`, ref: childRef(ref, `gear-${m.class}`), ready: ready.equipment.ready, ...waits(ready.equipment), order: m.args, print: fingerprint(m.args) });
   }
   // the levels: each stage a world the hero pilots (holding its gear when the equipped hero is made), with the systems'
-  // play block; then the game over them, its store compiled from the book. Walkable by construction; beatability is
+  // play block; then the game over them in the play shell (play-shell.js), its store compiled from the book. Walkable by construction; beatability is
   // the creator's, in play (create_game records the levels as unaudited).
   const pilot = steps.some((s) => s.key === 'hero-equipped') ? childRef(ref, 'hero-equipped') : heroRef;
   const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
@@ -91,7 +91,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
   });
   if (stages.length) {
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs, map), allow_unaudited: true };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs, map), allow_unaudited: true, shell: 'play' };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -109,8 +109,8 @@ export function storyReport(world, { ref = 'gw' } = {}) {
 }
 
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the
- * goal placed on its anchors, piloted by the hero or in first person, then the game. Nothing waits: a quick game has
- * no book to review. */
+ * goal placed on its anchors, piloted by the hero or in first person, then the game in the play shell (play-shell.js).
+ * Nothing waits: a quick game has no book to review. */
 function quickSteps(world, G, ref) {
   const Q = world.quick, steps = [];
   const heroRef = Q.hero ? childRef(ref, 'hero') : null;
@@ -124,7 +124,7 @@ function quickSteps(world, G, ref) {
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs, map), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs, map), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}), shell: 'play' };
   steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) });
   return steps;
 }

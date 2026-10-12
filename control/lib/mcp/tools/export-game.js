@@ -13,7 +13,7 @@
  * resolveWorldScene → emitThreeWorld path the /world route runs for
  * `?walk=1&hud=0&download=1` (three.js + geometry inlined as data: modules — zero
  * external fetches); WAVs come from renderBeatsOffline (byte-identical per recipe);
- * the shell is emitGameShell over resolvers that return folder-relative paths
+ * the shell is emitShellFor (the arena's emitGameShell, or the play shell) over resolvers that return folder-relative paths
  * instead of API URLs (game-resolve's injectable-src seam — no resolver changes).
  *
  * Deliberate edges (from the plan):
@@ -34,7 +34,7 @@ import { pluginProfileActive, withPluginProfile } from '@/lib/mcp/plugin-profile
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
-import { emitGameShell } from '@/lib/graph/game/game-shell';
+import { emitShellFor } from '@/lib/graph/game/shell-for';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { renderBeatsOffline } from '@/lib/graph/beats/beats-render';
@@ -489,7 +489,7 @@ export async function exportGameHandler(input, context = {}) {
     shellMenu = await repointShots(shellMenu);
   }
 
-  await write('game.html', emitGameShell(shellManifest, resolved.levels, shellMenu, resolved.music, resolved.setup));
+  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu }));
   await writeRecipe('recipe/game.json', norm);
 
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.
