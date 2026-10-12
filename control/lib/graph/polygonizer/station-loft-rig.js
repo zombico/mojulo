@@ -542,6 +542,8 @@ function characterRigParts(mesh, skin, parts, { light, palette = null, normals =
     // (a soft edge's band piece, the painterly look's, grades its corners as the static faces' cornerFills do)
     const painted = paint && paint.painted(pc.fi), lit = (h) => (painted ? paint.light(h) : h), colour = (h) => { let c = colOf.get(h); if (!c) colOf.set(h, c = faceColorLinear({ fill: h })); return c; };
     const c = colour(lit(pc.fill)), cs = pc.soft ? pc.soft.map((h) => colour(lit(h))) : null;
+    // (the painted face's brow block over the fringe stays on the page; an export with the drawings moves the brow itself)
+    if (paint?.targets && paint.skipParts?.test(pc.part)) continue;
     const ri = painted ? paint.regionOf.get(pc.fi) : undefined;
     if (ri !== undefined && !layer && !pc.mark) { shells(pc, bi, cs ?? pc.refs.map(() => c), paint.regions[ri]); continue; }
     P.faces++;

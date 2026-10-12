@@ -57,7 +57,7 @@ import { buildAnime, animeFresh, animeFaceDefs, ANIME_FACE_DEFS, ANIME_HAIR_DEFS
 import { rasterDepth, viewCamera } from '../scene/depth-raster.js';
 import { GRAPHIC_BASE, resolveAnimeSculpt, validateAnimeSculpt, sculptBuild, sculptFeatures } from './anime-sculpt.js';
 import * as dmath from '../../util/dmath.js';
-import { paintLayers, texOf, FACE_PAINT_SIZE } from './face-paint.js';
+import { paintLayers, texOf, FACE_PAINT_SIZE, paintedBrow } from './face-paint.js';
 
 /** the hair FAMILIES: the studio's three and mojulo's `hime` (hair-passes) */
 export const ANIME_HAIR_STYLES = Object.freeze([...STUDIO_FAMILIES, 'hime']);
@@ -987,7 +987,12 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // the ink: per side the brow (highest), the upper lash and the lower rim (lowest), each a slab behind its ribbon
   const inkOf = (part) => components(meshOf(trisOf(model.parts[part]), null)).map((c) => { const o = orientConsistently(c); o.groups = o.groups.map(() => 'Ink'); outward(o, vunit(vsub(centroid(o), H0))); return o; });
   const ink = paint ? [] : inkOf('ink');
-  if (paint) { /* the painted face: the features are the texture's (face-paint.js), no slab */ }
+  if (paint) {
+    // the painted face: the features are the texture's (face-paint.js), no slab — but the BROW, which the graphic face
+    // draws through the fringe (`through`): its block rides over the painted one in the brow's colour (the `Brow`
+    // group, unlit), so a fringe never hides it; the skinned export leaves it out (its brows are the paint's drawings)
+    if (SCULPT && model.parts.brow?.length) for (const m of inkOf('brow')) { const n = vunit(m.faces.reduce((acc, f) => vadd(acc, faceNormal(m, f)), [0, 0, 0])), name = `brow${centroid(m)[0] > 0 ? 'R' : 'L'}`; if (meshes[name]) throw new Error(`anime head: two pieces of ${name}`); m.groups = m.groups.map(() => 'Brow'); meshes[name] = solidify(m, 0.004 * S, n); }
+  }
   else if (!SCULPT) for (const side of ['R', 'L']) {
     const mine = ink.filter((m) => (centroid(m)[0] > 0) === (side === 'R')).sort((a, b) => centroid(b)[2] - centroid(a)[2]);
     mine.forEach((m, i) => { const n = vunit(m.faces.reduce((s, f) => vadd(s, faceNormal(m, f)), [0, 0, 0])); meshes[`${['brow', 'lash', 'lashLow'][i] ?? `ink${i}`}${side}`] = solidify(m, 0.004 * S, n); });
@@ -1057,7 +1062,7 @@ export function animeHead({ preset = 'female', face = {}, hair, expression = 'ne
   // the head's scale, once: the core, the pin-local offsets and the anchors together
   scaleParts(parts, scale);
   const sc = (p) => p.map((x) => r6(x * scale));
-  return { name: 'head', parts, dials: {}, creases: {}, palette: animePalette(skin, hairColor, palette), bind: { cranium: 'head' }, joints: {},
+  return { name: 'head', parts, dials: {}, creases: {}, palette: paint ? ((P) => ({ ...P, Brow: paintedBrow(P) }))(animePalette(skin, hairColor, palette)) : animePalette(skin, hairColor, palette), bind: { cranium: 'head' }, joints: {},
     chinZ: r6(menton[2] * scale), preset, register, scale, face: F, hair: bald ? { style: 'none' } : H, hairMeasures, hairCoverage, scalp, expression: E, recipe,
     landmarks: Object.fromEntries(Object.entries(landmarks).map(([k, p]) => [k, sc(p)])), measures };
 }

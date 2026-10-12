@@ -32,6 +32,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   on the rig as on the static faces (it was a flat mid-tone there).
 - **The clip preview** draws the authored face on the playing figure (it was blank) and hides the static painted face
   with the solid.
+- **The brows over the fringe.** The painted brow lived on the skin, so a fringe hid it (the slab face's brows draw
+  through it). The painted face now also carries the graphic face's brow block in the brow's colour (the `Brow` group,
+  unlit; `paintedBrow`), flagged `through` as the slab brows are, so on the page it draws over the fringe; the skinned
+  export leaves it out (its brows are the drawings, which an engine cannot stencil over hair).
 - **The painter** shows the iris, the pupil and the catchlight through the eye's opening only, as the slab's lens
   behind the face does: a closing lid crops them, a shut eye shows none (they were painted over the lid).
 - **Size.** On the female at `smile` the painted GLB is 3.7 MB against the slab face's 4.1 MB (28 k sparse morph

@@ -95,6 +95,14 @@ const mix = (a, b, k) => a.map((x, i) => x + (b[i] - x) * k);
 const mul = (a, k) => a.map((x, i) => x * (Array.isArray(k) ? k[i] : k));
 const lift = (a, k) => a.map((x) => x + (1 - x) * k);
 
+/** the painted brow's colour (`#rrggbb`): the palette's `Brow`, else the hair's taken toward the ink — the painter's and
+ * the brow part's that draws it over the fringe (anime-head, paint mode) */
+export function paintedBrow(pal = {}) {
+  const ok = (k, d) => (typeof pal[k] === 'string' && /^#[0-9a-f]{6}$/i.test(pal[k]) ? pal[k] : d);
+  if (ok('Brow', null)) return pal.Brow;
+  return toHex(mix(hex3(ok('Hair', '#3b291e')), hex3(ok('Ink', '#16181c')), 0.45));
+}
+
 /** the painter's swatches from the palette (sRGB 0..1) */
 function swatches(pal) {
   const get = (k, d) => hex3(typeof pal[k] === 'string' && /^#[0-9a-f]{6}$/i.test(pal[k]) ? pal[k] : d);

@@ -174,7 +174,7 @@ export function paintFaceRig(m, mesh, paint) {
   const hidden = [0, 1, 2].map((c) => (Math.min(...fv.map((v) => v[c])) + Math.max(...fv.map((v) => v[c]))) / 2);
   return {
     targets: [...targets], authored, meta, K,
-    pack: { atlas: { url: atlas.url, w: atlas.w, h: atlas.h }, painted: paint.painted, uvAt: paint.uvAt, light: paint.light, baseUV, white: toAtlas(...atlas.white), regionOf: regionIndex, regions: packGroups, hidden, targets: targets.length, pad: TILE_PAD },
+    pack: { atlas: { url: atlas.url, w: atlas.w, h: atlas.h }, painted: paint.painted, uvAt: paint.uvAt, light: paint.light, baseUV, white: toAtlas(...atlas.white), regionOf: regionIndex, regions: packGroups, skipParts: /^brow[LR]$/, hidden, targets: targets.length, pad: TILE_PAD },
   };
 }
 

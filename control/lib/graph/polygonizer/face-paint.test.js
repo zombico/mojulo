@@ -20,9 +20,12 @@ describe('the painted face', () => {
     expect('painterly' in heroRecord({ cast: 'female', head: 'anime' })).toBe(false);
   });
 
-  it('a smooth face, no slab: the white and the mouth leave the face part, every feature part is gone', () => {
+  it('a smooth face, no slab: the white and the mouth leave the face part, every feature part is gone but the brow block', () => {
     const P = female.m.recipe.parts;
-    expect(Object.keys(P).filter((n) => SLABS.test(n))).toEqual([]);
+    // (the brow block over the painted brow, drawn through the fringe in the brow's colour, unlit)
+    expect(Object.keys(P).filter((n) => SLABS.test(n)).sort()).toEqual(['browL', 'browR']);
+    for (const n of ['browL', 'browR']) { expect(P[n].through).toBe('fringe'); expect(P[n].group).toBe('Brow'); }
+    expect(female.m.recipe.palette.Brow).toMatch(/^#[0-9a-f]{6}$/);
     expect(Object.keys(slab.m.recipe.parts).filter((n) => SLABS.test(n)).length).toBeGreaterThan(8);
     expect(new Set(Object.values(P.face.groups ?? {}))).not.toContain('Sclera');
     expect(female.mesh.faces.length).toBeLessThan(slab.mesh.faces.length - 4000);

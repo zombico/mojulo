@@ -121,8 +121,10 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const anime = manifest?.hero?.head === 'anime';
   // the painterly look (`hero.painterly`) steps over a soft edge (PAINTERLY_SOFT) unless the light names its own
   const painterly = anime && !!manifest.hero.painterly;
-  if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l; }
-  return anime ? (painterly ? { ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT } : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
+  // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
+  const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
+  if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
+  return anime ? (painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
 }
 
 // ─── shading normals ──────────────────────────────────────────────────────
