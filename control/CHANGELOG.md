@@ -38,6 +38,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `springy` by default and `stiff` holds a spike's silhouette. A cap-lock fall is its length: a bent C ran past its
   length word by up to a fifth (5.7% at bend 0.3), and the word rescales it so the arc is the length. Absent, every
   anime head is the bytes it was.
+- **The spine by region, by clump, and curled** (both heads, one vocabulary). `regions` (`front`, `sides`, `back`,
+  `crown`, `tail`) override the head's stiffness, hold and curl, and on the landmark head scale that region's length
+  (a longer back, a shorter front); on the anime head `locks` override a named clump (`fringe-3`, `peel-4`); the most
+  specific word wins. `curl` (`radius`, `turns`, `hand`, `from`) winds a lock about its own centre line: the ponytail and
+  braid into ringlets, each anime lock or shape piece into a drill, a curled lock built with rings enough to draw its
+  coil; a western fall and an anime form shell, one surface over many guides, wave in their plane instead, each panel
+  out of step with the next. A lock's length is where it falls; a coil's own run is longer.
 
 ### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
 

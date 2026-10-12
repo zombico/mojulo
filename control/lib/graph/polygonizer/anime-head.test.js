@@ -638,4 +638,16 @@ describe('anime head: the spine law (hair-spine.js) — a lock true to its lengt
     const today = hairPts(animeHead({ preset: 'female', hair: 'selene' })), grown = hairPts(animeHead({ preset: 'female', hair: ['selene', { spine: 'elastica' }] }));
     expect(ext(grown, 2)[0]).toBeGreaterThan(ext(today, 2)[0]);   // the hem rises: the falls no longer run long
   });
+  it('regions and clumps: a stiff front holds in the wind while the rest streams; a curl winds a lock into a drill, closed', () => {
+    const still = animeHead({ preset: 'male' }), mixed = animeHead({ preset: 'male', hair: { spine: { wind: { R: 2, dir: 90 }, regions: { front: { stiffness: 'stiff' } } } } }), all = animeHead({ preset: 'male', hair: { spine: { wind: { R: 2, dir: 90 } } } });
+    const fringe = (h) => { const m = compileLayered(h); return m.vertices.filter((_, i) => /^hairFringe/.test(m.pointIds[i])); };
+    const moved = (a, b) => Math.max(...a.map((p, i) => Math.hypot(...p.map((v, k) => v - b[i][k]))));
+    expect(moved(fringe(mixed), fringe(still))).toBeLessThan(moved(fringe(all), fringe(still)) * 0.7);   // measured 0.53
+    const drill = animeHead({ preset: 'female', hair: ['side-tail', { spine: { regions: { tail: { curl: { radius: 0.015, turns: 4, from: 0.2 } } } } }] });
+    const tail = animeHead({ preset: 'female', hair: 'side-tail' });
+    expect(Object.keys(drill.parts.hairTail.offsets).length).toBeGreaterThan(Object.keys(tail.parts.hairTail.offsets).length);   // rings enough to draw the coil
+    expect(Object.entries(auditLayered(compileLayered(drill))).filter(([, r]) => !r.pass).map(([n]) => n)).toEqual([]);
+    expect(validateAnimeHair({ spine: { locks: { 'fringe-3': { stiffness: 'stiff' } } } })).toEqual([]);
+  });
 });
+

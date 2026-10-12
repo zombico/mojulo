@@ -253,7 +253,7 @@ describe('grown: the fall and the tail hang by the spine law (hair-spine.js)', (
     for (const style of GROWN) {
       const today = humanoidHead({ preset: 'female', hair: style }), grown = humanoidHead({ preset: 'female', hair: [style, { spine: 'elastica' }] });
       expect(Object.keys(grown.parts)).toEqual(Object.keys(today.parts));
-      for (const k of Object.keys(today.parts).filter(isHair)) expect(grown.parts[k].faces?.length).toBe(today.parts[k].faces?.length);
+      for (const k of Object.keys(today.parts).filter(isHair)) { const n = (p) => Object.keys(p.faces).length; expect(n(today.parts[k])).toBeGreaterThan(0); expect(n(grown.parts[k])).toBe(n(today.parts[k])); }
     }
   });
   it('the cap and every style without a fall or tail are untouched by the word; the advisory names it idle', () => {
@@ -303,6 +303,19 @@ describe('grown: the fall and the tail hang by the spine law (hair-spine.js)', (
   for (const preset of PRESETS) it(`${preset}: a grown fall never passes into the skull or the jaw, where today's does`, () => {
     for (const hair of [['wavy', { spine: 'elastica' }], ['long', { spine: { stiffness: 'stiff' } }], ['angled', { spine: 'elastica' }], ['layers', { spine: { wind: { R: 1.5, dir: 90 } } }]]) expect(fallInSkin(humanoidHead({ preset, hair }))).toBe(0);
     expect(fallInSkin(humanoidHead({ preset, hair: 'wavy' }))).toBeGreaterThan(0);   // today's, measured, left as minted
+  });
+  for (const preset of PRESETS) it(`${preset}: a region cuts its own length and stiffness; a curl winds the tail into a ringlet and waves the fall, closed, off the skin`, () => {
+    const even = humanoidHead({ preset, hair: ['long', { spine: 'elastica' }] }), cut = humanoidHead({ preset, hair: ['long', { spine: { regions: { back: { length: 1.4 }, front: { length: 0.6 } } } }] });
+    expect(zMin(world(cut, 'hairFall'))).toBeLessThan(zMin(world(even, 'hairFall')) - 0.04);   // the back reaches lower
+    for (const hair of [['ponytail', { spine: { curl: { radius: 0.03, turns: 4 } } }], ['long', { spine: { curl: { radius: 0.01, turns: 2, from: 0.3 } } }], ['braid', { spine: { regions: { tail: { curl: { radius: 0.02, turns: 3 } } } } }]]) {
+      const h = humanoidHead({ preset, hair });
+      expect(closed(h)).toEqual([]);
+      for (const o of Object.values(h.parts.hairTail?.offsets ?? h.parts.hairFall.offsets)) expect(o.every(Number.isFinite)).toBe(true);
+      if (h.parts.hairFall) expect(fallInSkin(h)).toBe(0);
+    }
+    const ring = humanoidHead({ preset, hair: ['ponytail', { tail: 0.6 }, { spine: { curl: { radius: 0.03, turns: 4 } } }] }), plain = humanoidHead({ preset, hair: ['ponytail', { tail: 0.6 }, { spine: 'elastica' }] });
+    const w = (h) => { const p = world(h, 'hairTail'); return Math.max(...p.map((q) => q[0])) - Math.min(...p.map((q) => q[0])); };
+    expect(w(ring)).toBeGreaterThan(w(plain) + 0.03);   // the ringlet's coil is wider than the straight tail
   });
 });
 

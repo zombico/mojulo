@@ -21,7 +21,7 @@
  * and signature at 1. Hair colour is the palette's `Hair`. No dice anywhere: the asymmetry is a sine of the lock index. */
 import { frameAt, symmetricFrameAt, loftParts, sweep, vec } from './station-loft-detail.js';
 import { ratioControls } from './ratio-controls.js';
-import { lockSpine, lockB, spineAt, drapeSpine, keepOut, validateSpine, resolveSpine } from './hair-spine.js';
+import { lockSpine, lockB, spineAt, drapeSpine, keepOut, validateSpine, resolveSpine, spineFor, coilSpine, coilSteps } from './hair-spine.js';
 import * as dmath from '../../util/dmath.js';
 
 const { add, mul, unit, sub, mean } = vec;
@@ -212,7 +212,9 @@ function buildCap(carrier, style, c) {
  * stay near the border, the sides and back fall fully), so the curtain frames the face and is still ONE closed loft.
  * Panels of two slots draw toward their centre as they fall (`separate` × definition): the lab's separated sections. */
 function buildFall(carrier, style, c, lowK) {
-  const F = style.fall, D = c.definition, drop = F.drop * c.length, steps = 5;
+  // a curled fall takes rings enough to draw its coil (eight a turn); a straight one keeps its five
+  const curls = c.spine ? ['front', 'sides', 'back'].map((r) => spineFor(c.spine, r).curl).filter(Boolean) : [];
+  const F = style.fall, D = c.definition, drop = F.drop * c.length, steps = curls.length ? Math.max(...curls.map((q) => coilSteps(q, 5))) : 5;
   const inner = Array.from({ length: N }, (_, k) => { const { t, side } = slotOf(k); const f = frameAt(carrier, 'cranium', [clampRow(style.low[t]), t], side); return { origin: f.origin, normal: f.normal }; });
   const fallOf = (k) => { const { t } = slotOf(k); if (t < F.frontGap) return F.front * (t / Math.max(1, F.frontGap)) / (F.open ? D : 1); return 1; };
   const lengthOf = (k) => {
@@ -225,7 +227,7 @@ function buildFall(carrier, style, c, lowK) {
   // grown (hair-spine.js): every slot is a GUIDE LOCK hanging from the hairline by the elastica; the curtain is the same
   // closed loft stretched over the guides, its rings at equal arc down each guide
   const head = c.spine ? headCollider(carrier, inner) : null;
-  const guides = head ? inner.map((at, k) => drapeSpine(fallGuide(at, lengthOf(k), c), head)) : null;
+  const guides = head ? inner.map((at, k) => { const W = spineFor(c.spine, regionOf(k)); return drapeSpine(fallGuide(at, lengthOf(k) * W.length, c, W, k), head); }) : null;
   const raw = [];
   for (let j = 0; j <= steps; j++) {
     const f = j / steps;
@@ -299,20 +301,25 @@ function headCollider(carrier, inner) {
   return [...skins, { axis: [0, c[1] - 0.25 * r[1]], r: 0.7 * r[0], top: cz, bottom: cz - 0.45 }];
 }
 
+/** the spine's region of a fall slot: the front (the slots that frame the face), the sides, the back */
+const regionOf = (k) => { const { t } = slotOf(k); return t <= 4 ? 'front' : t <= 6 ? 'sides' : 'back'; };
+
 /** one fall guide: rooted just off the hairline and combed straight down with a little lift out from the head (more
  * with volume; never toward the face), held straight for the root zone, then hanging by the elastica at the spine's
  * stiffness. The comb is gravity, not the scalp's slope: high on the skull "down the surface" runs outward, and the head
  * below a hairline root is no wider than the root, so a lock that leaves straight down clears it (as today's fall does). */
-function fallGuide(at, L, c) {
-  const S = c.spine, n = at.normal;
+function fallGuide(at, L, c, W, k = 0) {
+  const n = at.normal;
   const root = add(at.origin, mul(n, 0.003));
   L = Math.max(L, 0.008);   // a slot that does not fall still stands off the scalp (as today's border does): no ring folds to a point
   // the lift is small: a cantilever only ever bends toward its load, so an outward lean at the root survives to the tip
   const loft = Math.max(0.02, Math.min(0.3, 0.07 + 0.12 * (c.volume - 1)));
   const out = Math.hypot(n[0], Math.min(0, n[1])) > 1e-6 ? unit([n[0], Math.min(0, n[1]), 0]) : [0, 0, 0];
   const aim = unit(add([0, 0, -1], mul(out, loft)));
-  const hold = S.hold ?? Math.min(0.3, 0.05 * c.volume);
-  return lockSpine({ root, aim, L, B: lockB(S.stiffness ?? 'soft', L), hold, wind: S.wind });
+  const hold = W.hold ?? Math.min(0.3, 0.05 * c.volume);
+  return coilSpine(lockSpine({ root, aim, L, B: lockB(W.stiffness ?? 'soft', L), hold, wind: W.wind, n: coilSteps(W.curl, 16) }), W.curl, L, out, true, (k >> 1) * 2.39996);
+  // a curtain WAVES (planar: its guides coiling sideways would shear the loft), each pair of slots (the fall's panels)
+  // out of step with the next by the golden angle, as wavy hair waves by section, never in rings around the head
 }
 
 /** The TAIL family: a ponytail sweep from the tie point down the nape, a bun (a bell at the tie), a braid (a winding taper). */
@@ -325,10 +332,12 @@ function buildTail(carrier, style, c) {
     const spine = [add(o, mul(n, 0.004)), add(o, mul(n, 0.02)), add(o, mul(n, 0.038)), add(o, mul(n, 0.056)), add(o, mul(n, 0.07))];
     return sweep(spine, [R * 0.55, R * 0.95, R, R * 0.85, R * 0.4], 10, { squash: [1, 0.85] });
   }
-  const len = T.length * c.length, steps = T.kind === 'braid' ? 12 : 6;
   // grown: the tail hangs from the tie by the elastica, the tie holding its first stretch back and down. A tail is a
-  // bundle of loose strands, and loose strands add no stiffness to each other, so it is limp unless the spine says
-  const grown = c.spine ? lockSpine({ root: add(o, mul(n, 0.02)), aim: add(n, [0, 0, -0.6]), L: len, B: lockB(c.spine.stiffness ?? 'limp', len), hold: c.spine.hold ?? 0.15, wind: c.spine.wind, n: steps }) : null;
+  // bundle of loose strands, and loose strands add no stiffness to each other, so it is limp unless the spine says; a
+  // curled tail takes rings enough to draw its coil (a ringlet ponytail)
+  const W = c.spine ? spineFor(c.spine, 'tail') : null, len = T.length * c.length * (W ? W.length : 1);
+  const steps = coilSteps(W?.curl, T.kind === 'braid' ? 12 : 6);
+  const grown = W ? coilSpine(lockSpine({ root: add(o, mul(n, 0.02)), aim: add(n, [0, 0, -0.6]), L: len, B: lockB(W.stiffness ?? 'limp', len), hold: W.hold ?? 0.15, wind: W.wind, n: steps }), W.curl, len) : null;
   const spine = [];
   for (let j = 0; j <= steps; j++) {
     const s = j / steps;

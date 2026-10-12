@@ -66,7 +66,7 @@
  * its clump `tail`). Nothing here is written into the recipe.
  */
 import * as dmath from '../../util/dmath.js';
-import { lockSpine, lockB } from './hair-spine.js';
+import { lockSpine, lockB, spineFor, coilOffsets, coilSteps } from './hair-spine.js';
 
 export const ANIME_SCHEMA = 'anime-form-studio-v3';
 export const ANIME_MALE_BASELINE = Object.freeze({ width: 0.99, lower: 1.03, jaw: 1, cheekVolume: 1.14, lowerCheekVolume: 1.17, chin: 1.3, depth: 1.14, backDepth: 1.14, occiput: 1.18, nape: 0.82, jawAngle: 0.79, jawDepth: 1.19, chinProjection: 1.21, chinHeight: 0.77, nose: 1.44, eyeWidth: 0.87, eyeHeight: 0.85, spacing: 0.98 });
@@ -342,6 +342,8 @@ export function buildAnime(r, options = {}) {
   const HF = hairFormOf(options.hairForm);
   // the spine law (hair-spine.js, `spine`): each lock's centre line kept by name, for the still wind below
   const SPINE = HF?.spine ?? null, SPINE_LINES = SPINE ? new Map() : null;
+  // a curled lock is built with rings enough to draw its coil (eight a turn); every other lock keeps its count
+  const ringsOf = (name, root, base) => (SPINE ? coilSteps(spineFor(SPINE, lockRegion(name, root, HAIR_CENTRE), name).curl, base) : base);
   const FIT = options.fitHair ? hairFit(surface, f, h, HF) : null;
   // lift on: a clump's root sinks into the lifted cap (its centre at ROOT_SINK of its seat, rising to the full seat by t
   // 0.35) and its thickness is pinched to ROOT_PINCH there (full by t 0.25), so the division lines emerge from the mass
@@ -388,7 +390,7 @@ export function buildAnime(r, options = {}) {
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }
     if (FIT && !cut) tip = FIT.drape(tip, 0.006);
     if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // (a member is never a thick clump)   // a section's member: skinned below
-    const start = parts.hair.length; const rings = [], N = 14, S = 8;
+    const start = parts.hair.length; const rings = [], N = ringsOf(name, root, 14), S = 8;
     if (SPINE_LINES) SPINE_LINES.set(name, { line: Array.from({ length: N + 1 }, (_, j) => { const t = j / N; return add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); }), depart: 0 });
     for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = (PINCH && !cut ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper) * thick; if (FIT && !cut) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC && !cut ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 && !cut ? FIT.drape(q, 0.004) : q; })); }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
@@ -509,7 +511,7 @@ export function buildAnime(r, options = {}) {
     // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
     // its flat side facing out from the head at each ring
     const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null, cup = 0) => {
-      const start = parts.hair.length, rings = [];
+      const start = parts.hair.length, rings = [], N = ringsOf(name, root, 16);
       let along = null;
       if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
         along = Array.from({ length: N + 1 }, (_, j) => { const want = cum.at(-1) * j / N; let i = 1; while (i < path.length - 1 && cum[i] < want) i++; const t = clamp((want - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)); return mix3(path[i - 1], path[i], t); });
@@ -700,7 +702,10 @@ export function buildAnime(r, options = {}) {
   // from the still shape, read at each vertex's place along its lock's centre line, moves the vertex (the grass blade's
   // bend table, per lock). Anime clumps are springy by default (`stiffness`, at the reference length of a head's
   // height): they swing as a mass, keeping their drawn shape; 'stiff' holds a spike's silhouette; the drape keeps a moved lock off the head.
-  if (SPINE?.wind?.R > 0) windLocks(parts.hair, locks, SPINE_LINES, SPINE, FIT);
+  // CURL (`spine.curl`, a region's or a clump's): the lock wound about its own centre line, a corkscrew (the drill curl);
+  // a form shell waves in its plane instead (its members side by side would shear if they coiled)
+  const curled = SPINE && (SPINE.curl || Object.values(SPINE.regions ?? {}).some((o) => o?.curl) || Object.values(SPINE.locks ?? {}).some((o) => o?.curl));
+  if (SPINE && (SPINE.wind?.R > 0 || curled)) windLocks(parts.hair, locks, SPINE_LINES, SPINE, FIT);
   // Six-degree chin-up resting pose; upper neck follows while shoulders remain anchored.
   const pitch = (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, pivot = [0, fy(-0.38), 0.14];
   function pitched(p, weight = 1) { const a = pitch * weight, c = dmath.cos(a), s = dmath.sin(a), y = p[1] - pivot[1], z = p[2] - pivot[2]; return [p[0], pivot[1] + c * y - s * z, pivot[2] + s * y + c * z]; }
@@ -863,19 +868,37 @@ export const HAIR_FORM_NEUTRAL = Object.freeze({ section: 'round', ridge: 0, flu
 // the studio's frame (y up, the face toward −z) ↔ the spine law's (z up, the face toward +y): a rotation, so a delta maps the same way
 const toSpine = (p) => [p[0], -p[2], p[1]], fromSpine = (q) => [q[0], q[2], -q[1]], mix3 = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
 const SPINE_REF = 2.1;   // construction units: the head's height ≈ the spine law's 0.22 m reference length
+/** a lock's region for the spine's words: its clump name when it has one, else where its root sits on the head */
+const HAIR_CENTRE = [0, 0.25, 0.07];   // the head's centre for the hair (the shapes' own `C`)
+function lockRegion(name, root, centre) {
+  if (/^(fringe-|formFringe)/.test(name)) return 'front';
+  if (/temple|^formSide|sideburn/i.test(name)) return 'sides';
+  if (/^(back-|formBack)/.test(name)) return 'back';
+  if (/^crown-|^ahoge/.test(name)) return 'crown';
+  if (/^tail/.test(name)) return 'tail';
+  const az = Math.abs(dmath.atan2(root[0] - centre[0], -(root[2] - centre[2]))) * 180 / Math.PI;
+  if (root[1] > centre[1] + 0.55) return 'crown';
+  return az < 50 ? 'front' : az > 125 ? 'back' : 'sides';
+}
 function windLocks(hair, locks, lines, spine, FIT) {
-  const n = 24;
+  const U = SPINE_REF / 0.22;   // construction units per metre
+  const centre = HAIR_CENTRE;
   for (const lk of locks) {
     const L0 = lines.get(lk.name); if (!L0 || L0.line.length < 2) continue;
+    const W = spineFor(spine, lockRegion(lk.name, L0.line[0], centre), lk.name), blowing = W.wind?.R > 0;
+    if (!blowing && !W.curl) continue;
     const line = L0.line, cum = [0];
     for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(line[i], line[i - 1])));
     const total = cum.at(-1), sd = (L0.depart ?? 0) * total, Lf = total - sd;
     if (!(Lf > 1e-4)) continue;
     let i0 = 1; while (i0 < line.length - 1 && cum[i0] < sd) i0++;
     const t0 = clamp((sd - cum[i0 - 1]) / (cum[i0] - cum[i0 - 1] || 1)), P0 = mix3(line[i0 - 1], line[i0], t0), d0 = unit(sub(line[i0], line[i0 - 1]));
-    const B = lockB(spine.stiffness ?? 'springy', Lf / SPINE_REF * 0.22);
-    const still = lockSpine({ root: toSpine(P0), aim: toSpine(d0), L: Lf, B, n }), blown = lockSpine({ root: toSpine(P0), aim: toSpine(d0), L: Lf, B, wind: spine.wind, n });
-    const delta = still.map((q, j) => fromSpine(sub(blown[j], q)));
+    const n = coilSteps(W.curl, 24), B = lockB(W.stiffness ?? 'springy', Lf / U);
+    const still = lockSpine({ root: toSpine(P0), aim: toSpine(d0), L: Lf, B, n }), blown = blowing ? lockSpine({ root: toSpine(P0), aim: toSpine(d0), L: Lf, B, wind: W.wind, n }) : still;
+    // the coil, in construction units, outward from the head at the lock's departure; a form shell waves in its plane
+    const out0 = toSpine(sub(P0, [centre[0], P0[1], centre[2]])), shell = /^form/.test(lk.name);
+    const coil = W.curl ? coilOffsets(blown, { ...W.curl, radius: W.curl.radius * U }, Lf, out0, shell).offsets : null;
+    const delta = still.map((q, j) => fromSpine(add(sub(blown[j], q), coil ? coil[j] : [0, 0, 0])));
     for (let v = lk.start; v < lk.start + lk.count; v += 3) {
       const p = [hair[v], hair[v + 1], hair[v + 2]];
       // the vertex's place along the lock: its foot on the nearest SEGMENT of the centre line, continuous (a vertex

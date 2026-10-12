@@ -120,20 +120,98 @@ export const lockB = (stiffness, L) => {
   return B0 * (L / B_REF_L) ** 3;
 };
 
-/** `'elastica'` | { law?, stiffness?, hold?, wind? } → the stored spine; errors (empty = valid) */
+// ── the spine's words ──────────────────────────────────────────────────────────────────────────────────────────
+// One vocabulary on both heads. The whole head: `stiffness`, `hold`, `wind`, `curl`. A REGION overrides it (`regions`:
+// front, sides, back, crown, tail; on the landmark head a region may also scale its `length`), and on the anime head a
+// named clump overrides its region (`locks`: 'fringe-3', 'back-2', … { stiffness, curl }); the most specific wins.
+export const SPINE_REGIONS = Object.freeze(['front', 'sides', 'back', 'crown', 'tail']);
+const SPINE_KEYS = ['law', 'stiffness', 'hold', 'wind', 'curl', 'regions', 'locks'];
+const REGION_KEYS = ['stiffness', 'hold', 'length', 'curl'], LOCK_KEYS = ['stiffness', 'curl'];
+/** CURL: a coil about the lock's own centre line. `radius` (m, at the coil's full size), `turns` (along the lock),
+ * `hand` (1 right, −1 left), `from` (where along the lock it begins, 0 … 1; it grows in over the next tenth). The
+ * lock's LENGTH is where it falls (the axis keeps it, as a length is said of hair); the coil's own run is longer. */
+const CURL_KEYS = ['radius', 'turns', 'hand', 'from'];
+const isWord = (st) => (typeof st === 'number' ? st > 0 && Number.isFinite(st) : Object.hasOwn(SPINE_STIFFNESS, st));
+function curlErrors(c, at) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return [`${at}: { radius: 0 … 0.06 m, turns: 0 … 16, hand?: 1 | -1, from?: 0 … 0.9 }`];
+  const errs = [];
+  for (const k of Object.keys(c)) if (!CURL_KEYS.includes(k)) errs.push(`${at}.${k}: unknown (have ${CURL_KEYS.join(', ')})`);
+  if (!(Number.isFinite(c.radius) && c.radius >= 0 && c.radius <= 0.06)) errs.push(`${at}.radius: 0 … 0.06 (metres, the coil's radius)`);
+  if (!(Number.isFinite(c.turns) && c.turns >= 0 && c.turns <= 16)) errs.push(`${at}.turns: 0 … 16 (coils along the lock)`);
+  if (c.hand !== undefined && c.hand !== 1 && c.hand !== -1) errs.push(`${at}.hand: 1 (right) or -1 (left)`);
+  if (c.from !== undefined && !(Number.isFinite(c.from) && c.from >= 0 && c.from <= 0.9)) errs.push(`${at}.from: 0 … 0.9 (where along the lock the coil begins)`);
+  return errs;
+}
+function fieldErrors(o, keys, at) {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return [`${at}: { ${keys.join(', ')} }`];
+  const errs = [];
+  for (const k of Object.keys(o)) if (!keys.includes(k)) errs.push(`${at}.${k}: unknown (have ${keys.join(', ')})`);
+  if (o.stiffness !== undefined && !isWord(o.stiffness)) errs.push(`${at}.stiffness: a word (${Object.keys(SPINE_STIFFNESS).join(', ')}) or a number > 0`);
+  if (o.hold !== undefined && !(Number.isFinite(o.hold) && o.hold >= 0 && o.hold <= 0.6)) errs.push(`${at}.hold: 0 … 0.6 (the share of the lock the scalp holds)`);
+  if (o.length !== undefined && !(Number.isFinite(o.length) && o.length >= 0.3 && o.length <= 2.5)) errs.push(`${at}.length: a ratio 0.3 … 2.5 of the style's length there`);
+  if (o.curl !== undefined && o.curl !== false) errs.push(...curlErrors(o.curl, `${at}.curl`));
+  return errs;
+}
+/** `'elastica'` | { law?, stiffness?, hold?, wind?, curl?, regions?, locks? } → errors (empty = valid) */
 export function validateSpine(spec, label = 'hair.spine') {
   if (spec === 'elastica') return [];
-  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: 'elastica' or { law: 'elastica', stiffness: ${Object.keys(SPINE_STIFFNESS).join(' | ')} | B > 0, hold: 0 … 0.6, wind: { R ≥ 0, dir: degrees } }`];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label}: 'elastica' or { law: 'elastica', stiffness: ${Object.keys(SPINE_STIFFNESS).join(' | ')} | B > 0, hold: 0 … 0.6, wind: { R ≥ 0, dir: degrees }, curl: { radius, turns, hand?, from? }, regions: { ${SPINE_REGIONS.join(', ')} }, locks: { clump: { stiffness, curl } } }`];
   const errs = [];
-  for (const k of Object.keys(spec)) if (!['law', 'stiffness', 'hold', 'wind'].includes(k)) errs.push(`${label}.${k}: unknown (have law, stiffness, hold, wind)`);
+  for (const k of Object.keys(spec)) if (!SPINE_KEYS.includes(k)) errs.push(`${label}.${k}: unknown (have ${SPINE_KEYS.join(', ')})`);
   if (spec.law !== undefined && spec.law !== 'elastica') errs.push(`${label}.law: '${spec.law}' (have 'elastica')`);
-  const st = spec.stiffness;
-  if (st !== undefined && !(typeof st === 'number' ? st > 0 && Number.isFinite(st) : Object.hasOwn(SPINE_STIFFNESS, st))) errs.push(`${label}.stiffness: a word (${Object.keys(SPINE_STIFFNESS).join(', ')}) or a number > 0`);
+  if (spec.stiffness !== undefined && !isWord(spec.stiffness)) errs.push(`${label}.stiffness: a word (${Object.keys(SPINE_STIFFNESS).join(', ')}) or a number > 0`);
   if (spec.hold !== undefined && !(Number.isFinite(spec.hold) && spec.hold >= 0 && spec.hold <= 0.6)) errs.push(`${label}.hold: 0 … 0.6 (the share of the lock the scalp holds)`);
   const w = spec.wind;
   if (w !== undefined && (!w || typeof w !== 'object' || !(Number.isFinite(w.R) && w.R >= 0) || (w.dir !== undefined && !Number.isFinite(w.dir)))) errs.push(`${label}.wind: { R: weights of drag ≥ 0, dir?: degrees }`);
+  if (spec.curl !== undefined && spec.curl !== false) errs.push(...curlErrors(spec.curl, `${label}.curl`));
+  if (spec.regions !== undefined) {
+    if (!spec.regions || typeof spec.regions !== 'object' || Array.isArray(spec.regions)) errs.push(`${label}.regions: { ${SPINE_REGIONS.join(', ')} } each { ${REGION_KEYS.join(', ')} }`);
+    else for (const [r, o] of Object.entries(spec.regions)) { if (!SPINE_REGIONS.includes(r)) errs.push(`${label}.regions.${r}: not a region (have ${SPINE_REGIONS.join(', ')})`); else errs.push(...fieldErrors(o, REGION_KEYS, `${label}.regions.${r}`)); }
+  }
+  if (spec.locks !== undefined) {
+    if (!spec.locks || typeof spec.locks !== 'object' || Array.isArray(spec.locks)) errs.push(`${label}.locks: { clump name: { ${LOCK_KEYS.join(', ')} } } (the anime head's clumps)`);
+    else for (const [n, o] of Object.entries(spec.locks)) errs.push(...fieldErrors(o, LOCK_KEYS, `${label}.locks.${n}`));
+  }
   return errs;
 }
+/** a lock's spine words: the head's, under its region's, under its own (the most specific wins; `curl: false` stops one) */
+export function spineFor(spine, region, lock) {
+  const R = (region && spine?.regions?.[region]) || {}, K = (lock && spine?.locks?.[lock]) || {};
+  const pick = (k) => (K[k] !== undefined ? K[k] : R[k] !== undefined ? R[k] : spine?.[k]);
+  const curl = pick('curl');
+  return { stiffness: pick('stiffness'), hold: pick('hold'), length: R.length ?? 1, curl: curl && curl.radius > 0 && curl.turns > 0 ? curl : null, wind: spine?.wind };
+}
+
+/** CURL about a centre line: the offset of each equal-arc sample from its axis (parallel-transported frame, the coil's
+ * radius growing in over a tenth from `from`), and `k`, the axis's share of the coil's run (1 / k is how much longer
+ * the curled hair is than where it falls). */
+export function coilOffsets(line, curl, L, out0 = null, planar = false, phase = 0) {
+  const n = line.length - 1, from = curl.from ?? 0, hand = curl.hand ?? 1, r = curl.radius, T = curl.turns;
+  const k = 1 / Math.sqrt(1 + ((2 * Math.PI * r * T) / Math.max(L * (1 - from), 1e-9)) ** 2);
+  const tan = (i) => norm([0, 1, 2].map((j) => line[Math.min(n, i + 1)][j] - line[Math.max(0, i - 1)][j])) ?? [0, 0, -1];
+  // the coil's first reach: `out0` (a guide's outward direction, so neighbouring guides coil in step around the head), else any normal
+  let t0 = tan(0), a = (out0 && norm(plus(out0, scale(t0, -dot(out0, t0))))) ?? norm(cross3(t0, Math.abs(t0[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0])) ?? [1, 0, 0];
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const t = tan(i); a = norm(plus(a, scale(t, -dot(a, t)))) ?? a;   // parallel transport: the frame turns only as the line does
+    const b = cross3(t, a), u = i / n, g = u <= from ? 0 : Math.min(1, (u - from) / 0.1), phi = hand * 2 * Math.PI * T * Math.max(0, u - from) / Math.max(1 - from, 1e-9) + (u > from ? phase : 0);
+    const R = r * g * g * (3 - 2 * g);
+    // starts on the axis (no jump where the coil begins), coiling out toward `a`; `planar`: the coil's reach toward `a`
+    // only (an S-wave), for a curtain whose neighbouring guides would shear past each other if they coiled sideways
+    out.push(planar ? scale(a, R * (Math.sin(phi) - Math.sin(phase))) : plus(scale(a, R - R * Math.cos(phi)), scale(b, R * Math.sin(phi))));
+  }
+  return { offsets: out, k };
+}
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+/** a spine coiled: each sample set off its axis by the coil (the axis, and so where the lock falls, unchanged) */
+export function coilSpine(spine, curl, L, out0 = null, planar = false, phase = 0) {
+  if (!curl) return spine;
+  const { offsets } = coilOffsets(spine, curl, L, out0, planar, phase);
+  return spine.map((p, i) => plus(p, offsets[i]));
+}
+/** the samples a coil needs to be drawn: eight a turn, and never fewer than `base` */
+export const coilSteps = (curl, base) => (curl ? Math.max(base, Math.ceil(8 * curl.turns) + 4) : base);
+
 /** the stored form: the word becomes the object, defaults left absent (read at build time) */
 export const resolveSpine = (spec) => (spec === 'elastica' ? { law: 'elastica' } : { law: 'elastica', ...spec });
 

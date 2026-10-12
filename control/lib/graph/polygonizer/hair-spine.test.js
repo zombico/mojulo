@@ -2,7 +2,7 @@
 // every wind, the textbook small-B deflection, the stable branch past the buckling load (never upright, never looped),
 // the planar solve in any root direction, and the spine words.
 import { describe, it, expect } from 'vitest';
-import { stableElastica, lockSpine, lockB, spineAt, spineLoad, drapeSpine, validateSpine, resolveSpine, SPINE_STIFFNESS, B_REF_L } from './hair-spine.js';
+import { stableElastica, lockSpine, lockB, spineAt, spineLoad, drapeSpine, validateSpine, resolveSpine, spineFor, coilOffsets, coilSpine, coilSteps, SPINE_STIFFNESS, SPINE_REGIONS, B_REF_L } from './hair-spine.js';
 
 const arc = (pts) => pts.slice(1).reduce((a, q, i) => a + Math.hypot(...q.map((v, k) => v - pts[i][k])), 0);
 const tip = (pts) => pts[pts.length - 1];
@@ -97,3 +97,37 @@ describe('the words', () => {
     expect(resolveSpine({ stiffness: 'stiff' })).toEqual({ law: 'elastica', stiffness: 'stiff' });
   });
 });
+
+describe('regions, clumps and curl', () => {
+  it('validates the words by name', () => {
+    expect(validateSpine({ regions: { front: { stiffness: 'stiff', length: 0.7 }, tail: { curl: { radius: 0.02, turns: 4 } } }, locks: { 'fringe-3': { stiffness: 'limp' } }, curl: { radius: 0.01, turns: 2, hand: -1, from: 0.3 } })).toEqual([]);
+    expect(validateSpine({ regions: { top: {} } })[0]).toMatch(/regions\.top: not a region/);
+    expect(validateSpine({ regions: { back: { length: 4 } } })[0]).toMatch(/regions\.back\.length/);
+    expect(validateSpine({ locks: { 'back-2': { length: 1.2 } } })[0]).toMatch(/locks\.back-2\.length: unknown/);
+    expect(validateSpine({ curl: { radius: 0.2, turns: 2 } })[0]).toMatch(/curl\.radius/);
+    expect(validateSpine({ curl: { radius: 0.01, turns: 2, hand: 0 } })[0]).toMatch(/curl\.hand/);
+    expect(SPINE_REGIONS).toEqual(['front', 'sides', 'back', 'crown', 'tail']);
+  });
+  it('the most specific word wins: a clump over its region over the head; curl false stops one', () => {
+    const S = { stiffness: 'soft', curl: { radius: 0.01, turns: 2 }, regions: { back: { stiffness: 'limp', length: 1.3 } }, locks: { 'back-2': { stiffness: 'stiff', curl: false } } };
+    expect(spineFor(S, 'front')).toMatchObject({ stiffness: 'soft', length: 1, curl: { radius: 0.01, turns: 2 } });
+    expect(spineFor(S, 'back')).toMatchObject({ stiffness: 'limp', length: 1.3 });
+    expect(spineFor(S, 'back', 'back-2')).toMatchObject({ stiffness: 'stiff', curl: null, length: 1.3 });
+    expect(spineFor({ curl: { radius: 0, turns: 3 } }, 'front').curl).toBeNull();
+  });
+  it('a coil winds about its axis at its radius, starts on the axis, and leaves the axis where it falls', () => {
+    const line = Array.from({ length: 41 }, (_, i) => [0, 0, -0.3 * i / 40]);
+    const { offsets } = coilOffsets(line, { radius: 0.02, turns: 4 }, 0.3, [1, 0, 0]);
+    expect(Math.hypot(...offsets[0])).toBe(0);
+    const coiled = coilSpine(line, { radius: 0.02, turns: 4 }, 0.3, [1, 0, 0]);
+    for (const p of coiled.slice(8)) expect(Math.hypot(p[0] - 0.02, p[1])).toBeCloseTo(0.02, 6);   // on a circle of the radius about the coil's axis
+    expect(coiled.at(-1)[2]).toBeCloseTo(-0.3, 12);   // where it falls is unchanged
+    expect(coilSpine(line, null, 0.3)).toBe(line);
+    expect(coilSteps({ turns: 4 }, 6)).toBe(36); expect(coilSteps(null, 6)).toBe(6);
+  });
+  it('a planar coil waves in one plane', () => {
+    const line = Array.from({ length: 41 }, (_, i) => [0, 0, -0.3 * i / 40]);
+    for (const o of coilOffsets(line, { radius: 0.02, turns: 3 }, 0.3, [1, 0, 0], true).offsets) expect(Math.abs(o[1])).toBeLessThan(1e-12);
+  });
+});
+
