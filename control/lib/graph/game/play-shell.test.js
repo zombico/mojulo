@@ -75,6 +75,18 @@ describe('emitPlayShell', () => {
     expect(() => emitPlayShell(GAME, LEVELS, { startLevel: 'nope' })).toThrow(/'nope' is not a level of this game/);
   });
 
+  it('a map game: each level carries its exits, and the page travels by them (arrive) and reads has-gates', () => {
+    const map = normalizeGameManifest({ ...GAME, levels: [
+      { ref: 'run-1', title: 'Hall', exits: [{ id: 'door', to: 'run-2', gate: { has: 'key' } }] },
+      { ref: 'run-2', title: 'Vault', exits: [{ id: 'back', to: 'run-1' }] },
+    ] });
+    expect(validateGameManifest(map)).toEqual({ ok: true, errors: [] });
+    const html = emitPlayShell(map, LEVELS);
+    expect(html).toContain('"exits":[{"id":"door","to":"run-2","gate":{"has":"key"}}]');
+    const src = playShellRuntime.toString();
+    for (const k of ['K.isMap', 'K.reachable', 'K.travel', 'params.arrive']) expect(src).toContain(k);
+  });
+
   it('refuses a level without its contract', () => {
     expect(() => emitPlayShell(GAME, [{ ref: 'run-1', contract: CONTRACT }])).toThrow(/'run-2' has no matching entry/);
   });

@@ -7,7 +7,9 @@
  * level and a save behave the same under either; what it leaves out is everything the arena grew for itself
  * (hangar picks, liveries, map carousels, difficulty, battle music, AI switches, menus).
  *
- * The screens: title → levels (only when the game has more than one) → playing → result.
+ * The screens: title → levels (only when the game has more than one) → playing → result. A map game (levels with
+ * `exits`) travels: a level left through an open exit goes straight on to the level it leads to, told where it came
+ * from (`params.arrive`); its list shows what has been found, where each exit leads and what locks it.
  *   - No setup screen. A level's consumed slices ride whole; a pick ({ max }) takes the first `max` members.
  *   - Playing: the level in a full-page frame, a loading veil until the level says it is ready, a ☰ pause
  *     (and the gamepad's start button) with resume, restart, the level's own controls legend, sound, quit.
@@ -51,7 +53,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract };
+    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}) };
   });
 
   // the theme: the same tokens as the arena shell and the levels' HUD; sanitized here so a hand-poked row cannot
@@ -210,7 +212,11 @@ export function playShellRuntime(cfg, K) {
 
   const progression = (SCHEMA.slices.filter((s) => s.kind === 'progression')[0] || {}).name;
   const cleared = (ref) => !!(progression && state[progression].completed[ref]);
-  const isOpen = (lv) => PLAYTEST || K.evalGate(SCHEMA, state, lv.gate);
+  // a map game (levels with exits): a level is open once found through an open exit; a list game reads its gates.
+  // A playtest opens every level to pick from; travel inside the game still follows the game's own exits and keys.
+  const MAP = K.isMap(LEVELS);
+  const isOpen = (lv) => PLAYTEST || (MAP ? !!K.reachable(SCHEMA, state, LEVELS)[lv.ref] : K.evalGate(SCHEMA, state, lv.gate));
+  const needs = (g) => (g.completed ? 'clear ' + levelTitle(g.completed) + ' first' : g.has ? 'needs ' + (g.count > 1 ? g.count + ' × ' : 'a ') + g.has : 'locked');
   const sliceKind = (name) => (SCHEMA.slices.find((s) => s.name === name) || {}).kind;
   const levelTitle = (ref) => (LEVELS.find((l) => l.ref === ref) || {}).title || ref;
 
@@ -275,12 +281,17 @@ export function playShellRuntime(cfg, K) {
     const s = el('div', { cls: 'screen' }, [
       el('div', { cls: 'center screen' }, [PLAYTEST ? el('div', { cls: 'eyebrow', text: 'playtest' }) : null, el('h1', { text: M.title })]),
     ]);
+    const lastAt = MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
     LEVELS.forEach((lv, i) => {
       const open = isOpen(lv);
-      const lock = !open ? (lv.gate && lv.gate.completed ? 'clear ' + levelTitle(lv.gate.completed) + ' first' : 'locked') : null;
+      const gated = lv.gate && !K.evalGate(SCHEMA, state, lv.gate);
+      const lock = open ? null : (gated ? needs(lv.gate) : 'not found yet');
+      // a map's rows say where their exits lead, and what locks them
+      const ways = MAP && open && lv.exits ? lv.exits.map((x) => '→ ' + levelTitle(x.to) + (x.gate && !K.evalGate(SCHEMA, state, x.gate) ? ' (' + needs(x.gate) + ')' : '')).join('  ·  ') : null;
       s.appendChild(el('div', { cls: 'card' }, [
         el('div', { cls: 'muted', text: String(i + 1) }),
-        el('div', { cls: 'grow' }, [el('div', { cls: 'name', text: lv.title }), lock ? el('div', { cls: 'muted', text: lock }) : null]),
+        el('div', { cls: 'grow' }, [el('div', { cls: 'name', text: lv.title }), lock ? el('div', { cls: 'muted', text: lock }) : null, ways ? el('div', { cls: 'muted', text: ways }) : null]),
+        lastAt === lv.ref ? el('span', { cls: 'badge', text: 'last here' }) : null,
         cleared(lv.ref) ? el('span', { cls: 'badge', text: 'cleared' }) : null,
         el('button', { cls: open ? 'primary' : '', text: 'play', disabled: open ? null : 'disabled', on: () => { if (open) launch(lv); } }),
       ]));
@@ -310,9 +321,12 @@ export function playShellRuntime(cfg, K) {
   }
 
   let veilCap = 0, ctlRows = null;
-  function launch(lv) {
+  // `arrive`: the level a map game's travel came from (the level moves the player to that end of itself)
+  function launch(lv, arrive) {
     launches += 1;
-    session = { level: lv, params: paramsFor(lv), seed: (PLAYTEST ? launches : runLog.length + 1), ended: false };
+    const params = paramsFor(lv);
+    if (arrive) params.arrive = arrive;
+    session = { level: lv, params, seed: (PLAYTEST ? launches : runLog.length + 1), ended: false };
     lastParams = session.params; lastErrors = null;
     ctlRows = null;
     show('level');
@@ -355,6 +369,10 @@ export function playShellRuntime(cfg, K) {
         runLog.push(env);
         persist();
       }
+      // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to
+      const to = r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
+      const onward = to && LEVELS.find((l) => l.ref === to);
+      if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
       const sess = session;
       // the level shows its own end card first; the result follows it
       setTimeout(() => { if (session === sess) renderResult(sess.level, env, r.ok); }, env.stats ? 2400 : 1600);
@@ -429,13 +447,15 @@ export function playShellRuntime(cfg, K) {
     session = null;
     show('result');
     const res = env.result === 'success' ? 'cleared' : env.result === 'fail' ? 'failed' : 'left';
-    const idx = LEVELS.indexOf(lv), next = LEVELS[idx + 1];
+    const idx = LEVELS.indexOf(lv), next = MAP ? null : LEVELS[idx + 1];   // a map goes on by its exits, not by order
+    const shut = MAP && env.result === 'success' && env.exit ? (lv.exits || []).find((x) => x.id === env.exit) : null;
     const gains = applied ? (env.events || []).map(eventWords).filter(Boolean) : [];
     const kids = [
       el('div', { cls: 'result-mark' + (env.result === 'success' ? '' : ' fail'), text: res }),
       el('h1', { text: lv.title }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       applied ? null : el('div', { cls: 'muted', text: 'The level\'s outcome could not be applied, so nothing was saved from this run.' }),
+      shut && shut.gate ? el('div', { cls: 'muted', text: 'The way to ' + levelTitle(shut.to) + ' is shut: ' + needs(shut.gate) + '.' }) : null,
       env.stats && Array.isArray(env.stats.rows) && env.stats.rows.length ? statsTable(env.stats) : null,
       el('div', { cls: 'row' }, [
         env.result === 'success' && next && isOpen(next) ? el('button', { cls: 'primary', text: 'next: ' + next.title, on: () => launch(next) }) : null,
