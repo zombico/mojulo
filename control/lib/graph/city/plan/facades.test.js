@@ -5,6 +5,7 @@ import { readCityPlan, inferCity } from './card.js';
 import { designCity } from './design.js';
 import { skinLot, readFacade } from './facades.js';
 import { cityBoxes, assembleCityScene } from './scene.js';
+import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 
 const city = (rec = {}) => designCity(inferCity({ seed: 3, ...rec }).recipe);
 const skins = (d) => d.lots.filter((l) => l.use !== 'parking').map((l) => skinLot(l, d.grammar, d.plan.seed));
@@ -66,9 +67,9 @@ describe('the facade layer is laid over the plan, never into it', () => {
     expect(() => readCityPlan({ lots: { [lot.id]: { facade: { windows: 3 } } } })).toThrow(/lots\['.+'\].facade.windows is not a facade field/);
     expect(() => readFacade({ glass: 'blue' }, 'x')).toThrow(/x.glass is '#rrggbb'/);
   });
-  it('a grammar\'s shapes stand its masses round: the xeno garden\'s cylinders', () => {
+  it('a grammar\'s shapes stand its masses organic: the xeno garden ripples and spires, Paris stays boxed', () => {
     const s = skins(city({ grammar: 'xeno-garden' }));
-    expect(s.filter((x) => x.shape === 'cylinder').length).toBeGreaterThan(s.length * 0.2);
+    expect(s.filter((x) => x.shape === 'undulate' || x.shape === 'spindle').length).toBeGreaterThan(s.length * 0.4);
     expect(skins(city({ grammar: 'paris' })).every((x) => x.shape === 'box')).toBe(true);
   });
 });
@@ -94,5 +95,35 @@ describe('the world hands the lots to the legacy facade pipeline', () => {
     expect(deck.length).toBe(4);   // one straight run: its deck, underside and two sides
     expect(Math.min(...deck.flatMap((f) => f.corners.map((p) => p[2]))) * 3.66).toBeGreaterThan(7);
     expect(() => readCityPlan({ grammar: 'paris', transit: [{ path: 'A3>J3', mode: 'maglev' }] })).toThrow(/mode is one the grammar runs: tram, bus/);
+  });
+});
+
+describe('organic masses: walls that ripple, spires that swell, inside their lots', () => {
+  const d = city({ grammar: 'xeno-garden' }), boxes = cityBoxes(d);
+  const inside = (b, faces) => faces.every((f) => f.corners.every(([x, y]) => x >= b.x - 1e-3 && x <= b.x + b.w + 1e-3 && y >= b.y - 1e-3 && y <= b.y + b.d + 1e-3));
+  it.each(ORGANIC_SHAPES)('%s stands inside its lot, its walls carrying facade cards, the same twice', (shape) => {
+    const b = boxes.find((x) => x.shape === shape);
+    expect(b, `a ${shape} in the xeno garden`).toBeTruthy();
+    const faces = organicFaces(b);
+    // a rippling mass's chimneys and a spire's finial stand over it; nothing stands past its lot's edge
+    expect(inside(b, faces)).toBe(true);
+    expect(faces.filter((f) => f.card).length).toBeGreaterThan(8);
+    expect(JSON.stringify(organicFaces(b))).toBe(JSON.stringify(faces));
+  });
+  it('an undulating mass ripples only its street faces: its party walls stay straight on the lot line', () => {
+    const b = boxes.find((x) => x.shape === 'undulate' && x.front === '+y'), walls = organicFaces(b).filter((f) => f.card);
+    const onX = (f, x) => f.corners.every((p) => Math.abs(p[0] - x) < 1e-3);
+    // the party walls (−x, +x) run straight down the lot line
+    expect(walls.some((f) => onX(f, b.x))).toBe(true);
+    expect(walls.some((f) => onX(f, b.x + b.w))).toBe(true);
+    // the street face (+y) draws in from its lot line by up to the wave's depth
+    const streetYs = walls.flatMap((f) => f.corners.map((p) => p[1])).filter((y) => y > b.y + b.d / 2);
+    expect(Math.min(...streetYs)).toBeLessThan(b.y + b.d - 0.1);
+    expect(Math.max(...streetYs)).toBeLessThanOrEqual(b.y + b.d + 1e-3);
+  });
+  it('the scene grows the organic masses beside the pipeline\'s boxes', () => {
+    const m = { kind: 'city', ...inferCity({ seed: 3, grammar: 'xeno-garden' }).recipe };
+    const s = assembleCityScene(m);
+    expect(s.faces.filter((f) => f.card).length).toBeGreaterThan(500);
   });
 });

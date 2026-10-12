@@ -62,8 +62,9 @@ export function readFacade(f, at) {
   return f;
 }
 
-/** The mass shapes a lot may stand as; a grammar's `shapes` weighs them (towers keep their own). */
-export const MASS_SHAPES = Object.freeze(['box', 'setback', 'podium', 'cylinder']);
+/** The mass shapes a lot may stand as; a grammar's `shapes` weighs them (towers keep their own). The legacy city's
+ *  pipeline draws the first four; the organic two (undulate, spindle) are organic.js's. */
+export const MASS_SHAPES = Object.freeze(['box', 'setback', 'podium', 'cylinder', 'undulate', 'spindle']);
 
 /**
  * One lot's skin, in the legacy city's skin shape (city units where it measures), and the shape its mass stands as.
@@ -87,6 +88,8 @@ export function skinLot(lot, G, seed) {
   if (skin.material !== 'brick') skin.fireEscape = false;
   // the mass's shape: a tower its own; a lot by its grammar's weights, a slender one only where it is tall enough
   let shape = lot.tower ? lot.shape : 'box';
+  // a grammar may raise its towers as spindles (rolled only when it says so: an Earth grammar's dice are untouched)
+  if (lot.tower && G.tower.spindle && r() < G.tower.spindle) shape = 'spindle';
   if (!lot.tower && G.shapes && lot.floors >= (G.shapes.minFloors ?? 6)) {
     const w = MASS_SHAPES.map((s) => G.shapes[s] ?? 0), tot = w.reduce((a, b) => a + b, 0);
     if (tot > 0) { let u = r() * tot; shape = MASS_SHAPES[w.findIndex((x) => (u -= x) < 0)] ?? 'box'; }

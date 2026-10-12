@@ -74,8 +74,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `neon-sprawl` (cyberpunk, from tokyo): dark glass, neon blades and signs, slender towers, maglev.
   - `xeno-garden` (alien, from mediterranean): ceramic skins, round masses, guideways.
 
-  Organic masses and vehicles on the guideways are not in the vocabulary yet, and the labels say what each
-  reaches for.
+  Vehicles on the guideways are not in the vocabulary yet.
+- **Organic masses** (`city/plan/organic.js`): the shapes a box cannot stand as, built from facade-carded strips
+  so the windows follow the curve, as the legacy cylinder is.
+  - `undulate` (Casa Milà's register): street walls ripple inward in a slow wave, never past the lot line, so
+    party walls stay straight. The roofline swells and dips, and the roof is crowned with sculpted chimneys.
+  - `spindle` (a Sagrada Família spire's): a revolved tower that swells and tapers to a finial, its windows on
+    bands of floors. A grammar may raise its towers as spindles (`tower.spindle`), rolled only when it says so.
+  - Both are mass `shapes` a grammar weighs. The xeno garden now ripples and spires.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

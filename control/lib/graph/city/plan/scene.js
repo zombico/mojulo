@@ -15,6 +15,7 @@ import { skinLot } from './facades.js';
 import { strHash } from './dice.js';
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
+import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 
 const U = CITY_METERS_PER_UNIT;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -132,7 +133,10 @@ export function assembleCityScene(manifest, ctx = {}) {
     for (const s of d.sites) if (s.mass) faces.push(...box(s.mass.x0, s.mass.y0, s.mass.x1, s.mass.y1, 0, s.mass.h, CITY_GROUND[s.use] || CITY_GROUND.civic, CITY_GROUND.plaza, `city:${s.use}`));
     scene = { title: sheetTitle, faces: faces.map(toUnits), cameras, viewBox: { width: 1280, height: 720 } };
   } else {
-    scene = assembleBoxCityScene({ boxes: cityBoxes(d), faces: ground.map(toUnits), cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle });
+    // the organic masses are built here (organic.js); every other the legacy pipeline draws
+    const boxes = cityBoxes(d), organic = boxes.filter((b) => ORGANIC_SHAPES.includes(b.shape));
+    const grown = organic.flatMap((b) => organicFaces(b));
+    scene = assembleBoxCityScene({ boxes: boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape)), faces: [...ground.map(toUnits), ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle });
   }
   return {
     ...scene,

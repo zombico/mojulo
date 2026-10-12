@@ -32,7 +32,7 @@ export const GRAMMAR_SCHEMA = Object.freeze({
   street: { minor: lane, major: lane },
   lot: { front: range(3, 40), wide: range(6, 80), wideP: prob, depth: range(6, 60), court: num(4, 80) },
   height: { core: num(3, 600), edge: num(3, 300), sigmaCore: num(0, 1.5), sigmaEdge: num(0, 1.5), lambda: range(50, 3000), lambdaFrac: num(0.05, 1), slender: num(2, 20), cap: num(3, 900) },
-  tower: { p: prob, second: prob, secondAt: prob, h: range(20, 900), slender: range(2, 20), base: range(8, 120), shapes: (v) => (Array.isArray(v) && v.length === 3 && v.every((x, i) => typeof x === 'number' && x >= (i ? v[i - 1] : 0) && x <= 1) ? null : '[setback, box, podium] cumulative odds, the rest cylinder') },
+  tower: { p: prob, second: prob, secondAt: prob, h: range(20, 900), slender: range(2, 20), base: range(8, 120), spindle: prob, shapes: (v) => (Array.isArray(v) && v.length === 3 && v.every((x, i) => typeof x === 'number' && x >= (i ? v[i - 1] : 0) && x <= 1) ? null : '[setback, box, podium] cumulative odds, the rest cylinder') },
   floorH: { residential: num(2.4, 8), office: num(2.8, 8) },
   skin: { mix: { glass: mixRow, stone: mixRow, brick: mixRow }, glass: pairs, stone: pairs, brick: pairs, roof: hexes, stoneRhythm: words(['curtain', 'grid', 'banded', 'pier', 'punched']), district: num(50, 1000), tilt: num(1, 10), brickMax: num(3, 300), towerGlass: prob },
   // the legacy flavour's affectation words (city-flavors.js), in its units
@@ -46,7 +46,7 @@ export const GRAMMAR_SCHEMA = Object.freeze({
     roof: { form: word(['mansard', 'hip']), p: prob, maxFloors: int(1, 60), on: words(['glass', 'stone', 'brick']), rise: num(0.2, 4), tints: hexes, chimneys: (v) => (typeof v === 'boolean' ? null : 'true or false') },
   },
   wear: 'facade',
-  shapes: { box: num(0, 10), setback: num(0, 10), podium: num(0, 10), cylinder: num(0, 10), minFloors: int(1, 100) },
+  shapes: { box: num(0, 10), setback: num(0, 10), podium: num(0, 10), cylinder: num(0, 10), undulate: num(0, 10), spindle: num(0, 10), minFloors: int(1, 100) },
   transit: { modes: words(TRANSIT_MODES), stop: num(50, 2000), reach: num(50, 3000) },
   walk: { crossing: num(40, 600), beat: num(20, 400), speed: num(0.5, 10) },
 });
@@ -97,7 +97,8 @@ export const WORLD_GRAMMAR_DOCS = Object.freeze({
     transit: { modes: ['maglev', 'bus'] },
   },
   'xeno-garden': {
-    from: 'mediterranean', label: 'Xeno garden (alien, reaching for Gaudí: round masses, ceramic skins, guideways)', locale: 'off-world', climate: 'alien',
+    // organic masses (organic.js) carry it: rippling walls and roofs with sculpted chimneys, spires that swell and taper
+    from: 'mediterranean', label: 'Xeno garden (alien modernista: rippling walls, spindle spires)', locale: 'off-world', climate: 'alien',
     skin: {
       mix: { glass: [0.1, 0.5, 0], stone: [1, 0, 0], brick: [0, 0, 0] },
       stone: [['#1f4a4c', '#e3c9a0'], ['#2c3f5a', '#d98f6b'], ['#3d2f4f', '#f0e6d2'], ['#244f3a', '#c9b46a'], ['#4a2f2a', '#8fc7c0'], ['#2a3b4a', '#e8a8a0']],
@@ -112,8 +113,8 @@ export const WORLD_GRAMMAR_DOCS = Object.freeze({
     },
     wear: { crown: 'none' },
     height: { core: 42, edge: 14, sigmaCore: 0.5, sigmaEdge: 0.35, cap: 140 },
-    tower: { p: 0.5, h: [60, 140], slender: [3, 5], shapes: [0.05, 0.1, 0.25] },
-    shapes: { box: 1.2, setback: 1.5, podium: 1, cylinder: 4, minFloors: 3 },
+    tower: { p: 0.6, h: [60, 140], slender: [3, 5], shapes: [0.05, 0.1, 0.25], spindle: 0.75 },
+    shapes: { box: 0.6, setback: 0.4, podium: 0.3, cylinder: 1.2, undulate: 4, spindle: 0.6, minFloors: 3 },
     lot: { front: [9, 20], wide: [22, 40], wideP: 0.3 },
     transit: { modes: ['maglev', 'tram'] },
   },
