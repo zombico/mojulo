@@ -21,11 +21,12 @@
 import { readGameworld, resolveLevel } from './world.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene } from '../era/stage.js';
-import { playerWorld } from '../playscape/player.js';
+import { playerWorld, playerStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
-import { sceneFlags } from '../playscape/ui/scenes.js';
+import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
+import { storyScene, levelQuests } from './story.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -90,7 +91,7 @@ function readEnds(manifest) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null } = {}) {
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
@@ -144,27 +145,49 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   }
   // SCENES (the level's, playscape/ui/scenes.js): the ones this stage plays, its places as spots to frame and walk to,
   // and the story slice carried when the world's scenes use flags
-  const scenes = (G.scenes?.[stage.level] ?? []).filter((s) => (s.stage ?? (stage.index === 0 ? stage.node : null)) === stage.node).map(({ stage: _, ...s }) => s);
+  const scenes = [...(G.scenes?.[stage.level] ?? []).filter((s) => (s.stage ?? (stage.index === 0 ? stage.node : null)) === stage.node).map(({ stage: _, ...s }) => s), ...(story?.scenes ?? [])];
+  // THE STORY's people in this stage (story.js bindStory): each a made cast figure standing at its place, after the
+  // pilot (entities[0] stays the pilot)
+  if (story?.cast?.length) {
+    const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
+    for (const c of story.cast) {
+      if (!c.ref) continue;
+      figures[c.id] = { heroRef: c.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+      entities.push({ id: c.id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: c.id }, transform: { pos: c.at, heading: c.heading } });
+    }
+    pilotPart = { ...pilotPart, figures, entities };
+  }
   let play = mechanics?.play ?? null;
+  // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
+  if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
   if (scenes.length) {
-    const at = (p) => (lane ? onLane({ at: p }, lane).at : p);
-    const named = (kind) => ends.beats.filter((b) => b.beat === kind).map((b, i) => ({ id: i ? `${kind}-${i + 1}` : kind, at: at(b.at) }));
-    const spots = [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark')];
-    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}) };
+    const spots = stageSpots(ends, lane);
+    // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
+    const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
+    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}) };
   }
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
 
+/** A stage's places by name: its start (the spawn), its exit, its pockets and landmarks in trail order (pocket,
+ * pocket-2…), each on the lane when the stage is run side on. */
+export function stageSpots(ends, lane = null) {
+  const at = (p) => (lane ? onLane({ at: p }, lane).at : p);
+  const named = (kind) => ends.beats.filter((b) => b.beat === kind).map((b, i) => ({ id: i ? `${kind}-${i + 1}` : kind, at: at(b.at) }));
+  return [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark')];
+}
+
 /** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */
 export const STORY_SLICE = 'story';
-export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0);
+export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0)
+  || sceneFlags({ scenes: (G.story ?? []).map((m) => storyScene(m)) }).length > 0 || !!G.quests?.length;
 
 /**
  * A side-scroller's lane on a stage: the trail's own spine, one point a metre on the ground plane, the way the trail
  * runs (spawn to exit), and the ground under it. A climb has no spine to run, so a side camera refuses it by name.
  */
-function stageLane(stage) {
+export function stageLane(stage) {
   if (stage.manifest.trail === undefined) throw new Error(`levels: a side camera runs a trail's lane, and the stage '${stage.level}/${stage.node}' is a climb with no trail to run; play this world top-down or third-person, or leave the climb out`);
   const { site } = outTrailOf(stage.manifest), line = [];
   for (let y = 0; y <= site.D + 1e-9; y += 1) line.push([r3(site.trailX(y)), r3(y)]);

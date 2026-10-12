@@ -46,6 +46,10 @@ export function reviewParts(world) {
   parts.push({ id: 'civilizations', name: 'Civilizations', content: G.civilizations });
   parts.push({ id: 'key', name: 'Color key', content: kits });
   for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town } });
+  // the cast and the story (story.js), reviewed as the world's other pages; a world without them has neither part
+  if (G.characters?.cast) parts.push({ id: 'cast', name: 'The cast', content: G.characters.cast });
+  if (G.story) parts.push({ id: 'story', name: 'The story', content: G.story });
+  if (G.quests) parts.push({ id: 'quests', name: 'The quests', content: G.quests });
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 

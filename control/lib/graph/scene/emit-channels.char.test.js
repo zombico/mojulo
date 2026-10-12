@@ -114,6 +114,9 @@ import { emitThreeWorld } from './scene-three.js';
 // only by a scene; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
 // Re-pinned 2026-10-11 (scene conditions): the `shot` rule frames places (`at`) as well as characters, reached only by
 // a scene; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (story cascade): the `shot` rule keeps the camera's side of the line and searches for a clear
+// view as it cuts, the cast's shot op resets both; reached only by a scene. With the engine source set aside, all 64
+// fixtures are unchanged; the trace pins hold. Same 13.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

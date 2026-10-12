@@ -17,9 +17,13 @@
  * the level's `game.on` maps it to a `setFlag`, and the store opens the gate that waits on it. Godot runs the cues on its
  * bus (kernel/bus.gd; scene/bus-abi.js says what it feeds and draws) and carries the store (kernel/store.gd): flag gates
  * and chapters travel. Quests, shots, banter and passage stay web-only until they are built.
+ *
+ * Built 10-12 (the story cascade's step 3): choices (a scene's `choose` beat sets flags and branches) and quests
+ * (playscape/ui/quests.js: ordered steps done by flags, a journal, a word as one moves on; gameworld `quests` gate the
+ * story's moments step by step, so the giver is a moment's cast member). Web only.
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
-const MENUS = 'lib/graph/playscape/ui/menus.js';
+const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
 const SCENES = 'lib/graph/playscape/ui/scenes.js';
 const WEB = { godot: false };
 // one change per package: quests (steps bound to a giver), the 3D shot
@@ -59,8 +63,8 @@ export const TIME = Object.freeze({
       values: {
         none: { status: 'built' },
         cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd): zones, use, menus, the cast and the stats in; the HUD, menus, the cast and a forced sky out' },
-        steps: { ...QUESTS, status: 'local', lowers: 'lib/graph/worlds/controllable/tutorial.js', note: 'the tutorial director orders steps, but its facts are arena maneuvers; playscape cues have no order' },
-        quests: { ...QUESTS, requires: ['mind.social=talk'], lowers: MENUS, note: 'a giver (a talk menu), a log (a list menu) and a reward (cue effects) exist apart; nothing binds them to a character' },
+        steps: { ...QUESTS, status: 'built', lowers: QUEST_LOG, note: 'a quest\'s steps in order, each done by a flag; the story\'s moments wait step by step (gameworld quests)' },
+        quests: { ...QUESTS, status: 'built', requires: ['mind.social=talk'], lowers: QUEST_LOG, note: 'a giver (a moment\'s cast member; the player\'s answer begins it), a journal (J) and a word as it moves on; a reward is a cue on its flag' },
       },
     },
     // built 10-11 (the scene layer): playscape/ui/scenes.js plays a level's scenes, the camera's `shot` rule directs, the

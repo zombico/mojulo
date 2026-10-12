@@ -45,7 +45,7 @@ export const MIND = Object.freeze({
     social: {
       values: {
         none: { status: 'built' },
-        talk: { status: 'partial', effort: 'M', lowers: 'lib/graph/era/floormap.js', note: 'a talk hotspot verb; no dialogue' },
+        talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: false, note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
         schedule: { status: 'absent', effort: 'L', note: 'no daily routines' },
       },
     },

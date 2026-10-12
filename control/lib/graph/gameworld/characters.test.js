@@ -24,7 +24,7 @@ describe('the character book', () => {
     const bad = (c, re) => expect(() => readGameworld(W(c))).toThrow(re);
     const d = { tradition: 'anime' };
     bad({ direction: d, villain: {} }, /'villain' is not part of the character book/);
-    bad({ direction: d, cast: [{}] }, /the other characters are left open/);
+    bad({ direction: d, cast: [{}] }, /cast is \{ <id>: \{ name/);
     bad({ direction: { ...d, mood: 'grim' } }, /direction.mood is not part of the direction/);
     bad({ direction: { ...d, from: 'film' } }, /direction.from 'film'/);
     bad({ direction: { ...d, palette: ['red'] } }, /palette is a list of colours/);

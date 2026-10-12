@@ -26,10 +26,11 @@
 import { fingerprint } from './review.js';
 import { readGameworld } from './world.js';
 import { resolveBook, characterReady } from './character-review.js';
-import { heroOrders } from './hero-looks.js';
+import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, mapPlan } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
+import { bindStory } from './story.js';
 import { goalMechanics, quickStore } from './quick.js';
 
 const REF_MAX = 64;
@@ -60,6 +61,11 @@ export function runSteps(world, { ref, lookup } = {}) {
     const spec = { ...Q.spec, ...(hero.motion ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}) };
     steps.push({ key: 'hero-equipped', ref: childRef(ref, 'hero-equipped'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...hero.mint, title: `${hero.mint.title} · equipped`, spec }, spec }, print: fingerprint({ spec, toon: hero.mint.toon ?? null }) });
   }
+  // the cast: each made after the hero, as the hero is (a hero-door base, then its motion); it waits on nothing
+  for (const id of Object.keys(G.characters?.cast ?? {})) {
+    const C = castOrders(G, id), order = { spec: C.mint.args.spec, mint: C.mint.args, motion: C.motion?.args.patch ?? null };
+    steps.push({ key: `cast-${id}`, ref: childRef(ref, `cast-${id}`), ready: true, order, print: fingerprint({ spec: order.spec, motion: order.motion, toon: order.mint.toon ?? null }) });
+  }
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
   if (MO) steps.push({ key: 'systems', ref: childRef(ref, 'systems'), ready: ready.systems.ready, ...waits(ready.systems), order: MO.args, print: fingerprint(MO.args) });
   const EO = equipmentOrders(G, ready.equipment);
@@ -72,8 +78,16 @@ export function runSteps(world, { ref, lookup } = {}) {
   const pilot = steps.some((s) => s.key === 'hero-equipped') ? childRef(ref, 'hero-equipped') : heroRef;
   const stages = gameStages(world), levelRefs = stages.map((s) => childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
+  // the story bound to the stages as laid: each stage its moments and people (none: nothing passed, nothing changes)
+  const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
+  const told = G.story ? bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane } }) : null;
+  // where a scene's has and done read: the store's inventories, its campaign, each level by its last stage's ref
+  const store = gameStore(world, B), last = {};
+  stages.forEach((s, i) => { last[s.level] = levelRefs[i]; });
+  const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   stages.forEach((s, i) => {
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, ...(map ? { map: map[i] } : {}) });
+    const st = told?.byStage[`${s.level}/${s.node}`];
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
   });
   if (stages.length) {
@@ -81,6 +95,17 @@ export function runSteps(world, { ref, lookup } = {}) {
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
+}
+
+/** The story bound to the world as it lays now: { bound: [{ id, level, node, place? }], unplaced: [{ id, why }],
+ * unset? (with quests: the steps whose flag nothing in the story sets) }, or null when the world has no story and no
+ * quests. What design_game and the bible report. */
+export function storyReport(world, { ref = 'gw' } = {}) {
+  const G = readGameworld(world);
+  if (!G.story && !G.quests) return null;
+  const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
+  const { bound, unplaced, unset } = bindStory(G, gameStages(world), { castRefs, layout: { stageEnds, stageSpots, stageLane } });
+  return { bound, unplaced, ...(unset ? { unset } : {}) };
 }
 
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the

@@ -197,7 +197,8 @@ export function buildRulesBasic(E) {
   // `shot`) and hands it back (`unshot`). It frames the entities `on`, and the places `at` (points), by a word, `frame`:
   // wide | low | profile | corner | overhead | two | close (FRAMES: room round the subjects in metres, height over the
   // look point, yaw off the facing in quarter turns), or over (the first seen past the second's shoulder). The facing is
-  // across the line of two subjects (`side` ±1 picks the side), else in front of the one; a lone place is the pilot's
+  // across the line of two subjects (`side` ±1 picks the side; else the side the camera stands on as it cuts), else in
+  // front of the one; a lone place is the pilot's
   // view of it, from just behind and above them. The distance opens until the spread and the room fill a `fov`
   // (degrees, 50), and the camera never goes under the ground. `move`: hold (stands where it cut, turning with them),
   // track (keeps its place beside them), push (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new
@@ -230,7 +231,15 @@ export function buildRulesBasic(E) {
       e.lookAt = [A[0], A[1], A[2] + lh];
       return;
     }
-    const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide, side = r.side ?? 1;
+    const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide;
+    // the side of the line: the one asked, else (as a cut is made) the one nearer where the camera stands, so a cut
+    // keeps the player's side of the action; kept for the shot
+    if (r.side == null && e._shotSide == null && subs.length >= 2) {
+      const a = subs[0].transform.pos, b = subs[1].transform.pos, u = Math.atan2(b[1] - a[1], b[0] - a[0]) - HALF_PI;
+      const toCam = (e.transform.pos[0] - cx) * Math.cos(u) + (e.transform.pos[1] - cy) * Math.sin(u);
+      e._shotSide = toCam >= 0 ? 1 : -1;
+    }
+    const side = r.side ?? e._shotSide ?? 1;
     let face;
     if (subs.length >= 2) { const a = subs[0].transform.pos, b = subs[1].transform.pos; face = Math.atan2(b[1] - a[1], b[0] - a[0]) - HALF_PI * side; }
     else if (subs[0].place) {
@@ -252,10 +261,23 @@ export function buildRulesBasic(E) {
     if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
     let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));
     if (r.move === 'push') dist *= 1 + 0.35 * (1 - Math.min(1, e._shotT / (r.for ?? 3)));
-    const f = fwdXY(yaw);
-    const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise];
-    // never under the ground: a framing that lands in a hillside is lifted onto it
-    if (world.ground) { const g = world.ground([at[0], at[1], 1e4]); if (g != null && at[2] < g + 0.8) at[2] = g + 0.8; }
+    const place = (y, lift) => {
+      const f = fwdXY(y);
+      const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise + lift];
+      // never under the ground: a framing that lands in a hillside is lifted onto it
+      if (world.ground) { const g = world.ground([at[0], at[1], 1e4]); if (g != null && at[2] < g + 0.8) at[2] = g + 0.8; }
+      return at;
+    };
+    // a CLEAR view: as the shot cuts, the ground (rocks, a bank) sampled along the line to the subjects must stay under
+    // it; else the next of a few places round the framing, a little aside and then higher, kept for the shot
+    if (e._shotTry == null) {
+      e._shotTry = [0, 0];
+      if (world.ground) {
+        const clear = (at) => { for (let k = 1; k < 8; k++) { const u = k / 8, x = at[0] + (cx - at[0]) * u, y = at[1] + (cy - at[1]) * u, z = at[2] + (cz - at[2]) * u, g = world.ground([x, y, 1e4]); if (g != null && g > z - 0.3) return false; } return true; };
+        search: for (const lift of [0, 1.5, 3.5]) for (const dy of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) if (clear(place(yaw + dy, lift))) { e._shotTry = [dy, lift]; break search; }
+      }
+    }
+    const at = place(yaw + e._shotTry[0], e._shotTry[1]);
     if (!e._shotAt || (r.move && r.move !== 'hold')) e._shotAt = at;
     if (e._shotCut) { e.transform.pos = e._shotAt.slice(); e._shotCut = false; }
     else e.transform.pos = add(e.transform.pos, scl(sub(e._shotAt, e.transform.pos), smooth(r.lerp ?? 3, dt)));

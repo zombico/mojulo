@@ -6,6 +6,7 @@ import { readScenes, sceneProgram, sceneContract, SHOT_FRAMES } from './scenes.j
 import { buildSceneRunner } from './scene-runner.js';
 import { sceneScript } from '../../scene/channels/scene-channel.js';
 import { eventsChannelScript } from '../../scene/channels/events.js';
+import { gameChannelScript } from '../../scene/channels/game.js';
 
 const CW = composeLive(), R = buildSceneRunner();
 const DT = 1 / 30;
@@ -216,12 +217,133 @@ describe('conditions and flags', () => {
     expect(sceneContract(game, { scenes: play.scenes })).toBe(game);   // no carry: the same object
   });
 
+  it('has and done: carried in from the store, or an item picked up here', () => {
+    const scenes = [quick('rich', { if: { has: 'rune' } }), quick('vet', { if: { done: 'cave' } })];
+    const from = { carryFrom: { items: ['bag'], campaign: 'campaign', levels: { cave: 'gw-level-cave-0' } } };
+    const L = level(scenes, [], from);
+    L.begin();
+    ring(L);
+    expect([L.fired('scene-end:rich'), L.fired('scene-end:vet')]).toEqual([0, 0]);
+    processEvents(L.bus, [{ type: 'pickup:rune' }]); ring(L);
+    expect(L.fired('scene-end:rich')).toBe(1);
+    processEvents(L.bus, [{ type: 'done-carried:cave' }]); ring(L);
+    expect(L.fired('scene-end:vet')).toBe(1);
+    // the contract: the slices the conditions read, consumed, and what the game channel pushes from them
+    const g = sceneContract({ levelRef: 'l', produces: { events: [] } }, { scenes, ...from });
+    expect(g.flags).toEqual({ names: [], items: { slices: ['bag'], names: ['rune'] }, done: { slice: 'campaign', levels: { cave: 'gw-level-cave-0' } } });
+    expect(g.consumes).toEqual([{ slice: 'bag' }, { slice: 'campaign' }]);
+    expect(g.on).toBeUndefined();
+    // the page pushes them: an item held in a carried inventory, a level the campaign records
+    const gameJs = gameChannelScript({ ...g, levelRef: 'l' });
+    expect(gameJs).toContain("'has-carried:' + n");
+    expect(gameJs).toContain("'done-carried:' + k");
+    expect(gameChannelScript({ levelRef: 'l', produces: { events: [] } })).not.toContain('flags-ready');
+  });
+
   it('teaches a bad condition', () => {
     const bad = (cond) => () => readScenes({ scenes: [{ id: 's', when: { start: true }, if: cond, beats: [{ wait: 1 }] }] });
     expect(bad({ flag: 'Met Mayor' })).toThrow(/a lowercase name/);
     expect(bad({ var: 'coins' })).toThrow(/one of gte, gt/);
-    expect(bad({ has: 'rune' })).toThrow(/\{ flag \} \| \{ not \}/);
+    expect(bad({ owns: 'rune' })).toThrow(/\{ flag \} \| \{ not \} \| \{ has \} \| \{ done \}/);
+    expect(bad({ has: 'Rune Stone' })).toThrow(/is \{ has: '<item>' \}/);
     expect(() => readScenes({ scenes: [{ id: 's', when: { start: true }, sets: 'met', beats: [{ wait: 1 }] }] })).toThrow(/sets is a list of flags/);
+  });
+});
+
+describe('choices', () => {
+  // the mayor asks; the answer sets a flag and plays its own beats; the scene goes on after either
+  const JOB = {
+    id: 'job', when: { on: 'ring' }, names: { mayor: 'Mayor Ilse' },
+    beats: [
+      { line: { who: 'mayor', say: 'Will you clear the cave?' } },
+      { choose: { options: [
+        { say: 'I will.', sets: ['took-job'], beats: [{ do: { emit: 'yes-said' } }, { line: { who: 'mayor', say: 'Thank you.' } }] },
+        { say: 'Not today.', sets: ['said-no'] },
+        {},
+      ] } },
+      { do: { emit: 'after' } },
+      { line: { who: 'mayor', say: 'Safe roads.' } },
+    ],
+  };
+  const ring = (L) => { processEvents(L.bus, [{ type: 'ring' }]); L.tick(); };
+  const press = (L, ctl) => { L.tick(ctl); };
+
+  it('reads and lowers: the options inline, each ending past the rest; placeholders for unsaid answers', () => {
+    const [P] = sceneProgram({ scenes: [JOB] });
+    const ch = P.beats.find((b) => b.kind === 'choose');
+    expect(ch.options.map((o) => o.text)).toEqual(['I will.', 'Not today.', '[Choice 3]']);
+    expect(ch.options[0].fire).toEqual(['flag:took-job']);
+    const jumps = P.beats.filter((b) => b.kind === 'jump');
+    expect(jumps).toHaveLength(3);
+    expect(new Set(jumps.map((j) => j.to)).size).toBe(1);
+    expect(P.beats[jumps[0].to]).toEqual({ kind: 'fire', event: 'scene:job:2' });
+    expect(P.beats.find((b) => b.event === 'scene:job:1-0-0')).toBeTruthy();   // a beat in an option, keyed by its path
+  });
+
+  it('the answer sets its flag at once and plays its beats; the scene goes on', () => {
+    const L = level([JOB]);
+    L.begin(); ring(L);
+    L.until(() => !!L.view().line && L.view().line.full, 200);
+    press(L, { next: true });
+    expect(L.view().choice).toEqual({ options: ['I will.', 'Not today.', '[Choice 3]'], sel: 0 });
+    expect(L.view().line.text).toBe('Will you clear the cave?');   // the question stays
+    press(L, { move: 1 }); press(L, { move: 1 }); press(L, { move: 1 });
+    expect(L.view().choice.sel).toBe(0);   // round
+    press(L, { pick: 0 });
+    expect(L.bus.vars['flag-took-job']).toBe(1);
+    expect(L.fired('yes-said')).toBe(1);
+    expect(L.view().line.text.length).toBeLessThan('Thank you.'.length + 1);
+    L.until(() => L.view().line && L.view().line.text === 'Thank you.', 200);
+    press(L, { next: true });
+    expect(L.fired('after')).toBe(1);
+    expect(L.bus.vars['flag-said-no']).toBe(0);
+  });
+
+  it('the other answer skips the first\'s beats', () => {
+    const L = level([JOB]);
+    L.begin(); ring(L);
+    L.until(() => L.view().line && L.view().line.full, 200); press(L, { next: true });
+    press(L, { move: 1 }); press(L, { next: true });
+    expect(L.bus.vars['flag-said-no']).toBe(1);
+    expect(L.fired('yes-said')).toBe(0);
+    expect(L.fired('after')).toBe(1);
+    expect(L.view().line.text.length).toBeLessThanOrEqual('Safe roads.'.length);
+  });
+
+  it('a skip stops at the choice (the answer is the player\'s); held keys and Esc wait there; after it a skip ends', () => {
+    const L = level([JOB]);
+    L.begin(); ring(L);
+    press(L, { skip: true });
+    expect(L.view().on).toBe(true);
+    expect(L.view().choice).not.toBeNull();
+    for (let i = 0; i < 40; i++) press(L, { held: true, skip: i === 20 });
+    expect(L.view().choice).not.toBeNull();
+    press(L, { pick: 1 });
+    press(L, { skip: true });
+    expect(L.view().on).toBe(false);
+    expect(L.fired('after')).toBe(1);
+    expect(L.fired('scene-end:job')).toBe(1);
+  });
+
+  it('the flags an answer sets are carried, as a scene\'s sets are; and read by a later scene', () => {
+    const play = { scenes: [JOB], carry: 'story' };
+    const g = sceneContract({ consumes: [], produces: { events: [] } }, play);
+    expect(Object.keys(g.on).sort()).toEqual(['flag:said-no', 'flag:took-job']);
+    const L = level([JOB, { id: 'thanks', when: { on: 'ring' }, if: { flag: 'took-job' }, beats: [{ wait: 0.1 }] }]);
+    L.begin(); ring(L);
+    L.until(() => L.view().line && L.view().line.full, 200); press(L, { next: true }); press(L, { pick: 0 });
+    L.until(() => !L.view().on, 400, { next: true });
+    ring(L); L.until(() => false, 10);
+    expect(L.fired('scene-end:thanks')).toBe(1);
+  });
+
+  it('teaches a bad choice', () => {
+    const bad = (choose) => () => readScenes({ scenes: [{ id: 'a', when: { start: true }, beats: [{ choose }] }] });
+    expect(bad({ options: [{}] })).toThrow(/options is 2 to 4 answers/);
+    expect(bad({ options: [{}, { go: 1 }] })).toThrow(/options\[1\]\.go is not part of an option/);
+    expect(bad({ say: 'Well?', options: [{}, {}] })).toThrow(/choose\.who is who asks/);
+    expect(bad({ options: [{ sets: ['Bad'] }, {}] })).toThrow(/sets is a list of flags/);
+    expect(bad({ options: [{ beats: [{ wait: 0 }] }, {}] })).toThrow(/options\[0\]\.beats\[0\]\.wait is seconds/);
   });
 });
 
@@ -261,6 +383,33 @@ describe('the shot camera', () => {
     expect(Math.hypot(c[0] - h[0], c[1] - h[1])).toBeLessThan(Math.hypot(c[0] - 2, c[1] + 4) + 1);
   });
 
+  it('a two-shot keeps the side of the line the camera was on (the player\'s side of the action)', () => {
+    const sideOf = (w) => { const a = w.byId.hero.transform.pos, b = w.byId.mayor.transform.pos, c = w.camera.transform.pos; return Math.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])); };
+    for (const start of [[0, 8, 3], [6, -10, 3]]) {
+      const w = CW.createWorld({ entities: ENTITIES.map((e) => JSON.parse(JSON.stringify(e))), camera: { rule: 'follow', target: 'hero' } });
+      w.camera.transform.pos = start.slice();
+      const before = sideOf(w);
+      CW.castOps(w, [{ op: 'shot', shot: { frame: 'two', on: ['mayor', 'hero'] } }]);
+      CW.stepWorld(w, {}, DT);
+      expect(sideOf(w)).toBe(before);
+    }
+  });
+
+  it('a shot finds a clear view: a wall between the framing and its subject moves the camera round it', () => {
+    // a 5 m wall, 3 wide, between the mayor (facing -x) and where a wide shot of her would stand
+    const wall = (p) => (p[0] > 3 && p[0] < 5 && Math.abs(p[1]) < 1.5 ? 5 : 0);
+    const shoot2 = (ground) => {
+      const w = CW.createWorld({ entities: ENTITIES.map((e) => JSON.parse(JSON.stringify(e))), camera: { rule: 'follow', target: 'hero' } });
+      CW.castOps(w, [{ op: 'shot', shot: { frame: 'wide', on: ['mayor'] } }]);
+      CW.stepWorld(w, {}, DT, { ground });
+      return w.camera.transform.pos;
+    };
+    const open = shoot2(() => 0), walled = shoot2(wall);
+    const blocked = (c) => { const m = [6, 0, 1.4]; for (let k = 1; k < 8; k++) { const u = k / 8, x = c[0] + (m[0] - c[0]) * u, y = c[1] + (m[1] - c[1]) * u, z = c[2] + (m[2] - c[2]) * u; if (wall([x, y]) > z - 0.3) return true; } return false; };
+    expect(blocked(open)).toBe(true);     // the framing it would take with no wall is behind it
+    expect(blocked(walled)).toBe(false);  // with the wall, it stands where it sees her
+  });
+
   it('over the shoulder: the speaker in view, the camera behind the listener', () => {
     const w = shoot({ frame: 'over', on: ['mayor', 'hero'] });
     const c = w.camera.transform.pos, m = w.byId.mayor.transform.pos, h = w.byId.hero.transform.pos;
@@ -285,7 +434,8 @@ describe('the shot camera', () => {
 
 describe('the page', () => {
   it('steps the runner with the bus vars, so conditions read the level (and what was carried in)', () => {
-    expect(sceneScript()).toMatch(/__SCN\.step\(__scn, dtSec, \{[^}]*vars: __busState\.vars \}\)/);
+    expect(sceneScript()).toMatch(/__SCN\.step\(__scn, dtSec, \{[^}]*vars: __busState\.vars,/);
+    expect(() => new Function(sceneScript())).not.toThrow();   // the page script parses
   });
   it('carries the scene runtime only when the events have scenes', () => {
     const ev = lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [ARRIVAL] } }, { player: 'hero' });

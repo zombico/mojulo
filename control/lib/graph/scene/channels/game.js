@@ -140,8 +140,12 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
 ` : ''}${game.flags ? `  // FLAGS carried in (playscape/ui/scenes.js): each held flag reaches the bus on its first frame, then flags-ready, which
   // a scene on the level's start waits for, so its conditions read what was carried in (deferred, as chapters are).
   st.onStart.push(function (params) {
-    const s = params && params[__GAME.flags.slice], held = (s && s.flags) || {};
+    const s = __GAME.flags.slice && params && params[__GAME.flags.slice], held = (s && s.flags) || {};
     const evs = __GAME.flags.names.filter((n) => held[n]).map((n) => ({ type: 'flag-carried:' + n }));
+    // items held in the carried inventories, and levels the campaign records completed
+    const I = __GAME.flags.items, D = __GAME.flags.done;
+    if (I) for (const n of I.names) if (I.slices.some((sl) => { const v = params && params[sl]; return v && v.items && v.items[n] > 0; })) evs.push({ type: 'has-carried:' + n });
+    if (D) { const c = params && params[D.slice], dn = (c && c.completed) || {}; for (const k in D.levels) if (dn[D.levels[k]]) evs.push({ type: 'done-carried:' + k }); }
     evs.push({ type: 'flags-ready' });
     setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, evs); } catch (e) { console.error('flags carried', e); } }, 0);
   });

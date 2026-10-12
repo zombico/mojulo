@@ -226,6 +226,11 @@ function scenesCard() {
     `  move    ${Object.entries(SHOT_MOVES).map(([k, v]) => `${k} (${v})`).join('; ')}`,
     'The words are a slot: a line without say shows a placeholder, [Mayor: line 1]. Write say when the creator asks.',
     'A scene fires scene-end:<id> as it ends, so a cue can follow on ({ on: \'scene-end:<id>\' }).',
+    'A choice: { choose: { who?, say?, options: [{ say?, sets?: [flag], beats? }] } } (2 to 4). The question stays in the',
+    '  box, the arrows or a number pick, Space takes it; the answer sets its flags at once and plays its beats. A skip',
+    '  stops at a choice: the answer is the player\'s.',
+    'play.quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag }] }]: a journal (J) over the flags; a word at the top',
+    '  shows as a quest begins, a step is done, a quest ends. With play.carry they ride between levels as the flags do.',
     `example: ${JSON.stringify({ scenes: [{ id: 'arrival', when: { start: true }, names: { mayor: 'Mayor Ilse' }, beats: [{ shot: { frame: 'wide', on: ['hero', 'mayor'], move: 'push' }, for: 2 }, { do: { walk: { who: 'mayor', to: 'porch' } } }, { until: { arrive: 'mayor' } }, { banter: { with: ['mayor', 'hero'], lines: [{ who: 'mayor', say: 'You came up the old trail.' }, { who: 'hero' }] } }] }] })}`,
   );
 }
