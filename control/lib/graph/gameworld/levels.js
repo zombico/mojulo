@@ -172,7 +172,7 @@ function groundSampler(faces) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
@@ -186,7 +186,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   if (cam === 'fixed' && !heroRef) throw new Error('levels: fixed cameras watch a hero walk past them; give the world a hero, or play it first-person');
   const look = cam === 'first-person', top = cam === 'top-down', lane = cam === 'side' ? stageLane(stage) : null;
   const moveWords = lane ? 'A / D  run' : top ? 'W A S D  move' : look ? `W / S  ${heroRef ? 'run' : 'walk'} · A / D  step aside · mouse  look` : `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn`;
-  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const controls = `${moveWords}${heroRef ? ' · Space  jump' : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const placed0 = goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }];
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
@@ -241,13 +241,16 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
-  // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), and the play it
-  // brings (its cues). `extra(ends)` → { figures?, entities?, play? }
-  let extraPlay = null;
+  // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
+  // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
+  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? } }
+  let extraPlay = null, blocks = null;
   if (extra) {
-    const X = extra(ends);
-    pilotPart = { ...pilotPart, figures: { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) }, entities: [...pilotPart.entities, ...(X.entities ?? [])] };
+    const X = extra(ends), p0 = pilotPart.entities[0];
+    const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
+    pilotPart = { ...pilotPart, figures: { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) }, entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])] };
     extraPlay = X.play ?? null;
+    blocks = X.blocks?.length ? X.blocks : null;
   }
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -264,7 +267,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   }
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
 

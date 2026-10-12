@@ -157,3 +157,44 @@ describe('aftermath on the page', () => {
     expect(plain).not.toContain('AFTERMATH');
   });
 });
+
+describe('a firefight on the bus: hits cost hp, falls are counted, supplies give', () => {
+  const B = buildBus();
+  const level = (extra = []) => {
+    const c = composeMechanics([{ kind: 'fail-on-death', startHp: 100, hits: 8 }, { kind: 'supplies', max: 100, drops: [{ at: [4, 0, 0], gives: 'health', amount: 30 }, { at: [8, 0, 0], gives: 'ammo', amount: 24 }] }, { kind: 'defeat-all', who: 'foe-*', count: 2 }, ...extra], { player: 'hero' });
+    const s = B.createBusState(c.events, c.events.entities);
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); for (let k = 0; w.length && k < 8; k++) { B.processEvents(s, w); w = B.watchEvents(s); } };
+    return { c, s, pump };
+  };
+  it('each hit on the player takes `hits` hp, on the HUD; at none, the level fails', () => {
+    const { c, s, pump } = level();
+    expect(c.events.hud).toContainEqual({ var: 'hp', label: 'HP' });
+    pump([{ type: 'hit:hero', entity: 'hero' }, { type: 'hit:hero', entity: 'hero' }]);
+    expect(s.vars.hp).toBe(84);
+    expect(() => composeMechanics([{ kind: 'fail-on-death', hits: 0 }, { kind: 'reach-exit', at: [9, 0, 0] }])).toThrow(/hits is the hp/);
+  });
+  it('the falls of the characters it names are counted (no hp-pool): all down, success', () => {
+    const { c, s, pump } = level();
+    expect(c.on['all:defeated']).toEqual({ end: 'success' });
+    pump([{ type: 'down', entity: 'guard-1' }, { type: 'down', entity: 'foe-1' }]);
+    expect(s.vars.__downs_2).toBe(1);
+    pump([{ type: 'down', entity: 'foe-2' }]);
+    expect(s.log.map((r) => r.type)).toContain('all:defeated');
+  });
+  it('health fills hp to its max, once; rounds are the cast\'s rearm on the player, once', () => {
+    const { s, pump } = level();
+    pump([{ type: 'hit:hero', entity: 'hero' }]);
+    pump([{ type: 'enter', zone: 'sp_1_0', entity: 'hero' }]);
+    expect(s.vars.hp).toBe(100);
+    pump([{ type: 'hit:hero', entity: 'hero' }, { type: 'enter', zone: 'sp_1_0', entity: 'hero' }]);
+    expect(s.vars.hp).toBe(92);
+    pump([{ type: 'enter', zone: 'sp_1_1', entity: 'hero' }]);
+    expect(s._ctrlOps.filter((o) => o.op === 'rearm')).toMatchObject([{ op: 'rearm', who: 'hero', by: 24 }]);
+    pump([{ type: 'enter', zone: 'sp_1_1', entity: 'hero' }]);
+    expect(s._ctrlOps.filter((o) => o.op === 'rearm').length).toBe(1);
+    expect(s.log.map((r) => r.type)).toContain('supply:ammo');
+  });
+  it('says what is wrong', () => {
+    expect(() => composeMechanics([{ kind: 'supplies', drops: [{ at: [0, 0, 0], gives: 'armour' }] }, { kind: 'reach-exit', at: [9, 0, 0] }])).toThrow(/gives is one of health, ammo/);
+  });
+});

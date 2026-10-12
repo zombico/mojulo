@@ -9,6 +9,8 @@ import { designGameHandler } from './design-game.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
+import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
+import { stageEnds } from '@/lib/graph/gameworld/levels.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -225,6 +227,51 @@ describe('design_game quick', () => {
     expect(W.byId['foe-1'].downed).toBe(true);
   }, 240_000);
 
+  it('shoot: armed foes hunt you from behind low walls and duck into cover; you shoot them down, rounds and health on the way', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', foes: 2, world: { id: 'gunfight', style: { kit: 'trail-valley' } } }, ref: 's2' });
+    const L = stored('s2-level-run-0');
+    expect(mechanicsOf('s2-level-run-0')).toEqual(['fail-on-death', 'supplies', 'defeat-all']);
+    expect(L.camera).toMatchObject({ rule: 'eye', mouseLook: true });
+    expect(L.entities[0]).toMatchObject({ id: 'player', body: { hittable: true }, weapon: { magazine: 12, reserve: 36 } });
+    expect(L.blocks.filter((b) => b.form === 'wall').length).toBe(4);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('s2-level-run-0'));
+    expect(payload.colliders.filter((c) => c.of.startsWith('block:')).length).toBeGreaterThan(8);
+    expect(payload.entities.filter((e) => e.id.startsWith('dec_sp_')).length).toBe(2);
+    // on the stage's own ground (sight over a low wall is a matter of heights)
+    const land = stageEnds(L).ground, ground = (q) => land(q[0], q[1]) ?? 0;
+    const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders }, { ground }), W = sim.world, P = W.byId[W.pilotId], v = sim.bus.vars;
+    // you come within 15 m of the first foe, somewhere in front of it with a clear line
+    const f1 = W.byId['foe-1'], q0 = f1.transform.pos, E = composeLive();
+    const spot = [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9].map((da) => { const a = f1.transform.heading + da, x = q0[0] + Math.cos(a) * 15, y = q0[1] + Math.sin(a) * 15; return [x, y, ground([x, y]) + 1.7]; })
+      .find((p) => !E.sightBlocked([p[0], p[1], p[2] - 0.4], [q0[0], q0[1], q0[2] + 1.3], payload.colliders));
+    P.transform.pos = spot;
+    // standing in its sight, holding fire: it fires, and you are hit
+    sim.run(4);
+    expect(v.hp).toBeLessThan(100);
+    // you aim and work the trigger: it is hit, breaks for cover, comes back out after you, and goes down
+    let covered = false;
+    for (let n = 0; n < 30 * 12 && !f1.downed; n++) {
+      const q = f1.transform.pos, d = Math.hypot(q[0] - P.transform.pos[0], q[1] - P.transform.pos[1]);
+      P.transform.heading = Math.atan2(q[1] - P.transform.pos[1], q[0] - P.transform.pos[0]);
+      P.transform.pitch = Math.atan2(q[2] + 1.5 - P.transform.pos[2], d);
+      sim.input.fire = n % 2;
+      sim.frame(1 / 30);
+      covered ||= !!f1.coverAt;
+    }
+    sim.frame(1 / 30);   // its fall is the cast's fact, said the frame after
+    expect(covered).toBe(true);
+    expect(f1.downed).toBe(true);
+    expect(v.__downs_2).toBe(1);
+    expect(P.weapon.ammo + P.weapon.reserve).toBeLessThan(48);
+    // the rounds on the way: walking over them, the reserve grows
+    const before = P.weapon.reserve, drop = stored('s2-level-run-0').game.mechanics[1].drops[0];
+    expect(drop.gives).toBe('ammo');
+    sim.input.fire = 0;
+    P.transform.pos = [drop.at[0], drop.at[1], P.transform.pos[2]];
+    sim.run(0.3);
+    expect(P.weapon.reserve).toBe(before + 24);
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);
@@ -238,5 +285,8 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'rhythm', music: 'chapel' })).toThrow(/steady beat/);
     expect(() => readQuick({ goal: 'race', ride: 'tank' })).toThrow(/ride is one of car/);
     expect(() => readQuick({ goal: 'race', ride: 'car', hero: { cast: 'male' } })).toThrow(/the ride is the hero/);
+    expect(() => readQuick({ goal: 'shoot', camera: 'top-down' })).toThrow(/first-person or third-person/);
+    expect(() => readQuick({ goal: 'shoot', foes: 9 })).toThrow(/foes is 1 to 8/);
+    expect(() => readQuick({ goal: 'reach', foes: 2 })).toThrow(/battle and shoot goals/);
   });
 });

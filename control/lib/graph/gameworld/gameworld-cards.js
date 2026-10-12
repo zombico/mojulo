@@ -258,6 +258,7 @@ function quickCard() {
     '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { <hero-door words> }   puzzle: boulders: n (2)',
     '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { <hero-door words> }   (a clock: night falls)',
     '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { <hero-door words> }',
+    '  shoot: foes: n (4), foe: { <hero-door words> }   first person by default (or third-person); walls to take cover behind',
     `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle, driven (W / S / A / D); no hero, climb or building with it`,
     `  hero: { <hero-door words> } the hero's looks, hair, outfit, gear in hand, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
     '                     absent or false: first person, you are the camera',
@@ -322,7 +323,7 @@ function nextCard() {
 
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
-  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid, race, sneak, rhythm, defend, puzzle, farm, battle', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a quick game', quickCard],
+  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid, race, sneak, rhythm, defend, puzzle, farm, battle, shoot', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a quick game', quickCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

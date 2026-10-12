@@ -45,6 +45,7 @@ export const BUS_ABI = Object.freeze({
     phase: { about: 'the play\'s phase (title, playing, …): a part stands in its phases only', web: B, godot: B, how: 'kernel/hud.gd reads the phase var against a row\'s when' },
     weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: B, how: 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)' },
     cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web' },
+    rearm: { about: 'rounds for the weapon in a character\'s hand (the cast\'s rearm: a supply\'s ammo)', web: B, godot: A, how: 'worlds/controllable cast.js rearm into the weapon\'s reserve (combat-ranged.js); kernel/cast.gd has no rearm and Godot\'s weapon no reserve' },
     stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
   }),
 });
@@ -85,7 +86,8 @@ function usedRows(ev) {
     parts: varUsed((v) => v.startsWith('ui-') && !v.startsWith('ui-menu-')),
     phase: varUsed((v) => v === PHASE_VAR),
     weather: varUsed((v) => v.startsWith(`${WEATHER_VAR}:`)),
-    cast: ctrl.some((r) => !STAT_OP.has(r.op)),
+    cast: ctrl.some((r) => !STAT_OP.has(r.op) && r.op !== 'rearm'),
+    rearm: ctrl.some((r) => r.op === 'rearm'),
     stats: ctrl.some((r) => STAT_OP.has(r.op)) || !!ev.stats,
   };
   return [...Object.keys(facts).filter((k) => facts[k]).map((k) => `fact:${k}`), ...Object.keys(effects).filter((k) => effects[k]).map((k) => `effect:${k}`)];

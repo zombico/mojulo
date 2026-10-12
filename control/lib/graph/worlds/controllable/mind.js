@@ -307,9 +307,10 @@ export function buildMind(E) {
   function navTo(e, r, dt, world, goal, speed) {
     if (!(r.mind && r.mind.pathing === 'navmesh') || !world || !world.colliders || !navPath) return false;
     const t = e.transform, eye = r.eye ?? 0;
-    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35 };
+    // `navCell`: the grid's cell (a person among walls wants finer than the default, a metre or its radius)
+    const opts = { radius: r.collideRadius || 0.5, height: r.collideHeight ?? 24, footZ: t.pos[2] - eye, step: r.step ?? 0.35, ...(r.navCell > 0 ? { cell: r.navCell } : {}) };
     if (navClear(world, t.pos, goal, opts)) { e.navPath = null; return false; }
-    const cell = world.navCell || Math.max(1, opts.radius);
+    const cell = opts.cell || world.navCell || Math.max(1, opts.radius);
     e.navT = (e.navT || 0) - dt;
     const moved = !e.navGoal || Math.hypot(goal[0] - e.navGoal[0], goal[1] - e.navGoal[1]) > cell;
     if (!e.navPath || e.navT <= 0 || moved) {
@@ -317,7 +318,9 @@ export function buildMind(E) {
     }
     const path = e.navPath;
     if (!path || !path.length) return false;
-    while (path.length > 1 && Math.hypot(path[0][0] - t.pos[0], path[0][1] - t.pos[1]) < Math.max(1, opts.radius)) path.shift();
+    // a corner is reached within a metre (or its radius); on a finer grid, within most of a cell
+    const reach = opts.cell ? Math.max(opts.radius, opts.cell * 0.6) : Math.max(1, opts.radius);
+    while (path.length > 1 && Math.hypot(path[0][0] - t.pos[0], path[0][1] - t.pos[1]) < reach) path.shift();
     const wp = path[0];
     walkToward(e, r, Math.atan2(wp[1] - t.pos[1], wp[0] - t.pos[0]), dt, world, speed);
     e.aiFire = 0;
@@ -344,6 +347,57 @@ export function buildMind(E) {
     e.lastSeen = { pos: [q[0], q[1], q[2]], t: now, id: target.id };
     if (e.searchT != null && e.locomotion === 'search') e.locomotion = 'forward';
     e.searchT = null;
+    return true;
+  }
+  // takeCover(e, r, dt, world, target) — COVER (opt-in `rule.cover`: true | { radius, hold }). Hurt (a hit in the last
+  // `hold` s, 2.5) or reloading, it breaks for the nearest spot within `radius` (8) that the colliders hide from its
+  // target's eye: its own eye, the top of its head (a wall lower than it is no cover) and its flanks (a shoulder past a
+  // wall's end is no cover), and holds there facing the target, trigger cold; whole again and loaded, it steps back into the
+  // fight (with memory, out after the one it fights: a hit tells it where the fire came from). Cover is taken from the
+  // one it fights whether it sees it or not. A spot that stops hiding it (the target moved round) is dropped for a new
+  // one. Returns true while it owns the body; false with nothing to fear, no colliders or no spot that hides.
+  function takeCover(e, r, dt, world, target) {
+    const cfg = r.cover === true ? {} : r.cover, t = e.transform, now = (world && world.time) || 0;
+    // a hit tells it where the fire came from: its memory of the one it fights is fresh (so, the hold over, a mind with
+    // memory goes back out after it, and sees it)
+    if ((e.hits || 0) > (e.coverHits || 0)) {
+      e.coverHits = e.hits; e.coverUntil = now + (cfg.hold ?? 2.5);
+      e.lastSeen = { pos: target.transform.pos.slice(), t: now, id: target.id };
+    }
+    const fear = (e.weapon && e.weapon.reloading) || (e.coverUntil != null && now < e.coverUntil);
+    if (!fear || !world || !world.colliders) { e.coverAt = null; return false; }
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    const q = target.transform.pos, from = [q[0], q[1], q[2] + eyeH(target)], eye = r.eye ?? 0, up = eyeH(e), top = (r.collideHeight ?? 24) - eye;
+    const flank = (r.collideRadius || 0.5) + 0.2;
+    const hides = (p) => {
+      const dx = p[0] - q[0], dy = p[1] - q[1], dn = Math.hypot(dx, dy) || 1, sx = (-dy / dn) * flank, sy = (dx / dn) * flank;
+      for (const [x, y, z] of [[p[0], p[1], up], [p[0], p[1], top], [p[0] + sx, p[1] + sy, up], [p[0] - sx, p[1] - sy, up]]) {
+        if (!sightBlocked(from, [x, y, p[2] + z], world.colliders)) return false;
+      }
+      return true;
+    };
+    if (!e.coverAt || !hides(e.coverAt)) {
+      e.coverAt = null;
+      const R = cfg.radius ?? 8, rad = (r.collideRadius || 0.5) + 0.35;   // clear of the box, room to stand and to path
+      for (let ring = 1; ring <= 4 && !e.coverAt; ring++) {
+        let best = null, bd = Infinity;
+        for (let k = 0; k < 12; k++) {
+          const a = (k * TAU) / 12 + ring * 0.26, d = (R * ring) / 4, x = t.pos[0] + Math.cos(a) * d, y = t.pos[1] + Math.sin(a) * d;
+          const g = world.ground ? world.ground([x, y, t.pos[2] + 2]) : null, p = [x, y, g != null ? g + eye : t.pos[2]];
+          // not inside a box, and hidden from the target; the nearest to the threat's side wins a tie
+          if (world.colliders.some((c) => x > c.min[0] - rad && x < c.max[0] + rad && y > c.min[1] - rad && y < c.max[1] + rad && c.max[2] > p[2] - eye + 0.3)) continue;
+          if (!hides(p)) continue;
+          const dd = Math.hypot(x - q[0], y - q[1]);
+          if (dd < bd) { bd = dd; best = p; }
+        }
+        e.coverAt = best;
+      }
+    }
+    if (!e.coverAt) return false;
+    const c = e.coverAt;
+    if (Math.hypot(c[0] - t.pos[0], c[1] - t.pos[1]) > 0.4) goTo(e, r, dt, world, c, (r.speed ?? 6) * 1.2);
+    else { e.moving = false; turnToward(t, Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]), r, dt); }
+    e.aiFire = 0;
     return true;
   }
   // recall(e, r, dt, world) — MEMORY: walk to the last-seen spot (pathing when it paths), then SEARCH there, sweeping
@@ -628,6 +682,9 @@ export function buildMind(E) {
     // NOTICE.
     const ward = motive === 'escort' ? wardOf(e, r, world) : null;
     let target = pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
+    // COVER: hurt or reloading, it takes cover (opt-in `rule.cover`) from the one it fights, seen or not (it knows where
+    // the fire came from)
+    if (r.cover && target && target !== e && takeCover(e, r, dt, world, target)) { e.reactionEnded = false; return; }
     const percept = r.mind && r.mind.perception;
     if (percept && target && target !== e && !perceive(e, r, target, world) && e.groupFocus !== target.id) {
       target = null;

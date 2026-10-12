@@ -4,8 +4,9 @@
  * timers and sagas run, the character intents it queued reach the world, then the world steps. For laws that play a
  * level through (a defence held, a race run) where the page would take minutes and a hidden tab barely ticks.
  *
- *   simLevel({ entities, events, colliders? }, { ground? }) → { world, bus, frame(dt, events?), run(seconds, at?) }
+ *   simLevel({ entities, events, colliders? }, { ground? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
  *     `at`: { <second>: [events] } pushed into the frame that reaches that time (an interact press: { type: 'use-<id>' })
+ *     `input`: the pilot's held input every frame (set its fields: { fire: 1, … }), as the page's keys and mouse give it
  *
  * Deterministic: a fixed dt (1/30 s), the bus's own content order, the world's seeded rules.
  */
@@ -21,6 +22,7 @@ export function simLevel({ entities = [], events = {}, colliders } = {}, { groun
   const bus = B.createBusState(events, events.entities);
   const hooks = { ground };
   let zonePrev, castPrev, t = 0;
+  const input = {};
   const pump = (list) => {
     if (list.length) B.processEvents(bus, list);
     let w = B.watchEvents(bus);
@@ -35,7 +37,7 @@ export function simLevel({ entities = [], events = {}, colliders } = {}, { groun
     pump(B.tickTimers(bus, dt));
     pump(B.stepTime(bus, dt));
     B.syncToCtrl(bus, world.entities, (ops) => E.castOps(world, ops));
-    E.stepWorld(world, {}, dt, hooks);
+    E.stepWorld(world, input, dt, hooks);
     t += dt;
   };
   const run = (seconds, at = {}) => {
@@ -46,5 +48,5 @@ export function simLevel({ entities = [], events = {}, colliders } = {}, { groun
       frame(1 / 30, now);
     }
   };
-  return { world, bus, frame, run, get time() { return t; } };
+  return { world, bus, input, frame, run, get time() { return t; } };
 }

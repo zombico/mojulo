@@ -403,6 +403,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   battle (a talk menu with its hp and yours: Attack, Guard, Flee; the world held while it is up), a pick is the hero's
   turn, the foe answers a beat later (a cue on the pick's end), and at no hp it falls. `goal: 'battle'` stands `foes`
   (3) on the trail, tougher as they go, the hero's hp carried from fight to fight.
+- **The shooter.** `goal: 'shoot'` puts armed foes on the trail's beats, each just past the end of a wall taller than a
+  person (its cover a sidestep away) with a crate stack on its other side, and walls half way between for the player. The player plays first person (or third) with a
+  rifle (click to fire), a magazine and spare rounds, and can be hit. Ammo and health lie between the posts. A hit costs
+  the player hp (`fail-on-death`'s `hits`), and the level is won when every foe is down (`defeat-all`'s `who` counts the
+  cast's own falls). It is built from parts any world can use:
+  - **Cover.** A mind with `rule.cover` that is hurt or reloading breaks for the nearest spot the walls hide from its
+    foe: eye, head and both flanks. Once whole and loaded it comes back out after the foe; a hit tells it where the
+    fire came from.
+  - **Shots land where they hit.** A shot at a body with a hit volume is checked against the walls up to where it
+    enters the body, so a head over a wall can be hit and the legs behind it cannot (before, the line ran to the
+    feet).
+  - **Ammo runs out.** A weapon's `reserve` is the spare rounds a reload draws on; with none left the weapon is dry. The
+    cast's `rearm` op (and the cue effect `rearm`) adds rounds.
+  - **Supplies.** The `supplies` mechanic: health or ammo pickups, each taken once, drawn as a heart or an orb.
+  - **Blocks.** A level's `blocks` stands playscape terrain forms (walls, crates, pillars) solid and drawn, so a stage
+    can carry cover.
+  - **Paths round corners.** A walker pressed against a wall steps out to open ground before walking its path, and a
+    rule's `navCell` sets a finer path grid.
+  - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
+    makeable on the web; seventh-generation rendering is a separate rung.
 
 ### Scene layer: a shot that takes the camera, and two characters talking
 

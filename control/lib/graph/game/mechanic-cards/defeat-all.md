@@ -15,6 +15,8 @@
 - `count` — how many `enemy:down` events win. Omit it when a sibling `hp-pool` is declared:
   the count is inferred from that entity list ("all" means all of them).
 - `label` — HUD label for the running count (default `Defeated`).
+- `who` — a glob over the characters whose falls count (`foe-*`): the cast's own `down` (a body whose `body.hp` ran
+  out to the world's combat: rounds, blades, splashes) is counted, so no hp-pool is needed. Give `count` with it.
 - `producer` — set `"runtime"` ONLY when hand-authored world reactions (outside `mechanics`)
   emit `enemy:down`. This is an explicit acknowledgment, not a loophole: without it, a level
   where no mechanic produces `enemy:down` is REFUSED at compose — a terminal nothing can
@@ -22,7 +24,8 @@
 
 ## Lowers to
 
-- world: a counter var (`__downs_<i>`, on the HUD), a reaction counting every `enemy:down`,
+- world: a counter var (`__downs_<i>`, on the HUD), a reaction counting every `enemy:down` (with `who`, every
+  `down` of a character it names),
   and a watch `{ when: { var, gte: count } }` → `all:defeated`.
 - contract: `on: { "all:defeated": { end: "success" } }`.
 

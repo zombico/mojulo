@@ -58,9 +58,9 @@ export const FIXTURES = Object.freeze([
     id: 'shooter',
     name: 'First-person shooter',
     anchor: false,
-    why: 'a first-person camera, ranged combat, enemies that see, take cover and duel',
+    why: 'a first-person camera, ranged combat, enemies that see, take cover and duel (at today\'s fidelity: the game is the rules, not the resolution)',
     cube: {
-      reality: { rung: 'gen-7.0', medium: '3d' },
+      reality: { rung: 'gen-6.0', medium: '3d' },
       space: { camera: 'first-person', topology: 'linear', levelForm: 'arena' },
       power: { combat: ['ranged'], mechanics: ['defeat-all', 'hp-pool'] },
       soul: { hero: 'hero' },

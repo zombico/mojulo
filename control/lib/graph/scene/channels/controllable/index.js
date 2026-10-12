@@ -1454,7 +1454,8 @@ function __updateWepHud() {
     const frac = Math.max(0, Math.min(1, 1 - W.reloadT / (W.reload || 1)));
     __wep.rlArc.setAttribute('stroke-dashoffset', (__wep.circ * (1 - frac)).toFixed(1));
   } else {
-    __wep.ammoTxt.textContent = W.ammo + ' / ' + W.magazine;
+    // a weapon with a reserve reads its spare rounds too (+n), and EMPTY when both are out
+    __wep.ammoTxt.textContent = W.reserve === 0 && W.ammo <= 0 ? 'EMPTY' : W.ammo + ' / ' + W.magazine + (W.reserve != null ? '  +' + W.reserve : '');
     __wep.rlRing.style.display = 'none';
   }
   // TARGET ACQUIRED: the rings + dot burn RED while the aim would LAND — the renderer-side

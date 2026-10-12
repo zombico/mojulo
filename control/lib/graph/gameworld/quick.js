@@ -56,7 +56,18 @@ export const QUICK_GOALS = Object.freeze({
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
+  shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
 });
+// a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
+// supplies (health given, rounds given)
+export const SHOOT = Object.freeze({
+  hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
+  rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
+  gun: { fireClass: 'sight', auto: false, cooldown: 0.7, magazine: 6, reload: 2.2, damage: 1, range: 28, coreAngle: 1.5, eye: 1.4 },
+});
+// a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
+const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
+export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a5530' }, gear: { right: { item: 'bow' } } });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
@@ -105,7 +116,7 @@ export function readQuick(Q) {
   if (Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
-  if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle') throw fail('.foe belongs to the defend and battle goals');
+  if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot') throw fail('.foe belongs to the defend, battle and shoot goals');
   if (Q.waves !== undefined && !(Number.isInteger(Q.waves) && Q.waves >= 1 && Q.waves <= DEFEND.perWave.length)) throw fail(`.waves is 1 to ${DEFEND.perWave.length}`);
   if (Q.lives !== undefined && !(Number.isInteger(Q.lives) && Q.lives >= 1 && Q.lives <= 20)) throw fail('.lives is 1 to 20');
   if (Q.pads !== undefined && !(Number.isInteger(Q.pads) && Q.pads >= 1 && Q.pads <= 8)) throw fail('.pads is 1 to 8');
@@ -122,8 +133,11 @@ export function readQuick(Q) {
   if (Q.farmhand !== undefined && !isObj(Q.farmhand)) throw fail('.farmhand is a hero-door spec, as .hero is');
   if (Q.goal === 'farm' && (Q.building !== undefined || Q.climb || Q.ride)) throw fail('.farm tills the land by a trail\'s start: no climb, building or ride');
   if (Q.run !== undefined && !(Number.isInteger(Q.run) && Q.run >= 2 && Q.run <= 8)) throw fail('.run is how many trails a run draws, 2 to 8');
-  if (Q.goal !== 'battle' && Q.foes !== undefined) throw fail('.foes belongs to the battle goal');
-  if (Q.foes !== undefined && !(Number.isInteger(Q.foes) && Q.foes >= 1 && Q.foes <= BATTLE.foeHp.length)) throw fail(`.foes is 1 to ${BATTLE.foeHp.length}`);
+  if (Q.goal !== 'battle' && Q.goal !== 'shoot' && Q.foes !== undefined) throw fail('.foes belongs to the battle and shoot goals');
+  const most = Q.goal === 'shoot' ? 8 : BATTLE.foeHp.length;
+  if (Q.foes !== undefined && !(Number.isInteger(Q.foes) && Q.foes >= 1 && Q.foes <= most)) throw fail(`.foes is 1 to ${most}`);
+  if (Q.goal === 'shoot' && (Q.building !== undefined || Q.ride)) throw fail('.shoot fights along a trail on foot: no building, no ride');
+  if (Q.goal === 'shoot' && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   return Q;
@@ -133,7 +147,9 @@ export function readQuick(Q) {
 export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}) {
   readQuick(given);
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
-  const { camera, ...quick } = given;
+  const { camera: named, ...quick } = given;
+  // a shooter aims: without a camera named, from the eye
+  const camera = named ?? (quick.goal === 'shoot' ? 'first-person' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
@@ -185,6 +201,15 @@ export function goalMechanics(quick, ends) {
         { kind: 'clock', start: FARM.start, rate: FARM.rate },
         { kind: 'crops', plots: plots.map((at) => ({ at })), cost: FARM.cost, price: FARM.price, days: 2, purse: { var: 'gold', start: FARM.gold }, by: quick.days ?? 6 },
         { kind: 'win-when', when: { var: 'gold', gte: target }, event: 'farm:rich', hud: 'Gold' },
+      ];
+    }
+    case 'shoot': {
+      // every foe down; each hit on you costs hp; the supplies between the posts
+      const posts = shootPosts(quick, ends), drops = shootDrops(posts, ends);
+      return [
+        { kind: 'fail-on-death', startHp: SHOOT.hp, hits: SHOOT.hit },
+        ...(drops.length ? [{ kind: 'supplies', max: SHOOT.hp, drops }] : []),
+        { kind: 'defeat-all', who: 'foe-*', count: posts.length, label: 'Down' },
       ];
     }
     case 'battle':
@@ -299,6 +324,67 @@ export function battleCast(quick, ends, ref) {
   return { figures, entities, play: { battle: { hero: { atk: BATTLE.atk, hp: 'hp' }, foes } } };
 }
 
+/** A shooter's posts: `foes` (4) on the trail's beats, spread from start to end, each facing back toward the one before
+ * (the start for the first), with its approach (the unit step from that one to it). [{ id, at, heading, from }] */
+export function shootPosts(quick, ends) {
+  const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
+  const n = Math.min(quick.foes ?? 4, along.length);
+  const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
+  return picks.map((b, k) => {
+    const back = k ? picks[k - 1].at : ends.spawn, d = Math.hypot(b.at[0] - back[0], b.at[1] - back[1]) || 1;
+    return { id: `foe-${k + 1}`, at: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])), from: [(b.at[0] - back[0]) / d, (b.at[1] - back[1]) / d], back };
+  });
+}
+
+/** A shooter's supplies: half way between each post and the one before (the start for the first), a little off the
+ * line; health and rounds by turns, rounds first. */
+export function shootDrops(posts, ends) {
+  return posts.map((p, k) => {
+    const m = [(p.at[0] + p.back[0]) / 2 - p.from[1] * 2, (p.at[1] + p.back[1]) / 2 + p.from[0] * 2];
+    const z = ends.ground ? ends.ground(m[0], m[1]) : null;
+    return { at: [r3(m[0]), r3(m[1]), z ?? p.at[2]], gives: k % 2 ? 'health' : 'ammo', ...(k % 2 ? { amount: SHOOT.health } : { amount: SHOOT.rounds }) };
+  });
+}
+
+/** A shooter's cast and cover, on a stage: each foe at its post, armed, hunting by sight and taking cover; at each post
+ * a wall across the approach (taller than a person: cover is round its ends, not over it) 1.2 m in front of it and
+ * starting half a metre to one side, so the foe sees down the way it holds and its cover is a sidestep away; a crate
+ * stack on the other side; and a wall half way back for the player. Walls run square to the world (colliders are
+ * boxes), across the approach's main axis. `ref`: their figure;
+ * `hero`: the player has a body (its eye over its feet). → { figures, entities, blocks, pilot } (stageLevelOrder's
+ * `extra`). */
+export function shootCast(quick, ends, ref, { hero = false } = {}) {
+  const posts = shootPosts(quick, ends), figures = {}, entities = [], blocks = [];
+  const at = (x, y, z0) => { const z = ends.ground ? ends.ground(x, y) : null; return [r3(x), r3(y), z ?? z0]; };
+  // the approach's main axis (N, the way it runs) and the axis across it (U): walls face N
+  const axes = (from) => { const N = Math.abs(from[0]) >= Math.abs(from[1]) ? [Math.sign(from[0]) || 1, 0] : [0, Math.sign(from[1]) || 1]; return [N, [-N[1], N[0]]]; };
+  const wall = (c, N, z0, length) => blocks.push({ form: 'wall', at: at(c[0], c[1], z0), N, length, height: 2, thick: 0.5, value: 0.5 });
+  posts.forEach((p, k) => {
+    figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    entities.push({
+      id: p.id, team: 'foes',
+      rule: { type: 'ai', mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 30, sightCone: 1.1, memorySpan: 6, navCell: 0.5, cover: { radius: 7, hold: 2.5 }, standoff: 12, speed: 3, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
+      weapon: { ...SHOOT.gun },
+      body: { type: 'figure-rig', figure: p.id, hittable: true, hp: SHOOT.foeHp, poise: 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
+      transform: { pos: p.at, heading: p.heading },
+    });
+    const [N, U] = axes(p.from), side = k % 2 ? -1 : 1, L = 3, off = (L / 2 + 0.5) * side;
+    wall([p.at[0] - N[0] * 1.2 + U[0] * off, p.at[1] - N[1] * 1.2 + U[1] * off], N, p.at[2], L);
+    blocks.push({ form: 'crate', at: at(p.at[0] - N[0] * 1.2 - U[0] * 2 * side, p.at[1] - N[1] * 1.2 - U[1] * 2 * side, p.at[2]), stack: 2, value: 0.42 });
+    // the player's own: half way back down the approach, off to the other side
+    const mid = [(p.at[0] + p.back[0]) / 2, (p.at[1] + p.back[1]) / 2];
+    wall([mid[0] - U[0] * 2.5 * side, mid[1] - U[1] * 2.5 * side], N, p.at[2], 2.5);
+  });
+  // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
+  // (sight is eye to eye), the rifle at its eye
+  const pilot = {
+    rule: { collideRadius: 0.3, collideHeight: 1.7 },
+    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0 },
+    body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
+  };
+  return { figures, entities, blocks, pilot };
+}
+
 /** A defence's cast and its building, on a stage: the foes asleep at the trail's end (as many as its waves send), a
  * tower asleep on each pad (beside the trail's beats, alternate sides), and a cue per pad that builds it for gold.
  * `refs`: { foe, tower } (their figures). → { figures, entities, play } (levels.js stageLevelOrder's `extra`). */
@@ -347,7 +433,7 @@ export function goalAudio(quick) {
 export function quickStore(quick) {
   return {
     slices: [
-      ...(quick.goal === 'avoid' || quick.goal === 'battle' ? [{ name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }] : []),
+      ...(quick.goal === 'avoid' || quick.goal === 'battle' || quick.goal === 'shoot' ? [{ name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }] : []),
       ...(quick.goal === 'collect' ? [{ name: 'bag', kind: 'inventory' }] : []),
       { name: 'campaign', kind: 'progression' },
     ],

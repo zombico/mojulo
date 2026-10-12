@@ -85,3 +85,13 @@ describe('the genre snipe rows', () => {
     expect(used).not.toContain('fact:cast');
   });
 });
+
+describe('the shooter\'s rows', () => {
+  it('a supply\'s rounds are the rearm effect, web only; a fall counted is the cast\'s fact', () => {
+    const c = composeMechanics([{ kind: 'fail-on-death', hits: 8 }, { kind: 'supplies', drops: [{ at: [1, 0, 0], gives: 'ammo' }] }, { kind: 'defeat-all', who: 'foe-*', count: 1 }], { player: 'hero' });
+    const cov = busCoverage(c.events);
+    expect(cov.godot.absent).toContain('effect:rearm');
+    expect(cov.used).toContain('fact:cast');
+    expect(cov.used).not.toContain('effect:cast');
+  });
+});

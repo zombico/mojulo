@@ -157,11 +157,15 @@ const MECHANICS = {
   // level can be lethal with or without hazards; the shared `hp` default dedupes with hazard-damage.
   'fail-on-death': {
     role: 'terminal', ends: ['fail'], requires: ['character'],
-    lower(p) {
+    lower(p, ctx) {
+      // `hits`: what each hit the player takes (the cast's hit:<player>: a round, a blade, a splash) costs it, on the HUD
+      const hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : null;
+      if (p.hits !== undefined && !hits) throw new Error(`fail-on-death[${ctx.i}]: hits is the hp a hit on the player takes, above 0`);
       return {
         world: {
           vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 },
           watches: [{ type: 'dead', when: { var: 'hp', lte: 0 } }],
+          ...(hits ? { reactions: [{ on: `hit:${ctx.player}`, do: 'inc', var: 'hp', by: -hits, min: 0 }], hud: [{ var: 'hp', label: 'HP' }] } : {}),
         },
         on: { dead: { end: 'fail' } },
       };
@@ -231,17 +235,47 @@ const MECHANICS = {
       if (!Number.isFinite(count) || count < 1) {
         throw new Error(`defeat-all[${ctx.i}]: needs count:N — or compose with an hp-pool to infer it from the entity list`);
       }
+      // `who`: a glob over the characters whose falls count (the cast's own `down`: their body.hp ran out), so the
+      // world's own combat produces it, no hp-pool
+      const who = typeof p.who === 'string' && p.who ? p.who : null;
       const v = `__downs_${ctx.i}`;
       return {
         world: {
           vars: { [v]: 0 },
-          reactions: [{ on: 'enemy:down', do: 'inc', var: v, by: 1 }],
+          reactions: [who ? { on: 'down', match: { entity: who }, do: 'inc', var: v, by: 1 } : { on: 'enemy:down', do: 'inc', var: v, by: 1 }],
           watches: [{ type: 'all:defeated', when: { var: v, gte: count } }],
           hud: [{ var: v, label: typeof p.label === 'string' && p.label ? p.label : 'Defeated' }],
         },
         on: { 'all:defeated': { end: 'success' } },
-        needs: p.producer === 'runtime' ? [] : ['enemy:down'],
+        needs: p.producer === 'runtime' || who ? [] : ['enemy:down'],
       };
+    },
+  },
+
+  // walk over a supply → it gives (emitter): health back into the level's hp (to `max`), or rounds for the player's
+  // weapon (the cast's rearm: into its reserve, or a full magazine). Each is taken once.
+  supplies: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const drops = Array.isArray(p.drops) ? p.drops : [];
+      if (!drops.length) throw new Error(`supplies[${ctx.i}]: needs drops: [{ at, gives: 'health' | 'ammo', amount? }]`);
+      const max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100;
+      const world = { vars: {}, sources: [], reactions: [], entities: [] };
+      drops.forEach((d, j) => {
+        if (!d || !SUPPLIES.includes(d.gives)) throw new Error(`supplies[${ctx.i}].drops[${j}].gives is one of ${SUPPLIES.join(', ')}`);
+        if (d.amount !== undefined && !(Number.isFinite(d.amount) && d.amount > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}].amount is above 0`);
+        const zone = `sp_${ctx.i}_${j}`, at = Array.isArray(d.at) ? d.at : [0, 0, 0], got = `__${zone}`, untaken = { var: got, eq: 0 };
+        world.vars[got] = 0;
+        world.entities.push({ id: zone, on: true, position: at });
+        world.sources.push({ type: 'zone', zone, at, radius: d.radius != null ? d.radius : 1.4, planar: true, watch: ctx.player });
+        world.reactions.push(d.gives === 'health'
+          ? { on: 'enter', match: { zone }, if: untaken, do: 'inc', var: 'hp', by: d.amount ?? 25, max }
+          : { on: 'enter', match: { zone }, if: untaken, do: 'ctrl', op: 'rearm', who: ctx.player, ...(d.amount !== undefined ? { by: d.amount } : {}) });
+        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `supply:${d.gives}` });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: got, to: 1 });
+      });
+      return { world, emits: SUPPLIES.map((g) => `supply:${g}`) };
     },
   },
 
@@ -603,6 +637,8 @@ const MECHANICS = {
 };
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
+// what a supply gives
+export const SUPPLIES = Object.freeze(['health', 'ammo']);
 export const TERMINAL_KINDS = MECHANIC_KINDS.filter((k) => MECHANICS[k].role === 'terminal');
 
 export function lowerMechanic(kind, params, ctx) {

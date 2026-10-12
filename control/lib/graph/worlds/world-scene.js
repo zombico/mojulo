@@ -19,6 +19,7 @@
  */
 
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
+import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -552,6 +553,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // lateral blocking: analytic AABB colliders (the invisible collision hull under the visual
     // faces) — the platform rule ejects the suit's footprint from them. See mobile-suit-city.plan.md.
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
+    // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
+    // cover: low walls, crates). Absent ⇒ byte-identical.
+    if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
+      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1 });
+      payload.faces = [...(payload.faces || []), ...B.faces];
+      payload.colliders = [...(payload.colliders || []), ...B.colliders];
+    }
     // hangar (mobile-suit-hangar.plan.md P2): the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).

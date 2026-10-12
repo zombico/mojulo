@@ -7,6 +7,8 @@
  *     vanish                  send one away (asleep again: hidden, unhittable, its rule held)
  *     kill                    it falls (`downed`; hp to 0 when it has hp); its rule is held while it lies
  *     hurt { by } / heal { by? }   its body.hp, floored at 0 (a fall) and capped at its hpMax (heal with no by: full)
+ *     rearm { by? }           rounds for the weapon in its hand: `by` more in its reserve (a reload draws them), or with
+ *                         no reserve (an endless reload) or no by, the magazine full
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -182,6 +184,11 @@ export function buildCast(E) {
         if (e.downed || !e.body || !Number.isFinite(e.body.hp)) continue;
         const max = Number.isFinite(e.hpMax) ? e.hpMax : e.body.hp;
         e.body.hp = Math.min(max, Number.isFinite(o.by) ? e.body.hp + o.by : max);
+      } else if (o.op === 'rearm') {
+        const w = e.weapon;
+        if (e.downed || !w) continue;
+        if (w.reserve != null && Number.isFinite(o.by)) w.reserve += Math.max(0, o.by);
+        else { w.ammo = w.magazine; w.reloading = false; w.reloadT = 0; }
       } else if (o.op === 'walk') {
         if (e.downed || e.gone || !Array.isArray(o.points) || !o.points.length) continue;
         const points = o.points.filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])).map((p) => [p[0], p[1]]);
