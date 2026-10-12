@@ -342,7 +342,10 @@ const DESCRIPTION_ALLOWLIST = {
 // book (export_model's `sheets` and `schedules` formats; mint_building's description led on the book and its outcome
 // `next`) and the solid ladder (mint_solid names `spec.ask`, look | fit | function | engineered, which caps `next`,
 // with its kinds grouped by purpose). No new tool.
-const PAYLOAD_CEILING = 202_800;
+// Re-pinned 2026-10-12 (202_800 -> 204_200; measured 204,082) for one new tool, tune_ground: a gameworld level's ground
+// authored in its own space (dials and edits on a top-down grid, a heartbeat laid or exported), apart from the geocube
+// and from design_game's patch.
+const PAYLOAD_CEILING = 204_200;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

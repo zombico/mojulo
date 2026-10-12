@@ -11,6 +11,10 @@
  *     nodes: { '<id>': { trail: {…} | true, kit?, seed? } | { meru: {…} | true, kit?, seed? }, … },
  *     edges?: [ { from, to, kind?: 'seam' } ],   // sequential: omitted, the nodes in the order listed
  *     spawn?: { node, at?: 'entry' },
+ *     ground?: { heartbeat?, cell?, tune?, rise?, edits? },   // the level's own ground, on a top-down grid (ground.js)
+ *     geocube?: <cube>, terrain?: '<name>',   // the cube paints every section once (its outside's look on one of its
+ *                                         // terrains: the level's, else its heartbeat's, else the cube's own); a
+ *                                         // node's own kit wins. Each stage says what it got (`painted`)
  *   }
  *
  * A node's recipe is its section's own (era/out-trail.js `readOutTrail`, local-meru/plan.js `readLocalMeru`) less its
@@ -18,6 +22,8 @@
  */
 import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
 import { readWeather } from '../weather/weather.js';
+import { readLevelGround } from './ground.js';
+import { readGeocube, pickTerrain, lowerGeocube } from '../era/geocube.js';
 
 export const LEVEL_LAYOUTS = Object.freeze(['sequential']);
 export const LEVEL_SECTIONS = Object.freeze(['trail', 'meru']);
@@ -25,7 +31,7 @@ export const LEVEL_EDGES = Object.freeze({ seam: 'the next section starts where 
 export const SPAWN_AT = Object.freeze(['entry']);
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const KEYS = ['layout', 'kit', 'seed', 'root', 'nodes', 'edges', 'spawn', 'weather'];
+const KEYS = ['layout', 'kit', 'seed', 'root', 'nodes', 'edges', 'spawn', 'weather', 'ground', 'geocube', 'terrain'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** A kit id as the level reads it: known, and resolved from any older name. */
@@ -48,6 +54,15 @@ export function readLevel(L) {
   // seed, hence its sky: the level's own clock, seeded from the world's through the level's seed
   const weather = L.weather === undefined ? null : readWeather(L.weather, 'level.weather');
 
+  // the GROUND (ground.js) and the PAINT: a geocube's outside on one of its terrains, picked two ways (the level asks;
+  // its heartbeat says what it was made for; the cube offers), laid once on every node that names no kit of its own
+  const ground = readLevelGround(L.ground);
+  let paint = null;
+  if (L.geocube !== undefined) {
+    const cube = readGeocube(L.geocube), terrain = pickTerrain(cube, L.terrain, ground?.heartbeat?.terrain);
+    paint = { cube, terrain, kit: lowerGeocube(cube, 'outside', terrain.name).kit };
+  } else if (L.terrain !== undefined) throw new Error('level: terrain is one of a geocube\'s terrains: name the level\'s geocube');
+
   // NODES: each one section, keyed by its id
   if (!isObj(L.nodes) || !Object.keys(L.nodes).length) throw new Error('level: nodes is { <id>: { trail | meru, kit?, seed? } }, at least one');
   const nodes = {}, ids = Object.keys(L.nodes);
@@ -64,7 +79,8 @@ export function readLevel(L) {
     for (const k of ['id', 'after']) if (recipe[k] !== undefined) throw new Error(`level: ${at}.${section}.${k}: the graph owns it (the node's key is its id; an edge says what it follows)`);
     if (n.seed !== undefined && !Number.isFinite(n.seed)) throw new Error(`level: ${at}.seed is a number`);
     const sky = n.weather === undefined ? weather : readWeather(n.weather, `${at}.weather`);
-    nodes[id] = { id, section, recipe, kit: n.kit === undefined ? kit : kitOf(at, n.kit), seed: n.seed === undefined ? seed : n.seed, ...(sky ? { weather: sky } : {}) };
+    const painted = !!paint && n.kit === undefined;
+    nodes[id] = { id, section, recipe, kit: n.kit !== undefined ? kitOf(at, n.kit) : painted ? paint.kit : kit, seed: n.seed === undefined ? seed : n.seed, ...(sky ? { weather: sky } : {}), ...(painted ? { painted } : {}) };
   }
 
   // ROOT: node 0
@@ -101,7 +117,7 @@ export function readLevel(L) {
     spawn = { node: L.spawn.node, at };
   }
 
-  return { layout, kit, seed, root, nodes, ids, edges, spawn, ...(weather ? { weather } : {}) };
+  return { layout, kit, seed, root, nodes, ids, edges, spawn, ...(weather ? { weather } : {}), ...(ground ? { ground } : {}), ...(paint ? { paint } : {}) };
 }
 
 /** The look a kit draws its open ground in (a trail followed is planned in its follower's look). */

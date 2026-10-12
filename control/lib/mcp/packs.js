@@ -133,6 +133,7 @@ export const PACKS = [
       "GAMES — the game rail first: design_game designs a game top down (a hero, its powers, gear and systems) and makes it. Then the doors it calls and the rest: create_game (levels are worlds with a game contract), pixelizer 2D games, sprite sheets, game projects, the game and play drawers, export_game. Open for 'a game where my hero gains powers', 'a playable dungeon crawler I can walk around in', 'a roguelike where my gear persists', 'a pixel-art game with sprites', 'export my game so a friend can play it'.",
     members: [
       'design_game',
+      'tune_ground',
       'create_game',
       'create_pixelizer_game',
       'create_sprite_sheet',

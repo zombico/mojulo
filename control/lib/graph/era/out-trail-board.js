@@ -20,11 +20,16 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const f1 = (v) => (Math.round(v * 10) / 10).toString();
 const LABEL = { trailhead: 'trailhead', exit: 'exit', pinch: 'pinch', reveal: 'reveal', landmark: 'landmark', crossing: 'crossing', pocket: 'pocket', rest: 'rest', pit: 'pit' };
 
-/** The trail a recipe asks for, on the style its kit is drawn by. */
-export function outTrailOf(manifest) {
+/** The style card a stage recipe's trail is drawn by (its kit's, or the look it names), and its seed. */
+export function outTrailStyle(manifest) {
   const kitId = resolveKitId(manifest.kit || 'isekai-meadow'), kit = stageKit(kitId);
   if (!kit || !STYLES[kit.shell]) throw new Error(`stage: kit '${kitId}' is not open ground: a trail is for an outdoor kit (${Object.keys(STAGE_KITS).filter((k) => STYLES[STAGE_KITS[k].shell]).join(', ')})`);
   const st = STYLES[kit.shell][manifest.style || kit.style] ?? lookOf(manifest.style || kit.style)?.card, seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
+  return { kitId, st, seed };
+}
+/** The trail a recipe asks for, on the style its kit is drawn by. */
+export function outTrailOf(manifest) {
+  const { kitId, st, seed } = outTrailStyle(manifest);
   return { kitId, st, seed, site: outTrailSite(st, manifest.trail === undefined ? true : manifest.trail, seed) };
 }
 

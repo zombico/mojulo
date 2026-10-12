@@ -13,6 +13,73 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### World bible: a level's ground, authored in its own space
+
+- **The trail's ground as dials.** A trail recipe takes `ground` (`era/out-ground.js`): `amplitude` (metres the
+  heartbeat climbs to its crests), `depth` (metres it falls into its dips), `grade`, `drift`, `bump` `{ height,
+  scale, walk }`, each beat's `shapes` `{ share, reach }`, and the far `cliff` `{ height, face }`. These were the
+  trail card's fixed numbers (`OUT_TRAIL.rise` 7 m, the 0.45 and 0.6 dips, the bump octaves). A dial left out is the
+  card's own, and a trail without `ground` is byte-identical.
+- **The ground shaped by hand.** `ground.edits` holds raise, lower, flatten (at a place), and cliff, gorge, ridge
+  (along a path), summed over the ground after the heartbeat's field. By default the walk follows an edit it crosses:
+  it climbs onto a raise, steps down a cliff, drops through a gorge, and the stairs sites and the grade law answer it.
+  `walk: 'keep'` holds the walk at the heartbeat's height instead.
+- **A level's own grid.** A level (`level/graph.js`) and a gameworld level take `ground: { cell?, tune?, edits? }`
+  (`level/ground.js`).
+  - The grid is a top-down board over the level's frame: columns A… across from the kit's far cliff, rows 1… along
+    the walk through every trail, 6 m cells by default.
+  - Edits name cells: `at: 'H7'` or a block `'C4:E6'`, `path: 'B3>F3'`, and a cliff's `high: 'D1'`.
+  - Laying the level compiles each edit into every trail it reaches, in that trail's own metres, so an edit across a
+    seam is whole on both sides. `tune` is the dials every trail takes, under a trail's own.
+  - The frame is found without building a site (`outTrailSpan`). A climb takes no edits yet: its tiers are its ground.
+- **The ground survey.** `surveyLevelGround` (`level/ground-survey.js`) reads a level's ground back from above:
+  - a map of the grid, each cell's height as a digit and what stands in it as a mark (beats, stairs, the walk)
+  - each trail's dials in effect, and the laws the ground now breaks
+  - hotspots (summits, hollows, open flat ground, dull stretches of walk), each with edits ready to paste
+  - `groundDiff`: the cells a change moved, and the laws it broke or mended
+- **The heartbeat: a level's land as its own document, a sibling of the geocube.** The geocube says what the land
+  is made of and how it is lit; a heartbeat (`era/heartbeat.js`) says how it moves. It holds:
+  - `pulse`: the dials
+  - `rise`: the walk's long swell from trailhead to end
+  - `marks`: cliffs, gorges, raises and the rest, placed in the level's relative frame (u across, v along) with
+    heights and widths in metres
+  - `why`: its principles
+
+  It holds no colour and no kit. Laid on a longer level, another kit or another seed, it is not the same bytes but
+  it is the same ground to walk. There are presets (`meadow-breath`, `ascent`, `broken-ground`, `cliffside`), and
+  `{ from, …changes }` makes a variant.
+  - A level takes one as `ground.heartbeat`: its pulse goes under the level's `tune`, and its rise and marks go
+    before the level's edits. A level also takes its own `rise` by row.
+  - The `heartbeat` world kind (`level/heartbeat-scene.js`) shows a heartbeat as a walkable greybox on a reference
+    level: the land in values, the walk a shade lighter, faces too steep to walk a shade darker, plus its map.
+  - A generated `heartbeat` card sits beside the geocube's, and the geocube card points to it.
+- **A geocube paints a level, on one of its terrains.**
+  - A geocube's outside can carry `terrains` (`{ <name>: { reads?, base?, land?, colour? } }`), named variants of its
+    land; the cube's own outside is one terrain too (`outside.terrain`, `'default'` unless named).
+  - A level (and a gameworld level's `style`) takes `geocube` and `terrain`. The cube paints every section that names
+    no kit of its own, once: trails take its outside's look, climbs take its land. A section's own kit wins; the
+    paint is a start, not a lock.
+  - The terrain is picked two ways (`pickTerrain`): the level's ask; else the terrain its heartbeat was made for,
+    when the cube has it; else the cube's own, keeping the heartbeat's wish as `wanted`.
+  - Every painted stage answers `painted`: `{ geocube, terrain, from: level | heartbeat | cube, offered, wanted? }`,
+    and the survey and `tune_ground` say the same for the level. An exported heartbeat remembers the terrain it was
+    made on.
+  - A stage recipe's `geocube` now takes `trail` as well as `meru`, and a `terrain`. A climb painted after a trail
+    stands on the trail rather than the cube's island, and keeps its own preset or tiers. Stages on a geocube without
+    a trail or `terrain` are as before.
+- **Edits laid after the seam.** A trail lays its ground edits after it eases into the trail it follows, then lays
+  the walk again from the ground as it was plus the edits the walk follows. Previously the seam blend smeared an edit
+  that sat across a join (a 6 m gorge came out 3.6 m deep), and a second pass moved the walk's soft edges. A trail
+  without edits is byte-identical.
+- **`tune_ground`, a new tool in the game pack.** It authors a gameworld level's ground (dials, edits by cell,
+  removal by label) and answers with the survey. It previews unless `apply: true`, which writes `levels.<id>.ground`.
+  It is separate from the geocube (a level's look) and from `design_game`'s patch. `heartbeat` lays a preset, a
+  document or a saved heartbeat sketch on the level (copied in, its source noted); `rise` sets the swell by row;
+  `export: { id, save? }` turns the level's whole ground into one heartbeat, its places made relative, saved as a
+  `heartbeat` sketch for other levels to clone from. It has a routing card
+  (`level-ground`), and the gameworld guide names the key. The tools/list payload pin moved for it
+  (`tool-descriptions.test.js`).
+
 ### Teardown: exploded views, disassembly and construction, in order
 
 - **A piece's teardown, read off what it already knows.** `teardownPlan` / `teardownTracks`

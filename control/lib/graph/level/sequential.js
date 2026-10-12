@@ -8,6 +8,7 @@
  * recipe a page, in walking order.
  */
 import { readLevel, styleOfKit } from './graph.js';
+import { compileLevelGround } from './ground.js';
 
 /** The walk from the root, or what stops the graph being one. */
 export function sequentialOrder(G) {
@@ -30,27 +31,39 @@ export function sequentialLevel(recipe) {
   const G = recipe && recipe.nodes && recipe.ids ? recipe : readLevel(recipe);
   if (G.layout !== 'sequential') throw new Error(`level: '${G.layout}' is not the sequential layout`);
   const order = sequentialOrder(G), stages = [];
+  // the level's own ground (ground.js), laid on its trails' recipes in their own metres before they are chained
+  const laid = G.ground ? compileLevelGround(G, order) : null;
   let prev = null;   // the trail just walked: { node, recipe (its whole `after` chain), kit, seed }
   for (const id of order) {
     const n = G.nodes[id];
     if (prev && prev.section !== 'trail') throw new Error(`level: sequential: '${id}' follows the ${prev.section} '${prev.node}'; a section follows a trail (nothing follows a ${prev.section} yet)`);
     let manifest;
     if (n.section === 'trail') {
-      const recipe = { ...n.recipe, id };
+      const recipe = { ...(laid?.recipes[id] ?? n.recipe), id };
       if (prev) {
         // a trail followed is planned in its follower's look: two trails in a row share one
         if (styleOfKit(prev.kit) !== styleOfKit(n.kit)) throw new Error(`level: sequential: '${prev.node}' (${prev.kit}) to '${id}' (${n.kit}): two trails in a row are drawn in one look; a seam between looks is not drawn yet`);
         recipe.after = { ...prev.recipe, seed: prev.seed };
       }
-      manifest = { kind: 'stage', kit: n.kit, seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}) };
+      manifest = { kind: 'stage', ...paintOf(G, n), seed: n.seed, trail: recipe, ...(n.weather ? { weather: n.weather } : {}) };
       prev = { node: id, section: 'trail', recipe, kit: n.kit, seed: n.seed };
     } else {
       const meru = { ...n.recipe, id };
       if (prev) meru.after = { trail: prev.recipe, kit: styleOfKit(prev.kit), seed: prev.seed };
-      manifest = { kind: 'stage', kit: n.kit, seed: n.seed, meru, ...(n.weather ? { weather: n.weather } : {}) };
+      manifest = { kind: 'stage', ...paintOf(G, n), seed: n.seed, meru, ...(n.weather ? { weather: n.weather } : {}) };
       prev = { node: id, section: n.section };
     }
     stages.push({ node: id, section: n.section, manifest });
   }
-  return { layout: 'sequential', root: G.root, spawn: G.spawn, order, edges: G.edges, stages };
+  const ground = laid ? { cell: laid.frame.cell, cols: laid.frame.cols, rows: laid.frame.rows, spans: laid.frame.spans.map(({ node, section, origin, D }) => ({ node, section, origin, D })), placed: laid.placed } : null;
+  const paint = G.paint ? { geocube: G.paint.cube.id, terrain: G.paint.terrain.name, from: G.paint.terrain.from, offered: G.paint.terrain.offered,
+    ...(G.paint.terrain.wanted ? { wanted: G.paint.terrain.wanted } : {}), nodes: order.filter((id) => G.nodes[id].painted) } : null;
+  return { layout: 'sequential', root: G.root, spawn: G.spawn, order, edges: G.edges, stages, ...(ground ? { ground } : {}), ...(paint ? { paint } : {}) };
+}
+// a node's paint: its kit, or (painted by the level's geocube) the cube itself and the terrain the level picked, so the
+// stage carries what it is drawn by and lowers it on every read
+function paintOf(G, n) {
+  if (!n.painted) return { kit: n.kit };
+  const T = G.paint.terrain;
+  return { geocube: G.paint.cube, terrain: T.from === 'level' ? T.name : { ...(T.from === 'heartbeat' || T.wanted ? { hint: T.from === 'heartbeat' ? T.name : T.wanted } : {}) } };
 }

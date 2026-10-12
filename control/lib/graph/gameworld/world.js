@@ -27,6 +27,7 @@
  *       name?, seed?,                     // the seed derives from the world's and the level's id unless named
  *       style?: { … },                    // the level's overrides, the style's shape
  *       walk: { layout?, root?, nodes, edges?, spawn? },   // the level graph (level/graph.js) less its kit and seed
+ *       ground?: { cell?, tune?, edits? },   // the level's ground on a top-down grid of cells (level/ground.js)
  *       places?: { town?: true | { civilization?, … }, castle?: true | false | { civilization?, … } },
  *     } },
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
@@ -72,6 +73,8 @@ export const WORLD_STYLE = Object.freeze({
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
   weather: 'what the sky does: a climate\'s name or { climate, dwell?, blend?, start?, surface? } (weather/weather.js); a level and a section may name their own',
+  geocube: 'a geocube that paints the level once (era/geocube.js): its outside\'s look on every section that names no kit of its own; the level\'s keys win after',
+  terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit into a look of its own, which the ground is drawn in',
 });
 /** A civilization: what it builds, and how. */
@@ -106,7 +109,7 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places', 'scenes'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -359,7 +362,9 @@ export function resolveLevel(world, id) {
     nodes[nid] = { ...n, [section]: recipe };
   }
   // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
-  const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}) };
+  // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
+  const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
+    ...(style.geocube !== undefined ? { geocube: style.geocube } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
   const lv = readLevel(level);
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 

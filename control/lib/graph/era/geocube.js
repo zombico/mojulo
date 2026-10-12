@@ -10,13 +10,17 @@
  *   register  the tone's bands (`steps`, 0 continuous) and its key
  *   surfaces  the patterns of the wall, the floor and the accent (surface-textures.js tile specs)
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
- *   outside   the base (an isekai card), the landform's tiers and island, and `land`: the polygon land's rules
+ *   outside   the base (an isekai card), the landform's tiers and island, and `land`: the polygon land's rules; and
+ *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
+ *             the others, each a few changes to it ({ reads?, base?, land?, colour? }: a shore, a highland). A level
+ *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
  *
  *   readGeocube(spec)          a preset id, a document, or { from: preset, …changes } → the cube, checked
  *   lowerGeocube(cube, side)   'inside' | 'outside' → a stage manifest
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' } → its specimen
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
+ *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
  */
 import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { rampFrom, resample } from './look-facets.js';
@@ -145,7 +149,23 @@ export function readGeocube(spec) {
   if (!(Array.isArray(c.inside.size) && c.inside.size.length === 3 && c.inside.size.every((v) => v >= 3 && v <= 40))) no('inside.size is [w, d, h] metres, each 3..40');
   if (!WALLS.includes(c.inside.accentWall)) no(`inside.accentWall is one of ${WALLS.join(', ')}`);
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'terrain', 'terrains'], 'outside');
+  if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
+  if (c.outside.terrains !== undefined) {
+    if (!isObj(c.outside.terrains)) no('outside.terrains is { <name>: { reads?, base?, land?, colour? } }: the cube\'s other terrains');
+    for (const [name, t] of Object.entries(c.outside.terrains)) {
+      const at = `outside.terrains.${name}`;
+      if (!/^[a-z][a-z0-9-]{0,31}$/.test(name) || name === (c.outside.terrain ?? 'default')) no(`${at}: a terrain's name is a lowercase slug, not the cube's own ('${c.outside.terrain ?? 'default'}')`);
+      if (!isObj(t)) no(`${at} is { reads?, base?, land?, colour? }`);
+      only(t, ['reads', 'base', 'land', 'colour'], at);
+      if (t.base !== undefined && (!ISEKAI_STYLES[t.base] || !SWATCHES[t.base])) no(`${at}.base '${t.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
+      if (t.land !== undefined && t.land !== false) only(t.land, ['smooth', 'crevice', 'ridge', 'blend', 'sun'], `${at}.land`);
+      if (t.colour !== undefined) {
+        only(t.colour, ['stone', 'floor', 'grass', 'foliage', 'water', 'sand'], `${at}.colour`);
+        for (const [k, v] of Object.entries(t.colour)) if (!HEX.test(v)) no(`${at}.colour.${k} is a #rrggbb colour`);
+      }
+    }
+  }
   if (!ISEKAI_STYLES[c.outside.base] || !SWATCHES[c.outside.base]) no(`outside.base '${c.outside.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
   c.outside.tiers ??= TWO_BASES; c.outside.island ??= ISLE; c.outside.land ??= LAND;
   if (!Array.isArray(c.outside.tiers) || !c.outside.tiers.length) no('outside.tiers is the landform\'s tiers (local meru), one or more');
@@ -182,7 +202,36 @@ function lowerInside(cube) {
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
 
-function lowerOutside(cube) {
+/** The cube's terrains by name: its own first. → [{ name, reads, own }]. */
+export function geocubeTerrains(cube) {
+  return [{ name: cube.outside.terrain ?? 'default', reads: cube.reads, own: true },
+    ...Object.entries(cube.outside.terrains ?? {}).map(([name, t]) => ({ name, reads: t.reads ?? '', own: false }))];
+}
+/**
+ * Which terrain a level gets: the one it asks for (`ask`, which must be the cube's), else the one its heartbeat was
+ * made for (`hint`) when the cube has it, else the cube's own. → { name, from: 'level' | 'heartbeat' | 'cube',
+ * offered, wanted? } (`wanted`: the heartbeat's, when the cube has no such terrain).
+ */
+export function pickTerrain(cube, ask, hint) {
+  const offered = geocubeTerrains(cube).map((t) => t.name);
+  if (ask !== undefined && ask !== null) {
+    if (!offered.includes(ask)) no(`terrain '${ask}' is not one of ${cube.id}'s (terrains: ${offered.join(', ')})`);
+    return { name: ask, from: 'level', offered };
+  }
+  if (hint && offered.includes(hint)) return { name: hint, from: 'heartbeat', offered };
+  return { name: offered[0], from: 'cube', offered, ...(hint ? { wanted: hint } : {}) };
+}
+// the cube as one of its terrains: the cube's own outside, or a terrain's changes over it
+function onTerrain(cube, name) {
+  if (name === undefined || name === (cube.outside.terrain ?? 'default')) return cube;
+  const t = cube.outside.terrains?.[name];
+  if (!t) no(`terrain '${name}' is not one of ${cube.id}'s (terrains: ${geocubeTerrains(cube).map((x) => x.name).join(', ')})`);
+  return { ...cube, id: `${cube.id}-${name}`, reads: t.reads ?? cube.reads, colour: { ...cube.colour, ...(t.colour ?? {}) },
+    outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land } };
+}
+
+function lowerOutside(cube0, terrain) {
+  const cube = onTerrain(cube0, terrain);
   const base = cube.outside.base, card = ISEKAI_STYLES[base], sw = SWATCHES[base], land0 = sw.land;
   const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], shadow = shadeHue(cube);
   const fit = (hex, name) => resample(rampFrom(rgbOf(hex), 7, { shadow }), land0[name].length);
@@ -202,10 +251,10 @@ function lowerOutside(cube) {
     ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)) } }) } };
 }
 
-/** The cube lowered into one side: 'inside' (the bare room) or 'outside' (the landform). */
-export function lowerGeocube(cube, side) {
+/** The cube lowered into one side: 'inside' (the bare room) or 'outside' (the landform, on one of its terrains). */
+export function lowerGeocube(cube, side, terrain) {
   if (side === 'inside') return lowerInside(cube);
-  if (side === 'outside') return lowerOutside(cube);
+  if (side === 'outside') return lowerOutside(cube, terrain);
   return no(`side is 'inside' or 'outside', not '${side}'`);
 }
 
@@ -215,15 +264,40 @@ export function lowerGeocube(cube, side) {
  * the inside (the bones, reference, tone and tiles; the recipe's rooms, and the kit's dress unless the recipe says).
  */
 export function withGeocube(manifest) {
-  const { geocube, ...m } = manifest, cube = readGeocube(geocube);
-  if (m.meru !== undefined) {
-    const low = lowerGeocube(cube, 'outside');
-    if (m.kit !== undefined) no('a stage on a geocube takes its kit from the cube; drop kit');
-    return { ...low, ...m, kit: low.kit, meru: { ...low.meru, ...(m.meru === true ? {} : m.meru) } };
+  const { geocube, terrain, ...m } = manifest, cube = readGeocube(geocube);
+  const T = terrain === undefined ? undefined : readTerrainAsk(cube, terrain);
+  // a trail: the cube paints it once, the outside's look on its open ground; the recipe's own kit, if it names one,
+  // wins (a painted level is a starting point, not a lock)
+  if (m.trail !== undefined) {
+    const low = lowerGeocube(cube, 'outside', T?.name);
+    return { ...m, kit: m.kit ?? low.kit };
   }
+  if (m.meru !== undefined) {
+    const low = lowerGeocube(cube, 'outside', T?.name);
+    if (m.kit !== undefined) no('a stage on a geocube takes its kit from the cube; drop kit');
+    // a climb that names its own preset or tiers keeps them; the cube's tiers stand where it names none. A climb that
+    // follows a trail stands on it, not on the cube's island
+    const own = m.meru === true ? {} : m.meru, { tiers: cubeTiers, island: cubeIsland, ...rest } = low.meru;
+    const lowMeru = { ...(own.after ? {} : { island: cubeIsland }), ...rest };
+    return { ...low, ...m, kit: low.kit, meru: { ...lowMeru, ...(T && (own.preset !== undefined || own.tiers !== undefined) ? {} : { tiers: cubeTiers }), ...own } };
+  }
+  if (T) no('terrain is the outside\'s: a stage on a geocube takes it with trail or meru');
   const { dress: _d, rooms, ...low } = lowerGeocube(cube, 'inside');
   if (m.kit !== undefined && m.kit !== low.kit) no(`a stage on a geocube takes its kit from the cube's bones ('${low.kit}'); drop kit`);
   return { ...low, ...m, rooms: m.rooms ?? rooms, tone: m.tone ?? low.tone, tiles: m.tiles ?? low.tiles };
+}
+
+/** A stage's `terrain`: a name it asks for, or { ask?, hint? } (hint: its heartbeat's). → pickTerrain's answer. */
+export function readTerrainAsk(cube, terrain) {
+  if (typeof terrain === 'string') return pickTerrain(cube, terrain);
+  if (!isObj(terrain)) no('terrain is the name of one of the cube\'s terrains, or { ask?, hint? }');
+  only(terrain, ['ask', 'hint'], 'terrain');
+  return pickTerrain(cube, terrain.ask, terrain.hint);
+}
+/** What a stage painted by a cube got: the cube, the terrain, from whom, and what the cube offered. */
+export function geocubePaint(manifest) {
+  const cube = readGeocube(manifest.geocube), T = manifest.terrain === undefined ? pickTerrain(cube) : readTerrainAsk(cube, manifest.terrain);
+  return { geocube: cube.id, terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}) };
 }
 
 // the accent wall: the cube's wall re-tiled in the accent's pattern (a toned room keeps its value twins, so it does too)

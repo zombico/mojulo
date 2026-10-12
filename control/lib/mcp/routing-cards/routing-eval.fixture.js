@@ -50,6 +50,9 @@ export const FIXTURE = [
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
+  // level ground: a gameworld level's land shaped on its grid, apart from its look
+  ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
+  ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
   ['turn my notes into a picture book for kids', 'mint_stash'],
   ['lay out a comic page of my hero fighting the dragon', 'create_sketch'],
   ['an AI-painted portrait I will render with an image model', 'create_sketch'],

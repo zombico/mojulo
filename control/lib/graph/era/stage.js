@@ -48,7 +48,7 @@ import { assembleNatureScene } from './nature.js';
 import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
-import { withGeocube } from './geocube.js';
+import { withGeocube, geocubePaint } from './geocube.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
@@ -784,7 +784,12 @@ function splitCard(f, nu, nv) {
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
-  if (manifest.geocube !== undefined) return assembleStageScene(withGeocube(manifest), ctx);
+  if (manifest.geocube !== undefined) {
+    const P = assembleStageScene(withGeocube(manifest), ctx);
+    // a trail or a terrain asked for: the answer says what the cube painted, on which terrain, and from whom
+    if (manifest.trail !== undefined || manifest.terrain !== undefined) P.painted = geocubePaint(manifest);
+    return P;
+  }
   const kit = stageKit(resolveKitId(manifest.kit));
   if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder
