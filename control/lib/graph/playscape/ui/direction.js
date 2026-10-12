@@ -35,6 +35,7 @@ import { lowerStats, readStats } from '../stats/stats.js';
 import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
+import { withSceneCues, sceneProgram } from './scenes.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -187,8 +188,8 @@ export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.
  * register's dials once it is settled, the greybox until then. Absent `play` ⇒ null (zero bytes).
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
-  // chapters (chapters.js) lower to cues, so the play below reads them as its own
-  const play = withChapterCues(manifest && manifest.play);
+  // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
+  const play = withSceneCues(withChapterCues(manifest && manifest.play));
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
@@ -203,6 +204,8 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   if (Object.keys(vars).length) out.vars = vars;
   const chapters = chapterBus(play) || {};
   for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || [])]; if (v.length) out[k] = v; }
+  // the scenes' program: the page's runner (scene-runner.js) paces their beats, frames their shots, draws the box
+  if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
   const pages = menuPages(play);
   if (pages.length) out.menus = pages;
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them

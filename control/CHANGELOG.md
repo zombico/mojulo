@@ -224,6 +224,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Item keys, and worlds without power keys, are unchanged.
   - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
 
+### Scene layer: a shot that takes the camera, and two characters talking
+
+- **A directing camera.** A camera rule `shot` frames named subjects by a word (`wide`, `low`, `profile`, `corner`,
+  `overhead`, `two`, `close`) and can hold, push in, orbit or track. A scene takes the camera from the player and
+  hands it back with an ease.
+- **`play.scenes`.** A scene starts on a happening or a bus event, as a cue does, and plays its beats in order: a
+  shot, the cast's walks and other cue effects, a wait, a line in the text box, or a banter. While it plays, the
+  player's input is held and letterbox bars show. A click or key advances a line; holding it, or Esc, skips to the
+  scene's end state.
+- **Banter.** Two characters talk: the camera cuts to whoever speaks, the box names them and types the line on.
+  The words are a slot: without `say`, a line shows as a placeholder (`[Mayor: greeting]`).
+- A world without scenes is byte-identical.
+
 ### Chapters: the same world at a later point
 
 - **`play.chapters`.** Each chapter is a difference against the base world (spawn, vanish, set, weather, or any cue

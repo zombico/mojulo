@@ -193,6 +193,51 @@ export function buildRulesBasic(E) {
     e.lookAt = [p[0], p[1], p[2] + lookH];
   }
 
+  // shot — the DIRECTING camera (the scene layer): a scene sets the player's camera rule aside for this one (the cast op
+  // `shot`) and hands it back (`unshot`). It frames the entities `on` by a word, `frame`: wide | low | profile | corner
+  // | overhead | two | close (FRAMES: room round the subjects in metres, height over the look point, yaw off the facing in
+  // quarter turns), or over (the first seen past the second's shoulder). The facing is across the line of two subjects
+  // (`side` ±1 picks the side), else in front of the one. The distance opens until the spread and the room fill a `fov`
+  // (degrees, 50). `move`: hold (stands where it cut, turning with them), track (keeps its place beside them), push
+  // (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new shot cuts; `cut: false` eases in at `lerp`.
+  const FRAMES = { wide: [5, 2.2, 0], low: [1.6, -0.8, 0], profile: [1.2, 0.2, 1], corner: [3, 3.5, 0.5], overhead: [2.5, 0, 0], two: [0.8, 0.35, 0], close: [0.35, 0.1, 0.25] };
+  function shot(e, input, dt, world) {
+    const r = e.rule, subs = (r.on || []).map((id) => world.byId[id]).filter((s) => s && !s.gone);
+    if (!subs.length) return;
+    let cx = 0, cy = 0, cz = 0, spread = 0;
+    for (const s of subs) { cx += s.transform.pos[0]; cy += s.transform.pos[1]; cz += s.transform.pos[2]; }
+    cx /= subs.length; cy /= subs.length; cz = cz / subs.length + (r.lookH ?? 1.4);
+    for (const s of subs) spread = Math.max(spread, Math.hypot(s.transform.pos[0] - cx, s.transform.pos[1] - cy));
+    e._shotT = (e._shotT || 0) + dt;
+    // over the shoulder: the first framed past the second's shoulder (the listener's back to the camera, a little aside)
+    if (r.frame === 'over' && subs.length >= 2) {
+      const A = subs[0].transform.pos, B = subs[1].transform.pos, side = r.side ?? 1, lh = r.lookH ?? 1.4;
+      const yaw = Math.atan2(B[1] - A[1], B[0] - A[0]), f = fwdXY(yaw), rt = rightXY(yaw);
+      const at = [B[0] + f[0] * 1.1 + rt[0] * 0.45 * side, B[1] + f[1] * 1.1 + rt[1] * 0.45 * side, B[2] + lh + 0.15];
+      if (e._shotCut || !e._shotAt) { e.transform.pos = at.slice(); e._shotCut = false; }
+      else e.transform.pos = add(e.transform.pos, scl(sub(at, e.transform.pos), smooth(r.lerp ?? 3, dt)));
+      e._shotAt = at;
+      e.transform.heading = yaw + Math.PI;
+      e.lookAt = [A[0], A[1], A[2] + lh];
+      return;
+    }
+    const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide, side = r.side ?? 1;
+    let face;
+    if (subs.length >= 2) { const a = subs[0].transform.pos, b = subs[1].transform.pos; face = Math.atan2(b[1] - a[1], b[0] - a[0]) - HALF_PI * side; }
+    else face = subs[0].transform.heading || 0;
+    let yaw = (r.yaw ?? face) + off * HALF_PI * side;
+    if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
+    let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));
+    if (r.move === 'push') dist *= 1 + 0.35 * (1 - Math.min(1, e._shotT / (r.for ?? 3)));
+    const f = fwdXY(yaw);
+    const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise];
+    if (!e._shotAt || (r.move && r.move !== 'hold')) e._shotAt = at;
+    if (e._shotCut) { e.transform.pos = e._shotAt.slice(); e._shotCut = false; }
+    else e.transform.pos = add(e.transform.pos, scl(sub(e._shotAt, e.transform.pos), smooth(r.lerp ?? 3, dt)));
+    e.transform.heading = Math.atan2(cy - e.transform.pos[1], cx - e.transform.pos[0]);
+    e.lookAt = [cx, cy, cz];
+  }
+
   // clock — autonomous frame playback: advance the gait/anim phase by time, no input. Turns a
   // figure-frames body into a self-playing loop (a turntable / ambient walker). `rate` = cycles/sec.
   function clock(e, input, dt) {
@@ -267,7 +312,7 @@ export function buildRulesBasic(E) {
     const reload = e.rule.reload ?? 0.6;
     e._arm = e._cool > 0 ? Math.min(1, (reload - e._cool) / 0.08, e._cool / Math.max(1e-6, reload - 0.08)) : 0;
   }
-  Object.assign(RULES, { glide, walk, follow, eye, overhead, side, clock, mover, launcher });
+  Object.assign(RULES, { glide, walk, follow, eye, overhead, side, shot, clock, mover, launcher });
 
   // the launch: each rider's last tick (where it stood, how fast it fell) is kept on the pad, so a rider arriving this
   // tick is read by its approach: its run across the ground and its fall. Fixed throws one arc whatever the approach;
