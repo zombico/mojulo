@@ -43,8 +43,8 @@ export const CAST_WHEN = Object.freeze({
 });
 // a world listens for hits when a reaction waits on `hit:<id>` (hp-pool lowers to one): the page then reads the
 // cast's facts, where a hit is counted, even when no cue reaches the cast
-// (or on `seen`: a sighting is counted there too)
-export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen'));
+// (or on `seen`: a sighting is counted there too; or `broke`: a block's break)
+export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke'));
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
   spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,

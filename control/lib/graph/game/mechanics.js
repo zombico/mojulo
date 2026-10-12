@@ -563,6 +563,23 @@ const MECHANICS = {
     },
   },
 
+  // AFTERMATH (an emitter): what broke here stays broken. Each block that breaks (the level's destruction) is kept as a
+  // flag (`broke:<id>`) in a flags slice the game carries; entering again, the level takes those blocks away at the
+  // start, without the shatter. The world remembers the damage done to it.
+  aftermath: {
+    role: 'emitter', requires: ['flags'],
+    lower(p, ctx) {
+      const slice = ctx.resolve('flags', p.slice, `aftermath[${ctx.i}]`);
+      return {
+        world: { vars: { __broken: 0 }, reactions: [{ on: 'broke', do: 'inc', var: '__broken', by: 1 }] },
+        produces: [{ type: 'setFlag', slice }],
+        on: { 'broke:*': { emit: { type: 'setFlag', slice, key: '{event}', value: true } } },
+        consumes: [{ slice }],
+        aftermath: { slice },
+      };
+    },
+  },
+
   // a SCORE (an emitter): a var the level counts up, shown, and kept: the shell remembers the best (`best: 'high'`, or
   // 'low' for a count to keep down). `points` scores bus events: [{ on: '<event>', by?: 1 }].
   score: {
@@ -638,6 +655,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const audits = [];
   const doors = [];
   const keep = [];
+  let aftermath = null;
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -671,6 +689,7 @@ export function composeMechanics(mechanics, ctx = {}) {
       else on[k] = low.on[k];
     }
     for (const c of (low.consumes || [])) consumes.push(c);
+    if (low.aftermath) aftermath = low.aftermath;
     for (const k of (low.keep || [])) { if (keep.some((x) => x.var === k.var)) errors.push(`mechanics[${i}] (${m.kind}): var '${k.var}' is kept twice`); else keep.push(k); }
     for (const d of (low.doors || [])) { if (doors.some((x) => x.id === d.id)) errors.push(`mechanics[${i}] (door): door id '${d.id}' is used twice`); else doors.push(d); }
     if (low.audit && low.role === 'terminal' && low.ends && low.ends.includes('success')) audits.push({ mechanic: m.kind, ...low.audit });
@@ -726,5 +745,5 @@ export function composeMechanics(mechanics, ctx = {}) {
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}) };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}) };
 }

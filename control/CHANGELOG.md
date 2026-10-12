@@ -396,6 +396,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   order rolled from the run's number, a clear goes straight on, a death ends the run, the store carries over, and the
   title keeps the deepest run. `create_game` takes it; a quick game's `run: n` lays a pool of n + 2 trails, each its
   own seed.
+- **Aftermath.** The `aftermath` mechanic keeps each block that breaks as a flag (`broke:<id>`) in a flags slice the game
+  carries, and a level entered again takes those blocks away at the start, with no shatter. A game's emitted store event
+  may name itself (`key: '{event}'`). A gameworld whose `mechanics.destruction` lets things break gives every level this.
 
 ### Scene layer: a shot that takes the camera, and two characters talking
 

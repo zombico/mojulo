@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { simLevel } from './level-sim.js';
 import { buildBus } from '../worlds/event-bus.js';
+import { composeLive } from '../worlds/controllable/compose.js';
 import { composeMechanics } from './mechanics.js';
 import { lowerCues } from '../playscape/ui/cues.js';
 import { mergeEventManifests } from './level-synth.js';
@@ -117,5 +118,42 @@ describe('the clock', () => {
     expect(s.vars.season).toBe(1);
     tick(24 * 6);
     expect(s.vars.season).toBe(0);
+  });
+});
+
+describe('aftermath: what broke stays broken', () => {
+  const STORE = { slices: [{ name: 'aftermath', kind: 'flags' }, { name: 'campaign', kind: 'progression' }] };
+  it('keeps each break as a flag named for it, in a slice the level consumes and restores from', () => {
+    const c = composeMechanics([{ kind: 'aftermath' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: STORE });
+    expect(c.on['broke:*']).toEqual({ emit: { type: 'setFlag', slice: 'aftermath', key: '{event}', value: true } });
+    expect(c.consumes).toEqual([{ slice: 'aftermath' }]);
+    expect(c.aftermath).toEqual({ slice: 'aftermath' });
+    expect(c.produces).toEqual([{ type: 'setFlag', slice: 'aftermath' }]);
+  });
+  it('a block that breaks says broke and broke:<id>; one restored at the start is gone, and says nothing', () => {
+    const c = composeMechanics([{ kind: 'aftermath', slice: 'aftermath' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero' });
+    const hero = { id: 'hero', pilotable: true, rule: { type: 'walk', speed: 0 }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const E = composeLive();
+    const W = E.createWorld({ entities: [hero], breakables: [{ id: 'crate-1', min: [2, -0.5, 0], max: [3, 0.5, 1] }, { id: 'crate-2', min: [5, -0.5, 0], max: [6, 0.5, 1] }] });
+    let prev = E.castFacts(W, undefined).prev;
+    E.restoreBlock(W, 'crate-2');
+    let f = E.castFacts(W, prev); prev = f.prev;
+    expect(f.events).toEqual([]);
+    expect(W.breakables.find((b) => b.id === 'crate-2').broken.how).toBe('restore');
+    E.breakBlock(W, 'crate-1', 99);
+    f = E.castFacts(W, prev);
+    expect(f.events.map((e) => e.type)).toEqual(['broke', 'broke:crate-1']);
+  });
+});
+
+describe('aftermath on the page', () => {
+  it('the game channel names the flag after the event, and restores the carried breaks at the start', async () => {
+    const { gameChannelScript } = await import('../scene/channels/game.js');
+    const s = gameChannelScript({ levelRef: 'x', on: { 'broke:*': { emit: { type: 'setFlag', slice: 'aftermath', key: '{event}', value: true } } }, aftermath: { slice: 'aftermath' } });
+    expect(s).toContain("if (o[k] === '{event}') o[k] = ev.type;");
+    expect(s).toContain("k.indexOf('broke:') === 0");
+    const plain = gameChannelScript({ levelRef: 'x', on: { 'goal:reached': { end: 'success' } } });
+    expect(plain).not.toContain('{event}');
+    expect(plain).not.toContain('AFTERMATH');
   });
 });

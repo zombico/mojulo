@@ -17,6 +17,8 @@ export function gameChannelScript(game) {
   const exits = !!(game && game.on && Object.values(game.on).some((a) => a && typeof a.exit === 'string'));
   // the numbers it keeps (game.keep: a score, a time), read off the bus at the end and sent as stats.kept: only then
   const keeps = !!(game && Array.isArray(game.keep) && game.keep.length);
+  // an emit that names its event ({event}: a broken block's broke:<id> kept as a flag of that name): only then
+  const named = !!(game && game.on && Object.values(game.on).some((a) => a && a.emit && Object.values(a.emit).some((v) => v === '{event}')));
   return `
 // ---- game channel (level contract bridge, opt-in) ----
 const __GAME = ${safeJson(game)};
@@ -128,7 +130,7 @@ ${keeps ? `    // the KEPT numbers (game.keep), as the level ends: each var off 
         for (const pat in __GAME.on) {
           if (!glob(ev.type, pat)) continue;
           const act = __GAME.on[pat];
-          if (act.emit) emit(JSON.parse(JSON.stringify(act.emit)));
+          if (act.emit) ${named ? "{ const o = JSON.parse(JSON.stringify(act.emit)); for (const k in o) if (o[k] === '{event}') o[k] = ev.type; emit(o); }" : 'emit(JSON.parse(JSON.stringify(act.emit)));'}
           else if (act.end) end(act.end${keeps ? ', __kept(state)' : exits ? ', undefined' : ''}${exits ? ', act.exit' : ''});${game.doors ? `
           else if (act.door) door(act.door);` : ''}
           break;
@@ -177,6 +179,18 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     if (D) { const c = params && params[D.slice], dn = (c && c.completed) || {}; for (const k in D.levels) if (dn[D.levels[k]]) evs.push({ type: 'done-carried:' + k }); }
     evs.push({ type: 'flags-ready' });
     setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, evs); } catch (e) { console.error('flags carried', e); } }, 0);
+  });
+` : ''}${game.aftermath ? `  // AFTERMATH carried in (the aftermath mechanic): each block a flag in the slice says broke here before is taken away at
+  // the start, without the shatter (the controllable world is built after this block: it is looked for until it is up)
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.aftermath.slice], fl = (s && s.flags) || {};
+    const ids = Object.keys(fl).filter((k) => fl[k] && k.indexOf('broke:') === 0).map((k) => k.slice(6));
+    if (!ids.length) return;
+    (function restore(n) {
+      const C = window.__mojCtrl;
+      if (!C || !C.restore) { if (n < 100) setTimeout(function () { restore(n + 1); }, 50); return; }
+      for (const id of ids) C.restore(id);
+    })(0);
   });
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame
   // and the level's own events move the pilot to that end (deferred, as chapters are: the events channel may load later).

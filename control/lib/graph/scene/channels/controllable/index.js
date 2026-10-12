@@ -2504,7 +2504,7 @@ function __updateBreaks(dt) {
   for (; __breaksSeen < B.length; __breaksSeen++) {
     const br = B[__breaksSeen], m = meshes['break:' + br.id];
     if (m) { m.visible = false; for (const tm of (m.userData.tex || [])) tm.visible = false; }
-    __spawnBreak(br);
+    if (br.how !== 'restore') __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone
   }
   for (let i = __pieces.length - 1; i >= 0; i--) {
     const q = __pieces[i], age = __world.time - q.born;
@@ -2546,5 +2546,5 @@ ${hangarHook}  __msHookParams();
   __updateMatchHud();
   __updateTutorialHud();
 };
-window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
+window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops), facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };`;
 }

@@ -600,6 +600,8 @@ export function buildRulesBasic(E) {
   }
   // break (or chip) a block by id: a trigger, a script, a test
   E.breakBlock = (state, id, dmg = 1, by = null) => { const b = state.breakables && state.breakables.find((q) => q.id === id); return b ? hitBlock(state, b, dmg, by, 'call') : false; };
+  // a block that broke on an earlier visit (an aftermath carried in): gone from the start, how 'restore' (no shatter)
+  E.restoreBlock = (state, id) => { const b = state.breakables && state.breakables.find((q) => q.id === id); return b ? hitBlock(state, b, Infinity, null, 'restore') : false; };
   E.registerWorldPass('break', (state, input, dt) => {
     const live = state.breakables && state.breakables.filter((b) => !b.broken);
     if (!live || !live.length) return;

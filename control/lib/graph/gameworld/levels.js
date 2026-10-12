@@ -38,6 +38,8 @@ const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
 const HERO_EYE = 1.6;
 // the ¾ overhead camera: north up the screen, 60° below the horizon, far enough back to read a trail's next turn
+// the flags slice a world's breaks are kept in (the aftermath mechanic)
+export const AFTERMATH_SLICE = 'aftermath';
 const OVERHEAD = Object.freeze({ yaw: Math.PI / 2, tilt: Math.PI / 3, dist: 14, lookH: 1 });
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -191,7 +193,9 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
   const ways = map ? stageWays(stage, ends, map) : null;
   const placed = ways ? [...placed0.filter((m) => m.kind !== 'reach-exit'), ...ways.mechanics] : placed0;
-  const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed)], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
+  // what the game lets break stays broken (the aftermath mechanic: the breaks kept in the world's aftermath slice)
+  const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
+  const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
   if (ride?.ref) {
     // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind
@@ -453,6 +457,8 @@ export function gameStore(world, book) {
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
   // the world's scenes read and set flags: a story slice carries them from level to level
   if (storyCarried(G)) slices.push({ name: STORY_SLICE, kind: 'flags' });
+  // the world remembers what broke (a game that lets things break): each level keeps its breaks here
+  if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
   return { slices };
 }
 

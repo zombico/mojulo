@@ -132,12 +132,12 @@ describe('sweep', () => {
     expect([...closure(unbuilt, ['time.advance=quests'])].sort()).toEqual(['mind.social=talk', 'time.advance=quests']);
     expect(EFFORT_WEIGHT.M).toBe(3);
     expect(sweep({ n: 300, seed: 1, around: 'story-adventure' }).unlock.packages.find((p) => p.id === 'quests')).toBeUndefined();
-    // an aftermath requires chapters, which are built: a built prerequisite is neither needed nor priced
-    expect(reg.time.passage.values.aftermath.requires).toEqual(['time.chapters=overlays']);
+    // eras require chapters, which are built: a built prerequisite is neither needed nor priced
+    expect(reg.time.passage.values.eras.requires).toEqual(['time.chapters=overlays']);
     expect(reg.time.chapters.values.overlays.status).toBe('built');
     const r2 = sweep({ n: 300, seed: 1, around: 'story-adventure' });
-    const after = r2.unlock.packages.find((p) => p.id === 'time.passage=aftermath');
-    expect(after).toMatchObject({ needs: [], cost: 3 });
+    const eras = r2.unlock.packages.find((p) => p.id === 'time.passage=eras');
+    expect(eras).toMatchObject({ needs: [], cost: 8 });
   });
 
   it('sweeps near the probes, deterministically, and names its draw', () => {

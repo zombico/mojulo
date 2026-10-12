@@ -227,6 +227,12 @@ export function buildCast(E) {
       if (e.statuses) for (const k of Object.keys(e.statuses)) { const u = e.statuses[k].until; if (u != null && (state.time || 0) >= u) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); } }
       if (e.faded && e.faded.length) { for (const k of e.faded) events.push({ type: 'faded', entity: e.id, is: k }); e.faded.length = 0; }
     }
+    // a block that broke (worlds/controllable rules-basic.js breakables): broke, and broke:<id> for a game to keep it
+    if (state.breakables) for (const b of state.breakables) {
+      const k = 'blk:' + b.id, was = !seed && prev[k];
+      next[k] = !!b.broken;
+      if (!seed && b.broken && !was && prev[k] !== undefined && b.broken.how !== 'restore') events.push({ type: 'broke', entity: b.id, how: b.broken.how }, { type: 'broke:' + b.id, entity: b.id });
+    }
     // a beam that has reached its character
     for (const M of state.moments || []) if (M.is === 'beam' && M.target && !M.struck && (state.time || 0) >= M.hit) { M.struck = true; if (!seed) events.push({ type: 'struck', entity: M.target, by: M.by, ...(M.name ? { beam: M.name } : {}) }); }
     return { events, prev: next };
