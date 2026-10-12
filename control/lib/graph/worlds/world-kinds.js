@@ -25,6 +25,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
@@ -456,6 +457,13 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
+  },
+  // a heartbeat (era/heartbeat.js, level/heartbeat-scene.js): the flow of a level's land apart from its look, shown as a
+  // walkable greybox on a reference level. A level lays it with ground.heartbeat and paints it with its kit or geocube.
+  heartbeat: {
+    title: 'mojulo heartbeat',
+    walk: true,
+    resolve: (m, ctx) => assembleHeartbeatScene(m, { title: ctx.title }),
   },
   // a culture at its period (historic/historic-kind.js): the town, its land, a farmstead or the works, on the
   // World page. The builder's own title ('mojulo historic city · New Kingdom Thebes') unless the row names one.

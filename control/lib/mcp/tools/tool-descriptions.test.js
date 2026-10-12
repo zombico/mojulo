@@ -356,7 +356,12 @@ const DESCRIPTION_ALLOWLIST = {
 // games ship in (play-shell.js). No new tool.
 // Re-pinned 2026-10-12 (204_500 -> 205_200; measured 205,013) for the merge of the two lines above (1011-structure-rails-broaden
 // into the play shell's line): both sets of additions together. No new tool.
-const PAYLOAD_CEILING = 205_200;
+// Re-pinned 2026-10-12 (202_800 -> 204_200; measured 204,082) for one new tool, tune_ground: a gameworld level's ground
+// authored in its own space (dials and edits on a top-down grid, a heartbeat laid or exported), apart from the geocube
+// and from design_game's patch.
+// Re-pinned 2026-10-12 (205_200 -> 206_600; measured 206,373) for the merge of the worldbible line (tune_ground) into the consolidated line above:
+// both sets of additions together. One new tool (tune_ground).
+const PAYLOAD_CEILING = 206_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

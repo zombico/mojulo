@@ -614,6 +614,7 @@ async function registerAllTools() {
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerDesignGameTools } = await import('@/lib/mcp/tools/design-game');
+  const { registerTuneGroundTools } = await import('@/lib/mcp/tools/tune-ground');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
   const { registerGameProjectTools } = await import('@/lib/mcp/tools/game-projects');
   const { registerPixelizerGameTools } = await import('@/lib/mcp/tools/pixelizer-game');
@@ -845,6 +846,8 @@ async function registerAllTools() {
   // The game rail (design_game) leads the game cluster: a game designed top down (a hero, its gear, the systems) and
   // made through the doors below, which it calls.
   registerDesignGameTools();
+  // tune_ground: a gameworld level's ground in its own space (dials and edits on a grid), beside the rail that made it
+  registerTuneGroundTools();
   registerGameTools();
   // Game projects register immediately after the game mint — the project
   // layer that ties one game's artifacts together (game-developer.plan.md).
