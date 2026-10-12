@@ -58,7 +58,9 @@ import { join } from 'node:path';
 // pack_connected_services left the connect surface (RETIRED_PACKS), and pack_catalysts grew to carry the
 // worker and connected-MCP tools power users keep.
 // Re-pinned 2026-10-10 (31_300 -> 32_400; measured 32,335) for the Characters ring: pack_character, listed first.
-const PACKS_PAYLOAD_CEILING = 32_400;
+// Re-pinned 2026-10-12 (32_400 -> 32_500; measured 32,463) for asset receipts: pack_stash's description names
+// sign_asset / verify_asset.
+const PACKS_PAYLOAD_CEILING = 32_500;
 
 let server;
 let listTools;

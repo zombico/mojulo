@@ -71,6 +71,22 @@ mojulo's capabilities come from the maintainer's own study of game development, 
 
 The built-in defaults are deliberately a starting point. A distinctive result takes iteration by you and your agent. If you use mojulo to recreate a specific character, setting or design that someone else owns, clearing that use is yours to do, as with any other tool (see section 3).
 
+## 6a. The maintainer claims nothing in what mojulo outputs
+
+- **No claim in outputs.** The maintainer claims no copyright, licence or other right in anything mojulo outputs: what
+  you make, and what mojulo generates by itself in test runs, examples, sweeps and sample runs on any machine.
+- **Built-in assets are CC0.** The models, animations, presets, sample recipes and other content mojulo ships in its
+  source, and everything they render, are dedicated to the public domain under
+  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) to the extent the maintainer holds rights in them. The
+  software itself stays under the Apache License 2.0. Third-party content keeps its own licence (see [NOTICE](NOTICE)).
+- **Forks.** This dedication covers the maintainer's work, wherever it is copied. A fork that keeps this section offers
+  the same for its own additions; a fork's maintainers speak only for themselves.
+- **Receipts are evidence, not title.** `sign_asset` gives an exported file a receipt signed with a key on your machine
+  ([docs/asset-receipts.md](docs/asset-receipts.md)), so you can show that you held that file when you signed it, for
+  example when you license it to someone. The maintainer issues no receipts, keeps no register and takes no part in any
+  licence you grant. Whether an output can be owned at all is a question of the law where you are, and in many places
+  material made by an AI system without enough human authorship cannot be. A receipt does not change that.
+
 ## 7. No warranty, no fitness for purpose
 
 The Apache 2.0 license already disclaims warranty and liability. Restating in plain language:

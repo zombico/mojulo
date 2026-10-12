@@ -302,7 +302,7 @@ export const PACKS = [
     ring: 'workflows',
     title: 'Gather / stash / cook / publish',
     description:
-      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes and their drawers (gather, mint / get / list / rename a stash, mint_drawer, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
+      "GATHER / STASH / COOK / PUBLISH — typed collection into stashes and their drawers (gather, mint / get / list / rename a stash, mint_drawer, update / archive items, bind / unbind to anchors), then COOK stashes into an Outcome Artifact (agent-authored report + visuals; recommend_kind ranks the kinds) and forge publications; sign_asset / verify_asset: a creator receipt for an exported file. Open for 'save this for later', 'collect these into a stash', 'cook these notes into a report', 'make a zine / picture book / publication'.",
     body: 'The typed-intake collection layer (seven item types, required-per-type metadata validated at the gate) and the multi-input collider on top of it. Cook files the report the AGENT authors — no server-side LLM call; outcomes land under data/outcomes/<cook_ref>/.',
     members: [
       'gather',
@@ -325,6 +325,9 @@ export const PACKS = [
       'list_cooks',
       'archive_cook',
       'forge_publications',
+      // the creator's receipt for a published file (docs/asset-receipts.md)
+      'sign_asset',
+      'verify_asset',
     ],
   },
   {

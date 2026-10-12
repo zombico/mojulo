@@ -13,6 +13,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Asset receipts: a creator's signed proof for an exported file
+
+- **`sign_asset` / `verify_asset` (pack_stash).** `sign_asset({ path })` hashes an exported file, signs the hash with
+  a per-install Ed25519 creator key (`$MOJULO_HOME/creator.key`, made on first sign, mode 0600) and writes
+  `<file>.proof.json` beside it: the file's sha256, its ref, a canonical hash of its recipe, its mint date, the signing
+  time and a pseudonymous creator id (`mjc_…`, the public key's fingerprint). A copy is kept under
+  `$MOJULO_HOME/receipts/`. The exported file is never changed, so byte-identical re-export holds. `verify_asset`
+  reports each check (bytes, signature, creator id), the fields the receipt names, and `yours` when this install signed
+  it. Opt-in by use: nothing signs unless asked. What a receipt does and does not prove: docs/asset-receipts.md.
+- **TERMS §6a.** The maintainer claims no rights in anything mojulo outputs, and mojulo's own built-in assets are
+  dedicated under CC0 1.0.
+
 ### Teardown: exploded views, disassembly and construction, in order
 
 - **A piece's teardown, read off what it already knows.** `teardownPlan` / `teardownTracks`

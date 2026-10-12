@@ -861,6 +861,10 @@ async function registerAllTools() {
   // export_game — the self-contained-folder export beside the game mints
   // (game-publish.plan.md phase 2): the sharing seam for playable artifacts.
   registerExportGameTools();
+  // sign_asset / verify_asset — the creator's receipt for an exported file (docs/asset-receipts.md):
+  // opt-in by use, the file itself untouched.
+  const { registerAssetReceiptTools } = await import('@/lib/mcp/tools/asset-receipts');
+  registerAssetReceiptTools();
   // Roles-admin tools (roles-pack.plan.md Phase 1) — the operator's key mint
   // for delegated access. Activation-gated (MOJULO_ROLES=enabled), admin-only,
   // and listed:false for now: callable by name on every transport, off the
