@@ -623,10 +623,11 @@ export const WORLD_KINDS = {
       // stencil rules (channels/draw-layers.js); the rig pack orders its parts the same way (`ranges`). A mesh with no
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
       // the PAINTED FACE (face-paint.js): the anime head's features as a texture on its face; absent ⇒ null, byte-identical
-      const facePaint = character ? facePaintOf(mesh, m.recipe?.palette) : null;
+      // (under a level's cast light too: the studio-lit faces carry it the same way)
+      const facePaint = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
-        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}) });
+        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
@@ -686,7 +687,8 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : null);
+        // (the rig's painted face rides the character light's parts; under a level's cast light the moving figure is plain)
+        const paintPack = !character ? null : face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : null);
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, m.recipe.clips, seconds, face.authored, face.K) : heroFaceTracks(m.hero, m.recipe.clips, seconds, face.authored));
         const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(tint ? { tint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));

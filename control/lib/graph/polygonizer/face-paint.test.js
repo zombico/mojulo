@@ -158,3 +158,18 @@ describe('the nose dials (painterly.nose)', () => {
     expect(spread(wide)).toBeGreaterThan(2.5 * spread(thin));   // the trapezoid's back edge against the pointer's
   }, 240000);
 });
+
+describe('the painted face under a level\'s cast light', () => {
+  it('the studio-lit faces carry the texture as the character-lit ones do; without paint, the same faces as before', async () => {
+    const { layeredFaces } = await import('./station-loft-faces.js');
+    const { heroCastLight } = await import('../era/cast-light.js');
+    const lit = built({ cast: 'female', painterly: true, geocube: 'gothic-night' }), light = heroCastLight(lit.m.hero);
+    const paint = facePaintOf(lit.mesh, lit.m.recipe.palette);
+    const F = layeredFaces(lit.mesh, lit.m.recipe, { light, paint }), tex = F.filter((f) => f.texture);
+    expect(tex.length).toBeGreaterThan(500);
+    expect(tex.every((f) => f.texture === paint.key && f.uv.length === 3 && f.textureLit)).toBe(true);
+    const plain = layeredFaces(lit.mesh, lit.m.recipe, { light });
+    expect(plain.length).toBe(F.length);
+    expect(plain.some((f) => f.texture)).toBe(false);
+  }, 300000);
+});

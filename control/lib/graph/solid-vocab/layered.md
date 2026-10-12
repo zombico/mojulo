@@ -435,7 +435,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   DRAWINGS: each eye at every closure knot, each brow and the mouth at every drawing a word, the authored face or a clip
   key needs, tiles of one atlas on copies of the face's triangles, swapped by 0-or-1 morph targets (`blinkDrawn<k><L|R>`,
   `browDrawn<i><L|R>`, `mouthDrawn<i>`; `mesh.extras.face.about` and `drawings`) that the clips' face tracks and the
-  ambient blink drive; the clip preview draws the authored face. Not yet: under a geocube's cast light.
+  ambient blink drive; the clip preview draws the authored face. Under a geocube's cast light the standing figure wears the
+  painted face too; the moving one (preview, GLB) does not yet.
 <!-- /section -->
 <!-- section: hero-genki | Genki | the shonen spirit as one amount over the look -->
   GENKI (the anime head only). `genki: 0 … 1` is the shonen spirit translated onto the character, one amount over the

@@ -102,8 +102,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The look as data** (`era/looks.js`). `painterly-toon`: its conventions one line each, `built` (painted face, soft
   edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
   motion). The hero readout's `painterly` names both.
-- **Not yet.** Under a geocube's cast light (the static faces take the studio bake there). (The painted face on the
-  rig: the theme above.)
+- **Under a level's cast light** (a hero with `geocube`): the studio-lit faces (`layeredFaces` `paint`) carry the
+  texture as the character-lit ones do, the fill the light alone; the face was blank there. The moving figure under a
+  cast light (the clip preview, the GLB) stays plain: its painted face rides the character light's parts. (The painted
+  face on the rig: the theme above.)
 - The `layered` vocab card has the look's section and `soft` in the light's fields.
 
 ### Hair studies: the lock grown like a grass blade
