@@ -32,6 +32,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   hair frames the face instead of covering it. (Today's falls cut into the cheeks and the skull: measured, and left as
   minted.) Stiffness as a word (`stiff`, `springy`, `soft`, `limp`) or a number, a held root zone, a still wind
   (`{ R, dir }`). Same parts and face counts; absent, every style is byte-identical.
+- **The anime head takes the same spine** (`hair.spine`, a hair form word). A still wind bends every lock, form shell
+  and shape piece past where it leaves the head, by the elastica's own change under the rotated load, read at each
+  vertex's place along its lock (the grass blade's bend table, per lock), and drapes it back off the head; clumps are
+  `springy` by default and `stiff` holds a spike's silhouette. A cap-lock fall is its length: a bent C ran past its
+  length word by up to a fifth (5.7% at bend 0.3), and the word rescales it so the arc is the length. Absent, every
+  anime head is the bytes it was.
 
 ### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
 
