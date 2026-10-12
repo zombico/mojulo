@@ -221,6 +221,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (weatherScoreRow) ledger.weather_partial = { note: 'the sky\'s fog, colour and light are played by the engine kernels from score.weather (its schedule and each state in the style\'s air); falling rain, snow, dust and petals, their landings and the lightning stay the web build\'s, and Blender and a bare GLB carry the row as data only' };
   const sv = (v) => (unitScale && Array.isArray(v) ? v.map((x) => (Number.isFinite(x) ? x * unitScale : x)) : v);
   const sn = (x) => (unitScale && Number.isFinite(x) ? x * unitScale : x);
+  // what the game lets break (playscape/destruct/breakability.js) left the collider list for the web runtime's blocks;
+  // an engine holds it whole, as the solid it was. Absent ⇒ no row, byte-identical.
+  const breakables = Array.isArray(payload.breakables) ? payload.breakables : [];
+  if (breakables.length) ledger.breakables_held = { count: breakables.length, note: 'what the game lets break (destruction) travels as solid colliders: engines hold it whole; breaking it, its pieces and its flash stay the web build\'s' };
   // Positioned lights (pot lights) ride the GLB as KHR_lights_punctual; the score carries
   // them too so an importer that brings none in (Interchange) can spawn them itself.
   const lights = (Array.isArray(payload.lights) ? payload.lights : [])
@@ -330,7 +334,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // them — the ledger states it. Absent textures ⇒ no key, byte-identical.
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),
-    colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
+    colliders: [...(payload.colliders ?? []), ...breakables.map((b) => ({ min: b.min, max: b.max, of: b.id }))].map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
     ...addr,
     ...(payload.tone && Array.isArray(payload.tone.ramps) ? { tone: payload.tone } : {}),
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),

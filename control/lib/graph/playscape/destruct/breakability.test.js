@@ -87,6 +87,14 @@ describe('a level that lets things break, end to end', () => {
       expect(html).toMatch(/"name":"break:crate-1"/);
     }
     expect((await resolveWorldScene(level({ destruction: 'none' }))).payload.breakables).toBeUndefined();
+    // an engine holds what breaks whole: the score carries each breakable back as a solid collider, and says so
+    const { extractEngineScore } = await import('../../scene/engine-score.js');
+    const { payload } = await resolveWorldScene(level({ destruction: 'objects' }));
+    const s = extractEngineScore({ ref: 'crypt', manifest: {} }, payload), s0 = extractEngineScore({ ref: 'crypt', manifest: {} }, plain);
+    expect(s.colliders.length).toBe(s0.colliders.length);
+    for (const b of payload.breakables) expect(s.colliders.some((c) => c.of === b.id && c.min.join() === b.min.join())).toBe(true);
+    expect(s.ledger.breakables_held).toMatchObject({ count: payload.breakables.length });
+    expect(s0.ledger.breakables_held).toBeUndefined();
     await expect(resolveWorldScene(level({ destruction: 'lots' }))).rejects.toThrow(/none, objects, cover, world/);
   }, 120000);
 });

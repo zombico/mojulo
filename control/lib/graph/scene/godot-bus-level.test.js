@@ -393,6 +393,17 @@ describe('the fight travels', () => {
     expect(extractBus({ entities: walking, events: {} })).toBeNull();
   });
 
+  it('the pack\'s ledger runs hp-pool and defeat-all on the bus, not as lost; without a bus they stay unknown', () => {
+    const mechanics = [{ kind: 'hp-pool' }, { kind: 'defeat-all' }];
+    const pack = (payload) => emitGodotProject({ ref: 'crawl', score: extractEngineScore({ ref: 'crawl', manifest: { game: { mechanics } } }, payload), manifestHash: 'h', kernelVersion: '0.18.0' }).ledger;
+    const on = pack(crawl().payload);
+    expect(on.bus_mechanics).toMatchObject({ count: 2, kinds: ['hp-pool', 'defeat-all'] });
+    expect(on).not.toHaveProperty('unknown_mechanics');
+    const off = pack({ entities: CRAWL.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, type: 'walk' } } : e)) });
+    expect(off.unknown_mechanics).toMatchObject({ kinds: ['hp-pool', 'defeat-all'] });
+    expect(off).not.toHaveProperty('bus_mechanics');
+  });
+
   it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot swings, counts the hits, fells a reacting body and ends the level (MOJULO_GODOT)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-fight-'));
     try {

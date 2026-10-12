@@ -317,7 +317,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   (`scripts/godot-combat-conformance.mjs`, its Godot leg when `MOJULO_GODOT` is set): every number is equal but a
   round's flight, which is held to 1e-9 because the two engines' sine and cosine can differ in the last bit. What
   stays on the web: the combo's stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred
-  wreck finisher, a loadout's other slots and every AI's attack. The portability flags say so.
+  wreck finisher, a loadout's other slots and every AI's attack. The portability flags say so, and so does the Godot
+  pack's own ledger, which now lists `hp-pool` and `defeat-all` as running on the bus (`bus_mechanics`) instead of
+  as outside the kernel's vocabulary.
 - **A game's systems travel to Godot (kernel 0.18.0).** Resource, stamina, unlock, transform and equip already
   lowered to stats, cues, HUD rows and a status page, which the Godot kernel runs; what it lacked was their keys.
   `bus.json` now carries `events.inputs` bound to a key or a click, and `level.gd` feeds them to the bus as the page
@@ -353,7 +355,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   has. Each breakable solid thing becomes a block the runtime breaks (a swing in reach, a round that stops on it, a
   burst over it), its faces their own render group, and the World page hides it when it breaks. Today the gothic and
   catacomb kits' props carry what this needs; a thing not yet named on its faces (a pooled rock) or blocking nothing
-  (planks, bones) stays as it is. Absent, a page is byte-identical.
+  (planks, bones) stays as it is. Absent, a page is byte-identical. A game says it once, in its gameworld's
+  `mechanics.destruction`, and `design_game` copies it onto every level it makes; the gameworld's own stages place no
+  named things yet, so for now nothing on them breaks. An engine export holds what breaks whole: each breakable
+  travels back as a solid collider, and the ledger says so (`breakables_held`).
 - **A broken thing comes apart.** Each breakable is cut ahead of time, once for each cut it can take (a swing slashes
   it in two, a round or a fall chips it, a burst blasts it; its own `cut` wins), and when it breaks on the World page
   a flash and a ring cover the swap to those pieces. They part the cut's way, carry the thing's own texture with a
