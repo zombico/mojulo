@@ -14,11 +14,15 @@
 // Gear is placed at the REST pose and carried by its bone's frame, so the stand, the clips, the rig preview and the
 // skinned export carry it the same way. The mounting rules come from the mecha arm's hold families (a fixed rotation
 // per class, the grip on the wrist line, attach at rest then pose). Pure: no dice, no clock.
-import { expandEquipment, validateBuild, LAWS_VERSION } from '../equipment/expand.js';
+import { expandEquipment, validateBuild, LAWS_VERSION, withEquipment } from '../equipment/expand.js';
+import { tierMonomers } from '../equipment/tier.js';
+import { heroTarget } from '../era/cast-light.js';
+import { readTarget, pxPerMetre, DEFAULT_TARGET } from '../era/target.js';
 import { lowerObjectFaces } from '../worlds/workbench.js';
 import { faceColorLinear } from '../figures/face-mesh.js';
 import * as dmath from '../../util/dmath.js';
 import { rigNodesAt } from './station-loft-rig.js';
+import { DEFAULT_LIGHT } from './vexar.js';
 
 export const GEAR_SLOTS = Object.freeze(['right', 'left', 'back', 'hip']);
 const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm' });
@@ -89,6 +93,8 @@ export function gearMounts(hero, R) {
   const gear = hero?.gear; if (!gear) return [];
   const J = R.joints; const bone = (id) => R.bones.findIndex((b) => b.id === id);
   const height = J.headTop ? J.headTop[2] : CANON_HEIGHT; const k = 0.01 * height / CANON_HEIGHT;
+  // the tiered form draws each item for the pixels it covers at the hero's target (equipment/tier.js); absent, as built
+  const detail = hero.form === 'tiered' ? ((T) => ({ ppm: pxPerMetre(T, height), error: T.error }))(readTarget(heroTarget(hero) ?? DEFAULT_TARGET)) : null;
   const out = [];
   for (const slot of GEAR_SLOTS) {
     const spec = gear[slot]; if (!spec) continue;
@@ -127,7 +133,7 @@ export function gearMounts(hero, R) {
       M = fromColumns(X, Y, Z); o = e.sockets.guard?.origin || grip.origin; t = c; b = 'pelvis';
     }
     const bi = bone(b); if (bi < 0) continue;
-    out.push({ slot, item, hold: slot === 'back' || slot === 'hip' ? slot : hold, build, sockets: e.sockets, trace: e.trace, bone: b, boneIndex: bi, M, o, t, k, length: r5(len * k) });
+    out.push({ slot, item, hold: slot === 'back' || slot === 'hip' ? slot : hold, build, sockets: e.sockets, trace: e.trace, bone: b, boneIndex: bi, M, o, t, k, length: r5(len * k), ...(detail ? { detail: { ppu: detail.ppm * k, error: detail.error } } : {}) });
   }
   return out;
 }
@@ -151,7 +157,10 @@ function carry(f, G, frame, dz) {
   if (f.metal && Array.isArray(f.metal.p)) out.metal = { ...f.metal, p: f.metal.p.map((c) => c.map((v) => r5(v * G.k))) };   // the billet in metres
   return out;
 }
-function lowered(G, light, W) { return lowerObjectFaces({ kind: 'workbench', units: 'cm', build: G.build }, lightIn(light, W)); }
+function lowered(G, light, W) {
+  const m = { kind: 'workbench', units: 'cm', build: G.build };
+  return lowerObjectFaces(G.detail ? tierMonomers(withEquipment(m), G.detail) : m, lightIn(light, W));
+}
 
 /**
  * The gear's faces for the static solid: posed by `frames` (boneFrames at the stand; null = the rest pose), seated by
@@ -176,6 +185,8 @@ export function gearPackParts(mounts, { light, dz = 0 } = {}) {
     return { bone: G.boneIndex, tris };
   });
 }
+/** Per mount, the triangles its item draws (a face of n corners is n − 2): what the gear spends (era/cast-spend.js). */
+export const gearTriangles = (mounts) => mounts.map((G) => ({ slot: G.slot, item: G.item, triangles: lowered(G, DEFAULT_LIGHT, G.M).reduce((n, f) => n + f.corners.length - 2, 0) }));
 /** The readout: per slot, the item, its hold and bone, its length in metres and as a share of the figure's height. */
 export function gearReadout(mounts, R) {
   const height = R.joints.headTop ? R.joints.headTop[2] : CANON_HEIGHT;

@@ -13,6 +13,46 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Adornment budget: what the tiered hero wears and carries, drawn for its target
+
+- **The spend counts what it missed.**
+  - `hero.spend` charges everything the hero wears to clothing, wherever it sits: an armour piece (`adorn.*`) and a
+    garment (`<id>_<part>`) alike. A helm above the head's base was read as head; the red lamellar's kabuto was
+    3,728 triangles of "head".
+  - What the hero carries (`gear`) is now counted as its own region, in the total and in the heaviest parts. It is
+    drawn beside the figure's mesh, so the spend never saw it: a historical sword and shield are 9,984 triangles, and a
+    celestial greatsword alone is 21,924. Its reserve starts at zero, since a hero may carry nothing.
+  - The hair test reads a part's name from its start, so an armour piece named like a lock or a bun is not hair.
+- **Armour and kits by their target** (`polygonizer/adorn-tier.js`, `form: 'tiered'`). A suit is authored once at its
+  finest, and each piece keeps only what the target shows. It only ever takes away.
+  - A shell's sides across its window are what an outline of its radius wants at the target's error. They are never
+    fewer than the skin's slots under it (one more for a partial window), nor than its standoff needs to clear the
+    skin: cos(π/N) ≥ r / (r + s). Its stations are never fewer than the carrier's it spans, the tiered chest's band
+    included.
+  - A disc takes the sides its pixel radius wants, and a row of rivets narrower than 2 px becomes one rivet.
+  - A rolled edge narrower than 3 px becomes its plate's painted rim. A lacing cord as narrow leaves its row in the
+    lacing's colour, with lacquer at its top edge, as densely laced rows read from afar.
+  - The knight's plate at 720p third-person drops from 12,612 triangles to 6,852, and to 10,268 at 4K. The red
+    lamellar drops from 21,344 to 10,968, and grim-scifi from 10,224 to 6,800. Ornament 0 and 3 at 720p now differ
+    by 232 triangles (6,788 and 7,020), not 3,728.
+  - The clearance ledger finds no piece sinking that the untiered suit does not.
+- **Gear by its target** (`equipment/tier.js`). A tiered hero's held items are thinned before lowering, by the same
+  outline rule:
+  - each lathe's samples and cross sections (it defaulted to 24 × 36 whatever its size, so a plain grip cost 1,800);
+  - each sweep's sides and path;
+  - each gem field's cells.
+  - Historical sword and shield: 9,984 → 1,908 at 720p. Elven sword: 16,254 → 2,068. Celestial greatsword:
+    21,924 → 4,206 at 720p, and 13,584 at 4K.
+- **Garments and armour on the tiered joints** (`tiered-form.js` `tieredGarments`, `tieredKit`).
+  - A garment covering both limbs of a joint covers its bridge with a piece of its own (`shirtSleeveElbow`,
+    `trousersLegKnee`). The bridge's skin showed between a sleeve and its cuff.
+  - Every garment joins the refine of its part, so the cloth has the skin's sides at every target. At 1080p the
+    trouser leg was 8 sides over a 16-sided thigh, and the shirt 12 over a 24-sided torso. Cloth that cannot be poked
+    through costs triangles: the outfit at 1080p goes from 2,232 to 5,584.
+  - A couter or a poleyn stands off its joint's bridge and is pinned at the bridge's middle, so it turns half the bend.
+  - A piece on the torso or the neck stands off the shoulder balls; the gorget sank into them.
+- Absent `form: 'tiered'`, every hero, kit, garment and item is as before.
+
 ### Hair studies: the lock grown like a grass blade
 
 - **One spine law for hair** (`polygonizer/hair-spine.js`). A lock is the grass blade's elastica: a cantilever under its
