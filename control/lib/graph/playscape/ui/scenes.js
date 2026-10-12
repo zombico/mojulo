@@ -7,6 +7,8 @@
  *     when:  a cue's when (cues.js): a happening, { start: true }, { on: '<event>' }, { enter: … }, …
  *     if?:   a condition or a list, all of which must hold when the happening comes, else the scene waits for the next:
  *            { flag: '<name>' } (set) | { not: '<name>' } (unset) | { chapter: '<id>' } (turned) | { var, gte|gt|lte|lt|eq|ne }
+ *            | { has: '<item>' } (held: carried in from the store's inventory, or picked up here)
+ *            | { done: '<level>' } (that level completed in the campaign)
  *     sets?: ['<flag>', …]     flags the scene sets as it ends (with play.carry, written to the game store and carried
  *                              into the levels after, as chapters are)
  *     once?: false            (a scene plays the first time its happening comes and its conditions hold, unless false)
@@ -39,6 +41,10 @@
  *                            carried in
  *   sceneContract(game, play) → the level contract with the carry rows (game.on flag:<name> → setFlag, game.flags for
  *                            the game channel to push what is held); the same object when the play does not carry
+ *
+ * What is carried in: `play.carry` names the flags slice; `play.carryFrom: { items?: [inventory slices], campaign?:
+ * '<progression slice>', levels?: { <name>: '<level ref>' } }` names where `has` and `done` read (levels maps a done's
+ * name to the ref the campaign records; without it the name is the ref).
  *
  * Carried flags arrive after the page starts (the shell's params), so in a level that carries, a scene on
  * { start: true } waits for `flags-ready`, which the game channel pushes once the held flags are on the bus.
@@ -78,12 +84,17 @@ export const FLAGS_READY = 'flags-ready';
 
 // a condition, read: { var, op, n } over the bus vars
 function readCond(c, at) {
-  if (!isObj(c)) throw err(`${at} is { flag } | { not } | { chapter } | { var, gte|gt|lte|lt|eq|ne }`);
+  if (!isObj(c)) throw err(`${at} is { flag } | { not } | { has } | { done } | { chapter } | { var, gte|gt|lte|lt|eq|ne }`);
   const keys = Object.keys(c);
   if (c.flag !== undefined || c.not !== undefined) {
     const k = c.flag !== undefined ? 'flag' : 'not';
     if (keys.length !== 1 || !FLAG.test(c[k] ?? '')) throw err(`${at} is { ${k}: '<flag>' } (a lowercase name, met-mayor)`);
     return { var: flagVar(c[k]), op: k === 'flag' ? 'eq' : 'ne', n: 1, flag: c[k] };
+  }
+  if (c.has !== undefined || c.done !== undefined) {
+    const k = c.has !== undefined ? 'has' : 'done';
+    if (keys.length !== 1 || !(typeof c[k] === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(c[k]))) throw err(`${at} is { ${k}: '<${k === 'has' ? 'item' : 'level'}>' }`);
+    return { var: `${k}-${c[k]}`, op: 'eq', n: 1, [k]: c[k] };
   }
   if (c.chapter !== undefined) {
     if (keys.length !== 1 || !ID.test(c.chapter)) throw err(`${at} is { chapter: '<chapter id>' } (a chapter turned, here or carried in)`);
@@ -94,7 +105,7 @@ function readCond(c, at) {
     if (ops.length !== 1 || keys.length !== 2 || !Number.isFinite(c[ops[0]])) throw err(`${at} is { var, and one of ${CMP.join(', ')}: a number }`);
     return { var: c.var, op: ops[0], n: c[ops[0]] };
   }
-  throw err(`${at} is { flag } | { not } | { chapter } | { var, gte|gt|lte|lt|eq|ne }`);
+  throw err(`${at} is { flag } | { not } | { has } | { done } | { chapter } | { var, gte|gt|lte|lt|eq|ne }`);
 }
 
 function readShot(s, at) {
@@ -188,8 +199,23 @@ export function sceneFlags(play) {
   for (const sc of readScenes(play)) { for (const c of sc.if) if (c.flag) out.add(c.flag); for (const f of sc.sets) out.add(f); }
   return [...out].sort();
 }
-// does the level carry flags in, so that its start scenes must wait for them?
-const carries = (play) => !!(play && typeof play.carry === 'string' && play.carry && sceneFlags(play).length);
+/** What the scenes' conditions read of the store: { flags, items, done }. */
+export function sceneNeeds(play) {
+  const items = new Set(), done = new Set();
+  for (const sc of readScenes(play)) for (const c of sc.if) { if (c.has) items.add(c.has); if (c.done) done.add(c.done); }
+  return { flags: sceneFlags(play), items: [...items].sort(), done: [...done].sort() };
+}
+// what the level carries in for its scenes (empty parts left out), or null: its start scenes then need not wait
+function carried(play) {
+  if (!play || play.scenes === undefined) return null;
+  const N = sceneNeeds(play), F = isObj(play.carryFrom) ? play.carryFrom : {};
+  const out = {};
+  if (typeof play.carry === 'string' && play.carry && N.flags.length) out.flags = { slice: play.carry, names: N.flags };
+  if (Array.isArray(F.items) && F.items.length && N.items.length) out.items = { slices: [...F.items], names: N.items };
+  if (typeof F.campaign === 'string' && F.campaign && N.done.length) out.done = { slice: F.campaign, levels: Object.fromEntries(N.done.map((d) => [d, (isObj(F.levels) && F.levels[d]) || d])) };
+  return Object.keys(out).length ? out : null;
+}
+const carries = (play) => !!carried(play);
 
 const nameOf = (names, who) => names[who] || who.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
@@ -253,31 +279,37 @@ export function sceneProgram(play) {
 /** The flags' bus rows: a var each, set when the flag is set here (`flag:<name>`) or carried in (`flag-carried:<name>`). */
 export function sceneBus(play) {
   if (!play || play.scenes === undefined) return null;
-  const flags = sceneFlags(play);
-  if (!flags.length) return null;
+  const { flags, items, done } = sceneNeeds(play);
+  if (!flags.length && !items.length && !done.length) return null;
   const vars = {}, reactions = [];
   for (const f of flags) {
     vars[flagVar(f)] = 0;
     reactions.push({ on: flagEvent(f), do: 'set', var: flagVar(f), to: 1 }, { on: flagCarried(f), do: 'set', var: flagVar(f), to: 1 });
   }
+  // an item held: carried in, or picked up here (a collect's pickup:<item>)
+  for (const it of items) { vars[`has-${it}`] = 0; reactions.push({ on: `pickup:${it}`, do: 'set', var: `has-${it}`, to: 1 }, { on: `has-carried:${it}`, do: 'set', var: `has-${it}`, to: 1 }); }
+  for (const d of done) { vars[`done-${d}`] = 0; reactions.push({ on: `done-carried:${d}`, do: 'set', var: `done-${d}`, to: 1 }); }
   return { vars, reactions };
 }
 
 /** The level contract with the scenes' carry rows: each flag set here written to the carry slice, the flags held pushed
  *  in at start. The same object when the play does not carry, or its scenes use no flags. */
 export function sceneContract(game, play) {
-  if (!game || typeof game !== 'object' || !carries(play)) return game;
-  const slice = play.carry, flags = sceneFlags(play), sets = new Set(readScenes(play).flatMap((sc) => sc.sets));
-  const produces = isObj(game.produces) ? game.produces : {};
-  const events = Array.isArray(produces.events) ? produces.events : [];
-  const consumes = Array.isArray(game.consumes) ? game.consumes : [];
-  const on = { ...(game.on || {}) };
-  for (const f of sets) on[flagEvent(f)] = { emit: { type: 'setFlag', slice, key: f, value: true } };
-  return {
-    ...game,
-    produces: { ...produces, events: events.some((e) => e && e.type === 'setFlag' && e.slice === slice) ? events : [...events, { type: 'setFlag', slice }] },
-    on,
-    consumes: consumes.some((c) => c && c.slice === slice) ? consumes : [...consumes, { slice }],
-    flags: { slice, names: flags },
-  };
+  const C = game && typeof game === 'object' ? carried(play) : null;
+  if (!C) return game;
+  const consumes = Array.isArray(game.consumes) ? [...game.consumes] : [];
+  const consume = (slice) => { if (!consumes.some((c) => c && c.slice === slice)) consumes.push({ slice }); };
+  let out = { ...game };
+  if (C.flags) {
+    const slice = C.flags.slice, sets = new Set(readScenes(play).flatMap((sc) => sc.sets));
+    const produces = isObj(game.produces) ? game.produces : {};
+    const events = Array.isArray(produces.events) ? produces.events : [];
+    const on = { ...(game.on || {}) };
+    for (const f of sets) on[flagEvent(f)] = { emit: { type: 'setFlag', slice, key: f, value: true } };
+    out = { ...out, produces: { ...produces, events: events.some((e) => e && e.type === 'setFlag' && e.slice === slice) ? events : [...events, { type: 'setFlag', slice }] }, on };
+    consume(slice);
+  }
+  for (const s of C.items ? C.items.slices : []) consume(s);
+  if (C.done) consume(C.done.slice);
+  return { ...out, consumes, flags: { ...(C.flags ? C.flags : { names: [] }), ...(C.items ? { items: C.items } : {}), ...(C.done ? { done: C.done } : {}) } };
 }

@@ -116,7 +116,7 @@ export function buildCast(E) {
       if (o && o.op === 'shot' && o.shot && state.camera) {
         const C = state.camera;
         if (!C.heldRule) C.heldRule = C.rule;
-        C.rule = { ...o.shot, type: 'shot' }; C._shotT = 0; C._shotAt = null; C._shotCut = o.shot.cut !== false;
+        C.rule = { ...o.shot, type: 'shot' }; C._shotT = 0; C._shotAt = null; C._shotSide = null; C._shotTry = null; C._shotCut = o.shot.cut !== false;
         continue;
       }
       if (o && o.op === 'finish') {

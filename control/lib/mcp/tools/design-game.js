@@ -21,7 +21,7 @@ import { heroRecord } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, decide, childRef,
+  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, decide, childRef, storyReport,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
@@ -57,6 +57,13 @@ async function realize(step, action) {
     const pin = pinBase({ ref, rev: headRev(ref), manifest: SketchRepository.getByRef(ref).manifest });
     if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: 'design_game: the motion page' });
     return { pin };
+  }
+  if (key.startsWith('cast-')) {
+    // a cast member: made as the hero is (the book's base, then its motion), without a pin
+    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
+    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: a cast member' });
+    if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: 'design_game: a cast member\'s motion' });
+    return {};
   }
   if (key === 'hero-equipped') {
     if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
@@ -135,11 +142,14 @@ function readout(ref, world) {
     powers: M.powers.map((p) => ({ id: p.id, ...(p.key ? { key: p.key } : {}), ...(p.spends ? { spends: p.spends } : {}), ...(p.look ? { shows: p.look } : {}) })),
     hud: (M.play.parts ?? []).map((p) => p.id ?? p.kind),
   } : null;
+  // the story as it binds to the world now: a moment that lost its place says what is missing (the world still builds)
+  const told = world.story ? storyReport(world, { ref }) : null;
+  if (told?.unplaced.length) next.push({ step: 'story', unplaced: told.unplaced, card: 'gameworld-story' });
   // the advice: measured, never a verdict on the design
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length } } : {}), next };
 }
 
 /** The verdicts as the review to write. */

@@ -39,6 +39,7 @@ import { buildBlock, blockPaint } from '../era/blocks.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
 import { weatherCardHtml } from './weather-card.js';
 import { airOfKit } from './style-guide.js';
+import { storyReport } from './runner.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
@@ -211,13 +212,23 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
 <div class="level-grid"><div><h4>The walk</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
+  // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not
+  const cast = G.characters?.cast ?? null, told = G.story ? storyReport(world) : null;
+  const words = (looks) => Object.entries(looks ?? {}).map(([k, v]) => `${k}: ${typeof v === 'object' ? Object.values(v).flat().map((x) => (typeof x === 'object' ? JSON.stringify(x) : x)).join(', ') : v}`).join(' · ');
+  const castHtml = cast ? Object.entries(cast).map(([id, m]) => `<article class="card"><div class="card-h"><span class="eyebrow">Cast · ${esc(id)}</span><h3>${esc(m.name ?? id)}</h3></div><p class="muted">${esc(words(m.looks) || 'the direction alone')}</p></article>`).join('') : '';
+  const where = (b) => `${b.level} · ${b.node}${b.place ? ` · ${b.place}` : ''}`;
+  const momentHtml = told ? (G.story ?? []).map((m) => {
+    const b = told.bound.find((x) => x.id === m.id), u = told.unplaced.find((x) => x.id === m.id);
+    return `<article class="card${u ? ' open' : ''}"><div class="card-h"><span class="eyebrow">${u ? 'Unplaced' : `Bound · ${esc(where(b))}`}</span><h3>${esc(m.id)}</h3></div><p class="muted">${esc((m.who ?? []).map((w) => cast?.[w]?.name ?? w).join(', ') || 'the hero')}${m.sets?.length ? ` · sets ${esc(m.sets.join(', '))}` : ''}</p>${u ? `<p class="muted">${esc(u.why)}</p>` : ''}</article>`;
+  }).join('') : '';
+  const storyPart = cast || told ? `<section class="part" id="story"><div class="part-h"><span class="eyebrow">The cast ${cast ? stamp('cast') : ''} · The story ${told ? stamp('story') : ''}</span><h2>Who else, and what happens where</h2></div><div class="cards">${castHtml}${momentHtml}</div></section>\n` : '';
   const open = OPEN_SLOTS.filter((k) => !G[k]).map((k) => `<article class="card open"><div class="card-h"><span class="eyebrow">Open</span><h3>${esc(k[0].toUpperCase() + k.slice(1))}</h3></div><p class="muted">Not on the ground. The world leaves room for them${k === 'characters' ? ', and for the people of its civilizations' : ''}.</p></article>`).join('');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(G.name)} · Gameworld bible</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
 <style>${CSS}</style></head><body><div class="wrap">
 <div class="mast"><div class="t">Gameworld bible</div><div class="eyebrow">${esc(G.id)} · seed ${G.seed}</div></div>
-<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a><a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}<a href="#open">Open</a></nav>
+<nav class="tabs" aria-label="Sections"><a href="#cover">World</a><a href="#gate">Gate</a><a href="#map">World map</a><a href="#nature">Natural world</a><a href="#civilizations">Civilizations</a><a href="#key">Color key</a>${order.map((id) => `<a href="#level-${esc(id)}">${esc(built[id].R.name)}</a>`).join('')}${storyPart ? '<a href="#story">Story</a>' : ''}<a href="#open">Open</a></nav>
 <section class="part" id="cover"><div class="cover"><div><h1>${esc(G.name)}</h1><p class="lede">${order.length} level${order.length === 1 ? '' : 's'} · ${esc(G.style.kit)} · ${G.civIds.length} civilization${G.civIds.length === 1 ? '' : 's'}</p></div><figure class="hero">${cover}</figure></div>
 ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><div class="strip">${strip}</div></section>
 <section class="part" id="map"><div class="part-h"><span class="eyebrow">World map ${stamp('world')}</span><h2>The world, drawn from its graph</h2></div><div class="canvas">${worldMapSvg(graph, order)}</div>
@@ -228,7 +239,7 @@ ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><d
 <section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civHtml}</section>
 <section class="part" id="key"><div class="part-h"><span class="eyebrow">Style and color key ${stamp('key')}</span><h2>Every ramp, and what it paints</h2></div><div class="cards">${keyHtml}</div></section>
 ${levels}
-<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>
+${storyPart}<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>
 <footer><span class="eyebrow">Every plate drawn from its recipe</span><span class="eyebrow">Scapeshift</span></footer>
 </div></body></html>`;
 }

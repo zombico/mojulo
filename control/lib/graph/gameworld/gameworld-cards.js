@@ -262,6 +262,24 @@ function quickCard() {
   );
 }
 
+function storyCard() {
+  return lines(
+    'THE CAST AND THE STORY — people other than the hero, and the moments they are in, written apart from the levels.',
+    'characters.cast: { <id>: { name?, looks?, motion? } }: each person a looks page and a motion page, as the hero has',
+    '  (no actions, adornment or gear: those are the player\'s), drawn in the same direction. design_game makes each one',
+    '  after the hero, at <ref>-cast-<id>.',
+    'story: [{ id, who?: [cast id], where: { level, stage?, place? }, stand?: { <who>: place }, when, if?, sets?, once?, beats }]',
+    '  where   the level it happens in, its stage (its first by default), the place it is about. A place is a stage\'s',
+    '          start, exit, pocket, pocket-2…, landmark…, or a kind (pocket: the first pocket).',
+    '  stand   where each person stands (else the moment\'s place, else beside the start), placed for the level\'s run.',
+    '  the rest is a scene (get_play_vocab({ id: \'ui-scenes\' })): when, if, sets, beats; the cast names are the box\'s.',
+    '  if also takes { has: \'<item>\' } (held in the store\'s bag, powers or gear, or picked up there) and { done: \'<level>\' }.',
+    'The story names the world, never its coordinates: rebuild or reshape the world and each moment binds again. A moment',
+    'that cannot find its level, stage, place or people is UNPLACED: design_game\'s readout lists it with what is missing',
+    '(next: { step: \'story\' }) and the rest of the world builds. Fix the moment or the world, then run again.',
+  );
+}
+
 function nextCard() {
   return lines(
     'THE NEXT MOVES — design_game\'s readout ends with `next`: step ids, each with what it needs. What each asks:',
@@ -293,6 +311,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where', storyCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, run, rerun, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));

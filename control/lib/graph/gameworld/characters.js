@@ -27,7 +27,9 @@
  *       actions?,                                // what it can do (actions.js)
  *       adornment?,                              // the equipment the main loop calls for (adornment.js)
  *     },
- *     cast?,                                     // reserved: the other characters are left open
+ *     cast?: { <id>: { name?, looks?, motion? } }, // the other people: each a looks and a motion page, as the hero's,
+ *                                              // styled by the same direction (no actions, adornment or gear: those
+ *                                              // are the player's); placed in levels by the story (story.js)
  *   }
  *
  * Pure. `readCharacters` reads the shape alone (the world reader calls it, so it never reads the world back);
@@ -166,12 +168,32 @@ function readLooks(L) {
   return out;
 }
 
-/** Read a world's characters and say what is wrong. → { direction, hero? }. */
+const CAST_ID = /^[a-z][a-z0-9-]{0,23}$/;
+const CAST_KEYS = ['name', 'looks', 'motion'];
+/** The cast: the other people, each { name?, looks?, motion? }. Their looks take the hero's pages but no pinned base. */
+function readCast(c) {
+  if (!isObj(c)) throw err('cast is { <id>: { name?, looks?, motion? } }: the other people, by a short id (mayor, guard)');
+  const out = {};
+  for (const [id, m] of Object.entries(c)) {
+    const at = `cast.${id}`;
+    if (!CAST_ID.test(id)) throw err(`${at}: a cast id is a short lower-case name (mayor, old-guard)`);
+    if (id === 'hero') throw err(`${at}: the hero is the hero's page; the cast are the others`);
+    if (!isObj(m)) throw err(`${at} is { ${CAST_KEYS.join(', ')} }`);
+    for (const k of Object.keys(m)) if (!CAST_KEYS.includes(k)) throw err(`${at}.${k} is not part of a cast member (${CAST_KEYS.join(', ')})${['actions', 'adornment'].includes(k) ? '; that is the player\'s, on the hero' : ''}`);
+    if (m.name !== undefined && !(typeof m.name === 'string' && m.name.trim() && m.name.length <= 40)) throw err(`${at}.name is the name the box shows (Mayor Ilse)`);
+    if (isObj(m.looks) && m.looks.base !== undefined) throw err(`${at}.looks.base: a cast member has no pinned base (the hero's alone)`);
+    const looks = m.looks === undefined ? undefined : readLooks(m.looks);
+    out[id] = { ...(m.name !== undefined ? { name: m.name.trim() } : {}), ...(looks ? { looks } : {}), ...(m.motion !== undefined ? { motion: readMotion(m.motion) } : {}) };
+  }
+  return out;
+}
+
+/** Read a world's characters and say what is wrong. → { direction, hero?, cast? }. */
 export function readCharacters(C) {
   if (!isObj(C)) throw err(`characters is { ${KEYS.join(', ')} }: the direction first, then the hero`);
   for (const k of Object.keys(C)) if (!KEYS.includes(k)) throw err(`'${k}' is not part of the character book (${KEYS.join(', ')})`);
-  if (C.cast !== undefined && C.cast !== null) throw err('cast: the other characters are left open for now (null, or leave it out); the hero comes first');
   const out = { direction: readDirection(C.direction) };
+  if (C.cast !== undefined && C.cast !== null) out.cast = readCast(C.cast);
   if (C.hero !== undefined) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {

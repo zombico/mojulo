@@ -143,6 +143,17 @@ export function composeHero(G, looks = heroLooks(G)) {
  * once that page changes. The colour page sets its palette group by group, so re-applying it keeps the underlayer's
  * tones. A creator, or later a gameworld runner, runs them; nothing here runs a tool.
  */
+/**
+ * A cast member's calls (characters.js cast): the hero's composer over the member's own looks and motion, under the
+ * same direction, so the hero's own calls never change. → heroOrders' { mint, patches, motion?, unread }, or null.
+ */
+export function castOrders(G, id) {
+  const m = G.characters?.cast?.[id];
+  if (!m) return null;
+  const shim = { ...G, characters: { ...G.characters, hero: { ...(m.looks ? { looks: m.looks } : {}), ...(m.motion ? { motion: m.motion } : {}) } } };
+  return heroOrders(shim, { title: `${G.name ?? G.id} · ${m.name ?? id}` });
+}
+
 export function heroOrders(G, { title, composed } = {}) {
   const C = composed ?? composeHero(G);
   if (!C) return null;

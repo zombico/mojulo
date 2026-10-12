@@ -133,8 +133,13 @@ export function validateLevelContract(game, schema) {
   // FLAGS: the store flags a level's scenes read and set (playscape/ui/scenes.js), pushed onto the bus at start.
   if (game.flags !== undefined) {
     const f = game.flags;
-    if (!f || typeof f !== 'object' || typeof f.slice !== 'string' || !f.slice || !Array.isArray(f.names) || !f.names.every((n) => typeof n === 'string' && n)) errors.push('game.flags is { slice, names: [flag] }: the flags slice and the flags the level reads');
-    else if (!(game.consumes || []).some((c) => c && c.slice === f.slice)) errors.push(`game.flags.slice '${f.slice}' is not consumed: add { slice: '${f.slice}' } to game.consumes`);
+    const consumed = (sl) => (game.consumes || []).some((c) => c && c.slice === sl);
+    if (!f || typeof f !== 'object' || !Array.isArray(f.names) || !f.names.every((n) => typeof n === 'string' && n) || (f.names.length && !(typeof f.slice === 'string' && f.slice))) errors.push('game.flags is { slice, names: [flag], items?, done? }: the flags slice and the flags the level reads');
+    else {
+      for (const sl of [f.slice, ...(f.items ? f.items.slices || [] : []), ...(f.done ? [f.done.slice] : [])]) if (sl && !consumed(sl)) errors.push(`game.flags reads the slice '${sl}', which is not consumed: add { slice: '${sl}' } to game.consumes`);
+      if (f.items !== undefined && !(f.items && Array.isArray(f.items.slices) && Array.isArray(f.items.names))) errors.push('game.flags.items is { slices: [inventory slice], names: [item] }');
+      if (f.done !== undefined && !(f.done && typeof f.done.slice === 'string' && f.done.levels && typeof f.done.levels === 'object')) errors.push('game.flags.done is { slice, levels: { <name>: <level ref> } }');
+    }
   }
 
   // ARRIVE: the levels a map game travels in from. The shell's `arrive` param names one, the level hears `arrive:<ref>`

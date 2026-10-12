@@ -264,6 +264,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   ready to frame and walk to, and a world whose scenes use flags gets a `story` slice that every level carries.
 - A world without scenes is byte-identical.
 
+### Story cascade: a story written first, bound to whatever world it meets
+
+- **The cast.** A gameworld's character book takes `cast`: the other people (a mayor, a guard), each with looks and
+  motion like the hero's, styled by the same direction. design_game makes each one, after the hero.
+- **`story`.** A gameworld can carry its story apart from its levels. Each moment names who is in it, where it
+  happens (a level, a stage, a kind of place) and when, with conditions and the flags it sets. When the world is
+  built, each moment binds to the level and place it names, its people are placed there, and it plays as a scene.
+- **Reshape freely.** The story names the world, never its coordinates, so a world can change without breaking it. A
+  moment that can no longer find its place is reported as unplaced, with what is missing; the rest of the world builds.
+- **Conditions on the store.** A scene's `if` can also ask for an item held (`has`) or a level completed (`done`).
+- **In the bibles.** The cast has its page in the character bible, and the story its page in the world bible, each with
+  a stamp to approve before it is built.
+- A world without cast or story is byte-identical, and its levels are not remade.
+
 ### Chapters: the same world at a later point
 
 - **`play.chapters`.** Each chapter is a difference against the base world (spawn, vanish, set, weather, or any cue

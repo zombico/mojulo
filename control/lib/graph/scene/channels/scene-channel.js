@@ -16,6 +16,7 @@ export const SCENE_CSS = `
 .moj-scene-box{position:fixed;left:50%;transform:translateX(-50%);width:min(720px,calc(100vw - 32px));box-sizing:border-box;background:var(--moj-panel-a,rgba(12,16,26,.92));border:1px solid var(--moj-line,#2a3b58);border-radius:10px;padding:12px 16px 14px;color:var(--moj-ink,#dfe8f8);font:16px/1.45 var(--moj-font,system-ui);z-index:31;display:none;cursor:pointer}
 .moj-scene-who{color:var(--moj-accent,#8fa5c8);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
 .moj-scene-more{position:absolute;right:12px;bottom:8px;font-size:12px;opacity:.7}
+.moj-scene-on .moj-hud{visibility:hidden}
 .moj-scene-hint{position:fixed;right:16px;z-index:31;font:11px var(--moj-font,system-ui);color:#9aa4b4;pointer-events:none;display:none}
 `;
 
@@ -65,6 +66,7 @@ function __stepScenes(dtSec) {
   }
   // the player's input is held while a scene plays (the menus' freeze); given back when it ends
   if (v.on) window.__mojMenuOpen = true; else if (__scnHolding) window.__mojMenuOpen = false;
+  if (v.on !== __scnHolding) document.body.classList.toggle('moj-scene-on', v.on);   // the level's HUD steps aside
   if (!v.on) __scnHeld = false;
   __scnHolding = v.on;
 }
