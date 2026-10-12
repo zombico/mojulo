@@ -18,6 +18,7 @@ import { gameworldBibleHtml, characterBibleHtml } from '@/lib/graph/gameworld/in
 import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
 import { cityBookHtml } from '@/lib/graph/city/plan/book-html';
+import { withSiteEdifices } from '@/lib/graph/city/plan/ref';
 
 export async function GET(request, { params }) {
   try {
@@ -35,7 +36,7 @@ export async function GET(request, { params }) {
       });
       base = (sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'structure-book';
     } else if (sketch.manifest?.kind === 'city') {
-      html = cityBookHtml({ ...sketch.manifest, title: sketch.title || sketch.manifest.title }, {
+      html = cityBookHtml(withSiteEdifices({ ...sketch.manifest, title: sketch.title || sketch.manifest.title }, (r) => SketchRepository.getByRef(r)?.manifest), {
         ref, world: download ? null : { src: `/api/sketches/${encodeURIComponent(ref)}/world` },
       });
       base = (sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'city-plan';

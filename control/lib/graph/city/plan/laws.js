@@ -16,6 +16,7 @@ export const CITY_LAWS = Object.freeze([
   { id: 'beat-every', layer: 'walk', want: 'something to meet at least every so many metres of walk: a shopfront, a place, a stop, a corner (walk.beat)', why: 'a walk with nothing on it is a corridor: a player runs it and remembers nothing' },
   { id: 'transit-reach', layer: 'transit', want: 'every built lot within reach of a stop when the city runs a line (transit.reach)', why: 'a line that misses half the city is a ride, not a network' },
   { id: 'transit-on-street', layer: 'transit', want: 'every surface line runs on a street, and every stop stands on one', why: 'a tram across the blocks is through somebody\'s walls' },
+  { id: 'landmark-fits', layer: 'sites', want: 'every landmark and edifice stands at its real size inside its site, its forecourt round it; a site that names one it cannot find stands a massing', why: 'a landmark is known by its size against the streets: one shrunk to fit its site reads as a model of itself' },
   { id: 'slender', layer: 'lots', want: 'every tower at least as slender as the grammar\'s tower.slender', why: 'a tower reads by its proportion; a squat tower is a block' },
 ]);
 export const CITY_LAW_IDS = Object.freeze(CITY_LAWS.map((l) => l.id));
@@ -36,6 +37,12 @@ const TESTS = {
       return false;
     }));
     return hit.map((x) => ({ at: s.id, detail: `${x.id} runs through ${s.name || s.id} (${s.use}): move the site off the spine, or let the spine bend round it` }));
+  }),
+  'landmark-fits': (d) => d.sites.flatMap((s) => {
+    const m = s.mass, name = s.name || s.id;
+    if (m?.unread) return [{ at: s.id, detail: `${name} names the edifice '${m.from}', not read here: it stands as a massing (the world and the book read it by ref)` }];
+    if (m && m.scale < 1) return [{ at: s.id, detail: `${name} (${m.landmark ?? m.from}) stands at ${Math.round(m.scale * 100)} % of its real size: give its site more cells (it wants ${m.real ? `${Math.round(m.real.long)} × ${Math.round(m.real.short)} m` : 'room'} inside a forecourt)` }];
+    return [];
   }),
   fronts: (d) => d.lots.filter((l) => l.use !== 'parking' && l.street === undefined).map((l) => ({ at: l.id, detail: `lot ${l.id} (${l.use}, ${l.floors} storeys) has no walk at its door (it faces ${l.face})` })),
   connected: (d) => {

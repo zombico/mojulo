@@ -162,6 +162,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The world bible draws the city's plan sheet; the graph and the story binder know the new section.
   - A city level made through `create_sketch` and promoted by `create_game` passed the headless auto-audit, in a
     line and in a map.
+- **Landmarks on a city's sites** (`city/plan/landmarks.js`). A site names what stands on it, inside the site with
+  a forecourt round it, rolling no dice.
+  - `landmark: '<id>'` on a landmark site: one of the landmark library's (the Eiffel Tower, Big Ben, the
+    Colosseum…), at its real size from the legacy metro city's own tables (`LANDMARK_REAL`, now exported). One too big
+    for its site is scaled down to fit, and the new `landmark-fits` law says by how much.
+  - `building: 'church' | 'mosque' | 'temple' | 'rotunda'` on a civic site, `variant?`: the library's sacred and civic
+    builders (`refacade`), at their own heights.
+  - `from: '<ref>'`: an edifice of the operator's own (`mint_solid({ kind: 'edifice' })`), stood at its true scale.
+    It is read by ref wherever the city is resolved (`withCityRef` lays it in under `edifices`), so an edit to the
+    edifice moves the city. `compose_world` refuses a missing ref or one that is not an edifice, and `export_game`
+    ships the edifice's recipe beside the city's.
+  - A city's ground is laid first in its face list. A landmark's plinth at ground level had made the World's
+    coplanar lift (`decollideFaces`) raise the whole ground over the streets.
+  - The `city-plan` card lists the landmarks, buildings and variants; the `edifice` card says how to stand one in a
+    city.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

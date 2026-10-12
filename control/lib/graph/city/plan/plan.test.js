@@ -24,7 +24,9 @@ describe('the city card refuses what is off it, by name', () => {
     [{ districts: [{ at: 'B2', use: 'slum' }] }, /districts\[0\].use is one of core, commercial/],
     [{ districts: [{ at: 'B2', use: 'core', grammar: 'paris' }] }, /not laid yet/],
     [{ sites: [{ at: 'B2', use: 'plaza', height: 30 }] }, /only a landmark or a civic building stands to a height/],
-    [{ sites: [{ at: 'B2', use: 'landmark', from: 'sk_x' }] }, /a landmark from another recipe is not laid yet/],
+    [{ sites: [{ at: 'B2', use: 'park', from: 'sk_x' }] }, /from stands an edifice on a landmark or civic site/],
+    [{ sites: [{ at: 'B2', use: 'landmark', landmark: 'big-tower' }] }, /landmark is one of the library's: .*mint_solid\(\{ kind: 'edifice' \}\)/],
+    [{ sites: [{ at: 'B2', use: 'civic', building: 'church', variant: 'gothic' }] }, /a church is basilica, orthodox, chapel/],
     [{ transit: [{ path: 'A2>H2', mode: 'maglev' }] }, /mode is one the grammar runs: tram, bus/],
     [{ lots: { 'b0-0.1': { storeys: 0 } } }, /storeys is a whole number 1–160/],
   ])('%j', (rec, msg) => expect(() => readCityPlan(rec)).toThrow(msg));

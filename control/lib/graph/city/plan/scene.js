@@ -18,6 +18,7 @@ import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 import { lobbyOf, doorFaces } from './doors.js';
 import { nightFaces } from './night.js';
+import { SACRED, edificeFaces } from './landmarks.js';
 import { cityTraffic, readCars } from './traffic.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
@@ -122,7 +123,13 @@ export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
     });
   }
   for (const s of d.sites) if (s.mass) {
-    const m = s.mass, floorH = G.floorH.office, floors = Math.max(1, Math.round(m.h / floorH)), lm = s.use === 'landmark';
+    const m = s.mass, at = { x: r3(m.x0 / U), y: r3(m.y0 / U), w: r3((m.x1 - m.x0) / U), d: r3((m.y1 - m.y0) / U), z0: 0, z1: r3(m.h / U) };
+    // the library draws a named landmark or building from its box (landmarks/index.js, refacade.js); an edifice is its
+    // own faces (siteFaces)
+    if (m.landmark) { boxes.push({ ...at, kind: 'anchor', metro: true, shape: m.landmark, class: 'landmark', site: s.id }); continue; }
+    if (m.building) { const S = SACRED[m.building]; boxes.push({ ...at, kind: 'building', metro: true, shape: m.building, class: S.class, structure: m.building, [S.key]: m.variant, site: s.id }); continue; }
+    if (m.from && !m.unread) continue;
+    const floorH = G.floorH.office, floors = Math.max(1, Math.round(m.h / floorH)), lm = s.use === 'landmark';
     const fam = lm ? G.skin.glass[0] : G.skin.stone[0];
     boxes.push({
       x: r3(m.x0 / U), y: r3(m.y0 / U), w: r3((m.x1 - m.x0) / U), d: r3((m.y1 - m.y0) / U), z0: 0, z1: r3(m.h / U),
@@ -181,8 +188,17 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     const night = lit && lit.night;
     const boxes = cityBoxes(d, paint).map((b) => (night ? { ...b, neon: true } : b)), organic = boxes.filter((b) => ORGANIC_SHAPES.includes(b.shape));
     const grown = organic.flatMap((b) => organicFaces(b, undefined, LIT));
+    // the operator's edifices, at their true scale on their sites (landmarks.js)
+    const insets = d.sites.filter((x) => x.mass?.from && !x.mass.unread).map((x) => edificeFaces(d.plan.edifices[x.mass.from], x.mass, LIT));
+    for (const e of insets) grown.push(...e.faces);
     const built = boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape));
-    scene = assembleBoxCityScene({ boxes: built, faces: [...ground.map(toUnits), ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
+    const laid = ground.map(toUnits);
+    scene = assembleBoxCityScene({ boxes: built, faces: [...laid, ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
+    // the ground first: the World lifts a face stacked on another of its plane over it (face-mesh decollideFaces), so a
+    // landmark's plinth (laid on the ground at z 0, ahead of it) would otherwise lift the whole ground over the streets
+    const first = new Set(laid);
+    scene.faces = [...scene.faces.filter((f) => first.has(f)), ...scene.faces.filter((f) => !first.has(f))];
+    for (const e of insets) scene.textures = { ...(scene.textures || {}), ...(e.textures || {}) };
     // at night the windows and signs are lit (night.js)
     if (night) scene.faces = nightFaces(scene.faces, boxes, new Map(d.lots.map((l) => [l.id, l])), G.night, d.plan.seed);
   }

@@ -8,6 +8,7 @@ import { SIXTH_GEN_LOOK_IDS } from '../../era/sixth-gen.js';
 import { GEOCUBE_PRESETS } from '../../era/geocube.js';
 import { CITY_LAWS } from './laws.js';
 import { CITY_OUTCOMES } from './read.js';
+import { LANDMARK_IDS, SACRED } from './landmarks.js';
 
 export function cityPlanCard() {
   const lines = [
@@ -25,8 +26,12 @@ export function cityPlanCard() {
     'SPINE      [{ path: \'A5>P5\', rank?: major | minor, name? }]: the main streets, through cell centres; a straight run fixes the grid, a bend or a diagonal runs over it. Left out, two crossing at the middle.',
     'DISTRICTS  [{ at: \'C4:H9\', use, name? }], the last laid wins; left out, the height field decides (core near the crossing, residential far out):',
     ...Object.entries(DISTRICT_USES).map(([k, v]) => `  - ${k}: ${v.read}`),
-    'SITES      [{ at: \'H5\' | \'G4:H5\', use, name?, height? (m, a landmark or civic) }]: reserved before the grid; the streets go round:',
+    'SITES      [{ at: \'H5\' | \'G4:H5\', use, name?, height? (m, a landmark or civic massing), landmark? | building? | from? }]: reserved before the grid; the streets go round:',
     ...Object.entries(SITE_USES).map(([k, v]) => `  - ${k}: ${v.read}`),
+    `LANDMARKS  what stands on a site, inside it, a forecourt round it, at its real size (scaled down to fit when it must, and the landmark-fits law says so):`,
+    `  - landmark: '<id>' on a landmark site, one of the library's: ${LANDMARK_IDS.join(', ')}.`,
+    `  - building: ${Object.keys(SACRED).join(' | ')} on a civic site, variant? (${Object.entries(SACRED).map(([k, v]) => `${k}: ${v.variants.join('/')}`).join('; ')}).`,
+    '  - from: \'<ref>\' on a landmark or civic site: YOUR OWN landmark, an edifice made with mint_solid({ kind: "edifice", masses: [{ id, footprint: { w, d } (ft), floors, facade?, roof? }, …], concourses? }) (card edifice), stood at its true scale, read by ref (edit the edifice, the city follows).',
     `TRANSIT    [{ path: 'A3>P3', mode?, name? }]: along a street's cells; a stop every grammar's transit.stop metres. Modes: ${TRANSIT_MODES.join(', ')} (a maglev rides an elevated guideway on pylons); a grammar names the ones it runs.`,
     `LOTS       { '<lot id>': { use? (${LOT_USES.join(', ')}), storeys?, facade? } }; a facade is the building generator's descriptor: ${Object.keys(FACADE_FIELDS).join(', ')}.`,
     'SEGMENTS   true | { across?: [lo, hi] (metres a side; game [180, 360], real [300, 600]), levels? }: the city cut along its spine and avenues into the pieces it is played in, each pair of neighbours joined by a portal on the most important street crossing their edge. levels: true mints a level per segment beside the city (<ref>-<segment id>, each { kind: "city", city: <ref>, level: { segment } }, reading the city by ref: an edit to the city moves them all) and returns game.create_game: the map, its exits and a progression slice.',
@@ -44,7 +49,7 @@ export function cityPlanCard() {
   return {
     id: 'city-plan', name: 'City plan (a city on rails, planned first)', family: 'world', entry: 'compose_world', generated: true,
     summary: 'A city planned on a board of cells before anything renders: main streets, districts, reserved sites, the grid and lots cut from them, transit, and walk laws, in a grammar from Paris to Tokyo, at game or real scale.',
-    when: '"plan a city", "city layout", "a city slice", "lay out the streets first", "a walkable city for a game", "GTA-like city", "a city like Paris / Tokyo / New York", "districts and a downtown", "a city plan I can edit", "place a landmark in the city", "a tram line through the city"',
+    when: '"plan a city", "city layout", "a city slice", "lay out the streets first", "a walkable city for a game", "GTA-like city", "a city like Paris / Tokyo / New York", "districts and a downtown", "a city plan I can edit", "place a landmark in the city", "the Eiffel Tower in my city", "a church on the square", "my own landmark building in the city", "a tram line through the city"',
     body: lines.join('\n'),
   };
 }

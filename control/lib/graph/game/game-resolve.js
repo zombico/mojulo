@@ -76,7 +76,7 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     // channel only once lowered: lowered here, so the mint, the /game route and the export read the same level
     let sketch = row;
     // a city segment's level reads its city by ref (city/plan/ref.js), merged before it is lowered
-    if (row.manifest.kind === 'city' && typeof row.manifest.city === 'string') {
+    if (row.manifest.kind === 'city' && (typeof row.manifest.city === 'string' || (row.manifest.sites || []).some((x) => x && typeof x.from === 'string'))) {
       try { sketch = { ...row, manifest: withCityRef(row.manifest, (r) => getSketch(r)?.manifest) }; }
       catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
     }

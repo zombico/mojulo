@@ -767,7 +767,7 @@ function normalizeLandmarks(landmark) {
 // (along-axis : across-axis). Towers (cn-tower / skytree) sit on a small square base; the
 // Taj spreads on a wide plinth; the stadium is a broad oval. This is the landmark's REAL
 // "surface-area budget" — what gets reserved on the grid so roads route around it.
-const LANDMARK_FOOTPRINT = {
+export const LANDMARK_FOOTPRINT = {
   taj: { frac: 0.34, aspect: 1.0 },
   'cn-tower': { frac: 0.20, aspect: 1.0 },
   skytree: { frac: 0.20, aspect: 1.0 },
@@ -815,7 +815,7 @@ const LANDMARK_FOOTPRINT = {
 // LANDMARK_HEIGHTS × its short side), so one uniform scale sizes it: the height fit, or where `long` is
 // real the geometric mean of the height fit and the plan fit, which splits a builder's proportion error
 // evenly between the two instead of honouring one and doubling the other.
-const LANDMARK_REAL = {
+export const LANDMARK_REAL = {
   taj: { h: 73, long: 95.5 },                    // dome 73 m on a 95.5 m square plinth
   'cn-tower': { h: 553.3 },
   skytree: { h: 634 },
@@ -844,9 +844,9 @@ const LANDMARK_REAL = {
   'rizal-monument': { h: 12.7 },
   'tian-tan-buddha': { h: 44 },                  // the 34 m statue on its lotus (0.715 of the builder's height) over the altar
 };
-const LANDMARK_REAL_ALIAS = { skydome: 'rogers-centre', eiffel: 'eiffel-tower', tokyo: 'tokyo-tower', 'empire-state': 'empire-state-building', empire: 'empire-state-building', gateway: 'gateway-arch', 'chicago-bean': 'cloud-gate', bean: 'cloud-gate', liberty: 'statue-of-liberty', rizal: 'rizal-monument', 'big-buddha': 'tian-tan-buddha', 'tian-tan': 'tian-tan-buddha' };
+export const LANDMARK_REAL_ALIAS = { skydome: 'rogers-centre', eiffel: 'eiffel-tower', tokyo: 'tokyo-tower', 'empire-state': 'empire-state-building', empire: 'empire-state-building', gateway: 'gateway-arch', 'chicago-bean': 'cloud-gate', bean: 'cloud-gate', liberty: 'statue-of-liberty', rizal: 'rizal-monument', 'big-buddha': 'tian-tan-buddha', 'tian-tan': 'tian-tan-buddha' };
 // a metro landmark's short side (u) at its real size; null for a shape with no real entry
-function metroLandmarkBase(shape) {
+export function metroLandmarkBase(shape) {
   const real = LANDMARK_REAL[LANDMARK_REAL_ALIAS[shape] || shape];
   if (!real) return null;
   const byHeight = real.h / CITY_METERS_PER_UNIT / (LANDMARK_HEIGHTS[shape] ?? 1);

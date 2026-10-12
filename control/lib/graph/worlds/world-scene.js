@@ -128,8 +128,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
-  // a city segment's level reads its city by ref (city/plan/ref.js): merged before it is lowered as a level
-  if (sketch.manifest?.kind === 'city' && typeof sketch.manifest.city === 'string') {
+  // a city segment's level reads its city by ref (city/plan/ref.js): merged before it is lowered as a level; and a city's
+  // sites read the edifices they stand by ref the same way
+  if (sketch.manifest?.kind === 'city' && (typeof sketch.manifest.city === 'string' || (sketch.manifest.sites || []).some((x) => x && typeof x.from === 'string'))) {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const { withCityRef } = await import('@/lib/graph/city/plan/ref.js');
     sketch = { ...sketch, manifest: withCityRef(sketch.manifest, (r) => SketchRepository.getByRef(r)?.manifest) };

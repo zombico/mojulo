@@ -10,6 +10,9 @@ import { closeDb } from '@/lib/db/index';
 import { composeWorld } from './compose-world.js';
 import { mintGame } from './create-game.js';
 import { exportGameHandler } from './export-game.js';
+import { mintEdifice } from './edifice.js';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 
 const OUT = mkdtempSync(path.join(tmpdir(), 'export-city-game-'));
 process.env.MOJULO_OUTCOMES_DIR = OUT;
@@ -35,5 +38,17 @@ describe('export_game on a city map game', () => {
     expect(page).toMatch(/reach-exit/);
     const shell = readFileSync(path.join(out.dir, 'game.html'), 'utf8');
     for (const lk of r.game.create_game.links) expect(shell).toContain(lk.from.door);
+  }, 120000);
+  it('a landmark of your own: an edifice minted, stood on a site by ref, drawn in the world, refused when it is not one, shipped with the game', async () => {
+    mintEdifice({ title: 'Museum', ref: 'sk_lm_museum', entrance: 'hall', seed: 2, masses: [{ id: 'hall', footprint: { w: 160, d: 90 }, floors: 4, at: [0, 0], facade: { material: 'concrete', rhythm: 'pier', glass: '#5f7d8c', frame: '#e8e0d0' }, roof: 'modern-shed', interior: { kernel: 'open' } }] });
+    const plan = { grammar: 'paris', board: { cols: 8, rows: 6 }, sites: [{ at: 'F2:G3', use: 'landmark', from: 'sk_lm_museum' }], segments: { levels: true, enter: { walk: 1, door: 0 } } };
+    expect(() => composeWorld({ base: 'city', seed: 6, overrides: { plan: { ...plan, sites: [{ at: 'F2', use: 'landmark', from: 'sk_nothing' }] } } })).toThrow(/no sketch with that ref/);
+    const r = composeWorld({ base: 'city', seed: 6, title: 'Museum quarter', overrides: { plan } });
+    expect(r.ok).toBe(true);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(r.ref));
+    expect(payload.faces.some((f) => f.inset === 'sk_lm_museum')).toBe(true);
+    const g = await mintGame({ ...r.game.create_game, allowUnaudited: true });
+    const out = await exportGameHandler({ ref: g.ref });
+    expect(out.files.map((f) => f.file)).toContain('recipe/sk_lm_museum.json');
   }, 120000);
 });

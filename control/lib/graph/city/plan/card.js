@@ -16,6 +16,7 @@
  * Anything off the card is refused by name; nothing here rolls a die.
  */
 import { readCars } from './traffic.js';
+import { LANDMARK_IDS, LANDMARK_ALIASES, SACRED, REF } from './landmarks.js';
 import { parseCell, cellName } from '../../level/ground.js';
 import { DEFAULT_GRAMMAR, PLAY_SCALES, PLAY_IDS } from './grammar.js';
 import { resolveGrammar } from './grammars.js';
@@ -24,7 +25,7 @@ import { readCityLook, readPaint } from './look.js';
 import { readSegments } from './segments.js';
 import { ENTER, readInside } from './doors.js';
 
-export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'cars', 'waive', 'fidelity', 'notes', 'cityRef']);
+export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'level', 'cars', 'waive', 'fidelity', 'notes', 'cityRef', 'edifices']);
 /** How the world draws it: every lot in its facade (the default), or the massing alone (a plan judged as a plan). */
 export const FIDELITIES = Object.freeze(['facade', 'massing']);
 /** The channels every world kind wears (world-scene.js reads them; the plan never does). */
@@ -124,12 +125,28 @@ export function readCityPlan(rec) {
   });
   const sites = list(rec.sites, 'sites').map((s, i) => {
     const at = `sites[${i}]`;
-    keys(s, at, ['at', 'use', 'name', 'height', 'from']);
+    keys(s, at, ['at', 'use', 'name', 'height', 'landmark', 'building', 'variant', 'from']);
     if (!SITE_USES[s.use]) no(`${at}.use is one of ${SITE_IDS.join(', ')} (got ${JSON.stringify(s.use)})`);
-    if (s.from !== undefined) no(`${at}.from: a landmark from another recipe is not laid yet; a landmark stands as a massing at its height`);
     if (s.height !== undefined && !(typeof s.height === 'number' && s.height >= 4 && s.height <= 900)) no(`${at}.height is metres, 4–900`);
     if (s.height !== undefined && s.use !== 'landmark' && s.use !== 'civic') no(`${at}.height: only a landmark or a civic building stands to a height`);
-    return { cells: cellsOf(s.at, `${at}.at`, board), use: s.use, ...(s.name ? { name: String(s.name) } : {}), ...(s.height !== undefined ? { height: s.height } : {}) };
+    // what stands on it (landmarks.js): a library landmark, a sacred or civic building, or an edifice of the operator's own
+    if ([s.landmark, s.building, s.from].filter((v) => v !== undefined).length > 1) no(`${at}: a site stands one thing: a landmark, a building or an edifice (from)`);
+    if (s.landmark !== undefined) {
+      if (s.use !== 'landmark') no(`${at}.landmark stands on a landmark site (use: 'landmark')`);
+      if (!LANDMARK_IDS.includes(s.landmark) && !LANDMARK_ALIASES[s.landmark]) no(`${at}.landmark is one of the library's: ${LANDMARK_IDS.join(', ')} (got ${JSON.stringify(s.landmark)}); a landmark of your own is an edifice: mint_solid({ kind: 'edifice' }), then from: '<its ref>'`);
+      if (s.height !== undefined) no(`${at}.height: a library landmark stands at its real height`);
+    }
+    if (s.building !== undefined) {
+      if (s.use !== 'civic') no(`${at}.building stands on a civic site (use: 'civic')`);
+      if (!SACRED[s.building]) no(`${at}.building is one of ${Object.keys(SACRED).join(', ')} (got ${JSON.stringify(s.building)})`);
+      if (s.variant !== undefined && !SACRED[s.building].variants.includes(s.variant)) no(`${at}.variant: a ${s.building} is ${SACRED[s.building].variants.join(', ')} (got ${JSON.stringify(s.variant)})`);
+    } else if (s.variant !== undefined) no(`${at}.variant is a building's (give it building: ${Object.keys(SACRED).join(' | ')})`);
+    if (s.from !== undefined) {
+      if (s.use !== 'landmark' && s.use !== 'civic') no(`${at}.from stands an edifice on a landmark or civic site`);
+      if (typeof s.from !== 'string' || !REF.test(s.from)) no(`${at}.from is an edifice's ref (mint one with mint_solid({ kind: 'edifice' }))`);
+      if (s.height !== undefined) no(`${at}.height: an edifice stands at its own height`);
+    }
+    return { cells: cellsOf(s.at, `${at}.at`, board), use: s.use, ...(s.name ? { name: String(s.name) } : {}), ...(s.height !== undefined ? { height: s.height } : {}), ...Object.fromEntries(['landmark', 'building', 'variant', 'from'].filter((k) => s[k] !== undefined).map((k) => [k, s[k]])) };
   });
   const modes = G.transit.modes;
   const transit = list(rec.transit, 'transit').map((t, i) => {
@@ -172,7 +189,7 @@ export function readCityPlan(rec) {
   const waive = list(rec.waive, 'waive');
   if (!waive.every((w) => typeof w === 'string' && w.length)) no("waive is a list of '<law>' or '<law>:<subject>'");
   if (rec.city !== undefined) no(`city: a segment level reads its city by ref ('${rec.city}'); resolve it first (plan/ref.js withCityRef)`);
-  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(segments ? { segments } : {}), ...(level ? { level } : {}), ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}), ...(rec.cars !== undefined ? { cars: rec.cars } : {}) };
+  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(segments ? { segments } : {}), ...(level ? { level } : {}), ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}), ...(rec.cars !== undefined ? { cars: rec.cars } : {}), ...(rec.edifices !== undefined ? { edifices: rec.edifices } : {}) };
 }
 
 /**

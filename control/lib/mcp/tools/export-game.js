@@ -502,12 +502,15 @@ export async function exportGameHandler(input, context = {}) {
     const levelSketch = getSketch(lv.ref);
     await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn })));
     await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
-    const lm = levelSketch.manifest ?? {};
-    for (const mapRef of [lm.mapRef, lm.kind === 'city' ? lm.city : undefined]) {
+    // a city's sites stand edifices by ref (city/plan/landmarks.js): each ships too, the city's and its segments'
+    const standsOf = (m) => (m && m.kind === 'city' && Array.isArray(m.sites) ? m.sites.map((x) => x && x.from) : []);
+    const lm = levelSketch.manifest ?? {}, queue = [lm.mapRef, lm.kind === 'city' ? lm.city : undefined, ...standsOf(lm)];
+    while (queue.length) {
+      const mapRef = queue.shift();
       if (typeof mapRef !== 'string' || mapRecipes.has(mapRef)) continue;
       mapRecipes.add(mapRef);
       const mapSketch = getSketch(mapRef);
-      if (mapSketch?.manifest) await writeRecipe(`recipe/${mapRef}.json`, mapSketch.manifest);
+      if (mapSketch?.manifest) { await writeRecipe(`recipe/${mapRef}.json`, mapSketch.manifest); queue.push(...standsOf(mapSketch.manifest)); }
     }
   }
 

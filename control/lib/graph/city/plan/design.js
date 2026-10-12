@@ -24,6 +24,7 @@ import { evaluateLaws } from './laws.js';
 import { streamOf } from './dice.js';
 import { citySegments } from './segments.js';
 import { cityEntries } from './doors.js';
+import { landmarkMass, sacredMass, edificeMass, LANDMARK_ALIASES } from './landmarks.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 export { streamOf };
@@ -344,7 +345,7 @@ export function designCity(recipe) {
   const S = (rank) => G.street[rank];
   const spine = plan.spine.map((s, i) => ({ id: s.name ? s.name : `spine-${i + 1}`, rank: s.rank, pts: s.path.map(centre), source: 'spine', ...S(s.rank) }));
   const reserved = [
-    ...plan.sites.map((s, i) => ({ id: `site-${i + 1}`, kind: 'site', use: s.use, rect: cellRect(s.cells), name: s.name, height: s.height })),
+    ...plan.sites.map((s, i) => ({ id: `site-${i + 1}`, kind: 'site', use: s.use, rect: cellRect(s.cells), name: s.name, height: s.height, ...Object.fromEntries(['landmark', 'building', 'variant', 'from'].filter((k) => s[k] !== undefined).map((k) => [k, s[k]])) })),
     ...laidDistricts.filter((d) => !DISTRICT_USES[d.use].built).map((d) => ({ id: d.id, kind: 'district', use: d.use, rect: d.rect, name: d.name })),
   ];
 
@@ -428,9 +429,14 @@ export function designCity(recipe) {
   // 6 · the sites, built
   const sites = reserved.filter((r) => r.kind === 'site').map((r) => {
     const w = r.rect.x1 - r.rect.x0, d = r.rect.y1 - r.rect.y0, ring = r.use === 'landmark' ? Math.min(w, d) * 0.22 : 0;
+    // what stands on it, by name (landmarks.js): the library's landmark at its real size, a sacred or civic building, or
+    // the operator's edifice at its true scale (laid in by ref, plan/ref.js; unread, it stands as the massing below)
+    const own = r.landmark ? landmarkMass(LANDMARK_ALIASES[r.landmark] ?? r.landmark, r.rect) : r.building ? sacredMass(r.building, r.rect, r.variant, r.id, r.height)
+      : r.from && plan.edifices?.[r.from] ? edificeMass(plan.edifices[r.from], r.rect, r.from) : null;
+    if (own) return { id: r.id, use: r.use, ...(r.name ? { name: r.name } : {}), rect: r.rect, mass: own };
     const mass = r.use === 'landmark' ? { x0: r.rect.x0 + ring, y0: r.rect.y0 + ring, x1: r.rect.x1 - ring, y1: r.rect.y1 - ring, h: r.height ?? r2(G.height.core * 3.5) }
       : r.use === 'civic' ? { x0: r.rect.x0 + w * 0.2, y0: r.rect.y0 + d * 0.2, x1: r.rect.x1 - w * 0.2, y1: r.rect.y1 - d * 0.2, h: r.height ?? r2(G.height.edge * 1.6) } : null;
-    return { id: r.id, use: r.use, ...(r.name ? { name: r.name } : {}), rect: r.rect, ...(mass ? { mass: Object.fromEntries(Object.entries(mass).map(([k, v]) => [k, r2(v)])) } : {}) };
+    return { id: r.id, use: r.use, ...(r.name ? { name: r.name } : {}), rect: r.rect, ...(mass ? { mass: { ...Object.fromEntries(Object.entries(mass).map(([k, v]) => [k, r2(v)])), ...(r.from ? { from: r.from, unread: true } : {}) } } : {}) };
   });
 
   // 7 · transit: each line through its cells, a stop every `stop` metres along it
