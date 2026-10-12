@@ -78,3 +78,46 @@ describe('a way out of a room', () => {
     expect(() => planStage({ kind: 'stage', kit: 'gothic-stone', rooms: [{ id: 'a', x: 0, y: 0, w: 8, d: 6, h: 4 }], ways: [{ room: 'a', side: 'up' }] })).toThrow(/side/);
   });
 });
+
+describe("a town's street", () => {
+  const street = assembleStageScene({ ...TRAIL, town: { houses: 5, enter: 1 } });
+  it("stands the town's first houses beside the trail: the focus walked into, the rest as the town draws them", () => {
+    expect(street.buildings.map((b) => b.use)).toEqual(['hall', 'shop', 'shop', 'shop', 'shop']);
+    expect(street.buildings[0]).toMatchObject({ entry: 'porch', goal: 'dais' });
+    expect(street.buildings.slice(1).every((b) => b.house)).toBe(true);
+    const houses = street.anchors.filter((a) => a.kind === 'house');
+    expect(houses).toHaveLength(4);
+    // each house a collider, none overlapping another building's
+    const boxes = houses.map((h) => h.box);
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      expect(a.min[0] < b.max[0] && b.min[0] < a.max[0] && a.min[1] < b.max[1] && b.min[1] < a.max[1]).toBe(false);
+    }
+    expect(street.faces.some((f) => f.group === 'town:wall')).toBe(true);
+    expect(street.faces.some((f) => f.group === 'town:plinth')).toBe(true);
+  });
+  it('the same street on the same seed; another seed, another street; and says what is wrong', () => {
+    expect(JSON.stringify(assembleStageScene({ ...TRAIL, town: { houses: 5, enter: 1 } }).anchors)).toBe(JSON.stringify(street.anchors));
+    expect(() => assembleStageScene({ ...TRAIL, town: { houses: 5, lanes: 2 } })).toThrow(/not a setting/);
+    expect(() => assembleStageScene({ kind: 'stage', kit: 'trail-valley', trail: true, town: {} })).toThrow(/indexed for the outdoor kits/);
+  });
+  it('goal: the first house walked into holds the level\'s end', () => {
+    const g = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 1, goal: true } });
+    expect(g.anchors.find((a) => a.kind === 'building')).toMatchObject({ isGoal: true, goal: 'dais' });
+  });
+});
+
+describe('planned before anything grows', () => {
+  // every footprint (a building's rooms, a house's box), and every corner of every tree, rock and arrangement face
+  const feet = (p) => [...p.anchors.filter((a) => a.kind === 'building').flatMap((a) => a.rooms.map((r) => r.box)), ...p.anchors.filter((a) => a.kind === 'house').map((a) => a.box)];
+  const growth = /:(wood|crown|rock|hat|tree|bough|ikebana)$/;
+  for (const [name, m] of [['the meadow tavern', { ...TRAIL, buildings: [{ use: 'tavern', seed: 2 }] }], ['the meadow street', { ...TRAIL, town: { houses: 5, enter: 1 } }], ['the valley inn', { kind: 'stage', kit: 'trail-valley', trail: true, buildings: [{ use: 'tavern', seed: 2 }] }]]) {
+    it(`${name}: no tree, rock or arrangement stands in a footprint, and the land round it still grows`, () => {
+      const p = assembleStageScene(m), F = feet(p);
+      expect(F.length).toBeGreaterThan(0);
+      const inside = p.faces.filter((f) => growth.test(f.group) && f.corners.some((c) => F.some((B) => within(c, B))));
+      expect(inside.map((f) => f.group)).toEqual([]);
+      expect(p.faces.filter((f) => growth.test(f.group)).length).toBeGreaterThan(100);
+    }, 120_000);
+  }
+});

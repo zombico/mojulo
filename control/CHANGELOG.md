@@ -517,6 +517,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     so.
   - **Its anchor** names its door, rooms, goal room and the route in. `goal: true` ends the level in its goal room,
     walked in at the door.
+- **A town's street stands along the trail.** An outdoor stage's `town: { houses?, enter?, goal? }` (the game
+  designer's `places.street`, beside `places.town`) designs the civilization's town on the kit and stands its first
+  houses in the town's own order: the hall, then the near ring, a counter before a dwelling.
+  - The first `enter` are walked into (their use's program inside); `goal: true` ends the level in the first.
+  - The rest stand as the town draws them, shells with a plinth and a collider.
+  - Each stands on the flattest land beside the trail, never on a beat of the trail or another building.
+  - A level ending in a building is routed up the trail's beats to the one nearest its door, then round the houses
+    to it.
+- **Buildings are planned before anything grows.** A stage's buildings and street are seated first, by a planning
+  pass over the land alone. Their footprints come back to the open-ground builders (nature, isekai, jungle) as
+  reserved ground, a crown's reach round each.
+  - Trees, flower arrangements and live grass are placed on the rest of the site; rocks, bamboo and the jungle's
+    giants are kept off it.
+  - Nothing stands half in a wall or hangs its crown through a roof.
+  - A stage without buildings lays exactly as before.
 
 ### Solid powerscale: solids routed by what they are for
 

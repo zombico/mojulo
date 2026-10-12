@@ -18,6 +18,7 @@
  *   layers    the far ridges painted from the far ramp; a thin haze; the sky dome from the sky ramp; a high cloud deck
  * Deterministic: integer-hash dice, pooled plants from fixed seeds.
  */
+import { reserveSite, kept, CROWN } from './reserve.js';
 import { lookOf } from './style/looks.js';
 import { poleOf } from './style/pole.js';
 import { ISEKAI_STYLES, isekaiMask } from './isekai-tiles.js';
@@ -246,14 +247,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   if (!st) throw new Error(`stage: unknown isekai style '${manifest.style}' (known: ${Object.keys(ISEKAI_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, S = seed | 0;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
-  const site = manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
+  // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
+  const keep = manifest._keepOut ?? null;
+  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), keep), key = st.light.key, dir = sunDir(key.elevation, key.azimuth);
   // ── the geometry ──
   const ground = isekaiGround(st, site);
   const plainTiles = { trail: { key: null, scale: 1, tint: st.tint.trail }, fringe: { key: null, scale: 1, tint: st.tint.ground } };
   const ribbon = trailFaces({ ...st, tiles: plainTiles }, site).map(({ texture, textureLit, uv, cls, ...f }) => ({ ...f, tint: cls === 'trail' ? st.tint.trail : st.tint.ground, group: cls === 'trail' ? 'isekai:trail' : 'isekai:ground', cls }));
   // a named stone (the trail's landmark) carries its node on every face
   const named = (fs, it) => (it.node ? fs.map((f) => ({ ...f, node: it.node })) : fs);
-  const rocks = rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
+  const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed), boulders = rocks.map((it) => { const b = boulderFaces(st, it, seed); return { it, ...b, sides: named(b.sides, it), cap: named(b.cap, it) }; });
   // the TREES, by the card's form: round-mass crowns (the meadow's), bamboo culms with leaf sprays, or sakura
   const form = st.trees.form || 'blob', bamboo = form === 'bamboo';
   const trees = bamboo ? bambooItems(st, site, seed) : treeItems(st, site, seed);
@@ -265,6 +268,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     for (let i = trees.length - 1; i >= 0; i--) if (Hs.some((H) => Math.hypot(H.x - trees[i].x, H.y - trees[i].y) < st.trees.heroClear)) trees.splice(i, 1);
     trees.push(...Hs);
   } else if (Hr) { const x = site.trailX(Hr.y) + Hr.side * (site.halfWAt(Hr.y) + Hr.off); trees.push({ x: r5(x), y: Hr.y, h: Hr.h, v: 0, cluster: -1, hero: true }); }
+  if (keep) for (let i = trees.length - 1; i >= 0; i--) if (!kept(keep, trees[i].x, trees[i].y, CROWN)) trees.splice(i, 1);
   const grove = bamboo ? bambooFaces(st, site, trees) : null;
   const sak = sakura ? sakuraFaces(st, site, trees) : null;
   const wood = bamboo || sak ? [] : treeFaces(st, site, trees);
@@ -551,6 +555,7 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) 
     if (site.trailDist(c[0], c[1]) < site.halfWAt(c[1]) + 0.1) continue;
     if (rocks.some((r) => r.role !== 'pebble' && Math.hypot(r.x - c[0], r.y - c[1]) < r.size * st.rubble.unit * 0.5 + 0.15)) continue;
     if (trees.some((t) => Math.hypot(t.x - c[0], t.y - c[1]) < 0.45)) continue;
+    if (site.reserved && !kept(site.reserved, c[0], c[1], 0.3)) continue;
     m[j * (nx - 1) + i] = 1 | (shadow([c[0], c[1], c[2] + 0.3], [0, 0, 1]) > 0 ? 2 : 0);
   }
   // the grown tufts, positions only, quantized; a variant's levels index into the templates

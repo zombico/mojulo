@@ -61,6 +61,17 @@ describe('a building as a level', () => {
     expect(game.ok).toBe(true);
   }, 300_000);
 
+  it("the town's street on the meadow trail: the level ends at the hall's dais, walked in off the street", async () => {
+    const ML = MEADOWMARK.levels['meadow-ascent'];
+    const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...ML, places: { ...ML.places, street: { houses: 5, enter: 1, goal: true } } } } };
+    const st = gameStages(W).find((s) => s.level === 'meadow-ascent' && s.manifest.town);
+    const order = stageLevelOrder(readGameworld(W), st, { ref: 'lv_street' });
+    expect(order.ends.exitFrom).toMatch(/hall's dais/);
+    await createSketchHandler({ ...order.args, ref: 'lv_street' });
+    const game = await mintGame({ title: 'Into the hall', store: STORE, levels: [{ ref: 'lv_street' }], ref: 'gm_street', autoAudit: true });
+    expect(game.ok).toBe(true);
+  }, 300_000);
+
   it('a building without `level` is still refused as a level, saying why', async () => {
     mintBuilding({ title: 'Plain', ref: 'lv_plain', manifest: { kind: 'office', title: 'Plain' } });
     await expect(mintGame({ title: 'x', store: STORE, levels: [{ ref: 'lv_plain' }], ref: 'gm_plain', autoAudit: true })).rejects.toThrow(/no `game` channel/);

@@ -25,6 +25,7 @@ import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { withBuildingLevel } from '../structure/level.js';
 import { withProgram } from '../era/programs.js';
+import { buildNav } from '../worlds/controllable/nav.js';
 
 const EYE_FALLBACK = 1.7;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -41,7 +42,9 @@ export function gameStages(world) {
     const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
     laid.stages.forEach((s, i) => {
       const here = (R.buildings ?? []).filter((b) => home(b) === s.node).map(({ node: _n, ...b }) => b);
-      out.push({ level, node: s.node, section: s.section, index: i, manifest: here.length ? { ...s.manifest, buildings: here } : s.manifest });
+      // the town's street stands on the first trail
+      const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
+      out.push({ level, node: s.node, section: s.section, index: i, manifest: here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest });
     });
   }
   return out;
@@ -64,7 +67,21 @@ function readEnds(manifest) {
   let exit = null, exitFrom = null, via = null;
   // a building that holds the level's end: its goal room, reached through its door and doorways
   const holds = anchors.find((a) => a.kind === 'building' && a.isGoal);
-  if (holds) { exit = [holds.goalAt[0], holds.goalAt[1], holds.goalAt[2]]; via = holds.route; exitFrom = `the ${holds.use}'s ${holds.goal}`; }
+  if (holds) {
+    exit = [holds.goalAt[0], holds.goalAt[1], holds.goalAt[2]]; exitFrom = `the ${holds.use}'s ${holds.goal}`;
+    // from the spawn up the trail (it climbs where the land does: a straight line would cross its cliffs) to the beat
+    // nearest the door, then round what stands between (the street's other houses) to the door: the walkers' own
+    // pathfinder, at the height of that beat
+    const own0 = manifest.trail ? `out-trail:${manifest.trail.id}` : null;
+    const line = anchors.filter((a) => a.kind === 'beat' && (!own0 || a.trail === own0) && Number.isFinite(a.s)).sort((a, b) => a.s - b.s);
+    const door = holds.route[0], d2 = (a) => (a.at[0] - door[0]) ** 2 + (a.at[1] - door[1]) ** 2;
+    const k = line.reduce((m, a, i) => (m < 0 || d2(a) < d2(line[m]) ? i : m), -1);
+    const up = k >= 0 ? line.slice(0, k + 1).map((a) => [r3(a.at[0]), r3(a.at[1])]) : [];
+    const from = k >= 0 ? line[k].at : spawn;
+    const N = {}; buildNav(N);
+    const path = N.navPath({ colliders: P.colliders ?? [] }, from, door, { radius: 0.7, height: 1.8, footZ: from[2], step: 0.35, cell: 0.5 });
+    via = [...up, ...(path && path.length ? path.slice(0, -1).map((q) => q.map(r3)) : []), ...holds.route];
+  }
   // a trail: the exit beat of its own trail (the pages after the first also carry the trail before it)
   const own = manifest.trail ? `out-trail:${manifest.trail.id}` : null;
   const beat = anchors.find((a) => a.kind === 'beat' && a.beat === 'exit' && (!own || a.trail === own));

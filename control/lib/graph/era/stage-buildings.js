@@ -26,6 +26,8 @@ import { stageLevel } from '../structure/level.js';
 import { STRUCTURE_RAILS } from './out-structures.js';
 import { structurePaint, paintStop } from './out-structures-paint.js';
 import { decompileAnchor, ANCHOR_STRUCTURES, ANCHOR_IDS } from './out-anchor-structure.js';
+import { designTown } from './out-town.js';
+import { structureStyle } from './out-structures.js';
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5;
 const P3 = (p) => p.map(r5);
@@ -90,6 +92,30 @@ function paintFor(kitId) {
   try { const P = structurePaint(kitId); return (group, v) => hex(paintStop(P, group, v)); }
   catch { const base = { 'str:plaster': [196, 186, 166], 'str:stone': [150, 146, 138], 'str:roof': [122, 72, 56] };
     return (group, v) => { const c = base[group] ?? base['str:stone'], k = 0.55 + 0.6 * v; return `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0')).join('')}`; }; }
+}
+
+/** The kit's structure paint at a group and value, as hex (the town's own groups: str:plaster, str:thatch …). */
+const paintRaw = (kitId) => paintFor(kitId);
+
+/**
+ * A town's street: the civilization's town designed on the kit (era/out-town.js), its lots in the town's own order
+ * (the focus, then the near ring, a counter before a dwelling), the first `houses` of them standing; the first
+ * `enter` of those walked into (their use's program inside; `goal`: the first holds the level's end), the rest
+ * standing as the town draws them.
+ */
+const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
+const RING_ORDER = { near: 0, mid: 1, far: 2 };
+function townStreet(town, kitId, seed0) {
+  if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe? }');
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'recipe'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, recipe)`);
+  const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
+  const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
+  const anchor = typeof town.anchor === 'string' ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
+  const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
+    || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k).slice(0, houses);
+  return lots.map(({ l }, n) => (n < enter
+    ? { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}) }
+    : { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l }));
 }
 
 const quad = (corners, group, fill) => ({ corners: corners.map(P3), group, fill, cornerFills: [fill, fill, fill, fill].slice(0, corners.length) });
@@ -158,16 +184,21 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
 
 /**
  * The outdoor payload with its buildings seated: their faces, lights, colliders and anchors added, the land's growth
- * cleared from their footprints. A recipe without `buildings` returns the payload as it came.
+ * cleared from their footprints. A recipe without `buildings` returns the payload as it came. `ctx.planOnly` seats
+ * nothing and answers `{ reserved }`, the ground each would claim (the stage lays its land again round it: reserve.js).
  */
 export function withBuildings(payload, manifest, ctx = {}) {
-  const list = manifest.buildings;
-  if (list === undefined) return payload;
-  if (!Array.isArray(list) || !list.length) throw new Error('stage: buildings is [{ use, at?, seed?, civilization?, kit? }], at least one');
+  if (manifest.buildings === undefined && manifest.town === undefined) return payload;
+  const list0 = manifest.buildings ?? [];
+  if (!Array.isArray(list0) || (manifest.buildings !== undefined && !list0.length)) throw new Error('stage: buildings is [{ use, at?, seed?, civilization?, kit? }], at least one');
+  // a town's street (`town`): its lots in the town's own order, the first `enter` of them walked into, the rest its
+  // houses standing as shells; seated after the recipe's own buildings, on what land is left
+  const street = manifest.town !== undefined ? townStreet(manifest.town, manifest.kit, manifest.seed) : [];
+  const list = [...list0, ...street];
   const kitId = manifest.kit, ground = groundIndex(payload.faces), paint = paintFor(kitId);
   const pockets = (payload.anchors || []).filter((a) => a.kind === 'beat' && a.beat === 'pocket');
   const sun = unit(payload.sky?.sun?.dir ?? [0.45, -0.55, 0.7]);
-  const seated = [], taken = [];
+  const seated = [], taken = [], reserved = [];
   const beats = (payload.anchors || []).filter((a) => a.kind === 'beat' && Array.isArray(a.at)).sort((p, q) => (p.s ?? p.at[1]) - (q.s ?? q.at[1]));
   const bounds = (payload.colliders || []).filter((c) => String(c.of || '').startsWith('bound:'));
   const rough = cellsOf(payload.faces, ROUGH), path = cellsOf(payload.faces, PATH);
@@ -175,28 +206,41 @@ export function withBuildings(payload, manifest, ctx = {}) {
   const cutouts = new Set(payload.cutouts || []);
   list.forEach((b, i) => {
     if (!b || typeof b.use !== 'string') throw new Error(`stage: buildings[${i}] needs a use`);
-    const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId);
-    // the inside: the program on its room kit, a way out of the entry through its front
-    const inner0 = withProgram({ kind: 'stage', kit: b.kit ?? (anchor === 'shell' ? 'research-lab' : 'gothic-stone'), program: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}) } });
-    const entry = inner0.rooms.find((r) => r.id === inner0._program.entry);
-    const inner = { ...inner0, ways: [{ room: entry.id, side: '-y' }] };
-    const doorPlan = [(entry.x + entry.x + entry.w) / 2, entry.y], t = 0.25;
+    const id = b.id ?? `${b.use}-${i + 1}`, anchor = anchorOf(b, kitId), t = 0.25;
+    // a house of the town's standing as its shell (no inside): its footprint the lot's building, its door on its front
+    const lot = b.lot ?? null;
+    let inner = null, entry = null, doorPlan, rects;
+    if (lot) {
+      const fs = lot.design.faces, xs = fs.flatMap((f) => f.corners.map((c) => c[0])), ys = fs.flatMap((f) => f.corners.map((c) => c[1]));
+      const dr = fs.find((f) => f.part === 'door' || f.part === 'accent');
+      rects = [[Math.min(...xs), Math.max(0, Math.min(...ys)), Math.max(...xs), Math.max(...ys)]];
+      doorPlan = [dr ? dr.corners.reduce((a, c) => a + c[0], 0) / dr.corners.length : (rects[0][0] + rects[0][2]) / 2, 0];
+    } else {
+      // the inside: the program on its room kit, a way out of the entry through its front
+      const inner0 = withProgram({ kind: 'stage', kit: b.kit ?? (anchor === 'shell' ? 'research-lab' : 'gothic-stone'), program: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}) } });
+      entry = inner0.rooms.find((r) => r.id === inner0._program.entry);
+      inner = { ...inner0, ways: [{ room: entry.id, side: '-y' }] };
+      doorPlan = [(entry.x + entry.x + entry.w) / 2, entry.y];
+      rects = inner.rooms.map((r) => [r.x - t, r.y - t, r.x + r.w + t, r.y + r.d + t]);
+    }
     // how the building fits standing with its door at T facing out: its floor level with the land at its door (a game
     // building is cut into its slope, not stood on stilts over it), how far the land behind stands over that floor, how
     // much cliff and trail it covers, whether it crosses the stage's bounds or another building
     const fit = (T, facing) => {
       const { q, rot } = turnFor(facing);
       const toWorld = ([x, y]) => { const [u, v] = rot([x - doorPlan[0], y - doorPlan[1]]); return [T[0] + u, T[1] + v]; };
-      const boxes = inner.rooms.map((r) => { const a = toWorld([r.x - t, r.y - t]), c = toWorld([r.x + r.w + t, r.y + r.d + t]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])]; });
+      const boxes = rects.map((R0) => { const a = toWorld([R0[0], R0[1]]), c = toWorld([R0[2], R0[3]]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])]; });
       const samples = [];
-      for (const r of inner.rooms) for (let x = r.x - t; x <= r.x + r.w + t + 1e-6; x += 1) for (let y = r.y - t; y <= r.y + r.d + t + 1e-6; y += 1) samples.push(toWorld([x, y]));
+      for (const R0 of rects) for (let x = R0[0]; x <= R0[2] + 1e-6; x += 1) for (let y = R0[1]; y <= R0[3] + 1e-6; y += 1) samples.push(toWorld([x, y]));
       const zs = samples.map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       const atDoor = [toWorld([doorPlan[0], doorPlan[1] - 0.6]), toWorld([doorPlan[0], doorPlan[1] + 0.6])].map(([x, y]) => ground(x, y)).filter((z) => z !== null);
       if (zs.length < samples.length * 0.9 || !atDoor.length) return { off: true };
       const floor = Math.max(...atDoor) + 0.12;
       const cellsIn = (set) => { let n = 0; for (const B of boxes) for (let i = Math.floor(B[0]); i <= Math.floor(B[2]); i++) for (let j = Math.floor(B[1]); j <= Math.floor(B[3]); j++) if (set.has(`${i},${j}`)) n++; return n; };
       const hits = (B, c) => B[0] < c.max[0] && c.min[0] < B[2] && B[1] < c.max[1] && c.min[1] < B[3];
-      const blocked = boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
+      // a building never stands on a beat of the trail (the way runs through them) or another building
+      const onBeat = boxes.some((B) => beats.some((bt) => bt.at[0] > B[0] - 2 && bt.at[0] < B[2] + 2 && bt.at[1] > B[1] - 2 && bt.at[1] < B[3] + 2));
+      const blocked = onBeat || boxes.some((B) => bounds.some((c) => hits(B, c)) || taken.some((T2) => B[0] < T2[2] && T2[0] < B[2] && B[1] < T2[3] && T2[1] < B[3]));
       return { q, rot, toWorld, boxes, zs, floor, into: Math.max(...zs) - floor, rough: cellsIn(rough), path: cellsIn(path), blocked };
     };
     const score = (F) => (F.off ? Infinity : F.into + 3 * F.rough + (F.path ? 40 : 0) + (F.blocked ? 1000 : 0));
@@ -231,17 +275,33 @@ export function withBuildings(payload, manifest, ctx = {}) {
     if (F.off) throw new Error(`stage: buildings[${i}] (${id}) stands off the land`);
     const { q, rot, toWorld, zs, floor, into } = F;
     taken.push(...F.boxes);
+    // the planning pass only claims the ground (era/reserve.js): the land is laid again round it before anything is built
+    if (ctx.planOnly) { reserved.push(...F.boxes.map((B) => B.map(r5))); return; }
+    const clearUnder = (pad, land = true) => {
+      const grow = F.boxes.map((B) => [B[0] - pad, B[1] - pad, B[2] + pad, B[3] + pad]), mid = (f) => { const n = f.corners.length; return [f.corners.reduce((a, c) => a + c[0], 0) / n, f.corners.reduce((a, c) => a + c[1], 0) / n]; };
+      faces = faces.filter((f) => { const g = f.group || ''; if (CLEARED.test(g)) { const [cx, cy] = mid(f); return !grow.some((B) => cx >= B[0] && cx <= B[2] && cy >= B[1] && cy <= B[3]); } if (land && (GROUND.test(g) || ROUGH.test(g))) { const [cx, cy] = mid(f); return !F.boxes.some((B) => cx > B[0] && cx < B[2] && cy > B[1] && cy < B[3]); } return true; });
+    };
+    if (lot) {
+      // the shell: the lot's building as the town draws it, painted and lit by the stage's sun, a plinth to the land,
+      // one collider round it
+      const below0 = Math.max(0.3, floor - Math.min(...zs) + 0.3), Wl = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
+      clearUnder(0.4, false);   // a shell has no floor: its land stays (its collider keeps a walker out)
+      const Pt = paintRaw(kitId), lit = (n) => 0.55 + 0.45 * Math.max(0, n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]);
+      const shellF = lot.design.faces.map((f) => { const c = f.corners.map(Wl), nn = unit(cross(sub3(c[1], c[0]), sub3(c[c.length - 1], c[0]))); return { ...quad(c, `town:${f.part}`, Pt(f.group, Math.min(1, (f.value ?? 0.6) * lit(nn)))), normal: P3(nn), outNormal: P3(nn) }; });
+      const [x0, y0, x1, y1] = rects[0], plinth = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]].map(([a, c]) => { const cs = [Wl([...a, -below0]), Wl([...c, -below0]), Wl([...c, 0]), Wl([...a, 0])], nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[3], cs[0]))); return { ...quad(cs, 'town:plinth', Pt('str:stone', 0.45 * lit(nn))), normal: P3(nn), outNormal: P3(nn) }; });
+      faces = [...faces, ...shellF, ...plinth];
+      const top = Math.max(...lot.design.faces.flatMap((f) => f.corners.map((c) => c[2]))), B = F.boxes[0];
+      colliders.push({ min: P3([B[0], B[1], floor - below0]), max: P3([B[2], B[3], floor + top]), of: `${id}:house` });
+      anchors.push({ id: `house-${id}`, kind: 'house', use: b.use, at: P3(Wl([doorPlan[0], doorPlan[1], 0])), N: P3((() => { const [nx, ny] = F.rot([0, -1]); return [nx, ny, 0]; })()), floor: r5(floor), box: { min: P3([B[0], B[1], floor]), max: P3([B[2], B[3], floor + top]) } });
+      seated.push({ id, use: b.use, house: true, floor: r5(floor) });
+      return;
+    }
     const P = assembleStageScene(inner, ctx), ways = planStage(inner).ways ?? [];
     const below = Math.max(0.3, floor - Math.min(...zs) + 0.3);
     const W = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
     const turnN = (n) => { const [x, y] = rot([n[0], n[1]]); return [x, y, n[2]]; };
-    // the land's growth cleared from the footprint (a face whose middle stands over a room, a wall's width out)
-    const boxes = inner.rooms.map((r) => { const a = toWorld([r.x - t - 0.4, r.y - t - 0.4]), c = toWorld([r.x + r.w + t + 0.4, r.y + r.d + t + 0.4]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])]; });
-    const over = (x, y) => boxes.some((B) => x >= B[0] && x <= B[2] && y >= B[1] && y <= B[3]);
-    faces = faces.filter((f) => { if (!CLEARED.test(f.group || '')) return true; const n = f.corners.length; const cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n; return !over(cx, cy); });
-    // the land itself under its rooms (inside the walls), its cliffs too: taken out, so the floor is the only ground in there
-    const rooms0 = inner.rooms.map((r) => { const a = toWorld([r.x - t, r.y - t]), c = toWorld([r.x + r.w + t, r.y + r.d + t]); return [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.max(a[0], c[0]), Math.max(a[1], c[1])]; });
-    faces = faces.filter((f) => { if (!GROUND.test(f.group || '') && !ROUGH.test(f.group || '')) return true; const n = f.corners.length; const cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n; return !rooms0.some((B) => cx > B[0] && cx < B[2] && cy > B[1] && cy < B[3]); });
+    // the land's growth (a wall's width out) and the land itself (cliffs too) cleared under it: the floor the only ground inside
+    clearUnder(0.4);
     // the inside, moved
     const moved = P.faces.map((f) => ({ ...f, corners: f.corners.map((c) => P3(W(c))), ...(f.normal ? { normal: P3(turnN(f.normal)) } : {}), ...(f.outNormal ? { outNormal: P3(turnN(f.outNormal)) } : {}), node: f.node ? `${id}:${f.node}` : undefined }))
       .map(({ node, ...f }) => (node ? { ...f, node } : f));
@@ -289,5 +349,6 @@ export function withBuildings(payload, manifest, ctx = {}) {
     seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,
       findings: [...inner._program.findings.map((f) => f.says), ...(into > 2.5 ? [`the ${id} is cut ${r5(into)} m into its slope: its back rooms stand below the land (another pocket, or at a flatter place)`] : [])] });
   });
+  if (ctx.planOnly) return { reserved };
   return { ...payload, faces, ...(cutouts.size ? { cutouts: [...cutouts].sort() } : {}), lights, colliders, anchors, buildings: seated };
 }

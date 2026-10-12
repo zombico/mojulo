@@ -20,6 +20,7 @@
  * PROGRESSIVE REVEAL: detail by ring out from the trail (the character's line): NEAR every card distinct, MID fewer and
  * larger, the giants' wood one level down, FAR no plants, only layered walls in the fog.
  */
+import { reserveSite, kept, CROWN } from './reserve.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { hash3, vnoise } from './dirt.js';
 import { P, hexRgb, rgbHex, r5, card, crossed } from './geom.js';
@@ -554,10 +555,11 @@ function plantShadows(st, site, raw) {
 }
 
 /** The jungle's unlit faces and its sun: { site, giants, rocks, puddles, raw, dir, shadow } (the tests read it too). */
-export function jungleLayers(st, seed = 1) {
-  const site = natureSite(st, seed), colossi = colossusItems(st, site);
+export function jungleLayers(st, seed = 1, keep = null) {
+  // `keep`: ground a stage's buildings have claimed (a recipe's `_keepOut`, era/reserve.js), planned before anything grows
+  const site = reserveSite(natureSite(st, seed), keep), colossi = colossusItems(st, site).filter((c) => kept(keep, c.x, c.y, (c.reach ?? 4)));
   site.blocked = (x, y) => colossi.some((c) => Math.hypot(x - c.x, y - c.y) < c.reach + 0.4);   // nothing grows inside a massive trunk's foot
-  const giants = giantItems(st, site, seed).filter((g) => !colossi.some((c) => Math.hypot(g.x - c.x, g.y - c.y) < c.reach + 4)), rocks = rockItems(st, site, seed), puddles = puddleSpots(st, site);
+  const giants = giantItems(st, site, seed).filter((g) => !colossi.some((c) => Math.hypot(g.x - c.x, g.y - c.y) < c.reach + 4) && kept(keep, g.x, g.y, CROWN)), rocks = rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)), puddles = puddleSpots(st, site);
   const { wood, crowns, epi } = giantFaces(st, site, giants), ferns = treeFernFaces(st, site, giants, seed);
   const raw = [
     // the trail's ribbon wears the floor's own soil mapped the floor's way (world x, y), so no seam shows where it meets
@@ -581,7 +583,7 @@ export function assembleJungleScene(manifest = {}, ctx = {}) {
   const st = JUNGLE_STYLES[manifest.style || 'jungle-mgs3'];
   if (!st) throw new Error(`stage: unknown jungle style '${manifest.style}' (known: ${Object.keys(JUNGLE_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
-  const { site, giants, colossi, rocks, puddles, raw, dir, shadow } = jungleLayers(st, seed), key = st.light.key;
+  const { site, giants, colossi, rocks, puddles, raw, dir, shadow } = jungleLayers(st, seed, manifest._keepOut ?? null), key = st.light.key;
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
   const ambient = hexRgb(st.light.ambient).map((v) => v * st.light.fill);
   // a leaf is lit from either side (it lets the light through): its card faces the sun, and lifts a little on its own

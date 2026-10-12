@@ -57,6 +57,23 @@ civilization?, kit? }]`.
 - **On a level:** in the game designer it is `places: { buildings: [...] }`. `goal: true` ends the level in its goal
   room, and the route runs in at its door.
 
+## A town's street
+
+`town: { houses?, enter?, goal?, anchor?, recipe? }` on an outdoor stage stands the civilization's town along the
+trail.
+- **Which houses:** the town is designed on the kit in its anchor's language, and its first `houses` lots stand
+  (6 by default) in the town's own order: the focus (the hall), then the near ring, a counter before a dwelling.
+- **Walked into:** the first `enter` (1 by default) get their use's program inside, and `goal: true` ends the level
+  in the first.
+- **The rest are shells:** the houses as the town draws them, with shutters, frames, chimneys and roofs, a plinth to
+  the land, and a collider round each.
+- **Placement:** each on the flattest land beside the trail, its door to the trail. No building stands on a beat of
+  the trail or on another building.
+- **In the game designer:** `places: { town: true, street: { houses, enter, goal } }`, on the level's first trail.
+
+**Planned before anything grows:** buildings and a street claim their ground first, and the trees, rocks,
+arrangements and grass grow on the rest, a crown's reach off every wall.
+
 ## What a cube recommends
 
 A geocube names the buildings its world plausibly has (`buildings: { anchor, uses: [{ use, enter }] }`).

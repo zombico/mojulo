@@ -102,3 +102,17 @@ describe('buildings walked into, on a walk level', () => {
     expect(gameStages(MEADOWMARK).some((s) => s.manifest?.buildings)).toBe(false);
   });
 });
+
+describe("the town's street, on a walk level", () => {
+  const ML = MEADOWMARK.levels['meadow-ascent'];
+  const withStreet = (street, places = ML.places) => ({ ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...ML, places: { ...places, street } } } });
+  it('stands on the first trail with the town\'s recipe and language; needs the town; says what is wrong', () => {
+    const st = gameStages(withStreet({ houses: 4, enter: 1, goal: true })).find((s) => s.level === 'meadow-ascent' && s.manifest.town);
+    expect(st.node).toBe('trailhead');
+    expect(st.manifest.town).toMatchObject({ houses: 4, enter: 1, goal: true });
+    expect(st.manifest.town.recipe.castle).toBeUndefined();
+    expect(() => readGameworld(withStreet(true, {}))).toThrow(/give the level its town/);
+    expect(() => readGameworld(withStreet({ houses: 40 }))).toThrow(/1 to 12/);
+    expect(() => readGameworld(withStreet({ lanes: 2 }))).toThrow(/not a street setting/);
+  });
+});

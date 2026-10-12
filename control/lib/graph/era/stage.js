@@ -810,15 +810,24 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // a recipe's `meru` (local-meru/scene.js) builds a level that goes up, laid on from the trail it follows, on an isekai kit
   if (manifest.meru !== undefined) {
     if (!(kit && kit.shell === 'isekai')) throw new Error(`stage: meru: kit '${manifest.kit}' is not an isekai kit; a local meru is drawn in the isekai look (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell === 'isekai').join(', ')})`);
-    const meruPayload = assembleLocalMeruScene({ style: kit.style, ...manifest }, ctx);
-    return manifest.buildings !== undefined ? withBuildings(meruPayload, { ...manifest, kit: resolveKitId(manifest.kit) }, ctx) : meruPayload;
+    const M = { ...manifest, kit: resolveKitId(manifest.kit) }, meru = (m) => assembleLocalMeruScene({ style: kit.style, ...m }, ctx);
+    if (manifest.buildings === undefined && manifest.town === undefined) return meru(manifest);
+    return withBuildings(meru(manifest), M, ctx);   // a climb's land is its own (no growth to plan round): seated on it
   }
-  // a recipe's `buildings` (stage-buildings.js): game buildings seated on the open ground, walked into as terrain
-  const seat = (payload) => (manifest.buildings !== undefined ? withBuildings(payload, { ...manifest, kit: resolveKitId(manifest.kit) }, ctx) : payload);
-  if (kit && kit.shell === 'nature') return seat(assembleNatureScene({ style: kit.style, ...manifest }, ctx));
-  if (kit && kit.shell === 'jungle') return seat(assembleJungleScene({ style: kit.style, ...manifest }, ctx));
-  if (kit && kit.shell === 'isekai') return seat(assembleIsekaiScene({ style: kit.style, ...manifest }, ctx));
-  if (manifest.buildings !== undefined) throw new Error(`stage: buildings stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
+  // a recipe's `buildings` and `town` (stage-buildings.js): game buildings and a town's street seated on the open
+  // ground, walked into as terrain
+  // planned before anything grows: a first pass over the land seats them only to claim their ground, and the land is
+  // laid again with that ground reserved (`_keepOut`: no tree, rock or arrangement on it), then they are built on it
+  const seat = (build) => {
+    if (manifest.buildings === undefined && manifest.town === undefined) return build(manifest);
+    const M = { ...manifest, kit: resolveKitId(manifest.kit) };
+    const { reserved } = withBuildings(build(manifest), M, { ...ctx, planOnly: true });
+    return withBuildings(build(reserved.length ? { ...manifest, _keepOut: reserved } : manifest), M, ctx);
+  };
+  if (kit && kit.shell === 'nature') return seat((m) => assembleNatureScene({ style: kit.style, ...m }, ctx));
+  if (kit && kit.shell === 'jungle') return seat((m) => assembleJungleScene({ style: kit.style, ...m }, ctx));
+  if (kit && kit.shell === 'isekai') return seat((m) => assembleIsekaiScene({ style: kit.style, ...m }, ctx));
+  if (manifest.buildings !== undefined || manifest.town !== undefined) throw new Error(`stage: buildings and a town's street stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
   const plan = planStage(manifest);
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only

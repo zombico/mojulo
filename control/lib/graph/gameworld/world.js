@@ -295,7 +295,17 @@ export function readGameworld(W) {
     if (L.places !== undefined) {
       if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle?, buildings? }`);
       for (const k of Object.keys(L.places)) {
-        if (!['town', 'castle', 'buildings'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle, buildings)`);
+        if (!['town', 'castle', 'buildings', 'street'].includes(k)) throw new Error(`gameworld: ${at}.places.${k} is not a place (town, castle, buildings, street)`);
+        if (k === 'street') {
+          // the town's street on the walk (era/stage-buildings.js): its first houses standing beside the trail
+          const St = L.places.street;
+          if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal? }`);
+          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal)`);
+          if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);
+          if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4)) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into)`);
+          if (!L.places.town) throw new Error(`gameworld: ${at}.places.street is the town's street: give the level its town (places.town)`);
+          continue;
+        }
         if (k === 'buildings') {
           // buildings walked into as terrain (era/stage-buildings.js), each standing in a pocket of the walk
           const Bs = L.places.buildings;
@@ -403,7 +413,9 @@ export function resolveLevel(world, id) {
     const { civilization: _c, ...rest } = b;
     return { ...rest, ...(anchor !== undefined ? { civilization: anchor } : {}) };
   });
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}) };
+  // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
+  const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */
