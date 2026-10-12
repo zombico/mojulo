@@ -194,15 +194,24 @@ export function buildRulesBasic(E) {
   }
 
   // shot — the DIRECTING camera (the scene layer): a scene sets the player's camera rule aside for this one (the cast op
-  // `shot`) and hands it back (`unshot`). It frames the entities `on` by a word, `frame`: wide | low | profile | corner
-  // | overhead | two | close (FRAMES: room round the subjects in metres, height over the look point, yaw off the facing in
-  // quarter turns), or over (the first seen past the second's shoulder). The facing is across the line of two subjects
-  // (`side` ±1 picks the side), else in front of the one. The distance opens until the spread and the room fill a `fov`
-  // (degrees, 50). `move`: hold (stands where it cut, turning with them), track (keeps its place beside them), push
-  // (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new shot cuts; `cut: false` eases in at `lerp`.
+  // `shot`) and hands it back (`unshot`). It frames the entities `on`, and the places `at` (points), by a word, `frame`:
+  // wide | low | profile | corner | overhead | two | close (FRAMES: room round the subjects in metres, height over the
+  // look point, yaw off the facing in quarter turns), or over (the first seen past the second's shoulder). The facing is
+  // across the line of two subjects (`side` ±1 picks the side), else in front of the one; a lone place is the pilot's
+  // view of it, from just behind and above them. The distance opens until the spread and the room fill a `fov`
+  // (degrees, 50), and the camera never goes under the ground. `move`: hold (stands where it cut, turning with them),
+  // track (keeps its place beside them), push (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new
+  // shot cuts; `cut: false` eases in at `lerp`.
   const FRAMES = { wide: [5, 2.2, 0], low: [1.6, -0.8, 0], profile: [1.2, 0.2, 1], corner: [3, 3.5, 0.5], overhead: [2.5, 0, 0], two: [0.8, 0.35, 0], close: [0.35, 0.1, 0.25] };
+  // a place as a subject: a point (`at`), on the ground under it when it gives no height
+  const placeOf = (p, world) => {
+    let z = p[2];
+    if (z == null) { const g = world.ground ? world.ground([p[0], p[1], 1e4]) : null; z = g == null ? 0 : g; }
+    return { transform: { pos: [p[0], p[1], z], heading: null }, place: true };
+  };
   function shot(e, input, dt, world) {
     const r = e.rule, subs = (r.on || []).map((id) => world.byId[id]).filter((s) => s && !s.gone);
+    for (const p of r.at || []) subs.push(placeOf(p, world));
     if (!subs.length) return;
     let cx = 0, cy = 0, cz = 0, spread = 0;
     for (const s of subs) { cx += s.transform.pos[0]; cy += s.transform.pos[1]; cz += s.transform.pos[2]; }
@@ -224,13 +233,29 @@ export function buildRulesBasic(E) {
     const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide, side = r.side ?? 1;
     let face;
     if (subs.length >= 2) { const a = subs[0].transform.pos, b = subs[1].transform.pos; face = Math.atan2(b[1] - a[1], b[0] - a[0]) - HALF_PI * side; }
-    else face = subs[0].transform.heading || 0;
+    else if (subs[0].place) {
+      // a lone place: the pilot's view of it, from just behind and above the pilot (the pilot stands where a camera can)
+      const P = world.byId[world.pilotId], a = subs[0].transform.pos;
+      if (P && r.frame !== 'overhead') {
+        const p = P.transform.pos, yaw = Math.atan2(a[1] - p[1], a[0] - p[0]), f = fwdXY(yaw);
+        const at = [p[0] - f[0] * 3, p[1] - f[1] * 3, p[2] + 2.4];
+        if (e._shotCut || !e._shotAt) { e.transform.pos = at.slice(); e._shotCut = false; }
+        else e.transform.pos = add(e.transform.pos, scl(sub(at, e.transform.pos), smooth(r.lerp ?? 3, dt)));
+        e._shotAt = at;
+        e.transform.heading = yaw;
+        e.lookAt = [a[0], a[1], a[2] + (r.lookH ?? 1.4)];
+        return;
+      }
+      face = 0;
+    } else face = subs[0].transform.heading || 0;
     let yaw = (r.yaw ?? face) + off * HALF_PI * side;
     if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
     let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));
     if (r.move === 'push') dist *= 1 + 0.35 * (1 - Math.min(1, e._shotT / (r.for ?? 3)));
     const f = fwdXY(yaw);
     const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise];
+    // never under the ground: a framing that lands in a hillside is lifted onto it
+    if (world.ground) { const g = world.ground([at[0], at[1], 1e4]); if (g != null && at[2] < g + 0.8) at[2] = g + 0.8; }
     if (!e._shotAt || (r.move && r.move !== 'hold')) e._shotAt = at;
     if (e._shotCut) { e.transform.pos = e._shotAt.slice(); e._shotCut = false; }
     else e.transform.pos = add(e.transform.pos, scl(sub(e._shotAt, e.transform.pos), smooth(r.lerp ?? 3, dt)));

@@ -137,6 +137,14 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       return out;
     };
   }
+` : ''}${game.flags ? `  // FLAGS carried in (playscape/ui/scenes.js): each held flag reaches the bus on its first frame, then flags-ready, which
+  // a scene on the level's start waits for, so its conditions read what was carried in (deferred, as chapters are).
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.flags.slice], held = (s && s.flags) || {};
+    const evs = __GAME.flags.names.filter((n) => held[n]).map((n) => ({ type: 'flag-carried:' + n }));
+    evs.push({ type: 'flags-ready' });
+    setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, evs); } catch (e) { console.error('flags carried', e); } }, 0);
+  });
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame
   // and the level's own events move the pilot to that end (deferred, as chapters are: the events channel may load later).
   st.onStart.push(function (params) {

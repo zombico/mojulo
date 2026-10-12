@@ -7,7 +7,10 @@
  *   R.hear(S, types)          the bus event types since the last step (a scene starts on `scene:<id>`; an until waits on
  *                             its `scene-heard:<id>:<n>`)
  *   R.step(S, dt, ctl)        → { fire: [type], ops: [cast op], started: [id], ended: [id] }
- *                             ctl: { next (a press this frame), held (the advance key is down), skip (Esc this frame) }.
+ *                             ctl: { next (a press this frame), held (the advance key is down), skip (Esc this frame),
+ *                             vars (the bus vars: a scene's `if` is read against them when its happening comes) }.
+ *                             A scene plays once (its `once`) counting plays, not happenings: one whose conditions
+ *                             failed plays when its happening comes again and they hold.
  *                             `fire` goes to the bus (the beats' cues), `ops` to the cast (the camera's shot / unshot,
  *                             and `finish` when a scene is skipped: every walk lands where it was going)
  *   R.view(S)                 → { on, bars (0..1), line: { who, name, text (typed so far), full, expression? } | null }
@@ -22,7 +25,13 @@ export function buildSceneRunner() {
   function create(program) {
     const byId = {};
     for (const sc of program || []) byId[sc.id] = sc;
-    return { byId, active: null, heard: [], bars: 0 };
+    return { byId, active: null, heard: [], bars: 0, played: {} };
+  }
+
+  const CMP = { gte: (a, b) => a >= b, gt: (a, b) => a > b, lte: (a, b) => a <= b, lt: (a, b) => a < b, eq: (a, b) => a === b, ne: (a, b) => a !== b };
+  function holds(sc, vars) {
+    for (const c of sc.if || []) { const v = vars && vars[c.var] != null ? vars[c.var] : 0; if (!CMP[c.op](v, c.n)) return false; }
+    return true;
   }
 
   function hear(S, types) { for (const t of types || []) if (typeof t === 'string') S.heard.push(t); }
@@ -66,7 +75,8 @@ export function buildSceneRunner() {
       for (const t of heard) {
         if (t.indexOf('scene:') !== 0) continue;
         const sc = S.byId[t.slice(6)];
-        if (!sc) continue;
+        if (!sc || (sc.once !== false && S.played[sc.id]) || !holds(sc, c.vars)) continue;
+        S.played[sc.id] = (S.played[sc.id] || 0) + 1;
         S.active = { sc, i: -1, wait: null, line: null, t: 0, typed: 0, holdT: 0 };
         out.started.push(sc.id);
         advance(S, out);

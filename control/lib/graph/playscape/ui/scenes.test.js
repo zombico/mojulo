@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { createBusState, processEvents, watchEvents, syncToCtrl } from '../../worlds/event-bus.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { lowerPlay } from './direction.js';
-import { readScenes, sceneProgram, SHOT_FRAMES } from './scenes.js';
+import { readScenes, sceneProgram, sceneContract, SHOT_FRAMES } from './scenes.js';
 import { buildSceneRunner } from './scene-runner.js';
+import { sceneScript } from '../../scene/channels/scene-channel.js';
+import { eventsChannelScript } from '../../scene/channels/events.js';
 
 const CW = composeLive(), R = buildSceneRunner();
 const DT = 1 / 30;
@@ -26,8 +28,8 @@ const ARRIVAL = {
 
 // the page's loop, in node: the world steps, its facts go up, the bus settles, the cast's ops come down, and the scene
 // runner hears the bus and answers with events and camera ops
-function level(scenes, extraCues = []) {
-  const manifest = { entities: ENTITIES, play: { spots: SPOTS, scenes, cues: extraCues } };
+function level(scenes, extraCues = [], extraPlay = {}) {
+  const manifest = { entities: ENTITIES, play: { spots: SPOTS, scenes, cues: extraCues, ...extraPlay } };
   const ev = lowerPlay(manifest, { player: 'hero' });
   const world = CW.createWorld({ entities: ENTITIES.map((e) => JSON.parse(JSON.stringify(e))), camera: { rule: 'follow', target: 'hero' } });
   const bus = createBusState(ev, []), S = R.create(ev.scenes);
@@ -41,7 +43,7 @@ function level(scenes, extraCues = []) {
     settle(f.events);
     down();
     R.hear(S, bus.log.slice(seen).map((x) => x && x.type)); seen = bus.log.length;
-    const o = R.step(S, DT, ctl);
+    const o = R.step(S, DT, { ...ctl, vars: bus.vars });
     // as the page does: the beats' events, the cast ops they queue handed down, then the runner's own ops
     if (o.fire.length) { settle(o.fire.map((type) => ({ type }))); down(); }
     if (o.ops.length) CW.castOps(world, o.ops);
@@ -157,6 +159,72 @@ describe('a scene played', () => {
   });
 });
 
+describe('conditions and flags', () => {
+  const quick = (id, extra = {}) => ({ id, when: { on: 'ring' }, beats: [{ wait: 0.1 }], ...extra });
+  const ring = (L) => { processEvents(L.bus, [{ type: 'ring' }]); L.until(() => false, 10); };
+
+  it('if gates a scene; sets writes the flag as it ends, and the next scene reads it', () => {
+    const L = level([quick('greet', { if: { not: 'met' }, sets: ['met'] }), quick('again', { if: { flag: 'met' }, once: false })]);
+    L.begin();
+    ring(L);
+    expect([L.fired('scene-end:greet'), L.fired('scene-end:again')]).toEqual([1, 0]);
+    expect(L.bus.vars['flag-met']).toBe(1);
+    ring(L); ring(L);
+    expect([L.fired('scene-end:greet'), L.fired('scene-end:again')]).toEqual([1, 2]);
+  });
+
+  it('a scene whose conditions failed plays when its happening comes again and they hold (once counts plays)', () => {
+    const L = level([quick('rich', { if: { var: 'coins', gte: 2 } })], [], {});
+    L.begin();
+    L.bus.vars.coins = 0; ring(L);
+    expect(L.fired('scene-end:rich')).toBe(0);
+    L.bus.vars.coins = 2; ring(L);
+    expect(L.fired('scene-end:rich')).toBe(1);
+    ring(L);
+    expect(L.fired('scene-end:rich')).toBe(1);
+  });
+
+  it('carried in: a start scene waits for flags-ready and reads the flags the game pushed first', () => {
+    const scenes = [{ id: 'welcome-back', when: { start: true }, if: { flag: 'met' }, beats: [{ wait: 0.1 }] }, { id: 'first', when: { start: true }, if: { not: 'met' }, sets: ['met'], beats: [{ wait: 0.1 }] }];
+    const held = level(scenes, [], { carry: 'story' });
+    held.begin();
+    held.until(() => false, 5);
+    expect(held.fired('scene:welcome-back') + held.fired('scene:first')).toBe(0);   // nothing yet: no flags-ready
+    processEvents(held.bus, [{ type: 'flag-carried:met' }, { type: 'flags-ready' }]);
+    held.until(() => false, 10);
+    expect([held.fired('scene-end:welcome-back'), held.fired('scene-end:first')]).toEqual([1, 0]);
+    const fresh = level(scenes, [], { carry: 'story' });
+    fresh.begin();
+    processEvents(fresh.bus, [{ type: 'flags-ready' }]);
+    fresh.until(() => false, 10);
+    expect([fresh.fired('scene-end:welcome-back'), fresh.fired('scene-end:first')]).toEqual([0, 1]);
+    expect(fresh.fired('flag:met')).toBe(1);
+    // without carry, a start scene starts on the level's start, as before
+    const plain = level([{ id: 'p', when: { start: true }, beats: [{ wait: 0.1 }] }]);
+    expect(plain.begin().started).toEqual(['p']);
+  });
+
+  it('the contract writes what scenes set to the carry slice and pushes what they read', () => {
+    const play = { carry: 'story', scenes: [{ id: 'a', when: { start: true }, if: { flag: 'seen-gate' }, sets: ['met'], beats: [{ wait: 1 }] }] };
+    const g = sceneContract({ levelRef: 'l', produces: { events: [] } }, play);
+    expect(g.on['flag:met']).toEqual({ emit: { type: 'setFlag', slice: 'story', key: 'met', value: true } });
+    expect(g.on['flag:seen-gate']).toBeUndefined();   // read, not set here
+    expect(g.flags).toEqual({ slice: 'story', names: ['met', 'seen-gate'] });
+    expect(g.consumes).toEqual([{ slice: 'story' }]);
+    expect(g.produces.events).toEqual([{ type: 'setFlag', slice: 'story' }]);
+    const game = { levelRef: 'l' };
+    expect(sceneContract(game, { scenes: play.scenes })).toBe(game);   // no carry: the same object
+  });
+
+  it('teaches a bad condition', () => {
+    const bad = (cond) => () => readScenes({ scenes: [{ id: 's', when: { start: true }, if: cond, beats: [{ wait: 1 }] }] });
+    expect(bad({ flag: 'Met Mayor' })).toThrow(/a lowercase name/);
+    expect(bad({ var: 'coins' })).toThrow(/one of gte, gt/);
+    expect(bad({ has: 'rune' })).toThrow(/\{ flag \} \| \{ not \}/);
+    expect(() => readScenes({ scenes: [{ id: 's', when: { start: true }, sets: 'met', beats: [{ wait: 1 }] }] })).toThrow(/sets is a list of flags/);
+  });
+});
+
 describe('the shot camera', () => {
   // is a point inside the camera's view cone (the look direction, half the fov)?
   const seen = (cam, p, fov = 50) => {
@@ -180,6 +248,19 @@ describe('the shot camera', () => {
       }
     }
   });
+  it('frames a place: a spot named in a shot is a point, seen from where the pilot stands', () => {
+    const p = sceneProgram({ spots: SPOTS, scenes: [{ id: 's', when: { start: true }, beats: [{ shot: { frame: 'wide', on: ['porch'] } }] }] })[0];
+    expect(p.beats[0].shot).toEqual({ frame: 'wide', on: [], at: [[2, -4]] });
+    const w = CW.createWorld({ entities: ENTITIES.map((e) => ({ ...JSON.parse(JSON.stringify(e)), ...(e.id === 'hero' ? { pilotable: true } : {}) })), camera: { rule: 'follow', target: 'hero' } });
+    expect(w.pilotId).toBe('hero');
+    CW.castOps(w, [{ op: 'shot', shot: p.beats[0].shot }]);
+    CW.stepWorld(w, {}, DT);
+    expect(seen(w.camera, [2, -4, 0])).toBe(true);
+    // the camera stands on the hero's side of the porch
+    const c = w.camera.transform.pos, h = w.byId.hero.transform.pos;
+    expect(Math.hypot(c[0] - h[0], c[1] - h[1])).toBeLessThan(Math.hypot(c[0] - 2, c[1] + 4) + 1);
+  });
+
   it('over the shoulder: the speaker in view, the camera behind the listener', () => {
     const w = shoot({ frame: 'over', on: ['mayor', 'hero'] });
     const c = w.camera.transform.pos, m = w.byId.mayor.transform.pos, h = w.byId.hero.transform.pos;
@@ -201,3 +282,16 @@ describe('the shot camera', () => {
     expect(w.camera.rule.type).toBe('follow');
   });
 });
+
+describe('the page', () => {
+  it('steps the runner with the bus vars, so conditions read the level (and what was carried in)', () => {
+    expect(sceneScript()).toMatch(/__SCN\.step\(__scn, dtSec, \{[^}]*vars: __busState\.vars \}\)/);
+  });
+  it('carries the scene runtime only when the events have scenes', () => {
+    const ev = lowerPlay({ entities: ENTITIES, play: { spots: SPOTS, scenes: [ARRIVAL] } }, { player: 'hero' });
+    expect(eventsChannelScript(ev)).toContain('__stepScenes(dtSec)');
+    const { scenes: _, ...none } = ev;
+    expect(eventsChannelScript(none)).not.toContain('__SCN');
+  });
+});
+

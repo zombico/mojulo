@@ -46,7 +46,8 @@ function __stepScenes(dtSec) {
   for (let i = __scnSeen; i < __busState.log.length; i++) { const ev = __busState.log[i]; if (ev && ev.type) types.push(ev.type); }
   __scnSeen = __busState.log.length;
   __SCN.hear(__scn, types);
-  const o = __SCN.step(__scn, dtSec, { next: __scnNext, held: __scnHeld, skip: __scnSkip });
+  // the bus vars: a scene's conditions are read against them as its happening comes
+  const o = __SCN.step(__scn, dtSec, { next: __scnNext, held: __scnHeld, skip: __scnSkip, vars: __busState.vars });
   __scnNext = false; __scnSkip = false;
   // the beats' events first, and the cast ops they queue (a walk) handed down, so a skip's finish lands them too
   if (o.fire.length) { __BUS.processEvents(__busState, o.fire.map((type) => ({ type }))); __watchFix(); if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities, window.__mojCtrl.cast); }

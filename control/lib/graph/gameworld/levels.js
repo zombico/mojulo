@@ -25,6 +25,7 @@ import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
+import { sceneFlags } from '../playscape/ui/scenes.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -141,9 +142,23 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const grants = Object.fromEntries(base ? pk.filter((p) => p.move).map((p) => [p.id, TRAVERSAL_MOVES[p.move].rule(base)]) : []);
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
   }
-  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(mechanics?.play ? { play: mechanics.play } : {}), game };
+  // SCENES (the level's, playscape/ui/scenes.js): the ones this stage plays, its places as spots to frame and walk to,
+  // and the story slice carried when the world's scenes use flags
+  const scenes = (G.scenes?.[stage.level] ?? []).filter((s) => (s.stage ?? (stage.index === 0 ? stage.node : null)) === stage.node).map(({ stage: _, ...s }) => s);
+  let play = mechanics?.play ?? null;
+  if (scenes.length) {
+    const at = (p) => (lane ? onLane({ at: p }, lane).at : p);
+    const named = (kind) => ends.beats.filter((b) => b.beat === kind).map((b, i) => ({ id: i ? `${kind}-${i + 1}` : kind, at: at(b.at) }));
+    const spots = [{ id: 'start', at: at(ends.spawn) }, { id: 'exit', at: at(ends.exit) }, ...named('pocket'), ...named('landmark')];
+    play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes, ...(storyCarried(G) ? { carry: STORY_SLICE } : {}) };
+  }
+  const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), game };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }
+
+/** The flags slice a world's scenes ride between levels, when any of them reads or sets a flag. */
+export const STORY_SLICE = 'story';
+export const storyCarried = (G) => Object.values(G.scenes ?? {}).some((list) => sceneFlags({ scenes: list.map(({ stage: _, ...s }) => s) }).length > 0);
 
 /**
  * A side-scroller's lane on a stage: the trail's own spine, one point a metre on the ground plane, the way the trail
@@ -264,6 +279,8 @@ export function gameStore(world, book) {
   const pk = new Set(powerKeys(G).map((p) => p.id));
   if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
+  // the world's scenes read and set flags: a story slice carries them from level to level
+  if (storyCarried(G)) slices.push({ name: STORY_SLICE, kind: 'flags' });
   return { slices };
 }
 

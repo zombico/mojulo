@@ -1002,7 +1002,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { validateLevelContract, normalizeLevelContract } = await import('@/lib/graph/game/level-contract.js');
     // chapters that carry add their setFlag rows (idempotent over a mechanics-synthesized contract)
     const { chapterContract } = await import('@/lib/graph/playscape/ui/chapters.js');
-    const game = chapterContract(sketch.manifest.game, sketch.manifest.play);
+    const { sceneContract } = await import('@/lib/graph/playscape/ui/scenes.js');
+    const game = sceneContract(chapterContract(sketch.manifest.game, sketch.manifest.play), sketch.manifest.play);
     const v = validateLevelContract(game);
     if (!v.ok) throw new Error(`game channel contract is invalid:\n- ${v.errors.join('\n- ')}`);
     payload.game = normalizeLevelContract(game);

@@ -235,6 +235,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   scene's end state.
 - **Banter.** Two characters talk: the camera cuts to whoever speaks, the box names them and types the line on.
   The words are a slot: without `say`, a line shows as a placeholder (`[Mayor: greeting]`).
+- **Conditions and flags.** A scene's `if` says when it may play: a flag set or not, a chapter turned, a value
+  crossing a line. Its `sets` writes flags as it ends. With `play.carry`, flags travel between levels in the game
+  store as chapters do, so a later level's scenes can depend on an earlier one.
+- **A shot can frame a place** (a spot), not only a character.
+- **In design_game.** A gameworld level takes `scenes`. Its places (`start`, `exit`, its pockets and landmarks) are
+  ready to frame and walk to, and a world whose scenes use flags gets a `story` slice that every level carries.
 - A world without scenes is byte-identical.
 
 ### Chapters: the same world at a later point

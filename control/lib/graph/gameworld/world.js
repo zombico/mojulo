@@ -43,6 +43,7 @@
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
 import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
+import { readScenes } from '../playscape/ui/scenes.js';
 import { readOutTrail } from '../era/out-trail.js';
 import { readLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from '../era/out-town.js';
@@ -104,7 +105,7 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'places', 'scenes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -266,7 +267,7 @@ export function readGameworld(W) {
   // what a civilization says in words is tunnelled through its blocks, on the world's kit
   for (const id of civIds) if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, style.kit, seed);
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
-  const ids = Object.keys(W.levels), levels = {};
+  const ids = Object.keys(W.levels), levels = {}, sceneSets = {};
   for (const id of ids) {
     const L = W.levels[id], at = `levels.${id}`;
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
@@ -285,7 +286,22 @@ export function readGameworld(W) {
         if (isObj(L.places[k]) && L.places[k].civilization !== undefined) civ(L.places[k].civilization, `${at}.places.${k}.civilization`);
       }
     }
-    levels[id] = { ...L, style: st };
+    // SCENES (playscape/ui/scenes.js): a level's directed moments, kept beside the level (the level itself lays without
+    // them); each plays in one of the level's stages, its first unless `stage` names another
+    const { scenes: sc, ...lv } = L;
+    if (sc !== undefined) {
+      if (!Array.isArray(sc)) throw new Error(`gameworld: ${at}.scenes is a list of scenes (get_play_vocab({ id: 'ui-scenes' })), each with stage?: '<node>'`);
+      const nodes = Object.keys(L.walk.nodes || {});
+      const bare = sc.map((s, i) => {
+        if (!isObj(s)) throw new Error(`gameworld: ${at}.scenes[${i}] is a scene { id, when, beats, if?, sets?, stage? }`);
+        if (s.stage !== undefined && !nodes.includes(s.stage)) throw new Error(`gameworld: ${at}.scenes[${i}].stage names one of the level's stages (${nodes.join(', ')})`);
+        const { stage: _, ...rest } = s;
+        return rest;
+      });
+      try { readScenes({ scenes: bare }); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^play\./, '')}`); }
+      sceneSets[id] = sc.map((s) => ({ ...s }));
+    }
+    levels[id] = { ...lv, style: st };
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
@@ -313,7 +329,7 @@ export function readGameworld(W) {
   const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
   if (W.made !== undefined && W.made !== null) readMade(W.made);   // the runner's record: read, never carried
   if (W.quick !== undefined && W.quick !== null) readQuick(W.quick);   // a quick game's goal (quick.js): read, never carried
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), [READ]: true };
 }
 
 /**

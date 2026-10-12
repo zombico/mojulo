@@ -35,7 +35,7 @@ import { lowerStats, readStats } from '../stats/stats.js';
 import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
-import { withSceneCues, sceneProgram } from './scenes.js';
+import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -202,8 +202,9 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   const stats = lowerStats(play);
   const vars = { ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };
   if (Object.keys(vars).length) out.vars = vars;
-  const chapters = chapterBus(play) || {};
-  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || [])]; if (v.length) out[k] = v; }
+  const chapters = chapterBus(play) || {}, flags = sceneBus(play) || {};
+  if (flags.vars) out.vars = { ...(out.vars || {}), ...flags.vars };
+  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || []), ...(flags[k] || [])]; if (v.length) out[k] = v; }
   // the scenes' program: the page's runner (scene-runner.js) paces their beats, frames their shots, draws the box
   if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
   const pages = menuPages(play);

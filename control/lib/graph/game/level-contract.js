@@ -130,6 +130,13 @@ export function validateLevelContract(game, schema) {
     }
   }
 
+  // FLAGS: the store flags a level's scenes read and set (playscape/ui/scenes.js), pushed onto the bus at start.
+  if (game.flags !== undefined) {
+    const f = game.flags;
+    if (!f || typeof f !== 'object' || typeof f.slice !== 'string' || !f.slice || !Array.isArray(f.names) || !f.names.every((n) => typeof n === 'string' && n)) errors.push('game.flags is { slice, names: [flag] }: the flags slice and the flags the level reads');
+    else if (!(game.consumes || []).some((c) => c && c.slice === f.slice)) errors.push(`game.flags.slice '${f.slice}' is not consumed: add { slice: '${f.slice}' } to game.consumes`);
+  }
+
   // ARRIVE: the levels a map game travels in from. The shell's `arrive` param names one, the level hears `arrive:<ref>`
   // on its first frame, and its own events move the pilot to that end of the level.
   if (game.arrive !== undefined && !(Array.isArray(game.arrive) && game.arrive.length && game.arrive.every((r) => typeof r === 'string' && r))) {
