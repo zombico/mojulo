@@ -27,6 +27,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `forge_publications`, `synthesize_abstract`, `verify_machina` and `mint_catalyst` design). A host whose profile
   declares `capabilities.modelTiers` (Claude Code) sees it as `_meta["mojulo/tier"]` in tools/list; every other
   host's list is byte-identical. Character tools are not tiered yet (`TIER_DEFERRED`).
+- **Two subagents in the Claude plugin.** `plugins/mojulo/agents/`: `mojulo-runner` (Haiku, low effort) runs decided
+  `ride` and `fill` calls in batches; `mojulo-maker` (Sonnet, medium) authors or revises one recipe. Each one's `tools`
+  list is exact (with `ToolSearch`, without which a subagent cannot load Claude Code's deferred MCP tools and has
+  none), so neither can call a tool above its tier, and the `design` tools stay with the main session. The
+  skill gains a block saying when to hand work to each. All three are generated from `tool-tiers.js` by
+  `scripts/plugin-agents.mjs`, and a test fails when they are stale.
 - **The model that ran is recorded again.** `claude --print --output-format json` (2.1.x) names the model only as a
   key of `modelUsage`, so the runtime recorded no model. It now reads that key (the one with the most output when a
   subagent ran too), so the principle shows the requested tier beside the model that answered.

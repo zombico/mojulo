@@ -14,8 +14,11 @@ to the maintainer or to any analytics service; mojulo's only log is a local reco
 calls, which you can turn off.
 
 This plugin starts the open-source mojulo MCP server (`npx -y mojulo@3.1.0`) and adds one skill
-that tells Claude to start from mojulo's routing index. Nothing in this folder runs code of its
-own: no hooks, no scripts. The server is the npm package built from
+that tells Claude to start from mojulo's routing index. It also adds two subagents that make your
+usage limits go further: `mojulo-runner` runs light, decided calls (exports, measures, lists) on
+Haiku, and `mojulo-maker` writes or revises one recipe on Sonnet, while design (games, plans,
+publications) stays with your main session. Each subagent can call only the mojulo tools its tier
+allows. Nothing in this folder runs code of its own: no hooks, no scripts. The server is the npm package built from
 [github.com/zombico/mojulo](https://github.com/zombico/mojulo). It works in Claude Code and in
 Cowork sessions on your computer, and needs Node.js 22.14 or newer.
 
