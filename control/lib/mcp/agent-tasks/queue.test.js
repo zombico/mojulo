@@ -332,3 +332,27 @@ describe('recent events ring buffer', () => {
     expect(getRecentEvents().length).toBe(_internals.RECENT_EVENT_LIMIT);
   });
 });
+
+describe('pullNext with tiersFilter', () => {
+  it('a light worker skips a heavier task and leaves it pending for a stronger one', async () => {
+    safePark({ inputs: { text: 'design this' }, tier: 'design' });
+    safePark({ inputs: { text: 'name a colour' }, tier: 'fill' });
+    const light = await pullNext({ waitMs: 30, tiersFilter: ['ride', 'fill'] });
+    expect(light.payload.tier).toBe('fill');
+    const strong = await pullNext({ waitMs: 30 });
+    expect(strong.payload.tier).toBe('design');
+  });
+
+  it('an untiered task matches any filter, and unknown filter names are dropped', async () => {
+    safePark({ inputs: { text: 'no tier' } });
+    expect((await pullNext({ waitMs: 30, tiersFilter: ['fill'] })).payload.inputs.text).toBe('no tier');
+    safePark({ inputs: { text: 'judge me' }, tier: 'judge' });
+    expect(await pullNext({ waitMs: 0, tiersFilter: ['opus'] })).not.toBeNull();
+  });
+
+  it('a waiting light worker is not woken by a heavier task', async () => {
+    const waiting = pullNext({ waitMs: 60, tiersFilter: ['ride', 'fill'] });
+    safePark({ inputs: { text: 'heavy' }, tier: 'design' });
+    expect(await waiting).toBeNull();
+  });
+});

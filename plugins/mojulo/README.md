@@ -18,7 +18,8 @@ that tells Claude to start from mojulo's routing index. It also adds two subagen
 usage limits go further: `mojulo-runner` runs light, decided calls (exports, measures, lists) on
 Haiku, and `mojulo-maker` writes or revises one recipe on Sonnet, while design (games, plans,
 publications) stays with your main session. Each subagent can call only the mojulo tools its tier
-allows. Nothing in this folder runs code of its own: no hooks, no scripts. The server is the npm package built from
+allows. A third skill, `/mojulo:inference-worker`, answers light inference tasks for your mojulo apps
+on Haiku when you start it with `/loop`. Nothing in this folder runs code of its own: no hooks, no scripts. The server is the npm package built from
 [github.com/zombico/mojulo](https://github.com/zombico/mojulo). It works in Claude Code and in
 Cowork sessions on your computer, and needs Node.js 22.14 or newer.
 

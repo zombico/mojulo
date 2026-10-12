@@ -27,6 +27,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `forge_publications`, `synthesize_abstract`, `verify_machina` and `mint_catalyst` design). A host whose profile
   declares `capabilities.modelTiers` (Claude Code) sees it as `_meta["mojulo/tier"]` in tools/list; every other
   host's list is byte-identical. Character tools are not tiered yet (`TIER_DEFERRED`).
+- **A worker claims only the tiers it should answer.** `pull_agent_task` takes `tiers`: a worker on a light model
+  pulls `["ride","fill"]` and heavier tasks wait for a stronger worker, so no task is answered below its tier to save
+  usage. An untiered task matches any worker. The inference-worker catalyst says so, and its summary names the real
+  tools (`pull_agent_task`, `submit_envelope_inference`; the old names were left over from before the rename).
+- **A light inference worker in the Claude plugin.** `/loop /mojulo:inference-worker` runs one pull → submit per tick
+  in the `mojulo-runner` subagent (Haiku), claiming `ride` and `fill` tasks only. Only the user starts it.
 - **What a plan saves.** For a host that declares `modelTiers`, `compile_plan` answers with the plan's steps by tier
   (`tiers`, and a line in its message): `execute_plan` runs every one of them with no model in the loop, so one design
   act replaces that many agent calls and a light model can start the run. Other hosts' compile answer is unchanged.

@@ -61,10 +61,12 @@ export async function pullAgentTaskHandler(input = {}, context = {}) {
   // cancels tasks meant for another worker.
   const kindsFilter =
     Array.isArray(input.kinds) && input.kinds.length > 0 ? input.kinds : undefined;
+  // Optional tier filter: a worker on a lighter model claims only the tiers it should answer.
+  const tiersFilter = Array.isArray(input.tiers) && input.tiers.length > 0 ? input.tiers : undefined;
   // Lane = the caller's account (roles-pack Phase 3): a delegate's connected
   // agent pulls only its own user's tasks; the operator pulls 'local'. With
   // roles off pullNext ignores lanes entirely.
-  const entry = await pullNext({ waitMs, kindsFilter, forUserId: context.userId });
+  const entry = await pullNext({ waitMs, kindsFilter, tiersFilter, forUserId: context.userId });
   if (!entry) return { request: null };
 
   const payload = entry.payload || {};
@@ -217,6 +219,12 @@ export function registerAgentTaskTools() {
           items: { type: 'string' },
           description:
             'Optional: restrict to these task_kinds (e.g. ["envelope_inference"]). Omit to pull any kind. Use this so a specialized worker only claims tasks it can fulfill, leaving others for the right worker instead of cancelling them.',
+        },
+        tiers: {
+          type: 'array',
+          items: { type: 'string', enum: ['ride', 'fill', 'judge', 'design'] },
+          description:
+            'Optional: claim only these tiers. A light-model worker passes ["ride","fill"]; an untiered task matches any.',
         },
       },
     },
