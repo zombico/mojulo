@@ -47,7 +47,7 @@ describe('the tiered form', () => {
   it('draws the chest into the torso: no domes, a quarter fewer triangles, standing off the chest wall', () => {
     const today = built({ cast: 'female' }), tiered = built({ cast: 'female', form: 'tiered' });
     expect(tiered.m.plan.segments.some((s) => /^bust/.test(s.name))).toBe(false);
-    expect(tiered.mesh.faces.length).toBe(5108);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144
+    expect(tiered.mesh.faces.length).toBe(5156);   // the domes' 1,280 gone, the chest band's three rings added; the six joint bridges, the limbs' ring8 and the shoulder balls 752; the lower lips 64; the eyes' domes and lids 160; the lips' denser strips 144; the brows' 48
     // the chest stands off the wall (the same figure with no bust) by a couple of centimetres at its fullest
     const wall = built({ cast: 'female', body: { bust: 0 } }), front = (mesh) => Math.max(...[1.13, 1.16, 1.19, 1.22].map((z) => chestY(mesh, z)));
     expect(front(tiered.mesh) - front(wall.mesh)).toBeGreaterThan(0.015);
@@ -55,7 +55,7 @@ describe('the tiered form', () => {
 
   it('a male, a child-coded figure or a bust of 0 takes no profile; the form is checked by name', () => {
     // the male's tiered form is today's and the joints' bridges and balls, the lips and the eyes' domes and lids alone
-    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(1120);
+    expect(built({ cast: 'male', form: 'tiered' }).mesh.faces.length - built({ cast: 'male' }).mesh.faces.length).toBe(1168);
     expect(validateHeroSpec({ form: 'layered' })[0]).toMatch(/form: 'tiered'/);
   }, 120000);
 });
@@ -120,6 +120,9 @@ describe('the tiered face', () => {
     const jaw = (spec) => { const { mesh: me } = built(spec); return Math.max(...me.vertices.filter((_, i) => me.provenance[i].part === 'jaw').map((v) => v[0])); };
     expect(jaw({ cast: 'female', form: 'tiered', face: { jawWidth: 1.1 } })).toBeGreaterThan(jaw({ cast: 'female', form: 'tiered' }));
     expect(TIERED_FACE.female.face.jawWidth).toBeLessThan(TIERED_FACE.male.face.jawWidth);
+    // the nose stands further off the eye: its tip's lead over the eye's front, pinned against today's
+    const lead = (mm) => { const y = (re) => Math.max(...mm.vertices.filter((_, i) => re.test(mm.provenance[i].part)).map((v) => v[1])); return y(/^cranium$/) - y(/^eyeR$/); };
+    expect(lead(f.mesh)).toBeGreaterThan(lead(today.mesh) + 0.004);
   }, 240000);
 
   it('the head\'s normals lean toward its ellipsoid: the skin of the cranium and the jaw, none elsewhere', () => {

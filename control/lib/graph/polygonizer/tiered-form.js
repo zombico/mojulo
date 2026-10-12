@@ -297,20 +297,23 @@ export function tieredSockets(plan) {
  * from here), the female's longer HAIR (the short swept cut was both sexes'), and the FEATURES the fitted head's words do
  * not reach: eyes 0.85 (36 mm wide was past a real eye's 30), lighter brows, smaller ears set in (they stood out from a
  * head they were a third of), a lower lip and the lips' tint of the skin (the lip was the skin at 0.96: no mouth), and
+ * the NOSE forward from a fuller root (`bridge`: the nasion and the bridge come forward, so in profile the eye sits
+ * back from the nose's front), the BROWS arched, thickest by the nose and tapering to a fine tail, close to the skin and a
+ * shade softer than the hair, and
  * the EYE as an eyeball under a lid: the white a shallow dome sunk in its socket, the upper lid down over the iris's top
  * and a lower lid (the flat stack read as a sticker), the male's lid the heavier.
  * The female: a narrower jaw and nose, a smaller mouth, fuller cheekbones, the chin a little forward (at 0.94 it fell
- * behind her lips in profile) and rounder (chinPoint: the flat shelf under it read as a box in three-quarter), a longer nose; the male: a broader jaw, a heavier brow, the chin forward. */
+ * behind her lips in profile) and rounder (chinPoint; a sharper point read too prominent in three-quarter and profile); the male: a broader jaw, a heavier brow, the chin forward. */
 export const TIERED_FACE = Object.freeze({
   female: Object.freeze({
-    face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.06, chinPoint: 1.2, noseSize: 1.1, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
+    face: Object.freeze({ jawWidth: 0.88, chinProjection: 1.018, chinPoint: 1.104, noseSize: 1.265, noseWidth: 0.9, mouthWidth: 0.92, cheekbone: 1.08 }),
     hair: 'bob',
-    features: Object.freeze({ eye: 0.85, brow: 0.6, ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]), eyeDome: 0.003, lid: Object.freeze({ drop: 0.25, fold: 1.6, lower: 1 }) }),
+    features: Object.freeze({ eye: 0.85, brow: 0.6, brows: Object.freeze({ arch: 0.07, head: 1.2, tail: 0.25, lift: 0.6, soft: 0.3 }), bridge: 2.2, ear: 0.82, earLift: 0.08, lowerLip: 1, lipTint: Object.freeze([0.866, 0.659, 0.762]), eyeDome: 0.003, lid: Object.freeze({ drop: 0.25, fold: 1.6, lower: 1 }) }),
   }),
   male: Object.freeze({
-    face: Object.freeze({ jawWidth: 1.08, chinProjection: 1.12, noseSize: 1.08, browRidge: 1.15, noseWidth: 1.05 }),
+    face: Object.freeze({ jawWidth: 1.08, chinProjection: 1.12, noseSize: 1.242, browRidge: 1.15, noseWidth: 1.05 }),
     hair: null,
-    features: Object.freeze({ eye: 0.85, brow: 0.85, ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }) }),
+    features: Object.freeze({ eye: 0.85, brow: 1, brows: Object.freeze({ arch: 0.035, head: 1.3, tail: 0.35, lift: 0.7, soft: 0.18 }), bridge: 2.2, ear: 0.85, earLift: 0.1, lowerLip: 0.8, lipTint: Object.freeze([0.811, 0.713, 0.778]), eyeDome: 0.004, lid: Object.freeze({ drop: 0.32, fold: 2.2, lower: 1.2 }) }),
   }),
 });
 /** The FACE TINT (face-tint.js): a soft occlusion in the skin's folds and a warm blush on the cheeks, the nose's tip

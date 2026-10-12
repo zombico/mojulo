@@ -73,8 +73,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     `shoulderFold` (turned half the arm's swing) carries a share of the torso's shoulder and a BALL, the vajra's
     ball-in-socket: a sphere at the joint as wide as the arm's root, which fills between the shoulder's corner and the
     arm at any angle. The hip's ring rides its fold whole; its head sits deep in the pelvis, so it has no ball.
-  - The bare tiered figure is 5,108 triangles against 5,196: the chest 3,988, the bridges, balls and ring8 limbs 752,
-    the lips 208, the eyes' domes and lids 160.
+  - The bare tiered figure is 5,156 triangles against 5,196: the chest 3,988, the bridges, balls and ring8 limbs 752,
+    the lips 208, the eyes' domes and lids 160, the brows 48.
 - **The tiered base form, third piece: the face.** The landmark head was one face for both sexes: the same short cut,
   eyes 36 mm wide (a real eye is about 30), a 2 mm upper lip the skin's colour, ears that stood out from a head they were
   a third of, faceted cheeks and a hard crease down the forehead and nose. Measured on a spike board (each change alone,
@@ -91,6 +91,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     its ends (`strip(..., { end })`): the four-station strips stood a full 2 mm proud to the corner (a sliver past the
     mouth in three-quarter) and their 5 mm caps crossed at the midline into a zigzag. The female's chin is rounder
     (`chinPoint` 1.2): the flat shelf under it read as a box in three-quarter.
+  - The NOSE and the BROWS: the nose comes forward from a fuller root (`features.bridge`, a knob on the fitted head's
+    nasion and bridge with no face word; with a longer `noseSize`), so in profile the eye sits back from the nose's
+    front; the brows arch, thickest by the nose and tapering to a fine tail, on twice the stations, closer to the skin and
+    a shade softer than the hair (`features.brows`). The female's chin is less pointed (a sharper point read too
+    prominent in three-quarter and profile).
   - The FACE TINT (`face-tint.js`, `TIERED_FACE_TINT`): a per-corner colour on the head's skin, read off its geometry —
     a soft occlusion where the skin turns in (the eyes' corners, the nostrils, the mouth's corners) and a warm blush on
     the cheeks, the nose's tip and the ears, the female's warmer. The vertex colour a shipped face paints where a

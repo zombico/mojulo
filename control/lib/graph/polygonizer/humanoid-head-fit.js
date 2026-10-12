@@ -81,6 +81,9 @@ const KNOB_MOVES = {
   cheek: (k, P) => { P.cheek[0] *= k; },
   jawWidth: (k, P) => { for (const n of ['jawAngle', 'cheek']) P[n][0] *= k; P.jawFront[0] *= 1 + (k - 1) * 0.5; },
   chinPoint: (k, P) => { P.chinSide[0] /= k; P.jawFront[0] /= Math.sqrt(k); },
+  // the BRIDGE (no face word: the tiered face's `features.bridge`): the nasion and the nose's bridge forward, the
+  // glabella and the bridge's sides a share of it, so the nose stands off the eyes with volume at its root
+  noseBridge: (k, P) => { const d = (k - 1) * 0.045 * headHeight(P); for (const [n, w] of [['nasion', 1], ['bridge', 0.85], ['noseSide', 0.5], ['glabella', 0.45], ['browInner', 0.2]]) P[n][1] += d * w; },
 };
 /** Knobs with no fitted counterpart (the ear and eye are pinned details; the neck is the body's). */
 export const FIT_INERT_KNOBS = ['earSize', 'eyeSize', 'neckGirth'];

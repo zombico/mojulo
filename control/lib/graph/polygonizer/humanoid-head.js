@@ -101,6 +101,8 @@ function landmarkRows(a, pole, knobs) {
 }
 const tint = (hex, factor) => '#' + hex.slice(1).match(/../g).map(h => Math.min(255, Math.round(parseInt(h, 16) * factor)).toString(16).padStart(2, '0')).join('');
 /** a colour times a per-channel multiplier (the lips' tint of the skin: redder, a little darker) */
+/** a colour `t` of the way from `a` to `b` (the brows a shade softer than the hair, toward the skin) */
+const mixHex = (a, b, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('')}`;
 const tintRgb = (hex, k) => `#${[1, 3, 5].map((i, c) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k[c]))).toString(16).padStart(2, '0')).join('')}`;
 export function headPalette(skin = '#d9a77e', hair = '#3b291e', overrides = {}) {
   return { Skin: skin, Lid: tint(skin, 0.68), Lip: tint(skin, 0.96), Mouth: '#6b4438', Brow: hair, Hair: hair,
@@ -178,7 +180,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   if (!EXPRESSIONS[expression]) throw new Error(`humanoid: unknown expression '${expression}'`);
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('humanoid: head scale must be positive');
   for (const [k, v] of Object.entries(shape)) if (!(k in HEAD_SHAPE_DEFAULTS) || !(Number.isFinite(v) && v > 0)) throw new Error(`humanoid: invalid head shape '${k}' (have ${Object.keys(HEAD_SHAPE_DEFAULTS).join(', ')})`);
-  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape }, pole = HEAD_PRESETS[preset];
+  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}) }, pole = HEAD_PRESETS[preset];
   const fit = HEAD_SOURCES[preset] === 'fit', anchors = humanoidAnchors(preset, knobs);
   const rows = fit ? null : landmarkRows(anchors, pole, knobs);
   const sh = { width: HEAD_WIDTH[preset], jaw: 1, nose: 1.05,
@@ -283,10 +285,17 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
       parts[`lidLow${side}`] = detail(carrier, 'cranium', at, side, sweep(lowSpine, [0.0005, 0.0008, 0.0008, 0.0005].map((r) => r * L.lower), 4), 'Lid');
     }
     const addrs = [[5.12, 3.8], [5.24, 4.15], [5.20, 4.65], [5.08, 4.95]];
-    const brow = strip(carrier, 'cranium', addrs, side, j => {
-      const w = 0.0037 * sh.brow * (ft.brow ?? 1) * [0.65, 1, 0.9, 0.35][j];
-      return [[-w, -0.0008], [-w, 0.0015], [w, 0.0015], [w, -0.0008]];
-    });
+    // the tiered face's BROWS (features.brows: { arch, head, tail, lift }): on seven stations, the middle raised by
+    // `arch` rows into an arch, the head (`head`, by the nose) the thickest and tapering to a fine `tail`, lying `lift`
+    // of the old height off the skin; absent ⇒ the four-station strip as before
+    const B = ft.brows ?? null;
+    const browAddrs = B ? addrs.flatMap((a, i) => (i ? [[(addrs[i - 1][0] + a[0]) / 2, (addrs[i - 1][1] + a[1]) / 2], a] : [a])).map(([u, t], j, all) => [u + B.arch * Math.sin((Math.PI * j) / (all.length - 1)), t]) : addrs;
+    const browW = (j) => (B ? (() => { const x = j / (browAddrs.length - 1); return x < 0.3 ? B.head + (1 - B.head) * (x / 0.3) : 1 + (B.tail - 1) * ((x - 0.3) / 0.7); })() : [0.65, 1, 0.9, 0.35][j]);
+    const browH = B ? B.lift : 1;
+    const brow = strip(carrier, 'cranium', browAddrs, side, j => {
+      const w = 0.0037 * sh.brow * (ft.brow ?? 1) * browW(j);
+      return [[-w, -0.0008 * browH], [-w, 0.0015 * browH], [w, 0.0015 * browH], [w, -0.0008 * browH]];
+    }, undefined, B ? { end: 0.001 } : undefined);
     for (const p of Object.values(brow.points)) p[2] += ex.browRaise + ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6);
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
@@ -335,7 +344,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
       for (const [k, v] of Object.entries(p.caps)) p.caps[k] = round(mul(v, scale));
     } else for (const [k, v] of Object.entries(p.offsets)) p.offsets[k] = round(mul(v, scale));
   }
-  return { name: 'head', parts, dials, creases: {}, palette: headPalette(skin, hairColor, ft.lipTint && !palette.Lip ? { ...palette, Lip: tintRgb(skin, ft.lipTint) } : palette),
+  return { name: 'head', parts, dials, creases: {}, palette: headPalette(skin, hairColor, { ...palette, ...(ft.lipTint && !palette.Lip ? { Lip: tintRgb(skin, ft.lipTint) } : {}), ...(ft.brows?.soft && !palette.Brow ? { Brow: mixHex(hairColor, skin, ft.brows.soft) } : {}) }),
     bind: { cranium: 'head', jaw: 'jaw' },
     joints: { jawHinge: [...jaw.caps.tip], jawTip: [...jaw.stations[0].points.front] },
     faceVersion: FACE_VERSION, expression, preset, register, hair: H, hairMeasures: grown.measures, scale, shape: knobs,
