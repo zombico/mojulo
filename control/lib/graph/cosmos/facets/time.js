@@ -20,7 +20,7 @@
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const MENUS = 'lib/graph/playscape/ui/menus.js';
-const COMIC = 'lib/graph/motion-comic/motion-comic-manifest.js';
+const SCENES = 'lib/graph/playscape/ui/scenes.js';
 const WEB = { godot: false };
 // one change per package: quests (steps bound to a giver), the 3D shot
 const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', ...WEB };
@@ -63,14 +63,17 @@ export const TIME = Object.freeze({
         quests: { ...QUESTS, requires: ['mind.social=talk'], lowers: MENUS, note: 'a giver (a talk menu), a log (a list menu) and a reward (cue effects) exist apart; nothing binds them to a character' },
       },
     },
+    // built 10-11 (the scene layer): playscape/ui/scenes.js plays a level's scenes, the camera's `shot` rule directs, the
+    // page's runner paces lines and hands the camera back. Web only: Godot's bus carries no scenes yet.
     shots: {
       multi: true,
       values: {
-        'in-world': { ...SHOT, lowers: 'lib/graph/playscape/ui/cast.js', note: 'the cast walks to its marks and poses; the camera cannot be taken over' },
-        staged: { ...SHOT, lowers: 'lib/graph/pixelizer/cutscene.js', note: 'the grammar exists twice, neither in 3D: the pixel cutscene (cuts, a camera track, captions) and the click-gated motion comic' },
-        banter: { status: 'partial', effort: 'S', ...WEB, lowers: COMIC, note: 'the motion comic steps a screen by the click with type-on subtitles, and a talk menu names who speaks; no two-up portrait screen in a game, no expression set' },
+        'in-world': { ...SHOT, status: 'built', lowers: SCENES, note: 'a scene takes the camera (the shot rule), moves the cast and hands the camera back' },
+        staged: { ...SHOT, status: 'built', lowers: SCENES, note: 'beats in order: shots, the cast, waits, lines; letterboxed, input held, skippable to its end state' },
+        // banter rides the shot (10-11: the sweep paired them in worlds neither made alone): one package, one build
+        banter: { ...SHOT, status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; no portraits or face set yet' },
       },
     },
-    framing: { multi: true, source: { module: 'lib/graph/era/floormap-cameras.js', table: 'SHOTS', ...SHOT, note: 'the floormap places these per region as fixed cameras; no shot directs them' } },
+    framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, status: 'built', note: 'the shot rule frames its subjects by these words' } },
   },
 });

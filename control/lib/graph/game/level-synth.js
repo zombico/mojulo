@@ -12,6 +12,7 @@
 
 import { composeMechanics } from './mechanics.js';
 import { chapterContract } from '../playscape/ui/chapters.js';
+import { sceneContract } from '../playscape/ui/scenes.js';
 
 const EV_ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
@@ -67,9 +68,9 @@ export function mergeEventManifests(a, b) {
 export function synthesizeLevel(manifest) {
   const game = manifest && manifest.game;
   if (!game || typeof game !== 'object') return { game: game || null, mechEvents: null };
-  // chapters that carry between levels add their setFlag rows (playscape/ui/chapters.js); none ⇒ the same object
+  // chapters and scenes that carry between levels add their setFlag rows (playscape/ui/chapters.js, scenes.js); none ⇒ the same object
   const play = manifest.play;
-  if (!Array.isArray(game.mechanics) || !game.mechanics.length) return { game: chapterContract(game, play), mechEvents: null };
+  if (!Array.isArray(game.mechanics) || !game.mechanics.length) return { game: sceneContract(chapterContract(game, play), play), mechEvents: null };
   const { player, spawn } = deriveLevelPlayer(manifest);
   let composed;
   try {
@@ -77,5 +78,5 @@ export function synthesizeLevel(manifest) {
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }
-  return { game: chapterContract(mergeContract(game, composed), play), mechEvents: composed.events };
+  return { game: sceneContract(chapterContract(mergeContract(game, composed), play), play), mechEvents: composed.events };
 }

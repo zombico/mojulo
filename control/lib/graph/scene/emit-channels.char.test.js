@@ -110,6 +110,10 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-11 (power moves): `platform` airJumps and glideFall, each gated on its own key; the trace pins hold
 // and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
 // Re-pinned 2026-10-11 (merge of the hit loop with the cameras): both changes to the embedded engine source at once.
+// Re-pinned 2026-10-11 (scene layer): the `shot` camera rule and the cast's shot / unshot / finish ops, each reached
+// only by a scene; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (scene conditions): the `shot` rule frames places (`at`) as well as characters, reached only by
+// a scene; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

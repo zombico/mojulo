@@ -18,6 +18,7 @@ import { SYSTEMS, SYSTEM_IDS } from './systems.js';
 import { CUE_WHEN, CUE_THEN, SAY_AS, lowerCues, ANCHOR_REACH } from './cues.js';
 import { SPOT_POSES } from './cast.js';
 import { MENU_KINDS, MENU_IDS } from './menus.js';
+import { SCENE_BEATS, SHOT_FRAMES, SHOT_MOVES } from './scenes.js';
 import { LOOK_NAMES, LOOK_LAYERS } from '../elements/elements.js';
 import { PUFFS } from '../elements/moments.js';
 import { BEAM_NAMES, BEAM_LAYERS } from '../elements/beams.js';
@@ -52,6 +53,7 @@ function guideCard() {
     '  cues    the UI answering the game: when a happening, then an effect, until another (card \'ui-cues\')',
     '  menus   what comes up from a thing in the map: a sign, a talk, a shop, a chest (card \'ui-menus\')',
     '  chapters  the same world later: a difference turned by a happening, carried to the next level (card \'ui-chapters\')',
+    '  scenes    a directed moment: the camera taken, the cast moved, two talking, the camera handed back (card \'ui-scenes\')',
     '  ui      the direction gate (card \'ui-board\'): \'propose\' → a board to approve item by item; \'auto\' is hands off;',
     '          { register, pin, border, pixel, pace } tune it (cards ui-register, ui-border, ui-pixel, ui-pace)',
     '',
@@ -210,6 +212,24 @@ function chaptersCard() {
   );
 }
 
+function scenesCard() {
+  return lines(
+    'SCENES — a directed moment. The camera is taken from the player, the cast moves, lines are said, and the camera is',
+    'handed back. While a scene plays the player\'s input is held and letterbox bars show; Space, Enter, E or a click',
+    'advance a line, and holding it (or Esc) skips to the scene\'s end state (walks land, effects apply).',
+    'play.scenes: [{ id, when, beats, once?, names? }]',
+    '  when    a cue\'s when (card ui-cues): { start: true }, { enter: \'<zone>\' }, { use: … }, { on: \'<event>\' }, …',
+    '  once    true by default: the first time only',
+    '  names   { <who>: \'<name the box shows>\' } (else the id, capitalised)',
+    `  beats, in order: ${Object.entries(SCENE_BEATS).map(([k, v]) => `${k} (${v})`).join('; ')}`,
+    `  frame   ${Object.entries(SHOT_FRAMES).map(([k, v]) => `${k} (${v})`).join('; ')}`,
+    `  move    ${Object.entries(SHOT_MOVES).map(([k, v]) => `${k} (${v})`).join('; ')}`,
+    'The words are a slot: a line without say shows a placeholder, [Mayor: line 1]. Write say when the creator asks.',
+    'A scene fires scene-end:<id> as it ends, so a cue can follow on ({ on: \'scene-end:<id>\' }).',
+    `example: ${JSON.stringify({ scenes: [{ id: 'arrival', when: { start: true }, names: { mayor: 'Mayor Ilse' }, beats: [{ shot: { frame: 'wide', on: ['hero', 'mayor'], move: 'push' }, for: 2 }, { do: { walk: { who: 'mayor', to: 'porch' } } }, { until: { arrive: 'mayor' } }, { banter: { with: ['mayor', 'hero'], lines: [{ who: 'mayor', say: 'You came up the old trail.' }, { who: 'hero' }] } }] }] })}`,
+  );
+}
+
 function pixelCard() {
   return lines(
     `PIXELATED — a tuning beside the register, not on it. play.ui.pixel: ${PIXEL_SIZES.join(' | ')} (0 off; else the pixel size) or true (3).`,
@@ -304,6 +324,7 @@ export function playCards() {
     ['ui-shared', 'Shared status', 'whose value a part shows (of) and who may see it (audience)', 'multiplayer: nameplates, scoreboards, team status', sharedCard()],
     ['ui-cues', 'Cues', 'the UI answering the game: when a happening, then an effect, until another', 'a prompt near a door, a pickup toast, an area name, a low-health alert, a hint', cuesCard()],
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
+    ['ui-scenes', 'Scenes', 'a directed moment: the camera taken, the cast moved, two talking, the camera handed back', 'a cutscene, an arrival, two characters talking, a reveal, a boss entrance', scenesCard()],
     ['ui-chapters', 'Chapters', 'the same world later: a difference turned by a happening, carried to the next level', 'a story that moves on, a town after the siege, a level that remembers what you did', chaptersCard()],
     ['play-elements', 'Statuses and looks', 'a status is a name; its look (coat, orbiting lights, drifting particles, bolts, fire, ice, water, steam) is drawn on the body; moments (puffs, splashes, impacts, lightning, fireworks, shake) play once', 'a shield, a heal, poison, on fire, frozen, soaked, rained on, electrified, a black flash, an impact, a lightning strike, any status you design', elementsCard()],
     ['play-beams', 'Beams and attacks', 'an attack is strands (rays and bolts, one function of time each) fired from a hand, landing with struck', 'a ki wave, a fireball, a fire dragon, a death ball, a laser barrage, braided beams, any attack you design', beamsCard()],
@@ -334,7 +355,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-chapters', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-chapters', 'ui-scenes', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }

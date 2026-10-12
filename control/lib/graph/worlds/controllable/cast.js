@@ -21,6 +21,11 @@
  *     puff { at?, is?, color?, shake?, spec?, scale? }   a moment at a place or at who's feet (state.moments: { is, at,
  *                         t0, color? }, kept 3 s); shake: the camera shakes too; spec: an explosion (its parts, kept
  *                         its dur; a chain is several, scattered and staggered), scale sizing it
+ *     shot { shot }           (no who) the camera's rule is set aside for a directing `shot` rule (rules-basic): shot is
+ *                         { frame, on, move?, … }; a second shot replaces the first and keeps the player's rule aside
+ *     unshot                  (no who) the camera's own rule back: it eases from where the shot left it
+ *     finish                  (no who) every walk lands where it was going (a skipped scene): its last point, its face and
+ *                         pose, and the arrive fact; a looping walk keeps walking
  *     shake { k, for? }       (no who) the camera shakes k (0..1) over for seconds: a moment { is: 'shake', k, for, t0 }
  *     beam { to, spec, land, name?, color? }   who fires an attack (playscape/elements/beams.js) from its hand (or over
  *                         its head, a charge `at: above`) at a character (its middle, where it stands now) or a point: a
@@ -107,6 +112,26 @@ export function buildCast(E) {
   }
   function castOps(state, ops) {
     for (const o of ops || []) {
+      // a SHOT (the scene layer): the player's camera rule held aside while a directing shot plays; unshot gives it back
+      if (o && o.op === 'shot' && o.shot && state.camera) {
+        const C = state.camera;
+        if (!C.heldRule) C.heldRule = C.rule;
+        C.rule = { ...o.shot, type: 'shot' }; C._shotT = 0; C._shotAt = null; C._shotCut = o.shot.cut !== false;
+        continue;
+      }
+      if (o && o.op === 'finish') {
+        for (const w of state.entities) {
+          const R = w.route;
+          if (!R || R.then === 'loop') continue;
+          if (R.then === 'back' && !R.back) { R.points = R.points.slice().reverse(); R.names = R.names.slice().reverse(); R.back = true; }
+          R.i = R.points.length - 1;
+          const p = R.points[R.i];
+          w.transform.pos[0] = p[0]; w.transform.pos[1] = p[1];
+          stepRoute(w, 0, state);
+        }
+        continue;
+      }
+      if (o && o.op === 'unshot') { const C = state.camera; if (C && C.heldRule) { C.rule = C.heldRule; C.heldRule = null; } continue; }
       if (o && o.op === 'shake') { moment(state, { is: 'shake', at: [0, 0, 0], k: Number.isFinite(o.k) ? o.k : 0.5, for: Number.isFinite(o.for) ? o.for : 0.4 }); continue; }
       if (o && o.op === 'puff' && !o.who && Array.isArray(o.at)) { puff(state, o, pt3(o.at, 0)); continue; }   // a puff at a place, no one there
       const e = o && state.byId[o.who];
