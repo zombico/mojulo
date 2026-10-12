@@ -603,9 +603,11 @@ function faceRowOf(face) {
  * corner (faceRowOf); a part holding a corner that moves gets `morph: { i, d }` after its other keys — `i` the part's
  * vertex indices (u32), `d` each one's row as float32 ((1 + targets) × 3: the rebase, then every target) — which the
  * skinned GLB writer turns into morph targets.
- * `paint` (default null → byte-identical output; with `character`): the painted face in motion (face-paint-rig.js
+ * `paint` (default null → byte-identical output; under the character light or the plain one): the painted face in motion (face-paint-rig.js
  * `pack`): every part carries `uv` (float32 [s, t] per vertex, t up, on the atlas), the pack its `paintTex` (the atlas:
  * { url, w, h }), and the face's shells their morph rows as `face`'s do.
+ * `palette` (default null → byte-identical output; the plain path): each face's colour is its group's in it, as the
+ * static faces' (layeredFaces), before the part's `tint` — a hero under a level's cast light (its parts carry no tint).
  * `speeds` (default null → byte-identical output): a locomotion clip's GROUND SPEED (hero-motion.js, metres a second at its
  * seconds), carried as `v`: the speed the figure must move for a planted foot to stay put (an engine plays the clip at
  * planar speed ÷ v).
@@ -614,14 +616,15 @@ function faceRowOf(face) {
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null } = {}) {
   // `tint` (face-tint.js): per face, its corners' colour multipliers in sRGB, taken to linear here. Absent ⇒ byte-identical.
   const tk = (fi, k, c) => (tint?.[fi] ? tint[fi][k][c] ** 2.2 : 1);
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
   const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
-  const rowAt = !character ? faceRowOf(face) : null;
-  if (rowAt) for (const P of parts) P.mph = [];
+  const rowAt = !character ? faceRowOf(face) : null, pp = !character ? paint : null;
+  if (rowAt || pp) for (const P of parts) P.mph = [];
+  if (pp) for (const P of parts) P.uv = [];
   // the recipe's emissive groups (a lens, a visor slit, a reactor) keep their full colour on the plain path, as the
   // static solid does (layeredFaces); under the character light they ride the pieces. Absent ⇒ byte-identical.
   const glow = new Set(Array.isArray(emissive) ? emissive : []);
@@ -629,13 +632,33 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   else mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
-    const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: part.tint || '#8a8f96' });
+    const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: palette?.[mesh.groups[fi]] || part.tint || '#8a8f96' });
     const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const lit = glow.has(mesh.groups[fi]); const shade = lit ? 1 : 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
-    const P = parts[bi]; P.faces++;
+    // THE PAINTED FACE on the plain path (a hero under a level's cast light): a painted face's corners carry the texture
+    // and the light alone (white under it), and one over a region its shells, as characterRigParts does. Absent ⇒ as before.
+    if (pp && pp.targets && pp.skipParts?.test(mesh.provenance[tri[0]].part)) return;
+    const painted = pp && pp.painted(fi), b = painted ? [1, 1, 1] : base, ri = painted ? pp.regionOf.get(fi) : undefined;
     // a CAST light (era/cast-light.js: the level's key, tinted ambient and bounce, per channel) in place of the studio
-    // key's grey Lambert; the same normals choose the corner's shade. Absent ⇒ the line below, byte-identical.
-    if (cast && !lit) { tri.forEach((vi, k) => { const n = normals ? normals[fi][k] : vN && vN[vi] ? vN[vi] : nl > 1e-12 ? mul(nrm, 1 / nl) : [0, 0, 1]; const f = castLightFactor(n, cast); P.pos.push(...p[k]); P.col.push(base[0] * f[0] * tk(fi, k, 0), base[1] * f[1] * tk(fi, k, 1), base[2] * f[2] * tk(fi, k, 2)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } }); return; }
-    tri.forEach((vi, k) => { const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; P.pos.push(...p[k]); P.col.push(base[0] * s * tk(fi, k, 0), base[1] * s * tk(fi, k, 1), base[2] * s * tk(fi, k, 2)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
+    // key's grey Lambert; the same normals choose the corner's shade
+    const colourAt = (vi, k) => {
+      if (cast && !lit) { const n = normals ? normals[fi][k] : vN && vN[vi] ? vN[vi] : nl > 1e-12 ? mul(nrm, 1 / nl) : [0, 0, 1]; const f = castLightFactor(n, cast); return [b[0] * f[0] * tk(fi, k, 0), b[1] * f[1] * tk(fi, k, 1), b[2] * f[2] * tk(fi, k, 2)]; }
+      const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; return [b[0] * s * tk(fi, k, 0), b[1] * s * tk(fi, k, 1), b[2] * s * tk(fi, k, 2)];
+    };
+    const P = parts[bi];
+    if (ri !== undefined) {
+      const H = [pp.hidden[0], pp.hidden[1], pp.hidden[2] + dz];
+      for (const st of pp.regions[ri].states) {
+        P.faces++;
+        tri.forEach((vi, k) => {
+          const at = st.rest ? p[k] : H, d = new Float64Array((1 + pp.targets) * 3);
+          for (const [t, f] of st.deltas) for (let q = 0; q < 3; q++) d[3 + t * 3 + q] += f * (p[k][q] - H[q]);
+          P.pos.push(...at); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); P.uv.push(...st.uv(pp.uvAt({ vi }))); P.mph.push({ i: P.pos.length / 3 - 1, d });
+        });
+      }
+      return;
+    }
+    P.faces++;
+    tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.

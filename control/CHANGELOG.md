@@ -103,9 +103,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
   motion). The hero readout's `painterly` names both.
 - **Under a level's cast light** (a hero with `geocube`): the studio-lit faces (`layeredFaces` `paint`) carry the
-  texture as the character-lit ones do, the fill the light alone; the face was blank there. The moving figure under a
-  cast light (the clip preview, the GLB) stays plain: its painted face rides the character light's parts. (The painted
-  face on the rig: the theme above.)
+  texture as the character-lit ones do, the fill the light alone; the face was blank there. The moving figure under it
+  (the clip preview, the GLB) takes the painted face and its drawings on the rig's plain path too. (The painted face
+  on the rig: the theme above.)
 - The `layered` vocab card has the look's section and `soft` in the light's fields.
 
 ### Hair studies: the lock grown like a grass blade
@@ -171,6 +171,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - the rim comes from its sky;
   - its register bands the key.
   - The static faces, held gear and the packed rig all take it, and the World page's rim patch draws the rim.
+  - The packed rig takes the palette under it (`packLayeredRig` `palette`): its plain path coloured each face by its
+    part's `tint`, which a hero's parts never carry, so the moving figure (the clip preview, the skinned GLB, Godot)
+    was grey all over in its level.
   - An anime hero on a cube is lit by the cube, not by its read-time cel light; a `toon.light` the manifest names
     still wins.
   - The hero takes the cube's target unless it names its own.

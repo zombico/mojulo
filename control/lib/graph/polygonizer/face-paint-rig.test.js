@@ -77,3 +77,22 @@ describe('the painted face in motion', () => {
     expect(paintFaceRig(slab.m, slab.mesh, facePaintOf(slab.mesh, slab.m.recipe.palette))).toBeNull();
   }, 300000);
 });
+
+describe('under a level\'s cast light (the plain path)', () => {
+  it('the moving figure wears its palette, not the grey fallback, and its painted face with its drawings', async () => {
+    const { heroCastLight } = await import('../era/cast-light.js');
+    const cube = built({ cast: 'female', painterly: true, geocube: 'gothic-night' }), cast = heroCastLight(cube.m.hero);
+    const R = validateRig(cube.m.recipe.rig), skin = bindLayered(cube.mesh, cube.m.recipe, R), paint = facePaintOf(cube.mesh, cube.m.recipe.palette);
+    const r = paintFaceRig(cube.m, cube.mesh, paint);
+    const colours = (P) => { const s = new Set(); for (const part of P.parts.filter(Boolean)) { const c = Buffer.from(part.col, 'base64'); for (let i = 0; i < c.length; i += 3) s.add(`${c[i]},${c[i + 1]},${c[i + 2]}`); } return s; };
+    const grey = packLayeredRig(cube.mesh, skin, R, { cast }), coloured = packLayeredRig(cube.mesh, skin, R, { cast, palette: cube.m.recipe.palette, paint: r.pack });
+    expect(colours(coloured).size).toBeGreaterThan(colours(grey).size);
+    let morphs = 0;
+    for (const part of coloured.parts.filter(Boolean)) {
+      expect(Buffer.from(part.uv, 'base64').length / 8).toBe(Buffer.from(part.pos, 'base64').length / 12);
+      if (part.morph) morphs += Buffer.from(part.morph.i, 'base64').length / 4;
+    }
+    expect(morphs).toBeGreaterThan(1000);
+    expect(grey.parts.filter(Boolean).some((p) => p.uv || p.morph)).toBe(false);
+  }, 300000);
+});
