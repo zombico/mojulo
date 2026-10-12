@@ -14,7 +14,7 @@ const glb = (payload) => Buffer.from(facesToGlb(payload, { generator: 'mojulo lo
 
 describe('the hero door\'s motion', () => {
   it('refuses an unknown gait, an unknown dial and a seconds out of range, naming them', () => {
-    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the poses /);
+    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the poses /);
     expect(validateHeroSpec({ motion: { walk: { stride: 0.4 } } }).join(' ')).toMatch(/motion\.walk\.stride: not a walk dial/);
     expect(validateHeroSpec({ motion: { jog: { seconds: 40 } } }).join(' ')).toMatch(/motion\.jog\.seconds/);
     expect(validateHeroSpec({ motion: { walk: { strideLength: 0.4, vault: true, seconds: 1.2 }, jog: true, sprint: { tilt: 22 } } })).toEqual([]);
@@ -74,6 +74,21 @@ describe('the hero door\'s motion', () => {
     const anims = glbJson(glb(payload)).animations;
     expect(anims.find((a) => a.name === 'body:jab').extras['moj:move']).toEqual(clips.jab.move);
     expect(anims.find((a) => a.name === 'body:walk').extras?.['moj:move']).toBeUndefined();
+  });
+
+  it('a rest packs its getting down and up as one-shots with its beats and the props it needs; the GLB carries moj:rest; a rest takes only true', async () => {
+    expect(validateHeroSpec({ motion: { lieBack: { seconds: 2 } } }).join(' ')).toMatch(/motion\.lieBack: true \(a rest's getting down and up are studied, hero-rise\.js; its clips are lieBackDown and lieBackUp\)/);
+    const payload = await resolve(heroManifest({ cast: 'female', motion: { chairUpright: true } }));
+    const clips = payload.figures.body.clips;
+    for (const [n, phase, beat] of [['chairUprightDown', 'down', 'seatOn'], ['chairUprightUp', 'up', 'seatOff']]) {
+      expect(clips[n].once, n).toBe(true); expect(clips[n].rest).toMatchObject({ rest: 'chairUpright', phase, laws: true });
+      expect(clips[n].rest.beats[beat]).toBeGreaterThan(0); expect(clips[n].rest.beats[beat]).toBeLessThan(clips[n].s);
+      expect(clips[n].rest.props.length).toBeGreaterThan(0);   // the chair: its seat, legs and back as boxes
+      for (const p of clips[n].rest.props) expect(p.hi.every((v, i) => v >= p.lo[i])).toBe(true);
+    }
+    expect(clips.chairUpright).toBeUndefined();   // the word names its two clips, not one of its own
+    const anim = glbJson(glb(payload)).animations.find((a) => a.name === 'body:chairUprightDown');
+    expect(anim.extras['moj:rest']).toEqual(clips.chairUprightDown.rest);   // (a hero at 1 m a unit: the props as packed)
   });
 
   it('a turned clip exports its turn: through every key of a stance and a strike the head and the jaw skin together (the seam under the chin shut)', async () => {

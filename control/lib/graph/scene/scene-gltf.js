@@ -1002,9 +1002,11 @@ class GlbBuilder {
     // speed it rolls at without slipping (metres a second)
     const roll = clip.roll ? { ...clip.roll, travel: r4(clip.roll.travel * mpu), speed: r4(clip.roll.speed * mpu) } : null;
     // a stop (hero-motion.js heroStop) rides as `moj:stop`: the gait it leaves, the braking foot, the gait phase it starts at
+    // a rest's getting down or up (hero-motion.js, hero-rise.js) rides as `moj:rest`: the rest, the phase, its beats
+    // (seconds) and the props it needs (boxes in the figure's frame under the root's z-up → y-up, scaled by the units)
     // a move (hero-motion.js MOVE_FAMILIES: a showcase pose, a stance, a strike) rides as `moj:move`: its family, that it
     // ends on the pose to hold, whether its own laws held, and a strike's hand and contact time (seconds)
-    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}) };
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }

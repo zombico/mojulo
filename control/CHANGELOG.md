@@ -13,7 +13,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### The motion library on the door: showcase poses, ready stances and strikes
+### The motion library on the door: showcase poses, ready stances, strikes, and sitting down and getting up
 
 - **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
   one-shot clip compiled on the hero's own rig where its clips are packed (the World page, the GLB, the Godot pack): the
@@ -26,6 +26,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the male (`crossedArms`, `giorno`, … arms through the body or a hand crossing it between beats); they still bake, and
   `moj:move.laws` says so. `CANON_HEIGHT` moved to a leaf module (`hero-canon.js`, re-exported by `hero-gear.js`) so
   the motion modules load without the gear's imports.
+- **Sitting down and getting up** (`hero-rest.js`, `hero-rise.js`). A rest word on `motion` (`chairUpright`,
+  `chairSlouch`, `couchSit`, `couchLounge`, `crossLegged`, `lotus`, `kneeUp`, `lieBack`, `lieSide`, `knockedOut`,
+  `yamcha`) is two one-shots, `<rest>Down` and `<rest>Up`, at the seconds the rise studies (a chair about 3 s each way,
+  lying down about 5). Each carries `moj:rest`: the rest, the phase, its beats (the seat taking or leaving the weight,
+  a fall's impact, seconds) and the props it needs, boxes in the figure's frame for an engine to place (a chair's
+  seat, legs and back; none on the floor); the prop itself is not in the export. A rest takes only `true`. Solved moves
+  and rests are kept by rig and word, so a chair's seconds of solving are paid once (a World page re-read: 9.7 s →
+  0.2 s). The gaits' numbers moved to a leaf module (`hero-gaits.js`) so the gameworld's vibes load without the motion
+  library. Godot figure gate on a tiered female with a chair and lying down: every check passes.
 - **Every clip the pack plays carries the face.** The face tracks ran over the recipe's own clips, so a `motion` clip
   the hero did not already have (a jump, now a move) had none; they run over every packed clip now, a compiled clip
   holding the authored face with its blinks. Godot figure gate (4.7.2) on a male with a walk and four moves: every

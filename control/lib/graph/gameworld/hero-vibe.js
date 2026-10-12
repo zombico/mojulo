@@ -20,7 +20,8 @@
  * apart is cut. `snap` (smooth ↔ snappy: the clips' key timing) is not built; it needs the clip sampling.
  */
 import { WALK_DEFAULTS, SPRINT_DEFAULTS } from '../polygonizer/figure-posing.js';
-import { MOTION_GAITS, validateHeroMotion } from '../polygonizer/hero-motion.js';
+import { validateHeroMotion } from '../polygonizer/hero-motion.js';
+import { GAITS as MOTION_GAITS } from '../polygonizer/hero-gaits.js';   // (the gaits alone: the motion library loads after)
 
 /** The scales people say about a walk, each −1 … +1. */
 export const AXES = Object.freeze({
