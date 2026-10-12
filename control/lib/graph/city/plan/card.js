@@ -19,12 +19,13 @@ import { parseCell, cellName } from '../../level/ground.js';
 import { DEFAULT_GRAMMAR, PLAY_SCALES, PLAY_IDS } from './grammar.js';
 import { resolveGrammar } from './grammars.js';
 import { readFacade } from './facades.js';
+import { readCityLook, readPaint } from './look.js';
 
-export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'waive', 'fidelity', 'notes']);
+export const CITY_KEYS = Object.freeze(['kind', 'seed', 'title', 'grammar', 'paint', 'play', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'waive', 'fidelity', 'notes']);
 /** How the world draws it: every lot in its facade (the default), or the massing alone (a plan judged as a plan). */
 export const FIDELITIES = Object.freeze(['facade', 'massing']);
 /** The channels every world kind wears (world-scene.js reads them; the plan never does). */
-export const WORLD_CHANNELS = Object.freeze(['audio', 'weather', 'fire', 'fog', 'clouds', 'walk']);
+export const WORLD_CHANNELS = Object.freeze(['audio', 'weather', 'fire', 'fog', 'clouds', 'walk', 'look']);
 export const BOARD = Object.freeze({ cell: [20, 200], cols: [2, 26], rows: [2, 99], defaults: { real: { cols: 8, rows: 5 }, game: { cols: 10, rows: 6 } } });
 export const RANKS = Object.freeze(['major', 'minor']);
 
@@ -82,6 +83,8 @@ export function readCityPlan(rec) {
   for (const k of Object.keys(rec)) if (!CITY_KEYS.includes(k) && !WORLD_CHANNELS.includes(k)) no(`'${k}' is not a city setting (${CITY_KEYS.filter((x) => x !== 'kind' && x !== 'notes').join(', ')})`);
   const grammar = rec.grammar ?? DEFAULT_GRAMMAR;
   const G = resolveGrammar(grammar);
+  readCityLook(rec.look);
+  readPaint(rec.paint);
   const fidelity = rec.fidelity ?? 'facade';
   if (!FIDELITIES.includes(fidelity)) no(`fidelity is ${FIDELITIES.join(' or ')} (got ${JSON.stringify(rec.fidelity)})`);
   const play = rec.play ?? 'game';
@@ -142,7 +145,7 @@ export function readCityPlan(rec) {
   }
   const waive = list(rec.waive, 'waive');
   if (!waive.every((w) => typeof w === 'string' && w.length)) no("waive is a list of '<law>' or '<law>:<subject>'");
-  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity };
+  return { seed, grammar, play, board, spine, districts, sites, transit, lots, waive, fidelity, ...(rec.look !== undefined ? { look: rec.look } : {}), ...(rec.paint !== undefined ? { paint: rec.paint } : {}) };
 }
 
 /**

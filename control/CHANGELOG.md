@@ -82,6 +82,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - `spindle` (a Sagrada Família spire's): a revolved tower that swells and tapers to a finial, its windows on
     bands of floors. A grammar may raise its towers as spindles (`tower.spindle`), rolled only when it says so.
   - Both are mass `shapes` a grammar weighs. The xeno garden now ripples and spires.
+- **A city in a world's look and paint.** The world-wide `look` channel now reaches the city.
+  - The city lights itself by the look's sun, or with none by a moon, its ambient never black, because its
+    facades are cards a bake cannot relight.
+  - The channel lays the look's air and sky. Two additive keys on `applyLook`, absent and byte-identical
+    elsewhere: `lookLit` (no "ignored the light" note) and `lookHaze` (the air thinned for a kind seen across a
+    kilometre).
+  - `paint: { geocube, amount }` lays a geocube's colours over the ground, water, parks and walks, and leans
+    every skin toward its stone, trim and accent. Without a look, the cube's own look lights it.
+  - The same city is the same streets, lots and facades in another place and hour.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

@@ -4,6 +4,8 @@ import { DISTRICT_USES, SITE_USES, LOT_USES, BOARD, FIDELITIES } from './card.js
 import { CITY_GRAMMARS, PLAY_SCALES, TRANSIT_MODES } from './grammar.js';
 import { GRAMMAR_SCHEMA, WORLD_GRAMMARS } from './grammars.js';
 import { FACADE_FIELDS, MASS_SHAPES } from './facades.js';
+import { SIXTH_GEN_LOOK_IDS } from '../../era/sixth-gen.js';
+import { GEOCUBE_PRESETS } from '../../era/geocube.js';
 import { CITY_LAWS } from './laws.js';
 import { CITY_OUTCOMES } from './read.js';
 
@@ -28,6 +30,8 @@ export function cityPlanCard() {
     `TRANSIT    [{ path: 'A3>P3', mode?, name? }]: along a street's cells; a stop every grammar's transit.stop metres. Modes: ${TRANSIT_MODES.join(', ')} (a maglev rides an elevated guideway on pylons); a grammar names the ones it runs.`,
     `LOTS       { '<lot id>': { use? (${LOT_USES.join(', ')}), storeys?, facade? } }; a facade is the building generator's descriptor: ${Object.keys(FACADE_FIELDS).join(', ')}.`,
     `FIDELITY   ${FIDELITIES.join(' | ')}: the world in every lot's facade (the default), or the massing alone.`,
+    `LOOK       the world-wide look ('${SIXTH_GEN_LOOK_IDS.join("' | '")}', or { id, cell? }): its air and sky, its sun lighting the city (a look with no sun, a moon). Same streets, another place and hour.`,
+    `PAINT      { geocube: <${Object.keys(GEOCUBE_PRESETS).join(' | ')} | a cube | { from, … }>, amount? (0–1, 0.5) }: the cube's colours over the ground, water, parks and walks, every skin leant toward its stone, trim and accent; without a look, the cube's own look lights it.`,
     'WAIVE      [\'<law>\' | \'<law>:<subject>\']: a finding accepted; the book shows it waived.', '',
     'LAWS       advisory: a finding never refuses the plan.',
     ...CITY_LAWS.map((l) => `  - ${l.id} (${l.layer}): ${l.want}. ${l.why}.`), '',

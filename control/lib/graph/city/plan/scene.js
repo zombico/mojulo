@@ -16,25 +16,29 @@ import { strHash } from './dice.js';
 import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { assembleBoxCityScene } from '../../scene/scene-css3d.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
+import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
+import { resolveLookSpec } from '../../era/look.js';
+import { rgbToHex } from '../../polygonizer/vexar.js';
+import { makeLight, litFactor, scaleHex } from '../../polygonizer/vexar.js';
 
 const U = CITY_METERS_PER_UNIT;
 const r3 = (v) => Math.round(v * 1000) / 1000;
-const SUN = (() => { const v = [-0.4, -0.55, 0.73], L = Math.hypot(...v); return v.map((x) => x / L); })();
-const shade = (hex, n, lift = 0) => {
-  const s = Math.min(1.1, 0.55 + 0.45 * Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2]) + lift);
-  return `#${[1, 3, 5].map((i) => Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * s)).toString(16).padStart(2, '0')).join('')}`;
-};
-export const CITY_GROUND = Object.freeze({ ground: '#56643f', road: '#3b3d40', walk: '#a8a49a', plaza: '#a19f97', park: '#4f6b3a', water: '#3e6a84', parking: '#5c5e60', rail: '#6d6257', guideway: '#c9ccd1', pylon: '#9aa0a8', stop: '#d9b44a', landmark: '#c9c4b8', civic: '#bdb6a6' });
+// the facade pipeline's own key light (scene-css3d.js assembleBoxCityScene), unless a look hands another
+const CITY_LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse: 0.52 });
+let LIT = CITY_LIGHT;
+const shade = (hex, n, lift = 0) => scaleHex(hex, Math.min(1.15, litFactor(n, LIT) + lift));
+const CITY_GROUND_BASE = Object.freeze({ ground: '#56643f', road: '#3b3d40', walk: '#a8a49a', plaza: '#a19f97', park: '#4f6b3a', water: '#3e6a84', parking: '#5c5e60', rail: '#6d6257', guideway: '#c9ccd1', pylon: '#9aa0a8', stop: '#d9b44a', landmark: '#c9c4b8', civic: '#bdb6a6' });
+export const CITY_GROUND = CITY_GROUND_BASE;
 // a maglev's guideway: its deck's underside this high, pylons this far apart
 const GUIDEWAY = Object.freeze({ z: 8, deck: 1.1, w: 5.5, pylon: 30 });
 // lot faces (the plan's n/s/w/e) as the legacy city names a box's faces
 const FACE = { n: '-y', s: '+y', w: '-x', e: '+x' };
 
 // faces in metres, scaled into units at the end
-const flat = (x0, y0, x1, y1, z, fill, group) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], normal: [0, 0, 1], fill, group });
+const flat = (x0, y0, x1, y1, z, fill, group) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], normal: [0, 0, 1], fill: shade(fill, [0, 0, 1]), group });
 function strip(a, b, w, z, fill, group) {
   const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = (-dy / L) * w / 2, ny = (dx / L) * w / 2;
-  return { corners: [[a[0] + nx, a[1] + ny, z], [a[0] - nx, a[1] - ny, z], [b[0] - nx, b[1] - ny, z], [b[0] + nx, b[1] + ny, z]], normal: [0, 0, 1], fill, group };
+  return { corners: [[a[0] + nx, a[1] + ny, z], [a[0] - nx, a[1] - ny, z], [b[0] - nx, b[1] - ny, z], [b[0] + nx, b[1] + ny, z]], normal: [0, 0, 1], fill: shade(fill, [0, 0, 1]), group };
 }
 function box(x0, y0, x1, y1, z0, z1, wall, roof, group) {
   const W = (a, b, n) => ({ corners: [[a[0], a[1], z0], [b[0], b[1], z0], [b[0], b[1], z1], [a[0], a[1], z1]], normal: n, fill: shade(wall, n), group });
@@ -51,9 +55,9 @@ export function lotColours(lot, G) {
   return { wall: lot.skin === 'glass' ? fam[0] : fam[1], roof: G.skin.roof[(h >>> 8) % G.skin.roof.length] };
 }
 
-/** The ground, the ways, the reserved ground and the transit, as faces in metres. */
-function groundFaces(d) {
-  const { W, D } = d.frame, faces = [];
+/** The ground, the ways, the reserved ground and the transit, as faces in metres, in the look's colours. */
+function groundFaces(d, paint) {
+  const { W, D } = d.frame, faces = [], CITY_GROUND = paintGround(paint, CITY_GROUND_BASE);
   faces.push(flat(-20, -20, W + 20, D + 20, 0, CITY_GROUND.ground, 'city:ground'));
   for (const r of d.reserved) if (r.kind === 'district') faces.push(flat(r.rect.x0, r.rect.y0, r.rect.x1, r.rect.y1, 0.01, r.use === 'water' ? CITY_GROUND.water : CITY_GROUND.park, `city:${r.use}`));
   for (const s of d.sites) faces.push(flat(s.rect.x0, s.rect.y0, s.rect.x1, s.rect.y1, 0.02, s.use === 'park' ? CITY_GROUND.park : CITY_GROUND.plaza, `city:${s.use === 'park' ? 'park' : 'plaza'}`));
@@ -83,11 +87,11 @@ function groundFaces(d) {
 }
 
 /** Each built lot and site as a box the legacy facade pipeline reads, in units. */
-export function cityBoxes(d) {
+export function cityBoxes(d, paint = readPaint(d.plan.paint)) {
   const G = d.grammar, boxes = [];
   for (const l of d.lots) {
     if (l.use === 'parking') continue;
-    const { skin, shape } = skinLot(l, G, d.plan.seed), front = FACE[l.face];
+    const { skin: worn, shape } = skinLot(l, G, d.plan.seed), skin = paintSkin(paint, worn), front = FACE[l.face];
     boxes.push({
       x: r3(l.x0 / U), y: r3(l.y0 / U), w: r3((l.x1 - l.x0) / U), d: r3((l.y1 - l.y0) / U), z0: 0, z1: r3(l.h / U),
       kind: 'building', metro: true, floors: l.floors, floorH: r3(l.floorH / U), skin, shape, front, roadFaces: [front],
@@ -100,7 +104,7 @@ export function cityBoxes(d) {
     boxes.push({
       x: r3(m.x0 / U), y: r3(m.y0 / U), w: r3((m.x1 - m.x0) / U), d: r3((m.y1 - m.y0) / U), z0: 0, z1: r3(m.h / U),
       kind: 'building', metro: true, floors, floorH: r3(floorH / U), shape: lm ? 'setback' : 'podium', front: '+y', roadFaces: ['+y'],
-      skin: { material: lm ? 'glass' : 'stone', glass: fam[0], frame: fam[1], roof: G.skin.roof[0], ...(lm ? {} : { rhythm: 'pier' }), storefront: false, fireEscape: false },
+      skin: paintSkin(paint, { material: lm ? 'glass' : 'stone', glass: fam[0], frame: fam[1], roof: G.skin.roof[0], ...(lm ? {} : { rhythm: 'pier' }), storefront: false, fireEscape: false }),
       site: s.id,
     });
   }
@@ -111,7 +115,16 @@ export function cityBoxes(d) {
 export function assembleCityScene(manifest, ctx = {}) {
   const { kind, title, walk: walkFlag, ...recipe } = manifest;
   const d = designCity(recipe), G = d.grammar, { W, D } = d.frame;
-  const ground = groundFaces(d);
+  // the look lights the city (the world-wide channel adds its air and sky after); with none, a paint's cube's look does,
+  // and the city takes that look's air and sky itself
+  const paint = readPaint(d.plan.paint), spec = readCityLook(d.plan.look) || (paint ? resolveLookSpec(paint.cube.light.reference) : null);
+  const lit = spec ? lookLight(spec, paint) : null;
+  LIT = lit ? lit.light : CITY_LIGHT;
+  try { return assembleIn(d, G, W, D, { paint, spec, lit, own: !d.plan.look && !!spec }, { title, walkFlag, ctx }); } finally { LIT = CITY_LIGHT; }
+}
+
+function assembleIn(d, G, W, D, { paint, spec, lit, own }, { title, walkFlag, ctx }) {
+  const ground = groundFaces(d, paint);
   // the walker starts on the walk nearest the height field's core, facing along its street
   const start = d.walk.nodes.reduce((b, n) => (!b || Math.hypot(n.x - d.field.cx, n.y - d.field.cy) < Math.hypot(b.x - d.field.cx, b.y - d.field.cy) ? n : b), null);
   const edge = d.walk.edges.find((e) => e.a === start.id || e.b === start.id), far = d.walk.nodes[edge.a === start.id ? edge.b : edge.a];
@@ -134,15 +147,20 @@ export function assembleCityScene(manifest, ctx = {}) {
     scene = { title: sheetTitle, faces: faces.map(toUnits), cameras, viewBox: { width: 1280, height: 720 } };
   } else {
     // the organic masses are built here (organic.js); every other the legacy pipeline draws
-    const boxes = cityBoxes(d), organic = boxes.filter((b) => ORGANIC_SHAPES.includes(b.shape));
-    const grown = organic.flatMap((b) => organicFaces(b));
-    scene = assembleBoxCityScene({ boxes: boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape)), faces: [...ground.map(toUnits), ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle });
+    const boxes = cityBoxes(d, paint), organic = boxes.filter((b) => ORGANIC_SHAPES.includes(b.shape));
+    const grown = organic.flatMap((b) => organicFaces(b, undefined, LIT));
+    scene = assembleBoxCityScene({ boxes: boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape)), faces: [...ground.map(toUnits), ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT, ...(lit && lit.night ? { moonlight: true } : {}) });
   }
+  const air = spec && spec.ref.air;
   return {
     ...scene,
     bg: '#cfd6dc',
+    // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
+    // by it: lookLit); a paint's cube's look is laid here
+    ...(spec && !own ? { lookLit: true, lookHaze: CITY_HAZE } : {}),
+    ...(own ? { bg: lit.night ? air.fog.color : rgbToHex(air.dome.horizon), haze: { color: air.fog.color, density: +(air.fog.density * CITY_HAZE).toFixed(5) }, sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: lit.night ? 0 : 1, stars: 0, seed: 1 } } : {}),
     walk: walkFlag === false ? false : { speed: r3(G.walk.speed * 1.1 / U), spawn: u(eye), minEye: r3(1.7 / U), gravity: r3(22 / U), radius: r3(0.4 / U) },
     metersPerUnit: U,
-    city: { grammar: typeof d.plan.grammar === 'string' ? d.plan.grammar : `${d.plan.grammar.from}+`, label: G.label, play: d.plan.play, fidelity: d.plan.fidelity, stats: d.stats, laws: d.laws.map((l) => ({ id: l.id, ok: l.ok, findings: l.findings.length })) },
+    city: { grammar: typeof d.plan.grammar === 'string' ? d.plan.grammar : `${d.plan.grammar.from}+`, label: G.label, ...(spec ? { look: spec.id } : {}), ...(paint ? { paint: paint.cube.id } : {}), play: d.plan.play, fidelity: d.plan.fidelity, stats: d.stats, laws: d.laws.map((l) => ({ id: l.id, ok: l.ok, findings: l.findings.length })) },
   };
 }

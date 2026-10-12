@@ -25,11 +25,13 @@ const LIGHT = makeLight({ direction: [0.34, 0.46, -0.82], ambient: 0.56, diffuse
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const TAU = 2 * Math.PI;
 
+// the light a mass is grown under: the city pipeline's own unless a look hands another (organicFaces' third argument)
+let light = LIGHT;
 function wall(corners, normal, facade, floors, bays) {
-  const lit = litFactor(normal, LIGHT);
+  const lit = litFactor(normal, light);
   return { corners: corners.map((p) => p.map(r3)), normal: normal.map(r3), bg: facadeCss(facade, lit, floors, bays), card: buildFacadeCard(facade, Math.max(1, floors), Math.max(1, bays)), lit, doubleSided: false };
 }
-const plain = (corners, normal, hex, k = 1) => ({ corners: corners.map((p) => p.map(r3)), normal: normal.map(r3), fill: scaleHex(hex, litFactor(normal, LIGHT) * k), doubleSided: true });
+const plain = (corners, normal, hex, k = 1) => ({ corners: corners.map((p) => p.map(r3)), normal: normal.map(r3), fill: scaleHex(hex, litFactor(normal, light) * k), doubleSided: true });
 const unit = (v) => { const L = Math.hypot(...v) || 1; return v.map((x) => x / L); };
 const roofHex = (f) => f.roof || scaleHex(f.glass, 0.62);
 const bodyHex = (f) => (f.material === 'glass' ? f.glass : f.frame);
@@ -124,8 +126,8 @@ export function facadeOf(b) {
 }
 
 /** The faces of an organic mass, or null when the box stands as a shape the city pipeline draws itself. */
-export function organicFaces(b, f = facadeOf(b)) {
-  if (b.shape === 'undulate') return undulateMass(b, f);
-  if (b.shape === 'spindle') return spindleMass(b, f);
-  return null;
+export function organicFaces(b, f = facadeOf(b), L = LIGHT) {
+  if (!ORGANIC_SHAPES.includes(b.shape)) return null;
+  light = L;
+  try { return b.shape === 'undulate' ? undulateMass(b, f) : spindleMass(b, f); } finally { light = LIGHT; }
 }
