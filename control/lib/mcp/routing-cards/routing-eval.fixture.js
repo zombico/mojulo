@@ -36,6 +36,8 @@ export const FIXTURE = [
   // geocube: a level's look forged first, its room and island checked, then the level built on it
   ['I want a moody castle level where the halls and the grounds outside feel like the same game', 'create_sketch'],
   ['before we build the level, lock down its lighting and colours so the inside and outside match', 'create_sketch'],
+  // game buildings: a building's rooms laid from its use, in a cube's look
+  ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],

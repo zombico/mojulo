@@ -1,5 +1,5 @@
 ---
-{ "id": "building-level", "name": "A building as a game level — at game depth, not BIM", "summary": "any building mint_building makes (a house, store, restaurant, mall, office or school) as a playable level: `level: { goal }` on its recipe gives a first-person walker at the entry, a goal room, wall colliders and an audit route up the stairs, then create_game promotes it", "when": "someone wants a building as a game level: an office tower to climb, a house to explore, a store or school to walk to a room in; or a level whose design is a real building rather than a stage kit", "tier": "render-primitive", "marks": [], "phase": "p1" }
+{ "id": "building-level", "name": "A building as a game level — at game depth, not BIM", "summary": "any building mint_building makes (a house, store, restaurant, mall, office or school), or a room-kit stage (a crypt, a nave, a lab), as a playable level: `level: { goal }` on its recipe gives a first-person walker at the way in, a goal room, walls that stop it and an audit route round the walls and up the stairs, then create_game promotes it", "when": "someone wants a building as a game level: an office tower to climb, a house to explore, a store or school to walk to a room in; or a stage of connected rooms (a dungeon, crypt or lab) to walk through to a room", "tier": "render-primitive", "marks": [], "phase": "p1" }
 ---
 
 A building on the rail is already a level, in all but its goal. Add one field to its recipe and promote it.
@@ -12,10 +12,14 @@ A building on the rail is already a level, in all but its goal. Add one field to
 2. **Where is the goal?** `level: { goal }`: `'top'` (the default) is the deepest room on the highest storey a stair
    reaches; a room tag from the book (`'301'`); or a role (`'openOffice'`, `'kitchen'`, `'library'`).
    `radius` (ft, default 3) sizes the goal zone.
+3. **Or a room-kit stage** (`kind: 'stage'`, a room kit, `rooms` and `links`: card `stage`): the same `level`, in
+   metres. `goal` is `'deepest'` (the default: the room most doorways from the start, the larger on a tie) or a room
+   id; `from` a room id to start in (the first room by default); `radius` (m, default 1.5).
 
 ```json
 { "kind": "office", "title": "Tower", "storeys": 3, "level": { "goal": "top" } }
 { "title": "Home", "seed": 21, "storeys": 2, "furnish": true, "windows": true, "level": { "goal": "201" } }
+{ "kind": "stage", "kit": "gothic-stone", "rooms": [ … ], "links": [ … ], "level": { "goal": "sepulchre" } }
 ```
 
 Then `create_game({ title, store: { slices: [...] }, levels: [{ ref }], auto_audit: true })`: the audit walks in at
@@ -23,11 +27,12 @@ the door, up the stairs, into the goal room, and the level is promoted.
 
 ## What it lowers to (never stored: it regenerates from the building)
 
-- A first-person walker just inside the entry door, facing in (eye 5.3 ft), and its camera. Controls: W / S walk,
+- A first-person walker just inside the entry door, facing in (eye 5.3 ft; on a stage, in its first room at 1.7 m),
+  and its camera; the walls stop it. Controls: W / S walk,
   A / D or the arrow keys turn, Q / E strafe; click the view to capture the mouse, then the mouse looks.
-- A `reach-exit` goal in the goal room at eye height, with the stair route the audit walks (`via`).
-- Box colliders on every wall run, its doors left open (the hero's platform rule stops at them; the walker does not
-  collide).
+- A `reach-exit` goal in the goal room at eye height, with the route the audit walks (`via`): round the walls on
+  each floor (the walkers' own pathfinder), up each stair's flights; on a stage, through each doorway on the way.
+- Box colliders on every wall run, its doors left open (a stage keeps its own: its walls, pilasters and set pieces).
 
 ## Laws
 

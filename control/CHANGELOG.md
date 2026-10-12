@@ -450,6 +450,47 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   office assets. It gets the structure book like the others. Three storeys is `{ kind: 'office', storeys: 3 }`.
 - `reach-exit` takes an optional `via` route, which the completability audit walks before the goal. Without it,
   the audit is unchanged.
+- The game itself reads the level the same way: `/game`, game updates and `export_game` lower a building's `level`
+  when they resolve their levels, as `create_game` does.
+
+### Game buildings: connected rooms as levels, in levels, and in towns
+
+- **A room-kit stage is a level with the same field.** `level: { goal }` on a `stage` of rooms and links (a crypt, a
+  nave, a lab) makes it playable, as on a building.
+  - The walker starts in the first room, or in the room `from` names.
+  - The goal is `'deepest'` (the room most doorways from the start) or a room id.
+  - The audit walks through each doorway on the way.
+  - The stage keeps its own colliders: walls, pilasters and set pieces.
+- **The walls stop the walker.** The `walk` rule takes an opt-in body (`collideRadius`, `collideHeight`, `step`) and
+  stops at the world's colliders, sliding along them; without it, it walks through as before. A building or stage
+  level's walker has one.
+- **A building level's route goes round the walls.** On each floor, from the door to the stair, between stairs and
+  from the stair to the goal room, the route follows the walkers' own pathfinder. A stair's approach stays inside a
+  room on its floor.
+- **A game building from its use.** `program: { use }` on a room-kit `stage` lays a building's rooms and doorways
+  from its use, with no livability pass.
+  - **Uses:** the town's six (dwelling, shop, workshop, barn, hall, tower), so a town lot's use is also its inside,
+    plus tavern, keep, temple, crypt, guardhouse, library and lab.
+  - Each has rooms by role, which opens off which, and a goal room (the tavern's cellar, the keep's treasury, the
+    crypt's tomb), packed on the kit's grid from a seed.
+  - **Your changes:** `program.rooms` resizes or drops a room, `program.add` adds one, and writing `rooms` and
+    `links` overrides the plan.
+  - **Findings** are advisory, never refusals: a room that could not be seated, a way in with no outside wall, a use
+    the cube would not build.
+- **A civilization's language sets the heights.** A program speaks an anchor (`program.civilization`: `timber-hall`,
+  `shell`, `tiered` or an anchor's elements). Its storey height, lifted for a game, sets each room's height, and a
+  tall use's main room (a hall, a nave, a work floor) takes the town's taller storey. Absent, the cube's builders or
+  the kit's own anchor speak.
+- **The goal room is where the walk ends.** Its doorway is the walk's last, so the kit's set piece (a tomb, an altar)
+  stands in the goal room, and goal rooms are 6 m or more across so it and the walker fit.
+  - A stage level's goal now stands a step through that doorway, not at the room's middle, where the set piece
+    stands.
+  - A stage with a program plays to the program's goal room.
+- **A geocube recommends its world's buildings.** `buildings: { anchor, uses: [{ use, enter: 'door' | 'walk' }] }`
+  on a cube. Each preset's seeds sit beside the preset, so a preset's own document is unchanged. A program on a cube
+  is laid in the cube's bones and speaks its builders' anchor.
+- `create_sketch` and `update_sketch` on a program stage say what was laid: the use, rooms, way in, goal, language
+  and findings. Card `game-building`; the geocube and stage cards point at it.
 
 ### Solid powerscale: solids routed by what they are for
 

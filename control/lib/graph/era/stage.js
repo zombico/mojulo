@@ -49,6 +49,7 @@ import { assembleJungleScene } from './jungle.js';
 import { assembleIsekaiScene } from './isekai.js';
 import { assembleLocalMeruScene } from '../local-meru/scene.js';
 import { withGeocube } from './geocube.js';
+import { withProgram } from './programs.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { stageDoors, doorFaces, withoutBuild, stageItems } from './doors.js';
 import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from './anchors.js';
@@ -783,6 +784,8 @@ function splitCard(f, nu, nv) {
 
 /** manifest → World payload (the WORLD_KINDS resolver). */
 export function assembleStageScene(manifest = {}, ctx = {}) {
+  // a recipe's `program` (programs.js): a building's rooms and doorways laid from its use, before its cube lowers
+  if (manifest.program !== undefined) return assembleStageScene(withProgram(manifest), ctx);
   // a recipe's `geocube` (geocube.js): the cube's inside or outside lowered under the recipe's own keys
   if (manifest.geocube !== undefined) return assembleStageScene(withGeocube(manifest), ctx);
   const kit = stageKit(resolveKitId(manifest.kit));
@@ -926,6 +929,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
       veer: (windSpec.veer * Math.PI) / 180, seed: windSpec.seed, z0: Sw.z0 }, groups: Sw.groups } } : {}),
     ...(dress && dress.clouds && sun ? { effects: [composeCloudDeck([], { up: 'z', ...dress.clouds, sun: sun.dir })] } : {}),
     rooms: stageRooms(plan), anchors, colliders,
+    // the program the rooms were laid from (programs.js): its use, way in, goal, language and findings
+    ...(manifest._program ? { program: manifest._program } : {}),
     ...(plan.tone ? { tone: tonePageSpec(plan.tone, exposureOf(lit, plan.tone)) } : {}),
     walk: manifest.walk === false ? false
       : { speed: 7, spawn: plan.spawn, minEye: 1.7, gravity: 22, radius: 0.4, ...(manifest.walk && typeof manifest.walk === 'object' ? manifest.walk : {}) },

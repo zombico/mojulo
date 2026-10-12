@@ -16,6 +16,7 @@ import { validateGameManifest, normalizeGameManifest } from './game-manifest.js'
 import { validateLevelContract, normalizeLevelContract } from './level-contract.js';
 import { synthesizeLevel } from './level-synth.js';
 import { isBeatsKind } from '../beats/beats-manifest.js';
+import { asksLevel, withBuildingLevel } from '../structure/level.js';
 
 // The generated default about/credits page (menu.attribution; see game-manifest.js).
 // Plain data in the same shape an operator would author — nothing special downstream.
@@ -67,8 +68,15 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
   const errors = [];
   const levels = [];
   for (const lv of norm.levels) {
-    const sketch = getSketch(lv.ref);
-    if (!sketch || !sketch.manifest) { errors.push(`level '${lv.ref}': no sketch with that ref`); continue; }
+    const row = getSketch(lv.ref);
+    if (!row || !row.manifest) { errors.push(`level '${lv.ref}': no sketch with that ref`); continue; }
+    // a building or room stage that asks to be a level (`level: { goal }`, structure/level.js) carries its game
+    // channel only once lowered: lowered here, so the mint, the /game route and the export read the same level
+    let sketch = row;
+    if (asksLevel(row.manifest)) {
+      try { sketch = { ...row, manifest: withBuildingLevel(row.manifest, row.ref ?? lv.ref) }; }
+      catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
+    }
     if (!sketch.manifest.game || typeof sketch.manifest.game !== 'object') {
       errors.push(`level '${lv.ref}': its sketch carries no \`game\` channel — a level is a world minted WITH a level contract or mechanics (compose_world … { game: { levelRef, mechanics|produces, … } })`);
       continue;

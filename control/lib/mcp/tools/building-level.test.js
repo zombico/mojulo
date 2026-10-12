@@ -9,6 +9,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { mintBuilding } from '@/lib/mcp/tools/building';
 import { mintGame } from '@/lib/mcp/tools/create-game';
+import { createSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 
 beforeEach(() => closeDb());
 
@@ -28,6 +29,22 @@ describe('a building as a level', () => {
     mintBuilding({ title: 'Shop', ref: 'lv_store', manifest: { kind: 'store', title: 'Shop', card: 'bookstore', level: {} } });
     mintBuilding({ title: 'Home', ref: 'lv_house', manifest: { title: 'Home', seed: 21, storeys: 2, furnish: true, windows: true, level: { goal: 'top' } } });
     const game = await mintGame({ title: 'Errands', store: STORE, levels: [{ ref: 'lv_store' }, { ref: 'lv_house' }], ref: 'gm_errands', autoAudit: true });
+    expect(game.ok).toBe(true);
+  }, 300_000);
+
+  it('a room-kit stage: the crypt promoted, its audit walking five doorways to the sepulchre, the walls stopping it', async () => {
+    const crypt = { kind: 'stage', kit: 'gothic-stone', title: 'Crypt', level: {},
+      rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }, { id: 'passage', x: 22, y: 8, w: 10, d: 4, h: 4 },
+        { id: 'charnel', x: 32, y: 2, w: 10, d: 16, h: 6 }, { id: 'chapel', x: 26, y: 18, w: 16, d: 8, h: 5 }, { id: 'sepulchre', x: 14, y: 18, w: 12, d: 12, h: 7 }],
+      links: [{ from: 'nave', to: 'gallery' }, { from: 'gallery', to: 'passage' }, { from: 'passage', to: 'charnel' }, { from: 'charnel', to: 'chapel' }, { from: 'chapel', to: 'sepulchre' }] };
+    await createSketchHandler({ title: 'Crypt', ref: 'lv_crypt', manifest: crypt });
+    const game = await mintGame({ title: 'Down the crypt', store: STORE, levels: [{ ref: 'lv_crypt' }], ref: 'gm_crypt', autoAudit: true });
+    expect(game.ok).toBe(true);
+  }, 300_000);
+
+  it('a tavern from its program, on the gothic-night cube: promoted, its audit walking to the cellar', async () => {
+    await createSketchHandler({ title: 'Tavern', ref: 'lv_tavern', manifest: { kind: 'stage', geocube: 'gothic-night', title: 'Tavern', program: { use: 'tavern', seed: 2 }, level: {} } });
+    const game = await mintGame({ title: 'Last orders', store: STORE, levels: [{ ref: 'lv_tavern' }], ref: 'gm_tavern', autoAudit: true });
     expect(game.ok).toBe(true);
   }, 300_000);
 

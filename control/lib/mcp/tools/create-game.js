@@ -23,7 +23,6 @@ import { registerTool } from '@/lib/mcp/server';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { asksLevel, withBuildingLevel } from '@/lib/graph/structure/level';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
@@ -70,9 +69,8 @@ export async function mintGame({ title, store, levels, menu, music, theme, setup
   // Promotion discipline (structural): verify every level exists and carries a contract valid
   // against THIS game's store before the game row is written — a game never ships pointing at a
   // level that can't be played or whose events its store can't apply.
-  // a building that asks to be a level (`level: { goal }`) is read with its level lowered (structure/level.js)
-  const getLevel = (r) => { const row = SketchRepository.getByRef(r); return row && asksLevel(row.manifest) ? { ...row, manifest: withBuildingLevel(row.manifest, row.ref) } : row; };
-  const { manifest: finalized, levels: resolved } = resolveGame(manifest, getLevel, levelSrc);
+  // (a building or room stage that asks to be a level is lowered inside resolveGame: structure/level.js)
+  const { manifest: finalized, levels: resolved } = resolveGame(manifest, (r) => SketchRepository.getByRef(r), levelSrc);
 
   // Promotion GATE (verification, G4 + M3): each level must pass a contract dry-run (always) AND be
   // shown completable — by a stored traversal (motion_ref), or by AUTO-RUNNING its mechanic-derived

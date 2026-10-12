@@ -56,6 +56,9 @@ export function buildRulesBasic(E) {
     const moveF = input.forward * speed * dt;
     const moveS = input.strafe * strafe * speed * dt;
     t.pos = add(t.pos, add(scl(f, moveF), scl(rt, moveS)));
+    // `collideRadius`: the walker stops at the world's colliders and slides along them (a level's walls), its body
+    // `collideHeight` tall from its feet, stepping onto anything `step` high. Absent ⇒ it walks through, as before.
+    if (r.collideRadius > 0 && world && world.colliders) E.resolveBlocking(t.pos, t.pos[2] - (r.eye ?? 0), r.collideHeight ?? (r.eye ?? 1.7), r.collideRadius, world.colliders, r.step ?? 0.35);
     const ground = world && world.ground ? world.ground(t.pos) : null;   // renderer hook (raycast)
     if (ground != null) t.pos[2] = ground + (r.eye ?? 0);
     const dist = Math.hypot(moveF, moveS);

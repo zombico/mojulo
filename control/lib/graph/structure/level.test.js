@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readStructure } from './read.js';
-import { buildingLevel, goalRoom, withBuildingLevel, wallColliders, asksLevel } from './level.js';
+import { buildingLevel, goalRoom, withBuildingLevel, wallColliders, asksLevel, stageLevel } from './level.js';
 
 const OFFICE = { kind: 'office', title: 'Tower', storeys: 3 };
 const HOUSE = { kind: 'floorplan', title: 'Home', seed: 21, storeys: 2, furnish: true, windows: true };
@@ -31,7 +31,7 @@ describe('the level a building makes', () => {
       const room = r.rooms.find((x) => x.tag === L.goal.room);
       expect(inside(plan(L.goal.at), room)).toBe(true);
       expect(L.goal.at[2]).toBe(r.storeys.find((s) => s.index === room.storey).baseZ);
-      expect(L.route.length > 0).toBe(room.storey > 0);
+      if (room.storey > 0) expect(L.route.length).toBeGreaterThan(0);
     });
   }
 
@@ -74,5 +74,39 @@ describe('lowered on read, from a field', () => {
     expect(withBuildingLevel(OFFICE, 'lv_x')).toBe(OFFICE);
     const own = { ...m, game: { levelRef: 'mine' } };
     expect(withBuildingLevel(own, 'lv_x')).toBe(own);   // a recipe that writes its own game channel keeps it
+  });
+});
+
+describe('a room-kit stage as a level', () => {
+  const GOTHIC = { kind: 'stage', kit: 'gothic-stone', rooms: [{ id: 'nave', x: 0, y: 0, w: 12, d: 20, h: 9 }, { id: 'gallery', x: 12, y: 6, w: 10, d: 8, h: 5 }, { id: 'passage', x: 22, y: 8, w: 10, d: 4, h: 4 },
+    { id: 'charnel', x: 32, y: 2, w: 10, d: 16, h: 6 }, { id: 'chapel', x: 26, y: 18, w: 16, d: 8, h: 5 }, { id: 'sepulchre', x: 14, y: 18, w: 12, d: 12, h: 7 }],
+  links: [{ from: 'nave', to: 'gallery' }, { from: 'gallery', to: 'passage' }, { from: 'passage', to: 'charnel' }, { from: 'charnel', to: 'chapel' }, { from: 'chapel', to: 'sepulchre' }] };
+  const box = (r) => ({ rect: { x: r.x, y: r.y, w: r.w, h: r.d } });
+
+  it("'deepest' is the room most doorways from the spawn, and the route passes every doorway on the way", () => {
+    const L = stageLevel(GOTHIC);
+    expect(L.error).toBeUndefined();
+    expect(L.goal.room).toBe('sepulchre');
+    expect(L.route).toHaveLength(2 * 5 - 1);
+    // every waypoint stands in a room, never in a wall
+    for (const p of L.route) expect(GOTHIC.rooms.some((r) => inside(p, box(r))), String(p)).toBe(true);
+    expect(inside(L.spawn, box(GOTHIC.rooms[0]))).toBe(true);
+  });
+
+  it('a goal by room id, a start by room id, and a room no doorway reaches said', () => {
+    expect(stageLevel(GOTHIC, { goal: 'passage' }).route).toHaveLength(3);
+    expect(stageLevel(GOTHIC, { goal: 'nave', from: 'charnel' }).route).toHaveLength(5);
+    expect(stageLevel(GOTHIC, { goal: 'vault' }).error).toMatch(/names no room/);
+    const cut = { ...GOTHIC, links: GOTHIC.links.slice(0, 2) };
+    expect(stageLevel(cut, { goal: 'chapel' }).error).toMatch(/no doorway leads/);
+  });
+
+  it('lowered on read: the game channel, a walker the walls stop, and the stage keeps its own colliders', () => {
+    const m = { ...GOTHIC, level: {} };
+    const lowered = withBuildingLevel(m, 'lv_crypt');
+    expect(lowered.game.mechanics[0]).toMatchObject({ kind: 'reach-exit', planar: false, at: [25.4, 22, 1.7] });   // a step through the chapel's doorway
+    expect(lowered.entities[0].rule).toMatchObject({ type: 'walk', eye: 1.7, collideRadius: 0.3 });
+    expect(lowered.colliders).toBeUndefined();
+    expect(withBuildingLevel(GOTHIC, 'lv_crypt')).toBe(GOTHIC);
   });
 });

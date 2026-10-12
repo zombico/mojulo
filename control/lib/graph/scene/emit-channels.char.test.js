@@ -44,6 +44,9 @@ import { emitThreeWorld } from './scene-three.js';
 // cast — the bus's `ctrl` verb and syncToCtrl's hand-off, the engine's cast builder (ops, facts, the walk owner) and
 // walk bodies giving way to solid ones — and the walk rule's tank turn flipped so A turns left. A world without cues
 // on its characters runs the same; the controllable trace pins hold except the walk world's (the turn).
+// Re-pinned 2026-10-11 (buildings as game levels; game buildings): the walk rule the page embeds gained two opt-ins, a
+// mouse-look walker that still turns on the keys (`keyTurn`) and a body the world's colliders stop (`collideRadius`,
+// `collideHeight`, `step`). Additions only (6 lines, none removed); a walker without them moves as before.
 // Re-pinned 2026-10-08 (interaction): the pilot scheme gains `interact` (live in `reach`), and the controllable runtime
 // reads it as a counted press edge, keeps it from strafing in reach (window.__mojReach), takes no input while a menu is
 // up (window.__mojMenuOpen) and labels a control for the device last used. Events pages without menus or usable places

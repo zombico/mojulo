@@ -20,6 +20,7 @@ import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
+import { withProgram } from '@/lib/graph/era/programs';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
@@ -477,10 +478,23 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     // a room (one space) or a house, said in every reply; a house says what it lacks to be a home; a store, restaurant
     // or mall says its occupancy and its program's grade
     ...buildingSays(read),
+    ...programSays(sketch.manifest),
     ...(design ? { design } : {}),
     ...(inferred?.length ? { inferred } : {}),
     ...(next ? { next } : {}),
   };
+}
+
+/**
+ * A stage laid from a program (era/programs.js) says what it laid: the use, its rooms, the way in, the goal, the
+ * language that set the heights, and its findings (advisory). Any other recipe says nothing. Never throws.
+ */
+function programSays(m) {
+  if (m?.kind !== 'stage' || m.program === undefined) return {};
+  try {
+    const P = withProgram(m)._program;
+    return { program: { use: P.use, rooms: P.rooms, entry: P.entry, goal: P.goal, language: `${P.language.id} (storey ${P.language.storeyH} m)`, ...(P.findings.length ? { findings: P.findings.map((f) => f.says) } : {}) } };
+  } catch { return {}; }
 }
 
 /**
@@ -1052,6 +1066,7 @@ export async function updateSketchHandler(input) {
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
     ...buildingSays(read),
+    ...programSays(updated.manifest),
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),

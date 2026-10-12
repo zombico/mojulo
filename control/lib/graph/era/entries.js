@@ -165,8 +165,8 @@ export function stageHubCard() {
   const lines = [
     '# Stage: a level built the sixth-gen way', '',
     `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
-    'GEOCUBE FIRST  forge the level\'s look as a cube (card geocube), then build here with "geocube".', '',
-    'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], … } — rooms only for a room kit; an open-ground kit takes none',
+    'GEOCUBE FIRST  forge the look as a cube (card geocube), then build here on it ("geocube").', '',
+    'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], "program"?: { "use" }, "level"?: {} (card game-building), … }; rooms: room kits',
     '', `ART FIRST (room kits ${ART_KITS.join(', ')})  "art": "propose" mints with a direction (palette, materials, architecture, motifs, plan) and answers with its board as an image: show it, then per item update_sketch patch /art/status/<item> "approved", or /art/<item> "reroll". "art": "auto" is hands off.`,
     '', `OUT-TRAIL (open ground: ${kits.filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')})  "trail": true or { run, heartbeat, bumpiness, beats } builds the trail from principles: a spine run in "run" seconds (12, the meadow\'s 72 m, by default), beats along it, its height by "heartbeat", its ground by "bumpiness". The answer carries outTrail (its laws, measured) and anchors (every beat and hazard); the landform board shows the land in black and white before anything grows on it.`,
     '', 'KITS (card stage/<id>)', ...kits.map((k) => `  - ${k}: ${isRooms(STAGE_KITS[k]) ? 'rooms' : 'open ground'}. ${clip(kitSummary(k, STAGE_KITS[k]))}`),
@@ -233,6 +233,7 @@ export function geocubeCard() {
     '           room: the bare bones in the cube\'s light, its accent wall. land: an island (a cliff side and a beach side) lit by polygons, no texture on the rock.',
     'UPDATE     update_sketch the cube; both specimens re-lower from it. Show the other with "show".',
     'BUILD ON   a stage recipe with "geocube": the same cube. Without "meru": the inside (the cube\'s bones, reference, tone and tiles; your rooms, the kit\'s dress). With "meru": the outside (its look card, land ramps, light, air and polygon land; your tiers over the cube\'s). Your keys win: vary the cube, never restyle it. A level copies its cube: a changed or new cube rebuilds nothing; re-create the level from it by hand.', '',
+    'BUILDINGS  a cube recommends its world\'s buildings: "buildings": { anchor, uses: [{ use, enter: "door" | "walk" }] }, each preset\'s beside it. A stage on the cube with "program": { "use" } lays one in its bones, its builders\' anchor setting the heights (card game-building).', '',
     'THE CUBE',
     '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below) }',
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
