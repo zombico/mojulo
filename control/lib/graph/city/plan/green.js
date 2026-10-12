@@ -26,14 +26,17 @@ import { CITY_METERS_PER_UNIT as U } from '../fractal-city.js';
 import { SPECIES } from '../../vegetation/species.js';
 
 export const GREEN_KINDS = Object.freeze({
-  street: 'street trees in the kerb half of every walk wide enough, at the grammar\'s stride, clear of crossings, doors and stops',
+  street: 'street trees a metre in from the kerb of every walk wide enough (each in its pit, under a grate), planters on a walk too narrow for a tree, at the grammar\'s stride, clear of crossings, doors and stops',
+  median: 'a planted central reservation down an avenue wide enough (the spine\'s and the major streets\'), its trees down the middle, broken at every crossing',
   park: 'trees and shrubs grown loose in the parks, thinner toward their middle',
   plaza: 'a ring of trees round each plaza',
   court: 'trees and shrubs in the green the lots leave behind them',
 });
 export const GREEN_IDS = Object.freeze(Object.keys(GREEN_KINDS));
 // at most this many of each: a page's budget at full aggressiveness (a tree is ~110 faces, a palm ~1 500)
-const CAP = { street: 700, park: 400, plaza: 120, court: 240, palms: 400 };
+const CAP = { street: 700, median: 260, park: 400, plaza: 120, court: 240, palms: 400 };
+/** A median: the least carriageway it stands in (m), its width (m), and how far it stops short of a crossing street's kerb. */
+export const MEDIAN = Object.freeze({ road: 14, width: 2.6, clear: 4 });
 const r2 = (v) => Math.round(v * 100) / 100;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -62,15 +65,31 @@ export function cityGreen(d) {
     ...(d.entries || []).filter((e) => e.door && !e.error).map((e) => e.door.at)];
   const stops = d.transit.flatMap((t) => t.stops.map((s) => s.at));
   // and never on a carriageway: where a run ends against another street (a T with no crossing on the walk)
-  const segs = d.streets.flatMap((st) => st.pts.slice(1).map((b, k) => ({ a: st.pts[k], b, half: st.road / 2 + 0.6 })));
+  const segs = d.streets.flatMap((st) => st.pts.slice(1).map((b, k) => ({ id: st.id, a: st.pts[k], b, half: st.road / 2 + 0.6 })));
   const onRoad = (x, y) => segs.some(({ a, b, half }) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)); return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy) < half; });
+  const near = ({ a, b }, x, y) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)); return [x - a[0] - t * dx, y - a[1] - t * dy]; };
   const clear = (x, y) => !onRoad(x, y) && !corners.some((n) => Math.hypot(n.x - x, n.y - y) < 11) && !doors.some((p) => Math.hypot(p[0] - x, p[1] - y) < 3.5) && !stops.some((p) => Math.hypot(p[0] - x, p[1] - y) < 9);
   // the species a site grows (a stream of its own decides which)
   const species = (rand, shrubby = 0) => { const r = rand(); return r < S.palms ? 'palm' : r < S.palms + S.conifers ? 'conifer' : rand() < shrubby ? 'shrub' : 'tree'; };
 
-  // street: along both walks of every run, in the walk's kerb half, at the stride
+  // street: along both walks of every run, a metre in from the kerb, at the stride; a walk too narrow for a tree takes
+  // a planter (a shrub in a concrete box) at the kerb instead, a little farther apart, if it is wide enough to pass one
   if (A.street > 0) for (const s of d.streets) {
-    if (s.walk < S.walk) continue;
+    if (s.walk < S.walk) {
+      if (s.walk < 1.8) continue;
+      for (let k = 1; k < s.pts.length; k++) {
+        const a = s.pts[k - 1], b = s.pts[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]), tx = (b[0] - a[0]) / L, ty = (b[1] - a[1]) / L, off = s.road / 2 + 0.6, step = S.stride * 1.4;
+        for (const side of [-1, 1]) {
+          const rand = streamOf(d.plan.seed, 'green', `planter:${s.id}:${k}:${side}`);
+          for (let t = step / 2; t < L; t += step) {
+            const x = a[0] + tx * t - ty * off * side, y = a[1] + ty * t + tx * off * side;
+            if (rand() >= A.street * 0.6 || !clear(x, y) || built(x, y, 0.3) || d.sites.some((z) => inRect(z.rect, x, y))) continue;
+            out.push({ kind: 'street', x: r2(x), y: r2(y), plant: 'planter', key: `${s.id}:${k}:${side}:p${Math.round(t)}`, along: r2(Math.atan2(ty, tx)) });
+          }
+        }
+      }
+      continue;
+    }
     for (let k = 1; k < s.pts.length; k++) {
       const a = s.pts[k - 1], b = s.pts[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
       if (L < S.stride) continue;
@@ -80,8 +99,31 @@ export function cityGreen(d) {
         for (let t = S.stride / 2; t < L; t += S.stride) {
           const x = a[0] + tx * t - ty * off * side, y = a[1] + ty * t + tx * off * side, take = rand() < A.street;
           if (!take || !clear(x, y) || built(x, y, 0.3) || d.sites.some((z) => inRect(z.rect, x, y))) continue;
-          out.push({ kind: 'street', x: r2(x), y: r2(y), plant: species(rand), key: `${s.id}:${k}:${side}:${Math.round(t)}` });
+          out.push({ kind: 'street', x: r2(x), y: r2(y), plant: species(rand), key: `${s.id}:${k}:${side}:${Math.round(t)}`, along: r2(Math.atan2(ty, tx)) });
         }
+      }
+    }
+  }
+  // median: down the middle of an avenue wide enough, broken short of every street that crosses it, its trees at the stride
+  if (A.median > 0) for (const s of d.streets) {
+    if (s.road < MEDIAN.road || !(s.source === 'spine' || s.rank === 'major')) continue;
+    const pick = streamOf(d.plan.seed, 'green', `median:${s.id}`);
+    if (pick() >= A.median) continue;
+    for (let k = 1; k < s.pts.length; k++) {
+      const a = s.pts[k - 1], b = s.pts[k], L = Math.hypot(b[0] - a[0], b[1] - a[1]), tx = (b[0] - a[0]) / L, ty = (b[1] - a[1]) / L;
+      // where another street's carriageway (and its crossing) cuts the middle line
+      const cut = (t) => { const x = a[0] + tx * t, y = a[1] + ty * t; return segs.some((g) => g.id !== s.id && Math.hypot(...near(g, x, y)) < g.half - 0.6 + MEDIAN.clear); };
+      let run = null;
+      const close = (t1) => { if (run && t1 - run.t0 > 6) out.push({ kind: 'median', strip: true, a: [r2(a[0] + tx * run.t0), r2(a[1] + ty * run.t0)], b: [r2(a[0] + tx * t1), r2(a[1] + ty * t1)], width: MEDIAN.width, key: `${s.id}:${k}:${Math.round(run.t0)}` }); run = null; };
+      for (let t = 0; t <= L; t += 1) { if (cut(t)) close(t - 1); else if (!run) run = { t0: t }; }
+      close(L);
+    }
+    const rand = streamOf(d.plan.seed, 'green', `median-trees:${s.id}`);
+    for (const m of out.filter((x) => x.strip && x.key.startsWith(`${s.id}:`))) {
+      const L = Math.hypot(m.b[0] - m.a[0], m.b[1] - m.a[1]), tx = (m.b[0] - m.a[0]) / L, ty = (m.b[1] - m.a[1]) / L;
+      for (let t = S.stride / 2; t < L - 2; t += S.stride) {
+        if (rand() >= Math.max(0.5, A.median)) continue;
+        out.push({ kind: 'median', x: r2(m.a[0] + tx * t), y: r2(m.a[1] + ty * t), plant: species(rand), key: `${m.key}:${Math.round(t)}` });
       }
     }
   }
@@ -114,7 +156,8 @@ export function cityGreen(d) {
   // the caps, each kept by an even stride through its list (never the first N: a cap thins the whole city alike)
   const capped = [];
   for (const kind of GREEN_IDS) {
-    const xs = out.filter((p) => p.kind === kind), n = CAP[kind];
+    capped.push(...out.filter((p) => p.kind === kind && p.strip));
+    const xs = out.filter((p) => p.kind === kind && !p.strip), n = CAP[kind];
     capped.push(...(xs.length <= n ? xs : Array.from({ length: n }, (_, i) => xs[Math.floor((i * xs.length) / n)])));
   }
   let palms = 0;
@@ -128,8 +171,16 @@ export function cityGreen(d) {
  * A street tree is kept to its walk's scale (its species' lower heights, never over 14 m); a park's grows taller.
  */
 export function greenPlan(d, green = cityGreen(d)) {
-  const S = d.grammar.green, boxes = [], items = {};
+  const S = d.grammar.green, boxes = [], items = {}, ground = [];
   for (const p of green) {
+    // a median's strip and a planter's box are the ground's and the street's, laid by the scene (greenGround)
+    if (p.strip) continue;
+    if (p.plant === 'planter') {
+      const rand = streamOf(d.plan.seed, 'green', `grow:${p.key}`), h = 0.22 + rand() * 0.1, x = p.x / U, y = p.y / U, z = PLANTER.h / U;
+      boxes.push({ kind: 'city-shrub', shape: 'shrub', x: x - 0.12, y: y - 0.12, w: 0.24, d: 0.24, z0: z, z1: z + h + 0.3, green: p.kind,
+        plant: { height: h, stemRadius: 0.02, depth: 1, branches: 5, foliage: 'cluster', clusterSize: 0.24 + rand() * 0.06, foliageTiers: 3, branchAngle: 44, upBias: 0.18, lengthRatio: 0.55 } });
+      continue;
+    }
     const rand = streamOf(d.plan.seed, 'green', `grow:${p.key}`), x = p.x / U, y = p.y / U;
     if (p.plant === 'shrub') {
       const h = 0.28 + rand() * 0.18;   // a metre to a metre and a half
@@ -142,5 +193,25 @@ export function greenPlan(d, green = cityGreen(d)) {
     const h = lo + (Math.max(lo, top) - lo) * (p.kind === 'street' ? 0.2 + rand() * 0.5 : rand());
     (items[species] ||= []).push({ x, y, z0: 0, height: h / U });
   }
-  return { boxes, items };
+  return { boxes, items, ground };
+}
+
+/** A planter's box (m): its side and its height. A street tree's pit and grate: its side. */
+export const PLANTER = Object.freeze({ side: 1, h: 0.5 });
+export const PIT = 1.4;
+
+/**
+ * The green's own ground, in metres, for the scene to lay with the city's: each median a raised green strip with a
+ * kerb, each street tree's pit under its grate, each planter's concrete box. → [{ kind, corners | box, … }]
+ */
+export function greenGround(green) {
+  const out = [];
+  for (const p of green) {
+    if (p.strip) {
+      const L = Math.hypot(p.b[0] - p.a[0], p.b[1] - p.a[1]), nx = -(p.b[1] - p.a[1]) / L * p.width / 2, ny = (p.b[0] - p.a[0]) / L * p.width / 2;
+      out.push({ kind: 'median', quad: [[p.a[0] + nx, p.a[1] + ny], [p.a[0] - nx, p.a[1] - ny], [p.b[0] - nx, p.b[1] - ny], [p.b[0] + nx, p.b[1] + ny]], z: 0.15 });
+    } else if (p.kind === 'street' && p.plant === 'planter') out.push({ kind: 'planter', box: [p.x - PLANTER.side / 2, p.y - PLANTER.side / 2, p.x + PLANTER.side / 2, p.y + PLANTER.side / 2], h: PLANTER.h, along: p.along });
+    else if (p.kind === 'street') out.push({ kind: 'pit', at: [p.x, p.y], side: PIT, along: p.along ?? 0 });
+  }
+  return out;
 }

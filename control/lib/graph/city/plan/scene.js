@@ -19,7 +19,9 @@ import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 import { lobbyOf, doorFaces } from './doors.js';
 import { nightFaces } from './night.js';
 import { SACRED, edificeFaces } from './landmarks.js';
-import { cityGreen, greenPlan } from './green.js';
+import { cityGreen, greenPlan, greenGround } from './green.js';
+import { readSeason, seasonFaces, seasonPool } from './foliage.js';
+import { plantBoxToFaces } from '../../polygonizer/plant-faces.js';
 import { plantPool, plantRepeats } from '../../vegetation/pool.js';
 import { cityTraffic, readCars } from './traffic.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
@@ -39,7 +41,7 @@ const CITY_GROUND_BASE = Object.freeze({ ground: '#56643f', road: '#3b3d40', wal
 export const CITY_GROUND = CITY_GROUND_BASE;
 // a maglev's guideway: its deck's underside this high, pylons this far apart
 // the faces the city's trees may draw between them (the pool spends it on the trees seen largest first)
-const CITY_PLANT_FACES = 240000;
+const CITY_PLANT_FACES = 240000, LEVEL_PLANT_FACES = 60000;
 const GUIDEWAY = Object.freeze({ z: 8, deck: 1.1, w: 5.5, pylon: 30 });
 // lot faces (the plan's n/s/w/e) as the legacy city names a box's faces
 const FACE = { n: '-y', s: '+y', w: '-x', e: '+x' };
@@ -66,7 +68,7 @@ export function lotColours(lot, G) {
 }
 
 /** The ground, the ways, the reserved ground and the transit, as faces in metres, in the look's colours. */
-function groundFaces(d, paint) {
+function groundFaces(d, paint, green = []) {
   const { W, D } = d.frame, faces = [], CITY_GROUND = paintGround(paint, CITY_GROUND_BASE);
   faces.push(flat(-20, -20, W + 20, D + 20, 0, CITY_GROUND.ground, 'city:ground'));
   for (const r of d.reserved) if (r.kind === 'district') faces.push(flat(r.rect.x0, r.rect.y0, r.rect.x1, r.rect.y1, 0.01, r.use === 'water' ? CITY_GROUND.water : CITY_GROUND.park, `city:${r.use}`));
@@ -76,6 +78,19 @@ function groundFaces(d, paint) {
     faces.push(strip(s.pts[k - 1], s.pts[k], s.road, 0.05, CITY_GROUND.road, 'city:road'));
   }
   for (const l of d.lots) if (l.use === 'parking') faces.push(flat(l.x0, l.y0, l.x1, l.y1, 0.02, CITY_GROUND.parking, 'city:parking'));
+  // the green's ground (green.js): a median's raised strip and its kerbs, a street tree's grate, a planter's box
+  for (const g of greenGround(green)) {
+    if (g.kind === 'median') {
+      faces.push({ corners: g.quad.map(([x, y]) => [x, y, g.z]), normal: [0, 0, 1], fill: shade(CITY_GROUND.park, [0, 0, 1]), group: 'city:median' });
+      for (let i = 0; i < 4; i++) {
+        const p = g.quad[i], q = g.quad[(i + 1) % 4], ex = q[0] - p[0], ey = q[1] - p[1], L = Math.hypot(ex, ey) || 1, n = [ey / L, -ex / L, 0];
+        faces.push({ corners: [[p[0], p[1], 0.05], [q[0], q[1], 0.05], [q[0], q[1], g.z], [p[0], p[1], g.z]], normal: n, fill: shade(CITY_GROUND.walk, n), group: 'city:median-kerb' });
+      }
+    } else if (g.kind === 'pit') {
+      const c = Math.cos(g.along), sn = Math.sin(g.along), h = g.side / 2, P = (u, v) => [g.at[0] + c * u - sn * v, g.at[1] + sn * u + c * v, 0.04];
+      faces.push({ corners: [P(-h, -h), P(h, -h), P(h, h), P(-h, h)], normal: [0, 0, 1], fill: shade('#3d3a35', [0, 0, 1]), group: 'city:tree-pit' });
+    } else faces.push(...box(g.box[0], g.box[1], g.box[2], g.box[3], 0, g.h, '#a39f96', '#5a4a3a', 'city:planter'));
+  }
   faces.push(...entryFaces(d));
   for (const t of d.transit) {
     if (t.mode === 'maglev') {
@@ -166,7 +181,10 @@ export function assembleCityScene(manifest, ctx = {}) {
 }
 
 function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title, walkFlag, ctx }) {
-  const ground = groundFaces(d, paint);
+  // the green (green.js), grown once: its ground laid with the city's, its plants after the masses; a level grows its reach's
+  const inCrop = (p) => !crop || (p.strip ? [p.a, p.b].some(([x, y]) => x >= crop.x0 && x <= crop.x1 && y >= crop.y0 && y <= crop.y1) : p.x >= crop.x0 && p.x <= crop.x1 && p.y >= crop.y0 && p.y <= crop.y1);
+  const green = d.plan.fidelity === 'massing' ? [] : cityGreen(d).filter(inCrop);
+  const ground = groundFaces(d, paint, green);
   // the walker starts on the walk nearest the height field's core, facing along its street
   const start = d.walk.nodes.reduce((b, n) => (!b || Math.hypot(n.x - d.field.cx, n.y - d.field.cy) < Math.hypot(b.x - d.field.cx, b.y - d.field.cy) ? n : b), null);
   const edge = d.walk.edges.find((e) => e.a === start.id || e.b === start.id), far = d.walk.nodes[edge.a === start.id ? edge.b : edge.a];
@@ -198,9 +216,11 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     const insets = d.sites.filter((x) => x.mass?.from && !x.mass.unread).map((x) => edificeFaces(d.plan.edifices[x.mass.from], x.mass, LIT));
     for (const e of insets) grown.push(...e.faces);
     // the green (green.js): trees and shrubs the pipeline grows from plant boxes; a level grows only its own reach's
-    const inCrop = (p) => !crop || (p.x >= crop.x0 && p.x <= crop.x1 && p.y >= crop.y0 && p.y <= crop.y1);
-    const plants = greenPlan(d, cityGreen(d).filter(inCrop));
-    const built = [...boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape)), ...plants.boxes];
+    const plants = greenPlan(d, green);
+    const built = boxes.filter((b) => !ORGANIC_SHAPES.includes(b.shape));
+    // the leaves through the year and in the paint's colours (foliage.js); the shrubs grown here so they turn with them
+    const leaves = { season: readSeason(d.plan.season), foliage: paint?.cube.colour.foliage ?? null, amount: paint?.amount ?? 0 };
+    for (const b of plants.boxes) grown.push(...seasonFaces(plantBoxToFaces(b, { light: LIT }), { ...leaves, deciduous: leaves.season === 'autumn' }));
     const laid = ground.map(toUnits);
     scene = assembleBoxCityScene({ boxes: built, faces: [...laid, ...grown], cameras, viewBox: { width: 1280, height: 720 }, title: sheetTitle, light: LIT });
     // the ground first: the World lifts a face stacked on another of its plane over it (face-mesh decollideFaces), so a
@@ -212,11 +232,13 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     const species = Object.keys(plants.items);
     if (species.length) {
       const vw = scene.viewBox.width, eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: vw / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
-      let left = CITY_PLANT_FACES;
+      // a level (a segment played) draws its trees lighter: it is drawn every frame a walker moves, on any machine
+      let left = crop ? LEVEL_PLANT_FACES : CITY_PLANT_FACES;
+      const cap = crop ? 'L1' : 'L2';
       scene.repeats = [...(scene.repeats || [])];
       for (const sp of species) {
-        const pool = plantPool({ species: sp, variants: 2, seed: `city::${sp}`, light: LIT, maxLevel: 'L2', group: `city:tree-${sp}` });
-        const placed = plantRepeats(pool, plants.items[sp], { eyes, level: 'L2', budget: Math.max(0, left), sink: 0, clamp: false });
+        const pool = seasonPool(plantPool({ species: sp, variants: 2, seed: `city::${sp}`, light: LIT, maxLevel: 'L2', group: `city:tree-${sp}` }), leaves);
+        const placed = plantRepeats(pool, plants.items[sp], { eyes, level: cap, budget: Math.max(0, left), sink: 0, clamp: false });
         left -= placed.stats.drawnFaces;
         scene.repeats.push(...placed.repeats);
         scene.textures = { ...(scene.textures || {}), ...(pool.textures || {}) };

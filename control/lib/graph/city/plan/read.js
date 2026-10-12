@@ -86,7 +86,7 @@ export function readCity(m) {
     field: { core: [d.field.cx, d.field.cy], reach: d.field.lambda },
     spine: d.streets.filter((s) => s.source === 'spine').map((s) => s.id),
     districts: d.districts.map((x) => ({ id: x.id, use: x.use, ...(x.name ? { name: x.name } : {}) })),
-    green: Object.fromEntries(Object.entries(cityGreen(d).reduce((a, g) => { a[g.kind] = (a[g.kind] || 0) + 1; return a; }, {}))),
+    green: Object.fromEntries(Object.entries(cityGreen(d).filter((g) => !g.strip).reduce((a, g) => { a[g.kind] = (a[g.kind] || 0) + 1; return a; }, {}))),
     sites: d.sites.map((s) => ({ id: s.id, use: s.use, ...(s.name ? { name: s.name } : {}), ...(s.mass ? { height: s.mass.h } : {}), ...(s.mass?.landmark ? { landmark: s.mass.landmark } : {}), ...(s.mass?.building ? { building: `${s.mass.building} (${s.mass.variant})` } : {}), ...(s.mass?.from ? { from: s.mass.from } : {}), ...(s.mass?.scale !== undefined && s.mass.scale < 1 ? { scale: s.mass.scale } : {}) })),
     transit: d.transit.map((t) => ({ id: t.id, mode: t.mode, km: Math.round(t.length) / 1000, stops: t.stops.length })),
     uses, stats: d.stats,

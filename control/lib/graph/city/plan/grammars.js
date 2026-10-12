@@ -49,7 +49,7 @@ export const GRAMMAR_SCHEMA = Object.freeze({
   wear: 'facade',
   shapes: { box: num(0, 10), setback: num(0, 10), podium: num(0, 10), cylinder: num(0, 10), undulate: num(0, 10), spindle: num(0, 10), minFloors: int(1, 100) },
   night: { windows: prob, shops: prob, palette: hexes },
-  green: { street: prob, park: prob, plaza: prob, court: prob, stride: num(4, 40), walk: num(1, 12), palms: prob, conifers: prob, shrubs: prob,
+  green: { street: prob, median: prob, park: prob, plaza: prob, court: prob, stride: num(4, 40), walk: num(1, 12), palms: prob, conifers: prob, shrubs: prob,
     trees: (v) => (Array.isArray(v) && v.length && v.every((x) => SPECIES[x]?.kind === 'tree') ? null : `a list of tree species (${Object.keys(SPECIES).filter((k) => SPECIES[k].kind === 'tree').join(', ')})`),
     conifer: word(Object.keys(SPECIES).filter((k) => SPECIES[k].kind === 'conifer' || k === 'fir')),
     palm: word(Object.keys(SPECIES).filter((k) => SPECIES[k].kind === 'palm')) },

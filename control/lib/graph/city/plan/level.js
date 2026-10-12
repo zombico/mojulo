@@ -10,7 +10,7 @@
  *   - its spawn: the crossing nearest the segment's middle, facing along its street
  *   - its buildings (doors.js): a walk-in's lobby is part of the map, walked into off the street; a door-scene's door is
  *     a `door` zone on the walk before it, its inside a level of its own the game links to it
- *   - its walls: every built mass (lots and sites) in reach, and the segment's own edges, open only at its portals:
+ *   - its walls: every built mass (lots and sites) in reach, every street tree's trunk and planter (the walk's own), and the segment's own edges, open only at its portals:
  *     the city goes on past them as the backdrop, and a walker leaves only by a street
  *   - a segment with no neighbours: its goal is the crossing farthest along the walk from its spawn
  *
@@ -20,6 +20,9 @@ import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
 import { registerLevelKind } from '../../structure/level.js';
 import { designCity } from './design.js';
 import { lobbyOf, LOBBY } from './doors.js';
+import { cityGreen, PLANTER } from './green.js';
+// a tree's trunk as a walker meets it (m, half its side)
+const TRUNK = 0.35;
 
 const U = CITY_METERS_PER_UNIT;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -109,6 +112,13 @@ export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null
   }
   const doors = entries.filter((e) => e.enter === 'door').map((e) => ({ id: e.door.id, lot: e.lot, inside: e.inside, at: [u(e.door.at[0]), u(e.door.at[1]), 0], radius: u(1.4), spawn: [u(e.door.spawn[0]), u(e.door.spawn[1]), 0], heading: e.door.heading }));
   const lobbies = entries.filter((e) => e.enter === 'walk').map((e) => e.lot);
+  // the green (green.js): a street tree's trunk and a planter's box stop a walker on the walk; a shrub, a crown, a park's
+  // trees and a median's do not (a walker crosses a median between its trees, and the walk runs down the middle line)
+  for (const g of cityGreen(d)) {
+    if (g.strip || g.kind !== 'street' || g.plant === 'shrub' || !inside(R, g.x, g.y, reach)) continue;
+    const r = g.plant === 'planter' ? PLANTER.side / 2 : TRUNK, h = g.plant === 'planter' ? PLANTER.h : 3;
+    colliders.push({ min: [u(g.x - r), u(g.y - r), 0], max: [u(g.x + r), u(g.y + r), u(h)], of: `green:${g.key}` });
+  }
   for (const s of d.sites) if (s.mass && !(s.mass.x1 < R.x0 - reach || s.mass.x0 > R.x1 + reach || s.mass.y1 < R.y0 - reach || s.mass.y0 > R.y1 + reach)) colliders.push({ min: [u(s.mass.x0), u(s.mass.y0), 0], max: [u(s.mass.x1), u(s.mass.y1), u(s.mass.h)], of: `site:${s.id}` });
   const T = 0.5, H = CITY_LEVEL.wall;
   const side = (name, a0, a1, fixed, horizontal) => {

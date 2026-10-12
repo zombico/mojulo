@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readCityPlan, inferCity } from './card.js';
 import { designCity } from './design.js';
-import { cityGreen, greenPlan, readGreen, GREEN_IDS } from './green.js';
+import { cityGreen, greenPlan, greenGround, readGreen, GREEN_IDS, MEDIAN } from './green.js';
 import { assembleCityScene } from './scene.js';
 import { cityPlanSvg } from './book-html.js';
 import { resolveGrammar } from './grammars.js';
@@ -16,7 +16,7 @@ describe('the green: an interceptor grown on the laid city', () => {
     expect(readGreen(0.3, d.grammar).park).toBe(0.3);
     expect(readGreen({ street: 0 }, d.grammar)).toMatchObject({ street: 0, park: d.grammar.green.park });
     expect(() => readCityPlan({ green: 2 })).toThrow(/green is a number from 0/);
-    expect(() => readCityPlan({ green: { hedges: 1 } })).toThrow(/green.hedges is not a kind of green \(street, park, plaza, court\)/);
+    expect(() => readCityPlan({ green: { hedges: 1 } })).toThrow(/green.hedges is not a kind of green \(street, median, park, plaza, court\)/);
     expect(() => readCityPlan({ grammar: { from: 'paris', green: { trees: ['baobab'] } } })).toThrow(/green.trees is a list of tree species/);
   });
   it('stands each street tree a metre in from its kerb, clear of the crossings, the doors and the lots', () => {
@@ -70,6 +70,38 @@ describe('the green, drawn', () => {
   });
   it('on the plan sheet, a dot per plant', () => {
     const d = designCity(recipe()), svg = cityPlanSvg(d);
-    expect((svg.match(/<circle [^>]*fill-opacity="0.85"/g) || []).length).toBe(cityGreen(d).length);
+    expect((svg.match(/<circle [^>]*fill-opacity="0.85"/g) || []).length).toBe(cityGreen(d).filter((g) => !g.strip).length);
+  });
+});
+
+describe('the green\'s ground: a tree in its pit, a planter on a narrow walk, a median down an avenue', () => {
+  it('lays a grate under every street tree and a planter (its shrub on top) where a walk is too narrow for a tree', () => {
+    const d = designCity(recipe({ grammar: { from: 'paris', green: { walk: 3.5 } } })), g = cityGreen(d);
+    const planters = g.filter((x) => x.plant === 'planter'), trees = g.filter((x) => x.kind === 'street' && x.plant !== 'planter');
+    expect(planters.length).toBeGreaterThan(5);
+    for (const p of planters) {
+      const st = d.streets.find((s) => s.pts.slice(1).some((b, k) => Math.abs(along(p, s.pts[k], b) - (s.road / 2 + 0.6)) < 0.05));
+      expect(st && st.walk < 3.5).toBe(true);
+    }
+    const ground = greenGround(g);
+    expect(ground.filter((x) => x.kind === 'pit').length).toBe(trees.length);
+    expect(ground.filter((x) => x.kind === 'planter').length).toBe(planters.length);
+    expect(greenPlan(d, g).boxes.filter((b) => b.z0 > 0).length).toBe(planters.length);   // each planter's shrub stands in its box
+  });
+  it('runs a median down an avenue wide enough, broken short of every crossing street, its trees down its middle', () => {
+    const d = designCity(recipe({ board: { cols: 10, rows: 8 }, green: { median: 1 } })), g = cityGreen(d);
+    const strips = g.filter((x) => x.strip);
+    expect(strips.length).toBeGreaterThan(1);
+    for (const m of strips) {
+      const own = d.streets.find((s) => m.key.startsWith(`${s.id}:`));
+      expect(own.road).toBeGreaterThanOrEqual(MEDIAN.road);
+      // no other street's carriageway reaches its ends
+      for (const st of d.streets.filter((s) => s.id !== own.id)) for (const end of [m.a, m.b]) {
+        const dist = Math.min(...st.pts.slice(1).map((b, k) => along({ x: end[0], y: end[1] }, st.pts[k], b)));
+        expect(dist).toBeGreaterThan(st.road / 2);
+      }
+    }
+    expect(g.filter((x) => x.kind === 'median' && !x.strip).length).toBeGreaterThan(5);
+    expect(cityGreen(designCity(recipe({ board: { cols: 10, rows: 8 }, green: { median: 0 } }))).some((x) => x.kind === 'median')).toBe(false);
   });
 });

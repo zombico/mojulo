@@ -196,6 +196,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     smaller city, it reads as a stick among real storeys.
   - The book's plan sheet draws a dot per plant; the readout counts each kind.
   - The street camera stands in the near lane, so a tree-lined walk does not put a trunk in the frame.
+- **The green, finished out** (`city/plan/green.js`, `foliage.js`):
+  - Each street tree stands in its pit under a grate. A walk too narrow for a tree takes planters instead: a shrub in
+    a concrete box at the kerb.
+  - `median`: a planted central reservation down an avenue wide enough (the spine's and the major streets', 14 m of
+    carriageway or more). It is a raised lawn with kerbs and trees down its middle, broken short of every crossing
+    street. Paris and the Gulf plant most of theirs, Tokyo few.
+  - `season: 'spring' | 'summer' | 'autumn' | 'winter'`. Spring is as grown (the cherries in bloom). Summer turns the
+    blossom to leaf, autumn turns the deciduous crowns (beech, oak, cherry), winter leaves them bare. Evergreens keep
+    their leaves. A leaf is told from bark by its colour, so the vegetation pool's other readers keep their bytes.
+  - A paint leans every leaf toward its geocube's foliage.
+  - In a segment's level a street tree's trunk and a planter stop the walker. A shrub, a crown, a park's trees and a
+    median's do not: the walk graph and the audit run down the middle line. A level draws its trees under a lighter
+    budget (60k faces, at most L1), because at full detail the headless audit timed out.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

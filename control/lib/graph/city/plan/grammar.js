@@ -43,15 +43,15 @@ export const LAYOUTS = Object.freeze(['grid']);
 // (its species the quick growers by default: beech, cherry, schefflera, the coconut and the date; oak, banyan and the
 // washingtonia grow 6–9 s on a page's first read, so a grammar names them when it wants them)
 const GREEN_OF = Object.freeze({
-  default: { street: 0.55, park: 0.8, plaza: 0.5, court: 0.5, stride: 9, walk: 2.4, palms: 0, conifers: 0, shrubs: 0.35, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
-  paris: { street: 0.9, park: 0.85, plaza: 0.7, court: 0.6, stride: 7.5, walk: 2.2, palms: 0, conifers: 0, shrubs: 0.3, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
-  london: { street: 0.6, park: 0.9, plaza: 0.6, court: 0.6, stride: 9, walk: 2.2, palms: 0, conifers: 0.1, shrubs: 0.4, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
-  'new-york': { street: 0.5, park: 0.85, plaza: 0.5, court: 0.3, stride: 8, walk: 2.6, palms: 0, conifers: 0, shrubs: 0.3, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
-  tokyo: { street: 0.25, park: 0.8, plaza: 0.4, court: 0.3, stride: 10, walk: 2.6, palms: 0, conifers: 0.15, shrubs: 0.5, trees: ['cherry', 'beech'], conifer: 'pine', palm: 'date' },
-  mediterranean: { street: 0.55, park: 0.7, plaza: 0.6, court: 0.5, stride: 9, walk: 2.2, palms: 0.35, conifers: 0, shrubs: 0.4, trees: ['beech'], conifer: 'pine', palm: 'date' },
-  'southeast-asia': { street: 0.6, park: 0.9, plaza: 0.6, court: 0.6, stride: 9, walk: 2.2, palms: 0.5, conifers: 0, shrubs: 0.45, trees: ['schefflera'], conifer: 'fir', palm: 'coconut' },
-  'latin-american': { street: 0.55, park: 0.85, plaza: 0.7, court: 0.5, stride: 9, walk: 2.2, palms: 0.25, conifers: 0, shrubs: 0.4, trees: ['schefflera', 'cherry'], conifer: 'fir', palm: 'coconut' },
-  gulf: { street: 0.5, park: 0.6, plaza: 0.6, court: 0.3, stride: 10, walk: 2.6, palms: 0.75, conifers: 0, shrubs: 0.3, trees: ['schefflera'], conifer: 'fir', palm: 'date' },
+  default: { street: 0.55, median: 0.4, park: 0.8, plaza: 0.5, court: 0.5, stride: 9, walk: 2.4, palms: 0, conifers: 0, shrubs: 0.35, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  paris: { street: 0.9, median: 0.85, park: 0.85, plaza: 0.7, court: 0.6, stride: 7.5, walk: 2.2, palms: 0, conifers: 0, shrubs: 0.3, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  london: { street: 0.6, median: 0.3, park: 0.9, plaza: 0.6, court: 0.6, stride: 9, walk: 2.2, palms: 0, conifers: 0.1, shrubs: 0.4, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  'new-york': { street: 0.5, median: 0.3, park: 0.85, plaza: 0.5, court: 0.3, stride: 8, walk: 2.6, palms: 0, conifers: 0, shrubs: 0.3, trees: ['beech', 'cherry'], conifer: 'fir', palm: 'date' },
+  tokyo: { street: 0.25, median: 0.1, park: 0.8, plaza: 0.4, court: 0.3, stride: 10, walk: 2.6, palms: 0, conifers: 0.15, shrubs: 0.5, trees: ['cherry', 'beech'], conifer: 'pine', palm: 'date' },
+  mediterranean: { street: 0.55, median: 0.5, park: 0.7, plaza: 0.6, court: 0.5, stride: 9, walk: 2.2, palms: 0.35, conifers: 0, shrubs: 0.4, trees: ['beech'], conifer: 'pine', palm: 'date' },
+  'southeast-asia': { street: 0.6, median: 0.6, park: 0.9, plaza: 0.6, court: 0.6, stride: 9, walk: 2.2, palms: 0.5, conifers: 0, shrubs: 0.45, trees: ['schefflera'], conifer: 'fir', palm: 'coconut' },
+  'latin-american': { street: 0.55, median: 0.6, park: 0.85, plaza: 0.7, court: 0.5, stride: 9, walk: 2.2, palms: 0.25, conifers: 0, shrubs: 0.4, trees: ['schefflera', 'cherry'], conifer: 'fir', palm: 'coconut' },
+  gulf: { street: 0.5, median: 0.85, park: 0.6, plaza: 0.6, court: 0.3, stride: 10, walk: 2.6, palms: 0.75, conifers: 0, shrubs: 0.3, trees: ['schefflera'], conifer: 'fir', palm: 'date' },
 });
 
 // the flavours whose cities drive on the left (the legacy flavours never said; traffic.js reads it)

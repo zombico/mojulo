@@ -39,6 +39,7 @@ export function cityPlanSvg(d, { width = 1100 } = {}) {
   }
   // the green (green.js): a dot per plant, a street tree darker than a park's, a shrub small, a palm a star
   for (const g of cityGreen(d)) {
+    if (g.strip) { out.push(`<line x1="${X(g.a[0])}" y1="${Y(g.a[1])}" x2="${X(g.b[0])}" y2="${Y(g.b[1])}" stroke="#7da35c" stroke-width="${r1(g.width * s)}"/>`); continue; }
     const r = g.plant === 'shrub' ? 1.2 : 2.2, fill = g.plant === 'palm' ? '#7e9a3c' : g.plant === 'conifer' ? '#2f5a3a' : g.kind === 'street' ? '#3f6e3c' : '#5b8a48';
     out.push(`<circle cx="${X(g.x)}" cy="${Y(g.y)}" r="${r}" fill="${fill}" fill-opacity="0.85"/>`);
   }

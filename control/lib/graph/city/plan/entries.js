@@ -10,6 +10,7 @@ import { CITY_LAWS } from './laws.js';
 import { CITY_OUTCOMES } from './read.js';
 import { LANDMARK_IDS, SACRED } from './landmarks.js';
 import { GREEN_KINDS, GREEN_IDS } from './green.js';
+import { SEASONS, DECIDUOUS } from './foliage.js';
 import { SPECIES } from '../../vegetation/species.js';
 
 export function cityPlanCard() {
@@ -41,6 +42,7 @@ export function cityPlanCard() {
     'LEVEL      a segment played: its exits (one reach-exit per neighbour, named for it, at its portal), its arrivals from them, a walker at its middle crossing, walls at its edges open only at its portals; a segment with no neighbours goes to its farthest crossing.',
     `GREEN      0…1 | { ${GREEN_IDS.join(', ')} }: trees and shrubs grown after the city is laid, never walked into, each kind 0 (none) to 1 (every site); the grammar's green sets the defaults, the stride, the least walk a tree stands in and the species (trees, conifer, palm: ${Object.keys(SPECIES).filter((k) => ['tree', 'palm', 'conifer'].includes(SPECIES[k].kind)).join(', ')}):`,
     ...Object.entries(GREEN_KINDS).map(([k, v]) => `  - ${k}: ${v}`),
+    `SEASON     ${SEASONS.join(' | ')}: spring as grown (a cherry in bloom), summer its blossom gone to leaf, autumn the deciduous crowns turned (${DECIDUOUS.join(', ')}), winter them bare; evergreens keep theirs. A paint leans every leaf toward its cube's foliage.`,
     `FIDELITY   ${FIDELITIES.join(' | ')}: the world in every lot's facade (the default), or the massing alone.`,
     `LOOK       the world-wide look ('${SIXTH_GEN_LOOK_IDS.join("' | '")}', or { id, cell? }): its air and sky, its sun lighting the city (a look with no sun, a moon). Same streets, another place and hour.`,
     `PAINT      { geocube: <${Object.keys(GEOCUBE_PRESETS).join(' | ')} | a cube | { from, … }>, amount? (0–1, 0.5) }: the cube's colours over the ground, water, parks and walks, every skin leant toward its stone, trim and accent; without a look, the cube's own look lights it.`,
@@ -53,7 +55,7 @@ export function cityPlanCard() {
   return {
     id: 'city-plan', name: 'City plan (a city on rails, planned first)', family: 'world', entry: 'compose_world', generated: true,
     summary: 'A city planned on a board of cells before anything renders: main streets, districts, reserved sites, the grid and lots cut from them, transit, and walk laws, in a grammar from Paris to Tokyo, at game or real scale.',
-    when: '"plan a city", "city layout", "a city slice", "lay out the streets first", "a walkable city for a game", "GTA-like city", "a city like Paris / Tokyo / New York", "districts and a downtown", "a city plan I can edit", "place a landmark in the city", "the Eiffel Tower in my city", "a church on the square", "my own landmark building in the city", "a tram line through the city", "street trees", "a tree-lined boulevard", "trees in the park", "more greenery in the city"',
+    when: '"plan a city", "city layout", "a city slice", "lay out the streets first", "a walkable city for a game", "GTA-like city", "a city like Paris / Tokyo / New York", "districts and a downtown", "a city plan I can edit", "place a landmark in the city", "the Eiffel Tower in my city", "a church on the square", "my own landmark building in the city", "a tram line through the city", "street trees", "a tree-lined boulevard", "trees in the park", "more greenery in the city", "a city in autumn", "bare trees in winter", "a boulevard with a planted median"',
     body: lines.join('\n'),
   };
 }
