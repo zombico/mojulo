@@ -13,7 +13,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, vaults, and the faces they act
+### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, vaults, the faces they act, and what they hold
 
 - **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
   one-shot clip compiled on the hero's own rig where its clips are packed (the World page, the GLB, the Godot pack): the
@@ -49,6 +49,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   hero's hips: the confident smile). On the landmark head the take's four anime channels carry over (`western-face-rig`
   `fromAnime`: the smile to the mouth corners, the brow to the tilt; the open mouth is the jaw bone's), so a western jab
   grits its brow. An acted clip bakes no ambient blink of its own (the take has its blinks).
+- **Holds and guards, with what they hold** (`hero-carry.js`, `hero-grip.js`). The 21 carry holds (`pistolSide` …
+  `carbineAim`, `boxFront`, `lanternOut`, `sackShoulder`, `greatswordPlanted`) and the 12 sword guards with their
+  mirrors (`chudan`, `jodan`, `hasso`, `terza`, `niten`, `shield` …) on `motion`: `true` or `{ seconds }`. A hold eases
+  from the stand into its solved pose (the pose its effort answers), a guard plays its own (the stance entered, the
+  arms closing); `moj:held` carries what is held, the hands, a hold's mass and perceived effort, the laws. The THINGS
+  are props of their clips: each its own mesh on the figure's skin, wholly on its hand's bone, at rest (the gear's
+  seating; a carried box drawn at rest, its card's colours), named for its clip and item (a pair by its bones) with
+  `moj:prop` { item, clips } — an engine shows it with those clips; in Godot a MeshInstance3D of its own under the
+  skeleton. The words live in a leaf (`hero-held-words.js`, pinned to the tables) so the door lists them at load. A
+  hold's first solve is seconds (the cache keeps it). Godot figure gate: every check passes. To come: the guard's
+  sword at the hero's target tier (10,000 triangles today), the props on the World page's clip preview.
 - **A seated leg under a facing keeps its foot** (`station-loft-rig.js` rigNodesAt). An airborne leg turned further
   forward by `seat<S>` (a vault's knee drive) moves its knee and hock after the stance's `facing` has turned the core,
   but they stayed marked as the turned core's, so the shin's frame was read from their places before the seat and the

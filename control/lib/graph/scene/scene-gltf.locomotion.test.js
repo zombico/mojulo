@@ -14,7 +14,7 @@ const glb = (payload) => Buffer.from(facesToGlb(payload, { generator: 'mojulo lo
 
 describe('the hero door\'s motion', () => {
   it('refuses an unknown gait, an unknown dial and a seconds out of range, naming them', () => {
-    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the vaults hurdle, stepVault, speedVault, kongVault; the poses /);
+    expect(validateHeroSpec({ motion: { stroll: true } }).join(' ')).toMatch(/motion\.stroll: not a gait or a move \(have walk, jog, sprint, jump, jumpForward, jumpBack, doubleJump, runningJump, rollForward, rollSide, rollForwardLeft, rollSideLeft, walkStop, jogStop, sprintStop; the rests chairUpright, .* \(each its Down and Up\); the vaults hurdle, stepVault, speedVault, kongVault; the holds pistolSide, .*; the guards chudan, .*; the poses /);
     expect(validateHeroSpec({ motion: { walk: { stride: 0.4 } } }).join(' ')).toMatch(/motion\.walk\.stride: not a walk dial/);
     expect(validateHeroSpec({ motion: { jog: { seconds: 40 } } }).join(' ')).toMatch(/motion\.jog\.seconds/);
     expect(validateHeroSpec({ motion: { walk: { strideLength: 0.4, vault: true, seconds: 1.2 }, jog: true, sprint: { tilt: 22 } } })).toEqual([]);
@@ -129,6 +129,26 @@ describe('the hero door\'s motion', () => {
       for (const S of ['L', 'R']) { const G = R.legs[S]; expect(Math.abs(d(n[G.hock], n[G.toeBase]) - d(R.joints[G.hock], R.joints[G.toeBase])), `${clip} ${k / 30} ${S}`).toBeLessThan(1e-3); }
     }
   });
+
+  it('a hold and a guard pack one-shot with what they hold; the things are props of their clips (a mesh each on the figure\'s skin, wholly on a hand\'s bone); the GLB carries moj:held and moj:prop', async () => {
+    expect(validateHeroSpec({ motion: { boxFront: { tilt: 1 } } }).join(' ')).toMatch(/motion\.boxFront\.tilt: a hold takes only seconds/);
+    expect(validateHeroSpec({ motion: { chudan: { seconds: 9 } } }).join(' ')).toMatch(/motion\.chudan\.seconds: 0\.2 … 6 seconds/);
+    const payload = await resolve(heroManifest({ cast: 'female', motion: { boxFront: true, pistolDual: true, chudan: true } }));
+    const B = payload.figures.body;
+    expect(B.clips.boxFront).toMatchObject({ once: true, s: 0.8, held: { hold: 'boxFront', item: 'box', hands: 2, laws: true } });
+    expect(B.clips.chudan.held).toMatchObject({ guard: 'chudan', hands: 2, laws: true });
+    const byClip = (c) => B.props.filter((p) => p.clip === c);
+    expect(byClip('boxFront').map((p) => p.item)).toEqual(['box']); expect(byClip('pistolDual').length).toBe(2); expect(byClip('chudan')[0].item).toBe('sword');
+    expect(new Set(byClip('pistolDual').map((p) => p.bone)).size).toBe(2);   // a pistol in each hand
+    const j = glbJson(glb(payload)), propNodes = j.nodes.filter((n) => n.extras?.['moj:prop']);
+    expect(propNodes.map((n) => n.extras['moj:prop'].clips[0]).sort()).toEqual(['body:boxFront', 'body:chudan', 'body:pistolDual', 'body:pistolDual']);
+    expect(new Set(propNodes.map((n) => n.name)).size).toBe(propNodes.length);   // the pair named by their bones
+    expect(propNodes.every((n) => n.skin === j.nodes.find((x) => x.name === 'body:body').skin)).toBe(true);
+    expect(j.animations.find((a) => a.name === 'body:boxFront').extras['moj:held']).toEqual(B.clips.boxFront.held);
+    // without a held thing, no props and no moj:held
+    const plain = await resolve(heroManifest({ cast: 'female', motion: { jab: true } }));
+    expect(plain.figures.body.props).toBeUndefined();
+  }, 300000);
 
   it('a turned clip exports its turn: through every key of a stance and a strike the head and the jaw skin together (the seam under the chin shut)', async () => {
     const bytes = glb(await resolve(heroManifest({ cast: 'female', motion: { guard: true, jab: true } }))), j = glbJson(bytes), bin = bytes.subarray(28 + bytes.readUInt32LE(12));

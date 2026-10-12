@@ -29,6 +29,13 @@ import { RESTS } from './hero-rest.js';
 import { GAITS } from './hero-gaits.js';
 import { VAULTS } from './hero-vault-moves.js';
 import { heroVault } from './hero-vault.js';
+import { HOLD_WORDS, GUARD_WORDS } from './hero-held-words.js';
+import { heroHold, carryTriangles, carryMounts } from './hero-carry.js';
+import { heroGuard } from './hero-grip.js';
+import { gearPackParts } from './hero-gear.js';
+import { DEFAULT_LIGHT } from './vexar.js';
+import { faceColorLinear } from '../figures/face-mesh.js';
+import { boneFrames } from './station-loft-rig.js';
 import { heroRise } from './hero-rise.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -237,6 +244,10 @@ export const MOTION_GAITS = Object.freeze({
   // run); `…Left` takes off from the right foot. The box and the gait are the door's (`{ h, d, w, from }`), else the
   // middle of the vault's own range
   ...Object.fromEntries(Object.keys(VAULTS).flatMap((n) => [[n, Object.freeze({ motion: 'vault', vault: n })], [`${n}Left`, Object.freeze({ motion: 'vault', vault: n, left: true })]])),
+  // the HELD THINGS (hero-carry's holds, hero-grip's guards): a one-shot into the hold or the guard, the thing held a prop
+  // of its clip (a skinned mesh of its own on the hand's bone, `moj:prop`), shown with that clip alone
+  ...Object.fromEntries(HOLD_WORDS.map((n) => [n, Object.freeze({ motion: 'hold', family: 'hold', seconds: 0.8 })])),
+  ...Object.fromEntries(GUARD_WORDS.map((n) => [n, Object.freeze({ motion: 'guard', family: 'guard', seconds: 0.9 })])),
 });
 
 // ─── the STOP: letting go of forward ───────────────────────────────────────
@@ -304,7 +315,7 @@ const MOTION_WORDS = (() => {
   const plain = Object.entries(MOTION_GAITS).filter(([, g]) => g.motion !== 'move').map(([n]) => n);
   const fam = (f) => Object.entries(MOTION_GAITS).filter(([n, g]) => g.motion === 'move' && g.family === f && !/Left$/.test(n)).map(([n]) => n).join(', ');
   const plainNames = plain.filter((n) => !['rest', 'vault'].includes(MOTION_GAITS[n].motion)), rests = plain.filter((n) => MOTION_GAITS[n].motion === 'rest');
-  return `have ${plainNames.join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
+  return `have ${plainNames.filter((n) => !['hold', 'guard'].includes(MOTION_GAITS[n].motion)).join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the holds ${HOLD_WORDS.join(', ')}; the guards ${GUARD_WORDS.filter((n) => !/Left$/.test(n)).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
 })();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
 export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint: SPRINT_DEFAULTS }) {
@@ -331,11 +342,12 @@ export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint
       }
       continue;
     }
-    if (G.motion === 'jump' || G.motion === 'stop' || G.motion === 'move') {
+    if (G.motion === 'jump' || G.motion === 'stop' || G.motion === 'move' || G.motion === 'hold' || G.motion === 'guard') {
       if (!isObj(g)) { errs.push(`motion.${name}: true, or { seconds }`); continue; }
       for (const [k, v] of Object.entries(g)) {
-        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${G.motion === 'move' ? G.family : G.motion} takes only seconds (its poses are studied; tune them in hero-${G.motion === 'stop' ? 'motion' : G.motion === 'move' ? G.family : 'jump'}.js)`);
-        else if (!(Number.isFinite(v) && v >= (G.motion === 'move' ? MOVE_SECONDS : JUMP_SECONDS)[0] && v <= (G.motion === 'move' ? MOVE_SECONDS : JUMP_SECONDS)[1])) errs.push(`motion.${name}.seconds: ${(G.motion === 'move' ? MOVE_SECONDS : JUMP_SECONDS).join(' … ')} seconds`);
+        const fam = G.motion === 'move' ? G.family : G.motion, file = { stop: 'motion', move: G.family, hold: 'carry', guard: 'grip' }[G.motion] ?? 'jump', SEC = ['move', 'hold', 'guard'].includes(G.motion) ? MOVE_SECONDS : JUMP_SECONDS;
+        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${fam} takes only seconds (its poses are studied; tune them in hero-${file}.js)`);
+        else if (!(Number.isFinite(v) && v >= SEC[0] && v <= SEC[1])) errs.push(`motion.${name}.seconds: ${SEC.join(' … ')} seconds`);
       }
       continue;
     }
@@ -360,10 +372,24 @@ export function motionPlan(motion) {
     if (G.motion === 'stop') return [name, { stop: G.from, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'move') return [name, { move: G.family, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'rest') return [name, { rest: name }];
+    if (G.motion === 'hold' || G.motion === 'guard') return [name, { [G.motion]: true, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'vault') return [name, { vault: G.vault, left: !!G.left, ...(g === true ? {} : g) }];
     const { seconds, tilt, ...own } = g === true ? {} : g;
     return [name, { spec: { [G.motion]: { ...G.base, ...own } }, seconds: seconds ?? G.seconds, tilt: tilt ?? G.tilt }];
   }));
+}
+
+/** A one-shot from the stand into a held pose (a hold's: support 'none', each foot reaching its target): every number of
+ * the pose eased from 0 (the stand's), each foot's target from its rest toe, the fingers closing with the rest */
+function easeInto(pose, R) {
+  const flat = (o, pre = '', out = {}) => { for (const [k, v] of Object.entries(o)) { if (k === 'feet' || k === 'support') continue; const p = pre ? `${pre}.${k}` : k; if (typeof v === 'number') out[p] = v; else if (v && typeof v === 'object' && !Array.isArray(v)) flat(v, p, out); } return out; };
+  const F = flat(pose), sides = Object.keys(R.legs);
+  return (t) => {
+    const e = t * t * (3 - 2 * t), out = { support: 'none' };
+    for (const [p, v] of Object.entries(F)) { const ks = p.split('.'); let o = out; for (const k of ks.slice(0, -1)) o = o[k] ??= {}; o[ks.at(-1)] = v * e; }
+    out.feet = Object.fromEntries(sides.filter((S) => pose.feet?.[S]).map((S) => { const a = R.joints[R.legs[S].toeBase], b = pose.feet[S]; return [S, [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * e)]; }));
+    return out;
+  };
 }
 
 /**
@@ -372,7 +398,34 @@ export function motionPlan(motion) {
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from, hold, guard }] of Object.entries(locomotion || {})) {
+    if (hold || guard) {
+      // a held thing: a hold eases from the stand into the solved hold (hero-carry heroHold: the pose its effort answers),
+      // a guard plays its own clip (hero-grip heroGuard: the stance entered, the arms closing); one-shot. `held` rides the
+      // clip (what is held, the hands, a hold's mass and perceived effort, the laws) and `props(dz)` its things at rest on
+      // their hand's bone, for the pack (the gear's own seating: gearPackParts; a carried box, carryTriangles)
+      let X; try { X = solvedOnce(`${hold ? 'hold' : 'guard'}|${rigKey(R)}|${name}|${guard ? s : ''}`, () => (hold ? heroHold(name, R) : heroGuard(name, R, { seconds: s }))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const fn = hold ? easeInto(X.pose, R) : ((t) => X.clip.fn(t)), T = hold ? s : X.clip.seconds ?? s;
+      const K = Math.max(keys, Math.round(T * 30) + 1);
+      try { for (let k = 0; k < K; k++) rigNodesAt(R, fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const laws = X.checks?.laws ? Object.values(X.checks.laws).every(Boolean) : null;
+      const clip = (t) => fn(t); clip.keys = K; clip.once = true;
+      clip.held = hold ? { hold: name, item: X.item, hands: X.hands, kg: X.kg, ...(X.effort?.cr10 !== undefined ? { effort: X.effort.cr10 } : {}), ...(laws !== null ? { laws } : {}) }
+        : { guard: name, stance: X.stance, tradition: X.tradition, grip: X.grip, hands: X.hands, ...(laws !== null ? { laws } : {}) };
+      clip.props = (dz = 0, light = DEFAULT_LIGHT) => {
+        if (guard) return gearPackParts(X.mounts, { light, dz }).map((p, i) => ({ ...p, item: X.mounts[i].item }));
+        const rest = boneFrames(R, R.joints, R.joints), out = gearPackParts(carryMounts(X, R), { light, dz }).map((p) => ({ ...p, item: X.item }));
+        const byBone = new Map();
+        for (const t of X.things) { const bone = t.ride?.boneIndex; if (bone === undefined) continue; if (!byBone.has(bone)) byBone.set(bone, { bone, item: t.item, tris: [] }); }
+        // (carryTriangles draws every non-blade thing at rest; each triangle goes to the thing's hand by its nearest bone,
+        // its card's colour string made linear, as the gear's are)
+        const tris = carryTriangles(X, R, rest);
+        const heads = [...byBone.values()].map((b) => [b, rest[b.bone].head]);
+        for (const t of tris) { const c = [0, 1, 2].map((k) => (t.p[0][k] + t.p[1][k] + t.p[2][k]) / 3); let best = heads[0]; for (const hh of heads) if (Math.hypot(...[0, 1, 2].map((k) => c[k] - hh[1][k])) < Math.hypot(...[0, 1, 2].map((k) => c[k] - best[1][k]))) best = hh; if (best) best[0].tris.push({ p: t.p.map((q) => [q[0], q[1], q[2] + dz]), col: faceColorLinear({ fill: t.colour }) }); }
+        return [...out, ...[...byBone.values()].filter((b) => b.tris.length)];
+      };
+      clips[name] = clip; seconds[name] = T; continue;
+    }
     if (vault) {
       // a vault: one-shot in place over its box out of its gait (the box and the gait the door's, else the middle of the
       // vault's own range at this hero's hip); `vault` rides the clip — the gait, the box, where it takes off and lands

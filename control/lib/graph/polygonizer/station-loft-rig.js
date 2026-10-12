@@ -669,7 +669,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
   if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; for (const p of t.p) { P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...paint.white); } } }
-  const packedClips = {};
+  const packedClips = {}, props = [];
   for (const [name, clip] of Object.entries(clips)) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
     // a function clip may also be ONE-SHOT (`once`: a jump's, sampled 0 … 1 inclusive) and carry its `air` (hero-jump.js)
@@ -678,14 +678,20 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     // jaw on different spins, the seam under the chin open in the export)
     const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = typeof clip === 'function' && clip.once === true; const flat = [];
     for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const m of ['$body', '$facing', '$legYaw']) if (nodes[m]) Object.defineProperty(shifted, m, { value: nodes[m], enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
-    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}) };
+    packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}), ...(typeof clip === 'function' && clip.held ? { held: clip.held } : {}) };
+    // a held thing's PROPS (hero-motion.js: a hold's or a guard's things at rest on their hand's bone, raised by dz): each its
+    // own record, the clip's, so the export draws it as a mesh of its own on the figure's skin
+    if (typeof clip === 'function' && typeof clip.props === 'function') for (const pr of clip.props(dz, cast ?? character?.light ?? undefined)) if (pr.tris?.length) {
+      const pos = [], col = [], faces = pr.tris.length; for (const t of pr.tris) for (const q of t.p) { pos.push(q[0], q[1], q[2]); col.push(t.col[0], t.col[1], t.col[2]); }
+      props.push({ clip: name, item: pr.item, bone: pr.bone, pos: b64f32(pos), col: b64u8(col), faces });
+    }
   }
   let mnz = Infinity, mxz = -Infinity; for (const v of mesh.vertices) { if (v[2] + dz < mnz) mnz = v[2] + dz; if (v[2] + dz > mxz) mxz = v[2] + dz; }
   return {
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
     parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}) } : null)),
-    clips: packedClips, figH: r4(mxz - mnz),
+    clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white } } : {}),
   };
 }

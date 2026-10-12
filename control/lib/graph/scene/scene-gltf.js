@@ -902,9 +902,24 @@ class GlbBuilder {
     }) - 1;
 
     const meshNode = this.json.nodes.push({ name: `${name}:body`, mesh: meshIdx, skin: skinIdx }) - 1;
+    // the PROPS (station-loft-rig packLayeredRig `props`: a hold's or a guard's things, hero-motion.js): each its own mesh on
+    // the figure's skin, every vertex wholly on its hand's bone, at rest; `moj:prop` names the clips it belongs to (an engine
+    // shows it with them and hides it otherwise). Absent ⇒ none.
+    let propMaterial = null;   // (a textured figure's props take a plain material: they carry no UVs; made only when one is drawn)
+    const propSeen = new Map();   // (a clip holding two of a thing — a pistol in each hand — names them by their bone)
+    const propNodes = (fig.props || []).filter((pr) => clipNames.includes(pr.clip)).map((pr) => {
+      const key = `${pr.clip}:${pr.item}`, nth = propSeen.get(key) ?? 0; propSeen.set(key, nth + 1); const propName = `${name}:prop:${key}${(fig.props.filter((q) => q.clip === pr.clip && q.item === pr.item).length > 1) ? `:${fig.bones[pr.bone]?.id ?? pr.bone}` : ''}`;
+      if (propMaterial === null) propMaterial = tex !== null ? this.surfaceMaterial({ name: `fig:${name}:prop` }) : material;
+      const raw = b64ToF32(pr.pos), c8 = b64ToBytes(pr.col), n = raw.length / 3;
+      const pPos = Float32Array.from(raw), pCol = Float32Array.from(c8, (v) => v / 255);
+      const pJnt = new Uint16Array(n * 4), pWgt = new Float32Array(n * 4); for (let i = 0; i < n; i++) { pJnt[i * 4] = pr.bone; pWgt[i * 4] = 1; }
+      const pm = this.json.meshes.push({ name: propName, primitives: [{ attributes: { POSITION: this.floatAccessor(pPos, 3, bounds3(pPos)), COLOR_0: this.floatAccessor(pCol, 3), JOINTS_0: this.jointAccessor(pJnt), WEIGHTS_0: this.floatAccessor(pWgt, 4) }, mode: MODE_TRIANGLES, material: propMaterial }] }) - 1;
+      vertices += n; triangles += n / 3;
+      return this.json.nodes.push({ name: propName, mesh: pm, skin: skinIdx, extras: { 'moj:prop': { item: pr.item, clips: [`${name}:${pr.clip}`] } } }) - 1;
+    });
     const wrapIdx = this.json.nodes.push(parents
-      ? { name, children: [...jointNodes.filter((_, bi) => parents[bi] < 0), meshNode] }
-      : { name, children: [...jointNodes, ...leafNodes, meshNode] }) - 1;
+      ? { name, children: [...jointNodes.filter((_, bi) => parents[bi] < 0), meshNode, ...propNodes] }
+      : { name, children: [...jointNodes, ...leafNodes, meshNode, ...propNodes] }) - 1;
     if (parents) this.sceneRoots.push(wrapIdx); else this.children.push(wrapIdx);
     this.rigWrappers.set(name, wrapIdx);
     if (hb && !this.vrmDeclared) {
@@ -1009,7 +1024,7 @@ class GlbBuilder {
     // (seconds) and the props it needs (boxes in the figure's frame under the root's z-up → y-up, scaled by the units)
     // a move (hero-motion.js MOVE_FAMILIES: a showcase pose, a stance, a strike) rides as `moj:move`: its family, that it
     // ends on the pose to hold, whether its own laws held, and a strike's hand and contact time (seconds)
-    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}), ...(clip.vault ? { 'moj:vault': vaultExtras(clip.vault, mpu) } : {}) };
+    const extras = { ...(clip.v > 0 ? { 'moj:speed': r4(clip.v * mpu) } : {}), ...(air ? { 'moj:jump': air } : {}), ...(roll ? { 'moj:roll': roll } : {}), ...(clip.stop ? { 'moj:stop': clip.stop } : {}), ...(clip.move ? { 'moj:move': clip.move } : {}), ...(clip.rest ? { 'moj:rest': { ...clip.rest, props: clip.rest.props.map((p) => ({ ...p, lo: p.lo.map((v) => r4(v * mpu)), hi: p.hi.map((v) => r4(v * mpu)) })) } } : {}), ...(clip.vault ? { 'moj:vault': vaultExtras(clip.vault, mpu) } : {}), ...(clip.held ? { 'moj:held': clip.held } : {}) };
     const speed = Object.keys(extras).length ? { extras } : {};
     this.json.animations.push({ name: `${figName}:${clipName}`, samplers, channels, ...speed });
   }
