@@ -41,7 +41,7 @@ import { CAMERAS } from './cameras.js';
 import { RIDES } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
-import { beatPosts } from './lay-concerns.js';
+import { beatPosts, padSites } from './lay-concerns.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -232,14 +232,7 @@ export function goalMechanics(quick, ends) {
 /** A sneak's guards on a stage: `count` posts on the trail's beats (spread from start to end, never the first few
  * metres), each facing back down the trail toward the start, its gaze sweeping. [{ id, at, heading }]. */
 export function guardPosts(quick, ends) {
-  const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
-  const n = Math.min(quick.guards ?? 3, along.length);
-  if (!n) return [];
-  const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
-  return picks.map((b, k) => {
-    const back = k ? picks[k - 1].at : ends.spawn;
-    return { id: `guard-${k + 1}`, at: b.at, heading: Math.round(Math.atan2(back[1] - b.at[1], back[0] - b.at[0]) * 1000) / 1000 };
-  });
+  return beatPosts(ends, quick.guards ?? 3).map((p, k) => ({ ...p, id: `guard-${k + 1}` }));
 }
 
 /** A puzzle's grid by the trail (5 × 5 cells of 2.5 m, square to the world), centred on the first of its beats (then
@@ -258,7 +251,8 @@ export function puzzleGrid(quick, ends) {
   };
   const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead').map((b) => b.at);
   let site = null;
-  for (const c of [...along, s, [s[0] + Math.cos(h) * 10, s[1] + Math.sin(h) * 10]]) if ((site = lay(c))) break;
+  // the board the intent flattened for it (lay-concerns.js), first
+  for (const c of [...(ends.board ? [ends.board] : []), ...along, s, [s[0] + Math.cos(h) * 10, s[1] + Math.sin(h) * 10]]) if ((site = lay(c))) break;
   site ??= { origin: [r3(s[0] + Math.cos(h) * 10 - (cols * cell) / 2), r3(s[1] + Math.sin(h) * 10 - (rows * cell) / 2), s[2]], heights: null };
   const rnd = mulberry32(Math.abs(Math.round(s[0] * 131 + s[1] * 71)) + 1);
   const used = new Set(), blocks = [], plates = [], K = (q) => `${q[0]},${q[1]}`;
@@ -383,12 +377,10 @@ export function defendCast(quick, ends, refs) {
     figures[`foe-${k}`] = fig(refs.foe);
     entities.push({ id: `foe-${k}`, dormant: true, team: 'wave', rule: { type: 'static', speed: 2.2, ...body }, body: { type: 'figure-rig', figure: `foe-${k}`, hittable: true, hp: DEFEND.hp, poise: 2, radius: 0.6 }, transform: { pos: [x[0], x[1], x[2]], heading: r3(face) } });
   }
-  const n = Math.min(quick.pads ?? 4, along.length);
-  const picks = Array.from({ length: n }, (_, k) => along[Math.min(along.length - 1, Math.floor(((k + 0.5) * along.length) / n))]);
-  picks.forEach((b, k) => {
-    // beside the trail: off its line at that beat, alternate sides
-    const prev = k ? picks[k - 1].at : ends.spawn, h = Math.atan2(b.at[1] - prev[1], b.at[0] - prev[0]), side = k % 2 ? -1 : 1;
-    const at = [r3(b.at[0] - Math.sin(h) * 4 * side), r3(b.at[1] + Math.cos(h) * 4 * side), b.at[2]], id = `tower-${k + 1}`;
+  // the pads beside the road, on land level with it (the intent's road-to-base concern, lay-concerns.js padSites)
+  const posts = beatPosts(ends, quick.pads ?? 4), pads = padSites(posts, ends);
+  posts.forEach((p, k) => {
+    const h = Math.atan2(p.from[1], p.from[0]), at = pads[k], id = `tower-${k + 1}`;
     figures[id] = fig(refs.tower);
     entities.push({
       id, dormant: true, team: 'defense',
@@ -405,7 +397,7 @@ export function defendCast(quick, ends, refs) {
       else: { say: `a tower costs ${DEFEND.cost} gold`, as: 'toast' },
     });
   });
-  return { figures, entities, play: { cues } };
+  return { figures, entities, pads, play: { cues } };
 }
 
 /** The level's audio a goal needs: a rhythm game's music, its beat said on the bus (null: none). */

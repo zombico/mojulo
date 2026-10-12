@@ -2,16 +2,20 @@ import { describe, it, expect } from 'vitest';
 import { quickWorld, goalMechanics, farmCast, shootCast } from './quick.js';
 import { resolveLevel, readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
-import { concernLaws, SPACING, DRIVABLE, beatPosts, coverBlocks } from './lay-concerns.js';
+import { concernLaws, SPACING, DRIVABLE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight } from './lay-concerns.js';
+import { guardPosts, defendCast, QUICK_GUARD } from './quick.js';
+import { stageEnds } from './levels.js';
+import { standBlocks } from '../playscape/terrain.js';
+import { composeLive } from '../worlds/controllable/compose.js';
 
 // THE CONCERNS LAID: the world is laid for what game it is, before any goal reads it. The ground first (a field made
 // level beside the start; a vehicle's ground eased), then the stage (the field where the plots go; a race's checkpoints
 // spaced; cover by the fighting posts), and the laws measure what was laid.
 
 const quick = (q, extra = {}) => quickWorld({ id: 'w', quick: { ...q }, ...extra });
-const order = (W, q, extra) => {
+const order = (W, q, extra, more = {}) => {
   const G = readGameworld(W), s = gameStages(W)[0];
-  return stageLevelOrder(G, s, { ref: 'x', goal: (ends) => goalMechanics(q, ends), ...(extra ? { extra } : {}) });
+  return stageLevelOrder(G, s, { ref: 'x', goal: (ends) => goalMechanics(q, ends), ...(extra ? { extra } : {}), ...more });
 };
 
 describe('the ground laid for the game', () => {
@@ -55,8 +59,12 @@ describe('the stage laid for the game, and its laws', () => {
   });
   it('a shooter\'s foes each have cover by them, from the world\'s cover concern', () => {
     const q = { goal: 'shoot', foes: 3 }, L = order(quick(q), q, (ends) => shootCast(q, ends, 'fig'));
-    expect(L.laws).toEqual([{ concern: 'cover', law: 'cover-by-every-post', holds: true, says: 'cover by all 3 posts' }]);
-    expect(L.args.manifest.blocks.filter((b) => b.form === 'wall').length).toBe(6);
+    // the shooter's foes see (mind.perception): their approaches get a place out of sight too
+    expect(L.laws).toEqual([
+      { concern: 'watchers', law: 'a-blind-spot-on-every-approach', holds: true, says: 'a place out of sight on the way to each of 3' },
+      { concern: 'cover', law: 'cover-by-every-post', holds: true, says: 'cover by all 3 posts' },
+    ]);
+    expect(L.args.manifest.blocks.filter((b) => b.form === 'wall').length).toBe(3 * 2 + 3);
   });
   it('a ranged game without a shooter\'s goal gets cover at its beats too (raised by the value, not the goal)', () => {
     const W = quick({ goal: 'reach' }, { intent: { cube: { power: { combat: ['ranged'] } } } });
@@ -64,10 +72,61 @@ describe('the stage laid for the game, and its laws', () => {
     expect(L.args.manifest.blocks.length).toBeGreaterThan(0);
     expect(L.laws[0]).toMatchObject({ concern: 'cover', holds: true });
   });
+  it('a sneak\'s guards each have a place out of sight on their approach, and a walker waiting there is not seen', () => {
+    const q = { goal: 'sneak', guards: 2 }, W = quick(q), G = readGameworld(W), st = gameStages(W)[0];
+    const L = stageLevelOrder(G, st, { ref: 'x', goal: (ends) => goalMechanics(q, ends), guards: { ref: 'fig', posts: (ends) => guardPosts(q, ends) } });
+    expect(L.laws).toEqual([{ concern: 'watchers', law: 'a-blind-spot-on-every-approach', holds: true, says: 'a place out of sight on the way to each of 2' }]);
+    // in the world: the first guard, looking down its approach, and a walker standing in its blind spot
+    const ends = stageEnds(st.manifest), post = guardPosts(q, ends)[0], blocks = L.args.manifest.blocks;
+    const spot = blindSpots(post, ends, askBoxes(blocks))[0], E = composeLive(), guard = L.args.manifest.entities.find((e) => e.id === 'guard-1');
+    const world = (at) => E.createWorld({ colliders: standBlocks(blocks).colliders, entities: [
+      { id: 'p', pilotable: true, rule: { type: 'walk', speed: 0, eye: 0, collideHeight: 1.7 }, body: { type: 'none', hittable: true }, transform: { pos: at, heading: 0 } },
+      { ...guard, body: { type: 'mesh' } },
+    ] });
+    const seen = (at) => { const w = world(at); for (let i = 0; i < 90; i++) E.stepWorld(w, {}, 1 / 30, { ground: (p) => ends.ground(p[0], p[1]) ?? 0 }); return w.byId['guard-1'].sightings || 0; };
+    const z = (p) => [p[0], p[1], ends.ground(p[0], p[1]) ?? p[2]];
+    expect(seen(z(spot))).toBe(0);
+    expect(seen(z([post.at[0] - post.from[0] * 6, post.at[1] - post.from[1] * 6]))).toBeGreaterThan(0);
+  });
+  it('a defence\'s pads stand beside its road on land level with it; the road is long enough to fight along', () => {
+    const q = { goal: 'defend', waves: 1 }, L = order(quick(q), q, (ends) => defendCast(q, ends, { foe: 'f', tower: 't' }));
+    expect(Object.fromEntries(L.laws.map((l) => [l.law, l.holds]))).toEqual({ 'road-long-enough': true, 'pads-beside-the-road': true });
+  });
+  it('a puzzle\'s board is flattened further on, its grid laid on it, level', () => {
+    const W = quick({ goal: 'puzzle' }), R = resolveLevel(W, 'run');
+    expect(R.laid).toEqual(['board']);
+    expect(R.level.ground.edits).toEqual([{ op: 'flatten', at: expect.stringMatching(/^[A-Z]5:[A-Z]7$/), id: 'intent-board' }]);
+    const L = order(W, { goal: 'puzzle' }), push = L.args.manifest.game.mechanics.find((m) => m.kind === 'push');
+    expect(L.laws).toEqual([{ concern: 'board', law: 'board-level', holds: true, says: expect.any(String) }]);
+    const mid = [push.origin[0] + 6.25, push.origin[1] + 6.25];
+    expect(Math.hypot(mid[0] - R.board[0], mid[1] - R.board[1])).toBeLessThan(1);
+  });
+  it('a hero that jumps finds every other pickup on steps within its jump, and climbs to it', () => {
+    const q = { goal: 'collect', hero: { cast: 'female' } }, L = order(quick(q), q, null, { heroRef: 'h' });
+    const pk = L.args.manifest.game.mechanics.find((m) => m.kind === 'collect').pickups;
+    expect(pk.filter((p) => p.planar === false).length).toBe(Math.floor(pk.length / 2));
+    expect(L.laws).toEqual([{ concern: 'reachable', law: 'within-a-jump', holds: true, says: expect.stringMatching(/^all \d+ raised pickups within a 1\.06 m jump$/) }]);
+    // a first-person walker does not jump: nothing is raised for it
+    const flat = order(quick({ goal: 'collect' }), { goal: 'collect' });
+    expect(flat.args.manifest.game.mechanics[0].pickups.every((p) => p.planar !== false)).toBe(true);
+    // in the world: the hero jumps onto the low crate, then the stack, and stands within the pickup's reach
+    const E = composeLive(), hero = L.args.manifest.entities[0], blocks = L.args.manifest.blocks, target = pk.find((p) => p.planar === false);
+    const ends = stageEnds(gameStages(quick(q))[0].manifest), ground = (p) => ends.ground(p[0], p[1]) ?? 0;
+    const low = blocks.find((b) => b.form === 'crate' && !b.stack && Math.hypot(b.at[0] - target.at[0], b.at[1] - target.at[1]) < 2);
+    const back = [low.at[0] * 2 - target.at[0], low.at[1] * 2 - target.at[1]];
+    const w = E.createWorld({ colliders: standBlocks(blocks).colliders, entities: [{ ...hero, body: { type: 'none' }, transform: { pos: [back[0], back[1], ground(back) + 0.05], heading: Math.atan2(target.at[1] - back[1], target.at[0] - back[0]) } }] });
+    let top = 0;
+    for (let i = 0; i < 150; i++) { E.stepWorld(w, { forward: 1, strafe: 0, turn: 0, lookDX: 0, lookDY: 0, jump: i % 20 < 2 ? 1 : 0, jumpHeld: i % 20 < 8 ? 1 : 0 }, 1 / 30, { ground }); top = Math.max(top, w.byId.hero.transform.pos[2] - ground(target.at)); }
+    expect(top).toBeGreaterThan(1.2);
+    expect(jumpHeight(hero.rule)).toBeCloseTo(1.056, 2);
+  });
   it('the laws break on a level laid against them, and say where', () => {
     const ends = { spawn: [0, 0, 0], exit: [0, 60, 0], beats: [{ beat: 'reveal', at: [0, 20, 0] }, { beat: 'pocket', at: [0, 40, 12] }], ground: () => 0 };
     const posts = beatPosts(ends);
     expect(concernLaws(['cover'], { ends, blocks: [], posts })[0]).toMatchObject({ holds: false, says: 'no cover within 4.5 m of post-1, post-2' });
+    expect(concernLaws(['reachable'], { ends, raised: [{ at: [0, 0, 3], rises: [1.4, 0.8], above: 0.8 }], jump: 1.06 })[0]).toMatchObject({ holds: false, says: '1 of 1 raised pickups need more than a 1.06 m jump' });
+    expect(concernLaws(['road-to-base'], { ends, pads: [[0, 20, 0]], mechanics: [{ kind: 'waves', path: [[0, 0], [0, 20]] }] }).map((l) => l.holds)).toEqual([false, false]);
+    expect(concernLaws(['watchers'], { ends, blocks: [], watchers: posts })[0]).toMatchObject({ holds: false, says: 'nowhere on the way to post-1, post-2 is out of its sight' });
     expect(concernLaws(['cover'], { ends, blocks: coverBlocks(posts, ends), posts })[0].holds).toBe(true);
     const laps = { kind: 'laps', checkpoints: [{ at: [0, 5, 0] }, { at: [0, 60, 0] }] };
     expect(concernLaws(['circuit'], { ends, mechanics: [laps] })[0]).toMatchObject({ holds: false, says: `the shortest leg is 5.0 m (${SPACING} wanted)` });

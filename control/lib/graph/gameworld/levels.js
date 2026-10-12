@@ -30,7 +30,7 @@ import { RIDE_H } from './ride.js';
 import { fixedStations } from './cameras.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
-import { SPACING, beatPosts, coverBlocks, concernLaws } from './lay-concerns.js';
+import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
@@ -62,7 +62,8 @@ export function gameStages(world) {
       const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
       const manifest = here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest;
       // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
-      const field = R.field && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { field: R.field } : {};
+      const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
+      const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
     // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
@@ -186,6 +187,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   const concerns = concernIds(cubeOfWorld(G).cube);
   // (set on every call, null when absent: a stage's anchors may be a cached object another stage read before)
   Object.defineProperty(ends, 'field', { value: stage.field ?? null, enumerable: false, configurable: true });
+  Object.defineProperty(ends, 'board', { value: stage.board ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
@@ -243,9 +245,10 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   }
   // GUARDS (a sneak, quick.js): watchers with sight at their posts, sweeping their gaze (`scan`); a sighting is the bus's
   // `seen`, which the `unseen` mechanic ends the level on. `guards`: { ref (their figure), posts(ends) → [{ id, at, heading }] }
+  const watchers = guards?.ref ? guards.posts(ends) : null;
   if (guards?.ref) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
-    for (const g of guards.posts(ends)) {
+    for (const g of watchers) {
       figures[g.id] = { heroRef: guards.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
       const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
       entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
@@ -255,7 +258,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
   // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? } }
-  let extraPlay = null, blocks = null, posts = null;
+  let extraPlay = null, blocks = null, posts = null, pads = null;
   if (extra) {
     const X = extra(ends), p0 = pilotPart.entities[0];
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
@@ -263,6 +266,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     extraPlay = X.play ?? null;
     blocks = X.blocks?.length ? X.blocks : null;
     posts = X.posts ?? null;
+    pads = X.pads ?? null;
   }
   // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats
   if (concerns.includes('cover') && stage.section === 'trail') {
@@ -270,6 +274,16 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     const cover = coverBlocks(posts, ends);
     if (cover.length) blocks = [...(blocks ?? []), ...cover];
   }
+  // REACHABLE (the intent's `reachable` concern): with a pilot that jumps, every other pickup on steps a jump climbs
+  const jump = concerns.includes('reachable') && stage.section === 'trail' ? jumpHeight(pilotPart.entities[0].rule) : 0;
+  let raised = [];
+  if (jump) {
+    const R = raisePickups(game.mechanics, ends, jump);
+    if (R.raised.length) { game.mechanics = R.mechanics; blocks = [...(blocks ?? []), ...R.blocks]; raised = R.raised; }
+  }
+  // WATCHERS (the intent's `watchers` concern): a wall on each watcher's approach, a place behind it out of its sight
+  const watched = concerns.includes('watchers') && stage.section === 'trail' ? (watchers ?? posts ?? beatPosts(ends)) : null;
+  if (watched?.length) blocks = [...(blocks ?? []), ...blindBlocks(watched, ends)];
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
     const moves = ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: pilot, to: lane ? onLane({ at: a.at }, lane).at : a.at }));
@@ -287,7 +301,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
-  const laws = concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], mechanics: game.mechanics }) : [];
+  const laws = concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 

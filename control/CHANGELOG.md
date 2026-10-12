@@ -448,9 +448,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - **The stage**, in `stageLevelOrder`, before any goal reads it. The farm's plots go on that field. A race's
     checkpoints are spaced (`circuit`: none nearer the last than 12 m). Cover stands by the fighting posts, the goal's
     own or else the trail's beats (`cover`: any ranged world, not only the shooter).
-  - The quick farm, race and shooter now read these instead of placing their own.
+  - **Stealth** (`watchers`: minds with sight, or `unseen`): a wall on each watcher's approach, 8 m out and off the
+    line, with a place behind it out of the watcher's sight where a sneak can wait for the sweep. A shooter's foes
+    see too, so their approaches get one as well.
+  - **The defence's road** (`road-to-base`): the tower pads stand 4 to 6 m beside the road where the land is level with
+    it (the other side when this one will not do).
+  - **The puzzle board** (`board`): its ground is flattened further on (rows 5 to 7, three cells across), and the grid
+    is laid on it.
+  - **Jump reach** (`reachable`): with a hero that jumps (the platform rule), every other pickup stands on crate steps,
+    each rise three quarters of the jump, and is collected by height (`collect`'s pickups take `planar: false`).
+    A walker that cannot jump gets none.
+  - The quick farm, race, shooter, sneak, defence, puzzle and collect now read these instead of placing their own.
 - **Checked.** Each laid concern has a law measured on the laid stage: cover by every post, checkpoints spaced, plots
-  level, a drivable grade. A law that does not hold is listed under the level's `advises` in the run. It advises and
+  level, a drivable grade, a blind spot on every watcher's approach, a road long enough with its pads beside it and
+  level, a level board, every raised pickup within a jump. A law that does not hold is listed under the level's `advises` in the run. It advises and
   never refuses.
 
 ### Scene layer: a shot that takes the camera, and two characters talking

@@ -126,7 +126,8 @@ const MECHANICS = {
         const item = pk.item || 'item';
         items.add(item);
         world.entities.push({ id: zone, on: true, position: pk.at || [0, 0, 0] });
-        world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: true, watch: ctx.player });
+        // planar unless the pickup says otherwise (one raised on a ledge is reached by climbing to it, not by walking under it)
+        world.sources.push({ type: 'zone', zone, at: pk.at || [0, 0, 0], radius: pk.radius != null ? pk.radius : 1.4, planar: pk.planar !== false, watch: ctx.player });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'emit', type: 'pickup:' + item });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
       });

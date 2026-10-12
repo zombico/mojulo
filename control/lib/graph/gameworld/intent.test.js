@@ -104,7 +104,7 @@ describe('the bible shows it', () => {
     expect(html).toContain('Starts from <b>First-person shooter</b>');
     expect(html).toContain('“tense firefights”');
     expect(html).toMatch(/<b>Cover and sightlines<\/b>[^<]*<span class="muted">\(laid by the world; raised by power.combat=ranged\)/);
-    expect(html).toMatch(/<b>Lines of sight to break<\/b>[^<]*<span class="muted">\(asked, not yet laid/);
+    expect(html).toMatch(/<b>Landmarks at eye level<\/b>[^<]*<span class="muted">\(asked, not yet laid/);
     expect(gameworldBibleHtml(world())).not.toContain('id="intent"');
   }, 120_000);
 });

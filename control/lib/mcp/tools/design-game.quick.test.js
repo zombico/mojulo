@@ -233,7 +233,7 @@ describe('design_game quick', () => {
     expect(mechanicsOf('s2-level-run-0')).toEqual(['fail-on-death', 'supplies', 'defeat-all']);
     expect(L.camera).toMatchObject({ rule: 'eye', mouseLook: true });
     expect(L.entities[0]).toMatchObject({ id: 'player', body: { hittable: true }, weapon: { magazine: 12, reserve: 36 } });
-    expect(L.blocks.filter((b) => b.form === 'wall').length).toBe(4);
+    expect(L.blocks.filter((b) => b.form === 'wall').length).toBe(2 * 2 + 2);   // cover by each foe, a blind wall on each approach
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('s2-level-run-0'));
     expect(payload.colliders.filter((c) => c.of.startsWith('block:')).length).toBeGreaterThan(8);
     expect(payload.entities.filter((e) => e.id.startsWith('dec_sp_')).length).toBe(2);
