@@ -120,6 +120,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     walk-ins and one door with levels), nearest the segment's middle, dice-free.
   - A four-segment Paris with its four insides (two stores, two restaurants) passed the headless auto-audit: all
     eight levels completable.
+- **A city's game exports.** `export_game` ships a city's plan recipe once beside its segment levels, which read
+  it by ref, as a map's recipe ships beside its mode variants. A map game's level with nothing to pick (a street,
+  a door's inside) is entered straight from the level list, with no empty setup screen and no "start battle".
+  - Spot-checked in the browser: a four-segment Paris exported to a folder; the street played, a door led into
+    its café and `out` led back to the walk.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

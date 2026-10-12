@@ -495,14 +495,16 @@ export async function exportGameHandler(input, context = {}) {
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.
   // A light level (mapRef terrain inheritance, worlds/map-ref.js) ships its MAP recipe beside it —
   // the level recipe alone can't re-mint without the map row it inherits from. Deduped: the whole
-  // point of mapRef is that the map manifest exists ONCE for all its mode variants.
+  // point of mapRef is that the map manifest exists ONCE for all its mode variants. A city's segment
+  // level reads its city plan by ref (`city`) the same way, so the plan ships once beside its segments.
   const mapRecipes = new Set();
   for (const lv of resolved.levels) {
     const levelSketch = getSketch(lv.ref);
     await write(LEVEL_SRC(lv.ref), await hoistShared(await emitWorldPage(levelSketch, 'level', { cdn })));
     await writeRecipe(`recipe/${lv.ref}.json`, levelSketch.manifest);
-    const mapRef = levelSketch.manifest?.mapRef;
-    if (typeof mapRef === 'string' && !mapRecipes.has(mapRef)) {
+    const lm = levelSketch.manifest ?? {};
+    for (const mapRef of [lm.mapRef, lm.kind === 'city' ? lm.city : undefined]) {
+      if (typeof mapRef !== 'string' || mapRecipes.has(mapRef)) continue;
       mapRecipes.add(mapRef);
       const mapSketch = getSketch(mapRef);
       if (mapSketch?.manifest) await writeRecipe(`recipe/${mapRef}.json`, mapSketch.manifest);

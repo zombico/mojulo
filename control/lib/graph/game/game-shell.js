@@ -1572,6 +1572,8 @@ function renderSetup(lv, opts) {
   main.appendChild(bar);
   const launch = () => startLevel(variants[variantIdx].lv, pickers, difficulty);
   const leave = opts.back || (() => renderLevels());
+  // a map game's level with nothing to pick (a city's street, a door's inside) has no setup: it is entered, not fought
+  if (K.isMap(LEVELS) && !pickers.length && !mapPane && !diffCard) { launch(); return; }
   function showPickStep() {
     heading.textContent = title + ' — setup';
     pickPane.style.display = '';
