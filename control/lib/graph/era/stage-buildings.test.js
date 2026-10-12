@@ -121,3 +121,48 @@ describe('planned before anything grows', () => {
     }, 120_000);
   }
 });
+
+describe('a building whose scene changes at its door', () => {
+  const p = assembleStageScene({ ...TRAIL, buildings: [{ use: 'tavern', seed: 2, enter: 'door' }] });
+  const A = p.anchors.find((a) => a.kind === 'building');
+  it('stands as its outside, its door shut, solid; its door a zone on the threshold and a spawn on the land outside', () => {
+    expect(A).toMatchObject({ enter: 'door', use: 'tavern', inside: { use: 'tavern', seed: 2 } });
+    expect(A.door).toMatchObject({ id: 'tavern-1' });
+    expect(p.faces.some((f) => f.group === 'building:door')).toBe(true);
+    expect(p.faces.some((f) => f.group === 'stage:floor')).toBe(false);   // no inside here: it is a level of its own
+    // the spawn stands out from the door, the way it faces: facing out
+    const out = [A.door.spawn[0] - A.at[0], A.door.spawn[1] - A.at[1]];
+    expect(out[0] * A.N[0] + out[1] * A.N[1]).toBeGreaterThan(2);
+    expect(Math.cos(A.door.heading) * A.N[0] + Math.sin(A.door.heading) * A.N[1]).toBeCloseTo(1, 5);
+    // shut: a collider stands where the door is
+    expect(p.colliders.some((c) => c.of === 'tavern-1:shut' && A.at[0] >= c.min[0] - 0.3 && A.at[0] <= c.max[0] + 0.3 && A.at[1] >= c.min[1] - 0.3 && A.at[1] <= c.max[1] + 0.3)).toBe(true);
+  });
+  it("a town's households change the scene at their doors; its hall is walked into", () => {
+    const t = assembleStageScene({ ...TRAIL, town: { houses: 3, enter: 3 } });
+    expect(t.buildings.map((b) => [b.use, b.enter ?? 'walk'])).toEqual([['hall', 'walk'], ['shop', 'door'], ['shop', 'door']]);
+    expect(t.anchors.filter((a) => a.kind === 'house' && a.door).length).toBe(2);
+  });
+});
+
+describe('a building on storeys', () => {
+  it('a tower walked into stands three storeys: its rooms at their floors, its goal up at the lookout, its walls up every storey', () => {
+    const p = assembleStageScene({ ...TRAIL, buildings: [{ use: 'tower', goal: true }] });
+    const T = p.anchors.find((a) => a.kind === 'building');
+    expect(T).toMatchObject({ use: 'tower', storeys: 3, goal: 'lookout', isGoal: true });
+    const at = (id) => T.rooms.find((r) => r.id === id).box.min[2] - T.floor;
+    expect([at('base'), at('landing'), at('lookout')].map((z) => Math.round(z * 100) / 100)).toEqual([0, 4.5, 9]);
+    expect(T.goalAt[2] - T.floor).toBeCloseTo(9, 5);
+    // the outside rises over the top storey's rooms; the stairs' colliders join the stage's
+    const top = Math.max(...p.faces.filter((f) => f.group === 'building:wall').flatMap((f) => f.corners.map((c) => c[2])));
+    expect(top - T.floor).toBeGreaterThan(9 + 4);
+    expect(p.colliders.some((c) => c.of.startsWith('tower-1:stair:'))).toBe(true);
+  }, 120_000);
+
+  it('a tower entered by its door stands its outside as tall, shut to its top', () => {
+    const p = assembleStageScene({ ...TRAIL, buildings: [{ use: 'tower', enter: 'door' }] });
+    const shut = p.colliders.filter((c) => c.of === 'tower-1:shut'), F = p.anchors.find((a) => a.kind === 'building').floor;
+    const top = Math.max(...p.faces.filter((f) => /^building:(wall|roof)$/.test(f.group)).flatMap((f) => f.corners.map((c) => c[2])));
+    expect(top - F).toBeGreaterThan(13);
+    expect(Math.min(...shut.map((c) => c.max[2]))).toBeGreaterThanOrEqual(top - 1e-6);
+  }, 120_000);
+});

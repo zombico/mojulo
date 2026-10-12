@@ -59,7 +59,9 @@ export function buildRulesBasic(E) {
     // `collideRadius`: the walker stops at the world's colliders and slides along them (a level's walls), its body
     // `collideHeight` tall from its feet, stepping onto anything `step` high. Absent ⇒ it walks through, as before.
     if (r.collideRadius > 0 && world && world.colliders) E.resolveBlocking(t.pos, t.pos[2] - (r.eye ?? 0), r.collideHeight ?? (r.eye ?? 1.7), r.collideRadius, world.colliders, r.step ?? 0.35);
-    const ground = world && world.ground ? world.ground(t.pos) : null;   // renderer hook (raycast)
+    // `probe`: the ground is looked for from that high over the feet, not from the eye: a stair's treads are stepped
+    // up, a bench, a shelf or the floor of the storey above are not stood on. Absent ⇒ from the eye, as before.
+    const ground = world && world.ground ? world.ground(r.probe > 0 ? [t.pos[0], t.pos[1], t.pos[2] - (r.eye ?? 0) + r.probe] : t.pos) : null;   // renderer hook (raycast)
     if (ground != null) t.pos[2] = ground + (r.eye ?? 0);
     const dist = Math.hypot(moveF, moveS);
     e.gaitPhase = ((e.gaitPhase || 0) + (moveF < 0 ? -dist : dist) / stride);

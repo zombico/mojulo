@@ -48,7 +48,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -399,7 +399,9 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
 // ---- the store kernel, generated reducers included (single source of truth) ----
 const K = (${buildGameStoreKernel.toString()})();
 const MANIFEST = ${JSON.stringify(manifest)};
-const LEVELS = ${JSON.stringify(levelTable)};
+const LEVELS = ${JSON.stringify(levelTable)};${manifest.links && manifest.links.length ? `
+// DOOR LINKS (game-manifest.js links): a door end of one level → the level and door it opens into, both ways
+const LINKS = ${JSON.stringify(manifest.links.reduce((m, lk) => { (m[lk.from.ref] = m[lk.from.ref] || {})[lk.from.door] = lk.to; (m[lk.to.ref] = m[lk.to.ref] || {})[lk.to.door] = lk.from; return m; }, {}))};` : ''}
 const MENU = ${JSON.stringify(menu)};   // resolved menu entries (Start → Menu frame) or null
 const LEVELS_ENTRY = MENU && MENU.find((en) => en.kind === 'levels');
 const LEVEL_BY_REF = {};   // ref → level entry, so a menu 'mode' resolves its variant refs to launchable levels
@@ -1583,8 +1585,10 @@ function renderSetup(lv, opts) {
   showPickStep();
 }
 
-function startLevel(lv, pickers, difficulty) {
-  const params = {};
+function startLevel(lv, pickers, difficulty, carry) {
+  // carry: the params a door brings in (the session's, and the door it enters by), in place of the pickers'
+  const params = carry ? carry : {};
+  if (carry) pickers = [];
   // the difficulty pick rides beside the slice params as a plain string — the level's params
   // seam maps it to the engine tuning tier; a level that never looks stays byte-identical.
   if (difficulty) params.difficulty = difficulty;
@@ -1649,7 +1653,22 @@ window.addEventListener('message', (e) => {
       battleTimer = setTimeout(() => { battleReady = true; if (screen === 'level') syncMusic(); }, 5000);
     }
   }
-  if (d.moj === ${JSON.stringify(MSG_OUTCOME)}) {
+${manifest.links && manifest.links.length ? `  if (d.moj === ${JSON.stringify(MSG_DOOR)}) {
+    // a door crossed: apply what the session gathered, then load the level it opens into, entered by its door
+    const r = K.applyTransit(SCHEMA, state, session.level.contract, d.envelope);
+    if (!r.ok) { toast('door refused (store untouched): ' + r.errors.join('; '), true); return; }
+    state = r.state;
+    if ((d.envelope.events || []).length) runLog.push(d.envelope);
+    persist();
+    const to = (LINKS[session.level.ref] || {})[d.door], lv = to && LEVELS.find((l) => l.ref === to.ref);
+    if (!lv) { toast('the door ' + d.door + ' leads nowhere', true); return; }
+    if (!K.evalGate(SCHEMA, state, lv.gate)) { toast(lv.title + ' is locked', true); return; }
+    const carry = JSON.parse(JSON.stringify(session.params || {}));
+    carry.__entry = { door: to.door, from: session.level.ref };
+    startLevel(lv, [], carry.difficulty, carry);
+    return;
+  }
+` : ''}  if (d.moj === ${JSON.stringify(MSG_OUTCOME)}) {
     const r = K.applyOutcome(SCHEMA, state, session.level.contract, d.envelope);
     if (!r.ok) { toast('outcome rejected (store untouched): ' + r.errors.join('; '), true); return; }
     state = r.state;

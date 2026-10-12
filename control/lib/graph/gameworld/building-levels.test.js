@@ -57,6 +57,17 @@ describe('the runner makes it', () => {
     expect(h.game.levelRef).toBe('lv_inn');
   });
 
+  it('a tower is played up its storeys: the goal at the lookout\'s floor, the walker looking for ground over its feet', () => {
+    const W = withInn(MEADOWMARK, { use: 'tower', seed: 1 }), G = readGameworld(W);
+    const st = gameStages(W).find((s) => s.level === 'the-inn');
+    const o = stageLevelOrder(G, st, { ref: 'lv_tower' });
+    const lowered = withBuildingLevel(o.args.manifest, 'lv_tower');
+    expect(lowered.game.mechanics[0].at[2]).toBeGreaterThan(8);
+    expect(lowered.entities[0].rule.probe).toBeGreaterThan(0);
+    // a quick goal's beats stand at their rooms' floors: the guard room up a storey
+    expect(o.ends.beats.find((b) => b.beat === 'guard').at[2]).toBeGreaterThan(3.5);
+  });
+
   it("in the run: the inn a level step the hero pilots; a building by ref no step, its ref the game's level", () => {
     const S = runSteps(withInn(MEADOWMARK_HERO), { ref: 'gw' });
     const inn = S.find((s) => s.key === 'level-the-inn-0');
@@ -115,4 +126,23 @@ describe("the town's street, on a walk level", () => {
     expect(() => readGameworld(withStreet({ houses: 40 }))).toThrow(/1 to 12/);
     expect(() => readGameworld(withStreet({ lanes: 2 }))).toThrow(/not a street setting/);
   });
+});
+
+describe('a building whose scene changes at its door, on a walk level', () => {
+  const ML = MEADOWMARK.levels['meadow-ascent'];
+  const W = { ...MEADOWMARK_HERO, levels: { ...MEADOWMARK_HERO.levels, 'meadow-ascent': { ...ML, places: { ...ML.places, buildings: [{ use: 'tavern', seed: 2, enter: 'door' }] } } } };
+  it('its inside is a level of its own after the level\'s stages, entered by the door; the game links them, ungated', () => {
+    const S = gameStages(W).filter((s) => s.level === 'meadow-ascent');
+    const inn = S.find((s) => s.section === 'interior');
+    expect(inn).toMatchObject({ node: 'trailhead-tavern-1', outside: { node: 'trailhead', door: 'tavern-1' }, manifest: { kind: 'stage', program: { use: 'tavern' }, level: { door: 'out' } } });
+    expect(inn.index).toBe(S.filter((s) => s.section !== 'interior').length);
+    const steps = runSteps(W, { ref: 'gw' }), game = steps.at(-1).order;
+    expect(game.links).toEqual([{ from: { ref: 'gw-level-meadow-ascent-0', door: 'tavern-1' }, to: { ref: `gw-level-meadow-ascent-${inn.index}`, door: 'out' } }]);
+    const innLevel = game.levels.find((l) => l.ref === `gw-level-meadow-ascent-${inn.index}`);
+    expect(innLevel.gate).toBeUndefined();
+    // the outside's level carries the door mechanic
+    const out = steps.find((s) => s.key === 'level-meadow-ascent-0').order.manifest.game.mechanics;
+    expect(out.find((x) => x.kind === 'door')).toMatchObject({ id: 'tavern-1' });
+    expect(() => readGameworld({ ...W, levels: { ...W.levels, 'meadow-ascent': { ...ML, places: { buildings: [{ use: 'tavern', enter: 'teleport' }] } } } })).toThrow(/'walk'.*'door'/);
+  }, 120_000);
 });

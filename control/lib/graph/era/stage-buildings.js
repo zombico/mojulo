@@ -104,17 +104,22 @@ const paintRaw = (kitId) => paintFor(kitId);
  * standing as the town draws them.
  */
 const USE_ORDER = ['hall', 'shop', 'workshop', 'tower', 'barn', 'dwelling'];
+const DOOR_USES = new Set(['dwelling', 'shop', 'tavern', 'keep', 'temple', 'crypt', 'guardhouse', 'library', 'lab']);
 const RING_ORDER = { near: 0, mid: 1, far: 2 };
 function townStreet(town, kitId, seed0) {
   if (!town || typeof town !== 'object') throw new Error('stage: town is { anchor?, seed?, houses?, enter?, goal?, recipe? }');
-  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'recipe'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, recipe)`);
+  for (const k of Object.keys(town)) if (!['anchor', 'seed', 'houses', 'enter', 'goal', 'doors', 'recipe'].includes(k)) throw new Error(`stage: town.${k} is not a setting (anchor, seed, houses, enter, goal, doors, recipe)`);
   const seed = town.seed ?? seed0 ?? 1, houses = town.houses ?? 6, enter = Math.min(town.enter ?? 1, houses);
   const T = designTown(structureStyle(kitId, seed), seed, { ...(town.recipe ?? {}), ...(town.anchor !== undefined ? { anchor: town.anchor } : {}) });
   const anchor = typeof town.anchor === 'string' ? town.anchor : STRUCTURE_RAILS[kitId]?.anchor ?? 'timber-hall';
   const lots = T.lots.map((l, k) => ({ l, k })).sort((a, b) => (b.l.focus ? 1 : 0) - (a.l.focus ? 1 : 0) || (RING_ORDER[a.l.ring] ?? 3) - (RING_ORDER[b.l.ring] ?? 3)
     || USE_ORDER.indexOf(a.l.use) - USE_ORDER.indexOf(b.l.use) || a.k - b.k).slice(0, houses);
+  // how each is entered: a household or a counter changes the scene at its door; a hall, a tower, a barn, a work floor
+  // is walked into as terrain (the recipe's `doors: false` walks into all of them)
   return lots.map(({ l }, n) => (n < enter
-    ? { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}) }
+    ? (town.doors !== false && DOOR_USES.has(l.use)
+      ? { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l, enter: 'door', seed: seed + n, civilization: anchor }
+      : { id: `town-${l.use}-${n + 1}`, use: l.use, seed: seed + n, civilization: anchor, ...(town.goal && n === 0 ? { goal: true } : {}) })
     : { id: `town-${l.use}-${n + 1}`, use: l.use, lot: l }));
 }
 
@@ -131,13 +136,18 @@ const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l
  */
 function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
   const out = [], t = wall / 2, rooms = plan.rooms;
+  // on storeys (storeys.js): each room's walls from its floor (the ground storey's from the plinth), a room with one
+  // over it walled up to the floor over it and flat-roofed there (hidden under it, or a terrace where it is not)
+  const S = rooms.some((r) => r.storey) ? planStage(plan) : null, at0 = (r) => (S ? S.rooms.find((q) => q.id === (r.id)).z0 : 0);
+  const sOf = (r) => r.storey ?? 0, under = (r) => !!S && S.flat.has(r.id);
   for (const r of rooms) {
-    const [x0, y0, x1, y1] = [r.x, r.y, r.x + r.w, r.y + r.d], top = Math.max(r.h, tops[r.id] ?? 0) + 0.35;
+    const zr = at0(r), base = sOf(r) ? zr : -below;
+    const [x0, y0, x1, y1] = [r.x, r.y, r.x + r.w, r.y + r.d], top = under(r) ? S.storeys[sOf(r) + 1].z0 : Math.max(zr + r.h, tops[r.id] ?? 0) + 0.35;
     for (const side of ['-y', '+x', '+y', '-x']) {
       const alongX = side.endsWith('y'), line = side === '-y' ? y0 : side === '+y' ? y1 : side === '-x' ? x0 : x1;
       const out0 = side.startsWith('+') ? t : -t, a0 = (alongX ? x0 : y0) - t, a1 = (alongX ? x1 : y1) + t;
-      // the spans of this side another room stands against
-      const covered = rooms.filter((q) => q !== r).map((q) => {
+      // the spans of this side another room (of its storey) stands against
+      const covered = rooms.filter((q) => q !== r && sOf(q) === sOf(r)).map((q) => {
         const qLine = side === '-y' ? q.y + q.d : side === '+y' ? q.y : side === '-x' ? q.x + q.w : q.x;
         if (Math.abs(qLine - line) > 1e-6) return null;
         const lo = alongX ? q.x : q.y, hi = alongX ? q.x + q.w : q.y + q.d;
@@ -154,14 +164,15 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
         // the face winds so its normal points out
         const face = (u0, u1, z0, z1) => { if (u1 - u0 < 1e-3 || z1 - z0 < 1e-3) return; const c = [at(u0, z0), at(u1, z0), at(u1, z1), at(u0, z1)], nn = unit(cross(sub3(c[1], c[0]), sub3(c[3], c[0]))); out.push({ corners: nn[0] * n[0] + nn[1] * n[1] < 0 ? c.reverse() : c, group: 'wall', n }); };
         let v = s0;
-        for (const w of W) { if (w.hi < s0 || w.lo > s1) continue; face(v, w.lo, -below, top); face(w.lo, w.hi, w.top, top); face(w.lo, w.hi, -below, 0); v = w.hi; }
-        face(v, s1, -below, top);
+        for (const w of W) { if (w.hi < s0 || w.lo > s1) continue; face(v, w.lo, base, top); face(w.lo, w.hi, w.top, top); face(w.lo, w.hi, base, 0); v = w.hi; }
+        face(v, s1, base, top);
       }
     }
     // the roof: a gable along the long side (a hip when the cap is hipped), flat for a flat cap, a pyramid for a dome
     const e = 0.45, X0 = x0 - t - e, X1 = x1 + t + e, Y0 = y0 - t - e, Y1 = y1 + t + e, along = r.w >= r.d;
-    const span = along ? Y1 - Y0 : X1 - X0, rise = cap === 'flat' ? 0 : Math.min(r.h, (span / 2) * Math.tan(((pitch ?? 40) * Math.PI) / 180));
+    const span = along ? Y1 - Y0 : X1 - X0, rise = cap === 'flat' || under(r) ? 0 : Math.min(r.h, (span / 2) * Math.tan(((pitch ?? 40) * Math.PI) / 180));
     const z0 = top, z1 = top + rise;
+    if (under(r)) { out.push({ corners: [[x0 - t, y0 - t, z0], [x1 + t, y0 - t, z0], [x1 + t, y1 + t, z0], [x0 - t, y1 + t, z0]], group: 'roof', n: [0, 0, 1] }); continue; }
     if (cap === 'flat' || rise < 0.05) { out.push({ corners: [[X0, Y0, z0], [X1, Y0, z0], [X1, Y1, z0], [X0, Y1, z0]], group: 'roof', n: [0, 0, 1] }); continue; }
     if (cap === 'dome' || cap === 'pyramid' || cap === 'cone' || cap === null) {
       const c = [(X0 + X1) / 2, (Y0 + Y1) / 2, z1];
@@ -180,6 +191,17 @@ function shellOf(plan, ways, wall, cap, pitch, below, tops = {}) {
     }
   }
   return out;
+}
+
+/**
+ * The door a building is entered by when the scene changes at it (`enter: 'door'`): its zone on the threshold
+ * outside, and where a walker coming back out stands (on the land a few steps out, facing away). `x` the door's
+ * middle and `y0` its wall's outer face, in plan (the front faces -y); `out` how far the stoop runs.
+ */
+function doorOf(id, x, y0, out, F, ground) {
+  const zone = F.toWorld([x, y0 - 0.7]), back = F.toWorld([x, y0 - out - 2.4]), [nx, ny] = F.rot([0, -1]), odd = F.q % 2 === 1;
+  const gz = (p) => ground(p[0], p[1]) ?? F.floor;
+  return { id, at: P3([zone[0], zone[1], F.floor]), half: odd ? [0.75, 1.4, 2] : [1.4, 0.75, 2], spawn: P3([back[0], back[1], gz(back)]), heading: r5(Math.atan2(ny, nx)) };
 }
 
 /**
@@ -292,8 +314,38 @@ export function withBuildings(payload, manifest, ctx = {}) {
       faces = [...faces, ...shellF, ...plinth];
       const top = Math.max(...lot.design.faces.flatMap((f) => f.corners.map((c) => c[2]))), B = F.boxes[0];
       colliders.push({ min: P3([B[0], B[1], floor - below0]), max: P3([B[2], B[3], floor + top]), of: `${id}:house` });
-      anchors.push({ id: `house-${id}`, kind: 'house', use: b.use, at: P3(Wl([doorPlan[0], doorPlan[1], 0])), N: P3((() => { const [nx, ny] = F.rot([0, -1]); return [nx, ny, 0]; })()), floor: r5(floor), box: { min: P3([B[0], B[1], floor]), max: P3([B[2], B[3], floor + top]) } });
-      seated.push({ id, use: b.use, house: true, floor: r5(floor) });
+      const door = b.enter === 'door' ? doorOf(id, doorPlan[0], 0, 0, F, ground) : null;
+      anchors.push({ id: `house-${id}`, kind: 'house', use: b.use, at: P3(Wl([doorPlan[0], doorPlan[1], 0])), N: P3((() => { const [nx, ny] = F.rot([0, -1]); return [nx, ny, 0]; })()), floor: r5(floor), box: { min: P3([B[0], B[1], floor]), max: P3([B[2], B[3], floor + top]) },
+        ...(door ? { enter: 'door', door, inside: { use: b.use, seed: b.seed ?? 1, civilization: anchor } } : {}) });
+      seated.push({ id, use: b.use, house: true, floor: r5(floor), ...(door ? { enter: 'door' } : {}) });
+      return;
+    }
+    if (b.enter === 'door') {
+      // the scene changes at its door: the outside only (walls, roofs, stoop), a door shut in the way in, solid; the
+      // inside is a level of its own (its program, entered by its door)
+      const waysD = planStage(inner).ways ?? [], belowD = Math.max(0.3, floor - Math.min(...zs) + 0.3);
+      const Wd = (p) => { const [x, y] = toWorld(p); return [x, y, p[2] + floor]; };
+      clearUnder(0.4);
+      const L0 = decompileAnchor(typeof anchor === 'string' ? ANCHOR_STRUCTURES[anchor] : anchor, typeof anchor === 'string' ? anchor : null);
+      const massD = L0.anchor.pieces.find((p) => p.role === 'mass') ?? {}, capD = L0.anchor.pieces.find((p) => p.role === 'cap') ?? null;
+      const lam = (nn) => Math.max(0, nn[0] * sun[0] + nn[1] * sun[1] + nn[2] * sun[2]);
+      const paintFace = (cs, group, grp, v) => { const nn = unit(cross(sub3(cs[1], cs[0]), sub3(cs[cs.length - 1], cs[0]))); return { ...quad(cs, group, paint(grp, Math.min(1, v * (0.55 + 0.45 * lam(nn))))), normal: P3(nn), outNormal: P3(nn) }; };
+      const shellD = shellOf(inner, waysD, 0.5, L0.vocab.cap, L0.proportions.pitch, belowD).map((sf) => paintFace(sf.corners.map(Wd), `building:${sf.group}`, sf.group === 'roof' ? (capD?.group ?? 'str:plaster') : (massD.group ?? 'str:plaster'), sf.group === 'roof' ? (capD?.value ?? 0.5) : (massD.value ?? 0.7)));
+      // the door, shut: a leaf filling the way in, set a hand's width inside the outer face
+      const wy = waysD[0], y = entry.y - t + 0.08, leaf = [[wy.lo, y, 0], [wy.hi, y, 0], [wy.hi, y, wy.top], [wy.lo, y, wy.top]].map(Wd);
+      const doorLeaf = { ...paintFace(leaf.slice().reverse(), 'building:door', 'str:timber', 0.35) };
+      const dropD = floor - (ground(...toWorld([doorPlan[0], doorPlan[1] - 0.6])) ?? floor), runD = Math.max(0.6, dropD * 2.5);
+      const stoopD = dropD > 0.05 ? (() => {
+        const a = wy.lo - 0.2, c = wy.hi + 0.2, y0 = entry.y - t, y1 = y0 - runD, zb = -dropD - 0.15;
+        return [[[a, y1, zb], [c, y1, zb], [c, y0, 0], [a, y0, 0]], [[a, y0, 0], [a, y1, zb], [a, y0, zb]], [[c, y1, zb], [c, y0, 0], [c, y0, zb]]].map((cs) => paintFace(cs.map(Wd), 'building:stoop', 'str:stone', 0.5));
+      })() : [];
+      faces = [...faces, ...shellD, doorLeaf, ...stoopD];
+      const tallD = Math.max(12, ...shellD.flatMap((f) => f.corners.map((c) => c[2] - floor)));
+      for (const B of F.boxes) colliders.push({ min: P3([B[0], B[1], floor - belowD]), max: P3([B[2], B[3], floor + tallD]), of: `${id}:shut` });
+      const door = doorOf(id, doorPlan[0], entry.y - t, dropD > 0.05 ? runD : 0, F, ground);
+      anchors.push({ id: `building-${id}`, kind: 'building', use: b.use, enter: 'door', language: L0.id, turn: q, at: P3(Wd([doorPlan[0], doorPlan[1], 0])), N: P3((() => { const [nx, ny] = rot([0, -1]); return [nx, ny, 0]; })()), floor: r5(floor),
+        door, inside: { use: b.use, seed: b.seed ?? 1, civilization: anchor, ...(b.kit ? { kit: b.kit } : {}), ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}) }, ...(b.goal ? { isGoal: true } : {}) });
+      seated.push({ id, use: b.use, enter: 'door', language: L0.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough, findings: inner._program.findings.map((f) => f.says) });
       return;
     }
     const P = assembleStageScene(inner, ctx), ways = planStage(inner).ways ?? [];
@@ -338,12 +390,14 @@ export function withBuildings(payload, manifest, ctx = {}) {
     const L2 = stageLevel(inner, { goal: goal?.id ?? 'deepest', from: entry.id });
     const lead = [[doorPlan[0], entry.y - (drop > 0.05 ? Math.max(0.6, drop * 2.5) : 0) - 1.5], [doorPlan[0], entry.y + 1.5]];
     const route = [...lead, ...L2.route].map((p) => P3(toWorld(p)));
-    const roomBox = (r) => { const a = W([r.x + t, r.y + t, 0]), c = W([r.x + r.w - t, r.y + r.d - t, r.h]); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), a[2]]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), c[2]]) }; };
+    // (on storeys, each room at its floor: storeys.js)
+    const PI = planStage(inner), zIn = (r) => PI.rooms.find((q) => q.id === r.id).z0 ?? 0;
+    const roomBox = (r) => { const a = W([r.x + t, r.y + t, zIn(r)]), c = W([r.x + r.w - t, r.y + r.d - t, zIn(r) + r.h]); return { min: P3([Math.min(a[0], c[0]), Math.min(a[1], c[1]), a[2]]), max: P3([Math.max(a[0], c[0]), Math.max(a[1], c[1]), c[2]]) }; };
     const anchorRec = {
       id: `building-${id}`, kind: 'building', use: b.use, enter: 'walk', language: L.id, turn: q,
       at: P3(W([doorPlan[0], doorPlan[1], 0])), N: P3(turnN([0, -1, 0])), floor: r5(floor),
-      entry: entry.id, goal: goal?.id ?? null, rooms: inner.rooms.map((r) => ({ id: r.id, box: roomBox(r) })),
-      route, goalAt: P3([...toWorld(L2.goal.at), floor]), ...(b.goal ? { isGoal: true } : {}),
+      entry: entry.id, goal: goal?.id ?? null, rooms: inner.rooms.map((r) => ({ id: r.id, box: roomBox(r), ...(r.storey ? { storey: r.storey } : {}) })),
+      route, goalAt: P3([...toWorld(L2.goal.at), floor + (L2.goal.at[2] ?? 0)]), ...(PI.storeys ? { storeys: PI.storeys.length } : {}), ...(b.goal ? { isGoal: true } : {}),
     };
     anchors.push(anchorRec);
     seated.push({ id, use: b.use, entry: entry.id, goal: goal?.id ?? null, language: L.id, floor: r5(floor), into: r5(Math.max(0, into)), rough: F.rough,

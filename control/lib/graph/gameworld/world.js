@@ -300,7 +300,7 @@ export function readGameworld(W) {
           // the town's street on the walk (era/stage-buildings.js): its first houses standing beside the trail
           const St = L.places.street;
           if (St !== true && !isObj(St)) throw new Error(`gameworld: ${at}.places.street is true or { houses?, enter?, goal? }`);
-          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal)`);
+          if (isObj(St)) for (const kk of Object.keys(St)) if (!['houses', 'enter', 'goal', 'doors'].includes(kk)) throw new Error(`gameworld: ${at}.places.street.${kk} is not a street setting (houses, enter, goal, doors)`);
           if (isObj(St) && St.houses !== undefined && !(Number.isInteger(St.houses) && St.houses >= 1 && St.houses <= 12)) throw new Error(`gameworld: ${at}.places.street.houses is 1 to 12`);
           if (isObj(St) && St.enter !== undefined && !(Number.isInteger(St.enter) && St.enter >= 0 && St.enter <= 4)) throw new Error(`gameworld: ${at}.places.street.enter is 0 to 4 (the houses walked into)`);
           if (!L.places.town) throw new Error(`gameworld: ${at}.places.street is the town's street: give the level its town (places.town)`);
@@ -312,7 +312,8 @@ export function readGameworld(W) {
           if (!Array.isArray(Bs) || !Bs.length) throw new Error(`gameworld: ${at}.places.buildings is [{ use, seed?, at?, node?, goal?, civilization?, kit? }], at least one`);
           Bs.forEach((b, i) => {
             if (!isObj(b) || !PROGRAM_IDS.includes(b.use)) throw new Error(`gameworld: ${at}.places.buildings[${i}].use is one of ${PROGRAM_IDS.join(', ')}`);
-            for (const kk of Object.keys(b)) if (!['use', 'seed', 'at', 'node', 'goal', 'civilization', 'kit', 'id', 'rooms', 'add'].includes(kk)) throw new Error(`gameworld: ${at}.places.buildings[${i}].${kk} is not a building setting`);
+            for (const kk of Object.keys(b)) if (!['use', 'seed', 'at', 'node', 'goal', 'enter', 'civilization', 'kit', 'id', 'rooms', 'add'].includes(kk)) throw new Error(`gameworld: ${at}.places.buildings[${i}].${kk} is not a building setting`);
+            if (b.enter !== undefined && !['walk', 'door'].includes(b.enter)) throw new Error(`gameworld: ${at}.places.buildings[${i}].enter is 'walk' (walked into as terrain) or 'door' (the scene changes at its door)`);
             if (b.node !== undefined && !L.walk?.nodes?.[b.node]) throw new Error(`gameworld: ${at}.places.buildings[${i}].node '${b.node}' is not a section of the walk`);
             if (b.civilization !== undefined) civ(b.civilization, `${at}.places.buildings[${i}].civilization`);
           });

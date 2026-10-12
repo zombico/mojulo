@@ -525,6 +525,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Each stands on the flattest land beside the trail, never on a beat of the trail or another building.
   - A level ending in a building is routed up the trail's beats to the one nearest its door, then round the houses
     to it.
+- **A building can change the scene at its door.** `enter: 'door'` stands a building's outside only (walls, roofs, a
+  stoop, its door shut), and its inside is a level of its own.
+  - **A door mechanic:** walking into its zone posts `game-door` with what the session gathered (result `transit`,
+    applied to the store). The game shell loads the level the game's new `links` pair it with, entered at the paired
+    door's spawn (`game-init` `params.__entry`).
+  - **Game links:** `create_game` takes `links: [{ from: { ref, door }, to: { ref, door } }]`, both ways, checked
+    against each level's doors.
+  - **An inside level:** a stage with `level: { door: 'out' }` gets a door in its way in's front wall, and you arrive a
+    few steps in.
+  - **In the game designer:** `places.buildings[].enter: 'door'` makes the inside a level after the walk's stages,
+    linked and ungated. On a street, households and shops change the scene at their doors.
+  - A game without links is unchanged.
 - **Buildings are planned before anything grows.** A stage's buildings and street are seated first, by a planning
   pass over the land alone. Their footprints come back to the open-ground builders (nature, isekai, jungle) as
   reserved ground, a crown's reach round each.
@@ -532,6 +544,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     giants are kept off it.
   - Nothing stands half in a wall or hangs its crown through a roof.
   - A stage without buildings lays exactly as before.
+- **Buildings have storeys.** A stage room's `storey` stands it over rooms of the storey below, and a link between
+  neighbouring storeys is a stair.
+  - **The floors:** a storey's floor is the tallest room it stands over, plus a half-metre slab. A room with a room
+    over it has a flat, beamed ceiling.
+  - **The stair:** a straight, steep flight (treads 0.3 m) laid in the lower room against a wall, clear of every
+    doorway. It is balustraded and climbs through a hole in the upper floor, railed on three sides. A stair that
+    finds no wall to climb along says how much floor it needs.
+  - **How it is built:** each storey is a stage of its own, dressed and lit by its own torches and lifted to its
+    floor. Its ids are tagged with the storey (`torch-1@1`), and only the storey the walk ends on holds the set piece.
+    The answer carries `storeys` and a `stair` anchor.
+  - **Programs:** the tower stands three storeys to its lookout, and the keep's solar and treasury are up a stair. A
+    room upstairs is its twin over a room below (`over`), and the plan plate draws each storey beside the one below.
+  - **The level:** the route climbs each stair and goes round the flights and rails. The goal stands on its storey,
+    and `goal: 'top'` is the deepest room on the highest storey.
+  - **The walk rule:** a new opt-in, `probe`, looks for ground that high over the feet instead of from the eye. A
+    storeyed level's walker climbs treads, never onto a bench or the floor above. The page's controllable runtime
+    gained it, so 13 emission pins were re-pinned.
+  - **In open ground:** a storeyed building's walls rise storey on storey (a door building's shell is shut to its
+    top), and its rooms, goal and the trail walker's probe follow.
+  - A stage without `storey` plans and builds as before.
 
 ### Solid powerscale: solids routed by what they are for
 

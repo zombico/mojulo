@@ -12,6 +12,10 @@ import { mintGame } from '@/lib/mcp/tools/create-game';
 import { createSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 import { gameStages, stageLevelOrder } from '@/lib/graph/gameworld/levels';
 import { readGameworld, MEADOWMARK } from '@/lib/graph/gameworld/index';
+import { gameLinks } from '@/lib/graph/gameworld/levels';
+import { resolveGame } from '@/lib/graph/game/game-resolve';
+import { emitGameShell } from '@/lib/graph/game/game-shell';
+import { withBuildingLevel } from '@/lib/graph/structure/level';
 
 beforeEach(() => closeDb());
 
@@ -50,6 +54,14 @@ describe('a building as a level', () => {
     expect(game.ok).toBe(true);
   }, 300_000);
 
+  it('a tower from its program, on storeys: promoted, its audit climbing two flights to the lookout', async () => {
+    await createSketchHandler({ title: 'Tower', ref: 'lv_tower', manifest: { kind: 'stage', geocube: 'gothic-night', title: 'Tower', program: { use: 'tower', seed: 1 }, level: {} } });
+    const game = await mintGame({ title: 'Up the tower', store: STORE, levels: [{ ref: 'lv_tower' }], ref: 'gm_tower', autoAudit: true });
+    expect(game.ok).toBe(true);
+    const g = withBuildingLevel(SketchRepository.getByRef('lv_tower').manifest, 'lv_tower');
+    expect(g.game.mechanics.find((m) => m.kind === 'reach-exit').at[2]).toBeGreaterThan(9);
+  }, 300_000);
+
   it('a tavern walked into off the meadow trail: the level ends in its cellar, the audit walking in at its door', async () => {
     const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], places: { ...MEADOWMARK.levels['meadow-ascent'].places, buildings: [{ use: 'tavern', seed: 2, goal: true }] } } } };
     const st = gameStages(W).find((s) => s.level === 'meadow-ascent' && s.manifest.buildings);
@@ -71,6 +83,26 @@ describe('a building as a level', () => {
     const game = await mintGame({ title: 'Into the hall', store: STORE, levels: [{ ref: 'lv_street' }], ref: 'gm_street', autoAudit: true });
     expect(game.ok).toBe(true);
   }, 300_000);
+
+  it('a tavern entered by its door: the meadow and its inside both promoted, linked both ways, the shell carrying the link', async () => {
+    const ML = MEADOWMARK.levels['meadow-ascent'];
+    const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...ML, places: { ...ML.places, buildings: [{ use: 'tavern', seed: 2, enter: 'door' }] } } } };
+    const S = gameStages(W).filter((s) => s.level === 'meadow-ascent' && (s.node === 'trailhead' || s.section === 'interior'));
+    const refs = S.map((s) => `lv_door_${s.index}`), G = readGameworld(W);
+    for (const [i, s] of S.entries()) await createSketchHandler({ ...stageLevelOrder(G, s, { ref: refs[i] }).args, ref: refs[i] });
+    const links = gameLinks(S, refs);
+    expect(links).toHaveLength(1);
+    const game = await mintGame({ title: 'The inn door', store: STORE, levels: refs.map((ref) => ({ ref })), links, ref: 'gm_door', autoAudit: true });
+    expect(game.ok).toBe(true);
+    const row = SketchRepository.getByRef('gm_door');
+    const R = resolveGame(row.manifest, (r) => SketchRepository.getByRef(r), (r) => `/levels/${r}`);
+    expect(R.levels.find((l) => l.ref === refs[1]).contract.doors[0]).toMatchObject({ id: 'out' });
+    const html = emitGameShell(R.manifest, R.levels);
+    expect(html).toContain('const LINKS = ');
+    expect(html).toContain('game-door');
+    // a link to a door a level does not have is refused at resolve
+    expect(() => resolveGame({ ...row.manifest, links: [{ from: { ref: refs[0], door: 'nope' }, to: { ref: refs[1], door: 'out' } }] }, (r) => SketchRepository.getByRef(r), (r) => r)).toThrow(/has no door 'nope'/);
+  }, 600_000);
 
   it('a building without `level` is still refused as a level, saying why', async () => {
     mintBuilding({ title: 'Plain', ref: 'lv_plain', manifest: { kind: 'office', title: 'Plain' } });

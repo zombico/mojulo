@@ -20,10 +20,11 @@
  */
 import { readGameworld, resolveLevel } from './world.js';
 import { layLevel } from '../level/index.js';
-import { assembleStageScene } from '../era/stage.js';
+import { assembleStageScene, planStage } from '../era/stage.js';
+import { withGeocube } from '../era/geocube.js';
 import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
-import { withBuildingLevel } from '../structure/level.js';
+import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 
@@ -44,8 +45,17 @@ export function gameStages(world) {
       const here = (R.buildings ?? []).filter((b) => home(b) === s.node).map(({ node: _n, ...b }) => b);
       // the town's street stands on the first trail
       const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
-      out.push({ level, node: s.node, section: s.section, index: i, manifest: here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest });
+      const manifest = here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest;
+      out.push({ level, node: s.node, section: s.section, index: i, manifest });
     });
+    // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
+    // linked by its door (the outside's `door` ↔ the inside's `out`)
+    let k = laid.stages.length;
+    for (const st of out.filter((x) => x.level === level && (x.manifest?.buildings || x.manifest?.town))) {
+      for (const d of stageEnds(st.manifest).doors ?? []) {
+        out.push({ level, node: `${st.node}-${d.id}`, section: 'interior', index: k++, outside: { node: st.node, index: st.index, door: d.id }, building: { use: d.inside.use }, manifest: interiorStage(d.inside) });
+      }
+    }
   }
   return out;
 }
@@ -105,7 +115,10 @@ function readEnds(manifest) {
   const beats = beat ? anchors.filter((a) => a.kind === 'beat' && a.trail === own && Number.isFinite(a.s)).sort((a, b) => a.s - b.s).map((a) => ({ beat: a.beat, at: a.at.map(r3) })) : [];
   const hazards = anchors.filter((a) => a.kind === 'hazard' && Array.isArray(a.at) && (!own || a.trail === own)).map((a) => ({ id: a.id, at: a.at.map(r3) }));
   // a climb's top is reached by climbing, so its zone is a volume: standing beneath the top is not reaching it
-  return { spawn, heading, exit, exitFrom, planar: !!beat && !holds, beats, hazards, ...(via ? { via } : {}) };
+  // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
+  const doors = anchors.filter((a) => a.door && a.enter === 'door').map((a) => ({ ...a.door, inside: a.inside }));
+  const storeyed = anchors.some((a) => a.kind === 'building' && a.storeys);
+  return { spawn, heading, exit, exitFrom, planar: !!beat && !holds, beats, hazards, ...(via ? { via } : {}), ...(doors.length ? { doors } : {}), ...(storeyed ? { storeyed } : {}) };
 }
 
 /**
@@ -114,11 +127,12 @@ function readEnds(manifest) {
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
 export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal } = {}) {
-  if (stage.section === 'building') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal });
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   const controls = `W / S  ${heroRef ? 'run' : 'walk'} · A / D  turn${heroRef ? ' · Space  jump' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const game = { levelRef: ref, mechanics: goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }], fall: { mode: 'respawn' } };
+  const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
+  const game = { levelRef: ref, mechanics: [...doorMechs, ...(goal ? goal(ends) : [{ kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) }])], fall: { mode: 'respawn' } };
   let pilotPart;
   if (heroRef) {
     const P = playerWorld({ heroRef, id: 'hero', title: name, controls });
@@ -129,7 +143,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     // walls of the stage's buildings stop, when it has any)
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls });   // for its legend only: no figure is kept
     pilotPart = {
-      entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(stage.manifest.buildings ? { collideRadius: 0.3 } : {}) }, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
+      // (a building on storeys: it looks for its ground over its feet, so it climbs the treads, never onto the floor above)
+      entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 2.4, eye: EYE_FALLBACK, ...(stage.manifest.buildings ? { collideRadius: 0.3 } : {}), ...(ends.storeyed ? { probe: PROBE } : {}) }, body: { type: 'none' }, transform: { pos: [ends.spawn[0], ends.spawn[1], ends.spawn[2] + EYE_FALLBACK], heading: ends.heading } }],
       camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2 },
       events: P.events || {},
     };
@@ -155,7 +170,29 @@ export function gameStore(world, book) {
 /** The create_game `levels` list: the stages' level refs in walking order, each after the first unlocked by the one
  * before it (`refs` in the order of gameStages). */
 export function gameLevels(stages, refs) {
-  return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(i > 0 ? { gate: { completed: refs[i - 1] } } : {}) }));
+  // an inside is entered by its door, never gated; the walk's stages unlock each other in order, skipping insides
+  const prev = (i) => { for (let j = i - 1; j >= 0; j--) if (stages[j].section !== 'interior') return j; return -1; };
+  return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(s.section !== 'interior' && prev(i) >= 0 ? { gate: { completed: refs[prev(i)] } } : {}) }));
+}
+
+/** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which
+ *  leads back out) to its goal room. */
+export function interiorStage(inside) {
+  const anchor = typeof inside.civilization === 'string' ? inside.civilization : undefined;
+  return {
+    kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
+    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
+    level: { door: 'out' },
+  };
+}
+
+/** The game's door links: each inside's `out` paired with its building's door on the stage outside. */
+export function gameLinks(stages, refs) {
+  return stages.flatMap((s, i) => {
+    if (s.section !== 'interior') return [];
+    const o = stages.findIndex((x) => x.level === s.level && x.index === s.outside.index);
+    return o < 0 ? [] : [{ from: { ref: refs[o], door: s.outside.door }, to: { ref: refs[i], door: 'out' } }];
+  });
 }
 
 /** The room kit a building is laid in when it names none: a lab's for a shell language, else the stone. */
@@ -184,8 +221,10 @@ function buildingLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, g
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
   const spawn = [walker.transform.pos[0], walker.transform.pos[1], r3(walker.transform.pos[2] - eye)], heading = walker.transform.heading;
   // the rooms between the way in and the goal stand in for a trail's beats: a quick goal's pickups lie in them
-  const plan = withProgram(stage.manifest), beats = plan.rooms.filter((r) => r.id !== plan._program.entry && r.id !== plan._program.goal)
-    .map((r) => ({ beat: r.id, at: [r.x + r.w / 2, r.y + r.d / 2, 0] }));
+  // (on storeys, each at its room's floor)
+  const plan = withProgram(stage.manifest), floors = plan.rooms.some((r) => r.storey) ? new Map(planStage(plan.geocube !== undefined ? withGeocube(plan) : plan).rooms.map((r) => [r.id, r.z0])) : null;
+  const beats = plan.rooms.filter((r) => r.id !== plan._program.entry && r.id !== plan._program.goal)
+    .map((r) => ({ beat: r.id, at: [r.x + r.w / 2, r.y + r.d / 2, floors ? floors.get(r.id) : 0] }));
   const ends = { spawn, heading, exit: lowered.game.mechanics.at(-1).at, exitFrom: `the ${stage.building.use}'s goal room`, beats, planar: false };
   // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
   if (goal) {

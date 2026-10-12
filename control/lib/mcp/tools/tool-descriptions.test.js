@@ -348,7 +348,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-11 (203_000 -> 203_300; measured 203,145) for buildings as game levels: mint_building names the
 // office kind and `level: { goal }` (any building played as a level), create_game's levels say a building with
 // `level` is one. No new tool.
-const PAYLOAD_CEILING = 203_300;
+// Re-pinned 2026-10-12 (203_300 -> 203_500; measured 203,368) for game buildings' doors: create_game takes `links`,
+// door links between levels (a building whose scene changes at its door). No new tool.
+const PAYLOAD_CEILING = 203_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -42,6 +42,11 @@ export const RESULTS = ['success', 'fail', 'abort'];
 export const MSG_READY = 'game-ready';
 export const MSG_INIT = 'game-init';
 export const MSG_OUTCOME = 'game-outcome';
+// a DOOR crossed (non-terminal): the level leaves through one of its door ends, carrying what its session has
+// gathered so far (an envelope whose result is 'transit'); the shell applies it, then loads the level the door
+// links to, entered at the door it pairs with (game-init params.__entry: { door }).
+//   level → shell  { moj: MSG_DOOR, levelRef, door, envelope }
+export const MSG_DOOR = 'game-door';
 // presentation-only sidecars (unversioned, safe to ignore):
 //   shell → level  { moj: MSG_AUDIO, on, volume }        — settings panel audio prefs → beats channel
 //   shell → level  { moj: MSG_PAUSE, on }                — pause menu freezes / resumes the sim
@@ -118,13 +123,20 @@ export function validateLevelContract(game, schema) {
     }
   }
 
+  // the level's door ends (the `door` mechanic): where each is, and where a walker entering by it stands
+  if (game.doors !== undefined) {
+    if (!Array.isArray(game.doors)) errors.push('game.doors must be [{ id, at, spawn, heading }]');
+    else game.doors.forEach((d, i) => { if (!d || typeof d.id !== 'string' || !Array.isArray(d.spawn)) errors.push(`game.doors[${i}] must be { id, at, spawn: [x, y, z], heading }`); });
+  }
+
   if (game.on !== undefined) {
     if (!game.on || typeof game.on !== 'object' || Array.isArray(game.on)) errors.push('game.on must be { "<busEventPattern>": { emit: <typed event> } | { end: result } }');
     else for (const [pat, action] of Object.entries(game.on)) {
       const where = `game.on["${pat}"]`;
       if (!action || typeof action !== 'object') { errors.push(`${where} must be { emit } or { end }`); continue; }
-      const keys = ['emit', 'end'].filter((k) => action[k] !== undefined);
-      if (keys.length !== 1) { errors.push(`${where} needs exactly one of emit | end`); continue; }
+      const keys = ['emit', 'end', 'door'].filter((k) => action[k] !== undefined);
+      if (keys.length !== 1) { errors.push(`${where} needs exactly one of emit | end | door`); continue; }
+      if (action.door !== undefined && !(Array.isArray(game.doors) && game.doors.some((d) => d && d.id === action.door))) errors.push(`${where}.door '${action.door}' names no door in game.doors`);
       if (action.end !== undefined && !RESULTS.includes(action.end)) errors.push(`${where}.end must be one of: ${RESULTS.join(', ')}`);
       if (action.emit !== undefined) {
         // an emitted event must itself be allowed by produces — check the pair here so the

@@ -57,6 +57,7 @@ import { stageRooms, doorwayAnchors, nodeBounds, roomAt, stageColliders } from '
 import { readTone, drainFaces, tonePageSpec, exposureOf } from './tone.js';
 import { readInterceptors, intercept } from './interceptors.js';
 import { normalizeJets } from '../materials/jet.js';
+import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
@@ -338,20 +339,34 @@ export function planStage(m = {}) {
   // (a factor), dust in the air (0–1, channels/motes.js), the torches' flicker pace (fire.js `pace`)
   const At = { ...(kit.atmosphere || {}), ...(m.atmosphere && typeof m.atmosphere === 'object' ? m.atmosphere : {}) };
   for (const [k, lo, hi] of [['fog', 0.3, 3], ['dust', 0, 1], ['flicker', 0.2, 2]]) if (At[k] !== undefined && !(typeof At[k] === 'number' && At[k] >= lo && At[k] <= hi)) throw new Error(`stage: atmosphere.${k} is a number from ${lo} to ${hi}`);
+  // STOREYS (`rooms[].storey`, storeys.js): rooms stacked over the storey below, a link across two storeys a stair
+  const storeyed = m.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0);
+  if (storeyed && kit.shell === 'plaza') throw new Error(`stage: kit '${kitId}' is open to the sky; storeys stand in a room kit with ceilings`);
+  const flatIds = new Set(m._storey ? m._storey.flat : []);
   const rooms = m.rooms.map((r, i) => {
     const id = r.id ?? `r${i}`;
     if (byId.has(id)) throw new Error(`stage: duplicate room id '${id}'`);
+    if (r.storey !== undefined && !(Number.isInteger(r.storey) && r.storey >= 0 && r.storey <= 6)) throw new Error(`stage: room '${id}' storey is a whole number from 0 (the ground) to 6`);
     for (const k of ['x', 'y', 'w', 'd', 'h']) if (!Number.isFinite(r[k])) throw new Error(`stage: room '${id}' needs a numeric ${k}`);
     for (const k of ['x', 'y', 'w', 'd']) if (!onGrid(r[k], g)) throw new Error(`stage: room '${id}' ${k}=${r[k]} is off the ${g} m grid`);
     if (r.w < 2 * g || r.d < 2 * g || r.h < 2.5) throw new Error(`stage: room '${id}' is too small (w, d ≥ ${2 * g} m, h ≥ 2.5 m)`);
     const t = kit.wall / 2;   // the interior: the box inset by half a wall
     // `open`: sides left out (a stage SET seen from the open side while iterating — no third or fourth wall)
     const open = Array.isArray(r.open) ? r.open.filter((s) => ['-x', '+x', '-y', '+y'].includes(s)) : [];
-    const room = { id, box: [r.x, r.y, r.x + r.w, r.y + r.d], x0: r.x + t, y0: r.y + t, x1: r.x + r.w - t, y1: r.y + r.d - t, h: lift === 1 ? r.h : Math.round(r.h * lift * 2) / 2, open, openings: { '-x': [], '+x': [], '-y': [], '+y': [] } };
+    const room = { id, box: [r.x, r.y, r.x + r.w, r.y + r.d], x0: r.x + t, y0: r.y + t, x1: r.x + r.w - t, y1: r.y + r.d - t, h: lift === 1 ? r.h : Math.round(r.h * lift * 2) / 2, open, openings: { '-x': [], '+x': [], '-y': [], '+y': [] },
+      ...(storeyed ? { storey: r.storey ?? 0 } : {}), ...(flatIds.has(id) ? { flat: true } : {}) };
     byId.set(id, room);
     return room;
   });
-  const links = (m.links || []).map((l) => {
+  const St = storeyed ? readStoreys(rooms) : null, stairLinks = [];
+  const links = (m.links || []).filter((l) => {
+    if (!storeyed) return true;
+    const a = byId.get(l.from), b = byId.get(l.to);
+    if (!a || !b || a.storey === b.storey) return true;
+    if (Math.abs(a.storey - b.storey) !== 1) throw new Error(`stage: link ${l.from} → ${l.to} joins storeys ${a.storey} and ${b.storey}; a stair climbs one storey`);
+    stairLinks.push(l);
+    return false;
+  }).map((l) => {
     const a = byId.get(l.from), b = byId.get(l.to);
     if (!a || !b) throw new Error(`stage: link ${l.from} → ${l.to} names an unknown room`);
     const width = l.width ?? kit.door.width, height = Math.min(l.height ?? kit.door.height, a.h - 0.5, b.h - 0.5);
@@ -373,6 +388,7 @@ export function planStage(m = {}) {
   const ways = (m.ways || []).map((w) => {
     const r = byId.get(w.room);
     if (!r) throw new Error(`stage: way out of '${w.room}', which is not a room`);
+    if (r.storey) throw new Error(`stage: way out of '${w.room}', which stands on storey ${r.storey}; a way out leaves the ground storey`);
     if (!['-x', '+x', '-y', '+y'].includes(w.side)) throw new Error(`stage: way out of '${w.room}' needs side, one of -x +x -y +y`);
     const width = w.width ?? kit.door.width, height = Math.min(w.height ?? kit.door.height, r.h - 0.5), alongX = w.side.endsWith('y');
     const lo0 = alongX ? r.x0 : r.y0, hi0 = alongX ? r.x1 : r.y1, mid = Math.round((lo0 + hi0) / 2 / g) * g;
@@ -383,6 +399,7 @@ export function planStage(m = {}) {
     return { room: r.id, side: w.side, at, ...op };
   });
   for (const r of rooms) for (const k of Object.keys(r.openings)) r.openings[k].sort((p, q) => p.lo - q.lo);
+  const stairs = storeyed ? placeStairs(rooms, stairLinks, links, ways, kit) : null;
   const first = rooms[0];
   // `time: 'night'`: the style card's night takes the reference's light and air; its moon is the key (the bake's sun)
   const time = m.time ?? 'day';
@@ -400,7 +417,8 @@ export function planStage(m = {}) {
     const amb = rgbHex(hexRgb(nightRef.light.ambient).map((v, i) => v * (1 - Dd.dim * b) + Dd.tint[i] * 0.04 * b));
     return { ...nightRef, light: { ...nightRef.light, ambient: amb }, air: { ...nightRef.air, fog: { color: Dd.fog, density: r5(nightRef.air.fog.density * (1 + Dd.thicken * Math.max(a, b))) } } };
   })() : nightRef;
-  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}) };
+  return { kit: nightKit, kitId, ref: dRef, refId, rooms, links, ...(ways.length ? { ways } : {}), spawn: [(first.x0 + first.x1) / 2, first.y0 + 1.5, 0], lights: m.lights ?? 'auto', ...(N ? { night: N } : {}), ...(decay ? { decay } : {}), ...(Object.keys(At).length ? { atmosphere: At } : {}), ...(tone ? { tone } : {}), ...(icp ? { intercept: icp } : {}), ...(shadows ? { shadows } : {}),
+    ...(St ? { storeys: St.z0s.map((z0, index) => ({ index, z0 })), flat: St.flat, stairs } : {}), ...(m._storey ? { cuts: m._storey } : {}) };
 }
 const SHADOWS = { torch: 'off', sun: 0, cells: null };
 function readShadows(v) {
@@ -526,7 +544,11 @@ export function buildStageGeometry(plan) {
       });
       return;
     }
-    if (nave) {
+    if (r.flat) {
+      // a room with a room over it: a flat ceiling on its beams (a vault would rise through the floor above)
+      const cs = surf('ceiling', ri);
+      panel(out, [r.x0, r.y0, h], [1, 0, 0], w, [0, 1, 0], d, [0, 0, -1], cs, cs.cell);
+    } else if (nave) {
       const alongY = d >= w, ends = (alongY ? ['-y', '+y'] : ['-x', '+x']).filter((e) => !r.open.includes(e));
       const cs = surf('ceiling', ri);
       naveVault(out, r, { ...kit.vault, bay: kit.bay, ends }, { ceiling: kit.dress ? { ...cs, ...kit.dress.vault } : cs, trim: surf('trim'), wall: surf('wall', ri * 4) });
@@ -618,7 +640,7 @@ export function buildStageGeometry(plan) {
       }
     });
     // ribs across the short span at each bay (a nave's ribs ride its vault)
-    const alongX = w >= d, span = alongX ? w : d, nRib = nave || (kit.arch && kit.arch.vault) ? 0 : Math.max(1, Math.round(span / kit.bay));
+    const alongX = w >= d, span = alongX ? w : d, nRib = (nave || (kit.arch && kit.arch.vault)) && !r.flat ? 0 : Math.max(1, Math.round(span / kit.bay));
     for (let k = 1; k < nRib; k++) {
       const c = (alongX ? r.x0 : r.y0) + (span * k) / nRib, half = kit.rib.w / 2;
       const mn = alongX ? [c - half, r.y0, h - kit.rib.drop] : [r.x0, c - half, h - kit.rib.drop];
@@ -640,7 +662,12 @@ export function buildStageGeometry(plan) {
     else panel(out, pt(l.lo, base, l.top), S, l.hi - l.lo, A, 2 * t, [0, 0, -1], trim, cell);
     panel(out, pt(l.lo, base, 0), S, l.hi - l.lo, A, 2 * t, [0, 0, 1], trim, cell);   // the sill: one dressed stone
   }
-  return { faces: out, seats, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}) };
+  // a storey's stairs (storeys.js): its ground cut round its flights and holes, the flights, wells and rails laid in
+  const faces = plan.cuts ? storeyCut(out, plan.cuts) : out;
+  if (plan.cuts) stairFaces(faces, plan.cuts, surf, (id) => plan.rooms.find((q) => q.id === id).h);
+  // (no torch on the wall a flight climbs along: its iron would stand in the way up)
+  const lit = plan.cuts ? seats.filter((l) => !plan.cuts.flights.some((x) => l.at[0] > x.rect[0] - 0.6 && l.at[0] < x.rect[2] + 0.6 && l.at[1] > x.rect[1] - 0.6 && l.at[1] < x.rect[3] + 0.6)) : seats;
+  return { faces, seats: lit, drains, bays: dressBays, columns, houses, pilasters, ...(labs.length ? { labs } : {}) };
 }
 
 // ── rubble: pooled low-detail rocks fallen into the gutter, in small clusters ─────
@@ -828,6 +855,8 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (kit && kit.shell === 'jungle') return seat((m) => assembleJungleScene({ style: kit.style, ...m }, ctx));
   if (kit && kit.shell === 'isekai') return seat((m) => assembleIsekaiScene({ style: kit.style, ...m }, ctx));
   if (manifest.buildings !== undefined || manifest.town !== undefined) throw new Error(`stage: buildings and a town's street stand on open ground; kit '${manifest.kit}' is a room kit (its rooms are the building)`);
+  // a stage on storeys (storeys.js): each storey built as a stage of its own and lifted to its floor
+  if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   const plan = planStage(manifest);
   const geom = buildStageGeometry(plan), { seats, drains } = geom;
   // a face with no tile (the portal's iron) carries its tint only
@@ -846,7 +875,15 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     const b = dress && dress.anchors ? nodeBounds(dress.faces) : {};
     return intercept(plan, geom, dress && dress.anchors ? dress.anchors.filter((a) => a.solid && a.kind !== 'part').map((a) => ({ id: a.id, box: b[a.id] || a.box })) : [], plan.intercept);
   })() : [];
-  const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...(dress ? dress.faces : []), ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
+  // a storey's stairs keep clear of what its dressing stands about (storeys.js): nothing over a flight or by a hole
+  const mid3 = (f) => [0, 1, 2].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length);
+  // (a thing of the dressing that stands in them goes whole, its parts with it)
+  const gone = !dress || !plan.cuts || !dress.anchors ? new Set() : (() => { const b = nodeBounds(dress.faces);
+    // (on a storey the walk does not end on, its set piece goes too: storeys.js)
+    return new Set(dress.anchors.filter((a) => a.kind !== 'part' && (boxInStairs(plan.cuts, b[a.id] || a.box) || (plan.cuts.bare && a.kind === 'set-piece'))).map((a) => a.id)); })();
+  const goneAnchor = (a) => !!plan.cuts && (gone.has(a.id) || gone.has(a.of) || (a.at && inStairs(plan.cuts, [a.at[0], a.at[1], 1])));
+  const dressFaces = !dress ? [] : plan.cuts ? dress.faces.filter((f) => !(f.node && gone.has(f.node)) && !inStairs(plan.cuts, mid3(f))) : dress.faces;
+  const base0 = [...(dress ? shell.filter((f) => !dress.cut(f)) : shell), ...stageRubble(plan, drains), ...dressFaces, ...grown, ...doorFaces(plan, ends), ...(taken ? taken.faces : [])];
   const base = windSpec ? base0.flatMap((f) => (hung(f) ? splitCard(f, Sw.grid[0], Sw.grid[1]) : [f])) : base0;
   // the night's placed lights (plaza-night.js): lanterns, the basin's glow, lit windows, baked like the torches
   const lights = [...resolveStageLights(plan, seats), ...(dress && dress.night ? dress.night.lights : []), ...(dress && dress.lights ? dress.lights : [])];
@@ -912,7 +949,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     ...ends.map((e) => ({ id: e.id, kind: 'door', at: e.sill, N: e.N, to: e.to, ...(e.locked ? { locked: e.locked } : {}), trigger: e.trigger, spawn: e.spawn })),
     ...(taken ? taken.items.map((it) => ({ id: it.id, kind: 'item', at: it.at, r: it.r, node: `item:${it.id}`, box: { min: P([it.at[0] - 0.31, it.at[1] - 0.31, 0]), max: P([it.at[0] + 0.31, it.at[1] + 0.31, it.at[2] + 0.4]) }, solid: true })) : []),
     ...torches.map((l, i) => ({ id: `torch-${i + 1}`, kind: 'torch', at: l.at, N: P([l.n[0], l.n[1], 0]) })),
-    ...(dress && dress.anchors ? dress.anchors : []),
+    ...(dress && dress.anchors ? (plan.cuts ? dress.anchors.filter((a) => !goneAnchor(a)) : dress.anchors) : []),
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   const colliders = stageColliders(plan, geom, anchors);

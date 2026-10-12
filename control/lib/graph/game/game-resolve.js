@@ -90,6 +90,13 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     if (!cv.ok) { errors.push(`level '${lv.ref}' contract (against this game's store): ${cv.errors.join('; ')}`); continue; }
     levels.push({ ref: lv.ref, title: lv.title, contract: normalizeLevelContract(game), src: levelSrc(lv.ref) });
   }
+  // a door link's ends must be doors its levels have (each level's `door` mechanics)
+  for (const [i, lk] of (norm.links || []).entries()) {
+    for (const side of ['from', 'to']) {
+      const e = lk[side], L = levels.find((x) => x.ref === e.ref);
+      if (L && !(L.contract.doors || []).some((d) => d.id === e.door)) errors.push(`links[${i}].${side}: level '${e.ref}' has no door '${e.door}' (its doors: ${(L.contract.doors || []).map((d) => d.id).join(', ') || 'none'})`);
+    }
+  }
   // menu entries (Start → Menu presentation), resolved depth-first so a nested submenu ('menu') is
   // walked too: a 'world' entry's viewed world must exist as a sketch (its src resolves here like a
   // level src); 'mode' entries carry only level refs (already resolved into levels[] above — the shell

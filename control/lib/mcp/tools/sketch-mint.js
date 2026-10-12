@@ -493,7 +493,7 @@ function programSays(m) {
   if (m?.kind !== 'stage' || m.program === undefined) return {};
   try {
     const P = withProgram(m)._program;
-    return { program: { use: P.use, rooms: P.rooms, entry: P.entry, goal: P.goal, language: `${P.language.id} (storey ${P.language.storeyH} m)`, ...(P.findings.length ? { findings: P.findings.map((f) => f.says) } : {}) } };
+    return { program: { use: P.use, rooms: P.rooms, ...(P.storeys ? { storeys: P.storeys } : {}), entry: P.entry, goal: P.goal, language: `${P.language.id} (storey ${P.language.storeyH} m)`, ...(P.findings.length ? { findings: P.findings.map((f) => f.says) } : {}) } };
   } catch { return {}; }
 }
 

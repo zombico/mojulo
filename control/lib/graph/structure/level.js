@@ -21,6 +21,8 @@ import { planStage } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
 import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
+import { stageColliders } from '../era/anchors.js';
+import { stairColliders } from '../era/storeys.js';
 
 // the walkers' own pathfinder (A* over the colliders, string-pulled), run once at lowering: the route goes round walls
 const NAV = {};
@@ -191,11 +193,13 @@ export function buildingLevel(read, { goal = 'top' } = {}) {
  * { spawn, heading, goal: { room, at }, route }, or { error }. The rooms are the stage's boxes and its doorways the
  * links between them; the walls are the stage's own colliders, already on its payload.
  *   - spawn: the stage's own (the first room), or the room `from` names; facing its first doorway;
- *   - goal: 'deepest' (the default; 'top' says the same on one storey) is the room most doorways from the spawn, the
- *     larger on a tie; or a room id; it stands a step (0.6 m) through the doorway the room is entered by (its middle is
- *     where a dressing seats its set piece);
+ *   - goal: 'deepest' (the default) is the room most doorways from the spawn (a stair is one), the larger on a tie;
+ *     'top' the deepest on the highest storey (on one storey, the same); or a room id; it stands a step (0.6 m) through
+ *     the doorway the room is entered by (its middle is where a dressing seats its set piece), or where its stair is
+ *     climbed out of;
  *   - route: through each doorway on the way, a step short of it and a step past it, in line with its wall's normal
- *     (past the last, the goal).
+ *     (past the last, the goal); up each stair from its approach, foot to head, to its arrival; on storeys, round the
+ *     flights and the holes' rails between them.
  */
 export function stageLevel(m, { goal = 'deepest', from = null } = {}) {
   // the stage as it builds: its program's rooms laid, its cube lowered under it
@@ -205,18 +209,22 @@ export function stageLevel(m, { goal = 'deepest', from = null } = {}) {
   const start = from != null ? byId.get(String(from)) : plan.rooms[0];
   if (!start) return { error: `the level's 'from' names no room (${plan.rooms.map((r) => r.id).join(', ')})` };
   // breadth first from the spawn's room: each room's depth in doorways, and the doorway it was reached by
+  // (a stage on storeys: its stairs are ways between rooms too, storeys.js)
+  const ways = [...plan.links, ...(plan.stairs || []).map((x) => ({ ...x, stair: true }))];
   const via = new Map([[start.id, null]]), depth = new Map([[start.id, 0]]), queue = [start.id];
   while (queue.length) {
     const id = queue.shift();
-    for (const l of plan.links) {
+    for (const l of ways) {
       const next = l.from === id ? l.to : l.to === id ? l.from : null;
       if (next == null || via.has(next)) continue;
       via.set(next, { link: l, prev: id }); depth.set(next, depth.get(id) + 1); queue.push(next);
     }
   }
   const area = (r) => (r.x1 - r.x0) * (r.y1 - r.y0);
+  // 'top' on storeys: the deepest room of the highest storey reached
+  const topStorey = plan.stairs ? Math.max(...plan.rooms.filter((r) => depth.has(r.id)).map((r) => r.storey)) : 0;
   const room = goal === 'deepest' || goal === 'top' || goal == null
-    ? plan.rooms.filter((r) => depth.has(r.id)).sort((a, b) => depth.get(b.id) - depth.get(a.id) || area(b) - area(a))[0]
+    ? plan.rooms.filter((r) => depth.has(r.id) && (goal !== 'top' || !plan.stairs || r.storey === topStorey)).sort((a, b) => depth.get(b.id) - depth.get(a.id) || area(b) - area(a))[0]
     : byId.get(String(goal));
   if (!room) return { error: `the goal '${goal}' names no room (${plan.rooms.map((r) => r.id).join(', ')}, or 'deepest')` };
   if (!depth.has(room.id)) return { error: `no doorway leads from '${start.id}' to the goal '${room.id}': link the rooms` };
@@ -230,28 +238,58 @@ export function stageLevel(m, { goal = 'deepest', from = null } = {}) {
     return { at, n: alongX ? [0, sg] : [sg, 0] };
   };
   const STEP = 1.5;
+  // a stair is met at its approach and climbed foot to head, left at its arrival (going down, the other way)
+  const stairWay = ({ link: x, into }) => {
+    const up = into === x.upper, pt = (u) => (x.axis === 'y' ? [x.approach[0], u] : [u, x.approach[1]]);
+    const seq = [x.approach, pt(x.foot + x.dir * 0.3), pt(x.head), x.arrival];
+    return up ? seq : [...seq].reverse();
+  };
   // a step short of each doorway and a step past it; past the last, the goal itself
-  const route = path.flatMap((p, i) => { const d = door(p), short = [d.at[0] - d.n[0] * STEP, d.at[1] - d.n[1] * STEP];
+  const route0 = path.flatMap((p, i) => { if (p.link.stair) return stairWay(p);
+    const d = door(p), short = [d.at[0] - d.n[0] * STEP, d.at[1] - d.n[1] * STEP];
     return i === path.length - 1 ? [short] : [short, [d.at[0] + d.n[0] * STEP, d.at[1] + d.n[1] * STEP]]; });
-  const spawn = from != null ? [...mid(start), 0] : plan.spawn;
-  const first = path.length ? door(path[0]).at : mid(room);
+  const spawn = from != null ? [...mid(start), start.z0 ?? 0] : plan.spawn;
+  const first = path.length ? (path[0].link.stair ? stairWay(path[0])[0] : door(path[0]).at) : mid(room);
   // the goal stands a step through the doorway the room is entered by (its zone reaches on into the room), not at
   // its middle, where a dressing seats its set piece (a tomb, an altar) with a walkway round it a metre wide
   const IN = 0.6;
   const goalAt = (() => {
     if (!path.length) return mid(room);
-    const d = door(path[path.length - 1]);
+    const last = path[path.length - 1];
+    // up a stair, the goal is where it is climbed out of
+    if (last.link.stair) return stairWay(last).at(-1);
+    const d = door(last);
     return [d.at[0] + d.n[0] * IN, d.at[1] + d.n[1] * IN];
+  })();
+  // on storeys, the way between two points on one floor goes round the flights and the holes' rails (the walls too)
+  const route = !plan.stairs ? route0 : (() => {
+    const cols = [...plan.storeys.flatMap((st) => stageColliders({ ...plan, rooms: plan.rooms.filter((r) => r.storey === st.index) }, {}, [])
+      .map((c) => ({ ...c, min: [c.min[0], c.min[1], c.min[2] + st.z0], max: [c.max[0], c.max[1], c.max[2] + st.z0] }))), ...stairColliders(plan.stairs)];
+    // a stair's own points are on it (no corners there); its last puts the walk on the floor it climbs to
+    const climbs = new Set(path.filter((p) => p.link.stair).flatMap((p) => stairWay(p).slice(1, -1).map((q) => q.join())));
+    const pts = [spawn.slice(0, 2), ...route0, goalAt], out = [];
+    let z = spawn[2] ?? 0;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      if (!climbs.has(a.join()) && !climbs.has(b.join())) out.push(...corners(cols, a, b, z, { radius: 0.4, height: STAGE_EYE, step: 0.35, cell: 0.2 }));
+      if (i < pts.length - 1) out.push(b);
+      const st = path.find((p) => p.link.stair && stairWay(p).at(-1).join() === b.join());
+      if (st) z = st.into === st.link.upper ? st.link.z1 : st.link.z0;
+    }
+    return out;
   })();
   return {
     frame: 'world', unit: 'm',
     spawn: spawn.map(r2), heading: r2(Math.atan2(first[1] - spawn[1], first[0] - spawn[0])),
-    goal: { room: room.id, at: [...goalAt.map(r2), 0] },
+    goal: { room: room.id, at: [...goalAt.map(r2), r2(room.z0 ?? 0)], ...(plan.stairs ? { storey: room.storey } : {}) },
     route: route.map((p) => p.map(r2)),
   };
 }
 
 const STAGE_EYE = 1.7;   // m: the stage's own walk eye
+export const PROBE = 0.6;   // m: on storeys, the ground is looked for from this high over the feet (rules-basic.js `probe`)
+/** Does a stage recipe stand on storeys (its own rooms, or its program's)? */
+export const storeyed = (m) => (Array.isArray(m.rooms) ? m.rooms : m.program !== undefined ? withProgram(m).rooms : []).some((r) => r && r.storey);
 
 function withStageLevel(m, ref) {
   // a program names its goal room when the level does not
@@ -260,17 +298,38 @@ function withStageLevel(m, ref) {
   if (L.error) throw new Error(`level: ${L.error}`);
   const radius = m.level.radius ?? 1.5;
   // `mechanics`: the level's own beside the goal (pickups in its rooms, a clock); `exit: false` leaves the goal out
-  const exit = { kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], STAGE_EYE], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) };
-  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  const exit = { kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], r2(L.goal.at[2] + STAGE_EYE)], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) };
+  // `door`: the way out is a DOOR to another level (an inside entered from outside, the scene changing at it): a door
+  // in the way-in room's front wall, its zone just inside, and a walker entering by it standing a few steps in
+  const D = typeof m.level.door === 'string' ? stageDoor(m, m.level.from) : null;
+  const doorMech = D ? [{ kind: 'door', id: m.level.door, at: D.at, half: D.half, spawn: D.spawn, heading: D.heading }] : [];
+  const game = { levelRef: ref, mechanics: [...(m.level.mechanics ?? []), ...doorMech, ...(m.level.exit === false ? [] : [exit])], fall: { mode: 'respawn' } };
+  const doors = D ? { doors: [...(m.doors ?? []), { id: m.level.door, at: { side: '-y', u: D.u }, room: D.room, to: { map: 'outside', door: m.level.door } }] } : {};
+  const spawn = D ? [D.spawn[0], D.spawn[1], 0] : L.spawn, heading = D ? D.heading : L.heading;
   // a recipe that brings its own pilot (a gameworld's hero) keeps it, its figures and its camera: only the game channel
-  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, game };
+  if (Array.isArray(m.entities) && m.entities.some((e) => e && e.pilotable)) return { ...m, ...doors, game };
   return {
     ...m,
+    ...doors,
     game,
     // the stage's walls are its payload's colliders: the walker stops at them (no `colliders` here, which would replace them)
-    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3 }, body: { type: 'none' }, transform: { pos: [L.spawn[0], L.spawn[1], L.spawn[2] + STAGE_EYE], heading: L.heading } }],
+    // on storeys it looks for its ground just over its feet (it climbs a flight's treads, never onto the floor above)
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 4.5, turn: 4, eye: STAGE_EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.3, ...(storeyed(m) ? { probe: PROBE } : {}) }, body: { type: 'none' }, transform: { pos: [spawn[0], spawn[1], spawn[2] + STAGE_EYE], heading } }],
     camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
   };
+}
+
+/**
+ * The door out of a stage's way-in room (its program's entry, else `from`, else its first room), in the middle of its
+ * front (-y) wall: where its zone stands (just inside), and where a walker entering by it stands and faces (2.6 m in,
+ * into the room). `u` is along the wall from its inner corner, as a stage door end takes it (era/doors.js).
+ */
+function stageDoor(m, from = null) {
+  const mp = m.program !== undefined ? withProgram(m) : m;
+  const plan = planStage(mp.geocube !== undefined ? withGeocube(mp) : mp);
+  const id = from ?? mp._program?.entry ?? plan.rooms[0].id, r = plan.rooms.find((q) => q.id === id) ?? plan.rooms[0];
+  const mid = r2((r.x0 + r.x1) / 2), y = r.y0;
+  return { room: r.id, u: r2(mid - r.x0), at: [mid, r2(y + 0.8), 0], half: [1.4, 0.7, 2], spawn: [mid, r2(y + 2.6), 0], heading: r2(Math.PI / 2) };
 }
 
 /** Is this manifest a building (on the rail, or a room-kit stage) that asks to be a level? */

@@ -29,7 +29,7 @@ import { resolveBook, characterReady } from './character-review.js';
 import { heroOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks } from './levels.js';
 import { goalMechanics, quickStore } from './quick.js';
 
 const REF_MAX = 64;
@@ -78,7 +78,8 @@ export function runSteps(world, { ref, lookup } = {}) {
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args) });
   });
   if (stages.length) {
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs), allow_unaudited: true };
+    const links = gameLinks(stages, levelRefs);
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs), ...(links.length ? { links } : {}), allow_unaudited: true };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -100,7 +101,8 @@ function quickSteps(world, G, ref) {
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args) });
   });
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}) };
+  const links = gameLinks(stages, levelRefs);
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: gameLevels(stages, levelRefs), ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme ? { theme: Q.theme } : {}) };
   steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) });
   return steps;
 }

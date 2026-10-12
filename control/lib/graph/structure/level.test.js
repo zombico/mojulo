@@ -110,3 +110,15 @@ describe('a room-kit stage as a level', () => {
     expect(withBuildingLevel(GOTHIC, 'lv_crypt')).toBe(GOTHIC);
   });
 });
+
+describe('an inside entered by its door', () => {
+  const m = { kind: 'stage', kit: 'gothic-stone', program: { use: 'tavern', seed: 2 }, level: { door: 'out' } };
+  it('its way out is a door: a door end drawn in the way in, its mechanic, and the walker standing in from it', () => {
+    const L = withBuildingLevel(m, 'lv_in');
+    const d = L.game.mechanics.find((x) => x.kind === 'door');
+    expect(d).toMatchObject({ id: 'out', heading: 1.57 });
+    expect(L.doors).toEqual([expect.objectContaining({ id: 'out', at: expect.objectContaining({ side: '-y' }), to: { map: 'outside', door: 'out' } })]);
+    expect(L.entities[0].transform.pos.slice(0, 2)).toEqual(d.spawn.slice(0, 2));
+    expect(L.game.mechanics.at(-1).kind).toBe('reach-exit');   // its goal room still ends it
+  });
+});

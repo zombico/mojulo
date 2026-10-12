@@ -114,7 +114,7 @@ export function kitCard(kitId) {
   const kit = STAGE_KITS[kitId], S = styleOf(kit), ref = refFor(kitId), opts = kitOptions(kit);
   const lines = [
     `# ${title(kitId)} (stage kit)`, '', kitSummary(kitId, kit), '',
-    `SHELL      ${isRooms(kit) ? `rooms: axis-aligned boxes on a ${kit.grid} m grid, bays every ${kit.bay} m, a doorway where two rooms share a wall` : 'open ground: no rooms, the builder lays the site (trail, cliff, planting) from its style card'}`,
+    `SHELL      ${isRooms(kit) ? `rooms: axis-aligned boxes on a ${kit.grid} m grid, bays every ${kit.bay} m, a doorway where two rooms share a wall${kit.shell === 'plaza' ? '' : '; "storey" stacks a room over the storey below, a link across two a stair (card game-building)'}` : 'open ground: no rooms, the builder lays the site (trail, cliff, planting) from its style card'}`,
     `LOOK       ${ref ? `pairs with '${ref}' (card 'look/${ref}'); any look can be set with "reference"` : isRooms(kit) ? `none pairs with it; "reference" sets the look (default gothic-night)` : 'its own: the style card carries the light and air'}`,
     `OPTIONS    ${opts.length ? opts.join(' · ') : 'none beyond the kit'}`,
     ...(ART_KITS.includes(kitId) ? ['ART        "art": "propose" (a board to approve, item by item) or "auto" (hands off); card \'stage\''] : []),
