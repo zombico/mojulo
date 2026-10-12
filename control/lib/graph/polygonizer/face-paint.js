@@ -136,23 +136,33 @@ export function faceTexture(paint, palette = {}) {
   return { key, url };
 }
 
-/** the layers painted at SS × SS samples a texel and averaged: an RGB byte buffer, row 0 the top (t = 1) */
-function paintRgb(layers, size, C) {
-  const N = size * SS, buf = new Float32Array(N * N * 3);
-  for (let i = 0; i < N * N; i++) buf.set(C.skin, i * 3);
-  const set = (x, y, c) => buf.set(c, (y * N + x) * 3);
-  const get = (x, y) => buf.subarray((y * N + x) * 3, (y * N + x) * 3 + 3);
-  // a layer's triangles in sample space (x right, y down), each sample whose centre falls inside painted by `colour(x, y)`
-  const fill = (tris, colour) => {
+/** the layers painted at SS × SS samples a texel and averaged: an RGB byte buffer, row 0 the top (t = 1). `rect`
+ * ([x, y, w, h] in texels, y from the top) paints that window of the face alone, texel for texel the whole face's there;
+ * `blush` (sclera triangles) places the blush from those eyes instead of the layers' own (a state's tile keeps the
+ * neutral face's blush, so it meets the face around it without a seam). */
+function paintRgb(layers, size, C, { rect = null, blush = null } = {}) {
+  const N = size * SS, [rx0, ry0, rw, rh] = rect ? rect.map((v) => v * SS) : [0, 0, N, N], buf = new Float32Array(rw * rh * 3);
+  for (let i = 0; i < rw * rh; i++) buf.set(C.skin, i * 3);
+  // (sample space is the whole face's; the buffer holds the window: a sample outside it is skipped)
+  const inside = (x, y) => x >= rx0 && y >= ry0 && x < rx0 + rw && y < ry0 + rh;
+  const set = (x, y, c) => { if (inside(x, y)) buf.set(c, ((y - ry0) * rw + x - rx0) * 3); };
+  const get = (x, y) => buf.subarray(((y - ry0) * rw + x - rx0) * 3, ((y - ry0) * rw + x - rx0) * 3 + 3);
+  // a layer's triangles in sample space (x right, y down), each sample whose centre falls inside painted by `colour(x, y)`;
+  // `mark` records the samples painted, `within` paints only samples another layer marked
+  const marked = new Uint8Array(rw * rh);
+  const fill = (tris, colour, { mark = false, within = false } = {}) => {
     for (let i = 0; i + 5 < tris.length; i += 6) {
       const P = [0, 2, 4].map((k) => [tris[i + k] / Q * N, (1 - tris[i + k + 1] / Q) * N]);
       const area = (P[1][0] - P[0][0]) * (P[2][1] - P[0][1]) - (P[2][0] - P[0][0]) * (P[1][1] - P[0][1]); if (!area) continue;
-      const x0 = Math.max(0, Math.floor(Math.min(P[0][0], P[1][0], P[2][0]))), x1 = Math.min(N - 1, Math.ceil(Math.max(P[0][0], P[1][0], P[2][0])));
-      const y0 = Math.max(0, Math.floor(Math.min(P[0][1], P[1][1], P[2][1]))), y1 = Math.min(N - 1, Math.ceil(Math.max(P[0][1], P[1][1], P[2][1])));
+      const x0 = Math.max(rx0, Math.floor(Math.min(P[0][0], P[1][0], P[2][0]))), x1 = Math.min(rx0 + rw - 1, Math.ceil(Math.max(P[0][0], P[1][0], P[2][0])));
+      const y0 = Math.max(ry0, Math.floor(Math.min(P[0][1], P[1][1], P[2][1]))), y1 = Math.min(ry0 + rh - 1, Math.ceil(Math.max(P[0][1], P[1][1], P[2][1])));
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
         const X = x + 0.5, Y = y + 0.5;
         const w0 = ((P[1][0] - X) * (P[2][1] - Y) - (P[2][0] - X) * (P[1][1] - Y)) / area, w1 = ((P[2][0] - X) * (P[0][1] - Y) - (P[0][0] - X) * (P[2][1] - Y)) / area;
         if (w0 < 0 || w1 < 0 || w0 + w1 > 1) continue;
+        const m = (y - ry0) * rw + x - rx0;
+        if (within && !marked[m]) continue;
+        if (mark) marked[m] = 1;
         set(x, y, colour(x, y));
       }
     }
@@ -170,10 +180,10 @@ function paintRgb(layers, size, C) {
   const by = Object.fromEntries(layers.map((l) => [l.kind, l.tris]));
   // the BLUSH: a soft oval under each eye, toward the cheek (under the white's box), before the features
   const whites = by.sclera ? boxes(by.sclera) : [null, null];
-  for (const b of whites) {
+  for (const b of blush ? boxes(blush) : whites) {
     if (!b) continue;
     const cx = (b[0] + b[2]) / 2 + (b[0] < N / 2 ? -1 : 1) * 0.12 * (b[2] - b[0]), cy = b[3] + 0.55 * (b[3] - b[1]), rx = 0.62 * (b[2] - b[0]), ry = 0.32 * (b[2] - b[0]);
-    for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(N, Math.ceil(cy + ry)); y++) for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(N, Math.ceil(cx + rx)); x++) {
+    for (let y = Math.max(ry0, Math.floor(cy - ry)); y < Math.min(ry0 + rh, Math.ceil(cy + ry)); y++) for (let x = Math.max(rx0, Math.floor(cx - rx)); x < Math.min(rx0 + rw, Math.ceil(cx + rx)); x++) {
       const d = ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2; if (d >= 1) continue;
       const k = 0.42 * (1 - d) * (1 - d); set(x, y, mix(get(x, y), C.blush, k));
     }
@@ -182,7 +192,10 @@ function paintRgb(layers, size, C) {
   // the nose's UNDERSIDE (anime-nose.js): its quad, darker by the width dial (the layer carries it)
   const under = layers.find((l) => l.kind === 'noseUnder');
   if (under) fill(under.tris, () => C.under(under.width ?? 0.5));
-  if (by.sclera) fill(by.sclera, (x, y) => { const b = boxAt(whites, x), u = (y - b[1]) / Math.max(1, b[3] - b[1]); return u < 0.38 ? mix(mul(C.sclera, [0.80, 0.82, 0.90]), C.sclera, u / 0.38) : C.sclera; });
+  if (by.sclera) fill(by.sclera, (x, y) => { const b = boxAt(whites, x), u = (y - b[1]) / Math.max(1, b[3] - b[1]); return u < 0.38 ? mix(mul(C.sclera, [0.80, 0.82, 0.90]), C.sclera, u / 0.38) : C.sclera; }, { mark: true });
+  // (the iris, the pupil and the catchlight show through the eye's opening only, as the slab's lens behind the face does:
+  // a closing lid crops them, a shut eye shows none)
+  const lens = { within: !!by.sclera };
   // the IRIS: dark at its top (the lid's shadow), light at its bottom, its rim darker
   if (by.iris) {
     const irises = boxes(by.iris), dark = mul(C.iris, 0.5), light = lift(C.iris, 0.38);
@@ -191,20 +204,65 @@ function paintRgb(layers, size, C) {
       const r = Math.hypot((x - cx) / Math.max(1, (b[2] - b[0]) / 2), (y - cy) / Math.max(1, (b[3] - b[1]) / 2));
       const c = u < 0.5 ? mix(dark, C.iris, u / 0.5) : mix(C.iris, light, (u - 0.5) / 0.5);
       return r > 0.8 ? mix(c, dark, Math.min(1, (r - 0.8) / 0.15)) : c;
-    });
+    }, lens);
   }
-  if (by.pupil) fill(by.pupil, () => C.pupil);
-  if (by.catch) fill(by.catch, () => [1, 1, 1]);
+  if (by.pupil) fill(by.pupil, () => C.pupil, lens);
+  if (by.catch) fill(by.catch, () => [1, 1, 1], lens);
   if (by.ink) fill(by.ink, () => C.rim);
   if (by.lid) fill(by.lid, () => C.ink);
   if (by.brow) fill(by.brow, () => C.brow);
   if (by.nose) fill(by.nose, () => C.nose);
   if (by.mouth) fill(by.mouth, () => C.mouth);
   // down to a texel: the mean of its samples, as sRGB bytes
-  const rgb = Buffer.alloc(size * size * 3);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) for (let c = 0; c < 3; c++) {
-    let acc = 0; for (let j = 0; j < SS; j++) for (let i = 0; i < SS; i++) acc += buf[((y * SS + j) * N + x * SS + i) * 3 + c];
-    rgb[(y * size + x) * 3 + c] = Math.round(Math.min(1, Math.max(0, acc / (SS * SS))) * 255);
+  const tw = rw / SS, th = rh / SS, rgb = Buffer.alloc(tw * th * 3);
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) for (let c = 0; c < 3; c++) {
+    let acc = 0; for (let j = 0; j < SS; j++) for (let i = 0; i < SS; i++) acc += buf[((y * SS + j) * rw + x * SS + i) * 3 + c];
+    rgb[(y * tw + x) * 3 + c] = Math.round(Math.min(1, Math.max(0, acc / (SS * SS))) * 255);
   }
   return rgb;
 }
+
+// ─── the atlas (face-paint-rig.js: the painted face in motion) ──────────────
+/** the white tile's side (texels): the unpainted skin's corners sample its middle, texel × colour = the colour */
+const WHITE = 8;
+/** each tile's margin (texels) painted past its window, so a filtered sample at its edge reads the face's own texels */
+export const TILE_PAD = 2;
+
+/**
+ * The ATLAS of a painted face in motion: the face at `base` (its layers, the whole 512²) at the top left, then each tile
+ * (`tiles`: { layers, rect: [x, y, w, h] texels of the face, y from the top }) painted from its own layers over its window
+ * and TILE_PAD texels round it, shelf-packed right of the face and then under it, and a white tile. `blush`: the sclera
+ * triangles every picture takes its blush from (the open eyes). Returns `{ key, url, w, h, at: [[x, y] per tile, its
+ * window's top-left], white: [x, y] (its middle) }`, in atlas texels (y from the top). Memoized by key.
+ */
+export function faceAtlas(base, tiles, palette = {}, { blush = null } = {}) {
+  const size = FACE_PAINT_SIZE, C = swatches(palette || {});
+  const key = `faceatlas-${fnv(JSON.stringify([size, C, base.layers, tiles.map((t) => [t.layers, t.rect]), blush]))}`;
+  const hit = ATLAS_MEMO.get(key); if (hit) return hit;
+  // the layout: shelves of the tiles' padded boxes, tallest first, right of the face (x ≥ size) up to 2 × size wide,
+  // then under the face across the whole width
+  const W = 2 * size, boxes = tiles.map((t, i) => ({ i, w: t.rect[2] + 2 * TILE_PAD, h: t.rect[3] + 2 * TILE_PAD })).concat([{ i: -1, w: WHITE, h: WHITE }]);
+  const order = [...boxes].sort((a, b) => b.h - a.h || a.i - b.i), at = new Array(tiles.length);
+  let white = null, x = size, y = 0, shelf = 0, x0 = size;
+  for (const b of order) {
+    if (x + b.w > W) { y += shelf; shelf = 0; x = x0; if (x0 === size && y + b.h > size) { x0 = 0; x = 0; y = Math.max(y, size); } }
+    if (x0 === size && y + b.h > size) { x0 = 0; x = 0; y = size; shelf = 0; }
+    if (b.i < 0) white = [x + WHITE / 2, y + WHITE / 2]; else at[b.i] = [x + TILE_PAD, y + TILE_PAD];
+    x += b.w; shelf = Math.max(shelf, b.h);
+  }
+  let H = size; while (H < y + shelf) H *= 2;
+  const img = Buffer.alloc(W * H * 3, 0);
+  const blit = (rgb, w, h, ox, oy) => { for (let j = 0; j < h; j++) rgb.copy(img, ((oy + j) * W + ox) * 3, j * w * 3, (j + 1) * w * 3); };
+  blit(paintRgb(base.layers, size, C, { blush }), size, size, 0, 0);
+  tiles.forEach((t, i) => {
+    // (the padded window, kept inside the face)
+    const [rx, ry, rw, rh] = t.rect, px = Math.max(0, rx - TILE_PAD), py = Math.max(0, ry - TILE_PAD), qx = Math.min(size, rx + rw + TILE_PAD), qy = Math.min(size, ry + rh + TILE_PAD);
+    blit(paintRgb(t.layers, size, C, { rect: [px, py, qx - px, qy - py], blush }), qx - px, qy - py, at[i][0] - (rx - px), at[i][1] - (ry - py));
+  });
+  for (let j = 0; j < WHITE; j++) img.fill(255, ((white[1] - WHITE / 2 + j) * W + white[0] - WHITE / 2) * 3, ((white[1] - WHITE / 2 + j) * W + white[0] + WHITE / 2) * 3);
+  const out = { key, url: `data:image/png;base64,${encodePng(img, W, H).toString('base64')}`, w: W, h: H, at, white };
+  if (ATLAS_MEMO.size >= 4) ATLAS_MEMO.delete(ATLAS_MEMO.keys().next().value);
+  ATLAS_MEMO.set(key, out);
+  return out;
+}
+const ATLAS_MEMO = new Map();

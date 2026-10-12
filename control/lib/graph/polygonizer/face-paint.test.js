@@ -120,7 +120,8 @@ describe('the painterly look as data', () => {
     const { LOOKS, lookReadout } = await import('../era/looks.js');
     const r = lookReadout('painterly-toon');
     expect(r.built).toEqual(expect.arrayContaining(['painted-face', 'soft-edge', 'rim-from-the-air']));
-    expect(r.planned).toEqual(expect.arrayContaining(['painted-albedo', 'ribbon-hair', 'painted-face-in-motion']));
+    expect(r.planned).toEqual(expect.arrayContaining(['painted-albedo', 'ribbon-hair']));
+    expect(r.built).toContain('painted-face-in-motion');
     expect([...r.built, ...r.planned].length).toBe(LOOKS['painterly-toon'].conventions.length);
   });
 });

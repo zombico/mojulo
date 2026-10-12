@@ -692,7 +692,11 @@ class GlbBuilder {
     // the root), each joint's TRS local to its parent; the wrapper cancels the root's z-up→y-up, so the skeleton space an
     // engine builds (the joints' parent space) is that VRM space. At the T rest every frame is the identity, so a joint's
     // rest is its offset from its parent and the IBM stays T(−restHead). Absent ⇒ the flat skeleton, byte for byte.
-    const material = this.surfaceMaterial({ name: `fig:${name}` });
+    // THE PAINTED FACE (face-paint-rig.js, the pack's `paintTex`): one textured material over the figure, its texel ×
+    // COLOR_0 (an unpainted corner samples the atlas's white tile, so its colour is as before). Absent ⇒ byte-identical.
+    const tex = fig.paintTex ? this.imageFromDataUrl(fig.paintTex.url) : null;
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex }) : this.surfaceMaterial({ name: `fig:${name}` });
+    const uvs = tex !== null ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
     // toon.bake, skinned leg (shader-look phase 3): per PART (the channel's rig hook builds per part,
@@ -776,6 +780,8 @@ class GlbBuilder {
         }
       }
       for (let i = 0; i < d.colors.length; i++) col.push(d.colors[i]);
+      // (the atlas's [s, t], t up, to glTF's v down)
+      if (uvs) { const u = typeof part.uv === 'string' ? b64ToF32(part.uv) : null; for (let i = 0; i < d.vertexCount; i++) uvs.push(u ? u[2 * i] : fig.paintTex.white[0], 1 - (u ? u[2 * i + 1] : fig.paintTex.white[1])); }
       if (d.indices) for (let i = 0; i < d.indices.length; i++) idx.push(base + d.indices[i]);
       else for (let i = 0; i < d.vertexCount; i++) idx.push(base + i);
       if (inkParts) inkParts.push({ base, count: d.vertexCount, indices: d.indices || null, ...(Number.isInteger(part.inkFaces) ? { inkFaces: part.inkFaces } : {}), ...(part.ranges ? { ranges: part.ranges } : {}) });
@@ -797,6 +803,7 @@ class GlbBuilder {
       COLOR_0: this.floatAccessor(Float32Array.from(col), 3),
       JOINTS_0: this.jointAccessor(Uint16Array.from(jnt)),
       WEIGHTS_0: this.floatAccessor(Float32Array.from(wgt), 4),
+      ...(uvs ? { TEXCOORD_0: this.floatAccessor(Float32Array.from(uvs), 2) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };
@@ -867,8 +874,8 @@ class GlbBuilder {
       // layer plays over the exported clips whose eyes hold the authored face
       const tracked = fig.face.tracks ? clipNames.filter((c) => fig.clips?.[c]?.k && Array.isArray(fig.clips[c].b)) : [];
       faceMesh = { weights: [...fig.face.weights], extras: { targetNames: [...fig.face.targets], face: {
-        about: 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
-        fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words,
+        about: fig.face.about ?? 'morph targets on the neutral head (every expression channel 0), differences of head builds; the default weights are the authored expression; eye closure is drawn at the knots (eyeKnots: the hero\'s own closure among them when it sits between the others), blinkFix<k><L|R> is 1 while that eye is at closure k (k its decimals, two at least)',
+        fps: fig.face.fps, eyeKnots: fig.face.eyeKnots, fixKnots: fig.face.fixKnots, words: fig.face.words, ...(fig.face.drawings ? { drawings: fig.face.drawings } : {}),
         sides: parents ? "Left is mesh +x (the figure's left, VRM space), Right mesh -x" : "Left is mesh -x (the figure's left), Right mesh +x",
         brow: 'browInnerRaise = brow -1 (the inner ends up); browInnerLower = brow +1 (the inner ends down)',
         ...(fig.face.tracks ? {

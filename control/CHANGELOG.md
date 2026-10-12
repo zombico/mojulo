@@ -13,6 +13,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The painted face in motion: its eyes, mouth and brows drawn per state on a texture sheet
+
+- **Drawings, swapped** (`polygonizer/face-paint-rig.js`). A painterly hero's skinned GLB (and so the Godot pack)
+  carries its face as DRAWINGS: each eye at every closure knot (anime-face-rig's), each brow and the mouth at every
+  drawing one of its words, its authored face or a clip key needs. Each is a head build at that expression, its layers
+  painted into a tile of one ATLAS (the authored face, the tiles, a white tile; `faceAtlas` in face-paint.js), every
+  picture taking its blush from the open eyes so a tile meets the face around it texel for texel.
+- **Shells.** The painted face's triangles over a region (an eye, a brow, the mouth) become a copy per drawing with its
+  UVs in that drawing's tile. The neutral copy stands on the face, the others are collapsed to a point inside the skull,
+  and one morph target per drawing opens its copy and closes the neutral one: `blinkDrawn<k><L|R>` (100 shut),
+  `browDrawn<i><L|R>`, `mouthDrawn<i>`, weights 0 or 1. A triangle under an eye and its brow both takes a copy per
+  pair of drawings, half from each target, so it opens only when both are on. The existing tracks drive them unchanged:
+  each clip's STEP weights, the ambient blink layer (its `blink*` filter included), the words in `mesh.extras.face`.
+  A row whose stored face the hero no longer paints exports without them, with its reason.
+- **The figure is textured.** The skinned figure carries `TEXCOORD_0` and one textured material (texel × `COLOR_0`; an
+  unpainted corner samples the white tile, so its colour is as before), and the soft edge's band is graded per corner
+  on the rig as on the static faces (it was a flat mid-tone there).
+- **The clip preview** draws the authored face on the playing figure (it was blank) and hides the static painted face
+  with the solid.
+- **The painter** shows the iris, the pupil and the catchlight through the eye's opening only, as the slab's lens
+  behind the face does: a closing lid crops them, a shut eye shows none (they were painted over the lid).
+- **Size.** On the female at `smile` the painted GLB is 3.7 MB against the slab face's 4.1 MB (28 k sparse morph
+  entries against 91 k); the atlas, 1024 × 2048, is 68 KB of PNG.
+- **Not yet.** The preview plays no expressions (the page builds no drawings); the gloss line of the soft edge crosses
+  the painted eyes; the atlas's packing leaves room.
+
 ### Nose dials: the painterly face's side, from the cat read to a Zelda-like nose
 
 - **`painterly: { nose: { profile, width } }`** (each 0..1, defaults 0.5 / 0.5; `painterly: true` takes the defaults).
@@ -68,8 +94,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The look as data** (`era/looks.js`). `painterly-toon`: its conventions one line each, `built` (painted face, soft
   edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
   motion). The hero readout's `painterly` names both.
-- **Not yet.** The painted face on the rig (the clip preview and the skinned GLB show the face blank; its expression
-  channels are skipped as stale), and under a geocube's cast light (the static faces take the studio bake there).
+- **Not yet.** Under a geocube's cast light (the static faces take the studio bake there). (The painted face on the
+  rig: the theme above.)
 - The `layered` vocab card has the look's section and `soft` in the light's fields.
 
 ### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words

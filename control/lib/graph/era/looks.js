@@ -18,7 +18,7 @@ export const LOOKS = Object.freeze({
       { id: 'painted-albedo', line: 'Cloth and skin carry painted strokes and folds in their colour.', status: 'planned' },
       { id: 'ribbon-hair', line: 'Hair as a few large ribbon masses with painted strand highlights.', status: 'planned' },
       { id: 'haze-on-figure', line: 'The level\'s haze tints the figure with its distance.', status: 'planned' },
-      { id: 'painted-face-in-motion', line: 'The painted face changes with the expression and travels on the rig and to the engines.', status: 'planned' },
+      { id: 'painted-face-in-motion', line: 'The painted face changes with the expression and travels on the rig and to the engines.', status: 'built' },
     ]),
   }),
 });

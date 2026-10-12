@@ -87,7 +87,9 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
 export function animeHeadAt(opts, expression, only) {
   const props = opts.proportions ?? 'anime';
   const { pole, scale } = wornHead({ preset: opts.preset, headPreset: opts.headPreset, headScale: opts.headScale, tune: opts.tune, props });
-  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only });
+  // (`facePaint`: the painted face's, as the plan wears it — face-paint-rig.js paints its states)
+  const fp = opts.facePaint ? { paint: { dense: !!opts.facePaint.dense }, ...(opts.facePaint.nose ? { nose: opts.facePaint.nose } : {}) } : {};
+  const { parts } = animeHead({ preset: pole, face: opts.face ?? {}, register: opts.register ?? 'round', scale, sculpt: opts.sculpt, expression, hair: 'none', hairFit: false, only, ...fp });
   const S = planScale({ cast: opts.preset, tune: opts.tune, proportions: props });
   return S === 1 ? parts : Object.fromEntries(Object.entries(parts).map(([n, p]) => [n, scaleIncludePart(p, S)]));
 }
