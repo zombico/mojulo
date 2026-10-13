@@ -17,6 +17,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { renderFigureToSvg, renderFigureFrames, figureIsAnimated, figurePatternReport, FIGURE_VIEWS } from '@/lib/graph/polygonizer/figure-render';
+import { stampMotion } from '@/lib/graph/polygonizer/figure-posing';
 import { EMOTE_NAMES } from '@/lib/graph/polygonizer/figure-emotes';
 import { GARMENTS, validateGarmentSpec } from '@/lib/graph/polygonizer/figure-garments';
 import { validateOutfit, resolveOutfitNames, OUTFIT_FIT_NAMES } from '@/lib/graph/polygonizer/figure-outfit';
@@ -120,6 +121,9 @@ export async function createFigureHandler(input) {
         || typeof motion.sprint === 'object' || typeof motion.run === 'object' || Array.isArray(motion.keyframes)
         || (typeof motion.emote === 'string' && EMOTE_NAMES.includes(motion.emote)));
     if (!okString && !okSpec) throw new Error(`\`motion\` must be 'walk' | 'sprint' | 'wave', an emote name (${EMOTE_NAMES.join('/')}), { walk: {…dials} }, { sprint: {…dials} }, { emote, intensity? }, or { keyframes: [pose, …] } (or null)`);
+    // a gait is stored BY VALUE, every dial of the walk (or run) as it is minted now (figure-posing.js stampMotion), so
+    // tuning the mint table later never moves this figure; a cast preset resolves the same way above
+    motion = stampMotion(motion);
   }
   if (folderRef !== undefined && folderRef !== null) {
     if (!SketchFolderRepository.getByRef(folderRef)) throw new Error(`Folder '${folderRef}' not found`);

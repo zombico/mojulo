@@ -19,7 +19,7 @@
  * Pure and deterministic; absent from every hero until a caller asks (no door field yet).
  */
 import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
-import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS } from './figure-posing.js';
+import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
 
@@ -307,6 +307,23 @@ export function motionPlan(motion) {
     if (G.motion === 'stop') return [name, { stop: G.from, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     const { seconds, tilt, ...own } = g === true ? {} : g;
     return [name, { spec: { [G.motion]: { ...G.base, ...own } }, seconds: seconds ?? G.seconds, tilt: tilt ?? G.tilt }];
+  }));
+}
+
+/**
+ * A door `motion` as it is STORED when authored: each walk, jog or sprint gait gets every dial of its mint table
+ * (figure-posing.js WALK_MINT / SPRINT_MINT), the gait's own base, its seconds and its tilt written in, under what the
+ * creator set (`true` ⇒ the gait as studied, by value). Jumps and stops, and anything not an object, pass as given.
+ * Called where a hero is written (the hero door, an edit under /hero, a world's inline hero), never at render: a hero
+ * stored before the mint tables keeps resolving its left-out dials against the frozen defaults.
+ */
+export function stampHeroMotion(motion) {
+  if (!isObj(motion)) return motion;
+  return Object.fromEntries(Object.entries(motion).map(([name, g]) => {
+    const G = MOTION_GAITS[name];
+    if (!G || (G.motion !== 'walk' && G.motion !== 'sprint') || !(g === true || isObj(g))) return [name, g];
+    const mint = G.motion === 'walk' ? WALK_MINT : SPRINT_MINT;
+    return [name, { ...mint, ...G.base, seconds: G.seconds, tilt: G.tilt, ...(g === true ? {} : g) }];
   }));
 }
 

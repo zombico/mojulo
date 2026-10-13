@@ -260,6 +260,8 @@ const mag3 = (a) => SM.hypot(a.x, a.y, a.z);
 const legLenOf = (base) => mag3(sub(base.kneeL, base.hipL)) + mag3(sub(base.ankleL, base.kneeL));
 const LEG_LEN = legLenOf(B);
 
+// FROZEN: what a dial a stored walk leaves out resolves to (recipes minted before WALK_MINT rely on these bytes).
+// New walks take WALK_MINT, below; tune that.
 export const WALK_DEFAULTS = {
   strideLength: 0.33,    // fore/aft foot travel (STAND units) → hip swing amplitude (a planted
                          //   step: longer strides force the pelvis to vault deep into a crouch)
@@ -404,6 +406,7 @@ export function gait(params = {}, base = null) {
 // whole body up). On top of that: a hard forward lean, a long stride with a high knee
 // drive, and a 90°-bent arm pump. Same `phase → dof` contract; reachable via
 // resolveMotion as { sprint: {…} }.
+// FROZEN, as WALK_DEFAULTS: new runs take SPRINT_MINT.
 export const SPRINT_DEFAULTS = {
   strideLength: 0.62,    // long, powerful stride → big hip swing (high knee drive in front)
   hipDrive: 1.4,         // extra THIGH lift on the forward/recovery half (high knee), ×amplitude
@@ -596,6 +599,31 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
 //   a function                     → used as-is
 //   …any of the above + { perform:{ exaggerate, followThrough, idle, … } }
 //                                  → wrapped with the performance layers
+// ── the MINT tables: the gait a recipe is authored with from now on ──────────
+// WALK_DEFAULTS and SPRINT_DEFAULTS are what a dial a stored recipe LEAVES OUT resolves to, so a recipe minted with
+// 'walk' or a partial { walk } keeps its bytes for good: never tune them. Tune these instead. Authoring writes them
+// into each new recipe BY VALUE (stampMotion), as a cast preset resolves to its numbers at mint, so changing a
+// mint table moves what is made next and never what was made before.
+export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS });
+export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS });
+
+/**
+ * A motion spec as it is STORED when authored: a gait by name or a partial gait gets every dial of its mint table
+ * written in ('walk' → { walk: { …WALK_MINT } }, { walk: { armSwing: 30 } } → { walk: { …WALK_MINT, armSwing: 30 } },
+ * 'sprint' / 'run' → { sprint: { …SPRINT_MINT } }); every other spec (keyframes, emotes, 'wave', a function, null) is
+ * returned as given. Pure; never called at render, only where a recipe is written.
+ */
+export function stampMotion(spec) {
+  if (spec === 'walk') return { walk: { ...WALK_MINT } };
+  if (spec === 'sprint' || spec === 'run') return { sprint: { ...SPRINT_MINT } };
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return spec;
+  const walkKey = spec.walk ? 'walk' : spec.gait ? 'gait' : null;
+  if (walkKey && typeof spec[walkKey] === 'object') return { ...spec, [walkKey]: { ...WALK_MINT, ...spec[walkKey] } };
+  const runKey = spec.sprint ? 'sprint' : spec.run ? 'run' : null;
+  if (runKey && typeof spec[runKey] === 'object') return { ...spec, [runKey]: { ...SPRINT_MINT, ...spec[runKey] } };
+  return spec;
+}
+
 const isMotionSpec = (s) => s === 'walk' || s === 'sprint' || s === 'run' || typeof s === 'function'
   || !!(s && typeof s === 'object' && (s.walk || s.gait || s.sprint || s.run || Array.isArray(s.keyframes)));
 

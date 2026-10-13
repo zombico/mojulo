@@ -13,6 +13,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Gait calibration: a walk stored by value
+
+The figure's walk is being recalibrated against measured human gait. This first step makes that safe: a new walk is
+stored with its numbers, so recalibrating changes what is made next and never what was made before.
+
+- **Mint tables.** `WALK_MINT` and `SPRINT_MINT` (`figure-posing.js`) are the gaits authored from now on.
+  `WALK_DEFAULTS` and `SPRINT_DEFAULTS` are frozen: they are what a dial left out of a stored recipe resolves to.
+- **Stored by value where authored.** `create_figure` with `'walk'`, `'sprint'` or a partial `{ walk }` stores every
+  dial of the mint table, as a cast preset resolves to its numbers at mint. So do `update_sketch` when an edit gives a
+  figure, a hero or a world figure a new or changed motion, and the hero door for its walk, jog and sprint (the gait's
+  base, seconds and tilt with them). An edit that leaves a motion as stored keeps it, and `create_sketch` restoring an
+  exported world stores it as exported. The hero vibe page and the first-person bob curve read the mint tables.
+- **Not stamped, by design:** a city's crowd walkers and a hero's studied fallbacks (a stop or vault out of a gait the
+  hero's door motion does not carry) are built at render, so they stay on the frozen tables and old worlds keep their bytes.
+- Every recipe stored before this renders byte for byte (`gait-frozen.char.test.js` pins the bare walk, the sprint,
+  the walk's frames and the hero's studied gaits from the base commit). The mint tables equal the frozen ones for now;
+  nothing looks different yet.
+
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 
 A design trial built one hero at 11 and at 16 through the hero door and found four gaps.

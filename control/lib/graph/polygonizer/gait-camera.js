@@ -19,7 +19,7 @@
  * planted foot treadmills backward); forward travel comes from the walk controller.
  * So after sampling we subtract the per-cycle mean — only the wobble survives.
  */
-import { gait, WALK_DEFAULTS } from './figure-posing.js';
+import { gait, WALK_MINT } from './figure-posing.js';
 import { articulate } from './figure-vajra.js';
 import { groundVault } from './figure-balance.js';
 
@@ -63,7 +63,7 @@ function headPoseAt(gaitFn, phase) {
 /**
  * Bake a walk's head motion into a compact camera-offset curve.
  *
- * @param {Partial<typeof WALK_DEFAULTS>} [params]  gait dials (intensity lives here:
+ * @param {Partial<typeof WALK_MINT>} [params]  gait dials (intensity lives here:
  *   hipSway, headLevel, pelvisRot, vault, …) — passed straight to gait().
  * @param {number} [samples=32]  curve resolution over one stride cycle.
  * @param {{smooth?: number|boolean}} [opts]  smooth → band-limit the curve to its first
@@ -75,7 +75,8 @@ function headPoseAt(gaitFn, phase) {
  *   ground travel (STAND units) that advances the phase by one full cycle.
  */
 export function gaitCameraCurve(params = {}, samples = 32, opts = {}) {
-  const gaitFn = gait(params);
+  // a curve is baked when a world is authored and stored by value, so it bakes the walk as minted now (WALK_MINT)
+  const gaitFn = gait({ ...WALK_MINT, ...params });
   const raw = [];
   for (let i = 0; i < samples; i++) {
     const { hb, ht, yawDeg } = headPoseAt(gaitFn, i / samples);
@@ -102,6 +103,6 @@ export function gaitCameraCurve(params = {}, samples = 32, opts = {}) {
     for (const key of BOB_KEYS) lim[key] = bandLimit(curve.map((c) => c[key]), kmax);
     curve = curve.map((_, n) => Object.fromEntries(BOB_KEYS.map((key) => [key, lim[key][n]])));
   }
-  const strideLength = params.strideLength ?? WALK_DEFAULTS.strideLength;
+  const strideLength = params.strideLength ?? WALK_MINT.strideLength;
   return { samples, strideDistance: strideLength, curve };
 }
