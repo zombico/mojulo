@@ -1,5 +1,5 @@
 import { safeJson } from '../emit-util.js';
-import { TRAFFIC, TRAFFIC_MODEL_SOURCE } from './traffic-model.js';
+import { TRAFFIC, TRAFFIC_MODEL_SOURCE, TRAFFIC_TURN_SOURCE } from './traffic-model.js';
 
 // The CARS channel (city-cars: the "driver-ants" sibling of the walkers channel). Rigid vehicle meshes
 // that PACMAN along road lanes — each streams edge-to-edge and, at the wrap, reappears at the far edge,
@@ -19,6 +19,10 @@ import { TRAFFIC, TRAFFIC_MODEL_SOURCE } from './traffic-model.js';
 // instead of the closed-form constant-speed pacman. Absent ⇒ the legacy script, byte-identical.
 export function carsChannelScript(cars, bank, { cast = false, traffic = null } = {}) {
   const signalised = traffic && Array.isArray(traffic.lanes) && Array.isArray(traffic.signals) && traffic.signals.length > 0;
+  // TURNS (a lane carrying `turns`, the planned city's): cars may leave their lane at a junction's near side, and the
+  // junctions show their signal heads; absent, nothing below changes a byte
+  const turning = signalised && traffic.lanes.some((l) => Array.isArray(l.turns));
+  const heads = turning && traffic.lanes.some((l) => l.heads);
   return `
 // ---- cars channel (ambient traffic: rigid vehicles pacman-ing road lanes) ----
 let stepCars = () => {};
@@ -30,7 +34,24 @@ const TLANES = ${safeJson(traffic.lanes)};
 const TSIGNALS = ${safeJson(traffic.signals)};
 const TCONST = ${safeJson(traffic.T || TRAFFIC)};
 ${TRAFFIC_MODEL_SOURCE}
-const __traffic = createTrafficModel(TLANES, CARS.map((c) => ({ lane: c.lane, startFrac: c.startFrac })), TSIGNALS, TCONST);
+const __traffic = createTrafficModel(TLANES, CARS.map((c) => ({ lane: c.lane, startFrac: c.startFrac })), TSIGNALS, TCONST);${turning ? `
+${TRAFFIC_TURN_SOURCE}
+armTurns(__traffic, TLANES, TLANES[0].share || 0);
+// each lane's own path and arc table, for a car drawn on whichever lane it has turned into
+const __lanePaths = TLANES.map((L) => { const cum = [0]; for (let i = 1; i < L.path.length; i++) { const a = L.path[i - 1], b = L.path[i]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])); } return { path: L.path, cum }; });` : ''}${heads ? `
+// the signal heads: at each crossing's corners a post and a lamp per axis, lit by its phase (green, amber, red)
+const __heads = [];
+{
+  const post = new THREE.MeshBasicMaterial({ color: 0x2b2e33 });
+  for (let si = 0; si < TSIGNALS.length; si++) {
+    const S = TSIGNALS[si], hx = (S.wx || S.streetW) / 2 + 0.25, hy = (S.wy || S.streetW) / 2 + 0.25;
+    for (const [dx, dy, axis] of [[-1, -1, 'x'], [1, 1, 'x'], [1, -1, 'y'], [-1, 1, 'y']]) {
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.95), post); pole.position.set(S.x + dx * hx, S.y + dy * hy, 0.475); scene.add(pole);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.3), new THREE.MeshBasicMaterial({ color: 0xd23a2a })); lamp.position.set(S.x + dx * hx, S.y + dy * hy, 1.05); scene.add(lamp);
+      __heads.push({ si, axis, lamp });
+    }
+  }
+}` : ''}
 window.__mojSignals = TSIGNALS.map((s) => ({ x: s.x, y: s.y, phase: null }));   // probe seam: the live phase per crossing` : ''}
 // build one rigid mesh per car from its referenced baked geometry (pos + normalized-uint8 colour).
 function __buildCar(mesh) {
@@ -74,13 +95,18 @@ const __carRigs = CARS.map((c) => {
 window.__mojCars = __carRigs.map((r) => ({ car: r.c.car, pos: [0, 0, 0], heading: 0 }));
 stepCars = (t) => {
   const sec = t / 1000;${signalised ? `
-  stepTraffic(__traffic, sec);   // fixed-step integration from clock zero: deterministic at any frame rate, replays under pause / capture
-  for (let si = 0; si < TSIGNALS.length; si++) window.__mojSignals[si].phase = phaseAt(TSIGNALS[si], sec).axis;` : ''}
+  ${turning ? 'stepTrafficTurning' : 'stepTraffic'}(__traffic, sec);   // fixed-step integration from clock zero: deterministic at any frame rate, replays under pause / capture
+  for (let si = 0; si < TSIGNALS.length; si++) window.__mojSignals[si].phase = phaseAt(TSIGNALS[si], sec).axis;${heads ? `
+  for (const h of __heads) { const ph = phaseAt(TSIGNALS[h.si], sec); h.lamp.material.color.setHex(ph.axis === h.axis ? (ph.amber ? 0xf2b134 : 0x3cd06a) : 0xd23a2a); }` : ''}` : ''}
   for (let ci = 0; ci < __carRigs.length; ci++) {
     const r = __carRigs[ci], c = r.c, m = r.mesh;
     const s = ${signalised ? '__traffic.cars[ci].s' : '(((r.start + (sec / r.period) * r.total) % r.total) + r.total) % r.total'};   // ${signalised ? 'the model\'s stepped position' : 'pacman wrap'}
-    const at = __atArc(c.path, r.cum, s), p = at.pos, tan = at.tan;
-    const heading = Math.atan2(tan[1], tan[0]);
+    ${turning ? `const tc = __traffic.cars[ci], lp = __lanePaths[tc.lane];
+    const at = __atArc(lp.path, lp.cum, s), p = at.pos, tan = at.tan;
+    let heading = Math.atan2(tan[1], tan[0]);
+    // a car that has just turned eases its heading round from its old lane's over its first moments on the new one
+    if (tc.turnAt !== undefined && sec - tc.turnAt < 0.7) { const k = (sec - tc.turnAt) / 0.7, e = k * k * (3 - 2 * k); let dh = heading - tc.fromH; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); heading = tc.fromH + dh * e; }` : `const at = __atArc(c.path, r.cum, s), p = at.pos, tan = at.tan;
+    const heading = Math.atan2(tan[1], tan[0]);`}
     m.position.set(p[0], p[1], p[2]);
     m.rotation.set(0, 0, heading + r.yaw);
     const co = window.__mojCars[ci]; co.pos[0] = p[0]; co.pos[1] = p[1]; co.pos[2] = p[2]; co.heading = heading;

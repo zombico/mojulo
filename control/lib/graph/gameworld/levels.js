@@ -31,6 +31,8 @@ import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
 import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
+import { inferCity } from '../city/plan/card.js';
+import { designCity } from '../city/plan/design.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -46,6 +48,8 @@ export function gameStages(world) {
     const R = resolveLevel(G, level);
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : buildingStage(R.building) }); continue; }
+    // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
+    if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     const laid = layLevel(R.level);
     // the level's buildings stand on the section they name, or on its first trail
     const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
@@ -66,6 +70,47 @@ export function gameStages(world) {
     }
   }
   return out;
+}
+
+/**
+ * A city level's stages: its plan laid (and cut into segments), entered at `from` (the segment holding the core, by
+ * default) and left from `to` (the segment the most portals away, by default). In a line of levels, the segments along
+ * the fewest portals between them, each opening only toward the one before and the one after; in a map, every segment,
+ * the way in first and the way out last, each joined to its neighbours at their portals. Each stage's manifest is the
+ * whole plan with its `level` (city/plan/level.js lowers it on every read).
+ */
+export function cityStages(level, C, map = false) {
+  let recipe;
+  try { recipe = inferCity({ ...C.plan, segments: C.plan.segments ?? true }).recipe; } catch (e) { throw new Error(`gameworld: levels.${level}.${e.message}`); }
+  const d = designCity(recipe), segs = d.segments ?? [];
+  const byId = new Map(segs.map((x) => [x.id, x])), name = (k) => `levels.${level}.city.${k}`;
+  for (const k of ['from', 'to']) if (C[k] !== undefined && !byId.has(C[k])) throw new Error(`gameworld: ${name(k)} '${C[k]}' is not one of the city's segments (${segs.map((x) => x.id).join(', ')})`);
+  const core = segs.find((x) => d.field.cx >= x.rect.x0 && d.field.cx < x.rect.x1 && d.field.cy >= x.rect.y0 && d.field.cy < x.rect.y1) ?? segs[0];
+  const from = C.from ?? core.id;
+  // the fewest portals from the way in to every segment
+  const hops = new Map([[from, 0]]), prev = new Map(), queue = [from];
+  while (queue.length) { const a = queue.shift(); for (const nb of byId.get(a).neighbours) if (!hops.has(nb.id)) { hops.set(nb.id, hops.get(a) + 1); prev.set(nb.id, a); queue.push(nb.id); } }
+  const to = C.to ?? [...hops.keys()].reduce((b, id) => (hops.get(id) > hops.get(b) ? id : b), from);
+  if (!hops.has(to)) throw new Error(`gameworld: ${name('to')} '${to}' cannot be reached from '${from}' through the city's portals`);
+  const stage = (segment, i, lv) => ({ level, node: segment, section: 'city', index: i, city: { segment, neighbours: byId.get(segment).neighbours.map((n) => n.id) }, manifest: { kind: 'city', ...recipe, level: { segment, ...lv } } });
+  if (map) {
+    const order = [from, ...segs.map((x) => x.id).filter((id) => id !== from && id !== to && hops.has(id)), ...(to !== from ? [to] : [])];
+    return order.map((id, i) => stage(id, i, {}));
+  }
+  const path = [to]; while (path[0] !== from) path.unshift(prev.get(path[0]));
+  return path.map((id, i) => stage(id, i, { route: { ...(i > 0 ? { from: path[i - 1] } : {}), ...(i + 1 < path.length ? { to: path[i + 1] } : {}) } }));
+}
+
+/** A city segment's create_sketch call: its manifest with the levels of its neighbours by ref, and in a map the world's
+ *  ways out of the city (`map`: mapPlan's for this stage) at its start (back) or its farthest crossing (on). The
+ *  segment's own first-person walker plays it: a city is in its own units, not the hero's metres. */
+function cityLevelOrder(G, stage, { title, map = null, cityRefs = {} } = {}) {
+  const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
+  if (map && ((map.keys ?? []).length || (map.powers ?? []).length)) throw new Error(`levels: a key is laid in '${stage.level}', a city: lay it in a walk's level (links[].keyAt)`);
+  const ways = map ? [...map.on.map((w) => ({ id: w.id, to: w.to, at: 'end', ...(w.gate ? { gate: w.gate } : {}) })), ...map.back.map((w) => ({ id: w.id, to: w.to, at: 'start' }))] : [];
+  const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
+  const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}) } };
+  return { tool: 'create_sketch', args: { title: name, manifest } };
 }
 
 /** Where a stage spawns the hero and where it ends, read off the stage as it lays (drawn once per stage recipe: a
@@ -134,8 +179,9 @@ function readEnds(manifest) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
+  if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
@@ -318,6 +364,8 @@ export function mapPlan(G, stages, refs) {
   const of = (lvl) => stages.map((s, i) => (s.level === lvl ? i : -1)).filter((i) => i >= 0);
   for (const id of G.ids) {
     const ix = of(id);
+    // a city's segments join each other at their own portals (cityStages), not one after another
+    if (ix.length && stages[ix[0]].section === 'city') continue;
     for (let k = 0; k + 1 < ix.length; k++) { plan[ix[k]].on.push({ to: refs[ix[k + 1]] }); plan[ix[k + 1]].back.push({ to: refs[ix[k]] }); }
   }
   for (const l of G.links) {
@@ -396,7 +444,9 @@ export function gameLevels(stages, refs, plan = null) {
   // a map world (`plan`: mapPlan's): no chain of gates; each level lists its exits, and the first level is where it starts
   if (plan) {
     return stages.map((s, i) => {
-      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) }));
+      // a city's segment leaves by its portals too, each named for the neighbour it leads to
+      const portals = s.section === 'city' ? s.city.neighbours.map((id) => ({ id, to: refs[stages.findIndex((x) => x.level === s.level && x.node === id)] })).filter((x) => x.to) : [];
+      const exits = [...plan[i].on, ...plan[i].back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })).concat(portals);
       return { ref: refs[i], title: `${s.level} · ${s.node}`, ...(exits.length ? { exits } : {}) };
     });
   }

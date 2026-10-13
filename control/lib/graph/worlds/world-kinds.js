@@ -17,7 +17,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
-import { pairLanes, laneCapacity, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
+import { pairLanes, laneCapacity, laneTurns, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
 import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-school';
@@ -26,6 +26,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
+import { assembleCityScene } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
 import { historicAudio } from '@/lib/graph/historic/soundtrack';
 import { boxFromFootprint } from '@/lib/graph/effects/effects-occluder';
@@ -235,7 +236,10 @@ async function attachCityWalkers(scene) {
   if (!Array.isArray(loops) || !loops.length) return scene;
   const rigs = await walkerRigVariants();
   const scale = (scene.cityCues?.pedHeight ?? CITY_PED_HEIGHT) / (rigs[0].figH || 1.85);   // a metro city walks real-size people (fractal-city METRO)
-  scene.walkers = loops.map((L, i) => ({ figure: 'ped' + (i % rigs.length), path: L.path, style: L.style || 'bumble', scale, speed: 0.7 }));
+  // a planned city's walker (city/plan/pedestrians.js) carries its own pace, its start along its loop and the crossings it
+  // waits at (`holds`); a legacy loop carries none of them and walks as before
+  scene.walkers = loops.map((L, i) => ({ figure: 'ped' + (i % rigs.length), path: L.path, style: L.style || 'bumble', scale, speed: L.speed > 0 ? L.speed : 0.7,
+    ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}), ...(Array.isArray(L.holds) ? { holds: L.holds } : {}) }));
   // embed only the outfits actually walking this city (a 2-loop city ships 2 rigs, not all six).
   const used = new Set(scene.walkers.map((w) => w.figure));
   scene.figures = { ...(scene.figures || {}) };
@@ -312,7 +316,11 @@ async function attachCityCars(scene) {
   for (const n of used) scene.carMeshes[n] = bank[n];
   if (signalised) {
     scene.signals = signals;
-    scene.trafficLanes = lanes.map((L, li) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, cars: laneCounts[li], ...(L.singled ? { singled: true } : {}) }));
+    // TURNS (opt-in, the planned city's `trafficTurns`: { share }): each lane's near-side turns and its capacity, and
+    // its path so the page can draw a car on whichever lane it has turned into; absent, every byte as before
+    const turning = scene.trafficTurns && (scene.trafficTurns.share > 0 || scene.trafficTurns.heads) ? laneTurns(lanes, signals, T) : null;
+    scene.trafficLanes = lanes.map((L, li) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, cars: laneCounts[li], ...(L.singled ? { singled: true } : {}),
+      ...(turning ? { turns: turning[li].turns, cap: Math.max(laneCounts[li], turning[li].cap), path: carLaneToPath(L), share: scene.trafficTurns.share, ...(scene.trafficTurns.heads ? { heads: true } : {}) } : {}) }));
     scene.trafficConstants = T;
     scene.carFootprints = Object.fromEntries(Object.entries(bank).map(([n, m]) => [n, { len: m.len, wid: m.wid }]));
     // STATIC CARS: a portal car-ant (frontage) that lies on any moving lane's swept strip is dropped —
@@ -330,7 +338,7 @@ async function attachCityCars(scene) {
       if (dropped.size) scene.staticCarsDropped = dropped.size;
     }
   } else delete scene.signals;
-  delete scene.junctions; delete scene.trafficSeed; delete scene.trafficRegion;
+  delete scene.junctions; delete scene.trafficSeed; delete scene.trafficRegion; delete scene.trafficTurns;
   delete scene.carLanes;   // consumed
   return scene;
 }
@@ -409,6 +417,14 @@ export const WORLD_KINDS = {
     // `unshaded` (GI-bake raw-albedo export) forces plain lighting + FLAT_LIGHT inside the
     // assembler; absent it, every field is byte-identical to before.
     resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleFractalCityScene({ ...m, insets: resolveCityInsets(m), time: ctx.time, sky: ctx.sky, groundShadows: ctx.groundShadows, title: ctx.title, unshaded: ctx.unshaded, toon: ctx.toon }))),
+  },
+  // a city on rails (city/plan/): a plan laid layer by layer on a board of cells, shown as its massing and walked.
+  // The legacy 'fractal-city' above is frozen; new city work lands here.
+  city: {
+    title: 'mojulo city plan',
+    walk: true,
+    // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).

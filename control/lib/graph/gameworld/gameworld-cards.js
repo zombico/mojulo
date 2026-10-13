@@ -111,14 +111,14 @@ function worldCard() {
     `  or building: { use: ${PROGRAM_IDS.join(' | ')}, seed?, goal?, civilization? } | { ref } in place of the walk:`,
     '  a building played from its way in to its goal room. places.buildings: [{ use, at?, node?, goal? }] and places.street:',
     '  { houses?, enter?, goal? } stand buildings and a town\'s first houses on a trail, walked into (card game-building).',
+    '  or city: { grammar?, civilization?, from?, to?, … } (card city-plan), played by its segments.',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
-    '  a key that is one of the hero\'s powers is a power key: picking it up opens the door and, when the power names a move, gives the hero that move.',
+    '  a key that is a hero\'s power opens the door and gives the hero its move.',
     '',
-    'ANSWER FROM: the brief\'s places and their moods. One level that is a promise of the rest is a better first',
-    'reading than many; the world bible (the sketch page) draws every level as it resolves.',
+    'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',
   );
 }
 

@@ -24,6 +24,12 @@ import { buildNav } from '../worlds/controllable/nav.js';
 import { stageColliders } from '../era/anchors.js';
 import { stairColliders } from '../era/storeys.js';
 
+// the kinds that lower their own level (a city's segment registers itself: city/plan/level.js), so a building's level
+// never imports them
+const LEVEL_KINDS = new Map();
+/** A kind that lowers `level` itself: `lower(manifest, ref)` → the manifest with its game channel. */
+export function registerLevelKind(kind, lower) { LEVEL_KINDS.set(kind, lower); }
+
 // the walkers' own pathfinder (A* over the colliders, string-pulled), run once at lowering: the route goes round walls
 const NAV = {};
 buildNav(NAV);
@@ -177,11 +183,15 @@ export function buildingLevel(read, { goal = 'top' } = {}) {
     z = st(g.on + (room.storey > ground ? 1 : -1)).baseZ;
   }
   route.push(...corners(colliders, at, toWorld(goalPlan), z, nav));
+  // the way in from the threshold: a door zone a foot inside it, and a walker entering by it two strides further in
+  const dirW = (() => { const a = toWorld([door.at.x, door.at.y]), b = toWorld([door.at.x + dx / len, door.at.y + dy / len]); return [b[0] - a[0], b[1] - a[1]]; })();
+  const doorW = toWorld([door.at.x, door.at.y]);
   return {
     frame: flip ? 'plan-reflected' : 'world',
     spawn: [...toWorld(spawnPlan), r2(st(ground).baseZ)],
     heading: r2(flip ? -headingPlan : headingPlan),
     door: door.tag,
+    entry: { at: [r2(doorW[0] + dirW[0] * 1.2), r2(doorW[1] + dirW[1] * 1.2), r2(st(ground).baseZ)], arrive: [r2(doorW[0] + dirW[0] * 6), r2(doorW[1] + dirW[1] * 6), r2(st(ground).baseZ)] },
     goal: { room: room.tag, name: room.name, at: [...toWorld(goalPlan), r2(st(room.storey).baseZ)] },
     route,
     colliders,
@@ -343,18 +353,23 @@ export const asksLevel = (m) => !!(m && typeof m === 'object' && m.level && type
 export function withBuildingLevel(m, ref, read = null) {
   if (!asksLevel(m)) return m;
   if (m.kind === 'stage') return withStageLevel(m, ref);
+  // a kind that lowers its own (a city's segment, its city already merged in by ref: city/plan/ref.js)
+  if (LEVEL_KINDS.has(m.kind)) return LEVEL_KINDS.get(m.kind)(m, ref);
   const r = read || readStructure(m);
   if (!r) return m;
   const L = buildingLevel(r, { goal: m.level.goal });
   if (L.error) throw new Error(`level: ${L.error}`);
   const radius = m.level.radius ?? 3;
+  // `door`: the building is an inside entered by a door from another level (a city's lot, a town's): its entry is that
+  // door, a zone just inside the threshold, a walker coming in by it standing two strides in, facing in
+  const doorMech = typeof m.level.door === 'string' ? [{ kind: 'door', id: m.level.door, at: L.entry.at, radius: 2, spawn: L.entry.arrive, heading: L.heading }] : [];
   return {
     ...m,
     // the zone watches the walker, whose position is its eye: the goal stands at the goal room's eye height
-    game: { levelRef: ref, mechanics: [{ kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], r2(L.goal.at[2] + EYE)], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) }], fall: { mode: 'respawn' } },
+    game: { levelRef: ref, mechanics: [...doorMech, { kind: 'reach-exit', at: [L.goal.at[0], L.goal.at[1], r2(L.goal.at[2] + EYE)], radius, planar: false, ...(L.route.length ? { via: L.route } : {}) }], fall: { mode: 'respawn' } },
     // first person: the mouse looks once captured (click the view), A/D and the arrows turn, W/S walk, Q/E strafe;
     // the walls stop it (a body 0.8 ft round, stepping onto a tread)
-    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 9, turn: 4, eye: EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.8, collideHeight: EYE, step: 1 }, body: { type: 'none' }, transform: { pos: [L.spawn[0], L.spawn[1], L.spawn[2] + EYE], heading: L.heading } }],
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: 9, turn: 4, eye: EYE, turnMode: 'look', keyTurn: true, strafe: 1, collideRadius: 0.8, collideHeight: EYE, step: 1 }, body: { type: 'none' }, transform: { pos: doorMech.length ? [L.entry.arrive[0], L.entry.arrive[1], L.entry.arrive[2] + EYE] : [L.spawn[0], L.spawn[1], L.spawn[2] + EYE], heading: L.heading } }],
     camera: { rule: 'follow', target: 'player', dist: 0.05, height: 0, lookH: 0, lead: 2, turnMode: 'look' },
     colliders: L.colliders,
   };

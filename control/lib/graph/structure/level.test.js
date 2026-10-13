@@ -122,3 +122,15 @@ describe('an inside entered by its door', () => {
     expect(L.game.mechanics.at(-1).kind).toBe('reach-exit');   // its goal room still ends it
   });
 });
+
+describe('a building entered by a door from another level', () => {
+  it('takes level.door: a door zone inside its entry, a walker standing in past it, its goal still its end', () => {
+    const m = withBuildingLevel({ ...OFFICE, level: { door: 'out' } }, 'lv_in');
+    const door = m.game.mechanics.find((x) => x.kind === 'door'), exit = m.game.mechanics.find((x) => x.kind === 'reach-exit');
+    expect(door).toMatchObject({ id: 'out', radius: 2 });
+    expect(exit).toBeTruthy();
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    expect(d(door.spawn, door.at)).toBeGreaterThan(door.radius);
+    expect(d(m.entities[0].transform.pos, door.at)).toBeGreaterThan(door.radius);
+  });
+});

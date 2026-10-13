@@ -30,6 +30,7 @@ import { moduleDir } from '../../../module-dir.js';
 import { readBookCards } from '../recipe-book/cards.js';
 import { historicEntryCards } from '../../historic/entries.js';
 import { stageEntryCards } from '../../era/entries.js';
+import { cityEntryCards } from '../../city/plan/entries.js';
 const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/views/view-vocab');
 
 // `when` is required for the same reason as sketch-vocab: it's the
@@ -98,6 +99,11 @@ export function getViewVocabCatalog() {
   // reference cards at load (../../era/entries.js), never hand-written.
   for (const card of stageEntryCards()) {
     if (catalog.has(card.id)) throw new Error(`view-vocab: generated stage card '${card.id}' collides with a card`);
+    catalog.set(card.id, card);
+  }
+  // The city plan's card (family `world`), built from the plan's card, grammar and law tables (../../city/plan/entries.js).
+  for (const card of cityEntryCards()) {
+    if (catalog.has(card.id)) throw new Error(`view-vocab: generated city card '${card.id}' collides with a card`);
     catalog.set(card.id, card);
   }
   // Attached recipe-book cards (recipe-book.plan.md) — merged AFTER core so

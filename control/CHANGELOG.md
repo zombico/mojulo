@@ -13,6 +13,235 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### City rails: a city planned first, tuned on rails, played as levels
+
+- **A city as a plan before a render.** `compose_world({ base: 'city', overrides: { plan } })` mints kind `city`
+  (`lib/graph/city/plan/`).
+  - The recipe is laid on a board of named cells ('C4', 'C4:H9', 'A5>P5') in layers, each reading only the
+    layers before it: main streets (`spine`), what each part is for (`districts`), ground reserved before
+    anything grows (`sites`), the street grid, the lots cut from each block's frontage, `transit`, and the walk.
+  - Anything off the card is refused by name (`readCityPlan`). What the recipe leaves out (play, board, a spine
+    clear of every site) is filled at mint and recorded in `notes.inferred`, and a seed is drawn and written when
+    none is given. A legacy city (no `plan`) is untouched.
+- **Each layer on its own dice.** The grid rolls per gap between fixed lines, the lots per block, the skin per
+  lattice square.
+  - A site moves only the streets its edges land on.
+  - A lot by hand (`lots: { <id>: { use, storeys } }`) changes that lot alone.
+  - Streets are named by where they run (`x340`), so nothing renames when a line is added elsewhere.
+- **Grammars read from the legacy metro city.** Every `CITY_FLAVORS` entry is a grammar in metres (block pitch,
+  right-of-way, lot cut, height field, tower rules, skin mix and its district lean, facade affectations),
+  derived from `METRO` and the flavour, never copied.
+  - `play: 'game' | 'real'`: game compresses what a walker covers (block pitch, right-of-way, lot depth, the
+    field's reach, the walk's rhythm) and never a storey, a frontage or a tower. It is timed at a player's run
+    (5 m/s), where real uses a person's walk (1.4 m/s).
+- **Walk laws.** Nine data rows (`CITY_LAWS`), advisory and waivable by `'<law>'` or `'<law>:<subject>'`:
+  - spine-first, reserved, fronts, connected;
+  - a crossing every so many metres;
+  - something to meet every so many metres (a shopfront, a place, a stop, a corner);
+  - transit reach, lines on streets;
+  - slender towers.
+
+  The plan builds a walk graph to judge them, with each lot's door on its street. A lot left behind the scrap a
+  diagonal cuts off goes green with it.
+- **One read model.** `readCity` feeds the mint's reply (census, every law, `next` by outcome: Layout, Walk,
+  Look, Play), the plan book at `/bible` (the plan sheet on its board, the laws, the lots by id, what is open),
+  and the walkable massing at `/world`.
+  - The `city-plan` card is generated from the same tables.
+  - The legacy `city` card now points to it.
+- **The reconstruction gate (machine).** On the legacy city's own census, every grammar lands within the legacy
+  city's seed spread: north-american, new-york, paris, tokyo.
+  - Measures: walk share, crossings, median and p90 height, lot frontage, skin mix.
+  - Block pitch is the loosest, about 120 m against 100–119 m, quantised by the board.
+  - Legacy `fractal-city` is frozen: its rows keep their bytes, and it retires once the metro view moves here.
+- **Facades.** Every lot wears a facade in the world (`city/plan/facades.js`), laid over the plan and never into
+  it: one stream per lot, so a facade or a grammar's look reworded moves no street, lot or storey.
+  - A lot's skin is the legacy metro city's (a material's family and shade, a stone rhythm, a roof).
+  - Its grammar's affectations go on through the legacy city's own `flavorFacade`, now exported and otherwise
+    unchanged.
+  - Then the grammar's `wear` (every lot), then the lot's own `facade` (`lots: { <id>: { facade } }`, the building
+    generator's descriptor, refused field by field).
+  - The plan's beats decide the shopfronts.
+  - The masses go to the legacy facade pipeline (`assembleBoxCityScene`) in city units (`metersPerUnit` 3.66), so
+    a Paris street here and there is one Paris street.
+  - `fidelity: 'massing'` keeps the plain massing.
+- **Grammars as documents.** `grammar: { from: <id>, …changes }` rewrites any field of the grammar it starts from;
+  objects merge, lists replace.
+  - It is held to `GRAMMAR_SCHEMA` and refused by name, and documents chain through `from`.
+  - New fields Earth grammars never use: `wear` (a facade every lot wears), `shapes` (box, setback, podium,
+    cylinder weights for a lot's mass), and `maglev` among the transit modes (an elevated guideway on pylons,
+    raised platforms).
+- **World grammars, written as documents over Earth ones:**
+  - `neon-sprawl` (cyberpunk, from tokyo): dark glass, neon blades and signs, slender towers, maglev.
+  - `xeno-garden` (alien, from mediterranean): ceramic skins, round masses, guideways.
+
+  Vehicles on the guideways are not in the vocabulary yet.
+- **Organic masses** (`city/plan/organic.js`): the shapes a box cannot stand as, built from facade-carded strips
+  so the windows follow the curve, as the legacy cylinder is.
+  - `undulate` (Casa Milà's register): street walls ripple inward in a slow wave, never past the lot line, so
+    party walls stay straight. The roofline swells and dips, and the roof is crowned with sculpted chimneys.
+  - `spindle` (a Sagrada Família spire's): a revolved tower that swells and tapers to a finial, its windows on
+    bands of floors. A grammar may raise its towers as spindles (`tower.spindle`), rolled only when it says so.
+  - Both are mass `shapes` a grammar weighs. The xeno garden now ripples and spires.
+- **A city in a world's look and paint.** The world-wide `look` channel now reaches the city.
+  - The city lights itself by the look's sun, or with none by a moon, its ambient never black, because its
+    facades are cards a bake cannot relight.
+  - The channel lays the look's air and sky. Two additive keys on `applyLook`, absent and byte-identical
+    elsewhere: `lookLit` (no "ignored the light" note) and `lookHaze` (the air thinned for a kind seen across a
+    kilometre).
+  - `paint: { geocube, amount }` lays a geocube's colours over the ground, water, parks and walks, and leans
+    every skin toward its stone, trim and accent. Without a look, the cube's own look lights it.
+  - The same city is the same streets, lots and facades in another place and hour.
+- **A city played as a map game.** `segments: true | { across, levels }` cuts the city along its spine and avenues
+  (`city/plan/segments.js`), dice-free.
+  - Pieces are sized to a level's span: game 180–360 m a side, real 300–600 m. The spine always cuts.
+  - Each pair of neighbours is joined by a portal on the most important street crossing their edge.
+  - A segment is played as a building on the rail is: `level: { segment }` is lowered on every read
+    (`city/plan/level.js`, registered with `structure/level.js registerLevelKind`). It gets a named reach-exit per
+    neighbour at its portal, arrivals from each neighbour's level clear of the way back, a first-person walker at
+    its middle crossing, and walls at every built mass and along its edges, open only at its portals. A segment
+    with no neighbours is played to its farthest crossing.
+  - A level is `{ kind: 'city', city: <ref>, level: { segment } }`. It reads its city by ref (`city/plan/ref.js`,
+    merged in world-scene and game-resolve), so an edit to the city moves every level.
+  - `segments.levels: true` mints a level per segment beside the city (`<ref>-<segment id>`). The mint returns
+    `game.create_game`: the map from the segment holding the core, each exit answered from the other side, a
+    progression slice.
+  - The book draws the segments and portals and lists them. `next` leads to `create_game`.
+  - A four-segment Paris passed `create_game`'s headless auto-audit: every level reached its exit.
+- **Two ways into a city's buildings** (`city/plan/doors.js`).
+  - `walk`: the ground storey is a lobby, part of the map. A glazed front with a door gap, a counter, a stair
+    rising to the ceiling, the facade standing on it from its ceiling up. The level walls the lobby, not the lot.
+  - `door`: a marked door (a lit surround, a canopy) whose zone on the walk changes the scene. The inside is a
+    level of its own, minted through the building door: an office for an office or a tower, a store or
+    restaurant for a shop, or the lot's own `inside`.
+  - Structure buildings now take `level: { door }` as stages do (`structure/level.js`): a door zone just inside
+    the entry, the walker arriving two strides past it, the goal room still the end. `create_game` links each
+    lot's door to its inside's `out`.
+  - Chosen by hand (`lots: { <id>: { enter, inside? } }`) or per segment (`segments.enter`, default two
+    walk-ins and one door with levels), nearest the segment's middle, dice-free.
+  - A four-segment Paris with its four insides (two stores, two restaurants) passed the headless auto-audit: all
+    eight levels completable.
+- **A city's game exports.** `export_game` ships a city's plan recipe once beside its segment levels, which read
+  it by ref, as a map's recipe ships beside its mode variants. A map game's level with nothing to pick (a street,
+  a door's inside) is entered straight from the level list, with no empty setup screen and no "start battle".
+  - Spot-checked in the browser: a four-segment Paris exported to a folder; the street played, a door led into
+    its café and `out` led back to the walk.
+- **The city at night** (`city/plan/night.js`). Under a look with no sun, a share of every wall's windows is lit
+  (the grammar's `night: { windows, shops, palette }`, leant by the lot's use), laid on the wall's own window grid
+  between the recessed glass and the mullions, in colours no light shades. A storey's lit rooms run together, a
+  shop's ground storey is lit along its front, and blade signs burn in their own colours. Each lot rolls its own
+  dice. By day nothing is added.
+  - Neon sprawl lights its rooms in screen colours; xeno garden lights them in bioluminescent ones, its organic
+    walls included.
+  - The city no longer takes the legacy moonlight pass on top of the look's moon, which double-lit its ground and
+    roofs. The moonlit ambient is lower, so a lit window reads against it.
+  - `bladeSignBoxes` tags a sign with its tint only for a box that asks (`neon`); the legacy city keeps its bytes.
+- **Traffic** (`city/plan/traffic.js`). The city's straight streets become car lanes: a lane each way on a road
+  wide enough, a one-way lane alternating street by street on a narrower one, on the grammar's side. Every place
+  two streets meet becomes a signalled junction as wide as its carriageways.
+  - The world path fills them through the legacy city's car bank and signalled traffic model (`attachCityCars`):
+    real-size cars, exclusive phases, no two cars touching.
+  - A segment's level drives only its own crop.
+  - `cars: false` empties the streets; a massing city has none.
+  - London and Tokyo grammars now drive on the left. The legacy flavours never recorded a side.
+  - A four-segment Paris with cars, and its four insides, passed the headless auto-audit: all eight levels
+    completable.
+- **A world bible's level can be a city** (`levels.<id>.city`, in place of `walk`). A planned city is built in its
+  civilization's language and painted by the level's geocube.
+  - **Played by its segments.** In a line of levels it is the route along the fewest portals from its way in
+    (`from`, the core's segment by default) to its way out (`to`, the farthest). Each segment opens only toward the
+    one before and after it, its walker starts at the portal it came in by, and the line's gates chain them. In a map
+    world every segment is a level joined to its neighbours at their portals, with the world's links at the way in
+    and way out.
+  - Segment levels take `level.route: { from?, to? }` and `level.ways: [{ id, to, at: 'start' | 'end' }]` for this.
+  - **A civilization at city scale** (`city/plan/civilization.js`). Its building language becomes a grammar
+    document: a hipped roof in its covering's colours where it caps with a gable or a hip, flat where it has no cap.
+    Arched, lensed or banded lights set the wall rhythm, and coursed walls bring brick. A shell language swells into
+    rippling masses and spires; a tiered one steps back as it rises. A level that names a grammar has the language
+    spoken over that grammar; a level that writes a grammar document keeps its own.
+  - Its buildings are walked into (lobbies) by default: a door's inside is not a level of a world bible yet.
+  - The world bible draws the city's plan sheet; the graph and the story binder know the new section.
+  - A city level made through `create_sketch` and promoted by `create_game` passed the headless auto-audit, in a
+    line and in a map.
+- **Landmarks on a city's sites** (`city/plan/landmarks.js`). A site names what stands on it, inside the site with
+  a forecourt round it, rolling no dice.
+  - `landmark: '<id>'` on a landmark site: one of the landmark library's (the Eiffel Tower, Big Ben, the
+    Colosseum…), at its real size from the legacy metro city's own tables (`LANDMARK_REAL`, now exported). One too big
+    for its site is scaled down to fit, and the new `landmark-fits` law says by how much.
+  - `building: 'church' | 'mosque' | 'temple' | 'rotunda'` on a civic site, `variant?`: the library's sacred and civic
+    builders (`refacade`), at their own heights.
+  - `from: '<ref>'`: an edifice of the operator's own (`mint_solid({ kind: 'edifice' })`), stood at its true scale.
+    It is read by ref wherever the city is resolved (`withCityRef` lays it in under `edifices`), so an edit to the
+    edifice moves the city. `compose_world` refuses a missing ref or one that is not an edifice, and `export_game`
+    ships the edifice's recipe beside the city's.
+  - A city's ground is laid first in its face list. A landmark's plinth at ground level had made the World's
+    coplanar lift (`decollideFaces`) raise the whole ground over the streets.
+  - The `city-plan` card lists the landmarks, buildings and variants; the `edifice` card says how to stand one in a
+    city.
+- **A city's green** (`city/plan/green.js`). Trees and shrubs are grown on the laid city as an interceptor, the way
+  the room stage grows its moss and the town its dress.
+  - Each kind finds its own sites:
+    - street trees about a metre in from the kerb of every walk wide enough, at the grammar's stride, kept off
+      carriageways and clear of crossings, doors, driveways, lobbies and stops;
+    - parks grown loose, thinning toward a lawn in the middle;
+    - a ring of trees round each plaza;
+    - courts in the green the lots leave behind.
+  - `green: 0…1 | { street, park, plaza, court }` sets how many sites each kind takes, over its grammar's own (`green`
+    in the grammar schema: defaults, stride, the least walk a tree stands in, and its species). Each street and site
+    rolls its own dice, counts are capped, and none of it collides.
+  - The trees are the vegetation library's species, grown once and stamped through the World's repeats, each at the
+    level of detail the cameras see it at, under one budget. Paris has beech and flowering cherry, Tokyo cherry and
+    pine, the Gulf date palms and schefflera, Southeast Asia coconut palms, and the xeno garden tree ferns and
+    stranglers. The default species are the quick growers; oak, banyan and washingtonia are named when wanted.
+  - Shrubs are the legacy plant box at the world's scale. The legacy street tree is not used: sized for the old,
+    smaller city, it reads as a stick among real storeys.
+  - The book's plan sheet draws a dot per plant; the readout counts each kind.
+  - The street camera stands in the near lane, so a tree-lined walk does not put a trunk in the frame.
+- **The green, finished out** (`city/plan/green.js`, `foliage.js`):
+  - Each street tree stands in its pit under a grate. A walk too narrow for a tree takes planters instead: a shrub in
+    a concrete box at the kerb.
+  - `median`: a planted central reservation down an avenue wide enough (the spine's and the major streets', 14 m of
+    carriageway or more). It is a raised lawn with kerbs and trees down its middle, broken short of every crossing
+    street. Paris and the Gulf plant most of theirs, Tokyo few.
+  - `season: 'spring' | 'summer' | 'autumn' | 'winter'`. Spring is as grown (the cherries in bloom). Summer turns the
+    blossom to leaf, autumn turns the deciduous crowns (beech, oak, cherry), winter leaves them bare. Evergreens keep
+    their leaves. A leaf is told from bark by its colour, so the vegetation pool's other readers keep their bytes.
+  - A paint leans every leaf toward its geocube's foliage.
+  - In a segment's level a street tree's trunk and a planter stop the walker. A shrub, a crown, a park's trees and a
+    median's do not: the walk graph and the audit run down the middle line. A level draws its trees under a lighter
+    budget (60k faces, at most L1), because at full detail the headless audit timed out.
+- **Traffic you can watch: signal heads, and cars that turn.** In place of the planned human-motivations layer
+  (P5), the operator chose a simpler demo.
+  - Every junction shows its signal heads, a post and lamp per axis at its corners, lit green, amber or red by the
+    phase the cars obey. One axis runs, a clearance holds every signal red, then the other axis runs.
+  - Cars turn: a share of the junctions a car passes (`cars: { turn: 0…1 }`, 0.35 by default), only onto the near
+    side (right in right-hand traffic, left in left-hand), so a turn crosses neither the oncoming lane nor the far
+    one. A car turns only on its own green, only into room (the lane under its capacity, no car within a footprint
+    and a gap), cutting the corner so its rear clears its old line at once. The page eases its heading round.
+  - `traffic-model.js` gains `laneTurns`, `armTurns`, `turnTick` and `stepTrafficTurning`. They are embedded beside
+    the model only when a lane carries turns, so the legacy city's pages keep their bytes; the channel's output for
+    a page without turns was compared byte for byte.
+  - Machine gate: two minutes of a Paris and a London city, every step. No two cars' footprints touched, about 130
+    turns each, every turn inside the box its old lane was green through, no lane over capacity, no car left
+    standing, and the same clock replays the same cars.
+- **People on the walks** (`city/plan/pedestrians.js`), to close the traffic demo's plausibility.
+  - `people: 0…1` (0.5 by default when the streets are driven). Most walk round their block on its sidewalk. Some
+    walk round two neighbouring blocks and cross the street between at both ends.
+  - At a signalled crossing a walker waits at the kerb until the street it crosses is red (its cars held) and the
+    street it walks along has green enough left to cross on.
+  - The walkers are the legacy city's clothed rigs (`attachCityWalkers` now passes a planned walker's pace, start and
+    holds through). A held walker is stepped from clock zero by `heldWalk` (`traffic-model.js`, embedded beside
+    `phaseAt`), so the page and the tests run one code and a replay is the same people.
+  - Walkers without holds keep their bytes; the channel's output was compared. A level keeps a dozen walkers in its
+    reach: with more, the headless audit timed out drawing their rigs. A four-segment Paris with people and turning
+    cars, and its insides, passed the audit: all eight levels completable.
+  - Machine gate: three minutes of a New York city. Every crossing was entered on its walker's green, walkers waited
+    at kerbs, nobody stood for good, and replay was deterministic.
+- **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
+  and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
+  The measured gap is at most 0.07.
+- Pins moved on purpose: `WALK_KINDS` gains `city`; the `compose_world` card count gains the generated
+  `city-plan` card.
+
 ### Rig clips keep the palette
 
 - **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used

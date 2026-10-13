@@ -1499,7 +1499,9 @@ function bladeSignBoxes(b, tints, floorH, floors, face, L, camHint) {
   if (z1 - z0 < floorH) return out;
   tints.forEach((tint, k) => {
     const lx = F.L * (k === 0 ? 0.12 : 0.88);
-    out.push(...cityBox(F.rect(lx - 0.06, 0.03, 0.12, 0.8), z0, z1, { top: scaleHex(tint, 0.9), side: tint }, L, camHint));
+    const sign = cityBox(F.rect(lx - 0.06, 0.03, 0.12, 0.8), z0, z1, { top: scaleHex(tint, 0.9), side: tint }, L, camHint);
+    // a box that asks (the planned city at night) gets its signs tagged with their tint, to burn in it; absent, no bytes move
+    out.push(...(b.neon ? sign.map((f) => ({ ...f, neon: tint })) : sign));
   });
   return out;
 }
