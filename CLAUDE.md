@@ -86,6 +86,7 @@ npm run build                # --webpack too: Turbopack ignores next.config's we
 npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
 npm run test:critical        # the contracts only (MCP surface, pins, guards, db, scripts), no geometry-heavy suites
 npm run test:deep:changed    # the *.deep.test.js sweeps whose imports touch an uncommitted change (none if none do)
+npm run test:e2e             # whole worlds through the real handlers, games whose audit walks each level in headless Chrome
 node scripts/mcp-stdio.mjs orient|tools|packs|help <tool>|call <tool> --json '{…}'   # CLI over the registry; orient = initialize for a shell
 node scripts/reindex-embeddings.js   # text-only without the recall group; vectors with it
 node scripts/mcp-stdio.mjs install recall   # the embedding runtime, opt-in, lands in ~/.mojulo/recall
@@ -95,9 +96,12 @@ No lint, formatter, or types. CI runs `node --check` and the locale validator. A
 entry points `chdir` there and `getServerVersion` reads `package.json` from cwd. macOS has no `timeout`.
 
 Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
-folder and `test:deep:changed`; the whole suite once before merging into the release candidate (CI runs it and
-`test:deep`). An exhaustive sweep (every word at its range ends, every preset built) goes in a `*.deep.test.js`
-beside the law tests, importing only the modules it sweeps, so `--changed` can select it.
+folder and `test:deep:changed`, plus `test:e2e` when the change touches the gameworld, city, game or structure
+kernels; the whole suite once before merging into the release candidate (CI runs it and `test:deep`). An
+exhaustive sweep (every word at its range ends, every preset built) goes in a `*.deep.test.js` beside the law
+tests, importing only the modules it sweeps, so `--changed` can select it. A suite that makes whole worlds or
+mints with `autoAudit: true` goes on the `E2E` list in `vitest.e2e.config.js`, never in critical (guarded by
+`lib/mcp/test-tiers.test.js`); test the audit gate itself with a stub `runTraversal`.
 
 Byte-pin conventions: `*.char.test.js` and `*.trace.test.js` are characterization pins; `__snapshots__/`
 hashes are structural on purpose. A pin change is legitimate only when the step says emission changes.
