@@ -74,6 +74,16 @@ describe('the run as minted now', () => {
     expect(now.contra).toBe(true);
     expect(now.arm).toBeGreaterThan(60); expect(now.arm).toBeLessThan(110);              // people: 64 … 105° (frozen 124)
   });
+
+  it('the feet land a few cm apart, nearly on one line, as runners\' do (the frozen run lands them 28 cm apart)', () => {
+    const landing = (spec) => {
+      const at = { L: [], R: [] };
+      for (let i = 0; i < 40; i++) { const d = sampleMotionPose({ sprint: spec }, i / 40, 40), a = balancedArmature(d); for (const s of ['L', 'R']) if (d.plant[s] > 0.5) at[s].push(a['ankle' + s].x); }
+      return (mean(at.R) - mean(at.L)) * CM;
+    };
+    expect(landing(SPRINT_DEFAULTS)).toBeGreaterThan(20);
+    expect(landing(SPRINT_MINT)).toBeGreaterThan(2); expect(landing(SPRINT_MINT)).toBeLessThan(8);   // people: 3 … 6 cm
+  });
 });
 
 describe('the minted walk on a hero', () => {

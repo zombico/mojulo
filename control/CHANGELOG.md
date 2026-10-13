@@ -48,6 +48,8 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   measured sprint (59° forward, 42° back; a dash 59 / 40). `keyframeMotion` takes `beats` (each segment's share of the
   loop; absent, even), and an emote passes its stamped `beats`: the bow is minted at 1.25 / 0.7 / 1.65 / 0.6 s, which
   measures 0.78 s down, 1.17 s held and 1.06 s up (people 0.8 / 1.1 / 1.07), rising slower than it bows.
+- **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
+  takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
   emote. The GIF plays it in real time (18 fps; a short loop keeps 16 frames and plays them faster) and the exported
   clip carries it as its designed duration (`s`); a motion without it keeps the 30-frame loop and the runtime's one

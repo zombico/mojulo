@@ -466,6 +466,11 @@ export function sprint(params = {}, base = null) {
   const d = Math.max(0.15, Math.min(0.49, p.dutyFactor));     // <0.5 keeps a flight phase
   const theta = SM.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * (base ? legLenOf(base) : LEG_LEN))))) * DEG;
   const swing = (ph) => Math.max(0, SM.sin(TAU_G * ph));
+  // STEP WIDTH (a mint dial, as the walk's; absent ⇒ the feet under the hip joints, the frozen run): runners land
+  // nearly on one line, so each thigh adducts by a constant angle that sets its foot (hipSpan − stepWidth) / 2 in.
+  const span = Math.abs((base || B).hipL.x - (base || B).hipR.x);
+  const LEGS = base ? legLenOf(base) : LEG_LEN;
+  const narrow = Number.isFinite(p.stepWidth) ? SM.asin(Math.max(-1, Math.min(1, (span - p.stepWidth) / 2 / LEGS))) * DEG : null;
   return (rawPhase) => {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
     const cyc = SM.cos(TAU_G * phase);                       // +1 = left thigh driving forward/up
@@ -486,8 +491,8 @@ export function sprint(params = {}, base = null) {
     const armBk = (c) => (c > 0 ? c * p.armBack : c);            // boost backward arm drive
     return {
       // legs: big thigh swing (high knee in front); the recovery leg snaps the heel up.
-      hipL: { pitch: theta * hipFwd(cyc) },
-      hipR: { pitch: theta * hipFwd(-cyc) },
+      hipL: narrow === null ? { pitch: theta * hipFwd(cyc) } : { pitch: theta * hipFwd(cyc), yaw: -narrow },
+      hipR: narrow === null ? { pitch: theta * hipFwd(-cyc) } : { pitch: theta * hipFwd(-cyc), yaw: narrow },
       kneeL: p.stanceKnee + p.swingTuck * swing(phase - 0.5),
       kneeR: p.stanceKnee + p.swingTuck * swing(phase),
       // ankles plantarflexed — running on the forefoot, toes pointed; the toes (MTP) flick
@@ -651,7 +656,8 @@ export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05, heel
 // The run as minted now: the girdles twist against each other (pelvisRot 8, shoulderRot 14: the hip line turns about
 // 16° and the shoulder line about 29° the other way, people 15 … 18° and 23 … 36°; the frozen run keeps a square
 // trunk), and the arms pump about 100° (armSwing 40; people 64 jogging … 105 sprinting, the frozen run 124).
-export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, pelvisRot: 8, shoulderRot: 14, armSwing: 40, seconds: 0.7 });
+// The feet land about 5 cm apart (stepWidth 0.03; people 3 … 6 cm, the frozen run 28 cm, under the hip joints).
+export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, stepWidth: 0.03, pelvisRot: 8, shoulderRot: 14, armSwing: 40, seconds: 0.7 });
 // The wave (figure-render.js waveMotion) as minted now: one loop of `seconds` (hand from the hip, waving, back), the
 // hand swept side to side `waves` times at an even pace (about 1.9 a second inside the wave, people wave at 0.8 … 2;
 // the frozen wave flutters 5.4 times in 1.67 s, accelerating, 6 cm wide), `swing` degrees each way at the shoulder
