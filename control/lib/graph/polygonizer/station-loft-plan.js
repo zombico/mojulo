@@ -238,7 +238,8 @@ export function validatePlan(plan) {
     if (plan.style.e != null && !(Number.isFinite(plan.style.e) && plan.style.e >= 1)) fail('style.e must be a number ≥ 1 (2 is round, 12 reads as a box)');
     // `drawn` (creature-drawn.js, applied by the door before expansion): the body built for its target, bridged at its joints
     const d = plan.style.drawn;
-    if (d != null && d !== true && !(d && typeof d === 'object' && !Array.isArray(d) && Object.keys(d).every((k) => k === 'target'))) fail("style.drawn is true or { target } (the creature drawn for its target: bridged joints, rings by its outline rule)");
+    if (d != null && d !== true && !(d && typeof d === 'object' && !Array.isArray(d) && Object.keys(d).every((k) => k === 'target' || k === 'markings'))) fail("style.drawn is true or { target?, markings? } (the creature drawn for its target: bridged joints, rings by its outline rule; markings { pattern: 'countershade' | 'points' | 'both' | 'none', colour? } or false)");
+    if (d?.markings && !(d.markings === false || (typeof d.markings === 'object' && ['countershade', 'points', 'both', 'none', undefined].includes(d.markings.pattern) && (d.markings.colour === undefined || /^#[0-9a-f]{6}$/i.test(d.markings.colour))))) fail("style.drawn.markings is { pattern: 'countershade' | 'points' | 'both' | 'none', colour?: '#rrggbb' } or false");
   }
   const joints = plan.joints || {};
   for (const [k, v] of Object.entries(joints)) if (!isVec(v)) fail(`joint '${k}' must be [x, y, z]`);

@@ -76,7 +76,7 @@ export const PAINTERLY_SOFT = 0.24;
 const D65 = [0.95047, 1, 1.08883];
 const toLin = (c) => (c <= 0.04045 ? c / 12.92 : dmath.pow((c + 0.055) / 1.055, 2.4)), toGam = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * dmath.pow(c, 1 / 2.4) - 0.055);
 /** "#rrggbb" → [L*, C*, h°] */
-function hexLch(hex) {
+export function hexLch(hex) {
   const [r, g, b] = hexToRgb(hex).map((v) => toLin(v / 255));
   const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / D65[0], Y = 0.2126 * r + 0.7152 * g + 0.0722 * b, Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / D65[2];
   const f = (t) => (t > 216 / 24389 ? dmath.cbrt(t) : (24389 / 27 * t + 16) / 116);
@@ -84,7 +84,7 @@ function hexLch(hex) {
   return [L, dmath.hypot(A, B), ((dmath.atan2(B, A) * 180 / Math.PI) + 360) % 360];
 }
 /** [L*, C*, h°] → "#rrggbb" (clamped into sRGB) */
-function lchHex(L, C, hDeg) {
+export function lchHex(L, C, hDeg) {
   const h = hDeg * Math.PI / 180, A = C * dmath.cos(h), B = C * dmath.sin(h);
   const fy = (L + 16) / 116, fx = fy + A / 500, fz = fy - B / 200, inv = (t) => (dmath.pow(t, 3) > 216 / 24389 ? dmath.pow(t, 3) : (116 * t - 16) / (24389 / 27));
   const X = inv(fx) * D65[0], Y = inv(fy) * D65[1], Z = inv(fz) * D65[2];

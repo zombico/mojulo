@@ -72,6 +72,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - an optional inner patch in its own group.
   It is built as a loft of closed rings with its winding checked outward. The library wolf's ears are now leaves (its
   palette's `EarInner` inside); the bear keeps its round disc ear.
+- **The base silhouette and its value split** (`creature-silhouette.js`, stage 1 of the dressing flow, with or
+  without a reference).
+  - `baseSilhouette(mesh, plan)` reads a body's record:
+    - each part family's share of the outline, front and side (what the outline loses without it);
+    - the must-see beyond the trunk and the paired limbs (a tail, a muzzle, ears);
+    - the landmarks as heights over the figure;
+    - the outline's character (barrel, bell, column, needle, wedge).
+  - A drawn creature (`style.drawn`) whose body is one colour (80% of its own surface within 12 L* of its main tone)
+    gets a SECOND TONE. It is 24 L* darker for a light coat or lighter for a dark one: a cool grey-blue on white or
+    grey fur, a warm grey on dark, the hue turned a little on a coloured coat.
+  - It is laid as markings:
+    - countershading: the dorsal side against the ventral; under the jaw and the inside of the limbs ventral;
+    - points: the ends of each limb chain, the tail's last links and the ears.
+  - Markings go per face by the rest normal, with a seeded jag on each face's threshold, so the border is crisp and
+    ragged along the mesh's own edges, a toon marking rather than a gradient.
+  - Only the body's main tone is marked: dark paws, claws, eyes and everything worn keep their colours.
+  - A plan may name its own markings (`style.drawn.markings: { pattern, colour }`, from a reference or a roll) or turn
+    them off.
+  - A drawn creature is also smoothed with its body and fur groups welded at 70°, like the hero's skin.
+  - The markings ride the World page and the rig pack as the face's tint does.
+  - On the Pale Warden: derived, a grey-blue back, head top and outer limbs, with points; from the painterly wolf as a
+    reference, an indigo back and head over white, red inside the ears.
+  - A creature without `style.drawn` renders as before.
 - **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
   silhouette:
   - a silhouette gate every pass must keep;

@@ -37,6 +37,7 @@ import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/w
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { heroCastLight } from '@/lib/graph/era/cast-light';
 import { faceTint } from '@/lib/graph/polygonizer/face-tint';
+import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
 import { TIERED_SMOOTH_CREASE, TIERED_FACE_SMOOTH, TIERED_FACE_TINT, tieredPole } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
@@ -644,12 +645,15 @@ export const WORLD_KINDS = {
       // rest. Any other layered row keeps one shade per face unless it opts in with `smooth: true` (a creature, a
       // sculpted animal); a flat (unshaded) export always does.
       // the tiered form blends its body's own colour groups like the skin (tiered-form.js TIERED_SMOOTH_CREASE)
-      const crease = m.hero?.form === 'tiered' ? TIERED_SMOOTH_CREASE : STUDIO_SMOOTH_CREASE;
+      // a DRAWN creature (creature-drawn.js, the plan's `style.drawn`) welds its body and fur as one form, and wears its
+      // markings (creature-silhouette.js): its own, or countershading and points when its body is one colour
+      const drawn = !m.hero && !!m.plan?.style?.drawn;
+      const crease = m.hero?.form === 'tiered' ? TIERED_SMOOTH_CREASE : drawn ? drawnCrease(m.plan) : STUDIO_SMOOTH_CREASE;
       // and its landmark head's normals toward the head's ellipsoid (tiered-form.js TIERED_FACE_SMOOTH)
       const ellipsoid = m.hero?.form === 'tiered' && (m.hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0;
       // and its skin's occlusion and blush (face-tint.js), read off the rest mesh: the same per corner in any pose
-      const tint = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : null;
-      const smooth = !character && ((m.hero && (m.hero.head !== 'anime' || figLight !== light)) || m.smooth === true) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease, proxy: false, ellipsoid, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
+      const tint = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      const smooth = !character && ((m.hero && (m.hero.head !== 'anime' || figLight !== light)) || m.smooth === true || drawn) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease, proxy: false, ellipsoid, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
       // fields win. It rides the payload's own `toon` (world-scene keeps a resolver's toon over the manifest's).
