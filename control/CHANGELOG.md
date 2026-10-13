@@ -28,8 +28,12 @@ stored with its numbers, so recalibrating changes what is made next and never wh
 - **Not stamped, by design:** a city's crowd walkers and a hero's studied fallbacks (a stop or vault out of a gait the
   hero's door motion does not carry) are built at render, so they stay on the frozen tables and old worlds keep their bytes.
 - Every recipe stored before this renders byte for byte (`gait-frozen.char.test.js` pins the bare walk, the sprint,
-  the walk's frames and the hero's studied gaits from the base commit). The mint tables equal the frozen ones for now;
-  nothing looks different yet.
+  the walk's frames and the hero's studied gaits from the base commit).
+- **The waddle, gone from new walks.** A new walk dial, `stepWidth` (the gap between the feet, STAND units), sets the
+  feet in from the hip joints by a constant thigh adduction; absent, the feet track under the hips as before.
+  `WALK_MINT` takes `stepWidth: 0.05`. The feet land about 8 cm apart instead of 23 cm, and the balance solve, unchanged,
+  then shifts the body about 8 cm side to side instead of 29 cm, the measured human band (`gait-mint.test.js`). New
+  heroes bring their feet in the same way, and the hero door takes the dial.
 
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 

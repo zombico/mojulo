@@ -19,7 +19,7 @@
  * Pure and deterministic; absent from every hero until a caller asks (no door field yet).
  */
 import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
-import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
+import { resolveMotion, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
 
@@ -270,7 +270,7 @@ const MOTION_SECONDS = [0.25, 10];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
-export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint: SPRINT_DEFAULTS }) {
+export function validateHeroMotion(motion, dials = { walk: WALK_MINT, sprint: SPRINT_MINT }) {
   if (motion === undefined) return [];
   if (!isObj(motion)) return [`motion: an object of gaits (${Object.keys(MOTION_GAITS).join(', ')}), each true or { <the gait's dials>, tilt, seconds }`];
   const errs = [];

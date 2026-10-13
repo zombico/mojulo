@@ -330,6 +330,11 @@ export function gait(params = {}, base = null) {
   // by articulate's 62° hip limit, so an extreme catwalk stays inside the joint's range).
   const phi = SM.asin(Math.max(0, Math.min(1, p.cross / LEG))) * DEG;   // hip adduction amplitude
   const flareAmp = phi * p.stepFlare;       // swing-phase abduction, scaled to the crossover (0 → off)
+  // STEP WIDTH (a mint dial; absent ⇒ the feet track straight under the hip joints, the frozen walk): the gap between
+  // the two feet's lines, side to side. People walk with their feet much closer than their hip joints (a few cm apart);
+  // each thigh adducts by a constant angle that sets its foot `(hipSpan − stepWidth) / 2` in from the hip line.
+  const span = Math.abs((base || B).hipL.x - (base || B).hipR.x);
+  const narrow = Number.isFinite(p.stepWidth) ? SM.asin(Math.max(-1, Math.min(1, (span - p.stepWidth) / 2 / LEG))) * DEG : null;
   const rollAmp = phi > 0 ? p.stepRoll : 0; // swing-phase external rotation, gated on crossing
   const swing = (ph) => Math.max(0, SM.sin(TAU_G * ph));     // a one-sided lift over the leg's swing half
   // plantedness: 1 through a foot's stance half, dipping smoothly to 0 mid-swing (so the
@@ -357,8 +362,8 @@ export function gait(params = {}, base = null) {
     const weight = -p.weightShift * SM.cos(TAU_G * (phase - 0.25));
     return {
       // legs: thigh swings (sagittal), knee bends — more on the swing leg to clear the floor.
-      hipL: { pitch: theta * cyc, yaw: crossL + flareL, roll: rollL },
-      hipR: { pitch: -theta * cyc, yaw: crossR + flareR, roll: rollR },
+      hipL: { pitch: theta * cyc, yaw: narrow === null ? crossL + flareL : crossL + flareL - narrow, roll: rollL },
+      hipR: { pitch: -theta * cyc, yaw: narrow === null ? crossR + flareR : crossR + flareR + narrow, roll: rollR },
       kneeL: p.stanceKnee + p.swingLift * swing(phase - 0.5),
       kneeR: p.stanceKnee + p.swingLift * swing(phase),
       // ankle rolls dorsiflex (heel-strike) → plantarflex (toe-off); the toes (MTP) break
@@ -604,7 +609,11 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
 // 'walk' or a partial { walk } keeps its bytes for good: never tune them. Tune these instead. Authoring writes them
 // into each new recipe BY VALUE (stampMotion), as a cast preset resolves to its numbers at mint, so changing a
 // mint table moves what is made next and never what was made before.
-export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS });
+// Calibrated against measured human gait (scaled to one standing hip height; the bands are published adult gait, the
+// local motion-capture comparison cross-checks them):
+// - stepWidth 0.05 — the feet land about 8 cm apart, not hip-width (23 cm): the body then shifts about 8 cm side to
+//   side over each stance foot (it shifted 29 cm), the waddle gone with no change to the balance solve.
+export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05 });
 export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS });
 
 /**
