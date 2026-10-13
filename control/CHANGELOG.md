@@ -40,6 +40,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   shell with every level open, nothing saved and the debug drawer open; `level` opens straight into one level.
   design_game's `play` step and create_game's answer carry the link.
 
+### World gear: starter items that fill a world
+
+- Under way. Every functional model in a game is technology. A world that sets `equipment.populate` fills its
+  starter gear from what it already says:
+  - the hero's items;
+  - each civilization's crafted held weapons that the equipment kernel can build;
+  - mirrors, contrasts and keys.
+
+  Each entry is dressed in the language of the civilization that makes it. Absent, a world adds nothing.
+- **One direction, every scale** (`gameworld/world-gear.js` `gearStyle`). A civilization's gear speaks its
+  technology's language: its motif picks the base style card, its setting picks the metals, its element picks the
+  stone, and its team colour marks the grip and the shield's board. Each choice says where it came from.
+- **Transforms, not models.**
+  - A MIRROR is a rival's answer to an item: same class, slot and tiers, in the rival's language.
+  - A CONTRAST is an item's shadow: the opposite motif, the same maker.
+  - An AUGMENT grows tiers by rule for gear the hero's page did not tier.
+
+  Every derived entry says what it came from.
+- **Wired in.**
+  - The character bible's equipment section shows the starter gear.
+  - `gearOrders` plans its mints, which wait on the game's stats as the equipment table's do.
+  - `node scripts/gear-sheet.mjs` draws the stock shaded.
+  - The `populate-world-gear` catalyst walks it.
+- A held weapon the kernel has no class for (a carbine, a lance) is listed as a task.
+
 ### The mechanism kit: technology that reads at person scale
 
 - Under way. Crafted technology is designed for first- and third-person play first. RTS scale is derived from it

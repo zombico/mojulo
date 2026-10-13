@@ -8,6 +8,7 @@
  *   equipment?: {
  *     style?: <a style sample name or an inline card>,            // the world's gear language: every class wears it
  *     classes?: { <class>: { build, slot?, tiers? } | null },   // a class is an EQUIPMENT_ITEMS word; null: left empty
+ *     populate?: true | { mirrors?, contrasts?, augment? },     // fill the starter gear from what the world says (world-gear.js)
  *   }
  *
  * Each row resolves as one of:
@@ -36,7 +37,9 @@ const fail = (m) => new Error(`equipment: ${m}`);
 /** Read a world's equipment and say what is wrong; every build is judged by the equipment kernel. → { classes } */
 export function readEquipment(E) {
   if (!isObj(E)) throw fail('equipment is { classes }: a row per class of gear (' + EQUIPMENT_ITEMS.join(', ') + ')');
-  for (const k of Object.keys(E)) if (!['style', 'classes'].includes(k)) throw fail(`${k} is not part of the equipment (style, classes)`);
+  for (const k of Object.keys(E)) if (!['style', 'classes', 'populate'].includes(k)) throw fail(`${k} is not part of the equipment (style, classes, populate)`);
+  // populate: fill the world's starter gear from what it says (world-gear.js): true, or which transforms to run
+  if (E.populate !== undefined && E.populate !== true && !(isObj(E.populate) && Object.entries(E.populate).every(([k, v]) => ['mirrors', 'contrasts', 'augment'].includes(k) && typeof v === 'boolean'))) throw fail('populate is true, or { mirrors?, contrasts?, augment? } each true or false');
   const style = E.style;
   if (style !== undefined) {
     // the card is judged by the kernel on the plainest item that wears it
@@ -60,7 +63,7 @@ export function readEquipment(E) {
     if (read.build.item !== cls) throw fail(`${at}.build.item is '${read.build.item}': a row's build is its own class ('${cls}')`);
     classes[cls] = { build: read.build, slot, ...(read.tiers ? { tiers: read.tiers } : {}) };
   }
-  return { ...(style !== undefined ? { style } : {}), classes };
+  return { ...(style !== undefined ? { style } : {}), classes, ...(E.populate !== undefined ? { populate: E.populate } : {}) };
 }
 
 /** A seeded template in the world's style, or its own build with the reason the style would break it. */

@@ -11,6 +11,7 @@ export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT
 export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
 export { suggestKit, RAILS, ELEMENT_GEM } from './adornment-kit.js';
 export { readEquipment, resolveEquipment, equipmentOrders, equippedHero, HOLD_STAND, CLASS_SLOTS } from './equipment.js';
+export { gearStyle, mirrorEntry, contrastEntry, augmentTiers, populateGear, gearOrders, gearFaces, GEAR_MOTIFS, MADE_ROLES, CONTRAST_OF } from './world-gear.js';
 export { GAMEWORLD_KIND, isGameworldKind, gameworldOf, normalizeGameworldManifest } from './gameworld-kind.js';
 export { runSteps, decide, childRef, storyReport } from './runner.js';
 export { readMade, MADE_KEY } from './made.js';
