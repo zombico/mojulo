@@ -51,6 +51,9 @@ export function buildCombatRanged(E) {
       burstRof: w.burstRof ?? 8,          // in-burst rounds/sec (burst > 1 only)
       magazine,
       reload: w.reload ?? 2,              // sec to refill on empty
+      // the RESERVE: spare rounds a reload draws from (a shooter's ammo economy; `rearm` adds to it). Absent: the
+      // reload is endless, as it always was. Out of both, the weapon is dry and does not reload.
+      reserve: Number.isFinite(w.reserve) && w.reserve >= 0 ? w.reserve : null,
       coreAngle: w.coreAngle ?? 1.5,      // precise center half-angle (deg) — every weapon lands here
       assistAngle: w.assistAngle ?? (area ? 7 : (w.coreAngle ?? 1.5)),   // outer ring (deg) — area only
       range: w.range ?? 400,
@@ -140,10 +143,14 @@ export function buildCombatRanged(E) {
         w.energyLock = false;
       }
     }
-    if (w.ammo <= 0 && !w.reloading) { w.reloading = true; w.reloadT = w.reload; w.burstLeft = 0; }
+    if (w.ammo <= 0 && !w.reloading && w.reserve !== 0) { w.reloading = true; w.reloadT = w.reload; w.burstLeft = 0; }
     if (w.reloading) {
       w.reloadT -= dt;
-      if (w.reloadT <= 0) { w.ammo = w.magazine; w.reloading = false; w.reloadT = 0; }
+      if (w.reloadT <= 0) {
+        const take = w.reserve == null ? w.magazine : Math.min(w.magazine, w.reserve);
+        w.ammo = take; w.reloading = false; w.reloadT = 0;
+        if (w.reserve != null) w.reserve -= take;
+      }
     }
   }
 
@@ -311,8 +318,11 @@ export function buildCombatRanged(E) {
             continue;
           }
           // COVER: a solid box on the muzzle→target sightline eats the shot (the same colliders that
-          // block movement). Checked only for a would-be hit, so it costs nothing on a clean lane.
-          if (mode && sightBlocked(from, tg.transform.pos, state.colliders)) mode = null;
+          // block movement). Checked only for a would-be hit, so it costs nothing on a clean lane. An egg is
+          // traced to where the ray enters it (a head over a low wall is hit; the legs behind it are not); a
+          // legacy sphere to its centre.
+          const hitAt = tg.body.egg && mode === 'core' ? [origin[0] + aim[0] * hd, origin[1] + aim[1] * hd, origin[2] + aim[2] * hd] : tg.transform.pos;
+          if (mode && sightBlocked(from, hitAt, state.colliders)) mode = null;
           if (mode && (!best || hd < best.d)) best = { mode, d: hd, id: tg.id, tg };
         }
         // TEAM friendly stagger: rock the nearest ally the beam passed through (no damage), provided the
@@ -365,7 +375,7 @@ export function buildCombatRanged(E) {
         }
       }
     }
-    if (w.ammo <= 0 && !w.reloading) { w.reloading = true; w.reloadT = w.reload; }   // auto-reload on empty
+    if (w.ammo <= 0 && !w.reloading && w.reserve !== 0) { w.reloading = true; w.reloadT = w.reload; }   // auto-reload on empty
   }
 
   // stepProjectiles(state, dt) — advance every in-flight round (R14) and adjudicate its BURST. A round

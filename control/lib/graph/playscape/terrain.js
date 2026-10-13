@@ -28,6 +28,8 @@
  *   breakableTerrain(ask, { hp?, value?, seed? })   → { blocks: [{ id, min, max, hp, of, bond }], faces, world: { breakables } }
  *   fromColliders(colliders, pick, { course?, hp?, bond? }) → { terrain, colliders }   the picked boxes made breakable,
  *                                                     the rest untouched; a box off the floor (a lintel) bonds laterally
+ *   standBlocks(asks, { seed? })                      → { faces, colliders } forms that stand solid and never break (a
+ *                                                     level's cover: walls and crates), drawn and colliding
  *   groundOf(colliders, floor?)                       → pos → the top a walker stands on (reads the LIVE list)
  *   blockPieces(block, { pattern?, count?, seed? })   → cleave chunks for the swap
  */
@@ -161,6 +163,18 @@ export function fromColliders(colliders, pick, { course: c, hp, value, seed, id 
   if (!picked.length) throw new Error(`terrain: no collider matches ${typeof pick === 'function' ? 'the test' : `'${[].concat(pick).join("', '")}'`}`);
   const boxes = picked.map((x) => ({ ...x, bond: bond ?? (x.min[2] > floor + 0.02 ? 'lateral' : 'none') }));   // a lintel spans its opening
   return { terrain: breakableTerrain({ id, blocks: boxes, course: c }, { hp, value, seed }), colliders: rest };
+}
+
+/** Forms that stand and never break: each ask cut and drawn as breakableTerrain does, its blocks plain colliders. */
+export function standBlocks(asks, { seed = 1 } = {}) {
+  if (!Array.isArray(asks)) throw new Error('terrain: blocks is a list of asks ({ form, at, … })');
+  const faces = [], colliders = [];
+  asks.forEach((ask, i) => {
+    const T = breakableTerrain({ id: `block-${i}`, ...ask }, { seed: seed + i, value: Number.isFinite(ask.value) ? ask.value : 0.62 });
+    for (const f of T.faces) faces.push(f);
+    for (const b of T.blocks) colliders.push({ min: b.min, max: b.max, of: `block:${b.of}` });
+  });
+  return { faces, colliders };
 }
 
 /** The ground under a walker from the colliders as they stand NOW (a broken slab drops it): the highest top at or below its feet. */

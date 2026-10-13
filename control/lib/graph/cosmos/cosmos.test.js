@@ -46,9 +46,9 @@ describe('dryRun', () => {
     expect(r.facets.reality.depth).toBe(1);
   });
   it('names the facet and setting that block', () => {
-    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['turn-based'] } });
+    const r = dryRun({ ...CRAWLER, time: { ...CRAWLER.time, passage: 'eras' } });
     expect(r.verdict).toBe('blocked');
-    expect(r.blocked).toEqual([{ facet: 'power', setting: 'combat', value: 'turn-based', status: 'absent', note: expect.any(String) }]);
+    expect(r.blocked).toEqual([{ facet: 'time', setting: 'passage', value: 'eras', status: 'absent', note: expect.any(String) }]);
   });
   it('counts a mind that fights, and its built-in commander, as built; an untried transport as a gap', () => {
     expect(dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold' } }).verdict).toBe('makeable');

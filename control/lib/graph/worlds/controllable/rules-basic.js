@@ -203,6 +203,25 @@ export function buildRulesBasic(E) {
     e.lookAt = [p[0], p[1], p[2] + lookH];
   }
 
+  // fixed — the survival-horror camera: STATIONS, each a camera standing `at` and watching the floor round its `focus`.
+  // The station whose focus is nearest the target holds the shot, kept until another is nearer by `hold` (1.5 m), so
+  // a figure on the line between two does not flicker them; the change is a CUT, never a pan. Its look leans from the
+  // focus toward the target by `track` (0.6; 0: a locked frame) at `lookH` above it.
+  function fixed(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target], S = r.stations;
+    if (!tgt || !Array.isArray(S) || !S.length) return;
+    const p = tgt.transform.pos, d = (s) => Math.hypot(s.focus[0] - p[0], s.focus[1] - p[1]);
+    let k = e._fixedAt != null && S[e._fixedAt] ? e._fixedAt : 0;
+    for (let i = 0; i < S.length; i++) if (d(S[i]) < d(S[k]) - (i === k ? 0 : r.hold ?? 1.5)) k = i;
+    if (e._fixedAt == null) { k = 0; for (let i = 1; i < S.length; i++) if (d(S[i]) < d(S[k])) k = i; }
+    e._fixedAt = k;
+    const st = S[k], u = r.track ?? 0.6, lookH = r.lookH ?? 1, f = st.focus;
+    const fz = Number.isFinite(f[2]) ? f[2] : p[2];
+    e.lookAt = [f[0] + (p[0] - f[0]) * u, f[1] + (p[1] - f[1]) * u, fz + (p[2] - fz) * u + lookH];
+    e.transform.pos = st.at.slice();
+    e.transform.heading = Math.atan2(e.lookAt[1] - st.at[1], e.lookAt[0] - st.at[0]);
+  }
+
   // shot — the DIRECTING camera (the scene layer): a scene sets the player's camera rule aside for this one (the cast op
   // `shot`) and hands it back (`unshot`). It frames the entities `on`, and the places `at` (points), by a word, `frame`:
   // wide | low | profile | corner | overhead | two | close (FRAMES: room round the subjects in metres, height over the
@@ -369,7 +388,7 @@ export function buildRulesBasic(E) {
     const reload = e.rule.reload ?? 0.6;
     e._arm = e._cool > 0 ? Math.min(1, (reload - e._cool) / 0.08, e._cool / Math.max(1e-6, reload - 0.08)) : 0;
   }
-  Object.assign(RULES, { glide, walk, follow, eye, overhead, side, shot, clock, mover, launcher });
+  Object.assign(RULES, { glide, walk, follow, eye, overhead, side, fixed, shot, clock, mover, launcher });
 
   // the launch: each rider's last tick (where it stood, how fast it fell) is kept on the pad, so a rider arriving this
   // tick is read by its approach: its run across the ground and its fall. Fixed throws one arc whatever the approach;
@@ -581,6 +600,8 @@ export function buildRulesBasic(E) {
   }
   // break (or chip) a block by id: a trigger, a script, a test
   E.breakBlock = (state, id, dmg = 1, by = null) => { const b = state.breakables && state.breakables.find((q) => q.id === id); return b ? hitBlock(state, b, dmg, by, 'call') : false; };
+  // a block that broke on an earlier visit (an aftermath carried in): gone from the start, how 'restore' (no shatter)
+  E.restoreBlock = (state, id) => { const b = state.breakables && state.breakables.find((q) => q.id === id); return b ? hitBlock(state, b, Infinity, null, 'restore') : false; };
   E.registerWorldPass('break', (state, input, dt) => {
     const live = state.breakables && state.breakables.filter((b) => !b.broken);
     if (!live || !live.length) return;

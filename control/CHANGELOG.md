@@ -579,6 +579,207 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Item keys, and worlds without power keys, are unchanged.
   - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
 
+### Genre snipe: stealth, racing, rhythm and the car, from the parts already there
+
+- **Seven more genres on the map.** Stealth, time-trial racing, a rhythm runner, a roguelike, a farming life sim,
+  tower defence and a block-pushing puzzle are cosmos genre probes. A sourced registry setting can name `planned`
+  values its table does not hold yet, so the sweep counts the gap; the random sweep rolls them too.
+- **The bus decides on state.** A reaction may carry `if`, a watch predicate (`{ var, eq | gte | … }`, a count, an
+  entity field): it fires only while that holds. Absent, a reaction fires as before.
+- **The bus hears more.** A character with sight (`rule.mind.perception`) that newly sees its target says `seen`
+  (its id, and the target) through the cast's facts; a cue can wait on it. A guard's `scan` (radians) sweeps its gaze
+  at its post over `scanPeriod` seconds. A level's music can say its beat: `audio.beat` puts `{ type: 'beat', n }` on
+  the bus from the music's own clock, `lead` seconds early (a quarter, a dotted quarter in 6/8). A key input may be
+  `once` (a held key does not repeat).
+- **Four mechanics.** Each lowers to zones, vars, guarded reactions, sequences and watches:
+  - `unseen`: a sighting (or the `alarms`-th) ends the level in fail.
+  - `laps`: checkpoints passed in order, `laps` times, against the clock; its time is kept.
+  - `on-beat`: a press inside a beat's window is `beat:hit`, outside it `beat:miss`; `misses` can end it.
+  - `score`: points from bus events, shown and kept.
+- **A level keeps a number.** `game.keep` names the vars a level reports at its end (a time, a score), sent as
+  `stats.kept`; the level's end card shows them, and the play shell shows each beside the best this save has seen
+  (a low best counts only a cleared run).
+- **Quick games: race, sneak, rhythm, and the ride.** `goal: 'race'` runs the trail's beats as checkpoints to its end;
+  `goal: 'sneak'` stands `guards` (3) with sight on the trail's beats, sweeping, and a sighting ends it (the guard's
+  looks: `guard`, minted once); `goal: 'rhythm'` runs to a field score (`music`) and scores the beats hit. `ride: 'car'
+  | 'coupe' | 'van'` makes the hero a vehicle: the run mints its build (vehicle designer parts, seated by the garage)
+  and every stage drives it on the `drive` rule, its feel derived from the build. All web only.
+- **Cues decide.** A cue may carry `if` (a comparison on a var, or a list of them), read as it happens, and `else`
+  (the effects when one does not hold); `add: '<var>', by` counts a var up or down. A pad that builds for gold is a
+  cue: `use`, `if: { var: 'gold', gte: 5 }`, `then: [{ add: 'gold', by: -5 }, { spawn: 'tower-1' }]`.
+- **A sentry.** The mind's `sentry` motivation never moves: it turns to the nearest live, hittable body on the team
+  `rule.foes` inside `range` and fires its weapon.
+- **Waves and boulders.** `waves`: foes minted asleep wake in waves and walk a path to the base; one through costs a
+  life, one felled pays a bounty into a purse; all accounted for wins, no lives loses. `push`: a grid with boulders
+  and plates, a boulder pushed a cell when walked into from a side (else the walker is put back), every plate held
+  wins; all on the bus, a cell's height from the land.
+- **Quick games: defend and puzzle.** `goal: 'defend'` sends `waves` of foes down the trail to its start and stands a
+  sleeping archer's tower on each of `pads` beside it, built with E for gold. `goal: 'puzzle'` lays a 5 × 5 grid on
+  level land by the trail with `boulders` (2), each two pushes from its plate.
+- **A level played in Node.** `game/level-sim.js` steps a level's world and bus together as the page does, without
+  rendering, so a law can play a defence or a puzzle through.
+- **The world dial: a clock.** The `clock` mechanic puts the time of day on the bus (`minute`, `hour`, `day`, `dawn`,
+  `dusk`, and a `season` every few days). A level with one has a sky that turns with it: night darkens the light and
+  the air from 20:00 to 05:00, with two hours of dusk and dawn, and a season's turn swaps the weather's climate. A level
+  that names no weather takes clear air.
+- **Routines and crops.** `play.routines` walks each character to its place hour by hour on the clock (the cosmos's
+  schedule). The `crops` mechanic gives plots to plant for gold, a stage grown each dawn, a harvest that pays.
+- **Quick games: farm.** `goal: 'farm'` tills `plots` (6) on level land beside the trail, starts the clock at dawn, and
+  sets `target` gold (40) to make by day `days` (6); `folk` farmhands (2) walk out to the field at seven and home at six.
+- **The pixel look.** A world's `pixel` (true, or 2 to 8; a gameworld's `style.pixel` puts it on every level) draws the
+  page at that fraction of its size and blows it up without smoothing. Absent, the page is as it was.
+- **Fixed cameras.** The `fixed` camera rule stands at one of its stations, the one whose focus is nearest the target,
+  and cuts (never pans) when another is nearer by its `hold`; its look leans toward the target. A gameworld's
+  `camera: 'fixed'` lays a station over each place of the way, high off its side (needs a hero).
+- **Runs.** A game's `run: { length }` (the light shell) makes its levels a pool: each run draws `length` of them in an
+  order rolled from the run's number, a clear goes straight on, a death ends the run, the store carries over, and the
+  title keeps the deepest run. `create_game` takes it; a quick game's `run: n` lays a pool of n + 2 trails, each its
+  own seed.
+- **Aftermath.** The `aftermath` mechanic keeps each block that breaks as a flag (`broke:<id>`) in a flags slice the game
+  carries, and a level entered again takes those blocks away at the start, with no shatter. A game's emitted store event
+  may name itself (`key: '{event}'`). A gameworld whose `mechanics.destruction` lets things break gives every level this.
+- **Turn-based battles.** `play.battle` composes a fight from what the play block has: walking up to a foe opens its
+  battle (a talk menu with its hp and yours: Attack, Guard, Flee; the world held while it is up), a pick is the hero's
+  turn, the foe answers a beat later (a cue on the pick's end), and at no hp it falls. `goal: 'battle'` stands `foes`
+  (3) on the trail, tougher as they go, the hero's hp carried from fight to fight.
+- **The shooter.** `goal: 'shoot'` puts armed foes on the trail's beats, each just past the end of a wall taller than a
+  person (its cover a sidestep away) with a crate stack on its other side, and walls half way between for the player. The player plays first person (or third) with a
+  rifle (click to fire), a magazine and spare rounds, and can be hit. Ammo and health lie between the posts. A hit costs
+  the player hp (`fail-on-death`'s `hits`), and the level is won when every foe is down (`defeat-all`'s `who` counts the
+  cast's own falls). It is built from parts any world can use:
+  - **Cover.** A mind with `rule.cover` that is hurt or reloading breaks for the nearest spot the walls hide from its
+    foe: eye, head and both flanks. Once whole and loaded it comes back out after the foe; a hit tells it where the
+    fire came from.
+  - **Shots land where they hit.** A shot at a body with a hit volume is checked against the walls up to where it
+    enters the body, so a head over a wall can be hit and the legs behind it cannot (before, the line ran to the
+    feet).
+  - **Ammo runs out.** A weapon's `reserve` is the spare rounds a reload draws on; with none left the weapon is dry. The
+    cast's `rearm` op (and the cue effect `rearm`) adds rounds.
+  - **Supplies.** The `supplies` mechanic: health or ammo pickups, each taken once, drawn as a heart or an orb.
+  - **Blocks.** A level's `blocks` stands playscape terrain forms (walls, crates, pillars) solid and drawn, so a stage
+    can carry cover.
+  - **Paths round corners.** A walker pressed against a wall steps out to open ground before walking its path, and a
+    rule's `navCell` sets a finer path grid.
+  - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
+    makeable on the web; seventh-generation rendering is a separate rung.
+
+### Kart racer: a loop, rival drivers and a place to finish in
+
+- **A loop.** The cosmos cube's `space.levelForm` has `circuit`, and its concern `loop` lays one: an oval on the first
+  trail's land, the land flattened under it and the walk's heartbeat laid flat, a low wall down its middle, its start
+  the finish (`gameworld/lay-concerns.js` `loopSite`). Nothing grows on the track: the stage reserves it as it does a
+  building's ground (`_keepOut`), and its trail is laid without a landmark, pit or stream. Its laws: the line on the
+  land (its walk included), no steeper than 1 in 4, nothing standing on it (boxes or rock), the finish at the start.
+  Every trail kit holds them on the seeds swept.
+  - A stage whose reserved ground took the sakura's hero tree lays without that camera instead of failing.
+- **Rival drivers.** The `racer` rule is the drive rule with its stick moved by the road: it aims a few points along a
+  line, a lane off it, brakes into sharp bends at speed, and backs off when stuck. A rival drives the player's own car.
+- **A place.** `laps` takes `rivals` and `win`: each rival's passes counted on the bus by its own zones, a lead per
+  rival moving the place at every pass (a tie to whoever passed first), `Place n / N` on the HUD, the finish
+  `race:won` or `race:lost`, the best place kept beside the best time.
+- **The quick path.** `race` takes `track: 'trail' | 'loop'`, `laps` and `rivals` (with a ride). Rivals race round a
+  loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
+  new `kart-racer` genre.
+
+### Menus: inventory, and the actions on what you hold
+
+- **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never
+  overdraws; every inventory menu is a view of a holder whose rows carry a verb (`playscape/ui/items.js`).
+  - A holder's counts are bus vars, `held:<holder>:<item>`: the bag, a chest's, or a counted shop's. A cue's `if`, a
+    menu's `{var}` and the HUD read the same numbers.
+  - `play.items` names items (`name`, `form`, `kind`, `about`, `use` effects, `value`). Any word is still an item,
+    with its name and glyph derived.
+- **The views.** `shop`, `chest` and the new `inventory` kind draw live rows: a row whose holder holds none is not
+  drawn, and the one in focus shows its words and its verb. Accept does the verb and the menu stays up:
+  - `buy` pays the price from the currency var, the item's value when the stock names none; a stock row's `count`
+    makes it run out.
+  - `take` moves one from the chest into the bag.
+  - `use` spends one and does the item's effects.
+  - A guard that fails says why in a toast (not enough gold, none left) and emits `denied:<item>`. Before, a shop's
+    buy and a chest's take only closed the menu.
+- **Cue effects** `give` (items into the bag) and `use`.
+- **Collecting counts.** A collect's pickups count into the bag on the bus and show on the HUD by name. The web now
+  shows what is carried, as Godot already did.
+- **The world freezes.** While a menu or the quest journal is up, the world and the bus's clock stand still, and
+  timers and walks wait. A scene still only holds input, because its cast walks on.
+- A quick collect game has a bag on I.
+- **The bag carried, level to level.** The `bag` mechanic (`{ kind: 'bag', slice? }`) consumes an inventory slice
+  and declares its grants and consumes (`game.bag: { slice }`).
+  - At the start the page fills the bag from the slice.
+  - Every item into or out of the bag (a buy, a take, a give, a use) is said on the bus, and the game channel sends each
+    one as a store `grant` / `consume`, so the next level starts with what this one ended with.
+  - A quick collect game carries its bag; in a run, the coins of one stretch are in the bag of the next.
+  - Two mechanics producing the same event into the same slice now declare it once (unbounded when either is). Before,
+    a collect and the bag into one inventory failed the game's verification gate.
+- **Equipment.** An item may be worn: `equip: { slot, on?, off? }` (`kind: 'equipment'`).
+  - Equipping moves it from the bag to the `worn` holder and does its `on` effects (`add atk 2`). Whatever wore that
+    slot goes back to the bag first, with its `off` effects.
+  - The bag's view lists what is worn first, with its slot, to unequip, and equipment in the bag to equip. Cue effects
+    `equip` / `unequip` do the same.
+- **What is worn and what chests hold, carried.** The bag mechanic takes `worn: '<inventory slice>'` and
+  `holders: '<flags slice>'`.
+  - Worn items go to their own slice. As a level starts they are worn again and their `on` effects done again.
+  - Each chest's and counted shop's holdings are kept as a flag `<levelRef>|<holder>:<item>` = what it holds now, so a
+    chest emptied stays empty when the level is entered again.
+  - Every holder a move touches says `in:<holder>:<item>:<n>` / `out:…` (this was `bag:in` / `bag:out`).
+- **A view layer for items.** `shop`, `chest` and `inventory` draw a grid by default (`layout: 'list'` keeps rows;
+  `cols` 3 to 8):
+  - tabs by the kinds held (All, Use, Gear, Keys, Things), cycled with `[` / `]`, the pad's shoulders, or a click;
+  - what is worn first, a strip of slots, to unequip;
+  - tiles with an icon and a quantity badge (a shop's: its price), empty cells keeping the bag's shape;
+  - the focused item's card: a large icon, its name, kind and count, its words, the keys for its verb.
+
+  Arrows move the focus in two dimensions. The pointer focuses a tile on hover and does its verb on a click of the
+  focused one. `viewLive` is the one source of the focus order for the drawing and the keys. Icons
+  (`playscape/ui/item-icons.js`) are flat SVG placeholders in `currentColor`: `play.items[…].icon`, else guessed from
+  the item's words, else its glyph form. Every size and colour is a CSS token (`--moj-tile`, `--moj-kind-<kind>`…)
+  over the UI guide's own, so a guide restyles it.
+- **A list menu drew as an item view** (the status page on I showed nameless rows) since items arrived: a `list` has
+  rows too. Fixed, with a law.
+- **The result screen** lists each item's net change a slice (a sword taken and worn is "+1 sword · gear"), a flag by
+  its own name (it said "flag set" for every flag: it read `ev.flag`, the store's field is `key`), and keeps the
+  world's memory (a chest's count, a broken block) quiet.
+
+### Game intent: the cube as a gameworld's design contract
+
+- **Concerns keyed by cube value.** A gameworld can say what game it is (`intent: { cube, from? }`); each value of
+  its cube says what it asks of the world, lays it in the level before any goal reads it, and checks it. A genre is
+  a preset cube (the cosmos probes), never a lock: a world's concerns are the union over its cube's values.
+- **Saying it.** `intent: { from?: '<genre>', cube?, why? }` on a gameworld (`gameworld/intent.js`). `from` starts
+  from a genre's cube and `cube` overrides it value by value. A world that writes no intent is read from what it
+  already says (its quick goal's genre, its camera, topology, ride, runs, pixel look). `suggestGenres(text)` reads a
+  brief's words and names the genres they point at. It is a word heuristic, it only suggests and refuses nothing, and
+  the agent reading the brief makes the choice.
+- **Seeing it.** `design_game`'s readout carries `intent` (genre, verdict, the concerns raised and whether each is laid
+  or checked yet, and the brief's suggestions while none is written), and a world without one gets the next step
+  `intent`. A written intent is the book's first review part. The bible shows "What game it is", with each concern's
+  words. The `gameworld-intent` card lists the genres and concerns, and the guide's loop starts at it.
+- **What it asks** (`gameworld/concerns.js`): one row per concern, each raised by the values it names, with words for
+  the creator. Every genre probe raises at least one.
+- **Laid by the world** (`gameworld/lay-concerns.js`), at two layers:
+  - **The ground**, in `resolveLevel`, so the bible, the survey and the run all see the same land. A field is flattened
+    beside the start, on the walk's open side (`fields`: crops or growth). A vehicle's ground is eased
+    (`drivable`). Intent edits are named `intent-<concern>` and go after the creator's; intent dials go under the
+    level's own `tune`.
+  - **The stage**, in `stageLevelOrder`, before any goal reads it. The farm's plots go on that field. A race's
+    checkpoints are spaced (`circuit`: none nearer the last than 12 m). Cover stands by the fighting posts, the goal's
+    own or else the trail's beats (`cover`: any ranged world, not only the shooter).
+  - **Stealth** (`watchers`: minds with sight, or `unseen`): a wall on each watcher's approach, 8 m out and off the
+    line, with a place behind it out of the watcher's sight where a sneak can wait for the sweep. A shooter's foes
+    see too, so their approaches get one as well.
+  - **The defence's road** (`road-to-base`): the tower pads stand 4 to 6 m beside the road where the land is level with
+    it (the other side when this one will not do).
+  - **The puzzle board** (`board`): its ground is flattened further on (rows 5 to 7, three cells across), and the grid
+    is laid on it.
+  - **Jump reach** (`reachable`): with a hero that jumps (the platform rule), every other pickup stands on crate steps,
+    each rise three quarters of the jump, and is collected by height (`collect`'s pickups take `planar: false`).
+    A walker that cannot jump gets none.
+  - The quick farm, race, shooter, sneak, defence, puzzle and collect now read these instead of placing their own.
+- **Checked.** Each laid concern has a law measured on the laid stage: cover by every post, checkpoints spaced, plots
+  level, a drivable grade, a blind spot on every watcher's approach, a road long enough with its pads beside it and
+  level, a level board, every raised pickup within a jump. A law that does not hold is listed under the level's `advises` in the run. It advises and
+  never refuses.
+
 ### Scene layer: a shot that takes the camera, and two characters talking
 
 - **A directing camera.** A camera rule `shot` frames named subjects by a word (`wide`, `low`, `profile`, `corner`,

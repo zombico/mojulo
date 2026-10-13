@@ -46,6 +46,7 @@
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
  *     made?,                              // what a run made, and the prints it made it from (made.js; the runner writes it)
  *     quick?,                             // a quick game: one level, one goal, any hero or none (quick.js)
+ *     intent?: { from?, cube?, why? },    // what game it is, as a cosmos cube (intent.js): what the levels are laid for
  *   }
  *
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
@@ -69,6 +70,11 @@ import { readCharacters } from './characters.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
 import { readQuick } from './quick.js';
+import { readIntent, cubeOfWorld } from './intent.js';
+import { concernIds } from './concerns.js';
+import { LAID, groundLays, fieldSite, boardSite, loopSite } from './lay-concerns.js';
+import { levelFrame, GROUND_CELL } from '../level/ground.js';
+import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
@@ -83,10 +89,11 @@ export const WORLD_STYLE = Object.freeze({
   trail: 'the ground\'s character on a trail: run, heartbeat, bumpiness',
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
-  weather: 'what the sky does: a climate\'s name or { climate, dwell?, blend?, start?, surface? } (weather/weather.js); a level and a section may name their own',
-  geocube: 'a geocube that paints the level once (era/geocube.js): its outside\'s look on every section that names no kit of its own; the level\'s keys win after',
+  weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
+  geocube: 'a geocube that paints the level once (era/geocube.js): its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
-  look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit into a look of its own, which the ground is drawn in',
+  look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
+  pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
 });
 /** A civilization: what it builds, and how. */
 export const CIVILIZATION = Object.freeze({
@@ -119,7 +126,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to'];
@@ -153,6 +160,7 @@ function readStyle(s, at) {
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
+    else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
   }
@@ -397,7 +405,8 @@ export function readGameworld(W) {
   const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
   if (W.made !== undefined && W.made !== null) readMade(W.made);   // the runner's record: read, never carried
   if (W.quick !== undefined && W.quick !== null) readQuick(W.quick);   // a quick game's goal (quick.js): read, never carried
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  if (W.intent !== undefined) readIntent(W.intent);   // what game it is (intent.js): read here, laid by the levels
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**
@@ -452,7 +461,20 @@ export function resolveLevel(world, id) {
   // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
   const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
     ...(style.geocube !== undefined ? { geocube: style.geocube } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
-  const lv = readLevel(level);
+  let lv = readLevel(level);
+  // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
+  // whose cube lays nothing on the ground is as it was
+  const ids = concernIds(cubeOfWorld(G).cube), lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d)) : null;
+  let field = null, board = null, loop = null;
+  if (lays?.laid.length) {
+    const g = L.ground ?? {};
+    level.ground = { ...g, ...(lays.tune ? { tune: { ...lays.tune, ...(g.tune ?? {}) } } : {}), ...(lays.edits.length ? { edits: [...(g.edits ?? []), ...lays.edits] } : {}) };
+    lv = readLevel(level);
+    const F2 = levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d);
+    if (lays.laid.includes('fields')) field = fieldSite(F2)?.centre ?? null;
+    if (lays.laid.includes('board')) board = boardSite(F2)?.centre ?? null;
+    if (lays.laid.includes('loop')) loop = loopSite(F2);
+  }
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 
   // the places: the town built by its civilization, its castle raised by its own (the town's unless named)
@@ -486,7 +508,7 @@ export function resolveLevel(world, id) {
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
   const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}) };
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}) } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

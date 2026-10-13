@@ -15,6 +15,8 @@ export const POWER = Object.freeze({
     mechanics: {
       multi: true,
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', godot: { module: PORT, table: 'GODOT_MECHANICS' } },
+      // the genre snipe (10-12): unseen, laps, on-beat, score, waves and push are built (game/mechanics.js), web only:
+      // not in GODOT_MECHANICS
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS' } },
     rules: {
@@ -28,13 +30,22 @@ export const POWER = Object.freeze({
         // combo's juggle and every AI's attack stay on the web
         melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
         ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
-        'turn-based': { status: 'absent', effort: 'L', note: 'no turn or initiative model; party stats, menus and battle music could be reused, but the encounter switch, turn queue and command menus are new (priced 10-12)' },
+        // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars
+        'turn-based': { status: 'built', godot: false, lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },
     explosions: { multi: true, source: { module: 'lib/graph/playscape/elements/explosions.js', table: 'EXPLOSIONS' } },
     // resource, stamina, unlock, transform, equip: stats, cues, HUD and menus on the bus, fired by their keys
-    systems: { multi: true, source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' } },
+    systems: {
+      multi: true,
+      source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS' },
+      // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
+      // defence's towers. Free placement anywhere on a grid is not built.
+      planned: {
+        place: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
+      },
+    },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
     stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
     idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS' } },

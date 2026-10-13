@@ -46,7 +46,7 @@ function __qShow(open) {
   if (open && window.__mojScenes && window.__mojScenes.on()) return;   // not over a scene
   __qOpen = open; __qBook.style.display = open ? 'flex' : 'none';
   if (open) __qDraw();
-  window.__mojMenuOpen = open;
+  window.__mojMenuOpen = open; window.__mojFreeze = open;   // the journal freezes the world as a menu does
 }
 window.addEventListener('keydown', (ev) => {
   if (ev.code === 'KeyJ' && !ev.repeat) { ev.preventDefault(); __qShow(!__qOpen); }

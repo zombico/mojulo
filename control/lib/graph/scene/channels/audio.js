@@ -31,7 +31,8 @@ function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume(); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
   __beatsEng = __BEATS.createEngine(__beatsCtx);
-  if (__AUDIO.soundtrack) {
+  if (__AUDIO.soundtrack) {${audio.beat ? `
+    __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
     if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
     else __beatsEng.startAmbient(__AUDIO.soundtrack, __BEATS_PATCHES);
@@ -39,7 +40,17 @@ function __beatsUnlock() {
   if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);
   __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
 }
-renderer.domElement.addEventListener('pointerdown', __beatsUnlock);
+renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.beat ? `
+// THE BEAT ON THE BUS (audio.beat): the music's own clock says each beat, \`lead\` seconds early (a judging window opens
+// on it), as { type: 'beat', n }. No music playing (not started, muted), no beat: the clock is the AudioContext's.
+let __beatT0 = null, __beatN = 0;
+(function __beatClock() {
+  requestAnimationFrame(__beatClock);
+  if (__beatT0 === null || !__beatsCtx || __beatsMuted || __beatsCtx.state !== 'running' || typeof __inputQueue === 'undefined') return;
+  const B = __AUDIO.beat, t = __beatsCtx.currentTime - __beatT0 + B.lead;
+  let k = 0;
+  while (__beatN * B.every <= t && k++ < 4) { if (t - __beatN * B.every < B.every) __inputQueue.push({ type: 'beat', n: __beatN }); __beatN++; }
+})();` : ''}
 // audio sidecar (game shell settings → hosted world): presentation-only prefs, applied to the
 // live engine or held until the unlock gesture creates one. Unversioned by design.
 window.addEventListener('message', (e) => {

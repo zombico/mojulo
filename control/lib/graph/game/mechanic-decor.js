@@ -6,6 +6,7 @@
  *   - collect  → a GLYPH pickup body (gem/coin/key/… by item) at each pickup, fx `float` + sfx
  *                `sparkle`, and an fx `burst` on collect (the pickup pops out of existence). The
  *                mechanic's own box marker is SUPPRESSED (the glyph replaces it).
+ *   - supplies → a `heart` (health) or `orb` (rounds) glyph at each, floating, burst when taken.
  *   - reach-exit → a `flag` glyph at the goal + a green `aura` beacon.
  *   - hazard-damage → a red danger `aura` at each hazard (a pulsing "stay away").
  * survive / fail-on-death are stateful, not spatial → no world decoration (their HUD is enough).
@@ -67,6 +68,15 @@ export function decorateMechanics(mechanics, ctx = {}) {
         // events don't reach the wrap; see channels.js). Explicit target = this pickup's glyph.
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);                     // hide the mechanic's box marker (glyph replaces it)
+      });
+    } else if (m.kind === 'supplies') {
+      // a supply: a heart for health, an orb for rounds, floating; it pops when taken (as a pickup does)
+      (Array.isArray(m.drops) ? m.drops : []).forEach((d, j) => {
+        const zone = `sp_${i}_${j}`, gid = `dec_${zone}`, at = Array.isArray(d.at) ? d.at : [0, 0, 0];
+        entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: d.gives === 'health' ? 'heart' : 'orb' } });
+        states[gid] = 'float';
+        on[zone] = { gesture: 'burst', target: gid };
+        suppress.push(zone);
       });
     } else if (m.kind === 'reach-exit') {
       const at = Array.isArray(m.at) ? m.at : [0, 0, 0];

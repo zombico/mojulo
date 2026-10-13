@@ -75,3 +75,23 @@ describe('the bus contract', () => {
     expect(busCoverage(down).used).not.toContain('fact:struck');
   });
 });
+
+describe('the genre snipe rows', () => {
+  it('a guarded reaction, a sighting and the beat are web facts Godot does not feed yet', () => {
+    const c = composeMechanics([{ kind: 'laps', checkpoints: [{ at: [1, 0, 0] }, { at: [2, 0, 0] }] }, { kind: 'unseen' }, { kind: 'on-beat' }], { player: 'hero' });
+    const { used, godot } = busCoverage(c.events);
+    expect(used).toEqual(expect.arrayContaining(['fact:seen', 'fact:beat', 'effect:guarded']));
+    expect(godot.absent).toEqual(expect.arrayContaining(['fact:seen', 'fact:beat', 'effect:guarded']));
+    expect(used).not.toContain('fact:cast');
+  });
+});
+
+describe('the shooter\'s rows', () => {
+  it('a supply\'s rounds are the rearm effect, web only; a fall counted is the cast\'s fact', () => {
+    const c = composeMechanics([{ kind: 'fail-on-death', hits: 8 }, { kind: 'supplies', drops: [{ at: [1, 0, 0], gives: 'ammo' }] }, { kind: 'defeat-all', who: 'foe-*', count: 1 }], { player: 'hero' });
+    const cov = busCoverage(c.events);
+    expect(cov.godot.absent).toContain('effect:rearm');
+    expect(cov.used).toContain('fact:cast');
+    expect(cov.used).not.toContain('effect:cast');
+  });
+});

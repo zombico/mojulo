@@ -26,9 +26,12 @@ describe('cosmos-sweep CLI', () => {
   });
 
   it('prints one fixture row by row, with what each value lowers to', () => {
-    const f = fixture('jrpg');
-    const text = formatFixture(f, dryRun(f.cube));
+    const f = fixture('shooter');
+    expect(formatFixture(f, dryRun(f.cube))).toMatch(/verdict makeable/);
+    // the same shooter asked at seventh-generation fidelity waits on the rung
+    const hd = { ...f, cube: { ...f.cube, reality: { ...f.cube.reality, rung: 'gen-7.0' } } };
+    const text = formatFixture(hd, dryRun(hd.cube));
     expect(text).toMatch(/verdict blocked/);
-    expect(text).toMatch(/combat=turn-based\s+absent/);
+    expect(text).toMatch(/rung=gen-7\.0\s+absent/);
   });
 });

@@ -19,7 +19,8 @@ const EV_ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs
 // the level's player = its walk/platform controllable entity; spawn = that entity's initial pos.
 export function deriveLevelPlayer(manifest) {
   const ents = Array.isArray(manifest.entities) ? manifest.entities : [];
-  const p = ents.find((e) => e && e.rule && (e.rule.type === 'walk' || e.rule.type === 'platform'));
+  // the pilot: the first walker or platformer, else a driven vehicle (a ride)
+  const p = ents.find((e) => e && e.rule && (e.rule.type === 'walk' || e.rule.type === 'platform')) || ents.find((e) => e && e.pilotable && e.rule && e.rule.type === 'drive');
   const player = (p && p.id) || 'player';
   const spawn = (p && p.transform && Array.isArray(p.transform.pos)) ? p.transform.pos.slice() : [0, 0, 2];
   return { player, spawn };
@@ -41,6 +42,9 @@ export function mergeContract(game, composed) {
     consumes: [...(game.consumes || []), ...(composed.consumes || [])],
     audits: [...(game.audits || []), ...(composed.audits || [])],
     ...(composed.doors ? { doors: [...(game.doors || []), ...composed.doors] } : {}),
+    ...(composed.keep ? { keep: [...(game.keep || []), ...composed.keep] } : {}),
+    ...(composed.aftermath ? { aftermath: composed.aftermath } : {}),
+    ...(composed.bag ? { bag: composed.bag } : {}),
   };
 }
 

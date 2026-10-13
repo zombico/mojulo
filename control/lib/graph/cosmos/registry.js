@@ -1,7 +1,9 @@
 /**
  * The CAPABILITY REGISTRY: for every facet setting, its values and what makes each one today. Sourced settings take
  * their values from registry.generated.js (the tables, read by the generator); hand settings take them from the facet
- * file. Pure and light: it imports no source module.
+ * file. A sourced setting may also name `planned` values its table does not hold, so the sweep sees the gap (or, built by
+something else, what lowers it). Pure
+and light: it imports no source module.
  *
  *   capabilityRegistry() → { [facet]: { [setting]: { multi, values: { [value]: { status, lowers?, note?, effort?, pkg?, requires?, godot? } } } } }
  *
@@ -26,6 +28,13 @@ export function capabilityRegistry() {
         const { status = 'built', note, effort, pkg, requires, godot } = spec.source;
         for (const v of gen.values) {
           values[v] = { status, lowers: gen.lowers, ...(note ? { note } : {}), ...(effort ? { effort } : {}), ...(pkg ? { pkg } : {}), ...(requires ? { requires } : {}), ...(godot === false ? { godot: false } : gen.godot ? { godot: gen.godot.includes(v) } : {}) };
+        }
+        // planned: values the table does not hold yet (a gap the sweep should see), never one it holds; built only when
+        // something other than the table makes it (it names what it lowers to)
+        for (const [v, row] of Object.entries(spec.planned || {})) {
+          if (values[v]) throw new Error(`cosmos: ${facet.id}.${setting}=${v} is planned but the table already holds it; drop it from planned`);
+          if (row.status === 'built' && !row.lowers) throw new Error(`cosmos: ${facet.id}.${setting}=${v} is planned and built: name what it lowers to, or add it to the table`);
+          values[v] = { ...row };
         }
       } else {
         for (const [v, row] of Object.entries(spec.values)) values[v] = { ...row };

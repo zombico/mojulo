@@ -39,6 +39,7 @@ export const MOTIVATIONS = Object.freeze({
   wander:      'roams without a goal',
   escort:      'stays with an ally',
   ambient:     'no goal: it is there to be met (the practice dummy)',
+  sentry:      'never moves: turns to the nearest foe in range and fires (a tower, a turret)',
 });
 
 /**
