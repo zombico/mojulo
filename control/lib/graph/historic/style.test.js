@@ -74,10 +74,11 @@ describe('the shade bake (light.js)', () => {
   });
 });
 
-// each culture with a town plan is held to its own card's principles
-for (const culture of ['sumer', 'thebes']) {
+// each card that measures its town's lanes (a different layout each) is held to its own card's principles
+for (const culture of Object.keys(HISTORIC_STYLES).filter((id) => HISTORIC_STYLES[id].lanes)) {
   describe(`${culture} — the style card's principles, measured`, () => {
     const S = HISTORIC_STYLES[culture], plan = planHistoricCity({ culture }), { shade } = historicLight(plan);
+    let street; const streetScene = () => (street ??= assembleHistoricCityScene({ culture, view: 'street' }));   // one build, two principles
     const lanes = plan.grounds.filter((g) => g.kind === 'lane' && !g.poly);
     const alleys = lanes.filter((g) => g.surface === S.lanes.alley);   // the beaten-mud alleys, not the rubble streets
     const shadedShare = (rects) => { let n = 0, s = 0; for (const r of rects) for (const [x, y] of cells(r)) if (shade.open(x, y)) { n++; s += shade.sun(x, y) > 0.5; } return s / (n || 1); };
@@ -118,7 +119,7 @@ for (const culture of ['sumer', 'thebes']) {
     });
 
     it('principle 4 — shadows reach the page: every ground face carries the one shade map', () => {
-      const scene = assembleHistoricCityScene({ culture, view: 'street' });
+      const scene = streetScene();
       const grounds = scene.faces.filter((f) => f.shade);
       expect(grounds.length).toBeGreaterThanOrEqual(plan.grounds.filter((g) => !g.poly).length);   // every ground rect; a skewed poly keeps its flat colour
       expect(new Set(grounds.map((f) => f.shade)).size).toBe(1);
@@ -130,7 +131,7 @@ for (const culture of ['sumer', 'thebes']) {
     it('principle 5 — the sky is a place: bluer overhead than at the horizon, and behind the page', () => {
       const sky = deriveSky(S.sky.palette, { x: 0, y: 0, z: S.sky.sunElev });
       expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
-      expect(assembleHistoricCityScene({ culture, view: 'street' }).sky).toEqual(S.sky);
+      expect(streetScene().sky).toEqual(S.sky);
     });
 
   });

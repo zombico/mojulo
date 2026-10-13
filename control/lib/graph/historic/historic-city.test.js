@@ -49,7 +49,7 @@ describe('historic city: Sumer, the big read', () => {
     } finally { SUMER.house.whitewash = saved; }
   });
   it('assembles a scene of plain lit masses in scene units', () => {
-    const s = assembleHistoricCityScene({ seed: 7 });
+    const s = assembleHistoricCityScene({ seed: 7, shade: false });   // the masses are the claim: no shade map baked
     expect(s.faces.length).toBeGreaterThan(1000);
     expect(s.stats.culture).toBe('sumer');
   });

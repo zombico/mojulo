@@ -12,8 +12,12 @@ const bbox = (faces) => {
 const body = (faces) => faces.filter((f) => !['pull', 'tv', 'lamp'].includes(f.group));
 const legFaces = (faces) => faces.filter((f) => /^leg-/.test(f.group));
 
+// a style is a kind's builder dressed in forms (every form builds alone below): the first style of each kind, in code
+const STYLE_PER_KIND = [...new Set(Object.values(FURNITURE_STYLES).map((s) => s.kind))]
+  .map((kind) => Object.keys(FURNITURE_STYLES).find((id) => FURNITURE_STYLES[id].kind === kind));
+
 describe('furniture styles: worked pieces over the slot forms', () => {
-  for (const id of Object.keys(FURNITURE_STYLES)) {
+  for (const id of STYLE_PER_KIND) {
     it(`${id} resolves, locks as plain data, and builds at about its size`, () => {
       const { locked, basis, worn } = resolveFurniture({ like: id });
       expect(basis).toBe(id);
@@ -95,14 +99,15 @@ describe('composing: swaps, finishes, refusals', () => {
 
 describe('a locked piece is its own', () => {
   it('re-renders identically after the styles and forms are retuned', () => {
-    const { locked } = resolveFurniture({ like: 'chesterfield', forms: { legs: 'bun' } });
+    // a tuxedo, not a chesterfield: an untufted back draws in a fraction of the time, and retunes the same
+    const { locked } = resolveFurniture({ like: 'tuxedo', forms: { legs: 'bun' } });
     const before = JSON.stringify(lockedFurnitureFaces(locked, { unitMm: MM }));
-    const saved = FURNITURE_STYLES.chesterfield;
-    FURNITURE_STYLES.chesterfield = { ...saved, forms: { arms: 'track', back: 'loose', seat: 'loose' }, finish: { fabric: 'gingham' } };
+    const saved = FURNITURE_STYLES.tuxedo;
+    FURNITURE_STYLES.tuxedo = { ...saved, forms: { arms: 'track', back: 'loose', seat: 'loose' }, finish: { fabric: 'gingham' } };
     try {
-      expect(resolveFurniture({ like: 'chesterfield' }).locked).not.toEqual(locked);
+      expect(resolveFurniture({ like: 'tuxedo' }).locked).not.toEqual(locked);
       expect(JSON.stringify(lockedFurnitureFaces(JSON.parse(JSON.stringify(locked)), { unitMm: MM }))).toBe(before);
-    } finally { FURNITURE_STYLES.chesterfield = saved; }
+    } finally { FURNITURE_STYLES.tuxedo = saved; }
   });
 
   it('is deterministic', () => {

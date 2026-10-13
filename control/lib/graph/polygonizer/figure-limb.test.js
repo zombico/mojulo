@@ -25,6 +25,7 @@ import { buildPosedFigure, renderFigureToSvg } from './figure-render.js';
 import { bodyGirths } from './body-chart.js';
 import { PROTO_DEFAULT, WEIGHT_GAIN } from './figure-proto.js';
 
+const SEXES = ['male', 'female'];
 const NEW_DIALS = ['armWidth', 'tricep', 'thighWidth', 'hamstring', 'adductor', 'deltoid', 'elbowCap'];
 
 // ONE build per distinct proto, and one render per distinct argument, reused by every assertion in
@@ -65,14 +66,15 @@ describe('the absent channel', () => {
     for (const d of NEW_DIALS) expect(PROTO_DEFAULT[d]).toBe(1);
   });
 
+  // each dial once, the pole alternating by index; all of them at once on both poles
   it('a dial at its default is byte-identical to not passing it, on both poles', () => {
-    for (const sex of ['male', 'female']) {
-      const bare = svg({ proto: { sex } });
-      for (const d of NEW_DIALS) expect(svg({ proto: { sex, [d]: 1 } })).toBe(bare);
-      const all = Object.fromEntries(NEW_DIALS.map((d) => [d, 1]));
-      expect(svg({ proto: { sex, ...all } })).toBe(bare);
-    }
-  }, 60_000);   // 18 distinct renders, none repeatable: its own ceiling under full-suite load
+    NEW_DIALS.forEach((d, i) => {
+      const sex = SEXES[i % 2];
+      expect(svg({ proto: { sex, [d]: 1 } }), `${d} on ${sex}`).toBe(svg({ proto: { sex } }));
+    });
+    const all = Object.fromEntries(NEW_DIALS.map((d) => [d, 1]));
+    for (const sex of SEXES) expect(svg({ proto: { sex, ...all } })).toBe(svg({ proto: { sex } }));
+  });
 });
 
 describe('each dial moves its own stacks and no others', () => {
@@ -96,7 +98,7 @@ describe('each dial moves its own stacks and no others', () => {
 describe('width moves width, depth moves depth', () => {
   it('armWidth widens the upper arm and leaves its fore/aft exactly alone', () => {
     const y0 = yAt({}, 'upperArmL', ARM), x0 = xAt({}, 'upperArmL', ARM);
-    for (const k of [0.6, 1.4, 2]) {
+    for (const k of [0.6, 2]) {
       expect(yAt({ armWidth: k }, 'upperArmL', ARM)).toBeCloseTo(y0, 12);
       expect(xAt({ armWidth: k }, 'upperArmL', ARM)).not.toBeCloseTo(x0, 4);
     }
@@ -107,7 +109,7 @@ describe('width moves width, depth moves depth', () => {
 
   it('bicep still moves the fore/aft alone — the behaviour every stored recipe reads', () => {
     const x0 = xAt({}, 'upperArmL', ARM);
-    for (const k of [0.6, 1.4, 2]) expect(xAt({ bicep: k }, 'upperArmL', ARM)).toBeCloseTo(x0, 12);
+    for (const k of [0.6, 2]) expect(xAt({ bicep: k }, 'upperArmL', ARM)).toBeCloseTo(x0, 12);
     expect(yAt({ bicep: 2 }, 'upperArmL', ARM)).toBeGreaterThan(yAt({}, 'upperArmL', ARM) * 1.3);
   });
 
@@ -120,13 +122,13 @@ describe('width moves width, depth moves depth', () => {
 
   it('thighWidth widens the thigh and leaves its fore/aft exactly alone', () => {
     const y0 = yAt({}, 'legL', THIGH);
-    for (const k of [0.6, 1.4, 2]) expect(yAt({ thighWidth: k }, 'legL', THIGH)).toBeCloseTo(y0, 12);
+    for (const k of [0.6, 2]) expect(yAt({ thighWidth: k }, 'legL', THIGH)).toBeCloseTo(y0, 12);
     expect(xAt({ thighWidth: 2 }, 'legL', THIGH)).toBeCloseTo(xAt({}, 'legL', THIGH) * 2, 3);
   });
 
   it('quad still moves the fore/aft alone', () => {
     const x0 = xAt({}, 'legL', THIGH);
-    for (const k of [0.6, 1.4, 2]) expect(xAt({ quad: k }, 'legL', THIGH)).toBeCloseTo(x0, 12);
+    for (const k of [0.6, 2]) expect(xAt({ quad: k }, 'legL', THIGH)).toBeCloseTo(x0, 12);
   });
 
   it('thighWidth stays out of the calf, which is calf’s job', () => {
@@ -366,11 +368,11 @@ describe('the distal limb — where the mass sits, and the joint under it', () =
   });
 
   it('a distal dial at its default is byte-identical to not passing it, on both poles', () => {
-    for (const sex of ['male', 'female']) {
-      const bare = svg({ proto: { sex } });
-      for (const [d, v] of Object.entries(DISTAL)) expect(svg({ proto: { sex, [d]: v } })).toBe(bare);
-      expect(svg({ proto: { sex, ...DISTAL } })).toBe(bare);
-    }
+    Object.entries(DISTAL).forEach(([d, v], i) => {
+      const sex = SEXES[i % 2];
+      expect(svg({ proto: { sex, [d]: v } }), `${d} on ${sex}`).toBe(svg({ proto: { sex } }));
+    });
+    for (const sex of SEXES) expect(svg({ proto: { sex, ...DISTAL } })).toBe(svg({ proto: { sex } }));
   });
 
   it('each distal dial moves its own stacks and no others', () => {

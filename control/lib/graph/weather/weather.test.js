@@ -70,7 +70,7 @@ describe('the schedule', () => {
     }
   });
   it('over a long run each state shows about as often as its weight says (its family pulls a little)', () => {
-    const runs = weatherRuns(W, 11, 400000), n = {};
+    const runs = weatherRuns(W, 11, 100000), n = {};                   // ~600 slots: every state, the weights showing
     for (const r of runs) n[r.is] = (n[r.is] ?? 0) + 1;
     expect(Object.keys(n).sort()).toEqual(Object.keys(W.climate).sort());
     expect(n.clear).toBeGreaterThan(n.thunderstorm * 4);
@@ -105,11 +105,11 @@ describe('the fall round the camera', () => {
     for (const cam of [[0, 0, 2], [513.3, -77, 40]]) for (const t of [0, 1.7, 60]) {
       const P = fallPoints(F, cam, t, n);
       expect(P).toHaveLength(n);
-      for (const p of P) {
-        expect(Math.abs(p.p[0] - cam[0])).toBeLessThanOrEqual(FALL_BOX.half + 1e-6);
-        expect(Math.abs(p.p[2] - cam[2])).toBeLessThanOrEqual(FALL_BOX.height / 2 + 1e-6);
-        expect(p.w).toBeGreaterThanOrEqual(0), expect(p.w).toBeLessThanOrEqual(1);
-      }
+      // the worst particle of the pool, not one expect per particle (thousands of them)
+      const worst = (f) => Math.max(...P.map(f));
+      expect(worst((p) => Math.abs(p.p[0] - cam[0]))).toBeLessThanOrEqual(FALL_BOX.half + 1e-6);
+      expect(worst((p) => Math.abs(p.p[2] - cam[2]))).toBeLessThanOrEqual(FALL_BOX.height / 2 + 1e-6);
+      expect(Math.min(...P.map((p) => p.w))).toBeGreaterThanOrEqual(0), expect(worst((p) => p.w)).toBeLessThanOrEqual(1);
     }
   });
   it('it falls: down, leaned by its slant, the same at the same t', () => {

@@ -4,6 +4,11 @@ import { validateTerrainWind, resolveTerrainWind, bendTable, windPageChannel, gr
 import { elastica } from './mechanics.js';
 import { assembleTerrainWorld } from '../terrain/terrain-world.js';
 import { terrainChannelScript } from '../scene/channels/terrain-lod.js';
+import { PLANT_CLIMATES } from '../terrain/terrain-plants.js';
+import { SPECIES } from './species.js';
+
+// the climate's trees, smallest: its first land tree not in bloom, one variant (the wind takes every tree alike)
+const TREES = { kinds: [PLANT_CLIMATES.temperate.rows.find((r) => r.zone === 'land' && !SPECIES[r.species].bloom).species], variants: 1 };
 
 describe('the bend table', () => {
   const T = bendTable(), at = (i, k, b) => { const o = ((b * T.NS + k) * T.NR + i) * 2; return [T.data[o], T.data[o + 1]]; };
@@ -90,7 +95,7 @@ describe('terrain: wind is opt-in', () => {
     const js = terrainChannelScript(p.terrain); expect(js).not.toContain('const WIND'); expect(js).not.toContain('SP_OF'); expect(js).not.toContain('TW.wind');
   }, 60_000);
   it('present, the wind script comes before the grass and plants, which bend in it; it parses; exports carry none', () => {
-    const p = assembleTerrainWorld({ ...W, grass: { kinds: ['tussock', 'fescue'] }, plants: true, wind: { speed: 8, flaccidity: { plants: 0.5 } } }, { live: true });
+    const p = assembleTerrainWorld({ ...W, grass: { kinds: ['tussock', 'fescue'] }, plants: TREES, wind: { speed: 8, flaccidity: { plants: 0.5 } } }, { live: true });
     expect(p.meta.wind).toEqual({ speed: 8, dir: 0, gust: 0.5, flaccidity: { grass: 1, plants: 0.5, debris: 1 } });
     expect(p.terrain.wind.debris).toEqual({ ...WIND_DEBRIS_DEFAULTS, phi: 1, petals: 0 });   // nothing here blooms
     expect(p.terrain.wind.grass.map((t) => t.B)).toEqual([5, 1.25]);
@@ -137,8 +142,8 @@ describe('a cherry grove', () => {
     expect(validateTerrainPlants({ kinds: ['cherry'] }, { world: {} })).toEqual([]);
     expect(validateTerrainPlants({ kinds: ['sakura'] }, { world: {} })[0]).toMatch(/kinds must be a list of species: .*cherry/);
     const W = { kind: 'terrain', world: { features: [{ feature: 'river' }], climate: 'temperate', seed: 'vale' } };
-    const p = assembleTerrainWorld({ ...W, plants: { kinds: ['cherry'] }, wind: true }, { live: true });
+    const p = assembleTerrainWorld({ ...W, plants: { kinds: ['cherry'], variants: 1 }, wind: true }, { live: true });
     expect(p.meta.plants.species).toEqual(['cherry', 'reed']); expect(p.terrain.wind.debris.bloom).toEqual([1, 0]); expect(p.terrain.wind.debris.petals).toBe(WIND_DEBRIS_DEFAULTS.petals);
-    expect(assembleTerrainWorld({ ...W, plants: true, wind: true }, { live: true }).terrain.wind.debris.petals).toBe(0);
+    expect(assembleTerrainWorld({ ...W, plants: TREES, wind: true }, { live: true }).terrain.wind.debris.petals).toBe(0);
   }, 180_000);
 });

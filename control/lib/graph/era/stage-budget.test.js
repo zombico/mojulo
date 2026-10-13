@@ -11,16 +11,14 @@ const PLAZA = { kind: 'stage', reference: 'sunshine', kit: 'delfino-plaza', room
 const page = (p, o = {}) => emitThreeWorld({ ...p, ...o, textures: collectFaceTextures(p.faces), inline: true });
 
 describe('the stage page budget', () => {
+  // one case per kit, each its heaviest: every element the kit takes, on at once (a lighter recipe of the same kit
+  // is a subset of its faces and its page)
   it.each([
-    ['the closed plaza with water, wind, a door and the key', { ...PLAZA, water: true, wind: true, doors: [{ id: 'church', at: { house: 1, side: '-x' }, to: { map: 'nave', door: 'west' } }], items: [{ id: 'key', at: [6, 13] }] }],
-    ['the closed plaza at night with water and wind', { ...PLAZA, time: 'night', water: true, wind: true }],
-    ['the research lab with its blast door', { kind: 'stage', reference: 'doom3', kit: 'research-lab', rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }], doors: [{ id: 'airlock', at: { portal: true }, to: { map: 'nave', door: 'west' } }] }],
-    ['the research lab gone derelict, every event at full, with water', { kind: 'stage', reference: 'doom3', kit: 'research-lab', rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }], decay: 1, water: true }],
-    ['the castle dungeon starter: six rooms, a tomb, real fire', { ...starter('gothic-stone'), reference: 'gothic-night' }],
-    ['the catacomb starter: six rooms, an ossuary, real fire', { ...starter('catacomb'), reference: 'gothic-night' }],
+    ['the closed plaza at night with water, wind, a door and the key', { ...PLAZA, time: 'night', water: true, wind: true, doors: [{ id: 'church', at: { house: 1, side: '-x' }, to: { map: 'nave', door: 'west' } }], items: [{ id: 'key', at: [6, 13] }] }],
+    ['the research lab gone derelict, every event at full, with water and its blast door', { kind: 'stage', reference: 'doom3', kit: 'research-lab', rooms: [{ id: 'lab', x: 0, y: 0, w: 16, d: 24, h: 9 }], decay: 1, water: true, doors: [{ id: 'airlock', at: { portal: true }, to: { map: 'nave', door: 'west' } }] }],
     // every interceptor at full on the tallest lift a roll reaches: the worst a dressed dungeon costs
-    ['the castle dungeon overgrown: every interceptor at full, lifted', { ...starter('gothic-stone'), reference: 'gothic-night', growth: 1, litter: 1, cracks: 1, lift: 1.3 }],
-    ['the catacomb overgrown: every interceptor at full, lifted', { ...starter('catacomb'), reference: 'gothic-night', growth: 1, litter: 1, cracks: 1, lift: 1.3 }],
+    ['the castle dungeon starter overgrown: six rooms, a tomb, real fire, every interceptor at full, lifted', { ...starter('gothic-stone'), reference: 'gothic-night', growth: 1, litter: 1, cracks: 1, lift: 1.3 }],
+    ['the catacomb starter overgrown: six rooms, an ossuary, real fire, every interceptor at full, lifted', { ...starter('catacomb'), reference: 'gothic-night', growth: 1, litter: 1, cracks: 1, lift: 1.3 }],
     ['the nave with fire, wind and its doors', { ...NAVE, fire: true, wind: true, doors: [{ id: 'west', at: { portal: true }, to: { map: 'plaza', door: 'church' } }] }],
   ])('%s opens under the budget', (_, m) => {
     const p = assembleStageScene(m);

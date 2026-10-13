@@ -10,10 +10,15 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const rigOf = (hero) => validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord(hero) }).recipe.rig);
 const HEROES = { female: rigOf({ cast: 'female', head: 'anime' }), male: rigOf({ cast: 'male', head: 'anime' }) };
+// one guard per distinct hold (hero-grip.js heroGuard: the regime, one hand or two, an off-hand blade or a shield, the
+// grip), chosen from the catalog, the casts alternating
+const HOLDS = Object.values(Object.groupBy(Object.keys(GUARDS), (n) => { const K = GUARDS[n]; return `${K.regime} ${K.hands} ${K.off ? 'off' : ''}${K.shield ? 'shield' : ''} ${K.grip ?? 'handshake'}`; }))
+  .map((g, i) => [i % 2 ? 'male' : 'female', g[0]]);
 const turnOf = (a, b) => { const t = [0, 1, 2].reduce((s, i) => s + a[0][i] * b[0][i] + a[1][i] * b[1][i] + a[2][i] * b[2][i], 0); return (Math.acos(Math.max(-1, Math.min(1, (t - 1) / 2))) * 180) / Math.PI; };
 
 describe('hero-grip', () => {
-  for (const [rig, R] of Object.entries(HEROES)) for (const name of Object.keys(GUARDS)) {
+  for (const [rig, name] of HOLDS) {
+    const R = HEROES[rig];
     it(`${rig} ${name}: the hands on the hilt, the wrists in range, the point, the edge, clear, balanced`, () => {
       const g = heroGuard(name, R), c = g.checks;
       expect(c.laws, JSON.stringify(c)).toEqual(Object.fromEntries(Object.keys(c.laws).map((k) => [k, true])));

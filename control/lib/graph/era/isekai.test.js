@@ -12,7 +12,7 @@ import { collectFaceTextures } from '../landscape/surface-textures.js';
 
 // the isekai meadow (isekai.js): machine checks for the style card's principles
 const st = ISEKAI_MEADOW, P = st.principles, M = { kind: 'stage', kit: 'isekai-meadow' };
-const p = assembleStageScene(M), site = natureSite(st, 1);
+const p = assembleStageScene(M), site = natureSite(st, 1), meadow = p;   // `meadow`: the same stage, where a describe names its own p
 const centroid = (f) => f.corners.reduce((s, q) => [s[0] + q[0] / f.corners.length, s[1] + q[1] / f.corners.length, s[2] + q[2] / f.corners.length], [0, 0, 0]);
 const luma = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
 const KEYS = Object.keys(st.tiles).flatMap((t) => ['lit', 'shade'].map((b) => `isekai:${st.id}:${t}-${b}`));
@@ -203,7 +203,7 @@ describe('the isekai meadow, live (`wind`)', () => {
 });
 
 describe('the trail blend (nature.js trailRims, the isekai rim and creep)', () => {
-  const st = ISEKAI_MEADOW, site = natureSite(st, 1), strips = trailRims(st, site, 1), p = assembleStageScene({ kind: 'stage', kit: 'isekai-meadow' });
+  const st = ISEKAI_MEADOW, site = natureSite(st, 1), strips = trailRims(st, site, 1), p = meadow;
   const B = st.trailBlend;
 
   it('lays two mirrored bands along both edges: the bleed out from the edge, the over in from it, within the wandering width', () => {

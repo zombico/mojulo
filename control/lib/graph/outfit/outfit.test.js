@@ -12,6 +12,21 @@ const build = (style, more = {}) => ({ type: 'outfit', style, ...more });
 const wear = (spec) => { const hero = heroRecord({ detail: 'swimsuit', ...spec }); const plan = heroPlanOf(hero); const recipe = expandPlan(plan); return { hero, plan, recipe, mesh: compileLayered(recipe) }; };
 const groupsOf = (mesh) => new Set(mesh.groups);
 const STRUCT = new Set(['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'hallux', 'pectoral']);
+// each garment piece and edge is its own pass, worn on each core and cast: the fewest card × core × cast cases that
+// run every one (greedy cover over the cut's trace, in code; the trace costs nothing, a wear costs a mesh)
+const WEARS = (() => {
+  const cases = Object.keys(SEEDED_OUTFITS).flatMap((style) => ['structured', 'streamlined'].flatMap((core) => ['male', 'female'].map((cast) => [style, core, cast])));
+  const traces = new Map(Object.keys(SEEDED_OUTFITS).map((id) => [id, expandOutfit(build(id), { have: STRUCT, scale: 1 }).trace]));
+  const keysOf = ([style, core, cast]) => { const t = traces.get(style);
+    return [...t.pieces.map((p) => `piece:${p}`), ...t.edges.map((e) => `edge:${e}`), `dress:${!!t.dress}`, `core:${core}`, `cast:${cast}`, `on:${core}/${cast}`]; };
+  const left = new Set(cases.flatMap(keysOf)), picked = [];
+  while (left.size) {
+    const gain = (c) => keysOf(c).filter((k) => left.has(k)).length;
+    const best = cases.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const k of keysOf(best)) left.delete(k);
+  }
+  return picked;
+})();
 
 describe('the cards', () => {
   it('every seeded card is plain JSON and valid', () => {
@@ -44,8 +59,8 @@ describe('the laws as arithmetic', () => {
 });
 
 describe('the passes', () => {
-  it('every card on both casts and both cores: built, audit clean, bound, laws stamped, the edges in the readout', () => {
-    for (const style of Object.keys(SEEDED_OUTFITS)) for (const core of ['structured', 'streamlined']) for (const cast of ['male', 'female']) {
+  it('every piece and edge, on both casts and both cores: built, audit clean, bound, laws stamped, the edges in the readout', () => {
+    for (const [style, core, cast] of WEARS) {
       const { hero, recipe, mesh } = wear({ cast, core, outfit: build(style) });
       expect(hero.outfit.laws, style).toBe(OUTFIT_LAWS_VERSION);
       expect(Object.entries(auditLayered(mesh)).filter(([, r]) => !r.pass).map(([n]) => n), `${style} ${core} ${cast}`).toEqual([]);
@@ -89,7 +104,9 @@ describe('the passes', () => {
     expect(tr.warnings.join(' ')).toMatch(/focal: 'belt'/);
   });
   it('a skirt: one hull round the hips and both legs, holding them at rest, never narrowing below the hips, open beneath', () => {
-    for (const core of ['structured', 'streamlined']) for (const cut of ['pencil', 'aline', 'full']) {
+    // each cut once, the cores taken in turn
+    for (const [i, cut] of ['pencil', 'aline', 'full'].entries()) {
+      const core = ['structured', 'streamlined'][i % 2];
       const { recipe, mesh } = wear({ cast: 'female', core, outfit: build('blouse', { language: { bottom: { cut } } }) });
       const S = recipe.parts.skirt_skirt, outer = S.stations.slice(0, 12), rad = (st) => Object.values(st.points).map((p) => Math.hypot(p[0], p[1] - outer[0].points.front[1] + (outer[0].points.front[1] - outer[0].points.back[1]) / 2));
       // below the hips' widest ring each ring is at least as wide as the one above it, everywhere round

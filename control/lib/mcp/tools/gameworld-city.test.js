@@ -13,7 +13,9 @@ import { gameStages, stageLevelOrder, gameLevels, mapPlan } from '@/lib/graph/ga
 
 beforeEach(() => closeDb());
 
-const world = (extra = {}) => ({ id: 'harbour', name: 'Harbour', seed: 5, levels: { downtown: { name: 'Downtown', city: { board: { cols: 10, rows: 8 }, seed: 4, cars: false } } }, ...extra });
+// the smallest board whose route is cut into more than one stage, every segment with a street to stand on, in both
+// the line and the map (under five rows, or five columns, a segment of this seed's city has none)
+const world = (extra = {}) => ({ id: 'harbour', name: 'Harbour', seed: 5, levels: { downtown: { name: 'Downtown', city: { board: { cols: 5, rows: 5 }, seed: 4, cars: false } } }, ...extra });
 // the runner's own calls (runner.js), less the book it waits on: a level per stage, the game over them
 async function play(W, ref) {
   const G = readGameworld(W), stages = gameStages(W), refs = stages.map((s) => `${ref}-level-${s.level}-${s.index}`);
@@ -34,7 +36,8 @@ describe('a world bible\'s city level, played', () => {
     expect(game.ok, JSON.stringify(game.error ?? game.audits)).toBe(true);
   }, 600_000);
   it('in a map: every segment, each walked out by one of its portals', async () => {
-    const { game } = await play(world({ topology: 'interconnected' }), 'gwm');
+    const { stages, game } = await play(world({ topology: 'interconnected' }), 'gwm');
+    expect(stages.length).toBeGreaterThan(1);
     expect(game.ok, JSON.stringify(game.error ?? game.audits)).toBe(true);
   }, 600_000);
 });

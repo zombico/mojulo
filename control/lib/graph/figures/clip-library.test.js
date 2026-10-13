@@ -49,13 +49,16 @@ describe('a library clip on the heroine', () => {
     }
   }, 60000);
 
-  it('every library clip retargets: the keys she plays, a one-shot holds its last pose', async () => {
+  it('a library clip retargets: the keys she plays, a one-shot holds its last pose', async () => {
     const pack = await heroine(), lib = await loadClipLibrary('quaternius-ual');
-    const clips = libraryClips(pack, lib, undefined, { once: ['Jump_Start', 'Jump_Land', 'Hit_Chest'] });
+    // one loop and one one-shot: every clip runs the same retarget, the once flag is the only fork
+    const names = Object.keys(lib.clips), loop = names.find((n) => clipLoops(n)), shot = names.find((n) => !clipLoops(n));
+    const clips = libraryClips(pack, lib, [loop, shot], { once: [shot] });
+    expect(Object.keys(clips)).toEqual([loop, shot]);
     for (const [n, c] of Object.entries(clips)) {
       expect(c.b.length).toBe(c.k * pack.bones.length * 7);
       expect(c.b.every(Number.isFinite)).toBe(true);
-      expect(!!c.once).toBe(['Jump_Start', 'Jump_Land', 'Hit_Chest'].includes(n));
+      expect(!!c.once).toBe(n === shot);
     }
     expect(() => libraryClips(pack, lib, ['Moonwalk'])).toThrow(/no clip 'Moonwalk'/);
   }, 60000);

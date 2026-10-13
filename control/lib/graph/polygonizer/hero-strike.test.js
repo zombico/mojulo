@@ -13,7 +13,9 @@ const rigOf = (hero) => validateRig(expandLayeredManifest({ kind: 'layered', tit
 const HEROES = { female: rigOf({ cast: 'female', head: 'anime' }), male: rigOf({ cast: 'male', head: 'anime' }) };
 
 describe('hero-strike', () => {
-  for (const [rig, R] of Object.entries(HEROES)) for (const name of Object.keys(STRIKES)) {
+  // every strike (each its own chain and hand), the casts alternating
+  for (const [i, name] of Object.keys(STRIKES).entries()) {
+    const rig = i % 2 ? 'male' : 'female', R = HEROES[rig];
     it(`${rig} ${name}: lands, straight, in order, balanced, planted, extended`, () => {
       const K = heroStrike(name, R), c = K.checks;
       expect(c.contact, 'the hand on its point at contact').toBeLessThan(0.01);

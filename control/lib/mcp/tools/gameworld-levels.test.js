@@ -29,7 +29,10 @@ describe('a gameworld\'s stages as game levels', () => {
   it('a stage mints as a level the hero pilots, carrying the systems and a game channel; the book compiles to a game', async () => {
     const G = readGameworld(MEADOWMARK_HERO), B = resolveBook(MEADOWMARK_HERO);
     await mintSolidHandler({ ...heroOrders(G).mint.args, ref: 'gw-hero' });
-    const S = gameStages(MEADOWMARK_HERO).slice(0, 3), refs = S.map((s) => `gw-level-${s.level}-${s.index}`);
+    // one stage per way a stage ends (a trail's exit beat, a climb's top): the procedure, not every stage of the book
+    const S = gameStages(MEADOWMARK_HERO).filter((s, i, all) => all.findIndex((o) => stageEnds(o.manifest).planar === stageEnds(s.manifest).planar) === i);
+    expect(S.length).toBe(2);
+    const refs = S.map((s) => `gw-level-${s.level}-${s.index}`);
     for (const [i, s] of S.entries()) {
       const O = stageLevelOrder(G, s, { ref: refs[i], heroRef: 'gw-hero', mechanics: B.mechanics });
       expect((await createSketchHandler({ ...O.args, ref: refs[i] })).ok).toBe(true);

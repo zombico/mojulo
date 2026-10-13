@@ -104,9 +104,11 @@ describe('construction/sheets — boards and their faces', () => {
   it('bakes only a key sheetTile could mint: a key is recipe text too (a dungeon style, an extrude wrap)', () => {
     const dec = (k) => JSON.parse(Buffer.from(k.slice(SHEET_TEXTURE_PREFIX.length), 'base64url').toString('utf8'));
     const key = (k, q) => SHEET_TEXTURE_PREFIX + Buffer.from(JSON.stringify({ ...dec(k), ...q })).toString('base64url');
-    for (const m of Object.keys(SHEETS)) for (const side of ['face', 'edge-long', 'edge-end']) for (const seed of [0, 6]) {
-      expect(bakeSheetKey(sheetTile(m, side, { thickMm: 18, seed }).key)).not.toBeNull();
-    }
+    // a sheet bakes by its figure: the first sheet of each figure, every side, the seeds taken in turn
+    const byFigure = Object.keys(SHEETS).filter((m, i, all) => all.findIndex((n) => SHEETS[n].figure === SHEETS[m].figure) === i);
+    byFigure.forEach((m, i) => ['face', 'edge-long', 'edge-end'].forEach((side, j) => {
+      expect(bakeSheetKey(sheetTile(m, side, { thickMm: 18, seed: [0, 6][(i + j) % 2] }).key), `${m} ${side}`).not.toBeNull();
+    }));
     const thick = bakeSheetKey(sheetTile('mdf', 'edge-long', { thickMm: 2000 }).key);   // a 2 m block: its edge pixel grows
     expect([thick.nu, thick.nv]).toEqual([256, 2048]);
     const face = sheetTile('plywood', 'face', { thickMm: 18 }).key, edge = sheetTile('osb', 'edge-end', { thickMm: 18 }).key;
@@ -139,7 +141,8 @@ describe('construction/members — a box is its centreline twin', () => {
 });
 
 describe('construction/furniture — checks that stamp, never refuse', () => {
-  beforeAll(async () => { await ensureExactKernel(); });
+  let low;                                                       // the bookcase, lowered once
+  beforeAll(async () => { await ensureExactKernel(); low = lowerFrame(bookcase); });
 
   it('validates boxes and sheets', () => {
     expect(validateFrames([bookcase])).toEqual([]);
@@ -148,7 +151,7 @@ describe('construction/furniture — checks that stamp, never refuse', () => {
     expect(errs).toMatch(/edges.front: 'abs'/);
   });
   it('places the knock-down fittings a carcass takes and lists them', () => {
-    const { report } = lowerFrame(bookcase);
+    const { report } = low;
     const f = report.furniture;
     const count = Object.fromEntries(f.hardware.map((h) => [h.code, h.count]));
     // four panels × two sides; the 300 mm panels take two cams with a dowel each, the 60 mm plinth one cam and a dowel
@@ -161,19 +164,19 @@ describe('construction/furniture — checks that stamp, never refuse', () => {
     expect(f.interference).toEqual([]);
   });
   it('finds the order a carcass goes together in: one side, the panels and the back, the other side, the loose shelf', () => {
-    const { report } = lowerFrame(bookcase);
+    const { report } = low;
     const members = report.assembly.order.filter((id) => report.members.some((m) => m.id === id));
     // taken apart greedily and reversed: the back slides into the side's and top's grooves before the bottom closes it
     expect(members).toEqual(['side-l', 'top', 'back', 'bottom', 'plinth', 'shelf', 'side-r', 'shelf-a']);
   });
   it('racks without a back, and holds square with one', () => {
-    expect(lowerFrame(bookcase).report.furniture.racking).toEqual([{ plane: 'sideways (x–z)', resisted: true, by: 'panel back' }, { plane: 'front to back (y–z)', resisted: true, by: 'panel side-l' }]);
+    expect(low.report.furniture.racking).toEqual([{ plane: 'sideways (x–z)', resisted: true, by: 'panel back' }, { plane: 'front to back (y–z)', resisted: true, by: 'panel side-l' }]);
     const { report } = lowerFrame(noBack);
     expect(report.furniture.racking[0]).toEqual({ plane: 'sideways (x–z)', resisted: false });
     expect(frameStamps(report, 'b').join('\n')).toMatch(/racks sideways \(x–z\)/);
   });
   it('tips when a child pulls on a tall bookcase, and says to fix it to the wall', () => {
-    const { report } = lowerFrame(bookcase);
+    const { report } = low;
     const f = report.furniture;
     // the centre of mass is a hand sum of the panels
     const vol = (m) => m.box.max.map((v, i) => v - m.box.min[i]).reduce((a, b) => a * b, 1) * 1e-9;
@@ -215,7 +218,7 @@ describe('construction/furniture — checks that stamp, never refuse', () => {
     expect(report.furniture.racking.every((r) => r.resisted)).toBe(true);
   });
   it('nests a carcass onto its sheets', () => {
-    const cl = lowerFrame(bookcase).report.furniture.cutList;
+    const cl = low.report.furniture.cutList;
     expect(cl.map((c) => [c.material, c.thickMm, c.sheets])).toEqual([['mfc', 18, 1], ['hardboard', 3, 1]]);
     const n = nestParts([{ id: 'a', l: 2000, w: 900 }, { id: 'b', l: 2000, w: 900 }, { id: 'c', l: 2000, w: 900 }], [2440, 1220], { rotate: false });
     expect(n.sheets).toBe(3);
@@ -228,7 +231,7 @@ describe('construction/furniture — checks that stamp, never refuse', () => {
     expect(Math.max(...p.slice(1).map((v, i) => v - p[i]))).toBeLessThanOrEqual(0.3 + 1e-9);
   });
   it('is deterministic, and leaves a timber bent alone', () => {
-    expect(JSON.stringify(lowerFrame(bookcase).faces)).toBe(JSON.stringify(lowerFrame(bookcase).faces));
+    expect(JSON.stringify(lowerFrame(bookcase).faces)).toBe(JSON.stringify(low.faces));
     const bent = { id: 'b', unit: 'cm', members: [{ id: 'p', from: [0, 0, 0], to: [0, 0, 200], stock: [15, 15] }, { id: 't', from: [0, 0, 190], to: [200, 0, 190], stock: [15, 20] }], joints: [{ type: 'mortise-tenon', a: 't', b: 'p' }] };
     expect(isFurniture(bent)).toBe(false);
     expect(lowerFrame(bent).report.furniture).toBeUndefined();

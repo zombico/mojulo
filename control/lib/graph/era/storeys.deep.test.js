@@ -1,4 +1,4 @@
-// storeys, swept: the storeyed programs on every room kit, dressed and lowered as levels, then WALKED. A walker of the
+// storeys, swept: the storeyed programs on every room shell, dressed and lowered as levels, then WALKED. A walker of the
 // level's body (0.3 m round, stepping 0.35) steers along the level's route to its goal: the colliders stop it as the
 // page's walk rule does (core.js resolveBlocking), and it stands on the highest floor or tread under its probe (the
 // rule's `probe` over its feet), as the page's ground ray does. It reaches the goal on the goal's storey, never falls,
@@ -11,7 +11,9 @@ import { buildCore } from '../worlds/controllable/core.js';
 
 const E = {};
 buildCore(E);
-const ROOM_KITS = Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid && STAGE_KITS[k].shell !== 'plaza');
+// one room kit per shell: each a distinct way to build the rooms the stair climbs through
+const firstOf = (ids, key) => ids.filter((id, i) => ids.findIndex((x) => key(x) === key(id)) === i);
+const ROOM_KITS = firstOf(Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].grid && STAGE_KITS[k].shell !== 'plaza'), (k) => STAGE_KITS[k].shell ?? 'crypt');
 const EYE = 1.7, BODY = 0.3, STEP = 0.35, SPEED = 4.5, DT = 1 / 30;
 
 /** The page's ground ray, over the scene's upward faces: the highest under (x, y) at or below where it is cast from. */
@@ -58,10 +60,11 @@ function walk(scene, mech, spawn, probe) {
   return { ok: false, at: pos, why: 'out of time' };
 }
 
-describe('the storeyed programs, on every room kit, are walked to their goal upstairs', () => {
-  for (const kit of ROOM_KITS) {
+describe('the storeyed programs, on every room shell, are walked to their goal upstairs', () => {
+  ROOM_KITS.forEach((kit, k) => {
     it(`${kit}: the tower's lookout and the keep's treasury are reached up their stairs`, () => {
-      for (const use of ['tower', 'keep']) for (const seed of [1, 2, 3]) {
+      ['tower', 'keep'].forEach((use, u) => {
+        const seed = 1 + ((2 * k + u) % 3);
         const m = withBuildingLevel({ kind: 'stage', kit, program: { use, seed }, level: {} }, 'lv');
         const scene = assembleStageScene(m, { unshaded: true });
         const mech = m.game.mechanics.find((x) => x.kind === 'reach-exit');
@@ -70,7 +73,7 @@ describe('the storeyed programs, on every room kit, are walked to their goal ups
         const r = walk(scene, mech, m.entities[0].transform.pos.map((v, i) => (i === 2 ? v - EYE : v)), rule.probe);
         expect(r.ok, `${kit} ${use} s${seed}: ${r.why} at ${r.at}`).toBe(true);
         expect(mech.at[2], `${kit} ${use} s${seed}: the goal is upstairs`).toBeGreaterThan(4);
-      }
-    }, 300_000);
-  }
+      });
+    });
+  });
 });

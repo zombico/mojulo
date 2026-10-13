@@ -7,9 +7,11 @@ import { describe, expect, it } from 'vitest';
 import { readLocalMeru } from './plan.js';
 import { assembleStageScene } from '../era/stage.js';
 
-const TWO_BASES = [{ form: 'mound', height: 8, foot: 16, summit: 9 }, { form: 'mound', height: 7, foot: 6.8, summit: 3.5, up: { turns: 1 } }];
-const meru = (island) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: TWO_BASES, ...(island === undefined ? {} : { island }) } }, {});
-const isle = meru(true), plain = meru(undefined);
+// two small bases: the least land that still has a beach, a high shore and a crease (each build is seconds)
+const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
+const meru = (island, shading) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: TWO_BASES, ...(island === undefined ? {} : { island }), ...(shading === undefined ? {} : { shading }) } }, {});
+const GEO = { geology: true, walk: 'base' };
+const isle = meru(true), plain = meru(undefined), rocky = meru(GEO);
 const of = (p, g) => p.faces.filter((f) => f.group === g);
 const mid = (f) => [0, 1, 2].map((k) => f.corners.reduce((s, c) => s + c[k], 0) / f.corners.length);
 
@@ -45,9 +47,7 @@ describe('local meru: the island', () => {
 });
 
 describe('local meru: island geology and a walk at the base', () => {
-  const small = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
-  const build = (island) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: small, island } }, {});
-  const bare = build(true), rock = build({ geology: true, walk: 'base' });
+  const bare = isle, rock = rocky;
   it('reads geology and walk, and refuses other words', () => {
     expect(readLocalMeru({ island: { geology: true, walk: 'base' } }).island).toMatchObject({ geology: true, walk: 'base' });
     expect(() => readLocalMeru({ island: { geology: 'yes' } })).toThrow(/island.geology is true/);
@@ -79,9 +79,10 @@ describe('stage: dress false', () => {
 });
 
 describe('local meru: shading, the land lit by polygons', () => {
-  const small = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
-  const build = (shading) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', meru: { tiers: small, island: { geology: true, walk: 'base' }, ...(shading === undefined ? {} : { shading }) } }, {});
-  const tiled = build(undefined), poly = build(true);
+  const build = (shading) => meru(GEO, shading);
+  const tiled = rocky, poly = build(true);
+  let flat;                                                       // the polygons without the rules, built once
+  const unruled = () => (flat ||= build({ crevice: 0, ridge: 0, blend: 0 }));
   it('reads its settings and refuses what it does not know', () => {
     expect(readLocalMeru({ shading: true }).shading).toMatchObject({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 });
     expect(readLocalMeru({}).shading).toBeUndefined();
@@ -97,13 +98,13 @@ describe('local meru: shading, the land lit by polygons', () => {
     expect(of(poly, 'isekai:grass')).toHaveLength(0);
   });
   it('smooths the ground: corners shared by two ground quads take one colour before the rules', () => {
-    const flat = build({ crevice: 0, ridge: 0, blend: 0 }), key = (c) => c.map((v) => Math.round(v * 100)).join(','), seen = new Map();
+    const flat = unruled(), key = (c) => c.map((v) => Math.round(v * 100)).join(','), seen = new Map();
     let same = 0, diff = 0;
     for (const f of of(flat, 'isekai:ground')) f.corners.forEach((c, k) => { const h = f.cornerFills[k], s = seen.get(key(c)); if (s === undefined) seen.set(key(c), h); else if (s === h) same++; else diff++; });
     expect(same).toBeGreaterThan(diff * 20);
   });
   it('marks a crease darker than the same land without the rules', () => {
-    const off = build({ crevice: 0, ridge: 0, blend: 0 }), lum = (h) => [1, 3, 5].reduce((a, i) => a + parseInt(h.slice(i, i + 2), 16), 0);
+    const off = unruled(), lum = (h) => [1, 3, 5].reduce((a, i) => a + parseInt(h.slice(i, i + 2), 16), 0);
     const sum = (p) => of(p, 'isekai:cliff').reduce((a, f) => a + f.cornerFills.reduce((b, h) => b + lum(h), 0), 0);
     expect(sum(poly)).toBeLessThan(sum(off));
   });

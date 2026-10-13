@@ -1624,6 +1624,23 @@ several minutes. They move to an e2e tier of their own.
 - **A guard** (`lib/mcp/test-tiers.test.js`): the e2e suites stay in `npm test`, and no critical-tier suite mints
   with `autoAudit: true` without injecting a stub `runTraversal`.
 
+### Test the concept, not the catalog
+
+The suite's time was in tests that iterated whole catalogs (every species, preset, culture, landmark, kit) or built far
+more than the property needed, several past their own raised timeouts under a loaded run. A test now picks one case per
+distinct procedure, chosen in code, and asserts the concept on it (CLAUDE.md, test tiers).
+
+- **Fauna** reads its laws on one species per family, rig, footfall pattern and habit set (`fauna/test-cases.js`):
+  between them every gait pattern and behavior strategy is still posed. Two concepts are tested on their own now:
+  **chirality** (a gait's mirror is itself half a stride on, at once, or, with a lead, never) and **growth** (`scale`
+  grows every joint about the ground; `legScale` lifts the trunk whole on longer legs, the feet staying down).
+- **Polygonizer, era, gameworld, city, historic and the MCP suites** sample their presets, cultures, landmarks and kits
+  by procedure, build smaller inputs (a 5×5 city board, a 12×12 export city, a shorter traversal) and build shared
+  inputs once. Deep files that were only a catalog sweep are gone; range-end sweeps and the generated-table drift
+  pins stay exhaustive.
+- **`building-level`** walks three buildings in headless Chrome (the office, the crypt, the tavern-door link); the
+  others check their compiled route through a stub `runTraversal`.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest

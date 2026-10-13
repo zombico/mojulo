@@ -14,6 +14,20 @@ const AFTER = { after: { kit: 'isekai-meadow', seed: 8 } };
 const plans = new Map();
 const plan = (r = AFTER) => { const k = JSON.stringify(r); return plans.get(k) || plans.set(k, planLocalMeru(r)).get(k); };
 const broken = (p) => localMeruLaws(p).filter((l) => l.ok === false).map((l) => l.law);
+// a preset is a composition of procedures: each tier's form, way up and plan (round or a polygon), and what stands on
+// what. The fewest presets that run every one the default does not (greedy cover, in code).
+const proceduresOf = (r) => { const T = readLocalMeru(r).tiers;
+  return [...T.map((t) => `${t.form}:${t.up.via}:${t.sides ? 'polygon' : 'round'}`), ...T.slice(1).map((t, k) => `${T[k].form}>${t.form}`)]; };
+const PRESETS = (() => {
+  const keys = (id) => proceduresOf({ preset: id }), left = new Set(LOCAL_MERU_PRESET_IDS.flatMap(keys)), picked = [];
+  for (const k of proceduresOf({})) left.delete(k);
+  while (left.size) {
+    const gain = (id) => keys(id).filter((k) => left.has(k)).length;
+    const best = LOCAL_MERU_PRESET_IDS.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const k of keys(best)) left.delete(k);
+  }
+  return picked;
+})();
 
 describe('local meru: the recipe', () => {
   it('reads tiers against their forms and ways up, and says what is wrong', () => {
@@ -113,7 +127,7 @@ describe('local meru: the plan', () => {
 });
 
 describe('local meru: the presets', () => {
-  for (const id of LOCAL_MERU_PRESET_IDS) {
+  for (const id of PRESETS) {
     it(`${id}: ${LOCAL_MERU_PRESETS[id].about} — every law holds, every tier on the one below`, () => {
       const p = plan({ ...AFTER, preset: id });
       expect(broken(p)).toEqual([]);
@@ -133,16 +147,18 @@ describe('local meru: the premap', () => {
     expect(localMeruPremapHtml({ ...AFTER, tiers: [{ form: 'mound' }, { form: 'tower', side: 7 }] })).toContain('BROKEN');
   });
 
-  it('draws every preset', () => {
-    for (const id of LOCAL_MERU_PRESET_IDS) expect(localMeruPremapHtml({ ...AFTER, preset: id })).not.toContain('BROKEN');
+  it('draws a preset of every procedure', () => {
+    for (const id of PRESETS) expect(localMeruPremapHtml({ ...AFTER, preset: id })).not.toContain('BROKEN');
   });
 });
 
 describe('local meru: built (a stage with a `meru`)', () => {
   const stage = (m) => assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', seed: 8, ...m });
+  let built;                                                      // the default meru's stage, built once
+  const trail = () => (built ||= stage({ meru: { after: { trail: true } } }));
 
   it('builds the place in the isekai look, what people build in the kit\'s made style', () => {
-    const s = stage({ meru: { after: { trail: true } } }), groups = new Set(s.faces.map((f) => f.group));
+    const s = trail(), groups = new Set(s.faces.map((f) => f.group));
     for (const g of ['isekai:ground', 'isekai:cliff', 'isekai:trail', 'isekai:grass', 'meru:timber']) expect(groups.has(g)).toBe(true);
     expect(s.faces.some((f) => f.node === 'tower')).toBe(true);
     expect(s.faces.some((f) => f.node === 'tower.climb')).toBe(true);
@@ -162,7 +178,7 @@ describe('local meru: built (a stage with a `meru`)', () => {
   });
 
   it('the same recipe the same faces; a meru on a kit that is not isekai is refused', () => {
-    expect(JSON.stringify(stage({ meru: { after: { trail: true } } }).faces)).toBe(JSON.stringify(stage({ meru: { after: { trail: true } } }).faces));
+    expect(JSON.stringify(stage({ meru: { after: { trail: true } } }).faces)).toBe(JSON.stringify(trail().faces));
     expect(() => assembleStageScene({ kind: 'stage', kit: 'trail-valley', meru: {} })).toThrow(/not an isekai kit/);
   });
 

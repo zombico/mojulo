@@ -9,11 +9,16 @@ import { structurePaint, streetPaints } from './out-structures-paint.js';
 // the town map: routes first, places where they fork, terraces climbed by stairs, lots cut from every frontage, and
 // the dress grown by interceptors (era/out-town.js, era/out-town-dress.js, drawn by era/out-town-html.js)
 const meadow = structureStyle('isekai-meadow', 8);
+// one kit per anchor (the language a kit's town is built in): the kits under one anchor differ only in rolled numbers
+const KITS = STRUCTURE_KITS.filter((k, i) => STRUCTURE_KITS.findIndex((j) => structureStyle(j, 1).anchor === structureStyle(k, 1).anchor) === i);
 const corners = (l) => [l.A, [l.A[0] + l.ex[0] * l.w, l.A[1] + l.ex[1] * l.w], [l.A[0] + l.ex[0] * l.w + l.ey[0] * l.d, l.A[1] + l.ex[1] * l.w + l.ey[1] * l.d], [l.A[0] + l.ey[0] * l.d, l.A[1] + l.ey[1] * l.d]];
 
 describe('out-town', () => {
-  it('holds its laws in every kit, at every shape the card allows', () => {
-    for (const k of STRUCTURE_KITS) for (const seed of [1, 8, 13]) for (const rec of [{}, { branches: 0, levels: 0, back: false }, { branches: 1, levels: 1, sway: 1, heartbeat: 'burgh' }, { heartbeat: 'hamlet' }]) {
+  it('holds its laws in every anchor\'s kit, at every shape the card allows', () => {
+    // each shape once, the kits and seeds taken in turn under it
+    const recs = [{}, { branches: 0, levels: 0, back: false }, { branches: 1, levels: 1, sway: 1, heartbeat: 'burgh' }, { heartbeat: 'hamlet' }];
+    for (const [i, rec] of recs.entries()) {
+      const k = KITS[i % KITS.length], seed = [1, 8, 13][i % 3];
       const t = designTown(structureStyle(k, seed), seed, rec);
       expect(t.laws.filter((l) => !l.ok), `${k} ${seed} ${JSON.stringify(rec)}`).toEqual([]);
       expect(dressTown(t, structureStyle(k, seed), undefined, seed).laws.filter((l) => !l.ok)).toEqual([]);
@@ -104,7 +109,7 @@ describe('out-town', () => {
   });
 
   it('households are painted by the street\'s rules: roofs hold, walls vary, neighbours differ', () => {
-    for (const k of STRUCTURE_KITS) {
+    for (const k of KITS) {
       const t = designTown(structureStyle(k, 8), 8), P = structurePaint(k), S = streetPaints(P, t);
       expect(S.laws.filter((l) => !l.ok), k).toEqual([]);
       expect(S.paints).toHaveLength(t.lots.length);
@@ -166,7 +171,10 @@ describe('out-town', () => {
   });
 
   it('street tiles: every rank at every ring tiles seamlessly, in whole units, inside its budget', () => {
-    for (const anchor of Object.keys(ELEMENT_SETS)) for (const rank of ['lane', 'branch', 'upper', 'back']) for (const ring of ['near', 'mid', 'far']) for (const kind of ['run', 'drop', 'end']) {
+    // every rank in every anchor's section, the rings and the kinds taken in turn across them
+    const RINGS = ['near', 'mid', 'far'], KINDS = ['run', 'drop', 'end'];
+    for (const [a, anchor] of Object.keys(ELEMENT_SETS).entries()) for (const [r, rank] of ['lane', 'branch', 'upper', 'back'].entries()) {
+      const ring = RINGS[(a + r) % 3], kind = KINDS[(a + 2 * r) % 3];
       const T = streetTile(anchor, rank, { ring, kind });
       expect(T.laws.filter((l) => !l.ok), `${anchor} ${rank} ${ring} ${kind}`).toEqual([]);
       // nothing leaves the tile's length

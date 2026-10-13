@@ -4,7 +4,8 @@ import { designCity } from './design.js';
 import { assembleCityScene } from './scene.js';
 import { resolveGrammar } from './grammars.js';
 
-const recipe = (rec = {}) => ({ kind: 'city', ...inferCity({ seed: 3, grammar: 'paris', board: { cols: 6, rows: 5 }, ...rec }).recipe });
+// no street trees: the lit windows and signs are the claim, and growing tree variants is most of a first scene's time
+const recipe = (rec = {}) => ({ kind: 'city', ...inferCity({ seed: 3, grammar: 'paris', board: { cols: 6, rows: 5 }, green: 0, ...rec }).recipe });
 const panes = (s, group = 'city:night-window') => s.faces.filter((f) => f.group === group);
 
 describe('the city at night: its windows and signs lit', () => {

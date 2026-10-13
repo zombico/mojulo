@@ -5,11 +5,21 @@ import { starter } from './entries.js';
 
 // every rolled direction leaves an addressable level: unique ids, every thing in a room, every solid thing a hull,
 // every doorway clear to walk through and the spawn clear to stand in
+// one roll per way the kit builds what stands in a room: the set piece, the niche head, the cluster count, the props
+const seedsCovering = (kitId) => {
+  const seen = new Set(), seeds = [];
+  for (let seed = 1; seed <= 64; seed++) {
+    const { doodads: d, architecture: ar } = rollArt(kitId, seed);
+    const f = [`set:${d.setPiece}`, `niche:${ar.niche.head}`, `clusters:${d.clusters}`, ...d.props.map((x) => `prop:${x}`)];
+    if (f.some((x) => !seen.has(x))) { seeds.push(seed); f.forEach((x) => seen.add(x)); }
+  }
+  return seeds;
+};
 const inside = (p, c, pad) => [0, 1, 2].every((k) => p[k] > c.min[k] - pad && p[k] < c.max[k] + pad);
 
 describe('anchors: every roll is addressable and walkable', () => {
   for (const kitId of ART_KITS) {
-    it.each([1, 2, 3, 5, 8, 13, 21, 34])(`${kitId}, seed %i`, (seed) => {
+    it.each(seedsCovering(kitId))(`${kitId}, seed %i`, (seed) => {
       const p = assembleStageScene({ ...starter(kitId), reference: 'gothic-night', art: rollArt(kitId, seed) }), C = p.colliders;
       const ids = p.anchors.map((a) => a.id), rooms = new Set(p.rooms.map((r) => r.id));
       expect(new Set(ids).size).toBe(ids.length);

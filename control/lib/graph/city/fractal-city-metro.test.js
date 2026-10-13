@@ -1,11 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 // The metro profile: the storey stays, and block pitch, rights-of-way, lot grain,
 // heights and the street kit come into proportion with it. The bands below are real-world
 // ones, measured in metres by cityScaleCensus over three seeds; the stock city must not move at all.
-vi.setConfig({ testTimeout: 120000 });
 
-import { planFractalCity, assembleFractalCityScene, cityScaleCensus, fractalCityCameras, metroAtmosphere, FRACTAL_CAMERAS, METRO, CITY_METERS_PER_UNIT } from './fractal-city.js';
+import { planFractalCity, assembleFractalCityScene, cityScaleCensus, fractalCityCameras, metroAtmosphere, FRACTAL_CAMERAS, METRO, CITY_METERS_PER_UNIT, LANDMARK_REAL, LANDMARK_FOOTPRINT, metroLandmarkBase } from './fractal-city.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { facadeReadHex } from '../architecture/facade-card.js';
@@ -84,7 +83,9 @@ describe('metro profile: fabric integrity', () => {
   it('masses stand wall to wall but never inside each other', () => {
     for (const p of PLANS) {
       const m = p.boxes.filter((b) => MASS.has(b.kind));
-      for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) expect(overlap(m[i], m[j], 0.26)).toBe(false);
+      const inside = [];
+      for (let i = 0; i < m.length; i++) for (let j = i + 1; j < m.length; j++) if (overlap(m[i], m[j], 0.26)) inside.push([m[i], m[j]]);
+      expect(inside).toEqual([]);
     }
   });
   it('walk tiles never overlap each other (the renderer lift never fires on them)', () => {
@@ -241,8 +242,12 @@ describe('metro profile: landmarks at their real size', () => {
       expect(Math.abs(Math.log((Math.max(b.w, b.d) * M) / long))).toBeLessThan(Math.log(1 + tol));
     }
   });
+  // the fit is sized one of two ways (metroLandmarkBase: on height alone, or height and plan together); the widest
+  // footprint of each way is the one the frame has to hold
+  const extent = (shape) => metroLandmarkBase(shape) * Math.max(1, LANDMARK_FOOTPRINT[shape]?.aspect ?? 1);
+  const WIDEST = ['height', 'plan'].map((way) => LANDMARK_CANON.filter((s) => (LANDMARK_REAL[s].long ? 'plan' : 'height') === way).reduce((a, b) => (extent(b) > extent(a) ? b : a)));
   it('every landmark fits the default metro frame at full size, ringed by a real forecourt', () => {
-    for (const shape of LANDMARK_CANON) {
+    for (const shape of WIDEST) {
       const p = withLandmark(shape), plaza = p.grounds.find((g) => g.kind === 'landmark-plaza'), [b] = landmarkBoxes(p);
       expect(p.stats.landmarkSizes[0].fit).toBe(1);
       expect(plaza.w - b.w).toBeLessThanOrEqual(12 + 1e-9);   // ≤ 6 u (22 m) each side, not a quarter of the cluster
@@ -322,7 +327,11 @@ describe('metro profile: regional flavours', () => {
     expect(share(ms, (b) => b.z1 <= CITY_FLAVORS.mediterranean.height.cap + 0.13 || b.tower)).toBe(1);
   });
   it('every flavour plans a whole city, and a roof cap never rides a tower', () => {
-    for (const flavor of Object.keys(CITY_FLAVORS)) {
+    // one flavour per roof-cap form (none, mansard, hip): the cap is the only dial that reaches a tower's roof
+    const byRoof = new Map();
+    for (const [flavor, F] of Object.entries(CITY_FLAVORS)) if (!byRoof.has(F.facade?.roof?.form ?? null)) byRoof.set(F.facade?.roof?.form ?? null, flavor);
+    expect(byRoof.size).toBeGreaterThanOrEqual(3);
+    for (const flavor of byRoof.values()) {
       const p = flavored(flavor), ms = masses(p);
       expect(ms.length).toBeGreaterThan(200);
       for (const b of ms) if (b.tower || b.kind === 'anchor') expect(b.skin.roofCap).toBeUndefined();

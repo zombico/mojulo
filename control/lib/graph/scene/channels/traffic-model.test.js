@@ -172,8 +172,11 @@ const T_CITY = (junctions) => {
   return T;
 };
 // the world-kinds pairing with the measured bank: lanes, cars (with their model names), statics
+// a recipe's city is planned once per file (the plan is pure); each call still builds a fresh model over it
+const PLANS = new Map();
 function worldTraffic(recipe) {
-  const plan = planFractalCity(recipe);
+  if (!PLANS.has(recipe)) PLANS.set(recipe, planFractalCity(recipe));
+  const plan = PLANS.get(recipe);
   const T = T_CITY(plan.junctions);
   const signals = buildSignals(plan.junctions, recipe.seed ?? 1, recipe.region || { x: 2, y: 2, w: 30, d: 18 }, T);
   const lanes = pairLanes(plan.carLanes, signals, CAR_SPEED, T);
@@ -207,7 +210,9 @@ describe('zero car overlap — the hard invariant, pairwise, every tick', () => 
     base: { seed: 3, region: { x: 2, y: 2, w: 40, d: 28 }, depth: 3, anchor: 'tower', density: 0.7, locale: 'north-america', traffic: true, elements: { frontage: true } },
     town: { seed: 5, profile: 'town', anchor: 'tower', traffic: true, elements: { frontage: true } },
   };
-  for (const [name, recipe] of Object.entries(cities)) {
+  // the tick-by-tick run on one city of each profile (default and base differ only in size): the default frame and the town
+  for (const name of ['default', 'town']) {
+    const recipe = cities[name];
     it(`${name}: no two footprints intersect over three cycles at the real cars per lane, and every car advances each cycle`, () => {
       const w = worldTraffic(recipe);
       const T = w.T, cycle = w.signals.length ? w.signals[0].cycle : 34;

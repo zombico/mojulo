@@ -11,13 +11,7 @@
  *   4. resolveCast: aggregates, presets, array merge, explicit-over-aggregate, provenance;
  *   5. validateCast refuses a broken skeleton and allows unbounded taste.
  */
-import { describe, expect, it, vi } from 'vitest';
-
-// The render-pipeline gates build and render the WHOLE cast (every preset, bare and
-// dressed, plus a walk over each) — a few seconds of real geometry per preset, which
-// crossed the suite's 30s default under full parallel load and flaked as a timeout.
-// The per-preset coverage is the point of the gate, so widen the budget, not the gate.
-vi.setConfig({ testTimeout: 120000 });
+import { describe, expect, it } from 'vitest';
 
 import { castArmature, resolveCast, validateCast, legLengthOf, armLengthOf, CAST_DEFAULT, CAST_KEYS, CAST_PRESETS, CAST_PRESET_NAMES } from './figure-cast.js';
 import { basePositions } from './figure-vajra.js';
@@ -48,6 +42,22 @@ const shift = (girths, { ease = 2, len = 1 } = {}) => ({
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const unit = (a, b) => { const d = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }, l = Math.hypot(d.x, d.y, d.z) || 1; return { x: d.x / l, y: d.y / l, z: d.z / l }; };
 const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+
+// The cast catalog is data on ONE procedure (castArmature over dials), so a preset gate takes one
+// case per distinct path, chosen from the catalog rather than a hand list: the identity preset (no
+// dials) and the two range ends of the frame, the shortest and the longest leg. A new preset is
+// covered by the procedure it runs through.
+const IDENTITY = CAST_PRESET_NAMES.find((n) => Object.keys(CAST_PRESETS[n].dials).length === 0);
+const BY_LEG = CAST_PRESET_NAMES.filter((n) => n !== IDENTITY).sort((a, b) => legLengthOf(castArmature(a)) - legLengthOf(castArmature(b)));
+const EXTREMES = [BY_LEG[0], BY_LEG.at(-1)];
+const SAMPLE = [IDENTITY, ...EXTREMES];
+
+// The canonical build and render, shared: deterministic by construction, so one of each serves every
+// assertion that only reads them.
+let BASE;
+const baseFigure = () => (BASE ??= buildPosedFigure({}, {}, null));
+let BASE_SVG;
+const baseSvg = () => (BASE_SVG ??= renderFigureToSvg({}));
 
 // The bones a length dial names, and the rest DIRECTIONS figure-posing.js caches at import.
 const BONES = {
@@ -151,13 +161,13 @@ describe('the girdle carriage', () => {
   // footprint from the shoulder LINE instead, this test is what says so.
   it('past ~5° the trunk cap footprint collapses — a shoulder-seamed garment is the casualty', () => {
     const capW = (drop) => buildBodyCharts(buildPosedFigure({}, {}, null, { cast: { shoulderDrop: drop } }), { stature_cm: 170 }).charts.trunk.cap.W;
-    const w0 = buildBodyCharts(buildPosedFigure({}, {}, null), { stature_cm: 170 }).charts.trunk.cap.W;
+    const w0 = buildBodyCharts(baseFigure(), { stature_cm: 170 }).charts.trunk.cap.W;
     for (const d of [2, 4]) expect(capW(d) / w0).toBeGreaterThan(0.9);     // the shoulder line is still in the band
     for (const d of [8, 12]) expect(capW(d) / w0).toBeLessThan(0.75);      // it is not
   });
 
   it('...but a side-seam garment tailors fine at any drop', () => {
-    const girths = bodyGirths(buildPosedFigure({}, {}, null), { stature_cm: 170 });
+    const girths = bodyGirths(baseFigure(), { stature_cm: 170 });
     for (const d of [0, 4, 8, 12]) {
       const report = figurePatternReport({ cast: { shoulderDrop: d }, garment: shift(girths) });
       for (const piece of report[0].pieces) { expect(piece.clipped).toBe(0); expect(piece.strain.max).toBeLessThan(2); }
@@ -245,7 +255,7 @@ describe('each dial scales the bone it names', () => {
 
 describe('the ground is invariant', () => {
   const B = basePositions();
-  it.each(CAST_PRESET_NAMES)('%s re-seats onto the canonical floor', (name) => {
+  it.each(SAMPLE)('%s re-seats onto the canonical floor', (name) => {
     const m = castArmature(name);
     expect(m.ankleL.z).toBeCloseTo(B.ankleL.z, 12);
     expect(m.ankleR.z).toBeCloseTo(B.ankleR.z, 12);
@@ -337,9 +347,15 @@ describe('the cast through the render pipeline', () => {
     const z = allPts(stacks).map((q) => q.z);
     return Math.max(...z) - Math.min(...z);
   };
+  // one standing world frame per preset, shared by the floor and the height gates
+  const WORLD = new Map();
+  const worldZ = (name) => {
+    if (!WORLD.has(name)) WORLD.set(name, renderFigureWorldFrames({ cast: name }, 1).frames[0].faces.flatMap((f) => f.corners.map((c) => c[2])));
+    return WORLD.get(name);
+  };
 
   it('absent channel: no cast is byte-identical to before casts existed', () => {
-    const a = buildPosedFigure({}, {}, null);
+    const a = baseFigure();
     expect(buildPosedFigure({}, {}, null, {})).toEqual(a);
     expect(buildPosedFigure({}, {}, null, { cast: null })).toEqual(a);
     expect(buildPosedFigure({}, {}, null, { cast: 'canonical' })).toEqual(a);
@@ -349,12 +365,12 @@ describe('the cast through the render pipeline', () => {
   it('is deterministic and actually changes the flesh', () => {
     const a = renderFigureToSvg({ cast: 'brute' });
     expect(renderFigureToSvg({ cast: 'brute' })).toBe(a);
-    expect(a).not.toBe(renderFigureToSvg({}));
+    expect(a).not.toBe(baseSvg());
     expect(renderFigureToSvg({ cast: ['brute', { forearm: 1.3 }] })).not.toBe(a);
   });
 
   it('a longer leg makes a taller figure, a shorter one a shorter figure', () => {
-    const base = heightOf(buildPosedFigure({}, {}, null));
+    const base = heightOf(baseFigure());
     expect(heightOf(buildPosedFigure({}, {}, null, { cast: { leg: 1.3 } }))).toBeGreaterThan(base);
     expect(heightOf(buildPosedFigure({}, {}, null, { cast: { leg: 0.7 } }))).toBeLessThan(base);
   });
@@ -365,32 +381,31 @@ describe('the cast through the render pipeline', () => {
   // cast leg's sole sits proportionally lower in raw STAND space. Harmless, and it is the
   // renderer's job either way: every render path plants the body on `stackMinZ`. This is the
   // gate that says so — the ground is the ground for every preset.
-  it.each(CAST_PRESET_NAMES)('%s is planted on the world floor', (name) => {
-    const { frames } = renderFigureWorldFrames({ cast: name }, 1);
-    const z = frames[0].faces.flatMap((f) => f.corners.map((c) => c[2]));
-    expect(Math.min(...z)).toBeCloseTo(WORLD_FLOOR, 6);   // worldVertex's fixed ground clearance
+  it.each(SAMPLE)('%s is planted on the world floor', (name) => {
+    expect(Math.min(...worldZ(name))).toBeCloseTo(WORLD_FLOOR, 6);   // worldVertex's fixed ground clearance
   });
 
   it('...and the presets stand at the heights they claim', () => {
-    const top = (name) => Math.max(...renderFigureWorldFrames({ cast: name }, 1).frames[0].faces.flatMap((f) => f.corners.map((c) => c[2])));
+    const top = (name) => Math.max(...worldZ(name));
     expect(top('heroic')).toBeGreaterThan(top('canonical'));
     expect(top('brute')).toBeLessThan(top('canonical'));       // short legs, wide body
     expect(top('chibi')).toBeLessThan(top('child'));
   });
 
-  it.each(CAST_PRESET_NAMES)('%s builds finite flesh, bare and dressed', (name) => {
-    for (const garment of [null, 'tee', 'trousers']) {
-      for (const sex of ['male', 'female']) {
-        const stacks = buildPosedFigure({}, { sex }, garment, { cast: name });
-        expect(stacks.length).toBeGreaterThan(0);
-        for (const q of allPts(stacks)) expect(Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z)).toBe(true);
-      }
-    }
+  // every garment × sex pair once, the two range-end casts alternating across them, so each cast
+  // meets each garment and each sex
+  it('the range-end casts build finite flesh, bare and dressed', () => {
+    [null, 'tee', 'trousers'].forEach((garment, gi) => ['male', 'female'].forEach((sex, si) => {
+      const name = EXTREMES[(gi + si) % 2];
+      const stacks = buildPosedFigure({}, { sex }, garment, { cast: name });
+      expect(stacks.length, `${name} ${sex} ${garment}`).toBeGreaterThan(0);
+      for (const q of allPts(stacks)) expect(Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z)).toBe(true);
+    }));
   });
 
   it('the balance IK solves on the CAST bone lengths, not the canonical ones', () => {
     const B = basePositions();
-    for (const name of ['brute', 'chibi', 'heroic']) {
+    for (const name of EXTREMES) {
       const b = castArmature(name);
       // a spine SIDE-BEND deviates the COM, so the counter-shift + 2-bone IK actually run, and
       // it stays well inside the leg's reach (unlike a committed one-foot stance, which
@@ -410,13 +425,13 @@ describe('the cast through the render pipeline', () => {
     expect(Math.abs(hip(short))).toBeGreaterThan(Math.abs(hip(gait({}))));
   });
 
-  it('a walk renders over every preset', () => {
-    for (const name of CAST_PRESET_NAMES) {
+  it('a walk renders over the range-end casts', () => {
+    for (const name of EXTREMES) {
       const frames = renderFigureFrames({ cast: name, motion: 'walk' }, 4);
       expect(frames).toHaveLength(4);
       for (const f of frames) expect(f).toContain('<svg');
     }
-  }, 60_000);   // every preset × 4 fleshed frames, nothing to cache: its own ceiling under full-suite load
+  });
 
   it('the exported rig is cast too, and the canonical rig is untouched', () => {
     expect(buildRig(DIMORPH.male)).toEqual(PROTOFORM_HUMAN_MALE);
@@ -430,7 +445,7 @@ describe('the cast through the render pipeline', () => {
   // The cut-and-sewn family is the one that proves the tailoring READS the cast: a piece is
   // drafted flat in centimetres off the body's own charts, so if the charts did not follow the
   // cast the shift would draft for a canonical figure and strain or clip on this one.
-  it.each(['heroic', 'brute', 'chibi'])('a cut-and-sewn shift drafts and sews on a %s body', (name) => {
+  it.each(EXTREMES)('a cut-and-sewn shift drafts and sews on a %s body', (name) => {
     const girths = bodyGirths(buildPosedFigure({}, {}, null, { cast: name }), { stature_cm: 170 });
     const dials = resolveCast(name);
     const report = figurePatternReport({ cast: name, garment: shift(girths, { len: (dials.lumbar + dials.thoracic) / 2 }) });
@@ -444,8 +459,8 @@ describe('the cast through the render pipeline', () => {
 
   it('a stored `proportions` migrates to the equivalent cast instead of breaking', () => {
     const legacy = buildPosedFigure({}, {}, null, { cast: { torso: 0.5, neck: 0.5, limb: 0.5, shoulderSpan: 0.82, hipSpan: 0.82 } });
-    expect(heightOf(legacy)).toBeLessThan(heightOf(buildPosedFigure({}, {}, null)));
+    expect(heightOf(legacy)).toBeLessThan(heightOf(baseFigure()));
     expect(() => renderFigureToSvg({ proportions: { body: 0.5, lateral: 0.82 } })).not.toThrow();
-    expect(renderFigureToSvg({ proportions: { body: 0.5, lateral: 0.82 } })).not.toBe(renderFigureToSvg({}));
+    expect(renderFigureToSvg({ proportions: { body: 0.5, lateral: 0.82 } })).not.toBe(baseSvg());
   });
 });

@@ -13,7 +13,8 @@ const MUSEUM = { kind: 'edifice', seed: 2, entrance: 'hall',
     { id: 'tower', footprint: { w: 50, d: 50 }, floors: 14, on: { anchor: 'hall', side: 'E', align: 'center', gap: 0 }, facade: { material: 'glass', rhythm: 'curtain', glass: '#4f6f86', frame: '#c9ced4' }, roof: 'flat', interior: { kernel: 'open' } }] };
 const store = { sk_museum: MUSEUM, sk_room: { kind: 'stage' } };
 const get = (r) => store[r];
-const recipe = (sites, rec = {}) => ({ kind: 'city', ...inferCity({ seed: 6, grammar: 'paris', board: { cols: 12, rows: 9 }, cars: false, sites, ...rec }).recipe });
+// no cars and no street trees: a site's mass is the claim, and growing tree variants is most of a first scene's time
+const recipe = (sites, rec = {}) => ({ kind: 'city', ...inferCity({ seed: 6, grammar: 'paris', board: { cols: 12, rows: 9 }, cars: false, green: 0, sites, ...rec }).recipe });
 const inside = (m, r) => m.x0 >= r.x0 - 1e-6 && m.x1 <= r.x1 + 1e-6 && m.y0 >= r.y0 - 1e-6 && m.y1 <= r.y1 + 1e-6;
 
 describe('a site stands a landmark of the library at its real size', () => {

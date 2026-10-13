@@ -2,15 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { faunaSkeleton } from './skeleton.js';
 import { SPECIES, speciesPlan } from './species.js';
 import { locomotionFor, RIGS } from './locomotion/index.js';
+import { PER_FAMILY } from './test-cases.js';
 
-// The skeleton contract: every species gets one connected bone tree with its family's spine counts, every plan part
+// The skeleton contract, on one species per family: one connected bone tree with its family's spine counts, every plan part
 // rides a real bone, and the limbs carry the roles a gait solver (or a clip library) maps by.
 const len = (b) => Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]);
 const count = (S, prefix) => S.bones.filter((b) => new RegExp(`^${prefix}\\d+$`).test(b.id)).length;
 
 describe('fauna skeleton', () => {
-  for (const id of Object.keys(SPECIES)) {
-    it(`${id}: one tree, the family's spine counts, every part bound, limbs with roles`, () => {
+  for (const id of PER_FAMILY) {
+    it(`${SPECIES[id].family} (${id}): one tree, the family's spine counts, every part bound, limbs with roles`, () => {
       const S = faunaSkeleton(id), L = locomotionFor(SPECIES[id].family, id);
       expect(S.rig).toBe(L.rig);
       const ids = S.bones.map((b) => b.id);
@@ -54,7 +55,7 @@ describe('fauna skeleton', () => {
   });
 
   it('binds by region and by tube: the torso never rides the neck; a toe pad rides its foot, a teat the body', () => {
-    for (const id of Object.keys(SPECIES)) {
+    for (const id of PER_FAMILY) {
       const t = faunaSkeleton(id).bind.torso;
       if (t?.stations) for (const b of t.stations) expect(b, `${id} torso`).toMatch(/^(spine|tail)\d+$/);
     }

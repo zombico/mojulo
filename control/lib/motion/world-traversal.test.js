@@ -32,11 +32,12 @@ describe('renderWorldTraversal — determinism audit (headless)', () => {
     const { payload } = await resolveWorldScene(sketch(PLATFORM_WORLD));
     const html = emitThreeWorld({ ...payload, inline: true, glow: false, capture: true });
     // forward run with a HELD jump mid-run — exercises gait phase, gravity (variable jump
-    // height: jumpHeld sustains the ascent), and ground-snap on landing
-    const ticks = Array.from({ length: 36 }, (_, k) => ({
-      forward: k < 30 ? 1 : 0,
-      jump: k === 12 ? 1 : 0,
-      jumpHeld: k >= 12 && k < 20 ? 1 : 0,
+    // height: jumpHeld sustains the ascent), and ground-snap on landing. The held jump is in the
+    // air ~14 ticks, so taking off at 4 lands it near 18, with the run standing still after.
+    const ticks = Array.from({ length: 22 }, (_, k) => ({
+      forward: k < 20 ? 1 : 0,
+      jump: k === 4 ? 1 : 0,
+      jumpHeld: k >= 4 && k < 12 ? 1 : 0,
     }));
 
     const run = () => renderWorldTraversal(html, ticks, { fps: 24, frames: false });

@@ -15,11 +15,14 @@ import { composeLandscapeRaymarch } from '../landscape/painted-landscape-raymarc
 const BASE = { kind: 'painted-landscape', heartbeat: 'gentle-roughness', splatch: 'verdure-trio', seed: 'cliffs' };
 const CLIFF = [{ op: 'scarp', path: [[-14, -8], [14, -8]], throw: 3, side: 'right', rough: 0, taper: 0.1 }, { op: 'strata', thickness: 0.5 }, { op: 'talus', retreat: 0.35, scree: 0.3 }];
 const M = { ...BASE, landform: CLIFF };
+// one build per input across the file (the builders are pure); the determinism test calls them afresh
+const once = (f) => { const seen = new Map(); return (m, o) => { const k = JSON.stringify([m, o ?? null]); if (!seen.has(k)) seen.set(k, f(m, o)); return seen.get(k); }; };
+const meshOf = once(buildTerrainWorldMesh), sceneOf = once(assemblePaintedLandscapeScene);
 const quads = (faces) => faces.filter((f) => f.corners.length === 4 && !f.water).length;
 
 describe('absent → as before', () => {
   it('no scree, no sliced terrain: the grid quads stand', () => {
-    const mesh = buildTerrainWorldMesh(BASE);
+    const mesh = meshOf(BASE);
     expect(mesh.scree).toBeUndefined();
     expect(mesh.faces.every((f) => f.corners.length === 4)).toBe(true);
     expect(assemblePaintedLandscapeScene(BASE).repeats).toBeUndefined();
@@ -28,11 +31,11 @@ describe('absent → as before', () => {
 
 describe('landform', () => {
   it('every consumer reads it: the terrain carries the cliff', () => {
-    const plain = buildTerrainWorldMesh(BASE), cliff = buildTerrainWorldMesh(M);
+    const plain = meshOf(BASE), cliff = meshOf(M);
     expect(cliff.bounds.zRange[1] - cliff.bounds.zRange[0]).toBeGreaterThan(plain.bounds.zRange[1] - plain.bounds.zRange[0] + 2);
   });
   it('the World terrain is the sliced mesh: triangles with per-corner colour, dense on the face', () => {
-    const { faces } = buildTerrainWorldMesh(M);
+    const { faces } = meshOf(M);
     const tris = faces.filter((f) => f.corners.length === 3);
     expect(quads(faces)).toBe(0);
     expect(tris.length).toBeGreaterThan(10000);
@@ -41,21 +44,21 @@ describe('landform', () => {
     expect(onFace).toBeGreaterThan(1000);
   });
   it('scree rides repeats as pooled rocks; the CSS scene keeps the grid and carries none', () => {
-    const world = assemblePaintedLandscapeScene(M);
+    const world = sceneOf(M);
     const scree = world.repeats.filter((r) => r.group === 'scree');
     expect(scree.length).toBeGreaterThan(0); expect(scree.length).toBeLessThanOrEqual(5);
-    expect(scree.reduce((n, r) => n + r.transforms.length, 0)).toBe(buildTerrainWorldMesh(M).scree.items.length);
+    expect(scree.reduce((n, r) => n + r.transforms.length, 0)).toBe(meshOf(M).scree.items.length);
     const css = assemblePaintedLandscapeScene(M, { rocksAsFaces: true, landformMesh: 'grid' });
     expect(css.repeats).toBeUndefined();
     expect(css.faces.filter((f) => f.corners.length === 3).length).toBe(0);
   });
   it('extent scales the scree with the map', () => {
-    const one = buildTerrainWorldMesh(M).scree.items, two = buildTerrainWorldMesh({ ...M, extent: 2 }).scree.items;
+    const one = meshOf(M).scree.items, two = buildTerrainWorldMesh({ ...M, extent: 2 }).scree.items;
     expect(two.length).toBe(one.length);
     two.forEach((r, i) => { expect(r.x).toBeCloseTo(one[i].x * 2, 9); expect(r.size).toBeCloseTo(one[i].size * 2, 9); });
   });
   it('is deterministic', () => {
-    expect(JSON.stringify(assemblePaintedLandscapeScene(M))).toBe(JSON.stringify(assemblePaintedLandscapeScene(M)));
+    expect(JSON.stringify(assemblePaintedLandscapeScene(M))).toBe(JSON.stringify(sceneOf(M)));
   });
   it('a tall landform in its range meshes: its many faces are not spread into one call', () => {
     const { faces } = buildTerrainWorldMesh({ ...BASE, landform: [{ op: 'peaks', height: 20 }] });

@@ -5,6 +5,8 @@ import { renderBeatsOffline, renderBeatsPlan } from './beats-render.js';
 import { validateBeatsManifest, normalizeBeatsManifest } from './beats-manifest.js';
 import { decodeWav, rms, peak, bandpass, pitchHz, cents, centroid, magnitudeSpectrum, t60, lrCorrelation } from './audio-measure.js';
 import { beatsFeatures } from './beats-features.js';
+import { INSTRUMENTS } from './instruments.js';
+import { PATCHES } from './audio-patches.js';
 
 // Orchestra and era synthesis — the machine gates, phase by phase. Every
 // behavior here is opt-in (a new field, patch or instrument name);
@@ -18,6 +20,11 @@ async function render(manifest, opts = {}) {
   const r = await renderBeatsOffline(normalizeBeatsManifest(manifest), { tail: 0.5, ...opts });
   return { ...decodeWav(r.wav), wav: r.wav };
 }
+// one entry per synthesis procedure: the first of each voice (and oscillator wave) the list holds.
+const byVoice = (list, patchOf) => {
+  const key = (x) => { const p = PATCHES[patchOf(x)]; return `${p.voice}/${p.wave ?? ''}`; };
+  return list.filter((x, i) => list.findIndex((y) => key(y) === key(x)) === i);
+};
 // sample indices where the envelope rises through `th` after at least `gap` s below it.
 function onsets(y, th = 0.02, gap = 0.05) {
   const out = [];
@@ -132,8 +139,8 @@ describe('phase 1 — the orchestra shelf', () => {
   // the partial each instrument's written pitch is measured on (ratio × note).
   const MAIN = { 'tubular-bells': 2 };
   const NEW = ['flute', 'clarinet', 'oboe', 'bassoon', 'harp', 'glockenspiel', 'xylophone', 'marimba', 'vibraphone', 'tubular-bells', 'timpani'];
-  it.each(NEW)('gate: %s holds pitch within 3 cents across its range', async (instrument) => {
-    const { INSTRUMENTS } = await import('./instruments.js');
+  // tuning is the voice's procedure: one instrument per voice (osc, string, modal), the first of each on the shelf.
+  it.each(byVoice(NEW, (i) => INSTRUMENTS[i].patch))('gate: %s holds pitch within 3 cents across its range', async (instrument) => {
     const [lo, hi] = INSTRUMENTS[instrument].range;
     const midi = (n) => { const m = /^([A-G])([#b]?)(-?\d)$/.exec(n); return (Number(m[3]) + 1) * 12 + { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0); };
     const a = midi(lo), b = midi(hi);
@@ -680,13 +687,13 @@ describe('phase 5 — the era effects rack', () => {
   });
 });
 
-describe('shelf sanity — every era patch renders finite and sane over a long note', () => {
+describe('shelf sanity — an era patch of each voice renders finite and sane over a long note', () => {
   const NEW = ['flute', 'clarinet', 'oboe', 'bassoon', 'flute2', 'clarinet2', 'oboe2', 'bassoon2', 'harp', 'glockenspiel', 'xylophone', 'marimba', 'vibraphone', 'tubularBells', 'timpani',
     'kickBoom', 'snareAnalog', 'clapAnalog', 'cowbellAnalog', 'rimAnalog', 'clavesAnalog', 'tomBoomLo', 'hatBright', 'hatBrightOpen', 'kickPunch', 'snarePunch', 'clapPunch', 'hatPunch', 'hatPunchOpen', 'tomPunchMid',
     'kickAcoustic', 'snareAcoustic', 'hatAcoustic', 'tomAcousticLo', 'crashAcoustic', 'congaOpen', 'congaMute', 'congaSlap', 'congaLow', 'bongoHi', 'bongoLo', 'shaker', 'tambourine', 'cabasa', 'guiroShort', 'guiroLong',
     'bassDrumConcert', 'snareConcert', 'susCymbal', 'tamTam', 'triangle', 'crotales', 'kickArena', 'snareArena', 'snareArenaRim', 'tomArenaFloor', 'tomArenaHi', 'crashArena', 'chinaArena', 'rideBellArena',
     'acidBass', 'acidSquare', 'reeseBass', 'hoover', 'polyStrings', 'stringMachine', 'trancePluck', 'supersawLead', 'raveStab', 'wobbleBass', 'fmBass', 'fmKeys', 'fmBrass', 'fmOrgan', 'fmBell4'];
-  it.each(NEW)('%s', async (patch) => {
+  it.each(byVoice(NEW, (p) => p))('%s', async (patch) => {
     const { channels } = await render(comp([{ name: 'a', patch, events: [['0:0:0', ['C4', 'G4'], '3:0:0', 0.9], ['3:0:0', 'C5', '0:1:0', 0.5]] }]), { bitDepth: 32 });
     for (const y of channels) {
       expect(y.every(Number.isFinite)).toBe(true);
