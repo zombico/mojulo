@@ -10,11 +10,17 @@
  * the head). What it CARRIES (hero-gear.js, drawn beside the figure's mesh) is the GEAR region, read only when the
  * caller passes it: its reserve starts at zero, since a hero may carry nothing.
  *
+ * A CREATURE (a ring plan through the creature door) is read the same way, by its own part names: the shin and the
+ * metatarsal, the tail's links, the paw's fingers, pads and claws, and the muzzle's parts (whiskers, teeth, the tongue,
+ * the eye's surround), which hang below the head's base, so its height alone would file them as clothing. With `cover`
+ * its tiles (`tile.*`: fur, scale, feather and plate) are its COVER, their own region: the reserve starts at zero and
+ * tops out at the hair's. A hero's tiles are a garment's (a quilted back), so without `cover` they stay clothing.
+ *
  * The tiers, the budget rule and the shares are starting points synthesised from published characters (Kratos, Drake,
  * MetaHuman's LODs) and practitioners' estimates, to be calibrated on the system's own renders at the eyes gate.
  *
  *   tierOf(figurePx)              the tier a figure that many pixels tall is drawn at
- *   castSpend(mesh, plan, target, { gear? })  regions, shares against the tier's reserve, the budget, the heaviest parts
+ *   castSpend(mesh, plan, target, { gear?, cover? })  regions, shares against the tier's reserve, the budget, the heaviest parts
  *                                            (gear: [{ slot, item, triangles }], hero-gear.js gearTriangles)
  */
 import { readTarget } from './target.js';
@@ -37,15 +43,20 @@ export const REGION_SHARES = Object.freeze({
   T3: Object.freeze({ body: [0.28, 0.38], head: [0.25, 0.35], hair: [0.12, 0.3], hands: [0.07, 0.11], clothing: [0.15, 0.3], gear: [0, 0.15] }),
   T4: Object.freeze({ body: [0.2, 0.3], head: [0.3, 0.4], hair: [0.15, 0.4], hands: [0.08, 0.12], clothing: [0.15, 0.35], gear: [0, 0.2] }),
 });
+/** a creature's COVER (its tiles), per tier: from nothing up to the hair's top share */
+const COVER_SHARE = (tierId) => [0, REGION_SHARES[tierId].hair[1]];
 /** the figure's own regions (its mesh); GEAR is read beside them when the caller passes it */
 export const REGIONS = Object.freeze(['body', 'head', 'hair', 'hands', 'clothing']);
 
 // the tiered form's joints (tiered-form.js) are the body's: the bridges over the elbows, knees and wrists, the shoulders'
 // balls and folds
-const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold)[RL]|(elbow|knee|hip)Fold[RL])$/;
-const HANDS = /^(hand|thumb|index|middle|ring|little)[RL]$/;
-// the head's own parts that reach below its base (the jaw hangs about 4 cm under it)
-const HEAD = /^(cranium|jaw)$/;
+// (a creature's: the shin, the metatarsal, the tail's links, the foot's pads and claws)
+const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold)[RL]|(elbow|knee|hip)Fold[RL]|shin[RL]|meta[RL]|tail\d+|pad\.toes[RL]|clawF\d+[RL])$/;
+// (a creature's paw: its fingers, pads and claws)
+const HANDS = /^((hand|thumb|index|middle|ring|little)[RL]|finger[A-Z]\d[RL]|pad\.hand[RL]|clawH\d+[RL])$/;
+// the head's own parts that reach below its base (the jaw hangs about 4 cm under it; a creature's muzzle further)
+const HEAD = /^(cranium|jaw|surround[RL]|whisker\d+[RL]|wrinkle\d+[RL]|tooth[LU]\.\d+[RL]|tongue\.\d+|web[RL]|fold[RL]|catch[RL])$/;
+const COVER = /^tile[.\d]/;
 const HAIR = /^(hair|lock|braid|ponytail|fringe|bang|bun|tail[RL]?$)/i;
 // what is worn: an adornment's pieces (station-loft-adorn.js) and a garment copied off a body part (body-garment.js)
 const WORN = /^adorn\.|_/;
@@ -53,7 +64,8 @@ const WORN = /^adorn\.|_/;
 export const tierOf = (figurePx) => TIERS.find((t) => figurePx < t.upTo);
 
 /** A part's region: the body's, the hands', the hair's, the head's (above the head's base, not hair) or the clothing's. */
-function regionOf(part, minZ, headBaseZ) {
+function regionOf(part, minZ, headBaseZ, cover = false) {
+  if (cover && COVER.test(part)) return 'cover';
   if (WORN.test(part)) return 'clothing';
   if (BODY.test(part)) return 'body';
   if (HANDS.test(part)) return 'hands';
@@ -67,21 +79,23 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** The figure's spend under its target: { tier, budget, triangles, regions, heaviest, advice? }; with `gear`, the carried
  * items are counted in the triangles and read as their own region. */
-export function castSpend(mesh, plan, targetSpec, { gear = null } = {}) {
+export function castSpend(mesh, plan, targetSpec, { gear = null, cover = false } = {}) {
   const target = readTarget(targetSpec), tier = tierOf(target.figurePx);
   const budget = Math.round(BUDGET_PER_PX2 * target.figurePx ** 2);
-  const headBaseZ = plan?.joints?.headBase?.[2] ?? null;
+  // a hero's plan names its joints; a creature's recipe names its rig's (`rig.joints.headBase.at`)
+  const headBaseZ = plan?.joints?.headBase?.[2] ?? plan?.rig?.joints?.headBase?.at?.[2] ?? null;
   const parts = new Map();
   mesh.faces.forEach((t) => {
     const p = mesh.provenance[t[0]].part, e = parts.get(p) || { tris: 0, minZ: Infinity };
     e.tris++; for (const vi of t) e.minZ = Math.min(e.minZ, mesh.vertices[vi][2]); parts.set(p, e);
   });
-  const carried = gear?.length ? gear : null, read = carried ? [...REGIONS, 'gear'] : REGIONS;
+  const carried = gear?.length ? gear : null, covered = cover && [...parts.keys()].some((p) => COVER.test(p));
+  const read = [...REGIONS, ...(covered ? ['cover'] : []), ...(carried ? ['gear'] : [])];
   const sums = Object.fromEntries(read.map((r) => [r, 0]));
-  for (const [p, e] of parts) sums[regionOf(p, e.minZ, headBaseZ)] += e.tris;
+  for (const [p, e] of parts) sums[regionOf(p, e.minZ, headBaseZ, covered)] += e.tris;
   for (const g of carried || []) sums.gear += g.triangles;
   const total = mesh.faces.length + (carried ? sums.gear : 0);
-  const reserve = REGION_SHARES[tier.id], advice = [];
+  const reserve = covered ? { ...REGION_SHARES[tier.id], cover: COVER_SHARE(tier.id) } : REGION_SHARES[tier.id], advice = [];
   const regions = Object.fromEntries(read.map((r) => {
     const share = total ? sums[r] / total : 0, [lo, hi] = reserve[r];
     const at = share < lo ? 'under' : share > hi ? 'over' : 'in';
@@ -90,7 +104,7 @@ export function castSpend(mesh, plan, targetSpec, { gear = null } = {}) {
   }));
   if (total > budget * 1.5) advice.push(`the figure spends ${total} triangles; a ${target.figurePx} px figure shows about ${budget}`);
   // the parts that spend most per share of the figure: the first places a tier's gate would cut
-  const heaviest = [...parts.entries()].map(([p, e]) => ({ part: p, triangles: e.tris, region: regionOf(p, e.minZ, headBaseZ) }))
+  const heaviest = [...parts.entries()].map(([p, e]) => ({ part: p, triangles: e.tris, region: regionOf(p, e.minZ, headBaseZ, covered) }))
     .concat((carried || []).map((g) => ({ part: `gear.${g.slot}`, item: g.item, triangles: g.triangles, region: 'gear' })))
     .sort((a, b) => b.triangles - a.triangles).slice(0, 6);
   return { tier: tier.id, reads: tier.reads, figurePx: target.figurePx, budget, triangles: total, regions, heaviest, ...(advice.length ? { advice } : {}) };
