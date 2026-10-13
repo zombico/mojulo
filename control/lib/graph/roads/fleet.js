@@ -65,15 +65,16 @@ function sideFace(q, hex, inside) {
 function box(out, R, x0, x1, y0, y1, z0, z1, hex) {
   prism(out, R, [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], y0, y1, hex);
 }
-/** A wheel: a 12-sided cylinder along y, tyre + a lighter hub disc on the outer face. */
-function wheel(trim, R, x, y, r, w, side) {
+/** A wheel: a 12-sided cylinder along y, tyre + a lighter hub disc on the outer face (`hub`: its share of the radius and
+ *  its fill, a style's; the fleet's own by default). */
+function wheel(trim, R, x, y, r, w, side, hubStyle = null) {
   const n = 12, poly = [];
   for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * 2 * Math.PI; poly.push([x + r * Math.cos(a), r + r * Math.sin(a)]); }
   const y0 = y - w / 2, y1 = y + w / 2;
   prism(trim, R, poly, y0, y1, T.tyre);
-  const hub = poly.map(([px, pz]) => [x + (px - x) * 0.58, r + (pz - r) * 0.58]);
+  const k = hubStyle?.ratio ?? 0.58, hub = poly.map(([px, pz]) => [x + (px - x) * k, r + (pz - r) * k]);
   const yo = side > 0 ? y1 + 0.005 : y0 - 0.005;
-  trim.push(faceOut(hub.map(([px, pz]) => R(px, yo, pz)), T.hub, R(x, y, r)));
+  trim.push(faceOut(hub.map(([px, pz]) => R(px, yo, pz)), hubStyle?.hex ?? T.hub, R(x, y, r)));
 }
 
 /**
@@ -125,29 +126,36 @@ function loftBody(paint, trim, R, spec) {
   for (const [sec, sgn] of [[S[0], 1], [S[S.length - 1], -1]]) {
     const poly = sec.pts.map(([y, z]) => R(sec.xx, y, z));
     paint.push(faceOut(sgn > 0 ? poly : poly.slice().reverse(), T.paint, inside));
-    // lamps: two quads on the cap, just proud of it
-    const zl = sec.belt - 0.14, hw = W / 2 * 0.94;
-    for (const sy of [-1, 1]) {
-      const y0 = sy * (hw - 0.08), y1 = sy * (hw - 0.42), xo = sec.xx + sgn * 0.01;
-      trim.push(faceOut([R(xo, y0, zl), R(xo, y1, zl), R(xo, y1, zl + 0.13), R(xo, y0, zl + 0.13)], sgn > 0 ? T.lamp : T.tail, R(sec.xx - sgn, 0, zl)));
+    // lamps: two quads on the cap, just proud of it (a style's `lamps`: 'round' octagons, 'bar' one strip across)
+    const zl = sec.belt - 0.14, hw = W / 2 * 0.94, xo = sec.xx + sgn * 0.01, lampHex = sgn > 0 ? T.lamp : T.tail, back = R(sec.xx - sgn, 0, zl);
+    if (spec.lamps === 'bar') trim.push(faceOut([R(xo, -(hw - 0.08), zl + 0.03), R(xo, hw - 0.08, zl + 0.03), R(xo, hw - 0.08, zl + 0.1), R(xo, -(hw - 0.08), zl + 0.1)], lampHex, back));
+    else for (const sy of [-1, 1]) {
+      const y0 = sy * (hw - 0.08), y1 = sy * (hw - 0.42);
+      if (spec.lamps === 'round') {
+        const cy = (y0 + y1) / 2, cz = zl + 0.07, rr = 0.11;
+        trim.push(faceOut(Array.from({ length: 8 }, (_, i) => { const a = ((i + 0.5) / 8) * 2 * Math.PI; return R(xo, cy + rr * Math.cos(a), cz + rr * Math.sin(a)); }), lampHex, back));
+      } else trim.push(faceOut([R(xo, y0, zl), R(xo, y1, zl), R(xo, y1, zl + 0.13), R(xo, y0, zl + 0.13)], lampHex, back));
     }
     if (sgn > 0) trim.push(faceOut([R(sec.xx + 0.012, -hw * 0.45, zR + 0.12), R(sec.xx + 0.012, hw * 0.45, zR + 0.12), R(sec.xx + 0.012, hw * 0.45, zl - 0.04), R(sec.xx + 0.012, -hw * 0.45, zl - 0.04)], T.plastic, R(sec.xx - 1, 0, zl)));
   }
 }
 
-function wheelsFor(trim, R, spec, axles) {
-  for (const ax of axles) for (const side of [-1, 1]) wheel(trim, R, ax, side * (spec.track / 2), spec.r, spec.tyreW || 0.24, side);
+function wheelsFor(trim, R, spec, axles, sink = null) {
+  for (const [i, ax] of axles.entries()) for (const side of [-1, 1]) wheel(sink ? sink(i, side, ax) : trim, R, ax, side * (spec.track / 2), spec.r, spec.tyreW || 0.24, side, spec.hub);
 }
 
-/** Build one class at a yaw → { paint, trim, trailer? } face lists. */
-export function buildVehicle(cls, yaw = 0) {
-  const spec = FLEET[cls];
+/** Build one class at a yaw → { paint, trim, trailer? } face lists. `opts.spec` builds a compiled spec in place of the
+ *  class's row (car-designer/realistic.js: the class's true numbers, a body family's profile, a style's lamps and hubs);
+ *  `opts.wheels(axle, side, x)` → the face list each wheel goes to (its own bone), in place of the trim. */
+export function buildVehicle(cls, yaw = 0, opts = {}) {
+  const spec = opts.spec ?? FLEET[cls];
   if (!spec) throw new Error(`fleet: unknown class ${cls}`);
+  const sink = opts.wheels ?? null;
   const R = makeFrame(yaw), paint = [], trim = [], trailer = [];
   const { L, W, r, wb } = spec;
   if (spec.kind === 'car' || spec.kind === 'box' || spec.kind === 'bus') {
     loftBody(paint, trim, R, spec);
-    wheelsFor(trim, R, spec, [wb / 2 + (spec.kind === 'bus' ? 1.2 : 0), -wb / 2 + (spec.kind === 'bus' ? 1.2 : 0)]);
+    wheelsFor(trim, R, spec, [wb / 2 + (spec.kind === 'bus' ? 1.2 : 0), -wb / 2 + (spec.kind === 'bus' ? 1.2 : 0)], sink);
     if (spec.kind === 'bus') {                                     // a window band down both sides
       for (const sy of [-1, 1]) trim.push(faceOut([R(L / 2 - 1.3, sy * (W / 2 + 0.01), 1.55), R(-L / 2 + 0.6, sy * (W / 2 + 0.01), 1.55), R(-L / 2 + 0.6, sy * (W / 2 + 0.01), 2.75), R(L / 2 - 1.3, sy * (W / 2 + 0.01), 2.75)], T.glass, R(0, 0, 1.6)));
     }
@@ -158,7 +166,7 @@ export function buildVehicle(cls, yaw = 0) {
     for (const sy of [-1, 1]) box(paint, R, xb1, xb0, sy > 0 ? W / 2 - 0.08 : -W / 2, sy > 0 ? W / 2 : -W / 2 + 0.08, zf, zw, T.paint);
     box(paint, R, xb1, xb1 + 0.08, -W / 2, W / 2, zf, zw, T.paint);
     box(trim, R, xb1 + 0.08, xb0, -W / 2 + 0.08, W / 2 - 0.08, zf - 0.02, zf, T.plastic);
-    wheelsFor(trim, R, spec, [wb / 2 + 0.25, -wb / 2 + 0.25]);
+    wheelsFor(trim, R, spec, [wb / 2 + 0.25, -wb / 2 + 0.25], sink);
   } else if (spec.kind === 'straight') {
     const xc0 = L / 2, xc1 = L / 2 - spec.cab;
     prism(paint, R, [[xc1, 0.55], [xc0, 0.55], [xc0, 1.55], [xc0 - 0.45, spec.cabH], [xc1, spec.cabH]], -W / 2 + 0.05, W / 2 - 0.05, T.paint);
@@ -166,7 +174,7 @@ export function buildVehicle(cls, yaw = 0) {
     trim.push(faceOut([R(xc0 + 0.01, -W / 2 + 0.2, 1.7), R(xc0 - 0.4, -W / 2 + 0.2, spec.cabH - 0.3), R(xc0 - 0.4, W / 2 - 0.2, spec.cabH - 0.3), R(xc0 + 0.01, W / 2 - 0.2, 1.7)], T.glass, R(xc1, 0, 2)));
     box(trailer, R, -L / 2, xc1 - 0.15, -W / 2, W / 2, 1.05, spec.H, T.box);
     box(trim, R, -L / 2 + 0.3, xc0 - 0.2, -0.45, 0.45, 0.62, 1.05, T.frame);
-    wheelsFor(trim, R, spec, [xc0 - 1.2, xc0 - 1.2 - wb]);
+    wheelsFor(trim, R, spec, [xc0 - 1.2, xc0 - 1.2 - wb], sink);
   } else if (spec.kind === 'semi') {
     // tractor: conventional North American — long hood, cab + sleeper; fifth wheel at the kingpin
     const xt0 = L / 2, hoodL = 2.0, cabL = 3.4, xs = xt0 - hoodL - cabL;
@@ -178,7 +186,7 @@ export function buildVehicle(cls, yaw = 0) {
     for (const sy of [-1, 1]) box(trim, R, xs + 0.3, xs + 1.8, sy > 0 ? 0.62 : -1.2, sy > 0 ? 1.2 : -0.62, 0.55, 1.05, T.chrome);   // fuel tanks
     const xk = L / 2 - spec.kingpin;                                  // kingpin over the drive tandem
     box(trim, R, xk - 1.4, xt0 - 0.2, -0.5, 0.5, 0.75, 1.1, T.frame);
-    wheelsFor(trim, R, spec, [xt0 - 1.1, xk + 0.65, xk - 0.65]);
+    wheelsFor(trim, R, spec, [xt0 - 1.1, xk + 0.65, xk - 0.65], sink);
     // 53 ft trailer: floor 1.25 m, roof at H, tandem at the rear, landing gear, side skirt
     const xr0 = xk + 1.0, xr1 = xr0 - spec.trailerL;
     box(trailer, R, xr1, xr0, -W / 2, W / 2, 1.25, spec.H, T.box);
@@ -186,7 +194,7 @@ export function buildVehicle(cls, yaw = 0) {
     box(trim, R, xr1 + 0.05, xr1 + 0.2, -W / 2 + 0.2, W / 2 - 0.2, 0.45, 0.6, T.frame);            // underride guard
     for (const sy of [-1, 1]) box(trim, R, xk - 1.9, xk - 1.75, sy * 0.95 - 0.07, sy * 0.95 + 0.07, 0.1, 1.25, T.frame);   // landing gear
     for (const sy of [-1, 1]) trim.push(faceOut([R(xr1 - 0.01, sy * 0.95, 0.95), R(xr1 - 0.01, sy * 1.15, 0.95), R(xr1 - 0.01, sy * 1.15, 1.1), R(xr1 - 0.01, sy * 0.95, 1.1)], T.tail, R(xr1 + 1, 0, 1)));
-    wheelsFor(trim, R, { ...spec, r: 0.51 }, [xr1 + 1.9, xr1 + 3.15]);
+    wheelsFor(trim, R, { ...spec, r: 0.51 }, [xr1 + 1.9, xr1 + 3.15], sink);
   }
   return { paint, trim, trailer };
 }

@@ -1662,6 +1662,13 @@ Built so far: the language.
   its own at kart scale. Every derive names a live dial: the vehicle designer's families, the technology builder's
   wheeled plans, motifs and adornment, and the driving primitives' classes and physics. `scripts/vehicle-roll.mjs`
   prints sheets.
+- **A realistic vehicle compiled** (`car-designer/realistic.js`): its class's true length, width, height, wheelbase,
+  track and wheel radius, LOFTED (never stretched: the vehicle designer's parts have toy proportions), its sheet's words
+  read as style: the body family its side profile, the wheel family its hubs, the lights its lamps, a lift and bigger
+  tyres only when the stance is asked, the livery and wear its paint (a second colour above the belt, stripes, numbers,
+  a patched panel). Heavy classes keep the fleet's own builds. Each wheel is its own bone, turning in the roll clip, so
+  the world drives it; the census holds what was drawn within 3 % of its class. `scripts/render-vehicles.mjs` lines
+  them up.
 
 Planned:
 
