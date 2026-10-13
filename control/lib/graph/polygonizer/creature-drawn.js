@@ -26,6 +26,9 @@
  *     on screen asks (one every LOCK_SEGMENT_PX, 2 at least, its own `segments` or 5 at most);
  *   - teeth whose largest is under TOOTH_MIN_PX are the lip line;
  *   - the eye's surround takes the sides its outline wants at the target (target.js sidesFor), 8 at least, 20 at most;
+ *   - the EYES read: an eye under EYE_MIN_PX in radius at the target grows toward it, its socket with it (the radius,
+ *     the orbit's reach, thickness, bulk and tuck by one factor), never past EYE_MAX (1.6×); `style.drawn.eyes` (a
+ *     ratio, a reference's or a roll's: small mean eyes or big bright ones) sets it instead;
  *   - a bridge keeps its five rings (they carry the bend) and takes only its chain's sides, not its stations halved;
  *   - what it WEARS by the same outline rule: a ribbon's rows and columns by its length and width on screen (a stroke
  *     every RIBBON_PX), a chain's links by their loop and wire, a disc's sides by its radius.
@@ -40,7 +43,7 @@ export const BRIDGE_MIN_PX = 4;
 /** how far each limb stops short of a bridged joint, in its end ring's radii (the hero's elbow and knee) */
 const REACH = 0.6;
 /** what reads at the target, in its pixels: a stroke's thickness, a tuft's height, a tooth's size */
-export const READ_PX = 1, TUFT_MIN_PX = 6, TOOTH_MIN_PX = 3, RIBBON_PX = 4, LOCK_SEGMENT_PX = 10;
+export const READ_PX = 1, TUFT_MIN_PX = 6, TOOTH_MIN_PX = 3, RIBBON_PX = 4, LOCK_SEGMENT_PX = 10, EYE_MIN_PX = 6, EYE_MAX = 1.6;
 const evenIn = (n, lo, hi) => Math.min(hi, Math.max(lo, 2 * Math.ceil(n / 2)));
 
 const rad = (r) => (Array.isArray(r) ? Math.max(...r.flat(Infinity)) : r);
@@ -70,8 +73,11 @@ export function creatureJoints(plan, targetSpec = DEFAULT_TARGET) {
   return out;
 }
 
-export function headAtTier(head, ppm) {
+export function headAtTier(head, ppm, { eyes } = {}) {
   const Rg = { ...head.regions };
+  if (Rg.eye) { const k = Number.isFinite(eyes) ? eyes : Math.min(EYE_MAX, Math.max(1, EYE_MIN_PX / (Rg.eye.R * ppm)));
+    if (k !== 1) { const O = Rg.orbit ?? {}, sc = (v) => (Array.isArray(v) ? v.map((x) => x * k) : Number.isFinite(v) ? v * k : v);
+      Rg.eye = { ...Rg.eye, R: Rg.eye.R * k }; if (Rg.orbit) Rg.orbit = { ...O, reach: sc(O.reach), thickness: sc(O.thickness), bulk: sc(O.bulk), tuck: sc(O.tuck) }; } }
   if (Rg.whiskers && 2 * Rg.whiskers.r * ppm < READ_PX) delete Rg.whiskers;
   if (Rg.wrinkles) { const kept = Rg.wrinkles.filter((D) => D.w * ppm >= READ_PX); if (kept.length) Rg.wrinkles = kept; else delete Rg.wrinkles; }
   if (Rg.tiles) { const kept = Rg.tiles.filter((T) => (T.height ?? 0) * ppm >= TUFT_MIN_PX); if (kept.length) Rg.tiles = kept; else delete Rg.tiles; }
@@ -122,5 +128,5 @@ export function drawnPlan(plan) {
       return [...(own.length ? [{ ...e, parts: own }] : []), ...(e.slots === false ? [] : [{ ...e, parts: mine, stations: false }])];
     }) } : {}),
   };
-  return { ...dense, ...(body ? { body } : {}), ...(Array.isArray(dense.adorn) ? { adorn: dense.adorn.map((A) => adornAtTier(A, ppm)) } : {}), ...(dense.heads ? { heads: dense.heads.map((h) => (h.plan && typeof h.plan === 'object' ? { ...h, plan: headAtTier(h.plan, ppm) } : h)) } : {}) };
+  return { ...dense, ...(body ? { body } : {}), ...(Array.isArray(dense.adorn) ? { adorn: dense.adorn.map((A) => adornAtTier(A, ppm)) } : {}), ...(dense.heads ? { heads: dense.heads.map((h) => (h.plan && typeof h.plan === 'object' ? { ...h, plan: headAtTier(h.plan, ppm, { eyes: typeof plan.style?.drawn === 'object' ? plan.style.drawn.eyes : undefined }) } : h)) } : {}) };
 }

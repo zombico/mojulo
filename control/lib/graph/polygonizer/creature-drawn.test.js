@@ -105,4 +105,14 @@ describe('the drawn creature', () => {
     expect(baked.parts.earInnerR.group).toBe('EarInner');
     expect(() => headFromPlan({ ...wolf, ornaments: [{ kind: 'leaf', name: 'bad', at: [1, 1] }] })).toThrow(/leaf ornament 'bad' needs/);
   });
+
+  it('the eyes read: a small eye at the target grows toward the floor with its socket, up to the cap; a ratio sets it', () => {
+    const wolf = headPlan('wolf'), R = wolf.regions.eye.R, reach = wolf.regions.orbit.reach;
+    const far = headAtTier(wolf, 170).regions, near = headAtTier(wolf, 2000).regions;
+    expect(far.eye.R / R).toBeCloseTo(Math.min(1.6, 6 / (R * 170)), 6);
+    expect(far.orbit.reach.map((x, i) => x / reach[i])).toEqual(reach.map(() => far.eye.R / R));
+    expect(near.eye.R).toBe(R);                                            // close up the head's own eye reads
+    expect(headAtTier(wolf, 170, { eyes: 0.8 }).regions.eye.R).toBeCloseTo(0.8 * R, 9);
+    expect(() => expandPlan({ ...LEG, style: { drawn: { eyes: 3 } } })).toThrow(/style.drawn.eyes is a ratio/);
+  });
 });

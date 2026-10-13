@@ -72,6 +72,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - an optional inner patch in its own group.
   It is built as a loft of closed rings with its winding checked outward. The library wolf's ears are now leaves (its
   palette's `EarInner` inside); the bear keeps its round disc ear.
+- **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
+  that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
+  1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's
+  eye grows to the cap at 1080p third-person; a close-up keeps the head's own.
 - **The base silhouette and its value split** (`creature-silhouette.js`, stage 1 of the dressing flow, with or
   without a reference).
   - `baseSilhouette(mesh, plan)` reads a body's record:
