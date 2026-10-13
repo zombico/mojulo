@@ -424,6 +424,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - A hero's `spec` merges key by key, and null removes a key. `target` and `geocube` are named on the door.
   - `patch` takes update_sketch ops for a creature's plan or an animal.
   - An edit through it stores exactly what the equivalent patch stores.
+  - A `face` or a `tune` given as a word or a list (on the door, or set at `/hero/face`, `/hero/tune`) is resolved as
+    the mint resolves it, move trail included. Before, the list was stored raw and the anime head drew its base face
+    and its base body without a warning. `hair`, `expression`, `gesture`, `look` and `sculpt` already drew as minted.
   - It refuses a row that is not a character, and a hero's words on a creature by name.
   - The routing card is `character-fidelity`. The hero card, the studio index and `create_character` now point at it.
     The flat tools/list pin was re-pinned for the new tool.

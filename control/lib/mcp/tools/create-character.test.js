@@ -1,5 +1,6 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
+import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { createCharacterHandler, updateCharacterHandler, CHARACTER_KINDS } from './create-character.js';
 import { updateSketchHandler } from './sketch-mint.js';
@@ -74,6 +75,25 @@ describe('update_character revises what update_sketch revises', () => {
     expect(JSON.stringify(a)).toMatch(/"density":\{"target":\{"resolution":"1080p","framing":"third-person","error":1,"figurePx":360\},"pxPerMetre":217\.58,"triangles":7724/);
     await updateCharacterHandler({ ref: 'uc_readout_door', target: null });
     expect(SketchRepository.getByRef('uc_readout_door').manifest.hero.target).toBeUndefined();
+  }, 240_000);
+
+  // a face or a tune is composable (words and objects left to right); the mint stores it resolved, and an edit giving
+  // it as a list must store the same, or the anime head reads the raw list as no controls and draws its base face
+  it('a face and a tune given as lists draw what the mint draws: the same list again moves nothing', async () => {
+    const face = ['soft', 'large-eyes', { spacing: 1.1 }], tune = ['athletic', { shoulders: 1.05 }];
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'female', head: 'anime', face, tune }, title: 'listed', ref: 'uc_listed_made' });
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'female', head: 'anime' }, title: 'listed', ref: 'uc_listed_edited' });
+    const read = (ref) => {
+      const { hero, plan } = SketchRepository.getByRef(ref).manifest, { face_m, pupils_m } = plan.include[0].faceMeasures;
+      return { face: hero.face, faceFrom: hero.faceFrom, tune: hero.tune, from: hero.from, face_m, pupils_m, plan: createHash('sha256').update(JSON.stringify(plan)).digest('hex') };
+    };
+    const made = read('uc_listed_made'), base = read('uc_listed_edited');
+    expect(made.faceFrom).toBe('soft+large-eyes');
+    expect(made.pupils_m).toBeGreaterThan(base.pupils_m);   // the list's spacing moved the eyes apart
+    await updateCharacterHandler({ ref: 'uc_listed_made', spec: { face, tune } });
+    expect(read('uc_listed_made')).toEqual(made);
+    await updateCharacterHandler({ ref: 'uc_listed_edited', spec: { face, tune } });
+    expect(read('uc_listed_edited')).toEqual(made);
   }, 240_000);
 
   it('a creature takes patch ops, and refuses a hero\'s words by name', async () => {

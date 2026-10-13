@@ -186,6 +186,10 @@ export function normalizeHero(hero) {
   if (hero && hero.blink !== undefined && hero.blink !== false) { const { blink: _b, ...rest } = hero; hero = rest; }
   // genki set back to 0 (or null) by a patch drops the field
   if (hero && hero.genki !== undefined && !(Number.isFinite(hero.genki) && hero.genki > 0)) { const { genki: _g, ...rest } = hero; hero = rest; }
+  // a face or a tune patched in as a word or a list (update_character's spec, a /hero/face set) is resolved as heroRecord
+  // resolves it at mint, so an edit stores what a mint stores; read raw, a list stacked among composeAnime's layers is
+  // taken for an object of controls and draws the base (the anime face, the anime tune)
+  if (hero) hero = resolveHeroWords(hero);
   if (!hero || hero.head !== 'anime') return hero;
   // the graphic face's layer is kept sparse after a patch under /hero/sculpt (a word set back to the base drops out; an
   // emptied or null sculpt drops the field); a record without one is as it was
@@ -196,6 +200,20 @@ export function normalizeHero(hero) {
   if (!words.length) { if (hero.look === undefined && hero.lookResolved === undefined) return hero; const { look: _l, lookResolved: _r, ...rest } = hero; return rest; }
   if (hero.lookResolved && JSON.stringify(hero.lookResolved.words) === JSON.stringify(words)) return Array.isArray(hero.look) ? hero : { ...hero, look: words };
   return { ...hero, look: words, lookResolved: resolveLook(words) };
+}
+/** heroRecord's resolution of the ratio fields it stores resolved (the tune, the face), applied to a WORD or a LIST only
+ * (an object is already one layer and kept as given), with the move trail (`from`, `faceFrom`) set from the new value or
+ * dropped when it names no move. `look` and `sculpt` are normalizeHero's own; `hair`, `expression` and `gesture` are
+ * read as lists where they are composed (composeAnime, resolveGesture) and stay as given. */
+function resolveHeroWords(hero) {
+  const words = (v) => typeof v === 'string' || Array.isArray(v);
+  const resolveFaceOf = { landmark: resolveFace, anime: resolveAnimeFace }[hero.head ?? 'landmark'];
+  if (!words(hero.tune) && !(resolveFaceOf && words(hero.face))) return hero;
+  const out = { ...hero };
+  const withTrail = (field, trailKey, resolve) => { const { from, ...v } = resolve(out[field]); out[field] = v; if (from) out[trailKey] = from; else delete out[trailKey]; };
+  if (words(out.tune)) withTrail('tune', 'from', resolveTune);
+  if (resolveFaceOf && words(out.face)) withTrail('face', 'faceFrom', resolveFaceOf);
+  return out;
 }
 
 // ─── The hero door ────────────────────────────────────────────────────────
