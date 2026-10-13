@@ -13,6 +13,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Body shade: the western face's painted light on the whole figure, read off the body
+
+- **Planned.** The face's form shading (normals toward a simple form round each segment) and its painted tint (the
+  occlusion in folds, warmth at the knuckles and joints, a contact shade at a garment's edge) on the neck, torso, limbs,
+  hands and what they wear, each placed and sized off the built body, so a character's dials change only its shape and
+  the shading follows; the numbers are per look, female and male. The eye socket's shadow (under the western face) is
+  its first piece.
+
 ### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, vaults, the faces they act, and what they hold
 
 - **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
@@ -120,7 +128,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   The new cheek points carry the blush at its full authored strength, so its amounts drop to keep its coverage
   (female 0.9 → 0.77, male 0.5 → 0.45, matched by the blush's area integral). The tiered face counts are re-pinned
   (+148: the column 52, the brows 96); a head without the feature builds the same bytes.
-- **Not yet.** The face rig, the clips' face keys and the ambient blink on the western head (the plan's next phases).
+- **The eye socket's shadow** (`face-tint.js` `socket`, `TIERED_FACE_TINT`). The tiered western face had almost no
+  shadow under the brow: the ridge's own normals shade only as far as the light turns them. The face tint now darkens
+  the skin from each eye's top up to its brow (the most just inside the eye's middle, toward the nose) and, at 0.4 of
+  that, the hollow under the lower lid: female up to 32%, male 40% on his heavier ridge, the red channel losing the
+  least so the socket reads warm-dark. It is placed and sized off each eye and its brow, in the eye's width and the
+  eye-to-brow gap, so it follows any face the dials make. A tint without `socket` paints the bytes it painted before.
 
 ### The painted face in motion: its eyes, mouth and brows drawn per state on a texture sheet
 

@@ -323,10 +323,12 @@ export const TIERED_FACE = Object.freeze({
   }),
 });
 /** The FACE TINT (face-tint.js): a soft occlusion in the skin's folds and a warm blush on the cheeks, the nose's tip
- * and the ears, the female's warmer; the vertex colour a shipped face paints where a texture would. */
+ * and the ears, the female's warmer; the vertex colour a shipped face paints where a texture would. The SOCKET: the
+ * brow's shadow over the eye, which a western face always has (the deeper set the male's, on his heavier ridge); its
+ * shade keeps the skin's red, so the socket reads warm-dark, not grey. */
 export const TIERED_FACE_TINT = Object.freeze({
-  female: Object.freeze({ ao: Object.freeze({ k: 0.3, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.77, tint: Object.freeze([1.0, 0.86, 0.85]) }) }),
-  male: Object.freeze({ ao: Object.freeze({ k: 0.32, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.45, tint: Object.freeze([1.0, 0.88, 0.86]) }) }),
+  female: Object.freeze({ ao: Object.freeze({ k: 0.3, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.77, tint: Object.freeze([1.0, 0.86, 0.85]) }), socket: Object.freeze({ k: 0.32, lower: 0.4, shade: Object.freeze([0.85, 1, 0.95]) }) }),
+  male: Object.freeze({ ao: Object.freeze({ k: 0.32, lo: 0.04, hi: 0.35 }), groove: Object.freeze({ k: 0.35, r: 0.008, band: 0.0035 }), blush: Object.freeze({ amount: 0.45, tint: Object.freeze([1.0, 0.88, 0.86]) }), socket: Object.freeze({ k: 0.4, lower: 0.4, shade: Object.freeze([0.85, 1, 0.95]) }) }),
 });
 /** the head's sex for the tiered face: the head preset if named, else the cast's silhouette */
 export const tieredPole = (hero) => hero.headPreset ?? (castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male');
