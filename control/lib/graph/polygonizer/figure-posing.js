@@ -221,12 +221,22 @@ function blendDof(items) {
  * @param {{loop?: boolean}} [opts]
  * @returns {(phase:number)=>object}  phase ∈ [0,1) → dof
  */
-export function keyframeMotion(keyposes, { loop = true } = {}) {
+export function keyframeMotion(keyposes, { loop = true, beats = null } = {}) {
   const poses = keyposes.map((k) => resolvePose(k));
   const n = poses.length;
   const segs = loop ? n : Math.max(1, n - 1);
+  // `beats`: each segment's share of the loop (any positive numbers, normalized), so a bow can take longer coming up
+  // than going down. Absent (or not one positive number per segment) ⇒ even segments, as always.
+  const timed = Array.isArray(beats) && beats.length === segs && beats.every((b) => Number.isFinite(b) && b > 0);
+  const edges = timed ? beats.reduce((acc, b) => [...acc, acc[acc.length - 1] + b], [0]).map((e, _, all) => e / all[all.length - 1]) : null;
   return (phase) => {
     if (n <= 1) return poses[0] || {};
+    if (timed) {
+      const u = ((phase % 1) + 1) % 1;
+      let i = 0; while (i < segs - 1 && u >= edges[i + 1]) i++;
+      const t = smooth((u - edges[i]) / (edges[i + 1] - edges[i]));
+      return blendDof([[poses[i], 1 - t], [poses[(i + 1) % n], t]]);
+    }
     const x = (((phase % 1) + 1) % 1) * segs;
     const i = Math.min(segs - 1, Math.floor(x));
     const t = smooth(x - i);
@@ -252,6 +262,7 @@ export function keyframeMotion(keyposes, { loop = true } = {}) {
 // scales the swing, it does not translate the root. See
 // lite-template/integration/0615/figure-walk.plan.md.
 const TAU_G = 2 * Math.PI;
+const smoothG = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };   // smoothstep 0 … 1
 const mag3 = (a) => SM.hypot(a.x, a.y, a.z);
 // thigh + shin (STAND units). `strideLength` and `cross` are absolute GROUND distances, so
 // the hip angle that achieves them depends on how long the leg actually is: a cast
@@ -260,6 +271,8 @@ const mag3 = (a) => SM.hypot(a.x, a.y, a.z);
 const legLenOf = (base) => mag3(sub(base.kneeL, base.hipL)) + mag3(sub(base.ankleL, base.kneeL));
 const LEG_LEN = legLenOf(B);
 
+// FROZEN: what a dial a stored walk leaves out resolves to (recipes minted before WALK_MINT rely on these bytes).
+// New walks take WALK_MINT, below; tune that.
 export const WALK_DEFAULTS = {
   strideLength: 0.33,    // fore/aft foot travel (STAND units) → hip swing amplitude (a planted
                          //   step: longer strides force the pelvis to vault deep into a crouch)
@@ -328,6 +341,22 @@ export function gait(params = {}, base = null) {
   // by articulate's 62° hip limit, so an extreme catwalk stays inside the joint's range).
   const phi = SM.asin(Math.max(0, Math.min(1, p.cross / LEG))) * DEG;   // hip adduction amplitude
   const flareAmp = phi * p.stepFlare;       // swing-phase abduction, scaled to the crossover (0 → off)
+  // STEP WIDTH (a mint dial; absent ⇒ the feet track straight under the hip joints, the frozen walk): the gap between
+  // the two feet's lines, side to side. People walk with their feet much closer than their hip joints (a few cm apart);
+  // each thigh adducts by a constant angle that sets its foot `(hipSpan − stepWidth) / 2` in from the hip line.
+  // HEEL RISE (a mint dial, degrees; absent ⇒ the planted foot stays flat until it lifts, the frozen walk): through
+  // late stance the heel peels off and the foot rolls onto its toes, the ankle plantarflexing up to this angle at
+  // toe-off. The ankle then stands off the floor (the toe the pivot), so the leg reaches the floor from higher: the
+  // pelvis drops less at double support (a smaller bounce) and the knee bends where the hip would have extended.
+  // TOE_REACH / ANKLE_UP: the ankle joint's place over the toe contact (STAND), forward and up.
+  const rise = Number.isFinite(p.heelRise) && p.heelRise > 0 ? p.heelRise : null;
+  const TOE_REACH = 0.12, ANKLE_UP = 0.163;
+  // the roll's share by phase for the left foot (stance ≈ [0, .5]): from mid-stance (.25) up to toe-off (.5), then
+  // eased out over early swing as the foot leaves; the right foot half a cycle on
+  const roll = (ph) => { const u = (((ph % 1) + 1) % 1); return u < 0.25 ? 0 : u < 0.5 ? smoothG((u - 0.25) / 0.25) : u < 0.7 ? 1 - smoothG((u - 0.5) / 0.2) : 0; };
+  const heelUp = (a) => { const r = a / DEG; return Math.max(0, TOE_REACH * SM.sin(r) + ANKLE_UP * (SM.cos(r) - 1)); };
+  const span = Math.abs((base || B).hipL.x - (base || B).hipR.x);
+  const narrow = Number.isFinite(p.stepWidth) ? SM.asin(Math.max(-1, Math.min(1, (span - p.stepWidth) / 2 / LEG))) * DEG : null;
   const rollAmp = phi > 0 ? p.stepRoll : 0; // swing-phase external rotation, gated on crossing
   const swing = (ph) => Math.max(0, SM.sin(TAU_G * ph));     // a one-sided lift over the leg's swing half
   // plantedness: 1 through a foot's stance half, dipping smoothly to 0 mid-swing (so the
@@ -355,14 +384,14 @@ export function gait(params = {}, base = null) {
     const weight = -p.weightShift * SM.cos(TAU_G * (phase - 0.25));
     return {
       // legs: thigh swings (sagittal), knee bends — more on the swing leg to clear the floor.
-      hipL: { pitch: theta * cyc, yaw: crossL + flareL, roll: rollL },
-      hipR: { pitch: -theta * cyc, yaw: crossR + flareR, roll: rollR },
+      hipL: { pitch: theta * cyc, yaw: narrow === null ? crossL + flareL : crossL + flareL - narrow, roll: rollL },
+      hipR: { pitch: -theta * cyc, yaw: narrow === null ? crossR + flareR : crossR + flareR + narrow, roll: rollR },
       kneeL: p.stanceKnee + p.swingLift * swing(phase - 0.5),
       kneeR: p.stanceKnee + p.swingLift * swing(phase),
       // ankle rolls dorsiflex (heel-strike) → plantarflex (toe-off); the toes (MTP) break
       // up over the ball at toe-off (late stance), then relax through swing.
-      ankleL: p.ankleRoll * cyc,
-      ankleR: -p.ankleRoll * cyc,
+      ankleL: rise === null ? p.ankleRoll * cyc : p.ankleRoll * cyc - rise * roll(phase),
+      ankleR: rise === null ? -p.ankleRoll * cyc : -p.ankleRoll * cyc - rise * roll(phase - 0.5),
       toeL: p.toeRoll * Math.max(0, SM.sin(TAU_G * (phase - 0.25))),
       toeR: p.toeRoll * Math.max(0, SM.sin(TAU_G * (phase - 0.75))),
       // arms counter-swing (left arm forward with the right leg).
@@ -391,6 +420,7 @@ export function gait(params = {}, base = null) {
       // vault: pin the stance foot to the floor and bob the pelvis (inverted pendulum); the
       // swing foot (low plantedness) lifts via its FK knee. Left stance ≈ [0,.5], right ≈ [.5,1].
       ...(p.vault ? { plant: { L: planted(phase), R: planted(phase - 0.5) } } : {}),
+      ...(p.vault && rise !== null ? { heelLift: { L: heelUp(rise * roll(phase)), R: heelUp(rise * roll(phase - 0.5)) } } : {}),
     };
   };
 }
@@ -404,6 +434,7 @@ export function gait(params = {}, base = null) {
 // whole body up). On top of that: a hard forward lean, a long stride with a high knee
 // drive, and a 90°-bent arm pump. Same `phase → dof` contract; reachable via
 // resolveMotion as { sprint: {…} }.
+// FROZEN, as WALK_DEFAULTS: new runs take SPRINT_MINT.
 export const SPRINT_DEFAULTS = {
   strideLength: 0.62,    // long, powerful stride → big hip swing (high knee drive in front)
   hipDrive: 1.4,         // extra THIGH lift on the forward/recovery half (high knee), ×amplitude
@@ -435,6 +466,11 @@ export function sprint(params = {}, base = null) {
   const d = Math.max(0.15, Math.min(0.49, p.dutyFactor));     // <0.5 keeps a flight phase
   const theta = SM.asin(Math.max(-1, Math.min(1, p.strideLength / (2 * (base ? legLenOf(base) : LEG_LEN))))) * DEG;
   const swing = (ph) => Math.max(0, SM.sin(TAU_G * ph));
+  // STEP WIDTH (a mint dial, as the walk's; absent ⇒ the feet under the hip joints, the frozen run): runners land
+  // nearly on one line, so each thigh adducts by a constant angle that sets its foot (hipSpan − stepWidth) / 2 in.
+  const span = Math.abs((base || B).hipL.x - (base || B).hipR.x);
+  const LEGS = base ? legLenOf(base) : LEG_LEN;
+  const narrow = Number.isFinite(p.stepWidth) ? SM.asin(Math.max(-1, Math.min(1, (span - p.stepWidth) / 2 / LEGS))) * DEG : null;
   return (rawPhase) => {
     const phase = ((((rawPhase || 0) * p.cadence) % 1) + 1) % 1;
     const cyc = SM.cos(TAU_G * phase);                       // +1 = left thigh driving forward/up
@@ -455,8 +491,8 @@ export function sprint(params = {}, base = null) {
     const armBk = (c) => (c > 0 ? c * p.armBack : c);            // boost backward arm drive
     return {
       // legs: big thigh swing (high knee in front); the recovery leg snaps the heel up.
-      hipL: { pitch: theta * hipFwd(cyc) },
-      hipR: { pitch: theta * hipFwd(-cyc) },
+      hipL: narrow === null ? { pitch: theta * hipFwd(cyc) } : { pitch: theta * hipFwd(cyc), yaw: -narrow },
+      hipR: narrow === null ? { pitch: theta * hipFwd(-cyc) } : { pitch: theta * hipFwd(-cyc), yaw: narrow },
       kneeL: p.stanceKnee + p.swingTuck * swing(phase - 0.5),
       kneeR: p.stanceKnee + p.swingTuck * swing(phase),
       // ankles plantarflexed — running on the forefoot, toes pointed; the toes (MTP) flick
@@ -479,6 +515,10 @@ export function sprint(params = {}, base = null) {
         sagittal: p.lean + p.spineGive * SM.cos(2 * TAU_G * (phase - 0.25)),
       },
       head: { yaw: -p.headLevel * sway },
+      // PELVIS / SHOULDER TWIST (mint dials, degrees; absent ⇒ a square trunk, the frozen run): the pelvis turns with
+      // the driving thigh and the shoulder girdle contra-rotates with the arm pump, as the walk's girdles do.
+      ...(Number.isFinite(p.pelvisRot) ? { pelvis: -p.pelvisRot * cyc } : {}),
+      ...(Number.isFinite(p.shoulderRot) ? { shoulders: p.shoulderRot * cyc } : {}),
       support,
       lift,
       // brief forefoot contact each stride (pin the foot to the floor; footFlat 0 = stay on the ball).
@@ -596,6 +636,73 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
 //   a function                     → used as-is
 //   …any of the above + { perform:{ exaggerate, followThrough, idle, … } }
 //                                  → wrapped with the performance layers
+// ── the MINT tables: the gait a recipe is authored with from now on ──────────
+// WALK_DEFAULTS and SPRINT_DEFAULTS are what a dial a stored recipe LEAVES OUT resolves to, so a recipe minted with
+// 'walk' or a partial { walk } keeps its bytes for good: never tune them. Tune these instead. Authoring writes them
+// into each new recipe BY VALUE (stampMotion), as a cast preset resolves to its numbers at mint, so changing a
+// mint table moves what is made next and never what was made before.
+// Calibrated against measured human gait (scaled to one standing hip height; the bands are published adult gait, the
+// local motion-capture comparison cross-checks them):
+// - stepWidth 0.05 — the feet land about 8 cm apart, not hip-width (23 cm): the body then shifts about 8 cm side to
+//   side over each stance foot (it shifted 29 cm), the waddle gone with no change to the balance solve.
+// - heelRise 30 — the heel peels off through late stance and the foot rolls onto its toes (the ankle 30°
+//   plantarflexed at toe-off): the hips bounce about 4 cm, as people's do, instead of 6.4, and the leg reaches about 28°
+//   forward (people 31°, before 40°). The trailing thigh still swings about 26° back where a person's bends the knee
+//   and stays near 10°: that needs the stance re-timed, not a dial.
+// - seconds — one stride in real time (a gait dial the pose ignores; the GIF and the exported clip play at it).
+//   A walk's stride takes about 1.1 s (110 steps a minute), a run's about 0.7 s; a bare gait plays one stride per
+//   GIF loop (1.67 s at 30 frames, 18 fps), a sad walk's pace.
+export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05, heelRise: 30, seconds: 1.1 });
+// The run as minted now: the girdles twist against each other (pelvisRot 8, shoulderRot 14: the hip line turns about
+// 16° and the shoulder line about 29° the other way, people 15 … 18° and 23 … 36°; the frozen run keeps a square
+// trunk), and the arms pump about 100° (armSwing 40; people 64 jogging … 105 sprinting, the frozen run 124).
+// The feet land about 5 cm apart (stepWidth 0.03; people 3 … 6 cm, the frozen run 28 cm, under the hip joints).
+export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, stepWidth: 0.03, pelvisRot: 8, shoulderRot: 14, armSwing: 40, seconds: 0.7 });
+// The wave (figure-render.js waveMotion) as minted now: one loop of `seconds` (hand from the hip, waving, back), the
+// hand swept side to side `waves` times at an even pace (about 1.9 a second inside the wave, people wave at 0.8 … 2;
+// the frozen wave flutters 5.4 times in 1.67 s, accelerating, 6 cm wide), `swing` degrees each way at the shoulder
+// (the hand travels about 17 cm, a normal wave about 18).
+export const WAVE_MINT = Object.freeze({ seconds: 3.2, waves: 2.8, swing: 50 });
+// Emotes as minted now: the loop length in seconds and, where it matters, each beat's seconds (`beats`, one per
+// keyframe segment). The bow: 1.25 s going down, 0.7 s held (it reads about 1.2 s with the eases), 1.65 s coming up,
+// 0.6 s at rest, which measures 0.78 s down, 1.17 s held and 1.06 s up (people: 0.8, 1.1, 1.07; the frozen bow is down
+// and up in 0.28 s). An emote not listed keeps the GIF loop and even beats.
+export const EMOTE_MINT = Object.freeze({ bow: Object.freeze({ seconds: 4.2, beats: Object.freeze([1.25, 0.7, 1.65, 0.6]) }) });
+
+/**
+ * A motion spec as it is STORED when authored: a gait by name or a partial gait gets every dial of its mint table
+ * written in ('walk' → { walk: { …WALK_MINT } }, { walk: { armSwing: 30 } } → { walk: { …WALK_MINT, armSwing: 30 } },
+ * 'sprint' / 'run' → { sprint: { …SPRINT_MINT } }); every other spec (keyframes, emotes, 'wave', a function, null) is
+ * returned as given. Pure; never called at render, only where a recipe is written.
+ */
+export function stampMotion(spec) {
+  if (spec === 'walk') return { walk: { ...WALK_MINT } };
+  if (spec === 'sprint' || spec === 'run') return { sprint: { ...SPRINT_MINT } };
+  if (spec === 'wave') return { wave: { ...WAVE_MINT } };
+  if (typeof spec === 'string' && EMOTE_MINT[spec]) return { emote: spec, ...EMOTE_MINT[spec] };
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return spec;
+  if (spec.wave && typeof spec.wave === 'object') return { ...spec, wave: { ...WAVE_MINT, ...spec.wave } };
+  if (typeof spec.emote === 'string' && EMOTE_MINT[spec.emote]) return { ...EMOTE_MINT[spec.emote], ...spec };
+  const walkKey = spec.walk ? 'walk' : spec.gait ? 'gait' : null;
+  if (walkKey && typeof spec[walkKey] === 'object') return { ...spec, [walkKey]: { ...WALK_MINT, ...spec[walkKey] } };
+  const runKey = spec.sprint ? 'sprint' : spec.run ? 'run' : null;
+  if (runKey && typeof spec[runKey] === 'object') return { ...spec, [runKey]: { ...SPRINT_MINT, ...spec[runKey] } };
+  return spec;
+}
+
+/**
+ * How long one loop of a STAMPED motion takes, in real seconds, or null for a motion that names no time (a bare gait,
+ * a bare wave, an emote with no `seconds`: those keep the GIF's loop). A gait loop is `cadence` strides.
+ */
+export function motionSeconds(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const g = [spec.walk, spec.gait, spec.sprint, spec.run].find((x) => x && typeof x === 'object');
+  if (g) return Number.isFinite(g.seconds) && g.seconds > 0 ? g.seconds * (Number.isFinite(g.cadence) && g.cadence > 0 ? g.cadence : 1) : null;
+  if (spec.wave && typeof spec.wave === 'object') return Number.isFinite(spec.wave.seconds) && spec.wave.seconds > 0 ? spec.wave.seconds : null;
+  if (typeof spec.emote === 'string') return Number.isFinite(spec.seconds) && spec.seconds > 0 ? spec.seconds : null;
+  return null;
+}
+
 const isMotionSpec = (s) => s === 'walk' || s === 'sprint' || s === 'run' || typeof s === 'function'
   || !!(s && typeof s === 'object' && (s.walk || s.gait || s.sprint || s.run || Array.isArray(s.keyframes)));
 

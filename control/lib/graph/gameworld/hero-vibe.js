@@ -19,7 +19,7 @@
  * (the creator's look at the walk and the stand) is what calibrates it, and an axis whose ends the creator cannot tell
  * apart is cut. `snap` (smooth ↔ snappy: the clips' key timing) is not built; it needs the clip sampling.
  */
-import { WALK_DEFAULTS, SPRINT_DEFAULTS } from '../polygonizer/figure-posing.js';
+import { WALK_MINT, SPRINT_MINT } from '../polygonizer/figure-posing.js';
 import { validateHeroMotion } from '../polygonizer/hero-motion.js';
 import { GAITS as MOTION_GAITS } from '../polygonizer/hero-gaits.js';   // (the gaits alone: the motion library loads after)
 
@@ -95,11 +95,12 @@ export const AXIS_SPANS = Object.freeze({
   },
 });
 
-/** Each gait's dials as it stands: the walk's, and the run's with the gait's own base over them. */
+/** Each gait's dials as a hero is minted with it now (the mint tables, figure-posing.js): the walk's, and the run's with
+ * the gait's own base over them. The resolved motion is stamped with the rest of the table when it is written. */
 export const GAIT_BASE = Object.freeze({
-  walk: { ...WALK_DEFAULTS, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt },
-  jog: { ...SPRINT_DEFAULTS, ...MOTION_GAITS.jog.base, seconds: MOTION_GAITS.jog.seconds, tilt: MOTION_GAITS.jog.tilt },
-  sprint: { ...SPRINT_DEFAULTS, ...MOTION_GAITS.sprint.base, seconds: MOTION_GAITS.sprint.seconds, tilt: MOTION_GAITS.sprint.tilt },
+  walk: { ...WALK_MINT, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt },
+  jog: { ...SPRINT_MINT, ...MOTION_GAITS.jog.base, seconds: MOTION_GAITS.jog.seconds, tilt: MOTION_GAITS.jog.tilt },
+  sprint: { ...SPRINT_MINT, ...MOTION_GAITS.sprint.base, seconds: MOTION_GAITS.sprint.seconds, tilt: MOTION_GAITS.sprint.tilt },
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

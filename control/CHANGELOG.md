@@ -693,6 +693,52 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The routing card is `character-fidelity`. The hero card, the studio index and `create_character` now point at it.
     The flat tools/list pin was re-pinned for the new tool.
 
+### Gait calibration: a walk stored by value
+
+The figure's walk is being recalibrated against measured human gait. This first step makes that safe: a new walk is
+stored with its numbers, so recalibrating changes what is made next and never what was made before.
+
+- **Mint tables.** `WALK_MINT` and `SPRINT_MINT` (`figure-posing.js`) are the gaits authored from now on.
+  `WALK_DEFAULTS` and `SPRINT_DEFAULTS` are frozen: they are what a dial left out of a stored recipe resolves to.
+- **Stored by value where authored.** `create_figure` with `'walk'`, `'sprint'` or a partial `{ walk }` stores every
+  dial of the mint table, as a cast preset resolves to its numbers at mint. So do `update_sketch` when an edit gives a
+  figure, a hero or a world figure a new or changed motion, and the hero door for its walk, jog and sprint (the gait's
+  base, seconds and tilt with them). An edit that leaves a motion as stored keeps it, and `create_sketch` restoring an
+  exported world stores it as exported. The hero vibe page and the first-person bob curve read the mint tables.
+- **Not stamped, by design:** a city's crowd walkers and a hero's studied fallbacks (a stop or vault out of a gait the
+  hero's door motion does not carry) are built at render, so they stay on the frozen tables and old worlds keep their bytes.
+- Every recipe stored before this renders byte for byte (`gait-frozen.char.test.js` pins the bare walk, the sprint,
+  the walk's frames and the hero's studied gaits from the base commit).
+- **The waddle, gone from new walks.** A new walk dial, `stepWidth` (the gap between the feet, STAND units), sets the
+  feet in from the hip joints by a constant thigh adduction; absent, the feet track under the hips as before.
+  `WALK_MINT` takes `stepWidth: 0.05`. The feet land about 8 cm apart instead of 23 cm, and the balance solve, unchanged,
+  then shifts the body about 8 cm side to side instead of 29 cm, the measured human band (`gait-mint.test.js`). New
+  heroes bring their feet in the same way, and the hero door takes the dial.
+- **The heel lifts.** A new walk dial, `heelRise` (degrees of plantarflexion at toe-off), peels the heel off through
+  late stance so the foot rolls onto its toes: the balance solve takes a `heelLift` per foot (the ankle off the floor,
+  the toe the pivot), so the pelvis drops less at double support and the trailing knee bends. Absent, every planted
+  ankle stays on the floor. `WALK_MINT` takes `heelRise: 30`: the hips bounce about 4 cm (people about 4, the frozen
+  walk 6.4) and the leg reaches about 28° forward (people 31°, frozen 40°). Not yet matched: the trailing thigh swings
+  about 26° back where a person's stays near 10° with the knee bent; that needs the stance re-timed. Heroes lift their
+  own heels (the rig's heel words) and ignore the channel.
+- **The run twists; the bow rises slower.** Two new sprint dials, `pelvisRot` and `shoulderRot` (degrees), turn the
+  girdles against each other as the walk's do; absent, the trunk stays square. `SPRINT_MINT` takes 8 and 14 (the hip
+  line turns about 16°, the shoulders about 29° the other way; people 15 … 18° and 23 … 36°) and `armSwing` 40 (the
+  arms pump about 100°, people 64 jogging … 105 sprinting, the frozen run 124). The run's hip angles already matched a
+  measured sprint (59° forward, 42° back; a dash 59 / 40). `keyframeMotion` takes `beats` (each segment's share of the
+  loop; absent, even), and an emote passes its stamped `beats`: the bow is minted at 1.25 / 0.7 / 1.65 / 0.6 s, which
+  measures 0.78 s down, 1.17 s held and 1.06 s up (people 0.8 / 1.1 / 1.07), rising slower than it bows.
+- **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
+  takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
+- **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
+  emote. The GIF plays it in real time (18 fps; a short loop keeps 16 frames and plays them faster) and the exported
+  clip carries it as its designed duration (`s`); a motion without it keeps the 30-frame loop and the runtime's one
+  cycle a second. The mint tables: a walk at 1.1 s a stride (110 steps a minute, the bare walk's GIF paced 72), a run
+  at 0.7 s, the wave at 3.2 s with 2.8 even sweeps 50° each way (`{ wave: { seconds, waves, swing } }`, about 1.9
+  sweeps a second and 17 cm wide, where the bare wave flutters 4.5 a second, 6 cm), and the bow at 4.2 s (timed by beat,
+  below; the bare bow goes down in 0.28 s). `emote_figure`'s side GIF plays the emote as minted now.
+  The bare wave and bow are pinned byte for byte (`gait-frozen.char.test.js`); `motion-timing.test.js` holds the bands.
+
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 
 A design trial built one hero at 11 and at 16 through the hero door and found four gaps.

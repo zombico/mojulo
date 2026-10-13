@@ -19,7 +19,7 @@
  * Pure and deterministic; absent from every hero until a caller asks (no door field yet).
  */
 import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
-import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS } from './figure-posing.js';
+import { resolveMotion, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
 import { AURAS, heroAura } from './hero-aura.js';
@@ -77,7 +77,7 @@ function needAt(hip, toe, heelRest, heel, reach) {
  *   caller has planned them over the cycle (heroLocomotion), else found here for this phase alone
  */
 export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null } = {}) {
-  const { plant, support, ...own } = dof || {};
+  const { plant, support, heelLift: _heel, ...own } = dof || {};   // the rig lifts its own heels (heelL / heelR, below)
   const free = rigNodesAt(R, { ...own, support: 'none' }).nodes;
   const sides = Object.keys(R.legs); const rest = R.joints; const legs = {};
   let sink = 0;
@@ -318,7 +318,7 @@ const MOTION_WORDS = (() => {
   return `have ${plainNames.filter((n) => !['hold', 'guard'].includes(MOTION_GAITS[n].motion)).join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the holds ${HOLD_WORDS.join(', ')}; the guards ${GUARD_WORDS.filter((n) => !/Left$/.test(n)).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
 })();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
-export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint: SPRINT_DEFAULTS }) {
+export function validateHeroMotion(motion, dials = { walk: WALK_MINT, sprint: SPRINT_MINT }) {
   if (motion === undefined) return [];
   if (!isObj(motion)) return [`motion: an object of gaits and moves (${MOTION_WORDS}), each true or { <the gait's dials>, tilt, seconds } ({ seconds } for a jump, stop or move)`];
   const errs = [];
@@ -390,6 +390,23 @@ function easeInto(pose, R) {
     out.feet = Object.fromEntries(sides.filter((S) => pose.feet?.[S]).map((S) => { const a = R.joints[R.legs[S].toeBase], b = pose.feet[S]; return [S, [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * e)]; }));
     return out;
   };
+}
+
+/**
+ * A door `motion` as it is STORED when authored: each walk, jog or sprint gait gets every dial of its mint table
+ * (figure-posing.js WALK_MINT / SPRINT_MINT), the gait's own base, its seconds and its tilt written in, under what the
+ * creator set (`true` ⇒ the gait as studied, by value). Jumps and stops, and anything not an object, pass as given.
+ * Called where a hero is written (the hero door, an edit under /hero, a world's inline hero), never at render: a hero
+ * stored before the mint tables keeps resolving its left-out dials against the frozen defaults.
+ */
+export function stampHeroMotion(motion) {
+  if (!isObj(motion)) return motion;
+  return Object.fromEntries(Object.entries(motion).map(([name, g]) => {
+    const G = MOTION_GAITS[name];
+    if (!G || (G.motion !== 'walk' && G.motion !== 'sprint') || !(g === true || isObj(g))) return [name, g];
+    const mint = G.motion === 'walk' ? WALK_MINT : SPRINT_MINT;
+    return [name, { ...mint, ...G.base, seconds: G.seconds, tilt: G.tilt, ...(g === true ? {} : g) }];
+  }));
 }
 
 /**

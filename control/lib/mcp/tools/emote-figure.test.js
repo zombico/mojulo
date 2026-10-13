@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 
 import { createFigureHandler, emoteFigureHandler } from './figure';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { EMOTE_MINT } from '@/lib/graph/polygonizer/figure-posing';
 
 describe('emote_figure', () => {
   it('validates ref, kind, and emote name', async () => {
@@ -17,7 +18,7 @@ describe('emote_figure', () => {
     await expect(emoteFigureHandler({ ref: fig.ref, emote: 'bow', intensity: 9 })).rejects.toThrow(/intensity/);
   });
 
-  it('mint derives a figure sketch carrying the emote as motion', async () => {
+  it('mint derives a figure sketch carrying the emote as motion, its loop in seconds as minted now', async () => {
     const out = await emoteFigureHandler({
       ref: 'emote-subject', emote: 'bow', intensity: 1.2,
       mint: { ref: 'emote-subject-bow' }, animate: false,
@@ -25,7 +26,7 @@ describe('emote_figure', () => {
     expect(out.ok).toBe(true);
     const minted = SketchRepository.getByRef('emote-subject-bow');
     expect(minted.manifest.kind).toBe('figure');
-    expect(minted.manifest.motion).toEqual({ emote: 'bow', intensity: 1.2 });
+    expect(minted.manifest.motion).toEqual({ emote: 'bow', intensity: 1.2, ...EMOTE_MINT.bow });
   });
 
   it('a world figures-map entry resolves a stored figure via figureRef', async () => {
