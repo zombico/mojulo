@@ -8,6 +8,9 @@ import { resolveWorldAudio } from './beats-world.js';
 import { suggestScore, levelScoreContext, sceneStyle } from './score-suggest.js';
 
 const SEEDS = Array.from({ length: 40 }, (_, i) => i * 7919 + 3);
+// the build-and-drop moods, and the soft end (lo-fi, chill, ambient)
+const DROP = CLUB_MOOD_NAMES.filter((m) => !CLUB_MOODS[m].soft);
+const SOFT = CLUB_MOOD_NAMES.filter((m) => CLUB_MOODS[m].soft);
 const part = (m, name) => m.parts.find((p) => p.name === name);
 
 describe('club score: the principles hold for every seed', () => {
@@ -20,7 +23,7 @@ describe('club score: the principles hold for every seed', () => {
   });
 
   it('builds and drops: the kick on its own row, the bass, stabs and pad ducked under it, no kick in the break', () => {
-    for (const mood of CLUB_MOOD_NAMES) {
+    for (const mood of DROP) {
       const m = clubScore(mood, { seed: 5, identity: 7 });
       for (const n of ['bass', 'stabs', 'pad']) expect(part(m, n).duck, `${mood} ${n}`).toMatchObject({ by: 'kick' });
       expect(part(m, 'kick').events.some((e) => e[0] >= 64 && e[0] < 80)).toBe(false);   // bars 16–19
@@ -66,8 +69,52 @@ describe('club score: a new change never moves a minted cue', () => {
   // the writing re-pins with a reason.
   it('drift … peak are byte-identical to their pin', () => {
     const h = createHash('sha256');
-    for (const mood of CLUB_MOOD_NAMES) for (const seed of SEEDS) for (const id of [undefined, 7]) h.update(JSON.stringify(clubScore(mood, { seed, identity: id })));
+    for (const mood of ['drift', 'deep', 'drive', 'rave', 'peak']) for (const seed of SEEDS) for (const id of [undefined, 7]) h.update(JSON.stringify(clubScore(mood, { seed, identity: id })));
     expect(h.digest('hex')).toBe('e3bb3bfef8643fc2c1d3f24088909e5bf33b99db56c5d29938b3cf08293796cd');
+  });
+});
+
+describe('the soft end: lo-fi house, lo-fi beats, ambient', () => {
+  it('no beat in ambient; a swung, crushed beat in chill and lofi; tape on the keys; dust under all', () => {
+    for (const seed of SEEDS.slice(0, 8)) {
+      const amb = clubScore('ambient', { seed, identity: 7 }), chill = clubScore('chill', { seed, identity: 7 }), lofi = clubScore('lofi', { seed, identity: 7 });
+      expect(part(amb, 'kick')).toBeUndefined();
+      expect(amb.swing).toBeUndefined();
+      expect(amb.room.decay).toBeGreaterThan(5);
+      expect(part(amb, 'pad').dynamics.length).toBeGreaterThan(0);
+      for (const m of [chill, lofi]) {
+        expect(m.swing).toBeGreaterThanOrEqual(0.1);
+        expect(part(m, 'kick').chain[0]).toMatchObject({ type: 'crush' });
+        expect(part(m, 'keys').chain[0]).toMatchObject({ type: 'tape' });
+        expect(part(m, 'keys').chordVoice).toBe('chord');
+      }
+      expect(part(lofi, 'kick').events.filter((e) => e[0] >= 32 && e[0] < 36)).toHaveLength(4);   // a soft four on the floor
+      expect(part(lofi, 'bass').duck).toMatchObject({ by: 'kick' });
+      for (const m of [amb, chill, lofi]) expect(part(m, 'dust').cue[0].type).toBe('grain');
+    }
+  });
+
+  it('jazzy chords: sevenths and ninths; ambient holds each chord two bars', () => {
+    const chart = clubScore('ambient', { seed: 3 }).progression[0].chords.split(' ');
+    expect(chart[0]).toBe(chart[1]);
+    for (const mood of ['chill', 'lofi']) expect(clubScore(mood, { seed: 3 }).progression[0].chords).toMatch(/7|9/);
+  });
+
+  it('the soft moods are byte-identical to their pin', () => {
+    const h = createHash('sha256');
+    for (const mood of SOFT) for (const seed of SEEDS) for (const id of [undefined, 7]) h.update(JSON.stringify(clubScore(mood, { seed, identity: id })));
+    expect(h.digest('hex')).toBe('393fffbc9f743380dc6efd03a1b004003c502dafc0d9c08c056c2f570f42622b');
+  });
+
+  it('the scene picks them: a cafe or rain is lo-fi, underwater or the cosmos ambient, a lab at rest drifts', () => {
+    const at = (manifest, opts) => suggestScore(levelScoreContext(manifest, opts)).mood;
+    expect(at({ base: 'floorplan-world', title: 'corner cafe' })).toBe('chill');
+    expect(at({ base: 'floorplan-world', title: 'rainy apartment' })).toBe('chill');
+    expect(at({ base: 'terrain', title: 'cozy town' }, { goal: 'race' })).toBe('drive');
+    expect(at({ base: 'terrain', title: 'underwater reef' })).toBe('ambient');
+    expect(at({ base: 'controllable', title: 'the cosmos' })).toBe('ambient');
+    expect(at({ kind: 'stage', kit: 'research-lab', title: 'x' })).toBe('drift');
+    expect(at({ base: 'controllable', title: 'space station' })).toBe('ambient');
   });
 });
 
@@ -76,7 +123,7 @@ describe('club: reached as a score style', () => {
     expect(parseFieldSpec('club:drive')).toEqual({ mood: 'drive', style: 'club' });
     expect(parseFieldSpec({ score: { mood: 'rave', game: 3 } })).toEqual({ mood: 'rave', style: 'club', game: 3 });
     expect(parseFieldSpec('field:plains')).toEqual({ mood: 'plains' });
-    expect(() => parseFieldSpec('club:plains')).toThrow(/club moods: drift, deep, drive, rave, peak/);
+    expect(() => parseFieldSpec('club:plains')).toThrow(/club moods: drift, deep, drive, rave, peak, ambient, chill, lofi/);
     expect(() => parseFieldSpec({ score: { mood: 'disco' } })).toThrow(/or the club moods/);
     expect(fieldCue({ mood: 'deep', style: 'club', seed: 4 })).toEqual(clubScore('deep', { seed: 4 }));
   });
@@ -96,7 +143,7 @@ describe('club: reached as a score style', () => {
     expect(suggestScore({ ...lab, goal: 'battle', final: true }).mood).toBe('peak');
     expect(suggestScore({ ...lab, goal: 'race' }).mood).toBe('drive');
     expect(suggestScore({ ...lab, style: 'field' }).style).toBeUndefined();
-    expect(suggestScore({ base: 'terrain', theme: 'forest', style: 'club' }).mood).toBe('drift');
+    expect(suggestScore({ base: 'terrain', theme: 'forest', style: 'club' }).mood).toBe('chill');
     expect(suggestScore(lab).brief).toMatchObject({ style: 'club', energy: 'club', tempo: CLUB_MOODS[suggestScore(lab).mood].tempo });
   });
 });

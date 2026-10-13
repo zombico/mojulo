@@ -60,12 +60,28 @@ const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-nave': 'cathedral'
 // A scene whose words say the future, a machine, a screen or a dance floor is scored electronic. The point the place
 // and play reached on the plane says the energy; the nearest club mood takes it (a fight is a rave, the last fight the
 // peak, a race a drive, exploring a drift or a deep groove).
-const CLUB_WORDS = /sci-?fi|neon|cyber|futur|robot|android|\bmech|space|station|alien|planet|\blab\b|laborator|reactor|synth|\bclub|\brave|disco|arcade|hacker|matrix|digital|virtual|\bgrid|tron\b/;
-export const CLUB_PLANE = { drift: [0.1, 0.25], deep: [0.4, 0.45], drive: [0, 0.7], rave: [-0.3, 0.85], peak: [-0.5, 0.95] };
+// three kinds of scene call for it, and each leans to its own end of the ladder: the TECH scene (a lab, a station, neon)
+// drifts, grooves deep or drives; the COZY scene (a cafe, an apartment, a rooftop, rain) takes lo-fi beats or lo-fi
+// house; the DRIFTING scene (underwater, the cosmos, a void) takes ambient
+const TECH_WORDS = /sci-?fi|neon|cyber|futur|robot|android|\bmech|space|station|alien|planet|\blab\b|laborator|reactor|synth|\bclub|\brave|disco|arcade|hacker|matrix|digital|virtual|\bgrid|tron\b/;
+const COZY_WORDS = /\bcaf[eé]|coffee|apartment|bedroom|rooftop|lo-?fi|chill|\bcozy|\bcosy|\bstudy|vinyl|record shop|rainy/;
+const DRIFT_WORDS = /underwater|ocean|\breef|abyss|\bvoid\b|cosmos|nebula|\bzen\b|meditat|dreamscape|ambient|limbo/;
+const REACH = {
+  tech: ['drift', 'deep', 'drive', 'ambient'],
+  cozy: ['chill', 'lofi', 'ambient', 'deep', 'drive'],
+  drift: ['ambient', 'drift', 'chill'],
+  any: ['ambient', 'chill', 'lofi', 'drift', 'deep', 'drive'],
+};
+export const CLUB_PLANE = { ambient: [0.2, 0.05], chill: [0.4, 0.2], lofi: [0.55, 0.4], drift: [-0.1, 0.25], deep: [0.2, 0.5], drive: [0, 0.7], rave: [-0.3, 0.85], peak: [-0.5, 0.95] };
 const placeText = (c) => [c.base, c.kind, c.theme, c.title].filter((x) => typeof x === 'string').join(' ').toLowerCase();
+/** The electronic kind of scene its words say: 'drift', 'cozy', 'tech', or null (the orchestra's). */
+export function sceneFlavour(context = {}) {
+  const t = placeText(context);
+  return DRIFT_WORDS.test(t) ? 'drift' : COZY_WORDS.test(t) ? 'cozy' : TECH_WORDS.test(t) ? 'tech' : null;
+}
 /** 'club' when the scene's words say electronic, else 'field'. */
 export function sceneStyle(context = {}) {
-  return CLUB_WORDS.test(placeText(context)) ? 'club' : 'field';
+  return sceneFlavour(context) ? 'club' : 'field';
 }
 
 /**
@@ -113,16 +129,21 @@ export function scoreBrief(mood, style = 'field') {
  * changed. Null when the place calls for no field music (a city block, a math structure).
  */
 export function suggestScore(context = {}) {
-  const f = suggestFieldOnly(context);
-  if (!f) return null;
   // the style: asked for, or read from the scene ('auto', the default)
   const style = context.style === 'field' || context.style === 'club' ? context.style : sceneStyle(context);
+  // an electronic scene the orchestra has no place for (a cafe, an apartment, a void) starts from a calm, warm point
+  const f = suggestFieldOnly(context) ?? (style === 'club' ? suggestFieldOnly({ ...context, base: 'terrain', title: 'plains' }) : null);
+  if (!f) return null;
   if (style !== 'club') return f.result;
   // the club ladder from the point the place and play reached: a fight is a rave (the last one the peak); otherwise
   // the nearest of drift, deep and drive (the peak too on the last level)
-  const reach = f.fight ? [f.final ? 'peak' : 'rave'] : ['drift', 'deep', 'drive', ...(f.final ? ['peak'] : [])];
-  // energy carries a club cue more than brightness does: valence counts half
-  const near = (m) => Math.hypot((CLUB_PLANE[m][0] - f.target[0]) * 0.5, CLUB_PLANE[m][1] - f.target[1]);
+  const reach = f.fight ? [f.final ? 'peak' : 'rave'] : [...REACH[sceneFlavour(context) ?? 'any'], ...(f.final ? ['peak'] : [])];
+  // a calm bed under play sits calmer than the orchestra's point (arousal under 0.65 × 0.7; a driving one stays); a
+  // drifting scene leans stiller and darker,
+  // a cozy one warmer. Energy carries a club cue more than brightness does: valence counts half.
+  const lean = { drift: [-0.2, -0.15], cozy: [0.1, 0] }[sceneFlavour(context)] ?? [0, 0];
+  const at = f.fight ? f.target : [f.target[0] + lean[0], (f.target[1] < 0.65 ? f.target[1] * 0.7 : f.target[1]) + lean[1]];
+  const near = (m) => Math.hypot((CLUB_PLANE[m][0] - at[0]) * 0.5, CLUB_PLANE[m][1] - at[1]);
   const ranked = reach.slice().sort((a, b) => near(a) - near(b));
   const mood = ranked[0];
   const also = f.fight ? (f.final ? ['rave', 'drive'] : ['drive', 'peak']) : ranked.slice(1, 3);

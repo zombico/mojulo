@@ -108,6 +108,16 @@ score its scene and its play call for.
   - `create_game` scores a whole game in one style, electronic when most of its levels read so.
     `design_game`'s quick `music` takes a club mood by name.
   - A club soundtrack's `sfx: 'auto'` takes the synth palette. Card `beats-club`.
+  - The soft end: `ambient` (beatless, 60–76), `chill` (lo-fi beats, 80–92, swung boom-bap) and `lofi` (lo-fi house,
+    116–122, swung, a soft four-on-the-floor).
+    - Jazzy sevenths and ninths. The keys, pad and bass run through tape and a darker tone, the drums are
+      bit-crushed, and a vinyl crackle (an air texture in ambient) sits under every bar.
+    - Layers come and go instead of building and dropping. Ambient has a drone, pads that swell every eight bars,
+      bells through a long echo, and a long hall.
+    - The scene reading has three flavours: tech, cozy (a cafe, an apartment, a rooftop, rain) and drifting
+      (underwater, the cosmos, a void). A cozy or drifting scene the orchestra has no place for still gets music.
+      A calm bed sits a little calmer than the orchestra's point.
+    - The five driving moods are byte for byte as before, and the soft moods have their own pin.
   - Rendered offline, a club loop is 50–78 s and takes about two minutes per minute of audio to export.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
