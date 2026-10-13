@@ -21,7 +21,9 @@
  * creature builds only what reads, and its body (bridged, densified) takes the share they freed:
  *   - a stroke thinner than READ_PX never reads: whiskers (by their thickness), wrinkles (by their width);
  *   - a fur tuft shorter than TUFT_MIN_PX reads as a bump, not a tuft (a body or head tile region by its height): the
- *     tall ones (a ruff, a tail's brush) are its outline and stay, the short ones are paint's (the body tint);
+ *     tall ones (a ruff, a tail's brush) are its outline and stay, the short ones are paint's (the body tint); a LOCK
+ *     window (station-loft-body.js `locks`) the same by its longest lock, and each lock takes the segments its length
+ *     on screen asks (one every LOCK_SEGMENT_PX, 2 at least, its own `segments` or 5 at most);
  *   - teeth whose largest is under TOOTH_MIN_PX are the lip line;
  *   - the eye's surround takes the sides its outline wants at the target (target.js sidesFor), 8 at least, 20 at most;
  *   - a bridge keeps its five rings (they carry the bend) and takes only its chain's sides, not its stations halved;
@@ -38,7 +40,7 @@ export const BRIDGE_MIN_PX = 4;
 /** how far each limb stops short of a bridged joint, in its end ring's radii (the hero's elbow and knee) */
 const REACH = 0.6;
 /** what reads at the target, in its pixels: a stroke's thickness, a tuft's height, a tooth's size */
-export const READ_PX = 1, TUFT_MIN_PX = 6, TOOTH_MIN_PX = 3, RIBBON_PX = 4;
+export const READ_PX = 1, TUFT_MIN_PX = 6, TOOTH_MIN_PX = 3, RIBBON_PX = 4, LOCK_SEGMENT_PX = 10;
 const evenIn = (n, lo, hi) => Math.min(hi, Math.max(lo, 2 * Math.ceil(n / 2)));
 
 const rad = (r) => (Array.isArray(r) ? Math.max(...r.flat(Infinity)) : r);
@@ -113,6 +115,7 @@ export function drawnPlan(plan) {
   const body = dense.body && {
     ...dense.body,
     ...(dense.body.tiles ? { tiles: dense.body.tiles.filter((T) => (T.height ?? 0) * ppm >= TUFT_MIN_PX) } : {}),
+    ...(dense.body.locks ? { locks: dense.body.locks.filter((K) => Math.max(...[K.length].flat()) * ppm >= TUFT_MIN_PX).map((K) => ({ ...K, segments: Math.min(K.segments ?? 5, Math.max(2, Math.ceil(Math.max(...[K.length].flat()) * ppm / LOCK_SEGMENT_PX))) })) } : {}),
     ...(dense.body.refine ? { refine: dense.body.refine.flatMap((e) => {
       if (e.stations === false || !Array.isArray(e.parts) || !e.parts.some((p) => bridges.has(p))) return [e];
       const own = e.parts.filter((p) => !bridges.has(p)), mine = e.parts.filter((p) => bridges.has(p));

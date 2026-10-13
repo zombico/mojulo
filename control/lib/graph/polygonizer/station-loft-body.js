@@ -16,6 +16,10 @@
  *   spurs     sweeps on the outside of a bend
  *   rows      a midline row on symmetric frames (the dorsal spines; `shape: 'stud'` for a row of flat studs)
  *   collars   a raised band round a station (tail rings, cuffs, boot tops)
+ *   locks     FUR AS SHAPES: a few bold blades in shingled rows over a surface window (a ruff, a mane, a tail's brush,
+ *             the back of an elbow), each leaving the skin at `lift` and bending to lie along a growth direction
+ *             (`flow`, a world vector), tapering to a point and flicking outward at the tip (`curl`, mirrored by side),
+ *             the rows' lengths graded from the first to the last; any creature's, by its part names
  *
  * `detailBody(src, body, dials)` builds at render time (the dragon's way: a mesh and loose parts, nothing written);
  * `bakeBody(src, body)` writes the same parts into the recipe as pinned L2 parts on the refined rest L1, so the World
@@ -36,7 +40,7 @@ const r6 = (x) => Math.round(x * 1e6) / 1e6;
 export const RIGID = 0.8;
 /** the dragon's ring refinement: the three half-ring bands of a limb6 ring */
 export const LIMB6_SLOTS = [['front', 'front', 'fq'], ['front', 'backR', 'mid'], ['back', 'back', 'bq']];
-export const BODY_KEYS = ['refine', 'volume', 'creases', 'tiles', 'pads', 'spurs', 'rows', 'collars', 'rigid'];
+export const BODY_KEYS = ['refine', 'volume', 'creases', 'tiles', 'pads', 'spurs', 'rows', 'collars', 'rigid', 'locks'];
 
 // ─── reads off a part ───
 /** dominant bind weight along s, from a part's bind (ORIGINAL station ids st<i> at u = i; unlisted stations are the part's own bone) */
@@ -127,6 +131,36 @@ function rigidTiles(L1, name, side, T, idBase, dom, keep = [], RIGID_W = RIGID) 
       out[id] = { ...loftParts([base, top], sub(c, mul(n, 0.004)), add(mean(top), mul(n, h * 0.2))), group: T.group[(i + j) % T.group.length], bone: dom(sc).bone, rigidW: Math.min(...ring.map(([s]) => dom(s).w)) };
       anchors[id] = { part: name, at: [sc, tc], side }; } }
   return { tiles: out, gated, anchors }; }
+/** LOCKS over a window [s0, s1] × [t0, t1] of one side of a part: `rows` along s (the first row at s0, shingled so each
+ * row overlaps the next), `count` round t per row (brick-offset on odd rows); each lock a blade of `segments` diamond
+ * rings, its half-width `width` (m) at the root tapering to a point, its thickness `thick` (m; a quarter of the width by
+ * default), its length graded from `length[0]` (the first row) to `length[1]` (the last), jittered by `jitter`. It leaves
+ * the skin at `lift` (1 standing straight out, 0 lying flat) and bends to lie along `flow` (a world direction, laid onto
+ * the skin; absent, down the part's s), its tip flicked outward by `curl` (in lengths, away from the midline). */
+function locks(L1, name, side, K, idBase, dom) {
+  const out = {}, anchors = {}; const [s0, s1] = K.s, [t0, t1] = K.t, rows = Math.max(1, K.rows ?? 1), n = Math.max(1, K.count ?? 4), N = Math.max(2, K.segments ?? 5);
+  const [L0, L9] = Array.isArray(K.length) ? K.length : [K.length, K.length], lift = clamp(K.lift ?? 0.6, 0, 1);
+  const hash = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+  for (let j = 0; j < rows; j++) for (let i = 0; i < n; i++) {
+    const id = `${idBase}.${i}.${j}`, rng = mulberry32(hash(id)), [r1, r2, r3] = [rng(), rng(), rng()];
+    const sc = s0 + (rows === 1 ? 0.5 : j / (rows - 1)) * (s1 - s0), tc = t0 + (i + 0.5 + (j % 2 ? 0.5 : 0) + (K.wobble ?? 0) * (r1 - 0.5)) / (n + (j % 2 ? 0.5 : 0)) * (t1 - t0);
+    if (tc > t1 + 1e-9) continue;
+    const F = frameAt(L1, name, [sc, tc], side), nrm = F.normal, c = F.origin;
+    let f = K.flow ? sub(K.flow, mul(nrm, dot(K.flow, nrm))) : sub(frameAt(L1, name, [clamp(sc + 0.25, s0, sMax(L1[name])), tc], side).origin, c);
+    f = dmath.hypot(...f) > 1e-6 ? unit(f) : unit(sub([0, 0, -1], mul(nrm, -nrm[2])));
+    let b = unit([f[1] * nrm[2] - f[2] * nrm[1], f[2] * nrm[0] - f[0] * nrm[2], f[0] * nrm[1] - f[1] * nrm[0]]); if (b[0] * (c[0] || (side === 'L' ? -1 : 1)) < 0) b = mul(b, -1);   // outward
+    const L = (L0 + (L9 - L0) * (rows === 1 ? 0 : j / (rows - 1))) * (1 + (K.jitter ?? 0) * (2 * r2 - 1)), w = K.width * (1 + 0.5 * (K.jitter ?? 0) * (2 * r3 - 1)), th = K.thick ?? w * 0.25;
+    // the spine: from straight out (lift 1) toward the flow, laid on it by the tip; the flick grows with the square of u
+    const a0 = (1 - lift) * Math.PI / 2, spine = [sub(c, mul(nrm, 0.003))]; let p0 = spine[0];
+    for (let k = 1; k <= N; k++) { const u = k / N, a = a0 + (Math.PI / 2 - a0) * u, d = add(mul(nrm, dmath.cos(a)), mul(f, dmath.sin(a)));
+      p0 = add(p0, mul(d, L / N)); spine.push(add(p0, mul(b, (K.curl ?? 0) * L * u * u))); }
+    const rings = spine.slice(0, -1).map((p, k) => { const u = k / N, d = unit(sub(spine[k + 1], p)), up = unit([b[1] * d[2] - b[2] * d[1], b[2] * d[0] - b[0] * d[2], b[0] * d[1] - b[1] * d[0]]), ww = w * (1 - u) ** 0.8, tt = th * (1 - u);
+      return [add(p, mul(b, ww)), add(p, mul(up, tt)), add(p, mul(b, -ww)), add(p, mul(up, -tt))]; });
+    out[id] = { ...loftParts(rings, sub(c, mul(nrm, 0.006)), spine[N]), group: K.group[(i + j) % K.group.length], bone: dom(sc).bone };
+    anchors[id] = { part: name, at: [sc, tc], side };
+  }
+  return { locks: out, anchors };
+}
 /** COLLAR round station j of a compiled part (rings read from its named points) */
 function collar(L1, p, j, height, width = 0.35) { const P = L1[p]; const ring = (i) => P.slots.map((sl) => P.points[`${p}/${P.stations[i].id}.${sl}`]);
   const R = ring(j), c = mean(R), prev = mean(ring(Math.max(0, j - 1))), next = mean(ring(Math.min(P.stations.length - 1, j + 1)));
@@ -160,6 +194,9 @@ export function detailBody(src, body, dials = {}, { binds = false } = {}) {
   for (const T of body.tiles || []) for (const p of T.parts) { const dom = dominance(src.parts[p]); for (const side of ['R', 'L']) { const g = rigidTiles(L1, p, side, T, T.id ? `tile.${T.id}.${p}.${side}` : `tile.${p}.${side}`, dom, keep, RIGID_W);
     for (const k of Object.keys(g.tiles)) if (parts[k]) throw new Error(`body: tile ${k} is grown twice — give each tile window on ${p} its own id`);
     Object.assign(parts, g.tiles); Object.assign(anchors, g.anchors); stats.gatedTiles += g.gated; } }
+  for (const K of body.locks || []) for (const p of K.parts) { const dom = dominance(src.parts[p]); for (const side of K.sides ?? ['R', 'L']) { const g = locks(L1, p, side, K, `lock.${K.id ?? 'fur'}.${p}.${side}`, dom);
+    for (const k of Object.keys(g.locks)) if (parts[k]) throw new Error(`body: lock ${k} is grown twice — give each lock window on ${p} its own id`);
+    Object.assign(parts, g.locks); Object.assign(anchors, g.anchors); } }
   for (const S of body.rows || []) { const P = L1[S.part], dom = dominance(src.parts[S.part]); const t = P.slotT?.[S.t] ?? H(P); const R = radius(L1, S.part); const kind = S.shape ?? 'spur';
     for (let s = S.s[0], i = 0; s <= S.s[1] + 1e-9; s += S.step, i++) { if (dom(s).w < RIGID_W) continue; const f = symmetricFrameAt(L1, S.part, [s, t]); const m = kind === 'stud' ? stud(S.r, S.h ?? S.r * 0.6, S.m) : spur(S.r ?? R * S.size, S.rake);
       const id = `${kind === 'spur' ? 'spine' : kind}.${S.part}.${i}`; parts[id] = { group: S.group ?? 'Spine', points: Object.fromEntries(Object.entries(m.points).map(([k, o]) => [k, placeSurfaceOffset(f, o)])), faces: m.faces }; anchors[id] = { part: S.part, at: [s, t], side: 'R' }; } }
@@ -195,6 +232,7 @@ export function validateBody(body, parts) {
   for (const [i, v] of (body.volume || []).entries()) if (!Array.isArray(v) || v.length !== 4) errs.push(`body.volume[${i}]: [part, slotWeights, stationWeights, metres]`); else need(v[0], `body.volume[${i}]`);
   for (const [i, j] of (body.creases?.joints || []).entries()) if (!Array.isArray(j) || j.length < 2) errs.push(`body.creases.joints[${i}]: [partA, partB, group?]`); else { need(j[0], `body.creases.joints[${i}]`); need(j[1], `body.creases.joints[${i}]`); }
   for (const [i, T] of (body.tiles || []).entries()) { if (!Array.isArray(T.parts) || !Array.isArray(T.s) || !Array.isArray(T.t) || !Array.isArray(T.grid) || !Array.isArray(T.group) || !Number.isFinite(T.height) || !Number.isFinite(T.inset)) errs.push(`body.tiles[${i}]: { parts, s: [s0, s1], t: [t0, t1], grid: [ns, nt], height, inset, group: [names] }`); else T.parts.forEach((p) => need(p, `body.tiles[${i}]`)); }
+  for (const [i, K] of (body.locks || []).entries()) { if (!Array.isArray(K.parts) || !Array.isArray(K.s) || !Array.isArray(K.t) || !Array.isArray(K.group) || !(Number.isFinite(K.length) || (Array.isArray(K.length) && K.length.length === 2 && K.length.every(Number.isFinite))) || !Number.isFinite(K.width)) errs.push(`body.locks[${i}]: { parts, s: [s0, s1], t: [t0, t1], rows?, count?, length: m | [first row, last row], width, thick?, lift?, flow?: [x, y, z], curl?, jitter?, segments?, sides?, group: [names] }`); else K.parts.forEach((p) => need(p, `body.locks[${i}]`)); }
   for (const [i, P] of (body.pads || []).entries()) { if (!P.part || !Number.isFinite(P.s) || !Number.isFinite(P.r) || !P.toward || !(P.toward.world || P.toward.flex || P.toward.away)) errs.push(`body.pads[${i}]: { part, s, r, toward: { world } | { flex: [a, b], drive? } | { away: [a, b] } }`); else need(P.part, `body.pads[${i}]`); }
   for (const [i, S] of (body.rows || []).entries()) { if (!S.part || !Array.isArray(S.s) || !(S.step > 0)) errs.push(`body.rows[${i}]: { part, t, s: [s0, s1], step, shape?: 'spur' | 'stud', r }`); else need(S.part, `body.rows[${i}]`); }
   for (const [i, C] of (body.collars || []).entries()) { if (!C.part || !Number.isFinite(C.height)) errs.push(`body.collars[${i}]: { part, at: <station id>, height, width? }`); else need(C.part, `body.collars[${i}]`); }

@@ -1016,63 +1016,40 @@
  },
  "ornaments": [
   {
-   "kind": "sweep",
+   "kind": "leaf",
    "name": "ear",
    "at": [
     1.2,
     0.75
    ],
    "space": "local",
-   "spine": [
-    [
-     0,
-     0,
-     -0.012
-    ],
-    [
-     0,
-     -0.005,
-     0.04
-    ],
-    [
-     0,
-     -0.012,
-     0.09
-    ],
-    [
-     0,
-     -0.022,
-     0.14
-    ],
-    [
-     0,
-     -0.032,
-     0.185
-    ]
-   ],
-   "radii": [
+   "length": 0.2,
+   "widths": [
+    0.05,
     0.062,
-    0.056,
-    0.042,
-    0.024,
-    0.004
+    0.058,
+    0.045,
+    0.026,
+    0.008
    ],
-   "m": 8,
-   "squash": [
-    1,
-    0.38
+   "cup": 0.022,
+   "thick": 0.009,
+   "dir": [
+    0,
+    -0.18,
+    1
    ],
-   "curl": {
+   "attitude": {
     "control": "earAttitude",
-    "axis": {
-     "bend": [
-      0,
-      2,
-      4
-     ]
-    }
+    "gain": 0.5
    },
-   "group": "Ears"
+   "group": "Ears",
+   "inner": {
+    "group": "EarInner",
+    "inset": 0.58,
+    "lift": 0.003,
+    "reach": 0.78
+   }
   },
   {
    "kind": "sweep",

@@ -57,7 +57,8 @@ export function validateHead(plan) {
   if (plan.units && !(plan.units.scale > 0 && isVec(plan.units.offset))) fail('units must be { scale > 0, offset: [x, y, z] }');
   if (!plan.skin || !Array.isArray(plan.skin.slots) || !(plan.skin.radius > 0) || typeof plan.skin.controls !== 'object') fail('skin needs { slots, radius, controls }');
   if (!plan.regions || !plan.regions.eye || !plan.regions.orbit) fail('regions needs at least eye and orbit');
-  for (const o of plan.ornaments || []) if (!['sweep', 'teeth', 'disc'].includes(o.kind)) fail(`ornament kind '${o.kind}' is not one of sweep / teeth / disc`);
+  for (const o of plan.ornaments || []) if (!['sweep', 'teeth', 'disc', 'leaf'].includes(o.kind)) fail(`ornament kind '${o.kind}' is not one of sweep / teeth / disc / leaf`);
+  for (const o of plan.ornaments || []) if (o.kind === 'leaf' && !(Number.isFinite(o.length) && Array.isArray(o.widths) && o.widths.length >= 2 && o.widths.every(Number.isFinite))) fail(`leaf ornament '${o.name}' needs { length, widths: [half-width at each row, root to tip] }`);
   for (const r of plan.refine || []) if (!['slot', 'station', 'volumize'].includes(r.op)) fail(`refine op '${r.op}' is not one of slot / station / volumize`);
   for (const m of plan.midline || []) if (m.kind !== 'pinned') fail(`midline kind '${m.kind}' is not 'pinned'`);
   for (const [k, v] of Object.entries(plan.landmarks || {})) if (!isVec(v)) fail(`landmark '${k}' must be [x, y, z]`);
@@ -87,6 +88,23 @@ function teethRow(L1, { part, from, to, t, sizes, down, tag = '' }, side) { cons
     out[`tooth${tag}${part === 'jaw' ? 'L' : 'U'}.${i}`] = pinned(L1, part, [s, t], side, { ...m, points: Object.fromEntries(Object.entries(m.points).map(([q, p]) => [q, dmath.hypot(...k) > 1e-9 ? rot(p, unit(k), ang) : p])) }, 'Teeth'); }
   return out; }
 
+/** A LEAF (an ear drawn as a shape, not a cone): in the pin's local frame (x across, y the side it opens to, z out of the
+ * skin), rows up its `length` along `dir` (default straight out, a little back: [0, -0.15, 1]), each row `widths[i]` (m,
+ * half-width) across, its front CUPPED (`cup` m: the edges stand forward of the middle, a C in section), `thick` (m) deep.
+ * `scale` and `lift` draw the INNER patch: the same outline `scale` × as wide, `reach` × as long, `lift` m in front of the
+ * cup. Built as a loft of closed rings (each row's front edge across, then its back edge back), its winding checked
+ * outward by its volume's sign. */
+function leafMesh(o, scale = 1, lift = 0, turn = (p) => p, reach = 1) {
+  const L = o.length * reach, W = o.widths, R = W.length - 1, C = 2, cup = (o.cup ?? 0.3 * Math.max(...W)) * scale, th = (o.thick ?? 0.006) * (lift ? 0.4 : 1);
+  const ax = unit(o.dir ?? [0, -0.15, 1]); let across = [1, 0, 0]; const front = unit(cross(ax, across)); across = unit(cross(front, ax));
+  const at = (i, k, back) => { const u = i / R, w = W[i] * scale, x = k / C; return turn(add(add(mul(ax, L * u), mul(across, w * x)), mul(front, cup * x * x * (1 - u * 0.5) + lift - (back ? th : 0)))); };
+  const rings = (sign) => Array.from({ length: R }, (_, i) => { const f = [], b = []; for (let k = -C; k <= C; k++) { f.push(at(i, k, false)); b.push(at(i, k, true)); } return sign > 0 ? [...f, ...b.reverse()] : [...b, ...f.reverse()]; });
+  const build = (sign) => loftParts(rings(sign), turn(add(mul(ax, -0.004), mul(front, lift - th / 2))), turn(add(mul(ax, L), mul(front, lift - th / 2))));
+  const vol = (m) => { let v = 0; for (const f of Object.values(m.faces ?? {})) { const [p, q, r] = f.map((id) => m.points[id]); v += dot3(p, cross(q, r)); } for (const f of Array.isArray(m.faces) ? m.faces : []) { const [p, q, r] = f.map((id) => m.points[id]); v += dot3(p, cross(q, r)); } return v; };
+  const m = build(1); return vol(m) >= 0 ? m : build(-1);
+}
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
 function ornamentsOf(plan, W) { const list = plan.ornaments || [];
   return ({ bone, rest, side, x, ctl }) => { const out = {};
     for (const o of list) {
@@ -100,6 +118,10 @@ function ornamentsOf(plan, W) { const list = plan.ornaments || [];
         const mesh = sweep(spine, radii, o.m, opts); const extra = o.ringCreases === 'even' ? { creases: mesh.rings.filter((_, j) => j % 2 === 0 && j > 0).flatMap((rr) => rr.map((a, i) => [a, rr[(i + 1) % rr.length]])) } : {};
         out[o.name] = pinned(bone, part, o.at, o.side || side, mesh, o.group, extra);
         if (o.ridges) for (const j of o.ridges.rings) out[`${o.ridges.name}${j}`] = pinned(bone, part, o.at, side, collar(mesh, j, o.ridges.height.base + o.ridges.height.step * j, o.ridges.width), o.ridges.group); }
+      else if (o.kind === 'leaf') { if (o.side && o.side !== side) continue;
+        const a = o.attitude ? o.attitude.gain * ctl(o.attitude.control) : 0, turn = (p) => (a ? rot(p, [1, 0, 0], -a) : p);
+        out[o.name] = pinned(bone, part, o.at, o.side || side, leafMesh(o, 1, 0, turn), o.group);
+        if (o.inner) out[o.inner.name ?? `${o.name}Inner`] = pinned(bone, part, o.at, o.side || side, leafMesh(o, o.inner.inset ?? 0.6, o.inner.lift ?? 0.002, turn, o.inner.reach ?? 0.85), o.inner.group); }
       else if (o.kind === 'disc') { const a = o.attitude ? o.attitude.gain * ctl(o.attitude.control) : 0; const tilt = (p) => rot(rot(p, [0, 0, 1], o.yaw), [0, 1, 0], -a);
         const disc = loftParts(o.rings.map(([x0, r]) => ringAt([x0, 0, o.lift], [1, 0, 0], r, 10).map(tilt)), tilt([o.back, 0, o.lift]), tilt([o.front, 0, o.lift]));
         out[o.name] = { ...pinned(bone, part, o.at, side, disc, o.groups[0]), faceGroups: loftLabels(disc, () => o.groups[0], o.groups) };

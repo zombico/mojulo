@@ -54,6 +54,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - the outline kept (0.973 at worst).
   He is still 158% of the 1080p budget. The rest is the body at the 1 px outline the rule holds. A 2 px tolerance
   changes nothing: one joint splits its whole leg chain.
+- **Fur as shapes** (`station-loft-body.js` `body.locks`, any creature's). A few bold blades in shingled rows over a
+  surface window of any parts a plan names (a ruff, a mane, a tail's brush, the back of an elbow), in place of a carpet
+  of small tiles:
+  - each lock leaves the skin at `lift` and bends to lie along a growth direction (`flow`);
+  - it tapers to a point and flicks outward at its tip (`curl`, mirrored by side);
+  - row lengths are graded from first to last, seeded per lock, alternating the plan's fur groups;
+  - pinned and following the surface like the tiles.
+  A drawn creature drops a window whose longest lock reads under 6 px and gives each lock the segments its length on
+  screen asks. On the Pale Warden at 1080p, locks in place of his ruff, neck-ruff and tail-brush tiles cost what the
+  tiles did (10,788 triangles).
+- **Ears as leaves** (`station-loft-head.js` ornament `kind: 'leaf'`, any head plan's). An ear drawn as a shape, not a
+  cone:
+  - an outline of half-widths up its length;
+  - a cupped front (the edges stand forward of the middle);
+  - a thickness at the rim, an attitude driven by a head control;
+  - an optional inner patch in its own group.
+  It is built as a loft of closed rings with its winding checked outward. The library wolf's ears are now leaves (its
+  palette's `EarInner` inside); the bear keeps its round disc ear.
 - **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
   silhouette:
   - a silhouette gate every pass must keep;

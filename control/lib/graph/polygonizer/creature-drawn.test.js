@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { drawnPlan, creatureJoints, creatureBodyParts, headAtTier, adornAtTier, BRIDGE_MIN_PX, READ_PX, TUFT_MIN_PX } from './creature-drawn.js';
 import { headPlan } from '../creature-heads/index.js';
+import { headFromPlan } from './station-loft-head.js';
+import { bakeLayered } from './station-loft-detail.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered } from './station-loft.js';
 import { keepsSilhouette } from './silhouette-gates.js';
@@ -76,5 +78,31 @@ describe('the drawn creature', () => {
     // the rule's own entries name them (split for the target), the author's does not survive as its own entry
     expect(refine.some((e) => e.parts.length === 4 && e.slots === undefined)).toBe(false);
     expect(named).toContain('thighR');
+  });
+
+  it('LOCKS: fur as a few bold blades over a window of any part, shingled, mirrored, flowing where they are told', () => {
+    const fur = { id: 'mane', parts: ['thighR'], s: [0.3, 1.2], t: [0, 3], rows: 2, count: 3, length: [0.1, 0.08], width: 0.04, lift: 0.4, flow: [0, -0.3, -1], curl: 0.15, group: ['Fur', 'FurAlt'] };
+    const plan = { ...LEG, body: { locks: [fur] } }, parts = expandPlan(plan).parts;
+    const names = Object.keys(parts).filter((n) => n.startsWith('lock.mane.thighR.'));
+    expect(names.filter((n) => n.includes('.R.')).length).toBeGreaterThanOrEqual(5);
+    expect(names.filter((n) => n.includes('.L.')).length).toBe(names.filter((n) => n.includes('.R.')).length);
+    expect(new Set(names.map((n) => parts[n].group))).toEqual(new Set(['Fur', 'FurAlt']));
+    // deterministic, and pinned like the other body details
+    expect(JSON.stringify(expandPlan(plan).parts[names[0]])).toBe(JSON.stringify(parts[names[0]]));
+    expect(parts[names[0]].layer).toBe(2);
+    // drawn: a far target drops a window whose locks are too short to read, a near one keeps it with more segments
+    const far = drawnPlan({ ...plan, style: { drawn: { target: { resolution: '480p', framing: 'top-down' } } } }).body.locks ?? [];
+    const near = drawnPlan({ ...plan, style: { drawn: { target: { resolution: '1080p', framing: 'close' } } } }).body.locks;
+    expect(far.length).toBe(0);
+    expect(near[0].segments).toBeGreaterThanOrEqual(2);
+  });
+
+  it('a LEAF ear: a cupped shape with its inner patch, in place of a cone, on any head plan', () => {
+    const wolf = headPlan('wolf'), i = wolf.ornaments.findIndex((o) => o.name === 'ear');
+    wolf.ornaments[i] = { kind: 'leaf', name: 'ear', at: wolf.ornaments[i].at, length: 0.2, widths: [0.05, 0.062, 0.058, 0.045, 0.026, 0.008], cup: 0.022, thick: 0.009, group: 'Ears', inner: { group: 'EarInner', inset: 0.58, lift: 0.003, reach: 0.78 } };
+    const baked = bakeLayered(headFromPlan(wolf), {});
+    for (const n of ['earR', 'earL', 'earInnerR', 'earInnerL']) expect(baked.parts[n]?.layer).toBe(2);
+    expect(baked.parts.earInnerR.group).toBe('EarInner');
+    expect(() => headFromPlan({ ...wolf, ornaments: [{ kind: 'leaf', name: 'bad', at: [1, 1] }] })).toThrow(/leaf ornament 'bad' needs/);
   });
 });
