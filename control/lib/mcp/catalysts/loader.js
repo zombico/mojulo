@@ -40,6 +40,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
+import { TIERS, normalizeTier } from '../../agent-tasks/tiers.js';
 const CATALYST_DIR = moduleDir(import.meta.url, 'lib/mcp/catalysts');
 const TECHNIQUES_SUBDIR = 'techniques';
 
@@ -100,6 +101,11 @@ export function validateCatalystMeta(meta, body, { defaultKind = 'workflow', she
   if (!trimmedBody) {
     throw new Error(`Catalyst ${source} has an empty body — the prose is the catalyst's value.`);
   }
+  // `tier` (agent-tasks/tiers.js): how much judgment running the workflow takes, so a host that routes light work to a
+  // lighter model knows who should run it. Optional for a minted catalyst; every curated one names it (loader.test.js).
+  if (meta.tier !== undefined && !normalizeTier(meta.tier)) {
+    throw new Error(`Catalyst ${source} has invalid 'tier' value '${meta.tier}' (must be one of: ${TIERS.join(', ')}).`);
+  }
   const requires = meta.requires || {};
   // destinationExamples powers recommend_catalysts' consultation suggestions
   // ("you could install HubSpot to unlock this"). Formerly enforced only by
@@ -125,6 +131,7 @@ export function validateCatalystMeta(meta, body, { defaultKind = 'workflow', she
     kind,
     version: meta.version ?? 1,
     category: meta.category || null,
+    tier: normalizeTier(meta.tier),
     requires,
     parameters: Array.isArray(meta.parameters) ? meta.parameters : [],
     mcpTools: meta.mcpTools || {},
@@ -148,6 +155,7 @@ export function serializeCatalystFile(catalyst) {
   if (catalyst.kind && catalyst.kind !== 'workflow') meta.kind = catalyst.kind;
   if (catalyst.version && catalyst.version !== 1) meta.version = catalyst.version;
   if (catalyst.category) meta.category = catalyst.category;
+  if (catalyst.tier) meta.tier = catalyst.tier;
   if (catalyst.requires && Object.keys(catalyst.requires).length) meta.requires = catalyst.requires;
   if (Array.isArray(catalyst.parameters) && catalyst.parameters.length) meta.parameters = catalyst.parameters;
   if (catalyst.mcpTools && Object.keys(catalyst.mcpTools).length) meta.mcpTools = catalyst.mcpTools;
@@ -216,6 +224,7 @@ export function listCatalysts({ category, kind } = {}) {
       valueHook: catalyst.valueHook,
       kind: catalyst.kind,
       category: catalyst.category,
+      tier: catalyst.tier,
       requires: catalyst.requires,
       outputContract: catalyst.outputContract,
     });

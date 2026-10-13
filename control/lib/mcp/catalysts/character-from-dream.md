@@ -6,6 +6,7 @@
   "valueHook": "Turn a dreamed character into a real posable figure recipe — a body you can re-pose, re-dress, animate, skin, and drop into a world — instead of a paragraph of description and a one-off picture.",
   "version": 2,
   "category": "substrate",
+  "tier": "design",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

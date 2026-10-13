@@ -6,6 +6,7 @@
   "valueHook": "Turn director-layer comic pages and shots into finished art with no cloud image provider — your agent instructs an edit model running on this machine and looks at what comes back.",
   "version": 2,
   "category": "substrate",
+  "tier": "judge",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

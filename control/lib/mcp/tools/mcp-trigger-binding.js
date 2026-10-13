@@ -26,6 +26,7 @@
 import { Cron } from 'croner';
 
 import { registerTool } from '@/lib/mcp/server';
+import { TIERS, normalizeTier } from '@/lib/agent-tasks/tiers';
 import { TriggerArtifactRepository } from '@/lib/db/repositories/trigger-artifacts';
 import { MCPOrbitComponentRepository } from '@/lib/db/repositories/mcp-orbit';
 import { bestEffortDaemonReload } from '@/lib/daemons/client';
@@ -92,6 +93,10 @@ function validatePayloadTemplate(payloadTemplate) {
     throw new Error(
       "payload_template.task_kind is required (e.g. 'envelope_inference') — names the agent-tasks queue kind that will receive the parked payload",
     );
+  }
+  // A tier rides the parked task to the worker (agent-tasks/tiers.js): refused here rather than dropped at fire time.
+  if (payloadTemplate.tier !== undefined && !normalizeTier(payloadTemplate.tier)) {
+    throw new Error(`payload_template.tier must be one of: ${TIERS.join(', ')} (or omitted) — got '${payloadTemplate.tier}'`);
   }
 }
 
@@ -321,7 +326,7 @@ export function registerTriggerBindingTools() {
         payload_template: {
           type: 'object',
           description:
-            "Object parked into the agent-tasks queue at fire time. Must include `task_kind` (e.g. 'envelope_inference'); other fields are kind-specific. Flat `{{...}}` interpolation at fire time fills in runtime values (e.g. `{{fired_at}}`).",
+            "Object parked into the agent-tasks queue at fire time. Must include `task_kind` (e.g. 'envelope_inference'); other fields are kind-specific. Optional `tier` (ride | fill | judge | design) lets a worker on a lighter model claim it. Flat `{{...}}` interpolation at fire time fills in runtime values (e.g. `{{fired_at}}`).",
         },
         artifact_ref: {
           type: 'string',

@@ -12,7 +12,13 @@
  *
  * Kept apart from tool-lines.js so a tier change never touches a tool's line. New listed tool: add its
  * tier here (tool-tiers.test.js fails until it has one), or name it in TIER_DEFERRED.
+ *
+ * Beyond the table: a pack tool (packs mode) wears the ceiling of its members, a routing card the tier of its entry
+ * tool unless it names its own, and a catalyst its frontmatter `tier` (catalysts/loader.js).
  */
+
+import { TIERS, normalizeTier } from '../agent-tasks/tiers.js';
+import { getPack } from './packs.js';
 
 // Tools whose tier waits on their own branch (characters). Listed, untiered: no `_meta` for them.
 export const TIER_DEFERRED = Object.freeze(['create_character', 'bind_character_sheet']);
@@ -46,7 +52,7 @@ export const TOOL_TIERS = Object.freeze({
   translate_modeler_lingo: 'ride',
   export_model: 'ride',
   bind_mesh_render: 'ride',
-  compose_world: 'fill',
+  compose_world: 'judge', // fill for a world from a settled spec; a city plan or a machine for the crafter is authoring
 
   // ── games (Play) ──
   get_game_vocab: 'ride',
@@ -160,12 +166,33 @@ export const TOOL_TIERS = Object.freeze({
   verify_asset: 'ride',
 });
 
+/** The heaviest of these tiers, or undefined when none is known: a door that leads to several tools is as heavy as its
+ * heaviest. */
+export function ceilingTier(tiers) {
+  let top = -1;
+  for (const t of tiers) top = Math.max(top, TIERS.indexOf(normalizeTier(t)));
+  return top >= 0 ? TIERS[top] : undefined;
+}
+
+/** A listed tool's tier: its row in the table, else (a pack tool in packs mode) the ceiling of its members. A deferred
+ * or unknown tool has none. */
+export function toolTier(name) {
+  if (TOOL_TIERS[name]) return TOOL_TIERS[name];
+  const pack = getPack(name);
+  return pack ? ceilingTier(pack.members.map((m) => TOOL_TIERS[m])) : undefined;
+}
+
+/** A routing card's tier: its own `tier` when it names one, else its entry tool's. */
+export function routingCardTier(card) {
+  return normalizeTier(card?.tier) || toolTier(card?.entry);
+}
+
 /** Steps of a compiled plan counted by tier, lightest first; a tool with no tier counts as `untiered`. What the plan
  * saves: `execute_plan` runs every step with no model in the loop, whatever tier the step would cost an agent. */
 export function tierCounts(tools) {
   const counts = {};
   for (const tier of ['ride', 'fill', 'judge', 'design', 'untiered']) {
-    const n = tools.filter((t) => (TOOL_TIERS[t] || 'untiered') === tier).length;
+    const n = tools.filter((t) => (toolTier(t) || 'untiered') === tier).length;
     if (n) counts[tier] = n;
   }
   return counts;

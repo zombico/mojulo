@@ -6,6 +6,7 @@
   "valueHook": "Turn 'how does a computer actually work?' into a nine-slide animated deck — watch signals flow through gates, the CPU loop fetch and execute, the OS hand each program a slice — that ends exactly where the internet explainer begins.",
   "version": 1,
   "category": "explainer",
+  "tier": "design",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "topic", "prompt": "What should the explainer cover? (default: a computer from first principles, switch to network. Also fits: 'how a CPU works', 'how code becomes something a machine runs', 'what an operating system does')", "default": "how a computer works, from a switch up to the network" },

@@ -13,7 +13,11 @@
  * See lite-template/integration/SEMANTIC_INDEX_PLAN.md.
  */
 
-import { registerTool } from '@/lib/mcp/server';
+import { registerTool, clientTakesModelTiers } from '@/lib/mcp/server';
+import { getClientInfo } from '@/lib/mcp/client-bindings';
+import { routingCardTier } from '@/lib/mcp/tool-tiers';
+import { getRoutingCard } from '@/lib/mcp/routing-cards/loader';
+import { getMergedCatalyst } from '@/lib/mcp/catalysts/catalog';
 import {
   BodyComposition,
   EmbeddingsRepository,
@@ -111,7 +115,17 @@ export function buildSearchHint({ degraded, results, routing, mode }) {
   );
 }
 
-export async function semanticSearchHandler(input, _ctx) {
+// A routing card's or a catalyst's tier, for a host that routes light work to a lighter model (capabilities.modelTiers):
+// whether the work the row leads to can go to a lighter model. Other rows, and every other host, are unchanged.
+function rowTier(row) {
+  if (row.source_kind === 'routing') return routingCardTier(getRoutingCard(row.source_ref));
+  if (row.source_kind === 'catalyst') {
+    try { return getMergedCatalyst(row.source_ref)?.tier || undefined; } catch { return undefined; }
+  }
+  return undefined;
+}
+
+export async function semanticSearchHandler(input, ctx) {
   if (!input || typeof input !== 'object') {
     throw new Error('semantic_search requires an input object with `query`');
   }
@@ -131,9 +145,16 @@ export async function semanticSearchHandler(input, _ctx) {
     withMeta: true,
   });
   const { degraded, mode } = found;
-  const results = profile
+  const listed = profile
     ? found.results.filter((r) => !hiddenRowInPluginProfile(r.source_kind, r.source_ref)).map(profileRow).slice(0, want)
     : found.results;
+  const tiersOn = clientTakesModelTiers(ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null);
+  const results = tiersOn
+    ? listed.map((r) => {
+        const tier = rowTier(r);
+        return tier ? { ...r, tier } : r;
+      })
+    : listed;
   const routing = opts.kinds ? [].concat(opts.kinds).includes('routing') : false;
   const hint = buildSearchHint({ degraded, results, routing, mode });
   // Outcome signal for the orientation-gap telemetry (numbers/enums only,

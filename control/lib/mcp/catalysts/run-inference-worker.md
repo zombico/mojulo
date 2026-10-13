@@ -6,6 +6,7 @@
   "valueHook": "Be the inference engine your locally-running mojulo apps need — no API keys held anywhere, no external provider on the call path.",
   "version": 1,
   "category": "substrate",
+  "tier": "ride",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

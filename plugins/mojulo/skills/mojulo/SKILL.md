@@ -17,7 +17,10 @@ so the user's usage limits build more:
 
 - Keep design with you: `cook`, `create_game`, `design_game`, `forge_plan`, `forge_publications`, `mint_catalyst`, `synthesize_abstract`, `verify_machina`.
 - Hand one artifact to write or revise, with a clear brief, to the `mojulo-maker` subagent.
-- Hand a batch of decided calls (exports, measures, lists, gathers, a world from a settled spec) to the `mojulo-runner` subagent.
+- Hand a batch of decided calls (exports, measures, lists, gathers) to the `mojulo-runner` subagent.
+- A routing card or catalyst found by `semantic_search`, and every catalyst `list_catalysts`, `get_catalyst` and
+  `recommend_catalysts` return, carries a `tier`: `design` stays with you, `judge` goes to `mojulo-maker`, `ride` and
+  `fill` to `mojulo-runner`. A skill you materialize from a catalyst runs where its tier says.
 - Read a manual yourself when you are about to author with it: what a subagent reads stays in its context.
 - Make a single quick call yourself: starting a subagent costs more than one light call.
 <!-- tiers:end -->
