@@ -61,7 +61,7 @@ const segments = [
   ]),
 ];
 
-// ── the head: the DETAILED dragon head as PLAN DATA (docs/examples/head-detail/heads/dragon.head.json), which the plan
+// ── the head: the DETAILED dragon head as PLAN DATA (control/lib/graph/creature-heads/heads/dragon.head.json), which the plan
 // expands at one expression and wears with its nape on neckTop: the refined cranium and jaw as L1, every region, ornament and tile
 // as a pinned L2 part, its dials spliced in where `dials.head` says ──
 const heads = [{ name: 'head', plan: HEAD_PLANS.dragon, expression: HEAD_EXPRESSION, on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];

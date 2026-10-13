@@ -159,6 +159,9 @@ export const PROFILE_CARD_EDITS = Object.freeze({
     },
   },
   catalyst: {
+    'creature-from-sheet': {
+      body: [[" The creature\nloop's own card (`creature-from-plan`) holds the ring-plan forms and the art direction; this card adds the sheet.", '']],
+    },
     'create-hero': {
       parameters: {
         intent: [[' a creature or invented body is creature-from-plan,', ''], [' is the figure kind (character-from-dream).', ' is the figure kind.']],
