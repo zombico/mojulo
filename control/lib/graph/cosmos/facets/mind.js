@@ -46,7 +46,7 @@ export const MIND = Object.freeze({
       values: {
         none: { status: 'built' },
         talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: false, note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
-        schedule: { status: 'absent', effort: 'M', note: 'no game clock or routines; cues (every, var), cast walks and spots could carry one on a clock var; sky hours (day-night) optional (priced 10-12)' },
+        schedule: { status: 'built', lowers: 'lib/graph/playscape/ui/routines.js', godot: false, note: 'play.routines: where each goes hour by hour on the level\'s clock (cues on hour, a walk and a pose); web only' },
       },
     },
     commander: {

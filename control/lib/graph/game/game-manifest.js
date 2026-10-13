@@ -22,7 +22,9 @@
  *     music?: { menu?: <beatsRef>, about?: <beatsRef>, battle?: [<beatsRef>, …] },
  *     setup?: { <sliceName>: <presentation> },
  *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] },
- *     shell?: 'play' }                     // the light shell (play-shell.js); absent: the arena shell
+ *     shell?: 'play',                      // the light shell (play-shell.js); absent: the arena shell
+ *     run?: { length } }                   // RUNS (the play shell): each run draws `length` of the levels in a seeded
+ *                                          // order; a clear goes on, a death ends the run; the store carries over
  *
  * `setup` is the optional PRE-LEVEL presentation, per party slice — how the setup screen renders
  * that slice's pick (the default is the plain radio/checkbox picker). Two styles:
@@ -151,6 +153,14 @@ export function validateGameManifest(manifest) {
         errors.push(`levels[${i}].gate.completed '${lv.gate.completed}' is not a level of this game`);
       }
     });
+  }
+
+  // RUNS: the levels are a pool a run draws from (the light shell only; no links, no map travel within a run)
+  if (manifest.run !== undefined) {
+    const r = manifest.run, n = Array.isArray(manifest.levels) ? manifest.levels.length : 0;
+    if (!r || typeof r !== 'object' || !Number.isInteger(r.length) || r.length < 1 || r.length > n) errors.push(`run must be { length: 1 to ${n} } (how many of the levels a run draws)`);
+    if (manifest.shell !== 'play') errors.push("run plays in the light shell: add shell: 'play'");
+    if (manifest.links !== undefined) errors.push('run and links: a run draws its levels, it does not walk between them');
   }
 
   // DOOR LINKS: each pairs a door end in one level with one in another, both ways (walk out of A by its door into B at

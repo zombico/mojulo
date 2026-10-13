@@ -24,6 +24,11 @@ describe('the runner\'s plan', () => {
     const L = levels(W);
     expect(L.length).toBeGreaterThan(0);
     expect(L.every((s) => s.order.manifest.destruction === 'objects')).toBe(true);
+    // and what breaks stays broken: each level keeps its breaks in the world's aftermath slice
+    expect(L.every((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath' && m.slice === 'aftermath'))).toBe(true);
+    const game = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'game');
+    expect(game.order.store.slices).toContainEqual({ name: 'aftermath', kind: 'flags' });
+    expect(levels(MEADOWMARK_HERO).some((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath'))).toBe(false);
   });
 
   it('pure: the same world, the same steps and prints', () => {

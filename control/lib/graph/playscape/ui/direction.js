@@ -38,6 +38,8 @@ import { withChapterCues, chapterBus } from './chapters.js';
 import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
 import { questProgram } from './quests.js';
 import { withPartyCues } from './party.js';
+import { withRoutineCues } from './routines.js';
+import { withBattle } from './battles.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -191,7 +193,7 @@ export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
-  const play = withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play)));
+  const play = withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play)))));
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus

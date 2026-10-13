@@ -13,6 +13,267 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The hero door: builds, a child's body, and the child guard on the resolved cast
+
+A design trial built one hero at 11 and at 16 through the hero door and found four gaps.
+
+- **A pole with a build.** `cast: { pole: 'female', build: 'brute' }` puts a figure-cast preset on a hero pole. The
+  preset's dials go over the pole's (lengths and spans multiply, the shoulder drop adds) and its radii are percentages of
+  the pole's (`HERO_BUILDS` in `hero-form.js`). A broad young woman keeps her girdles, her head and her silhouette;
+  before, she was a male preset or `tune.shoulders` past its range. A pole, a build or a key the door does not know is
+  refused by name.
+- **A child's body.** The `child` and `chibi` builds carry a child's radii: a chest about 0.7 of the adult's across, a
+  waist that tapers less, thin limbs, a larger head, and shoulders narrower for the height. Hip joints sit inside the adult
+  female's; the bare `child` preset sat 60 % wider than hers. The bare words `child` and `chibi` keep their old meaning
+  (the joints on adult radii), so rows minted with them render byte for byte as before. The build is the opt-in.
+- **`scale` on a worn head is refused.** The landmark and anime heads never read it; the refusal points at
+  `tune.stature`. The blank trunk and a baked include still honour it. A world's inline hero, re-recorded on every
+  render, tolerates it as before, so a stored world keeps rendering.
+- **The child guard reads the resolved cast.** A build, a list or a dial map that comes to `child` or `chibi` (by name,
+  or by its dials) is child-coded: it takes no bust at mint or on an edit, and a swimsuit puts it in the rash vest. This
+  moves one kind of stored row on purpose: a hero on a list or dial-map child cast that carried a bust or wore a
+  swimsuit bare-chested.
+  Every other hero form re-renders byte for byte (172 cast, head, dress and proportion combinations compared against HEAD).
+
+### City rails: a city planned first, tuned on rails, played as levels
+
+- **A city as a plan before a render.** `compose_world({ base: 'city', overrides: { plan } })` mints kind `city`
+  (`lib/graph/city/plan/`).
+  - The recipe is laid on a board of named cells ('C4', 'C4:H9', 'A5>P5') in layers, each reading only the
+    layers before it: main streets (`spine`), what each part is for (`districts`), ground reserved before
+    anything grows (`sites`), the street grid, the lots cut from each block's frontage, `transit`, and the walk.
+  - Anything off the card is refused by name (`readCityPlan`). What the recipe leaves out (play, board, a spine
+    clear of every site) is filled at mint and recorded in `notes.inferred`, and a seed is drawn and written when
+    none is given. A legacy city (no `plan`) is untouched.
+- **Each layer on its own dice.** The grid rolls per gap between fixed lines, the lots per block, the skin per
+  lattice square.
+  - A site moves only the streets its edges land on.
+  - A lot by hand (`lots: { <id>: { use, storeys } }`) changes that lot alone.
+  - Streets are named by where they run (`x340`), so nothing renames when a line is added elsewhere.
+- **Grammars read from the legacy metro city.** Every `CITY_FLAVORS` entry is a grammar in metres (block pitch,
+  right-of-way, lot cut, height field, tower rules, skin mix and its district lean, facade affectations),
+  derived from `METRO` and the flavour, never copied.
+  - `play: 'game' | 'real'`: game compresses what a walker covers (block pitch, right-of-way, lot depth, the
+    field's reach, the walk's rhythm) and never a storey, a frontage or a tower. It is timed at a player's run
+    (5 m/s), where real uses a person's walk (1.4 m/s).
+- **Walk laws.** Nine data rows (`CITY_LAWS`), advisory and waivable by `'<law>'` or `'<law>:<subject>'`:
+  - spine-first, reserved, fronts, connected;
+  - a crossing every so many metres;
+  - something to meet every so many metres (a shopfront, a place, a stop, a corner);
+  - transit reach, lines on streets;
+  - slender towers.
+
+  The plan builds a walk graph to judge them, with each lot's door on its street. A lot left behind the scrap a
+  diagonal cuts off goes green with it.
+- **One read model.** `readCity` feeds the mint's reply (census, every law, `next` by outcome: Layout, Walk,
+  Look, Play), the plan book at `/bible` (the plan sheet on its board, the laws, the lots by id, what is open),
+  and the walkable massing at `/world`.
+  - The `city-plan` card is generated from the same tables.
+  - The legacy `city` card now points to it.
+- **The reconstruction gate (machine).** On the legacy city's own census, every grammar lands within the legacy
+  city's seed spread: north-american, new-york, paris, tokyo.
+  - Measures: walk share, crossings, median and p90 height, lot frontage, skin mix.
+  - Block pitch is the loosest, about 120 m against 100–119 m, quantised by the board.
+  - Legacy `fractal-city` is frozen: its rows keep their bytes, and it retires once the metro view moves here.
+- **Facades.** Every lot wears a facade in the world (`city/plan/facades.js`), laid over the plan and never into
+  it: one stream per lot, so a facade or a grammar's look reworded moves no street, lot or storey.
+  - A lot's skin is the legacy metro city's (a material's family and shade, a stone rhythm, a roof).
+  - Its grammar's affectations go on through the legacy city's own `flavorFacade`, now exported and otherwise
+    unchanged.
+  - Then the grammar's `wear` (every lot), then the lot's own `facade` (`lots: { <id>: { facade } }`, the building
+    generator's descriptor, refused field by field).
+  - The plan's beats decide the shopfronts.
+  - The masses go to the legacy facade pipeline (`assembleBoxCityScene`) in city units (`metersPerUnit` 3.66), so
+    a Paris street here and there is one Paris street.
+  - `fidelity: 'massing'` keeps the plain massing.
+- **Grammars as documents.** `grammar: { from: <id>, …changes }` rewrites any field of the grammar it starts from;
+  objects merge, lists replace.
+  - It is held to `GRAMMAR_SCHEMA` and refused by name, and documents chain through `from`.
+  - New fields Earth grammars never use: `wear` (a facade every lot wears), `shapes` (box, setback, podium,
+    cylinder weights for a lot's mass), and `maglev` among the transit modes (an elevated guideway on pylons,
+    raised platforms).
+- **World grammars, written as documents over Earth ones:**
+  - `neon-sprawl` (cyberpunk, from tokyo): dark glass, neon blades and signs, slender towers, maglev.
+  - `xeno-garden` (alien, from mediterranean): ceramic skins, round masses, guideways.
+
+  Vehicles on the guideways are not in the vocabulary yet.
+- **Organic masses** (`city/plan/organic.js`): the shapes a box cannot stand as, built from facade-carded strips
+  so the windows follow the curve, as the legacy cylinder is.
+  - `undulate` (Casa Milà's register): street walls ripple inward in a slow wave, never past the lot line, so
+    party walls stay straight. The roofline swells and dips, and the roof is crowned with sculpted chimneys.
+  - `spindle` (a Sagrada Família spire's): a revolved tower that swells and tapers to a finial, its windows on
+    bands of floors. A grammar may raise its towers as spindles (`tower.spindle`), rolled only when it says so.
+  - Both are mass `shapes` a grammar weighs. The xeno garden now ripples and spires.
+- **A city in a world's look and paint.** The world-wide `look` channel now reaches the city.
+  - The city lights itself by the look's sun, or with none by a moon, its ambient never black, because its
+    facades are cards a bake cannot relight.
+  - The channel lays the look's air and sky. Two additive keys on `applyLook`, absent and byte-identical
+    elsewhere: `lookLit` (no "ignored the light" note) and `lookHaze` (the air thinned for a kind seen across a
+    kilometre).
+  - `paint: { geocube, amount }` lays a geocube's colours over the ground, water, parks and walks, and leans
+    every skin toward its stone, trim and accent. Without a look, the cube's own look lights it.
+  - The same city is the same streets, lots and facades in another place and hour.
+- **A city played as a map game.** `segments: true | { across, levels }` cuts the city along its spine and avenues
+  (`city/plan/segments.js`), dice-free.
+  - Pieces are sized to a level's span: game 180–360 m a side, real 300–600 m. The spine always cuts.
+  - Each pair of neighbours is joined by a portal on the most important street crossing their edge.
+  - A segment is played as a building on the rail is: `level: { segment }` is lowered on every read
+    (`city/plan/level.js`, registered with `structure/level.js registerLevelKind`). It gets a named reach-exit per
+    neighbour at its portal, arrivals from each neighbour's level clear of the way back, a first-person walker at
+    its middle crossing, and walls at every built mass and along its edges, open only at its portals. A segment
+    with no neighbours is played to its farthest crossing.
+  - A level is `{ kind: 'city', city: <ref>, level: { segment } }`. It reads its city by ref (`city/plan/ref.js`,
+    merged in world-scene and game-resolve), so an edit to the city moves every level.
+  - `segments.levels: true` mints a level per segment beside the city (`<ref>-<segment id>`). The mint returns
+    `game.create_game`: the map from the segment holding the core, each exit answered from the other side, a
+    progression slice.
+  - The book draws the segments and portals and lists them. `next` leads to `create_game`.
+  - A four-segment Paris passed `create_game`'s headless auto-audit: every level reached its exit.
+- **Two ways into a city's buildings** (`city/plan/doors.js`).
+  - `walk`: the ground storey is a lobby, part of the map. A glazed front with a door gap, a counter, a stair
+    rising to the ceiling, the facade standing on it from its ceiling up. The level walls the lobby, not the lot.
+  - `door`: a marked door (a lit surround, a canopy) whose zone on the walk changes the scene. The inside is a
+    level of its own, minted through the building door: an office for an office or a tower, a store or
+    restaurant for a shop, or the lot's own `inside`.
+  - Structure buildings now take `level: { door }` as stages do (`structure/level.js`): a door zone just inside
+    the entry, the walker arriving two strides past it, the goal room still the end. `create_game` links each
+    lot's door to its inside's `out`.
+  - Chosen by hand (`lots: { <id>: { enter, inside? } }`) or per segment (`segments.enter`, default two
+    walk-ins and one door with levels), nearest the segment's middle, dice-free.
+  - A four-segment Paris with its four insides (two stores, two restaurants) passed the headless auto-audit: all
+    eight levels completable.
+- **A city's game exports.** `export_game` ships a city's plan recipe once beside its segment levels, which read
+  it by ref, as a map's recipe ships beside its mode variants. A map game's level with nothing to pick (a street,
+  a door's inside) is entered straight from the level list, with no empty setup screen and no "start battle".
+  - Spot-checked in the browser: a four-segment Paris exported to a folder; the street played, a door led into
+    its café and `out` led back to the walk.
+- **The city at night** (`city/plan/night.js`). Under a look with no sun, a share of every wall's windows is lit
+  (the grammar's `night: { windows, shops, palette }`, leant by the lot's use), laid on the wall's own window grid
+  between the recessed glass and the mullions, in colours no light shades. A storey's lit rooms run together, a
+  shop's ground storey is lit along its front, and blade signs burn in their own colours. Each lot rolls its own
+  dice. By day nothing is added.
+  - Neon sprawl lights its rooms in screen colours; xeno garden lights them in bioluminescent ones, its organic
+    walls included.
+  - The city no longer takes the legacy moonlight pass on top of the look's moon, which double-lit its ground and
+    roofs. The moonlit ambient is lower, so a lit window reads against it.
+  - `bladeSignBoxes` tags a sign with its tint only for a box that asks (`neon`); the legacy city keeps its bytes.
+- **Traffic** (`city/plan/traffic.js`). The city's straight streets become car lanes: a lane each way on a road
+  wide enough, a one-way lane alternating street by street on a narrower one, on the grammar's side. Every place
+  two streets meet becomes a signalled junction as wide as its carriageways.
+  - The world path fills them through the legacy city's car bank and signalled traffic model (`attachCityCars`):
+    real-size cars, exclusive phases, no two cars touching.
+  - A segment's level drives only its own crop.
+  - `cars: false` empties the streets; a massing city has none.
+  - London and Tokyo grammars now drive on the left. The legacy flavours never recorded a side.
+  - A four-segment Paris with cars, and its four insides, passed the headless auto-audit: all eight levels
+    completable.
+- **A world bible's level can be a city** (`levels.<id>.city`, in place of `walk`). A planned city is built in its
+  civilization's language and painted by the level's geocube.
+  - **Played by its segments.** In a line of levels it is the route along the fewest portals from its way in
+    (`from`, the core's segment by default) to its way out (`to`, the farthest). Each segment opens only toward the
+    one before and after it, its walker starts at the portal it came in by, and the line's gates chain them. In a map
+    world every segment is a level joined to its neighbours at their portals, with the world's links at the way in
+    and way out.
+  - Segment levels take `level.route: { from?, to? }` and `level.ways: [{ id, to, at: 'start' | 'end' }]` for this.
+  - **A civilization at city scale** (`city/plan/civilization.js`). Its building language becomes a grammar
+    document: a hipped roof in its covering's colours where it caps with a gable or a hip, flat where it has no cap.
+    Arched, lensed or banded lights set the wall rhythm, and coursed walls bring brick. A shell language swells into
+    rippling masses and spires; a tiered one steps back as it rises. A level that names a grammar has the language
+    spoken over that grammar; a level that writes a grammar document keeps its own.
+  - Its buildings are walked into (lobbies) by default: a door's inside is not a level of a world bible yet.
+  - The world bible draws the city's plan sheet; the graph and the story binder know the new section.
+  - A city level made through `create_sketch` and promoted by `create_game` passed the headless auto-audit, in a
+    line and in a map.
+- **Landmarks on a city's sites** (`city/plan/landmarks.js`). A site names what stands on it, inside the site with
+  a forecourt round it, rolling no dice.
+  - `landmark: '<id>'` on a landmark site: one of the landmark library's (the Eiffel Tower, Big Ben, the
+    Colosseum…), at its real size from the legacy metro city's own tables (`LANDMARK_REAL`, now exported). One too big
+    for its site is scaled down to fit, and the new `landmark-fits` law says by how much.
+  - `building: 'church' | 'mosque' | 'temple' | 'rotunda'` on a civic site, `variant?`: the library's sacred and civic
+    builders (`refacade`), at their own heights.
+  - `from: '<ref>'`: an edifice of the operator's own (`mint_solid({ kind: 'edifice' })`), stood at its true scale.
+    It is read by ref wherever the city is resolved (`withCityRef` lays it in under `edifices`), so an edit to the
+    edifice moves the city. `compose_world` refuses a missing ref or one that is not an edifice, and `export_game`
+    ships the edifice's recipe beside the city's.
+  - A city's ground is laid first in its face list. A landmark's plinth at ground level had made the World's
+    coplanar lift (`decollideFaces`) raise the whole ground over the streets.
+  - The `city-plan` card lists the landmarks, buildings and variants; the `edifice` card says how to stand one in a
+    city.
+- **A city's green** (`city/plan/green.js`). Trees and shrubs are grown on the laid city as an interceptor, the way
+  the room stage grows its moss and the town its dress.
+  - Each kind finds its own sites:
+    - street trees about a metre in from the kerb of every walk wide enough, at the grammar's stride, kept off
+      carriageways and clear of crossings, doors, driveways, lobbies and stops;
+    - parks grown loose, thinning toward a lawn in the middle;
+    - a ring of trees round each plaza;
+    - courts in the green the lots leave behind.
+  - `green: 0…1 | { street, park, plaza, court }` sets how many sites each kind takes, over its grammar's own (`green`
+    in the grammar schema: defaults, stride, the least walk a tree stands in, and its species). Each street and site
+    rolls its own dice, counts are capped, and none of it collides.
+  - The trees are the vegetation library's species, grown once and stamped through the World's repeats, each at the
+    level of detail the cameras see it at, under one budget. Paris has beech and flowering cherry, Tokyo cherry and
+    pine, the Gulf date palms and schefflera, Southeast Asia coconut palms, and the xeno garden tree ferns and
+    stranglers. The default species are the quick growers; oak, banyan and washingtonia are named when wanted.
+  - Shrubs are the legacy plant box at the world's scale. The legacy street tree is not used: sized for the old,
+    smaller city, it reads as a stick among real storeys.
+  - The book's plan sheet draws a dot per plant; the readout counts each kind.
+  - The street camera stands in the near lane, so a tree-lined walk does not put a trunk in the frame.
+- **The green, finished out** (`city/plan/green.js`, `foliage.js`):
+  - Each street tree stands in its pit under a grate. A walk too narrow for a tree takes planters instead: a shrub in
+    a concrete box at the kerb.
+  - `median`: a planted central reservation down an avenue wide enough (the spine's and the major streets', 14 m of
+    carriageway or more). It is a raised lawn with kerbs and trees down its middle, broken short of every crossing
+    street. Paris and the Gulf plant most of theirs, Tokyo few.
+  - `season: 'spring' | 'summer' | 'autumn' | 'winter'`. Spring is as grown (the cherries in bloom). Summer turns the
+    blossom to leaf, autumn turns the deciduous crowns (beech, oak, cherry), winter leaves them bare. Evergreens keep
+    their leaves. A leaf is told from bark by its colour, so the vegetation pool's other readers keep their bytes.
+  - A paint leans every leaf toward its geocube's foliage.
+  - In a segment's level a street tree's trunk and a planter stop the walker. A shrub, a crown, a park's trees and a
+    median's do not: the walk graph and the audit run down the middle line. A level draws its trees under a lighter
+    budget (60k faces, at most L1), because at full detail the headless audit timed out.
+- **Traffic you can watch: signal heads, and cars that turn.** In place of the planned human-motivations layer
+  (P5), the operator chose a simpler demo.
+  - Every junction shows its signal heads, a post and lamp per axis at its corners, lit green, amber or red by the
+    phase the cars obey. One axis runs, a clearance holds every signal red, then the other axis runs.
+  - Cars turn: a share of the junctions a car passes (`cars: { turn: 0…1 }`, 0.35 by default), only onto the near
+    side (right in right-hand traffic, left in left-hand), so a turn crosses neither the oncoming lane nor the far
+    one. A car turns only on its own green, only into room (the lane under its capacity, no car within a footprint
+    and a gap), cutting the corner so its rear clears its old line at once. The page eases its heading round.
+  - `traffic-model.js` gains `laneTurns`, `armTurns`, `turnTick` and `stepTrafficTurning`. They are embedded beside
+    the model only when a lane carries turns, so the legacy city's pages keep their bytes; the channel's output for
+    a page without turns was compared byte for byte.
+  - Machine gate: two minutes of a Paris and a London city, every step. No two cars' footprints touched, about 130
+    turns each, every turn inside the box its old lane was green through, no lane over capacity, no car left
+    standing, and the same clock replays the same cars.
+- **People on the walks** (`city/plan/pedestrians.js`), to close the traffic demo's plausibility.
+  - `people: 0…1` (0.5 by default when the streets are driven). Most walk round their block on its sidewalk. Some
+    walk round two neighbouring blocks and cross the street between at both ends.
+  - At a signalled crossing a walker waits at the kerb until the street it crosses is red (its cars held) and the
+    street it walks along has green enough left to cross on.
+  - The walkers are the legacy city's clothed rigs (`attachCityWalkers` now passes a planned walker's pace, start and
+    holds through). A held walker is stepped from clock zero by `heldWalk` (`traffic-model.js`, embedded beside
+    `phaseAt`), so the page and the tests run one code and a replay is the same people.
+  - Walkers without holds keep their bytes; the channel's output was compared. A level keeps a dozen walkers in its
+    reach: with more, the headless audit timed out drawing their rigs. A four-segment Paris with people and turning
+    cars, and its insides, passed the audit: all eight levels completable.
+  - Machine gate: three minutes of a New York city. Every crossing was entered on its walker's green, walkers waited
+    at kerbs, nobody stood for good, and replay was deterministic.
+- **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
+  and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
+  The measured gap is at most 0.07.
+- Pins moved on purpose: `WALK_KINDS` gains `city`; the `compose_world` card count gains the generated
+  `city-plan` card.
+
+### Rig clips keep the palette
+
+- **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used
+  to colour each face of the packed rig figure by its part's `tint` alone. Every group coloured only by the recipe
+  `palette` (a detailed head's cranium and jaw, horns, pinned fur or scale tiles, belts and satchels) turned grey the
+  moment a clip played. `packLayeredRig` now takes the recipe `palette` and resolves a face as the static solid does:
+  its group's palette entry, else its part's tint, else neutral grey. Animals and bugs get the same fix. A recipe
+  with tinted parts and no palette packs byte for byte as before. Rigged recipes with a palette re-pin their figures
+  and exports, among them the dragon body and the landmark hero.
+
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
@@ -559,6 +820,207 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     ones held at start and the one picked up.
   - Item keys, and worlds without power keys, are unchanged.
   - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
+
+### Genre snipe: stealth, racing, rhythm and the car, from the parts already there
+
+- **Seven more genres on the map.** Stealth, time-trial racing, a rhythm runner, a roguelike, a farming life sim,
+  tower defence and a block-pushing puzzle are cosmos genre probes. A sourced registry setting can name `planned`
+  values its table does not hold yet, so the sweep counts the gap; the random sweep rolls them too.
+- **The bus decides on state.** A reaction may carry `if`, a watch predicate (`{ var, eq | gte | … }`, a count, an
+  entity field): it fires only while that holds. Absent, a reaction fires as before.
+- **The bus hears more.** A character with sight (`rule.mind.perception`) that newly sees its target says `seen`
+  (its id, and the target) through the cast's facts; a cue can wait on it. A guard's `scan` (radians) sweeps its gaze
+  at its post over `scanPeriod` seconds. A level's music can say its beat: `audio.beat` puts `{ type: 'beat', n }` on
+  the bus from the music's own clock, `lead` seconds early (a quarter, a dotted quarter in 6/8). A key input may be
+  `once` (a held key does not repeat).
+- **Four mechanics.** Each lowers to zones, vars, guarded reactions, sequences and watches:
+  - `unseen`: a sighting (or the `alarms`-th) ends the level in fail.
+  - `laps`: checkpoints passed in order, `laps` times, against the clock; its time is kept.
+  - `on-beat`: a press inside a beat's window is `beat:hit`, outside it `beat:miss`; `misses` can end it.
+  - `score`: points from bus events, shown and kept.
+- **A level keeps a number.** `game.keep` names the vars a level reports at its end (a time, a score), sent as
+  `stats.kept`; the level's end card shows them, and the play shell shows each beside the best this save has seen
+  (a low best counts only a cleared run).
+- **Quick games: race, sneak, rhythm, and the ride.** `goal: 'race'` runs the trail's beats as checkpoints to its end;
+  `goal: 'sneak'` stands `guards` (3) with sight on the trail's beats, sweeping, and a sighting ends it (the guard's
+  looks: `guard`, minted once); `goal: 'rhythm'` runs to a field score (`music`) and scores the beats hit. `ride: 'car'
+  | 'coupe' | 'van'` makes the hero a vehicle: the run mints its build (vehicle designer parts, seated by the garage)
+  and every stage drives it on the `drive` rule, its feel derived from the build. All web only.
+- **Cues decide.** A cue may carry `if` (a comparison on a var, or a list of them), read as it happens, and `else`
+  (the effects when one does not hold); `add: '<var>', by` counts a var up or down. A pad that builds for gold is a
+  cue: `use`, `if: { var: 'gold', gte: 5 }`, `then: [{ add: 'gold', by: -5 }, { spawn: 'tower-1' }]`.
+- **A sentry.** The mind's `sentry` motivation never moves: it turns to the nearest live, hittable body on the team
+  `rule.foes` inside `range` and fires its weapon.
+- **Waves and boulders.** `waves`: foes minted asleep wake in waves and walk a path to the base; one through costs a
+  life, one felled pays a bounty into a purse; all accounted for wins, no lives loses. `push`: a grid with boulders
+  and plates, a boulder pushed a cell when walked into from a side (else the walker is put back), every plate held
+  wins; all on the bus, a cell's height from the land.
+- **Quick games: defend and puzzle.** `goal: 'defend'` sends `waves` of foes down the trail to its start and stands a
+  sleeping archer's tower on each of `pads` beside it, built with E for gold. `goal: 'puzzle'` lays a 5 × 5 grid on
+  level land by the trail with `boulders` (2), each two pushes from its plate.
+- **A level played in Node.** `game/level-sim.js` steps a level's world and bus together as the page does, without
+  rendering, so a law can play a defence or a puzzle through.
+- **The world dial: a clock.** The `clock` mechanic puts the time of day on the bus (`minute`, `hour`, `day`, `dawn`,
+  `dusk`, and a `season` every few days). A level with one has a sky that turns with it: night darkens the light and
+  the air from 20:00 to 05:00, with two hours of dusk and dawn, and a season's turn swaps the weather's climate. A level
+  that names no weather takes clear air.
+- **Routines and crops.** `play.routines` walks each character to its place hour by hour on the clock (the cosmos's
+  schedule). The `crops` mechanic gives plots to plant for gold, a stage grown each dawn, a harvest that pays.
+- **Quick games: farm.** `goal: 'farm'` tills `plots` (6) on level land beside the trail, starts the clock at dawn, and
+  sets `target` gold (40) to make by day `days` (6); `folk` farmhands (2) walk out to the field at seven and home at six.
+- **The pixel look.** A world's `pixel` (true, or 2 to 8; a gameworld's `style.pixel` puts it on every level) draws the
+  page at that fraction of its size and blows it up without smoothing. Absent, the page is as it was.
+- **Fixed cameras.** The `fixed` camera rule stands at one of its stations, the one whose focus is nearest the target,
+  and cuts (never pans) when another is nearer by its `hold`; its look leans toward the target. A gameworld's
+  `camera: 'fixed'` lays a station over each place of the way, high off its side (needs a hero).
+- **Runs.** A game's `run: { length }` (the light shell) makes its levels a pool: each run draws `length` of them in an
+  order rolled from the run's number, a clear goes straight on, a death ends the run, the store carries over, and the
+  title keeps the deepest run. `create_game` takes it; a quick game's `run: n` lays a pool of n + 2 trails, each its
+  own seed.
+- **Aftermath.** The `aftermath` mechanic keeps each block that breaks as a flag (`broke:<id>`) in a flags slice the game
+  carries, and a level entered again takes those blocks away at the start, with no shatter. A game's emitted store event
+  may name itself (`key: '{event}'`). A gameworld whose `mechanics.destruction` lets things break gives every level this.
+- **Turn-based battles.** `play.battle` composes a fight from what the play block has: walking up to a foe opens its
+  battle (a talk menu with its hp and yours: Attack, Guard, Flee; the world held while it is up), a pick is the hero's
+  turn, the foe answers a beat later (a cue on the pick's end), and at no hp it falls. `goal: 'battle'` stands `foes`
+  (3) on the trail, tougher as they go, the hero's hp carried from fight to fight.
+- **The shooter.** `goal: 'shoot'` puts armed foes on the trail's beats, each just past the end of a wall taller than a
+  person (its cover a sidestep away) with a crate stack on its other side, and walls half way between for the player. The player plays first person (or third) with a
+  rifle (click to fire), a magazine and spare rounds, and can be hit. Ammo and health lie between the posts. A hit costs
+  the player hp (`fail-on-death`'s `hits`), and the level is won when every foe is down (`defeat-all`'s `who` counts the
+  cast's own falls). It is built from parts any world can use:
+  - **Cover.** A mind with `rule.cover` that is hurt or reloading breaks for the nearest spot the walls hide from its
+    foe: eye, head and both flanks. Once whole and loaded it comes back out after the foe; a hit tells it where the
+    fire came from.
+  - **Shots land where they hit.** A shot at a body with a hit volume is checked against the walls up to where it
+    enters the body, so a head over a wall can be hit and the legs behind it cannot (before, the line ran to the
+    feet).
+  - **Ammo runs out.** A weapon's `reserve` is the spare rounds a reload draws on; with none left the weapon is dry. The
+    cast's `rearm` op (and the cue effect `rearm`) adds rounds.
+  - **Supplies.** The `supplies` mechanic: health or ammo pickups, each taken once, drawn as a heart or an orb.
+  - **Blocks.** A level's `blocks` stands playscape terrain forms (walls, crates, pillars) solid and drawn, so a stage
+    can carry cover.
+  - **Paths round corners.** A walker pressed against a wall steps out to open ground before walking its path, and a
+    rule's `navCell` sets a finer path grid.
+  - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
+    makeable on the web; seventh-generation rendering is a separate rung.
+
+### Kart racer: a loop, rival drivers and a place to finish in
+
+- **A loop.** The cosmos cube's `space.levelForm` has `circuit`, and its concern `loop` lays one: an oval on the first
+  trail's land, the land flattened under it and the walk's heartbeat laid flat, a low wall down its middle, its start
+  the finish (`gameworld/lay-concerns.js` `loopSite`). Nothing grows on the track: the stage reserves it as it does a
+  building's ground (`_keepOut`), and its trail is laid without a landmark, pit or stream. Its laws: the line on the
+  land (its walk included), no steeper than 1 in 4, nothing standing on it (boxes or rock), the finish at the start.
+  Every trail kit holds them on the seeds swept.
+  - A stage whose reserved ground took the sakura's hero tree lays without that camera instead of failing.
+- **Rival drivers.** The `racer` rule is the drive rule with its stick moved by the road: it aims a few points along a
+  line, a lane off it, brakes into sharp bends at speed, and backs off when stuck. A rival drives the player's own car.
+- **A place.** `laps` takes `rivals` and `win`: each rival's passes counted on the bus by its own zones, a lead per
+  rival moving the place at every pass (a tie to whoever passed first), `Place n / N` on the HUD, the finish
+  `race:won` or `race:lost`, the best place kept beside the best time.
+- **The quick path.** `race` takes `track: 'trail' | 'loop'`, `laps` and `rivals` (with a ride). Rivals race round a
+  loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
+  new `kart-racer` genre.
+
+### Menus: inventory, and the actions on what you hold
+
+- **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never
+  overdraws; every inventory menu is a view of a holder whose rows carry a verb (`playscape/ui/items.js`).
+  - A holder's counts are bus vars, `held:<holder>:<item>`: the bag, a chest's, or a counted shop's. A cue's `if`, a
+    menu's `{var}` and the HUD read the same numbers.
+  - `play.items` names items (`name`, `form`, `kind`, `about`, `use` effects, `value`). Any word is still an item,
+    with its name and glyph derived.
+- **The views.** `shop`, `chest` and the new `inventory` kind draw live rows: a row whose holder holds none is not
+  drawn, and the one in focus shows its words and its verb. Accept does the verb and the menu stays up:
+  - `buy` pays the price from the currency var, the item's value when the stock names none; a stock row's `count`
+    makes it run out.
+  - `take` moves one from the chest into the bag.
+  - `use` spends one and does the item's effects.
+  - A guard that fails says why in a toast (not enough gold, none left) and emits `denied:<item>`. Before, a shop's
+    buy and a chest's take only closed the menu.
+- **Cue effects** `give` (items into the bag) and `use`.
+- **Collecting counts.** A collect's pickups count into the bag on the bus and show on the HUD by name. The web now
+  shows what is carried, as Godot already did.
+- **The world freezes.** While a menu or the quest journal is up, the world and the bus's clock stand still, and
+  timers and walks wait. A scene still only holds input, because its cast walks on.
+- A quick collect game has a bag on I.
+- **The bag carried, level to level.** The `bag` mechanic (`{ kind: 'bag', slice? }`) consumes an inventory slice
+  and declares its grants and consumes (`game.bag: { slice }`).
+  - At the start the page fills the bag from the slice.
+  - Every item into or out of the bag (a buy, a take, a give, a use) is said on the bus, and the game channel sends each
+    one as a store `grant` / `consume`, so the next level starts with what this one ended with.
+  - A quick collect game carries its bag; in a run, the coins of one stretch are in the bag of the next.
+  - Two mechanics producing the same event into the same slice now declare it once (unbounded when either is). Before,
+    a collect and the bag into one inventory failed the game's verification gate.
+- **Equipment.** An item may be worn: `equip: { slot, on?, off? }` (`kind: 'equipment'`).
+  - Equipping moves it from the bag to the `worn` holder and does its `on` effects (`add atk 2`). Whatever wore that
+    slot goes back to the bag first, with its `off` effects.
+  - The bag's view lists what is worn first, with its slot, to unequip, and equipment in the bag to equip. Cue effects
+    `equip` / `unequip` do the same.
+- **What is worn and what chests hold, carried.** The bag mechanic takes `worn: '<inventory slice>'` and
+  `holders: '<flags slice>'`.
+  - Worn items go to their own slice. As a level starts they are worn again and their `on` effects done again.
+  - Each chest's and counted shop's holdings are kept as a flag `<levelRef>|<holder>:<item>` = what it holds now, so a
+    chest emptied stays empty when the level is entered again.
+  - Every holder a move touches says `in:<holder>:<item>:<n>` / `out:…` (this was `bag:in` / `bag:out`).
+- **A view layer for items.** `shop`, `chest` and `inventory` draw a grid by default (`layout: 'list'` keeps rows;
+  `cols` 3 to 8):
+  - tabs by the kinds held (All, Use, Gear, Keys, Things), cycled with `[` / `]`, the pad's shoulders, or a click;
+  - what is worn first, a strip of slots, to unequip;
+  - tiles with an icon and a quantity badge (a shop's: its price), empty cells keeping the bag's shape;
+  - the focused item's card: a large icon, its name, kind and count, its words, the keys for its verb.
+
+  Arrows move the focus in two dimensions. The pointer focuses a tile on hover and does its verb on a click of the
+  focused one. `viewLive` is the one source of the focus order for the drawing and the keys. Icons
+  (`playscape/ui/item-icons.js`) are flat SVG placeholders in `currentColor`: `play.items[…].icon`, else guessed from
+  the item's words, else its glyph form. Every size and colour is a CSS token (`--moj-tile`, `--moj-kind-<kind>`…)
+  over the UI guide's own, so a guide restyles it.
+- **A list menu drew as an item view** (the status page on I showed nameless rows) since items arrived: a `list` has
+  rows too. Fixed, with a law.
+- **The result screen** lists each item's net change a slice (a sword taken and worn is "+1 sword · gear"), a flag by
+  its own name (it said "flag set" for every flag: it read `ev.flag`, the store's field is `key`), and keeps the
+  world's memory (a chest's count, a broken block) quiet.
+
+### Game intent: the cube as a gameworld's design contract
+
+- **Concerns keyed by cube value.** A gameworld can say what game it is (`intent: { cube, from? }`); each value of
+  its cube says what it asks of the world, lays it in the level before any goal reads it, and checks it. A genre is
+  a preset cube (the cosmos probes), never a lock: a world's concerns are the union over its cube's values.
+- **Saying it.** `intent: { from?: '<genre>', cube?, why? }` on a gameworld (`gameworld/intent.js`). `from` starts
+  from a genre's cube and `cube` overrides it value by value. A world that writes no intent is read from what it
+  already says (its quick goal's genre, its camera, topology, ride, runs, pixel look). `suggestGenres(text)` reads a
+  brief's words and names the genres they point at. It is a word heuristic, it only suggests and refuses nothing, and
+  the agent reading the brief makes the choice.
+- **Seeing it.** `design_game`'s readout carries `intent` (genre, verdict, the concerns raised and whether each is laid
+  or checked yet, and the brief's suggestions while none is written), and a world without one gets the next step
+  `intent`. A written intent is the book's first review part. The bible shows "What game it is", with each concern's
+  words. The `gameworld-intent` card lists the genres and concerns, and the guide's loop starts at it.
+- **What it asks** (`gameworld/concerns.js`): one row per concern, each raised by the values it names, with words for
+  the creator. Every genre probe raises at least one.
+- **Laid by the world** (`gameworld/lay-concerns.js`), at two layers:
+  - **The ground**, in `resolveLevel`, so the bible, the survey and the run all see the same land. A field is flattened
+    beside the start, on the walk's open side (`fields`: crops or growth). A vehicle's ground is eased
+    (`drivable`). Intent edits are named `intent-<concern>` and go after the creator's; intent dials go under the
+    level's own `tune`.
+  - **The stage**, in `stageLevelOrder`, before any goal reads it. The farm's plots go on that field. A race's
+    checkpoints are spaced (`circuit`: none nearer the last than 12 m). Cover stands by the fighting posts, the goal's
+    own or else the trail's beats (`cover`: any ranged world, not only the shooter).
+  - **Stealth** (`watchers`: minds with sight, or `unseen`): a wall on each watcher's approach, 8 m out and off the
+    line, with a place behind it out of the watcher's sight where a sneak can wait for the sweep. A shooter's foes
+    see too, so their approaches get one as well.
+  - **The defence's road** (`road-to-base`): the tower pads stand 4 to 6 m beside the road where the land is level with
+    it (the other side when this one will not do).
+  - **The puzzle board** (`board`): its ground is flattened further on (rows 5 to 7, three cells across), and the grid
+    is laid on it.
+  - **Jump reach** (`reachable`): with a hero that jumps (the platform rule), every other pickup stands on crate steps,
+    each rise three quarters of the jump, and is collected by height (`collect`'s pickups take `planar: false`).
+    A walker that cannot jump gets none.
+  - The quick farm, race, shooter, sneak, defence, puzzle and collect now read these instead of placing their own.
+- **Checked.** Each laid concern has a law measured on the laid stage: cover by every post, checkpoints spaced, plots
+  level, a drivable grade, a blind spot on every watcher's approach, a road long enough with its pads beside it and
+  level, a level board, every raised pickup within a jump. A law that does not hold is listed under the level's `advises` in the run. It advises and
+  never refuses.
 
 ### Scene layer: a shot that takes the camera, and two characters talking
 

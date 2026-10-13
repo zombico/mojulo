@@ -42,7 +42,7 @@ import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscap
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
-export async function mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -62,7 +62,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     }
   }
 
-  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}) };
+  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -136,9 +136,9 @@ export async function createGameHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, links, menu, music, theme, setup, difficulty, shell, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   try {
-    return await mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    return await mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
   } catch (err) {
     if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the store-schema manuals.
@@ -275,6 +275,7 @@ export function registerGameTools() {
           description: "Optional pre-battle difficulty pick: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] }. ids are engine ai-tuning tiers ('max' = the untuned brain); name/sub are the game's own display voice. The shell renders the pick on the map step of piloted setups (a hangar pick present) and passes the picked id to the level as params.difficulty; spectate setups never show it.",
         },
         shell: { type: 'string', enum: ['play'], description: 'The light shell: no menu, music, setup, difficulty.' },
+        run: { type: 'object', description: 'Runs (light shell): { length }: each run draws that many levels in a rolled order; a death ends it.' },
         ref: { type: 'string', description: 'Optional stable sketch ref for the game.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
         project_ref: { type: 'string', description: 'Optional game-project ref (gp_… from create_game_project): binds the minted game as that project\'s ACTIVE rules member, so it appears in the /games/<ref> studio and its arcade cabinet carries the project chip. Levels/music are not copied — they surface as implied members.' },

@@ -36,6 +36,7 @@ import { mintMathStructure } from '@/lib/mcp/tools/scene-math-structure';
 import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
 import { mintDungeon } from '@/lib/mcp/tools/scene-dungeon';
 import { mintTerrainWorld } from '@/lib/mcp/tools/terrain-world';
+import { mintCityPlan } from '@/lib/mcp/tools/city-plan';
 
 // Identity adapter: theme slots pass straight through as mint params. Each
 // mint destructures only its own knobs, so a theme pack's abstract slots
@@ -59,6 +60,10 @@ const BASES = {
   dungeon: { mint: mintDungeon, adapt: identityAdapter },
   terrain: { mint: mintTerrainWorld, adapt: identityAdapter },
 };
+
+// A city with a `plan` is the city on rails (city/plan/, kind 'city'): the plan is its whole recipe, so the theme's slots
+// do not lower onto it (a grammar is the plan's own word for how a city is built). The legacy knobs stay the base's.
+const CITY_PLAN_BASE = { mint: ({ plan, seed, title, ref, folderRef }) => mintCityPlan({ plan, seed, title, ref, folderRef }), adapt: identityAdapter };
 
 // Retired per-type creators → { base, handler }. Each old name still resolves
 // in tools/call (listed:false) via its ORIGINAL handler — same input contract,
@@ -87,7 +92,7 @@ function deepMerge(base, over) {
 }
 
 export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, overrides, title, ref, folder_ref: folderRef } = {}) {
-  const b = BASES[base];
+  const b = base === 'city' && overrides && overrides.plan !== undefined ? CITY_PLAN_BASE : BASES[base];
   if (!b) {
     throw new Error(
       `compose_world: unknown base '${base}'. Known: ${Object.keys(BASES).join(', ')}. ` +
@@ -177,7 +182,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
   // consumes structurally. Advisory only: some bases legitimately lower a key into
   // another shape (mode → kind, gates → mezzanine), so this is a nudge toward the
   // parameter manual, never a refusal.
-  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather']);
+  const STRUCTURAL_KEYS = new Set(['mode', 'building', 'layout', 'theme', 'title', 'ref', 'folder_ref', 'gates', 'line_b', 'explode', 'audio', 'fire', 'weather', 'plan']);
   // A theme adapter LOWERS its slot objects ({ context, asset, material, style } for 'city') onto
   // the recipe's top level — `context.depth` is stored as `depth`, `asset.monument` as
   // `landmark` — so a flat "is the key in the recipe" check flagged `context` on every themed

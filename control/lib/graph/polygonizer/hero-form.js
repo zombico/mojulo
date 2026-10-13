@@ -29,7 +29,7 @@ import { heroFoot } from './hero-foot.js';
 import { CLAVICLE_IN } from './figure-vajra.js';
 import { mirrorPid } from './station-loft.js';
 import { settle } from './station-loft-body.js';
-import { castArmature, resolveCast, validateCast } from './figure-cast.js';
+import { castArmature, resolveCast, validateCast, composeCast, CAST_PRESETS } from './figure-cast.js';
 import { ratioControls } from './ratio-controls.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
@@ -255,8 +255,58 @@ export const HEROBOT_CASTS = Object.freeze({ female: animeCast(HERO_CASTS.female
 /** the proportion words: the realistic casts, the anime casts, the hero robot's */
 export const PROPORTION_WORDS = Object.freeze(['hero', 'anime', 'herobot']);
 const PROPORTION_CASTS = { anime: ANIME_CASTS, herobot: HEROBOT_CASTS };
-/** the cast a word names under a proportion: the anime or herobot cast when asked for and there is one, else the hero cast */
-export const castOf = (cast, proportions = 'hero') => (typeof cast === 'string' ? PROPORTION_CASTS[proportions]?.[cast] || HERO_CASTS[cast] : null);
+/** THE BUILDS (`cast: { pole, build }`): a figure-cast preset worn by a hero pole. The preset's dials go over the pole's
+ * (figure-cast.js composeCast: lengths and spans multiply, the shoulder drop adds), and its `body` here multiplies the
+ * pole's radii, so a female brute keeps her own girdles, torso, pelvis and head and is broader by the brute's
+ * percentages. `headScale` and `scale` multiply the pole's; a build's own `dials` go over the preset's (the hero's shoulder
+ * ring carries the arm's radius out past the joint, so the child's shoulders sit narrower here than the SVG figure's). The bare preset word (`cast: 'child'`) keeps its old
+ * meaning, the adult radii on the canonical girdles, so rows minted with it do not move; the build is the opt-in.
+ * `child` marks a child-coded build: no bust, ever (layered.js childCoding reads it).
+ * Child radii: an 11-year-old's chest is about 0.7 of an adult man's across (≈ 31 cm against 44), the waist tapers less
+ * (the trunk reads tubular), the limbs are thin for their length; the head is the dominant cue (figure-cast's note:
+ * headScale ≈ 1.18). */
+export const HERO_BUILDS = deepFreeze({
+  canonical: { body: {} },
+  heroic: { body: { chest: 1.08, chestDepth: 1.06, waist: 0.95, arm: 1.08, neck: 1.05, thigh: 1.04 }, headScale: 0.92 },
+  brute: { body: { chest: 1.22, chestDepth: 1.2, waist: 1.18, hip: 1.08, arm: 1.3, thigh: 1.18, calf: 1.18, neck: 1.3 } },
+  lithe: { body: { chest: 0.94, chestDepth: 0.94, waist: 0.92, hip: 0.95, arm: 0.9, thigh: 0.9, calf: 0.9, neck: 0.94 } },
+  stout: { body: { chest: 1.1, chestDepth: 1.15, waist: 1.18, hip: 1.12, arm: 1.15, thigh: 1.15, calf: 1.12, neck: 1.12 } },
+  child: { child: true, dials: { shoulderSpan: 0.9 }, body: { chest: 0.7, chestDepth: 0.74, waist: 0.82, hip: 0.76, arm: 0.68, thigh: 0.72, calf: 0.7, neck: 0.7 }, headScale: 1.18 },
+  chibi: { child: true, body: { chest: 0.62, chestDepth: 0.68, waist: 0.74, hip: 0.7, arm: 0.6, thigh: 0.66, calf: 0.62, neck: 0.6 }, headScale: 1.3 },
+});
+export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
+/** a cast in the build form: an object naming `pole` or `build` (a figure-cast dial map has neither key) */
+export const isBuiltCast = (cast) => !!cast && typeof cast === 'object' && !Array.isArray(cast) && ('pole' in cast || 'build' in cast);
+/** the hero pole a cast stands on: the word itself, the build form's `pole` (male unless named), else the cast as given */
+export const castPole = (cast) => (isBuiltCast(cast) ? cast.pole ?? 'male' : cast);
+/** a cast in words (a title, a frame note): the word, `pole·build`, or 'dials' */
+export const castLabel = (cast) => (typeof cast === 'string' ? cast : isBuiltCast(cast) ? `${castPole(cast)}·${cast.build ?? 'canonical'}` : 'dials');
+/** Error strings for the build form (empty = valid; any other cast is figure-cast's validateCast's) */
+export function validateBuiltCast(cast, label = 'cast') {
+  const errs = [];
+  for (const k of Object.keys(cast)) if (k !== 'pole' && k !== 'build') errs.push(`${label}.${k}: the build form takes { pole, build } (a dial belongs in tune, or in a figure-cast dial map without pole / build)`);
+  if (cast.pole !== undefined && !Object.hasOwn(HERO_CASTS, cast.pole)) errs.push(`${label}.pole: one of ${Object.keys(HERO_CASTS).join(', ')}`);
+  if (cast.build !== undefined && !Object.hasOwn(HERO_BUILDS, cast.build)) errs.push(`${label}.build: one of ${HERO_BUILD_NAMES.join(', ')}`);
+  return errs;
+}
+/** the pole's cast with a build over it (HERO_BUILDS); the pole's own fields (silhouette, extremities, a neck suit …) stand */
+function builtCast(pole, word) {
+  const B = HERO_BUILDS[word];
+  const { from: _f, ...dials } = composeCast(composeCast(pole.dials, CAST_PRESETS[word].dials), B.dials ?? {});
+  const base = { ...BODY_DEFAULTS, ...pole.body };
+  const body = Object.fromEntries(Object.entries(base).filter(([, v]) => v !== null).map(([k, v]) => [k, B.body[k] !== undefined ? r6(v * B.body[k]) : v]));
+  if (B.body.hip !== undefined && base.hipDepth != null) body.hipDepth = r6(base.hipDepth * B.body.hip);   // the hip's profile follows its width
+  if (B.child) body.bust = 0;
+  return { ...pole, dials: Object.fromEntries(Object.entries(dials).map(([k, v]) => [k, r6(v)])), body, headScale: r6((pole.headScale ?? 1) * (B.headScale ?? 1)), scale: r6((pole.scale ?? 1) * (B.scale ?? 1)), build: word, ...(B.child ? { child: true } : {}) };
+}
+/** the cast a word names under a proportion: the anime or herobot cast when asked for and there is one, else the hero cast;
+ * the build form (`{ pole, build }`) is that pole's cast with the build over it; a dial map or a list has none (null) */
+export const castOf = (cast, proportions = 'hero') => {
+  if (typeof cast === 'string') return PROPORTION_CASTS[proportions]?.[cast] || HERO_CASTS[cast];
+  if (!isBuiltCast(cast) || validateBuiltCast(cast).length) return null;
+  const pole = castOf(castPole(cast), proportions);
+  return { ...builtCast(pole, cast.build ?? 'canonical'), pole: castPole(cast) };
+};
 
 /** THE NECK ROOT on the structured core: the neck rises out of the chest. `notch` the sternal notch under the neck hub
  * (m: the top ring's front; the canon's T2 against C7, about 2.5 cm), falling off round the ring by `cos^fall` of the
@@ -354,7 +404,8 @@ const R = (v) => (Array.isArray(v) ? v.map(r6) : r6(v));
 
 /**
  * @param {object} opts
- *   cast       a HERO_CASTS word (male / female), a figure-cast preset name or a dial map (default 'canonical')
+ *   cast       a HERO_CASTS word (male / female), a figure-cast preset name or a dial map (default 'canonical'), or the
+ *              build form { pole, build }: a hero pole wearing a figure-cast preset with its radii (HERO_BUILDS)
  *   register   a REGISTERS key or { slots, limbSlots, e } (default 'round')
  *   girth      multiplies every ring radius (default 1)
  *   headScale  multiplies the head trunk's radii and its spread about the atlas (default 1; a chibi wants ≥ 1.3)
@@ -382,6 +433,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   if (!PROPORTION_WORDS.includes(proportions)) throw new Error(`hero.plan: unknown proportions '${proportions}' (have ${PROPORTION_WORDS.join(', ')})`);
   const preset = castOf(cast, proportions);
   if (typeof cast === 'string' && !preset) { const errs = validateCast(cast, 'cast'); if (errs.length) throw new Error(`hero.plan: ${errs[0]} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')})`); }
+  if (isBuiltCast(cast) && !preset) throw new Error(`hero.plan: ${validateBuiltCast(cast).join('; ')}`);
   const tuneErrors = validateTune(tune); if (tuneErrors.length) throw new Error(`hero.plan: ${tuneErrors.join('; ')}`);
   const TN = resolveTune(tune);
   // the tune's lengths and shoulders multiply the cast's own dials (a unit ratio leaves the dial exactly as cast)
@@ -564,7 +616,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // round rings and the underside reads as a W. Rings in the torso's family; the torso bone carries them.
   // The structured core gives the adult female cast a bust unless her body names one (BUST_FORM.size of the chest; the
   // door says 0 for a child-coded figure), and re-cuts the mounds on its chest ring: see below.
-  if (structured && femaleMass && body.bust === undefined) b.bust = r6(BUST_FORM.size * b.chest);
+  if (structured && femaleMass && !preset?.child && body.bust === undefined) b.bust = r6(BUST_FORM.size * b.chest);
   const zc = zn + 0.55 * T, yFront = 0.006 + g(b.chestDepth), xb = 0.42 * g(b.chest), rb = g(b.bust);
   const bustJoints = {};
   const bust = structured ? chestLayers() : rb > 0 ? [{ name: 'bustR', kind: 'loft', slots: reg.slots, stations: [
@@ -880,7 +932,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
 
   return scalePlan({
     schema: PLAN_SCHEMA,
-    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${typeof cast === 'string' ? cast : 'dials'}${preset?.proportions && preset.proportions !== 'hero' ? `, ${preset.proportions} proportions` : ''}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
+    frame: { up: '+z', front: '+y', note: `1 unit = 1 m; a human on the vajra rest skeleton (cast ${castLabel(cast)}${preset?.proportions && preset.proportions !== 'hero' ? `, ${preset.proportions} proportions` : ''}${S !== 1 ? `, ×${S}` : ''}${HS !== 1 ? `, head ×${HS}` : ''}${tuned(TN)}), soles on z = 0, facing +y` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right limb authored, left limb mirrored in x with R ↔ L renamed on the part and the slot' },
     style: { slots: reg.slots, limbSlots: reg.limbSlots, e: reg.e },
     joints, segments, include, dials, palette: { ...(preset?.glove && structured ? { Glove: GLOVE_WHITE } : {}), ...(structured && bare && palette.Skin && !palette.Navel ? { ...palette, Navel: darken(palette.Skin, CHEST_FORM.navel.tone) } : palette) }, rig, clips,

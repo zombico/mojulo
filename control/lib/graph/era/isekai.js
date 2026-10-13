@@ -422,9 +422,10 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   const y0 = 2.5, x0 = site.trailX(y0), y1 = Fr.look, x1 = site.trailX(y1), eye = [x0, y0, site.ground(x0, y0) + 1.7];
   const ly = Fr.top.y, lx = site.cliffX(ly) - 1.6, lip = [lx, ly, site.ground(lx, ly) + 1.7];
   const sky = st.palette.sky, Fh = Fr.hero, heroCam = [];
-  if (Fh && sak) {
-    // the HERO frame: from the trail short of the hero, up into its crown
-    const t = trees.filter((q) => q.hero)[Fh.tree], hy = t.y - Fh.back, hx = site.trailX(hy), at = [hx, hy, site.ground(hx, hy) + Fh.eye];
+  // the HERO frame: from the trail short of the hero, up into its crown (none when reserved ground took the tree)
+  const ht = Fh && sak ? trees.filter((q) => q.hero)[Fh.tree] : null;
+  if (ht) {
+    const t = ht, hy = t.y - Fh.back, hx = site.trailX(hy), at = [hx, hy, site.ground(hx, hy) + Fh.eye];
     heroCam.push({ name: 'hero', worldFraming: { cameraPosition: at.map(r5), lookAt: [t.crownAt[0], t.crownAt[1], t.crownAt[2] - 0.2 * t.crownR].map(r5), horizontalFov: Fh.fov, pictureCenter: [560, 390] } });
   }
   const payload = {

@@ -17,6 +17,8 @@ import { validateLevelContract, normalizeLevelContract } from './level-contract.
 import { synthesizeLevel } from './level-synth.js';
 import { isBeatsKind } from '../beats/beats-manifest.js';
 import { asksLevel, withBuildingLevel } from '../structure/level.js';
+import { withCityRef } from '../city/plan/ref.js';
+import '../city/plan/level.js';   // registers the city's level lowering
 
 // The generated default about/credits page (menu.attribution; see game-manifest.js).
 // Plain data in the same shape an operator would author — nothing special downstream.
@@ -73,8 +75,13 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     // a building or room stage that asks to be a level (`level: { goal }`, structure/level.js) carries its game
     // channel only once lowered: lowered here, so the mint, the /game route and the export read the same level
     let sketch = row;
-    if (asksLevel(row.manifest)) {
-      try { sketch = { ...row, manifest: withBuildingLevel(row.manifest, row.ref ?? lv.ref) }; }
+    // a city segment's level reads its city by ref (city/plan/ref.js), merged before it is lowered
+    if (row.manifest.kind === 'city' && (typeof row.manifest.city === 'string' || (row.manifest.sites || []).some((x) => x && typeof x.from === 'string'))) {
+      try { sketch = { ...row, manifest: withCityRef(row.manifest, (r) => getSketch(r)?.manifest) }; }
+      catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
+    }
+    if (asksLevel(sketch.manifest)) {
+      try { sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, row.ref ?? lv.ref) }; }
       catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
     }
     if (!sketch.manifest.game || typeof sketch.manifest.game !== 'object') {

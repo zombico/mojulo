@@ -256,3 +256,31 @@ describe('a gameworld\'s side camera, lowered', () => {
     expect(() => stageLevelOrder(F, gameStages(flat)[0], { ref: 'x', heroRef: null })).toThrow(/side camera watches a hero/);
   }, 60_000);
 });
+
+describe('the fixed camera', () => {
+  const world = (x) => createWorld({
+    entities: [{ id: 'hero', pilotable: true, rule: { type: 'walk', speed: 0 }, body: { type: 'none' }, transform: { pos: [x, 0, 0], heading: 0 } }],
+    camera: { rule: 'fixed', target: 'hero', stations: [{ at: [0, -8, 5], focus: [0, 0, 0] }, { at: [20, 8, 5], focus: [20, 0, 0] }] },
+  });
+  const cam = (w) => w.entities.find((e) => e.isCamera);
+  it('stands at the station whose focus is nearest, and cuts (never pans) when another is nearer by its hold', () => {
+    const w = world(4);
+    stepWorld(w, {}, 1 / 30);
+    expect(cam(w).transform.pos).toEqual([0, -8, 5]);
+    w.byId.hero.transform.pos = [10.5, 0, 0];   // just past the middle: inside the hold, the shot stays
+    stepWorld(w, {}, 1 / 30);
+    expect(cam(w)._fixedAt).toBe(0);
+    w.byId.hero.transform.pos = [13, 0, 0];
+    stepWorld(w, {}, 1 / 30);
+    expect(cam(w).transform.pos).toEqual([20, 8, 5]);
+    expect(cam(w).lookAt[0]).toBeGreaterThan(13);   // leaning from its focus toward the hero
+  });
+  it('a quick game played on fixed cameras lays one over each place of the way', () => {
+    const W = quickWorld({ id: 'dread', quick: { goal: 'reach', camera: 'fixed' }, style: { kit: 'trail-valley' } }), G = readGameworld(W), [stage] = gameStages(W);
+    const L = stageLevelOrder(G, stage, { ref: 'x', heroRef: 'h', goal: (ends) => goalMechanics(W.quick, ends) });
+    const c = L.args.manifest.camera;
+    expect(c.rule).toBe('fixed');
+    expect(c.stations.length).toBeGreaterThan(2);
+    expect(c.stations[0].focus).toEqual(L.ends.spawn);
+  });
+});

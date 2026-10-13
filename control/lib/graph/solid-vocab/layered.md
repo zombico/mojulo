@@ -148,7 +148,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   face?, hair?, expression?, sculpt?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
   a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
-  `lithe`, `stout`, `child`, `chibi`) — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
+  `lithe`, `stout`, `child`, `chibi`: its joints on the adult radii) — or a POLE WITH A BUILD, `{ pole: 'female', build:
+  'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
+  percentages of hers, so a broad young woman is a build, not a tune past its range; `{ build: 'child' }` (pole `male`
+  unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
   body proportion lab's contract. Thirteen controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
   `neck`, `legs` (joints move, the soles stay on the ground); widths `shoulders` (the arm chain rides out, the yoke widens),
   `waist`, `hips` (the pelvis, not the stance), `depth` (front-to-back of the trunk and pelvis); `head` (uniform about the
@@ -160,8 +163,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   0.8–1.25, waist 0.8–1.2, hips / depth 0.85–1.2, thicknesses 0.65–1.5) ADVISE in `warnings`; nothing refuses but an
   unknown control or a ratio that is not a positive number. `body` stays for radii in metres (`waist`, `chest`, `chestDepth`,
   `hip`, `hipDepth`, `thigh`, `calf`, `arm`, `forearm`, `neck`, `bust`; `bust` is at most 0.4 × the `chest` radius, and a
-  child-coded figure, the `child` or `chibi` cast or the anime `kid` look, takes no `bust`); `head` wears a baked include
-  (the blank trunk otherwise).
+  child-coded figure, a cast that comes to `child` or `chibi` (the word, the build, a list or dial map naming it) or the
+  anime `kid` look, takes no `bust`); `head` wears a baked include (the blank trunk otherwise). Height on the landmark and
+  anime heads is `tune.stature`; `scale` sizes only the blank trunk or a baked include and is refused on a worn head.
   The row stores `hero` (cast, register, the RESOLVED tune, the move trail) beside `plan` and `recipe`: patch
   `update_sketch { ref, patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.1 }] }` and the plan and recipe regenerate;
   the readout's `hero` answers in metres (`height_m`, `shoulder_m` across the yoke, `hip_m` across the pelvis) with the tune

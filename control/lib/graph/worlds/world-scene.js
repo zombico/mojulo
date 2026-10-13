@@ -19,6 +19,7 @@
  */
 
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
+import { standBlocks } from '@/lib/graph/playscape/terrain';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
 import { resolveMotionMovers } from '@/lib/graph/worlds/motion-vocabulary';
 import { resolveSignage } from '@/lib/signage-chrome';
@@ -39,6 +40,8 @@ import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
 import { readWeather } from '@/lib/graph/weather/weather';
+// a clock's four seasons, by climate (weather/weather.js CLIMATES)
+const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
@@ -90,7 +93,7 @@ async function heroFigure(name, spec) {
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
-    manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero) });
+    manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
   }
   const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name });
   const body = scene.figures && scene.figures.body;
@@ -126,6 +129,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     const { applyMapRef } = await import('@/lib/graph/worlds/map-ref.js');
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
+  }
+
+  // a city segment's level reads its city by ref (city/plan/ref.js): merged before it is lowered as a level; and a city's
+  // sites read the edifices they stand by ref the same way
+  if (sketch.manifest?.kind === 'city' && (typeof sketch.manifest.city === 'string' || (sketch.manifest.sites || []).some((x) => x && typeof x.from === 'string'))) {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const { withCityRef } = await import('@/lib/graph/city/plan/ref.js');
+    sketch = { ...sketch, manifest: withCityRef(sketch.manifest, (r) => SketchRepository.getByRef(r)?.manifest) };
   }
 
   // a building that asks to be a level (`level: { goal }`, structure/level.js): its game channel, walker, camera and
@@ -289,7 +300,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       }
       if (!baked.has(key) && rec.hero) {   // an inline hero statue (statues: 'carved', or an entry's `hero`): no store
         const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
-        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero) });
+        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero, { staleScale: true }) });
         const mounted = statueWords(manifest.hero.statue).stand === 'mounted';
         if (!!rec.equestrian !== mounted) throw new Error(`statue on '${rec.at}': ${rec.equestrian ? 'an equestrian slot takes a mounted statue (statue.stand \'mounted\')' : 'a mounted statue stands on an equestrian slot'}`);
         const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });
@@ -550,6 +561,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // lateral blocking: analytic AABB colliders (the invisible collision hull under the visual
     // faces) — the platform rule ejects the suit's footprint from them. See mobile-suit-city.plan.md.
     if (Array.isArray(sketch.manifest.colliders) && sketch.manifest.colliders.length) payload.colliders = sketch.manifest.colliders;
+    // blocks (playscape/terrain.js standBlocks): forms the level stands in its stage, solid and drawn (a shooter's
+    // cover: low walls, crates). Absent ⇒ byte-identical.
+    if (Array.isArray(sketch.manifest.blocks) && sketch.manifest.blocks.length) {
+      const B = standBlocks(sketch.manifest.blocks, { seed: Number.isInteger(sketch.manifest.seed) ? sketch.manifest.seed : 1 });
+      payload.faces = [...(payload.faces || []), ...B.faces];
+      payload.colliders = [...(payload.colliders || []), ...B.colliders];
+    }
     // hangar (mobile-suit-hangar.plan.md P2): the non-combat suit-stepper menu — an ordered list of
     // display-entity suits { id, name } the emitted controllable runtime cycles (◀/▶). Opt-in; absent
     // ⇒ no menu emitted (byte-identical).
@@ -888,6 +906,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // legend) would otherwise lose it
     if (playEv.stats) ev = { ...ev, stats: playEv.stats };
   }
+  // a mechanic that moves the cast (waves: spawn and walk on the ctrl verb) reaches the characters as a play's cues do
+  const ctrlIn = (list) => Array.isArray(list) && list.some((r) => r && r.do === 'ctrl');
+  if (ev && !ev.cast && mechEvents && (ctrlIn(mechEvents.reactions) || (mechEvents.sequences || []).some((q) => ctrlIn(q && q.steps)))) ev = { ...ev, cast: true };
   // A HUD-only block (a `legend` idiom: the controls hint) is a live channel too: it paints and fades on the page.
   if (ev && ((Array.isArray(ev.menus) && ev.menus.length) || (Array.isArray(ev.reactions) && ev.reactions.length) || (Array.isArray(ev.sequences) && ev.sequences.length) || (Array.isArray(ev.hud) && ev.hud.length))) {
     // the HUD widget language (hud-widgets.js): rows are validated here so a bad slot / kind /
@@ -975,9 +996,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // round the camera and lights the storms, every moment a pure function of the world clock and the seed (the
   // manifest's, else the sketch ref's). Live only (the stills ignore it, and are not degraded: no frame is missing).
   // Additive; absent ⇒ the emitted page is byte-identical.
-  if (payload && sketch.manifest.weather != null && sketch.manifest.weather !== false) {
+  // A level with a CLOCK (the clock mechanic) has a sky that turns with it: night darkens it, and its seasons swap the
+  // climate. It takes the weather even when the manifest names none (clear air).
+  const clockMech = sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics) ? sketch.manifest.game.mechanics.find((m) => m && m.kind === 'clock') : null;
+  if (payload && ((sketch.manifest.weather != null && sketch.manifest.weather !== false) || clockMech)) {
     const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
-    const W = readWeather(sketch.manifest.weather, 'weather');
+    const W = readWeather(sketch.manifest.weather != null && sketch.manifest.weather !== false ? sketch.manifest.weather : { climate: { clear: 1 } }, 'weather');
     // the air is the STYLE's (era/air.js: fog colour and body, the shade, what a state's air is): a kit's style card, or a
     // sixth-gen look's reference; a world with neither gets one made of its haze at emit. `weather.air` tunes either.
     const kit = sketch.manifest.kit ?? (sketch.manifest.stage && sketch.manifest.stage.kit);
@@ -988,6 +1012,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       air = airCard({ air: ref.air, light: ref.light }, W.air);
     }
     payload.weather = { weather: W, seed, ...(air ? { air } : {}) };
+    if (clockMech) {
+      // the seasons' climates, in turn (spring, summer, autumn, winter unless the clock names its own)
+      const climates = Number.isInteger(clockMech.seasons) && clockMech.seasons > 0 ? (Array.isArray(clockMech.climates) && clockMech.climates.length === 4 ? clockMech.climates : SEASON_CLIMATES) : null;
+      payload.weather = { ...payload.weather, clock: true, ...(climates ? { seasons: climates.map((c, k) => readWeather(c, `game.mechanics.clock.climates[${k}]`)) } : {}) };
+    }
+  }
+
+  // the PIXEL look (`pixel`: 2 to 8, how many screen pixels a drawn one covers): the page draws small and blows it up
+  // without smoothing. Absent: the page's own resolution, every byte as it was.
+  if (payload && sketch.manifest.pixel !== undefined && sketch.manifest.pixel !== false) {
+    const k = sketch.manifest.pixel === true ? 4 : sketch.manifest.pixel;
+    if (!(Number.isInteger(k) && k >= 2 && k <= 8)) throw new Error(`pixel is true or 2 to 8 (screen pixels a drawn one covers), not ${JSON.stringify(sketch.manifest.pixel)}`);
+    payload.pixel = { scale: k };
   }
 
   // generic, opt-in AUDIO channel (beats.plan.md): synthesized WebAudio presence — an ambient

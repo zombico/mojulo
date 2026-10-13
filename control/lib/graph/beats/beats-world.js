@@ -141,6 +141,16 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     out.soundtrack = expandBeatsManifest(recipe);
   }
 
+  // THE BEAT (audio.beat: { lead? }): the soundtrack's pulse said on the bus, `lead` (0.15 s) before each beat. A beat
+  // is a quarter, or a dotted quarter in a compound meter (6/8, 9/8, 12/8)
+  if (audioSpec.beat !== undefined) {
+    const st = out.soundtrack, b = audioSpec.beat === true ? {} : audioSpec.beat;
+    if (!st || !(st.bpm > 0) || st.tempo) throw new Error('audio.beat says the soundtrack\'s beat on the bus: it needs a soundtrack with a steady bpm (a composition or pattern, no tempo map)');
+    if (!b || typeof b !== 'object' || (b.lead !== undefined && !(Number.isFinite(b.lead) && b.lead >= 0 && b.lead <= 0.5))) throw new Error('audio.beat is true or { lead?: seconds before each beat, 0 to 0.5 }');
+    const m = /^(\d+)\/(\d+)$/.exec(String(st.meter || '4/4')), compound = !!m && m[2] === '8' && Number(m[1]) % 3 === 0;
+    out.beat = { every: Math.round((60 / st.bpm) * (compound ? 1.5 : 1) * 1e6) / 1e6, lead: b.lead ?? 0.15 };
+  }
+
   if (audioSpec.bindings) {
     if (!out.soundtrack) {
       throw new Error('audio.bindings drive soundtrack channel macros — add audio.soundtrack first');

@@ -15,6 +15,10 @@ export function gameChannelScript(game) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
   const exits = !!(game && game.on && Object.values(game.on).some((a) => a && typeof a.exit === 'string'));
+  // the numbers it keeps (game.keep: a score, a time), read off the bus at the end and sent as stats.kept: only then
+  const keeps = !!(game && Array.isArray(game.keep) && game.keep.length);
+  // an emit that names its event ({event}: a broken block's broke:<id> kept as a flag of that name): only then
+  const named = !!(game && game.on && Object.values(game.on).some((a) => a && a.emit && Object.values(a.emit).some((v) => v === '{event}')));
   return `
 // ---- game channel (level contract bridge, opt-in) ----
 const __GAME = ${safeJson(game)};
@@ -62,7 +66,9 @@ const __GAME = ${safeJson(game)};
       const o = document.createElement('div');
       o.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,10,16,.55);z-index:40;pointer-events:none';
       o.innerHTML = '<div style="background:var(--moj-panel-a,rgba(12,16,26,.92));border:1px solid var(--moj-line,#2a3b58);border-radius:10px;padding:18px 28px;color:var(--moj-ink,#dfe8f8);font:15px var(--moj-font,system-ui);text-align:center"><span class="moj-complete"></span><br><span style="font-size:12px;color:var(--moj-accent,#8fa5c8)">' + st.events.length + ' event' + (st.events.length === 1 ? '' : 's') + ' → store</span></div>';
-      o.querySelector('.moj-complete').textContent = title;
+      o.querySelector('.moj-complete').textContent = title;${keeps ? `
+      const kp = st.envelope.stats && st.envelope.stats.kept;
+      if (kp) o.querySelector('.moj-complete').textContent = title + ' · ' + kp.map((k) => k.label + ' ' + k.value + (k.unit || '')).join(' · ');` : ''}
       document.body.appendChild(o);
     }
     return st.envelope;
@@ -107,7 +113,9 @@ ${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carry
       if (pat.indexOf('*') < 0) return String(str) === pat;
       return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
     };
-    const prev = __BUS.processEvents;
+${keeps ? `    // the KEPT numbers (game.keep), as the level ends: each var off the bus, scaled, beside how the shell keeps its best
+    const __kept = (state) => ({ kept: __GAME.keep.map((k) => ({ label: k.label, value: Math.round((Number(state.vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}) })) });
+` : ''}    const prev = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
       // Match against state.log's DELTA, not the incoming array: the reducer cascades
       // reaction-emitted events (goal:reached, pickup:*) INTERNALLY (frontier=next), so they
@@ -122,8 +130,8 @@ ${game.doors ? `  // a DOOR crossed (the door mechanic): leave by it once, carry
         for (const pat in __GAME.on) {
           if (!glob(ev.type, pat)) continue;
           const act = __GAME.on[pat];
-          if (act.emit) emit(JSON.parse(JSON.stringify(act.emit)));
-          else if (act.end) end(act.end${exits ? ', undefined, act.exit' : ''});${game.doors ? `
+          if (act.emit) ${named ? "{ const o = JSON.parse(JSON.stringify(act.emit)); for (const k in o) if (o[k] === '{event}') o[k] = ev.type; emit(o); }" : 'emit(JSON.parse(JSON.stringify(act.emit)));'}
+          else if (act.end) end(act.end${keeps ? ', __kept(state)' : exits ? ', undefined' : ''}${exits ? ', act.exit' : ''});${game.doors ? `
           else if (act.door) door(act.door);` : ''}
           break;
         }
@@ -171,6 +179,53 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     if (D) { const c = params && params[D.slice], dn = (c && c.completed) || {}; for (const k in D.levels) if (dn[D.levels[k]]) evs.push({ type: 'done-carried:' + k }); }
     evs.push({ type: 'flags-ready' });
     setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, evs); } catch (e) { console.error('flags carried', e); } }, 0);
+  });
+` : ''}${game.bag ? `  // the BAG carried (the bag mechanic): the level starts with the slice's items in its bag (the bus's held:bag:<item>
+  // vars, set as the bus comes up), what is worn in its worn slice (held:worn:<item>, and each one's equipped:<item> said
+  // so its on effects are done again), what its chests hold as the holders' flags left them; and each in:<holder>:<item>:<n>
+  // / out:… the bus says goes back: the bag's and the worn's as grant / consume, a chest's as its count now (setFlag)
+  const __hk = (h, item) => __GAME.levelRef + '|' + h + ':' + item;
+  st.onStart.push(function (params) {
+    const sl = (n) => (n && params && params[n]) || {};
+    const bag = sl(__GAME.bag.slice).items || {}, worn = sl(__GAME.bag.worn).items || {}, fl = sl(__GAME.bag.holders).flags || {};
+    (function fill(n) {
+      const B = window.__mojBus;
+      if (!B) { if (n < 100) setTimeout(function () { fill(n + 1); }, 50); return; }
+      for (const k in bag) if (bag[k] > 0) B.state.vars['held:bag:' + k] = bag[k];
+      const on = [];
+      for (const k in worn) if (worn[k] > 0) { B.state.vars['held:worn:' + k] = worn[k]; on.push({ type: 'equipped:' + k }); }
+      const pre = __GAME.levelRef + '|';
+      for (const k in fl) if (k.indexOf(pre) === 0 && typeof fl[k] === 'number') B.state.vars['held:' + k.slice(pre.length)] = fl[k];
+      if (on.length) try { __inputQueue.push.apply(__inputQueue, on); } catch (e) { console.error('worn', e); }
+    })(0);
+  });
+  if (typeof __BUS !== 'undefined') {
+    const prevB = __BUS.processEvents;
+    __BUS.processEvents = function (state, events) {
+      const n0 = state.log.length, out = prevB(state, events);
+      for (let i = n0; i < state.log.length; i++) {
+        const ev = state.log[i];
+        const m = ev && typeof ev.type === 'string' ? /^(in|out):([a-z][a-z0-9-]*):([a-z0-9-]+):(\\d+)$/.exec(ev.type) : null;
+        if (!m) continue;
+        const h = m[2], into = h === 'bag' ? __GAME.bag.slice : h === 'worn' ? __GAME.bag.worn : null;
+        if (h === 'worn' && !into) continue;   // worn, and the game keeps no worn slice: this level's alone
+        if (into) emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: into, item: m[3], count: Number(m[4]) });
+        else if (__GAME.bag.holders) emit({ type: 'setFlag', slice: __GAME.bag.holders, key: __hk(h, m[3]), value: Number(state.vars['held:' + h + ':' + m[3]]) || 0 });
+      }
+      return out;
+    };
+  }
+` : ''}${game.aftermath ? `  // AFTERMATH carried in (the aftermath mechanic): each block a flag in the slice says broke here before is taken away at
+  // the start, without the shatter (the controllable world is built after this block: it is looked for until it is up)
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.aftermath.slice], fl = (s && s.flags) || {};
+    const ids = Object.keys(fl).filter((k) => fl[k] && k.indexOf('broke:') === 0).map((k) => k.slice(6));
+    if (!ids.length) return;
+    (function restore(n) {
+      const C = window.__mojCtrl;
+      if (!C || !C.restore) { if (n < 100) setTimeout(function () { restore(n + 1); }, 50); return; }
+      for (const id of ids) C.restore(id);
+    })(0);
   });
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame
   // and the level's own events move the pilot to that end (deferred, as chapters are: the events channel may load later).

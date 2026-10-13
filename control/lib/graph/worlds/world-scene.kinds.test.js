@@ -203,8 +203,9 @@ describe('world-scene kinds — side tables pinned as literals', () => {
     // re-pinned 2026-10-11 (geocube): + 'geocube' — a cube's room and island specimens are walked like the stage.
     // re-pinned 2026-10-11 (buildings as levels): + 'office' — a lobby and office floors over one core, walked like the mall.
     // re-pinned 2026-10-12 (heartbeat): + 'heartbeat' — a level's land as a greybox is walked the way it will be played.
+    // re-pinned 2026-10-12 (city rails): + 'city' — a city plan's massing is walked from its core, the way a level will be.
     expect([...WALK_KINDS].sort()).toEqual([
-      'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'geocube', 'heartbeat', 'historic', 'koenigsberg', 'mall', 'math-structure',
+      'city', 'condo-complex', 'dungeon', 'edifice', 'floorplan', 'fractal-city', 'geocube', 'heartbeat', 'historic', 'koenigsberg', 'mall', 'math-structure',
       'office', 'painted-landscape', 'restaurant', 'room', 'school-complex', 'stage', 'store',
       'subway-building', 'subway-station', 'terrain', 'transportation-hub',
     ]);

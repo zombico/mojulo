@@ -18,6 +18,11 @@
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
+import { inferCity } from '../city/plan/card.js';
+import { designCity } from '../city/plan/design.js';
+import { cityPlanSvg } from '../city/plan/book-html.js';
+import { cubeOfWorld, intentReport, GENRES } from './intent.js';
+import { concernsOf } from './concerns.js';
 import { readGameworld, resolveLevel, OPEN_SLOTS, civLibrary } from './world.js';
 import { gameworldGraph, graphOutline, graphMermaid } from './graph.js';
 import { styleGuide, civilizationCard } from './style-guide.js';
@@ -125,6 +130,11 @@ function buildLevel(G, id) {
       : (() => { const m = withProgram(buildingStage(B)); return programPlanSvg({ use: B.use, rooms: m.rooms, links: m.links, entry: m._program.entry, goal: m._program.goal }, 300); })();
     return { R, laid: { stages: [{ node: name, section: 'building' }], order: [name] }, town: null, paint, walk: [{ node: name, section: 'building', svg }] };
   }
+  // a city level: its plan sheet (the city book's), its segments and portals drawn on it
+  if (R.city) {
+    const d = designCity(inferCity(R.city.plan).recipe);
+    return { R, laid: { stages: [{ node: 'city', section: 'city' }], order: ['city'] }, town: null, paint, walk: [{ node: 'city', section: 'city', svg: cityPlanSvg(d, { width: 460 }) }] };
+  }
   const laid = layLevel(R.level), st = structureStyle(R.style.kit, R.seed);
   const town = R.town ? designTown(st, R.seed, R.town) : null;
   const walk = laid.stages.map((s) => ({ node: s.node, section: s.section, svg: s.section === 'trail' ? outTrailPlanSvg(s.manifest, 300) : localMeruPlanSvg(s.manifest.meru, 360) }));
@@ -180,6 +190,19 @@ function playOrder(G) {
 /** A brief's words, however it was written: a string, the composer's { prompt }, or a creator's { text, why? }. */
 export const briefText = (b) => (typeof b === 'string' ? b : b?.prompt ?? b?.text ?? '');
 
+// what game it is (intent.js): the genre it starts from, the values it said, and what each concern asks of the world,
+// laid or said only; a world that wrote no intent shows the cube it is read as, and its brief's suggestions
+function intentHtml(world) {
+  const C = cubeOfWorld(world), R = intentReport(world), cs = concernsOf(C.cube);
+  if (!R.written && !cs.length && !R.suggest) return '';
+  const vals = Object.entries(C.cube).flatMap(([f, st]) => Object.entries(st).map(([k, v]) => `${f}.${k} ${Array.isArray(v) ? v.join(', ') : v}`));
+  return `<details class="brief" id="intent" open><summary>What game it is${R.written ? '' : ' (read from the world, not yet said)'}</summary>
+<p>${C.from ? `Starts from <b>${esc(GENRES[C.from].name)}</b>: ${esc(GENRES[C.from].why)}.` : 'No genre: its own values only.'}${world.intent?.why ? ` “${esc(world.intent.why)}”` : ''}</p>
+${vals.length ? `<p class="muted">${vals.map((v) => esc(v)).join(' · ')}</p>` : ''}
+${cs.length ? `<ul class="decided">${cs.map((c) => `<li><b>${esc(c.name)}</b> ${esc(c.asks)} <span class="muted">(${c.laid ? 'laid by the world' : 'asked, not yet laid'}; raised by ${esc(c.by.join(', '))})</span></li>`).join('')}</ul>` : ''}
+${R.suggest ? `<p class="muted">The brief's words point at: ${R.suggest.map((g) => `${esc(GENRES[g.id].name)} (${esc(g.matched.join(', '))})`).join('; ')}.</p>` : ''}</details>`;
+}
+
 export function gameworldBibleHtml(world) {
   resetTownIds();
   const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
@@ -189,7 +212,7 @@ export function gameworldBibleHtml(world) {
 
   // where each civilization builds: its places, and the kit it is first drawn in
   const builds = Object.fromEntries(G.civIds.map((c) => [c, []]));
-  for (const id of order) { const B = built[id].R.built; if (B?.town) { builds[B.town].push([id, 'town']); if (B.castle) builds[B.castle].push([id, 'castle']); } if (B?.building) builds[B.building].push([id, built[id].R.building.use ?? 'building']); }
+  for (const id of order) { const B = built[id].R.built; if (B?.town) { builds[B.town].push([id, 'town']); if (B.castle) builds[B.castle].push([id, 'castle']); } if (B?.building) builds[B.building].push([id, built[id].R.building.use ?? 'building']); if (B?.city) builds[B.city].push([id, 'city']); }
 
   const strip = order.map((id, i) => {
     const b = built[id], thumb = b.town ? plate(`strip-${id}`, townMapSvg(b.town, b.paint, null, { px: 2, labels: false })) : b.walk[0].svg;
@@ -240,26 +263,26 @@ export function gameworldBibleHtml(world) {
   for (const id of order) { const t = built[id].town; if (t) machine[`level:${id}`] = t.laws.filter((l) => !l.ok).map((l) => l.law); }
   machine.nature = kits.flatMap((k) => { const land = landOfKitHere(k); return Object.keys(land).flatMap((f) => landLaws(designLand(f, land[f].variant, G.seed, { level: 'near', many: land[f].many })).map((l) => `${f} ${l.law}`)); });
   const stamps = reviewState(world, { machine }), stampOf = (id) => stamps.find((x) => x.id === id);
-  const anchorOf = (id) => (id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : id.startsWith('tech:') ? `#tech-${id.slice(5)}` : `#level-${id.slice(6)}`);
+  const anchorOf = (id) => (id === 'intent' ? '#intent' : id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : id.startsWith('tech:') ? `#tech-${id.slice(5)}` : `#level-${id.slice(6)}`);
   const stamp = (id) => { const x = stampOf(id); return x ? `<span class="stamp st-${x.status}" title="${esc(STAMPS[x.status])}">${esc(x.status)}</span>` : ''; };
   const civCards = civHtml.replace(/<!--stamp:([^>]*)-->/g, (_, id) => stamp(id));
   const mode = world.mode ?? 'gated', waiting = stamps.filter((x) => ['changed', 'revise', 'proposed'].includes(x.status));
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${stamps.map((x) => `<li><a href="${anchorOf(x.id)}">${esc(x.name)}</a>${stamp(x.id)}<code>${esc(x.print)}</code>${x.note ? `<p class="muted">${esc(x.note)}</p>` : ''}</li>`).join('')}</ol>
 <p class="muted">${waiting.length ? `Next to look at: ${waiting.map((x) => `<a href="${anchorOf(x.id)}">${esc(x.name)}</a>`).join(', ')}.` : 'Nothing is waiting on you.'}</p>
-${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}</div>`;
+${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray(world.brief.read) ? 'The prompt it was composed from' : 'The brief'}</summary><p class="prompt">“${esc(briefText(world.brief))}”</p><ul class="decided">${(world.brief.read ?? []).map((r) => `<li><b>${esc(r.word)}</b> decided ${esc(r.decides.join(', '))}</li>`).join('')}${world.brief.unread?.length ? `<li class="muted">not read: ${esc(world.brief.unread.join(', '))}; the seed decided what they might have</li>` : ''}${(world.brief.levels || []).map((l) => `<li class="muted">${esc(l.level)} laid on seed ${l.seed}${l.tries > 1 ? `, after ${l.tries - 1} tr${l.tries === 2 ? 'y' : 'ies'} its laws advised` : ''}${l.laws.length ? `; still advising: ${esc(l.laws.join(', '))}` : ''}</li>`).join('')}</ul></details>` : ''}${intentHtml(world)}</div>`;
 
   const levels = order.map((id, i) => {
     const b = built[id], R = b.R, own = R.ledger;
     const ledger = own.length ? `<ul class="ledger">${own.map((o) => `<li><b>${esc(o.key)}</b> ${show(o.local)} <span>world: ${show(o.world)}</span>${o.scope !== 'level' ? ` <em>${esc(o.at.split('/')[1])}</em>` : ''}</li>`).join('')}</ul>` : '<p class="muted">Follows its world in everything.</p>';
     const ownStyle = [];
     if (R.style.kit !== G.style.kit) ownStyle.push(`<div class="own"><span class="eyebrow">Its own ground</span><p><a href="#nature-${esc(R.style.kit)}">${esc(R.style.kit)}</a>, its natural world</p></div>`);
-    const by = R.built?.building ? [[R.building.use ?? 'building', R.built.building]] : R.built ? [['town', R.built.town], ...(R.built.castle ? [['castle', R.built.castle]] : [])] : [];
+    const by = R.built?.building ? [[R.building.use ?? 'building', R.built.building]] : R.built?.city ? [['city', R.built.city]] : R.built ? [['town', R.built.town], ...(R.built.castle ? [['castle', R.built.castle]] : [])] : [];
     if (by.length) ownStyle.unshift(`<div class="own"><span class="eyebrow">Built by</span><ul class="ledger">${by.map(([what, c]) => `<li><b>${what}</b> <a href="#civ-${esc(c)}">${esc(G.civilizations[c].name)}</a></li>`).join('')}</ul></div>`);
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>${R.building ? 'The building' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not

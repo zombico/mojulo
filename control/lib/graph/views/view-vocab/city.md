@@ -10,6 +10,8 @@
 }
 ---
 
+**A new city is planned first.** `overrides: { plan: { … } }` lays a city on rails: main streets, districts, reserved sites, the grid and lots cut from them, transit and walk laws, on a board of cells, in a grammar from Paris to Tokyo, at game or real scale, with a plan book and a walkable massing (manual: the `city-plan` card). Everything below is the legacy city's: frozen, kept for the rows already minted.
+
 Mint a 3D cityscape from a tiny RECIPE — the fractal-generation path. You pass a seed plus a few knobs; the substrate stores ONLY the recipe (no geometry) and regenerates the whole city deterministically on render, so it costs almost no tokens and the same seed always rebuilds the same city. The result is a live, dependency-free CSS preserve-3d HTML scene served at `/api/sketches/<ref>/scene` (open it / embed it in an <iframe>); same artifact system as the other illustration mints (persists with `manifest.kind === 'fractal-city'`). The generator recursively subdivides the ground into non-square blocks (a coherent street grid with sidewalks, 2-lane mains, stoplights, crosswalks, power lines), fills each block by a composition rule (1 large / 2 medium / 1 medium + 2 small / building + lot / 4 small / single-block megatower) with parking lots in the gaps, and skins every building with a randomized facade (glass curtainwall / punched / banded; brick masonry with arched windows + cornices for low-rise; balconies harmonized per building program; rooftop kit of cell towers / water tanks / satellite dishes / smoke stacks; entrances, fire escapes, dumpsters; cylindrical and setback skyscrapers). Reach for this on framing like 'generate a city / make a cityscape / a downtown / a 3D city block / an urban scene'.
 
 ## Parameters

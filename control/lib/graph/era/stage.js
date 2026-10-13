@@ -854,7 +854,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     if (manifest.buildings === undefined && manifest.town === undefined) return build(manifest);
     const M = { ...manifest, kit: resolveKitId(manifest.kit) };
     const { reserved } = withBuildings(build(manifest), M, { ...ctx, planOnly: true });
-    return withBuildings(build(reserved.length ? { ...manifest, _keepOut: reserved } : manifest), M, ctx);
+    return withBuildings(build(reserved.length ? { ...manifest, _keepOut: [...(manifest._keepOut ?? []), ...reserved] } : manifest), M, ctx);
   };
   if (kit && kit.shell === 'nature') return seat((m) => assembleNatureScene({ style: kit.style, ...m }, ctx));
   if (kit && kit.shell === 'jungle') return seat((m) => assembleJungleScene({ style: kit.style, ...m }, ctx));

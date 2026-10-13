@@ -16,6 +16,8 @@ import { readGameworld, resolveLevel } from './world.js';
 import { landFor } from './nature.js';
 import { CHARACTER_PART_IDS } from './characters.js';
 import { resolveTechDirection } from './tech-direction.js';
+import { cubeOfWorld } from './intent.js';
+import { concernsOf } from './concerns.js';
 
 export const MODES = Object.freeze({
   gated: 'every part waits for the creator\'s approval before the next step builds on it',
@@ -41,6 +43,8 @@ export function fingerprint(v) {
 /** The parts a world is reviewed in, in order, each with what it resolves to. */
 export function reviewParts(world) {
   const G = readGameworld(world), parts = [];
+  // what game it is, first: the cube the world is laid for (written only; a world that writes none has no such part)
+  if (world.intent !== undefined) { const I = cubeOfWorld(world); parts.push({ id: 'intent', name: 'What game it is', content: { from: I.from, cube: I.cube, concerns: concernsOf(I.cube).map((c) => c.id) } }); }
   parts.push({ id: 'world', name: 'The world', content: { id: G.id, name: G.name, seed: G.seed, levels: G.ids, links: G.links, start: G.start } });
   const levels = G.ids.map((id) => resolveLevel(G, id)), kits = [...new Set([G.style.kit, ...levels.map((R) => R.style.kit)])];
   parts.push({ id: 'nature', name: 'Natural world', content: { style: { kit: G.style.kit, trail: G.style.trail, meru: G.style.meru }, land: Object.fromEntries(kits.map((k) => [k, landFor(k, (levels.find((R) => R.style.kit === k)?.style.land) ?? G.style.land ?? {})])) } });

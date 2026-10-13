@@ -111,12 +111,16 @@ export function applyLook(payload, spec, { bake }) {
     // the lights' flames are drawn as the stage draws a torch's (an unshaded resolve dropped the kind's own)
     payload.faces = [...bakeStageLight(prepared, lights, ambient, undefined, sun), ...lights.flatMap((l) => torchFaces(l))];
     payload.look = { id: spec.id, cell, baked: true, lights: lights.length };
+  } else if (payload.lookLit) {
+    // a kind that lit itself by the look's own key (or moon) and ambient (the city: its facades are cards, not bakeable)
+    payload.look = { id: spec.id, baked: false, lit: true };
   } else {
     payload.look = { id: spec.id, baked: false };
     notes.push('this kind bakes its own light, so the look set its air and sky only; its light, value order and palette are not the look\'s');
   }
   if (notes.length) payload.lookNote = notes.join('; ');
-  payload.haze = { color: air.fog.color, density: air.fog.density };
+  // a kind seen across a kilometre (the city) thins the look's air by its own `lookHaze`, or a room's fog swallows it
+  payload.haze = { color: air.fog.color, density: Number.isFinite(payload.lookHaze) ? r5(air.fog.density * payload.lookHaze) : air.fog.density };
   payload.bg = key ? rgbHex(air.dome.horizon.map((v) => v / 255)) : air.fog.color;
   if (!interior) payload.sky = { zenith: air.dome.zenith, horizon: air.dome.horizon, day: key ? 1 : 0, stars: 0, seed: 1 };
   return payload;

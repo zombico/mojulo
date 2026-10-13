@@ -17,7 +17,7 @@
 import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression, animeDefaultStyle, ANIME_HAIR_BASE } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
-import { resolveTune, validateTune } from './hero-form.js';
+import { resolveTune, validateTune, castPole } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
 import { genkiLayers, genkiExpression } from './anime-genki.js';
 
@@ -117,7 +117,7 @@ export function composeAnime(hero, defaultStyle, { hairBase = null } = {}) {
   return { face, sculpt, hair, expression, tune, hairWords, hairCut };
 }
 /** the hero's head pole: its `headPreset`, else the cast when that is a hero cast, else the male */
-export const heroHeadPole = (hero) => hero.headPreset ?? (HEAD_PRESETS[hero.cast] ? hero.cast : 'male');
+export const heroHeadPole = (hero) => { const pole = castPole(hero.cast); return hero.headPreset ?? (typeof pole === 'string' && HEAD_PRESETS[pole] ? pole : 'male'); };
 /** the anime hero's effective head: the look's stamp, the own layer on top, and the hair base of its design base (its
  * form under every family, its cut when nothing names a family) — read here, never stored (the hero door and the face
  * rig read it the same way) */

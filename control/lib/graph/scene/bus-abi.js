@@ -31,9 +31,12 @@ export const BUS_ABI = Object.freeze({
     struck: { about: 'a beam reaches a character (struck)', web: B, godot: B, how: 'kernel/cast.gd: a beam is a moment that lands after its distance (the web\'s land rule), and its target hears struck' },
     stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: B, how: 'kernel/stats.gd, conformance-tested equal to the web\'s stats kernel' },
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B, godot: B, how: 'level.gd: arrows or W / S, Enter / Space / E, Esc' },
+    seen: { about: 'a character with sight newly sees its target (seen: what unseen ends on)', web: B, godot: A, how: 'the web mind counts sightings (perceive) and castFacts says them; Godot has no mind\'s perception yet' },
+    beat: { about: 'the music\'s beat, said early by its own clock (beat: what on-beat judges)', web: B, godot: A, how: 'the page reads the AudioContext against the soundtrack\'s bpm; Godot\'s player position is the twin' },
   }),
   effects: Object.freeze({
     logic: { about: 'emit, set, inc, toggle, spawn, move on the bus\'s own entities and vars', web: B, godot: B, how: 'the reducer itself, conformance-tested equal' },
+    guarded: { about: 'a reaction that fires only while its predicate holds (a reaction\'s if)', web: B, godot: A, how: 'buildBus reactionMatch; kernel/bus.gd does not read if yet' },
     warp: { about: 'a move that sends the walker somewhere (a respawn, a teleport)', web: B, godot: B },
     impulse: { about: 'a push on a physics body', web: B, godot: P, how: 'the bus entity moves; no Godot body is linked to it' },
     hud: { about: 'banners, toasts, readouts and legends (score.hud)', web: B, godot: B, how: 'kernel/hud.gd: the slots, text / counter / bar / clock, banners, stacking toasts, legends, in the guide\'s tokens, font, frame and plate (score.hudStyle); the register\'s motion, sound, cursor and light and a stylized border stay the web\'s' },
@@ -42,6 +45,7 @@ export const BUS_ABI = Object.freeze({
     phase: { about: 'the play\'s phase (title, playing, …): a part stands in its phases only', web: B, godot: B, how: 'kernel/hud.gd reads the phase var against a row\'s when' },
     weather: { about: 'a cue forcing the sky (weather-force:<cue>)', web: B, godot: B, how: 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)' },
     cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web' },
+    rearm: { about: 'rounds for the weapon in a character\'s hand (the cast\'s rearm: a supply\'s ammo)', web: B, godot: A, how: 'worlds/controllable cast.js rearm into the weapon\'s reserve (combat-ranged.js); kernel/cast.gd has no rearm and Godot\'s weapon no reserve' },
     stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
   }),
 });
@@ -64,14 +68,17 @@ function usedRows(ev) {
     contact: sources.some((s) => s && (s.type === 'contact' || s.type === 'rest')),
     input: (ev.inputs || []).some((i) => i && (i.on === 'key' || i.on === 'pointer')),
     aim: (ev.inputs || []).some((i) => i && (i.on === 'pick' || i.on === 'fire')),
-    cast: on.some((t) => t in CAST_WHEN && t !== 'struck'),
+    cast: on.some((t) => t in CAST_WHEN && t !== 'struck' && t !== 'seen'),
     hit: on.some((t) => t.startsWith('hit:')),
     struck: on.includes('struck'),
     stats: on.some((t) => STAT_WHEN.includes(t)),
     menu: on.some((t) => t.startsWith('menu-pick:') || t.startsWith('menu-close:')),
+    seen: on.includes('seen'),
+    beat: on.includes('beat') || (ev.sequences || []).some((q) => q && q.trigger && q.trigger.on === 'beat'),
   };
   const effects = {
     logic: reactions.some((r) => ['emit', 'set', 'inc', 'toggle', 'spawn', 'move'].includes(r.do)) || has(ev.watches) || has(ev.sequences),
+    guarded: reactions.some((r) => r && r.if),
     warp: reactions.some((r) => r.do === 'move' && Array.isArray(r.to)),
     impulse: reactions.some((r) => r.do === 'impulse'),
     hud: has(ev.hud),
@@ -79,7 +86,8 @@ function usedRows(ev) {
     parts: varUsed((v) => v.startsWith('ui-') && !v.startsWith('ui-menu-')),
     phase: varUsed((v) => v === PHASE_VAR),
     weather: varUsed((v) => v.startsWith(`${WEATHER_VAR}:`)),
-    cast: ctrl.some((r) => !STAT_OP.has(r.op)),
+    cast: ctrl.some((r) => !STAT_OP.has(r.op) && r.op !== 'rearm'),
+    rearm: ctrl.some((r) => r.op === 'rearm'),
     stats: ctrl.some((r) => STAT_OP.has(r.op)) || !!ev.stats,
   };
   return [...Object.keys(facts).filter((k) => facts[k]).map((k) => `fact:${k}`), ...Object.keys(effects).filter((k) => effects[k]).map((k) => `effect:${k}`)];

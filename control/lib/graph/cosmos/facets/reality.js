@@ -26,7 +26,8 @@ export const REALITY = Object.freeze({
     medium: {
       values: {
         '3d': { status: 'built', lowers: 'lib/graph/scene/scene-three.js' },
-        pixel: { status: 'partial', effort: 'S', lowers: 'lib/graph/pixelizer/pixelizer-games.js', note: 'the World page renders full-res; a low-res target, a nearest upscale and a palette snap give the pixel look (S, priced 10-12); true 2D sprite levels are L' },
+        // built 10-12: a world's `pixel` (a gameworld's style.pixel) draws the page small and blows it up unsmoothed
+        pixel: { status: 'built', godot: false, lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
       },
     },
     climate: { source: { module: 'lib/graph/weather/weather.js', table: 'CLIMATES' } },

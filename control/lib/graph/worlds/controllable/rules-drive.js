@@ -33,6 +33,14 @@
  * (lateral demand > grip; + skidStart edge), boarded (first-driven-frame edge; dismount rides the
  * pilot-swap event). The F key is RESERVED (no-op) per open decision 1.
  *
+ * THE `racer` RULE — a driver no one pilots: the same drive, its stick moved by the road ahead. Its `line` is points
+ * in order (`closed`: round again after the last); it aims at the point `look` ahead of the one it has reached, set
+ * `lane` metres to the line's left, steers into the error and lifts or brakes when the turn ahead is sharp at speed.
+ * Stuck (throttling, not moving, a second), it backs off for one. `pace` is how hard it drives (its throttle, 0..1).
+ * Every drive param is its own (a rival in the player's car carries the car's rule). With the ai off it coasts.
+ * Facts: `lineAt` (the point reached) and `laps` (times it crossed its line's first point, the start line: a car on
+ * the grid crosses it once as the race begins; closed lines).
+ *
  * Pure + deterministic like every rule: reads only the input snapshot + world hooks, writes only
  * its entity — same inputs + dt → byte-identical replay, tests headless in Node
  * (rules-drive.test.js). BUILDER CONTRACT (compose.js): import-free inside the function.
@@ -120,5 +128,48 @@ export function buildRulesDrive(E) {
     e.moving = Math.abs(v) > 1e-3;
   }
 
-  Object.assign(RULES, { drive });
+  function racer(e, input, dt, world) {
+    const r = e.rule, L = r.line || [], n = L.length;
+    if (!n || !world.aiEnabled) { drive(e, { forward: 0, turn: 0 }, dt, world); return; }
+    const t = e.transform, at = (i) => L[r.closed ? ((i % n) + n) % n : Math.min(i, n - 1)];
+    if (e.lineAt == null) {
+      // the first: the nearest point ahead of where it stands
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < n; i++) { const d = Math.hypot(L[i][0] - t.pos[0], L[i][1] - t.pos[1]); if (d < bd) { bd = d; best = i; } }
+      const f = fwdXY(t.heading), q = L[best];
+      e.lineAt = (q[0] - t.pos[0]) * f[0] + (q[1] - t.pos[1]) * f[1] < 0 ? best + 1 : best;
+      e.laps = 0; e.stuckT = 0; e.backT = 0;
+    }
+    // reached: within `reach`, or passed (behind the car along the line's way)
+    const reach = r.reach > 0 ? r.reach : 4;
+    for (let k = 0; k < n; k++) {
+      const p = at(e.lineAt), nx = at(e.lineAt + 1);
+      const d = Math.hypot(p[0] - t.pos[0], p[1] - t.pos[1]);
+      const passed = (t.pos[0] - p[0]) * (nx[0] - p[0]) + (t.pos[1] - p[1]) * (nx[1] - p[1]) > 0;
+      if (!(d < reach || (passed && d < reach * 3))) break;
+      if (!r.closed && e.lineAt >= n - 1) break;
+      e.lineAt++;
+      if (r.closed && e.lineAt % n === 0) e.laps++;
+    }
+    // the aim: `look` points on, `lane` to the left of the way there
+    const look = r.look > 0 ? r.look : 3, a = at(e.lineAt + look - 1), b = at(e.lineAt + look);
+    const dl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, lane = r.lane || 0;
+    const aim = [b[0] - ((b[1] - a[1]) / dl) * lane, b[1] + ((b[0] - a[0]) / dl) * lane];
+    let err = Math.atan2(aim[1] - t.pos[1], aim[0] - t.pos[0]) - t.heading;
+    err = ((err + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    // the turn ahead: the line's bend over the next few points
+    const c = at(e.lineAt + look * 2), h1 = Math.atan2(b[1] - a[1], b[0] - a[0]), h2 = Math.atan2(c[1] - b[1], c[0] - b[0]);
+    let bend = h2 - h1; bend = Math.abs(((bend + Math.PI) % TAU + TAU) % TAU - Math.PI);
+    const v = e.speed || 0, pace = r.pace > 0 ? r.pace : 1, corner = r.corner > 0 ? r.corner : 9;
+    let forward = pace;
+    if (bend > 0.25 && v > corner / bend) forward = -0.6;                 // brake into a sharp bend at speed
+    else if (Math.abs(err) > 0.6 && v > corner) forward = 0;              // lift while the nose comes round
+    // stuck: throttling into something; back off a second, steering the other way
+    if (e.backT > 0) { e.backT -= dt; drive(e, { forward: -1, turn: clamp(err * 2, -1, 1) }, dt, world); return; }
+    e.stuckT = forward > 0 && Math.abs(v) < 0.5 ? e.stuckT + dt : 0;
+    if (e.stuckT > 1) { e.stuckT = 0; e.backT = 1; }
+    drive(e, { forward, turn: clamp(-err * 2.5, -1, 1) }, dt, world);
+  }
+
+  Object.assign(RULES, { drive, racer });
 }

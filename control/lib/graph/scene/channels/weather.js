@@ -32,7 +32,7 @@ export const weatherForces = (events) => [...new Set(((events && events.reaction
 
 export function weatherScript(input) {
   const cfg = { ...input, air: input.air || airFromHaze(input.fog, input.weather.air) };
-  const names = weatherStates(cfg.weather, cfg.forces), states = Object.fromEntries(names.map((n) => [n, STATES[n]]));
+  const names = [...new Set([...weatherStates(cfg.weather, cfg.forces), ...(cfg.seasons || []).flatMap((w) => weatherStates(w))])], states = Object.fromEntries(names.map((n) => [n, STATES[n]]));
   return `
 // --- weather: the world's sky, from its climate (weather/weather.js) ---
 let stepWeather = () => {};   // __mojStep(t) drives it
@@ -177,8 +177,16 @@ let stepWeather = () => {};   // __mojStep(t) drives it
     }
   }
 
-  function step() {
-    const t = clock(), L = look(t), S = L.S;
+${cfg.clock ? `  // THE CLOCK (a level's clock mechanic): the bus's minute darkens the sky at night (dark from 20:00 to 05:00, a two-hour
+  // dusk and dawn), and its season swaps the climate the schedule plays
+  const night = () => {
+    const v = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars, h = (v && Number.isFinite(v.minute) ? v.minute : 720) / 60;
+    return h < 5 || h >= 20 ? 1 : h < 7 ? 1 - smooth((h - 5) / 2) : h >= 18 ? smooth((h - 18) / 2) : 0;
+  };${cfg.seasons ? `
+  let season = 0;
+  const seasonNow = () => { const v = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars, s = v && Number.isInteger(v.season) ? v.season : 0; if (s !== season && CFG.seasons[s]) { season = s; W = CFG.seasons[s]; } };` : ''}
+` : ''}  function step() {
+    ${cfg.seasons ? 'seasonNow();\n    ' : ''}const t = clock(), L = look(t)${cfg.clock ? ', nt = night(), S = nt > 0 ? Object.assign({}, L.S, { dim: L.S.dim + (0.78 - L.S.dim) * nt, sky: L.S.sky * (1 - 0.75 * nt) }) : L.S' : ', S = L.S'};
     camP[0] = camera.position.x; camP[1] = camera.position.y; camP[2] = camera.position.z;
     // lightning: a sheet flash, a quick double pulse that dies
     let fl = 0;
@@ -187,10 +195,11 @@ let stepWeather = () => {};   // __mojStep(t) drives it
     // the fog's colour: each showing state's own, at its share
     let fr = 0, fg = 0, fb = 0;
     for (const n of Object.keys(L.sh)) { const k = L.sh[n], c = airColour(AIR, n, (STATES[n] || S).veil); fr += c[0] * k; fg += c[1] * k; fb += c[2] * k; }
-    tint.setRGB(fr, fg, fb).lerp(white, fl * 0.5);
+    tint.setRGB(fr, fg, fb).lerp(white, fl * 0.5);${cfg.clock ? `
+    if (nt > 0) tint.lerp(shadeC, 0.75 * nt);   // the night air takes the shade` : ''}
     fog.color.copy(tint); if (scene.background && scene.background.isColor) scene.background.copy(tint);
     // light off the world, in the style's shade (never black); white for a flash
-    const off = Math.min(0.75, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth));
+    const off = Math.min(${cfg.clock ? '0.75 + 0.12 * nt' : '0.75'}, (S.dim * 0.7 + Math.max(0, 0.85 - S.sky) * 0.4) * (0.6 + 0.8 * AIR.depth));
     // (multiplied, not laid over: a bright shade, an anime ambient, then darkens and tints instead of washing the world out)
     if (fl > 0.02) { ov.style.mixBlendMode = 'normal'; ov.style.background = '#fff'; ov.style.opacity = String(Math.min(0.6, fl * 0.55)); }
     else {

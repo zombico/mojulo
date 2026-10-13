@@ -22,9 +22,26 @@ describe('cosmos registry', () => {
     for (const f of FACETS) {
       for (const [setting, spec] of Object.entries(f.settings)) {
         if (spec.source) expect(exists(spec.source.module), `${f.id}.${setting}`).toBe(true);
-        for (const [v, row] of Object.entries(spec.values || {})) if (row.lowers) expect(exists(row.lowers), `${f.id}.${setting}=${v}`).toBe(true);
+        for (const [v, row] of Object.entries({ ...spec.values, ...spec.planned })) if (row.lowers) expect(exists(row.lowers), `${f.id}.${setting}=${v}`).toBe(true);
       }
     }
+  });
+
+  it('adds a sourced setting\'s planned values beside its table, priced unless something else builds them', () => {
+    const reg = capabilityRegistry();
+    for (const f of FACETS) {
+      for (const [setting, spec] of Object.entries(f.settings)) {
+        for (const v of Object.keys(spec.planned || {})) {
+          expect(GENERATED[`${f.id}.${setting}`].values, `${f.id}.${setting}=${v}`).not.toContain(v);
+          const row = reg[f.id][setting].values[v];
+          if (row.status === 'built') expect(row.lowers, `${f.id}.${setting}=${v}`).toBeTruthy();
+          else expect(EFFORT_WEIGHT[row.effort], `${f.id}.${setting}=${v}`).toBeGreaterThan(0);
+        }
+      }
+    }
+    expect(reg.power.systems.values.place.status).toBe('built');
+    expect(reg.power.mechanics.values.waves.status).toBe('built');
+    expect(reg.power.mechanics.values['reach-exit'].status).toBe('built');
   });
 
   it('gives every value a known status, and every local or partial one a note', () => {

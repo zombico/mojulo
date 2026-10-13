@@ -278,7 +278,7 @@ function __updateAim() {   // park the aim dot where the character is looking (n
 }
 (EVENTS.inputs || []).forEach((inp) => {
   if (!inp || !inp.emit) return;
-  if (inp.on === 'key') window.addEventListener('keydown', (ev) => { if (!inp.key || ev.key === inp.key) __inputQueue.push(Object.assign({}, inp.emit)); });
+  if (inp.on === 'key') window.addEventListener('keydown', (ev) => { if ((inp.once && ev.repeat) || (inp.key && ev.key !== inp.key)) return; __inputQueue.push(Object.assign({}, inp.emit)); });
   else if (inp.on === 'pointer') renderer.domElement.addEventListener('pointerdown', () => __inputQueue.push(Object.assign({}, inp.emit)));
   // 'pick' raycasts the marker the pointer is over and stamps its id into the event (default 'target').
   else if (inp.on === 'pick') renderer.domElement.addEventListener('pointerdown', (ev) => {
@@ -327,7 +327,7 @@ if (window.__mojSim) __BUS.linkPhysics(__busState, window.__mojSim.state);
 if (EVENTS.initial) __BUS.processEvents(__busState, EVENTS.initial);
 let __busPrev, __busPrevT = 0, __zonePrev;${facts ? ' let __castPrev;' : ''}
 stepEvents = (t) => {
-  const dtSec = __busPrevT ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0
+  const dtSec = __busPrevT && !window.__mojFreeze ? Math.min((t - __busPrevT) / 1000, 0.05) : 0; __busPrevT = t;  // frame 0 → dt 0; a menu up stops the clock
   if (window.__mojSim) __BUS.syncFromBodies(__busState, window.__mojSim.state);   // fresh body reads
   const incoming = [];
   while (__inputQueue.length) incoming.push(__inputQueue.shift());   // input → bus events this frame
