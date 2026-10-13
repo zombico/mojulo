@@ -41,11 +41,11 @@ import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-measures';
-import { heroPlan, planScale, castOf, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, isBuiltCast, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
-import { validateCast, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
+import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
@@ -198,24 +198,42 @@ const jawedHead = (hero) => headOf(hero) === 'landmark' || !!hero.head?.joints?.
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 /** a hero whose cast reads female (a statue card drapes and paints by silhouette) */
 const femaleOf = (hero) => castOf(hero.cast, hero.proportions ?? (hero.head === 'anime' ? 'anime' : 'hero'))?.silhouette === 'female';
+/** the cast word a stand's preset entry is read for (hero-gesture.js castEntry): the build form's build, whose body the
+ * preset's arm swing was tuned to clear, else its pole; any other cast as given */
+const gestureCast = (cast) => (isBuiltCast(cast) ? (cast.build && cast.build !== 'canonical' ? cast.build : castPole(cast)) : cast);
 
 /** the figure casts that read as a child (figure-cast.js) and the anime look that says so (anime-looks.js `kid`) */
 export const CHILD_CODED_CASTS = Object.freeze(['child', 'chibi']);
 const CHILD_CODED_LOOKS = Object.freeze(['kid']);
-/** why a hero spec is child-coded (its cast, or a look word), or null */
+/** why a cast is child-coded, read off the RESOLVED cast, or null: the word, the build form's build, a preset a list or a
+ * dial map names (figure-cast resolveCast's `from`), or dials equal to a child-coded preset's */
+function childCast(cast) {
+  if (cast === undefined || cast === null) return null;
+  if (typeof cast === 'string') return CHILD_CODED_CASTS.includes(cast) ? `the '${cast}' cast` : null;
+  if (isBuiltCast(cast)) return CHILD_CODED_CASTS.includes(cast.build) ? `the '${cast.build}' build` : null;
+  if (validateCast(cast).length) return null;   // a malformed cast is refused by name on its own
+  const R = resolveCast(cast), named = (R.from ?? '').split('+').find((w) => CHILD_CODED_CASTS.includes(w));
+  if (named) return `the cast on '${named}'`;
+  const same = CHILD_CODED_CASTS.find((w) => { const C = resolveCast(w); return CAST_KEYS.every((k) => R[k] === C[k]); });
+  return same ? `the cast resolving to '${same}'` : null;
+}
+/** why a hero spec is child-coded (its resolved cast, or a look word), or null */
 function childCoding(spec) {
-  if (typeof spec.cast === 'string' && CHILD_CODED_CASTS.includes(spec.cast)) return `the '${spec.cast}' cast`;
+  const cast = childCast(spec.cast); if (cast) return cast;
   const looks = spec.look === undefined || spec.look === null ? [] : Array.isArray(spec.look) ? spec.look : [spec.look];
   const kid = looks.find((w) => CHILD_CODED_LOOKS.includes(w));
   return kid ? `the '${kid}' look` : null;
 }
 
-/** Error strings for a hero spec (empty = valid). Form only; the numbers' fitness is heroPlan's to judge. */
-export function validateHeroSpec(spec) {
+/** Error strings for a hero spec (empty = valid). Form only; the numbers' fitness is heroPlan's to judge.
+ * `staleScale` tolerates a `scale` on a worn head (which the worn heads never read): a spec re-recorded on every render
+ * (a world's inline hero) was written before the refusal and must keep rendering. */
+export function validateHeroSpec(spec, { staleScale = false } = {}) {
   const errs = [];
   const casts = [...Object.keys(HERO_CASTS), ...CAST_PRESET_NAMES];
   if (spec.cast !== undefined) {
-    if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')})`)); }
+    if (typeof spec.cast === 'string') { if (!HERO_CASTS[spec.cast]) errs.push(...validateCast(spec.cast, 'cast').map((e) => `${e} — or a hero cast (${Object.keys(HERO_CASTS).join(', ')}), or a pole with a build: { pole: 'female', build: '${spec.cast}' }`)); }
+    else if (isBuiltCast(spec.cast)) errs.push(...validateBuiltCast(spec.cast, 'cast'));
     else errs.push(...validateCast(spec.cast, 'cast'));
   }
   if (spec.register !== undefined && !(typeof spec.register === 'string' ? REGISTERS[spec.register] : spec.register && typeof spec.register === 'object' && typeof spec.register.slots === 'string' && typeof spec.register.limbSlots === 'string' && Number.isFinite(spec.register.e))) {
@@ -274,6 +292,8 @@ export function validateHeroSpec(spec) {
   if (spec.proportions !== undefined && !PROPORTION_WORDS.includes(spec.proportions)) errs.push(`proportions: 'anime' (about 6.5 / 7 heads tall: the default with the anime head), 'hero' (the realistic casts: the default with the landmark head) or 'herobot' (the hero robot's toy-hero body, about 4.5 heads tall: a big head, short arms and torso, big hands and feet)`);
   if (spec.core !== undefined && !HERO_CORES.includes(spec.core)) errs.push(`core: 'structured' (the default: the vajra core, a pelvis bone turned by the hip line alone and a lumbar bone, the pelvis part, converged legs) or 'streamlined' (the hero before it)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
+  // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
+  if (wearsHead && spec.scale !== undefined && !staleScale) errs.push(`scale: the ${headOf(spec)} head's figure takes its height from tune.stature (a ratio to the cast's own height: tune: { stature: 0.85 }); scale sizes only the blank trunk (head: 'none') or a baked head include`);
   if (!wearsHead) for (const k of ['face', 'hair', 'expression', 'headPreset']) if (spec[k] !== undefined) errs.push(`${k}: only the landmark head or the anime head takes it (head: 'landmark' | 'anime')`);
   return errs;
 }
@@ -281,9 +301,9 @@ export function validateHeroSpec(spec) {
 /** The stored `hero` record: the cast word, the register, the RESOLVED tune (every control at its value, so a patch by
  * path finds it), the move trail, and whatever else the operator gave. Stored resolved for the same reason casts are:
  * a later re-tuning of a move never changes a stored row's meaning. */
-export function heroRecord(spec) {
-  const errs = validateHeroSpec(spec);
-  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds } }, blink?: false }`);
+export function heroRecord(spec, { staleScale = false } = {}) {
+  const errs = validateHeroSpec(spec, { staleScale });
+  if (errs.length) throw new Error(`hero refused:\n - ${errs.join('\n - ')}\nThe hero door: { cast: 'male' | 'female' | a figure cast | { pole: 'male' | 'female', build: ${HERO_BUILD_NAMES.join(' | ')} }, register, tune: a move (${HERO_MOVE_NAMES.join(' / ')}), { ${TUNE_KEYS.join(', ')} } or a list, face: a move (${FACE_MOVE_NAMES.join(' / ')}), { ${FACE_KEYS.join(', ')} } or a list, hair?: a style (${HAIR_STYLE_NAMES.join(' / ')}), { style, ${HAIR_KEYS.join(', ')} } or a list, expression?, sculpt?: the anime head's graphic face (an object of words, a move (${ANIME_SCULPT.MOVE_NAMES.join(' / ')}), a list or false), detail?: ${DETAIL_WORDS.join(' | ')}, adorn?: ${KIT_WORDS.join(' | ')} | { type: 'armor', style, dials }, paint?: ${Object.keys(PAINT_WORDS).join(' | ')} | { part, u?, run?, t?, group } | a list, outfit?: { type: 'outfit', style, dials?, language? } | ${Object.keys(OUTFIT_WORDS).join(' | ')} | { id, part, u?, run?, ease, flare?, over?, group } | a list, body?, palette?, head?: 'landmark' | 'none' | include, gesture?: ${GESTURE_WORDS.join(' | ')} | { ${GESTURE_KEYS.join(', ')} } | a list, clips?: { <name>: [keys] | { seconds, keys } | false } (keys in pose words: ${CLIP_KEYS.join(', ')}; a key's face on the anime head), motion?: { walk?, jog?, sprint?: true | { <the gait's dials>, tilt, seconds }, <a jump, roll or stop>?: true | { seconds } }, blink?: false }`);
   const { from, ...tune } = resolveTune(spec.tune);
   const hero = { cast: spec.cast ?? 'male', register: spec.register ?? 'round', tune, ...(from ? { from } : {}), head: spec.head ?? 'landmark' };
   if (hero.head === 'landmark') {
@@ -349,7 +369,7 @@ export function heroPlanOf(hero) {
   if (swing && (hero.core ?? DEFAULT_CORE) === 'structured') swing = { ...swing, keys: swing.keys.map((k) => ({ ...STRUCTURED_SWING_BASE, ...k, crouch: Math.max(k.crouch ?? 0, STRUCTURED_SWING_BASE.crouch) })) };
   if (swing) { const p = withGestureClip(own, swing.keys[0]); return withLocomotion(hero, gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero)); }
   // genki moves the resolved stand (the stance, the chest, the chin); a swing's keys are its own and stay as they are
-  return withLocomotion(hero, gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), hero.cast, { core: hero.core ?? DEFAULT_CORE }), hero)), hero));
+  return withLocomotion(hero, gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), gestureCast(hero.cast), { core: hero.core ?? DEFAULT_CORE }), hero)), hero));
 }
 /** the door's MOTION (hero-motion.js) on a rigged plan: its gaits as `plan.locomotion` (compiled where the clips are
  * packed); absent ⇒ the plan as it was */
@@ -583,7 +603,7 @@ export async function createLayeredHeroHandler(input) {
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }
   const rest = Object.fromEntries(Object.entries(input).filter(([k]) => !HERO_FIELDS.includes(k)));
   let planned = null;   // the mint's own compiled figure: the readout's stand and budget read it
-  const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${hero.cast}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
+  const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${castLabel(hero.cast)}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
   const face = hero.head === 'anime' ? ` The anime head by word: /hero/face/<control> (${ANIME_FACE_KEYS.join(', ')}; 1 = the base, tilt an offset); the hair: /hero/hair/style (${ANIME_HAIR_STYLES.join(', ')}), /hero/hair/<control> (${ANIME_HAIR_KEYS.join(', ')}) and /hero/hair/locks/<clump> ({ cx, cy, cz, tx, ty, tz }: fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-±1-0…2 on short); the hair's form /hero/hair/<word> (${ANIME_HAIR_FORM_WORDS.join(', ')}; lift { crown, temple, fringe, nape } in construction units; false the studio's construction, null back to the base's); the hair base (the cut worn while no family is named: ${Object.entries(ANIME_HAIR_BASE).map(([pole, b]) => `${b.cut} on the ${pole}`).join(', ')}, its form under every family); /hero/expression (${Object.keys(ANIME_POSES).join(', ')} or { blink, smile, open, brow }). The graphic face: /hero/sculpt (an object of ${ANIME_SCULPT_KEYS.join(', ')}, ${Object.keys(SCULPT_SHAPE_KEYS).join(', ')}; 1 = the base, positions and angles offsets; moves ${ANIME_SCULPT.MOVE_NAMES.join(', ')}; false for the studio's face), then /hero/sculpt/<word>. A LOOK composes presets by word: set /hero/look to a list (archetypes ${LOOK_TABLES.archetype.join(', ')}; face traits ${LOOK_TABLES.face.join(', ')}; graphic-face traits ${LOOK_TABLES.sculpt.join(', ')}; hair traits and families ${LOOK_TABLES.hair.join(', ')}; poses); the controls above apply on top of it.` : hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
   const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(heroClipSeconds(hero, plan.clips) || {}).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : ''} A statue: /hero/statue (a period card: ${STATUE_STYLES.join(', ')}; or { type: 'statue', style, material: ${STATUE_MATERIAL_WORDS.join(' | ')}, crop: ${STATUE_CROP_WORDS.join(' | ')}, lose: [head, armR, forearmL, …], base: ${STATUE_BASE_WORDS.join(' | ')}, dials: { wear } }).`;
   // the dress ledgers read the figure at REST (every dial at its rest, no channels), as the door always measured them;

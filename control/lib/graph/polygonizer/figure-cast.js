@@ -136,6 +136,19 @@ export function resolveCast(spec) {
   return from ? { ...out, from } : out;
 }
 
+/**
+ * One resolved dial set laid OVER another: a length or span dial multiplies, an angle adds. The hero door's
+ * `cast: { pole, build }` (hero-form.js) is the pole's dials with a build preset over them, so a build moves a female
+ * figure by the same percentages it moves the canonical one and the pole's own girdles stay hers.
+ */
+export function composeCast(base, over) {
+  const a = resolveCast(base), b = resolveCast(over);
+  const out = {};
+  for (const k of CAST_KEYS) out[k] = CAST_DIALS[k].kind === 'deg' ? a[k] + b[k] : a[k] * b[k];
+  const from = [a.from, b.from].filter(Boolean).join('+');
+  return from ? { ...out, from } : out;
+}
+
 /** Error strings for a cast spec (empty = valid). The MCP tool refuses on a non-empty list. */
 export function validateCast(spec, label = 'cast') {
   if (spec === undefined || spec === null) return [];
