@@ -9,6 +9,7 @@
  *   --n      roll n sheets on seeds seed … seed+n-1
  *   --set    an explicit facet (age, pole, ancestry, humanity, build, role, archetype, motivation, order); repeatable
  *   --plan   also compile each sheet (lib/graph/egocube/plan.js): the thesis, the door, and the ledger's pending rows
+ *   --dress  with --plan: 'designed' for the outfit designed from the sheet and the body drawn for its target (outfit.js)
  *   --out    with --plan: write each create_character call to <out>/<seed>.create.json and its after-patches beside it
  *   --audit  <file>: a plan you wrote (a create_character call, a creature spec or a bare ring plan), read against the
  *            sheet these arguments roll (lib/graph/egocube/audit.js): the ledger, the lessons, sameness
@@ -37,6 +38,7 @@ export function parseArgs(argv) {
     const a = argv[i];
     if (a === '--json') opts.json = true;
     else if (a === '--plan') opts.plan = true;
+    else if (a === '--dress') opts.dress = argv[++i];
     else if (a === '--years') opts.years = Number(argv[++i]);
     else if (a === '--node') opts.node = Number(argv[++i]);
     else if (a === '--skip') { const [y, w] = String(argv[++i] ?? '').split(':'); opts.skips.push({ chapter: 'time', years: Number(y), ...(w ? { words: w.split(',') } : {}) }); }
@@ -117,7 +119,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   if (!opts.plan) console.log(opts.json ? JSON.stringify(sheets, null, 2) : sheets.map(printSheet).join('\n\n'));
   else for (const sheet of sheets) {
-    const p = planFromSheet(sheet);
+    const p = planFromSheet(sheet, { ...(opts.dress ? { dress: opts.dress } : {}) });
     console.log(`── seed ${sheet.seed} · ${p.door} door ──\n  thesis: ${p.thesis}`);
     for (const r of p.ledger.filter((x) => x.pending)) console.log(`  pending ${r.channel}: ${r.line} — ${r.pending}`);
     console.log(`  landed ${p.ledger.filter((x) => x.at).length} of ${p.ledger.length} notes`);

@@ -72,6 +72,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - an optional inner patch in its own group.
   It is built as a loft of closed rings with its winding checked outward. The library wolf's ears are now leaves (its
   palette's `EarInner` inside); the bear keeps its round disc ear.
+- **The outfit, designed** (`outfit-plan.js`, `egocube/outfit.js`). What a creature wears is one plan for its whole
+  body, from who it is, instead of a stock kit by role (every support's satchels and pack).
+  - A plan's `outfit` (`{ intent: { silhouette, symmetry, palette: { base, secondary, trim, accent } }, pieces }`)
+    compiles in layer order from a catalogue of piece kinds (gown, robe, tunic, mantle, sash, belt, baldric, wraps,
+    pauldron, bracers, chain, medallion, satchel, pack, quiver). Each piece is placed off the body's own landmarks
+    (shoulders, natural waist, hips, knees).
+  - A gown's skirt is tailored: one loft round both legs from the natural waist, wide enough at the hips, a flat hem,
+    its sides blending toward each thigh down its length so it follows a stride.
+  - `outfitLaws` checks the Dressing Bible's laws of visual interest, advisory: one focal, the accent on the focal
+    alone, three values unequal, clear value steps, repetition with variation, symmetry from order, shape from the
+    archetype, the must-see kept seen, restraint (six pieces at most), every piece with a reason.
+  - `outfitFromSheet` designs the outfit from an Egocube sheet: the archetype's silhouette and core garment, a
+    must-see tail kept free, the role's needs (a frontline's armour, a ranger's quiver), the archetype's one focal (a
+    ruler's chain of office), an asymmetric note for a free order, and a palette whose roles step clearly from each
+    other and from the coat.
+  - `planFromSheet(sheet, { dress: 'designed' })` (and `egocube-roll --dress designed`) wears it on a body drawn for
+    its target. Absent, the kit as before.
+  - Across 48 rolls every outfit passes the laws, in 19 piece sets.
+  - A 12-character A/B at 1080p: body share 26% → 40%, mean triangles 9,393 → 8,915. Outline distinctness is unmoved
+    (0.52), because a seed rolls the same facets for every lineage over one body template; that is upstream of dress.
 - **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
   that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
   1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's

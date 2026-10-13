@@ -21,6 +21,7 @@ import { readDerive } from './channels.js';
 import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
+import { outfitFromSheet } from './outfit.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -397,13 +398,17 @@ export function contrastPair(roll, change, rollEgocube) {
   return { change, a: { facets: a.facets, reads: a.reads }, b: { facets: b.facets, reads: b.reads }, moved, note: 'A first reading of each sheet, side by side: how one facet moves the choices, not what to choose. Neither is a body to copy.' };
 }
 
-export function planFromSheet(sheet, { title } = {}) {
+/** `dress: 'designed'`: the outfit DESIGNED from the sheet (outfit.js: its archetype, role, order, motivation, age and
+ * lineage, the visual-interest laws run over it) and the body DRAWN for its target (creature-drawn.js), in place of the
+ * stock kit by role; absent, the kit as before. */
+export function planFromSheet(sheet, { title, dress } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
   if (door === 'creature') {
     const built = creature(sheet, name);
+    if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: true } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
-      after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built) };
+      after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }
   const built = hero(sheet);
   return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: ledgerOf(sheet, door, built) };
