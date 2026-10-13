@@ -88,11 +88,12 @@ export function strap(fig, A) { const L1 = fig.mesh.parts; const beneath = benea
 /** HANG: a chain from an anchor under gravity, kept `clear` off the beneath points (a few relaxation passes that
  * keep link length), ending in a pendant; links alternate orientation */
 export function clearOf(p, surfaces, out, clear) { for (const S of surfaces) { let hit; try { hit = projectOnto(S, p, out); } catch { continue; } const d = dot(sub(p, hit), out); if (d < clear) p = add(p, mul(out, clear - d)); } return p; }
-export function hang(beneath, anchor, { links, len, clear, r, surfaces = [], out = [0, 1, 0] }) { let P = Array.from({ length: links + 1 }, (_, i) => add(anchor, [0, 0, -len * i]));
+// `sides`: each link's loop and wire (a drawn creature's by its target)
+export function hang(beneath, anchor, { links, len, clear, r, surfaces = [], out = [0, 1, 0], sides = [10, 5] }) { let P = Array.from({ length: links + 1 }, (_, i) => add(anchor, [0, 0, -len * i]));
   for (let it = 0; it < 12; it++) { for (let i = 1; i < P.length; i++) { for (const v of beneath) { const d = sub(P[i], v), l = dmath.hypot(...d); if (l < clear && l > 1e-9) P[i] = add(v, mul(d, clear / l)); } P[i] = clearOf(P[i], surfaces, out, clear); }
     for (let i = 1; i < P.length; i++) { const d = sub(P[i], P[i - 1]), l = dmath.hypot(...d); P[i] = add(P[i - 1], mul(d, len / l)); } }
   const meshes = P.slice(0, -1).map((p, i) => { const c = mean([p, P[i + 1]]), ax = unit(sub(P[i + 1], p)); const side = unit(cross(ax, i % 2 ? [1, 0, 0] : [0, 1, 0]));
-    return ringLoft(Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10; const q = add(c, add(mul(ax, dmath.cos(a) * len * 0.55), mul(side, dmath.sin(a) * len * 0.3))); const t = unit(add(mul(ax, -dmath.sin(a) * 0.55), mul(side, dmath.cos(a) * 0.3))); return ringAt(q, t, r, 5); })); });
+    return ringLoft(Array.from({ length: sides[0] }, (_, k) => { const a = 2 * Math.PI * k / sides[0]; const q = add(c, add(mul(ax, dmath.cos(a) * len * 0.55), mul(side, dmath.sin(a) * len * 0.3))); const t = unit(add(mul(ax, -dmath.sin(a) * 0.55), mul(side, dmath.cos(a) * 0.3))); return ringAt(q, t, r, sides[1]); })); });
   return { P, meshes }; }
 /** a flat disc (medallion, boss, buckle plate) facing n: two rings and a raised face */
 export function disc(c, n, r, h, m = 12, rim = 0.8) { const ring = (rr, z) => ringAt(add(c, mul(n, z)), n, rr, m); return loftParts([ring(r, 0), ring(r, h * 0.6), ring(r * rim, h)], sub(c, mul(n, 0.002)), add(c, mul(n, h * 1.15))); }
@@ -257,7 +258,7 @@ export const SIGNATURES = {
     return ringLoft(Array.from({ length: m }, (_, k) => { const a = 2 * Math.PI * k / m; const u = unit(cross(f, [0, 0, 1])), v = cross(f, u); const q = add(add(c, mul(f, S.standoff ?? 0.02)), add(mul(u, dmath.cos(a) * S.R), mul(v, dmath.sin(a) * S.R))); return ringAt(q, unit(add(mul(u, -dmath.sin(a)), mul(v, dmath.cos(a)))), S.r, S.rm ?? 6); })); },
   /** a disc hanging on a chain in front of `surfaces`: { links, len, clear, link, drop, dropClear, face, r, h, m?, rim?, anchor?, out?, surfaces } */
   medallion: (fig, g, beneath, S) => { const [k, j] = gridAt(g, { k: 0, j: 0, ...S }, S.side); const a = g.outer[k][j]; const surfaces = (S.surfaces || []).map((n) => fig.mesh.parts[n]); const out = S.out ?? [0, 1, 0];
-    const { P, meshes } = hang(beneath, add(a, S.anchor ?? [0, 0.01, -0.01]), { links: S.links, len: S.len, clear: S.clear, r: S.link, surfaces, out }); const c = clearOf(add(P[P.length - 1], [0, 0, -S.drop]), surfaces, out, S.dropClear);
+    const { P, meshes } = hang(beneath, add(a, S.anchor ?? [0, 0.01, -0.01]), { links: S.links, len: S.len, clear: S.clear, r: S.link, surfaces, out, ...(S.linkSides ? { sides: S.linkSides } : {}) }); const c = clearOf(add(P[P.length - 1], [0, 0, -S.drop]), surfaces, out, S.dropClear);
     return { links: meshes, element: disc(c, unit(S.face ?? [0, 1, 0.15]), S.r, S.h, S.m ?? 14, S.rim ?? 0.6) }; },
   /** RIBBONS from one grid point, tessellated as the anime hair's sections are (ribbonMesh): { spine: [[x,y,z]…] (x scaled
    * by each `spread`), spread?, width, thick, cols?, rows?, taper?, ridge?, flute?, twist?, tip?: 'square' | 'point' |
@@ -268,7 +269,7 @@ export const SIGNATURES = {
   plume: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
     return S.spread.map((x) => sweep(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), S.r, S.m ?? 6, { squash: S.squash ?? [1, 0.45] })); },
   /** a bell on a short chain from the shell's rim: { after, side, links, len, clear, link, profile, r, top, step, m?, capTop, capBottom } */
-  bell: (fig, g, beneath, S) => { const [k] = gridAt(g, S, S.side); const a = g.outer[k][g.S.length - 1]; const { P, meshes } = hang(beneath, a, { links: S.links, len: S.len, clear: S.clear, r: S.link }); const e = P[P.length - 1];
+  bell: (fig, g, beneath, S) => { const [k] = gridAt(g, S, S.side); const a = g.outer[k][g.S.length - 1]; const { P, meshes } = hang(beneath, a, { links: S.links, len: S.len, clear: S.clear, r: S.link, ...(S.linkSides ? { sides: S.linkSides } : {}) }); const e = P[P.length - 1];
     return { links: meshes, element: loftParts(S.profile.map((q, i) => ringAt(add(e, [0, 0, -S.top - S.step * i]), [0, 0, 1], S.r * q, S.m ?? 10)), add(e, [0, 0, -S.capTop]), add(e, [0, 0, -S.capBottom])) }; },
   /** a disc set on the LIFTED outer skin where it faces `dir` (the eye's direction; x mirrors on the L side): { dir, r, h,
    * m?, rim? }. A shell's frame normal is its carrier's, so on a cap lifted over the arm every address still faces up;

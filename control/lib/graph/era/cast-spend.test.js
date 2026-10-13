@@ -51,12 +51,12 @@ describe('cast spend', () => {
   it('reads a creature by its own names: the muzzle below the head\'s base is the head, the paw the hands, the shin and tail the body, its tiles the cover when asked', () => {
     const RIG = { rig: { joints: { headBase: { at: [0, 0.15, 1.86] } } } };
     const s = castSpend(meshOf([['cranium', 1.9, 4], ['whisker0R', 1.72, 3], ['toothU.1L', 1.72, 2], ['tongue.0', 1.73, 2], ['surroundL', 1.85, 5],
-      ['shinR', 0.4, 6], ['metaL', 0.2, 2], ['tail3', 0.9, 3], ['clawF0R', 0.01, 1], ['fingerB2R', 0.7, 2], ['pad.handL', 0.72, 1], ['clawH1R', 0.58, 1],
+      ['shinR', 0.4, 6], ['metaL', 0.2, 2], ['metaBridgeR', 0.25, 2], ['tail3', 0.9, 3], ['clawF0R', 0.01, 1], ['fingerB2R', 0.7, 2], ['pad.handL', 0.72, 1], ['clawH1R', 0.58, 1],
       ['tile.ruffNeck.neck.L.0.3', 1.6, 4], ['tile0R.2.1', 1.0, 2], ['adorn.belt', 1.0, 3]]), RIG, '1080p', { cover: true });
     expect(s.regions.head.triangles).toBe(16);
-    expect(s.regions.body.triangles).toBe(12);
+    expect(s.regions.body.triangles).toBe(14);
     expect(s.regions.hands.triangles).toBe(4);
-    expect(s.regions.cover).toEqual({ triangles: 6, share: 0.146, reserve: [0, REGION_SHARES.T2.hair[1]], at: 'in' });
+    expect(s.regions.cover).toEqual({ triangles: 6, share: 0.140, reserve: [0, REGION_SHARES.T2.hair[1]], at: 'in' });
     expect(s.regions.clothing.triangles).toBe(3);
     // a hero's tiles are a garment's: without `cover` they stay clothing, and there is no cover key
     const hero = castSpend(meshOf([['torso', 1.2, 10], ['tile.quiltBack.torso.L.1.0', 1.3, 4]]), PLAN, '1080p');

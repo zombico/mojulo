@@ -35,6 +35,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   On the Pale Warden at 1080p third-person: bridges at the shin, metatarsal, toes, forearm and hand, the torso, pelvis
   and neck split, and the outline kept (0.976 overlap at worst, the three-quarter view). Without `style.drawn` a plan
   expands byte for byte as before, and the hero's bridges and density are unchanged.
+- **Spent by what reads** (`creature-drawn.js`, the same `style.drawn`). A detail too small to read at the target buys
+  nothing, so the drawn creature builds only what reads:
+  - strokes under 1 px are dropped (whiskers by thickness, wrinkles by width);
+  - fur tufts under 6 px tall are dropped (the ruff and the tail's brush stay, the forearm's fuzz goes);
+  - teeth whose largest is under 3 px are dropped;
+  - the eye's surround gets the sides its outline asks (8–20; the head's `orbit.sections`);
+  - bridges keep their five rings without their stations halved;
+  - what it wears follows the outline rule: a ribbon's rows and columns by its length and width on screen, a chain's
+    link loops and wire by their size (`hang`'s new `sides`, `linkSides` on a medallion or bell), a medallion's sides by
+    its radius;
+  - density is the target's: a hand-written refine of a part the outline rule sets is dropped, and the rule splits what
+    the target asks.
+  A closer target keeps more (a close-up builds every whisker). On the Pale Warden at 1080p third-person:
+  - 13,880 → 10,268 triangles;
+  - the body at 36%, inside its reserve (21% before the work);
+  - head 20%, hands 9%, fur 8.5%, gear 25% (at its reserve's top);
+  - the outline kept (0.973 at worst).
+  He is still 158% of the 1080p budget. The rest is the body at the 1 px outline the rule holds. A 2 px tolerance
+  changes nothing: one joint splits its whole leg chain.
 - **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
   silhouette:
   - a silhouette gate every pass must keep;

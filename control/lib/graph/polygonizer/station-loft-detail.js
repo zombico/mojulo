@@ -277,7 +277,7 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   // aperture, just off the ball) over a rim and a bowed middle to the skin — and on top the skin point is
   // held just UNDER the brow's lower edge, so the brow overhangs the lid. Upper half = lid, lower = pad.
   const hu = R * Math.max(0.05, orbit.open[0] - 0.55 * lidClose + 8 * lift), hl = R * Math.max(0.05, orbit.open[1] - 0.3 * lidClose - 0.28 * Math.max(0, bunch));
-  const N = 20, TH = orbit.thickness; const sections = [];
+  const N = orbit.sections ?? 20, TH = orbit.thickness; const sections = [];   // `sections` round the eye: a drawn creature sets them by its target (creature-drawn.js)
   // CLEARANCE RULE: no lid or pad vertex inside the eyeball. The ball's extent is measured on its drawn vertices
   // (iris disc included) about its centre, which gaze never moves. A lining vertex inside that radius plus
   // `clear` is lifted along the eye's axis onto it, a skin vertex onto it plus `minThick`: the lid drapes over
