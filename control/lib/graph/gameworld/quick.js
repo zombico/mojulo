@@ -19,7 +19,9 @@
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
- *     music?: '<mood>',                     // rhythm: the field score whose beat it runs to (wayfarer)
+ *     music?: '<mood>' | 'auto',            // rhythm: the field score whose beat it runs to (wayfarer). Any other goal:
+ *                                           // a field score under each level, one identity across the game ('auto':
+ *                                           // the mood each level's place and play call for, beats/score-suggest.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (plain ones by default)
@@ -45,6 +47,8 @@ import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites } from './lay-concerns.js';
+import { SCORE_MOODS } from '../beats/field-score.js';
+import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -128,8 +132,9 @@ export function readQuick(Q) {
   if (Q.alarms !== undefined && !(Number.isInteger(Q.alarms) && Q.alarms >= 1 && Q.alarms <= 9)) throw fail('.alarms is how many sightings end the run, 1 to 9');
   if (Q.guard !== undefined && !isObj(Q.guard)) throw fail('.guard is a hero-door spec, as .hero is');
   if (Q.building !== undefined && (Q.goal === 'race' || Q.goal === 'sneak' || Q.goal === 'rhythm')) throw fail(`.building: ${Q.goal} runs a trail, not a building`);
-  for (const k of ['music', 'misses']) if (Q.goal !== 'rhythm' && Q[k] !== undefined) throw fail(`.${k} belongs to the rhythm goal`);
-  if (Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
+  if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
+  if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
+  if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its field score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
   if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot') throw fail('.foe belongs to the defend, battle and shoot goals');
@@ -467,9 +472,16 @@ export function bagPlay(quick) {
   };
 }
 
-/** The level's audio a goal needs: a rhythm game's music, its beat said on the bus (null: none). */
-export function goalAudio(quick) {
-  return quick.goal === 'rhythm' ? { soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true } : null;
+/**
+ * A level's audio (null: none). A rhythm game's music, its beat said on the bus. Any other goal with `music`: a field
+ * score under the level, every level sharing the game's identity (`game`, a seed); 'auto' asks score-suggest for the
+ * mood the level's place (`manifest`) and play (the goal, `final`) call for, quiet when its place calls for none.
+ */
+export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
+  if (quick.goal === 'rhythm') return { soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true };
+  if (quick.music === undefined) return null;
+  const mood = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final }))?.mood : quick.music;
+  return mood ? { soundtrack: { score: { mood, ...(Number.isInteger(game) ? { game } : {}) } } } : null;
 }
 
 /** The store the goal needs (create_game's `store`): a campaign always; a bag to collect into; the hero's hp to lose. */

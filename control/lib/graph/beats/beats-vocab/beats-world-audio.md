@@ -25,6 +25,10 @@ audio: {
   night, tension, triumph …); `create_beats({ score })` lists them.
 - `{ beatsRef: '<ref>' }`: a stored beats row (ambient, composition or pattern), inlined at resolve time.
 - An inline beats recipe (`beats-ambient`, `beats-composition`, `beats-pattern`).
+- Which mood: `compose_world` and `create_game` suggest one from the place (base, theme, kit, title, time) and the
+  play (a fight darker and driving, a sneak toward tension, a race driving, the last level lifted), with a `why`.
+  `create_game`'s reply carries each unscored level's update_sketch call; `design_game({ quick: { music: 'auto' } })`
+  writes it at mint.
 - A composition always loops here, at the next bar line. Engine exports (Godot, Unity, Unreal) render the same
   soundtrack as a looped WAV bed.
 

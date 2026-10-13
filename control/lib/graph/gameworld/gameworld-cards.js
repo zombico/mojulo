@@ -268,6 +268,7 @@ function quickCard() {
     '                     absent or false: first person, you are the camera',
     `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: third person with a hero, first person without; top-down (¾, north up) and side (A / D run the trail's line, no climb) need a hero`,
     `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
+    "  music: 'auto' | '<mood>'   a field score per level, one game identity; auto reads its place and goal",
     `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world says what each takes)`,
     '',
     'THE ANSWER: the readout of the one-level gameworld that was written and run: its stage as a level with the goal placed on',

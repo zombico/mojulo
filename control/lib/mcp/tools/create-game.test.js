@@ -38,6 +38,23 @@ const contract = (levelRef) => ({
 });
 
 describe('create_game — mint + promotion discipline', () => {
+  it('suggests a field score for each level with no soundtrack, one identity across the game; a scored level is left alone', async () => {
+    mintLevel('crypt-1', contract('crypt-1'));
+    SketchRepository.create({ ref: 'crypt-2', title: 'crypt-2', manifest: { kind: 'orbit-view', scenario: 'circular', game: contract('crypt-2'), audio: { soundtrack: 'field:chapel' } } });
+    mintLevel('crypt-3', contract('crypt-3'));
+    const out = await mintGame({ title: 'Scored Crypt', store: STORE, levels: [{ ref: 'crypt-1' }, { ref: 'crypt-2' }, { ref: 'crypt-3' }], ref: 'scored-crypt', allowUnaudited: true });
+    expect(out.music.suggest.map((s) => s.level)).toEqual(['crypt-1', 'crypt-3']);
+    const [a, b] = out.music.suggest;
+    expect(a.mood).toBe('expedition');   // a crypt: unknown ground, a quiet minor march
+    expect(a.why).toMatch(/unknown ground/);
+    expect(b.why).toMatch(/last level/);
+    // the apply is an update_sketch patch; both levels share the game's identity seed
+    expect(a.apply).toEqual({ ref: 'crypt-1', patch: [{ op: 'set', path: '/audio', value: { soundtrack: { score: { mood: a.mood, game: a.apply.patch[0].value.soundtrack.score.game } } } }] });
+    expect(b.apply.patch[0].value.soundtrack.score.game).toBe(a.apply.patch[0].value.soundtrack.score.game);
+    // create_game wrote no level
+    expect(SketchRepository.getByRef('crypt-1').manifest.audio).toBeUndefined();
+  });
+
   it('mints a game over validated levels and returns the play URL', async () => {
     mintLevel('crypt-1', contract('crypt-1'));
     mintLevel('crypt-2', contract('crypt-2'));

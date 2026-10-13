@@ -39,6 +39,30 @@ import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 import { getHudVocabCatalog } from '@/lib/graph/game/hud-cards/loader';
 import { getIdiomVocabCatalog } from '@/lib/graph/game/idiom-cards/loader';
 import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscape/ui/cards';
+import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
+import { seedOfRef } from '@/lib/graph/beats/field-cue';
+
+// The field score each level calls for (beats/score-suggest.js), for the levels with no soundtrack of their own: one
+// identity across the game (its ref seeds `game`), each level's own ref its cue's seed. Advice: create_game never
+// writes a level; the reply carries the update_sketch call that does.
+function suggestLevelMusic(levelRefs, gameRef) {
+  const game = seedOfRef(gameRef);
+  const out = [];
+  levelRefs.forEach((ref, i) => {
+    const row = SketchRepository.getByRef(ref), m = row?.manifest;
+    if (!m || m.audio?.soundtrack) return;
+    // the row's title stands in for a manifest that carries none (its place words often live there)
+    const s = suggestScore(levelScoreContext({ ...m, title: m.title ?? row.title }, { final: levelRefs.length > 1 && i === levelRefs.length - 1 }));
+    if (!s) return;
+    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, game } } };
+    out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
+  });
+  return out.length ? {
+    suggest: out,
+    how: "each level's `apply` is an update_sketch call; the shared `game` seed keeps one score identity across the levels. "
+      + "Name another mood in score.mood to override. Manual: get_beats_vocab({ id: 'beats-world-audio' }).",
+  } : null;
+}
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
@@ -119,6 +143,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     project = { ref: projectRef, url: `/games/${encodeURIComponent(projectRef)}` };
   }
 
+  const levelMusic = suggestLevelMusic(finalized.levels.map((l) => l.ref), sketch.ref);
   return {
     ok: true,
     ref: sketch.ref,
@@ -127,6 +152,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     playtestUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/playtest`,
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
+    ...(levelMusic ? { music: levelMusic } : {}),
     ...(project ? { project } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
   };

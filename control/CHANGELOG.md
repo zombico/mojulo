@@ -15,8 +15,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ### Game audio: scene-scored soundtracks and action SFX
 
-The first step makes the audio that already exists work in games: four faults stood between the beats composer
-and a game's levels.
+Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
+score its scene and its play call for.
 
 - **A looped composition keeps playing.** On the live page a composition with `loop: true` played once and went
   silent: the transport kept running and never went back to the first event. Every `field:<mood>` world soundtrack
@@ -34,6 +34,20 @@ and a game's levels.
 - **Music beds loop without a seam everywhere.** The game shell's menu, about and battle tracks are served and
   exported as one seamless pass to the bar line (`beats.wav?loop=1`); Unity and Unreal beds are rendered looped like
   Godot's already were. An sfx stays a one-shot.
+- **A level's music, suggested from its scene and its play.** `suggestScore` (`lib/graph/beats/score-suggest.js`)
+  starts from the mood the place asks for (the old word suggestion, unchanged) and moves it by what the level does.
+  Each mood has a point on a valence/arousal plane. A fight pushes darker and more driving, a sneak toward tension,
+  a race toward drive, a storm darker, and the last level of a run gets a lift. The nearest mood wins.
+  - Play moves a level only toward the moods that say an energy (highlands, expedition, wayfarer, night, tension;
+    triumph on the last level). A place mood (desert, tavern, chapel …) stays with its place.
+  - A stage kit counts as place words (`trail-valley` reads as plains, `gothic-stone` as a crypt).
+  - With no play in the context, the answer is the old one byte for byte, so `compose_world`'s suggestions for plain
+    worlds don't move.
+  - `create_game` replies with `music.suggest` for every level without a soundtrack. Each entry has its mood, the
+    `why`, two alternatives and the `update_sketch` call that applies it. Every level shares one `game` seed, so the
+    game keeps one score identity. `create_game` writes no level itself.
+  - `design_game({ quick: { music: 'auto' | '<mood>' } })` scores each level at mint, for any goal (before, `music`
+    was rhythm-only). Without `music`, a level's order and print are as before.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

@@ -110,6 +110,19 @@ describe('design_game quick', () => {
     expect(payload.events.inputs.some((i) => i.once && i.key === ' ')).toBe(true);
   }, 240_000);
 
+  it('music: auto scores each level from its place and play, under the game\'s one identity; quiet without it', async () => {
+    await designGameHandler({ quick: { goal: 'sneak', music: 'auto', world: { id: 'hush', style: { kit: 'trail-valley' } } }, ref: 'h' });
+    const L = stored('h-level-run-0');
+    expect(L.audio.soundtrack.score).toMatchObject({ mood: 'expedition' });   // a valley's plains, moved darker and tenser by the sneak
+    expect(Number.isInteger(L.audio.soundtrack.score.game)).toBe(true);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('h-level-run-0'));
+    expect(payload.audio.soundtrack).toMatchObject({ kind: 'beats-composition', loop: true });
+    await designGameHandler({ quick: { goal: 'reach', music: 'forest', world: { id: 'glade', style: { kit: 'trail-valley' } } }, ref: 'g' });
+    expect(stored('g-level-run-0').audio.soundtrack.score.mood).toBe('forest');
+    await designGameHandler({ quick: { goal: 'reach', world: { id: 'mute', style: { kit: 'trail-valley' } } }, ref: 'q' });
+    expect(stored('q-level-run-0').audio).toBeUndefined();
+  }, 240_000);
+
   it('ride: the hero is a car, its build minted, every stage driven on the rule it derives', async () => {
     const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', world: { id: 'rally', style: { kit: 'trail-valley' } } }, ref: 'v' });
     expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
@@ -294,7 +307,8 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'reach', guards: 2 })).toThrow(/guards belongs to the sneak goal/);
     expect(() => readQuick({ goal: 'sneak', guards: 12 })).toThrow(/1 to 8/);
     expect(() => readQuick({ goal: 'race', building: { use: 'tavern' } })).toThrow(/runs a trail/);
-    expect(() => readQuick({ goal: 'reach', music: 'tavern' })).toThrow(/music belongs to the rhythm goal/);
+    expect(() => readQuick({ goal: 'reach', music: 'polka' })).toThrow(/music is 'auto'/);
+    expect(() => readQuick({ goal: 'reach', misses: 3 })).toThrow(/misses belongs to the rhythm goal/);
     expect(() => readQuick({ goal: 'rhythm', music: 'chapel' })).toThrow(/steady beat/);
     expect(() => readQuick({ goal: 'race', ride: 'tank' })).toThrow(/ride is one of car/);
     expect(() => readQuick({ goal: 'race', ride: 'car', hero: { cast: 'male' } })).toThrow(/the ride is the hero/);
