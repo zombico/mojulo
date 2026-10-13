@@ -21,7 +21,7 @@ import { readDerive } from './channels.js';
 import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
-import { outfitFromSheet } from './outfit.js';
+import { outfitFromSheet, heroOutfitOf } from './outfit.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -399,8 +399,8 @@ export function contrastPair(roll, change, rollEgocube) {
 }
 
 /** `dress: 'designed'`: the outfit DESIGNED from the sheet (outfit.js: its archetype, role, order, motivation, age and
- * lineage, the visual-interest laws run over it) and the body DRAWN for its target (creature-drawn.js), in place of the
- * stock kit by role; absent, the kit as before. */
+ * lineage, the visual-interest laws run over it) in place of the stock kit by role. A creature wears it on a body DRAWN
+ * for its target (creature-drawn.js); a person wears its cut as the hero's outfit build. Absent, the kit as before. */
 export function planFromSheet(sheet, { title, dress } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
@@ -411,6 +411,8 @@ export function planFromSheet(sheet, { title, dress } = {}) {
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }
   const built = hero(sheet);
-  return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: ledgerOf(sheet, door, built) };
+  // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
+  if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
+  return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
 }
 

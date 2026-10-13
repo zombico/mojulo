@@ -289,7 +289,8 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
     plan.garments = built.garments;
     if (built.paint.length) plan.paint = [...(plan.paint || []), ...built.paint];
     if (built.rows.length) plan.body = { ...(plan.body || {}), rows: [...(plan.body?.rows || []), ...built.rows] };
-    if (built.kit.length) plan.adorn = [...(plan.adorn || []), ...built.kit];
+    // one belt: a kit that already wears one (the ranger's) keeps it, and the outfit's is not added twice
+    if (built.kit.length) { const ids = new Set((plan.adorn || []).map((A) => A.id)); plan.adorn = [...(plan.adorn || []), ...built.kit.filter((A) => !ids.has(A.id))]; }
   } else if (wantOutfit) plan.garments = lowerOutfit(outfit, plan, scale);
   // the kit's suggestion is already beneath the operator's colours in plan.palette (humanoidPlan builds the head with it)
   const base = { ...plan.palette, ...(detail === 'swimsuit' ? { Swim: SWIM_TONES[figure.female && !figure.child ? 'female' : 'male'] } : {}), ...operatorPalette };

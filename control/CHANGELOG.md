@@ -116,6 +116,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     wedge's pauldrons stand out to its broad shoulder line.
   - The laws count the cut's cloth by area and its trimmed edges as trim uses.
   - Across 48 rolls every outfit passes the laws, in 40 sets (19 before), and same-seed lineages now dress apart.
+  - People too: `planFromSheet(sheet, { dress: 'designed' })` on the hero door wears the same derived cut as the
+    hero's outfit build (`heroOutfitOf`, an inline card coloured by the palette's roles) in place of the stock clothed
+    body. People are shod (boots for the road and the fight, shoes at court). Anatomy counts only what the door draws,
+    so a wolf-kin drawn as a person is not dressed for fur or a tail. A kit that already wears a belt keeps it, and
+    the outfit's is not added twice (`hero-dress.js`; the pair used to throw). A cloak and a standing collar take the
+    base; restraint runs before the trim's repetition, which recolours a worn piece when there is no room for one more.
+    40 people's rolls pass the laws, in 21 sets.
 - **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
   that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
   1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's

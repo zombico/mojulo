@@ -101,7 +101,8 @@ export const MOBILITY = Object.freeze({ flanker: 1, ranged: 0.9, frontline: 0.8,
 /** THE CUT from the sheet by principles → { language, dials, colours, notes: [the reason for each choice] } */
 /** what the lineage's body already shows: its cover (fur, scales, chitin) and where, its wings */
 export function anatomyOf(sheet) {
-  const P = sheet.ancestry?.plan || {}, kind = P.cover?.kind ?? null, where = new Set(P.cover?.where || []);
+  // only what the body DRAWS counts: the hero door draws a person (no fur, scales, tail or wings), whatever the notes say
+  const P = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan || {} : {}, kind = P.cover?.kind ?? null, where = new Set(P.cover?.where || []);
   // scales are cold only when they are the body's cover, not patches (all over: the belly scaled)
   return { cover: kind, where, fur: kind === 'fur', scales: kind === 'scales' && where.has('belly'), chitin: kind === 'chitin', wings: hasDerive(sheet, 'wings = feather'), ruff: kind === 'fur' && where.has('ruff') };
 }
@@ -159,8 +160,10 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
   const fit = Math.max(0, Math.min(1, (lithe ? 0.3 : heavy ? 0.65 : 0.5) + (elder ? 0.1 : youth ? -0.1 : 0) + (hasDerive(sheet, 'outfit.fit +') ? 0.15 : 0)));
   const dials = { stylize: 0.35, fit: Math.round(fit * 100) / 100, coverage: 1, ornament: Math.min(3, 1 + (F >= 0.5 ? 1 : 0) + (hasDerive(sheet, 'armor.ornament +') ? 1 : 0)) };
   const focal = top.collar ? 'collar' : top.family === 'woven' && bound ? 'placket' : 'belt';
-  const language = { top, bottom, ...(outer ? { outer } : {}), feet: 'none', tuck: bound, focal };
-  note('bare feet: the claws read');
+  // the feet: a creature's claws read bare; a person is shod, booted for the road and the fight, in shoes at court
+  const human = sheet.ancestry?.door !== 'creature', feet = human ? (M >= 0.5 || ['explorer', 'outlaw', 'hero'].includes(a) ? 'boots' : 'shoes') : 'none';
+  const language = { top, bottom, ...(outer ? { outer } : {}), feet, tuck: bound, focal };
+  note(feet === 'none' ? 'bare feet: the claws read' : feet === 'boots' ? 'boots: the road and the fight' : 'shoes: indoors and at court');
   // the cloth's colour roles (60 / 30 / 10): the largest field the base. Under a short outer layer the legs wear its
   // colour too (one suit, the shirt the secondary showing at the front and the sleeves); under a long coat they barely
   // show, in leather. Without an outer layer the longer of top and bottom is the base
@@ -171,7 +174,7 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
 
 export function outfitFromSheet(sheet, { coat } = {}) {
   const f = sheet.facets, a = f.archetype, free = f.order >= 0.5, side = 'R';
-  const tail = sheet.ancestry?.plan?.tail, tailSeen = SEEN_TAILS.has(tail);
+  const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
   // the sheet's own silhouette word when the archetype reads that way; the archetype's otherwise
   const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
   const pieces = [], cut = cutFromSheet(sheet, { silhouette, tailSeen });
@@ -180,8 +183,10 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   if (OFFICE.mantle.includes(a) && !long) pieces.push({ kind: 'mantle', clasp: false, why: `the ${a}'s station on the shoulder line` });
   if (OFFICE.sash.includes(a) && !(cut.language.outer && !cut.language.outer.open)) pieces.push({ kind: 'sash', why: 'marks the natural waist', ...(FOCAL[a] === 'sash' ? { role: 'focal', knotColour: 'accent' } : {}) });
   // a traveller's cloak, where no tail must read; a needle's rise
-  if (['explorer', 'outlaw'].includes(a) && !tailSeen && !anatomyOf(sheet).wings) pieces.push({ kind: 'cloak', why: `the ${a} travels: a cloak from the shoulders` });
-  if (silhouette === 'needle' && !cut.language.outer?.collar) pieces.push({ kind: 'collar', why: 'the needle\'s height: a collar standing behind the nape' });
+  // the cloak is the largest field the figure wears: it takes the base (60 / 30 / 10)
+  if (['explorer', 'outlaw'].includes(a) && !tailSeen && !anatomyOf(sheet).wings) pieces.push({ kind: 'cloak', colour: 'base', why: `the ${a} travels: a cloak from the shoulders` });
+  // a standing collar is the cloth it stands from: the base
+  if (silhouette === 'needle' && !cut.language.outer?.collar) pieces.push({ kind: 'collar', colour: 'base', why: 'the needle\'s height: a collar standing behind the nape' });
   // what the role needs
   for (const g of ROLE_GEAR[f.role] ?? []) if (!pieces.some((p) => p.kind === g.kind)) pieces.push({ ...g });
   // the one focal piece: the archetype's, unless armour is the hero's and the role brought none
@@ -195,20 +200,30 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   if (free && !pieces.some(asym)) pieces.push(OFFICE.mantle.includes(a) ? { kind: 'baldric', colour: 'trim', why: `the sash of office worn across the chest: the free ${a}'s one asymmetric note` } : { kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' });
   if (!free) for (const p of pieces) if (p.kind === 'pauldron') p.pair = true;
   if (silhouette === 'wedge') for (const p of pieces) if (p.kind === 'pauldron') p.shoulder = 1.25;   // the wedge's broad shoulder line
-  // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
-  const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => p.kind === 'mantle' && p.clasp !== false).length;
-  if (trims() < 2) { const m = pieces.find((p) => p.kind === 'mantle'); if (m) Object.assign(m, { clasp: true, claspColour: 'trim' }); }
-  if (trims() < 2) { const m = pieces.find((p) => ['medallion', 'chain'].includes(p.kind)); if (m) m.cordColour = 'trim'; }
-  if (trims() < 2) { const w = pieces.find((p) => p.kind === 'wraps'); if (w) w.colour = 'trim'; else pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' }); }
   // restraint: six pieces at most, kept by what each is for (the garment, the focal, the station, the role's first
   // need, the asymmetric note, the waist, the role's second need, the detail)
   const rank = (p) => (p.role === 'focal' ? 1 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : (ROLE_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
   const room = 5 - (cut.language.outer ? 1 : 0);   // the cloth (its base and its outer layer) counts toward the whole's six
   if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
+  // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
+  const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => p.kind === 'mantle' && p.clasp !== false).length;
+  if (trims() < 2) { const m = pieces.find((p) => p.kind === 'mantle'); if (m) Object.assign(m, { clasp: true, claspColour: 'trim' }); }
+  if (trims() < 2) { const m = pieces.find((p) => ['medallion', 'chain'].includes(p.kind)); if (m) m.cordColour = 'trim'; }
+  if (trims() < 2) { const w = pieces.find((p) => p.kind === 'wraps'); if (w) w.colour = 'trim';
+    else if (pieces.length < room) pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' });
+    // no room for one more: a piece already worn takes the trim
+    else for (const r of pieces.filter((p) => p.role !== 'focal' && ['collar', 'baldric', 'sash', 'belt', 'bracers'].includes(p.kind))) { if (trims() >= 2) break; r.colour = 'trim'; } }
   const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin) },
     cut: { language: cut.language, dials: cut.dials, colours: cut.colours, notes: cut.notes }, pieces };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [] });
   return { outfit, laws };
+}
+/** THE CUT FOR THE HERO DOOR: the same derived cut as an inline outfit card for a person's record (`spec.outfit`), its
+ * cloth coloured by the palette's roles, its trims, buttons and buckles in the trim's metal, its leather the palette's */
+export function heroOutfitOf(outfit) {
+  const P = outfit.intent.palette, C = outfit.cut.colours || {}, L = outfit.cut.language;
+  const tones = { Top: P[C.Top ?? 'base'], Bottom: P[C.Bottom ?? 'secondary'], ...(L.outer ? { Outer: P[C.Outer ?? 'base'] } : {}), Trim: P.trim, Button: P.trim, Buckle: P.trim, Leather: P.leather, Shoes: P.leather };
+  return { type: 'outfit', style: { id: 'designed', dials: outfit.cut.dials, language: L, tones: Object.fromEntries(Object.entries(tones).filter(([, v]) => v)) } };
 }
 const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
 const defaultColour = (kind) => DEFAULT[kind] ?? 'base';
