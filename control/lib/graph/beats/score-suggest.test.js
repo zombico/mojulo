@@ -26,11 +26,15 @@ describe('suggestScore: the place first', () => {
 describe('suggestScore: the play moves it', () => {
   const forest = { base: 'terrain', theme: 'forest' };
 
-  it('a fight darkens and drives; a sneak goes to tension; a race drives', () => {
-    expect(mood({ ...forest, mechanics: ['hp-pool', 'defeat-all'] })).toBe('expedition');
+  it('a fight is battle music, the last fight the boss; danger darkens; a sneak goes to tension; a race drives', () => {
+    expect(mood({ ...forest, mechanics: ['hp-pool', 'defeat-all'] })).toBe('battle');
+    expect(mood({ base: 'dungeon', title: 'tavern brawl', mechanics: ['hp-pool'] })).toBe('battle');
+    for (const goal of ['battle', 'shoot', 'defend']) expect(mood({ ...forest, goal })).toBe('battle');
+    expect(mood({ ...forest, mechanics: ['waves'], final: true })).toBe('boss');
+    expect(suggestScore({ ...forest, goal: 'battle' }).why).toMatch(/forest for the place; a fight/);
+    expect(mood({ base: 'dungeon', mechanics: ['hazard-damage', 'fail-on-death'] })).toBe('tension');
     expect(mood({ ...forest, goal: 'sneak' })).toBe('tension');
     expect(mood({ base: 'terrain', theme: 'meadow', goal: 'race' })).toBe('highlands');
-    expect(mood({ base: 'dungeon', mechanics: ['hp-pool', 'fail-on-death'] })).toBe('tension');
   });
 
   it('gathering keeps a calm place calm', () => {
@@ -39,15 +43,15 @@ describe('suggestScore: the play moves it', () => {
 
   it('triumph is only for the last level', () => {
     const race = { base: 'terrain', theme: 'meadow', goal: 'race' };
-    for (const goal of ['race', 'battle', 'collect', 'sneak']) expect(mood({ ...race, goal })).not.toBe('triumph');
+    for (const goal of ['race', 'collect', 'sneak', 'avoid']) expect(mood({ ...race, goal })).not.toBe('triumph');
     expect(suggestScore({ ...race, final: true }).also.concat(mood({ ...race, final: true }))).toContain('triumph');
   });
 
   it('a place mood is kept by its place and never reached from another', () => {
     expect(mood({ base: 'terrain', theme: 'desert', climate: 'monsoon' })).toBe('desert');
-    expect(mood({ base: 'dungeon', title: 'tavern brawl', mechanics: ['hp-pool'] })).toBe('tavern');
+    expect(mood({ base: 'dungeon', title: 'tavern', mechanics: ['hazard-damage'] })).toBe('tavern');
     const placeMoods = ['desert', 'village', 'town', 'tavern', 'shop', 'chapel', 'plains', 'forest'];
-    for (const goal of ['battle', 'sneak', 'race', 'avoid', 'collect']) {
+    for (const goal of ['sneak', 'race', 'avoid', 'collect']) {
       const m = mood({ base: 'terrain', theme: 'mountain', goal, climate: 'monsoon' });
       expect(placeMoods).not.toContain(m);
     }
@@ -62,6 +66,9 @@ describe('suggestScore: the play moves it', () => {
 
   it('a city block stays quiet whatever its play', () => {
     expect(suggestScore({ base: 'city', mechanics: ['hp-pool'] })).toBeNull();
+    for (const m of ['victory', 'defeat']) for (const goal of [null, 'battle', 'sneak', 'race']) for (const final of [false, true]) {
+      expect(mood({ base: 'terrain', theme: 'forest', goal, final })).not.toBe(m);   // a stinger is never a level's bed
+    }
   });
 });
 

@@ -523,10 +523,12 @@ export async function exportGameHandler(input, context = {}) {
   }
 
   // music — the shell's score as offline WAV renders, looped like the served beats.wav?loop=1 (game-resolve.js)
-  const beatsRefs = [...new Set([norm.music?.menu, norm.music?.about, ...(norm.music?.battle || [])].filter(Boolean))];
+  const stingers = new Set([norm.music?.victory, norm.music?.defeat].filter(Boolean));
+  const beatsRefs = [...new Set([norm.music?.menu, norm.music?.about, ...(norm.music?.battle || []), ...stingers].filter(Boolean))];
   for (const br of beatsRefs) {
     const m = getSketch(br).manifest;
-    const rendered = await renderBeatsOffline(m, m.kind === 'beats-sfx' ? {} : { loop: true });
+    // a stinger plays once (and an sfx is a one-shot): rendered whole, no loop fold
+    const rendered = await renderBeatsOffline(m, m.kind === 'beats-sfx' || stingers.has(br) ? {} : { loop: true });
     await write(BEATS_SRC(br), rendered.wav);
   }
 

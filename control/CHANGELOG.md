@@ -48,6 +48,22 @@ score its scene and its play call for.
     game keeps one score identity. `create_game` writes no level itself.
   - `design_game({ quick: { music: 'auto' | '<mood>' } })` scores each level at mint, for any goal (before, `music`
     was rhythm-only). Without `music`, a level's order and print are as before.
+- **Battle music and outcome stingers.** The field score writes the battle step of its energy ladder, and the
+  stingers a game plays when a level ends.
+  - `battle` (132–152 bpm) plays the orchestra as a band: low brass on the downbeats, string stabs on 2 and 4, a
+    sixteenth ostinato and a march, with the middle section a third up.
+  - `boss` is darker and faster: the shock or Phrygian charts, a brass lead.
+  - Both run on the game's identity, like every other cue, and pass a new `battle` gate budget (six parts, two
+    leads, forte, always moving).
+  - `victory` and `defeat` are four-bar stingers on the same identity. Victory is the brass alone in major, then
+    the band, a timpani roll and a cymbal. Defeat is a low line falling in the minor and a tam-tam.
+  - A game names them in `music.victory` / `music.defeat`, served unlooped. The arena shell plays one when a level
+    ends, not when a map exit leads on, and the score waits under it. The play shell takes these two and no other
+    music: it mutes the level under the stinger.
+  - A stinger is refused as a level soundtrack.
+  - `suggestScore` gives a level with a fight (hp foes, defeat-all, waves, or a battle, shoot or defend goal) the
+    battle cue, and the boss on the run's last level. Hazards alone still only darken.
+  - The seven pinned field moods are byte for byte as before.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

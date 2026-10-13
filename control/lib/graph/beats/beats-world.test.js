@@ -192,3 +192,10 @@ describe('audio.sfx.on', () => {
     expect(stingers({ enter: 'step' }, [], [{ type: 'enter', a: 'player', b: 'gem' }, { type: 'enter', a: 'player', b: 'door' }])).toEqual(['step', 'step']);
   });
 });
+
+describe('a stinger is not a soundtrack', () => {
+  it("refuses 'field:victory' under a level and says where it goes", () => {
+    expect(() => resolveWorldAudio({ soundtrack: 'field:victory' }, { ref: 'lv' })).toThrow(/stinger.*music\.victory/);
+    expect(resolveWorldAudio({ soundtrack: 'field:battle' }, { ref: 'lv' }).soundtrack).toMatchObject({ kind: 'beats-composition', loop: true });
+  });
+});

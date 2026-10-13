@@ -43,6 +43,7 @@ import { expandBeatsManifest } from './beats-authoring.js';
 import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
+import { SCORE_MOODS } from './field-score.js';
 import { SURFACES } from '../weather/weather.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
@@ -124,6 +125,9 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     let recipe = audioSpec.soundtrack;
     // a generated field cue: the stored seed, else the world's own ref (unique per world, stable per render).
     const field = parseFieldSpec(recipe);
+    if (field && SCORE_MOODS[field.mood].stinger) {
+      throw new Error(`audio.soundtrack '${field.mood}' is a stinger: it plays once at an outcome (create_beats({ score: { mood: '${field.mood}' } }), then create_game music.${field.mood}), not under a level`);
+    }
     if (field) {
       recipe = normalizeBeatsManifest(fieldCue(field, { fallbackSeed: ctx.ref ? seedOfRef(ctx.ref) : 0 }));
     } else if (typeof recipe === 'string') {

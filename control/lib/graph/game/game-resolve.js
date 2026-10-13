@@ -47,7 +47,8 @@ function defaultAboutEntry(norm) {
  * @param {(ref:string)=>object|null} getSketch  ref → stored sketch ({ manifest, ... }) | null
  * @param {(ref:string)=>string} levelSrc        ref → the level's playable URL (iframe src)
  * @param {(ref:string)=>string} [worldSrc]      ref → a menu world-view URL (defaults to levelSrc)
- * @param {(ref:string, kind:string)=>string} [beatsSrc]  ref → a streamable audio URL for a beats sketch
+ * @param {(ref:string, kind:string, once:boolean)=>string} [beatsSrc]  ref → a streamable audio URL for a beats sketch
+ *                                               (`once`: a stinger, never looped)
  *                                               (defaults to the served beats.wav route, looped: one
  *                                               seamless pass to the bar line, so <audio loop> has no seam; an sfx
  *                                               stays a one-shot)
@@ -62,7 +63,7 @@ function defaultAboutEntry(norm) {
  * @throws  with a teaching message listing every fault (manifest, missing level, bad contract)
  */
 export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
-  beatsSrc = (ref, kind) => `/api/sketches/${encodeURIComponent(ref)}/beats.wav${kind === 'beats-sfx' ? '' : '?loop=1'}`,
+  beatsSrc = (ref, kind, once = false) => `/api/sketches/${encodeURIComponent(ref)}/beats.wav${once || kind === 'beats-sfx' ? '' : '?loop=1'}`,
   portraitSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/png?inline=1`,
   spinSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?spin=1&hud=0`) {
   const v = validateGameManifest(manifest);
@@ -135,16 +136,18 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
   // streamable src (the derived beats.wav render) — the game row keeps only the refs.
   let music = null;
   if (norm.music) {
-    const beat = (ref, where) => {
+    const beat = (ref, where, once = false) => {
       const sketch = getSketch(ref);
       if (!sketch || !sketch.manifest) { errors.push(`${where}: no sketch with ref '${ref}'`); return null; }
       if (!isBeatsKind(sketch.manifest.kind)) { errors.push(`${where}: '${ref}' is kind '${sketch.manifest.kind}', not a beats artifact`); return null; }
-      return beatsSrc(ref, sketch.manifest.kind);
+      return beatsSrc(ref, sketch.manifest.kind, once);
     };
     music = {
       menu: norm.music.menu ? beat(norm.music.menu, 'music.menu') : null,
       about: norm.music.about ? beat(norm.music.about, 'music.about') : null,
       battle: (norm.music.battle || []).map((r, i) => beat(r, `music.battle[${i}]`)).filter(Boolean),
+      victory: norm.music.victory ? beat(norm.music.victory, 'music.victory', true) : null,
+      defeat: norm.music.defeat ? beat(norm.music.defeat, 'music.defeat', true) : null,
     };
   }
 

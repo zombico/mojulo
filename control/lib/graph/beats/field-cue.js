@@ -8,13 +8,13 @@
  *
  * `seed` picks the cue, `game` picks the identity (key, palette, hall, motif). Share one `game` across a game's
  * cues so they sound like one score; leave `seed` out and a fresh one is rolled, so no two games sound alike.
- * `role` is the cue's dramatic job. Battle roles belong to the battle generator, not this one.
+ * `role` is the cue's dramatic job. `battle` and `boss` are looped fights; `victory` and `defeat` are stingers that play
+ * once at an outcome (a game's music.victory / music.defeat), never under a level.
  */
 import { randomInt } from 'node:crypto';
 import { SCORE_MOODS, fieldScore } from './field-score.js';
 
-export const FIELD_ROLES = ['field', 'travel', 'town', 'interior', 'story'];
-const BATTLE_ROLES = new Set(['battle', 'encounter', 'boss', 'victory']);
+export const FIELD_ROLES = ['field', 'travel', 'town', 'interior', 'story', 'battle', 'stinger'];
 const FIELD_RE = /^field:([a-z-]+)$/;
 const isSeed = (n) => Number.isInteger(n) && n >= 0;
 const moodList = () => Object.keys(SCORE_MOODS).join(', ');
@@ -42,7 +42,6 @@ export function parseFieldSpec(spec) {
     if (s[k] !== undefined && !isSeed(s[k])) throw new Error(`field score: ${k} must be a non-negative integer (leave it out for a fresh one)`);
   }
   if (s.role !== undefined) {
-    if (BATTLE_ROLES.has(s.role)) throw new Error(`field score: role '${s.role}' is battle music, which the field score does not write — use an adventurous mood (highlands, expedition, wayfarer) until the battle score lands`);
     if (!FIELD_ROLES.includes(s.role)) throw new Error(`field score: role '${s.role}' — the roles: ${FIELD_ROLES.join(', ')}`);
   }
   const out = { mood: s.mood };

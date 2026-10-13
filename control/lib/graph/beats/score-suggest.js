@@ -17,6 +17,7 @@ export const MOOD_PLANE = {
   expedition: [-0.1, 0.55], wayfarer: [0.6, 0.6], town: [0.6, 0.4], tavern: [0.6, 0.45], shop: [0.5, 0.2],
   chapel: [0.3, 0.1], night: [0.1, 0.1], ceremony: [0.4, 0.5], prayer: [0.2, 0.05], sorrow: [-0.6, 0.1],
   tension: [-0.5, 0.65], betrayal: [-0.7, 0.7], triumph: [0.8, 0.75],
+  battle: [-0.3, 0.85], boss: [-0.6, 0.95], victory: [0.9, 0.8], defeat: [-0.8, 0.15],
 };
 // Where the play may move a level: the moods that say an energy, not a place. A place mood (desert, tavern, chapel …)
 // is kept when the place asks for it and never reached from another; story moods that mark one moment (prayer,
@@ -26,10 +27,14 @@ const MOVES = ['highlands', 'expedition', 'wayfarer', 'night', 'tension'];
 const CROSS = new Set(['tension', 'triumph']);
 const ROLE_STEP = 0.25; // the cost of leaving the place's role (a field level stays field music unless pushed hard)
 
+// A FIGHT (foes with hp, defeat-all, waves, or a battle / shoot / defend goal) is scored as battle music, the boss on
+// the run's last level: the place still says the identity, the fight says the cue. Everything else moves the point.
+const FIGHT = new Set(['hp-pool', 'defeat-all', 'waves']);
+const isFight = (c) => c.mechanics.some((k) => FIGHT.has(k)) || c.goal === 'battle' || c.goal === 'shoot' || c.goal === 'defend';
 // what the play does to the point: [valence, arousal, why]
-const COMBAT = new Set(['hp-pool', 'defeat-all', 'waves', 'hazard-damage', 'fail-on-death']);
+const DANGER = new Set(['hazard-damage', 'fail-on-death']);
 const PLAY = [
-  { when: (c) => c.mechanics.some((k) => COMBAT.has(k)) || c.goal === 'battle' || c.goal === 'shoot' || c.goal === 'defend', d: [-0.2, 0.35], why: 'a fight: more drive, a darker turn' },
+  { when: (c) => c.mechanics.some((k) => DANGER.has(k)), d: [-0.2, 0.25], why: 'danger underfoot: a darker, warier turn' },
   { when: (c) => c.mechanics.includes('unseen') || c.goal === 'sneak', d: [-0.7, 0.4], why: 'stealth: held breath, a minor pedal' },
   { when: (c) => c.mechanics.includes('laps') || c.goal === 'race', d: [0.1, 0.4], why: 'a race: a driving pulse' },
   { when: (c) => c.mechanics.includes('survive') || c.goal === 'avoid', d: [-0.1, 0.3], why: 'against the clock: more urgency' },
@@ -75,6 +80,11 @@ export function suggestScore(context = {}) {
   if (!place) return null;
   const c = { mechanics: [], climate: '', ...context };
   c.climate = String(c.climate || '').toLowerCase();
+  if (isFight(c)) {
+    const mood = c.final ? 'boss' : 'battle', { energy, role } = SCORE_MOODS[mood];
+    const why = `${place.mood} for the place; ${c.final ? 'the last fight: the boss, darker and faster' : 'a fight: battle music, the orchestra played as a band'}`;
+    return { mood, energy, role, why, also: c.final ? ['battle', 'tension'] : ['tension', 'expedition'], audio: { soundtrack: `field:${mood}` }, place: place.mood };
+  }
   const pushes = [...PLAY, ...WEATHER].filter((p) => p.when(c));
   if (!pushes.length) return { ...place, place: place.mood };
   const at = MOOD_PLANE[place.mood];

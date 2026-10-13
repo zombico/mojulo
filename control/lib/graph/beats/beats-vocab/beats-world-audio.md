@@ -22,11 +22,12 @@ audio: {
 - `'field:<mood>'` or `{ score: { mood, seed?, game? } }`: a generated field score (`beats-field-orchestra`). With no
   `seed` the world's own ref seeds it; compose_world stores a fresh one. Share one `game` across a game's levels so
   they sound like one score. The moods are the field-score moods (plains, forest, desert, town, tavern, chapel,
-  night, tension, triumph …); `create_beats({ score })` lists them.
+  night, tension, triumph, battle, boss …); `create_beats({ score })` lists them. `victory` and `defeat` are
+  stingers that play once when a level ends (a game's `music.victory` / `music.defeat`), refused here.
 - `{ beatsRef: '<ref>' }`: a stored beats row (ambient, composition or pattern), inlined at resolve time.
 - An inline beats recipe (`beats-ambient`, `beats-composition`, `beats-pattern`).
 - Which mood: `compose_world` and `create_game` suggest one from the place (base, theme, kit, title, time) and the
-  play (a fight darker and driving, a sneak toward tension, a race driving, the last level lifted), with a `why`.
+  play (a fight is battle music, the last fight the boss; a sneak toward tension, a race driving), with a `why`.
   `create_game`'s reply carries each unscored level's update_sketch call; `design_game({ quick: { music: 'auto' } })`
   writes it at mint.
 - A composition always loops here, at the next bar line. Engine exports (Godot, Unity, Unreal) render the same

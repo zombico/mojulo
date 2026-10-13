@@ -249,9 +249,12 @@ describe('shell music srcs', () => {
     rows[ref] = { manifest: { kind: 'controllable', entities: [{ id: 'hero', rule: { type: 'walk' }, transform: { pos: [0, 0, 2] } }], game: kit.levelChannels[ref] } };
   }
   it('a bed is served looped (one seamless pass for <audio loop>); an sfx stays a one-shot', () => {
-    const manifest = { kind: 'game', title: 'Music Crypt', store: kit.store, levels: kit.gameLevels, music: { menu: 'bed', battle: ['cue'] } };
+    const manifest = { kind: 'game', title: 'Music Crypt', store: kit.store, levels: kit.gameLevels, music: { menu: 'bed', battle: ['cue'], victory: 'bed', defeat: 'bed' } };
     const { music } = resolveGame(manifest, (r) => rows[r] ?? null, (r) => `/l/${r}`);
     expect(music.menu).toBe('/api/sketches/bed/beats.wav?loop=1');
     expect(music.battle).toEqual(['/api/sketches/cue/beats.wav']);
+    // a stinger plays once: never looped, even when it is a composition
+    expect(music.victory).toBe('/api/sketches/bed/beats.wav');
+    expect(music.defeat).toBe('/api/sketches/bed/beats.wav');
   });
 });

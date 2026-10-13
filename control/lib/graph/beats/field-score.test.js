@@ -9,7 +9,9 @@ import { INSTRUMENTS } from './instruments.js';
 // principles (fieldGates), and different seeds do not sound alike (variety
 // counted over many seeds). None of this is an ears gate.
 
-const MOODS = Object.keys(SCORE_MOODS);
+// the looped cues; the stingers (four bars that play once) have their own block below
+const MOODS = Object.keys(SCORE_MOODS).filter((m) => !SCORE_MOODS[m].stinger);
+const STINGERS = Object.keys(SCORE_MOODS).filter((m) => SCORE_MOODS[m].stinger);
 const SEEDS = Array.from({ length: 60 }, (_, i) => (i + 1) * 7919 + 3);
 const leadOf = (m) => m.parts.find((p) => p.name === 'leadA');
 
@@ -102,5 +104,52 @@ describe('field score: one game sounds like one score', () => {
     const ids = SEEDS.map(scoreIdentity);
     expect(new Set(ids.map((i) => i.tonic)).size).toBe(12);
     expect(new Set(ids.map((i) => `${i.flavour}:${i.colour}:${i.leads.join('/')}`)).size).toBeGreaterThanOrEqual(30);
+  });
+});
+
+describe('field score: battle', () => {
+  it('plays the orchestra as a band: low brass on the downbeats, stabs on 2 and 4, a sixteenth ostinato, a march', () => {
+    for (const mood of ['battle', 'boss']) for (const seed of SEEDS.slice(0, 12)) {
+      const m = fieldScore(mood, { seed });
+      expect(m.band, mood).toBe('orchestra-battle');
+      expect(m.bpm).toBeGreaterThanOrEqual(132);
+      expect(m.parts.find((p) => p.name === 'stabs')).toMatchObject({ chordVoice: 'upper', art: 'staccato' });
+      expect(m.parts.find((p) => p.name === 'motion').rhythm.filter((v) => v > 0).length).toBe(16);
+      expect(m.parts.find((p) => p.name === 'perc').groove[0].style).toBe('march');
+      expect(m.parts.some((p) => p.name === 'pad')).toBe(false);
+    }
+  });
+});
+
+describe('field score: stingers', () => {
+  it('every stinger × 60 seeds × 3 identities passes its gates, ends home, and does not loop', () => {
+    for (const mood of STINGERS) for (const seed of SEEDS) for (const id of [undefined, 7, 9001]) {
+      const m = fieldScore(mood, { seed, identity: id });
+      expect(fieldGates(m, SCORE_MOODS[mood].energy), `${mood} ${seed} ${id}`).toEqual([]);
+      expect(m.loop).toBeUndefined();
+      const chart = m.progression[0].chords.split(' ');
+      expect(chart).toHaveLength(4);
+      expect(chart[3], mood).toBe(mood === 'victory' ? 'I' : 'i');
+    }
+  });
+
+  it('victory is the brass in major alone, then the band, a cymbal; defeat is a low line in the minor, a tam-tam', () => {
+    for (const seed of SEEDS.slice(0, 12)) {
+      const id = scoreIdentity(seed);
+      const v = fieldScore('victory', { seed, identity: id }), d = fieldScore('defeat', { seed, identity: id });
+      expect(v.key).not.toMatch(/m$/);
+      expect(v.parts[0]).toMatchObject({ name: 'leadA', instrument: id.brass });
+      expect(v.parts.find((p) => p.name === 'perc').events.map((e) => e[1])).toContain('C#3');   // the suspended cymbal
+      expect(d.key).toMatch(/m$/);
+      expect(d.parts.find((p) => p.name === 'perc').events.map((e) => e[1])).toEqual(['E3']);    // the tam-tam
+      for (const m of [v, d]) expect(m.key.replace(/m$/, '')).toBe(['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'][id.tonic]);
+    }
+  });
+
+  it('different seeds give different stingers', () => {
+    for (const mood of STINGERS) {
+      const leads = new Set(SEEDS.map((seed) => JSON.stringify(fieldScore(mood, { seed, identity: 7 }).parts[0].events)));
+      expect(leads.size, mood).toBeGreaterThanOrEqual(50);
+    }
   });
 });

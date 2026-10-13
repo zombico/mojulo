@@ -19,7 +19,7 @@
  *     store:  { slices: [{ name, kind: character|inventory|party|progression|flags, init? }] },
  *     levels: [{ ref, title?, gate? }],    // order = play order; gate = declarative unlock
  *     menu?:  { tagline?, attribution?, entries: [{ id, title, subtitle?, kind: 'levels'|'world'|'soon'|'about', ref? }] },
- *     music?: { menu?: <beatsRef>, about?: <beatsRef>, battle?: [<beatsRef>, …] },
+ *     music?: { menu?: <beatsRef>, about?: <beatsRef>, battle?: [<beatsRef>, …], victory?: <beatsRef>, defeat?: <beatsRef> },
  *     setup?: { <sliceName>: <presentation> },
  *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] },
  *     shell?: 'play',                      // the light shell (play-shell.js); absent: the arena shell
@@ -67,7 +67,9 @@
  * level session runs (track end → next). World-view menu entries silence the shell — a viewed
  * world (e.g. the hangar) carries its own score via its manifest `audio` channel. Optional
  * `volume` / `menuVolume` / `battleVolume` (0..1) set the BED LEVEL — the score plays under
- * the game's own SFX (shell defaults: battle 0.4, menu 0.55).
+ * the game's own SFX (shell defaults: battle 0.4, menu 0.55). `victory` / `defeat` are STINGERS: played once
+ * when a level ends in success / fail (a `field:victory` / `field:defeat` cue from create_beats({ score })), the score
+ * waiting under them; the play shell takes these two and nothing else.
  *
  * Validation throws teaching errors (the create_game handler will surface them with a
  * pointer at the slice-cards). Gates are predicates evaluated by the store kernel
@@ -278,7 +280,9 @@ export function validateGameManifest(manifest) {
   if (manifest.shell !== undefined) {
     if (manifest.shell !== 'play') errors.push("shell is 'play' (the light shell: title → levels → result) or absent (the arena shell)");
     else {
-      const arena = ['menu', 'music', 'setup', 'difficulty'].filter((k) => manifest[k] !== undefined);
+      // music: only its stingers (the result screen's), never a menu or battle score
+      const stingersOnly = manifest.music && typeof manifest.music === 'object' && Object.keys(manifest.music).every((k) => k === 'victory' || k === 'defeat' || k === 'volume');
+      const arena = ['menu', 'music', 'setup', 'difficulty'].filter((k) => manifest[k] !== undefined && !(k === 'music' && stingersOnly));
       if (arena.length) errors.push(`shell 'play' has no ${arena.join(', ')}: drop ${arena.length === 1 ? 'it' : 'them'}, or drop shell for the arena shell`);
     }
   }
@@ -345,10 +349,11 @@ export function validateGameManifest(manifest) {
 
   if (manifest.music !== undefined) {
     const music = manifest.music;
-    if (!music || typeof music !== 'object') errors.push('music must be { menu?: <beatsRef>, battle?: [<beatsRef>, …], volume?, menuVolume?, battleVolume? }');
+    if (!music || typeof music !== 'object') errors.push('music must be { menu?: <beatsRef>, battle?: [<beatsRef>, …], victory?: <beatsRef>, defeat?: <beatsRef>, volume?, menuVolume?, battleVolume? }');
     else {
       if (music.menu !== undefined && (typeof music.menu !== 'string' || !music.menu)) errors.push('music.menu must be a beats sketch ref (string)');
       if (music.about !== undefined && (typeof music.about !== 'string' || !music.about)) errors.push('music.about must be a beats sketch ref (string)');
+      for (const k of ['victory', 'defeat']) if (music[k] !== undefined && (typeof music[k] !== 'string' || !music[k])) errors.push(`music.${k} must be a beats sketch ref (string): a stinger, create_beats({ score: { mood: '${k}' } })`);
       if (music.battle !== undefined) {
         if (!Array.isArray(music.battle) || !music.battle.length || !music.battle.every((r) => r && typeof r === 'string')) {
           errors.push('music.battle must be a non-empty array of beats sketch refs');
@@ -362,7 +367,7 @@ export function validateGameManifest(manifest) {
           errors.push(`music.${k} must be a number between 0 and 1 (the playback volume)`);
         }
       }
-      if (music.menu === undefined && music.battle === undefined) errors.push('music needs at least one of menu | battle');
+      if (['menu', 'battle', 'victory', 'defeat'].every((k) => music[k] === undefined)) errors.push('music needs at least one of menu | battle | victory | defeat');
     }
   }
 

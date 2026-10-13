@@ -131,7 +131,8 @@ function mintFieldScore({ kind, title, params, ref, folderRef, score }) {
     score: spec,
     energy: SCORE_MOODS[spec.mood].energy,
     next: `keep this game's sound: pass score.game = ${spec.game} to every cue of the game (and to its worlds' `
-      + "audio.soundtrack score). A new seed gives a new tune in the same identity; omit both for a whole new score.",
+      + "audio.soundtrack score). A new seed gives a new tune in the same identity; omit both for a whole new score."
+      + (SCORE_MOODS[spec.mood].stinger ? ` This is a stinger (it plays once): put its ref in create_game's music.${spec.mood}, not under a level.` : ''),
   };
 }
 

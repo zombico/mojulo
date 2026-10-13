@@ -77,6 +77,9 @@ const FAMILIES = {
   lament: { mode: 'aeolian', charts: [['i', 'iv', 'bVI', 'bVII'], ['i', 'bVI', 'iv', 'iv'], ['i', 'bIII', 'iv', 'bVI']] },
   shock: { mode: 'phrygian', charts: [['i', 'bII', 'bV', 'bII'], ['i', 'bV', 'i', 'bII']] },
   'brass-hymn': { mode: 'ionian', charts: [['I', 'IV', 'I', 'bVII'], ['I', 'bVI', 'bVII', 'I']] },
+  // the stingers' four bars, each ending home without V–I
+  victory: { mode: 'ionian', charts: [['I', 'IV', 'I', 'I'], ['I', 'bVI', 'bVII', 'I'], ['I', 'IV', 'bVII', 'I'], ['I', 'ii', 'IV', 'I']] },
+  defeat: { mode: 'aeolian', charts: [['i', 'iv', 'bVI', 'i'], ['i', 'bVI', 'iv', 'i'], ['i', 'iv', 'bII', 'i']] },
 };
 
 // ── the moods: each a set of leanings the dice roll within ────────────────────
@@ -104,8 +107,15 @@ export const SCORE_MOODS = {
   tension: { energy: 'adventurous', role: 'story', families: ['phrygian-ridge', 'tritone-road'], meters: ['4/4', '6/8'], ground: ['pedal'], perc: ['none'], gear: [0], motion: 'cello-3', tempo: { '4/4': [100, 112], '6/8': [104, 116] } },
   betrayal: { energy: 'adventurous', role: 'story', families: ['shock', 'phrygian-ridge'], meters: ['4/4'], ground: ['root'], perc: ['none'], gear: [1], motion: 'cello-3' },
   triumph: { energy: 'processional', role: 'story', families: ['festive-mixo', 'brass-hymn'], meters: ['4/4'], ground: ['root'], perc: ['processional', 'march'], gear: [2, 5], brassLead: true, kit: 'orchestral-perc' },
+  // battle: the orchestra played as a band (low brass on the downbeats, short chords on 2 and 4, an inner ostinato in
+  // sixteenths), Phrygian or Aeolian, the middle section a third or a semitone up. A boss is darker and faster.
+  battle: { energy: 'battle', role: 'battle', families: ['phrygian-ridge', 'aeolian-march', 'tonic-flip', 'dorian-drive'], meters: ['4/4'], ground: ['root'], perc: ['march'], gear: [4, 3], noPad: true },
+  boss: { energy: 'battle', role: 'battle', families: ['shock', 'phrygian-ridge'], meters: ['4/4'], ground: ['root'], perc: ['march'], gear: [1, 4], noPad: true, brassLead: true, tempo: { '4/4': [144, 160] } },
+  // stingers: four bars that play once at an outcome (fieldStinger), on the game's tonic, hall and brass.
+  victory: { energy: 'processional', role: 'stinger', stinger: true, families: ['victory'], meters: ['4/4'], kit: 'orchestral-perc', tempo: { '4/4': [100, 124] } },
+  defeat: { energy: 'idyllic', role: 'stinger', stinger: true, families: ['defeat'], meters: ['4/4', '3/4'], tempo: { '4/4': [60, 76], '3/4': [60, 76] } },
 };
-const TEMPO = { idyllic: { '4/4': [76, 100], '3/4': [84, 108], '6/8': [78, 96] }, adventurous: { '4/4': [100, 124], '6/8': [104, 128] }, processional: { '4/4': [80, 96] } };
+const TEMPO = { idyllic: { '4/4': [76, 100], '3/4': [84, 108], '6/8': [78, 96] }, adventurous: { '4/4': [100, 124], '6/8': [104, 128] }, processional: { '4/4': [80, 96] }, battle: { '4/4': [132, 152] } };
 const BAR_Q = { '4/4': 4, '3/4': 3, '6/8': 3 };
 const STEPS = { '4/4': 16, '3/4': 12, '6/8': 12 };
 const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -206,9 +216,11 @@ export function fieldScore(mood, { seed, identity } = {}) {
   if (!M) throw new Error(`fieldScore: no mood '${mood}' — the moods: ${Object.keys(SCORE_MOODS).join(', ')}`);
   if (!Number.isInteger(seed) || seed < 0) throw new Error('fieldScore: seed must be a non-negative integer (pick a fresh one per cue)');
   const id = identity == null ? scoreIdentity(seed) : Number.isInteger(identity) ? scoreIdentity(identity) : identity;
+  if (M.stinger) return fieldStinger(mood, M, seed, id);
   const I = voicesOf(id, M);
   const R = rngOf('cue', mood, seed, id.seed);
-  const adv = M.energy === 'adventurous' || M.energy === 'processional';
+  const battle = M.energy === 'battle';
+  const adv = M.energy === 'adventurous' || M.energy === 'processional' || battle;
 
   // the harmonic frame
   const family = FAMILIES[R.pick(M.families)];
@@ -241,7 +253,8 @@ export function fieldScore(mood, { seed, identity } = {}) {
   // colour / motion: alone for the first two bars
   if (adv) {
     const inst = I.motion;
-    const eighths = Array.from({ length: steps }, (_, i) => (i % 2 ? 0 : i % (steps === 16 ? 4 : 6) === 0 ? 0.9 : 0.7));
+    const eighths = battle ? Array.from({ length: steps }, (_, i) => (i % 4 === 0 ? 0.85 : i % 2 ? 0.55 : 0.7))
+      : Array.from({ length: steps }, (_, i) => (i % 2 ? 0 : i % (steps === 16 ? 4 : 6) === 0 ? 0.9 : 0.7));
     if (/cello/.test(inst)) parts.push({ name: 'motion', instrument: inst, chordVoice: 'octaves', rhythm: eighths, art: 'staccato', vel: 0.55, octave: 2 });
     else if (PLUCKED.test(inst) || MALLET.test(inst) || KEYS.test(inst)) parts.push({ name: 'motion', instrument: inst, chordVoice: 'arp', arp: R.pick(['up', 'updown']), rhythm: eighths, vel: 0.55, octave: 3 });
     else parts.push({ name: 'motion', instrument: inst, chordVoice: 'upper', rhythm: eighths, art: 'staccato', vel: 0.52, octave: 4 });
@@ -257,6 +270,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   // a walking bass needs a bass (a cello cannot reach its low fifths); low brass may take an adventurous root.
   const BASS = { folk: 'upright-bass', 'synth-era': 'fm-bass' };
   const gInst = gStyle === 'root-fifth' ? BASS[I.flavour] || 'contrabass-3'
+    : battle ? BASS[I.flavour] || 'tuba-3'
     : adv && gStyle === 'root' && !BASS[I.flavour] && R.chance(0.5) ? 'tuba-3' : I.ground;
   const ground = { name: 'ground', instrument: gInst, bars: [2, bars] };
   if (gStyle === 'drone' || gStyle === 'pedal') Object.assign(ground, { chordVoice: SUSTAIN_GROUND.test(gInst) ? 'pedal' : gStyle, hold: 1, vel: 0.32, octave: /contrabass|upright|fm-bass/.test(gInst) ? 1 : 2 });
@@ -271,6 +285,8 @@ export function fieldScore(mood, { seed, identity } = {}) {
     if (ground.chordVoice === 'pedal' || ground.chordVoice === 'drone') { const t = ((ground.octave ?? 2) + 1) * 12 + id.tonic; if (t < lo) ground.octave = (ground.octave ?? 2) + 1; }
   }
   parts.push(ground);
+  // battle: the backbeat, short chords on 2 and 4 in the strings (the snare's pitch), from the first A
+  if (battle) parts.push({ name: 'stabs', instrument: I.pad, chordVoice: 'upper', rhythm: [0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, 0], art: 'staccato', vel: 0.6, octave: 4, bars: [4, bars] });
 
   // melodies: the identity's motif rhythm opens every phrase
   const MR = rngOf('motif', id.seed, id.motif);
@@ -298,7 +314,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
     const inst = g === 'A' ? leadA : leadB;
     const pr = rngOf('phrase', seed, id.seed, mood, gi);
     // base velocity leaves the phrase arch (`shape`) its headroom under the energy's ceiling.
-    leadEvents[g].push(...phrase(inst, gi * 4, pr, adv ? 0.62 : 0.52, groupShift(gi)));
+    leadEvents[g].push(...phrase(inst, gi * 4, pr, battle ? 0.7 : adv ? 0.62 : 0.52, groupShift(gi)));
   });
   parts.push({ name: 'leadA', instrument: leadA, events: leadEvents.A, shape: 'phrase' });
   if (leadEvents.B.length) parts.push({ name: 'leadB', instrument: leadB, events: leadEvents.B, shape: 'phrase' });
@@ -354,7 +370,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   if (perc !== 'none') {
     const style = perc === 'march' ? 'march' : perc === 'processional' ? 'processional' : 'travel';
     const end = adv ? bars : bars - 4;
-    const vel = style === 'travel' ? 1 : adv ? 0.5 : 0.4;
+    const vel = style === 'travel' ? 1 : battle ? 0.65 : adv ? 0.5 : 0.4;
     const groove = adv
       ? [{ style, bars: [4, 11], vel }, { style, bars: [11, 12], fills: 'section', fill: 'long-roll', vel }, { style, bars: [12, 19], vel }, { style, bars: [19, 20], fills: 'section', fill: 'long-roll', vel }, { style, bars: [20, end], vel }]
       : [{ style, bars: [4, end], vel }];
@@ -363,7 +379,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
 
   const m = {
     kind: 'beats-composition', title: `${mood[0].toUpperCase()}${mood.slice(1)} ${seed}`, bpm, meter, seed, key,
-    band: M.energy === 'processional' ? 'orchestra-processional' : adv ? 'orchestra-field' : 'orchestra-pastoral',
+    band: M.energy === 'processional' ? 'orchestra-processional' : battle ? 'orchestra-battle' : adv ? 'orchestra-field' : 'orchestra-pastoral',
     room: M.dry ? { model: 'room2', decay: r3(Math.min(1.5, id.room.decay)), predelay: id.room.predelay, damp: 0.6 } : id.room,
     progression: [{ chords: chart.join(' ') }],
     parts,
@@ -371,5 +387,75 @@ export function fieldScore(mood, { seed, identity } = {}) {
   };
   if (meter === '4/4') delete m.meter;
   if (modulate.length) m.modulate = modulate;
+  return m;
+}
+
+/**
+ * A stinger: four bars that play once when a level ends, on the game's identity (its tonic, hall, brass and motif).
+ * Victory: the brass alone in major for two bars (the motif, then up the triad), then the band, a held tonic, a
+ * timpani roll and a cymbal. Defeat: a low line alone falling in the minor, then a drone and a distant chord, a
+ * tam-tam under the last bar. Not a loop: no `loop`, and it ends home.
+ */
+function fieldStinger(mood, M, seed, id) {
+  const I = voicesOf(id, M);
+  const R = rngOf('stinger', mood, seed, id.seed);
+  const win = mood === 'victory';
+  const family = FAMILIES[M.families[0]], mode = MODE[family.mode];
+  const chart = R.pick(family.charts).slice();
+  const meter = R.pick(M.meters);
+  const [t0, t1] = M.tempo[meter];
+  const bpm = R.range(t0, t1);
+  const barQ = BAR_Q[meter], steps = STEPS[meter];
+  const key = NOTE_NAMES[id.tonic] + (mode.minor ? 'm' : '');
+  const scale = mode.steps.map((s) => (s + id.tonic) % 12);
+  const chordAt = (b) => parseChord(chart[b], key);
+  const strongEvery = meter === '4/4' ? 2 : 1.5;
+
+  // the line: the identity's motif rhythm in bar 0, a rolled cell in bar 1, then home held (bar 2 to the end)
+  const inst = win ? I.brass : /cello|bassoon|contrabass/.test(I.ground) ? I.ground : 'cello-3';
+  const [lo, hi] = tessitura(inst);
+  const MR = rngOf('motif', id.seed, id.motif);
+  const motifCell = MR.pick(CELLS[meter][win ? 'busy' : 'calm']);
+  const events = [];
+  let prev = win ? lo + R.range(2, 9) : hi - R.range(0, 9);   // where the line starts, rolled
+  for (let b = 0; b < 2; b++) {
+    const ch = chordAt(b), chordPcs = ch.intervals.map((iv) => (ch.root + iv) % 12);
+    const cell = b === 0 ? motifCell : R.pick(CELLS[meter][win ? 'busy' : 'calm']);
+    // victory climbs (each strong note above the last where it can), defeat falls
+    const span = win ? [Math.min(prev, hi - 7), hi] : [lo, Math.max(prev, lo + 7)];
+    const { notes, last } = melodyBar({ cell, chordPcs, scale, prev, lo: span[0], hi: span[1], R, vel: win ? 0.6 : 0.48, strongEvery });
+    for (const [t, n, d, v] of notes) events.push([r3(b * barQ + t), nameOf(n), d, v]);
+    prev = last;
+  }
+  // the held home note: the tonic nearest the line's last note, inside the range
+  let home = prev - (((prev - id.tonic) % 12) + 12) % 12;
+  if (win && home + 12 <= hi && prev - home > 6) home += 12;
+  while (home < lo) home += 12;
+  events.push([r3(2 * barQ), nameOf(home), r3(2 * barQ - 0.5), win ? 0.64 : 0.42]);
+
+  const parts = [{ name: 'leadA', instrument: inst, events, shape: 'phrase' }];
+  // the band joins at bar 2: the ground on the chords, a held chord above
+  const gInst = win ? ({ folk: 'upright-bass', 'synth-era': 'fm-bass' }[I.flavour] || 'tuba-3') : 'contrabass-3';
+  parts.push({ name: 'ground', instrument: gInst, chordVoice: win ? 'root' : 'drone', ...(win ? { rhythm: steps === 16 ? 'half' : [0.85, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0] } : { hold: 1 }), vel: win ? 0.6 : 0.34, octave: 2, bars: [2, 4] });
+  parts.push({ name: 'pad', instrument: I.pad, chordVoice: 'upper', rhythm: 'whole', hold: 0.9, vel: win ? 0.55 : 0.36, octave: 4, bars: [2, 4] });
+  if (win) {
+    // a timpani roll into the last bar on the tonic, then the cymbal on the downbeat of bar 2
+    const [tlo, thi] = rangeOf('timpani');
+    let tonic = 36 + id.tonic; while (tonic < tlo) tonic += 12;
+    if (tonic <= thi) parts.push({ name: 'timp', instrument: 'timpani', events: [0, 0.25, 0.5, 0.75].map((q, i) => [r3(3 * barQ - 1 + q), nameOf(tonic), 0.25, r3(0.4 + i * 0.06)]).concat([[r3(3 * barQ), nameOf(tonic), 1, 0.66]]) });
+    parts.push({ name: 'perc', instrument: 'orchestral-perc', events: [[r3(2 * barQ), 'C#3', 2, 0.7], [r3(2 * barQ), 'C2', 1, 0.6]] });
+  } else {
+    parts.push({ name: 'perc', instrument: 'orchestral-perc', events: [[r3(3 * barQ), 'E3', 2, 0.45]] });
+  }
+
+  const m = {
+    kind: 'beats-composition', title: `${mood[0].toUpperCase()}${mood.slice(1)} ${seed}`, bpm, meter, seed, key,
+    band: win ? 'orchestra-processional' : 'orchestra-pastoral',
+    room: id.room,
+    progression: [{ chords: chart.join(' ') }],
+    parts,
+    export: { normalize: { lufs: -20 } },
+  };
+  if (meter === '4/4') delete m.meter;
   return m;
 }
