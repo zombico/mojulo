@@ -167,7 +167,7 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     outerOpen: () => { if (!outer?.open || !worn.has('outer')) return false; const under = top ? 'Top' : 'Skin', legs = bottom && !skirt ? 'Bottom' : skirt ? 'Bottom' : under;
       paint.push({ part: on('outer', 'torso'), t: [0, 0.08], group: under });
       if (worn.has('outerTail')) paint.push({ part: on('outerTail', 'pelvis'), t: [0, 0.08], group: legs });
-      if (worn.has('outerSkirt')) paint.push({ part: 'outerSkirt_skirt', t: [0, 0.08], group: bottom ? 'Bottom' : 'Skin' });
+      // (a coat's skirt is a hull whose bands turn ring to ring: painted, its opening stairsteps, so the skirt hangs closed)
       return true; },
     outerHem: () => { if (worn.has('outerSkirt')) { paint.push({ part: 'outerSkirt_skirt', u: [10.6, 11], group: 'Trim' }); return true; }
       if (worn.has('outerTail')) { const u0 = lengths.outerHem === 'tunic' ? 1.5 : 4; paint.push({ part: on('outerTail', 'pelvis'), u: [u0, u0 + EDGE.hem], group: 'Trim' }); return true; }

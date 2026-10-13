@@ -123,6 +123,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     the outfit's is not added twice (`hero-dress.js`; the pair used to throw). A cloak and a standing collar take the
     base; restraint runs before the trim's repetition, which recolours a worn piece when there is no room for one more.
     40 people's rolls pass the laws, in 21 sets.
+  - Each people's own dress (`PEOPLE`): a lineage's body and life as tendencies on the grammar's axes, never an
+    outfit.
+    - sylvan: long, fitted and pale;
+    - dwarven: a layer more, sleeves to the elbow, hems short on a short body;
+    - orcish: sleeveless and open, eased over the bulk;
+    - infernal: closed, fitted and dark, with a standing collar;
+    - undead: loose off a thin frame, long and faded.
+    Each combines with archetype, role and order. People's rolls: 39 sets (21 before). An open coat's skirt hangs
+    closed: its painted opening stairstepped across the hull's turning bands.
 - **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
   that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
   1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's

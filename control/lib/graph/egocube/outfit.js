@@ -69,11 +69,11 @@ const deriveOf = (sheet, prefix) => { for (const list of Object.values(sheet.der
 /** the palette's roles: base (the garment), secondary, trim (a metal), accent (the trim brightened); each a clear value
  * step from the others and from the coat it is worn over */
 export function outfitPalette(sheet, coat = '#8a5a38') {
-  const f = sheet.facets, [L0, H] = HUES[f.archetype] ?? [44, 230], shadow = sheet.reading?.reads !== 'light';
-  let L = L0 - (shadow ? 6 : 0) - (hasDerive(sheet, 'palette.Top -') ? 5 : 0) + (hasDerive(sheet, 'palette.Top +') ? 5 : 0);
+  const f = sheet.facets, [L0, H] = HUES[f.archetype] ?? [44, 230], shadow = sheet.reading?.reads !== 'light', pp = peopleOf(sheet)?.palette ?? {};
+  let L = L0 - (shadow ? 6 : 0) - (hasDerive(sheet, 'palette.Top -') ? 5 : 0) + (hasDerive(sheet, 'palette.Top +') ? 5 : 0) + (pp.dL ?? 0);
   const Lc = hexLch(coat)[0];
   if (Math.abs(L - Lc) < 18) L = Lc > 50 ? Lc - 22 : Math.min(85, Lc + 22);   // the garment a step from the coat
-  const C = shadow ? 26 : 34;
+  const C = Math.max(6, (shadow ? 26 : 34) + (pp.dC ?? 0));   // a people's cloth richer or faded
   // the secondary: 22 L* the other way, its hue turned 40° (an analogous neighbour), a little brighter
   // the trim: a metal by motivation (gold above the middle, silver below), the next metal when the garment sits too
   // close to it in value
@@ -94,6 +94,23 @@ export function outfitPalette(sheet, coat = '#8a5a38') {
   return { base, secondary, trim, accent, leather: shadow ? '#5e4d3e' : '#6e4a2e' };
 }
 
+/** A PEOPLE'S OWN DRESS: what a lineage's body and life ask of the cut, as tendencies on the grammar's axes, never an
+ * outfit. Each reads the lineage's own lines (ancestry.js) and combines with the archetype, role and order:
+ *   layers  ± the formality the layering reads (one layer more for a people that carries weight)
+ *   length  ± steps on the outer layer's hem (long lines on long limbs; short hems keep a short body's legs)
+ *   sleeve  the most sleeve any layer wears (the work, or the mass shown)
+ *   open, collar, fit   the outer layer's closure, its standing collar, its fit
+ *   palette { dL, dC }  lighter or darker, richer or faded */
+export const PEOPLE = Object.freeze({
+  sylvan: { why: 'long-limbed and light: long fitted lines, light and pale', length: 1, fit: 'fitted', palette: { dL: 8, dC: -8 } },
+  dwarven: { why: 'built to carry stone: a layer more, heavy cloth, sleeves to the elbow for the work, hems short on a short body', layers: 0.2, length: -1, sleeve: 'elbow', palette: { dL: -4, dC: -8 } },
+  orcish: { why: 'mass first: sleeveless and open, the arms and shoulders bare, eased over the bulk', sleeve: 'none', open: true, fit: 'eased', palette: { dL: -2, dC: -10 } },
+  infernal: { why: 'sharp: closed and fitted, a standing collar, long and dark', length: 1, open: false, collar: true, fit: 'fitted', palette: { dL: -10, dC: 6 } },
+  undead: { why: 'thin to the point of wrongness: the cloth hangs loose off the frame, long and faded', length: 1, fit: 'loose', palette: { dC: -14 } },
+});
+/** the people's dress a sheet reads, for a person only (a creature's body speaks through its anatomy instead) */
+const peopleOf = (sheet) => (sheet.ancestry?.door !== 'creature' ? PEOPLE[sheet.facets.ancestry] ?? null : null);
+
 /** the archetype's FORMALITY (0 everyday … 1 court) and the role's MOBILITY (0 still … 1 always moving) */
 export const STATION = Object.freeze({ ruler: 0.9, sage: 0.8, magician: 0.75, caregiver: 0.55, lover: 0.55, hero: 0.5, innocent: 0.45, creator: 0.4, explorer: 0.3, jester: 0.3, everyman: 0.25, outlaw: 0.15 });
 export const MOBILITY = Object.freeze({ flanker: 1, ranged: 0.9, frontline: 0.8, support: 0.5, controller: 0.4, caster: 0.3, 'non-combatant': 0.2 });
@@ -111,7 +128,8 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
   const f = sheet.facets, a = f.archetype, notes = [], note = (n) => notes.push(n), A = anatomyOf(sheet);
   const bound = f.order < 0.4, free = f.order >= 0.6, youth = ['child', 'youth'].includes(f.age), elder = ['seasoned', 'elder'].includes(f.age);
   // scales are cold: the formality of the layering climbs a step (one layer more)
-  const F = Math.max(0, Math.min(1, (STATION[a] ?? 0.4) + (elder ? 0.15 : youth ? -0.15 : 0) + (A.scales ? 0.2 : 0))), M = MOBILITY[f.role] ?? 0.5;
+  const Pp = peopleOf(sheet);
+  const F = Math.max(0, Math.min(1, (STATION[a] ?? 0.4) + (elder ? 0.15 : youth ? -0.15 : 0) + (A.scales ? 0.2 : 0) + (Pp?.layers ?? 0))), M = MOBILITY[f.role] ?? 0.5;
   const heavy = ['stout', 'brute'].includes(f.build), lithe = f.build === 'lithe';
   // the BOTTOM: a skirt only where nothing must move fast and no tail must read; else trousers, the knees free on the
   // quickest
@@ -143,6 +161,15 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
   if (A.chitin) outer = { family: 'woven', sleeve: 'none', hem: F >= 0.5 ? 'tunic' : 'hip', open: true, cut: 'aline' };
   if (outer) { if (A.wings) outer.sleeve = 'none'; else if (A.fur && A.where.has('forearm')) outer.sleeve = cap(outer.sleeve, 'short');
     if (A.ruff) delete outer.collar; if (!top) outer.open = true; }
+  // the PEOPLE'S OWN DRESS over the archetype's: its length, its sleeve, its closure and collar
+  if (Pp) {
+    const COATS = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'];
+    if (outer && Pp.length) outer.hem = COATS[Math.max(0, Math.min(COATS.length - 1, COATS.indexOf(outer.hem) + Pp.length))];
+    if (Pp.sleeve) { if (top) top.sleeve = cap(top.sleeve, Pp.sleeve === 'none' ? 'short' : Pp.sleeve); if (outer) outer.sleeve = cap(outer.sleeve, Pp.sleeve); }
+    if (outer && Pp.open !== undefined) outer.open = Pp.open;
+    if (Pp.collar) { if (outer) outer.collar = true; else if (top) top.collar = true; }
+    note(`the ${f.ancestry} dress: ${Pp.why}`);
+  }
   if (outer) { const kind = outer.sleeve === 'none' ? (['waist', 'hip'].includes(outer.hem) ? 'vest' : 'jerkin') : ['knee', 'midi', 'maxi'].includes(outer.hem) ? 'coat' : 'jacket';
     const len = { waist: 'the waist', hip: 'the hip', tunic: 'mid-thigh', knee: 'the knee', midi: 'the calf', maxi: 'the ankle' }[outer.hem];
     note(`${outer.open ? 'an open' : 'a closed'} ${outer.cut === 'pencil' ? 'straight ' : outer.cut === 'full' ? 'full ' : ''}${kind} to ${len}: ${F >= 0.7 ? `the ${a}'s station` : silhouette === 'wedge' ? 'the wedge kept short under the shoulders' : silhouette === 'barrel' ? 'the barrel layered at the middle' : `the ${a}'s second layer`}${tailSeen && outer.hem === 'hip' ? ', short over the tail' : ''}${outer.open && heavy && !free ? ', open to break the mass' : ''}${A.scales ? ' (scales are cold: a layer more)' : ''}`); }
@@ -154,6 +181,7 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
   if (bottom.kind !== 'skirt') bottom.fit = M >= 0.8 && !heavy && bottom.leg === 'long' ? 'skin' : 'fitted';
   // the full zone is EASED, not loose: a barrel is round (full at the middle, in at the hem), never a box
   if (outer) outer.fit = A.chitin ? 'fitted' : carrier === 'outer' || heavy ? 'eased' : 'fitted';
+  if (outer && Pp?.fit) outer.fit = Pp.fit;
   if (![top?.fit, bottom.fit, outer?.fit].some((x) => x === 'skin' || x === 'fitted') && bottom.kind !== 'skirt') bottom.fit = 'fitted';
   note(`fit: ${[top && `the ${outer ? 'undershirt' : 'top'} ${top.fit === 'skin' ? 'a second skin' : top.fit}`, bottom.kind !== 'skirt' && `the ${bottom.leg === 'knee' ? 'breeches' : bottom.fit === 'skin' ? 'hose' : 'trousers'} ${bottom.fit === 'skin' ? 'skintight' : bottom.fit}`, outer && `the ${outer.sleeve === 'none' ? 'vest' : 'coat'} ${outer.fit}`].filter(Boolean).join(', ')}: tight against ${carrier ? `the ${silhouette}'s full ${silhouette === 'barrel' ? 'middle' : 'fall'}` : 'the shoulders'}`);
   // fit and length from age and build; the drawn style a little stylized; the dress notes' derives on top
