@@ -50,7 +50,7 @@ function bandLimit(series, kmax) {
 function headPoseAt(gaitFn, phase) {
   const dof = gaitFn(phase);
   const full = articulate(dof);
-  const balanced = dof.plant ? groundVault(full, { plant: dof.plant }) : full;
+  const balanced = dof.plant ? groundVault(full, { plant: dof.plant, ...(dof.heelLift ? { heel: dof.heelLift } : {}) }) : full;
   const hb = balanced.headBase;   // atlas — the skull-on-spine pivot, ~eye level
   const ht = balanced.headTop;    // head apex — gives the head's up/tilt segment
   // Gaze azimuth (looking left/right) is an AXIAL rotation: it lives in dof.head.yaw

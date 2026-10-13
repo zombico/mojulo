@@ -147,11 +147,12 @@ function offRest(spine, hinge, full, balanced) {
  */
 export function balancedArmature(pose = {}, full = null, base = null) {
   const F = full || articulate(pose, base);
-  const { weight = 0, support = 'both', crouch = 0, kneeOut = 0, plant = null } = pose || {};
+  const { weight = 0, support = 'both', crouch = 0, kneeOut = 0, plant = null, heelLift = null } = pose || {};
   if (support === 'none') return F;
   const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
   // The IK solves on the CAST's bone lengths (base), or the canonical ones when there is no cast.
-  return plant ? groundVault(F, { plant, ...(base ? { base } : {}) }) : groundBalance(F, { feet, weight, crouch, kneeOut, ...(base ? { base } : {}) });
+  // heelLift: a walk's heel off the floor in late stance (figure-posing.js gait `heelRise`); absent ⇒ ankles on the floor
+  return plant ? groundVault(F, { plant, ...(heelLift ? { heel: heelLift } : {}), ...(base ? { base } : {}) }) : groundBalance(F, { feet, weight, crouch, kneeOut, ...(base ? { base } : {}) });
 }
 
 /**
@@ -215,7 +216,7 @@ function buildHeldShield(nodes, hold) {
 
 export function buildPosedFigure(pose = {}, proto = {}, garment = null, opts = {}) {
   const { fluffs = null, hold = null, attachments = null, hair = null, cast = null, fluffQuality = 1, weld = null, rest: restOverride = null } = opts || {};
-  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, ...limbs } = pose || {};
+  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, heelLift: _heel = null, ...limbs } = pose || {};
   // THE CAST (figure-cast.js): the rest armature this figure is built on. Every kinematic pass
   // below takes it — FK, the balance IK's bone lengths, the spine warp's S0 and the arm's anchor
   // height — so proportions are satisfied at the vajra level and the flesh just follows. null =
@@ -1199,11 +1200,11 @@ export function figureRigSamples(manifest = {}, keys = 8, { tpose = false } = {}
     return [k, { x, y, z }];
   }));
   const solve = (pose) => {
-    const { support = 'both', weight = 0, crouch = 0, kneeOut = 0, plant = null } = pose || {};
+    const { support = 'both', weight = 0, crouch = 0, kneeOut = 0, plant = null, heelLift = null } = pose || {};
     const full = articulate(pose);
     if (support === 'none') return full;                     // airborne: pure FK
     const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
-    return plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut });
+    return plant ? groundVault(full, { plant, ...(heelLift ? { heel: heelLift } : {}) }) : groundBalance(full, { feet, weight, crouch, kneeOut });
   };
   const restNodes = mapNodes(tBase ? balancedArmature({}, articulate({}, tBase), tBase) : solve(restPose));
   const nodeFrames = Array.from({ length: keys }, (_, i) =>

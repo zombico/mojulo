@@ -151,7 +151,7 @@ export const VAULTS = Object.freeze({
 export const VAULT_NAMES = Object.freeze(Object.keys(VAULTS).flatMap((n) => [n, `${n}Left`]));
 
 // ─── the gait's frames ────────────────────────────────────────────────────────────────────────────────────────────────
-const NON_WORDS = new Set(['support', 'sink', 'shift', 'body', 'feet', 'lift', 'plant', 'crouch']);
+const NON_WORDS = new Set(['support', 'sink', 'shift', 'body', 'feet', 'lift', 'plant', 'crouch', 'heelLift']);
 const wordsOf = (pose) => Object.fromEntries(Object.entries(pose).filter(([k]) => !NON_WORDS.has(k)));
 const gaitCache = new WeakMap();
 /** the gait (walk | jog | sprint) baked on the rig: its clip, cycle seconds, ground speed and each foot's stance */

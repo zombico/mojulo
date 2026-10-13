@@ -252,6 +252,7 @@ export function keyframeMotion(keyposes, { loop = true } = {}) {
 // scales the swing, it does not translate the root. See
 // lite-template/integration/0615/figure-walk.plan.md.
 const TAU_G = 2 * Math.PI;
+const smoothG = (t) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };   // smoothstep 0 … 1
 const mag3 = (a) => SM.hypot(a.x, a.y, a.z);
 // thigh + shin (STAND units). `strideLength` and `cross` are absolute GROUND distances, so
 // the hip angle that achieves them depends on how long the leg actually is: a cast
@@ -333,6 +334,17 @@ export function gait(params = {}, base = null) {
   // STEP WIDTH (a mint dial; absent ⇒ the feet track straight under the hip joints, the frozen walk): the gap between
   // the two feet's lines, side to side. People walk with their feet much closer than their hip joints (a few cm apart);
   // each thigh adducts by a constant angle that sets its foot `(hipSpan − stepWidth) / 2` in from the hip line.
+  // HEEL RISE (a mint dial, degrees; absent ⇒ the planted foot stays flat until it lifts, the frozen walk): through
+  // late stance the heel peels off and the foot rolls onto its toes, the ankle plantarflexing up to this angle at
+  // toe-off. The ankle then stands off the floor (the toe the pivot), so the leg reaches the floor from higher: the
+  // pelvis drops less at double support (a smaller bounce) and the knee bends where the hip would have extended.
+  // TOE_REACH / ANKLE_UP: the ankle joint's place over the toe contact (STAND), forward and up.
+  const rise = Number.isFinite(p.heelRise) && p.heelRise > 0 ? p.heelRise : null;
+  const TOE_REACH = 0.12, ANKLE_UP = 0.163;
+  // the roll's share by phase for the left foot (stance ≈ [0, .5]): from mid-stance (.25) up to toe-off (.5), then
+  // eased out over early swing as the foot leaves; the right foot half a cycle on
+  const roll = (ph) => { const u = (((ph % 1) + 1) % 1); return u < 0.25 ? 0 : u < 0.5 ? smoothG((u - 0.25) / 0.25) : u < 0.7 ? 1 - smoothG((u - 0.5) / 0.2) : 0; };
+  const heelUp = (a) => { const r = a / DEG; return Math.max(0, TOE_REACH * SM.sin(r) + ANKLE_UP * (SM.cos(r) - 1)); };
   const span = Math.abs((base || B).hipL.x - (base || B).hipR.x);
   const narrow = Number.isFinite(p.stepWidth) ? SM.asin(Math.max(-1, Math.min(1, (span - p.stepWidth) / 2 / LEG))) * DEG : null;
   const rollAmp = phi > 0 ? p.stepRoll : 0; // swing-phase external rotation, gated on crossing
@@ -368,8 +380,8 @@ export function gait(params = {}, base = null) {
       kneeR: p.stanceKnee + p.swingLift * swing(phase),
       // ankle rolls dorsiflex (heel-strike) → plantarflex (toe-off); the toes (MTP) break
       // up over the ball at toe-off (late stance), then relax through swing.
-      ankleL: p.ankleRoll * cyc,
-      ankleR: -p.ankleRoll * cyc,
+      ankleL: rise === null ? p.ankleRoll * cyc : p.ankleRoll * cyc - rise * roll(phase),
+      ankleR: rise === null ? -p.ankleRoll * cyc : -p.ankleRoll * cyc - rise * roll(phase - 0.5),
       toeL: p.toeRoll * Math.max(0, SM.sin(TAU_G * (phase - 0.25))),
       toeR: p.toeRoll * Math.max(0, SM.sin(TAU_G * (phase - 0.75))),
       // arms counter-swing (left arm forward with the right leg).
@@ -398,6 +410,7 @@ export function gait(params = {}, base = null) {
       // vault: pin the stance foot to the floor and bob the pelvis (inverted pendulum); the
       // swing foot (low plantedness) lifts via its FK knee. Left stance ≈ [0,.5], right ≈ [.5,1].
       ...(p.vault ? { plant: { L: planted(phase), R: planted(phase - 0.5) } } : {}),
+      ...(p.vault && rise !== null ? { heelLift: { L: heelUp(rise * roll(phase)), R: heelUp(rise * roll(phase - 0.5)) } } : {}),
     };
   };
 }
@@ -613,10 +626,14 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
 // local motion-capture comparison cross-checks them):
 // - stepWidth 0.05 — the feet land about 8 cm apart, not hip-width (23 cm): the body then shifts about 8 cm side to
 //   side over each stance foot (it shifted 29 cm), the waddle gone with no change to the balance solve.
+// - heelRise 30 — the heel peels off through late stance and the foot rolls onto its toes (the ankle 30°
+//   plantarflexed at toe-off): the hips bounce about 4 cm, as people's do, instead of 6.4, and the leg reaches about 28°
+//   forward (people 31°, before 40°). The trailing thigh still swings about 26° back where a person's bends the knee
+//   and stays near 10°: that needs the stance re-timed, not a dial.
 // - seconds — one stride in real time (a gait dial the pose ignores; the GIF and the exported clip play at it).
 //   A walk's stride takes about 1.1 s (110 steps a minute), a run's about 0.7 s; a bare gait plays one stride per
 //   GIF loop (1.67 s at 30 frames, 18 fps), a sad walk's pace.
-export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05, seconds: 1.1 });
+export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05, heelRise: 30, seconds: 1.1 });
 export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, seconds: 0.7 });
 // The wave (figure-render.js waveMotion) as minted now: one loop of `seconds` (hand from the hip, waving, back), the
 // hand swept side to side `waves` times at an even pace (about 1.9 a second inside the wave, people wave at 0.8 … 2;

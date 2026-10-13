@@ -35,11 +35,29 @@ describe('stepWidth — the feet closer than the hip joints', () => {
     expect(was.sway).toBeGreaterThan(20);                  // 29 cm: the body thrown over each hip-width foot
     expect(now.sway).toBeGreaterThan(6); expect(now.sway).toBeLessThan(10);   // people: 6 … 9 cm
     expect(now.gap).toBeGreaterThan(5); expect(now.gap).toBeLessThan(11);     // people: about 4 … 10 cm
-    expect(now.bob).toBeLessThan(was.bob + 0.5);           // the bounce is not made worse
+    expect(now.bob).toBeGreaterThan(3); expect(now.bob).toBeLessThan(5);    // people: about 4 cm (the frozen walk 6.4)
   });
 });
 
-describe('stepWidth on a hero', () => {
+describe('heelRise — the foot rolls onto its toes in late stance', () => {
+  it('absent, the walk has no heel channel; set, the trailing ankle stands off the floor and its knee bends', () => {
+    expect(sampleMotionPose({ walk: { ...WALK_DEFAULTS } }, 0.4, N).heelLift).toBeUndefined();
+    const d = sampleMotionPose({ walk: WALK_MINT }, 0.4, N), A = balancedArmature(d);
+    expect(d.heelLift.L).toBeGreaterThan(0.02);                       // STAND: about 4 cm at an 85 cm hip
+    expect(A.ankleL.z).toBeGreaterThan(basePositions().ankleL.z + 0.02);
+    const u = ['x', 'y', 'z'].map((k) => A.kneeL[k] - A.hipL[k]), v = ['x', 'y', 'z'].map((k) => A.ankleL[k] - A.kneeL[k]);
+    const knee = Math.acos((u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) / Math.hypot(...u) / Math.hypot(...v)) * 180 / Math.PI;
+    expect(knee).toBeGreaterThan(20);                                 // the frozen walk holds it at 5°
+  });
+
+  it('the leg reaches forward about as far as a person\'s (25 … 35°; the frozen walk 40°)', () => {
+    const A = frames(WALK_MINT);
+    const fwd = pct(A.map((a) => Math.atan2(a.kneeL.y - a.hipL.y, a.hipL.z - a.kneeL.z) * 180 / Math.PI), 0.97);
+    expect(fwd).toBeGreaterThan(25); expect(fwd).toBeLessThan(35);
+  });
+});
+
+describe('the minted walk on a hero', () => {
   const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', head: 'anime' }) }).recipe.rig);
   const toeGap = (spec) => {
     const loco = heroLocomotion(spec, R);
@@ -49,8 +67,16 @@ describe('stepWidth on a hero', () => {
     }));
   };
 
-  it('the hero door takes the dial, and the minted walk brings the hero\'s feet in', () => {
-    expect(validateHeroMotion({ walk: { stepWidth: 0.05 } })).toEqual([]);
+  it('the minted walk keeps a hero\'s toes on the floor (the rig lifts its own heels)', () => {
+    const loco = heroLocomotion({ walk: { ...WALK_MINT } }, R);
+    for (const S of Object.keys(R.legs)) {
+      const z = Array.from({ length: 120 }, (_, i) => rigNodesAt(R, loco.fn(i / 120)).nodes[R.legs[S].toeBase][2] - R.joints[R.legs[S].toeBase][2]);
+      expect(Math.min(...z)).toBeGreaterThan(-1e-6);
+    }
+  }, 120_000);
+
+  it('the hero door takes the dials, and the minted walk brings the hero\'s feet in', () => {
+    expect(validateHeroMotion({ walk: { stepWidth: 0.05, heelRise: 30 } })).toEqual([]);
     expect(toeGap({ walk: { ...WALK_MINT } })).toBeLessThan(0.75 * toeGap({ walk: { ...WALK_DEFAULTS } }));
   }, 120_000);
 });

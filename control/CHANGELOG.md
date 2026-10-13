@@ -34,6 +34,13 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   `WALK_MINT` takes `stepWidth: 0.05`. The feet land about 8 cm apart instead of 23 cm, and the balance solve, unchanged,
   then shifts the body about 8 cm side to side instead of 29 cm, the measured human band (`gait-mint.test.js`). New
   heroes bring their feet in the same way, and the hero door takes the dial.
+- **The heel lifts.** A new walk dial, `heelRise` (degrees of plantarflexion at toe-off), peels the heel off through
+  late stance so the foot rolls onto its toes: the balance solve takes a `heelLift` per foot (the ankle off the floor,
+  the toe the pivot), so the pelvis drops less at double support and the trailing knee bends. Absent, every planted
+  ankle stays on the floor. `WALK_MINT` takes `heelRise: 30`: the hips bounce about 4 cm (people about 4, the frozen
+  walk 6.4) and the leg reaches about 28° forward (people 31°, frozen 40°). Not yet matched: the trailing thigh swings
+  about 26° back where a person's stays near 10° with the knee bent; that needs the stance re-timed. Heroes lift their
+  own heels (the rig's heel words) and ignore the channel.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
   emote. The GIF plays it in real time (18 fps; a short loop keeps 16 frames and plays them faster) and the exported
   clip carries it as its designed duration (`s`); a motion without it keeps the 30-frame loop and the runtime's one

@@ -62,7 +62,7 @@ function needAt(hip, toe, heelRest, heel, reach) {
  *   caller has planned them over the cycle (heroLocomotion), else found here for this phase alone
  */
 export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null } = {}) {
-  const { plant, support, ...own } = dof || {};
+  const { plant, support, heelLift: _heel, ...own } = dof || {};   // the rig lifts its own heels (heelL / heelR, below)
   const free = rigNodesAt(R, { ...own, support: 'none' }).nodes;
   const sides = Object.keys(R.legs); const rest = R.joints; const legs = {};
   let sink = 0;
