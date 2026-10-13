@@ -1649,6 +1649,78 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
   new `kart-racer` genre.
 
+### Driving primitives: the roadway, a world that driving games call on
+
+Built so far: the roadway itself, a divided freeway at true scale (Highway 401's collector–express stretch by Pearson).
+
+- **A `roadway` world kind, in metres** (`lib/graph/roads/`). Its alignment is tangents, clothoid spirals and arcs;
+  grades joined by K-sized vertical curves; superelevation following curvature up to 6 %. Its cross-section, per
+  direction: a median Tall Wall, 4 express lanes, a separation wall and 5 collector lanes, all 3.75 m, each roadway
+  banking on its own inner edge; 3 m dashes on a 9 m cycle measured along each line; luminaires, verge and ditch.
+- **Structures sized from clearance.** An overpass sets its soffit from a clearance target (5.0 m + 0.15 m by default)
+  and guide-sign gantries hang at 5.4 m; clearance is measured back from the drawn undersides, and a target under
+  5.0 m advises, never refuses.
+- **A fleet at real dimensions, instanced:** eight classes from compact to a 22.5 m tractor with a 53 ft trailer,
+  lofted from length, width, height, wheelbase, track and wheel radius, at free flow in the lanes.
+- **An inspectable map** at `/api/sketches/<ref>/world/map`: every lane, line, wall, structure and vehicle at its true
+  station, with a key map, the profile with measured clearances, and curvature and bank. A click inspects; every
+  thing opens the 3D world at that spot (`?view=s<station>-<lane>`).
+- **The payload carries a lane graph**: stationed 3D centrelines, width, speed, surface and the line to each neighbour,
+  and every structure's measured clearance.
+- **Design classes** (`roads/classes.js`): kart, circuit, rally and freeway, each with its design speed, tightest
+  corner, bank, grade and crest limits; the freeway's are the corridor's own, unchanged.
+- **Laps and stages from corner points** (`roads/course.js`): a closed polygon of points of intersection, each rounded
+  by a spiral–arc–spiral curve, closes on itself to under a centimetre; an open one is a stage. A corner too wide for
+  its legs is tightened toward the class's tightest and said so.
+- **Hills and ramps** (`roads/ramps.js`): an elevation dial (hills, amplitude, smooth or sharp crests that fly) held
+  inside the class's grade; kickers, tabletops, gaps and whoops laid on the straights, each with its lip, its landing,
+  and the band of speeds that lands it, predicted by a ballistic flight over the drawn road.
+- **A seeded designer and presets:** a lap of a given length and twist, or a figure of eight with a bridge over its
+  crossing, kept clear of itself; `kart-oval`, `kart-sprint`, `figure-eight`, `hillside`, `stunt-park`.
+
+- **Circuits and stages** (`roadway` `form: 'circuit' | 'stage'`, `course: <preset | spec>`; `roads/track.js`): one
+  carriageway banked about its line, kerbs on the corners, run-off (gravel outside a circuit's corners), tyre walls or
+  armco, per class; a stage designer and a `rally-stage` preset. No form, or `corridor`, is the freeway as before.
+- **The track owns its ground:** terrain carried just under every footprint (the lower pass's where two cross),
+  eased to the land around; ramps and bridge approaches stand on walls down to it; a figure of eight's upper pass is a
+  deck whose soffit clears the lower road by the class's clearance over its whole width, measured.
+- **A track census** measures what was drawn: road width and bank from its edges, radius, grade off the ramps,
+  closure, the ground under every footprint point, the deck's clearance, each ramp's landing band; as laws, in the
+  gameworld's shape.
+- **What a track tells a game** (`roads/contract.js`, on the payload as `roadway`): stations, start and finish, sectors,
+  checkpoints, a grid of eight, a racing line, its bands' surfaces, its ramps and crossings; and a ground hook that finds
+  the drawn surface under a car (the right deck at a crossing). The racing line spreads each bend as wide as the road
+  lets it, its tightest bend wider than the road's own. A race on a roadway takes its checkpoints, grid and line from
+  it: rivals race every preset on its drawn surface.
+
+- **A gameworld level can be a roadway** (`levels.<id>.roadway: { form?, course?, dress? }`), as one can be a city: one
+  stage, started on its grid's pole and ended at its finish line, its laws the track's own. A race on it takes its
+  checkpoints, grid and racing line; its barriers are walls the cars hit. The quick race names one (`roadway: '<preset>'`
+  or a course spec), its land dressed with trees and rocks kept clear of the track.
+
+- **Vehicles bound by physics** (`roads/vehicles.js`): sixteen classes from a rental kart and a motocross bike to a
+  tractor-trailer at 80,000 lb, each a row of numbers (mass, power, driven wheels, drag area, rolling, wheelbase,
+  centre of gravity). What each can do follows from them: a launch capped by grip on its driven wheels with the load
+  shifting rearward (and a bike's front wheel lifting), a top speed where power meets drag, braking and cornering
+  capped by grip, and whether it rolls before it slides. Held to real figures: a compact 0–100 km/h in 8.6 s, a sports
+  car in 4.3; a stop from 100 km/h in 42 m dry, 68 wet, 143 in snow; a loaded truck still well under merge speed at the
+  end of a 365 m acceleration lane. The quick ride plays one (`vehicle`), at a `tuning` (sim, or arcade's lifted grip
+  and softer landings) and in `conditions` (dry, wet, snow, ice).
+- **Cars fly** off a roadway's ramps and crests: they leave the ground where it falls away faster than gravity takes
+  them, fly ballistically as far as the ramps' own landing bands predict, and land keeping the speed along the ground.
+- **Grip by surface:** gravel, grass and sand slip and drag, a kerb a little; the page knows what the tyres are on.
+- **Rivals drive to grip:** a speed plan from the bends ahead and the ground under them, and each ramp taken in the
+  middle of its landing band.
+
+Planned:
+
+- **A map and a minimap.** An inspect page for any roadway (plan, profile with ramps, sectors), and a `map` HUD that
+  draws the outline with every car on it.
+- **The kart racer moves onto a roadway, and the loop laid on a trail's land retires.** Trails become rally raid:
+  point to point across open land, its humps and crests the course, off-road surfaces, waypoints some of them hidden.
+- **Laws, measured from what was drawn:** width, radius, grade, bank, closure, clearance, every ramp's landing,
+  nothing standing on the road. They advise; none refuse.
+
 ### Menus: inventory, and the actions on what you hold
 
 - **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never

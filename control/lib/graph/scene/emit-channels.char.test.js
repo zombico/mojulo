@@ -123,6 +123,10 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-11 (story cascade): the `shot` rule keeps the camera's side of the line and searches for a clear
 // view as it cuts, the cast's shot op resets both; reached only by a scene. With the engine source set aside, all 64
 // fixtures are unchanged; the trace pins hold. Same 13.
+// Re-pinned 2026-10-13 (driving primitives D5): the drive rule's opt-in physics (grip through the driven wheels, brakes
+// and steering capped by grip, surface grip, the weather, flight, a two-wheeler's lean) and the racer's ramps, and the
+// world's `surface` hook beside `ground`; reached only by a vehicle class's rule. With the engine source set aside, all
+// 64 fixtures are unchanged. Same 13.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

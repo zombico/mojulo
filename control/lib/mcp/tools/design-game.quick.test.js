@@ -7,6 +7,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
@@ -132,6 +133,24 @@ describe('design_game quick', () => {
     expect(L.figures['rival-1']).toEqual({ vehicleRef: 'k-ride', targetH: 1.5 });
     expect(L.game.mechanics[0]).toMatchObject({ kind: 'laps', laps: 3, rivals: ['rival-1', 'rival-2', 'rival-3'], win: 2 });
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('k-level-run-0'));
+    expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
+    expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
+  }, 240_000);
+  it('a race on a roadway: the level is the track itself, rivals on its grid and racing line, its barriers solid', async () => {
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', vehicle: 'kart', tuning: 'arcade', rivals: 3, roadway: 'kart-sprint', world: { id: 'sprint', style: { kit: 'trail-valley' } } }, ref: 'rw' });
+    expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
+    expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
+    const L = stored('rw-level-run-0');
+    expect(L).toMatchObject({ kind: 'roadway', form: 'circuit', course: 'kart-sprint', dress: true });
+    expect(L.entities.map((e) => e.id)).toEqual(['car', 'rival-1', 'rival-2', 'rival-3']);
+    expect(L.entities[0].rule).toMatchObject({ type: 'drive', vehicle: 'kart', tuning: 'arcade', air: true, surfaceGrip: true });
+    expect(L.entities[1]).toMatchObject({ team: 'rivals', rule: { type: 'racer', closed: true, collideRadius: 0.9, vehicle: 'kart', lateralGrip: true } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rw-level-run-0'));
+    // the page carries what the tyres are on, and its engine reads it
+    expect(payload.driveSurface.pts.length).toBeGreaterThan(100);
+    expect(emitThreeWorld({ ...payload })).toMatch(/surface: __surface/);
+    expect(payload.roadway).toMatchObject({ form: 'circuit', class: 'kart', closed: true });
+    expect(payload.colliders.length).toBeGreaterThan(300);
     expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
     expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
   }, 240_000);

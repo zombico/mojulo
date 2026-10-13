@@ -62,7 +62,8 @@ export function gameworldGraph(world) {
     // a building level: one section, the building, built by its civilization
     // a city level: one section, the city, built by its civilization (its segments are the city book's)
     const walk = R.building ? { ids: ['building'], root: 'building', edges: [], nodes: { building: { section: 'building', seed: R.seed, kit: R.style.kit } } }
-      : R.city ? { ids: ['city'], root: 'city', edges: [], nodes: { city: { section: 'city', seed: R.seed, kit: R.style.kit } } } : readLevel(R.level);
+      : R.city ? { ids: ['city'], root: 'city', edges: [], nodes: { city: { section: 'city', seed: R.seed, kit: R.style.kit } } }
+        : R.roadway ? { ids: ['roadway'], root: 'roadway', edges: [], nodes: { roadway: { section: 'roadway', seed: R.seed, kit: R.style.kit } } } : readLevel(R.level);
     node(lv, 'level', R.name, { seed: R.seed, kit: R.style.kit, start: id === G.start });
     edge('world', lv, 'contains');
     edge(lv, kitN(R.style.kit), 'drawn-in');
