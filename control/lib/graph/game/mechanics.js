@@ -619,6 +619,22 @@ const MECHANICS = {
     },
   },
 
+  // the BAG carried (an emitter): what the player holds goes from level to level. The level starts with the inventory
+  // slice's items in its bag (held:bag:<item>, playscape/ui/items.js), and every item that comes into or leaves the
+  // bag on the bus (`bag:in` / `bag:out`: a buy, a take, a give, a use) goes back to the slice as grant / consume. A
+  // collect into the same slice grants its own pickups (its bag counts are the same numbers).
+  bag: {
+    role: 'emitter', requires: ['inventory'],
+    lower(p, ctx) {
+      const slice = ctx.resolve('inventory', p.slice, `bag[${ctx.i}]`);
+      return {
+        produces: [{ type: 'grant', slice }, { type: 'consume', slice }],
+        consumes: [{ slice }],
+        bag: { slice },
+      };
+    },
+  },
+
   // a SCORE (an emitter): a var the level counts up, shown, and kept: the shell remembers the best (`best: 'high'`, or
   // 'low' for a count to keep down). `points` scores bus events: [{ on: '<event>', by?: 1 }].
   score: {
@@ -696,7 +712,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const audits = [];
   const doors = [];
   const keep = [];
-  let aftermath = null;
+  let aftermath = null, bag = null;
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -731,6 +747,7 @@ export function composeMechanics(mechanics, ctx = {}) {
     }
     for (const c of (low.consumes || [])) consumes.push(c);
     if (low.aftermath) aftermath = low.aftermath;
+    if (low.bag) bag = low.bag;
     for (const k of (low.keep || [])) { if (keep.some((x) => x.var === k.var)) errors.push(`mechanics[${i}] (${m.kind}): var '${k.var}' is kept twice`); else keep.push(k); }
     for (const d of (low.doors || [])) { if (doors.some((x) => x.id === d.id)) errors.push(`mechanics[${i}] (door): door id '${d.id}' is used twice`); else doors.push(d); }
     if (low.audit && low.role === 'terminal' && low.ends && low.ends.includes('success')) audits.push({ mechanic: m.kind, ...low.audit });
@@ -782,9 +799,19 @@ export function composeMechanics(mechanics, ctx = {}) {
 
   if (errors.length) throw new Error(`cannot compose mechanics:\n- ${errors.join('\n- ')}`);
 
+  // two mechanics producing the same event into the same slice declare it once: unbounded when either is, else the sum
+  // of their maxes (a collect's pickups and the bag's own grants into one inventory)
+  const merged = [];
+  for (const e of produces) {
+    const had = merged.find((x) => x.type === e.type && x.slice === e.slice);
+    if (!had) { merged.push({ ...e }); continue; }
+    if (had.max === undefined || e.max === undefined) delete had.max; else had.max += e.max;
+  }
+  produces.length = 0; produces.push(...merged);
+
   // drop empty channels so the emitted manifest reads like a hand-written one
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}) };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(bag ? { bag } : {}) };
 }

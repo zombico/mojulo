@@ -446,6 +446,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The world freezes.** While a menu or the quest journal is up, the world and the bus's clock stand still, and
   timers and walks wait. A scene still only holds input, because its cast walks on.
 - A quick collect game has a bag on I.
+- **The bag carried, level to level.** The `bag` mechanic (`{ kind: 'bag', slice? }`) consumes an inventory slice
+  and declares its grants and consumes (`game.bag: { slice }`).
+  - At the start the page fills the bag from the slice.
+  - Every item into or out of the bag (a buy, a take, a give, a use) is said on the bus as `bag:in:<item>:<n>` /
+    `bag:out:<item>:<n>`. The game channel sends each one as a store `grant` / `consume`, so the next level starts
+    with what this one ended with.
+  - A quick collect game carries its bag; in a run, the coins of one stretch are in the bag of the next.
+  - Two mechanics producing the same event into the same slice now declare it once (unbounded when either is). Before,
+    a collect and the bag into one inventory failed the game's verification gate.
 
 ### Game intent: the cube as a gameworld's design contract
 

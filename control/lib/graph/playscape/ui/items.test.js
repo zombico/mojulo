@@ -112,3 +112,44 @@ describe('collecting counts into the bag', () => {
     expect(s.vars['held:bag:gold-coin']).toBe(2);
   });
 });
+
+describe('the bag carried, level to level', () => {
+  it('a move into or out of the bag says so, with the item and how many: bag:in:<item>:<n> / bag:out:<item>:<n>', () => {
+    const { s, go } = bus(play, { gold: 20 });
+    go('menu-act:counter:0', 'gift', 'quaff');
+    expect(s.log.map((r) => r.type).filter((t) => t.startsWith('bag:'))).toEqual(['bag:in:tonic:1', 'bag:in:tonic:2', 'bag:out:tonic:1']);
+  });
+  it('the bag mechanic consumes the slice, may give back grants and consumes, and marks the contract', () => {
+    const store = { slices: [{ name: 'bag', kind: 'inventory' }] };
+    const c = composeMechanics([{ kind: 'bag' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: store });
+    expect(c.bag).toEqual({ slice: 'bag' });
+    expect(c.consumes).toEqual([{ slice: 'bag' }]);
+    expect(c.produces).toEqual([{ type: 'grant', slice: 'bag' }, { type: 'consume', slice: 'bag' }]);
+    expect(() => composeMechanics([{ kind: 'bag' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: { slices: [] } })).toThrow(/inventory/);
+  });
+  it('the page fills the bag from the slice at the start, and sends each bag:in / bag:out to the store', async () => {
+    const { gameChannelScript } = await import('../../scene/channels/game.js');
+    const s = gameChannelScript({ levelRef: 'x', consumes: [{ slice: 'bag' }], bag: { slice: 'bag' }, on: { 'goal:reached': { end: 'success' } } });
+    expect(s).toContain("B.state.vars['held:bag:' + k] = items[k]");
+    expect(s).toContain("emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: __GAME.bag.slice, item: m[2], count: Number(m[3]) })");
+    // the page's own reading of the name, run
+    const re = new RegExp(s.match(/\/\^bag:\(in\|out\)[^/]*\//)[0].slice(1, -1));
+    expect(re.exec('bag:out:lamp-oil:2').slice(1)).toEqual(['out', 'lamp-oil', '2']);
+    expect(gameChannelScript({ levelRef: 'x', on: { 'goal:reached': { end: 'success' } } })).not.toContain('held:bag:');
+  });
+  it('the store takes the envelope: what one level gained and spent is what the next starts with', async () => {
+    const { buildGameStoreKernel } = await import('../../game/store-kernel.js');
+    const K = buildGameStoreKernel(), schema = { slices: [{ name: 'bag', kind: 'inventory' }] };
+    const s0 = K.createStore(schema);
+    const r = K.applyEvents(schema, s0, [{ type: 'grant', slice: 'bag', item: 'coin', count: 3 }, { type: 'grant', slice: 'bag', item: 'tonic', count: 1 }, { type: 'consume', slice: 'bag', item: 'tonic', count: 1 }]);
+    expect(r.state.bag.items).toEqual({ coin: 3 });
+  });
+});
+
+describe('one declaration a produced event', () => {
+  it('a collect and the bag into one inventory declare its grants once, unbounded', () => {
+    const store = { slices: [{ name: 'bag', kind: 'inventory' }] };
+    const c = composeMechanics([{ kind: 'collect', into: 'bag', pickups: [{ item: 'coin', at: [3, 0, 0] }] }, { kind: 'bag' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: store });
+    expect(c.produces).toEqual([{ type: 'grant', slice: 'bag' }, { type: 'consume', slice: 'bag' }]);
+  });
+});

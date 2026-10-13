@@ -180,6 +180,29 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     evs.push({ type: 'flags-ready' });
     setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, evs); } catch (e) { console.error('flags carried', e); } }, 0);
   });
+` : ''}${game.bag ? `  // the BAG carried (the bag mechanic): the level starts with the slice's items in its bag (the bus's held:bag:<item>
+  // vars, set as the bus comes up), and each bag:in:<item>:<n> / bag:out:<item>:<n> the bus says goes back as a grant /
+  // consume
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.bag.slice], items = (s && s.items) || {};
+    (function fill(n) {
+      const B = window.__mojBus;
+      if (!B) { if (n < 100) setTimeout(function () { fill(n + 1); }, 50); return; }
+      for (const k in items) if (items[k] > 0) B.state.vars['held:bag:' + k] = items[k];
+    })(0);
+  });
+  if (typeof __BUS !== 'undefined') {
+    const prevB = __BUS.processEvents;
+    __BUS.processEvents = function (state, events) {
+      const n0 = state.log.length, out = prevB(state, events);
+      for (let i = n0; i < state.log.length; i++) {
+        const ev = state.log[i];
+        const m = ev && typeof ev.type === 'string' ? /^bag:(in|out):([a-z0-9-]+):(\\d+)$/.exec(ev.type) : null;
+        if (m) emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: __GAME.bag.slice, item: m[2], count: Number(m[3]) });
+      }
+      return out;
+    };
+  }
 ` : ''}${game.aftermath ? `  // AFTERMATH carried in (the aftermath mechanic): each block a flag in the slice says broke here before is taken away at
   // the start, without the shatter (the controllable world is built after this block: it is looked for until it is up)
   st.onStart.push(function (params) {

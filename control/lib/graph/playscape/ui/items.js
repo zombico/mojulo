@@ -21,7 +21,9 @@
  *   readItems(play)              → { <key>: { key, name, form, kind, about, use, value } } the table read; throws, teaching
  *   itemOf(items, id)            the item, the table's or derived
  *   lowerMove({ item, n, from, to, on, deny? }, frag)   a guarded transfer onto the bus: when `on` fires and `from` holds
- *                                n, n go to `to` (`moved:<item>`); else `deny` (a toast's words) and `denied:<item>`
+ *                                n, n go to `to` (`moved:<item>`); else `deny` (a toast's words) and `denied:<item>`.
+ *                                Into or out of the bag it says `bag:in:<item>:<n>` / `bag:out:<item>:<n>` (the store
+ *                                keeps them)
  */
 import { formForItem } from '../../game/mechanic-decor.js';
 import { GLYPH_IDS } from '../../game/glyph-forms.js';
@@ -90,6 +92,10 @@ export function lowerMove({ item, n = 1, from, to, on, deny = null, also = [] },
   });
   if (from !== NOWHERE) frag.reactions.push({ on: ok, do: 'inc', var: heldVar(from, key), by: -n, min: 0 });
   if (to !== NOWHERE) frag.reactions.push({ on: ok, do: 'inc', var: heldVar(to, key), by: n });
+  // the bag's changes, said: a game that carries the bag (the bag mechanic) keeps them in its store
+  // (the item and how many ride in the name: the bus's log keeps an event's type, not its fields)
+  if (to === 'bag') frag.reactions.push({ on: ok, do: 'emit', type: `bag:in:${key}:${n}` });
+  if (from === 'bag') frag.reactions.push({ on: ok, do: 'emit', type: `bag:out:${key}:${n}` });
   frag.reactions.push({ on: no, do: 'emit', type: `denied:${key}` });
   if (deny) frag.hud.push({ on: no, as: 'toast', text: deny, slot: 'center', ttl: 2 });
   return { ok, no };

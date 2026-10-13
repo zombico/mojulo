@@ -23,7 +23,7 @@ describe('design_game quick', () => {
     const out = await designGameHandler({ quick: { goal: 'collect', pickup: 'coin', world: { id: 'coins', name: 'Coin Run', style: { kit: 'trail-valley' } } }, ref: 'q' });
     expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-run-0', 'make'], ['game', 'make']]);
     const L = stored('q-level-run-0');
-    expect(mechanicsOf('q-level-run-0')).toEqual(['collect', 'reach-exit']);
+    expect(mechanicsOf('q-level-run-0')).toEqual(['collect', 'bag', 'reach-exit']);   // the bag carried level to level
     expect(L.game.mechanics[0].pickups.length).toBeGreaterThan(2);
     expect(L.game.mechanics[0].pickups.every((p) => p.item === 'coin')).toBe(true);
     expect(L.entities[0]).toMatchObject({ id: 'player', rule: { type: 'walk' }, body: { type: 'none' } });

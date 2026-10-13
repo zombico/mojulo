@@ -159,6 +159,10 @@ export function validateLevelContract(game, schema) {
     else game.doors.forEach((d, i) => { if (!d || typeof d.id !== 'string' || !Array.isArray(d.spawn)) errors.push(`game.doors[${i}] must be { id, at, spawn: [x, y, z], heading }`); });
   }
 
+  // BAG: the inventory slice the player's bag is carried in (the bag mechanic): filled at the start, kept as it changes
+  if (game.bag !== undefined && !(game.bag && typeof game.bag.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.bag.slice))) {
+    errors.push('game.bag is { slice }: an inventory slice the level consumes (the bag carried in, and kept as it changes)');
+  }
   // AFTERMATH: the flags slice the level keeps its broken blocks in (the aftermath mechanic), restored on entry
   if (game.aftermath !== undefined && !(game.aftermath && typeof game.aftermath.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.aftermath.slice))) {
     errors.push('game.aftermath is { slice }: a flags slice the level consumes (its broken blocks, kept and restored)');

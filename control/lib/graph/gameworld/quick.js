@@ -176,7 +176,8 @@ export function goalMechanics(quick, ends) {
   switch (quick.goal) {
     case 'collect': {
       const pickups = along.map((b) => ({ item: quick.pickup ?? 'gem', at: b.at, radius: 1.6 }));
-      return [...(pickups.length ? [{ kind: 'collect', into: 'bag', pickups }] : []), exit];
+      // the bag carried level to level (the bag mechanic): what was picked up, used or bought goes on
+      return [...(pickups.length ? [{ kind: 'collect', into: 'bag', pickups }] : []), { kind: 'bag', slice: 'bag' }, exit];
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
