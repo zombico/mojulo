@@ -1,5 +1,6 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
+import { surfaceAt } from '../../../roads/surface.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
@@ -47,7 +48,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -813,7 +814,11 @@ function __driveCamera(dt) {
   camera.position.set(px, py, pz);
   camera.lookAt(look[0], look[1], look[2]);
 }
-// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule
+const __surfaceT = ${safeJson(driveSurface)};
+const __surfaceAt = ${surfaceAt.toString()};
+const __surface = (p) => __surfaceAt(__surfaceT, p);
+` : ''}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
 function __ground(pos) {
@@ -2529,7 +2534,7 @@ function __updateBreaks(dt) {
 ` : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();
     __updateChargeRings();

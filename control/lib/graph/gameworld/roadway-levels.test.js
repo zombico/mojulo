@@ -8,7 +8,7 @@ import { readGameworld, resolveLevel, MEADOWMARK } from './index.js';
 import { gameStages, stageLevelOrder, roadwayEnds } from './levels.js';
 import { gameworldBibleHtml } from './bible-html.js';
 import { gameworldGraph } from './graph.js';
-import { quickWorld, goalMechanics, raceCast, readQuick } from './quick.js';
+import { quickWorld, goalMechanics, raceCast, readQuick, quickRideRule } from './quick.js';
 import { rideRule } from './ride.js';
 import { assembleRoadwayScene } from '../roads/roadway.js';
 import { planTrack, trackSection } from '../roads/track.js';
@@ -99,6 +99,10 @@ describe('the quick race names one', () => {
     expect(() => readQuick({ goal: 'reach', roadway: 'kart-oval' })).toThrow(/roadway belongs to the race goal/);
     expect(() => readQuick({ goal: 'race', roadway: 'monaco' })).toThrow(/roadway is a course preset/);
     expect(() => readQuick({ goal: 'race', roadway: 'kart-oval', track: 'loop' })).toThrow(/the race's whole ground/);
+    expect(() => readQuick({ goal: 'race', roadway: 'kart-oval', vehicle: 'kart' })).toThrow(/vehicle is how the ride drives: name a ride/);
+    expect(() => readQuick({ goal: 'race', ride: 'car', vehicle: 'hovercraft' })).toThrow(/vehicle is one of kart \(a rental kart\)/);
+    expect(() => readQuick({ goal: 'race', ride: 'car', tuning: 'pro' })).toThrow(/tuning is sim or arcade/);
+    expect(() => readQuick({ goal: 'race', ride: 'car', conditions: 'fog' })).toThrow(/conditions is one of dry, wet, snow, ice/);
   });
   it('rivals race it to the finish through the level\'s own manifest', () => {
     const q = { goal: 'race', ride: 'coupe', rivals: 2, laps: 1, roadway: 'kart-oval' }, W = quickWorld({ id: 'k', quick: q }), st = gameStages(W)[0];
@@ -109,6 +113,15 @@ describe('the quick race names one', () => {
     S.run(40);
     expect(S.world.byId['rival-1'].laps).toBeGreaterThanOrEqual(2);
     expect(S.bus.vars.__place_0).toBe(3);
+  });
+});
+
+describe('the ride plays a vehicle class', () => {
+  it('named, or in a tuning or conditions on the ride\'s own class; a ride without them drives as it did', () => {
+    expect(quickRideRule({ ride: 'car' }, ride.rule)).toBe(ride.rule);
+    expect(quickRideRule({ ride: 'car', vehicle: 'rally', conditions: 'snow' }, ride.rule)).toMatchObject({ vehicle: 'rally', tuning: 'sim', muScale: 0.28 });
+    expect(quickRideRule({ ride: 'coupe', tuning: 'arcade' }, ride.rule)).toMatchObject({ vehicle: 'sports', tuning: 'arcade' });
+    expect(quickRideRule({ ride: 'van', conditions: 'wet' }, ride.rule).vehicle).toBe('van');
   });
 });
 

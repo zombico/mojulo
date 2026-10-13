@@ -11,7 +11,8 @@
  * road's to θ, so a car is turned up, not struck. A drop is a steep face over DROP metres.
  *
  * Reach (`rampReach`): a car leaving the lip at v flies ballistic under g along the road from its lip angle; where it
- * meets the road again is its landing, measured on the drawn profile (alignment `at(s).z`). `lipSpeedBand` sweeps v for
+ * meets the road again is its landing, measured on the drawn profile (alignment `at(s).z`). `v` is the speed the drive
+ * rule counts: over the ground in plan, the rise the ramp's grade times it (a car climbs at v·grade, not v·sin θ). `lipSpeedBand` sweeps v for
  * the run of speeds that land on the landing slope. Straight roads are assumed under a ramp (a law keeps them there).
  */
 
@@ -88,8 +89,8 @@ export function ramp(spec) {
  *  → { s, x (m flown), air (s), onLanding } or null for a ramp with no lip. */
 export function rampReach(feature, alignment, v, { g = G, dt = 1 / 240 } = {}) {
   if (!feature.lip) return null;
-  const s0 = feature.lip.s - 0.01, p = alignment.at(s0), th = Math.atan(p.grade);
-  const vx = v * Math.cos(th), vz = v * Math.sin(th);
+  const s0 = feature.lip.s - 0.01, p = alignment.at(s0);
+  const vx = v, vz = v * p.grade;
   for (let t = dt; t < 12; t += dt) {
     const x = vx * t, z = p.z + vz * t - (g * t * t) / 2, s = s0 + x;
     if (x > 0.3 && z <= alignment.at(s).z) {

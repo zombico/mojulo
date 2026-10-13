@@ -81,7 +81,7 @@ describe('the laws', () => {
     }
     expect(trackLaws(census['figure-eight']).map((l) => l.law)).toEqual(['road-width', 'corners', 'grade', 'bank', 'closes', 'on-its-ground', 'clearance']);
     expect(trackLaws(census['rally-stage']).some((l) => l.law === 'closes')).toBe(false);
-    expect(trackLaws(census['stunt-park']).filter((l) => l.law === 'ramp-lands').map((l) => l.says)).toEqual([expect.stringMatching(/^the gap at .* lands at 40–43 km\/h$/), expect.stringMatching(/^the tabletop at .* lands at 39–43 km\/h$/)]);
+    expect(trackLaws(census['stunt-park']).filter((l) => l.law === 'ramp-lands').map((l) => l.says)).toEqual([expect.stringMatching(/^the gap at .* lands at 36–40 km\/h$/), expect.stringMatching(/^the tabletop at .* lands at 36–41 km\/h$/)]);
     const bad = { ...census['kart-oval'], terrainOverRoad: { max: 0.3, at: { s: 1, o: 2 } } };
     expect(trackLaws(bad).find((l) => l.law === 'on-its-ground')).toMatchObject({ holds: false, says: 'the ground stands 0.3 m over the track at {"s":1,"o":2}' });
   });

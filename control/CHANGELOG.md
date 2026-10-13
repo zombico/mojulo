@@ -1018,13 +1018,22 @@ Built so far: the roadway itself, a divided freeway at true scale (Highway 401's
   checkpoints, grid and racing line; its barriers are walls the cars hit. The quick race names one (`roadway: '<preset>'`
   or a course spec), its land dressed with trees and rocks kept clear of the track.
 
+- **Vehicles bound by physics** (`roads/vehicles.js`): sixteen classes from a rental kart and a motocross bike to a
+  tractor-trailer at 80,000 lb, each a row of numbers (mass, power, driven wheels, drag area, rolling, wheelbase,
+  centre of gravity). What each can do follows from them: a launch capped by grip on its driven wheels with the load
+  shifting rearward (and a bike's front wheel lifting), a top speed where power meets drag, braking and cornering
+  capped by grip, and whether it rolls before it slides. Held to real figures: a compact 0–100 km/h in 8.6 s, a sports
+  car in 4.3; a stop from 100 km/h in 42 m dry, 68 wet, 143 in snow; a loaded truck still well under merge speed at the
+  end of a 365 m acceleration lane. The quick ride plays one (`vehicle`), at a `tuning` (sim, or arcade's lifted grip
+  and softer landings) and in `conditions` (dry, wet, snow, ice).
+- **Cars fly** off a roadway's ramps and crests: they leave the ground where it falls away faster than gravity takes
+  them, fly ballistically as far as the ramps' own landing bands predict, and land keeping the speed along the ground.
+- **Grip by surface:** gravel, grass and sand slip and drag, a kerb a little; the page knows what the tyres are on.
+- **Rivals drive to grip:** a speed plan from the bends ahead and the ground under them, and each ramp taken in the
+  middle of its landing band.
+
 Planned:
 
-- **Cars fly** off a roadway's ramps and crests ballistically and land.
-- **Vehicles bound by physics.** Classes from kart and dirt bike to a loaded tractor-trailer, each a row of numbers
-  (mass, power, drag, wheelbase, centre of gravity); what it can do follows from them: launch and braking capped by
-  grip, top speed where power meets drag, cornering and rollover from its track and height. Grip by surface (off the
-  road is slower), and a `tuning` from arcade to sim on the same drive rule.
 - **A map and a minimap.** An inspect page for any roadway (plan, profile with ramps, sectors), and a `map` HUD that
   draws the outline with every car on it.
 - **The kart racer moves onto a roadway, and the loop laid on a trail's land retires.** Trails become rally raid:

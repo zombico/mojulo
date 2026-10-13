@@ -14,6 +14,9 @@
  *     pickup?: '<word>',                    // collect: what lies along the way (its word picks the glyph: coin, key, star…)
  *     seconds?: n,                          // survive: how long
  *     track?: 'trail' | 'loop',             // race: run the trail end to end, or go round a loop laid on its land
+ *     vehicle?: '<class>',                  // ride: the physics it plays (roads/vehicles.js VEHICLES), its look the ride's
+ *     tuning?: 'sim' | 'arcade',            // ride: the derived envelope as is, or lifted (vehicles.js)
+ *     conditions?: 'dry' | 'wet' | 'snow' | 'ice',   // ride: the road's grip in the weather
  *     roadway?: '<preset>' | { … },          // race: on a roadway built for driving (roads/course.js COURSE_PRESETS,
  *                                           // or a course spec), its land dressed: a lap or a stage, as the course is
  *     laps?: n,                             // race: times round (1 to 9; 3 on a loop, 1 on a trail)
@@ -43,6 +46,7 @@
  */
 import { STAGE_KITS } from '../era/stage.js';
 import { COURSE_PRESETS } from '../roads/course.js';
+import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
@@ -94,7 +98,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'hero', 'ride', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -111,6 +115,10 @@ export function readQuick(Q) {
     if (Q.climb || Q.building !== undefined) throw fail('.ride drives a trail: no climb, no building');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.ride is followed from behind (camera third-person)');
   }
+  for (const k of ['vehicle', 'tuning', 'conditions']) if (Q[k] !== undefined && !Q.ride) throw fail(`.${k} is how the ride drives: name a ride`);
+  if (Q.vehicle !== undefined && !VEHICLES[Q.vehicle]) throw fail(`.vehicle is one of ${Object.entries(VEHICLES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
+  if (Q.tuning !== undefined && !TUNINGS.includes(Q.tuning)) throw fail(`.tuning is ${TUNINGS.join(' or ')}`);
+  if (Q.conditions !== undefined && !(Q.conditions in CONDITIONS)) throw fail(`.conditions is one of ${Object.keys(CONDITIONS).join(', ')}`);
   if (Q.pickup !== undefined && !(typeof Q.pickup === 'string' && /^[a-z][a-z-]{0,23}$/.test(Q.pickup))) throw fail('.pickup is one lower-case word (coin, key, star, gem, shell…)');
   if (Q.seconds !== undefined && !(Number.isInteger(Q.seconds) && Q.seconds >= 5 && Q.seconds <= 600)) throw fail('.seconds is a whole number of seconds, 5 to 600');
   if (Q.theme !== undefined && !isObj(Q.theme)) throw fail('.theme is the game shell\'s skin { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }');
@@ -304,15 +312,26 @@ export function raceCast(quick, ends, ride) {
   return { figures, entities, pilot: { transform: { pos: slot(rivals.length), heading: h } } };
 }
 
+/** The class a ride plays when the quick game asks for a tuning or conditions but names no vehicle. */
+export const RIDE_CLASS = Object.freeze({ car: 'midsize', coupe: 'sports', van: 'van' });
+/** The ride's rule: its build's (ride.js) unless the quick game names a vehicle, a tuning or conditions, then the
+ *  class's (roads/vehicles.js), in its look. */
+export function quickRideRule(Q, built) {
+  if (Q.vehicle === undefined && Q.tuning === undefined && Q.conditions === undefined) return built;
+  return vehicleRule(Q.vehicle ?? RIDE_CLASS[Q.ride], { ...(Q.tuning ? { tuning: Q.tuning } : {}), ...(Q.conditions ? { conditions: Q.conditions } : {}) });
+}
+
 /** A race's cast on a roadway: every car on the contract's grid (the player behind the rivals), each rival on the racer
  * rule along the racing line, a lane either side of it by turns, its pace falling off down the grid. */
 function roadwayCast(rivals, T, ride) {
   const line = T.line.map((q) => [q[0], q[1]]), slot = (k) => T.grid[Math.min(k, T.grid.length - 1)];
+  // the ramps a rival would overshoot: each lip and the fastest speed that lands it (a kicker lands anywhere)
+  const ramps = T.ramps.filter((r) => r.lip && r.band).map((r) => ({ at: [r.lip.at[0], r.lip.at[1]], lo: r.band.lo, hi: r.band.hi }));
   const figures = {}, entities = [];
   rivals.forEach((id, k) => {
     figures[id] = { vehicleRef: ride.ref, targetH: RIDE_H };
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
-    const rule = { ...ride.rule, type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: RACE.body };
+    const rule = { ...ride.rule, type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: RACE.body, ...(ramps.length ? { ramps } : {}) };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });
   });
   return { figures, entities, pilot: { rule: { collideRadius: RACE.body }, transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };

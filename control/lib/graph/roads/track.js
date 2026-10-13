@@ -22,6 +22,8 @@ import { face, faceOut, texFace, boxFaces } from './road-faces.js';
 import { roadwayCourse, selfClearance, DECK } from './course.js';
 import { designClass } from './classes.js';
 import { trackContract } from './contract.js';
+import { driveSurfaceTable } from './surface.js';
+import { SURFACES } from './surfaces.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -32,14 +34,7 @@ const FAR = 6000;                    // m of far ground each way
 // a stage's start line far enough in for a grid of eight behind it (four rows, 4 m + 6 m a row), its finish line
 export const STAGE_START = 30, STAGE_FINISH = 11;
 
-/** The surfaces a band is laid in (their friction joins in D5). */
-export const SURFACES = Object.freeze({
-  asphalt: Object.freeze({ texture: 'asphalt-aged', hex: '#c4c6c8' }),
-  gravel: Object.freeze({ texture: 'soil-gravel', hex: '#e2ddd2' }),
-  grass: Object.freeze({ texture: 'grass-dry', hex: '#e9e6d6' }),
-  dirt: Object.freeze({ texture: 'soil-dirt', hex: '#e6e0d4' }),
-  sand: Object.freeze({ texture: 'soil-sand', hex: '#ebe6da' }),
-});
+export { SURFACES };
 
 /** Per class: the road's surface, an edge line's width, kerbs (on the corners), run-off (and its surface outside a
  *  corner), a barrier. Each side sums with half the road to half the class's footprint. */
@@ -397,6 +392,8 @@ export function assembleTrackScene(m = {}, opts = {}) {
     metersPerUnit: 1,
     // the barriers' walls (the drive rule's colliders); a level's own entities ride on them
     ...(plan.colliders.length ? { colliders: plan.colliders } : {}),
+    // what the tyres are on (surface.js): the page's `surface` hook for a car on the vehicle classes' rule
+    driveSurface: driveSurfaceTable(plan),
     // what the track tells a game (contract.js): its stations, lines, checkpoints, grid, racing line, bands, ramps
     roadway: { ...trackContract(plan), ...(plan.course.preset ? { course: plan.course.preset } : {}), advisories: plan.advisories },
   };

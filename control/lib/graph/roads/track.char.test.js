@@ -3,6 +3,8 @@
 // re-pinned 2026-10-13 (driving primitives D3): the payload carries the contract (stations, lines, checkpoints, grid,
 // racing line, bands), and a stage's start line moved in to 30 m so a grid of eight stands behind it.
 // re-pinned 2026-10-13 (driving primitives D4): the payload carries the barriers' colliders (the drive rule's walls).
+// re-pinned 2026-10-13 (driving primitives D5): a ramp's landing band counts speed as the drive rule does (over the
+// ground in plan, climbing at v·grade), so the stunt park's bands moved (its gap now 36–40 km/h, was 40–43).
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { assembleRoadwayScene } from './roadway.js';
@@ -37,7 +39,7 @@ describe('tracks, pinned', () => {
         "stunt-park": {
           "cameras": "eab8914bc368182557179d66287a93b2e0c06cf61425ea98016f30877b702978",
           "faces": "d19c23def084d5ff823c36a34fd2da0e63d79ded60726b301118090daa4edf00",
-          "roadway": "96b2e7bd6cc808656a5f018c7ae94d9b3bbecf5d758a7a7b1e289cbc26ba581f",
+          "roadway": "a67ae28de526638eda81d6480626f4e11c885d956659b0e3db39b83c9e1159b0",
         },
       }
     `);

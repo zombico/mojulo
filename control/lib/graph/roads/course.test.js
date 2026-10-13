@@ -115,9 +115,10 @@ describe('ramps', () => {
   it('a car off a kicker over flat ground flies the ballistic range (within its sampling step)', () => {
     const k = ramp({ kind: 'kicker', at: 100, h: 1.2, angle: 24 }), a = flat([k]);
     for (const v of [8, 14, 20]) {
-      const p = a.at(k.lip.s - 0.01), th = Math.atan(p.grade), vz = v * Math.sin(th), g = 9.81;
+      // v as the drive rule counts it: over the ground in plan, climbing at v·grade
+      const p = a.at(k.lip.s - 0.01), vz = v * p.grade, g = 9.81;
       const t = (vz + Math.sqrt(vz * vz + 2 * g * p.z)) / g;
-      expect(rampReach(k, a, v).x).toBeCloseTo(v * Math.cos(th) * t, 0);
+      expect(rampReach(k, a, v).x).toBeCloseTo(v * t, 0);
     }
   });
   it('a tabletop and a gap land a band of speeds on their landing slopes; too slow cases the gap', () => {
