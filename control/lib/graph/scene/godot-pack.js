@@ -15,9 +15,10 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { manifestIdentity } from './engine-score.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { renderBed } from './engine-audio.js';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { extractEngineScore, extractBus } from './engine-score.js';
+import { extractEngineScore, extractBus, levelSoundtrack } from './engine-score.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { normalizeLevelContract } from '../game/level-contract.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
@@ -124,7 +125,7 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false, f
   const fig = found && figureClipNames(clips, found[1]).length ? found : null;
   const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
-  return { kind, exported, score, fig, bus: extractBus(payload) };
+  return { kind, exported, score, fig, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload) };
 }
 
 /** A level's game contract, as game-resolve.js reads it: synthesized from its mechanics (and its chapters' carry rows),
@@ -181,7 +182,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score, fig, bus } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
+  const { kind, exported, score, fig, bus, soundtrack } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
   // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
   // score's 'three-quarter' camera, else its first). The ANIME hero's figure adds its clips' designed durations (`s` on
   // the packed clip; hero-gesture heroClipSeconds) and whether its mesh carries the face (anime-face-rig.js; its scene is
@@ -209,7 +210,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   ];
   let audioFile = null;
   if (score.soundtrack) {
-    binaries.push({ rel: `audio/${score.soundtrack}.wav`, bytes: await renderBeats(score.soundtrack, log) });
+    binaries.push({ rel: `audio/${score.soundtrack}.wav`, bytes: await renderBed(score.soundtrack, { recipe: soundtrack?.recipe, log }) });
     audioFile = `audio/${score.soundtrack}.wav`;
   }
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'godot' });
@@ -253,10 +254,10 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
   const battleDb = toDb(music.battleVolume);
   const binaries = [];
   const beds = new Map();
-  const bed = async (beatsRef) => {
+  const bed = async (beatsRef, recipe = null) => {
     if (!beatsRef) return null;
     if (!beds.has(beatsRef)) {
-      binaries.push({ rel: `audio/${beatsRef}.wav`, bytes: await renderBeats(beatsRef, log) });
+      binaries.push({ rel: `audio/${beatsRef}.wav`, bytes: await renderBed(beatsRef, { recipe, log }) });
       beds.set(beatsRef, `audio/${beatsRef}.wav`);
     }
     return beds.get(beatsRef);
@@ -269,10 +270,10 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     const spec = levelSpecs[i];
     const lvSketch = SketchRepository.getByRef(spec.ref);
     if (!lvSketch) throw new Error(`level '${spec.ref}' not found`);
-    const { exported, score, bus } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
+    const { exported, score, bus, soundtrack } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}' — GLB ${exported.byteLength} bytes`);
     const own = score.soundtrack;
-    const audioFile = await bed(own ?? battle[i % Math.max(battle.length, 1)]);
+    const audioFile = own ? await bed(own, soundtrack?.recipe) : await bed(battle[i % Math.max(battle.length, 1)]);
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
     binaries.push({ rel: `levels/${spec.ref}/score.json`, bytes: JSON.stringify(score, null, 2) });
     if (bus) binaries.push({ rel: `levels/${spec.ref}/bus.json`, bytes: JSON.stringify(bus) });
@@ -302,15 +303,4 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     scope: 'game', ref, dir: outDir, manifestHash: hashOf(manifest), kernelVersion: version,
     glbStats, written, ledger: emitted.ledger, portability, sceneChecks,
   };
-}
-
-let beatsRender = null;
-async function renderBeats(beatsRef, log) {
-  const beats = SketchRepository.getByRef(beatsRef);
-  if (!beats) throw new Error(`beats ref '${beatsRef}' not found`);
-  if (!beatsRender) ({ renderBeatsOffline: beatsRender } = await import('@/lib/graph/beats/beats-render'));
-  // music beds loop in the engine: one seamless pass to the bar line, with a smpl loop chunk (an sfx is a one-shot).
-  const rendered = await beatsRender(beats.manifest, beats.manifest.kind === 'beats-sfx' ? {} : { loop: true });
-  log(`beats '${beatsRef}' rendered — ${rendered.wav.length} bytes`);
-  return rendered.wav;
 }

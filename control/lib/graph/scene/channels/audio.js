@@ -99,7 +99,9 @@ ${audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
-// events and never touches state, so bus determinism (hash → replay) is untouched.
+// events and never touches state, so bus determinism (hash → replay) is untouched. Match the
+// state.log DELTA, not the incoming array: the reducer cascades reaction-emitted events
+// (goal:reached, pickup:*, door:*) internally, so only the log holds the whole drained stream.
 if (__AUDIO.on && typeof __BUS !== 'undefined') {
   const __beatsGlob = (str, pat) => {
     if (pat === '*') return true;
@@ -108,12 +110,16 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
   };
   const __beatsPE = __BUS.processEvents;
   __BUS.processEvents = function (state, events) {
-    for (const ev of events) {
+    const n0 = state.log.length;
+    const out = __beatsPE(state, events);
+    for (let i = n0; i < state.log.length; i++) {
+      const ev = state.log[i];
+      if (!ev || !ev.type) continue;   // cap/noop markers carry no type
       for (const pat in __AUDIO.on) {
         if (__beatsGlob(ev.type, pat)) { __beatsCue(__AUDIO.cues && __AUDIO.cues[__AUDIO.on[pat]]); break; }
       }
     }
-    return __beatsPE(state, events);
+    return out;
   };
 }
 // footsteps: two sources, both read-only. Controllable entities expose gait edges (gaitPhase /

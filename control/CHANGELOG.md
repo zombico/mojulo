@@ -13,6 +13,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Game audio: scene-scored soundtracks and action SFX
+
+The first step makes the audio that already exists work in games: four faults stood between the beats composer
+and a game's levels.
+
+- **A looped composition keeps playing.** On the live page a composition with `loop: true` played once and went
+  silent: the transport kept running and never went back to the first event. Every `field:<mood>` world soundtrack
+  and every rhythm level's music is one. It now wraps at the next bar line, the seam the looped WAV export folds at
+  (`loopPeriod`, shared by both). The fix is a new kernel slice, `loop`, carried only by pages whose soundtrack is
+  a looped composition. Every other page, every WAV baseline and the frozen 2.1 kernel are byte for byte as before.
+- **`audio.sfx.on` hears the events reactions emit.** It read only the facts coming into the bus, so the events a
+  level's reactions emit (`goal:reached`, `pickup:*`, `door:*`, `checkpoint`, `lap`, `wave`, `beat:hit` …) never
+  played their cue. It now reads the log the bus drained, as the game channel does. Every World page with an audio
+  channel changes by these few lines (the `audio` and `kitchen-sink` emit pins move).
+- **A level's own soundtrack reaches the engine exports.** Godot, Unity and Unreal carried a level's music only when
+  it was a stored beats row. A `field:<mood>` score, an inline recipe or a kind's period music now ships as
+  `audio/<level>-soundtrack.wav`, rendered from the soundtrack the World page plays (`levelSoundtrack` in
+  `engine-score.js`, `engine-audio.js`). A stored row keeps its ref and its file.
+- **Music beds loop without a seam everywhere.** The game shell's menu, about and battle tracks are served and
+  exported as one seamless pass to the bar line (`beats.wav?loop=1`); Unity and Unreal beds are rendered looped like
+  Godot's already were. An sfx stays a one-shot.
+- **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
+  key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
+  `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names
+  a real card.
+
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 
 A design trial built one hero at 11 and at 16 through the hero door and found four gaps.

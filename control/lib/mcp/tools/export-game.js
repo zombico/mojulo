@@ -522,10 +522,11 @@ export async function exportGameHandler(input, context = {}) {
     await writeRecipe(`recipe/${en.ref}.json`, menuSketch.manifest);
   }
 
-  // music — the shell's score as offline WAV renders (default opts match the served beats.wav)
+  // music — the shell's score as offline WAV renders, looped like the served beats.wav?loop=1 (game-resolve.js)
   const beatsRefs = [...new Set([norm.music?.menu, norm.music?.about, ...(norm.music?.battle || [])].filter(Boolean))];
   for (const br of beatsRefs) {
-    const rendered = await renderBeatsOffline(getSketch(br).manifest, {});
+    const m = getSketch(br).manifest;
+    const rendered = await renderBeatsOffline(m, m.kind === 'beats-sfx' ? {} : { loop: true });
     await write(BEATS_SRC(br), rendered.wav);
   }
 

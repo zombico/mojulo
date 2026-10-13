@@ -4,6 +4,8 @@ import { resolveWorldAudio, emitSceneSoundtrackScript } from './beats-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { renderSceneHtml } from '../scene/scene-html.js';
 import { sketchRenderMode, classifyBucket, isBucket } from '../sketch/sketch-manifest.js';
+import { audioChannelScript } from '../scene/channels/audio.js';
+import { buildBus } from '../worlds/event-bus.js';
 
 // ── the Phase-5 exit criteria, structurally (beats.plan.md → B2/B3) ────────────
 // "a recipe with `audio` omitted is byte-identical to today" and "muted capture
@@ -162,5 +164,31 @@ describe('render-mode wiring', () => {
     expect(classifyBucket({ kind: 'beats-sfx' })).toBe('beats');
     expect(classifyBucket({ kind: 'fractal-city' })).toBe('world');   // unchanged
     expect(classifyBucket({})).toBe('diagram');                       // unchanged
+  });
+});
+
+// ── bus stingers hear the whole drained stream ────────────────────────────────
+// The reducer cascades reaction-emitted events (goal:reached, pickup:*) internally, so they never
+// arrive as the wrapper's argument; the stinger reads the state.log delta, as the game channel does.
+describe('audio.sfx.on', () => {
+  // run the channel's stinger block against a real bus, with the cue call recorded.
+  function stingers(on, reactions, facts) {
+    const script = audioChannelScript({ cues: { ding: [{ type: 'tone' }], step: [{ type: 'thump' }] }, on });
+    const block = script.slice(script.indexOf('// bus stingers'), script.indexOf('// footsteps'));
+    const bus = buildBus();
+    const heard = [];
+    const __AUDIO = { cues: { ding: 'ding', step: 'step' }, on };
+    new Function('__AUDIO', '__BUS', '__beatsCue', block)(__AUDIO, bus, (cue) => heard.push(cue));
+    bus.processEvents(bus.createBusState({ reactions }, [{ id: 'gem', on: true }]), facts);
+    return heard;
+  }
+
+  it('fires on an event a reaction emits (the cascade), not only on incoming facts', () => {
+    const reactions = [{ on: 'enter', do: 'emit', type: 'pickup:gem' }, { on: 'pickup:gem', do: 'emit', type: 'goal:reached' }];
+    expect(stingers({ 'pickup:*': 'ding', 'goal:reached': 'step' }, reactions, [{ type: 'enter', a: 'player', b: 'gem' }])).toEqual(['ding', 'step']);
+  });
+
+  it('still fires on incoming facts, once per event', () => {
+    expect(stingers({ enter: 'step' }, [], [{ type: 'enter', a: 'player', b: 'gem' }, { type: 'enter', a: 'player', b: 'door' }])).toEqual(['step', 'step']);
   });
 });

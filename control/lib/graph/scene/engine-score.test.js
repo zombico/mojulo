@@ -4,8 +4,12 @@ import {
   GREYBOX_LEDGER_NOTE,
   HANDOFF_POSTURES,
   extractEngineScore,
+  levelSoundtrack,
   resolvePosture,
 } from './engine-score.js';
+import { resolveWorldAudio } from '../beats/beats-world.js';
+import { resolveGame } from '../game/game-resolve.js';
+import { scaffoldGameFromKit } from '../game/kits.js';
 
 // A minimal resolved-world payload — enough for the score extractor, nothing
 // engine-specific. Kept tiny and fixed: the unstamped snapshot below is the
@@ -206,5 +210,48 @@ describe('the figure look rides the score as data (shader-look phase 4)', () => 
     expect(bare.ledger.look_declared).toBeUndefined();
     const bad = extractEngineScore(sketch(), { ...payload(), figures: { dragon: { rig: true, rim: [1, 2, 3] } } });
     expect(bad.look).toBeUndefined();   // five finite numbers or nothing
+  });
+});
+
+// ── the level's music bed reaches the engine packs ────────────────────────────
+// A stored beats row keeps its ref; any other soundtrack world-scene resolved onto the payload (a field mood, an
+// inline recipe) ships under the level's name with that recipe, where before it was dropped.
+describe('levelSoundtrack', () => {
+  it('a stored beats row is its ref, rendered from the row', () => {
+    const sk = sketch({ audio: { soundtrack: { beatsRef: 'sk_beats_bed' } } });
+    expect(levelSoundtrack(sk, payload())).toEqual({ id: 'sk_beats_bed', recipe: null });
+    expect(extractEngineScore(sk, payload()).soundtrack).toBe('sk_beats_bed');
+  });
+
+  it("a field mood ships as '<level>-soundtrack' with the looped cue the World page plays", () => {
+    const sk = sketch({ audio: { soundtrack: 'field:forest' } });
+    const p = { ...payload(), audio: resolveWorldAudio(sk.manifest.audio, { ref: sk.ref }) };
+    const st = levelSoundtrack(sk, p);
+    expect(st.id).toBe('sk_score_fixture-soundtrack');
+    expect(st.recipe).toBe(p.audio.soundtrack);
+    expect(st.recipe).toMatchObject({ kind: 'beats-composition', loop: true });
+    expect(extractEngineScore(sk, p).soundtrack).toBe('sk_score_fixture-soundtrack');
+  });
+
+  it('no soundtrack, no bed', () => {
+    expect(levelSoundtrack(sketch(), payload())).toBeNull();
+    expect(extractEngineScore(sketch(), payload()).soundtrack).toBeNull();
+  });
+});
+
+describe('shell music srcs', () => {
+  const kit = scaffoldGameFromKit('dungeon-crawler', { title: 'Music Crypt', levels: [{ ref: 'crypt-1', exit: [20, 0, 0] }] });
+  const rows = {
+    bed: { manifest: { kind: 'beats-composition', title: 'bed', bpm: 100, parts: [] } },
+    cue: { manifest: { kind: 'beats-sfx', title: 'cue', cues: { a: [{ type: 'thump' }] } } },
+  };
+  for (const ref of Object.keys(kit.levelChannels)) {
+    rows[ref] = { manifest: { kind: 'controllable', entities: [{ id: 'hero', rule: { type: 'walk' }, transform: { pos: [0, 0, 2] } }], game: kit.levelChannels[ref] } };
+  }
+  it('a bed is served looped (one seamless pass for <audio loop>); an sfx stays a one-shot', () => {
+    const manifest = { kind: 'game', title: 'Music Crypt', store: kit.store, levels: kit.gameLevels, music: { menu: 'bed', battle: ['cue'] } };
+    const { music } = resolveGame(manifest, (r) => rows[r] ?? null, (r) => `/l/${r}`);
+    expect(music.menu).toBe('/api/sketches/bed/beats.wav?loop=1');
+    expect(music.battle).toEqual(['/api/sketches/cue/beats.wav']);
   });
 });

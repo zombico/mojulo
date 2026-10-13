@@ -180,6 +180,19 @@ function primitiveBody(list, id, sv, sn) {
   return null;
 }
 
+/**
+ * A level's music bed: { id, recipe } | null. A stored beats row keeps its ref as the id (recipe null: the pack
+ * renders the row); any other soundtrack world-scene resolved onto the payload ('field:<mood>', { score }, an inline
+ * recipe, a kind's period music) ships as `<level ref>-soundtrack` with that resolved recipe. The id names the
+ * score's `soundtrack` and the pack's `audio/<id>.wav` (engine-audio.js renders it).
+ */
+export function levelSoundtrack(sketch, payload) {
+  const ref = payload?.audio?.soundtrack?.beatsRef ?? sketch?.manifest?.audio?.soundtrack?.beatsRef;
+  if (ref) return { id: ref, recipe: null };
+  if (payload?.audio?.soundtrack && sketch?.ref) return { id: `${sketch.ref}-soundtrack`, recipe: payload.audio.soundtrack };
+  return null;
+}
+
 export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const manifest = sketch?.manifest ?? {};
   const extras = levelSceneExtras(payload) ?? {};
@@ -374,7 +387,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // operator IS the walker; leaving it renders a body double at spawn.
     player: playerOf(payload),
     game: extras['moj:game'] ?? null,
-    soundtrack: payload.audio?.soundtrack?.beatsRef ?? manifest.audio?.soundtrack?.beatsRef ?? null,
+    soundtrack: levelSoundtrack(sketch, payload)?.id ?? null,
     ledger,
   };
 }

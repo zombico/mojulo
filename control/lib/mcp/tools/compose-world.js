@@ -119,7 +119,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     if (!slots.audio || typeof slots.audio !== 'object' || Array.isArray(slots.audio)) {
       throw new Error(
         `compose_world: overrides.audio must be an object ({ soundtrack?, sfx?, footsteps?, wind?, bindings? }); `
-          + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).`,
+          + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'beats-world-audio' }).`,
       );
     }
     // a field score with no seed gets a fresh one STORED on the recipe: every world sounds different by
