@@ -62,7 +62,8 @@ export const ANIME_CHARACTER_LIGHT = deepFreeze(resolveToonLight(true));
 export const ANIME_HAIR_HIGHLIGHT = deepFreeze({ female: resolveToonLight({ highlight: { Hair: { kind: 'ring' } } }).highlight, male: resolveToonLight({ highlight: { Hair: { kind: 'streak', parts: 'fringe' } } }).highlight });
 /** the default light with the pole's highlight (frozen, shared) */
 const ANIME_LIGHT_OF = deepFreeze({ female: { ...resolveToonLight(true), highlight: ANIME_HAIR_HIGHLIGHT.female }, male: { ...resolveToonLight(true), highlight: ANIME_HAIR_HIGHLIGHT.male } });
-const animePole = (hero) => (hero.headPreset === 'female' || hero.headPreset === 'male' ? hero.headPreset : hero.cast === 'female' || hero.cast === 'male' ? hero.cast : 'male');
+const animePole = (hero) => { const cast = hero.cast && typeof hero.cast === 'object' && !Array.isArray(hero.cast) ? hero.cast.pole ?? 'male' : hero.cast;   // the build form { pole, build } stands on its pole
+  return hero.headPreset === 'female' || hero.headPreset === 'male' ? hero.headPreset : cast === 'female' || cast === 'male' ? cast : 'male'; };
 
 /** Derived shade swatches (a multiplier of the base colour) for a group with no explicit `shade`: each keeps its colour
  * in one value group, about 10–13 CIE L* below its lit tone — skin shades warm (the hue moves toward red), anything else

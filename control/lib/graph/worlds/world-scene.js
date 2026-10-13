@@ -93,7 +93,7 @@ async function heroFigure(name, spec) {
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
-    manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero) });
+    manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec.hero, { staleScale: true }) });
   }
   const scene = await WORLD_KINDS.layered.resolve(manifest, { title: name });
   const body = scene.figures && scene.figures.body;
@@ -300,7 +300,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       }
       if (!baked.has(key) && rec.hero) {   // an inline hero statue (statues: 'carved', or an entry's `hero`): no store
         const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
-        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero) });
+        const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord(rec.hero, { staleScale: true }) });
         const mounted = statueWords(manifest.hero.statue).stand === 'mounted';
         if (!!rec.equestrian !== mounted) throw new Error(`statue on '${rec.at}': ${rec.equestrian ? 'an equestrian slot takes a mounted statue (statue.stand \'mounted\')' : 'a mounted statue stands on an equestrian slot'}`);
         const inner = await resolveWorldScene({ ref: `hero-${rec.at}`, title: rec.at, manifest }, { _itemChain: chain, unshaded, ...(unshaded ? {} : { light: lightInto(light, statueTurn(rec.dir)) }) });

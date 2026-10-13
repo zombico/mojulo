@@ -4,7 +4,7 @@
  * expressions displacing the flesh, hair from the library), then the DRESS (hero-dress.js: body detail and adornment).
  * Hair, palette and expression are independent of the proportions. The shirt-panel refinement lives here; shared anatomy
  * lives in the hero form or the head. */
-import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, ANIME_NECK_FORMS, ANIME_WAVE, WAVE_TWIST, withWaveHand, planScale, scaleIncludePart } from './hero-form.js';
+import { heroPlan, HERO_CASTS, BODY_DEFAULTS, REGISTERS, resolveTune, castOf, castPole, castLabel, ANIME_NECK_FORMS, ANIME_WAVE, WAVE_TWIST, withWaveHand, planScale, scaleIncludePart } from './hero-form.js';
 import { humanoidHead, HAIR_STYLES, EXPRESSIONS, FACE_VERSION, FACE, resolveFace, validateFace, HEAD_PRESETS } from './humanoid-head.js';
 import { validateCast } from './figure-cast.js';
 import { dressPlan, kitPalette } from './hero-dress.js';
@@ -18,13 +18,14 @@ export { HAIR_STYLES, EXPRESSIONS, REGISTERS, FACE_VERSION, FACE };
 /** the worn head's pole (its design base or fit) and its scale, as humanoidPlan reads them from its options (the scale on
  * demand: the tune is resolved only when it is read) */
 function wornHead({ preset, headPreset, headScale, tune, props }) {
-  const heroCast = typeof preset === 'string' && castOf(preset, props);
-  return { heroCast, pole: headPreset ?? (heroCast ? preset : 'male'), get scale() { return (headScale ?? heroCast?.headScale ?? 1) * resolveTune(tune).head; } };
+  const heroCast = castOf(preset, props);   // a word or the build form { pole, build }; a dial map has none
+  return { heroCast, pole: headPreset ?? (heroCast ? castPole(preset) : 'male'), get scale() { return (headScale ?? heroCast?.headScale ?? 1) * resolveTune(tune).head; } };
 }
 
 /**
  * @param {object} opts
- *   preset      'male' | 'female' (a HERO_CASTS word: joints, girth, body defaults; the head's dimorph pole)
+ *   preset      'male' | 'female' (a HERO_CASTS word: joints, girth, body defaults; the head's dimorph pole), or the build
+ *               form { pole, build } (hero-form HERO_BUILDS: the pole's landmarks with a figure-cast build's dials and radii)
  *   body        overrides on the body controls (waist, chest, chestDepth, hip, hipDepth, thigh, arm, neck)
  *   face        the FACE controls (humanoid-head.js `FACE`): a move word ('broad-jaw', 'large-eyes'), a ratio object over the
  *               shape knobs and the lab's words (skullWidth, faceWidth, faceLength, jawWidth, chinProjection, cheek, eyeSpacing,
@@ -58,11 +59,12 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   const faceErrors = anime ? validateAnimeFace(face) : validateFace(face); if (faceErrors.length) throw new Error(`humanoid: ${faceErrors.join('; ')}`);
   const colours = { ...PALETTE, ...kitPalette(adorn), ...outfitTones(outfit), ...palette };   // a kit's and an outfit build's suggested colours, beneath the operator's (the head bakes them into its include)
   const resolvedHeadScale = worn.scale;
+  const child = childCoded || !!heroCast?.child;   // the door's child-coded figure, or a child-coded build (HERO_BUILDS)
   let head;
   // the anime head's shaped hair keeps out of the body it is worn on: the body's neck and torso rings, read off the same
   // plan without a head (the head sits at the atlas, so the rings are taken about it, in the head's unscaled metres)
-  const neckForm = anime && props !== 'hero' && typeof preset === 'string' && Object.hasOwn(ANIME_NECK_FORMS, preset) ? ANIME_NECK_FORMS[preset] : null;
-  const planArgs = { cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, body, tune, ...(props !== 'hero' ? { proportions: props } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !childCoded ? { bare: true } : {}) };
+  const neckForm = anime && props !== 'hero' && heroCast && Object.hasOwn(ANIME_NECK_FORMS, castPole(preset)) ? ANIME_NECK_FORMS[castPole(preset)] : null;
+  const planArgs = { cast: preset, register, girth, headScale: resolvedHeadScale, palette: colours, body, tune, ...(props !== 'hero' ? { proportions: props } : {}), ...(neckForm ? { neckForm } : {}), ...(core !== undefined ? { core } : {}), ...(detail === 'swimsuit' && !child ? { bare: true } : {}) };
   if (anime) head = animeHead({ preset: pole, face, hair, expression, register, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours, sculpt, body: hair && hair !== 'none' ? bodyRingsAboutAtlas(heroPlan({ ...planArgs, head: null }), resolvedHeadScale) : null });
   else { const { from: _faceFrom, ...shape } = resolveFace(face); head = humanoidHead({ preset: pole, shape, register, hair: hair ?? 'swept', expression, scale: resolvedHeadScale, skin: colours.Skin, hairColor: colours.Hair, palette: colours }); }
   // the anime head on anime proportions wears its cast's NECK FORM (hero-form.js ANIME_NECK_FORMS: the ring loft rising
@@ -72,10 +74,10 @@ export function humanoidPlan({ preset = 'male', body = {}, face = {}, register =
   // the anime head waves its own way, whatever the proportions (hero-form.js ANIME_WAVE: the elbow out and down, the
   // forearm upright); every other head keeps the form's wave. A hand with digits opens and turns its palm to the front
   if (anime) plan.clips.wave = plan.rig?.hands ? withWaveHand(JSON.parse(JSON.stringify(ANIME_WAVE)), WAVE_TWIST.anime) : JSON.parse(JSON.stringify(ANIME_WAVE));
-  dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child: childCoded } });
+  dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette: palette, scale: (heroCast?.scale ?? 1) * resolveTune(tune).stature, figure: { female: heroCast?.silhouette === 'female', child } });
   plan.frame.note = anime
-    ? `1 unit = 1 m; humanoid ${preset} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
-    : `1 unit = 1 m; humanoid ${preset} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;
+    ? `1 unit = 1 m; humanoid ${castLabel(preset)} starter, the anime head (Anime Form Studio, ${pole} base), ${register}; proportions are body controls, hair and palette independent${(() => { const d = ANIME_FACE.describe(resolveAnimeFace(face)); return d ? `; ${d}` : ''; })()}`
+    : `1 unit = 1 m; humanoid ${castLabel(preset)} starter, face v${FACE_VERSION}, ${register}; proportions are body controls, hair and palette independent${(() => { const d = FACE.describe(resolveFace(face)); return d ? `; ${d}` : ''; })()}`;
   return plan;
 }
 

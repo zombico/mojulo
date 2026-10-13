@@ -13,6 +13,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### The hero door: builds, a child's body, and the child guard on the resolved cast
+
+A design trial built one hero at 11 and at 16 through the hero door and found four gaps.
+
+- **A pole with a build.** `cast: { pole: 'female', build: 'brute' }` puts a figure-cast preset on a hero pole. The
+  preset's dials go over the pole's (lengths and spans multiply, the shoulder drop adds) and its radii are percentages of
+  the pole's (`HERO_BUILDS` in `hero-form.js`). A broad young woman keeps her girdles, her head and her silhouette;
+  before, she was a male preset or `tune.shoulders` past its range. A pole, a build or a key the door does not know is
+  refused by name.
+- **A child's body.** The `child` and `chibi` builds carry a child's radii: a chest about 0.7 of the adult's across, a
+  waist that tapers less, thin limbs, a larger head, and shoulders narrower for the height. Hip joints sit inside the adult
+  female's; the bare `child` preset sat 60 % wider than hers. The bare words `child` and `chibi` keep their old meaning
+  (the joints on adult radii), so rows minted with them render byte for byte as before. The build is the opt-in.
+- **`scale` on a worn head is refused.** The landmark and anime heads never read it; the refusal points at
+  `tune.stature`. The blank trunk and a baked include still honour it. A world's inline hero, re-recorded on every
+  render, tolerates it as before, so a stored world keeps rendering.
+- **The child guard reads the resolved cast.** A build, a list or a dial map that comes to `child` or `chibi` (by name,
+  or by its dials) is child-coded: it takes no bust at mint or on an edit, and a swimsuit puts it in the rash vest. This
+  moves one kind of stored row on purpose: a hero on a list or dial-map child cast that carried a bust or wore a
+  swimsuit bare-chested.
+  Every other hero form re-renders byte for byte (172 cast, head, dress and proportion combinations compared against HEAD).
+
 ### City rails: a city planned first, tuned on rails, played as levels
 
 - **A city as a plan before a render.** `compose_world({ base: 'city', overrides: { plan } })` mints kind `city`
