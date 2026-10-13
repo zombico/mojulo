@@ -3,7 +3,7 @@
  * measures against the bands its INTEREST sets, and say per law what is out of band and what moves it. Advice, never a
  * refusal (docs/bicycles.md). Pure: a function of the faces and the frame they face.
  *
- *   objectMeasures(faces, { at, N, U }, interest) → {
+ *   objectMeasures(faces, { at, N, U, distance? }, interest) → {
  *     segments     notches in the front silhouette at play distance, each at least NOTCH_PX frame pixels (the
  *                  pixels inside the silhouette's convex hull it leaves empty, by connected region, that open onto
  *                  the outside: a hole the shape closes all round is not outline)
@@ -108,7 +108,8 @@ const mean = (fs) => { let a = 0, v = 0; for (const f of fs) { const w = area(f.
 const band = (v, steps) => Math.min(steps - 1, Math.floor(v * steps + 1e-9));
 
 export function objectMeasures(faces, frame, interest) {
-  const I = INTEREST[interest], mpp = metresPerPixel(I.distance);
+  // a frame may name the distance the thing is met at (technology is met further off than a door); else the rank's
+  const I = INTEREST[interest], mpp = metresPerPixel(frame.distance ?? I.distance);
   const at = frame.at || [0, 0, 0], U = frame.U || [1, 0, 0];
   const front = (f) => f.corners.map((p) => [dot(sub(p, at), U), p[2]]);
   // a face's role is its part when the part names one (body, fill, detail, handle), else its group's (obj:detail):

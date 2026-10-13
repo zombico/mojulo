@@ -11,6 +11,7 @@
  *                sketch, a picture of the page; the base itself stays bare)
  *     systems    when the systems step is (characterReady): the player world with the stats and the HUD
  *     gear-<c>   when the equipment step is: one per filled class of the table
+ *     stock-<id> when the equipment step is: one per starter item the world asks for (equipment.populate, world-gear.js)
  *     level-<level>-<n>   when the systems step is: each stage of each level, a world the hero pilots (levels.js)
  *     game       when the systems step is, after every level: create_game over them, the store from the book
  *   decide(step, record, storedNow, { force }) → what to do with one step:
@@ -29,6 +30,7 @@ import { resolveBook, characterReady } from './character-review.js';
 import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
+import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, bagPlay, raceCast, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
@@ -72,6 +74,11 @@ export function runSteps(world, { ref, lookup } = {}) {
   const EO = equipmentOrders(G, ready.equipment);
   for (const m of EO.mints.length ? EO.mints : EO.planned ?? []) {
     steps.push({ key: `gear-${m.class}`, ref: childRef(ref, `gear-${m.class}`), ready: ready.equipment.ready, ...waits(ready.equipment), order: m.args, print: fingerprint(m.args) });
+  }
+  // the starter gear a world asks for (`equipment.populate`, world-gear.js): made with the table, on the same readiness
+  const GO = gearOrders(G, ready.equipment);
+  for (const m of GO.mints.length ? GO.mints : GO.planned) {
+    steps.push({ key: `stock-${m.id}`, ref: childRef(ref, `stock-${m.id}`), ready: ready.equipment.ready, ...waits(ready.equipment), order: m.args, print: fingerprint(m.args) });
   }
   // the levels: each stage a world the hero pilots (holding its gear when the equipped hero is made), with the systems'
   // play block; then the game over them in the play shell (play-shell.js), its store compiled from the book. Walkable by construction; beatability is

@@ -3,15 +3,19 @@ import { tunnelTech, techDomain, composeThing, TECH_TRAITS } from './tunnel-tech
 import { buildBlock, blockLaws, readBlock, FUNCTION_IDS } from '../era/blocks.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { techIndexHtml } from './tech-html.js';
+import { CRAFT_KIND_IDS } from './tech-crafter.js';
+
+// what the crafter adds (tech-crafter.js): a weapon strikes, a shield guards, a gate lets you through; a machine does none
+const MACHINE_FUNCTIONS = FUNCTION_IDS.filter((f) => !['strike', 'guard', 'pass'].includes(f));
 
 const INTENTS = ['a tracked ore hauler', 'a solar power station', 'a wind turbine relay beacon', 'a portable scanner', 'an automated fabricator', 'a heavy crane loader',
   'a hydroponic greenhouse', 'a fuel tank', 'a survey rover with a dish', 'a shelter pod', 'a tall comms tower beacon', 'a busy industrial refinery with storage'];
 
 describe('the civilization tunnel: technology', () => {
-  it('every function has words, and a thing tunnelled for it reads as doing it', () => {
+  it('every machine function has words, and a thing tunnelled for it reads as doing it', () => {
     const named = new Set(Object.values(TECH_TRAITS).filter((t) => t.fn).map((t) => t.fn));
-    expect([...named].sort()).toEqual([...FUNCTION_IDS].sort());
-    for (const f of FUNCTION_IDS) {
+    expect([...named].sort()).toEqual([...MACHINE_FUNCTIONS].sort());
+    for (const f of MACHINE_FUNCTIONS) {
       const word = Object.values(TECH_TRAITS).find((t) => t.fn === f).words[0];
       const r = tunnelTech(`a ${word}`, { seed: 2 });
       expect(r.plan.block.functions, f).toContain(f);
@@ -56,6 +60,7 @@ describe('the civilization tunnel: technology', () => {
     const a = techIndexHtml({ seed: 1 });
     expect(a).toBe(techIndexHtml({ seed: 1 }));
     expect(a).toContain('TECHNOLOGY INDEX');
-    for (const f of FUNCTION_IDS) expect(a).toContain(`id="fn-${f}"`);
+    for (const f of MACHINE_FUNCTIONS) expect(a).toContain(`id="fn-${f}"`);
+    for (const k of CRAFT_KIND_IDS) expect(a).toContain(`id="craft-${k}"`);
   }, 60000);
 });

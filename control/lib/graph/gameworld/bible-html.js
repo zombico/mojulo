@@ -1,6 +1,7 @@
 /**
  * THE GAMEWORLD BIBLE — a world's binder for the creator who makes it: its cover and its levels in the order they are
- * played, the world map drawn from its graph, the style (the ground), its civilizations (who builds on it, and how), a
+ * played, the world map drawn from its graph, the style (the ground), its civilizations (who builds on it, and how, and
+ * what it makes: its machines, and the vehicles, tech-structures and weapons the crafter made of its words), a
  * page for each level (its walk, what stands on its ground and who built it, how it differs from its world) and the
  * parts of a game left open.
  *
@@ -44,6 +45,11 @@ import { speak } from '../era/out-anchor-structure.js';
 import { drawStructures } from '../era/out-structures-draw.js';
 import { buildBlock, blockPaint } from '../era/blocks.js';
 import { tunnelBuilding } from './tunnel-buildings.js';
+import { resolveTechDirection, MOTIFS } from './tech-direction.js';
+import { ELEMENT_WORDS } from './element-words.js';
+import { hasChassis } from './tech-chassis.js';
+import { buildAdorned } from './tech-adornment.js';
+import { CRAFTED } from './world.js';
 import { weatherCardHtml } from './weather-card.js';
 import { airOfKit } from './style-guide.js';
 import { storyReport } from './runner.js';
@@ -65,6 +71,37 @@ function techHtml(C, cid, kit, seed) {
   if (!T || !Object.keys(T.things).length) return '';
   const paint = blockPaint(kit, T.finish);
   return `<div class="tech"><h4>Its technology · ${esc(T.finish)}</h4><div class="things">${Object.entries(T.things).map(([id, t]) => { const b = buildBlock(t.block, { seed: t.seed ?? seed }); return `<figure>${plate(`civ-thing-${cid}-${id}`, drawStructures([b.faces], { paint, w: 240, h: 190 }))}<figcaption><b>${esc(id)}</b> · ${esc(t.block.tier)} · ${esc(t.block.functions.join(', '))}${tunnelLog(t.tunnel)}</figcaption></figure>`; }).join('')}</div></div>`;
+}
+/** What the crafter made of a civilization's words: its vehicles, its tech-structures, its weapons, each in its finish. */
+const CRAFT_HEADS = { vehicles: 'Its vehicles', structures: 'Its tech-structures', weapons: 'Its weapons' };
+function craftHtml(G, cid, kit, seed, stamp = () => '') {
+  const C = G.civilizations[cid], T = C.technology;
+  if (!T) return '';
+  const paint = blockPaint(kit, T.finish), D = resolveTechDirection(G, cid), rank = (k, id) => D?.ranks[`${k}/${id}`];
+  // the direction page: what every crafted thing it makes shares, each choice and where it came from
+  const el = (w) => `<span style="display:inline-block;width:.9em;height:.9em;border-radius:2px;vertical-align:-1px;margin-right:4px;border:1px solid var(--rule);background:${esc(ELEMENT_WORDS[w].tint)}"></span>${esc(w)}`;
+  const dir = D ? `<div class="tech tech-direction" id="tech-${esc(cid)}"><h4>Its technology: the direction ${stamp(`tech:${cid}`)}</h4><dl class="vocab">
+<dt>style</dt><dd>${esc(D.style)} <span class="muted">(${esc(D.from.style)})</span></dd>
+<dt>met through</dt><dd>${esc(D.camera)}</dd>
+<dt>motif</dt><dd>${esc(D.motif)}: ${esc(MOTIFS[D.motif].read)} <span class="muted">(${esc(D.from.motif)})</span></dd>
+<dt>elements</dt><dd>${D.elements.primary || D.elements.secondary ? [D.elements.primary, D.elements.secondary].filter(Boolean).map(el).join(' · ') : '—'} <span class="muted">(${esc(D.from.elements)})</span></dd>
+<dt>tone</dt><dd>${esc(D.tone ?? '—')} <span class="muted">(${esc(D.from.tone)})</span></dd>
+<dt>asymmetry</dt><dd>${esc(D.asymmetry)} <span class="muted">(${esc(D.from.asymmetry)}: one flank carries more, its weapon the counterweight)</span></dd>
+<dt>team</dt><dd><span style="display:inline-block;width:.9em;height:.9em;border-radius:2px;vertical-align:-1px;margin-right:4px;border:1px solid var(--rule);background:${esc(D.team)}"></span>${esc(D.team)} <span class="muted">(${esc(D.from.team)}; a placement may pass its own)</span></dd>
+</dl>${D.ledger.length ? `<ul class="ledger">${D.ledger.map((o) => `<li><b>${esc(o.key)}</b> ${show(o.local)} <span>default: ${show(o.world)}</span></li>`).join('')}</ul>` : ''}</div>` : '';
+  return dir + Object.entries(CRAFT_HEADS).filter(([k]) => T[k] && Object.keys(T[k]).length).map(([k, head]) => `<div class="tech craft-${k}"><h4>${head} · ${esc(T.finish)}</h4><div class="things">${Object.entries(T[k]).map(([id, t]) => {
+    const b = buildBlock(t.block, { seed: t.seed ?? seed });
+    const r = rank(k, id);
+    // a form with a chassis grammar is drawn as its chassis and its adornment (the 66 on its rig, the 33 on its sockets),
+    // in the civilization's finish, read beside the hero through the camera
+    if (D && hasChassis(CRAFTED[k], t.form)) {
+      const c = buildAdorned(t, { kind: CRAFTED[k], direction: D, rank: r.rank, use: r.use }), R = c.readout;
+      const faces = c.faces.map((f) => ({ corners: f.corners, normal: f.outNormal ?? [0, 0, 1], group: f.group ?? 'tech:body', value: f.value, mass: f.monomer }));
+      const hung = [...new Set(c.picks.map((p) => p.piece))];
+      return `<figure>${plate(`civ-${k}-${cid}-${id}`, drawStructures([faces], { paint, w: 240, h: 190 }))}<figcaption><b>${esc(id)}</b> · ${esc(t.variant)} · ${esc(r.rank)} · <span title="${esc(r.useWhy)}">${esc(r.use)}</span> · ${esc(c.functions.join(', '))}<p class="muted">${R.triangles} triangles (a ${esc(r.use)} ${esc(r.rank)}'s ceiling ${R.ceiling}) · facets ${R.facetPx.widest} px at ${R.distance} m, ${esc(D.camera)} · ${R.segments} silhouette segments · ${c.joints.length} joints, ${c.sockets.length} sockets · adorned with ${esc(hung.join(', '))} · ${c.held ? 'every law holds' : `<b>advises</b>: ${esc(c.laws.filter((l) => !l.ok).map((l) => l.law).join(', '))}`}${c.promised.length ? ` · promised and kept: ${esc(c.promised.join(', '))}` : ''}</p>${tunnelLog(t.tunnel)}</figcaption></figure>`;
+    }
+    return `<figure>${plate(`civ-${k}-${cid}-${id}`, drawStructures([b.faces], { paint, w: 240, h: 190 }))}<figcaption><b>${esc(id)}</b> · ${esc(t.variant)} · ${esc(t.block.tier)}${r ? ` · <span title="${esc(r.why)}">${esc(r.rank)}</span>` : ''} · ${esc(t.block.functions.join(', '))}${t.carries ? ` · carried as the ${esc(t.carries)} (equipment)` : ''}${tunnelLog(t.tunnel)}</figcaption></figure>`;
+  }).join('')}</div></div>`).join('');
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
 const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building' };
@@ -209,6 +246,8 @@ export function gameworldBibleHtml(world) {
   const groundHtml = `<article class="card" id="guide-ground"><div class="card-h"><span class="eyebrow">The ground's character</span><h3>Handed down</h3><p class="muted">How every level's ground rises, falls and is climbed, unless it says otherwise.</p></div><dl class="vocab"><dt>trails</dt><dd>${row(gr.trail)}</dd><dt>climbs</dt><dd>${row(gr.meru)}</dd></dl></article>`;
 
   // each civilization, drawn in the kit it is first found in: its houses, its castle, how it lays out a town
+  // a part's stamp is known once the gate is read, below: the cards leave a mark where it goes
+  const civStamp = (id) => `<!--stamp:${id}-->`;
   const civHtml = G.civIds.map((cid) => {
     const C = G.civilizations[cid], at = builds[cid][0], kit = at ? built[at[0]].R.style.kit : G.style.kit, card = civilizationCard(C, kit, G.seed), V = card.language.vocab, I = card.fort.influence;
     const castle = designCastle(structureStyle(kit, G.seed), G.seed, { fort: C.fort, ...(C.anchor !== undefined ? { anchor: C.anchor } : {}), ...(C.castle || {}) });
@@ -216,7 +255,7 @@ export function gameworldBibleHtml(world) {
     return `<article class="civ" id="civ-${esc(cid)}"><div class="civ-h"><div><span class="eyebrow">Civilization · ${esc(cid)}</span><h3>${esc(C.name)}</h3></div><p class="muted mono">${esc(card.language.id)} · ${esc(card.fort.id)} · drawn in ${esc(kit)}</p></div>
 <p class="read">${esc(card.language.read)}</p><div class="houses">${houseRow(card.language.language, kit, G.seed)}</div>
 <div class="fort"><div class="fort-im">${plate(`civ-castle-${cid}`, castleAxon(castle, structurePaint(kit)))}</div><div><p class="read">${esc(card.fort.read)}</p><h4>What its language makes of a castle</h4><dl class="vocab"><dt>wall</dt><dd>${esc(I.read[0])}</dd><dt>towers</dt><dd>${esc(I.read[1])}</dd><dt>keep</dt><dd>${esc(I.read[2])}</dd></dl>
-<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div>${tunnelHtml(C, cid, kit, G.seed, G.style.kit)}${techHtml(C, cid, kit, G.seed)}</article>`;
+<h4>Its houses</h4><dl class="vocab">${[['mass', V.mass], ['cap', V.cap], ['lights', V.opening], ['entry', V.entry], ['tiers', V.tiers ? 'yes' : 'no'], ['ornaments', V.ornaments.join(', ') || 'none']].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>towns</dt><dd>${row(card.town)}</dd><dt>castles</dt><dd>${row(card.castle)}</dd><dt>builds in</dt><dd>${where}</dd></dl></div></div>${tunnelHtml(C, cid, kit, G.seed, G.style.kit)}${techHtml(C, cid, kit, G.seed)}${craftHtml(G, cid, kit, G.seed, civStamp)}</article>`;
   }).join('');
 
   // the gate: each part's stamp, its machine gate measured by the builders that drew it
@@ -224,8 +263,9 @@ export function gameworldBibleHtml(world) {
   for (const id of order) { const t = built[id].town; if (t) machine[`level:${id}`] = t.laws.filter((l) => !l.ok).map((l) => l.law); }
   machine.nature = kits.flatMap((k) => { const land = landOfKitHere(k); return Object.keys(land).flatMap((f) => landLaws(designLand(f, land[f].variant, G.seed, { level: 'near', many: land[f].many })).map((l) => `${f} ${l.law}`)); });
   const stamps = reviewState(world, { machine }), stampOf = (id) => stamps.find((x) => x.id === id);
-  const anchorOf = (id) => (id === 'intent' ? '#intent' : id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : `#level-${id.slice(6)}`);
+  const anchorOf = (id) => (id === 'intent' ? '#intent' : id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : id.startsWith('tech:') ? `#tech-${id.slice(5)}` : `#level-${id.slice(6)}`);
   const stamp = (id) => { const x = stampOf(id); return x ? `<span class="stamp st-${x.status}" title="${esc(STAMPS[x.status])}">${esc(x.status)}</span>` : ''; };
+  const civCards = civHtml.replace(/<!--stamp:([^>]*)-->/g, (_, id) => stamp(id));
   const mode = world.mode ?? 'gated', waiting = stamps.filter((x) => ['changed', 'revise', 'proposed'].includes(x.status));
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>
 <ol class="parts">${stamps.map((x) => `<li><a href="${anchorOf(x.id)}">${esc(x.name)}</a>${stamp(x.id)}<code>${esc(x.print)}</code>${x.note ? `<p class="muted">${esc(x.note)}</p>` : ''}</li>`).join('')}</ol>
@@ -274,7 +314,7 @@ ${gateHtml}<div class="eyebrow">The levels, in the order they are played</div><d
 <details><summary>The graph as a flowchart (Mermaid)</summary><pre>${esc(graphMermaid(graph))}</pre></details>
 <script type="application/json" id="gameworld-graph">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script></section>
 <section class="part" id="nature"><div class="part-h"><span class="eyebrow">Natural world ${stamp('nature')}</span><h2>The land, before anyone builds on it</h2></div>${natureHtml}<div class="cards">${groundHtml}${G.style.weather ? weatherCardHtml(G.style.weather, G.seed, airOfKit(G.style.kit, G.style.weather.air)) : ''}</div></section>
-<section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civHtml}</section>
+<section class="part" id="civilizations"><div class="part-h"><span class="eyebrow">Civilizations ${stamp('civilizations')}</span><h2>Who builds on it</h2></div>${civCards}</section>
 <section class="part" id="key"><div class="part-h"><span class="eyebrow">Style and color key ${stamp('key')}</span><h2>Every ramp, and what it paints</h2></div><div class="cards">${keyHtml}</div></section>
 ${levels}
 ${storyPart}<section class="part" id="open"><div class="part-h"><span class="eyebrow">Open</span><h2>Beyond the ground</h2></div><div class="cards">${open}</div></section>

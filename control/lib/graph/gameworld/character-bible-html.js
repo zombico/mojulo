@@ -24,6 +24,7 @@ import { mechanicsOrders } from './mechanics.js';
 import { TRADITIONS, FROM } from './characters.js';
 import { MODES, STAMPS } from './review.js';
 import { esc, plate, CSS } from './bible-html.js';
+import { populateGear } from './world-gear.js';
 
 const json = (v) => esc(JSON.stringify(v));
 const list = (a) => (a && a.length ? a.map(esc).join(', ') : '—');
@@ -144,6 +145,9 @@ ${machine('hero:adornment')}</div></section>`;
   // once the systems stand, each tier's gives are the stats' own (the tree's or the offers' `<class>-<stage>`)
   const tierGives = (cls, st) => { const x = [...(B.mechanics?.play.stats.tree ?? []), ...(B.mechanics?.play.stats.offers ?? [])].find((y) => y.id === `${cls}-${st}`); return x?.gives?.raise ? ` · ${Object.entries(x.gives.raise).map(([k, v]) => `${k} +${v}`).join(', ')}` : ''; };
   const tierCell = (r) => (r.build ? STAGES.map((st) => esc(dialsAt(r, st) + tierGives(r.class, st))).join('<br>') : '<span class="muted">—</span>');
+  // the starter gear the world asks for (world-gear.js): what it filled, from where, and what it left as tasks and requests
+  const ST = populateGear(G), slotOf = (sl) => (['right', 'left'].includes(sl) ? `${sl} hand` : `on the ${sl}`);
+  const stock = ST ? `<h4>Starter gear</h4><p class="muted">Filled from what the world says: the hero's gear, each civilization's held weapons in its own language, each civilization's answer to the hero's (a mirror) and each item's shadow (a contrast). Made with the table, once the stats are settled.</p><table class="powers"><tr><th>item</th><th>from</th><th>language</th><th>why</th></tr>${ST.entries.map((e) => `<tr><td><b>${esc(e.id)}</b><br><span class="muted">${esc(e.class)} · ${esc(slotOf(e.slot))}${e.tiers ? ' · tiered' : ''}</span></td><td>${esc(e.source)}${e.of ? `<br><span class="muted">of ${esc(e.of)}</span>` : ''}</td><td>${esc(styleName(e.build.style))}</td><td>${esc(e.why)}${e.errors ? `<br><b>refused by the kernel</b>: ${esc(e.errors.join('; '))}` : ''}</td></tr>`).join('')}</table>${ST.tasks.length ? `<h4>Held weapons with no class yet</h4><ul>${ST.tasks.map((t) => `<li><b>${esc(t.civilization)}/${esc(t.id)}</b> ${esc(t.intent)}: <span class="muted">${esc(t.why)}</span></li>`).join('')}</ul>` : ''}${ST.requests.length ? `<h4>Props it asks for</h4><ul>${ST.requests.map((r) => `<li><b>${esc(r.id)}</b> opens ${esc(r.opens)}</li>`).join('')}</ul>` : ''}` : '';
   const equipment = `<section class="part" id="equipment"><div class="part-h"><span class="eyebrow">Equipment ${stamp('equipment')}</span><h2>What can be equipped</h2><p class="muted">The world's gear, one row per class. What the hero's adornment conceived is the template of its class; the empty rows are yours to fill. Gear is made once the stats are settled: what each tier raises is theirs.</p></div><div class="card">${note('equipment')}
 ${G.equipment?.style !== undefined ? `<p class="read">The world's gear language: <b>${esc(styleName(G.equipment.style))}</b>${typeof G.equipment.style === 'object' ? ' (its own card)' : ''}, worn by every class whose row names no style of its own.</p>` : ''}
 <table class="powers"><tr><th>class</th><th>status</th><th>template</th><th>by stage</th><th>from</th></tr>${E.rows.map((r) => `<tr><td><b>${esc(r.class)}</b>${photo(r)}</td><td class="${r.status === 'empty' ? 'muted' : ''}">${esc(statusOf[r.status])}</td><td>${buildCell(r)}</td><td>${tierCell(r)}</td><td>${r.from ? `${esc(r.from)}${r.also ? `<br><span class="muted">also ${list(r.also)}</span>` : ''}` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>
@@ -151,7 +155,7 @@ ${E.tasks.length ? `<h4>To fill</h4><p class="muted">${list(E.tasks)}: write eac
 ${E.ledger.length ? `<h4>Where it departs</h4><ul class="ledger">${E.ledger.map((o) => `<li><b>${esc(o.key)}</b> ${esc(o.local)} <span>over ${esc(o.world)}</span></li>`).join('')}</ul>` : ''}
 ${machine('equipment')}
 <p class="muted">${EO.mints.length ? `Ready: ${EO.mints.length} mint${EO.mints.length === 1 ? '' : 's'} below.` : `Not made yet: waiting on ${EO.waiting.map((w) => `${esc(w.id)} (${esc(w.status)})`).join(', ')}.`}</p>
-${EO.mints.length ? `<details><summary>The orders that make them</summary><pre>${esc(JSON.stringify(shortOrders(EO.mints), null, 2))}</pre></details>` : EO.planned?.length ? `<details><summary>The ${EO.planned.length} mint${EO.planned.length === 1 ? '' : 's'} it will make once ready</summary><pre>${esc(JSON.stringify(shortOrders(EO.planned), null, 2))}</pre></details>` : ''}</div></section>`;
+${EO.mints.length ? `<details><summary>The orders that make them</summary><pre>${esc(JSON.stringify(shortOrders(EO.mints), null, 2))}</pre></details>` : EO.planned?.length ? `<details><summary>The ${EO.planned.length} mint${EO.planned.length === 1 ? '' : 's'} it will make once ready</summary><pre>${esc(JSON.stringify(shortOrders(EO.planned), null, 2))}</pre></details>` : ''}${stock}</div></section>`;
 
   // the systems: the stats the loop calls for, with their reasons, the epochs and the tree by stage, the HUD
   const MC = B.mechanics, MS = MC?.play.stats;

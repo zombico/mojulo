@@ -291,6 +291,226 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   shell with every level open, nothing saved and the debug drawer open; `level` opens straight into one level.
   design_game's `play` step and create_game's answer carry the link.
 
+### World gear: starter items that fill a world
+
+- Under way. Every functional model in a game is technology. A world that sets `equipment.populate` fills its
+  starter gear from what it already says:
+  - the hero's items;
+  - each civilization's crafted held weapons that the equipment kernel can build;
+  - mirrors, contrasts and keys.
+
+  Each entry is dressed in the language of the civilization that makes it. Absent, a world adds nothing.
+- **One direction, every scale** (`gameworld/world-gear.js` `gearStyle`). A civilization's gear speaks its
+  technology's language: its motif picks the base style card, its setting picks the metals, its element picks the
+  stone, and its team colour marks the grip and the shield's board. Each choice says where it came from.
+- **Transforms, not models.**
+  - A MIRROR is a rival's answer to an item: same class, slot and tiers, in the rival's language.
+  - A CONTRAST is an item's shadow: the opposite motif, the same maker.
+  - An AUGMENT grows tiers by rule for gear the hero's page did not tier.
+
+  Every derived entry says what it came from.
+- **Wired in.**
+  - The character bible's equipment section shows the starter gear.
+  - `gearOrders` plans its mints, which wait on the game's stats as the equipment table's do.
+  - `node scripts/gear-sheet.mjs` draws the stock shaded.
+  - The `populate-world-gear` catalyst walks it.
+- A held weapon the kernel has no class for (a carbine, a lance) is listed as a task.
+
+### The mechanism kit: technology that reads at person scale
+
+- Under way. Crafted technology is designed for first- and third-person play first. RTS scale is derived from it
+  later, at the far camera, and is not designed for its own sake.
+- **Watched, held or driven.** Every crafted thing has a `use`, next to its interest rank:
+  - `watched`: set pieces, structures, emplacements, machines and siege engines you observe or escort.
+  - `held`: a weapon in the hand.
+  - `driven`: a vehicle you ride.
+
+  The default comes from what the thing is, so a cart or a siege engine is watched, not driven. A world may say
+  `{ intent, use }`, and the ledger records it when that differs from the default.
+- **Designed at its use's distance** (`gameworld/tech-eras.js`):
+  - A held weapon in first person is designed at the view model's 0.55 m, the nearest camera there is.
+  - A driven vehicle in first person is designed at the cockpit's view of its own hull.
+  - A watched thing is designed at its tier's meet distance.
+- **A budget by use, not a share capped under the hero.** At person scale few units are on screen, so each spends
+  more:
+  - A driven vehicle may spend up to one and a half heroes.
+  - A held weapon may spend half a hero.
+  - A watched focus may spend one hero.
+  - A typical person-scale scene (`PERSON_SCENE`) adds these up against one scene budget.
+- **Measured where it is read.** Facets are measured at the use's distance. Silhouette segments are measured at the
+  distance a thing is watched from, because a cockpit sees its own bonnet, not its outline. A smooth or organic
+  section takes its points by its real outline, not by the circle of its half-sides. A round may take up to
+  `FIT_MAX` points. The resolution dial now moves in small steps.
+- **Smoothing groups: pixels, not polygons** (`gameworld/tech-shading.js`). A crafted thing's rounds are shaded
+  smooth. Inside a piece, an edge whose faces turn less than the style's crease (40°) shares its normals, and a
+  chamfer stays hard. Each face carries `cornerNormals`. `faceListToMesh` writes them as the GLB's per-vertex
+  normals when they are present (absent, zero bytes), and `bakeCorners` bakes light per corner into
+  `cornerFills` for the unlit path.
+- **On a smooth round, the facets law is outline error.** It measures how far the outline strays from the true
+  curve, in pixels on today's screen, not how wide a facet reads. A facet's band no longer shows once it is shaded
+  smooth, so the round spends points only where its curve is tight. Each round's points are sized to that error.
+  Flat-shaded faces keep the width law.
+- Across 17 briefs × 6 motifs × 3 cameras, every case now holds, the organic walkers driven in first person
+  included. They spend fewer triangles than they did flat.
+- **One wheel, one track, many dresses** (`gameworld/mech-kit.js`). A mechanism is one topology with named parts
+  and sockets:
+  - A wheel has a hub on its axle and a rim at its contact.
+  - A track has a drive sprocket at the rear, a raised idler at the front, at least three road wheels on the
+    ground and return rollers when its road wheels are small, all wrapped in one belt.
+
+  A DRESS restyles it by what it is made of and how it is driven, never by a date:
+  - Wheels: spoked (timber or iron, muscle to steam), disc (iron or steel), road (steel and rubber), pad (field
+    or arcane: it lifts, and does not roll).
+  - Tracks: link (iron and steel, with grousers) and band (rubber, with large interleaved road wheels).
+
+  `resolveMechanism` picks a dress by the setting and says why it refused the others. Each mechanism gives its
+  CAGE, the triangles that ship, and its DETAIL (bolts, lugs, grousers, tread), geometry kept for the bake. A
+  detail piece that stands in the silhouette moves into the cage once the design camera can resolve it.
+- The body plans' wheels and tracks are built by the kit. A technology direction carries a `setting`
+  (`{ made, driven }`); until the setting read lands, it defaults from the civilization's finish.
+- **Asymmetry: the Warcraft lean.** A technology direction says how lopsided its civilization's technology is
+  (`asymmetry`, 0–1, or a word: symmetric, balanced, asymmetric, lopsided, ramshackle). The style supplies it
+  otherwise: 0.4 for wc3.
+  - A thing leans to one side: away from a weapon on its flank (the weapon is the counterweight), else the side its
+    words fall to, always the same.
+  - Its lead flank's pieces grow and the other's shrink, what stands on top steps toward the lead, and a weapon
+    steps the other way.
+  - Past half, its armour goes to the lead flank alone.
+  - Its team colour is designed into the surface, never flown: a livery decal wrapped from the core's own section.
+    When it leans, it is a sash over the back and down the open flank, so armour and colour balance each other;
+    when even, a band all round.
+  - Held gear takes the lean from the vocabulary it already has, with no new kernel shapes:
+    - It is exaggerated as the style draws held things (wc3 ×1.35): wider and thicker blades, bigger pommels,
+      broader guards, a stubbier length, more mass, more stylization.
+    - A lopsided civilization's blades take their motif's one-sided shape (`ONE_SIDED`): cleaver for spiked and
+      riveted, tanto for faceted, sabre otherwise. They get a spine, and barbs down one edge as far as they lean
+      when the motif bites.
+  - The bible's direction card shows the asymmetry and where it came from.
+- **The `design-tech-family` catalyst, and a shaded contact sheet to judge by.**
+  - **The catalyst** codifies how the combined machines were grown: read the brief, pick the cheapest entry (a
+    dress, a variant, a row, and only then a part kind in code), depict first, then hold it to the laws, sweep it,
+    and confirm it in a bible. When a law fights a good depiction, fix the principle for everything it touches,
+    never the one machine. `design-vehicle-family` points to it for a civilization's technology.
+  - **The sheet.** `gameworld/tech-sheet.js` draws crafted technology shaded as the engine shades it (smooth
+    rounds, hard chamfers), where the bible's plates paint each face flat. `node scripts/tech-sheet.mjs
+    "kind|words[|motif|camera|made|driven]" …` prints each thing's form, variant, rank and use, triangles, dresses
+    and laws. It writes a PNG with sharp, or a PPM when sharp is absent.
+- **Readout and solver rules the combined machines found.**
+  - Read how it is seen:
+    - A row of wheels, the running gear the kit builds, reads as one band in the silhouette, not a segment
+      each. Legs still count.
+    - The rails a thing stands on are ground: drawn and counted, never its silhouette.
+  - Grow it within bounds:
+    - The solver grows a lead at most ×1.5 (`LEAD_GROW`): a proportion is pushed, never broken.
+    - A lead may be several pieces that read as one body (a locomotive's boiler and cab).
+    - A row's `optional` parts are its own secondary detail: dropped, last first, when the thing says too much.
+  - Adorn it for what it is:
+    - A turret needs a deck that is large and deep; a thing without one carries its weapons in a `rack` on
+      its flank.
+    - A thing pulled or pedalled (every mechanism driven by muscle) gets no machine face and no vents.
+    - A thing with windows or lamps already has its face.
+  - Masses are placed relative to the core: they can sit from its nose or tail, and taper at both ends (a
+    raked glasshouse).
+  - Wheels can prefer a dress (`prefer`), and a wheel's drive can override the setting (`driven`).
+  - Drawn vehicles are watched, not driven: a cart is a prop; a wagon, coach or chariot is boarded or escorted.
+- **Rings where the curve is.** Shaded smooth, a lathe takes the fewest rings that land on its profile's corners,
+  and a loft spends rings along its length by how much it bows (`fitArc`), not by how long it is. A straight run
+  between two corners spends nothing. The iron tank in third person drops from 4.0k to 3.2k triangles with no
+  visible change.
+- **Combined machines: wheeled, railed and two-wheeled transport.** Built as body-plan rows with variants picked
+  by the brief's words, from generic parts placed by data: masses with a glass band, tubes, open beds, wheel
+  arches, lamps, rails with sleepers, and bogies. The variants:
+  - Wheeled: car, truck, bus, armoured car.
+  - Railed: steam locomotive, carriage or tram.
+  - Drawn: cart, wagon, chariot, coach.
+  - Two-wheeled (a new `cycle` form): bicycle, motorcycle.
+
+  The kit learns rail wheels: flanged, or a maglev pad when the setting is driven by field or arcane, lifting
+  over its rail. It also learns inline wheels (one per axle), and steering front axles: a steer joint about the
+  vertical carries the wheel's spin.
+- **Rules that track wheels exposed in the adornment's solver.**
+  - Hoses go only to joints with a limited range: a hose cannot feed a wheel that spins free.
+  - When a thing shows too many silhouette segments and has no legs to draw in, the solver drops its
+    lowest-priority adornment that keeps no promise.
+  - A conflict proposes the next rank up.
+
+### Technology design loop: chassis, adornment, skin
+
+- Under way, nothing ships yet. A civilization's crafted vehicles, tech-structures and weapons get a design loop like
+  the hero's: direction, chassis (low-poly masses on a rigid rig), adornment (shells, plates, spikes and emitters on
+  sockets, each serving a function), skin (values, a painted atlas, a team-colour mask), effects (the glow is the
+  accent) and motion with tiers. Each page is reviewed in the bible. Built on the workbench, so crafted tech exports
+  to GLB and Godot. This section fills as phases land.
+- **Style apart from density** (`gameworld/tech-eras.js`). The style is Warcraft 3's: chunky masses, exaggeration where
+  small things must read, the detail in the paint. Density follows the world's camera, not the style. Each camera
+  (third person by default, first person, side, top-down) sets where the hero is seen and where each tier of tech is
+  met, so a walker beside a third-person hero rounds its masses more than the same walker seen top-down. The hero leads
+  in count: each interest rank is capped at a share of the hero's triangles. Atlas pages follow surface area and
+  distance on a 2560×1440 screen.
+- **The readout** (`gameworld/tech-readout.js`): the widest facet on a curve, read on today's screen at the meet
+  distance against the style's band (chunky reads, crude does not; too narrow is wasted); triangles under the rank's
+  ceiling; silhouette segments at the meet distance; whether the main mass is shaded in; render groups; the atlas page.
+- **The direction page** (`gameworld/tech-direction.js`): `technology.direction` gives a civilization's crafted things
+  a style, a motif (smooth, faceted, riveted, spiked, organic, ornate: the shape language their adornment will speak),
+  elements (the glow and the stones; the hero's when left out), a tone and a team colour. Every default says where it
+  came from (a motif from its words, its builds or its finish), and what is said over a default is ledgered. The team
+  colour is a marker a placement may pass; the civilization's place sets the default. A crafted thing may name its
+  interest rank (`{ intent, rank }`); otherwise what it does and how big it is decide it. Each civilization's direction
+  is a review part in the bible, the graph carries ranks, and autonomous mode reads a motif and elements from the prompt.
+- **The chassis, solved from a body plan** (`gameworld/tech-chassis.js`, `gameworld/tech-bodyplan.js`). A form is a row of
+  data: a core and its parts (limbs, tracks, wheels, a skirt, pods, a cabin, a fin, a plinth, a deck, a mast, piers, a
+  pedestal, barrels, a sail, a stack, oars), solved by one solver that names no form. Rows exist for the walker, tank,
+  hovercraft, ship, tower, gate, turret and cannon; other forms keep their blocks. Joints and sockets are derived from
+  the masses, never listed. A crafted thing's main masses are
+  built as workbench geometry (lofts, lathes, sweeps, extrudes) in values, on a rigid rig of named joints (a walker's
+  hips and knees, a tower's turning crown), with named sockets where the adornment will hang. The motif shapes the
+  sections. Each rounded piece gets just enough sides for where the world's camera meets it, so the same walker spends
+  about 3,800 triangles beside a third-person hero and about 1,400 seen top-down. What the words claim that the masses
+  cannot show (an armoured walker's plates) is promised to the adornment rather than failed. The bible draws these
+  things as their chassis and adornment, painted in the civilization's finish.
+- **The adornment** (`gameworld/tech-adornment.js`), whose rules read sockets by face and mass, never by name. Plates, panels, a visor, an eye,
+  vents, hoses, antennas, spikes, fins, rivets, a turret, a dish, a lantern room, bands: each piece serves something
+  and says why it is there. What the words promised comes first (an armoured walker's plates serve guard), then the
+  face a machine is read by, then the motif's own (rivets on riveted plates, spikes on a spiked hull, fins on a smooth
+  one), then whatever stands past the outline until the interest rank's silhouette floor is met. A lighthouse is
+  crowned by its lantern room and cap. Every thing carries its one status light. The solver loops until every law
+  holds; when two laws cannot both hold for a brief (a walker met at arm's length rounding its masses under the hero's
+  triangle ceiling), it names the conflict and what would settle it.
+  The object measures take an optional meet distance; without one they read as before.
+
+### World bible: technology, crafted
+
+- **A civilization's technology grows three lists.** `civilizations.<id>.technology` takes `vehicles`, `structures`
+  and `weapons` beside `things` (its machines), each `{ <id>: words | { intent, seed? } }`. The building tunnel makes
+  what a civilization lives in; the technology crafter (`gameworld/tech-crafter.js`) makes what it goes in, what it
+  raises to be seen and what it fights with. Every crafted block joins the civilization's library, so an id names one
+  thing across the lists. A world without them reads, resolves, graphs and draws byte-identically.
+- **The crafter.** One tunnel loop per kind (`craftTech(kind, intent)`): an intent is read into a form and its
+  variant, the functions it shows and how it looks doing them. A grammar per form lays a part for every read, the laws
+  assess it, and a tweak thickens what was lost, leads what should lead and lets the runner-up give way.
+  - A word that names a kind in general (a tower, a gun) gives way to one that names it. Of two that name it, the
+    last named is the thing ("a forcefield gate" is a gate with a field across it).
+  - **Vehicles**: wheeled, tracked, walkers, rail, hover, rotorcraft, winged craft, airships, ships (rowed unless under
+    sail or steam), drawn carts; armoured, armed, carrying cargo; a `vessel` tier for building-scale craft. A ship's
+    hull is 16 m and a boat's 6.5 m, at the hero's scale.
+  - **Tech-structures**: towers (and what they carry at the top: a beacon, a lantern, a dish, a gun, collectors),
+    gates and portals, bridges and aqueducts, windmills and watermills, cooling and furnace stacks, great dishes,
+    barriers and launch gantries. A `landmark` tier and a `stands-out` law: 8 m or more, the signature geometry at the
+    far ring.
+  - **Weapons**: blades, polearms, axes and hammers, bows and crossbows, staves, rifles and pistols, shields;
+    cannon and mortars, trebuchets and catapults, ballistae, launchers, turrets; energy, twin and many barrels,
+    sentries.
+  - A hand weapon takes the new `held` tier, judged at arm's length (at six metres a blade is a line). One a character
+    can carry names its equipment class (`carries`: sword, dagger, greatsword, bow, staff, shield). Crewed and
+    emplaced weapons are judged at near.
+- **Blocks** (`era/blocks.js`): the functions `strike`, `guard` and `pass`; the tiers `held` (a `reach` in metres in
+  place of a ring), `vessel` and `landmark`; the mounts `hand` and `water`. Existing blocks build byte-identically.
+- **In the world.** The graph gains `vehicle`, `tech-structure` and `weapon` nodes, reached by `drives`, `erects` and
+  `wields`. The bible draws each list in the civilization's finish, with its tunnel's log. Autonomous mode sends a
+  clause that names no machine but a crafted form ("war galleys", "a stargate") to the crafter. Halden Reach fields
+  crawlers, a hover skimmer, a cargo lifter, a relay mast, a dish and a launch gantry, carbines, sentries and shields.
+  The technology index (`out-sheet.mjs tech`) gains a card per kind.
+
 ### Asset receipts: a creator's signed proof for an exported file
 
 - **`sign_asset` / `verify_asset` (pack_stash).** `sign_asset({ path })` hashes an exported file, signs the hash with
